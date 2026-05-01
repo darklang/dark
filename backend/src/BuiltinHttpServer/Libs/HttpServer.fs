@@ -147,8 +147,8 @@ let private canonicalizeUrlFromForwardedProto
 
 
 /// Add `Server: darklang` and HSTS to the response headers unless the handler
-/// already set them. Header keys may be lowercased (LibHttpMiddleware lowercases
-/// them on the way out), so we compare case-insensitively.
+/// already set them. Header keys may be lowercased (the response-shape
+/// converter lowercases them on the way out), so we compare case-insensitively.
 let private maybeInjectStandardHeaders
   (inject : bool)
   (headers : List<string * string>)

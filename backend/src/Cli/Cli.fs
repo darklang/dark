@@ -85,8 +85,8 @@ let state (packageManager : RT.PackageManager) =
     (_msg : string)
     (_metadata : Metadata)
     =
-    // let metadata = extraMetadata state @ metadata
-    // LibService.Rollbar.notify msg metadata
+    // No-op exception sink for the CLI; future external exception
+    // reporters (e.g. Rollbar / Sentry) would plug in here.
     uply { return () }
 
   let sendException
