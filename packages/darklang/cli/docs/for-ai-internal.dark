@@ -105,10 +105,39 @@ Use `expect` via run-in-docker for automated interactive testing:
 Telemetry data lands in rundir/logs/telemetry.jsonl.
 Full guide: `docs interactive-testing`
 
-## HTTP Server Demo
-  http-server <port> <router>   # serve a Darklang router function
-Use ports 9090-9099 for demos (forwarded from devcontainer to host).
-Kill anything already on the port if needed.
+## HTTP Server (`darklang serve`)
+  darklang serve <fn-path> --port N [--max-body-bytes N]
+            (alias: `http-server`)
+
+`<fn-path>` is the full package path of a router function with type
+`Stdlib.Http.Request -> Stdlib.Http.Response`. Routing is in Dark
+(see `Stdlib.HttpServer.routeRequest`); F# only does accept + parse +
+write. Use ports 9090-9099 for demos (forwarded from devcontainer to
+host). Kill anything already on the port if needed.
+
+### Performance characteristics
+  - **New TCP connection per request**: ~130 ms median on loopback
+    (worst case — short-lived clients like shell-script `curl` loops).
+  - **Reused connection (HTTP/1.1 keepalive)**: ~10–15 ms median.
+    Browsers, fetch, axios, requests, and most HTTP libraries reuse
+    connections by default — the keepalive number is what real users
+    see. The 130 ms number only bites short-lived `curl`-in-a-loop
+    style clients.
+  - Breakdown: ~10 ms Dark interpreter, ~40 ms Linux TCP delayed-ACK
+    on loopback (kernel-level, affects any TCP server), ~80 ms
+    `HttpListener` per-new-connection overhead.
+
+### TODO — eventual swap to raw `TcpListener`
+The current backend is `System.Net.HttpListener`, which adds ~80 ms
+per new connection (proven via instrumentation + `dotnet-trace` —
+CPU is idle, time is in HttpListener-internal blocking). A 60-LOC PoC
+on raw `System.Net.Sockets.TcpListener` proves the cost goes to ~0.
+Plan to replace HttpListener with a hand-rolled HTTP/1.1 parser
+(~300 LOC, 1–2 days). Wins both performance AND moves us closer to
+the "thin .NET surface" goal — `TcpListener` has equivalents in any
+networked language (Rust/Go/OCaml/native-C) whereas `HttpListener`
+does not. Track in `notes/merge-readiness-report.md`. Do NOT switch
+to Kestrel — that re-introduces ~8 MB of `Microsoft.AspNetCore.*`.
 
 ## Debug
   Builtin.debug "label" value   # prints DEBUG: label: <repr> to stdout

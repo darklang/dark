@@ -69,7 +69,15 @@ let printUsage () : Unit =
     "Examples:"
     "  serve Darklang.DemoData.HttpServerTest.router"
     "  serve Some.Adhoc.Router --port 9000"
-    "  serve My.Service.app --port 80 --max-body-bytes 5242880" ]
+    "  serve My.Service.app --port 80 --max-body-bytes 5242880"
+    ""
+    "Performance:"
+    "  Per-request latency depends heavily on whether the client reuses TCP"
+    "  connections. New-connection-per-request: ~130 ms median. Keepalive"
+    "  (HTTP/1.1, default for browsers, fetch, axios, requests, and most"
+    "  HTTP libraries): ~10–15 ms. The 130 ms only bites short-lived"
+    "  clients like shell-script `curl` loops; real-world clients reuse"
+    "  connections automatically and see the keepalive number." ]
   |> Stdlib.printLines
 
 

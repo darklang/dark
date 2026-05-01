@@ -272,6 +272,18 @@ let runListener
   (cancellationToken : CancellationToken)
   : Task<unit> =
   task {
+    // TODO: replace `HttpListener` with raw `System.Net.Sockets.TcpListener`
+    // + a hand-rolled HTTP/1.1 parser. HttpListener adds ~80 ms per new
+    // connection on loopback (verified via dotnet-trace; CPU idle, time
+    // is in HttpListener-internal blocking). A 60-LOC `TcpListener` PoC
+    // proves that overhead disappears entirely. Wins both performance and
+    // the long-term "thin .NET surface" goal — `TcpListener` has obvious
+    // equivalents in Rust/Go/OCaml/native-C; `HttpListener` does not.
+    // Estimate: ~300 LOC + adversarial fixture pass for malformed-input
+    // + slow-loris-style timeouts. Do NOT switch to Kestrel — that
+    // re-introduces ~8 MB of `Microsoft.AspNetCore.*`. See
+    // `notes/merge-readiness-report.md` for the deep-dive + security
+    // tradeoffs of doing this.
     let listener = new HttpListener()
     listener.Prefixes.Add($"http://*:{port}/")
     listener.Start()

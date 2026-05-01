@@ -44,7 +44,10 @@ let content () : String =
   (see: docs scm)
 
 ## Server
-  http-server <port> <router>
+  serve <router-path> [--port N] [--max-body-bytes N]
+                  # `http-server` is an alias.
+                  # Keepalive clients see ~10 ms / req; new-connection
+                  # clients see ~130 ms / req. See `serve --help`.
 
 ## Other
   help [cmd]      # help
