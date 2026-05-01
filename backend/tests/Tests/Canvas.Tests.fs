@@ -11,7 +11,7 @@ open TestUtils.TestUtils
 open LibSqlite.Db
 
 module Canvas = LibCloud.Canvas
-module Serialize = LibCloud.Serialize
+module Serialize = LibDB.Serialize
 module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module Account = LibCloud.Account

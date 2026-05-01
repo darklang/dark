@@ -10,7 +10,7 @@
 /// - table/store ID
 /// - user version (for when the users change the type being stored)
 /// </remarks>
-module LibCloud.UserDB
+module LibDB.UserDB
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

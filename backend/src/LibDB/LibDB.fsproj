@@ -47,6 +47,11 @@
     <Compile Include="PackageManager/Scripts.fs" />
     <Compile Include="PackageManager/PackageRefsGenerator.fs" />
     <Compile Include="PackageManager/Seed.fs" />
+
+    <Compile Include="Serialize/Serialize.fs" />
+    <Compile Include="Secret/Secret.fs" />
+    <Compile Include="UserDB/UserDB.fs" />
+    <Compile Include="Tracing/Tracing.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

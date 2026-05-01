@@ -26,7 +26,7 @@ module C2DT = LibExecution.CommonToDarkTypes
 module D = LibExecution.DvalDecoder
 module Utils = BuiltinCliHost.Utils
 module Canvas = LibCloud.Canvas
-module Tracing = LibCloud.Tracing
+module Tracing = LibDB.Tracing
 
 
 // Load canvas ID and DBs for an account

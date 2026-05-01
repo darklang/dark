@@ -13,7 +13,7 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module VT = LibExecution.ValueType
 module NR = LibExecution.RuntimeTypes.NameResolution
 module Canvas = LibCloud.Canvas
-module Serialize = LibCloud.Serialize
+module Serialize = LibDB.Serialize
 module Account = LibCloud.Account
 module PackageLocation = LibDB.PackageManager.PackageLocation
 

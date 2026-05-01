@@ -23,11 +23,7 @@
     <Compile Include="Config.fs" />
     <Compile Include="File.fs" />
     <Compile Include="Account.fs" />
-    <Compile Include="Serialize.fs" />
-    <Compile Include="Secret.fs" />
     <Compile Include="Canvas.fs" />
-    <Compile Include="Tracing.fs" />
-    <Compile Include="UserDB.fs" />
     <Compile Include="Stats.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

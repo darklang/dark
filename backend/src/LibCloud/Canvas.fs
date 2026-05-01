@@ -15,6 +15,8 @@ module PT = LibExecution.ProgramTypes
 module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module Serialize = LibDB.Serialize
+module Secret = LibDB.Secret
 
 
 let createWithExactID

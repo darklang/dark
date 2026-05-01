@@ -25,7 +25,7 @@ module Dval = LibExecution.Dval
 module NR = LibParser.NameResolver
 module RTNR = LibExecution.RuntimeTypes.NameResolution
 module Canvas = LibCloud.Canvas
-module Serialize = LibCloud.Serialize
+module Serialize = LibDB.Serialize
 
 open TestUtils.TestUtils
 

@@ -2,7 +2,7 @@
 /// <remarks>
 /// Serialization formats and binary conversions are stored elsewhere
 /// </remarks>
-module LibCloud.Serialize
+module LibDB.Serialize
 
 open System.Threading.Tasks
 //open FSharp.Control.Tasks
