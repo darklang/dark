@@ -124,7 +124,7 @@ let builtins
 
 let cloudBuiltIns (pm : PT.PackageManager) =
   let httpConfig =
-    { LibCloudExecution.HttpClient.configuration with
+    { BuiltinExecution.Libs.HttpClient.strictConfig with
         timeoutInMs = 5000
         allowedIP = (fun _ -> true) }
   builtins httpConfig pm

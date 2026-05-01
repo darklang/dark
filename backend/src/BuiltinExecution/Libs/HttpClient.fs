@@ -264,9 +264,9 @@ module BaseClient =
     )
 
 
-/// This configuration has no limits, and so is only suitable for trusted
-/// environments (the command line), and is not suitable for untrusted environments
-/// (eg the cloud)
+/// This configuration has no limits, and so is only suitable for
+/// trusted environments (the command line), and is not suitable for
+/// servers that execute untrusted code (use `strictConfig` for that).
 let defaultConfig =
   { timeoutInMs = 30000
     allowedIP = fun _ -> true
@@ -276,6 +276,94 @@ let defaultConfig =
     telemetryInitialize = fun f -> f ()
     telemetryAddTag = fun _ _ -> ()
     telemetryAddException = fun _ _ -> () }
+
+
+/// SSRF guard: predicates that block access to internal IP ranges,
+/// loopback, link-local, and well-known cloud-provider metadata
+/// endpoints.
+///
+/// Used by `strictConfig` (below) to compose a configuration safe
+/// for HTTP servers that execute untrusted handler code. Exposed
+/// directly so callers can build a custom configuration that mixes
+/// these predicates with their own allow-lists.
+module LocalAccess =
+
+  // RFC 1918 private ranges
+  // https://datatracker.ietf.org/doc/html/rfc1918#section-3
+  let private ten = System.Net.IPNetwork.Parse "10.0.0.0/8"
+  let private oneSevenTwo = System.Net.IPNetwork.Parse "172.16.0.0/12"
+  let private oneNineTwo = System.Net.IPNetwork.Parse "192.168.0.0/16"
+
+  // RFC 6598 carrier-grade NAT
+  // https://datatracker.ietf.org/doc/html/rfc6598#section-7
+  let private oneHundred = System.Net.IPNetwork.Parse "100.64.0.0/10"
+
+  // Google Cloud Run private endpoints (199.36.153.4/30, 199.36.153.8/30)
+  let private oneNineNineFour = System.Net.IPNetwork.Parse "199.36.153.4/30"
+  let private oneNineNineEight = System.Net.IPNetwork.Parse "199.36.153.8/30"
+
+  // 169.254.0.0/16 — link-local addresses (incl. cloud metadata IPs)
+  let private oneSixNine = System.Net.IPNetwork.Parse "169.254.0.0/16"
+
+  let private zero = System.Net.IPAddress.Parse "0.0.0.0"
+
+  let bannedIPv4 (ip : System.Net.IPAddress) : bool =
+    System.Net.IPAddress.IsLoopback ip // 127.*
+    || ten.Contains ip
+    || oneSevenTwo.Contains ip
+    || oneNineTwo.Contains ip
+    || oneHundred.Contains ip
+    || oneNineNineFour.Contains ip
+    || oneNineNineEight.Contains ip
+    || oneSixNine.Contains ip
+    || zero = ip
+
+  let bannedIp (ip : System.Net.IPAddress) : bool =
+    if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetworkV6 then
+      if ip.IsIPv4MappedToIPv6 then
+        bannedIPv4 (ip.MapToIPv4())
+      else
+        ip.IsIPv6LinkLocal // ipv6 equivalent of 169.254.*
+        || ip.IsIPv6SiteLocal // ipv6 equivalent of 10/172.16/192.168
+        || System.Net.IPAddress.IsLoopback ip
+    else if ip.AddressFamily = System.Net.Sockets.AddressFamily.InterNetwork then
+      bannedIPv4 ip
+    else
+      true // not ipv4 or ipv6, so banned
+
+  let bannedHost (host : string) : bool =
+    let host = host.Trim().ToLower()
+    let badIP =
+      let mutable ip = null
+      if System.Net.IPAddress.TryParse(host, &ip) then bannedIp ip else false
+    badIP
+    || host = "localhost"
+    || host = "metadata"
+    || host = "metadata.google.internal"
+
+  /// Disallow headers that would request the GCP Instance Metadata service.
+  let hasInstanceMetadataHeader (headers : Headers.T) : bool =
+    let eq = String.equalsCaseInsensitive
+    headers
+    |> List.find (fun (k, v) ->
+      let (k, v) = (String.trim k, String.trim v)
+      (eq k "Metadata-Flavor" && eq v "Google")
+      // Old but allowed
+      // https://cloud.google.com/compute/docs/metadata/overview#querying
+      || (eq k "X-Google-Metadata-Request" && eq v "True"))
+    |> Option.isSome
+
+
+/// Configuration safe for servers that execute untrusted handler code:
+/// blocks SSRF to internal IP ranges, loopback, link-local, and
+/// cloud-metadata endpoints. Telemetry stubs are no-ops; supply your
+/// own if you need observability.
+let strictConfig : Configuration =
+  { defaultConfig with
+      allowedIP = fun ip -> not (LocalAccess.bannedIp ip)
+      allowedHost = fun host -> not (LocalAccess.bannedHost host)
+      allowedScheme = fun scheme -> scheme = "https" || scheme = "http"
+      allowedHeaders = fun headers -> not (LocalAccess.hasInstanceMetadataHeader headers) }
 
 
 // ————————————————————————————————————————————————————————————
