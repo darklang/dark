@@ -109,6 +109,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "follow"; "--route"; route ] ->
     executeFollow state (Stdlib.Option.Option.Some route)
 
+  | [ "stats" ] -> executeStats state 100L
+  | [ "stats"; limitStr ] ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit -> executeStats state limit
+    | Error _ ->
+      Stdlib.printLine (Colors.error $"Invalid limit: {limitStr}")
+      state
+
   | "view" :: traceID :: flagArgs ->
     match parseViewOptions defaultViewOptions flagArgs with
     | Ok opts -> executeView state traceID opts
@@ -156,6 +164,48 @@ let executeListByFn (state: Cli.AppState) (fnName: String) (limit: Int64) : Cli.
     printTraceRows rows
     Stdlib.printLine ""
     Stdlib.printLine "Use 'traces view <trace-id>' to see details."
+    state
+
+
+/// `traces stats` — count of recent traces per route, sorted by count
+/// descending. Pure Dark over `cliTracesList`. With no schema for
+/// per-trace duration we can't show latency yet; this is the count
+/// snapshot.
+let executeStats (state: Cli.AppState) (limit: Int64) : Cli.AppState =
+  let rows = Builtin.cliTracesList limit
+
+  match rows with
+  | [] ->
+    Stdlib.printLine "No traces found."
+    state
+  | _ ->
+    // Group by handler description; count.
+    let counts =
+      rows
+      |> Stdlib.List.fold Stdlib.Dict.empty (fun acc row ->
+        let cur =
+          match Stdlib.Dict.get acc row.handler with
+          | Some n -> n
+          | None -> 0L
+        Stdlib.Dict.setOverridingDuplicates acc row.handler (cur + 1L))
+
+    let pairs =
+      counts
+      |> Stdlib.Dict.toList
+      |> Stdlib.List.sortBy (fun pair ->
+        let (_, n) = pair
+        // Sort descending: negate. Stdlib.List.sortBy is ascending.
+        0L - n)
+
+    let total = Stdlib.Int64.toString (Stdlib.List.length rows)
+    Stdlib.printLine $"Recent {total} traces by route:"
+    Stdlib.printLine ""
+    Stdlib.List.iter pairs (fun pair ->
+      let (handler, count) = pair
+      let countStr = Stdlib.Int64.toString count
+      Stdlib.printLine $"  {countStr}  {handler}")
+    Stdlib.printLine ""
+    Stdlib.printLine "Use 'traces list --route <substring>' to drill into a route."
     state
 
 
