@@ -146,10 +146,22 @@ let custom
 
 
 // ENVIRONMENT-BASED MODEL SELECTION
+//
+// These were values, but the seed evaluator hits a `FnNotFound (Package
+// (Hash ""))` on a fresh DB when a value body calls `Stdlib.Env.get`
+// from a `match` discriminant — name resolution stores an empty hash
+// for the fn ref. Tracked separately. Until that's fixed, the
+// env-var-driven dispatch lives in fns evaluated at runtime, not in
+// values evaluated at seed time. Defaults to Anthropic.
 
-/// Get the balanced model based on environment variable
-/// Set DARKLANG_LLM_PROVIDER to "openai", "ollama", or "anthropic" (default)
-let balanced : Model =
+let balanced : Model = Anthropic.balanced
+let fast : Model = Anthropic.fast
+let smart : Model = Anthropic.smart
+
+
+/// Pick the balanced model for the current `DARKLANG_LLM_PROVIDER`.
+/// "openai" → OpenAI.balanced, "ollama"/"local" → Local.balanced, else Anthropic.
+let pickBalanced () : Model =
   match Stdlib.Env.get "DARKLANG_LLM_PROVIDER" with
   | Some "openai" -> OpenAI.balanced
   | Some "ollama" -> Local.balanced
@@ -157,8 +169,8 @@ let balanced : Model =
   | _ -> Anthropic.balanced
 
 
-/// Get the fast model based on environment variable
-let fast : Model =
+/// Pick the fast model for the current `DARKLANG_LLM_PROVIDER`.
+let pickFast () : Model =
   match Stdlib.Env.get "DARKLANG_LLM_PROVIDER" with
   | Some "openai" -> OpenAI.fast
   | Some "ollama" -> Local.balanced
@@ -166,8 +178,8 @@ let fast : Model =
   | _ -> Anthropic.fast
 
 
-/// Get the smart model based on environment variable
-let smart : Model =
+/// Pick the smart model for the current `DARKLANG_LLM_PROVIDER`.
+let pickSmart () : Model =
   match Stdlib.Env.get "DARKLANG_LLM_PROVIDER" with
   | Some "openai" -> OpenAI.smart
   | Some "ollama" -> Local.llama3_70b
