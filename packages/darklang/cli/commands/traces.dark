@@ -95,6 +95,15 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Colors.error $"Invalid limit: {limitStr}")
       state
 
+  | [ "list"; "--route"; route ] ->
+    executeListByRoute state route 20L
+  | [ "list"; "--route"; route; limitStr ] ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit -> executeListByRoute state route limit
+    | Error _ ->
+      Stdlib.printLine (Colors.error $"Invalid limit: {limitStr}")
+      state
+
   | "view" :: traceID :: flagArgs ->
     match parseViewOptions defaultViewOptions flagArgs with
     | Ok opts -> executeView state traceID opts
@@ -143,6 +152,35 @@ let executeListByFn (state: Cli.AppState) (fnName: String) (limit: Int64) : Cli.
     Stdlib.printLine ""
     Stdlib.printLine "Use 'traces view <trace-id>' to see details."
     state
+
+
+/// Filter recent traces by a substring of the trace's `handler` field
+/// (which for HTTP traces is `"<METHOD> <path>"` like `"GET /hello"`).
+/// Substring match makes both `"/hello"` and `"GET"` work.
+let executeListByRoute (state: Cli.AppState) (route: String) (limit: Int64) : Cli.AppState =
+  // Over-fetch then filter; cliTracesList returns the most-recent N rows
+  // unfiltered, so to find N matching we may need to pull more. Cap at
+  // 500 to bound the fetch.
+  let overFetch = if limit < 50L then 500L else limit * 10L
+  let allRows = Builtin.cliTracesList overFetch
+  let matching =
+    allRows
+    |> Stdlib.List.filter (fun row -> Stdlib.String.contains row.handler route)
+    |> Stdlib.List.take limit
+
+  match matching with
+  | [] ->
+    Stdlib.printLine $"No traces found for route filter '{route}'."
+    state
+  | _ ->
+    Stdlib.printLine $"Traces matching route '{route}' (last {Stdlib.Int64.toString limit}):"
+    Stdlib.printLine ""
+    printTraceRows matching
+    Stdlib.printLine ""
+    Stdlib.printLine "Use 'traces view <trace-id>' to see details."
+    state
+
+
 
 
 let printTraceRows (rows: List<TraceSummary>) : Unit =
