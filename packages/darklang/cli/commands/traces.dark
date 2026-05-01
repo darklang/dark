@@ -104,6 +104,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Colors.error $"Invalid limit: {limitStr}")
       state
 
+  | [ "follow" ] ->
+    executeFollow state Stdlib.Option.Option.None
+  | [ "follow"; "--route"; route ] ->
+    executeFollow state (Stdlib.Option.Option.Some route)
+
   | "view" :: traceID :: flagArgs ->
     match parseViewOptions defaultViewOptions flagArgs with
     | Ok opts -> executeView state traceID opts
@@ -152,6 +157,65 @@ let executeListByFn (state: Cli.AppState) (fnName: String) (limit: Int64) : Cli.
     Stdlib.printLine ""
     Stdlib.printLine "Use 'traces view <trace-id>' to see details."
     state
+
+
+/// One iteration of the follow loop: pull recent rows, find newer
+/// than `lastSeen`, optionally filter by route, print, then sleep.
+/// Returns the new `lastSeen` (the newest id pulled this tick).
+let rec followLoop
+  (routeFilter: Stdlib.Option.Option<String>)
+  (lastSeen: String)
+  : Unit =
+  let rows = Builtin.cliTracesList 50L
+
+  let candidates =
+    rows |> Stdlib.List.takeWhile (fun row -> row.traceId != lastSeen)
+
+  let filtered =
+    match routeFilter with
+    | Some r ->
+      candidates |> Stdlib.List.filter (fun row -> Stdlib.String.contains row.handler r)
+    | None -> candidates
+
+  let chronological = filtered |> Stdlib.List.reverse
+
+  Stdlib.List.iter chronological (fun row ->
+    Stdlib.printLine $"  {row.timestamp}  {row.traceId}  {row.handler}")
+
+  let newLastSeen =
+    match rows with
+    | [] -> lastSeen
+    | row :: _ -> row.traceId
+
+  Stdlib.Cli.Posix.sleep 500.0
+  followLoop routeFilter newLastSeen
+
+
+/// Tail-style live view: poll every 500ms, print new traces as they
+/// arrive, in chronological order. Optional `--route <substring>`
+/// filter narrows the stream.
+///
+/// Hold Ctrl+C to exit (the loop never returns on its own).
+let executeFollow
+  (state: Cli.AppState)
+  (routeFilter: Stdlib.Option.Option<String>)
+  : Cli.AppState =
+  let label =
+    match routeFilter with
+    | Some r -> $"route '{r}'"
+    | None -> "all routes"
+  Stdlib.printLine $"Following traces for {label}. Ctrl+C to stop."
+  Stdlib.printLine ""
+
+  // Anchor: ignore traces that already existed when we started.
+  let initialRows = Builtin.cliTracesList 1L
+  let initialSeen =
+    match initialRows with
+    | [] -> ""
+    | row :: _ -> row.traceId
+
+  followLoop routeFilter initialSeen
+  state
 
 
 /// Filter recent traces by a substring of the trace's `handler` field
