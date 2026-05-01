@@ -62,8 +62,7 @@ module PersistedSerializations =
         // ------------------
         v<LibDB.DvalRepr.Roundtrippable.FormatV0.Dval>
           "complete"
-          (V.RuntimeTypes.dval ()
-           |> LibDB.DvalRepr.Roundtrippable.FormatV0.fromRT)
+          (V.RuntimeTypes.dval () |> LibDB.DvalRepr.Roundtrippable.FormatV0.fromRT)
 
         v<LibExecution.ProgramTypes.PackageType.PackageType>
           "type"

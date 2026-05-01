@@ -205,8 +205,7 @@ let private buildRouterForTest
     let raw : List<TestUtils.HandlerGraph.RawHandler> =
       test.handlers
       |> List.reverse
-      |> List.map (fun h ->
-        { route = h.route; method = h.method; code = h.code })
+      |> List.map (fun h -> { route = h.route; method = h.method; code = h.code })
     let! routerDval = TestUtils.HandlerGraph.buildRouter exeState raw
     match routerDval with
     | RT.DApplicable applicable -> return applicable

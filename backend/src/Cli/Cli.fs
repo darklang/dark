@@ -74,9 +74,7 @@ let builtins : RT.Builtins =
 
 let state (packageManager : RT.PackageManager) =
   let program : RT.Program =
-    { canvasID = System.Guid.NewGuid()
-      dbs = Map.empty
-      secrets = [] }
+    { canvasID = System.Guid.NewGuid(); dbs = Map.empty; secrets = [] }
 
   let notify
     (_state : RT.ExecutionState)

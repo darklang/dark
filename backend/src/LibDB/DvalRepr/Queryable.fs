@@ -124,7 +124,8 @@ let rec private toJsonV0
 
     | DUuid uuid -> w.WriteStringValue(string uuid)
 
-    | DDateTime date -> w.WriteStringValue(LibExecution.DarkDateTime.toIsoString date)
+    | DDateTime date ->
+      w.WriteStringValue(LibExecution.DarkDateTime.toIsoString date)
 
     // nested types
     | DTuple(d1, d2, rest) ->

@@ -80,9 +80,7 @@ let freshState () : RT.ExecutionState =
     (fun _ _ _ _ -> uply { return () })
     (fun _ _ _ _ -> uply { return () })
     LibExecution.ProgramTypes.mainBranchId
-    { canvasID = System.Guid.NewGuid()
-      dbs = Map.empty
-      secrets = [] }
+    { canvasID = System.Guid.NewGuid(); dbs = Map.empty; secrets = [] }
 
 
 // ─── Scenarios ───────────────────────────────────────────────────

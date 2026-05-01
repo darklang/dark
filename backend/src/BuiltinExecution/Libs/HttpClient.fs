@@ -363,7 +363,8 @@ let strictConfig : Configuration =
       allowedIP = fun ip -> not (LocalAccess.bannedIp ip)
       allowedHost = fun host -> not (LocalAccess.bannedHost host)
       allowedScheme = fun scheme -> scheme = "https" || scheme = "http"
-      allowedHeaders = fun headers -> not (LocalAccess.hasInstanceMetadataHeader headers) }
+      allowedHeaders =
+        fun headers -> not (LocalAccess.hasInstanceMetadataHeader headers) }
 
 
 // ————————————————————————————————————————————————————————————

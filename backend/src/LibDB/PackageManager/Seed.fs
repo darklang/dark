@@ -156,9 +156,7 @@ let evaluateAllValues
   : Task<Result<unit, string list>> =
   task {
     let program : RT.Program =
-      { canvasID = System.Guid.NewGuid()
-        dbs = Map.empty
-        secrets = [] }
+      { canvasID = System.Guid.NewGuid(); dbs = Map.empty; secrets = [] }
 
     let notify _ _ _ _ = uply { return () }
     let sendException _ _ _ _ = uply { return () }

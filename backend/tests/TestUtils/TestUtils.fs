@@ -145,10 +145,7 @@ let executionStateFor
   task {
     let domains = [] //Canvas.domainsForCanvasID canvasID
 
-    let program : RT.Program =
-      { canvasID = canvasID
-        dbs = dbs
-        secrets = [] }
+    let program : RT.Program = { canvasID = canvasID; dbs = dbs; secrets = [] }
 
     let testContext : RT.TestContext =
       { sideEffectCount = 0

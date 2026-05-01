@@ -1637,9 +1637,7 @@ and Builtins =
 /// Every part of a user's program
 /// CLEANUP rename to 'app' or 'canvas' or something
 and Program =
-  { canvasID : CanvasID
-    dbs : Map<string, DB.T>
-    secrets : List<Secret.T> }
+  { canvasID : CanvasID; dbs : Map<string, DB.T>; secrets : List<Secret.T> }
 
 
 // Used for testing

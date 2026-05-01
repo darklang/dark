@@ -26,9 +26,7 @@ let toRepr (dval : RT.Dval) : string =
       (fun _ _ _ _ -> uply { return () })
       (fun _ _ _ _ -> uply { return () })
       PT.mainBranchId
-      { canvasID = System.Guid.NewGuid()
-        dbs = Map.empty
-        secrets = [] }
+      { canvasID = System.Guid.NewGuid(); dbs = Map.empty; secrets = [] }
   (Exe.dvalToRepr state dval).Result
 module DvalReprInternalRoundtrippable = LibDB.DvalRepr.Roundtrippable
 module DvalReprInternalHash = LibDB.DvalRepr.Hash

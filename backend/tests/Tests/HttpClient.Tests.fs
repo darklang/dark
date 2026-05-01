@@ -410,8 +410,7 @@ let runTestHandler (ctx : HttpListenerContext) : Task<unit> =
         // Gather status, headers, and body from the actual request
         let pathAndQuery = ctx.Request.Url.PathAndQuery
         let protocol = $"HTTP/{ctx.Request.ProtocolVersion}"
-        let actualStatus =
-          $"{ctx.Request.HttpMethod} {pathAndQuery} {protocol}"
+        let actualStatus = $"{ctx.Request.HttpMethod} {pathAndQuery} {protocol}"
         let actualHeaders = getHeadersWithoutMergingKeys ctx.Request
         let! actualBody = getBody ctx.Request
         let actualRequest : Http.T =
@@ -549,7 +548,8 @@ let init (token : System.Threading.CancellationToken) : Task =
       listener.Close()
     with _ ->
       ()
-  } :> Task
+  }
+  :> Task
 
 let testsFromFiles version =
   System.IO.Directory.GetFiles($"{baseDirectory}/{version}", "*.test")

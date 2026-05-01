@@ -57,7 +57,8 @@ let fns () : List<BuiltInFn> =
           uply {
             let target = PT2DT.Hash.fromDT targetDval
             let! branchChain = Branches.getBranchChain branchId
-            let! results = LibDB.PackageManager.Queries.getDependents branchChain target
+            let! results =
+              LibDB.PackageManager.Queries.getDependents branchChain target
 
             let dvals =
               results

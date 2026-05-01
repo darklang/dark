@@ -130,8 +130,7 @@ let t
       let rtDBs =
         dbs |> List.map (fun db -> (db.name, PT2RT.DB.toRT db)) |> Map.ofList
 
-      let! (state : RT.ExecutionState) =
-        executionStateFor pmPT canvasID false rtDBs
+      let! (state : RT.ExecutionState) = executionStateFor pmPT canvasID false rtDBs
 
       let red = "\u001b[31m"
       let green = "\u001b[32m"

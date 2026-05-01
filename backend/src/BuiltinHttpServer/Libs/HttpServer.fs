@@ -38,8 +38,7 @@ module Http = BuiltinHttpServer.Http
 let defaultMaxBodyBytes : int64 = 30L * 1024L * 1024L
 
 /// HSTS header value matching the historical default for HTTP services.
-let private hstsHeaderValue =
-  "max-age=31536000; includeSubDomains; preload"
+let private hstsHeaderValue = "max-age=31536000; includeSubDomains; preload"
 
 
 /// Execute a handler (named fn or lambda) against the given request. Lambdas
@@ -149,8 +148,7 @@ let private maybeInjectStandardHeaders
     headers
   else
     let hasKey name =
-      headers
-      |> List.exists (fun (k, _) -> String.equalsCaseInsensitive k name)
+      headers |> List.exists (fun (k, _) -> String.equalsCaseInsensitive k name)
     let extras =
       [ if not (hasKey "server") then ("Server", "darklang")
         if not (hasKey "strict-transport-security") then
@@ -165,8 +163,7 @@ let private logRequest
   (status : int)
   (started : System.DateTime)
   : unit =
-  let durationMs =
-    (System.DateTime.UtcNow - started).TotalMilliseconds |> int64
+  let durationMs = (System.DateTime.UtcNow - started).TotalMilliseconds |> int64
   let methodStr = ctx.Request.HttpMethod
   let pathAndQuery =
     try
@@ -272,18 +269,78 @@ let runListener
   (cancellationToken : CancellationToken)
   : Task<unit> =
   task {
+    // ──────────────────────────────────────────────────────────────────
     // TODO: replace `HttpListener` with raw `System.Net.Sockets.TcpListener`
-    // + a hand-rolled HTTP/1.1 parser. HttpListener adds ~80 ms per new
-    // connection on loopback (verified via dotnet-trace; CPU idle, time
-    // is in HttpListener-internal blocking). A 60-LOC `TcpListener` PoC
-    // proves that overhead disappears entirely. Wins both performance and
-    // the long-term "thin .NET surface" goal — `TcpListener` has obvious
+    // + a hand-rolled HTTP/1.1 parser.
+    //
+    // Why: HttpListener adds ~80 ms per new connection on loopback
+    // (verified via dotnet-trace; CPU idle, time is in HttpListener-
+    // internal blocking). A 60-LOC `TcpListener` PoC proves that
+    // overhead disappears entirely. Wins both performance and the
+    // long-term "thin .NET surface" goal — `TcpListener` has obvious
     // equivalents in Rust/Go/OCaml/native-C; `HttpListener` does not.
-    // Estimate: ~300 LOC + adversarial fixture pass for malformed-input
-    // + slow-loris-style timeouts. Do NOT switch to Kestrel — that
-    // re-introduces ~8 MB of `Microsoft.AspNetCore.*`. See
-    // `notes/merge-readiness-report.md` for the deep-dive + security
-    // tradeoffs of doing this.
+    // Do NOT switch to Kestrel — that re-introduces ~8 MB of
+    // `Microsoft.AspNetCore.*`.
+    //
+    // Effort: ~300 LOC for a working server, 1–2 days. Then 0.5–1 day
+    // of adversarial fixtures before declaring it production-ready.
+    //
+    // ────────── Security considerations for the swap ──────────
+    // HttpListener gives us (mostly free) defenses we'd need to write
+    // ourselves. Treat as security-relevant work, not pure perf.
+    //
+    // What HttpListener handles for us today:
+    //  1. HTTP request smuggling. RFC 7230 ambiguity around
+    //     `Transfer-Encoding: chunked` + `Content-Length: N` arriving
+    //     together is a classic CVE class. Hand-rolled parsers must
+    //     pick a consistent rule — reject the combo with 400 is safest
+    //     (RFC 7230 §3.3.3 lets us either drop C-L or refuse).
+    //  2. Slow loris. Slow byte-by-byte client sends pin a thread per
+    //     connection. HttpListener has internal idle timeouts; we'd
+    //     need our own (e.g. 30 s of no bytes → close).
+    //  3. Concurrent connection cap. HttpListener bounds live conns;
+    //     raw TcpListener + Task.Run-per-accept is OOM-able under
+    //     load without an explicit SemaphoreSlim.
+    //  4. Malformed input. Overlong headers, invalid encodings, CRLF
+    //     injection, multi-line/folded headers. HttpListener returns
+    //     400 cleanly; our parser would need explicit handling and
+    //     fuzz tests for the same shapes.
+    //  5. URL canonicalization for path traversal patterns.
+    //
+    // What we already own (no regression risk):
+    //  - Body size limit: `readRequestBodyWithLimit` enforces today.
+    //  - SSRF guard for outbound: `BuiltinExecution.Libs.HttpClient.
+    //    LocalAccess` + `strictConfig`.
+    //  - Per-request blob scope: memory hygiene already in place.
+    //
+    // Why "bounded" rather than scary:
+    //  - HttpListener on .NET/Linux is the *managed* implementation,
+    //    not http.sys. It's just .NET-team code with normal testing —
+    //    not Apache/nginx-class hardened. We're not giving up
+    //    battle-tested infra.
+    //  - Most HTTP-smuggling vectors need a proxy in front to bite.
+    //    `darklang serve` behind nginx/Cloudflare/ALB has the
+    //    upstream proxy normalize requests; smuggling is mitigated.
+    //    CLI-on-localhost = low risk. Public-internet-direct =
+    //    highest risk; that's the deployment that needs the
+    //    adversarial fixture suite.
+    //  - HTTP/1.1 is a closed grammar with finite parsing surface.
+    //    Fuzz-testable end-to-end. Easier to audit than a network
+    //    protocol like SSH.
+    //
+    // Practical checklist for the swap PR:
+    //  □ Reject `T-E: chunked` + `C-L: N` combo with 400.
+    //  □ Per-connection idle timeout (default 30 s).
+    //  □ Concurrent-connection cap via SemaphoreSlim.
+    //  □ Reject overlong status lines / headers (e.g. >8 KB).
+    //  □ Strict header-key/value charset (no embedded CRLF).
+    //  □ Adversarial fixture suite alongside the existing httphandler
+    //    fixtures: malformed requests → 400, T-E+C-L combos → 400,
+    //    oversize body → 413 (already covered), slow-loris → close.
+    //
+    // See `notes/merge-readiness-report.md` for the dotnet-trace
+    // numbers and the 60-LOC PoC details.
+    // ──────────────────────────────────────────────────────────────────
     let listener = new HttpListener()
     listener.Prefixes.Add($"http://*:{port}/")
     listener.Start()
@@ -293,8 +350,7 @@ let runListener
       [ "port", string port
         "maxBodyBytes", string maxBodyBytes
         "injectStandardHeaders", string injectStandardHeaders
-        "canonicalizeFromForwardedProto",
-        string canonicalizeFromForwardedProto
+        "canonicalizeFromForwardedProto", string canonicalizeFromForwardedProto
         "logRequests", string logRequests ]
 
     // Cancellation → listener.Stop() unblocks any pending GetContextAsync

@@ -410,8 +410,5 @@ let toProgram (c : T) : Ply<RT.Program> =
 
     let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
 
-    return
-      { canvasID = c.id
-        dbs = dbs
-        secrets = secrets }
+    return { canvasID = c.id; dbs = dbs; secrets = secrets }
   }
