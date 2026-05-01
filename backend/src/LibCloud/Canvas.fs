@@ -434,7 +434,6 @@ let toProgram (c : T) : Ply<RT.Program> =
 
     return
       { canvasID = c.id
-        internalFnsAllowed = List.contains c.id Config.allowedDarkInternalCanvasIDs
         dbs = dbs
         secrets = secrets }
   }

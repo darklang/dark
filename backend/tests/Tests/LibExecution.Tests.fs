@@ -109,7 +109,7 @@ let runtimeErrorMessage
 
 
 let t
-  (internalFnsAllowed : bool)
+  (internalFnsAllowed : bool) // legacy; phase-18 dropped the gate
   (canvasName : string)
   (pmPT : PT.PackageManager)
   (actual : PT.Expr)
@@ -121,7 +121,9 @@ let t
   : Test =
   testTask $"line{lineNumber}" {
     try
-      // Little optimization to skip the DB sometimes
+      // Little optimization to skip the DB sometimes. Pre-phase-18 the
+      // `internalFnsAllowed` flag also forced canvas initialization;
+      // preserved here so internal-fn-using tests still get a real canvas.
       let! canvasID =
         let initializeCanvas = internalFnsAllowed || dbs <> [] || workers <> []
         if initializeCanvas then

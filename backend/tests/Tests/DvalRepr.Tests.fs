@@ -27,7 +27,6 @@ let toRepr (dval : RT.Dval) : string =
       (fun _ _ _ _ -> uply { return () })
       PT.mainBranchId
       { canvasID = System.Guid.NewGuid()
-        internalFnsAllowed = false
         dbs = Map.empty
         secrets = [] }
   (Exe.dvalToRepr state dval).Result

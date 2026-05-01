@@ -149,7 +149,6 @@ let execute
 
     let (program : Program) =
       { canvasID = resolvedCanvasID
-        internalFnsAllowed = false
         secrets = []
         dbs = dbs }
 
@@ -227,7 +226,6 @@ let createBranchState
   =
   let program : Program =
     { canvasID = System.Guid.NewGuid()
-      internalFnsAllowed = false
       secrets = []
       dbs = Map.empty }
   let state =

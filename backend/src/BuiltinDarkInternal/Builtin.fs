@@ -16,29 +16,16 @@ let fnRenames : Builtin.FnRenames =
   // eg: fn "Http" "respond" 0, fn "Http" "response" 0
   []
 
-// only accessible to the LibCloud.Config.allowedDarkInternalCanvasID canvas
-let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
-  (fun (exeState, vmState, typeArgs, args) ->
-    uply {
-      if exeState.program.internalFnsAllowed then
-        return! f (exeState, vmState, typeArgs, args)
-      else
-        return
-          Exception.raiseInternal
-            "internal function attempted to be used in another canvas"
-            [ "canavasId", exeState.program.canvasID ]
-    })
-
-
 let builtins () : Builtins =
-  let builtins =
-    Builtin.combine
-      [ Libs.Canvases.builtins ()
-        Libs.DBs.builtins ()
-        Libs.Domains.builtins ()
-        Libs.Infra.builtins ()
-        Libs.Users.builtins () ]
-      fnRenames
-
-  { builtins with
-      fns = builtins.fns |> Map.map (fun f -> { f with fn = internalFn f.fn }) }
+  // The `darkInternal*` fns are no longer gated. The CLI is a
+  // trusted-user context (one process per user), so the
+  // `internalFnsAllowed` per-program flag was never load-bearing
+  // there. Names retained for now — callers in
+  // `packages/darklang/cli/packages/db.dark` etc still address them
+  // by their existing names.
+  Builtin.combine
+    [ Libs.Canvases.builtins ()
+      Libs.DBs.builtins ()
+      Libs.Infra.builtins ()
+      Libs.Users.builtins () ]
+    fnRenames

@@ -139,7 +139,7 @@ let localBuiltIns (pm : PT.PackageManager) =
 let executionStateFor
   (pmPT : PT.PackageManager)
   (canvasID : CanvasID)
-  (internalFnsAllowed : bool)
+  (_internalFnsAllowed : bool) // legacy param; gate dropped in phase 18
   (allowLocalHttpAccess : bool)
   (dbs : Map<string, RT.DB.T>)
   : Task<RT.ExecutionState> =
@@ -148,7 +148,6 @@ let executionStateFor
 
     let program : RT.Program =
       { canvasID = canvasID
-        internalFnsAllowed = internalFnsAllowed
         dbs = dbs
         secrets = [] }
 

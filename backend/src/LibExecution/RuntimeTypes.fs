@@ -1638,7 +1638,6 @@ and Builtins =
 /// CLEANUP rename to 'app' or 'canvas' or something
 and Program =
   { canvasID : CanvasID
-    internalFnsAllowed : bool
     dbs : Map<string, DB.T>
     secrets : List<Secret.T> }
 

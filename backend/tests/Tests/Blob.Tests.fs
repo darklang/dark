@@ -48,7 +48,6 @@ let private freshState () : RT.ExecutionState =
     (fun _ _ _ _ -> uply { return () })
     PT.mainBranchId
     { canvasID = System.Guid.NewGuid()
-      internalFnsAllowed = false
       dbs = Map.empty
       secrets = [] }
 

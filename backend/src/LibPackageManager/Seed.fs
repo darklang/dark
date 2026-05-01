@@ -157,7 +157,6 @@ let evaluateAllValues
   task {
     let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
-        internalFnsAllowed = false
         dbs = Map.empty
         secrets = [] }
 
