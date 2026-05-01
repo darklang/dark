@@ -1,6 +1,5 @@
 FSharp.Core
 System.Diagnostics.DiagnosticSource
 FsRegEx
-Sodium.Core
 Microsoft.Data.Sqlite
 Fumble

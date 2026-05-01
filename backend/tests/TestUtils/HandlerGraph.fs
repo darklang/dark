@@ -10,9 +10,7 @@
 /// Lives in TestUtils (not in BuiltinHttpServer) because it depends on the
 /// parser pipeline (`TestUtils.parsePTExpr` invokes a Dark-side parser via
 /// `Execution.executeFunction`), which would balloon BuiltinHttpServer's
-/// dep graph if introduced there. The "Reused by phase 8 (`darklang serve`)"
-/// note in the plan was conditional on multi-handler config support; phase 8
-/// uses `cliEvaluateExpression` directly and doesn't need this helper.
+/// dep graph if introduced there.
 module TestUtils.HandlerGraph
 
 open System.Threading.Tasks
