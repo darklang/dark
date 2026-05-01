@@ -71,7 +71,7 @@ let main (args : string array) : int =
         (agaist both in-mem and sql-bound PMs)
         *)
 
-        // cloud
+        // per-app storage / handler
         Tests.HttpServer.tests
         Tests.Canvas.tests
         Tests.BinarySerialization.tests

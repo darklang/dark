@@ -834,7 +834,7 @@ module Search =
 /// Functionality written in Dark stored and managed outside of user space
 ///
 /// Note: It may be tempting to think the `getX` fns shouldn't return Options,
-/// but there's a chance of Local <-> Cloud not being fully in sync,
+/// but there's a chance of local <-> upstream not being fully in sync,
 /// for whatever reasons.
 type PackageManager =
   { findType : (BranchId * PackageLocation) -> Ply<Option<FQTypeName.Package>>

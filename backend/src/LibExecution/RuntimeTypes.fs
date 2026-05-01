@@ -1242,7 +1242,7 @@ module PackageFn =
 /// Note: it may be tempting to think these shouldn't return Options,
 /// but if/when Package items may live (for some time) only on local systems,
 /// there's a chance some code will be committed, referencing something
-/// not yet in the Cloud PM.
+/// not yet in the upstream PM.
 /// (though, we'll likely demand deps. in the PM before committing something upstream...)
 type PackageManager =
   {

@@ -1,15 +1,12 @@
 /// Builtin functions for working with the dev-time Package Manager
 ///   (_not_ the run-time PM)
 ///
-/// A ProgramTypes Package Manager is taken as a parameter, so that:
-/// - the Cloud runtime can use the Cloud PM (just accessing DB directly)
-/// - the CLI runtime can use the HTTP-bound PM
-///   (which calls upon endpoints in the dark-packages canvas)
-///
-/// Previously, the non-Cloud package manager was supported by Dark package fns that
-/// made HTTPClient calls to the Cloud-hosted PM, but: since Darklang doesn't really
-/// have a caching mechanism, it made more sense to have the HTTP-access be inside
-/// of builtin functions.
+/// A ProgramTypes Package Manager is taken as a parameter so that the
+/// runtime can swap implementations — typically the local SQLite-backed
+/// PM, but historically also an HTTP-bound PM that called a hosted
+/// dark-packages canvas. The HTTP path was retired because Darklang
+/// doesn't yet have a caching mechanism, so it's cheaper to keep
+/// PM access in-process.
 ///
 /// At run-time, we use the PM to support the parser flow, and pretty-printing (i.e.
 /// to grab the name of a package type). We do those operations quite a lot, so it's

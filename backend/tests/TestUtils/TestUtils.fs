@@ -122,7 +122,7 @@ let builtins
       BuiltinCli.Builtin.builtins () ]
     []
 
-let cloudBuiltIns (pm : PT.PackageManager) =
+let strictBuiltIns (pm : PT.PackageManager) =
   let httpConfig =
     { BuiltinExecution.Libs.HttpClient.strictConfig with
         timeoutInMs = 5000
@@ -193,7 +193,7 @@ let executionStateFor
     let notifier : RT.Notifier = fun _state _vm _msg _tags -> uply { return () }
 
     let builtins =
-      if allowLocalHttpAccess then localBuiltIns pmPT else cloudBuiltIns pmPT
+      if allowLocalHttpAccess then localBuiltIns pmPT else strictBuiltIns pmPT
     let state =
       let pmRT = PT2RT.PackageManager.toRT builtins.values pmPT
       Exe.createState

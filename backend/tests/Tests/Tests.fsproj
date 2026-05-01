@@ -19,7 +19,7 @@
     <ProjectReference Include="../../src/LibPackageManager/LibPackageManager.fsproj" />
     <ProjectReference Include="../../src/LibSqlite/LibSqlite.fsproj" />
 
-    <!-- cloud -->
+    <!-- per-app storage -->
     <ProjectReference Include="../../src/LibSerialization/LibSerialization.fsproj" />
     <ProjectReference Include="../../src/BuiltinDB/BuiltinDB.fsproj" />
     <ProjectReference Include="../../src/BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
@@ -49,7 +49,7 @@
     <Compile Include="Hashing.Tests.fs" />
     <Compile Include="BranchOps.Tests.fs" />
 
-    <!-- cloud stuff /-->
+    <!-- per-app storage / handler stuff /-->
     <Compile Include="HttpServer.Tests.fs" />
     <Compile Include="Canvas.Tests.fs" />
     <Compile Include="DvalRepr.Tests.fs" />

@@ -11,7 +11,7 @@ let getEnvExn (name : string) : string =
   | None -> failwith $"Environment variable {name} not set"
 
 // TODO review the usages of this --
-// adjust to actually support different directories for CLI vs Cloud runtimes
+// adjust to actually support different directories per runtime
 let absoluteDir (name : string) : string =
   let dir = getEnvExn name
 

@@ -17,10 +17,9 @@ type FunctionResult = FnName * id * FunctionArgHash * HashVersion * RT.Dval
 
 /// TraceIDs are a UUID with a very specific structure, that is designed so that when
 /// it is lexicographically sorted, that the sort order is reverse chronological.
-/// This allows us to sort traces by time in the Google Cloud Storage, which only
-/// supports lexicographical sorting. It also allows us to omit timestamps in the DB
-/// and use trace ordering and indexing. Traces are also stored in the index better
-/// (as in, more compactly) as a result.
+/// This let us sort traces by time in object stores (e.g. GCS) that only
+/// support lexicographical sorting; same trick keeps SQLite indexes compact
+/// without storing a separate timestamp column.
 module TraceID =
   [<Struct>]
   type T =

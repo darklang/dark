@@ -18,9 +18,9 @@ module PMRT = RuntimeTypes
 //
 // First call per branch loads the Set from the `deprecations` table;
 // subsequent calls are O(1) lookups. Long-lived processes that mutate
-// deprecation state on a branch (LSP, cloud) should invalidate by
-// evicting the branch's entry — not implemented yet; short-lived CLIs
-// rebuild the PM per invocation so they don't care.
+// deprecation state on a branch (LSP, hosted runtimes) should invalidate
+// by evicting the branch's entry — not implemented yet; short-lived
+// CLIs rebuild the PM per invocation so they don't care.
 let private harmfulCache =
   System.Collections.Concurrent.ConcurrentDictionary<PT.BranchId, Set<string>>()
 
