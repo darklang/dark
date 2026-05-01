@@ -32,6 +32,8 @@ module Dval = LibExecution.Dval
 module Execution = LibExecution.Execution
 module Blob = LibExecution.Blob
 module Http = BuiltinHttpServer.Http
+module AT = LibExecution.AnalysisTypes
+module Tracing = LibDB.Tracing
 
 
 /// Default request body cap (30 MB).
@@ -217,8 +219,31 @@ let private handleRequest
 
           let requestDval = Http.Request.fromRequest exeState url reqHeaders reqBody
 
-          let! result = executeHandler exeState handler requestDval
-          let! response = Http.Response.toHttpResponse exeState result
+          // Per-request tracer. Same shape as `darklang eval/run` produces
+          // (`Tracing.createCliTracer` in `BuiltinCliHost/Libs/Cli.fs`), so
+          // `traces list/view/replay` shows HTTP traces alongside CLI traces
+          // with no consumer-side changes. The trace description carries the
+          // method + path so per-endpoint browsing (Step 2 in the plan)
+          // already has somewhere to live.
+          let traceID = AT.TraceID.create ()
+          let traceDesc =
+            try
+              $"{ctx.Request.HttpMethod} {ctx.Request.Url.PathAndQuery}"
+            with _ ->
+              "(http request)"
+          let tracer =
+            Tracing.createCliTracer
+              exeState.program.canvasID
+              traceID
+              traceDesc
+              "request"
+              requestDval
+          let perRequestState =
+            { exeState with tracing = tracer.executionTracing }
+
+          let! result = executeHandler perRequestState handler requestDval
+          let! response = Http.Response.toHttpResponse perRequestState result
+          tracer.storeTraceResults ()
 
           let respHeaders =
             maybeInjectStandardHeaders injectStandardHeaders response.headers
