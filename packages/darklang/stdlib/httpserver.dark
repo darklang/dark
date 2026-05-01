@@ -151,8 +151,13 @@ let getPath (req: Http.Request) : String =
     | None -> "/"
 
 
-/// Route a request through a list of handlers
-/// Returns the response from the first matching handler, or 404
+/// Route a request through a list of handlers.
+/// - Zero matches → 404 Not Found.
+/// - One match    → invoke that handler.
+/// - Multiple matches (same method+route resolved by more than one entry)
+///   → 500 Internal Server Error with a "More than one handler" body.
+///   Detected here rather than at registration time because the handler
+///   list is constructed by user code at runtime.
 let routeRequest
   (handlers: List<Handler>)
   (req: Http.Request)
@@ -160,9 +165,20 @@ let routeRequest
   let method = getMethod req
   let path = getPath req
 
-  match findHandler handlers method path with
-  | Some ((handler, _routeMatch)) -> handler.handler req
-  | None -> Http.notFound ()
+  let matching =
+    handlers
+    |> Stdlib.List.filter (fun h ->
+      let methodMatches = (h.method == method) || (h.method == "*")
+      let routeMatch = matchRoute h.route path
+      methodMatches && routeMatch.matched)
+
+  match matching with
+  | [] -> Http.notFound ()
+  | [ h ] -> h.handler req
+  | _ ->
+    Http.responseWithText
+      $"500 Internal Server Error: More than one handler for route: {path}"
+      500L
 
 
 /// Extract a path parameter from a request given a route pattern
