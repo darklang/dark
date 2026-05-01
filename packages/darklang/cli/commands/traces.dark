@@ -528,10 +528,16 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
   | [] ->
     [ Completion.simple "list"
       Completion.simple "view"
+      Completion.simple "tail"
+      Completion.simple "follow"
+      Completion.simple "stats"
       Completion.simple "replay"
       Completion.simple "clear" ]
   | [ "list" ] ->
-    [ Completion.simple "--fn" ]
+    [ Completion.simple "--fn"
+      Completion.simple "--route" ]
+  | [ "tail" ] -> [ Completion.simple "--route" ]
+  | [ "follow" ] -> [ Completion.simple "--route" ]
   | _ -> []
 
 
@@ -539,11 +545,15 @@ let help (_state: Cli.AppState) : Unit =
   [ "Usage: traces <subcommand>"
     ""
     "Subcommands:"
-    "  list [limit]              List recent traces (default limit: 20)"
-    "  list --fn <name> [limit]  List traces that called a specific function"
-    "  view <trace-id> [flags]   View details of a specific trace"
-    "  replay <trace-id>         Re-execute a trace's code with current definitions"
-    "  clear                     Delete all stored traces"
+    "  list [limit]                  List recent traces (default limit: 20)"
+    "  list --fn <name> [limit]      Filter to traces that called a specific function"
+    "  list --route <substring> [limit]  Filter by handler description substring (HTTP)"
+    "  view <trace-id> [flags]       View details of a specific trace"
+    "  tail [--route <substring>]    View the most-recent trace, optionally filtered"
+    "  follow [--route <substring>]  Tail-style: print new traces as they arrive"
+    "  stats [limit]                 Count of recent traces grouped by handler"
+    "  replay <trace-id>             Re-execute a trace's code with current definitions"
+    "  clear                         Delete all stored traces"
     ""
     "View flags (combinable):"
     "  -d, --depth <n>           Cap tree depth at <n> levels"
@@ -559,6 +569,12 @@ let help (_state: Cli.AppState) : Unit =
     "  traces list                          - Show last 20 traces"
     "  traces list 50                       - Show last 50 traces"
     "  traces list --fn List.map            - Find traces that called List.map"
+    "  traces list --route /user/:id        - Find HTTP traces matching a route"
+    "  traces tail                          - Open the latest trace's full view"
+    "  traces tail --route /user            - Open the latest trace matching /user"
+    "  traces follow                        - Stream new traces as they arrive"
+    "  traces follow --route /api           - Stream new traces matching /api"
+    "  traces stats                         - Count recent traces by handler"
     "  traces view <trace-id>               - View full trace tree"
     "  traces view <trace-id> -d 2          - Top two tree levels only"
     "  traces view <trace-id> --no-stdlib --no-builtins"
