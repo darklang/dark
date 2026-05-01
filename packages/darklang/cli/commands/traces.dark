@@ -121,6 +121,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "tail"; "--route"; route ] ->
     executeTail state (Stdlib.Option.Option.Some route)
 
+  | [ "export"; traceID ] -> executeExport state traceID
+
   | "view" :: traceID :: flagArgs ->
     match parseViewOptions defaultViewOptions flagArgs with
     | Ok opts -> executeView state traceID opts
@@ -168,6 +170,20 @@ let executeListByFn (state: Cli.AppState) (fnName: String) (limit: Int64) : Cli.
     printTraceRows rows
     Stdlib.printLine ""
     Stdlib.printLine "Use 'traces view <trace-id>' to see details."
+    state
+
+
+/// `traces export <trace-id>` — print a portable JSON dump of the
+/// trace (metadata + input + every fn call's args/result). Pipe to a
+/// file to share a repro. Roundtrip into a future `traces import` will
+/// re-create the trace row in another DB.
+let executeExport (state: Cli.AppState) (traceID: String) : Cli.AppState =
+  match Builtin.cliTracesExportJson traceID with
+  | None ->
+    Stdlib.printLine (Colors.error $"Trace not found: {traceID}")
+    state
+  | Some json ->
+    Stdlib.printLine json
     state
 
 
@@ -531,6 +547,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
       Completion.simple "tail"
       Completion.simple "follow"
       Completion.simple "stats"
+      Completion.simple "export"
       Completion.simple "replay"
       Completion.simple "clear" ]
   | [ "list" ] ->
@@ -552,6 +569,7 @@ let help (_state: Cli.AppState) : Unit =
     "  tail [--route <substring>]    View the most-recent trace, optionally filtered"
     "  follow [--route <substring>]  Tail-style: print new traces as they arrive"
     "  stats [limit]                 Count of recent traces grouped by handler"
+    "  export <trace-id>             Print a portable JSON dump of the trace"
     "  replay <trace-id>             Re-execute a trace's code with current definitions"
     "  clear                         Delete all stored traces"
     ""

@@ -267,6 +267,104 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "cliTracesExportJson" 0
+      typeParams = []
+      parameters = [ Param.make "traceID" TString "The trace ID to export" ]
+      returnType = TypeReference.option TString
+      description =
+        "Serialize a trace (metadata + input + all fn calls) to a portable JSON string. Returns None if the trace doesn't exist."
+      fn =
+        (function
+        | _, _, _, [ DString traceID ] ->
+          uply {
+            let! row =
+              Sql.query
+                "SELECT id, handler_desc, timestamp, input_name, input_value_json
+                 FROM traces
+                 WHERE id = @traceId"
+              |> Sql.parameters [ "traceId", Sql.string traceID ]
+              |> Sql.executeRowOptionAsync (fun read ->
+                {| id = read.string "id"
+                   handlerDesc = read.string "handler_desc"
+                   timestamp = read.string "timestamp"
+                   inputName = read.string "input_name"
+                   inputValueJson = read.string "input_value_json" |})
+
+            match row with
+            | None -> return Dval.optionNone KTString
+            | Some r ->
+              let! events =
+                Sql.query
+                  "SELECT call_id, parent_call_id, kind, fn_hash,
+                          lambda_expr_id, args_json, result_json
+                   FROM trace_fn_calls
+                   WHERE trace_id = @traceId
+                   ORDER BY rowid"
+                |> Sql.parameters [ "traceId", Sql.string traceID ]
+                |> Sql.executeAsync (fun read ->
+                  {| callId = read.string "call_id"
+                     parentCallId = read.stringOrNone "parent_call_id"
+                     kind = read.string "kind"
+                     fnHash = read.stringOrNone "fn_hash"
+                     lambdaExprId = read.stringOrNone "lambda_expr_id"
+                     argsJson = read.string "args_json"
+                     resultJson = read.string "result_json" |})
+
+              // Build the export object as Utf8JsonWriter so the embedded
+              // dval JSON strings (`input_value_json`, `args_json`,
+              // `result_json`) round-trip as objects, not stringified
+              // objects. That way `import` can re-parse cleanly.
+              let stream = new System.IO.MemoryStream()
+              let opts =
+                new System.Text.Json.JsonWriterOptions(
+                  Indented = true,
+                  SkipValidation = false
+                )
+              let w = new System.Text.Json.Utf8JsonWriter(stream, opts)
+              let writeRaw (json : string) =
+                if System.String.IsNullOrWhiteSpace(json) then
+                  w.WriteNullValue()
+                else
+                  w.WriteRawValue(json, skipInputValidation = true)
+
+              w.WriteStartObject()
+              w.WriteString("id", r.id)
+              w.WriteString("handler_desc", r.handlerDesc)
+              w.WriteString("timestamp", r.timestamp)
+              w.WriteString("input_name", r.inputName)
+              w.WritePropertyName("input_value")
+              writeRaw r.inputValueJson
+              w.WriteStartArray("fn_calls")
+              for ev in events do
+                w.WriteStartObject()
+                w.WriteString("call_id", ev.callId)
+                match ev.parentCallId with
+                | Some p -> w.WriteString("parent_call_id", p)
+                | None -> w.WriteNull("parent_call_id")
+                w.WriteString("kind", ev.kind)
+                match ev.fnHash with
+                | Some h -> w.WriteString("fn_hash", h)
+                | None -> w.WriteNull("fn_hash")
+                match ev.lambdaExprId with
+                | Some l -> w.WriteString("lambda_expr_id", l)
+                | None -> w.WriteNull("lambda_expr_id")
+                w.WritePropertyName("args")
+                writeRaw ev.argsJson
+                w.WritePropertyName("result")
+                writeRaw ev.resultJson
+                w.WriteEndObject()
+              w.WriteEndArray()
+              w.WriteEndObject()
+              w.Flush()
+              let json = UTF8.ofBytesUnsafe (stream.ToArray())
+              return Dval.optionSome KTString (DString json)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
     { name = fn "cliTracesClear" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "Ignored" ]
