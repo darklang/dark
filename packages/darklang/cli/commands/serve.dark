@@ -113,10 +113,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           "" ]
         |> Stdlib.printLines
 
-        // Call the builtin directly (bypassing Stdlib.HttpServer.serve's
-        // hardcoded defaults) so --max-body-bytes can take effect.
+        // Call the named-handler builtin: every request re-resolves the
+        // path against the current branch's package store, so any
+        // `commit` of the served fn is picked up by the next request
+        // (hot-reload). 404 with a "define + retry" hint when the path
+        // doesn't resolve.
         let expr =
-          $"Builtin.httpServerServe {portStr_}L {parsed.routerPath} {maxBytesStr}L true true true"
+          $"Builtin.httpServerServeNamed {portStr_}L \"{parsed.routerPath}\" {maxBytesStr}L true true true"
 
         match
           Builtin.cliEvaluateExpression

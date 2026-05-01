@@ -34,6 +34,8 @@ module Blob = LibExecution.Blob
 module Http = BuiltinHttpServer.Http
 module AT = LibExecution.AnalysisTypes
 module Tracing = LibDB.Tracing
+module VT = LibExecution.ValueType
+module PT = LibExecution.ProgramTypes
 
 
 /// Default request body cap (30 MB).
@@ -43,16 +45,13 @@ let defaultMaxBodyBytes : int64 = 30L * 1024L * 1024L
 let private hstsHeaderValue = "max-age=31536000; includeSubDomains; preload"
 
 
-/// Execute a handler (named fn or lambda) against the given request. Lambdas
-/// registered anywhere under this `exeState` (including the caller VM) are
-/// findable here since `lambdaInstrCache` lives on `exeState`.
-let private executeHandler
+/// Render an ExecutionResult as a Dval, surfacing errors as a DString
+/// the toHttpResponse path turns into a 500.
+let private resultToDval
   (exeState : ExecutionState)
-  (handler : Applicable)
-  (arg : Dval)
+  (result : Result<Dval, RuntimeError.Error * CallStack>)
   : Task<Dval> =
   task {
-    let! result = Execution.executeApplicable exeState handler (NEList.singleton arg)
     match result with
     | Ok dval -> return dval
     | Error(rte, _callStack) ->
@@ -65,6 +64,82 @@ let private executeHandler
         | Ok other -> string other
         | Error _ -> string rte
       return DString $"Handler error: {errorStr}"
+  }
+
+
+/// Execute a static handler Applicable (lambda or named fn) against
+/// the given request. Lambdas registered anywhere under this `exeState`
+/// (including the caller VM) are findable here since `lambdaInstrCache`
+/// lives on `exeState`.
+let private executeHandler
+  (exeState : ExecutionState)
+  (handler : Applicable)
+  (arg : Dval)
+  : Task<Dval> =
+  task {
+    let! result = Execution.executeApplicable exeState handler (NEList.singleton arg)
+    return! resultToDval exeState result
+  }
+
+
+/// Re-resolve a fn by FQ path on each call and dispatch the request
+/// through it. Enables hot-reload-on-commit: any time the user `commit`s
+/// a new version of the named fn, the next request picks it up.
+///
+/// 404-driven dev: when the path doesn't resolve, returns a hand-crafted
+/// 404 Response Dval pointing at the missing fn. The user can `commit`
+/// the fn and the next request will hit it.
+let private executeHandlerByPath
+  (exeState : ExecutionState)
+  (branchId : System.Guid)
+  (path : string)
+  (arg : Dval)
+  : Task<Dval> =
+  task {
+    let parts = path.Split('.') |> Array.toList
+    match parts with
+    | owner :: rest when not (List.isEmpty rest) ->
+      let modules, name =
+        match List.rev rest with
+        | last :: revMods -> List.rev revMods, last
+        | [] ->
+          // Shouldn't happen given the `not (List.isEmpty rest)` guard.
+          [], ""
+      let location : LibExecution.ProgramTypes.PackageLocation =
+        { owner = owner; modules = modules; name = name }
+      let! branchChain = LibDB.PackageManager.Branches.getBranchChain branchId
+      let! hashOpt =
+        LibDB.PackageManager.ProgramTypes.Fn.find branchChain location
+        |> Ply.toTask
+      match hashOpt with
+      | Some hash ->
+        let (PT.Hash hashStr) = hash
+        let fqName = FQFnName.fqPackage hashStr
+        let! result =
+          Execution.executeFunction exeState fqName [] (NEList.singleton arg)
+        return! resultToDval exeState result
+      | None ->
+        // 404 with a dev-friendly hint.
+        let body =
+          $"404 Not Found\n\nNo handler defined at `{path}` on this branch.\n\n"
+          + $"Define it with `fn {path} <args> = <body>` and `commit`, then retry."
+        let typeName =
+          FQTypeName.fqPackage (LibExecution.PackageRefs.Type.Stdlib.Http.response ())
+        let fields =
+          [ ("statusCode", DInt64 404L)
+            ("headers",
+             Dval.list
+               (KTTuple(VT.string, VT.string, []))
+               [ DTuple(
+                   DString "Content-Type",
+                   DString "text/plain; charset=utf-8",
+                   []
+                 ) ])
+            ("body", Blob.newEphemeral exeState (UTF8.toBytes body)) ]
+        return DRecord(typeName, typeName, [], Map fields)
+    | _ ->
+      // Malformed path — surface as a Handler error.
+      return DString $"Handler error: malformed path '{path}'"
   }
 
 
@@ -183,9 +258,13 @@ let private logRequest
 
 /// Process a single request: parse → dispatch → write response. Errors are
 /// caught and returned as 500s so a single bad request can't kill the loop.
+///
+/// `dispatch` is the per-request "run the user code" closure. Static-handler
+/// mode wraps `executeHandler`; named/hot-reload mode wraps
+/// `executeHandlerByPath`. handleRequest stays oblivious to which.
 let private handleRequest
   (exeState : ExecutionState)
-  (handler : Applicable)
+  (dispatch : ExecutionState -> Dval -> Task<Dval>)
   (maxBodyBytes : int64)
   (injectStandardHeaders : bool)
   (canonicalizeFromForwardedProto : bool)
@@ -241,7 +320,7 @@ let private handleRequest
           let perRequestState =
             { exeState with tracing = tracer.executionTracing }
 
-          let! result = executeHandler perRequestState handler requestDval
+          let! result = dispatch perRequestState requestDval
           let! response = Http.Response.toHttpResponse perRequestState result
           tracer.storeTraceResults ()
 
@@ -278,15 +357,14 @@ let private handleRequest
   }
 
 
-/// Run the HTTP listener loop until `cancellationToken` fires. Public so
-/// tests can drive a per-test listener with their own CancellationToken.
-/// Starts an HttpListener on `port`, dispatches every request to `handler`
-/// via `handleRequest`, and exits when cancellation is requested. On
-/// cancellation, calls `listener.Stop()` to unblock `GetContextAsync`.
-let runListener
+/// Internal implementation of the listener loop, parameterised over
+/// the per-request dispatch closure. `runListener` (static handler) and
+/// `runListenerByPath` (hot-reload-by-path) both wrap this with their
+/// own dispatch closure and share the rest of the implementation.
+let private runListenerImpl
   (exeState : ExecutionState)
   (port : int64)
-  (handler : Applicable)
+  (dispatch : ExecutionState -> Dval -> Task<Dval>)
   (maxBodyBytes : int64)
   (injectStandardHeaders : bool)
   (canonicalizeFromForwardedProto : bool)
@@ -399,7 +477,7 @@ let runListener
               do!
                 handleRequest
                   exeState
-                  handler
+                  dispatch
                   maxBodyBytes
                   injectStandardHeaders
                   canonicalizeFromForwardedProto
@@ -421,6 +499,61 @@ let runListener
 
     Telemetry.event "httpserver.shutdown" [ "port", string port ]
   }
+
+
+/// Static-handler listener: the user passed an Applicable (lambda or
+/// named fn) and expects that exact resolved handler for the lifetime of
+/// the server. Public — tests drive a per-test listener with this.
+let runListener
+  (exeState : ExecutionState)
+  (port : int64)
+  (handler : Applicable)
+  (maxBodyBytes : int64)
+  (injectStandardHeaders : bool)
+  (canonicalizeFromForwardedProto : bool)
+  (logRequests : bool)
+  (cancellationToken : CancellationToken)
+  : Task<unit> =
+  let dispatch (state : ExecutionState) (arg : Dval) : Task<Dval> =
+    executeHandler state handler arg
+  runListenerImpl
+    exeState
+    port
+    dispatch
+    maxBodyBytes
+    injectStandardHeaders
+    canonicalizeFromForwardedProto
+    logRequests
+    cancellationToken
+
+
+/// Hot-reload-on-commit listener: the user passed an FQ path string. On
+/// each request, the path is re-resolved against the current branch's
+/// package store, so a `commit` of a new fn version is picked up by the
+/// next request. Unresolved paths return a dev-friendly 404 with a
+/// "define it and retry" hint.
+let runListenerByPath
+  (exeState : ExecutionState)
+  (port : int64)
+  (path : string)
+  (maxBodyBytes : int64)
+  (injectStandardHeaders : bool)
+  (canonicalizeFromForwardedProto : bool)
+  (logRequests : bool)
+  (cancellationToken : CancellationToken)
+  : Task<unit> =
+  let branchId = exeState.branchId
+  let dispatch (state : ExecutionState) (arg : Dval) : Task<Dval> =
+    executeHandlerByPath state branchId path arg
+  runListenerImpl
+    exeState
+    port
+    dispatch
+    maxBodyBytes
+    injectStandardHeaders
+    canonicalizeFromForwardedProto
+    logRequests
+    cancellationToken
 
 
 let fns () : List<BuiltInFn> =
@@ -492,6 +625,84 @@ let fns () : List<BuiltInFn> =
                 cts.Token
 
             // Block until listener exits (cancellation).
+            listenerTask.Wait()
+
+            Console.CancelKeyPress.RemoveHandler cancelHandler
+
+            return DUnit
+          }
+
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "httpServerServeNamed" 0
+      typeParams = []
+      parameters =
+        [ Param.make "port" TInt64 "TCP port to listen on"
+          Param.make
+            "handlerPath"
+            TString
+            "Fully-qualified package path (e.g. `Darklang.MyApp.handler`). Re-resolved on every request, so a `commit` of a new fn version is picked up immediately by the next request."
+          Param.make
+            "maxBodyBytes"
+            TInt64
+            "Maximum request body size in bytes (over-limit → 413)"
+          Param.make
+            "injectStandardHeaders"
+            TBool
+            "If true, auto-add `Server: darklang` and HSTS to responses unless the handler set them"
+          Param.make
+            "canonicalizeFromForwardedProto"
+            TBool
+            "If true, rewrite request.url to https:// when X-Forwarded-Proto: https is present"
+          Param.make
+            "logRequests"
+            TBool
+            "If true, emit a per-request stdout line and Telemetry.event 'httpserver.request' with method/path/status/duration_ms" ]
+      returnType = TUnit
+      description =
+        "Start an HTTP server with hot-reload-on-commit. Resolves <param handlerPath> against the current branch on every request. Blocks until SIGINT."
+      fn =
+        (function
+        | exeState,
+          _,
+          _,
+          [ DInt64 port
+            DString handlerPath
+            DInt64 maxBodyBytes
+            DBool injectStandardHeaders
+            DBool canonicalizeFromForwardedProto
+            DBool logRequests ] ->
+          uply {
+            use _serveSpan =
+              Telemetry.span
+                "httpserver.serve.named"
+                [ "port", string port; "path", handlerPath ]
+
+            print
+              $"[HttpServer] Listening on port {port} (hot-reload: {handlerPath})"
+
+            let cts = new CancellationTokenSource()
+            let cancelHandler =
+              ConsoleCancelEventHandler(fun _ args ->
+                args.Cancel <- true
+                cts.Cancel())
+            Console.CancelKeyPress.AddHandler cancelHandler
+
+            let listenerTask =
+              runListenerByPath
+                exeState
+                port
+                handlerPath
+                maxBodyBytes
+                injectStandardHeaders
+                canonicalizeFromForwardedProto
+                logRequests
+                cts.Token
+
             listenerTask.Wait()
 
             Console.CancelKeyPress.RemoveHandler cancelHandler
