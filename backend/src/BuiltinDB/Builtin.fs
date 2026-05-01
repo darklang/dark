@@ -1,7 +1,7 @@
 /// Builtin functions that can only be run on the backend
 ///
 /// Aggregates functions in other modules
-module BuiltinCloudExecution.Builtin
+module BuiltinDB.Builtin
 
 module Builtin = LibExecution.Builtin
 

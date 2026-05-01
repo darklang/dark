@@ -131,7 +131,7 @@ let builtinsToUse () : RT.Builtins =
       BuiltinCli.Builtin.builtins ()
       BuiltinPM.Builtin.builtins ptPM
       BuiltinHttpServer.Builtin.builtins ()
-      BuiltinCloudExecution.Builtin.builtins () ]
+      BuiltinDB.Builtin.builtins () ]
     []
 
 

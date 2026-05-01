@@ -21,7 +21,7 @@
 
     <!-- cloud -->
     <ProjectReference Include="../../src/LibSerialization/LibSerialization.fsproj" />
-    <ProjectReference Include="../../src/BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
+    <ProjectReference Include="../../src/BuiltinDB/BuiltinDB.fsproj" />
     <ProjectReference Include="../../src/BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
 
     <!-- cross-cutting -->

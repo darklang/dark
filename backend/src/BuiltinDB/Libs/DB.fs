@@ -1,5 +1,5 @@
 /// Builtin functions for accessing and manipulating user datastores
-module BuiltinCloudExecution.Libs.DB
+module BuiltinDB.Libs.DB
 
 open Prelude
 open LibExecution.RuntimeTypes

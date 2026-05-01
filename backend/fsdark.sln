@@ -41,7 +41,7 @@ EndProject
 # Cloud stuff
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibSerialization", "src\LibSerialization\LibSerialization.fsproj", "{5830D9BF-CA28-47B0-964F-343FAB28751B}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinCloudExecution", "src\BuiltinCloudExecution\BuiltinCloudExecution.fsproj", "{82CA75E9-53BD-4324-B86B-44F280BAF331}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinDB", "src\BuiltinDB\BuiltinDB.fsproj", "{82CA75E9-53BD-4324-B86B-44F280BAF331}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinDarkInternal", "src\BuiltinDarkInternal\BuiltinDarkInternal.fsproj", "{B6933551-A7A3-4A85-BEF4-43214ABB04DF}"
 EndProject

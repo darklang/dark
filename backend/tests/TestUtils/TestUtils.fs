@@ -117,7 +117,7 @@ let builtins
       BuiltinExecution.Builtin.builtins httpConfig
       BuiltinPM.Builtin.builtins pm
       BuiltinHttpServer.Builtin.builtins ()
-      BuiltinCloudExecution.Builtin.builtins ()
+      BuiltinDB.Builtin.builtins ()
       BuiltinDarkInternal.Builtin.builtins ()
       BuiltinCli.Builtin.builtins () ]
     []

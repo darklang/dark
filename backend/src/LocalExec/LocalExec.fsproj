@@ -28,7 +28,7 @@
     <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
     <ProjectReference Include="../BuiltinHttpServer/BuiltinHttpServer.fsproj" />
     <ProjectReference Include="../BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
-    <ProjectReference Include="../BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
+    <ProjectReference Include="../BuiltinDB/BuiltinDB.fsproj" />
     <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
   </ItemGroup>
   <ItemGroup>

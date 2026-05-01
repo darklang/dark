@@ -25,7 +25,7 @@
     <ProjectReference Include="../LibPackageManager/LibPackageManager.fsproj" />
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../LibSqlite/LibSqlite.fsproj" />
-    <ProjectReference Include="../BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
+    <ProjectReference Include="../BuiltinDB/BuiltinDB.fsproj" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
