@@ -19,6 +19,10 @@
     <ProjectReference Include="../LibSqlite/LibSqlite.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DvalRepr/Roundtrippable.fs" />
+    <Compile Include="DvalRepr/Hash.fs" />
+    <Compile Include="DvalRepr/Queryable.fs" />
+
     <Compile Include="PackageManager/PackageLocation.fs" />
     <Compile Include="PackageManager/Caching.fs" />
     <Compile Include="PackageManager/Purge.fs" />

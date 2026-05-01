@@ -10,7 +10,7 @@ open Fumble
 open LibSqlite.Db
 
 module Dval = LibExecution.Dval
-module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
+module DvalReprInternalRoundtrippable = LibDB.DvalRepr.Roundtrippable
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module NR = LibExecution.RuntimeTypes.NameResolution
 module TracesRefs = LibExecution.PackageRefs.Type.Cli.Commands.Traces

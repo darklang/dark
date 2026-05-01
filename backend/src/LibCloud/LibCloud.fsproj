@@ -17,11 +17,9 @@
     <ProjectReference Include="../LibSerialization/LibSerialization.fsproj" />
     <ProjectReference Include="../LibConfig/LibConfig.fsproj" />
     <ProjectReference Include="../LibSqlite/LibSqlite.fsproj" />
+    <ProjectReference Include="../LibDB/LibDB.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DvalReprInternalRoundtrippable.fs" />
-    <Compile Include="DvalReprInternalHash.fs" />
-
     <Compile Include="Config.fs" />
     <Compile Include="File.fs" />
     <Compile Include="Account.fs" />
@@ -29,10 +27,7 @@
     <Compile Include="Secret.fs" />
     <Compile Include="Canvas.fs" />
     <Compile Include="Tracing.fs" />
-
-    <Compile Include="DvalReprInternalQueryable.fs" />
     <Compile Include="UserDB.fs" />
-
     <Compile Include="Stats.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

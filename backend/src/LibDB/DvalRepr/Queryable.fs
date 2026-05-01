@@ -17,14 +17,15 @@
 ///
 /// These are intended to be used exclusively internally — should not
 /// be used in libraries, HTTP server / client builtins, etc.
-module LibExecution.DvalReprInternalQueryable
+module LibDB.DvalRepr.Queryable
 
 open System.Text.Json
 
 open Prelude
 
-open RuntimeTypes
-module VT = ValueType
+open LibExecution.RuntimeTypes
+module VT = LibExecution.ValueType
+module TypeChecker = LibExecution.TypeChecker
 
 
 let parseJson (s : string) : JsonElement =
@@ -123,7 +124,7 @@ let rec private toJsonV0
 
     | DUuid uuid -> w.WriteStringValue(string uuid)
 
-    | DDateTime date -> w.WriteStringValue(DarkDateTime.toIsoString date)
+    | DDateTime date -> w.WriteStringValue(LibExecution.DarkDateTime.toIsoString date)
 
     // nested types
     | DTuple(d1, d2, rest) ->
@@ -250,7 +251,7 @@ let parseJsonV0
     | TDateTime, JsonValueKind.String ->
       j.GetString()
       |> NodaTime.Instant.ofIsoString
-      |> DarkDateTime.fromInstant
+      |> LibExecution.DarkDateTime.fromInstant
       |> DDateTime
       |> Ply
 

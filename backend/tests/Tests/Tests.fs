@@ -12,7 +12,7 @@ module PT = LibExecution.ProgramTypes
 let initSerializers () =
   // Universally-serializable types — kept here so the test process can
   // (de)serialize the same shapes the older HTTP-handler harness did.
-  Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
+  Json.Vanilla.allow<LibDB.DvalRepr.Roundtrippable.FormatV0.Dval>
     "RoundtrippableSerializationFormatV0.Dval"
   Json.Vanilla.allow<List<LibExecution.ProgramTypes.Toplevel.T>>
     "Canvas.loadJsonFromDisk"

@@ -2,13 +2,13 @@
 ///
 /// That is, they should not be used in libraries, in HTTP server / client builtins,
 /// etc.
-module LibExecution.DvalReprInternalRoundtrippable
+module LibDB.DvalRepr.Roundtrippable
 
 open Prelude
 
 // Note: we intentionally don't `open` RT here, so that we don't accidentally
 // confuse the types defined here and the types defined in RT.
-module RT = RuntimeTypes
+module RT = LibExecution.RuntimeTypes
 
 
 module FormatV0 =

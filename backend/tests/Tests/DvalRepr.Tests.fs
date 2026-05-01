@@ -13,7 +13,7 @@ module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
 
 module Exe = LibExecution.Execution
-module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
+module DvalReprInternalQueryable = LibDB.DvalRepr.Queryable
 module NR = LibExecution.RuntimeTypes.NameResolution
 
 let toRepr (dval : RT.Dval) : string =
@@ -30,8 +30,8 @@ let toRepr (dval : RT.Dval) : string =
         dbs = Map.empty
         secrets = [] }
   (Exe.dvalToRepr state dval).Result
-module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
-module DvalReprInternalHash = LibExecution.DvalReprInternalHash
+module DvalReprInternalRoundtrippable = LibDB.DvalRepr.Roundtrippable
+module DvalReprInternalHash = LibDB.DvalRepr.Hash
 
 let bogusThreadID = guuid ()
 

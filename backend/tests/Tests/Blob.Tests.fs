@@ -24,8 +24,8 @@ module BS = LibSerialization.Binary.Serialization
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PMBlob = LibDB.PackageManager.RuntimeTypes.Blob
-module RoundtrippableJson = LibExecution.DvalReprInternalRoundtrippable
-module QueryableJson = LibExecution.DvalReprInternalQueryable
+module RoundtrippableJson = LibDB.DvalRepr.Roundtrippable
+module QueryableJson = LibDB.DvalRepr.Queryable
 module Equals = BuiltinExecution.Libs.NoModule
 
 open Fumble

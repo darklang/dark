@@ -9,7 +9,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
-module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
+module DvalReprInternalRoundtrippable = LibDB.DvalRepr.Roundtrippable
 
 /// Tracing can go overboard, so use a per-handler feature flag to control it. If
 /// sampling is disabled for a canvas, no traces will be recorded to be saved to the
