@@ -426,6 +426,7 @@ let private runFixture (test : Test) : Task<unit> =
         HttpServer.defaultMaxBodyBytes
         true // injectStandardHeaders
         true // canonicalizeFromForwardedProto
+        false // logRequests — keep tests quiet
         cts.Token
 
     try

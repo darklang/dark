@@ -108,7 +108,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         // Call the builtin directly (bypassing Stdlib.HttpServer.serve's
         // hardcoded defaults) so --max-body-bytes can take effect.
         let expr =
-          $"Builtin.httpServerServe {portStr_}L {parsed.routerPath} {maxBytesStr}L true true"
+          $"Builtin.httpServerServe {portStr_}L {parsed.routerPath} {maxBytesStr}L true true true"
 
         match
           Builtin.cliEvaluateExpression

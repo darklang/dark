@@ -166,6 +166,30 @@ let private maybeInjectStandardHeaders
     headers @ extras
 
 
+/// Emit a per-request log line + telemetry event. Caller passes the
+/// already-set status code (post-handler) and the start timestamp.
+let private logRequest
+  (ctx : HttpListenerContext)
+  (status : int)
+  (started : System.DateTime)
+  : unit =
+  let durationMs =
+    (System.DateTime.UtcNow - started).TotalMilliseconds |> int64
+  let methodStr = ctx.Request.HttpMethod
+  let pathAndQuery =
+    try
+      ctx.Request.Url.PathAndQuery
+    with _ ->
+      "?"
+  print $"[HttpServer] {methodStr} {pathAndQuery} {status} {durationMs}ms"
+  Telemetry.event
+    "httpserver.request"
+    [ "method", methodStr
+      "path", pathAndQuery
+      "status", string status
+      "duration_ms", string durationMs ]
+
+
 /// Process a single request: parse → dispatch → write response. Errors are
 /// caught and returned as 500s so a single bad request can't kill the loop.
 let private handleRequest
@@ -174,9 +198,11 @@ let private handleRequest
   (maxBodyBytes : int64)
   (injectStandardHeaders : bool)
   (canonicalizeFromForwardedProto : bool)
+  (logRequests : bool)
   (ctx : HttpListenerContext)
   : Task<unit> =
   task {
+    let started = System.DateTime.UtcNow
     // Push a fresh blob-scope per request so ephemeral blobs minted by the
     // handler (and by any toHttpResponse materialisation) are reclaimed once
     // the response is sent. Without this, a long-lived http-server VM leaks
@@ -225,6 +251,11 @@ let private handleRequest
         do! ctx.Response.OutputStream.WriteAsync(errorBytes, 0, errorBytes.Length)
     finally
       LibExecution.Blob.popScope exeState
+      if logRequests then
+        try
+          logRequest ctx ctx.Response.StatusCode started
+        with _ ->
+          ()
       try
         ctx.Response.OutputStream.Close()
         ctx.Response.Close()
@@ -245,6 +276,7 @@ let runListener
   (maxBodyBytes : int64)
   (injectStandardHeaders : bool)
   (canonicalizeFromForwardedProto : bool)
+  (logRequests : bool)
   (cancellationToken : CancellationToken)
   : Task<unit> =
   task {
@@ -258,7 +290,8 @@ let runListener
         "maxBodyBytes", string maxBodyBytes
         "injectStandardHeaders", string injectStandardHeaders
         "canonicalizeFromForwardedProto",
-        string canonicalizeFromForwardedProto ]
+        string canonicalizeFromForwardedProto
+        "logRequests", string logRequests ]
 
     // Cancellation → listener.Stop() unblocks any pending GetContextAsync
     // call by raising HttpListenerException / ObjectDisposedException, which
@@ -285,6 +318,7 @@ let runListener
                   maxBodyBytes
                   injectStandardHeaders
                   canonicalizeFromForwardedProto
+                  logRequests
                   ctx
             with _ ->
               ()
@@ -326,7 +360,11 @@ let fns () : List<BuiltInFn> =
           Param.make
             "canonicalizeFromForwardedProto"
             TBool
-            "If true, rewrite request.url to https:// when X-Forwarded-Proto: https is present" ]
+            "If true, rewrite request.url to https:// when X-Forwarded-Proto: https is present"
+          Param.make
+            "logRequests"
+            TBool
+            "If true, emit a per-request stdout line and Telemetry.event 'httpserver.request' with method/path/status/duration_ms" ]
       returnType = TUnit
       description =
         "Start an HTTP server. Calls handler for each request. Blocks until SIGINT."
@@ -339,7 +377,8 @@ let fns () : List<BuiltInFn> =
             DApplicable handler
             DInt64 maxBodyBytes
             DBool injectStandardHeaders
-            DBool canonicalizeFromForwardedProto ] ->
+            DBool canonicalizeFromForwardedProto
+            DBool logRequests ] ->
           uply {
             use _serveSpan =
               Telemetry.span "httpserver.serve" [ "port", string port ]
@@ -364,6 +403,7 @@ let fns () : List<BuiltInFn> =
                 maxBodyBytes
                 injectStandardHeaders
                 canonicalizeFromForwardedProto
+                logRequests
                 cts.Token
 
             // Block until listener exits (cancellation).

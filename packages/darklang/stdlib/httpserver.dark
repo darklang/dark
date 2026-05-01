@@ -214,5 +214,6 @@ let getPathParam (req: Http.Request) (routePattern: String) (paramName: String) 
 ///     unless the handler set them)
 ///   canonicalizeFromForwardedProto = true (rewrite request.url to https://
 ///     when `X-Forwarded-Proto: https` is present, for proxy-fronted hosts)
+///   logRequests = true (per-request stdout line + Telemetry event)
 let serve (port: Int64) (handler: Http.Request -> Http.Response) : Unit =
-  Builtin.httpServerServe port handler 31457280L true true
+  Builtin.httpServerServe port handler 31457280L true true true
