@@ -111,6 +111,19 @@ let responseWithJson
       headers = [ ("Content-Type", "application/json") ]
       body = Stdlib.String.toBlob json }
 
+/// Returns a <type Response> appropriate for serving a favicon, given
+/// the favicon image bytes (typically a small PNG). Sets
+/// Content-Type to "image/png" and Access-Control-Allow-Origin: *.
+/// Caller is responsible for choosing when to invoke this (e.g. on a
+/// `/favicon.ico` GET handler in a multi-handler router).
+let faviconResponse (body: Blob) : Stdlib.Http.Response =
+  Stdlib.Http.Response
+    { statusCode = 200L
+      headers =
+        [ ("Content-Type", "image/png")
+          ("Access-Control-Allow-Origin", "*") ]
+      body = body }
+
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with {{302}} status code and redirect to <param url>.
 let redirectTo (url: String) : Stdlib.Http.Response =

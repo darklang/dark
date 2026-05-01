@@ -49,3 +49,34 @@ let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
 // X-Forwarded-Proto canonicalization in smoke tests.
 let urlEchoHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   Stdlib.Http.responseWithText req.url 200L
+
+
+// ---- Favicon-serving multi-handler example ----
+//
+// Reads the bundled `favicon-32x32.png` from disk and serves it on
+// `/favicon.ico`. Falls back to an empty body if the file isn't
+// reachable from the cwd (so the fn is still callable in non-test
+// contexts). The test fixture (favicon-multi-handler.test) asserts
+// the byte-for-byte roundtrip via the `<IMPORT_DATA_FROM_FILE=...>`
+// mechanism.
+let faviconHandlerFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  let bytes =
+    match Stdlib.Cli.File.readBytes "testfiles/data/favicon-32x32.png" with
+    | Ok b -> b
+    | Error _ -> Stdlib.Blob.empty
+  Stdlib.Http.faviconResponse bytes
+
+
+let faviconHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler
+    { route = "/favicon.ico"
+      method = "GET"
+      handler = faviconHandlerFn }
+
+
+/// Multi-handler router that includes a favicon entry alongside the
+/// regular handlers.
+let routerWithFavicon (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  let allHandlers: List<Stdlib.HttpServer.Handler> =
+    [ faviconHandler; helloHandler; echoHandler; rootHandler ]
+  Stdlib.HttpServer.routeRequest allHandlers req
