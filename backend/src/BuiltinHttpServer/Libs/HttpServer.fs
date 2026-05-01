@@ -24,6 +24,9 @@ open System.IO
 open System.Threading
 open System.Threading.Tasks
 
+open Fumble
+open LibSqlite.Db
+
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
@@ -119,9 +122,52 @@ let private executeHandlerByPath
           Execution.executeFunction exeState fqName [] (NEList.singleton arg)
         return! resultToDval exeState result
       | None ->
-        // 404 with a dev-friendly hint.
+        // 404 with a dev-friendly hint. Look for nearby fn names so the
+        // 404 doubles as "did you mean?" — caller probably mistyped or
+        // is iterating on a name they haven't committed yet.
+        let! suggestions =
+          let modulesStr = String.concat "." modules
+          let likePattern =
+            if modulesStr = "" then
+              // Top-level: search the owner's fns by name fragment.
+              $"%%{name}%%"
+            else
+              // With modules: prefer matches under the same module path,
+              // fall back to anything matching the leaf name.
+              $"%%{modulesStr}%%"
+          Sql.query
+            """
+            SELECT owner, modules, name
+            FROM locations
+            WHERE owner = @owner
+              AND item_type = 'fn'
+              AND unlisted_at IS NULL
+              AND ((modules = @modules) OR (modules LIKE @likePattern) OR (name LIKE @namePattern))
+            ORDER BY (modules = @modules) DESC, length(modules) ASC
+            LIMIT 5
+            """
+          |> Sql.parameters
+            [ "owner", Sql.string owner
+              "modules", Sql.string modulesStr
+              "likePattern", Sql.string likePattern
+              "namePattern", Sql.string $"%%{name}%%" ]
+          |> Sql.executeAsync (fun read ->
+            let o = read.string "owner"
+            let m = read.string "modules"
+            let n = read.string "name"
+            if m = "" then $"{o}.{n}" else $"{o}.{m}.{n}")
+
+        let suggestionsBlock =
+          match suggestions with
+          | [] -> ""
+          | items ->
+            "Did you mean one of these?\n"
+            + (items |> List.map (fun s -> $"  - {s}") |> String.concat "\n")
+            + "\n\n"
+
         let body =
           $"404 Not Found\n\nNo handler defined at `{path}` on this branch.\n\n"
+          + suggestionsBlock
           + $"Define it with `fn {path} <args> = <body>` and `commit`, then retry."
         let typeName =
           FQTypeName.fqPackage (LibExecution.PackageRefs.Type.Stdlib.Http.response ())
