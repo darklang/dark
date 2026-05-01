@@ -22,7 +22,7 @@ let fns : List<BuiltInFn> =
         | _, _, _, [ DString outputPath ] ->
           uply {
             try
-              do! LibPackageManager.Seed.export outputPath
+              do! LibDB.PackageManager.Seed.export outputPath
               return resultOk DUnit
             with ex ->
               return resultError (DString ex.Message)

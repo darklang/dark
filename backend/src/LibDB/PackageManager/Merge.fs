@@ -1,4 +1,4 @@
-module LibPackageManager.Merge
+module LibDB.PackageManager.Merge
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

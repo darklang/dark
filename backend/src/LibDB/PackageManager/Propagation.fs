@@ -1,6 +1,6 @@
 /// Propagates package item updates to all dependents by creating new versions
 /// with updated Hash references.
-module LibPackageManager.Propagation
+module LibDB.PackageManager.Propagation
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

@@ -1,0 +1,48 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+    <!-- Publishing configuration -->
+    <IsPublishable>false</IsPublishable>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../Prelude/Prelude.fsproj" />
+    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../LibSerialization/LibSerialization.fsproj" />
+    <ProjectReference Include="../LibConfig/LibConfig.fsproj" />
+    <ProjectReference Include="../LibSqlite/LibSqlite.fsproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="PackageManager/PackageLocation.fs" />
+    <Compile Include="PackageManager/Caching.fs" />
+    <Compile Include="PackageManager/Purge.fs" />
+    <Compile Include="PackageManager/DependencyExtractor.fs" />
+    <Compile Include="PackageManager/BranchOpPlayback.fs" />
+    <Compile Include="PackageManager/Branches.fs" />
+    <Compile Include="PackageManager/AstTransformer.fs" />
+    <Compile Include="PackageManager/HashStabilization.fs" />
+    <Compile Include="PackageManager/NameLookup.fs" />
+    <Compile Include="PackageManager/DeferredResolver.fs" />
+    <Compile Include="PackageManager/PackageOpPlayback.fs" />
+    <Compile Include="PackageManager/Inserts.fs" />
+    <Compile Include="PackageManager/Queries.fs" />
+    <Compile Include="PackageManager/Rebase.fs" />
+    <Compile Include="PackageManager/Merge.fs" />
+    <Compile Include="PackageManager/Stats.fs" />
+    <Compile Include="PackageManager/ProgramTypes.fs" />
+    <Compile Include="PackageManager/WipRefresh.fs" />
+    <Compile Include="PackageManager/Propagation.fs" />
+    <Compile Include="PackageManager/RuntimeTypes.fs" />
+    <Compile Include="PackageManager/PackageManager.fs" />
+    <Compile Include="PackageManager/Scripts.fs" />
+    <Compile Include="PackageManager/PackageRefsGenerator.fs" />
+    <Compile Include="PackageManager/Seed.fs" />
+  </ItemGroup>
+  <Import Project="..\..\.paket\Paket.Restore.targets" />
+</Project>

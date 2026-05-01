@@ -7,7 +7,7 @@
 ///
 /// Parallel structure to AstTransformer.fs, but instead of replacing hashes,
 /// it resolves Error names to Ok via PM lookups.
-module LibPackageManager.DeferredResolver
+module LibDB.PackageManager.DeferredResolver
 
 open Prelude
 open LibExecution.ProgramTypes

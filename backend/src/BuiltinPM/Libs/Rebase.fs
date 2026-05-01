@@ -27,7 +27,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid branchId ] ->
           uply {
-            let! result = LibPackageManager.Rebase.rebase branchId
+            let! result = LibDB.PackageManager.Rebase.rebase branchId
             match result with
             | Ok msg -> return resultOk (DString msg)
             | Error conflicts ->
@@ -53,7 +53,7 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid branchId ] ->
           uply {
-            let! conflicts = LibPackageManager.Rebase.getConflicts branchId
+            let! conflicts = LibDB.PackageManager.Rebase.getConflicts branchId
             let conflictStrs =
               conflicts
               |> List.map (fun c ->

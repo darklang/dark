@@ -10,9 +10,9 @@ open TestUtils.TestUtils
 open TestUtils.PTShortcuts
 
 module PT = LibExecution.ProgramTypes
-module Branches = LibPackageManager.Branches
-module Inserts = LibPackageManager.Inserts
-module BranchOpPlayback = LibPackageManager.BranchOpPlayback
+module Branches = LibDB.PackageManager.Branches
+module Inserts = LibDB.PackageManager.Inserts
+module BranchOpPlayback = LibDB.PackageManager.BranchOpPlayback
 
 open Fumble
 open LibSqlite.Db

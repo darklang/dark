@@ -6,7 +6,7 @@ open LibExecution.RuntimeTypes
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
-module Scripts = LibPackageManager.Scripts
+module Scripts = LibDB.PackageManager.Scripts
 module PackageRefs = LibExecution.PackageRefs
 module NR = LibExecution.RuntimeTypes.NameResolution
 

@@ -1,13 +1,13 @@
-module LibPackageManager.HashStabilization
+module LibDB.PackageManager.HashStabilization
 
 open Prelude
 open LibExecution.ProgramTypes
 
 module PT = LibExecution.ProgramTypes
-module DE = LibPackageManager.DependencyExtractor
+module DE = LibDB.PackageManager.DependencyExtractor
 open LibSerialization.Hashing
-module AT = LibPackageManager.AstTransformer
-module PackageLocation = LibPackageManager.PackageLocation
+module AT = LibDB.PackageManager.AstTransformer
+module PackageLocation = LibDB.PackageManager.PackageLocation
 
 
 /// Replace SetName placeholder hashes with the hashes from the previous iteration.

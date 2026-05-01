@@ -1,4 +1,4 @@
-module LibPackageManager.Caching
+module LibDB.PackageManager.Caching
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

@@ -35,7 +35,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           uply {
             let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
             let stabilized =
-              LibPackageManager.HashStabilization.computeRealHashes ptOps
+              LibDB.PackageManager.HashStabilization.computeRealHashes ptOps
             return
               Dval.list
                 (packageOpKT ())
@@ -68,11 +68,11 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
               // All ops are added as WIP - use scmCommit to commit them
               let! insertedCount =
-                LibPackageManager.Inserts.insertAndApplyOpsAsWip branchId ops
+                LibDB.PackageManager.Inserts.insertAndApplyOpsAsWip branchId ops
 
               // Auto-refresh existing WIP items: re-resolve names and
               // recompute SCC-aware hashes now that new items exist
-              let! _refreshed = LibPackageManager.WipRefresh.refresh pm branchId
+              let! _refreshed = LibDB.PackageManager.WipRefresh.refresh pm branchId
 
               return resultOk (Dval.int64 insertedCount)
             with ex ->
@@ -93,7 +93,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         function
         | _, _, _, [ DInt64 limit ] ->
           uply {
-            let! ops = LibPackageManager.Queries.getRecentOps limit
+            let! ops = LibDB.PackageManager.Queries.getRecentOps limit
             return Dval.list (packageOpKT ()) (ops |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ()
@@ -111,7 +111,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid branchId ] ->
           uply {
-            let! ops = LibPackageManager.Queries.getWipOps branchId
+            let! ops = LibDB.PackageManager.Queries.getWipOps branchId
             return Dval.list (packageOpKT ()) (ops |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ()
@@ -129,7 +129,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid branchId ] ->
           uply {
-            let! summary = LibPackageManager.Queries.getWipSummary branchId
+            let! summary = LibDB.PackageManager.Queries.getWipSummary branchId
             return
               Dval.dict
                 KTInt64
@@ -157,7 +157,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid branchId ] ->
           uply {
-            let! items = LibPackageManager.Queries.getWipItems branchId
+            let! items = LibDB.PackageManager.Queries.getWipItems branchId
             return
               items
               |> List.map (fun item ->
@@ -184,7 +184,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid branchId ] ->
           uply {
-            let! count = LibPackageManager.Queries.getWipOpCount branchId
+            let! count = LibDB.PackageManager.Queries.getWipOpCount branchId
             return Dval.int64 count
           }
         | _ -> incorrectArgs ()
@@ -202,7 +202,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid branchId ] ->
           uply {
-            let! count = LibPackageManager.Queries.getCommitCount branchId
+            let! count = LibDB.PackageManager.Queries.getCommitCount branchId
             return Dval.int64 count
           }
         | _ -> incorrectArgs ()
@@ -228,7 +228,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _, _, _, [ DUuid accountId; DUuid branchId; DString message ] ->
           uply {
             let! result =
-              LibPackageManager.Inserts.commitWipOps accountId branchId message
+              LibDB.PackageManager.Inserts.commitWipOps accountId branchId message
             match result with
             | Ok commitHash ->
               let (PT.Hash h) = commitHash
@@ -254,7 +254,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid branchId ] ->
           uply {
-            let! result = LibPackageManager.Inserts.discardWipOps branchId
+            let! result = LibDB.PackageManager.Inserts.discardWipOps branchId
             match result with
             | Ok count -> return resultOk (Dval.int64 count)
             | Error msg -> return resultError (Dval.string msg)
@@ -276,7 +276,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid branchId; DInt64 limit ] ->
           uply {
-            let! commits = LibPackageManager.Queries.getCommits branchId limit
+            let! commits = LibDB.PackageManager.Queries.getCommits branchId limit
             return
               Dval.list
                 (PT2DT.Commit.knownType ())
@@ -301,7 +301,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _, _, _, [ DUuid branchId; DInt64 limit ] ->
           uply {
             let! commits =
-              LibPackageManager.Queries.getCommitsForBranchChain branchId limit
+              LibDB.PackageManager.Queries.getCommitsForBranchChain branchId limit
             return
               Dval.list
                 (PT2DT.Commit.knownType ())
@@ -322,7 +322,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         function
         | _, _, _, [ DString commitHash ] ->
           uply {
-            let! ops = LibPackageManager.Queries.getCommitOps (PT.Hash commitHash)
+            let! ops = LibDB.PackageManager.Queries.getCommitOps (PT.Hash commitHash)
             return Dval.list (packageOpKT ()) (ops |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ()

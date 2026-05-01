@@ -1,4 +1,4 @@
-module LibPackageManager.Purge
+module LibDB.PackageManager.Purge
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

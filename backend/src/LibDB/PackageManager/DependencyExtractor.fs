@@ -1,6 +1,6 @@
 /// Extracts dependency references from AST expressions.
 /// Used to track what functions/types/values reference what other functions/types/values.
-module LibPackageManager.DependencyExtractor
+module LibDB.PackageManager.DependencyExtractor
 
 open Prelude
 open LibExecution.ProgramTypes

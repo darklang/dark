@@ -10,10 +10,10 @@ open TestUtils.TestUtils
 open TestUtils.PTShortcuts
 
 module PT = LibExecution.ProgramTypes
-module Branches = LibPackageManager.Branches
-module Inserts = LibPackageManager.Inserts
-module Queries = LibPackageManager.Queries
-module Propagation = LibPackageManager.Propagation
+module Branches = LibDB.PackageManager.Branches
+module Inserts = LibDB.PackageManager.Inserts
+module Queries = LibDB.PackageManager.Queries
+module Propagation = LibDB.PackageManager.Propagation
 
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -315,21 +315,21 @@ let private addValueAt
 let private findFn (branchId : PT.BranchId) (location : PT.PackageLocation) =
   task {
     let! chain = Branches.getBranchChain branchId
-    let! result = LibPackageManager.ProgramTypes.Fn.find chain location
+    let! result = LibDB.PackageManager.ProgramTypes.Fn.find chain location
     return result
   }
 
 let private findType (branchId : PT.BranchId) (location : PT.PackageLocation) =
   task {
     let! chain = Branches.getBranchChain branchId
-    let! result = LibPackageManager.ProgramTypes.Type.find chain location
+    let! result = LibDB.PackageManager.ProgramTypes.Type.find chain location
     return result
   }
 
 let private findValue (branchId : PT.BranchId) (location : PT.PackageLocation) =
   task {
     let! chain = Branches.getBranchChain branchId
-    let! result = LibPackageManager.ProgramTypes.Value.find chain location
+    let! result = LibDB.PackageManager.ProgramTypes.Value.find chain location
     return result
   }
 

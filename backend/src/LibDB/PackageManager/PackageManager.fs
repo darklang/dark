@@ -1,4 +1,4 @@
-module LibPackageManager.PackageManager
+module LibDB.PackageManager.PackageManager
 
 open Prelude
 open LibExecution.ProgramTypes
@@ -6,7 +6,7 @@ open LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 
-open LibPackageManager.Caching
+open LibDB.PackageManager.Caching
 
 module PMPT = ProgramTypes
 module PMRT = RuntimeTypes

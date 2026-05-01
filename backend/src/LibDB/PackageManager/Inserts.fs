@@ -1,4 +1,4 @@
-module LibPackageManager.Inserts
+module LibDB.PackageManager.Inserts
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

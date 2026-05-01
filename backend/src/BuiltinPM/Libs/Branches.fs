@@ -26,7 +26,7 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [ DString name; DUuid parentBranchId ] ->
           uply {
-            let! branch = LibPackageManager.Branches.create name parentBranchId
+            let! branch = LibDB.PackageManager.Branches.create name parentBranchId
             return PT2DT.Branch.toDT branch
           }
         | _ -> incorrectArgs ()
@@ -44,7 +44,7 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [ DUnit ] ->
           uply {
-            let! branches = LibPackageManager.Branches.list ()
+            let! branches = LibDB.PackageManager.Branches.list ()
             return
               branches
               |> List.map PT2DT.Branch.toDT
@@ -65,7 +65,7 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [ DUnit ] ->
           uply {
-            let! branches = LibPackageManager.Branches.listAll ()
+            let! branches = LibDB.PackageManager.Branches.listAll ()
             return
               branches
               |> List.map PT2DT.Branch.toDT
@@ -86,7 +86,7 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid id ] ->
           uply {
-            let! branchOpt = LibPackageManager.Branches.get id
+            let! branchOpt = LibDB.PackageManager.Branches.get id
             return
               branchOpt
               |> Option.map PT2DT.Branch.toDT
@@ -107,7 +107,7 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [ DString name ] ->
           uply {
-            let! branchOpt = LibPackageManager.Branches.getByName name
+            let! branchOpt = LibDB.PackageManager.Branches.getByName name
             return
               branchOpt
               |> Option.map PT2DT.Branch.toDT
@@ -130,7 +130,7 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid id; DString newName ] ->
           uply {
-            let! result = LibPackageManager.Branches.rename id newName
+            let! result = LibDB.PackageManager.Branches.rename id newName
             return
               result
               |> Result.map (fun () -> DUnit)
@@ -152,7 +152,7 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid id ] ->
           uply {
-            let! result = LibPackageManager.Branches.archive id
+            let! result = LibDB.PackageManager.Branches.archive id
             return
               result
               |> Result.map (fun () -> DUnit)
@@ -174,7 +174,7 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid id ] ->
           uply {
-            let! result = LibPackageManager.Branches.archive id
+            let! result = LibDB.PackageManager.Branches.archive id
             return
               result
               |> Result.map (fun () -> DUnit)
@@ -196,7 +196,7 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid id ] ->
           uply {
-            let! result = LibPackageManager.Branches.unarchive id
+            let! result = LibDB.PackageManager.Branches.unarchive id
             return
               result
               |> Result.map (fun () -> DUnit)

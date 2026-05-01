@@ -1,4 +1,4 @@
-module LibPackageManager.Rebase
+module LibDB.PackageManager.Rebase
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

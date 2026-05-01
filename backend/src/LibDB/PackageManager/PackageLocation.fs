@@ -1,4 +1,4 @@
-module LibPackageManager.PackageLocation
+module LibDB.PackageManager.PackageLocation
 
 module PT = LibExecution.ProgramTypes
 

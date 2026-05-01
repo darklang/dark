@@ -29,8 +29,8 @@ module PackageRefs = LibExecution.PackageRefs
 module C2DT = LibExecution.CommonToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
-let pmPT = LibPackageManager.PackageManager.pt
-let pmRT = LibPackageManager.PackageManager.rt
+let pmPT = LibDB.PackageManager.PackageManager.pt
+let pmRT = LibDB.PackageManager.PackageManager.rt
 
 let testOwner : Lazy<Task<UserID>> =
   lazy (Account.createUser "TestUser" |> Task.map Result.unwrap)

@@ -286,7 +286,7 @@ let baseDir = "testfiles/execution/"
 let fileTests () : Test =
   // Note: we use this at parse-time - but later we need to use an enhanced one,
   // with the 'extra' things defined in the test modules.
-  let pmPT = LibPackageManager.PackageManager.pt
+  let pmPT = LibDB.PackageManager.PackageManager.pt
 
   let parseTestFile fileName =
     LibParser.TestModule.parseTestFile "Tests" (localBuiltIns pmPT) pmPT fileName
@@ -313,7 +313,7 @@ let fileTests () : Test =
 
           let allOps = modules |> List.collect _.ops
 
-          let pm = LibPackageManager.PackageManager.withExtraOps pmPT allOps
+          let pm = LibDB.PackageManager.PackageManager.withExtraOps pmPT allOps
 
           let tests =
             modules

@@ -1,6 +1,6 @@
 /// Shared name resolution utilities used by both the parser (NameResolver)
 /// and the runtime deferred resolver (DeferredResolver).
-module LibPackageManager.NameLookup
+module LibDB.PackageManager.NameLookup
 
 type GenericName = { modules : List<string>; name : string; version : int }
 

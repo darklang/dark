@@ -36,7 +36,7 @@ let main (args : string array) : int =
 
     // Grow the DB from seed if needed. Builtins are deferred (constructed after
     // hashes are generated) because builtin construction triggers hash lookups.
-    (LibPackageManager.Seed.growIfNeeded
+    (LibDB.PackageManager.Seed.growIfNeeded
       (fun () -> TestUtils.TestUtils.localBuiltIns TestUtils.TestUtils.pmPT)
       TestUtils.TestUtils.pmRT
       (fun msg -> System.Console.Error.WriteLine msg))

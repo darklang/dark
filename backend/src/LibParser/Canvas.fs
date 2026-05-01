@@ -359,7 +359,7 @@ let parse
       toPT builtins PT.PackageManager.empty NR.OnMissing.Allow moduleWT
 
     // Second pass: re-parse with PackageManager containing first pass results
-    let enhancedPM = LibPackageManager.PackageManager.withExtraOps pm firstPass.ops
+    let enhancedPM = LibDB.PackageManager.PackageManager.withExtraOps pm firstPass.ops
     let! secondPass = toPT builtins enhancedPM onMissing moduleWT
 
     return secondPass

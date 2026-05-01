@@ -15,7 +15,7 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 module Account = LibCloud.Account
-module PackageLocation = LibPackageManager.PackageLocation
+module PackageLocation = LibDB.PackageManager.PackageLocation
 
 
 let fns () : List<BuiltInFn> =
@@ -110,7 +110,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DUuid canvasID; DUuid branchId ] ->
           uply {
             let! canvas = Canvas.loadAllDBs canvasID
-            let pm = LibPackageManager.PackageManager.pt
+            let pm = LibDB.PackageManager.PackageManager.pt
             let! dbs =
               canvas.dbs
               |> Map.values

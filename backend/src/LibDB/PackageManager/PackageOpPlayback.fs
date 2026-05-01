@@ -1,7 +1,7 @@
 /// Applies PackageOps to the DB projection tables.
 /// These tables (package_types, package_values, package_functions, locations) are projections
 /// of the source-of-truth package_ops table.
-module LibPackageManager.PackageOpPlayback
+module LibDB.PackageManager.PackageOpPlayback
 
 
 open System.Threading.Tasks
@@ -17,7 +17,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module BS = LibSerialization.Binary.Serialization
-module DE = LibPackageManager.DependencyExtractor
+module DE = LibDB.PackageManager.DependencyExtractor
 open LibSerialization.Hashing
 
 

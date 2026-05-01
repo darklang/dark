@@ -8,7 +8,7 @@
 ///
 /// On CLI startup the grow step runs automatically — if everything is already
 /// applied it's a single fast SELECT COUNT and returns immediately.
-module LibPackageManager.Seed
+module LibDB.PackageManager.Seed
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

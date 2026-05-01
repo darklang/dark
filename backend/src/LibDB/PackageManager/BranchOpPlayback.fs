@@ -1,4 +1,4 @@
-module LibPackageManager.BranchOpPlayback
+module LibDB.PackageManager.BranchOpPlayback
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

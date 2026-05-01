@@ -28,7 +28,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid branchId ] ->
           uply {
-            let! result = LibPackageManager.Merge.merge branchId
+            let! result = LibDB.PackageManager.Merge.merge branchId
             match result with
             | Ok() -> return resultOk DUnit
             | Error e -> return resultError (PT2DT.MergeError.toDT e)
@@ -53,7 +53,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid branchId ] ->
           uply {
-            let! result = LibPackageManager.Merge.canMerge branchId
+            let! result = LibDB.PackageManager.Merge.canMerge branchId
             match result with
             | Ok() -> return resultOk DUnit
             | Error e -> return resultError (PT2DT.MergeError.toDT e)

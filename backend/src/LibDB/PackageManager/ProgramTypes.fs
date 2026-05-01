@@ -1,4 +1,4 @@
-module LibPackageManager.ProgramTypes
+module LibDB.PackageManager.ProgramTypes
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

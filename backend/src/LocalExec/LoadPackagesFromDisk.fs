@@ -11,8 +11,8 @@ module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module NR = LibParser.NameResolver
-module HS = LibPackageManager.HashStabilization
-module PackageLocation = LibPackageManager.PackageLocation
+module HS = LibDB.PackageManager.HashStabilization
+module PackageLocation = LibDB.PackageManager.PackageLocation
 
 open Utils
 
@@ -64,7 +64,7 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
         $"  pass {iteration}"
         $"re-parsing {fileCount} files, resolving names, computing hashes"
       let pm =
-        LibPackageManager.PackageManager.withExtraOps
+        LibDB.PackageManager.PackageManager.withExtraOps
           PT.PackageManager.empty
           currentOps
       let! newRawOps =

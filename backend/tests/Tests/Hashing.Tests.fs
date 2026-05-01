@@ -7,7 +7,7 @@ open TestUtils.TestUtils
 open TestUtils.PTShortcuts
 
 module PT = LibExecution.ProgramTypes
-module PackageLocation = LibPackageManager.PackageLocation
+module PackageLocation = LibDB.PackageManager.PackageLocation
 open LibSerialization.Hashing
 
 

@@ -1,5 +1,5 @@
 /// Transforms AST expressions by replacing UUID references during propagation.
-module LibPackageManager.AstTransformer
+module LibDB.PackageManager.AstTransformer
 
 open Prelude
 open LibExecution.ProgramTypes

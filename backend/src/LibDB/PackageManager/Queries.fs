@@ -1,4 +1,4 @@
-module LibPackageManager.Queries
+module LibDB.PackageManager.Queries
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

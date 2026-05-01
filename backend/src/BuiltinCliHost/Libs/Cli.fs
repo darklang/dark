@@ -121,10 +121,10 @@ module ExecutionError =
   let typeRef () = TCustomType(NR.ok (fqTypeName ()), [])
 
 
-let pmRT = LibPackageManager.PackageManager.rt
+let pmRT = LibDB.PackageManager.PackageManager.rt
 
 let builtinsToUse () : RT.Builtins =
-  let ptPM = LibPackageManager.PackageManager.pt
+  let ptPM = LibDB.PackageManager.PackageManager.pt
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.builtins
         BuiltinExecution.Libs.HttpClient.defaultConfig

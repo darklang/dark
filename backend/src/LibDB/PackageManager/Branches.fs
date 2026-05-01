@@ -1,4 +1,4 @@
-module LibPackageManager.Branches
+module LibDB.PackageManager.Branches
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

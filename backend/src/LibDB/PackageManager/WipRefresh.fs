@@ -4,7 +4,7 @@
 /// When items are added incrementally, earlier items may have unresolved
 /// references to items added later. This module walks all WIP items,
 /// re-resolves what's now resolvable, and recomputes SCC-aware hashes.
-module LibPackageManager.WipRefresh
+module LibDB.PackageManager.WipRefresh
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -12,8 +12,8 @@ open FSharp.Control.Tasks
 open Prelude
 
 module PT = LibExecution.ProgramTypes
-module HS = LibPackageManager.HashStabilization
-module DR = LibPackageManager.DeferredResolver
+module HS = LibDB.PackageManager.HashStabilization
+module DR = LibDB.PackageManager.DeferredResolver
 
 
 /// Re-resolve all items in Add+SetName pairs, using the location for context

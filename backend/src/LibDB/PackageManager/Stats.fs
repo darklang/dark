@@ -1,4 +1,4 @@
-module LibPackageManager.Stats
+module LibDB.PackageManager.Stats
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

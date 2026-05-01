@@ -1,4 +1,4 @@
-module LibPackageManager.Scripts
+module LibDB.PackageManager.Scripts
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

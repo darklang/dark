@@ -1,4 +1,4 @@
-module LibPackageManager.RuntimeTypes
+module LibDB.PackageManager.RuntimeTypes
 
 open Prelude
 open LibExecution.RuntimeTypes

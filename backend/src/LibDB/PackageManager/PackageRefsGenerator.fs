@@ -1,6 +1,6 @@
 /// Writes `package-ref-hashes.txt` with current hashes from the DB.
 /// PackageRefs.fs reads this file at startup.
-module LibPackageManager.PackageRefsGenerator
+module LibDB.PackageManager.PackageRefsGenerator
 
 open Prelude
 

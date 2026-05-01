@@ -69,7 +69,7 @@ let t
 
       // Second phase: enhance PM with PackageOps and pretty print
       let enhancedPM =
-        LibPackageManager.PackageManager.withExtraOps basePM packageOps
+        LibDB.PackageManager.PackageManager.withExtraOps basePM packageOps
       let! ppExeState = executionStateFor enhancedPM canvasID false Map.empty
 
       let ppArgs = NEList.ofList (RT.DUuid PT.mainBranchId) [ sourceFile ]

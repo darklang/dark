@@ -11,8 +11,8 @@ module VT = LibExecution.ValueType
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module NR = LibExecution.RuntimeTypes.NameResolution
-module PMPT = LibPackageManager.ProgramTypes
-module Branches = LibPackageManager.Branches
+module PMPT = LibDB.PackageManager.ProgramTypes
+module Branches = LibDB.PackageManager.Branches
 
 
 let hashVT = VT.known (PT2DT.Hash.knownType ())
@@ -57,7 +57,7 @@ let fns () : List<BuiltInFn> =
           uply {
             let target = PT2DT.Hash.fromDT targetDval
             let! branchChain = Branches.getBranchChain branchId
-            let! results = LibPackageManager.Queries.getDependents branchChain target
+            let! results = LibDB.PackageManager.Queries.getDependents branchChain target
 
             let dvals =
               results
@@ -94,7 +94,7 @@ let fns () : List<BuiltInFn> =
             let source = PT2DT.Hash.fromDT sourceDval
             let! branchChain = Branches.getBranchChain branchId
             let! results =
-              LibPackageManager.Queries.getDependencies branchChain source
+              LibDB.PackageManager.Queries.getDependencies branchChain source
             let dvals =
               results
               |> List.map (fun ref ->
@@ -137,7 +137,7 @@ let fns () : List<BuiltInFn> =
             let ids = targets |> List.map PT2DT.Hash.fromDT
 
             let! results =
-              LibPackageManager.Queries.getDependentsBatch branchChain ids
+              LibDB.PackageManager.Queries.getDependentsBatch branchChain ids
 
             let resultVT = VT.tuple hashVT hashVT [ VT.string ]
 
@@ -182,7 +182,7 @@ let fns () : List<BuiltInFn> =
           uply {
             let hashes = itemHashes |> List.map PT2DT.Hash.fromDT
 
-            let! branchChain = LibPackageManager.Branches.getBranchChain branchId
+            let! branchChain = LibDB.PackageManager.Branches.getBranchChain branchId
 
             let! results =
               hashes
