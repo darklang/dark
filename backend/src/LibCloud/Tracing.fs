@@ -105,7 +105,7 @@ type T =
 /// return the resolved name directly. Falls back to the raw hash if the
 /// fn isn't found (e.g. it was deleted).
 module FnNameCache =
-  open LibDB.Db
+  open LibSqlite.Db
 
   let mutable private cache : Map<string, string> = Map.empty
 
@@ -265,7 +265,7 @@ let private makeStoreLambdaResult
 
 /// Store trace data to SQLite
 module TraceStorage =
-  open LibDB.Db
+  open LibSqlite.Db
 
   /// Build a JSON array string from a list of pre-serialized JSON elements.
   /// (Don't double-encode: each element is already valid JSON.)

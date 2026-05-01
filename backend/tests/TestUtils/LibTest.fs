@@ -17,7 +17,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PackageRefs = LibExecution.PackageRefs
 
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 
 
 let varA = TVariable "a"

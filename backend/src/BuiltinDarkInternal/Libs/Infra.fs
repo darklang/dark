@@ -30,7 +30,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DUnit ] ->
           uply {
-            let! tableStats = LibDB.Db.tableStats ()
+            let! tableStats = LibSqlite.Db.tableStats ()
 
             let typeName =
               FQTypeName.fqPackage (PackageRefs.Type.Internal.Infra.tableSize ())

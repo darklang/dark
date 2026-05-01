@@ -18,7 +18,7 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibParser/LibParser.fsproj" />
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
-    <ProjectReference Include="../LibDB/LibDB.fsproj" />
+    <ProjectReference Include="../LibSqlite/LibSqlite.fsproj" />
     <ProjectReference Include="../LibPackageManager/LibPackageManager.fsproj" />
     <ProjectReference Include="../LibSerialization/LibSerialization.fsproj" />
 

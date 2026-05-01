@@ -29,7 +29,7 @@ module QueryableJson = LibExecution.DvalReprInternalQueryable
 module Equals = BuiltinExecution.Libs.NoModule
 
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 
 
 // ─────────────────────────────────────────────────────────────────────

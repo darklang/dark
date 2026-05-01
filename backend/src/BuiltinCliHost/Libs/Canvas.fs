@@ -5,7 +5,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes

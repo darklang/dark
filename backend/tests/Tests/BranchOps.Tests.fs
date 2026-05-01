@@ -15,7 +15,7 @@ module Inserts = LibPackageManager.Inserts
 module BranchOpPlayback = LibPackageManager.BranchOpPlayback
 
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 
 module BS = LibSerialization.Binary.Serialization
 open LibSerialization.Hashing

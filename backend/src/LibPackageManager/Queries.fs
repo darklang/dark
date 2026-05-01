@@ -7,7 +7,7 @@ open Prelude
 open LibExecution.ProgramTypes
 
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 
 module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization

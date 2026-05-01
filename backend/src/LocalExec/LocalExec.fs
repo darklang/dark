@@ -8,7 +8,7 @@ open Prelude
 open LibExecution.ProgramTypes
 
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes

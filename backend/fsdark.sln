@@ -33,7 +33,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinExecution", "src\Bui
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibConfig", "src\LibConfig\LibConfig.fsproj", "{524e142b-bfb1-4f4b-8e67-bfe82301f7c6}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibDB", "src\LibDB\LibDB.fsproj", "{E8F9A2C1-4B5D-4E3F-8A7B-9C6D2E1F0A8B}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibSqlite", "src\LibSqlite\LibSqlite.fsproj", "{E8F9A2C1-4B5D-4E3F-8A7B-9C6D2E1F0A8B}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibPackageManager", "src\LibPackageManager\LibPackageManager.fsproj", "{A74049E0-AD31-407B-9918-6A6A76C945C9}"
 EndProject

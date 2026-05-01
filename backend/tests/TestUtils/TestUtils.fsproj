@@ -10,7 +10,7 @@
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../../src/BuiltinCli/BuiltinCli.fsproj" />
-    <ProjectReference Include="../../src/LibDB/LibDB.fsproj" />
+    <ProjectReference Include="../../src/LibSqlite/LibSqlite.fsproj" />
     <ProjectReference Include="../../src/LibPackageManager/LibPackageManager.fsproj" />
     <ProjectReference Include="../../src/LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../../src/BuiltinPM/BuiltinPM.fsproj" />

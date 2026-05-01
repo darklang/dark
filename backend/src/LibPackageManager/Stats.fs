@@ -7,7 +7,7 @@ open Prelude
 
 open Microsoft.Data.Sqlite
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 
 
 type Stats = { types : int64; values : int64; fns : int64 }

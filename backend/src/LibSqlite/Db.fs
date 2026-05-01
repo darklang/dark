@@ -1,4 +1,4 @@
-module LibDB.Db
+module LibSqlite.Db
 
 // There's a lot of CLEANUP to do here.
 // To be reviewed by someone with more DB expertise.

@@ -4,13 +4,13 @@
 /// order, so it's easier to execute synchronously than have a bunch of code to use
 /// tasks and then extra code to ensure the tasks are run synchronously.
 ///
-/// CLEANUP maybe move this to LibDB?
+/// CLEANUP maybe move this to LibSqlite?
 module LocalExec.Migrations
 
 open System.IO
 open Microsoft.Data.Sqlite
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 module File = LibCloud.File
 module Config = LibCloud.Config
 

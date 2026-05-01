@@ -17,7 +17,7 @@
     <ProjectReference Include="../../src/LibTreeSitter/LibTreeSitter.fsproj" />
     <ProjectReference Include="../../src/BuiltinExecution/BuiltinExecution.fsproj" />
     <ProjectReference Include="../../src/LibPackageManager/LibPackageManager.fsproj" />
-    <ProjectReference Include="../../src/LibDB/LibDB.fsproj" />
+    <ProjectReference Include="../../src/LibSqlite/LibSqlite.fsproj" />
 
     <!-- cloud -->
     <ProjectReference Include="../../src/LibSerialization/LibSerialization.fsproj" />

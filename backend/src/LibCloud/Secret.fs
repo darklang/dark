@@ -5,7 +5,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 
 open Prelude
 

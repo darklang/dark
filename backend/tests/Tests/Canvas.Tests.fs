@@ -8,7 +8,7 @@ open Fumble
 
 open Prelude
 open TestUtils.TestUtils
-open LibDB.Db
+open LibSqlite.Db
 
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize

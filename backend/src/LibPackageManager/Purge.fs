@@ -8,7 +8,7 @@ open Prelude
 
 open Microsoft.Data.Sqlite
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 
 /// CLEANUP
 /// This needs work:
