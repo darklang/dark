@@ -117,6 +117,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Colors.error $"Invalid limit: {limitStr}")
       state
 
+  | [ "tail" ] -> executeTail state Stdlib.Option.Option.None
+  | [ "tail"; "--route"; route ] ->
+    executeTail state (Stdlib.Option.Option.Some route)
+
   | "view" :: traceID :: flagArgs ->
     match parseViewOptions defaultViewOptions flagArgs with
     | Ok opts -> executeView state traceID opts
@@ -165,6 +169,32 @@ let executeListByFn (state: Cli.AppState) (fnName: String) (limit: Int64) : Cli.
     Stdlib.printLine ""
     Stdlib.printLine "Use 'traces view <trace-id>' to see details."
     state
+
+
+/// `traces tail [--route <substring>]` — open the most-recent trace's
+/// full view in one step. Skips the list-then-copy-id round-trip you'd
+/// otherwise do with `traces list` → `traces view <id>`. Optional route
+/// filter narrows to the latest trace matching the substring.
+let executeTail
+  (state: Cli.AppState)
+  (routeFilter: Stdlib.Option.Option<String>)
+  : Cli.AppState =
+  let candidates =
+    match routeFilter with
+    | Some route ->
+      (Builtin.cliTracesList 200L)
+      |> Stdlib.List.filter (fun row -> Stdlib.String.contains row.handler route)
+    | None -> Builtin.cliTracesList 1L
+
+  match candidates with
+  | [] ->
+    let label =
+      match routeFilter with
+      | Some r -> $"matching '{r}'"
+      | None -> "yet"
+    Stdlib.printLine $"No traces {label}."
+    state
+  | row :: _ -> executeView state row.traceId defaultViewOptions
 
 
 /// `traces stats` — count of recent traces per route, sorted by count
