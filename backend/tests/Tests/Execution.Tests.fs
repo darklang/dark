@@ -27,7 +27,7 @@ open LibExecution.RuntimeTypes
 //       testPackageFn "owner" name [] ps (PT.TVariable "a") (PT.EInt64(gid (), 5))
 //       |> PT2RT.PackageFn.toRT
 //     let pm = PackageManager.withExtras pmPT [] [] [ fn ]
-//     let! state = executionStateFor pm meta false false Map.empty
+//     let! state = executionStateFor pm meta false Map.empty
 
 //     let tlids, traceFn = Exe.traceTLIDs ()
 

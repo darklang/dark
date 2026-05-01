@@ -23,7 +23,7 @@ let tCheckVM
       ptExpr |> PT2RT.Expr.toRT Map.empty 0 None |> RT.VMState.createWithoutTLID
 
     let! exeState =
-      executionStateFor TestValues.pm (System.Guid.NewGuid()) false false Map.empty
+      executionStateFor TestValues.pm (System.Guid.NewGuid()) false Map.empty
 
     let! actual = LibExecution.Interpreter.execute exeState vmState |> Ply.toTask
     Expect.equal actual expectedInsts ""
@@ -40,7 +40,7 @@ let tFail name ptExpr expectedRte =
     let instructions = ptExpr |> PT2RT.Expr.toRT Map.empty 0 None
 
     let! exeState =
-      executionStateFor TestValues.pm (System.Guid.NewGuid()) false false Map.empty
+      executionStateFor TestValues.pm (System.Guid.NewGuid()) false Map.empty
 
     let! actual = LibExecution.Execution.executeExpr exeState instructions
 
@@ -541,7 +541,7 @@ module Lambdas =
   let crossVM =
     testTask "cross-VM lambda invocation" {
       let! exeState =
-        executionStateFor TestValues.pm (System.Guid.NewGuid()) false false Map.empty
+        executionStateFor TestValues.pm (System.Guid.NewGuid()) false Map.empty
 
       // VM-A: evaluate `fn x -> x`, producing a DApplicable whose instructions
       // live in exeState.lambdaInstrCache after this call.

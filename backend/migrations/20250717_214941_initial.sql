@@ -95,8 +95,7 @@ traces_v0
 ( id TEXT PRIMARY KEY
 , trace_id TEXT NOT NULL -- why do we need this _and_ `id`?
 , canvas_id TEXT NOT NULL
--- the handler's (or for a function's default trace, the function's) TLID
---   (originally used as an object-store key for trace blobs)
+-- the handler's TLID (or for a function's default trace, the fn's TLID)
 -- TODO consider using a different mechanism here - fns might not have tlids...
 --   why wouldn't we use the `id` instead? length?
 , root_tlid INTEGER NOT NULL

@@ -16,12 +16,6 @@
 /// - SIGINT (Ctrl+C) → drain in-flight + exit
 ///
 /// All routing and handler management lives in Darklang.
-///
-/// Implementation note: this used to be ASP.NET Kestrel via
-/// WebApplication.CreateBuilder. It was rewritten on top of
-/// System.Net.HttpListener to drop the Microsoft.AspNetCore.App
-/// FrameworkReference from the CLI's AOT graph. HttpListener is in
-/// the BCL, AOT-clean, and gives us the same surface this file uses.
 module BuiltinHttpServer.Libs.HttpServer
 
 open System
@@ -40,7 +34,7 @@ module Blob = LibExecution.Blob
 module Http = BuiltinHttpServer.Http
 
 
-/// Default request body cap (30 MB), matching Kestrel's default.
+/// Default request body cap (30 MB).
 let defaultMaxBodyBytes : int64 = 30L * 1024L * 1024L
 
 /// HSTS header value matching the historical default for HTTP services.
@@ -106,8 +100,7 @@ let private readRequestBodyWithLimit
 
 /// Flatten HttpListener's NameValueCollection of headers into the (key, value)
 /// list shape that BuiltinHttpServer.Http.Request expects. A single header key
-/// with multiple values becomes multiple entries (matching the prior ASP.NET
-/// behavior).
+/// with multiple values becomes multiple entries.
 let private extractHeaders (req : HttpListenerRequest) : List<string * string> =
   let headers = ResizeArray<string * string>()
   for key in req.Headers.AllKeys do
@@ -116,8 +109,7 @@ let private extractHeaders (req : HttpListenerRequest) : List<string * string> =
       if not (isNull values) then
         for value in values do
           headers.Add(key, value)
-  // x-http-method preserved from the prior ASP.NET implementation. CLEANUP
-  // once Dark-side handlers stop relying on it.
+  // CLEANUP once Dark-side handlers stop relying on x-http-method.
   ("x-http-method", req.HttpMethod) :: List.ofSeq headers
 
 

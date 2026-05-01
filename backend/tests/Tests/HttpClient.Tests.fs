@@ -114,7 +114,7 @@ let parseSingleTestFromFile
   uply {
     let! (state : RT.ExecutionState) =
       let canvasID = System.Guid.NewGuid()
-      executionStateFor pmPT canvasID false false Map.empty
+      executionStateFor pmPT canvasID false Map.empty
 
     let name =
       RT.FQFnName.fqPackage (PackageRefs.Fn.Internal.Test.parseSingleTestFromFile ())
@@ -203,7 +203,7 @@ let makeTest versionName filename =
     else
       // Set up the canvas
       let canvasID = System.Guid.NewGuid()
-      let! exeState = executionStateFor pmPT canvasID false true Map.empty
+      let! exeState = executionStateFor pmPT canvasID true Map.empty
 
       // Parse the Dark code
       let! (test : Internal.Test.PTTest) =
@@ -254,10 +254,9 @@ let makeTest versionName filename =
       let! expected = promoteIfOk expected
 
       // Normalize the `headers` field of an HttpClient.Response Dval by
-      // sorting tuples by header key. The fixtures encode the order Kestrel
-      // happened to emit; HttpListener emits in a different order
-      // (Content-Type before Content-Length, etc). Logical equality on
-      // header sets is what these tests actually want.
+      // sorting tuples by header key. Header emit order is server-
+      // implementation-dependent; logical equality on the header set is
+      // what these tests actually want.
       let normalizeResponseHeaders (dval : RT.Dval) : RT.Dval =
         match dval with
         | RT.DRecord(t1, t2, ta, fields) ->
@@ -290,11 +289,9 @@ let makeTest versionName filename =
 
 
 // ---------------
-// This is the webserver that we will be testing against.
-// It records the received request, and returns the test case output.
-//
-// Backed by System.Net.HttpListener (replaced an earlier Kestrel-based
-// scaffold). Same wire-level behavior the existing fixtures assert.
+// This is the webserver that we will be testing against. It records
+// the received request, and returns the test case output. Backed by
+// System.Net.HttpListener.
 // ---------------
 open System.Net
 
@@ -375,9 +372,8 @@ let runTestHandler (ctx : HttpListenerContext) : Task<unit> =
         with _ ->
           None
 
-      // Match Kestrel's default Server name so the prior fixtures stay
-      // byte-exact. Without this, HttpListener emits
-      // "Server: Microsoft-NetCore/2.0".
+      // Override HttpListener's default `Server: Microsoft-NetCore/2.0`
+      // so fixtures asserting on `Server: kestrel` stay byte-exact.
       ctx.Response.Headers[HttpResponseHeader.Server] <- "kestrel"
 
       match testCase with
@@ -388,12 +384,10 @@ let runTestHandler (ctx : HttpListenerContext) : Task<unit> =
         do! ctx.Response.OutputStream.WriteAsync(body, 0, body.Length)
 
       | Some testCase ->
-        // Whether the testcase explicitly listed Content-Length. Drives
-        // the Kestrel-style behavior: when the fixture's [response] block
-        // includes `Content-Length: ...`, send a Content-Length response;
-        // when it doesn't, fall back to chunked transfer (matches what
-        // Kestrel did in production for unknown-length bodies). HTTP
-        // statuses that forbid a body (204, 304) don't get chunked either.
+        // If the fixture's [response] block sets Content-Length, emit a
+        // Content-Length response; otherwise fall back to chunked
+        // transfer for unknown-length bodies. Statuses that forbid a
+        // body (204, 304) skip chunked too.
         let testCaseHasContentLength =
           testCase.responseToReturn.headers
           |> List.exists (fun (k, _) ->
@@ -604,7 +598,7 @@ module MockHelpers =
 // ————————————————————————————————————————————————————————————
 // Tests for the DStream-returning `HttpClient.stream` builtin. The
 // mock-server infrastructure at the top of this file is reused so
-// we exercise the real Kestrel path end-to-end. The tests call
+// we exercise the real network path end-to-end. The tests call
 // `openStreamingRequest` + construct a FromIO directly to avoid
 // standing up a full ExecutionState — the DStream drain path is
 // the whole point of the test.

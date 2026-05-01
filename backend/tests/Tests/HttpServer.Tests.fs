@@ -1,15 +1,12 @@
 /// Tests the CLI's `Http.serve` builtin against the fixtures in
 /// `testfiles/http-server/` (byte-exact `.test` files).
 ///
-/// Differences from the predecessor harness:
-/// - No SQL canvas. Per-test handlers are assembled into an in-memory
-///   router Dval via `TestUtils.HandlerGraph.buildRouter`.
-/// - Per-test HttpListener. A free port is allocated with
-///   `TcpListener(IPAddress.Loopback, 0)`; the listener spins for the
-///   duration of the test and is stopped via `cts.Cancel()` in teardown.
-/// - `domain` is fixed to `"localhost"` (single-canvas model). Fixtures
-///   that use `[domain ...]` for multi-canvas dispatch are intrinsically
-///   incompatible with this model and live in `_disabled-by-cli-model/`.
+/// Per-test handlers are assembled into an in-memory router Dval via
+/// `TestUtils.HandlerGraph.buildRouter`; a free port is allocated with
+/// `TcpListener(IPAddress.Loopback, 0)` and the listener is stopped
+/// via `cts.Cancel()` in teardown. `domain` is fixed to `"localhost"`
+/// since this is a single-app server; fixtures that use `[domain ...]`
+/// for multi-app dispatch live under `_disabled-by-cli-model/`.
 module Tests.HttpServer
 
 let basePath = "testfiles/http-server"
@@ -233,10 +230,9 @@ module Execution =
       |> List.filterMap (fun (k, v) ->
         match k, v with
         | "Date", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
-        // HttpListener auto-adds `Connection: close` on some responses
-        // (notably error paths). The fixtures predate this — fixtures were
-        // authored against Kestrel's default which omits it. Strip so the
-        // comparison stays byte-meaningful.
+        // HttpListener auto-adds `Connection: close` on error-path
+        // responses; fixtures don't include it. Strip so the comparison
+        // stays byte-meaningful.
         | "Connection", _ -> None
         | _other -> Some(k, v))
       |> List.sortBy Tuple2.first
@@ -411,7 +407,7 @@ module Execution =
 let private runFixture (test : Test) : Task<unit> =
   task {
     let canvasID = System.Guid.NewGuid()
-    let! exeState = executionStateFor pmPT canvasID false false Map.empty
+    let! exeState = executionStateFor pmPT canvasID false Map.empty
 
     let! handler = buildRouterForTest exeState test
 

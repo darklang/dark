@@ -48,10 +48,6 @@ let create (accountID : Option<UserID>) (domain : string) : Task<CanvasID> =
     return id
   }
 
-// `canvasIDForDomain`, `domainsForCanvasID`, and `addDomain` were the
-// multi-canvas-domain dispatch surface used by BwdServer. After
-// BwdServer's deletion (phase 3) and BuiltinDarkInternal.Libs.Domains'
-// deletion (phase 18), no consumers remain. Dropped in phase 17.
 
 let allCanvasIDs () : Task<List<CanvasID>> =
   Sql.query "SELECT id FROM canvases_v0"
