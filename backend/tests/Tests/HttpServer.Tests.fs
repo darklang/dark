@@ -1,5 +1,5 @@
 /// Tests the CLI's `Http.serve` builtin against the fixtures in
-/// `testfiles/httphandler/` (byte-exact `.test` files).
+/// `testfiles/http-server/` (byte-exact `.test` files).
 ///
 /// Differences from the predecessor harness:
 /// - No SQL canvas. Per-test handlers are assembled into an in-memory
@@ -12,7 +12,7 @@
 ///   incompatible with this model and live in `_disabled-by-cli-model/`.
 module Tests.HttpServer
 
-let basePath = "testfiles/httphandler"
+let basePath = "testfiles/http-server"
 let dataBasePath = "testfiles/data"
 
 open Expecto
@@ -71,7 +71,7 @@ let splitAtNewlines (bytes : byte array) : byte list list =
 #nowarn "57" // Negative array index using ^idx
 
 /// Used to parse a .test file
-/// See details in `httphandler/README.md`
+/// See details in `http-server/README.md`
 module ParseTest =
   type private TestParsingState =
     | Limbo
