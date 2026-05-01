@@ -1,0 +1,115 @@
+// Tests for Stdlib.HttpServer routing primitives. Replaces the F#-side
+// Routing.Tests that exercised the deleted LibCloud.Routing module.
+//
+// Known gap: multi-segment wildcards. The Dark router's `Wildcard` arm
+// is reachable only from `matchSegment`, but `matchRoute` short-circuits
+// on length mismatch *before* segments are walked, so a route like
+// `/files/*rest` matched against `/files/a/b/c` is rejected. Test below
+// exercises wildcards only at exact-length parity.
+
+module ParseRouteSegments =
+  Stdlib.HttpServer.parseRouteSegments "" = []
+  Stdlib.HttpServer.parseRouteSegments "/" = []
+
+  Stdlib.HttpServer.parseRouteSegments "/hello" =
+    [ Stdlib.HttpServer.RouteSegment.Literal "hello" ]
+
+  Stdlib.HttpServer.parseRouteSegments "/a/b/c" =
+    [ Stdlib.HttpServer.RouteSegment.Literal "a"
+      Stdlib.HttpServer.RouteSegment.Literal "b"
+      Stdlib.HttpServer.RouteSegment.Literal "c" ]
+
+  Stdlib.HttpServer.parseRouteSegments "/user/:id" =
+    [ Stdlib.HttpServer.RouteSegment.Literal "user"
+      Stdlib.HttpServer.RouteSegment.Variable "id" ]
+
+  Stdlib.HttpServer.parseRouteSegments "/user/:userid/card/:cardid" =
+    [ Stdlib.HttpServer.RouteSegment.Literal "user"
+      Stdlib.HttpServer.RouteSegment.Variable "userid"
+      Stdlib.HttpServer.RouteSegment.Literal "card"
+      Stdlib.HttpServer.RouteSegment.Variable "cardid" ]
+
+  Stdlib.HttpServer.parseRouteSegments "/files/*path" =
+    [ Stdlib.HttpServer.RouteSegment.Literal "files"
+      Stdlib.HttpServer.RouteSegment.Wildcard "path" ]
+
+  // Adjacent slashes get filtered out
+  Stdlib.HttpServer.parseRouteSegments "//a//b" =
+    [ Stdlib.HttpServer.RouteSegment.Literal "a"
+      Stdlib.HttpServer.RouteSegment.Literal "b" ]
+
+
+module MatchRoute =
+  // Literal exact match
+  (Stdlib.HttpServer.matchRoute "/hello" "/hello").matched = true
+  (Stdlib.HttpServer.matchRoute "/hello" "/hello").vars = []
+
+  // Literal mismatch
+  (Stdlib.HttpServer.matchRoute "/hello" "/world").matched = false
+
+  // Length mismatch
+  (Stdlib.HttpServer.matchRoute "/a/b/c/d" "/a/b/c").matched = false
+  (Stdlib.HttpServer.matchRoute "/a/b" "/a/b/c").matched = false
+
+  // Variable capture
+  (Stdlib.HttpServer.matchRoute "/hello/:name" "/hello/alice").matched = true
+  (Stdlib.HttpServer.matchRoute "/hello/:name" "/hello/alice").vars =
+    [ ("name", "alice") ]
+
+  // Multiple variables
+  (Stdlib.HttpServer.matchRoute "/user/:userid/card/:cardid" "/user/u1/card/c2").vars =
+    [ ("userid", "u1"); ("cardid", "c2") ]
+
+  // No-vars exact-length match
+  (Stdlib.HttpServer.matchRoute "/a/b/c/d" "/a/b/c/d").matched = true
+  (Stdlib.HttpServer.matchRoute "/a/b/c/d" "/a/b/c/d").vars = []
+
+  // Mid-pattern literal mismatch
+  (Stdlib.HttpServer.matchRoute "/a/:b/c/d" "/a/b/c/e").matched = false
+
+  // Root vs non-root
+  (Stdlib.HttpServer.matchRoute "/" "/").matched = true
+  (Stdlib.HttpServer.matchRoute "/" "/a/b").matched = false
+
+  // Wildcard at exact-length parity (see file header)
+  (Stdlib.HttpServer.matchRoute "/files/*rest" "/files/a").matched = true
+  (Stdlib.HttpServer.matchRoute "/files/*rest" "/files/a").vars =
+    [ ("rest", "a") ]
+
+
+module FindHandler =
+  // First matching handler in list order wins. Each test builds a fresh
+  // single-handler list inside the assertion expression and inspects the
+  // result — keeps assertions self-contained.
+
+  (let handlers =
+    [ Stdlib.HttpServer.Handler { route = "/hello"; method = "GET"; handler = fun _ -> Stdlib.Http.notFound () } ]
+   match Stdlib.HttpServer.findHandler handlers "GET" "/hello" with
+   | Some ((found, _)) -> found.route
+   | None -> "miss") = "/hello"
+
+  // Variable capture surfaced via the RouteMatch tuple
+  (let handlers =
+    [ Stdlib.HttpServer.Handler { route = "/user/:id"; method = "GET"; handler = fun _ -> Stdlib.Http.notFound () } ]
+   match Stdlib.HttpServer.findHandler handlers "GET" "/user/42" with
+   | Some ((_, m)) -> m.vars
+   | None -> []) = [ ("id", "42") ]
+
+  // Method mismatch — no match
+  (let handlers =
+    [ Stdlib.HttpServer.Handler { route = "/hello"; method = "GET"; handler = fun _ -> Stdlib.Http.notFound () } ]
+   match Stdlib.HttpServer.findHandler handlers "POST" "/hello" with
+   | Some _ -> "wrong"
+   | None -> "ok") = "ok"
+
+  // Wildcard method `*` accepts any HTTP method
+  (let handlers =
+    [ Stdlib.HttpServer.Handler { route = "/api/:thing"; method = "*"; handler = fun _ -> Stdlib.Http.notFound () } ]
+   match Stdlib.HttpServer.findHandler handlers "DELETE" "/api/things" with
+   | Some ((found, _)) -> found.route
+   | None -> "miss") = "/api/:thing"
+
+  // Empty list of handlers — no match
+  (match Stdlib.HttpServer.findHandler [] "GET" "/anything" with
+   | Some _ -> "wrong"
+   | None -> "ok") = "ok"

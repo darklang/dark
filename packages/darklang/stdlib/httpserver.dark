@@ -209,7 +209,7 @@ let getPathParam (req: Http.Request) (routePattern: String) (paramName: String) 
 /// Blocks until SIGINT (Ctrl+C).
 ///
 /// Defaults:
-///   maxBodyBytes = 30 MB (matching Kestrel's default)
+///   maxBodyBytes = 30 MB
 ///   injectStandardHeaders = true (auto-add `Server: darklang` and HSTS
 ///     unless the handler set them)
 ///   canonicalizeFromForwardedProto = true (rewrite request.url to https://
