@@ -74,7 +74,6 @@ let main (args : string array) : int =
         // cloud
         Tests.HttpServer.tests
         Tests.Canvas.tests
-        Tests.Routing.tests
         Tests.BinarySerialization.tests
         Tests.VanillaSerialization.tests
         Tests.DarkTypesSerialization.tests

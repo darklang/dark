@@ -358,23 +358,17 @@ let saveTLIDs
         let tlid = PT.Toplevel.toTLID tl
 
         let routingNames =
+          // The legacy `routeToPostgresPattern` transform (HTTP route →
+          // SQL LIKE pattern) was only consumed by BwdServer's handler
+          // lookup; with BwdServer gone the column is just an inert
+          // record. Use the raw route name verbatim.
           match tl with
           | PT.Toplevel.TLHandler({ spec = spec }) ->
-            match spec with
-            | PT.Handler.HTTP _ ->
-              Some(
-                PTParser.Handler.Spec.toModule spec,
-                Routing.routeToPostgresPattern (PTParser.Handler.Spec.toName spec),
-                PTParser.Handler.Spec.toModifier spec
-              )
-            | PT.Handler.Worker _
-            | PT.Handler.Cron _
-            | PT.Handler.REPL _ ->
-              Some(
-                PTParser.Handler.Spec.toModule spec,
-                PTParser.Handler.Spec.toName spec,
-                PTParser.Handler.Spec.toModifier spec
-              )
+            Some(
+              PTParser.Handler.Spec.toModule spec,
+              PTParser.Handler.Spec.toName spec,
+              PTParser.Handler.Spec.toModifier spec
+            )
           | PT.Toplevel.TLDB db -> Some("", db.name, "")
 
         let (module_, name, modifier) =
