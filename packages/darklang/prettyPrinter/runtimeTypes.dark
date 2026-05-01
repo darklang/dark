@@ -350,6 +350,10 @@ module Dval =
     | DDB _ -> "Datastore"
     | DApplicable (AppNamedFn _) -> "Function"
     | DApplicable (AppLambda _) -> "Lambda"
+    // DBlob cases come from F# RT (RuntimeTypesToDarkTypes.fs) but aren't
+    // first-class in the Dark Dval type. Surface as the type name so
+    // callers don't crash on match.
+    | _ -> "Blob"
 
   let makeSpaces (len: Int64) : String =
     match Stdlib.List.repeat len " " with
@@ -534,6 +538,11 @@ module Dval =
 
 
     | DDB name -> $"<{valueTypeName}: {name}>"
+
+    // DBlob cases come from F# RT but aren't first-class in the Dark Dval
+    // type. Render as a placeholder so trace viewers / debug printers
+    // don't crash on request bodies.
+    | _ -> "<blob>"
 
 
 
