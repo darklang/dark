@@ -48,30 +48,10 @@ let create (accountID : Option<UserID>) (domain : string) : Task<CanvasID> =
     return id
   }
 
-let canvasIDForDomain (domain : string) : Task<Option<CanvasID>> =
-  Sql.query
-    "SELECT canvas_id
-    FROM domains_v0
-    WHERE domain = @domain"
-  |> Sql.parameters [ "domain", Sql.string domain ]
-  |> Sql.executeRowOptionAsync (fun read -> read.uuid "canvas_id")
-
-let domainsForCanvasID (id : CanvasID) : Task<List<string>> =
-  Sql.query
-    "SELECT domain
-    FROM domains_v0
-    WHERE canvas_id = @id"
-  |> Sql.parameters [ "id", Sql.uuid id ]
-  |> Sql.executeAsync (fun read -> read.string "domain")
-
-let addDomain (canvasID : CanvasID) (domain : string) : Task<unit> =
-  Sql.query
-    "INSERT INTO domains_v0
-       (canvas_id, domain)
-     VALUES
-       (@canvasID, @domain)"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "domain", Sql.string domain ]
-  |> Sql.executeStatementAsync
+// `canvasIDForDomain`, `domainsForCanvasID`, and `addDomain` were the
+// multi-canvas-domain dispatch surface used by BwdServer. After
+// BwdServer's deletion (phase 3) and BuiltinDarkInternal.Libs.Domains'
+// deletion (phase 18), no consumers remain. Dropped in phase 17.
 
 let allCanvasIDs () : Task<List<CanvasID>> =
   Sql.query "SELECT id FROM canvases_v0"
