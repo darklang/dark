@@ -63,42 +63,6 @@ let getAllOpsSince
 type PackageDep = { itemHash : Hash; itemKind : PT.ItemKind }
 
 
-/// Get items that depend on the given Hash (reverse dependencies / "what uses this?")
-let getDependents
-  (branchChain : List<PT.BranchId>)
-  (dependsOnHash : Hash)
-  : Task<List<PackageDep>> =
-  task {
-    if List.isEmpty branchChain then
-      return []
-    else
-      let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
-
-      let branchInClause =
-        branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
-
-      let (Hash dependsOnHash) = dependsOnHash
-
-      return!
-        Sql.query
-          $"""
-          SELECT DISTINCT pd.item_hash, l.item_type
-          FROM package_dependencies pd
-          INNER JOIN locations l ON pd.item_hash = l.item_hash
-          WHERE pd.depends_on_hash = @depends_on_hash
-            AND l.unlisted_at IS NULL
-            AND l.branch_id IN ({branchInClause})
-          ORDER BY pd.item_hash
-          """
-        |> Sql.parameters (
-          [ "depends_on_hash", Sql.string dependsOnHash ] @ branchParams
-        )
-        |> Sql.executeAsync (fun read ->
-          { itemHash = Hash(read.string "item_hash")
-            itemKind = read.string "item_type" |> PT.ItemKind.fromString })
-  }
-
-
 /// Get Hashes that the given item depends on (forward dependencies / "what does this use?" / uses)
 let getDependencies
   (branchChain : List<PT.BranchId>)
@@ -122,6 +86,7 @@ let getDependencies
           FROM package_dependencies pd
           INNER JOIN locations l ON pd.depends_on_hash = l.item_hash
           WHERE pd.item_hash = @item_hash
+            AND pd.depends_on_item_type = l.item_type
             AND l.unlisted_at IS NULL
             AND l.branch_id IN ({branchInClause})
           ORDER BY pd.depends_on_hash
@@ -133,74 +98,194 @@ let getDependencies
   }
 
 
-/// Batch result including the dependency target that was queried
-type BatchDependent =
-  { dependsOnHash : Hash // The item that was queried (what is being depended on)
-    itemHash : Hash // The item that has the dependency
-    itemKind : PT.ItemKind }
-
-/// Batch lookup of dependents for a chunk of dependency IDs
-let private getDependentsBatchChunk
+let getUnlistedLocationsForRefs
   (branchChain : List<PT.BranchId>)
-  (dependsOnHashes : List<Hash>)
-  : Task<List<BatchDependent>> =
+  (itemKind : PT.ItemKind)
+  (hashes : List<Hash>)
+  : Task<List<PT.PackageLocation>> =
   task {
-    if List.isEmpty dependsOnHashes || List.isEmpty branchChain then
+    if List.isEmpty branchChain || List.isEmpty hashes then
       return []
     else
-      // Build parameterized IN clauses
-      let depParams =
-        dependsOnHashes
-        |> List.mapi (fun i (Hash idStr) -> $"dep_{i}", Sql.string idStr)
+      let branchParams =
+        branchChain |> List.mapi (fun i id -> $"loc_ref_branch_{i}", Sql.uuid id)
+      let branchInClause =
+        branchParams
+        |> List.mapi (fun i _ -> $"@loc_ref_branch_{i}")
+        |> String.concat ", "
+      let hashParams =
+        hashes
+        |> List.distinct
+        |> List.mapi (fun i (Hash h) -> $"loc_ref_hash_{i}", Sql.string h)
+      let hashInClause =
+        hashParams
+        |> List.mapi (fun i _ -> $"@loc_ref_hash_{i}")
+        |> String.concat ", "
 
-      let inClause =
-        dependsOnHashes |> List.mapi (fun i _ -> $"@dep_{i}") |> String.concat ", "
+      return!
+        Sql.query
+          $"""
+          SELECT DISTINCT owner, modules, name
+          FROM locations
+          WHERE item_hash IN ({hashInClause})
+            AND item_type = @item_type
+            AND branch_id IN ({branchInClause})
+            AND unlisted_at IS NOT NULL
+          """
+        |> Sql.parameters (
+          [ "item_type", Sql.string (itemKind.toString ()) ]
+          @ hashParams
+          @ branchParams
+        )
+        |> Sql.executeAsync (fun read ->
+          let modulesStr = read.string "modules"
+          { owner = read.string "owner"
+            modules = modulesStr.Split('.') |> Array.toList
+            name = read.string "name" })
+  }
+
+
+/// A dependent found via location-keyed lookup, paired with its own
+/// active location so propagation can drive the next cascade level
+/// directly without an extra hash → location lookup.
+type LocationDependent =
+  { itemHash : Hash; itemKind : PT.ItemKind; itemLocation : PT.PackageLocation }
+
+type LocationTarget =
+  { itemKind : PT.ItemKind; location : PT.PackageLocation; hashes : List<Hash> }
+
+
+/// Find items whose dep edges point at any of the given target package items.
+///
+/// Primary match: dep edge's target kind + location equal one of the targets.
+/// This prevents same-hash and same-location cross-kind cascades.
+///
+/// Fallback match: dep edges with NULL `depends_on_owner` (legacy data,
+/// or edges constructed without going through the resolver) match by
+/// `(item kind, depends_on_hash)`. Propagation passes prior hashes here
+/// because null-location refs cannot be matched by FQN after a source update.
+/// This keeps the original hash-keyed behavior for those edges only —
+/// for NULL-location edges there's no FQN to filter by, so a hash
+/// collision can still produce a false positive there. In practice the
+/// resolver populates location for every package reference, so this
+/// fallback is exercised mainly by tests that construct NRs directly.
+let private getDependentsByLocationsChunk
+  (branchChain : List<PT.BranchId>)
+  (targets : List<LocationTarget>)
+  : Task<List<LocationDependent>> =
+  task {
+    if List.isEmpty targets || List.isEmpty branchChain then
+      return []
+    else
+      let locParams =
+        targets
+        |> List.mapi (fun i target ->
+          [ $"loc_kind_{i}", Sql.string (target.itemKind.toString ())
+            $"loc_owner_{i}", Sql.string target.location.owner
+            $"loc_modules_{i}",
+            Sql.string (String.concat "." target.location.modules)
+            $"loc_name_{i}", Sql.string target.location.name ])
+        |> List.concat
+
+      let locTuples =
+        targets
+        |> List.mapi (fun i _ ->
+          $"(@loc_kind_{i}, @loc_owner_{i}, @loc_modules_{i}, @loc_name_{i})")
+        |> String.concat ", "
 
       let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
-
       let branchInClause =
         branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
+      let hashParams =
+        targets
+        |> List.collect (fun target ->
+          target.hashes |> List.map (fun hash -> target.itemKind, hash))
+        |> List.distinct
+        |> List.mapi (fun i (kind, Hash h) ->
+          [ $"target_hash_kind_{i}", Sql.string (kind.toString ())
+            $"target_hash_{i}", Sql.string h ])
+        |> List.concat
+
+      let hashFallbackClause =
+        match hashParams with
+        | [] ->
+          $"""
+          pd.depends_on_hash IN (
+            SELECT tl.item_hash FROM locations tl
+            WHERE (tl.item_type, tl.owner, tl.modules, tl.name) IN ({locTuples})
+              AND tl.branch_id IN ({branchInClause})
+              AND tl.unlisted_at IS NULL
+          )
+          """
+        | _ ->
+          let hashInClause =
+            targets
+            |> List.collect (fun target ->
+              target.hashes |> List.map (fun hash -> target.itemKind, hash))
+            |> List.distinct
+            |> List.mapi (fun i _ -> $"(@target_hash_kind_{i}, @target_hash_{i})")
+            |> String.concat ", "
+          $"(pd.depends_on_item_type, pd.depends_on_hash) IN ({hashInClause})"
 
       let sql =
         $"""
-          SELECT DISTINCT pd.depends_on_hash, pd.item_hash, l.item_type
+          SELECT DISTINCT l.item_hash, l.item_type, l.owner, l.modules, l.name
           FROM package_dependencies pd
           INNER JOIN locations l ON pd.item_hash = l.item_hash
-          WHERE pd.depends_on_hash IN ({inClause})
+          WHERE (
+              (pd.depends_on_item_type, pd.depends_on_owner, pd.depends_on_modules, pd.depends_on_name)
+                IN ({locTuples})
+              OR (
+                pd.depends_on_owner IS NULL
+                AND {hashFallbackClause}
+              )
+            )
             AND l.unlisted_at IS NULL
             AND l.branch_id IN ({branchInClause})
-          ORDER BY pd.depends_on_hash, pd.item_hash
-          """
+          ORDER BY l.item_hash
+        """
 
       return!
         Sql.query sql
-        |> Sql.parameters (depParams @ branchParams)
+        |> Sql.parameters (locParams @ branchParams @ hashParams)
         |> Sql.executeAsync (fun read ->
-          { dependsOnHash = Hash(read.string "depends_on_hash")
-            itemHash = Hash(read.string "item_hash")
-            itemKind = read.string "item_type" |> PT.ItemKind.fromString })
+          let modulesStr = read.string "modules"
+          { itemHash = Hash(read.string "item_hash")
+            itemKind = read.string "item_type" |> PT.ItemKind.fromString
+            itemLocation =
+              { owner = read.string "owner"
+                modules = modulesStr.Split('.') |> Array.toList
+                name = read.string "name" } })
   }
 
 
-/// Batch lookup of dependents for multiple dependency IDs.
-/// Chunks requests to avoid SQLite expression tree depth limits.
-let getDependentsBatch
+/// Location-keyed batch lookup of dependents. Chunks the input list to
+/// stay under SQLite's expression-tree depth limit.
+let getDependentsByTargets
   (branchChain : List<PT.BranchId>)
-  (dependsOnHashes : List<Hash>)
-  : Task<List<BatchDependent>> =
+  (targets : List<LocationTarget>)
+  : Task<List<LocationDependent>> =
   task {
-    if List.isEmpty dependsOnHashes then
+    if List.isEmpty targets then
       return []
     else
-      // SQLite has a limit on expression tree depth (~1000)
-      // Chunk into batches of 100 to stay well under the limit
-      let chunks = dependsOnHashes |> List.chunkBySize 100
-
+      let chunks = targets |> List.chunkBySize 100
       let! results =
-        chunks |> List.map (getDependentsBatchChunk branchChain) |> Task.flatten
-
+        chunks
+        |> List.map (getDependentsByLocationsChunk branchChain)
+        |> Task.flatten
       return results |> List.concat
   }
+
+
+let getDependentsByKindedLocations
+  (branchChain : List<PT.BranchId>)
+  (targets : List<PT.ItemKind * PT.PackageLocation>)
+  : Task<List<LocationDependent>> =
+  targets
+  |> List.map (fun (itemKind, location) ->
+    { itemKind = itemKind; location = location; hashes = [] })
+  |> getDependentsByTargets branchChain
 
 
 // ===========================================

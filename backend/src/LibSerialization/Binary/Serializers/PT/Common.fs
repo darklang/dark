@@ -14,6 +14,19 @@ module Hash =
   let read (r : BinaryReader) : Hash = Hash(String.read r)
 
 
+module PackageLocation =
+  let write (w : BinaryWriter) (loc : PackageLocation) : unit =
+    String.write w loc.owner
+    List.write w String.write loc.modules
+    String.write w loc.name
+
+  let read (r : BinaryReader) : PackageLocation =
+    let owner = String.read r
+    let modules = List.read r String.read
+    let name = String.read r
+    { owner = owner; modules = modules; name = name }
+
+
 module Sign =
   let write (w : BinaryWriter) (sign : Sign) =
     match sign with
@@ -47,6 +60,11 @@ module NameResolution =
     (nr : NameResolution<'a>)
     =
     List.write w String.write nr.originalName
+    match nr.location with
+    | None -> w.Write(0uy)
+    | Some loc ->
+      w.Write(1uy)
+      PackageLocation.write w loc
     match nr.resolved with
     | Ok value ->
       w.Write(0uy)
@@ -57,12 +75,17 @@ module NameResolution =
 
   let read (readValue : BinaryReader -> 'a) (r : BinaryReader) : NameResolution<'a> =
     let originalName = List.read r String.read
+    let location =
+      match r.ReadByte() with
+      | 0uy -> None
+      | 1uy -> Some(PackageLocation.read r)
+      | b -> raiseFormatError $"Invalid NameResolution location tag: {b}"
     let resolved =
       match r.ReadByte() with
       | 0uy -> Ok(readValue r)
       | 1uy -> Error(NameResolutionError.read r)
       | b -> raiseFormatError $"Invalid NameResolution tag: {b}"
-    { originalName = originalName; resolved = resolved }
+    { originalName = originalName; location = location; resolved = resolved }
 
 
 module FQTypeName =
@@ -178,16 +201,3 @@ module Deprecation =
     | 2uy -> ReplacedBy(readNameFn r)
     | 3uy -> DeprecatedBecause(String.read r)
     | b -> raiseFormatError $"Invalid Deprecation tag: {b}"
-
-
-module PackageLocation =
-  let write (w : BinaryWriter) (loc : PackageLocation) : unit =
-    String.write w loc.owner
-    List.write w String.write loc.modules
-    String.write w loc.name
-
-  let read (r : BinaryReader) : PackageLocation =
-    let owner = String.read r
-    let modules = List.read r String.read
-    let name = String.read r
-    { owner = owner; modules = modules; name = name }

@@ -243,7 +243,12 @@ module Expr =
     (caseName : string) // used for errors
     : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
     match names with
-    | [] -> Ply({ originalName = [ caseName ]; resolved = Error NRE.InvalidName })
+    | [] ->
+      Ply(
+        { originalName = [ caseName ]
+          location = None
+          resolved = Error NRE.InvalidName }
+      )
     | head :: tail ->
       let name = NEList.ofList head tail |> WT.Unresolved
       NR.resolveTypeName pm onMissing currentModule name

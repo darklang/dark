@@ -184,6 +184,29 @@ module NameResolutionError =
 
 
 
+module PackageLocation =
+  let typeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.ProgramTypes.packageLocation ()
+    )
+  let knownType () = KTCustomType(typeName (), [])
+
+  let toDT (loc : PT.PackageLocation) : Dval =
+    let fields =
+      [ "owner", DString loc.owner
+        "modules", DList(VT.string, List.map DString loc.modules)
+        "name", DString loc.name ]
+    DRecord(typeName (), typeName (), [], Map fields)
+
+  let fromDT (d : Dval) : PT.PackageLocation =
+    match d with
+    | DRecord(_, _, _, fields) ->
+      { owner = C2DT.ownerField fields
+        modules = C2DT.modulesField fields
+        name = C2DT.nameField fields }
+    | _ -> Exception.raiseInternal "Invalid PackageLocation" []
+
+
 module NameResolution =
   let typeName () =
     FQTypeName.fqPackage (
@@ -196,6 +219,11 @@ module NameResolution =
     (nr : PT.NameResolution<'p>)
     : Dval =
     let originalName = DList(VT.string, List.map Dval.string nr.originalName)
+    let location =
+      C2DT.Option.toDT
+        PackageLocation.toDT
+        (PackageLocation.knownType ())
+        nr.location
     let resolved =
       C2DT.Result.toDT
         nameValueType
@@ -207,19 +235,22 @@ module NameResolution =
       typeName (),
       typeName (),
       [ VT.known nameValueType ],
-      Map [ "originalName", originalName; "resolved", resolved ]
+      Map
+        [ "originalName", originalName; "location", location; "resolved", resolved ]
     )
 
   let fromDT (f : Dval -> 'a) (d : Dval) : PT.NameResolution<'a> =
     match d with
     | DRecord(_, _, _, fields) ->
       let originalName = fields |> D.field "originalName" |> D.list D.string
+      let location =
+        fields |> D.field "location" |> C2DT.Option.fromDT PackageLocation.fromDT
       let resolved =
         C2DT.Result.fromDT
           f
           (fields |> D.field "resolved")
           NameResolutionError.fromDT
-      { originalName = originalName; resolved = resolved }
+      { originalName = originalName; location = location; resolved = resolved }
     | _ -> Exception.raiseInternal "Invalid NameResolution" []
 
 
@@ -1333,32 +1364,10 @@ module PackageFn =
 
 
 
-module PackageLocation =
-  let typeName () =
-    FQTypeName.fqPackage (
-      PackageRefs.Type.LanguageTools.ProgramTypes.packageLocation ()
-    )
-  let knownType () = KTCustomType(typeName (), [])
-
-  let toDT (loc : PT.PackageLocation) : Dval =
-    let fields =
-      [ "owner", DString loc.owner
-        "modules", DList(VT.string, List.map DString loc.modules)
-        "name", DString loc.name ]
-    DRecord(typeName (), typeName (), [], Map fields)
-
-  let fromDT (d : Dval) : PT.PackageLocation =
-    match d with
-    | DRecord(_, _, _, fields) ->
-      { owner = C2DT.ownerField fields
-        modules = C2DT.modulesField fields
-        name = C2DT.nameField fields }
-    | _ -> Exception.raiseInternal "Invalid PackageLocation" []
-
-
 module ItemKind =
   let typeName () =
     FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.ProgramTypes.itemKind ())
+  let knownType () = KTCustomType(typeName (), [])
 
   let toDT (k : PT.ItemKind) : Dval =
     let (caseName, fields) =
