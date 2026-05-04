@@ -7,7 +7,7 @@ open FSharp.Control.Tasks
 
 open Prelude
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 
 type Account = { id : UserID; name : string }
 

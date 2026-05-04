@@ -18,7 +18,7 @@ let all () : RT.Builtins =
       BuiltinPM.Builtin.builtins ptPM
       BuiltinCliHost.Builtin.builtins ()
       BuiltinHttpServer.Builtin.builtins ()
-      BuiltinCloudExecution.Builtin.builtins () // TODO: do we need this?
+      BuiltinDB.Builtin.builtins () // TODO: do we need this?
       TestUtils.LibTest.builtins () ] // TODO: or this?
     []
 
@@ -27,7 +27,7 @@ let accessibleByCanvas () : RT.Builtins =
     [ BuiltinExecution.Builtin.builtins httpClientConfig
       BuiltinPM.Builtin.builtins ptPM
       BuiltinHttpServer.Builtin.builtins ()
-      BuiltinCloudExecution.Builtin.builtins ()
+      BuiltinDB.Builtin.builtins ()
       //?BuiltinDarkInternal.Builtin.builtins
       ]
     []

@@ -30,9 +30,9 @@ module PackageRefs = LibExecution.PackageRefs
 module C2DT = LibExecution.CommonToDarkTypes
 module VT = LibExecution.ValueType
 module NR = LibExecution.RuntimeTypes.NameResolution
-module RTPM = LibPackageManager.RuntimeTypes
-module PMPT = LibPackageManager.ProgramTypes
-module Branches = LibPackageManager.Branches
+module RTPM = LibDB.RuntimeTypes
+module PMPT = LibDB.ProgramTypes
+module Branches = LibDB.Branches
 module Execution = LibExecution.Execution
 
 let statsTypeName () = FQTypeName.fqPackage (PackageRefs.Type.DarkPackages.stats ())
@@ -52,7 +52,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         function
         | _, _, _, [ DUnit ] ->
           uply {
-            let! stats = LibPackageManager.Stats.get ()
+            let! stats = LibDB.Stats.get ()
 
             return
               DRecord(
@@ -428,7 +428,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let modulesStr = location.modules |> String.concat "."
             let! branchChain = Branches.getBranchChain branchId
             let! result =
-              LibPackageManager.Queries.getAllPreviousHashes
+              LibDB.Queries.getAllPreviousHashes
                 branchChain
                 location.owner
                 modulesStr
@@ -492,7 +492,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let fromSourceHashes = fromSourceHashDvals |> List.map PT2DT.Hash.fromDT
 
             let! result =
-              LibPackageManager.Propagation.propagate
+              LibDB.Propagation.propagate
                 branchId
                 sourceLocation
                 sourceItemKind
@@ -504,7 +504,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
             match result with
             | Ok(Some(propagationResult, ops)) ->
-              let! _ = LibPackageManager.Inserts.insertAndApplyOps branchId None ops
+              let! _ = LibDB.Inserts.insertAndApplyOps branchId None ops
 
               let repointsDval =
                 propagationResult.repoints
@@ -598,7 +598,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               | None ->
                 uply {
                   let! result =
-                    LibPackageManager.Inserts.findCommittedHash
+                    LibDB.Inserts.findCommittedHash
                       branchId
                       sourceLocation.owner
                       modulesStr
@@ -626,7 +626,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 )
 
               let! _ =
-                LibPackageManager.Inserts.insertAndApplyOps
+                LibDB.Inserts.insertAndApplyOps
                   branchId
                   None
                   [ revertOp ]
@@ -661,7 +661,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _, _, _, [ DUuid branchId ] ->
           uply {
             let! branchChain = Branches.getBranchChain branchId
-            let! sets = LibPackageManager.Queries.getDeprecationSets branchChain
+            let! sets = LibDB.Queries.getDeprecationSets branchChain
             let hashListDval (hashes : Set<PT.Hash>) =
               hashes
               |> Set.toList
@@ -708,7 +708,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let itemKind = PT2DT.ItemKind.fromDT itemKindDval
             let! branchChain = Branches.getBranchChain branchId
             let! result =
-              LibPackageManager.Queries.getCurrentDeprecation
+              LibDB.Queries.getCurrentDeprecation
                 branchChain
                 hash
                 itemKind

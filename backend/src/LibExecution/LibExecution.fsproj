@@ -44,6 +44,10 @@
     <Compile Include="CommonToDarkTypes.fs" />
     <Compile Include="RuntimeTypesToDarkTypes.fs" />
     <Compile Include="ProgramTypesToDarkTypes.fs" />
+    <!-- Internal Dval reprs (JSON, SQL, hash) /-->
+    <Compile Include="DvalReprInternalRoundtrippable.fs" />
+    <Compile Include="DvalReprInternalHash.fs" />
+    <Compile Include="DvalReprInternalQueryable.fs" />
     <!-- Expose the runtime to the outside world /-->
     <Compile Include="Execution.fs" />
   </ItemGroup>

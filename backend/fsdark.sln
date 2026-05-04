@@ -33,9 +33,9 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinExecution", "src\Bui
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibConfig", "src\LibConfig\LibConfig.fsproj", "{524e142b-bfb1-4f4b-8e67-bfe82301f7c6}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibDB", "src\LibDB\LibDB.fsproj", "{E8F9A2C1-4B5D-4E3F-8A7B-9C6D2E1F0A8B}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibSqlite", "src\LibSqlite\LibSqlite.fsproj", "{E8F9A2C1-4B5D-4E3F-8A7B-9C6D2E1F0A8B}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibPackageManager", "src\LibPackageManager\LibPackageManager.fsproj", "{A74049E0-AD31-407B-9918-6A6A76C945C9}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibDB", "src\LibDB\LibDB.fsproj", "{A74049E0-AD31-407B-9918-6A6A76C945C9}"
 EndProject
 
 # Cloud stuff
@@ -43,7 +43,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibSerialization", "src\Lib
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibService", "src\LibService\LibService.fsproj", "{824DD2A5-7F01-4A8A-9ABD-9F91F52582AD}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinCloudExecution", "src\BuiltinCloudExecution\BuiltinCloudExecution.fsproj", "{82CA75E9-53BD-4324-B86B-44F280BAF331}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinDB", "src\BuiltinDB\BuiltinDB.fsproj", "{82CA75E9-53BD-4324-B86B-44F280BAF331}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibCloudExecution", "src\LibCloudExecution\LibCloudExecution.fsproj", "{FA55A52D-B880-4931-A121-85C8DAD8DD28}"
 EndProject

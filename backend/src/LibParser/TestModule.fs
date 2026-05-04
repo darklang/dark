@@ -11,7 +11,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module NR = NameResolver
 open LibSerialization.Hashing
-module HS = LibPackageManager.HashStabilization
+module HS = LibDB.HashStabilization
 
 open Utils
 
@@ -366,7 +366,7 @@ let parseTestFile
     let mutable iteration = 0
     while not converged && iteration < 50 do
       iteration <- iteration + 1
-      let enhancedPM = LibPackageManager.PackageManager.withExtraOps pm currentOps
+      let enhancedPM = LibDB.PackageManager.withExtraOps pm currentOps
       let! newModules =
         modulesWT
         |> Ply.List.mapSequentially (toPT owner builtins enhancedPM onMissing)

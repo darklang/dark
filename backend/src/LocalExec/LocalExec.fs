@@ -8,7 +8,7 @@ open Prelude
 open LibExecution.ProgramTypes
 
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
@@ -16,12 +16,12 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Execution = LibExecution.Execution
 module BS = LibSerialization.Binary.Serialization
 
-module PM = LibPackageManager.PackageManager
+module PM = LibDB.PackageManager
 
 open Utils
 
 
-let evaluateAllValues = LibPackageManager.Seed.evaluateAllValues
+let evaluateAllValues = LibDB.Seed.evaluateAllValues
 
 
 module HandleCommand =
@@ -31,7 +31,7 @@ module HandleCommand =
       print $"Reloading {name} canvas..."
 
       let! (canvasId, toplevels) =
-        Canvas.loadFromDisk LibPackageManager.PackageManager.pt name
+        Canvas.loadFromDisk LibDB.PackageManager.pt name
 
       print $"Loaded canvas {canvasId} with {List.length toplevels} toplevels"
 
@@ -55,12 +55,12 @@ module HandleCommand =
       // CLEANUP consider checking for duplicates (helps prevent a class of issues)
 
       print "Purging ..."
-      do! LibPackageManager.Purge.purge ()
+      do! LibDB.Purge.purge ()
 
       // Record CreateBranch op for main (the migration creates the row,
       // but we need the BranchOp so the DB can be rebuilt from ops alone)
       do!
-        LibPackageManager.BranchOpPlayback.insertAndApply (
+        LibDB.BranchOpPlayback.insertAndApply (
           PT.BranchOp.CreateBranch(PT.mainBranchId, "main", None, None)
         )
 
@@ -71,7 +71,7 @@ module HandleCommand =
       let darklangAccountId =
         System.Guid.Parse "00000000-0000-0000-0000-000000000001"
       let! commitHash =
-        LibPackageManager.Inserts.insertAndApplyOpsWithCommit
+        LibDB.Inserts.insertAndApplyOpsWithCommit
           darklangAccountId
           LibExecution.ProgramTypes.mainBranchId
           "Init: packages loaded from disk"
@@ -79,7 +79,7 @@ module HandleCommand =
 
       // Generate hash file BEFORE evaluating values, so that PackageRefs
       // lookups resolve correctly during value evaluation.
-      do! LibPackageManager.PackageRefsGenerator.generate ()
+      do! LibDB.PackageRefsGenerator.generate ()
       LibExecution.PackageRefs.reloadHashes ()
 
       // Evaluate all values now that all definitions are in the DB
@@ -91,7 +91,7 @@ module HandleCommand =
         return Error "Some values failed to evaluate"
       | Ok() ->
         // Get stats after ops are inserted/applied
-        let! stats = LibPackageManager.Stats.get ()
+        let! stats = LibDB.Stats.get ()
         print "Loaded packages from disk "
         print $"{stats.types} types, {stats.values} values, and {stats.fns} fns"
         let (Hash commitHashStr) = commitHash
@@ -120,7 +120,7 @@ module HandleCommand =
   let exportSeed (outputPath : string) : Ply<Result<unit, string>> =
     uply {
       try
-        do! LibPackageManager.Seed.export outputPath
+        do! LibDB.Seed.export outputPath
         let size = System.IO.FileInfo(outputPath).Length / 1024L / 1024L
         print $"Seed exported to {outputPath} ({size} MB)"
         return Ok()
@@ -144,7 +144,7 @@ module HandleCommand =
     uply {
       try
         print "Sweeping orphan package_blobs..."
-        let! deleted = LibPackageManager.RuntimeTypes.Blob.sweepOrphans ()
+        let! deleted = LibDB.RuntimeTypes.Blob.sweepOrphans ()
         print $"Deleted {deleted} orphan blob row(s)"
         return Ok()
       with ex ->

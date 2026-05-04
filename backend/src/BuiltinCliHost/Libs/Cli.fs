@@ -26,7 +26,7 @@ module C2DT = LibExecution.CommonToDarkTypes
 module D = LibExecution.DvalDecoder
 module Utils = BuiltinCliHost.Utils
 module Canvas = LibCloud.Canvas
-module Tracing = LibCloud.Tracing
+module Tracing = LibDB.Tracing
 
 
 // Load canvas ID and DBs for an account
@@ -121,17 +121,17 @@ module ExecutionError =
   let typeRef () = TCustomType(NR.ok (fqTypeName ()), [])
 
 
-let pmRT = LibPackageManager.PackageManager.rt
+let pmRT = LibDB.PackageManager.rt
 
 let builtinsToUse () : RT.Builtins =
-  let ptPM = LibPackageManager.PackageManager.pt
+  let ptPM = LibDB.PackageManager.pt
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.builtins
         BuiltinExecution.Libs.HttpClient.defaultConfig
       BuiltinCli.Builtin.builtins ()
       BuiltinPM.Builtin.builtins ptPM
       BuiltinHttpServer.Builtin.builtins ()
-      BuiltinCloudExecution.Builtin.builtins () ]
+      BuiltinDB.Builtin.builtins () ]
     []
 
 

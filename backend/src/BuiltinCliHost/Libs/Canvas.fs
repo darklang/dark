@@ -5,7 +5,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
@@ -15,7 +15,7 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 module Canvas = LibCloud.Canvas
 module Serialize = LibCloud.Serialize
 module Account = LibCloud.Account
-module PackageLocation = LibPackageManager.PackageLocation
+module PackageLocation = LibDB.PackageLocation
 
 
 let fns () : List<BuiltInFn> =
@@ -111,7 +111,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DUuid canvasID; DUuid branchId ] ->
           uply {
             let! canvas = Canvas.loadAllDBs canvasID
-            let pm = LibPackageManager.PackageManager.pt
+            let pm = LibDB.PackageManager.pt
             let! dbs =
               canvas.dbs
               |> Map.values

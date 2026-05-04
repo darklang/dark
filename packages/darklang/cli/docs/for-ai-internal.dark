@@ -7,7 +7,7 @@ let content () : String =
   backend/src/          # F# source
     LibExecution/       # execution engine
     LibParser/          # parser
-    LibPackageManager/  # package DB, branches, SCM ops
+    LibDB/  # package DB, branches, SCM ops
     BuiltinExecution/   # builtin impls
     BuiltinPM/          # package manager builtins (SCM, branches)
   packages/darklang/    # .dark files
@@ -60,12 +60,12 @@ is when the value genuinely has no Dark-side type (very rare).
   3. Add to Registry.allCommands in cli/core.dark
 
 ## SCM / Branches Architecture
-  LibPackageManager/Branches.fs    # branch CRUD, getBranchChain
-  LibPackageManager/Rebase.fs      # conflict detection, rebase
-  LibPackageManager/Merge.fs       # merge into parent
-  LibPackageManager/Inserts.fs     # ops take branchId
-  LibPackageManager/ProgramTypes.fs # branch-aware SQL queries
-  LibPackageManager/PackageManager.fs # pt(branchId) constructs PM
+  LibDB/Branches.fs    # branch CRUD, getBranchChain
+  LibDB/Rebase.fs      # conflict detection, rebase
+  LibDB/Merge.fs       # merge into parent
+  LibDB/Inserts.fs     # ops take branchId
+  LibDB/ProgramTypes.fs # branch-aware SQL queries
+  LibDB/PackageManager.fs # pt(branchId) constructs PM
   BuiltinPM/Libs/Branches.fs      # branch builtins
   BuiltinPM/Libs/Rebase.fs        # rebase builtins
   BuiltinPM/Libs/Merge.fs         # merge builtins

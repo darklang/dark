@@ -11,8 +11,8 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibParser/LibParser.fsproj" />
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
+    <ProjectReference Include="../LibSqlite/LibSqlite.fsproj" />
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
-    <ProjectReference Include="../LibPackageManager/LibPackageManager.fsproj" />
     <ProjectReference Include="../LibSerialization/LibSerialization.fsproj" />
 
     <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
@@ -21,7 +21,7 @@
     <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
     <ProjectReference Include="../BuiltinHttpServer/BuiltinHttpServer.fsproj" />
     <ProjectReference Include="../BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
-    <ProjectReference Include="../BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
+    <ProjectReference Include="../BuiltinDB/BuiltinDB.fsproj" />
     <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
   </ItemGroup>
   <ItemGroup>

@@ -19,17 +19,18 @@ module PackageRefs = LibExecution.PackageRefs
 module Blob = LibExecution.Blob
 
 open LibCloud
+open LibDB
 
 
-let pmRT = LibPackageManager.PackageManager.rt
-let pmPT = LibPackageManager.PackageManager.pt
+let pmRT = LibDB.PackageManager.rt
+let pmPT = LibDB.PackageManager.pt
 
 let builtins : RT.Builtins =
   LibExecution.Builtin.combine
     [ BuiltinExecution.Builtin.builtins HttpClient.configuration
       BuiltinPM.Builtin.builtins pmPT
       BuiltinHttpServer.Builtin.builtins ()
-      BuiltinCloudExecution.Builtin.builtins ()
+      BuiltinDB.Builtin.builtins ()
       BuiltinDarkInternal.Builtin.builtins () ]
     []
 

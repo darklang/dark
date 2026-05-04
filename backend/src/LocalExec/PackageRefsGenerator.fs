@@ -5,7 +5,7 @@ module LocalExec.PackageRefsGenerator
 open Prelude
 
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 
 module PackageRefs = LibExecution.PackageRefs
 

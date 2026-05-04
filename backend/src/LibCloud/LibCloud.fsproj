@@ -14,24 +14,17 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibSerialization/LibSerialization.fsproj" />
     <ProjectReference Include="../LibService/LibService.fsproj" />
-    <ProjectReference Include="../LibDB/LibDB.fsproj" />
+    <ProjectReference Include="../LibSqlite/LibSqlite.fsproj" />
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="DvalReprInternalRoundtrippable.fs" />
-    <Compile Include="DvalReprInternalHash.fs" />
-
     <Compile Include="Config.fs" />
     <Compile Include="File.fs" />
     <Compile Include="Account.fs" />
     <Compile Include="Routing.fs" />
     <Compile Include="Serialize.fs" />
     <Compile Include="Canvas.fs" />
-    <Compile Include="Tracing.fs" />
 
     <Compile Include="Init.fs" />
-
-    <Compile Include="DvalReprInternalQueryable.fs" />
-    <Compile Include="UserDB.fs" />
 
     <Compile Include="Stats.fs" />
   </ItemGroup>

@@ -10,10 +10,10 @@ open TestUtils.TestUtils
 open TestUtils.PTShortcuts
 
 module PT = LibExecution.ProgramTypes
-module Branches = LibPackageManager.Branches
-module Inserts = LibPackageManager.Inserts
-module Queries = LibPackageManager.Queries
-module Propagation = LibPackageManager.Propagation
+module Branches = LibDB.Branches
+module Inserts = LibDB.Inserts
+module Queries = LibDB.Queries
+module Propagation = LibDB.Propagation
 
 
 // ── Helpers ──────────────────────────────────────────────────────────────
@@ -315,21 +315,21 @@ let private addValueAt
 let private findFn (branchId : PT.BranchId) (location : PT.PackageLocation) =
   task {
     let! chain = Branches.getBranchChain branchId
-    let! result = LibPackageManager.ProgramTypes.Fn.find chain location
+    let! result = LibDB.ProgramTypes.Fn.find chain location
     return result
   }
 
 let private findType (branchId : PT.BranchId) (location : PT.PackageLocation) =
   task {
     let! chain = Branches.getBranchChain branchId
-    let! result = LibPackageManager.ProgramTypes.Type.find chain location
+    let! result = LibDB.ProgramTypes.Type.find chain location
     return result
   }
 
 let private findValue (branchId : PT.BranchId) (location : PT.PackageLocation) =
   task {
     let! chain = Branches.getBranchChain branchId
-    let! result = LibPackageManager.ProgramTypes.Value.find chain location
+    let! result = LibDB.ProgramTypes.Value.find chain location
     return result
   }
 
@@ -1606,7 +1606,7 @@ let testRenameThenUpdateWithPropagation =
     Expect.notEqual callerNewId fnB.hash "B should be repointed after propagation"
 
     let! (callerAfter : Option<PT.PackageFn.PackageFn>) =
-      LibPackageManager.ProgramTypes.Fn.get callerNewId |> Ply.toTask
+      LibDB.ProgramTypes.Fn.get callerNewId |> Ply.toTask
     match callerAfter with
     | Some caller ->
       match caller.body with

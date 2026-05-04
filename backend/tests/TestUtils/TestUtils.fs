@@ -6,7 +6,7 @@ open Expecto
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open LibDB.Db
+open LibSqlite.Db
 
 open Prelude
 
@@ -29,8 +29,8 @@ module PackageRefs = LibExecution.PackageRefs
 module C2DT = LibExecution.CommonToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
-let pmPT = LibPackageManager.PackageManager.pt
-let pmRT = LibPackageManager.PackageManager.rt
+let pmPT = LibDB.PackageManager.pt
+let pmRT = LibDB.PackageManager.rt
 
 let testOwner : Lazy<Task<UserID>> =
   lazy (Account.createUser "TestUser" |> Task.map Result.unwrap)
@@ -117,7 +117,7 @@ let builtins
       BuiltinExecution.Builtin.builtins httpConfig
       BuiltinPM.Builtin.builtins pm
       BuiltinHttpServer.Builtin.builtins ()
-      BuiltinCloudExecution.Builtin.builtins ()
+      BuiltinDB.Builtin.builtins ()
       BuiltinDarkInternal.Builtin.builtins ()
       BuiltinCli.Builtin.builtins () ]
     []

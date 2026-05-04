@@ -8,13 +8,13 @@ open Prelude
 
 open Microsoft.Data.Sqlite
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module NR = LibParser.NameResolver
 
-module PM = LibPackageManager.PackageManager
+module PM = LibDB.PackageManager
 
 open Utils
 
@@ -118,7 +118,7 @@ let loadFromDisk
         let darklangAccountId =
           System.Guid.Parse "00000000-0000-0000-0000-000000000001"
         let! _ =
-          LibPackageManager.Inserts.insertAndApplyOpsWithCommit
+          LibDB.Inserts.insertAndApplyOpsWithCommit
             darklangAccountId
             PT.mainBranchId
             $"Init: canvas {domain}"

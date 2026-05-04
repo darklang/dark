@@ -11,8 +11,8 @@ module VT = LibExecution.ValueType
 module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module NR = LibExecution.RuntimeTypes.NameResolution
-module PMPT = LibPackageManager.ProgramTypes
-module Branches = LibPackageManager.Branches
+module PMPT = LibDB.ProgramTypes
+module Branches = LibDB.Branches
 
 
 let private hashType = TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])
@@ -59,7 +59,7 @@ let fns () : List<BuiltInFn> =
             let source = PT2DT.Hash.fromDT sourceDval
             let! branchChain = Branches.getBranchChain branchId
             let! results =
-              LibPackageManager.Queries.getDependencies branchChain source
+              LibDB.Queries.getDependencies branchChain source
             let dvals =
               results
               |> List.map (fun ref ->
@@ -104,7 +104,7 @@ let fns () : List<BuiltInFn> =
                     [ "target", other ])
 
             let! results =
-              LibPackageManager.Queries.getDependentsByKindedLocations
+              LibDB.Queries.getDependentsByKindedLocations
                 branchChain
                 targets
 
@@ -139,7 +139,7 @@ let fns () : List<BuiltInFn> =
           uply {
             let hashes = itemHashes |> List.map PT2DT.Hash.fromDT
 
-            let! branchChain = LibPackageManager.Branches.getBranchChain branchId
+            let! branchChain = LibDB.Branches.getBranchChain branchId
 
             let! results =
               hashes

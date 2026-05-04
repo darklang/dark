@@ -23,13 +23,13 @@ module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
-module PMBlob = LibPackageManager.RuntimeTypes.Blob
+module PMBlob = LibDB.RuntimeTypes.Blob
 module RoundtrippableJson = LibExecution.DvalReprInternalRoundtrippable
 module QueryableJson = LibExecution.DvalReprInternalQueryable
 module Equals = BuiltinExecution.Libs.NoModule
 
 open Fumble
-open LibDB.Db
+open LibSqlite.Db
 
 
 // ─────────────────────────────────────────────────────────────────────

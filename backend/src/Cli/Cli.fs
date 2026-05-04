@@ -147,10 +147,10 @@ let main (args : string[]) =
     // Grow the database: apply any unapplied ops and evaluate values.
     let cliPackageManager =
       Telemetry.time "cli.createPM" [] (fun () ->
-        LibPackageManager.PackageManager.rt)
+        LibDB.PackageManager.rt)
 
     Telemetry.time "cli.growIfNeeded" [] (fun () ->
-      (LibPackageManager.Seed.growIfNeeded
+      (LibDB.Seed.growIfNeeded
         (fun () -> builtins)
         cliPackageManager
         (fun msg -> System.Console.Error.WriteLine msg))

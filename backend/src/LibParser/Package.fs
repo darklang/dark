@@ -12,7 +12,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module NR = NameResolver
-module PackageLocation = LibPackageManager.PackageLocation
+module PackageLocation = LibDB.PackageLocation
 open LibSerialization.Hashing
 
 open Utils
