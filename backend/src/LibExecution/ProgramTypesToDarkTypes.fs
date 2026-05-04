@@ -1809,26 +1809,6 @@ module DB =
     | _ -> Exception.raiseInternal "Invalid DB" []
 
 
-module Secret =
-  let typeName () =
-    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.ProgramTypes.secret ())
-
-  let toDT (s : PT.Secret.T) : Dval =
-    let fields =
-      [ "name", DString s.name
-        "value", DString s.value
-        "version", DInt32 s.version ]
-    DRecord(typeName (), typeName (), [], Map fields)
-
-  let fromDT (d : Dval) : PT.Secret.T =
-    match d with
-    | DRecord(_, _, _, fields) ->
-      { name = fields |> D.field "name" |> D.string
-        value = fields |> D.field "value" |> D.string
-        version = fields |> D.field "version" |> D.int32 }
-    | _ -> Exception.raiseInternal "Invalid Secret" []
-
-
 // SCM types
 module Branch =
   let typeName () = FQTypeName.fqPackage (PackageRefs.Type.SCM.Branch.branch ())

@@ -82,8 +82,7 @@ let freshState () : RT.ExecutionState =
     LibExecution.ProgramTypes.mainBranchId
     { canvasID = System.Guid.NewGuid()
       internalFnsAllowed = false
-      dbs = Map.empty
-      secrets = [] }
+      dbs = Map.empty }
 
 
 // ─── Scenarios ───────────────────────────────────────────────────

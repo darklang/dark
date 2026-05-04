@@ -133,14 +133,6 @@ module RoundtripTests =
           None
 
         testRoundtripList
-          "PT.Secret"
-          (pkg (PackageRefs.Type.LanguageTools.ProgramTypes.secret ()))
-          V.ProgramTypes.userSecrets
-          PT2DT.Secret.toDT
-          PT2DT.Secret.fromDT
-          None
-
-        testRoundtripList
           "PT.DB"
           (pkg (PackageRefs.Type.LanguageTools.ProgramTypes.db ()))
           V.ProgramTypes.userDBs

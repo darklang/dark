@@ -149,8 +149,7 @@ let executionStateFor
     let program : RT.Program =
       { canvasID = canvasID
         internalFnsAllowed = internalFnsAllowed
-        dbs = dbs
-        secrets = [] }
+        dbs = dbs }
 
     let testContext : RT.TestContext =
       { sideEffectCount = 0

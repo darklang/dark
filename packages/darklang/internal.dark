@@ -2,11 +2,6 @@
 module Darklang.Internal
 
 module Canvas =
-  type Secret =
-    { name: String
-      value: String
-      version: Int32 }
-
   /// 404 record
   type F404 =
     { space: String

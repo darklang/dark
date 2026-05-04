@@ -1084,9 +1084,6 @@ the package stuff is all a projection of that
 module DB =
   type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
 
-module Secret =
-  type T = { name : string; value : string; version : int }
-
 module Handler =
   type CronInterval =
     | EveryDay

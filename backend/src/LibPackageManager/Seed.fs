@@ -158,8 +158,7 @@ let evaluateAllValues
     let program : RT.Program =
       { canvasID = System.Guid.NewGuid()
         internalFnsAllowed = false
-        dbs = Map.empty
-        secrets = [] }
+        dbs = Map.empty }
 
     let notify _ _ _ _ = uply { return () }
     let sendException _ _ _ _ = uply { return () }

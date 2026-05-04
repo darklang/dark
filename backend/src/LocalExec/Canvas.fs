@@ -53,7 +53,6 @@ let purgeDataFromInternalSqlTables (id : CanvasID) : Task<unit> =
     do! runStmt "DELETE FROM toplevels_v0 WHERE canvas_id = @id"
     do! runStmt "DELETE FROM canvases_v0 WHERE id = @id"
     do! runStmt "DELETE FROM domains_v0 WHERE canvas_id = @id"
-    do! runStmt "DELETE FROM secrets_v0 WHERE canvas_id = @id"
   }
 
 

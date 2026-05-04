@@ -314,7 +314,6 @@ module Type =
       let reference = p [] "Reference"
       let deprecationKind = p [] "DeprecationKind"
       let propagateRepoint = p [] "PropagateRepoint"
-      let secret = p [] "Secret"
       let db = p [] "DB"
 
       module Handler =

@@ -1279,11 +1279,6 @@ module DB =
       version = db.version
       typ = TypeReference.toRT db.typ }
 
-module Secret =
-  let toRT (s : PT.Secret.T) : RT.Secret.T =
-    { name = s.name; value = s.value; version = s.version }
-
-
 // TODO: remove this eventually -- PT2RT should happen generally at dev-time
 // (in any case, params should be handled differntly - by index or something, not by name as loose symbols)
 module Handler =

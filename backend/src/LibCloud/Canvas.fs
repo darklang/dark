@@ -114,7 +114,6 @@ let getOrCreateForAccount (accountID : UserID) (domain : string) : Task<CanvasID
 type T =
   { id : CanvasID
 
-    secrets : Map<string, PT.Secret.T>
     handlers : Map<tlid, PT.Handler.T>
     dbs : Map<tlid, PT.DB.T>
     deletedHandlers : Map<tlid, PT.Handler.T>
@@ -230,8 +229,7 @@ let empty (id : CanvasID) =
     handlers = Map.empty
     dbs = Map.empty
     deletedHandlers = Map.empty
-    deletedDBs = Map.empty
-    secrets = Map.empty }
+    deletedDBs = Map.empty }
 
 let loadFrom (id : CanvasID) (tlids : List<tlid>) : Task<T> =
   task {
@@ -241,10 +239,7 @@ let loadFrom (id : CanvasID) (tlids : List<tlid>) : Task<T> =
 
       let c = empty id
 
-      let! secrets = Secret.getCanvasSecrets id
-      let secrets = secrets |> List.map (fun s -> s.name, s) |> Map
-
-      return { c with secrets = secrets } |> addToplevels tls |> verify
+      return c |> addToplevels tls |> verify
     with e ->
       let tags = [ "tlids", tlids :> obj ]
       return Exception.reraiseAsPageable "canvas load failed" tags e
@@ -450,11 +445,8 @@ let toProgram (c : T) : Ply<RT.Program> =
       |> List.map (fun db -> (db.name, PT2RT.DB.toRT db))
       |> Map.ofList
 
-    let secrets = c.secrets |> Map.values |> List.map PT2RT.Secret.toRT
-
     return
       { canvasID = c.id
         internalFnsAllowed = List.contains c.id Config.allowedDarkInternalCanvasIDs
-        dbs = dbs
-        secrets = secrets }
+        dbs = dbs }
   }

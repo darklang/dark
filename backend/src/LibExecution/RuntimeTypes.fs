@@ -479,7 +479,7 @@ type Instruction =
   // == Errors ==
   | RaiseNRE of List<string> * NameResolutionError
 
-  | VarNotFound of targetRegIfSecretOrDB : Register * name : string
+  | VarNotFound of targetRegIfDB : Register * name : string
 
   | CheckIfFirstExprIsUnit of Register
 
@@ -1318,11 +1318,6 @@ module DB =
   // CLEANUP consider making typ a ValueType instead
   type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
 
-module Secret =
-  type T = { name : string; value : string; version : int }
-
-
-
 // ------------
 // Builtins, Execution State, Package Manager
 // A bunch of tangled things we need to `and` together
@@ -1639,8 +1634,7 @@ and Builtins =
 and Program =
   { canvasID : CanvasID
     internalFnsAllowed : bool
-    dbs : Map<string, DB.T>
-    secrets : List<Secret.T> }
+    dbs : Map<string, DB.T> }
 
 
 // Used for testing

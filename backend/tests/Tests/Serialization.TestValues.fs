@@ -762,6 +762,3 @@ module ProgramTypes =
       List.map Toplevel.TLDB [ userDB ] ]
     |> List.concat
 
-  let userSecret : Secret.T = { name = "APIKEY"; value = "hunter2"; version = 0 }
-
-  let userSecrets = [ userSecret ]

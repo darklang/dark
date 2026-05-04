@@ -386,21 +386,14 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               raiseRTE (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
 
 
-        // TODO References to DBs and Secrets should be resolved at parse-time
-        // , not runtime. For consistency, safety, etc.
-        // We should have specific
-        // EReferenceSecret and EReferenceDB constructs that we respect,
-        // all throughout WT, NR, PT, RT, PT2RT, etc.
-        // I don't even think this would be that hard -- good to do sooner rather than later.
-        | VarNotFound(targetRegIfSecretOrDB, varName) ->
+        // TODO References to DBs should be resolved at parse-time, not
+        // runtime. For consistency, safety, etc. We should have a specific
+        // EReferenceDB construct that we respect throughout WT, NR, PT, RT,
+        // PT2RT, etc. I don't think this would be that hard.
+        | VarNotFound(targetRegIfDB, varName) ->
           match exeState.program.dbs |> Map.get varName with
-          | Some _foundDB -> registers[targetRegIfSecretOrDB] <- DDB varName
-          | None ->
-            match
-              exeState.program.secrets |> List.find (fun s -> s.name = varName)
-            with
-            | Some found -> registers[targetRegIfSecretOrDB] <- DString found.value
-            | None -> raiseRTE (RTE.VariableNotFound varName)
+          | Some _foundDB -> registers[targetRegIfDB] <- DDB varName
+          | None -> raiseRTE (RTE.VariableNotFound varName)
 
 
 

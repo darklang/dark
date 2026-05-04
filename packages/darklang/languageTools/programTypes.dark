@@ -744,12 +744,6 @@ type DB =
     typ: TypeReference }
 
 
-type Secret =
-  { name: String
-    value: String
-    version: Int32 }
-
-
 module Handler =
   type CronInterval =
     | EveryDay

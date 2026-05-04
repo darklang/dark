@@ -49,8 +49,7 @@ let private freshState () : RT.ExecutionState =
     PT.mainBranchId
     { canvasID = System.Guid.NewGuid()
       internalFnsAllowed = false
-      dbs = Map.empty
-      secrets = [] }
+      dbs = Map.empty }
 
 let private dblobRef (dv : RT.Dval) : RT.BlobRef =
   match dv with

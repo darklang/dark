@@ -948,12 +948,6 @@ let db
 
 
 
-// let secret (s: Stdlib.Secret.T) : String =
-//   let versionPart = if s.version == 0 then "" else $"_v{Stdlib.Int32.toString s.version}"
-
-//   $"let {s.name}{versionPart} = \"*****\""
-
-
 let packageType
   (ctx: Context)
   (p: LanguageTools.ProgramTypes.PackageType.PackageType)

@@ -214,14 +214,6 @@ let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> 
     | Some domain -> do! Canvas.addDomain canvasID domain
     | None -> ()
 
-    // Secrets
-    do!
-      test.secrets
-      |> List.map (fun (name, value, version) ->
-        LibCloud.Secret.insert canvasID name value version)
-      |> Task.WhenAll
-      |> Task.map (fun _ -> ())
-
     return canvasID, domain
   }
 
