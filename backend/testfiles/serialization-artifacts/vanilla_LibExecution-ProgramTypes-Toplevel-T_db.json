@@ -89,6 +89,7 @@
               "TCustomType": [
                 {
                   "originalName": [],
+                  "location": null,
                   "resolved": {
                     "Ok": [
                       {
@@ -114,6 +115,7 @@
               "TCustomType": [
                 {
                   "originalName": [],
+                  "location": null,
                   "resolved": {
                     "Ok": [
                       {

@@ -151,6 +151,7 @@ let exprRTs =
             [ PT.EPipeFnCall(
                 id,
                 { originalName = [ "Darklang"; "Stdlib"; "List"; "map" ]
+                  location = None
                   resolved =
                     Ok(
                       PT.FQFnName.fqPackage

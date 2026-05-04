@@ -309,9 +309,10 @@ let tests =
             let typ2 =
               { (makeType (PT.TypeDeclaration.Alias PT.TString)) with hash = id2 }
 
-            // Maps keyed by FQN; tuple value is (item, oldHash)
+            // Maps keyed by FQN; tuple value is (item, oldHash, location)
             let types =
-              [ ("Test.A", (typ1, id1)); ("Test.B", (typ2, id2)) ] |> Map.ofList
+              [ ("Test.A", (typ1, id1, None)); ("Test.B", (typ2, id2, None)) ]
+              |> Map.ofList
 
             let getDeps fqn =
               if fqn = "Test.A" then [ "Test.B" ]
@@ -319,15 +320,57 @@ let tests =
               else []
 
             let hashes1 =
-              Hashing.computeHashesWithSCCs types Map.empty Map.empty getDeps
+              Hashing.computeHashesWithSCCs
+                Canonical.emptySubstitution
+                types
+                Map.empty
+                Map.empty
+                getDeps
             let hashes2 =
-              Hashing.computeHashesWithSCCs types Map.empty Map.empty getDeps
+              Hashing.computeHashesWithSCCs
+                Canonical.emptySubstitution
+                types
+                Map.empty
+                Map.empty
+                getDeps
 
             Expect.equal hashes1 hashes2 "SCC hashes should be deterministic"
             Expect.notEqual
               (Map.find "Test.A" hashes1)
               (Map.find "Test.B" hashes1)
               "different items in SCC should have different hashes"
+          }
+
+
+          test "SCC name refs are keyed by location when old hashes collide" {
+            let sharedHash = PT.Hash "test-scc-shared-old-hash"
+            let locA : PT.PackageLocation =
+              { owner = "Test"; modules = [ "Scc" ]; name = "A" }
+            let locB : PT.PackageLocation =
+              { owner = "Test"; modules = [ "Scc" ]; name = "B" }
+
+            let valueRef (loc : PT.PackageLocation) =
+              PT.EValue(
+                gid (),
+                { originalName = []
+                  location = Some loc
+                  resolved = Ok(PT.FQValueName.Package sharedHash) }
+              )
+
+            let mode : Canonical.HashRefMode =
+              { subst = Canonical.emptySubstitution
+                sccNames =
+                  { byLocation =
+                      [ locA, "Test.Scc.A"; locB, "Test.Scc.B" ] |> Map.ofList
+                    byHash = [ sharedHash, "Test.Scc.B" ] |> Map.ofList } }
+
+            let hashA = Hashing.computeValueHash mode (makeValue (valueRef locA))
+            let hashB = Hashing.computeValueHash mode (makeValue (valueRef locB))
+
+            Expect.notEqual
+              hashA
+              hashB
+              "same-hash SCC refs at different locations should canonicalize to different FQN refs"
           }
 
 
@@ -343,9 +386,9 @@ let tests =
               { (makeType (PT.TypeDeclaration.Alias PT.TBool)) with hash = idC }
 
             let types =
-              [ ("Test.A", (typA, idA))
-                ("Test.B", (typB, idB))
-                ("Test.C", (typC, idC)) ]
+              [ ("Test.A", (typA, idA, None))
+                ("Test.B", (typB, idB, None))
+                ("Test.C", (typC, idC, None)) ]
               |> Map.ofList
 
             // A->B->C->A cycle
@@ -356,9 +399,19 @@ let tests =
               else []
 
             let hashes1 =
-              Hashing.computeHashesWithSCCs types Map.empty Map.empty getDeps
+              Hashing.computeHashesWithSCCs
+                Canonical.emptySubstitution
+                types
+                Map.empty
+                Map.empty
+                getDeps
             let hashes2 =
-              Hashing.computeHashesWithSCCs types Map.empty Map.empty getDeps
+              Hashing.computeHashesWithSCCs
+                Canonical.emptySubstitution
+                types
+                Map.empty
+                Map.empty
+                getDeps
 
             // Deterministic
             Expect.equal hashes1 hashes2 "3-node SCC hashes should be deterministic"
@@ -392,22 +445,32 @@ let tests =
 
             // Declaration order 1: A, B, C
             let types1 =
-              [ ("Test.A", (typA, idA))
-                ("Test.B", (typB, idB))
-                ("Test.C", (typC, idC)) ]
+              [ ("Test.A", (typA, idA, None))
+                ("Test.B", (typB, idB, None))
+                ("Test.C", (typC, idC, None)) ]
               |> Map.ofList
 
             // Declaration order 2: C, A, B
             let types2 =
-              [ ("Test.C", (typC, idC))
-                ("Test.A", (typA, idA))
-                ("Test.B", (typB, idB)) ]
+              [ ("Test.C", (typC, idC, None))
+                ("Test.A", (typA, idA, None))
+                ("Test.B", (typB, idB, None)) ]
               |> Map.ofList
 
             let hashes1 =
-              Hashing.computeHashesWithSCCs types1 Map.empty Map.empty getDeps
+              Hashing.computeHashesWithSCCs
+                Canonical.emptySubstitution
+                types1
+                Map.empty
+                Map.empty
+                getDeps
             let hashes2 =
-              Hashing.computeHashesWithSCCs types2 Map.empty Map.empty getDeps
+              Hashing.computeHashesWithSCCs
+                Canonical.emptySubstitution
+                types2
+                Map.empty
+                Map.empty
+                getDeps
 
             Expect.equal
               (Map.find "Test.A" hashes1)
@@ -446,15 +509,25 @@ let tests =
                 )) with
                   hash = idT }
 
-            let types = [ ("Test.T", (typ, idT)) ] |> Map.ofList
+            let types = [ ("Test.T", (typ, idT, None)) ] |> Map.ofList
 
             // Self-loop: T depends on T
             let getDeps fqn = if fqn = "Test.T" then [ "Test.T" ] else []
 
             let hashes1 =
-              Hashing.computeHashesWithSCCs types Map.empty Map.empty getDeps
+              Hashing.computeHashesWithSCCs
+                Canonical.emptySubstitution
+                types
+                Map.empty
+                Map.empty
+                getDeps
             let hashes2 =
-              Hashing.computeHashesWithSCCs types Map.empty Map.empty getDeps
+              Hashing.computeHashesWithSCCs
+                Canonical.emptySubstitution
+                types
+                Map.empty
+                Map.empty
+                getDeps
 
             // Should terminate and produce deterministic results
             Expect.equal
@@ -479,8 +552,8 @@ let tests =
             // A function that (via getDeps) depends on the type
             let fn = { (makeFn (eInt64 42)) with hash = idFn }
 
-            let types = [ ("Test.MyType", (typ, idTyp)) ] |> Map.ofList
-            let fns = [ ("Test.myFn", (fn, idFn)) ] |> Map.ofList
+            let types = [ ("Test.MyType", (typ, idTyp, None)) ] |> Map.ofList
+            let fns = [ ("Test.myFn", (fn, idFn, None)) ] |> Map.ofList
 
             // MyType depends on myFn, myFn depends on MyType
             let getDeps fqn =
@@ -488,8 +561,20 @@ let tests =
               elif fqn = "Test.myFn" then [ "Test.MyType" ]
               else []
 
-            let hashes1 = Hashing.computeHashesWithSCCs types fns Map.empty getDeps
-            let hashes2 = Hashing.computeHashesWithSCCs types fns Map.empty getDeps
+            let hashes1 =
+              Hashing.computeHashesWithSCCs
+                Canonical.emptySubstitution
+                types
+                fns
+                Map.empty
+                getDeps
+            let hashes2 =
+              Hashing.computeHashesWithSCCs
+                Canonical.emptySubstitution
+                types
+                fns
+                Map.empty
+                getDeps
 
             // Deterministic
             Expect.equal hashes1 hashes2 "mixed SCC hashes should be deterministic"
