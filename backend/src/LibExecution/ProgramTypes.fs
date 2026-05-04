@@ -169,6 +169,13 @@ module FQFnName =
   let fqPackage (h : string) : FQFnName = Package(Hash h)
 
 
+type PackageLocation =
+  // CLEANUP this doesn't really account for when you're referring to a root 'owner'
+  { owner : string
+    modules : List<string>
+    name : string }
+
+
 // In ProgramTypes, names (FnNames, TypeNames, ValueNames) have already been
 // resolved. The user wrote them in WrittenTypes, and the WrittenTypesToProgramTypes
 // pass looked them up and specified them exactly in ProgramTypes.
@@ -191,12 +198,22 @@ type NameResolutionError =
   | NotFound
   | InvalidName
 
+/// `originalName` is the user-typed name (a list of qualifiers).
+/// `location` is the matched fully-qualified location after `namesToTry`
+///   expansion — populated for resolved package items, `None` for
+///   builtins or anything that didn't resolve. Carrying the location
+///   alongside the resolved hash lets dep-edge inserts populate
+///   `depends_on_(owner|modules|name)` directly without a post-hoc
+///   lookup.
+/// `resolved` is the resolved name (or the resolution error).
 type NameResolution<'a> =
-  { originalName : List<string>; resolved : Result<'a, NameResolutionError> }
+  { originalName : List<string>
+    location : Option<PackageLocation>
+    resolved : Result<'a, NameResolutionError> }
 
 module NameResolution =
   let ok (value : 'a) : NameResolution<'a> =
-    { originalName = []; resolved = Ok value }
+    { originalName = []; location = None; resolved = Ok value }
 
 
 type LetPattern =
@@ -608,12 +625,6 @@ type Deprecation<'name> =
 // --
 // Package things
 // --
-
-type PackageLocation =
-  // CLEANUP this doesn't really account for when you're referring to a root 'owner'
-  { owner : string
-    modules : List<string>
-    name : string }
 
 module PackageType =
   type PackageType =

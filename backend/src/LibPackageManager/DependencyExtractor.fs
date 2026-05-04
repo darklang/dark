@@ -6,48 +6,30 @@ open Prelude
 open LibExecution.ProgramTypes
 
 module PT = LibExecution.ProgramTypes
+module PackageItem = LibPackageManager.PackageItem
 
 
-/// A dependency is the Hash of what's being depended on.
-// TODO: track the _type_ of the thing we're dependant on.
-// Likely `type PackageItem = | Type of ID | Value of ID | Fn of ID`
-// and `type Dependency = | PackageItem of PackageItem`.
+/// A dep edge: referenced item's kind + hash + user-typed FQN. `location`
+/// is `None` for builtins and unresolved names.
 // Later, we might extend dependency-tracking to include Secrets and DBs
 // that are referenced, as well as other things that can be referenced.
 // And we may track the _purity_ of the dependencies in the same space.
-type Dependency = Hash
+type Dependency =
+  { hash : Hash; itemKind : PT.ItemKind; location : Option<PT.PackageLocation> }
 
-/// Extract package Hash from a NameResolution if it resolved to a Package
+/// Extract package Hash from a NameResolution if it resolved to a Package.
+/// The location stored on the NR rides along into the Dependency record.
 let private extractFromNameResolution
   (nr : PT.NameResolution<'a>)
+  (itemKind : PT.ItemKind)
   (getPackageHash : 'a -> Option<Hash>)
   : List<Dependency> =
   match nr.resolved with
   | Ok resolved ->
     match getPackageHash resolved with
-    | Some hash -> [ hash ]
+    | Some hash -> [ { hash = hash; itemKind = itemKind; location = nr.location } ]
     | None -> []
   | Error _ -> []
-
-
-/// Extract package Hash from FQFnName
-let private getFnPackageHash (fn : PT.FQFnName.FQFnName) : Option<Hash> =
-  match fn with
-  | PT.FQFnName.Package hash -> Some hash
-  | PT.FQFnName.Builtin _ -> None
-
-
-/// Extract package Hash from FQTypeName
-let private getTypePackageHash (typ : PT.FQTypeName.FQTypeName) : Option<Hash> =
-  match typ with
-  | PT.FQTypeName.Package hash -> Some hash
-
-
-/// Extract package Hash from FQValueName
-let private getValuePackageHash (value : PT.FQValueName.FQValueName) : Option<Hash> =
-  match value with
-  | PT.FQValueName.Package hash -> Some hash
-  | PT.FQValueName.Builtin _ -> None
 
 
 /// Extract dependencies from a TypeReference
@@ -87,7 +69,7 @@ let rec private extractFromTypeRef (typeRef : PT.TypeReference) : List<Dependenc
 
   | PT.TCustomType(nr, typeArgs) ->
     List.concat
-      [ extractFromNameResolution nr getTypePackageHash
+      [ extractFromNameResolution nr PT.ItemKind.Type PackageItem.typePackageHash
         typeArgs |> List.collect extractFromTypeRef ]
 
   | PT.TFn(args, ret) ->
@@ -158,13 +140,13 @@ and private extractFromPipeExpr (pipeExpr : PT.PipeExpr) : List<Dependency> =
 
   | PT.EPipeFnCall(_, nr, typeArgs, args) ->
     List.concat
-      [ extractFromNameResolution nr getFnPackageHash
+      [ extractFromNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash
         typeArgs |> List.collect extractFromTypeRef
         args |> List.collect extractFromExpr ]
 
   | PT.EPipeEnum(_, nr, _, fields) ->
     List.concat
-      [ extractFromNameResolution nr getTypePackageHash
+      [ extractFromNameResolution nr PT.ItemKind.Type PackageItem.typePackageHash
         fields |> List.collect extractFromExpr ]
 
   | PT.EPipeVariable(_, _, args) -> args |> List.collect extractFromExpr
@@ -228,7 +210,8 @@ and extractFromExpr (expr : PT.Expr) : List<Dependency> =
         typeArgs |> List.collect extractFromTypeRef
         args |> NEList.toList |> List.collect extractFromExpr ]
 
-  | PT.EFnName(_, nr) -> extractFromNameResolution nr getFnPackageHash
+  | PT.EFnName(_, nr) ->
+    extractFromNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash
 
   | PT.ELambda(_, _, body) -> extractFromExpr body
 
@@ -238,7 +221,7 @@ and extractFromExpr (expr : PT.Expr) : List<Dependency> =
   // Records and custom types
   | PT.ERecord(_, nr, typeArgs, fields) ->
     List.concat
-      [ extractFromNameResolution nr getTypePackageHash
+      [ extractFromNameResolution nr PT.ItemKind.Type PackageItem.typePackageHash
         typeArgs |> List.collect extractFromTypeRef
         fields |> List.collect (snd >> extractFromExpr) ]
 
@@ -251,11 +234,12 @@ and extractFromExpr (expr : PT.Expr) : List<Dependency> =
 
   | PT.EEnum(_, nr, typeArgs, _, fields) ->
     List.concat
-      [ extractFromNameResolution nr getTypePackageHash
+      [ extractFromNameResolution nr PT.ItemKind.Type PackageItem.typePackageHash
         typeArgs |> List.collect extractFromTypeRef
         fields |> List.collect extractFromExpr ]
 
-  | PT.EValue(_, nr) -> extractFromNameResolution nr getValuePackageHash
+  | PT.EValue(_, nr) ->
+    extractFromNameResolution nr PT.ItemKind.Value PackageItem.valuePackageHash
 
   | PT.EStatement(_, first, next) ->
     List.concat [ extractFromExpr first; extractFromExpr next ]

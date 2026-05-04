@@ -52,7 +52,12 @@ type GenericName = LibPackageManager.NameLookup.GenericName
 let namesToTry = LibPackageManager.NameLookup.namesToTry
 
 
-/// Generic name resolution that handles the common pattern across Type/Value/Fn resolution
+/// Generic name resolution that handles the common pattern across Type/Value/Fn resolution.
+/// Returns the matched location alongside the resolved name (None for
+/// builtins / unresolved). The location is what the user typed, after
+/// `namesToTry` candidate expansion — captured at resolution time so
+/// dep-edge inserts can populate location columns directly without a
+/// post-hoc lookup.
 /// Note: F# parser always uses mainBranchId for package lookups
 let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
   (builtins : Option<Set<'Builtin>>)
@@ -72,12 +77,19 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
 
     match parseName name with
     | Error _ ->
-      return { originalName = originalName; resolved = Error NRE.InvalidName }
+      return
+        { originalName = originalName
+          location = None
+          resolved = Error NRE.InvalidName }
     | Ok(name, version) ->
       let genericName : GenericName =
         { modules = modules; name = name; version = version }
 
-      let tryResolve (nameToTry : GenericName) : Ply<Result<'FQName, unit>> =
+      // Try a candidate. Returns the resolved FQName paired with the
+      // matched PackageLocation (None for builtins).
+      let tryResolve
+        (nameToTry : GenericName)
+        : Ply<Result<'FQName * Option<PT.PackageLocation>, unit>> =
         uply {
           match nameToTry.modules with
           | [] -> return Error()
@@ -88,7 +100,7 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
               let builtInRT = builtinToRT (nameToTry.name, nameToTry.version)
               if Set.contains builtInRT builtinSet then
                 let fqName = makeBuiltinFQName (nameToTry.name, nameToTry.version)
-                return Ok fqName
+                return Ok(fqName, None)
               else
                 return Error()
             | _ ->
@@ -96,22 +108,22 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
               let location : PT.PackageLocation =
                 { owner = owner; modules = modules; name = nameToTry.name }
               match! findInPM (PT.mainBranchId, location) with
-              | Some id -> return Ok(makePackageFQName id)
+              | Some id -> return Ok(makePackageFQName id, Some location)
               | None -> return Error()
         }
 
-      let! result =
+      let! (result, location) =
         Ply.List.foldSequentially
-          (fun currentResult nameToTry ->
+          (fun (currentResult, currentLoc) nameToTry ->
             match currentResult with
-            | Ok _ -> Ply currentResult
+            | Ok _ -> Ply((currentResult, currentLoc))
             | Error _ ->
               uply {
                 match! tryResolve nameToTry with
-                | Error() -> return currentResult
-                | Ok success -> return Ok success
+                | Error() -> return (currentResult, currentLoc)
+                | Ok(success, loc) -> return (Ok success, loc)
               })
-          notFoundError
+          (notFoundError, None)
           (namesToTry currentModule genericName)
 
       return
@@ -119,7 +131,7 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
           onMissing
           currentModule
           given
-          { originalName = originalName; resolved = result }
+          { originalName = originalName; location = location; resolved = result }
   }
 
 
@@ -165,6 +177,7 @@ let resolveValueName
   | WT.KnownBuiltin(name, version) ->
     Ply(
       { originalName = [ name ]
+        location = None
         resolved = Ok(PT.FQValueName.fqBuiltIn name version) }
       : PT.NameResolution<_>
     )
@@ -191,7 +204,9 @@ let resolveFnName
   match name with
   | WT.KnownBuiltin(n, v) ->
     Ply(
-      { originalName = [ n ]; resolved = Ok(PT.FQFnName.fqBuiltIn n v) }
+      { originalName = [ n ]
+        location = None
+        resolved = Ok(PT.FQFnName.fqBuiltIn n v) }
       : PT.NameResolution<_>
     )
   | WT.Unresolved given ->

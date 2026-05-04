@@ -61,7 +61,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt64 KTString
         let resultError = Dval.resultError KTInt64 KTString
         (function
-        | _, _, _, [ DUuid branchId; DList(_vtTODO, ops) ] ->
+        | exeState, _, _, [ DUuid branchId; DList(_vtTODO, ops) ] ->
           uply {
             try
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
@@ -73,6 +73,20 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               // Auto-refresh existing WIP items: re-resolve names and
               // recompute SCC-aware hashes now that new items exist
               let! _refreshed = LibPackageManager.WipRefresh.refresh pm branchId
+
+              // Populate `rt_dval` for any package_values rows still
+              // NULL after this insert+refresh — `applyAddValue` always
+              // inserts NULL and Phase-3 `evaluateAllValues` only runs
+              // at startup when there are unapplied ops. Without this
+              // step, a CLI-added value that references another value
+              // (qualified or bare) would fail at eval with a NULL
+              // rt_dval until the next cold restart.
+              let builtins : Builtins =
+                { values = exeState.values.builtIn; fns = exeState.fns.builtIn }
+              let! _ =
+                LibPackageManager.Seed.evaluateAllValues
+                  builtins
+                  LibPackageManager.PackageManager.rt
 
               return resultOk (Dval.int64 insertedCount)
             with ex ->

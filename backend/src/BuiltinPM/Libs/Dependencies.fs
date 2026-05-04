@@ -15,8 +15,13 @@ module PMPT = LibPackageManager.ProgramTypes
 module Branches = LibPackageManager.Branches
 
 
-let hashVT = VT.known (PT2DT.Hash.knownType ())
-let tupleVT = VT.tuple hashVT VT.string []
+let private hashType = TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])
+let private locationType = TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), [])
+let private itemKindType = TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), [])
+
+let private hashVT = VT.known (PT2DT.Hash.knownType ())
+let private locationVT = VT.known (PT2DT.PackageLocation.knownType ())
+let private itemKindVT = VT.known (PT2DT.ItemKind.knownType ())
 
 /// Try to get location for an item hash, checking all item types (fn, type, value)
 let private getLocationAny
@@ -39,52 +44,12 @@ let private getLocationAny
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "depsGetDependents" 0
+  [ { name = fn "depsGetDependencies" 0
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch context for scoping"
-          Param.make
-            "target"
-            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
-            "The hash to find dependents for" ]
-      returnType =
-        TList(TTuple(TCustomType(NR.ok (PT2DT.Hash.typeName ()), []), TString, []))
-      description =
-        "Returns items that reference the given hash (reverse dependencies), scoped to the branch chain."
-      fn =
-        (function
-        | _, _, _, [ DUuid branchId; targetDval ] ->
-          uply {
-            let target = PT2DT.Hash.fromDT targetDval
-            let! branchChain = Branches.getBranchChain branchId
-            let! results = LibPackageManager.Queries.getDependents branchChain target
-
-            let dvals =
-              results
-              |> List.map (fun ref ->
-                DTuple(
-                  PT2DT.Hash.toDT ref.itemHash,
-                  DString(ref.itemKind.toString ()),
-                  []
-                ))
-            return DList(tupleVT, dvals)
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "depsGetDependencies" 0
-      typeParams = []
-      parameters =
-        [ Param.make "branchId" TUuid "Branch context for scoping"
-          Param.make
-            "source"
-            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
-            "The hash to find dependencies for" ]
-      returnType =
-        TList(TTuple(TCustomType(NR.ok (PT2DT.Hash.typeName ()), []), TString, []))
+          Param.make "source" hashType "The hash to find dependencies for" ]
+      returnType = TList(TTuple(hashType, TString, []))
       description =
         "Returns all hashes that the given item references (forward dependencies), scoped to the branch chain."
       fn =
@@ -103,7 +68,7 @@ let fns () : List<BuiltInFn> =
                   DString(ref.itemKind.toString ()),
                   []
                 ))
-            return DList(tupleVT, dvals)
+            return DList(VT.tuple hashVT VT.string [], dvals)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -111,46 +76,48 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "depsGetDependentsBatch" 0
+    { name = fn "depsGetDependents" 0
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch context for scoping"
           Param.make
             "targets"
-            (TList(TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])))
-            "List of hashes to find dependents for" ]
-      returnType =
-        TList(
-          TTuple(
-            TCustomType(NR.ok (PT2DT.Hash.typeName ()), []),
-            TCustomType(NR.ok (PT2DT.Hash.typeName ()), []),
-            [ TString ]
-          )
-        )
+            (TList(TTuple(locationType, itemKindType, [])))
+            "List of (location, itemKind) targets to find dependents for" ]
+      returnType = TList(TTuple(hashType, locationType, [ itemKindType ]))
       description =
-        "Batch lookup of dependents, scoped to the branch chain. Returns (dependsOnHash, itemHash, kind) tuples."
+        "Returns items that reference any of the given (location, kind) targets (reverse dependencies), scoped to the branch chain. Returns (itemHash, itemLocation, kind) tuples."
       fn =
         (function
         | _, _, _, [ DUuid branchId; DList(_, targets) ] ->
           uply {
             let! branchChain = Branches.getBranchChain branchId
-            let ids = targets |> List.map PT2DT.Hash.fromDT
+            let targets =
+              targets
+              |> List.map (function
+                | DTuple(locationDval, itemKindDval, []) ->
+                  (PT2DT.ItemKind.fromDT itemKindDval,
+                   PT2DT.PackageLocation.fromDT locationDval)
+                | other ->
+                  Exception.raiseInternal
+                    "Invalid depsGetDependents target"
+                    [ "target", other ])
 
             let! results =
-              LibPackageManager.Queries.getDependentsBatch branchChain ids
-
-            let resultVT = VT.tuple hashVT hashVT [ VT.string ]
+              LibPackageManager.Queries.getDependentsByKindedLocations
+                branchChain
+                targets
 
             let dvals =
               results
               |> List.map (fun dep ->
                 DTuple(
-                  PT2DT.Hash.toDT dep.dependsOnHash,
                   PT2DT.Hash.toDT dep.itemHash,
-                  [ DString(dep.itemKind.toString ()) ]
+                  PT2DT.PackageLocation.toDT dep.itemLocation,
+                  [ PT2DT.ItemKind.toDT dep.itemKind ]
                 ))
 
-            return DList(resultVT, dvals)
+            return DList(VT.tuple hashVT locationVT [ itemKindVT ], dvals)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -162,18 +129,8 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch ID for location lookup"
-          Param.make
-            "itemHashes"
-            (TList(TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])))
-            "List of item hashes to resolve" ]
-      returnType =
-        TList(
-          TTuple(
-            TCustomType(NR.ok (PT2DT.Hash.typeName ()), []),
-            TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []),
-            []
-          )
-        )
+          Param.make "itemHashes" (TList(hashType)) "List of item hashes to resolve" ]
+      returnType = TList(TTuple(hashType, locationType, []))
       description =
         "Resolve hashes to PackageLocations. Returns (itemHash, location) tuples."
       fn =
@@ -200,11 +157,7 @@ let fns () : List<BuiltInFn> =
               |> List.map (fun (hash, loc) ->
                 DTuple(PT2DT.Hash.toDT hash, PT2DT.PackageLocation.toDT loc, []))
 
-            return
-              DList(
-                VT.tuple hashVT (VT.known (PT2DT.PackageLocation.knownType ())) [],
-                dvals
-              )
+            return DList(VT.tuple hashVT locationVT [], dvals)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -5,12 +5,41 @@ open Prelude
 open LibExecution.ProgramTypes
 
 module PT = LibExecution.ProgramTypes
+module PackageItem = LibPackageManager.PackageItem
 
 
-type HashMapping = Map<Hash, Hash>
+/// Substitution map for AST rewrites during propagation / SCC stabilization.
+///
+/// `byLocation` is the authoritative path: when an NR carries a
+/// `location`, that field — not its hash — identifies which referent
+/// it names. Two unrelated items at different FQNs can share a
+/// content hash, so a hash-only map would conflate them and silently
+/// rewrite references that point elsewhere.
+///
+/// `byHash` is the fallback for NRs without a `location` (builtins,
+/// resolutions written before location tracking, or test-factory data
+/// that bypasses the resolver).
+///
+/// `byLocationRename` updates the stored location on refs when a source item
+/// moved names but kept the same content hash.
+type HashMapping =
+  { byLocation : Map<PT.PackageLocation, Hash>
+    byHash : Map<Hash, Hash>
+    byLocationRename : Map<PT.PackageLocation, PT.PackageLocation> }
 
-let private replaceHash (mapping : HashMapping) (hash : Hash) : Hash =
-  mapping |> Map.tryFind hash |> Option.defaultValue hash
+let emptyMapping : HashMapping =
+  { byLocation = Map.empty; byHash = Map.empty; byLocationRename = Map.empty }
+
+let private replaceHash
+  (mapping : HashMapping)
+  (location : Option<PT.PackageLocation>)
+  (hash : Hash)
+  : Hash =
+  match location with
+  | Some loc ->
+    // No byHash fallback — guards against cross-namespace hash collisions.
+    Map.tryFind loc mapping.byLocation |> Option.defaultValue hash
+  | None -> Map.tryFind hash mapping.byHash |> Option.defaultValue hash
 
 let private transformNameResolution
   (mapping : HashMapping)
@@ -22,24 +51,17 @@ let private transformNameResolution
   | Ok resolved ->
     match getPackageId resolved with
     | Some hash ->
-      let newHash = replaceHash mapping hash
-      if newHash = hash then nr else { nr with resolved = Ok(transform newHash) }
+      let newHash = replaceHash mapping nr.location hash
+      let newLocation =
+        nr.location
+        |> Option.map (fun loc ->
+          Map.tryFind loc mapping.byLocationRename |> Option.defaultValue loc)
+      if newHash = hash && newLocation = nr.location then
+        nr
+      else
+        { nr with location = newLocation; resolved = Ok(transform newHash) }
     | None -> nr
   | Error _ -> nr
-
-let private getFnPackageHash (fn : PT.FQFnName.FQFnName) : Option<Hash> =
-  match fn with
-  | PT.FQFnName.Package hash -> Some hash
-  | PT.FQFnName.Builtin _ -> None
-
-let private getTypePackageHash (typ : PT.FQTypeName.FQTypeName) : Option<Hash> =
-  match typ with
-  | PT.FQTypeName.Package hash -> Some hash
-
-let private getValuePackageHash (value : PT.FQValueName.FQValueName) : Option<Hash> =
-  match value with
-  | PT.FQValueName.Package hash -> Some hash
-  | PT.FQValueName.Builtin _ -> None
 
 let rec private transformTypeRef
   (mapping : HashMapping)
@@ -82,7 +104,11 @@ let rec private transformTypeRef
 
   | PT.TCustomType(nr, typeArgs) ->
     PT.TCustomType(
-      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageHash,
+      transformNameResolution
+        mapping
+        nr
+        PT.FQTypeName.Package
+        PackageItem.typePackageHash,
       typeArgs |> List.map (transformTypeRef mapping)
     )
 
@@ -122,7 +148,11 @@ and private transformPipeExpr
   | PT.EPipeFnCall(id, nr, typeArgs, args) ->
     PT.EPipeFnCall(
       id,
-      transformNameResolution mapping nr PT.FQFnName.Package getFnPackageHash,
+      transformNameResolution
+        mapping
+        nr
+        PT.FQFnName.Package
+        PackageItem.fnPackageHash,
       typeArgs |> List.map (transformTypeRef mapping),
       args |> List.map (transformExpr mapping)
     )
@@ -130,7 +160,11 @@ and private transformPipeExpr
   | PT.EPipeEnum(id, nr, caseName, fields) ->
     PT.EPipeEnum(
       id,
-      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageHash,
+      transformNameResolution
+        mapping
+        nr
+        PT.FQTypeName.Package
+        PackageItem.typePackageHash,
       caseName,
       fields |> List.map (transformExpr mapping)
     )
@@ -210,7 +244,11 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EFnName(id, nr) ->
     PT.EFnName(
       id,
-      transformNameResolution mapping nr PT.FQFnName.Package getFnPackageHash
+      transformNameResolution
+        mapping
+        nr
+        PT.FQFnName.Package
+        PackageItem.fnPackageHash
     )
 
   | PT.ELambda(id, pats, body) -> PT.ELambda(id, pats, transformExpr mapping body)
@@ -221,7 +259,11 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.ERecord(id, nr, typeArgs, fields) ->
     PT.ERecord(
       id,
-      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageHash,
+      transformNameResolution
+        mapping
+        nr
+        PT.FQTypeName.Package
+        PackageItem.typePackageHash,
       typeArgs |> List.map (transformTypeRef mapping),
       fields |> List.map (fun (name, expr) -> (name, transformExpr mapping expr))
     )
@@ -239,7 +281,11 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EEnum(id, nr, typeArgs, caseName, fields) ->
     PT.EEnum(
       id,
-      transformNameResolution mapping nr PT.FQTypeName.Package getTypePackageHash,
+      transformNameResolution
+        mapping
+        nr
+        PT.FQTypeName.Package
+        PackageItem.typePackageHash,
       typeArgs |> List.map (transformTypeRef mapping),
       caseName,
       fields |> List.map (transformExpr mapping)
@@ -248,7 +294,11 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EValue(id, nr) ->
     PT.EValue(
       id,
-      transformNameResolution mapping nr PT.FQValueName.Package getValuePackageHash
+      transformNameResolution
+        mapping
+        nr
+        PT.FQValueName.Package
+        PackageItem.valuePackageHash
     )
 
   | PT.EStatement(id, first, next) ->

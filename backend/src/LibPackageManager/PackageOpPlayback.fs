@@ -23,6 +23,15 @@ open LibSerialization.Hashing
 
 /// Update dependencies for an item atomically.
 /// Clears existing dependencies and stores new ones in a single operation.
+///
+/// Each `Dependency` carries the location the resolver matched when it
+/// looked up the name — so the location columns can be populated
+/// directly without a post-hoc lookup. Propagation can then filter
+/// dependents by FQN rather than by raw content hash, which is what
+/// fixes the cross-namespace cascade bug. Locations are `None` for
+/// builtins and for whatever didn't go through the resolver (legacy
+/// data from before the resolver tracked location); those rows leave
+/// the columns NULL.
 let private updateDependencies
   (itemHash : string)
   (deps : List<DE.Dependency>)
@@ -36,18 +45,36 @@ let private updateDependencies
         |> Sql.executeStatementAsync
     else
       // Build a single SQL script: DELETE + batched INSERTs
-      // SQLite executes multi-statement scripts atomically within one call
+      // SQLite executes multi-statement scripts atomically within one call.
       let insertValues =
         deps
-        |> List.mapi (fun i _ -> $"(@item_hash, @depends_on_{i})")
+        |> List.mapi (fun i _ ->
+          $"(@item_hash, @hash_{i}, @kind_{i}, @owner_{i}, @modules_{i}, @name_{i})")
         |> String.concat ", "
 
       let insertParams =
-        deps |> List.mapi (fun i (Hash dep) -> $"depends_on_{i}", Sql.string dep)
+        deps
+        |> List.mapi (fun i dep ->
+          let (Hash hashStr) = dep.hash
+          let kindParam = $"kind_{i}", Sql.string (dep.itemKind.toString ())
+          let locationParams =
+            match dep.location with
+            | Some loc ->
+              [ $"owner_{i}", Sql.string loc.owner
+                $"modules_{i}", Sql.string (String.concat "." loc.modules)
+                $"name_{i}", Sql.string loc.name ]
+            | None ->
+              [ $"owner_{i}", Sql.dbnull
+                $"modules_{i}", Sql.dbnull
+                $"name_{i}", Sql.dbnull ]
+          [ $"hash_{i}", Sql.string hashStr; kindParam ] @ locationParams)
+        |> List.concat
 
       let sql =
         $"DELETE FROM package_dependencies WHERE item_hash = @item_hash; "
-        + $"INSERT OR IGNORE INTO package_dependencies (item_hash, depends_on_hash) VALUES {insertValues}"
+        + $"INSERT OR IGNORE INTO package_dependencies "
+        + $"(item_hash, depends_on_hash, depends_on_item_type, depends_on_owner, depends_on_modules, depends_on_name) "
+        + $"VALUES {insertValues}"
 
       do!
         Sql.query sql
@@ -83,7 +110,8 @@ let private applyAddType (typ : PT.PackageType.PackageType) : Task<unit> =
           "rt_def", Sql.bytes rtDef ]
       |> Sql.executeStatementAsync
 
-    // Extract and store dependency references atomically
+    // Extract and store dependency references atomically. Each
+    // Dependency carries its own location (populated by the resolver).
     let refs = DE.extractFromType typ
     do! updateDependencies hash refs
   }
@@ -248,6 +276,12 @@ let private serializeAnnotation
 
 /// Apply a Deprecate op to the deprecations projection table.
 /// Supersedes any prior un-superseded row for (branch, item_hash, item_kind).
+///
+/// CLEANUP: deprecation identity is hash-keyed (`Reference` carries only a
+/// Hash). When two unrelated FQNs share a content hash, deprecating one
+/// deprecates both. we need to extend `Reference` (and the
+/// `deprecations` table) to carry location, then teaching the query to
+/// filter by `(owner, modules, name)` like dependent lookups do.
 let private applyDeprecate
   (branchId : PT.BranchId)
   (commitHash : Option<string>)
@@ -376,72 +410,27 @@ let private applyOp
                                      sourceLocation,
                                      restoredSourceRef,
                                      revertedRepoints) ->
-      // Build all SQL statements for atomic execution
-      let mutable statements = []
       let sourceItemKind = restoredSourceRef.kind
 
-      // For each reverted repoint: unlist toRef, un-unlist fromRef
-      // Skip repoints for the source item — those are handled by the dedicated
-      // source-handling block below (avoids redundant double-toggle in mutual recursion)
-      let dependentRepoints =
+      // For each reverted repoint: unlist toRef, un-unlist fromRef.
+      // Skip repoints for the source item — those are handled by the
+      // dedicated source-handling block below (avoids redundant
+      // double-toggle in mutual recursion).
+      let dependentStmts =
         revertedRepoints
         |> List.filter (fun r ->
           r.location <> sourceLocation || r.toRef.kind <> sourceItemKind)
-
-      for repoint in dependentRepoints do
-        let (Hash toHashStr) = repoint.toRef.hash
-        let (Hash fromHashStr) = repoint.fromRef.hash
-        statements <-
-          statements
-          @ [ ("""
-               UPDATE locations
-               SET unlisted_at = datetime('now')
-               WHERE item_hash = @item_hash
-                 AND branch_id = @branch_id
-                 AND unlisted_at IS NULL
-               """,
-               [ [ "item_hash", Sql.string toHashStr
-                   "branch_id", Sql.uuid branchId ] ])
-
-              ("""
-               UPDATE locations
-               SET unlisted_at = NULL
-               WHERE location_id = (
-                 SELECT location_id FROM locations
-                 WHERE item_hash = @item_hash
-                   AND branch_id = @branch_id
-                   AND unlisted_at IS NOT NULL
-                 ORDER BY unlisted_at DESC
-                 LIMIT 1
-               )
-               """,
-               [ [ "item_hash", Sql.string fromHashStr
-                   "branch_id", Sql.uuid branchId ] ]) ]
-
-      // Undo source: unlist WIP location, un-unlist committed location
-      let modulesStr = String.concat "." sourceLocation.modules
-      let itemTypeStr = sourceItemKind.toString ()
-      let (Hash restoredSourceHashStr) = restoredSourceRef.hash
-
-      statements <-
-        statements
-        @ [ ("""
+        |> List.collect (fun repoint ->
+          let (Hash toHashStr) = repoint.toRef.hash
+          let (Hash fromHashStr) = repoint.fromRef.hash
+          [ ("""
              UPDATE locations
              SET unlisted_at = datetime('now')
-             WHERE owner = @owner
-               AND modules = @modules
-               AND name = @name
-               AND item_type = @item_type
+             WHERE item_hash = @item_hash
                AND branch_id = @branch_id
                AND unlisted_at IS NULL
-               AND commit_hash IS NULL
              """,
-             [ [ "owner", Sql.string sourceLocation.owner
-                 "modules", Sql.string modulesStr
-                 "name", Sql.string sourceLocation.name
-                 "item_type", Sql.string itemTypeStr
-                 "branch_id", Sql.uuid branchId ] ])
-
+             [ [ "item_hash", Sql.string toHashStr; "branch_id", Sql.uuid branchId ] ])
             ("""
              UPDATE locations
              SET unlisted_at = NULL
@@ -454,10 +443,47 @@ let private applyOp
                LIMIT 1
              )
              """,
-             [ [ "item_hash", Sql.string restoredSourceHashStr
-                 "branch_id", Sql.uuid branchId ] ]) ]
+             [ [ "item_hash", Sql.string fromHashStr
+                 "branch_id", Sql.uuid branchId ] ]) ])
 
-      let _ = Sql.executeTransactionSync statements
+      // Undo source: unlist WIP location, un-unlist committed location.
+      let modulesStr = String.concat "." sourceLocation.modules
+      let itemTypeStr = sourceItemKind.toString ()
+      let (Hash restoredSourceHashStr) = restoredSourceRef.hash
+
+      let sourceStmts =
+        [ ("""
+           UPDATE locations
+           SET unlisted_at = datetime('now')
+           WHERE owner = @owner
+             AND modules = @modules
+             AND name = @name
+             AND item_type = @item_type
+             AND branch_id = @branch_id
+             AND unlisted_at IS NULL
+             AND commit_hash IS NULL
+           """,
+           [ [ "owner", Sql.string sourceLocation.owner
+               "modules", Sql.string modulesStr
+               "name", Sql.string sourceLocation.name
+               "item_type", Sql.string itemTypeStr
+               "branch_id", Sql.uuid branchId ] ])
+          ("""
+           UPDATE locations
+           SET unlisted_at = NULL
+           WHERE location_id = (
+             SELECT location_id FROM locations
+             WHERE item_hash = @item_hash
+               AND branch_id = @branch_id
+               AND unlisted_at IS NOT NULL
+             ORDER BY unlisted_at DESC
+             LIMIT 1
+           )
+           """,
+           [ [ "item_hash", Sql.string restoredSourceHashStr
+               "branch_id", Sql.uuid branchId ] ]) ]
+
+      let _ = Sql.executeTransactionSync (dependentStmts @ sourceStmts)
       ()
   }
 
@@ -476,8 +502,13 @@ let private collectAddedHashes (ops : List<PT.PackageOp>) : Set<Hash> =
   |> Set.ofList
 
 
-/// Apply a list of PackageOps to the projection tables
-/// branchId = branch context, commitHash = None means WIP, Some id means committed
+/// Apply a list of PackageOps to the projection tables.
+/// branchId = branch context, commitHash = None means WIP, Some id means committed.
+///
+/// Dep-edge location columns are populated directly from each
+/// `Dependency`'s `location` field, which the resolver stashed onto
+/// the corresponding `NameResolution<_>` at resolve time. No post-hoc
+/// backfill needed.
 let applyOps
   (branchId : PT.BranchId)
   (commitHash : Option<string>)

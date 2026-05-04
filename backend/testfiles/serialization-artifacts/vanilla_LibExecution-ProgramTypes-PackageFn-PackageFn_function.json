@@ -206,6 +206,7 @@
                                                   123,
                                                   {
                                                     "originalName": [],
+                                                    "location": null,
                                                     "resolved": {
                                                       "Ok": [
                                                         {
@@ -307,6 +308,7 @@
                                                         "TCustomType": [
                                                           {
                                                             "originalName": [],
+                                                            "location": null,
                                                             "resolved": {
                                                               "Ok": [
                                                                 {
@@ -332,6 +334,7 @@
                                                         "TCustomType": [
                                                           {
                                                             "originalName": [],
+                                                            "location": null,
                                                             "resolved": {
                                                               "Ok": [
                                                                 {
@@ -520,6 +523,7 @@
                                                               123,
                                                               {
                                                                 "originalName": [],
+                                                                "location": null,
                                                                 "resolved": {
                                                                   "Ok": [
                                                                     {
@@ -599,6 +603,7 @@
                                               123,
                                               {
                                                 "originalName": [],
+                                                "location": null,
                                                 "resolved": {
                                                   "Ok": [
                                                     {
@@ -705,6 +710,7 @@
                                                             123,
                                                             {
                                                               "originalName": [],
+                                                              "location": null,
                                                               "resolved": {
                                                                 "Ok": [
                                                                   {
@@ -746,6 +752,7 @@
                                                       123,
                                                       {
                                                         "originalName": [],
+                                                        "location": null,
                                                         "resolved": {
                                                           "Ok": [
                                                             {
@@ -824,6 +831,7 @@
                                                               123,
                                                               {
                                                                 "originalName": [],
+                                                                "location": null,
                                                                 "resolved": {
                                                                   "Ok": [
                                                                     {
@@ -1661,6 +1669,7 @@
               "TCustomType": [
                 {
                   "originalName": [],
+                  "location": null,
                   "resolved": {
                     "Ok": [
                       {
@@ -1686,6 +1695,7 @@
               "TCustomType": [
                 {
                   "originalName": [],
+                  "location": null,
                   "resolved": {
                     "Ok": [
                       {
@@ -1815,6 +1825,7 @@
           "TCustomType": [
             {
               "originalName": [],
+              "location": null,
               "resolved": {
                 "Ok": [
                   {
@@ -1840,6 +1851,7 @@
           "TCustomType": [
             {
               "originalName": [],
+              "location": null,
               "resolved": {
                 "Ok": [
                   {

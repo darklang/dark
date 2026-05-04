@@ -13,6 +13,7 @@ open Prelude
 open LibExecution.ProgramTypes
 
 module PT = LibExecution.ProgramTypes
+module PackageItem = LibPackageManager.PackageItem
 
 
 // --------------------------------------------------------------------------
@@ -20,8 +21,6 @@ module PT = LibExecution.ProgramTypes
 // --------------------------------------------------------------------------
 
 type GenericName = NameLookup.GenericName
-
-let private namesToTry = NameLookup.namesToTry
 
 let private typeNameRegex =
   System.Text.RegularExpressions.Regex(
@@ -62,19 +61,46 @@ let private parseFnOrValueName (name : string) : Result<string * int, string> =
 // Core re-resolution
 // --------------------------------------------------------------------------
 
-/// Try to re-resolve a single NameResolution that is Error NotFound.
+let private refreshResolvedAtLocation
+  (branchId : PT.BranchId)
+  (nr : PT.NameResolution<'a>)
+  (loc : PT.PackageLocation)
+  (findInPM : (PT.BranchId * PT.PackageLocation) -> Ply<Option<Hash>>)
+  (makePackage : Hash -> 'a)
+  (currentHash : Hash)
+  : Ply<PT.NameResolution<'a>> =
+  uply {
+    match! findInPM (branchId, loc) with
+    | Some hash when hash = currentHash -> return nr
+    | Some hash -> return { nr with resolved = Ok(makePackage hash) }
+    // Location is authoritative. If it disappeared, do not silently
+    // re-resolve the same text into another namespace.
+    | None -> return nr
+  }
+
+
+/// Re-resolve or refresh a NameResolution against the current PM state.
+/// Resolved package refs with a location are refreshed by that exact location;
+/// location-less or NotFound refs fall back to candidate lookup.
 let private reResolveNameResolution
   (branchId : PT.BranchId)
   (contextModules : List<string>)
   (nr : PT.NameResolution<'a>)
   (findInPM : (PT.BranchId * PT.PackageLocation) -> Ply<Option<Hash>>)
   (makePackage : Hash -> 'a)
+  (getCurrentHash : 'a -> Option<Hash>)
   (parseName : string -> Result<string * int, string>)
   : Ply<PT.NameResolution<'a>> =
-  match nr.resolved with
-  | Ok _ -> Ply nr
-  | Error PT.NameResolutionError.InvalidName -> Ply nr
-  | Error PT.NameResolutionError.NotFound ->
+  match nr.resolved, nr.location with
+  | Error PT.NameResolutionError.InvalidName, _ -> Ply nr
+
+  | Ok resolved, Some loc ->
+    match getCurrentHash resolved with
+    | Some currentHash ->
+      refreshResolvedAtLocation branchId nr loc findInPM makePackage currentHash
+    | None -> Ply nr
+
+  | _, _ ->
     match List.splitLast nr.originalName with
     | None -> Ply nr
     | Some(modules, lastName) ->
@@ -85,30 +111,13 @@ let private reResolveNameResolution
           let genericName : GenericName =
             { modules = modules; name = name; version = version }
 
-          let candidates = namesToTry contextModules genericName
-
           let! result =
-            Ply.List.foldSequentially
-              (fun acc (candidate : GenericName) ->
-                match acc with
-                | Some _ -> Ply acc
-                | None ->
-                  uply {
-                    match candidate.modules with
-                    | [] -> return None
-                    | owner :: mods ->
-                      let loc : PT.PackageLocation =
-                        { owner = owner; modules = mods; name = candidate.name }
-
-                      match! findInPM (branchId, loc) with
-                      | Some hash -> return Some hash
-                      | None -> return None
-                  })
-              None
-              candidates
+            NameLookup.findFirstPackageMatch contextModules genericName (fun loc ->
+              findInPM (branchId, loc))
 
           match result with
-          | Some hash -> return { nr with resolved = Ok(makePackage hash) }
+          | Some(hash, loc) ->
+            return { nr with location = Some loc; resolved = Ok(makePackage hash) }
           | None -> return nr
       }
 
@@ -129,6 +138,7 @@ let private reResolveTypeName
     nr
     findType
     PT.FQTypeName.Package
+    PackageItem.typePackageHash
     parseTypeName
 
 
@@ -144,6 +154,7 @@ let private reResolveFnName
     nr
     findFn
     PT.FQFnName.Package
+    PackageItem.fnPackageHash
     parseFnOrValueName
 
 
@@ -159,6 +170,7 @@ let private reResolveValueName
     nr
     findValue
     PT.FQValueName.Package
+    PackageItem.valuePackageHash
     parseFnOrValueName
 
 

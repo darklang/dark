@@ -23,12 +23,26 @@ module FQFnName =
     | Package of Package
 
 
+type PackageLocation =
+  { owner: String
+    modules: List<String>
+    name: String }
+
+
 type NameResolutionError =
   | NotFound
   | InvalidName
 
+/// `originalName` is the user-typed name (a list of qualifiers).
+/// `location` is the matched fully-qualified location after `namesToTry`
+/// expansion — `Some` for resolved package items, `None` for builtins
+/// or anything that didn't resolve. Carrying location alongside the
+/// resolved hash lets dep-edge inserts populate
+/// `depends_on_(owner|modules|name)` directly without a post-hoc
+/// lookup.
 type NameResolution<'a> =
   { originalName: List<String>
+    location: Stdlib.Option.Option<PackageLocation>
     resolved: Stdlib.Result.Result<'a, NameResolutionError> }
 
 
@@ -310,11 +324,6 @@ type Deprecation<'name> =
   /// This has been deprecated and not replaced, provide a message for the user
   | DeprecatedBecause of String
 
-
-type PackageLocation =
-  { owner: String
-    modules: List<String>
-    name: String }
 
 let parsePackageLocation (nameToParse: String): PackageLocation =
   let parts = Stdlib.String.split nameToParse "."

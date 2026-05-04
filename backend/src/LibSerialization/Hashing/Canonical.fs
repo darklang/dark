@@ -16,44 +16,78 @@ module PTC = LibSerialization.Binary.Serializers.PT.Common
 module ExprS = LibSerialization.Binary.Serializers.PT.Expr
 
 
+/// Hash substitutions keyed by location (primary) or by old hash
+/// (fallback for null-location NRs). Mirrors
+/// `AstTransformer.HashMapping`. No byHash fallback when location is
+/// set — guards against cross-namespace hash collisions.
+type Substitution =
+  { byLocation : Map<PT.PackageLocation, Hash>; byHash : Map<Hash, Hash> }
+
+let emptySubstitution : Substitution = { byLocation = Map.empty; byHash = Map.empty }
+
+type SccNames =
+  { byLocation : Map<PT.PackageLocation, string>; byHash : Map<Hash, string> }
+
+let emptySccNames : SccNames = { byLocation = Map.empty; byHash = Map.empty }
+
+
 /// Controls how package references are written during hashing.
 type HashRefMode =
   {
-    /// Deps from already-processed SCCs (topological order);
-    /// their hashes are final and can be used directly.
-    resolvedDeps : Map<Hash, Hash>
+    /// Substitutions for already-processed items (their hashes are
+    /// final). Location-keyed primary, hash-keyed fallback.
+    subst : Substitution
 
     /// Items within the current SCC whose hashes can't be known yet
     /// (circular dependency); use FQN strings instead of hashes to
     /// break the circularity.
-    sccNames : Map<Hash, string>
+    sccNames : SccNames
   }
 
-let Normal = { resolvedDeps = Map.empty; sccNames = Map.empty }
+let Normal = { subst = emptySubstitution; sccNames = emptySccNames }
 
-/// Resolve a Hash: first apply finalized deps, then check SCC names.
-let private resolveHash (mode : HashRefMode) (hash : Hash) : Hash =
-  mode.resolvedDeps |> Map.tryFind hash |> Option.defaultValue hash
+/// Resolve a Hash. Location-keyed lookup is authoritative; the
+/// hash-keyed map is only consulted when the NR has no location.
+let private resolveHash
+  (mode : HashRefMode)
+  (loc : Option<PT.PackageLocation>)
+  (hash : Hash)
+  : Hash =
+  match loc with
+  | Some l ->
+    // No byHash fallback — guards against cross-namespace hash collisions.
+    Map.tryFind l mode.subst.byLocation |> Option.defaultValue hash
+  | None -> Map.tryFind hash mode.subst.byHash |> Option.defaultValue hash
 
-let private isSccRef (mode : HashRefMode) (hash : Hash) : Option<string> =
-  let resolved = resolveHash mode hash
-  Map.tryFind resolved mode.sccNames
+let private isSccRef
+  (mode : HashRefMode)
+  (loc : Option<PT.PackageLocation>)
+  (hash : Hash)
+  : Option<string> =
+  match loc with
+  | Some l -> Map.tryFind l mode.sccNames.byLocation
+  | None ->
+    let resolved = resolveHash mode None hash
+    Map.tryFind resolved mode.sccNames.byHash
 
 
 // =====================
 // Name resolution writers
 // =====================
 
-/// Skip originalName, only write resolved value (or error)
+/// Skip originalName and location (location is a substitution-lookup
+/// key, not part of the canonical content); only write resolved
+/// value (or error). The value writer receives the NR's location so
+/// it can drive `resolveHash` / `isSccRef`.
 let writeNameResolution
-  (writeValue : BinaryWriter -> 'a -> unit)
+  (writeValue : BinaryWriter -> Option<PT.PackageLocation> -> 'a -> unit)
   (w : BinaryWriter)
   (nr : PT.NameResolution<'a>)
   =
   match nr.resolved with
   | Ok value ->
     w.Write(0uy)
-    writeValue w value
+    writeValue w nr.location value
   | Error error ->
     w.Write(1uy)
     PTC.NameResolutionError.write w error
@@ -63,23 +97,25 @@ let writeNameResolution
 let writeFQTypeName
   (mode : HashRefMode)
   (w : BinaryWriter)
+  (loc : Option<PT.PackageLocation>)
   (name : PT.FQTypeName.FQTypeName)
   =
   match name with
   | PT.FQTypeName.Package p ->
-    match isSccRef mode p with
+    match isSccRef mode loc p with
     | Some fqn ->
       w.Write(1uy) // SCC name-ref tag
       Common.String.write w fqn
     | None ->
       w.Write(0uy)
-      PTC.FQTypeName.Package.write w (resolveHash mode p)
+      PTC.FQTypeName.Package.write w (resolveHash mode loc p)
 
 
 /// Write FQFnName, resolving deps and checking SCC substitution
 let writeFQFnName
   (mode : HashRefMode)
   (w : BinaryWriter)
+  (loc : Option<PT.PackageLocation>)
   (name : PT.FQFnName.FQFnName)
   =
   match name with
@@ -87,19 +123,20 @@ let writeFQFnName
     w.Write(0uy)
     PTC.FQFnName.Builtin.write w b
   | PT.FQFnName.Package p ->
-    match isSccRef mode p with
+    match isSccRef mode loc p with
     | Some fqn ->
       w.Write(2uy) // SCC name-ref tag
       Common.String.write w fqn
     | None ->
       w.Write(1uy)
-      PTC.FQFnName.Package.write w (resolveHash mode p)
+      PTC.FQFnName.Package.write w (resolveHash mode loc p)
 
 
 /// Write FQValueName, resolving deps and checking SCC substitution
 let writeFQValueName
   (mode : HashRefMode)
   (w : BinaryWriter)
+  (loc : Option<PT.PackageLocation>)
   (name : PT.FQValueName.FQValueName)
   =
   match name with
@@ -107,13 +144,13 @@ let writeFQValueName
     w.Write(0uy)
     PTC.FQValueName.Builtin.write w b
   | PT.FQValueName.Package p ->
-    match isSccRef mode p with
+    match isSccRef mode loc p with
     | Some fqn ->
       w.Write(2uy) // SCC name-ref tag
       Common.String.write w fqn
     | None ->
       w.Write(1uy)
-      PTC.FQValueName.Package.write w (resolveHash mode p)
+      PTC.FQValueName.Package.write w (resolveHash mode loc p)
 
 
 // =====================

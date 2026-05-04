@@ -1574,7 +1574,12 @@ let testRenameThenUpdateWithPropagation =
     let fnA = makeFn (eVar "x")
     do! addFnAt branchId (loc "rtpBase") fnA
 
-    let fnB = makeFn (callFn fnA.hash)
+    let locationTaggedBaseRef : PT.NameResolution<PT.FQFnName.FQFnName> =
+      { originalName = [ "rtpBase" ]
+        location = Some(loc "rtpBase")
+        resolved = Ok(PT.FQFnName.Package fnA.hash) }
+    let fnB =
+      makeFn (eApply (PT.EFnName(gid (), locationTaggedBaseRef)) [] [ eVar "x" ])
     do! addFnAt branchId (loc "rtpCaller") fnB
 
     let! _ = commitAll branchId "initial"
@@ -1599,6 +1604,19 @@ let testRenameThenUpdateWithPropagation =
     let! callerResult = findFn branchId (loc "rtpCaller")
     let callerNewId = callerResult |> Option.get
     Expect.notEqual callerNewId fnB.hash "B should be repointed after propagation"
+
+    let! (callerAfter : Option<PT.PackageFn.PackageFn>) =
+      LibPackageManager.ProgramTypes.Fn.get callerNewId |> Ply.toTask
+    match callerAfter with
+    | Some caller ->
+      match caller.body with
+      | PT.EApply(_, PT.EFnName(_, nr), _, _) ->
+        Expect.equal
+          nr.location
+          (Some(loc "rtpBase2"))
+          "location-tagged ref is rewritten to the new source location"
+      | other -> failtest $"unexpected caller body: {other}"
+    | None -> failtest "expected rewritten caller to exist"
 
     do! discardAndDeleteBranch branchId
   }
@@ -1802,6 +1820,408 @@ let testMutualRecursionUndo =
   }
 
 
+let testCycleWithExtraDependent =
+  testTask "cycle + outside dep: A↔B mutual rec, C calls A → all three repointed" {
+    let! branchId = setupBranch "test-cycle-plus"
+
+    // A1 simple
+    let fnA1 = makeFn (eVar "x")
+    do! addFnAt branchId (loc "cpA") fnA1
+
+    // B calls A
+    let fnB = makeFn (callFn fnA1.hash)
+    do! addFnAt branchId (loc "cpB") fnB
+
+    // Update A to call B (creates the A↔B cycle)
+    let fnA2 = makeFn (callFn fnB.hash)
+    do! addFnAt branchId (loc "cpA") fnA2
+
+    // C calls A — outside-cycle dependent
+    let fnC = makeFn (callFn fnA2.hash)
+    do! addFnAt branchId (loc "cpC") fnC
+
+    // Update A again, still calling B (cycle preserved)
+    let fnA3 =
+      makeFn (
+        eInfix
+          (PT.InfixFnCall PT.ArithmeticPlus)
+          (eApply (ePackageFn (hashStr fnB.hash)) [] [ eVar "x" ])
+          (eInt64 1L)
+      )
+    do! addFnAt branchId (loc "cpA") fnA3
+
+    let! branchChain = Branches.getBranchChain branchId
+    let! allHashes =
+      Queries.getAllPreviousHashes branchChain "Test" "Prop" "cpA" "fn"
+    let prevHashes = allHashes |> List.filter (fun id -> id <> fnA3.hash)
+
+    let! ((propResult : Propagation.PropagationResult), _propOps) =
+      propagateOrFail branchId (loc "cpA") prevHashes fnA3.hash
+
+    let repointLocs =
+      propResult.repoints
+      |> List.map (fun (r : PT.PropagateRepoint) -> r.location)
+      |> Set.ofList
+
+    Expect.contains repointLocs (loc "cpA") "A repointed (in cycle)"
+    Expect.contains repointLocs (loc "cpB") "B repointed (in cycle)"
+    Expect.contains repointLocs (loc "cpC") "C repointed (outside cycle)"
+    Expect.equal (Set.count repointLocs) 3 "exactly three repoints"
+
+    do! discardAndDeleteBranch branchId
+  }
+
+
+let testTransitiveTypePropagation =
+  testTask "transitive type: T → fn A (uses T) → fn B (calls A) repoints both" {
+    let! branchId = setupBranch "test-trans-type"
+
+    // Type T1
+    let typeV1 =
+      makeType (
+        PT.TypeDeclaration.Enum(
+          NEList.singleton { name = "Active"; fields = []; description = "" }
+        )
+      )
+    do! addTypeAt branchId (loc "ttStatus") typeV1
+
+    // Fn A uses T (via EEnum)
+    let fnA = makeFn (eEnum (typeNamePkg (hashStr typeV1.hash)) [] "Active" [])
+    do! addFnAt branchId (loc "ttFnA") fnA
+
+    // Fn B calls A — transitive dep on T
+    let fnB = makeFn (callFn fnA.hash)
+    do! addFnAt branchId (loc "ttFnB") fnB
+
+    // Update T
+    let typeV2 =
+      makeType (
+        PT.TypeDeclaration.Enum(
+          NEList.ofList
+            { name = "Active"; fields = []; description = "" }
+            [ { name = "Inactive"; fields = []; description = "" } ]
+        )
+      )
+    do! addTypeAt branchId (loc "ttStatus") typeV2
+
+    let! result =
+      Propagation.propagate
+        branchId
+        (loc "ttStatus")
+        PT.ItemKind.Type
+        [ typeV1.hash ]
+        typeV2.hash
+
+    match result with
+    | Ok(Some((propResult : Propagation.PropagationResult), _propOps)) ->
+      let repointLocs =
+        propResult.repoints
+        |> List.map (fun (r : PT.PropagateRepoint) -> r.location)
+        |> Set.ofList
+      Expect.contains repointLocs (loc "ttFnA") "A (direct dep on T) repointed"
+      Expect.contains repointLocs (loc "ttFnB") "B (transitive dep via A) repointed"
+    | Ok None -> failtest "expected dependents"
+    | Error e -> failtest $"propagation failed: {e}"
+
+    do! discardAndDeleteBranch branchId
+  }
+
+
+let testMultiSourcePropagation =
+  testTask "multi-source: two independent updates each propagate to their dependents" {
+    let! branchId = setupBranch "test-multi-source"
+
+    // A ← B
+    let fnA1 = makeFn (eVar "x")
+    do! addFnAt branchId (loc "msA") fnA1
+    let fnB = makeFn (callFn fnA1.hash)
+    do! addFnAt branchId (loc "msB") fnB
+
+    // C ← D
+    let fnC1 = makeFn (eVar "x")
+    do! addFnAt branchId (loc "msC") fnC1
+    let fnD = makeFn (callFn fnC1.hash)
+    do! addFnAt branchId (loc "msD") fnD
+
+    // Update A → propagate (B repoints)
+    let fnA2 =
+      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
+    do! addFnAt branchId (loc "msA") fnA2
+    let! (_, opsA) = propagateOrFail branchId (loc "msA") [ fnA1.hash ] fnA2.hash
+    let! _ = Inserts.insertAndApplyOpsAsWip branchId opsA
+
+    // Update C → propagate (D repoints, independent of A's cascade)
+    let fnC2 =
+      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 2L))
+    do! addFnAt branchId (loc "msC") fnC2
+    let! (_, opsC) = propagateOrFail branchId (loc "msC") [ fnC1.hash ] fnC2.hash
+    let! _ = Inserts.insertAndApplyOpsAsWip branchId opsC
+
+    // Both downstream dependents should now point at fresh hashes
+    let! bAfter = findFn branchId (loc "msB")
+    let! dAfter = findFn branchId (loc "msD")
+    Expect.notEqual bAfter (Some fnB.hash) "B repointed by A's propagation"
+    Expect.notEqual dAfter (Some fnD.hash) "D repointed by C's propagation"
+
+    // And A and C themselves are at their new hashes
+    let! aAfter = findFn branchId (loc "msA")
+    let! cAfter = findFn branchId (loc "msC")
+    Expect.equal aAfter (Some fnA2.hash) "A is at v2"
+    Expect.equal cAfter (Some fnC2.hash) "C is at v2"
+
+    do! discardAndDeleteBranch branchId
+  }
+
+
+/// Pin the schema-level fix from the Phase 2 migration: when a dependent
+/// body holds two refs that share a content hash but live at different
+/// FQNs, BOTH dep edges must be queryable. Without the migration, the
+/// (item_hash, depends_on_hash) PRIMARY KEY collapses them and only the
+/// first-inserted location survives — propagating the second FQN finds
+/// zero dependents and the cascade silently misses an item that
+/// references it.
+///
+/// We assert from both directions (propagate collA → finds dep, propagate
+/// collX → finds dep) so the test isn't accidentally satisfied by
+/// insertion order.
+let testDependencyEdgeCollisionStorage =
+  testTask
+    "dep-edge storage: distinct-location edges sharing a hash both survive INSERT OR IGNORE" {
+    let! branchId = setupBranch "test-edge-storage"
+
+    let sharedValue = makeValue (eInt64 7L)
+    do! addValueAt branchId (loc "esA") sharedValue
+    do! addValueAt branchId (loc "esX") sharedValue
+
+    let refAt (location : PT.PackageLocation) : PT.Expr =
+      PT.EValue(
+        gid (),
+        { originalName = []
+          location = Some location
+          resolved = Ok(PT.FQValueName.Package sharedValue.hash) }
+      )
+
+    let dependentFn = makeFn (eStatement (refAt (loc "esA")) (refAt (loc "esX")))
+    do! addFnAt branchId (loc "esDep") dependentFn
+
+    let! branchChain = Branches.getBranchChain branchId
+
+    // Query both directions — each should find the dependent.
+    let target location : Queries.LocationTarget =
+      { itemKind = PT.ItemKind.Value
+        location = location
+        hashes = [ sharedValue.hash ] }
+
+    let! viaA = Queries.getDependentsByTargets branchChain [ target (loc "esA") ]
+    let! viaX = Queries.getDependentsByTargets branchChain [ target (loc "esX") ]
+
+    let depFqns (results : List<Queries.LocationDependent>) =
+      results
+      |> List.map (fun d ->
+        let m = String.concat "." d.itemLocation.modules
+        $"{d.itemLocation.owner}.{m}.{d.itemLocation.name}")
+      |> Set.ofList
+
+    Expect.contains
+      (depFqns viaA)
+      "Test.Prop.esDep"
+      "esA-keyed query finds the dependent (first-inserted edge survived — would pass even pre-fix)"
+    Expect.contains
+      (depFqns viaX)
+      "Test.Prop.esDep"
+      "esX-keyed query finds the dependent (second-inserted edge survived — REGRESSION CHECK for PK collapsing)"
+
+    do! discardAndDeleteBranch branchId
+  }
+
+
+let testDependencyLocationIncludesTargetKind =
+  testTask
+    "dep-edge lookup: same location across target kinds does not cross-propagate" {
+    let! branchId = setupBranch "test-edge-kind-location"
+    let sharedLoc = loc "kindShared"
+
+    let typeV1 =
+      makeType (
+        PT.TypeDeclaration.Enum(
+          NEList.ofList { name = "Red"; fields = []; description = "" } []
+        )
+      )
+    do! addTypeAt branchId sharedLoc typeV1
+
+    let valueV1 = makeValue (eInt64 41L)
+    do! addValueAt branchId sharedLoc valueV1
+
+    let typeRef : PT.NameResolution<PT.FQTypeName.FQTypeName> =
+      { originalName = []
+        location = Some sharedLoc
+        resolved = Ok(PT.FQTypeName.Package typeV1.hash) }
+    let typeDependent = makeFn (PT.EEnum(gid (), typeRef, [], "Red", []))
+    do! addFnAt branchId (loc "kindTypeDep") typeDependent
+
+    let valueRef : PT.NameResolution<PT.FQValueName.FQValueName> =
+      { originalName = []
+        location = Some sharedLoc
+        resolved = Ok(PT.FQValueName.Package valueV1.hash) }
+    let valueDependent = makeFn (PT.EValue(gid (), valueRef))
+    do! addFnAt branchId (loc "kindValueDep") valueDependent
+
+    let! branchChain = Branches.getBranchChain branchId
+    let! typeLookup =
+      Queries.getDependentsByKindedLocations
+        branchChain
+        [ (PT.ItemKind.Type, sharedLoc) ]
+    let! valueLookup =
+      Queries.getDependentsByKindedLocations
+        branchChain
+        [ (PT.ItemKind.Value, sharedLoc) ]
+
+    let lookupLocs results =
+      results
+      |> List.map (fun (d : Queries.LocationDependent) -> d.itemLocation)
+      |> Set.ofList
+
+    Expect.contains
+      (lookupLocs typeLookup)
+      (loc "kindTypeDep")
+      "type-target lookup finds the type dependent"
+    Expect.isFalse
+      (Set.contains (loc "kindValueDep") (lookupLocs typeLookup))
+      "type-target lookup does not include the value dependent"
+    Expect.contains
+      (lookupLocs valueLookup)
+      (loc "kindValueDep")
+      "value-target lookup finds the value dependent"
+    Expect.isFalse
+      (Set.contains (loc "kindTypeDep") (lookupLocs valueLookup))
+      "value-target lookup does not include the type dependent"
+
+    let typeV2 =
+      makeType (
+        PT.TypeDeclaration.Enum(
+          NEList.ofList
+            { name = "Red"; fields = []; description = "" }
+            [ { name = "Blue"; fields = []; description = "" } ]
+        )
+      )
+    do! addTypeAt branchId sharedLoc typeV2
+
+    let! result =
+      Propagation.propagate
+        branchId
+        sharedLoc
+        PT.ItemKind.Type
+        [ typeV1.hash ]
+        typeV2.hash
+
+    match result with
+    | Ok(Some((propResult : Propagation.PropagationResult), _propOps)) ->
+      let repointLocs =
+        propResult.repoints
+        |> List.map (fun (r : PT.PropagateRepoint) -> r.location)
+        |> Set.ofList
+
+      Expect.contains
+        repointLocs
+        (loc "kindTypeDep")
+        "the type dependent is repointed"
+      Expect.isFalse
+        (Set.contains (loc "kindValueDep") repointLocs)
+        "the value dependent at the same target location is not repointed"
+    | Ok None -> failtest "expected the type dependent to be found"
+    | Error e -> failtest $"propagation failed: {e}"
+
+    do! discardAndDeleteBranch branchId
+  }
+
+
+/// Pin the location-aware AT substitution: when a dependent body holds
+/// two references that happen to share a content hash but live at
+/// different FQNs, propagating one of the FQNs must rewrite ONLY the
+/// reference that names that FQN. The other reference — same hash, but
+/// `nr.location` points elsewhere — must stay put.
+///
+/// Without the location-keyed lookup in `AstTransformer`, the hash-keyed
+/// substitution map would rewrite both references blindly and silently
+/// repoint the unrelated one. That's exactly the cross-namespace
+/// conflation this branch's whole architecture targets, just at the
+/// body-rewrite layer instead of the dep-edge layer.
+let testCrossNamespaceCollisionRewrite =
+  testTask
+    "collision: dependent with two same-hash refs at different FQNs only repoints the targeted one" {
+    let! branchId = setupBranch "test-collision-rewrite"
+
+    // One value at two locations — locations table now has two rows
+    // pointing at the same content hash by construction.
+    let sharedValue = makeValue (eInt64 42L)
+    do! addValueAt branchId (loc "collA") sharedValue
+    do! addValueAt branchId (loc "collX") sharedValue
+
+    // Dependent body: { collA-ref ; collX-ref }. Both EValue NRs resolve
+    // to `sharedValue.hash`; the only thing distinguishing them is
+    // `nr.location`. Built by hand because the standard shortcut
+    // (`ePackageValue`) leaves location unset.
+    let refAt (location : PT.PackageLocation) : PT.Expr =
+      PT.EValue(
+        gid (),
+        { originalName = []
+          location = Some location
+          resolved = Ok(PT.FQValueName.Package sharedValue.hash) }
+      )
+    let dependentFn = makeFn (eStatement (refAt (loc "collA")) (refAt (loc "collX")))
+    do! addFnAt branchId (loc "collDep") dependentFn
+
+    // Move collA to a new hash; collX is left alone.
+    let newValue = makeValue (eInt64 999L)
+    do! addValueAt branchId (loc "collA") newValue
+
+    let! result =
+      Propagation.propagate
+        branchId
+        (loc "collA")
+        PT.ItemKind.Value
+        [ sharedValue.hash ]
+        newValue.hash
+
+    match result with
+    | Ok(Some(_propResult, propOps)) ->
+      let rewrittenDep =
+        propOps
+        |> List.tryPick (function
+          | PT.PackageOp.AddFn fn -> Some fn
+          | _ -> None)
+
+      match rewrittenDep with
+      | None -> failtest "expected an AddFn op for the dependent"
+      | Some fn ->
+        match fn.body with
+        | PT.EStatement(_, PT.EValue(_, nrA), PT.EValue(_, nrX)) ->
+          let resolvedHash (nr : PT.NameResolution<PT.FQValueName.FQValueName>) =
+            match nr.resolved with
+            | Ok(PT.FQValueName.Package h) -> h
+            | _ -> failtest "expected a resolved package value reference"
+          // Targeted ref: location says "collA", and collA is being
+          // moved → rewrite to the new hash.
+          Expect.equal
+            (resolvedHash nrA)
+            newValue.hash
+            "collA-keyed reference repointed to newValue"
+          // Collision-victim ref: location says "collX", which isn't in
+          // the propagation batch. The hash matches the substitution
+          // input but the location guard refuses to rewrite. This
+          // assertion is the regression check.
+          Expect.equal
+            (resolvedHash nrX)
+            sharedValue.hash
+            "collX-keyed reference is unchanged (location guarded against false rewrite)"
+        | other -> failtest $"unexpected dependent body shape: {other}"
+    | Ok None -> failtest "expected dependents from propagation"
+    | Error e -> failtest $"propagation failed: {e}"
+
+    do! discardAndDeleteBranch branchId
+  }
+
+
 let tests =
   testList
     "Propagation"
@@ -1831,4 +2251,10 @@ let tests =
       testRenameToOccupiedLocation
       testSelfRecursionPropagation
       testSelfRecursionUndo
-      testMutualRecursionUndo ]
+      testMutualRecursionUndo
+      testCycleWithExtraDependent
+      testTransitiveTypePropagation
+      testMultiSourcePropagation
+      testCrossNamespaceCollisionRewrite
+      testDependencyLocationIncludesTargetKind
+      testDependencyEdgeCollisionStorage ]

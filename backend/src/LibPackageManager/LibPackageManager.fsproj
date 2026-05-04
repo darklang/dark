@@ -22,6 +22,7 @@
     <Compile Include="PackageLocation.fs" />
     <Compile Include="Caching.fs" />
     <Compile Include="Purge.fs" />
+    <Compile Include="PackageItem.fs" />
     <Compile Include="DependencyExtractor.fs" />
     <Compile Include="BranchOpPlayback.fs" />
     <Compile Include="Branches.fs" />

@@ -778,7 +778,9 @@ module Expect =
 
       | EPipeFnCall(_, name, typeArgs, args), EPipeFnCall(_, name', typeArgs', args') ->
         let path = (string name :: path)
-        check path name name'
+        // `location` is resolver-derived metadata; ignore it when comparing
+        // structurally so test fixtures predating Phase 1 still match.
+        check path { name with location = None } { name' with location = None }
         check path (List.length typeArgs) (List.length typeArgs')
         List.iteri2
           (fun i l r -> dTypeEqualityBaseFn (string i :: path) l r errorFn)
@@ -876,7 +878,8 @@ module Expect =
       | EChar(_, v), EChar(_, v')
       | EVariable(_, v), EVariable(_, v') -> check path v v'
       | EArg(_, v), EArg(_, v') -> check path v v'
-      | EValue(_, name), EValue(_, name') -> check path name name'
+      | EValue(_, name), EValue(_, name') ->
+        check path { name with location = None } { name' with location = None }
       | ELet(_, pat, rhs, body), ELet(_, pat', rhs', body') ->
         letPatternEqualityBaseFn checkIDs path pat pat' errorFn
         eq ("rhs" :: path) rhs rhs'
@@ -907,7 +910,8 @@ module Expect =
           typeArgs'
         eqNEList path args args'
 
-      | EFnName(_, name), EFnName(_, name') -> check path name name'
+      | EFnName(_, name), EFnName(_, name') ->
+        check path { name with location = None } { name' with location = None }
 
       // | ERecord(_, typeName, typeArgs, fields), ERecord(_, typeName', typeArgs', fields') ->
       //   typeNameEqualityBaseFn path typeName typeName' errorFn

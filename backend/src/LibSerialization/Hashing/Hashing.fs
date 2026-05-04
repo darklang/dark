@@ -157,27 +157,41 @@ module Hashing =
   // =====================
 
   type private ItemInfo =
-    | TypeItem of PT.PackageType.PackageType * string * Hash
-    | FnItem of PT.PackageFn.PackageFn * string * Hash
-    | ValueItem of PT.PackageValue.PackageValue * string * Hash
+    | TypeItem of
+      PT.PackageType.PackageType *
+      string *
+      Hash *
+      Option<PT.PackageLocation>
+    | FnItem of PT.PackageFn.PackageFn * string * Hash * Option<PT.PackageLocation>
+    | ValueItem of
+      PT.PackageValue.PackageValue *
+      string *
+      Hash *
+      Option<PT.PackageLocation>
 
   let private getItemFQN (item : ItemInfo) : string =
     match item with
-    | TypeItem(_, fqn, _) -> fqn
-    | FnItem(_, fqn, _) -> fqn
-    | ValueItem(_, fqn, _) -> fqn
+    | TypeItem(_, fqn, _, _) -> fqn
+    | FnItem(_, fqn, _, _) -> fqn
+    | ValueItem(_, fqn, _, _) -> fqn
 
   let private getItemOldHash (item : ItemInfo) : Hash =
     match item with
-    | TypeItem(_, _, h) -> h
-    | FnItem(_, _, h) -> h
-    | ValueItem(_, _, h) -> h
+    | TypeItem(_, _, h, _) -> h
+    | FnItem(_, _, h, _) -> h
+    | ValueItem(_, _, h, _) -> h
+
+  let private getItemLocation (item : ItemInfo) : Option<PT.PackageLocation> =
+    match item with
+    | TypeItem(_, _, _, loc) -> loc
+    | FnItem(_, _, _, loc) -> loc
+    | ValueItem(_, _, _, loc) -> loc
 
   let private computeItemHash (mode : HashRefMode) (item : ItemInfo) : Hash =
     match item with
-    | TypeItem(t, _, _) -> computeTypeHash mode t
-    | FnItem(fn, _, _) -> computeFnHash mode fn
-    | ValueItem(v, _, _) -> computeValueHash mode v
+    | TypeItem(t, _, _, _) -> computeTypeHash mode t
+    | FnItem(fn, _, _, _) -> computeFnHash mode fn
+    | ValueItem(v, _, _, _) -> computeValueHash mode v
 
   let private serializeItemBytes
     (mode : Canonical.HashRefMode)
@@ -186,9 +200,9 @@ module Hashing =
     use ms = new MemoryStream()
     use w = new BinaryWriter(ms)
     match item with
-    | TypeItem(t, _, _) -> Canonical.writeType mode w t
-    | FnItem(fn, _, _) -> Canonical.writeFn mode w fn
-    | ValueItem(v, _, _) -> Canonical.writeValue mode w v
+    | TypeItem(t, _, _, _) -> Canonical.writeType mode w t
+    | FnItem(fn, _, _, _) -> Canonical.writeFn mode w fn
+    | ValueItem(v, _, _, _) -> Canonical.writeValue mode w v
     ms.ToArray()
 
 
@@ -196,25 +210,37 @@ module Hashing =
   /// hashes handling SCCs via batch hashing with name-ref substitution.
   /// Maps are keyed by FQN (string) to avoid collisions when multiple items share
   /// the same Hash (e.g. type aliases with unresolved refs on first parse).
-  /// The Hash in each tuple is the item's current/old hash.
+  /// Each item tuple is `(item, oldHash, location)` — location may be
+  /// `None` for items without one (test fixtures); production callers
+  /// (HashStabilization) always pass `Some`.
+  ///
+  /// `seed` injects out-of-batch substitutions — e.g. propagation
+  /// passes `(sourceLocation → newSourceHash)` and
+  /// `(oldSourceHash → newSourceHash)`. As each in-batch item is
+  /// hashed, the seed grows with its substitution so subsequent SCCs
+  /// see it via either lookup path.
   let computeHashesWithSCCs
-    (types : Map<string, PT.PackageType.PackageType * Hash>)
-    (fns : Map<string, PT.PackageFn.PackageFn * Hash>)
-    (values : Map<string, PT.PackageValue.PackageValue * Hash>)
+    (seed : Canonical.Substitution)
+    (types :
+      Map<string, PT.PackageType.PackageType * Hash * Option<PT.PackageLocation>>)
+    (fns : Map<string, PT.PackageFn.PackageFn * Hash * Option<PT.PackageLocation>>)
+    (values :
+      Map<string, PT.PackageValue.PackageValue * Hash * Option<PT.PackageLocation>>)
     (getDeps : string -> List<string>)
     : Map<string, Hash> =
 
     // Build unified item map (keyed by FQN)
     let items =
       Map.fold
-        (fun acc fqn (t, oldHash) -> Map.add fqn (TypeItem(t, fqn, oldHash)) acc)
+        (fun acc fqn (t, oldHash, loc) ->
+          Map.add fqn (TypeItem(t, fqn, oldHash, loc)) acc)
         Map.empty
         types
-      |> Map.fold (fun acc fqn (fn, oldHash) ->
-        Map.add fqn (FnItem(fn, fqn, oldHash)) acc)
+      |> Map.fold (fun acc fqn (fn, oldHash, loc) ->
+        Map.add fqn (FnItem(fn, fqn, oldHash, loc)) acc)
       <| fns
-      |> Map.fold (fun acc fqn (v, oldHash) ->
-        Map.add fqn (ValueItem(v, fqn, oldHash)) acc)
+      |> Map.fold (fun acc fqn (v, oldHash, loc) ->
+        Map.add fqn (ValueItem(v, fqn, oldHash, loc)) acc)
       <| values
 
     let allIds = items |> Map.keys |> Seq.toList
@@ -224,8 +250,19 @@ module Hashing =
 
     // FQN → finalHash result map
     let mutable hashMap = Map.empty<string, Hash>
-    // oldHash → finalHash for the canonical serializer's resolvedDeps
-    let mutable resolvedDepsMap = Map.empty<Hash, Hash>
+    // Seed grows as we hash each SCC; later SCCs see all prior new hashes.
+    let mutable subst = seed
+
+    // Record an item's hash transition in both substitution maps so
+    // later SCCs see the new hash via either lookup path.
+    let recordSubstitution (item : ItemInfo) (newHash : Hash) =
+      let oldHash = getItemOldHash item
+      let byHash' = Map.add oldHash newHash subst.byHash
+      let byLocation' =
+        match getItemLocation item with
+        | Some loc -> Map.add loc newHash subst.byLocation
+        | None -> subst.byLocation
+      subst <- { byLocation = byLocation'; byHash = byHash' }
 
     for scc in sccs do
       let sccIds = scc.head :: scc.tail
@@ -243,23 +280,27 @@ module Hashing =
         let item = Map.findUnsafe fqn items
 
         let mode : Canonical.HashRefMode =
-          { resolvedDeps = resolvedDepsMap; sccNames = Map.empty }
+          { subst = subst; sccNames = Canonical.emptySccNames }
 
         let hash = computeItemHash mode item
         hashMap <- Map.add fqn hash hashMap
-        resolvedDepsMap <- Map.add (getItemOldHash item) hash resolvedDepsMap
+        recordSubstitution item hash
       else
-        // Multi-item SCC: batch hash with FQN substitution + finalized deps
-        // sccNames maps old Hash → FQN for cycle-breaking in canonical serializer
-        let sccNameMap =
-          sccIds
-          |> List.map (fun fqn ->
+        // Multi-item SCC: batch hash with FQN substitution + finalized deps.
+        // Location-keyed cycle refs avoid same-hash collisions inside the SCC;
+        // hash-keyed lookup remains only for null-location refs.
+        let sccNameMap : Canonical.SccNames =
+          let mutable byLocation = Map.empty
+          let mutable byHash = Map.empty
+          for fqn in sccIds do
             let item = Map.findUnsafe fqn items
-            getItemOldHash item, fqn)
-          |> Map.ofList
+            match getItemLocation item with
+            | Some loc -> byLocation <- Map.add loc fqn byLocation
+            | None -> ()
+            byHash <- Map.add (getItemOldHash item) fqn byHash
+          { byLocation = byLocation; byHash = byHash }
 
-        let mode : Canonical.HashRefMode =
-          { resolvedDeps = resolvedDepsMap; sccNames = sccNameMap }
+        let mode : Canonical.HashRefMode = { subst = subst; sccNames = sccNameMap }
 
         // Sort by FQN for determinism
         let sortedItems =
@@ -283,6 +324,6 @@ module Hashing =
               PTC.Hash.write w groupHash
               Common.String.write w itemFQN)
           hashMap <- Map.add fqn itemHash hashMap
-          resolvedDepsMap <- Map.add (getItemOldHash item) itemHash resolvedDepsMap
+          recordSubstitution item itemHash
 
     hashMap
