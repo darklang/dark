@@ -13,7 +13,7 @@ You don't write scripts - you build a persistent package tree.
 
 ## Workflow
   1. fn myFn        # create function (stored in package tree)
-  2. run myFn       # test it
+  2. run @myFn      # test it
   3. status         # see changes
   4. commit "msg"   # save to SCM
 
@@ -31,11 +31,11 @@ You don't write scripts - you build a persistent package tree.
   val <name>        # create value
 
 Names need full paths (owner.module.name), e.g.:
-  fn "Darklang.Testing.fib (n: Int64): Int64 = ..."
+  fn Darklang.Testing.fib (n: Int64): Int64 = ...
 Inside the body, use short names (e.g., `fib` for recursion).
 
 ## Running/Testing
-  run <fn> [args]   # run a function you created
+  run @<fn> [args]  # run a function you created (with args)
   eval <expr>       # quick test expressions (not for creating code)
 
 ## Navigation
@@ -53,7 +53,7 @@ Inside the body, use short names (e.g., `fib` for recursion).
     kinds: superseded-by (requires --replacement), harmful, obsolete
   delete <fn|type|value> <name> [--force]     # sugar for --kind obsolete
   undo <fn|type|value> <name>                 # reverse a WIP deprecate
-  run --allow-harmful <fn>                    # opt out of harmful halt
+  run --allow-harmful @<fn>                   # opt out of harmful halt
   (see: docs deprecation)
 
 ## Branches (use --branch flag!)

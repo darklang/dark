@@ -112,8 +112,8 @@ let writeText (path: String) (content: String) : Result.Result<Unit, Posix.Error
 
   match Posix.openFile path flags Posix.Modes.defaultFile with
   | Ok fd ->
-    let bytes = Stdlib.String.toBytes content
-    let result = Builtin.posixFdWrite fd bytes
+    let blob = Stdlib.String.toBlob content
+    let result = Builtin.posixFdWrite fd blob
 
     let _ = Builtin.posixFdClose fd
 
@@ -134,8 +134,8 @@ let appendText (path: String) (content: String) : Result.Result<Unit, Posix.Erro
 
   match Posix.openFile path flags Posix.Modes.defaultFile with
   | Ok fd ->
-    let bytes = Stdlib.String.toBytes content
-    let result = Builtin.posixFdWrite fd bytes
+    let blob = Stdlib.String.toBlob content
+    let result = Builtin.posixFdWrite fd blob
 
     let _ = Builtin.posixFdClose fd
 
@@ -237,8 +237,8 @@ let writeAtomic (path: String) (content: String) : Result.Result<Unit, Posix.Err
   |> Stdlib.Result.andThen (fun result ->
     let fd = Stdlib.Tuple2.first result
     let tmpPath = Stdlib.Tuple2.second result
-    let bytes = Stdlib.String.toBytes content
-    let writeResult = Builtin.posixFdWrite fd bytes
+    let blob = Stdlib.String.toBlob content
+    let writeResult = Builtin.posixFdWrite fd blob
     let _ = Builtin.posixFdClose fd
 
     match writeResult with
