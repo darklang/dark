@@ -505,7 +505,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             match result with
             | Ok(Some(propagationResult, ops)) ->
               let! _ = LibPackageManager.Inserts.insertAndApplyOps branchId None ops
-              ()
 
               let repointsDval =
                 propagationResult.repoints

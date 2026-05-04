@@ -213,24 +213,19 @@ let warnIfSignatureChanged
   | Value -> false // values don't have signatures
 
 
-/// Auto-propagate after creating/updating a definition
-/// Called by fn/type/val commands after successful creation
-let autoPropagateAfterUpdate
+/// Run a propagation given an explicit list of previous hashes for the
+/// source location. Most callers use `autoPropagateAfterUpdate` below
+/// which discovers prior hashes via `getAllPreviousHashes`.
+let propagateFromHashes
   (branchId: Uuid)
   (location: LanguageTools.ProgramTypes.PackageLocation)
+  (previousHashes: List<LanguageTools.ProgramTypes.Hash>)
   (currentHash: LanguageTools.ProgramTypes.Hash)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
   : Unit =
-  // getAllPreviousHashes returns ALL hashes at this location across the branch chain
-  // (including the current one), so filter out currentHash to get only previous versions.
-  let previousHashes =
-    (getAllPreviousHashes branchId location itemKind)
-    |> Stdlib.List.filter (fun id -> id != currentHash)
-
   match previousHashes with
   | [] -> ()  // New item, nothing to propagate
   | _ ->
-    // Warn if signature changed (use most recent previous hash for comparison)
     let signatureChanged =
       match Stdlib.List.head previousHashes with
       | Some prevHash -> warnIfSignatureChanged branchId itemKind prevHash currentHash
@@ -241,8 +236,7 @@ let autoPropagateAfterUpdate
       let (propagationId, repoints) = resultTuple
 
       match repoints with
-      | [] ->
-        Stdlib.printLine "  No dependents to propagate to"
+      | [] -> ()
       | _ ->
         let count = Stdlib.List.length repoints
         Stdlib.printLine $"  Propagated to {Stdlib.Int64.toString count} dependents:"
@@ -269,3 +263,21 @@ let autoPropagateAfterUpdate
 
     | Error errMsg ->
       Stdlib.printLine (Colors.error $"  Auto-propagation failed: {errMsg}")
+
+
+/// Auto-propagate after creating/updating a definition.
+/// Falls back to `getAllPreviousHashes` to discover prior hashes.
+/// Used by `undo` and other callers that don't already know the
+/// pre-update hash.
+let autoPropagateAfterUpdate
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (currentHash: LanguageTools.ProgramTypes.Hash)
+  (itemKind: LanguageTools.ProgramTypes.ItemKind)
+  : Unit =
+  let previousHashes =
+    (getAllPreviousHashes branchId location itemKind)
+    |> Stdlib.List.filter (fun id -> id != currentHash)
+  propagateFromHashes branchId location previousHashes currentHash itemKind
+
+

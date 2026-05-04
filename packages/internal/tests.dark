@@ -58,7 +58,8 @@ let parseSingleTestFromFile
       let context =
         LanguageTools.WrittenTypesToProgramTypes.Context
           { currentFnName = Stdlib.Option.Option.None
-            argMap = Stdlib.Dict.empty }
+            argMap = Stdlib.Dict.empty
+            localBindings = [] }
 
       let (actual, _unres) =
         LanguageTools.WrittenTypesToProgramTypes.Expr.toPT

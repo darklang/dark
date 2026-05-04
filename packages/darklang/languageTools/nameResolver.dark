@@ -80,7 +80,13 @@ let namesToTryHelper
     Stdlib.List.append [ newNameToTry ] (namesToTryHelper allButLast given)
 
 
-/// Generic name resolution that handles the common pattern across Type/Value/Fn resolution
+/// Generic name resolution that handles the common pattern across Type/Value/Fn resolution.
+///
+/// `tryResolve` returns `Ok (fqname, location)` on success — `location`
+/// is `Some` for package items (the matched location after `namesToTry`
+/// expansion) and `None` for builtins. The location rides on the
+/// returned NameResolution's `location` field, so dep-edge inserts can
+/// populate location columns directly without a post-hoc lookup.
 let resolveGenericName
   (ctx: NRContext)
   (name: WrittenTypes.Name)
@@ -88,7 +94,7 @@ let resolveGenericName
     ProgramTypes.PackageManager.PackageManager
     -> ProgramTypes.BranchID
     -> GenericName
-    -> Stdlib.Result.Result<'a, Unit>)
+    -> Stdlib.Result.Result<('a * Stdlib.Option.Option<ProgramTypes.PackageLocation>), Unit>)
   : ProgramTypes.NameResolution<'a> =
   match name with
   | Unresolved(_range, given) ->
@@ -100,26 +106,34 @@ let resolveGenericName
     | None ->
       ProgramTypes.NameResolution
         { originalName = given
+          location = Stdlib.Option.Option.None
           resolved = Stdlib.Result.Result.Error ProgramTypes.NameResolutionError.InvalidName }
     | Some name ->
       let genericName =
         GenericName { modules = modules; name = name; version = 0 }
 
-      let resolved =
+      // Fold accumulator: (resolvedResult, matchedLocation). Once we
+      // find a successful candidate we keep it; further candidates
+      // are skipped.
+      let (resolved, location) =
         Stdlib.List.fold
           (namesToTry ctx.owner ctx.currentModule genericName)
-          (Stdlib.Result.Result.Error ProgramTypes.NameResolutionError.NotFound)
-          (fun currentResult nameToTry ->
+          (Stdlib.Result.Result.Error ProgramTypes.NameResolutionError.NotFound,
+           Stdlib.Option.Option.None)
+          (fun acc nameToTry ->
+            let (currentResult, currentLoc) = acc
             match currentResult with
-            | Ok _ -> currentResult
+            | Ok _ -> acc
             | Error _ ->
               match tryResolve ctx.pm ctx.branchId nameToTry with
-              | Error() -> currentResult
-              | Ok success -> Stdlib.Result.Result.Ok success)
+              | Error() -> acc
+              | Ok((success, loc)) -> (Stdlib.Result.Result.Ok success, loc))
 
       let nr =
         ProgramTypes.NameResolution
-          { originalName = given; resolved = resolved }
+          { originalName = given
+            location = location
+            resolved = resolved }
 
       throwIfRelevant ctx.onMissing nr
 
@@ -129,7 +143,8 @@ module TypeName =
     (pm: ProgramTypes.PackageManager.PackageManager)
     (branchId: ProgramTypes.BranchID)
     (name: GenericName)
-    : Stdlib.Result.Result<ProgramTypes.FQTypeName.FQTypeName, Unit> =
+    : Stdlib.Result.Result<(ProgramTypes.FQTypeName.FQTypeName *
+      Stdlib.Option.Option<ProgramTypes.PackageLocation>), Unit> =
     match name.modules with
     | [] -> Stdlib.Result.Result.Error()
     | owner :: modules ->
@@ -141,8 +156,9 @@ module TypeName =
 
       match pm.findType (branchId, location) with
       | Some hash ->
-        (ProgramTypes.FQTypeName.FQTypeName.Package hash)
-        |> Stdlib.Result.Result.Ok
+        Stdlib.Result.Result.Ok
+          (((ProgramTypes.FQTypeName.FQTypeName.Package hash),
+            Stdlib.Option.Option.Some location))
       | None -> Stdlib.Result.Result.Error()
 
 
@@ -164,17 +180,19 @@ module ValueName =
     (pm: ProgramTypes.PackageManager.PackageManager)
     (branchId: ProgramTypes.BranchID)
     (name: GenericName)
-    : Stdlib.Result.Result<ProgramTypes.FQValueName.FQValueName, Unit> =
+    : Stdlib.Result.Result<(ProgramTypes.FQValueName.FQValueName *
+      Stdlib.Option.Option<ProgramTypes.PackageLocation>), Unit> =
     match name.modules with
     | [] -> Stdlib.Result.Result.Error()
     | owner :: modules ->
       if owner == "Builtin" && modules == [] then
         if builtinThingExists name.name then
-          (ProgramTypes.FQValueName.Builtin
-            { name = name.name
-              version = name.version })
-          |> ProgramTypes.FQValueName.FQValueName.Builtin
-          |> Stdlib.Result.Result.Ok
+          let fqn =
+            (ProgramTypes.FQValueName.Builtin
+              { name = name.name
+                version = name.version })
+            |> ProgramTypes.FQValueName.FQValueName.Builtin
+          Stdlib.Result.Result.Ok ((fqn, Stdlib.Option.Option.None))
         else
           Stdlib.Result.Result.Error()
       else
@@ -186,8 +204,9 @@ module ValueName =
 
         match pm.findValue (branchId, location) with
         | Some hash ->
-          (ProgramTypes.FQValueName.FQValueName.Package hash)
-          |> Stdlib.Result.Result.Ok
+          Stdlib.Result.Result.Ok
+            (((ProgramTypes.FQValueName.FQValueName.Package hash),
+              Stdlib.Option.Option.Some location))
         | None -> Stdlib.Result.Result.Error()
 
 
@@ -204,18 +223,20 @@ module FnName =
     (pm: ProgramTypes.PackageManager.PackageManager)
     (branchId: ProgramTypes.BranchID)
     (name: GenericName)
-    : Stdlib.Result.Result<ProgramTypes.FQFnName.FQFnName, Unit> =
+    : Stdlib.Result.Result<(ProgramTypes.FQFnName.FQFnName *
+      Stdlib.Option.Option<ProgramTypes.PackageLocation>), Unit> =
     match name.modules with
     | [] -> Stdlib.Result.Result.Error()
     | owner :: modules ->
       if owner == "Builtin" && modules == [] then
         let allBuiltins = Builtin.languageToolsAllBuiltinFns ()
         if Stdlib.List.findFirst allBuiltins (fun f -> f.name.name == name.name) != Stdlib.Option.Option.None then
-          (ProgramTypes.FQFnName.Builtin
-            { name = name.name
-              version = name.version })
-          |> ProgramTypes.FQFnName.FQFnName.Builtin
-          |> Stdlib.Result.Result.Ok
+          let fqn =
+            (ProgramTypes.FQFnName.Builtin
+              { name = name.name
+                version = name.version })
+            |> ProgramTypes.FQFnName.FQFnName.Builtin
+          Stdlib.Result.Result.Ok ((fqn, Stdlib.Option.Option.None))
         else
           Stdlib.Result.Result.Error()
       else
@@ -227,8 +248,9 @@ module FnName =
 
         match pm.findFn (branchId, location) with
         | Some hash ->
-          (ProgramTypes.FQFnName.FQFnName.Package hash)
-          |> Stdlib.Result.Result.Ok
+          Stdlib.Result.Result.Ok
+            (((ProgramTypes.FQFnName.FQFnName.Package hash),
+              Stdlib.Option.Option.Some location))
         | None -> Stdlib.Result.Result.Error()
 
 

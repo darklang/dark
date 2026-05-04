@@ -55,20 +55,19 @@ let parseArgs (args: List<String>) : ParsedArgs =
   parseArgsLoop emptyArgs args
 
 
-/// Count live (non-deprecated) dependents on `targetRef`. 0 means no gate
-/// would be triggered by `delete`.
+/// Count live (non-deprecated) dependents on `targetLoc`. 0 means no gate
+/// would be triggered by `delete`. Uses FQN-keyed lookup so a content
+/// collision at another FQN doesn't falsely block deletion.
 let countLiveDependents
   (branchId: Uuid)
-  (targetRef: LanguageTools.ProgramTypes.Reference)
+  (targetLoc: LanguageTools.ProgramTypes.PackageLocation)
+  (targetKind: LanguageTools.ProgramTypes.ItemKind)
   : Int64 =
-  let deps =
-    Builtin.depsGetDependents
-      branchId
-      (LanguageTools.ProgramTypes.Reference.hash targetRef)
+  let deps = Builtin.depsGetDependents branchId [ (targetLoc, targetKind) ]
   let depSets = Query.loadDeprecationSets branchId
   deps
   |> Stdlib.List.filter (fun entry ->
-    let (depHash, _depKind) = entry
+    let (depHash, _depLoc, _depKind) = entry
     Stdlib.Bool.not (Query.isDeprecated depSets depHash))
   |> Stdlib.List.length
 
@@ -104,23 +103,28 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
     | Some itemKind ->
       let currentLoc = state.packageData.currentLocation
-      match Deprecate.resolveTarget branchId currentLoc itemKind target with
-      | None ->
-        Stdlib.printLine (Colors.error $"Could not resolve {itemTypeStr} {target}")
+      match Location.parseRelativeTo currentLoc target with
+      | Error errMsg ->
+        Stdlib.printLine (Colors.error $"Could not resolve {itemTypeStr} {target}: {errMsg}")
         state
-      | Some targetRef ->
-        // Only gate `delete` adds over `deprecate --kind obsolete`: refuse
-        // when LIVE dependents exist. Deprecated-only callers don't block.
-        let depCount = countLiveDependents branchId targetRef
-        if depCount > 0L && Stdlib.Bool.not parsed.force then
-          Stdlib.printLine
-            (Colors.error
-              $"{Stdlib.Int64.toString depCount} live dependent(s) still reference this item.")
-          Stdlib.printLine
-            "Use `deprecate` to give them time to migrate, or pass `--force`."
+      | Ok targetLoc ->
+        match Deprecate.resolveTarget branchId currentLoc itemKind target with
+        | None ->
+          Stdlib.printLine (Colors.error $"Could not resolve {itemTypeStr} {target}")
           state
-        else
-          Deprecate.execute state (toDeprecateArgs parsed itemTypeStr target)
+        | Some _targetRef ->
+          // Only gate `delete` adds over `deprecate --kind obsolete`: refuse
+          // when LIVE dependents exist. Deprecated-only callers don't block.
+          let depCount = countLiveDependents branchId targetLoc itemKind
+          if depCount > 0L && Stdlib.Bool.not parsed.force then
+            Stdlib.printLine
+              (Colors.error
+                $"{Stdlib.Int64.toString depCount} live dependent(s) still reference this item.")
+            Stdlib.printLine
+              "Use `deprecate` to give them time to migrate, or pass `--force`."
+            state
+          else
+            Deprecate.execute state (toDeprecateArgs parsed itemTypeStr target)
 
 
 let help (state: Cli.AppState) : Cli.AppState =

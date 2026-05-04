@@ -1,12 +1,26 @@
 module Darklang.LanguageTools.WrittenTypesToProgramTypes
 
-// Context for expression parsing, used for ESelf handling and EArg conversion
+// Context for expression parsing.
+//   - `currentFnName`: used for ESelf detection in self-recursive calls.
+//   - `argMap`: maps a function arg's name to its index for EArg conversion.
+//   - `localBindings`: names introduced by let-patterns and lambda params
+//     in the current lexical scope. `EVariable(name)` resolves as a local
+//     if the name appears here; otherwise we try to resolve it as a
+//     package reference. Without this, an unqualified `x` that doesn't
+//     resolve to a package value would fall back to `EVariable("x")`
+//     even when there's no actual local binding, which loses the
+//     "intended global" signal — so when `x` is later created,
+//     DeferredResolver has nothing to refresh.
 type Context =
   { currentFnName: Stdlib.Option.Option<List<String>>
-    argMap: Dict<Int64> }
+    argMap: Dict<Int64>
+    localBindings: List<String> }
 
 let defaultContext =
-  Context { currentFnName = Stdlib.Option.Option.None; argMap = Dict {} }
+  Context
+    { currentFnName = Stdlib.Option.Option.None
+      argMap = Dict {}
+      localBindings = [] }
 
 let gid () : Int64 =
   // TODO: fix upper range here
@@ -298,12 +312,18 @@ module Expr =
           if shadowsFunctionName then
             defaultContext
           else
-            // Remove this variable from argMap only if it was a function argument
+            // Remove from argMap if it was a function argument (let
+            // shadows the arg). Add to localBindings so EVariable
+            // lookups know this name is in scope and shouldn't be
+            // re-resolved as a package reference.
             let newArgMap =
               match Stdlib.Dict.get context.argMap name with
               | Some _ -> Stdlib.Dict.remove context.argMap name
               | None -> context.argMap
-            Context { currentFnName = context.currentFnName; argMap = newArgMap }
+            Context
+              { currentFnName = context.currentFnName
+                argMap = newArgMap
+                localBindings = Stdlib.List.push context.localBindings name }
 
         (newContext, ProgramTypes.LetPattern.LPVariable(gid (), name))
       | LPTuple(_, first, _, second, rest, _, _) ->
@@ -319,6 +339,35 @@ module Expr =
         (finalContext, ProgramTypes.LetPattern.LPTuple(gid (), first, second, rest))
 
   module MatchPattern =
+    /// Walk a WT MatchPattern and collect the names introduced by
+    /// `MPVariable` nodes. Used to add pattern-bound names to the
+    /// match arm's `localBindings` so `EVariable` lookups don't try
+    /// to resolve them as package references.
+    let rec bindings (p: WrittenTypes.MatchPattern) : List<String> =
+      match p with
+      | MPVariable(_, name) -> [ name ]
+      | MPList(_, contents, _, _) ->
+        contents
+        |> Stdlib.List.map (fun (pat, _) -> bindings pat)
+        |> Stdlib.List.flatten
+      | MPListCons(_, head, tail, _) ->
+        Stdlib.List.append (bindings head) (bindings tail)
+      | MPTuple(_, first, _, second, rest, _, _) ->
+        let restBindings =
+          rest
+          |> Stdlib.List.map (fun (_, p) -> bindings p)
+          |> Stdlib.List.flatten
+        Stdlib.List.flatten [ bindings first; bindings second; restBindings ]
+      | MPEnum(_, _, fields) ->
+        fields |> Stdlib.List.map bindings |> Stdlib.List.flatten
+      | MPOr(_, patterns) ->
+        // Or-patterns require all branches to bind the same names.
+        // Take the first branch's bindings as representative.
+        match patterns with
+        | first :: _ -> bindings first
+        | [] -> []
+      | _ -> []
+
     let toPT
       (onMissing: NameResolver.OnMissing)
       (p: WrittenTypes.MatchPattern)
@@ -399,13 +448,23 @@ module Expr =
 
       | EPipeLambda(_, pats, body, _, _) ->
         // Start with a clean argMap to prevent lambda params from being converted to EArg
-        let lambdaContext = Context { currentFnName = context.currentFnName; argMap = Stdlib.Dict.empty }
-        let (body, unresolvedNames) =
-          Expr.toPT ctx lambdaContext body
+        let lambdaContext =
+          Context
+            { currentFnName = context.currentFnName
+              argMap = Stdlib.Dict.empty
+              localBindings = context.localBindings }
+        // Run patterns through LetPattern.toPT first so the lambda
+        // body's context knows about the bound names — otherwise they
+        // look unresolved and `EVariable` falls through to package
+        // lookup.
+        let (bodyContext, pats) =
+          pats
+          |> Stdlib.List.fold (lambdaContext, []) (fun (ctx, acc) p ->
+            let (newCtx, ptPattern) = LetPattern.toPT ctx p
+            (newCtx, Stdlib.List.append acc [ ptPattern ]))
 
-        let pats = Stdlib.List.map pats (fun p ->
-          let (_, pat) = LetPattern.toPT lambdaContext p
-          pat)
+        let (body, unresolvedNames) =
+          Expr.toPT ctx bodyContext body
 
         (ProgramTypes.PipeExpr.EPipeLambda(gid (), pats, body), unresolvedNames)
 
@@ -661,18 +720,38 @@ module Expr =
         unresolvedNames)
 
     | EVariable(range, var) ->
-      // Check if this variable is a function argument first
+      // Resolution order:
+      //   1. function argument                            → EArg
+      //   2. local binding (let / lambda / match pattern) → EVariable
+      //      (locals shadow package values of the same name)
+      //   3. package value in current module's scope      → EValue
+      //   4. package fn in current module's scope         → EFnName
+      //   5. otherwise                                    → EVariable,
+      //      so the runtime can still bind runtime-injected names
+      //      (e.g. `request` in HTTP handlers).
       match Stdlib.Dict.get context.argMap var with
       | Some index -> (ProgramTypes.Expr.EArg(gid (), index), [])
       | None ->
-        let unresolved = WrittenTypes.Name.Unresolved(range, [ var ])
-        let value =
-          NameResolver.ValueName.resolve ctx unresolved
-        match value.resolved with
-        | Ok _ -> (ProgramTypes.Expr.EValue(gid (), value), [])
-        | Error _ -> (ProgramTypes.Expr.EVariable (gid ()) var, [])
+        if Stdlib.List.``member`` context.localBindings var then
+          (ProgramTypes.Expr.EVariable (gid ()) var, [])
+        else
+          let asValue =
+            NameResolver.ValueName.resolve
+              ctx
+              (WrittenTypes.Name.Unresolved(range, [ var ]))
 
-    // TODO: rethink this
+          match asValue.resolved with
+          | Ok _ -> (ProgramTypes.Expr.EValue(gid (), asValue), [])
+          | Error _ ->
+            let asFn =
+              NameResolver.FnName.resolve
+                ctx
+                (WrittenTypes.Name.Unresolved(range, [ var ]))
+
+            match asFn.resolved with
+            | Ok _ -> (ProgramTypes.Expr.EFnName(gid (), asFn), [])
+            | Error _ -> (ProgramTypes.Expr.EVariable(gid (), var), [])
+
     | EValueOrFn(_, id) ->
       let (valueOrFn, unresolvedNames) =
         Identifiers.QualifiedValueOrFn.toPT ctx id
@@ -681,10 +760,14 @@ module Expr =
       | Ok(Value v) ->
         (ProgramTypes.Expr.EValue(gid (), v), unresolvedNames)
       | Ok(Fn f) -> (ProgramTypes.Expr.EFnName(gid (), f), unresolvedNames)
-      | Error _ ->
-        // CLEANUP: Rethink this solution. It was added to allow failure during the first pass of parsing, where names aren't yet resolved
-        (ProgramTypes.Expr.EVariable (gid ()) id.valueOrFn.name,
-          unresolvedNames)
+      | Error nr ->
+        // Qualified name didn't resolve. Keep the failed NameResolution
+        // (with originalName preserved) so DeferredResolver can refresh
+        // it once the target lands. The earlier fallback to
+        // `EVariable(lastName)` threw away the qualification and
+        // looked indistinguishable from a let-bound local — which
+        // meant forward references to values never auto-resolved.
+        (ProgramTypes.Expr.EValue(gid (), nr), unresolvedNames)
 
     | ERecordFieldAccess(_, expr, (_, fieldName), _) ->
       let (expr, unresolvedNames) = toPT ctx context expr
@@ -715,15 +798,19 @@ module Expr =
     | EMatch(_, expr, cases, _, _) ->
       let (cases, casesUnresolvedNames) =
         (Stdlib.List.map cases (fun case ->
-          let pat =
-            MatchPattern.toPT ctx.onMissing (Stdlib.Tuple3.second case.pat)
+          let wtPat = Stdlib.Tuple3.second case.pat
+          let pat = MatchPattern.toPT ctx.onMissing wtPat
 
-          // Match patterns introduce a new scope where function arguments
-          // should not be converted to EArg, so clear the argMap
-          let matchContext =
-            Context
-              { currentFnName = context.currentFnName
-                argMap = Stdlib.Dict.empty }
+          // Match patterns introduce names into the arm's scope. Add
+          // them to localBindings so `EVariable` lookups in `rhs` /
+          // `whenCondition` know these names are local and shouldn't
+          // be re-resolved as package references.
+          let armContext =
+            { context with
+                localBindings =
+                  Stdlib.List.append
+                    context.localBindings
+                    (MatchPattern.bindings wtPat) }
 
           let (whenCondition, whenUnresolvedNames) =
             match case.whenCondition with
@@ -732,12 +819,12 @@ module Expr =
               let (_, e) = e
 
               let (e, unresolvedNames) =
-                toPT ctx context e
+                toPT ctx armContext e
 
               (Stdlib.Option.Option.Some e, unresolvedNames)
 
           let (rhs, rhsUnresolvedNames) =
-            toPT ctx context case.rhs
+            toPT ctx armContext case.rhs
 
           let matchCasesUnresolvedNames =
             Stdlib.List.flatten [ whenUnresolvedNames; rhsUnresolvedNames ]
@@ -791,7 +878,11 @@ module Expr =
 
     | ELambda(_, pats, body, _, _) ->
       // Start with a clean argMap to prevent lambda params from being converted to EArg
-      let lambdaContext = Context { currentFnName = context.currentFnName; argMap = Stdlib.Dict.empty }
+      let lambdaContext =
+        Context
+          { currentFnName = context.currentFnName
+            argMap = Stdlib.Dict.empty
+            localBindings = context.localBindings }
       let (finalContext, pats) =
         pats
         |> Stdlib.List.fold (lambdaContext, []) (fun (lctx, acc) p ->
@@ -809,8 +900,14 @@ module Expr =
 
       match resolvedFnName.resolved with
       | Error _ when Stdlib.List.isEmpty fnName.modules ->
-        // If function resolution failed and it's an unqualified name, treat as variable
-        (ProgramTypes.Expr.EVariable(gid (), fnName.fn.name), [])
+        // Unqualified EFnName failed to resolve. If the name is a local
+        // binding (let, lambda param, match pattern), treat as variable.
+        // Otherwise keep the failed NR so DeferredResolver can refresh
+        // once the target fn is created.
+        if Stdlib.List.``member`` context.localBindings fnName.fn.name then
+          (ProgramTypes.Expr.EVariable(gid (), fnName.fn.name), [])
+        else
+          (ProgramTypes.Expr.EFnName(gid (), resolvedFnName), unresolvedNames)
       | _ ->
         // Function resolution succeeded or it's a qualified name, keep as EFnName
         (ProgramTypes.Expr.EFnName(gid (), resolvedFnName), unresolvedNames)
@@ -1327,7 +1424,12 @@ module FunctionDeclaration =
         |> Stdlib.List.indexedMap (fun i param -> (param.name, i))
         |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (name, idx) ->
           Stdlib.Dict.set acc name idx)
-      let functionContext = Context { currentFnName = Stdlib.Option.Option.Some (Stdlib.List.append ctx.currentModule [ fn.name.name ]); argMap = argMap }
+      let functionContext =
+        Context
+          { currentFnName =
+              Stdlib.Option.Option.Some (Stdlib.List.append ctx.currentModule [ fn.name.name ])
+            argMap = argMap
+            localBindings = [] }
       Expr.toPT ctx functionContext fn.body
 
     let unresolvedNames =
