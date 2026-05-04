@@ -13,7 +13,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
     Stdlib.printLine "Nothing to discard."
     state
   else
-    Stdlib.printLine "Will discard:"
+    let header = if autoConfirm then "Discarded:" else "Will discard:"
+    Stdlib.printLine header
 
     if summary.types > 0L then
       Stdlib.printLine $"  {Builtin.int64ToString summary.types} type(s)"
