@@ -9,6 +9,10 @@
 -->
 <Project ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
   <PropertyGroup>
+    <!-- Shared across every fsproj in backend/ -->
+    <TargetFramework>net10.0</TargetFramework>
+    <LangVersion>10.0</LangVersion>
+
     <DarkBuildDir>/home/dark/app/backend/Build</DarkBuildDir>
     <BaseOutputPath>$(DarkBuildDir)/out/$(MSBuildProjectName)</BaseOutputPath>
     <BaseIntermediateOutputPath>$(DarkBuildDir)/obj/$(MSBuildProjectName)</BaseIntermediateOutputPath>
