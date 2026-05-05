@@ -1,0 +1,122 @@
+/// Standard libraries for Directories
+module Builtins.Cli.Libs.Directory
+
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
+open Prelude
+open LibExecution.RuntimeTypes
+module VT = LibExecution.ValueType
+module Dval = LibExecution.Dval
+module Builtin = LibExecution.Builtin
+open Builtin.Shortcuts
+
+
+let fns () : List<BuiltInFn> =
+  [ { name = fn "directoryCurrent" 0
+      typeParams = []
+      parameters = [ Param.make "" TUnit "" ]
+      returnType = TString
+      description = "Returns the current working directory"
+      fn =
+        (function
+        | _, _, _, [ DUnit ] ->
+          uply {
+            let contents = System.IO.Directory.GetCurrentDirectory()
+            return DString contents
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "directoryCreate" 0
+      typeParams = []
+      parameters = [ Param.make "path" TString "" ]
+      returnType = TypeReference.result TUnit TString
+      description =
+        "Creates a new directory at the specified <param path>. If the directory already exists, no action is taken. Returns a Result type indicating success or failure."
+      fn =
+        let resultOk r = Dval.resultOk KTUnit KTString r |> Ply
+        let resultError r = Dval.resultError KTUnit KTString r |> Ply
+        (function
+        | _, _, _, [ DString path ] ->
+          try
+            System.IO.Directory.CreateDirectory(path)
+            |> ignore<System.IO.DirectoryInfo>
+            resultOk DUnit
+          with e ->
+            resultError (DString e.Message)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "directoryDelete" 0
+      typeParams = []
+      parameters = [ Param.make "path" TString "" ]
+      returnType = TypeReference.result TUnit TString
+      description =
+        "Deletes the directory at the specified <param path>. If <param recursive> is set to true, it will delete the directory and its contents. If set to false (default), it will only delete an empty directory. Returns a Result type indicating success or failure."
+      fn =
+        let resultOk r = Dval.resultOk KTUnit KTString r |> Ply
+        let resultError r = Dval.resultError KTUnit KTString r |> Ply
+        (function
+        | _, _, _, [ DString path ] ->
+          try
+            System.IO.Directory.Delete(path, false)
+            resultOk DUnit
+          with e ->
+            resultError (DString e.Message)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "directoryList" 0
+      typeParams = []
+      parameters = [ Param.make "path" TString "" ]
+      returnType = TList TString
+      description = "Returns the directory at <param path>"
+      fn =
+        (function
+        | _, _, _, [ DString path ] ->
+          uply {
+            // TODO make async
+            let contents =
+              try
+                System.IO.Directory.EnumerateFileSystemEntries path |> Seq.toList
+              with _ ->
+                []
+
+            return DList(VT.string, List.map DString contents)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "getCurrentExecutablePath" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TString
+      description = "Returns the full path to the currently running executable"
+      fn =
+        (function
+        | _, _, _, [ DUnit ] ->
+          uply {
+            let exePath =
+              System.Diagnostics.Process.GetCurrentProcess().MainModule.FileName
+            return DString exePath
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated } ]
+
+
+let builtins () : Builtins = Builtin.make [] (fns ())

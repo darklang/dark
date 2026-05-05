@@ -12,7 +12,7 @@ module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module PackageRefs = LibExecution.PackageRefs
-module BuiltinCli = BuiltinCli.Builtin
+module BuiltinCli = Builtins.Cli.Builtin
 
 // Dual logging (console + cli.log file)
 let private logError (message : string) : unit =
@@ -65,8 +65,8 @@ let builtins : RT.Builtins =
   // Outer CLI uses main branch for its own execution context.
   // User scripts get branch-specific context via cliParseAndExecuteScript.
   LibExecution.Builtin.combine
-    [ BuiltinCliHost.Libs.Cli.builtinsToUse ()
-      BuiltinCliHost.Builtin.builtins ()
+    [ Builtins.CliHost.Libs.Cli.builtinsToUse ()
+      Builtins.CliHost.Builtin.builtins ()
       BuiltinCli.builtins () ]
     []
 

@@ -15,13 +15,13 @@
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
     <ProjectReference Include="../LibSerialization/LibSerialization.fsproj" />
 
-    <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
-    <ProjectReference Include="../BuiltinCli/BuiltinCli.fsproj" />
-    <ProjectReference Include="../BuiltinPM/BuiltinPM.fsproj" />
-    <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
-    <ProjectReference Include="../BuiltinHttpServer/BuiltinHttpServer.fsproj" />
-    <ProjectReference Include="../BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
-    <ProjectReference Include="../BuiltinDB/BuiltinDB.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Execution/Builtins.Execution.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Cli/Builtins.Cli.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.PM/Builtins.PM.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.HttpServer/Builtins.HttpServer.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.DarkInternal/Builtins.DarkInternal.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.DB/Builtins.DB.fsproj" />
     <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
   </ItemGroup>
   <ItemGroup>

@@ -9,13 +9,13 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../BuiltinExecution/BuiltinExecution.fsproj" />
-    <ProjectReference Include="../BuiltinPM/BuiltinPM.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Execution/Builtins.Execution.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.PM/Builtins.PM.fsproj" />
     <ProjectReference Include="../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
-    <ProjectReference Include="../BuiltinDB/BuiltinDB.fsproj" />
-    <ProjectReference Include="../BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
-    <ProjectReference Include="../BuiltinHttpServer/BuiltinHttpServer.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.DB/Builtins.DB.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.DarkInternal/Builtins.DarkInternal.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.HttpServer/Builtins.HttpServer.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <None Include="paket.references" />

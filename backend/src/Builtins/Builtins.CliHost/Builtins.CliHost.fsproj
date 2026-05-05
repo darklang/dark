@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <!-- Publishing configuration -->
+    <IsPublishable>false</IsPublishable>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+    <Compile Include="Utils.fs" />
+    <Compile Include="Libs/Canvas.fs" />
+    <Compile Include="Libs/Traces.fs" />
+    <Compile Include="Libs/Cli.fs" />
+    <Compile Include="Builtin.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Prelude/Prelude.fsproj" />
+    <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../Builtins.Execution/Builtins.Execution.fsproj" />
+    <ProjectReference Include="../Builtins.Cli/Builtins.Cli.fsproj" />
+    <ProjectReference Include="../Builtins.PM/Builtins.PM.fsproj" />
+    <ProjectReference Include="../Builtins.HttpServer/Builtins.HttpServer.fsproj" />
+    <ProjectReference Include="../../LibDB/LibDB.fsproj" />
+    <ProjectReference Include="../../LibCloud/LibCloud.fsproj" />
+    <ProjectReference Include="../../LibSqlite/LibSqlite.fsproj" />
+    <ProjectReference Include="../Builtins.DB/Builtins.DB.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\..\.paket\Paket.Restore.targets" />
+</Project>

@@ -1,0 +1,220 @@
+module Builtins.PM.Libs.Branches
+
+open Prelude
+open LibExecution.RuntimeTypes
+
+module PT = LibExecution.ProgramTypes
+module Builtin = LibExecution.Builtin
+module D = LibExecution.Dval
+module PT2DT = LibExecution.ProgramTypesToDarkTypes
+module NR = LibExecution.RuntimeTypes.NameResolution
+
+open Builtin.Shortcuts
+
+
+let private branchType = TCustomType(NR.ok (PT2DT.Branch.typeName ()), [])
+
+let fns () : List<BuiltInFn> =
+  [ { name = fn "scmBranchCreate" 0
+      typeParams = []
+      parameters =
+        [ Param.make "name" TString "Branch name"
+          Param.make "parentBranchId" TUuid "Parent branch ID" ]
+      returnType = branchType
+      description = "Create a new branch from the given parent branch."
+      fn =
+        function
+        | _, _, _, [ DString name; DUuid parentBranchId ] ->
+          uply {
+            let! branch = LibDB.Branches.create name parentBranchId
+            return PT2DT.Branch.toDT branch
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmBranchList" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TList branchType
+      description = "List all active (non-merged, non-archived) branches."
+      fn =
+        function
+        | _, _, _, [ DUnit ] ->
+          uply {
+            let! branches = LibDB.Branches.list ()
+            return
+              branches
+              |> List.map PT2DT.Branch.toDT
+              |> D.list (PT2DT.Branch.knownType ())
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmBranchListAll" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TList branchType
+      description = "List all branches including archived and merged."
+      fn =
+        function
+        | _, _, _, [ DUnit ] ->
+          uply {
+            let! branches = LibDB.Branches.listAll ()
+            return
+              branches
+              |> List.map PT2DT.Branch.toDT
+              |> D.list (PT2DT.Branch.knownType ())
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmBranchGet" 0
+      typeParams = []
+      parameters = [ Param.make "id" TUuid "Branch ID" ]
+      returnType = TypeReference.option branchType
+      description = "Get a branch by ID."
+      fn =
+        function
+        | _, _, _, [ DUuid id ] ->
+          uply {
+            let! branchOpt = LibDB.Branches.get id
+            return
+              branchOpt
+              |> Option.map PT2DT.Branch.toDT
+              |> D.option (PT2DT.Branch.knownType ())
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmBranchGetByName" 0
+      typeParams = []
+      parameters = [ Param.make "name" TString "Branch name" ]
+      returnType = TypeReference.option branchType
+      description = "Get a branch by name."
+      fn =
+        function
+        | _, _, _, [ DString name ] ->
+          uply {
+            let! branchOpt = LibDB.Branches.getByName name
+            return
+              branchOpt
+              |> Option.map PT2DT.Branch.toDT
+              |> D.option (PT2DT.Branch.knownType ())
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmBranchRename" 0
+      typeParams = []
+      parameters =
+        [ Param.make "id" TUuid "Branch ID"
+          Param.make "newName" TString "New name" ]
+      returnType = TypeReference.result TUnit TString
+      description = "Rename a branch."
+      fn =
+        function
+        | _, _, _, [ DUuid id; DString newName ] ->
+          uply {
+            let! result = LibDB.Branches.rename id newName
+            return
+              result
+              |> Result.map (fun () -> DUnit)
+              |> Result.mapError DString
+              |> D.result KTUnit KTString
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmBranchDelete" 0
+      typeParams = []
+      parameters = [ Param.make "id" TUuid "Branch ID" ]
+      returnType = TypeReference.result TUnit TString
+      description = "Archive a branch (soft delete)."
+      fn =
+        function
+        | _, _, _, [ DUuid id ] ->
+          uply {
+            let! result = LibDB.Branches.archive id
+            return
+              result
+              |> Result.map (fun () -> DUnit)
+              |> Result.mapError DString
+              |> D.result KTUnit KTString
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmBranchArchive" 0
+      typeParams = []
+      parameters = [ Param.make "id" TUuid "Branch ID" ]
+      returnType = TypeReference.result TUnit TString
+      description = "Archive a branch (soft delete)."
+      fn =
+        function
+        | _, _, _, [ DUuid id ] ->
+          uply {
+            let! result = LibDB.Branches.archive id
+            return
+              result
+              |> Result.map (fun () -> DUnit)
+              |> Result.mapError DString
+              |> D.result KTUnit KTString
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmBranchUnarchive" 0
+      typeParams = []
+      parameters = [ Param.make "id" TUuid "Branch ID" ]
+      returnType = TypeReference.result TUnit TString
+      description = "Unarchive a branch."
+      fn =
+        function
+        | _, _, _, [ DUuid id ] ->
+          uply {
+            let! result = LibDB.Branches.unarchive id
+            return
+              result
+              |> Result.map (fun () -> DUnit)
+              |> Result.mapError DString
+              |> D.result KTUnit KTString
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated } ]
+
+
+let values () : List<BuiltInValue> =
+  [ { name = value "scmMainBranchId" 0
+      typ = TUuid
+      description = "The well-known main branch UUID."
+      deprecated = NotDeprecated
+      body = DUuid PT.mainBranchId } ]
+
+
+let builtins () : Builtins = LibExecution.Builtin.make (values ()) (fns ())

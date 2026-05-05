@@ -61,7 +61,7 @@
   <ItemGroup>
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
-    <ProjectReference Include="../BuiltinCliHost/BuiltinCliHost.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="EmbeddedResources.fs" />

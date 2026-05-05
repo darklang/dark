@@ -109,17 +109,17 @@ let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
 
 
 let builtins
-  (httpConfig : BuiltinExecution.Libs.HttpClient.Configuration)
+  (httpConfig : Builtins.Execution.Libs.HttpClient.Configuration)
   (pm : PT.PackageManager)
   : RT.Builtins =
   LibExecution.Builtin.combine
     [ LibTest.builtins ()
-      BuiltinExecution.Builtin.builtins httpConfig
-      BuiltinPM.Builtin.builtins pm
-      BuiltinHttpServer.Builtin.builtins ()
-      BuiltinDB.Builtin.builtins ()
-      BuiltinDarkInternal.Builtin.builtins ()
-      BuiltinCli.Builtin.builtins () ]
+      Builtins.Execution.Builtin.builtins httpConfig
+      Builtins.PM.Builtin.builtins pm
+      Builtins.HttpServer.Builtin.builtins ()
+      Builtins.DB.Builtin.builtins ()
+      Builtins.DarkInternal.Builtin.builtins ()
+      Builtins.Cli.Builtin.builtins () ]
     []
 
 let cloudBuiltIns (pm : PT.PackageManager) =
@@ -131,7 +131,7 @@ let cloudBuiltIns (pm : PT.PackageManager) =
 
 let localBuiltIns (pm : PT.PackageManager) =
   let httpConfig =
-    { BuiltinExecution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
+    { Builtins.Execution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
   builtins httpConfig pm
 
 

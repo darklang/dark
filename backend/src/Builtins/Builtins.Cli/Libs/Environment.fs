@@ -1,0 +1,77 @@
+/// Standard libraries for Environment Variables
+module Builtins.Cli.Libs.Environment
+
+open System.Threading.Tasks
+open FSharp.Control.Tasks
+
+open Prelude
+open LibExecution.RuntimeTypes
+
+module VT = LibExecution.ValueType
+module Dval = LibExecution.Dval
+module Builtin = LibExecution.Builtin
+open Builtin.Shortcuts
+
+
+let fns () : List<BuiltInFn> =
+  [ { name = fn "environmentGet" 0
+      typeParams = []
+      parameters = [ Param.make "varName" TString "" ]
+      returnType = TypeReference.option TString
+      description =
+        "Gets the value of the environment variable with the given <param varName> if it exists."
+      fn =
+        (function
+        | _, _, _, [ DString varName ] ->
+          let envValue = System.Environment.GetEnvironmentVariable(varName)
+
+          if isNull envValue then
+            Dval.optionNone KTString |> Ply
+          else
+            Dval.optionSome KTString (DString envValue) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "environmentGetAll" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TDict TString
+      description =
+        "Returns a list of tuples containing all the environment variables and their values."
+      fn =
+        (function
+        | _, _, _, [ DUnit ] ->
+          let envVars = System.Environment.GetEnvironmentVariables()
+
+          let envMap =
+            envVars
+            |> Seq.cast<System.Collections.DictionaryEntry>
+            |> Seq.map (fun kv -> (string kv.Key, DString(string kv.Value)))
+            |> Seq.toList
+            |> Dval.dict KTString
+
+          Ply(envMap)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "getBuildHash" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TString
+      description = "Returns the git hash of the current CLI build"
+      fn =
+        function
+        | _, _, [], [ DUnit ] -> uply { return DString LibConfig.Config.buildHash }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated } ]
+
+
+let builtins () : Builtins = Builtin.make [] (fns ())

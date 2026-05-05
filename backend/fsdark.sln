@@ -29,7 +29,7 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibTreeSitter", "src\LibTre
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibParser", "src\LibParser\LibParser.fsproj", "{4D8F42D9-28BA-4D96-A340-52B38E8F47DD}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinExecution", "src\BuiltinExecution\BuiltinExecution.fsproj", "{BBFC824F-A0DE-4A28-B82F-49C04EBA7475}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.Execution", "src\Builtins\Builtins.Execution\Builtins.Execution.fsproj", "{BBFC824F-A0DE-4A28-B82F-49C04EBA7475}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibConfig", "src\LibConfig\LibConfig.fsproj", "{524e142b-bfb1-4f4b-8e67-bfe82301f7c6}"
 EndProject
@@ -43,11 +43,11 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibSerialization", "src\Lib
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibService", "src\LibService\LibService.fsproj", "{824DD2A5-7F01-4A8A-9ABD-9F91F52582AD}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinDB", "src\BuiltinDB\BuiltinDB.fsproj", "{82CA75E9-53BD-4324-B86B-44F280BAF331}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.DB", "src\Builtins\Builtins.DB\Builtins.DB.fsproj", "{82CA75E9-53BD-4324-B86B-44F280BAF331}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibCloudExecution", "src\LibCloudExecution\LibCloudExecution.fsproj", "{FA55A52D-B880-4931-A121-85C8DAD8DD28}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinDarkInternal", "src\BuiltinDarkInternal\BuiltinDarkInternal.fsproj", "{B6933551-A7A3-4A85-BEF4-43214ABB04DF}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.DarkInternal", "src\Builtins\Builtins.DarkInternal\Builtins.DarkInternal.fsproj", "{B6933551-A7A3-4A85-BEF4-43214ABB04DF}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibCloud", "src\LibCloud\LibCloud.fsproj", "{3FC57943-9D51-49AE-9FBD-4A112B4F68D6}"
 EndProject
@@ -58,11 +58,11 @@ EndProject
 # CLI stuff
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Cli", "src\Cli\Cli.fsproj", "{DF812CBE-894C-4C90-9EDC-4558983CCDEA}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinCli", "src\BuiltinCli\BuiltinCli.fsproj", "{A44BDF6D-0D93-4AA4-9DFA-F48365A31B26}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.Cli", "src\Builtins\Builtins.Cli\Builtins.Cli.fsproj", "{A44BDF6D-0D93-4AA4-9DFA-F48365A31B26}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinCliHost", "src\BuiltinCliHost\BuiltinCliHost.fsproj", "{B199C1DE-48A2-47B4-9672-BCCB7E4F8C78}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.CliHost", "src\Builtins\Builtins.CliHost\Builtins.CliHost.fsproj", "{B199C1DE-48A2-47B4-9672-BCCB7E4F8C78}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BuiltinHttpServer", "src\BuiltinHttpServer\BuiltinHttpServer.fsproj", "{7A3E4BC2-D5F1-4A8E-9B3C-6F2D1E8A4C5B}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.HttpServer", "src\Builtins\Builtins.HttpServer\Builtins.HttpServer.fsproj", "{7A3E4BC2-D5F1-4A8E-9B3C-6F2D1E8A4C5B}"
 EndProject
 
 # Tests

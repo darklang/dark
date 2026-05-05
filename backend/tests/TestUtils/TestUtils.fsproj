@@ -6,13 +6,13 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../../src/BuiltinExecution/BuiltinExecution.fsproj" />
-    <ProjectReference Include="../../src/BuiltinCli/BuiltinCli.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Execution/Builtins.Execution.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Cli/Builtins.Cli.fsproj" />
     <ProjectReference Include="../../src/LibSqlite/LibSqlite.fsproj" />
     <ProjectReference Include="../../src/LibDB/LibDB.fsproj" />
     <ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" />
     <ProjectReference Include="../../src/LibCloud/LibCloud.fsproj" />
-    <ProjectReference Include="../../src/BuiltinHttpServer/BuiltinHttpServer.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.HttpServer/Builtins.HttpServer.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="PTShortcuts.fs" />

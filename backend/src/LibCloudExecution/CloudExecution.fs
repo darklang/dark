@@ -27,11 +27,11 @@ let pmPT = LibDB.PackageManager.pt
 
 let builtins : RT.Builtins =
   LibExecution.Builtin.combine
-    [ BuiltinExecution.Builtin.builtins HttpClient.configuration
-      BuiltinPM.Builtin.builtins pmPT
-      BuiltinHttpServer.Builtin.builtins ()
-      BuiltinDB.Builtin.builtins ()
-      BuiltinDarkInternal.Builtin.builtins () ]
+    [ Builtins.Execution.Builtin.builtins HttpClient.configuration
+      Builtins.PM.Builtin.builtins pmPT
+      Builtins.HttpServer.Builtin.builtins ()
+      Builtins.DB.Builtin.builtins ()
+      Builtins.DarkInternal.Builtin.builtins () ]
     []
 
 

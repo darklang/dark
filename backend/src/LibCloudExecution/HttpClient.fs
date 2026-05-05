@@ -89,7 +89,7 @@ module LocalAccess =
       || (eq k "X-Google-Metadata-Request" && eq v "True"))
     |> Option.isSome
 
-let configuration : BuiltinExecution.Libs.HttpClient.Configuration =
+let configuration : Builtins.Execution.Libs.HttpClient.Configuration =
   { timeoutInMs = LibCloud.Config.httpclientTimeoutInMs
     allowedIP = (fun ip -> not <| LocalAccess.bannedIp ip)
     allowedHost = (fun host -> not <| LocalAccess.bannedHost host)

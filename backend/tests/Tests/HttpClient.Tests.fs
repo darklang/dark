@@ -441,7 +441,7 @@ let testsFromFiles version =
 // DStream HTTP tests and the file-driven httpclient.tests corpus.
 // ---------------
 module MockHelpers =
-  module HC = BuiltinExecution.Libs.HttpClient
+  module HC = Builtins.Execution.Libs.HttpClient
 
   let httpConfig : HC.Configuration = { HC.defaultConfig with timeoutInMs = 5000 }
 
@@ -481,7 +481,7 @@ module MockHelpers =
 // the whole point of the test.
 // ————————————————————————————————————————————————————————————
 module StreamDvalTests =
-  module HC = BuiltinExecution.Libs.HttpClient
+  module HC = Builtins.Execution.Libs.HttpClient
   module RT = LibExecution.RuntimeTypes
   module VT = LibExecution.ValueType
 

@@ -8,14 +8,14 @@
     <ProjectReference Include="../../src/LibParser/LibParser.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/LibTreeSitter/LibTreeSitter.fsproj" />
-    <ProjectReference Include="../../src/BuiltinExecution/BuiltinExecution.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Execution/Builtins.Execution.fsproj" />
     <ProjectReference Include="../../src/LibDB/LibDB.fsproj" />
     <ProjectReference Include="../../src/LibSqlite/LibSqlite.fsproj" />
 
     <!-- cloud -->
     <ProjectReference Include="../../src/LibSerialization/LibSerialization.fsproj" />
-    <ProjectReference Include="../../src/BuiltinDB/BuiltinDB.fsproj" />
-    <ProjectReference Include="../../src/BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.DB/Builtins.DB.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.DarkInternal/Builtins.DarkInternal.fsproj" />
     <ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" />
     <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
 
