@@ -530,7 +530,7 @@ let createCliTracer
           skipTracing = false }
     storeTraceInput = fun _ _ _ -> ()
     storeTraceResults =
-      fun exeState ->
+      fun _exeState ->
 #if DEBUG
         storeTrace
           _dbScope
@@ -540,7 +540,7 @@ let createCliTracer
           _inputVarName
           _inputDval
           state
-          exeState
+          _exeState
 #else
         uply { return () }
 #endif
