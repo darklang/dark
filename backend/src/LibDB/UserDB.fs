@@ -439,7 +439,7 @@ let deleteAll (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
 // stats/locked/unlocked (not _locking_)
 // -------------------------
 // let statsPluck
-//   (canvasID : CanvasID)
+//   (canvasID : uuid)
 //   (db : RT.DB.T)
 //   : Ply<Option<RT.Dval * string>> =
 //   uply {
@@ -462,7 +462,7 @@ let deleteAll (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
 //     return result |> Option.map (fun (data, key) -> (dbToDval exeState db data, key))
 //   }
 
-let statsCount (canvasID : CanvasID) (db : RT.DB.T) : Task<int> =
+let statsCount (canvasID : uuid) (db : RT.DB.T) : Task<int> =
   Sql.query
     "SELECT COUNT(*) as count
     FROM user_data_v0
@@ -481,7 +481,7 @@ let statsCount (canvasID : CanvasID) (db : RT.DB.T) : Task<int> =
 // a database is unlocked if it has no records, and thus its schema can be
 // changed without a migration.
 
-let all (canvasID : CanvasID) : Task<List<tlid>> =
+let all (canvasID : uuid) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid
     FROM toplevels_v0
@@ -491,7 +491,7 @@ let all (canvasID : CanvasID) : Task<List<tlid>> =
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 
-let unlocked (canvasID : CanvasID) : Task<List<tlid>> =
+let unlocked (canvasID : uuid) : Task<List<tlid>> =
   // this will need to be fixed when we allow migrations
   // Note: tl.module IS NULL means it's a db; anything else will be
   // HTTP/REPL/CRON/WORKER

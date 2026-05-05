@@ -29,7 +29,7 @@ module Serialize = LibCloud.Serialize
 
 open TestUtils.TestUtils
 
-let setupWorkers (canvasID : CanvasID) (workers : List<string>) : Task<unit> =
+let setupWorkers (canvasID : uuid) (workers : List<string>) : Task<unit> =
   task {
     let tls =
       workers
@@ -43,7 +43,7 @@ let setupWorkers (canvasID : CanvasID) (workers : List<string>) : Task<unit> =
     do! Canvas.saveTLIDs canvasID tls
   }
 
-let setupDBs (canvasID : CanvasID) (dbs : List<PT.DB.T>) : Task<unit> =
+let setupDBs (canvasID : uuid) (dbs : List<PT.DB.T>) : Task<unit> =
   task {
     let tls = dbs |> List.map (fun db -> PT.Toplevel.TLDB db, Serialize.NotDeleted)
     do! Canvas.saveTLIDs canvasID tls

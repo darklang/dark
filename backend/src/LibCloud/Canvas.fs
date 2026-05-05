@@ -18,7 +18,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
 let createWithExactID
-  (id : CanvasID)
+  (id : uuid)
   (accountID : Option<UserID>)
   (domain : string)
   : Task<unit> =
@@ -41,14 +41,14 @@ let createWithExactID
       |> Sql.executeStatementAsync
   }
 
-let create (accountID : Option<UserID>) (domain : string) : Task<CanvasID> =
+let create (accountID : Option<UserID>) (domain : string) : Task<uuid> =
   task {
     let id = System.Guid.NewGuid()
     do! createWithExactID id accountID domain
     return id
   }
 
-let canvasIDForDomain (domain : string) : Task<Option<CanvasID>> =
+let canvasIDForDomain (domain : string) : Task<Option<uuid>> =
   Sql.query
     "SELECT canvas_id
     FROM domains_v0
@@ -56,7 +56,7 @@ let canvasIDForDomain (domain : string) : Task<Option<CanvasID>> =
   |> Sql.parameters [ "domain", Sql.string domain ]
   |> Sql.executeRowOptionAsync (fun read -> read.uuid "canvas_id")
 
-let domainsForCanvasID (id : CanvasID) : Task<List<string>> =
+let domainsForCanvasID (id : uuid) : Task<List<string>> =
   Sql.query
     "SELECT domain
     FROM domains_v0
@@ -64,7 +64,7 @@ let domainsForCanvasID (id : CanvasID) : Task<List<string>> =
   |> Sql.parameters [ "id", Sql.uuid id ]
   |> Sql.executeAsync (fun read -> read.string "domain")
 
-let addDomain (canvasID : CanvasID) (domain : string) : Task<unit> =
+let addDomain (canvasID : uuid) (domain : string) : Task<unit> =
   Sql.query
     "INSERT INTO domains_v0
        (canvas_id, domain)
@@ -73,12 +73,12 @@ let addDomain (canvasID : CanvasID) (domain : string) : Task<unit> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "domain", Sql.string domain ]
   |> Sql.executeStatementAsync
 
-let allCanvasIDs () : Task<List<CanvasID>> =
+let allCanvasIDs () : Task<List<uuid>> =
   Sql.query "SELECT id FROM canvases_v0"
   |> Sql.executeAsync (fun read -> read.uuid "id")
 
 
-let getOwner (id : CanvasID) : Task<Option<UserID>> =
+let getOwner (id : uuid) : Task<Option<UserID>> =
   Sql.query
     "SELECT account_id
     FROM canvases_v0
@@ -86,7 +86,7 @@ let getOwner (id : CanvasID) : Task<Option<UserID>> =
   |> Sql.parameters [ "id", Sql.uuid id ]
   |> Sql.executeRowOptionAsync (fun read -> read.uuid "account_id")
 
-let getCanvasesForAccount (accountID : UserID) : Task<List<CanvasID>> =
+let getCanvasesForAccount (accountID : UserID) : Task<List<uuid>> =
   Sql.query
     "SELECT id
     FROM canvases_v0
@@ -94,7 +94,7 @@ let getCanvasesForAccount (accountID : UserID) : Task<List<CanvasID>> =
   |> Sql.parameters [ "accountID", Sql.uuid accountID ]
   |> Sql.executeAsync (fun read -> read.uuid "id")
 
-let getOrCreateForAccount (accountID : UserID) (domain : string) : Task<CanvasID> =
+let getOrCreateForAccount (accountID : UserID) (domain : string) : Task<uuid> =
   task {
     let! existing = getCanvasesForAccount accountID
     match existing with
@@ -111,7 +111,7 @@ let getOrCreateForAccount (accountID : UserID) (domain : string) : Task<CanvasID
 /// data which is meaningful, such as creation date. These can be fetched separately.
 /// </remarks>
 type T =
-  { id : CanvasID
+  { id : uuid
 
     handlers : Map<tlid, PT.Handler.T>
     dbs : Map<tlid, PT.DB.T>
@@ -223,14 +223,14 @@ let verify (c : T) : T =
 //  Loading/saving
 //  -------------------------
 
-let empty (id : CanvasID) =
+let empty (id : uuid) =
   { id = id
     handlers = Map.empty
     dbs = Map.empty
     deletedHandlers = Map.empty
     deletedDBs = Map.empty }
 
-let loadFrom (id : CanvasID) (tlids : List<tlid>) : Task<T> =
+let loadFrom (id : uuid) (tlids : List<tlid>) : Task<T> =
   task {
     try
       // load
@@ -244,22 +244,22 @@ let loadFrom (id : CanvasID) (tlids : List<tlid>) : Task<T> =
       return Exception.reraiseAsPageable "canvas load failed" tags e
   }
 
-let loadAll (id : CanvasID) : Task<T> =
+let loadAll (id : uuid) : Task<T> =
   task {
     let! tlids = Serialize.fetchAllIncludingDeletedTLIDs id
     return! loadFrom id tlids
   }
 
-let loadHttpHandlers (id : CanvasID) (path : string) (method : string) : Task<T> =
+let loadHttpHandlers (id : uuid) (path : string) (method : string) : Task<T> =
   task {
     let! tlids = Serialize.fetchReleventTLIDsForHTTP id path method
     return! loadFrom id tlids
   }
 
-let loadTLIDs (id : CanvasID) (tlids : tlid list) : Task<T> = loadFrom id tlids
+let loadTLIDs (id : uuid) (tlids : tlid list) : Task<T> = loadFrom id tlids
 
 
-let loadTLIDsWithContext (id : CanvasID) (tlids : List<tlid>) : Task<T> =
+let loadTLIDsWithContext (id : uuid) (tlids : List<tlid>) : Task<T> =
   task {
     let! context = Serialize.fetchRelevantTLIDsForExecution id
     let tlids = tlids @ context
@@ -267,7 +267,7 @@ let loadTLIDsWithContext (id : CanvasID) (tlids : List<tlid>) : Task<T> =
   }
 
 let loadForEvent
-  (id : CanvasID)
+  (id : uuid)
   (module' : string)
   (name : string)
   (modifier : string)
@@ -277,20 +277,20 @@ let loadForEvent
     return! loadFrom id tlids
   }
 
-let loadAllDBs (id : CanvasID) : Task<T> =
+let loadAllDBs (id : uuid) : Task<T> =
   task {
     let! tlids = Serialize.fetchTLIDsForAllDBs id
     return! loadFrom id tlids
   }
 
 /// Returns a best guess at all workers (excludes what it knows not to be a worker)
-let loadAllWorkers (id : CanvasID) : Task<T> =
+let loadAllWorkers (id : uuid) : Task<T> =
   task {
     let! tlids = Serialize.fetchTLIDsForAllWorkers id
     return! loadFrom id tlids
   }
 
-let loadTLIDsWithDBs (id : CanvasID) (tlids : List<tlid>) : Task<T> =
+let loadTLIDsWithDBs (id : uuid) (tlids : List<tlid>) : Task<T> =
   task {
     let! dbTLIDs = Serialize.fetchTLIDsForAllDBs id
     return! loadFrom id (tlids @ dbTLIDs)
@@ -320,7 +320,7 @@ let getToplevel (tlid : tlid) (c : T) : Option<Serialize.Deleted * PT.Toplevel.T
   |> Option.orElseWith deletedDB
 
 
-let deleteToplevelForever (canvasID : CanvasID) (tlid : tlid) : Task<unit> =
+let deleteToplevelForever (canvasID : uuid) (tlid : tlid) : Task<unit> =
   // CLEANUP: set deleted column in toplevels_v0 to be not nullable
   Sql.query
     "DELETE from toplevels_v0
@@ -337,7 +337,7 @@ let toplevelToDBTypeString (tl : PT.Toplevel.T) : string =
 /// Save just the TLIDs listed (a canvas may load more tlids to support
 /// calling/testing these TLs, even though those TLs do not need to be updated)
 let saveTLIDs
-  (id : CanvasID)
+  (id : uuid)
   (toplevels : List<PT.Toplevel.T * Serialize.Deleted>)
   : Task<unit> =
   try

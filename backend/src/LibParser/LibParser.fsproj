@@ -19,7 +19,6 @@
     <Compile Include="WrittenTypesToProgramTypes.fs" />
     <Compile Include="TestModule.fs" />
     <Compile Include="Package.fs" />
-    <Compile Include="Canvas.fs" />
     <Compile Include="Parser.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

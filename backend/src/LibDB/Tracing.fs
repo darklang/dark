@@ -40,7 +40,7 @@ module TraceSamplingRule =
 
   /// Get the trace sampling rule for a handler. Always returns SampleAll now that
   /// LaunchDarkly has been removed.
-  let ruleForHandler (_canvasID : CanvasID) (_tlid : tlid) : T = SampleAll
+  let ruleForHandler (_canvasID : uuid) (_tlid : tlid) : T = SampleAll
 
 
 
@@ -63,7 +63,7 @@ module TracingConfig =
         (AT.TraceID.toUUID traceID).ToByteArray() |> System.BitConverter.ToInt64
       if random % (int64 freq) = 0L then DoTrace else DontTrace
 
-  let forHandler (canvasID : CanvasID) (tlid : tlid) (traceID : AT.TraceID.T) : T =
+  let forHandler (canvasID : uuid) (tlid : tlid) (traceID : AT.TraceID.T) : T =
     let samplingRule = TraceSamplingRule.ruleForHandler canvasID tlid
     fromRule samplingRule traceID
 
@@ -306,7 +306,7 @@ module TraceStorage =
     "[" + String.concat "," elements + "]"
 
   let store
-    (canvasID : CanvasID)
+    (canvasID : uuid)
     (rootTLID : tlid)
     (traceID : AT.TraceID.T)
     (handlerDesc : string)
@@ -436,7 +436,7 @@ let private promoteBlobs
 /// every Dval through `Blob.promote` first so blob bytes survive the
 /// per-request blob scope.
 let private storeTrace
-  (canvasID : CanvasID)
+  (canvasID : uuid)
   (rootTLID : tlid)
   (traceID : AT.TraceID.T)
   (handlerDesc : string)
@@ -463,7 +463,7 @@ let private storeTrace
 
 
 let createSqliteTracer
-  (canvasID : CanvasID)
+  (canvasID : uuid)
   (rootTLID : tlid)
   (traceID : AT.TraceID.T)
   : T =
@@ -502,7 +502,7 @@ let createSqliteTracer
 
 
 let createCliTracer
-  (_canvasID : CanvasID)
+  (_canvasID : uuid)
   (_traceID : AT.TraceID.T)
   (_description : string)
   (_inputVarName : string)
@@ -547,7 +547,7 @@ let createCliTracer
   }
 
 
-let createNonTracer (_canvasID : CanvasID) (_traceID : AT.TraceID.T) : T =
+let createNonTracer (_canvasID : uuid) (_traceID : AT.TraceID.T) : T =
   let results = TraceResults.empty ()
   { enabled = false
     results = results
@@ -556,7 +556,7 @@ let createNonTracer (_canvasID : CanvasID) (_traceID : AT.TraceID.T) : T =
     storeTraceInput = fun _ _ _ -> () }
 
 
-let create (canvasID : CanvasID) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
+let create (canvasID : uuid) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
   let config = TracingConfig.forHandler canvasID rootTLID traceID
   match config with
   | TracingConfig.DoTrace

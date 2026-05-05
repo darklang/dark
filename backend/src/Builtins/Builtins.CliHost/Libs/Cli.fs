@@ -32,7 +32,7 @@ module Tracing = LibDB.Tracing
 // Load canvas ID and DBs for an account
 let loadCanvasAndDBs
   (accountID : Option<System.Guid>)
-  : Ply<Option<CanvasID> * Map<string, RT.DB.T>> =
+  : Ply<Option<uuid> * Map<string, RT.DB.T>> =
   uply {
     match accountID with
     | None -> return (None, Map.empty)
@@ -158,7 +158,7 @@ let execute
   (branchId : System.Guid)
   (mod' : Utils.CliScript.PTCliScriptModule)
   (_args : List<Dval>) // CLEANUP update to List<String>, and extract in builtin
-  (canvasID : Option<CanvasID>)
+  (canvasID : Option<uuid>)
   (dbs : Map<string, RT.DB.T>)
   (traceSource : CliTraceSource)
   : Ply<RT.ExecutionResult> =

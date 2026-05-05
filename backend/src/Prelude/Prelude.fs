@@ -50,7 +50,6 @@ type Ply<'a> = Ply.Ply<'a>
 let uply = Ply.uply
 
 type uuid = System.Guid
-type CanvasID = uuid
 type UserID = uuid
 
 

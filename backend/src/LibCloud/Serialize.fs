@@ -31,7 +31,7 @@ type Deleted =
   | NotDeleted
 
 let loadToplevels
-  (canvasID : CanvasID)
+  (canvasID : uuid)
   (tlids : List<tlid>)
   : Task<List<Deleted * PT.Toplevel.T>> =
   task {
@@ -70,7 +70,7 @@ let loadToplevels
 
 
 let fetchReleventTLIDsForHTTP
-  (canvasID : CanvasID)
+  (canvasID : uuid)
   (path : string)
   (method : string)
   : Task<List<tlid>> =
@@ -91,7 +91,7 @@ let fetchReleventTLIDsForHTTP
       "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
-let fetchRelevantTLIDsForExecution (canvasID : CanvasID) : Task<List<tlid>> =
+let fetchRelevantTLIDsForExecution (canvasID : uuid) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
       WHERE canvas_id = @canvasID
@@ -101,7 +101,7 @@ let fetchRelevantTLIDsForExecution (canvasID : CanvasID) : Task<List<tlid>> =
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 let fetchRelevantTLIDsForEvent
-  (canvasID : CanvasID)
+  (canvasID : uuid)
   (module' : string)
   (name : string)
   (modifier : string)
@@ -122,7 +122,7 @@ let fetchRelevantTLIDsForEvent
   |> Sql.executeAsync (fun read -> read.id "tlid")
 
 
-let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =
+let fetchTLIDsForAllDBs (canvasID : uuid) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
     WHERE canvas_id = @canvasID
@@ -131,7 +131,7 @@ let fetchTLIDsForAllDBs (canvasID : CanvasID) : Task<List<tlid>> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
-let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
+let fetchTLIDsForAllWorkers (canvasID : uuid) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
     WHERE canvas_id = @canvasID
@@ -144,14 +144,14 @@ let fetchTLIDsForAllWorkers (canvasID : CanvasID) : Task<List<tlid>> =
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 
-let fetchAllIncludingDeletedTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
+let fetchAllIncludingDeletedTLIDs (canvasID : uuid) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
     WHERE canvas_id = @canvasID"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
-let fetchAllLiveTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
+let fetchAllLiveTLIDs (canvasID : uuid) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
     WHERE canvas_id = @canvasID
@@ -160,7 +160,7 @@ let fetchAllLiveTLIDs (canvasID : CanvasID) : Task<List<tlid>> =
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 type CronScheduleData =
-  { canvasID : CanvasID
+  { canvasID : uuid
     tlid : id
     cronName : string
     interval : PT.Handler.CronInterval }

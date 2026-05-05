@@ -48,17 +48,17 @@ let nameToTestDomain (name : string) : string =
   |> FsRegEx.replace "[-_]+" "-"
   |> fun s -> $"{s}.dlio.localhost"
 
-let initializeCanvasForOwner (name : string) : Task<CanvasID * string> =
+let initializeCanvasForOwner (name : string) : Task<uuid * string> =
   task {
     let domain = nameToTestDomain name
     let! canvasID = Canvas.create None domain
     return (canvasID, domain)
   }
 
-let initializeTestCanvas' (name : string) : Task<CanvasID * string> =
+let initializeTestCanvas' (name : string) : Task<uuid * string> =
   initializeCanvasForOwner name
 
-let initializeTestCanvas (name : string) : Task<CanvasID> =
+let initializeTestCanvas (name : string) : Task<uuid> =
   task {
     let! (canvasID, _domain) = initializeTestCanvas' name
     return canvasID
@@ -135,7 +135,7 @@ let cloudBuiltIns (pm : PT.PackageManager) = localBuiltIns pm
 
 let executionStateFor
   (pmPT : PT.PackageManager)
-  (canvasID : CanvasID)
+  (canvasID : uuid)
   (allowLocalHttpAccess : bool)
   (dbs : Map<string, RT.DB.T>)
   : Task<RT.ExecutionState> =
@@ -203,7 +203,7 @@ let executionStateFor
   }
 
 // /// Saves and reloads the canvas for the Toplevels
-// let canvasForTLs (canvasID : CanvasID) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
+// let canvasForTLs (canvasID : uuid) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
 //   task {
 //     let descs = tls |> List.map (fun tl -> (tl, LibCloud.Serialize.NotDeleted))
 //     do! Canvas.saveTLIDs canvasID descs
