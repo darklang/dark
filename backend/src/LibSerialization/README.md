@@ -1,7 +1,13 @@
-# LibBinarySerialization
+# LibSerialization
 
-How we store code in the DB.
-It's very important to maintain this as PT and RT changes.
+How we store code on disk and produce content-addressable hashes.
+
+- `Binary/` — binary format used for the package store + on-disk caches.
+  Schema-stability rules below apply mainly here.
+- `Hashing/Canonical.fs` — deterministic serialization for hashing
+  (skips identity-irrelevant fields like AST node IDs, descriptions).
+
+It's very important to maintain this as PT and RT change.
 
 TODO figure out how to properly handle schema migrations...
 
