@@ -7,9 +7,10 @@ let content () : String =
   backend/src/          # F# source
     LibExecution/       # execution engine
     LibParser/          # parser
-    LibDB/  # package DB, branches, SCM ops
-    BuiltinExecution/   # builtin impls
-    BuiltinPM/          # package manager builtins (SCM, branches)
+    LibDB/              # package DB, branches, SCM ops, user DB
+    LibSqlite/          # SQLite plumbing under LibDB
+    Builtins/           # builtin sub-projects (Execution, PM, CliHost,
+                        # HttpServer, DB, DarkInternal, Tracing)
   packages/darklang/    # .dark files
     cli/                # CLI code
     scm/                # SCM library (branch, rebase, merge, packageOps)
@@ -41,7 +42,7 @@ is never needed and just hardcodes container IDs that change across
 rebuilds.
 
 ## Adding Builtin (F#)
-  backend/src/BuiltinExecution/Libs/<module>.fs
+  backend/src/Builtins/Builtins.Execution/Libs/<module>.fs
   Add to `fns` list, save, wait for rebuild
 
 ## Style
@@ -64,11 +65,11 @@ is when the value genuinely has no Dark-side type (very rare).
   LibDB/Rebase.fs      # conflict detection, rebase
   LibDB/Merge.fs       # merge into parent
   LibDB/Inserts.fs     # ops take branchId
-  LibDB/ProgramTypes.fs # branch-aware SQL queries
+  LibDB/Queries.fs     # branch-aware SQL queries
   LibDB/PackageManager.fs # pt(branchId) constructs PM
-  BuiltinPM/Libs/Branches.fs      # branch builtins
-  BuiltinPM/Libs/Rebase.fs        # rebase builtins
-  BuiltinPM/Libs/Merge.fs         # merge builtins
+  Builtins/Builtins.PM/Libs/Branches.fs   # branch builtins
+  Builtins/Builtins.PM/Libs/Rebase.fs     # rebase builtins
+  Builtins/Builtins.PM/Libs/Merge.fs      # merge builtins
 
 Key: PackageManager.pt takes a branchId and pre-computes the
 branch chain for name resolution. Items are global (content-addressed),
@@ -106,7 +107,9 @@ Telemetry data lands in rundir/logs/telemetry.jsonl.
 Full guide: `docs interactive-testing`
 
 ## HTTP Server Demo
-  http-server <port> <router>   # serve a Darklang router function
+  serve <router-path> [--port N] [--max-body-bytes N]
+Serve a Darklang router function (an `App` value) over HTTP. Implementation
+is `darklang serve` (System.Net.HttpListener; no ASP.NET).
 Use ports 9090-9099 for demos (forwarded from devcontainer to host).
 Kill anything already on the port if needed.
 
