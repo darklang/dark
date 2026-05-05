@@ -9,7 +9,6 @@ open Prelude
 module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module PackageRefs = LibExecution.PackageRefs
 module BuiltinCli = Builtins.Cli.Builtin
