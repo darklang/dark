@@ -196,7 +196,6 @@ let main (args : string[]) : int =
       print "Invalid arguments"
       print "Available commands:"
       print "  reload-packages"
-      print "  reload-canvases"
       print "  migrations run"
       print "  migrations list"
       print "  export-seed <output-path>"

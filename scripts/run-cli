@@ -22,7 +22,7 @@ fi
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 CLI_LOG="$LOGS/cli.log"
-PACKAGES_LOG="$LOGS/packages-canvas.log"
+PACKAGES_LOG="$LOGS/packages.log"
 
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE="backend/Build/out/Cli/Release/net10.0/linux-x64/publish/Cli"

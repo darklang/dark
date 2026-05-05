@@ -20,7 +20,7 @@ let content () : String =
 
 ## Builds - DON'T MANUALLY REBUILD
 Auto-rebuilds on save. Watch logs:
-  packages-canvas.log   # .dark reload (~10s)
+  packages.log   # .dark reload (~10s)
   build-server.log      # F# build (~1min)
 
 ## Tests
@@ -79,7 +79,7 @@ locations (name bindings) are branch-scoped.
 When something goes wrong, check these logs:
   cli.log              # CLI runtime issues
   lsp.log              # LSP input/output
-  packages-canvas.log  # .dark file loading from disk
+  packages.log  # .dark file loading from disk
   build-server.log     # F# build issues, high-level errors
   migrations.log       # migration issues (if recently changed)
 

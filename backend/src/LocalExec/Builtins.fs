@@ -23,13 +23,3 @@ let all () : RT.Builtins =
       Builtins.Tracing.Builtin.builtins ()
       TestUtils.LibTest.builtins () ]
     []
-
-let accessibleByCanvas () : RT.Builtins =
-  LibExecution.Builtin.combine
-    [ Builtins.Execution.Builtin.builtins httpClientConfig
-      Builtins.PM.Builtin.builtins ptPM
-      Builtins.HttpServer.Builtin.builtins ()
-      Builtins.DB.Builtin.builtins ()
-      //?Builtins.DarkInternal.Builtin.builtins
-      ]
-    []

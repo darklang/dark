@@ -40,7 +40,7 @@ type Test =
   {
     handlers : List<TestHandler>
     secrets : List<TestSecret>
-    /// Allow testing of a specific canvas name (no-op in single-canvas CLI mode).
+    /// Allow testing of a specific app name (no-op in single-app CLI mode).
     domain : Option<string>
     request : byte array
     expectedResponse : byte array

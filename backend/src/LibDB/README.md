@@ -1,29 +1,24 @@
-# LibPM / LibMatter
+# LibDB
 
-This project organizes our implementations of RT. and PT.PackageManager
-- a set of each wholly in memory using F# collections etc.
-  - and some mechanism to compose to this
-- a set of each wholly bound to a sql database, with ops applied eventually, and syncing etc.
-  - TODO we need some sort of magical syncing server that _just does this_
-  - FOR NOW, we are assuming: user is always connected to the Internet and can access https://matter.darklang.com - if that breaks, CLI breaks.
-- some me
+SQLite-backed persistence for the package manager, branches, SCM ops,
+user DBs, and traces. Companion to the in-memory `PT.PackageManager`
+in `LibExecution`.
 
+Surface (most relevant first):
 
-Use cases vary:
-- run-time
-- pre-dogfooding parsings
-  - (all 2 phases, maybe with 'id stabilization')
-  - canvases from disk
-  - packages from disk
-  - test module/file from disk
-- dev-time parsings (2 phase)
+- `PackageManager.fs` — `pt(branchId)` builds a branch-scoped PM that
+  resolves names against the branch's chain.
+- `Branches.fs` / `Inserts.fs` / `Rebase.fs` / `Merge.fs` — SCM ops
+  (CRUD, conflict detection, rebase, merge into parent).
+- `Queries.fs` — branch-aware SQL for resolving package items.
+- `Caching.fs` — in-process cache for repeated lookups.
+- `UserDB.fs` — runtime CRUD for user-defined Datastores
+  (`Stdlib.DB.set` / `get` / etc.). Per-row isolation is keyed by
+  `program.dbScope` (a UUID).
+- `Tracing.fs` — per-execution trace recorder. Writes the trace row +
+  fn_call rows to the SQLite DB; `Builtins.Tracing/Libs/Traces.fs`
+  reads them back.
+- `Seed.fs` — bootstraps the DB from the embedded seed when missing.
 
-the SQL-bound one syncs, magically, automatically.
-
-LibSync?
-
-Syncer.exe?
-
-
-hmm how many of these things do we need in both F# _and_ Darklang? The whole setup?
-is the syncer written in F# or Darklang?
+Items are content-addressed (SHA256-keyed); locations (name → hash
+bindings) are branch-scoped.
