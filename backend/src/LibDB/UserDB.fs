@@ -1,12 +1,12 @@
 /// <summary>
-/// Supports anything relating to Datastores on a user canvas.
+/// Supports anything relating to user-defined Datastores.
 /// Namely, this file is responsible for managing such user data, including CRUD and type-checking.
 /// </summary>
 ///
 /// <remarks>
 /// User data stores live within the `user_data` table, which is broken down by:
 /// - Dark version
-/// - canvas (by ID)
+/// - DB scope (by UUID)
 /// - table/store ID
 /// - user version (for when the users change the type being stored)
 /// </remarks>

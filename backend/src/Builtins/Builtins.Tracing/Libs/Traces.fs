@@ -1245,7 +1245,7 @@ let fns () : List<BuiltInFn> =
               let timestamp = getStr "timestamp"
               let inputName = getStr "input_name"
               let inputValueJson = root.GetProperty("input_value").GetRawText()
-              let canvasIdStr = string System.Guid.Empty
+              let dbScopeStr = string System.Guid.Empty
 
               // Mirrors TraceStorage.store: INSERT OR REPLACE the trace row,
               // DELETE-then-INSERT the fn_calls. Re-importing the same id
@@ -1256,10 +1256,10 @@ let fns () : List<BuiltInFn> =
                     (id, canvas_id, root_tlid, handler_desc, timestamp,
                      input_name, input_value_json)
                    VALUES
-                    (@id, @canvasId, @rootTlid, @handlerDesc, @timestamp,
+                    (@id, @dbScope, @rootTlid, @handlerDesc, @timestamp,
                      @inputName, @inputValueJson)",
                   [ [ "id", Sql.string id
-                      "canvasId", Sql.string canvasIdStr
+                      "dbScope", Sql.string dbScopeStr
                       "rootTlid", Sql.int64 0L
                       "handlerDesc", Sql.string handlerDesc
                       "timestamp", Sql.string timestamp
