@@ -1,10 +1,10 @@
 # Dark HTTP server tests
 
-The files in this directory are tests of the HTTP server known as BwdServer,
+The files in this directory are tests of the HTTP server (`darklang serve`),
 which supports Dark users' handlers. A test typically comprises a request and a
 response, and may also include one or more handler.
 
-The implementation of the tests is in `BwdServer.Tests.fs`.
+The implementation of the tests is in `HttpServer.Tests.fs`.
 
 # HTTP handlers
 
