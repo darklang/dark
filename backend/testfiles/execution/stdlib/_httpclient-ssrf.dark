@@ -1,3 +1,16 @@
+// SSRF guard tests for the strict HTTP client config
+// (see Builtins.Execution.Libs.HttpClient.LocalAccess + strictConfig).
+
+let get (url: String) (headers: List<String * String>): Stdlib.Result.Result<Stdlib.HttpClient.Response, Stdlib.HttpClient.RequestError> =
+  Stdlib.HttpClient.get url headers
+
+let errInvalidHost = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidHost))
+let errInvalidUri = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidUri))
+let errInvalidRequest = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.InvalidRequest))
+let errNetworkError = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.NetworkError)
+let errUnsupportedProtocol = Stdlib.Result.Result.Error(Stdlib.HttpClient.RequestError.BadUrl(Stdlib.HttpClient.BadUrlDetails.UnsupportedProtocol))
+
+
 module Disallowed =
   // invalid host
   (get "http://0.0.0.0" []) = errInvalidHost

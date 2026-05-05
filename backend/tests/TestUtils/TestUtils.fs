@@ -127,8 +127,12 @@ let localBuiltIns (pm : PT.PackageManager) =
     { Builtins.Execution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
   builtins httpConfig pm
 
-// LibCloudExecution is gone; cloud flavor folds into local for now.
-let cloudBuiltIns (pm : PT.PackageManager) = localBuiltIns pm
+/// Strict (cloud-style) HTTP config: SSRF guard active. Used for tests that
+/// exercise the disallow-localhost / disallow-private-IP path.
+let cloudBuiltIns (pm : PT.PackageManager) =
+  let httpConfig =
+    { Builtins.Execution.Libs.HttpClient.strictConfig with timeoutInMs = 5000 }
+  builtins httpConfig pm
 
 
 
