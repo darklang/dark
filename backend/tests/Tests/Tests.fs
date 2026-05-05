@@ -43,7 +43,6 @@ let main (args : string array) : int =
         Tests.ProgramTypesToRuntimeTypes.tests
         Tests.Interpreter.tests
         Tests.AnalysisTypes.tests
-        Tests.Execution.tests
         Tests.Builtin.tests
         Tests.DvalRepr.tests
         Tests.LibParser.tests

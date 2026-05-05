@@ -291,49 +291,6 @@ let dvalToTypeName (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
 
 
 
-// let exprString
-//   (state : RT.ExecutionState)
-//   (expr : RT.Expr)
-//   (id : Option<id>)
-//   : Ply<string> =
-//   match id with
-//   | None -> Ply "Unknown Expr"
-//   | Some id ->
-//     let mutable foundExpr = None
-
-//     RuntimeTypesAst.preTraversal
-//       (fun expr ->
-//         if RT.Expr.toID expr = id then foundExpr <- Some expr
-//         expr)
-//       identity
-//       identity
-//       identity
-//       identity
-//       identity
-//       identity
-//       expr
-//     |> ignore<RT.Expr>
-
-//     let prettyPrint (expr : RT.Expr) : Ply<string> =
-//       uply {
-//         let fnName =
-//           RT.FQFnName.fqPackage PackageRefs.Fn.PrettyPrinter.RuntimeTypes.expr
-//         let args = NEList.singleton (RuntimeTypesToDarkTypes.Expr.toDT expr)
-
-//         match! executeFunction state fnName [] args with
-//         | Ok(RT.DString s) -> return s
-//         | _ -> return string expr
-//       }
-
-//     match foundExpr with
-//     | None ->
-//       uply {
-//         let! pretty = prettyPrint expr
-//         return $"Root Expr:\n{pretty}"
-//       }
-//     | Some expr -> prettyPrint expr
-
-
 let executionPointToString
   (state : RT.ExecutionState)
   (ep : RT.ExecutionPoint)

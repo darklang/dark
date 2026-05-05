@@ -102,21 +102,6 @@ let compileQueryLambda
   }
 
 
-// let handleUnexpectedExceptionDuringQuery
-//   (exeState : ExecutionState)
-//   (dbname : string)
-//   (query : LambdaImpl)
-//   (e : System.Exception)
-//   : Dval =
-//   match e with
-//   | RuntimeErrorException _ -> Exception.reraise e
-//   | e ->
-//     exeState.reportException
-//       exeState
-//       [ "dbName", dbname; "lambda", query; "db", exeState.program.dbs[dbname] ]
-//       e
-//     LibCloud.SqlCompiler.error "An error occurred while querying the Datastore"
-
 let fns () : List<BuiltInFn> =
   [ { name = fn "dbSet" 0
       typeParams = []

@@ -708,19 +708,6 @@ type PackageOp =
     restoredSourceRef : Reference *
     revertedRepoints : List<PropagateRepoint>
 
-//   | MoveItem of item: uuid * from : Location * to_: Location
-//   // we can punt this for now, I think
-//   //| MoveModule of from: Location * to_: Location // hmm what about the _timing_ of this?
-//   // maybe this isn't supported, and we instead need _many_ moveItem
-
-
-// prob belongs in LibMatter
-// type BranchMergeConflict =
-//   | TypeIntroducedButNotReferenced of FQTypeName.Package
-//   | ...IntroducedButNotReferenced of ...
-
-
-
 
 /// The kind of package item (function, type, or value)
 and ItemKind =
@@ -993,88 +980,6 @@ type PackageManager =
           }
 
       init = pm.init }
-
-
-
-(*
-the source of truth is our core tables, which sync:
-  package_ops, branches, instances
-  should branch operations be separate from package ops? hmm idk.
-  we should sync all ops that you have permissions to...
-  oh, how _should_ we do permissioning?
-  iI guess there's an SetName thing and later an ApproveName thing? Not sure I actually worked that out...
-  | AddBranch? hmm.
-  what if an Op referring to a branch is received before the AddBranch op? Prob ignore that for now, right?
-  we really need to timestamp these ops in a super-safe way
-  I guess working internationally helps us test this a bit...
-  what about timezone switches and ... probably need NodaTime if we don't already have it
-
-the package stuff is all a projection of that
-  package types, values, fns
-  locations, and how they map to those package items
-*)
-
-
-
-
-
-// /// Atomic operations that can be tracked and validated
-// module Op =
-//   type T =
-//     // Content Operations - create new immutable content
-//     | AddFunctionContent of hash: string * content: PackageFn.PackageFn
-//     | AddTypeContent of hash: string * content: PackageType.PackageType
-//     | AddValueContent of hash: string * content: PackageValue.PackageValue
-
-//     // Name Operations - manage name pointers
-//     | CreateName of location: PackageLocation.T * hash: string * contentType: string
-//     | UpdateNamePointer of location: PackageLocation.T * oldHash: string * newHash: string
-//     | MoveName of oldLocation: PackageLocation.T * newLocation: PackageLocation.T
-//     | UnassignName of location: PackageLocation.T
-
-//     // Content Operations - deprecate content (by hash)
-//     | DeprecateContent of hash: string * reason: string * replacement: string option
-
-// /// Types of conflicts that can occur when we try to apply an Op
-// type Conflict =
-//   | TODO
-
-
-
-
-// /// A development session
-// /// informally a 'branch'
-// module Session =
-//   type State =
-//     | Active
-//     | Abandoned
-//     | Merged
-
-//   type T = {
-//     id: uuid
-//     title: string
-//     ops: List<uuid>
-//     createdAt: System.DateTime
-//     lastActiveAt: System.DateTime
-//     state: SessionState.T
-//     workspace: WorkspaceState.T
-//   }
-
-
-
-// /// Darklang instance definition -- what can we sync against
-// module Instance =
-//   type Location =
-//     | LocalCLI of pathToExe: string // or maybe this should be path to dir? prob not.
-//     | HttpServer of url: string
-
-//   type T = {
-//     id: uuid
-//     name: string
-//     location: Location
-//   }
-
-
 
 
 
