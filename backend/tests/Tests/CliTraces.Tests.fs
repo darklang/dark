@@ -396,11 +396,7 @@ let private testTracesDeleteSingle =
   }
 
 let private testViewWithTraceAnnotates =
-  // `view --with-trace` requires Dark-side flag handling in
-  // packages/darklang/cli/commands/view.dark that this PR didn't
-  // bring across. Tracked as a follow-up; skipping for now so the
-  // suite runs clean.
-  ptestTask "view <fn> --with-trace <id> annotates" {
+  testTask "view <fn> --with-trace <id> annotates" {
     do! withState (fun state ->
       task {
         let! _ = runCli state [ "traces"; "clear" ]
