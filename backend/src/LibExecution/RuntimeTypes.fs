@@ -110,8 +110,6 @@ module FQFnName =
   let fqPackage (h : string) : FQFnName = Package(Hash h)
 
 
-  let isInternalFn (fnName : Builtin) : bool = fnName.name.Contains "darkInternal"
-
 
 /// TODO include "ParseTime" in name (requires a lot of boring work in many files)
 type NameResolutionError =

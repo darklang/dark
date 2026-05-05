@@ -35,34 +35,11 @@ let pmRT = LibDB.PackageManager.rt
 let testOwner : Lazy<Task<UserID>> =
   lazy (Account.createUser "TestUser" |> Task.map Result.unwrap)
 
-let nameToTestDomain (name : string) : string =
-  let name =
-    name
-    |> String.toLowercase
-    // replace invalid chars with a single hyphen
-    |> FsRegEx.replace "[^-a-z0-9]+" "-"
-    |> FsRegEx.replace "[-_]+" "-"
-    |> String.take 50
-  let suffix = randomString 5 |> String.toLowercase
-  $"{name}-{suffix}"
-  |> FsRegEx.replace "[-_]+" "-"
-  |> fun s -> $"{s}.dlio.localhost"
-
-let initializeCanvasForOwner (name : string) : Task<uuid * string> =
-  task {
-    let domain = nameToTestDomain name
-    let! canvasID = App.create None domain
-    return (canvasID, domain)
-  }
-
-let initializeTestCanvas' (name : string) : Task<uuid * string> =
-  initializeCanvasForOwner name
-
 let initializeTestCanvas (name : string) : Task<uuid> =
-  task {
-    let! (canvasID, _domain) = initializeTestCanvas' name
-    return canvasID
-  }
+  // `name` is unused now that domains are gone — kept as a parameter so
+  // call sites stay readable about what the test scope is for.
+  ignore<string> name
+  App.create None
 
 
 let testHttpRouteHandler

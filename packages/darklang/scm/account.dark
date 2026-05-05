@@ -6,7 +6,7 @@ module Darklang.SCM.Account
 let resolve () : (String * Stdlib.Option.Option<Uuid>) =
   match Builtin.environmentGet "DARK_ACCOUNT" with
   | Some name ->
-    match Builtin.darkInternalUserGetByName name with
+    match Builtin.userGetByName name with
     | Some id -> (name, Stdlib.Option.Option.Some id)
     | None -> (name, Stdlib.Option.Option.None)
   | None -> ("", Stdlib.Option.Option.None)

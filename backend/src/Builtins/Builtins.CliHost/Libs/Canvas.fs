@@ -19,7 +19,7 @@ module PackageLocation = LibDB.PackageLocation
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "darkInternalAppDBCreate" 0
+  [ { name = fn "appDBCreate" 0
       typeParams = []
       parameters =
         [ Param.make "appID" TUuid "The app to add the DB to"
@@ -78,19 +78,17 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "darkInternalAppGetOrCreateForAccount" 0
+    { name = fn "appGetOrCreateForAccount" 0
       typeParams = []
-      parameters =
-        [ Param.make "accountID" TUuid "The account ID"
-          Param.make "domain" TString "Domain for the app if created" ]
+      parameters = [ Param.make "accountID" TUuid "The account ID" ]
       returnType = TUuid
       description =
         "Gets the app for an account, creating one if it doesn't exist"
       fn =
         (function
-        | _, _, _, [ DUuid accountID; DString domain ] ->
+        | _, _, _, [ DUuid accountID ] ->
           uply {
-            let! appID = App.getOrCreateForAccount accountID domain
+            let! appID = App.getOrCreateForAccount accountID
             return DUuid appID
           }
         | _ -> incorrectArgs ())
@@ -100,7 +98,7 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "darkInternalAppDBListAll" 0
+    { name = fn "appDBListAll" 0
       typeParams = []
       parameters =
         [ Param.make "appID" TUuid "The app to list DBs from"
@@ -141,7 +139,7 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "darkInternalAppDBDrop" 0
+    { name = fn "appDBDrop" 0
       typeParams = []
       parameters =
         [ Param.make "appID" TUuid "The app containing the DB"
@@ -195,7 +193,7 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "darkInternalUserGetByName" 0
+    { name = fn "userGetByName" 0
       typeParams = []
       parameters = [ Param.make "name" TString "The account name to look up" ]
       returnType = TypeReference.option TUuid

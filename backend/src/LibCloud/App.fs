@@ -18,52 +18,25 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
-let createWithExactID
-  (id : uuid)
-  (accountID : Option<UserID>)
-  (domain : string)
-  : Task<unit> =
-  task {
-    do!
-      Sql.query
-        "INSERT INTO apps_v0
-          (id, account_id)
-         VALUES
-          (@id, @accountID);
+// The "App" concept is being dismantled (per post-review user direction:
+// "I want to fully remove the App/Canvas concept ... only thing we might
+// 'bind' something to is the Account"). For now, keep these entry points
+// as identity functions over the account ID — that's the scope key the
+// rest of the system needs (user_data, traces, etc) and there's no real
+// app indirection to maintain. The `apps_v0` table is gone; nothing
+// reads from it. A future commit can rename `app_id` columns →
+// `account_id` and drop the dbScope plumbing entirely.
 
-         INSERT INTO domains_v0
-           (app_id, domain)
-         VALUES
-           (@id, @domain)"
-      |> Sql.parameters
-        [ "id", Sql.uuid id
-          "accountID", Sql.uuidOrNone accountID
-          "domain", Sql.string domain ]
-      |> Sql.executeStatementAsync
-  }
-
-let create (accountID : Option<UserID>) (domain : string) : Task<uuid> =
+let create (accountID : Option<UserID>) : Task<uuid> =
   task {
-    let id = System.Guid.NewGuid()
-    do! createWithExactID id accountID domain
-    return id
+    return accountID |> Option.defaultValue (System.Guid.NewGuid())
   }
 
 let getAppsForAccount (accountID : UserID) : Task<List<uuid>> =
-  Sql.query
-    "SELECT id
-    FROM apps_v0
-    WHERE account_id = @accountID"
-  |> Sql.parameters [ "accountID", Sql.uuid accountID ]
-  |> Sql.executeAsync (fun read -> read.uuid "id")
+  task { return [ accountID ] }
 
-let getOrCreateForAccount (accountID : UserID) (domain : string) : Task<uuid> =
-  task {
-    let! existing = getAppsForAccount accountID
-    match existing with
-    | canvasID :: _ -> return canvasID
-    | [] -> return! create (Some accountID) domain
-  }
+let getOrCreateForAccount (accountID : UserID) : Task<uuid> =
+  task { return accountID }
 
 /// <summary>
 /// Canvas data - contains metadata along with basic handlers, DBs, etc.

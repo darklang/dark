@@ -10,11 +10,11 @@ system_migrations_v0
 --------------------
 -- Stuff that belongs in "user space"
 --------------------
-CREATE TABLE IF NOT EXISTS
-apps_v0
-( id TEXT PRIMARY KEY
-, created_at TEXT NOT NULL DEFAULT (datetime('now'))
-);
+-- Note: the `app_id` column on user_data_v0 / toplevels_v0 is a
+-- vestigial scope key from the old multi-canvas Cloud days. It's
+-- still load-bearing for per-test isolation but no longer references
+-- a real `apps_v0` table. A future migration will rename it to
+-- `account_id` (or similar) once the dbScope plumbing is gone.
 
 -- User K/V DBs
 CREATE TABLE IF NOT EXISTS
@@ -49,11 +49,6 @@ ON user_data_v0
 
 
 -- HTTP Handlers
-CREATE TABLE IF NOT EXISTS
-domains_v0
-( domain TEXT PRIMARY KEY
-, app_id TEXT NOT NULL
-, created_at TEXT NOT NULL DEFAULT (datetime('now')));
 -- TODO: extract out table of http handlers from toplevels_v0
 
 
