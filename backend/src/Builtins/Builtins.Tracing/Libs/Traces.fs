@@ -1,11 +1,10 @@
 /// Builtin functions for querying the trace store. Companion to
 /// `LibDB.Tracing` (the recorder side).
 ///
-/// Originally lived in `BuiltinCliHost/Libs/Traces.fs` with `cliTraces*`
-/// names, when traces were CLI-only (eval/run). Now that HTTP traces
+/// Originally lived in `BuiltinCliHost/Libs/Traces.fs` with a `cli`
+/// prefix, when traces were CLI-only (eval/run). Now that HTTP traces
 /// flow through the same path, the placement and naming were stale —
-/// moved here and renamed to drop the `cli` prefix. The old names are
-/// kept live for one release cycle via `Builtins.Tracing.Builtin.fnRenames`.
+/// moved here and renamed to drop the prefix.
 module Builtins.Tracing.Libs.Traces
 
 open System.Text.Json
@@ -1221,7 +1220,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "tracesImport" 0
       typeParams = []
       parameters =
-        [ Param.make "json" TString "JSON exported via cliTracesExportJson" ]
+        [ Param.make "json" TString "JSON exported via tracesExportJson" ]
       returnType = TypeReference.result TString TString
       description =
         "Import a trace from a JSON dump (the `traces export` format). Re-creates the trace row + all fn_call rows under the importing process's canvas. Returns the trace ID on success."
@@ -1422,7 +1421,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "traceID" TString "Full trace ID to delete" ]
       returnType = TInt64
       description =
-        "Delete one trace (and its fn_calls + expr_values). Returns 1 if a row was deleted, 0 otherwise. Caller is responsible for resolving prefixes via cliTracesResolveID first."
+        "Delete one trace (and its fn_calls + expr_values). Returns 1 if a row was deleted, 0 otherwise. Caller is responsible for resolving prefixes via tracesResolveID first."
       fn =
         (function
         | _, _, _, [ DString traceID ] ->

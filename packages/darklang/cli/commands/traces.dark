@@ -801,7 +801,7 @@ let executeInspect (state: Cli.AppState) (traceID: String) : Cli.AppState =
         location
         traceID
       // Footer: what came out? Pulled from the recorded top-level
-      // call's result via `cliTracesGetExpectedOutput` (same source
+      // call's result via `tracesGetExpectedOutput` (same source
       // `replay --diff` uses). Truncated to 160 chars so a giant
       // HTML response doesn't drown the output.
       match Builtin.tracesGetExpectedOutput traceID with
@@ -1123,7 +1123,7 @@ let executeListByRoute
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
-    // Over-fetch then filter; cliTracesList returns the most-recent N rows
+    // Over-fetch then filter; tracesList returns the most-recent N rows
     // unfiltered, so to find N matching we may need to pull more. Cap at
     // 500 to bound the fetch.
     let overFetch = if limit < 50L then 500L else limit * 10L
@@ -1345,7 +1345,7 @@ let executeReplay
   (traceID: String)
   (diff: Bool)
   : Cli.AppState =
-  // cliTracesGetInput returns Some only for traces whose input is a
+  // tracesGetInput returns Some only for traces whose input is a
   // String (eval/run). HTTP traces have a Request record input and
   // come back as None — those route to the HTTP replay path.
   let input = Builtin.tracesGetInput traceID

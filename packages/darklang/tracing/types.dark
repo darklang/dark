@@ -3,7 +3,7 @@
 ///
 /// These types describe what's stored in `traces` / `trace_fn_calls` /
 /// `trace_expr_values` after `LibDB.Tracing.createCliTracer` records an
-/// execution. The cliTraces* builtins return them; the CLI's `traces`
+/// execution. The traces* builtins return them; the CLI's `traces`
 /// command formats them for display.
 module Darklang.Tracing
 
