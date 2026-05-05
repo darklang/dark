@@ -73,7 +73,7 @@ let builtins : RT.Builtins =
 
 let state (packageManager : RT.PackageManager) =
   let program : RT.Program =
-    { dbScope = System.Guid.Empty; dbs = Map.empty }
+    { accountID = System.Guid.Empty; dbs = Map.empty }
 
   let notify
     (_state : RT.ExecutionState)

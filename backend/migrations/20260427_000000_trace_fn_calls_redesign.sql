@@ -19,14 +19,14 @@ DROP TABLE IF EXISTS traces_v0;
 -- directly here as JSON, not in a separate one-row-per-trace table.
 CREATE TABLE traces
 ( id               TEXT PRIMARY KEY
-, app_id        TEXT NOT NULL
+, account_id        TEXT NOT NULL
 , root_tlid        INTEGER NOT NULL
 , handler_desc     TEXT NOT NULL
 , timestamp        TEXT NOT NULL
 , input_name       TEXT NOT NULL
 , input_value_json TEXT NOT NULL
 );
-CREATE INDEX idx_traces_app_id ON traces(app_id);
+CREATE INDEX idx_traces_account_id ON traces(account_id);
 
 
 -- Every fn call and every lambda invocation gets one row. parent_call_id

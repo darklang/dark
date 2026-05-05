@@ -63,8 +63,8 @@ module TracingConfig =
         (AT.TraceID.toUUID traceID).ToByteArray() |> System.BitConverter.ToInt64
       if random % (int64 freq) = 0L then DoTrace else DontTrace
 
-  let forHandler (dbScope : uuid) (tlid : tlid) (traceID : AT.TraceID.T) : T =
-    let samplingRule = TraceSamplingRule.ruleForHandler dbScope tlid
+  let forHandler (accountID : uuid) (tlid : tlid) (traceID : AT.TraceID.T) : T =
+    let samplingRule = TraceSamplingRule.ruleForHandler accountID tlid
     fromRule samplingRule traceID
 
   let shouldTrace (config : T) =
@@ -306,7 +306,7 @@ module TraceStorage =
     "[" + String.concat "," elements + "]"
 
   let store
-    (dbScope : uuid)
+    (accountID : uuid)
     (rootTLID : tlid)
     (traceID : AT.TraceID.T)
     (handlerDesc : string)
@@ -326,13 +326,13 @@ module TraceStorage =
     // accumulates. Input is stored inline on the trace row.
     let baseStatements =
       [ "INSERT OR REPLACE INTO traces
-          (id, app_id, root_tlid, handler_desc, timestamp,
+          (id, account_id, root_tlid, handler_desc, timestamp,
            input_name, input_value_json)
          VALUES
-          (@id, @dbScope, @rootTlid, @handlerDesc, @timestamp,
+          (@id, @accountID, @rootTlid, @handlerDesc, @timestamp,
            @inputName, @inputValueJson)",
         [ [ "id", Sql.string traceIdStr
-            "dbScope", Sql.string (string dbScope)
+            "accountID", Sql.string (string accountID)
             "rootTlid", Sql.int64 (int64 rootTLID)
             "handlerDesc", Sql.string handlerDesc
             "timestamp", Sql.string timestamp
@@ -436,7 +436,7 @@ let private promoteBlobs
 /// every Dval through `Blob.promote` first so blob bytes survive the
 /// per-request blob scope.
 let private storeTrace
-  (dbScope : uuid)
+  (accountID : uuid)
   (rootTLID : tlid)
   (traceID : AT.TraceID.T)
   (handlerDesc : string)
@@ -449,7 +449,7 @@ let private storeTrace
     try
       let! promotedInput = promoteBlobs exeState inputDval state
       TraceStorage.store
-        dbScope
+        accountID
         rootTLID
         traceID
         handlerDesc
@@ -463,7 +463,7 @@ let private storeTrace
 
 
 let createSqliteTracer
-  (dbScope : uuid)
+  (accountID : uuid)
   (rootTLID : tlid)
   (traceID : AT.TraceID.T)
   : T =
@@ -491,7 +491,7 @@ let createSqliteTracer
     storeTraceResults =
       fun exeState ->
         storeTrace
-          dbScope
+          accountID
           rootTLID
           traceID
           handlerDesc
@@ -556,9 +556,9 @@ let createNonTracer (_dbScope : uuid) (_traceID : AT.TraceID.T) : T =
     storeTraceInput = fun _ _ _ -> () }
 
 
-let create (dbScope : uuid) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
-  let config = TracingConfig.forHandler dbScope rootTLID traceID
+let create (accountID : uuid) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
+  let config = TracingConfig.forHandler accountID rootTLID traceID
   match config with
   | TracingConfig.DoTrace
-  | TracingConfig.TraceWithTelemetry -> createSqliteTracer dbScope rootTLID traceID
-  | TracingConfig.DontTrace -> createNonTracer dbScope traceID
+  | TracingConfig.TraceWithTelemetry -> createSqliteTracer accountID rootTLID traceID
+  | TracingConfig.DontTrace -> createNonTracer accountID traceID

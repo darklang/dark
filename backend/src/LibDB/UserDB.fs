@@ -79,7 +79,7 @@ let rec set
     | Ok _ ->
       let upsertQuery =
         if upsert then
-          "ON CONFLICT (app_id, table_tlid, dark_version, user_version, key) DO UPDATE SET data=EXCLUDED.data, updated_at=datetime('now')"
+          "ON CONFLICT (account_id, table_tlid, dark_version, user_version, key) DO UPDATE SET data=EXCLUDED.data, updated_at=datetime('now')"
         else
           ""
 
@@ -88,13 +88,13 @@ let rec set
       do!
         Sql.query
           $"INSERT INTO user_data_v0
-            (id, app_id, table_tlid, user_version, dark_version, key, data, updated_at)
+            (id, account_id, table_tlid, user_version, dark_version, key, data, updated_at)
           VALUES
-            (@id, @dbScope, @tlid, @userVersion, @darkVersion, @key, @data, datetime('now'))
+            (@id, @accountID, @tlid, @userVersion, @darkVersion, @key, @data, datetime('now'))
           {upsertQuery}"
         |> Sql.parameters
           [ "id", Sql.uuid id
-            "dbScope", Sql.uuid exeState.program.dbScope
+            "accountID", Sql.uuid exeState.program.accountID
             "tlid", Sql.id db.tlid
             "userVersion", Sql.int db.version
             "darkVersion", Sql.int currentDarkVersion
@@ -121,13 +121,13 @@ and getOption
         "SELECT data
           FROM user_data_v0
         WHERE table_tlid = @tlid
-          AND app_id = @dbScope
+          AND account_id = @accountID
           AND user_version = @userVersion
           AND dark_version = @darkVersion
           AND key = @key"
       |> Sql.parameters
         [ "tlid", Sql.tlid db.tlid
-          "dbScope", Sql.uuid exeState.program.dbScope
+          "accountID", Sql.uuid exeState.program.accountID
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion
           "key", Sql.string key ]
@@ -165,7 +165,7 @@ and getMany
       // Base parameters that are always needed
       let baseParams =
         [ "tlid", Sql.tlid db.tlid
-          "dbScope", Sql.uuid exeState.program.dbScope
+          "accountID", Sql.uuid exeState.program.accountID
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion ]
 
@@ -174,7 +174,7 @@ and getMany
           $"SELECT data
           FROM user_data_v0
           WHERE table_tlid = @tlid
-            AND app_id = @dbScope
+            AND account_id = @accountID
             AND user_version = @userVersion
             AND dark_version = @darkVersion
             AND key IN ({keyPlaceholders})"
@@ -210,7 +210,7 @@ and getManyWithKeys
       // Base parameters that are always needed
       let baseParams =
         [ "tlid", Sql.tlid db.tlid
-          "dbScope", Sql.uuid exeState.program.dbScope
+          "accountID", Sql.uuid exeState.program.accountID
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion ]
 
@@ -219,7 +219,7 @@ and getManyWithKeys
           $"SELECT key, data
           FROM user_data_v0
           WHERE table_tlid = @tlid
-            AND app_id = @dbScope
+            AND account_id = @accountID
             AND user_version = @userVersion
             AND dark_version = @darkVersion
             AND key IN ({keyPlaceholders})"
@@ -247,12 +247,12 @@ let getAll
         "SELECT key, data
         FROM user_data_v0
         WHERE table_tlid = @tlid
-          AND app_id = @dbScope
+          AND account_id = @accountID
           AND user_version = @userVersion
           AND dark_version = @darkVersion"
       |> Sql.parameters
         [ "tlid", Sql.tlid db.tlid
-          "dbScope", Sql.uuid exeState.program.dbScope
+          "accountID", Sql.uuid exeState.program.accountID
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion ]
       |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
@@ -270,12 +270,12 @@ let getAllKeys (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>
     "SELECT key
     FROM user_data_v0
     WHERE table_tlid = @tlid
-      AND app_id = @dbScope
+      AND account_id = @accountID
       AND user_version = @userVersion
       AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
-      "dbScope", Sql.uuid exeState.program.dbScope
+      "accountID", Sql.uuid exeState.program.accountID
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeAsync (fun read -> read.string "key")
@@ -285,12 +285,12 @@ let count (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
     "SELECT COUNT(*) as count
     FROM user_data_v0
     WHERE table_tlid = @tlid
-      AND app_id = @dbScope
+      AND account_id = @accountID
       AND user_version = @userVersion
       AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
-      "dbScope", Sql.uuid exeState.program.dbScope
+      "accountID", Sql.uuid exeState.program.accountID
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeRowAsync (fun read -> read.int "count")
@@ -305,13 +305,13 @@ let delete
     FROM user_data_v0
     WHERE key = @key
       AND table_tlid = @tlid
-      AND app_id = @dbScope
+      AND account_id = @accountID
       AND user_version = @userVersion
       AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "key", Sql.string key
       "tlid", Sql.tlid db.tlid
-      "dbScope", Sql.uuid exeState.program.dbScope
+      "accountID", Sql.uuid exeState.program.accountID
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeStatementAsync
@@ -320,13 +320,13 @@ let deleteAll (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
   //   covered by idx_user_data_current_data_for_tlid
   Sql.query
     "DELETE FROM user_data_v0
-    WHERE app_id = @dbScope
+    WHERE account_id = @accountID
       AND table_tlid = @tlid
       AND user_version = @userVersion
       AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
-      "dbScope", Sql.uuid exeState.program.dbScope
+      "accountID", Sql.uuid exeState.program.accountID
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeStatementAsync
@@ -391,7 +391,7 @@ let executeCompiledQuery
     // Base parameters for the table filtering
     let baseParams =
       [ "tlid", Sql.tlid db.tlid
-        "dbScope", Sql.uuid exeState.program.dbScope
+        "accountID", Sql.uuid exeState.program.accountID
         "userVersion", Sql.int db.version
         "darkVersion", Sql.int currentDarkVersion ]
 
@@ -405,7 +405,7 @@ let executeCompiledQuery
           $"SELECT data
             FROM user_data_v0
             WHERE table_tlid = @tlid
-              AND app_id = @dbScope
+              AND account_id = @accountID
               AND user_version = @userVersion
               AND dark_version = @darkVersion
               AND ({compiledSql})"
@@ -427,7 +427,7 @@ let executeCompiledQuery
           $"SELECT key, data
             FROM user_data_v0
             WHERE table_tlid = @tlid
-              AND app_id = @dbScope
+              AND account_id = @accountID
               AND user_version = @userVersion
               AND dark_version = @darkVersion
               AND ({compiledSql})"
@@ -452,7 +452,7 @@ let executeCompiledQuery
           $"SELECT data
             FROM user_data_v0
             WHERE table_tlid = @tlid
-              AND app_id = @dbScope
+              AND account_id = @accountID
               AND user_version = @userVersion
               AND dark_version = @darkVersion
               AND ({compiledSql})
@@ -480,7 +480,7 @@ let executeCompiledQuery
           $"SELECT COUNT(*) as count
             FROM user_data_v0
             WHERE table_tlid = @tlid
-              AND app_id = @dbScope
+              AND account_id = @accountID
               AND user_version = @userVersion
               AND dark_version = @darkVersion
               AND ({compiledSql})"

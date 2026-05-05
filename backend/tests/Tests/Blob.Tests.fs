@@ -47,7 +47,7 @@ let private freshState () : RT.ExecutionState =
     (fun _ _ _ _ -> uply { return () })
     (fun _ _ _ _ -> uply { return () })
     PT.mainBranchId
-    { dbScope = System.Guid.Empty; dbs = Map.empty }
+    { accountID = System.Guid.Empty; dbs = Map.empty }
 
 let private dblobRef (dv : RT.Dval) : RT.BlobRef =
   match dv with

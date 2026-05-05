@@ -118,7 +118,7 @@ let cloudBuiltIns (pm : PT.PackageManager) =
 
 let executionStateFor
   (pmPT : PT.PackageManager)
-  (dbScope : uuid)
+  (accountID : uuid)
   (allowLocalHttpAccess : bool)
   (dbs : Map<string, RT.DB.T>)
   : Task<RT.ExecutionState> =
@@ -126,7 +126,7 @@ let executionStateFor
     let domains = []
 
     let program : RT.Program =
-      { dbScope = dbScope; dbs = dbs }
+      { accountID = accountID; dbs = dbs }
 
     let testContext : RT.TestContext =
       { sideEffectCount = 0
@@ -1531,8 +1531,8 @@ let unwrapExecutionResult
 let parsePTExpr (code : string) : Task<PT.Expr> =
   uply {
     let! (state : RT.ExecutionState) =
-      let dbScope = System.Guid.NewGuid()
-      executionStateFor pmPT dbScope false Map.empty
+      let accountID = System.Guid.NewGuid()
+      executionStateFor pmPT accountID false Map.empty
 
     let name =
       RT.FQFnName.fqPackage (PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ())

@@ -405,8 +405,8 @@ module Execution =
 /// the request, compare, stop the listener.
 let private runFixture (test : Test) : Task<unit> =
   task {
-    let dbScope = System.Guid.NewGuid()
-    let! exeState = executionStateFor pmPT dbScope true Map.empty
+    let accountID = System.Guid.NewGuid()
+    let! exeState = executionStateFor pmPT accountID true Map.empty
 
     let! handler = buildRouterForTest exeState test
 

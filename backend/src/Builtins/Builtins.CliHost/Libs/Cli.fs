@@ -169,7 +169,7 @@ let execute
     let resolvedAppID = appID |> Option.defaultValue (System.Guid.NewGuid())
 
     let (program : Program) =
-      { dbScope = System.Guid.Empty; dbs = dbs }
+      { accountID = System.Guid.Empty; dbs = dbs }
 
     let builtins = builtinsToUse ()
 
@@ -244,7 +244,7 @@ let createBranchState
   (allowHarmful : bool)
   =
   let program : Program =
-    { dbScope = System.Guid.Empty; dbs = Map.empty }
+    { accountID = System.Guid.Empty; dbs = Map.empty }
   let state =
     Exe.createState
       (builtinsToUse ())

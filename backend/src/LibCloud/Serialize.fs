@@ -31,7 +31,7 @@ type Deleted =
   | NotDeleted
 
 let loadToplevels
-  (canvasID : uuid)
+  (accountID : uuid)
   (tlids : List<tlid>)
   : Task<List<Deleted * PT.Toplevel.T>> =
   task {
@@ -49,7 +49,7 @@ let loadToplevels
         let query =
           $"SELECT tlid, data, deleted
            FROM toplevels_v0
-           WHERE app_id = @canvasID
+           WHERE account_id = @accountID
              AND tlid IN ({tlidPlaceholders})
              AND (
                tipe = 'db'
@@ -57,7 +57,7 @@ let loadToplevels
              )"
 
         Sql.query query
-        |> Sql.parameters (("canvasID", Sql.uuid canvasID) :: tlidParams)
+        |> Sql.parameters (("accountID", Sql.uuid accountID) :: tlidParams)
         |> Sql.executeAsync (fun read ->
           (read.tlid "tlid", read.bytes "data", read.bool "deleted"))
 
@@ -69,12 +69,12 @@ let loadToplevels
   }
 
 
-let fetchTLIDsForAllDBs (canvasID : uuid) : Task<List<tlid>> =
+let fetchTLIDsForAllDBs (accountID : uuid) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
-    WHERE app_id = @canvasID
+    WHERE account_id = @accountID
       AND tipe = 'db'
       AND deleted = 0"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
+  |> Sql.parameters [ "accountID", Sql.uuid accountID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 

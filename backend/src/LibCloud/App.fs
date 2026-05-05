@@ -24,8 +24,8 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 // as identity functions over the account ID — that's the scope key the
 // rest of the system needs (user_data, traces, etc) and there's no real
 // app indirection to maintain. The `apps_v0` table is gone; nothing
-// reads from it. A future commit can rename `app_id` columns →
-// `account_id` and drop the dbScope plumbing entirely.
+// reads from it. A future commit can rename `account_id` columns →
+// `account_id` and drop the accountID plumbing entirely.
 
 let create (accountID : Option<UserID>) : Task<uuid> =
   task {
@@ -120,13 +120,13 @@ let loadAllDBs (id : uuid) : Task<T> =
   }
 
 
-let deleteToplevelForever (canvasID : uuid) (tlid : tlid) : Task<unit> =
+let deleteToplevelForever (accountID : uuid) (tlid : tlid) : Task<unit> =
   // CLEANUP: set deleted column in toplevels_v0 to be not nullable
   Sql.query
     "DELETE from toplevels_v0
-      WHERE app_id = @canvasID
+      WHERE account_id = @accountID
         AND tlid = @tlid"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlid", Sql.id tlid ]
+  |> Sql.parameters [ "accountID", Sql.uuid accountID; "tlid", Sql.id tlid ]
   |> Sql.executeStatementAsync
 
 let toplevelToDBTypeString (tl : PT.Toplevel.T) : string =
@@ -192,12 +192,12 @@ let saveTLIDs
         return!
           Sql.query
             "INSERT INTO toplevels_v0
-              (app_id, tlid, digest, tipe, name,
+              (account_id, tlid, digest, tipe, name,
                module, modifier, deleted, data, updated_at)
             VALUES
-              (@canvasID, @tlid, @digest, @typ, @name,
+              (@accountID, @tlid, @digest, @typ, @name,
                @module, @modifier, @deleted, @data, datetime('now'))
-            ON CONFLICT (app_id, tlid)
+            ON CONFLICT (account_id, tlid)
               DO UPDATE SET
                 digest = @digest,
                 tipe = @typ,
@@ -208,7 +208,7 @@ let saveTLIDs
                 data = @data,
                 updated_at = datetime('now')"
           |> Sql.parameters
-            [ "canvasID", Sql.uuid id
+            [ "accountID", Sql.uuid id
               "tlid", Sql.tlid tlid
               "digest", Sql.string "fsharp"
               "typ", Sql.string (toplevelToDBTypeString tl)
@@ -220,7 +220,7 @@ let saveTLIDs
           |> Sql.executeStatementAsync
       })
   with e ->
-    Exception.reraiseAsPageable "canvas save failed" [ "canvasID", id ] e
+    Exception.reraiseAsPageable "canvas save failed" [ "accountID", id ] e
 
 
 let toProgram (c : T) : Ply<RT.Program> =
@@ -232,5 +232,5 @@ let toProgram (c : T) : Ply<RT.Program> =
       |> Map.ofList
 
     return
-      { dbScope = System.Guid.Empty; dbs = dbs }
+      { accountID = System.Guid.Empty; dbs = dbs }
   }

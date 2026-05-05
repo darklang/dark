@@ -28,7 +28,7 @@ let private buildState () : Task<RT.ExecutionState> =
     let pmPTValue = pmPT
     let builtins = Builtins.CliHost.Libs.Cli.builtinsToUse ()
     let pmRT = PT2RT.PackageManager.toRT builtins.values pmPTValue
-    let program : RT.Program = { dbScope = System.Guid.Empty; dbs = Map.empty }
+    let program : RT.Program = { accountID = System.Guid.Empty; dbs = Map.empty }
 
     let notify
       (_state : RT.ExecutionState)
