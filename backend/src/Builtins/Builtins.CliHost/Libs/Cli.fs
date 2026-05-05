@@ -123,6 +123,20 @@ module ExecutionError =
 
 let pmRT = LibDB.PackageManager.rt
 
+// `builtinsToUse` needs to include this module's own local fns
+// (cliEvaluateExpression, cliParseAndExecuteScript) so that user
+// `eval` / `run` can re-call them recursively. But those local fns
+// are defined later in this file via `fns ()` and themselves depend
+// on `execute` / `createBranchState`, which depend back on
+// `builtinsToUse`. Rather than fight F# ordering with a sprawling
+// `let rec ... and` chain, set a mutable thunk that gets populated
+// at module init time (assigned at the bottom of the file).
+let private localBuiltinsThunk : (unit -> RT.Builtins) ref =
+  ref (fun () ->
+    Exception.raiseInternal
+      "Builtins.CliHost.Libs.Cli.localBuiltinsThunk used before init"
+      [])
+
 let builtinsToUse () : RT.Builtins =
   let ptPM = LibDB.PackageManager.pt
   LibExecution.Builtin.combine
@@ -132,7 +146,10 @@ let builtinsToUse () : RT.Builtins =
       Builtins.PM.Builtin.builtins ptPM
       Builtins.HttpServer.Builtin.builtins ()
       Builtins.DB.Builtin.builtins ()
-      Builtins.Tracing.Builtin.builtins () ]
+      Builtins.Tracing.Builtin.builtins ()
+      // Local fns (cliEvaluateExpression, cliParseAndExecuteScript)
+      // — needed so nested eval / run can dispatch recursively.
+      (!localBuiltinsThunk) () ]
     []
 
 
@@ -381,3 +398,7 @@ let fns () : List<BuiltInFn> =
     ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())
+
+// Populate the thunk so `builtinsToUse` can access this module's local
+// fns. Keep at end of file so `builtins ()` (and `fns ()`) are visible.
+localBuiltinsThunk := builtins
