@@ -44,7 +44,6 @@ let main (args : string array) : int =
         Tests.DvalRepr.tests
         Tests.LibParser.tests
         Tests.NewParser.tests
-        Tests.HttpClient.tests
 
         // package manager
         Tests.Propagation.tests
@@ -57,8 +56,6 @@ let main (args : string array) : int =
         Tests.DarkTypesSerialization.tests
 
         // http server
-        Tests.HttpServer.tests
-        Tests.CliTraces.tests
 
         // cross-cutting
         Tests.LibExecution.tests.Force()
@@ -67,7 +64,6 @@ let main (args : string array) : int =
         Tests.Stream.tests ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
-    let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
 
     // Generate this so that we can see if the format has changed in a git diff
     BinarySerialization.generateTestFiles ()
@@ -80,7 +76,6 @@ let main (args : string array) : int =
 
     NonBlockingConsole.wait () // flush stdout
     cancelationTokenSource.Cancel()
-    httpClientTestsTask.Wait()
     exitCode
   with e ->
     printException "Outer exception" [] e

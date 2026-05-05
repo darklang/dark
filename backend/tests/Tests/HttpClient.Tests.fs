@@ -114,7 +114,7 @@ let parseSingleTestFromFile
   uply {
     let! (state : RT.ExecutionState) =
       let canvasID = System.Guid.NewGuid()
-      executionStateFor pmPT canvasID false false Map.empty
+      executionStateFor pmPT canvasID false Map.empty
 
     let name =
       RT.FQFnName.fqPackage (PackageRefs.Fn.Internal.Test.parseSingleTestFromFile ())
@@ -203,7 +203,7 @@ let makeTest versionName filename =
     else
       // Set up the canvas
       let canvasID = System.Guid.NewGuid()
-      let! exeState = executionStateFor pmPT canvasID false true Map.empty
+      let! exeState = executionStateFor pmPT canvasID true Map.empty
 
       // Parse the Dark code
       let! (test : Internal.Test.PTTest) =
@@ -253,6 +253,34 @@ let makeTest versionName filename =
       let! actual = promoteIfOk actual
       let! expected = promoteIfOk expected
 
+      // Normalize the `headers` field of an HttpClient.Response Dval by
+      // sorting tuples by header key. Header emit order is server-
+      // implementation-dependent; logical equality on the header set is
+      // what these tests actually want.
+      let normalizeResponseHeaders (dval : RT.Dval) : RT.Dval =
+        match dval with
+        | RT.DRecord(t1, t2, ta, fields) ->
+          match Map.tryFind "headers" fields with
+          | Some(RT.DList(elemType, items)) ->
+            let sorted =
+              items
+              |> List.sortBy (fun item ->
+                match item with
+                | RT.DTuple(RT.DString k, _, _) -> k.ToLowerInvariant()
+                | _ -> "")
+            let newFields = Map.add "headers" (RT.DList(elemType, sorted)) fields
+            RT.DRecord(t1, t2, ta, newFields)
+          | _ -> dval
+        | _ -> dval
+
+      let normalize r =
+        match r with
+        | Ok dv -> Ok(normalizeResponseHeaders dv)
+        | Error _ -> r
+
+      let actual = normalize actual
+      let expected = normalize expected
+
       match actual, expected with
       | Ok actual, Ok expected ->
         return Expect.RT.equalDval actual expected $"Responses don't match"
@@ -261,26 +289,64 @@ let makeTest versionName filename =
 
 
 // ---------------
-// This is the webserver that we will be testing against.
-// It records the received request, and returns the test case output.
+// This is the webserver that we will be testing against. It records
+// the received request, and returns the test case output. Backed by
+// System.Net.HttpListener.
 // ---------------
-open Microsoft.AspNetCore
-open Microsoft.AspNetCore.Builder
-open Microsoft.AspNetCore.Hosting
-open Microsoft.AspNetCore.Http
-open Microsoft.AspNetCore.Http.Extensions
-open Microsoft.Extensions.Hosting
+open System.Net
 
 type Compression =
   | Deflate
   | Brotli
   | Gzip
 
-let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
+/// Flatten HttpListener's NameValueCollection of headers into the (key, value)
+/// list shape these tests expect. A single header key with multiple values
+/// becomes multiple entries.
+let private getHeadersWithoutMergingKeys
+  (req : HttpListenerRequest)
+  : List<string * string> =
+  let result = ResizeArray<string * string>()
+  for key in req.Headers.AllKeys do
+    if not (isNull key) then
+      let values = req.Headers.GetValues(key)
+      if not (isNull values) then
+        for value in values do
+          result.Add(key, value)
+  List.ofSeq result
+
+let private getBody (req : HttpListenerRequest) : Task<byte[]> =
+  task {
+    use ms = new System.IO.MemoryStream()
+    do! req.InputStream.CopyToAsync(ms)
+    return ms.ToArray()
+  }
+
+let private setResponseHeader
+  (resp : HttpListenerResponse)
+  (name : string)
+  (value : string)
+  : unit =
+  // HttpListener treats Content-Type / Content-Length / Date as first-class
+  // properties; setting via Headers.Add can throw. Special-case those.
+  if String.equalsCaseInsensitive name "Content-Type" then
+    resp.ContentType <- value
+  elif String.equalsCaseInsensitive name "Content-Length" then
+    match System.Int64.TryParse(value) with
+    | true, n -> resp.ContentLength64 <- n
+    | _ -> ()
+  elif String.equalsCaseInsensitive name "Date" then
+    // HttpListener sets Date itself; the testcase value is normalized to
+    // "xxx, xx xxx xxxx xx:xx:xx xxx" anyway.
+    ()
+  else
+    resp.Headers.Add(name, value)
+
+let runTestHandler (ctx : HttpListenerContext) : Task<unit> =
   task {
     try
       let versionName, testName =
-        let segments = System.Uri(ctx.Request.Path.Value).Segments
+        let segments = ctx.Request.Url.Segments
 
         let versionName = segments[1]
         let versionName =
@@ -306,20 +372,47 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
         with _ ->
           None
 
+      // Override HttpListener's default `Server: Microsoft-NetCore/2.0`
+      // so fixtures asserting on `Server: kestrel` stay byte-exact.
+      ctx.Response.Headers[HttpResponseHeader.Server] <- "kestrel"
+
       match testCase with
       | None ->
         ctx.Response.StatusCode <- 404
         let body = "intentionally not found" |> UTF8.toBytes
-        ctx.Response.ContentLength <- int64 body.Length
-        do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
-        return ctx
+        ctx.Response.ContentLength64 <- int64 body.Length
+        do! ctx.Response.OutputStream.WriteAsync(body, 0, body.Length)
 
       | Some testCase ->
+        // If the fixture's [response] block sets Content-Length, emit a
+        // Content-Length response; otherwise fall back to chunked
+        // transfer for unknown-length bodies. Statuses that forbid a
+        // body (204, 304) skip chunked too.
+        let testCaseHasContentLength =
+          testCase.responseToReturn.headers
+          |> List.exists (fun (k, _) ->
+            String.equalsCaseInsensitive k "Content-Length")
+
+        let testCaseStatus =
+          testCase.responseToReturn.status
+          |> String.split " "
+          |> List.getAt 1
+          |> Exception.unwrapOptionInternal
+            "invalid status code"
+            [ "status", testCase.responseToReturn.status ]
+          |> int
+
+        let bodyForbidden = testCaseStatus = 204 || testCaseStatus = 304
+
+        ctx.Response.SendChunked <-
+          (not testCaseHasContentLength) && not bodyForbidden
+
         // Gather status, headers, and body from the actual request
-        let actualStatus =
-          $"{ctx.Request.Method} {ctx.Request.GetEncodedPathAndQuery()} {ctx.Request.Protocol}"
-        let actualHeaders = BwdServer.Server.getHeadersWithoutMergingKeys ctx
-        let! actualBody = BwdServer.Server.getBody ctx
+        let pathAndQuery = ctx.Request.Url.PathAndQuery
+        let protocol = $"HTTP/{ctx.Request.ProtocolVersion}"
+        let actualStatus = $"{ctx.Request.HttpMethod} {pathAndQuery} {protocol}"
+        let actualHeaders = getHeadersWithoutMergingKeys ctx.Request
+        let! actualBody = getBody ctx.Request
         let actualRequest : Http.T =
           { status = actualStatus; headers = actualHeaders; body = actualBody }
 
@@ -333,7 +426,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
                 { testCase.expectedRequest with
                     status =
                       testCase.expectedRequest.status
-                      |> String.replace "PATH" ctx.Request.Path.Value } }
+                      |> String.replace "PATH" ctx.Request.Url.AbsolutePath } }
         testCases[dictKey] <- updatedTestCase
 
 
@@ -365,7 +458,7 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
             then
               transcodeToLatin1 <- true
 
-          BwdServer.Server.setResponseHeader ctx k v)
+          setResponseHeader ctx.Response k v)
 
         let data =
           if transcodeToLatin1 then
@@ -379,8 +472,11 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
 
         match compression with
         | Some algo ->
+          // Compressed bodies have unknown serialized length until written;
+          // fall back to chunked transfer for these.
+          ctx.Response.SendChunked <- true
           let stream : Stream =
-            let body = ctx.Response.Body
+            let body = ctx.Response.OutputStream
             match algo with
             | Gzip -> new GZipStream(body, CompressionMode.Compress)
             | Brotli -> new BrotliStream(body, CompressionMode.Compress)
@@ -389,44 +485,71 @@ let runTestHandler (ctx : HttpContext) : Task<HttpContext> =
           do! stream.FlushAsync()
           do! stream.DisposeAsync()
         | None ->
+          // ContentLength64 has already been set via setResponseHeader if
+          // the testcase included Content-Length (whose value may differ
+          // from data.Length, e.g. HEAD responses that advertise the
+          // length GET would return). Don't override.
           if ctx.Response.StatusCode <> 304 then
-            do! ctx.Response.Body.WriteAsync(data, 0, data.Length)
-
-        return ctx
+            do! ctx.Response.OutputStream.WriteAsync(data, 0, data.Length)
     with e ->
-      // It might already have started, in which case let's just get the exception in
-      // the body and hope that helps
-      if not ctx.Response.HasStarted then ctx.Response.StatusCode <- 500
+      // Best-effort: if we can still set status, do so.
+      try
+        ctx.Response.StatusCode <- 500
+      with _ ->
+        ()
 
       let body = $"{e.Message}\n\n{e.StackTrace}"
-      print $"{body}-{ctx.Request.Path}"
+      print $"{body}-{ctx.Request.Url.AbsolutePath}"
       let body = UTF8.toBytes body
 
-      do! ctx.Response.Body.WriteAsync(body, 0, body.Length)
-      return ctx
+      try
+        do! ctx.Response.OutputStream.WriteAsync(body, 0, body.Length)
+      with _ ->
+        ()
   }
 
 
-
-let configureApp (app : IApplicationBuilder) =
-  let handler (ctx : HttpContext) : Task = runTestHandler ctx
-  app.Run(RequestDelegate handler)
-
-let webserver () =
-  Host.CreateDefaultBuilder()
-  |> fun h -> h.ConfigureLogging(configureLogging "test-httpclient-server")
-  |> fun h ->
-      h.ConfigureWebHost(fun wh ->
-        wh
-        |> fun wh -> wh.UseKestrel()
-        |> fun wh -> wh.UseUrls($"http://*:{TestConfig.httpClientPort}")
-        |> fun wh -> wh.Configure(configureApp)
-        |> ignore<IWebHostBuilder>)
-  |> fun h -> h.Build()
-
-// run a webserver to read test input
+/// Run an HttpListener-backed mock origin until `token` cancels.
 let init (token : System.Threading.CancellationToken) : Task =
-  (webserver ()).RunAsync(token)
+  task {
+    let listener = new HttpListener()
+    listener.Prefixes.Add($"http://*:{TestConfig.httpClientPort}/")
+    listener.Start()
+
+    use _registration =
+      token.Register(fun () ->
+        try
+          listener.Stop()
+        with _ ->
+          ())
+
+    while not token.IsCancellationRequested do
+      try
+        let! ctx = listener.GetContextAsync()
+        // Fire-and-forget so a slow handler can't stall accept.
+        Task.Run(fun () ->
+          task {
+            try
+              do! runTestHandler ctx
+            finally
+              try
+                ctx.Response.OutputStream.Close()
+                ctx.Response.Close()
+              with _ ->
+                ()
+          }
+          :> Task)
+        |> ignore<Task>
+      with
+      | :? HttpListenerException -> ()
+      | :? System.ObjectDisposedException -> ()
+
+    try
+      listener.Close()
+    with _ ->
+      ()
+  }
+  :> Task
 
 let testsFromFiles version =
   System.IO.Directory.GetFiles($"{baseDirectory}/{version}", "*.test")
@@ -475,7 +598,7 @@ module MockHelpers =
 // ————————————————————————————————————————————————————————————
 // Tests for the DStream-returning `HttpClient.stream` builtin. The
 // mock-server infrastructure at the top of this file is reused so
-// we exercise the real Kestrel path end-to-end. The tests call
+// we exercise the real network path end-to-end. The tests call
 // `openStreamingRequest` + construct a FromIO directly to avoid
 // standing up a full ExecutionState — the DStream drain path is
 // the whole point of the test.

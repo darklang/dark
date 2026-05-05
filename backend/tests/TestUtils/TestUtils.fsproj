@@ -13,6 +13,9 @@
     <ProjectReference Include="../../src/LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.HttpServer/Builtins.HttpServer.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.Tracing/Builtins.Tracing.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.PM/Builtins.PM.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.DB/Builtins.DB.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.DarkInternal/Builtins.DarkInternal.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="PTShortcuts.fs" />

@@ -330,6 +330,12 @@ module Type =
         let private p addl = p ("RuntimeError" :: addl)
         let errorMessage = p [] "ErrorMessage"
 
+  module Tracing =
+    let traceSummary = p [ "Tracing" ] "TraceSummary"
+    let inputVar = p [ "Tracing" ] "InputVar"
+    let fnCall = p [ "Tracing" ] "FnCall"
+    let traceData = p [ "Tracing" ] "TraceData"
+
   module Cli =
     let executionError = p [ "Cli"; "ExecutionError" ] "ExecutionError"
     let script = p [ "Cli"; "Scripts" ] "Script"

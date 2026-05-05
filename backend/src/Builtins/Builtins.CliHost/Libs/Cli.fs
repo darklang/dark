@@ -205,7 +205,7 @@ let execute
       match List.tryLast results with
       | Some lastResult ->
         let! result = lastResult
-        tracer.storeTraceResults ()
+        do! tracer.storeTraceResults state
         return result
       | None ->
         return

@@ -17,7 +17,7 @@ open Fumble
 open LibSqlite.Db
 
 module Dval = LibExecution.Dval
-module DvalReprInternalRoundtrippable = LibDB.DvalRepr.Roundtrippable
+module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module NR = LibExecution.RuntimeTypes.NameResolution
 module VT = LibExecution.ValueType
@@ -727,7 +727,7 @@ let fns () : List<BuiltInFn> =
           uply {
             match d with
             | DBlob(Persistent(hash, _)) ->
-              let! bs = LibDB.PackageManager.RuntimeTypes.Blob.get hash
+              let! bs = LibDB.RuntimeTypes.Blob.get hash
               return Option.defaultValue [||] bs
             | DBlob(Ephemeral id) ->
               let mutable bs : byte[] = null
@@ -808,10 +808,10 @@ let fns () : List<BuiltInFn> =
                     { owner = owner; modules = modules; name = name }
 
                   let! branchChain =
-                    LibDB.PackageManager.Branches.getBranchChain
+                    LibDB.Branches.getBranchChain
                       exeState.branchId
                   let! hashOpt =
-                    LibDB.PackageManager.ProgramTypes.Fn.find branchChain location
+                    LibDB.ProgramTypes.Fn.find branchChain location
 
                   match hashOpt with
                   | None ->
@@ -1019,7 +1019,7 @@ let fns () : List<BuiltInFn> =
           uply {
             match d with
             | DBlob(Persistent(hash, _)) ->
-              let! bs = LibDB.PackageManager.RuntimeTypes.Blob.get hash
+              let! bs = LibDB.RuntimeTypes.Blob.get hash
               return Option.defaultValue [||] bs
             | _ -> return [||]
           }

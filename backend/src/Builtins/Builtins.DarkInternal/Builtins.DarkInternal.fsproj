@@ -9,6 +9,7 @@
   <ItemGroup>
     <ProjectReference Include="../../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../../LibConfig/LibConfig.fsproj" />
     <ProjectReference Include="../../LibSqlite/LibSqlite.fsproj" />
     <ProjectReference Include="../../LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../../LibDB/LibDB.fsproj" />

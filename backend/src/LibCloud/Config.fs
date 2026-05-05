@@ -5,7 +5,7 @@ module LibCloud.Config
 open Prelude
 
 open LibConfig.ConfigDsl
-module Config = LibService.Config
+module Config = LibConfig.Config
 
 // -------------------------
 // Note: if you add or change an env-var in development,
@@ -16,7 +16,7 @@ module Config = LibService.Config
 // Root directories - see File.fs and Root type below
 // -------------------------
 
-let sourceRootDir = Config.sourceRootDir
+let sourceRootDir = absoluteDir "DARK_CONFIG_ROOT_DIR"
 
 let runDir = Config.runDir
 let logDir = Config.logDir

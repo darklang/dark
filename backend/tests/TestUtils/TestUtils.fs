@@ -122,17 +122,13 @@ let builtins
       Builtins.Cli.Builtin.builtins () ]
     []
 
-let cloudBuiltIns (pm : PT.PackageManager) =
-  let httpConfig =
-    { LibCloudExecution.HttpClient.configuration with
-        timeoutInMs = 5000
-        allowedIP = (fun _ -> true) }
-  builtins httpConfig pm
-
 let localBuiltIns (pm : PT.PackageManager) =
   let httpConfig =
     { Builtins.Execution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
   builtins httpConfig pm
+
+// LibCloudExecution is gone; cloud flavor folds into local for now.
+let cloudBuiltIns (pm : PT.PackageManager) = localBuiltIns pm
 
 
 

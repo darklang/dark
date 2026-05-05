@@ -135,11 +135,9 @@ let initSerializers () =
 
 [<EntryPoint>]
 let main (args : string[]) : int =
-  let name = "LocalExec"
   try
     initSerializers ()
 
-    LibService.Init.init name
 
     //let _ = (LibCloud.Init.init name).Result
 
@@ -164,10 +162,6 @@ let main (args : string[]) : int =
         "Reload packages from `packages` directory"
         (HandleCommand.reloadPackages ())
 
-    | [ "reload-canvases" ] ->
-      handleCommand
-        "Reload canvases from 'canvases' directory"
-        (HandleCommand.reloadCanvases ())
 
 
     | [ "migrations"; "run" ] ->
@@ -214,6 +208,5 @@ let main (args : string[]) : int =
   with e ->
     // Don't reraise or report as LocalExec is only run interactively
     printException "Exception" [] e
-    LibService.Init.shutdown name
     NonBlockingConsole.wait ()
     1
