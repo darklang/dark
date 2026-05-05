@@ -16,8 +16,7 @@
     <ProjectReference Include="../../src/LibSerialization/LibSerialization.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.DB/Builtins.DB.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.DarkInternal/Builtins.DarkInternal.fsproj" />
-    <ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" />
-    <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.HttpServer/Builtins.HttpServer.fsproj" />
 
     <!-- cross-cutting -->
     <ProjectReference Include="../TestUtils/TestUtils.fsproj" />
@@ -45,10 +44,8 @@
     <Compile Include="BranchOps.Tests.fs" />
 
     <!-- cloud stuff /-->
-    <Compile Include="BwdServer.Tests.fs" />
-    <Compile Include="Canvas.Tests.fs" />
+    <Compile Include="HttpServer.Tests.fs" />
     <Compile Include="DvalRepr.Tests.fs" />
-    <Compile Include="Routing.Tests.fs" />
     <Compile Include="Serialization.TestValues.fs" />
     <Compile Include="Serialization.Binary.Tests.fs" />
     <Compile Include="Serialization.Vanilla.Tests.fs" />

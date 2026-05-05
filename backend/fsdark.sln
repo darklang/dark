@@ -41,19 +41,11 @@ EndProject
 # Cloud stuff
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibSerialization", "src\LibSerialization\LibSerialization.fsproj", "{5830D9BF-CA28-47B0-964F-343FAB28751B}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibService", "src\LibService\LibService.fsproj", "{824DD2A5-7F01-4A8A-9ABD-9F91F52582AD}"
-EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.DB", "src\Builtins\Builtins.DB\Builtins.DB.fsproj", "{82CA75E9-53BD-4324-B86B-44F280BAF331}"
-EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibCloudExecution", "src\LibCloudExecution\LibCloudExecution.fsproj", "{FA55A52D-B880-4931-A121-85C8DAD8DD28}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.DarkInternal", "src\Builtins\Builtins.DarkInternal\Builtins.DarkInternal.fsproj", "{B6933551-A7A3-4A85-BEF4-43214ABB04DF}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibCloud", "src\LibCloud\LibCloud.fsproj", "{3FC57943-9D51-49AE-9FBD-4A112B4F68D6}"
-EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibHttpMiddleware", "src\LibHttpMiddleware\LibHttpMiddleware.fsproj", "{DAE2B2E9-40AF-4D99-A5B0-79678F94BFDA}"
-EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "BwdServer", "src\BwdServer\BwdServer.fsproj", "{B56110F0-2D27-4718-8C80-E7FDE3439A63}"
 EndProject
 # CLI stuff
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Cli", "src\Cli\Cli.fsproj", "{DF812CBE-894C-4C90-9EDC-4558983CCDEA}"

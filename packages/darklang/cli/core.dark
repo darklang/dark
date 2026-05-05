@@ -215,7 +215,7 @@ module Registry =
       ("builtins", "List all builtin functions", [], Builtins.execute, Builtins.help, Builtins.complete)
       ("find-values", "Find values of a given type", [], Commands.FindValues.execute, Commands.FindValues.help, Commands.FindValues.complete)
       ("agent", "AI assistant workflows (ask/code/review/fix/diff)", [ "ai" ], Commands.Agent.execute, Commands.Agent.help, Commands.Agent.complete)
-      ("http-server", "Start an HTTP server", [], Commands.HttpServer.execute, Commands.HttpServer.help, Commands.HttpServer.complete)
+      ("serve", "Start an HTTP server", [ "http-server" ], Commands.Serve.execute, Commands.Serve.help, Commands.Serve.complete)
       ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Commands.Docs.execute, Commands.Docs.help, Commands.Docs.complete)
       ("undo", "Undo WIP changes to a fn/type/value", [], Packages.Undo.execute, Packages.Undo.help, Packages.Undo.complete)
       ("deprecate", "Mark a fn/type/value as deprecated", [], Packages.Deprecate.execute, Packages.Deprecate.help, Packages.Deprecate.complete)

@@ -10,7 +10,6 @@
     <ProjectReference Include="../../src/Builtins/Builtins.Cli/Builtins.Cli.fsproj" />
     <ProjectReference Include="../../src/LibSqlite/LibSqlite.fsproj" />
     <ProjectReference Include="../../src/LibDB/LibDB.fsproj" />
-    <ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" />
     <ProjectReference Include="../../src/LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.HttpServer/Builtins.HttpServer.fsproj" />
   </ItemGroup>
@@ -18,6 +17,7 @@
     <Compile Include="PTShortcuts.fs" />
     <Compile Include="LibTest.fs" />
     <Compile Include="TestUtils.fs" />
+    <Compile Include="HandlerGraph.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -10,8 +10,6 @@ open Prelude
 module PT = LibExecution.ProgramTypes
 
 let initSerializers () =
-  BwdServer.Server.initSerializers ()
-
   // These are serializers used in the tests that are not used in the main program
   Json.Vanilla.allow<Map<string, string>> "tests"
   Json.Vanilla.allow<LibExecution.AnalysisTypes.TraceData> "testTraceData"
@@ -23,11 +21,6 @@ let initSerializers () =
 [<EntryPoint>]
 let main (args : string array) : int =
   try
-    let name = "Tests"
-    LibService.Init.init name
-    (LibCloud.Init.init name).Result
-    (LibCloudExecution.Init.init name).Result
-
     initSerializers ()
 
     // Grow the DB from seed if needed. Builtins are deferred (constructed after
@@ -58,22 +51,13 @@ let main (args : string array) : int =
         Tests.Hashing.tests
         Tests.BranchOps.tests
 
-        (*
-        TODO backfill the following tests we neglected to write during a big refactor:
-        - op playback
-        - package search
-        - branch-specific stuff
-
-        (agaist both in-mem and sql-bound PMs)
-        *)
-
-        // cloud
-        Tests.BwdServer.tests
-        Tests.Canvas.tests
-        Tests.Routing.tests
+        // serialization
         Tests.BinarySerialization.tests
         Tests.VanillaSerialization.tests
         Tests.DarkTypesSerialization.tests
+
+        // http server
+        Tests.HttpServer.tests
 
         // cross-cutting
         Tests.LibExecution.tests.Force()
@@ -82,7 +66,6 @@ let main (args : string array) : int =
         Tests.Stream.tests ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
-    let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
 
     // Generate this so that we can see if the format has changed in a git diff
@@ -96,7 +79,6 @@ let main (args : string array) : int =
 
     NonBlockingConsole.wait () // flush stdout
     cancelationTokenSource.Cancel()
-    bwdServerTestsTask.Wait()
     httpClientTestsTask.Wait()
     exitCode
   with e ->

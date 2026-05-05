@@ -1,28 +1,30 @@
-/// Tests the darklang.io server (`BwdServer`), which is the server that
-/// runs Dark users' HTTP handlers.
+/// Tests the CLI's `Http.serve` builtin against the fixtures in
+/// `testfiles/http-server/` (byte-exact `.test` files).
 ///
-/// Test files are stored in the `testfiles/httphandler` directory, which
-/// includes a relevant README.md.
-module Tests.BwdServer
+/// Per-test handlers are assembled into an in-memory router Dval via
+/// `TestUtils.HandlerGraph.buildRouter`; a free port is allocated with
+/// `TcpListener(IPAddress.Loopback, 0)` and the listener is stopped
+/// via `cts.Cancel()` in teardown. `domain` is fixed to `"localhost"`
+/// since this is a single-app server; fixtures that use `[domain ...]`
+/// for multi-app dispatch live under `_disabled-by-cli-model/`.
+module Tests.HttpServer
 
-let basePath = "testfiles/httphandler"
+let basePath = "testfiles/http-server"
 let dataBasePath = "testfiles/data"
 
 open Expecto
 
+open System.Threading
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
+open System.Net
 open System.Net.Sockets
-open System.Text.Json
 
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
-module PT = LibExecution.ProgramTypes
-module Routing = LibCloud.Routing
-module Canvas = LibCloud.Canvas
-module Serialize = LibCloud.Serialize
+module HttpServer = Builtins.HttpServer.Libs.HttpServer
 
 open Tests
 open TestUtils.TestUtils
@@ -38,7 +40,7 @@ type Test =
   {
     handlers : List<TestHandler>
     secrets : List<TestSecret>
-    /// Allow testing of a specific canvas name
+    /// Allow testing of a specific canvas name (no-op in single-canvas CLI mode).
     domain : Option<string>
     request : byte array
     expectedResponse : byte array
@@ -66,7 +68,7 @@ let splitAtNewlines (bytes : byte array) : byte list list =
 #nowarn "57" // Negative array index using ^idx
 
 /// Used to parse a .test file
-/// See details in `httptestfiles/README.md`
+/// See details in `http-server/README.md`
 module ParseTest =
   type private TestParsingState =
     | Limbo
@@ -117,7 +119,6 @@ module ParseTest =
                  :: result.handlers })
 
         | Regex.Regex "\<IMPORT_DATA_FROM_FILE=(\S+)\>" [ dataFileToInject ] ->
-          // TODO do this as part of run-time, not during parse-time
           let injectedBytes =
             System.IO.File.ReadAllBytes $"{dataBasePath}/{dataFileToInject}"
 
@@ -184,37 +185,35 @@ module ParseTest =
             request = Array.take (test.request.Length - 2) test.request }
 
 
+/// Allocate a free TCP port on loopback. Brief race: another process could
+/// grab the port between Stop() and the listener using it, but in practice
+/// loopback ephemeral ports are fine for in-process tests.
+let private allocateFreePort () : int =
+  let listener = new TcpListener(IPAddress.Loopback, 0)
+  listener.Start()
+  let port = (listener.LocalEndpoint :?> IPEndPoint).Port
+  listener.Stop()
+  port
 
-/// Initializes and sets up a test canvas (handlers, secrets, etc.)
-let setupTestCanvas (testName : string) (test : Test) : Task<CanvasID * string> =
+
+/// Build a router DApplicable from a parsed `Test`'s handlers.
+let private buildRouterForTest
+  (exeState : RT.ExecutionState)
+  (test : Test)
+  : Task<RT.Applicable> =
   task {
-    let! (canvasID, domain) = initializeTestCanvas' $"bwdserver-{testName}"
-
-    // Handlers
-    let! oplists =
+    let raw : List<TestUtils.HandlerGraph.RawHandler> =
       test.handlers
-      |> Ply.List.mapSequentially (fun handler ->
-        uply {
-          let! source = parsePTExpr handler.code
-
-          let spec =
-            match handler.version with
-            | Http ->
-              PT.Handler.HTTP(route = handler.route, method = handler.method)
-
-          let h : PT.Handler.T = { tlid = gid (); ast = source; spec = spec }
-
-          return (PT.Toplevel.TLHandler h, Serialize.NotDeleted)
-        })
-
-    do! Canvas.saveTLIDs canvasID oplists
-
-    // Custom domains
-    match test.domain with
-    | Some domain -> do! Canvas.addDomain canvasID domain
-    | None -> ()
-
-    return canvasID, domain
+      |> List.reverse
+      |> List.map (fun h -> { route = h.route; method = h.method; code = h.code })
+    let! routerDval = TestUtils.HandlerGraph.buildRouter exeState raw
+    match routerDval with
+    | RT.DApplicable applicable -> return applicable
+    | _ ->
+      return
+        Exception.raiseInternal
+          "buildRouter returned non-DApplicable"
+          [ "dval", routerDval ]
   }
 
 
@@ -230,6 +229,10 @@ module Execution =
       |> List.filterMap (fun (k, v) ->
         match k, v with
         | "Date", _ -> Some(k, "xxx, xx xxx xxxx xx:xx:xx xxx")
+        // HttpListener auto-adds `Connection: close` on error-path
+        // responses; fixtures don't include it. Strip so the comparison
+        // stays byte-meaningful.
+        | "Connection", _ -> None
         | _other -> Some(k, v))
       |> List.sortBy Tuple2.first
 
@@ -252,7 +255,7 @@ module Execution =
     task {
       let client = new TcpClient()
 
-      // Web server might not be loaded yet
+      // Listener might not be loaded yet
       let mutable connected = false
       for i in 1..10 do
         try
@@ -260,8 +263,7 @@ module Execution =
             do! client.ConnectAsync("127.0.0.1", port)
             connected <- true
         with _ when i <> 10 ->
-          print $"Server not ready on port {port}, maybe retry"
-          do! System.Threading.Tasks.Task.Delay 1000
+          do! System.Threading.Tasks.Task.Delay 100
       return client
     }
 
@@ -279,10 +281,7 @@ module Execution =
     if pattern.Length = 0 || bytes.Length < pattern.Length then
       bytes
     else
-      // For each element of bytes, try to match every element of pattern with
-      // it. If it matches, add in the relacement and skip the rest of the
-      // pattern, otherwise skip
-      let mutable result = [] // Add in reverse
+      let mutable result = []
       let mutable i = 0
       while i < bytes.Length - pattern.Length do
         let mutable matches = true
@@ -290,38 +289,33 @@ module Execution =
         while j < pattern.Length do
           if bytes[i + j] <> patternBytes[j] then
             matches <- false
-            j <- pattern.Length // stop early
+            j <- pattern.Length
           else
             j <- j + 1
         if matches then
-          // matched: save replacement, skip rest of pattern
           result <- replacementBytes @ result
           i <- i + pattern.Length
         else
-          // not matched, char is in result, look at next char
           result <- bytes[i] :: result
           i <- i + 1
-      // Add the final ones we skipped above
       for i = i to bytes.Length - 1 do
         result <- bytes[i] :: result
-      // bytes are added in reverse, so one more reverse needed
       result |> List.reverse |> List.toArray
 
-  // This is to handle code editors (vs code) that trim whitespace at the end
-  // of a line of code, which can be annoying
+  // VS Code trims trailing whitespace from lines of code; <SPACE> in the
+  // fixture survives that round-trip and is replaced here.
   let insertSpaces = replaceByteStrings "<SPACE>" " "
 
-  /// Makes the test request to one of the servers,
-  /// testing the response matches expectations
+  /// Makes the test request to the server, testing the response matches
+  /// expectations.
   let runTestRequest
     (handlerVersion : HandlerVersion)
+    (port : int)
     (domain : string)
     (testRequest : byte array)
     (testExpectedResponse : byte array)
     : Task<unit> =
     task {
-      let port = TestConfig.bwdServerBackendPort
-
       let host = $"{domain}:{port}"
 
       let request =
@@ -353,13 +347,13 @@ module Execution =
       if
         testRequest |> UTF8.ofBytesWithReplacement |> String.contains "LENGTH"
         && not incorrectContentTypeAllowed
-      then // false alarm as also have LENGTH in it
+      then
         Expect.isFalse true "LENGTH substitution not done on request"
 
       // Make the request
-      use! client = createClient (port)
+      use! client = createClient port
       use stream = client.GetStream()
-      stream.ReadTimeout <- 1000 // responses should be instant, right?
+      stream.ReadTimeout <- 1000
 
       do! stream.WriteAsync(request, 0, request.Length)
       do! stream.FlushAsync()
@@ -406,53 +400,74 @@ module Execution =
           $"(bytes)"
     }
 
+
+/// Run one test fixture: build a router, start a per-test listener, fire
+/// the request, compare, stop the listener.
+let private runFixture (test : Test) : Task<unit> =
+  task {
+    let canvasID = System.Guid.NewGuid()
+    let! exeState = executionStateFor pmPT canvasID false Map.empty
+
+    let! handler = buildRouterForTest exeState test
+
+    let port = allocateFreePort ()
+    let cts = new CancellationTokenSource()
+
+    let listenerTask =
+      HttpServer.runListener
+        exeState
+        (int64 port)
+        handler
+        HttpServer.defaultMaxBodyBytes
+        true // injectStandardHeaders
+        true // canonicalizeFromForwardedProto
+        false // logRequests — keep tests quiet
+        cts.Token
+
+    try
+      do!
+        Execution.runTestRequest
+          Http
+          port
+          "localhost"
+          test.request
+          test.expectedResponse
+    finally
+      cts.Cancel()
+      // Give the listener a moment to clean up; don't wait forever.
+      try
+        let waitTask = listenerTask
+        if not (waitTask.Wait 2000) then () else ()
+      with _ ->
+        ()
+  }
+
+
 let tests =
-  /// Makes a test to be run
-  let t rootDir handlerType (filename : string) =
+  let t rootDir (filename : string) =
     testTask $"Http files: {filename}" {
       let shouldSkip = String.startsWith "_" filename
 
-      // read and parse the test
-      let filename = $"{rootDir}/{filename}"
-      let! contents = System.IO.File.ReadAllBytesAsync filename
+      let filenameAbs = $"{rootDir}/{filename}"
+      let! contents = System.IO.File.ReadAllBytesAsync filenameAbs
 
       let test = ParseTest.parse contents
-      let testName =
-        let withoutPrefix =
-          if shouldSkip then String.dropLeft 1 filename else filename
-        withoutPrefix |> String.dropRight (".test".Length)
 
-      // set up a test canvas
-      let! (_canvasID, domain) = setupTestCanvas testName test
-
-      // execute the test
       if shouldSkip then
-        skiptest $"underscore test - {testName}"
+        let displayName =
+          (if shouldSkip then String.dropLeft 1 filename else filename)
+          |> String.dropRight (".test".Length)
+        skiptest $"underscore test - {displayName}"
       else
-        do!
-          Execution.runTestRequest
-            handlerType
-            domain
-            test.request
-            test.expectedResponse
+        do! runFixture test
     }
 
-  [ ($"{basePath}", "http", Http) ]
-  |> List.map (fun (dir, testListName, handlerType) ->
+  [ ($"{basePath}", "http") ]
+  |> List.map (fun (dir, testListName) ->
     let tests =
       System.IO.Directory.GetFiles(dir, "*.test")
       |> Array.map (System.IO.Path.GetFileName)
       |> Array.toList
-      |> List.map (t dir handlerType)
+      |> List.map (t dir)
     testList testListName tests)
-  |> testList "BwdServer"
-
-
-open Microsoft.Extensions.Hosting
-
-let init (token : System.Threading.CancellationToken) : Task =
-  // run our own webserver instead of relying on the dev webserver
-  let port = TestConfig.bwdServerBackendPort
-  let k8sPort = TestConfig.bwdServerKubernetesPort
-  let logger = configureLogging "test-bwdserver"
-  (BwdServer.Server.webserver (Some logger) port k8sPort).RunAsync(token)
+  |> testList "HttpServer"
