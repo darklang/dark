@@ -24,7 +24,7 @@ module PackageRefs = LibExecution.PackageRefs
 module Dval = LibExecution.Dval
 module NR = LibParser.NameResolver
 module RTNR = LibExecution.RuntimeTypes.NameResolution
-module Canvas = LibCloud.Canvas
+module App = LibCloud.App
 module Serialize = LibCloud.Serialize
 
 open TestUtils.TestUtils
@@ -40,13 +40,13 @@ let setupWorkers (canvasID : uuid) (workers : List<string>) : Task<unit> =
             spec = PT.Handler.Worker(worker) }
         PT.Toplevel.TLHandler w, Serialize.NotDeleted)
 
-    do! Canvas.saveTLIDs canvasID tls
+    do! App.saveTLIDs canvasID tls
   }
 
 let setupDBs (canvasID : uuid) (dbs : List<PT.DB.T>) : Task<unit> =
   task {
     let tls = dbs |> List.map (fun db -> PT.Toplevel.TLDB db, Serialize.NotDeleted)
-    do! Canvas.saveTLIDs canvasID tls
+    do! App.saveTLIDs canvasID tls
   }
 
 let runtimeErrorMessage

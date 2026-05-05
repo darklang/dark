@@ -23,7 +23,7 @@ module PackageRefs = LibExecution.PackageRefs
 module Exe = LibExecution.Execution
 
 module Account = LibCloud.Account
-module Canvas = LibCloud.Canvas
+module App = LibCloud.App
 
 module PackageRefs = LibExecution.PackageRefs
 module C2DT = LibExecution.CommonToDarkTypes
@@ -51,7 +51,7 @@ let nameToTestDomain (name : string) : string =
 let initializeCanvasForOwner (name : string) : Task<uuid * string> =
   task {
     let domain = nameToTestDomain name
-    let! canvasID = Canvas.create None domain
+    let! canvasID = App.create None domain
     return (canvasID, domain)
   }
 
@@ -209,7 +209,7 @@ let executionStateFor
 // let canvasForTLs (canvasID : uuid) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
 //   task {
 //     let descs = tls |> List.map (fun tl -> (tl, LibCloud.Serialize.NotDeleted))
-//     do! Canvas.saveTLIDs canvasID descs
+//     do! App.saveTLIDs canvasID descs
 //     return! Canvas.loadAll canvasID
 //   }
 

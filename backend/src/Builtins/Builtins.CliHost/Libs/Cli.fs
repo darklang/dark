@@ -25,23 +25,23 @@ module Json = Builtins.Execution.Libs.Json
 module C2DT = LibExecution.CommonToDarkTypes
 module D = LibExecution.DvalDecoder
 module Utils = Builtins.CliHost.Utils
-module Canvas = LibCloud.Canvas
+module App = LibCloud.App
 module Tracing = LibDB.Tracing
 
 
-// Load canvas ID and DBs for an account
-let loadCanvasAndDBs
+// Load app ID and DBs for an account
+let loadAppAndDBs
   (accountID : Option<System.Guid>)
   : Ply<Option<uuid> * Map<string, RT.DB.T>> =
   uply {
     match accountID with
     | None -> return (None, Map.empty)
     | Some accID ->
-      let! apps = Canvas.getAppsForAccount accID
+      let! apps = App.getAppsForAccount accID
       match apps with
       | appID :: _ ->
-        let! canvas = Canvas.loadAllDBs appID
-        let! program = Canvas.toProgram canvas
+        let! app = App.loadAllDBs appID
+        let! program = App.toProgram app
         return (Some appID, program.dbs)
       | [] -> return (None, Map.empty)
   }
@@ -158,12 +158,12 @@ let execute
   (branchId : System.Guid)
   (mod' : Utils.CliScript.PTCliScriptModule)
   (_args : List<Dval>) // CLEANUP update to List<String>, and extract in builtin
-  (canvasID : Option<uuid>)
+  (appID : Option<uuid>)
   (dbs : Map<string, RT.DB.T>)
   (traceSource : CliTraceSource)
   : Ply<RT.ExecutionResult> =
   uply {
-    let resolvedCanvasID = canvasID |> Option.defaultValue (System.Guid.NewGuid())
+    let resolvedAppID = appID |> Option.defaultValue (System.Guid.NewGuid())
 
     let (program : Program) =
       { dbScope = System.Guid.Empty; dbs = dbs }
@@ -193,7 +193,7 @@ let execute
     let (traceDesc, inputName, inputValue) = CliTraceSource.toTraceParams traceSource
     let traceID = AT.TraceID.create ()
     let tracer =
-      Tracing.createCliTracer resolvedCanvasID traceID traceDesc inputName inputValue
+      Tracing.createCliTracer resolvedAppID traceID traceDesc inputName inputValue
 
     let state =
       Exe.createState
@@ -292,7 +292,7 @@ let fns () : List<BuiltInFn> =
               parseCliScript branchState branchId "CliScript" filename code
 
             try
-              let! (canvasID, dbs) = loadCanvasAndDBs accountID
+              let! (appID, dbs) = loadAppAndDBs accountID
 
               match parsedScript with
               | Ok mod' ->
@@ -302,7 +302,7 @@ let fns () : List<BuiltInFn> =
                     branchId
                     mod'
                     scriptArgs
-                    canvasID
+                    appID
                     dbs
                     (RunScript(filename, code))
                 with
@@ -361,7 +361,7 @@ let fns () : List<BuiltInFn> =
                 expression
 
             try
-              let! (canvasID, dbs) = loadCanvasAndDBs accountID
+              let! (appID, dbs) = loadAppAndDBs accountID
 
               match parsedScript with
               | Ok mod' ->
@@ -371,7 +371,7 @@ let fns () : List<BuiltInFn> =
                     branchId
                     mod'
                     []
-                    canvasID
+                    appID
                     dbs
                     (EvalExpression expression)
                 with

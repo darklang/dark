@@ -1,7 +1,7 @@
-module LibCloud.Canvas
+module LibCloud.App
 
-// Functions related to apps (formerly canvases). Module name stays for now;
-// renaming would touch every importer and is tracked as a follow-up.
+// Functions related to apps (formerly canvases). Renamed from
+// LibCloud.Canvas; surface API is the same.
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks

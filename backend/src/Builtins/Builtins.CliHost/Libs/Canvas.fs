@@ -12,7 +12,7 @@ module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module VT = LibExecution.ValueType
 module NR = LibExecution.RuntimeTypes.NameResolution
-module Canvas = LibCloud.Canvas
+module App = LibCloud.App
 module Serialize = LibCloud.Serialize
 module Account = LibCloud.Account
 module PackageLocation = LibDB.PackageLocation
@@ -22,7 +22,7 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "darkInternalAppDBCreate" 0
       typeParams = []
       parameters =
-        [ Param.make "canvasID" TUuid "The app to add the DB to"
+        [ Param.make "appID" TUuid "The app to add the DB to"
           Param.make "dbName" TString "Name of the database"
           Param.make
             "typeHash"
@@ -32,19 +32,19 @@ let fns () : List<BuiltInFn> =
       description = "Creates a new database in the specified app"
       fn =
         (function
-        | _, _, _, [ DUuid canvasID; DString dbName; typeHashDval ] ->
+        | _, _, _, [ DUuid appID; DString dbName; typeHashDval ] ->
           let typeHash = PT2DT.Hash.fromDT typeHashDval
           uply {
             // Check for existing DB with the same name
             let! existing =
               Sql.query
                 "SELECT COUNT(*) as cnt FROM toplevels_v0
-                 WHERE app_id = @canvasID
+                 WHERE app_id = @appID
                    AND tipe = 'db'
                    AND name = @name
                    AND deleted = 0"
               |> Sql.parameters
-                [ "canvasID", Sql.uuid canvasID; "name", Sql.string dbName ]
+                [ "appID", Sql.uuid appID; "name", Sql.string dbName ]
               |> Sql.executeRowAsync (fun read -> read.int "cnt")
 
             if existing > 0 then
@@ -68,7 +68,7 @@ let fns () : List<BuiltInFn> =
                     ) }
 
               let toplevel = PT.Toplevel.TLDB db
-              do! Canvas.saveTLIDs canvasID [ (toplevel, Serialize.NotDeleted) ]
+              do! App.saveTLIDs appID [ (toplevel, Serialize.NotDeleted) ]
               return Dval.resultOk KTUInt64 KTString (DUInt64 tlid)
           }
         | _ -> incorrectArgs ())
@@ -89,8 +89,8 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid accountID; DString domain ] ->
           uply {
-            let! canvasID = Canvas.getOrCreateForAccount accountID domain
-            return DUuid canvasID
+            let! appID = App.getOrCreateForAccount accountID domain
+            return DUuid appID
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -101,19 +101,19 @@ let fns () : List<BuiltInFn> =
     { name = fn "darkInternalAppDBListAll" 0
       typeParams = []
       parameters =
-        [ Param.make "canvasID" TUuid "The app to list DBs from"
+        [ Param.make "appID" TUuid "The app to list DBs from"
           Param.make "branchId" TUuid "Branch for resolving type names" ]
       returnType = TList(TTuple(TString, TString, []))
       description =
         "Returns a list of (name, typeName) tuples for all DBs in the app"
       fn =
         (function
-        | _, _, _, [ DUuid canvasID; DUuid branchId ] ->
+        | _, _, _, [ DUuid appID; DUuid branchId ] ->
           uply {
-            let! canvas = Canvas.loadAllDBs canvasID
+            let! app = App.loadAllDBs appID
             let pm = LibDB.PackageManager.pt
             let! dbs =
-              canvas.dbs
+              app.dbs
               |> Map.values
               |> Ply.List.mapSequentially (fun (db : PT.DB.T) ->
                 uply {
@@ -141,24 +141,24 @@ let fns () : List<BuiltInFn> =
     { name = fn "darkInternalAppDBDrop" 0
       typeParams = []
       parameters =
-        [ Param.make "canvasID" TUuid "The app containing the DB"
+        [ Param.make "appID" TUuid "The app containing the DB"
           Param.make "dbName" TString "Name of the database to drop" ]
       returnType = TypeReference.result TUnit TString
       description =
-        "Drops (deletes) all databases with the given name from the specified canvas"
+        "Drops (deletes) all databases with the given name from the specified app"
       fn =
         (function
-        | _, _, _, [ DUuid canvasID; DString dbName ] ->
+        | _, _, _, [ DUuid appID; DString dbName ] ->
           uply {
             let! matchingTlids =
               Sql.query
                 "SELECT tlid FROM toplevels_v0
-                 WHERE app_id = @canvasID
+                 WHERE app_id = @appID
                    AND tipe = 'db'
                    AND name = @name
                    AND deleted = 0"
               |> Sql.parameters
-                [ "canvasID", Sql.uuid canvasID; "name", Sql.string dbName ]
+                [ "appID", Sql.uuid appID; "name", Sql.string dbName ]
               |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
             match matchingTlids with
@@ -172,16 +172,16 @@ let fns () : List<BuiltInFn> =
               do!
                 matchingTlids
                 |> Task.iterInParallel (fun tlid ->
-                  Canvas.deleteToplevelForever canvasID tlid)
+                  App.deleteToplevelForever appID tlid)
               // Also delete any user data for these DBs
               do!
                 matchingTlids
                 |> Task.iterInParallel (fun tlid ->
                   Sql.query
                     "DELETE FROM user_data_v0
-                     WHERE app_id = @canvasID AND table_tlid = @tlid"
+                     WHERE app_id = @appID AND table_tlid = @tlid"
                   |> Sql.parameters
-                    [ "canvasID", Sql.uuid canvasID; "tlid", Sql.id tlid ]
+                    [ "appID", Sql.uuid appID; "tlid", Sql.id tlid ]
                   |> Sql.executeStatementAsync)
               return Dval.resultOk KTUnit KTString DUnit
           }
