@@ -6,12 +6,14 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../../src/Builtins/Builtins.Execution/Builtins.Execution.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Pure/Builtins.Pure.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Http.Client/Builtins.Http.Client.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Language/Builtins.Language.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.Cli/Builtins.Cli.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.Time/Builtins.Time.fsproj" />
     <ProjectReference Include="../../src/LibDB/LibDB.fsproj" />
     <ProjectReference Include="../../src/LibCloud/LibCloud.fsproj" />
-    <ProjectReference Include="../../src/Builtins/Builtins.HttpServer/Builtins.HttpServer.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Http.Server/Builtins.Http.Server.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.Tracing/Builtins.Tracing.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.PM/Builtins.PM.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.DB/Builtins.DB.fsproj" />

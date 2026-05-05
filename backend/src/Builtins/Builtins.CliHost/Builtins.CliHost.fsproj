@@ -15,11 +15,13 @@
   <ItemGroup>
     <ProjectReference Include="../../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../Builtins.Execution/Builtins.Execution.fsproj" />
+    <ProjectReference Include="../Builtins.Pure/Builtins.Pure.fsproj" />
+    <ProjectReference Include="../Builtins.Http.Client/Builtins.Http.Client.fsproj" />
+    <ProjectReference Include="../Builtins.Language/Builtins.Language.fsproj" />
     <ProjectReference Include="../Builtins.Cli/Builtins.Cli.fsproj" />
     <ProjectReference Include="../Builtins.Time/Builtins.Time.fsproj" />
     <ProjectReference Include="../Builtins.PM/Builtins.PM.fsproj" />
-    <ProjectReference Include="../Builtins.HttpServer/Builtins.HttpServer.fsproj" />
+    <ProjectReference Include="../Builtins.Http.Server/Builtins.Http.Server.fsproj" />
     <ProjectReference Include="../Builtins.Tracing/Builtins.Tracing.fsproj" />
     <ProjectReference Include="../../LibDB/LibDB.fsproj" />
     <ProjectReference Include="../../LibCloud/LibCloud.fsproj" />

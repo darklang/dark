@@ -109,14 +109,16 @@ let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
 
 
 let builtins
-  (httpConfig : Builtins.Execution.Libs.HttpClient.Configuration)
+  (httpConfig : Builtins.Http.Client.Libs.HttpClient.Configuration)
   (pm : PT.PackageManager)
   : RT.Builtins =
   LibExecution.Builtin.combine
     [ LibTest.builtins ()
-      Builtins.Execution.Builtin.builtins httpConfig
+      Builtins.Pure.Builtin.builtins ()
+      Builtins.Http.Client.Builtin.builtins httpConfig
+      Builtins.Language.Builtin.builtins ()
       Builtins.PM.Builtin.builtins pm
-      Builtins.HttpServer.Builtin.builtins ()
+      Builtins.Http.Server.Builtin.builtins ()
       Builtins.DB.Builtin.builtins ()
       Builtins.Tracing.Builtin.builtins ()
       Builtins.Cli.Builtin.builtins ()
@@ -125,14 +127,14 @@ let builtins
 
 let localBuiltIns (pm : PT.PackageManager) =
   let httpConfig =
-    { Builtins.Execution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
+    { Builtins.Http.Client.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
   builtins httpConfig pm
 
 /// Strict (cloud-style) HTTP config: SSRF guard active. Used for tests that
 /// exercise the disallow-localhost / disallow-private-IP path.
 let cloudBuiltIns (pm : PT.PackageManager) =
   let httpConfig =
-    { Builtins.Execution.Libs.HttpClient.strictConfig with timeoutInMs = 5000 }
+    { Builtins.Http.Client.Libs.HttpClient.strictConfig with timeoutInMs = 5000 }
   builtins httpConfig pm
 
 

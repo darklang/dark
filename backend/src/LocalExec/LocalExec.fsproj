@@ -14,12 +14,14 @@
     <ProjectReference Include="../LibDB/LibDB.fsproj" />
     <ProjectReference Include="../LibSerialization/LibSerialization.fsproj" />
 
-    <ProjectReference Include="../Builtins/Builtins.Execution/Builtins.Execution.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Pure/Builtins.Pure.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Http.Client/Builtins.Http.Client.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Language/Builtins.Language.fsproj" />
     <ProjectReference Include="../Builtins/Builtins.Cli/Builtins.Cli.fsproj" />
     <ProjectReference Include="../Builtins/Builtins.Time/Builtins.Time.fsproj" />
     <ProjectReference Include="../Builtins/Builtins.PM/Builtins.PM.fsproj" />
     <ProjectReference Include="../Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
-    <ProjectReference Include="../Builtins/Builtins.HttpServer/Builtins.HttpServer.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Http.Server/Builtins.Http.Server.fsproj" />
     <ProjectReference Include="../Builtins/Builtins.Tracing/Builtins.Tracing.fsproj" />
     <ProjectReference Include="../Builtins/Builtins.DB/Builtins.DB.fsproj" />
     <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />

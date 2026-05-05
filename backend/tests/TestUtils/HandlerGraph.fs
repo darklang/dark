@@ -7,9 +7,9 @@
 /// so handler code can reference `request` directly (matching the `.test`
 /// fixture convention).
 ///
-/// Lives in TestUtils (not in Builtins.HttpServer) because it depends on the
+/// Lives in TestUtils (not in Builtins.Http.Server) because it depends on the
 /// parser pipeline (`TestUtils.parsePTExpr` invokes a Dark-side parser via
-/// `Execution.executeFunction`), which would balloon Builtins.HttpServer's
+/// `Execution.executeFunction`), which would balloon Builtins.Http.Server's
 /// dep graph if introduced there.
 module TestUtils.HandlerGraph
 

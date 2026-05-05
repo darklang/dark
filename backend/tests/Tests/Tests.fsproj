@@ -8,13 +8,14 @@
     <ProjectReference Include="../../src/LibParser/LibParser.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/LibTreeSitter/LibTreeSitter.fsproj" />
-    <ProjectReference Include="../../src/Builtins/Builtins.Execution/Builtins.Execution.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Pure/Builtins.Pure.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Http.Client/Builtins.Http.Client.fsproj" />
     <ProjectReference Include="../../src/LibDB/LibDB.fsproj" />
 
     <!-- cloud -->
     <ProjectReference Include="../../src/LibSerialization/LibSerialization.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.DB/Builtins.DB.fsproj" />
-    <ProjectReference Include="../../src/Builtins/Builtins.HttpServer/Builtins.HttpServer.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Http.Server/Builtins.Http.Server.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.Tracing/Builtins.Tracing.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
 

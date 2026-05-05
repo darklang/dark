@@ -24,7 +24,7 @@ open System.Net.Sockets
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
-module HttpServer = Builtins.HttpServer.Libs.HttpServer
+module HttpServer = Builtins.Http.Server.Libs.HttpServer
 
 open Tests
 open TestUtils.TestUtils

@@ -26,7 +26,7 @@ module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PMBlob = LibDB.RuntimeTypes.Blob
 module RoundtrippableJson = LibExecution.DvalReprInternalRoundtrippable
 module QueryableJson = LibExecution.DvalReprInternalQueryable
-module Equals = Builtins.Execution.Libs.NoModule
+module Equals = Builtins.Pure.Libs.NoModule
 
 open Fumble
 open LibSqlite.Db
