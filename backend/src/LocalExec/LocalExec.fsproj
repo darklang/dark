@@ -16,6 +16,7 @@
 
     <ProjectReference Include="../Builtins/Builtins.Execution/Builtins.Execution.fsproj" />
     <ProjectReference Include="../Builtins/Builtins.Cli/Builtins.Cli.fsproj" />
+    <ProjectReference Include="../Builtins/Builtins.Time/Builtins.Time.fsproj" />
     <ProjectReference Include="../Builtins/Builtins.PM/Builtins.PM.fsproj" />
     <ProjectReference Include="../Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
     <ProjectReference Include="../Builtins/Builtins.HttpServer/Builtins.HttpServer.fsproj" />

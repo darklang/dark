@@ -48,6 +48,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Cli", "src\Cli\Cli.fsproj",
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.Cli", "src\Builtins\Builtins.Cli\Builtins.Cli.fsproj", "{A44BDF6D-0D93-4AA4-9DFA-F48365A31B26}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.Time", "src\Builtins\Builtins.Time\Builtins.Time.fsproj", "{C8D5E6F1-3A9B-4C7E-A1B2-9F8E2D3C4A5B}"
+EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.CliHost", "src\Builtins\Builtins.CliHost\Builtins.CliHost.fsproj", "{B199C1DE-48A2-47B4-9672-BCCB7E4F8C78}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.HttpServer", "src\Builtins\Builtins.HttpServer\Builtins.HttpServer.fsproj", "{7A3E4BC2-D5F1-4A8E-9B3C-6F2D1E8A4C5B}"

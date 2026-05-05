@@ -14,7 +14,6 @@
     <Compile Include="Libs/Execution.fs" />
     <Compile Include="Libs/Process.fs" />
     <Compile Include="Libs/Stdin.fs" />
-    <Compile Include="Libs/Time.fs" />
     <Compile Include="Libs/Terminal.fs" />
     <Compile Include="Libs/Posix.fs" />
     <Compile Include="Builtin.fs" />

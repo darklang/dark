@@ -15,6 +15,7 @@ let all () : RT.Builtins =
   LibExecution.Builtin.combine
     [ Builtins.Execution.Builtin.builtins httpClientConfig
       Builtins.Cli.Builtin.builtins ()
+      Builtins.Time.Builtin.builtins ()
       Builtins.PM.Builtin.builtins ptPM
       Builtins.CliHost.Builtin.builtins ()
       Builtins.HttpServer.Builtin.builtins ()

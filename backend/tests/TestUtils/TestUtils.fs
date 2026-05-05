@@ -119,7 +119,8 @@ let builtins
       Builtins.HttpServer.Builtin.builtins ()
       Builtins.DB.Builtin.builtins ()
       Builtins.Tracing.Builtin.builtins ()
-      Builtins.Cli.Builtin.builtins () ]
+      Builtins.Cli.Builtin.builtins ()
+      Builtins.Time.Builtin.builtins () ]
     []
 
 let localBuiltIns (pm : PT.PackageManager) =

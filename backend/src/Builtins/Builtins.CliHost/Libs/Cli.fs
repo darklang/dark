@@ -143,6 +143,7 @@ let builtinsToUse () : RT.Builtins =
     [ Builtins.Execution.Builtin.builtins
         Builtins.Execution.Libs.HttpClient.defaultConfig
       Builtins.Cli.Builtin.builtins ()
+      Builtins.Time.Builtin.builtins ()
       Builtins.PM.Builtin.builtins ptPM
       Builtins.HttpServer.Builtin.builtins ()
       Builtins.DB.Builtin.builtins ()
