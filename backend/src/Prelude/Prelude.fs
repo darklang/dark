@@ -178,7 +178,24 @@ let debugTask (msg : string) (a : Task<'a>) : Task<'a> =
 
 let printMetadata (prefix : string) (metadata : Exception.Metadata) =
   try
-    List.iter (fun (k, v) -> print (sprintf "%s:  %s: %A" prefix k v)) metadata
+    // Use %O (calls .ToString()) rather than %A (F# reflection-based pretty-printer).
+    // %A drives StructuredPrintfImpl through FSharpValue.GetUnionFields, which fails
+    // under AOT trimming when the union case type's metadata has been stripped.
+    // Even %O can fail under AOT if the type's auto-generated ToString uses
+    // reflection (F# unions/records do by default) — wrap in try/catch so the
+    // diagnostic itself never crashes when the value's type isn't AOT-clean.
+    List.iter
+      (fun (k, v) ->
+        let valueStr =
+          try
+            sprintf "%O" v
+          with e ->
+            sprintf
+              "<%s.ToString failed: %s>"
+              (if isNull v then "null" else v.GetType().Name)
+              e.Message
+        print (sprintf "%s:  %s: %s" prefix k valueStr))
+      metadata
   with _ ->
     ()
 

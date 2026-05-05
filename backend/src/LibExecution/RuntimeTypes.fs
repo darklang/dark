@@ -19,7 +19,12 @@ type Stack<'a> = System.Collections.Generic.Stack<'a>
 type BranchId = uuid
 
 /// Structural hash of a package item's content (shape, not name/location).
-type Hash = Hash of string
+type Hash =
+  | Hash of string
+  // F#'s default ToString() on unions uses reflection (StructuredPrintfImpl),
+  // which fails under AOT trimming. Provide an explicit override so callers
+  // like `string (h : Hash)` don't go through that path.
+  override this.ToString() = let (Hash s) = this in s
 
 module Hash =
   let empty : Hash = Hash ""

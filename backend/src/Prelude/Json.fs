@@ -106,15 +106,33 @@ module Vanilla =
   type NEListValueConverter<'TValue>() =
     inherit JsonConverter<NEList<'TValue>>()
 
+    // Read/Write are hand-rolled against Utf8JsonReader/Writer rather than
+    // delegating to `JsonSerializer.{De}serialize<'TValue seq>`. The latter
+    // routes through reflective generic resolution (IL3050 under AOT).
+    // Looking up the element converter via `options.GetConverter(typeof<'TValue>)`
+    // is a dictionary lookup populated when the options are constructed.
+
     override this.Read
       (
         reader : byref<Utf8JsonReader>,
         _typeToConvert : System.Type,
         options : JsonSerializerOptions
       ) =
-      let list =
-        JsonSerializer.Deserialize<'TValue seq>(&reader, options) |> Seq.toList
-      match list with
+      if reader.TokenType <> JsonTokenType.StartArray then
+        Exception.raiseInternal
+          "NEList JSON expected start of array"
+          [ "tokenType", reader.TokenType ]
+
+      let elementConverter =
+        options.GetConverter(typeof<'TValue>) :?> JsonConverter<'TValue>
+      let items = ResizeArray<'TValue>()
+      reader.Read() |> ignore<bool>
+      while reader.TokenType <> JsonTokenType.EndArray do
+        let item = elementConverter.Read(&reader, typeof<'TValue>, options)
+        items.Add(item)
+        reader.Read() |> ignore<bool>
+
+      match List.ofSeq items with
       | [] -> Exception.raiseInternal "Empty list" []
       | head :: tail -> NEList.ofList head tail
 
@@ -125,8 +143,13 @@ module Vanilla =
         value : NEList<'TValue>,
         options : JsonSerializerOptions
       ) =
-      let value = NEList.toList value
-      JsonSerializer.Serialize(writer, (List.toSeq value), options)
+      let elementConverter =
+        options.GetConverter(typeof<'TValue>) :?> JsonConverter<'TValue>
+      writer.WriteStartArray()
+      elementConverter.Write(writer, value.head, options)
+      for item in value.tail do
+        elementConverter.Write(writer, item, options)
+      writer.WriteEndArray()
 
 
   type NEListConverter() =
@@ -138,6 +161,13 @@ module Vanilla =
         [ typedefof<NEList<_>>
           typedefof<System.Collections.Generic.IReadOnlyCollection<_>> ]
 
+    // The MakeGenericType + Activator.CreateInstance pair is genuinely
+    // dynamic: the element type is unknown until runtime, so we can't
+    // enumerate `NEListValueConverter<T>` instantiations at compile time.
+    // Acknowledge with RequiresDynamicCode so the analyzer treats this as
+    // intentional and the warning propagates to AOT-aware callers
+    // (rather than just being silently broken at runtime).
+    [<System.Diagnostics.CodeAnalysis.RequiresDynamicCode("NEListConverter constructs NEListValueConverter<T> instances reflectively for arbitrary T")>]
     override this.CreateConverter
       (
         typeToConvert : System.Type,

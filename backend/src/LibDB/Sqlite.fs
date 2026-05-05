@@ -43,7 +43,11 @@ module Sql =
       | Ok list ->
         return
           Exception.raiseInternal $"Too many results, expected 1" [ "actual", list ]
-      | Error err -> return Exception.raiseInternal "fail" [ "err", err ]
+      | Error err ->
+        return
+          Exception.raiseInternal
+            $"SQL query failed in executeRowAsync: {err.Message}"
+            [ "err", err ]
     }
 
   let executeRowOptionAsync
@@ -59,7 +63,11 @@ module Sql =
           Exception.raiseInternal
             $"Too many results, expected 0 or 1"
             [ "actual", list ]
-      | Error err -> return Exception.raiseInternal "fail" [ "err", err ]
+      | Error err ->
+        return
+          Exception.raiseInternal
+            $"SQL query failed in executeRowOptionAsync: {err.Message}"
+            [ "err", err ]
     }
 
   let executeAsync rr props =

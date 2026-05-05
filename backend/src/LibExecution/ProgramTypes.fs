@@ -28,7 +28,11 @@ let assertBuiltin
 // SourceControl module to match the Dark package structure (Darklang.SCM.*)
 /// SCM branch identifier
 /// Structural hash of a package item's content (shape, not name/location).
-type Hash = Hash of string
+type Hash =
+  | Hash of string
+  // Explicit ToString — F# unions' default override goes through
+  // StructuredPrintfImpl reflection, which is broken under AOT trimming.
+  override this.ToString() = let (Hash s) = this in s
 
 module Hash =
   let empty : Hash = Hash ""
