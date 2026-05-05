@@ -554,9 +554,17 @@ module Expr =
         LetPattern.toInstr exprInstrs.resultIn exprInstrs.registerCount pat
       let symbols = Map.mergeFavoringRight symbols newSymbols
       let bodyInstrs = toRT symbols rcAfterPat currentFnName body
+      // Trace-only: after the RHS is computed, fire `traceDval` keyed
+      // by the LetPattern id so `view --with-trace` can render the
+      // bound value alongside the pattern in source. No-op at runtime
+      // when tracing is disabled.
+      let traceInstr =
+        RT.TraceDval(PT.LetPattern.toID pat, exprInstrs.resultIn)
       { registerCount = bodyInstrs.registerCount
         instructions =
-          exprInstrs.instructions @ [ patInstr ] @ bodyInstrs.instructions
+          exprInstrs.instructions
+          @ [ patInstr; traceInstr ]
+          @ bodyInstrs.instructions
         resultIn = bodyInstrs.resultIn }
 
 

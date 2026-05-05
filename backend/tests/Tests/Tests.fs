@@ -58,6 +58,7 @@ let main (args : string array) : int =
 
         // http server
         Tests.HttpServer.tests
+        Tests.CliTraces.tests
 
         // cross-cutting
         Tests.LibExecution.tests.Force()

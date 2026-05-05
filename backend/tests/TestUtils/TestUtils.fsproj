@@ -12,6 +12,7 @@
     <ProjectReference Include="../../src/LibDB/LibDB.fsproj" />
     <ProjectReference Include="../../src/LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.HttpServer/Builtins.HttpServer.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Tracing/Builtins.Tracing.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="PTShortcuts.fs" />

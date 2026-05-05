@@ -1,31 +1,17 @@
-/// Traces command - list and view execution traces
+/// Traces command - list and view execution traces.
+///
+/// The generic shapes (TraceSummary / InputVar / FnCall / TraceData) and
+/// trace-related helpers (Duration parsing, formatting, handler-source
+/// lookup) live under `Darklang.Tracing.*` so non-CLI consumers can
+/// reuse them. This file only holds the CLI dispatch + per-command
+/// `executeX` functions.
 module Darklang.Cli.Commands.Traces
 
 
-type TraceSummary =
-  { traceId: String
-    handler: String
-    timestamp: String }
-
-type InputVar =
-  { name: String
-    value: LanguageTools.RuntimeTypes.Dval }
-
-type FnCall =
-  { callId: String
-    parentCallId: Stdlib.Option.Option<String>
-    kind: String  // "function" | "lambda" | "builtin"
-    fnName: String
-    lambdaExprId: Stdlib.Option.Option<String>
-    args: List<LanguageTools.RuntimeTypes.Dval>
-    result: LanguageTools.RuntimeTypes.Dval }
-
-type TraceData =
-  { traceId: String
-    handler: String
-    timestamp: String
-    inputs: List<InputVar>
-    functionCalls: List<FnCall> }
+type TraceSummary = Darklang.Tracing.TraceSummary
+type InputVar = Darklang.Tracing.InputVar
+type FnCall = Darklang.Tracing.FnCall
+type TraceData = Darklang.Tracing.TraceData
 
 
 /// Filters applied when rendering a trace tree. Each filter hides matching
@@ -35,7 +21,12 @@ type ViewOptions =
   { maxDepth: Stdlib.Option.Option<Int64>
     hideBuiltins: Bool
     hideStdlib: Bool
-    filter: Stdlib.Option.Option<String> }
+    filter: Stdlib.Option.Option<String>
+    /// Inverse of `filter` — hide calls whose name contains this pattern.
+    /// Children still recurse so the surrounding structure stays intact.
+    exclude: Stdlib.Option.Option<String>
+    /// When Some N, hide calls whose durationMs < N (keeps the slow stuff).
+    slowThresholdMs: Stdlib.Option.Option<Int64> }
 
 
 let defaultViewOptions: ViewOptions =
@@ -43,7 +34,60 @@ let defaultViewOptions: ViewOptions =
     { maxDepth = Stdlib.Option.Option.None
       hideBuiltins = false
       hideStdlib = false
-      filter = Stdlib.Option.Option.None }
+      filter = Stdlib.Option.Option.None
+      exclude = Stdlib.Option.Option.None
+      slowThresholdMs = Stdlib.Option.Option.None }
+
+
+/// English ordinal suffix for a non-negative integer. "1st", "2nd",
+/// "3rd", "4th"… honoring the 11/12/13 exception (always "th").
+let ordinalSuffix (n: Int64) : String =
+  let mod100 = n % 100L
+  if mod100 >= 11L && mod100 <= 13L then "th"
+  else
+    match n % 10L with
+    | 1L -> "st"
+    | 2L -> "nd"
+    | 3L -> "rd"
+    | _ -> "th"
+
+
+/// Format the error for a positional integer arg. Distinguishes
+/// "looks like a misplaced flag" (`-`-prefixed) from "actually
+/// non-numeric" — `traces list --frob` should say "Unknown flag",
+/// not "Invalid limit", since the user clearly didn't intend to
+/// type a number there.
+let parsePositionalErr (input: String) (label: String) : String =
+  if Stdlib.String.startsWith input "-" then
+    $"Unknown flag: {input}"
+  else
+    $"Invalid {label}: {input}"
+
+
+/// Resolve a trace ID prefix to the full ID, printing the not-found /
+/// ambiguous-match error and returning `None` if resolution fails. The
+/// caller short-circuits on `None`.
+///
+/// `-`-prefixed input is reported as "Unknown flag" before the lookup —
+/// trace IDs are UUIDs, so no real ID ever starts with `-`. This catches
+/// cases like `traces export --frob` where a misplaced flag would
+/// otherwise yield the misleading "Trace not found: --frob".
+let resolveTraceID (input: String) : Stdlib.Option.Option<String> =
+  if Stdlib.String.startsWith input "-" then
+    Stdlib.printLine (Colors.error $"Unknown flag: {input}")
+    Stdlib.Option.Option.None
+  else
+    // Trim accidental whitespace from copy-paste; never part of a UUID.
+    let trimmed = Stdlib.String.trim input
+    if trimmed == "" then
+      Stdlib.printLine (Colors.error "Trace ID must not be empty")
+      Stdlib.Option.Option.None
+    else
+      match Builtin.tracesResolveID trimmed with
+      | Ok fullID -> Stdlib.Option.Option.Some fullID
+      | Error msg ->
+        Stdlib.printLine (Colors.error msg)
+        Stdlib.Option.Option.None
 
 
 let rec parseViewOptions
@@ -56,18 +100,63 @@ let rec parseViewOptions
   | "-d" :: n :: rest ->
     match Stdlib.Int64.parse n with
     | Ok depth ->
-      parseViewOptions
-        { opts with maxDepth = Stdlib.Option.Option.Some depth }
-        rest
-    | Error _ -> Stdlib.Result.Result.Error $"Invalid depth: {n}"
+      if depth < 0L then
+        Stdlib.Result.Result.Error $"--depth must be ≥ 0 (got {n})"
+      else
+        parseViewOptions
+          { opts with maxDepth = Stdlib.Option.Option.Some depth }
+          rest
+    | Error _ -> Stdlib.Result.Result.Error (parsePositionalErr n "depth")
   | "--no-builtins" :: rest ->
     parseViewOptions { opts with hideBuiltins = true } rest
   | "--no-stdlib" :: rest ->
     parseViewOptions { opts with hideStdlib = true } rest
   | "--filter" :: pattern :: rest ->
+    if Stdlib.String.startsWith pattern "-" then
+      Stdlib.Result.Result.Error $"Unknown flag: {pattern}"
+    else if pattern == "" then
+      Stdlib.Result.Result.Error "--filter pattern must not be empty"
+    else
+      parseViewOptions
+        { opts with filter = Stdlib.Option.Option.Some pattern }
+        rest
+  | "--exclude" :: pattern :: rest ->
+    if Stdlib.String.startsWith pattern "-" then
+      Stdlib.Result.Result.Error $"Unknown flag: {pattern}"
+    else if pattern == "" then
+      Stdlib.Result.Result.Error "--exclude pattern must not be empty"
+    else
+      parseViewOptions
+        { opts with exclude = Stdlib.Option.Option.Some pattern }
+        rest
+  | "--slow" :: rest ->
+    // Bare `--slow` defaults to 10ms. For a custom threshold, use --slow-ms.
     parseViewOptions
-      { opts with filter = Stdlib.Option.Option.Some pattern }
+      { opts with slowThresholdMs = Stdlib.Option.Option.Some 10L }
       rest
+  | "--slow-ms" :: numStr :: rest ->
+    match Stdlib.Int64.parse numStr with
+    | Ok n ->
+      if n < 0L then
+        Stdlib.Result.Result.Error $"--slow-ms must be ≥ 0 (got {numStr})"
+      else
+        parseViewOptions
+          { opts with slowThresholdMs = Stdlib.Option.Option.Some n }
+          rest
+    | Error _ ->
+      Stdlib.Result.Result.Error (parsePositionalErr numStr "--slow-ms threshold")
+  // Recognized value-taking flag with no value left — distinguish from the
+  // catch-all `unknown :: _` so the user gets "missing value" not the
+  // misleading "Unknown flag".
+  | [ "--depth" ]
+  | [ "-d" ] ->
+    Stdlib.Result.Result.Error "--depth requires a value (e.g. `--depth 3`)"
+  | [ "--filter" ] ->
+    Stdlib.Result.Result.Error "--filter requires a pattern (e.g. `--filter List.map`)"
+  | [ "--exclude" ] ->
+    Stdlib.Result.Result.Error "--exclude requires a pattern (e.g. `--exclude listAppend`)"
+  | [ "--slow-ms" ] ->
+    Stdlib.Result.Result.Error "--slow-ms requires a value (e.g. `--slow-ms 100`)"
   | unknown :: _ ->
     Stdlib.Result.Result.Error $"Unknown flag: {unknown}"
 
@@ -79,70 +168,991 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   | [ "list" ] -> executeList state 20L
+  | [ "list"; "--json" ] -> executeListJson state 20L
+  | [ "list"; "--json"; limitStr ]
+  | [ "list"; limitStr; "--json" ] ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit -> executeListJson state limit
+    | Error _ ->
+      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      state
+  // Flag-without-arg cases need to be matched BEFORE
+  // `[ "list"; limitStr ]` since `--fn` / `--route` are valid one-arg
+  // tokens that the limit arm would otherwise eat.
+  | [ "list"; "--fn" ] ->
+    Stdlib.printLine
+      (Colors.error
+        "Usage: traces list --fn <name> [limit] [--json]")
+    state
+  | [ "list"; "--route" ] ->
+    Stdlib.printLine
+      (Colors.error
+        "Usage: traces list --route <substring> [limit] [--json]")
+    state
   | [ "list"; limitStr ] ->
     match Stdlib.Int64.parse limitStr with
     | Ok limit -> executeList state limit
     | Error _ ->
-      Stdlib.printLine (Colors.error $"Invalid limit: {limitStr}")
+      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
       state
 
   | [ "list"; "--fn"; fnName ] ->
-    executeListByFn state fnName 20L
+    executeListByFn state fnName 20L false
+  | [ "list"; "--fn"; fnName; "--json" ]
+  | [ "list"; "--json"; "--fn"; fnName ] ->
+    executeListByFn state fnName 20L true
   | [ "list"; "--fn"; fnName; limitStr ] ->
     match Stdlib.Int64.parse limitStr with
-    | Ok limit -> executeListByFn state fnName limit
+    | Ok limit -> executeListByFn state fnName limit false
     | Error _ ->
-      Stdlib.printLine (Colors.error $"Invalid limit: {limitStr}")
+      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
       state
+  | [ "list"; "--fn"; fnName; "--json"; limitStr ]
+  | [ "list"; "--fn"; fnName; limitStr; "--json" ]
+  | [ "list"; "--json"; "--fn"; fnName; limitStr ] ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit -> executeListByFn state fnName limit true
+    | Error _ ->
+      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      state
+
+  | [ "list"; "--route"; route ] ->
+    executeListByRoute state route 20L false
+  | [ "list"; "--route"; route; "--json" ]
+  | [ "list"; "--json"; "--route"; route ] ->
+    executeListByRoute state route 20L true
+  | [ "list"; "--route"; route; limitStr ] ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit -> executeListByRoute state route limit false
+    | Error _ ->
+      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      state
+  | [ "list"; "--route"; route; "--json"; limitStr ]
+  | [ "list"; "--route"; route; limitStr; "--json" ]
+  | [ "list"; "--json"; "--route"; route; limitStr ] ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit -> executeListByRoute state route limit true
+    | Error _ ->
+      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      state
+
+  | [ "follow" ] ->
+    executeFollow state Stdlib.Option.Option.None false
+  | [ "follow"; "--json" ] ->
+    executeFollow state Stdlib.Option.Option.None true
+  | [ "follow"; "--route"; route ] ->
+    executeFollow state (Stdlib.Option.Option.Some route) false
+  | [ "follow"; "--route"; route; "--json" ]
+  | [ "follow"; "--json"; "--route"; route ] ->
+    executeFollow state (Stdlib.Option.Option.Some route) true
+
+  | [ "stats" ] -> executeStats state 100L
+  | [ "stats"; "--json" ] -> executeStatsJson state 100L
+  | [ "stats"; "--json"; limitStr ]
+  | [ "stats"; limitStr; "--json" ] ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit -> executeStatsJson state limit
+    | Error _ ->
+      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      state
+  | [ "stats"; limitStr ] ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit -> executeStats state limit
+    | Error _ ->
+      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      state
+
+  | [ "tail" ] -> executeTail state Stdlib.Option.Option.None 1L
+  // Flag-without-arg case must precede the `[ "tail"; nStr ]` arm
+  // (which would otherwise treat "--route" as a malformed N).
+  | [ "tail"; "--route" ] ->
+    Stdlib.printLine
+      (Colors.error "Usage: traces tail [N] --route <substring>")
+    state
+  | [ "tail"; nStr ] ->
+    match Stdlib.Int64.parse nStr with
+    | Ok n -> executeTail state Stdlib.Option.Option.None n
+    | Error _ ->
+      Stdlib.printLine (Colors.error (parsePositionalErr nStr "trace number"))
+      state
+  | [ "tail"; "--route"; route ] ->
+    executeTail state (Stdlib.Option.Option.Some route) 1L
+  | [ "tail"; "--route"; route; nStr ]
+  | [ "tail"; nStr; "--route"; route ] ->
+    match Stdlib.Int64.parse nStr with
+    | Ok n -> executeTail state (Stdlib.Option.Option.Some route) n
+    | Error _ ->
+      Stdlib.printLine (Colors.error (parsePositionalErr nStr "trace number"))
+      state
+
+  | [ "find"; "--json" ] ->
+    Stdlib.printLine
+      (Colors.error "Usage: traces find <pattern> --json [limit]")
+    state
+  | [ "find"; "--view" ] ->
+    Stdlib.printLine
+      (Colors.error "Usage: traces find <pattern> --view")
+    state
+  | [ "find"; pattern ] -> executeFind state pattern 20L
+  | [ "find"; pattern; "--view" ]
+  | [ "find"; "--view"; pattern ] ->
+    executeFindView state pattern
+  | [ "find"; pattern; "--json" ]
+  | [ "find"; "--json"; pattern ] ->
+    executeFindJson state pattern 20L
+  | [ "find"; pattern; "--json"; limitStr ]
+  | [ "find"; pattern; limitStr; "--json" ]
+  | [ "find"; "--json"; pattern; limitStr ] ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit -> executeFindJson state pattern limit
+    | Error _ ->
+      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      state
+  | [ "find"; pattern; limitStr ] ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit -> executeFind state pattern limit
+    | Error _ ->
+      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      state
+
+  | [ "hotspots" ] -> executeHotspots state 100L
+  | [ "hotspots"; "--json" ] -> executeHotspotsJson state 100L
+  | [ "hotspots"; "--json"; limitStr ]
+  | [ "hotspots"; limitStr; "--json" ] ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit -> executeHotspotsJson state limit
+    | Error _ ->
+      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      state
+  | [ "hotspots"; limitStr ] ->
+    match Stdlib.Int64.parse limitStr with
+    | Ok limit -> executeHotspots state limit
+    | Error _ ->
+      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      state
+
+  | [ "export"; traceID ] ->
+    match resolveTraceID traceID with
+    | Some full -> executeExport state full
+    | None -> state
+
+  | [ "import"; path ] -> executeImport state path
+
+  | [ "gen-test"; traceID ] ->
+    match resolveTraceID traceID with
+    | Some full -> executeGenTest state full
+    | None -> state
+
+  | [ "values"; traceID ] ->
+    match resolveTraceID traceID with
+    | Some full -> executeValues state full
+    | None -> state
+
+  | [ "inspect"; traceID ] ->
+    match resolveTraceID traceID with
+    | Some full -> executeInspect state full
+    | None -> state
 
   | "view" :: traceID :: flagArgs ->
     match parseViewOptions defaultViewOptions flagArgs with
-    | Ok opts -> executeView state traceID opts
+    | Ok opts ->
+      match resolveTraceID traceID with
+      | Some full -> executeView state full opts
+      | None -> state
     | Error msg ->
       Stdlib.printLine (Colors.error msg)
       state
 
   | [ "replay"; traceID ] ->
-    executeReplay state traceID
+    match resolveTraceID traceID with
+    | Some full -> executeReplay state full false
+    | None -> state
+
+  | [ "replay"; traceID; "--diff" ]
+  | [ "replay"; "--diff"; traceID ] ->
+    match resolveTraceID traceID with
+    | Some full -> executeReplay state full true
+    | None -> state
 
   | [ "clear" ] ->
     executeClear state
 
-  | _ ->
-    help state
+  | [ "clear"; "--before"; durationStr ] ->
+    executeClearBefore state durationStr
+
+  | [ "delete"; traceID ] ->
+    match resolveTraceID traceID with
+    | Some full -> executeDelete state full
+    | None -> state
+
+  | [ "prune"; "--keep"; nStr ] ->
+    match Stdlib.Int64.parse nStr with
+    | Ok n -> executePruneKeep state n
+    | Error _ ->
+      Stdlib.printLine (Colors.error (parsePositionalErr nStr "--keep N"))
+      state
+
+  // Focused usage messages for the remaining "flag without arg" cases
+  // that don't conflict with positional-catching arms higher up
+  // (the list/tail variants are handled inline above).
+  | [ "follow"; "--route" ] ->
+    Stdlib.printLine
+      (Colors.error "Usage: traces follow --route <substring> [--json]")
     state
+  | [ "prune"; "--keep" ] ->
+    Stdlib.printLine (Colors.error "Usage: traces prune --keep <N>")
+    state
+  | [ "clear"; "--before" ] ->
+    Stdlib.printLine
+      (Colors.error
+        "Usage: traces clear --before <duration> (e.g. 30s, 5m, 1h, 2d)")
+    state
+
+  // Focused usage messages for arity-1 commands when invoked with no
+  // argument. Better than dumping the full multi-page help — the user
+  // ran a known command, just forgot the id/path.
+  | [ "view" ] ->
+    Stdlib.printLine (Colors.error "Usage: traces view <trace-id> [flags]")
+    state
+  | [ "inspect" ] ->
+    Stdlib.printLine (Colors.error "Usage: traces inspect <trace-id>")
+    state
+  | [ "values" ] ->
+    Stdlib.printLine (Colors.error "Usage: traces values <trace-id>")
+    state
+  | [ "gen-test" ] ->
+    Stdlib.printLine (Colors.error "Usage: traces gen-test <trace-id>")
+    state
+  | [ "export" ] ->
+    Stdlib.printLine (Colors.error "Usage: traces export <trace-id>")
+    state
+  | [ "import" ] ->
+    Stdlib.printLine (Colors.error "Usage: traces import <path>")
+    state
+  | [ "replay" ] ->
+    Stdlib.printLine
+      (Colors.error "Usage: traces replay <trace-id> [--diff]")
+    state
+  | [ "delete" ] ->
+    Stdlib.printLine (Colors.error "Usage: traces delete <trace-id>")
+    state
+  | [ "find" ] ->
+    Stdlib.printLine
+      (Colors.error
+        "Usage: traces find <pattern> [limit] [--view] [--json]")
+    state
+  | [ "prune" ] ->
+    Stdlib.printLine (Colors.error "Usage: traces prune --keep <N>")
+    state
+
+  // Catch any other malformed follow invocation — anything not matched
+  // by the earlier specific arms (e.g. `traces follow --frob`).
+  | "follow" :: _ ->
+    Stdlib.printLine
+      (Colors.error "Usage: traces follow [--route <substring>] [--json]")
+    state
+
+  // Catch malformed arity-1 invocations (e.g. `traces inspect <id> --frob`)
+  // that the strict-length arms above missed. Each command takes exactly
+  // one positional and doesn't accept trailing flags.
+  | "inspect" :: _ ->
+    Stdlib.printLine (Colors.error "Usage: traces inspect <trace-id>")
+    state
+  | "values" :: _ ->
+    Stdlib.printLine (Colors.error "Usage: traces values <trace-id>")
+    state
+  | "gen-test" :: _ ->
+    Stdlib.printLine (Colors.error "Usage: traces gen-test <trace-id>")
+    state
+  | "export" :: _ ->
+    Stdlib.printLine (Colors.error "Usage: traces export <trace-id>")
+    state
+  | "import" :: _ ->
+    Stdlib.printLine (Colors.error "Usage: traces import <path>")
+    state
+  | "delete" :: _ ->
+    Stdlib.printLine (Colors.error "Usage: traces delete <trace-id>")
+    state
+  | "prune" :: _ ->
+    Stdlib.printLine (Colors.error "Usage: traces prune --keep <N>")
+    state
+  | "clear" :: _ ->
+    Stdlib.printLine
+      (Colors.error
+        "Usage: traces clear [--before <duration>] (e.g. 30s, 5m, 1h, 2d)")
+    state
+  | "tail" :: _ ->
+    Stdlib.printLine
+      (Colors.error "Usage: traces tail [N] [--route <substring>]")
+    state
+  | "list" :: _ ->
+    Stdlib.printLine
+      (Colors.error
+        "Usage: traces list [limit] | list --fn <substring> [limit] [--json] | list --route <substring> [limit] [--json]")
+    state
+  | "find" :: _ ->
+    Stdlib.printLine
+      (Colors.error
+        "Usage: traces find <pattern> [limit] [--view] [--json]")
+    state
+  | "hotspots" :: _ ->
+    Stdlib.printLine
+      (Colors.error "Usage: traces hotspots [trace-limit] [--json]")
+    state
+  | "stats" :: _ ->
+    Stdlib.printLine
+      (Colors.error "Usage: traces stats [limit] [--json]")
+    state
+  | "replay" :: _ ->
+    Stdlib.printLine
+      (Colors.error "Usage: traces replay <trace-id> [--diff]")
+    state
+
+  | _ ->
+    // If the first token isn't a known subcommand, surface that
+    // explicitly before dumping help so a typo'd `traces lst` doesn't
+    // look like it succeeded silently.
+    let knownSubcommands =
+      [ "help"; "list"; "view"; "tail"; "follow"; "find"; "hotspots"
+        "stats"; "export"; "import"; "gen-test"; "inspect"; "values"
+        "replay"; "delete"; "prune"; "clear" ]
+    let isKnownHead =
+      match args with
+      | head :: _ ->
+        Stdlib.List.any knownSubcommands (fun s -> s == head)
+      | [] -> true
+    if Stdlib.Bool.not isKnownHead then
+      match args with
+      | head :: _ ->
+        Stdlib.printLine (Colors.error $"Unknown subcommand: {head}")
+        Stdlib.printLine ""
+        help state
+        state
+      | [] -> help state; state
+    else
+      help state
+      state
 
 
 let executeList (state: Cli.AppState) (limit: Int64) : Cli.AppState =
-  let rows = Builtin.cliTracesList limit
+  if limit < 1L then
+    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    state
+  else
+    let rows = Builtin.tracesList limit
 
-  match rows with
+    match rows with
+    | [] ->
+      Stdlib.printLine "No traces found."
+      Stdlib.printLine
+        (Colors.dimText
+          "(Traces are recorded by `darklang eval`, `darklang run`, or HTTP handlers under `darklang serve`.)")
+      state
+    | _ ->
+      Stdlib.printLine $"Recent traces (last {Stdlib.Int64.toString limit}):"
+      Stdlib.printLine ""
+      printTraceRows rows
+      Stdlib.printLine ""
+      Stdlib.printLine "Use 'traces view <trace-id>' to see details."
+      state
+
+
+/// `traces list --json [N]` — same data as `traces list` but emitted as a
+/// JSON array of `{traceId, handler, timestamp}` objects, no headers or
+/// footers. Designed for piping into jq / scripts. Empty store prints `[]`.
+let executeListJson (state: Cli.AppState) (limit: Int64) : Cli.AppState =
+  if limit < 1L then
+    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    state
+  else
+    let rows = Builtin.tracesList limit
+    Stdlib.printLine (Stdlib.Json.serialize<List<TraceSummary>> rows)
+    state
+
+
+let executeListByFn
+  (state: Cli.AppState)
+  (fnName: String)
+  (limit: Int64)
+  (jsonMode: Bool)
+  : Cli.AppState =
+  if Stdlib.String.trim fnName == "" then
+    Stdlib.printLine (Colors.error "--fn pattern must not be empty")
+    state
+  else if limit < 1L then
+    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    state
+  else
+    let rows = Builtin.tracesListByFn fnName limit
+    if jsonMode then
+      Stdlib.printLine (Stdlib.Json.serialize<List<TraceSummary>> rows)
+      state
+    else
+      match rows with
+      | [] ->
+        Stdlib.printLine $"No traces found calling '{fnName}'."
+        state
+      | _ ->
+        Stdlib.printLine $"Traces calling '{fnName}' (last {Stdlib.Int64.toString limit}):"
+        Stdlib.printLine ""
+        printTraceRows rows
+        Stdlib.printLine ""
+        Stdlib.printLine "Use 'traces view <trace-id>' to see details."
+        state
+
+
+/// `traces hotspots [limit]` — across the last <limit> traces (default 100),
+/// aggregate per-fn timing: call count, total ms, max ms. Sort by total ms
+/// descending. The "where is my time going?" view.
+let executeHotspots
+  (state: Cli.AppState)
+  (traceLimit: Int64)
+  : Cli.AppState =
+  if traceLimit < 1L then
+    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    state
+  else
+    let rows = Builtin.tracesHotspots traceLimit
+
+    match rows with
+    | [] ->
+      Stdlib.printLine $"No fn-call data in the last {Stdlib.Int64.toString traceLimit} traces."
+      state
+    | _ ->
+      let fnCount = Stdlib.List.length rows
+      let fnWord = if fnCount == 1L then "fn" else "fns"
+      Stdlib.printLine
+        $"Hotspots (last {Stdlib.Int64.toString traceLimit} traces, top {Stdlib.Int64.toString fnCount} {fnWord} by total ms):"
+      Stdlib.printLine ""
+      Stdlib.printLine "  total ms │   max ms │ count │ fn"
+      Stdlib.printLine "  ─────────┼──────────┼───────┼─────────────────────────"
+      Stdlib.List.iter rows (fun row ->
+        let (name, count, total, max) = row
+        let totalStr = padNum total 9L
+        let maxStr = padNum max 8L
+        let countStr = padNum count 5L
+        Stdlib.printLine $"  {totalStr} │ {maxStr} │ {countStr} │ {name}")
+      state
+
+
+/// `traces hotspots --json [limit]` — same data as a JSON array of
+/// `{name, count, totalMs, maxMs}` objects, no headers/footers, for
+/// piping. Empty store prints `[]`.
+let executeHotspotsJson
+  (state: Cli.AppState)
+  (traceLimit: Int64)
+  : Cli.AppState =
+  if traceLimit < 1L then
+    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    state
+  else
+    let rows = Builtin.tracesHotspots traceLimit
+    let body =
+      rows
+      |> Stdlib.List.map (fun row ->
+        let (name, count, total, max) = row
+        $"{{\"name\":\"{jsonEscape name}\""
+        ++ $",\"count\":{Stdlib.Int64.toString count}"
+        ++ $",\"totalMs\":{Stdlib.Int64.toString total}"
+        ++ $",\"maxMs\":{Stdlib.Int64.toString max}}}")
+      |> Stdlib.String.join ","
+    Stdlib.printLine $"[{body}]"
+    state
+
+
+/// Right-align a number in a field of `width` chars by prepending spaces.
+/// Stdlib.padStart returns Result; this helper unwraps with empty-Error
+/// fallback (only fails on bad padWith, which we hardcode here).
+// Formatting helpers moved to `Darklang.Tracing.Format`.
+let padNum (n: Int64) (width: Int64) : String =
+  Darklang.Tracing.Format.padNum n width
+
+let jsonEscape (s: String) : String = Darklang.Tracing.Format.jsonEscape s
+
+
+/// `traces find <pattern> [limit]` — list traces whose recorded input or any
+/// fn-call args/result contain the substring (case-sensitive, matches the
+/// stored JSON form). Useful for "show me everywhere user 42 was touched"
+/// or "show me traces where errCode 503 came back."
+let executeFind
+  (state: Cli.AppState)
+  (pattern: String)
+  (limit: Int64)
+  : Cli.AppState =
+  if pattern == "" then
+    Stdlib.printLine (Colors.error "find pattern must not be empty")
+    state
+  else if limit < 1L then
+    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    state
+  else
+    let rows = Builtin.tracesFind pattern limit
+
+    match rows with
+    | [] ->
+      Stdlib.printLine $"No traces match '{pattern}'."
+      state
+    | _ ->
+      Stdlib.printLine
+        $"Traces matching '{pattern}' (last {Stdlib.Int64.toString limit}):"
+      Stdlib.printLine ""
+      printTraceRows rows
+      Stdlib.printLine ""
+      Stdlib.printLine "Use 'traces view <trace-id>' to see details."
+      state
+
+
+/// `traces find <pattern> --json [limit]` — same data as `traces find`
+/// but as a JSON array of `{traceId, handler, timestamp}` objects, no
+/// banner. Designed for piping into jq / scripts.
+let executeFindJson
+  (state: Cli.AppState)
+  (pattern: String)
+  (limit: Int64)
+  : Cli.AppState =
+  if pattern == "" then
+    Stdlib.printLine (Colors.error "find pattern must not be empty")
+    state
+  else if limit < 1L then
+    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    state
+  else
+    let rows = Builtin.tracesFind pattern limit
+    Stdlib.printLine (Stdlib.Json.serialize<List<TraceSummary>> rows)
+    state
+
+
+/// `traces find <pattern> --view` — search-then-drill in one step. Opens
+/// the most-recent matching trace's view directly. If multiple match,
+/// the others are noted but the user gets the freshest one.
+let executeFindView (state: Cli.AppState) (pattern: String) : Cli.AppState =
+  if pattern == "" then
+    Stdlib.printLine (Colors.error "find pattern must not be empty")
+    state
+  else
+    let rows = Builtin.tracesFind pattern 1L
+    match rows with
+    | [] ->
+      Stdlib.printLine $"No traces match '{pattern}'."
+      state
+    | row :: _ ->
+      Stdlib.printLine $"Latest trace matching '{pattern}': {row.traceId}"
+      Stdlib.printLine ""
+      executeView state row.traceId defaultViewOptions
+
+
+/// `traces export <trace-id>` — print a portable JSON dump of the
+/// trace (metadata + input + every fn call's args/result). Pipe to a
+/// file to share a repro. Roundtrip into `traces import` re-creates the
+/// trace row in another DB.
+let executeExport (state: Cli.AppState) (traceID: String) : Cli.AppState =
+  match Builtin.tracesExportJson traceID with
+  | None ->
+    Stdlib.printLine (Colors.error $"Trace not found: {traceID}")
+    state
+  | Some json ->
+    Stdlib.printLine json
+    state
+
+
+/// `traces gen-test <id>` — generate a `testfiles/http-server/*.test`
+/// fixture skeleton from a recorded HTTP trace. Request/response
+/// wire-format blocks come straight from the trace; the [http-handler]
+/// block has a TODO placeholder for the user to paste the handler body.
+/// Pipe to a file:  darklang traces gen-test <id> > testfiles/.../foo.test
+/// `traces inspect <id>` — open the recorded handler with the
+/// `view --with-trace` overlay applied. Saves "what was the handler
+/// called again?" — the trace already knows (via the recorded
+/// top-level fn_hash, same source `gen-test` uses). Prefixes the
+/// annotated source with a banner showing what triggered the trace
+/// (handler_desc + timestamp) so the user has context for the
+/// inputs they're seeing inline.
+let executeInspect (state: Cli.AppState) (traceID: String) : Cli.AppState =
+  match Builtin.tracesGetHandlerName traceID with
+  | None ->
+    Stdlib.printLine
+      (Colors.error
+        $"Trace {traceID} has no named handler (lambda top-level call). Use `traces view {traceID}` for the call tree.")
+    state
+  | Some handlerName ->
+    // Builtins (e.g. "int64Add") have no dots; only package fns
+    // ("Darklang.X.Y.fn") are viewable as source. Bail clearly rather
+    // than getting "Function '/int64Add. (fn)' not found." from the
+    // package-loader trying to parse a builtin name as a path.
+    if Stdlib.Bool.not (Stdlib.String.contains handlerName ".") then
+      Stdlib.printLine
+        (Colors.error
+          $"Trace {traceID}'s handler `{handlerName}` is a builtin — no source to view.")
+      state
+    else
+      // Banner: what triggered this trace? Comes before the
+      // `-- annotated with N value(s) --` line that
+      // viewFunctionWithTrace prints.
+      match Builtin.tracesGetSummary traceID with
+      | Some pair ->
+        let (handler, timestamp) = pair
+        Stdlib.printLine (Colors.hint $"-- {handler} at {timestamp} --")
+      | None -> ()
+      let parsedLocation =
+        LanguageTools.ProgramTypes.parsePackageLocation handlerName
+      let location = Cli.Packages.PackageLocation.Function parsedLocation
+      Cli.Packages.View.viewFunctionWithTrace
+        state.currentBranchId
+        location
+        traceID
+      // Footer: what came out? Pulled from the recorded top-level
+      // call's result via `cliTracesGetExpectedOutput` (same source
+      // `replay --diff` uses). Truncated to 160 chars so a giant
+      // HTML response doesn't drown the output.
+      match Builtin.tracesGetExpectedOutput traceID with
+      | Some result ->
+        let compact =
+          result
+          |> Stdlib.String.split "\n"
+          |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
+          |> Stdlib.String.join " "
+        let truncated =
+          if Stdlib.String.length compact > 160L then
+            (Stdlib.String.slice compact 0L 160L) ++ "…"
+          else
+            compact
+        Stdlib.printLine ""
+        Stdlib.printLine (Colors.hint $"-- → {truncated} --")
+      | None -> ()
+      state
+
+
+/// `traces values <id>` — list every per-AST-node value the trace
+/// recorded (let RHS, if branch result, matched arm, pipe stage —
+/// see TraceDval emission in PT2RT). Debug surface; ids are raw
+/// numeric AST ids. For human-readable annotation use
+/// `traces inspect <id>` or `view <fn> --with-trace <id>`.
+let executeValues (state: Cli.AppState) (traceID: String) : Cli.AppState =
+  let pairs = Builtin.tracesGetExprValues traceID
+  match pairs with
   | [] ->
-    Stdlib.printLine "No traces found."
+    Stdlib.printLine
+      "No expression values recorded for this trace."
+    Stdlib.printLine
+      "(Populated by code that ran a `let`/`if`/`match`/`|>` — empty for traces that never reached one.)"
     state
   | _ ->
-    Stdlib.printLine $"Recent traces (last {Stdlib.Int64.toString limit}):"
+    let nStr = Stdlib.Int64.toString (Stdlib.List.length pairs)
+    Stdlib.printLine $"Recorded expression values ({nStr}):"
     Stdlib.printLine ""
-    printTraceRows rows
-    Stdlib.printLine ""
-    Stdlib.printLine "Use 'traces view <trace-id>' to see details."
+    Stdlib.List.iter pairs (fun pair ->
+      let (exprId, dval) = pair
+      let repr = compactDval state.currentBranchId dval
+      Stdlib.printLine $"  {exprId}  →  {repr}")
     state
 
 
-let executeListByFn (state: Cli.AppState) (fnName: String) (limit: Int64) : Cli.AppState =
-  let rows = Builtin.cliTracesListByFn fnName limit
+// `lookupHandlerBody` moved to `Darklang.Tracing.HandlerSource.lookup`.
+let lookupHandlerBody
+  (branchId: Uuid)
+  (handlerName: String)
+  : Stdlib.Option.Option<String> =
+  Darklang.Tracing.HandlerSource.lookup branchId handlerName
 
-  match rows with
-  | [] ->
-    Stdlib.printLine $"No traces found calling '{fnName}'."
+
+let executeGenTest (state: Cli.AppState) (traceID: String) : Cli.AppState =
+  match Builtin.tracesGenTest traceID with
+  | Error msg ->
+    Stdlib.printLine (Colors.error msg)
     state
-  | _ ->
-    Stdlib.printLine $"Traces calling '{fnName}' (last {Stdlib.Int64.toString limit}):"
-    Stdlib.printLine ""
-    printTraceRows rows
-    Stdlib.printLine ""
-    Stdlib.printLine "Use 'traces view <trace-id>' to see details."
+  | Ok fixtureWithSentinel ->
+    // Try to auto-resolve the handler source. The F# builtin emits a
+    // `%%HANDLER_BODY%%` line where the body should go; we substitute
+    // either the live source or a TODO block.
+    let body =
+      match Builtin.tracesGetHandlerName traceID with
+      | None ->
+        "// TODO: paste the handler body. (couldn't determine name from trace)"
+      | Some handlerName ->
+        match lookupHandlerBody state.currentBranchId handlerName with
+        | Some src -> src
+        | None ->
+          "// TODO: paste the handler body that produced this trace.\n"
+          ++ $"//       Source: `darklang view {handlerName}` (handler not found on current branch)"
+    let fixture =
+      Stdlib.String.replaceAll fixtureWithSentinel "%%HANDLER_BODY%%" body
+    Stdlib.printLine fixture
     state
+
+
+/// `traces import <path>` — read a JSON dump produced by
+/// `traces export` and re-create the trace row in this DB. Useful for
+/// reproducing a trace shared from another machine. The trace ID is
+/// preserved; an existing row with that ID is overwritten.
+let executeImport (state: Cli.AppState) (path: String) : Cli.AppState =
+  if Stdlib.String.startsWith path "-" then
+    Stdlib.printLine (Colors.error $"Unknown flag: {path}")
+    state
+  else
+    match Stdlib.Cli.File.readText path with
+    | Error e ->
+      Stdlib.printLine (Colors.error $"Could not read {path}: {e.message}")
+      state
+    | Ok json ->
+      match Builtin.tracesImport json with
+      | Ok traceID ->
+        Stdlib.printLine $"Imported trace {traceID}"
+        Stdlib.printLine $"  → use 'traces view {traceID}' to inspect."
+        state
+      | Error msg ->
+        Stdlib.printLine (Colors.error msg)
+        state
+
+
+/// `traces tail [N] [--route <substring>]` — open the Nth-most-recent
+/// trace's full view (default N=1, the very latest). Skips the
+/// list-then-copy-id round-trip you'd otherwise do with `traces list` →
+/// `traces view <id>`. `tail 2` peeks back one without copying IDs.
+/// Optional route filter narrows to traces matching the substring
+/// before counting.
+let executeTail
+  (state: Cli.AppState)
+  (routeFilter: Stdlib.Option.Option<String>)
+  (n: Int64)
+  : Cli.AppState =
+  let routeIsEmpty =
+    match routeFilter with
+    | Some r -> Stdlib.String.trim r == ""
+    | None -> false
+  if n < 1L then
+    Stdlib.printLine (Colors.error "tail N must be ≥ 1")
+    state
+  else if routeIsEmpty then
+    Stdlib.printLine (Colors.error "--route pattern must not be empty")
+    state
+  else
+    // Over-fetch so route-filtered Nth candidate is reachable; the
+    // unfiltered case picks straight from the first N rows.
+    let fetch =
+      match routeFilter with
+      | Some _ -> 500L
+      | None -> n
+    let allRows = Builtin.tracesList fetch
+    let candidates =
+      match routeFilter with
+      | Some route ->
+        let routeUpper = Stdlib.String.toUppercase route
+        allRows
+        |> Stdlib.List.filter (fun row ->
+          Stdlib.String.contains
+            (Stdlib.String.toUppercase row.handler) routeUpper)
+      | None -> allRows
+
+    // Drop the first (n-1) — the Nth-most-recent is what's left at head.
+    let after = Stdlib.List.drop candidates (n - 1L)
+    match after with
+    | [] ->
+      let suffix =
+        match routeFilter with
+        | Some r -> $" matching '{r}'"
+        | None -> ""
+      // N=1 reads better as "No traces yet" — for N>1, use proper
+      // English ordinals (2nd/3rd/22nd/etc) via ordinalSuffix.
+      let msg =
+        if n == 1L then $"No traces yet{suffix}."
+        else
+          let nStr = Stdlib.Int64.toString n
+          $"No {nStr}{ordinalSuffix n}-most-recent trace{suffix}."
+      Stdlib.printLine msg
+      state
+    | row :: _ -> executeView state row.traceId defaultViewOptions
+
+
+/// `traces stats` — per-handler aggregate over the last N traces:
+/// trace count, total ms (sum of every fn-call duration in each trace),
+/// max single-call ms. Pairs with `traces hotspots` (per-fn aggregate)
+/// for "which routes are heavy?" vs "which fns are heavy?".
+let executeStats (state: Cli.AppState) (limit: Int64) : Cli.AppState =
+  if limit < 1L then
+    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    state
+  else
+    let rows = Builtin.tracesStatsByHandler limit
+
+    match rows with
+    | [] ->
+      Stdlib.printLine "No traces found."
+      state
+    | _ ->
+      Stdlib.printLine
+        $"Per-handler stats (last {Stdlib.Int64.toString limit} traces):"
+      Stdlib.printLine ""
+      Stdlib.printLine "  total ms │   max ms │ count │ handler"
+      Stdlib.printLine "  ─────────┼──────────┼───────┼─────────────────────────"
+      Stdlib.List.iter rows (fun row ->
+        let (handler, count, total, max) = row
+        let totalStr = padNum total 9L
+        let maxStr = padNum max 8L
+        let countStr = padNum count 5L
+        Stdlib.printLine $"  {totalStr} │ {maxStr} │ {countStr} │ {handler}")
+      Stdlib.printLine ""
+      // The route-drill hint only makes sense if there are HTTP
+      // handlers in the result; eval/run-only stores get no help
+      // from `--route`. HTTP handler descriptions look like
+      // `<METHOD> <path>` so a `/` is a reliable shibboleth.
+      let hasHttp =
+        rows
+        |> Stdlib.List.any (fun row ->
+          let (handler, _, _, _) = row
+          Stdlib.String.contains handler "/")
+      if hasHttp then
+        Stdlib.printLine "Use 'traces list --route <substring>' to drill into a route."
+      state
+
+
+/// `traces stats --json [limit]` — same data as a JSON array of
+/// `{handler, count, totalMs, maxMs}` objects, no headers/footers,
+/// for piping. Empty store prints `[]`.
+let executeStatsJson (state: Cli.AppState) (limit: Int64) : Cli.AppState =
+  if limit < 1L then
+    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    state
+  else
+    let rows = Builtin.tracesStatsByHandler limit
+    let body =
+      rows
+      |> Stdlib.List.map (fun row ->
+        let (handler, count, total, max) = row
+        $"{{\"handler\":\"{jsonEscape handler}\""
+        ++ $",\"count\":{Stdlib.Int64.toString count}"
+        ++ $",\"totalMs\":{Stdlib.Int64.toString total}"
+        ++ $",\"maxMs\":{Stdlib.Int64.toString max}}}")
+      |> Stdlib.String.join ","
+    Stdlib.printLine $"[{body}]"
+    state
+
+
+/// One iteration of the follow loop: pull recent rows, find newer
+/// than `lastSeen`, optionally filter by route, print, then sleep.
+/// Returns the new `lastSeen` (the newest id pulled this tick). When
+/// `jsonMode`, each new trace prints as one NDJSON line; otherwise the
+/// human-readable two-space-indent form.
+let rec followLoop
+  (routeFilter: Stdlib.Option.Option<String>)
+  (lastSeen: String)
+  (jsonMode: Bool)
+  : Unit =
+  let rows = Builtin.tracesList 50L
+
+  let candidates =
+    rows |> Stdlib.List.takeWhile (fun row -> row.traceId != lastSeen)
+
+  let filtered =
+    match routeFilter with
+    | Some r ->
+      let rUpper = Stdlib.String.toUppercase r
+      candidates
+      |> Stdlib.List.filter (fun row ->
+        Stdlib.String.contains (Stdlib.String.toUppercase row.handler) rUpper)
+    | None -> candidates
+
+  let chronological = filtered |> Stdlib.List.reverse
+
+  Stdlib.List.iter chronological (fun row ->
+    if jsonMode then
+      Stdlib.printLine (Stdlib.Json.serialize<TraceSummary> row)
+    else
+      Stdlib.printLine $"  {row.timestamp}  {row.traceId}  {row.handler}")
+
+  let newLastSeen =
+    match rows with
+    | [] -> lastSeen
+    | row :: _ -> row.traceId
+
+  Stdlib.Cli.Posix.sleep 500.0
+  followLoop routeFilter newLastSeen jsonMode
+
+
+/// Tail-style live view: poll every 500ms, print new traces as they
+/// arrive, in chronological order. Optional `--route <substring>`
+/// filter narrows the stream. With `--json`, output is NDJSON
+/// (one JSON object per line) for piping to log aggregators / scripts;
+/// the "Following…" banner is suppressed so consumers see only data.
+///
+/// Hold Ctrl+C to exit (the loop never returns on its own).
+let executeFollow
+  (state: Cli.AppState)
+  (routeFilter: Stdlib.Option.Option<String>)
+  (jsonMode: Bool)
+  : Cli.AppState =
+  let routeIsEmpty =
+    match routeFilter with
+    | Some r -> Stdlib.String.trim r == ""
+    | None -> false
+  if routeIsEmpty then
+    Stdlib.printLine (Colors.error "--route pattern must not be empty")
+    state
+  else
+  if jsonMode == false then
+    let label =
+      match routeFilter with
+      | Some r -> $"route '{r}'"
+      | None -> "all routes"
+    Stdlib.printLine $"Following traces for {label}. Ctrl+C to stop."
+    Stdlib.printLine ""
+
+  // Anchor: ignore traces that already existed when we started.
+  let initialRows = Builtin.tracesList 1L
+  let initialSeen =
+    match initialRows with
+    | [] -> ""
+    | row :: _ -> row.traceId
+
+  followLoop routeFilter initialSeen jsonMode
+  state
+
+
+/// Filter recent traces by a substring of the trace's `handler` field
+/// (which for HTTP traces is `"<METHOD> <path>"` like `"GET /hello"`).
+/// Substring match makes both `"/hello"` and `"GET"` work.
+let executeListByRoute
+  (state: Cli.AppState)
+  (route: String)
+  (limit: Int64)
+  (jsonMode: Bool)
+  : Cli.AppState =
+  if Stdlib.String.trim route == "" then
+    Stdlib.printLine (Colors.error "--route pattern must not be empty")
+    state
+  else if limit < 1L then
+    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    state
+  else
+    // Over-fetch then filter; cliTracesList returns the most-recent N rows
+    // unfiltered, so to find N matching we may need to pull more. Cap at
+    // 500 to bound the fetch.
+    let overFetch = if limit < 50L then 500L else limit * 10L
+    let allRows = Builtin.tracesList overFetch
+    let routeUpper = Stdlib.String.toUppercase route
+    let matching =
+      allRows
+      |> Stdlib.List.filter (fun row ->
+        Stdlib.String.contains
+          (Stdlib.String.toUppercase row.handler) routeUpper)
+      |> Stdlib.List.take limit
+
+    if jsonMode then
+      Stdlib.printLine (Stdlib.Json.serialize<List<TraceSummary>> matching)
+      state
+    else
+      match matching with
+      | [] ->
+        Stdlib.printLine $"No traces found for route filter '{route}'."
+        state
+      | _ ->
+        Stdlib.printLine $"Traces matching route '{route}' (last {Stdlib.Int64.toString limit}):"
+        Stdlib.printLine ""
+        printTraceRows matching
+        Stdlib.printLine ""
+        Stdlib.printLine "Use 'traces view <trace-id>' to see details."
+        state
+
+
 
 
 let printTraceRows (rows: List<TraceSummary>) : Unit =
@@ -167,12 +1177,9 @@ let formatInputs (branchId: Uuid) (inputs: List<InputVar>) : String =
 /// pretty-print, split on newlines, trim each line, rejoin. We don't
 /// normalize comma spacing because that would corrupt commas inside
 /// string contents.
+// `compactDval` moved to `Darklang.Tracing.Format`.
 let compactDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
-  let pretty = PrettyPrinter.RuntimeTypes.dval branchId dv
-  pretty
-  |> Stdlib.String.split "\n"
-  |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
-  |> Stdlib.String.join ""
+  Darklang.Tracing.Format.compactDval branchId dv
 
 
 /// Decide whether to render a given call line. Hidden lines still recurse
@@ -184,13 +1191,28 @@ let isVisible (opts: ViewOptions) (call: FnCall) (ancestorMatched: Bool) : Bool 
     && Stdlib.String.startsWith call.fnName "Darklang.Stdlib."
     && call.parentCallId != Stdlib.Option.Option.None
   let builtinHidden = opts.hideBuiltins && call.kind == "builtin"
-  if stdlibInternal || builtinHidden then
+  let belowSlowThreshold =
+    match opts.slowThresholdMs with
+    | Some thr -> call.durationMs < thr
+    | None -> false
+  // --filter / --exclude match case-insensitively, parallel to the
+  // SQL `LIKE` semantics used by `list --fn` / `find`. Uppercase the
+  // call name once per call; pat is uppercased at parse time would be
+  // cleaner but the perf gap on a typical 100-call trace is invisible.
+  let fnNameUpper = Stdlib.String.toUppercase call.fnName
+  let excluded =
+    match opts.exclude with
+    | Some pat ->
+      Stdlib.String.contains fnNameUpper (Stdlib.String.toUppercase pat)
+    | None -> false
+  if stdlibInternal || builtinHidden || belowSlowThreshold || excluded then
     false
   else
     match opts.filter with
     | None -> true
     | Some pat ->
-      ancestorMatched || Stdlib.String.contains call.fnName pat
+      ancestorMatched
+        || Stdlib.String.contains fnNameUpper (Stdlib.String.toUppercase pat)
 
 
 /// Render one call and (recursively) its children. Lifted out of
@@ -230,15 +1252,20 @@ let renderCall
     if visible then
       let indent = Stdlib.String.repeat "  " (depth + 1L)
       let resultRepr = compactDval branchId call.result
+      let durationSuffix =
+        if call.durationMs > 0L then
+          $"  ({Stdlib.Int64.toString call.durationMs}ms)"
+        else
+          ""
       let header =
         match call.args with
-        | [] -> $"{indent}{call.fnName} → {resultRepr}"
+        | [] -> $"{indent}{call.fnName} → {resultRepr}{durationSuffix}"
         | _ ->
           let argsRepr =
             call.args
             |> Stdlib.List.map (fun arg -> compactDval branchId arg)
             |> Stdlib.String.join ", "
-          $"{indent}{call.fnName}({argsRepr}) → {resultRepr}"
+          $"{indent}{call.fnName}({argsRepr}) → {resultRepr}{durationSuffix}"
       Stdlib.List.append [ header ] childrenRendered
     else
       childrenRendered
@@ -277,7 +1304,12 @@ let formatFnCalls
         renderCall opts branchId childrenMap r 0L false)
       |> Stdlib.List.flatten
     match rendered with
-    | [] -> "  (no calls match filter)"
+    | [] ->
+      // The empty case can happen for several reasons; help the user
+      // figure out which by surfacing the most-likely cause first.
+      match opts.maxDepth with
+      | Some 0L -> "  (depth limit 0 — no calls shown)"
+      | _ -> "  (no calls match the active filters)"
     | _ -> Stdlib.String.join rendered "\n"
 
 
@@ -286,7 +1318,7 @@ let executeView
   (traceID: String)
   (opts: ViewOptions)
   : Cli.AppState =
-  let result = Builtin.cliTracesView traceID
+  let result = Builtin.tracesView traceID
 
   match result with
   | None ->
@@ -308,37 +1340,144 @@ let executeView
     state
 
 
-let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
-  let input = Builtin.cliTracesGetInput traceID
+let executeReplay
+  (state: Cli.AppState)
+  (traceID: String)
+  (diff: Bool)
+  : Cli.AppState =
+  // cliTracesGetInput returns Some only for traces whose input is a
+  // String (eval/run). HTTP traces have a Request record input and
+  // come back as None — those route to the HTTP replay path.
+  let input = Builtin.tracesGetInput traceID
 
   match input with
   | None ->
-    Stdlib.printLine (Colors.error $"Trace not found or has no replayable input: {traceID}")
-    state
+    Stdlib.printLine $"Replaying HTTP trace {traceID} against current handler..."
+    Stdlib.printLine ""
+    match Builtin.tracesReplayHttp traceID diff with
+    | Ok output ->
+      Stdlib.printLine output
+      state
+    | Error msg ->
+      Stdlib.printLine (Colors.error msg)
+      state
   | Some code ->
     Stdlib.printLine $"Replaying trace {traceID}..."
     Stdlib.printLine ""
     let result =  Builtin.cliEvaluateExpression state.accountID state.currentBranchId code false
     match result with
     | Ok output ->
-      Stdlib.printLine output
-      Stdlib.printLine ""
-      Stdlib.printLine "Replay complete. A new trace was created for this execution."
-      state
+      if diff then
+        match Builtin.tracesGetExpectedOutput traceID with
+        | None ->
+          Stdlib.printLine output
+          Stdlib.printLine ""
+          Stdlib.printLine
+            "Replay complete. (No recorded output to diff against — the trace has no top-level fn calls.)"
+          state
+        | Some expected ->
+          Stdlib.printLine $"Original output: {expected}"
+          Stdlib.printLine $"     New output: {output}"
+          Stdlib.printLine ""
+          if expected == output then
+            Stdlib.printLine (Colors.success "✓ unchanged")
+          else
+            Stdlib.printLine (Colors.error "✗ output changed")
+          state
+      else
+        Stdlib.printLine output
+        Stdlib.printLine ""
+        Stdlib.printLine "Replay complete. A new trace was created for this execution."
+        state
     | Error err ->
       Stdlib.printLine (Colors.error $"Replay failed: {Cli.ExecutionError.toString err}")
       state
 
 
 let executeClear (state: Cli.AppState) : Cli.AppState =
-  let count = Builtin.cliTracesClear ()
+  let count = Builtin.tracesClear ()
   match count with
   | 0L ->
     Stdlib.printLine "No traces to clear."
     state
   | _ ->
-    Stdlib.printLine $"Cleared {Stdlib.Int64.toString count} trace(s)."
+    let traceWord = if count == 1L then "trace" else "traces"
+    Stdlib.printLine $"Cleared {Stdlib.Int64.toString count} {traceWord}."
     state
+
+
+/// Parse a short duration string ("30s", "5m", "1h", "2d") into seconds.
+/// Single-character unit suffix; bare numbers are rejected so callers
+/// always state intent. Returns Error with a hint on malformed input.
+/// `-`-prefixed inputs are reported as "Unknown flag" rather than
+/// "Invalid duration" — same logic as `parsePositionalErr`.
+// Duration parser moved to `Darklang.Tracing.Duration.parse`.
+let parseDuration (s: String) : Stdlib.Result.Result<Int64, String> =
+  Darklang.Tracing.Duration.parse s
+
+
+/// `traces clear --before <duration>` — drop traces older than the
+/// given duration, complement to `prune --keep N` (count-based).
+let executeClearBefore
+  (state: Cli.AppState)
+  (durationStr: String)
+  : Cli.AppState =
+  match parseDuration durationStr with
+  | Error msg ->
+    Stdlib.printLine (Colors.error msg)
+    state
+  | Ok seconds ->
+    let now = Stdlib.DateTime.now ()
+    let cutoffDt = Stdlib.DateTime.subtractSeconds now seconds
+    let cutoff = Stdlib.DateTime.toString cutoffDt
+    let count = Builtin.tracesClearBefore cutoff
+    match count with
+    | 0L ->
+      Stdlib.printLine $"No traces older than {durationStr}."
+      state
+    | _ ->
+      let traceWord = if count == 1L then "trace" else "traces"
+      Stdlib.printLine
+        $"Cleared {Stdlib.Int64.toString count} {traceWord} older than {durationStr}."
+      state
+
+
+/// `traces delete <id>` — remove one trace and its fn_calls. ID accepts
+/// the same prefix-resolution as view/export/replay.
+let executeDelete (state: Cli.AppState) (traceID: String) : Cli.AppState =
+  let deleted = Builtin.tracesDelete traceID
+  match deleted with
+  | 0L ->
+    Stdlib.printLine (Colors.error $"Trace not found: {traceID}")
+    state
+  | _ ->
+    Stdlib.printLine $"Deleted trace {traceID}."
+    state
+
+
+/// `traces prune --keep <N>` — keep the N most-recent traces, drop the
+/// rest (with their fn_calls). For bounded retention as the trace store
+/// grows; pair with `traces clear` for a full wipe.
+let executePruneKeep (state: Cli.AppState) (keepN: Int64) : Cli.AppState =
+  if keepN < 0L then
+    Stdlib.printLine (Colors.error "--keep N must be ≥ 0")
+    state
+  else
+    let deleted = Builtin.tracesPruneKeep keepN
+    match deleted with
+    | 0L ->
+      Stdlib.printLine
+        $"Already at or below {Stdlib.Int64.toString keepN} traces; nothing to prune."
+      state
+    | _ ->
+      let traceWord = if deleted == 1L then "trace" else "traces"
+      let keptPhrase =
+        if keepN == 0L then "none kept"
+        else if keepN == 1L then "kept the most-recent"
+        else $"kept the {Stdlib.Int64.toString keepN} most-recent"
+      Stdlib.printLine
+        $"Pruned {Stdlib.Int64.toString deleted} {traceWord}; {keptPhrase}."
+      state
 
 
 let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.CompletionItem> =
@@ -346,10 +1485,60 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
   | [] ->
     [ Completion.simple "list"
       Completion.simple "view"
+      Completion.simple "tail"
+      Completion.simple "follow"
+      Completion.simple "stats"
+      Completion.simple "find"
+      Completion.simple "hotspots"
+      Completion.simple "export"
+      Completion.simple "import"
+      Completion.simple "gen-test"
+      Completion.simple "inspect"
+      Completion.simple "values"
       Completion.simple "replay"
-      Completion.simple "clear" ]
+      Completion.simple "delete"
+      Completion.simple "prune"
+      Completion.simple "clear"
+      Completion.simple "help" ]
   | [ "list" ] ->
-    [ Completion.simple "--fn" ]
+    [ Completion.simple "--fn"
+      Completion.simple "--route"
+      Completion.simple "--json" ]
+  | [ "tail" ] -> [ Completion.simple "--route" ]
+  | [ "follow" ] ->
+    [ Completion.simple "--route"; Completion.simple "--json" ]
+  | [ "find" ] ->
+    [ Completion.simple "--view"; Completion.simple "--json" ]
+  | [ "replay" ] -> [ Completion.simple "--diff" ]
+  | [ "prune" ] -> [ Completion.simple "--keep" ]
+  | [ "clear" ] -> [ Completion.simple "--before" ]
+  | [ "stats" ] -> [ Completion.simple "--json" ]
+  | [ "hotspots" ] -> [ Completion.simple "--json" ]
+  // After `traces view <id>` the next token is a flag — surface them.
+  | "view" :: _ :: _ ->
+    [ Completion.simple "--depth"
+      Completion.simple "-d"
+      Completion.simple "--no-builtins"
+      Completion.simple "--no-stdlib"
+      Completion.simple "--filter"
+      Completion.simple "--exclude"
+      Completion.simple "--slow"
+      Completion.simple "--slow-ms" ]
+  // After a value-taking flag, the next token is a user-supplied
+  // substring/path — no canonical completion to suggest. Returning
+  // an empty list forces the user to type a value rather than
+  // tab-cycling through the wrong flags.
+  | [ "list"; "--fn" ]
+  | [ "list"; "--route" ]
+  | [ "tail"; "--route" ]
+  | [ "follow"; "--route" ] -> []
+  // Post-ID flags for replay, find, list --fn/--route.
+  | "replay" :: _ :: _ -> [ Completion.simple "--diff" ]
+  | "find" :: _ :: _ ->
+    [ Completion.simple "--view"; Completion.simple "--json" ]
+  | "tail" :: _ :: _ -> [ Completion.simple "--route" ]
+  | "list" :: _ :: _ ->
+    [ Completion.simple "--json" ]
   | _ -> []
 
 
@@ -357,18 +1546,43 @@ let help (_state: Cli.AppState) : Unit =
   [ "Usage: traces <subcommand>"
     ""
     "Subcommands:"
-    "  list [limit]              List recent traces (default limit: 20)"
-    "  list --fn <name> [limit]  List traces that called a specific function"
-    "  view <trace-id> [flags]   View details of a specific trace"
-    "  replay <trace-id>         Re-execute a trace's code with current definitions"
-    "  clear                     Delete all stored traces"
+    "  list [limit]                  List recent traces (default limit: 20)"
+    "  list --json [limit]           Same data as JSON for piping (e.g. `| jq`)"
+    "  list --fn <substring> [limit] [--json]  Filter to traces calling a fn whose name contains <substring>"
+    "  list --route <substring> [limit] [--json]  Filter by handler description substring (HTTP, case-insensitive)"
+    "  view <trace-id> [flags]       View details of a specific trace"
+    "  tail [N] [--route <substring>]  View the Nth-most-recent trace (default 1, the very latest)"
+    "  follow [--route <substring>] [--json]  Tail-style: print new traces as they arrive (NDJSON with --json)"
+    "  stats [limit]                 Count of recent traces grouped by handler"
+    "  stats --json [limit]          Same data as JSON for piping"
+    "  find <pattern> [limit]        List traces whose recorded values contain a substring"
+    "  find <pattern> --view         Open the latest matching trace directly"
+    "  find <pattern> --json [limit] Same data as JSON for piping"
+    "  hotspots [trace-limit]        Per-fn timing aggregated across last N traces (default 100; top 50 fns by total ms)"
+    "  hotspots --json [trace-limit] Same data as JSON for piping"
+    "  export <trace-id>             Print a portable JSON dump of the trace"
+    "  import <path>                 Re-create a trace from a JSON dump on disk"
+    "  gen-test <trace-id>           Generate a testfiles/http-server/*.test skeleton from an HTTP trace"
+    "  inspect <trace-id>            Open the recorded handler with --with-trace overlay (annotated source)"
+    "  values <trace-id>             Per-AST-node values (let RHS, if/match/pipe results) — debug raw"
+    "  replay <trace-id> [--diff]    Re-execute a trace's code; --diff compares against the recorded output"
+    "  delete <trace-id>             Delete one trace (prefix OK)"
+    "  prune --keep <N>              Keep the N most-recent traces, drop the rest"
+    "  clear                         Delete all stored traces"
+    "  clear --before <duration>     Delete traces older than <duration> (s/m/h/d)"
+    ""
+    "Trace IDs accept any unambiguous prefix — `view fe62`, `export fe6219e9-4705`, etc."
     ""
     "View flags (combinable):"
     "  -d, --depth <n>           Cap tree depth at <n> levels"
     "  --no-builtins             Hide builtin calls (e.g. int64Multiply)"
     "  --no-stdlib               Hide stdlib calls below the entry point"
     "  --filter <pattern>        Show only calls whose name contains <pattern>"
-    "                            (and their descendants)"
+    "                            (and their descendants; case-insensitive)"
+    "  --exclude <pattern>       Hide calls whose name contains <pattern>"
+    "                            (their children still recurse at parent indent; case-insensitive)"
+    "  --slow                    Hide calls below 10ms (builtins always 0)"
+    "  --slow-ms <n>             Hide calls below <n>ms"
     ""
     "Traces are recorded when code executes via eval, run, or HTTP handlers."
     "Each trace captures inputs, function calls with arguments, and results."
@@ -376,11 +1590,38 @@ let help (_state: Cli.AppState) : Unit =
     "Examples:"
     "  traces list                          - Show last 20 traces"
     "  traces list 50                       - Show last 50 traces"
-    "  traces list --fn List.map            - Find traces that called List.map"
+    "  traces list --fn List.map            - Find traces with any fn-call name containing 'List.map'"
+    "  traces list --route /user/:id        - Find HTTP traces matching a route"
+    "  traces tail                          - Open the latest trace's full view"
+    "  traces tail 2                        - Open the second-most-recent trace"
+    "  traces tail --route /user            - Open the latest trace matching /user"
+    "  traces follow                        - Stream new traces as they arrive"
+    "  traces follow --route /api           - Stream new traces matching /api"
+    "  traces stats                         - Count recent traces by handler"
+    "  traces find user-42                  - All traces touching the substring 'user-42'"
+    "  traces find user-42 --view           - Open the latest matching trace"
+    "  traces hotspots                      - Top fns by total ms across recent traces"
     "  traces view <trace-id>               - View full trace tree"
     "  traces view <trace-id> -d 2          - Top two tree levels only"
     "  traces view <trace-id> --no-stdlib --no-builtins"
     "  traces view <trace-id> --filter Multiply"
+    "  traces view <trace-id> --exclude listAppend  - Hide noisy intermediate calls"
+    "  traces view <trace-id> --slow              - Only calls ≥10ms"
+    "  traces view <trace-id> --slow-ms 100       - Only calls ≥100ms"
+    "  traces inspect <trace-id>            - Annotated handler source (auto-resolves the fn)"
+    "  traces gen-test <trace-id> > foo.test - Save trace as a wire-format test fixture"
+    "  traces values <trace-id>             - Raw (exprId, dval) pairs (debug)"
+    "  traces export <trace-id> > t.json    - Dump a trace as JSON for sharing"
+    "  traces import t.json                 - Re-create a trace from a JSON dump"
     "  traces replay <trace-id>             - Re-run with current code"
-    "  traces clear                         - Delete all traces" ]
+    "  traces replay <trace-id> --diff      - Re-run, then diff vs recorded output"
+    "  traces delete fe62                   - Delete one trace by prefix"
+    "  traces prune --keep 50               - Keep latest 50, drop the rest"
+    "  traces clear --before 1h             - Drop traces older than 1 hour"
+    "  traces clear                         - Delete all traces"
+    ""
+    "Workflow trio for HTTP debug:"
+    "  traces tail                          - what just ran (call tree)"
+    "  traces inspect <id>                  - how it ran (annotated source)"
+    "  traces gen-test <id>                 - save it as a fixture" ]
   |> Stdlib.printLines

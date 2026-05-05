@@ -316,6 +316,10 @@ module Instruction =
     | CheckIfFirstExprIsUnit reg ->
       w.Write 22uy
       w.Write(reg : int)
+    | TraceDval(exprId, valueReg) ->
+      w.Write 23uy
+      w.Write(exprId : uint64)
+      w.Write(valueReg : int)
 
   let read (r : BinaryReader) : Instruction =
     match r.ReadByte() with
@@ -434,6 +438,10 @@ module Instruction =
     | 22uy ->
       let reg = r.ReadInt32()
       CheckIfFirstExprIsUnit(reg)
+    | 23uy ->
+      let exprId = r.ReadUInt64()
+      let valueReg = r.ReadInt32()
+      TraceDval(exprId, valueReg)
     | b -> raiseFormatError $"Invalid Instruction tag: {b}"
 
 

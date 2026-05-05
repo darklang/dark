@@ -9,7 +9,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
-module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
+module DvalReprInternalRoundtrippable = LibDB.DvalRepr.Roundtrippable
 
 /// Tracing can go overboard, so use a per-handler feature flag to control it. If
 /// sampling is disabled for a canvas, no traces will be recorded to be saved to the
@@ -88,8 +88,13 @@ type T =
     /// Store the tracing input (varname + dval) for a handler execution
     storeTraceInput : PT.Handler.HandlerDesc -> string -> RT.Dval -> unit
 
-    /// Store the trace results calculated over the execution, if enabled
-    storeTraceResults : unit -> unit
+    /// Store the trace results calculated over the execution, if enabled.
+    /// Takes the live ExecutionState so ephemeral blob refs (which die
+    /// when the request scope pops) can be promoted to persistent ones
+    /// before serialization. Without that, traces would record blob refs
+    /// pointing at gone bytes and `traces view` / `gen-test` couldn't
+    /// reconstruct request/response bodies.
+    storeTraceResults : RT.ExecutionState -> Ply.Ply<unit>
 
     /// The functions to run tracing during execution
     executionTracing : RT.Tracing.Tracing
@@ -159,7 +164,8 @@ type CompletedEvent =
     fnHash : string option // function/builtin only
     lambdaExprId : id option // lambda only
     args : List<RT.Dval>
-    result : RT.Dval }
+    result : RT.Dval
+    durationMs : int64 } // 0 for builtins (no frame-entry hook); real ms for fn/lambda
 
 
 /// Partial event held on the writer's stack between storeFrameEntry and
@@ -170,19 +176,25 @@ type PartialEvent =
     parentCallId : string option
     fnHash : string option
     lambdaExprId : id option
-    args : List<RT.Dval> }
+    args : List<RT.Dval>
+    /// Stopwatch ticks at frame-entry. Subtract at exit and convert to ms.
+    startedAtTicks : int64 }
 
 
 /// Mutable per-trace tracer state. Captures every event in execution order
 /// and tracks the open call stack so children can find their parent.
+/// `exprValues` is keyed by AST node id; later writes overwrite earlier
+/// (a recursive fn's exprIds fire repeatedly — the last value wins).
 type TracerState =
   { events : System.Collections.Generic.List<CompletedEvent>
-    stack : System.Collections.Generic.Stack<PartialEvent> }
+    stack : System.Collections.Generic.Stack<PartialEvent>
+    exprValues : System.Collections.Generic.Dictionary<id, RT.Dval> }
 
 
 let private newState () : TracerState =
   { events = System.Collections.Generic.List<CompletedEvent>()
-    stack = System.Collections.Generic.Stack<PartialEvent>() }
+    stack = System.Collections.Generic.Stack<PartialEvent>()
+    exprValues = System.Collections.Generic.Dictionary<id, RT.Dval>() }
 
 
 let private currentParentCallId (state : TracerState) : string option =
@@ -190,6 +202,13 @@ let private currentParentCallId (state : TracerState) : string option =
 
 
 let private newCallId () : string = string (System.Guid.NewGuid())
+
+
+/// Convert a Stopwatch-tick delta to milliseconds, clamping at zero so a
+/// monotonic-clock blip can't surface as a negative duration.
+let private ticksToMs (deltaTicks : int64) : int64 =
+  let ms = deltaTicks * 1000L / System.Diagnostics.Stopwatch.Frequency
+  if ms < 0L then 0L else ms
 
 
 /// Fired when a Function or Lambda frame is pushed. We assign this call
@@ -210,7 +229,8 @@ let private makeStoreFrameEntry (state : TracerState) : RT.Tracing.StoreFrameEnt
         parentCallId = currentParentCallId state
         fnHash = fnHash
         lambdaExprId = lambdaExprId
-        args = args }
+        args = args
+        startedAtTicks = System.Diagnostics.Stopwatch.GetTimestamp() }
     state.stack.Push(partial)
 
 
@@ -229,11 +249,14 @@ let private makeStoreFnResult (state : TracerState) : RT.Tracing.StoreFnResult =
           fnHash = Some(fnNameToSimpleString name)
           lambdaExprId = None
           args = NEList.toList args
-          result = result }
+          result = result
+          // No frame-entry counterpart for builtins, so no real duration.
+          durationMs = 0L }
       )
     | RT.FQFnName.Package _ ->
       if state.stack.Count > 0 then
         let partial = state.stack.Pop()
+        let endedAt = System.Diagnostics.Stopwatch.GetTimestamp()
         state.events.Add(
           { callId = partial.callId
             parentCallId = partial.parentCallId
@@ -241,7 +264,8 @@ let private makeStoreFnResult (state : TracerState) : RT.Tracing.StoreFnResult =
             fnHash = partial.fnHash
             lambdaExprId = None
             args = partial.args
-            result = result }
+            result = result
+            durationMs = ticksToMs (endedAt - partial.startedAtTicks) }
         )
 
 
@@ -252,6 +276,7 @@ let private makeStoreLambdaResult
   fun _ result ->
     if state.stack.Count > 0 then
       let partial = state.stack.Pop()
+      let endedAt = System.Diagnostics.Stopwatch.GetTimestamp()
       state.events.Add(
         { callId = partial.callId
           parentCallId = partial.parentCallId
@@ -259,8 +284,16 @@ let private makeStoreLambdaResult
           fnHash = None
           lambdaExprId = partial.lambdaExprId
           args = partial.args
-          result = result }
+          result = result
+          durationMs = ticksToMs (endedAt - partial.startedAtTicks) }
       )
+
+
+/// Fired for every expression evaluation. Overwrite-on-collision so a
+/// recursive fn's exprIds keep their latest value rather than the first.
+/// Powers `view <fn> --with-trace` — the inline-values overlay.
+let private makeTraceDval (state : TracerState) : RT.Tracing.TraceDval =
+  fun exprId dval -> state.exprValues[exprId] <- dval
 
 
 /// Store trace data to SQLite
@@ -280,6 +313,7 @@ module TraceStorage =
     (inputVarName : string)
     (inputDval : RT.Dval)
     (events : List<CompletedEvent>)
+    (exprValues : System.Collections.Generic.IDictionary<id, RT.Dval>)
     : unit =
     let traceIdStr = string traceID
     let timestamp = NodaTime.Instant.now().ToString()
@@ -316,10 +350,10 @@ module TraceStorage =
       | _ ->
         [ "INSERT INTO trace_fn_calls
             (trace_id, call_id, parent_call_id, kind, fn_hash,
-             lambda_expr_id, args_json, result_json)
+             lambda_expr_id, args_json, result_json, duration_ms)
            VALUES
             (@traceId, @callId, @parentCallId, @kind, @fnHash,
-             @lambdaExprId, @argsJson, @resultJson)",
+             @lambdaExprId, @argsJson, @resultJson, @durationMs)",
           events
           |> List.map (fun ev ->
             let argsJson =
@@ -335,13 +369,72 @@ module TraceStorage =
               "lambdaExprId",
               (ev.lambdaExprId |> Option.map string |> Sql.stringOrNone)
               "argsJson", Sql.string argsJson
-              "resultJson", Sql.string resultJson ]) ]
+              "resultJson", Sql.string resultJson
+              "durationMs", Sql.int64 ev.durationMs ]) ]
 
-    let _ = Sql.executeTransactionSync (baseStatements @ eventStmt)
+    // Per-AST-node values from the `traceDval` hook. Same DELETE-then-
+    // INSERT pattern as fn_calls so re-stores replace cleanly.
+    let exprStmts =
+      [ "DELETE FROM trace_expr_values WHERE trace_id = @traceId",
+        [ traceIdParam ] ]
+    let exprInsert =
+      if exprValues.Count = 0 then
+        []
+      else
+        [ "INSERT OR REPLACE INTO trace_expr_values
+            (trace_id, expr_id, dval_json)
+           VALUES
+            (@traceId, @exprId, @dvalJson)",
+          [ for KeyValue(exprId, dval) in exprValues ->
+              [ "traceId", Sql.string traceIdStr
+                "exprId", Sql.string (string exprId)
+                "dvalJson",
+                Sql.string (DvalReprInternalRoundtrippable.toJsonV0 dval) ] ] ]
+
+    let _ =
+      Sql.executeTransactionSync
+        (baseStatements @ eventStmt @ exprStmts @ exprInsert)
     ()
 
 
-/// Shared helper: store a trace to SQLite with error handling
+/// Walk every captured Dval through `Blob.promote` so ephemeral blob refs
+/// resolve to persistent ones (writing the bytes into package_blobs in the
+/// process). Mutates `state.events` and `state.exprValues` in place;
+/// returns the promoted input dval. Without this step, every trace would
+/// record blob UUIDs pointing at gone bytes.
+let private promoteBlobs
+  (exeState : RT.ExecutionState)
+  (inputDval : RT.Dval)
+  (state : TracerState)
+  : Ply.Ply<RT.Dval> =
+  uply {
+    let persist = exeState.blobs.persist
+    let! promotedInput = LibExecution.Blob.promote exeState persist inputDval
+    for i in 0 .. state.events.Count - 1 do
+      let ev = state.events[i]
+      let! promotedArgs =
+        ev.args
+        |> List.map (fun a -> LibExecution.Blob.promote exeState persist a)
+        |> Ply.List.flatten
+      let! promotedResult =
+        LibExecution.Blob.promote exeState persist ev.result
+      state.events[i] <-
+        { ev with args = promotedArgs; result = promotedResult }
+
+    // Snapshot keys before mutating values so the iteration is safe.
+    let exprIds = state.exprValues.Keys |> Seq.toArray
+    for k in exprIds do
+      let! promoted =
+        LibExecution.Blob.promote exeState persist state.exprValues[k]
+      state.exprValues[k] <- promoted
+
+    return promotedInput
+  }
+
+
+/// Shared helper: store a trace to SQLite with error handling. Promotes
+/// every Dval through `Blob.promote` first so blob bytes survive the
+/// per-request blob scope.
 let private storeTrace
   (canvasID : CanvasID)
   (rootTLID : tlid)
@@ -350,18 +443,23 @@ let private storeTrace
   (inputVarName : string)
   (inputDval : RT.Dval)
   (state : TracerState)
-  : unit =
-  try
-    TraceStorage.store
-      canvasID
-      rootTLID
-      traceID
-      handlerDesc
-      inputVarName
-      inputDval
-      (Seq.toList state.events)
-  with ex ->
-    print $"[tracing] Failed to store trace: {ex.Message}"
+  (exeState : RT.ExecutionState)
+  : Ply.Ply<unit> =
+  uply {
+    try
+      let! promotedInput = promoteBlobs exeState inputDval state
+      TraceStorage.store
+        canvasID
+        rootTLID
+        traceID
+        handlerDesc
+        inputVarName
+        promotedInput
+        (Seq.toList state.events)
+        state.exprValues
+    with ex ->
+      print $"[tracing] Failed to store trace: {ex.Message}"
+  }
 
 
 let createSqliteTracer
@@ -382,6 +480,7 @@ let createSqliteTracer
           storeFrameEntry = makeStoreFrameEntry state
           storeFnResult = makeStoreFnResult state
           storeLambdaResult = makeStoreLambdaResult state
+          traceDval = makeTraceDval state
           skipTracing = false }
     storeTraceInput =
       fun desc varname input ->
@@ -390,7 +489,7 @@ let createSqliteTracer
         storedInputVarName <- varname
         storedInputDval <- input
     storeTraceResults =
-      fun () ->
+      fun exeState ->
         storeTrace
           canvasID
           rootTLID
@@ -398,7 +497,8 @@ let createSqliteTracer
           handlerDesc
           storedInputVarName
           storedInputDval
-          state }
+          state
+          exeState }
 
 
 let createCliTracer
@@ -425,15 +525,24 @@ let createCliTracer
           storeFrameEntry = makeStoreFrameEntry state
           storeFnResult = makeStoreFnResult state
           storeLambdaResult = makeStoreLambdaResult state
+          traceDval = makeTraceDval state
 #endif
           skipTracing = false }
     storeTraceInput = fun _ _ _ -> ()
     storeTraceResults =
-      fun () ->
+      fun exeState ->
 #if DEBUG
-        storeTrace _canvasID 0UL _traceID _description _inputVarName _inputDval state
+        storeTrace
+          _canvasID
+          0UL
+          _traceID
+          _description
+          _inputVarName
+          _inputDval
+          state
+          exeState
 #else
-        ()
+        uply { return () }
 #endif
   }
 
@@ -443,7 +552,7 @@ let createNonTracer (_canvasID : CanvasID) (_traceID : AT.TraceID.T) : T =
   { enabled = false
     results = results
     executionTracing = LibExecution.Execution.noTracing
-    storeTraceResults = fun () -> ()
+    storeTraceResults = fun _ -> uply { return () }
     storeTraceInput = fun _ _ _ -> () }
 
 

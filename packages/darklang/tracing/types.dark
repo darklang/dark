@@ -1,0 +1,45 @@
+/// Trace data shapes shared between the recorder (F#), the reader builtins,
+/// and any consumer (CLI surface, dashboards, third-party tooling).
+///
+/// These types describe what's stored in `traces` / `trace_fn_calls` /
+/// `trace_expr_values` after `LibDB.Tracing.createCliTracer` records an
+/// execution. The cliTraces* builtins return them; the CLI's `traces`
+/// command formats them for display.
+module Darklang.Tracing
+
+
+/// Top-level trace row — one per recorded execution.
+type TraceSummary =
+  { traceId: String
+    handler: String
+    timestamp: String }
+
+
+/// One named input to a handler invocation. For HTTP handlers the
+/// single input is a `Request` record; for `eval`/`run` it's the
+/// expression source string.
+type InputVar =
+  { name: String
+    value: LanguageTools.RuntimeTypes.Dval }
+
+
+/// One recorded function-call event during trace execution.
+type FnCall =
+  { callId: String
+    parentCallId: Stdlib.Option.Option<String>
+    kind: String  // "function" | "lambda" | "builtin"
+    fnName: String
+    lambdaExprId: Stdlib.Option.Option<String>
+    args: List<LanguageTools.RuntimeTypes.Dval>
+    result: LanguageTools.RuntimeTypes.Dval
+    /// Frame-entry-to-exit duration in ms. Builtins always 0 (no entry hook).
+    durationMs: Int64 }
+
+
+/// Full trace payload — summary fields plus the input/fn-call lists.
+type TraceData =
+  { traceId: String
+    handler: String
+    timestamp: String
+    inputs: List<InputVar>
+    functionCalls: List<FnCall> }

@@ -1,0 +1,42 @@
+/// Resolve a recorded handler's qualified name back to its current source.
+///
+/// Used by `traces inspect` and `traces gen-test` (and any tool that
+/// wants to show the source code that produced a recorded trace).
+/// Generic — doesn't print or assume CLI context.
+module Darklang.Tracing.HandlerSource
+
+
+/// Resolve a recorded handler's qualified name (e.g.
+/// "Darklang.DemoData.HttpServerTest.helloHandlerFn") to its current
+/// pretty-printed body expression. Returns None if the fn was deleted,
+/// renamed, or otherwise not on the current branch — caller falls back
+/// to a TODO placeholder.
+let lookup
+  (branchId: Uuid)
+  (handlerName: String)
+  : Stdlib.Option.Option<String> =
+  let parts = Stdlib.String.split handlerName "."
+  match Stdlib.List.last parts with
+  | None -> Stdlib.Option.Option.None
+  | Some name ->
+    let modulePath = Stdlib.List.dropLast parts
+    let query =
+      LanguageTools.ProgramTypes.Search.SearchQuery
+        { currentModule = modulePath
+          text = name
+          searchDepth =
+            LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+          entityTypes = []
+          exactMatch = true }
+    let results = LanguageTools.PackageManager.Search.search branchId query
+    match results.fns with
+    | [] -> Stdlib.Option.Option.None
+    | item :: _ ->
+      let ctx =
+        PrettyPrinter.ProgramTypes.Context
+          { branchId = branchId
+            currentModule = Stdlib.Option.Option.None
+            currentFunction = Stdlib.Option.Option.None
+            traceValues = Stdlib.Dict.empty }
+      let body = PrettyPrinter.ProgramTypes.expr ctx item.entity.body
+      Stdlib.Option.Option.Some body

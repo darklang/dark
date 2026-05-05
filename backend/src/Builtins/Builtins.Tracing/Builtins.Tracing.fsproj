@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <!-- Publishing configuration -->
+    <IsPublishable>false</IsPublishable>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+    <Compile Include="Libs/Traces.fs" />
+    <Compile Include="Builtin.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Prelude/Prelude.fsproj" />
+    <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../../LibSqlite/LibSqlite.fsproj" />
+    <ProjectReference Include="../../LibDB/LibDB.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\..\.paket\Paket.Restore.targets" />
+</Project>

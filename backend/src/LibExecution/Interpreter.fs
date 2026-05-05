@@ -1036,6 +1036,10 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
             |> RuntimeError.Statement
             |> raiseRTE
 
+        | TraceDval(exprId, reg) ->
+          if not exeState.tracing.skipTracing then
+            exeState.tracing.traceDval exprId registers[reg]
+
         counter <- counter + 1
 
 
