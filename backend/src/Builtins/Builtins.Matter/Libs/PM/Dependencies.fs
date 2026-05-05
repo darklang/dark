@@ -1,6 +1,6 @@
 /// Builtin functions for dependency tracking between package items.
 /// Enables "what calls this?" and "what does this call?" queries.
-module Builtins.PM.Libs.Dependencies
+module Builtins.Matter.Libs.PM.Dependencies
 
 open Prelude
 open LibExecution.RuntimeTypes

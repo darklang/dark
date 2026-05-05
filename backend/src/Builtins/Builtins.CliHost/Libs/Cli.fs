@@ -146,10 +146,8 @@ let builtinsToUse () : RT.Builtins =
       Builtins.Language.Builtin.builtins ()
       Builtins.Cli.Builtin.builtins ()
       Builtins.Time.Builtin.builtins ()
-      Builtins.PM.Builtin.builtins ptPM
+      Builtins.Matter.Builtin.builtins ptPM
       Builtins.Http.Server.Builtin.builtins ()
-      Builtins.DB.Builtin.builtins ()
-      Builtins.Tracing.Builtin.builtins ()
       // Local fns (cliEvaluateExpression, cliParseAndExecuteScript)
       // — needed so nested eval / run can dispatch recursively.
       (!localBuiltinsThunk) () ]

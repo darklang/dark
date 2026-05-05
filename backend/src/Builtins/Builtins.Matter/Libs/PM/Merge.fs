@@ -1,4 +1,4 @@
-module Builtins.PM.Libs.Merge
+module Builtins.Matter.Libs.PM.Merge
 
 open Prelude
 open LibExecution.RuntimeTypes

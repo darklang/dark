@@ -94,10 +94,8 @@ let builtins
       Builtins.Pure.Builtin.builtins ()
       Builtins.Http.Client.Builtin.builtins httpConfig
       Builtins.Language.Builtin.builtins ()
-      Builtins.PM.Builtin.builtins pm
+      Builtins.Matter.Builtin.builtins pm
       Builtins.Http.Server.Builtin.builtins ()
-      Builtins.DB.Builtin.builtins ()
-      Builtins.Tracing.Builtin.builtins ()
       Builtins.Cli.Builtin.builtins ()
       Builtins.Time.Builtin.builtins () ]
     []

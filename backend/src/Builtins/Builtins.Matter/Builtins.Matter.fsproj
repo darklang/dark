@@ -1,20 +1,28 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <!-- Publishing configuration -->
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>true</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
     <None Include="paket.references" />
-    <Compile Include="Libs/PackageOps.fs" />
-    <Compile Include="Libs/Branches.fs" />
-    <Compile Include="Libs/Rebase.fs" />
-    <Compile Include="Libs/Merge.fs" />
-    <Compile Include="Libs/Packages.fs" />
-    <Compile Include="Libs/Scripts.fs" />
-    <Compile Include="Libs/Dependencies.fs" />
-    <Compile Include="Libs/Seed.fs" />
+
+    <!-- DB -->
+    <Compile Include="Libs/DB.fs" />
+
+    <!-- PM -->
+    <Compile Include="Libs/PM/PackageOps.fs" />
+    <Compile Include="Libs/PM/Branches.fs" />
+    <Compile Include="Libs/PM/Rebase.fs" />
+    <Compile Include="Libs/PM/Merge.fs" />
+    <Compile Include="Libs/PM/Packages.fs" />
+    <Compile Include="Libs/PM/Scripts.fs" />
+    <Compile Include="Libs/PM/Dependencies.fs" />
+    <Compile Include="Libs/PM/Seed.fs" />
+
+    <!-- Tracing (reader) -->
+    <Compile Include="Libs/Traces.fs" />
+
     <Compile Include="Builtin.fs" />
   </ItemGroup>
   <ItemGroup>
@@ -22,6 +30,7 @@
     <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../LibDB/LibDB.fsproj" />
     <ProjectReference Include="../../LibSerialization/LibSerialization.fsproj" />
+    <ProjectReference Include="../../LibCloud/LibCloud.fsproj" />
   </ItemGroup>
   <Import Project="..\..\..\.paket\Paket.Restore.targets" />
 </Project>

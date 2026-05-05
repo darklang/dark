@@ -1,4 +1,4 @@
-module Builtins.PM.Libs.Scripts
+module Builtins.Matter.Libs.PM.Scripts
 
 open Prelude
 open LibExecution.RuntimeTypes

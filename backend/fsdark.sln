@@ -39,7 +39,7 @@ EndProject
 # Cloud stuff
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibSerialization", "src\LibSerialization\LibSerialization.fsproj", "{5830D9BF-CA28-47B0-964F-343FAB28751B}"
 EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.DB", "src\Builtins\Builtins.DB\Builtins.DB.fsproj", "{82CA75E9-53BD-4324-B86B-44F280BAF331}"
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.Matter", "src\Builtins\Builtins.Matter\Builtins.Matter.fsproj", "{82CA75E9-53BD-4324-B86B-44F280BAF331}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "LibCloud", "src\LibCloud\LibCloud.fsproj", "{3FC57943-9D51-49AE-9FBD-4A112B4F68D6}"
 EndProject
@@ -57,8 +57,6 @@ EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.CliHost", "src\Builtins\Builtins.CliHost\Builtins.CliHost.fsproj", "{B199C1DE-48A2-47B4-9672-BCCB7E4F8C78}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.Http.Server", "src\Builtins\Builtins.Http.Server\Builtins.Http.Server.fsproj", "{7A3E4BC2-D5F1-4A8E-9B3C-6F2D1E8A4C5B}"
-EndProject
-Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.Tracing", "src\Builtins\Builtins.Tracing\Builtins.Tracing.fsproj", "{C1D4E5F6-A7B8-4C9D-8E2F-3B4A5D6E7F8C}"
 EndProject
 
 # Tests

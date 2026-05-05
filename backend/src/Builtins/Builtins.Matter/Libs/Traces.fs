@@ -5,7 +5,7 @@
 /// prefix, when traces were CLI-only (eval/run). Now that HTTP traces
 /// flow through the same path, the placement and naming were stale —
 /// moved here and renamed to drop the prefix.
-module Builtins.Tracing.Libs.Traces
+module Builtins.Matter.Libs.Traces
 
 open System.Text.Json
 

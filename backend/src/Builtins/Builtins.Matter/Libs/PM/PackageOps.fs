@@ -1,4 +1,4 @@
-module Builtins.PM.Libs.PackageOps
+module Builtins.Matter.Libs.PM.PackageOps
 
 open Prelude
 open LibExecution.RuntimeTypes
