@@ -109,7 +109,6 @@ let runtimeErrorMessage
 
 
 let t
-  (_internalFnsAllowed : bool)
   (canvasName : string)
   (pmPT : PT.PackageManager)
   (actual : PT.Expr)
@@ -133,7 +132,7 @@ let t
         dbs |> List.map (fun db -> (db.name, PT2RT.DB.toRT db)) |> Map.ofList
 
       let! (state : RT.ExecutionState) =
-        executionStateFor pmPT canvasID false false rtDBs
+        executionStateFor pmPT canvasID false rtDBs
 
       let red = "\u001b[31m"
       let green = "\u001b[32m"
@@ -304,7 +303,6 @@ let fileTests () : Test =
     |> List.map (fun file ->
       let filename = System.IO.Path.GetFileName file
       let testName = System.IO.Path.GetFileNameWithoutExtension file
-      let initializeCanvas = testName = "internal"
       let shouldSkip = filename |> String.contains "_"
 
       if shouldSkip then
@@ -324,7 +322,6 @@ let fileTests () : Test =
               m.tests
               |> List.map (fun test ->
                 t
-                  initializeCanvas
                   test.name
                   pm
                   test.actual

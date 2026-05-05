@@ -114,7 +114,7 @@ let parseSingleTestFromFile
   uply {
     let! (state : RT.ExecutionState) =
       let canvasID = System.Guid.NewGuid()
-      executionStateFor pmPT canvasID false true Map.empty
+      executionStateFor pmPT canvasID true Map.empty
 
     let name =
       RT.FQFnName.fqPackage (PackageRefs.Fn.Internal.Test.parseSingleTestFromFile ())
@@ -203,7 +203,7 @@ let makeTest versionName filename =
     else
       // Set up the canvas
       let canvasID = System.Guid.NewGuid()
-      let! exeState = executionStateFor pmPT canvasID true true Map.empty
+      let! exeState = executionStateFor pmPT canvasID true Map.empty
 
       // Parse the Dark code
       let! (test : Internal.Test.PTTest) =
