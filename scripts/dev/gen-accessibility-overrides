@@ -1,0 +1,118 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Generate F# Map literal entries for Builtin → wrapper-pkg-fn-hash, by:
+#   1. Listing builtin names from F# source.
+#   2. For each, finding `Builtin.<name>` (or `Builtin.<name>_v<n>`)
+#      occurrences in packages/. Skip if 0 or >1.
+#   3. From the containing file's path, infer the wrapper's expected
+#      package fn name (e.g. packages/darklang/stdlib/dict.dark with
+#      a `dictGet` ref → expect `Stdlib.Dict.get_vN` in the hash file).
+#   4. Look up that name in backend/src/LibExecution/package-ref-hashes.txt
+#      and emit `("<builtin>", "<hash>")` to stdout.
+#
+# Usage:
+#   ./scripts/dev/gen-accessibility-overrides > /tmp/overrides.txt
+#
+# This is a heuristic — naming conventions don't cover every case.
+# Manual review + curation expected before pasting into F# source.
+
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
+
+HASH_FILE=backend/src/LibExecution/package-ref-hashes.txt
+
+if [ ! -f "$HASH_FILE" ]; then
+  echo "Hash file not found: $HASH_FILE (need to build first)" >&2
+  exit 1
+fi
+
+# Map a builtin name + dark file path → expected package fn name.
+# Heuristic: file `packages/darklang/<module>/<sub>.dark` becomes
+# `<Module>.<Sub>`, then we append the camelCased fn name.
+infer_wrapper_name() {
+  local builtin="$1"
+  local file="$2"
+
+  # Drop "packages/" prefix
+  local rel="${file#packages/}"
+  # Drop `.dark` suffix
+  rel="${rel%.dark}"
+  # Replace `/` with `.`
+  local module_path="${rel//\//.}"
+  # Strip the `darklang.` prefix if present (the module path in
+  # package-ref-hashes.txt drops the `Darklang.` namespace).
+  module_path="${module_path#darklang.}"
+  # Capitalize each segment
+  local capitalized=""
+  IFS='.'
+  for seg in $module_path; do
+    if [ -n "$capitalized" ]; then
+      capitalized="${capitalized}."
+    fi
+    capitalized="${capitalized}$(echo "${seg:0:1}" | tr '[:lower:]' '[:upper:]')${seg:1}"
+  done
+  unset IFS
+
+  # The fn name within: if builtin is `dictGet`, infer `get` as the
+  # short-name: strip the longest module prefix that matches the
+  # capitalized path's last segment (lowercase).
+  local last_seg="${module_path##*.}"   # e.g. "dict"
+  local last_lower=$(echo "$last_seg" | tr '[:upper:]' '[:lower:]')
+  local fn_short="$builtin"
+  # If builtin starts with the lowercase last-segment, strip it.
+  if [[ "$builtin" == "${last_lower}"* ]]; then
+    fn_short="${builtin#$last_lower}"
+    # Lowercase first letter
+    fn_short="$(echo "${fn_short:0:1}" | tr '[:upper:]' '[:lower:]')${fn_short:1}"
+  fi
+
+  echo "${capitalized}.${fn_short}"
+}
+
+builtins=$(grep -rh 'name = fn "' backend/src/Builtins/ 2>/dev/null \
+  | sed -nE 's/.*name = fn "([^"]+)".*/\1/p' \
+  | sort -u)
+
+emitted=0
+skipped_zero=0
+skipped_many=0
+no_hash=0
+
+for b in $builtins; do
+  # Find files referencing this builtin
+  files=$(grep -rl "Builtin\.$b\(_v[0-9]\+\)\?\b" packages/ 2>/dev/null | sort -u)
+  count=$(echo -n "$files" | grep -c '^' || true)
+
+  if [ "$count" = "0" ] || [ -z "$files" ]; then
+    skipped_zero=$((skipped_zero + 1))
+    continue
+  fi
+  if [ "$count" -gt 1 ]; then
+    skipped_many=$((skipped_many + 1))
+    continue
+  fi
+
+  # Single file reference — try to infer wrapper name + look up hash.
+  file="$files"
+  expected_name=$(infer_wrapper_name "$b" "$file")
+  # Hash file has versioned names like `fn/Stdlib.Dict.get_v0|<hash>`.
+  hash=$(grep -E "^fn/${expected_name}_v[0-9]+\|" "$HASH_FILE" 2>/dev/null \
+    | head -1 | sed -E 's|^fn/[^|]+\|||')
+
+  if [ -z "$hash" ]; then
+    no_hash=$((no_hash + 1))
+    echo "// no-hash: $b → expected $expected_name (file $file)" >&2
+    continue
+  fi
+
+  echo "(\"$b\", \"$hash\")"
+  emitted=$((emitted + 1))
+done
+
+echo "" >&2
+echo "Emitted: $emitted entries." >&2
+echo "Skipped (0 refs): $skipped_zero" >&2
+echo "Skipped (multi refs): $skipped_many" >&2
+echo "No hash found (heuristic miss): $no_hash" >&2
