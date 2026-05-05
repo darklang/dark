@@ -58,18 +58,6 @@ domains_v0
 
 
 
--- Secrets
-CREATE TABLE IF NOT EXISTS
-secrets_v0
-( canvas_id TEXT NOT NULL
-, name TEXT NOT NULL
-, value TEXT NOT NULL
-, version INTEGER NOT NULL
-, created_at TEXT NOT NULL DEFAULT (datetime('now'))
-, PRIMARY KEY (canvas_id, name, version) -- TODO: simplfy PK
-);
-
-
 -- Top-levels
 -- TODO split this into a few tables (dbs, handlers, etc)
 -- rebrand 'canvas' to 'app'
