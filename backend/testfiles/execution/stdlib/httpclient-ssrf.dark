@@ -58,7 +58,7 @@ module Disallowed =
   (get "http://google.com" [ ("X-Google-Metadata-Request", " True ") ]) = errInvalidRequest
   (get "http://google.com" [ (" x-Google-metaData-Request", " True ") ]) = errInvalidRequest
 
-// unsupported protocols (folded out — needed LibCloudExecution.HttpClient guard)
+// unsupported protocols (Builtins.Http.Client.HttpClient guard via strictConfig)
 Stdlib.HttpClient.request "get" "ftp://darklang.com" [] Stdlib.Blob.empty = errUnsupportedProtocol
 Stdlib.HttpClient.request "put" "file:///etc/passwd" [] Stdlib.Blob.empty = errUnsupportedProtocol
 Stdlib.HttpClient.request "put" "/just-a-path" [] Stdlib.Blob.empty = errUnsupportedProtocol

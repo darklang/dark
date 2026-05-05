@@ -29,5 +29,5 @@ let content () : String =
 
 ## Stdlib vs Builtin
   Stdlib: packages/darklang/stdlib/*.dark
-  Builtins: F# in backend/src/BuiltinExecution/
+  Builtins: F# in backend/src/Builtins/
   Use `builtins` to list all builtins"""

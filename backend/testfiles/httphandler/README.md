@@ -98,7 +98,7 @@ Content-Length: LENGTH
 The response is expected to be perfect down to the byte.
 
 Response headers are normalized, removing the specific values from Date, Expires,
-and some other headers. See BwdServer.Tests.fs for full details.
+and some other headers. See HttpServer.Tests.fs for full details.
 
 # Editing test files
 
