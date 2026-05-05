@@ -353,7 +353,7 @@ type TypeReference =
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference
 
-  /// A type defined by a standard library module, a canvas/user, or a package
+  /// A type defined by a standard library module or a package
   /// e.g. `Result<Int64, String>` is represented as `TCustomType("Result", [TInt64, TString])`
   /// `typeArgs` is the list of type arguments, if any
   | TCustomType of
@@ -576,7 +576,7 @@ module Expr =
 
 
 
-/// A type defined by a package or canvas/user
+/// A type defined by a package
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }
 

@@ -1320,7 +1320,7 @@ type PackageManager =
 
 
 // ------------
-// User-/Canvas- Space
+// User Space
 // ------------
 module DB =
   // CLEANUP consider making typ a ValueType instead

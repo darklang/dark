@@ -1,5 +1,5 @@
-/// Functions related to Accounts/Users. Accounts have no metadata, not even a
-/// username, name, or email. That is left to be handled in the DarkEditor canvas
+/// Functions related to Accounts/Users. Accounts have no metadata beyond
+/// `id` + `name`; richer profile data (email, etc.) is out of scope here.
 module LibCloud.Account
 
 open System.Threading.Tasks
