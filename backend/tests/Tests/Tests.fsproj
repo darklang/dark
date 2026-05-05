@@ -15,7 +15,6 @@
     <!-- cloud -->
     <ProjectReference Include="../../src/LibSerialization/LibSerialization.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.DB/Builtins.DB.fsproj" />
-    <ProjectReference Include="../../src/Builtins/Builtins.DarkInternal/Builtins.DarkInternal.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.HttpServer/Builtins.HttpServer.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.Tracing/Builtins.Tracing.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />

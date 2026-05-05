@@ -21,7 +21,6 @@
     <ProjectReference Include="../Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
     <ProjectReference Include="../Builtins/Builtins.HttpServer/Builtins.HttpServer.fsproj" />
     <ProjectReference Include="../Builtins/Builtins.Tracing/Builtins.Tracing.fsproj" />
-    <ProjectReference Include="../Builtins/Builtins.DarkInternal/Builtins.DarkInternal.fsproj" />
     <ProjectReference Include="../Builtins/Builtins.DB/Builtins.DB.fsproj" />
     <ProjectReference Include="../../tests/TestUtils/TestUtils.fsproj" />
   </ItemGroup>

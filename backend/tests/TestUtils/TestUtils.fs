@@ -118,7 +118,6 @@ let builtins
       Builtins.PM.Builtin.builtins pm
       Builtins.HttpServer.Builtin.builtins ()
       Builtins.DB.Builtin.builtins ()
-      Builtins.DarkInternal.Builtin.builtins ()
       Builtins.Tracing.Builtin.builtins ()
       Builtins.Cli.Builtin.builtins () ]
     []

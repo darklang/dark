@@ -331,62 +331,6 @@ let deleteAll (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeStatementAsync
 
-// -------------------------
-// stats/locked/unlocked (not _locking_)
-// -------------------------
-
-let statsCount (dbScope : uuid) (db : RT.DB.T) : Task<int> =
-  Sql.query
-    "SELECT COUNT(*) as count
-    FROM user_data_v0
-    WHERE table_tlid = @tlid
-      AND canvas_id = @dbScope
-      AND user_version = @userVersion
-      AND dark_version = @darkVersion"
-  |> Sql.parameters
-    [ "tlid", Sql.tlid db.tlid
-      "dbScope", Sql.uuid dbScope
-      "userVersion", Sql.int db.version
-      "darkVersion", Sql.int currentDarkVersion ]
-  |> Sql.executeRowAsync (fun read -> read.int "count")
-
-// Given a [dbScope], return tlids for all unlocked databases -
-// a database is unlocked if it has no records, and thus its schema can be
-// changed without a migration.
-
-let all (dbScope : uuid) : Task<List<tlid>> =
-  Sql.query
-    "SELECT tlid
-    FROM toplevels_v0
-    WHERE canvas_id = @dbScope
-      AND tipe = 'db'"
-  |> Sql.parameters [ "dbScope", Sql.uuid dbScope ]
-  |> Sql.executeAsync (fun read -> read.tlid "tlid")
-
-
-let unlocked (dbScope : uuid) : Task<List<tlid>> =
-  // this will need to be fixed when we allow migrations
-  // Note: tl.module IS NULL means it's a db; anything else will be
-  // HTTP/REPL/CRON/WORKER
-  // NOTE: the line `AND tl.account_id = ud.account_id` seems redunant, but
-  // it's required to hit the index
-
-  // CLEANUP: do we need table_tlid IS NULL since we're using NOT NULL in the schema?
-  Sql.query
-    "SELECT tl.tlid
-    FROM toplevels_v0 as tl
-    LEFT JOIN user_data_v0 as ud
-      ON tl.tlid = ud.table_tlid
-        AND tl.canvas_id = ud.canvas_id
-    WHERE tl.canvas_id = @dbScope
-      AND tl.module IS NULL
-      AND tl.deleted = 0
-      AND ud.table_tlid IS NULL
-    GROUP BY tl.tlid"
-  |> Sql.parameters [ "dbScope", Sql.uuid dbScope ]
-  |> Sql.executeAsync (fun read -> read.tlid "tlid")
-
-
 
 // -------------------------
 // DB schema

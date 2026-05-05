@@ -19,7 +19,6 @@ let all () : RT.Builtins =
       Builtins.CliHost.Builtin.builtins ()
       Builtins.HttpServer.Builtin.builtins ()
       Builtins.DB.Builtin.builtins ()
-      Builtins.DarkInternal.Builtin.builtins ()
       Builtins.Tracing.Builtin.builtins ()
       TestUtils.LibTest.builtins () ]
     []

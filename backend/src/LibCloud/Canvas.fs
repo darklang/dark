@@ -48,27 +48,6 @@ let create (accountID : Option<UserID>) (domain : string) : Task<uuid> =
     return id
   }
 
-let canvasIDForDomain (domain : string) : Task<Option<uuid>> =
-  Sql.query
-    "SELECT canvas_id
-    FROM domains_v0
-    WHERE domain = @domain"
-  |> Sql.parameters [ "domain", Sql.string domain ]
-  |> Sql.executeRowOptionAsync (fun read -> read.uuid "canvas_id")
-
-let domainsForCanvasID (id : uuid) : Task<List<string>> =
-  Sql.query
-    "SELECT domain
-    FROM domains_v0
-    WHERE canvas_id = @id"
-  |> Sql.parameters [ "id", Sql.uuid id ]
-  |> Sql.executeAsync (fun read -> read.string "domain")
-
-let allCanvasIDs () : Task<List<uuid>> =
-  Sql.query "SELECT id FROM canvases_v0"
-  |> Sql.executeAsync (fun read -> read.uuid "id")
-
-
 let getCanvasesForAccount (accountID : UserID) : Task<List<uuid>> =
   Sql.query
     "SELECT id
@@ -158,12 +137,6 @@ let loadFrom (id : uuid) (tlids : List<tlid>) : Task<T> =
     with e ->
       let tags = [ "tlids", tlids :> obj ]
       return Exception.reraiseAsPageable "canvas load failed" tags e
-  }
-
-let loadAll (id : uuid) : Task<T> =
-  task {
-    let! tlids = Serialize.fetchAllIncludingDeletedTLIDs id
-    return! loadFrom id tlids
   }
 
 let loadAllDBs (id : uuid) : Task<T> =

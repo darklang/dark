@@ -78,10 +78,3 @@ let fetchTLIDsForAllDBs (canvasID : uuid) : Task<List<tlid>> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
-let fetchAllIncludingDeletedTLIDs (canvasID : uuid) : Task<List<tlid>> =
-  Sql.query
-    "SELECT tlid FROM toplevels_v0
-    WHERE canvas_id = @canvasID"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeAsync (fun read -> read.tlid "tlid")
-
