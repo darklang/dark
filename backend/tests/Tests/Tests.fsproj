@@ -44,6 +44,7 @@
     <Compile Include="BranchOps.Tests.fs" />
 
     <!-- cloud stuff /-->
+    <Compile Include="HttpServer.Tests.fs" />
     <Compile Include="DvalRepr.Tests.fs" />
     <Compile Include="Serialization.TestValues.fs" />
     <Compile Include="Serialization.Binary.Tests.fs" />

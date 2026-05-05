@@ -207,7 +207,7 @@ jobs:
           root: "."
           paths:
             # Just enough for deploy
-            - backend/Build/out/BwdServer/Release/net10.0/linux-x64/publish/
+            - backend/Build/out/Cli/Release/net10.0/linux-x64/publish/
       - show-large-files-and-directories
       - save_cache:
           paths:

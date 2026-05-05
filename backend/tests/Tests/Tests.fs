@@ -56,6 +56,9 @@ let main (args : string array) : int =
         Tests.DarkTypesSerialization.tests
 
         // http server
+        Tests.HttpServer.tests
+
+        // http server
 
         // cross-cutting
         Tests.LibExecution.tests.Force()

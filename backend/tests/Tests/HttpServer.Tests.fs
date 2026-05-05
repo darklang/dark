@@ -406,7 +406,7 @@ module Execution =
 let private runFixture (test : Test) : Task<unit> =
   task {
     let canvasID = System.Guid.NewGuid()
-    let! exeState = executionStateFor pmPT canvasID false Map.empty
+    let! exeState = executionStateFor pmPT canvasID false true Map.empty
 
     let! handler = buildRouterForTest exeState test
 
