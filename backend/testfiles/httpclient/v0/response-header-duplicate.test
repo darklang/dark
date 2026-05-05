@@ -22,7 +22,7 @@ Hello back
       headers =
         [
           ("server", "kestrel")
-          ("some-header", "other string")
+          ("some-header", "string, other string")
           ("content-length", "LENGTH")
           ("content-type", "text/plain; charset=utf-8")
         ]

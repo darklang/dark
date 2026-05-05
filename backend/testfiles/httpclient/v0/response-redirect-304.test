@@ -19,6 +19,7 @@ Location: /v0/response-redirect-destination
         [
           ("server", "kestrel")
           ("location", "/v0/response-redirect-destination")
+          ("content-length", "0")
         ]
       body = Darklang.Stdlib.Blob.empty }
 
