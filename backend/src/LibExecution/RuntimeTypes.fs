@@ -1639,7 +1639,11 @@ and Builtins =
 
 /// Every part of a user's program
 and Program =
-  { dbs : Map<string, DB.T> }
+  { /// Per-app state-isolation key for UserDB queries. CLI is single-app
+    /// in production (passes a constant); tests use a fresh Guid per
+    /// test so they don't share user_data_v0 rows.
+    dbScope : System.Guid
+    dbs : Map<string, DB.T> }
 
 
 // Used for testing

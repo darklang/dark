@@ -432,5 +432,5 @@ let toProgram (c : T) : Ply<RT.Program> =
       |> Map.ofList
 
     return
-      { dbs = dbs }
+      { dbScope = System.Guid.Empty; dbs = dbs }
   }

@@ -156,7 +156,7 @@ let evaluateAllValues
   : Task<Result<unit, string list>> =
   task {
     let program : RT.Program =
-      { dbs = Map.empty }
+      { dbScope = System.Guid.Empty; dbs = Map.empty }
 
     let notify _ _ _ _ = uply { return () }
     let sendException _ _ _ _ = uply { return () }
