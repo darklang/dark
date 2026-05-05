@@ -19,7 +19,7 @@ module PackageLocation = LibDB.PackageLocation
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "darkInternalCanvasDBCreate" 0
+  [ { name = fn "darkInternalAppDBCreate" 0
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid "The canvas to add the DB to"
@@ -77,7 +77,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "darkInternalCanvasGetOrCreateForAccount" 0
+    { name = fn "darkInternalAppGetOrCreateForAccount" 0
       typeParams = []
       parameters =
         [ Param.make "accountID" TUuid "The account ID"
@@ -98,7 +98,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "darkInternalCanvasDBListAll" 0
+    { name = fn "darkInternalAppDBListAll" 0
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid "The canvas to list DBs from"
@@ -138,7 +138,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "darkInternalCanvasDBDrop" 0
+    { name = fn "darkInternalAppDBDrop" 0
       typeParams = []
       parameters =
         [ Param.make "canvasID" TUuid "The canvas containing the DB"

@@ -43,7 +43,7 @@ let getCanvasID (state: Cli.AppState) : Stdlib.Option.Option<Uuid> =
   | Some accountID ->
     let domain = $"{state.accountName}.darklang.localhost"
     Stdlib.Option.Option.Some
-      (Builtin.darkInternalCanvasGetOrCreateForAccount accountID domain)
+      (Builtin.darkInternalAppGetOrCreateForAccount accountID domain)
 
 
 let requireCanvas (state: Cli.AppState) : Stdlib.Result.Result<Uuid, String> =
@@ -59,7 +59,7 @@ let getDBTypeName
   match getCanvasID state with
   | None -> Stdlib.Option.Option.None
   | Some canvasID ->
-    let dbs = Builtin.darkInternalCanvasDBListAll canvasID state.currentBranchId
+    let dbs = Builtin.darkInternalAppDBListAll canvasID state.currentBranchId
 
     dbs
     |> Stdlib.List.filterMap (fun db ->
@@ -99,7 +99,7 @@ let listDBs (state: Cli.AppState) : Cli.AppState =
     state
 
   | Ok canvasID ->
-    let dbs = Builtin.darkInternalCanvasDBListAll canvasID state.currentBranchId
+    let dbs = Builtin.darkInternalAppDBListAll canvasID state.currentBranchId
 
     match dbs with
     | [] ->
@@ -329,7 +329,7 @@ let dropDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
     state
 
   | Ok canvasID ->
-    match Builtin.darkInternalCanvasDBDrop canvasID dbName with
+    match Builtin.darkInternalAppDBDrop canvasID dbName with
     | Ok () ->
       Stdlib.printLine (Colors.success $"Dropped database: {dbName}")
       state
@@ -362,7 +362,7 @@ let createDB (state: Cli.AppState) (dbName: String) (typeName: String) : Cli.App
         state
 
       | Some typeHash ->
-        match Builtin.darkInternalCanvasDBCreate canvasID dbName typeHash with
+        match Builtin.darkInternalAppDBCreate canvasID dbName typeHash with
         | Ok tlid ->
           let fullTypeName =
             PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLocation
@@ -416,7 +416,7 @@ let getDBNamesForCompletion (state: Cli.AppState) : List<String> =
   match getCanvasID state with
   | None -> []
   | Some canvasID ->
-    (Builtin.darkInternalCanvasDBListAll canvasID state.currentBranchId)
+    (Builtin.darkInternalAppDBListAll canvasID state.currentBranchId)
     |> Stdlib.List.map (fun db ->
       let (name, _) = db
       name)
