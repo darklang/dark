@@ -46,14 +46,20 @@ type Context =
     currentModule: Stdlib.Option.Option<String>
     /// Used to resolve ESelf and EArg expressions when pretty-printing function bodies.
     /// When Some, contains (functionName, argMap) where argMap maps parameter names to indices.
-    currentFunction: Stdlib.Option.Option<(String * Dict<Int64>)> }
+    currentFunction: Stdlib.Option.Option<(String * Dict<Int64>)>
+    /// Per-AST-node-id → captured Dval. Empty by default; populated by
+    /// `view --with-trace <id>` so let-bindings + match arms can render
+    /// `// = <repr>` annotations inline. Keyed by stringified exprId
+    /// (Dict needs a String key).
+    traceValues: Dict<LanguageTools.RuntimeTypes.Dval> }
 
 module Context =
   let forBranch (branchId: Uuid) : Context =
     Context
       { branchId = branchId
         currentModule = Stdlib.Option.Option.None
-        currentFunction = Stdlib.Option.Option.None }
+        currentFunction = Stdlib.Option.Option.None
+        traceValues = Stdlib.Dict.empty }
 
   let forMain : Context = forBranch SCM.Branch.mainBranchId
 
@@ -559,6 +565,28 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
 
       $"{typeNamePart}.{caseName}{fieldPart}"
 
+
+/// Render a captured Dval as a trailing `// = <repr>` comment value.
+/// Long strings/records balloon the rendered output (a multi-KB HTML
+/// body would print in full on a `let` header line). 80 chars chosen
+/// by eye — fits next to most source lines without wrapping in a
+/// typical terminal width.
+let formatTraceAnnotation
+  (branchId: Uuid)
+  (dval: LanguageTools.RuntimeTypes.Dval)
+  : String =
+  let repr = PrettyPrinter.RuntimeTypes.dval branchId dval
+  let compact =
+    repr
+    |> Stdlib.String.split "\n"
+    |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
+    |> Stdlib.String.join " "
+  if Stdlib.String.length compact > 80L then
+    (Stdlib.String.slice compact 0L 80L) ++ "…"
+  else
+    compact
+
+
 let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   match e with
   | EUnit _id -> "()"
@@ -671,7 +699,19 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     let patternPart = letPattern pattern
     let rhsPart = expr ctx rhs
     let bodyPart = expr ctx body
-    $"let {patternPart} =\n{PrettyPrinter.indent rhsPart}\n{bodyPart}"
+    // `view --with-trace`: if a value was recorded for this binding's
+    // pattern id, render `// = <val>` after the `let x =` line.
+    let patternId =
+      match pattern with
+      | LPUnit id -> id
+      | LPVariable(id, _) -> id
+      | LPWildcard id -> id
+      | LPTuple(id, _, _, _) -> id
+    let annotation =
+      match Stdlib.Dict.get ctx.traceValues (Stdlib.Int64.toString patternId) with
+      | Some dval -> $"  // = {formatTraceAnnotation ctx.branchId dval}"
+      | None -> ""
+    $"let {patternPart} ={annotation}\n{PrettyPrinter.indent rhsPart}\n{bodyPart}"
 
   | ERecordFieldAccess(_id, e, fieldName) ->
     let exprPart = expr ctx e
@@ -696,23 +736,30 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     | None -> $"earg{Stdlib.Int64.toString index}"
 
   // control flow
-  | EIf(_id, cond, thenBranch, elseBranch) ->
+  | EIf(id, cond, thenBranch, elseBranch) ->
     let condPart = expr ctx cond
 
     let thenPart =
       (expr ctx thenBranch) |> PrettyPrinter.indent
 
+    // `view --with-trace`: render `// = <val>` on the `if cond then` line
+    // when the trace recorded a value for this if expression.
+    let annotation =
+      match Stdlib.Dict.get ctx.traceValues (Stdlib.Int64.toString id) with
+      | Some dval -> $"  // = {formatTraceAnnotation ctx.branchId dval}"
+      | None -> ""
+
     match elseBranch with
-    | None -> $"if {condPart} then\n{thenPart}"
+    | None -> $"if {condPart} then{annotation}\n{thenPart}"
     | Some elseBranch ->
       match elseBranch with
       | EIf(_, _, _, _) ->
         let elsePart = (expr ctx elseBranch)
-        $"if {condPart} then\n{thenPart}\nelse {elsePart}"
+        $"if {condPart} then{annotation}\n{thenPart}\nelse {elsePart}"
 
       | _ ->
         let elsePart = (expr ctx elseBranch) |> PrettyPrinter.indent
-        $"if {condPart} then\n{thenPart}\nelse\n{elsePart}"
+        $"if {condPart} then{annotation}\n{thenPart}\nelse\n{elsePart}"
 
   | EMatch(_id, arg, cases) ->
     let cases =
@@ -730,7 +777,17 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
         let rhsPart =
           (expr ctx case.rhs) |> PrettyPrinter.indent
 
-        $"| {patternPart}{whenPart} ->\n{rhsPart}")
+        // `view --with-trace`: only the matching arm reaches the RHS,
+        // so only the matched case picks up an annotation. Non-matching
+        // arms get no entry in traceValues — silent.
+        let rhsId = LanguageTools.ProgramTypes.Expr.toID case.rhs
+        let annotation =
+          match Stdlib.Dict.get ctx.traceValues (Stdlib.Int64.toString rhsId) with
+          | Some dval ->
+            $"  // ← matched, = {formatTraceAnnotation ctx.branchId dval}"
+          | None -> ""
+
+        $"| {patternPart}{whenPart} ->{annotation}\n{rhsPart}")
 
     let casesPart = Stdlib.String.join cases "\n"
 

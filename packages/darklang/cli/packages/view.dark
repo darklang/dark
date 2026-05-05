@@ -118,7 +118,8 @@ let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
         PrettyPrinter.ProgramTypes.Context
           { branchId = branchId
             currentModule = Stdlib.Option.Option.None
-            currentFunction = Stdlib.Option.Option.None }
+            currentFunction = Stdlib.Option.Option.None
+            traceValues = Stdlib.Dict.empty }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageType ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
@@ -142,7 +143,8 @@ let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
         PrettyPrinter.ProgramTypes.Context
           { branchId = branchId
             currentModule = Stdlib.Option.Option.None
-            currentFunction = Stdlib.Option.Option.None }
+            currentFunction = Stdlib.Option.Option.None
+            traceValues = Stdlib.Dict.empty }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
@@ -166,7 +168,8 @@ let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
         PrettyPrinter.ProgramTypes.Context
           { branchId = branchId
             currentModule = Stdlib.Option.Option.None
-            currentFunction = Stdlib.Option.Option.None }
+            currentFunction = Stdlib.Option.Option.None
+            traceValues = Stdlib.Dict.empty }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted

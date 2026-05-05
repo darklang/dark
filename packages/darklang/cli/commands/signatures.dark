@@ -23,7 +23,8 @@ let rootContext (branchId: Uuid) (modulePath: List<String>) : PrettyPrinter.Prog
   PrettyPrinter.ProgramTypes.Context
     { branchId = branchId
       currentModule = Stdlib.Option.Option.Some cur
-      currentFunction = Stdlib.Option.Option.None }
+      currentFunction = Stdlib.Option.Option.None
+      traceValues = Stdlib.Dict.empty }
 
 
 let formatFn
