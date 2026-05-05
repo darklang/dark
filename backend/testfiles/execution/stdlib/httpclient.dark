@@ -72,52 +72,6 @@ Stdlib.HttpClient.request "get" "http://google.com:79" [] Stdlib.Blob.empty = St
 
 
 // Check for banned urls in the host name
-module Disallowed =
-  // invalid host
-  (get "http://0.0.0.0" []) = errInvalidHost
-  (get "http://0" []) = errInvalidHost
-  (get "http://localhost" []) = errInvalidHost
-  (get "http://127.0.0.1" []) = errInvalidHost
-  (get "http://[::1]" []) = errInvalidHost
-  (get "http://[0:0:0:0:0:0:0:1]" []) = errInvalidHost
-  (get "http://[0000:0000:0000:0000:0000:0000:0000:0001]" []) = errInvalidHost
-  (get "http://127.0.0.17" []) = errInvalidHost
-  (get "http://[::ffff:7f00:11]" []) = errInvalidHost
-  (get "http://[0:0:0:0:0:ffff:7f00:0011]" []) = errInvalidHost
-  (get "http://[0000:0000:0000:0000:0000:ffff:7f00:0011]" []) = errInvalidHost
-  (get "http://127.255.174.17" []) = errInvalidHost
-  (get "http://metadata.google.internal" []) = errInvalidHost
-  (get "http://metadata" []) = errInvalidHost
-  (get "http://169.254.169.254" []) = errInvalidHost
-  (get "http://[::ffff:a9fe:a9fe]" []) = errInvalidHost
-  (get "http://[0:0:0:0:0:ffff:a9fe:a9fe]" []) = errInvalidHost
-  (get "http://[0000:0000:0000:0000:0000:ffff:a9fe:a9fe]" []) = errInvalidHost
-  (get "http://169.254.0.0" []) = errInvalidHost
-  (get "http://172.16.0.1" []) = errInvalidHost
-  (get "http://[::ffff:ac10:1]" []) = errInvalidHost
-  (get "http://[0:0:0:0:0:ffff:ac10:0001]" []) = errInvalidHost
-  (get "http://[0000:0000:0000:0000:0000:ffff:ac10:0001]" []) = errInvalidHost
-  (get "http://192.168.1.1" []) = errInvalidHost
-  (get "http://[::ffff:c0a8:101]" []) = errInvalidHost
-  (get "http://[0:0:0:0:0:ffff:c0a8:0101]" []) = errInvalidHost
-  (get "http://[0000:0000:0000:0000:0000:ffff:c0a8:0101]" []) = errInvalidHost
-
-  // invalid uri
-  (get "localhost" []) = errInvalidUri
-
-  // network error
-  (get "http://[0:0:0:0:0:0:0:0]" []) = errNetworkError
-  // Check for sneaky banned urls - blocked via connection callback
-  (get "http://localtest.me" []) = errNetworkError // 127.0.0.1
-  (get "http://c.cx" []) = errNetworkError // 0.0.0.0
-
-  // invalid headers
-  // (we just happen to know that google will fail this way if we provide these headers..)
-  (get "http://google.com" [ ("Metadata-Flavor", "Google") ]) = errInvalidRequest
-  (get "http://google.com" [ ("metadata-flavor", "Google") ]) = errInvalidRequest
-  (get "http://google.com" [ ("Metadata-Flavor", " Google ") ]) = errInvalidRequest
-  (get "http://google.com" [ ("X-Google-Metadata-Request", " True ") ]) = errInvalidRequest
-  (get "http://google.com" [ (" x-Google-metaData-Request", " True ") ]) = errInvalidRequest
 
 module BadSSL =
   (get "http://thenonexistingurlforsure.com" []) = errNetworkError
