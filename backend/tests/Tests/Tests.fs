@@ -16,6 +16,10 @@ let initSerializers () =
   Json.Vanilla.allow<PT.PackageType.PackageType> "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<PT.PackageValue.PackageValue> "Canvas.loadJsonFromDisk"
   Json.Vanilla.allow<PT.PackageFn.PackageFn> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
+    "tests"
+  Json.Vanilla.allow<PT.Toplevel.T> "tests"
+  Json.Vanilla.allow<List<PT.Toplevel.T>> "tests"
 
 
 [<EntryPoint>]
