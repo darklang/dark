@@ -135,7 +135,7 @@ let cloudBuiltIns (pm : PT.PackageManager) = localBuiltIns pm
 
 let executionStateFor
   (pmPT : PT.PackageManager)
-  (canvasID : uuid)
+  (dbScope : uuid)
   (allowLocalHttpAccess : bool)
   (dbs : Map<string, RT.DB.T>)
   : Task<RT.ExecutionState> =
@@ -143,7 +143,7 @@ let executionStateFor
     let domains = []
 
     let program : RT.Program =
-      { dbScope = canvasID; dbs = dbs }
+      { dbScope = dbScope; dbs = dbs }
 
     let testContext : RT.TestContext =
       { sideEffectCount = 0
@@ -1548,8 +1548,8 @@ let unwrapExecutionResult
 let parsePTExpr (code : string) : Task<PT.Expr> =
   uply {
     let! (state : RT.ExecutionState) =
-      let canvasID = System.Guid.NewGuid()
-      executionStateFor pmPT canvasID false Map.empty
+      let dbScope = System.Guid.NewGuid()
+      executionStateFor pmPT dbScope false Map.empty
 
     let name =
       RT.FQFnName.fqPackage (PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ())

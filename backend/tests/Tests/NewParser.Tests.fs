@@ -48,8 +48,8 @@ let t
         pmPT
       else
         pmPT |> PT.PackageManager.withExtras extraTypes extraValues extraFns
-    let canvasID = System.Guid.NewGuid()
-    let! parseExeState = executionStateFor basePM canvasID false Map.empty
+    let dbScope = System.Guid.NewGuid()
+    let! parseExeState = executionStateFor basePM dbScope false Map.empty
 
     let args = NEList.singleton (RT.DString input)
     let! parseResult =
@@ -70,7 +70,7 @@ let t
       // Second phase: enhance PM with PackageOps and pretty print
       let enhancedPM =
         LibDB.PackageManager.withExtraOps basePM packageOps
-      let! ppExeState = executionStateFor enhancedPM canvasID false Map.empty
+      let! ppExeState = executionStateFor enhancedPM dbScope false Map.empty
 
       let ppArgs = NEList.ofList (RT.DUuid PT.mainBranchId) [ sourceFile ]
       let! ppResult =
