@@ -17,10 +17,22 @@ open TestUtils.PTShortcuts
 
 
 module Expr =
+  /// Strip `TraceDval` instructions from actual output so the existing
+  /// goldens (which predate `view --with-trace`) keep matching. The
+  /// TraceDval insertions are themselves covered by dedicated tests
+  /// in CliTraces.Tests.fs.
+  let private stripTrace (instrs : List<RT.Instruction>) : List<RT.Instruction> =
+    instrs
+    |> List.filter (fun i ->
+      match i with
+      | RT.TraceDval _ -> false
+      | _ -> true)
+
   let t name expr expected =
     testTask name {
       let actual = PT2RT.Expr.toRT Map.empty 0 None expr
-      let actual = (actual.registerCount, actual.instructions, actual.resultIn)
+      let actual =
+        (actual.registerCount, stripTrace actual.instructions, actual.resultIn)
       return Expect.equal actual expected ""
     }
 
