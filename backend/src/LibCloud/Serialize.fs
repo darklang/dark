@@ -49,7 +49,7 @@ let loadToplevels
         let query =
           $"SELECT tlid, data, deleted
            FROM toplevels_v0
-           WHERE canvas_id = @canvasID
+           WHERE app_id = @canvasID
              AND tlid IN ({tlidPlaceholders})
              AND (
                tipe = 'db'
@@ -72,7 +72,7 @@ let loadToplevels
 let fetchTLIDsForAllDBs (canvasID : uuid) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
-    WHERE canvas_id = @canvasID
+    WHERE app_id = @canvasID
       AND tipe = 'db'
       AND deleted = 0"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]

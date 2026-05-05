@@ -11,7 +11,7 @@ system_migrations_v0
 -- Stuff that belongs in "user space"
 --------------------
 CREATE TABLE IF NOT EXISTS
-canvases_v0
+apps_v0
 ( id TEXT PRIMARY KEY
 , created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
@@ -20,7 +20,7 @@ canvases_v0
 CREATE TABLE IF NOT EXISTS
 user_data_v0
 ( id TEXT PRIMARY KEY
-, canvas_id TEXT NOT NULL
+, app_id TEXT NOT NULL
 , table_tlid INTEGER NOT NULL
 , user_version INTEGER NOT NULL
 , dark_version INTEGER NOT NULL
@@ -28,18 +28,18 @@ user_data_v0
 , created_at TEXT NOT NULL DEFAULT (datetime('now'))
 , updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 , key TEXT NOT NULL
-, UNIQUE (canvas_id, table_tlid, dark_version, user_version, key)
+, UNIQUE (app_id, table_tlid, dark_version, user_version, key)
 );
 
 CREATE INDEX IF NOT EXISTS
 idx_user_data_fetch
 ON user_data_v0
-(canvas_id, table_tlid, user_version, dark_version);
+(app_id, table_tlid, user_version, dark_version);
 
 CREATE INDEX IF NOT EXISTS
 idx_user_data_current_data_for_tlid
 ON user_data_v0
-(user_version, dark_version, canvas_id, table_tlid);
+(user_version, dark_version, app_id, table_tlid);
 
 -- No GIN index equivalent in SQLite
 CREATE INDEX IF NOT EXISTS
@@ -52,7 +52,7 @@ ON user_data_v0
 CREATE TABLE IF NOT EXISTS
 domains_v0
 ( domain TEXT PRIMARY KEY
-, canvas_id TEXT NOT NULL
+, app_id TEXT NOT NULL
 , created_at TEXT NOT NULL DEFAULT (datetime('now')));
 -- TODO: extract out table of http handlers from toplevels_v0
 
@@ -63,7 +63,7 @@ domains_v0
 -- rebrand 'canvas' to 'app'
 CREATE TABLE IF NOT EXISTS
 toplevels_v0
-( canvas_id TEXT NOT NULL
+( app_id TEXT NOT NULL
 , tlid INTEGER NOT NULL
 , digest CHAR(32) NOT NULL
 , tipe TEXT NOT NULL CHECK (tipe IN ('db', 'handler'))
@@ -74,7 +74,7 @@ toplevels_v0
 , created_at TEXT NOT NULL DEFAULT (datetime('now'))
 , deleted INTEGER NOT NULL CHECK (deleted IN (0,1))
 , data BLOB NOT NULL
-, PRIMARY KEY (canvas_id, tlid)
+, PRIMARY KEY (app_id, tlid)
 );
 
 -- Traces
@@ -82,7 +82,7 @@ CREATE TABLE IF NOT EXISTS
 traces_v0
 ( id TEXT PRIMARY KEY
 , trace_id TEXT NOT NULL -- why do we need this _and_ `id`?
-, canvas_id TEXT NOT NULL
+, app_id TEXT NOT NULL
 -- the handler's (or for a function's default trace, the function's) TLID
 --   (used to store the trace data in Cloud Storage)
 -- TODO consider using a different mechanism here - fns might not have tlids...

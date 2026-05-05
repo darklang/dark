@@ -79,7 +79,7 @@ let rec set
     | Ok _ ->
       let upsertQuery =
         if upsert then
-          "ON CONFLICT (canvas_id, table_tlid, dark_version, user_version, key) DO UPDATE SET data=EXCLUDED.data, updated_at=datetime('now')"
+          "ON CONFLICT (app_id, table_tlid, dark_version, user_version, key) DO UPDATE SET data=EXCLUDED.data, updated_at=datetime('now')"
         else
           ""
 
@@ -88,7 +88,7 @@ let rec set
       do!
         Sql.query
           $"INSERT INTO user_data_v0
-            (id, canvas_id, table_tlid, user_version, dark_version, key, data, updated_at)
+            (id, app_id, table_tlid, user_version, dark_version, key, data, updated_at)
           VALUES
             (@id, @dbScope, @tlid, @userVersion, @darkVersion, @key, @data, datetime('now'))
           {upsertQuery}"
@@ -121,7 +121,7 @@ and getOption
         "SELECT data
           FROM user_data_v0
         WHERE table_tlid = @tlid
-          AND canvas_id = @dbScope
+          AND app_id = @dbScope
           AND user_version = @userVersion
           AND dark_version = @darkVersion
           AND key = @key"
@@ -174,7 +174,7 @@ and getMany
           $"SELECT data
           FROM user_data_v0
           WHERE table_tlid = @tlid
-            AND canvas_id = @dbScope
+            AND app_id = @dbScope
             AND user_version = @userVersion
             AND dark_version = @darkVersion
             AND key IN ({keyPlaceholders})"
@@ -219,7 +219,7 @@ and getManyWithKeys
           $"SELECT key, data
           FROM user_data_v0
           WHERE table_tlid = @tlid
-            AND canvas_id = @dbScope
+            AND app_id = @dbScope
             AND user_version = @userVersion
             AND dark_version = @darkVersion
             AND key IN ({keyPlaceholders})"
@@ -247,7 +247,7 @@ let getAll
         "SELECT key, data
         FROM user_data_v0
         WHERE table_tlid = @tlid
-          AND canvas_id = @dbScope
+          AND app_id = @dbScope
           AND user_version = @userVersion
           AND dark_version = @darkVersion"
       |> Sql.parameters
@@ -270,7 +270,7 @@ let getAllKeys (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>
     "SELECT key
     FROM user_data_v0
     WHERE table_tlid = @tlid
-      AND canvas_id = @dbScope
+      AND app_id = @dbScope
       AND user_version = @userVersion
       AND dark_version = @darkVersion"
   |> Sql.parameters
@@ -285,7 +285,7 @@ let count (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
     "SELECT COUNT(*) as count
     FROM user_data_v0
     WHERE table_tlid = @tlid
-      AND canvas_id = @dbScope
+      AND app_id = @dbScope
       AND user_version = @userVersion
       AND dark_version = @darkVersion"
   |> Sql.parameters
@@ -305,7 +305,7 @@ let delete
     FROM user_data_v0
     WHERE key = @key
       AND table_tlid = @tlid
-      AND canvas_id = @dbScope
+      AND app_id = @dbScope
       AND user_version = @userVersion
       AND dark_version = @darkVersion"
   |> Sql.parameters
@@ -320,7 +320,7 @@ let deleteAll (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
   //   covered by idx_user_data_current_data_for_tlid
   Sql.query
     "DELETE FROM user_data_v0
-    WHERE canvas_id = @dbScope
+    WHERE app_id = @dbScope
       AND table_tlid = @tlid
       AND user_version = @userVersion
       AND dark_version = @darkVersion"
@@ -405,7 +405,7 @@ let executeCompiledQuery
           $"SELECT data
             FROM user_data_v0
             WHERE table_tlid = @tlid
-              AND canvas_id = @dbScope
+              AND app_id = @dbScope
               AND user_version = @userVersion
               AND dark_version = @darkVersion
               AND ({compiledSql})"
@@ -427,7 +427,7 @@ let executeCompiledQuery
           $"SELECT key, data
             FROM user_data_v0
             WHERE table_tlid = @tlid
-              AND canvas_id = @dbScope
+              AND app_id = @dbScope
               AND user_version = @userVersion
               AND dark_version = @darkVersion
               AND ({compiledSql})"
@@ -452,7 +452,7 @@ let executeCompiledQuery
           $"SELECT data
             FROM user_data_v0
             WHERE table_tlid = @tlid
-              AND canvas_id = @dbScope
+              AND app_id = @dbScope
               AND user_version = @userVersion
               AND dark_version = @darkVersion
               AND ({compiledSql})
@@ -480,7 +480,7 @@ let executeCompiledQuery
           $"SELECT COUNT(*) as count
             FROM user_data_v0
             WHERE table_tlid = @tlid
-              AND canvas_id = @dbScope
+              AND app_id = @dbScope
               AND user_version = @userVersion
               AND dark_version = @darkVersion
               AND ({compiledSql})"

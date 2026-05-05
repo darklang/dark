@@ -25,13 +25,13 @@ let createWithExactID
   task {
     do!
       Sql.query
-        "INSERT INTO canvases_v0
+        "INSERT INTO apps_v0
           (id, account_id)
          VALUES
           (@id, @accountID);
 
          INSERT INTO domains_v0
-           (canvas_id, domain)
+           (app_id, domain)
          VALUES
            (@id, @domain)"
       |> Sql.parameters
@@ -51,7 +51,7 @@ let create (accountID : Option<UserID>) (domain : string) : Task<uuid> =
 let getCanvasesForAccount (accountID : UserID) : Task<List<uuid>> =
   Sql.query
     "SELECT id
-    FROM canvases_v0
+    FROM apps_v0
     WHERE account_id = @accountID"
   |> Sql.parameters [ "accountID", Sql.uuid accountID ]
   |> Sql.executeAsync (fun read -> read.uuid "id")
@@ -150,7 +150,7 @@ let deleteToplevelForever (canvasID : uuid) (tlid : tlid) : Task<unit> =
   // CLEANUP: set deleted column in toplevels_v0 to be not nullable
   Sql.query
     "DELETE from toplevels_v0
-      WHERE canvas_id = @canvasID
+      WHERE app_id = @canvasID
         AND tlid = @tlid"
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "tlid", Sql.id tlid ]
   |> Sql.executeStatementAsync
@@ -218,12 +218,12 @@ let saveTLIDs
         return!
           Sql.query
             "INSERT INTO toplevels_v0
-              (canvas_id, tlid, digest, tipe, name,
+              (app_id, tlid, digest, tipe, name,
                module, modifier, deleted, data, updated_at)
             VALUES
               (@canvasID, @tlid, @digest, @typ, @name,
                @module, @modifier, @deleted, @data, datetime('now'))
-            ON CONFLICT (canvas_id, tlid)
+            ON CONFLICT (app_id, tlid)
               DO UPDATE SET
                 digest = @digest,
                 tipe = @typ,

@@ -2,6 +2,7 @@
 /// used by the toplevel index when looking up handlers from the DB.
 module LibCloud.Routing
 
+open FSharpx
 open Prelude
 
 let splitUriPath (path : string) : string array =

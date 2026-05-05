@@ -39,7 +39,7 @@ let fns () : List<BuiltInFn> =
             let! existing =
               Sql.query
                 "SELECT COUNT(*) as cnt FROM toplevels_v0
-                 WHERE canvas_id = @canvasID
+                 WHERE app_id = @canvasID
                    AND tipe = 'db'
                    AND name = @name
                    AND deleted = 0"
@@ -153,7 +153,7 @@ let fns () : List<BuiltInFn> =
             let! matchingTlids =
               Sql.query
                 "SELECT tlid FROM toplevels_v0
-                 WHERE canvas_id = @canvasID
+                 WHERE app_id = @canvasID
                    AND tipe = 'db'
                    AND name = @name
                    AND deleted = 0"
@@ -179,7 +179,7 @@ let fns () : List<BuiltInFn> =
                 |> Task.iterInParallel (fun tlid ->
                   Sql.query
                     "DELETE FROM user_data_v0
-                     WHERE canvas_id = @canvasID AND table_tlid = @tlid"
+                     WHERE app_id = @canvasID AND table_tlid = @tlid"
                   |> Sql.parameters
                     [ "canvasID", Sql.uuid canvasID; "tlid", Sql.id tlid ]
                   |> Sql.executeStatementAsync)
