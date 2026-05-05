@@ -64,27 +64,10 @@ let domainsForCanvasID (id : uuid) : Task<List<string>> =
   |> Sql.parameters [ "id", Sql.uuid id ]
   |> Sql.executeAsync (fun read -> read.string "domain")
 
-let addDomain (canvasID : uuid) (domain : string) : Task<unit> =
-  Sql.query
-    "INSERT INTO domains_v0
-       (canvas_id, domain)
-     VALUES
-       (@canvasID, @domain)"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID; "domain", Sql.string domain ]
-  |> Sql.executeStatementAsync
-
 let allCanvasIDs () : Task<List<uuid>> =
   Sql.query "SELECT id FROM canvases_v0"
   |> Sql.executeAsync (fun read -> read.uuid "id")
 
-
-let getOwner (id : uuid) : Task<Option<UserID>> =
-  Sql.query
-    "SELECT account_id
-    FROM canvases_v0
-    WHERE id = @id"
-  |> Sql.parameters [ "id", Sql.uuid id ]
-  |> Sql.executeRowOptionAsync (fun read -> read.uuid "account_id")
 
 let getCanvasesForAccount (accountID : UserID) : Task<List<uuid>> =
   Sql.query
@@ -135,73 +118,6 @@ let addToplevel (deleted : Serialize.Deleted) (tl : PT.Toplevel.T) (c : T) : T =
 let addToplevels (tls : List<Serialize.Deleted * PT.Toplevel.T>) (canvas : T) : T =
   List.fold (fun c (deleted, tl) -> addToplevel deleted tl c) canvas tls
 
-let toplevels (c : T) : Map<tlid, PT.Toplevel.T> =
-  let map f l = Map.map f l |> Map.toSeq
-
-  [ map PT.Toplevel.TLHandler c.handlers; map PT.Toplevel.TLDB c.dbs ]
-  |> Seq.concat
-  |> Map
-
-let deletedToplevels (c : T) : Map<tlid, PT.Toplevel.T> =
-  let map f l = Map.map f l |> Map.toSeq
-
-  [ map PT.Toplevel.TLHandler c.deletedHandlers; map PT.Toplevel.TLDB c.deletedDBs ]
-  |> Seq.concat
-  |> Map
-
-
-
-
-// -------------------------
-// Toplevel
-// -------------------------
-
-let setDB (db : PT.DB.T) (c : T) : T =
-  // if the db had been deleted, remove it from the deleted set. This handles
-  // a data race where a Set comes in after a Delete.
-  { c with
-      dbs = Map.add db.tlid db c.dbs
-      deletedDBs = Map.remove db.tlid c.deletedDBs }
-
-let deleteDB (tlid : tlid) c =
-  match Map.get tlid c.dbs with
-  | None -> c
-  | Some db ->
-    { c with
-        dbs = Map.remove db.tlid c.dbs
-        deletedDBs = Map.add db.tlid db c.deletedDBs }
-
-let setHandler (h : PT.Handler.T) c =
-  // if the handler had been deleted, remove it from the deleted set. This handles
-  // a data race where a Set comes in after a Delete.
-  { c with
-      handlers = Map.add h.tlid h c.handlers
-      deletedHandlers = Map.remove h.tlid c.deletedHandlers }
-
-let deleteHandler (tlid : tlid) c =
-  match Map.get tlid c.handlers with
-  | None -> c
-  | Some h ->
-    { c with
-        handlers = Map.remove h.tlid c.handlers
-        deletedHandlers = Map.add h.tlid h c.deletedHandlers }
-
-
-// CLEANUP Historically, on the backend, toplevel meant handler or DB
-// we want to de-conflate the concepts
-let deleteToplevel (tlid : tlid) (c : T) : T =
-  c |> deleteHandler tlid |> deleteDB tlid
-
-let applyToMap (tlid : tlid) (f : 'a -> 'a) (m : Map<tlid, 'a>) : Map<tlid, 'a> =
-  Map.update tlid (Option.map f) m
-
-
-
-let applyToDB (f : PT.DB.T -> PT.DB.T) (tlid : tlid) (c : T) : T =
-  { c with dbs = applyToMap tlid f c.dbs }
-
-
-
 // NOTE: If you add a new verification here, please ensure all places that
 // load canvases/apply ops correctly load the requisite data.
 let verify (c : T) : T =
@@ -250,74 +166,11 @@ let loadAll (id : uuid) : Task<T> =
     return! loadFrom id tlids
   }
 
-let loadHttpHandlers (id : uuid) (path : string) (method : string) : Task<T> =
-  task {
-    let! tlids = Serialize.fetchReleventTLIDsForHTTP id path method
-    return! loadFrom id tlids
-  }
-
-let loadTLIDs (id : uuid) (tlids : tlid list) : Task<T> = loadFrom id tlids
-
-
-let loadTLIDsWithContext (id : uuid) (tlids : List<tlid>) : Task<T> =
-  task {
-    let! context = Serialize.fetchRelevantTLIDsForExecution id
-    let tlids = tlids @ context
-    return! loadFrom id tlids
-  }
-
-let loadForEvent
-  (id : uuid)
-  (module' : string)
-  (name : string)
-  (modifier : string)
-  : Task<T> =
-  task {
-    let! tlids = Serialize.fetchRelevantTLIDsForEvent id module' name modifier
-    return! loadFrom id tlids
-  }
-
 let loadAllDBs (id : uuid) : Task<T> =
   task {
     let! tlids = Serialize.fetchTLIDsForAllDBs id
     return! loadFrom id tlids
   }
-
-/// Returns a best guess at all workers (excludes what it knows not to be a worker)
-let loadAllWorkers (id : uuid) : Task<T> =
-  task {
-    let! tlids = Serialize.fetchTLIDsForAllWorkers id
-    return! loadFrom id tlids
-  }
-
-let loadTLIDsWithDBs (id : uuid) (tlids : List<tlid>) : Task<T> =
-  task {
-    let! dbTLIDs = Serialize.fetchTLIDsForAllDBs id
-    return! loadFrom id (tlids @ dbTLIDs)
-  }
-
-let getToplevel (tlid : tlid) (c : T) : Option<Serialize.Deleted * PT.Toplevel.T> =
-  let handler () =
-    Map.find tlid c.handlers
-    |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLHandler h))
-
-  let deletedHandler () =
-    Map.find tlid c.deletedHandlers
-    |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLHandler h))
-
-  let db () =
-    Map.find tlid c.dbs
-    |> Option.map (fun h -> (Serialize.NotDeleted, PT.Toplevel.TLDB h))
-
-  let deletedDB () =
-    Map.find tlid c.deletedDBs
-    |> Option.map (fun h -> (Serialize.Deleted, PT.Toplevel.TLDB h))
-
-
-  handler ()
-  |> Option.orElseWith deletedHandler
-  |> Option.orElseWith db
-  |> Option.orElseWith deletedDB
 
 
 let deleteToplevelForever (canvasID : uuid) (tlid : tlid) : Task<unit> =
