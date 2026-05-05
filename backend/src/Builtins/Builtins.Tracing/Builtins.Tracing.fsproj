@@ -13,7 +13,6 @@
   <ItemGroup>
     <ProjectReference Include="../../Prelude/Prelude.fsproj" />
     <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../../LibSqlite/LibSqlite.fsproj" />
     <ProjectReference Include="../../LibDB/LibDB.fsproj" />
   </ItemGroup>
   <Import Project="..\..\..\.paket\Paket.Restore.targets" />

@@ -22,7 +22,6 @@
     <ProjectReference Include="../Builtins.Tracing/Builtins.Tracing.fsproj" />
     <ProjectReference Include="../../LibDB/LibDB.fsproj" />
     <ProjectReference Include="../../LibCloud/LibCloud.fsproj" />
-    <ProjectReference Include="../../LibSqlite/LibSqlite.fsproj" />
     <ProjectReference Include="../Builtins.DB/Builtins.DB.fsproj" />
   </ItemGroup>
   <Import Project="..\..\..\.paket\Paket.Restore.targets" />

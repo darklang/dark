@@ -14,9 +14,9 @@
     <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../LibSerialization/LibSerialization.fsproj" />
     <ProjectReference Include="../LibConfig/LibConfig.fsproj" />
-    <ProjectReference Include="../LibSqlite/LibSqlite.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="Sqlite.fs" />
     <Compile Include="PackageLocation.fs" />
     <Compile Include="Caching.fs" />
     <Compile Include="Purge.fs" />

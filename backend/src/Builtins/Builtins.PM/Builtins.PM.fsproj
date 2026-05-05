@@ -22,7 +22,6 @@
     <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../LibDB/LibDB.fsproj" />
     <ProjectReference Include="../../LibSerialization/LibSerialization.fsproj" />
-    <ProjectReference Include="../../LibSqlite/LibSqlite.fsproj" />
   </ItemGroup>
   <Import Project="..\..\..\.paket\Paket.Restore.targets" />
 </Project>
