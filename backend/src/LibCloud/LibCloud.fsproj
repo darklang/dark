@@ -23,10 +23,6 @@
     <Compile Include="Routing.fs" />
     <Compile Include="Serialize.fs" />
     <Compile Include="Canvas.fs" />
-
-    <Compile Include="Init.fs" />
-
-    <Compile Include="Stats.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
