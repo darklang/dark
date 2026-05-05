@@ -69,59 +69,6 @@ let loadToplevels
   }
 
 
-let fetchReleventTLIDsForHTTP
-  (canvasID : uuid)
-  (path : string)
-  (method : string)
-  : Task<List<tlid>> =
-  // The pattern `$2 like name` is deliberate, to leverage the DB's
-  // pattern matching to solve our routing.
-  Sql.query
-    "SELECT tlid
-    FROM toplevels_v0
-    WHERE canvas_id = @canvasID
-      AND (
-        (module = 'HTTP' AND @path like name AND modifier = @method)
-        OR tipe <> 'handler'
-      )
-      AND deleted = 0"
-  |> Sql.parameters
-    [ "path", Sql.string path
-      "method", Sql.string method
-      "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeAsync (fun read -> read.tlid "tlid")
-
-let fetchRelevantTLIDsForExecution (canvasID : uuid) : Task<List<tlid>> =
-  Sql.query
-    "SELECT tlid FROM toplevels_v0
-      WHERE canvas_id = @canvasID
-      AND tipe <> 'handler'
-      AND deleted = 0"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeAsync (fun read -> read.tlid "tlid")
-
-let fetchRelevantTLIDsForEvent
-  (canvasID : uuid)
-  (module' : string)
-  (name : string)
-  (modifier : string)
-  : Task<List<tlid>> =
-  Sql.query
-    "SELECT tlid FROM toplevels_v0
-    WHERE canvas_id = @canvasID
-      AND (
-        (module = @space AND name = @name AND modifier = @modifier)
-        OR tipe <> 'handler'
-      )
-      AND deleted = 0"
-  |> Sql.parameters
-    [ "canvasID", Sql.uuid canvasID
-      "space", Sql.string module'
-      "name", Sql.string name
-      "modifier", Sql.string modifier ]
-  |> Sql.executeAsync (fun read -> read.id "tlid")
-
-
 let fetchTLIDsForAllDBs (canvasID : uuid) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
@@ -131,19 +78,6 @@ let fetchTLIDsForAllDBs (canvasID : uuid) : Task<List<tlid>> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
-let fetchTLIDsForAllWorkers (canvasID : uuid) : Task<List<tlid>> =
-  Sql.query
-    "SELECT tlid FROM toplevels_v0
-    WHERE canvas_id = @canvasID
-      AND tipe = 'handler'
-      AND module <> 'CRON'
-      AND module <> 'REPL'
-      AND module <> 'HTTP'
-      AND deleted = 0"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeAsync (fun read -> read.tlid "tlid")
-
-
 let fetchAllIncludingDeletedTLIDs (canvasID : uuid) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
@@ -151,50 +85,3 @@ let fetchAllIncludingDeletedTLIDs (canvasID : uuid) : Task<List<tlid>> =
   |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
-let fetchAllLiveTLIDs (canvasID : uuid) : Task<List<tlid>> =
-  Sql.query
-    "SELECT tlid FROM toplevels_v0
-    WHERE canvas_id = @canvasID
-      AND deleted = 0"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
-  |> Sql.executeAsync (fun read -> read.tlid "tlid")
-
-type CronScheduleData =
-  { canvasID : uuid
-    tlid : id
-    cronName : string
-    interval : PT.Handler.CronInterval }
-
-/// Fetch cron handlers from the DB. Active here means:
-/// - a non-null interval field in the spec
-/// - not deleted (When a CRON handler is deleted, we set (module, modifier,
-///   deleted) to (NULL, NULL, True);  so our query `WHERE module = 'CRON'`
-///   ignores deleted CRONs.)
-/// TODO: this is untested, but also essential for running the crons
-let fetchActiveCrons () : Task<List<CronScheduleData>> =
-  Sql.query
-    "SELECT
-      canvas_id,
-      tlid,
-      modifier,
-      toplevels_v0.name as handler_name
-    FROM toplevels_v0
-    JOIN canvases_v0 ON toplevels_v0.canvas_id = canvases_v0.id
-    WHERE module = 'CRON'
-      AND modifier IS NOT NULL
-      AND modifier <> ''
-      AND toplevels_v0.name IS NOT NULL
-      AND deleted = 0"
-  |> Sql.executeAsync (fun read ->
-    let interval = read.string "modifier"
-    let canvasID = read.uuid "canvas_id"
-
-    { canvasID = canvasID
-      tlid = read.id "tlid"
-      cronName = read.string "handler_name"
-      interval =
-        interval
-        |> PTParser.Handler.CronInterval.parse
-        |> Exception.unwrapOptionInternal
-          "Could not parse cron modifier"
-          [ "interval", interval; "canvasID", canvasID ] })
