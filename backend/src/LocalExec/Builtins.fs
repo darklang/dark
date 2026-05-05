@@ -18,8 +18,10 @@ let all () : RT.Builtins =
       Builtins.PM.Builtin.builtins ptPM
       Builtins.CliHost.Builtin.builtins ()
       Builtins.HttpServer.Builtin.builtins ()
-      Builtins.DB.Builtin.builtins () // TODO: do we need this?
-      TestUtils.LibTest.builtins () ] // TODO: or this?
+      Builtins.DB.Builtin.builtins ()
+      Builtins.DarkInternal.Builtin.builtins ()
+      Builtins.Tracing.Builtin.builtins ()
+      TestUtils.LibTest.builtins () ]
     []
 
 let accessibleByCanvas () : RT.Builtins =
