@@ -1223,7 +1223,7 @@ let fns () : List<BuiltInFn> =
         [ Param.make "json" TString "JSON exported via tracesExportJson" ]
       returnType = TypeReference.result TString TString
       description =
-        "Import a trace from a JSON dump (the `traces export` format). Re-creates the trace row + all fn_call rows under the importing process's canvas. Returns the trace ID on success."
+        "Import a trace from a JSON dump (the `traces export` format). Re-creates the trace row + all fn_call rows under the importing process's scope. Returns the trace ID on success."
       fn =
         let resultOk = Dval.resultOk KTString KTString
         let resultError = Dval.resultError KTString KTString
