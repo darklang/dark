@@ -97,7 +97,7 @@ let runListener
     //
     // What we already own (no regression risk):
     //  - Body size limit: `readRequestBodyWithLimit` enforces today.
-    //  - SSRF guard for outbound: `BuiltinExecution.Libs.HttpClient.
+    //  - SSRF guard for outbound: `Builtins.Execution.Libs.HttpClient.
     //    LocalAccess` + `strictConfig`.
     //  - Per-request blob scope: memory hygiene already in place.
     //

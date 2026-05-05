@@ -84,7 +84,7 @@ let handleRequest
           let requestDval = Http.Request.fromRequest exeState url reqHeaders reqBody
 
           // Per-request tracer. Same shape as `darklang eval/run` produces
-          // (`Tracing.createCliTracer` in `BuiltinCliHost/Libs/Cli.fs`), so
+          // (`Tracing.createCliTracer` in `Builtins.CliHost/Libs/Cli.fs`), so
           // `traces list/view/replay` shows HTTP traces alongside CLI traces
           // with no consumer-side changes. The trace description carries the
           // method + path so per-endpoint browsing (Step 2 in the plan)

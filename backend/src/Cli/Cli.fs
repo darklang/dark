@@ -82,8 +82,6 @@ let state (packageManager : RT.PackageManager) =
     (_msg : string)
     (_metadata : Metadata)
     =
-    // let metadata = extraMetadata state @ metadata
-    // LibService.Rollbar.notify msg metadata
     uply { return () }
 
   let sendException

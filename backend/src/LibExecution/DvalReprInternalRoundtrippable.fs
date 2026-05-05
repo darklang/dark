@@ -1,7 +1,7 @@
 /// Ways of converting Dvals to/from strings, to be used exclusively internally.
 ///
-/// That is, they should not be used in libraries, in the BwdServer, in HttpClient,
-/// etc.
+/// That is, they should not be used in libraries, in `darklang serve`,
+/// in HttpClient, etc.
 module LibExecution.DvalReprInternalRoundtrippable
 
 open Prelude
