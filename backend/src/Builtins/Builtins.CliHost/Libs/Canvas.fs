@@ -1,4 +1,4 @@
-/// Builtin functions for canvas and DB operations in the CLI
+/// Builtin functions for app and DB operations in the CLI
 module Builtins.CliHost.Libs.Canvas
 
 open Prelude
@@ -22,14 +22,14 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "darkInternalAppDBCreate" 0
       typeParams = []
       parameters =
-        [ Param.make "canvasID" TUuid "The canvas to add the DB to"
+        [ Param.make "canvasID" TUuid "The app to add the DB to"
           Param.make "dbName" TString "Name of the database"
           Param.make
             "typeHash"
             (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
             "Hash of the type stored in this DB" ]
       returnType = TypeReference.result TUInt64 TString
-      description = "Creates a new database in the specified canvas"
+      description = "Creates a new database in the specified app"
       fn =
         (function
         | _, _, _, [ DUuid canvasID; DString dbName; typeHashDval ] ->
@@ -81,10 +81,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "accountID" TUuid "The account ID"
-          Param.make "domain" TString "Domain for the canvas if created" ]
+          Param.make "domain" TString "Domain for the app if created" ]
       returnType = TUuid
       description =
-        "Gets the canvas for an account, creating one if it doesn't exist"
+        "Gets the app for an account, creating one if it doesn't exist"
       fn =
         (function
         | _, _, _, [ DUuid accountID; DString domain ] ->
@@ -101,11 +101,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "darkInternalAppDBListAll" 0
       typeParams = []
       parameters =
-        [ Param.make "canvasID" TUuid "The canvas to list DBs from"
+        [ Param.make "canvasID" TUuid "The app to list DBs from"
           Param.make "branchId" TUuid "Branch for resolving type names" ]
       returnType = TList(TTuple(TString, TString, []))
       description =
-        "Returns a list of (name, typeName) tuples for all DBs in the canvas"
+        "Returns a list of (name, typeName) tuples for all DBs in the app"
       fn =
         (function
         | _, _, _, [ DUuid canvasID; DUuid branchId ] ->
@@ -141,7 +141,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "darkInternalAppDBDrop" 0
       typeParams = []
       parameters =
-        [ Param.make "canvasID" TUuid "The canvas containing the DB"
+        [ Param.make "canvasID" TUuid "The app containing the DB"
           Param.make "dbName" TString "Name of the database to drop" ]
       returnType = TypeReference.result TUnit TString
       description =

@@ -1,6 +1,7 @@
 module LibCloud.Canvas
 
-// Functions related to Canvases
+// Functions related to apps (formerly canvases). Module name stays for now;
+// renaming would touch every importer and is tracked as a follow-up.
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
@@ -48,7 +49,7 @@ let create (accountID : Option<UserID>) (domain : string) : Task<uuid> =
     return id
   }
 
-let getCanvasesForAccount (accountID : UserID) : Task<List<uuid>> =
+let getAppsForAccount (accountID : UserID) : Task<List<uuid>> =
   Sql.query
     "SELECT id
     FROM apps_v0
@@ -58,7 +59,7 @@ let getCanvasesForAccount (accountID : UserID) : Task<List<uuid>> =
 
 let getOrCreateForAccount (accountID : UserID) (domain : string) : Task<uuid> =
   task {
-    let! existing = getCanvasesForAccount accountID
+    let! existing = getAppsForAccount accountID
     match existing with
     | canvasID :: _ -> return canvasID
     | [] -> return! create (Some accountID) domain

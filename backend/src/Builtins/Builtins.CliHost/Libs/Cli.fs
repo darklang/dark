@@ -37,12 +37,12 @@ let loadCanvasAndDBs
     match accountID with
     | None -> return (None, Map.empty)
     | Some accID ->
-      let! canvases = Canvas.getCanvasesForAccount accID
-      match canvases with
-      | canvasID :: _ ->
-        let! canvas = Canvas.loadAllDBs canvasID
+      let! apps = Canvas.getAppsForAccount accID
+      match apps with
+      | appID :: _ ->
+        let! canvas = Canvas.loadAllDBs appID
         let! program = Canvas.toProgram canvas
-        return (Some canvasID, program.dbs)
+        return (Some appID, program.dbs)
       | [] -> return (None, Map.empty)
   }
 
