@@ -432,7 +432,5 @@ let toProgram (c : T) : Ply<RT.Program> =
       |> Map.ofList
 
     return
-      { canvasID = c.id
-        internalFnsAllowed = List.contains c.id Config.allowedDarkInternalCanvasIDs
-        dbs = dbs }
+      { dbs = dbs }
   }

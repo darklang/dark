@@ -1638,11 +1638,8 @@ and Builtins =
 
 
 /// Every part of a user's program
-/// CLEANUP rename to 'app' or 'canvas' or something
 and Program =
-  { canvasID : CanvasID
-    internalFnsAllowed : bool
-    dbs : Map<string, DB.T> }
+  { dbs : Map<string, DB.T> }
 
 
 // Used for testing

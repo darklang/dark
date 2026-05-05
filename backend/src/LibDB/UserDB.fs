@@ -94,7 +94,7 @@ let rec set
           {upsertQuery}"
         |> Sql.parameters
           [ "id", Sql.uuid id
-            "canvasID", Sql.uuid exeState.program.canvasID
+            "canvasID", Sql.uuid System.Guid.Empty
             "tlid", Sql.id db.tlid
             "userVersion", Sql.int db.version
             "darkVersion", Sql.int currentDarkVersion
@@ -127,7 +127,7 @@ and getOption
           AND key = @key"
       |> Sql.parameters
         [ "tlid", Sql.tlid db.tlid
-          "canvasID", Sql.uuid exeState.program.canvasID
+          "canvasID", Sql.uuid System.Guid.Empty
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion
           "key", Sql.string key ]
@@ -165,7 +165,7 @@ and getMany
       // Base parameters that are always needed
       let baseParams =
         [ "tlid", Sql.tlid db.tlid
-          "canvasID", Sql.uuid exeState.program.canvasID
+          "canvasID", Sql.uuid System.Guid.Empty
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion ]
 
@@ -210,7 +210,7 @@ and getManyWithKeys
       // Base parameters that are always needed
       let baseParams =
         [ "tlid", Sql.tlid db.tlid
-          "canvasID", Sql.uuid exeState.program.canvasID
+          "canvasID", Sql.uuid System.Guid.Empty
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion ]
 
@@ -252,7 +252,7 @@ let getAll
           AND dark_version = @darkVersion"
       |> Sql.parameters
         [ "tlid", Sql.tlid db.tlid
-          "canvasID", Sql.uuid exeState.program.canvasID
+          "canvasID", Sql.uuid System.Guid.Empty
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion ]
       |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
@@ -298,7 +298,7 @@ let getAll
 //         |> Sql.parameters (
 //           compiled.vars
 //           @ [ "tlid", Sql.tlid db.tlid
-//               "canvasID", Sql.uuid exeState.program.canvasID
+//               "canvasID", Sql.uuid System.Guid.Empty
 //               "userVersion", Sql.int db.version
 //               "darkVersion", Sql.int currentDarkVersion ]
 //         )
@@ -369,7 +369,7 @@ let getAll
 //         query |> Sql.executeRowAsync (fun read -> read.int "count") |> Task.map Ok
 //   }
 
-let getAllKeys (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =
+let getAllKeys (_ : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =
   Sql.query
     "SELECT key
     FROM user_data_v0
@@ -379,12 +379,12 @@ let getAllKeys (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>
       AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid exeState.program.canvasID
+      "canvasID", Sql.uuid System.Guid.Empty
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeAsync (fun read -> read.string "key")
 
-let count (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
+let count (_ : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
   Sql.query
     "SELECT COUNT(*) as count
     FROM user_data_v0
@@ -394,13 +394,13 @@ let count (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
       AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid exeState.program.canvasID
+      "canvasID", Sql.uuid System.Guid.Empty
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeRowAsync (fun read -> read.int "count")
 
 let delete
-  (exeState : RT.ExecutionState)
+  (_ : RT.ExecutionState)
   (db : RT.DB.T)
   (key : string)
   : Task<unit> =
@@ -415,12 +415,12 @@ let delete
   |> Sql.parameters
     [ "key", Sql.string key
       "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid exeState.program.canvasID
+      "canvasID", Sql.uuid System.Guid.Empty
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeStatementAsync
 
-let deleteAll (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
+let deleteAll (_ : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
   //   covered by idx_user_data_current_data_for_tlid
   Sql.query
     "DELETE FROM user_data_v0
@@ -430,7 +430,7 @@ let deleteAll (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
       AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid exeState.program.canvasID
+      "canvasID", Sql.uuid System.Guid.Empty
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeStatementAsync
@@ -574,7 +574,7 @@ let executeCompiledQuery
     // Base parameters for the table filtering
     let baseParams =
       [ "tlid", Sql.tlid db.tlid
-        "canvasID", Sql.uuid exeState.program.canvasID
+        "canvasID", Sql.uuid System.Guid.Empty
         "userVersion", Sql.int db.version
         "darkVersion", Sql.int currentDarkVersion ]
 

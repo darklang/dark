@@ -134,8 +134,8 @@ let cloudBuiltIns (pm : PT.PackageManager) = localBuiltIns pm
 
 let executionStateFor
   (pmPT : PT.PackageManager)
-  (canvasID : CanvasID)
-  (internalFnsAllowed : bool)
+  (_canvasID : CanvasID)
+  (_internalFnsAllowed : bool)
   (allowLocalHttpAccess : bool)
   (dbs : Map<string, RT.DB.T>)
   : Task<RT.ExecutionState> =
@@ -143,9 +143,7 @@ let executionStateFor
     let domains = [] //Canvas.domainsForCanvasID canvasID
 
     let program : RT.Program =
-      { canvasID = canvasID
-        internalFnsAllowed = internalFnsAllowed
-        dbs = dbs }
+      { dbs = dbs }
 
     let testContext : RT.TestContext =
       { sideEffectCount = 0

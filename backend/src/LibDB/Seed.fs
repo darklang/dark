@@ -156,9 +156,7 @@ let evaluateAllValues
   : Task<Result<unit, string list>> =
   task {
     let program : RT.Program =
-      { canvasID = System.Guid.NewGuid()
-        internalFnsAllowed = false
-        dbs = Map.empty }
+      { dbs = Map.empty }
 
     let notify _ _ _ _ = uply { return () }
     let sendException _ _ _ _ = uply { return () }

@@ -109,7 +109,7 @@ let runtimeErrorMessage
 
 
 let t
-  (internalFnsAllowed : bool)
+  (_internalFnsAllowed : bool)
   (canvasName : string)
   (pmPT : PT.PackageManager)
   (actual : PT.Expr)
@@ -123,7 +123,7 @@ let t
     try
       // Little optimization to skip the DB sometimes
       let! canvasID =
-        let initializeCanvas = internalFnsAllowed || dbs <> [] || workers <> []
+        let initializeCanvas = dbs <> [] || workers <> []
         if initializeCanvas then
           initializeTestCanvas canvasName
         else
@@ -133,7 +133,7 @@ let t
         dbs |> List.map (fun db -> (db.name, PT2RT.DB.toRT db)) |> Map.ofList
 
       let! (state : RT.ExecutionState) =
-        executionStateFor pmPT canvasID internalFnsAllowed false rtDBs
+        executionStateFor pmPT canvasID false false rtDBs
 
       let red = "\u001b[31m"
       let green = "\u001b[32m"

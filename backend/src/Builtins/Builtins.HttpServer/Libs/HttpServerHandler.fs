@@ -97,7 +97,7 @@ let handleRequest
               "(http request)"
           let tracer =
             Tracing.createCliTracer
-              exeState.program.canvasID
+              System.Guid.Empty
               traceID
               traceDesc
               "request"

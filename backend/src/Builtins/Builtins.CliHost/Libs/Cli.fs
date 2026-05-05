@@ -148,9 +148,7 @@ let execute
     let resolvedCanvasID = canvasID |> Option.defaultValue (System.Guid.NewGuid())
 
     let (program : Program) =
-      { canvasID = resolvedCanvasID
-        internalFnsAllowed = false
-        dbs = dbs }
+      { dbs = dbs }
 
     let builtins = builtinsToUse ()
 
@@ -225,9 +223,7 @@ let createBranchState
   (allowHarmful : bool)
   =
   let program : Program =
-    { canvasID = System.Guid.NewGuid()
-      internalFnsAllowed = false
-      dbs = Map.empty }
+    { dbs = Map.empty }
   let state =
     Exe.createState
       (builtinsToUse ())

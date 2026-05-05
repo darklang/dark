@@ -16,29 +16,15 @@ let fnRenames : Builtin.FnRenames =
   // eg: fn "Http" "respond" 0, fn "Http" "response" 0
   []
 
-// only accessible to the LibCloud.Config.allowedDarkInternalCanvasID canvas
-let internalFn (f : BuiltInFnSig) : BuiltInFnSig =
-  (fun (exeState, vmState, typeArgs, args) ->
-    uply {
-      if exeState.program.internalFnsAllowed then
-        return! f (exeState, vmState, typeArgs, args)
-      else
-        return
-          Exception.raiseInternal
-            "internal function attempted to be used in another canvas"
-            [ "canavasId", exeState.program.canvasID ]
-    })
-
-
+// `darkInternal*` builtins used to be gated behind a per-canvas allowlist.
+// CLI is single-app; all builtins are intended to be exposed. The gate is
+// gone; this module is now just a builtin grouping for dark-internal/admin
+// surface.
 let builtins () : Builtins =
-  let builtins =
-    Builtin.combine
-      [ Libs.Canvases.builtins ()
-        Libs.DBs.builtins ()
-        Libs.Domains.builtins ()
-        Libs.Infra.builtins ()
-        Libs.Users.builtins () ]
-      fnRenames
-
-  { builtins with
-      fns = builtins.fns |> Map.map (fun f -> { f with fn = internalFn f.fn }) }
+  Builtin.combine
+    [ Libs.Canvases.builtins ()
+      Libs.DBs.builtins ()
+      Libs.Domains.builtins ()
+      Libs.Infra.builtins ()
+      Libs.Users.builtins () ]
+    fnRenames

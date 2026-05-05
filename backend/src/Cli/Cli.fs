@@ -74,9 +74,7 @@ let builtins : RT.Builtins =
 
 let state (packageManager : RT.PackageManager) =
   let program : RT.Program =
-    { canvasID = System.Guid.NewGuid()
-      internalFnsAllowed = false
-      dbs = Map.empty }
+    { dbs = Map.empty }
 
   let notify
     (_state : RT.ExecutionState)

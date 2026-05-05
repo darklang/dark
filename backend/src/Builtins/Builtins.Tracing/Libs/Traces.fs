@@ -1229,7 +1229,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTString KTString
         let resultError = Dval.resultError KTString KTString
         (function
-        | exeState, _, _, [ DString json ] ->
+        | _, _, _, [ DString json ] ->
           uply {
             try
               use doc = JsonDocument.Parse(json)
@@ -1246,7 +1246,7 @@ let fns () : List<BuiltInFn> =
               let timestamp = getStr "timestamp"
               let inputName = getStr "input_name"
               let inputValueJson = root.GetProperty("input_value").GetRawText()
-              let canvasIdStr = string exeState.program.canvasID
+              let canvasIdStr = string System.Guid.Empty
 
               // Mirrors TraceStorage.store: INSERT OR REPLACE the trace row,
               // DELETE-then-INSERT the fn_calls. Re-importing the same id

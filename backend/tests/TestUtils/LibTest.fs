@@ -175,7 +175,7 @@ let fns () : List<BuiltInFn> =
       description = "Get the name of the canvas that's running"
       fn =
         (function
-        | state, _, _, [ DUnit ] -> state.program.canvasID |> DUuid |> Ply
+        | _, _, _, [ DUnit ] -> System.Guid.Empty |> DUuid |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
