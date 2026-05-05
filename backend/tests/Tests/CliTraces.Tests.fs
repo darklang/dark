@@ -28,9 +28,7 @@ let private buildState () : Task<RT.ExecutionState> =
     let pmPTValue = pmPT
     let builtins = Builtins.CliHost.Libs.Cli.builtinsToUse ()
     let pmRT = PT2RT.PackageManager.toRT builtins.values pmPTValue
-    let canvasID = System.Guid.NewGuid()
-    let program : RT.Program =
-      { canvasID = canvasID; dbs = Map.empty; secrets = [] }
+    let program : RT.Program = { dbs = Map.empty }
 
     let notify
       (_state : RT.ExecutionState)
