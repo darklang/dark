@@ -294,7 +294,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "listUnique" 0
@@ -315,7 +316,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "listSort" 0
@@ -339,7 +341,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "listAppend" 0
@@ -359,7 +362,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "listRandomElement" 0
@@ -387,7 +391,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated
+      accessibility = Any } ]
 
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

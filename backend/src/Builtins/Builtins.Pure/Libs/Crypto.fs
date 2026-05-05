@@ -33,7 +33,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "cryptoSha384" 0
@@ -52,7 +53,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "cryptoMd5" 0
@@ -72,7 +74,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = ImpurePreviewable
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "cryptoSha256hmac" 0
@@ -94,7 +97,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = ImpurePreviewable
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "cryptoSha1hmac" 0
@@ -116,6 +120,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = ImpurePreviewable
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated
+      accessibility = Any } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

@@ -44,7 +44,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmAddOps" 0
@@ -95,7 +96,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmGetRecentOps" 0
@@ -113,7 +115,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmGetWipOps" 0
@@ -131,7 +134,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmGetWipSummary" 0
@@ -157,7 +161,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     // CLEANUP: these three builtins are performance workarounds — see Queries.fs
@@ -186,7 +191,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmGetWipOpCount" 0
@@ -204,7 +210,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmGetCommitCount" 0
@@ -222,7 +229,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmCommit" 0
@@ -252,7 +260,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmDiscard" 0
@@ -276,7 +285,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmGetCommits" 0
@@ -299,7 +309,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmGetCommitsForBranchChain" 0
@@ -324,7 +335,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmGetCommitOps" 0
@@ -342,7 +354,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated
+      accessibility = Any } ]
 
 
 let builtins (pm : PT.PackageManager) : Builtins =

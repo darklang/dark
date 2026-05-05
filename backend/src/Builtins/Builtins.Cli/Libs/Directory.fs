@@ -28,7 +28,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "directoryCreate" 0
@@ -51,7 +52,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "directoryDelete" 0
@@ -73,7 +75,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "directoryList" 0
@@ -97,7 +100,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "getCurrentExecutablePath" 0
@@ -116,7 +120,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated
+      accessibility = Any } ]
 
 
 let builtins () : Builtins = Builtin.make [] (fns ())

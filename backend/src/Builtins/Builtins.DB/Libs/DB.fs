@@ -124,7 +124,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "dbGet" 0
@@ -143,7 +144,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "dbGetMany" 0
@@ -180,7 +182,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "dbGetExisting" 0
@@ -209,7 +212,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "dbGetManyWithKeys" 0
@@ -237,7 +241,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "dbDelete" 0
@@ -256,7 +261,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "dbDeleteAll" 0
@@ -275,7 +281,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "dbGetAll" 0
@@ -298,7 +305,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "dbGetAllWithKeys" 0
@@ -319,7 +327,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "dbCount" 0
@@ -338,7 +347,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "dbGenerateKey" 0
@@ -352,7 +362,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "dbKeys" 0
@@ -372,7 +383,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "dbQuery" 0
@@ -401,7 +413,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "dbQueryWithKey" 0
@@ -428,7 +441,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "dbQueryOne" 0
@@ -455,7 +469,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "dbQueryCount" 0
@@ -482,6 +497,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated
+      accessibility = Any } ]
 
 let builtins () = Builtin.make [] (fns ())

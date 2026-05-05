@@ -27,7 +27,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
     { name = fn "timeNowMs" 0
       typeParams = []
@@ -46,7 +47,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
     { name = fn "interpreterStatsReset" 0
       typeParams = []
@@ -62,7 +64,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
     { name = fn "interpreterStatsGet" 0
       typeParams = []
@@ -124,7 +127,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
     { name = fn "interpreterStatsEnableDetailedTiming" 0
       typeParams = []
@@ -142,7 +146,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated
+      accessibility = Any } ]
 
 
 let builtins () : Builtins = Builtin.make [] (fns ())

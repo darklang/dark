@@ -68,7 +68,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     // types
@@ -101,7 +102,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "pmGetType" 0
@@ -123,7 +125,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     // values
@@ -154,7 +157,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "pmGetValue" 0
@@ -180,7 +184,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     // Find all value IDs that have a specific ValueType
@@ -210,7 +215,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     // Evaluate a package value by its UUID
@@ -247,7 +253,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     // Functions
@@ -278,7 +285,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "pmGetFn" 0
@@ -302,7 +310,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "pmSearch" 0
@@ -327,7 +336,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     // Location lookups — returns ALL locations for a hash
@@ -352,7 +362,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "pmGetLocationsByValue" 0
@@ -376,7 +387,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "pmGetLocationsByFn" 0
@@ -400,7 +412,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     // Get ALL previous (deprecated) hashes at a location - used for propagation
@@ -442,7 +455,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     // Execute propagation of an update to all dependents
@@ -529,7 +543,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     // Atomic undo: revert repoints + restore source version in one operation
@@ -638,7 +653,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     // Deprecation info used by ls/tree/search in a single DB round-trip:
@@ -673,7 +689,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     // Current deprecation state for a package item on a branch chain.
@@ -729,7 +746,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated
+      accessibility = Any } ]
 
 
 let builtins ptPM = LibExecution.Builtin.make [] (fns ptPM)

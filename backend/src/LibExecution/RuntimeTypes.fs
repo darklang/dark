@@ -1605,13 +1605,24 @@ type VMState =
 
 
 
+/// Where a builtin may be referenced from. Most builtins should be
+/// `FromLocation <wrapper-pkg-fn>` — only the matching wrapper package fn
+/// is allowed to call them; user code goes through the wrapper. `Any`
+/// is the escape hatch for builtins called from F# directly (cli host
+/// orchestration, debug, internal evaluation) or from many places
+/// intentionally.
+type Accessibility =
+  | FromLocation of FQFnName.Package
+  | Any
+
 // -- Builtins --
 type BuiltInValue =
   { name : FQValueName.Builtin
     typ : TypeReference
     description : string
     deprecated : Deprecation<FQValueName.FQValueName>
-    body : Dval }
+    body : Dval
+    accessibility : Accessibility }
 
 /// A built-in standard library function
 ///
@@ -1626,7 +1637,8 @@ type BuiltInFn =
     previewable : Previewable
     deprecated : Deprecation<FQFnName.FQFnName>
     sqlSpec : SqlSpec
-    fn : BuiltInFnSig }
+    fn : BuiltInFnSig
+    accessibility : Accessibility }
 
 and BuiltInFnSig =
   // (exeState * vmState * typeArgs * fnArgs) -> result

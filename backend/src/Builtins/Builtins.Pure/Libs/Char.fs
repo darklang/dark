@@ -22,7 +22,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "charToLowercase" 0
@@ -38,7 +39,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "charToAsciiCode" 0
@@ -58,7 +60,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "charIsLessThan" 0
@@ -72,7 +75,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "charIsLessThanOrEqualTo" 0
@@ -86,7 +90,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "charIsGreaterThan" 0
@@ -100,7 +105,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "charIsGreaterThanOrEqualTo" 0
@@ -114,7 +120,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "charToString" 0
@@ -128,6 +135,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated
+      accessibility = Any } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

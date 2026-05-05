@@ -185,7 +185,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "cliGetOS" 0
@@ -213,7 +214,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     // Sub-process-spawning and management
@@ -258,7 +260,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "cliProcessIO" 0
@@ -364,7 +367,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "cliTerminateProcess" 0
@@ -417,7 +421,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     ]

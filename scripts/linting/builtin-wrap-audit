@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# Wrapper-count audit: for each F# builtin, count how many .dark
+# package-fn bodies reference it via `Builtin.<name>`.
+#
+# Goal state (per commit-05 design): exactly 1 wrapping package fn
+# per builtin, except for builtins explicitly marked openWrap (called
+# from F# directly: cliEvaluateExpression, cliParseAndExecuteScript,
+# debug, etc).
+#
+# Outputs a report grouped into 0-wrapper / 1-wrapper / 2+-wrapper
+# buckets, plus a summary count. 0-wrapper builtins are deletion or
+# openWrap candidates; 2+-wrapper builtins are consolidation candidates.
+#
+# Usage:
+#   ./scripts/linting/builtin-wrap-audit                    # report to stdout
+#   ./scripts/linting/builtin-wrap-audit > /tmp/audit.md    # save report
+
+set -euo pipefail
+
+cd "$(git rev-parse --show-toplevel)"
+
+builtins=$(grep -rh 'name = fn "' backend/src/Builtins/ 2>/dev/null \
+  | sed -nE 's/.*name = fn "([^"]+)".*/\1/p' \
+  | sort -u)
+
+total=$(echo "$builtins" | wc -l | tr -d ' ')
+echo "# Wrapper-count audit ($total unique builtin names)"
+echo
+echo 'Per-builtin grep for `Builtin.<name>` (non-identifier suffix) in packages/.'
+echo
+
+# Capture `Builtin.<name>` optionally followed by `_v<digits>` version suffix.
+# The version is part of the dispatch but not part of the F# `name = fn "X"`
+# string, so strip it before counting.
+all_refs=$(grep -rohP 'Builtin\.[a-zA-Z][a-zA-Z0-9]*(?:_v[0-9]+)?(?=[^a-zA-Z0-9_]|$)' packages/ 2>/dev/null \
+  | sed -E 's/Builtin\.//; s/_v[0-9]+$//' \
+  | sort | uniq -c | awk '{ printf "%s %s\n", $1, $2 }')
+
+# Operator-dispatched builtins (called by infix `+`, `-`, `*`, `==`, etc.
+# rather than by `Builtin.X` syntax). Source: LibExecution/
+# ProgramTypesToRuntimeTypes.fs InfixFnName.toFnName. Treat as 1+-wrapper
+# (every infix use is an implicit reference) — exclude from 0-wrapper bucket.
+operator_dispatched="int64Add int64Subtract int64Multiply int64Mod int64Power \
+  int64GreaterThan int64GreaterThanOrEqualTo int64LessThan int64LessThanOrEqualTo \
+  floatDivide stringAppend equals notEquals"
+
+zero=0
+one=0
+many=0
+zero_list=""
+many_list=""
+
+is_operator_dispatched() {
+  local name="$1"
+  for op in $operator_dispatched; do
+    [ "$op" = "$name" ] && return 0
+  done
+  return 1
+}
+
+for b in $builtins; do
+  count=$(echo "$all_refs" | awk -v name="$b" '$2 == name { print $1; exit }')
+  count=${count:-0}
+  if [ "$count" -eq 0 ]; then
+    if is_operator_dispatched "$b"; then
+      one=$((one + 1))   # implicit 1-wrapper via infix operator dispatch
+    else
+      zero=$((zero + 1))
+      zero_list="$zero_list
+0 $b"
+    fi
+  elif [ "$count" -eq 1 ]; then
+    one=$((one + 1))
+  else
+    many=$((many + 1))
+    many_list="$many_list
+$count $b"
+  fi
+done
+
+echo "## Builtins with 0 wrappers (deletion candidates / openWrap if intentional)"
+echo
+printf '%s\n' "$zero_list" | sed '1d' | sort -u
+echo
+echo "## Builtins with 2+ wrappers (consolidation candidates / openWrap if intentional)"
+echo
+printf '%s\n' "$many_list" | sed '1d' | sort -nr | head -100
+echo
+echo "## Summary"
+echo "  - 0 wrappers: $zero"
+echo "  - 1 wrapper:  $one (target state)"
+echo "  - 2+ wrappers: $many"

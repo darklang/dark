@@ -32,7 +32,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmBranchList" 0
@@ -53,7 +54,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmBranchListAll" 0
@@ -74,7 +76,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmBranchGet" 0
@@ -95,7 +98,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmBranchGetByName" 0
@@ -116,7 +120,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmBranchRename" 0
@@ -140,7 +145,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmBranchDelete" 0
@@ -162,7 +168,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmBranchArchive" 0
@@ -184,7 +191,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated }
+      deprecated = NotDeprecated
+      accessibility = Any }
 
 
     { name = fn "scmBranchUnarchive" 0
@@ -206,7 +214,8 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated } ]
+      deprecated = NotDeprecated
+      accessibility = Any } ]
 
 
 let values () : List<BuiltInValue> =
@@ -214,7 +223,8 @@ let values () : List<BuiltInValue> =
       typ = TUuid
       description = "The well-known main branch UUID."
       deprecated = NotDeprecated
-      body = DUuid PT.mainBranchId } ]
+      body = DUuid PT.mainBranchId
+      accessibility = Any } ]
 
 
 let builtins () : Builtins = LibExecution.Builtin.make (values ()) (fns ())
