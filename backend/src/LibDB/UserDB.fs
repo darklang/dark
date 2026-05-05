@@ -90,11 +90,11 @@ let rec set
           $"INSERT INTO user_data_v0
             (id, canvas_id, table_tlid, user_version, dark_version, key, data, updated_at)
           VALUES
-            (@id, @canvasID, @tlid, @userVersion, @darkVersion, @key, @data, datetime('now'))
+            (@id, @dbScope, @tlid, @userVersion, @darkVersion, @key, @data, datetime('now'))
           {upsertQuery}"
         |> Sql.parameters
           [ "id", Sql.uuid id
-            "canvasID", Sql.uuid exeState.program.dbScope
+            "dbScope", Sql.uuid exeState.program.dbScope
             "tlid", Sql.id db.tlid
             "userVersion", Sql.int db.version
             "darkVersion", Sql.int currentDarkVersion
@@ -121,13 +121,13 @@ and getOption
         "SELECT data
           FROM user_data_v0
         WHERE table_tlid = @tlid
-          AND canvas_id = @canvasID
+          AND canvas_id = @dbScope
           AND user_version = @userVersion
           AND dark_version = @darkVersion
           AND key = @key"
       |> Sql.parameters
         [ "tlid", Sql.tlid db.tlid
-          "canvasID", Sql.uuid exeState.program.dbScope
+          "dbScope", Sql.uuid exeState.program.dbScope
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion
           "key", Sql.string key ]
@@ -165,7 +165,7 @@ and getMany
       // Base parameters that are always needed
       let baseParams =
         [ "tlid", Sql.tlid db.tlid
-          "canvasID", Sql.uuid exeState.program.dbScope
+          "dbScope", Sql.uuid exeState.program.dbScope
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion ]
 
@@ -174,7 +174,7 @@ and getMany
           $"SELECT data
           FROM user_data_v0
           WHERE table_tlid = @tlid
-            AND canvas_id = @canvasID
+            AND canvas_id = @dbScope
             AND user_version = @userVersion
             AND dark_version = @darkVersion
             AND key IN ({keyPlaceholders})"
@@ -210,7 +210,7 @@ and getManyWithKeys
       // Base parameters that are always needed
       let baseParams =
         [ "tlid", Sql.tlid db.tlid
-          "canvasID", Sql.uuid exeState.program.dbScope
+          "dbScope", Sql.uuid exeState.program.dbScope
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion ]
 
@@ -219,7 +219,7 @@ and getManyWithKeys
           $"SELECT key, data
           FROM user_data_v0
           WHERE table_tlid = @tlid
-            AND canvas_id = @canvasID
+            AND canvas_id = @dbScope
             AND user_version = @userVersion
             AND dark_version = @darkVersion
             AND key IN ({keyPlaceholders})"
@@ -247,12 +247,12 @@ let getAll
         "SELECT key, data
         FROM user_data_v0
         WHERE table_tlid = @tlid
-          AND canvas_id = @canvasID
+          AND canvas_id = @dbScope
           AND user_version = @userVersion
           AND dark_version = @darkVersion"
       |> Sql.parameters
         [ "tlid", Sql.tlid db.tlid
-          "canvasID", Sql.uuid exeState.program.dbScope
+          "dbScope", Sql.uuid exeState.program.dbScope
           "userVersion", Sql.int db.version
           "darkVersion", Sql.int currentDarkVersion ]
       |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
@@ -291,14 +291,14 @@ let getAll
 //           $"SELECT {queryFor}
 //           FROM user_data_v0
 //           WHERE table_tlid = @tlid
-//             AND canvas_id = @canvasID
+//             AND canvas_id = @dbScope
 //             AND user_version = @userVersion
 //             AND dark_version = @darkVersion
 //             AND {compiled.sql}"
 //         |> Sql.parameters (
 //           compiled.vars
 //           @ [ "tlid", Sql.tlid db.tlid
-//               "canvasID", Sql.uuid exeState.program.dbScope
+//               "dbScope", Sql.uuid exeState.program.dbScope
 //               "userVersion", Sql.int db.version
 //               "darkVersion", Sql.int currentDarkVersion ]
 //         )
@@ -374,12 +374,12 @@ let getAllKeys (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>
     "SELECT key
     FROM user_data_v0
     WHERE table_tlid = @tlid
-      AND canvas_id = @canvasID
+      AND canvas_id = @dbScope
       AND user_version = @userVersion
       AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid exeState.program.dbScope
+      "dbScope", Sql.uuid exeState.program.dbScope
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeAsync (fun read -> read.string "key")
@@ -389,12 +389,12 @@ let count (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<int> =
     "SELECT COUNT(*) as count
     FROM user_data_v0
     WHERE table_tlid = @tlid
-      AND canvas_id = @canvasID
+      AND canvas_id = @dbScope
       AND user_version = @userVersion
       AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid exeState.program.dbScope
+      "dbScope", Sql.uuid exeState.program.dbScope
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeRowAsync (fun read -> read.int "count")
@@ -409,13 +409,13 @@ let delete
     FROM user_data_v0
     WHERE key = @key
       AND table_tlid = @tlid
-      AND canvas_id = @canvasID
+      AND canvas_id = @dbScope
       AND user_version = @userVersion
       AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "key", Sql.string key
       "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid exeState.program.dbScope
+      "dbScope", Sql.uuid exeState.program.dbScope
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeStatementAsync
@@ -424,13 +424,13 @@ let deleteAll (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
   //   covered by idx_user_data_current_data_for_tlid
   Sql.query
     "DELETE FROM user_data_v0
-    WHERE canvas_id = @canvasID
+    WHERE canvas_id = @dbScope
       AND table_tlid = @tlid
       AND user_version = @userVersion
       AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid exeState.program.dbScope
+      "dbScope", Sql.uuid exeState.program.dbScope
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeStatementAsync
@@ -439,7 +439,7 @@ let deleteAll (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
 // stats/locked/unlocked (not _locking_)
 // -------------------------
 // let statsPluck
-//   (canvasID : uuid)
+//   (dbScope : uuid)
 //   (db : RT.DB.T)
 //   : Ply<Option<RT.Dval * string>> =
 //   uply {
@@ -448,13 +448,13 @@ let deleteAll (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
 //         "SELECT data, key
 //         FROM user_data_v0
 //         WHERE table_tlid = @tlid
-//           AND canvas_id = @canvasID
+//           AND canvas_id = @dbScope
 //           AND user_version = @userVersion
 //           AND dark_version = @darkVersion
 //         ORDER BY created_at DESC
 //         LIMIT 1"
 //       |> Sql.parameters [ "tlid", Sql.tlid db.tlid
-//                           "canvasID", Sql.uuid canvasID
+//                           "dbScope", Sql.uuid dbScope
 //                           "userVersion", Sql.int db.version
 //                           "darkVersion", Sql.int currentDarkVersion ]
 //       |> Sql.executeRowOptionAsync (fun read ->
@@ -462,36 +462,36 @@ let deleteAll (exeState : RT.ExecutionState) (db : RT.DB.T) : Task<unit> =
 //     return result |> Option.map (fun (data, key) -> (dbToDval exeState db data, key))
 //   }
 
-let statsCount (canvasID : uuid) (db : RT.DB.T) : Task<int> =
+let statsCount (dbScope : uuid) (db : RT.DB.T) : Task<int> =
   Sql.query
     "SELECT COUNT(*) as count
     FROM user_data_v0
     WHERE table_tlid = @tlid
-      AND canvas_id = @canvasID
+      AND canvas_id = @dbScope
       AND user_version = @userVersion
       AND dark_version = @darkVersion"
   |> Sql.parameters
     [ "tlid", Sql.tlid db.tlid
-      "canvasID", Sql.uuid canvasID
+      "dbScope", Sql.uuid dbScope
       "userVersion", Sql.int db.version
       "darkVersion", Sql.int currentDarkVersion ]
   |> Sql.executeRowAsync (fun read -> read.int "count")
 
-// Given a [canvasID], return tlids for all unlocked databases -
+// Given a [dbScope], return tlids for all unlocked databases -
 // a database is unlocked if it has no records, and thus its schema can be
 // changed without a migration.
 
-let all (canvasID : uuid) : Task<List<tlid>> =
+let all (dbScope : uuid) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid
     FROM toplevels_v0
-    WHERE canvas_id = @canvasID
+    WHERE canvas_id = @dbScope
       AND tipe = 'db'"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
+  |> Sql.parameters [ "dbScope", Sql.uuid dbScope ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 
-let unlocked (canvasID : uuid) : Task<List<tlid>> =
+let unlocked (dbScope : uuid) : Task<List<tlid>> =
   // this will need to be fixed when we allow migrations
   // Note: tl.module IS NULL means it's a db; anything else will be
   // HTTP/REPL/CRON/WORKER
@@ -505,12 +505,12 @@ let unlocked (canvasID : uuid) : Task<List<tlid>> =
     LEFT JOIN user_data_v0 as ud
       ON tl.tlid = ud.table_tlid
         AND tl.canvas_id = ud.canvas_id
-    WHERE tl.canvas_id = @canvasID
+    WHERE tl.canvas_id = @dbScope
       AND tl.module IS NULL
       AND tl.deleted = 0
       AND ud.table_tlid IS NULL
     GROUP BY tl.tlid"
-  |> Sql.parameters [ "canvasID", Sql.uuid canvasID ]
+  |> Sql.parameters [ "dbScope", Sql.uuid dbScope ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
 
@@ -574,7 +574,7 @@ let executeCompiledQuery
     // Base parameters for the table filtering
     let baseParams =
       [ "tlid", Sql.tlid db.tlid
-        "canvasID", Sql.uuid exeState.program.dbScope
+        "dbScope", Sql.uuid exeState.program.dbScope
         "userVersion", Sql.int db.version
         "darkVersion", Sql.int currentDarkVersion ]
 
@@ -588,7 +588,7 @@ let executeCompiledQuery
           $"SELECT data
             FROM user_data_v0
             WHERE table_tlid = @tlid
-              AND canvas_id = @canvasID
+              AND canvas_id = @dbScope
               AND user_version = @userVersion
               AND dark_version = @darkVersion
               AND ({compiledSql})"
@@ -610,7 +610,7 @@ let executeCompiledQuery
           $"SELECT key, data
             FROM user_data_v0
             WHERE table_tlid = @tlid
-              AND canvas_id = @canvasID
+              AND canvas_id = @dbScope
               AND user_version = @userVersion
               AND dark_version = @darkVersion
               AND ({compiledSql})"
@@ -635,7 +635,7 @@ let executeCompiledQuery
           $"SELECT data
             FROM user_data_v0
             WHERE table_tlid = @tlid
-              AND canvas_id = @canvasID
+              AND canvas_id = @dbScope
               AND user_version = @userVersion
               AND dark_version = @darkVersion
               AND ({compiledSql})
@@ -663,7 +663,7 @@ let executeCompiledQuery
           $"SELECT COUNT(*) as count
             FROM user_data_v0
             WHERE table_tlid = @tlid
-              AND canvas_id = @canvasID
+              AND canvas_id = @dbScope
               AND user_version = @userVersion
               AND dark_version = @darkVersion
               AND ({compiledSql})"

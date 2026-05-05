@@ -40,7 +40,7 @@ module TraceSamplingRule =
 
   /// Get the trace sampling rule for a handler. Always returns SampleAll now that
   /// LaunchDarkly has been removed.
-  let ruleForHandler (_canvasID : uuid) (_tlid : tlid) : T = SampleAll
+  let ruleForHandler (_dbScope : uuid) (_tlid : tlid) : T = SampleAll
 
 
 
@@ -63,8 +63,8 @@ module TracingConfig =
         (AT.TraceID.toUUID traceID).ToByteArray() |> System.BitConverter.ToInt64
       if random % (int64 freq) = 0L then DoTrace else DontTrace
 
-  let forHandler (canvasID : uuid) (tlid : tlid) (traceID : AT.TraceID.T) : T =
-    let samplingRule = TraceSamplingRule.ruleForHandler canvasID tlid
+  let forHandler (dbScope : uuid) (tlid : tlid) (traceID : AT.TraceID.T) : T =
+    let samplingRule = TraceSamplingRule.ruleForHandler dbScope tlid
     fromRule samplingRule traceID
 
   let shouldTrace (config : T) =
@@ -306,7 +306,7 @@ module TraceStorage =
     "[" + String.concat "," elements + "]"
 
   let store
-    (canvasID : uuid)
+    (dbScope : uuid)
     (rootTLID : tlid)
     (traceID : AT.TraceID.T)
     (handlerDesc : string)
@@ -329,10 +329,10 @@ module TraceStorage =
           (id, canvas_id, root_tlid, handler_desc, timestamp,
            input_name, input_value_json)
          VALUES
-          (@id, @canvasId, @rootTlid, @handlerDesc, @timestamp,
+          (@id, @dbScope, @rootTlid, @handlerDesc, @timestamp,
            @inputName, @inputValueJson)",
         [ [ "id", Sql.string traceIdStr
-            "canvasId", Sql.string (string canvasID)
+            "dbScope", Sql.string (string dbScope)
             "rootTlid", Sql.int64 (int64 rootTLID)
             "handlerDesc", Sql.string handlerDesc
             "timestamp", Sql.string timestamp
@@ -436,7 +436,7 @@ let private promoteBlobs
 /// every Dval through `Blob.promote` first so blob bytes survive the
 /// per-request blob scope.
 let private storeTrace
-  (canvasID : uuid)
+  (dbScope : uuid)
   (rootTLID : tlid)
   (traceID : AT.TraceID.T)
   (handlerDesc : string)
@@ -449,7 +449,7 @@ let private storeTrace
     try
       let! promotedInput = promoteBlobs exeState inputDval state
       TraceStorage.store
-        canvasID
+        dbScope
         rootTLID
         traceID
         handlerDesc
@@ -463,7 +463,7 @@ let private storeTrace
 
 
 let createSqliteTracer
-  (canvasID : uuid)
+  (dbScope : uuid)
   (rootTLID : tlid)
   (traceID : AT.TraceID.T)
   : T =
@@ -491,7 +491,7 @@ let createSqliteTracer
     storeTraceResults =
       fun exeState ->
         storeTrace
-          canvasID
+          dbScope
           rootTLID
           traceID
           handlerDesc
@@ -502,7 +502,7 @@ let createSqliteTracer
 
 
 let createCliTracer
-  (_canvasID : uuid)
+  (_dbScope : uuid)
   (_traceID : AT.TraceID.T)
   (_description : string)
   (_inputVarName : string)
@@ -533,7 +533,7 @@ let createCliTracer
       fun exeState ->
 #if DEBUG
         storeTrace
-          _canvasID
+          _dbScope
           0UL
           _traceID
           _description
@@ -547,7 +547,7 @@ let createCliTracer
   }
 
 
-let createNonTracer (_canvasID : uuid) (_traceID : AT.TraceID.T) : T =
+let createNonTracer (_dbScope : uuid) (_traceID : AT.TraceID.T) : T =
   let results = TraceResults.empty ()
   { enabled = false
     results = results
@@ -556,9 +556,9 @@ let createNonTracer (_canvasID : uuid) (_traceID : AT.TraceID.T) : T =
     storeTraceInput = fun _ _ _ -> () }
 
 
-let create (canvasID : uuid) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
-  let config = TracingConfig.forHandler canvasID rootTLID traceID
+let create (dbScope : uuid) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
+  let config = TracingConfig.forHandler dbScope rootTLID traceID
   match config with
   | TracingConfig.DoTrace
-  | TracingConfig.TraceWithTelemetry -> createSqliteTracer canvasID rootTLID traceID
-  | TracingConfig.DontTrace -> createNonTracer canvasID traceID
+  | TracingConfig.TraceWithTelemetry -> createSqliteTracer dbScope rootTLID traceID
+  | TracingConfig.DontTrace -> createNonTracer dbScope traceID
