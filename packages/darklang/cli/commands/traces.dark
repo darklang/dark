@@ -62,7 +62,7 @@ let ordinalSuffix (n: Int64) : String =
 
 /// Format the error for a positional integer arg. Distinguishes
 /// "looks like a misplaced flag" (`-`-prefixed) from "actually
-/// non-numeric" — `traces list --frob` should say "Unknown flag",
+/// non-numeric" — `traces list --fake-arg` should say "Unknown flag",
 /// not "Invalid limit", since the user clearly didn't intend to
 /// type a number there.
 let parsePositionalErr (input: String) (label: String) : String =
@@ -78,8 +78,8 @@ let parsePositionalErr (input: String) (label: String) : String =
 ///
 /// `-`-prefixed input is reported as "Unknown flag" before the lookup —
 /// trace IDs are UUIDs, so no real ID ever starts with `-`. This catches
-/// cases like `traces export --frob` where a misplaced flag would
-/// otherwise yield the misleading "Trace not found: --frob".
+/// cases like `traces export --fake-arg` where a misplaced flag would
+/// otherwise yield the misleading "Trace not found: --fake-arg".
 let resolveTraceID (input: String) : Stdlib.Option.Option<String> =
   if Stdlib.String.startsWith input "-" then
     Stdlib.printLine (Colors.error $"Unknown flag: {input}")
@@ -339,22 +339,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
       state
 
-  | [ "export"; traceID ] ->
-    match resolveTraceID traceID with
-    | Some full -> executeExport state full
-    | None -> state
-
   | [ "import"; path ] -> executeImport state path
-
-  | [ "gen-test"; traceID ] ->
-    match resolveTraceID traceID with
-    | Some full -> executeGenTest state full
-    | None -> state
-
-  | [ "values"; traceID ] ->
-    match resolveTraceID traceID with
-    | Some full -> executeValues state full
-    | None -> state
 
   | [ "inspect"; traceID ] ->
     match resolveTraceID traceID with
@@ -370,17 +355,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | Error msg ->
       Stdlib.printLine (Colors.error msg)
       state
-
-  | [ "replay"; traceID ] ->
-    match resolveTraceID traceID with
-    | Some full -> executeReplay state full false
-    | None -> state
-
-  | [ "replay"; traceID; "--diff" ]
-  | [ "replay"; "--diff"; traceID ] ->
-    match resolveTraceID traceID with
-    | Some full -> executeReplay state full true
-    | None -> state
 
   | [ "clear" ] ->
     executeClear state
@@ -425,21 +399,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "inspect" ] ->
     Stdlib.printLine (Colors.error "Usage: traces inspect <trace-id>")
     state
-  | [ "values" ] ->
-    Stdlib.printLine (Colors.error "Usage: traces values <trace-id>")
-    state
-  | [ "gen-test" ] ->
-    Stdlib.printLine (Colors.error "Usage: traces gen-test <trace-id>")
-    state
-  | [ "export" ] ->
-    Stdlib.printLine (Colors.error "Usage: traces export <trace-id>")
-    state
   | [ "import" ] ->
     Stdlib.printLine (Colors.error "Usage: traces import <path>")
-    state
-  | [ "replay" ] ->
-    Stdlib.printLine
-      (Colors.error "Usage: traces replay <trace-id> [--diff]")
     state
   | [ "delete" ] ->
     Stdlib.printLine (Colors.error "Usage: traces delete <trace-id>")
@@ -454,26 +415,17 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   // Catch any other malformed follow invocation — anything not matched
-  // by the earlier specific arms (e.g. `traces follow --frob`).
+  // by the earlier specific arms (e.g. `traces follow --fake-arg`).
   | "follow" :: _ ->
     Stdlib.printLine
       (Colors.error "Usage: traces follow [--route <substring>] [--json]")
     state
 
-  // Catch malformed arity-1 invocations (e.g. `traces inspect <id> --frob`)
+  // Catch malformed arity-1 invocations (e.g. `traces inspect <id> --fake-arg`)
   // that the strict-length arms above missed. Each command takes exactly
   // one positional and doesn't accept trailing flags.
   | "inspect" :: _ ->
     Stdlib.printLine (Colors.error "Usage: traces inspect <trace-id>")
-    state
-  | "values" :: _ ->
-    Stdlib.printLine (Colors.error "Usage: traces values <trace-id>")
-    state
-  | "gen-test" :: _ ->
-    Stdlib.printLine (Colors.error "Usage: traces gen-test <trace-id>")
-    state
-  | "export" :: _ ->
-    Stdlib.printLine (Colors.error "Usage: traces export <trace-id>")
     state
   | "import" :: _ ->
     Stdlib.printLine (Colors.error "Usage: traces import <path>")
@@ -511,10 +463,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine
       (Colors.error "Usage: traces stats [limit] [--json]")
     state
-  | "replay" :: _ ->
-    Stdlib.printLine
-      (Colors.error "Usage: traces replay <trace-id> [--diff]")
-    state
 
   | _ ->
     // If the first token isn't a known subcommand, surface that
@@ -522,8 +470,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // look like it succeeded silently.
     let knownSubcommands =
       [ "help"; "list"; "view"; "tail"; "follow"; "find"; "hotspots"
-        "stats"; "export"; "import"; "gen-test"; "inspect"; "values"
-        "replay"; "delete"; "prune"; "clear" ]
+        "stats"; "import"; "inspect"; "delete"; "prune"; "clear" ]
     let isKnownHead =
       match args with
       | head :: _ ->
@@ -749,25 +696,6 @@ let executeFindView (state: Cli.AppState) (pattern: String) : Cli.AppState =
       executeView state row.traceId defaultViewOptions
 
 
-/// `traces export <trace-id>` — print a portable JSON dump of the
-/// trace (metadata + input + every fn call's args/result). Pipe to a
-/// file to share a repro. Roundtrip into `traces import` re-creates the
-/// trace row in another DB.
-let executeExport (state: Cli.AppState) (traceID: String) : Cli.AppState =
-  match Builtin.tracesExportJson traceID with
-  | None ->
-    Stdlib.printLine (Colors.error $"Trace not found: {traceID}")
-    state
-  | Some json ->
-    Stdlib.printLine json
-    state
-
-
-/// `traces gen-test <id>` — generate a `testfiles/http-server/*.test`
-/// fixture skeleton from a recorded HTTP trace. Request/response
-/// wire-format blocks come straight from the trace; the [http-handler]
-/// block has a TODO placeholder for the user to paste the handler body.
-/// Pipe to a file:  darklang traces gen-test <id> > testfiles/.../foo.test
 /// `traces inspect <id>` — open the recorded handler with the
 /// `view --with-trace` overlay applied. Saves "what was the handler
 /// called again?" — the trace already knows (via the recorded
@@ -830,66 +758,8 @@ let executeInspect (state: Cli.AppState) (traceID: String) : Cli.AppState =
       state
 
 
-/// `traces values <id>` — list every per-AST-node value the trace
-/// recorded (let RHS, if branch result, matched arm, pipe stage —
-/// see TraceDval emission in PT2RT). Debug surface; ids are raw
-/// numeric AST ids. For human-readable annotation use
-/// `traces inspect <id>` or `view <fn> --with-trace <id>`.
-let executeValues (state: Cli.AppState) (traceID: String) : Cli.AppState =
-  let pairs = Builtin.tracesGetExprValues traceID
-  match pairs with
-  | [] ->
-    Stdlib.printLine
-      "No expression values recorded for this trace."
-    Stdlib.printLine
-      "(Populated by code that ran a `let`/`if`/`match`/`|>` — empty for traces that never reached one.)"
-    state
-  | _ ->
-    let nStr = Stdlib.Int64.toString (Stdlib.List.length pairs)
-    Stdlib.printLine $"Recorded expression values ({nStr}):"
-    Stdlib.printLine ""
-    Stdlib.List.iter pairs (fun pair ->
-      let (exprId, dval) = pair
-      let repr = compactDval state.currentBranchId dval
-      Stdlib.printLine $"  {exprId}  →  {repr}")
-    state
-
-
-// `lookupHandlerBody` moved to `Darklang.Tracing.HandlerSource.lookup`.
-let lookupHandlerBody
-  (branchId: Uuid)
-  (handlerName: String)
-  : Stdlib.Option.Option<String> =
-  Darklang.Tracing.HandlerSource.lookup branchId handlerName
-
-
-let executeGenTest (state: Cli.AppState) (traceID: String) : Cli.AppState =
-  match Builtin.tracesGenTest traceID with
-  | Error msg ->
-    Stdlib.printLine (Colors.error msg)
-    state
-  | Ok fixtureWithSentinel ->
-    // Try to auto-resolve the handler source. The F# builtin emits a
-    // `%%HANDLER_BODY%%` line where the body should go; we substitute
-    // either the live source or a TODO block.
-    let body =
-      match Builtin.tracesGetHandlerName traceID with
-      | None ->
-        "// TODO: paste the handler body. (couldn't determine name from trace)"
-      | Some handlerName ->
-        match lookupHandlerBody state.currentBranchId handlerName with
-        | Some src -> src
-        | None ->
-          "// TODO: paste the handler body that produced this trace.\n"
-          ++ $"//       Source: `darklang view {handlerName}` (handler not found on current branch)"
-    let fixture =
-      Stdlib.String.replaceAll fixtureWithSentinel "%%HANDLER_BODY%%" body
-    Stdlib.printLine fixture
-    state
-
-
-/// `traces import <path>` — read a JSON dump produced by
-/// `traces export` and re-create the trace row in this DB. Useful for
+/// `traces import <path>` — read a JSON dump and re-create the trace
+/// row in this DB. Useful for
 /// reproducing a trace shared from another machine. The trace ID is
 /// preserved; an existing row with that ID is overwritten.
 let executeImport (state: Cli.AppState) (path: String) : Cli.AppState =
@@ -1348,60 +1218,6 @@ let executeView
     state
 
 
-let executeReplay
-  (state: Cli.AppState)
-  (traceID: String)
-  (diff: Bool)
-  : Cli.AppState =
-  // tracesGetInput returns Some only for traces whose input is a
-  // String (eval/run). HTTP traces have a Request record input and
-  // come back as None — those route to the HTTP replay path.
-  let input = Builtin.tracesGetInput traceID
-
-  match input with
-  | None ->
-    Stdlib.printLine $"Replaying HTTP trace {traceID} against current handler..."
-    Stdlib.printLine ""
-    match Builtin.tracesReplayHttp traceID diff with
-    | Ok output ->
-      Stdlib.printLine output
-      state
-    | Error msg ->
-      Stdlib.printLine (Colors.error msg)
-      state
-  | Some code ->
-    Stdlib.printLine $"Replaying trace {traceID}..."
-    Stdlib.printLine ""
-    let result =  Builtin.cliEvaluateExpression state.accountID state.currentBranchId code false
-    match result with
-    | Ok output ->
-      if diff then
-        match Builtin.tracesGetExpectedOutput traceID with
-        | None ->
-          Stdlib.printLine output
-          Stdlib.printLine ""
-          Stdlib.printLine
-            "Replay complete. (No recorded output to diff against — the trace has no top-level fn calls.)"
-          state
-        | Some expected ->
-          Stdlib.printLine $"Original output: {expected}"
-          Stdlib.printLine $"     New output: {output}"
-          Stdlib.printLine ""
-          if expected == output then
-            Stdlib.printLine (Colors.success "✓ unchanged")
-          else
-            Stdlib.printLine (Colors.error "✗ output changed")
-          state
-      else
-        Stdlib.printLine output
-        Stdlib.printLine ""
-        Stdlib.printLine "Replay complete. A new trace was created for this execution."
-        state
-    | Error err ->
-      Stdlib.printLine (Colors.error $"Replay failed: {Cli.ExecutionError.toString err}")
-      state
-
-
 let executeClear (state: Cli.AppState) : Cli.AppState =
   let count = Builtin.tracesClear ()
   match count with
@@ -1498,12 +1314,8 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
       Completion.simple "stats"
       Completion.simple "find"
       Completion.simple "hotspots"
-      Completion.simple "export"
       Completion.simple "import"
-      Completion.simple "gen-test"
       Completion.simple "inspect"
-      Completion.simple "values"
-      Completion.simple "replay"
       Completion.simple "delete"
       Completion.simple "prune"
       Completion.simple "clear"
@@ -1540,8 +1352,6 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
   | [ "list"; "--route" ]
   | [ "tail"; "--route" ]
   | [ "follow"; "--route" ] -> []
-  // Post-ID flags for replay, find, list --fn/--route.
-  | "replay" :: _ :: _ -> [ Completion.simple "--diff" ]
   | "find" :: _ :: _ ->
     [ Completion.simple "--view"; Completion.simple "--json" ]
   | "tail" :: _ :: _ -> [ Completion.simple "--route" ]
@@ -1568,12 +1378,8 @@ let help (_state: Cli.AppState) : Unit =
     "  find <pattern> --json [limit] Same data as JSON for piping"
     "  hotspots [trace-limit]        Per-fn timing aggregated across last N traces (default 100; top 50 fns by total ms)"
     "  hotspots --json [trace-limit] Same data as JSON for piping"
-    "  export <trace-id>             Print a portable JSON dump of the trace"
     "  import <path>                 Re-create a trace from a JSON dump on disk"
-    "  gen-test <trace-id>           Generate a testfiles/http-server/*.test skeleton from an HTTP trace"
     "  inspect <trace-id>            Open the recorded handler with --with-trace overlay (annotated source)"
-    "  values <trace-id>             Per-AST-node values (let RHS, if/match/pipe results) — debug raw"
-    "  replay <trace-id> [--diff]    Re-execute a trace's code; --diff compares against the recorded output"
     "  delete <trace-id>             Delete one trace (prefix OK)"
     "  prune --keep <N>              Keep the N most-recent traces, drop the rest"
     "  clear                         Delete all stored traces"

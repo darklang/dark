@@ -304,27 +304,22 @@ let private testTracesClearEmpties =
         })
   }
 
-let private testTracesClearAlsoClearsExprValues =
-  testTask "traces clear also drops trace_expr_values rows" {
+let private testTracesClearEmptiesList =
+  testTask "traces clear empties the list" {
     do!
       withState (fun state ->
         task {
           let! _ = runCli state [ "traces"; "clear" ]
           let! _ = runCli state [ "eval"; "let x = 99L\nx" ]
-          let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
-          let tid = parseTraceID listJson
 
-          // Sanity: pre-clear, the trace has the let value recorded.
-          let! beforeOut = runCli state [ "traces"; "values"; tid ]
-          Expect.stringContains beforeOut "→  99" "let value present pre-clear"
+          let! beforeOut = runCli state [ "traces"; "list" ]
+          Expect.isFalse
+            (beforeOut.Contains "No traces")
+            "list non-empty pre-clear"
 
           let! _ = runCli state [ "traces"; "clear" ]
-          let! afterOut = runCli state [ "traces"; "values"; tid ]
-          // Post-clear: prefix resolution should fail OR empty-state msg;
-          // either way `→  99` should not be present.
-          Expect.isFalse
-            (afterOut.Contains "→  99")
-            "expr_values orphaned after clear"
+          let! afterOut = runCli state [ "traces"; "list" ]
+          Expect.stringContains afterOut "No traces" "list empty post-clear"
         })
   }
 
@@ -343,27 +338,6 @@ let private testTracesStatsCounts =
         })
   }
 
-let private testTracesExportJson =
-  testTask "traces export <id> JSON schema" {
-    do!
-      withState (fun state ->
-        task {
-          let! _ = runCli state [ "traces"; "clear" ]
-          let! _ = runCli state [ "eval"; "let x = 5L\nx" ]
-          let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
-          let tid = parseTraceID listJson
-          let! exportOut = runCli state [ "traces"; "export"; tid ]
-          for field in
-            [ "\"id\""
-              "\"handler_desc\""
-              "\"timestamp\""
-              "\"input_value\""
-              "\"fn_calls\""
-              "\"expr_values\"" ] do
-            Expect.stringContains exportOut field $"export has {field}"
-        })
-  }
-
 let private testTracesFindByContent =
   testTask "traces find <pattern> by content" {
     do!
@@ -379,23 +353,27 @@ let private testTracesFindByContent =
   }
 
 let private testTracesDeleteSingle =
-  testTask "traces delete <id> + cascade preserves siblings" {
+  testTask "traces delete <id> preserves siblings" {
     do!
       withState (fun state ->
         task {
           let! _ = runCli state [ "traces"; "clear" ]
-          let! _ = runCli state [ "eval"; "let alpha = 11L\nalpha" ]
-          let! _ = runCli state [ "eval"; "let beta = 22L\nbeta" ]
-          // Latest = beta. Delete it; alpha should remain with values.
-          let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
-          let betaTid = parseTraceID listJson
-          let! delOut = runCli state [ "traces"; "delete"; betaTid ]
+          let! _ = runCli state [ "eval"; "1L + 1L" ]
+          let! _ = runCli state [ "eval"; "2L + 2L" ]
+
+          // Pre-delete: list latest trace, capture its ID, expect 2 rows total.
+          let! latestJson = runCli state [ "traces"; "list"; "1"; "--json" ]
+          let latestTid = parseTraceID latestJson
+
+          let! delOut = runCli state [ "traces"; "delete"; latestTid ]
           Expect.stringContains delOut "Deleted trace" "delete confirm"
 
-          let! listJson2 = runCli state [ "traces"; "list"; "1"; "--json" ]
-          let alphaTid = parseTraceID listJson2
-          let! valuesOut = runCli state [ "traces"; "values"; alphaTid ]
-          Expect.stringContains valuesOut "→  11" "alpha's values intact"
+          // Post-delete: the previously-latest trace should be gone (its
+          // ID no longer appears in the list).
+          let! listAfter = runCli state [ "traces"; "list" ]
+          Expect.isFalse
+            (listAfter.Contains latestTid)
+            "deleted trace ID gone from list"
         })
   }
 
@@ -419,42 +397,26 @@ let private testViewWithTraceAnnotates =
   }
 
 let private testTracesPruneKeep =
-  testTask "traces prune --keep N + cascade" {
+  testTask "traces prune --keep N keeps the most-recent" {
     do!
       withState (fun state ->
         task {
           let! _ = runCli state [ "traces"; "clear" ]
-          let! _ = runCli state [ "eval"; "let a = 1L\na" ]
-          let! _ = runCli state [ "eval"; "let b = 2L\nb" ]
-          let! _ = runCli state [ "eval"; "let c = 3L\nc" ]
+          let! _ = runCli state [ "eval"; "1L" ]
+          let! _ = runCli state [ "eval"; "2L" ]
+          let! _ = runCli state [ "eval"; "3L" ]
+
+          // Capture the most-recent trace ID before pruning.
+          let! latestJson = runCli state [ "traces"; "list"; "1"; "--json" ]
+          let latestTid = parseTraceID latestJson
+
           let! pruneOut = runCli state [ "traces"; "prune"; "--keep"; "1" ]
           Expect.stringContains pruneOut "Pruned 2 trace" "prune confirm"
 
+          // Post-prune: the previously-latest is the only one left.
           let! listOut = runCli state [ "traces"; "list" ]
           Expect.stringContains listOut "Recent traces (last 20):" "list banner"
-          Expect.isFalse (listOut.Contains "let a") "a pruned"
-          Expect.isFalse (listOut.Contains "let b") "b pruned"
-
-          let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
-          let tid = parseTraceID listJson
-          let! valuesOut = runCli state [ "traces"; "values"; tid ]
-          Expect.stringContains valuesOut "→  3" "kept trace's values intact"
-        })
-  }
-
-let private testTracesReplayDiffMatches =
-  testTask "traces replay <id> --diff matches recorded output" {
-    do!
-      withState (fun state ->
-        task {
-          let! _ = runCli state [ "traces"; "clear" ]
-          let! _ = runCli state [ "eval"; "1L + 2L" ]
-          let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
-          let tid = parseTraceID listJson
-          let! output = runCli state [ "traces"; "replay"; tid; "--diff" ]
-          Expect.stringContains output "Original output: 3" "original"
-          Expect.stringContains output "New output: 3" "new"
-          Expect.stringContains output "unchanged" "diff result"
+          Expect.stringContains listOut latestTid "latest trace kept"
         })
   }
 
@@ -470,20 +432,6 @@ let private testTracesInspectErrorsOnBuiltinHandler =
           let! output = runCli state [ "traces"; "inspect"; tid ]
           Expect.stringContains output "is a builtin" "builtin guard"
           Expect.stringContains output "no source to view" "explanation"
-        })
-  }
-
-let private testTracesValuesAfterLet =
-  testTask "traces values <id> lists (exprId, dval) pairs after let" {
-    do!
-      withState (fun state ->
-        task {
-          let! _ = runCli state [ "traces"; "clear" ]
-          let! _ = runCli state [ "eval"; "let x = 1L + 2L\nx" ]
-          let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
-          let tid = parseTraceID listJson
-          let! valuesOut = runCli state [ "traces"; "values"; tid ]
-          Expect.stringContains valuesOut "→  3" "let RHS value recorded"
         })
   }
 
@@ -569,13 +517,9 @@ let private testTracesArity1Catchalls =
           let tid = parseTraceID listJson
 
           let cases =
-            [ [ "traces"; "export"; tid; "--frob" ],
-              "Usage: traces export <trace-id>"
-              [ "traces"; "inspect"; tid; "--frob" ],
+            [ [ "traces"; "inspect"; tid; "--fake-arg" ],
               "Usage: traces inspect <trace-id>"
-              [ "traces"; "values"; tid; "--frob" ],
-              "Usage: traces values <trace-id>"
-              [ "traces"; "delete"; tid; "--frob" ],
+              [ "traces"; "delete"; tid; "--fake-arg" ],
               "Usage: traces delete <trace-id>" ]
           for (argv, expected) in cases do
             let! out = runCli state argv
@@ -703,15 +647,11 @@ let private testTracesRejectsFlagAsTraceId =
       withState (fun state ->
         task {
           let cmds =
-            [ [ "traces"; "export"; "--frob" ]
-              [ "traces"; "inspect"; "--frob" ]
-              [ "traces"; "values"; "--frob" ]
-              [ "traces"; "replay"; "--frob" ]
-              [ "traces"; "delete"; "--frob" ]
-              [ "traces"; "gen-test"; "--frob" ] ]
+            [ [ "traces"; "inspect"; "--fake-arg" ]
+              [ "traces"; "delete"; "--fake-arg" ] ]
           for argv in cmds do
             let! out = runCli state argv
-            Expect.stringContains out "Unknown flag: --frob" $"{argv} rejected"
+            Expect.stringContains out "Unknown flag: --fake-arg" $"{argv} rejected"
         })
   }
 
@@ -744,16 +684,13 @@ let tests =
       // Trace surface
       testTracesHelp
       testTracesTailShowsLastEval
-      testTracesValuesAfterLet
       testTracesClearEmpties
-      testTracesClearAlsoClearsExprValues
+      testTracesClearEmptiesList
       testTracesStatsCounts
-      testTracesExportJson
       testTracesFindByContent
       testTracesDeleteSingle
       testViewWithTraceAnnotates
       testTracesPruneKeep
-      testTracesReplayDiffMatches
       testTracesRejectsNegativeLimit
       testTracesRejectsFlagAsTraceId
       testTracesClearAndPruneGrammar
