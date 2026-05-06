@@ -15,6 +15,23 @@
     <InvariantGlobalization>true</InvariantGlobalization>
     <IlcOptimizationPreference>Size</IlcOptimizationPreference>
 
+    <!-- TODO (AOT, open): the AOT-published binary fails at first SQL call
+         with `DllNotFoundException: libe_sqlite3.so`. The native lib is
+         dropped beside the binary in the publish dir but isn't statically
+         linked, so the bare exe can't run on its own.
+         Two fix paths:
+           1. Sidecar — teach scripts/build/build-release-cli-exes.sh
+              (and scripts/build-and-install-cli-on-host) to copy
+              `libe_sqlite3.so` next to the binary on AOT builds.
+           2. Static-link via `<DirectPInvoke Include="e_sqlite3" />` plus
+              `<NativeLibrary Include="path/to/libe_sqlite3.a" />`. The
+              SQLitePCLRaw.lib.e_sqlite3 nuget only ships the .so, so this
+              path requires building (or sourcing) a static archive of
+              SQLite ourselves.
+         JIT release ships today; AOT is groundwork only until this is
+         resolved. -->
+
+
     <!-- Re-enable System.Text.Json reflection-based serialization at runtime.
          Default under AOT is "disabled", which throws InvalidOperationException
          when JsonSerializer.{De}serialize<T> is called for a non-source-generated
