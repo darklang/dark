@@ -365,15 +365,6 @@ module Type =
       let private p addl = p ("PackageOps" :: addl)
       let commit = p [] "Commit"
 
-  module Internal =
-    let private p addl = p ("Internal" :: addl)
-    module Canvas =
-      let private p addl = p ("Canvas" :: addl)
-      let program = p [] "Program"
-
-    module Infra =
-      let tableSize = p [ "Infra" ] "TableSize"
-
 
 module Fn =
   /// All fn refs registered by `p`. Used by PackageRefsGenerator.
