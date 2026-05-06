@@ -46,7 +46,5 @@ let builtins () : Builtins =
       Libs.AltJson.builtins ()
 
       Libs.Crypto.builtins ()
-      Libs.X509.builtins ()
-
-      Libs.Builtins.builtins () ]
+      Libs.X509.builtins () ]
     fnRenames

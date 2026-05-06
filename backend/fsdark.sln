@@ -50,6 +50,8 @@ Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.Cli", "src\Builtin
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.Time", "src\Builtins\Builtins.Time\Builtins.Time.fsproj", "{C8D5E6F1-3A9B-4C7E-A1B2-9F8E2D3C4A5B}"
 EndProject
+Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.Random", "src\Builtins\Builtins.Random\Builtins.Random.fsproj", "{B5A7C9D2-1E4F-4682-A8C9-3D5E7F8B9A0C}"
+EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.Language", "src\Builtins\Builtins.Language\Builtins.Language.fsproj", "{D9E6F7A2-4B0C-5D8F-B2C3-AF9F3E4D5B6C}"
 EndProject
 Project("{F2A71F9B-5D33-465A-A702-920D77279786}") = "Builtins.Http.Client", "src\Builtins\Builtins.Http.Client\Builtins.Http.Client.fsproj", "{E8FA0B3C-5D1E-6F9A-C3D4-B0AE4F5E6C7D}"

@@ -5,7 +5,7 @@ open LibExecution.RuntimeTypes
 
 open Microsoft.Data.Sqlite
 open Fumble
-open LibSqlite.Db
+open LibDB.Sqlite
 
 module RT = LibExecution.RuntimeTypes
 module BS = LibSerialization.Binary.Serialization

@@ -1,12 +1,9 @@
 module Darklang.SCM.Account
 
-// CLEANUP replace DARK_ACCOUNT env var with proper login
-/// Resolve the current user's account from the DARK_ACCOUNT env var.
-/// Returns (name, accountId option).
+/// Single-instance Dark: the committer/owner is always the built-in
+/// "Darklang" system account. No login flow, no env var. Account IDs
+/// will be removed entirely as the schema is unwound.
 let resolve () : (String * Stdlib.Option.Option<Uuid>) =
-  match Builtin.environmentGet "DARK_ACCOUNT" with
-  | Some name ->
-    match Builtin.userGetByName name with
-    | Some id -> (name, Stdlib.Option.Option.Some id)
-    | None -> (name, Stdlib.Option.Option.None)
-  | None -> ("", Stdlib.Option.Option.None)
+  let parsed = Builtin.uuidParse "00000000-0000-0000-0000-000000000001"
+  let darklangAccountId = Builtin.unwrap parsed
+  ("Darklang", Stdlib.Option.Option.Some darklangAccountId)

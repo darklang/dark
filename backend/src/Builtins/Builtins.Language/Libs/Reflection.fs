@@ -4,8 +4,58 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
+module PackageRefs = LibExecution.PackageRefs
+module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+module NR = LibExecution.RuntimeTypes.NameResolution
+
+
+/// Converters from F# builtin types to Dark types for `getBuiltins`
+/// to expose a structured listing of the runtime's builtin surface.
+module ToDarkTypes =
+  module Purity =
+    let typeName () = FQTypeName.fqPackage (PackageRefs.Type.Builtins.purity ())
+
+    let toDT (p : Previewable) : Dval =
+      let typeName = typeName ()
+      let caseName =
+        match p with
+        | Pure -> "Pure"
+        | ImpurePreviewable -> "ImpurePreviewable"
+        | Impure -> "Impure"
+      DEnum(typeName, typeName, [], caseName, [])
+
+  module ParamInfo =
+    let typeName () = FQTypeName.fqPackage (PackageRefs.Type.Builtins.paramInfo ())
+
+    let toDT (param : BuiltInParam) : Dval =
+      let typeName = typeName ()
+      let fields =
+        [ ("name", DString param.name)
+          ("typ", RT2DT.TypeReference.toDT param.typ)
+          ("description", DString param.description) ]
+        |> Map.ofList
+      DRecord(typeName, typeName, [], fields)
+
+  module FunctionInfo =
+    let typeName () =
+      FQTypeName.fqPackage (PackageRefs.Type.Builtins.functionInfo ())
+
+    let toDT (fn : BuiltInFn) : Dval =
+      let typeName = typeName ()
+      let params' =
+        fn.parameters
+        |> List.map ParamInfo.toDT
+        |> Dval.list (KTCustomType(ParamInfo.typeName (), []))
+      let fields =
+        [ ("name", DString fn.name.name)
+          ("version", DInt64(int64 fn.name.version))
+          ("parameters", params')
+          ("returnType", RT2DT.TypeReference.toDT fn.returnType)
+          ("description", DString fn.description)
+          ("purity", Purity.toDT fn.previewable) ]
+        |> Map.ofList
+      DRecord(typeName, typeName, [], fields)
 
 
 let fns () : List<BuiltInFn> =
@@ -18,7 +68,7 @@ let fns () : List<BuiltInFn> =
             resolved =
               Ok(
                 FQTypeName.fqPackage (
-                  LibExecution.PackageRefs.Type.LanguageTools.RuntimeTypes.dval ()
+                  PackageRefs.Type.LanguageTools.RuntimeTypes.dval ()
                 )
               ) },
           []
@@ -26,11 +76,46 @@ let fns () : List<BuiltInFn> =
       description = "Returns a meta representation of the real underlying dval"
       fn =
         function
-        | _, _, _, [ dv ] ->
-          dv |> LibExecution.RuntimeTypesToDarkTypes.Dval.toDT |> Ply
+        | _, _, _, [ dv ] -> dv |> RT2DT.Dval.toDT |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Pure
+      deprecated = NotDeprecated
+      accessibility = Any }
+
+
+    { name = fn "getBuiltins" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType =
+        TList(TCustomType(NR.ok (ToDarkTypes.FunctionInfo.typeName ()), []))
+      description = "Returns a list of all builtin functions with their metadata"
+      fn =
+        (function
+        | exeState, _, [], [ DUnit ] ->
+          uply {
+            let fns =
+              exeState.fns.builtIn
+              |> Map.values
+              |> List.filter (fun fn ->
+                match fn.deprecated with
+                | NotDeprecated -> true
+                | _ -> false)
+              |> List.sortBy (fun fn -> fn.name.name)
+
+            let builtins =
+              fns
+              |> List.map ToDarkTypes.FunctionInfo.toDT
+              |> Dval.list (KTCustomType(ToDarkTypes.FunctionInfo.typeName (), []))
+
+            return builtins
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      // Marked Impure: the result reflects the runtime's loaded builtin
+      // set, which can change across processes (e.g. plugin/feature
+      // toggling). Don't memoize.
+      previewable = Impure
       deprecated = NotDeprecated
       accessibility = Any } ]
 

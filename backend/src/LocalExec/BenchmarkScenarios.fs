@@ -80,7 +80,7 @@ let freshState () : RT.ExecutionState =
     (fun _ _ _ _ -> uply { return () })
     (fun _ _ _ _ -> uply { return () })
     LibExecution.ProgramTypes.mainBranchId
-    { accountID = System.Guid.Empty; dbs = Map.empty }
+    { scopeID = System.Guid.Empty; dbs = Map.empty }
 
 
 // ─── Scenarios ───────────────────────────────────────────────────

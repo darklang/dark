@@ -26,7 +26,7 @@ let toRepr (dval : RT.Dval) : string =
       (fun _ _ _ _ -> uply { return () })
       (fun _ _ _ _ -> uply { return () })
       PT.mainBranchId
-      { accountID = System.Guid.Empty; dbs = Map.empty }
+      { scopeID = System.Guid.Empty; dbs = Map.empty }
   (Exe.dvalToRepr state dval).Result
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
 module DvalReprInternalHash = LibExecution.DvalReprInternalHash
@@ -138,9 +138,6 @@ module ToHashableRepr =
         Expect.equal actual expected "bad fsharp impl"
       }
 
-    // Hash values shifted with the FormatV0 hand-roll wire format change
-    // (each Dval is now `[tag, ...args]`). Trace caches keyed on the prior
-    // hashes are local-only; lose-and-regrow is the migration story.
     testList
       "hashv2"
       [ t (NEList.singleton (DList(VT.uint8, []))) "4JMFo5Ha4pA"
@@ -180,9 +177,8 @@ let testInternalRoundtrippableNew =
   testList
     "internalNew"
     [ test "tuples serialize correctly" {
-        // FormatV0 hand-roll wire format: each Dval is `[tag, ...args]`
-        // (or just `"tag"` for nullary cases). Wire format intentionally
-        // simpler than the prior FSharp.SystemTextJson ExternalTag output.
+        // Wire format: each Dval is `[tag, ...args]`, or just `"tag"` for
+        // nullary cases.
         let expected =
           """["DTuple",["DInt64","1"],["DInt64","2"],[["DInt64","3"]]]"""
 

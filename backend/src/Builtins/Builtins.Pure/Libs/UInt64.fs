@@ -220,36 +220,6 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "uint64Random" 0
-      typeParams = []
-      parameters = [ Param.make "start" TUInt64 ""; Param.make "end" TUInt64 "" ]
-      returnType = TUInt64
-      description =
-        "Returns a random integer between <param start> and <param end> (inclusive)"
-      fn =
-        (function
-        | _, _, _, [ DUInt64 a; DUInt64 b ] ->
-          let lower, upper = if a > b then (b, a) else (a, b)
-
-          // .NET's "nextUInt64" is exclusive,
-          // but we'd rather an inclusive version of this function
-          let correction : int = 1
-
-          let lowerBound = max lower 0UL
-          let upperBound = min upper (uint64 System.UInt64.MaxValue)
-          let uint64Range = int upperBound - int lowerBound + correction
-
-          let resultInt = randomSeeded().Next(uint64Range)
-
-          let uint64Result = lowerBound + (uint64 resultInt)
-
-          Ply(DUInt64(uint64Result))
-
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
 
 
     { name = fn "uint64Sqrt" 0

@@ -29,21 +29,15 @@ module Toplevels = LibCloud.Toplevels
 module Tracing = LibDB.Tracing
 
 
-// Load app ID and DBs for an account
-let loadAppAndDBs
-  (accountID : Option<System.Guid>)
-  : Ply<Option<uuid> * Map<string, RT.DB.T>> =
+/// Load DBs for the given scope.
+let loadDBs (scopeID : Option<System.Guid>) : Ply<Map<string, RT.DB.T>> =
   uply {
-    match accountID with
-    | None -> return (None, Map.empty)
-    | Some accID ->
-      let! apps = Toplevels.getAppsForAccount accID
-      match apps with
-      | appID :: _ ->
-        let! app = Toplevels.loadAllDBs appID
-        let! program = Toplevels.toProgram app
-        return (Some appID, program.dbs)
-      | [] -> return (None, Map.empty)
+    match scopeID with
+    | None -> return Map.empty
+    | Some sid ->
+      let! tls = Toplevels.loadAllDBs sid
+      let! program = Toplevels.toProgram tls
+      return program.dbs
   }
 
 
@@ -146,6 +140,7 @@ let builtinsToUse () : RT.Builtins =
       Builtins.Language.Builtin.builtins ()
       Builtins.Cli.Builtin.builtins ()
       Builtins.Time.Builtin.builtins ()
+      Builtins.Random.Builtin.builtins ()
       Builtins.Matter.Builtin.builtins ptPM
       Builtins.Http.Server.Builtin.builtins ()
       // Local fns (cliEvaluateExpression, cliParseAndExecuteScript)
@@ -159,14 +154,14 @@ let execute
   (branchId : System.Guid)
   (mod' : Utils.CliScript.PTCliScriptModule)
   (_args : List<Dval>) // CLEANUP update to List<String>, and extract in builtin
-  (appID : Option<uuid>)
+  (scopeID : Option<uuid>)
   (dbs : Map<string, RT.DB.T>)
   (traceSource : CliTraceSource)
   : Ply<RT.ExecutionResult> =
   uply {
-    let resolvedAppID = appID |> Option.defaultValue (System.Guid.NewGuid())
+    let resolvedScopeID = scopeID |> Option.defaultValue (System.Guid.NewGuid())
 
-    let (program : Program) = { accountID = System.Guid.Empty; dbs = dbs }
+    let (program : Program) = { scopeID = System.Guid.Empty; dbs = dbs }
 
     let builtins = builtinsToUse ()
 
@@ -193,7 +188,7 @@ let execute
     let (traceDesc, inputName, inputValue) = CliTraceSource.toTraceParams traceSource
     let traceID = AT.TraceID.create ()
     let tracer =
-      Tracing.createCliTracer resolvedAppID traceID traceDesc inputName inputValue
+      Tracing.createCliTracer resolvedScopeID traceID traceDesc inputName inputValue
 
     let state =
       Exe.createState
@@ -240,7 +235,7 @@ let createBranchState
   (branchId : System.Guid)
   (allowHarmful : bool)
   =
-  let program : Program = { accountID = System.Guid.Empty; dbs = Map.empty }
+  let program : Program = { scopeID = System.Guid.Empty; dbs = Map.empty }
   let state =
     Exe.createState
       (builtinsToUse ())
@@ -257,7 +252,7 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "cliParseAndExecuteScript" 0
       typeParams = []
       parameters =
-        [ Param.make "accountID" (TypeReference.option TUuid) ""
+        [ Param.make "scopeID" (TypeReference.option TUuid) ""
           Param.make "branchId" TUuid ""
           Param.make "filename" TString ""
           Param.make "code" TString ""
@@ -284,14 +279,14 @@ let fns () : List<BuiltInFn> =
             DList(_vtTODO, scriptArgs)
             DBool allowHarmful ] ->
           uply {
-            let accountID = C2DT.Option.fromDT D.uuid accountIDDval
+            let scopeID = C2DT.Option.fromDT D.uuid accountIDDval
             // Use branch-specific state for parsing so name resolution uses the right branch
             let branchState = createBranchState exeState branchId allowHarmful
             let! parsedScript =
               parseCliScript branchState branchId "CliScript" filename code
 
             try
-              let! (appID, dbs) = loadAppAndDBs accountID
+              let! dbs = loadDBs scopeID
 
               match parsedScript with
               | Ok mod' ->
@@ -301,7 +296,7 @@ let fns () : List<BuiltInFn> =
                     branchId
                     mod'
                     scriptArgs
-                    appID
+                    scopeID
                     dbs
                     (RunScript(filename, code))
                 with
@@ -330,7 +325,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "cliEvaluateExpression" 0
       typeParams = []
       parameters =
-        [ Param.make "accountID" (TypeReference.option TUuid) ""
+        [ Param.make "scopeID" (TypeReference.option TUuid) ""
           Param.make "branchId" TUuid ""
           Param.make "expression" TString ""
           Param.make
@@ -349,7 +344,7 @@ let fns () : List<BuiltInFn> =
           [],
           [ accountIDDval; DUuid branchId; DString expression; DBool allowHarmful ] ->
           uply {
-            let accountID = C2DT.Option.fromDT D.uuid accountIDDval
+            let scopeID = C2DT.Option.fromDT D.uuid accountIDDval
             // Use branch-specific state for parsing so name resolution uses the right branch
             let branchState = createBranchState exeState branchId allowHarmful
             let! parsedScript =
@@ -361,7 +356,7 @@ let fns () : List<BuiltInFn> =
                 expression
 
             try
-              let! (appID, dbs) = loadAppAndDBs accountID
+              let! dbs = loadDBs scopeID
 
               match parsedScript with
               | Ok mod' ->
@@ -371,7 +366,7 @@ let fns () : List<BuiltInFn> =
                     branchId
                     mod'
                     []
-                    appID
+                    scopeID
                     dbs
                     (EvalExpression expression)
                 with

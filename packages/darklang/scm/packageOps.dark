@@ -7,8 +7,6 @@ type Commit =
     message: String
     createdAt: DateTime
     opCount: Int64
-    committerId: Uuid
-    committerName: String
     branchId: Uuid
     branchName: String }
 
@@ -79,11 +77,10 @@ let getWipItems (branchId: Uuid) : List<Dict<String>> =
 /// Commit all WIP ops on a branch with the given message
 /// Returns the commit hash on success, or an error message on failure
 let commit
-  (accountId: Uuid)
   (branchId: Uuid)
   (message: String)
   : Stdlib.Result.Result<String, String> =
-  Builtin.scmCommit accountId branchId message
+  Builtin.scmCommit branchId message
 
 
 /// Discard all WIP ops on a branch

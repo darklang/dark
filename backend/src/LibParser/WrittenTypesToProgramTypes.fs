@@ -990,7 +990,6 @@ module Handler =
   module Spec =
     let toPT (s : WT.Handler.Spec) : PT.Handler.Spec =
       match s with
-      | WT.Handler.HTTP(route, method) -> PT.Handler.HTTP(route, method)
       | WT.Handler.Worker name -> PT.Handler.Worker name
       | WT.Handler.Cron(name, interval) ->
         PT.Handler.Cron(name, CronInterval.toPT interval)

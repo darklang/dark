@@ -40,29 +40,24 @@ module Handler =
 
     let toName (s : PT.Handler.Spec) =
       match s with
-      | PT.Handler.HTTP(route, _method) -> route
       | PT.Handler.Worker name -> name
       | PT.Handler.Cron(name, _interval) -> name
       | PT.Handler.REPL name -> name
 
     let toModifier (s : PT.Handler.Spec) =
       match s with
-      | PT.Handler.HTTP(_route, method) -> method
       | PT.Handler.Worker _name -> "_"
       | PT.Handler.Cron(_name, interval) -> CronInterval.toString interval
       | PT.Handler.REPL _name -> "_"
 
     let toModule (s : PT.Handler.Spec) =
       match s with
-      | PT.Handler.HTTP _ -> "HTTP"
       | PT.Handler.Worker _ -> "WORKER" // CLEANUP the DB relies on the casing
       | PT.Handler.Cron _ -> "CRON" // CLEANUP the DB relies on the casing
       | PT.Handler.REPL _ -> "REPL"
 
     let isComplete (s : PT.Handler.Spec) : bool =
       match s with
-      | PT.Handler.HTTP("", _) -> false
-      | PT.Handler.HTTP(_, "") -> false
       | PT.Handler.Worker "" -> false
       | PT.Handler.Cron("", _) -> false
       | PT.Handler.REPL "" -> false

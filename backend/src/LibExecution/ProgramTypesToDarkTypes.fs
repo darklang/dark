@@ -1746,8 +1746,6 @@ module Handler =
     let toDT (s : PT.Handler.Spec) : Dval =
       let (caseName, fields) =
         match s with
-        | PT.Handler.Spec.HTTP(route, method) ->
-          "HTTP", [ DString route; DString method ]
         | PT.Handler.Spec.Worker name -> "Worker", [ DString name ]
         | PT.Handler.Spec.Cron(name, interval) ->
           "Cron", [ DString name; CronInterval.toDT interval ]
@@ -1757,8 +1755,6 @@ module Handler =
 
     let fromDT (d : Dval) : PT.Handler.Spec =
       match d with
-      | DEnum(_, _, [], "HTTP", [ DString route; DString method ]) ->
-        PT.Handler.Spec.HTTP(route, method)
       | DEnum(_, _, [], "Worker", [ DString name ]) -> PT.Handler.Spec.Worker(name)
       | DEnum(_, _, [], "Cron", [ DString name; interval ]) ->
         PT.Handler.Spec.Cron(name, CronInterval.fromDT interval)
@@ -1856,8 +1852,6 @@ module Commit =
         "message", DString c.message
         "createdAt", DDateTime(DarkDateTime.fromInstant c.createdAt)
         "opCount", DInt64 c.opCount
-        "committerId", DUuid c.committerId
-        "committerName", DString c.committerName
         "branchId", DUuid c.branchId
         "branchName", DString c.branchName ]
       |> Map.ofList

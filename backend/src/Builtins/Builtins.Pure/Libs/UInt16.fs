@@ -258,35 +258,6 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "uint16Random" 0
-      typeParams = []
-      parameters = [ Param.make "start" TUInt16 ""; Param.make "end" TUInt16 "" ]
-      returnType = TUInt16
-      description =
-        "Returns a random integer16 between <param start> and <param end> (inclusive)"
-      fn =
-        (function
-        | _, _, _, [ DUInt16 a; DUInt16 b ] ->
-          let lower, upper = if a > b then (b, a) else (a, b)
-
-          let lowerBound = max lower 0us
-          let upperBound = min upper 65535us
-          let correctRange = 1
-
-          let uint16Range = int upperBound - int lowerBound + correctRange
-
-          let resultInt = randomSeeded().Next(uint16Range)
-
-          let uint16Result = lowerBound + (uint16 resultInt)
-          Ply(DUInt16(uint16Result))
-
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
-
-
     { name = fn "uint16Sqrt" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt16 "" ]

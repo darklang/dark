@@ -28,7 +28,7 @@ let private buildState () : Task<RT.ExecutionState> =
     let pmPTValue = pmPT
     let builtins = Builtins.CliHost.Libs.Cli.builtinsToUse ()
     let pmRT = PT2RT.PackageManager.toRT builtins.values pmPTValue
-    let program : RT.Program = { accountID = System.Guid.Empty; dbs = Map.empty }
+    let program : RT.Program = { scopeID = System.Guid.Empty; dbs = Map.empty }
 
     let notify
       (_state : RT.ExecutionState)
@@ -155,46 +155,39 @@ let private testStatusCommand =
         })
   }
 
-let private testRunBoolAnd =
-  testTask "run Bool.and" {
-    do!
-      withState (fun state ->
-        task {
-          let! output = runCli state [ "run"; "@Stdlib.Bool.and true false" ]
-          Expect.equal output "false" "Bool.and result"
-        })
-  }
+/// Parameterised "given <args>, expect stdout = <expected>" — covers
+/// the bulk of `run` / `eval` smoke tests without re-typing the
+/// withState/runCli boilerplate per case.
+let private testCliEquals
+  (suiteName : string)
+  (cases : List<string * List<string> * string>)
+  : Test =
+  testList
+    suiteName
+    (cases
+     |> List.map (fun (label, args, expected) ->
+       testTask label {
+         do!
+           withState (fun state ->
+             task {
+               let! output = runCli state args
+               Expect.equal output expected label
+             })
+       }))
 
-let private testRunInt64Add =
-  testTask "run Int64.add" {
-    do!
-      withState (fun state ->
-        task {
-          let! output = runCli state [ "run"; "@Stdlib.Int64.add 5L 3L" ]
-          Expect.equal output "8" "Int64.add result"
-        })
-  }
+let private testRunCases =
+  testCliEquals
+    "run smoke"
+    [ "Bool.and", [ "run"; "@Stdlib.Bool.and true false" ], "false"
+      "Int64.add", [ "run"; "@Stdlib.Int64.add 5L 3L" ], "8" ]
 
-let private testEvalStringLength =
-  testTask "eval String.length" {
-    do!
-      withState (fun state ->
-        task {
-          let! output = runCli state [ "eval"; "Stdlib.String.length \"hello\"" ]
-          Expect.equal output "5" "String.length result"
-        })
-  }
-
-let private testEvalListLength =
-  testTask "eval List.length" {
-    do!
-      withState (fun state ->
-        task {
-          let! output =
-            runCli state [ "eval"; "[1L; 2L; 3L] |> Stdlib.List.length" ]
-          Expect.equal output "3" "List.length result"
-        })
-  }
+let private testEvalCases =
+  testCliEquals
+    "eval smoke"
+    [ "String.length", [ "eval"; "Stdlib.String.length \"hello\"" ], "5"
+      "List.length", [ "eval"; "[1L; 2L; 3L] |> Stdlib.List.length" ], "3"
+      "simple expr", [ "eval"; "2L + 3L" ], "5"
+      "string concat", [ "eval"; "\"hello\" ++ \"world\"" ], "helloworld" ]
 
 let private testListFunctions =
   testTask "ls Stdlib.List" {
@@ -255,27 +248,6 @@ let private testHelpForLs =
             "ls description"
         })
   }
-
-let private testEvalSimpleExpression =
-  testTask "eval simple expression" {
-    do!
-      withState (fun state ->
-        task {
-          let! output = runCli state [ "eval"; "2L + 3L" ]
-          Expect.equal output "5" "2L + 3L result"
-        })
-  }
-
-let private testEvalStringExpression =
-  testTask "eval string concat" {
-    do!
-      withState (fun state ->
-        task {
-          let! output = runCli state [ "eval"; "\"hello\" ++ \"world\"" ]
-          Expect.equal output "helloworld" "string concat result"
-        })
-  }
-
 
 // ─── Trace surface tests ──────────────────────────────────────────────────
 
@@ -747,25 +719,28 @@ let private testTracesRejectsFlagAsTraceId =
 // Tests use `Console.SetOut` to capture stdout in-process. Console.Out is
 // process-global, so running these in parallel would let captures bleed
 // across tests. `testSequenced` forces Expecto to run them one at a time.
+//
+// Re-enable detailed tracing for this suite — Tests.fs defaults to
+// `Off` so the rest of the test run doesn't waste cycles writing trace
+// rows we never inspect.
 let tests =
   testSequenced
   <| testList
     "CliTraces"
-    [ // Base CLI commands
+    [ test "set trace detail" {
+        LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Detailed
+      }
+      // Base CLI commands
       testHelpCommand
       testVersionCommand
       testStatusCommand
-      testRunBoolAnd
-      testRunInt64Add
-      testEvalStringLength
-      testEvalListLength
+      testRunCases
+      testEvalCases
       testListFunctions
       testViewFunction
       testListTypes
       testHelpForRun
       testHelpForLs
-      testEvalSimpleExpression
-      testEvalStringExpression
       // Trace surface
       testTracesHelp
       testTracesTailShowsLastEval

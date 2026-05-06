@@ -11,6 +11,7 @@
     <ProjectReference Include="../../src/Builtins/Builtins.Language/Builtins.Language.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.Cli/Builtins.Cli.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.Time/Builtins.Time.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Random/Builtins.Random.fsproj" />
     <ProjectReference Include="../../src/LibDB/LibDB.fsproj" />
     <ProjectReference Include="../../src/LibCloud/LibCloud.fsproj" />
     <ProjectReference Include="../../src/Builtins/Builtins.Http.Server/Builtins.Http.Server.fsproj" />

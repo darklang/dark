@@ -5,6 +5,14 @@
 /// lookup) live under `Darklang.Tracing.*` so non-CLI consumers can
 /// reuse them. This file only holds the CLI dispatch + per-command
 /// `executeX` functions.
+///
+/// TODO: split this file. ~1600 lines, 25 `executeX` functions. Natural
+/// groupings: list/find/stats (discovery), view/inspect/values/export
+/// (per-trace), tail/follow (live), hotspots (analysis), clear/delete/
+/// prune (bulk ops). Each group could move to `traces/<group>.dark`.
+/// Held off because the executeX fns share a layer of helpers
+/// (`ViewOptions`, `resolveTraceID`, `parseViewOptions`, render utilities)
+/// that would need to land in a `traces/shared.dark` first.
 module Darklang.Cli.Commands.Traces
 
 

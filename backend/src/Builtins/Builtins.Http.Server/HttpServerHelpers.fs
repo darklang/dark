@@ -2,9 +2,9 @@
 /// pipeline — body reading, header extraction, URL canonicalization,
 /// header injection, request logging.
 ///
-/// Pulled out of `Libs/HttpServer.fs` so the listener-loop and
-/// per-request handler can each focus on their own concern.
-module Builtins.Http.Server.Libs.HttpServerHelpers
+/// Sits alongside `Http.fs` rather than under `Libs/`: doesn't expose
+/// builtins, so it lives outside the builtin-defining directory.
+module Builtins.Http.Server.HttpServerHelpers
 
 open System.IO
 open System.Net

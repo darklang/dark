@@ -1,5 +1,4 @@
 /// Persistence + state surface — UserDB, package manager, traces.
-/// Merge of the former Builtins.{DB, PM, Tracing} projects.
 module Builtins.Matter.Builtin
 
 open Prelude

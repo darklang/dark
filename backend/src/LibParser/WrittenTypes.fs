@@ -281,7 +281,6 @@ module Handler =
     | EveryMinute
 
   type Spec =
-    | HTTP of route : string * method : string
     | Worker of name : string
     | Cron of name : string * interval : CronInterval
     | REPL of name : string

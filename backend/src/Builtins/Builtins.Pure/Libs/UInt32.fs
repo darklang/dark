@@ -255,35 +255,6 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "uint32Random" 0
-      typeParams = []
-      parameters = [ Param.make "start" TUInt32 ""; Param.make "end" TUInt32 "" ]
-      returnType = TUInt32
-      description =
-        "Returns a random integer32 between <param start> and <param end> (inclusive)"
-      fn =
-        (function
-        | _, _, _, [ DUInt32 a; DUInt32 b ] ->
-          let lower, upper = if a > b then (b, a) else (a, b)
-
-          let lowerBound = max lower 0ul
-          let upperBound = min upper 4294967295ul
-          let correctRange = 1
-
-          let uint32Range = int upperBound - int lowerBound + correctRange
-
-          let resultInt = randomSeeded().Next(uint32Range)
-
-          let uint32Result = lowerBound + (uint32 resultInt)
-          Ply(DUInt32(uint32Result))
-
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
-
-
     { name = fn "uint32Sqrt" 0
       typeParams = []
       parameters = [ Param.make "a" TUInt32 "" ]

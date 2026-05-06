@@ -48,8 +48,8 @@ let t
         pmPT
       else
         pmPT |> PT.PackageManager.withExtras extraTypes extraValues extraFns
-    let accountID = System.Guid.NewGuid()
-    let! parseExeState = executionStateFor basePM accountID false Map.empty
+    let scopeID = System.Guid.NewGuid()
+    let! parseExeState = executionStateFor basePM scopeID false Map.empty
 
     let args = NEList.singleton (RT.DString input)
     let! parseResult =
@@ -69,7 +69,7 @@ let t
 
       // Second phase: enhance PM with PackageOps and pretty print
       let enhancedPM = LibDB.PackageManager.withExtraOps basePM packageOps
-      let! ppExeState = executionStateFor enhancedPM accountID false Map.empty
+      let! ppExeState = executionStateFor enhancedPM scopeID false Map.empty
 
       let ppArgs = NEList.ofList (RT.DUuid PT.mainBranchId) [ sourceFile ]
       let! ppResult =

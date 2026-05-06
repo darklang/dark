@@ -1,13 +1,10 @@
 module LibCloud.Toplevels
 
-// Functions related to apps (formerly canvases). Renamed from
-// LibCloud.Canvas; surface API is the same.
-
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 open Microsoft.Data.Sqlite
 open Fumble
-open LibSqlite.Db
+open LibDB.Sqlite
 
 open Prelude
 
@@ -18,23 +15,8 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
-// The "App" concept is being dismantled (per post-review user direction:
-// "I want to fully remove the App/Canvas concept ... only thing we might
-// 'bind' something to is the Account"). For now, keep these entry points
-// as identity functions over the account ID — that's the scope key the
-// rest of the system needs (user_data, traces, etc) and there's no real
-// app indirection to maintain. The `apps_v0` table is gone; nothing
-// reads from it. A future commit can rename `account_id` columns →
-// `account_id` and drop the accountID plumbing entirely.
-
-let create (accountID : Option<UserID>) : Task<uuid> =
-  task { return accountID |> Option.defaultValue (System.Guid.NewGuid()) }
-
-let getAppsForAccount (accountID : UserID) : Task<List<uuid>> =
-  task { return [ accountID ] }
-
-let getOrCreateForAccount (accountID : UserID) : Task<uuid> =
-  task { return accountID }
+let create (scopeID : Option<AccountID>) : Task<uuid> =
+  task { return scopeID |> Option.defaultValue (System.Guid.NewGuid()) }
 
 /// <summary>
 /// Canvas data - contains metadata along with basic handlers, DBs, etc.
@@ -118,13 +100,13 @@ let loadAllDBs (id : uuid) : Task<T> =
   }
 
 
-let deleteToplevelForever (accountID : uuid) (tlid : tlid) : Task<unit> =
+let deleteToplevelForever (scopeID : uuid) (tlid : tlid) : Task<unit> =
   // CLEANUP: set deleted column in toplevels_v0 to be not nullable
   Sql.query
     "DELETE from toplevels_v0
-      WHERE account_id = @accountID
+      WHERE scope_id = @scopeID
         AND tlid = @tlid"
-  |> Sql.parameters [ "accountID", Sql.uuid accountID; "tlid", Sql.id tlid ]
+  |> Sql.parameters [ "scopeID", Sql.uuid scopeID; "tlid", Sql.id tlid ]
   |> Sql.executeStatementAsync
 
 let toplevelToDBTypeString (tl : PT.Toplevel.T) : string =
@@ -153,21 +135,11 @@ let saveTLIDs
         let routingNames =
           match tl with
           | PT.Toplevel.TLHandler({ spec = spec }) ->
-            match spec with
-            | PT.Handler.HTTP _ ->
-              Some(
-                PTParser.Handler.Spec.toModule spec,
-                Routing.routeToPostgresPattern (PTParser.Handler.Spec.toName spec),
-                PTParser.Handler.Spec.toModifier spec
-              )
-            | PT.Handler.Worker _
-            | PT.Handler.Cron _
-            | PT.Handler.REPL _ ->
-              Some(
-                PTParser.Handler.Spec.toModule spec,
-                PTParser.Handler.Spec.toName spec,
-                PTParser.Handler.Spec.toModifier spec
-              )
+            Some(
+              PTParser.Handler.Spec.toModule spec,
+              PTParser.Handler.Spec.toName spec,
+              PTParser.Handler.Spec.toModifier spec
+            )
           | PT.Toplevel.TLDB db -> Some("", db.name, "")
 
         let (module_, name, modifier) =
@@ -190,12 +162,12 @@ let saveTLIDs
         return!
           Sql.query
             "INSERT INTO toplevels_v0
-              (account_id, tlid, digest, tipe, name,
+              (scope_id, tlid, digest, tipe, name,
                module, modifier, deleted, data, updated_at)
             VALUES
-              (@accountID, @tlid, @digest, @typ, @name,
+              (@scopeID, @tlid, @digest, @typ, @name,
                @module, @modifier, @deleted, @data, datetime('now'))
-            ON CONFLICT (account_id, tlid)
+            ON CONFLICT (scope_id, tlid)
               DO UPDATE SET
                 digest = @digest,
                 tipe = @typ,
@@ -206,7 +178,7 @@ let saveTLIDs
                 data = @data,
                 updated_at = datetime('now')"
           |> Sql.parameters
-            [ "accountID", Sql.uuid id
+            [ "scopeID", Sql.uuid id
               "tlid", Sql.tlid tlid
               "digest", Sql.string "fsharp"
               "typ", Sql.string (toplevelToDBTypeString tl)
@@ -218,7 +190,7 @@ let saveTLIDs
           |> Sql.executeStatementAsync
       })
   with e ->
-    Exception.reraiseAsPageable "toplevel save failed" [ "accountID", id ] e
+    Exception.reraiseAsPageable "toplevel save failed" [ "scopeID", id ] e
 
 
 let toProgram (c : T) : Ply<RT.Program> =
@@ -229,5 +201,5 @@ let toProgram (c : T) : Ply<RT.Program> =
       |> List.map (fun db -> (db.name, PT2RT.DB.toRT db))
       |> Map.ofList
 
-    return { accountID = System.Guid.Empty; dbs = dbs }
+    return { scopeID = System.Guid.Empty; dbs = dbs }
   }

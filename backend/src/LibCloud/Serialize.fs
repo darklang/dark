@@ -9,7 +9,7 @@ open System.Threading.Tasks
 open Microsoft.Data.Sqlite
 open Fumble
 
-open LibSqlite.Db
+open LibDB.Sqlite
 
 open Prelude
 
@@ -31,7 +31,7 @@ type Deleted =
   | NotDeleted
 
 let loadToplevels
-  (accountID : uuid)
+  (scopeID : uuid)
   (tlids : List<tlid>)
   : Task<List<Deleted * PT.Toplevel.T>> =
   task {
@@ -49,7 +49,7 @@ let loadToplevels
         let query =
           $"SELECT tlid, data, deleted
            FROM toplevels_v0
-           WHERE account_id = @accountID
+           WHERE scope_id = @scopeID
              AND tlid IN ({tlidPlaceholders})
              AND (
                tipe = 'db'
@@ -57,7 +57,7 @@ let loadToplevels
              )"
 
         Sql.query query
-        |> Sql.parameters (("accountID", Sql.uuid accountID) :: tlidParams)
+        |> Sql.parameters (("scopeID", Sql.uuid scopeID) :: tlidParams)
         |> Sql.executeAsync (fun read ->
           (read.tlid "tlid", read.bytes "data", read.bool "deleted"))
 
@@ -69,11 +69,11 @@ let loadToplevels
   }
 
 
-let fetchTLIDsForAllDBs (accountID : uuid) : Task<List<tlid>> =
+let fetchTLIDsForAllDBs (scopeID : uuid) : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
-    WHERE account_id = @accountID
+    WHERE scope_id = @scopeID
       AND tipe = 'db'
       AND deleted = 0"
-  |> Sql.parameters [ "accountID", Sql.uuid accountID ]
+  |> Sql.parameters [ "scopeID", Sql.uuid scopeID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")

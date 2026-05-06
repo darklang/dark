@@ -18,6 +18,7 @@ let all () : RT.Builtins =
       Builtins.Language.Builtin.builtins ()
       Builtins.Cli.Builtin.builtins ()
       Builtins.Time.Builtin.builtins ()
+      Builtins.Random.Builtin.builtins ()
       Builtins.Matter.Builtin.builtins ptPM
       Builtins.CliHost.Builtin.builtins ()
       Builtins.Http.Server.Builtin.builtins ()

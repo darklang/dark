@@ -8,7 +8,6 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="Utils.fs" />
-    <Compile Include="Libs/Account.fs" />
     <Compile Include="Libs/Cli.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>
@@ -20,6 +19,7 @@
     <ProjectReference Include="../Builtins.Language/Builtins.Language.fsproj" />
     <ProjectReference Include="../Builtins.Cli/Builtins.Cli.fsproj" />
     <ProjectReference Include="../Builtins.Time/Builtins.Time.fsproj" />
+    <ProjectReference Include="../Builtins.Random/Builtins.Random.fsproj" />
     <ProjectReference Include="../Builtins.Http.Server/Builtins.Http.Server.fsproj" />
     <ProjectReference Include="../Builtins.Matter/Builtins.Matter.fsproj" />
     <ProjectReference Include="../../LibDB/LibDB.fsproj" />

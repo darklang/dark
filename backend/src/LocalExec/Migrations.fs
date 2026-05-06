@@ -10,7 +10,7 @@ module LocalExec.Migrations
 open System.IO
 open Microsoft.Data.Sqlite
 open Fumble
-open LibSqlite.Db
+open LibDB.Sqlite
 module File = LibCloud.File
 module Config = LibCloud.Config
 

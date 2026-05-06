@@ -299,31 +299,6 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "int64Random" 0
-      typeParams = []
-      parameters = [ Param.make "start" TInt64 ""; Param.make "end" TInt64 "" ]
-      returnType = TInt64
-      description =
-        "Returns a random integer between <param start> and <param end> (inclusive)"
-      fn =
-        (function
-        | _, _, _, [ DInt64 a; DInt64 b ] ->
-          let lower, upper = if a > b then (b, a) else (a, b)
-
-          // .NET's "nextInt64" is exclusive,
-          // but we'd rather an inclusive version of this function
-          let correction : int64 = 1
-
-          lower + randomSeeded().NextInt64(upper - lower + correction)
-          |> DInt64
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
-
-
     { name = fn "int64Sqrt" 0
       typeParams = []
       parameters = [ Param.make "a" TInt64 "" ]

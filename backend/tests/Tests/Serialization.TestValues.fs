@@ -685,16 +685,13 @@ module ProgramTypes =
         Handler.EveryMinute ]
 
     module Spec =
-      let http = Handler.HTTP("/path-bytes", "GET")
       let worker = Handler.Worker("name")
 
       let cron = Handler.Cron("name", Handler.Every12Hours)
 
       let repl = Handler.REPL("name")
 
-    let specs : List<Handler.Spec> = [ Spec.http; Spec.worker; Spec.cron; Spec.repl ]
-
-    let http : Handler.T = { spec = Spec.http; tlid = tlid; ast = expr }
+    let specs : List<Handler.Spec> = [ Spec.worker; Spec.cron; Spec.repl ]
 
     let worker : Handler.T = { spec = Spec.worker; tlid = tlid; ast = expr }
 
@@ -703,7 +700,7 @@ module ProgramTypes =
     let cron : Handler.T = { spec = Spec.cron; tlid = tlid; ast = expr }
 
     let handlersWithName : List<string * Handler.T> =
-      [ "Worker", worker; "Cron", cron; "REPL", repl; "Http", http ]
+      [ "Worker", worker; "Cron", cron; "REPL", repl ]
 
     let handlers = List.map snd handlersWithName
 

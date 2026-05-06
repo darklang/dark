@@ -63,8 +63,8 @@ module TracingConfig =
         (AT.TraceID.toUUID traceID).ToByteArray() |> System.BitConverter.ToInt64
       if random % (int64 freq) = 0L then DoTrace else DontTrace
 
-  let forHandler (accountID : uuid) (tlid : tlid) (traceID : AT.TraceID.T) : T =
-    let samplingRule = TraceSamplingRule.ruleForHandler accountID tlid
+  let forHandler (scopeID : uuid) (tlid : tlid) (traceID : AT.TraceID.T) : T =
+    let samplingRule = TraceSamplingRule.ruleForHandler scopeID tlid
     fromRule samplingRule traceID
 
   let shouldTrace (config : T) =
@@ -79,6 +79,37 @@ module TraceResults =
   type T = { tlids : HashSet.HashSet<tlid> }
 
   let empty () : T = { tlids = HashSet.empty () }
+
+
+/// How much detail to record per trace. Orthogonal to TraceSamplingRule:
+/// sampling decides *whether* to trace at all; detail decides what to
+/// record once we are tracing.
+///
+/// Override at startup with the `DARK_CONFIG_TRACE_DETAIL` env var
+/// (`off` / `summary` / `detailed`). Missing or unrecognized values
+/// default to `Detailed` (today's behavior).
+///
+///   Off       — write nothing to the trace tables.
+///   Summary   — `traces` row + `trace_fn_calls`. Skip the per-AST-node
+///               `trace_expr_values` writes (the biggest bloat source).
+///   Detailed  — full detail including `trace_expr_values`. Powers
+///               `view <fn> --with-trace`.
+module TraceDetail =
+  type T =
+    | Off
+    | Summary
+    | Detailed
+
+  let private readEnv () : T =
+    match System.Environment.GetEnvironmentVariable "DARK_CONFIG_TRACE_DETAIL" with
+    | "off" -> Off
+    | "summary" -> Summary
+    | _ -> Detailed
+
+  let mutable current : T = readEnv ()
+
+  /// Test seam: tests can pin the level without rebuilding config.
+  let setForTesting (level : T) : unit = current <- level
 
 
 
@@ -110,7 +141,7 @@ type T =
 /// return the resolved name directly. Falls back to the raw hash if the
 /// fn isn't found (e.g. it was deleted).
 module FnNameCache =
-  open LibSqlite.Db
+  open LibDB.Sqlite
 
   let mutable private cache : Map<string, string> = Map.empty
 
@@ -298,9 +329,21 @@ let private makeTraceDval (state : TracerState) : RT.Tracing.TraceDval =
   fun exprId dval -> state.exprValues[exprId] <- dval
 
 
-/// Store trace data to SQLite
+/// Store trace data to SQLite.
+///
+/// TODO: retention / GC. Every CLI eval / run / `serve` request writes
+/// a full trace into `traces` + `trace_fn_calls` + `trace_expr_values`
+/// (per-AST-node values), and nothing prunes them. A local data.db
+/// has hit ~9 GB during dev; this isn't bounded today.
+/// Plan when the time comes:
+///   - per-handler trace-detail level (off / summary / detailed)
+///   - sampling for "detailed" so we don't record every request
+///   - background sweeper that drops trace rows older than N days,
+///     or trims to the most recent K traces per handler
+/// `Builtins.Matter/Libs/Traces.fs` already has a `clear-before`
+/// command path; the missing piece is the policy + a default cadence.
 module TraceStorage =
-  open LibSqlite.Db
+  open LibDB.Sqlite
 
   /// Build a JSON array string from a list of pre-serialized JSON elements.
   /// (Don't double-encode: each element is already valid JSON.)
@@ -308,7 +351,6 @@ module TraceStorage =
     "[" + String.concat "," elements + "]"
 
   let store
-    (accountID : uuid)
     (rootTLID : tlid)
     (traceID : AT.TraceID.T)
     (handlerDesc : string)
@@ -317,6 +359,11 @@ module TraceStorage =
     (events : List<CompletedEvent>)
     (exprValues : System.Collections.Generic.IDictionary<id, RT.Dval>)
     : unit =
+    let detail = TraceDetail.current
+    if detail = TraceDetail.Off then
+      ()
+    else
+
     let traceIdStr = string traceID
     let timestamp = NodaTime.Instant.now().ToString()
     let traceIdParam = [ "traceId", Sql.string traceIdStr ]
@@ -328,13 +375,12 @@ module TraceStorage =
     // accumulates. Input is stored inline on the trace row.
     let baseStatements =
       [ "INSERT OR REPLACE INTO traces
-          (id, account_id, root_tlid, handler_desc, timestamp,
+          (id, root_tlid, handler_desc, timestamp,
            input_name, input_value_json)
          VALUES
-          (@id, @accountID, @rootTlid, @handlerDesc, @timestamp,
+          (@id, @rootTlid, @handlerDesc, @timestamp,
            @inputName, @inputValueJson)",
         [ [ "id", Sql.string traceIdStr
-            "accountID", Sql.string (string accountID)
             "rootTlid", Sql.int64 (int64 rootTLID)
             "handlerDesc", Sql.string handlerDesc
             "timestamp", Sql.string timestamp
@@ -376,20 +422,28 @@ module TraceStorage =
 
     // Per-AST-node values from the `traceDval` hook. Same DELETE-then-
     // INSERT pattern as fn_calls so re-stores replace cleanly.
-    let exprStmts =
-      [ "DELETE FROM trace_expr_values WHERE trace_id = @traceId", [ traceIdParam ] ]
-    let exprInsert =
-      if exprValues.Count = 0 then
-        []
+    // `Summary` skips this block — it's the bulk of trace data.
+    let exprStmts, exprInsert =
+      if detail = TraceDetail.Detailed then
+        let stmts =
+          [ "DELETE FROM trace_expr_values WHERE trace_id = @traceId",
+            [ traceIdParam ] ]
+        let insert =
+          if exprValues.Count = 0 then
+            []
+          else
+            [ "INSERT OR REPLACE INTO trace_expr_values
+                (trace_id, expr_id, dval_json)
+               VALUES
+                (@traceId, @exprId, @dvalJson)",
+              [ for KeyValue(exprId, dval) in exprValues ->
+                  [ "traceId", Sql.string traceIdStr
+                    "exprId", Sql.string (string exprId)
+                    "dvalJson",
+                    Sql.string (DvalReprInternalRoundtrippable.toJsonV0 dval) ] ] ]
+        stmts, insert
       else
-        [ "INSERT OR REPLACE INTO trace_expr_values
-            (trace_id, expr_id, dval_json)
-           VALUES
-            (@traceId, @exprId, @dvalJson)",
-          [ for KeyValue(exprId, dval) in exprValues ->
-              [ "traceId", Sql.string traceIdStr
-                "exprId", Sql.string (string exprId)
-                "dvalJson", Sql.string (DvalReprInternalRoundtrippable.toJsonV0 dval) ] ] ]
+        [], []
 
     let _ =
       Sql.executeTransactionSync (
@@ -434,7 +488,6 @@ let private promoteBlobs
 /// every Dval through `Blob.promote` first so blob bytes survive the
 /// per-request blob scope.
 let private storeTrace
-  (accountID : uuid)
   (rootTLID : tlid)
   (traceID : AT.TraceID.T)
   (handlerDesc : string)
@@ -447,7 +500,6 @@ let private storeTrace
     try
       let! promotedInput = promoteBlobs exeState inputDval state
       TraceStorage.store
-        accountID
         rootTLID
         traceID
         handlerDesc
@@ -461,7 +513,6 @@ let private storeTrace
 
 
 let createSqliteTracer
-  (accountID : uuid)
   (rootTLID : tlid)
   (traceID : AT.TraceID.T)
   : T =
@@ -489,7 +540,6 @@ let createSqliteTracer
     storeTraceResults =
       fun exeState ->
         storeTrace
-          accountID
           rootTLID
           traceID
           handlerDesc
@@ -531,7 +581,6 @@ let createCliTracer
       fun _exeState ->
 #if DEBUG
         storeTrace
-          _dbScope
           0UL
           _traceID
           _description
@@ -554,9 +603,9 @@ let createNonTracer (_dbScope : uuid) (_traceID : AT.TraceID.T) : T =
     storeTraceInput = fun _ _ _ -> () }
 
 
-let create (accountID : uuid) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
-  let config = TracingConfig.forHandler accountID rootTLID traceID
+let create (scopeID : uuid) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
+  let config = TracingConfig.forHandler scopeID rootTLID traceID
   match config with
   | TracingConfig.DoTrace
-  | TracingConfig.TraceWithTelemetry -> createSqliteTracer accountID rootTLID traceID
-  | TracingConfig.DontTrace -> createNonTracer accountID traceID
+  | TracingConfig.TraceWithTelemetry -> createSqliteTracer rootTLID traceID
+  | TracingConfig.DontTrace -> createNonTracer scopeID traceID

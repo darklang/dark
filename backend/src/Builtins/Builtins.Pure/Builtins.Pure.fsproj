@@ -48,8 +48,6 @@
     <Compile Include="Libs/Crypto.fs" />
     <Compile Include="Libs/X509.fs" />
 
-    <Compile Include="Libs/Builtins.fs" />
-
     <Compile Include="Builtin.fs" />
   </ItemGroup>
   <ItemGroup>

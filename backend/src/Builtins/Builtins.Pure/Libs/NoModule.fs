@@ -263,28 +263,6 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "debug" 0
-      typeParams = []
-      parameters =
-        [ Param.make "label" TString "The label to be printed."
-          Param.make "value" (TVariable "a") "The value to be printed." ]
-      returnType = TUnit
-      description = "Prints the given <param value> to the standard output"
-      fn =
-        (function
-        | exeState, _, _, [ DString label; value ] ->
-          uply {
-            let! repr = Exe.dvalToRepr exeState value
-            print $"DEBUG: {label}: {repr}"
-            return DUnit
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
-
-
     /// CLEANUP not sure why we need this - feels like an extra step. (package -> builtin -> package)
     { name = fn "toRepr" 0
       typeParams = []

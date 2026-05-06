@@ -308,32 +308,6 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "int8Random" 0
-      typeParams = []
-      parameters = [ Param.make "start" TInt8 ""; Param.make "end" TInt8 "" ]
-      returnType = TInt8
-      description =
-        "Returns a random 8-bit signed integer between <param start> and <param end> (inclusive)"
-      fn =
-        (function
-        | _, _, _, [ DInt8 a; DInt8 b ] ->
-          let lower, upper = if a > b then (b, a) else (a, b)
-
-          let lowerBound = max lower -128y
-          let upperBound = min upper 127y
-
-          let int8Range = int upperBound - int lowerBound + 1
-
-          let resultInt = randomSeeded().Next(int8Range)
-
-          let int8Result = lowerBound + (int8 resultInt)
-
-          int8Result |> DInt8 |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
 
 
     { name = fn "int8Sqrt" 0

@@ -13,7 +13,8 @@ within the subdirectories on how to write types of tests.
 
 - `execution` files are used to test the Dark language and most of the standard library
 - `httpclient` files are used to test the HTTP Client in the standard library
-- `httphandler` files are used to test the HTTP handlers hosted by `darklang serve`
+- `http-server` files test the HTTP handlers hosted by `darklang serve`
+  (driven through `Stdlib.HttpServer.serve`)
 
 ### Accessory/data
 

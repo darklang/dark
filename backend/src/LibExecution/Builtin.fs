@@ -46,17 +46,13 @@ let checkFn (fn : BuiltInFn) : unit =
 
 
 /// Provided a list of library contents, combine them (handling renames).
-/// Also applies the accessibility-tightening registry — names listed in
-/// `LibExecution.AccessibilityOverrides.registry` get their accessibility
-/// upgraded from the default `Any` to `FromLocation _`. The Tests.Builtin
-/// fromLocationBuiltinsAreSinglyReferenced check enforces the
-/// "exactly 1 textual reference in packages/" invariant for those.
+/// Builtins that should enforce the "exactly 1 textual wrapper in
+/// packages/" invariant set `accessibility = FromLocation _` directly
+/// on their definition. The Tests.Builtin
+/// `fromLocationBuiltinsAreSinglyReferenced` check picks them up
+/// automatically.
 let combine (libs : List<Builtins>) (fnRenames : FnRenames) : Builtins =
-  let fns =
-    libs
-    |> List.map _.fns
-    |> List.collect Map.values
-    |> List.map AccessibilityOverrides.apply
+  let fns = libs |> List.map _.fns |> List.collect Map.values
 
   fns |> List.iter checkFn
 

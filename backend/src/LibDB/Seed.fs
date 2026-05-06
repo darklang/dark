@@ -18,7 +18,7 @@ open LibExecution.ProgramTypes
 
 open Microsoft.Data.Sqlite
 open Fumble
-open LibSqlite.Db
+open LibDB.Sqlite
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -155,7 +155,7 @@ let evaluateAllValues
   (pm : RT.PackageManager)
   : Task<Result<unit, string list>> =
   task {
-    let program : RT.Program = { accountID = System.Guid.Empty; dbs = Map.empty }
+    let program : RT.Program = { scopeID = System.Guid.Empty; dbs = Map.empty }
 
     let notify _ _ _ _ = uply { return () }
     let sendException _ _ _ _ = uply { return () }

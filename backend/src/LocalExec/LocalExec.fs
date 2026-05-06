@@ -8,7 +8,7 @@ open Prelude
 open LibExecution.ProgramTypes
 
 open Fumble
-open LibSqlite.Db
+open LibDB.Sqlite
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
@@ -46,12 +46,8 @@ module HandleCommand =
       print "Filling ..."
       // Create an "init" commit with all packages from disk
       // Note: values are stored with NULL rt_dval at this point
-      // Darklang system account: 00000000-0000-0000-0000-000000000001
-      let darklangAccountId =
-        System.Guid.Parse "00000000-0000-0000-0000-000000000001"
       let! commitHash =
         LibDB.Inserts.insertAndApplyOpsWithCommit
-          darklangAccountId
           LibExecution.ProgramTypes.mainBranchId
           "Init: packages loaded from disk"
           ops

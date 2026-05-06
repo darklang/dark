@@ -249,32 +249,6 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "uint8Random" 0
-      typeParams = []
-      parameters = [ Param.make "start" TUInt8 ""; Param.make "end" TUInt8 "" ]
-      returnType = TUInt8
-      description =
-        "Returns a random 8-bit unsigned integer (uint8) between <param start> and <param end> (inclusive)"
-      fn =
-        (function
-        | _, _, _, [ DUInt8 a; DUInt8 b ] ->
-          let lower, upper = if a > b then (b, a) else (a, b)
-
-          let lowerBound = max lower 0uy
-          let upperBound = min upper 255uy
-
-          let uint8Range = int upperBound - int lowerBound + 1
-
-          let resultInt = randomSeeded().Next(uint8Range)
-
-          let uint8Result = lowerBound + (uint8 resultInt)
-
-          uint8Result |> DUInt8 |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
 
 
     { name = fn "uint8Sqrt" 0

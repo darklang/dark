@@ -13,7 +13,7 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 open Fumble
-open LibSqlite.Db
+open LibDB.Sqlite
 
 module Dval = LibExecution.Dval
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
@@ -1253,7 +1253,6 @@ let fns () : List<BuiltInFn> =
               let timestamp = getStr "timestamp"
               let inputName = getStr "input_name"
               let inputValueJson = root.GetProperty("input_value").GetRawText()
-              let dbScopeStr = string System.Guid.Empty
 
               // Mirrors TraceStorage.store: INSERT OR REPLACE the trace row,
               // DELETE-then-INSERT the fn_calls. Re-importing the same id
@@ -1261,13 +1260,12 @@ let fns () : List<BuiltInFn> =
               // browsing layer doesn't read it.
               let baseStatements =
                 [ "INSERT OR REPLACE INTO traces
-                    (id, account_id, root_tlid, handler_desc, timestamp,
+                    (id, root_tlid, handler_desc, timestamp,
                      input_name, input_value_json)
                    VALUES
-                    (@id, @accountID, @rootTlid, @handlerDesc, @timestamp,
+                    (@id, @rootTlid, @handlerDesc, @timestamp,
                      @inputName, @inputValueJson)",
                   [ [ "id", Sql.string id
-                      "accountID", Sql.string dbScopeStr
                       "rootTlid", Sql.int64 0L
                       "handlerDesc", Sql.string handlerDesc
                       "timestamp", Sql.string timestamp

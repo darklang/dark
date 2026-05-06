@@ -257,27 +257,6 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "int32Random" 0
-      typeParams = []
-      parameters = [ Param.make "start" TInt32 ""; Param.make "end" TInt32 "" ]
-      returnType = TInt32
-      description =
-        "Returns a random integer32 between <param start> and <param end> (inclusive)"
-      fn =
-        (function
-        | _, _, _, [ DInt32 a; DInt32 b ] ->
-          let lower, upper = if a > b then (b, a) else (a, b)
-
-          let correction : int32 = 1
-
-          lower + randomSeeded().Next(upper - lower + correction) |> DInt32 |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
-
-
     { name = fn "int32Sqrt" 0
       typeParams = []
       parameters = [ Param.make "a" TInt32 "" ]

@@ -14,6 +14,10 @@ module TypeChecker = LibExecution.TypeChecker
 module Interpreter = LibExecution.Interpreter
 module Blob = LibExecution.Blob
 
+let private stdlibString (name : string) : Accessibility =
+  FromLocation
+    { owner = "Darklang"; modules = [ "Stdlib"; "String" ]; name = name }
+
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "stringToList" 0
@@ -114,7 +118,7 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotYetImplemented // CLEANUP: Sqlite has "LENGTH" but that counts characters; if we can get it to count EGCs, great
       previewable = Pure
       deprecated = NotDeprecated
-      accessibility = Any }
+      accessibility = stdlibString "length" }
 
 
     { name = fn "stringAppend" 0
@@ -183,7 +187,7 @@ let fns () : List<BuiltInFn> =
       sqlSpec = SqlFunction "reverse"
       previewable = Pure
       deprecated = NotDeprecated
-      accessibility = Any }
+      accessibility = stdlibString "reverse" }
 
 
     { name = fn "stringSplit" 0
@@ -304,7 +308,7 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated
-      accessibility = Any }
+      accessibility = stdlibString "slice" }
 
 
     { name = fn "stringTrim" 0
@@ -323,7 +327,7 @@ let fns () : List<BuiltInFn> =
       sqlSpec = SqlFunction "trim"
       previewable = Pure
       deprecated = NotDeprecated
-      accessibility = Any }
+      accessibility = stdlibString "trim" }
 
 
     { name = fn "stringTrimStart" 0
@@ -341,7 +345,7 @@ let fns () : List<BuiltInFn> =
       sqlSpec = SqlFunction "ltrim"
       previewable = Pure
       deprecated = NotDeprecated
-      accessibility = Any }
+      accessibility = stdlibString "trimStart" }
 
 
     { name = fn "stringTrimEnd" 0
@@ -359,7 +363,7 @@ let fns () : List<BuiltInFn> =
       sqlSpec = SqlFunction "rtrim"
       previewable = Pure
       deprecated = NotDeprecated
-      accessibility = Any }
+      accessibility = stdlibString "trimEnd" }
 
 
     { name = fn "stringToBlob" 0

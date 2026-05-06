@@ -315,31 +315,6 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "int16Random" 0
-      typeParams = []
-      parameters = [ Param.make "start" TInt16 ""; Param.make "end" TInt16 "" ]
-      returnType = TInt16
-      description =
-        "Returns a random integer16 between <param start> and <param end> (inclusive)"
-      fn =
-        (function
-        | _, _, _, [ DInt16 a; DInt16 b ] ->
-          let lower, upper = if a > b then (b, a) else (a, b)
-
-          let correctRange = 1
-
-          int lower + randomSeeded().Next(int upper - int lower + correctRange)
-          |> int16
-          |> DInt16
-          |> Ply
-
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
-
-
     { name = fn "int16Parse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]

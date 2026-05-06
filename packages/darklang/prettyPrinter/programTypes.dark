@@ -977,7 +977,6 @@ module Handler =
 
   let spec (s: LanguageTools.ProgramTypes.Handler.Spec) : String =
     match s with
-    | HTTP(route, method) -> $"[<HttpHandler({method}, {route})>]"
     | Worker name -> $"[<Worker({name})>]"
     | Cron(name, interval) ->
       $"[<Cron({name}, {Handler.cronInterval interval})>]"

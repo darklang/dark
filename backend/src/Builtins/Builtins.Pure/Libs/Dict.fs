@@ -13,6 +13,10 @@ module Interpreter = LibExecution.Interpreter
 let varA = TVariable "a"
 let varB = TVariable "b"
 
+let private stdlibDict (name : string) : Accessibility =
+  FromLocation
+    { owner = "Darklang"; modules = [ "Stdlib"; "Dict" ]; name = name }
+
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "dictSize" 0
@@ -27,7 +31,7 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated
-      accessibility = Any }
+      accessibility = stdlibDict "size" }
 
 
     { name = fn "dictKeys" 0
@@ -45,7 +49,7 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated
-      accessibility = Any }
+      accessibility = stdlibDict "keys" }
 
 
     { name = fn "dictValues" 0
@@ -62,7 +66,7 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated
-      accessibility = Any }
+      accessibility = stdlibDict "values" }
 
 
     { name = fn "dictToList" 0
@@ -186,7 +190,7 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated
-      accessibility = Any }
+      accessibility = stdlibDict "get" }
 
 
     { name = fn "dictMember" 0
@@ -203,7 +207,7 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated
-      accessibility = Any }
+      accessibility = stdlibDict "member" }
 
 
     { name = fn "dictMerge" 0
@@ -259,7 +263,7 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated
-      accessibility = Any }
+      accessibility = stdlibDict "set" }
 
 
     { name = fn "dictSetOverridingDuplicates" 0
@@ -303,6 +307,6 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated
-      accessibility = Any } ]
+      accessibility = stdlibDict "remove" } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

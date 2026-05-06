@@ -1,9 +1,9 @@
 /// Per-request handler dispatch: read body → build Request dval → call
 /// the Dark handler → write response → trace + log.
 ///
-/// Pulled out of `Libs/HttpServer.fs` so the listener loop's accept-and-
-/// dispatch responsibility stays separate from the per-request flow.
-module Builtins.Http.Server.Libs.HttpServerHandler
+/// Sits alongside `Http.fs` rather than under `Libs/`: doesn't expose
+/// builtins, so it lives outside the builtin-defining directory.
+module Builtins.Http.Server.HttpServerHandler
 
 open System.Net
 open System.Threading.Tasks
@@ -17,7 +17,7 @@ module Blob = LibExecution.Blob
 module Http = Builtins.Http.Server.Http
 module AT = LibExecution.AnalysisTypes
 module Tracing = LibDB.Tracing
-module Helpers = Builtins.Http.Server.Libs.HttpServerHelpers
+module Helpers = Builtins.Http.Server.HttpServerHelpers
 
 
 /// Execute a handler (named fn or lambda) against the given request. Lambdas

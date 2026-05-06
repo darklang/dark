@@ -82,10 +82,6 @@ module PersistedSerializations =
           V.ProgramTypes.toplevels
 
         v<LibExecution.ProgramTypes.Toplevel.T>
-          "httphandler"
-          (PT.Toplevel.TLHandler V.ProgramTypes.Handler.http)
-
-        v<LibExecution.ProgramTypes.Toplevel.T>
           "db"
           (PT.Toplevel.TLDB V.ProgramTypes.userDB)
 

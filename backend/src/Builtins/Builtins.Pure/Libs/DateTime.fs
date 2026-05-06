@@ -117,39 +117,6 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "dateTimeNow" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TDateTime
-      description = "Returns the current datetime"
-      fn =
-        (function
-        | _, _, _, [ DUnit ] ->
-          Instant.now () |> DarkDateTime.fromInstant |> DDateTime |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
-
-
-    { name = fn "dateTimeToday" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TDateTime
-      description = "Returns the <type DateTime> with the time set to midnight"
-      fn =
-        (function
-        | _, _, _, [ DUnit ] ->
-          let now = DarkDateTime.fromInstant (Instant.now ())
-          Ply(DDateTime(DarkDateTime.T(now.Year, now.Month, now.Day, 0, 0, 0)))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
-
-
     { name = fn "dateTimeAddSeconds" 0
       typeParams = []
       parameters = [ Param.make "d" TDateTime ""; Param.make "seconds" TInt64 "" ]

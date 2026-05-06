@@ -19,8 +19,6 @@
   <ItemGroup>
     <Compile Include="Config.fs" />
     <Compile Include="File.fs" />
-    <Compile Include="Account.fs" />
-    <Compile Include="Routing.fs" />
     <Compile Include="Serialize.fs" />
     <Compile Include="Toplevels.fs" />
   </ItemGroup>

@@ -29,7 +29,7 @@ module QueryableJson = LibExecution.DvalReprInternalQueryable
 module Equals = Builtins.Pure.Libs.NoModule
 
 open Fumble
-open LibSqlite.Db
+open LibDB.Sqlite
 
 
 // ─────────────────────────────────────────────────────────────────────
@@ -47,7 +47,7 @@ let private freshState () : RT.ExecutionState =
     (fun _ _ _ _ -> uply { return () })
     (fun _ _ _ _ -> uply { return () })
     PT.mainBranchId
-    { accountID = System.Guid.Empty; dbs = Map.empty }
+    { scopeID = System.Guid.Empty; dbs = Map.empty }
 
 let private dblobRef (dv : RT.Dval) : RT.BlobRef =
   match dv with

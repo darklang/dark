@@ -14,7 +14,7 @@ Surface (most relevant first):
 - `Caching.fs` — in-process cache for repeated lookups.
 - `UserDB.fs` — runtime CRUD for user-defined Datastores
   (`Stdlib.DB.set` / `get` / etc.). Per-row isolation is keyed by
-  `program.accountID` (a UUID).
+  `program.scopeID` (a UUID).
 - `Tracing.fs` — per-execution trace recorder. Writes the trace row +
   fn_call rows to the SQLite DB; `Builtins.Tracing/Libs/Traces.fs`
   reads them back.

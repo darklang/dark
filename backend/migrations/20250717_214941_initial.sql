@@ -10,17 +10,15 @@ system_migrations_v0
 --------------------
 -- Stuff that belongs in "user space"
 --------------------
--- Note: `account_id` is the per-test / per-install scope key. There
--- is no `accounts_v0` foreign key — in CLI mode the value is just
--- Guid.Empty (no account); in tests it's a fresh Guid per test for
--- isolation. The accounts_v0 table (later migration) is independent
--- and seeded with the canonical user IDs.
+-- Note: `scope_id` is the per-test / per-install scope key. In CLI
+-- mode the value is just Guid.Empty (single-instance Dark); in tests
+-- it's a fresh Guid per test for isolation.
 
 -- User K/V DBs
 CREATE TABLE IF NOT EXISTS
 user_data_v0
 ( id TEXT PRIMARY KEY
-, account_id TEXT NOT NULL
+, scope_id TEXT NOT NULL
 , table_tlid INTEGER NOT NULL
 , user_version INTEGER NOT NULL
 , dark_version INTEGER NOT NULL
@@ -28,18 +26,18 @@ user_data_v0
 , created_at TEXT NOT NULL DEFAULT (datetime('now'))
 , updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 , key TEXT NOT NULL
-, UNIQUE (account_id, table_tlid, dark_version, user_version, key)
+, UNIQUE (scope_id, table_tlid, dark_version, user_version, key)
 );
 
 CREATE INDEX IF NOT EXISTS
 idx_user_data_fetch
 ON user_data_v0
-(account_id, table_tlid, user_version, dark_version);
+(scope_id, table_tlid, user_version, dark_version);
 
 CREATE INDEX IF NOT EXISTS
 idx_user_data_current_data_for_tlid
 ON user_data_v0
-(user_version, dark_version, account_id, table_tlid);
+(user_version, dark_version, scope_id, table_tlid);
 
 -- No GIN index equivalent in SQLite
 CREATE INDEX IF NOT EXISTS
@@ -57,7 +55,7 @@ ON user_data_v0
 -- TODO split this into a few tables (dbs, handlers, etc)
 CREATE TABLE IF NOT EXISTS
 toplevels_v0
-( account_id TEXT NOT NULL
+( scope_id TEXT NOT NULL
 , tlid INTEGER NOT NULL
 , digest CHAR(32) NOT NULL
 , tipe TEXT NOT NULL CHECK (tipe IN ('db', 'handler'))
@@ -68,7 +66,7 @@ toplevels_v0
 , created_at TEXT NOT NULL DEFAULT (datetime('now'))
 , deleted INTEGER NOT NULL CHECK (deleted IN (0,1))
 , data BLOB NOT NULL
-, PRIMARY KEY (account_id, tlid)
+, PRIMARY KEY (scope_id, tlid)
 );
 
 -- Traces
@@ -76,7 +74,7 @@ CREATE TABLE IF NOT EXISTS
 traces_v0
 ( id TEXT PRIMARY KEY
 , trace_id TEXT NOT NULL -- why do we need this _and_ `id`?
-, account_id TEXT NOT NULL
+, scope_id TEXT NOT NULL
 -- the handler's (or for a function's default trace, the function's) TLID
 --   (used to store the trace data in Cloud Storage)
 -- TODO consider using a different mechanism here - fns might not have tlids...

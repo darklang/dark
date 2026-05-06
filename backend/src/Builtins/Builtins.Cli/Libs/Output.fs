@@ -11,6 +11,8 @@ open LibExecution.RuntimeTypes
 module Builtin = LibExecution.Builtin
 open Builtin.Shortcuts
 
+module Exe = LibExecution.Execution
+
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "printLine" 0
@@ -62,6 +64,28 @@ let fns () : List<BuiltInFn> =
             System.Console.Write("\u001b[2J\u001b[H") // ANSI escape for non-Windows
           Ply DUnit
         | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated
+      accessibility = Any }
+
+
+    { name = fn "debug" 0
+      typeParams = []
+      parameters =
+        [ Param.make "label" TString "The label to be printed."
+          Param.make "value" (TVariable "a") "The value to be printed." ]
+      returnType = TUnit
+      description = "Prints the given <param value> to the standard output"
+      fn =
+        (function
+        | exeState, _, _, [ DString label; value ] ->
+          uply {
+            let! repr = Exe.dvalToRepr exeState value
+            print $"DEBUG: {label}: {repr}"
+            return DUnit
+          }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated

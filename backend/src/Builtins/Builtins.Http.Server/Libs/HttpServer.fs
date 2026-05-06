@@ -32,8 +32,8 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module Helpers = Builtins.Http.Server.Libs.HttpServerHelpers
-module Handler = Builtins.Http.Server.Libs.HttpServerHandler
+module Helpers = Builtins.Http.Server.HttpServerHelpers
+module Handler = Builtins.Http.Server.HttpServerHandler
 
 
 /// Default request body cap (30 MB). Re-exported for callers (tests, the
@@ -122,7 +122,7 @@ let runListener
     //  □ Concurrent-connection cap via SemaphoreSlim.
     //  □ Reject overlong status lines / headers (e.g. >8 KB).
     //  □ Strict header-key/value charset (no embedded CRLF).
-    //  □ Adversarial fixture suite alongside the existing httphandler
+    //  □ Adversarial fixture suite alongside the existing http-server
     //    fixtures: malformed requests → 400, T-E+C-L combos → 400,
     //    oversize body → 413 (already covered), slow-loris → close.
     //

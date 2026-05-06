@@ -295,7 +295,11 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated
-      accessibility = Any }
+      accessibility =
+        FromLocation
+          { owner = "Darklang"
+            modules = [ "Stdlib"; "List" ]
+            name = "length" } }
 
 
     { name = fn "listUnique" 0
@@ -366,33 +370,7 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "listRandomElement" 0
-      typeParams = []
-      parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TypeReference.option varA
-      description =
-        "Returns {{Some <var randomValue>}}, where <var randomValue> is a randomly
-         selected value in <param list>. Returns {{None}} if <param list> is
-         empty."
-      fn =
-        let optType = VT.unknownTODO
-        (function
-        | _, _, _, [ DList(_, []) ] ->
-          TypeChecker.DvalCreator.optionNone optType |> Ply
-        | _, vm, _, [ DList(_, l) ] ->
-          // Will return <= (length - 1)
-          // Maximum value is Int64.MaxValue which is half of UInt64.MaxValue, but
-          // that won't affect this as we won't have a list that big for a long long
-          // long time.
-          let index = RNG.GetInt32(l.Length)
-          (List.tryItem index l)
-          |> TypeChecker.DvalCreator.option vm.threadID optType
-          |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any } ]
+    ]
 
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

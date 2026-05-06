@@ -43,10 +43,6 @@ module Handler =
       | Handler.REPL name ->
         w.Write 2uy
         String.write w name
-      | Handler.HTTP(route, method) ->
-        w.Write 3uy
-        String.write w route
-        String.write w method
 
     let read (r : BinaryReader) : Handler.Spec =
       match r.ReadByte() with
@@ -56,10 +52,6 @@ module Handler =
         let interval = CronInterval.read r
         Handler.Cron(name, interval)
       | 2uy -> Handler.REPL(String.read r)
-      | 3uy ->
-        let route = String.read r
-        let method = String.read r
-        Handler.HTTP(route, method)
       | b -> raiseFormatError $"Invalid Handler.Spec tag: {b}"
 
 

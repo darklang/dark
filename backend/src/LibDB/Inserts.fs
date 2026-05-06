@@ -7,7 +7,7 @@ open Prelude
 open LibExecution.ProgramTypes
 
 open Fumble
-open LibSqlite.Db
+open LibDB.Sqlite
 
 module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization
@@ -130,7 +130,6 @@ let insertAndApplyOps
 /// Create a new commit and insert ops with that commit_hash
 /// Returns the commit Hash
 let insertAndApplyOpsWithCommit
-  (accountId : UserID)
   (branchId : PT.BranchId)
   (message : string)
   (ops : List<PT.PackageOp>)
@@ -150,13 +149,13 @@ let insertAndApplyOpsWithCommit
 
     // Compute content-addressed commit hash
     let opHashes = ops |> List.map Hashing.computeOpHash
-    let commitHash = Hashing.computeCommitHash parentHash opHashes accountId
+    let commitHash = Hashing.computeCommitHash parentHash opHashes
     let (Hash commitHashStr) = commitHash
 
     // Record and apply the commit
     do!
       BranchOpPlayback.insertAndApply (
-        PT.BranchOp.CreateCommit(commitHash, message, branchId, opHashes, accountId)
+        PT.BranchOp.CreateCommit(commitHash, message, branchId, opHashes)
       )
 
     // Insert ops with the commit_hash
@@ -176,10 +175,9 @@ let insertAndApplyOpsAsWip
 
 
 /// Commit all WIP ops on a branch by creating a new commit and assigning commit_hash.
-/// Commit hash is content-addressed: hash(parentHash + sorted opHashes + accountId).
+/// Commit hash is content-addressed: hash(parentHash + sorted opHashes).
 /// Returns the commit Hash on success.
 let commitWipOps
-  (accountId : UserID)
   (branchId : PT.BranchId)
   (message : string)
   : Task<Result<Hash, string>> =
@@ -219,20 +217,14 @@ let commitWipOps
         // Compute op hashes
         let opHashes = wipOps |> List.map (fun (_, op) -> Hashing.computeOpHash op)
 
-        // Compute content-addressed commit hash (includes accountId for integrity)
-        let commitHash = Hashing.computeCommitHash parentHash opHashes accountId
+        // Compute content-addressed commit hash
+        let commitHash = Hashing.computeCommitHash parentHash opHashes
         let (Hash commitHashStr) = commitHash
 
         // Record and apply the commit
         do!
           BranchOpPlayback.insertAndApply (
-            PT.BranchOp.CreateCommit(
-              commitHash,
-              message,
-              branchId,
-              opHashes,
-              accountId
-            )
+            PT.BranchOp.CreateCommit(commitHash, message, branchId, opHashes)
           )
 
         // Assign WIP ops, locations, and deprecations to this commit

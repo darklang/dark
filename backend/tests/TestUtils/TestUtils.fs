@@ -6,7 +6,7 @@ open Expecto
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open LibSqlite.Db
+open LibDB.Sqlite
 
 open Prelude
 
@@ -22,7 +22,6 @@ module D = LibExecution.DvalDecoder
 module PackageRefs = LibExecution.PackageRefs
 module Exe = LibExecution.Execution
 
-module Account = LibCloud.Account
 module Toplevels = LibCloud.Toplevels
 
 module PackageRefs = LibExecution.PackageRefs
@@ -32,22 +31,12 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 let pmPT = LibDB.PackageManager.pt
 let pmRT = LibDB.PackageManager.rt
 
-let testOwner : Lazy<Task<UserID>> =
-  lazy (Account.createUser "TestUser" |> Task.map Result.unwrap)
-
 let initializeTestCanvas (name : string) : Task<uuid> =
   // `name` is unused now that domains are gone — kept as a parameter so
   // call sites stay readable about what the test scope is for.
   ignore<string> name
   Toplevels.create None
 
-
-let testHttpRouteHandler
-  (route : string)
-  (method : string)
-  (ast : PT.Expr)
-  : PT.Handler.T =
-  { tlid = gid (); ast = ast; spec = PT.Handler.HTTP(route, method) }
 
 let testCron
   (name : string)
@@ -97,7 +86,8 @@ let builtins
       Builtins.Matter.Builtin.builtins pm
       Builtins.Http.Server.Builtin.builtins ()
       Builtins.Cli.Builtin.builtins ()
-      Builtins.Time.Builtin.builtins () ]
+      Builtins.Time.Builtin.builtins ()
+      Builtins.Random.Builtin.builtins () ]
     []
 
 let localBuiltIns (pm : PT.PackageManager) =
@@ -116,14 +106,14 @@ let cloudBuiltIns (pm : PT.PackageManager) =
 
 let executionStateFor
   (pmPT : PT.PackageManager)
-  (accountID : uuid)
+  (scopeID : uuid)
   (allowLocalHttpAccess : bool)
   (dbs : Map<string, RT.DB.T>)
   : Task<RT.ExecutionState> =
   task {
     let domains = []
 
-    let program : RT.Program = { accountID = accountID; dbs = dbs }
+    let program : RT.Program = { scopeID = scopeID; dbs = dbs }
 
     let testContext : RT.TestContext =
       { sideEffectCount = 0
@@ -1528,8 +1518,8 @@ let unwrapExecutionResult
 let parsePTExpr (code : string) : Task<PT.Expr> =
   uply {
     let! (state : RT.ExecutionState) =
-      let accountID = System.Guid.NewGuid()
-      executionStateFor pmPT accountID false Map.empty
+      let scopeID = System.Guid.NewGuid()
+      executionStateFor pmPT scopeID false Map.empty
 
     let name =
       RT.FQFnName.fqPackage (PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ())

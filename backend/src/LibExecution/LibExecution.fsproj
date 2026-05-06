@@ -29,7 +29,6 @@
     <Compile Include="Blob.fs" />
     <Compile Include="Stream.fs" />
     <Compile Include="Dval.fs" />
-    <Compile Include="AccessibilityOverrides.fs" />
     <Compile Include="Builtin.fs" />
     <Compile Include="TypeChecker.fs" />
     <Compile Include="Interpreter.fs" />

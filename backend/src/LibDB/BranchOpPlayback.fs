@@ -7,7 +7,7 @@ open Prelude
 open LibExecution.ProgramTypes
 
 open Fumble
-open LibSqlite.Db
+open LibDB.Sqlite
 
 module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization
@@ -44,18 +44,17 @@ let applyOp (op : PT.BranchOp) : Task<unit> =
             "base_commit_hash", baseCommitHashParam ]
         |> Sql.executeStatementAsync
 
-    | PT.BranchOp.CreateCommit(commitHash, message, branchId, _opHashes, accountId) ->
+    | PT.BranchOp.CreateCommit(commitHash, message, branchId, _opHashes) ->
       let (Hash commitHashStr) = commitHash
       do!
         Sql.query
           """
-          INSERT OR IGNORE INTO commits (hash, message, account_id, branch_id, created_at)
-          VALUES (@hash, @message, @account_id, @branch_id, datetime('now'))
+          INSERT OR IGNORE INTO commits (hash, message, branch_id, created_at)
+          VALUES (@hash, @message, @branch_id, datetime('now'))
           """
         |> Sql.parameters
           [ "hash", Sql.string commitHashStr
             "message", Sql.string message
-            "account_id", Sql.uuid accountId
             "branch_id", Sql.uuid branchId ]
         |> Sql.executeStatementAsync
 

@@ -18,11 +18,12 @@
     <!-- Re-enable System.Text.Json reflection-based serialization at runtime.
          Default under AOT is "disabled", which throws InvalidOperationException
          when JsonSerializer.{De}serialize<T> is called for a non-source-generated
-         type. Our remaining reflective JSON site is parseJsonV0 against
-         FormatV0.Dval (used by `darklang traces view`); hand-rolling that DU's
-         reader/writer is ~400 LOC of mechanical work that we can do later if
-         binary-size-from-STJ becomes load-bearing. The IL3050 warning remains
-         as documentation of the dynamic call. -->
+         type. The original load-bearing site (FormatV0.Dval) is now hand-rolled,
+         but `Json.Vanilla` in Prelude still uses reflective STJ — `Json.Vanilla.allow<T>`
+         in LocalExec is not in the AOT binary, but if any other path calls
+         Json.Vanilla.serialize/deserialize the AOT'd CLI would NRE without
+         this. TODO: audit whether Json.Vanilla is reachable from the published
+         CLI; if not, drop this property + the TrimmerRoots below. -->
     <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
 
     <!-- Disable optional .NET runtime subsystems we don't use under AOT.
@@ -73,17 +74,13 @@
   </Target>
   <ItemGroup>
     <None Include="paket.references" />
-    <!-- FSharp.SystemTextJson uses internal reflection to walk F# union/record
-         shapes when constructing converters. Under aggressive trimming the
-         runtime's CreateConverter walks find their target types pruned and
-         throw NullReferenceException. Root-keep the assembly to preserve the
-         metadata they need; small size cost relative to having traces view
-         work under AOT. -->
+    <!-- Root-keep `FSharp.SystemTextJson` for any caller that goes through
+         `Json.Vanilla` (Prelude). FormatV0.Dval no longer needs this — it's
+         hand-rolled — but other Vanilla.allow<T> sites might. See the TODO
+         on `JsonSerializerIsReflectionEnabledByDefault` above; if Vanilla
+         turns out to be unreachable from the AOT'd CLI, this root + the
+         LibExecution root below + the property can all go. -->
     <TrimmerRootAssembly Include="FSharp.SystemTextJson" />
-    <!-- LibExecution holds DvalReprInternalRoundtrippable.FormatV0.Dval, which
-         JsonSerializer.Deserialize<FormatV0.Dval> reflects on (parseJsonV0,
-         used by `darklang traces view`). Without rooting, the trimmer prunes
-         union cases the serializer needs to round-trip. -->
     <TrimmerRootAssembly Include="LibExecution" />
   </ItemGroup>
   <Target Name="PrintRuntimeIdentifierCli" BeforeTargets="BeforeBuild">

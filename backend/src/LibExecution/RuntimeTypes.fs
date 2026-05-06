@@ -1667,7 +1667,7 @@ and Program =
     /// Per-app state-isolation key for UserDB queries. CLI is single-app
     /// in production (passes a constant); tests use a fresh Guid per
     /// test so they don't share user_data_v0 rows.
-    accountID : System.Guid
+    scopeID : System.Guid
     dbs : Map<string, DB.T>
   }
 
