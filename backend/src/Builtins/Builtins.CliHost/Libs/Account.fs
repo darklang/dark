@@ -1,5 +1,5 @@
 /// Builtin functions for app and DB operations in the CLI
-module Builtins.CliHost.Libs.Canvas
+module Builtins.CliHost.Libs.Account
 
 open Prelude
 open LibExecution.RuntimeTypes
@@ -12,14 +12,14 @@ module PT = LibExecution.ProgramTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module VT = LibExecution.ValueType
 module NR = LibExecution.RuntimeTypes.NameResolution
-module App = LibCloud.App
+module Toplevels = LibCloud.Toplevels
 module Serialize = LibCloud.Serialize
 module Account = LibCloud.Account
 module PackageLocation = LibDB.PackageLocation
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "appDBCreate" 0
+  [ { name = fn "dbCreate" 0
       typeParams = []
       parameters =
         [ Param.make "appID" TUuid "The app to add the DB to"
@@ -68,7 +68,7 @@ let fns () : List<BuiltInFn> =
                     ) }
 
               let toplevel = PT.Toplevel.TLDB db
-              do! App.saveTLIDs appID [ (toplevel, Serialize.NotDeleted) ]
+              do! Toplevels.saveTLIDs appID [ (toplevel, Serialize.NotDeleted) ]
               return Dval.resultOk KTUInt64 KTString (DUInt64 tlid)
           }
         | _ -> incorrectArgs ())
@@ -78,7 +78,7 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "appGetOrCreateForAccount" 0
+    { name = fn "currentAccountID" 0
       typeParams = []
       parameters = [ Param.make "accountID" TUuid "The account ID" ]
       returnType = TUuid
@@ -88,7 +88,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid accountID ] ->
           uply {
-            let! appID = App.getOrCreateForAccount accountID
+            let! appID = Toplevels.getOrCreateForAccount accountID
             return DUuid appID
           }
         | _ -> incorrectArgs ())
@@ -98,7 +98,7 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "appDBListAll" 0
+    { name = fn "dbListAll" 0
       typeParams = []
       parameters =
         [ Param.make "appID" TUuid "The app to list DBs from"
@@ -110,7 +110,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid appID; DUuid branchId ] ->
           uply {
-            let! app = App.loadAllDBs appID
+            let! app = Toplevels.loadAllDBs appID
             let pm = LibDB.PackageManager.pt
             let! dbs =
               app.dbs
@@ -139,7 +139,7 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "appDBDrop" 0
+    { name = fn "dbDrop" 0
       typeParams = []
       parameters =
         [ Param.make "appID" TUuid "The app containing the DB"
@@ -173,7 +173,7 @@ let fns () : List<BuiltInFn> =
               do!
                 matchingTlids
                 |> Task.iterInParallel (fun tlid ->
-                  App.deleteToplevelForever appID tlid)
+                  Toplevels.deleteToplevelForever appID tlid)
               // Also delete any user data for these DBs
               do!
                 matchingTlids

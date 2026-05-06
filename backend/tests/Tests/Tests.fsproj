@@ -44,7 +44,7 @@
 
     <!-- cloud stuff /-->
     <Compile Include="HttpServer.Tests.fs" />
-    <Compile Include="App.Tests.fs" />
+    <Compile Include="Toplevels.Tests.fs" />
     <Compile Include="CliTraces.Tests.fs" />
     <Compile Include="DvalRepr.Tests.fs" />
     <Compile Include="Serialization.TestValues.fs" />

@@ -23,7 +23,7 @@ module PackageRefs = LibExecution.PackageRefs
 module Exe = LibExecution.Execution
 
 module Account = LibCloud.Account
-module App = LibCloud.App
+module Toplevels = LibCloud.Toplevels
 
 module PackageRefs = LibExecution.PackageRefs
 module C2DT = LibExecution.CommonToDarkTypes
@@ -39,7 +39,7 @@ let initializeTestCanvas (name : string) : Task<uuid> =
   // `name` is unused now that domains are gone — kept as a parameter so
   // call sites stay readable about what the test scope is for.
   ignore<string> name
-  App.create None
+  Toplevels.create None
 
 
 let testHttpRouteHandler
@@ -187,7 +187,7 @@ let executionStateFor
 // let canvasForTLs (canvasID : uuid) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
 //   task {
 //     let descs = tls |> List.map (fun tl -> (tl, LibCloud.Serialize.NotDeleted))
-//     do! App.saveTLIDs canvasID descs
+//     do! Toplevels.saveTLIDs canvasID descs
 //     return! Canvas.loadAll canvasID
 //   }
 

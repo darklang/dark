@@ -13,5 +13,5 @@ let fnRenames : Builtin.FnRenames =
 
 let builtins () =
   Builtin.combine
-    [ Libs.Cli.builtins (); Libs.Canvas.builtins () ]
+    [ Libs.Cli.builtins (); Libs.Account.builtins () ]
     fnRenames

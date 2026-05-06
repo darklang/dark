@@ -25,7 +25,7 @@ module Json = Builtins.Pure.Libs.Json
 module C2DT = LibExecution.CommonToDarkTypes
 module D = LibExecution.DvalDecoder
 module Utils = Builtins.CliHost.Utils
-module App = LibCloud.App
+module Toplevels = LibCloud.Toplevels
 module Tracing = LibDB.Tracing
 
 
@@ -37,11 +37,11 @@ let loadAppAndDBs
     match accountID with
     | None -> return (None, Map.empty)
     | Some accID ->
-      let! apps = App.getAppsForAccount accID
+      let! apps = Toplevels.getAppsForAccount accID
       match apps with
       | appID :: _ ->
-        let! app = App.loadAllDBs appID
-        let! program = App.toProgram app
+        let! app = Toplevels.loadAllDBs appID
+        let! program = Toplevels.toProgram app
         return (Some appID, program.dbs)
       | [] -> return (None, Map.empty)
   }

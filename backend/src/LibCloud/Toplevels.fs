@@ -1,4 +1,4 @@
-module LibCloud.App
+module LibCloud.Toplevels
 
 // Functions related to apps (formerly canvases). Renamed from
 // LibCloud.Canvas; surface API is the same.
@@ -68,8 +68,8 @@ let addToplevel (deleted : Serialize.Deleted) (tl : PT.Toplevel.T) (c : T) : T =
     { c with deletedDBs = Map.add tlid db c.deletedDBs }
 
 
-let addToplevels (tls : List<Serialize.Deleted * PT.Toplevel.T>) (canvas : T) : T =
-  List.fold (fun c (deleted, tl) -> addToplevel deleted tl c) canvas tls
+let addToplevels (tls : List<Serialize.Deleted * PT.Toplevel.T>) (c : T) : T =
+  List.fold (fun acc (deleted, tl) -> addToplevel deleted tl acc) c tls
 
 // NOTE: If you add a new verification here, please ensure all places that
 // load canvases/apply ops correctly load the requisite data.
@@ -110,7 +110,7 @@ let loadFrom (id : uuid) (tlids : List<tlid>) : Task<T> =
       return c |> addToplevels tls |> verify
     with e ->
       let tags = [ "tlids", tlids :> obj ]
-      return Exception.reraiseAsPageable "canvas load failed" tags e
+      return Exception.reraiseAsPageable "toplevel load failed" tags e
   }
 
 let loadAllDBs (id : uuid) : Task<T> =
@@ -220,7 +220,7 @@ let saveTLIDs
           |> Sql.executeStatementAsync
       })
   with e ->
-    Exception.reraiseAsPageable "canvas save failed" [ "accountID", id ] e
+    Exception.reraiseAsPageable "toplevel save failed" [ "accountID", id ] e
 
 
 let toProgram (c : T) : Ply<RT.Program> =

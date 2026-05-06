@@ -22,7 +22,7 @@
     <Compile Include="Account.fs" />
     <Compile Include="Routing.fs" />
     <Compile Include="Serialize.fs" />
-    <Compile Include="App.fs" />
+    <Compile Include="Toplevels.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>
