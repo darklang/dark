@@ -640,11 +640,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   repoints
                 )
 
-              let! _ =
-                LibDB.Inserts.insertAndApplyOps
-                  branchId
-                  None
-                  [ revertOp ]
+              let! _ = LibDB.Inserts.insertAndApplyOps branchId None [ revertOp ]
 
               let resultTuple =
                 DTuple(DUuid revertId, PT2DT.Hash.toDT restoredHash, [])
@@ -725,10 +721,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let itemKind = PT2DT.ItemKind.fromDT itemKindDval
             let! branchChain = Branches.getBranchChain branchId
             let! result =
-              LibDB.Queries.getCurrentDeprecation
-                branchChain
-                hash
-                itemKind
+              LibDB.Queries.getCurrentDeprecation branchChain hash itemKind
             let tupleKT =
               KTTuple(
                 VT.known (PT2DT.DeprecationKind.knownType ()),

@@ -172,13 +172,15 @@ type CompletedEvent =
 /// the matching storeFnResult / storeLambdaResult. The kind isn't stored —
 /// the finalizer (storeFnResult vs storeLambdaResult) already knows it.
 type PartialEvent =
-  { callId : string
+  {
+    callId : string
     parentCallId : string option
     fnHash : string option
     lambdaExprId : id option
     args : List<RT.Dval>
     /// Stopwatch ticks at frame-entry. Subtract at exit and convert to ms.
-    startedAtTicks : int64 }
+    startedAtTicks : int64
+  }
 
 
 /// Mutable per-trace tracer state. Captures every event in execution order
@@ -375,8 +377,7 @@ module TraceStorage =
     // Per-AST-node values from the `traceDval` hook. Same DELETE-then-
     // INSERT pattern as fn_calls so re-stores replace cleanly.
     let exprStmts =
-      [ "DELETE FROM trace_expr_values WHERE trace_id = @traceId",
-        [ traceIdParam ] ]
+      [ "DELETE FROM trace_expr_values WHERE trace_id = @traceId", [ traceIdParam ] ]
     let exprInsert =
       if exprValues.Count = 0 then
         []
@@ -388,12 +389,12 @@ module TraceStorage =
           [ for KeyValue(exprId, dval) in exprValues ->
               [ "traceId", Sql.string traceIdStr
                 "exprId", Sql.string (string exprId)
-                "dvalJson",
-                Sql.string (DvalReprInternalRoundtrippable.toJsonV0 dval) ] ] ]
+                "dvalJson", Sql.string (DvalReprInternalRoundtrippable.toJsonV0 dval) ] ] ]
 
     let _ =
-      Sql.executeTransactionSync
-        (baseStatements @ eventStmt @ exprStmts @ exprInsert)
+      Sql.executeTransactionSync (
+        baseStatements @ eventStmt @ exprStmts @ exprInsert
+      )
     ()
 
 
@@ -416,16 +417,13 @@ let private promoteBlobs
         ev.args
         |> List.map (fun a -> LibExecution.Blob.promote exeState persist a)
         |> Ply.List.flatten
-      let! promotedResult =
-        LibExecution.Blob.promote exeState persist ev.result
-      state.events[i] <-
-        { ev with args = promotedArgs; result = promotedResult }
+      let! promotedResult = LibExecution.Blob.promote exeState persist ev.result
+      state.events[i] <- { ev with args = promotedArgs; result = promotedResult }
 
     // Snapshot keys before mutating values so the iteration is safe.
     let exprIds = state.exprValues.Keys |> Seq.toArray
     for k in exprIds do
-      let! promoted =
-        LibExecution.Blob.promote exeState persist state.exprValues[k]
+      let! promoted = LibExecution.Blob.promote exeState persist state.exprValues[k]
       state.exprValues[k] <- promoted
 
     return promotedInput

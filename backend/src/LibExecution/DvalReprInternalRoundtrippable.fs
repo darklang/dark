@@ -396,20 +396,12 @@ module FormatV0 =
       w.WriteStringValue(tag)
       w.WriteStringValue(s))
 
-  let inline private wTagBool
-    (w : Utf8JsonWriter)
-    (tag : string)
-    (b : bool)
-    : unit =
+  let inline private wTagBool (w : Utf8JsonWriter) (tag : string) (b : bool) : unit =
     wArr w (fun () ->
       w.WriteStringValue(tag)
       w.WriteBooleanValue(b))
 
-  let inline private wTagNum
-    (w : Utf8JsonWriter)
-    (tag : string)
-    (n : int)
-    : unit =
+  let inline private wTagNum (w : Utf8JsonWriter) (tag : string) (n : int) : unit =
     wArr w (fun () ->
       w.WriteStringValue(tag)
       w.WriteNumberValue(n))
@@ -455,13 +447,9 @@ module FormatV0 =
   let private wHash (w : Utf8JsonWriter) (RT.Hash s : RT.Hash) : unit =
     w.WriteStringValue(s)
 
-  let private rHash (r : byref<Utf8JsonReader>) : RT.Hash =
-    rString &r |> RT.Hash
+  let private rHash (r : byref<Utf8JsonReader>) : RT.Hash = rString &r |> RT.Hash
 
-  let private wFQTypeName
-    (w : Utf8JsonWriter)
-    (n : FQTypeName.FQTypeName)
-    : unit =
+  let private wFQTypeName (w : Utf8JsonWriter) (n : FQTypeName.FQTypeName) : unit =
     match n with
     | FQTypeName.Package h ->
       wArr w (fun () ->
@@ -507,7 +495,9 @@ module FormatV0 =
         w.WriteStringValue("KTTuple")
         wValueType w a
         wValueType w b
-        wArr w (fun () -> for vt in rest do wValueType w vt))
+        wArr w (fun () ->
+          for vt in rest do
+            wValueType w vt))
     | ValueType.KnownType.KTDict vt ->
       wArr w (fun () ->
         w.WriteStringValue("KTDict")
@@ -516,24 +506,24 @@ module FormatV0 =
       wArr w (fun () ->
         w.WriteStringValue("KTCustomType")
         wFQTypeName w typeName
-        wArr w (fun () -> for vt in typeArgs do wValueType w vt))
+        wArr w (fun () ->
+          for vt in typeArgs do
+            wValueType w vt))
     | ValueType.KnownType.KTFn(argTypes, retType) ->
       wArr w (fun () ->
         w.WriteStringValue("KTFn")
         // NEList → [head, ...tail]
         wArr w (fun () ->
           wValueType w argTypes.head
-          for vt in argTypes.tail do wValueType w vt)
+          for vt in argTypes.tail do
+            wValueType w vt)
         wValueType w retType)
     | ValueType.KnownType.KTDB vt ->
       wArr w (fun () ->
         w.WriteStringValue("KTDB")
         wValueType w vt)
 
-  and private wValueType
-    (w : Utf8JsonWriter)
-    (vt : ValueType.ValueType)
-    : unit =
+  and private wValueType (w : Utf8JsonWriter) (vt : ValueType.ValueType) : unit =
     match vt with
     | ValueType.ValueType.Unknown -> w.WriteStringValue("Unknown")
     | ValueType.ValueType.Known kt ->
@@ -621,8 +611,7 @@ module FormatV0 =
       let argList = List.ofSeq argTypes
       match argList with
       | [] -> Exception.raiseInternal "KTFn: empty arg NEList" []
-      | head :: tail ->
-        ValueType.KnownType.KTFn(NEList.ofList head tail, retType)
+      | head :: tail -> ValueType.KnownType.KTFn(NEList.ofList head tail, retType)
     | "KTDB" ->
       let vt = rValueType &r
       rNext &r
@@ -640,8 +629,7 @@ module FormatV0 =
     let tag, isNullary = rTag &r
     match tag with
     | "Unknown" ->
-      if not isNullary then
-        Exception.raiseInternal "Expected nullary 'Unknown'" []
+      if not isNullary then Exception.raiseInternal "Expected nullary 'Unknown'" []
       ValueType.ValueType.Unknown
     | "Known" ->
       let kt = rKnownType &r
@@ -714,12 +702,16 @@ module FormatV0 =
         w.WriteStringValue("DTuple")
         wDval w a
         wDval w b
-        wArr w (fun () -> for d in rest do wDval w d))
+        wArr w (fun () ->
+          for d in rest do
+            wDval w d))
     | DList(typ, items) ->
       wArr w (fun () ->
         w.WriteStringValue("DList")
         wValueType w typ
-        wArr w (fun () -> for d in items do wDval w d))
+        wArr w (fun () ->
+          for d in items do
+            wDval w d))
     | DDict(typ, entries) ->
       wArr w (fun () ->
         w.WriteStringValue("DDict")
@@ -733,7 +725,9 @@ module FormatV0 =
         w.WriteStringValue("DRecord")
         wFQTypeName w rtt
         wFQTypeName w st
-        wArr w (fun () -> for vt in ta do wValueType w vt)
+        wArr w (fun () ->
+          for vt in ta do
+            wValueType w vt)
         wObj w (fun () ->
           for KeyValue(k, v) in fields do
             w.WritePropertyName(k)
@@ -743,9 +737,13 @@ module FormatV0 =
         w.WriteStringValue("DEnum")
         wFQTypeName w rtt
         wFQTypeName w st
-        wArr w (fun () -> for vt in ta do wValueType w vt)
+        wArr w (fun () ->
+          for vt in ta do
+            wValueType w vt)
         w.WriteStringValue(caseName)
-        wArr w (fun () -> for d in fields do wDval w d))
+        wArr w (fun () ->
+          for d in fields do
+            wDval w d))
 
 
   let rec private rDvalMap (r : byref<Utf8JsonReader>) : DvalMap =
@@ -849,7 +847,8 @@ module FormatV0 =
           | "+Infinity" -> System.Double.PositiveInfinity
           | "-Infinity" -> System.Double.NegativeInfinity
           | s -> System.Double.Parse s
-        | t -> Exception.raiseInternal "Expected number for DFloat" [ "tokenType", t ]
+        | t ->
+          Exception.raiseInternal "Expected number for DFloat" [ "tokenType", t ]
       rNext &r
       rExpectEndArray &r
       DFloat f
@@ -982,7 +981,9 @@ module FormatV0 =
   let hashList (items : List<Dval>) : byte[] =
     use stream = new System.IO.MemoryStream()
     use writer = new Utf8JsonWriter(stream)
-    wArr writer (fun () -> for d in items do wDval writer d)
+    wArr writer (fun () ->
+      for d in items do
+        wDval writer d)
     writer.Flush()
     stream.ToArray()
 

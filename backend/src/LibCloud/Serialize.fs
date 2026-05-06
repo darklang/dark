@@ -77,4 +77,3 @@ let fetchTLIDsForAllDBs (accountID : uuid) : Task<List<tlid>> =
       AND deleted = 0"
   |> Sql.parameters [ "accountID", Sql.uuid accountID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")
-

@@ -68,8 +68,7 @@ let t
         | _ -> []
 
       // Second phase: enhance PM with PackageOps and pretty print
-      let enhancedPM =
-        LibDB.PackageManager.withExtraOps basePM packageOps
+      let enhancedPM = LibDB.PackageManager.withExtraOps basePM packageOps
       let! ppExeState = executionStateFor enhancedPM accountID false Map.empty
 
       let ppArgs = NEList.ofList (RT.DUuid PT.mainBranchId) [ sourceFile ]

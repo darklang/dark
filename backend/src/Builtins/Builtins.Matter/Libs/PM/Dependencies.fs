@@ -58,8 +58,7 @@ let fns () : List<BuiltInFn> =
           uply {
             let source = PT2DT.Hash.fromDT sourceDval
             let! branchChain = Branches.getBranchChain branchId
-            let! results =
-              LibDB.Queries.getDependencies branchChain source
+            let! results = LibDB.Queries.getDependencies branchChain source
             let dvals =
               results
               |> List.map (fun ref ->
@@ -105,9 +104,7 @@ let fns () : List<BuiltInFn> =
                     [ "target", other ])
 
             let! results =
-              LibDB.Queries.getDependentsByKindedLocations
-                branchChain
-                targets
+              LibDB.Queries.getDependentsByKindedLocations branchChain targets
 
             let dvals =
               results

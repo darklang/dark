@@ -166,8 +166,7 @@ let execute
   uply {
     let resolvedAppID = appID |> Option.defaultValue (System.Guid.NewGuid())
 
-    let (program : Program) =
-      { accountID = System.Guid.Empty; dbs = dbs }
+    let (program : Program) = { accountID = System.Guid.Empty; dbs = dbs }
 
     let builtins = builtinsToUse ()
 
@@ -241,8 +240,7 @@ let createBranchState
   (branchId : System.Guid)
   (allowHarmful : bool)
   =
-  let program : Program =
-    { accountID = System.Guid.Empty; dbs = Map.empty }
+  let program : Program = { accountID = System.Guid.Empty; dbs = Map.empty }
   let state =
     Exe.createState
       (builtinsToUse ())

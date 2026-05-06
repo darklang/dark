@@ -102,8 +102,7 @@ let handleRequest
               traceDesc
               "request"
               requestDval
-          let perRequestState =
-            { exeState with tracing = tracer.executionTracing }
+          let perRequestState = { exeState with tracing = tracer.executionTracing }
 
           let! result = executeHandler perRequestState handler requestDval
           let! response = Http.Response.toHttpResponse perRequestState result

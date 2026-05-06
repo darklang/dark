@@ -28,9 +28,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 // `account_id` and drop the accountID plumbing entirely.
 
 let create (accountID : Option<UserID>) : Task<uuid> =
-  task {
-    return accountID |> Option.defaultValue (System.Guid.NewGuid())
-  }
+  task { return accountID |> Option.defaultValue (System.Guid.NewGuid()) }
 
 let getAppsForAccount (accountID : UserID) : Task<List<uuid>> =
   task { return [ accountID ] }
@@ -231,6 +229,5 @@ let toProgram (c : T) : Ply<RT.Program> =
       |> List.map (fun db -> (db.name, PT2RT.DB.toRT db))
       |> Map.ofList
 
-    return
-      { accountID = System.Guid.Empty; dbs = dbs }
+    return { accountID = System.Guid.Empty; dbs = dbs }
   }

@@ -63,10 +63,7 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
       debuG
         $"  pass {iteration}"
         $"re-parsing {fileCount} files, resolving names, computing hashes"
-      let pm =
-        LibDB.PackageManager.withExtraOps
-          PT.PackageManager.empty
-          currentOps
+      let pm = LibDB.PackageManager.withExtraOps PT.PackageManager.empty currentOps
       let! newRawOps =
         filesWithContents
         |> Ply.List.mapSequentially (fun (path, contents) ->

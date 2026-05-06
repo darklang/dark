@@ -83,7 +83,8 @@ let private infixDispatched : Set<string> =
 /// Find packages/ by walking up from CWD until we hit one with darklang/.
 let private findPackagesDir () : string =
   let rec walk (dir : string) : string option =
-    if System.String.IsNullOrEmpty dir then None
+    if System.String.IsNullOrEmpty dir then
+      None
     else
       let candidate = Path.Combine(dir, "packages", "darklang")
       if Directory.Exists candidate then
@@ -147,8 +148,7 @@ let fromLocationBuiltinsAreSinglyReferenced =
             None // infix-dispatched: counts as ≥1 implicitly
           else
             let count = countReferences fn.name.name
-            if count = 1 then None
-            else Some(fn.name.name, count))
+            if count = 1 then None else Some(fn.name.name, count))
       |> List.ofSeq
 
     if not (List.isEmpty offenders) then
@@ -176,8 +176,10 @@ let anyBuiltinsWithSingleWrapperReport =
         match fn.accessibility with
         | RT.FromLocation _ -> false
         | RT.Any ->
-          if Set.contains fn.name.name infixDispatched then false
-          else countReferences fn.name.name = 1)
+          if Set.contains fn.name.name infixDispatched then
+            false
+          else
+            countReferences fn.name.name = 1)
       |> Seq.length
 
     if candidates > 0 then

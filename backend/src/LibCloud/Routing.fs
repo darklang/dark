@@ -22,4 +22,3 @@ let routeToPostgresPattern (route : string) : string =
     if String.startsWith ":" segment then "%" else segment)
   |> String.concat "/"
   |> (+) "/"
-

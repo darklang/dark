@@ -82,8 +82,7 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "accountID" TUuid "The account ID" ]
       returnType = TUuid
-      description =
-        "Gets the app for an account, creating one if it doesn't exist"
+      description = "Gets the app for an account, creating one if it doesn't exist"
       fn =
         (function
         | _, _, _, [ DUuid accountID ] ->
@@ -181,8 +180,7 @@ let fns () : List<BuiltInFn> =
                   Sql.query
                     "DELETE FROM user_data_v0
                      WHERE account_id = @appID AND table_tlid = @tlid"
-                  |> Sql.parameters
-                    [ "appID", Sql.uuid appID; "tlid", Sql.id tlid ]
+                  |> Sql.parameters [ "appID", Sql.uuid appID; "tlid", Sql.id tlid ]
                   |> Sql.executeStatementAsync)
               return Dval.resultOk KTUnit KTString DUnit
           }

@@ -1609,10 +1609,7 @@ type VMState =
 /// LibExecution build order (RT before PT) doesn't let us reuse it.
 /// Used in `Accessibility.FromLocation` to point at a builtin's canonical
 /// wrapper package fn without coupling to its hash (which can shift).
-type PackageLocation =
-  { owner : string
-    modules : List<string>
-    name : string }
+type PackageLocation = { owner : string; modules : List<string>; name : string }
 
 
 /// Where a builtin may be referenced from. Most builtins should be
@@ -1666,11 +1663,13 @@ and Builtins =
 
 /// Every part of a user's program
 and Program =
-  { /// Per-app state-isolation key for UserDB queries. CLI is single-app
+  {
+    /// Per-app state-isolation key for UserDB queries. CLI is single-app
     /// in production (passes a constant); tests use a fresh Guid per
     /// test so they don't share user_data_v0 rows.
     accountID : System.Guid
-    dbs : Map<string, DB.T> }
+    dbs : Map<string, DB.T>
+  }
 
 
 // Used for testing

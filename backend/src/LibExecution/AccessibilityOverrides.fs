@@ -27,9 +27,7 @@ open RuntimeTypes
 
 /// Helper: build a PackageLocation under the canonical Darklang stdlib path.
 let private stdlib (modules : List<string>) (name : string) : PackageLocation =
-  { owner = "Darklang"
-    modules = "Stdlib" :: modules
-    name = name }
+  { owner = "Darklang"; modules = "Stdlib" :: modules; name = name }
 
 
 /// Builtin name → wrapper PackageLocation. Starter set; clearly-canonical

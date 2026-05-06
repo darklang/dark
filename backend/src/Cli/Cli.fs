@@ -72,8 +72,7 @@ let builtins : RT.Builtins =
 
 
 let state (packageManager : RT.PackageManager) =
-  let program : RT.Program =
-    { accountID = System.Guid.Empty; dbs = Map.empty }
+  let program : RT.Program = { accountID = System.Guid.Empty; dbs = Map.empty }
 
   let notify
     (_state : RT.ExecutionState)
@@ -141,14 +140,11 @@ let main (args : string[]) =
 
     // Grow the database: apply any unapplied ops and evaluate values.
     let cliPackageManager =
-      Telemetry.time "cli.createPM" [] (fun () ->
-        LibDB.PackageManager.rt)
+      Telemetry.time "cli.createPM" [] (fun () -> LibDB.PackageManager.rt)
 
     Telemetry.time "cli.growIfNeeded" [] (fun () ->
-      (LibDB.Seed.growIfNeeded
-        (fun () -> builtins)
-        cliPackageManager
-        (fun msg -> System.Console.Error.WriteLine msg))
+      (LibDB.Seed.growIfNeeded (fun () -> builtins) cliPackageManager (fun msg ->
+        System.Console.Error.WriteLine msg))
         .Result
       |> ignore<bool>)
 

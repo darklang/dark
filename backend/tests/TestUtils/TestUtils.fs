@@ -123,8 +123,7 @@ let executionStateFor
   task {
     let domains = []
 
-    let program : RT.Program =
-      { accountID = accountID; dbs = dbs }
+    let program : RT.Program = { accountID = accountID; dbs = dbs }
 
     let testContext : RT.TestContext =
       { sideEffectCount = 0

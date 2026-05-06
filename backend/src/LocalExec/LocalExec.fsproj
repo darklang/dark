@@ -31,6 +31,7 @@
     <Compile Include="Migrations.fs" />
     <Compile Include="BenchmarkScenarios.fs" />
     <Compile Include="Benchmarks.fs" />
+    <Compile Include="DeadCode.fs" />
     <Compile Include="LocalExec.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

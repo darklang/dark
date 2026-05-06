@@ -558,8 +558,7 @@ module Expr =
       // by the LetPattern id so `view --with-trace` can render the
       // bound value alongside the pattern in source. No-op at runtime
       // when tracing is disabled.
-      let traceInstr =
-        RT.TraceDval(PT.LetPattern.toID pat, exprInstrs.resultIn)
+      let traceInstr = RT.TraceDval(PT.LetPattern.toID pat, exprInstrs.resultIn)
       { registerCount = bodyInstrs.registerCount
         instructions =
           exprInstrs.instructions

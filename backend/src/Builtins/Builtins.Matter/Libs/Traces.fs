@@ -493,9 +493,7 @@ let fns () : List<BuiltInFn> =
                 else
                   ""
               let body =
-                shown
-                |> List.map (fun id -> $"  - {id}")
-                |> String.concat "\n"
+                shown |> List.map (fun id -> $"  - {id}") |> String.concat "\n"
               return
                 resultError (
                   DString $"Ambiguous trace ID '{input}'. Matches:\n{body}{suffix}"
@@ -741,8 +739,10 @@ let fns () : List<BuiltInFn> =
               return Option.defaultValue [||] bs
             | DBlob(Ephemeral id) ->
               let mutable bs : byte[] = null
-              if exeState.blobStore.TryGetValue(id, &bs) then return bs
-              else return [||]
+              if exeState.blobStore.TryGetValue(id, &bs) then
+                return bs
+              else
+                return [||]
             | _ -> return [||]
           }
 
@@ -750,7 +750,8 @@ let fns () : List<BuiltInFn> =
         // bodies so the diff stays scannable; full bytes still match
         // exactly via the byte-equality check.
         let renderBody (bytes : byte[]) : string =
-          let s = UTF8.ofBytesOpt bytes |> Option.defaultValue $"<{bytes.Length} bytes>"
+          let s =
+            UTF8.ofBytesOpt bytes |> Option.defaultValue $"<{bytes.Length} bytes>"
           if s.Length > 200 then s.Substring(0, 200) + "…" else s
 
         (function
@@ -812,16 +813,12 @@ let fns () : List<BuiltInFn> =
                 else
                   let owner = parts[0]
                   let name = parts[parts.Length - 1]
-                  let modules =
-                    parts[1 .. parts.Length - 2] |> Array.toList
+                  let modules = parts[1 .. parts.Length - 2] |> Array.toList
                   let location : PT.PackageLocation =
                     { owner = owner; modules = modules; name = name }
 
-                  let! branchChain =
-                    LibDB.Branches.getBranchChain
-                      exeState.branchId
-                  let! hashOpt =
-                    LibDB.ProgramTypes.Fn.find branchChain location
+                  let! branchChain = LibDB.Branches.getBranchChain exeState.branchId
+                  let! hashOpt = LibDB.ProgramTypes.Fn.find branchChain location
 
                   match hashOpt with
                   | None ->
@@ -834,8 +831,7 @@ let fns () : List<BuiltInFn> =
                     let (PT.Hash hashStr) = hash
                     let fqName = FQFnName.fqPackage hashStr
                     let requestDval =
-                      DvalReprInternalRoundtrippable.parseJsonV0
-                        r.inputValueJson
+                      DvalReprInternalRoundtrippable.parseJsonV0 r.inputValueJson
                     let! result =
                       Execution.executeFunction
                         exeState
@@ -869,13 +865,11 @@ let fns () : List<BuiltInFn> =
                         let! newBody =
                           Map.tryFind "body" newFields
                           |> Option.map (blobBytes exeState)
-                          |> Option.defaultWith (fun () ->
-                            uply { return [||] })
+                          |> Option.defaultWith (fun () -> uply { return [||] })
 
                         if withDiff then
                           let recordedRespDval =
-                            DvalReprInternalRoundtrippable.parseJsonV0
-                              top.resultJson
+                            DvalReprInternalRoundtrippable.parseJsonV0 top.resultJson
                           match asRecord recordedRespDval with
                           | None ->
                             return
@@ -891,15 +885,13 @@ let fns () : List<BuiltInFn> =
                             let! oldBody =
                               Map.tryFind "body" oldFields
                               |> Option.map (blobBytes exeState)
-                              |> Option.defaultWith (fun () ->
-                                uply { return [||] })
+                              |> Option.defaultWith (fun () -> uply { return [||] })
 
                             let statusMatch = oldStatus = newStatus
                             let bodyMatch = oldBody = newBody
                             let verdict =
                               if statusMatch && bodyMatch then "✓ matches"
-                              elif not statusMatch && not bodyMatch then
-                                "✗ status and body differ"
+                              elif not statusMatch && not bodyMatch then "✗ status and body differ"
                               elif not statusMatch then "✗ status differs"
                               else "✗ body differs"
 
@@ -977,8 +969,7 @@ let fns () : List<BuiltInFn> =
                  WHERE trace_id = @traceId AND parent_call_id IS NULL
                  ORDER BY rowid DESC LIMIT 1"
               |> Sql.parameters [ "traceId", Sql.string traceID ]
-              |> Sql.executeRowOptionAsync (fun read ->
-                read.stringOrNone "fn_hash")
+              |> Sql.executeRowOptionAsync (fun read -> read.stringOrNone "fn_hash")
 
             match row with
             | Some(Some name) -> return Dval.optionSome KTString (DString name)
@@ -1076,9 +1067,7 @@ let fns () : List<BuiltInFn> =
           | parts -> parts[0]
 
         let formatHeaders (headers : List<string * string>) : string =
-          headers
-          |> List.map (fun (k, v) -> $"{k}: {v}")
-          |> String.concat "\n"
+          headers |> List.map (fun (k, v) -> $"{k}: {v}") |> String.concat "\n"
 
         (function
         | _, _, _, [ DString traceID ] ->
@@ -1156,7 +1145,8 @@ let fns () : List<BuiltInFn> =
 
                   let method = methodFromHandlerDesc r.handlerDesc
                   let path = urlToRequestTarget url
-                  let reqBody = UTF8.ofBytesOpt reqBodyBytes |> Option.defaultValue ""
+                  let reqBody =
+                    UTF8.ofBytesOpt reqBodyBytes |> Option.defaultValue ""
                   let respBody =
                     UTF8.ofBytesOpt respBodyBytes |> Option.defaultValue ""
 
@@ -1171,8 +1161,10 @@ let fns () : List<BuiltInFn> =
                       && kl <> "content-length"
                       && kl <> "x-http-method")
                   let reqHeaderBlock =
-                    if List.isEmpty cleanReqHeaders then ""
-                    else formatHeaders cleanReqHeaders + "\n"
+                    if List.isEmpty cleanReqHeaders then
+                      ""
+                    else
+                      formatHeaders cleanReqHeaders + "\n"
 
                   // Response side: handler-set headers come first, then
                   // the test harness expects auto-injected Server/HSTS/
@@ -1186,8 +1178,10 @@ let fns () : List<BuiltInFn> =
                       && kl <> "server"
                       && kl <> "strict-transport-security")
                   let respHeaderBlock =
-                    if List.isEmpty cleanRespHeaders then ""
-                    else formatHeaders cleanRespHeaders + "\n"
+                    if List.isEmpty cleanRespHeaders then
+                      ""
+                    else
+                      formatHeaders cleanRespHeaders + "\n"
 
                   // Sentinel — Dark side substitutes either the
                   // auto-resolved handler body (via PackageManager
@@ -1234,8 +1228,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "tracesImport" 0
       typeParams = []
-      parameters =
-        [ Param.make "json" TString "JSON exported via tracesExportJson" ]
+      parameters = [ Param.make "json" TString "JSON exported via tracesExportJson" ]
       returnType = TypeReference.result TString TString
       description =
         "Import a trace from a JSON dump (the `traces export` format). Re-creates the trace row + all fn_call rows under the importing process's scope. Returns the trace ID on success."
@@ -1333,8 +1326,7 @@ let fns () : List<BuiltInFn> =
                     |> List.map (fun ev ->
                       [ "traceId", Sql.string id
                         "exprId", Sql.string (ev.GetProperty("expr_id").GetString())
-                        "dvalJson",
-                        Sql.string (ev.GetProperty("dval").GetRawText()) ])
+                        "dvalJson", Sql.string (ev.GetProperty("dval").GetRawText()) ])
                   [ "INSERT OR REPLACE INTO trace_expr_values
                       (trace_id, expr_id, dval_json)
                      VALUES
@@ -1343,8 +1335,9 @@ let fns () : List<BuiltInFn> =
                 | _ -> []
 
               let _ =
-                Sql.executeTransactionSync
-                  (baseStatements @ eventStmt @ exprValuesStmt)
+                Sql.executeTransactionSync (
+                  baseStatements @ eventStmt @ exprValuesStmt
+                )
               return resultOk (DString id)
             with ex ->
               return resultError (DString $"Failed to import trace: {ex.Message}")
@@ -1373,8 +1366,7 @@ let fns () : List<BuiltInFn> =
             // Timestamp column is ISO 8601 ("2026-05-02T02:03:53Z") which
             // sorts lexicographically — string compare works as date compare.
             let countToDelete =
-              Sql.query
-                "SELECT COUNT(*) AS c FROM traces WHERE timestamp < @cutoff"
+              Sql.query "SELECT COUNT(*) AS c FROM traces WHERE timestamp < @cutoff"
               |> Sql.parameters [ "cutoff", Sql.string cutoffISO ]
               |> Sql.executeRowAsync (fun read -> read.int64 "c")
             let! count = countToDelete
@@ -1423,7 +1415,8 @@ let fns () : List<BuiltInFn> =
               Sql.query "SELECT COUNT(*) as c FROM traces"
               |> Sql.executeRowAsync (fun read -> read.int64 "c")
             do! Sql.query "DELETE FROM trace_fn_calls" |> Sql.executeStatementAsync
-            do! Sql.query "DELETE FROM trace_expr_values" |> Sql.executeStatementAsync
+            do!
+              Sql.query "DELETE FROM trace_expr_values" |> Sql.executeStatementAsync
             do! Sql.query "DELETE FROM traces" |> Sql.executeStatementAsync
             return DInt64 count
           }
@@ -1452,13 +1445,11 @@ let fns () : List<BuiltInFn> =
             | None -> return DInt64 0L
             | Some _ ->
               do!
-                Sql.query
-                  "DELETE FROM trace_fn_calls WHERE trace_id = @traceId"
+                Sql.query "DELETE FROM trace_fn_calls WHERE trace_id = @traceId"
                 |> Sql.parameters [ "traceId", Sql.string traceID ]
                 |> Sql.executeStatementAsync
               do!
-                Sql.query
-                  "DELETE FROM trace_expr_values WHERE trace_id = @traceId"
+                Sql.query "DELETE FROM trace_expr_values WHERE trace_id = @traceId"
                 |> Sql.parameters [ "traceId", Sql.string traceID ]
                 |> Sql.executeStatementAsync
               do!

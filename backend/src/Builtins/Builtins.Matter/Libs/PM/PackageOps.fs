@@ -34,8 +34,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | _, _, _, [ DList(_vt, ops) ] ->
           uply {
             let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
-            let stabilized =
-              LibDB.HashStabilization.computeRealHashes ptOps
+            let stabilized = LibDB.HashStabilization.computeRealHashes ptOps
             return
               Dval.list
                 (packageOpKT ())
@@ -68,8 +67,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
 
               // All ops are added as WIP - use scmCommit to commit them
-              let! insertedCount =
-                LibDB.Inserts.insertAndApplyOpsAsWip branchId ops
+              let! insertedCount = LibDB.Inserts.insertAndApplyOpsAsWip branchId ops
 
               // Auto-refresh existing WIP items: re-resolve names and
               // recompute SCC-aware hashes now that new items exist
@@ -84,10 +82,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               // rt_dval until the next cold restart.
               let builtins : Builtins =
                 { values = exeState.values.builtIn; fns = exeState.fns.builtIn }
-              let! _ =
-                LibDB.Seed.evaluateAllValues
-                  builtins
-                  LibDB.PackageManager.rt
+              let! _ = LibDB.Seed.evaluateAllValues builtins LibDB.PackageManager.rt
 
               return resultOk (Dval.int64 insertedCount)
             with ex ->
@@ -249,8 +244,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         (function
         | _, _, _, [ DUuid accountId; DUuid branchId; DString message ] ->
           uply {
-            let! result =
-              LibDB.Inserts.commitWipOps accountId branchId message
+            let! result = LibDB.Inserts.commitWipOps accountId branchId message
             match result with
             | Ok commitHash ->
               let (PT.Hash h) = commitHash
@@ -325,8 +319,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         function
         | _, _, _, [ DUuid branchId; DInt64 limit ] ->
           uply {
-            let! commits =
-              LibDB.Queries.getCommitsForBranchChain branchId limit
+            let! commits = LibDB.Queries.getCommitsForBranchChain branchId limit
             return
               Dval.list
                 (PT2DT.Commit.knownType ())
