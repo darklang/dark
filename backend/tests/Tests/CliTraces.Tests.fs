@@ -265,9 +265,6 @@ let private testTracesHelp =
               "find"
               "hotspots"
               "inspect"
-              "gen-test"
-              "values"
-              "export"
               "import"
               "replay"
               "delete"
@@ -641,6 +638,23 @@ let private testTracesClearAndPruneGrammar =
         })
   }
 
+let private testTracesReplayReruns =
+  testTask "traces replay <id> re-evaluates the recorded eval input" {
+    do!
+      withState (fun state ->
+        task {
+          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "eval"; "1L + 2L" ]
+          let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
+          let tid = parseTraceID listJson
+          let! out = runCli state [ "traces"; "replay"; tid ]
+          Expect.stringContains out $"Replaying trace {tid}" "header line"
+          Expect.stringContains out "3" "result printed"
+          Expect.stringContains out "Replay complete" "completion line"
+        })
+  }
+
+
 let private testTracesRejectsFlagAsTraceId =
   testTask "flag-shaped trace-id input rejected as flag" {
     do!
@@ -691,6 +705,7 @@ let tests =
       testTracesDeleteSingle
       testViewWithTraceAnnotates
       testTracesPruneKeep
+      testTracesReplayReruns
       testTracesRejectsNegativeLimit
       testTracesRejectsFlagAsTraceId
       testTracesClearAndPruneGrammar

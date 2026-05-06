@@ -506,6 +506,41 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
+    { name = fn "tracesGetInput" 0
+      typeParams = []
+      parameters = [ Param.make "traceID" TString "The trace ID to get input from" ]
+      returnType = TypeReference.option TString
+      description =
+        "Get the stored input code for a trace (eval / run only — HTTP traces, whose input is a Request record, return None)."
+      fn =
+        (function
+        | _, _, _, [ DString traceID ] ->
+          uply {
+            let! row =
+              Sql.query "SELECT input_value_json FROM traces WHERE id = @traceId"
+              |> Sql.parameters [ "traceId", Sql.string traceID ]
+              |> Sql.executeRowOptionAsync (fun read ->
+                read.string "input_value_json")
+
+            match row with
+            | None -> return Dval.optionNone KTString
+            | Some valueJson ->
+              try
+                let dval = DvalReprInternalRoundtrippable.parseJsonV0 valueJson
+                match dval with
+                | DString code -> return Dval.optionSome KTString (DString code)
+                | _ -> return Dval.optionNone KTString
+              with ex ->
+                print $"[traces] Failed to parse input for replay: {ex.Message}"
+                return Dval.optionNone KTString
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated
+      accessibility = Any }
+
+
     { name = fn "tracesGetExpectedOutput" 0
       typeParams = []
       parameters = [ Param.make "traceID" TString "The trace ID" ]

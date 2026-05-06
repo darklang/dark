@@ -356,6 +356,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Colors.error msg)
       state
 
+  | [ "replay"; traceID ] ->
+    match resolveTraceID traceID with
+    | Some full -> executeReplay state full
+    | None -> state
+
   | [ "clear" ] ->
     executeClear state
 
@@ -396,6 +401,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "view" ] ->
     Stdlib.printLine (Colors.error "Usage: traces view <trace-id> [flags]")
     state
+  | [ "replay" ] ->
+    Stdlib.printLine (Colors.error "Usage: traces replay <trace-id>")
+    state
   | [ "inspect" ] ->
     Stdlib.printLine (Colors.error "Usage: traces inspect <trace-id>")
     state
@@ -426,6 +434,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // one positional and doesn't accept trailing flags.
   | "inspect" :: _ ->
     Stdlib.printLine (Colors.error "Usage: traces inspect <trace-id>")
+    state
+  | "replay" :: _ ->
+    Stdlib.printLine (Colors.error "Usage: traces replay <trace-id>")
     state
   | "import" :: _ ->
     Stdlib.printLine (Colors.error "Usage: traces import <path>")
@@ -470,7 +481,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // look like it succeeded silently.
     let knownSubcommands =
       [ "help"; "list"; "view"; "tail"; "follow"; "find"; "hotspots"
-        "stats"; "import"; "inspect"; "delete"; "prune"; "clear" ]
+        "stats"; "import"; "inspect"; "replay"; "delete"; "prune"; "clear" ]
     let isKnownHead =
       match args with
       | head :: _ ->
@@ -699,10 +710,9 @@ let executeFindView (state: Cli.AppState) (pattern: String) : Cli.AppState =
 /// `traces inspect <id>` — open the recorded handler with the
 /// `view --with-trace` overlay applied. Saves "what was the handler
 /// called again?" — the trace already knows (via the recorded
-/// top-level fn_hash, same source `gen-test` uses). Prefixes the
-/// annotated source with a banner showing what triggered the trace
-/// (handler_desc + timestamp) so the user has context for the
-/// inputs they're seeing inline.
+/// top-level fn_hash). Prefixes the annotated source with a banner
+/// showing what triggered the trace (handler_desc + timestamp) so the
+/// user has context for the inputs they're seeing inline.
 let executeInspect (state: Cli.AppState) (traceID: String) : Cli.AppState =
   match Builtin.tracesGetHandlerName traceID with
   | None ->
@@ -1218,6 +1228,36 @@ let executeView
     state
 
 
+/// `traces replay <id>` — re-evaluate a trace's recorded eval/run input.
+/// HTTP traces (input is a Request record, not a string) aren't supported;
+/// the row's input is fetched via `tracesGetInput` which returns None for
+/// non-string inputs. Each replay creates a fresh trace.
+let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
+  match Builtin.tracesGetInput traceID with
+  | None ->
+    Stdlib.printLine
+      (Colors.error
+        $"Trace not found, or trace input isn't a replayable string: {traceID}")
+    state
+  | Some code ->
+    Stdlib.printLine $"Replaying trace {traceID}..."
+    Stdlib.printLine ""
+    match
+      Builtin.cliEvaluateExpression
+        state.accountID state.currentBranchId code false
+    with
+    | Ok output ->
+      Stdlib.printLine output
+      Stdlib.printLine ""
+      Stdlib.printLine "Replay complete. A new trace was created for this execution."
+      state
+    | Error err ->
+      let pretty =
+        PrettyPrinter.RuntimeTypes.RuntimeError.toString state.currentBranchId err
+      Stdlib.printLine (Colors.error $"Replay failed: {pretty}")
+      state
+
+
 let executeClear (state: Cli.AppState) : Cli.AppState =
   let count = Builtin.tracesClear ()
   match count with
@@ -1267,7 +1307,7 @@ let executeClearBefore
 
 
 /// `traces delete <id>` — remove one trace and its fn_calls. ID accepts
-/// the same prefix-resolution as view/export/replay.
+/// the same prefix-resolution as view/replay.
 let executeDelete (state: Cli.AppState) (traceID: String) : Cli.AppState =
   let deleted = Builtin.tracesDelete traceID
   match deleted with
@@ -1316,6 +1356,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
       Completion.simple "hotspots"
       Completion.simple "import"
       Completion.simple "inspect"
+      Completion.simple "replay"
       Completion.simple "delete"
       Completion.simple "prune"
       Completion.simple "clear"
@@ -1329,7 +1370,6 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
     [ Completion.simple "--route"; Completion.simple "--json" ]
   | [ "find" ] ->
     [ Completion.simple "--view"; Completion.simple "--json" ]
-  | [ "replay" ] -> [ Completion.simple "--diff" ]
   | [ "prune" ] -> [ Completion.simple "--keep" ]
   | [ "clear" ] -> [ Completion.simple "--before" ]
   | [ "stats" ] -> [ Completion.simple "--json" ]
@@ -1380,12 +1420,13 @@ let help (_state: Cli.AppState) : Unit =
     "  hotspots --json [trace-limit] Same data as JSON for piping"
     "  import <path>                 Re-create a trace from a JSON dump on disk"
     "  inspect <trace-id>            Open the recorded handler with --with-trace overlay (annotated source)"
+    "  replay <trace-id>             Re-evaluate the trace's recorded eval/run input under current code"
     "  delete <trace-id>             Delete one trace (prefix OK)"
     "  prune --keep <N>              Keep the N most-recent traces, drop the rest"
     "  clear                         Delete all stored traces"
     "  clear --before <duration>     Delete traces older than <duration> (s/m/h/d)"
     ""
-    "Trace IDs accept any unambiguous prefix — `view fe62`, `export fe6219e9-4705`, etc."
+    "Trace IDs accept any unambiguous prefix — `view fe62`, `replay fe6219e9-4705`, etc."
     ""
     "View flags (combinable):"
     "  -d, --depth <n>           Cap tree depth at <n> levels"
@@ -1423,19 +1464,15 @@ let help (_state: Cli.AppState) : Unit =
     "  traces view <trace-id> --slow              - Only calls ≥10ms"
     "  traces view <trace-id> --slow-ms 100       - Only calls ≥100ms"
     "  traces inspect <trace-id>            - Annotated handler source (auto-resolves the fn)"
-    "  traces gen-test <trace-id> > foo.test - Save trace as a wire-format test fixture"
-    "  traces values <trace-id>             - Raw (exprId, dval) pairs (debug)"
-    "  traces export <trace-id> > t.json    - Dump a trace as JSON for sharing"
     "  traces import t.json                 - Re-create a trace from a JSON dump"
-    "  traces replay <trace-id>             - Re-run with current code"
-    "  traces replay <trace-id> --diff      - Re-run, then diff vs recorded output"
+    "  traces replay <trace-id>             - Re-run the recorded eval/run input under current code"
     "  traces delete fe62                   - Delete one trace by prefix"
     "  traces prune --keep 50               - Keep latest 50, drop the rest"
     "  traces clear --before 1h             - Drop traces older than 1 hour"
     "  traces clear                         - Delete all traces"
     ""
-    "Workflow trio for HTTP debug:"
+    "Workflow for debugging the last request:"
     "  traces tail                          - what just ran (call tree)"
     "  traces inspect <id>                  - how it ran (annotated source)"
-    "  traces gen-test <id>                 - save it as a fixture" ]
+    "  traces replay <id>                   - re-run under current code" ]
   |> Stdlib.printLines
