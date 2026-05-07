@@ -162,41 +162,9 @@ let fromLocationBuiltinsAreSinglyReferenced =
   }
 
 
-let anyBuiltinsWithSingleWrapperReport =
-  // Diagnostic, not a fail. Builtins marked Any with exactly 1 textual
-  // reference are tightening candidates: the FromLocation invariant
-  // would already hold for them. Prints the names directly so they
-  // can be scanned without a separate audit script.
-  testTask "report Any builtins that look like tightening candidates" {
-    let fns = (localBuiltIns PT.PackageManager.empty).fns |> Map.values
-
-    let candidates =
-      fns
-      |> Seq.choose (fun fn ->
-        match fn.accessibility with
-        | RT.FromLocation _ -> None
-        | RT.Any ->
-          if Set.contains fn.name.name infixDispatched then None
-          else if countReferences fn.name.name = 1 then Some fn.name.name
-          else None)
-      |> Seq.toList
-
-    if not (List.isEmpty candidates) then
-      let preview = candidates |> List.truncate 10 |> String.concat ", "
-      let suffix =
-        if List.length candidates > 10 then
-          $", … ({List.length candidates - 10} more)"
-        else
-          ""
-      print
-        $"[builtin/accessibility] {List.length candidates} `Any` builtins have exactly 1 wrapper — tightening candidates: {preview}{suffix}"
-  }
-
-
 let tests =
   testList
     "builtin"
     [ oldFunctionsAreDeprecated
       allBuiltinsHaveAccessibilitySet
-      fromLocationBuiltinsAreSinglyReferenced
-      anyBuiltinsWithSingleWrapperReport ]
+      fromLocationBuiltinsAreSinglyReferenced ]
