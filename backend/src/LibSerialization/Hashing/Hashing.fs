@@ -74,9 +74,25 @@ module Hashing =
       LibSerialization.Binary.Serializers.PT.BranchOp.write w op)
 
 
-  /// Hash a commit: hash(parentHash + sorted(opHashes))
-  let computeCommitHash (parentHash : Hash option) (opHashes : List<Hash>) : Hash =
+  /// Hash a commit: hash(branchId + parentHash + sorted(opHashes))
+  ///
+  /// Mixing in `branchId` is what keeps the global `commits.hash`
+  /// PRIMARY KEY safe under `INSERT OR IGNORE` semantics in
+  /// `BranchOpPlayback.applyOp`. Without it, two branches producing
+  /// identical op sets off the same parent (e.g. re-running the same
+  /// .dark script on different branches) collide on the hash; the
+  /// second branch's commit is silently dropped, but `commitWipOps`
+  /// still re-points its package_ops/locations/deprecations at the
+  /// first branch's hash. Stale rows in `commits` from before this
+  /// change need to be wiped or rebuilt — there are no persistent
+  /// prod consumers today.
+  let computeCommitHash
+    (branchId : System.Guid)
+    (parentHash : Hash option)
+    (opHashes : List<Hash>)
+    : Hash =
     hashWithWriter (fun w ->
+      Common.Guid.write w branchId
       Common.Option.write w PTC.Hash.write parentHash
       let sorted = opHashes |> List.map Hash.toHexString |> List.sort
       Common.List.write w Common.String.write sorted)

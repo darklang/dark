@@ -149,7 +149,7 @@ let insertAndApplyOpsWithCommit
 
     // Compute content-addressed commit hash
     let opHashes = ops |> List.map Hashing.computeOpHash
-    let commitHash = Hashing.computeCommitHash parentHash opHashes
+    let commitHash = Hashing.computeCommitHash branchId parentHash opHashes
     let (Hash commitHashStr) = commitHash
 
     // Record and apply the commit
@@ -218,7 +218,7 @@ let commitWipOps
         let opHashes = wipOps |> List.map (fun (_, op) -> Hashing.computeOpHash op)
 
         // Compute content-addressed commit hash
-        let commitHash = Hashing.computeCommitHash parentHash opHashes
+        let commitHash = Hashing.computeCommitHash branchId parentHash opHashes
         let (Hash commitHashStr) = commitHash
 
         // Record and apply the commit
