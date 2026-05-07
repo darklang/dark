@@ -785,27 +785,27 @@ let fns () : List<BuiltInFn> =
               |> Sql.executeRowAsync (fun read -> read.int64 "c")
             let! count = countToDelete
 
+            // All three DELETEs run in one transaction so an interrupt
+            // can't leave fn_calls / expr_values orphan rows pointing at
+            // a deleted trace. There's no FK cascade by design (schema
+            // kept additive for migration ease), so cleanup is purely
+            // procedural.
             if count > 0L then
-              do!
-                Sql.query
-                  "DELETE FROM trace_fn_calls
-                   WHERE trace_id IN (
-                     SELECT id FROM traces WHERE timestamp < @cutoff
-                   )"
-                |> Sql.parameters [ "cutoff", Sql.string cutoffISO ]
-                |> Sql.executeStatementAsync
-              do!
-                Sql.query
-                  "DELETE FROM trace_expr_values
-                   WHERE trace_id IN (
-                     SELECT id FROM traces WHERE timestamp < @cutoff
-                   )"
-                |> Sql.parameters [ "cutoff", Sql.string cutoffISO ]
-                |> Sql.executeStatementAsync
-              do!
-                Sql.query "DELETE FROM traces WHERE timestamp < @cutoff"
-                |> Sql.parameters [ "cutoff", Sql.string cutoffISO ]
-                |> Sql.executeStatementAsync
+              let p = [ [ "cutoff", Sql.string cutoffISO ] ]
+              let _ =
+                Sql.executeTransactionSync
+                  [ ("DELETE FROM trace_fn_calls
+                      WHERE trace_id IN (
+                        SELECT id FROM traces WHERE timestamp < @cutoff
+                      )",
+                     p)
+                    ("DELETE FROM trace_expr_values
+                      WHERE trace_id IN (
+                        SELECT id FROM traces WHERE timestamp < @cutoff
+                      )",
+                     p)
+                    ("DELETE FROM traces WHERE timestamp < @cutoff", p) ]
+              ()
 
             return DInt64 count
           }
@@ -828,10 +828,13 @@ let fns () : List<BuiltInFn> =
             let! count =
               Sql.query "SELECT COUNT(*) as c FROM traces"
               |> Sql.executeRowAsync (fun read -> read.int64 "c")
-            do! Sql.query "DELETE FROM trace_fn_calls" |> Sql.executeStatementAsync
-            do!
-              Sql.query "DELETE FROM trace_expr_values" |> Sql.executeStatementAsync
-            do! Sql.query "DELETE FROM traces" |> Sql.executeStatementAsync
+            // All three DELETEs in one transaction (same shape as
+            // tracesClearBefore — no FK cascade in the schema).
+            let _ =
+              Sql.executeTransactionSync
+                [ ("DELETE FROM trace_fn_calls", [ [] ])
+                  ("DELETE FROM trace_expr_values", [ [] ])
+                  ("DELETE FROM traces", [ [] ]) ]
             return DInt64 count
           }
         | _ -> incorrectArgs ())
@@ -903,35 +906,37 @@ let fns () : List<BuiltInFn> =
               |> Sql.executeRowAsync (fun read -> read.int64 "c")
             let! count = countToDelete
 
+            // All three DELETEs run in one transaction. The "keep N most-
+            // recent rowids" subquery is repeated in each statement; the
+            // transaction's snapshot keeps the four evaluations
+            // (count + three DELETEs) consistent — without it, a
+            // concurrent insert between the count and the first DELETE
+            // (or between any two DELETEs) would let the four see
+            // different "kept" sets and orphan child rows.
             if count > 0L then
-              do!
-                Sql.query
-                  "DELETE FROM trace_fn_calls WHERE trace_id IN (
-                     SELECT id FROM traces
-                     WHERE rowid NOT IN (
-                       SELECT rowid FROM traces ORDER BY rowid DESC LIMIT @keepN
-                     )
-                   )"
-                |> Sql.parameters [ "keepN", Sql.int64 keepN ]
-                |> Sql.executeStatementAsync
-              do!
-                Sql.query
-                  "DELETE FROM trace_expr_values WHERE trace_id IN (
-                     SELECT id FROM traces
-                     WHERE rowid NOT IN (
-                       SELECT rowid FROM traces ORDER BY rowid DESC LIMIT @keepN
-                     )
-                   )"
-                |> Sql.parameters [ "keepN", Sql.int64 keepN ]
-                |> Sql.executeStatementAsync
-              do!
-                Sql.query
-                  "DELETE FROM traces
-                   WHERE rowid NOT IN (
-                     SELECT rowid FROM traces ORDER BY rowid DESC LIMIT @keepN
-                   )"
-                |> Sql.parameters [ "keepN", Sql.int64 keepN ]
-                |> Sql.executeStatementAsync
+              let p = [ [ "keepN", Sql.int64 keepN ] ]
+              let _ =
+                Sql.executeTransactionSync
+                  [ ("DELETE FROM trace_fn_calls WHERE trace_id IN (
+                       SELECT id FROM traces
+                       WHERE rowid NOT IN (
+                         SELECT rowid FROM traces ORDER BY rowid DESC LIMIT @keepN
+                       )
+                     )",
+                     p)
+                    ("DELETE FROM trace_expr_values WHERE trace_id IN (
+                       SELECT id FROM traces
+                       WHERE rowid NOT IN (
+                         SELECT rowid FROM traces ORDER BY rowid DESC LIMIT @keepN
+                       )
+                     )",
+                     p)
+                    ("DELETE FROM traces
+                      WHERE rowid NOT IN (
+                        SELECT rowid FROM traces ORDER BY rowid DESC LIMIT @keepN
+                      )",
+                     p) ]
+              ()
 
             return DInt64 count
           }
