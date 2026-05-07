@@ -29,8 +29,12 @@ done
 killall -9 Tests || true
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  EXE=Build/out/Tests/Release/net10.0/linux-x64/Tests
-  LOCALEXEC=Build/out/LocalExec/Release/net10.0/linux-x64/LocalExec
+  # `dotnet publish -c Release fsdark.sln` (the CI publish step) doesn't
+  # pass `--runtime`, so outputs land at `Release/net10.0/publish/<exe>`,
+  # not under a `linux-x64/` subdir. (Cli is the only project that
+  # publishes RID-specific, and that's via build-release-cli-exes.sh.)
+  EXE=Build/out/Tests/Release/net10.0/publish/Tests
+  LOCALEXEC=Build/out/LocalExec/Release/net10.0/publish/LocalExec
 else
   EXE=Build/out/Tests/Debug/net10.0/Tests
   LOCALEXEC=Build/out/LocalExec/Debug/net10.0/LocalExec
