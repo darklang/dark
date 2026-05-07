@@ -166,6 +166,9 @@ module FnNameCache =
           |> Async.RunSynchronously
         with ex ->
           print $"[tracing] FnNameCache failed to resolve {hash}: {ex.Message}"
+          Telemetry.event
+            "trace.fnNameCacheResolveFailed"
+            [ "hash", hash; "message", ex.Message ]
           None
 
       match result with
@@ -509,6 +512,9 @@ let private storeTrace
         state.exprValues
     with ex ->
       print $"[tracing] Failed to store trace: {ex.Message}"
+      Telemetry.event
+        "trace.storeFailed"
+        [ "exception", ex.GetType().FullName; "message", ex.Message ]
   }
 
 

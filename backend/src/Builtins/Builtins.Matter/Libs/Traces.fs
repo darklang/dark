@@ -86,11 +86,17 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
           try parseArgsJson ev.argsJson
           with ex ->
             print $"[tracing] failed to parse args_json for row: {ex.Message}"
+            Telemetry.event
+              "trace.row.argsParseFailed"
+              [ "message", ex.Message ]
             [ DString $"<corrupt: {ex.Message}>" ]
         let result =
           try parseDvalJson ev.resultJson
           with ex ->
             print $"[tracing] failed to parse result_json for row: {ex.Message}"
+            Telemetry.event
+              "trace.row.resultParseFailed"
+              [ "message", ex.Message ]
             DString $"<corrupt: {ex.Message}>"
         let parentCallIdDval =
           match ev.parentCallId with
@@ -683,9 +689,9 @@ let fns () : List<BuiltInFn> =
             // GetRawText() inserted verbatim, so a malformed file
             // wrote garbage that crashed later reads. JSON-parse vs
             // disk errors now report distinct messages.
-            let validateDval (label : string) (rawJson : string) : exn option =
+            let validateDval (_label : string) (rawJson : string) : exn option =
               try
-                DvalReprInternalRoundtrippable.parseJsonV0 rawJson |> ignore<RT.Dval>
+                DvalReprInternalRoundtrippable.parseJsonV0 rawJson |> ignore<Dval>
                 None
               with ex ->
                 Some ex

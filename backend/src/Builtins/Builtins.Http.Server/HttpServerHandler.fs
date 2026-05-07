@@ -121,7 +121,7 @@ let handleRequest
               0,
               response.body.Length
             )
-      with ex ->
+      with _ex ->
         // Don't leak `ex.Message` to the wire — it can carry stack
         // hints, internal paths, or sensitive eval-state strings.
         // Keep the full detail server-side via the `logRequest` path
