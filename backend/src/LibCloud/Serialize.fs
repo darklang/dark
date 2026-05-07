@@ -30,10 +30,7 @@ type Deleted =
   | Deleted
   | NotDeleted
 
-let loadToplevels
-  (scopeID : uuid)
-  (tlids : List<tlid>)
-  : Task<List<Deleted * PT.Toplevel.T>> =
+let loadToplevels (tlids : List<tlid>) : Task<List<Deleted * PT.Toplevel.T>> =
   task {
     let! data =
       if List.isEmpty tlids then
@@ -49,15 +46,14 @@ let loadToplevels
         let query =
           $"SELECT tlid, data, deleted
            FROM toplevels_v0
-           WHERE scope_id = @scopeID
-             AND tlid IN ({tlidPlaceholders})
+           WHERE tlid IN ({tlidPlaceholders})
              AND (
                tipe = 'db'
                OR tipe = 'handler'
              )"
 
         Sql.query query
-        |> Sql.parameters (("scopeID", Sql.uuid scopeID) :: tlidParams)
+        |> Sql.parameters tlidParams
         |> Sql.executeAsync (fun read ->
           (read.tlid "tlid", read.bytes "data", read.bool "deleted"))
 
@@ -69,11 +65,9 @@ let loadToplevels
   }
 
 
-let fetchTLIDsForAllDBs (scopeID : uuid) : Task<List<tlid>> =
+let fetchTLIDsForAllDBs () : Task<List<tlid>> =
   Sql.query
     "SELECT tlid FROM toplevels_v0
-    WHERE scope_id = @scopeID
-      AND tipe = 'db'
+    WHERE tipe = 'db'
       AND deleted = 0"
-  |> Sql.parameters [ "scopeID", Sql.uuid scopeID ]
   |> Sql.executeAsync (fun read -> read.tlid "tlid")

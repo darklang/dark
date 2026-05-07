@@ -31,11 +31,20 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 let pmPT = LibDB.PackageManager.pt
 let pmRT = LibDB.PackageManager.rt
 
-let initializeTestCanvas (name : string) : Task<uuid> =
-  // `name` is unused now that domains are gone — kept as a parameter so
-  // call sites stay readable about what the test scope is for.
-  ignore<string> name
-  Toplevels.create None
+/// Per-test no-op. Used to generate a fresh scopeID for isolation;
+/// those columns were dropped (single-instance Dark) so cross-test
+/// isolation now relies on `gid()`-generated unique tlids — every
+/// `testDB` / `testWorker` / `testCron` allocates a fresh tlid, so
+/// rows from concurrent tests don't collide. Wiping the tables
+/// between tests would race with parallel writes, so we don't.
+///
+/// Kept as a Task<unit> with a `name` parameter so call sites stay
+/// readable about what the test is for.
+let initializeTestCanvas (name : string) : Task<unit> =
+  task {
+    ignore<string> name
+    return ()
+  }
 
 
 let testCron
@@ -110,14 +119,13 @@ let cloudBuiltIns (pm : PT.PackageManager) =
 
 let executionStateFor
   (pmPT : PT.PackageManager)
-  (scopeID : uuid)
   (allowLocalHttpAccess : bool)
   (dbs : Map<string, RT.DB.T>)
   : Task<RT.ExecutionState> =
   task {
     let domains = []
 
-    let program : RT.Program = { scopeID = scopeID; dbs = dbs }
+    let program : RT.Program = { dbs = dbs }
 
     let testContext : RT.TestContext =
       { sideEffectCount = 0
@@ -1522,8 +1530,7 @@ let unwrapExecutionResult
 let parsePTExpr (code : string) : Task<PT.Expr> =
   uply {
     let! (state : RT.ExecutionState) =
-      let scopeID = System.Guid.NewGuid()
-      executionStateFor pmPT scopeID false Map.empty
+      executionStateFor pmPT false Map.empty
 
     let name =
       RT.FQFnName.fqPackage (PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ())

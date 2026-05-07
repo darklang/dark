@@ -155,7 +155,7 @@ let evaluateAllValues
   (pm : RT.PackageManager)
   : Task<Result<unit, string list>> =
   task {
-    let program : RT.Program = { scopeID = System.Guid.Empty; dbs = Map.empty }
+    let program : RT.Program = { dbs = Map.empty }
 
     let notify _ _ _ _ = uply { return () }
     let sendException _ _ _ _ = uply { return () }

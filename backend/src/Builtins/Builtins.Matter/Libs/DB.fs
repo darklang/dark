@@ -509,8 +509,8 @@ let fns () : List<BuiltInFn> =
 
 
     // ---------------
-    // DB management — create / list / drop. Operate on the implicit
-    // scope (`exeState.program.scopeID`) rather than taking it explicitly.
+    // DB management — create / list / drop. Single-instance Dark:
+    // toplevels_v0 / user_data_v0 are global, not scoped per call.
     // ---------------
 
     { name = fn "dbCreate" 0
@@ -525,19 +525,16 @@ let fns () : List<BuiltInFn> =
       description = "Creates a new database"
       fn =
         (function
-        | exeState, _, _, [ DString dbName; typeHashDval ] ->
+        | _, _, _, [ DString dbName; typeHashDval ] ->
           let typeHash = PT2DT.Hash.fromDT typeHashDval
-          let scopeID = exeState.program.scopeID
           uply {
             let! existing =
               Sql.query
                 "SELECT COUNT(*) as cnt FROM toplevels_v0
-                 WHERE scope_id = @scopeID
-                   AND tipe = 'db'
+                 WHERE tipe = 'db'
                    AND name = @name
                    AND deleted = 0"
-              |> Sql.parameters
-                [ "scopeID", Sql.uuid scopeID; "name", Sql.string dbName ]
+              |> Sql.parameters [ "name", Sql.string dbName ]
               |> Sql.executeRowAsync (fun read -> read.int "cnt")
 
             if existing > 0 then
@@ -561,7 +558,7 @@ let fns () : List<BuiltInFn> =
                     ) }
 
               let toplevel = PT.Toplevel.TLDB db
-              do! Toplevels.saveTLIDs scopeID [ (toplevel, Serialize.NotDeleted) ]
+              do! Toplevels.saveTLIDs [ (toplevel, Serialize.NotDeleted) ]
               return Dval.resultOk KTUInt64 KTString (DUInt64 tlid)
           }
         | _ -> incorrectArgs ())
@@ -578,10 +575,9 @@ let fns () : List<BuiltInFn> =
       description = "Returns a list of (name, typeName) tuples for all DBs"
       fn =
         (function
-        | exeState, _, _, [ DUuid branchId ] ->
-          let scopeID = exeState.program.scopeID
+        | _, _, _, [ DUuid branchId ] ->
           uply {
-            let! app = Toplevels.loadAllDBs scopeID
+            let! app = Toplevels.loadAllDBs ()
             let pm = LibDB.PackageManager.pt
             let! dbs =
               app.dbs
@@ -617,18 +613,15 @@ let fns () : List<BuiltInFn> =
       description = "Drops (deletes) all databases with the given name"
       fn =
         (function
-        | exeState, _, _, [ DString dbName ] ->
-          let scopeID = exeState.program.scopeID
+        | _, _, _, [ DString dbName ] ->
           uply {
             let! matchingTlids =
               Sql.query
                 "SELECT tlid FROM toplevels_v0
-                 WHERE scope_id = @scopeID
-                   AND tipe = 'db'
+                 WHERE tipe = 'db'
                    AND name = @name
                    AND deleted = 0"
-              |> Sql.parameters
-                [ "scopeID", Sql.uuid scopeID; "name", Sql.string dbName ]
+              |> Sql.parameters [ "name", Sql.string dbName ]
               |> Sql.executeAsync (fun read -> read.tlid "tlid")
 
             match matchingTlids with
@@ -642,15 +635,13 @@ let fns () : List<BuiltInFn> =
               do!
                 matchingTlids
                 |> Task.iterInParallel (fun tlid ->
-                  Toplevels.deleteToplevelForever scopeID tlid)
+                  Toplevels.deleteToplevelForever tlid)
               do!
                 matchingTlids
                 |> Task.iterInParallel (fun tlid ->
                   Sql.query
-                    "DELETE FROM user_data_v0
-                     WHERE scope_id = @scopeID AND table_tlid = @tlid"
-                  |> Sql.parameters
-                    [ "scopeID", Sql.uuid scopeID; "tlid", Sql.id tlid ]
+                    "DELETE FROM user_data_v0 WHERE table_tlid = @tlid"
+                  |> Sql.parameters [ "tlid", Sql.id tlid ]
                   |> Sql.executeStatementAsync)
               return Dval.resultOk KTUnit KTString DUnit
           }

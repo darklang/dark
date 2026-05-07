@@ -72,7 +72,7 @@ let builtins : RT.Builtins =
 
 
 let state (packageManager : RT.PackageManager) =
-  let program : RT.Program = { scopeID = System.Guid.Empty; dbs = Map.empty }
+  let program : RT.Program = { dbs = Map.empty }
 
   let notify
     (_state : RT.ExecutionState)

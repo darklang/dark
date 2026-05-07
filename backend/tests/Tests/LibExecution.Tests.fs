@@ -29,7 +29,7 @@ module Serialize = LibCloud.Serialize
 
 open TestUtils.TestUtils
 
-let setupWorkers (canvasID : uuid) (workers : List<string>) : Task<unit> =
+let setupWorkers (workers : List<string>) : Task<unit> =
   task {
     let tls =
       workers
@@ -40,13 +40,13 @@ let setupWorkers (canvasID : uuid) (workers : List<string>) : Task<unit> =
             spec = PT.Handler.Worker(worker) }
         PT.Toplevel.TLHandler w, Serialize.NotDeleted)
 
-    do! Toplevels.saveTLIDs canvasID tls
+    do! Toplevels.saveTLIDs tls
   }
 
-let setupDBs (canvasID : uuid) (dbs : List<PT.DB.T>) : Task<unit> =
+let setupDBs (dbs : List<PT.DB.T>) : Task<unit> =
   task {
     let tls = dbs |> List.map (fun db -> PT.Toplevel.TLDB db, Serialize.NotDeleted)
-    do! Toplevels.saveTLIDs canvasID tls
+    do! Toplevels.saveTLIDs tls
   }
 
 let runtimeErrorMessage
@@ -109,7 +109,7 @@ let runtimeErrorMessage
 
 
 let t
-  (canvasName : string)
+  (_canvasName : string)
   (pmPT : PT.PackageManager)
   (actual : PT.Expr)
   (expected : LibParser.TestModule.PTExpected)
@@ -120,18 +120,20 @@ let t
   : Test =
   testTask $"line{lineNumber}" {
     try
-      // Little optimization to skip the DB sometimes
-      let! canvasID =
-        let initializeCanvas = dbs <> [] || workers <> []
-        if initializeCanvas then
-          initializeTestCanvas canvasName
-        else
-          System.Guid.NewGuid() |> Task.FromResult
+      // Wipe per-test state when this test uses UserDB / handlers.
+      // Without scope_id columns to namespace rows, isolation between
+      // .dark testfile cases is "wipe + repopulate" (and the surrounding
+      // testList is testSequenced so wipes don't race parallel writes).
+      if dbs <> [] || workers <> [] then
+        do!
+          Sql.query "DELETE FROM toplevels_v0" |> Sql.executeStatementAsync
+        do!
+          Sql.query "DELETE FROM user_data_v0" |> Sql.executeStatementAsync
 
       let rtDBs =
         dbs |> List.map (fun db -> (db.name, PT2RT.DB.toRT db)) |> Map.ofList
 
-      let! (state : RT.ExecutionState) = executionStateFor pmPT canvasID false rtDBs
+      let! (state : RT.ExecutionState) = executionStateFor pmPT false rtDBs
 
       let red = "\u001b[31m"
       let green = "\u001b[32m"
@@ -159,8 +161,8 @@ let t
         $"\n\n{lhs}\n\n{rhs}\n\nTest location: {bold}{underline}{filename}:{lineNumber}{reset}"
 
       // Initialize
-      if workers <> [] then do! setupWorkers canvasID workers
-      if dbs <> [] then do! setupDBs canvasID dbs
+      if workers <> [] then do! setupWorkers workers
+      if dbs <> [] then do! setupDBs dbs
 
       let results, traceDvalFn = Exe.traceDvals ()
       let state =
@@ -331,7 +333,16 @@ let fileTests () : Test =
                   []))
             |> List.concat
 
-          testList testName tests
+          // .dark files under `cloud/` exercise UserDB / handler state
+          // through shared toplevels_v0 / user_data_v0 rows (no
+          // scope_id namespacing). Run those file's cases sequentially
+          // so the per-test wipe + setupDBs in `t` doesn't race
+          // parallel writes from sibling tests.
+          let usesSharedDBState = dir.Contains "/cloud"
+          if usesSharedDBState then
+            testSequenced (testList testName tests)
+          else
+            testList testName tests
         with e ->
           print $"Exception in {file}: {e.Message}"
           reraise ())

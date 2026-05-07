@@ -10,15 +10,14 @@ system_migrations_v0
 --------------------
 -- Stuff that belongs in "user space"
 --------------------
--- Note: `scope_id` is the per-test / per-install scope key. In CLI
--- mode the value is just Guid.Empty (single-instance Dark); in tests
--- it's a fresh Guid per test for isolation.
+-- Single-instance Dark: one DB per process, no per-scope key.
+-- Test isolation is handled by wiping these tables between tests
+-- (`TestUtils.initializeTestCanvas` truncates), not by scoping rows.
 
 -- User K/V DBs
 CREATE TABLE IF NOT EXISTS
 user_data_v0
 ( id TEXT PRIMARY KEY
-, scope_id TEXT NOT NULL
 , table_tlid INTEGER NOT NULL
 , user_version INTEGER NOT NULL
 , dark_version INTEGER NOT NULL
@@ -26,18 +25,18 @@ user_data_v0
 , created_at TEXT NOT NULL DEFAULT (datetime('now'))
 , updated_at TEXT NOT NULL DEFAULT (datetime('now'))
 , key TEXT NOT NULL
-, UNIQUE (scope_id, table_tlid, dark_version, user_version, key)
+, UNIQUE (table_tlid, dark_version, user_version, key)
 );
 
 CREATE INDEX IF NOT EXISTS
 idx_user_data_fetch
 ON user_data_v0
-(scope_id, table_tlid, user_version, dark_version);
+(table_tlid, user_version, dark_version);
 
 CREATE INDEX IF NOT EXISTS
 idx_user_data_current_data_for_tlid
 ON user_data_v0
-(user_version, dark_version, scope_id, table_tlid);
+(user_version, dark_version, table_tlid);
 
 -- No GIN index equivalent in SQLite
 CREATE INDEX IF NOT EXISTS
@@ -55,8 +54,7 @@ ON user_data_v0
 -- TODO split this into a few tables (dbs, handlers, etc)
 CREATE TABLE IF NOT EXISTS
 toplevels_v0
-( scope_id TEXT NOT NULL
-, tlid INTEGER NOT NULL
+( tlid INTEGER NOT NULL PRIMARY KEY
 , digest CHAR(32) NOT NULL
 , tipe TEXT NOT NULL CHECK (tipe IN ('db', 'handler'))
 , name TEXT /* handlers only - used for http lookups */
@@ -66,7 +64,6 @@ toplevels_v0
 , created_at TEXT NOT NULL DEFAULT (datetime('now'))
 , deleted INTEGER NOT NULL CHECK (deleted IN (0,1))
 , data BLOB NOT NULL
-, PRIMARY KEY (scope_id, tlid)
 );
 
 -- Traces

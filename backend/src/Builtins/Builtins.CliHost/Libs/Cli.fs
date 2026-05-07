@@ -29,15 +29,12 @@ module Toplevels = LibCloud.Toplevels
 module Tracing = LibDB.Tracing
 
 
-/// Load DBs for the given scope.
-let loadDBs (scopeID : Option<System.Guid>) : Ply<Map<string, RT.DB.T>> =
+/// Load all DBs from the global toplevel set.
+let loadDBs () : Ply<Map<string, RT.DB.T>> =
   uply {
-    match scopeID with
-    | None -> return Map.empty
-    | Some sid ->
-      let! tls = Toplevels.loadAllDBs sid
-      let! program = Toplevels.toProgram tls
-      return program.dbs
+    let! tls = Toplevels.loadAllDBs ()
+    let! program = Toplevels.toProgram tls
+    return program.dbs
   }
 
 
@@ -158,14 +155,11 @@ let execute
   (branchId : System.Guid)
   (mod' : Utils.CliScript.PTCliScriptModule)
   (_args : List<Dval>) // CLEANUP update to List<String>, and extract in builtin
-  (scopeID : Option<uuid>)
   (dbs : Map<string, RT.DB.T>)
   (traceSource : CliTraceSource)
   : Ply<RT.ExecutionResult> =
   uply {
-    let resolvedScopeID = scopeID |> Option.defaultValue (System.Guid.NewGuid())
-
-    let (program : Program) = { scopeID = System.Guid.Empty; dbs = dbs }
+    let (program : Program) = { dbs = dbs }
 
     let builtins = builtinsToUse ()
 
@@ -192,7 +186,7 @@ let execute
     let (traceDesc, inputName, inputValue) = CliTraceSource.toTraceParams traceSource
     let traceID = AT.TraceID.create ()
     let tracer =
-      Tracing.createCliTracer resolvedScopeID traceID traceDesc inputName inputValue
+      Tracing.createCliTracer traceID traceDesc inputName inputValue
 
     let state =
       Exe.createState
@@ -239,7 +233,7 @@ let createBranchState
   (branchId : System.Guid)
   (allowHarmful : bool)
   =
-  let program : Program = { scopeID = System.Guid.Empty; dbs = Map.empty }
+  let program : Program = { dbs = Map.empty }
   let state =
     Exe.createState
       (builtinsToUse ())
@@ -276,21 +270,23 @@ let fns () : List<BuiltInFn> =
         | exeState,
           _,
           [],
-          [ accountIDDval
+          [ _accountIDDval
             DUuid branchId
             DString filename
             DString code
             DList(_vtTODO, scriptArgs)
             DBool allowHarmful ] ->
           uply {
-            let scopeID = C2DT.Option.fromDT D.uuid accountIDDval
+            // _accountIDDval is reserved — when accounts come back it
+            // routes who's running the script. Single-instance Dark
+            // today, so no per-account state.
             // Use branch-specific state for parsing so name resolution uses the right branch
             let branchState = createBranchState exeState branchId allowHarmful
             let! parsedScript =
               parseCliScript branchState branchId "CliScript" filename code
 
             try
-              let! dbs = loadDBs scopeID
+              let! dbs = loadDBs ()
 
               match parsedScript with
               | Ok mod' ->
@@ -300,7 +296,6 @@ let fns () : List<BuiltInFn> =
                     branchId
                     mod'
                     scriptArgs
-                    scopeID
                     dbs
                     (RunScript(filename, code))
                 with
@@ -346,9 +341,8 @@ let fns () : List<BuiltInFn> =
         | exeState,
           _,
           [],
-          [ accountIDDval; DUuid branchId; DString expression; DBool allowHarmful ] ->
+          [ _accountIDDval; DUuid branchId; DString expression; DBool allowHarmful ] ->
           uply {
-            let scopeID = C2DT.Option.fromDT D.uuid accountIDDval
             // Use branch-specific state for parsing so name resolution uses the right branch
             let branchState = createBranchState exeState branchId allowHarmful
             let! parsedScript =
@@ -360,7 +354,7 @@ let fns () : List<BuiltInFn> =
                 expression
 
             try
-              let! dbs = loadDBs scopeID
+              let! dbs = loadDBs ()
 
               match parsedScript with
               | Ok mod' ->
@@ -370,7 +364,6 @@ let fns () : List<BuiltInFn> =
                     branchId
                     mod'
                     []
-                    scopeID
                     dbs
                     (EvalExpression expression)
                 with

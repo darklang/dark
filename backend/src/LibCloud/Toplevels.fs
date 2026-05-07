@@ -15,8 +15,9 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
-let create (scopeID : Option<AccountID>) : Task<uuid> =
-  task { return scopeID |> Option.defaultValue (System.Guid.NewGuid()) }
+// `Toplevels.create` was a constructor for the old per-scope ID;
+// callers now treat the toplevel set as global. Helper removed —
+// callers don't need a scope key anymore.
 
 /// <summary>
 /// Toplevel container scoped to a `scopeID` — DBs, handlers, etc.
@@ -27,9 +28,7 @@ let create (scopeID : Option<AccountID>) : Task<uuid> =
 /// can be fetched separately.
 /// </remarks>
 type T =
-  { id : uuid
-
-    handlers : Map<tlid, PT.Handler.T>
+  { handlers : Map<tlid, PT.Handler.T>
     dbs : Map<tlid, PT.DB.T>
     deletedHandlers : Map<tlid, PT.Handler.T>
     deletedDBs : Map<tlid, PT.DB.T> }
@@ -72,41 +71,33 @@ let verify (c : T) : T =
 //  Loading/saving
 //  -------------------------
 
-let empty (id : uuid) =
-  { id = id
-    handlers = Map.empty
+let empty : T =
+  { handlers = Map.empty
     dbs = Map.empty
     deletedHandlers = Map.empty
     deletedDBs = Map.empty }
 
-let loadFrom (id : uuid) (tlids : List<tlid>) : Task<T> =
+let loadFrom (tlids : List<tlid>) : Task<T> =
   task {
     try
-      // load
-      let! tls = Serialize.loadToplevels id tlids
-
-      let c = empty id
-
-      return c |> addToplevels tls |> verify
+      let! tls = Serialize.loadToplevels tlids
+      return empty |> addToplevels tls |> verify
     with e ->
       let tags = [ "tlids", tlids :> obj ]
       return Exception.reraiseAsPageable "toplevel load failed" tags e
   }
 
-let loadAllDBs (id : uuid) : Task<T> =
+let loadAllDBs () : Task<T> =
   task {
-    let! tlids = Serialize.fetchTLIDsForAllDBs id
-    return! loadFrom id tlids
+    let! tlids = Serialize.fetchTLIDsForAllDBs ()
+    return! loadFrom tlids
   }
 
 
-let deleteToplevelForever (scopeID : uuid) (tlid : tlid) : Task<unit> =
+let deleteToplevelForever (tlid : tlid) : Task<unit> =
   // CLEANUP: set deleted column in toplevels_v0 to be not nullable
-  Sql.query
-    "DELETE from toplevels_v0
-      WHERE scope_id = @scopeID
-        AND tlid = @tlid"
-  |> Sql.parameters [ "scopeID", Sql.uuid scopeID; "tlid", Sql.id tlid ]
+  Sql.query "DELETE from toplevels_v0 WHERE tlid = @tlid"
+  |> Sql.parameters [ "tlid", Sql.id tlid ]
   |> Sql.executeStatementAsync
 
 let toplevelToDBTypeString (tl : PT.Toplevel.T) : string =
@@ -114,12 +105,9 @@ let toplevelToDBTypeString (tl : PT.Toplevel.T) : string =
   | PT.Toplevel.TLDB _ -> "db"
   | PT.Toplevel.TLHandler _ -> "handler"
 
-/// Save just the TLIDs listed (a scope may load more tlids to support
+/// Save just the TLIDs listed (callers may load more tlids to support
 /// calling/testing these TLs, even though those TLs do not need to be updated)
-let saveTLIDs
-  (id : uuid)
-  (toplevels : List<PT.Toplevel.T * Serialize.Deleted>)
-  : Task<unit> =
+let saveTLIDs (toplevels : List<PT.Toplevel.T * Serialize.Deleted>) : Task<unit> =
   try
     // Use ops rather than just set of toplevels, because toplevels may
     // have been deleted or undone, and therefore not appear, but it's
@@ -162,12 +150,12 @@ let saveTLIDs
         return!
           Sql.query
             "INSERT INTO toplevels_v0
-              (scope_id, tlid, digest, tipe, name,
+              (tlid, digest, tipe, name,
                module, modifier, deleted, data, updated_at)
             VALUES
-              (@scopeID, @tlid, @digest, @typ, @name,
+              (@tlid, @digest, @typ, @name,
                @module, @modifier, @deleted, @data, datetime('now'))
-            ON CONFLICT (scope_id, tlid)
+            ON CONFLICT (tlid)
               DO UPDATE SET
                 digest = @digest,
                 tipe = @typ,
@@ -178,8 +166,7 @@ let saveTLIDs
                 data = @data,
                 updated_at = datetime('now')"
           |> Sql.parameters
-            [ "scopeID", Sql.uuid id
-              "tlid", Sql.tlid tlid
+            [ "tlid", Sql.tlid tlid
               "digest", Sql.string "fsharp"
               "typ", Sql.string (toplevelToDBTypeString tl)
               "name", Sql.stringOrNone name
@@ -190,7 +177,7 @@ let saveTLIDs
           |> Sql.executeStatementAsync
       })
   with e ->
-    Exception.reraiseAsPageable "toplevel save failed" [ "scopeID", id ] e
+    Exception.reraiseAsPageable "toplevel save failed" [] e
 
 
 let toProgram (c : T) : Ply<RT.Program> =
@@ -201,5 +188,5 @@ let toProgram (c : T) : Ply<RT.Program> =
       |> List.map (fun db -> (db.name, PT2RT.DB.toRT db))
       |> Map.ofList
 
-    return { scopeID = System.Guid.Empty; dbs = dbs }
+    return { dbs = dbs }
   }

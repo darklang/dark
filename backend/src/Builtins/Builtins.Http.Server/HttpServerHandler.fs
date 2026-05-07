@@ -96,12 +96,7 @@ let handleRequest
             with _ ->
               "(http request)"
           let tracer =
-            Tracing.createCliTracer
-              System.Guid.Empty
-              traceID
-              traceDesc
-              "request"
-              requestDval
+            Tracing.createCliTracer traceID traceDesc "request" requestDval
           let perRequestState = { exeState with tracing = tracer.executionTracing }
 
           let! result = executeHandler perRequestState handler requestDval

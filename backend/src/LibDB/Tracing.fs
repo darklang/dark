@@ -40,7 +40,7 @@ module TraceSamplingRule =
 
   /// Get the trace sampling rule for a handler. Always returns SampleAll now that
   /// LaunchDarkly has been removed.
-  let ruleForHandler (_dbScope : uuid) (_tlid : tlid) : T = SampleAll
+  let ruleForHandler (_tlid : tlid) : T = SampleAll
 
 
 
@@ -63,8 +63,8 @@ module TracingConfig =
         (AT.TraceID.toUUID traceID).ToByteArray() |> System.BitConverter.ToInt64
       if random % (int64 freq) = 0L then DoTrace else DontTrace
 
-  let forHandler (scopeID : uuid) (tlid : tlid) (traceID : AT.TraceID.T) : T =
-    let samplingRule = TraceSamplingRule.ruleForHandler scopeID tlid
+  let forHandler (tlid : tlid) (traceID : AT.TraceID.T) : T =
+    let samplingRule = TraceSamplingRule.ruleForHandler tlid
     fromRule samplingRule traceID
 
   let shouldTrace (config : T) =
@@ -555,7 +555,6 @@ let createSqliteTracer (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
 
 
 let createCliTracer
-  (_dbScope : uuid)
   (traceID : AT.TraceID.T)
   (description : string)
   (inputVarName : string)
@@ -578,7 +577,7 @@ let createCliTracer
         storeTrace 0UL traceID description inputVarName inputDval state exeState }
 
 
-let createNonTracer (_dbScope : uuid) (_traceID : AT.TraceID.T) : T =
+let createNonTracer (_traceID : AT.TraceID.T) : T =
   let results = TraceResults.empty ()
   { enabled = false
     results = results
@@ -587,9 +586,9 @@ let createNonTracer (_dbScope : uuid) (_traceID : AT.TraceID.T) : T =
     storeTraceInput = fun _ _ _ -> () }
 
 
-let create (scopeID : uuid) (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
-  let config = TracingConfig.forHandler scopeID rootTLID traceID
+let create (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
+  let config = TracingConfig.forHandler rootTLID traceID
   match config with
   | TracingConfig.DoTrace
   | TracingConfig.TraceWithTelemetry -> createSqliteTracer rootTLID traceID
-  | TracingConfig.DontTrace -> createNonTracer scopeID traceID
+  | TracingConfig.DontTrace -> createNonTracer traceID

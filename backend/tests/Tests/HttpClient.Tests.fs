@@ -113,8 +113,7 @@ let parseSingleTestFromFile
   : Ply<Internal.Test.PTTest> =
   uply {
     let! (state : RT.ExecutionState) =
-      let scopeID = System.Guid.NewGuid()
-      executionStateFor pmPT scopeID true Map.empty
+      executionStateFor pmPT true Map.empty
 
     let name =
       RT.FQFnName.fqPackage (PackageRefs.Fn.Internal.Test.parseSingleTestFromFile ())
@@ -202,8 +201,7 @@ let makeTest versionName filename =
       skiptest $"underscore test - {testName}"
     else
       // Set up the canvas
-      let scopeID = System.Guid.NewGuid()
-      let! exeState = executionStateFor pmPT scopeID true Map.empty
+      let! exeState = executionStateFor pmPT true Map.empty
 
       // Parse the Dark code
       let! (test : Internal.Test.PTTest) =
