@@ -341,6 +341,8 @@ let private makeTraceDval (state : TracerState) : RT.Tracing.TraceDval =
 /// Plan when the time comes:
 ///   - per-handler trace-detail level (off / summary / detailed)
 ///   - sampling for "detailed" so we don't record every request
+///   - per-row size cap on `dval_json` writes (one massive payload
+///     could fill the disk on its own; truncate + tag the row)
 ///   - background sweeper that drops trace rows older than N days,
 ///     or trims to the most recent K traces per handler
 /// `Builtins.Matter/Libs/Traces.fs` already has a `clear-before`

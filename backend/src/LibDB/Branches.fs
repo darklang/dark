@@ -124,6 +124,11 @@ let rename (id : PT.BranchId) (newName : string) : Task<Result<unit, string>> =
 
 
 /// Archive a branch (soft delete). Sets archived_at, emits ArchiveBranch BranchOp.
+///
+/// TODO (multi-tenant): reads child-count then applies; same TOCTOU
+/// shape as Merge / Rebase. A new child appearing between the count
+/// and the ArchiveBranch op would be silently re-parented under an
+/// archived branch.
 let archive (id : PT.BranchId) : Task<Result<unit, string>> =
   task {
     if id = PT.mainBranchId then
@@ -182,6 +187,13 @@ let setMerged (id : PT.BranchId) : Task<unit> =
 /// Used by name resolution queries to walk the branch chain.
 /// Uses a recursive CTE to fetch the entire chain in a single query.
 /// Cached per branchId since the chain doesn't change during a CLI execution.
+///
+/// TODO (multi-tenant): the cache is never invalidated. `MergeBranch`
+/// re-parents commits/ops/locations from the merged branch, so any
+/// branchId that gets merged and then queried from a long-lived
+/// process would return a stale chain. CLI lifecycle masks this
+/// (process exits between commands); server lifecycle wouldn't.
+/// Drop the cache or wire invalidation on MergeBranch / RebaseBranch.
 let private branchChainCache =
   System.Collections.Concurrent.ConcurrentDictionary<PT.BranchId, List<PT.BranchId>>()
 

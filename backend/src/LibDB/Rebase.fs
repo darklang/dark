@@ -97,7 +97,11 @@ let getConflicts (branchId : PT.BranchId) : Task<List<RebaseConflict>> =
   }
 
 
-/// Perform rebase: verify no conflicts, update base_commit_hash to parent's latest
+/// Perform rebase: verify no conflicts, update base_commit_hash to parent's latest.
+///
+/// TODO (multi-tenant): same TOCTOU shape as Merge.merge — reads
+/// parent's latest commit + conflict set, then applies, no version
+/// check or transaction across the read+apply pair.
 let rebase (branchId : PT.BranchId) : Task<Result<string, List<RebaseConflict>>> =
   task {
     let! branchOpt = Branches.get branchId

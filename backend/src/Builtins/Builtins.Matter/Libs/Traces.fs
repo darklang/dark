@@ -382,6 +382,12 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
+    // TODO (perf, foot-gun): the LEFT JOIN below produces traces ×
+    // trace_fn_calls cardinality before DISTINCT collapses it, and
+    // the LIKE matches over full args_json / result_json (no index
+    // support). Fine on small dev DBs, slow when the trace store has
+    // grown. Possible mitigations: add a generated/indexed
+    // "summary" column, or use FTS5. Not a correctness bug.
     { name = fn "tracesFind" 0
       typeParams = []
       parameters =

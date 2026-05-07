@@ -82,7 +82,13 @@ let canMerge (branchId : PT.BranchId) : Task<Result<unit, PT.MergeError>> =
   }
 
 
-/// Merge a branch into its parent
+/// Merge a branch into its parent.
+///
+/// TODO (multi-tenant): reads parent's state (`canMerge` queries
+/// commits/conflicts), then applies, with no version check or
+/// transaction across the read+apply pair. CLI single-process is
+/// fine; future-server use will corrupt under concurrent merges
+/// against the same parent.
 let merge (branchId : PT.BranchId) : Task<Result<unit, PT.MergeError>> =
   task {
     let! canMergeResult = canMerge branchId
