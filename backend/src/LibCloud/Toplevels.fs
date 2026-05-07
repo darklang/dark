@@ -19,12 +19,12 @@ let create (scopeID : Option<AccountID>) : Task<uuid> =
   task { return scopeID |> Option.defaultValue (System.Guid.NewGuid()) }
 
 /// <summary>
-/// Canvas data - contains metadata along with basic handlers, DBs, etc.
+/// Toplevel container scoped to a `scopeID` — DBs, handlers, etc.
 /// </summary>
 /// <remarks>
 /// This includes just a subset of the key program data. It is rare that all of
-/// the data for a canvas will be loaded. In addition, there is other canvas
-/// data which is meaningful, such as creation date. These can be fetched separately.
+/// the data for a scope will be loaded. Other metadata (creation date, etc.)
+/// can be fetched separately.
 /// </remarks>
 type T =
   { id : uuid
@@ -52,7 +52,7 @@ let addToplevels (tls : List<Serialize.Deleted * PT.Toplevel.T>) (c : T) : T =
   List.fold (fun acc (deleted, tl) -> addToplevel deleted tl acc) c tls
 
 // NOTE: If you add a new verification here, please ensure all places that
-// load canvases/apply ops correctly load the requisite data.
+// load toplevels / apply ops correctly load the requisite data.
 let verify (c : T) : T =
   let dupedNames =
     c.dbs
@@ -114,7 +114,7 @@ let toplevelToDBTypeString (tl : PT.Toplevel.T) : string =
   | PT.Toplevel.TLDB _ -> "db"
   | PT.Toplevel.TLHandler _ -> "handler"
 
-/// Save just the TLIDs listed (a canvas may load more tlids to support
+/// Save just the TLIDs listed (a scope may load more tlids to support
 /// calling/testing these TLs, even though those TLs do not need to be updated)
 let saveTLIDs
   (id : uuid)

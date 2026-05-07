@@ -13,9 +13,9 @@ let initSerializers () =
   // These are serializers used in the tests that are not used in the main program
   Json.Vanilla.allow<Map<string, string>> "tests"
   Json.Vanilla.allow<LibExecution.AnalysisTypes.TraceData> "testTraceData"
-  Json.Vanilla.allow<PT.PackageType.PackageType> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<PT.PackageValue.PackageValue> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<PT.PackageFn.PackageFn> "Canvas.loadJsonFromDisk"
+  Json.Vanilla.allow<PT.PackageType.PackageType> "tests-roundtripping"
+  Json.Vanilla.allow<PT.PackageValue.PackageValue> "tests-roundtripping"
+  Json.Vanilla.allow<PT.PackageFn.PackageFn> "tests-roundtripping"
   Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
     "tests"
   Json.Vanilla.allow<PT.Toplevel.T> "tests"
