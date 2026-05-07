@@ -26,6 +26,8 @@ let purge () : Task<unit> =
 
     // Delete from projection tables, source-of-truth ops table, and commits
     // Only delete if tables exist (handles case where migrations haven't run yet)
+    // deprecations has FKs to commits.hash and branches.id, so it must be
+    // emptied before commits / branches in the same transaction.
     let tablesToPurge =
       [ "locations"
         "package_types"
@@ -33,6 +35,7 @@ let purge () : Task<unit> =
         "package_functions"
         "package_ops"
         "package_dependencies"
+        "deprecations"
         "commits"
         "branch_ops" ]
       |> List.filter tableExists
