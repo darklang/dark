@@ -90,16 +90,20 @@ let builtins
       Builtins.Random.Builtin.builtins () ]
     []
 
+/// Tests that hit the in-process test HTTP server need `looseConfig`
+/// — the production `defaultConfig` blocks loopback / RFC1918 to
+/// catch SSRF in untrusted handler code, but the test server is on
+/// localhost.
 let localBuiltIns (pm : PT.PackageManager) =
   let httpConfig =
-    { Builtins.Http.Client.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
+    { Builtins.Http.Client.Libs.HttpClient.looseConfig with timeoutInMs = 5000 }
   builtins httpConfig pm
 
-/// Strict (cloud-style) HTTP config: SSRF guard active. Used for tests that
-/// exercise the disallow-localhost / disallow-private-IP path.
+/// Tests that exercise the disallow-localhost / disallow-private-IP
+/// path use the production `defaultConfig` shape.
 let cloudBuiltIns (pm : PT.PackageManager) =
   let httpConfig =
-    { Builtins.Http.Client.Libs.HttpClient.strictConfig with timeoutInMs = 5000 }
+    { Builtins.Http.Client.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
   builtins httpConfig pm
 
 

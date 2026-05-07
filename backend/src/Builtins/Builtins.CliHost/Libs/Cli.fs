@@ -133,14 +133,10 @@ let private localBuiltinsThunk : (unit -> RT.Builtins) ref =
 
 let builtinsToUse () : RT.Builtins =
   let ptPM = LibDB.PackageManager.pt
-  // SSRF on `darklang serve`: untrusted handler code wired through this
-  // same builtin set can reach loopback / RFC1918 / 169.254.169.254.
-  // `strictConfig` (in HttpClient.fs) has the right allow-lists but
-  // would break local dev `eval` / `run` against private targets.
-  // Proper fix is a per-context switch (strict for serve-handler
-  // execution, default for direct CLI). Tracked separately; for now,
-  // see TestUtils.fs which threads strictConfig through the test-only
-  // builder.
+  // `defaultConfig` has SSRF guards on (loopback / RFC1918 /
+  // metadata blocked, scheme restricted). For local-dev cases where
+  // the caller wants to hit private targets, swap in
+  // `Builtins.Http.Client.Libs.HttpClient.looseConfig`.
   LibExecution.Builtin.combine
     [ Builtins.Pure.Builtin.builtins ()
       Builtins.Http.Client.Builtin.builtins

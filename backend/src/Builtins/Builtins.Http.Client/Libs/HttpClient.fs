@@ -271,10 +271,12 @@ module BaseClient =
     )
 
 
-/// This configuration has no limits, and so is only suitable for trusted
-/// environments (the command line), and is not suitable for untrusted environments
-/// (eg the cloud)
-let defaultConfig =
+/// Unbounded configuration. No SSRF guards, no scheme/header limits.
+/// Suitable only for trusted environments where the caller IS the code
+/// author (e.g. a power-user shelling out from their own CLI session
+/// to a localhost dev server). Don't wire this into anything that
+/// runs untrusted Dark code.
+let looseConfig =
   { timeoutInMs = 30000
     allowedIP = fun _ -> true
     allowedHost = fun _ -> true
@@ -361,17 +363,26 @@ module LocalAccess =
     |> Option.isSome
 
 
-/// Configuration safe for servers that execute untrusted handler code:
-/// blocks SSRF to internal IP ranges, loopback, link-local, and
-/// cloud-metadata endpoints. Telemetry stubs are no-ops; supply your
-/// own if you need observability.
-let strictConfig : Configuration =
-  { defaultConfig with
+/// Default configuration. SSRF guards on (no internal IPs, no
+/// loopback, no link-local, no cloud-metadata endpoints), scheme
+/// restricted to http/https. Safe to wire into anything that runs
+/// untrusted Dark code (e.g. `darklang serve` handlers, package
+/// initialisation evals). For the rare local-dev case where the
+/// caller authored the code themselves and wants `localhost`
+/// access, wire `looseConfig` instead.
+let defaultConfig : Configuration =
+  { looseConfig with
       allowedIP = fun ip -> not (LocalAccess.bannedIp ip)
       allowedHost = fun host -> not (LocalAccess.bannedHost host)
       allowedScheme = fun scheme -> scheme = "https" || scheme = "http"
       allowedHeaders =
         fun headers -> not (LocalAccess.hasInstanceMetadataHeader headers) }
+
+
+/// Compatibility alias for callers (TestUtils, etc.) that referenced
+/// `strictConfig` when the default was unsafe. New code should just
+/// use `defaultConfig`.
+let strictConfig : Configuration = defaultConfig
 
 
 // ————————————————————————————————————————————————————————————

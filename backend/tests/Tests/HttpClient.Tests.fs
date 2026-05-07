@@ -566,7 +566,9 @@ let testsFromFiles version =
 module MockHelpers =
   module HC = Builtins.Http.Client.Libs.HttpClient
 
-  let httpConfig : HC.Configuration = { HC.defaultConfig with timeoutInMs = 5000 }
+  // looseConfig for these tests — they hit the in-process mock
+  // server on localhost, which the production defaultConfig blocks.
+  let httpConfig : HC.Configuration = { HC.looseConfig with timeoutInMs = 5000 }
 
   let httpClient = HC.BaseClient.create httpConfig
 
