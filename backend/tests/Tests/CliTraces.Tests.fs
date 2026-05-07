@@ -642,12 +642,57 @@ let private testTracesReplayReruns =
         task {
           let! _ = runCli state [ "traces"; "clear" ]
           let! _ = runCli state [ "eval"; "1L + 2L" ]
-          let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
-          let tid = parseTraceID listJson
+          let! listJsonBefore = runCli state [ "traces"; "list"; "1"; "--json" ]
+          let tid = parseTraceID listJsonBefore
           let! out = runCli state [ "traces"; "replay"; tid ]
           Expect.stringContains out $"Replaying trace {tid}" "header line"
           Expect.stringContains out "3" "result printed"
           Expect.stringContains out "Replay complete" "completion line"
+
+          // The replay produces a fresh trace; verify it landed by
+          // counting traces in the list. Was 1, should now be 2.
+          let! listJsonAfter = runCli state [ "traces"; "list"; "10"; "--json" ]
+          let traceCount =
+            (listJsonAfter.Split("\"traceId\":\"")).Length - 1
+          Expect.equal
+            traceCount
+            2
+            "replay should leave the original trace + a fresh one"
+        })
+  }
+
+
+let private testTracesViewToleratesCorruptedRow =
+  testTask "traces view <id> renders the rest of the call tree on a corrupted row" {
+    do!
+      withState (fun state ->
+        task {
+          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "eval"; "Stdlib.Int64.add 1L 2L" ]
+          let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
+          let tid = parseTraceID listJson
+
+          // Inject a corrupt fn_call row: malformed args_json. The
+          // existing rows from the eval above stay valid; the bad
+          // one should render as a placeholder, not abort.
+          do!
+            Fumble.Sql.query
+              "INSERT INTO trace_fn_calls
+                  (trace_id, call_id, parent_call_id, kind, fn_hash,
+                   lambda_expr_id, args_json, result_json, duration_ms)
+                 VALUES
+                  (@traceId, 'corrupt-test', NULL, 'fn', 'corrupt',
+                   NULL, '{not valid json', 'null', 0)"
+            |> Fumble.Sql.parameters [ "traceId", Fumble.Sql.string tid ]
+            |> LibDB.Sqlite.Sql.executeNonQueryAsync
+            |> Task.map (ignore<Result<int, exn>>)
+
+          let! out = runCli state [ "traces"; "view"; tid ]
+          Expect.stringContains out "corrupt" "shows the corrupt placeholder"
+          Expect.stringContains
+            out
+            "Stdlib"
+            "still renders the surviving rows"
         })
   }
 
@@ -756,6 +801,7 @@ let tests =
       testTracesReplayReruns
       testTracesImportRejectsBadJson
       testTracesImportRejectsBadDvalShape
+      testTracesViewToleratesCorruptedRow
       testTracesRejectsNegativeLimit
       testTracesRejectsFlagAsTraceId
       testTracesClearAndPruneGrammar
