@@ -1,5 +1,5 @@
 // SSRF guard tests for the strict HTTP client config
-// (see Builtins.Execution.Libs.HttpClient.LocalAccess + strictConfig).
+// (see Builtins.Http.Client.Libs.HttpClient.LocalAccess + strictConfig).
 
 let get (url: String) (headers: List<String * String>): Stdlib.Result.Result<Stdlib.HttpClient.Response, Stdlib.HttpClient.RequestError> =
   Stdlib.HttpClient.get url headers

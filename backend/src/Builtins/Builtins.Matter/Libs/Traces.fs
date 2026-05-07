@@ -488,11 +488,19 @@ let fns () : List<BuiltInFn> =
             // Up to 6 so we can distinguish "1 match" / "many matches"
             // without fetching everything. The user-facing error caps the
             // candidate list at 5 anyway.
-            let pattern = input + "%"
+            //
+            // Escape `%` and `_` so a user-supplied prefix matches literal
+            // chars (consistent with tracesListByFn / tracesFind).
+            let escaped =
+              input
+              |> fun s -> s.Replace(@"\", @"\\")
+              |> fun s -> s.Replace("%", @"\%")
+              |> fun s -> s.Replace("_", @"\_")
+            let pattern = escaped + "%"
             let! matches =
               Sql.query
                 "SELECT id FROM traces
-                 WHERE id LIKE @pattern
+                 WHERE id LIKE @pattern ESCAPE '\\'
                  ORDER BY rowid DESC
                  LIMIT 6"
               |> Sql.parameters [ "pattern", Sql.string pattern ]
