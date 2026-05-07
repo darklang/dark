@@ -382,78 +382,70 @@ let discardWipOps (branchId : PT.BranchId) : Task<Result<int64, string>> =
         return Ok 0L
       else
         // Restore committed locations that were deprecated by WIP ops.
-        // When a WIP SetName op runs, it deprecates the existing committed location.
-        // We need to un-deprecate the most recent committed location for each path
-        // that has a WIP location but no active committed location.
-        do!
-          Sql.query
-            """
-            UPDATE locations
-            SET unlisted_at = NULL
-            WHERE location_id IN (
-              SELECT committed_loc.location_id
-              FROM locations wip_loc
-              -- Find the most recently deprecated committed location at the same path
-              INNER JOIN locations committed_loc
-                ON committed_loc.owner = wip_loc.owner
-                AND committed_loc.modules = wip_loc.modules
-                AND committed_loc.name = wip_loc.name
-                AND committed_loc.item_type = wip_loc.item_type
-                AND committed_loc.branch_id = wip_loc.branch_id
-                AND committed_loc.commit_hash IS NOT NULL
-                AND committed_loc.unlisted_at IS NOT NULL
-              WHERE wip_loc.branch_id = @branch_id
-                AND wip_loc.commit_hash IS NULL
-                -- Only restore if there's no other active committed location at this path
-                AND NOT EXISTS (
-                  SELECT 1 FROM locations active
-                  WHERE active.owner = wip_loc.owner
-                    AND active.modules = wip_loc.modules
-                    AND active.name = wip_loc.name
-                    AND active.item_type = wip_loc.item_type
-                    AND active.branch_id = wip_loc.branch_id
-                    AND active.commit_hash IS NOT NULL
-                    AND active.unlisted_at IS NULL
-                )
-                -- Pick the most recently deprecated committed location
-                AND committed_loc.unlisted_at = (
-                  SELECT MAX(c2.unlisted_at)
-                  FROM locations c2
-                  WHERE c2.owner = wip_loc.owner
-                    AND c2.modules = wip_loc.modules
-                    AND c2.name = wip_loc.name
-                    AND c2.item_type = wip_loc.item_type
-                    AND c2.branch_id = wip_loc.branch_id
-                    AND c2.commit_hash IS NOT NULL
-                    AND c2.unlisted_at IS NOT NULL
-                )
-            )
-            """
-          |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-          |> Sql.executeStatementAsync
+        // All four writes run in one transaction: un-deprecate the most-
+        // recent committed location at any path the WIP layer was hiding,
+        // then delete WIP locations/deprecations/ops. A mid-discard crash
+        // used to leave WIP rows partially deleted with the un-deprecation
+        // already applied (or the inverse); since "discard" can run again
+        // on retry, the consequence was orphan WIP rows or active rows
+        // that should still have been hidden. WIP-deprecations: their
+        // supersession set `unlisted_at` on prior rows; we don't restore
+        // those here — the op log is source of truth, so a re-run via
+        // `commit` + reload would rebuild state.
+        let branchParam = [ [ "branch_id", Sql.uuid branchId ] ]
+        let discardStatements =
+          [ ("""
+             UPDATE locations
+             SET unlisted_at = NULL
+             WHERE location_id IN (
+               SELECT committed_loc.location_id
+               FROM locations wip_loc
+               INNER JOIN locations committed_loc
+                 ON committed_loc.owner = wip_loc.owner
+                 AND committed_loc.modules = wip_loc.modules
+                 AND committed_loc.name = wip_loc.name
+                 AND committed_loc.item_type = wip_loc.item_type
+                 AND committed_loc.branch_id = wip_loc.branch_id
+                 AND committed_loc.commit_hash IS NOT NULL
+                 AND committed_loc.unlisted_at IS NOT NULL
+               WHERE wip_loc.branch_id = @branch_id
+                 AND wip_loc.commit_hash IS NULL
+                 AND NOT EXISTS (
+                   SELECT 1 FROM locations active
+                   WHERE active.owner = wip_loc.owner
+                     AND active.modules = wip_loc.modules
+                     AND active.name = wip_loc.name
+                     AND active.item_type = wip_loc.item_type
+                     AND active.branch_id = wip_loc.branch_id
+                     AND active.commit_hash IS NOT NULL
+                     AND active.unlisted_at IS NULL
+                 )
+                 AND committed_loc.unlisted_at = (
+                   SELECT MAX(c2.unlisted_at)
+                   FROM locations c2
+                   WHERE c2.owner = wip_loc.owner
+                     AND c2.modules = wip_loc.modules
+                     AND c2.name = wip_loc.name
+                     AND c2.item_type = wip_loc.item_type
+                     AND c2.branch_id = wip_loc.branch_id
+                     AND c2.commit_hash IS NOT NULL
+                     AND c2.unlisted_at IS NOT NULL
+                 )
+             )
+             """,
+             branchParam)
 
-        // Delete WIP locations
-        do!
-          Sql.query
-            "DELETE FROM locations WHERE branch_id = @branch_id AND commit_hash IS NULL"
-          |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-          |> Sql.executeStatementAsync
+            ("DELETE FROM locations WHERE branch_id = @branch_id AND commit_hash IS NULL",
+             branchParam)
 
-        // Delete WIP deprecations. Their supersession set `unlisted_at` on
-        // prior rows; we don't restore those here — the op log is the source
-        // of truth, so a re-run via `commit` + reload would rebuild state.
-        do!
-          Sql.query
-            "DELETE FROM deprecations WHERE branch_id = @branch_id AND commit_hash IS NULL"
-          |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-          |> Sql.executeStatementAsync
+            ("DELETE FROM deprecations WHERE branch_id = @branch_id AND commit_hash IS NULL",
+             branchParam)
 
-        // Delete WIP ops
-        do!
-          Sql.query
-            "DELETE FROM package_ops WHERE branch_id = @branch_id AND commit_hash IS NULL"
-          |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-          |> Sql.executeStatementAsync
+            ("DELETE FROM package_ops WHERE branch_id = @branch_id AND commit_hash IS NULL",
+             branchParam) ]
+
+        let _ = Sql.executeTransactionSync discardStatements
+        ()
 
         // Note: We don't delete from package_types/values/functions because
         // they're content-addressed and might be referenced by committed ops.
