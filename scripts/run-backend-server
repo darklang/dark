@@ -3,65 +3,43 @@
 
 set -euo pipefail
 
-# collect args
+# This script used to run migrations and start BwdServer. BwdServer is
+# gone (replaced by the in-Dark `darklang serve <fn>` flow). The migrations
+# half is still useful for the dev-loop watcher in scripts/build/compile,
+# which calls this whenever a migration file changes.
+#
+# `--restart=no` is accepted for compatibility with run-backend-tests's
+# legacy two-call shape but is now a no-op (nothing to restart).
+
 PUBLISHED=false
-RESTART=true
-for i in "$@"
-do
+for i in "$@"; do
   case "${i}" in
-    --published)
-    PUBLISHED=true
-    shift
-    ;;
-  esac
-  case "${i}" in
-    --restart=no)
-    RESTART=false
-    shift
-    ;;
+    --published) PUBLISHED=true; shift ;;
+    --restart=no) shift ;;
   esac
 done
 
-
-# misc config and helpers
 grey="\033[1;30m"
 reset="\033[0m"
-
-function announce() {
-  msg="$1"
-  filename="$2"
-  filename=$(realpath "$filename" --relative-to .)
-  echo -e "$msg ($grey$filename$reset)"
-}
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 MIGRATIONS_LOG="$LOGS/migrations.log"
 
-function exe_path() {
-  local service="$1"
-  if [[ "$PUBLISHED" == "true" ]]; then
-    echo "backend/Build/out/${service}/Release/net10.0/linux-x64/publish/${service}"
-  else
-    echo "backend/Build/out/${service}/Debug/net10.0/${service}"
-  fi
-}
+if [[ "$PUBLISHED" == "true" ]]; then
+  LOCALEXEC_EXE="backend/Build/out/LocalExec/Release/net10.0/publish/LocalExec"
+else
+  LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net10.0/LocalExec"
+fi
 
-LOCALEXEC_EXE=$(exe_path "LocalExec")
-
-
-# (actual logic starts here)
-
-# Wait for any builds that haven't been yet compiled
+# Wait for any builds that haven't been compiled yet
 echo "Waiting for builds to be ready"
-for ((i=1;i<=1000;i++));
-do
+for ((i=1;i<=1000;i++)); do
   if [[ -f "${LOCALEXEC_EXE}" ]]; then
     break
   fi
   sleep 0.01
 done
 echo "Done waiting for builds to be ready"
-
 
 # In seed mode: if data.db is missing or empty, copy from seed.db
 if [[ "${DARK_CONFIG_PACKAGES_SOURCE:-disk}" == "seed" ]]; then
@@ -75,10 +53,5 @@ if [[ "${DARK_CONFIG_PACKAGES_SOURCE:-disk}" == "seed" ]]; then
   fi
 fi
 
-announce "Running migrations" "${MIGRATIONS_LOG}"
+echo -e "Running migrations (${grey}${MIGRATIONS_LOG}${reset})"
 "${LOCALEXEC_EXE}" migrations run > "${MIGRATIONS_LOG}" 2>&1
-
-announce "Running bwdserver" "${BWDSERVER_LOG}"
-"${BWDSERVER_EXE}" > "${BWDSERVER_LOG}" 2>&1 &
-
-echo "Finished loading servers"
