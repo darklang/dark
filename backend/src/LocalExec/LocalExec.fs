@@ -188,11 +188,6 @@ let main (args : string[]) : int =
         "rendering benchmarks/results.md from history.jsonl"
         (LocalExec.Benchmarks.render ())
 
-    | [ "find-dead" ] ->
-      handleCommand
-        "finding .dark items with zero callers"
-        (LocalExec.DeadCode.report ())
-
     | _ ->
       print "Invalid arguments"
       print "Available commands:"
@@ -203,7 +198,6 @@ let main (args : string[]) : int =
       print "  pm-sweep-blobs"
       print "  bench"
       print "  bench-render"
-      print "  find-dead"
       NonBlockingConsole.wait ()
       1
   with e ->
