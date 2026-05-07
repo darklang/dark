@@ -675,8 +675,8 @@ let private testTracesViewToleratesCorruptedRow =
           // Inject a corrupt fn_call row: malformed args_json. The
           // existing rows from the eval above stay valid; the bad
           // one should render as a placeholder, not abort.
-          do!
-            Fumble.Sql.query
+          let! _ =
+            LibDB.Sqlite.Sql.query
               "INSERT INTO trace_fn_calls
                   (trace_id, call_id, parent_call_id, kind, fn_hash,
                    lambda_expr_id, args_json, result_json, duration_ms)
@@ -685,7 +685,6 @@ let private testTracesViewToleratesCorruptedRow =
                    NULL, '{not valid json', 'null', 0)"
             |> Fumble.Sql.parameters [ "traceId", Fumble.Sql.string tid ]
             |> LibDB.Sqlite.Sql.executeNonQueryAsync
-            |> Task.map (ignore<Result<int, exn>>)
 
           let! out = runCli state [ "traces"; "view"; tid ]
           Expect.stringContains out "corrupt" "shows the corrupt placeholder"
