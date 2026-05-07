@@ -350,6 +350,9 @@ module Dval =
     | DDB _ -> "Datastore"
     | DApplicable (AppNamedFn _) -> "Function"
     | DApplicable (AppLambda _) -> "Lambda"
+    | DBlobPersistent(_, _) -> "Blob"
+    | DBlobEphemeral _ -> "Blob"
+    | DStreamStub vt -> $"Stream<{valueType branchId vt}>"
 
   let makeSpaces (len: Int64) : String =
     match Stdlib.List.repeat len " " with
@@ -447,12 +450,13 @@ module Dval =
           "{" ++ inl ++ long ++ nl ++ "}"
 
 
-    // DStream comes through the RT<->Dark bridge as a DEnum-shaped
-    // stub (no live pull fn exists in the Dark mirror of Dval). Render
-    // it with a short marker instead of the raw enum spelling. A
-    // richer `<stream of UInt8: fresh | partial | done>` form would
-    // need runtime state the bridge doesn't carry.
-    | DEnum(_, _, [], "DStreamStub", _) -> "<stream: stub>"
+    // Don't fetch the bytes for rendering — payloads can be many MB.
+    | DBlobPersistent(hash, length) ->
+      let short = Stdlib.String.first hash 8L
+      $"<Blob: {short}… {Stdlib.Int64.toString length} bytes>"
+    | DBlobEphemeral _ -> "<Blob: ephemeral>"
+
+    | DStreamStub _ -> "<stream: stub>"
 
     | DEnum(_, typeName, typeArgs, caseName, fields) ->
       let typeArgsPart =

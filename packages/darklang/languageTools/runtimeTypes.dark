@@ -205,6 +205,11 @@ type Dval =
   // References
   | DDB of String
 
+  | DBlobPersistent of hash: String * length: Int64
+  | DBlobEphemeral of id: Uuid
+
+  | DStreamStub of elemType: ValueType
+
 type BuiltInParam =
   { name: String
     typ: TypeReference
