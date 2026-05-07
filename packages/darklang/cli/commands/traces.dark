@@ -169,7 +169,30 @@ let rec parseViewOptions
     Stdlib.Result.Result.Error $"Unknown flag: {unknown}"
 
 
+/// Confirm a destructive op. Returns true to proceed, false to bail.
+///
+/// `--yes` / `-y` skips the prompt; non-interactive stdin (piped
+/// scripts, test runs, CI) also skips so callers don't hang or
+/// fail on EOF. Only an interactive user without `--yes` sees the
+/// prompt — matching the `rm -i` shape.
+let private confirmDestructive (autoConfirm: Bool) (action: String) : Bool =
+  if autoConfirm then
+    true
+  else if Stdlib.Bool.not (Builtin.stdinIsInteractive ()) then
+    true
+  else
+    Stdlib.printLine $"{action} (y/n): "
+    let response = Builtin.stdinReadLine ()
+    (response == "y") || (response == "Y")
+
+
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  // `--yes` / `-y` strips out before dispatch so the existing exact-match
+  // arms don't need new permutations. Destructive arms read this flag.
+  let autoConfirm =
+    (Stdlib.List.member_v0 args "--yes") || (Stdlib.List.member_v0 args "-y")
+  let args =
+    args |> Stdlib.List.filter (fun a -> a != "--yes" && a != "-y")
   match args with
   | [] ->
     help state
@@ -362,19 +385,41 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | None -> state
 
   | [ "clear" ] ->
-    executeClear state
+    if confirmDestructive autoConfirm "Delete all traces?" then
+      executeClear state
+    else
+      Stdlib.printLine "Cancelled."
+      state
 
   | [ "clear"; "--before"; durationStr ] ->
-    executeClearBefore state durationStr
+    if confirmDestructive
+         autoConfirm
+         $"Delete traces older than {durationStr}?" then
+      executeClearBefore state durationStr
+    else
+      Stdlib.printLine "Cancelled."
+      state
 
   | [ "delete"; traceID ] ->
     match resolveTraceID traceID with
-    | Some full -> executeDelete state full
+    | Some full ->
+      if confirmDestructive autoConfirm $"Delete trace {full}?" then
+        executeDelete state full
+      else
+        Stdlib.printLine "Cancelled."
+        state
     | None -> state
 
   | [ "prune"; "--keep"; nStr ] ->
     match Stdlib.Int64.parse nStr with
-    | Ok n -> executePruneKeep state n
+    | Ok n ->
+      if confirmDestructive
+           autoConfirm
+           $"Keep the {Stdlib.Int64.toString n} most-recent traces and drop the rest?" then
+        executePruneKeep state n
+      else
+        Stdlib.printLine "Cancelled."
+        state
     | Error _ ->
       Stdlib.printLine (Colors.error (parsePositionalErr nStr "--keep N"))
       state
