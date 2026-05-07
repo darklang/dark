@@ -190,10 +190,15 @@ module BaseClient =
         : ValueTask<Stream> =
         vtask {
           try
-            // While this DNS call is expensive, it should be cached
+            // While this DNS call is expensive, it should be cached.
+            //
+            // Connect against the resolved IPs, not the hostname: the OS
+            // would otherwise re-resolve at connect time and a malicious
+            // resolver can return public-then-private within ms,
+            // bypassing the allow-list (DNS-rebinding TOCTOU).
             let ips = System.Net.Dns.GetHostAddresses context.DnsEndPoint.Host
 
-            if not (Array.forall config.allowedIP ips) then
+            if Array.isEmpty ips || not (Array.forall config.allowedIP ips) then
               // Use this to hide more specific errors when looking at loopback
               Exception.raiseInternal "Could not connect" []
 
@@ -204,7 +209,9 @@ module BaseClient =
               )
             socket.NoDelay <- true
 
-            do! socket.ConnectAsync(context.DnsEndPoint, cancellationToken)
+            let endpoint =
+              System.Net.IPEndPoint(ips[0], context.DnsEndPoint.Port)
+            do! socket.ConnectAsync(endpoint, cancellationToken)
             return new System.Net.Sockets.NetworkStream(socket, true)
           with :? System.ArgumentException ->
             return Exception.raiseInternal "Could not connect" []
