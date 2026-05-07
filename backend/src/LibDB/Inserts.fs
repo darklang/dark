@@ -221,15 +221,32 @@ let commitWipOps
         let commitHash = Hashing.computeCommitHash branchId parentHash opHashes
         let (Hash commitHashStr) = commitHash
 
-        // Record and apply the commit
-        do!
-          BranchOpPlayback.insertAndApply (
-            PT.BranchOp.CreateCommit(commitHash, message, branchId, opHashes)
-          )
+        // The whole flip from WIP → committed runs atomically: the
+        // BranchOp insert, the `commits` row, and the three column
+        // re-points all in one transaction. A crash mid-write used to
+        // leave a `commits` row whose `package_ops` were still WIP,
+        // which `getCommits` would surface but `getCommitOps` wouldn't.
+        let op = PT.BranchOp.CreateCommit(commitHash, message, branchId, opHashes)
+        let opHash = Hashing.computeBranchOpHash op
+        let (Hash branchOpHashStr) = opHash
+        let opBlob = BS.PT.BranchOp.serialize branchOpHashStr op
 
-        // Assign WIP ops, locations, and deprecations to this commit
         let statements =
           [ ("""
+             INSERT OR IGNORE INTO branch_ops (id, op_blob, applied, created_at)
+             VALUES (@id, @op_blob, 1, datetime('now'))
+             """,
+             [ [ "id", Sql.string branchOpHashStr; "op_blob", Sql.bytes opBlob ] ])
+
+            ("""
+             INSERT OR IGNORE INTO commits (hash, message, branch_id, created_at)
+             VALUES (@hash, @message, @branch_id, datetime('now'))
+             """,
+             [ [ "hash", Sql.string commitHashStr
+                 "message", Sql.string message
+                 "branch_id", Sql.uuid branchId ] ])
+
+            ("""
              UPDATE package_ops
              SET commit_hash = @commit_hash
              WHERE branch_id = @branch_id AND commit_hash IS NULL
