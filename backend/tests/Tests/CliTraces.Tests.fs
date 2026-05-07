@@ -687,11 +687,15 @@ let private testTracesViewToleratesCorruptedRow =
             |> LibDB.Sqlite.Sql.executeNonQueryAsync
 
           let! out = runCli state [ "traces"; "view"; tid ]
-          Expect.stringContains out "corrupt" "shows the corrupt placeholder"
+          // Corrupt row should be silently dropped (logged), not render.
+          Expect.isFalse
+            (out.Contains "corrupt-test")
+            "corrupt row dropped from rendered tree"
+          // Surviving rows from the eval still render.
           Expect.stringContains
             out
             "Stdlib"
-            "still renders the surviving rows"
+            "non-corrupt rows still render"
         })
   }
 

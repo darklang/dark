@@ -70,53 +70,50 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
            resultJson = read.string "result_json"
            durationMs = read.int64 "duration_ms" |})
 
+    // Skip rows whose args_json / result_json fail to parse rather
+    // than substitute a placeholder Dval — the downstream renderer
+    // expects each FnCall record's `args` / `result` to be the
+    // canonical Dval custom type, and a stand-in DString fails the
+    // type check at apply time. One bad row used to abort the whole
+    // tracesView / call-tree render via an unhandled raise from
+    // parseArgsJson / parseDvalJson; now we log + telemetry + drop
+    // the row, so the rest of the trace still renders.
     let enriched =
       events
-      |> List.map (fun ev ->
-        let displayName =
-          match ev.kind, ev.fnHash with
-          | "lambda", _ -> "(lambda)"
-          | _, Some name -> name
-          | _, None -> "(unknown)"
-        // One corrupt row used to abort the whole `tracesView` /
-        // call-tree render via an unhandled raise from
-        // parseArgsJson / parseDvalJson. Substitute a placeholder so
-        // the rest of the trace still renders.
-        let args =
-          try parseArgsJson ev.argsJson
-          with ex ->
-            print $"[tracing] failed to parse args_json for row: {ex.Message}"
-            Telemetry.event
-              "trace.row.argsParseFailed"
-              [ "message", ex.Message ]
-            [ DString $"<corrupt: {ex.Message}>" ]
-        let result =
-          try parseDvalJson ev.resultJson
-          with ex ->
-            print $"[tracing] failed to parse result_json for row: {ex.Message}"
-            Telemetry.event
-              "trace.row.resultParseFailed"
-              [ "message", ex.Message ]
-            DString $"<corrupt: {ex.Message}>"
-        let parentCallIdDval =
-          match ev.parentCallId with
-          | Some p -> Dval.optionSome KTString (DString p)
-          | None -> Dval.optionNone KTString
-        let lambdaExprIdDval =
-          match ev.lambdaExprId with
-          | Some i -> Dval.optionSome KTString (DString i)
-          | None -> Dval.optionNone KTString
-        let fields =
-          Map
-            [ "callId", DString ev.callId
-              "parentCallId", parentCallIdDval
-              "kind", DString ev.kind
-              "fnName", DString displayName
-              "lambdaExprId", lambdaExprIdDval
-              "args", Dval.list dvalKT args
-              "result", result
-              "durationMs", DInt64 ev.durationMs ]
-        DRecord(typeName, typeName, [], fields))
+      |> List.choose (fun ev ->
+        try
+          let displayName =
+            match ev.kind, ev.fnHash with
+            | "lambda", _ -> "(lambda)"
+            | _, Some name -> name
+            | _, None -> "(unknown)"
+          let args = parseArgsJson ev.argsJson
+          let result = parseDvalJson ev.resultJson
+          let parentCallIdDval =
+            match ev.parentCallId with
+            | Some p -> Dval.optionSome KTString (DString p)
+            | None -> Dval.optionNone KTString
+          let lambdaExprIdDval =
+            match ev.lambdaExprId with
+            | Some i -> Dval.optionSome KTString (DString i)
+            | None -> Dval.optionNone KTString
+          let fields =
+            Map
+              [ "callId", DString ev.callId
+                "parentCallId", parentCallIdDval
+                "kind", DString ev.kind
+                "fnName", DString displayName
+                "lambdaExprId", lambdaExprIdDval
+                "args", Dval.list dvalKT args
+                "result", result
+                "durationMs", DInt64 ev.durationMs ]
+          Some(DRecord(typeName, typeName, [], fields))
+        with ex ->
+          print $"[tracing] dropping corrupt fn_call row: {ex.Message}"
+          Telemetry.event
+            "trace.row.parseFailed"
+            [ "callId", ev.callId; "message", ex.Message ]
+          None)
 
     return enriched |> Dval.list (KTCustomType(typeName, []))
   }
