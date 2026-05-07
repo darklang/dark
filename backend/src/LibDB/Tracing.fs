@@ -548,40 +548,26 @@ let createSqliteTracer (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
 
 let createCliTracer
   (_dbScope : uuid)
-  (_traceID : AT.TraceID.T)
-  (_description : string)
-  (_inputVarName : string)
-  (_inputDval : RT.Dval)
+  (traceID : AT.TraceID.T)
+  (description : string)
+  (inputVarName : string)
+  (inputDval : RT.Dval)
   : T =
   let results = TraceResults.empty ()
-
-  // The frame/result hooks all use DvalReprInternalRoundtrippable for
-  // JSON encoding, which is reflection-based and stripped by the .NET
-  // trimmer in release/AOT builds. So tracing is dev-only here.
-  // TODO: switch to a trim-safe encoding so CLI traces work in release.
-#if DEBUG
   let state = newState ()
-#endif
   { enabled = true
     results = results
     executionTracing =
       { Exe.noTracing with
-#if DEBUG
           storeFrameEntry = makeStoreFrameEntry state
           storeFnResult = makeStoreFnResult state
           storeLambdaResult = makeStoreLambdaResult state
           traceDval = makeTraceDval state
-#endif
           skipTracing = false }
     storeTraceInput = fun _ _ _ -> ()
     storeTraceResults =
-      fun _exeState ->
-#if DEBUG
-        storeTrace 0UL _traceID _description _inputVarName _inputDval state _exeState
-#else
-        uply { return () }
-#endif
-  }
+      fun exeState ->
+        storeTrace 0UL traceID description inputVarName inputDval state exeState }
 
 
 let createNonTracer (_dbScope : uuid) (_traceID : AT.TraceID.T) : T =
