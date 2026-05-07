@@ -670,6 +670,17 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DString json ] ->
           uply {
+            // Validate every embedded Dval-shaped JSON field through
+            // parseJsonV0 before any DB write — earlier shape was raw
+            // GetRawText() inserted verbatim, so a malformed file
+            // wrote garbage that crashed later reads. JSON-parse vs
+            // disk errors now report distinct messages.
+            let validateDval (label : string) (rawJson : string) : exn option =
+              try
+                DvalReprInternalRoundtrippable.parseJsonV0 rawJson |> ignore<RT.Dval>
+                None
+              with ex ->
+                Some ex
             try
               use doc = JsonDocument.Parse(json)
               let root = doc.RootElement
@@ -764,13 +775,46 @@ let fns () : List<BuiltInFn> =
                     rows ]
                 | _ -> []
 
-              let _ =
-                Sql.executeTransactionSync (
-                  baseStatements @ eventStmt @ exprValuesStmt
-                )
-              return resultOk (DString id)
+              // Sweep all the Dval-shaped JSONs we're about to write
+              // through parseJsonV0. Bail with a useful error before
+              // touching the DB if any are malformed.
+              let toValidate =
+                seq {
+                  yield "input_value", inputValueJson
+                  for ev in fnCalls.EnumerateArray() do
+                    yield "fn_calls.args", ev.GetProperty("args").GetRawText()
+                    yield "fn_calls.result", ev.GetProperty("result").GetRawText()
+                  match root.TryGetProperty("expr_values") with
+                  | true, exprArr ->
+                    for ev in exprArr.EnumerateArray() do
+                      yield "expr_values.dval", ev.GetProperty("dval").GetRawText()
+                  | false, _ -> ()
+                }
+              let invalid =
+                toValidate
+                |> Seq.tryPick (fun (label, raw) ->
+                  match validateDval label raw with
+                  | Some ex -> Some(label, ex)
+                  | None -> None)
+              match invalid with
+              | Some(label, ex) ->
+                return
+                  resultError (
+                    DString $"Validation failed at {label}: {ex.Message}"
+                  )
+              | None ->
+                try
+                  let _ =
+                    Sql.executeTransactionSync (
+                      baseStatements @ eventStmt @ exprValuesStmt
+                    )
+                  return resultOk (DString id)
+                with ex ->
+                  return
+                    resultError (DString $"Database write failed: {ex.Message}")
             with ex ->
-              return resultError (DString $"Failed to import trace: {ex.Message}")
+              return
+                resultError (DString $"Could not parse trace JSON: {ex.Message}")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
