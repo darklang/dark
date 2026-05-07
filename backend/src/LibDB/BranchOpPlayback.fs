@@ -70,72 +70,50 @@ let applyOp (op : PT.BranchOp) : Task<unit> =
         |> Sql.executeStatementAsync
 
     | PT.BranchOp.MergeBranch(branchId, intoBranchId) ->
-      // Deprecate parent locations at paths that the branch is overwriting
-      let! branchLocations =
-        Sql.query
-          """
-          SELECT owner, modules, name, item_type
-          FROM locations
-          WHERE branch_id = @branch_id
-            AND unlisted_at IS NULL
-          """
-        |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-        |> Sql.executeAsync (fun read ->
-          (read.string "owner",
-           read.string "modules",
-           read.string "name",
-           read.string "item_type"))
+      // All five writes run in one transaction: deprecate the parent's
+      // active locations at paths the branch is overwriting, then move
+      // commits / package_ops / locations to the parent, then stamp
+      // `merged_at`. Was five separate `executeStatementAsync` calls
+      // (one of them in a per-row loop) — a mid-merge crash left the
+      // parent with some paths deprecated and some active, AND
+      // commits/package_ops/locations partially re-pointed.
+      //
+      // The per-row deprecation loop folded into one statement using
+      // a correlated subquery on (owner, modules, name, item_type).
+      let mergeStatements =
+        let parentParams =
+          [ "parent_id", Sql.uuid intoBranchId
+            "branch_id", Sql.uuid branchId ]
+        [ ("""
+           UPDATE locations
+           SET unlisted_at = datetime('now')
+           WHERE branch_id = @parent_id
+             AND unlisted_at IS NULL
+             AND (owner, modules, name, item_type) IN (
+               SELECT owner, modules, name, item_type
+               FROM locations
+               WHERE branch_id = @branch_id AND unlisted_at IS NULL
+             )
+           """,
+           [ parentParams ])
 
-      for (owner, modules, name, itemType) in branchLocations do
-        do!
-          Sql.query
-            """
-            UPDATE locations
-            SET unlisted_at = datetime('now')
-            WHERE branch_id = @parent_id
-              AND owner = @owner
-              AND modules = @modules
-              AND name = @name
-              AND item_type = @item_type
-              AND unlisted_at IS NULL
-            """
-          |> Sql.parameters
-            [ "parent_id", Sql.uuid intoBranchId
-              "owner", Sql.string owner
-              "modules", Sql.string modules
-              "name", Sql.string name
-              "item_type", Sql.string itemType ]
-          |> Sql.executeStatementAsync
+          ("UPDATE commits SET branch_id = @parent_id WHERE branch_id = @branch_id",
+           [ parentParams ])
 
-      // Move commits, ops, locations to parent
-      do!
-        Sql.query
-          "UPDATE commits SET branch_id = @parent_id WHERE branch_id = @branch_id"
-        |> Sql.parameters
-          [ "parent_id", Sql.uuid intoBranchId; "branch_id", Sql.uuid branchId ]
-        |> Sql.executeStatementAsync
+          ("UPDATE package_ops SET branch_id = @parent_id WHERE branch_id = @branch_id",
+           [ parentParams ])
 
-      do!
-        Sql.query
-          "UPDATE package_ops SET branch_id = @parent_id WHERE branch_id = @branch_id"
-        |> Sql.parameters
-          [ "parent_id", Sql.uuid intoBranchId; "branch_id", Sql.uuid branchId ]
-        |> Sql.executeStatementAsync
+          ("""
+           UPDATE locations SET branch_id = @parent_id
+           WHERE branch_id = @branch_id AND unlisted_at IS NULL
+           """,
+           [ parentParams ])
 
-      do!
-        Sql.query
-          """
-          UPDATE locations SET branch_id = @parent_id
-          WHERE branch_id = @branch_id AND unlisted_at IS NULL
-          """
-        |> Sql.parameters
-          [ "parent_id", Sql.uuid intoBranchId; "branch_id", Sql.uuid branchId ]
-        |> Sql.executeStatementAsync
+          ("UPDATE branches SET merged_at = datetime('now') WHERE id = @id",
+           [ [ "id", Sql.uuid branchId ] ]) ]
 
-      do!
-        Sql.query "UPDATE branches SET merged_at = datetime('now') WHERE id = @id"
-        |> Sql.parameters [ "id", Sql.uuid branchId ]
-        |> Sql.executeStatementAsync
+      let _ = Sql.executeTransactionSync mergeStatements
+      ()
 
     | PT.BranchOp.ArchiveBranch branchId ->
       do!
