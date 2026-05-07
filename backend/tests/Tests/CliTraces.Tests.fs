@@ -662,6 +662,108 @@ let private testTracesReplayReruns =
   }
 
 
+let private testTracesImportRoundtrip =
+  testTask "traces import: synthetic JSON round-trips into a usable trace" {
+    do!
+      withState (fun state ->
+        task {
+          // Hand-built export-shaped JSON. Mirrors what tracesExport
+          // would produce — minimum required keys + one fn_call row.
+          // Asserts: import succeeds, trace shows up in `list`.
+          // FormatV0 Dval shape is `[tag, string-payload]` for
+          // primitives — DInt64 is `["DInt64","1"]` not
+          // `["DInt64",1]`; the parser does Int64.Parse on the
+          // string form.
+          let traceId = "00000000-1111-2222-3333-000000000001"
+          let payload =
+            sprintf
+              "{\"id\":\"%s\",\"handler_desc\":\"eval\",\"timestamp\":\"2026-05-07T12:00:00Z\",\"input_name\":\"expression\",\"input_value\":[\"DString\",\"1L + 2L\"],\"fn_calls\":[{\"call_id\":\"call-a\",\"parent_call_id\":null,\"kind\":\"fn\",\"fn_hash\":\"int64Add\",\"lambda_expr_id\":null,\"args\":[[\"DInt64\",\"1\"],[\"DInt64\",\"2\"]],\"result\":[\"DInt64\",\"3\"]}],\"expr_values\":[]}"
+              traceId
+          let tmp = System.IO.Path.GetTempFileName()
+          try
+            do! System.IO.File.WriteAllTextAsync(tmp, payload)
+            let! out = runCli state [ "traces"; "import"; tmp ]
+            Expect.stringContains out traceId "import returned the trace ID"
+            let! listOut = runCli state [ "traces"; "list" ]
+            Expect.stringContains
+              listOut
+              (traceId.Substring(0, 8))
+              "imported trace appears in list"
+          finally
+            try
+              System.IO.File.Delete tmp
+            with _ ->
+              ()
+        })
+  }
+
+
+let private testTracesPruneIdempotent =
+  testTask "traces prune --keep is idempotent under repeated runs" {
+    do!
+      withState (fun state ->
+        task {
+          let! _ = runCli state [ "traces"; "clear" ]
+          for _ in 1..5 do
+            let! _ = runCli state [ "eval"; "1L + 2L" ]
+            ()
+
+          // Sequential prunes (in-process Console capture isn't
+          // safe for concurrent runCli invocations). The fix that
+          // matters is on the storage side: each prune now wraps
+          // its 4 sub-evaluations in one transaction so the
+          // "kept" set is consistent. Verifying the result is
+          // deterministic across repeated calls is the cheap
+          // observable check that doesn't need parallel writers.
+          let! _ = runCli state [ "traces"; "prune"; "--keep"; "2" ]
+          let! _ = runCli state [ "traces"; "prune"; "--keep"; "2" ]
+          let! _ = runCli state [ "traces"; "prune"; "--keep"; "2" ]
+
+          let! listOut = runCli state [ "traces"; "list" ]
+          // Lines look like "  <timestamp>  <uuid>  <handler>".
+          // Match any line containing a UUIDv4-shaped substring.
+          let uuidPattern =
+            System.Text.RegularExpressions.Regex(
+              "[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}"
+            )
+          let count =
+            listOut.Split('\n')
+            |> Array.filter (fun l -> uuidPattern.IsMatch l)
+            |> Array.length
+          Expect.equal count 2 "repeated prunes converge on --keep"
+        })
+  }
+
+
+let private testTracesLargeTraceListSurvives =
+  testTask "traces list survives a 50-trace store; find still returns banner" {
+    do!
+      withState (fun state ->
+        task {
+          let! _ = runCli state [ "traces"; "clear" ]
+          // Not the multi-MB stress case — but enough to verify
+          // list / find don't OOM or time out on a moderately-large
+          // store.
+          for _ in 1..50 do
+            let! _ = runCli state [ "eval"; "1L + 2L" ]
+            ()
+          let! listOut = runCli state [ "traces"; "list"; "20" ]
+          // List uses "Recent traces (last N):" as a header.
+          Expect.stringContains
+            listOut
+            "Recent traces"
+            "list returns the banner"
+          let! findOut = runCli state [ "traces"; "find"; "3" ]
+          // 50 evals of `1L + 2L` all produce DInt64 3; find should
+          // return without choking.
+          Expect.stringContains
+            findOut
+            "Traces matching"
+            "find returns banner"
+        })
+  }
+
+
 let private testTracesViewToleratesCorruptedRow =
   testTask "traces view <id> renders the rest of the call tree on a corrupted row" {
     do!
@@ -804,6 +906,9 @@ let tests =
       testTracesReplayReruns
       testTracesImportRejectsBadJson
       testTracesImportRejectsBadDvalShape
+      testTracesImportRoundtrip
+      testTracesPruneIdempotent
+      testTracesLargeTraceListSurvives
       testTracesViewToleratesCorruptedRow
       testTracesRejectsNegativeLimit
       testTracesRejectsFlagAsTraceId

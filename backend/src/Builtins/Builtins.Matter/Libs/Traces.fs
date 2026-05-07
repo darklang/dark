@@ -794,12 +794,16 @@ let fns () : List<BuiltInFn> =
 
               // Sweep all the Dval-shaped JSONs we're about to write
               // through parseJsonV0. Bail with a useful error before
-              // touching the DB if any are malformed.
+              // touching the DB if any are malformed. `args` is a
+              // JSON array of dvals — each element validates
+              // separately (the whole array isn't itself a tagged dval).
               let toValidate =
                 seq {
                   yield "input_value", inputValueJson
                   for ev in fnCalls.EnumerateArray() do
-                    yield "fn_calls.args", ev.GetProperty("args").GetRawText()
+                    let argsArr = ev.GetProperty("args")
+                    for argEl in argsArr.EnumerateArray() do
+                      yield "fn_calls.args[]", argEl.GetRawText()
                     yield "fn_calls.result", ev.GetProperty("result").GetRawText()
                   match root.TryGetProperty("expr_values") with
                   | true, exprArr ->
