@@ -652,6 +652,57 @@ let private testTracesReplayReruns =
   }
 
 
+let private testTracesImportRejectsBadJson =
+  testTask "traces import rejects malformed JSON with a useful error" {
+    do!
+      withState (fun state ->
+        task {
+          // Top-level garbage: not a JSON object at all.
+          let tmp = System.IO.Path.GetTempFileName()
+          try
+            do! System.IO.File.WriteAllTextAsync(tmp, "not json at all")
+            let! out = runCli state [ "traces"; "import"; tmp ]
+            // Either the file-read raises or the JsonDocument.Parse
+            // catch fires; the user-visible error should mention
+            // "parse" / "trace JSON" without leaking the full ex.
+            Expect.stringContains
+              (out.ToLower())
+              "parse"
+              "import error mentions parse failure"
+          finally
+            try
+              System.IO.File.Delete tmp
+            with _ ->
+              ()
+        })
+  }
+
+
+let private testTracesImportRejectsBadDvalShape =
+  testTask "traces import rejects malformed Dval JSON with a labeled error" {
+    do!
+      withState (fun state ->
+        task {
+          // Valid top-level shape but `input_value` isn't a parseable Dval.
+          let tmp = System.IO.Path.GetTempFileName()
+          try
+            let payload =
+              """{"id":"00000000-0000-0000-0000-000000000000","handler_desc":"eval","timestamp":"2026-01-01T00:00:00Z","input_name":"expression","input_value":["NotARealDvalTag"],"fn_calls":[]}"""
+            do! System.IO.File.WriteAllTextAsync(tmp, payload)
+            let! out = runCli state [ "traces"; "import"; tmp ]
+            Expect.stringContains
+              out
+              "input_value"
+              "import error labels the failing field"
+          finally
+            try
+              System.IO.File.Delete tmp
+            with _ ->
+              ()
+        })
+  }
+
+
 let private testTracesRejectsFlagAsTraceId =
   testTask "flag-shaped trace-id input rejected as flag" {
     do!
@@ -703,6 +754,8 @@ let tests =
       testViewWithTraceAnnotates
       testTracesPruneKeep
       testTracesReplayReruns
+      testTracesImportRejectsBadJson
+      testTracesImportRejectsBadDvalShape
       testTracesRejectsNegativeLimit
       testTracesRejectsFlagAsTraceId
       testTracesClearAndPruneGrammar
