@@ -55,7 +55,7 @@ let testBranchOpsEmitted =
         PT.PackageOp.SetName(loc "bo1", PT.PackageFn fn1.hash) ]
     let! (_insertCount : int64) = Inserts.insertAndApplyOpsAsWip branch.id ops
     let! (commitResult : Result<PT.Hash, string>) =
-      Inserts.commitWipOps branch.id "test commit"
+      Inserts.commitWipOps branch.id (LibCloud.Account.resolve ()) "test commit"
     Expect.isOk commitResult "commit should succeed"
     let! opCountAfterCommit = countRows "branch_ops"
     Expect.isGreaterThan
@@ -99,6 +99,7 @@ let testBranchOpsSerialization =
           PT.Hash "commit1",
           "msg",
           PT.mainBranchId,
+          LibCloud.Account.resolve (),
           [ PT.Hash "op1"; PT.Hash "op2" ]
         )
         PT.BranchOp.RebaseBranch(System.Guid.NewGuid(), PT.Hash "newbase")
@@ -149,7 +150,7 @@ let testBranchOpsDeserialization =
       branchOps
       |> List.tryFind (fun (_, op) ->
         match op with
-        | PT.BranchOp.CreateCommit(_, msg, _, _) ->
+        | PT.BranchOp.CreateCommit(_, msg, _, _, _) ->
           msg = "Init: packages loaded from disk"
         | _ -> false)
     Expect.isSome initCommitOp "should have init commit op"

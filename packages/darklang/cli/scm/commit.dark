@@ -69,7 +69,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           Stdlib.printLine ""
           state
         else
-          match SCM.PackageOps.commit branchId message with
+          match SCM.PackageOps.commit branchId state.accountID message with
           | Ok commitHash ->
             let shortId = Stdlib.String.first commitHash 8L
             Stdlib.printLine (Colors.success $"Created commit {shortId}")

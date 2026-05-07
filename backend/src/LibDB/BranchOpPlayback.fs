@@ -44,18 +44,19 @@ let applyOp (op : PT.BranchOp) : Task<unit> =
             "base_commit_hash", baseCommitHashParam ]
         |> Sql.executeStatementAsync
 
-    | PT.BranchOp.CreateCommit(commitHash, message, branchId, _opHashes) ->
+    | PT.BranchOp.CreateCommit(commitHash, message, branchId, accountId, _opHashes) ->
       let (Hash commitHashStr) = commitHash
       do!
         Sql.query
           """
-          INSERT OR IGNORE INTO commits (hash, message, branch_id, created_at)
-          VALUES (@hash, @message, @branch_id, datetime('now'))
+          INSERT OR IGNORE INTO commits (hash, message, branch_id, account_id, created_at)
+          VALUES (@hash, @message, @branch_id, @account_id, datetime('now'))
           """
         |> Sql.parameters
           [ "hash", Sql.string commitHashStr
             "message", Sql.string message
-            "branch_id", Sql.uuid branchId ]
+            "branch_id", Sql.uuid branchId
+            "account_id", Sql.uuid accountId ]
         |> Sql.executeStatementAsync
 
     | PT.BranchOp.RebaseBranch(branchId, newBaseCommitHash) ->

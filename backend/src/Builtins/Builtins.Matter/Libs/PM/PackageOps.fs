@@ -232,18 +232,19 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch ID"
+          Param.make "accountId" TUuid "Author of the commit"
           Param.make "message" TString "Commit message" ]
       returnType = TypeReference.result TString TString
       description =
-        "Commit all WIP ops on a branch with the given message.
+        "Commit all WIP ops on a branch with the given message + committer.
         Returns the commit hash on success, or an error message on failure."
       fn =
         let resultOk = Dval.resultOk KTString KTString
         let resultError = Dval.resultError KTString KTString
         (function
-        | _, _, _, [ DUuid branchId; DString message ] ->
+        | _, _, _, [ DUuid branchId; DUuid accountId; DString message ] ->
           uply {
-            let! result = LibDB.Inserts.commitWipOps branchId message
+            let! result = LibDB.Inserts.commitWipOps branchId accountId message
             match result with
             | Ok commitHash ->
               let (PT.Hash h) = commitHash

@@ -491,9 +491,12 @@ let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<PT.Commit>> 
         SELECT c.hash, c.message, c.created_at,
                (SELECT COUNT(*) FROM package_ops WHERE commit_hash = c.hash) as op_count,
                c.branch_id,
-               b.name as branch_name
+               b.name as branch_name,
+               c.account_id,
+               COALESCE(a.name, '(unknown)') as account_name
         FROM commits c
         JOIN branches b ON c.branch_id = b.id
+        LEFT JOIN accounts_v0 a ON c.account_id = a.id
         WHERE c.branch_id = @branch_id
         ORDER BY c.created_at DESC
         LIMIT @limit
@@ -505,7 +508,9 @@ let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<PT.Commit>> 
           createdAt = read.instant "created_at"
           opCount = read.int64 "op_count"
           branchId = read.uuid "branch_id"
-          branchName = read.string "branch_name" })
+          branchName = read.string "branch_name"
+          committerId = read.uuid "account_id"
+          committerName = read.string "account_name" })
   }
 
 
@@ -531,9 +536,12 @@ let getCommitsForBranchChain
           SELECT c.hash, c.message, c.created_at,
                  (SELECT COUNT(*) FROM package_ops WHERE commit_hash = c.hash) as op_count,
                  c.branch_id,
-                 b.name as branch_name
+                 b.name as branch_name,
+                 c.account_id,
+                 COALESCE(a.name, '(unknown)') as account_name
           FROM commits c
           JOIN branches b ON c.branch_id = b.id
+          LEFT JOIN accounts_v0 a ON c.account_id = a.id
           WHERE c.branch_id IN ({inClause})
           ORDER BY c.created_at DESC
           LIMIT @limit
@@ -545,7 +553,9 @@ let getCommitsForBranchChain
             createdAt = read.instant "created_at"
             opCount = read.int64 "op_count"
             branchId = read.uuid "branch_id"
-            branchName = read.string "branch_name" })
+            branchName = read.string "branch_name"
+            committerId = read.uuid "account_id"
+            committerName = read.string "account_name" })
   }
 
 

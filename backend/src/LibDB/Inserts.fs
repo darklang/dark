@@ -131,6 +131,7 @@ let insertAndApplyOps
 /// Returns the commit Hash
 let insertAndApplyOpsWithCommit
   (branchId : PT.BranchId)
+  (accountId : AccountID)
   (message : string)
   (ops : List<PT.PackageOp>)
   : Task<Hash> =
@@ -149,13 +150,14 @@ let insertAndApplyOpsWithCommit
 
     // Compute content-addressed commit hash
     let opHashes = ops |> List.map Hashing.computeOpHash
-    let commitHash = Hashing.computeCommitHash branchId parentHash opHashes
+    let commitHash =
+      Hashing.computeCommitHash branchId accountId parentHash opHashes
     let (Hash commitHashStr) = commitHash
 
     // Record and apply the commit
     do!
       BranchOpPlayback.insertAndApply (
-        PT.BranchOp.CreateCommit(commitHash, message, branchId, opHashes)
+        PT.BranchOp.CreateCommit(commitHash, message, branchId, accountId, opHashes)
       )
 
     // Insert ops with the commit_hash
@@ -179,6 +181,7 @@ let insertAndApplyOpsAsWip
 /// Returns the commit Hash on success.
 let commitWipOps
   (branchId : PT.BranchId)
+  (accountId : AccountID)
   (message : string)
   : Task<Result<Hash, string>> =
   task {
@@ -218,7 +221,8 @@ let commitWipOps
         let opHashes = wipOps |> List.map (fun (_, op) -> Hashing.computeOpHash op)
 
         // Compute content-addressed commit hash
-        let commitHash = Hashing.computeCommitHash branchId parentHash opHashes
+        let commitHash =
+          Hashing.computeCommitHash branchId accountId parentHash opHashes
         let (Hash commitHashStr) = commitHash
 
         // The whole flip from WIP → committed runs atomically: the
@@ -226,7 +230,8 @@ let commitWipOps
         // re-points all in one transaction. A crash mid-write used to
         // leave a `commits` row whose `package_ops` were still WIP,
         // which `getCommits` would surface but `getCommitOps` wouldn't.
-        let op = PT.BranchOp.CreateCommit(commitHash, message, branchId, opHashes)
+        let op =
+          PT.BranchOp.CreateCommit(commitHash, message, branchId, accountId, opHashes)
         let opHash = Hashing.computeBranchOpHash op
         let (Hash branchOpHashStr) = opHash
         let opBlob = BS.PT.BranchOp.serialize branchOpHashStr op
@@ -239,12 +244,15 @@ let commitWipOps
              [ [ "id", Sql.string branchOpHashStr; "op_blob", Sql.bytes opBlob ] ])
 
             ("""
-             INSERT OR IGNORE INTO commits (hash, message, branch_id, created_at)
-             VALUES (@hash, @message, @branch_id, datetime('now'))
+             INSERT OR IGNORE INTO commits
+                 (hash, message, branch_id, account_id, created_at)
+             VALUES
+                 (@hash, @message, @branch_id, @account_id, datetime('now'))
              """,
              [ [ "hash", Sql.string commitHashStr
                  "message", Sql.string message
-                 "branch_id", Sql.uuid branchId ] ])
+                 "branch_id", Sql.uuid branchId
+                 "account_id", Sql.uuid accountId ] ])
 
             ("""
              UPDATE package_ops

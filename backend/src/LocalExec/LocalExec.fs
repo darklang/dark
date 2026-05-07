@@ -49,6 +49,7 @@ module HandleCommand =
       let! commitHash =
         LibDB.Inserts.insertAndApplyOpsWithCommit
           LibExecution.ProgramTypes.mainBranchId
+          (LibCloud.Account.resolve ())
           "Init: packages loaded from disk"
           ops
 

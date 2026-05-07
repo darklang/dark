@@ -1853,6 +1853,8 @@ module Commit =
         "createdAt", DDateTime(DarkDateTime.fromInstant c.createdAt)
         "opCount", DInt64 c.opCount
         "branchId", DUuid c.branchId
-        "branchName", DString c.branchName ]
+        "branchName", DString c.branchName
+        "committerId", DUuid c.committerId
+        "committerName", DString c.committerName ]
       |> Map.ofList
     DRecord(typeName (), typeName (), [], fields)

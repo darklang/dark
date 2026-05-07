@@ -71,7 +71,12 @@ type Commit =
     createdAt : NodaTime.Instant
     opCount : int64
     branchId : BranchId
-    branchName : string }
+    branchName : string
+    /// Account that authored this commit. Single-instance Dark
+    /// uses Darklang; carried as a column so multi-account future
+    /// has the slot.
+    committerId : AccountID
+    committerName : string }
 
 
 /// Operations on branches/commits, logged as immutable ops for sync
@@ -86,6 +91,7 @@ type BranchOp =
     commitHash : Hash *
     message : string *
     branchId : BranchId *
+    accountId : AccountID *
     opHashes : List<Hash>
 
   | RebaseBranch of branchId : BranchId * newBaseCommitHash : Hash

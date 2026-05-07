@@ -8,7 +8,9 @@ type Commit =
     createdAt: DateTime
     opCount: Int64
     branchId: Uuid
-    branchName: String }
+    branchName: String
+    committerId: Uuid
+    committerName: String }
 
 
 /// Add a list of package ops to the database as WIP (uncommitted) on the given branch
@@ -78,9 +80,10 @@ let getWipItems (branchId: Uuid) : List<Dict<String>> =
 /// Returns the commit hash on success, or an error message on failure
 let commit
   (branchId: Uuid)
+  (accountId: Uuid)
   (message: String)
   : Stdlib.Result.Result<String, String> =
-  Builtin.scmCommit branchId message
+  Builtin.scmCommit branchId accountId message
 
 
 /// Discard all WIP ops on a branch

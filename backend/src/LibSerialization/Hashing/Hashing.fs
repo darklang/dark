@@ -74,25 +74,24 @@ module Hashing =
       LibSerialization.Binary.Serializers.PT.BranchOp.write w op)
 
 
-  /// Hash a commit: hash(branchId + parentHash + sorted(opHashes))
+  /// Hash a commit: hash(branchId + accountId + parentHash + sorted(opHashes))
   ///
-  /// Mixing in `branchId` is what keeps the global `commits.hash`
-  /// PRIMARY KEY safe under `INSERT OR IGNORE` semantics in
-  /// `BranchOpPlayback.applyOp`. Without it, two branches producing
-  /// identical op sets off the same parent (e.g. re-running the same
-  /// .dark script on different branches) collide on the hash; the
-  /// second branch's commit is silently dropped, but `commitWipOps`
-  /// still re-points its package_ops/locations/deprecations at the
-  /// first branch's hash. Stale rows in `commits` from before this
-  /// change need to be wiped or rebuilt — there are no persistent
-  /// prod consumers today.
+  /// Both `branchId` and `accountId` mix in: `branchId` keeps the
+  /// global `commits.hash` PRIMARY KEY safe across branches that
+  /// produce identical op sets; `accountId` keeps it safe across
+  /// accounts that produce identical commits (e.g. two devs running
+  /// the same .dark script independently on the same branch). Either
+  /// alone has been the design at different points; both costs
+  /// nothing extra and removes a corner case.
   let computeCommitHash
     (branchId : System.Guid)
+    (accountId : System.Guid)
     (parentHash : Hash option)
     (opHashes : List<Hash>)
     : Hash =
     hashWithWriter (fun w ->
       Common.Guid.write w branchId
+      Common.Guid.write w accountId
       Common.Option.write w PTC.Hash.write parentHash
       let sorted = opHashes |> List.map Hash.toHexString |> List.sort
       Common.List.write w Common.String.write sorted)
