@@ -78,8 +78,20 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
           | "lambda", _ -> "(lambda)"
           | _, Some name -> name
           | _, None -> "(unknown)"
-        let args = parseArgsJson ev.argsJson
-        let result = parseDvalJson ev.resultJson
+        // One corrupt row used to abort the whole `tracesView` /
+        // call-tree render via an unhandled raise from
+        // parseArgsJson / parseDvalJson. Substitute a placeholder so
+        // the rest of the trace still renders.
+        let args =
+          try parseArgsJson ev.argsJson
+          with ex ->
+            print $"[tracing] failed to parse args_json for row: {ex.Message}"
+            [ DString $"<corrupt: {ex.Message}>" ]
+        let result =
+          try parseDvalJson ev.resultJson
+          with ex ->
+            print $"[tracing] failed to parse result_json for row: {ex.Message}"
+            DString $"<corrupt: {ex.Message}>"
         let parentCallIdDval =
           match ev.parentCallId with
           | Some p -> Dval.optionSome KTString (DString p)
@@ -434,9 +446,13 @@ let fns () : List<BuiltInFn> =
           uply {
             let! rows =
               Sql.query
+                // expr_id is stored as TEXT (stringified int) so a
+                // bare ORDER BY sorts lexicographically — "10" before
+                // "2". CAST gives the natural numeric order the
+                // docstring promises.
                 "SELECT expr_id, dval_json FROM trace_expr_values
                  WHERE trace_id = @traceId
-                 ORDER BY expr_id"
+                 ORDER BY CAST(expr_id AS INTEGER)"
               |> Sql.parameters [ "traceId", Sql.string traceID ]
               |> Sql.executeAsync (fun read ->
                 {| exprId = read.string "expr_id"
