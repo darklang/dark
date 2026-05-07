@@ -121,7 +121,6 @@ let private testHelpCommand =
       withState (fun state ->
         task {
           let! output = runCli state [ "help" ]
-          System.Console.Error.WriteLine($"[DEBUG help] captured: {output}")
           Expect.stringContains output "Packages:" "category header"
           Expect.stringContains output "SCM:" "SCM header"
           Expect.stringContains output "help" "help command"
