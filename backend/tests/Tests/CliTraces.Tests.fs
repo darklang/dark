@@ -310,9 +310,7 @@ let private testTracesClearEmptiesList =
           let! _ = runCli state [ "eval"; "let x = 99L\nx" ]
 
           let! beforeOut = runCli state [ "traces"; "list" ]
-          Expect.isFalse
-            (beforeOut.Contains "No traces")
-            "list non-empty pre-clear"
+          Expect.isFalse (beforeOut.Contains "No traces") "list non-empty pre-clear"
 
           let! _ = runCli state [ "traces"; "clear" ]
           let! afterOut = runCli state [ "traces"; "list" ]

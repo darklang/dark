@@ -14,8 +14,7 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 
 let private stdlibDict (name : string) : Accessibility =
-  FromLocation
-    { owner = "Darklang"; modules = [ "Stdlib"; "Dict" ]; name = name }
+  FromLocation { owner = "Darklang"; modules = [ "Stdlib"; "Dict" ]; name = name }
 
 
 let fns () : List<BuiltInFn> =

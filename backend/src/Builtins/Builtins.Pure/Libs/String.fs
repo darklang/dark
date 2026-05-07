@@ -15,8 +15,7 @@ module Interpreter = LibExecution.Interpreter
 module Blob = LibExecution.Blob
 
 let private stdlibString (name : string) : Accessibility =
-  FromLocation
-    { owner = "Darklang"; modules = [ "Stdlib"; "String" ]; name = name }
+  FromLocation { owner = "Darklang"; modules = [ "Stdlib"; "String" ]; name = name }
 
 
 let fns () : List<BuiltInFn> =

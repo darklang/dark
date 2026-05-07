@@ -297,9 +297,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated
       accessibility =
         FromLocation
-          { owner = "Darklang"
-            modules = [ "Stdlib"; "List" ]
-            name = "length" } }
+          { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "length" } }
 
 
     { name = fn "listUnique" 0

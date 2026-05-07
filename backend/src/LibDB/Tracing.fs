@@ -364,92 +364,92 @@ module TraceStorage =
       ()
     else
 
-    let traceIdStr = string traceID
-    let timestamp = NodaTime.Instant.now().ToString()
-    let traceIdParam = [ "traceId", Sql.string traceIdStr ]
+      let traceIdStr = string traceID
+      let timestamp = NodaTime.Instant.now().ToString()
+      let traceIdParam = [ "traceId", Sql.string traceIdStr ]
 
-    let inputJson = DvalReprInternalRoundtrippable.toJsonV0 inputDval
+      let inputJson = DvalReprInternalRoundtrippable.toJsonV0 inputDval
 
-    // DELETE-before-INSERT on trace_fn_calls matches INSERT OR REPLACE
-    // on traces, so re-running store for a trace_id replaces rather than
-    // accumulates. Input is stored inline on the trace row.
-    let baseStatements =
-      [ "INSERT OR REPLACE INTO traces
+      // DELETE-before-INSERT on trace_fn_calls matches INSERT OR REPLACE
+      // on traces, so re-running store for a trace_id replaces rather than
+      // accumulates. Input is stored inline on the trace row.
+      let baseStatements =
+        [ "INSERT OR REPLACE INTO traces
           (id, root_tlid, handler_desc, timestamp,
            input_name, input_value_json)
          VALUES
           (@id, @rootTlid, @handlerDesc, @timestamp,
            @inputName, @inputValueJson)",
-        [ [ "id", Sql.string traceIdStr
-            "rootTlid", Sql.int64 (int64 rootTLID)
-            "handlerDesc", Sql.string handlerDesc
-            "timestamp", Sql.string timestamp
-            "inputName", Sql.string inputVarName
-            "inputValueJson", Sql.string inputJson ] ]
+          [ [ "id", Sql.string traceIdStr
+              "rootTlid", Sql.int64 (int64 rootTLID)
+              "handlerDesc", Sql.string handlerDesc
+              "timestamp", Sql.string timestamp
+              "inputName", Sql.string inputVarName
+              "inputValueJson", Sql.string inputJson ] ]
 
-        "DELETE FROM trace_fn_calls WHERE trace_id = @traceId", [ traceIdParam ] ]
+          "DELETE FROM trace_fn_calls WHERE trace_id = @traceId", [ traceIdParam ] ]
 
-    // Skip the events INSERT when empty: fumble rejects zero-param-row
-    // prepared statements, hit when a trace errors before any call fires.
-    // The DELETE above still runs.
-    let eventStmt =
-      match events with
-      | [] -> []
-      | _ ->
-        [ "INSERT INTO trace_fn_calls
+      // Skip the events INSERT when empty: fumble rejects zero-param-row
+      // prepared statements, hit when a trace errors before any call fires.
+      // The DELETE above still runs.
+      let eventStmt =
+        match events with
+        | [] -> []
+        | _ ->
+          [ "INSERT INTO trace_fn_calls
             (trace_id, call_id, parent_call_id, kind, fn_hash,
              lambda_expr_id, args_json, result_json, duration_ms)
            VALUES
             (@traceId, @callId, @parentCallId, @kind, @fnHash,
              @lambdaExprId, @argsJson, @resultJson, @durationMs)",
-          events
-          |> List.map (fun ev ->
-            let argsJson =
-              ev.args
-              |> List.map DvalReprInternalRoundtrippable.toJsonV0
-              |> jsonArrayOf
-            let resultJson = DvalReprInternalRoundtrippable.toJsonV0 ev.result
-            [ "traceId", Sql.string traceIdStr
-              "callId", Sql.string ev.callId
-              "parentCallId", Sql.stringOrNone ev.parentCallId
-              "kind", Sql.string ev.kind
-              "fnHash", Sql.stringOrNone ev.fnHash
-              "lambdaExprId",
-              (ev.lambdaExprId |> Option.map string |> Sql.stringOrNone)
-              "argsJson", Sql.string argsJson
-              "resultJson", Sql.string resultJson
-              "durationMs", Sql.int64 ev.durationMs ]) ]
+            events
+            |> List.map (fun ev ->
+              let argsJson =
+                ev.args
+                |> List.map DvalReprInternalRoundtrippable.toJsonV0
+                |> jsonArrayOf
+              let resultJson = DvalReprInternalRoundtrippable.toJsonV0 ev.result
+              [ "traceId", Sql.string traceIdStr
+                "callId", Sql.string ev.callId
+                "parentCallId", Sql.stringOrNone ev.parentCallId
+                "kind", Sql.string ev.kind
+                "fnHash", Sql.stringOrNone ev.fnHash
+                "lambdaExprId",
+                (ev.lambdaExprId |> Option.map string |> Sql.stringOrNone)
+                "argsJson", Sql.string argsJson
+                "resultJson", Sql.string resultJson
+                "durationMs", Sql.int64 ev.durationMs ]) ]
 
-    // Per-AST-node values from the `traceDval` hook. Same DELETE-then-
-    // INSERT pattern as fn_calls so re-stores replace cleanly.
-    // `Summary` skips this block — it's the bulk of trace data.
-    let exprStmts, exprInsert =
-      if detail = TraceDetail.Detailed then
-        let stmts =
-          [ "DELETE FROM trace_expr_values WHERE trace_id = @traceId",
-            [ traceIdParam ] ]
-        let insert =
-          if exprValues.Count = 0 then
-            []
-          else
-            [ "INSERT OR REPLACE INTO trace_expr_values
+      // Per-AST-node values from the `traceDval` hook. Same DELETE-then-
+      // INSERT pattern as fn_calls so re-stores replace cleanly.
+      // `Summary` skips this block — it's the bulk of trace data.
+      let exprStmts, exprInsert =
+        if detail = TraceDetail.Detailed then
+          let stmts =
+            [ "DELETE FROM trace_expr_values WHERE trace_id = @traceId",
+              [ traceIdParam ] ]
+          let insert =
+            if exprValues.Count = 0 then
+              []
+            else
+              [ "INSERT OR REPLACE INTO trace_expr_values
                 (trace_id, expr_id, dval_json)
                VALUES
                 (@traceId, @exprId, @dvalJson)",
-              [ for KeyValue(exprId, dval) in exprValues ->
-                  [ "traceId", Sql.string traceIdStr
-                    "exprId", Sql.string (string exprId)
-                    "dvalJson",
-                    Sql.string (DvalReprInternalRoundtrippable.toJsonV0 dval) ] ] ]
-        stmts, insert
-      else
-        [], []
+                [ for KeyValue(exprId, dval) in exprValues ->
+                    [ "traceId", Sql.string traceIdStr
+                      "exprId", Sql.string (string exprId)
+                      "dvalJson",
+                      Sql.string (DvalReprInternalRoundtrippable.toJsonV0 dval) ] ] ]
+          stmts, insert
+        else
+          [], []
 
-    let _ =
-      Sql.executeTransactionSync (
-        baseStatements @ eventStmt @ exprStmts @ exprInsert
-      )
-    ()
+      let _ =
+        Sql.executeTransactionSync (
+          baseStatements @ eventStmt @ exprStmts @ exprInsert
+        )
+      ()
 
 
 /// Walk every captured Dval through `Blob.promote` so ephemeral blob refs
@@ -512,10 +512,7 @@ let private storeTrace
   }
 
 
-let createSqliteTracer
-  (rootTLID : tlid)
-  (traceID : AT.TraceID.T)
-  : T =
+let createSqliteTracer (rootTLID : tlid) (traceID : AT.TraceID.T) : T =
   let results = TraceResults.empty ()
   let state = newState ()
   let mutable storedInputVarName = ""
@@ -580,14 +577,7 @@ let createCliTracer
     storeTraceResults =
       fun _exeState ->
 #if DEBUG
-        storeTrace
-          0UL
-          _traceID
-          _description
-          _inputVarName
-          _inputDval
-          state
-          _exeState
+        storeTrace 0UL _traceID _description _inputVarName _inputDval state _exeState
 #else
         uply { return () }
 #endif

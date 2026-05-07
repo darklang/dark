@@ -176,12 +176,9 @@ let anyBuiltinsWithSingleWrapperReport =
         match fn.accessibility with
         | RT.FromLocation _ -> None
         | RT.Any ->
-          if Set.contains fn.name.name infixDispatched then
-            None
-          else if countReferences fn.name.name = 1 then
-            Some fn.name.name
-          else
-            None)
+          if Set.contains fn.name.name infixDispatched then None
+          else if countReferences fn.name.name = 1 then Some fn.name.name
+          else None)
       |> Seq.toList
 
     if not (List.isEmpty candidates) then

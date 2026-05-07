@@ -63,7 +63,3 @@ let httpclientTimeoutInMs = int "DARK_CONFIG_HTTPCLIENT_TIMEOUT_IN_MS"
 /// us if something has changed.
 let serializationGenerateTestData =
   bool "DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA"
-
-
-
-

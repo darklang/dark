@@ -75,10 +75,7 @@ module Hashing =
 
 
   /// Hash a commit: hash(parentHash + sorted(opHashes))
-  let computeCommitHash
-    (parentHash : Hash option)
-    (opHashes : List<Hash>)
-    : Hash =
+  let computeCommitHash (parentHash : Hash option) (opHashes : List<Hash>) : Hash =
     hashWithWriter (fun w ->
       Common.Option.write w PTC.Hash.write parentHash
       let sorted = opHashes |> List.map Hash.toHexString |> List.sort

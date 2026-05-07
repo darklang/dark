@@ -573,8 +573,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "dbListAll" 0
       typeParams = []
-      parameters =
-        [ Param.make "branchId" TUuid "Branch for resolving type names" ]
+      parameters = [ Param.make "branchId" TUuid "Branch for resolving type names" ]
       returnType = TList(TTuple(TString, TString, []))
       description = "Returns a list of (name, typeName) tuples for all DBs"
       fn =
@@ -613,8 +612,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "dbDrop" 0
       typeParams = []
-      parameters =
-        [ Param.make "dbName" TString "Name of the database to drop" ]
+      parameters = [ Param.make "dbName" TString "Name of the database to drop" ]
       returnType = TypeReference.result TUnit TString
       description = "Drops (deletes) all databases with the given name"
       fn =
