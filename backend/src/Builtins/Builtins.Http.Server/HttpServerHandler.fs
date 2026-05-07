@@ -122,8 +122,21 @@ let handleRequest
               response.body.Length
             )
       with ex ->
+        // Don't leak `ex.Message` to the wire — it can carry stack
+        // hints, internal paths, or sensitive eval-state strings.
+        // Keep the full detail server-side via the `logRequest` path
+        // in `finally` (which sees the 500 status), and let the
+        // operator inspect logs / telemetry.
+        //
+        // 4xx vs 5xx mapping note: handler-controlled status codes
+        // (404 / 400 / etc.) flow through `Response.toHttpResponse`
+        // above, so this `with` only fires on genuine F#-side
+        // failures — 500 is the appropriate fallback. (Coworker
+        // feedback flagged GrandUserException / NotFoundException
+        // not being mapped — those types don't exist on the post-
+        // BwdServer path; user-facing errors stay handler-side.)
         ctx.Response.StatusCode <- 500
-        let errorBytes = UTF8.toBytes $"Internal server error: {ex.Message}"
+        let errorBytes = UTF8.toBytes "Internal server error"
         ctx.Response.ContentLength64 <- int64 errorBytes.Length
         do! ctx.Response.OutputStream.WriteAsync(errorBytes, 0, errorBytes.Length)
     finally
