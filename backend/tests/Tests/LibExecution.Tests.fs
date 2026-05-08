@@ -125,10 +125,8 @@ let t
       // .dark testfile cases is "wipe + repopulate" (and the surrounding
       // testList is testSequenced so wipes don't race parallel writes).
       if dbs <> [] || workers <> [] then
-        do!
-          Sql.query "DELETE FROM toplevels_v0" |> Sql.executeStatementAsync
-        do!
-          Sql.query "DELETE FROM user_data_v0" |> Sql.executeStatementAsync
+        do! Sql.query "DELETE FROM toplevels_v0" |> Sql.executeStatementAsync
+        do! Sql.query "DELETE FROM user_data_v0" |> Sql.executeStatementAsync
 
       let rtDBs =
         dbs |> List.map (fun db -> (db.name, PT2RT.DB.toRT db)) |> Map.ofList

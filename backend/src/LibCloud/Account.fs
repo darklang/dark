@@ -25,14 +25,10 @@ type Account = { id : AccountID; name : string }
 /// of the API surface — Dark code references them by literal — so
 /// don't rotate.
 module IDs =
-  let darklang : AccountID =
-    System.Guid.Parse "00000000-0000-0000-0000-000000000001"
-  let stachu : AccountID =
-    System.Guid.Parse "00000000-0000-0000-0000-000000000002"
-  let paul : AccountID =
-    System.Guid.Parse "00000000-0000-0000-0000-000000000003"
-  let feriel : AccountID =
-    System.Guid.Parse "00000000-0000-0000-0000-000000000004"
+  let darklang : AccountID = System.Guid.Parse "00000000-0000-0000-0000-000000000001"
+  let stachu : AccountID = System.Guid.Parse "00000000-0000-0000-0000-000000000002"
+  let paul : AccountID = System.Guid.Parse "00000000-0000-0000-0000-000000000003"
+  let feriel : AccountID = System.Guid.Parse "00000000-0000-0000-0000-000000000004"
 
 /// Resolve the current process's account. Single-instance Dark
 /// today, so this is just Darklang. When multi-account lands this

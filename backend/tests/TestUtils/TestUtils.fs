@@ -1529,8 +1529,7 @@ let unwrapExecutionResult
 
 let parsePTExpr (code : string) : Task<PT.Expr> =
   uply {
-    let! (state : RT.ExecutionState) =
-      executionStateFor pmPT false Map.empty
+    let! (state : RT.ExecutionState) = executionStateFor pmPT false Map.empty
 
     let name =
       RT.FQFnName.fqPackage (PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ())

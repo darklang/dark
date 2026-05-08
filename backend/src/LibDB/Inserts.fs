@@ -150,8 +150,7 @@ let insertAndApplyOpsWithCommit
 
     // Compute content-addressed commit hash
     let opHashes = ops |> List.map Hashing.computeOpHash
-    let commitHash =
-      Hashing.computeCommitHash branchId accountId parentHash opHashes
+    let commitHash = Hashing.computeCommitHash branchId accountId parentHash opHashes
     let (Hash commitHashStr) = commitHash
 
     // Record and apply the commit
@@ -231,7 +230,13 @@ let commitWipOps
         // leave a `commits` row whose `package_ops` were still WIP,
         // which `getCommits` would surface but `getCommitOps` wouldn't.
         let op =
-          PT.BranchOp.CreateCommit(commitHash, message, branchId, accountId, opHashes)
+          PT.BranchOp.CreateCommit(
+            commitHash,
+            message,
+            branchId,
+            accountId,
+            opHashes
+          )
         let opHash = Hashing.computeBranchOpHash op
         let (Hash branchOpHashStr) = opHash
         let opBlob = BS.PT.BranchOp.serialize branchOpHashStr op

@@ -66,7 +66,8 @@ type MergeError =
 
 /// A commit on a branch
 type Commit =
-  { hash : Hash
+  {
+    hash : Hash
     message : string
     createdAt : NodaTime.Instant
     opCount : int64
@@ -76,7 +77,8 @@ type Commit =
     /// uses Darklang; carried as a column so multi-account future
     /// has the slot.
     committerId : AccountID
-    committerName : string }
+    committerName : string
+  }
 
 
 /// Operations on branches/commits, logged as immutable ops for sync

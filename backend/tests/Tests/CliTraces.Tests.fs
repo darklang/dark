@@ -652,8 +652,7 @@ let private testTracesReplayReruns =
           // The replay produces a fresh trace; verify it landed by
           // counting traces in the list. Was 1, should now be 2.
           let! listJsonAfter = runCli state [ "traces"; "list"; "10"; "--json" ]
-          let traceCount =
-            (listJsonAfter.Split("\"traceId\":\"")).Length - 1
+          let traceCount = (listJsonAfter.Split("\"traceId\":\"")).Length - 1
           Expect.equal
             traceCount
             2
@@ -749,17 +748,11 @@ let private testTracesLargeTraceListSurvives =
             ()
           let! listOut = runCli state [ "traces"; "list"; "20" ]
           // List uses "Recent traces (last N):" as a header.
-          Expect.stringContains
-            listOut
-            "Recent traces"
-            "list returns the banner"
+          Expect.stringContains listOut "Recent traces" "list returns the banner"
           let! findOut = runCli state [ "traces"; "find"; "3" ]
           // 50 evals of `1L + 2L` all produce DInt64 3; find should
           // return without choking.
-          Expect.stringContains
-            findOut
-            "Traces matching"
-            "find returns banner"
+          Expect.stringContains findOut "Traces matching" "find returns banner"
         })
   }
 
@@ -794,10 +787,7 @@ let private testTracesViewToleratesCorruptedRow =
             (out.Contains "corrupt-test")
             "corrupt row dropped from rendered tree"
           // Surviving rows from the eval still render.
-          Expect.stringContains
-            out
-            "Stdlib"
-            "non-corrupt rows still render"
+          Expect.stringContains out "Stdlib" "non-corrupt rows still render"
         })
   }
 

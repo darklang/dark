@@ -639,8 +639,7 @@ let fns () : List<BuiltInFn> =
               do!
                 matchingTlids
                 |> Task.iterInParallel (fun tlid ->
-                  Sql.query
-                    "DELETE FROM user_data_v0 WHERE table_tlid = @tlid"
+                  Sql.query "DELETE FROM user_data_v0 WHERE table_tlid = @tlid"
                   |> Sql.parameters [ "tlid", Sql.id tlid ]
                   |> Sql.executeStatementAsync)
               return Dval.resultOk KTUnit KTString DUnit

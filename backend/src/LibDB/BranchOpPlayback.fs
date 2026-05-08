@@ -83,8 +83,7 @@ let applyOp (op : PT.BranchOp) : Task<unit> =
       // a correlated subquery on (owner, modules, name, item_type).
       let mergeStatements =
         let parentParams =
-          [ "parent_id", Sql.uuid intoBranchId
-            "branch_id", Sql.uuid branchId ]
+          [ "parent_id", Sql.uuid intoBranchId; "branch_id", Sql.uuid branchId ]
         [ ("""
            UPDATE locations
            SET unlisted_at = datetime('now')

@@ -820,9 +820,7 @@ let fns () : List<BuiltInFn> =
               match invalid with
               | Some(label, ex) ->
                 return
-                  resultError (
-                    DString $"Validation failed at {label}: {ex.Message}"
-                  )
+                  resultError (DString $"Validation failed at {label}: {ex.Message}")
               | None ->
                 try
                   let _ =
@@ -831,8 +829,7 @@ let fns () : List<BuiltInFn> =
                     )
                   return resultOk (DString id)
                 with ex ->
-                  return
-                    resultError (DString $"Database write failed: {ex.Message}")
+                  return resultError (DString $"Database write failed: {ex.Message}")
             with ex ->
               return
                 resultError (DString $"Could not parse trace JSON: {ex.Message}")

@@ -185,8 +185,7 @@ let execute
 
     let (traceDesc, inputName, inputValue) = CliTraceSource.toTraceParams traceSource
     let traceID = AT.TraceID.create ()
-    let tracer =
-      Tracing.createCliTracer traceID traceDesc inputName inputValue
+    let tracer = Tracing.createCliTracer traceID traceDesc inputName inputValue
 
     let state =
       Exe.createState
@@ -359,13 +358,7 @@ let fns () : List<BuiltInFn> =
               match parsedScript with
               | Ok mod' ->
                 match!
-                  execute
-                    exeState
-                    branchId
-                    mod'
-                    []
-                    dbs
-                    (EvalExpression expression)
+                  execute exeState branchId mod' [] dbs (EvalExpression expression)
                 with
                 | Ok result ->
                   match result with

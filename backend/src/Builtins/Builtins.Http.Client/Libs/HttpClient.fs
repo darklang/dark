@@ -209,8 +209,7 @@ module BaseClient =
               )
             socket.NoDelay <- true
 
-            let endpoint =
-              System.Net.IPEndPoint(ips[0], context.DnsEndPoint.Port)
+            let endpoint = System.Net.IPEndPoint(ips[0], context.DnsEndPoint.Port)
             do! socket.ConnectAsync(endpoint, cancellationToken)
             return new System.Net.Sockets.NetworkStream(socket, true)
           with :? System.ArgumentException ->

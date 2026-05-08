@@ -112,8 +112,7 @@ let parseSingleTestFromFile
   (test : string)
   : Ply<Internal.Test.PTTest> =
   uply {
-    let! (state : RT.ExecutionState) =
-      executionStateFor pmPT true Map.empty
+    let! (state : RT.ExecutionState) = executionStateFor pmPT true Map.empty
 
     let name =
       RT.FQFnName.fqPackage (PackageRefs.Fn.Internal.Test.parseSingleTestFromFile ())
