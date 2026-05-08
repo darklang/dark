@@ -34,6 +34,13 @@ Names need full paths (owner.module.name), e.g.:
   fn Darklang.Testing.fib (n: Int64): Int64 = ...
 Inside the body, use short names (e.g., `fib` for recursion).
 
+For multi-line bodies, use `-` and pipe via stdin (heredoc form):
+  ./scripts/run-cli fn Darklang.Foo.bar - <<'EOF'
+  (n: Int64): Int64 =
+    let x = n + 1L
+    x * 2L
+  EOF
+
 ## Running/Testing
   run @<fn> [args]  # run a function you created (with args)
   eval <expr>       # quick test expressions (not for creating code)
@@ -43,10 +50,13 @@ Inside the body, use short names (e.g., `fib` for recursion).
   ls / back         # list / go back
 
 ## SCM (version control)
-  status            # see current branch + uncommitted changes
-  commit <msg>      # commit changes
-  log               # history
-  discard           # undo uncommitted changes
+  status               # see current branch + uncommitted changes
+  commit <msg> [-y]    # commit changes; -y/--yes skips the y/n prompt
+  log                  # history
+  discard              # undo uncommitted changes
+
+`commit` requires the `DARK_ACCOUNT` env var to be set (your username).
+For non-interactive use: `DARK_ACCOUNT=alice ./scripts/run-cli commit "msg" -y`
 
 ## Deprecation (mark items as unused / dangerous / obsolete)
   deprecate <fn|type|value> <name> --kind <k> [options]
@@ -100,6 +110,7 @@ Rules:
 - Pipe needs parens: (complex expr) |> fn
 - Lists: [1L; 2L; 3L] (semicolons)
 - String concat: ++ (not @)
+- String interpolation: $"x = {expr}; total = {a ++ b}"
 - Int division: Stdlib.Int64.divide (not /)
 
 ## Records

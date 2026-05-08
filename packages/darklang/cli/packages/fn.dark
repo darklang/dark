@@ -22,12 +22,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | parts -> Stdlib.String.join parts " "
 
     if Stdlib.String.isEmpty inlineDefinition then
-      // No inline definition provided - show error
+      // No body provided - show error
       [
-        (Colors.error "Error: Inline function definition required")
+        (Colors.error "Error: Function body required")
         ""
-        "Usage: fn <location> <parameters and body>"
-        "       fn <location> -    (read body from stdin, for multi-line input)"
+        "Pass the body inline, or `-` to read from stdin (for multi-line):"
+        "  fn <location> <parameters and body>"
+        "  fn <location> -    (read body from stdin)"
         ""
         "Examples:"
         "  fn double (x: Int64): Int64 = Stdlib.Int64.multiply x 2L"
