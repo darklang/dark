@@ -1,0 +1,82 @@
+// Tests for reflection builtins
+
+// Test Builtin.typeOf with primitives
+Builtin.typeOf () = "Unit"
+Builtin.typeOf true = "Bool"
+Builtin.typeOf 42L = "Int64"
+Builtin.typeOf 3.14 = "Float"
+Builtin.typeOf "hello" = "String"
+Builtin.typeOf 'c' = "Char"
+
+// Test Builtin.typeOf with collections
+Builtin.typeOf [ 1L; 2L; 3L ] = "List<Int64>"
+Builtin.typeOf [ "a"; "b" ] = "List<String>"
+Builtin.typeOf (Stdlib.Dict.empty ()) = "Dict<Unknown>"
+
+// Test Builtin.typeOf with tuples
+Builtin.typeOf (1L, "hello") = "(Int64, String)"
+Builtin.typeOf (1L, "hello", true) = "(Int64, String, Bool)"
+
+// Test Builtin.reflectType with primitives
+(match Builtin.reflectType 42L with
+| Known kt ->
+  (match kt with
+  | KTInt64 -> true
+  | _ -> false)
+| _ -> false) = true
+
+(match Builtin.reflectType "hello" with
+| Known kt ->
+  (match kt with
+  | KTString -> true
+  | _ -> false)
+| _ -> false) = true
+
+(match Builtin.reflectType true with
+| Known kt ->
+  (match kt with
+  | KTBool -> true
+  | _ -> false)
+| _ -> false) = true
+
+// Test Builtin.reflectType with list
+(match Builtin.reflectType [ 1L; 2L; 3L ] with
+| Known kt ->
+  (match kt with
+  | KTList _elementType -> true
+  | _ -> false)
+| _ -> false) = true
+
+// Test Builtin.typeName with primitives (should return None)
+Builtin.typeName 42L = Stdlib.Option.Option.None
+
+Builtin.typeName "hello" = Stdlib.Option.Option.None
+
+Builtin.typeName [ 1L; 2L ] = Stdlib.Option.Option.None
+
+// Test Builtin.typeName with custom types
+module CustomTypeTests =
+  type Person = { name: String; age: Int64 }
+
+  type Color =
+    | Red
+    | Blue
+    | Green of String
+
+  let person = Person { name = "Alice"; age = 30L }
+
+  let color = Color.Red
+
+  // typeName should return Some for custom types
+  (match Builtin.typeName person with
+  | Some _fqTypeName -> true
+  | None -> false) = true
+
+  (match Builtin.typeName color with
+  | Some _fqTypeName -> true
+  | None -> false) = true
+
+  // typeOf should work with custom types
+  (Builtin.typeOf person |> Stdlib.String.startsWith "Package") = true
+
+  (Builtin.typeOf color |> Stdlib.String.startsWith "Package") = true

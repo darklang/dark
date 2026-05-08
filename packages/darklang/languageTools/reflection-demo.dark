@@ -1,0 +1,150 @@
+module Darklang.LanguageTools.ReflectionDemo
+
+// This module demonstrates practical uses of Darklang's reflection capabilities
+// It shows how reflection can be used for debugging, validation, serialization, and more
+
+// <aliases>
+type Dval = Darklang.LanguageTools.RuntimeTypes.Dval
+type ValueType = Darklang.LanguageTools.RuntimeTypes.ValueType
+type Option = Stdlib.Option.Option
+type Result = Stdlib.Result.Result
+// </aliases>
+
+
+/// Example 1: Type-aware pretty printing
+/// This function uses reflection to print values in a more readable way
+let prettyPrint (value: Dval) : String =
+  let typeName = Builtin.typeOf value
+
+  match value with
+  | DUnit -> "()"
+  | DBool b ->
+    (if b then
+       "true"
+     else
+       "false")
+  | DString s -> "\"" ++ s ++ "\""
+  | DInt64 i -> Stdlib.Int64.toString i ++ "L"
+  | DFloat f -> Stdlib.Float.toString f
+  | DList(_vt, items) ->
+    let count = Stdlib.List.length items
+
+    typeName
+    ++ " with "
+    ++ (count |> Stdlib.Int64.toString)
+    ++ " items"
+  | DDict(_vt, entries) ->
+    let count = (Stdlib.Dict.keys entries) |> Stdlib.List.length
+
+    typeName
+    ++ " with "
+    ++ (count |> Stdlib.Int64.toString)
+    ++ " entries"
+  | DRecord(_rt, _st, _ta, fields) ->
+    let fieldCount = (Stdlib.Dict.keys fields) |> Stdlib.List.length
+
+    typeName
+    ++ " record with "
+    ++ (fieldCount |> Stdlib.Int64.toString)
+    ++ " fields"
+  | DEnum(_rt, _st, _ta, caseName, _fields) ->
+    typeName ++ "::" ++ caseName
+  | _ -> typeName
+
+
+/// Example 2: Validate that a value matches expected type
+/// This is useful for runtime type checking and validation
+let validateType (value: Dval) (expectedTypeName: String) : Bool =
+  let actualTypeName = Builtin.typeOf value
+  actualTypeName == expectedTypeName
+
+
+/// Example 3: Check if a value is serializable
+/// Some types like functions cannot be easily serialized
+let isSerializable (value: Dval) : Bool =
+  let isFunc = Darklang.LanguageTools.Reflection.isFunction value
+  not isFunc
+
+
+/// Example 4: Extract metadata from custom types
+/// This function shows how to introspect records and enums
+let extractMetadata (value: Dval) : String =
+  if Darklang.LanguageTools.Reflection.isRecord value then
+    match Darklang.LanguageTools.Reflection.getFields value with
+    | Some fields ->
+      let fieldNames = Stdlib.Dict.keys fields
+
+      "Record with fields: "
+      ++ Stdlib.String.join fieldNames ", "
+    | None -> "Record (no fields)"
+  else if Darklang.LanguageTools.Reflection.isEnum value then
+    match Darklang.LanguageTools.Reflection.getCaseName value with
+    | Some caseName -> "Enum case: " ++ caseName
+    | None -> "Enum (unknown case)"
+  else if Darklang.LanguageTools.Reflection.isList value then
+    match Darklang.LanguageTools.Reflection.getListElementType value with
+    | Some elementType ->
+      "List of " ++ (Builtin.typeOf (DList(elementType, [])))
+    | None -> "List (unknown element type)"
+  else if Darklang.LanguageTools.Reflection.isDict value then
+    match Darklang.LanguageTools.Reflection.getDictValueType value with
+    | Some valueType ->
+      "Dict with values of type " ++ (Builtin.typeOf (DDict(valueType, Dict {})))
+    | None -> "Dict (unknown value type)"
+  else
+    "Primitive or other type"
+
+
+/// Example 5: Count values by type in a heterogeneous list
+/// This demonstrates using reflection for type-based analysis
+let countByType (values: List<Dval>) : Dict<Int64> =
+  Stdlib.List.fold
+    values
+    (Dict {})
+    (fun acc value ->
+      let typeName = Builtin.typeOf value
+
+      let currentCount =
+        match Stdlib.Dict.get acc typeName with
+        | Some count -> count
+        | None -> 0L
+
+      Stdlib.Dict.set acc typeName (currentCount + 1L))
+
+
+/// Example 6: Filter list items by type
+/// Get all items of a specific type from a heterogeneous collection
+let filterByType (values: List<Dval>) (targetType: String) : List<Dval> =
+  Stdlib.List.filter values (fun value -> (Builtin.typeOf value) == targetType)
+
+
+/// Example 7: Type-based routing/dispatch
+/// Route values to different handlers based on their type
+let routeByType (value: Dval) : String =
+  if Darklang.LanguageTools.Reflection.isPrimitive value then
+    "route to primitive handler"
+  else if Darklang.LanguageTools.Reflection.isCollection value then
+    "route to collection handler"
+  else if Darklang.LanguageTools.Reflection.isCustomType value then
+    "route to custom type handler"
+  else if Darklang.LanguageTools.Reflection.isFunction value then
+    "route to function handler"
+  else
+    "route to unknown handler"
+
+
+/// Example 8: Schema inference for collections
+/// Infer the schema of a list by examining its elements
+let inferListSchema (values: List<Dval>) : String =
+  if Stdlib.List.isEmpty values then
+    "Empty list - no schema"
+  else
+    let types =
+      values
+      |> Stdlib.List.map (fun v -> Builtin.typeOf v)
+      |> Stdlib.List.unique
+
+    if (Stdlib.List.length types) == 1L then
+      "Homogeneous list of " ++ ((Stdlib.List.head types) |> Builtin.unwrap)
+    else
+      "Heterogeneous list with types: " ++ Stdlib.String.join types ", "
