@@ -26,8 +26,7 @@ let jsonEscape (s: String) : String =
 
 /// Pretty-print a Dval as a single compact line (no indentation, no
 /// embedded newlines). Used wherever we need a Dval inline — e.g. the
-/// trace tree's `fn(args) → result` rows or the `--with-trace` value
-/// overlay annotations.
+/// trace tree's `fn(args) → result` rows.
 let compactDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
   let pretty = PrettyPrinter.RuntimeTypes.dval branchId dv
   pretty

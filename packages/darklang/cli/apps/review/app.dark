@@ -105,8 +105,7 @@ let prettyPrintFromPM (branchId: Uuid) (itemName: String) (kind: String) : Strin
     PrettyPrinter.ProgramTypes.Context
       { branchId = branchId
         currentModule = Stdlib.Option.Option.None
-        currentFunction = Stdlib.Option.Option.None
-        traceValues = Stdlib.Dict.empty }
+        currentFunction = Stdlib.Option.Option.None }
   match kind with
   | "Fn" ->
     match results.fns with
@@ -133,8 +132,7 @@ let prettyPrintFromOps
     PrettyPrinter.ProgramTypes.Context
       { branchId = branchId
         currentModule = Stdlib.Option.Option.None
-        currentFunction = Stdlib.Option.Option.None
-        traceValues = Stdlib.Dict.empty }
+        currentFunction = Stdlib.Option.Option.None }
   let targetHash =
     (extractSetOps ops)
     |> Stdlib.List.filterMap (fun entry ->

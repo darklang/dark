@@ -293,11 +293,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | [ "import"; path ] -> executeImport state path
 
-  | [ "inspect"; traceID ] ->
-    match resolveTraceID traceID with
-    | Some full -> executeInspect state full
-    | None -> state
-
   | "view" :: traceID :: flagArgs ->
     match parseViewOptions defaultViewOptions flagArgs with
     | Ok opts ->
@@ -378,9 +373,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "replay" ] ->
     Stdlib.printLine (Colors.error "Usage: traces replay <trace-id>")
     state
-  | [ "inspect" ] ->
-    Stdlib.printLine (Colors.error "Usage: traces inspect <trace-id>")
-    state
   | [ "import" ] ->
     Stdlib.printLine (Colors.error "Usage: traces import <path>")
     state
@@ -403,12 +395,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       (Colors.error "Usage: traces follow [--route <substring>] [--json]")
     state
 
-  // Catch malformed arity-1 invocations (e.g. `traces inspect <id> --fake-arg`)
+  // Catch malformed arity-1 invocations (e.g. `traces replay <id> --fake-arg`)
   // that the strict-length arms above missed. Each command takes exactly
   // one positional and doesn't accept trailing flags.
-  | "inspect" :: _ ->
-    Stdlib.printLine (Colors.error "Usage: traces inspect <trace-id>")
-    state
   | "replay" :: _ ->
     Stdlib.printLine (Colors.error "Usage: traces replay <trace-id>")
     state
@@ -455,7 +444,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // look like it succeeded silently.
     let knownSubcommands =
       [ "help"; "list"; "view"; "tail"; "follow"; "find"; "hotspots"
-        "stats"; "import"; "inspect"; "replay"; "delete"; "prune"; "clear" ]
+        "stats"; "import"; "replay"; "delete"; "prune"; "clear" ]
     let isKnownHead =
       match args with
       | head :: _ ->
@@ -679,67 +668,6 @@ let executeFindView (state: Cli.AppState) (pattern: String) : Cli.AppState =
       Stdlib.printLine $"Latest trace matching '{pattern}': {row.traceId}"
       Stdlib.printLine ""
       executeView state row.traceId defaultViewOptions
-
-
-/// `traces inspect <id>` — open the recorded handler with the
-/// `view --with-trace` overlay applied. Saves "what was the handler
-/// called again?" — the trace already knows (via the recorded
-/// top-level fn_hash). Prefixes the annotated source with a banner
-/// showing what triggered the trace (handler_desc + timestamp) so the
-/// user has context for the inputs they're seeing inline.
-let executeInspect (state: Cli.AppState) (traceID: String) : Cli.AppState =
-  match Builtin.tracesGetHandlerName traceID with
-  | None ->
-    Stdlib.printLine
-      (Colors.error
-        $"Trace {traceID} has no named handler (lambda top-level call). Use `traces view {traceID}` for the call tree.")
-    state
-  | Some handlerName ->
-    // Builtins (e.g. "int64Add") have no dots; only package fns
-    // ("Darklang.X.Y.fn") are viewable as source. Bail clearly rather
-    // than getting "Function '/int64Add. (fn)' not found." from the
-    // package-loader trying to parse a builtin name as a path.
-    if Stdlib.Bool.not (Stdlib.String.contains handlerName ".") then
-      Stdlib.printLine
-        (Colors.error
-          $"Trace {traceID}'s handler `{handlerName}` is a builtin — no source to view.")
-      state
-    else
-      // Banner: what triggered this trace? Comes before the
-      // `-- annotated with N value(s) --` line that
-      // viewFunctionWithTrace prints.
-      match Builtin.tracesGetSummary traceID with
-      | Some pair ->
-        let (handler, timestamp) = pair
-        Stdlib.printLine (Colors.hint $"-- {handler} at {timestamp} --")
-      | None -> ()
-      let parsedLocation =
-        LanguageTools.ProgramTypes.parsePackageLocation handlerName
-      let location = Cli.Packages.PackageLocation.Function parsedLocation
-      Cli.Packages.View.viewFunctionWithTrace
-        state.currentBranchId
-        location
-        traceID
-      // Footer: what came out? Pulled from the recorded top-level
-      // call's result via `tracesGetExpectedOutput` (same source
-      // `replay --diff` uses). Truncated to 160 chars so a giant
-      // HTML response doesn't drown the output.
-      match Builtin.tracesGetExpectedOutput traceID with
-      | Some result ->
-        let compact =
-          result
-          |> Stdlib.String.split "\n"
-          |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
-          |> Stdlib.String.join " "
-        let truncated =
-          if Stdlib.String.length compact > 160L then
-            (Stdlib.String.slice compact 0L 160L) ++ "…"
-          else
-            compact
-        Stdlib.printLine ""
-        Stdlib.printLine (Colors.hint $"-- → {truncated} --")
-      | None -> ()
-      state
 
 
 /// `traces import <path>` — read a JSON dump and re-create the trace
@@ -1329,7 +1257,6 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
       Completion.simple "find"
       Completion.simple "hotspots"
       Completion.simple "import"
-      Completion.simple "inspect"
       Completion.simple "replay"
       Completion.simple "delete"
       Completion.simple "prune"
@@ -1393,7 +1320,6 @@ let help (_state: Cli.AppState) : Unit =
     "  hotspots [trace-limit]        Per-fn timing aggregated across last N traces (default 100; top 50 fns by total ms)"
     "  hotspots --json [trace-limit] Same data as JSON for piping"
     "  import <path>                 Re-create a trace from a JSON dump on disk"
-    "  inspect <trace-id>            Open the recorded handler with --with-trace overlay (annotated source)"
     "  replay <trace-id>             Re-evaluate the trace's recorded eval/run input under current code"
     "  delete <trace-id>             Delete one trace (prefix OK)"
     "  prune --keep <N>              Keep the N most-recent traces, drop the rest"
@@ -1437,7 +1363,6 @@ let help (_state: Cli.AppState) : Unit =
     "  traces view <trace-id> --exclude listAppend  - Hide noisy intermediate calls"
     "  traces view <trace-id> --slow              - Only calls ≥10ms"
     "  traces view <trace-id> --slow-ms 100       - Only calls ≥100ms"
-    "  traces inspect <trace-id>            - Annotated handler source (auto-resolves the fn)"
     "  traces import t.json                 - Re-create a trace from a JSON dump"
     "  traces replay <trace-id>             - Re-run the recorded eval/run input under current code"
     "  traces delete fe62                   - Delete one trace by prefix"
@@ -1447,6 +1372,5 @@ let help (_state: Cli.AppState) : Unit =
     ""
     "Workflow for debugging the last request:"
     "  traces tail                          - what just ran (call tree)"
-    "  traces inspect <id>                  - how it ran (annotated source)"
     "  traces replay <id>                   - re-run under current code" ]
   |> Stdlib.printLines

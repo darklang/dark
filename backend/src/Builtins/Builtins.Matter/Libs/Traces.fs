@@ -438,44 +438,6 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "tracesGetExprValues" 0
-      typeParams = []
-      parameters = [ Param.make "traceID" TString "Trace to read expr values from" ]
-      returnType = TList(TTuple(TString, TVariable "a", []))
-      description =
-        "Per-AST-node values recorded via the `traceDval` hook. Returns (exprId-as-string, Dval) tuples ordered by exprId. Captures `let` RHS, `if` branch result, matched `match` arm, and pipe-stage results — see PT2RT's `TraceDval` emissions."
-      fn =
-        (function
-        | _, _, _, [ DString traceID ] ->
-          uply {
-            let! rows =
-              Sql.query
-                // expr_id is stored as TEXT (stringified int) so a
-                // bare ORDER BY sorts lexicographically — "10" before
-                // "2". CAST gives the natural numeric order the
-                // docstring promises.
-                "SELECT expr_id, dval_json FROM trace_expr_values
-                 WHERE trace_id = @traceId
-                 ORDER BY CAST(expr_id AS INTEGER)"
-              |> Sql.parameters [ "traceId", Sql.string traceID ]
-              |> Sql.executeAsync (fun read ->
-                {| exprId = read.string "expr_id"
-                   dvalJson = read.string "dval_json" |})
-
-            return
-              rows
-              |> List.map (fun r ->
-                let dval = parseDvalJson r.dvalJson
-                DTuple(DString r.exprId, dval, []))
-              |> Dval.list (KTTuple(VT.string, VT.unknown, []))
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
-
-
     { name = fn "tracesResolveID" 0
       typeParams = []
       parameters =
@@ -728,9 +690,6 @@ let fns () : List<BuiltInFn> =
                       "inputValueJson", Sql.string inputValueJson ] ]
 
                   "DELETE FROM trace_fn_calls WHERE trace_id = @traceId",
-                  [ [ "traceId", Sql.string id ] ]
-
-                  "DELETE FROM trace_expr_values WHERE trace_id = @traceId",
                   [ [ "traceId", Sql.string id ] ] ]
 
               let fnCalls = root.GetProperty("fn_calls")
@@ -768,25 +727,6 @@ let fns () : List<BuiltInFn> =
                        @lambdaExprId, @argsJson, @resultJson, @durationMs)",
                     rows ]
 
-              // expr_values is optional: pre-`709e2868e` exports won't
-              // have it. Skip silently if absent.
-              let exprValuesStmt =
-                match root.TryGetProperty("expr_values") with
-                | true, exprArr when exprArr.GetArrayLength() > 0 ->
-                  let rows =
-                    exprArr.EnumerateArray()
-                    |> Seq.toList
-                    |> List.map (fun ev ->
-                      [ "traceId", Sql.string id
-                        "exprId", Sql.string (ev.GetProperty("expr_id").GetString())
-                        "dvalJson", Sql.string (ev.GetProperty("dval").GetRawText()) ])
-                  [ "INSERT OR REPLACE INTO trace_expr_values
-                      (trace_id, expr_id, dval_json)
-                     VALUES
-                      (@traceId, @exprId, @dvalJson)",
-                    rows ]
-                | _ -> []
-
               // Sweep all the Dval-shaped JSONs we're about to write
               // through parseJsonV0. Bail with a useful error before
               // touching the DB if any are malformed. `args` is a
@@ -800,11 +740,6 @@ let fns () : List<BuiltInFn> =
                     for argEl in argsArr.EnumerateArray() do
                       yield "fn_calls.args[]", argEl.GetRawText()
                     yield "fn_calls.result", ev.GetProperty("result").GetRawText()
-                  match root.TryGetProperty("expr_values") with
-                  | true, exprArr ->
-                    for ev in exprArr.EnumerateArray() do
-                      yield "expr_values.dval", ev.GetProperty("dval").GetRawText()
-                  | false, _ -> ()
                 }
               let invalid =
                 toValidate
@@ -820,7 +755,7 @@ let fns () : List<BuiltInFn> =
                 try
                   let _ =
                     Sql.executeTransactionSync (
-                      baseStatements @ eventStmt @ exprValuesStmt
+                      baseStatements @ eventStmt
                     )
                   return resultOk (DString id)
                 with ex ->
@@ -858,21 +793,15 @@ let fns () : List<BuiltInFn> =
               |> Sql.executeRowAsync (fun read -> read.int64 "c")
             let! count = countToDelete
 
-            // All three DELETEs run in one transaction so an interrupt
-            // can't leave fn_calls / expr_values orphan rows pointing at
-            // a deleted trace. There's no FK cascade by design (schema
-            // kept additive for migration ease), so cleanup is purely
-            // procedural.
+            // Both DELETEs run in one transaction so an interrupt can't
+            // leave fn_calls orphan rows pointing at a deleted trace.
+            // There's no FK cascade by design (schema kept additive for
+            // migration ease), so cleanup is purely procedural.
             if count > 0L then
               let p = [ [ "cutoff", Sql.string cutoffISO ] ]
               let _ =
                 Sql.executeTransactionSync
                   [ ("DELETE FROM trace_fn_calls
-                      WHERE trace_id IN (
-                        SELECT id FROM traces WHERE timestamp < @cutoff
-                      )",
-                     p)
-                    ("DELETE FROM trace_expr_values
                       WHERE trace_id IN (
                         SELECT id FROM traces WHERE timestamp < @cutoff
                       )",
@@ -901,12 +830,11 @@ let fns () : List<BuiltInFn> =
             let! count =
               Sql.query "SELECT COUNT(*) as c FROM traces"
               |> Sql.executeRowAsync (fun read -> read.int64 "c")
-            // All three DELETEs in one transaction (same shape as
+            // Both DELETEs in one transaction (same shape as
             // tracesClearBefore — no FK cascade in the schema).
             let _ =
               Sql.executeTransactionSync
                 [ ("DELETE FROM trace_fn_calls", [ [] ])
-                  ("DELETE FROM trace_expr_values", [ [] ])
                   ("DELETE FROM traces", [ [] ]) ]
             return DInt64 count
           }
@@ -922,7 +850,7 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "traceID" TString "Full trace ID to delete" ]
       returnType = TInt64
       description =
-        "Delete one trace (and its fn_calls + expr_values). Returns 1 if a row was deleted, 0 otherwise. Caller is responsible for resolving prefixes via tracesResolveID first."
+        "Delete one trace (and its fn_calls). Returns 1 if a row was deleted, 0 otherwise. Caller is responsible for resolving prefixes via tracesResolveID first."
       fn =
         (function
         | _, _, _, [ DString traceID ] ->
@@ -936,10 +864,6 @@ let fns () : List<BuiltInFn> =
             | Some _ ->
               do!
                 Sql.query "DELETE FROM trace_fn_calls WHERE trace_id = @traceId"
-                |> Sql.parameters [ "traceId", Sql.string traceID ]
-                |> Sql.executeStatementAsync
-              do!
-                Sql.query "DELETE FROM trace_expr_values WHERE trace_id = @traceId"
                 |> Sql.parameters [ "traceId", Sql.string traceID ]
                 |> Sql.executeStatementAsync
               do!
@@ -961,7 +885,7 @@ let fns () : List<BuiltInFn> =
         [ Param.make "keepN" TInt64 "Number of most-recent traces to keep" ]
       returnType = TInt64
       description =
-        "Delete all but the N most-recent traces (and their fn_calls + expr_values). Returns the count deleted. Useful for bounded retention."
+        "Delete all but the N most-recent traces (and their fn_calls). Returns the count deleted. Useful for bounded retention."
       fn =
         (function
         | _, _, _, [ DInt64 keepN ] ->
@@ -979,25 +903,18 @@ let fns () : List<BuiltInFn> =
               |> Sql.executeRowAsync (fun read -> read.int64 "c")
             let! count = countToDelete
 
-            // All three DELETEs run in one transaction. The "keep N most-
+            // Both DELETEs run in one transaction. The "keep N most-
             // recent rowids" subquery is repeated in each statement; the
-            // transaction's snapshot keeps the four evaluations
-            // (count + three DELETEs) consistent — without it, a
+            // transaction's snapshot keeps the three evaluations
+            // (count + two DELETEs) consistent — without it, a
             // concurrent insert between the count and the first DELETE
-            // (or between any two DELETEs) would let the four see
-            // different "kept" sets and orphan child rows.
+            // (or between the two DELETEs) would let them see different
+            // "kept" sets and orphan child rows.
             if count > 0L then
               let p = [ [ "keepN", Sql.int64 keepN ] ]
               let _ =
                 Sql.executeTransactionSync
                   [ ("DELETE FROM trace_fn_calls WHERE trace_id IN (
-                       SELECT id FROM traces
-                       WHERE rowid NOT IN (
-                         SELECT rowid FROM traces ORDER BY rowid DESC LIMIT @keepN
-                       )
-                     )",
-                     p)
-                    ("DELETE FROM trace_expr_values WHERE trace_id IN (
                        SELECT id FROM traces
                        WHERE rowid NOT IN (
                          SELECT rowid FROM traces ORDER BY rowid DESC LIMIT @keepN

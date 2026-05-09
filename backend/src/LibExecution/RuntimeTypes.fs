@@ -484,14 +484,6 @@ type Instruction =
 
   | VarNotFound of targetRegIfDB : Register * name : string
 
-  /// Tracing-only: read the Dval in `valueReg` and fire
-  /// `state.tracing.traceDval` with the source AST `exprId`. Used by
-  /// `view <fn> --with-trace` to look up "what value was bound here?"
-  /// at every annotated AST node. Compiled in by `Expr.toRT` only at
-  /// points worth tracing (currently: `let` RHS); skipped at runtime
-  /// when `state.tracing.skipTracing` is true.
-  | TraceDval of exprId : id * valueReg : Register
-
   | CheckIfFirstExprIsUnit of Register
 
 and Instructions =
@@ -1412,8 +1404,6 @@ module Tracing =
 
   type FunctionRecord = Source * FQFnName.FQFnName
 
-  type TraceDval = id -> Dval -> unit
-
   type LoadFnResult =
     FunctionRecord -> NEList<Dval> -> Option<Dval * NodaTime.Instant>
 
@@ -1434,7 +1424,6 @@ module Tracing =
   /// Set of callbacks used to trace the interpreter, and other context needed to run code
   type Tracing =
     {
-      traceDval : TraceDval
       loadFnResult : LoadFnResult
       storeFnResult : StoreFnResult
       storeFrameEntry : StoreFrameEntry

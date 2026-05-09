@@ -118,8 +118,7 @@ let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
         PrettyPrinter.ProgramTypes.Context
           { branchId = branchId
             currentModule = Stdlib.Option.Option.None
-            currentFunction = Stdlib.Option.Option.None
-            traceValues = Stdlib.Dict.empty }
+            currentFunction = Stdlib.Option.Option.None }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageType ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
@@ -143,8 +142,7 @@ let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
         PrettyPrinter.ProgramTypes.Context
           { branchId = branchId
             currentModule = Stdlib.Option.Option.None
-            currentFunction = Stdlib.Option.Option.None
-            traceValues = Stdlib.Dict.empty }
+            currentFunction = Stdlib.Option.Option.None }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
@@ -168,71 +166,10 @@ let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
         PrettyPrinter.ProgramTypes.Context
           { branchId = branchId
             currentModule = Stdlib.Option.Option.None
-            currentFunction = Stdlib.Option.Option.None
-            traceValues = Stdlib.Dict.empty }
+            currentFunction = Stdlib.Option.Option.None }
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
-
-
-/// View a function annotated with values from a recorded trace.
-///
-/// Captures `let` bindings, `if` branch results, matched `match` arms,
-/// and `|>` pipe stages. PT cases without a natural inline-annotation
-/// site (EInfix, container ctors, lambda body) stay un-annotated.
-let viewFunctionWithTrace
-  (branchId: Uuid)
-  (location: PackageLocation)
-  (traceID: String)
-  : Unit =
-  match location with
-  | Function name ->
-    let modulePath = Stdlib.List.append [name.owner] name.modules
-    let results = Query.searchExactMatch branchId modulePath name.name
-    match results.fns with
-    | [] ->
-      let locationStr = Packages.formatLocation location
-      Stdlib.printLine $"Function '{locationStr}' not found."
-    | item :: _ ->
-      printDeprecationHeaderFor
-        branchId
-        item.entity.hash
-        LanguageTools.ProgramTypes.ItemKind.Fn
-      // Build the Dict<exprId-as-string, Dval> from the trace.
-      let pairs = Builtin.tracesGetExprValues traceID
-      let traceValues =
-        pairs
-        |> Stdlib.List.fold Stdlib.Dict.empty (fun acc pair ->
-          let (k, v) = pair
-          Stdlib.Dict.set acc k v)
-      let nValues = Stdlib.List.length pairs
-      let nValuesStr = Stdlib.Int64.toString nValues
-      let valueWord = if nValues == 1L then "value" else "values"
-      Stdlib.printLine
-        (Colors.hint $"-- annotated with {nValuesStr} {valueWord} from trace {traceID} --")
-      // 0 values is almost always one of: (a) the trace didn't call
-      // this fn, or (b) the fn was refactored since the trace was
-      // recorded (exprIds change with code changes). Surface a hint
-      // so the user doesn't stare at a bare un-annotated source
-      // wondering "why didn't it work?"
-      if nValues == 0L then
-        Stdlib.printLine
-          (Colors.hint
-            "   (this fn wasn't called by the trace, or its source has changed since recording)")
-      let ctx =
-        PrettyPrinter.ProgramTypes.Context
-          { branchId = branchId
-            currentModule = Stdlib.Option.Option.None
-            currentFunction = Stdlib.Option.Option.None
-            traceValues = traceValues }
-      let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn ctx item.entity
-      let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
-      Stdlib.printLine highlighted
-
-  | _ ->
-    Stdlib.printLine
-      (Colors.error
-        "--with-trace currently only supports functions (annotates each `let` binding inline).")
 
 
 // VIEW command - view modules, functions, types, or constants
@@ -243,10 +180,6 @@ let execute (state: AppState) (args: List<String>) : AppState =
     // No args - view current location
     viewEntity branchId state.packageData.currentLocation
     state
-  | [ "--with-trace" ] ->
-    Stdlib.printLine
-      (Colors.error "Usage: view <path> --with-trace <traceID>")
-    state
   | [pathArg] ->
     // Navigate to the path and view
     match Traversal.traverse branchId state.packageData.currentLocation pathArg with
@@ -256,35 +189,6 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | Ok newLocation ->
       viewEntity branchId newLocation
       state
-  | [ pathArg; "--with-trace"; traceID ] ->
-    // Accept any unambiguous prefix, same as `traces view` / `export` / etc.
-    // Mirror the guards from `traces.dark` resolveTraceID: detect `-`-prefixed
-    // input as a flag, trim whitespace from copy-paste, reject empty.
-    if Stdlib.String.startsWith traceID "-" then
-      Stdlib.printLine (Colors.error $"Unknown flag: {traceID}")
-      state
-    else
-      let trimmed = Stdlib.String.trim traceID
-      if trimmed == "" then
-        Stdlib.printLine (Colors.error "Trace ID must not be empty")
-        state
-      else
-        match Builtin.tracesResolveID trimmed with
-        | Error msg ->
-          Stdlib.printLine (Colors.error msg)
-          state
-        | Ok fullID ->
-          match Traversal.traverse branchId state.packageData.currentLocation pathArg with
-          | Error errorMsg ->
-            Stdlib.printLine (Colors.error $"Cannot view: {errorMsg}")
-            state
-          | Ok newLocation ->
-            viewFunctionWithTrace branchId newLocation fullID
-            state
-  | [ _; "--with-trace" ] ->
-    Stdlib.printLine
-      (Colors.error "Usage: view <path> --with-trace <traceID>")
-    state
   | _ ->
     help state
     state
@@ -301,17 +205,15 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
 
 let help (_state: AppState) : Unit =
   [
-    "Usage: view [path] [--with-trace <traceID>]"
+    "Usage: view [path]"
     "View detailed information about functions, types, values, or modules."
     ""
     "With path: View the specified entity with syntax highlighting."
     "Without path: View current location."
-    "With --with-trace: Annotate each `let` binding inline with values from a recorded trace."
     ""
     "Examples:"
     "  view                              - View current location"
     "  view List.head                    - View the List.head function"
     "  view Option                       - View the Option type"
     "  view Stdlib.List                  - View contents of Stdlib.List module"
-    "  view MyApp.foo --with-trace abc12 - View MyApp.foo with values from trace abc12"
   ] |> Stdlib.printLines

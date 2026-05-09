@@ -1,10 +1,10 @@
 /// Trace data shapes shared between the recorder (F#), the reader builtins,
 /// and any consumer (CLI surface, dashboards, third-party tooling).
 ///
-/// These types describe what's stored in `traces` / `trace_fn_calls` /
-/// `trace_expr_values` after `LibDB.Tracing.createCliTracer` records an
-/// execution. The traces* builtins return them; the CLI's `traces`
-/// command formats them for display.
+/// These types describe what's stored in `traces` / `trace_fn_calls`
+/// after `LibDB.Tracing.createCliTracer` records an execution. The
+/// traces* builtins return them; the CLI's `traces` command formats
+/// them for display.
 module Darklang.Tracing
 
 

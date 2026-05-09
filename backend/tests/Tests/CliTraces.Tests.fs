@@ -263,14 +263,12 @@ let private testTracesHelp =
               "follow"
               "find"
               "hotspots"
-              "inspect"
               "import"
               "replay"
               "delete"
               "prune"
               "clear"
-              "--json"
-              "--with-trace" ] do
+              "--json" ] do
             Expect.stringContains output term $"contains {term}"
         })
   }
@@ -371,25 +369,6 @@ let private testTracesDeleteSingle =
         })
   }
 
-let private testViewWithTraceAnnotates =
-  testTask "view <fn> --with-trace <id> annotates" {
-    do!
-      withState (fun state ->
-        task {
-          let! _ = runCli state [ "traces"; "clear" ]
-          let! _ = runCli state [ "eval"; "Stdlib.Int64.clamp 5L 1L 10L" ]
-          let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
-          let tid = parseTraceID listJson
-          let! output =
-            runCli state [ "view"; "Stdlib.Int64.clamp"; "--with-trace"; tid ]
-          Expect.stringContains output "annotated with" "annotation banner"
-          Expect.isFalse
-            (output.Contains "annotated with 0 values")
-            "non-zero annotations"
-          Expect.stringContains output "// = " "inline annotation marker"
-        })
-  }
-
 let private testTracesPruneKeep =
   testTask "traces prune --keep N keeps the most-recent" {
     do!
@@ -411,21 +390,6 @@ let private testTracesPruneKeep =
           let! listOut = runCli state [ "traces"; "list" ]
           Expect.stringContains listOut "Recent traces (last 20):" "list banner"
           Expect.stringContains listOut latestTid "latest trace kept"
-        })
-  }
-
-let private testTracesInspectErrorsOnBuiltinHandler =
-  testTask "traces inspect <eval-id> errors on builtin handler" {
-    do!
-      withState (fun state ->
-        task {
-          let! _ = runCli state [ "traces"; "clear" ]
-          let! _ = runCli state [ "eval"; "1L + 2L" ]
-          let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
-          let tid = parseTraceID listJson
-          let! output = runCli state [ "traces"; "inspect"; tid ]
-          Expect.stringContains output "is a builtin" "builtin guard"
-          Expect.stringContains output "no source to view" "explanation"
         })
   }
 
@@ -511,9 +475,7 @@ let private testTracesArity1Catchalls =
           let tid = parseTraceID listJson
 
           let cases =
-            [ [ "traces"; "inspect"; tid; "--fake-arg" ],
-              "Usage: traces inspect <trace-id>"
-              [ "traces"; "delete"; tid; "--fake-arg" ],
+            [ [ "traces"; "delete"; tid; "--fake-arg" ],
               "Usage: traces delete <trace-id>" ]
           for (argv, expected) in cases do
             let! out = runCli state argv
@@ -676,7 +638,7 @@ let private testTracesImportRoundtrip =
           let traceId = "00000000-1111-2222-3333-000000000001"
           let payload =
             sprintf
-              "{\"id\":\"%s\",\"handler_desc\":\"eval\",\"timestamp\":\"2026-05-07T12:00:00Z\",\"input_name\":\"expression\",\"input_value\":[\"DString\",\"1L + 2L\"],\"fn_calls\":[{\"call_id\":\"call-a\",\"parent_call_id\":null,\"kind\":\"fn\",\"fn_hash\":\"int64Add\",\"lambda_expr_id\":null,\"args\":[[\"DInt64\",\"1\"],[\"DInt64\",\"2\"]],\"result\":[\"DInt64\",\"3\"]}],\"expr_values\":[]}"
+              "{\"id\":\"%s\",\"handler_desc\":\"eval\",\"timestamp\":\"2026-05-07T12:00:00Z\",\"input_name\":\"expression\",\"input_value\":[\"DString\",\"1L + 2L\"],\"fn_calls\":[{\"call_id\":\"call-a\",\"parent_call_id\":null,\"kind\":\"fn\",\"fn_hash\":\"int64Add\",\"lambda_expr_id\":null,\"args\":[[\"DInt64\",\"1\"],[\"DInt64\",\"2\"]],\"result\":[\"DInt64\",\"3\"]}]}"
               traceId
           let tmp = System.IO.Path.GetTempFileName()
           try
@@ -849,8 +811,7 @@ let private testTracesRejectsFlagAsTraceId =
       withState (fun state ->
         task {
           let cmds =
-            [ [ "traces"; "inspect"; "--fake-arg" ]
-              [ "traces"; "delete"; "--fake-arg" ] ]
+            [ [ "traces"; "delete"; "--fake-arg" ] ]
           for argv in cmds do
             let! out = runCli state argv
             Expect.stringContains out "Unknown flag: --fake-arg" $"{argv} rejected"
@@ -862,15 +823,15 @@ let private testTracesRejectsFlagAsTraceId =
 // process-global, so running these in parallel would let captures bleed
 // across tests. `testSequenced` forces Expecto to run them one at a time.
 //
-// Re-enable detailed tracing for this suite — Tests.fs defaults to
-// `Off` so the rest of the test run doesn't waste cycles writing trace
-// rows we never inspect.
+// Re-enable trace recording for this suite — Tests.fs defaults to `Off`
+// so the rest of the test run doesn't waste cycles writing trace rows
+// we never read back.
 let tests =
   testSequenced
   <| testList
     "CliTraces"
     [ test "set trace detail" {
-        LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Detailed
+        LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
       }
       // Base CLI commands
       testHelpCommand
@@ -891,7 +852,6 @@ let tests =
       testTracesStatsCounts
       testTracesFindByContent
       testTracesDeleteSingle
-      testViewWithTraceAnnotates
       testTracesPruneKeep
       testTracesReplayReruns
       testTracesImportRejectsBadJson
@@ -911,5 +871,4 @@ let tests =
       testTracesArgOrderingsWork
       testTracesArity1Catchalls
       testTracesRouteEmptyRejection
-      testTracesFindEscapesLikeWildcards
-      testTracesInspectErrorsOnBuiltinHandler ]
+      testTracesFindEscapesLikeWildcards ]

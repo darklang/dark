@@ -163,13 +163,6 @@ let t
       if workers <> [] then do! setupWorkers workers
       if dbs <> [] then do! setupDBs dbs
 
-      let results, traceDvalFn = Exe.traceDvals ()
-      let state =
-        if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
-          { state with tracing.traceDval = traceDvalFn }
-        else
-          state
-
       // Run the actual program (left-hand-side of the =)
       let actual = actual |> PT2RT.Expr.toRT Map.empty 0 None
       let! (actual : RT.ExecutionResult) = Exe.executeExpr state actual

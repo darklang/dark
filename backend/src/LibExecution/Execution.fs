@@ -11,8 +11,7 @@ module RT2DT = RuntimeTypesToDarkTypes
 module Dval = LibExecution.Dval
 
 let noTracing : RT.Tracing.Tracing =
-  { traceDval = fun _ _ -> ()
-    loadFnResult = fun _ _ -> None
+  { loadFnResult = fun _ _ -> None
     storeFnResult = fun _ _ _ -> ()
     storeFrameEntry = fun _ _ _ -> ()
     storeLambdaResult = fun _ _ -> ()
@@ -363,19 +362,6 @@ let callStackString
   }
 
 
-
-
-/// Return a function to trace Dvals (add it to state via
-/// state.tracing.traceDval), and a mutable dictionary which updates when the
-/// traceFn is used
-let traceDvals () : Dictionary.T<id, RT.Dval> * RT.Tracing.TraceDval =
-  let results = Dictionary.empty ()
-
-  let trace (id : id) (dval : RT.Dval) : unit =
-    // Overwrites if present, which is what we want
-    results[id] <- dval
-
-  (results, trace)
 
 
 let rec rteToString
