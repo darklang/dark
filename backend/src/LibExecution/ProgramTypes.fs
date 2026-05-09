@@ -87,8 +87,8 @@ type BranchOp =
   | CreateCommit of
     commitHash : Hash *
     message : string *
-    branchId : BranchId *
     accountId : AccountID *
+    branchId : BranchId *
     opHashes : List<Hash>
 
   | RebaseBranch of branchId : BranchId * newBaseCommitHash : Hash

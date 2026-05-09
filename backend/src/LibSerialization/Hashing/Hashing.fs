@@ -74,16 +74,16 @@ module Hashing =
       LibSerialization.Binary.Serializers.PT.BranchOp.write w op)
 
 
-  /// Hash a commit: hash(branchId + accountId + parentHash + sorted(opHashes))
+  /// Hash a commit: hash(accountId + branchId + parentHash + sorted(opHashes))
   let computeCommitHash
-    (branchId : System.Guid)
     (accountId : System.Guid)
+    (branchId : System.Guid)
     (parentHash : Hash option)
     (opHashes : List<Hash>)
     : Hash =
     hashWithWriter (fun w ->
-      Common.Guid.write w branchId
       Common.Guid.write w accountId
+      Common.Guid.write w branchId
       Common.Option.write w PTC.Hash.write parentHash
       let sorted = opHashes |> List.map Hash.toHexString |> List.sort
       Common.List.write w Common.String.write sorted)

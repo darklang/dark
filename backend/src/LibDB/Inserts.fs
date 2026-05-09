@@ -130,8 +130,8 @@ let insertAndApplyOps
 /// Create a new commit and insert ops with that commit_hash
 /// Returns the commit Hash
 let insertAndApplyOpsWithCommit
-  (branchId : PT.BranchId)
   (accountId : AccountID)
+  (branchId : PT.BranchId)
   (message : string)
   (ops : List<PT.PackageOp>)
   : Task<Hash> =
@@ -150,13 +150,13 @@ let insertAndApplyOpsWithCommit
 
     // Compute content-addressed commit hash
     let opHashes = ops |> List.map Hashing.computeOpHash
-    let commitHash = Hashing.computeCommitHash branchId accountId parentHash opHashes
+    let commitHash = Hashing.computeCommitHash accountId branchId parentHash opHashes
     let (Hash commitHashStr) = commitHash
 
     // Record and apply the commit
     do!
       BranchOpPlayback.insertAndApply (
-        PT.BranchOp.CreateCommit(commitHash, message, branchId, accountId, opHashes)
+        PT.BranchOp.CreateCommit(commitHash, message, accountId, branchId, opHashes)
       )
 
     // Insert ops with the commit_hash
@@ -179,8 +179,8 @@ let insertAndApplyOpsAsWip
 /// Commit hash is content-addressed: hash(parentHash + sorted opHashes).
 /// Returns the commit Hash on success.
 let commitWipOps
-  (branchId : PT.BranchId)
   (accountId : AccountID)
+  (branchId : PT.BranchId)
   (message : string)
   : Task<Result<Hash, string>> =
   task {
@@ -221,7 +221,7 @@ let commitWipOps
 
         // Compute content-addressed commit hash
         let commitHash =
-          Hashing.computeCommitHash branchId accountId parentHash opHashes
+          Hashing.computeCommitHash accountId branchId parentHash opHashes
         let (Hash commitHashStr) = commitHash
 
         // The whole flip from WIP → committed runs atomically: the
@@ -233,8 +233,8 @@ let commitWipOps
           PT.BranchOp.CreateCommit(
             commitHash,
             message,
-            branchId,
             accountId,
+            branchId,
             opHashes
           )
         let opHash = Hashing.computeBranchOpHash op

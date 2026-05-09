@@ -55,7 +55,7 @@ let testBranchOpsEmitted =
         PT.PackageOp.SetName(loc "bo1", PT.PackageFn fn1.hash) ]
     let! (_insertCount : int64) = Inserts.insertAndApplyOpsAsWip branch.id ops
     let! (commitResult : Result<PT.Hash, string>) =
-      Inserts.commitWipOps branch.id (LibCloud.Account.resolve ()) "test commit"
+      Inserts.commitWipOps (LibCloud.Account.resolve ()) branch.id "test commit"
     Expect.isOk commitResult "commit should succeed"
     let! opCountAfterCommit = countRows "branch_ops"
     Expect.isGreaterThan

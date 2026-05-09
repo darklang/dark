@@ -44,7 +44,7 @@ let applyOp (op : PT.BranchOp) : Task<unit> =
             "base_commit_hash", baseCommitHashParam ]
         |> Sql.executeStatementAsync
 
-    | PT.BranchOp.CreateCommit(commitHash, message, branchId, accountId, _opHashes) ->
+    | PT.BranchOp.CreateCommit(commitHash, message, accountId, branchId, _opHashes) ->
       let (Hash commitHashStr) = commitHash
       do!
         Sql.query

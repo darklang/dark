@@ -6,6 +6,54 @@ type Request =
     headers: List<String * String>
     body: Blob }
 
+
+/// Parse the query-string portion of a URL into a Dict. Duplicates resolve
+/// to the last-wins value (matches `Stdlib.Http.Request.queryParams`'s
+/// last-wins join when used with `Dict.fromListOverwritingDuplicates`).
+let parseQueryString (url: String) : Dict<String> =
+  match Stdlib.String.split url "?" with
+  | [] -> Stdlib.Dict.empty
+  | [_] -> Stdlib.Dict.empty
+  | _ :: queryParts ->
+    (Stdlib.String.join queryParts "?")
+    |> Stdlib.String.split "&"
+    |> Stdlib.List.filterMap (fun param ->
+      if param == "" then
+        Stdlib.Option.Option.None
+      else
+        match Stdlib.String.split param "=" with
+        | [ key; value ] -> Stdlib.Option.Option.Some((key, value))
+        | [ key ] -> Stdlib.Option.Option.Some((key, ""))
+        | key :: rest ->
+          // `?a=b=c` → key="a", value="b=c"
+          let value = Stdlib.String.join rest "="
+          Stdlib.Option.Option.Some((key, value))
+        | [] -> Stdlib.Option.Option.None)
+    |> Stdlib.Dict.fromListOverwritingDuplicates
+
+
+/// Parse a string of HTTP header lines (one `Name: value` per line, CR/LF or
+/// LF separated) into a Dict. Duplicates resolve to the last-wins value.
+/// Header names are kept verbatim — case-insensitive lookup is the caller's
+/// responsibility (see `String.equalsCaseInsensitive`).
+let parseHeaders (s: String) : Dict<String> =
+  s
+  |> Stdlib.String.replaceAll "\r\n" "\n"
+  |> Stdlib.String.split "\n"
+  |> Stdlib.List.filterMap (fun line ->
+    let trimmed = Stdlib.String.trim line
+    if trimmed == "" then
+      Stdlib.Option.Option.None
+    else
+      match Stdlib.String.split trimmed ":" with
+      | [] -> Stdlib.Option.Option.None
+      | [ _ ] -> Stdlib.Option.Option.None
+      | name :: rest ->
+        let value = Stdlib.String.join rest ":" |> Stdlib.String.trim
+        Stdlib.Option.Option.Some((Stdlib.String.trim name, value)))
+  |> Stdlib.Dict.fromListOverwritingDuplicates
+
+
 module Request =
   let queryParams (req: Stdlib.Http.Request) : List<String * String> =
     match req.url |> Stdlib.String.split "?" with

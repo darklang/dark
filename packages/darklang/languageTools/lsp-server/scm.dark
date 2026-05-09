@@ -81,7 +81,21 @@ let handleCommitRequest
   (requestId: JsonRPC.RequestID)
   (message: String)
   : LspState =
-  match SCM.PackageOps.commit state.currentBranchId message with
+  // Without a logged-in account the LSP can't commit; surface that as
+  // an error rather than silently default-attributing.
+  match state.accountID with
+  | None ->
+    let response =
+      JsonRPC.Response.Error.make
+        (Stdlib.Option.Option.Some requestId)
+        JsonRPC.RequestCancelled
+        "No active account; log in via the CLI before committing"
+        Stdlib.Option.Option.None
+      |> Stdlib.AltJson.format
+    logAndSendToClient response
+    state
+  | Some accountId ->
+  match SCM.PackageOps.commit accountId state.currentBranchId message with
   | Ok commitHash ->
     let responseJson =
       Stdlib.AltJson.Json.Object

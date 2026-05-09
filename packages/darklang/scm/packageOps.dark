@@ -79,11 +79,11 @@ let getWipItems (branchId: Uuid) : List<Dict<String>> =
 /// Commit all WIP ops on a branch with the given message
 /// Returns the commit hash on success, or an error message on failure
 let commit
-  (branchId: Uuid)
   (accountId: Uuid)
+  (branchId: Uuid)
   (message: String)
   : Stdlib.Result.Result<String, String> =
-  Builtin.scmCommit branchId accountId message
+  Builtin.scmCommit accountId branchId message
 
 
 /// Discard all WIP ops on a branch

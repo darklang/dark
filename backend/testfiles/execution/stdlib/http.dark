@@ -77,3 +77,43 @@ Stdlib.Http.responseWithJson "test" 200L =
 
 (Stdlib.Http.redirectTo_v0 "/relativeUrl") =
   Stdlib.Http.responseWithHeaders Stdlib.Blob.empty [ ("Location", "/relativeUrl") ] 302L
+
+
+// parseQueryString: ports the old _middleware.dark fixture.
+module ParseQueryString =
+  Stdlib.Http.parseQueryString "https://darklang.com?x=6&x=7&myString=todo" =
+    Stdlib.Dict.fromListOverwritingDuplicates [ ("x", "7"); ("myString", "todo") ]
+
+  // No query string → empty dict.
+  Stdlib.Http.parseQueryString "https://darklang.com" = Stdlib.Dict.empty
+
+  // Empty query string → empty dict.
+  Stdlib.Http.parseQueryString "https://darklang.com?" = Stdlib.Dict.empty
+
+  // Bare keys (no `=`) get empty-string values.
+  Stdlib.Http.parseQueryString "https://darklang.com?flag" =
+    Stdlib.Dict.fromListOverwritingDuplicates [ ("flag", "") ]
+
+  // `=` inside a value is preserved.
+  Stdlib.Http.parseQueryString "https://x?token=a=b" =
+    Stdlib.Dict.fromListOverwritingDuplicates [ ("token", "a=b") ]
+
+
+module ParseHeaders =
+  Stdlib.Http.parseHeaders "x: y" = Stdlib.Dict.fromListOverwritingDuplicates [ ("x", "y") ]
+
+  // Multi-line, CRLF-tolerant.
+  Stdlib.Http.parseHeaders "Content-Type: text/plain\r\nContent-Length: 42" =
+    Stdlib.Dict.fromListOverwritingDuplicates
+      [ ("Content-Type", "text/plain"); ("Content-Length", "42") ]
+
+  // `:` inside the value is preserved.
+  Stdlib.Http.parseHeaders "X-Url: https://x?a=b" =
+    Stdlib.Dict.fromListOverwritingDuplicates [ ("X-Url", "https://x?a=b") ]
+
+  // Blank lines + whitespace tolerance.
+  Stdlib.Http.parseHeaders "\n  Foo:  bar  \n\n" =
+    Stdlib.Dict.fromListOverwritingDuplicates [ ("Foo", "bar") ]
+
+  // Empty input → empty dict.
+  Stdlib.Http.parseHeaders "" = Stdlib.Dict.empty
