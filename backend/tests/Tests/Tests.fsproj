@@ -49,7 +49,6 @@
     <Compile Include="DvalRepr.Tests.fs" />
     <Compile Include="Serialization.TestValues.fs" />
     <Compile Include="Serialization.Binary.Tests.fs" />
-    <Compile Include="Serialization.Vanilla.Tests.fs" />
     <Compile Include="Serialization.DarkTypes.Tests.fs" />
 
     <Compile Include="Blob.Tests.fs" />

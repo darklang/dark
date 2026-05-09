@@ -32,17 +32,6 @@
          resolved. -->
 
 
-    <!-- Re-enable System.Text.Json reflection-based serialization at runtime.
-         Default under AOT is "disabled", which throws InvalidOperationException
-         when JsonSerializer.{De}serialize<T> is called for a non-source-generated
-         type. The original load-bearing site (FormatV0.Dval) is now hand-rolled,
-         but `Json.Vanilla` in Prelude still uses reflective STJ — `Json.Vanilla.allow<T>`
-         in LocalExec is not in the AOT binary, but if any other path calls
-         Json.Vanilla.serialize/deserialize the AOT'd CLI would NRE without
-         this. TODO: audit whether Json.Vanilla is reachable from the published
-         CLI; if not, drop this property + the TrimmerRoots below. -->
-    <JsonSerializerIsReflectionEnabledByDefault>true</JsonSerializerIsReflectionEnabledByDefault>
-
     <!-- Disable optional .NET runtime subsystems we don't use under AOT.
          Each prunes a meaningful slice of metadata + code from the published
          binary. JIT/Debug builds: no-op (these only kick in during AOT
@@ -91,13 +80,6 @@
   </Target>
   <ItemGroup>
     <None Include="paket.references" />
-    <!-- Root-keep `FSharp.SystemTextJson` for any caller that goes through
-         `Json.Vanilla` (Prelude). FormatV0.Dval no longer needs this — it's
-         hand-rolled — but other Vanilla.allow<T> sites might. See the TODO
-         on `JsonSerializerIsReflectionEnabledByDefault` above; if Vanilla
-         turns out to be unreachable from the AOT'd CLI, this root + the
-         LibExecution root below + the property can all go. -->
-    <TrimmerRootAssembly Include="FSharp.SystemTextJson" />
     <TrimmerRootAssembly Include="LibExecution" />
   </ItemGroup>
   <Target Name="PrintRuntimeIdentifierCli" BeforeTargets="BeforeBuild">

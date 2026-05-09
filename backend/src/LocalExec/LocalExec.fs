@@ -122,20 +122,9 @@ module HandleCommand =
         return Error $"Sweep failed: {ex.Message}"
     }
 
-let initSerializers () =
-  Json.Vanilla.allow<List<LibExecution.ProgramTypes.PackageFn.PackageFn>>
-    "Parse packageFn list"
-  Json.Vanilla.allow<List<LibExecution.ProgramTypes.PackageType.PackageType>>
-    "Parse packageType list"
-
-
-
 [<EntryPoint>]
 let main (args : string[]) : int =
   try
-    initSerializers ()
-
-
     let handleCommand
       (description : string)
       (command : Ply<Result<unit, string>>)

@@ -7,26 +7,9 @@ open System.Threading.Tasks
 
 open Prelude
 
-module PT = LibExecution.ProgramTypes
-
-let initSerializers () =
-  // These are serializers used in the tests that are not used in the main program
-  Json.Vanilla.allow<Map<string, string>> "tests"
-  Json.Vanilla.allow<LibExecution.AnalysisTypes.TraceData> "testTraceData"
-  Json.Vanilla.allow<PT.PackageType.PackageType> "tests-roundtripping"
-  Json.Vanilla.allow<PT.PackageValue.PackageValue> "tests-roundtripping"
-  Json.Vanilla.allow<PT.PackageFn.PackageFn> "tests-roundtripping"
-  Json.Vanilla.allow<LibExecution.DvalReprInternalRoundtrippable.FormatV0.Dval>
-    "tests"
-  Json.Vanilla.allow<PT.Toplevel.T> "tests"
-  Json.Vanilla.allow<List<PT.Toplevel.T>> "tests"
-
-
 [<EntryPoint>]
 let main (args : string array) : int =
   try
-    initSerializers ()
-
     // Most tests don't need trace data on disk; tests that DO check
     // trace contents (CliTraces) flip this to Detailed at their entry.
     LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
@@ -60,7 +43,6 @@ let main (args : string array) : int =
 
         // serialization
         Tests.BinarySerialization.tests
-        Tests.VanillaSerialization.tests
         Tests.DarkTypesSerialization.tests
 
         // http server
@@ -79,7 +61,6 @@ let main (args : string array) : int =
 
     // Generate this so that we can see if the format has changed in a git diff
     BinarySerialization.generateTestFiles ()
-    VanillaSerialization.PersistedSerializations.generateTestFiles ()
 
     // this does async stuff within it, so do not run it from a task/async
     // context or it may hang

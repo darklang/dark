@@ -357,12 +357,7 @@ module FormatV0 =
       DStreamStub
 
 
-  // -- Hand-rolled Utf8Json for FormatV0.Dval --
-  //
-  // Replaces `Json.Vanilla.serialize`/`deserialize<T>`, which routes
-  // through F#'s reflective union-converter and breaks under AOT
-  // trimming (the case-name lookup on FormatV0.Dval throws when case
-  // metadata is pruned).
+  // Hand-rolled Utf8Json for FormatV0.Dval (no reflection — AOT-safe).
   //
   // Wire format: each union value is a JSON array `[tag, ...args]`,
   // and nullary cases are just `"tag"` strings. Not wire-compatible
