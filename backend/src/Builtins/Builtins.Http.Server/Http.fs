@@ -37,17 +37,6 @@ module Request =
       |> List.map (fun (k, v) -> RT.DTuple(RT.DString(k), RT.DString(v), []))
       |> Dval.list headerType
 
-    // TODO (trace bloat, coworker review): the full request `body` flows
-    // into the trace's `input_value_json` via this dval. A handful of
-    // POSTs with large bodies (file uploads, streamed JSON, etc.) blow
-    // up the column. Two paths to consider:
-    //  - Cap the body at trace-write time (truncate to N bytes + sentinel)
-    //  - Store the body as a separate blob, reference by hash from the
-    //    trace, so repeated identical bodies dedupe and the trace row
-    //    stays small
-    // Today the `summary` TraceDetail knob skips per-AST-node values
-    // (the heaviest layer) but not the input body. Wire either of the
-    // above when the symptom bites.
     let fields =
       [ "body", Blob.newEphemeral state body
         "headers", headers

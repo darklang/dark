@@ -1,15 +1,6 @@
 /// Functions related to Accounts. An account represents the developer
 /// behind a commit / trace. Accounts have no metadata beyond `id` +
 /// `name` today; richer profile data (email, etc.) is out of scope.
-///
-/// Pre-seeded accounts (per `20260507_010000_restore_accounts.sql`):
-///   Darklang : 00000000-0000-0000-0000-000000000001
-///   Stachu   : 00000000-0000-0000-0000-000000000002
-///   Paul     : 00000000-0000-0000-0000-000000000003
-///   Feriel   : 00000000-0000-0000-0000-000000000004
-///
-/// Single-instance Dark uses Darklang as the default; multi-account
-/// support is a future-server concern.
 module LibCloud.Account
 
 open System.Threading.Tasks

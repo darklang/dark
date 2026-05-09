@@ -1,6 +1,3 @@
-// Infra: SQLite-level introspection. Re-pointed at `infraTableStats`,
-// the modern equivalent of `darkInternalInfraGetAndLogTableSizes`.
-
 // At least one table reported (sqlite_master always shows the
 // migration table at minimum). Don't pin the exact count — the
 // schema evolves with migrations.

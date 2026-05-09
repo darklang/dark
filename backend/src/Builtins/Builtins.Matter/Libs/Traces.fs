@@ -1,10 +1,5 @@
-/// Builtin functions for querying the trace store. Companion to
-/// `LibDB.Tracing` (the recorder side).
-///
-/// Originally lived in `Builtins.CliHost/Libs/Traces.fs` with a `cli`
-/// prefix, when traces were CLI-only (eval/run). Now that HTTP traces
-/// flow through the same path, the placement and naming were stale —
-/// moved here and renamed to drop the prefix.
+/// Builtin functions for querying the trace store.
+/// Companion to `LibDB.Tracing` (the recorder side).
 module Builtins.Matter.Libs.Traces
 
 open System.Text.Json

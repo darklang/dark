@@ -110,7 +110,181 @@ let compileQueryLambda
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "dbSet" 0
+  [ // -- Meta operations, CRUD databases themselves
+
+    { name = fn "dbCreate" 0
+      typeParams = []
+      parameters =
+        [ Param.make "dbName" TString "Name of the database"
+          Param.make
+            "typeHash"
+            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
+            "Hash of the type stored in this DB" ]
+      returnType = TypeReference.result TUInt64 TString
+      description = "Creates a new database"
+      fn =
+        (function
+        | _, _, _, [ DString dbName; typeHashDval ] ->
+          let typeHash = PT2DT.Hash.fromDT typeHashDval
+          uply {
+            let! existing =
+              Sql.query
+                "SELECT COUNT(*) as cnt FROM toplevels_v0
+                 WHERE tipe = 'db'
+                   AND name = @name
+                   AND deleted = 0"
+              |> Sql.parameters [ "name", Sql.string dbName ]
+              |> Sql.executeRowAsync (fun read -> read.int "cnt")
+
+            if existing > 0 then
+              return
+                Dval.resultError
+                  KTUInt64
+                  KTString
+                  (DString $"A database named '{dbName}' already exists")
+            else
+              let tlid = gid ()
+              let db : PT.DB.T =
+                { tlid = tlid
+                  name = dbName
+                  version = 0
+                  typ =
+                    PT.TypeReference.TCustomType(
+                      { originalName = []
+                        location = None
+                        resolved = Ok(PT.FQTypeName.Package typeHash) },
+                      []
+                    ) }
+
+              let toplevel = PT.Toplevel.TLDB db
+              do! Toplevels.saveTLIDs [ (toplevel, Serialize.NotDeleted) ]
+              return Dval.resultOk KTUInt64 KTString (DUInt64 tlid)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated
+      accessibility = Any }
+
+
+    { name = fn "dbListAll" 0
+      typeParams = []
+      parameters = [ Param.make "branchId" TUuid "Branch for resolving type names" ]
+      returnType = TList(TTuple(TString, TString, []))
+      description = "Returns a list of (name, typeName) tuples for all DBs"
+      fn =
+        (function
+        | _, _, _, [ DUuid branchId ] ->
+          uply {
+            let! app = Toplevels.loadAllDBs ()
+            let pm = LibDB.PackageManager.pt
+            let! dbs =
+              app.dbs
+              |> Map.values
+              |> Ply.List.mapSequentially (fun (db : PT.DB.T) ->
+                uply {
+                  let! typeName =
+                    match db.typ with
+                    | PT.TypeReference.TCustomType({ resolved = Ok(PT.FQTypeName.Package typeID) },
+                                                   _) ->
+                      uply {
+                        let! locs = pm.getTypeLocations branchId typeID
+                        match locs with
+                        | location :: _ -> return PackageLocation.toFQN location
+                        | [] -> return typeID.ToString()
+                      }
+                    | _ -> Ply "unknown"
+                  return DTuple(DString db.name, DString typeName, [])
+                })
+            return Dval.list (KTTuple(VT.string, VT.string, [])) dbs
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated
+      accessibility = Any }
+
+
+    { name = fn "dbDrop" 0
+      typeParams = []
+      parameters = [ Param.make "dbName" TString "Name of the database to drop" ]
+      returnType = TypeReference.result TUnit TString
+      description = "Drops (deletes) all databases with the given name"
+      fn =
+        (function
+        | _, _, _, [ DString dbName ] ->
+          uply {
+            let! matchingTlids =
+              Sql.query
+                "SELECT tlid FROM toplevels_v0
+                 WHERE tipe = 'db'
+                   AND name = @name
+                   AND deleted = 0"
+              |> Sql.parameters [ "name", Sql.string dbName ]
+              |> Sql.executeAsync (fun read -> read.tlid "tlid")
+
+            match matchingTlids with
+            | [] ->
+              return
+                Dval.resultError
+                  KTUnit
+                  KTString
+                  (DString $"Database not found: {dbName}")
+            | _ ->
+              do!
+                matchingTlids
+                |> Task.iterInParallel (fun tlid ->
+                  Toplevels.deleteToplevelForever tlid)
+              do!
+                matchingTlids
+                |> Task.iterInParallel (fun tlid ->
+                  Sql.query "DELETE FROM user_data_v0 WHERE table_tlid = @tlid"
+                  |> Sql.parameters [ "tlid", Sql.id tlid ]
+                  |> Sql.executeStatementAsync)
+              return Dval.resultOk KTUnit KTString DUnit
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated
+      accessibility = Any }
+
+
+    // ---------------
+    // Infra: SQLite-level introspection. Reports per-table row counts +
+    // approximate disk-byte share. Useful for "why is data.db big" forensics.
+    // ---------------
+
+    { name = fn "infraTableStats" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TList(TTuple(TString, TInt64, [ TInt64 ]))
+      description =
+        "Returns (tableName, rowCount, approxDiskBytes) tuples for every
+         non-internal table. diskBytes is approximate (page-count * page-size
+         apportioned by row share)."
+      fn =
+        (function
+        | _, _, _, [ DUnit ] ->
+          uply {
+            let! rows = LibDB.Sqlite.tableStats ()
+            return
+              rows
+              |> List.map (fun r ->
+                DTuple(DString r.relation, DInt64 r.rows, [ DInt64 r.diskBytes ]))
+              |> Dval.list (KTTuple(VT.string, VT.int64, [ VT.int64 ]))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated
+      accessibility = Any }
+
+
+
+    // 'normal', per-DB operations.
+
+    { name = fn "dbSet" 0
       typeParams = []
       parameters = [ valParam "a"; keyParam; tableParam "a" ]
       returnType = tvar "a"
@@ -503,180 +677,6 @@ let fns () : List<BuiltInFn> =
           }
         | _ -> incorrectArgs ())
       sqlSpec = QueryFunction
-      previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
-
-
-    // ---------------
-    // DB management — create / list / drop. Single-instance Dark:
-    // toplevels_v0 / user_data_v0 are global, not scoped per call.
-    // ---------------
-
-    { name = fn "dbCreate" 0
-      typeParams = []
-      parameters =
-        [ Param.make "dbName" TString "Name of the database"
-          Param.make
-            "typeHash"
-            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
-            "Hash of the type stored in this DB" ]
-      returnType = TypeReference.result TUInt64 TString
-      description = "Creates a new database"
-      fn =
-        (function
-        | _, _, _, [ DString dbName; typeHashDval ] ->
-          let typeHash = PT2DT.Hash.fromDT typeHashDval
-          uply {
-            let! existing =
-              Sql.query
-                "SELECT COUNT(*) as cnt FROM toplevels_v0
-                 WHERE tipe = 'db'
-                   AND name = @name
-                   AND deleted = 0"
-              |> Sql.parameters [ "name", Sql.string dbName ]
-              |> Sql.executeRowAsync (fun read -> read.int "cnt")
-
-            if existing > 0 then
-              return
-                Dval.resultError
-                  KTUInt64
-                  KTString
-                  (DString $"A database named '{dbName}' already exists")
-            else
-              let tlid = gid ()
-              let db : PT.DB.T =
-                { tlid = tlid
-                  name = dbName
-                  version = 0
-                  typ =
-                    PT.TypeReference.TCustomType(
-                      { originalName = []
-                        location = None
-                        resolved = Ok(PT.FQTypeName.Package typeHash) },
-                      []
-                    ) }
-
-              let toplevel = PT.Toplevel.TLDB db
-              do! Toplevels.saveTLIDs [ (toplevel, Serialize.NotDeleted) ]
-              return Dval.resultOk KTUInt64 KTString (DUInt64 tlid)
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
-
-
-    { name = fn "dbListAll" 0
-      typeParams = []
-      parameters = [ Param.make "branchId" TUuid "Branch for resolving type names" ]
-      returnType = TList(TTuple(TString, TString, []))
-      description = "Returns a list of (name, typeName) tuples for all DBs"
-      fn =
-        (function
-        | _, _, _, [ DUuid branchId ] ->
-          uply {
-            let! app = Toplevels.loadAllDBs ()
-            let pm = LibDB.PackageManager.pt
-            let! dbs =
-              app.dbs
-              |> Map.values
-              |> Ply.List.mapSequentially (fun (db : PT.DB.T) ->
-                uply {
-                  let! typeName =
-                    match db.typ with
-                    | PT.TypeReference.TCustomType({ resolved = Ok(PT.FQTypeName.Package typeID) },
-                                                   _) ->
-                      uply {
-                        let! locs = pm.getTypeLocations branchId typeID
-                        match locs with
-                        | location :: _ -> return PackageLocation.toFQN location
-                        | [] -> return typeID.ToString()
-                      }
-                    | _ -> Ply "unknown"
-                  return DTuple(DString db.name, DString typeName, [])
-                })
-            return Dval.list (KTTuple(VT.string, VT.string, [])) dbs
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
-
-
-    { name = fn "dbDrop" 0
-      typeParams = []
-      parameters = [ Param.make "dbName" TString "Name of the database to drop" ]
-      returnType = TypeReference.result TUnit TString
-      description = "Drops (deletes) all databases with the given name"
-      fn =
-        (function
-        | _, _, _, [ DString dbName ] ->
-          uply {
-            let! matchingTlids =
-              Sql.query
-                "SELECT tlid FROM toplevels_v0
-                 WHERE tipe = 'db'
-                   AND name = @name
-                   AND deleted = 0"
-              |> Sql.parameters [ "name", Sql.string dbName ]
-              |> Sql.executeAsync (fun read -> read.tlid "tlid")
-
-            match matchingTlids with
-            | [] ->
-              return
-                Dval.resultError
-                  KTUnit
-                  KTString
-                  (DString $"Database not found: {dbName}")
-            | _ ->
-              do!
-                matchingTlids
-                |> Task.iterInParallel (fun tlid ->
-                  Toplevels.deleteToplevelForever tlid)
-              do!
-                matchingTlids
-                |> Task.iterInParallel (fun tlid ->
-                  Sql.query "DELETE FROM user_data_v0 WHERE table_tlid = @tlid"
-                  |> Sql.parameters [ "tlid", Sql.id tlid ]
-                  |> Sql.executeStatementAsync)
-              return Dval.resultOk KTUnit KTString DUnit
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
-
-
-    // ---------------
-    // Infra: SQLite-level introspection. Reports per-table row counts +
-    // approximate disk-byte share. Useful for "why is data.db big" forensics.
-    // ---------------
-
-    { name = fn "infraTableStats" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TTuple(TString, TInt64, [ TInt64 ]))
-      description =
-        "Returns (tableName, rowCount, approxDiskBytes) tuples for every
-         non-internal table. diskBytes is approximate (page-count * page-size
-         apportioned by row share)."
-      fn =
-        (function
-        | _, _, _, [ DUnit ] ->
-          uply {
-            let! rows = LibDB.Sqlite.tableStats ()
-            return
-              rows
-              |> List.map (fun r ->
-                DTuple(DString r.relation, DInt64 r.rows, [ DInt64 r.diskBytes ]))
-              |> Dval.list (KTTuple(VT.string, VT.int64, [ VT.int64 ]))
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated
       accessibility = Any } ]

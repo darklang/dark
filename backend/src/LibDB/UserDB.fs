@@ -256,6 +256,111 @@ let getAll
       |> Ply.List.flatten
   }
 
+
+// // Reusable function that provides the template for the SqlCompiler query functions
+// let doQuery
+//   (exeState : RT.ExecutionState)
+//   (db : RT.DB.T)
+//   (b : RT.LambdaImpl)
+//   (queryFor : string)
+//   : Ply<Result<Sql.SqlProps, RT.RuntimeError>> =
+//   uply {
+//     let paramName =
+//       match b.parameters with
+//       | { head = RT.LPVariable(_, name); tail = [] } -> name
+//       | _ -> Exception.raiseInternal "wrong number of args" [ "args", b.parameters ]
+
+//     let exeState =
+//       { exeState with symbolTable = b.symtable; typeSymbolTable = b.typeSymbolTable }
+
+//     let! compiled = SqlCompiler.compileLambda exeState paramName db.typ b.body
+
+//     match compiled with
+//     | Error err -> return Error err
+//     | Ok compiled ->
+//       return
+//         Sql.query
+//           $"SELECT {queryFor}
+//           FROM user_data_v0
+//           WHERE table_tlid = @tlid
+//             AND canvas_id = @canvasID
+//             AND user_version = @userVersion
+//             AND dark_version = @darkVersion
+//             AND {compiled.sql}"
+//         |> Sql.parameters (
+//           compiled.vars
+//           @ [ "tlid", Sql.tlid db.tlid
+//               "canvasID", Sql.uuid exeState.program.canvasID
+//               "userVersion", Sql.int db.version
+//               "darkVersion", Sql.int currentDarkVersion ]
+//         )
+//         |> Ok
+//   }
+
+// let query
+//   (exeState : RT.ExecutionState)
+//   (db : RT.DB.T)
+//   (b : RT.LambdaImpl)
+//   : Ply<Result<List<string * RT.Dval>, RT.RuntimeError>> =
+//   uply {
+//     let types = RT.ExecutionState.types exeState
+//     let! query = doQuery exeState db b "key, data"
+
+//     match query with
+//     | Error err -> return (Error err)
+//     | Ok query ->
+
+//       let! results =
+//         query
+//         |> Sql.executeAsync (fun read -> (read.string "key", read.string "data"))
+
+//       return!
+//         results
+//         |> List.map (fun (key, data) ->
+//           uply {
+//             let! dval = dbToDval exeState.tracing.callStack types db data
+//             return (key, dval)
+//           })
+//         |> Ply.List.flatten
+//         |> Ply.map Ok
+//   }
+
+// let queryValues
+//   (exeState : RT.ExecutionState)
+//   (db : RT.DB.T)
+//   (b : RT.LambdaImpl)
+//   : Ply<Result<List<RT.Dval>, RT.RuntimeError>> =
+//   uply {
+//     let types = RT.ExecutionState.types exeState
+//     let! query = doQuery exeState db b "data"
+
+//     match query with
+//     | Error err -> return Error err
+//     | Ok query ->
+//       let! results = query |> Sql.executeAsync (fun read -> read.string "data")
+
+//       return!
+//         results
+//         |> List.map (dbToDval exeState.tracing.callStack types db)
+//         |> Ply.List.flatten
+//         |> Ply.map Ok
+//   }
+
+// let queryCount
+//   (exeState : RT.ExecutionState)
+//   (db : RT.DB.T)
+//   (b : RT.LambdaImpl)
+//   : Ply<Result<int, RT.RuntimeError>> =
+//   uply {
+//     let! query = doQuery exeState db b "COUNT(*)"
+
+//     match query with
+//     | Error err -> return Error err
+//     | Ok query ->
+//       return!
+//         query |> Sql.executeRowAsync (fun read -> read.int "count") |> Task.map Ok
+//   }
+
 let getAllKeys (_exeState : RT.ExecutionState) (db : RT.DB.T) : Task<List<string>> =
   Sql.query
     "SELECT key

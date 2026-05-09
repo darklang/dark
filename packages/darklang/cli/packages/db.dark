@@ -80,7 +80,7 @@ let listDBs (state: Cli.AppState) : Cli.AppState =
   match dbs with
   | [] ->
     Stdlib.printLine ""
-    Stdlib.printLine "No databases in your app."
+    Stdlib.printLine "No databases."
     Stdlib.printLine ""
     Stdlib.printLine "Create one with: db <DbName> <TypeName>"
     Stdlib.printLine ""
@@ -88,7 +88,7 @@ let listDBs (state: Cli.AppState) : Cli.AppState =
 
   | _ ->
     Stdlib.printLine ""
-    Stdlib.printLine "Databases in your app:"
+    Stdlib.printLine "Databases:"
     Stdlib.printLine ""
 
     // Print table header

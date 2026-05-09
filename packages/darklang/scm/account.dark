@@ -1,8 +1,5 @@
 module Darklang.SCM.Account
 
-/// Single-instance Dark: the committer/owner is always the built-in
-/// "Darklang" system account. No login flow, no env var. Account IDs
-/// will be removed entirely as the schema is unwound.
 let resolve () : (String * Stdlib.Option.Option<Uuid>) =
   let parsed = Builtin.uuidParse "00000000-0000-0000-0000-000000000001"
   let darklangAccountId = Builtin.unwrap parsed

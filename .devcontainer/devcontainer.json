@@ -39,9 +39,7 @@
   // as we see in script/builder
   /////////////////////////////////////////////////
 
-  // Ports: 9090-9099 are for ad-hoc `darklang serve` demos.
-  // (10011-10030 / 11001-11002 used to be BwdServer test/prod ports;
-  // dropped along with BwdServer.)
+  // Ports: 9090-9099 are for reserved to expose ad-hoc `darklang serve` usages.
   "forwardPorts": [9090, 9091, 9092, 9093, 9094, 9095, 9096, 9097, 9098, 9099],
 
   "containerEnv": {

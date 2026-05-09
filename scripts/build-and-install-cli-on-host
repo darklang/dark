@@ -22,9 +22,6 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
 # Optional --aot flag passes through to build-release-cli-exes.sh.
-# NOTE: AOT-built CLI currently can't run on its own — see the TODO in
-# backend/src/Cli/Cli.fsproj re: bundling libe_sqlite3.so. Use plain
-# (JIT) builds until that's resolved.
 AOT_FLAG=""
 for arg in "$@"; do
   case "$arg" in

@@ -102,21 +102,20 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             "Missing router path. Usage: serve <router-path> [--port N] [--max-body-bytes N]")
         state
       else
-        let portStr_ = Stdlib.Int64.toString parsed.port
+        let portStr = Stdlib.Int64.toString parsed.port
         let maxBytesStr = Stdlib.Int64.toString parsed.maxBodyBytes
 
         [ $"Using router: {parsed.routerPath}"
           $"Max body bytes: {maxBytesStr}"
           ""
-          Colors.success $"Listening on http://localhost:{portStr_}"
+          Colors.success $"Listening on http://localhost:{portStr}"
           "Press Ctrl+C to stop"
           "" ]
         |> Stdlib.printLines
 
-        // Call the builtin directly (bypassing Stdlib.HttpServer.serve's
-        // hardcoded defaults) so --max-body-bytes can take effect.
+        // CLEANUP remove the (ab)use of this builtin.
         let expr =
-          $"Builtin.httpServerServe {portStr_}L {parsed.routerPath} {maxBytesStr}L true true true"
+          $"Builtin.httpServerServe {portStr}L {parsed.routerPath} {maxBytesStr}L true true true"
 
         match
           Builtin.cliEvaluateExpression

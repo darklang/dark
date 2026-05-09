@@ -1,18 +1,6 @@
 /// Traces command - list and view execution traces.
 ///
-/// The generic shapes (TraceSummary / InputVar / FnCall / TraceData) and
-/// trace-related helpers (Duration parsing, formatting, handler-source
-/// lookup) live under `Darklang.Tracing.*` so non-CLI consumers can
-/// reuse them. This file only holds the CLI dispatch + per-command
-/// `executeX` functions.
-///
-/// TODO: split this file. ~1600 lines, 25 `executeX` functions. Natural
-/// groupings: list/find/stats (discovery), view/inspect/values/export
-/// (per-trace), tail/follow (live), hotspots (analysis), clear/delete/
-/// prune (bulk ops). Each group could move to `traces/<group>.dark`.
-/// Held off because the executeX fns share a layer of helpers
-/// (`ViewOptions`, `resolveTraceID`, `parseViewOptions`, render utilities)
-/// that would need to land in a `traces/shared.dark` first.
+/// TODO: split this file.
 module Darklang.Cli.Commands.Traces
 
 
@@ -1320,7 +1308,6 @@ let executeClear (state: Cli.AppState) : Cli.AppState =
 /// always state intent. Returns Error with a hint on malformed input.
 /// `-`-prefixed inputs are reported as "Unknown flag" rather than
 /// "Invalid duration" — same logic as `parsePositionalErr`.
-// Duration parser moved to `Darklang.Tracing.Duration.parse`.
 let parseDuration (s: String) : Stdlib.Result.Result<Int64, String> =
   Darklang.Tracing.Duration.parse s
 

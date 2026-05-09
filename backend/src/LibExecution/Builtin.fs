@@ -45,12 +45,7 @@ let checkFn (fn : BuiltInFn) : unit =
     Exception.raiseInternal $"function {fn.name} has no parameters" [ "fn", fn.name ]
 
 
-/// Provided a list of library contents, combine them (handling renames).
-/// Builtins that should enforce the "exactly 1 textual wrapper in
-/// packages/" invariant set `accessibility = FromLocation _` directly
-/// on their definition. The Tests.Builtin
-/// `fromLocationBuiltinsAreSinglyReferenced` check picks them up
-/// automatically.
+/// Provided a list of library contents, combine them (handling renames)
 let combine (libs : List<Builtins>) (fnRenames : FnRenames) : Builtins =
   let fns = libs |> List.map _.fns |> List.collect Map.values
 

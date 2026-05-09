@@ -203,11 +203,6 @@ jobs:
       # - run: scripts/run-cli @Darklang.Stdlib.Float.add 1.9 2.0
 
       - assert-clean-worktree
-      # No persist_to_workspace here: deploy artifacts come from the
-      # `build-cli` job (which persists `clis/` from
-      # build-release-cli-exes.sh). The old BwdServer flow used to drop
-      # its publish dir here, but `dotnet publish -c Release fsdark.sln`
-      # doesn't produce a linux-x64-RID subdir, so the path was dead.
       - show-large-files-and-directories
       - save_cache:
           paths:

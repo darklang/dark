@@ -75,14 +75,6 @@ module Hashing =
 
 
   /// Hash a commit: hash(branchId + accountId + parentHash + sorted(opHashes))
-  ///
-  /// Both `branchId` and `accountId` mix in: `branchId` keeps the
-  /// global `commits.hash` PRIMARY KEY safe across branches that
-  /// produce identical op sets; `accountId` keeps it safe across
-  /// accounts that produce identical commits (e.g. two devs running
-  /// the same .dark script independently on the same branch). Either
-  /// alone has been the design at different points; both costs
-  /// nothing extra and removes a corner case.
   let computeCommitHash
     (branchId : System.Guid)
     (accountId : System.Guid)

@@ -16,7 +16,6 @@ do
 done
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  # See run-backend-tests for why this isn't under linux-x64/.
   EXE="backend/Build/out/LocalExec/Release/net10.0/publish/LocalExec"
 else
   EXE="backend/Build/out/LocalExec/Debug/net10.0/LocalExec"

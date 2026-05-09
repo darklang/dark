@@ -136,8 +136,6 @@ let main (args : string[]) : int =
     initSerializers ()
 
 
-    //let _ = (LibCloud.Init.init name).Result
-
     let handleCommand
       (description : string)
       (command : Ply<Result<unit, string>>)

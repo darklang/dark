@@ -10,8 +10,7 @@ module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module NR = LibExecution.RuntimeTypes.NameResolution
 
 
-/// Converters from F# builtin types to Dark types for `getBuiltins`
-/// to expose a structured listing of the runtime's builtin surface.
+/// Converters from F# builtin types to Dark types.
 module ToDarkTypes =
   module Purity =
     let typeName () = FQTypeName.fqPackage (PackageRefs.Type.Builtins.purity ())

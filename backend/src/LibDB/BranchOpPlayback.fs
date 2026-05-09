@@ -71,16 +71,6 @@ let applyOp (op : PT.BranchOp) : Task<unit> =
         |> Sql.executeStatementAsync
 
     | PT.BranchOp.MergeBranch(branchId, intoBranchId) ->
-      // All five writes run in one transaction: deprecate the parent's
-      // active locations at paths the branch is overwriting, then move
-      // commits / package_ops / locations to the parent, then stamp
-      // `merged_at`. Was five separate `executeStatementAsync` calls
-      // (one of them in a per-row loop) — a mid-merge crash left the
-      // parent with some paths deprecated and some active, AND
-      // commits/package_ops/locations partially re-pointed.
-      //
-      // The per-row deprecation loop folded into one statement using
-      // a correlated subquery on (owner, modules, name, item_type).
       let mergeStatements =
         let parentParams =
           [ "parent_id", Sql.uuid intoBranchId; "branch_id", Sql.uuid branchId ]

@@ -29,10 +29,6 @@ done
 killall -9 Tests || true
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  # `dotnet publish -c Release fsdark.sln` (the CI publish step) doesn't
-  # pass `--runtime`, so outputs land at `Release/net10.0/publish/<exe>`,
-  # not under a `linux-x64/` subdir. (Cli is the only project that
-  # publishes RID-specific, and that's via build-release-cli-exes.sh.)
   EXE=Build/out/Tests/Release/net10.0/publish/Tests
   LOCALEXEC=Build/out/LocalExec/Release/net10.0/publish/LocalExec
 else
@@ -73,8 +69,8 @@ if [[ "${DARK_CONFIG_PACKAGES_SOURCE:-disk}" == "seed" ]]; then
     exit 1
   fi
 else
-  # Disk mode: reload packages from .dark files. Migrations already ran
-  # inline above; with BwdServer gone there's nothing else to start.
+  # Disk mode: reload packages from .dark files.
+  #  Migrations already ran inline above
   if [[ -v CI ]]; then
     echo "Reloading packages"
     ./scripts/build/reload-packages $PUBLISHED_FLAG
