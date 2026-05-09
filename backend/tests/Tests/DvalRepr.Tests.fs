@@ -29,7 +29,6 @@ let toRepr (dval : RT.Dval) : string =
       { dbs = Map.empty }
   (Exe.dvalToRepr state dval).Result
 module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
-module DvalReprInternalHash = LibExecution.DvalReprInternalHash
 
 let bogusThreadID = guuid ()
 
@@ -122,34 +121,6 @@ let testToDeveloperRepr =
           RT.DDict(VT.unit, Map [ "", RT.DUnit ]), "{ : () }"
           RT.DList(VT.unit, [ RT.DUnit ]), "[()]" ] ]
 
-module ToHashableRepr =
-  open LibExecution.RuntimeTypes
-
-  let testHashV2 =
-    let t (l : NEList<Dval>) (expected : string) : Test =
-      testTask $"hashV2: {l}" {
-        let actual = DvalReprInternalHash.hash 2 l
-
-        if actual <> expected then
-          let p str = str |> UTF8.toBytes |> System.BitConverter.ToString
-          print $"expected: {p expected}"
-          print $"fsharp  : {p actual}"
-
-        Expect.equal actual expected "bad fsharp impl"
-      }
-
-    testList
-      "hashv2"
-      [ t (NEList.singleton (DList(VT.uint8, []))) "4JMFo5Ha4pA"
-        t
-          (NEList.singleton (
-            DList(VT.uint8, List.map (fun i -> DUInt8(uint8 i)) [ 128uy ])
-          ))
-          "ClTmHkzbMf4" ]
-
-  let tests = testList "hashing" [ testHashV2 ]
-
-
 let allRoundtrips =
   let dvs (filter : RT.Dval -> bool) : List<string * (RT.Dval * RT.TypeReference)> =
     List.filter (fun (_, (dv, _)) -> filter dv) (sampleDvals ())
@@ -194,6 +165,5 @@ let tests =
     "dvalRepr"
     [ testDvalRoundtrippableRoundtrips
       testToDeveloperRepr
-      ToHashableRepr.tests
       testInternalRoundtrippableNew
       allRoundtrips ]

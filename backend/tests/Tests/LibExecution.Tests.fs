@@ -29,13 +29,6 @@ module Serialize = LibCloud.Serialize
 
 open TestUtils.TestUtils
 
-let setupWorkers (_workers : List<string>) : Task<unit> =
-  // Workers are gone with the Handler delete — testfiles that
-  // declared `[<Worker>]` no longer have anything meaningful to set
-  // up here. Kept as a no-op so call sites that pass `workers`
-  // through don't have to re-thread.
-  task { return () }
-
 let setupDBs (dbs : List<PT.DB.T>) : Task<unit> =
   task {
     let tls = dbs |> List.map (fun db -> db, Serialize.NotDeleted)
@@ -109,16 +102,15 @@ let t
   (filename : string)
   (lineNumber : int)
   (dbs : List<PT.DB.T>)
-  (workers : List<string>)
   : Test =
   testTask $"line{lineNumber}" {
     try
-      // Wipe per-test state when this test uses UserDB / handlers.
+      // Wipe per-test state when this test uses UserDB.
       // Single-instance Dark — toplevels_v0 / user_data_v0 are global,
       // so isolation between .dark testfile cases is "wipe +
       // repopulate" (the surrounding testList is testSequenced so
       // wipes don't race parallel writes).
-      if dbs <> [] || workers <> [] then
+      if dbs <> [] then
         do! Sql.query "DELETE FROM toplevels_v0" |> Sql.executeStatementAsync
         do! Sql.query "DELETE FROM user_data_v0" |> Sql.executeStatementAsync
 
@@ -153,7 +145,6 @@ let t
         $"\n\n{lhs}\n\n{rhs}\n\nTest location: {bold}{underline}{filename}:{lineNumber}{reset}"
 
       // Initialize
-      if workers <> [] then do! setupWorkers workers
       if dbs <> [] then do! setupDBs dbs
 
       // Run the actual program (left-hand-side of the =)
@@ -317,8 +308,7 @@ let fileTests () : Test =
                   test.expected
                   filename
                   test.lineNumber
-                  m.dbs
-                  []))
+                  m.dbs))
             |> List.concat
 
           // .dark files under `cloud/` exercise UserDB / handler state
