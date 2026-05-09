@@ -744,33 +744,6 @@ type DB =
     typ: TypeReference }
 
 
-module Handler =
-  type CronInterval =
-    | EveryDay
-    | EveryWeek
-    | EveryFortnight
-    | EveryHour
-    | Every12Hours
-    | EveryMinute
-
-  type Spec =
-    | Worker of name: String
-    | Cron of name: String * interval: CronInterval
-    | REPL of name: String
-
-  type Handler = { tlid: TLID; ast: Expr; spec: Spec }
-
-
-// module Toplevel =
-//   type T =
-//     | TLDB of DB
-//     | TLHandler of Handler.Handler
-
-//   let toTLID (tl : T) : tlid =
-//     match tl with
-//     | TLDB db -> db.tlid
-//     | TLHandler h -> h.tlid
-
 module SourceFile =
   type Declaration =
     | Type of PackageType.PackageType

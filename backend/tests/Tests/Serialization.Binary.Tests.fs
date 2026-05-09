@@ -139,14 +139,14 @@ module RT =
 module ConsistentSerializationTests =
   type Format =
     { name : string
-      serializer : PT.Toplevel.T -> byte array
-      deserializer : byte array -> PT.Toplevel.T
+      serializer : PT.DB.T -> byte array
+      deserializer : byte array -> PT.DB.T
       prefix : string
       suffix : string }
 
   let formats =
     [ { name = "BinarySerialization"
-        serializer = fun tl -> BS.PT.Toplevel.serialize (PT.Toplevel.toTLID tl) tl
+        serializer = fun db -> BS.PT.Toplevel.serialize db.tlid db
         deserializer = fun data -> BS.PT.Toplevel.deserialize 0UL data
         prefix = "toplevels-binary"
         suffix = ".bin" } ]

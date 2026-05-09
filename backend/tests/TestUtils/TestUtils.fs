@@ -31,16 +31,6 @@ module PT2DT = LibExecution.ProgramTypesToDarkTypes
 let pmPT = LibDB.PackageManager.pt
 let pmRT = LibDB.PackageManager.rt
 
-let testCron
-  (name : string)
-  (interval : PT.Handler.CronInterval)
-  (ast : PT.Expr)
-  : PT.Handler.T =
-  { tlid = gid (); ast = ast; spec = PT.Handler.Cron(name, interval) }
-
-let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
-  { tlid = gid (); ast = ast; spec = PT.Handler.Worker name }
-
 let testPackageFn
   (typeParams : List<string>)
   (parameters : NEList<string>)

@@ -106,7 +106,11 @@ module TraceDetail =
 type T =
   {
     /// Store the tracing input (varname + dval) for a handler execution
-    storeTraceInput : PT.Handler.HandlerDesc -> string -> RT.Dval -> unit
+    /// (kind, path, modifier) triple — was `PT.Handler.HandlerDesc`
+    /// before Handler was deleted. Trace recorders synthesize a triple
+    /// for each request (e.g. ("HTTP", "/foo", "GET")) so traces.list
+    /// has something to show in the handler column.
+    storeTraceInput : (string * string * string) -> string -> RT.Dval -> unit
 
     /// Store the trace results calculated over the execution, if enabled.
     /// Takes the live ExecutionState so ephemeral blob refs (which die

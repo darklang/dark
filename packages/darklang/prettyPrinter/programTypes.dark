@@ -907,31 +907,6 @@ let customType
     |> Stdlib.String.join "\n"
 
 
-module Handler =
-  let cronInterval
-    (c: LanguageTools.ProgramTypes.Handler.CronInterval)
-    : String =
-    match c with
-    | EveryDay -> "Every Day"
-    | EveryWeek -> "Every Week"
-    | EveryFortnight -> "Every Fortnight"
-    | EveryHour -> "Every Hour"
-    | Every12Hours -> "Every 12 Hours"
-    | EveryMinute -> "Every Minute"
-
-  let spec (s: LanguageTools.ProgramTypes.Handler.Spec) : String =
-    match s with
-    | Worker name -> $"[<Worker({name})>]"
-    | Cron(name, interval) ->
-      $"[<Cron({name}, {Handler.cronInterval interval})>]"
-    | REPL name -> $"[<REPL({name})>]"
-
-let handler (ctx: Context) (h: LanguageTools.ProgramTypes.Handler.Handler) : String =
-  let specPart = Handler.spec h.spec
-
-  $"{specPart}\nlet _handler _ignored =\n  {expr ctx h.ast}"
-
-
 let db
   (ctx: Context)
   (db: LanguageTools.ProgramTypes.DB)

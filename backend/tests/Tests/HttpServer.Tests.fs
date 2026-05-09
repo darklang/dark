@@ -194,7 +194,7 @@ let private buildRouterForTest
         Exception.raiseInternal
           "buildRouterForTest: multi-handler fixtures aren't supported"
           [ "handlerCount", List.length many ]
-    let! ptExpr = TestUtils.parsePTExpr routerSource
+    let! ptExpr = TestUtils.TestUtils.parsePTExpr routerSource
     let rtInstrs = PT2RT.Expr.toRT Map.empty 0 None ptExpr
     let! result = Execution.executeExpr exeState rtInstrs
     match result with

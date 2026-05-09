@@ -30,14 +30,12 @@ type Deleted =
   | Deleted
   | NotDeleted
 
-let loadToplevels (tlids : List<tlid>) : Task<List<Deleted * PT.Toplevel.T>> =
+let loadToplevels (tlids : List<tlid>) : Task<List<Deleted * PT.DB.T>> =
   task {
     let! data =
       if List.isEmpty tlids then
-        // If no specific TLIDs requested, return empty list
         Task.FromResult []
       else
-        // Create IN clause with parameters for each TLID
         let tlidParams =
           tlids |> List.mapi (fun i tlid -> ($"tlid{i}", Sql.tlid tlid))
         let tlidPlaceholders =
@@ -47,10 +45,7 @@ let loadToplevels (tlids : List<tlid>) : Task<List<Deleted * PT.Toplevel.T>> =
           $"SELECT tlid, data, deleted
            FROM toplevels_v0
            WHERE tlid IN ({tlidPlaceholders})
-             AND (
-               tipe = 'db'
-               OR tipe = 'handler'
-             )"
+             AND tipe = 'db'"
 
         Sql.query query
         |> Sql.parameters tlidParams

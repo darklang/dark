@@ -333,7 +333,7 @@ let trimEnd (str: String) : String = Builtin.stringTrimEnd str
 
 /// Converts the given unicode string to a UTF8-encoded byte sequence.
 let toBytes (str: String) : List<UInt8> =
-  Builtin.blobToBytes (Builtin.stringToBlob str)
+  Blob.toList (Builtin.stringToBlob str)
 
 
 /// Converts the UTF8-encoded byte sequence into a string. Errors will be ignored by replacing invalid characters.

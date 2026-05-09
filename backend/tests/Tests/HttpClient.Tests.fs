@@ -250,6 +250,36 @@ let makeTest versionName filename =
       let! actual = promoteIfOk actual
       let! expected = promoteIfOk expected
 
+      // Normalize the `headers` field of an HttpClient.Response Dval by
+      // sorting tuples by header key. The test webserver below uses
+      // System.Net.HttpListener which emits headers in implementation-
+      // specific order, so an exact-byte comparison flakes on header
+      // re-ordering. Logical equality on the header set is what these
+      // tests actually want.
+      let normalizeResponseHeaders (dval : RT.Dval) : RT.Dval =
+        match dval with
+        | RT.DRecord(t1, t2, ta, fields) ->
+          match Map.tryFind "headers" fields with
+          | Some(RT.DList(elemType, items)) ->
+            let sorted =
+              items
+              |> List.sortBy (fun item ->
+                match item with
+                | RT.DTuple(RT.DString k, _, _) -> k.ToLowerInvariant()
+                | _ -> "")
+            let newFields = Map.add "headers" (RT.DList(elemType, sorted)) fields
+            RT.DRecord(t1, t2, ta, newFields)
+          | _ -> dval
+        | _ -> dval
+
+      let normalize r =
+        match r with
+        | Ok dv -> Ok(normalizeResponseHeaders dv)
+        | Error _ -> r
+
+      let actual = normalize actual
+      let expected = normalize expected
+
       match actual, expected with
       | Ok actual, Ok expected ->
         return Expect.RT.equalDval actual expected $"Responses don't match"

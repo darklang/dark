@@ -10,34 +10,28 @@ open Prelude
 
 module BS = LibSerialization.Binary.Serialization
 module PT = LibExecution.ProgramTypes
-module PTParser = LibExecution.ProgramTypesParser
 module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
-/// Container of DBs + handlers — single-instance Dark, so global.
+/// Container of DBs — single-instance Dark, so global. Handlers are
+/// gone (Worker / Cron / REPL had no live consumers; HTTP went earlier
+/// with the BwdServer rewrite). What remains is just the user-defined
+/// Datastores.
 type T =
-  { handlers : Map<tlid, PT.Handler.T>
-    dbs : Map<tlid, PT.DB.T>
-    deletedHandlers : Map<tlid, PT.Handler.T>
+  { dbs : Map<tlid, PT.DB.T>
     deletedDBs : Map<tlid, PT.DB.T> }
 
-let addToplevel (deleted : Serialize.Deleted) (tl : PT.Toplevel.T) (c : T) : T =
-  let tlid = PT.Toplevel.toTLID tl
 
-  match deleted, tl with
-  | Serialize.NotDeleted, PT.Toplevel.TLHandler h ->
-    { c with handlers = Map.add tlid h c.handlers }
-  | Serialize.NotDeleted, PT.Toplevel.TLDB db ->
-    { c with dbs = Map.add tlid db c.dbs }
-  | Serialize.Deleted, PT.Toplevel.TLHandler h ->
-    { c with deletedHandlers = Map.add tlid h c.deletedHandlers }
-  | Serialize.Deleted, PT.Toplevel.TLDB db ->
-    { c with deletedDBs = Map.add tlid db c.deletedDBs }
+let addDB (deleted : Serialize.Deleted) (db : PT.DB.T) (c : T) : T =
+  match deleted with
+  | Serialize.NotDeleted -> { c with dbs = Map.add db.tlid db c.dbs }
+  | Serialize.Deleted -> { c with deletedDBs = Map.add db.tlid db c.deletedDBs }
 
 
-let addToplevels (tls : List<Serialize.Deleted * PT.Toplevel.T>) (c : T) : T =
-  List.fold (fun acc (deleted, tl) -> addToplevel deleted tl acc) c tls
+let addDBs (tls : List<Serialize.Deleted * PT.DB.T>) (c : T) : T =
+  List.fold (fun acc (deleted, db) -> addDB deleted db acc) c tls
+
 
 // NOTE: If you add a new verification here, please ensure all places that
 // load toplevels / apply ops correctly load the requisite data.
@@ -60,21 +54,19 @@ let verify (c : T) : T =
 //  Loading/saving
 //  -------------------------
 
-let empty : T =
-  { handlers = Map.empty
-    dbs = Map.empty
-    deletedHandlers = Map.empty
-    deletedDBs = Map.empty }
+let empty : T = { dbs = Map.empty; deletedDBs = Map.empty }
+
 
 let loadFrom (tlids : List<tlid>) : Task<T> =
   task {
     try
-      let! tls = Serialize.loadToplevels tlids
-      return empty |> addToplevels tls |> verify
+      let! dbs = Serialize.loadToplevels tlids
+      return empty |> addDBs dbs |> verify
     with e ->
       let tags = [ "tlids", tlids :> obj ]
       return Exception.reraiseAsPageable "toplevel load failed" tags e
   }
+
 
 let loadAllDBs () : Task<T> =
   task {
@@ -89,47 +81,16 @@ let deleteToplevelForever (tlid : tlid) : Task<unit> =
   |> Sql.parameters [ "tlid", Sql.id tlid ]
   |> Sql.executeStatementAsync
 
-let toplevelToDBTypeString (tl : PT.Toplevel.T) : string =
-  match tl with
-  | PT.Toplevel.TLDB _ -> "db"
-  | PT.Toplevel.TLHandler _ -> "handler"
 
 /// Save just the TLIDs listed (callers may load more tlids to support
-/// calling/testing these TLs, even though those TLs do not need to be updated)
-let saveTLIDs (toplevels : List<PT.Toplevel.T * Serialize.Deleted>) : Task<unit> =
+/// calling/testing these TLs, even though those TLs do not need to be updated).
+/// Two-tuple matches the old shape: `(db, deleted)`.
+let saveTLIDs (dbs : List<PT.DB.T * Serialize.Deleted>) : Task<unit> =
   try
-    // Use ops rather than just set of toplevels, because toplevels may
-    // have been deleted or undone, and therefore not appear, but it's
-    // important to record them.
-    toplevels
-    |> Task.iterInParallel (fun (tl, deleted) ->
+    dbs
+    |> Task.iterInParallel (fun (db, deleted) ->
       task {
-        let string2option (s : string) : Option<string> =
-          if s = "" then None else Some s
-
-        let tlid = PT.Toplevel.toTLID tl
-
-        let routingNames =
-          match tl with
-          | PT.Toplevel.TLHandler({ spec = spec }) ->
-            Some(
-              PTParser.Handler.Spec.toModule spec,
-              PTParser.Handler.Spec.toName spec,
-              PTParser.Handler.Spec.toModifier spec
-            )
-          | PT.Toplevel.TLDB db -> Some("", db.name, "")
-
-        let (module_, name, modifier) =
-          // Only save info used to find handlers when the handler has not been deleted
-          if deleted = Serialize.NotDeleted then
-            match routingNames with
-            | Some(module_, name, modifier) ->
-              (string2option module_, string2option name, string2option modifier)
-            | None -> None, None, None
-          else
-            None, None, None
-
-        let serializedToplevel = BS.PT.Toplevel.serialize (PT.Toplevel.toTLID tl) tl
+        let serializedToplevel = BS.PT.Toplevel.serialize db.tlid db
 
         let deleted =
           match deleted with
@@ -155,12 +116,12 @@ let saveTLIDs (toplevels : List<PT.Toplevel.T * Serialize.Deleted>) : Task<unit>
                 data = @data,
                 updated_at = datetime('now')"
           |> Sql.parameters
-            [ "tlid", Sql.tlid tlid
+            [ "tlid", Sql.tlid db.tlid
               "digest", Sql.string "fsharp"
-              "typ", Sql.string (toplevelToDBTypeString tl)
-              "name", Sql.stringOrNone name
-              "module", Sql.stringOrNone module_
-              "modifier", Sql.stringOrNone modifier
+              "typ", Sql.string "db"
+              "name", Sql.stringOrNone (Some db.name)
+              "module", Sql.stringOrNone None
+              "modifier", Sql.stringOrNone None
               "deleted", Sql.bool deleted
               "data", Sql.bytes serializedToplevel ]
           |> Sql.executeStatementAsync

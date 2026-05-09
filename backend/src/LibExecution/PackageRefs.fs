@@ -310,12 +310,6 @@ module Type =
       let propagateRepoint = p [] "PropagateRepoint"
       let db = p [] "DB"
 
-      module Handler =
-        let private p addl = p ("Handler" :: addl)
-        let cronInterval = p [] "CronInterval"
-        let spec = p [] "Spec"
-        let handler = p [] "Handler"
-
   module PrettyPrinter =
     let private p addl = p ("PrettyPrinter" :: addl)
     module RuntimeTypes =

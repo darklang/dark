@@ -976,38 +976,6 @@ module DB =
     }
 
 
-module Handler =
-  module CronInterval =
-    let toPT (ci : WT.Handler.CronInterval) : PT.Handler.CronInterval =
-      match ci with
-      | WT.Handler.EveryDay -> PT.Handler.EveryDay
-      | WT.Handler.EveryWeek -> PT.Handler.EveryWeek
-      | WT.Handler.EveryFortnight -> PT.Handler.EveryFortnight
-      | WT.Handler.EveryHour -> PT.Handler.EveryHour
-      | WT.Handler.Every12Hours -> PT.Handler.Every12Hours
-      | WT.Handler.EveryMinute -> PT.Handler.EveryMinute
-
-  module Spec =
-    let toPT (s : WT.Handler.Spec) : PT.Handler.Spec =
-      match s with
-      | WT.Handler.Worker name -> PT.Handler.Worker name
-      | WT.Handler.Cron(name, interval) ->
-        PT.Handler.Cron(name, CronInterval.toPT interval)
-      | WT.Handler.REPL name -> PT.Handler.REPL name
-
-  let toPT
-    (builtins : RT.Builtins)
-    (pm : PT.PackageManager)
-    (onMissing : NR.OnMissing)
-    (currentModule : List<string>)
-    (h : WT.Handler.T)
-    : Ply<PT.Handler.T> =
-    uply {
-      let context =
-        { currentFnName = None
-          isInFunction = false
-          argMap = Map.empty
-          localBindings = Set.empty }
-      let! ast = Expr.toPT builtins pm onMissing currentModule context h.ast
-      return { tlid = gid (); ast = ast; spec = Spec.toPT h.spec }
-    }
+// Handler removed — see notes/wrap-up/handler-toplevel-deletion-plan.md
+// for the cutover. Worker / Cron / REPL had no production constructors;
+// HTTP went earlier with the BwdServer rewrite.

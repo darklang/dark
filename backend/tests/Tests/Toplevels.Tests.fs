@@ -17,16 +17,14 @@ module PT = LibExecution.ProgramTypes
 
 
 let testDBOplistRoundtrip =
-  // Save a TLDB through Toplevels.saveTLIDs, load it back through
+  // Save a DB through Toplevels.saveTLIDs, load it back through
   // Serialize.loadToplevels, expect identity. Catches regressions in
   // the binary-serialization → SQLite → binary-deserialization path.
   testTask "db oplist roundtrip" {
     let db = testDB "myDB" PT.TInt64
-    let tl = PT.Toplevel.TLDB db
-
-    do! Toplevels.saveTLIDs [ (tl, Serialize.NotDeleted) ]
-    let! tls = Serialize.loadToplevels [ db.tlid ]
-    Expect.equal tls [ Serialize.NotDeleted, tl ] "db oplist roundtrip"
+    do! Toplevels.saveTLIDs [ (db, Serialize.NotDeleted) ]
+    let! dbs = Serialize.loadToplevels [ db.tlid ]
+    Expect.equal dbs [ Serialize.NotDeleted, db ] "db oplist roundtrip"
   }
 
 

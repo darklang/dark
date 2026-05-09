@@ -14,7 +14,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
     else
       Stdlib.printLine "Available accounts:"
-      accounts
+      (accounts)
       |> Stdlib.List.iter (fun a -> Stdlib.printLine $"  {a.name}")
       Stdlib.printLine ""
       Stdlib.printLine "Run `login <name>` to log in."
@@ -56,6 +56,6 @@ let complete
   : List<Completion.CompletionItem> =
   match args with
   | [] | [ _ ] ->
-    SCM.Account.list ()
+    (SCM.Account.list ())
     |> Stdlib.List.map (fun a -> Completion.simple a.name)
   | _ -> []

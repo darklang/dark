@@ -1086,44 +1086,12 @@ the package stuff is all a projection of that
 module DB =
   type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
 
-module Handler =
-  type CronInterval =
-    | EveryDay
-    | EveryWeek
-    | EveryFortnight
-    | EveryHour
-    | Every12Hours
-    | EveryMinute
 
-  /// User to represent handlers in their lowest-level form: a triple of space * name * modifier
-  /// "Space" is "HTTP", "WORKER", "REPL", etc.
-  ///
-  /// "Modifier" options differ based on space.
-  /// e.g. HTTP handler may have "GET" modifier.
-  ///
-  /// Handlers which don't have modifiers (e.g. repl, worker) nearly
-  /// always (but not actually always) have `_` as their modifier.
-  type HandlerDesc = (string * string * string)
-
-  // TODO: drop the entire Handler concept. None of Worker/Cron/REPL
-  // are constructed by production code (only by tests + serializer
-  // round-trips), the same way HTTP wasn't before it was removed.
-  // The real goal is to re-do the whole runtime/dispatch story in
-  // Dark itself, at which point Toplevel.T collapses to just TLDB
-  // and likely goes away too.
-  type Spec =
-    | Worker of name : string
-    | Cron of name : string * interval : CronInterval
-    | REPL of name : string
-
-  type T = { tlid : tlid; ast : Expr; spec : Spec }
-
+/// Compatibility shim: callers used to wrap a `DB.T` in `Toplevel.TLDB`
+/// and read tlids via `Toplevel.toTLID`. Handler / TLHandler are gone
+/// (Worker / Cron / REPL had no live consumers; HTTP went earlier with
+/// the BwdServer rewrite). `DB.T` IS the toplevel now — keep the
+/// `Toplevel.toTLID` accessor as a one-line shim so the noisier
+/// callsites don't all churn shape simultaneously.
 module Toplevel =
-  type T =
-    | TLDB of DB.T
-    | TLHandler of Handler.T
-
-  let toTLID (tl : T) : tlid =
-    match tl with
-    | TLDB db -> db.tlid
-    | TLHandler h -> h.tlid
+  let toTLID (db : DB.T) : tlid = db.tlid

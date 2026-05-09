@@ -29,23 +29,16 @@ module Serialize = LibCloud.Serialize
 
 open TestUtils.TestUtils
 
-let setupWorkers (workers : List<string>) : Task<unit> =
-  task {
-    let tls =
-      workers
-      |> List.map (fun worker ->
-        let w : PT.Handler.T =
-          { tlid = gid ()
-            ast = PT.Expr.EUnit(gid ())
-            spec = PT.Handler.Worker(worker) }
-        PT.Toplevel.TLHandler w, Serialize.NotDeleted)
-
-    do! Toplevels.saveTLIDs tls
-  }
+let setupWorkers (_workers : List<string>) : Task<unit> =
+  // Workers are gone with the Handler delete — testfiles that
+  // declared `[<Worker>]` no longer have anything meaningful to set
+  // up here. Kept as a no-op so call sites that pass `workers`
+  // through don't have to re-thread.
+  task { return () }
 
 let setupDBs (dbs : List<PT.DB.T>) : Task<unit> =
   task {
-    let tls = dbs |> List.map (fun db -> PT.Toplevel.TLDB db, Serialize.NotDeleted)
+    let tls = dbs |> List.map (fun db -> db, Serialize.NotDeleted)
     do! Toplevels.saveTLIDs tls
   }
 
@@ -179,8 +172,11 @@ let t
         | LibParser.TestModule.PTExpected.PTExpectedSqlError _ ->
           Task.FromResult None
 
-      if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
-        debuGList "results" (Dictionary.toList results |> List.sortBy fst)
+      // DEBUG dump of per-expr trace values used to live here, but
+      // the traceDval hook + Execution.traceDvals collector were
+      // removed with the trace rewrite (per-AST-node values are
+      // a follow-up PR). Drop the dump until the new tracer lands.
+      ignore<unit> ()
 
       // Promote any ephemeral blobs to content-addressed Persistent
       // refs so two expressions that construct the same bytes via

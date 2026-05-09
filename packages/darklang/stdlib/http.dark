@@ -49,7 +49,7 @@ let parseHeaders (s: String) : Dict<String> =
       | [] -> Stdlib.Option.Option.None
       | [ _ ] -> Stdlib.Option.Option.None
       | name :: rest ->
-        let value = Stdlib.String.join rest ":" |> Stdlib.String.trim
+        let value = (Stdlib.String.join rest ":") |> Stdlib.String.trim
         Stdlib.Option.Option.Some((Stdlib.String.trim name, value)))
   |> Stdlib.Dict.fromListOverwritingDuplicates
 

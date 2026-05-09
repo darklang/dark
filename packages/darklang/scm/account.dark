@@ -25,7 +25,7 @@ let getById (id: Uuid) : Stdlib.Option.Option<Account> =
 /// Every account in the DB, ordered by name. Used by `login` for
 /// listing/completion.
 let list () : List<Account> =
-  Builtin.scmAccountList ()
+  (Builtin.scmAccountList ())
   |> Stdlib.List.map (fun pair ->
     let (id, name) = pair
     Account { id = id; name = name })

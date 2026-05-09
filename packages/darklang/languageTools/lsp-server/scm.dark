@@ -86,11 +86,11 @@ let handleCommitRequest
   match state.accountID with
   | None ->
     let response =
-      JsonRPC.Response.Error.make
+      (JsonRPC.Response.Error.make
         (Stdlib.Option.Option.Some requestId)
-        JsonRPC.RequestCancelled
+        JsonRPC.Response.Error.KnownErrorCodes.internalError
         "No active account; log in via the CLI before committing"
-        Stdlib.Option.Option.None
+        Stdlib.Option.Option.None)
       |> Stdlib.AltJson.format
     logAndSendToClient response
     state

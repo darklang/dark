@@ -156,8 +156,7 @@ let fns () : List<BuiltInFn> =
                       []
                     ) }
 
-              let toplevel = PT.Toplevel.TLDB db
-              do! Toplevels.saveTLIDs [ (toplevel, Serialize.NotDeleted) ]
+              do! Toplevels.saveTLIDs [ (db, Serialize.NotDeleted) ]
               return Dval.resultOk KTUInt64 KTString (DUInt64 tlid)
           }
         | _ -> incorrectArgs ())
