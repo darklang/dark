@@ -115,17 +115,16 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | Some script ->
       let result = Builtin.cliParseAndExecuteScript state.accountID state.currentBranchId $"script:{name}" script.text [] false
       match result with
+      | Ok 0L -> state
       | Ok exitCode ->
-        let message = $"Script '{name}' executed with exit code: {Stdlib.Int64.toString exitCode}"
-        Stdlib.printLine message
+        Stdlib.printLine $"Script '{name}' exited with code {Stdlib.Int64.toString exitCode}"
         state
       | Error runtimeError ->
         let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString state.currentBranchId runtimeError
         Stdlib.printLine $"Script error: {prettyError}"
         state
     | None ->
-      let error = $"Script '{name}' not found"
-      Stdlib.printLine $"Error: {error}"
+      Stdlib.printLine $"Error: Script '{name}' not found"
       state
 
   | _ ->

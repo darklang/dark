@@ -1,7 +1,9 @@
 module Darklang.Cli.Commands.Login
 
 // `login <name>` populates AppState.accountID + accountName from
-// the accounts table. `login` (no arg) lists known accounts.
+// the accounts table, and persists the account UUID to cli-config.json
+// so subsequent non-interactive invocations stay logged in.
+// `login` (no arg) lists known accounts.
 
 let execute (state: AppState) (args: List<String>) : AppState =
   match args with
@@ -27,6 +29,16 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine "Run `login` to see the available accounts."
       state
     | Some account ->
+      // Persist to cli-config.json so the next CLI invocation
+      // (or non-interactive command) starts logged in.
+      let config = Config.readConfig ()
+      let updated =
+        Stdlib.Dict.setOverridingDuplicates
+          config
+          "session.account_id"
+          (Stdlib.Uuid.toString account.id)
+      Config.writeConfig updated
+
       Stdlib.printLine (Colors.success $"Logged in as {account.name}.")
       { state with
           accountID = Stdlib.Option.Option.Some account.id

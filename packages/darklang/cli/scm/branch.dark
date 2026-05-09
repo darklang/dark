@@ -1,5 +1,8 @@
 module Darklang.Cli.SCM.Branch
 
+// Branch is per-process (not persisted) — use `--branch <name>`
+// or `DARK_BRANCH=<name>` for non-interactive picks.
+
 
 /// Format annotations for a branch (pending WIP and/or commit count).
 /// Main branch only shows WIP, other branches show both.
@@ -151,12 +154,18 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [ "create"; name ] ->
     let newBranch = SCM.Branch.create name state.currentBranchId
     Stdlib.printLine (Colors.success $"Created and switched to branch '{name}'")
+    if state.nonInteractive then
+      Stdlib.printLine
+        "(non-interactive: pass --branch or set DARK_BRANCH on the next call)"
     { state with currentBranchId = newBranch.id }
 
   | [ "switch"; name ] ->
     match SCM.Branch.getByName name with
     | Some b ->
       Stdlib.printLine $"Switched to branch '{name}'"
+      if state.nonInteractive then
+        Stdlib.printLine
+          "(non-interactive: pass --branch or set DARK_BRANCH on the next call)"
       { state with currentBranchId = b.id }
     | None ->
       Stdlib.printLine (Colors.error $"Branch '{name}' not found.")

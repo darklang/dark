@@ -1,11 +1,19 @@
 module Darklang.Cli.Commands.Logout
 
-// `logout` clears AppState.accountID. Subsequent commit/serve/etc.
-// are blocked until the next `login`.
+// `logout` clears AppState.accountID and the persisted session entry
+// in cli-config.json. Subsequent commit/serve/etc. are blocked until
+// the next `login`.
 
 let execute (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] ->
+    // Always clear the persisted session entry, even if in-memory
+    // state thinks we're not logged in (could be a non-interactive
+    // invocation that started fresh).
+    let config = Config.readConfig ()
+    let updated = Stdlib.Dict.remove config "session.account_id"
+    Config.writeConfig updated
+
     match state.accountID with
     | None ->
       Stdlib.printLine "Not logged in."

@@ -291,6 +291,7 @@ and fns () : List<BuiltInFn> =
                     (RunScript(filename, code))
                 with
                 | Ok(DInt64 i) -> return resultOk (DInt64 i)
+                | Ok DUnit -> return resultOk (DInt64 0L)
                 | Ok result ->
                   return
                     RuntimeError.CLIs.NonIntReturned result

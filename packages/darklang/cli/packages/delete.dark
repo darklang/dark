@@ -84,7 +84,7 @@ let toDeprecateArgs
     if parsed.message != "" then [ "-m"; parsed.message ] else []
   let confirmArgs = if parsed.autoConfirm then [ "--yes" ] else []
   let dryRunArgs = if parsed.dryRun then [ "--dry-run" ] else []
-  Stdlib.List.concat [ baseArgs; messageArgs; confirmArgs; dryRunArgs ]
+  Stdlib.List.flatten [ baseArgs; messageArgs; confirmArgs; dryRunArgs ]
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =

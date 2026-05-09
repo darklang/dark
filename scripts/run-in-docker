@@ -41,10 +41,19 @@ gid="$(id -g)"
 gid=$((gid > 1000 ? gid : 1000))
 USER="$(id -u):$gid"
 
+# Propagate DARK_* env vars from the host into the container so that
+# settings like DARK_BRANCH (which the CLI reads via Builtin.environmentGet)
+# survive the docker-exec hop. -e VAR (no `=`) tells docker exec to use
+# the host value for VAR.
+DARK_ENV_FLAGS=()
+for var in $(env | sed -n 's/^\(DARK_[A-Z0-9_]*\)=.*/\1/p'); do
+  DARK_ENV_FLAGS+=( -e "$var" )
+done
+
 if [ -t 0 ] ;
 then
-  docker exec -it "${NAME}" "${ARGS[@]}" ;
+  docker exec "${DARK_ENV_FLAGS[@]}" -it "${NAME}" "${ARGS[@]}" ;
 else
   # Replace any in-container filenames with host filenames (stdout + stderr)
-  { cat <&0 | fix_dir_stdin | docker exec -i "${NAME}" "${ARGS[@]}" 2>&1 1>&3 3>&- | fix_dir_stdout; } 3>&1 1>&2 | fix_dir_stdout
+  { cat <&0 | fix_dir_stdin | docker exec "${DARK_ENV_FLAGS[@]}" -i "${NAME}" "${ARGS[@]}" 2>&1 1>&3 3>&- | fix_dir_stdout; } 3>&1 1>&2 | fix_dir_stdout
 fi
