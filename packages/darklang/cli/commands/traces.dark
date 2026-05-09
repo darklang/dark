@@ -175,108 +175,67 @@ let private confirmDestructive (autoConfirm: Bool) (action: String) : Bool =
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
-  // `--yes` / `-y` strips out before dispatch so the existing exact-match
-  // arms don't need new permutations. Destructive arms read this flag.
+  // Hoist boolean flags out to single bools so each subcommand's arms
+  // don't have to enumerate their position. `--yes`/`-y` for destructive
+  // confirmations; `--json` for output format; `--view` is find-only.
   let autoConfirm =
     (Stdlib.List.member_v0 args "--yes") || (Stdlib.List.member_v0 args "-y")
+  let wantsJson = Stdlib.List.member_v0 args "--json"
+  let wantsFindView = Stdlib.List.member_v0 args "--view"
   let args =
-    args |> Stdlib.List.filter (fun a -> a != "--yes" && a != "-y")
+    args
+    |> Stdlib.List.filter (fun a ->
+      a != "--yes" && a != "-y" && a != "--json" && a != "--view")
   match args with
   | [] ->
     help state
     state
 
-  | [ "list" ] -> executeList state 20L
-  | [ "list"; "--json" ] -> executeListJson state 20L
-  | [ "list"; "--json"; limitStr ]
-  | [ "list"; limitStr; "--json" ] ->
-    match Stdlib.Int64.parse limitStr with
-    | Ok limit -> executeListJson state limit
-    | Error _ ->
-      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
-      state
-  // Flag-without-arg cases need to be matched BEFORE
-  // `[ "list"; limitStr ]` since `--fn` / `--route` are valid one-arg
-  // tokens that the limit arm would otherwise eat.
+  | [ "list" ] ->
+    if wantsJson then executeListJson state 20L else executeList state 20L
   | [ "list"; "--fn" ] ->
     Stdlib.printLine
-      (Colors.error
-        "Usage: traces list --fn <name> [limit] [--json]")
+      (Colors.error "Usage: traces list --fn <name> [limit] [--json]")
     state
   | [ "list"; "--route" ] ->
     Stdlib.printLine
-      (Colors.error
-        "Usage: traces list --route <substring> [limit] [--json]")
+      (Colors.error "Usage: traces list --route <substring> [limit] [--json]")
     state
   | [ "list"; limitStr ] ->
     match Stdlib.Int64.parse limitStr with
-    | Ok limit -> executeList state limit
+    | Ok limit ->
+      if wantsJson then executeListJson state limit else executeList state limit
     | Error _ ->
       Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
       state
-
   | [ "list"; "--fn"; fnName ] ->
-    executeListByFn state fnName 20L false
-  | [ "list"; "--fn"; fnName; "--json" ]
-  | [ "list"; "--json"; "--fn"; fnName ] ->
-    executeListByFn state fnName 20L true
+    executeListByFn state fnName 20L wantsJson
   | [ "list"; "--fn"; fnName; limitStr ] ->
     match Stdlib.Int64.parse limitStr with
-    | Ok limit -> executeListByFn state fnName limit false
+    | Ok limit -> executeListByFn state fnName limit wantsJson
     | Error _ ->
       Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
       state
-  | [ "list"; "--fn"; fnName; "--json"; limitStr ]
-  | [ "list"; "--fn"; fnName; limitStr; "--json" ]
-  | [ "list"; "--json"; "--fn"; fnName; limitStr ] ->
-    match Stdlib.Int64.parse limitStr with
-    | Ok limit -> executeListByFn state fnName limit true
-    | Error _ ->
-      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
-      state
-
   | [ "list"; "--route"; route ] ->
-    executeListByRoute state route 20L false
-  | [ "list"; "--route"; route; "--json" ]
-  | [ "list"; "--json"; "--route"; route ] ->
-    executeListByRoute state route 20L true
+    executeListByRoute state route 20L wantsJson
   | [ "list"; "--route"; route; limitStr ] ->
     match Stdlib.Int64.parse limitStr with
-    | Ok limit -> executeListByRoute state route limit false
-    | Error _ ->
-      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
-      state
-  | [ "list"; "--route"; route; "--json"; limitStr ]
-  | [ "list"; "--route"; route; limitStr; "--json" ]
-  | [ "list"; "--json"; "--route"; route; limitStr ] ->
-    match Stdlib.Int64.parse limitStr with
-    | Ok limit -> executeListByRoute state route limit true
+    | Ok limit -> executeListByRoute state route limit wantsJson
     | Error _ ->
       Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
       state
 
   | [ "follow" ] ->
-    executeFollow state Stdlib.Option.Option.None false
-  | [ "follow"; "--json" ] ->
-    executeFollow state Stdlib.Option.Option.None true
+    executeFollow state Stdlib.Option.Option.None wantsJson
   | [ "follow"; "--route"; route ] ->
-    executeFollow state (Stdlib.Option.Option.Some route) false
-  | [ "follow"; "--route"; route; "--json" ]
-  | [ "follow"; "--json"; "--route"; route ] ->
-    executeFollow state (Stdlib.Option.Option.Some route) true
+    executeFollow state (Stdlib.Option.Option.Some route) wantsJson
 
-  | [ "stats" ] -> executeStats state 100L
-  | [ "stats"; "--json" ] -> executeStatsJson state 100L
-  | [ "stats"; "--json"; limitStr ]
-  | [ "stats"; limitStr; "--json" ] ->
-    match Stdlib.Int64.parse limitStr with
-    | Ok limit -> executeStatsJson state limit
-    | Error _ ->
-      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
-      state
+  | [ "stats" ] ->
+    if wantsJson then executeStatsJson state 100L else executeStats state 100L
   | [ "stats"; limitStr ] ->
     match Stdlib.Int64.parse limitStr with
-    | Ok limit -> executeStats state limit
+    | Ok limit ->
+      if wantsJson then executeStatsJson state limit else executeStats state limit
     | Error _ ->
       Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
       state
@@ -304,48 +263,30 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine (Colors.error (parsePositionalErr nStr "trace number"))
       state
 
-  | [ "find"; "--json" ] ->
-    Stdlib.printLine
-      (Colors.error "Usage: traces find <pattern> --json [limit]")
-    state
-  | [ "find"; "--view" ] ->
-    Stdlib.printLine
-      (Colors.error "Usage: traces find <pattern> --view")
-    state
-  | [ "find"; pattern ] -> executeFind state pattern 20L
-  | [ "find"; pattern; "--view" ]
-  | [ "find"; "--view"; pattern ] ->
-    executeFindView state pattern
-  | [ "find"; pattern; "--json" ]
-  | [ "find"; "--json"; pattern ] ->
-    executeFindJson state pattern 20L
-  | [ "find"; pattern; "--json"; limitStr ]
-  | [ "find"; pattern; limitStr; "--json" ]
-  | [ "find"; "--json"; pattern; limitStr ] ->
-    match Stdlib.Int64.parse limitStr with
-    | Ok limit -> executeFindJson state pattern limit
-    | Error _ ->
-      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
-      state
+  | [ "find"; pattern ] ->
+    if wantsFindView then
+      executeFindView state pattern
+    elif wantsJson then
+      executeFindJson state pattern 20L
+    else
+      executeFind state pattern 20L
   | [ "find"; pattern; limitStr ] ->
     match Stdlib.Int64.parse limitStr with
-    | Ok limit -> executeFind state pattern limit
+    | Ok limit ->
+      if wantsJson then executeFindJson state pattern limit
+      else executeFind state pattern limit
     | Error _ ->
       Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
       state
 
-  | [ "hotspots" ] -> executeHotspots state 100L
-  | [ "hotspots"; "--json" ] -> executeHotspotsJson state 100L
-  | [ "hotspots"; "--json"; limitStr ]
-  | [ "hotspots"; limitStr; "--json" ] ->
-    match Stdlib.Int64.parse limitStr with
-    | Ok limit -> executeHotspotsJson state limit
-    | Error _ ->
-      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
-      state
+  | [ "hotspots" ] ->
+    if wantsJson then executeHotspotsJson state 100L
+    else executeHotspots state 100L
   | [ "hotspots"; limitStr ] ->
     match Stdlib.Int64.parse limitStr with
-    | Ok limit -> executeHotspots state limit
+    | Ok limit ->
+      if wantsJson then executeHotspotsJson state limit
+      else executeHotspots state limit
     | Error _ ->
       Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
       state
