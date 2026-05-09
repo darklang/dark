@@ -6,6 +6,7 @@ open LibExecution.Builtin.Shortcuts
 
 module PackageRefs = LibExecution.PackageRefs
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+module Exe = LibExecution.Execution
 
 
 let fns () : List<BuiltInFn> =
@@ -28,6 +29,25 @@ let fns () : List<BuiltInFn> =
         function
         | _, _, _, [ dv ] -> dv |> RT2DT.Dval.toDT |> Ply
         | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Pure
+      deprecated = NotDeprecated
+      accessibility = Any }
+
+
+    { name = fn "toRepr" 0
+      typeParams = []
+      parameters = [ Param.make "value" (TVariable "a") "The value to convert." ]
+      returnType = TString
+      description = "Returns a string representation of the given <param value>"
+      fn =
+        (function
+        | exeState, _, _, [ value ] ->
+          uply {
+            let! repr = Exe.dvalToRepr exeState value
+            return DString repr
+          }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
       deprecated = NotDeprecated

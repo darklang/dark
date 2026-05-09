@@ -7,7 +7,6 @@ open LibExecution.Builtin.Shortcuts
 module PackageRefs = LibExecution.PackageRefs
 module Dval = LibExecution.Dval
 module ValueType = LibExecution.ValueType
-module Exe = LibExecution.Execution
 module RTE = RuntimeError
 
 
@@ -263,24 +262,7 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    /// CLEANUP not sure why we need this - feels like an extra step. (package -> builtin -> package)
-    { name = fn "toRepr" 0
-      typeParams = []
-      parameters = [ Param.make "value" (TVariable "a") "The value to convert." ]
-      returnType = TString
-      description = "Returns a string representation of the given <param value>"
-      fn =
-        (function
-        | exeState, _, _, [ value ] ->
-          uply {
-            let! repr = Exe.dvalToRepr exeState value
-            return DString repr
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any } ]
+  ]
 
 
 let builtins () = LibExecution.Builtin.make [] (fns ())
