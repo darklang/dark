@@ -266,11 +266,8 @@ let private testTracesHelp =
               "follow"
               "find"
               "hotspots"
-              "import"
               "replay"
               "delete"
-              "prune"
-              "clear"
               "--json" ] do
             Expect.stringContains output term $"contains {term}"
         })
@@ -281,7 +278,7 @@ let private testTracesTailShowsLastEval =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "let x = 7L\nx" ]
           let! output = runCli state [ "traces"; "tail" ]
           Expect.stringContains output "Handler: eval" "eval handler line"
@@ -295,7 +292,7 @@ let private testTracesClearEmpties =
       withState (fun state ->
         task {
           let! _ = runCli state [ "eval"; "1L + 2L" ]
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! listOut = runCli state [ "traces"; "list" ]
           Expect.stringContains listOut "No traces found." "post-clear state"
         })
@@ -306,13 +303,13 @@ let private testTracesClearEmptiesList =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "let x = 99L\nx" ]
 
           let! beforeOut = runCli state [ "traces"; "list" ]
           Expect.isFalse (beforeOut.Contains "No traces") "list non-empty pre-clear"
 
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! afterOut = runCli state [ "traces"; "list" ]
           Expect.stringContains afterOut "No traces" "list empty post-clear"
         })
@@ -323,7 +320,7 @@ let private testTracesStatsCounts =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "1L" ]
           let! _ = runCli state [ "eval"; "2L" ]
           let! output = runCli state [ "traces"; "stats" ]
@@ -338,7 +335,7 @@ let private testTracesFindByContent =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "\"unique-token-xyz12345\"" ]
           let! _ = runCli state [ "eval"; "1L + 1L" ]
           let! output = runCli state [ "traces"; "find"; "unique-token-xyz12345" ]
@@ -352,7 +349,7 @@ let private testTracesDeleteSingle =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "1L + 1L" ]
           let! _ = runCli state [ "eval"; "2L + 2L" ]
 
@@ -377,7 +374,7 @@ let private testTracesPruneKeep =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "1L" ]
           let! _ = runCli state [ "eval"; "2L" ]
           let! _ = runCli state [ "eval"; "3L" ]
@@ -386,7 +383,7 @@ let private testTracesPruneKeep =
           let! latestJson = runCli state [ "traces"; "list"; "1"; "--json" ]
           let latestTid = parseTraceID latestJson
 
-          let! pruneOut = runCli state [ "traces"; "prune"; "--keep"; "1" ]
+          let! pruneOut = runCli state [ "traces"; "delete"; "--keep"; "1" ]
           Expect.stringContains pruneOut "Pruned 2 trace" "prune confirm"
 
           // Post-prune: the previously-latest is the only one left.
@@ -416,7 +413,7 @@ let private testTracesArgOrderingsWork =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "1L + 1L" ]
           let! tailNFirst =
             runCli state [ "traces"; "tail"; "1"; "--route"; "eval" ]
@@ -435,7 +432,7 @@ let private testTracesFindEscapesLikeWildcards =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "1L + 1L" ]
           let! pctOut = runCli state [ "traces"; "find"; "%" ]
           Expect.stringContains pctOut "No traces match '%'." "literal %"
@@ -451,7 +448,7 @@ let private testTracesRouteEmptyRejection =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "1L + 1L" ]
           let cases =
             [ [ "traces"; "tail"; "--route"; "" ],
@@ -472,7 +469,7 @@ let private testTracesArity1Catchalls =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "1L + 1L" ]
           let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
           let tid = parseTraceID listJson
@@ -491,7 +488,7 @@ let private testTracesStatsHintHiddenForEvalOnly =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "1L + 1L" ]
           let! _ = runCli state [ "eval"; "2L + 2L" ]
           let! statsOut = runCli state [ "traces"; "stats" ]
@@ -528,7 +525,7 @@ let private testTracesFiltersAreCaseInsensitive =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "1L + 1L" ]
           let! listLower = runCli state [ "traces"; "list"; "--route"; "eval" ]
           Expect.stringContains listLower "eval" "lower matches"
@@ -563,7 +560,7 @@ let private testTracesViewRejectsNegativeSubOptions =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "1L + 1L" ]
           let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
           let tid = parseTraceID listJson
@@ -575,23 +572,23 @@ let private testTracesViewRejectsNegativeSubOptions =
         })
   }
 
-let private testTracesClearAndPruneGrammar =
-  testTask "clear/prune singular vs plural phrasing" {
+let private testTracesDeleteGrammar =
+  testTask "delete --all/--keep singular vs plural phrasing" {
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "1L + 1L" ]
-          let! clearOne = runCli state [ "traces"; "clear" ]
-          let! _ = runCli state [ "eval"; "1L + 1L" ]
-          let! _ = runCli state [ "eval"; "2L + 2L" ]
-          let! clearTwo = runCli state [ "traces"; "clear" ]
+          let! clearOne = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "1L + 1L" ]
           let! _ = runCli state [ "eval"; "2L + 2L" ]
-          let! pruneNone = runCli state [ "traces"; "prune"; "--keep"; "0" ]
+          let! clearTwo = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
+          let! _ = runCli state [ "eval"; "1L + 1L" ]
+          let! _ = runCli state [ "eval"; "2L + 2L" ]
+          let! pruneNone = runCli state [ "traces"; "delete"; "--keep"; "0" ]
           let! _ = runCli state [ "eval"; "3L + 3L" ]
           let! _ = runCli state [ "eval"; "4L + 4L" ]
-          let! pruneOne = runCli state [ "traces"; "prune"; "--keep"; "1" ]
+          let! pruneOne = runCli state [ "traces"; "delete"; "--keep"; "1" ]
 
           Expect.stringContains clearOne "Cleared 1 trace." "singular"
           Expect.stringContains clearTwo "Cleared 2 traces." "plural"
@@ -605,7 +602,7 @@ let private testTracesReplayReruns =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "1L + 2L" ]
           let! listJsonBefore = runCli state [ "traces"; "list"; "1"; "--json" ]
           let tid = parseTraceID listJsonBefore
@@ -626,48 +623,12 @@ let private testTracesReplayReruns =
   }
 
 
-let private testTracesImportRoundtrip =
-  testTask "traces import: synthetic JSON round-trips into a usable trace" {
-    do!
-      withState (fun state ->
-        task {
-          // Hand-built export-shaped JSON. Mirrors what tracesExport
-          // would produce — minimum required keys + one fn_call row.
-          // Asserts: import succeeds, trace shows up in `list`.
-          // FormatV0 Dval shape is `[tag, string-payload]` for
-          // primitives — DInt64 is `["DInt64","1"]` not
-          // `["DInt64",1]`; the parser does Int64.Parse on the
-          // string form.
-          let traceId = "00000000-1111-2222-3333-000000000001"
-          let payload =
-            sprintf
-              "{\"id\":\"%s\",\"handler_desc\":\"eval\",\"timestamp\":\"2026-05-07T12:00:00Z\",\"input_name\":\"expression\",\"input_value\":[\"DString\",\"1L + 2L\"],\"fn_calls\":[{\"call_id\":\"call-a\",\"parent_call_id\":null,\"kind\":\"fn\",\"fn_hash\":\"int64Add\",\"lambda_expr_id\":null,\"args\":[[\"DInt64\",\"1\"],[\"DInt64\",\"2\"]],\"result\":[\"DInt64\",\"3\"]}]}"
-              traceId
-          let tmp = System.IO.Path.GetTempFileName()
-          try
-            do! System.IO.File.WriteAllTextAsync(tmp, payload)
-            let! out = runCli state [ "traces"; "import"; tmp ]
-            Expect.stringContains out traceId "import returned the trace ID"
-            let! listOut = runCli state [ "traces"; "list" ]
-            Expect.stringContains
-              listOut
-              (traceId.Substring(0, 8))
-              "imported trace appears in list"
-          finally
-            try
-              System.IO.File.Delete tmp
-            with _ ->
-              ()
-        })
-  }
-
-
 let private testTracesPruneIdempotent =
   testTask "traces prune --keep is idempotent under repeated runs" {
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           for _ in 1..5 do
             let! _ = runCli state [ "eval"; "1L + 2L" ]
             ()
@@ -679,9 +640,9 @@ let private testTracesPruneIdempotent =
           // "kept" set is consistent. Verifying the result is
           // deterministic across repeated calls is the cheap
           // observable check that doesn't need parallel writers.
-          let! _ = runCli state [ "traces"; "prune"; "--keep"; "2" ]
-          let! _ = runCli state [ "traces"; "prune"; "--keep"; "2" ]
-          let! _ = runCli state [ "traces"; "prune"; "--keep"; "2" ]
+          let! _ = runCli state [ "traces"; "delete"; "--keep"; "2" ]
+          let! _ = runCli state [ "traces"; "delete"; "--keep"; "2" ]
+          let! _ = runCli state [ "traces"; "delete"; "--keep"; "2" ]
 
           let! listOut = runCli state [ "traces"; "list" ]
           // Lines look like "  <timestamp>  <uuid>  <handler>".
@@ -704,7 +665,7 @@ let private testTracesLargeTraceListSurvives =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           // Not the multi-MB stress case — but enough to verify
           // list / find don't OOM or time out on a moderately-large
           // store.
@@ -727,7 +688,7 @@ let private testTracesViewToleratesCorruptedRow =
     do!
       withState (fun state ->
         task {
-          let! _ = runCli state [ "traces"; "clear" ]
+          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
           let! _ = runCli state [ "eval"; "Stdlib.Int64.add 1L 2L" ]
           let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
           let tid = parseTraceID listJson
@@ -753,57 +714,6 @@ let private testTracesViewToleratesCorruptedRow =
             "corrupt row dropped from rendered tree"
           // Surviving rows from the eval still render.
           Expect.stringContains out "Stdlib" "non-corrupt rows still render"
-        })
-  }
-
-
-let private testTracesImportRejectsBadJson =
-  testTask "traces import rejects malformed JSON with a useful error" {
-    do!
-      withState (fun state ->
-        task {
-          // Top-level garbage: not a JSON object at all.
-          let tmp = System.IO.Path.GetTempFileName()
-          try
-            do! System.IO.File.WriteAllTextAsync(tmp, "not json at all")
-            let! out = runCli state [ "traces"; "import"; tmp ]
-            // Either the file-read raises or the JsonDocument.Parse
-            // catch fires; the user-visible error should mention
-            // "parse" / "trace JSON" without leaking the full ex.
-            Expect.stringContains
-              (out.ToLower())
-              "parse"
-              "import error mentions parse failure"
-          finally
-            try
-              System.IO.File.Delete tmp
-            with _ ->
-              ()
-        })
-  }
-
-
-let private testTracesImportRejectsBadDvalShape =
-  testTask "traces import rejects malformed Dval JSON with a labeled error" {
-    do!
-      withState (fun state ->
-        task {
-          // Valid top-level shape but `input_value` isn't a parseable Dval.
-          let tmp = System.IO.Path.GetTempFileName()
-          try
-            let payload =
-              """{"id":"00000000-0000-0000-0000-000000000000","handler_desc":"eval","timestamp":"2026-01-01T00:00:00Z","input_name":"expression","input_value":["NotARealDvalTag"],"fn_calls":[]}"""
-            do! System.IO.File.WriteAllTextAsync(tmp, payload)
-            let! out = runCli state [ "traces"; "import"; tmp ]
-            Expect.stringContains
-              out
-              "input_value"
-              "import error labels the failing field"
-          finally
-            try
-              System.IO.File.Delete tmp
-            with _ ->
-              ()
         })
   }
 
@@ -856,15 +766,12 @@ let tests =
       testTracesDeleteSingle
       testTracesPruneKeep
       testTracesReplayReruns
-      testTracesImportRejectsBadJson
-      testTracesImportRejectsBadDvalShape
-      testTracesImportRoundtrip
       testTracesPruneIdempotent
       testTracesLargeTraceListSurvives
       testTracesViewToleratesCorruptedRow
       testTracesRejectsNegativeLimit
       testTracesRejectsFlagAsTraceId
-      testTracesClearAndPruneGrammar
+      testTracesDeleteGrammar
       testTracesViewRejectsNegativeSubOptions
       testTracesRejectsEmptyPattern
       testTracesFiltersAreCaseInsensitive
