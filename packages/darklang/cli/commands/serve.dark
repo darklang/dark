@@ -1,17 +1,7 @@
 module Darklang.Cli.Commands.Serve
 
 // Run an HTTP server backed by a Darklang router.
-//
 // Usage: serve <router-path> [--port N] [--max-body-bytes N]
-//
-// Defaults: port=8080, max-body-bytes=30 MB.
-//
-// The router path is resolved at runtime via cliEvaluateExpression: the
-// command builds the source string and evaluates it in a single VM, so the
-// lambda-instruction cache (lambdaInstrCache / packageFnInstrCache live on
-// ExecutionState) is populated by the same VM that calls into the
-// httpServerServe builtin. No cross-context lambda lookups, so any package
-// fn or value can be served.
 
 /// Parsed flags + positional. `routerPath = ""` means "no router given".
 type Args =
@@ -58,7 +48,7 @@ let rec parseArgs (rest: List<String>) (acc: Args) : Args =
               $"Unexpected extra argument: {positional} (router path already given as {acc.routerPath})" }
 
 
-let printUsage () : Unit =
+let usageLines () : List<String> =
   [ "Usage: serve <router-path> [--port N] [--max-body-bytes N]"
     ""
     "Arguments:"
@@ -69,16 +59,9 @@ let printUsage () : Unit =
     "Examples:"
     "  serve Darklang.DemoData.HttpServerTest.router"
     "  serve Some.Adhoc.Router --port 9000"
-    "  serve My.Service.app --port 80 --max-body-bytes 5242880"
-    ""
-    "Performance:"
-    "  Per-request latency depends heavily on whether the client reuses TCP"
-    "  connections. New-connection-per-request: ~130 ms median. Keepalive"
-    "  (HTTP/1.1, default for browsers, fetch, axios, requests, and most"
-    "  HTTP libraries): ~10–15 ms. The 130 ms only bites short-lived"
-    "  clients like shell-script `curl` loops; real-world clients reuse"
-    "  connections automatically and see the keepalive number." ]
-  |> Stdlib.printLines
+    "  serve My.Service.app --port 80 --max-body-bytes 5242880" ]
+
+let printUsage () : Unit = usageLines () |> Stdlib.printLines
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
@@ -136,25 +119,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 
 let help (state: Cli.AppState) : Cli.AppState =
-  [ "Start an HTTP server backed by a Darklang router."
-    ""
-    "Usage: serve <router-path> [--port N] [--max-body-bytes N]"
-    ""
-    "Arguments:"
-    "  router-path        Dotted path to a router fn or value (Request -> Response)"
-    "  --port N           TCP port to listen on (default: 8080)"
-    "  --max-body-bytes N Reject request bodies larger than N bytes (default: 31457280, 30 MB)"
-    ""
-    "Examples:"
-    "  serve Darklang.DemoData.HttpServerTest.router"
-    "  serve Some.Adhoc.Router --port 9000"
-    "  serve My.Service.app --port 80 --max-body-bytes 5242880"
-    ""
-    "Aliases: http-server (legacy, takes the same flags)"
-    ""
-    "The server runs until you press Ctrl+C." ]
-  |> Stdlib.printLines
-
+  Stdlib.printLine "Start an HTTP server backed by a Darklang router."
+  Stdlib.printLine ""
+  printUsage ()
   state
 
 

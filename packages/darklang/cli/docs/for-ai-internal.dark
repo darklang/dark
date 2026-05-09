@@ -7,10 +7,11 @@ let content () : String =
   backend/src/          # F# source
     LibExecution/       # execution engine
     LibParser/          # parser
-    LibDB/              # package DB, branches, SCM ops, user DB
-    LibSqlite/          # SQLite plumbing under LibDB
-    Builtins/           # builtin sub-projects (Execution, PM, CliHost,
-                        # HttpServer, DB, DarkInternal, Tracing)
+    LibDB/              # package DB, branches, SCM ops, user DB,
+                        # SQLite plumbing (LibDB.Sqlite), tracing recorder
+    Builtins/           # builtin sub-projects:
+                        #   Cli, CliHost, Http.Client, Http.Server,
+                        #   Language, Matter, Pure, Random, Time
   packages/darklang/    # .dark files
     cli/                # CLI code
     scm/                # SCM library (branch, rebase, merge, packageOps)
@@ -42,8 +43,18 @@ is never needed and just hardcodes container IDs that change across
 rebuilds.
 
 ## Adding Builtin (F#)
-  backend/src/Builtins/Builtins.Execution/Libs/<module>.fs
-  Add to `fns` list, save, wait for rebuild
+  Pick the right Builtins subproject:
+    Builtins.Pure        # pure stdlib (String, List, Json, …)
+    Builtins.Matter      # impure: DB, package store, traces
+    Builtins.Language    # reflection, parser, language-tools
+    Builtins.Http.Server # HTTP server
+    Builtins.Http.Client # HTTP client
+    Builtins.CliHost     # CLI eval / script entry
+    Builtins.Cli         # CLI side-effects (file, terminal, …)
+    Builtins.Time        # DateTime / Time
+    Builtins.Random      # Random / Uuid
+  Add the fn to the `fns` list in the relevant `Libs/<module>.fs`,
+  save, wait for rebuild.
 
 ## Style
   `///` for doc comments on types/DU cases/fns (both F# and Dark); `//` for inline notes.
@@ -67,9 +78,9 @@ is when the value genuinely has no Dark-side type (very rare).
   LibDB/Inserts.fs     # ops take branchId
   LibDB/Queries.fs     # branch-aware SQL queries
   LibDB/PackageManager.fs # pt(branchId) constructs PM
-  Builtins/Builtins.PM/Libs/Branches.fs   # branch builtins
-  Builtins/Builtins.PM/Libs/Rebase.fs     # rebase builtins
-  Builtins/Builtins.PM/Libs/Merge.fs      # merge builtins
+  Builtins/Builtins.Matter/Libs/PM/Branches.fs # branch builtins
+  Builtins/Builtins.Matter/Libs/PM/Rebase.fs   # rebase builtins
+  Builtins/Builtins.Matter/Libs/PM/Merge.fs    # merge builtins
 
 Key: PackageManager.pt takes a branchId and pre-computes the
 branch chain for name resolution. Items are global (content-addressed),

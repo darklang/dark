@@ -21,7 +21,6 @@ let testDBOplistRoundtrip =
   // Serialize.loadToplevels, expect identity. Catches regressions in
   // the binary-serialization → SQLite → binary-deserialization path.
   testTask "db oplist roundtrip" {
-    do! initializeTestCanvas "db_oplist_roundtrip"
     let db = testDB "myDB" PT.TInt64
     let tl = PT.Toplevel.TLDB db
 

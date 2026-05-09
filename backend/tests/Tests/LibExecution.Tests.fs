@@ -121,9 +121,10 @@ let t
   testTask $"line{lineNumber}" {
     try
       // Wipe per-test state when this test uses UserDB / handlers.
-      // Without scope_id columns to namespace rows, isolation between
-      // .dark testfile cases is "wipe + repopulate" (and the surrounding
-      // testList is testSequenced so wipes don't race parallel writes).
+      // Single-instance Dark — toplevels_v0 / user_data_v0 are global,
+      // so isolation between .dark testfile cases is "wipe +
+      // repopulate" (the surrounding testList is testSequenced so
+      // wipes don't race parallel writes).
       if dbs <> [] || workers <> [] then
         do! Sql.query "DELETE FROM toplevels_v0" |> Sql.executeStatementAsync
         do! Sql.query "DELETE FROM user_data_v0" |> Sql.executeStatementAsync
@@ -332,10 +333,9 @@ let fileTests () : Test =
             |> List.concat
 
           // .dark files under `cloud/` exercise UserDB / handler state
-          // through shared toplevels_v0 / user_data_v0 rows (no
-          // scope_id namespacing). Run those file's cases sequentially
-          // so the per-test wipe + setupDBs in `t` doesn't race
-          // parallel writes from sibling tests.
+          // through shared toplevels_v0 / user_data_v0 rows. Run those
+          // file's cases sequentially so the per-test wipe + setupDBs
+          // in `t` doesn't race parallel writes from sibling tests.
           let usesSharedDBState = dir.Contains "/cloud"
           if usesSharedDBState then
             testSequenced (testList testName tests)

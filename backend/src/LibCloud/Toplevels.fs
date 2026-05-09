@@ -15,18 +15,7 @@ module RT = LibExecution.RuntimeTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 
 
-// `Toplevels.create` was a constructor for the old per-scope ID;
-// callers now treat the toplevel set as global. Helper removed —
-// callers don't need a scope key anymore.
-
-/// <summary>
-/// Toplevel container scoped to a `scopeID` — DBs, handlers, etc.
-/// </summary>
-/// <remarks>
-/// This includes just a subset of the key program data. It is rare that all of
-/// the data for a scope will be loaded. Other metadata (creation date, etc.)
-/// can be fetched separately.
-/// </remarks>
+/// Container of DBs + handlers — single-instance Dark, so global.
 type T =
   { handlers : Map<tlid, PT.Handler.T>
     dbs : Map<tlid, PT.DB.T>

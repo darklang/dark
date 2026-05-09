@@ -71,7 +71,6 @@ CREATE TABLE IF NOT EXISTS
 traces_v0
 ( id TEXT PRIMARY KEY
 , trace_id TEXT NOT NULL -- why do we need this _and_ `id`?
-, scope_id TEXT NOT NULL
 -- the handler's (or for a function's default trace, the function's) TLID
 --   (used to store the trace data in Cloud Storage)
 -- TODO consider using a different mechanism here - fns might not have tlids...

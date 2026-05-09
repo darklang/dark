@@ -1303,13 +1303,14 @@ let executeClear (state: Cli.AppState) : Cli.AppState =
     state
 
 
-/// Parse a short duration string ("30s", "5m", "1h", "2d") into seconds.
-/// Single-character unit suffix; bare numbers are rejected so callers
-/// always state intent. Returns Error with a hint on malformed input.
-/// `-`-prefixed inputs are reported as "Unknown flag" rather than
-/// "Invalid duration" — same logic as `parsePositionalErr`.
+/// Parse a CLI duration arg. `-`-prefixed inputs are reported as
+/// "Unknown flag" rather than "Invalid duration" — same logic as
+/// `parsePositionalErr`. Otherwise delegates to `Stdlib.Duration.parse`.
 let parseDuration (s: String) : Stdlib.Result.Result<Int64, String> =
-  Darklang.Tracing.Duration.parse s
+  if Stdlib.String.startsWith s "-" then
+    Stdlib.Result.Result.Error $"Unknown flag: {s}"
+  else
+    Stdlib.Duration.parse s
 
 
 /// `traces clear --before <duration>` — drop traces older than the

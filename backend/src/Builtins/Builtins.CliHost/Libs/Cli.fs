@@ -249,7 +249,7 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "cliParseAndExecuteScript" 0
       typeParams = []
       parameters =
-        [ Param.make "scopeID" (TypeReference.option TUuid) ""
+        [ Param.make "accountID" (TypeReference.option TUuid) ""
           Param.make "branchId" TUuid ""
           Param.make "filename" TString ""
           Param.make "code" TString ""
@@ -323,7 +323,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "cliEvaluateExpression" 0
       typeParams = []
       parameters =
-        [ Param.make "scopeID" (TypeReference.option TUuid) ""
+        [ Param.make "accountID" (TypeReference.option TUuid) ""
           Param.make "branchId" TUuid ""
           Param.make "expression" TString ""
           Param.make
