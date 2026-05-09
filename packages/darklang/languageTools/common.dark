@@ -14,12 +14,23 @@ type BuiltinFunctionParameter =
   { name: String
     ``type``: RuntimeTypes.TypeReference }
 
+/// Purity classification for a builtin (mirrors RT.Previewable in F#).
+/// `Pure` is referentially transparent; `ImpurePreviewable` may vary
+/// across calls but is safe to preview client-side (e.g. `DateTime.now`,
+/// `Int.random`); `Impure` requires server execution (e.g. DB writes,
+/// HTTP).
+type BuiltinFunctionPurity =
+  | Pure
+  | ImpurePreviewable
+  | Impure
+
 /// A Darklang builtin function
 type BuiltinFunction =
   { name: RuntimeTypes.FQFnName.Builtin
     description: String
     parameters: List<BuiltinFunctionParameter>
-    returnType: RuntimeTypes.TypeReference }
+    returnType: RuntimeTypes.TypeReference
+    purity: BuiltinFunctionPurity }
 
 /// A Darklang builtin value
 type BuiltinValue =

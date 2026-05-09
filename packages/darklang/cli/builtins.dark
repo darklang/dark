@@ -65,6 +65,13 @@ let versionSuffix (v: Int32) : String =
   if v == 0l then "" else $"_v{Stdlib.Int32.toString v}"
 
 
+let purityTag (purity: LanguageTools.BuiltinFunctionPurity) : String =
+  match purity with
+  | Pure -> "[pure]"
+  | ImpurePreviewable -> "[impure-previewable]"
+  | Impure -> "[impure]"
+
+
 // Sort groups: known groups first in order, then unknown groups alphabetically
 let sortGroups
   (groups: List<String * List<LanguageTools.BuiltinFunction>>)
@@ -94,9 +101,12 @@ let execute (state: AppState) (args: List<String>): AppState =
 
   // Parse flags
   let withSigs = Stdlib.List.any args (fun arg -> arg == "--with-sigs")
+  let withPurity = Stdlib.List.any args (fun arg -> arg == "--with-purity")
 
   let filterArgs =
-    args |> Stdlib.List.filter (fun arg -> arg != "--with-sigs")
+    args
+    |> Stdlib.List.filter (fun arg ->
+      arg != "--with-sigs" && arg != "--with-purity")
 
   let filter =
     match filterArgs with
@@ -168,8 +178,11 @@ let execute (state: AppState) (args: List<String>): AppState =
         let returnTypeStr =
           PrettyPrinter.RuntimeTypes.typeReference branchId fn.returnType
 
+        let suffix =
+          if withPurity then $" {purityTag fn.purity}" else ""
+
         Stdlib.printLine
-          $"  {fn.name.name}{versionSuffix fn.name.version}({params}) -> {returnTypeStr}"))
+          $"  {fn.name.name}{versionSuffix fn.name.version}({params}) -> {returnTypeStr}{suffix}"))
   else
     // Compact output: comma-separated names
     filteredGroups
@@ -180,7 +193,9 @@ let execute (state: AppState) (args: List<String>): AppState =
       let names =
         fns
         |> Stdlib.List.map (fun fn ->
-          $"{fn.name.name}{versionSuffix fn.name.version}")
+          let suffix =
+            if withPurity then $" {purityTag fn.purity}" else ""
+          $"{fn.name.name}{versionSuffix fn.name.version}{suffix}")
         |> Stdlib.String.join ", "
 
       Stdlib.printLine ""
@@ -202,27 +217,29 @@ let execute (state: AppState) (args: List<String>): AppState =
   |> Stdlib.printLines
 
   if Stdlib.Bool.not withSigs then
-    Stdlib.printLine (Colors.hint "Use --with-sigs to see full function signatures")
+    Stdlib.printLine (Colors.hint "Use --with-sigs to see full function signatures, --with-purity to tag pure/impure")
 
   state
 
 
 let help (state: AppState): AppState =
-  [ "Usage: builtins [--with-sigs] [filter]"
+  [ "Usage: builtins [--with-sigs] [--with-purity] [filter]"
     ""
     "Lists all builtin functions grouped by category."
     ""
     "Options:"
     "  --with-sigs    Show full function signatures with parameter types"
+    "  --with-purity  Tag each fn with [pure] / [impure-previewable] / [impure]"
     ""
     "Arguments:"
     "  filter         Optional pattern to filter functions by name or group"
     ""
     "Examples:"
-    "  builtins                   - List all builtins (compact)"
-    "  builtins --with-sigs       - List all builtins with signatures"
-    "  builtins json              - Filter by 'json'"
-    "  builtins --with-sigs http  - HTTP builtins with signatures" ]
+    "  builtins                                - List all builtins (compact)"
+    "  builtins --with-sigs                    - List all builtins with signatures"
+    "  builtins --with-purity                  - Compact + purity tag"
+    "  builtins --with-sigs --with-purity http - HTTP fns, sigs + purity"
+    "  builtins json                           - Filter by 'json'" ]
   |> Stdlib.printLines
 
   state

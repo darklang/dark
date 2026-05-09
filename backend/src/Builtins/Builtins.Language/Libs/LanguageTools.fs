@@ -18,6 +18,18 @@ let builtinFnParam () =
   FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.builtinFnParam ())
 let builtinFn () = FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.builtinFn ())
 
+let builtinFnPurity () =
+  FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.builtinFnPurity ())
+
+let purityToDT (p : Previewable) : Dval =
+  let typeName = builtinFnPurity ()
+  let caseName =
+    match p with
+    | Pure -> "Pure"
+    | ImpurePreviewable -> "ImpurePreviewable"
+    | Impure -> "Impure"
+  DEnum(typeName, typeName, [], caseName, [])
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "getAllBuiltinValues" 0
       typeParams = []
@@ -72,7 +84,8 @@ let fns () : List<BuiltInFn> =
                 [ "name", RT2DT.FQFnName.Builtin.toDT name
                   "description", DString data.description
                   "parameters", parameters
-                  "returnType", RT2DT.TypeReference.toDT data.returnType ]
+                  "returnType", RT2DT.TypeReference.toDT data.returnType
+                  "purity", purityToDT data.previewable ]
 
               DRecord(builtinFn (), builtinFn (), [], Map fields))
 

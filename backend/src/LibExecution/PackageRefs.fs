@@ -163,6 +163,7 @@ module Type =
     let builtinValue = p [] "BuiltinValue"
     let builtinFnParam = p [] "BuiltinFunctionParameter"
     let builtinFn = p [] "BuiltinFunction"
+    let builtinFnPurity = p [] "BuiltinFunctionPurity"
 
     module Parser =
       let private p addl = p ("Parser" :: addl)
