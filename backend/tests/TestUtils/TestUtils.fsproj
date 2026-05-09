@@ -21,7 +21,6 @@
     <Compile Include="PTShortcuts.fs" />
     <Compile Include="LibTest.fs" />
     <Compile Include="TestUtils.fs" />
-    <Compile Include="HandlerGraph.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

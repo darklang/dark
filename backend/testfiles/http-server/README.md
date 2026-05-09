@@ -131,24 +131,6 @@ file - a file with the corresponding name should exist in `../data`.
 
 You can allow a test to have the incorrect content-length.
 
-## Secrets
-
-You can add Secrets:
-
-```
-[secrets NAME1:value1:version1,NAME2:value2:version2]
-```
-
-## Domain
-
-You can set the domain:
-
-```
-[domain my.special.domainname.com]
-```
-
-The token "DOMAIN" will be replaced by the domain.
-
 ## LENGTH
 
 The token "LENGTH" will be replaced with the length of the request body or the
@@ -156,4 +138,5 @@ response body.
 
 ## HOST
 
-The token "HOST" will be replaced with domain/host the request is being sent to.
+The token "HOST" will be replaced with the host the request is being sent to
+(always `localhost:<port>`).

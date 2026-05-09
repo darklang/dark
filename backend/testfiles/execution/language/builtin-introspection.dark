@@ -1,0 +1,22 @@
+// Smoke checks on `Builtin.languageToolsAllBuiltinFns`.
+// Ported from the old cloud/internal.dark `Documentation` module.
+
+module Documentation =
+  // Rough sanity check on builtin count — guards against the registry
+  // shipping empty (the actual count is well over 100; the threshold
+  // is intentionally loose so adding/removing one fn doesn't churn this
+  // test).
+  ((Builtin.languageToolsAllBuiltinFns ()) |> Stdlib.List.length) > 100L = true
+
+  // Builtin metadata round-trips: the registry exposes `int64Add` with
+  // the parameter shape the type-checker uses at call sites.
+  ((Builtin.languageToolsAllBuiltinFns ())
+   |> Stdlib.List.findFirst (fun f -> f.name.name == "int64Add")
+   |> Builtin.unwrap
+   |> (fun f -> f.parameters))
+   = [ Darklang.LanguageTools.BuiltinFunctionParameter
+         { name = "a"
+           ``type`` = Darklang.LanguageTools.RuntimeTypes.TypeReference.TInt64 }
+       Darklang.LanguageTools.BuiltinFunctionParameter
+         { name = "b"
+           ``type`` = Darklang.LanguageTools.RuntimeTypes.TypeReference.TInt64 } ]

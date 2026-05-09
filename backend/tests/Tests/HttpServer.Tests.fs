@@ -1,12 +1,11 @@
 /// Tests the CLI's `Http.serve` builtin against the fixtures in
 /// `testfiles/http-server/` (byte-exact `.test` files).
 ///
-/// Per-test handlers are assembled into an in-memory router Dval via
-/// `TestUtils.HandlerGraph.buildRouter`; a free port is allocated with
-/// `TcpListener(IPAddress.Loopback, 0)` and the listener is stopped
-/// via `cts.Cancel()` in teardown. `domain` is fixed to `"localhost"`
-/// since this is a single-app server; fixtures that use `[domain ...]`
-/// for multi-app dispatch live under `_disabled-by-cli-model/`.
+/// Per-test handlers are assembled into an in-memory router Dval by
+/// `buildRouterForTest`; a free port is allocated with
+/// `TcpListener(IPAddress.Loopback, 0)` and the listener is stopped via
+/// `cts.Cancel()` in teardown. The host is fixed to `"localhost"` —
+/// single-app server, no multi-tenant routing.
 module Tests.HttpServer
 
 let basePath = "testfiles/http-server"
@@ -24,6 +23,9 @@ open System.Net.Sockets
 open Prelude
 
 module RT = LibExecution.RuntimeTypes
+module PT = LibExecution.ProgramTypes
+module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
+module Execution = LibExecution.Execution
 module HttpServer = Builtins.Http.Server.Libs.HttpServer
 
 open Tests
@@ -34,14 +36,9 @@ type HandlerVersion = | Http
 type TestHandler =
   { version : HandlerVersion; route : string; method : string; code : string }
 
-type TestSecret = string * string * int
-
 type Test =
   {
     handlers : List<TestHandler>
-    secrets : List<TestSecret>
-    /// Allow testing of a specific app name (no-op in single-app CLI mode).
-    domain : Option<string>
     request : byte array
     expectedResponse : byte array
   }
@@ -83,8 +80,6 @@ module ParseTest =
 
     let emptyTest =
       { handlers = []
-        secrets = []
-        domain = None
         request = [||]
         expectedResponse = [||] }
 
@@ -93,21 +88,6 @@ module ParseTest =
       (fun (state : TestParsingState, result : Test) (line : List<byte>) ->
         let asString : string = line |> Array.ofList |> UTF8.ofBytesWithReplacement
         match asString with
-        | Regex.Regex "\[secrets (\S+)]" [ secrets ] ->
-          let secrets =
-            secrets
-            |> String.split ","
-            |> List.map (fun secret ->
-              match secret |> String.split ":" with
-              | [ key; value; version ] -> key, value, int version
-              | _ ->
-                Exception.raiseInternal
-                  $"Could not parse secret"
-                  [ "secret", secret ])
-
-          (Limbo, { result with secrets = secrets @ result.secrets })
-        | Regex.Regex "\[domain (\S+)]" [ domain ] ->
-          (Limbo, { result with domain = Some domain })
         | "[request]" -> (InRequest, result)
         | "[response]" -> (InResponse, result)
 
@@ -196,24 +176,44 @@ let private allocateFreePort () : int =
   port
 
 
-/// Build a router DApplicable from a parsed `Test`'s handlers.
+/// Build a router DApplicable from the test's parsed handlers. Compiles
+/// `fun request -> (<body>)` directly — no `routeRequest` wrapping, so a
+/// handler that returns the wrong shape still flows through F#'s
+/// `toHttpResponse` / `wrongTypeResponse`. All current fixtures have
+/// exactly one handler.
 let private buildRouterForTest
   (exeState : RT.ExecutionState)
   (test : Test)
   : Task<RT.Applicable> =
   task {
-    let raw : List<TestUtils.HandlerGraph.RawHandler> =
-      test.handlers
-      |> List.reverse
-      |> List.map (fun h -> { route = h.route; method = h.method; code = h.code })
-    let! routerDval = TestUtils.HandlerGraph.buildRouter exeState raw
-    match routerDval with
-    | RT.DApplicable applicable -> return applicable
-    | _ ->
+    let routerSource =
+      match test.handlers |> List.reverse with
+      | [] -> "fun request -> Darklang.Stdlib.Http.notFound ()"
+      | [ h ] -> $"""fun request -> ({h.code})"""
+      | many ->
+        Exception.raiseInternal
+          "buildRouterForTest: multi-handler fixtures aren't supported"
+          [ "handlerCount", List.length many ]
+    let! ptExpr = TestUtils.parsePTExpr routerSource
+    let rtInstrs = PT2RT.Expr.toRT Map.empty 0 None ptExpr
+    let! result = Execution.executeExpr exeState rtInstrs
+    match result with
+    | Ok(RT.DApplicable applicable) -> return applicable
+    | Ok dval ->
       return
         Exception.raiseInternal
-          "buildRouter returned non-DApplicable"
-          [ "dval", routerDval ]
+          "buildRouterForTest returned non-DApplicable"
+          [ "dval", dval ]
+    | Error(rte, _callStack) ->
+      let! errStr = Execution.runtimeErrorToString exeState rte
+      let asString =
+        match errStr with
+        | Ok(RT.DString s) -> s
+        | _ -> string rte
+      return
+        Exception.raiseInternal
+          "buildRouterForTest failed to evaluate router source"
+          [ "source", routerSource; "rte", asString ]
   }
 
 
