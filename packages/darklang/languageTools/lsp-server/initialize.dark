@@ -52,12 +52,13 @@ let handleInitializeRequest
   logAndSendToClient initializeResponse
 
 
-  let (lspAccountName, lspAccountID) = SCM.Account.resolve ()
-
+  // No login on the LSP side yet — start logged-out; commits via the
+  // dark/scm/commit notification will surface "no active account" until
+  // an authenticated client wires us up.
   LspState
     { initialized = true
       shouldShutdown = false
-      accountID = lspAccountID
-      accountName = lspAccountName
+      accountID = Stdlib.Option.Option.None
+      accountName = ""
       currentBranchId = SCM.Branch.mainBranchId
       documentsInScope = Dict { } }

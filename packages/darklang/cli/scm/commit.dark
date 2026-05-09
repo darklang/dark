@@ -2,6 +2,14 @@ module Darklang.Cli.SCM.Commit
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
+  match state.accountID with
+  | None ->
+    Stdlib.printLine
+      (Colors.error
+        "Not logged in. Run `login <name>` (see `login` for available accounts).")
+    state
+  | Some accountId ->
+
   let branchId = state.currentBranchId
 
   let autoConfirm =
@@ -69,7 +77,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           Stdlib.printLine ""
           state
         else
-          match SCM.PackageOps.commit state.accountID branchId message with
+          match SCM.PackageOps.commit accountId branchId message with
           | Ok commitHash ->
             let shortId = Stdlib.String.first commitHash 8L
             Stdlib.printLine (Colors.success $"Created commit {shortId}")

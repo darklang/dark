@@ -23,6 +23,9 @@
     <!-- Tracing (reader) -->
     <Compile Include="Libs/Traces.fs" />
 
+    <!-- Accounts -->
+    <Compile Include="Libs/Account.fs" />
+
     <Compile Include="Builtin.fs" />
   </ItemGroup>
   <ItemGroup>

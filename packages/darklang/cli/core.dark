@@ -56,14 +56,8 @@ let commandOptions () : List<String> =
   Stdlib.List.append allNames allAliases
 
 let initState () : AppState =
-  let (accountName, accountID) = SCM.Account.resolve ()
-
-  match accountID with
-  | Some _ -> ()
-  | None ->
-    if accountName != "" then
-      Stdlib.printLine $"Warning: account '{accountName}' not found. DB commands will not work."
-
+  // Start logged-out. `login <name>` populates accountID + accountName;
+  // commit / op flows refuse until then.
   AppState
     { isExiting = false
       prompt = Prompt.initState ()
@@ -71,8 +65,8 @@ let initState () : AppState =
       packageData = Packages.initState ()
       currentPage = Page.MainPrompt
       currentBranchId = SCM.Branch.mainBranchId
-      accountID = accountID
-      accountName = accountName
+      accountID = Stdlib.Option.Option.None
+      accountName = ""
       previousRenderedRows = 0L
       nonInteractive = false
       cachedHintInput = ""
@@ -225,7 +219,9 @@ module Registry =
       ("export-seed", "Export minimal seed.db from current database", [], Commands.ExportSeed.execute, Commands.ExportSeed.help, Commands.ExportSeed.complete)
       ("traces", "List and view execution traces", [ "trace" ], Commands.Traces.execute, Commands.Traces.help, Commands.Traces.complete)
       ("review", "Review branch changesets", [], Darklang.Cli.Apps.Review.App.execute, Darklang.Cli.Apps.Review.App.help, Darklang.Cli.Apps.Review.App.complete)
-      ("views", "Browse and preview CLI views", [], Darklang.Cli.Apps.Views.App.execute, Darklang.Cli.Apps.Views.App.help, Darklang.Cli.Apps.Views.App.complete) ]
+      ("views", "Browse and preview CLI views", [], Darklang.Cli.Apps.Views.App.execute, Darklang.Cli.Apps.Views.App.help, Darklang.Cli.Apps.Views.App.complete)
+      ("login", "Log in as a seeded account (required for commit / serve)", [], Commands.Login.execute, Commands.Login.help, Commands.Login.complete)
+      ("logout", "Clear the active account", [], Commands.Logout.execute, Commands.Logout.help, Commands.Logout.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->

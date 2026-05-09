@@ -26,5 +26,8 @@ let builtins (pm : PT.PackageManager) : Builtins =
       Libs.PM.Seed.builtins
 
       // Traces (reader surface)
-      Libs.Traces.builtins () ]
+      Libs.Traces.builtins ()
+
+      // Accounts
+      Libs.Account.builtins () ]
     fnRenames
