@@ -106,55 +106,71 @@ let private parseTraceID (json : string) : string =
       parts[0]
 
 
-// ─── helpers for each test ────────────────────────────────────────────────
+// ─── Test builders ────────────────────────────────────────────────────────
 
+/// Wrap a fresh ExecutionState in a task — every test gets its own
+/// state so trace-store side effects don't leak across tests.
 let private withState (f : RT.ExecutionState -> Task<unit>) : Task<unit> =
   task {
     let! state = buildState ()
     do! f state
   }
 
+/// `cliTest "name" body` collapses the
+/// `testTask "..." { do! withState (fun state -> task { … }) }`
+/// boilerplate that every CLI integration test wraps around. Body
+/// receives the state and returns a Task<unit>.
+let private cliTest
+  (name : string)
+  (body : RT.ExecutionState -> Task<unit>)
+  : Test =
+  testTask name { do! withState body }
+
+/// `cliTestWithFreshTraces` adds a `traces delete --all --yes` step
+/// before the body so tests that examine the trace store start from
+/// a known-empty state.
+let private cliTestWithFreshTraces
+  (name : string)
+  (body : RT.ExecutionState -> Task<unit>)
+  : Test =
+  cliTest name (fun state ->
+    task {
+      let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
+      do! body state
+    })
+
 
 // ─── Base CLI command tests ───────────────────────────────────────────────
 
 let private testHelpCommand =
-  testTask "help command" {
-    do!
-      withState (fun state ->
-        task {
-          let! output = runCli state [ "help" ]
-          Expect.stringContains output "Packages:" "category header"
-          Expect.stringContains output "SCM:" "SCM header"
-          Expect.stringContains output "help" "help command"
-          Expect.stringContains output "version" "version command"
-          Expect.stringContains output "status" "status command"
-        })
-  }
+  cliTest "help command" (fun state ->
+    task {
+      let! output = runCli state [ "help" ]
+      Expect.stringContains output "Packages:" "category header"
+      Expect.stringContains output "SCM:" "SCM header"
+      Expect.stringContains output "help" "help command"
+      Expect.stringContains output "version" "version command"
+      Expect.stringContains output "status" "status command"
+    })
 
 let private testVersionCommand =
-  testTask "version command" {
-    do!
-      withState (fun state ->
-        task {
-          let! output = runCli state [ "version" ]
-          Expect.stringContains output "Darklang CLI" "CLI banner"
-          Expect.stringContains output "alpha-" "version prefix"
-        })
-  }
+  cliTest "version command" (fun state ->
+    task {
+      let! output = runCli state [ "version" ]
+      Expect.stringContains output "Darklang CLI" "CLI banner"
+      Expect.stringContains output "alpha-" "version prefix"
+    })
 
 let private testStatusCommand =
-  testTask "status command" {
-    do!
-      withState (fun state ->
-        task {
-          let! output = runCli state [ "status" ]
-          Expect.stringContains output "On branch" "branch line"
-          Expect.isTrue
-            (output.Contains("No uncommitted changes.")
-             || output.Contains("Uncommitted changes:"))
-            "uncommitted-changes summary"
-        })
-  }
+  cliTest "status command" (fun state ->
+    task {
+      let! output = runCli state [ "status" ]
+      Expect.stringContains output "On branch" "branch line"
+      Expect.isTrue
+        (output.Contains("No uncommitted changes.")
+         || output.Contains("Uncommitted changes:"))
+        "uncommitted-changes summary"
+    })
 
 /// Parameterised "given <args>, expect stdout = <expected>" — covers
 /// the bulk of `run` / `eval` smoke tests without re-typing the
@@ -194,157 +210,112 @@ let private testEvalCases =
       "string concat", [ "eval"; "\"hello\" ++ \"world\"" ], "helloworld" ]
 
 let private testListFunctions =
-  testTask "ls Stdlib.List" {
-    do!
-      withState (fun state ->
-        task {
-          let! output = runCli state [ "ls"; "Stdlib.List" ]
-          Expect.stringContains output "Functions" "section"
-          Expect.stringContains output "head" "head fn"
-        })
-  }
+  cliTest "ls Stdlib.List" (fun state ->
+    task {
+      let! output = runCli state [ "ls"; "Stdlib.List" ]
+      Expect.stringContains output "Functions" "section"
+      Expect.stringContains output "head" "head fn"
+    })
 
 let private testViewFunction =
-  testTask "view Stdlib.List.head" {
-    do!
-      withState (fun state ->
-        task {
-          let! output = runCli state [ "view"; "Stdlib.List.head" ]
-          Expect.stringContains output "head" "fn name"
-          Expect.stringContains output "Option" "Option in signature"
-          Expect.stringContains output "->" "fn signature arrow"
-        })
-  }
+  cliTest "view Stdlib.List.head" (fun state ->
+    task {
+      let! output = runCli state [ "view"; "Stdlib.List.head" ]
+      Expect.stringContains output "head" "fn name"
+      Expect.stringContains output "Option" "Option in signature"
+      Expect.stringContains output "->" "fn signature arrow"
+    })
 
 let private testListTypes =
-  testTask "ls Stdlib.Option" {
-    do!
-      withState (fun state ->
-        task {
-          let! output = runCli state [ "ls"; "Stdlib.Option" ]
-          Expect.stringContains output "Types" "section"
-          Expect.stringContains output "Option" "Option type"
-        })
-  }
+  cliTest "ls Stdlib.Option" (fun state ->
+    task {
+      let! output = runCli state [ "ls"; "Stdlib.Option" ]
+      Expect.stringContains output "Types" "section"
+      Expect.stringContains output "Option" "Option type"
+    })
 
 let private testHelpForRun =
-  testTask "help run" {
-    do!
-      withState (fun state ->
-        task {
-          let! output = runCli state [ "help"; "run" ]
-          Expect.stringContains output "run" "command name"
-          Expect.isTrue
-            (output.Contains("function") || output.Contains("execute"))
-            "run-command description"
-        })
-  }
+  cliTest "help run" (fun state ->
+    task {
+      let! output = runCli state [ "help"; "run" ]
+      Expect.stringContains output "run" "command name"
+      Expect.isTrue
+        (output.Contains("function") || output.Contains("execute"))
+        "run-command description"
+    })
 
 let private testHelpForLs =
-  testTask "help ls" {
-    do!
-      withState (fun state ->
-        task {
-          let! output = runCli state [ "help"; "ls" ]
-          Expect.stringContains output "ls" "command name"
-          Expect.isTrue
-            (output.Contains("list") || output.Contains("List"))
-            "ls description"
-        })
-  }
+  cliTest "help ls" (fun state ->
+    task {
+      let! output = runCli state [ "help"; "ls" ]
+      Expect.stringContains output "ls" "command name"
+      Expect.isTrue
+        (output.Contains("list") || output.Contains("List"))
+        "ls description"
+    })
 
 // ─── Trace surface tests ──────────────────────────────────────────────────
 
 let private testTracesHelp =
-  testTask "traces help lists subcommand surface" {
-    do!
-      withState (fun state ->
-        task {
-          let! output = runCli state [ "traces"; "help" ]
-          for term in
-            [ "list"
-              "view"
-              "tail"
-              "follow"
-              "find"
-              "hotspots"
-              "replay"
-              "delete"
-              "--json" ] do
-            Expect.stringContains output term $"contains {term}"
-        })
-  }
+  cliTest "traces help lists subcommand surface" (fun state ->
+    task {
+      let! output = runCli state [ "traces"; "help" ]
+      for term in
+        [ "list"
+          "view"
+          "tail"
+          "follow"
+          "find"
+          "hotspots"
+          "replay"
+          "delete"
+          "--json" ] do
+        Expect.stringContains output term $"contains {term}"
+    })
 
 let private testTracesTailShowsLastEval =
-  testTask "traces tail shows last eval" {
-    do!
-      withState (fun state ->
-        task {
-          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
-          let! _ = runCli state [ "eval"; "let x = 7L\nx" ]
-          let! output = runCli state [ "traces"; "tail" ]
-          Expect.stringContains output "Handler: eval" "eval handler line"
-          Expect.stringContains output "expression = \"let x = 7L" "recorded input"
-        })
-  }
+  cliTestWithFreshTraces "traces tail shows last eval" (fun state ->
+    task {
+      let! _ = runCli state [ "eval"; "let x = 7L\nx" ]
+      let! output = runCli state [ "traces"; "tail" ]
+      Expect.stringContains output "Handler: eval" "eval handler line"
+      Expect.stringContains output "expression = \"let x = 7L" "recorded input"
+    })
 
-let private testTracesClearEmpties =
-  testTask "traces clear empties (locks d2591e14c leak fix)" {
-    do!
-      withState (fun state ->
-        task {
-          let! _ = runCli state [ "eval"; "1L + 2L" ]
-          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
-          let! listOut = runCli state [ "traces"; "list" ]
-          Expect.stringContains listOut "No traces found." "post-clear state"
-        })
-  }
-
-let private testTracesClearEmptiesList =
-  testTask "traces clear empties the list" {
-    do!
-      withState (fun state ->
-        task {
-          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
-          let! _ = runCli state [ "eval"; "let x = 99L\nx" ]
-
-          let! beforeOut = runCli state [ "traces"; "list" ]
-          Expect.isFalse (beforeOut.Contains "No traces") "list non-empty pre-clear"
-
-          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
-          let! afterOut = runCli state [ "traces"; "list" ]
-          Expect.stringContains afterOut "No traces" "list empty post-clear"
-        })
-  }
+let private testTracesDeleteEmpties =
+  // Two assertions in one shape: a single eval landed → delete --all
+  // empties → list reports `No traces`. Replaces the old separate
+  // testTracesClearEmpties / testTracesClearEmptiesList pair.
+  cliTestWithFreshTraces "traces delete --all empties the list" (fun state ->
+    task {
+      let! _ = runCli state [ "eval"; "1L + 2L" ]
+      let! pre = runCli state [ "traces"; "list" ]
+      Expect.isFalse (pre.Contains "No traces") "list non-empty pre-delete"
+      let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
+      let! post = runCli state [ "traces"; "list" ]
+      Expect.stringContains post "No traces" "list empty post-delete"
+    })
 
 let private testTracesStatsCounts =
-  testTask "traces stats shows counts" {
-    do!
-      withState (fun state ->
-        task {
-          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
-          let! _ = runCli state [ "eval"; "1L" ]
-          let! _ = runCli state [ "eval"; "2L" ]
-          let! output = runCli state [ "traces"; "stats" ]
-          Expect.stringContains output "total ms" "table header"
-          Expect.stringContains output "count" "count column"
-          Expect.stringContains output "│ eval" "eval row"
-        })
-  }
+  cliTestWithFreshTraces "traces stats shows counts" (fun state ->
+    task {
+      let! _ = runCli state [ "eval"; "1L" ]
+      let! _ = runCli state [ "eval"; "2L" ]
+      let! output = runCli state [ "traces"; "stats" ]
+      Expect.stringContains output "total ms" "table header"
+      Expect.stringContains output "count" "count column"
+      Expect.stringContains output "│ eval" "eval row"
+    })
 
 let private testTracesFindByContent =
-  testTask "traces find <pattern> by content" {
-    do!
-      withState (fun state ->
-        task {
-          let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
-          let! _ = runCli state [ "eval"; "\"unique-token-xyz12345\"" ]
-          let! _ = runCli state [ "eval"; "1L + 1L" ]
-          let! output = runCli state [ "traces"; "find"; "unique-token-xyz12345" ]
-          Expect.stringContains output "Traces matching" "find banner"
-          Expect.stringContains output "eval" "eval handler"
-        })
-  }
+  cliTestWithFreshTraces "traces find <pattern> by content" (fun state ->
+    task {
+      let! _ = runCli state [ "eval"; "\"unique-token-xyz12345\"" ]
+      let! _ = runCli state [ "eval"; "1L + 1L" ]
+      let! output = runCli state [ "traces"; "find"; "unique-token-xyz12345" ]
+      Expect.stringContains output "Traces matching" "find banner"
+      Expect.stringContains output "eval" "eval handler"
+    })
 
 let private testTracesDeleteSingle =
   testTask "traces delete <id> preserves siblings" {
@@ -765,8 +736,7 @@ let tests =
       // Trace surface
       testTracesHelp
       testTracesTailShowsLastEval
-      testTracesClearEmpties
-      testTracesClearEmptiesList
+      testTracesDeleteEmpties
       testTracesStatsCounts
       testTracesFindByContent
       testTracesDeleteSingle
