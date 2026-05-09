@@ -61,6 +61,12 @@ let private storedHash () : Option<string> =
 
 
 let private dropAllUserTables () : unit =
+  // Disable FK enforcement for the bulk drop. Without this, SQLite refuses
+  // to drop parent tables before children when the child table's FK
+  // column is non-nullable; drop order is sqlite_master row order,
+  // not topological. PRAGMA foreign_keys is connection-scoped, so the
+  // next connection (which runs schema.sql) gets the default back.
+  Sql.query "PRAGMA foreign_keys = OFF" |> Sql.executeStatementSync
   let userTables =
     Sql.query
       "SELECT name FROM sqlite_master
