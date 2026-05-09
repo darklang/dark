@@ -1,7 +1,0 @@
--- Scripts
-CREATE TABLE IF NOT EXISTS
-scripts_v0
-( id TEXT PRIMARY KEY
-, name TEXT NOT NULL UNIQUE
-, text TEXT NOT NULL
-);

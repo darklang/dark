@@ -102,8 +102,10 @@ module HandleCommand =
   let listMigrations () : Ply<Result<unit, string>> =
     uply {
       try
-        print "Migrations needed:\n"
-        Migrations.migrationsToRun () |> List.iter (fun name -> print $" - {name}")
+        print
+          "`migrations list` is gone — there's one schema.sql now and \
+           it kill-and-fills on hash change. Run `migrations run` to \
+           apply (or no-op if up-to-date)."
         return Ok()
       with ex ->
         return Error $"Failed to list migrations: {ex.Message}"
