@@ -114,21 +114,13 @@ module ExecutionError =
 
 let pmRT = LibDB.PackageManager.rt
 
-// `builtinsToUse` needs to include this module's own local fns
-// (cliEvaluateExpression, cliParseAndExecuteScript) so that user
-// `eval` / `run` can re-call them recursively. But those local fns
-// are defined later in this file via `fns ()` and themselves depend
-// on `execute` / `createBranchState`, which depend back on
-// `builtinsToUse`. Rather than fight F# ordering with a sprawling
-// `let rec ... and` chain, set a mutable thunk that gets populated
-// at module init time (assigned at the bottom of the file).
-let private localBuiltinsThunk : (unit -> RT.Builtins) ref =
-  ref (fun () ->
-    Exception.raiseInternal
-      "Builtins.CliHost.Libs.Cli.localBuiltinsThunk used before init"
-      [])
-
-let builtinsToUse () : RT.Builtins =
+// `builtinsToUse` includes this module's own `cliEvaluateExpression` /
+// `cliParseAndExecuteScript` so user `eval` / `run` can re-call them
+// recursively. Those fns are themselves defined in `fns ()` further
+// down, which calls `execute` / `createBranchState`, which call back
+// into `builtinsToUse`. The `let rec ... and ...` chain below is the
+// mutual-recursion shape F# wants for that cycle.
+let rec builtinsToUse () : RT.Builtins =
   let ptPM = LibDB.PackageManager.pt
   // `defaultConfig` has SSRF guards on (loopback / RFC1918 /
   // metadata blocked, scheme restricted). For local-dev cases where
@@ -146,11 +138,11 @@ let builtinsToUse () : RT.Builtins =
       Builtins.Http.Server.Builtin.builtins ()
       // Local fns (cliEvaluateExpression, cliParseAndExecuteScript)
       // — needed so nested eval / run can dispatch recursively.
-      (!localBuiltinsThunk) () ]
+      LibExecution.Builtin.make [] (fns ()) ]
     []
 
 
-let execute
+and execute
   (parentState : RT.ExecutionState)
   (branchId : System.Guid)
   (mod' : Utils.CliScript.PTCliScriptModule)
@@ -227,7 +219,7 @@ let execute
 /// `allowHarmful` is passed in rather than inherited from `parentState` so
 /// callers can turn on the escape hatch per-invocation (e.g. when Dark-side
 /// `run --allow-harmful` reaches `cliParseAndExecuteScript`).
-let createBranchState
+and createBranchState
   (parentState : RT.ExecutionState)
   (branchId : System.Guid)
   (allowHarmful : bool)
@@ -245,7 +237,7 @@ let createBranchState
   { state with allowHarmful = allowHarmful }
 
 
-let fns () : List<BuiltInFn> =
+and fns () : List<BuiltInFn> =
   [ { name = fn "cliParseAndExecuteScript" 0
       typeParams = []
       parameters =
@@ -384,7 +376,3 @@ let fns () : List<BuiltInFn> =
     ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())
-
-// Populate the thunk so `builtinsToUse` can access this module's local
-// fns. Keep at end of file so `builtins ()` (and `fns ()`) are visible.
-localBuiltinsThunk := builtins
