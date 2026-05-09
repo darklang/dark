@@ -151,6 +151,14 @@ let forbidden () : Stdlib.Http.Response =
       headers = []
       body = Stdlib.Blob.empty }
 
+/// Returns a <type Response> that can be returned from an HTTP handler to
+/// respond with {{500}} status code and <param error> body.
+let serverError (error: String) : Stdlib.Http.Response =
+  Stdlib.Http.Response
+    { statusCode = 500L
+      headers = []
+      body = Stdlib.String.toBlob error }
+
 type Cookie =
   { expires: DateTime
     maxAge: Int64
