@@ -9,7 +9,7 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
-module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
+module BinarySer = LibSerialization.Binary.Serialization
 
 /// Tracing can go overboard, so use a per-handler feature flag to control it. If
 /// sampling is disabled for a scope, no traces will be recorded to be saved to the
@@ -329,10 +329,16 @@ let private makeStoreLambdaResult
 module TraceStorage =
   open LibDB.Sqlite
 
-  /// Build a JSON array string from a list of pre-serialized JSON elements.
-  /// (Don't double-encode: each element is already valid JSON.)
-  let private jsonArrayOf (elements : List<string>) : string =
-    "[" + String.concat "," elements + "]"
+  /// Serialize a list of args as a single Dval (DList Unknown args) so
+  /// the binary writer can roundtrip the whole sequence in one blob.
+  /// `Unknown` value type is fine — args don't carry coherent type
+  /// info at the trace boundary, and the reader just unwraps the list.
+  let private serializeArgs (args : List<RT.Dval>) : byte[] =
+    let asList = RT.DList(LibExecution.ValueType.unknownTODO, args)
+    BinarySer.RT.Dval.serialize "trace_fn_calls.args" asList
+
+  let private serializeDval (id : string) (dv : RT.Dval) : byte[] =
+    BinarySer.RT.Dval.serialize id dv
 
   let store
     (rootTLID : tlid)
@@ -351,7 +357,7 @@ module TraceStorage =
       let timestamp = NodaTime.Instant.now().ToString()
       let traceIdParam = [ "traceId", Sql.string traceIdStr ]
 
-      let inputJson = DvalReprInternalRoundtrippable.toJsonV0 inputDval
+      let inputBytes = serializeDval "traces.input_value" inputDval
 
       let accountIDSql =
         match accountID with
@@ -365,16 +371,16 @@ module TraceStorage =
       let baseStatements =
         [ "INSERT OR REPLACE INTO traces
           (id, root_tlid, handler_desc, timestamp,
-           input_name, input_value_json, account_id)
+           input_name, input_value, account_id)
          VALUES
           (@id, @rootTlid, @handlerDesc, @timestamp,
-           @inputName, @inputValueJson, @accountId)",
+           @inputName, @inputValue, @accountId)",
           [ [ "id", Sql.string traceIdStr
               "rootTlid", Sql.int64 (int64 rootTLID)
               "handlerDesc", Sql.string handlerDesc
               "timestamp", Sql.string timestamp
               "inputName", Sql.string inputVarName
-              "inputValueJson", Sql.string inputJson
+              "inputValue", Sql.bytes inputBytes
               "accountId", accountIDSql ] ]
 
           "DELETE FROM trace_fn_calls WHERE trace_id = @traceId", [ traceIdParam ] ]
@@ -388,17 +394,14 @@ module TraceStorage =
         | _ ->
           [ "INSERT INTO trace_fn_calls
             (trace_id, call_id, parent_call_id, kind, fn_hash,
-             lambda_expr_id, args_json, result_json, duration_ms)
+             lambda_expr_id, args, result, duration_ms)
            VALUES
             (@traceId, @callId, @parentCallId, @kind, @fnHash,
-             @lambdaExprId, @argsJson, @resultJson, @durationMs)",
+             @lambdaExprId, @args, @result, @durationMs)",
             events
             |> List.map (fun ev ->
-              let argsJson =
-                ev.args
-                |> List.map DvalReprInternalRoundtrippable.toJsonV0
-                |> jsonArrayOf
-              let resultJson = DvalReprInternalRoundtrippable.toJsonV0 ev.result
+              let argsBytes = serializeArgs ev.args
+              let resultBytes = serializeDval "trace_fn_calls.result" ev.result
               [ "traceId", Sql.string traceIdStr
                 "callId", Sql.string ev.callId
                 "parentCallId", Sql.stringOrNone ev.parentCallId
@@ -406,8 +409,8 @@ module TraceStorage =
                 "fnHash", Sql.stringOrNone ev.fnHash
                 "lambdaExprId",
                 (ev.lambdaExprId |> Option.map string |> Sql.stringOrNone)
-                "argsJson", Sql.string argsJson
-                "resultJson", Sql.string resultJson
+                "args", Sql.bytes argsBytes
+                "result", Sql.bytes resultBytes
                 "durationMs", Sql.int64 ev.durationMs ]) ]
 
       let _ = Sql.executeTransactionSync (baseStatements @ eventStmt)

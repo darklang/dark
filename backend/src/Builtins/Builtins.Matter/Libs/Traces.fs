@@ -2,8 +2,6 @@
 /// Companion to `LibDB.Tracing` (the recorder side).
 module Builtins.Matter.Libs.Traces
 
-open System.Text.Json
-
 open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
@@ -11,7 +9,7 @@ open Fumble
 open LibDB.Sqlite
 
 module Dval = LibExecution.Dval
-module DvalReprInternalRoundtrippable = LibExecution.DvalReprInternalRoundtrippable
+module BinarySer = LibSerialization.Binary.Serialization
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module NR = LibExecution.RuntimeTypes.NameResolution
 module VT = LibExecution.ValueType
@@ -29,20 +27,29 @@ let fnCallTypeName () = FQTypeName.fqPackage (TracesRefs.fnCall ())
 let traceDataTypeName () = FQTypeName.fqPackage (TracesRefs.traceData ())
 
 
-let private parseDvalJson (json : string) : Dval =
-  json |> DvalReprInternalRoundtrippable.parseJsonV0 |> RT2DT.Dval.toDT
+/// Read a binary-serialized dval back into a darklang-typed Dval (the
+/// custom type produced by RT2DT.Dval.toDT) so the trace-view fn-call
+/// records carry the right shape. The binary format is the same one
+/// LibDB/Tracing.fs writes via `BinarySer.RT.Dval.serialize`.
+let private parseDvalBytes (bytes : byte[]) : Dval =
+  bytes |> BinarySer.RT.Dval.deserialize "trace_fn_calls.result" |> RT2DT.Dval.toDT
 
-let private parseArgsJson (argsJson : string) : List<Dval> =
-  use doc = JsonDocument.Parse(argsJson)
-  doc.RootElement.EnumerateArray()
-  |> Seq.toList
-  |> List.map (fun el -> el.GetRawText() |> parseDvalJson)
+/// Args are stored as a single `DList(Unknown, …)` blob (see
+/// `LibDB/Tracing.fs::serializeArgs`). Unwrap the list and convert
+/// each element through the darklang-typed Dval pipeline.
+let private parseArgsBytes (bytes : byte[]) : List<Dval> =
+  match BinarySer.RT.Dval.deserialize "trace_fn_calls.args" bytes with
+  | DList(_, items) -> items |> List.map RT2DT.Dval.toDT
+  | other -> Exception.raiseInternal
+               "trace_fn_calls.args was not a DList"
+               [ "actual", other ]
 
 
 /// Load call events for a trace, ordered by rowid (= execution order).
-/// Args/result are stored as JSON inline; parse them per row. The display
-/// name was resolved at write time and lives in fn_hash, so reads are a
-/// flat SELECT — lambdas have NULL fn_hash and render as "(lambda)".
+/// Args/result are stored as binary RT.Dval blobs; deserialize per row.
+/// The display name was resolved at write time and lives in fn_hash, so
+/// reads are a flat SELECT — lambdas have NULL fn_hash and render as
+/// "(lambda)".
 let private loadFnCalls (traceId : string) : Ply<Dval> =
   let typeName = fnCallTypeName ()
   let dvalKT = KTCustomType(dvalTypeName (), [])
@@ -50,7 +57,7 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
     let! events =
       Sql.query
         "SELECT call_id, parent_call_id, kind, fn_hash, lambda_expr_id,
-                args_json, result_json, duration_ms
+                args, result, duration_ms
          FROM trace_fn_calls
          WHERE trace_id = @traceId
          ORDER BY rowid"
@@ -61,18 +68,17 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
            kind = read.string "kind"
            fnHash = read.stringOrNone "fn_hash"
            lambdaExprId = read.stringOrNone "lambda_expr_id"
-           argsJson = read.string "args_json"
-           resultJson = read.string "result_json"
+           argsBytes = read.bytes "args"
+           resultBytes = read.bytes "result"
            durationMs = read.int64 "duration_ms" |})
 
-    // Skip rows whose args_json / result_json fail to parse rather
-    // than substitute a placeholder Dval — the downstream renderer
-    // expects each FnCall record's `args` / `result` to be the
-    // canonical Dval custom type, and a stand-in DString fails the
-    // type check at apply time. One bad row used to abort the whole
-    // tracesView / call-tree render via an unhandled raise from
-    // parseArgsJson / parseDvalJson; now we log + telemetry + drop
-    // the row, so the rest of the trace still renders.
+    // Skip rows whose args / result fail to deserialize rather than
+    // substitute a placeholder Dval — the downstream renderer expects
+    // each FnCall record's `args` / `result` to be the canonical Dval
+    // custom type, and a stand-in DString fails the type check at
+    // apply time. One bad row used to abort the whole tracesView /
+    // call-tree render via an unhandled raise; now we log + drop the
+    // row so the rest of the trace still renders.
     let enriched =
       events
       |> List.choose (fun ev ->
@@ -82,8 +88,8 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
             | "lambda", _ -> "(lambda)"
             | _, Some name -> name
             | _, None -> "(unknown)"
-          let args = parseArgsJson ev.argsJson
-          let result = parseDvalJson ev.resultJson
+          let args = parseArgsBytes ev.argsBytes
+          let result = parseDvalBytes ev.resultBytes
           let parentCallIdDval =
             match ev.parentCallId with
             | Some p -> Dval.optionSome KTString (DString p)
@@ -167,7 +173,7 @@ let fns () : List<BuiltInFn> =
             // One SELECT covers metadata + input — both live on the trace row.
             let! row =
               Sql.query
-                "SELECT id, handler_desc, timestamp, input_name, input_value_json
+                "SELECT id, handler_desc, timestamp, input_name, input_value
                  FROM traces
                  WHERE id = @traceId"
               |> Sql.parameters [ "traceId", Sql.string traceID ]
@@ -176,7 +182,7 @@ let fns () : List<BuiltInFn> =
                    handlerDesc = read.string "handler_desc"
                    timestamp = read.string "timestamp"
                    inputName = read.string "input_name"
-                   inputValueJson = read.string "input_value_json" |})
+                   inputValueBytes = read.bytes "input_value" |})
 
             let typeName = traceDataTypeName ()
             match row with
@@ -186,7 +192,7 @@ let fns () : List<BuiltInFn> =
               let inputFields =
                 Map
                   [ "name", DString r.inputName
-                    "value", parseDvalJson r.inputValueJson ]
+                    "value", parseDvalBytes r.inputValueBytes ]
               let inputs =
                 [ DRecord(inputVarType, inputVarType, [], inputFields) ]
                 |> Dval.list (KTCustomType(inputVarType, []))
@@ -369,12 +375,13 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // TODO (perf, foot-gun): the LEFT JOIN below produces traces ×
-    // trace_fn_calls cardinality before DISTINCT collapses it, and
-    // the LIKE matches over full args_json / result_json (no index
-    // support). Fine on small dev DBs, slow when the trace store has
-    // grown. Possible mitigations: add a generated/indexed
-    // "summary" column, or use FTS5. Not a correctness bug.
+    // TODO (perf, foot-gun): we walk every trace + its fn_calls in
+    // F#-land, deserialize each Dval to a string repr, then substring-
+    // match. The previous shape was SQL `LIKE` over JSON columns —
+    // dropped when trace storage went binary. Fine on small dev DBs,
+    // O(N×M) on a populated store. Possible mitigations: cache a
+    // searchable text repr alongside each row, or use FTS5 over a
+    // computed/text-shadow column.
     { name = fn "tracesFind" 0
       typeParams = []
       parameters =
@@ -382,41 +389,88 @@ let fns () : List<BuiltInFn> =
           Param.make "limit" TInt64 "Max number of traces to return" ]
       returnType = TList(TVariable "a")
       description =
-        "List traces whose recorded input or any fn-call args/result contains the substring (case-sensitive). Searches the JSON form, so values like `\"errCode\":503` work."
+        "List traces whose recorded input or any fn-call args/result contains the substring (case-sensitive). Match is on the developer-repr form of each Dval."
       fn =
         (function
-        | _, _, _, [ DString pattern; DInt64 limit ] ->
+        | exeState, _, _, [ DString pattern; DInt64 limit ] ->
           uply {
             let typeName = traceSummaryTypeName ()
-            // Escape SQL LIKE wildcards (%, _) and the escape char (\)
-            // so a user pattern like `errCode_503` matches the literal
-            // string and not "errCode" + any-char + "503". Without this,
-            // `find %` and `find _` would match every trace.
-            let escaped =
-              pattern
-              |> fun s -> s.Replace(@"\", @"\\")
-              |> fun s -> s.Replace("%", @"\%")
-              |> fun s -> s.Replace("_", @"\_")
-            let likePattern = $"%%{escaped}%%"
-            let! rows =
+
+            // Walk traces newest-first; for each, deserialize the
+            // input + every fn_call's args/result and check the repr
+            // for the pattern. Stop once we've collected `limit`
+            // matches. Bounded by `limit` rather than walking the
+            // whole table — common case is the user wants the most
+            // recent N matches.
+            let containsPattern (dv : Dval) : Ply<bool> =
+              uply {
+                let! repr = Execution.dvalToRepr exeState dv
+                return repr.Contains(pattern)
+              }
+
+            let! traces =
               Sql.query
-                "SELECT DISTINCT t.id, t.handler_desc, t.timestamp, t.rowid AS rid
-                 FROM traces t
-                 LEFT JOIN trace_fn_calls c ON t.id = c.trace_id
-                 WHERE t.input_value_json LIKE @pattern ESCAPE '\\'
-                    OR c.args_json LIKE @pattern ESCAPE '\\'
-                    OR c.result_json LIKE @pattern ESCAPE '\\'
-                 ORDER BY t.rowid DESC
-                 LIMIT @limit"
-              |> Sql.parameters
-                [ "pattern", Sql.string likePattern; "limit", Sql.int64 limit ]
+                "SELECT id, handler_desc, timestamp, input_value
+                 FROM traces
+                 ORDER BY rowid DESC"
               |> Sql.executeAsync (fun read ->
                 {| id = read.string "id"
                    handler = read.string "handler_desc"
-                   timestamp = read.string "timestamp" |})
+                   timestamp = read.string "timestamp"
+                   inputBytes = read.bytes "input_value" |})
+
+            let mutable hits : List<{| id : string; handler : string; timestamp : string |}> = []
+            let mutable cursor = 0
+
+            while cursor < List.length traces && int64 (List.length hits) < limit do
+              let t = traces[cursor]
+              cursor <- cursor + 1
+
+              let inputDval =
+                BinarySer.RT.Dval.deserialize "traces.input_value" t.inputBytes
+              let! inputMatches = containsPattern inputDval
+
+              let! matchesViaCalls =
+                if inputMatches then
+                  uply { return true }
+                else
+                  uply {
+                    let! callRows =
+                      Sql.query
+                        "SELECT args, result FROM trace_fn_calls
+                         WHERE trace_id = @traceId"
+                      |> Sql.parameters [ "traceId", Sql.string t.id ]
+                      |> Sql.executeAsync (fun read ->
+                        {| argsBytes = read.bytes "args"
+                           resultBytes = read.bytes "result" |})
+
+                    let mutable found = false
+                    let mutable i = 0
+                    while not found && i < List.length callRows do
+                      let row = callRows[i]
+                      i <- i + 1
+                      let argsDval =
+                        BinarySer.RT.Dval.deserialize
+                          "trace_fn_calls.args"
+                          row.argsBytes
+                      let resultDval =
+                        BinarySer.RT.Dval.deserialize
+                          "trace_fn_calls.result"
+                          row.resultBytes
+                      let! argsMatch = containsPattern argsDval
+                      if argsMatch then
+                        found <- true
+                      else
+                        let! resultMatch = containsPattern resultDval
+                        if resultMatch then found <- true
+                    return found
+                  }
+
+              if matchesViaCalls then
+                hits <- hits @ [ {| id = t.id; handler = t.handler; timestamp = t.timestamp |} ]
 
             return
-              rows
+              hits
               |> List.map (fun r ->
                 let fields =
                   Map
@@ -500,16 +554,17 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DString traceID ] ->
           uply {
             let! row =
-              Sql.query "SELECT input_value_json FROM traces WHERE id = @traceId"
+              Sql.query "SELECT input_value FROM traces WHERE id = @traceId"
               |> Sql.parameters [ "traceId", Sql.string traceID ]
               |> Sql.executeRowOptionAsync (fun read ->
-                read.string "input_value_json")
+                read.bytes "input_value")
 
             match row with
             | None -> return Dval.optionNone KTString
-            | Some valueJson ->
+            | Some valueBytes ->
               try
-                let dval = DvalReprInternalRoundtrippable.parseJsonV0 valueJson
+                let dval =
+                  BinarySer.RT.Dval.deserialize "traces.input_value" valueBytes
                 match dval with
                 | DString code -> return Dval.optionSome KTString (DString code)
                 | _ -> return Dval.optionNone KTString

@@ -10,6 +10,8 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Prelude
+open Fumble
+open LibDB.Sqlite
 
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
@@ -693,19 +695,23 @@ let private testTracesViewToleratesCorruptedRow =
           let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
           let tid = parseTraceID listJson
 
-          // Inject a corrupt fn_call row: malformed args_json. The
-          // existing rows from the eval above stay valid; the bad
-          // one should render as a placeholder, not abort.
-          let! _ =
-            LibDB.Sqlite.Sql.query
-              "INSERT INTO trace_fn_calls
+          // Inject a corrupt fn_call row: bytes that aren't a valid
+          // binary-serialized RT.Dval. The existing rows from the
+          // eval above stay valid; the bad one should be skipped
+          // (not abort the whole render). Use a transaction so we
+          // get the actual SQL error surfaced if anything is wrong.
+          let corruptBytes = [| 0x00uy; 0x01uy; 0x02uy |]
+          let _ =
+            Sql.executeTransactionSync
+              [ "INSERT INTO trace_fn_calls
                   (trace_id, call_id, parent_call_id, kind, fn_hash,
-                   lambda_expr_id, args_json, result_json, duration_ms)
+                   lambda_expr_id, args, result, duration_ms)
                  VALUES
                   (@traceId, 'corrupt-test', NULL, 'fn', 'corrupt',
-                   NULL, '{not valid json', 'null', 0)"
-            |> Fumble.Sql.parameters [ "traceId", Fumble.Sql.string tid ]
-            |> LibDB.Sqlite.Sql.executeNonQueryAsync
+                   NULL, @badArgs, @badResult, 0)",
+                [ [ "traceId", Sql.string tid
+                    "badArgs", Sql.bytes corruptBytes
+                    "badResult", Sql.bytes corruptBytes ] ] ]
 
           let! out = runCli state [ "traces"; "view"; tid ]
           // Corrupt row should be silently dropped (logged), not render.

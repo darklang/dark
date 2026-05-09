@@ -255,15 +255,15 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_package_dependencies_unique
 
 -- One row per handler invocation. Handler input (parsed dval bound to
 -- the handler's parameter — `request` for HTTP, `expression` for eval)
--- lives directly here as JSON; no separate one-row-per-trace inputs
--- table.
+-- lives directly here; no separate one-row-per-trace inputs table.
+-- `input_value` is a binary-serialized RT.Dval (LibSerialization.Binary).
 CREATE TABLE IF NOT EXISTS traces (
   id TEXT PRIMARY KEY,
   root_tlid INTEGER NOT NULL,
   handler_desc TEXT NOT NULL,
   timestamp TEXT NOT NULL,
   input_name TEXT NOT NULL,
-  input_value_json TEXT NOT NULL,
+  input_value BLOB NOT NULL,
   account_id TEXT REFERENCES accounts_v0(id)  -- NULL for unattributed (anonymous) runs
 );
 
@@ -272,6 +272,10 @@ CREATE TABLE IF NOT EXISTS traces (
 -- parent_call_id (NULL for source-level entries). `kind` discriminates
 -- function / lambda / builtin so the renderer can tag without
 -- inspecting fn_hash.
+--
+-- `args` is a binary-serialized RT.Dval — a `DList(Unknown, …)` of
+-- the call's arguments. `result` is the call's return Dval. Both go
+-- through `LibSerialization.Binary.RT.Dval.serialize` / `.deserialize`.
 --
 -- function and lambda frames get real `duration_ms`; builtins remain
 -- at 0 since the recorder only sees their synchronous storeFnResult,
@@ -283,8 +287,8 @@ CREATE TABLE IF NOT EXISTS trace_fn_calls (
   kind TEXT NOT NULL,                        -- 'function' | 'lambda' | 'builtin'
   fn_hash TEXT,                              -- callee for function/builtin
   lambda_expr_id TEXT,                       -- AST id of the lambda body
-  args_json TEXT NOT NULL,                   -- JSON array of dval JSONs
-  result_json TEXT NOT NULL,
+  args BLOB NOT NULL,
+  result BLOB NOT NULL,
   duration_ms INTEGER NOT NULL DEFAULT 0,
   PRIMARY KEY (trace_id, call_id)
 );
