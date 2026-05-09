@@ -61,7 +61,9 @@ let createState
     // request/handler lifecycle) pushes one per invocation so ephemeral
     // blob bytes don't leak across requests.
     blobScopes =
-      new System.Collections.Generic.Stack<System.Collections.Generic.HashSet<System.Guid>>() }
+      new System.Collections.Generic.Stack<System.Collections.Generic.HashSet<System.Guid>>()
+
+    accountID = None }
 
 
 let rec callStackForFrame

@@ -191,7 +191,11 @@ and execute
     // Inherit the parent's allowHarmful toggle so `run --allow-harmful`
     // cascades into script execution. The Harmful-hash snapshot is scoped
     // to `branchId` via `pm.isHarmful` (the PM caches per branch).
-    let state = { state with allowHarmful = parentState.allowHarmful }
+    // Also inherit accountID so the trace insert can attribute the run.
+    let state =
+      { state with
+          allowHarmful = parentState.allowHarmful
+          accountID = parentState.accountID }
 
     match mod'.exprs with
     | [] ->
@@ -261,16 +265,18 @@ and fns () : List<BuiltInFn> =
         | exeState,
           _,
           [],
-          [ _accountIDDval
+          [ accountIDDval
             DUuid branchId
             DString filename
             DString code
             DList(_vtTODO, scriptArgs)
             DBool allowHarmful ] ->
           uply {
-            // _accountIDDval is reserved — when accounts come back it
-            // routes who's running the script. Single-instance Dark
-            // today, so no per-account state.
+            // Attribute the run to the calling account so the trace
+            // insert can stamp `traces.account_id`. None passes through
+            // (anonymous runs, tests).
+            let accountID = C2DT.Option.fromDT D.uuid accountIDDval
+            let exeState = { exeState with accountID = accountID }
             // Use branch-specific state for parsing so name resolution uses the right branch
             let branchState = createBranchState exeState branchId allowHarmful
             let! parsedScript =
@@ -332,8 +338,12 @@ and fns () : List<BuiltInFn> =
         | exeState,
           _,
           [],
-          [ _accountIDDval; DUuid branchId; DString expression; DBool allowHarmful ] ->
+          [ accountIDDval; DUuid branchId; DString expression; DBool allowHarmful ] ->
           uply {
+            // Attribute the run to the calling account so the trace
+            // insert can stamp `traces.account_id`.
+            let accountID = C2DT.Option.fromDT D.uuid accountIDDval
+            let exeState = { exeState with accountID = accountID }
             // Use branch-specific state for parsing so name resolution uses the right branch
             let branchState = createBranchState exeState branchId allowHarmful
             let! parsedScript =

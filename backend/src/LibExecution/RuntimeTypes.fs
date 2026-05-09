@@ -1736,6 +1736,13 @@ and ExecutionState =
     ///     is O(N+M). Fine at current scale; revisit at higher
     ///     package counts.
     blobScopes : Stack<HashSet<System.Guid>>
+
+    /// The account this run is attributed to (the developer behind a
+    /// commit / script run / handler invocation). `None` means
+    /// unattributed — outer-CLI bootstrapping, tests, anonymous
+    /// builtin invocations all leave this empty. The trace insert
+    /// reads it; commit ops carry the same id separately.
+    accountID : Option<System.Guid>
   }
 
 

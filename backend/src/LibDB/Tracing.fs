@@ -341,6 +341,7 @@ module TraceStorage =
     (inputVarName : string)
     (inputDval : RT.Dval)
     (events : List<CompletedEvent>)
+    (accountID : Option<System.Guid>)
     : unit =
     if TraceDetail.current = TraceDetail.Off then
       ()
@@ -352,22 +353,29 @@ module TraceStorage =
 
       let inputJson = DvalReprInternalRoundtrippable.toJsonV0 inputDval
 
+      let accountIDSql =
+        match accountID with
+        | Some a -> Sql.uuid a
+        | None -> Sql.dbnull
+
       // DELETE-before-INSERT on trace_fn_calls matches INSERT OR REPLACE
       // on traces, so re-running store for a trace_id replaces rather than
-      // accumulates. Input is stored inline on the trace row.
+      // accumulates. Input is stored inline on the trace row. account_id
+      // is nullable — anonymous / outer-CLI runs leave it NULL.
       let baseStatements =
         [ "INSERT OR REPLACE INTO traces
           (id, root_tlid, handler_desc, timestamp,
-           input_name, input_value_json)
+           input_name, input_value_json, account_id)
          VALUES
           (@id, @rootTlid, @handlerDesc, @timestamp,
-           @inputName, @inputValueJson)",
+           @inputName, @inputValueJson, @accountId)",
           [ [ "id", Sql.string traceIdStr
               "rootTlid", Sql.int64 (int64 rootTLID)
               "handlerDesc", Sql.string handlerDesc
               "timestamp", Sql.string timestamp
               "inputName", Sql.string inputVarName
-              "inputValueJson", Sql.string inputJson ] ]
+              "inputValueJson", Sql.string inputJson
+              "accountId", accountIDSql ] ]
 
           "DELETE FROM trace_fn_calls WHERE trace_id = @traceId", [ traceIdParam ] ]
 
@@ -454,6 +462,7 @@ let private storeTrace
         inputVarName
         promotedInput
         (Seq.toList state.events)
+        exeState.accountID
     with ex ->
       print $"[tracing] Failed to store trace: {ex.Message}"
       Telemetry.event
