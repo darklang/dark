@@ -31,51 +31,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "directoryCreate" 0
-      typeParams = []
-      parameters = [ Param.make "path" TString "" ]
-      returnType = TypeReference.result TUnit TString
-      description =
-        "Creates a new directory at the specified <param path>. If the directory already exists, no action is taken. Returns a Result type indicating success or failure."
-      fn =
-        let resultOk r = Dval.resultOk KTUnit KTString r |> Ply
-        let resultError r = Dval.resultError KTUnit KTString r |> Ply
-        (function
-        | _, _, _, [ DString path ] ->
-          try
-            System.IO.Directory.CreateDirectory(path)
-            |> ignore<System.IO.DirectoryInfo>
-            resultOk DUnit
-          with e ->
-            resultError (DString e.Message)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "directoryDelete" 0
-      typeParams = []
-      parameters = [ Param.make "path" TString "" ]
-      returnType = TypeReference.result TUnit TString
-      description =
-        "Deletes the directory at the specified <param path>. If <param recursive> is set to true, it will delete the directory and its contents. If set to false (default), it will only delete an empty directory. Returns a Result type indicating success or failure."
-      fn =
-        let resultOk r = Dval.resultOk KTUnit KTString r |> Ply
-        let resultError r = Dval.resultError KTUnit KTString r |> Ply
-        (function
-        | _, _, _, [ DString path ] ->
-          try
-            System.IO.Directory.Delete(path, false)
-            resultOk DUnit
-          with e ->
-            resultError (DString e.Message)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "directoryList" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]

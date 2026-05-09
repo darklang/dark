@@ -247,36 +247,6 @@ let fns () : List<BuiltInFn> =
 
 
     // ---------------
-    // Infra: SQLite-level introspection. Reports per-table row counts +
-    // approximate disk-byte share. Useful for "why is data.db big" forensics.
-    // ---------------
-
-    { name = fn "infraTableStats" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TList(TTuple(TString, TInt64, [ TInt64 ]))
-      description =
-        "Returns (tableName, rowCount, approxDiskBytes) tuples for every
-         non-internal table. diskBytes is approximate (page-count * page-size
-         apportioned by row share)."
-      fn =
-        (function
-        | _, _, _, [ DUnit ] ->
-          uply {
-            let! rows = LibDB.Sqlite.tableStats ()
-            return
-              rows
-              |> List.map (fun r ->
-                DTuple(DString r.relation, DInt64 r.rows, [ DInt64 r.diskBytes ]))
-              |> Dval.list (KTTuple(VT.string, VT.int64, [ VT.int64 ]))
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-
     // 'normal', per-DB operations.
 
     { name = fn "dbSet" 0

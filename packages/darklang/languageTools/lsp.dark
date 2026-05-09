@@ -46,7 +46,7 @@ let getDiagnostics (uri: String) (text: String) : String =
   match Builtin.languageToolsParseCliScript text with
   | Ok() ->
     (ComputeDiagnosticsOutput { diagnostics = [] })
-    |> Builtin.jsonSerialize<ComputeDiagnosticsOutput>
+    |> Stdlib.Json.serialize<ComputeDiagnosticsOutput>
 
   | Error parseError ->
     // to be used when the range is otherwise unknown
@@ -82,7 +82,7 @@ let getDiagnostics (uri: String) (text: String) : String =
               message = $"Can't parse -- {msg}" } ]
 
     (ComputeDiagnosticsOutput { diagnostics = diagnostics })
-    |> Builtin.jsonSerialize<ComputeDiagnosticsOutput>
+    |> Stdlib.Json.serialize<ComputeDiagnosticsOutput>
 
 
 // </Diagnostics>

@@ -20,17 +20,17 @@ let execute (state: AppState) (args: List<String>) : AppState =
     Stdlib.printLine "Uncommitted changes:"
 
     if summary.types > 0L then
-      Stdlib.printLine $"  {Builtin.int64ToString summary.types} type(s)"
+      Stdlib.printLine $"  {Stdlib.Int64.toString summary.types} type(s)"
 
     if summary.values > 0L then
-      Stdlib.printLine $"  {Builtin.int64ToString summary.values} value(s)"
+      Stdlib.printLine $"  {Stdlib.Int64.toString summary.values} value(s)"
 
     if summary.fns > 0L then
-      Stdlib.printLine $"  {Builtin.int64ToString summary.fns} function(s)"
+      Stdlib.printLine $"  {Stdlib.Int64.toString summary.fns} function(s)"
 
     if summary.deprecations > 0L then
       Stdlib.printLine
-        $"  {Builtin.int64ToString summary.deprecations} deprecation(s)"
+        $"  {Stdlib.Int64.toString summary.deprecations} deprecation(s)"
 
     [ ""
       "Use 'commit \"message\"' to commit these changes."

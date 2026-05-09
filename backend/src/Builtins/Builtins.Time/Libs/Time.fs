@@ -124,24 +124,6 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure
-      deprecated = NotDeprecated }
-
-    { name = fn "interpreterStatsEnableDetailedTiming" 0
-      typeParams = []
-      parameters = [ Param.make "enabled" TBool "" ]
-      returnType = TUnit
-      description =
-        "Enables or disables per-builtin and per-package-fn timing collection. "
-        + "When enabled, adds ~1 Stopwatch call per builtin invocation."
-      fn =
-        (function
-        | _, vm, _, [ DBool enabled ] ->
-          vm.stats.enabled <- true
-          vm.stats.detailedTiming <- enabled
-          DUnit |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Impure
       deprecated = NotDeprecated } ]
 
 

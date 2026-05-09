@@ -15,7 +15,6 @@ open Prelude
 module RT = LibExecution.RuntimeTypes
 module PT = LibExecution.ProgramTypes
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
-module PTParser = LibExecution.ProgramTypesParser
 module Exe = LibExecution.Execution
 
 open TestUtils.TestUtils
@@ -67,7 +66,9 @@ let oldFunctionsAreDeprecated =
 // but are still load-bearing. They go in `infixDispatched`.
 
 /// Builtins called via infix operators rather than `Builtin.X` syntax.
-/// Source: LibExecution/ProgramTypesToRuntimeTypes.fs InfixFnName.toFnName.
+/// Source: LibExecution/ProgramTypesToRuntimeTypes.fs InfixFnName.toFnName
+/// for binary ops; LibParser/FSharpToWrittenTypes.fs op_UnaryNegation
+/// for `-x`.
 let private infixDispatched : Set<string> =
   Set.ofList
     [ "int64Add"
@@ -75,6 +76,7 @@ let private infixDispatched : Set<string> =
       "int64Multiply"
       "int64Mod"
       "int64Power"
+      "int64Negate"
       "int64GreaterThan"
       "int64GreaterThanOrEqualTo"
       "int64LessThan"
@@ -90,51 +92,28 @@ let private infixDispatched : Set<string> =
 /// multi-use; if a name shouldn't be here, route the second caller
 /// through a wrapper and remove it. Keep alphabetical.
 ///
-/// Initial allowlist: harvested from a first run of the test against
-/// the current package corpus. These are *not* a curated set —
-/// they're the existing multi-use callsites. Promote individual
-/// entries to wrappers (and remove from this list) over time.
+/// TODO continue routing direct `Builtin.X` callers through stdlib
+/// wrappers in batches and shrink this list. Phase 0 (delete unused),
+/// Phase 1 (int conversions/ops), Phase 2 (json + blob + string codecs)
+/// landed; remaining batches: Phase 3 CLI/IO surface (`unwrap`, `print*`,
+/// `file*`, `stdinRead*`, `directoryCurrent`, `environmentGet`, `debug`,
+/// `toRepr`, `timeSleep`, `getCurrentExecutablePath`,
+/// `getAllBuiltinFns`); Phase 4 Posix; Phase 5 PM browse + traces;
+/// Phase 6 Streams; Phase 7 misc (`httpServerServe`,
+/// `interpreterStatsReset`, `cliEvaluateExpression`, `dbListAll`,
+/// `depsGetDependents`, `pmScripts*`). For each callsite: either
+/// route via a sibling stdlib wrapper, or document why it must stay
+/// direct (e.g. `stringIndexOf` is direct in `String.contains` because
+/// the `SqlCallback2` SQL-compile path breaks if wrapped in
+/// match-on-Option).
 let private multiUseAllowlist : Set<string> =
   Set.ofList
-    [ // Blob/string/json codecs called from many places.
-      "blobFromBytes"
-      "blobFromString"
-      "blobToString"
-      "jsonParse"
-      "jsonSerialize"
-      "stringFromBlobWithReplacement"
+    [ // `Stdlib.String.contains` and `Stdlib.String.indexOf` both call the
+      // builtin directly. `contains` *must* — the query compiler routes
+      // the builtin via SqlCallback2 → SQLite INSTR; routing through the
+      // Option-returning wrapper breaks SQL queryability and trips
+      // `Stdlib.DB.queryAll` callers (cloud/db.dark line 815+).
       "stringIndexOf"
-      "stringJoin"
-      "stringToBlob"
-
-      // Int conversions / ops — wrapper-stamping these would explode.
-      "int128LessThan"
-      "int128Negate"
-      "int128ToString"
-      "int16LessThan"
-      "int16Mod"
-      "int16Negate"
-      "int16ToString"
-      "int32Add"
-      "int32GreaterThan"
-      "int32LessThan"
-      "int32Mod"
-      "int32Negate"
-      "int32ToString"
-      "int64ToFloat"
-      "int64ToString"
-      "int8LessThan"
-      "int8Mod"
-      "int8Negate"
-      "int8ToString"
-      "uint128ToString"
-      "uint16ToString"
-      "uint32ToString"
-      "uint64Add"
-      "uint64GreaterThan"
-      "uint64LessThan"
-      "uint64ToString"
-      "uint8ToString"
 
       // CLI / IO surface — direct calls from many CLI commands.
       "debug"

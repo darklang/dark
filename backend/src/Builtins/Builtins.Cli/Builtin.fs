@@ -14,7 +14,6 @@ let builtins () =
       Libs.File.builtins ()
       Libs.Execution.builtins ()
       Libs.Output.builtins ()
-      Libs.Process.builtins ()
       Libs.Stdin.builtins ()
       Libs.Terminal.builtins ()
       Libs.Posix.builtins () ]

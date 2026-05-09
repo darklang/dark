@@ -13,7 +13,7 @@ let read (configPath: String) : Stdlib.Result.Result<Dict<String>, String> =
   | Ok content ->
     content
     |> Stdlib.String.fromBlobWithReplacement
-    |> Builtin.jsonParse<Dict<String>>
+    |> Stdlib.Json.parse<Dict<String>>
     |> Stdlib.Result.mapError (fun _ -> "Failed to parse config.json")
   | Error _ -> Stdlib.Result.Result.Error "Failed to read config.json"
 
@@ -39,7 +39,7 @@ let updateVersion
 
   let serializedConfig =
     updatedConfig
-    |> Builtin.jsonSerialize<Dict<String>>
+    |> Stdlib.Json.serialize<Dict<String>>
     |> Stdlib.String.toBlob
 
   match Builtin.fileWrite serializedConfig configPath with

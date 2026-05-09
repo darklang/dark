@@ -52,7 +52,7 @@ let power (``base``: Int16) (exponent: Int16) : Int16 =
     0s
   else if ``base`` == 1s then
     1s
-  else if ``base`` == -1s && (Builtin.int16Mod exponent 2s == 0s) then
+  else if ``base`` == -1s && (``mod`` exponent 2s == 0s) then
     1s
   else if ``base`` == -1s then
     -1s
@@ -66,8 +66,8 @@ let divide (a: Int16) (b: Int16) : Int16 = Builtin.int16Divide a b
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
 let absoluteValue (a: Int16) : Int16 =
-  if (Builtin.int16LessThan a 0s) then
-    Builtin.int16Negate a
+  if lessThan a 0s then
+    negate a
   else
     a
 

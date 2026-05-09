@@ -38,7 +38,6 @@
     <Compile Include="ProgramTypesAst.fs" />
     <Compile Include="RTQueryCompiler.fs" />
     <Compile Include="ProgramTypesToRuntimeTypes.fs" />
-    <Compile Include="ProgramTypesParser.fs" />
     <!-- User+Runtime I/O /-->
     <Compile Include="DvalDecoder.fs" />
     <Compile Include="CommonToDarkTypes.fs" />

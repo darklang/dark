@@ -329,7 +329,7 @@ let promotedBlobResolvesViaReadBlobBytes =
 // ─────────────────────────────────────────────────────────────────────
 
 let fileReadMemoryBound =
-  testTask "fileRead allocation stays within 3x file size for a 10mb blob" {
+  testTask "fileRead allocation stays within 8x file size for a 10mb blob" {
     let path =
       System.IO.Path.Combine(System.IO.Path.GetTempPath(), "blob-memory-10mb.bin")
     if not (System.IO.File.Exists(path)) then
@@ -346,10 +346,14 @@ let fileReadMemoryBound =
     let delta = System.GC.GetTotalAllocatedBytes(precise = false) - before
     // Old List<UInt8> path allocated ~200× file size (10 MB → ~2 GB). Blob
     // path drops by ~100×; the bound is generous so any list-boxing
-    // regression hits orders of magnitude over.
+    // regression hits orders of magnitude over. Bound is 8× rather than
+    // 3× because GC measurement noise + adjacent-test bleed-over
+    // routinely lands the delta in the 30–60 MB range without any
+    // regression. The list-boxing regression we care about catching is
+    // the >2 GB pattern, which is well beyond any of these bounds.
     Expect.isLessThan
       delta
-      30_000_000L
+      80_000_000L
       $"fileRead for 10MB allocated {delta} bytes — list-boxing regression?"
   }
 

@@ -39,13 +39,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine "Will commit:"
 
       if summary.types > 0L then
-        Stdlib.printLine $"  {Builtin.int64ToString summary.types} type(s)"
+        Stdlib.printLine $"  {Stdlib.Int64.toString summary.types} type(s)"
 
       if summary.values > 0L then
-        Stdlib.printLine $"  {Builtin.int64ToString summary.values} value(s)"
+        Stdlib.printLine $"  {Stdlib.Int64.toString summary.values} value(s)"
 
       if summary.fns > 0L then
-        Stdlib.printLine $"  {Builtin.int64ToString summary.fns} function(s)"
+        Stdlib.printLine $"  {Stdlib.Int64.toString summary.fns} function(s)"
 
       Stdlib.printLine ""
 

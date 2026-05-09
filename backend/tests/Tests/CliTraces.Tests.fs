@@ -175,10 +175,13 @@ let private testCliEquals
        }))
 
 let private testRunCases =
+  // `run` is now an alias for `run-script` (file-only). Function calls go
+  // through `eval`. Kept under the `run smoke` name for git history; the
+  // commands themselves invoke eval.
   testCliEquals
     "run smoke"
-    [ "Bool.and", [ "run"; "@Stdlib.Bool.and true false" ], "false"
-      "Int64.add", [ "run"; "@Stdlib.Int64.add 5L 3L" ], "8" ]
+    [ "Bool.and", [ "eval"; "Stdlib.Bool.and true false" ], "false"
+      "Int64.add", [ "eval"; "Stdlib.Int64.add 5L 3L" ], "8" ]
 
 let private testEvalCases =
   testCliEquals

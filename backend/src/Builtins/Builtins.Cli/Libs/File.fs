@@ -123,28 +123,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "fileCreateTemp" 0
-      typeParams = []
-      parameters = [ Param.make "" TUnit "" ]
-      returnType = TypeReference.result TString TString
-      description =
-        "Creates a new temporary file with a unique name in the system's temporary directory. Returns a Result type containing the temporary file path or an error if the creation fails."
-      fn =
-        let resultOk r = Dval.resultOk KTString KTString r |> Ply
-        let resultError r = Dval.resultError KTString KTString r |> Ply
-        (function
-        | _, _, _, [ DUnit ] ->
-          try
-            let tempPath = System.IO.Path.GetTempFileName()
-            resultOk (DString tempPath)
-          with e ->
-            resultError (DString e.Message)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "fileIsDirectory" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
@@ -159,31 +137,6 @@ let fns () : List<BuiltInFn> =
               let attrs = System.IO.File.GetAttributes(path)
               let isDir = attrs.HasFlag(System.IO.FileAttributes.Directory)
               return DBool isDir
-            with _ ->
-              return DBool false
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "fileIsNormal" 0
-      typeParams = []
-      parameters = [ Param.make "path" TString "" ]
-      returnType = TBool
-      description =
-        "Returns true if the file specified by <param path> is a normal file (not a directory), or false if it is a directory or does not exist"
-      fn =
-        (function
-        | _, _, _, [ DString path ] ->
-          uply {
-            try
-              let attrs = System.IO.File.GetAttributes(path)
-              let isDir = attrs.HasFlag(System.IO.FileAttributes.Directory)
-              let exists =
-                System.IO.File.Exists(path) || System.IO.Directory.Exists(path)
-              return DBool(exists && not isDir)
             with _ ->
               return DBool false
           }
@@ -210,28 +163,6 @@ let fns () : List<BuiltInFn> =
             with _ ->
               return DBool false
           }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "fileSize" 0
-      typeParams = []
-      parameters = [ Param.make "path" TString "" ]
-      returnType = TypeReference.result TInt64 TString
-      description =
-        "Returns the size of the file at the specified <param path> in bytes, or an error if the file does not exist or an error occurs"
-      fn =
-        let resultOk r = Dval.resultOk KTInt64 KTString r |> Ply
-        let resultError r = Dval.resultError KTInt64 KTString r |> Ply
-        (function
-        | _, _, _, [ DString path ] ->
-          try
-            let fileInfo = System.IO.FileInfo(path)
-            resultOk (DInt64 fileInfo.Length)
-          with e ->
-            resultError (DString e.Message)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

@@ -872,10 +872,10 @@ let parseToString (input: String) : String =
   match parse input with
   | Success(expr, remaining) ->
     if remaining == "" then
-      "Parsed: " ++ (Builtin.jsonSerialize<Expr> expr)
+      "Parsed: " ++ (Stdlib.Json.serialize<Expr> expr)
     else
       "Parsed with remaining: "
-      ++ (Builtin.jsonSerialize<Expr> expr)
+      ++ (Stdlib.Json.serialize<Expr> expr)
       ++ " | remaining: \""
       ++ remaining
       ++ "\""
