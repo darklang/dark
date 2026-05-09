@@ -308,8 +308,7 @@ and fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "cliEvaluateExpression" 0
@@ -369,8 +368,7 @@ and fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     ]

@@ -1592,33 +1592,13 @@ type VMState =
 
 
 
-/// A package-fn location by name (owner / modules / fn name) — the
-/// human-meaningful identifier, not the content-addressed hash. Mirrors
-/// `ProgramTypes.PackageLocation` but lives in RuntimeTypes because the
-/// LibExecution build order (RT before PT) doesn't let us reuse it.
-/// Used in `Accessibility.FromLocation` to point at a builtin's canonical
-/// wrapper package fn without coupling to its hash (which can shift).
-type PackageLocation = { owner : string; modules : List<string>; name : string }
-
-
-/// Where a builtin may be referenced from. Most builtins should be
-/// `FromLocation <wrapper-pkg-fn>` — only the matching wrapper package fn
-/// is allowed to call them; user code goes through the wrapper. `Any`
-/// is the escape hatch for builtins called from F# directly (cli host
-/// orchestration, debug, internal evaluation) or from many places
-/// intentionally.
-type Accessibility =
-  | FromLocation of PackageLocation
-  | Any
-
 // -- Builtins --
 type BuiltInValue =
   { name : FQValueName.Builtin
     typ : TypeReference
     description : string
     deprecated : Deprecation<FQValueName.FQValueName>
-    body : Dval
-    accessibility : Accessibility }
+    body : Dval }
 
 /// A built-in standard library function
 ///
@@ -1633,8 +1613,7 @@ type BuiltInFn =
     previewable : Previewable
     deprecated : Deprecation<FQFnName.FQFnName>
     sqlSpec : SqlSpec
-    fn : BuiltInFnSig
-    accessibility : Accessibility }
+    fn : BuiltInFnSig }
 
 and BuiltInFnSig =
   // (exeState * vmState * typeArgs * fnArgs) -> result

@@ -43,8 +43,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "pmScriptsGet" 0
@@ -65,8 +64,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "pmScriptsAdd" 0
@@ -88,8 +86,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "pmScriptsUpdate" 0
@@ -111,8 +108,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "pmScriptsDelete" 0
@@ -134,7 +130,6 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
-      deprecated = NotDeprecated
-      accessibility = Any } ]
+      deprecated = NotDeprecated } ]
 
 let builtins () = Builtin.make [] (fns ())

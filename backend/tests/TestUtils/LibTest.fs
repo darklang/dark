@@ -29,22 +29,19 @@ let values : List<BuiltInValue> =
       typ = TFloat
       description = "Return a NaN"
       body = DFloat(System.Double.NaN)
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
     { name = value "testInfinity" 0
       typ = TFloat
       description = "Returns positive infitity"
       body = DFloat(System.Double.PositiveInfinity)
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
     { name = value "testNegativeInfinity" 0
       typ = TFloat
       description = "Returns negative infinity"
       body = DFloat(System.Double.NegativeInfinity)
-      deprecated = NotDeprecated
-      accessibility = Any } ]
+      deprecated = NotDeprecated } ]
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "testRuntimeError" 0
@@ -59,8 +56,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
     { name = fn "testToChar" 0
       typeParams = []
@@ -84,8 +80,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "testIncrementSideEffectCounter" 0
@@ -103,8 +98,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "testSideEffectCount" 0
@@ -118,8 +112,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "testInspect" 0
@@ -135,8 +128,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "testDeleteUser" 0
@@ -159,8 +151,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "testRaiseException" 0
@@ -174,8 +165,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "testGetCanvasID" 0
@@ -189,8 +179,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "testSetExpectedExceptionCount" 0
@@ -208,7 +197,6 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any } ]
+      deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make values (fns ())

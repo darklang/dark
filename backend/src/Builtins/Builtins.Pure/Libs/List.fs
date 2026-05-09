@@ -294,10 +294,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility =
-        FromLocation
-          { owner = "Darklang"; modules = [ "Stdlib"; "List" ]; name = "length" } }
+      deprecated = NotDeprecated }
 
 
     { name = fn "listUnique" 0
@@ -318,8 +315,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "listSort" 0
@@ -343,8 +339,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "listAppend" 0
@@ -364,8 +359,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     ]

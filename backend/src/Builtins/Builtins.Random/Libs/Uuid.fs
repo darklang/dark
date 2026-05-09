@@ -22,7 +22,6 @@ let fns () : List<BuiltInFn> =
         // Similarly to DateTime.now, it's not particularly fun for this to change
         // when live programming, so let's keep this as Impure rather than ImpurePreviewable
         Impure
-      deprecated = NotDeprecated
-      accessibility = Any } ]
+      deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

@@ -13,9 +13,6 @@ module Interpreter = LibExecution.Interpreter
 let varA = TVariable "a"
 let varB = TVariable "b"
 
-let private stdlibDict (name : string) : Accessibility =
-  FromLocation { owner = "Darklang"; modules = [ "Stdlib"; "Dict" ]; name = name }
-
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "dictSize" 0
@@ -29,8 +26,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = stdlibDict "size" }
+      deprecated = NotDeprecated }
 
 
     { name = fn "dictKeys" 0
@@ -47,8 +43,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = stdlibDict "keys" }
+      deprecated = NotDeprecated }
 
 
     { name = fn "dictValues" 0
@@ -64,8 +59,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = stdlibDict "values" }
+      deprecated = NotDeprecated }
 
 
     { name = fn "dictToList" 0
@@ -85,8 +79,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "dictFromListOverwritingDuplicates" 0
@@ -126,8 +119,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "dictFromList" 0
@@ -168,8 +160,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "dictGet" 0
@@ -188,8 +179,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = stdlibDict "get" }
+      deprecated = NotDeprecated }
 
 
     { name = fn "dictMember" 0
@@ -205,8 +195,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = stdlibDict "member" }
+      deprecated = NotDeprecated }
 
 
     { name = fn "dictMerge" 0
@@ -233,8 +222,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "dictSet" 0
@@ -261,8 +249,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = stdlibDict "set" }
+      deprecated = NotDeprecated }
 
 
     { name = fn "dictSetOverridingDuplicates" 0
@@ -289,8 +276,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "dictRemove" 0
@@ -306,6 +292,6 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated
-      accessibility = stdlibDict "remove" } ]
+    } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

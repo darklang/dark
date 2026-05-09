@@ -14,10 +14,6 @@ module TypeChecker = LibExecution.TypeChecker
 module Interpreter = LibExecution.Interpreter
 module Blob = LibExecution.Blob
 
-let private stdlibString (name : string) : Accessibility =
-  FromLocation { owner = "Darklang"; modules = [ "Stdlib"; "String" ]; name = name }
-
-
 let fns () : List<BuiltInFn> =
   [ { name = fn "stringToList" 0
       typeParams = []
@@ -36,8 +32,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringReplaceAll" 0
@@ -70,8 +65,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "replace"
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringToUppercase" 0
@@ -85,8 +79,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "upper"
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringToLowercase" 0
@@ -100,8 +93,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "lower"
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringLength" 0
@@ -116,8 +108,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented // CLEANUP: Sqlite has "LENGTH" but that counts characters; if we can get it to count EGCs, great
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = stdlibString "length" }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringAppend" 0
@@ -135,8 +126,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     // CLEANUP move implementation to Darklang, in package space, in darklang stdlib
@@ -169,8 +159,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringReverse" 0
@@ -185,8 +174,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "reverse"
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = stdlibString "reverse" }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringSplit" 0
@@ -230,8 +218,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringJoin" 0
@@ -257,8 +244,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringSlice" 0
@@ -306,8 +292,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = stdlibString "slice" }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringTrim" 0
@@ -325,8 +310,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "trim"
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = stdlibString "trim" }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringTrimStart" 0
@@ -343,8 +327,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "ltrim"
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = stdlibString "trimStart" }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringTrimEnd" 0
@@ -361,8 +344,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "rtrim"
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = stdlibString "trimEnd" }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringToBlob" 0
@@ -378,8 +360,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringFromBlobWithReplacement" 0
@@ -398,8 +379,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringFromBytes" 0
@@ -420,8 +400,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringFromBlob" 0
@@ -444,8 +423,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringIndexOf" 0
@@ -467,8 +445,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlCallback2(fun str search -> $"(INSTR({str}, {search}) - 1)")
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringLastIndexOf" 0
@@ -490,8 +467,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any }
+      deprecated = NotDeprecated }
 
 
     { name = fn "stringHead" 0
@@ -512,8 +488,7 @@ let fns () : List<BuiltInFn> =
 
       sqlSpec = NotYetImplemented
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility = Any } ]
+      deprecated = NotDeprecated } ]
 
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

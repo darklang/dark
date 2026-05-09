@@ -23,10 +23,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "not"
       previewable = Pure
-      deprecated = NotDeprecated
-      accessibility =
-        FromLocation
-          { owner = "Darklang"; modules = [ "Stdlib"; "Bool" ]; name = "not" } } ]
+      deprecated = NotDeprecated } ]
 
 
 let builtins () = LibExecution.Builtin.make [] (fns ())
