@@ -61,6 +61,10 @@ let isKnownGroup (prefix: String): Bool =
   Stdlib.List.any knownGroups (fun pair -> (Stdlib.Tuple2.first pair) == prefix)
 
 
+let versionSuffix (v: Int32) : String =
+  if v == 0l then "" else $"_v{Stdlib.Int32.toString v}"
+
+
 // Sort groups: known groups first in order, then unknown groups alphabetically
 let sortGroups
   (groups: List<String * List<LanguageTools.BuiltinFunction>>)
@@ -140,9 +144,6 @@ let execute (state: AppState) (args: List<String>): AppState =
           Stdlib.Option.Option.None
         else
           Stdlib.Option.Option.Some ((group, matchingFns)))
-
-  let versionSuffix (v: Int32) : String =
-    if v == 0l then "" else $"_v{Stdlib.Int32.toString v}"
 
   // Format and display
   if withSigs then

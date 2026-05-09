@@ -61,7 +61,7 @@ let usageLines () : List<String> =
     "  serve Some.Adhoc.Router --port 9000"
     "  serve My.Service.app --port 80 --max-body-bytes 5242880" ]
 
-let printUsage () : Unit = usageLines () |> Stdlib.printLines
+let printUsage () : Unit = (usageLines ()) |> Stdlib.printLines
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
