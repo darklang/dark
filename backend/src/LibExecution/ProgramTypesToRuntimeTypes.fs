@@ -556,9 +556,7 @@ module Expr =
       let bodyInstrs = toRT symbols rcAfterPat currentFnName body
       { registerCount = bodyInstrs.registerCount
         instructions =
-          exprInstrs.instructions
-          @ [ patInstr ]
-          @ bodyInstrs.instructions
+          exprInstrs.instructions @ [ patInstr ] @ bodyInstrs.instructions
         resultIn = bodyInstrs.resultIn }
 
 

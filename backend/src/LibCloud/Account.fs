@@ -45,11 +45,8 @@ let insertAccount (name : string) : Task<Result<AccountID, string>> =
     let id = System.Guid.NewGuid()
     try
       do!
-        Sql.query
-          "INSERT INTO accounts_v0 (id, name) VALUES (@id, @name)"
-        |> Sql.parameters
-          [ "id", Sql.uuid id
-            "name", Sql.string name ]
+        Sql.query "INSERT INTO accounts_v0 (id, name) VALUES (@id, @name)"
+        |> Sql.parameters [ "id", Sql.uuid id; "name", Sql.string name ]
         |> Sql.executeStatementAsync
       return Ok id
     with ex ->

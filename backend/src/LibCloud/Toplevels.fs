@@ -18,9 +18,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 /// gone (Worker / Cron / REPL had no live consumers; HTTP went earlier
 /// with the BwdServer rewrite). What remains is just the user-defined
 /// Datastores.
-type T =
-  { dbs : Map<tlid, PT.DB.T>
-    deletedDBs : Map<tlid, PT.DB.T> }
+type T = { dbs : Map<tlid, PT.DB.T>; deletedDBs : Map<tlid, PT.DB.T> }
 
 
 let addDB (deleted : Serialize.Deleted) (db : PT.DB.T) (c : T) : T =

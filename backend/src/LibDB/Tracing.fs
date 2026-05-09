@@ -402,8 +402,7 @@ module TraceStorage =
                 "resultJson", Sql.string resultJson
                 "durationMs", Sql.int64 ev.durationMs ]) ]
 
-      let _ =
-        Sql.executeTransactionSync (baseStatements @ eventStmt)
+      let _ = Sql.executeTransactionSync (baseStatements @ eventStmt)
       ()
 
 

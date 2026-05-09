@@ -57,8 +57,7 @@ let private storedHash () : Option<string> =
       Exception.raiseInternal
         "Multiple schema_state_v0 rows; expected 0 or 1"
         [ "actual", rows ]
-    | Error err ->
-      Exception.raiseInternal $"storedHash: {err}" [ "err", err ]
+    | Error err -> Exception.raiseInternal $"storedHash: {err}" [ "err", err ]
 
 
 let private dropAllUserTables () : unit =
@@ -71,8 +70,7 @@ let private dropAllUserTables () : unit =
     |> Sql.execute (fun read -> read.string "name")
     |> Result.unwrap
   for t in userTables do
-    Sql.query (sprintf "DROP TABLE IF EXISTS \"%s\"" t)
-    |> Sql.executeStatementSync
+    Sql.query (sprintf "DROP TABLE IF EXISTS \"%s\"" t) |> Sql.executeStatementSync
 
 
 let private writeHash (hash : string) : unit =
@@ -80,8 +78,7 @@ let private writeHash (hash : string) : unit =
     "CREATE TABLE IF NOT EXISTS schema_state_v0
      (id INTEGER PRIMARY KEY, hash TEXT NOT NULL)"
   |> Sql.executeStatementSync
-  Sql.query
-    "INSERT OR REPLACE INTO schema_state_v0 (id, hash) VALUES (0, @hash)"
+  Sql.query "INSERT OR REPLACE INTO schema_state_v0 (id, hash) VALUES (0, @hash)"
   |> Sql.parameters [ "hash", Sql.string hash ]
   |> Sql.executeStatementSync
 

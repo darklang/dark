@@ -37,11 +37,9 @@ type TestHandler =
   { version : HandlerVersion; route : string; method : string; code : string }
 
 type Test =
-  {
-    handlers : List<TestHandler>
+  { handlers : List<TestHandler>
     request : byte array
-    expectedResponse : byte array
-  }
+    expectedResponse : byte array }
 
 
 let newline = byte '\n'
@@ -78,10 +76,7 @@ module ParseTest =
   let parse (bytes : byte array) : Test =
     let lines : List<List<byte>> = bytes |> splitAtNewlines
 
-    let emptyTest =
-      { handlers = []
-        request = [||]
-        expectedResponse = [||] }
+    let emptyTest = { handlers = []; request = [||]; expectedResponse = [||] }
 
     lines
     |> List.fold

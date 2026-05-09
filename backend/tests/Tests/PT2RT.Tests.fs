@@ -20,8 +20,7 @@ module Expr =
   let t name expr expected =
     testTask name {
       let actual = PT2RT.Expr.toRT Map.empty 0 None expr
-      let actual =
-        (actual.registerCount, actual.instructions, actual.resultIn)
+      let actual = (actual.registerCount, actual.instructions, actual.resultIn)
       return Expect.equal actual expected ""
     }
 

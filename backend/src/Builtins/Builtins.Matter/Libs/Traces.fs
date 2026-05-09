@@ -742,10 +742,7 @@ let fns () : List<BuiltInFn> =
                   resultError (DString $"Validation failed at {label}: {ex.Message}")
               | None ->
                 try
-                  let _ =
-                    Sql.executeTransactionSync (
-                      baseStatements @ eventStmt
-                    )
+                  let _ = Sql.executeTransactionSync (baseStatements @ eventStmt)
                   return resultOk (DString id)
                 with ex ->
                   return resultError (DString $"Database write failed: {ex.Message}")

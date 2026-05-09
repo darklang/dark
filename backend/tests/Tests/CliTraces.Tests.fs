@@ -810,8 +810,7 @@ let private testTracesRejectsFlagAsTraceId =
     do!
       withState (fun state ->
         task {
-          let cmds =
-            [ [ "traces"; "delete"; "--fake-arg" ] ]
+          let cmds = [ [ "traces"; "delete"; "--fake-arg" ] ]
           for argv in cmds do
             let! out = runCli state argv
             Expect.stringContains out "Unknown flag: --fake-arg" $"{argv} rejected"

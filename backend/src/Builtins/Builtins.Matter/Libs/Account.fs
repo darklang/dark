@@ -76,8 +76,7 @@ let fns () : List<BuiltInFn> =
           uply {
             let! rows =
               Sql.query "SELECT id, name FROM accounts_v0 ORDER BY name"
-              |> Sql.executeAsync (fun read ->
-                (read.uuid "id", read.string "name"))
+              |> Sql.executeAsync (fun read -> (read.uuid "id", read.string "name"))
             return
               rows
               |> List.map (fun (id, name) -> DTuple(DUuid id, DString name, []))
@@ -105,8 +104,7 @@ let fns () : List<BuiltInFn> =
             return
               match result with
               | Ok id -> Dval.resultOk KTUuid KTString (DUuid id)
-              | Error msg ->
-                Dval.resultError KTUuid KTString (DString msg)
+              | Error msg -> Dval.resultError KTUuid KTString (DString msg)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

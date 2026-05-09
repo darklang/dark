@@ -272,6 +272,4 @@ let builtinAccessInPackageMatter =
 
 
 let tests =
-  testList
-    "builtin"
-    [ oldFunctionsAreDeprecated; builtinAccessInPackageMatter ]
+  testList "builtin" [ oldFunctionsAreDeprecated; builtinAccessInPackageMatter ]
