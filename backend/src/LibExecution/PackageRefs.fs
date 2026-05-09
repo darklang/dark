@@ -157,12 +157,6 @@ module Type =
         let key = p [ "Key" ] "Key"
         let keyRead = p [ "KeyRead" ] "KeyRead"
 
-  module Builtins =
-    let private p addl = p ("Builtins" :: addl)
-    let purity = p [] "Purity"
-    let paramInfo = p [] "ParamInfo"
-    let functionInfo = p [] "FunctionInfo"
-
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)
     let sign = p [] "Sign"

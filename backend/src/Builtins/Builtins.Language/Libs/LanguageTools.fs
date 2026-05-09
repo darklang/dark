@@ -19,7 +19,7 @@ let builtinFnParam () =
 let builtinFn () = FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.builtinFn ())
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "languageToolsAllBuiltinValues" 0
+  [ { name = fn "getAllBuiltinValues" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TCustomType(NR.ok (builtinValue ()), []) |> TList
@@ -47,7 +47,7 @@ let fns () : List<BuiltInFn> =
       accessibility = Any }
 
 
-    { name = fn "languageToolsAllBuiltinFns" 0
+    { name = fn "getAllBuiltinFns" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TCustomType(NR.ok (builtinFn ()), []) |> TList
