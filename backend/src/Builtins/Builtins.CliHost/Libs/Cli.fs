@@ -114,35 +114,36 @@ module ExecutionError =
 
 let pmRT = LibDB.PackageManager.rt
 
-// `builtinsToUse` includes this module's own `cliEvaluateExpression` /
-// `cliParseAndExecuteScript` so user `eval` / `run` can re-call them
-// recursively. Those fns are themselves defined in `fns ()` further
-// down, which calls `execute` / `createBranchState`, which call back
-// into `builtinsToUse`. The `let rec ... and ...` chain below is the
-// mutual-recursion shape F# wants for that cycle.
-let rec builtinsToUse () : RT.Builtins =
-  let ptPM = LibDB.PackageManager.pt
-  // `defaultConfig` has SSRF guards on (loopback / RFC1918 /
-  // metadata blocked, scheme restricted). For local-dev cases where
-  // the caller wants to hit private targets, swap in
-  // `Builtins.Http.Client.Libs.HttpClient.looseConfig`.
-  LibExecution.Builtin.combine
-    [ Builtins.Pure.Builtin.builtins ()
-      Builtins.Http.Client.Builtin.builtins
-        Builtins.Http.Client.Libs.HttpClient.defaultConfig
-      Builtins.Language.Builtin.builtins ()
-      Builtins.Cli.Builtin.builtins ()
-      Builtins.Time.Builtin.builtins ()
-      Builtins.Random.Builtin.builtins ()
-      Builtins.Matter.Builtin.builtins ptPM
-      Builtins.Http.Server.Builtin.builtins ()
-      // Local fns (cliEvaluateExpression, cliParseAndExecuteScript)
-      // — needed so nested eval / run can dispatch recursively.
-      LibExecution.Builtin.make [] (fns ()) ]
-    []
+// The `cliEvaluateExpression` and `cliParseAndExecuteScript` builtins
+// build child execution states (a different branch, a fresh PM with
+// the script's own fns/types grafted in, a tracer, etc.). Rather than
+// re-`createState` from scratch — which would force us to know the
+// full builtin set here and would cycle into `fns ()` below — we
+// derive the child state from `parentState`. The parent already
+// includes our own builtins (it was constructed by Cli/Cli.fs) so
+// nested `eval` / `run` dispatches automatically.
+
+let childState
+  (parentState : RT.ExecutionState)
+  (pm : RT.PackageManager)
+  (tracing : RT.Tracing.Tracing)
+  (branchId : System.Guid)
+  (program : Program)
+  : RT.ExecutionState =
+  { parentState with
+      tracing = tracing
+      branchId = branchId
+      program = program
+      types = { package = pm.getType }
+      values = { parentState.values with package = pm.getValue }
+      fns =
+        { parentState.fns with
+            package = pm.getFn
+            isHarmful = fun pkg -> pm.isHarmful branchId pkg }
+      blobs = { get = pm.getBlob; persist = pm.persistBlob } }
 
 
-and execute
+let execute
   (parentState : RT.ExecutionState)
   (branchId : System.Guid)
   (mod' : Utils.CliScript.PTCliScriptModule)
@@ -153,8 +154,6 @@ and execute
   uply {
     let (program : Program) = { dbs = dbs }
 
-    let builtins = builtinsToUse ()
-
     let types =
       List.concat
         [ mod'.types |> List.map PT2RT.PackageType.toRT
@@ -162,9 +161,10 @@ and execute
 
     let values =
       List.concat
-        [ mod'.values |> List.map (PT2RT.PackageValue.toRT builtins.values)
+        [ mod'.values
+          |> List.map (PT2RT.PackageValue.toRT parentState.values.builtIn)
           mod'.submodules.values
-          |> List.map (PT2RT.PackageValue.toRT builtins.values) ]
+          |> List.map (PT2RT.PackageValue.toRT parentState.values.builtIn) ]
 
     let fns =
       List.concat
@@ -179,23 +179,7 @@ and execute
     let traceID = AT.TraceID.create ()
     let tracer = Tracing.createCliTracer traceID traceDesc inputName inputValue
 
-    let state =
-      Exe.createState
-        builtins
-        pm
-        tracer.executionTracing
-        parentState.reportException
-        parentState.notify
-        branchId
-        program
-    // Inherit the parent's allowHarmful toggle so `run --allow-harmful`
-    // cascades into script execution. The Harmful-hash snapshot is scoped
-    // to `branchId` via `pm.isHarmful` (the PM caches per branch).
-    // Also inherit accountID so the trace insert can attribute the run.
-    let state =
-      { state with
-          allowHarmful = parentState.allowHarmful
-          accountID = parentState.accountID }
+    let state = childState parentState pm tracer.executionTracing branchId program
 
     match mod'.exprs with
     | [] ->
@@ -223,25 +207,18 @@ and execute
 /// `allowHarmful` is passed in rather than inherited from `parentState` so
 /// callers can turn on the escape hatch per-invocation (e.g. when Dark-side
 /// `run --allow-harmful` reaches `cliParseAndExecuteScript`).
-and createBranchState
+let createBranchState
   (parentState : RT.ExecutionState)
   (branchId : System.Guid)
   (allowHarmful : bool)
   =
   let program : Program = { dbs = Map.empty }
   let state =
-    Exe.createState
-      (builtinsToUse ())
-      pmRT
-      Exe.noTracing
-      parentState.reportException
-      parentState.notify
-      branchId
-      program
+    childState parentState pmRT Exe.noTracing branchId program
   { state with allowHarmful = allowHarmful }
 
 
-and fns () : List<BuiltInFn> =
+let fns () : List<BuiltInFn> =
   [ { name = fn "cliParseAndExecuteScript" 0
       typeParams = []
       parameters =
@@ -383,5 +360,29 @@ and fns () : List<BuiltInFn> =
 
 
     ]
+
+
+/// All builtins the outer CLI execution state needs: this module's own
+/// fns (so nested `eval`/`run` dispatches recursively) plus every
+/// `Builtins.*` library the CLI surface depends on.
+///
+/// `defaultConfig` has SSRF guards on (loopback / RFC1918 / metadata
+/// blocked, scheme restricted). For local-dev cases that need to hit
+/// private targets, swap in `Builtins.Http.Client.Libs.HttpClient.looseConfig`.
+let builtinsToUse () : RT.Builtins =
+  let ptPM = LibDB.PackageManager.pt
+  LibExecution.Builtin.combine
+    [ Builtins.Pure.Builtin.builtins ()
+      Builtins.Http.Client.Builtin.builtins
+        Builtins.Http.Client.Libs.HttpClient.defaultConfig
+      Builtins.Language.Builtin.builtins ()
+      Builtins.Cli.Builtin.builtins ()
+      Builtins.Time.Builtin.builtins ()
+      Builtins.Random.Builtin.builtins ()
+      Builtins.Matter.Builtin.builtins ptPM
+      Builtins.Http.Server.Builtin.builtins ()
+      LibExecution.Builtin.make [] (fns ()) ]
+    []
+
 
 let builtins () = LibExecution.Builtin.make [] (fns ())
