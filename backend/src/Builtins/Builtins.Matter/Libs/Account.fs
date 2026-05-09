@@ -86,6 +86,31 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "darkInternalUserCreate" 0
+      typeParams = []
+      parameters = [ Param.make "name" TString "Account display name" ]
+      returnType = TypeReference.result TUuid TString
+      description =
+        "Create a new account with the given name. Returns the new account
+         ID on success, or an error string (typically a name-uniqueness
+         conflict)."
+      fn =
+        (function
+        | _, _, _, [ DString name ] ->
+          uply {
+            let! result = LibCloud.Account.insertAccount name
+            return
+              match result with
+              | Ok id -> Dval.resultOk KTUuid KTString (DUuid id)
+              | Error msg ->
+                Dval.resultError KTUuid KTString (DString msg)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
       deprecated = NotDeprecated } ]
 
 
