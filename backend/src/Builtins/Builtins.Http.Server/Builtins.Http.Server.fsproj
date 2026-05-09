@@ -8,8 +8,6 @@
   <ItemGroup>
     <None Include="paket.references" />
     <Compile Include="Http.fs" />
-    <Compile Include="HttpServerHelpers.fs" />
-    <Compile Include="HttpServerHandler.fs" />
     <Compile Include="Libs/HttpServer.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>

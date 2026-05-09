@@ -1,29 +1,9 @@
-/// HTTP Server builtin
-///
-/// Starts a server on the given port and defers to Darklang code to
-/// handle the request.
-///
-/// The F# side handles:
-/// - Starting the HTTP listener
-/// - Reading requests with a body-size limit
-/// - Optional X-Forwarded-Proto → https URL canonicalization (production
-///   behind a TLS-terminating proxy)
-/// - Converting HTTP requests to Darklang Request type
-/// - Calling the Darklang handler function
-/// - Converting Darklang Response back to HTTP
-/// - Optional auto-injection of standard headers (Server, HSTS) when the
-///   handler didn't set them
-/// - SIGINT (Ctrl+C) → drain in-flight + exit
-///
-/// All routing and handler management lives in Darklang.
-///
-/// Implementation is split across three files:
-///   - HttpServerHelpers.fs : pure stateless transforms (body, headers, log)
-///   - HttpServerHandler.fs : per-request dispatch + tracer wiring
-///   - HttpServer.fs (this) : listener loop + the `httpServerServe` builtin
+/// HTTP server builtin: starts a listener, hands every request to a Dark
+/// handler fn, writes the response. All routing lives Dark-side.
 module Builtins.Http.Server.Libs.HttpServer
 
 open System
+open System.IO
 open System.Net
 open System.Threading
 open System.Threading.Tasks
@@ -32,20 +12,248 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
-module Helpers = Builtins.Http.Server.HttpServerHelpers
-module Handler = Builtins.Http.Server.HttpServerHandler
+module Dval = LibExecution.Dval
+module Execution = LibExecution.Execution
+module Blob = LibExecution.Blob
+module Http = Builtins.Http.Server.Http
+module AT = LibExecution.AnalysisTypes
+module Tracing = LibDB.Tracing
 
 
-/// Default request body cap (30 MB). Re-exported for callers (tests, the
-/// `httpServerServe` builtin's `--max-body-bytes` default).
-let defaultMaxBodyBytes = Helpers.defaultMaxBodyBytes
+/// Default request body cap (30 MB).
+let defaultMaxBodyBytes : int64 = 30L * 1024L * 1024L
+
+/// HSTS header value matching the historical default for HTTP services.
+let private hstsHeaderValue = "max-age=31536000; includeSubDomains; preload"
 
 
-/// Run the HTTP listener loop until `cancellationToken` fires. Public so
-/// tests can drive a per-test listener with their own CancellationToken.
-/// Starts an HttpListener on `port`, dispatches every request to `handler`
-/// via `Handler.handleRequest`, and exits when cancellation is requested.
-/// On cancellation, calls `listener.Stop()` to unblock `GetContextAsync`.
+// ───────── pure stateless helpers ─────────
+
+/// Read the request body up to `maxBytes`. Returns `Error()` when the
+/// declared `Content-Length` exceeds the cap, OR when the actual stream
+/// grows past it (covers chunked encoding where C-L is absent / -1).
+let private readRequestBodyWithLimit
+  (req : HttpListenerRequest)
+  (maxBytes : int64)
+  : Task<Result<byte[], unit>> =
+  task {
+    if req.ContentLength64 > maxBytes then
+      return Error()
+    else
+      use ms = new MemoryStream()
+      let buffer = Array.zeroCreate 8192
+      let mutable totalRead = 0L
+      let mutable keepReading = true
+      let mutable overLimit = false
+      while keepReading && not overLimit do
+        let! n = req.InputStream.ReadAsync(buffer, 0, buffer.Length)
+        if n = 0 then
+          keepReading <- false
+        else
+          totalRead <- totalRead + int64 n
+          if totalRead > maxBytes then
+            overLimit <- true
+          else
+            do! ms.WriteAsync(buffer, 0, n)
+      if overLimit then return Error() else return Ok(ms.ToArray())
+  }
+
+
+/// Flatten HttpListener's NameValueCollection into the (key, value) list
+/// shape that `Http.Request` expects. Multi-value keys become multiple
+/// entries. The final `x-http-method` entry is a CLEANUP — Dark handlers
+/// still read it.
+let private extractHeaders (req : HttpListenerRequest) : List<string * string> =
+  let headers = ResizeArray<string * string>()
+  for key in req.Headers.AllKeys do
+    if not (isNull key) then
+      let values = req.Headers.GetValues(key)
+      if not (isNull values) then
+        for value in values do
+          headers.Add(key, value)
+  ("x-http-method", req.HttpMethod) :: List.ofSeq headers
+
+
+/// If `X-Forwarded-Proto: https` is present, rewrite scheme → https / port → 443.
+let private canonicalizeUrlFromForwardedProto
+  (url : string)
+  (headers : List<string * string>)
+  : string =
+  let isHttps =
+    headers
+    |> List.exists (fun (k, v) ->
+      String.equalsCaseInsensitive k "x-forwarded-proto"
+      && String.equalsCaseInsensitive v "https")
+  if isHttps then
+    try
+      let uri = System.UriBuilder(url)
+      uri.Port <- 443
+      uri.Scheme <- "https"
+      string uri.Uri
+    with _ ->
+      url
+  else
+    url
+
+
+/// Add `Server: darklang` + HSTS unless the handler already set them.
+let private maybeInjectStandardHeaders
+  (inject : bool)
+  (headers : List<string * string>)
+  : List<string * string> =
+  if not inject then
+    headers
+  else
+    let hasKey name =
+      headers |> List.exists (fun (k, _) -> String.equalsCaseInsensitive k name)
+    let extras =
+      [ if not (hasKey "server") then ("Server", "darklang")
+        if not (hasKey "strict-transport-security") then
+          ("Strict-Transport-Security", hstsHeaderValue) ]
+    headers @ extras
+
+
+let private logRequest
+  (ctx : HttpListenerContext)
+  (status : int)
+  (started : System.DateTime)
+  : unit =
+  let durationMs = (System.DateTime.UtcNow - started).TotalMilliseconds |> int64
+  let methodStr = ctx.Request.HttpMethod
+  let pathAndQuery =
+    try
+      ctx.Request.Url.PathAndQuery
+    with _ ->
+      "?"
+  print $"[HttpServer] {methodStr} {pathAndQuery} {status} {durationMs}ms"
+  Telemetry.event
+    "httpserver.request"
+    [ "method", methodStr
+      "path", pathAndQuery
+      "status", string status
+      "duration_ms", string durationMs ]
+
+
+// ───────── per-request dispatch ─────────
+
+let private executeHandler
+  (exeState : ExecutionState)
+  (handler : Applicable)
+  (arg : Dval)
+  : Task<Dval> =
+  task {
+    let! result = Execution.executeApplicable exeState handler (NEList.singleton arg)
+    match result with
+    | Ok dval -> return dval
+    | Error(rte, _callStack) ->
+      let! errorStrResult = Execution.runtimeErrorToString exeState rte
+      let errorStr =
+        match errorStrResult with
+        | Ok(DString s) -> s
+        | Ok other -> string other
+        | Error _ -> string rte
+      return DString $"Handler error: {errorStr}"
+  }
+
+
+/// Process a single request: parse → dispatch → write response. Errors
+/// surface as 500s; full detail goes to `logRequest` rather than the wire.
+let private handleRequest
+  (exeState : ExecutionState)
+  (handler : Applicable)
+  (maxBodyBytes : int64)
+  (injectStandardHeaders : bool)
+  (canonicalizeFromForwardedProto : bool)
+  (logRequests : bool)
+  (ctx : HttpListenerContext)
+  : Task<unit> =
+  task {
+    let started = System.DateTime.UtcNow
+    // Per-request blob scope: ephemeral blobs minted by the handler get
+    // reclaimed when the response is sent. Prevents long-lived servers from
+    // leaking blobStore entries.
+    Blob.pushScope exeState
+    try
+      try
+        let! bodyResult = readRequestBodyWithLimit ctx.Request maxBodyBytes
+        match bodyResult with
+        | Error() ->
+          ctx.Response.StatusCode <- 413
+          let msg = UTF8.toBytes "413 Payload Too Large"
+          ctx.Response.ContentLength64 <- int64 msg.Length
+          do! ctx.Response.OutputStream.WriteAsync(msg, 0, msg.Length)
+        | Ok reqBody ->
+          let reqHeaders = extractHeaders ctx.Request
+          let rawUrl = ctx.Request.Url.ToString()
+          let url =
+            if canonicalizeFromForwardedProto then
+              canonicalizeUrlFromForwardedProto rawUrl reqHeaders
+            else
+              rawUrl
+
+          let requestDval = Http.Request.fromRequest exeState url reqHeaders reqBody
+
+          // Per-request tracer — same shape as `eval`/`run` so HTTP traces
+          // appear alongside CLI traces with no consumer-side changes.
+          let traceID = AT.TraceID.create ()
+          let traceDesc =
+            try
+              $"{ctx.Request.HttpMethod} {ctx.Request.Url.PathAndQuery}"
+            with _ ->
+              "(http request)"
+          let tracer =
+            Tracing.createCliTracer traceID traceDesc "request" requestDval
+          let perRequestState = { exeState with tracing = tracer.executionTracing }
+
+          let! result = executeHandler perRequestState handler requestDval
+          let! response = Http.Response.toHttpResponse perRequestState result
+          do! tracer.storeTraceResults perRequestState |> Ply.toTask
+
+          let respHeaders =
+            maybeInjectStandardHeaders injectStandardHeaders response.headers
+
+          ctx.Response.StatusCode <- response.statusCode
+          for (key, value) in respHeaders do
+            ctx.Response.Headers.Add(key, value)
+          ctx.Response.ContentLength64 <- int64 response.body.Length
+          do!
+            ctx.Response.OutputStream.WriteAsync(
+              response.body,
+              0,
+              response.body.Length
+            )
+      with _ex ->
+        // Don't leak ex.Message — can carry stack hints / sensitive
+        // strings. Detail goes to `logRequest` (which sees the 500
+        // status). 4xx + handler-set codes flow through
+        // `Response.toHttpResponse`; this path is F#-side failures only.
+        ctx.Response.StatusCode <- 500
+        let errorBytes = UTF8.toBytes "Internal server error"
+        ctx.Response.ContentLength64 <- int64 errorBytes.Length
+        do! ctx.Response.OutputStream.WriteAsync(errorBytes, 0, errorBytes.Length)
+    finally
+      Blob.popScope exeState
+      if logRequests then
+        try
+          logRequest ctx ctx.Response.StatusCode started
+        with _ ->
+          ()
+      try
+        ctx.Response.OutputStream.Close()
+        ctx.Response.Close()
+      with _ ->
+        ()
+  }
+
+
+// ───────── listener loop ─────────
+
+// TODO: replace `HttpListener` with raw `TcpListener` + a hand-rolled HTTP/1.1
+// parser. ~80 ms/connection on loopback today; PoC drops it to near-zero.
+// HttpListener gives us free-but-not-cheap defenses (T-E + C-L smuggling,
+// slow-loris timeouts, per-connection caps, malformed-input handling) — all
+// of which the swap PR has to re-implement before going public-facing.
+// See `notes/merge-readiness-report.md` for the dotnet-trace numbers.
 let runListener
   (exeState : ExecutionState)
   (port : int64)
@@ -57,78 +265,6 @@ let runListener
   (cancellationToken : CancellationToken)
   : Task<unit> =
   task {
-    // ──────────────────────────────────────────────────────────────────
-    // TODO: replace `HttpListener` with raw `System.Net.Sockets.TcpListener`
-    // + a hand-rolled HTTP/1.1 parser.
-    //
-    // Why: HttpListener adds ~80 ms per new connection on loopback
-    // (verified via dotnet-trace; CPU idle, time is in HttpListener-
-    // internal blocking). A 60-LOC `TcpListener` PoC proves that
-    // overhead disappears entirely. Wins both performance and the
-    // long-term "thin .NET surface" goal — `TcpListener` has obvious
-    // equivalents in Rust/Go/OCaml/native-C; `HttpListener` does not.
-    // Do NOT switch to Kestrel — that re-introduces ~8 MB of
-    // `Microsoft.AspNetCore.*`.
-    //
-    // Effort: ~300 LOC for a working server, 1–2 days. Then 0.5–1 day
-    // of adversarial fixtures before declaring it production-ready.
-    //
-    // ────────── Security considerations for the swap ──────────
-    // HttpListener gives us (mostly free) defenses we'd need to write
-    // ourselves. Treat as security-relevant work, not pure perf.
-    //
-    // What HttpListener handles for us today:
-    //  1. HTTP request smuggling. RFC 7230 ambiguity around
-    //     `Transfer-Encoding: chunked` + `Content-Length: N` arriving
-    //     together is a classic CVE class. Hand-rolled parsers must
-    //     pick a consistent rule — reject the combo with 400 is safest
-    //     (RFC 7230 §3.3.3 lets us either drop C-L or refuse).
-    //  2. Slow loris. Slow byte-by-byte client sends pin a thread per
-    //     connection. HttpListener has internal idle timeouts; we'd
-    //     need our own (e.g. 30 s of no bytes → close).
-    //  3. Concurrent connection cap. HttpListener bounds live conns;
-    //     raw TcpListener + Task.Run-per-accept is OOM-able under
-    //     load without an explicit SemaphoreSlim.
-    //  4. Malformed input. Overlong headers, invalid encodings, CRLF
-    //     injection, multi-line/folded headers. HttpListener returns
-    //     400 cleanly; our parser would need explicit handling and
-    //     fuzz tests for the same shapes.
-    //  5. URL canonicalization for path traversal patterns.
-    //
-    // What we already own (no regression risk):
-    //  - Body size limit: `readRequestBodyWithLimit` enforces today.
-    //  - SSRF guard for outbound: `Builtins.Http.Client.Libs.HttpClient.
-    //    LocalAccess` + `strictConfig`.
-    //  - Per-request blob scope: memory hygiene already in place.
-    //
-    // Why "bounded" rather than scary:
-    //  - HttpListener on .NET/Linux is the *managed* implementation,
-    //    not http.sys. It's just .NET-team code with normal testing —
-    //    not Apache/nginx-class hardened. We're not giving up
-    //    battle-tested infra.
-    //  - Most HTTP-smuggling vectors need a proxy in front to bite.
-    //    `darklang serve` behind nginx/Cloudflare/ALB has the
-    //    upstream proxy normalize requests; smuggling is mitigated.
-    //    CLI-on-localhost = low risk. Public-internet-direct =
-    //    highest risk; that's the deployment that needs the
-    //    adversarial fixture suite.
-    //  - HTTP/1.1 is a closed grammar with finite parsing surface.
-    //    Fuzz-testable end-to-end. Easier to audit than a network
-    //    protocol like SSH.
-    //
-    // Practical checklist for the swap PR:
-    //  □ Reject `T-E: chunked` + `C-L: N` combo with 400.
-    //  □ Per-connection idle timeout (default 30 s).
-    //  □ Concurrent-connection cap via SemaphoreSlim.
-    //  □ Reject overlong status lines / headers (e.g. >8 KB).
-    //  □ Strict header-key/value charset (no embedded CRLF).
-    //  □ Adversarial fixture suite alongside the existing http-server
-    //    fixtures: malformed requests → 400, T-E+C-L combos → 400,
-    //    oversize body → 413 (already covered), slow-loris → close.
-    //
-    // See `notes/merge-readiness-report.md` for the dotnet-trace
-    // numbers and the 60-LOC PoC details.
-    // ──────────────────────────────────────────────────────────────────
     let listener = new HttpListener()
     listener.Prefixes.Add($"http://*:{port}/")
     listener.Start()
@@ -141,9 +277,9 @@ let runListener
         "canonicalizeFromForwardedProto", string canonicalizeFromForwardedProto
         "logRequests", string logRequests ]
 
-    // Cancellation → listener.Stop() unblocks any pending GetContextAsync
-    // call by raising HttpListenerException / ObjectDisposedException, which
-    // the loop below catches and treats as normal exit.
+    // Cancellation → listener.Stop() unblocks pending GetContextAsync
+    // by raising HttpListenerException / ObjectDisposedException, both
+    // caught below as normal exit.
     use _registration =
       cancellationToken.Register(fun () ->
         try
@@ -154,13 +290,11 @@ let runListener
     while not cancellationToken.IsCancellationRequested do
       try
         let! ctx = listener.GetContextAsync()
-        // Fire-and-forget: errors are caught inside Handler.handleRequest;
-        // anything escaping that try/catch is also swallowed here.
         Task.Run(fun () ->
           task {
             try
               do!
-                Handler.handleRequest
+                handleRequest
                   exeState
                   handler
                   maxBodyBytes
@@ -233,9 +367,8 @@ let fns () : List<BuiltInFn> =
 
             print $"[HttpServer] Listening on port {port}"
 
-            // Graceful shutdown: SIGINT (Ctrl+C) → cancel.
-            // Already-accepted requests drain by virtue of being fire-and-
-            // forget Tasks that we don't actively cancel.
+            // SIGINT → cancel; in-flight requests drain by virtue of being
+            // fire-and-forget Tasks.
             let cts = new CancellationTokenSource()
             let cancelHandler =
               ConsoleCancelEventHandler(fun _ args ->
@@ -254,7 +387,6 @@ let fns () : List<BuiltInFn> =
                 logRequests
                 cts.Token
 
-            // Block until listener exits (cancellation).
             listenerTask.Wait()
 
             Console.CancelKeyPress.RemoveHandler cancelHandler
