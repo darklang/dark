@@ -22,7 +22,7 @@ open Prelude
 
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module DvalReprInternalQueryable = LibExecution.DvalReprInternalQueryable
+module DvalReprInternalQueryable = LibSerialization.DvalReprInternalQueryable
 
 /// Type of DB query operation - determines SQL SELECT and result processing
 type DBQueryType =

@@ -41,6 +41,9 @@
 
     <Compile Include="Hashing/Canonical.fs" />
     <Compile Include="Hashing/Hashing.fs" />
+
+    <!-- SQL-queryable JSON repr of Dvals (User DB row storage) /-->
+    <Compile Include="DvalReprInternalQueryable.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

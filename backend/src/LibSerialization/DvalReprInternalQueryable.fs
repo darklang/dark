@@ -17,14 +17,16 @@
 ///
 /// These are intended to be used exclusively internally — should not
 /// be used in libraries, `darklang serve`, HttpClient, etc.
-module LibExecution.DvalReprInternalQueryable
+module LibSerialization.DvalReprInternalQueryable
 
 open System.Text.Json
 
 open Prelude
 
-open RuntimeTypes
-module VT = ValueType
+open LibExecution.RuntimeTypes
+module VT = LibExecution.ValueType
+module DarkDateTime = LibExecution.DarkDateTime
+module TypeChecker = LibExecution.TypeChecker
 
 
 let parseJson (s : string) : JsonElement =
