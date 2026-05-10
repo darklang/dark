@@ -109,7 +109,7 @@ let pingHandler: Handler =
 
 let opsPostHandlerFn (req: HttpRequest) : HttpResponse =
   let bodyStr = Stdlib.String.fromBlobWithReplacement req.body
-  match Builtin.jsonParse<List<LanguageTools.ProgramTypes.PackageOp>> bodyStr with
+  match Stdlib.Json.parse<List<LanguageTools.ProgramTypes.PackageOp>> bodyStr with
   | Ok ops ->
     match SCM.PackageOps.add serverBranchId ops with
     | Ok insertedCount ->
@@ -131,7 +131,7 @@ let opsGetHandlerFn (req: HttpRequest) : HttpResponse =
     | Error _ -> Stdlib.Http.badRequest "Invalid 'limit' parameter. Expected integer."
     | Ok limit ->
       let ops = SCM.PackageOps.getRecent limit
-      let json = ops |> Builtin.jsonSerialize<List<LanguageTools.ProgramTypes.PackageOp>>
+      let json = ops |> Stdlib.Json.serialize<List<LanguageTools.ProgramTypes.PackageOp>>
       Stdlib.Http.responseWithJson json 200L
 
 let opsGetHandler: Handler =
@@ -197,7 +197,7 @@ let searchHandlerFn (req: HttpRequest) : HttpResponse =
                     exactMatch = exactMatch }
 
               let results = Builtin.pmSearch serverBranchId query
-              let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
+              let json = results |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Search.SearchResults>
               Stdlib.Http.responseWithJson json 200L
 
 let searchHandler: Handler =
@@ -232,7 +232,7 @@ let locationHandlerFn (req: HttpRequest) : HttpResponse =
               exactMatch = false }
 
         let results = Builtin.pmSearch serverBranchId searchQuery
-        let json = results |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
+        let json = results |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Search.SearchResults>
         Stdlib.Http.responseWithJson json 200L
     else
       match parseNameToLocation location with
@@ -245,19 +245,19 @@ let locationHandlerFn (req: HttpRequest) : HttpResponse =
           | Fn ->
             match Builtin.pmGetFn hash with
             | Some fn ->
-              let json = fn |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+              let json = fn |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
               Stdlib.Http.responseWithJson json 200L
             | None -> Stdlib.Http.notFound ()
           | Type ->
             match Builtin.pmGetType hash with
             | Some t ->
-              let json = t |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType.PackageType>
+              let json = t |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageType.PackageType>
               Stdlib.Http.responseWithJson json 200L
             | None -> Stdlib.Http.notFound ()
           | Value ->
             match Builtin.pmGetValue hash with
             | Some v ->
-              let json = v |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+              let json = v |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
               Stdlib.Http.responseWithJson json 200L
             | None -> Stdlib.Http.notFound ()
         | None ->
@@ -272,7 +272,7 @@ let locationHandlerFn (req: HttpRequest) : HttpResponse =
           let results = Builtin.pmSearch serverBranchId searchQuery
           let json =
             results
-            |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Search.SearchResults>
+            |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Search.SearchResults>
           Stdlib.Http.responseWithJson json 200L
 
 let locationHandler: Handler =
@@ -299,7 +299,7 @@ let typeFindHandlerFn (req: HttpRequest) : HttpResponse =
     | Ok location ->
       match Builtin.pmFindType serverBranchId location with
       | Some hash ->
-        Stdlib.Http.responseWithJson (hash |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Hash>) 200L
+        Stdlib.Http.responseWithJson (hash |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>) 200L
       | None -> Stdlib.Http.notFound ()
 
 let typeFindHandler: Handler =
@@ -314,7 +314,7 @@ let typeGetHandlerFn (req: HttpRequest) : HttpResponse =
     let hash = LanguageTools.ProgramTypes.Hash.Hash hashStr
     match Builtin.pmGetType hash with
     | Some t ->
-      let json = t |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageType.PackageType>
+      let json = t |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageType.PackageType>
       Stdlib.Http.responseWithJson json 200L
     | None -> Stdlib.Http.notFound ()
 
@@ -334,7 +334,7 @@ let typeGetWithLocationHandlerFn
     | Some locatedItem ->
       let json =
         locatedItem
-        |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageType.PackageType>>
+        |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageType.PackageType>>
       Stdlib.Http.responseWithJson json 200L
     | None -> Stdlib.Http.notFound ()
 
@@ -355,7 +355,7 @@ let valueFindHandlerFn (req: HttpRequest) : HttpResponse =
     | Ok location ->
       match Builtin.pmFindValue serverBranchId location with
       | Some hash ->
-        Stdlib.Http.responseWithJson (hash |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Hash>) 200L
+        Stdlib.Http.responseWithJson (hash |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>) 200L
       | None -> Stdlib.Http.notFound ()
 
 let valueFindHandler: Handler =
@@ -371,7 +371,7 @@ let valueGetHandlerFn (req: HttpRequest) : HttpResponse =
     let hash = LanguageTools.ProgramTypes.Hash.Hash hashStr
     match Builtin.pmGetValue hash with
     | Some v ->
-      let json = v |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+      let json = v |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
       Stdlib.Http.responseWithJson json 200L
     | None -> Stdlib.Http.notFound ()
 
@@ -392,7 +392,7 @@ let valueGetWithLocationHandlerFn
     | Some locatedItem ->
       let json =
         locatedItem
-        |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageValue.PackageValue>>
+        |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageValue.PackageValue>>
       Stdlib.Http.responseWithJson json 200L
     | None -> Stdlib.Http.notFound ()
 
@@ -413,7 +413,7 @@ let functionFindHandlerFn (req: HttpRequest) : HttpResponse =
     | Ok location ->
       match Builtin.pmFindFn serverBranchId location with
       | Some hash ->
-        Stdlib.Http.responseWithJson (hash |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.Hash>) 200L
+        Stdlib.Http.responseWithJson (hash |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>) 200L
       | None -> Stdlib.Http.notFound ()
 
 let functionFindHandler: Handler =
@@ -431,7 +431,7 @@ let functionGetHandlerFn (req: HttpRequest) : HttpResponse =
     let hash = LanguageTools.ProgramTypes.Hash.Hash hashStr
     match Builtin.pmGetFn hash with
     | Some f ->
-      let json = f |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+      let json = f |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
       Stdlib.Http.responseWithJson json 200L
     | None -> Stdlib.Http.notFound ()
 
@@ -456,7 +456,7 @@ let functionGetWithLocationHandlerFn
     | Some locatedItem ->
       let json =
         locatedItem
-        |> Builtin.jsonSerialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>>
+        |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>>
       Stdlib.Http.responseWithJson json 200L
     | None -> Stdlib.Http.notFound ()
 

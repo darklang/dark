@@ -48,7 +48,7 @@ module HandleCommand =
       // Note: values are stored with NULL rt_dval at this point
       let! commitHash =
         LibDB.Inserts.insertAndApplyOpsWithCommit
-          (LibCloud.Account.resolve ())
+          LibCloud.Account.IDs.darklang
           LibExecution.ProgramTypes.mainBranchId
           "Init: packages loaded from disk"
           ops

@@ -14,7 +14,7 @@ module VT = LibExecution.ValueType
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "scmAccountGetByName" 0
+  [ { name = fn "accountGetByName" 0
       typeParams = []
       parameters = [ Param.make "name" TString "Account display name" ]
       returnType = TypeReference.option TUuid
@@ -39,7 +39,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "scmAccountGetNameByID" 0
+    { name = fn "accountGetNameByID" 0
       typeParams = []
       parameters = [ Param.make "accountId" TUuid "Account ID" ]
       returnType = TypeReference.option TString
@@ -64,7 +64,7 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "scmAccountList" 0
+    { name = fn "accountList" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TList(TTuple(TUuid, TString, []))
@@ -81,30 +81,6 @@ let fns () : List<BuiltInFn> =
               rows
               |> List.map (fun (id, name) -> DTuple(DUuid id, DString name, []))
               |> Dval.list (KTTuple(VT.uuid, VT.string, []))
-          }
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "darkInternalUserCreate" 0
-      typeParams = []
-      parameters = [ Param.make "name" TString "Account display name" ]
-      returnType = TypeReference.result TUuid TString
-      description =
-        "Create a new account with the given name. Returns the new account
-         ID on success, or an error string (typically a name-uniqueness
-         conflict)."
-      fn =
-        (function
-        | _, _, _, [ DString name ] ->
-          uply {
-            let! result = LibCloud.Account.insertAccount name
-            return
-              match result with
-              | Ok id -> Dval.resultOk KTUuid KTString (DUuid id)
-              | Error msg -> Dval.resultError KTUuid KTString (DString msg)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

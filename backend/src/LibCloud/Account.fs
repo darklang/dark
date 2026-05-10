@@ -21,11 +21,6 @@ module IDs =
   let paul : AccountID = System.Guid.Parse "00000000-0000-0000-0000-000000000003"
   let feriel : AccountID = System.Guid.Parse "00000000-0000-0000-0000-000000000004"
 
-/// Resolve the current process's account. Single-instance Dark
-/// today, so this is just Darklang. When multi-account lands this
-/// would consult an env var / config / login state.
-let resolve () : AccountID = IDs.darklang
-
 let getAccountByName (name : string) : Task<Option<AccountID>> =
   Sql.query "SELECT id FROM accounts_v0 WHERE name = @name"
   |> Sql.parameters [ "name", Sql.string name ]
@@ -35,22 +30,3 @@ let getAccountNameByID (id : AccountID) : Task<Option<string>> =
   Sql.query "SELECT name FROM accounts_v0 WHERE id = @id"
   |> Sql.parameters [ "id", Sql.uuid id ]
   |> Sql.executeRowOptionAsync (fun read -> read.string "name")
-
-
-/// Create a new account with a fresh UUID and the given name. Names
-/// must be unique; conflict surfaces as `Error`. Returns the new
-/// account ID on success.
-let insertAccount (name : string) : Task<Result<AccountID, string>> =
-  task {
-    let id = System.Guid.NewGuid()
-    try
-      do!
-        Sql.query "INSERT INTO accounts_v0 (id, name) VALUES (@id, @name)"
-        |> Sql.parameters [ "id", Sql.uuid id; "name", Sql.string name ]
-        |> Sql.executeStatementAsync
-      return Ok id
-    with ex ->
-      // UNIQUE constraint failure on name is the only realistic
-      // shape; any other DB error gets surfaced verbatim.
-      return Error $"Account create failed: {ex.Message}"
-  }

@@ -32,7 +32,9 @@ let traceDataTypeName () = FQTypeName.fqPackage (TracesRefs.traceData ())
 /// records carry the right shape. The binary format is the same one
 /// LibDB/Tracing.fs writes via `BinarySer.RT.Dval.serialize`.
 let private parseDvalBytes (bytes : byte[]) : Dval =
-  bytes |> BinarySer.RT.Dval.deserialize "trace_fn_calls.result" |> RT2DT.Dval.toDT
+  bytes
+  |> BinarySer.RT.Dval.deserialize "trace_fn_calls.result"
+  |> RT2DT.Dval.toDT
 
 /// Args are stored as a single `DList(Unknown, …)` blob (see
 /// `LibDB/Tracing.fs::serializeArgs`). Unwrap the list and convert
@@ -40,9 +42,8 @@ let private parseDvalBytes (bytes : byte[]) : Dval =
 let private parseArgsBytes (bytes : byte[]) : List<Dval> =
   match BinarySer.RT.Dval.deserialize "trace_fn_calls.args" bytes with
   | DList(_, items) -> items |> List.map RT2DT.Dval.toDT
-  | other -> Exception.raiseInternal
-               "trace_fn_calls.args was not a DList"
-               [ "actual", other ]
+  | other ->
+    Exception.raiseInternal "trace_fn_calls.args was not a DList" [ "actual", other ]
 
 
 /// Load call events for a trace, ordered by rowid (= execution order).
@@ -419,7 +420,9 @@ let fns () : List<BuiltInFn> =
                    timestamp = read.string "timestamp"
                    inputBytes = read.bytes "input_value" |})
 
-            let mutable hits : List<{| id : string; handler : string; timestamp : string |}> = []
+            let mutable hits
+              : List<{| id : string; handler : string; timestamp : string |}> =
+              []
             let mutable cursor = 0
 
             while cursor < List.length traces && int64 (List.length hits) < limit do
@@ -467,7 +470,9 @@ let fns () : List<BuiltInFn> =
                   }
 
               if matchesViaCalls then
-                hits <- hits @ [ {| id = t.id; handler = t.handler; timestamp = t.timestamp |} ]
+                hits <-
+                  hits
+                  @ [ {| id = t.id; handler = t.handler; timestamp = t.timestamp |} ]
 
             return
               hits
@@ -556,8 +561,7 @@ let fns () : List<BuiltInFn> =
             let! row =
               Sql.query "SELECT input_value FROM traces WHERE id = @traceId"
               |> Sql.parameters [ "traceId", Sql.string traceID ]
-              |> Sql.executeRowOptionAsync (fun read ->
-                read.bytes "input_value")
+              |> Sql.executeRowOptionAsync (fun read -> read.bytes "input_value")
 
             match row with
             | None -> return Dval.optionNone KTString

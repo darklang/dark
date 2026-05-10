@@ -46,7 +46,7 @@
     <Compile Include="HttpServer.Tests.fs" />
     <Compile Include="Toplevels.Tests.fs" />
     <Compile Include="CliTraces.Tests.fs" />
-    <Compile Include="DvalRepr.Tests.fs" />
+    <Compile Include="DvalReprInternalQueryable.Tests.fs" />
     <Compile Include="Serialization.TestValues.fs" />
     <Compile Include="Serialization.Binary.Tests.fs" />
     <Compile Include="Serialization.DarkTypes.Tests.fs" />

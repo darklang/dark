@@ -213,8 +213,7 @@ let createBranchState
   (allowHarmful : bool)
   =
   let program : Program = { dbs = Map.empty }
-  let state =
-    childState parentState pmRT Exe.noTracing branchId program
+  let state = childState parentState pmRT Exe.noTracing branchId program
   { state with allowHarmful = allowHarmful }
 
 

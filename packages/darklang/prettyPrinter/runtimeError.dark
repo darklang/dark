@@ -116,7 +116,7 @@ module RuntimeError =
           | FullValue dv -> dval branchId dv
           | LetPattern p -> letPattern p
           | segment ->
-            $"(RTETODO segmentsToString parts {(Builtin.jsonSerialize<ErrorSegment> segment)})"
+            $"(RTETODO segmentsToString parts {(Stdlib.Json.serialize<ErrorSegment> segment)})"
 
         Stdlib.List.push prevSegments newSegment)
 
@@ -475,7 +475,7 @@ module RuntimeError =
         | metadata ->
           let metadataStrings =
             Stdlib.List.map metadata (fun (key, value) ->
-              ES.String $"\n  {key}: {Builtin.jsonSerialize<Dval> value}")
+              ES.String $"\n  {key}: {Stdlib.Json.serialize<Dval> value}")
 
           Stdlib.List.append [ ES.String "\nMetadata:" ] metadataStrings
 
@@ -491,7 +491,7 @@ module RuntimeError =
     //   { innerOutput with summary = Stdlib.List.append [ (ES.String sqlErrorTemplate) ] innerOutput.summary }
 
     | unhandled ->
-      let serialized = Builtin.jsonSerialize<LanguageTools.RuntimeTypes.RuntimeError.Error> unhandled
+      let serialized = Stdlib.Json.serialize<LanguageTools.RuntimeTypes.RuntimeError.Error> unhandled
       [ ES.String $"RTE pretty-printing TODO: {serialized}" ]
 
 

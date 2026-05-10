@@ -48,7 +48,7 @@ let fns () : List<BuiltInFn> =
     //   sqlSpec = NotQueryable
     //   previewable = Pure
     //   deprecated = NotDeprecated }
-      ]
+    ]
 
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

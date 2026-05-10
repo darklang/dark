@@ -212,8 +212,8 @@ let help (_state: AppState) : Unit =
     "Without path: View current location."
     ""
     "Examples:"
-    "  view                              - View current location"
-    "  view List.head                    - View the List.head function"
-    "  view Option                       - View the Option type"
-    "  view Stdlib.List                  - View contents of Stdlib.List module"
+    "  view                    - View current location"
+    "  view List.head          - View the List.head function"
+    "  view Option             - View the Option type"
+    "  view Stdlib.List        - View contents of Stdlib.List module"
   ] |> Stdlib.printLines

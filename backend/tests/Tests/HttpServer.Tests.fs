@@ -276,7 +276,10 @@ module Execution =
     if pattern.Length = 0 || bytes.Length < pattern.Length then
       bytes
     else
-      let mutable result = []
+      // For each element of bytes, try to match every element of pattern with
+      // it. If it matches, add in the relacement and skip the rest of the
+      // pattern, otherwise skip
+      let mutable result = [] // Add in reverse
       let mutable i = 0
       while i < bytes.Length - pattern.Length do
         let mutable matches = true
@@ -284,17 +287,21 @@ module Execution =
         while j < pattern.Length do
           if bytes[i + j] <> patternBytes[j] then
             matches <- false
-            j <- pattern.Length
+            j <- pattern.Length // stop early
           else
             j <- j + 1
         if matches then
+          // matched: save replacement, skip rest of pattern
           result <- replacementBytes @ result
           i <- i + pattern.Length
         else
+          // not matched, char is in result, look at next char
           result <- bytes[i] :: result
           i <- i + 1
+      // Add the final ones we skipped above
       for i = i to bytes.Length - 1 do
         result <- bytes[i] :: result
+      // bytes are added in reverse, so one more reverse needed
       result |> List.reverse |> List.toArray
 
   // VS Code trims trailing whitespace from lines of code; <SPACE> in the

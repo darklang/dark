@@ -119,8 +119,4 @@ let allRoundtrips =
         (dvs DvalReprInternalQueryable.Test.isQueryableDval) ]
 
 
-let tests =
-  testList
-    "dvalRepr"
-    [ testToDeveloperRepr
-      allRoundtrips ]
+let tests = testList "dvalRepr" [ testToDeveloperRepr; allRoundtrips ]

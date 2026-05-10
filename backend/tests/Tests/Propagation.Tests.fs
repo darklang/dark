@@ -335,7 +335,7 @@ let private findValue (branchId : PT.BranchId) (location : PT.PackageLocation) =
 
 let private commitAll (branchId : PT.BranchId) (msg : string) =
   task {
-    let! result = Inserts.commitWipOps (LibCloud.Account.resolve ()) branchId msg
+    let! result = Inserts.commitWipOps LibCloud.Account.IDs.darklang branchId msg
     match result with
     | Ok commitHash -> return commitHash
     | Error e -> return failtest $"commit failed: {e}"

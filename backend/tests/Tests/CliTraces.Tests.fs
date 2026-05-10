@@ -120,10 +120,7 @@ let private withState (f : RT.ExecutionState -> Task<unit>) : Task<unit> =
 /// `testTask "..." { do! withState (fun state -> task { … }) }`
 /// boilerplate that every CLI integration test wraps around. Body
 /// receives the state and returns a Task<unit>.
-let private cliTest
-  (name : string)
-  (body : RT.ExecutionState -> Task<unit>)
-  : Test =
+let private cliTest (name : string) (body : RT.ExecutionState -> Task<unit>) : Test =
   testTask name { do! withState body }
 
 /// `cliTestWithFreshTraces` adds a `traces delete --all --yes` step

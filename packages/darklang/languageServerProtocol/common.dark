@@ -201,7 +201,7 @@ module TextDocumentItem =
     |> Json.Object
 
   let fromJson (json: Json) : Stdlib.Result.Result<TextDocumentItem, Unit> =
-    match Builtin.jsonParse<TextDocumentItem> json with
+    match Stdlib.Json.parse<TextDocumentItem> json with
     | Ok item -> Stdlib.Result.Result.Ok item
     | Error _ -> Stdlib.Result.Result.Error()
 

@@ -31,7 +31,7 @@ let main (args : string array) : int =
         Tests.Interpreter.tests
         Tests.AnalysisTypes.tests
         Tests.Builtin.tests
-        Tests.DvalRepr.tests
+        Tests.DvalReprInternalQueryable.tests
         Tests.LibParser.tests
         Tests.NewParser.tests
         Tests.HttpClient.tests

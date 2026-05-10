@@ -168,20 +168,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "testGetCanvasID" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TUuid
-      description = "Get the name of the canvas that's running"
-      fn =
-        (function
-        | _, _, _, [ DUnit ] -> System.Guid.Empty |> DUuid |> Ply
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
     { name = fn "testSetExpectedExceptionCount" 0
       typeParams = []
       parameters = [ Param.make "count" TInt64 "" ]

@@ -15,7 +15,6 @@ open Prelude
 
 module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization
-module PTParser = LibExecution.ProgramTypesParser
 
 
 // --------------------------------------------------------
