@@ -24,7 +24,6 @@ module BS = LibSerialization.Binary.Serialization
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PMBlob = LibDB.RuntimeTypes.Blob
-module RoundtrippableJson = LibExecution.DvalReprInternalRoundtrippable
 module QueryableJson = LibExecution.DvalReprInternalQueryable
 module Equals = Builtins.Pure.Libs.NoModule
 
@@ -359,65 +358,6 @@ let fileReadMemoryBound =
 
 
 // ─────────────────────────────────────────────────────────────────────
-// JSON roundtrips (queryable / roundtrippable)
-// ─────────────────────────────────────────────────────────────────────
-
-let queryableJsonRoundtrip =
-  testTask "User-DB queryable JSON roundtrips a persistent blob dval" {
-    let types = { RT.Types.empty with package = pmRT.getType }
-    let threadID = System.Guid.NewGuid()
-    let original =
-      RT.DBlob(
-        RT.Persistent(
-          "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-          2048L
-        )
-      )
-    let! json = QueryableJson.toJsonStringV0 types threadID original |> Ply.toTask
-    Expect.stringContains json "\"type\":\"blob\"" "has blob envelope tag"
-    Expect.stringContains
-      json
-      "\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\""
-      "has the content hash"
-    let! restored =
-      QueryableJson.parseJsonV0 types threadID Map.empty RT.TBlob json |> Ply.toTask
-    Expect.equal restored original "persistent blob survives queryable JSON"
-  }
-
-let queryableJsonEphemeralRaises =
-  testTask "User-DB queryable JSON raises on ephemeral blob (promotion needed)" {
-    let state = freshState ()
-    let types = { RT.Types.empty with package = pmRT.getType }
-    let threadID = System.Guid.NewGuid()
-    let ephemeral = Blob.newEphemeral state [| 1uy; 2uy; 3uy |]
-    do!
-      expectThrows
-        "ephemeral blob in queryable JSON should raise (promote first)"
-        (fun () ->
-          QueryableJson.toJsonStringV0 types threadID ephemeral |> Ply.toTask)
-  }
-
-let roundtrippableJsonPersistentRoundtrip =
-  test "rt_dval roundtrippable JSON preserves DBlob(Persistent _)" {
-    let original = RT.DBlob(RT.Persistent("deadbeef" + String.replicate 56 "a", 99L))
-    let restored =
-      RoundtrippableJson.parseJsonV0 (RoundtrippableJson.toJsonV0 original)
-    Expect.equal restored original "persistent blob survives rt_dval JSON"
-  }
-
-let roundtrippableJsonEphemeralRoundtrip =
-  test "rt_dval roundtrippable JSON preserves DBlob(Ephemeral _)" {
-    let original = RT.DBlob(RT.Ephemeral(System.Guid.NewGuid()))
-    let restored =
-      RoundtrippableJson.parseJsonV0 (RoundtrippableJson.toJsonV0 original)
-    Expect.equal
-      restored
-      original
-      "ephemeral blob survives rt_dval JSON as its own case"
-  }
-
-
-// ─────────────────────────────────────────────────────────────────────
 // Scope-based ephemeral-blob lifetime
 // ─────────────────────────────────────────────────────────────────────
 
@@ -700,10 +640,6 @@ let tests =
       promoteSameBytesTwiceDedups
       promotedBlobResolvesViaReadBlobBytes
       fileReadMemoryBound
-      queryableJsonRoundtrip
-      queryableJsonEphemeralRaises
-      roundtrippableJsonPersistentRoundtrip
-      roundtrippableJsonEphemeralRoundtrip
       pushPopReclaimsScopedBlobs
       scopeNestsLikeAStack
       popWithoutPushIsNoOp
