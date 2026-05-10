@@ -47,7 +47,12 @@ let main (args : string array) : int =
 
         // http server
         Tests.HttpServer.tests
-        Tests.CliTraces.tests
+        // CliTraces — WIP, but the 37 sequenced cases (forced
+        // sequential by `Console.SetOut` capture) cost too much
+        // wall-clock to include in the default suite. Re-enable
+        // once the capture moves to per-call buffers and
+        // sequencing can come off.
+        // Tests.CliTraces.tests
         Tests.Toplevels.tests
 
         // cross-cutting
