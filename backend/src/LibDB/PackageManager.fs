@@ -63,18 +63,25 @@ let pt : PT.PackageManager =
   let getBranchChain branchId =
     Branches.getBranchChain branchId |> Async.AwaitTask |> Async.RunSynchronously
 
-  { findType =
-      fun (branchId, location) ->
-        let chain = getBranchChain branchId
-        withCache (PMPT.Type.find chain) location
-    findValue =
-      fun (branchId, location) ->
-        let chain = getBranchChain branchId
-        withCache (PMPT.Value.find chain) location
-    findFn =
-      fun (branchId, location) ->
-        let chain = getBranchChain branchId
-        withCache (PMPT.Fn.find chain) location
+  // `withCache` allocates a fresh `ConcurrentDictionary` each time
+  // it's invoked, so binding it inside the per-call lambdas
+  // (`fun (branchId, location) -> ... withCache ...`) means every
+  // lookup starts from an empty cache and re-hits the DB. Hoist the
+  // cache out so the same dict is reused across calls. Keying by
+  // `(branchId, location)` covers the branch-chain dependency.
+  let findTypeCached =
+    withCache (fun (branchId, location) ->
+      PMPT.Type.find (getBranchChain branchId) location)
+  let findValueCached =
+    withCache (fun (branchId, location) ->
+      PMPT.Value.find (getBranchChain branchId) location)
+  let findFnCached =
+    withCache (fun (branchId, location) ->
+      PMPT.Fn.find (getBranchChain branchId) location)
+
+  { findType = findTypeCached
+    findValue = findValueCached
+    findFn = findFnCached
 
     getType = withCache PMPT.Type.get
     getFn = withCache PMPT.Fn.get
