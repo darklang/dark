@@ -657,8 +657,17 @@ let equalsEphemeralDifferentBytes =
   }
 
 
+// `sweepOrphans` deletes any `package_blobs` row not referenced
+// by `package_values.rt_dval`. Without sequencing, the sweep test
+// can run concurrently with `packageBlobDedupesOnSameHash` (which
+// inserts an unreferenced hash, then re-inserts under that hash
+// expecting `INSERT OR IGNORE` to win) — the sweep's DELETE
+// between the two inserts lets the second insert succeed with
+// fresh bytes, and the dedup invariant assertion fails. Sequence
+// the file so any test mutating `package_blobs` runs alone.
 let tests =
-  testList
+  testSequenced
+  <| testList
     "blob"
     [ ephemeralRoundtrip
       twoEphemeralsAreDistinct
