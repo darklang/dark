@@ -114,13 +114,11 @@ let readBytes (state : ExecutionState) (ref : BlobRef) : Ply.Ply<byte[]> =
 /// (binary, JSON) still raise on ephemeral — promote first, serialize
 /// second.
 ///
-/// TODO LATENT BUG: `Tracing.fs` (storeTraceInput / storeFnResult) does
-/// NOT call this before serializing through DvalReprInternalRoundtrippable.
-/// A captured trace holding a `DBlob(Ephemeral _)` deserialises in a
-/// fresh VM with the UUID intact but no bytes in that VM's blobStore,
-/// so the next `readBytes` raises "ephemeral blob not found".
-/// Fix: thread a `promoteForCapture : Dval -> Ply<Dval>` through the
-/// Tracing.T record, wrap each storeXXX in promote-then-serialize.
+/// `LibDB.Tracing.storeTrace` does call this (via `promoteBlobs`)
+/// before encoding each captured Dval — see that fn's docstring.
+/// Without it, a captured trace holding a `DBlob(Ephemeral _)` would
+/// deserialise in a fresh VM with the UUID intact but no bytes in that
+/// VM's blobStore, so the next `readBytes` would raise.
 ///
 /// CLEANUP rebuilds container Dvals (Map.toList → walk → Map.ofList)
 /// even when no descendant blob promoted. Alloc-cheap in practice

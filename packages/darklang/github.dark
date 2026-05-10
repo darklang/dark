@@ -39,7 +39,7 @@ module Releases =
   let getLatestReleaseTag () : Stdlib.Result.Result<String, String> =
     match fetchString $"{darklangRepoBaseUrl}/releases" with
     | Ok releasesJsonString ->
-      match Builtin.jsonParse<List<Release>> releasesJsonString with
+      match Stdlib.Json.parse<List<Release>> releasesJsonString with
       | Ok releases ->
         match Stdlib.List.head releases with
         | Some latestRelease -> latestRelease.tag_name |> Stdlib.Result.Result.Ok
@@ -54,7 +54,7 @@ module Releases =
   let getLatestReleaseBuildHash () : Stdlib.Result.Result<String, String> =
     match fetchString $"{darklangRepoBaseUrl}/releases" with
     | Ok releasesJsonString ->
-      match Builtin.jsonParse<List<Release>> releasesJsonString with
+      match Stdlib.Json.parse<List<Release>> releasesJsonString with
       | Ok releases ->
         match Stdlib.List.head releases with
         | Some latestRelease ->
@@ -105,7 +105,7 @@ module Releases =
 
       match fetched with
       | Ok releaseJsonString ->
-        match Builtin.jsonParse<Release> releaseJsonString with
+        match Stdlib.Json.parse<Release> releaseJsonString with
         | Ok release ->
           let matchingAssetMaybe =
             release.assets

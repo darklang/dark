@@ -7,7 +7,7 @@ open TestUtils.TestUtils
 open TestUtils.PTShortcuts
 
 module PT = LibExecution.ProgramTypes
-module PackageLocation = LibPackageManager.PackageLocation
+module PackageLocation = LibDB.PackageLocation
 open LibSerialization.Hashing
 
 
@@ -135,20 +135,17 @@ let tests =
 
       testList
         "computeCommitHash"
-        [ test "determinism" {
+        [ let branch = System.Guid.Parse "11111111-1111-1111-1111-111111111111"
+          let account = System.Guid.Parse "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
+
+          test "determinism" {
             let opHash1 = PT.Hash "aabb"
             let opHash2 = PT.Hash "ccdd"
             let parent = Some(PT.Hash "0011")
             let h1 =
-              Hashing.computeCommitHash
-                parent
-                [ opHash1; opHash2 ]
-                (System.Guid.Parse "00000000-0000-0000-0000-000000000001")
+              Hashing.computeCommitHash branch account parent [ opHash1; opHash2 ]
             let h2 =
-              Hashing.computeCommitHash
-                parent
-                [ opHash1; opHash2 ]
-                (System.Guid.Parse "00000000-0000-0000-0000-000000000001")
+              Hashing.computeCommitHash branch account parent [ opHash1; opHash2 ]
             Expect.equal h1 h2 "same inputs should give same commit hash"
           }
 
@@ -157,45 +154,46 @@ let tests =
             let opHash2 = PT.Hash "ccdd"
             let parent = Some(PT.Hash "0011")
             let h1 =
-              Hashing.computeCommitHash
-                parent
-                [ opHash1; opHash2 ]
-                (System.Guid.Parse "00000000-0000-0000-0000-000000000001")
+              Hashing.computeCommitHash branch account parent [ opHash1; opHash2 ]
             let h2 =
-              Hashing.computeCommitHash
-                parent
-                [ opHash2; opHash1 ]
-                (System.Guid.Parse "00000000-0000-0000-0000-000000000001")
+              Hashing.computeCommitHash branch account parent [ opHash2; opHash1 ]
             Expect.equal h1 h2 "op order should not matter"
           }
 
           test "different parent gives different hash" {
             let ops = [ PT.Hash "aabb" ]
             let h1 =
-              Hashing.computeCommitHash
-                (Some(PT.Hash "0011"))
-                ops
-                (System.Guid.Parse "00000000-0000-0000-0000-000000000001")
+              Hashing.computeCommitHash branch account (Some(PT.Hash "0011")) ops
             let h2 =
-              Hashing.computeCommitHash
-                (Some(PT.Hash "0022"))
-                ops
-                (System.Guid.Parse "00000000-0000-0000-0000-000000000001")
+              Hashing.computeCommitHash branch account (Some(PT.Hash "0022")) ops
             Expect.notEqual h1 h2 "different parent should give different hash"
+          }
+
+          test "different branch gives different hash" {
+            let other = System.Guid.Parse "22222222-2222-2222-2222-222222222222"
+            let parent = Some(PT.Hash "0011")
+            let ops = [ PT.Hash "aabb" ]
+            let h1 = Hashing.computeCommitHash branch account parent ops
+            let h2 = Hashing.computeCommitHash other account parent ops
+            Expect.notEqual h1 h2 "different branch should give different hash"
+          }
+
+          test "different account gives different hash" {
+            // Two accounts producing identical op sets on the same branch
+            // and parent must hash to different commits — keeps the
+            // global `commits.hash` PK + INSERT OR IGNORE safe.
+            let other = System.Guid.Parse "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
+            let parent = Some(PT.Hash "0011")
+            let ops = [ PT.Hash "aabb" ]
+            let h1 = Hashing.computeCommitHash branch account parent ops
+            let h2 = Hashing.computeCommitHash branch other parent ops
+            Expect.notEqual h1 h2 "different account should give different hash"
           }
 
           test "empty commit (no ops, just parent)" {
             let parent = Some(PT.Hash "0011")
-            let h1 =
-              Hashing.computeCommitHash
-                parent
-                []
-                (System.Guid.Parse "00000000-0000-0000-0000-000000000001")
-            let h2 =
-              Hashing.computeCommitHash
-                parent
-                []
-                (System.Guid.Parse "00000000-0000-0000-0000-000000000001")
+            let h1 = Hashing.computeCommitHash branch account parent []
+            let h2 = Hashing.computeCommitHash branch account parent []
             Expect.equal h1 h2 "empty commit should be deterministic"
           } ]
 

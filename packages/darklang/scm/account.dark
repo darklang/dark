@@ -1,12 +1,31 @@
+/// Account lookups. Auth state lives in the CLI's `AppState.accountID`
+/// (initially `None` — login required before commits).
 module Darklang.SCM.Account
 
-// CLEANUP replace DARK_ACCOUNT env var with proper login
-/// Resolve the current user's account from the DARK_ACCOUNT env var.
-/// Returns (name, accountId option).
-let resolve () : (String * Stdlib.Option.Option<Uuid>) =
-  match Builtin.environmentGet "DARK_ACCOUNT" with
-  | Some name ->
-    match Builtin.darkInternalUserGetByName name with
-    | Some id -> (name, Stdlib.Option.Option.Some id)
-    | None -> (name, Stdlib.Option.Option.None)
-  | None -> ("", Stdlib.Option.Option.None)
+
+type Account = { id: Uuid; name: String }
+
+
+/// Look up an account by name. Returns None if no account with that
+/// name exists in the DB.
+let getByName (name: String) : Stdlib.Option.Option<Account> =
+  match Builtin.accountGetByName name with
+  | None -> Stdlib.Option.Option.None
+  | Some id -> Stdlib.Option.Option.Some(Account { id = id; name = name })
+
+
+/// Look up an account by ID. Returns None if no account with that ID
+/// exists in the DB.
+let getById (id: Uuid) : Stdlib.Option.Option<Account> =
+  match Builtin.accountGetNameByID id with
+  | None -> Stdlib.Option.Option.None
+  | Some name -> Stdlib.Option.Option.Some(Account { id = id; name = name })
+
+
+/// Every account in the DB, ordered by name. Used by `login` for
+/// listing/completion.
+let list () : List<Account> =
+  (Builtin.accountList ())
+  |> Stdlib.List.map (fun pair ->
+    let (id, name) = pair
+    Account { id = id; name = name })

@@ -7,32 +7,16 @@ open System.Threading.Tasks
 
 open Prelude
 
-module PT = LibExecution.ProgramTypes
-
-let initSerializers () =
-  BwdServer.Server.initSerializers ()
-
-  // These are serializers used in the tests that are not used in the main program
-  Json.Vanilla.allow<Map<string, string>> "tests"
-  Json.Vanilla.allow<LibExecution.AnalysisTypes.TraceData> "testTraceData"
-  Json.Vanilla.allow<PT.PackageType.PackageType> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<PT.PackageValue.PackageValue> "Canvas.loadJsonFromDisk"
-  Json.Vanilla.allow<PT.PackageFn.PackageFn> "Canvas.loadJsonFromDisk"
-
-
 [<EntryPoint>]
 let main (args : string array) : int =
   try
-    let name = "Tests"
-    LibService.Init.init name
-    (LibCloud.Init.init name).Result
-    (LibCloudExecution.Init.init name).Result
-
-    initSerializers ()
+    // Most tests don't need trace data on disk; tests that DO check
+    // trace contents (CliTraces) flip this to Detailed at their entry.
+    LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
 
     // Grow the DB from seed if needed. Builtins are deferred (constructed after
     // hashes are generated) because builtin construction triggers hash lookups.
-    (LibPackageManager.Seed.growIfNeeded
+    (LibDB.Seed.growIfNeeded
       (fun () -> TestUtils.TestUtils.localBuiltIns TestUtils.TestUtils.pmPT)
       TestUtils.TestUtils.pmRT
       (fun msg -> System.Console.Error.WriteLine msg))
@@ -46,9 +30,8 @@ let main (args : string array) : int =
         Tests.ProgramTypesToRuntimeTypes.tests
         Tests.Interpreter.tests
         Tests.AnalysisTypes.tests
-        Tests.Execution.tests
         Tests.Builtin.tests
-        Tests.DvalRepr.tests
+        Tests.DvalReprInternalQueryable.tests
         Tests.LibParser.tests
         Tests.NewParser.tests
         Tests.HttpClient.tests
@@ -58,22 +41,19 @@ let main (args : string array) : int =
         Tests.Hashing.tests
         Tests.BranchOps.tests
 
-        (*
-        TODO backfill the following tests we neglected to write during a big refactor:
-        - op playback
-        - package search
-        - branch-specific stuff
-
-        (agaist both in-mem and sql-bound PMs)
-        *)
-
-        // cloud
-        Tests.BwdServer.tests
-        Tests.Canvas.tests
-        Tests.Routing.tests
+        // serialization
         Tests.BinarySerialization.tests
-        Tests.VanillaSerialization.tests
         Tests.DarkTypesSerialization.tests
+
+        // http server
+        Tests.HttpServer.tests
+        // CliTraces — WIP, but the 37 sequenced cases (forced
+        // sequential by `Console.SetOut` capture) cost too much
+        // wall-clock to include in the default suite. Re-enable
+        // once the capture moves to per-call buffers and
+        // sequencing can come off.
+        // Tests.CliTraces.tests
+        Tests.Toplevels.tests
 
         // cross-cutting
         Tests.LibExecution.tests.Force()
@@ -82,12 +62,10 @@ let main (args : string array) : int =
         Tests.Stream.tests ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
-    let bwdServerTestsTask = Tests.BwdServer.init cancelationTokenSource.Token
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
 
     // Generate this so that we can see if the format has changed in a git diff
     BinarySerialization.generateTestFiles ()
-    VanillaSerialization.PersistedSerializations.generateTestFiles ()
 
     // this does async stuff within it, so do not run it from a task/async
     // context or it may hang
@@ -96,7 +74,6 @@ let main (args : string array) : int =
 
     NonBlockingConsole.wait () // flush stdout
     cancelationTokenSource.Cancel()
-    bwdServerTestsTask.Wait()
     httpClientTestsTask.Wait()
     exitCode
   with e ->

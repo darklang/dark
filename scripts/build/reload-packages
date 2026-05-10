@@ -20,15 +20,15 @@ do
 done
 
 if [[ "$TEST" == "true" ]]; then
-  LOG_CANVAS="${DARK_CONFIG_RUNDIR}/logs/test-packages-canvas.log"
+  LOG_PACKAGES="${DARK_CONFIG_RUNDIR}/logs/test-packages.log"
 else
-  LOG_CANVAS="${DARK_CONFIG_RUNDIR}/logs/packages-canvas.log"
+  LOG_PACKAGES="${DARK_CONFIG_RUNDIR}/logs/packages.log"
 fi
 
 
 grey="\033[1;30m"
 reset="\033[0m"
 
-echo -e "Reloading packages ${grey}(${LOG_CANVAS})${reset}"
-./scripts/run-local-exec $PUBLISHED_FLAG reload-packages > $LOG_CANVAS 2>&1
+echo -e "Reloading packages ${grey}(${LOG_PACKAGES})${reset}"
+./scripts/run-local-exec $PUBLISHED_FLAG reload-packages > $LOG_PACKAGES 2>&1
 echo "Done reloading packages"

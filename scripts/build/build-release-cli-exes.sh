@@ -7,6 +7,7 @@
 #   ./scripts/build/build-release-cli-exes.sh                    # Build for current container runtime
 #   ./scripts/build/build-release-cli-exes.sh --runtimes=all     # Build for all supported runtimes
 #   ./scripts/build/build-release-cli-exes.sh --runtimes=linux-x64,osx-arm64  # Build for specific runtimes
+#   ./scripts/build/build-release-cli-exes.sh --aot              # AOT-publish (native, no JIT)
 #
 # Supported runtimes: linux-x64, linux-musl-x64, linux-arm64, linux-arm, osx-x64, osx-arm64, win-x64, win-arm64
 
@@ -15,6 +16,7 @@ set -euo pipefail
 # Parse arguments
 RUNTIMES_ARG=""
 GZIP_OUTPUT=false
+AOT=false
 
 for arg in "$@"; do
   case $arg in
@@ -27,6 +29,11 @@ for arg in "$@"; do
       ;;
     --gzip)
       GZIP_OUTPUT=true
+      ;;
+    --aot)
+      # AOT publish: native code, no JIT, smaller + faster cold start.
+      # Mutually exclusive with PublishReadyToRun (which we drop below).
+      AOT=true
       ;;
     *)
       echo "Unknown argument: $arg"
@@ -92,16 +99,29 @@ build_for_runtime() {
   local rt="$1"
   echo "Building for runtime: $rt"
 
-  ./scripts/build/_dotnet-wrapper publish \
-    -c Release \
-    src/Cli/Cli.fsproj \
-    /p:DebugType=None \
-    /p:DebugSymbols=false \
-    /p:PublishSingleFile=true \
-    /p:PublishTrimmed=true \
-    /p:PublishReadyToRun=true \
-    --self-contained true \
-    --runtime "$rt"
+  if [[ "$AOT" == "true" ]]; then
+    # AOT mode: native compilation, no PublishReadyToRun, no PublishSingleFile
+    # (AOT already produces a single native binary).
+    ./scripts/build/_dotnet-wrapper publish \
+      -c Release \
+      src/Cli/Cli.fsproj \
+      /p:DebugType=None \
+      /p:DebugSymbols=false \
+      /p:PublishAot=true \
+      --self-contained true \
+      --runtime "$rt"
+  else
+    ./scripts/build/_dotnet-wrapper publish \
+      -c Release \
+      src/Cli/Cli.fsproj \
+      /p:DebugType=None \
+      /p:DebugSymbols=false \
+      /p:PublishSingleFile=true \
+      /p:PublishTrimmed=true \
+      /p:PublishReadyToRun=true \
+      --self-contained true \
+      --runtime "$rt"
+  fi
 
   target="clis/darklang-$release-$rt"
   echo "Moving to $target"

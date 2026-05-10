@@ -1,0 +1,99 @@
+module Builtins.Language.Libs.LanguageTools
+
+open Prelude
+open LibExecution.RuntimeTypes
+open LibExecution.Builtin.Shortcuts
+
+module VT = LibExecution.ValueType
+module Dval = LibExecution.Dval
+module PackageRefs = LibExecution.PackageRefs
+module RT2DT = LibExecution.RuntimeTypesToDarkTypes
+module NR = LibExecution.RuntimeTypes.NameResolution
+
+
+let builtinValue () =
+  FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.builtinValue ())
+
+let builtinFnParam () =
+  FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.builtinFnParam ())
+let builtinFn () = FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.builtinFn ())
+
+let builtinFnPurity () =
+  FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.builtinFnPurity ())
+
+let purityToDT (p : Previewable) : Dval =
+  let typeName = builtinFnPurity ()
+  let caseName =
+    match p with
+    | Pure -> "Pure"
+    | ImpurePreviewable -> "ImpurePreviewable"
+    | Impure -> "Impure"
+  DEnum(typeName, typeName, [], caseName, [])
+
+let fns () : List<BuiltInFn> =
+  [ { name = fn "getAllBuiltinValues" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TCustomType(NR.ok (builtinValue ()), []) |> TList
+      description =
+        "Returns a list of the Builtin values (usually not to be accessed directly)."
+      fn =
+        (function
+        | exeState, _, _, [ DUnit ] ->
+          let vals =
+            exeState.values.builtIn
+            |> Map.toList
+            |> List.map (fun (name, (data : BuiltInValue)) ->
+              let fields =
+                [ "name", RT2DT.FQValueName.Builtin.toDT name
+                  "description", DString data.description
+                  "returnType", RT2DT.TypeReference.toDT data.typ ]
+
+              DRecord(builtinValue (), builtinValue (), [], Map fields))
+
+          DList(VT.customType (builtinValue ()) [], vals) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "getAllBuiltinFns" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TCustomType(NR.ok (builtinFn ()), []) |> TList
+      description =
+        "Returns a list of the Builtin functions (usually not to be accessed directly)."
+      fn =
+        (function
+        | exeState, _, _, [ DUnit ] ->
+          let fns =
+            exeState.fns.builtIn
+            |> Map.toList
+            |> List.map (fun (name, data) ->
+              let parameters =
+                data.parameters
+                |> List.map (fun p ->
+                  let fields =
+                    [ "name", DString p.name
+                      "type", RT2DT.TypeReference.toDT p.typ ]
+                  DRecord(builtinFnParam (), builtinFnParam (), [], Map fields))
+                |> Dval.list (KTCustomType(builtinFnParam (), []))
+
+              let fields =
+                [ "name", RT2DT.FQFnName.Builtin.toDT name
+                  "description", DString data.description
+                  "parameters", parameters
+                  "returnType", RT2DT.TypeReference.toDT data.returnType
+                  "purity", purityToDT data.previewable ]
+
+              DRecord(builtinFn (), builtinFn (), [], Map fields))
+
+          DList(VT.customType (builtinFn ()) [], fns) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated } ]
+
+
+let builtins () = LibExecution.Builtin.make [] (fns ())

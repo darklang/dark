@@ -29,8 +29,8 @@ done
 killall -9 Tests || true
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  EXE=Build/out/Tests/Release/net10.0/linux-x64/Tests
-  LOCALEXEC=Build/out/LocalExec/Release/net10.0/linux-x64/LocalExec
+  EXE=Build/out/Tests/Release/net10.0/publish/Tests
+  LOCALEXEC=Build/out/LocalExec/Release/net10.0/publish/LocalExec
 else
   EXE=Build/out/Tests/Debug/net10.0/Tests
   LOCALEXEC=Build/out/LocalExec/Debug/net10.0/LocalExec
@@ -43,11 +43,15 @@ grey="\033[1;30m"
 reset="\033[0m"
 
 
-# Delete the database file before running tests
+# Delete the database file before running tests.
+# WAL mode keeps `.db-wal` (uncommitted writes) and `.db-shm`
+# (shared-memory index) alongside `.db`. Removing only `.db`
+# leaves the WAL behind — the next run picks it up and behaves
+# unpredictably (slow / corrupt).
 export DARK_CONFIG_DB_NAME=test-data.db
 DB_PATH="${DARK_CONFIG_RUNDIR}/${DARK_CONFIG_DB_NAME}"
 echo -e "Deleting database file ${grey}(${DB_PATH})${reset}"
-rm -f "$DB_PATH"
+rm -f "$DB_PATH" "$DB_PATH-wal" "$DB_PATH-shm"
 
 # Run the migrations before the other servers start
 echo -e "Running migrations ${grey}($LOGS/test-migrations.log)${reset}"
@@ -69,21 +73,15 @@ if [[ "${DARK_CONFIG_PACKAGES_SOURCE:-disk}" == "seed" ]]; then
     exit 1
   fi
 else
-  # Disk mode: reload packages from .dark files
+  # Disk mode: reload packages from .dark files.
+  #  Migrations already ran inline above
   if [[ -v CI ]]; then
-    echo "Running backend server"
-    ./scripts/run-backend-server $PUBLISHED_FLAG
     echo "Reloading packages"
     ./scripts/build/reload-packages $PUBLISHED_FLAG
   else
     echo "Reloading packages"
     ./scripts/build/reload-packages --test $PUBLISHED_FLAG
   fi
-fi
-
-if [[ -v CI ]]; then
-  echo "Starting backend server"
-  ./scripts/run-backend-server --restart=no $PUBLISHED_FLAG
 fi
 
 JUNIT_FILE="${DARK_CONFIG_RUNDIR}/test_results/backend.xml"

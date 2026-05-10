@@ -226,10 +226,10 @@ module Json =
     : List<String * Stdlib.AltJson.Json> =
     [ ("id", Stdlib.AltJson.Json.String id)
       ("type", Stdlib.AltJson.Json.String typ)
-      ("x", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat x))
-      ("y", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat y))
-      ("width", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat width))
-      ("height", Stdlib.AltJson.Json.Number(Builtin.int64ToFloat height)) ]
+      ("x", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat x))
+      ("y", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat y))
+      ("width", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat width))
+      ("height", Stdlib.AltJson.Json.Number(Stdlib.Int64.toFloat height)) ]
 
   let nodeToJson (node: Node) : Stdlib.AltJson.Json =
     match node with

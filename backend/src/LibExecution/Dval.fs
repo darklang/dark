@@ -126,8 +126,7 @@ let rec isPersistable (dv : Dval) : bool =
   | DUuid _
   // DApplicable and DDB serialize successfully — lambdas store their
   // instruction stream, DB handles store as a string identifier.
-  // Demo handlers persist lambdas as vals; canvas-local DBs rely on
-  // the DDB path.
+  // Demo handlers persist lambdas as vals; user DBs rely on the DDB path.
   | DApplicable _
   | DDB _
   | DBlob(Persistent _) -> true

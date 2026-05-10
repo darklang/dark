@@ -133,27 +133,11 @@ module RoundtripTests =
           None
 
         testRoundtripList
-          "PT.Secret"
-          (pkg (PackageRefs.Type.LanguageTools.ProgramTypes.secret ()))
-          V.ProgramTypes.userSecrets
-          PT2DT.Secret.toDT
-          PT2DT.Secret.fromDT
-          None
-
-        testRoundtripList
           "PT.DB"
           (pkg (PackageRefs.Type.LanguageTools.ProgramTypes.db ()))
           V.ProgramTypes.userDBs
           PT2DT.DB.toDT
           PT2DT.DB.fromDT
-          None
-
-        testRoundtripList
-          "PT.Handler"
-          (pkg (PackageRefs.Type.LanguageTools.ProgramTypes.Handler.handler ()))
-          V.ProgramTypes.Handler.handlers
-          PT2DT.Handler.toDT
-          PT2DT.Handler.fromDT
           None ]
 
   module RuntimeTypes =

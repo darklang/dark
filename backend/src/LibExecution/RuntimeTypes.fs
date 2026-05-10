@@ -19,7 +19,12 @@ type Stack<'a> = System.Collections.Generic.Stack<'a>
 type BranchId = uuid
 
 /// Structural hash of a package item's content (shape, not name/location).
-type Hash = Hash of string
+type Hash =
+  | Hash of string
+  // F#'s default ToString() on unions uses reflection (StructuredPrintfImpl),
+  // which fails under AOT trimming. Provide an explicit override so callers
+  // like `string (h : Hash)` don't go through that path.
+  override this.ToString() = let (Hash s) = this in s
 
 module Hash =
   let empty : Hash = Hash ""
@@ -104,8 +109,6 @@ module FQFnName =
 
   let fqPackage (h : string) : FQFnName = Package(Hash h)
 
-
-  let isInternalFn (fnName : Builtin) : bool = fnName.name.Contains "darkInternal"
 
 
 /// TODO include "ParseTime" in name (requires a lot of boring work in many files)
@@ -479,7 +482,7 @@ type Instruction =
   // == Errors ==
   | RaiseNRE of List<string> * NameResolutionError
 
-  | VarNotFound of targetRegIfSecretOrDB : Register * name : string
+  | VarNotFound of targetRegIfDB : Register * name : string
 
   | CheckIfFirstExprIsUnit of Register
 
@@ -1312,16 +1315,11 @@ type PackageManager =
 
 
 // ------------
-// User-/Canvas- Space
+// User Space
 // ------------
 module DB =
   // CLEANUP consider making typ a ValueType instead
   type T = { tlid : tlid; name : string; typ : TypeReference; version : int }
-
-module Secret =
-  type T = { name : string; value : string; version : int }
-
-
 
 // ------------
 // Builtins, Execution State, Package Manager
@@ -1406,8 +1404,6 @@ module Tracing =
 
   type FunctionRecord = Source * FQFnName.FQFnName
 
-  type TraceDval = id -> Dval -> unit
-
   type LoadFnResult =
     FunctionRecord -> NEList<Dval> -> Option<Dval * NodaTime.Instant>
 
@@ -1428,7 +1424,6 @@ module Tracing =
   /// Set of callbacks used to trace the interpreter, and other context needed to run code
   type Tracing =
     {
-      traceDval : TraceDval
       loadFnResult : LoadFnResult
       storeFnResult : StoreFnResult
       storeFrameEntry : StoreFrameEntry
@@ -1634,13 +1629,9 @@ and Builtins =
 
 
 
-/// Every part of a user's program
-/// CLEANUP rename to 'app' or 'canvas' or something
-and Program =
-  { canvasID : CanvasID
-    internalFnsAllowed : bool
-    dbs : Map<string, DB.T>
-    secrets : List<Secret.T> }
+/// Every part of a user's program. Single-instance Dark today —
+/// no per-scope state, just the user-defined DB set.
+and Program = { dbs : Map<string, DB.T> }
 
 
 // Used for testing
@@ -1745,6 +1736,13 @@ and ExecutionState =
     ///     is O(N+M). Fine at current scale; revisit at higher
     ///     package counts.
     blobScopes : Stack<HashSet<System.Guid>>
+
+    /// The account this run is attributed to (the developer behind a
+    /// commit / script run / handler invocation). `None` means
+    /// unattributed — outer-CLI bootstrapping, tests, anonymous
+    /// builtin invocations all leave this empty. The trace insert
+    /// reads it; commit ops carry the same id separately.
+    accountID : Option<System.Guid>
   }
 
 

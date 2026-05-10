@@ -21,6 +21,15 @@ fi
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
+# Optional --aot flag passes through to build-release-cli-exes.sh.
+AOT_FLAG=""
+for arg in "$@"; do
+  case "$arg" in
+    --aot) AOT_FLAG="--aot" ;;
+    *) echo "Unknown argument: $arg" >&2; exit 1 ;;
+  esac
+done
+
 # Detect host architecture
 detect_host_runtime() {
   local os arch
@@ -84,7 +93,7 @@ echo "Building release: $RELEASE"
 # Run the build inside the container using the main build script
 echo "Running build inside container..."
 docker exec -w /home/dark/app "$CONTAINER_ID" bash -c \
-  "./scripts/build/build-release-cli-exes.sh --runtimes=$RUNTIME"
+  "./scripts/build/build-release-cli-exes.sh --runtimes=$RUNTIME $AOT_FLAG"
 
 # Determine binary name and path
 if [[ "$RUNTIME" == win-* ]]; then

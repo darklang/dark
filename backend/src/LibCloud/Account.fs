@@ -1,5 +1,6 @@
-/// Functions related to Accounts/Users. Accounts have no metadata, not even a
-/// username, name, or email. That is left to be handled in the DarkEditor canvas
+/// Functions related to Accounts. An account represents the developer
+/// behind a commit / trace. Accounts have no metadata beyond `id` +
+/// `name` today; richer profile data (email, etc.) is out of scope.
 module LibCloud.Account
 
 open System.Threading.Tasks
@@ -7,28 +8,25 @@ open FSharp.Control.Tasks
 
 open Prelude
 open Fumble
-open LibDB.Db
+open LibDB.Sqlite
 
-type Account = { id : UserID; name : string }
+type Account = { id : AccountID; name : string }
 
-let getUserByName (name : string) : Task<Option<UserID>> =
+/// Pre-allocated UUIDs for the seeded accounts. These IDs are part
+/// of the API surface — Dark code references them by literal — so
+/// don't rotate.
+module IDs =
+  let darklang : AccountID = System.Guid.Parse "00000000-0000-0000-0000-000000000001"
+  let stachu : AccountID = System.Guid.Parse "00000000-0000-0000-0000-000000000002"
+  let paul : AccountID = System.Guid.Parse "00000000-0000-0000-0000-000000000003"
+  let feriel : AccountID = System.Guid.Parse "00000000-0000-0000-0000-000000000004"
+
+let getAccountByName (name : string) : Task<Option<AccountID>> =
   Sql.query "SELECT id FROM accounts_v0 WHERE name = @name"
   |> Sql.parameters [ "name", Sql.string name ]
   |> Sql.executeRowOptionAsync (fun read -> read.uuid "id")
 
-let createUser (name : string) : Task<Result<UserID, string>> =
-  task {
-    let userID = System.Guid.NewGuid()
-    let! rowsAffected =
-      Sql.query
-        "INSERT INTO accounts_v0 (id, name)
-         VALUES (@id, @name)
-         ON CONFLICT (name) DO NOTHING"
-      |> Sql.parameters [ "id", Sql.uuid userID; "name", Sql.string name ]
-      |> Sql.executeNonQueryAsync
-
-    if rowsAffected = 1 then
-      return Ok userID
-    else
-      return Error $"A user with the name '{name}' already exists"
-  }
+let getAccountNameByID (id : AccountID) : Task<Option<string>> =
+  Sql.query "SELECT name FROM accounts_v0 WHERE id = @id"
+  |> Sql.parameters [ "id", Sql.uuid id ]
+  |> Sql.executeRowOptionAsync (fun read -> read.string "name")

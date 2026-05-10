@@ -72,6 +72,8 @@ Stdlib.HttpClient.request "get" "http://google.com:79" [] Stdlib.Blob.empty = St
 
 
 // Check for banned urls in the host name
+// SSRF guard tests for the strict HTTP client config
+// (see Builtins.Http.Client.Libs.HttpClient.LocalAccess + strictConfig).
 module Disallowed =
   // invalid host
   (get "http://0.0.0.0" []) = errInvalidHost

@@ -55,22 +55,51 @@ let commandOptions () : List<String> =
   let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
   Stdlib.List.append allNames allAliases
 
+// Restore the persisted account from cli-config.json (written by
+// `login`). Returns (None, "") if the file is absent / the entry is
+// missing / the account no longer exists.
+let restoreSessionAccount () : (Stdlib.Option.Option<Uuid> * String) =
+  match Config.get "session.account_id" with
+  | None -> (Stdlib.Option.Option.None, "")
+  | Some idStr ->
+    match Stdlib.Uuid.parse idStr with
+    | Error _ -> (Stdlib.Option.Option.None, "")
+    | Ok id ->
+      match SCM.Account.getById id with
+      | None -> (Stdlib.Option.Option.None, "")
+      | Some account ->
+        (Stdlib.Option.Option.Some account.id, account.name)
+
+
+/// Branch from `DARK_BRANCH`, falling back to main. Per-process so
+/// concurrent CLI runs don't stomp each other.
+let resolveStartingBranch () : Uuid =
+  let mainId = SCM.Branch.mainBranchId
+  match Builtin.environmentGet "DARK_BRANCH" with
+  | None -> mainId
+  | Some name ->
+    if Stdlib.String.isEmpty name then
+      mainId
+    else
+      match SCM.Branch.getByName name with
+      | Some b -> b.id
+      | None ->
+        Stdlib.printLine
+          (Colors.error
+            $"Warning: DARK_BRANCH='{name}' not found, using main.")
+        mainId
+
+
 let initState () : AppState =
-  let (accountName, accountID) = SCM.Account.resolve ()
-
-  match accountID with
-  | Some _ -> ()
-  | None ->
-    if accountName != "" then
-      Stdlib.printLine $"Warning: account '{accountName}' not found. DB commands will not work."
-
+  let (accountID, accountName) = restoreSessionAccount ()
+  let branchId = resolveStartingBranch ()
   AppState
     { isExiting = false
       prompt = Prompt.initState ()
       needsFullRedraw = true
       packageData = Packages.initState ()
       currentPage = Page.MainPrompt
-      currentBranchId = SCM.Branch.mainBranchId
+      currentBranchId = branchId
       accountID = accountID
       accountName = accountName
       previousRenderedRows = 0L
@@ -191,7 +220,7 @@ module Registry =
       ("ls", "List package contents", [ "dir" ], Packages.Listing.execute, Packages.Listing.help, Packages.Listing.complete)
       ("back", "Go back to previous location", [], Packages.Back.execute, Packages.Back.help, Packages.Back.complete)
       ("clear", "Clear the screen", [ "cls" ], Cli.Clear.execute, Cli.Clear.help, Cli.Clear.complete)
-      ("run", "Run a function or script", [], Cli.Run.execute, Cli.Run.help, Cli.Run.complete)
+      ("run-script", "Run a Dark script file", [ "run" ], Cli.Run.execute, Cli.Run.help, Cli.Run.complete)
       ("eval", "Evaluate a Dark expression", [], Cli.Eval.execute, Cli.Eval.help, Cli.Eval.complete)
       ("scripts", "Store, manage, and run Dark scripts", [], Cli.Scripts.execute, Cli.Scripts.help, Cli.Scripts.complete)
       ("view", "View details of a module, type, value, or fns", [], Packages.View.execute, Packages.View.help, Packages.View.complete)
@@ -215,7 +244,7 @@ module Registry =
       ("builtins", "List all builtin functions", [], Builtins.execute, Builtins.help, Builtins.complete)
       ("find-values", "Find values of a given type", [], Commands.FindValues.execute, Commands.FindValues.help, Commands.FindValues.complete)
       ("agent", "AI assistant workflows (ask/code/review/fix/diff)", [ "ai" ], Commands.Agent.execute, Commands.Agent.help, Commands.Agent.complete)
-      ("http-server", "Start an HTTP server", [], Commands.HttpServer.execute, Commands.HttpServer.help, Commands.HttpServer.complete)
+      ("serve", "Start an HTTP server", [ "http-server" ], Commands.Serve.execute, Commands.Serve.help, Commands.Serve.complete)
       ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Commands.Docs.execute, Commands.Docs.help, Commands.Docs.complete)
       ("undo", "Undo WIP changes to a fn/type/value", [], Packages.Undo.execute, Packages.Undo.help, Packages.Undo.complete)
       ("deprecate", "Mark a fn/type/value as deprecated", [], Packages.Deprecate.execute, Packages.Deprecate.help, Packages.Deprecate.complete)
@@ -225,7 +254,9 @@ module Registry =
       ("export-seed", "Export minimal seed.db from current database", [], Commands.ExportSeed.execute, Commands.ExportSeed.help, Commands.ExportSeed.complete)
       ("traces", "List and view execution traces", [ "trace" ], Commands.Traces.execute, Commands.Traces.help, Commands.Traces.complete)
       ("review", "Review branch changesets", [], Darklang.Cli.Apps.Review.App.execute, Darklang.Cli.Apps.Review.App.help, Darklang.Cli.Apps.Review.App.complete)
-      ("views", "Browse and preview CLI views", [], Darklang.Cli.Apps.Views.App.execute, Darklang.Cli.Apps.Views.App.help, Darklang.Cli.Apps.Views.App.complete) ]
+      ("views", "Browse and preview CLI views", [], Darklang.Cli.Apps.Views.App.execute, Darklang.Cli.Apps.Views.App.help, Darklang.Cli.Apps.Views.App.complete)
+      ("login", "Log in as a seeded account (required for commit / serve)", [], Commands.Login.execute, Commands.Login.help, Commands.Login.complete)
+      ("logout", "Clear the active account", [], Commands.Logout.execute, Commands.Logout.help, Commands.Logout.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->
@@ -753,9 +784,11 @@ let runInteractiveLoop (state: AppState) : Int64 =
     runInteractiveLoop { newState with previousRenderedRows = renderedRows; cachedHintInput = state.prompt.text; cachedHintValue = hint; cachedStatusBar = statusBar; cachedStatusBarBranch = state.currentBranchId }
 
 
-/// Extract --branch <name> from args, returning (branchId, remainingArgs).
-/// If --branch is not specified, defaults to main.
-let parseBranchFlag (args: List<String>) : (Uuid * List<String>) =
+/// Extract --branch <name> from args, returning (Some branchId, remainingArgs)
+/// when the flag is present and resolvable. When the flag is absent, returns
+/// (None, args) so the caller falls back to whatever `initState` restored
+/// from cli-config.json (or main).
+let parseBranchFlag (args: List<String>) : (Stdlib.Option.Option<Uuid> * List<String>) =
   // Walk the list looking for "--branch" followed by a name
   let indexed = Stdlib.List.indexedMap args (fun i a -> (i, a))
 
@@ -766,7 +799,7 @@ let parseBranchFlag (args: List<String>) : (Uuid * List<String>) =
       a == "--branch")
 
   match branchEntry with
-  | None -> (SCM.Branch.mainBranchId, args)
+  | None -> (Stdlib.Option.Option.None, args)
   | Some flagPair ->
     let (idx, _flag) = flagPair
 
@@ -777,7 +810,7 @@ let parseBranchFlag (args: List<String>) : (Uuid * List<String>) =
 
     if Stdlib.String.isEmpty branchName then
       Stdlib.printLine "Warning: --branch requires a name, using main."
-      (SCM.Branch.mainBranchId, args)
+      (Stdlib.Option.Option.Some SCM.Branch.mainBranchId, args)
     else
       // Remove --branch and its argument from args
       let filteredArgs =
@@ -790,15 +823,19 @@ let parseBranchFlag (args: List<String>) : (Uuid * List<String>) =
           a)
 
       match SCM.Branch.getByName branchName with
-      | Some b -> (b.id, filteredArgs)
+      | Some b -> (Stdlib.Option.Option.Some b.id, filteredArgs)
       | None ->
         Stdlib.printLine $"Warning: branch '{branchName}' not found, using main."
-        (SCM.Branch.mainBranchId, filteredArgs)
+        (Stdlib.Option.Option.Some SCM.Branch.mainBranchId, filteredArgs)
 
 
 let executeCliCommand (args: List<String>) : Int64 =
-  let (branchId, remainingArgs) = parseBranchFlag args
-  let initialState = { initState () with currentBranchId = branchId }
+  let (branchOverride, remainingArgs) = parseBranchFlag args
+  let baseState = initState ()
+  let initialState =
+    match branchOverride with
+    | Some b -> { baseState with currentBranchId = b }
+    | None -> baseState
 
   match remainingArgs with
   // If someone runs `dark` without args, start the interactive loop

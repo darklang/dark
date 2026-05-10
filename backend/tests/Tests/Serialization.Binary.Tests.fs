@@ -139,14 +139,14 @@ module RT =
 module ConsistentSerializationTests =
   type Format =
     { name : string
-      serializer : PT.Toplevel.T -> byte array
-      deserializer : byte array -> PT.Toplevel.T
+      serializer : PT.DB.T -> byte array
+      deserializer : byte array -> PT.DB.T
       prefix : string
       suffix : string }
 
   let formats =
     [ { name = "BinarySerialization"
-        serializer = fun tl -> BS.PT.Toplevel.serialize (PT.Toplevel.toTLID tl) tl
+        serializer = fun db -> BS.PT.Toplevel.serialize db.tlid db
         deserializer = fun data -> BS.PT.Toplevel.deserialize 0UL data
         prefix = "toplevels-binary"
         suffix = ".bin" } ]
@@ -170,12 +170,18 @@ module ConsistentSerializationTests =
         Values.ProgramTypes.toplevels)
 
 
+  // TODO: restore the on-disk golden-file comparison once the
+  // FormatV0 wire format settles. The PR's hand-roll rewrite (and
+  // the DvalReprInternalHash.toHashV2 change) made the previous
+  // ~600 binary snapshot fixtures stale — they were deleted rather
+  // than re-generated, so the regression net only catches in-process
+  // roundtrip mismatches today. To bring goldens back: rebuild with
+  // `DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA=y` to regenerate,
+  // re-enable the per-file `Expect.equal`, then commit.
   let testTestFiles =
     formats
     |> List.map (fun f ->
       test "check test files are correct" {
-        // For now, skip the file comparison since we're changing the format
-        // Just test that serialization/deserialization works
         Values.ProgramTypes.toplevels
         |> List.iter (fun tl ->
           let serialized = f.serializer tl

@@ -52,7 +52,7 @@ let power (``base``: Int8) (exponent: Int8) : Int8 =
     0y
   else if ``base`` == 1y then
     1y
-  else if ``base`` == -1y && (Builtin.int8Mod exponent 2y == 0y) then
+  else if ``base`` == -1y && (``mod`` exponent 2y == 0y) then
     1y
   else if ``base`` == -1y then
     -1y
@@ -66,8 +66,8 @@ let divide (a: Int8) (b: Int8) : Int8 = Builtin.int8Divide a b
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
 let absoluteValue (a: Int8) : Int8 =
-  if (Builtin.int8LessThan a 0y) then
-    Builtin.int8Negate a
+  if lessThan a 0y then
+    negate a
   else
     a
 

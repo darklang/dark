@@ -270,20 +270,3 @@ module PackageFn =
 
 module DB =
   type T = { name : string; version : int; typ : TypeReference }
-
-module Handler =
-  type CronInterval =
-    | EveryFortnight
-    | EveryWeek
-    | EveryDay
-    | Every12Hours
-    | EveryHour
-    | EveryMinute
-
-  type Spec =
-    | HTTP of route : string * method : string
-    | Worker of name : string
-    | Cron of name : string * interval : CronInterval
-    | REPL of name : string
-
-  type T = { ast : Expr; spec : Spec }

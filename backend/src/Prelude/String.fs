@@ -31,8 +31,13 @@ let lengthInEgcs (s : string) : int =
 
 let normalize (s : string) : string = s.Normalize()
 
+// Ordinal (not culture-aware): with InvariantGlobalization=true on AOT
+// builds, `InvariantCultureIgnoreCase` is restricted to invariant rules
+// anyway, but `Ordinal` is unambiguous and matches what the callers
+// (HTTP headers, hostnames, SSRF-allowlist tokens) actually want.
+// Keeps Debug / Release / AOT behavior identical.
 let equalsCaseInsensitive (s1 : string) (s2 : string) : bool =
-  System.String.Equals(s1, s2, System.StringComparison.InvariantCultureIgnoreCase)
+  System.String.Equals(s1, s2, System.StringComparison.OrdinalIgnoreCase)
 
 let replace (old : string) (newStr : string) (s : string) : string =
   s.Replace(old, newStr)

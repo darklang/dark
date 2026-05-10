@@ -2,8 +2,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
-    <LangVersion>10.0</LangVersion>
     <!-- Publishing configuration -->
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>true</IsTrimmable>
@@ -29,7 +27,6 @@
     <Compile Include="Ply.fs" />
     <Compile Include="NonBlockingConsole.fs" />
     <Compile Include="Prelude.fs" />
-    <Compile Include="Json.fs" />
     <Compile Include="Telemetry.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />

@@ -1,0 +1,501 @@
+/// HTTP router for the package-server endpoints used to power wip.darklang.com/packages
+///
+/// Run with `dark serve Darklang.Internal.DarkPackages.router`
+///
+/// Routes (all GET unless noted):
+///   /ping                              → "pong"
+///   POST /ops                          → ingest a JSON list of PackageOp
+///   /ops?limit=N                       → recent PackageOps
+///   /stats                             → package counts
+///   /search?modules=&searchDepth=&entityTypes=[&text=][&exactMatch=]
+///   /:location                         → name resolution / module browse
+///   /type/find/:name                   → location → hash
+///   /type/get/:hash                    → hash → entity
+///   /type/get/with-location/:hash      → hash → entity + location
+///   /value/find/:name, /value/get/:hash, /value/get/with-location/:hash
+///   /function/find/:name, /function/get/:hash, /function/get/with-location/:hash
+///
+/// Within the single-segment routes, literal paths (`/ping`, `/ops`, `/stats`,
+/// `/search`) must precede `/:location`, which would otherwise swallow them.
+/// Multi-segment routes (`/type/...`, etc.) can appear anywhere in the list
+/// since they can never match a single-segment path.
+///
+/// SECURITY: POST /ops mutates the package store with no authentication. The
+/// old canvas sat behind canvas auth; under `darklang serve` it's reachable
+/// by anyone who can hit the listener. Wrap in an auth check before exposing
+/// publicly.
+module Darklang.Internal.DarkPackages
+
+type HttpResponse = Stdlib.Http.Response
+type HttpRequest = Stdlib.Http.Request
+type Handler = Stdlib.HttpServer.Handler
+
+
+// ────────────────────────── helpers ──────────────────────────
+
+
+/// Parse a dotted "Owner.Module.Name" (or "Owner.Name") string into a PackageLocation.
+let parseNameToLocation
+  (name: String)
+  : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageLocation, String> =
+  let parts = Stdlib.String.split name "."
+  let partsLength = Stdlib.List.length parts
+
+  if partsLength < 2L then
+    Stdlib.Result.Result.Error
+      "Invalid name format. Expected 'Owner.Module.Name' or 'Owner.Name'"
+  else
+    match Stdlib.List.head parts with
+    | None ->
+      Stdlib.Result.Result.Error "Invalid name format: empty owner segment"
+    | Some owner ->
+      match Stdlib.List.last parts with
+      | None ->
+        Stdlib.Result.Result.Error "Invalid name format: empty name segment"
+      | Some entityName ->
+        match Stdlib.List.tail parts with
+        | None -> Stdlib.Result.Result.Error "Invalid name format"
+        | Some middleParts ->
+          let modules = Stdlib.List.take middleParts (partsLength - 2L)
+          Stdlib.Result.Result.Ok
+            (LanguageTools.ProgramTypes.PackageLocation
+              { owner = owner; modules = modules; name = entityName })
+
+
+let parseSearchDepth (s: String) : Stdlib.Result.Result<LanguageTools.ProgramTypes.Search.SearchDepth, String> =
+  match s with
+  | "direct" ->
+    Stdlib.Result.Result.Ok
+      LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+  | "all" ->
+    Stdlib.Result.Result.Ok
+      LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+  | _ ->
+    Stdlib.Result.Result.Error
+      $"Invalid 'searchDepth': {s}. Expected 'direct' or 'all'."
+
+
+let parseEntityType (s: String) : Stdlib.Result.Result<LanguageTools.ProgramTypes.Search.EntityType, String> =
+  match s with
+  | "type" -> Stdlib.Result.Result.Ok LanguageTools.ProgramTypes.Search.EntityType.Type
+  | "value" -> Stdlib.Result.Result.Ok LanguageTools.ProgramTypes.Search.EntityType.Value
+  | "function" -> Stdlib.Result.Result.Ok LanguageTools.ProgramTypes.Search.EntityType.Fn
+  | "module" -> Stdlib.Result.Result.Ok LanguageTools.ProgramTypes.Search.EntityType.Module
+  | _ ->
+    Stdlib.Result.Result.Error $"Invalid 'entityTypes' element: {s}. Expected one of: type, value, function, module."
+
+
+let parseExactMatch (s: String) : Stdlib.Result.Result<Bool, String> =
+  match s with
+  | "true" -> Stdlib.Result.Result.Ok true
+  | "false" -> Stdlib.Result.Result.Ok false
+  | _ ->
+    Stdlib.Result.Result.Error $"Invalid 'exactMatch': {s}. Expected 'true' or 'false'."
+
+
+/// Branch the package server reads/writes against. Single-tenant install →
+/// always main.
+let serverBranchId: Uuid = SCM.Branch.mainBranchId
+
+
+// ────────────────────────── handlers ──────────────────────────
+
+let pingHandlerFn (req: HttpRequest) : HttpResponse =
+  Stdlib.Http.responseWithText "pong" 200L
+
+let pingHandler: Handler =
+  Handler { route = "/ping"; method = "GET"; handler = pingHandlerFn }
+
+
+let opsPostHandlerFn (req: HttpRequest) : HttpResponse =
+  let bodyStr = Stdlib.String.fromBlobWithReplacement req.body
+  match Stdlib.Json.parse<List<LanguageTools.ProgramTypes.PackageOp>> bodyStr with
+  | Ok ops ->
+    match SCM.PackageOps.add serverBranchId ops with
+    | Ok insertedCount ->
+      let countStr = Stdlib.Int64.toString insertedCount
+      Stdlib.Http.responseWithText $"Successfully received and applied {countStr} ops" 200L
+    | Error errorMsg -> Stdlib.Http.serverError errorMsg
+  | Error _err ->
+    Stdlib.Http.badRequest "Invalid request body. Expected JSON list of PackageOp."
+
+let opsPostHandler: Handler =
+  Handler { route = "/ops"; method = "POST"; handler = opsPostHandlerFn }
+
+
+let opsGetHandlerFn (req: HttpRequest) : HttpResponse =
+  match HttpRequest.queryParam req "limit" with
+  | None -> Stdlib.Http.badRequest "Missing required query parameter: 'limit'"
+  | Some limitStr ->
+    match Stdlib.Int64.parse limitStr with
+    | Error _ -> Stdlib.Http.badRequest "Invalid 'limit' parameter. Expected integer."
+    | Ok limit ->
+      let ops = SCM.PackageOps.getRecent limit
+      let json = ops |> Stdlib.Json.serialize<List<LanguageTools.ProgramTypes.PackageOp>>
+      Stdlib.Http.responseWithJson json 200L
+
+let opsGetHandler: Handler =
+  Handler { route = "/ops"; method = "GET"; handler = opsGetHandlerFn }
+
+
+let statsHandlerFn (req: HttpRequest) : HttpResponse =
+  let stats = Builtin.pmGetStats ()
+  let body =
+    $"Package stats:
+- types: {stats.types |> Stdlib.Int64.toString}
+- fns: {stats.fns |> Stdlib.Int64.toString}
+- values: {stats.values |> Stdlib.Int64.toString}"
+  Stdlib.Http.responseWithText body 200L
+
+let statsHandler: Handler =
+  Handler
+    { route = "/stats"; method = "GET"; handler = statsHandlerFn }
+
+
+let searchHandlerFn (req: HttpRequest) : HttpResponse =
+  match HttpRequest.queryParam req "modules" with
+  | None -> Stdlib.Http.badRequest "Missing required query parameter: 'modules'"
+  | Some modulesStr ->
+    match HttpRequest.queryParam req "searchDepth" with
+    | None -> Stdlib.Http.badRequest "Missing required query parameter: 'searchDepth'"
+    | Some depthStr ->
+      match parseSearchDepth depthStr with
+      | Error errorMsg -> Stdlib.Http.badRequest errorMsg
+      | Ok searchDepth ->
+        match HttpRequest.queryParam req "entityTypes" with
+        | None -> Stdlib.Http.badRequest "Missing required query parameter: 'entityTypes'"
+        | Some entityTypesStr ->
+          let parsedTypes =
+            (Stdlib.String.split entityTypesStr ",")
+            |> Stdlib.List.map parseEntityType
+            |> Stdlib.Result.collect
+
+          match parsedTypes with
+          | Error errorMsg -> Stdlib.Http.badRequest errorMsg
+          | Ok entityTypesRaw ->
+            let entityTypes = Stdlib.List.unique entityTypesRaw
+
+            let exactMatchResult =
+              match HttpRequest.queryParam req "exactMatch" with
+              | None -> Stdlib.Result.Result.Ok false
+              | Some s -> parseExactMatch s
+
+            match exactMatchResult with
+            | Error errorMsg -> Stdlib.Http.badRequest errorMsg
+            | Ok exactMatch ->
+              let text =
+                match HttpRequest.queryParam req "text" with
+                | Some t -> t
+                | None -> ""
+
+              let query =
+                LanguageTools.ProgramTypes.Search.SearchQuery
+                  { currentModule = Stdlib.String.split modulesStr "."
+                    text = text
+                    searchDepth = searchDepth
+                    entityTypes = entityTypes
+                    exactMatch = exactMatch }
+
+              let results = Builtin.pmSearch serverBranchId query
+              let json = results |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Search.SearchResults>
+              Stdlib.Http.responseWithJson json 200L
+
+let searchHandler: Handler =
+  Handler { route = "/search"; method = "GET"; handler = searchHandlerFn }
+
+
+/// `/:location` — interpret the single path segment as a dotted name. For a
+/// one-segment owner, returns direct descendants. For longer names, resolves
+/// via `findAny` (type/fn/value) and falls back to a module browse on miss.
+let locationHandlerRoute = "/:location"
+
+let locationHandlerFn (req: HttpRequest) : HttpResponse =
+  match Stdlib.HttpServer.getPathParam req locationHandlerRoute "location" with
+  | None -> Stdlib.Http.badRequest "Missing :location segment"
+  | Some location ->
+    let parts = Stdlib.String.split location "."
+    let partsLength = Stdlib.List.length parts
+
+    if partsLength < 1L then
+      Stdlib.Http.badRequest "Invalid location format. Expected 'Owner', 'Owner.Module', or 'Owner.Module.Name'"
+    else if partsLength == 1L then
+      // single segment → list direct descendants under that owner
+      match Stdlib.List.head parts with
+      | None -> Stdlib.Http.badRequest "Invalid location: empty segment"
+      | Some owner ->
+        let searchQuery =
+          LanguageTools.ProgramTypes.Search.SearchQuery
+            { currentModule = [ owner ]
+              text = ""
+              searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+              entityTypes = []
+              exactMatch = false }
+
+        let results = Builtin.pmSearch serverBranchId searchQuery
+        let json = results |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Search.SearchResults>
+        Stdlib.Http.responseWithJson json 200L
+    else
+      match parseNameToLocation location with
+      | Error errorMsg -> Stdlib.Http.badRequest errorMsg
+      | Ok packageLocation ->
+        // Try as fn/type/value via the shared helper; module-browse on miss.
+        match LanguageTools.PackageManager.findAny serverBranchId packageLocation with
+        | Some ((hash, kind)) ->
+          match kind with
+          | Fn ->
+            match Builtin.pmGetFn hash with
+            | Some fn ->
+              let json = fn |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+              Stdlib.Http.responseWithJson json 200L
+            | None -> Stdlib.Http.notFound ()
+          | Type ->
+            match Builtin.pmGetType hash with
+            | Some t ->
+              let json = t |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageType.PackageType>
+              Stdlib.Http.responseWithJson json 200L
+            | None -> Stdlib.Http.notFound ()
+          | Value ->
+            match Builtin.pmGetValue hash with
+            | Some v ->
+              let json = v |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+              Stdlib.Http.responseWithJson json 200L
+            | None -> Stdlib.Http.notFound ()
+        | None ->
+          // Not a leaf — treat the whole path as a module to browse.
+          let searchQuery =
+            LanguageTools.ProgramTypes.Search.SearchQuery
+              { currentModule = parts
+                text = ""
+                searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+                entityTypes = []
+                exactMatch = false }
+          let results = Builtin.pmSearch serverBranchId searchQuery
+          let json =
+            results
+            |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Search.SearchResults>
+          Stdlib.Http.responseWithJson json 200L
+
+let locationHandler: Handler =
+  Handler
+    { route = locationHandlerRoute
+      method = "GET"
+      handler = locationHandlerFn }
+
+
+// ───── per-kind find / get / get-with-location ─────
+//
+// `:hash` carries a hex SHA-256 (the `Hash` content). The old canvas exposed
+// these as UUID `:id` segments because hashes were UUIDs back then; the
+// schema moved to content-addressed hashes, so we accept the hash hex
+// directly with no parse step.
+
+let typeFindRoute = "/type/find/:name"
+let typeFindHandlerFn (req: HttpRequest) : HttpResponse =
+  match Stdlib.HttpServer.getPathParam req typeFindRoute "name" with
+  | None -> Stdlib.Http.badRequest "Missing :name segment"
+  | Some name ->
+    match parseNameToLocation name with
+    | Error errorMsg -> Stdlib.Http.badRequest errorMsg
+    | Ok location ->
+      match Builtin.pmFindType serverBranchId location with
+      | Some hash ->
+        Stdlib.Http.responseWithJson (hash |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>) 200L
+      | None -> Stdlib.Http.notFound ()
+
+let typeFindHandler: Handler =
+  Handler
+    { route = typeFindRoute; method = "GET"; handler = typeFindHandlerFn }
+
+let typeGetRoute = "/type/get/:hash"
+let typeGetHandlerFn (req: HttpRequest) : HttpResponse =
+  match Stdlib.HttpServer.getPathParam req typeGetRoute "hash" with
+  | None -> Stdlib.Http.badRequest "Missing :hash segment"
+  | Some hashStr ->
+    let hash = LanguageTools.ProgramTypes.Hash.Hash hashStr
+    match Builtin.pmGetType hash with
+    | Some t ->
+      let json = t |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageType.PackageType>
+      Stdlib.Http.responseWithJson json 200L
+    | None -> Stdlib.Http.notFound ()
+
+let typeGetHandler: Handler =
+  Handler { route = typeGetRoute; method = "GET"; handler = typeGetHandlerFn }
+
+
+let typeGetWithLocationRoute = "/type/get/with-location/:hash"
+let typeGetWithLocationHandlerFn
+  (req: HttpRequest)
+  : HttpResponse =
+  match Stdlib.HttpServer.getPathParam req typeGetWithLocationRoute "hash" with
+  | None -> Stdlib.Http.badRequest "Missing :hash segment"
+  | Some hashStr ->
+    let hash = LanguageTools.ProgramTypes.Hash.Hash hashStr
+    match LanguageTools.PackageManager.Type.getWithLocation serverBranchId hash with
+    | Some locatedItem ->
+      let json =
+        locatedItem
+        |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageType.PackageType>>
+      Stdlib.Http.responseWithJson json 200L
+    | None -> Stdlib.Http.notFound ()
+
+let typeGetWithLocationHandler: Handler =
+  Handler
+    { route = typeGetWithLocationRoute
+      method = "GET"
+      handler = typeGetWithLocationHandlerFn }
+
+
+let valueFindRoute = "/value/find/:name"
+let valueFindHandlerFn (req: HttpRequest) : HttpResponse =
+  match Stdlib.HttpServer.getPathParam req valueFindRoute "name" with
+  | None -> Stdlib.Http.badRequest "Missing :name segment"
+  | Some name ->
+    match parseNameToLocation name with
+    | Error errorMsg -> Stdlib.Http.badRequest errorMsg
+    | Ok location ->
+      match Builtin.pmFindValue serverBranchId location with
+      | Some hash ->
+        Stdlib.Http.responseWithJson (hash |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>) 200L
+      | None -> Stdlib.Http.notFound ()
+
+let valueFindHandler: Handler =
+  Handler
+    { route = valueFindRoute; method = "GET"; handler = valueFindHandlerFn }
+
+
+let valueGetRoute = "/value/get/:hash"
+let valueGetHandlerFn (req: HttpRequest) : HttpResponse =
+  match Stdlib.HttpServer.getPathParam req valueGetRoute "hash" with
+  | None -> Stdlib.Http.badRequest "Missing :hash segment"
+  | Some hashStr ->
+    let hash = LanguageTools.ProgramTypes.Hash.Hash hashStr
+    match Builtin.pmGetValue hash with
+    | Some v ->
+      let json = v |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
+      Stdlib.Http.responseWithJson json 200L
+    | None -> Stdlib.Http.notFound ()
+
+let valueGetHandler: Handler =
+  Handler
+    { route = valueGetRoute; method = "GET"; handler = valueGetHandlerFn }
+
+
+let valueGetWithLocationRoute = "/value/get/with-location/:hash"
+let valueGetWithLocationHandlerFn
+  (req: HttpRequest)
+  : HttpResponse =
+  match Stdlib.HttpServer.getPathParam req valueGetWithLocationRoute "hash" with
+  | None -> Stdlib.Http.badRequest "Missing :hash segment"
+  | Some hashStr ->
+    let hash = LanguageTools.ProgramTypes.Hash.Hash hashStr
+    match LanguageTools.PackageManager.Value.getWithLocation serverBranchId hash with
+    | Some locatedItem ->
+      let json =
+        locatedItem
+        |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageValue.PackageValue>>
+      Stdlib.Http.responseWithJson json 200L
+    | None -> Stdlib.Http.notFound ()
+
+let valueGetWithLocationHandler: Handler =
+  Handler
+    { route = valueGetWithLocationRoute
+      method = "GET"
+      handler = valueGetWithLocationHandlerFn }
+
+
+let functionFindRoute = "/function/find/:name"
+let functionFindHandlerFn (req: HttpRequest) : HttpResponse =
+  match Stdlib.HttpServer.getPathParam req functionFindRoute "name" with
+  | None -> Stdlib.Http.badRequest "Missing :name segment"
+  | Some name ->
+    match parseNameToLocation name with
+    | Error errorMsg -> Stdlib.Http.badRequest errorMsg
+    | Ok location ->
+      match Builtin.pmFindFn serverBranchId location with
+      | Some hash ->
+        Stdlib.Http.responseWithJson (hash |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>) 200L
+      | None -> Stdlib.Http.notFound ()
+
+let functionFindHandler: Handler =
+  Handler
+    { route = functionFindRoute
+      method = "GET"
+      handler = functionFindHandlerFn }
+
+
+let functionGetRoute = "/function/get/:hash"
+let functionGetHandlerFn (req: HttpRequest) : HttpResponse =
+  match Stdlib.HttpServer.getPathParam req functionGetRoute "hash" with
+  | None -> Stdlib.Http.badRequest "Missing :hash segment"
+  | Some hashStr ->
+    let hash = LanguageTools.ProgramTypes.Hash.Hash hashStr
+    match Builtin.pmGetFn hash with
+    | Some f ->
+      let json = f |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
+      Stdlib.Http.responseWithJson json 200L
+    | None -> Stdlib.Http.notFound ()
+
+let functionGetHandler: Handler =
+  Handler
+    { route = functionGetRoute; method = "GET"; handler = functionGetHandlerFn }
+
+
+let functionGetWithLocationRoute = "/function/get/with-location/:hash"
+let functionGetWithLocationHandlerFn
+  (req: HttpRequest)
+  : HttpResponse =
+  match Stdlib.HttpServer.getPathParam req functionGetWithLocationRoute "hash" with
+  | None -> Stdlib.Http.badRequest "Missing :hash segment"
+  | Some hashStr ->
+    let hash = LanguageTools.ProgramTypes.Hash.Hash hashStr
+    match
+      LanguageTools.PackageManager.Function.getWithLocation
+        serverBranchId
+        hash
+    with
+    | Some locatedItem ->
+      let json =
+        locatedItem
+        |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>>
+      Stdlib.Http.responseWithJson json 200L
+    | None -> Stdlib.Http.notFound ()
+
+let functionGetWithLocationHandler: Handler =
+  Handler
+    { route = functionGetWithLocationRoute
+      method = "GET"
+      handler = functionGetWithLocationHandlerFn }
+
+
+// ────────────────────────── router ──────────────────────────
+//
+// Order matters within the single-segment block: literal routes must
+// precede the `/:location` catch-all. Multi-segment routes are listed
+// first by convention only — they cannot collide with single-segment
+// paths regardless of order.
+
+let handlers: List<Handler> =
+  [ // multi-segment: /type/...
+    typeFindHandler
+    typeGetWithLocationHandler
+    typeGetHandler
+    // multi-segment: /value/...
+    valueFindHandler
+    valueGetWithLocationHandler
+    valueGetHandler
+    // multi-segment: /function/...
+    functionFindHandler
+    functionGetWithLocationHandler
+    functionGetHandler
+    // single-segment literals (must precede /:location)
+    pingHandler
+    opsPostHandler
+    opsGetHandler
+    statsHandler
+    searchHandler
+    // catch-all single-segment lookup
+    locationHandler ]
+
+
+let router (req: HttpRequest) : HttpResponse =
+  Stdlib.HttpServer.routeRequest handlers req

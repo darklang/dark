@@ -37,39 +37,21 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
 
-let getCanvasID (state: Cli.AppState) : Stdlib.Option.Option<Uuid> =
-  match state.accountID with
-  | None -> Stdlib.Option.Option.None
-  | Some accountID ->
-    let domain = $"{state.accountName}.darklang.localhost"
-    Stdlib.Option.Option.Some
-      (Builtin.darkInternalCanvasGetOrCreateForAccount accountID domain)
-
-
-let requireCanvas (state: Cli.AppState) : Stdlib.Result.Result<Uuid, String> =
-  match getCanvasID state with
-  | Some id -> Stdlib.Result.Result.Ok id
-  | None -> Stdlib.Result.Result.Error "No account ID available. Please set DARK_ACCOUNT environment variable."
-
-
 let getDBTypeName
   (state: Cli.AppState)
   (dbName: String)
   : Stdlib.Option.Option<String> =
-  match getCanvasID state with
-  | None -> Stdlib.Option.Option.None
-  | Some canvasID ->
-    let dbs = Builtin.darkInternalCanvasDBListAll canvasID state.currentBranchId
+  let dbs = Builtin.dbListAll state.currentBranchId
 
-    dbs
-    |> Stdlib.List.filterMap (fun db ->
-      let (name, typeName) = db
+  dbs
+  |> Stdlib.List.filterMap (fun db ->
+    let (name, typeName) = db
 
-      if name == dbName then
-        Stdlib.Option.Option.Some typeName
-      else
-        Stdlib.Option.Option.None)
-    |> Stdlib.List.head
+    if name == dbName then
+      Stdlib.Option.Option.Some typeName
+    else
+      Stdlib.Option.Option.None)
+  |> Stdlib.List.head
 
 
 let getDBFieldNames
@@ -93,49 +75,43 @@ let getDBFieldNames
 
 
 let listDBs (state: Cli.AppState) : Cli.AppState =
-  match requireCanvas state with
-  | Error msg ->
-    Stdlib.printLine (Colors.error $"Error: {msg}")
+  let dbs = Builtin.dbListAll state.currentBranchId
+
+  match dbs with
+  | [] ->
+    Stdlib.printLine ""
+    Stdlib.printLine "No databases."
+    Stdlib.printLine ""
+    Stdlib.printLine "Create one with: db <DbName> <TypeName>"
+    Stdlib.printLine ""
     state
 
-  | Ok canvasID ->
-    let dbs = Builtin.darkInternalCanvasDBListAll canvasID state.currentBranchId
+  | _ ->
+    Stdlib.printLine ""
+    Stdlib.printLine "Databases:"
+    Stdlib.printLine ""
 
-    match dbs with
-    | [] ->
-      Stdlib.printLine ""
-      Stdlib.printLine "No databases in your canvas."
-      Stdlib.printLine ""
-      Stdlib.printLine "Create one with: db <DbName> <TypeName>"
-      Stdlib.printLine ""
-      state
+    // Print table header
+    let nameHeader =
+      (Stdlib.String.padEnd "Name" " " 20L) |> Builtin.unwrap
 
-    | _ ->
-      Stdlib.printLine ""
-      Stdlib.printLine "Databases in your canvas:"
-      Stdlib.printLine ""
+    let typeHeader = "Type"
 
-      // Print table header
-      let nameHeader =
-        (Stdlib.String.padEnd "Name" " " 20L) |> Builtin.unwrap
+    Stdlib.printLine $"{nameHeader}{typeHeader}"
+    Stdlib.printLine (Stdlib.String.repeat "─" 60L)
 
-      let typeHeader = "Type"
+    // Print each DB
+    dbs
+    |> Stdlib.List.iter (fun db ->
+      let (name, typeName) = db
 
-      Stdlib.printLine $"{nameHeader}{typeHeader}"
-      Stdlib.printLine (Stdlib.String.repeat "─" 60L)
+      let nameCol =
+        (Stdlib.String.padEnd name " " 20L) |> Builtin.unwrap
 
-      // Print each DB
-      dbs
-      |> Stdlib.List.iter (fun db ->
-        let (name, typeName) = db
+      Stdlib.printLine $"{nameCol}{typeName}")
 
-        let nameCol =
-          (Stdlib.String.padEnd name " " 20L) |> Builtin.unwrap
-
-        Stdlib.printLine $"{nameCol}{typeName}")
-
-      Stdlib.printLine ""
-      state
+    Stdlib.printLine ""
+    state
 
 
 let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
@@ -323,60 +299,48 @@ let queryDB
 
 
 let dropDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
-  match requireCanvas state with
+  match Builtin.dbDrop dbName with
+  | Ok () ->
+    Stdlib.printLine (Colors.success $"Dropped database: {dbName}")
+    state
   | Error msg ->
     Stdlib.printLine (Colors.error $"Error: {msg}")
     state
-
-  | Ok canvasID ->
-    match Builtin.darkInternalCanvasDBDrop canvasID dbName with
-    | Ok () ->
-      Stdlib.printLine (Colors.success $"Dropped database: {dbName}")
-      state
-    | Error msg ->
-      Stdlib.printLine (Colors.error $"Error: {msg}")
-      state
 
 
 let createDB (state: Cli.AppState) (dbName: String) (typeName: String) : Cli.AppState =
-  match requireCanvas state with
+  match Location.parseRelativeTo state.packageData.currentLocation typeName with
   | Error msg ->
-    Stdlib.printLine (Colors.error $"Error: {msg}")
+    Stdlib.printLine (Colors.error $"Error: Invalid type name: {msg}")
     state
 
-  | Ok canvasID ->
-    match Location.parseRelativeTo state.packageData.currentLocation typeName with
-    | Error msg ->
-      Stdlib.printLine (Colors.error $"Error: Invalid type name: {msg}")
+  | Ok typeLocation ->
+    match Builtin.pmFindType state.currentBranchId typeLocation with
+    | None ->
+      let fullTypeName =
+        PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLocation
+
+      Stdlib.printLine (Colors.error $"Error: Type not found: {fullTypeName}")
+      Stdlib.printLine ""
+      Stdlib.printLine "Make sure the type exists before creating a database for it."
       state
 
-    | Ok typeLocation ->
-      match Builtin.pmFindType state.currentBranchId typeLocation with
-      | None ->
+    | Some typeHash ->
+      match Builtin.dbCreate dbName typeHash with
+      | Ok tlid ->
         let fullTypeName =
           PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLocation
 
-        Stdlib.printLine (Colors.error $"Error: Type not found: {fullTypeName}")
         Stdlib.printLine ""
-        Stdlib.printLine "Make sure the type exists before creating a database for it."
+        Stdlib.printLine
+          (Colors.success $"Created database: {dbName} (type: {fullTypeName})")
+
+        Stdlib.printLine ""
         state
 
-      | Some typeHash ->
-        match Builtin.darkInternalCanvasDBCreate canvasID dbName typeHash with
-        | Ok tlid ->
-          let fullTypeName =
-            PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLocation
-
-          Stdlib.printLine ""
-          Stdlib.printLine
-            (Colors.success $"Created database: {dbName} (type: {fullTypeName})")
-
-          Stdlib.printLine ""
-          state
-
-        | Error msg ->
-          Stdlib.printLine (Colors.error $"Error: Failed to create database: {msg}")
-          state
+      | Error msg ->
+        Stdlib.printLine (Colors.error $"Error: Failed to create database: {msg}")
+        state
 
 
 let help (state: Cli.AppState) : Cli.AppState =
@@ -413,13 +377,10 @@ let help (state: Cli.AppState) : Cli.AppState =
 
 
 let getDBNamesForCompletion (state: Cli.AppState) : List<String> =
-  match getCanvasID state with
-  | None -> []
-  | Some canvasID ->
-    (Builtin.darkInternalCanvasDBListAll canvasID state.currentBranchId)
-    |> Stdlib.List.map (fun db ->
-      let (name, _) = db
-      name)
+  (Builtin.dbListAll state.currentBranchId)
+  |> Stdlib.List.map (fun db ->
+    let (name, _) = db
+    name)
 
 
 let complete

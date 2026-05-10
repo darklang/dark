@@ -35,4 +35,4 @@ let content () : String =
 ## Debug
   1. Simplify expression
   2. Use eval to test pieces
-  3. Check packages-canvas.log"""
+  3. Check packages.log"""

@@ -61,10 +61,21 @@ let isKnownGroup (prefix: String): Bool =
   Stdlib.List.any knownGroups (fun pair -> (Stdlib.Tuple2.first pair) == prefix)
 
 
+let versionSuffix (v: Int32) : String =
+  if v == 0l then "" else $"_v{Stdlib.Int32.toString v}"
+
+
+let purityTag (purity: LanguageTools.BuiltinFunctionPurity) : String =
+  match purity with
+  | Pure -> "[pure]"
+  | ImpurePreviewable -> "[impure-previewable]"
+  | Impure -> "[impure]"
+
+
 // Sort groups: known groups first in order, then unknown groups alphabetically
 let sortGroups
-  (groups: List<String * List<Builtins.FunctionInfo>>)
-  : List<String * List<Builtins.FunctionInfo>> =
+  (groups: List<String * List<LanguageTools.BuiltinFunction>>)
+  : List<String * List<LanguageTools.BuiltinFunction>> =
   let knownPrefixes = Stdlib.List.map knownGroups (fun pair -> Stdlib.Tuple2.first pair)
 
   let knownInOrder =
@@ -86,7 +97,7 @@ let sortGroups
 
 
 let execute (state: AppState) (args: List<String>): AppState =
-  let allBuiltins = Builtin.getBuiltins ()
+  let allBuiltins = Builtin.getAllBuiltinFns ()
 
   // Parse flags
   let withSigs = Stdlib.List.any args (fun arg -> arg == "--with-sigs")
@@ -95,7 +106,7 @@ let execute (state: AppState) (args: List<String>): AppState =
   let filterArgs =
     args
     |> Stdlib.List.filter (fun arg ->
-      (arg != "--with-sigs") && (arg != "--with-purity"))
+      arg != "--with-sigs" && arg != "--with-purity")
 
   let filter =
     match filterArgs with
@@ -107,7 +118,7 @@ let execute (state: AppState) (args: List<String>): AppState =
   let grouped =
     allBuiltins
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc fn ->
-      let group = extractGroup fn.name
+      let group = extractGroup fn.name.name
 
       let existing =
         match Stdlib.Dict.get acc group with
@@ -136,7 +147,7 @@ let execute (state: AppState) (args: List<String>): AppState =
         let matchingFns =
           fns
           |> Stdlib.List.filter (fun fn ->
-            (Stdlib.String.contains fn.name pattern)
+            (Stdlib.String.contains fn.name.name pattern)
             || (Stdlib.String.contains group pattern))
 
         if Stdlib.List.isEmpty matchingFns then
@@ -146,7 +157,6 @@ let execute (state: AppState) (args: List<String>): AppState =
 
   // Format and display
   if withSigs then
-    // Detailed output with signatures
     filteredGroups
     |> Stdlib.List.iter (fun pair ->
       let group = Stdlib.Tuple2.first pair
@@ -161,30 +171,18 @@ let execute (state: AppState) (args: List<String>): AppState =
         let params =
           fn.parameters
           |> Stdlib.List.map (fun p ->
-            let typStr = PrettyPrinter.RuntimeTypes.typeReference branchId p.typ
+            let typStr = PrettyPrinter.RuntimeTypes.typeReference branchId p.``type``
             $"{p.name}: {typStr}")
           |> Stdlib.String.join ", "
 
-        let versionSuffix =
-          if fn.version == 0L then
-            ""
-          else
-            $"_v{Stdlib.Int64.toString fn.version}"
+        let returnTypeStr =
+          PrettyPrinter.RuntimeTypes.typeReference branchId fn.returnType
 
-        let puritySuffix =
-          if withPurity then
-            let purityStr =
-              match fn.purity with
-              | Pure -> "pure"
-              | ImpurePreviewable -> "impure-previewable"
-              | Impure -> "impure"
-            $" [{purityStr}]"
-          else
-            ""
+        let suffix =
+          if withPurity then $" {purityTag fn.purity}" else ""
 
-        let returnTypeStr = PrettyPrinter.RuntimeTypes.typeReference branchId fn.returnType
-
-        Stdlib.printLine $"  {fn.name}{versionSuffix}({params}) -> {returnTypeStr}{puritySuffix}"))
+        Stdlib.printLine
+          $"  {fn.name.name}{versionSuffix fn.name.version}({params}) -> {returnTypeStr}{suffix}"))
   else
     // Compact output: comma-separated names
     filteredGroups
@@ -195,13 +193,9 @@ let execute (state: AppState) (args: List<String>): AppState =
       let names =
         fns
         |> Stdlib.List.map (fun fn ->
-          let versionSuffix =
-            if fn.version == 0L then
-              ""
-            else
-              $"_v{Stdlib.Int64.toString fn.version}"
-
-          $"{fn.name}{versionSuffix}")
+          let suffix =
+            if withPurity then $" {purityTag fn.purity}" else ""
+          $"{fn.name.name}{versionSuffix fn.name.version}{suffix}")
         |> Stdlib.String.join ", "
 
       Stdlib.printLine ""
@@ -222,12 +216,8 @@ let execute (state: AppState) (args: List<String>): AppState =
     Colors.hint summary ]
   |> Stdlib.printLines
 
-  // Hints about available flags
   if Stdlib.Bool.not withSigs then
-    Stdlib.printLine (Colors.hint "Use --with-sigs to see full function signatures")
-
-  if Stdlib.Bool.not withPurity then
-    Stdlib.printLine (Colors.hint "Use --with-purity to see function purity (pure/impure)")
+    Stdlib.printLine (Colors.hint "Use --with-sigs to see full function signatures, --with-purity to tag pure/impure")
 
   state
 
@@ -239,17 +229,17 @@ let help (state: AppState): AppState =
     ""
     "Options:"
     "  --with-sigs    Show full function signatures with parameter types"
-    "  --with-purity  Show function purity (pure, impure, impure-previewable)"
+    "  --with-purity  Tag each fn with [pure] / [impure-previewable] / [impure]"
     ""
     "Arguments:"
     "  filter         Optional pattern to filter functions by name or group"
     ""
     "Examples:"
-    "  builtins                   - List all builtins (compact)"
-    "  builtins --with-sigs       - List all builtins with signatures"
-    "  builtins --with-purity     - List with purity info"
-    "  builtins json              - Filter by 'json'"
-    "  builtins --with-sigs http  - HTTP builtins with signatures" ]
+    "  builtins                                - List all builtins (compact)"
+    "  builtins --with-sigs                    - List all builtins with signatures"
+    "  builtins --with-purity                  - Compact + purity tag"
+    "  builtins --with-sigs --with-purity http - HTTP fns, sigs + purity"
+    "  builtins json                           - Filter by 'json'" ]
   |> Stdlib.printLines
 
   state

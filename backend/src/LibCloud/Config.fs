@@ -5,7 +5,7 @@ module LibCloud.Config
 open Prelude
 
 open LibConfig.ConfigDsl
-module Config = LibService.Config
+module Config = LibConfig.Config
 
 // -------------------------
 // Note: if you add or change an env-var in development,
@@ -16,7 +16,7 @@ module Config = LibService.Config
 // Root directories - see File.fs and Root type below
 // -------------------------
 
-let sourceRootDir = Config.sourceRootDir
+let sourceRootDir = absoluteDir "DARK_CONFIG_ROOT_DIR"
 
 let runDir = Config.runDir
 let logDir = Config.logDir
@@ -63,14 +63,3 @@ let httpclientTimeoutInMs = int "DARK_CONFIG_HTTPCLIENT_TIMEOUT_IN_MS"
 /// us if something has changed.
 let serializationGenerateTestData =
   bool "DARK_CONFIG_SERIALIZATION_GENERATE_TEST_DATA"
-
-
-/// Canvases that are allowed access to the DarkInternal stdlib functions
-let allowedDarkInternalCanvasIDs =
-  uuids "DARK_CONFIG_ALLOWED_DARK_INTERNAL_CANVAS_IDS"
-
-
-// -------------------------
-// Package Manager
-// -------------------------
-let packageManagerUrl = string "DARK_CONFIG_PACKAGE_MANAGER_BASE_URL"

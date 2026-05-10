@@ -559,6 +559,7 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
 
       $"{typeNamePart}.{caseName}{fieldPart}"
 
+
 let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   match e with
   | EUnit _id -> "()"
@@ -906,32 +907,6 @@ let customType
     |> Stdlib.String.join "\n"
 
 
-module Handler =
-  let cronInterval
-    (c: LanguageTools.ProgramTypes.Handler.CronInterval)
-    : String =
-    match c with
-    | EveryDay -> "Every Day"
-    | EveryWeek -> "Every Week"
-    | EveryFortnight -> "Every Fortnight"
-    | EveryHour -> "Every Hour"
-    | Every12Hours -> "Every 12 Hours"
-    | EveryMinute -> "Every Minute"
-
-  let spec (s: LanguageTools.ProgramTypes.Handler.Spec) : String =
-    match s with
-    | HTTP(route, method) -> $"[<HttpHandler({method}, {route})>]"
-    | Worker name -> $"[<Worker({name})>]"
-    | Cron(name, interval) ->
-      $"[<Cron({name}, {Handler.cronInterval interval})>]"
-    | REPL name -> $"[<REPL({name})>]"
-
-let handler (ctx: Context) (h: LanguageTools.ProgramTypes.Handler.Handler) : String =
-  let specPart = Handler.spec h.spec
-
-  $"{specPart}\nlet _handler _ignored =\n  {expr ctx h.ast}"
-
-
 let db
   (ctx: Context)
   (db: LanguageTools.ProgramTypes.DB)
@@ -946,12 +921,6 @@ let db
 
   $"type {db.name}{versionPart} = {typPart}"
 
-
-
-// let secret (s: Stdlib.Secret.T) : String =
-//   let versionPart = if s.version == 0 then "" else $"_v{Stdlib.Int32.toString s.version}"
-
-//   $"let {s.name}{versionPart} = \"*****\""
 
 
 let packageType

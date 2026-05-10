@@ -7,10 +7,10 @@ type Commit =
     message: String
     createdAt: DateTime
     opCount: Int64
-    committerId: Uuid
-    committerName: String
     branchId: Uuid
-    branchName: String }
+    branchName: String
+    committerId: Uuid
+    committerName: String }
 
 
 /// Add a list of package ops to the database as WIP (uncommitted) on the given branch

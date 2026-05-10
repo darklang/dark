@@ -9,7 +9,7 @@
 ## Profiling .NET
 
 - dotnet tool install dotnet-trace
-- dotnet trace ps # get id of BwdServer
+- dotnet trace ps # get id of the Darklang process (CLI / serve)
 - dotnet trace collect --format SpeedScope -p ID
 - upload the file to https://speedscope.app for a flame graph
 

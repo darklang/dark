@@ -61,7 +61,7 @@ module DidOpenTextDocumentNotification =
       : Stdlib.Result.Result<DidOpenTextDocumentParams, Unit> =
       let jsonAsText = Stdlib.AltJson.format json // TODO: manually parse the JSON so we have better control
 
-      (Builtin.jsonParse<DidOpenTextDocumentParams> jsonAsText)
+      (Stdlib.Json.parse<DidOpenTextDocumentParams> jsonAsText)
       |> Stdlib.Result.mapError (fun _ -> ())
 
 
@@ -91,7 +91,7 @@ module DidCloseTextDocumentNotification =
       : Stdlib.Result.Result<DidCloseTextDocumentParams, Unit> =
       let jsonAsText = Stdlib.AltJson.format json // TODO: manually parse the JSON so we have better control
 
-      (Builtin.jsonParse<DidCloseTextDocumentParams> jsonAsText)
+      (Stdlib.Json.parse<DidCloseTextDocumentParams> jsonAsText)
       |> Stdlib.Result.mapError (fun _ -> ())
 
 
@@ -127,7 +127,7 @@ module DidChangeTextDocumentNotification =
       : Stdlib.Result.Result<DidChangeTextDocumentParams, Unit> =
       let jsonAsText = Stdlib.AltJson.format json
 
-      (Builtin.jsonParse<DidChangeTextDocumentParams> jsonAsText)
+      (Stdlib.Json.parse<DidChangeTextDocumentParams> jsonAsText)
       |> Stdlib.Result.mapError (fun _ -> ())
 
 

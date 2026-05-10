@@ -309,9 +309,9 @@ module Instruction =
       w.Write 20uy
       List.write w String.write names
       NameResolutionError.write w error
-    | VarNotFound(targetRegIfSecretOrDB, name) ->
+    | VarNotFound(targetRegIfDB, name) ->
       w.Write 21uy
-      w.Write(targetRegIfSecretOrDB : int)
+      w.Write(targetRegIfDB : int)
       String.write w name
     | CheckIfFirstExprIsUnit reg ->
       w.Write 22uy
@@ -428,9 +428,9 @@ module Instruction =
       let error = NameResolutionError.read r
       RaiseNRE(names, error)
     | 21uy ->
-      let targetRegIfSecretOrDB = r.ReadInt32()
+      let targetRegIfDB = r.ReadInt32()
       let name = String.read r
-      VarNotFound(targetRegIfSecretOrDB, name)
+      VarNotFound(targetRegIfDB, name)
     | 22uy ->
       let reg = r.ReadInt32()
       CheckIfFirstExprIsUnit(reg)

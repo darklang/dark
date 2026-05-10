@@ -11,7 +11,7 @@ open System.Threading.Tasks
 open FSharp.Control.Tasks
 
 open Fumble
-open LibDB.Db
+open LibDB.Sqlite
 
 open Prelude
 
@@ -24,30 +24,62 @@ module PackageRefs = LibExecution.PackageRefs
 module Dval = LibExecution.Dval
 module NR = LibParser.NameResolver
 module RTNR = LibExecution.RuntimeTypes.NameResolution
-module Canvas = LibCloud.Canvas
+module Toplevels = LibCloud.Toplevels
 module Serialize = LibCloud.Serialize
 
 open TestUtils.TestUtils
 
-let setupWorkers (canvasID : CanvasID) (workers : List<string>) : Task<unit> =
+let setupDBs (dbs : List<PT.DB.T>) : Task<unit> =
   task {
-    let tls =
-      workers
-      |> List.map (fun worker ->
-        let w : PT.Handler.T =
-          { tlid = gid ()
-            ast = PT.Expr.EUnit(gid ())
-            spec = PT.Handler.Worker(worker) }
-        PT.Toplevel.TLHandler w, Serialize.NotDeleted)
-
-    do! Canvas.saveTLIDs canvasID tls
+    let tls = dbs |> List.map (fun db -> db, Serialize.NotDeleted)
+    do! Toplevels.saveTLIDs tls
   }
 
-let setupDBs (canvasID : CanvasID) (dbs : List<PT.DB.T>) : Task<unit> =
-  task {
-    let tls = dbs |> List.map (fun db -> PT.Toplevel.TLDB db, Serialize.NotDeleted)
-    do! Canvas.saveTLIDs canvasID tls
-  }
+// FUTURE: drop `program.dbs` entirely
+// ----------------------------------------------------------------
+// `RT.Program.dbs : Map<string, DB.T>` is a canvas-era relic. When
+// each test had its own `canvasID`, the `dbs` map was the
+// per-canvas whitelist of accessible DBs. Single-instance Dark
+// removed canvases, so the whitelist no longer scopes anything —
+// `toplevels_v0` is global, so every name resolves the same way
+// for every executor.
+//
+// What it still does:
+//   - DB builtins (DB.fs) match `DDB dbname` and look up
+//     `exeState.program.dbs[dbname]` to get the `DB.T`
+//     (tlid + type).
+//   - Interpreter's `VarNotFound` case checks `program.dbs` to
+//     decide whether `XDB` becomes `DDB "XDB"` vs. raises an
+//     unbound-variable error.
+//   - Tests pre-populate it via `setupDBs` so the test code can
+//     reference `[<DB>]`-declared names. The `t` function above
+//     wires `rtDBs` into `executionStateFor`.
+//
+// What we'd do instead:
+//   - DB builtins query `toplevels_v0 WHERE name = @name`,
+//     fronted by a process-global cache (`name -> DB.T`) so we
+//     don't do a SELECT per `DB.set` call.
+//   - `VarNotFound` does the same cached lookup.
+//   - `Builtin.dbCreate` just writes the row; subsequent
+//     references find it via the cache. No state mutation
+//     required.
+//   - Drop `RT.Program.dbs` (and the field it adds to
+//     `RT.Program`). `executionStateFor` stops taking `dbs`.
+//     Tests stop calling `setupDBs` for the rtDBs map.
+//   - `[<DB>]` parser sugar can either go away (tests do
+//     `Builtin.dbCreate` inline) or become "shorthand that
+//     emits a `dbCreate` call at parse-time".
+//
+// Scope: ~16 builtin call sites in `Builtins.Matter/Libs/DB.fs`,
+// `Interpreter.VarNotFound`, `RT.Program`, every
+// `executionStateFor` call site, plus the cache and (optionally)
+// test conversion. Hours, not minutes.
+//
+// Why deferred: the perf pain that motivated this thread is
+// already gone — batched-INSERT in `LibCloud.Toplevels.saveTLIDs`
+// took the cloud/db.dark bucket from 3:22 to 3.8s. The
+// `program.dbs` removal is now a clean-up, not a perf necessity,
+// and it's big enough to deserve its own PR.
 
 let runtimeErrorMessage
   (state : RT.ExecutionState)
@@ -109,31 +141,29 @@ let runtimeErrorMessage
 
 
 let t
-  (internalFnsAllowed : bool)
-  (canvasName : string)
+  (_canvasName : string)
   (pmPT : PT.PackageManager)
   (actual : PT.Expr)
   (expected : LibParser.TestModule.PTExpected)
   (filename : string)
   (lineNumber : int)
   (dbs : List<PT.DB.T>)
-  (workers : List<string>)
   : Test =
   testTask $"line{lineNumber}" {
     try
-      // Little optimization to skip the DB sometimes
-      let! canvasID =
-        let initializeCanvas = internalFnsAllowed || dbs <> [] || workers <> []
-        if initializeCanvas then
-          initializeTestCanvas canvasName
-        else
-          System.Guid.NewGuid() |> Task.FromResult
+      // Wipe per-test state when this test uses UserDB.
+      // Single-instance Dark — toplevels_v0 / user_data_v0 are global,
+      // so isolation between .dark testfile cases is "wipe +
+      // repopulate" (the surrounding testList is testSequenced so
+      // wipes don't race parallel writes).
+      if dbs <> [] then
+        do! Sql.query "DELETE FROM toplevels_v0" |> Sql.executeStatementAsync
+        do! Sql.query "DELETE FROM user_data_v0" |> Sql.executeStatementAsync
 
       let rtDBs =
         dbs |> List.map (fun db -> (db.name, PT2RT.DB.toRT db)) |> Map.ofList
 
-      let! (state : RT.ExecutionState) =
-        executionStateFor pmPT canvasID internalFnsAllowed false rtDBs
+      let! (state : RT.ExecutionState) = executionStateFor pmPT false rtDBs
 
       let red = "\u001b[31m"
       let green = "\u001b[32m"
@@ -161,15 +191,7 @@ let t
         $"\n\n{lhs}\n\n{rhs}\n\nTest location: {bold}{underline}{filename}:{lineNumber}{reset}"
 
       // Initialize
-      if workers <> [] then do! setupWorkers canvasID workers
-      if dbs <> [] then do! setupDBs canvasID dbs
-
-      let results, traceDvalFn = Exe.traceDvals ()
-      let state =
-        if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
-          { state with tracing.traceDval = traceDvalFn }
-        else
-          state
+      if dbs <> [] then do! setupDBs dbs
 
       // Run the actual program (left-hand-side of the =)
       let actual = actual |> PT2RT.Expr.toRT Map.empty 0 None
@@ -187,8 +209,11 @@ let t
         | LibParser.TestModule.PTExpected.PTExpectedSqlError _ ->
           Task.FromResult None
 
-      if System.Environment.GetEnvironmentVariable "DEBUG" <> null then
-        debuGList "results" (Dictionary.toList results |> List.sortBy fst)
+      // DEBUG dump of per-expr trace values used to live here, but
+      // the traceDval hook + Execution.traceDvals collector were
+      // removed with the trace rewrite (per-AST-node values are
+      // a follow-up PR). Drop the dump until the new tracer lands.
+      ignore<unit> ()
 
       // Promote any ephemeral blobs to content-addressed Persistent
       // refs so two expressions that construct the same bytes via
@@ -288,7 +313,7 @@ let baseDir = "testfiles/execution/"
 let fileTests () : Test =
   // Note: we use this at parse-time - but later we need to use an enhanced one,
   // with the 'extra' things defined in the test modules.
-  let pmPT = LibPackageManager.PackageManager.pt
+  let pmPT = LibDB.PackageManager.pt
 
   let parseTestFile fileName =
     LibParser.TestModule.parseTestFile "Tests" (localBuiltIns pmPT) pmPT fileName
@@ -304,7 +329,6 @@ let fileTests () : Test =
     |> List.map (fun file ->
       let filename = System.IO.Path.GetFileName file
       let testName = System.IO.Path.GetFileNameWithoutExtension file
-      let initializeCanvas = testName = "internal"
       let shouldSkip = filename |> String.contains "_"
 
       if shouldSkip then
@@ -316,7 +340,7 @@ let fileTests () : Test =
 
           let allOps = modules |> List.collect _.ops
 
-          let pm = LibPackageManager.PackageManager.withExtraOps pmPT allOps
+          let pm = LibDB.PackageManager.withExtraOps pmPT allOps
 
           let tests =
             modules
@@ -324,18 +348,24 @@ let fileTests () : Test =
               m.tests
               |> List.map (fun test ->
                 t
-                  initializeCanvas
                   test.name
                   pm
                   test.actual
                   test.expected
                   filename
                   test.lineNumber
-                  m.dbs
-                  []))
+                  m.dbs))
             |> List.concat
 
-          testList testName tests
+          // .dark files under `cloud/` exercise UserDB / handler state
+          // through shared toplevels_v0 / user_data_v0 rows. Run those
+          // file's cases sequentially so the per-test wipe + setupDBs
+          // in `t` doesn't race parallel writes from sibling tests.
+          let usesSharedDBState = dir.Contains "/cloud"
+          if usesSharedDBState then
+            testSequenced (testList testName tests)
+          else
+            testList testName tests
         with e ->
           print $"Exception in {file}: {e.Message}"
           reraise ())

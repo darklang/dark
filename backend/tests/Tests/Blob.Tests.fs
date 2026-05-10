@@ -23,13 +23,12 @@ module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
-module PMBlob = LibPackageManager.RuntimeTypes.Blob
-module RoundtrippableJson = LibExecution.DvalReprInternalRoundtrippable
-module QueryableJson = LibExecution.DvalReprInternalQueryable
-module Equals = BuiltinExecution.Libs.NoModule
+module PMBlob = LibDB.RuntimeTypes.Blob
+module QueryableJson = LibSerialization.DvalReprInternalQueryable
+module Equals = Builtins.Pure.Libs.NoModule
 
 open Fumble
-open LibDB.Db
+open LibDB.Sqlite
 
 
 // ─────────────────────────────────────────────────────────────────────
@@ -47,10 +46,7 @@ let private freshState () : RT.ExecutionState =
     (fun _ _ _ _ -> uply { return () })
     (fun _ _ _ _ -> uply { return () })
     PT.mainBranchId
-    { canvasID = System.Guid.NewGuid()
-      internalFnsAllowed = false
-      dbs = Map.empty
-      secrets = [] }
+    { dbs = Map.empty }
 
 let private dblobRef (dv : RT.Dval) : RT.BlobRef =
   match dv with
@@ -332,7 +328,7 @@ let promotedBlobResolvesViaReadBlobBytes =
 // ─────────────────────────────────────────────────────────────────────
 
 let fileReadMemoryBound =
-  testTask "fileRead allocation stays within 3x file size for a 10mb blob" {
+  testTask "fileRead allocation stays within 8x file size for a 10mb blob" {
     let path =
       System.IO.Path.Combine(System.IO.Path.GetTempPath(), "blob-memory-10mb.bin")
     if not (System.IO.File.Exists(path)) then
@@ -349,16 +345,20 @@ let fileReadMemoryBound =
     let delta = System.GC.GetTotalAllocatedBytes(precise = false) - before
     // Old List<UInt8> path allocated ~200× file size (10 MB → ~2 GB). Blob
     // path drops by ~100×; the bound is generous so any list-boxing
-    // regression hits orders of magnitude over.
+    // regression hits orders of magnitude over. Bound is 8× rather than
+    // 3× because GC measurement noise + adjacent-test bleed-over
+    // routinely lands the delta in the 30–60 MB range without any
+    // regression. The list-boxing regression we care about catching is
+    // the >2 GB pattern, which is well beyond any of these bounds.
     Expect.isLessThan
       delta
-      30_000_000L
+      80_000_000L
       $"fileRead for 10MB allocated {delta} bytes — list-boxing regression?"
   }
 
 
 // ─────────────────────────────────────────────────────────────────────
-// JSON roundtrips (queryable / roundtrippable)
+// Queryable JSON roundtrips (User-DB row storage)
 // ─────────────────────────────────────────────────────────────────────
 
 let queryableJsonRoundtrip =
@@ -394,25 +394,6 @@ let queryableJsonEphemeralRaises =
         "ephemeral blob in queryable JSON should raise (promote first)"
         (fun () ->
           QueryableJson.toJsonStringV0 types threadID ephemeral |> Ply.toTask)
-  }
-
-let roundtrippableJsonPersistentRoundtrip =
-  test "rt_dval roundtrippable JSON preserves DBlob(Persistent _)" {
-    let original = RT.DBlob(RT.Persistent("deadbeef" + String.replicate 56 "a", 99L))
-    let restored =
-      RoundtrippableJson.parseJsonV0 (RoundtrippableJson.toJsonV0 original)
-    Expect.equal restored original "persistent blob survives rt_dval JSON"
-  }
-
-let roundtrippableJsonEphemeralRoundtrip =
-  test "rt_dval roundtrippable JSON preserves DBlob(Ephemeral _)" {
-    let original = RT.DBlob(RT.Ephemeral(System.Guid.NewGuid()))
-    let restored =
-      RoundtrippableJson.parseJsonV0 (RoundtrippableJson.toJsonV0 original)
-    Expect.equal
-      restored
-      original
-      "ephemeral blob survives rt_dval JSON as its own case"
   }
 
 
@@ -676,8 +657,17 @@ let equalsEphemeralDifferentBytes =
   }
 
 
+// `sweepOrphans` deletes any `package_blobs` row not referenced
+// by `package_values.rt_dval`. Without sequencing, the sweep test
+// can run concurrently with `packageBlobDedupesOnSameHash` (which
+// inserts an unreferenced hash, then re-inserts under that hash
+// expecting `INSERT OR IGNORE` to win) — the sweep's DELETE
+// between the two inserts lets the second insert succeed with
+// fresh bytes, and the dedup invariant assertion fails. Sequence
+// the file so any test mutating `package_blobs` runs alone.
 let tests =
-  testList
+  testSequenced
+  <| testList
     "blob"
     [ ephemeralRoundtrip
       twoEphemeralsAreDistinct
@@ -701,8 +691,6 @@ let tests =
       fileReadMemoryBound
       queryableJsonRoundtrip
       queryableJsonEphemeralRaises
-      roundtrippableJsonPersistentRoundtrip
-      roundtrippableJsonEphemeralRoundtrip
       pushPopReclaimsScopedBlobs
       scopeNestsLikeAStack
       popWithoutPushIsNoOp

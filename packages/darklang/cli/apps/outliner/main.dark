@@ -326,7 +326,7 @@ module Persistence =
         { documents = state.documents
           activeDocId = state.activeDocId
           nextDocId = state.nextDocId }
-    let json = Builtin.jsonSerialize<Darklang.Cli.Apps.Outliner.PersistedData> data
+    let json = Stdlib.Json.serialize<Darklang.Cli.Apps.Outliner.PersistedData> data
     let jsonBytes = Stdlib.String.toBlob json
     let _ = Builtin.fileWrite jsonBytes (dataFilePath ())
     ()
@@ -338,7 +338,7 @@ module Persistence =
       match Builtin.fileRead filePath with
       | Ok bytes ->
         let contents = Stdlib.String.fromBlobWithReplacement bytes
-        match Builtin.jsonParse<Darklang.Cli.Apps.Outliner.PersistedData> contents with
+        match Stdlib.Json.parse<Darklang.Cli.Apps.Outliner.PersistedData> contents with
         | Ok data ->
           let docs = data.documents
           let picker =

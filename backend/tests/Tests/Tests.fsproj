@@ -1,13 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
-    <LangVersion>10.0</LangVersion>
-        <!-- We make this publishable so that we can run tests on the published version -->
-    <PublishReadyToRun>true</PublishReadyToRun>
-    <SelfContained>false</SelfContained>
-    <PublishSingleFile>false</PublishSingleFile>
-    <PublishTrimmed>false</PublishTrimmed>
   </PropertyGroup>
   <ItemGroup>
     <!-- core -->
@@ -15,16 +8,15 @@
     <ProjectReference Include="../../src/LibParser/LibParser.fsproj" />
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
     <ProjectReference Include="../../src/LibTreeSitter/LibTreeSitter.fsproj" />
-    <ProjectReference Include="../../src/BuiltinExecution/BuiltinExecution.fsproj" />
-    <ProjectReference Include="../../src/LibPackageManager/LibPackageManager.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Pure/Builtins.Pure.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Http.Client/Builtins.Http.Client.fsproj" />
     <ProjectReference Include="../../src/LibDB/LibDB.fsproj" />
 
     <!-- cloud -->
     <ProjectReference Include="../../src/LibSerialization/LibSerialization.fsproj" />
-    <ProjectReference Include="../../src/BuiltinCloudExecution/BuiltinCloudExecution.fsproj" />
-    <ProjectReference Include="../../src/BuiltinDarkInternal/BuiltinDarkInternal.fsproj" />
-    <ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" />
-    <ProjectReference Include="../../src/BwdServer/BwdServer.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Http.Server/Builtins.Http.Server.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Matter/Builtins.Matter.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.CliHost/Builtins.CliHost.fsproj" />
 
     <!-- cross-cutting -->
     <ProjectReference Include="../TestUtils/TestUtils.fsproj" />
@@ -42,7 +34,6 @@
     <Compile Include="Interpreter.Tests.fs" />
     <Compile Include="Builtin.Tests.fs" />
     <Compile Include="AnalysisTypes.Tests.fs" />
-    <Compile Include="Execution.Tests.fs" />
     <Compile Include="LibParser.Tests.fs" />
     <Compile Include="NewParser.Tests.fs" />
     <Compile Include="HttpClient.Tests.fs" />
@@ -52,13 +43,12 @@
     <Compile Include="BranchOps.Tests.fs" />
 
     <!-- cloud stuff /-->
-    <Compile Include="BwdServer.Tests.fs" />
-    <Compile Include="Canvas.Tests.fs" />
-    <Compile Include="DvalRepr.Tests.fs" />
-    <Compile Include="Routing.Tests.fs" />
+    <Compile Include="HttpServer.Tests.fs" />
+    <Compile Include="Toplevels.Tests.fs" />
+    <Compile Include="CliTraces.Tests.fs" />
+    <Compile Include="DvalReprInternalQueryable.Tests.fs" />
     <Compile Include="Serialization.TestValues.fs" />
     <Compile Include="Serialization.Binary.Tests.fs" />
-    <Compile Include="Serialization.Vanilla.Tests.fs" />
     <Compile Include="Serialization.DarkTypes.Tests.fs" />
 
     <Compile Include="Blob.Tests.fs" />

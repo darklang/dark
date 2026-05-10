@@ -44,8 +44,8 @@ let divide (a: Int128) (b: Int128) : Int128 = Builtin.int128Divide a b
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
 let absoluteValue (a: Int128) : Int128 =
-  if (Builtin.int128LessThan a 0Q) then
-    Builtin.int128Negate a
+  if lessThan a 0Q then
+    negate a
   else
     a
 

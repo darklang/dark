@@ -17,13 +17,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
     Stdlib.printLine header
 
     if summary.types > 0L then
-      Stdlib.printLine $"  {Builtin.int64ToString summary.types} type(s)"
+      Stdlib.printLine $"  {Stdlib.Int64.toString summary.types} type(s)"
 
     if summary.values > 0L then
-      Stdlib.printLine $"  {Builtin.int64ToString summary.values} value(s)"
+      Stdlib.printLine $"  {Stdlib.Int64.toString summary.values} value(s)"
 
     if summary.fns > 0L then
-      Stdlib.printLine $"  {Builtin.int64ToString summary.fns} function(s)"
+      Stdlib.printLine $"  {Stdlib.Int64.toString summary.fns} function(s)"
 
     Stdlib.printLine ""
 
@@ -38,7 +38,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     if proceed then
       match SCM.PackageOps.discard branchId with
       | Ok count ->
-        Stdlib.printLine (Colors.success $"Discarded {Builtin.int64ToString count} ops.")
+        Stdlib.printLine (Colors.success $"Discarded {Stdlib.Int64.toString count} ops.")
         state
       | Error e ->
         Stdlib.printLine (Colors.error $"Discard failed: {e}")

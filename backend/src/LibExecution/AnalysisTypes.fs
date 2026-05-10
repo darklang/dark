@@ -92,20 +92,3 @@ module TraceID =
 type TraceData = { input : InputVars; functionResults : List<FunctionResult> }
 
 type Trace = TraceID.T * TraceData
-
-
-// TODO: this isn't currently used - figure out what to do here
-// type AnalysisRequest =
-//   { requestID : int
-//     requestTime : NodaTime.Instant
-//     tlid : tlid
-//     traceID : TraceID.T
-//     traceData : TraceData
-//     dbs : List<RT.DB.T>
-//     expr : RT.Expr
-//     packageFns : List<RT.PackageFn.PackageFn>
-//     packageTypes : List<RT.PackageType.PackageType>
-//     packageConstants : List<RT.PackageConstant.PackageConstant>
-//     secrets : List<RT.Secret.T> }
-
-// type AnalysisResults = System.Collections.Generic.Dictionary<id, RT.Dval>

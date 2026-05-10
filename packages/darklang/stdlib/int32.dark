@@ -56,7 +56,7 @@ let power (``base``: Int32) (exponent: Int32) : Int32 =
     0l
   else if ``base`` == 1l then
     1l
-  else if ``base`` == -1l && (Builtin.int32Mod exponent 2l == 0l) then
+  else if ``base`` == -1l && (``mod`` exponent 2l == 0l) then
     1l
   else if ``base`` == -1l then
     -1l
@@ -66,8 +66,8 @@ let power (``base``: Int32) (exponent: Int32) : Int32 =
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
 let absoluteValue (a: Int32) : Int32 =
-  if Builtin.int32LessThan a 0l then
-    Builtin.int32Negate a
+  if lessThan a 0l then
+    negate a
   else
     a
 
@@ -108,17 +108,17 @@ let toFloat (a: Int32) : Float = Builtin.int32ToFloat a
 
 /// Returns the sum of all the ints in the list
 let sum (lst: List<Int32>) : Int32 =
-  Stdlib.List.fold lst 0l (fun acc x -> Builtin.int32Add acc x)
+  Stdlib.List.fold lst 0l (fun acc x -> add acc x)
 
 
 /// Returns the higher of <param a> and <param b>
 let max (a: Int32) (b: Int32) : Int32 =
-  if Builtin.int32GreaterThan a b then a else b
+  if greaterThan a b then a else b
 
 
 /// Returns the lower of <param a> and <param b>
 let min (a: Int32) (b: Int32) : Int32 =
-  if Builtin.int32LessThan a b then a else b
+  if lessThan a b then a else b
 
 
 /// If <param value> is within the range given by <param limitA> and <param
@@ -128,19 +128,19 @@ let min (a: Int32) (b: Int32) : Int32 =
 /// <param limitA> and <param limitB> can be provided in any order.
 let clamp (value: Int32) (limitA: Int32) (limitB: Int32) : Int32 =
   let min =
-    if Builtin.int32LessThan limitA limitB then
+    if lessThan limitA limitB then
       limitA
     else
       limitB
 
   let max =
-    if Builtin.int32GreaterThan limitA limitB then
+    if greaterThan limitA limitB then
       limitA
     else
       limitB
 
-  if Builtin.int32LessThan value min then min
-  else if Builtin.int32GreaterThan value max then max
+  if lessThan value min then min
+  else if greaterThan value max then max
   else value
 
 

@@ -28,7 +28,11 @@ let assertBuiltin
 // SourceControl module to match the Dark package structure (Darklang.SCM.*)
 /// SCM branch identifier
 /// Structural hash of a package item's content (shape, not name/location).
-type Hash = Hash of string
+type Hash =
+  | Hash of string
+  // Explicit ToString — F# unions' default override goes through
+  // StructuredPrintfImpl reflection, which is broken under AOT trimming.
+  override this.ToString() = let (Hash s) = this in s
 
 module Hash =
   let empty : Hash = Hash ""
@@ -66,7 +70,7 @@ type Commit =
     message : string
     createdAt : NodaTime.Instant
     opCount : int64
-    committerId : UserID
+    committerId : AccountID
     committerName : string
     branchId : BranchId
     branchName : string }
@@ -83,9 +87,9 @@ type BranchOp =
   | CreateCommit of
     commitHash : Hash *
     message : string *
+    accountId : AccountID *
     branchId : BranchId *
-    opHashes : List<Hash> *
-    accountId : UserID
+    opHashes : List<Hash>
 
   | RebaseBranch of branchId : BranchId * newBaseCommitHash : Hash
 
@@ -353,7 +357,7 @@ type TypeReference =
   | TTuple of TypeReference * TypeReference * List<TypeReference>
   | TDict of TypeReference
 
-  /// A type defined by a standard library module, a canvas/user, or a package
+  /// A type defined by a standard library module or a package
   /// e.g. `Result<Int64, String>` is represented as `TCustomType("Result", [TInt64, TString])`
   /// `typeArgs` is the list of type arguments, if any
   | TCustomType of
@@ -576,7 +580,7 @@ module Expr =
 
 
 
-/// A type defined by a package or canvas/user
+/// A type defined by a package
 module TypeDeclaration =
   type RecordField = { name : string; typ : TypeReference; description : string }
 
@@ -1076,50 +1080,18 @@ the package stuff is all a projection of that
 
 
 
-
-
 // --
 // User things
 // --
 module DB =
   type T = { tlid : tlid; name : string; version : int; typ : TypeReference }
 
-module Secret =
-  type T = { name : string; value : string; version : int }
 
-module Handler =
-  type CronInterval =
-    | EveryDay
-    | EveryWeek
-    | EveryFortnight
-    | EveryHour
-    | Every12Hours
-    | EveryMinute
-
-  /// User to represent handlers in their lowest-level form: a triple of space * name * modifier
-  /// "Space" is "HTTP", "WORKER", "REPL", etc.
-  ///
-  /// "Modifier" options differ based on space.
-  /// e.g. HTTP handler may have "GET" modifier.
-  ///
-  /// Handlers which don't have modifiers (e.g. repl, worker) nearly
-  /// always (but not actually always) have `_` as their modifier.
-  type HandlerDesc = (string * string * string)
-
-  type Spec =
-    | HTTP of route : string * method : string
-    | Worker of name : string
-    | Cron of name : string * interval : CronInterval
-    | REPL of name : string
-
-  type T = { tlid : tlid; ast : Expr; spec : Spec }
-
+/// Compatibility shim: callers used to wrap a `DB.T` in `Toplevel.TLDB`
+/// and read tlids via `Toplevel.toTLID`. Handler / TLHandler are gone
+/// (Worker / Cron / REPL had no live consumers; HTTP went earlier with
+/// the BwdServer rewrite). `DB.T` IS the toplevel now — keep the
+/// `Toplevel.toTLID` accessor as a one-line shim so the noisier
+/// callsites don't all churn shape simultaneously.
 module Toplevel =
-  type T =
-    | TLDB of DB.T
-    | TLHandler of Handler.T
-
-  let toTLID (tl : T) : tlid =
-    match tl with
-    | TLDB db -> db.tlid
-    | TLHandler h -> h.tlid
+  let toTLID (db : DB.T) : tlid = db.tlid

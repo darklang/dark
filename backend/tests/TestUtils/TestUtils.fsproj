@@ -1,20 +1,21 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
-    <LangVersion>10.0</LangVersion>
         <IsPublishable>false</IsPublishable>
     <IsTrimmable>false</IsTrimmable>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/LibExecution/LibExecution.fsproj" />
-    <ProjectReference Include="../../src/BuiltinExecution/BuiltinExecution.fsproj" />
-    <ProjectReference Include="../../src/BuiltinCli/BuiltinCli.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Pure/Builtins.Pure.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Http.Client/Builtins.Http.Client.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Language/Builtins.Language.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Cli/Builtins.Cli.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Time/Builtins.Time.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Random/Builtins.Random.fsproj" />
     <ProjectReference Include="../../src/LibDB/LibDB.fsproj" />
-    <ProjectReference Include="../../src/LibPackageManager/LibPackageManager.fsproj" />
-    <ProjectReference Include="../../src/LibCloudExecution/LibCloudExecution.fsproj" />
     <ProjectReference Include="../../src/LibCloud/LibCloud.fsproj" />
-    <ProjectReference Include="../../src/BuiltinHttpServer/BuiltinHttpServer.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Http.Server/Builtins.Http.Server.fsproj" />
+    <ProjectReference Include="../../src/Builtins/Builtins.Matter/Builtins.Matter.fsproj" />
   </ItemGroup>
   <ItemGroup>
     <Compile Include="PTShortcuts.fs" />

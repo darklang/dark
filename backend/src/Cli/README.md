@@ -10,12 +10,8 @@ It builds to many platforms -- see the .fsproj file for details.
 
 ## Structure
 
-- `Cli`
-  - binary that runs dark code
-  - supported greatly by `LibCli`
-- `LibCli`
-  - stdlib fns and types for filesystem and other posix stuff
-  - print to stdout (and stderr?)
-  - read stdin (start processing once it closes)
-  - `Directory.\*`
-  - `File.\*`
+- `Cli/Cli.fs` — entry point + builtin wiring; binary that runs Dark code.
+- The CLI command surface itself lives in Dark, under
+  `packages/darklang/cli/` (commands, dispatch, help).
+- POSIX-flavored builtins (filesystem, process, stdin/stdout) come from
+  `Builtins.Cli` and `Builtins.CliHost`.

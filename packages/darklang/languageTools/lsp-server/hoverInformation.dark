@@ -157,7 +157,7 @@ let createCodeSnippet (text: String) : String =
 
 
 let getBuiltinFn (name: String) : Stdlib.Option.Option<BuiltinFunction> =
-  (Builtin.languageToolsAllBuiltinFns ())
+  (Builtin.getAllBuiltinFns ())
   |> Stdlib.List.findFirst (fun f -> f.name.name == name)
 
 

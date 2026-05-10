@@ -10,12 +10,12 @@ open TestUtils.TestUtils
 open TestUtils.PTShortcuts
 
 module PT = LibExecution.ProgramTypes
-module Branches = LibPackageManager.Branches
-module Inserts = LibPackageManager.Inserts
-module BranchOpPlayback = LibPackageManager.BranchOpPlayback
+module Branches = LibDB.Branches
+module Inserts = LibDB.Inserts
+module BranchOpPlayback = LibDB.BranchOpPlayback
 
 open Fumble
-open LibDB.Db
+open LibDB.Sqlite
 
 module BS = LibSerialization.Binary.Serialization
 open LibSerialization.Hashing
@@ -54,9 +54,8 @@ let testBranchOpsEmitted =
       [ PT.PackageOp.AddFn fn1
         PT.PackageOp.SetName(loc "bo1", PT.PackageFn fn1.hash) ]
     let! (_insertCount : int64) = Inserts.insertAndApplyOpsAsWip branch.id ops
-    let testAccountId = System.Guid.Parse "00000000-0000-0000-0000-000000000001"
     let! (commitResult : Result<PT.Hash, string>) =
-      Inserts.commitWipOps testAccountId branch.id "test commit"
+      Inserts.commitWipOps LibCloud.Account.IDs.darklang branch.id "test commit"
     Expect.isOk commitResult "commit should succeed"
     let! opCountAfterCommit = countRows "branch_ops"
     Expect.isGreaterThan
@@ -100,8 +99,8 @@ let testBranchOpsSerialization =
           PT.Hash "commit1",
           "msg",
           PT.mainBranchId,
-          [ PT.Hash "op1"; PT.Hash "op2" ],
-          System.Guid.Parse "00000000-0000-0000-0000-000000000001"
+          LibCloud.Account.IDs.darklang,
+          [ PT.Hash "op1"; PT.Hash "op2" ]
         )
         PT.BranchOp.RebaseBranch(System.Guid.NewGuid(), PT.Hash "newbase")
         PT.BranchOp.MergeBranch(System.Guid.NewGuid(), PT.mainBranchId)

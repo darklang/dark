@@ -2,6 +2,14 @@ module Darklang.Cli.SCM.Commit
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
+  match state.accountID with
+  | None ->
+    Stdlib.printLine
+      (Colors.error
+        "Not logged in. Run `login <name>` (see `login` for available accounts).")
+    state
+  | Some accountId ->
+
   let branchId = state.currentBranchId
 
   let autoConfirm =
@@ -31,13 +39,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine "Will commit:"
 
       if summary.types > 0L then
-        Stdlib.printLine $"  {Builtin.int64ToString summary.types} type(s)"
+        Stdlib.printLine $"  {Stdlib.Int64.toString summary.types} type(s)"
 
       if summary.values > 0L then
-        Stdlib.printLine $"  {Builtin.int64ToString summary.values} value(s)"
+        Stdlib.printLine $"  {Stdlib.Int64.toString summary.values} value(s)"
 
       if summary.fns > 0L then
-        Stdlib.printLine $"  {Builtin.int64ToString summary.fns} function(s)"
+        Stdlib.printLine $"  {Stdlib.Int64.toString summary.fns} function(s)"
 
       Stdlib.printLine ""
 
@@ -50,38 +58,33 @@ let execute (state: AppState) (args: List<String>) : AppState =
           (response == "y") || (response == "Y")
 
       if proceed then
-        match state.accountID with
-        | Some accountId ->
-          // Check for unresolved references before committing
-          let ops = SCM.PackageOps.getWip branchId
-          let unresolvedItems = SCM.UnresolvedCheck.findUnresolvedInOps ops
+        // Check for unresolved references before committing
+        let ops = SCM.PackageOps.getWip branchId
+        let unresolvedItems = SCM.UnresolvedCheck.findUnresolvedInOps ops
 
-          if (Stdlib.List.isEmpty unresolvedItems) |> Stdlib.Bool.not then
-            Stdlib.printLine
-              (Colors.error "Cannot commit: unresolved references found:")
+        if (Stdlib.List.isEmpty unresolvedItems) |> Stdlib.Bool.not then
+          Stdlib.printLine
+            (Colors.error "Cannot commit: unresolved references found:")
 
-            unresolvedItems
-            |> Stdlib.List.iter (fun item ->
-              Stdlib.printLine (Colors.error $"  {item.label}:")
+          unresolvedItems
+          |> Stdlib.List.iter (fun item ->
+            Stdlib.printLine (Colors.error $"  {item.label}:")
 
-              item.names
-              |> Stdlib.List.iter (fun name ->
-                Stdlib.printLine (Colors.error $"    - {name}")))
+            item.names
+            |> Stdlib.List.iter (fun name ->
+              Stdlib.printLine (Colors.error $"    - {name}")))
 
-            Stdlib.printLine ""
-            state
-          else
-            match SCM.PackageOps.commit accountId branchId message with
-            | Ok commitHash ->
-              let shortId = Stdlib.String.first commitHash 8L
-              Stdlib.printLine (Colors.success $"Created commit {shortId}")
-              state
-            | Error e ->
-              Stdlib.printLine (Colors.error $"Commit failed: {e}")
-              state
-        | None ->
-          Stdlib.printLine (Colors.error "No account set. Set DARK_ACCOUNT environment variable.")
+          Stdlib.printLine ""
           state
+        else
+          match SCM.PackageOps.commit accountId branchId message with
+          | Ok commitHash ->
+            let shortId = Stdlib.String.first commitHash 8L
+            Stdlib.printLine (Colors.success $"Created commit {shortId}")
+            state
+          | Error e ->
+            Stdlib.printLine (Colors.error $"Commit failed: {e}")
+            state
       else
         Stdlib.printLine "Commit cancelled."
         state

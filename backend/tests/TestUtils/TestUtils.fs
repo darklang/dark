@@ -6,7 +6,7 @@ open Expecto
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open LibDB.Db
+open LibDB.Sqlite
 
 open Prelude
 
@@ -22,65 +22,14 @@ module D = LibExecution.DvalDecoder
 module PackageRefs = LibExecution.PackageRefs
 module Exe = LibExecution.Execution
 
-module Account = LibCloud.Account
-module Canvas = LibCloud.Canvas
+module Toplevels = LibCloud.Toplevels
 
 module PackageRefs = LibExecution.PackageRefs
 module C2DT = LibExecution.CommonToDarkTypes
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 
-let pmPT = LibPackageManager.PackageManager.pt
-let pmRT = LibPackageManager.PackageManager.rt
-
-let testOwner : Lazy<Task<UserID>> =
-  lazy (Account.createUser "TestUser" |> Task.map Result.unwrap)
-
-let nameToTestDomain (name : string) : string =
-  let name =
-    name
-    |> String.toLowercase
-    // replace invalid chars with a single hyphen
-    |> FsRegEx.replace "[^-a-z0-9]+" "-"
-    |> FsRegEx.replace "[-_]+" "-"
-    |> String.take 50
-  let suffix = randomString 5 |> String.toLowercase
-  $"{name}-{suffix}"
-  |> FsRegEx.replace "[-_]+" "-"
-  |> fun s -> $"{s}.dlio.localhost"
-
-let initializeCanvasForOwner (name : string) : Task<CanvasID * string> =
-  task {
-    let domain = nameToTestDomain name
-    let! canvasID = Canvas.create None domain
-    return (canvasID, domain)
-  }
-
-let initializeTestCanvas' (name : string) : Task<CanvasID * string> =
-  initializeCanvasForOwner name
-
-let initializeTestCanvas (name : string) : Task<CanvasID> =
-  task {
-    let! (canvasID, _domain) = initializeTestCanvas' name
-    return canvasID
-  }
-
-
-let testHttpRouteHandler
-  (route : string)
-  (method : string)
-  (ast : PT.Expr)
-  : PT.Handler.T =
-  { tlid = gid (); ast = ast; spec = PT.Handler.HTTP(route, method) }
-
-let testCron
-  (name : string)
-  (interval : PT.Handler.CronInterval)
-  (ast : PT.Expr)
-  : PT.Handler.T =
-  { tlid = gid (); ast = ast; spec = PT.Handler.Cron(name, interval) }
-
-let testWorker (name : string) (ast : PT.Expr) : PT.Handler.T =
-  { tlid = gid (); ast = ast; spec = PT.Handler.Worker name }
+let pmPT = LibDB.PackageManager.pt
+let pmRT = LibDB.PackageManager.rt
 
 let testPackageFn
   (typeParams : List<string>)
@@ -109,48 +58,48 @@ let testDB (name : string) (typ : PT.TypeReference) : PT.DB.T =
 
 
 let builtins
-  (httpConfig : BuiltinExecution.Libs.HttpClient.Configuration)
+  (httpConfig : Builtins.Http.Client.Libs.HttpClient.Configuration)
   (pm : PT.PackageManager)
   : RT.Builtins =
   LibExecution.Builtin.combine
     [ LibTest.builtins ()
-      BuiltinExecution.Builtin.builtins httpConfig
-      BuiltinPM.Builtin.builtins pm
-      BuiltinHttpServer.Builtin.builtins ()
-      BuiltinCloudExecution.Builtin.builtins ()
-      BuiltinDarkInternal.Builtin.builtins ()
-      BuiltinCli.Builtin.builtins () ]
+      Builtins.Pure.Builtin.builtins ()
+      Builtins.Http.Client.Builtin.builtins httpConfig
+      Builtins.Language.Builtin.builtins ()
+      Builtins.Matter.Builtin.builtins pm
+      Builtins.Http.Server.Builtin.builtins ()
+      Builtins.Cli.Builtin.builtins ()
+      Builtins.Time.Builtin.builtins ()
+      Builtins.Random.Builtin.builtins () ]
     []
 
-let cloudBuiltIns (pm : PT.PackageManager) =
-  let httpConfig =
-    { LibCloudExecution.HttpClient.configuration with
-        timeoutInMs = 5000
-        allowedIP = (fun _ -> true) }
-  builtins httpConfig pm
-
+/// Tests that hit the in-process test HTTP server need `looseConfig`
+/// — the production `defaultConfig` blocks loopback / RFC1918 to
+/// catch SSRF in untrusted handler code, but the test server is on
+/// localhost.
 let localBuiltIns (pm : PT.PackageManager) =
   let httpConfig =
-    { BuiltinExecution.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
+    { Builtins.Http.Client.Libs.HttpClient.looseConfig with timeoutInMs = 5000 }
+  builtins httpConfig pm
+
+/// Tests that exercise the disallow-localhost / disallow-private-IP
+/// path use the production `defaultConfig` shape.
+let cloudBuiltIns (pm : PT.PackageManager) =
+  let httpConfig =
+    { Builtins.Http.Client.Libs.HttpClient.defaultConfig with timeoutInMs = 5000 }
   builtins httpConfig pm
 
 
 
 let executionStateFor
   (pmPT : PT.PackageManager)
-  (canvasID : CanvasID)
-  (internalFnsAllowed : bool)
   (allowLocalHttpAccess : bool)
   (dbs : Map<string, RT.DB.T>)
   : Task<RT.ExecutionState> =
   task {
-    let domains = [] //Canvas.domainsForCanvasID canvasID
+    let domains = []
 
-    let program : RT.Program =
-      { canvasID = canvasID
-        internalFnsAllowed = internalFnsAllowed
-        dbs = dbs
-        secrets = [] }
+    let program : RT.Program = { dbs = dbs }
 
     let testContext : RT.TestContext =
       { sideEffectCount = 0
@@ -210,10 +159,10 @@ let executionStateFor
   }
 
 // /// Saves and reloads the canvas for the Toplevels
-// let canvasForTLs (canvasID : CanvasID) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
+// let canvasForTLs (canvasID : uuid) (tls : List<PT.Toplevel.T>) : Task<Canvas.T> =
 //   task {
 //     let descs = tls |> List.map (fun tl -> (tl, LibCloud.Serialize.NotDeleted))
-//     do! Canvas.saveTLIDs canvasID descs
+//     do! Toplevels.saveTLIDs canvasID descs
 //     return! Canvas.loadAll canvasID
 //   }
 
@@ -1554,9 +1503,7 @@ let unwrapExecutionResult
 
 let parsePTExpr (code : string) : Task<PT.Expr> =
   uply {
-    let! (state : RT.ExecutionState) =
-      let canvasID = System.Guid.NewGuid()
-      executionStateFor pmPT canvasID false false Map.empty
+    let! (state : RT.ExecutionState) = executionStateFor pmPT false Map.empty
 
     let name =
       RT.FQFnName.fqPackage (PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ())

@@ -280,7 +280,7 @@ module Sse =
         else
           let tailLine =
             match
-              Builtin.blobToString (Builtin.blobFromBytes state.currentLine)
+              Stdlib.Blob.toString (Stdlib.Blob.fromList state.currentLine)
             with
             | Ok s -> s
             | Error _ -> ""
@@ -304,7 +304,7 @@ module Sse =
       if b == 10uy then
         let line =
           match
-            Builtin.blobToString (Builtin.blobFromBytes state.currentLine)
+            Stdlib.Blob.toString (Stdlib.Blob.fromList state.currentLine)
           with
           | Ok s -> s
           | Error _ -> ""

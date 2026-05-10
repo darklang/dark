@@ -1,0 +1,35 @@
+/// Generic formatting helpers used by the trace surface. None of these
+/// are CLI-specific; they're string utilities that any trace consumer
+/// (CLI, dashboard, third-party tool) will want.
+module Darklang.Tracing.Format
+
+
+/// Right-align a number in a field of `width` chars by prepending spaces.
+/// Stdlib.padStart returns Result; this helper unwraps with empty-Error
+/// fallback (impossible in practice — padStart only fails on negative
+/// width).
+let padNum (n: Int64) (width: Int64) : String =
+  let s = Stdlib.Int64.toString n
+  match Stdlib.String.padStart s " " width with
+  | Ok r -> r
+  | Error _ -> s
+
+
+/// Escape a string for embedding in JSON. Handles backslash and double-
+/// quote — the only characters that appear in trace handler/fn names
+/// (URL paths, dotted package names, builtin identifiers).
+let jsonEscape (s: String) : String =
+  s
+  |> Stdlib.String.replaceAll "\\" "\\\\"
+  |> Stdlib.String.replaceAll "\"" "\\\""
+
+
+/// Pretty-print a Dval as a single compact line (no indentation, no
+/// embedded newlines). Used wherever we need a Dval inline — e.g. the
+/// trace tree's `fn(args) → result` rows.
+let compactDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
+  let pretty = PrettyPrinter.RuntimeTypes.dval branchId dv
+  pretty
+  |> Stdlib.String.split "\n"
+  |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
+  |> Stdlib.String.join ""

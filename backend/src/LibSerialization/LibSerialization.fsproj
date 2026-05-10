@@ -2,8 +2,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Library</OutputType>
-    <TargetFramework>net10.0</TargetFramework>
-    <LangVersion>10.0</LangVersion>
     <!-- Publishing configuration -->
     <IsPublishable>false</IsPublishable>
     <IsTrimmable>true</IsTrimmable>
@@ -43,6 +41,9 @@
 
     <Compile Include="Hashing/Canonical.fs" />
     <Compile Include="Hashing/Hashing.fs" />
+
+    <!-- SQL-queryable JSON repr of Dvals (User DB row storage) /-->
+    <Compile Include="DvalReprInternalQueryable.fs" />
   </ItemGroup>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

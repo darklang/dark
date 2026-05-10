@@ -1,0 +1,29 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Library</OutputType>
+    <!-- Publishing configuration -->
+    <IsPublishable>false</IsPublishable>
+    <IsTrimmable>true</IsTrimmable>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="paket.references" />
+    <Compile Include="Utils.fs" />
+    <Compile Include="Libs/Cli.fs" />
+    <Compile Include="Builtin.fs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../Prelude/Prelude.fsproj" />
+    <ProjectReference Include="../../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../Builtins.Pure/Builtins.Pure.fsproj" />
+    <ProjectReference Include="../Builtins.Http.Client/Builtins.Http.Client.fsproj" />
+    <ProjectReference Include="../Builtins.Language/Builtins.Language.fsproj" />
+    <ProjectReference Include="../Builtins.Cli/Builtins.Cli.fsproj" />
+    <ProjectReference Include="../Builtins.Time/Builtins.Time.fsproj" />
+    <ProjectReference Include="../Builtins.Random/Builtins.Random.fsproj" />
+    <ProjectReference Include="../Builtins.Http.Server/Builtins.Http.Server.fsproj" />
+    <ProjectReference Include="../Builtins.Matter/Builtins.Matter.fsproj" />
+    <ProjectReference Include="../../LibDB/LibDB.fsproj" />
+    <ProjectReference Include="../../LibCloud/LibCloud.fsproj" />
+  </ItemGroup>
+  <Import Project="..\..\..\.paket\Paket.Restore.targets" />
+</Project>

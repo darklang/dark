@@ -186,7 +186,7 @@ module WriteFile =
     let opsJson =
       ops
       |> Stdlib.List.map (fun op ->
-        Json.String (Builtin.jsonSerialize<LanguageTools.ProgramTypes.PackageOp> op))
+        Json.String (Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageOp> op))
       |> Json.Array
 
     let contentJson =

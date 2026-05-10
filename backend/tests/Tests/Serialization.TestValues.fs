@@ -675,38 +675,7 @@ module ProgramTypes =
     )
 
 
-  module Handler =
-    let cronIntervals : List<Handler.CronInterval> =
-      [ Handler.EveryDay
-        Handler.EveryWeek
-        Handler.EveryFortnight
-        Handler.Every12Hours
-        Handler.EveryHour
-        Handler.EveryMinute ]
-
-    module Spec =
-      let http = Handler.HTTP("/path-bytes", "GET")
-      let worker = Handler.Worker("name")
-
-      let cron = Handler.Cron("name", Handler.Every12Hours)
-
-      let repl = Handler.REPL("name")
-
-    let specs : List<Handler.Spec> = [ Spec.http; Spec.worker; Spec.cron; Spec.repl ]
-
-    let http : Handler.T = { spec = Spec.http; tlid = tlid; ast = expr }
-
-    let worker : Handler.T = { spec = Spec.worker; tlid = tlid; ast = expr }
-
-    let repl : Handler.T = { spec = Spec.repl; tlid = tlid; ast = expr }
-
-    let cron : Handler.T = { spec = Spec.cron; tlid = tlid; ast = expr }
-
-    let handlersWithName : List<string * Handler.T> =
-      [ "Worker", worker; "Cron", cron; "REPL", repl; "Http", http ]
-
-    let handlers = List.map snd handlersWithName
-
+  // Handler test values are gone with the Handler delete.
   let userDB : DB.T = { tlid = 0UL; name = "User"; version = 0; typ = typeReference }
 
   let userDBs : List<DB.T> = [ userDB ]
@@ -757,11 +726,4 @@ module ProgramTypes =
       { owner = "MyOrg"; modules = []; name = "helper" }
       { owner = "Test"; modules = [ "Nested"; "Module" ]; name = "value" } ]
 
-  let toplevels : List<Toplevel.T> =
-    [ List.map Toplevel.TLHandler Handler.handlers
-      List.map Toplevel.TLDB [ userDB ] ]
-    |> List.concat
-
-  let userSecret : Secret.T = { name = "APIKEY"; value = "hunter2"; version = 0 }
-
-  let userSecrets = [ userSecret ]
+  let toplevels : List<DB.T> = [ userDB ]

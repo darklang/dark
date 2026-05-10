@@ -17,7 +17,7 @@ module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PackageRefs = LibExecution.PackageRefs
 
 open Fumble
-open LibDB.Db
+open LibDB.Sqlite
 
 
 let varA = TVariable "a"
@@ -162,20 +162,6 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [ DString message ] -> raise (System.Exception message)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      deprecated = NotDeprecated }
-
-
-    { name = fn "testGetCanvasID" 0
-      typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TUuid
-      description = "Get the name of the canvas that's running"
-      fn =
-        (function
-        | state, _, _, [ DUnit ] -> state.program.canvasID |> DUuid |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

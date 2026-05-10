@@ -9,10 +9,9 @@ open Prelude
 module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
 module PT = LibExecution.ProgramTypes
-module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module Exe = LibExecution.Execution
 module PackageRefs = LibExecution.PackageRefs
-module BuiltinCli = BuiltinCli.Builtin
+module BuiltinCli = Builtins.Cli.Builtin
 
 // Dual logging (console + cli.log file)
 let private logError (message : string) : unit =
@@ -65,19 +64,15 @@ let builtins : RT.Builtins =
   // Outer CLI uses main branch for its own execution context.
   // User scripts get branch-specific context via cliParseAndExecuteScript.
   LibExecution.Builtin.combine
-    [ BuiltinCliHost.Libs.Cli.builtinsToUse ()
-      BuiltinCliHost.Builtin.builtins ()
+    [ Builtins.CliHost.Libs.Cli.builtinsToUse ()
+      Builtins.CliHost.Builtin.builtins ()
       BuiltinCli.builtins () ]
     []
 
 
 
 let state (packageManager : RT.PackageManager) =
-  let program : RT.Program =
-    { canvasID = System.Guid.NewGuid()
-      internalFnsAllowed = false
-      dbs = Map.empty
-      secrets = [] }
+  let program : RT.Program = { dbs = Map.empty }
 
   let notify
     (_state : RT.ExecutionState)
@@ -85,8 +80,6 @@ let state (packageManager : RT.PackageManager) =
     (_msg : string)
     (_metadata : Metadata)
     =
-    // let metadata = extraMetadata state @ metadata
-    // LibService.Rollbar.notify msg metadata
     uply { return () }
 
   let sendException
@@ -147,14 +140,11 @@ let main (args : string[]) =
 
     // Grow the database: apply any unapplied ops and evaluate values.
     let cliPackageManager =
-      Telemetry.time "cli.createPM" [] (fun () ->
-        LibPackageManager.PackageManager.rt)
+      Telemetry.time "cli.createPM" [] (fun () -> LibDB.PackageManager.rt)
 
     Telemetry.time "cli.growIfNeeded" [] (fun () ->
-      (LibPackageManager.Seed.growIfNeeded
-        (fun () -> builtins)
-        cliPackageManager
-        (fun msg -> System.Console.Error.WriteLine msg))
+      (LibDB.Seed.growIfNeeded (fun () -> builtins) cliPackageManager (fun msg ->
+        System.Console.Error.WriteLine msg))
         .Result
       |> ignore<bool>)
 
@@ -196,6 +186,17 @@ let main (args : string[]) =
 
 
   with e ->
-    System.Console.Error.WriteLine
-      $"Error starting Darklang CLI: {e.Message}\nStack trace:\n{e.StackTrace}"
+    let rec describe (depth : int) (ex : exn) : unit =
+      let indent = String.replicate depth "  "
+      System.Console.Error.WriteLine $"{indent}{ex.GetType().FullName}: {ex.Message}"
+      match ex with
+      | :? System.AggregateException as agg ->
+        for inner in agg.InnerExceptions do
+          describe (depth + 1) inner
+      | _ ->
+        if not (isNull ex.InnerException) then describe (depth + 1) ex.InnerException
+      if depth = 0 && not (isNull ex.StackTrace) then
+        System.Console.Error.WriteLine $"Stack trace:\n{ex.StackTrace}"
+    System.Console.Error.WriteLine "Error starting Darklang CLI:"
+    describe 0 e
     1

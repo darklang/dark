@@ -73,17 +73,17 @@ let fromFloat (a: Float) : Stdlib.Option.Option<UInt64> =
 
 /// Returns the sum of all the ints in the list
 let sum (lst: List<UInt64>) : UInt64 =
-  Stdlib.List.fold lst 0UL (fun acc x -> Builtin.uint64Add acc x)
+  Stdlib.List.fold lst 0UL (fun acc x -> add acc x)
 
 
 /// Returns the higher of <param a> and <param b>
 let max (a: UInt64) (b: UInt64) : UInt64 =
-  if Builtin.uint64GreaterThan a b then a else b
+  if greaterThan a b then a else b
 
 
 /// Returns the lower of <param a> and <param b>
 let min (a: UInt64) (b: UInt64) : UInt64 =
-  if Builtin.uint64LessThan a b then a else b
+  if lessThan a b then a else b
 
 
 /// If <param value> is within the range given by <param limitA> and <param
@@ -93,19 +93,19 @@ let min (a: UInt64) (b: UInt64) : UInt64 =
 /// <param limitA> and <param limitB> can be provided in any order.
 let clamp (value: UInt64) (limitA: UInt64) (limitB: UInt64) : UInt64 =
   let min =
-    if Builtin.uint64LessThan limitA limitB then
+    if lessThan limitA limitB then
       limitA
     else
       limitB
 
   let max =
-    if Builtin.uint64GreaterThan limitA limitB then
+    if greaterThan limitA limitB then
       limitA
     else
       limitB
 
-  if Builtin.uint64LessThan value min then min
-  else if Builtin.uint64GreaterThan value max then max
+  if lessThan value min then min
+  else if greaterThan value max then max
   else value
 
 

@@ -172,7 +172,7 @@ module TypeName =
 
 module ValueName =
   let builtinThingExists (name: String) : Bool =
-    (Builtin.languageToolsAllBuiltinValues ())
+    (Builtin.getAllBuiltinValues ())
     |> Stdlib.List.findFirst (fun f -> f.name == name)
     |> Stdlib.Option.isSome
 
@@ -229,7 +229,7 @@ module FnName =
     | [] -> Stdlib.Result.Result.Error()
     | owner :: modules ->
       if owner == "Builtin" && modules == [] then
-        let allBuiltins = Builtin.languageToolsAllBuiltinFns ()
+        let allBuiltins = Builtin.getAllBuiltinFns ()
         if Stdlib.List.findFirst allBuiltins (fun f -> f.name.name == name.name) != Stdlib.Option.Option.None then
           let fqn =
             (ProgramTypes.FQFnName.Builtin

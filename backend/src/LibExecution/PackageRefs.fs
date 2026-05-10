@@ -157,18 +157,13 @@ module Type =
         let key = p [ "Key" ] "Key"
         let keyRead = p [ "KeyRead" ] "KeyRead"
 
-  module Builtins =
-    let private p addl = p ("Builtins" :: addl)
-    let purity = p [] "Purity"
-    let paramInfo = p [] "ParamInfo"
-    let functionInfo = p [] "FunctionInfo"
-
   module LanguageTools =
     let private p addl = p ("LanguageTools" :: addl)
     let sign = p [] "Sign"
     let builtinValue = p [] "BuiltinValue"
     let builtinFnParam = p [] "BuiltinFunctionParameter"
     let builtinFn = p [] "BuiltinFunction"
+    let builtinFnPurity = p [] "BuiltinFunctionPurity"
 
     module Parser =
       let private p addl = p ("Parser" :: addl)
@@ -314,14 +309,7 @@ module Type =
       let reference = p [] "Reference"
       let deprecationKind = p [] "DeprecationKind"
       let propagateRepoint = p [] "PropagateRepoint"
-      let secret = p [] "Secret"
       let db = p [] "DB"
-
-      module Handler =
-        let private p addl = p ("Handler" :: addl)
-        let cronInterval = p [] "CronInterval"
-        let spec = p [] "Spec"
-        let handler = p [] "Handler"
 
   module PrettyPrinter =
     let private p addl = p ("PrettyPrinter" :: addl)
@@ -330,6 +318,12 @@ module Type =
       module RuntimeError =
         let private p addl = p ("RuntimeError" :: addl)
         let errorMessage = p [] "ErrorMessage"
+
+  module Tracing =
+    let traceSummary = p [ "Tracing" ] "TraceSummary"
+    let inputVar = p [ "Tracing" ] "InputVar"
+    let fnCall = p [ "Tracing" ] "FnCall"
+    let traceData = p [ "Tracing" ] "TraceData"
 
   module Cli =
     let executionError = p [ "Cli"; "ExecutionError" ] "ExecutionError"
@@ -359,15 +353,6 @@ module Type =
     module PackageOps =
       let private p addl = p ("PackageOps" :: addl)
       let commit = p [] "Commit"
-
-  module Internal =
-    let private p addl = p ("Internal" :: addl)
-    module Canvas =
-      let private p addl = p ("Canvas" :: addl)
-      let program = p [] "Program"
-
-    module Infra =
-      let tableSize = p [ "Infra" ] "TableSize"
 
 
 module Fn =

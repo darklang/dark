@@ -15,11 +15,21 @@ open LibSerialization.Binary.Serializers.Common
 open LibSerialization.Binary.Serializers
 
 
-let wrap (id : string) (f : unit -> 'a) : 'a =
+// `wrap` defers stringification of the id to the error path. `string id` on a
+// generic 'ID can route through F#'s reflection-based ToString for union types
+// (e.g. `type Hash = Hash of string`), which is broken under AOT trimming.
+// Keeping the conversion lazy means the success path never touches it.
+let wrap (idF : unit -> string) (f : unit -> 'a) : 'a =
   try
     f ()
   with e ->
     Exception.callExceptionCallback e
+
+    let id =
+      try
+        idF ()
+      with idEx ->
+        $"<id stringification failed: {idEx.GetType().Name}>"
 
     Exception.InternalException(
       "error serializing/deserializing with custom binary format",
@@ -35,7 +45,7 @@ let makeSerializer<'T, 'ID>
   (writer : BinaryWriter -> 'T -> unit)
   : 'ID -> 'T -> byte[] =
   fun id value ->
-    wrap (string id) (fun () ->
+    wrap (fun () -> string id) (fun () ->
       // First, write payload to get length for header
       use payloadStream = new MemoryStream()
       use payloadWriter = new BinaryWriter(payloadStream)
@@ -62,7 +72,7 @@ let makeSerializer<'T, 'ID>
 /// Create an optimized deserializer function with embedded error handling
 let makeDeserializer<'T, 'ID> (reader : BinaryReader -> 'T) : 'ID -> byte[] -> 'T =
   fun id data ->
-    wrap (string id) (fun () ->
+    wrap (fun () -> string id) (fun () ->
       use stream = new MemoryStream(data)
       use r = new BinaryReader(stream)
 
