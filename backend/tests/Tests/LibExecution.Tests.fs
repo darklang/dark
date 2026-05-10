@@ -35,6 +35,52 @@ let setupDBs (dbs : List<PT.DB.T>) : Task<unit> =
     do! Toplevels.saveTLIDs tls
   }
 
+// FUTURE: drop `program.dbs` entirely
+// ----------------------------------------------------------------
+// `RT.Program.dbs : Map<string, DB.T>` is a canvas-era relic. When
+// each test had its own `canvasID`, the `dbs` map was the
+// per-canvas whitelist of accessible DBs. Single-instance Dark
+// removed canvases, so the whitelist no longer scopes anything —
+// `toplevels_v0` is global, so every name resolves the same way
+// for every executor.
+//
+// What it still does:
+//   - DB builtins (DB.fs) match `DDB dbname` and look up
+//     `exeState.program.dbs[dbname]` to get the `DB.T`
+//     (tlid + type).
+//   - Interpreter's `VarNotFound` case checks `program.dbs` to
+//     decide whether `XDB` becomes `DDB "XDB"` vs. raises an
+//     unbound-variable error.
+//   - Tests pre-populate it via `setupDBs` so the test code can
+//     reference `[<DB>]`-declared names. The `t` function above
+//     wires `rtDBs` into `executionStateFor`.
+//
+// What we'd do instead:
+//   - DB builtins query `toplevels_v0 WHERE name = @name`,
+//     fronted by a process-global cache (`name -> DB.T`) so we
+//     don't do a SELECT per `DB.set` call.
+//   - `VarNotFound` does the same cached lookup.
+//   - `Builtin.dbCreate` just writes the row; subsequent
+//     references find it via the cache. No state mutation
+//     required.
+//   - Drop `RT.Program.dbs` (and the field it adds to
+//     `RT.Program`). `executionStateFor` stops taking `dbs`.
+//     Tests stop calling `setupDBs` for the rtDBs map.
+//   - `[<DB>]` parser sugar can either go away (tests do
+//     `Builtin.dbCreate` inline) or become "shorthand that
+//     emits a `dbCreate` call at parse-time".
+//
+// Scope: ~16 builtin call sites in `Builtins.Matter/Libs/DB.fs`,
+// `Interpreter.VarNotFound`, `RT.Program`, every
+// `executionStateFor` call site, plus the cache and (optionally)
+// test conversion. Hours, not minutes.
+//
+// Why deferred: the perf pain that motivated this thread is
+// already gone — batched-INSERT in `LibCloud.Toplevels.saveTLIDs`
+// took the cloud/db.dark bucket from 3:22 to 3.8s. The
+// `program.dbs` removal is now a clean-up, not a perf necessity,
+// and it's big enough to deserve its own PR.
+
 let runtimeErrorMessage
   (state : RT.ExecutionState)
   (allegedRTE : RT.RuntimeError.Error)
