@@ -427,7 +427,7 @@ let matchPattern (mp: LanguageTools.ProgramTypes.MatchPattern) : String =
     let remainderPart = PrettyPrinter.processRemainder remainder
     $"{PrettyPrinter.sign sign}{whole}.{remainderPart}"
 
-  | MPChar(_id, c) -> $"'{c}'"
+  | MPChar(_id, c) -> $"'{PrettyPrinter.escapeCharLiteral c}'"
   | MPString(_id, s) -> $"\"{PrettyPrinter.escapeSpecialCharacters s}\""
 
   | MPList(_id, items) ->
@@ -493,7 +493,7 @@ let infix (i: LanguageTools.ProgramTypes.Infix) : String =
 
 let stringSegment (ctx: Context) (s: LanguageTools.ProgramTypes.StringSegment) : String =
   match s with
-  | StringText text -> text
+  | StringText text -> PrettyPrinter.escapeSpecialCharacters text
   | StringInterpolation expr -> $"{{{expr ctx expr}}}"
 
 let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
@@ -582,7 +582,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     let remainderPart = PrettyPrinter.processRemainder remainder
     $"{signPart}{whole}.{remainderPart}"
 
-  | EChar(_id, c) -> "'" ++ c ++ "'"
+  | EChar(_id, c) -> "'" ++ (PrettyPrinter.escapeCharLiteral c) ++ "'"
 
   | EString(_id, segments) ->
     match segments with

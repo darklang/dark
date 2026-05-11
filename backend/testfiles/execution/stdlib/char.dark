@@ -202,3 +202,23 @@ Stdlib.Char.toString 'Ł' = "Ł"
 Stdlib.Char.toString (hand ()) = "✋🏿"
 Stdlib.Char.toString 'Ჾ' = "Ჾ"
 Stdlib.Char.toString 'ჾ' = "ჾ"
+
+
+// Valid codepoints
+Stdlib.Char.fromCodepoint 65L = Stdlib.Option.Option.Some 'A'
+Stdlib.Char.fromCodepoint 233L = Stdlib.Option.Option.Some 'é'
+// Non-BMP: pins the surrogate-pair path through ConvertFromUtf32. 0x1F602 = 😂
+Stdlib.Char.fromCodepoint 128514L = Stdlib.Option.Option.Some (smiley ())
+
+// Invalid: surrogate range (D800..DFFF) — reserved for UTF-16 surrogate pairs
+Stdlib.Char.fromCodepoint 55296L = Stdlib.Option.Option.None
+Stdlib.Char.fromCodepoint 56319L = Stdlib.Option.Option.None
+Stdlib.Char.fromCodepoint 57343L = Stdlib.Option.Option.None
+
+// Invalid: above Unicode max (0x10FFFF)
+Stdlib.Char.fromCodepoint 1114112L = Stdlib.Option.Option.None
+Stdlib.Char.fromCodepoint 2147483647L = Stdlib.Option.Option.None
+
+// Invalid: negative — the F# test parser rejects `-NL`, so build via `0L - N`.
+Stdlib.Char.fromCodepoint (0L - 1L) = Stdlib.Option.Option.None
+Stdlib.Char.fromCodepoint (0L - 1000L) = Stdlib.Option.Option.None

@@ -90,6 +90,75 @@ let t
   }
 
 
+/// Parses `input` as a Darklang expression, evaluates it, and asserts the
+/// resulting runtime Dval equals `expected`. Distinct from `t` (which
+/// compares pretty-printed source) because round-trip tests can hide
+/// symmetric bugs between decode and re-encode — this catches a decode bug
+/// directly.
+let tEval (name : string) (input : string) (expected : RT.Dval) =
+  let parseFnName =
+    RT.FQFnName.fqPackage (PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ())
+
+  testTask name {
+    let canvasID = System.Guid.NewGuid()
+    let! parseExeState = executionStateFor pmPT canvasID false false Map.empty
+
+    let args = NEList.singleton (RT.DString input)
+    let! parseResult =
+      LibExecution.Execution.executeFunction parseExeState parseFnName [] args
+    let! parseDval = unwrapExecutionResult parseExeState parseResult |> Ply.toTask
+
+    match parseDval with
+    | RT.DEnum(tn, _, _, "Ok", [ exprDT ]) when tn = Dval.resultType () ->
+      let ptExpr = LibExecution.ProgramTypesToDarkTypes.Expr.fromDT exprDT
+      let instructions =
+        ptExpr |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT Map.empty 0 None
+      let! exeState = executionStateFor pmPT canvasID false false Map.empty
+      let! actual = LibExecution.Execution.executeExpr exeState instructions
+      match actual with
+      | Ok result ->
+        return Expect.RT.equalDval result expected "Decoded runtime value mismatch"
+      | Error(rte, _) -> return failtest $"Evaluation failed: {rte}"
+
+    | RT.DEnum(tn, _, _, "Error", [ RT.DString msg ]) when tn = Dval.resultType () ->
+      return failtest $"Parse error: {msg}"
+    | _ -> return failtest $"Unexpected parse result format: {parseDval}"
+  }
+
+
+/// Asserts that the parser rejects the input. Used for inputs that should
+/// produce a parse error (e.g. invalid escape sequences) — symptomatic of
+/// the regression where invalid input was silently dropped.
+///
+/// Uses `parseForCli` (the same parse path the CLI uses) because it surfaces
+/// `unparseableStuff` as `Result.Error` — `parsePTSourceFileWithOps` swallows
+/// per-declaration parse failures into a side list and returns Ok overall.
+let tFails (name : string) (input : string) =
+  testTask name {
+    let parseFnName =
+      RT.FQFnName.fqPackage (
+        PackageRefs.Fn.LanguageTools.Parser.CliScript.parseForCli ()
+      )
+    let canvasID = System.Guid.NewGuid()
+    let! parseExeState = executionStateFor pmPT canvasID false false Map.empty
+    let args =
+      NEList.ofList
+        (RT.DUuid PT.mainBranchId)
+        [ RT.DString "Tests"
+          RT.DString "test"
+          RT.DString "test"
+          RT.DString input ]
+    let! parseResult =
+      LibExecution.Execution.executeFunction parseExeState parseFnName [] args
+    let! parseDval = unwrapExecutionResult parseExeState parseResult |> Ply.toTask
+    match parseDval with
+    | RT.DEnum(tn, _, _, "Error", _) when tn = Dval.resultType () -> return ()
+    | RT.DEnum(tn, _, _, "Ok", _) when tn = Dval.resultType () ->
+      return failtest $"Expected parse failure but got successful parse: {parseDval}"
+    | _ -> return failtest $"Unexpected parse result format: {parseDval}"
+  }
+
+
 let person : (PT.PackageType.PackageType * PT.PackageLocation) =
   let packageType : PT.PackageType.PackageType =
     { hash = PT.Hash ""
@@ -675,9 +744,90 @@ let exprs =
     t "empty string" "\"\"" "\"\"" [] [] [] false
     t "hello" "\"hello\"" "\"hello\"" [] [] [] false
     t "hello tab world" "\"hello\\tworld\"" "\"hello\\tworld\"" [] [] [] false
+    // string-escape round-trips: parser decodes, pretty-printer re-encodes.
+    t "string newline escape" "\"a\\nb\"" "\"a\\nb\"" [] [] [] false
+    t "string quote escape" "\"a\\\"b\"" "\"a\\\"b\"" [] [] [] false
+    t "string backslash escape" "\"a\\\\b\"" "\"a\\\\b\"" [] [] [] false
+    t "string bell escape" "\"\\a\"" "\"\\a\"" [] [] [] false
+    t "string backspace escape" "\"\\b\"" "\"\\b\"" [] [] [] false
+    t "string form-feed escape" "\"\\f\"" "\"\\f\"" [] [] [] false
+    t "string vertical-tab escape" "\"\\v\"" "\"\\v\"" [] [] [] false
+    t "string carriage-return escape" "\"\\r\"" "\"\\r\"" [] [] [] false
+    t "string hex escape \\xHH" "\"\\x41\"" "\"A\"" [] [] [] false
+    t "string hex escape \\XHHHH" "\"\\X0041\"" "\"A\"" [] [] [] false
+    t "string unicode escape \\uHHHH" "\"\\u00E9\"" "\"é\"" [] [] [] false
+    t "string unicode escape \\UHHHHHHHH" "\"\\U00000041\"" "\"A\"" [] [] [] false
+    t "string forward-slash escape" "\"\\/\"" "\"/\"" [] [] [] false
+    t "string single-quote escape in double quotes" "\"\\'\"" "\"'\"" [] [] [] false
+    // Decoded-value assertions: prove the byte/char actually decoded, not
+    // just that it survived a symmetric round-trip through the pretty-printer.
+    tEval "decoded \\r is CR" "\"\\r\"" (RT.DString "\r")
+    tEval "decoded \\x41 is A" "\"\\x41\"" (RT.DString "A")
+    tEval "decoded \\X0041 is A" "\"\\X0041\"" (RT.DString "A")
+    tEval "decoded \\u00E9 is é" "\"\\u00E9\"" (RT.DString "é")
+    tEval "decoded \\U00000041 is A" "\"\\U00000041\"" (RT.DString "A")
+    tEval "decoded \\/ is /" "\"\\/\"" (RT.DString "/")
+    tEval "decoded \\' in string is '" "\"\\'\"" (RT.DString "'")
+    tEval "decoded \\n is LF" "\"a\\nb\"" (RT.DString "a\nb")
+    tEval "decoded \\t is HT" "\"a\\tb\"" (RT.DString "a\tb")
+    tEval "decoded \\\\ is backslash" "\"a\\\\b\"" (RT.DString "a\\b")
+    tEval
+      "decoded \\u00E9 above-BMP \\U0001F600"
+      "\"\\U0001F600\""
+      (RT.DString "\U0001F600")
+    // Interpolation: bare-text segment must decode escapes correctly.
+    tEval
+      "decoded interpolation with escape"
+      "$\"a\\nb {\"x\"}\""
+      (RT.DString "a\nb x")
+    // Char literals: decode covers all the same shapes the string side does.
+    tEval "decoded '\\n' is LF" "'\\n'" (RT.DChar "\n")
+    tEval "decoded '\\r' is CR" "'\\r'" (RT.DChar "\r")
+    tEval "decoded '\\\\' is backslash" "'\\\\'" (RT.DChar "\\")
+    tEval "decoded '\\'' is single-quote" "'\\''" (RT.DChar "'")
+    tEval "decoded '\\x41' is A" "'\\x41'" (RT.DChar "A")
+    tEval "decoded '\\X0041' is A" "'\\X0041'" (RT.DChar "A")
+    tEval "decoded '\\u00E9' is é" "'\\u00E9'" (RT.DChar "é")
+    tEval "decoded '\\U00000041' is A" "'\\U00000041'" (RT.DChar "A")
+    tEval "decoded '\\/' is /" "'\\/'" (RT.DChar "/")
+    t
+      "string match pattern with escape"
+      "match s with\n| \"a\\nb\" -> 1L\n| _ -> 0L"
+      "match s with\n| \"a\\nb\" ->\n  1L\n| _ ->\n  0L"
+      []
+      []
+      []
+      true
     t "egc" "\"👩‍👩‍👧‍👦\"" "\"👩‍👩‍👧‍👦\"" [] [] [] false
     t "unicode" "\"żółw\"" "\"żółw\"" [] [] [] false
     t "string interpolation" "$\"hello {name}\"" "$\"hello {name}\"" [] [] [] false
+    t
+      "interpolation with escape"
+      "$\"a\\nb {name}\""
+      "$\"a\\nb {name}\""
+      []
+      []
+      []
+      false
+    // Invalid escape sequences must be rejected (not silently dropped to "").
+    tFails "invalid escape in string literal" "\"\\d+\""
+    tFails "invalid escape in interpolation" "$\"a\\d+b\""
+    tFails "invalid escape in char literal" "'\\d'"
+    tFails
+      "invalid escape in string match pattern"
+      "match s with\n| \"\\d+\" -> 1L\n| _ -> 0L"
+    tFails
+      "invalid escape in char match pattern"
+      "match c with\n| '\\d' -> 1L\n| _ -> 0L"
+    // Codepoints that tree-sitter accepts as well-formed escapes but that
+    // are not valid Unicode scalars must be rejected by the decoder:
+    //   - surrogate range (D800..DFFF)
+    //   - above the Unicode max (>0x10FFFF)
+    tFails "surrogate codepoint \\uD800" "\"\\uD800\""
+    tFails "surrogate codepoint \\U0000D800" "\"\\U0000D800\""
+    tFails "codepoint above max \\U00110000" "\"\\U00110000\""
+    tFails "surrogate codepoint in char" "'\\uD800'"
+    tFails "codepoint above max in char" "'\\U00110000'"
     t
       "string interpolation - multiple expr to eval"
       "$\"Name: {name}, Age: {age}\""
@@ -714,7 +864,7 @@ let exprs =
     // char literals
     t "the letter a" "'a'" "'a'" [] [] [] false
     t "a newline char" "'\\n'" "'\\n'" [] [] [] false
-    t "a tab char" "'\t'" "'\t'" [] [] [] false
+    t "a tab char" "'\t'" "'\\t'" [] [] [] false
 
     // list literal
     t "empty list" "[]" "[]" [] [] [] false

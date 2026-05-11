@@ -82,6 +82,150 @@ let createUnparseableErrorMsg
       note = Stdlib.Option.Option.Some msg })
   |> Stdlib.Result.Result.Error
 
+
+// Decodes one source-level escape sequence (e.g. `\n` or `é`) into its
+// runtime string value. Mirrors `char_or_string_escape_sequence` in
+// tree-sitter-darklang/grammar.js — keep these in sync.
+//
+// Tree-sitter already classifies these as escape tokens, so the input here
+// is guaranteed to start with `\` and be one of the documented shapes.
+// Anything else means the grammar and decoder have drifted.
+
+let hexDigitValue (c: Char) : Stdlib.Option.Option<Int64> =
+  if (Stdlib.Char.isGreaterThanOrEqualTo c '0') && (Stdlib.Char.isLessThanOrEqualTo c '9') then
+    Stdlib.Option.map (Stdlib.Char.toAsciiCode c) (fun code -> code - 48L)
+  else if (Stdlib.Char.isGreaterThanOrEqualTo c 'a') && (Stdlib.Char.isLessThanOrEqualTo c 'f') then
+    Stdlib.Option.map (Stdlib.Char.toAsciiCode c) (fun code -> code - 87L)
+  else if (Stdlib.Char.isGreaterThanOrEqualTo c 'A') && (Stdlib.Char.isLessThanOrEqualTo c 'F') then
+    Stdlib.Option.map (Stdlib.Char.toAsciiCode c) (fun code -> code - 55L)
+  else
+    Stdlib.Option.Option.None
+
+
+let hexDigitsValue (digits: List<Char>) : Stdlib.Option.Option<Int64> =
+  Stdlib.List.fold digits (Stdlib.Option.Option.Some 0L) (fun acc d ->
+    match acc, hexDigitValue d with
+    | Some acc, Some v -> Stdlib.Option.Option.Some ((acc * 16L) + v)
+    | _ -> Stdlib.Option.Option.None)
+
+
+let decodeHexCodepoint (digits: List<Char>) : Stdlib.Option.Option<String> =
+  match hexDigitsValue digits with
+  | Some cp ->
+    match Stdlib.Char.fromCodepoint cp with
+    | Some c -> Stdlib.Option.Option.Some(Stdlib.Char.toString c)
+    | None -> Stdlib.Option.Option.None
+  | None -> Stdlib.Option.Option.None
+
+
+/// Decode one escape token's text (e.g. `"\\n"`, `"\\u00E9"`) into its
+/// runtime value. Returns None for shapes outside the grammar — callers
+/// should turn that into a parse error against the originating node.
+let decodeSingleEscape (escapeText: String) : Stdlib.Option.Option<String> =
+  match Stdlib.String.toList escapeText with
+  | [ '\\'; 'n' ] -> Stdlib.Option.Option.Some "\n"
+  | [ '\\'; 't' ] -> Stdlib.Option.Option.Some "\t"
+  | [ '\\'; 'r' ] -> Stdlib.Option.Option.Some "\r"
+  | [ '\\'; '\\' ] -> Stdlib.Option.Option.Some "\\"
+  | [ '\\'; '"' ] -> Stdlib.Option.Option.Some "\""
+  | [ '\\'; '\'' ] -> Stdlib.Option.Option.Some "'"
+  | [ '\\'; '/' ] -> Stdlib.Option.Option.Some "/"
+  | [ '\\'; 'a' ] -> Stdlib.Option.Option.Some "\a"
+  | [ '\\'; 'b' ] -> Stdlib.Option.Option.Some "\b"
+  | [ '\\'; 'f' ] -> Stdlib.Option.Option.Some "\f"
+  | [ '\\'; 'v' ] -> Stdlib.Option.Option.Some "\v"
+  | [ '\\'; 'x'; a; b ] -> decodeHexCodepoint [ a; b ]
+  | [ '\\'; 'X'; a; b; c; d ] -> decodeHexCodepoint [ a; b; c; d ]
+  | [ '\\'; 'u'; a; b; c; d ] -> decodeHexCodepoint [ a; b; c; d ]
+  | [ '\\'; 'U'; a; b; c; d; e; f; g; h ] ->
+    decodeHexCodepoint [ a; b; c; d; e; f; g; h ]
+  | _ -> Stdlib.Option.Option.None
+
+
+/// Decode an escape sequence node (typ == `char_or_string_escape_sequence`).
+/// Produces a parse error on the node if its text doesn't match the grammar's
+/// escape shapes — which would indicate parser/grammar drift.
+let decodeEscapeNode
+  (node: ParsedNode)
+  : Stdlib.Result.Result<String, WrittenTypes.Unparseable> =
+  match decodeSingleEscape node.text with
+  | Some s -> Stdlib.Result.Result.Ok s
+  | None -> createUnparseableErrorMsg node "Invalid escape sequence"
+
+
+// Number of chars in the escape (including the leading `\`), based on the
+// char following `\`. Mirrors the shapes accepted by `decodeSingleEscape`.
+let escapeLength (afterBackslash: Char) : Int64 =
+  match afterBackslash with
+  | 'x' -> 4L      // \xHH
+  | 'X' -> 6L      // \XHHHH
+  | 'u' -> 6L      // \uHHHH
+  | 'U' -> 10L     // \UHHHHHHHH
+  | _ -> 2L        // \n \t \r \\ \" \' \/ \a \b \f \v
+
+
+let charsToString (chars: List<Char>) : String =
+  chars |> Stdlib.List.map Stdlib.Char.toString |> Stdlib.String.join ""
+
+
+/// Walks a string-content node character-by-character, dispatching to
+/// `decodeSingleEscape` on each `\`. Used for `string_content` and
+/// `multiline_string_content`, where tree-sitter doesn't expose raw text
+/// segments as named children — we have to scan the full text ourselves.
+///
+/// `acc` collects decoded chunks in reverse order; the caller reverses and
+/// joins once. This keeps the walk O(n) — repeated `++` would be O(n²).
+let rec decodeChars
+  (source: ParsedNode)
+  (chars: List<Char>)
+  (acc: List<String>)
+  : Stdlib.Result.Result<List<String>, WrittenTypes.Unparseable> =
+  match chars with
+  | [] -> Stdlib.Result.Result.Ok acc
+  | '\\' :: afterBackslash :: _ ->
+    let len = escapeLength afterBackslash
+    let escapeChars = Stdlib.List.take chars len
+    let remaining = Stdlib.List.drop chars len
+    if Stdlib.List.length escapeChars < len then
+      createUnparseableErrorMsg source "Incomplete escape sequence"
+    else
+      match decodeSingleEscape (charsToString escapeChars) with
+      | Some s -> decodeChars source remaining (Stdlib.List.push acc s)
+      | None -> createUnparseableErrorMsg source "Invalid escape sequence"
+  | '\\' :: [] ->
+    createUnparseableErrorMsg source "Trailing backslash in string"
+  | c :: rest ->
+    decodeChars source rest (Stdlib.List.push acc (Stdlib.Char.toString c))
+
+
+let decodeStringContent
+  (node: ParsedNode)
+  : Stdlib.Result.Result<String, WrittenTypes.Unparseable> =
+  Stdlib.Result.map (decodeChars node (Stdlib.String.toList node.text) []) (fun chunks ->
+    chunks |> Stdlib.List.reverse |> Stdlib.String.join "")
+
+
+/// Decode a `character` node (the `content` field of a char_literal /
+/// MPChar). The node has either one `char_or_string_escape_sequence` child,
+/// or no escape children — in which case `.text` is the raw single character.
+let decodeCharContent
+  (node: ParsedNode)
+  : Stdlib.Result.Result<(Range * String), WrittenTypes.Unparseable> =
+  let hasError =
+    node.children |> Stdlib.List.any (fun c -> c.typ == "ERROR")
+  if hasError then
+    createUnparseableErrorMsg node "Invalid escape sequence in char literal"
+  else
+    let escape =
+      node.children
+      |> Stdlib.List.filter (fun c -> c.typ == "char_or_string_escape_sequence")
+      |> Stdlib.List.head
+
+    match escape with
+    | Some esc ->
+      Stdlib.Result.map (decodeEscapeNode esc) (fun s -> (node.range, s))
+    | None -> Stdlib.Result.Result.Ok((node.range, node.text))
+
 /// Used for fields that don't need to be parsed, i.e. symbols, keywords, etc
 let findField
   (node: ParsedNode)
