@@ -26,7 +26,7 @@ let emptyArgs: ParsedArgs =
       dryRun = false }
 
 
-let rec parseArgsLoop (acc: ParsedArgs) (remaining: List<String>) : ParsedArgs =
+let parseArgsLoop (acc: ParsedArgs) (remaining: List<String>) : ParsedArgs =
   match remaining with
   | [] -> acc
   | "--yes" :: rest

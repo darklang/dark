@@ -139,7 +139,7 @@ let swapAt (ids: List<Int64>) (i: Int64) (j: Int64) : List<Int64> =
 
 // --- Flatten ---
 
-let rec flattenVisibleHelper (outline: Outline) (ids: List<Int64>) (depth: Int64) : List<VisibleNode> =
+let flattenVisibleHelper (outline: Outline) (ids: List<Int64>) (depth: Int64) : List<VisibleNode> =
   ids
   |> Stdlib.List.fold [] (fun acc id ->
     let text = getNodeText outline id

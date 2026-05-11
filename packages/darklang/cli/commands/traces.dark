@@ -86,7 +86,7 @@ let resolveTraceID (input: String) : Stdlib.Option.Option<String> =
         Stdlib.Option.Option.None
 
 
-let rec parseViewOptions
+let parseViewOptions
   (opts: ViewOptions)
   (args: List<String>)
   : Stdlib.Result.Result<ViewOptions, String> =

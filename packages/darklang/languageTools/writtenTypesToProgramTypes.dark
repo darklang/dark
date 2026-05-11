@@ -343,7 +343,7 @@ module Expr =
     /// `MPVariable` nodes. Used to add pattern-bound names to the
     /// match arm's `localBindings` so `EVariable` lookups don't try
     /// to resolve them as package references.
-    let rec bindings (p: WrittenTypes.MatchPattern) : List<String> =
+    let bindings (p: WrittenTypes.MatchPattern) : List<String> =
       match p with
       | MPVariable(_, name) -> [ name ]
       | MPList(_, contents, _, _) ->
@@ -1365,7 +1365,7 @@ module FunctionDeclaration =
   ///   `let f (x: List<'a>) : Stream<'a> = ...`
   /// may not declare `<'a>` explicitly but still need `'a` registered
   /// as a typeParam for callers that pass an explicit type arg.
-  let rec collectTVarsInTypeRef
+  let collectTVarsInTypeRef
     (acc: List<String>)
     (tr: ProgramTypes.TypeReference)
     : List<String> =

@@ -175,7 +175,7 @@ let charsToString (chars: List<Char>) : String =
 ///
 /// `acc` collects decoded chunks in reverse order; the caller reverses and
 /// joins once. This keeps the walk O(n) — repeated `++` would be O(n²).
-let rec decodeChars
+let decodeChars
   (source: ParsedNode)
   (chars: List<Char>)
   (acc: List<String>)
