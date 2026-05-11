@@ -1,6 +1,26 @@
 module Darklang.Stdlib.Cli.FileSystem
 
 
+/// Structured error from file I/O.
+type FileError =
+  /// File or directory at the given path doesn't exist.
+  | NotFound
+  /// Caller lacks permission to read/write the path.
+  | PermissionDenied
+  /// Any other I/O failure — carries the original message.
+  | Other of String
+
+
+module FileError =
+  /// Render a FileError for display or for callers that haven't migrated to
+  /// pattern-matching on the enum yet.
+  let toString (err: FileError) : String =
+    match err with
+    | NotFound -> "File not found"
+    | PermissionDenied -> "Permission denied"
+    | Other msg -> msg
+
+
 // Get files in a directory - returns just filenames
 let getDirectoryContents (path: String) : List<String> =
   let currentDir = Builtin.directoryCurrent ()
@@ -45,7 +65,7 @@ let isDirectoryAtPath (dirPath: String) (fileName: String) : Bool =
 
 
 /// Read an entire file as a Blob.
-let readFile (path: String) : Result.Result<Blob, String> =
+let readFile (path: String) : Result.Result<Blob, FileError> =
   Builtin.fileRead path
 
 

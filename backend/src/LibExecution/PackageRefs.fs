@@ -143,6 +143,10 @@ module Type =
       let private p addl = p ("Cli" :: addl)
       let executionOutcome = p [] "ExecutionOutcome"
 
+      module FileSystem =
+        let private p addl = p ("FileSystem" :: addl)
+        let fileError = p [] "FileError"
+
       module Posix =
         let private p addl = p ("Posix" :: addl)
         let error = p [] "Error"

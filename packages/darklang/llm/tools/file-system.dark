@@ -175,7 +175,8 @@ let handleRead (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
         | Ok bytes ->
           let content = Stdlib.String.fromBlobWithReplacement bytes
           Stdlib.Result.Result.Ok(ToolOutput.Text content)
-        | Error e -> Stdlib.Result.Result.Error e
+        | Error e ->
+          Stdlib.Result.Result.Error (Stdlib.Cli.FileSystem.FileError.toString e)
     | None -> Stdlib.Result.Result.Error "path required"
   | _ -> Stdlib.Result.Result.Error "invalid input"
 

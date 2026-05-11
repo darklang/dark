@@ -26,7 +26,10 @@ let executeScript
   : AppState =
   match Builtin.fileRead scriptPath with
   | Error e ->
-    Stdlib.printLine $"File error: {e}"
+    match e with
+    | NotFound -> Stdlib.printLine $"Script not found: {scriptPath}"
+    | PermissionDenied -> Stdlib.printLine $"Permission denied: {scriptPath}"
+    | Other msg -> Stdlib.printLine $"Could not read script {scriptPath}: {msg}"
     state
   | Ok script ->
     let scriptSourceCode = Stdlib.String.fromBlobWithReplacement script
