@@ -50,8 +50,8 @@ let executeScript
         Stdlib.printLine $"Script exited with code {Stdlib.Int64.toString exitCode}"
         state
     | Error e ->
-      let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString state.currentBranchId e
-      Stdlib.printLine $"Script error: {prettyError}"
+      let pretty = ExecutionError.toString state.currentBranchId e
+      Stdlib.printLine $"Script error: {pretty}"
       state
 
 

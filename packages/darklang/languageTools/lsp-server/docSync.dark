@@ -81,7 +81,7 @@ let parseAndReportDiagnostics
       match Parser.CliScript.parse nrCtx scriptName "fileName" requestText with
       | Ok ((_ptCliScriptModule, unresolvedNames)) -> unresolvedNames
       | Error err ->
-        log $"Parse error: {err}"
+        log $"Parse error: {Parser.CliScript.ParseError.toString err}"
         []
 
     Diagnostics.gatherAndReportDiagnostics

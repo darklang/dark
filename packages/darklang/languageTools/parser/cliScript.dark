@@ -1,6 +1,39 @@
 module Darklang.LanguageTools.Parser.CliScript
 
 
+/// Location of an unparseable subtree in the source.
+type Unparseable =
+  { text: String
+    line: Int64
+    column: Int64
+    note: Stdlib.Option.Option<String> }
+
+
+/// Why a parse attempt failed.
+type ParseError =
+  /// A token or subtree couldn't be matched to any grammar production
+  /// (e.g. `!true`).
+  | Unparseable of Unparseable
+
+  /// Lower-level parser failure (tree-sitter / AST conversion) that
+  /// produced a string error before declarations could be split out.
+  /// Rarer than `Unparseable` since tree-sitter usually recovers via
+  /// ERROR nodes that flow through `Unparseable` instead.
+  | Other of String
+
+
+module ParseError =
+  let toString (err: ParseError) : String =
+    match err with
+    | Unparseable u ->
+      let noteText =
+        match u.note with
+        | Some n -> $": {n}"
+        | None -> ""
+      $"Parse error at line {Stdlib.Int64.toString u.line}, column {Stdlib.Int64.toString u.column}: unexpected '{u.text}'{noteText}"
+    | Other msg -> msg
+
+
 type WTCliScriptModule =
   { owner: String
     name: String
@@ -24,23 +57,20 @@ let parseDecls
   (owner: String)
   (scriptName: String)
   (source: LanguageTools.WrittenTypes.ParsedFile)
-  : Stdlib.Result.Result<WTCliScriptModule, String> =
+  : Stdlib.Result.Result<WTCliScriptModule, ParseError> =
+  // `ParsedFile` is a single-case DU (`SourceFile of ...`). No `| _` fallback.
   match source with
   | SourceFile source ->
     // Check for unparseable content (e.g., invalid syntax like `!true`)
     match source.unparseableStuff with
     | first :: _ ->
-      let errorText = first.source.text
-      let errorRange = first.source.range
-      let lineNum = (Stdlib.Int64.add errorRange.start.row 1L) |> Stdlib.Int64.toString
-      let colNum = errorRange.start.column |> Stdlib.Int64.toString
-      let note =
-        match first.note with
-        | Some n -> $": {n}"
-        | None -> ""
-
-      Stdlib.Result.Result.Error
-        $"Parse error at line {lineNum}, column {colNum}: unexpected '{errorText}'{note}"
+      let u =
+        Unparseable
+          { text = first.source.text
+            line = Stdlib.Int64.add first.source.range.start.row 1L
+            column = first.source.range.start.column
+            note = first.note }
+      Stdlib.Result.Result.Error(ParseError.Unparseable u)
 
     | [] ->
       let types =
@@ -83,8 +113,6 @@ let parseDecls
             submodules = submodules
             exprs = exprs }
       )
-
-  | _ -> Stdlib.Result.Result.Error "Invalid source file"
 
 
 /// Helper to process a list of declarations and split results into separate lists (entities, ops, unresolved names)
@@ -229,9 +257,9 @@ let parse
   (scriptName: String)
   (filename: String)
   (source: String)
-  : Stdlib.Result.Result<(PTCliScriptModule * List<WrittenTypes.UnresolvedName>), String> =
+  : Stdlib.Result.Result<(PTCliScriptModule * List<WrittenTypes.UnresolvedName>), ParseError> =
   match source |> LanguageTools.Parser.TestParsing.initialParse with
-  | Error e -> Stdlib.Result.Result.Error e
+  | Error e -> Stdlib.Result.Result.Error(ParseError.Other e)
   | Ok parsedFile ->
     match parseDecls ctx.owner scriptName parsedFile with
     | Error e -> Stdlib.Result.Result.Error e
@@ -329,7 +357,7 @@ let parseForCli
   (scriptName: String)
   (filename: String)
   (source: String)
-  : Stdlib.Result.Result<(PTCliScriptModule * List<WrittenTypes.UnresolvedName>), String> =
+  : Stdlib.Result.Result<(PTCliScriptModule * List<WrittenTypes.UnresolvedName>), ParseError> =
   let pm = LanguageTools.PackageManager.pm ()
 
   let ctx =
@@ -348,9 +376,9 @@ let pmWithExtras
   (scriptName: String)
   (filename: String)
   (source: String)
-  : Stdlib.Result.Result<ProgramTypes.PackageManager.PackageManager, String> =
+  : Stdlib.Result.Result<ProgramTypes.PackageManager.PackageManager, ParseError> =
   match source |> LanguageTools.Parser.TestParsing.initialParse with
-  | Error e -> Stdlib.Result.Result.Error e
+  | Error e -> Stdlib.Result.Result.Error(ParseError.Other e)
   | Ok parsedFile ->
     match parseDecls ctx.owner scriptName parsedFile with
     | Error e -> Stdlib.Result.Result.Error e

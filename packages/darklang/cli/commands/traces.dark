@@ -1117,8 +1117,7 @@ let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
       Stdlib.printLine "Replay complete. A new trace was created for this execution."
       state
     | Error err ->
-      let pretty =
-        PrettyPrinter.RuntimeTypes.RuntimeError.toString state.currentBranchId err
+      let pretty = Cli.ExecutionError.toString state.currentBranchId err
       Stdlib.printLine (Colors.error $"Replay failed: {pretty}")
       state
 

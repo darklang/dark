@@ -119,9 +119,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
       | Ok exitCode ->
         Stdlib.printLine $"Script '{name}' exited with code {Stdlib.Int64.toString exitCode}"
         state
-      | Error runtimeError ->
-        let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString state.currentBranchId runtimeError
-        Stdlib.printLine $"Script error: {prettyError}"
+      | Error execErr ->
+        let pretty = ExecutionError.toString state.currentBranchId execErr
+        Stdlib.printLine $"Script error: {pretty}"
         state
     | None ->
       Stdlib.printLine $"Error: Script '{name}' not found"

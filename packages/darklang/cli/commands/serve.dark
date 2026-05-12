@@ -109,12 +109,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
          with
         | Ok _ -> state
         | Error err ->
-          let prettyError =
-            PrettyPrinter.RuntimeTypes.RuntimeError.toString
-              state.currentBranchId
-              err
-
-          Stdlib.printLine (Colors.error $"Server failed: {prettyError}")
+          let pretty = Cli.ExecutionError.toString state.currentBranchId err
+          Stdlib.printLine (Colors.error $"Server failed: {pretty}")
           state
 
 
