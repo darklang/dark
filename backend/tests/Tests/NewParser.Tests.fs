@@ -100,8 +100,7 @@ let tEval (name : string) (input : string) (expected : RT.Dval) =
     RT.FQFnName.fqPackage (PackageRefs.Fn.LanguageTools.Parser.parsePTExpr ())
 
   testTask name {
-    let canvasID = System.Guid.NewGuid()
-    let! parseExeState = executionStateFor pmPT canvasID false false Map.empty
+    let! parseExeState = executionStateFor pmPT false Map.empty
 
     let args = NEList.singleton (RT.DString input)
     let! parseResult =
@@ -113,7 +112,7 @@ let tEval (name : string) (input : string) (expected : RT.Dval) =
       let ptExpr = LibExecution.ProgramTypesToDarkTypes.Expr.fromDT exprDT
       let instructions =
         ptExpr |> LibExecution.ProgramTypesToRuntimeTypes.Expr.toRT Map.empty 0 None
-      let! exeState = executionStateFor pmPT canvasID false false Map.empty
+      let! exeState = executionStateFor pmPT false Map.empty
       let! actual = LibExecution.Execution.executeExpr exeState instructions
       match actual with
       | Ok result ->
@@ -139,8 +138,7 @@ let tFails (name : string) (input : string) =
       RT.FQFnName.fqPackage (
         PackageRefs.Fn.LanguageTools.Parser.CliScript.parseForCli ()
       )
-    let canvasID = System.Guid.NewGuid()
-    let! parseExeState = executionStateFor pmPT canvasID false false Map.empty
+    let! parseExeState = executionStateFor pmPT false Map.empty
     let args =
       NEList.ofList
         (RT.DUuid PT.mainBranchId)
