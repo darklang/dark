@@ -125,14 +125,11 @@ let tEval (name : string) (input : string) (expected : RT.Dval) =
   }
 
 
-/// Asserts that the parser rejects the input. Used for inputs that should
-/// produce a parse error (e.g. invalid escape sequences) — symptomatic of
-/// the regression where invalid input was silently dropped.
-///
-/// Uses `parseForCli` (the same parse path the CLI uses) because it surfaces
+/// Asserts the ParseError case name returned by `parseForCli`. Uses
+/// `parseForCli` (the same parse path the CLI uses) because it surfaces
 /// `unparseableStuff` as `Result.Error` — `parsePTSourceFileWithOps` swallows
 /// per-declaration parse failures into a side list and returns Ok overall.
-let tFails (name : string) (input : string) =
+let tParseErrorVariant (name : string) (input : string) (expectedCaseName : string) =
   testTask name {
     let parseFnName =
       RT.FQFnName.fqPackage (
@@ -150,10 +147,18 @@ let tFails (name : string) (input : string) =
       LibExecution.Execution.executeFunction parseExeState parseFnName [] args
     let! parseDval = unwrapExecutionResult parseExeState parseResult |> Ply.toTask
     match parseDval with
-    | RT.DEnum(tn, _, _, "Error", _) when tn = Dval.resultType () -> return ()
-    | RT.DEnum(tn, _, _, "Ok", _) when tn = Dval.resultType () ->
-      return failtest $"Expected parse failure but got successful parse: {parseDval}"
-    | _ -> return failtest $"Unexpected parse result format: {parseDval}"
+    | RT.DEnum(tn, _, _, "Error", [ RT.DEnum(_, _, _, caseName, _) ]) when
+      tn = Dval.resultType ()
+      ->
+      return
+        Expect.equal
+          caseName
+          expectedCaseName
+          $"wrong ParseError variant for {input}"
+    | _ ->
+      return
+        failtest
+          $"Expected Result.Error containing a ParseError variant; got {parseDval}"
   }
 
 
@@ -808,24 +813,36 @@ let exprs =
       []
       false
     // Invalid escape sequences must be rejected (not silently dropped to "").
-    tFails "invalid escape in string literal" "\"\\d+\""
-    tFails "invalid escape in interpolation" "$\"a\\d+b\""
-    tFails "invalid escape in char literal" "'\\d'"
-    tFails
+    // Asserts both failure AND `Unparseable` variant
+    tParseErrorVariant "invalid escape in string literal" "\"\\d+\"" "Unparseable"
+    tParseErrorVariant "invalid escape in interpolation" "$\"a\\d+b\"" "Unparseable"
+    tParseErrorVariant "invalid escape in char literal" "'\\d'" "Unparseable"
+    tParseErrorVariant
       "invalid escape in string match pattern"
       "match s with\n| \"\\d+\" -> 1L\n| _ -> 0L"
-    tFails
+      "Unparseable"
+    tParseErrorVariant
       "invalid escape in char match pattern"
       "match c with\n| '\\d' -> 1L\n| _ -> 0L"
+      "Unparseable"
     // Codepoints that tree-sitter accepts as well-formed escapes but that
     // are not valid Unicode scalars must be rejected by the decoder:
     //   - surrogate range (D800..DFFF)
     //   - above the Unicode max (>0x10FFFF)
-    tFails "surrogate codepoint \\uD800" "\"\\uD800\""
-    tFails "surrogate codepoint \\U0000D800" "\"\\U0000D800\""
-    tFails "codepoint above max \\U00110000" "\"\\U00110000\""
-    tFails "surrogate codepoint in char" "'\\uD800'"
-    tFails "codepoint above max in char" "'\\U00110000'"
+    tParseErrorVariant "surrogate codepoint \\uD800" "\"\\uD800\"" "Unparseable"
+    tParseErrorVariant
+      "surrogate codepoint \\U0000D800"
+      "\"\\U0000D800\""
+      "Unparseable"
+    tParseErrorVariant
+      "codepoint above max \\U00110000"
+      "\"\\U00110000\""
+      "Unparseable"
+    tParseErrorVariant "surrogate codepoint in char" "'\\uD800'" "Unparseable"
+    tParseErrorVariant "codepoint above max in char" "'\\U00110000'" "Unparseable"
+    // Pure syntax-rejection cases (no escape involvement).
+    tParseErrorVariant "bang produces Unparseable" "!true" "Unparseable"
+    tParseErrorVariant "garbage tokens produce Unparseable" "@@@" "Unparseable"
     t
       "string interpolation - multiple expr to eval"
       "$\"Name: {name}, Age: {age}\""
