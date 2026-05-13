@@ -257,7 +257,9 @@ let findUnresolvedInOps
 
           (Stdlib.List.append results [item], Stdlib.Dict.remove pending key)
         | None -> (results, pending)
-      | PropagateUpdate _
-      | RevertPropagation _ -> (results, pending))
+      | Deprecate(_, _, _)
+      | Undeprecate _
+      | PropagateUpdate(_, _, _, _, _)
+      | RevertPropagation(_, _, _, _, _) -> (results, pending))
 
   results
