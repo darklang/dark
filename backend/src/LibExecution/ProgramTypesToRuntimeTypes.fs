@@ -55,11 +55,16 @@ module NameResolutionError =
     | PT.NameResolutionError.InvalidName -> RT.NameResolutionError.InvalidName
 
 module NameResolution =
+  // `location` is package-store metadata — load-bearing for propagation
+  // rewrites (AstTransformer's byLocation substitution), SCC hash
+  // substitution (Canonical writer), dep-edge inserts, and deferred
+  // refresh. The runtime executes against already-resolved hashes and
+  // has no use for any of that, so we drop location at the PT→RT boundary.
   let toRT (f : 'a -> 'b) (nr : PT.NameResolution<'a>) : RT.NameResolution<'b> =
     { originalName = nr.originalName
       resolved =
         match nr.resolved with
-        | Ok x -> Ok(f x)
+        | Ok resolved -> Ok(f resolved.name)
         | Error e -> Error(NameResolutionError.toRT e) }
 
 
@@ -144,9 +149,12 @@ module TypeReference =
     | PT.TDict typ -> RT.ValueType.Known(RT.KTDict(toValueType typ))
     | PT.TCustomType(typeName, typeArgs) ->
       match typeName.resolved with
-      | Ok name ->
+      | Ok resolved ->
         RT.ValueType.Known(
-          RT.KTCustomType(FQTypeName.toRT name, List.map toValueType typeArgs)
+          RT.KTCustomType(
+            FQTypeName.toRT resolved.name,
+            List.map toValueType typeArgs
+          )
         )
       | Error _ -> RT.ValueType.Unknown // Can't resolve, use Unknown
     | PT.TVariable(_) -> RT.ValueType.Unknown // Variables can't be resolved at this stage
@@ -732,9 +740,9 @@ module Expr =
 
 
     // values
-    | PT.EValue(_, { resolved = Ok name }) ->
+    | PT.EValue(_, { resolved = Ok resolved }) ->
       { registerCount = rc + 1
-        instructions = [ RT.LoadValue(rc, FQValueName.toRT name) ]
+        instructions = [ RT.LoadValue(rc, FQValueName.toRT resolved.name) ]
         resultIn = rc }
 
     | PT.EValue(_, { originalName = names; resolved = Error nre }) ->
@@ -745,9 +753,9 @@ module Expr =
 
 
     // functions
-    | PT.EFnName(_, { resolved = Ok name }) ->
+    | PT.EFnName(_, { resolved = Ok resolved }) ->
       let namedFn : RT.ApplicableNamedFn =
-        { name = FQFnName.toRT name
+        { name = FQFnName.toRT resolved.name
           typeSymbolTable = Map.empty
           typeArgs = []
           argsSoFar = [] }
@@ -905,7 +913,7 @@ module Expr =
         instructions = [ RT.RaiseNRE(names, NameResolutionError.toRT nre) ]
         resultIn = returnReg }
 
-    | PT.ERecord(_id, { resolved = Ok typeName }, typeArgs, fields) ->
+    | PT.ERecord(_id, { resolved = Ok { name = typeName } }, typeArgs, fields) ->
       let recordReg, rc = rc, rc + 1
 
       // CLEANUP: complain if there are no fields
@@ -976,7 +984,7 @@ module Expr =
         instructions = [ RT.RaiseNRE(names, NameResolutionError.toRT nre) ]
         resultIn = returnReg }
 
-    | PT.EEnum(_id, { resolved = Ok typeName }, typeArgs, caseName, fields) ->
+    | PT.EEnum(_id, { resolved = Ok { name = typeName } }, typeArgs, caseName, fields) ->
       let enumReg, rc = rc, rc + 1
 
       let (rcAfterFields, instrs, fields) =
@@ -1148,7 +1156,7 @@ module PackageValue =
     | PT.EEnum(_, typeName, typeArgs, caseName, fields) ->
       let resolvedTypeName =
         match typeName.resolved with
-        | Ok name -> FQTypeName.toRT name
+        | Ok resolved -> FQTypeName.toRT resolved.name
         | Error _ ->
           Exception.raiseInternal
             "Cannot resolve enum type name in package constant"
@@ -1190,7 +1198,7 @@ module PackageValue =
     | PT.ERecord(_, typeName, typeArgs, fields) ->
       let resolvedTypeName =
         match typeName.resolved with
-        | Ok name -> FQTypeName.toRT name
+        | Ok resolved -> FQTypeName.toRT resolved.name
         | Error _ ->
           Exception.raiseInternal
             "Cannot resolve record type name in package constant"
@@ -1201,7 +1209,7 @@ module PackageValue =
         |> Map.ofList
       let convertedTypeArgs = List.map TypeReference.toValueType typeArgs
       RT.DRecord(resolvedTypeName, resolvedTypeName, convertedTypeArgs, fieldValues)
-    | PT.EValue(_, { resolved = Ok(PT.FQValueName.Builtin builtin) }) ->
+    | PT.EValue(_, { resolved = Ok { name = PT.FQValueName.Builtin builtin } }) ->
       let rtBuiltin = FQValueName.Builtin.toRT builtin
       match Map.find rtBuiltin builtinValues with
       | Some v -> v.body

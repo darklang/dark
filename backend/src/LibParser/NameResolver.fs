@@ -77,10 +77,7 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
 
     match parseName name with
     | Error _ ->
-      return
-        { originalName = originalName
-          location = None
-          resolved = Error NRE.InvalidName }
+      return { originalName = originalName; resolved = Error NRE.InvalidName }
     | Ok(name, version) ->
       let genericName : GenericName =
         { modules = modules; name = name; version = version }
@@ -126,12 +123,14 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
           (notFoundError, None)
           (namesToTry currentModule genericName)
 
+      let resolved =
+        result |> Result.map (fun name -> { name = name; location = location })
       return
         throwIfRelevant
           onMissing
           currentModule
           given
-          { originalName = originalName; location = location; resolved = result }
+          { originalName = originalName; resolved = resolved }
   }
 
 
@@ -177,8 +176,8 @@ let resolveValueName
   | WT.KnownBuiltin(name, version) ->
     Ply(
       { originalName = [ name ]
-        location = None
-        resolved = Ok(PT.FQValueName.fqBuiltIn name version) }
+        resolved =
+          Ok { name = PT.FQValueName.fqBuiltIn name version; location = None } }
       : PT.NameResolution<_>
     )
   | WT.Unresolved given ->
@@ -205,8 +204,7 @@ let resolveFnName
   | WT.KnownBuiltin(n, v) ->
     Ply(
       { originalName = [ n ]
-        location = None
-        resolved = Ok(PT.FQFnName.fqBuiltIn n v) }
+        resolved = Ok { name = PT.FQFnName.fqBuiltIn n v; location = None } }
       : PT.NameResolution<_>
     )
   | WT.Unresolved given ->

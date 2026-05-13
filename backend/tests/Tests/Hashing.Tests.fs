@@ -351,8 +351,10 @@ let tests =
               PT.EValue(
                 gid (),
                 { originalName = []
-                  location = Some loc
-                  resolved = Ok(PT.FQValueName.Package sharedHash) }
+                  resolved =
+                    Ok
+                      { name = PT.FQValueName.Package sharedHash
+                        location = Some loc } }
               )
 
             let mode : Canonical.HashRefMode =

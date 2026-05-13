@@ -49,17 +49,18 @@ let private transformNameResolution
   : PT.NameResolution<'a> =
   match nr.resolved with
   | Ok resolved ->
-    match getPackageId resolved with
+    match getPackageId resolved.name with
     | Some hash ->
-      let newHash = replaceHash mapping nr.location hash
+      let newHash = replaceHash mapping resolved.location hash
       let newLocation =
-        nr.location
+        resolved.location
         |> Option.map (fun loc ->
           Map.tryFind loc mapping.byLocationRename |> Option.defaultValue loc)
-      if newHash = hash && newLocation = nr.location then
+      if newHash = hash && newLocation = resolved.location then
         nr
       else
-        { nr with location = newLocation; resolved = Ok(transform newHash) }
+        { nr with
+            resolved = Ok { name = transform newHash; location = newLocation } }
     | None -> nr
   | Error _ -> nr
 

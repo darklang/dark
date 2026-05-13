@@ -1575,8 +1575,8 @@ let testRenameThenUpdateWithPropagation =
 
     let locationTaggedBaseRef : PT.NameResolution<PT.FQFnName.FQFnName> =
       { originalName = [ "rtpBase" ]
-        location = Some(loc "rtpBase")
-        resolved = Ok(PT.FQFnName.Package fnA.hash) }
+        resolved =
+          Ok { name = PT.FQFnName.Package fnA.hash; location = Some(loc "rtpBase") } }
     let fnB =
       makeFn (eApply (PT.EFnName(gid (), locationTaggedBaseRef)) [] [ eVar "x" ])
     do! addFnAt branchId (loc "rtpCaller") fnB
@@ -1610,8 +1610,12 @@ let testRenameThenUpdateWithPropagation =
     | Some caller ->
       match caller.body with
       | PT.EApply(_, PT.EFnName(_, nr), _, _) ->
+        let location =
+          match nr.resolved with
+          | Ok r -> r.location
+          | Error _ -> None
         Expect.equal
-          nr.location
+          location
           (Some(loc "rtpBase2"))
           "location-tagged ref is rewritten to the new source location"
       | other -> failtest $"unexpected caller body: {other}"
@@ -1996,8 +2000,10 @@ let testDependencyEdgeCollisionStorage =
       PT.EValue(
         gid (),
         { originalName = []
-          location = Some location
-          resolved = Ok(PT.FQValueName.Package sharedValue.hash) }
+          resolved =
+            Ok
+              { name = PT.FQValueName.Package sharedValue.hash
+                location = Some location } }
       )
 
     let dependentFn = makeFn (eStatement (refAt (loc "esA")) (refAt (loc "esX")))
@@ -2053,15 +2059,16 @@ let testDependencyLocationIncludesTargetKind =
 
     let typeRef : PT.NameResolution<PT.FQTypeName.FQTypeName> =
       { originalName = []
-        location = Some sharedLoc
-        resolved = Ok(PT.FQTypeName.Package typeV1.hash) }
+        resolved =
+          Ok { name = PT.FQTypeName.Package typeV1.hash; location = Some sharedLoc } }
     let typeDependent = makeFn (PT.EEnum(gid (), typeRef, [], "Red", []))
     do! addFnAt branchId (loc "kindTypeDep") typeDependent
 
     let valueRef : PT.NameResolution<PT.FQValueName.FQValueName> =
       { originalName = []
-        location = Some sharedLoc
-        resolved = Ok(PT.FQValueName.Package valueV1.hash) }
+        resolved =
+          Ok
+            { name = PT.FQValueName.Package valueV1.hash; location = Some sharedLoc } }
     let valueDependent = makeFn (PT.EValue(gid (), valueRef))
     do! addFnAt branchId (loc "kindValueDep") valueDependent
 
@@ -2138,7 +2145,7 @@ let testDependencyLocationIncludesTargetKind =
 /// two references that happen to share a content hash but live at
 /// different FQNs, propagating one of the FQNs must rewrite ONLY the
 /// reference that names that FQN. The other reference — same hash, but
-/// `nr.location` points elsewhere — must stay put.
+/// its captured `ResolvedName.location` points elsewhere — must stay put.
 ///
 /// Without the location-keyed lookup in `AstTransformer`, the hash-keyed
 /// substitution map would rewrite both references blindly and silently
@@ -2157,15 +2164,17 @@ let testCrossNamespaceCollisionRewrite =
     do! addValueAt branchId (loc "collX") sharedValue
 
     // Dependent body: { collA-ref ; collX-ref }. Both EValue NRs resolve
-    // to `sharedValue.hash`; the only thing distinguishing them is
-    // `nr.location`. Built by hand because the standard shortcut
-    // (`ePackageValue`) leaves location unset.
+    // to `sharedValue.hash`; the only thing distinguishing them is the
+    // `location` captured inside their `ResolvedName`. Built by hand
+    // because the standard shortcut (`ePackageValue`) leaves location unset.
     let refAt (location : PT.PackageLocation) : PT.Expr =
       PT.EValue(
         gid (),
         { originalName = []
-          location = Some location
-          resolved = Ok(PT.FQValueName.Package sharedValue.hash) }
+          resolved =
+            Ok
+              { name = PT.FQValueName.Package sharedValue.hash
+                location = Some location } }
       )
     let dependentFn = makeFn (eStatement (refAt (loc "collA")) (refAt (loc "collX")))
     do! addFnAt branchId (loc "collDep") dependentFn
@@ -2197,7 +2206,7 @@ let testCrossNamespaceCollisionRewrite =
         | PT.EStatement(_, PT.EValue(_, nrA), PT.EValue(_, nrX)) ->
           let resolvedHash (nr : PT.NameResolution<PT.FQValueName.FQValueName>) =
             match nr.resolved with
-            | Ok(PT.FQValueName.Package h) -> h
+            | Ok { name = PT.FQValueName.Package h } -> h
             | _ -> failtest "expected a resolved package value reference"
           // Targeted ref: location says "collA", and collA is being
           // moved → rewrite to the new hash.

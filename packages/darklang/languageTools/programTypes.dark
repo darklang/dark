@@ -33,17 +33,26 @@ type NameResolutionError =
   | NotFound
   | InvalidName
 
-/// `originalName` is the user-typed name (a list of qualifiers).
+/// A successfully resolved name and (where applicable) the package
+/// location that resolved it.
+///
 /// `location` is the matched fully-qualified location after `namesToTry`
 /// expansion — `Some` for resolved package items, `None` for builtins
-/// or anything that didn't resolve. Carrying location alongside the
-/// resolved hash lets dep-edge inserts populate
-/// `depends_on_(owner|modules|name)` directly without a post-hoc
-/// lookup.
+/// (and for resolved package items where no location was captured).
+/// Carrying it alongside the resolved hash lets downstream consumers
+/// skip a post-hoc lookup: dep-edge inserts, propagation rewrites,
+/// SCC hash substitution, and deferred refresh after a package moves.
+type ResolvedName<'a> =
+  { name: 'a
+    location: Stdlib.Option.Option<PackageLocation> }
+
+/// `originalName` is the user-typed name (a list of qualifiers).
+/// `resolved` is the resolved name (or the resolution error). The Ok
+/// payload bundles the resolved name with its package location so
+/// "location without resolution" is unrepresentable.
 type NameResolution<'a> =
   { originalName: List<String>
-    location: Stdlib.Option.Option<PackageLocation>
-    resolved: Stdlib.Result.Result<'a, NameResolutionError> }
+    resolved: Stdlib.Result.Result<ResolvedName<'a>, NameResolutionError> }
 
 
 /// Darklang's available types (int, List<T>, user-defined types, etc.)
