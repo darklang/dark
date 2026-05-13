@@ -35,5 +35,5 @@ This is an MCP server that provides internal development tools, resources, and p
 To add this MCP server to Claude Code, run:
 
 ```bash
-claude mcp add darklang-internal ./scripts/run-cli run @Darklang.Internal.DarklangInternalMcpServer.main
+claude mcp add darklang-internal ./scripts/run-cli eval Darklang.Internal.DarklangInternalMcpServer.main
 ```
