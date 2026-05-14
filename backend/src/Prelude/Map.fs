@@ -1,10 +1,12 @@
 module Map
 
+// Folding key-value pairs from `toAdd` into `base` with Map.add overwriting on
+// key collision means `toAdd`'s value wins on conflict.
 let mergeFavoringRight (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
-  FSharpPlus.Map.union m2 m1
+  Map.fold (fun acc k v -> Map.add k v acc) m1 m2
 
 let mergeFavoringLeft (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
-  FSharpPlus.Map.union m1 m2
+  Map.fold (fun acc k v -> Map.add k v acc) m2 m1
 
 let ofNEList (l : NEList.NEList<'k * 'v>) : Map<'k, 'v> =
   NEList.fold (fun m (k, v) -> Map.add k v m) Map.empty l
