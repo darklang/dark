@@ -1111,8 +1111,10 @@ let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
       Builtin.cliEvaluateExpression
         state.accountID state.currentBranchId code false
     with
-    | Ok output ->
-      Stdlib.printLine output
+    | Ok outputOpt ->
+      match outputOpt with
+      | Some output -> Stdlib.printLine output
+      | None -> ()
       Stdlib.printLine ""
       Stdlib.printLine "Replay complete. A new trace was created for this execution."
       state
