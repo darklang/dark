@@ -84,7 +84,11 @@ let inline private p (cmd : SqliteCommand) (name : string) (value : obj) =
 /// — so foreign-key checks fail with "constraint violated" even though
 /// the parent row exists. (Fumble's `Sql.uuid` did this implicitly; we
 /// replicate it.)
-let inline private pUuid (cmd : SqliteCommand) (name : string) (value : System.Guid) =
+let inline private pUuid
+  (cmd : SqliteCommand)
+  (name : string)
+  (value : System.Guid)
+  =
   p cmd name (string value)
 
 /// Bind a `string option` as either the string or DBNull.
@@ -175,16 +179,13 @@ let private applyAddType
     let rtDef = typ |> PT2RT.PackageType.toRT |> BS.RT.PackageType.serialize hashStr
 
     do!
-      exec
-        ctx
-        """
+      exec ctx """
         INSERT OR REPLACE INTO package_types (hash, pt_def, rt_def)
         VALUES ($hash, $pt_def, $rt_def)
-        """
-        (fun cmd ->
-          p cmd "$hash" hashStr
-          p cmd "$pt_def" ptDef
-          p cmd "$rt_def" rtDef)
+        """ (fun cmd ->
+        p cmd "$hash" hashStr
+        p cmd "$pt_def" ptDef
+        p cmd "$rt_def" rtDef)
 
     // Extract and store dependency references atomically. Each
     // Dependency carries its own location (populated by the resolver).
@@ -213,27 +214,21 @@ let private applyAddValue
     // ON CONFLICT(hash) since values are content-addressed; we may re-encounter
     // the same hash via re-applied or duplicated ops.
     do!
-      exec
-        ctx
-        """
+      exec ctx """
         INSERT INTO package_values (hash, pt_def, rt_dval, value_type)
         VALUES ($hash, $pt_def, NULL, NULL)
         ON CONFLICT(hash) DO UPDATE SET
           pt_def = excluded.pt_def
-        """
-        (fun cmd ->
-          p cmd "$hash" hashStr
-          p cmd "$pt_def" ptDef)
+        """ (fun cmd ->
+        p cmd "$hash" hashStr
+        p cmd "$pt_def" ptDef)
 
     let refs = DE.extractFromValue value
     do! updateDependencies ctx hashStr refs
   }
 
 /// Apply a single AddFn op to the package_functions table.
-let private applyAddFn
-  (ctx : Ctx)
-  (fn : PT.PackageFn.PackageFn)
-  : Task<unit> =
+let private applyAddFn (ctx : Ctx) (fn : PT.PackageFn.PackageFn) : Task<unit> =
   task {
     let hash =
       match fn.hash with
@@ -246,16 +241,13 @@ let private applyAddFn
     let rtInstrs = fn |> PT2RT.PackageFn.toRT |> BS.RT.PackageFn.serialize hashStr
 
     do!
-      exec
-        ctx
-        """
+      exec ctx """
         INSERT OR REPLACE INTO package_functions (hash, pt_def, rt_instrs)
         VALUES ($hash, $pt_def, $rt_instrs)
-        """
-        (fun cmd ->
-          p cmd "$hash" hashStr
-          p cmd "$pt_def" ptDef
-          p cmd "$rt_instrs" rtInstrs)
+        """ (fun cmd ->
+        p cmd "$hash" hashStr
+        p cmd "$pt_def" ptDef
+        p cmd "$rt_instrs" rtInstrs)
 
     let refs = DE.extractFromFn fn
     do! updateDependencies ctx hashStr refs
@@ -282,9 +274,7 @@ let private applySetName
 
     // 1. Deprecate any existing location at the target path (handles updates)
     do!
-      exec
-        ctx
-        """
+      exec ctx """
         UPDATE locations
         SET unlisted_at = datetime('now')
         WHERE owner = $owner
@@ -293,13 +283,12 @@ let private applySetName
           AND item_type = $item_type
           AND unlisted_at IS NULL
           AND branch_id = $branch_id
-        """
-        (fun cmd ->
-          p cmd "$owner" location.owner
-          p cmd "$modules" modulesStr
-          p cmd "$name" location.name
-          p cmd "$item_type" itemTypeStr
-          pUuid cmd "$branch_id" branchId)
+        """ (fun cmd ->
+        p cmd "$owner" location.owner
+        p cmd "$modules" modulesStr
+        p cmd "$name" location.name
+        p cmd "$item_type" itemTypeStr
+        pUuid cmd "$branch_id" branchId)
 
     // 2. If this is a rename (standalone SetName, not paired with Add*),
     //    also deprecate old locations pointing to the same hash.
@@ -308,36 +297,30 @@ let private applySetName
     //    Int16.ParseError have identical definitions).
     if isRename then
       do!
-        exec
-          ctx
-          """
+        exec ctx """
           UPDATE locations
           SET unlisted_at = datetime('now')
           WHERE item_hash = $item_hash
             AND branch_id = $branch_id
             AND unlisted_at IS NULL
-          """
-          (fun cmd ->
-            p cmd "$item_hash" itemHashStr
-            pUuid cmd "$branch_id" branchId)
+          """ (fun cmd ->
+          p cmd "$item_hash" itemHashStr
+          pUuid cmd "$branch_id" branchId)
 
     // 3. Insert new location entry.
     do!
-      exec
-        ctx
-        """
+      exec ctx """
         INSERT INTO locations (location_id, item_hash, owner, modules, name, item_type, branch_id, commit_hash)
         VALUES ($location_id, $item_hash, $owner, $modules, $name, $item_type, $branch_id, $commit_hash)
-        """
-        (fun cmd ->
-          pUuid cmd "$location_id" locationId
-          p cmd "$item_hash" itemHashStr
-          p cmd "$owner" location.owner
-          p cmd "$modules" modulesStr
-          p cmd "$name" location.name
-          p cmd "$item_type" itemTypeStr
-          pUuid cmd "$branch_id" branchId
-          pOpt cmd "$commit_hash" commitHash)
+        """ (fun cmd ->
+        pUuid cmd "$location_id" locationId
+        p cmd "$item_hash" itemHashStr
+        p cmd "$owner" location.owner
+        p cmd "$modules" modulesStr
+        p cmd "$name" location.name
+        p cmd "$item_type" itemTypeStr
+        pUuid cmd "$branch_id" branchId
+        pOpt cmd "$commit_hash" commitHash)
   }
 
 
@@ -378,37 +361,31 @@ let private applyDeprecate
     let blob = serializeAnnotation kind message
 
     do!
-      exec
-        ctx
-        """
+      exec ctx """
         UPDATE deprecations
         SET unlisted_at = datetime('now')
         WHERE branch_id = $branch_id
           AND item_hash = $item_hash
           AND item_kind = $item_kind
           AND unlisted_at IS NULL
-        """
-        (fun cmd ->
-          pUuid cmd "$branch_id" branchId
-          p cmd "$item_hash" itemHashStr
-          p cmd "$item_kind" itemKindStr)
+        """ (fun cmd ->
+        pUuid cmd "$branch_id" branchId
+        p cmd "$item_hash" itemHashStr
+        p cmd "$item_kind" itemKindStr)
 
     do!
-      exec
-        ctx
-        """
+      exec ctx """
         INSERT INTO deprecations
           (deprecation_id, branch_id, commit_hash, item_hash, item_kind, state, annotation_blob)
         VALUES
           ($deprecation_id, $branch_id, $commit_hash, $item_hash, $item_kind, 'deprecated', $blob)
-        """
-        (fun cmd ->
-          pUuid cmd "$deprecation_id" deprecationId
-          pUuid cmd "$branch_id" branchId
-          pOpt cmd "$commit_hash" commitHash
-          p cmd "$item_hash" itemHashStr
-          p cmd "$item_kind" itemKindStr
-          p cmd "$blob" blob)
+        """ (fun cmd ->
+        pUuid cmd "$deprecation_id" deprecationId
+        pUuid cmd "$branch_id" branchId
+        pOpt cmd "$commit_hash" commitHash
+        p cmd "$item_hash" itemHashStr
+        p cmd "$item_kind" itemKindStr
+        p cmd "$blob" blob)
   }
 
 
@@ -428,36 +405,30 @@ let private applyUndeprecate
     let deprecationId = System.Guid.NewGuid()
 
     do!
-      exec
-        ctx
-        """
+      exec ctx """
         UPDATE deprecations
         SET unlisted_at = datetime('now')
         WHERE branch_id = $branch_id
           AND item_hash = $item_hash
           AND item_kind = $item_kind
           AND unlisted_at IS NULL
-        """
-        (fun cmd ->
-          pUuid cmd "$branch_id" branchId
-          p cmd "$item_hash" itemHashStr
-          p cmd "$item_kind" itemKindStr)
+        """ (fun cmd ->
+        pUuid cmd "$branch_id" branchId
+        p cmd "$item_hash" itemHashStr
+        p cmd "$item_kind" itemKindStr)
 
     do!
-      exec
-        ctx
-        """
+      exec ctx """
         INSERT INTO deprecations
           (deprecation_id, branch_id, commit_hash, item_hash, item_kind, state, annotation_blob)
         VALUES
           ($deprecation_id, $branch_id, $commit_hash, $item_hash, $item_kind, 'undeprecated', NULL)
-        """
-        (fun cmd ->
-          pUuid cmd "$deprecation_id" deprecationId
-          pUuid cmd "$branch_id" branchId
-          pOpt cmd "$commit_hash" commitHash
-          p cmd "$item_hash" itemHashStr
-          p cmd "$item_kind" itemKindStr)
+        """ (fun cmd ->
+        pUuid cmd "$deprecation_id" deprecationId
+        pUuid cmd "$branch_id" branchId
+        pOpt cmd "$commit_hash" commitHash
+        p cmd "$item_hash" itemHashStr
+        p cmd "$item_kind" itemKindStr)
   }
 
 
@@ -487,23 +458,18 @@ let private applyRevertPropagation
       let (Hash fromHashStr) = repoint.fromRef.hash
 
       do!
-        exec
-          ctx
-          """
+        exec ctx """
           UPDATE locations
           SET unlisted_at = datetime('now')
           WHERE item_hash = $item_hash
             AND branch_id = $branch_id
             AND unlisted_at IS NULL
-          """
-          (fun cmd ->
-            p cmd "$item_hash" toHashStr
-            pUuid cmd "$branch_id" branchId)
+          """ (fun cmd ->
+          p cmd "$item_hash" toHashStr
+          pUuid cmd "$branch_id" branchId)
 
       do!
-        exec
-          ctx
-          """
+        exec ctx """
           UPDATE locations
           SET unlisted_at = NULL
           WHERE location_id = (
@@ -514,10 +480,9 @@ let private applyRevertPropagation
             ORDER BY unlisted_at DESC
             LIMIT 1
           )
-          """
-          (fun cmd ->
-            p cmd "$item_hash" fromHashStr
-            pUuid cmd "$branch_id" branchId)
+          """ (fun cmd ->
+          p cmd "$item_hash" fromHashStr
+          pUuid cmd "$branch_id" branchId)
 
     // Undo source: unlist WIP location, un-unlist committed location.
     let modulesStr = String.concat "." sourceLocation.modules
@@ -525,9 +490,7 @@ let private applyRevertPropagation
     let (Hash restoredSourceHashStr) = restoredSourceRef.hash
 
     do!
-      exec
-        ctx
-        """
+      exec ctx """
         UPDATE locations
         SET unlisted_at = datetime('now')
         WHERE owner = $owner
@@ -537,18 +500,15 @@ let private applyRevertPropagation
           AND branch_id = $branch_id
           AND unlisted_at IS NULL
           AND commit_hash IS NULL
-        """
-        (fun cmd ->
-          p cmd "$owner" sourceLocation.owner
-          p cmd "$modules" modulesStr
-          p cmd "$name" sourceLocation.name
-          p cmd "$item_type" itemTypeStr
-          pUuid cmd "$branch_id" branchId)
+        """ (fun cmd ->
+        p cmd "$owner" sourceLocation.owner
+        p cmd "$modules" modulesStr
+        p cmd "$name" sourceLocation.name
+        p cmd "$item_type" itemTypeStr
+        pUuid cmd "$branch_id" branchId)
 
     do!
-      exec
-        ctx
-        """
+      exec ctx """
         UPDATE locations
         SET unlisted_at = NULL
         WHERE location_id = (
@@ -559,10 +519,9 @@ let private applyRevertPropagation
           ORDER BY unlisted_at DESC
           LIMIT 1
         )
-        """
-        (fun cmd ->
-          p cmd "$item_hash" restoredSourceHashStr
-          pUuid cmd "$branch_id" branchId)
+        """ (fun cmd ->
+        p cmd "$item_hash" restoredSourceHashStr
+        pUuid cmd "$branch_id" branchId)
   }
 
 

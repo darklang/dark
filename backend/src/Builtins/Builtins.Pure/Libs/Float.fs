@@ -324,10 +324,7 @@ let fns () : List<BuiltInFn> =
               "NaN"
             else
               let result =
-                f.ToString(
-                  "G12",
-                  System.Globalization.CultureInfo.InvariantCulture
-                )
+                f.ToString("G12", System.Globalization.CultureInfo.InvariantCulture)
               if result.Contains "." then result else result + ".0"
           Ply(DString result)
         | _ -> incorrectArgs ())

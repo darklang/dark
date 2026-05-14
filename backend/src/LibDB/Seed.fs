@@ -196,20 +196,26 @@ let applyUnappliedOps () : Task<int64> =
         use checkCmd = conn.CreateCommand()
         checkCmd.CommandText <- "PRAGMA foreign_key_check"
         use! reader = checkCmd.ExecuteReaderAsync()
-        while! reader.ReadAsync() do
-          // columns: table, rowid, parent, fkid
-          violations.Add(
-            (reader.GetString(0),
-             reader.GetValue(1).ToString(),
-             reader.GetString(2),
-             reader.GetValue(3).ToString())
-          )
+        // fantomas can't format `while! reader.ReadAsync() do ...` inside a
+        // task CE, so we drive the loop with a mutable flag.
+        let mutable keepReading = true
+        while keepReading do
+          let! hasNext = reader.ReadAsync()
+          if hasNext then
+            // columns: table, rowid, parent, fkid
+            let row =
+              reader.GetString(0),
+              reader.GetValue(1).ToString(),
+              reader.GetString(2),
+              reader.GetValue(3).ToString()
+            violations.Add(row)
+          else
+            keepReading <- false
         if violations.Count > 0 then
           let summary =
             violations
             |> Seq.truncate 5
-            |> Seq.map (fun (t, r, p, f) ->
-              $"  {t} rowid={r} → {p} (fk_id={f})")
+            |> Seq.map (fun (t, r, p, f) -> $"  {t} rowid={r} → {p} (fk_id={f})")
             |> String.concat "\n"
           Exception.raiseInternal
             $"foreign_key_check reported {violations.Count} \

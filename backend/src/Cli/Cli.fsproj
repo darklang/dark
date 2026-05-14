@@ -103,15 +103,16 @@
        AOT linker where to find the archive. Picked per RuntimeIdentifier;
        must stay in sync with scripts/build/build-sqlite.sh.
 
-       Only active for PublishAot=true builds — JIT publish + `dotnet build`
+       Only active for PublishAot=true builds — JIT publish and `dotnet build`
        (dev) ignore both items and dynamically load libe_sqlite3.so from the
        NuGet at runtime.
 
-       The archives are produced by `scripts/build/build-sqlite.sh`. When
-       AOT-publishing through `scripts/build/build-release-cli-exes.sh --aot`
-       the archives are built for you. Hand-rolled `dotnet publish
-       /p:PublishAot=true` outside that script needs the archives present
-       first — run `./scripts/build/build-sqlite.sh --runtimes=<rid>`. -->
+       The archives are produced by scripts/build/build-sqlite.sh. The
+       release script (build-release-cli-exes.sh) invokes it for AOT
+       targets automatically. A hand-rolled `dotnet publish` with
+       /p:PublishAot=true outside that script needs the archives present
+       first — run build-sqlite.sh with the appropriate runtimes argument
+       (see its header for the exact flag). -->
   <ItemGroup Condition="'$(PublishAot)' == 'true'">
     <DirectPInvoke Include="e_sqlite3" />
   </ItemGroup>
