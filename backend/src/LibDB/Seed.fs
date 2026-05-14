@@ -131,18 +131,96 @@ let applyUnappliedOps () : Task<int64> =
             (branchId, commitHash))
           |> Map.toList
 
+        // Bulk cold-start path: open one connection, run all groups + the
+        // applied=1 sweep inside a single transaction with synchronous=OFF.
+        // For 9000+ ops this turns ~20k individual WAL commits into one and
+        // takes the apply phase from ~5s to well under a second. Crash
+        // safety isn't a concern here: an aborted run leaves applied=0 on
+        // the same ops, and the next boot replays them. Replay isn't strictly
+        // idempotent (location_id / deprecation_id come from Guid.NewGuid()
+        // so a partial-then-replay produces distinct rows for the same op)
+        // but the final-state projection is equivalent — pre-existing rows
+        // from the crashed run keep unlisted_at=NULL and get superseded by
+        // the replay's fresh inserts the same way a normal re-add would.
+        //
+        // FK enforcement is disabled for the duration. Microsoft.Data.Sqlite
+        // defaults `Foreign Keys=True` on the connection string; with that
+        // on, replaying ops in any order other than perfect topological
+        // tripped FK violations (locations referencing branches that arrive
+        // later in the batch, etc.). Standard bulk-load practice in SQLite
+        // is OFF-bulk-load-CHECK; we run `PRAGMA foreign_key_check` after
+        // commit and fail loudly if any actual violations were introduced.
+        use conn = new SqliteConnection(LibDB.Sqlite.connString)
+        do! conn.OpenAsync()
+        let runRaw (sql : string) : Task<unit> =
+          task {
+            use cmd = conn.CreateCommand()
+            cmd.CommandText <- sql
+            let! _ = cmd.ExecuteNonQueryAsync()
+            return ()
+          }
+        // PRAGMAs that affect transaction semantics must run *outside* a
+        // transaction. foreign_keys=OFF in particular only takes effect
+        // when not in a tx.
+        do!
+          runRaw
+            "PRAGMA journal_mode=WAL; \
+             PRAGMA synchronous=OFF; \
+             PRAGMA busy_timeout=5000; \
+             PRAGMA foreign_keys=OFF;"
+        use tx = conn.BeginTransaction()
+
         for ((branchId, commitHash), ops) in groups do
           let opsOnly = ops |> List.map (fun (_, op, _, _) -> op)
-          do! PackageOpPlayback.applyOps branchId commitHash opsOnly
+          do! PackageOpPlayback.applyOpsOnConnection conn branchId commitHash opsOnly
 
-        let opIds = unappliedOps |> List.map (fun (opId, _, _, _) -> opId)
-        let updateStatements =
-          opIds
-          |> List.map (fun opId ->
-            let sql = "UPDATE package_ops SET applied = 1 WHERE id = @id"
-            let parameters = [ "applied", Sql.bool true; "id", Sql.uuid opId ]
-            (sql, [ parameters ]))
-        let _ = Sql.executeTransactionSync updateStatements
+        // Mark all loaded ops applied in a single statement (inside the same
+        // outer transaction).
+        do! runRaw "UPDATE package_ops SET applied = 1 WHERE applied = 0"
+
+        tx.Commit()
+
+        // Integrity check. `PRAGMA foreign_key_check` runs regardless of
+        // the per-connection `foreign_keys` setting — it scans every FK in
+        // every table and returns a row per violation (or nothing when the
+        // DB is clean). Anything here is a real data bug: either the seed
+        // was inconsistent or our op-replay produced dangling refs.
+        // Surface it loudly rather than persisting a silently-broken
+        // projection.
+        //
+        // We don't bother flipping `foreign_keys` back on first — the
+        // pragma is per-connection-instance, and this connection is about
+        // to be closed. The next connection picks up the connection-string
+        // default (`Foreign Keys=True`) on its own.
+        let violations = ResizeArray<string * string * string * string>()
+        use checkCmd = conn.CreateCommand()
+        checkCmd.CommandText <- "PRAGMA foreign_key_check"
+        use! reader = checkCmd.ExecuteReaderAsync()
+        // fantomas can't format `while! reader.ReadAsync() do ...` inside a
+        // task CE, so we drive the loop with a mutable flag.
+        let mutable keepReading = true
+        while keepReading do
+          let! hasNext = reader.ReadAsync()
+          if hasNext then
+            // columns: table, rowid, parent, fkid
+            let row =
+              reader.GetString(0),
+              reader.GetValue(1).ToString(),
+              reader.GetString(2),
+              reader.GetValue(3).ToString()
+            violations.Add(row)
+          else
+            keepReading <- false
+        if violations.Count > 0 then
+          let summary =
+            violations
+            |> Seq.truncate 5
+            |> Seq.map (fun (t, r, p, f) -> $"  {t} rowid={r} → {p} (fk_id={f})")
+            |> String.concat "\n"
+          Exception.raiseInternal
+            $"foreign_key_check reported {violations.Count} \
+              violation(s) after grow:\n{summary}"
+            [ "first_violations", summary ]
 
         return int64 (List.length unappliedOps)
   }

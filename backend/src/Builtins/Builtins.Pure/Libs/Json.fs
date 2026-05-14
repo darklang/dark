@@ -112,8 +112,11 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
     else if System.Double.IsPositiveInfinity f then
       w.WriteStringValue "Infinity"
     else
-      let result = sprintf "%.16g" f
-      let result = if result.Contains "." then result else $"{result}.0"
+      let result =
+        f
+          .ToString("G16", System.Globalization.CultureInfo.InvariantCulture)
+          .Replace('E', 'e')
+      let result = if result.Contains "." then result else result + ".0"
       w.WriteRawValue result
 
   | DChar c -> w.WriteStringValue c

@@ -323,8 +323,11 @@ let fns () : List<BuiltInFn> =
             else if System.Double.IsNaN f then
               "NaN"
             else
-              let result = sprintf "%.12g" f
-              if result.Contains "." then result else $"{result}.0"
+              let result =
+                f
+                  .ToString("G12", System.Globalization.CultureInfo.InvariantCulture)
+                  .Replace('E', 'e')
+              if result.Contains "." then result else result + ".0"
           Ply(DString result)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

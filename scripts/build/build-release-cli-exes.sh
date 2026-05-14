@@ -53,6 +53,8 @@ rm -rf clis/.darklang
 
 # Export a seed (smaller DB) and use it as the embedded data.db for smaller exes.
 # The seed has full schema but no derived data — the grow step rebuilds on first run.
+# We intentionally ship the slim seed (not a pre-projected DB) so every user
+# has the same boot path and the ops are present for rewind/inspection.
 echo "Exporting seed for embedding..."
 sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || true
 scripts/run-local-exec export-seed rundir/seed.db
@@ -92,6 +94,25 @@ if [[ "$runtimes" == "$ALL_RUNTIMES" ]]; then
   ./scripts/build/build-tree-sitter-darklang.sh --runtimes=all
 else
   ./scripts/build/build-tree-sitter-darklang.sh --runtimes="${runtimes// /,}"
+fi
+
+# AOT-published CLIs statically link libe_sqlite3 (DirectPInvoke binding in
+# Cli.fsproj), so the per-RID archives must exist before `dotnet publish`.
+# JIT publish dynamically loads the .so from the NuGet, so this step is a
+# no-op for non-AOT builds. We filter win-* out: build-sqlite.sh doesn't
+# produce windows archives yet (and Cli.fsproj has no <NativeLibrary>
+# items for win-x64/win-arm64), so any AOT-win build would fail at link
+# time regardless. Caller is expected to skip win runtimes when --aot.
+if [[ "$AOT" == "true" ]]; then
+  sqlite_runtimes=""
+  for rt in $runtimes; do
+    if [[ "$rt" != win-* ]]; then
+      sqlite_runtimes+="${sqlite_runtimes:+,}$rt"
+    fi
+  done
+  if [[ -n "$sqlite_runtimes" ]]; then
+    ./scripts/build/build-sqlite.sh --runtimes="$sqlite_runtimes"
+  fi
 fi
 
 # Build function

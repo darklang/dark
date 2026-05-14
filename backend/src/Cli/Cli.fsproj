@@ -7,30 +7,27 @@
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <!-- Assembly linking - trim framework assemblies too -->
     <TrimMode>link</TrimMode>
-    <!-- More aggressive linking settings -->
-    <SuppressTrimAnalysisWarnings>true</SuppressTrimAnalysisWarnings>
+    <!-- Show every trim/AOT warning so latent reflective/dynamic-code paths
+         get surfaced (cf. the sprintf "%.Ng" float-formatter bug fixed
+         alongside this setting). If a warning is genuinely not actionable
+         after audit, suppress it locally via `<NoWarn>` on the offending
+         assembly's project, not globally. -->
+    <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
+    <TrimmerSingleWarn>false</TrimmerSingleWarn>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
     <TrimmerRemoveSymbols>true</TrimmerRemoveSymbols>
     <!-- Additional aggressive settings -->
     <InvariantGlobalization>true</InvariantGlobalization>
     <IlcOptimizationPreference>Size</IlcOptimizationPreference>
 
-    <!-- TODO (AOT, open): the AOT-published binary fails at first SQL call
-         with `DllNotFoundException: libe_sqlite3.so`. The native lib is
-         dropped beside the binary in the publish dir but isn't statically
-         linked, so the bare exe can't run on its own.
-         Two fix paths:
-           1. Sidecar — teach scripts/build/build-release-cli-exes.sh
-              (and scripts/build-and-install-cli-on-host) to copy
-              `libe_sqlite3.so` next to the binary on AOT builds.
-           2. Static-link via `<DirectPInvoke Include="e_sqlite3" />` plus
-              `<NativeLibrary Include="path/to/libe_sqlite3.a" />`. The
-              SQLitePCLRaw.lib.e_sqlite3 nuget only ships the .so, so this
-              path requires building (or sourcing) a static archive of
-              SQLite ourselves.
-         JIT release ships today; AOT is groundwork only until this is
-         resolved. -->
-
+    <!-- Statically link SQLite into the AOT binary so the published exe
+         has no libe_sqlite3.so dependency on the user's filesystem. The
+         archives are built by scripts/build/build-sqlite.sh from the
+         SQLite amalgamation via zig cc; one per runtime identifier in
+         lib/libe_sqlite3-<rid>.a. DllImport name in
+         SQLitePCLRaw.provider.e_sqlite3 is "e_sqlite3" — DirectPInvoke
+         matches that name so the linker resolves the imports at AOT
+         publish time. Per-RID <NativeLibrary> items below. -->
 
     <!-- Disable optional .NET runtime subsystems we don't use under AOT.
          Each prunes a meaningful slice of metadata + code from the published
@@ -40,6 +37,24 @@
     <EventSourceSupport>false</EventSourceSupport>
     <HttpActivityPropagationSupport>false</HttpActivityPropagationSupport>
     <UseSystemResourceKeys>true</UseSystemResourceKeys>
+    <!-- We don't hot-reload, don't run startup hooks, don't use built-in COM,
+         and don't need autorelease pool semantics (macOS-Cocoa-specific). -->
+    <MetadataUpdaterSupport>false</MetadataUpdaterSupport>
+    <StartupHookSupport>false</StartupHookSupport>
+    <BuiltInComInteropSupport>false</BuiltInComInteropSupport>
+    <AutoreleasePoolSupport>false</AutoreleasePoolSupport>
+    <EnableUnsafeBinaryFormatterSerialization>false</EnableUnsafeBinaryFormatterSerialization>
+    <EnableUnsafeUTF7Encoding>false</EnableUnsafeUTF7Encoding>
+    <!-- Custom resource manager kicks in only for satellite assemblies, which
+         we don't ship (InvariantGlobalization is on). -->
+    <CustomResourceTypesSupport>false</CustomResourceTypesSupport>
+
+    <!-- AOT-specific size wins. Drop user-code line metadata (native stack
+         traces via DWARF still work; the AggregateException-walking
+         diagnostic in Cli.fs still surfaces inner errors) and fold dup
+         method bodies across generic instantiations. -->
+    <IlcGenerateStackTraceData>false</IlcGenerateStackTraceData>
+    <IlcFoldIdenticalMethodBodies>true</IlcFoldIdenticalMethodBodies>
 
     <!-- We publish these for lots of different runtimes, so leave these empty and
          then specify them in scripts/build/build-release-cli-exes.sh. The
@@ -81,6 +96,43 @@
   <ItemGroup>
     <None Include="paket.references" />
     <TrimmerRootAssembly Include="LibExecution" />
+  </ItemGroup>
+
+  <!-- Static-link SQLite under NativeAOT. DirectPInvoke binds the managed
+       DllImport("e_sqlite3") calls to the linker; <NativeLibrary> tells the
+       AOT linker where to find the archive. Picked per RuntimeIdentifier;
+       must stay in sync with scripts/build/build-sqlite.sh.
+
+       Only active for PublishAot=true builds — JIT publish and `dotnet build`
+       (dev) ignore both items and dynamically load libe_sqlite3.so from the
+       NuGet at runtime.
+
+       The archives are produced by scripts/build/build-sqlite.sh. The
+       release script (build-release-cli-exes.sh) invokes it for AOT
+       targets automatically. A hand-rolled `dotnet publish` with
+       /p:PublishAot=true outside that script needs the archives present
+       first — run build-sqlite.sh with the appropriate runtimes argument
+       (see its header for the exact flag). -->
+  <ItemGroup Condition="'$(PublishAot)' == 'true'">
+    <DirectPInvoke Include="e_sqlite3" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(PublishAot)' == 'true' And '$(RuntimeIdentifier)' == 'linux-x64'">
+    <NativeLibrary Include="lib/libe_sqlite3-linux-x64.a" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(PublishAot)' == 'true' And '$(RuntimeIdentifier)' == 'linux-musl-x64'">
+    <NativeLibrary Include="lib/libe_sqlite3-linux-musl-x64.a" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(PublishAot)' == 'true' And '$(RuntimeIdentifier)' == 'linux-arm64'">
+    <NativeLibrary Include="lib/libe_sqlite3-linux-arm64.a" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(PublishAot)' == 'true' And '$(RuntimeIdentifier)' == 'linux-arm'">
+    <NativeLibrary Include="lib/libe_sqlite3-linux-arm.a" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(PublishAot)' == 'true' And '$(RuntimeIdentifier)' == 'osx-x64'">
+    <NativeLibrary Include="lib/libe_sqlite3-osx-x64.a" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(PublishAot)' == 'true' And '$(RuntimeIdentifier)' == 'osx-arm64'">
+    <NativeLibrary Include="lib/libe_sqlite3-osx-arm64.a" />
   </ItemGroup>
   <Target Name="PrintRuntimeIdentifierCli" BeforeTargets="BeforeBuild">
     <Message Importance="high" Text="RuntimeIdentifier in Cli is '$(RuntimeIdentifier)'" />

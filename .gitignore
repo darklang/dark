@@ -31,6 +31,10 @@ tree-sitter-darklang/tree-sitter-darklang.so
 tree-sitter-darklang/xplat-builds
 tree-sitter-darklang/src/parser.c
 
+# Native SQLite archives for AOT — built by scripts/build/build-sqlite.sh
+# from the amalgamation, cached locally + in CI.
+backend/src/Cli/lib/libe_sqlite3-*.a
+
 # Extension
 .vsix/*
 

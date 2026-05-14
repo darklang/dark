@@ -1,7 +1,3 @@
 Ply
 FSharp.Core
-FSharpX.Extras
-FSharpPlus
-FSharp.SystemTextJson
 NodaTime
-NodaTime.Serialization.SystemTextJson

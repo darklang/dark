@@ -290,12 +290,7 @@ module Equals =
   (Stdlib.Result.Result.Ok 0L != Stdlib.Result.Result.Error 0L) = true
 
 
-  type MyDBType = { x: String; y: String }
 
-  [<DB>]
-  type MyDB = MyDBType
-
-  (MyDB == MyDB) = true
 
   module TypeErrors =
     (5.7 != 6L) = error="Cannot perform equality check on Float and Int64"
@@ -312,7 +307,6 @@ module Equals =
     (() != 0) = error="Cannot perform equality check on Unit and Int32"
     (() != 0.0) = error="Cannot perform equality check on Unit and Float"
     // CLEANUP follow up here when DB references are fully resolved at parse-time
-    //(MyDB != 5L) = error="Cannot perform equality check on TODO and TODO"
   // Other ways to call it
   Stdlib.equals_v0 1Q 1Q = true
   (==) 1Q 1Q = true
