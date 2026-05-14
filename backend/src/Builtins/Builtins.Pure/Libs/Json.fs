@@ -113,7 +113,9 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
       w.WriteStringValue "Infinity"
     else
       let result =
-        f.ToString("G16", System.Globalization.CultureInfo.InvariantCulture)
+        f
+          .ToString("G16", System.Globalization.CultureInfo.InvariantCulture)
+          .Replace('E', 'e')
       let result = if result.Contains "." then result else result + ".0"
       w.WriteRawValue result
 
