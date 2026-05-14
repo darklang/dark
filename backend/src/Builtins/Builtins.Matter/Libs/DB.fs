@@ -151,8 +151,10 @@ let fns () : List<BuiltInFn> =
                   typ =
                     PT.TypeReference.TCustomType(
                       { originalName = []
-                        location = None
-                        resolved = Ok(PT.FQTypeName.Package typeHash) },
+                        resolved =
+                          Ok
+                            { name = PT.FQTypeName.Package typeHash
+                              location = None } },
                       []
                     ) }
 
@@ -183,7 +185,7 @@ let fns () : List<BuiltInFn> =
                 uply {
                   let! typeName =
                     match db.typ with
-                    | PT.TypeReference.TCustomType({ resolved = Ok(PT.FQTypeName.Package typeID) },
+                    | PT.TypeReference.TCustomType({ resolved = Ok { name = PT.FQTypeName.Package typeID } },
                                                    _) ->
                       uply {
                         let! locs = pm.getTypeLocations branchId typeID

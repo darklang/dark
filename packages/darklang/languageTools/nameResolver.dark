@@ -85,8 +85,9 @@ let namesToTryHelper
 /// `tryResolve` returns `Ok (fqname, location)` on success — `location`
 /// is `Some` for package items (the matched location after `namesToTry`
 /// expansion) and `None` for builtins. The location rides on the
-/// returned NameResolution's `location` field, so dep-edge inserts can
-/// populate location columns directly without a post-hoc lookup.
+/// returned `ResolvedName.location` inside the Ok branch, so dep-edge
+/// inserts can populate location columns directly without a post-hoc
+/// lookup.
 let resolveGenericName
   (ctx: NRContext)
   (name: WrittenTypes.Name)
@@ -106,7 +107,6 @@ let resolveGenericName
     | None ->
       ProgramTypes.NameResolution
         { originalName = given
-          location = Stdlib.Option.Option.None
           resolved = Stdlib.Result.Result.Error ProgramTypes.NameResolutionError.InvalidName }
     | Some name ->
       let genericName =
@@ -129,10 +129,17 @@ let resolveGenericName
               | Error() -> acc
               | Ok((success, loc)) -> (Stdlib.Result.Result.Ok success, loc))
 
+      // Pair the resolved name with the location that produced it. This
+      // makes "location without resolution" unrepresentable: on Error,
+      // there's no slot for a stray location to live in.
+      let resolved =
+        resolved
+        |> Stdlib.Result.map (fun n ->
+             ProgramTypes.ResolvedName { name = n; location = location })
+
       let nr =
         ProgramTypes.NameResolution
           { originalName = given
-            location = location
             resolved = resolved }
 
       throwIfRelevant ctx.onMissing nr

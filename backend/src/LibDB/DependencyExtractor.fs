@@ -26,8 +26,9 @@ let private extractFromNameResolution
   : List<Dependency> =
   match nr.resolved with
   | Ok resolved ->
-    match getPackageHash resolved with
-    | Some hash -> [ { hash = hash; itemKind = itemKind; location = nr.location } ]
+    match getPackageHash resolved.name with
+    | Some hash ->
+      [ { hash = hash; itemKind = itemKind; location = resolved.location } ]
     | None -> []
   | Error _ -> []
 

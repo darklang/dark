@@ -301,6 +301,13 @@ let rec debugDval (v : Dval) : string =
   | _ -> v.ToString()
 
 module Expect =
+  // `location` is resolver-derived metadata, not part of the user-typed
+  // name. Strip it when comparing NameResolutions so test fixtures
+  // predating location tracking still match.
+  let private stripNRLocation (nr : PT.NameResolution<_>) =
+    { nr with
+        resolved = nr.resolved |> Result.map (fun r -> { r with location = None }) }
+
   // Checks if the value (and all its contents) is in its desired
   // representation (in the event that there are multiple ways to represent
   // it). Think of this as a general form of string normalization.
@@ -729,7 +736,7 @@ module Expect =
         let path = (string name :: path)
         // `location` is resolver-derived metadata; ignore it when comparing
         // structurally so test fixtures predating Phase 1 still match.
-        check path { name with location = None } { name' with location = None }
+        check path (stripNRLocation name) (stripNRLocation name')
         check path (List.length typeArgs) (List.length typeArgs')
         List.iteri2
           (fun i l r -> dTypeEqualityBaseFn (string i :: path) l r errorFn)
@@ -828,7 +835,7 @@ module Expect =
       | EVariable(_, v), EVariable(_, v') -> check path v v'
       | EArg(_, v), EArg(_, v') -> check path v v'
       | EValue(_, name), EValue(_, name') ->
-        check path { name with location = None } { name' with location = None }
+        check path (stripNRLocation name) (stripNRLocation name')
       | ELet(_, pat, rhs, body), ELet(_, pat', rhs', body') ->
         letPatternEqualityBaseFn checkIDs path pat pat' errorFn
         eq ("rhs" :: path) rhs rhs'
@@ -860,7 +867,7 @@ module Expect =
         eqNEList path args args'
 
       | EFnName(_, name), EFnName(_, name') ->
-        check path { name with location = None } { name' with location = None }
+        check path (stripNRLocation name) (stripNRLocation name')
 
       // | ERecord(_, typeName, typeArgs, fields), ERecord(_, typeName', typeArgs', fields') ->
       //   typeNameEqualityBaseFn path typeName typeName' errorFn

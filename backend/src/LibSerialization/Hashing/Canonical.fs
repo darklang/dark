@@ -85,9 +85,9 @@ let writeNameResolution
   (nr : PT.NameResolution<'a>)
   =
   match nr.resolved with
-  | Ok value ->
+  | Ok resolved ->
     w.Write(0uy)
-    writeValue w nr.location value
+    writeValue w resolved.location resolved.name
   | Error error ->
     w.Write(1uy)
     PTC.NameResolutionError.write w error

@@ -60,32 +60,34 @@ module NameResolution =
     (nr : NameResolution<'a>)
     =
     List.write w String.write nr.originalName
-    match nr.location with
-    | None -> w.Write(0uy)
-    | Some loc ->
-      w.Write(1uy)
-      PackageLocation.write w loc
     match nr.resolved with
-    | Ok value ->
+    | Ok resolved ->
       w.Write(0uy)
-      writeValue w value
+      writeValue w resolved.name
+      match resolved.location with
+      | None -> w.Write(0uy)
+      | Some loc ->
+        w.Write(1uy)
+        PackageLocation.write w loc
     | Error error ->
       w.Write(1uy)
       NameResolutionError.write w error
 
   let read (readValue : BinaryReader -> 'a) (r : BinaryReader) : NameResolution<'a> =
     let originalName = List.read r String.read
-    let location =
-      match r.ReadByte() with
-      | 0uy -> None
-      | 1uy -> Some(PackageLocation.read r)
-      | b -> raiseFormatError $"Invalid NameResolution location tag: {b}"
     let resolved =
       match r.ReadByte() with
-      | 0uy -> Ok(readValue r)
+      | 0uy ->
+        let name = readValue r
+        let location =
+          match r.ReadByte() with
+          | 0uy -> None
+          | 1uy -> Some(PackageLocation.read r)
+          | b -> raiseFormatError $"Invalid NameResolution location tag: {b}"
+        Ok { name = name; location = location }
       | 1uy -> Error(NameResolutionError.read r)
       | b -> raiseFormatError $"Invalid NameResolution tag: {b}"
-    { originalName = originalName; location = location; resolved = resolved }
+    { originalName = originalName; resolved = resolved }
 
 
 module FQTypeName =

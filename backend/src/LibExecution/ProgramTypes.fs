@@ -202,22 +202,29 @@ type NameResolutionError =
   | NotFound
   | InvalidName
 
-/// `originalName` is the user-typed name (a list of qualifiers).
+/// A successfully resolved name and (where applicable) the package
+/// location that resolved it.
+///
 /// `location` is the matched fully-qualified location after `namesToTry`
-///   expansion — populated for resolved package items, `None` for
-///   builtins or anything that didn't resolve. Carrying the location
-///   alongside the resolved hash lets dep-edge inserts populate
-///   `depends_on_(owner|modules|name)` directly without a post-hoc
-///   lookup.
-/// `resolved` is the resolved name (or the resolution error).
+///   expansion — `Some` for resolved package items, `None` for builtins
+///   (and for resolved package items where no location was captured).
+///   Carrying it alongside the resolved hash lets downstream consumers
+///   skip a post-hoc lookup: dep-edge inserts, propagation rewrites
+///   (AstTransformer's byLocation substitution), SCC hash substitution
+///   (Canonical), and deferred refresh after a package moves.
+type ResolvedName<'a> = { name : 'a; location : Option<PackageLocation> }
+
+/// `originalName` is the user-typed name (a list of qualifiers).
+/// `resolved` is the resolved name (or the resolution error). The Ok
+///   payload bundles the resolved name with its package location so
+///   "location without resolution" is unrepresentable.
 type NameResolution<'a> =
   { originalName : List<string>
-    location : Option<PackageLocation>
-    resolved : Result<'a, NameResolutionError> }
+    resolved : Result<ResolvedName<'a>, NameResolutionError> }
 
 module NameResolution =
   let ok (value : 'a) : NameResolution<'a> =
-    { originalName = []; location = None; resolved = Ok value }
+    { originalName = []; resolved = Ok { name = value; location = None } }
 
 
 type LetPattern =

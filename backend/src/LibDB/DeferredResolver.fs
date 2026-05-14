@@ -72,7 +72,9 @@ let private refreshResolvedAtLocation
   uply {
     match! findInPM (branchId, loc) with
     | Some hash when hash = currentHash -> return nr
-    | Some hash -> return { nr with resolved = Ok(makePackage hash) }
+    | Some hash ->
+      return
+        { nr with resolved = Ok { name = makePackage hash; location = Some loc } }
     // Location is authoritative. If it disappeared, do not silently
     // re-resolve the same text into another namespace.
     | None -> return nr
@@ -91,16 +93,16 @@ let private reResolveNameResolution
   (getCurrentHash : 'a -> Option<Hash>)
   (parseName : string -> Result<string * int, string>)
   : Ply<PT.NameResolution<'a>> =
-  match nr.resolved, nr.location with
-  | Error PT.NameResolutionError.InvalidName, _ -> Ply nr
+  match nr.resolved with
+  | Error PT.NameResolutionError.InvalidName -> Ply nr
 
-  | Ok resolved, Some loc ->
-    match getCurrentHash resolved with
+  | Ok { name = name; location = Some loc } ->
+    match getCurrentHash name with
     | Some currentHash ->
       refreshResolvedAtLocation branchId nr loc findInPM makePackage currentHash
     | None -> Ply nr
 
-  | _, _ ->
+  | _ ->
     match List.splitLast nr.originalName with
     | None -> Ply nr
     | Some(modules, lastName) ->
@@ -117,7 +119,9 @@ let private reResolveNameResolution
 
           match result with
           | Some(hash, loc) ->
-            return { nr with location = Some loc; resolved = Ok(makePackage hash) }
+            return
+              { nr with
+                  resolved = Ok { name = makePackage hash; location = Some loc } }
           | None -> return nr
       }
 

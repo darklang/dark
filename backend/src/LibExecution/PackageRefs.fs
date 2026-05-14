@@ -245,6 +245,7 @@ module Type =
       let private p addl = p ("ProgramTypes" :: addl)
       let hash = p [] "Hash"
       let nameResolutionError = p [] "NameResolutionError"
+      let resolvedName = p [] "ResolvedName"
       let nameResolution = p [] "NameResolution"
 
       module FQTypeName =

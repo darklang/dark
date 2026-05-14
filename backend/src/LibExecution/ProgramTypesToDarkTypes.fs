@@ -207,6 +207,39 @@ module PackageLocation =
     | _ -> Exception.raiseInternal "Invalid PackageLocation" []
 
 
+module ResolvedName =
+  let typeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.ProgramTypes.resolvedName ()
+    )
+  let knownType (nameValueType : KnownType) : KnownType =
+    KTCustomType(typeName (), [ VT.known nameValueType ])
+
+  let toDT
+    (nameValueType : KnownType)
+    (f : 'p -> Dval)
+    (r : PT.ResolvedName<'p>)
+    : Dval =
+    let name = f r.name
+    let location =
+      C2DT.Option.toDT PackageLocation.toDT (PackageLocation.knownType ()) r.location
+    DRecord(
+      typeName (),
+      typeName (),
+      [ VT.known nameValueType ],
+      Map [ "name", name; "location", location ]
+    )
+
+  let fromDT (f : Dval -> 'a) (d : Dval) : PT.ResolvedName<'a> =
+    match d with
+    | DRecord(_, _, _, fields) ->
+      let name = fields |> D.field "name" |> f
+      let location =
+        fields |> D.field "location" |> C2DT.Option.fromDT PackageLocation.fromDT
+      { name = name; location = location }
+    | _ -> Exception.raiseInternal "Invalid ResolvedName" []
+
+
 module NameResolution =
   let typeName () =
     FQTypeName.fqPackage (
@@ -219,38 +252,30 @@ module NameResolution =
     (nr : PT.NameResolution<'p>)
     : Dval =
     let originalName = DList(VT.string, List.map Dval.string nr.originalName)
-    let location =
-      C2DT.Option.toDT
-        PackageLocation.toDT
-        (PackageLocation.knownType ())
-        nr.location
     let resolved =
       C2DT.Result.toDT
-        nameValueType
+        (ResolvedName.knownType nameValueType)
         (NameResolutionError.knownType ())
         nr.resolved
-        f
+        (ResolvedName.toDT nameValueType f)
         NameResolutionError.toDT
     DRecord(
       typeName (),
       typeName (),
       [ VT.known nameValueType ],
-      Map
-        [ "originalName", originalName; "location", location; "resolved", resolved ]
+      Map [ "originalName", originalName; "resolved", resolved ]
     )
 
   let fromDT (f : Dval -> 'a) (d : Dval) : PT.NameResolution<'a> =
     match d with
     | DRecord(_, _, _, fields) ->
       let originalName = fields |> D.field "originalName" |> D.list D.string
-      let location =
-        fields |> D.field "location" |> C2DT.Option.fromDT PackageLocation.fromDT
       let resolved =
         C2DT.Result.fromDT
-          f
+          (ResolvedName.fromDT f)
           (fields |> D.field "resolved")
           NameResolutionError.fromDT
-      { originalName = originalName; location = location; resolved = resolved }
+      { originalName = originalName; resolved = resolved }
     | _ -> Exception.raiseInternal "Invalid NameResolution" []
 
 
