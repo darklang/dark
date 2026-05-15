@@ -123,6 +123,29 @@ module RuntimeError =
     Stdlib.String.join parts ""
 
 
+  /// For a value type that has a `toString` in stdlib, return a hint
+  /// suffix pointing the user at the right conversion function. Empty
+  /// string otherwise (Unknown, Unit, String, collection/custom types).
+  let toStringHint (vt: LanguageTools.RuntimeTypes.ValueType) : String =
+    match vt with
+    | Known KTInt8 -> ". Try wrapping it with `Stdlib.Int8.toString`."
+    | Known KTUInt8 -> ". Try wrapping it with `Stdlib.UInt8.toString`."
+    | Known KTInt16 -> ". Try wrapping it with `Stdlib.Int16.toString`."
+    | Known KTUInt16 -> ". Try wrapping it with `Stdlib.UInt16.toString`."
+    | Known KTInt32 -> ". Try wrapping it with `Stdlib.Int32.toString`."
+    | Known KTUInt32 -> ". Try wrapping it with `Stdlib.UInt32.toString`."
+    | Known KTInt64 -> ". Try wrapping it with `Stdlib.Int64.toString`."
+    | Known KTUInt64 -> ". Try wrapping it with `Stdlib.UInt64.toString`."
+    | Known KTInt128 -> ". Try wrapping it with `Stdlib.Int128.toString`."
+    | Known KTUInt128 -> ". Try wrapping it with `Stdlib.UInt128.toString`."
+    | Known KTFloat -> ". Try wrapping it with `Stdlib.Float.toString`."
+    | Known KTBool -> ". Try wrapping it with `Stdlib.Bool.toString`."
+    | Known KTChar -> ". Try wrapping it with `Stdlib.Char.toString`."
+    | Known KTDateTime -> ". Try wrapping it with `Stdlib.DateTime.toString`."
+    | Known KTUuid -> ". Try wrapping it with `Stdlib.Uuid.toString`."
+    | _ -> ""
+
+
   let toSegments
     (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
     : ErrorSegments =
@@ -165,7 +188,7 @@ module RuntimeError =
         ES.ValueType vt
         ES.String " ("
         ES.InlineValue dv
-        ES.String ") instead" ]
+        ES.String $") instead{toStringHint vt}" ]
 
     | List (TriedToAddMismatchedData (index, expectedType, actualType, actualValue)) ->
       [ ES.String "Cannot add "
