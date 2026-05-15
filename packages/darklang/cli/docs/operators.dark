@@ -14,9 +14,9 @@ let content () : String =
   NO / -> Stdlib.Int64.divide
 
 ## Float
-  +. *.
-  NO -. -> Stdlib.Float.subtract
-  Stdlib.Float.divide for division
+  NO infix operators — use Stdlib.Float.add / subtract / multiply / divide
+  (`+`/`-`/`*` parse-dispatch to Int64 at parse time; `1.0 + 2.0`
+   fails at runtime with an int64Add type error.)
 
 ## String
   ++   concat
