@@ -1216,6 +1216,158 @@ module Dval =
     | DStream(impl, _, _) -> ValueType.Known(KTStream(StreamImpl.elemType impl))
 
 
+  /// Generic Dval-rewriting walker. At each node, asks `f`:
+  ///   - `Some dv'` → substitute, do not recurse further into the original
+  ///   - `None`     → recurse into containers and rebuild
+  ///
+  /// Recurses into DList/DTuple/DDict/DRecord/DEnum and into
+  /// DApplicable closures (closed registers + partially-applied args).
+  /// The closure recursion is required for persistence boundaries —
+  /// a lambda capturing an ephemeral blob or a stream must have its
+  /// environment rewritten alongside the rest of the value graph.
+  ///
+  /// Callers that only want to rewrite specific leaf shapes return
+  /// `None` everywhere else; the walker handles the structural
+  /// recursion and container rebuilds.
+  ///
+  /// Preserves structural sharing: when `f` returns `None` for every
+  /// reachable leaf, every container returns its original reference
+  /// (compared with `obj.ReferenceEquals`) rather than reconstructing.
+  /// Map containers in particular avoid the O(N log N) `Map.ofList`
+  /// rebuild path.
+  let rewriteWith (f : Dval -> Ply.Ply<Dval option>) (dv : Dval) : Ply.Ply<Dval> =
+    let inline same (a : obj) (b : obj) = obj.ReferenceEquals(a, b)
+
+    let rec go (dv : Dval) : Ply.Ply<Dval> =
+      uply {
+        let! substituted = f dv
+        match substituted with
+        | Some dv' -> return dv'
+        | None ->
+          match dv with
+          | DUnit
+          | DBool _
+          | DInt8 _
+          | DUInt8 _
+          | DInt16 _
+          | DUInt16 _
+          | DInt32 _
+          | DUInt32 _
+          | DInt64 _
+          | DUInt64 _
+          | DInt128 _
+          | DUInt128 _
+          | DFloat _
+          | DChar _
+          | DString _
+          | DDateTime _
+          | DUuid _
+          | DDB _
+          | DStream _
+          | DBlob _ -> return dv
+
+          | DList(vt, items) ->
+            let! items' = walkItems items
+            return (if same items' items then dv else DList(vt, items'))
+
+          | DTuple(a, b, rest) ->
+            let! a' = go a
+            let! b' = go b
+            let! rest' = walkItems rest
+            if same a' a && same b' b && same rest' rest then
+              return dv
+            else
+              return DTuple(a', b', rest')
+
+          | DDict(vt, entries) ->
+            let! entries' = walkMap entries
+            return (if same entries' entries then dv else DDict(vt, entries'))
+
+          | DRecord(src, rt, typeArgs, fields) ->
+            let! fields' = walkMap fields
+            return
+              (if same fields' fields then
+                 dv
+               else
+                 DRecord(src, rt, typeArgs, fields'))
+
+          | DEnum(src, rt, typeArgs, caseName, fields) ->
+            let! fields' = walkItems fields
+            return
+              (if same fields' fields then
+                 dv
+               else
+                 DEnum(src, rt, typeArgs, caseName, fields'))
+
+          | DApplicable(AppLambda lambda) ->
+            let! cr' = walkRegisters lambda.closedRegisters
+            let! args' = walkItems lambda.argsSoFar
+            if same cr' lambda.closedRegisters && same args' lambda.argsSoFar then
+              return dv
+            else
+              return
+                DApplicable(
+                  AppLambda { lambda with closedRegisters = cr'; argsSoFar = args' }
+                )
+
+          | DApplicable(AppNamedFn namedFn) ->
+            let! args' = walkItems namedFn.argsSoFar
+            if same args' namedFn.argsSoFar then
+              return dv
+            else
+              return DApplicable(AppNamedFn { namedFn with argsSoFar = args' })
+      }
+
+    /// Walk a `List<Dval>` element by element; return the original list
+    /// reference if every child walked to itself, else build a new list
+    /// with the walked results.
+    and walkItems (xs : List<Dval>) : Ply.Ply<List<Dval>> =
+      uply {
+        match xs with
+        | [] -> return xs
+        | _ ->
+          let arr = List.toArray xs
+          let mutable changed = false
+          for i in 0 .. arr.Length - 1 do
+            let! y = go arr[i]
+            if not (same y arr[i]) then
+              changed <- true
+              arr[i] <- y
+          return (if changed then List.ofArray arr else xs)
+      }
+
+    /// Walk a `List<Register * Dval>` (lambda closed registers); only
+    /// the Dval can change.
+    and walkRegisters (rs : List<Register * Dval>) : Ply.Ply<List<Register * Dval>> =
+      uply {
+        match rs with
+        | [] -> return rs
+        | _ ->
+          let arr = List.toArray rs
+          let mutable changed = false
+          for i in 0 .. arr.Length - 1 do
+            let r, v = arr[i]
+            let! v' = go v
+            if not (same v' v) then
+              changed <- true
+              arr[i] <- (r, v')
+          return (if changed then List.ofArray arr else rs)
+      }
+
+    /// Walk a `Map<string, Dval>`; return the original Map reference
+    /// when nothing changes, otherwise reuse the original map and
+    /// replace only the changed entries.
+    and walkMap (m : Map<string, Dval>) : Ply.Ply<Map<string, Dval>> =
+      uply {
+        let mutable acc = m
+        for KeyValue(k, v) in m do
+          let! v' = go v
+          if not (same v' v) then acc <- Map.add k v' acc
+        return acc
+      }
+
+    go dv
+
 
 
 // ------------
