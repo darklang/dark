@@ -91,6 +91,48 @@ let split (string: String) (separator: String) : List<String> =
   Builtin.stringSplit string separator
 
 
+/// Splits <param string> at the **first** occurrence of <param separator>, returning
+/// {{Some (before, after)}}. Unlike {{split}}, the {{after}} half retains any further
+/// occurrences of the separator — useful for parsing `key=value` rows where the value
+/// may itself contain `=`. Returns {{None}} if the separator is empty or not found.
+let splitFirst
+  (string: String)
+  (separator: String)
+  : Option.Option<(String * String)> =
+  if separator == "" then
+    Option.Option.None
+  else
+    // indexOfEgc (not indexOf) because first / dropFirst / length are EGC-indexed.
+    match String.indexOfEgc string separator with
+    | None -> Option.Option.None
+    | Some i ->
+      let before = String.first string i
+      let after = String.dropFirst string (i + String.length separator)
+      Option.Option.Some((before, after))
+
+
+/// Splits <param string> at <param separator> into **at most** <param n> pieces.
+/// The last piece retains any further occurrences of the separator intact —
+/// useful for parsing rows of structured data where the value field may contain
+/// the separator. If <param n> <= 1, the separator is empty, or the separator
+/// is not found, returns {{[string]}} unchanged.
+let splitN
+  (string: String)
+  (separator: String)
+  (n: Int64)
+  : List<String> =
+  if n <= 1L || separator == "" then
+    [ string ]
+  else
+    // indexOfEgc (not indexOf) because first / dropFirst / length are EGC-indexed.
+    match String.indexOfEgc string separator with
+    | None -> [ string ]
+    | Some i ->
+      let before = String.first string i
+      let rest = String.dropFirst string (i + String.length separator)
+      List.push (String.splitN rest separator (n - 1L)) before
+
+
 /// Combines a list of strings with the provided separator
 let join (l: List<String>) (separator: String) : String =
   Builtin.stringJoin l separator
@@ -379,19 +421,48 @@ let endsWith (subject: String) (suffix: String) : Bool =
   == suffix
 
 
-/// Returns {{Just index}} of the first occurrence of <param searchFor> in <param str>, or returns {{Nothing}} if <param searchFor> does not occur.
+/// Returns {{Just index}} of the first occurrence of <param searchFor> in <param str>,
+/// measured in UTF-16 code units. Returns {{Nothing}} if <param searchFor> does not occur.
+/// The returned index is **not** suitable for arithmetic with {{first}}, {{dropFirst}},
+/// or {{slice}}, which are all EGC-indexed — for that, use {{indexOfEgc}}.
 let indexOf (str: String) (searchFor: String) : Option.Option<Int64> =
   let idx = Builtin.stringIndexOf str searchFor
   if idx == -1L then Option.Option.None else Option.Option.Some idx
 
 
+/// Returns {{Just index}} of the first occurrence of <param searchFor> in <param str>,
+/// measured in extended grapheme clusters (consistent with {{length}}, {{slice}},
+/// {{first}}, and {{dropFirst}}). Returns {{Nothing}} if <param searchFor> does not occur.
+/// The match must begin and end on EGC boundaries — searching for a partial grapheme
+/// (e.g. a base codepoint inside a ZWJ sequence) will not match.
+let indexOfEgc (str: String) (searchFor: String) : Option.Option<Int64> =
+  let idx = Builtin.stringIndexOfEgc str searchFor
+  if idx == -1L then Option.Option.None else Option.Option.Some idx
+
+
 /// Returns {{Just index}} of the last occurrence of <param searchFor> in <param str>,
-/// or returns {{Nothing}} if <param searchFor> does not occur.
+/// measured in UTF-16 code units. Returns {{Nothing}} if <param searchFor> does not occur.
+/// For an EGC-indexed result, use {{lastIndexOfEgc}}.
 let lastIndexOf
   (str: String)
   (searchFor: String)
   : Option.Option<Int64> =
   let lastIndex = Builtin.stringLastIndexOf str searchFor
+
+  if lastIndex == -1L then
+    Option.Option.None
+  else
+    Option.Option.Some(lastIndex)
+
+
+/// Returns {{Just index}} of the last occurrence of <param searchFor> in <param str>,
+/// measured in extended grapheme clusters. Returns {{Nothing}} if <param searchFor>
+/// does not occur. The match must begin and end on EGC boundaries.
+let lastIndexOfEgc
+  (str: String)
+  (searchFor: String)
+  : Option.Option<Int64> =
+  let lastIndex = Builtin.stringLastIndexOfEgc str searchFor
 
   if lastIndex == -1L then
     Option.Option.None
