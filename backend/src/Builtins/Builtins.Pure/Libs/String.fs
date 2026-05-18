@@ -449,12 +449,14 @@ let fns () : List<BuiltInFn> =
          {{String.slice}}, {{String.first}}, and {{String.dropFirst}} (which are all
          EGC-indexed), use {{stringIndexOfEgc}}.
 
-         Note on SQL: SQLite's INSTR counts Unicode code points, not UTF-16 code units,
-         so the SQL form agrees with this F# implementation on the -1 sentinel and on
-         ASCII inputs, but the returned offset may differ for non-BMP characters
-         (e.g. `INSTR('😄a', 'a') - 1 = 1`, but `.NET IndexOf` returns 2). Only the
-         not-found check (which is what {{String.contains}} relies on) is portable
-         between in-memory and SQL execution."
+         Note on SQL: SQLite's INSTR and .NET's IndexOf both tell us whether
+         a substring was found, but they count positions differently for some
+         Unicode text. SQLite counts Unicode characters; .NET IndexOf counts
+         UTF-16 code units. For example, SQLite reports the \"a\" in \"😄a\" at
+         index 1, while .NET reports it at index 2 because the emoji takes two
+         UTF-16 code units. So {{String.contains}} is portable in SQL because it
+         only checks found/not-found, but {{String.indexOf}} may return different
+         numeric indexes outside simple ASCII text."
       fn =
         (function
         | _, _, _, [ DString str; DString search ] ->
@@ -506,9 +508,8 @@ let fns () : List<BuiltInFn> =
                   starts[boundaryPtr] = targetEnd
                 else
                   targetEnd = str.Length
-              if
-                endIsBoundary
-                && System.String.Compare(
+              let matches =
+                System.String.Compare(
                   str,
                   elementIndex,
                   search,
@@ -516,8 +517,7 @@ let fns () : List<BuiltInFn> =
                   search.Length,
                   System.StringComparison.Ordinal
                 ) = 0
-              then
-                foundAt <- egcIndex
+              if endIsBoundary && matches then foundAt <- egcIndex
               egcIndex <- egcIndex + 1
             Ply(DInt64(int64 foundAt))
         | _ -> incorrectArgs ())
@@ -586,9 +586,8 @@ let fns () : List<BuiltInFn> =
                   starts[boundaryPtr] = targetEnd
                 else
                   targetEnd = str.Length
-              if
-                endIsBoundary
-                && System.String.Compare(
+              let matches =
+                System.String.Compare(
                   str,
                   elementIndex,
                   search,
@@ -596,8 +595,7 @@ let fns () : List<BuiltInFn> =
                   search.Length,
                   System.StringComparison.Ordinal
                 ) = 0
-              then
-                lastFound <- egcIndex
+              if endIsBoundary && matches then lastFound <- egcIndex
               egcIndex <- egcIndex + 1
             Ply(DInt64(int64 lastFound))
         | _ -> incorrectArgs ())

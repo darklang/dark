@@ -848,11 +848,6 @@ module IndexOf =
   Stdlib.String.indexOf_v0 "" "" = Stdlib.Option.Option.Some 0L
   Stdlib.String.indexOf_v0 "hello" "" = Stdlib.Option.Option.Some 0L
   Stdlib.String.indexOf_v0 "" "hello" = Stdlib.Option.Option.None
-  // Indexes are UTF-16 code units (the .NET string representation). SQLite's
-  // INSTR counts code points and so will return different offsets for non-BMP
-  // text — only the not-found sentinel is portable across in-memory and SQL
-  // execution. Use indexOfEgc for grapheme-cluster indexing that pairs with
-  // first / dropFirst / slice / length.
   Stdlib.String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽" = Stdlib.Option.Option.Some 6L
   Stdlib.String.indexOf_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏿" = Stdlib.Option.Option.None
   Stdlib.String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦" = Stdlib.Option.Option.Some 11L
