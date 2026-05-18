@@ -492,6 +492,72 @@ module Split =
   Stdlib.String.split "👨‍👩‍👧‍👦" "👩" = [ "👨‍👩‍👧‍👦" ]
 
 
+module SplitFirst =
+  Stdlib.String.splitFirst "a|b" "|" = Stdlib.Option.Option.Some(("a", "b"))
+  Stdlib.String.splitFirst "a|b|c|d" "|" = Stdlib.Option.Option.Some(("a", "b|c|d"))
+  Stdlib.String.splitFirst "key=value" "=" = Stdlib.Option.Option.Some(("key", "value"))
+  Stdlib.String.splitFirst "PATH=/usr/bin:/bin" "=" = Stdlib.Option.Option.Some(("PATH", "/usr/bin:/bin"))
+  Stdlib.String.splitFirst "Date: Wed, 14 May 2026 09:00:00 GMT" ": " = Stdlib.Option.Option.Some(("Date", "Wed, 14 May 2026 09:00:00 GMT"))
+
+  Stdlib.String.splitFirst "abc" "|" = Stdlib.Option.Option.None
+  Stdlib.String.splitFirst "" "|" = Stdlib.Option.Option.None
+  Stdlib.String.splitFirst "|abc" "|" = Stdlib.Option.Option.Some(("", "abc"))
+  Stdlib.String.splitFirst "abc|" "|" = Stdlib.Option.Option.Some(("abc", ""))
+  Stdlib.String.splitFirst "||" "|" = Stdlib.Option.Option.Some(("", "|"))
+
+  Stdlib.String.splitFirst "a==b==c" "==" = Stdlib.Option.Option.Some(("a", "b==c"))
+  Stdlib.String.splitFirst "no-sep-here" "==" = Stdlib.Option.Option.None
+
+  Stdlib.String.splitFirst "abc" "" = Stdlib.Option.Option.None
+  Stdlib.String.splitFirst "" "" = Stdlib.Option.Option.None
+
+  Stdlib.String.splitFirst "hello😄world" "😄" = Stdlib.Option.Option.Some(("hello", "world"))
+  Stdlib.String.splitFirst "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼" "🧑🏼‍💻" = Stdlib.Option.Option.Some(("🧑🏽‍🦰", "🧑🏻‍🍼"))
+
+  // ZWJ separator at start, end, and with non-BMP prefix.
+  Stdlib.String.splitFirst "🧑🏼‍💻rest" "🧑🏼‍💻" = Stdlib.Option.Option.Some(("", "rest"))
+  Stdlib.String.splitFirst "rest🧑🏼‍💻" "🧑🏼‍💻" = Stdlib.Option.Option.Some(("rest", ""))
+  Stdlib.String.splitFirst "żółw🧑🏼‍💻tail" "🧑🏼‍💻" = Stdlib.Option.Option.Some(("żółw", "tail"))
+
+  // BMP-but-multi-char-codepoint prefix (combining marks): "ą́" is "a" + combining acute.
+  Stdlib.String.splitFirst "ą́|b" "|" = Stdlib.Option.Option.Some(("ą́", "b"))
+
+  // Mid-grapheme search returns None: 🧑 alone is not a complete EGC of 🧑🏼‍💻.
+  Stdlib.String.splitFirst "🧑🏼‍💻" "🧑" = Stdlib.Option.Option.None
+
+
+module SplitN =
+  Stdlib.String.splitN "a|b|c|d" "|" 2L = [ "a"; "b|c|d" ]
+  Stdlib.String.splitN "a|b|c|d" "|" 3L = [ "a"; "b"; "c|d" ]
+  Stdlib.String.splitN "a|b|c|d" "|" 4L = [ "a"; "b"; "c"; "d" ]
+  Stdlib.String.splitN "a|b|c|d" "|" 99L = [ "a"; "b"; "c"; "d" ]
+
+  Stdlib.String.splitN "a|b|c|d" "|" 1L = [ "a|b|c|d" ]
+  Stdlib.String.splitN "a|b|c|d" "|" 0L = [ "a|b|c|d" ]
+  Stdlib.String.splitN "a|b|c|d" "|" -1L = [ "a|b|c|d" ]
+
+  Stdlib.String.splitN "abc" "|" 3L = [ "abc" ]
+  Stdlib.String.splitN "" "|" 3L = [ "" ]
+
+  Stdlib.String.splitN "abc" "" 3L = [ "abc" ]
+  Stdlib.String.splitN "a|b" "" 2L = [ "a|b" ]
+
+  Stdlib.String.splitN "hello😄world😄sun" "😄" 2L = [ "hello"; "world😄sun" ]
+  Stdlib.String.splitN "a==b==c==d" "==" 3L = [ "a"; "b"; "c==d" ]
+
+  // ZWJ-bearing prefixes work because splitN routes through indexOfEgc.
+  Stdlib.String.splitN "🧑🏽‍🦰|🧑🏼‍💻|🧑🏻‍🍼" "|" 2L = [ "🧑🏽‍🦰"; "🧑🏼‍💻|🧑🏻‍🍼" ]
+  Stdlib.String.splitN "🧑🏽‍🦰|🧑🏼‍💻|🧑🏻‍🍼" "|" 3L = [ "🧑🏽‍🦰"; "🧑🏼‍💻"; "🧑🏻‍🍼" ]
+
+  // ZWJ separator with mixed-width content on both sides.
+  Stdlib.String.splitN "a🧑🏼‍💻b🧑🏼‍💻c" "🧑🏼‍💻" 2L = [ "a"; "b🧑🏼‍💻c" ]
+  Stdlib.String.splitN "a🧑🏼‍💻b🧑🏼‍💻c" "🧑🏼‍💻" 3L = [ "a"; "b"; "c" ]
+  Stdlib.String.splitN "żółw🧑🏼‍💻x🧑🏼‍💻y" "🧑🏼‍💻" 2L = [ "żółw"; "x🧑🏼‍💻y" ]
+
+  // Adjacent separators yield empty pieces, with a ZWJ separator.
+  Stdlib.String.splitN "🧑🏼‍💻🧑🏼‍💻x" "🧑🏼‍💻" 3L = [ ""; ""; "x" ]
+
+
 module ToLowercase =
   Stdlib.String.toLowercase "HELLO😄WORLD" = "hello😄world"
   Stdlib.String.toLowercase "" = ""
@@ -788,6 +854,52 @@ module IndexOf =
   Stdlib.String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = Stdlib.Option.Option.Some 4L
   Stdlib.String.indexOf_v0 "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "👱🏽" = Stdlib.Option.Option.None
   Stdlib.String.indexOf_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "🧑🏻‍🍼" = Stdlib.Option.Option.None
+
+
+module IndexOfEgc =
+  // Mirror of the IndexOf module above, but in EGC units. Pair with first /
+  // dropFirst / slice / length for correct emoji-safe slicing.
+  Stdlib.String.indexOfEgc "hello world" "world" = Stdlib.Option.Option.Some 6L
+  Stdlib.String.indexOfEgc "hello world" "earth" = Stdlib.Option.Option.None
+  Stdlib.String.indexOfEgc "" "" = Stdlib.Option.Option.Some 0L
+  Stdlib.String.indexOfEgc "hello" "" = Stdlib.Option.Option.Some 0L
+  Stdlib.String.indexOfEgc "" "hello" = Stdlib.Option.Option.None
+
+  // "👱👱🏻" is 2 EGCs, "👨‍❤️‍💋‍👨" is 1 EGC, "żółw" is 4 EGCs.
+  Stdlib.String.indexOfEgc "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏽" = Stdlib.Option.Option.Some 2L
+  Stdlib.String.indexOfEgc "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼👱🏿" = Stdlib.Option.Option.None
+  Stdlib.String.indexOfEgc "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷" "👩‍👩‍👧‍👦" = Stdlib.Option.Option.Some 1L
+  Stdlib.String.indexOfEgc "żółw🧑🏽‍🦰🧑🏻‍🍼✋✋🏻✋🏿" "🧑🏽‍🦰" = Stdlib.Option.Option.Some 4L
+
+  // Matches must align to EGC boundaries on both sides. Searching for a partial
+  // grapheme inside a full one returns None: 🧑 is not a complete EGC of 🧑🏼‍💻.
+  Stdlib.String.indexOfEgc "🧑🏼‍💻" "🧑" = Stdlib.Option.Option.None
+  // Standalone 🧑 at EGC index 0 is matchable when it stands on its own.
+  Stdlib.String.indexOfEgc "🧑🧑🏼‍💻" "🧑" = Stdlib.Option.Option.Some 0L
+
+
+module LastIndexOfEgc =
+  // Basic ASCII: last occurrence wins.
+  Stdlib.String.lastIndexOfEgc "hello world hello" "hello" = Stdlib.Option.Option.Some 12L
+  Stdlib.String.lastIndexOfEgc "hello world" "earth" = Stdlib.Option.Option.None
+  Stdlib.String.lastIndexOfEgc "" "hello" = Stdlib.Option.Option.None
+
+  // Empty-string searches return string length in EGCs.
+  Stdlib.String.lastIndexOfEgc "" "" = Stdlib.Option.Option.Some 0L
+  Stdlib.String.lastIndexOfEgc "hello" "" = Stdlib.Option.Option.Some 5L
+  // "👱👱🏻" is 2 EGCs even though it's 4 UTF-16 code units.
+  Stdlib.String.lastIndexOfEgc "👱👱🏻" "" = Stdlib.Option.Option.Some 2L
+
+  // EGC offsets across multi-codepoint graphemes.
+  Stdlib.String.lastIndexOfEgc "👱👱🏻👱🏼👱🏽👱🏾👱🏿" "👱🏼" = Stdlib.Option.Option.Some 2L
+  Stdlib.String.lastIndexOfEgc "a🧑🏼‍💻b🧑🏼‍💻c" "🧑🏼‍💻" = Stdlib.Option.Option.Some 3L
+  Stdlib.String.lastIndexOfEgc "żółw🧑🏽‍🦰🧑🏻‍🍼" "🧑🏻‍🍼" = Stdlib.Option.Option.Some 5L
+
+  // Partial-grapheme search returns None on both sides (start and end must
+  // align to EGC boundaries).
+  Stdlib.String.lastIndexOfEgc "🧑🏼‍💻🧑🏼‍💻" "🧑" = Stdlib.Option.Option.None
+  // Standalone 🧑 at the end is matchable when it stands on its own.
+  Stdlib.String.lastIndexOfEgc "🧑🏼‍💻🧑" "🧑" = Stdlib.Option.Option.Some 1L
 
 
 module Ellipsis =

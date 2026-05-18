@@ -443,7 +443,20 @@ let fns () : List<BuiltInFn> =
             "The string to search for within <param str>" ]
       returnType = TInt64
       description =
-        "Returns the index of the first occurrence of <param searchFor> in <param str>, or returns -1 if <param searchFor> does not occur."
+        "Returns the index of the first occurrence of <param searchFor> in <param str>,
+         measured in UTF-16 code units (the .NET string representation). Returns -1 if
+         <param searchFor> does not occur. For an index that pairs with {{String.length}},
+         {{String.slice}}, {{String.first}}, and {{String.dropFirst}} (which are all
+         EGC-indexed), use {{stringIndexOfEgc}}.
+
+         Note on SQL: SQLite's INSTR and .NET's IndexOf both tell us whether
+         a substring was found, but they count positions differently for some
+         Unicode text. SQLite counts Unicode characters; .NET IndexOf counts
+         UTF-16 code units. For example, SQLite reports the \"a\" in \"😄a\" at
+         index 1, while .NET reports it at index 2 because the emoji takes two
+         UTF-16 code units. So {{String.contains}} is portable in SQL because it
+         only checks found/not-found, but {{String.indexOf}} may return different
+         numeric indexes outside simple ASCII text."
       fn =
         (function
         | _, _, _, [ DString str; DString search ] ->
@@ -451,6 +464,64 @@ let fns () : List<BuiltInFn> =
           Ply(DInt64 index)
         | _ -> incorrectArgs ())
       sqlSpec = SqlCallback2(fun str search -> $"(INSTR({str}, {search}) - 1)")
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stringIndexOfEgc" 0
+      typeParams = []
+      parameters =
+        [ Param.make "str" TString "The string to search in"
+          Param.make
+            "searchFor"
+            TString
+            "The string to search for within <param str>" ]
+      returnType = TInt64
+      description =
+        "Returns the index of the first occurrence of <param searchFor> in <param str>,
+         measured in extended grapheme clusters (consistent with {{String.length}},
+         {{String.slice}}, {{String.first}}, and {{String.dropFirst}}). Returns -1 if
+         <param searchFor> does not occur. The match must begin and end on EGC
+         boundaries — partial-grapheme matches (e.g. finding a skin-tone modifier
+         alone inside a full skin-toned emoji) are not reported. Not SQL-queryable
+         because SQLite has no EGC-aware INSTR; use {{stringIndexOf}} inside DB
+         query lambdas."
+      fn =
+        (function
+        | _, _, _, [ DString str; DString search ] ->
+          if search = "" then
+            Ply(DInt64 0L)
+          else
+            // EGC start offsets (UTF-16) of str. A valid match must start at one
+            // of these AND end at one of these (or at str.Length).
+            let starts = StringInfo.ParseCombiningCharacters(str)
+            let mutable foundAt = -1
+            let mutable boundaryPtr = 0
+            let mutable egcIndex = 0
+            while foundAt = -1 && egcIndex < starts.Length do
+              let elementIndex = starts[egcIndex]
+              let targetEnd = elementIndex + search.Length
+              while boundaryPtr < starts.Length && starts[boundaryPtr] < targetEnd do
+                boundaryPtr <- boundaryPtr + 1
+              let endIsBoundary =
+                if boundaryPtr < starts.Length then
+                  starts[boundaryPtr] = targetEnd
+                else
+                  targetEnd = str.Length
+              let matches =
+                System.String.Compare(
+                  str,
+                  elementIndex,
+                  search,
+                  0,
+                  search.Length,
+                  System.StringComparison.Ordinal
+                ) = 0
+              if endIsBoundary && matches then foundAt <- egcIndex
+              egcIndex <- egcIndex + 1
+            Ply(DInt64(int64 foundAt))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
       previewable = Pure
       deprecated = NotDeprecated }
 
@@ -465,12 +536,68 @@ let fns () : List<BuiltInFn> =
             "The string to search for within <param str>" ]
       returnType = TInt64
       description =
-        "Returns the index of the last occurrence of <param searchFor> in <param str>, or returns -1 if <param searchFor> does not occur."
+        "Returns the index of the last occurrence of <param searchFor> in <param str>,
+         measured in UTF-16 code units. Returns -1 if <param searchFor> does not occur.
+         For an EGC-indexed result that pairs with {{String.length}} / {{String.slice}},
+         use {{stringLastIndexOfEgc}}."
       fn =
         (function
         | _, _, _, [ DString str; DString search ] ->
           let index = str.LastIndexOf(search)
           Ply(DInt64 index)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stringLastIndexOfEgc" 0
+      typeParams = []
+      parameters =
+        [ Param.make "str" TString "The string to search in"
+          Param.make
+            "searchFor"
+            TString
+            "The string to search for within <param str>" ]
+      returnType = TInt64
+      description =
+        "Returns the index of the last occurrence of <param searchFor> in <param str>,
+         measured in extended grapheme clusters (consistent with {{String.length}},
+         {{String.slice}}, {{String.first}}, and {{String.dropFirst}}). Returns -1 if
+         <param searchFor> does not occur. The match must begin and end on EGC
+         boundaries — partial-grapheme matches are not reported."
+      fn =
+        (function
+        | _, _, _, [ DString str; DString search ] ->
+          if search = "" then
+            Ply(DInt64(int64 (StringInfo(str).LengthInTextElements)))
+          else
+            let starts = StringInfo.ParseCombiningCharacters(str)
+            let mutable lastFound = -1
+            let mutable boundaryPtr = 0
+            let mutable egcIndex = 0
+            while egcIndex < starts.Length do
+              let elementIndex = starts[egcIndex]
+              let targetEnd = elementIndex + search.Length
+              while boundaryPtr < starts.Length && starts[boundaryPtr] < targetEnd do
+                boundaryPtr <- boundaryPtr + 1
+              let endIsBoundary =
+                if boundaryPtr < starts.Length then
+                  starts[boundaryPtr] = targetEnd
+                else
+                  targetEnd = str.Length
+              let matches =
+                System.String.Compare(
+                  str,
+                  elementIndex,
+                  search,
+                  0,
+                  search.Length,
+                  System.StringComparison.Ordinal
+                ) = 0
+              if endIsBoundary && matches then lastFound <- egcIndex
+              egcIndex <- egcIndex + 1
+            Ply(DInt64(int64 lastFound))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
