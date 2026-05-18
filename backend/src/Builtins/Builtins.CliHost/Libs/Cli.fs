@@ -304,12 +304,20 @@ let fns () : List<BuiltInFn> =
             "allowHarmful"
             TBool
             "Opt out of Harmful-deprecation halting (see docs/deprecation)" ]
-      returnType = TypeReference.result TString (ExecutionError.typeRef ())
-      description = "Evaluates a Dark expression and returns the result as a String"
+      returnType =
+        TypeReference.result
+          (TypeReference.option TString)
+          (ExecutionError.typeRef ())
+      description =
+        "Evaluates a Dark expression. Returns Some(reprString) for a value, "
+        + "or None when the result is Unit (so callers can suppress empty echo)."
       fn =
         let errType = KTCustomType(ExecutionError.fqTypeName (), [])
-        let resultOk = Dval.resultOk KTString errType
-        let resultError = Dval.resultError KTString errType
+        let okKT = KTCustomType(Dval.optionType (), [ VT.known KTString ])
+        let resultOk = Dval.resultOk okKT errType
+        let resultError = Dval.resultError okKT errType
+        let okSome (s : string) = resultOk (Dval.optionSome KTString (DString s))
+        let okNone () = resultOk (Dval.optionNone KTString)
         (function
         | exeState,
           _,
@@ -340,10 +348,11 @@ let fns () : List<BuiltInFn> =
                 with
                 | Ok result ->
                   match result with
-                  | DString s -> return resultOk (DString s)
+                  | DUnit -> return okNone ()
+                  | DString s -> return okSome s
                   | _ ->
                     let! asString = Exe.dvalToRepr exeState result
-                    return resultOk (DString asString)
+                    return okSome asString
                 | Error(e, callStack) ->
                   let! csString = Exe.callStackString exeState callStack
                   print $"Error when executing expression. Call-stack:\n{csString}\n"

@@ -9,7 +9,8 @@ let executeDarklang () : ModelContextProtocol.ServerBuilder.Tool =
     handler =
       fun code ->
         match Builtin.cliEvaluateExpression (Stdlib.Option.Option.None) SCM.Branch.mainBranchId code false with
-        | Ok result -> $"Result: {result}"
+        | Ok (Some result) -> $"Result: {result}"
+        | Ok None -> "Result: ()"
         | Error err ->
             let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString SCM.Branch.mainBranchId err
             $"Error: {prettyError}"

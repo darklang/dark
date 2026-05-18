@@ -21,9 +21,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
         expr
         allowHarmful
     with
-    | Ok result ->
-      Stdlib.printLine result
+    | Ok (Some s) ->
+      Stdlib.printLine s
       state
+    | Ok None -> state
     | Error err ->
       let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString state.currentBranchId err
       Stdlib.printLine $"Error: {prettyError}"

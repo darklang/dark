@@ -147,7 +147,8 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
       ++ nl ++ "|> Stdlib.String.join \"<<<ROW>>>\""
 
     match  Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr false with
-    | Ok result ->
+    | Ok resultOpt ->
+      let result = resultOpt |> Stdlib.Option.withDefault ""
       Stdlib.printLine ""
 
       let colWidth = 15L
@@ -215,9 +216,10 @@ let getDBValue
   let expr = $"Stdlib.DB.get \"{key}\" {dbName}"
 
   match  Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr false with
-  | Ok result ->
+  | Ok (Some result) ->
     Stdlib.printLine result
     state
+  | Ok None -> state
   | Error err ->
     let prettyError =
       PrettyPrinter.RuntimeTypes.RuntimeError.toString
@@ -285,9 +287,10 @@ let queryDB
   let expr = $"Stdlib.DB.query {dbName} ({filterExpr})"
 
   match  Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr false with
-  | Ok result ->
+  | Ok (Some result) ->
     Stdlib.printLine result
     state
+  | Ok None -> state
   | Error err ->
     let prettyError =
       PrettyPrinter.RuntimeTypes.RuntimeError.toString
