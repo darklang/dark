@@ -486,8 +486,11 @@ module RuntimeError =
 
     | CLI err ->
       match err with
-      | NoExpressionsToExecute -> [ ES.String "TODO NoExpressionsToExecute" ]
-      | NonIntReturned actuallyReturnedOfDval -> [ ES.String "TODO NonIntReturned" ]
+      | NoExpressionsToExecute ->
+        [ ES.String "Nothing to evaluate (empty input or no top-level expression)" ]
+      | NonIntReturned returnedValue ->
+        [ ES.String "Script must return an Int64 (exit code); got "
+          ES.FullValue returnedValue ]
 
     | SqlCompiler errMsg -> [ ES.String errMsg ]
 

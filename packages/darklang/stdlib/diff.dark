@@ -33,7 +33,7 @@ let buildTable (oldLines: List<String>) (newLines: List<String>) : List<List<Int
     Stdlib.List.append table [nextRow])
 
 /// Walk the table backwards to produce diff lines
-let rec trace
+let trace
   (oldLines: List<String>)
   (newLines: List<String>)
   (table: List<List<Int64>>)

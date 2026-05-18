@@ -22,3 +22,130 @@ escape sequence
 (source_file
   (expression
     (simple_expression (char_literal (symbol) (character (char_or_string_escape_sequence)) (symbol)))))
+
+
+==================
+escape sequence - carriage return
+==================
+
+'\r'
+
+---
+
+(source_file
+  (expression
+    (simple_expression (char_literal (symbol) (character (char_or_string_escape_sequence)) (symbol)))))
+
+
+==================
+escape sequence - hex \xHH
+==================
+
+'\x41'
+
+---
+
+(source_file
+  (expression
+    (simple_expression (char_literal (symbol) (character (char_or_string_escape_sequence)) (symbol)))))
+
+
+==================
+escape sequence - hex \XHHHH
+==================
+
+'\X0041'
+
+---
+
+(source_file
+  (expression
+    (simple_expression (char_literal (symbol) (character (char_or_string_escape_sequence)) (symbol)))))
+
+
+==================
+escape sequence - unicode \UHHHHHHHH
+==================
+
+'\U0001F600'
+
+---
+
+(source_file
+  (expression
+    (simple_expression (char_literal (symbol) (character (char_or_string_escape_sequence)) (symbol)))))
+
+
+==================
+escape sequence - forward-slash
+==================
+
+'\/'
+
+---
+
+(source_file
+  (expression
+    (simple_expression (char_literal (symbol) (character (char_or_string_escape_sequence)) (symbol)))))
+
+
+==================
+escape sequence - unicode \uHHHH
+==================
+
+'\u00E9'
+
+---
+
+(source_file
+  (expression
+    (simple_expression (char_literal (symbol) (character (char_or_string_escape_sequence)) (symbol)))))
+
+
+==================
+escape sequence - escaped single quote
+==================
+
+'\''
+
+---
+
+(source_file
+  (expression
+    (simple_expression (char_literal (symbol) (character (char_or_string_escape_sequence)) (symbol)))))
+
+
+==================
+char - invalid escape produces ERROR
+==================
+
+'\d'
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (char_literal
+        (symbol)
+        (ERROR (UNEXPECTED 'd'))
+        (character)
+        (MISSING symbol)))))
+
+
+==================
+char - partial-hex \u escape produces ERROR
+==================
+
+'\u00E'
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (char_literal
+        (symbol)
+        (ERROR (UNEXPECTED '''))
+        (character)
+        (MISSING symbol)))))

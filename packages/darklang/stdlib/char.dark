@@ -68,3 +68,9 @@ let isGreaterThanOrEqualTo (c1: Char) (c2: Char) : Bool =
 
 /// Stringify <param c>
 let toString (c: Char) : String = Builtin.charToString c
+
+
+/// Return {{Some <var c>}} for the Unicode codepoint <param codepoint>,
+/// or {{None}} if the value is not a valid scalar (negative, > 0x10FFFF, or a surrogate).
+let fromCodepoint (codepoint: Int64) : Stdlib.Option.Option<Char> =
+  Builtin.charFromCodepoint codepoint

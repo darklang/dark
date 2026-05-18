@@ -104,6 +104,40 @@ let parseFloatLiteral
   | Error _ -> createUnparseableError node
 
 
+// Parses one child of `string_interpolation_content`. `string_text` is raw
+// text (grammar excludes backslash), `char_or_string_escape_sequence` is
+// decoded, `string_to_eval` is `{expr}`.
+let parseInterpolationChild
+  (c: ParsedNode)
+  : Stdlib.Result.Result<WrittenTypes.StringSegment, WrittenTypes.Unparseable> =
+  match c.typ with
+  | "string_text" ->
+    Stdlib.Result.Result.Ok(WrittenTypes.StringSegment.StringText(c.range, c.text))
+
+  | "char_or_string_escape_sequence" ->
+    Stdlib.Result.map (decodeEscapeNode c) (fun s ->
+      WrittenTypes.StringSegment.StringText(c.range, s))
+
+  | "string_to_eval" ->
+    let openBrace = findField c "symbol_open_brace"
+    let closeBrace = findField c "symbol_close_brace"
+    let expr = findAndParseRequired c "expr" Expr.parse
+    match openBrace, closeBrace, expr with
+    | Ok openBrace, Ok closeBrace, Ok expr ->
+      Stdlib.Result.Result.Ok(
+        WrittenTypes.StringSegment.StringInterpolation(
+          c.range,
+          expr,
+          openBrace.range,
+          closeBrace.range
+        )
+      )
+    | _, _, Error e -> Stdlib.Result.Result.Error e
+    | _ -> createUnparseableError c
+
+  | _ -> createUnparseableError c
+
+
 let parseStringLiteral
   (node: ParsedNode)
   : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
@@ -114,63 +148,52 @@ let parseStringLiteral
     let closeQuoteNode = findField stringSegment "symbol_close_quote"
     let symbolDollarSign = findField stringSegment "symbol_dollar_sign"
 
+    // tree-sitter classifies invalid escape sequences (e.g. "\d") as ERROR
+    // children rather than `char_or_string_escape_sequence`. Surface them as
+    // a parse failure instead of silently dropping content.
+    let hasErrorChild =
+      stringSegment.children
+      |> Stdlib.List.any (fun c -> c.typ == "ERROR")
+
     let contents =
-      match stringSegment.typ with
-      | "string_literal" ->
-        let findContents =
-          findAndParseOptional stringSegment "content" (fun stringPart ->
-            (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
+      if hasErrorChild then
+        createUnparseableErrorMsg
+          stringSegment
+          "Invalid escape sequence in string literal"
+      else
+        match stringSegment.typ with
+        | "string_literal" ->
+          match findNodeByFieldName stringSegment "content" with
+          | None ->
+            Stdlib.Result.Result.Ok
+              [ WrittenTypes.StringSegment.StringText(stringSegment.range, "") ]
+          | Some stringPart ->
+            Stdlib.Result.map (decodeStringContent stringPart) (fun decoded ->
+              [ WrittenTypes.StringSegment.StringText(stringPart.range, decoded) ])
 
-        let (range, contents) =
-          Stdlib.Option.withDefault findContents (stringSegment.range, "")
+        | "string_interpolation" ->
+          match
+            stringSegment.children
+            |> Stdlib.List.filter (fun c -> c.typ == "string_interpolation_content")
+            |> Stdlib.List.head
+          with
+          | None -> Stdlib.Result.Result.Ok []
+          | Some interpolationContent ->
+            // ERROR children inside the interpolation content are the same
+            // bug surface as the top-level case — refuse rather than drop.
+            let interpHasErrorChild =
+              interpolationContent.children
+              |> Stdlib.List.any (fun c -> c.typ == "ERROR")
+            if interpHasErrorChild then
+              createUnparseableErrorMsg
+                interpolationContent
+                "Invalid escape sequence in interpolated string"
+            else
+              interpolationContent.children
+              |> Stdlib.List.map parseInterpolationChild
+              |> Stdlib.Result.collect
 
-        [ WrittenTypes.StringSegment.StringText(range, contents) ]
-
-      | "string_interpolation" ->
-        let stringInterpolationContents =
-          stringSegment.children
-          |> Stdlib.List.filter (fun c ->
-            c.typ == "string_interpolation_content")
-          |> Stdlib.List.head
-
-        match stringInterpolationContents with
-        | Error _ -> []
-        | Some interpolationContent ->
-          interpolationContent.children
-          |> Stdlib.List.filterMap (fun c ->
-            match c.typ with
-            | "string_text" ->
-              [ (WrittenTypes.StringSegment.StringText(c.range, c.text)) ]
-              |> Stdlib.Option.Option.Some
-            | "string_to_eval" ->
-              let symbolOpenBrace = findField c "symbol_open_brace"
-              let symbolCloseBrace = findField c "symbol_close_brace"
-
-              c.children
-              |> Stdlib.List.filterMap (fun c ->
-                match symbolOpenBrace, symbolCloseBrace with
-                | Ok openBrace, Ok closeBrace ->
-                  match c.typ with
-                  | "expression" ->
-                    match Expr.parse c with
-                    | Ok expr ->
-                      Stdlib.Option.Option.Some(
-                        WrittenTypes.StringSegment.StringInterpolation(
-                          c.range,
-                          expr,
-                          openBrace.range,
-                          closeBrace.range
-                        )
-                      )
-                    | Error _ -> Stdlib.Option.Option.None
-                  | _ -> Stdlib.Option.Option.None
-                | _ -> Stdlib.Option.Option.None)
-              |> Stdlib.Option.Option.Some
-
-            | _ -> Stdlib.Option.Option.None)
-          |> Stdlib.List.flatten
-
-      | _ -> []
+        | _ -> createUnparseableError stringSegment
 
     let dollarSign =
       match symbolDollarSign with
@@ -178,8 +201,8 @@ let parseStringLiteral
         symbolDollarSign.range |> Stdlib.Option.Option.Some
       | _ -> Stdlib.Option.Option.None
 
-    match openQuoteNode, closeQuoteNode with
-    | Ok openQuote, Ok closeQuote ->
+    match openQuoteNode, closeQuoteNode, contents with
+    | Ok openQuote, Ok closeQuote, Ok contents ->
       (WrittenTypes.Expr.EString(
         node.range,
         dollarSign,
@@ -189,31 +212,42 @@ let parseStringLiteral
       ))
       |> Stdlib.Result.Result.Ok
 
+    | _, _, Error e -> Stdlib.Result.Result.Error e
     | _ -> createUnparseableError node
 
 
 let parseCharLiteral
   (node: ParsedNode)
   : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
-  let openQuoteNode = findField node "symbol_open_single_quote"
+  // Invalid escapes in char literals (e.g. `'\d'`) make tree-sitter emit an
+  // ERROR child at the char_literal level and a MISSING close-quote. Catch
+  // this directly so the error message names the actual problem.
+  let hasErrorChild =
+    node.children |> Stdlib.List.any (fun c -> c.typ == "ERROR")
 
-  let charNode =
-    findAndParseOptional node "content" (fun charPart ->
-      (charPart.range, charPart.text) |> Stdlib.Result.Result.Ok)
+  if hasErrorChild then
+    createUnparseableErrorMsg node "Invalid escape sequence in char literal"
+  else
+    let openQuoteNode = findField node "symbol_open_single_quote"
+    let closeQuoteNode = findField node "symbol_close_single_quote"
 
-  let closeQuoteNode = findField node "symbol_close_single_quote"
+    let charContent =
+      match findNodeByFieldName node "content" with
+      | Some charPart -> decodeCharContent charPart
+      | None -> createUnparseableError node
 
-  match openQuoteNode, closeQuoteNode with
-  | Ok openQuote, Ok closeQuote ->
-    (WrittenTypes.Expr.EChar(
-      node.range,
-      charNode,
-      openQuote.range,
-      closeQuote.range
-    ))
-    |> Stdlib.Result.Result.Ok
+    match openQuoteNode, charContent, closeQuoteNode with
+    | Ok openQuote, Ok charContent, Ok closeQuote ->
+      (WrittenTypes.Expr.EChar(
+        node.range,
+        Stdlib.Option.Option.Some charContent,
+        openQuote.range,
+        closeQuote.range
+      ))
+      |> Stdlib.Result.Result.Ok
 
-  | _ -> createUnparseableError node
+    | _, Error e, _ -> Stdlib.Result.Result.Error e
+    | _ -> createUnparseableError node
 
 
 let parseListLiteral

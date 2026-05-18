@@ -13,7 +13,12 @@ let execute (state: AppState) (args: List<String>) : AppState =
     help state
     state
   | _ ->
-    let expr = Stdlib.String.join args " "
+    // Special case: a single "-" arg means "read expression from stdin" so
+    // callers can pipe multi-line expressions via heredoc without quoting.
+    let expr =
+      match args with
+      | [ "-" ] -> Builtin.stdinReadAll ()
+      | parts -> Stdlib.String.join parts " "
     match
       Builtin.cliEvaluateExpression
         state.accountID
@@ -26,8 +31,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
     | Ok None -> state
     | Error err ->
-      let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString state.currentBranchId err
-      Stdlib.printLine $"Error: {prettyError}"
+      Stdlib.printLine $"Error: {ExecutionError.toString state.currentBranchId err}"
       state
 
 
@@ -39,6 +43,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
 let help (_state: AppState) : Unit =
   [
     "Usage: eval <expression>"
+    "       eval -    (read expression from stdin, for multi-line input)"
     "Evaluate a Dark expression and display the result."
     ""
     "Examples:"
@@ -46,4 +51,10 @@ let help (_state: AppState) : Unit =
     "  eval \"hello\" ++ \"world\"         - String concatenation"
     "  eval [1L; 2L; 3L] |> List.length  - List operations"
     "  eval Stdlib.String.length \"test\" - Function calls"
+    ""
+    "  # Multi-line expression via stdin (run from shell, not the REPL):"
+    "  ./scripts/run-cli eval - <<'EOF'"
+    "  let xs = [1L; 2L; 3L]"
+    "  Stdlib.List.length xs"
+    "  EOF"
   ] |> Stdlib.printLines

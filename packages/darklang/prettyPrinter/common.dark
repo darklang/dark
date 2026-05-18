@@ -30,11 +30,48 @@ let sign (s: LanguageTools.Sign) : String =
   | Positive -> ""
   | Negative -> "-"
 
-let escapeSpecialCharacters (s: String) : String =
+// One-hex-digit (0-15) to its source character.
+let hexDigitChar (n: Int64) : String =
+  Stdlib.String.slice "0123456789ABCDEF" n (n + 1L)
+
+// Encode one Char to its source-form. ASCII control characters and the
+// backslash get an escape; everything else (printable ASCII, non-ASCII
+// graphemes) passes through unchanged.
+let encodeChar (c: Char) : String =
+  match Stdlib.Char.toAsciiCode c with
+  | None -> Stdlib.Char.toString c
+  | Some code ->
+    if code == 92L then "\\\\"
+    else if code == 7L then "\\a"
+    else if code == 8L then "\\b"
+    else if code == 9L then "\\t"
+    else if code == 10L then "\\n"
+    else if code == 11L then "\\v"
+    else if code == 12L then "\\f"
+    else if code == 13L then "\\r"
+    else if code < 32L || code == 127L then
+      let hi = Stdlib.Int64.divide code 16L
+      let lo = code % 16L
+      $"\\x{hexDigitChar hi}{hexDigitChar lo}"
+    else
+      Stdlib.Char.toString c
+
+// Encode special characters back to source-form. Symmetric with the parser's
+// `decodeStringContent`. Quote escapes are added per quote style — `"` for
+// string literals, `'` for char literals — so the common path skips them.
+let escapeCommon (s: String) : String =
   s
-  |> Stdlib.String.replaceAll "\n" "\\n"
-  |> Stdlib.String.replaceAll "\t" "\\t"
-  |> Stdlib.String.replaceAll "\r" "\\r"
+  |> Stdlib.String.toList
+  |> Stdlib.List.map encodeChar
+  |> Stdlib.String.join ""
+
+/// Escape for `"..."` string literals: common specials plus the closing `"`.
+let escapeSpecialCharacters (s: String) : String =
+  (escapeCommon s) |> Stdlib.String.replaceAll "\"" "\\\""
+
+/// Escape for `'...'` char literals: common specials plus the closing `'`.
+let escapeCharLiteral (s: String) : String =
+  (escapeCommon s) |> Stdlib.String.replaceAll "'" "\\'"
 
 let processRemainder (remainder: String) : String =
   match $".{remainder}" |> Stdlib.Float.parse with

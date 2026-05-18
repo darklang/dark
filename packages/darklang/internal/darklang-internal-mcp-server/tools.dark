@@ -12,8 +12,7 @@ let executeDarklang () : ModelContextProtocol.ServerBuilder.Tool =
         | Ok (Some result) -> $"Result: {result}"
         | Ok None -> "Result: ()"
         | Error err ->
-            let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString SCM.Branch.mainBranchId err
-            $"Error: {prettyError}"
+            $"Error: {Cli.ExecutionError.toString SCM.Branch.mainBranchId err}"
   }
 
 

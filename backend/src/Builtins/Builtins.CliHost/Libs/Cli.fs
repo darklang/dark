@@ -49,23 +49,67 @@ module CliTraceSource =
     | EvalExpression expr -> ("eval", "expression", RT.DString expr)
 
 
-// Create exception error from exn
-let createExceptionError (e : exn) : RuntimeError.Error =
-  RuntimeError.UncaughtException(
-    Exception.getMessages e |> String.concat "\n",
-    Exception.toMetadata e |> List.map (fun (k, v) -> (k, DString(string v)))
-  )
+module ParseError =
+  type Unparseable =
+    { text : string; line : int64; column : int64; note : Option<string> }
 
-// Parse CLI script code using the single-shot parseForCli function.
-// This keeps PM creation and parsing in the same execution context,
-// avoiding issues with lambda instructions crossing VM boundaries.
+  type ParseError =
+    | Unparseable of Unparseable
+    | Other of string
+
+  let fqTypeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.Parser.CliScript.parseError ()
+    )
+
+  let unparseableTypeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.Parser.CliScript.unparseable ()
+    )
+
+  let unparseableToDT (u : Unparseable) : Dval =
+    let typeName = unparseableTypeName ()
+    let fields =
+      [ "text", DString u.text
+        "line", DInt64 u.line
+        "column", DInt64 u.column
+        "note", C2DT.Option.toDT DString KTString u.note ]
+    DRecord(typeName, typeName, [], Map fields)
+
+  let unparseableFromDT (d : Dval) : Unparseable =
+    match d with
+    | DRecord(_, _, _, fields) ->
+      { text = fields |> D.field "text" |> D.string
+        line = fields |> D.field "line" |> D.int64
+        column = fields |> D.field "column" |> D.int64
+        note = C2DT.Option.fromDT D.string (fields |> D.field "note") }
+    | _ -> Exception.raiseInternal "Invalid Unparseable Dval" [ "dval", d ]
+
+  let toDT (err : ParseError) : Dval =
+    let typeName = fqTypeName ()
+    let (caseName, fields) =
+      match err with
+      | Unparseable u -> "Unparseable", [ unparseableToDT u ]
+      | Other msg -> "Other", [ DString msg ]
+    DEnum(typeName, typeName, [], caseName, fields)
+
+  let fromDT (d : Dval) : ParseError =
+    match d with
+    | DEnum(_, _, _, "Unparseable", [ uDval ]) ->
+      Unparseable(unparseableFromDT uDval)
+    | DEnum(_, _, _, "Other", [ DString msg ]) -> Other msg
+    | _ -> Exception.raiseInternal "Invalid ParseError Dval" [ "dval", d ]
+
+/// Parse CLI script code via the single-shot `parseForCli` Dark function.
+/// Keeping PM creation and parsing in the same execution context avoids
+/// lambda instructions crossing VM boundaries.
 let parseCliScript
   (exeState : RT.ExecutionState)
   (branchId : System.Guid)
   (owner : string)
   (scriptName : string)
   (code : string)
-  : Ply<Result<Utils.CliScript.PTCliScriptModule, RuntimeError.Error>> =
+  : Ply<Result<Utils.CliScript.PTCliScriptModule, ParseError.ParseError>> =
   uply {
     let args =
       NEList.ofList
@@ -84,13 +128,7 @@ let parseCliScript
       match C2DT.Result.fromDT identity dval identity with
       | Ok parsedModuleAndUnresolvedNames ->
         return (Utils.CliScript.fromDT parsedModuleAndUnresolvedNames) |> Ok
-      | Error(DString errMsg) ->
-        return Error(RuntimeError.UncaughtException(errMsg, []))
-      | Error _ ->
-        return
-          Exception.raiseInternal
-            "Invalid error format from parseCliScript"
-            [ "dval", dval ]
+      | Error parseErrorDval -> return Error(ParseError.fromDT parseErrorDval)
     | Error(rte, _cs) ->
       let! rteString = Exe.runtimeErrorToString exeState rte
       match rteString with
@@ -110,6 +148,42 @@ let parseCliScript
 module ExecutionError =
   let fqTypeName () = FQTypeName.fqPackage (PackageRefs.Type.Cli.executionError ())
   let typeRef () = TCustomType(NR.ok (fqTypeName ()), [])
+
+  let unhandledTypeName () = FQTypeName.fqPackage (PackageRefs.Type.Cli.unhandled ())
+
+  type Unhandled = { message : string; metadata : List<string * string> }
+
+  type ExecutionError =
+    | Parse of ParseError.ParseError
+    | Runtime of RT.RuntimeError.Error
+    | Unhandled of Unhandled
+
+  /// Capture an exception's message and metadata for the `Unhandled` case.
+  /// `Exception.toMetadata` only ever produces string-stringified values,
+  /// so `List<string * string>` faithfully represents what we have without
+  /// the Dval-wrapping machinery.
+  let unhandledFromExn (e : exn) : Unhandled =
+    { message = Exception.getMessages e |> String.concat "\n"
+      metadata = Exception.toMetadata e |> List.map (fun (k, v) -> (k, string v)) }
+
+  let private unhandledToDT (u : Unhandled) : Dval =
+    let typeName = unhandledTypeName ()
+    let pairKT = KTTuple(VT.string, VT.string, [])
+    let metadataDval =
+      u.metadata
+      |> List.map (fun (k, v) -> DTuple(DString k, DString v, []))
+      |> fun items -> DList(VT.known pairKT, items)
+    let fields = [ "message", DString u.message; "metadata", metadataDval ]
+    DRecord(typeName, typeName, [], Map fields)
+
+  let toDT (err : ExecutionError) : Dval =
+    let typeName = fqTypeName ()
+    let (caseName, fields) =
+      match err with
+      | Parse pe -> "Parse", [ ParseError.toDT pe ]
+      | Runtime rte -> "Runtime", [ RT2DT.RuntimeError.toDT rte ]
+      | Unhandled u -> "Unhandled", [ unhandledToDT u ]
+    DEnum(typeName, typeName, [], caseName, fields)
 
 
 let pmRT = LibDB.PackageManager.rt
@@ -255,10 +329,13 @@ let fns () : List<BuiltInFn> =
             let exeState = { exeState with accountID = accountID }
             // Use branch-specific state for parsing so name resolution uses the right branch
             let branchState = createBranchState exeState branchId allowHarmful
-            let! parsedScript =
-              parseCliScript branchState branchId "CliScript" filename code
 
             try
+              // parseCliScript itself can raise (e.g. deep VM failures); keep
+              // it inside the try so its exceptions hit the Unhandled net.
+              let! parsedScript =
+                parseCliScript branchState branchId "CliScript" filename code
+
               let! dbs = loadDBs ()
 
               match parsedScript with
@@ -275,18 +352,31 @@ let fns () : List<BuiltInFn> =
                 | Ok(DInt64 i) -> return resultOk (DInt64 i)
                 | Ok DUnit -> return resultOk (DInt64 0L)
                 | Ok result ->
+                  let rte =
+                    RuntimeError.CLIs.NonIntReturned result |> RuntimeError.CLI
                   return
-                    RuntimeError.CLIs.NonIntReturned result
-                    |> RuntimeError.CLI
-                    |> RT2DT.RuntimeError.toDT
-                    |> resultError
+                    resultError (ExecutionError.toDT (ExecutionError.Runtime rte))
                 | Error(e, callStack) ->
                   let! csString = Exe.callStackString exeState callStack
                   print $"Error when executing Script. Call-stack:\n{csString}\n"
-                  return e |> RT2DT.RuntimeError.toDT |> resultError
-              | Error e -> return e |> RT2DT.RuntimeError.toDT |> resultError
-            with e ->
-              return createExceptionError e |> RT2DT.RuntimeError.toDT |> resultError
+                  return resultError (ExecutionError.toDT (ExecutionError.Runtime e))
+              | Error pe ->
+                return resultError (ExecutionError.toDT (ExecutionError.Parse pe))
+            // Runtime errors raised via `raiseUntargetedRTE` (e.g.
+            // `NoExpressionsToExecute`) escape as `RuntimeErrorException`
+            // rather than returning through the normal `Error(rte, _)`
+            // channel. Catch them explicitly so they're classified as
+            // `Runtime`, not `Unhandled`.
+            with
+            | RuntimeErrorException(_, rte) ->
+              return resultError (ExecutionError.toDT (ExecutionError.Runtime rte))
+            | e ->
+              return
+                resultError (
+                  ExecutionError.toDT (
+                    ExecutionError.Unhandled(ExecutionError.unhandledFromExn e)
+                  )
+                )
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -330,15 +420,18 @@ let fns () : List<BuiltInFn> =
             let exeState = { exeState with accountID = accountID }
             // Use branch-specific state for parsing so name resolution uses the right branch
             let branchState = createBranchState exeState branchId allowHarmful
-            let! parsedScript =
-              parseCliScript
-                branchState
-                branchId
-                "CliScript"
-                "exprWrapper"
-                expression
 
             try
+              // parseCliScript itself can raise (e.g. deep VM failures); keep
+              // it inside the try so its exceptions hit the Unhandled net.
+              let! parsedScript =
+                parseCliScript
+                  branchState
+                  branchId
+                  "CliScript"
+                  "exprWrapper"
+                  expression
+
               let! dbs = loadDBs ()
 
               match parsedScript with
@@ -356,10 +449,19 @@ let fns () : List<BuiltInFn> =
                 | Error(e, callStack) ->
                   let! csString = Exe.callStackString exeState callStack
                   print $"Error when executing expression. Call-stack:\n{csString}\n"
-                  return e |> RT2DT.RuntimeError.toDT |> resultError
-              | Error e -> return e |> RT2DT.RuntimeError.toDT |> resultError
-            with e ->
-              return createExceptionError e |> RT2DT.RuntimeError.toDT |> resultError
+                  return resultError (ExecutionError.toDT (ExecutionError.Runtime e))
+              | Error pe ->
+                return resultError (ExecutionError.toDT (ExecutionError.Parse pe))
+            with
+            | RuntimeErrorException(_, rte) ->
+              return resultError (ExecutionError.toDT (ExecutionError.Runtime rte))
+            | e ->
+              return
+                resultError (
+                  ExecutionError.toDT (
+                    ExecutionError.Unhandled(ExecutionError.unhandledFromExn e)
+                  )
+                )
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -6,14 +6,14 @@ let content () : String =
 ## IMPORTANT: Darklang is Different
 Darklang is a LIVE PROGRAMMING ENVIRONMENT (like Smalltalk).
 You don't write scripts - you build a persistent package tree.
-- Use `fn` to CREATE functions in the tree (not eval)
-- Use `run` to TEST those functions
+- Use `fn` to CREATE functions in the tree
+- Use `eval` to TEST those functions
 - Use `commit` to SAVE your work
 - CLI state doesn't persist between calls - the PACKAGE TREE does
 
 ## Workflow
   1. fn myFn        # create function (stored in package tree)
-  2. run @myFn      # test it
+  2. eval myFn      # test it
   3. status         # see changes
   4. commit "msg"   # save to SCM
 
@@ -34,26 +34,36 @@ Names need full paths (owner.module.name), e.g.:
   fn Darklang.Testing.fib (n: Int64): Int64 = ...
 Inside the body, use short names (e.g., `fib` for recursion).
 
+For multi-line bodies, use `-` and pipe via stdin (heredoc form):
+  ./scripts/run-cli fn Darklang.Foo.bar - <<'EOF'
+  (n: Int64): Int64 =
+    let x = n + 1L
+    x * 2L
+  EOF
+
 ## Running/Testing
-  run @<fn> [args]  # run a function you created (with args)
-  eval <expr>       # quick test expressions (not for creating code)
+  eval <fn> [args]  # call a function / evaluate an expression
+  run <path>        # execute a .dark script file (not for calling fns)
 
 ## Navigation
   nav <path>        # go to module (cd)
   ls / back         # list / go back
 
 ## SCM (version control)
-  status            # see current branch + uncommitted changes
-  commit <msg>      # commit changes
-  log               # history
-  discard           # undo uncommitted changes
+  status               # see current branch + uncommitted changes
+  commit <msg> [-y]    # commit changes; -y/--yes skips the y/n prompt
+  log                  # history
+  discard              # undo uncommitted changes
+
+`commit` requires the `DARK_ACCOUNT` env var to be set (your username).
+For non-interactive use: `DARK_ACCOUNT=alice ./scripts/run-cli commit "msg" -y`
 
 ## Deprecation (mark items as unused / dangerous / obsolete)
   deprecate <fn|type|value> <name> --kind <k> [options]
     kinds: superseded-by (requires --replacement), harmful, obsolete
   delete <fn|type|value> <name> [--force]     # sugar for --kind obsolete
   undo <fn|type|value> <name>                 # reverse a WIP deprecate
-  run --allow-harmful @<fn>                   # opt out of harmful halt
+  eval --allow-harmful <fn>                   # opt out of harmful halt
   (see: docs deprecation)
 
 ## Branches (use --branch flag!)
@@ -100,6 +110,7 @@ Rules:
 - Pipe needs parens: (complex expr) |> fn
 - Lists: [1L; 2L; 3L] (semicolons)
 - String concat: ++ (not @)
+- String interpolation: $"x = {expr}; total = {a ++ b}"
 - Int division: Stdlib.Int64.divide (not /)
 
 ## Records

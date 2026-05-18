@@ -266,7 +266,7 @@ module Sse =
   /// Pull bytes from the underlying stream until a complete event
   /// terminator (blank line) arrives, then emit. Returns None once
   /// the stream is exhausted and no buffered data remains.
-  let rec pullNextEvent
+  let pullNextEvent
     (bytes: Stream<UInt8>)
     (state: ParseState)
     : Stdlib.Option.Option<(Event * ParseState)> =

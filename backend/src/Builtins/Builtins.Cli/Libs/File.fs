@@ -9,19 +9,44 @@ open LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
 module Builtin = LibExecution.Builtin
 module Blob = LibExecution.Blob
+module PackageRefs = LibExecution.PackageRefs
+module NR = LibExecution.RuntimeTypes.NameResolution
 open Builtin.Shortcuts
+
+
+// Structured error for file I/O. Mirrors Stdlib.Cli.FileSystem.FileError so
+// callers can pattern-match instead of grepping .NET exception text.
+module FileError =
+  let fqTypeName () =
+    FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.FileSystem.fileError ())
+
+  /// Classify a .NET exception into a FileError DEnum. NotFound covers both
+  /// missing files and missing parent directories (which present the same way
+  /// to a user). PermissionDenied covers UnauthorizedAccess. Anything else
+  /// becomes Other with the underlying message.
+  let fromException (e : exn) : Dval =
+    let typeName = fqTypeName ()
+    let (caseName, fields) =
+      match e with
+      | :? System.IO.FileNotFoundException
+      | :? System.IO.DirectoryNotFoundException -> "NotFound", []
+      | :? System.UnauthorizedAccessException -> "PermissionDenied", []
+      | _ -> "Other", [ DString e.Message ]
+    DEnum(typeName, typeName, [], caseName, fields)
 
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "fileRead" 0
       typeParams = []
       parameters = [ Param.make "path" TString "" ]
-      returnType = TypeReference.result TBlob TString
+      returnType =
+        TypeReference.result TBlob (TCustomType(NR.ok (FileError.fqTypeName ()), []))
       description =
         "Reads the contents of a file at <param path> asynchronously into an ephemeral Blob, wrapped in a Result."
       fn =
-        let resultOk = Dval.resultOk KTBlob KTString
-        let resultError = Dval.resultError KTBlob KTString
+        let errType = KTCustomType(FileError.fqTypeName (), [])
+        let resultOk = Dval.resultOk KTBlob errType
+        let resultError = Dval.resultError KTBlob errType
         (function
         | state, _, _, [ DString path ] ->
           uply {
@@ -35,7 +60,7 @@ let fns () : List<BuiltInFn> =
               let! contents = System.IO.File.ReadAllBytesAsync path
               return resultOk (Blob.newEphemeral state contents)
             with e ->
-              return resultError (DString($"Error reading file: {e.Message}"))
+              return resultError (FileError.fromException e)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -26,7 +26,10 @@ let executeScript
   : AppState =
   match Builtin.fileRead scriptPath with
   | Error e ->
-    Stdlib.printLine $"File error: {e}"
+    match e with
+    | NotFound -> Stdlib.printLine $"Script not found: {scriptPath}"
+    | PermissionDenied -> Stdlib.printLine $"Permission denied: {scriptPath}"
+    | Other msg -> Stdlib.printLine $"Could not read script {scriptPath}: {msg}"
     state
   | Ok script ->
     let scriptSourceCode = Stdlib.String.fromBlobWithReplacement script
@@ -47,8 +50,8 @@ let executeScript
         Stdlib.printLine $"Script exited with code {Stdlib.Int64.toString exitCode}"
         state
     | Error e ->
-      let prettyError = PrettyPrinter.RuntimeTypes.RuntimeError.toString state.currentBranchId e
-      Stdlib.printLine $"Script error: {prettyError}"
+      let pretty = ExecutionError.toString state.currentBranchId e
+      Stdlib.printLine $"Script error: {pretty}"
       state
 
 

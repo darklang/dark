@@ -128,6 +128,28 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "charFromCodepoint" 0
+      typeParams = []
+      parameters = [ Param.make "codepoint" TInt64 "" ]
+      returnType = TypeReference.option TChar
+      description =
+        "Return {{Some <var c>}} for the Unicode codepoint <param codepoint>,
+        or {{None}} if the value is not a valid scalar codepoint
+        (i.e. negative, greater than 0x10FFFF, or a surrogate)."
+      fn =
+        function
+        | _, _, _, [ DInt64 cp ] ->
+          if cp < 0L || cp > 0x10FFFFL || (cp >= 0xD800L && cp <= 0xDFFFL) then
+            Dval.optionNone KTChar |> Ply
+          else
+            let s = System.Char.ConvertFromUtf32(int cp)
+            Dval.optionSome KTChar (DChar s) |> Ply
+        | _ -> incorrectArgs ()
+      sqlSpec = NotYetImplemented
+      previewable = Pure
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

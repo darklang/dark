@@ -121,7 +121,7 @@ let handleKey
 
 // ── SubApp adapter ──
 
-let rec makeSubApp (state: State) : Darklang.Cli.SubApp =
+let makeSubApp (state: State) : Darklang.Cli.SubApp =
   Darklang.Cli.SubApp
     { onKey = fun key modifiers keyChar ->
         match handleKey state key modifiers keyChar with

@@ -199,12 +199,7 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
       state
 
     | Error err ->
-      let prettyError =
-        PrettyPrinter.RuntimeTypes.RuntimeError.toString
-          state.currentBranchId
-          err
-
-      Stdlib.printLine (Colors.error $"Error: {prettyError}")
+      Stdlib.printLine (Colors.error (Cli.ExecutionError.toString state.currentBranchId err))
       state
 
 
@@ -221,12 +216,7 @@ let getDBValue
     state
   | Ok None -> state
   | Error err ->
-    let prettyError =
-      PrettyPrinter.RuntimeTypes.RuntimeError.toString
-        state.currentBranchId
-        err
-
-    Stdlib.printLine (Colors.error $"Error: {prettyError}")
+    Stdlib.printLine (Colors.error (Cli.ExecutionError.toString state.currentBranchId err))
     state
 
 
@@ -249,12 +239,7 @@ let setDBValue
       Stdlib.printLine (Colors.success $"Set {key} in {dbName}")
       state
     | Error err ->
-      let prettyError =
-        PrettyPrinter.RuntimeTypes.RuntimeError.toString
-          state.currentBranchId
-          err
-
-      Stdlib.printLine (Colors.error $"Error: {prettyError}")
+      Stdlib.printLine (Colors.error (Cli.ExecutionError.toString state.currentBranchId err))
       state
 
 
@@ -270,12 +255,7 @@ let deleteDBValue
     Stdlib.printLine (Colors.success $"Deleted {key} from {dbName}")
     state
   | Error err ->
-    let prettyError =
-      PrettyPrinter.RuntimeTypes.RuntimeError.toString
-        state.currentBranchId
-        err
-
-    Stdlib.printLine (Colors.error $"Error: {prettyError}")
+    Stdlib.printLine (Colors.error (Cli.ExecutionError.toString state.currentBranchId err))
     state
 
 
@@ -292,12 +272,7 @@ let queryDB
     state
   | Ok None -> state
   | Error err ->
-    let prettyError =
-      PrettyPrinter.RuntimeTypes.RuntimeError.toString
-        state.currentBranchId
-        err
-
-    Stdlib.printLine (Colors.error $"Error: {prettyError}")
+    Stdlib.printLine (Colors.error (Cli.ExecutionError.toString state.currentBranchId err))
     state
 
 

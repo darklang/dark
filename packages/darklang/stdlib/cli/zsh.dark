@@ -5,6 +5,7 @@ module Darklang.Stdlib.Cli.Zsh
 let readZshrc () : Result.Result<String, String> =
   (Builtin.fileRead "$HOME/.zshrc")
   |> Result.map Stdlib.String.fromBlobWithReplacement
+  |> Result.mapError Stdlib.Cli.FileSystem.FileError.toString
 
 /// Overwrite what's in the .zshrc file
 let overwriteZshrc (content: String) : Result.Result<Unit, String> =

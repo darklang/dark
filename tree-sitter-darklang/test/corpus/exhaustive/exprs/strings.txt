@@ -267,3 +267,179 @@ string - escaped single quote
     )
   )
 )
+
+
+==================
+string - carriage-return escape
+==================
+
+"\r"
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (string_segment
+        (string_literal
+          (symbol)
+          (string_content (char_or_string_escape_sequence))
+          (symbol)
+        )
+      )
+    )
+  )
+)
+
+
+==================
+string - hex escape \xHH
+==================
+
+"\x41"
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (string_segment
+        (string_literal
+          (symbol)
+          (string_content (char_or_string_escape_sequence))
+          (symbol)
+        )
+      )
+    )
+  )
+)
+
+
+==================
+string - hex escape \XHHHH
+==================
+
+"\X0041"
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (string_segment
+        (string_literal
+          (symbol)
+          (string_content (char_or_string_escape_sequence))
+          (symbol)
+        )
+      )
+    )
+  )
+)
+
+
+==================
+string - unicode escape \uHHHH
+==================
+
+"\u00E9"
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (string_segment
+        (string_literal
+          (symbol)
+          (string_content (char_or_string_escape_sequence))
+          (symbol)
+        )
+      )
+    )
+  )
+)
+
+
+==================
+string - unicode escape \UHHHHHHHH
+==================
+
+"\U0001F600"
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (string_segment
+        (string_literal
+          (symbol)
+          (string_content (char_or_string_escape_sequence))
+          (symbol)
+        )
+      )
+    )
+  )
+)
+
+
+==================
+string - forward-slash escape
+==================
+
+"\/"
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (string_segment
+        (string_literal
+          (symbol)
+          (string_content (char_or_string_escape_sequence))
+          (symbol)
+        )
+      )
+    )
+  )
+)
+
+
+==================
+string - invalid escape produces ERROR
+==================
+
+"\d"
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (string_segment
+        (string_literal
+          (symbol)
+          (ERROR (UNEXPECTED 'd'))
+          (symbol)))))
+)
+
+
+==================
+string - partial-hex \u escape produces ERROR
+==================
+
+"\u00E"
+
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (string_segment
+        (string_literal
+          (symbol)
+          (ERROR (UNEXPECTED '"'))
+          (symbol)))))
+)

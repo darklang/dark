@@ -5,6 +5,7 @@ module Darklang.Stdlib.Cli.Bash
 let readBashrc () : Result.Result<String, String> =
   (Builtin.fileRead "$HOME/.bashrc")
   |> Result.map Stdlib.String.fromBlobWithReplacement
+  |> Result.mapError Stdlib.Cli.FileSystem.FileError.toString
 
 /// Apply changes to .bashrc
 let applyBashConfigChanges () : Result.Result<Unit, String> =

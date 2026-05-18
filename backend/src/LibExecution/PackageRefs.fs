@@ -143,6 +143,10 @@ module Type =
       let private p addl = p ("Cli" :: addl)
       let executionOutcome = p [] "ExecutionOutcome"
 
+      module FileSystem =
+        let private p addl = p ("FileSystem" :: addl)
+        let fileError = p [] "FileError"
+
       module Posix =
         let private p addl = p ("Posix" :: addl)
         let error = p [] "Error"
@@ -174,6 +178,8 @@ module Type =
       module CliScript =
         let private p addl = p ("CliScript" :: addl)
         let pTCliScriptModule = p [] "PTCliScriptModule"
+        let parseError = p [] "ParseError"
+        let unparseable = p [] "Unparseable"
 
     module RuntimeTypes =
       let private p addl = p ("RuntimeTypes" :: addl)
@@ -328,6 +334,7 @@ module Type =
 
   module Cli =
     let executionError = p [ "Cli"; "ExecutionError" ] "ExecutionError"
+    let unhandled = p [ "Cli"; "ExecutionError" ] "Unhandled"
     let script = p [ "Cli"; "Scripts" ] "Script"
 
     module Commands =

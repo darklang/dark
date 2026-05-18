@@ -112,12 +112,26 @@ let parseMPString
   let openQuoteNode = findField node "symbol_open_quote"
   let closeQuoteNode = findField node "symbol_close_quote"
 
-  let contents =
-    findAndParseOptional node "content" (fun stringPart ->
-      (stringPart.range, stringPart.text) |> Stdlib.Result.Result.Ok)
+  // tree-sitter classifies invalid escape sequences (e.g. "\d") as ERROR
+  // children rather than `char_or_string_escape_sequence`. Surface them as
+  // a parse failure instead of silently dropping content.
+  let hasErrorChild =
+    node.children |> Stdlib.List.any (fun c -> c.typ == "ERROR")
 
-  match (openQuoteNode, closeQuoteNode) with
-  | Ok openQuote, Ok closeQuote ->
+  let contents =
+    if hasErrorChild then
+      createUnparseableErrorMsg
+        node
+        "Invalid escape sequence in string match pattern"
+    else
+      match findNodeByFieldName node "content" with
+      | Some stringPart ->
+        Stdlib.Result.map (decodeStringContent stringPart) (fun decoded ->
+          Stdlib.Option.Option.Some((stringPart.range, decoded)))
+      | None -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
+
+  match (openQuoteNode, contents, closeQuoteNode) with
+  | Ok openQuote, Ok contents, Ok closeQuote ->
     (WrittenTypes.MatchPattern.MPString(
       node.range,
       contents,
@@ -125,31 +139,41 @@ let parseMPString
       closeQuote.range
     ))
     |> Stdlib.Result.Result.Ok
+  | _, Error e, _ -> Stdlib.Result.Result.Error e
   | _ -> createUnparseableError node
 
 
 let parseMPChar
   (node: ParsedNode)
   : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
-  let openQuoteNode = findField node "symbol_open_single_quote"
+  let hasErrorChild =
+    node.children |> Stdlib.List.any (fun c -> c.typ == "ERROR")
 
-  let charNode =
-    findAndParseOptional node "content" (fun charPart ->
-      (charPart.range, charPart.text) |> Stdlib.Result.Result.Ok)
+  if hasErrorChild then
+    createUnparseableErrorMsg node "Invalid escape sequence in char match pattern"
+  else
+    let openQuoteNode = findField node "symbol_open_single_quote"
+    let closeQuoteNode = findField node "symbol_close_single_quote"
 
-  let closeQuoteNode = findField node "symbol_close_single_quote"
+    let charNode =
+      match findNodeByFieldName node "content" with
+      | Some charPart ->
+        Stdlib.Result.map (decodeCharContent charPart) (fun rs ->
+          Stdlib.Option.Option.Some rs)
+      | None -> createUnparseableError node
 
-  match (openQuoteNode, closeQuoteNode) with
-  | Ok openQuote, Ok closeQuote ->
-    (WrittenTypes.MatchPattern.MPChar(
-      node.range,
-      charNode,
-      openQuote.range,
-      closeQuote.range
-    ))
-    |> Stdlib.Result.Result.Ok
+    match (openQuoteNode, charNode, closeQuoteNode) with
+    | Ok openQuote, Ok charNode, Ok closeQuote ->
+      (WrittenTypes.MatchPattern.MPChar(
+        node.range,
+        charNode,
+        openQuote.range,
+        closeQuote.range
+      ))
+      |> Stdlib.Result.Result.Ok
 
-  | _ -> createUnparseableError node
+    | _, Error e, _ -> Stdlib.Result.Result.Error e
+    | _ -> createUnparseableError node
 
 
 let parseMPList
