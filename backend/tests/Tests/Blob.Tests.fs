@@ -24,6 +24,7 @@ module BS = LibSerialization.Binary.Serialization
 module PT2DT = LibExecution.ProgramTypesToDarkTypes
 module RT2DT = LibExecution.RuntimeTypesToDarkTypes
 module PMBlob = LibDB.RuntimeTypes.Blob
+module Tracing = LibDB.Tracing
 module QueryableJson = LibSerialization.DvalReprInternalQueryable
 module Equals = Builtins.Pure.Libs.NoModule
 
@@ -657,6 +658,245 @@ let equalsEphemeralDifferentBytes =
   }
 
 
+// ─────────────────────────────────────────────────────────────────────
+// Dval.rewriteWith structural sharing
+// ─────────────────────────────────────────────────────────────────────
+//
+// The walker promises that when `f` returns `None` for every reachable
+// leaf, no container is reconstructed — the input Dval reference is
+// returned unchanged. These tests lock that in: every test here passes
+// behaviorally even without sharing, so the only way they catch
+// regressions is via `obj.ReferenceEquals`.
+
+let private noopRewriteWith (dv : RT.Dval) : Task<RT.Dval> =
+  RT.Dval.rewriteWith (fun _ -> Ply None) dv |> Ply.toTask
+
+let rewriteWithNoOpPreservesOuterRef =
+  testTask "Dval.rewriteWith: no-op f returns the input reference (DList)" {
+    let dv = RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 1L; RT.DInt64 2L ])
+    let! result = noopRewriteWith dv
+    Expect.isTrue
+      (obj.ReferenceEquals(result, dv))
+      "outer DList ref must be preserved"
+  }
+
+let rewriteWithNoOpPreservesNestedRefs =
+  testTask "Dval.rewriteWith: no-op f preserves every nested container ref" {
+    let inner = RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 7L ])
+    let middle = RT.DTuple(RT.DString "k", inner, [])
+    let outer =
+      RT.DDict(RT.ValueType.Unknown, Map [ "a", middle; "b", RT.DBool true ])
+    let! result = noopRewriteWith outer
+    Expect.isTrue (obj.ReferenceEquals(result, outer)) "outer DDict ref preserved"
+    // Reach into the result and verify the inner refs survived too.
+    match result with
+    | RT.DDict(_, m) ->
+      Expect.isTrue
+        (obj.ReferenceEquals(m["a"], middle))
+        "nested DTuple ref preserved"
+      match m["a"] with
+      | RT.DTuple(_, innerResult, _) ->
+        Expect.isTrue
+          (obj.ReferenceEquals(innerResult, inner))
+          "innermost DList ref preserved"
+      | _ -> failtest "expected DTuple at key 'a'"
+    | _ -> failtest "expected DDict"
+  }
+
+let rewriteWithSingleChangePreservesSiblings =
+  testTask "Dval.rewriteWith: rewriting one element keeps unchanged sibling refs" {
+    let sibling1 = RT.DInt64 1L
+    let sibling2 = RT.DInt64 2L
+    let target = RT.DString "rewrite-me"
+    let dv = RT.DList(RT.ValueType.Known RT.KTInt64, [ sibling1; target; sibling2 ])
+    let! result =
+      RT.Dval.rewriteWith
+        (fun d ->
+          uply {
+            match d with
+            | RT.DString "rewrite-me" -> return Some(RT.DInt64 99L)
+            | _ -> return None
+          })
+        dv
+      |> Ply.toTask
+    match result with
+    | RT.DList(_, [ a; b; c ]) ->
+      Expect.isTrue (obj.ReferenceEquals(a, sibling1)) "left sibling ref preserved"
+      Expect.isTrue (obj.ReferenceEquals(c, sibling2)) "right sibling ref preserved"
+      Expect.equal b (RT.DInt64 99L) "target replaced"
+    | _ -> failtest $"expected DList of 3, got {result}"
+  }
+
+let rewriteWithNoOpOnPrimitivePreservesRef =
+  testTask "Dval.rewriteWith: no-op on a primitive returns the input reference" {
+    let dv = RT.DInt64 42L
+    let! result = noopRewriteWith dv
+    Expect.isTrue
+      (obj.ReferenceEquals(result, dv))
+      "primitive Dval ref must be preserved"
+  }
+
+
+// ─────────────────────────────────────────────────────────────────────
+// Blob.promote recurses into DApplicable closures
+// ─────────────────────────────────────────────────────────────────────
+//
+// `Dval.rewriteWith` walks into AppLambda.closedRegisters /
+// AppLambda.argsSoFar / AppNamedFn.argsSoFar. A lambda closing over an
+// ephemeral blob must have its capture environment promoted along
+// with the rest of the value graph — otherwise the persisted closure
+// carries a DBlob(Ephemeral _) ref pointing at bytes that died with
+// the producing VM.
+
+let private fakeAppLambda
+  (closedRegisters : List<RT.Register * RT.Dval>)
+  (argsSoFar : List<RT.Dval>)
+  : RT.Dval =
+  RT.DApplicable(
+    RT.AppLambda
+      { exprId = 0UL
+        closedRegisters = closedRegisters
+        typeSymbolTable = Map.empty
+        argsSoFar = argsSoFar }
+  )
+
+let private fakeAppNamedFn (argsSoFar : List<RT.Dval>) : RT.Dval =
+  let name = RT.FQFnName.fqBuiltin "intAdd" 0
+  RT.DApplicable(
+    RT.AppNamedFn
+      { name = name
+        typeSymbolTable = Map.empty
+        typeArgs = []
+        argsSoFar = argsSoFar }
+  )
+
+let promoteRewritesInsideClosedRegisters =
+  testTask "Blob.promote: ephemeral inside AppLambda.closedRegisters is promoted" {
+    let state = freshState ()
+    let payload = uniquePayload "promote-closure"
+    let ephemeral = Blob.newEphemeral state payload
+    let dv = fakeAppLambda [ (1, ephemeral) ] []
+    let! promoted = Blob.promote state PMBlob.insert dv |> Ply.toTask
+    match promoted with
+    | RT.DApplicable(RT.AppLambda lambda) ->
+      match lambda.closedRegisters with
+      | [ (_, RT.DBlob(RT.Persistent(h, n))) ] ->
+        Expect.equal h (Blob.sha256Hex payload) "captured blob hash"
+        Expect.equal n (int64 payload.Length) "captured blob length"
+      | _ -> failtest $"expected promoted ephemeral, got {lambda.closedRegisters}"
+    | _ -> failtest $"expected DApplicable, got {promoted}"
+  }
+
+let promoteRewritesInsideAppLambdaArgs =
+  testTask "Blob.promote: ephemeral inside AppLambda.argsSoFar is promoted" {
+    let state = freshState ()
+    let payload = uniquePayload "promote-applambda-args"
+    let ephemeral = Blob.newEphemeral state payload
+    let dv = fakeAppLambda [] [ ephemeral ]
+    let! promoted = Blob.promote state PMBlob.insert dv |> Ply.toTask
+    match promoted with
+    | RT.DApplicable(RT.AppLambda lambda) ->
+      match lambda.argsSoFar with
+      | [ RT.DBlob(RT.Persistent(h, _)) ] ->
+        Expect.equal h (Blob.sha256Hex payload) "argsSoFar blob promoted"
+      | _ -> failtest $"expected promoted ephemeral, got {lambda.argsSoFar}"
+    | _ -> failtest $"expected DApplicable, got {promoted}"
+  }
+
+let promoteRewritesInsideAppNamedFnArgs =
+  testTask "Blob.promote: ephemeral inside AppNamedFn.argsSoFar is promoted" {
+    let state = freshState ()
+    let payload = uniquePayload "promote-namedfn-args"
+    let ephemeral = Blob.newEphemeral state payload
+    let dv = fakeAppNamedFn [ ephemeral ]
+    let! promoted = Blob.promote state PMBlob.insert dv |> Ply.toTask
+    match promoted with
+    | RT.DApplicable(RT.AppNamedFn fn) ->
+      match fn.argsSoFar with
+      | [ RT.DBlob(RT.Persistent(h, _)) ] ->
+        Expect.equal h (Blob.sha256Hex payload) "argsSoFar blob promoted"
+      | _ -> failtest $"expected promoted ephemeral, got {fn.argsSoFar}"
+    | _ -> failtest $"expected DApplicable, got {promoted}"
+  }
+
+
+// ─────────────────────────────────────────────────────────────────────
+// Trace storage stubs nested DStream values
+// ─────────────────────────────────────────────────────────────────────
+//
+// `LibDB.Tracing.prepareDvalForStorage` walks each captured Dval
+// through `Dval.rewriteWith`. A stream anywhere in the graph (top
+// level, list element, record field, captured by a closure) becomes
+// the shared `DStreamStub` DEnum from `RTToDT.Dval.streamStubDT`.
+
+let private freshStream () : RT.Dval =
+  let next () : Ply<Option<RT.Dval>> = uply { return None }
+  Stream.newFromIO LibExecution.ValueType.int64 next None
+
+let private isStubInt64 (dv : RT.Dval) : bool =
+  match dv with
+  | RT.DEnum(_, _, [], "DStreamStub", [ _ ]) -> true
+  | _ -> false
+
+let prepareStubsTopLevelStream =
+  testTask "prepareDvalForStorage: top-level DStream becomes DStreamStub" {
+    let state = freshState ()
+    let! result = Tracing.prepareDvalForStorage state (freshStream ()) |> Ply.toTask
+    Expect.isTrue (isStubInt64 result) $"expected stub, got {result}"
+  }
+
+let prepareStubsStreamInsideList =
+  testTask "prepareDvalForStorage: DStream nested inside DList is stubbed" {
+    let state = freshState ()
+    let dv =
+      RT.DList(RT.ValueType.Unknown, [ RT.DInt64 1L; freshStream (); RT.DInt64 2L ])
+    let! result = Tracing.prepareDvalForStorage state dv |> Ply.toTask
+    match result with
+    | RT.DList(_, [ a; b; c ]) ->
+      Expect.equal a (RT.DInt64 1L) "leading sibling preserved"
+      Expect.isTrue (isStubInt64 b) $"middle stream stubbed, got {b}"
+      Expect.equal c (RT.DInt64 2L) "trailing sibling preserved"
+    | _ -> failtest $"expected DList of 3, got {result}"
+  }
+
+let prepareStubsStreamInsideRecord =
+  testTask "prepareDvalForStorage: DStream nested inside DRecord field is stubbed" {
+    let state = freshState ()
+    let typeName =
+      RT.FQTypeName.fqPackage (LibExecution.PackageRefs.Type.Stdlib.option ())
+    let dv =
+      RT.DRecord(
+        typeName,
+        typeName,
+        [],
+        Map.ofList [ ("body", freshStream ()); ("count", RT.DInt64 5L) ]
+      )
+    let! result = Tracing.prepareDvalForStorage state dv |> Ply.toTask
+    match result with
+    | RT.DRecord(_, _, _, fields) ->
+      let body = fields["body"]
+      Expect.isTrue (isStubInt64 body) $"stream field stubbed, got {body}"
+      Expect.equal fields["count"] (RT.DInt64 5L) "sibling field preserved"
+    | _ -> failtest $"expected DRecord, got {result}"
+  }
+
+let prepareStubsStreamInsideClosure =
+  testTask "prepareDvalForStorage: DStream captured by AppLambda is stubbed" {
+    let state = freshState ()
+    let dv = fakeAppLambda [ (1, freshStream ()) ] []
+    let! result = Tracing.prepareDvalForStorage state dv |> Ply.toTask
+    match result with
+    | RT.DApplicable(RT.AppLambda lambda) ->
+      match lambda.closedRegisters with
+      | [ (_, captured) ] ->
+        Expect.isTrue
+          (isStubInt64 captured)
+          $"captured stream stubbed, got {captured}"
+      | _ -> failtest $"expected one closed register, got {lambda.closedRegisters}"
+    | _ -> failtest $"expected DApplicable, got {result}"
+  }
+
+
 // `sweepOrphans` deletes any `package_blobs` row not referenced
 // by `package_values.rt_dval`. Without sequencing, the sweep test
 // can run concurrently with `packageBlobDedupesOnSameHash` (which
@@ -706,4 +946,15 @@ let tests =
       equalsEphemeralPersistentSameBytesIsFalse
       equalsPersistentPersistentSameHash
       equalsPersistentPersistentDifferentHashes
-      equalsEphemeralDifferentBytes ]
+      equalsEphemeralDifferentBytes
+      rewriteWithNoOpPreservesOuterRef
+      rewriteWithNoOpPreservesNestedRefs
+      rewriteWithSingleChangePreservesSiblings
+      rewriteWithNoOpOnPrimitivePreservesRef
+      promoteRewritesInsideClosedRegisters
+      promoteRewritesInsideAppLambdaArgs
+      promoteRewritesInsideAppNamedFnArgs
+      prepareStubsTopLevelStream
+      prepareStubsStreamInsideList
+      prepareStubsStreamInsideRecord
+      prepareStubsStreamInsideClosure ]

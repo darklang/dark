@@ -648,77 +648,88 @@ module Dval =
     FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.RuntimeTypes.dval ())
   let knownType () = KTCustomType(typeName (), [])
 
-  let rec toDT (dv : Dval) : Dval =
-    let (caseName, fields) =
-      match dv with
-      | DUnit -> "DUnit", []
-      | DBool b -> "DBool", [ DBool b ]
-      | DInt8 i -> "DInt8", [ DInt8 i ]
-      | DUInt8 i -> "DUInt8", [ DUInt8 i ]
-      | DInt16 i -> "DInt16", [ DInt16 i ]
-      | DUInt16 i -> "DUInt16", [ DUInt16 i ]
-      | DInt32 i -> "DInt32", [ DInt32 i ]
-      | DUInt32 i -> "DUInt32", [ DUInt32 i ]
-      | DInt64 i -> "DInt64", [ DInt64 i ]
-      | DUInt64 i -> "DUInt64", [ DUInt64 i ]
-      | DInt128 i -> "DInt128", [ DInt128 i ]
-      | DUInt128 i -> "DUInt128", [ DUInt128 i ]
-      | DFloat f -> "DFloat", [ DFloat f ]
-      | DChar c -> "DChar", [ DChar c ]
-      | DString s -> "DString", [ DString s ]
-      | DUuid u -> "DUuid", [ DUuid u ]
-      | DDateTime d -> "DDateTime", [ DDateTime d ]
+  /// Build the DStreamStub DEnum for a stream of the given impl. Streams
+  /// can't round-trip through the dark-type bridge (the live pull fn
+  /// doesn't survive serialization), so reflection and the trace-storage
+  /// boundary substitute this stub. [StreamImpl.elemType] walks
+  /// transform nodes (Mapped/Filtered/Take/Concat) to report the
+  /// emitted element type.
+  let streamStubDT (impl : StreamImpl) : Dval =
+    let tn = typeName ()
+    DEnum(tn, tn, [], "DStreamStub", [ ValueType.toDT (StreamImpl.elemType impl) ])
 
-      | DTuple(first, second, theRest) ->
-        "DTuple",
+  let rec toDT (dv : Dval) : Dval =
+    let tn = typeName ()
+    let mk caseName fields = DEnum(tn, tn, [], caseName, fields)
+    match dv with
+    | DUnit -> mk "DUnit" []
+    | DBool b -> mk "DBool" [ DBool b ]
+    | DInt8 i -> mk "DInt8" [ DInt8 i ]
+    | DUInt8 i -> mk "DUInt8" [ DUInt8 i ]
+    | DInt16 i -> mk "DInt16" [ DInt16 i ]
+    | DUInt16 i -> mk "DUInt16" [ DUInt16 i ]
+    | DInt32 i -> mk "DInt32" [ DInt32 i ]
+    | DUInt32 i -> mk "DUInt32" [ DUInt32 i ]
+    | DInt64 i -> mk "DInt64" [ DInt64 i ]
+    | DUInt64 i -> mk "DUInt64" [ DUInt64 i ]
+    | DInt128 i -> mk "DInt128" [ DInt128 i ]
+    | DUInt128 i -> mk "DUInt128" [ DUInt128 i ]
+    | DFloat f -> mk "DFloat" [ DFloat f ]
+    | DChar c -> mk "DChar" [ DChar c ]
+    | DString s -> mk "DString" [ DString s ]
+    | DUuid u -> mk "DUuid" [ DUuid u ]
+    | DDateTime d -> mk "DDateTime" [ DDateTime d ]
+
+    | DTuple(first, second, theRest) ->
+      mk
+        "DTuple"
         [ toDT first
           toDT second
           DList(VT.known (knownType ()), List.map toDT theRest) ]
 
-      | DList(vt, items) ->
-        "DList",
+    | DList(vt, items) ->
+      mk
+        "DList"
         [ ValueType.toDT vt; DList(VT.known (knownType ()), List.map toDT items) ]
 
-      | DDict(vt, entries) ->
-        "DDict",
+    | DDict(vt, entries) ->
+      mk
+        "DDict"
         [ ValueType.toDT vt; DDict(VT.known (knownType ()), Map.map toDT entries) ]
 
-      | DRecord(runtimeTypeName, sourceTypeName, typeArgs, fields) ->
-        "DRecord",
+    | DRecord(runtimeTypeName, sourceTypeName, typeArgs, fields) ->
+      mk
+        "DRecord"
         [ FQTypeName.toDT runtimeTypeName
           FQTypeName.toDT sourceTypeName
           DList(VT.known (ValueType.knownType ()), List.map ValueType.toDT typeArgs)
           DDict(VT.known (knownType ()), Map.map toDT fields) ]
 
-      | DEnum(runtimeTypeName, sourceTypeName, typeArgs, caseName, fields) ->
-        "DEnum",
+    | DEnum(runtimeTypeName, sourceTypeName, typeArgs, caseName, fields) ->
+      mk
+        "DEnum"
         [ FQTypeName.toDT runtimeTypeName
           FQTypeName.toDT sourceTypeName
           DList(VT.known (ValueType.knownType ()), List.map ValueType.toDT typeArgs)
           DString caseName
           DList(VT.known (knownType ()), List.map toDT fields) ]
 
-      | DApplicable applicable -> "DApplicable", [ Applicable.toDT applicable ]
+    | DApplicable applicable -> mk "DApplicable" [ Applicable.toDT applicable ]
 
-      | DDB name -> "DDB", [ DString name ]
+    | DDB name -> mk "DDB" [ DString name ]
 
-      | DBlob(Ephemeral id) -> "DBlobEphemeral", [ DUuid id ]
-      | DBlob(Persistent(hash, length)) ->
-        "DBlobPersistent", [ DString hash; DInt64 length ]
+    | DBlob(Ephemeral id) -> mk "DBlobEphemeral" [ DUuid id ]
+    | DBlob(Persistent(hash, length)) ->
+      mk "DBlobPersistent" [ DString hash; DInt64 length ]
 
-      // Streams render as a stub tag for LSP/reflection only — they
-      // can't round-trip (no live pull fn on the other side).
-      // [StreamImpl.elemType] walks transform nodes (Mapped/Filtered/
-      // Take/Concat) to report the emitted element type.
-      // TODO this is a one-way bridge — `fromDT` raises on DStreamStub.
-      // Any user code that introspects a Dval and rebuilds it (custom
-      // pretty-printer, trace viewer) silently breaks for streams. The
-      // asymmetry isn't documented in the public API. Document it or
-      // add a "rehydrate as a no-op stub stream" path.
-      | DStream(impl, _, _) ->
-        "DStreamStub", [ ValueType.toDT (StreamImpl.elemType impl) ]
-
-    DEnum(typeName (), typeName (), [], caseName, fields)
+    // Streams render as a stub tag for LSP/reflection only — they
+    // can't round-trip (no live pull fn on the other side).
+    // TODO this is a one-way bridge — `fromDT` raises on DStreamStub.
+    // Any user code that introspects a Dval and rebuilds it (custom
+    // pretty-printer, trace viewer) silently breaks for streams. The
+    // asymmetry isn't documented in the public API. Document it or
+    // add a "rehydrate as a no-op stub stream" path.
+    | DStream(impl, _, _) -> streamStubDT impl
 
 
   let fromDT (d : Dval) : Dval =

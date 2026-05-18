@@ -9,6 +9,8 @@ module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
 module AT = LibExecution.AnalysisTypes
 module Exe = LibExecution.Execution
+module Blob = LibExecution.Blob
+module RTToDT = LibExecution.RuntimeTypesToDarkTypes
 module BinarySer = LibSerialization.Binary.Serialization
 
 /// Tracing can go overboard, so use a per-handler feature flag to control it. If
@@ -417,35 +419,56 @@ module TraceStorage =
       ()
 
 
-/// Walk every captured Dval through `Blob.promote` so ephemeral blob refs
-/// resolve to persistent ones (writing the bytes into package_blobs in the
-/// process). Mutates `state.events` in place; returns the promoted input
-/// dval. Without this step, every trace would record blob UUIDs pointing
-/// at gone bytes.
-let private promoteBlobs
+/// Rewrite a Dval for the trace-storage boundary:
+///   - DStream → DStreamStub (the live pull fn closes over this VM's
+///     exeState; draining would consume the user's stream).
+///   - DBlob(Ephemeral _) → DBlob(Persistent _), promoting bytes
+///     into package_blobs so the trace survives the producing VM.
+/// Recursion and container rebuilding are handled by `Dval.rewriteWith`,
+/// so nested DStream values (inside lists, records, closures, ...) are
+/// stubbed just like top-level ones.
+let prepareDvalForStorage
+  (exeState : RT.ExecutionState)
+  (dv : RT.Dval)
+  : Ply.Ply<RT.Dval> =
+  let promoteBlob =
+    Blob.promoteEphemeralLeaf
+      exeState
+      exeState.blobs.persist
+      "Ephemeral blob not found in store during trace preparation"
+  dv
+  |> RT.Dval.rewriteWith (fun dv ->
+    uply {
+      match dv with
+      | RT.DStream(impl, _, _) -> return Some(RTToDT.Dval.streamStubDT impl)
+      | _ -> return! promoteBlob dv
+    })
+
+
+/// Walk every captured Dval through [prepareDvalForStorage]. Mutates
+/// `state.events` in place; returns the prepared input dval.
+let private prepareTraceForStorage
   (exeState : RT.ExecutionState)
   (inputDval : RT.Dval)
   (state : TracerState)
   : Ply.Ply<RT.Dval> =
   uply {
-    let persist = exeState.blobs.persist
-    let! promotedInput = LibExecution.Blob.promote exeState persist inputDval
+    let prep = prepareDvalForStorage exeState
+    let! preparedInput = prep inputDval
     for i in 0 .. state.events.Count - 1 do
       let ev = state.events[i]
-      let! promotedArgs =
-        ev.args
-        |> List.map (fun a -> LibExecution.Blob.promote exeState persist a)
-        |> Ply.List.flatten
-      let! promotedResult = LibExecution.Blob.promote exeState persist ev.result
-      state.events[i] <- { ev with args = promotedArgs; result = promotedResult }
+      let! preparedArgs = ev.args |> Ply.List.mapSequentially prep
+      let! preparedResult = prep ev.result
+      state.events[i] <- { ev with args = preparedArgs; result = preparedResult }
 
-    return promotedInput
+    return preparedInput
   }
 
 
-/// Shared helper: store a trace to SQLite with error handling. Promotes
-/// every Dval through `Blob.promote` first so blob bytes survive the
-/// per-request blob scope.
+/// Shared helper: store a trace to SQLite with error handling. Runs
+/// every captured Dval through [prepareTraceForStorage] first —
+/// stubs DStream values and promotes ephemeral blob bytes so the
+/// trace survives the producing VM.
 let private storeTrace
   (rootTLID : tlid)
   (traceID : AT.TraceID.T)
@@ -457,13 +480,13 @@ let private storeTrace
   : Ply.Ply<unit> =
   uply {
     try
-      let! promotedInput = promoteBlobs exeState inputDval state
+      let! preparedInput = prepareTraceForStorage exeState inputDval state
       TraceStorage.store
         rootTLID
         traceID
         handlerDesc
         inputVarName
-        promotedInput
+        preparedInput
         (Seq.toList state.events)
         exeState.accountID
     with ex ->

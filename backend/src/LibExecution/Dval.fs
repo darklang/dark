@@ -94,7 +94,9 @@ let result
 /// - `DStream` — the pull fn is a closure bound to this exeState.
 /// - `DBlob(Ephemeral _)` — the raw bytes live in exeState.blobStore;
 ///   promote to `Persistent` first. Most call paths already promote
-///   (see `promoteBlobs`); this branch is a safety net.
+///   (see `Blob.promote` for the val-commit / DB-write path and
+///   `LibDB.Tracing.prepareDvalForStorage` for the trace path); this
+///   branch is a safety net.
 ///
 /// Walks containers so one bad leaf anywhere in the tree disqualifies
 /// the whole value.

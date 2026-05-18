@@ -3,15 +3,15 @@
 /// `Blob`s carry a `BlobRef` pointing at byte content held either
 /// in-process (Ephemeral) or in the content-addressed `package_blobs`
 /// table (Persistent). This module owns the byte-store mechanics
-/// (mint, read, scope-based reclaim) and the
-/// ephemeral-to-persistent promotion that runs at every persistence
-/// boundary.
+/// (mint, read, scope-based reclaim) and the leaf logic for
+/// ephemeral-to-persistent promotion ([promoteEphemeralLeaf]).
 ///
-/// The walk implementation (`promoteBlobs`) recurses through every
-/// Dval shape because a blob can be nested arbitrarily deep —
-/// rebuilding containers along the way. The traversal lives here
-/// rather than in `Dval.fs` because it's specifically a blob
-/// operation; Dval shape-walking is just the means.
+/// Promotion runs at every persistence boundary; structural recursion
+/// over the surrounding Dval shape is delegated to [Dval.rewriteWith] in
+/// `RuntimeTypes.fs`. `Blob.promote` wires the leaf handler into
+/// `rewriteWith` for the val-commit / User-DB-write path; the trace path
+/// (`LibDB.Tracing.prepareDvalForStorage`) reuses the same leaf
+/// handler alongside its own stream-stub rewrite.
 module LibExecution.Blob
 
 open Prelude
@@ -103,100 +103,60 @@ let readBytes (state : ExecutionState) (ref : BlobRef) : Ply.Ply<byte[]> =
   }
 
 
+/// [Dval.rewriteWith] leaf handler that promotes a `DBlob(Ephemeral _)`:
+/// look up bytes in `exeState.blobStore`, hash them, persist via
+/// [insert], and return `Some(DBlob(Persistent _))`. Returns `None`
+/// for anything else so the walker keeps descending. Raises with
+/// [errorContext] if the ephemeral UUID has no entry in the store —
+/// either the scope was popped early or the Dval is from a different
+/// VM.
+let promoteEphemeralLeaf
+  (exeState : ExecutionState)
+  (insert : string -> byte[] -> Ply.Ply<unit>)
+  (errorContext : string)
+  (dv : Dval)
+  : Ply.Ply<Dval option> =
+  uply {
+    match dv with
+    | DBlob(Ephemeral id) ->
+      let mutable bs : byte[] = null
+      if exeState.blobStore.TryGetValue(id, &bs) then
+        let h = sha256Hex bs
+        let n : int64 = System.Convert.ToInt64 bs.Length
+        do! insert h bs
+        return Some(DBlob(Persistent(h, n)))
+      else
+        return Exception.raiseInternal errorContext [ "id", id ]
+    | _ -> return None
+  }
+
+
 /// Promote any ephemeral blobs reachable from [dv] to persistent:
 /// hash the bytes (SHA-256), write them to the content-addressed
 /// store via [insert], and swap the ref. Idempotent by design — the
 /// insert path uses `INSERT OR IGNORE`, so promoting the same bytes
 /// twice writes to `package_blobs` once.
 ///
-/// Called before serializing a Dval through any persistence boundary
-/// (val commit, User DB write, trace capture). Plain `DBlob` writers
+/// Called before serializing a Dval through a non-trace persistence
+/// boundary (val commit, User DB write). Plain `DBlob` writers
 /// (binary, JSON) still raise on ephemeral — promote first, serialize
-/// second.
+/// second. The trace path has its own walker in
+/// `LibDB.Tracing.prepareDvalForStorage` that also stubs streams; it
+/// reuses [promoteEphemeralLeaf] but does not call this fn.
 ///
-/// `LibDB.Tracing.storeTrace` does call this (via `promoteBlobs`)
-/// before encoding each captured Dval — see that fn's docstring.
-/// Without it, a captured trace holding a `DBlob(Ephemeral _)` would
-/// deserialise in a fresh VM with the UUID intact but no bytes in that
-/// VM's blobStore, so the next `readBytes` would raise.
-///
-/// CLEANUP rebuilds container Dvals (Map.toList → walk → Map.ofList)
-/// even when no descendant blob promoted. Alloc-cheap in practice
-/// (~75KB regardless of input size), but a "did anything change"
-/// short-circuit would skip the round-trip in the common case.
+/// Structural recursion (including into DApplicable closures) is
+/// delegated to [Dval.rewriteWith] — we only describe the leaf substitution
+/// here. A lambda closing over an ephemeral blob has its capture
+/// environment promoted along with the rest of the value graph.
 let promote
   (exeState : ExecutionState)
   (insert : string -> byte[] -> Ply.Ply<unit>)
   (dv : Dval)
   : Ply.Ply<Dval> =
-  uply {
-    let rec go (dv : Dval) : Ply.Ply<Dval> =
-      uply {
-        match dv with
-        | DBlob(Ephemeral id) ->
-          let mutable bs : byte[] = null
-          if exeState.blobStore.TryGetValue(id, &bs) then
-            let h = sha256Hex bs
-            let n : int64 = System.Convert.ToInt64 bs.Length
-            do! insert h bs
-            return DBlob(Persistent(h, n))
-          else
-            return
-              Exception.raiseInternal
-                "Ephemeral blob not found in store during promotion"
-                [ "id", id ]
-        | DBlob(Persistent _)
-        | DUnit
-        | DBool _
-        | DInt8 _
-        | DUInt8 _
-        | DInt16 _
-        | DUInt16 _
-        | DInt32 _
-        | DUInt32 _
-        | DInt64 _
-        | DUInt64 _
-        | DInt128 _
-        | DUInt128 _
-        | DFloat _
-        | DChar _
-        | DString _
-        | DDateTime _
-        | DUuid _
-        | DApplicable _
-        | DDB _
-        | DStream _ -> return dv
-        | DList(vt, items) ->
-          let! items' = items |> Ply.List.mapSequentially go
-          return DList(vt, items')
-        | DDict(vt, entries) ->
-          let! entries' =
-            entries
-            |> Map.toList
-            |> Ply.List.mapSequentially (fun (k, v) ->
-              uply {
-                let! v' = go v
-                return (k, v')
-              })
-          return DDict(vt, Map.ofList entries')
-        | DTuple(a, b, rest) ->
-          let! a' = go a
-          let! b' = go b
-          let! rest' = rest |> Ply.List.mapSequentially go
-          return DTuple(a', b', rest')
-        | DRecord(src, rt, typeArgs, fields) ->
-          let! fields' =
-            fields
-            |> Map.toList
-            |> Ply.List.mapSequentially (fun (k, v) ->
-              uply {
-                let! v' = go v
-                return (k, v')
-              })
-          return DRecord(src, rt, typeArgs, Map.ofList fields')
-        | DEnum(src, rt, typeArgs, caseName, fields) ->
-          let! fields' = fields |> Ply.List.mapSequentially go
-          return DEnum(src, rt, typeArgs, caseName, fields')
-      }
-    return! go dv
-  }
+  dv
+  |> Dval.rewriteWith (
+    promoteEphemeralLeaf
+      exeState
+      insert
+      "Ephemeral blob not found in store during promotion"
+  )
