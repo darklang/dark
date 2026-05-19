@@ -162,12 +162,23 @@ let applyUnappliedOps () : Task<int64> =
         // PRAGMAs that affect transaction semantics must run *outside* a
         // transaction. foreign_keys=OFF in particular only takes effect
         // when not in a tx.
+        //
+        // synchronous=NORMAL (not OFF): OFF lets the writer skip syncing
+        // the change-counter update to disk, which poisons the page cache
+        // of any concurrent reader on a different connection — that
+        // reader then returns SQLITE_CORRUPT ("database disk image is
+        // malformed") even though PRAGMA integrity_check is clean. NORMAL
+        // keeps the WAL-mode coherence guarantee at the cost of one fsync
+        // per checkpoint; the bulk-grow win still comes from collapsing
+        // 9000+ commits into one transaction.
         do!
           runRaw
             "PRAGMA journal_mode=WAL; \
-             PRAGMA synchronous=OFF; \
+             PRAGMA synchronous=NORMAL; \
              PRAGMA busy_timeout=5000; \
              PRAGMA foreign_keys=OFF;"
+        let opCount = List.length unappliedOps
+        use _bulk = Telemetry.span "seed.applyOps.bulk" [ "ops", string opCount ]
         use tx = conn.BeginTransaction()
 
         for ((branchId, commitHash), ops) in groups do
@@ -222,7 +233,7 @@ let applyUnappliedOps () : Task<int64> =
               violation(s) after grow:\n{summary}"
             [ "first_violations", summary ]
 
-        return int64 (List.length unappliedOps)
+        return int64 opCount
   }
 
 
