@@ -479,6 +479,8 @@ let private storeTrace
   (exeState : RT.ExecutionState)
   : Ply.Ply<unit> =
   uply {
+    let traceIdStr = string traceID
+    use _span = Telemetry.span "trace.store" [ "traceId", traceIdStr ]
     try
       let! preparedInput = prepareTraceForStorage exeState inputDval state
       TraceStorage.store
@@ -490,10 +492,12 @@ let private storeTrace
         (Seq.toList state.events)
         exeState.accountID
     with ex ->
-      print $"[tracing] Failed to store trace: {ex.Message}"
+      System.Console.Error.WriteLine $"[tracing] Failed to store trace: {ex.Message}"
       Telemetry.event
         "trace.storeFailed"
-        [ "exception", ex.GetType().FullName; "message", ex.Message ]
+        [ "traceId", traceIdStr
+          "exception", ex.GetType().FullName
+          "message", ex.Message ]
   }
 
 
