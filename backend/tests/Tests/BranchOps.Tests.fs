@@ -157,9 +157,53 @@ let testBranchOpsDeserialization =
   }
 
 
+/// Regression: same FQN + same body on two branches used to ghost the
+/// second one. The SetName op is content-addressed, and with a bare
+/// `id` PK on package_ops, the second branch's identical SetName
+/// collided on insert (INSERT OR IGNORE silently dropped it). Result:
+/// no `locations` row on branch B, so view/search/tree/eval all act
+/// like the fn doesn't exist while `fn` still claimed `✓ Created`.
+let testGhostFunctionCrossBranch =
+  testTask "package ops: same fn on two branches is visible on both" {
+    let fn = makeFn (eVar "x")
+    let location = loc "ghost-cross-branch"
+    let ops =
+      [ PT.PackageOp.AddFn fn; PT.PackageOp.SetName(location, PT.PackageFn fn.hash) ]
+
+    let! (branchA : PT.Branch) = Branches.create "ghost-test-A" PT.mainBranchId
+    let! (_ : int64) = Inserts.insertAndApplyOpsAsWip branchA.id ops
+
+    let! (branchB : PT.Branch) = Branches.create "ghost-test-B" PT.mainBranchId
+    let! (_ : int64) = Inserts.insertAndApplyOpsAsWip branchB.id ops
+
+    let countLocationsFor (branchId : PT.BranchId) : Task<int64> =
+      Sql.query
+        """
+        SELECT COUNT(*) as cnt FROM locations
+        WHERE branch_id = @branch_id
+          AND owner = @owner AND modules = @modules AND name = @name
+        """
+      |> Sql.parameters
+        [ "branch_id", Sql.uuid branchId
+          "owner", Sql.string location.owner
+          "modules", Sql.string (String.concat "." location.modules)
+          "name", Sql.string location.name ]
+      |> Sql.executeRowAsync (fun read -> read.int64 "cnt")
+
+    let! locA = countLocationsFor branchA.id
+    let! locB = countLocationsFor branchB.id
+    Expect.equal locA 1L "branch A should have 1 location row"
+    Expect.equal
+      locB
+      1L
+      "branch B should have 1 location row (ghost-function regression)"
+  }
+
+
 let tests =
   testList
     "BranchOps"
     [ testBranchOpsEmitted
       testBranchOpsSerialization
-      testBranchOpsDeserialization ]
+      testBranchOpsDeserialization
+      testGhostFunctionCrossBranch ]
