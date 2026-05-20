@@ -112,8 +112,13 @@ let insertAndApplyOps
           let updateStatements =
             insertedOpIds
             |> List.map (fun opId ->
-              let sql = "UPDATE package_ops SET applied = @applied WHERE id = @id"
-              let parameters = [ "applied", Sql.bool true; "id", Sql.uuid opId ]
+              let sql =
+                "UPDATE package_ops SET applied = @applied \
+                 WHERE id = @id AND branch_id = @branch_id"
+              let parameters =
+                [ "applied", Sql.bool true
+                  "id", Sql.uuid opId
+                  "branch_id", Sql.uuid branchId ]
               (sql, [ parameters ]))
 
           let _ = updateStatements |> Sql.executeTransactionSync

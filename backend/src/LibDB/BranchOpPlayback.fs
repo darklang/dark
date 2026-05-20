@@ -90,6 +90,23 @@ let applyOp (op : PT.BranchOp) : Task<unit> =
           ("UPDATE commits SET branch_id = @parent_id WHERE branch_id = @branch_id",
            [ parentParams ])
 
+          // Drop duplicate child ops before moving the remaining rows to the
+          // parent; otherwise the (id, branch_id) PK rejects the UPDATE below.
+          // This preserves program state because the duplicate op content is
+          // identical.
+          //
+          // History caveat: deleting the child row can make getCommitOps miss
+          // that child's commit attribution. The proper fix is to store
+          // commit-to-op attribution separately from package_ops.
+          ("""
+           DELETE FROM package_ops
+           WHERE branch_id = @branch_id
+             AND id IN (
+               SELECT id FROM package_ops WHERE branch_id = @parent_id
+             )
+           """,
+           [ parentParams ])
+
           ("UPDATE package_ops SET branch_id = @parent_id WHERE branch_id = @branch_id",
            [ parentParams ])
 
