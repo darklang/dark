@@ -24,7 +24,6 @@ module Request =
   let typ = RT.FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Http.request ())
 
   let fromRequest
-    (state : RT.ExecutionState)
     (uri : string)
     (headers : List<string * string>)
     (body : byte array)
@@ -38,9 +37,7 @@ module Request =
       |> Dval.list headerType
 
     let fields =
-      [ "body", Blob.newEphemeral state body
-        "headers", headers
-        "url", RT.DString uri ]
+      [ "body", Blob.newEphemeral body; "headers", headers; "url", RT.DString uri ]
     RT.DRecord(typ, typ, [], Map fields)
 
 

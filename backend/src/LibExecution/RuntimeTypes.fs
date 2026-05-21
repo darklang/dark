@@ -354,9 +354,29 @@ type StringSegment =
   | Interpolated of Register
 
 
-/// Where the bytes of a DBlob actually live. Ephemeral refs resolve
-/// via [ExecutionState.blobStore]; persistent refs resolve via the
-/// package manager's `blobs` lookup.
+/// In-process blob whose bytes live directly on the Dval.
+///
+/// This deliberately avoids any current-scope or external ephemeral-blob
+/// store lookup: if the Dval is reachable, the bytes are reachable; when
+/// the Dval is collected, the bytes can be collected too.
+///
+/// `id` is the blob's runtime identity. Dark equality and ordering for
+/// ephemeral blobs use this id (`NoModule.equals`, `List.compareDval`),
+/// not byte equality. `Blob.newEphemeral` mints a fresh id and takes
+/// ownership of the byte array, which callers must treat as immutable.
+///
+/// CLEANUP: this is a plain public record, so those invariants are by
+/// convention: callers can construct records directly, F# record equality
+/// still compares `bytes`, and `bytes` can be mutated if a caller keeps
+/// or receives the array. For example, hand-built blobs can reuse an `id`,
+/// F# `=` can disagree with Dark equality by comparing bytes, and a caller
+/// can mutate the array after `Blob.newEphemeral` stores it.
+type EphemeralBlob = { id : uuid; bytes : byte[] }
+
+/// Where the bytes of a DBlob live. Ephemeral refs carry their bytes
+/// inline ([EphemeralBlob]); persistent refs hold a content hash and
+/// resolve via the package manager's `blobs` lookup against
+/// `package_blobs`.
 ///
 /// TODO BEAM-style sub-blob sharing: add
 ///   `| Subblob of parent: BlobRef * offset: int64 * length: int64`
@@ -365,7 +385,7 @@ type StringSegment =
 /// (default) or the parent. Skip until a profile shows slice-copy is
 /// hot — neither phase-1 nor phase-2 measurements flagged it.
 type BlobRef =
-  | Ephemeral of uuid
+  | Ephemeral of EphemeralBlob
   | Persistent of hash : string * length : int64
 
 
@@ -644,9 +664,10 @@ and [<NoComparison>] Dval =
   // References
   | DDB of name : string
 
-  /// Immutable byte sequence. The Dval holds a small reference (UUID
-  /// or hash); the bytes live in the per-ExecutionState ephemeral
-  /// store or in `package_blobs`.
+  /// Byte sequence, immutable by convention. Ephemeral blobs carry their
+  /// bytes inline (lifetime is GC); `Blob.readBytes` returns the array to
+  /// in-engine consumers, which treat it as read-only. Persistent blobs
+  /// hold a content hash and resolve via `package_blobs`. See [BlobRef].
   | DBlob of BlobRef
 
   /// Lazy, single-consumer, non-persistable sequence. The inner
@@ -1837,46 +1858,12 @@ and ExecutionState =
     types : Types
     fns : Functions
     values : Values
-    blobs : Blobs
 
-    /// Escape hatch for `Harmful`-marked fns: when true, the interpreter
-    /// still sees `fns.isHarmful` return true, but proceeds anyway (and
-    /// can still `notify` for observability). Tests, sandboxes, security
-    /// research set this; `run --allow-harmful` / `eval --allow-harmful`
-    /// toggle it for one-offs.
-    allowHarmful : bool
-
-    /// Per-execution ephemeral byte-store for `DBlob(Ephemeral _)`
-    /// references. Populated by IO builtins (fileRead, HttpClient.body,
-    /// etc.). Bytes live until the ExecutionState is discarded or
-    /// until the enclosing blob-scope pops (see [blobScopes] below).
-    blobStore :
-      System.Collections.Concurrent.ConcurrentDictionary<System.Guid, byte[]>
-
-    /// Stack of blob-scopes. Each scope tracks the set of ephemeral
-    /// blob UUIDs minted inside it so they can be dropped from
-    /// [blobStore] when the scope pops. Long-lived VMs (http-server)
-    /// push a fresh scope per handler invocation so blob bytes are
-    /// reclaimed promptly rather than accumulating for the life of
-    /// the VM. CLI runs typically don't push a scope — blobs live
-    /// for the length of the process, which is fine.
+    /// Content-addressed persistent blob store (`package_blobs`).
+    /// Ephemeral blobs carry their bytes inline and need no store;
+    /// promotion (see `Blob.promote`) writes them here.
     ///
-    /// Blobs promoted to `Persistent` before a scope pops remain
-    /// resolvable via `package_blobs` — we only drop the in-memory
-    /// byte-store entry, never the content-addressed row.
-    ///
-    /// Known limits not addressed here:
-    ///   - Within a single scope, ephemeral bytes accumulate until
-    ///     pop. A handler that pulls many large files or HTTP bodies
-    ///     can still balloon one request's footprint; no per-scope
-    ///     byte budget or backpressure enforces a ceiling.
-    ///     TODO config-driven byte-budget on `newEphemeralBlob`, raise
-    ///     on overflow. Eviction breaks identity once a UUID is gone,
-    ///     so raise-on-overflow is the only safe option.
-    ///   - No explicit eviction for ephemerals that outlive their
-    ///     usefulness within a scope (e.g. a byte[] built, read once,
-    ///     then logically dead): they sit in `blobStore` until the
-    ///     scope pops.
+    /// Orphan reclaim TODOs (persistent blobs only):
     ///   - `package_blobs` orphan reclaim runs via the `pm-sweep-blobs`
     ///     CLI command, which scans `package_values.rt_dval` only —
     ///     `trace_data` and User DB rows don't hold blob refs today,
@@ -1887,7 +1874,14 @@ and ExecutionState =
     ///   - No reverse-index table (`package_blob_refs`) — the sweep
     ///     is O(N+M). Fine at current scale; revisit at higher
     ///     package counts.
-    blobScopes : Stack<HashSet<System.Guid>>
+    blobs : Blobs
+
+    /// Escape hatch for `Harmful`-marked fns: when true, the interpreter
+    /// still sees `fns.isHarmful` return true, but proceeds anyway (and
+    /// can still `notify` for observability). Tests, sandboxes, security
+    /// research set this; `run --allow-harmful` / `eval --allow-harmful`
+    /// toggle it for one-offs.
+    allowHarmful : bool
 
     /// The account this run is attributed to (the developer behind a
     /// commit / script run / handler invocation). `None` means

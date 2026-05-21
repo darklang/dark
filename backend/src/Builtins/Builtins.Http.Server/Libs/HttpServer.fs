@@ -14,7 +14,6 @@ open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
 module Execution = LibExecution.Execution
-module Blob = LibExecution.Blob
 module Http = Builtins.Http.Server.Http
 module AT = LibExecution.AnalysisTypes
 module Tracing = LibDB.Tracing
@@ -169,10 +168,8 @@ let private handleRequest
   : Task<unit> =
   task {
     let started = System.DateTime.UtcNow
-    // Per-request blob scope: ephemeral blobs minted by the handler get
-    // reclaimed when the response is sent. Prevents long-lived servers from
-    // leaking blobStore entries.
-    Blob.pushScope exeState
+    // Ephemeral blobs carry their bytes inline (lifetime is GC), so there's no
+    // shared blob store for concurrent requests to race over.
     try
       try
         let! bodyResult = readRequestBodyWithLimit ctx.Request maxBodyBytes
@@ -191,7 +188,7 @@ let private handleRequest
             else
               rawUrl
 
-          let requestDval = Http.Request.fromRequest exeState url reqHeaders reqBody
+          let requestDval = Http.Request.fromRequest url reqHeaders reqBody
 
           // Per-request tracer — same shape as `eval`/`run` so HTTP traces
           // appear alongside CLI traces with no consumer-side changes.
@@ -232,7 +229,6 @@ let private handleRequest
         ctx.Response.ContentLength64 <- int64 errorBytes.Length
         do! ctx.Response.OutputStream.WriteAsync(errorBytes, 0, errorBytes.Length)
     finally
-      Blob.popScope exeState
       if logRequests then
         try
           logRequest ctx ctx.Response.StatusCode started

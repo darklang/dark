@@ -215,19 +215,18 @@ let t
       // a follow-up PR). Drop the dump until the new tracer lands.
       ignore<unit> ()
 
-      // Promote any ephemeral blobs to content-addressed Persistent
-      // refs so two expressions that construct the same bytes via
-      // different `newEphemeralBlob` calls compare equal under the
-      // test framework's structural `dvalEquality`. The no-op insert
-      // means we don't persist to `package_blobs` — we only need the
-      // hash to dedupe UUID identity.
+      // Promote ephemeral blobs before comparing test results. Runtime
+      // ephemerals use per-mint identity, so two expressions that build the
+      // same bytes produce different ephemeral ids and compare unequal.
+      // Promotion turns both into content-addressed Persistent refs, which
+      // compare by hash. The insert is a no-op because this test only needs
+      // the promoted identity; it does not read the persisted bytes later.
       let noopInsert _ _ = uply { return () }
       let promoteIfOk (r : RT.ExecutionResult) : Task<RT.ExecutionResult> =
         task {
           match r with
           | Ok dv ->
-            let! promoted =
-              LibExecution.Blob.promote state noopInsert dv |> Ply.toTask
+            let! promoted = LibExecution.Blob.promote noopInsert dv |> Ply.toTask
             return Ok promoted
           | Error _ -> return r
         }

@@ -718,7 +718,11 @@ module Dval =
 
     | DDB name -> mk "DDB" [ DString name ]
 
-    | DBlob(Ephemeral id) -> mk "DBlobEphemeral" [ DUuid id ]
+    // Inspectable but not round-trippable. The DT form carries only the
+    // runtime id; the inline bytes stay on the original DBlob value.
+    // `fromDT` raises on this case rather than rebuilding a blob that
+    // cannot be read.
+    | DBlob(Ephemeral eph) -> mk "DBlobEphemeral" [ DUuid eph.id ]
     | DBlob(Persistent(hash, length)) ->
       mk "DBlobPersistent" [ DString hash; DInt64 length ]
 
@@ -791,7 +795,15 @@ module Dval =
 
     | DEnum(_, _, [], "DDB", [ DString name ]) -> DDB name
 
-    | DEnum(_, _, [], "DBlobEphemeral", [ DUuid id ]) -> DBlob(Ephemeral id)
+    | DEnum(_, _, [], "DBlobEphemeral", [ DUuid _ ]) ->
+      // Reflected ephemeral blobs are inspectable but not round-trippable.
+      // The DT form carries only the runtime id; the inline bytes remain on
+      // the original DBlob value. Rebuilding from this would create a blob
+      // that cannot be read, so callers must promote to Persistent before
+      // any DT round-trip.
+      Exception.raiseInternal
+        "Cannot rebuild an ephemeral blob from its reflected form; it contains only the blob id, not the bytes. Values that need to round-trip through DT must be promoted to Persistent first."
+        []
     | DEnum(_, _, [], "DBlobPersistent", [ DString hash; DInt64 length ]) ->
       DBlob(Persistent(hash, length))
 

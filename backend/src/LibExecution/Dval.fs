@@ -92,7 +92,7 @@ let result
 ///
 /// Rejected:
 /// - `DStream` — the pull fn is a closure bound to this exeState.
-/// - `DBlob(Ephemeral _)` — the raw bytes live in exeState.blobStore;
+/// - `DBlob(Ephemeral _)` — the bytes are VM-local (inline, GC-bound);
 ///   promote to `Persistent` first. Most call paths already promote
 ///   (see `Blob.promote` for the val-commit / DB-write path and
 ///   `LibDB.Tracing.prepareDvalForStorage` for the trace path); this

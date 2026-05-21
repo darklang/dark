@@ -1,9 +1,8 @@
 /// Tests for the Blob Dval.
 ///
-/// Covers the ephemeral-blob byte-store on ExecutionState,
-/// serialization roundtrips, promotion, memory-bound assertions,
-/// scope-based lifetime, the val-persistability guard, the orphan
-/// sweeper, and the blob-equality semantics.
+/// Covers inline ephemeral-blob bytes, serialization roundtrips,
+/// promotion, memory-bound assertions, the val-persistability guard,
+/// the orphan sweeper, and the blob-equality semantics.
 module Tests.Blob
 
 open Expecto
@@ -56,13 +55,10 @@ let private dblobRef (dv : RT.Dval) : RT.BlobRef =
 
 let private ephemeralId (dv : RT.Dval) : System.Guid =
   match dv with
-  | RT.DBlob(RT.Ephemeral id) -> id
+  | RT.DBlob(RT.Ephemeral eph) -> eph.id
   | _ -> failtest $"expected DBlob(Ephemeral _), got {dv}"
 
-let private persistentHash (dv : RT.Dval) : string =
-  match dv with
-  | RT.DBlob(RT.Persistent(h, _)) -> h
-  | _ -> failtest $"expected DBlob(Persistent _), got {dv}"
+let private mkEphemeral (bytes : byte[]) : RT.Dval = Blob.newEphemeral bytes
 
 let private noopInsert : string -> byte[] -> Ply<unit> =
   fun _ _ -> uply { return () }
@@ -96,14 +92,14 @@ let private expectThrows (label : string) (f : unit -> Task<'a>) : Task<unit> =
 
 
 // ─────────────────────────────────────────────────────────────────────
-// Ephemeral byte-store
+// Ephemeral blobs — inline bytes
 // ─────────────────────────────────────────────────────────────────────
 
 let ephemeralRoundtrip =
-  testTask "ephemeral blob roundtrips bytes through the store" {
+  testTask "ephemeral blob roundtrips its inline bytes" {
     let state = freshState ()
     let payload = [| 1uy; 2uy; 3uy; 4uy; 5uy |]
-    let dv = Blob.newEphemeral state payload
+    let dv = Blob.newEphemeral payload
     match dv with
     | RT.DBlob(RT.Ephemeral _) -> ()
     | _ -> failtest $"expected DBlob(Ephemeral _), got {dv}"
@@ -115,22 +111,13 @@ let twoEphemeralsAreDistinct =
   testTask "two ephemeral blobs with same bytes have distinct handles" {
     let state = freshState ()
     let payload = [| 7uy; 7uy; 7uy |]
-    let dv1 = Blob.newEphemeral state payload
-    let dv2 = Blob.newEphemeral state payload
+    let dv1 = Blob.newEphemeral payload
+    let dv2 = Blob.newEphemeral payload
     Expect.notEqual (ephemeralId dv1) (ephemeralId dv2) "each mint gets a fresh uuid"
     let! b1 = Blob.readBytes state (dblobRef dv1) |> Ply.toTask
     let! b2 = Blob.readBytes state (dblobRef dv2) |> Ply.toTask
     Expect.equal b1 payload "first blob reads its bytes"
     Expect.equal b2 payload "second blob reads its bytes"
-  }
-
-let missingEphemeralRaises =
-  testTask "reading an unknown ephemeral id raises" {
-    let state = freshState ()
-    let bogusRef = RT.Ephemeral(System.Guid.NewGuid())
-    do!
-      expectThrows "expected an exception on missing ephemeral id" (fun () ->
-        Blob.readBytes state bogusRef |> Ply.toTask :> Task<_>)
   }
 
 
@@ -154,7 +141,7 @@ let persistentBlobBinaryRoundtrip =
 
 let ephemeralBlobBinaryRaises =
   test "DBlob(Ephemeral _) serialization raises; promote to persistent first" {
-    let dv = RT.DBlob(RT.Ephemeral(System.Guid.NewGuid()))
+    let dv = mkEphemeral [| 1uy; 2uy; 3uy |]
     Expect.throws
       (fun () -> BS.RT.Dval.serialize "dval" dv |> ignore<byte[]>)
       "ephemeral blob must raise on serialize — promote via `Blob.promote` first"
@@ -225,13 +212,20 @@ let dblobPersistentDarkBridge =
   }
 
 let dblobEphemeralDarkBridge =
-  // The ephemeral branch could force promotion, but LSP/reflection
-  // needs to render ephemeral blobs without a side effect. The current
-  // encoding preserves both variants distinctly.
-  test "DBlob(Ephemeral _) survives rt<->dark dval bridge without promotion" {
-    let original = RT.DBlob(RT.Ephemeral(System.Guid.NewGuid()))
-    let restored = RT2DT.Dval.fromDT (RT2DT.Dval.toDT original)
-    Expect.equal restored original "DBlob(Ephemeral) survives dval bridge"
+  // Ephemeral blobs render via `toDT` for LSP/reflection without a
+  // promotion side effect, but they don't round-trip: the inline bytes
+  // can't be rebuilt from the reflected id-only form, so `fromDT` raises
+  // (a one-way bridge, like DStreamStub). Promote to Persistent first if
+  // you need a value that survives the bridge.
+  test "DBlob(Ephemeral _) renders via toDT but fromDT raises (one-way)" {
+    let original = mkEphemeral [| 0xAAuy; 0xBBuy |]
+    let dt = RT2DT.Dval.toDT original
+    match dt with
+    | RT.DEnum(_, _, _, "DBlobEphemeral", _) -> ()
+    | _ -> failtest $"expected DBlobEphemeral DEnum, got {dt}"
+    Expect.throws
+      (fun () -> RT2DT.Dval.fromDT dt |> ignore<RT.Dval>)
+      "ephemeral blob must not round-trip through the dark-type bridge"
   }
 
 
@@ -272,10 +266,9 @@ let packageBlobMissingHashReturnsNone =
 
 let promotePersistsAndSwaps =
   testTask "promoteBlobs: ephemeral -> persistent + row in package_blobs" {
-    let state = freshState ()
     let payload = uniquePayload "promote-test"
-    let ephemeral = Blob.newEphemeral state payload
-    let! promoted = Blob.promote state PMBlob.insert ephemeral |> Ply.toTask
+    let ephemeral = Blob.newEphemeral payload
+    let! promoted = Blob.promote PMBlob.insert ephemeral |> Ply.toTask
     let expectedHash = Blob.sha256Hex payload
     match promoted with
     | RT.DBlob(RT.Persistent(h, n)) ->
@@ -288,10 +281,9 @@ let promotePersistsAndSwaps =
 
 let promoteThenSerializeRoundtrips =
   testTask "promoteBlobs then binary serialize roundtrips cleanly" {
-    let state = freshState ()
     let payload = uniquePayload "promote-serialize"
-    let ephemeral = Blob.newEphemeral state payload
-    let! promoted = Blob.promote state PMBlob.insert ephemeral |> Ply.toTask
+    let ephemeral = Blob.newEphemeral payload
+    let! promoted = Blob.promote PMBlob.insert ephemeral |> Ply.toTask
     let restored =
       BS.RT.Dval.deserialize "dval" (BS.RT.Dval.serialize "dval" promoted)
     Expect.equal
@@ -302,12 +294,11 @@ let promoteThenSerializeRoundtrips =
 
 let promoteSameBytesTwiceDedups =
   testTask "promoteBlobs: two ephemerals with identical bytes hit package_blobs once" {
-    let state = freshState ()
     let payload = uniquePayload "dedup-test"
-    let eph1 = Blob.newEphemeral state payload
-    let eph2 = Blob.newEphemeral state payload
-    let! p1 = Blob.promote state PMBlob.insert eph1 |> Ply.toTask
-    let! p2 = Blob.promote state PMBlob.insert eph2 |> Ply.toTask
+    let eph1 = Blob.newEphemeral payload
+    let eph2 = Blob.newEphemeral payload
+    let! p1 = Blob.promote PMBlob.insert eph1 |> Ply.toTask
+    let! p2 = Blob.promote PMBlob.insert eph2 |> Ply.toTask
     Expect.equal p1 p2 "two promotions of identical bytes share the hash"
     let! row = PMBlob.get (Blob.sha256Hex payload) |> Ply.toTask
     Expect.equal row (Some payload) "row still contains original bytes"
@@ -317,8 +308,8 @@ let promotedBlobResolvesViaReadBlobBytes =
   testTask "readBlobBytes on a promoted blob reads from package_blobs" {
     let state = freshState ()
     let payload = uniquePayload "resolve-test"
-    let ephemeral = Blob.newEphemeral state payload
-    let! promoted = Blob.promote state PMBlob.insert ephemeral |> Ply.toTask
+    let ephemeral = Blob.newEphemeral payload
+    let! promoted = Blob.promote PMBlob.insert ephemeral |> Ply.toTask
     let! bytes = Blob.readBytes state (dblobRef promoted) |> Ply.toTask
     Expect.equal bytes payload "persistent blob resolves back to its bytes"
   }
@@ -336,13 +327,12 @@ let fileReadMemoryBound =
       let buf = Array.zeroCreate<byte> 10_000_000
       System.Random(0).NextBytes(buf)
       System.IO.File.WriteAllBytes(path, buf)
-    let state = freshState ()
     System.GC.Collect()
     System.GC.WaitForPendingFinalizers()
     System.GC.Collect()
     let before = System.GC.GetTotalAllocatedBytes(precise = false)
     let! bytes = System.IO.File.ReadAllBytesAsync path
-    let _dv = Blob.newEphemeral state bytes
+    let _dv = Blob.newEphemeral bytes
     let delta = System.GC.GetTotalAllocatedBytes(precise = false) - before
     // Old List<UInt8> path allocated ~200× file size (10 MB → ~2 GB). Blob
     // path drops by ~100×; the bound is generous so any list-boxing
@@ -386,81 +376,14 @@ let queryableJsonRoundtrip =
 
 let queryableJsonEphemeralRaises =
   testTask "User-DB queryable JSON raises on ephemeral blob (promotion needed)" {
-    let state = freshState ()
     let types = { RT.Types.empty with package = pmRT.getType }
     let threadID = System.Guid.NewGuid()
-    let ephemeral = Blob.newEphemeral state [| 1uy; 2uy; 3uy |]
+    let ephemeral = Blob.newEphemeral [| 1uy; 2uy; 3uy |]
     do!
       expectThrows
         "ephemeral blob in queryable JSON should raise (promote first)"
         (fun () ->
           QueryableJson.toJsonStringV0 types threadID ephemeral |> Ply.toTask)
-  }
-
-
-// ─────────────────────────────────────────────────────────────────────
-// Scope-based ephemeral-blob lifetime
-// ─────────────────────────────────────────────────────────────────────
-
-let pushPopReclaimsScopedBlobs =
-  test "scope: popBlobScope drops blobs created inside the scope" {
-    let state = freshState ()
-    // Pre-scope blob (no scope: leaks for VM lifetime).
-    let preId = ephemeralId (Blob.newEphemeral state [| 0xAAuy |])
-    Blob.pushScope state
-    let aId = ephemeralId (Blob.newEphemeral state [| 0x01uy; 0x02uy |])
-    let bId = ephemeralId (Blob.newEphemeral state [| 0x03uy |])
-    Expect.isTrue (state.blobStore.ContainsKey aId) "a is in store pre-pop"
-    Expect.isTrue (state.blobStore.ContainsKey bId) "b is in store pre-pop"
-    Blob.popScope state
-    Expect.isFalse (state.blobStore.ContainsKey aId) "a dropped on pop"
-    Expect.isFalse (state.blobStore.ContainsKey bId) "b dropped on pop"
-    Expect.isTrue
-      (state.blobStore.ContainsKey preId)
-      "pre-scope blob survives the pop"
-  }
-
-let scopeNestsLikeAStack =
-  test "scope: nested scopes each clean up only their own blobs" {
-    let state = freshState ()
-    Blob.pushScope state
-    let outerId = ephemeralId (Blob.newEphemeral state [| 0x10uy |])
-    Blob.pushScope state
-    let innerId = ephemeralId (Blob.newEphemeral state [| 0x20uy |])
-    Blob.popScope state
-    Expect.isFalse
-      (state.blobStore.ContainsKey innerId)
-      "inner blob dropped on inner pop"
-    Expect.isTrue
-      (state.blobStore.ContainsKey outerId)
-      "outer blob survives inner pop"
-    Blob.popScope state
-    Expect.isFalse
-      (state.blobStore.ContainsKey outerId)
-      "outer blob drops on outer pop"
-  }
-
-let popWithoutPushIsNoOp =
-  test "scope: popBlobScope on an empty stack is a no-op" {
-    let state = freshState ()
-    Blob.popScope state
-    Blob.popScope state
-    Expect.equal state.blobScopes.Count 0 "stack still empty"
-  }
-
-let promotedBlobsSurviveScopePop =
-  testTask "scope: a blob promoted inside the scope stays resolvable via PM" {
-    let state = freshState ()
-    let payload = [| 0xDEuy; 0xADuy; 0xBEuy; 0xEFuy |]
-    Blob.pushScope state
-    let eph = Blob.newEphemeral state payload
-    let! promoted = Blob.promote state pmRT.persistBlob eph |> Ply.toTask
-    let hash = persistentHash promoted
-    Blob.popScope state
-    // Ephemeral bytes gone; persistent bytes survive in package_blobs.
-    let! bytes =
-      Blob.readBytes state (RT.Persistent(hash, int64 payload.Length)) |> Ply.toTask
-    Expect.equal bytes payload "persistent bytes survive the pop"
   }
 
 
@@ -492,7 +415,7 @@ let persistableAcceptsPlainShapes =
 
 let persistableRejectsEphemeralBlob =
   test "isPersistable: ephemeral blob is not persistable (must promote)" {
-    let dv = RT.DBlob(RT.Ephemeral(System.Guid.NewGuid()))
+    let dv = mkEphemeral [| 1uy; 2uy; 3uy |]
     Expect.isFalse (Dval.isPersistable dv) "ephemeral blob rejected"
     match Dval.nonPersistableReason dv with
     | Some reason ->
@@ -522,8 +445,7 @@ let persistableRejectsNestedBadShapes =
     let list =
       RT.DList(
         RT.ValueType.Known RT.KTBlob,
-        [ RT.DBlob(RT.Persistent("x", 1L))
-          RT.DBlob(RT.Ephemeral(System.Guid.NewGuid())) ]
+        [ RT.DBlob(RT.Persistent("x", 1L)); mkEphemeral [| 9uy |] ]
       )
     Expect.isFalse (Dval.isPersistable list) "list with ephemeral blob rejected"
 
@@ -610,26 +532,23 @@ let sweepDeletesOrphansButKeepsReferenced =
 
 let equalsEphemeralEphemeralSameUuid =
   test "blob equality: two refs to the same ephemeral UUID are equal" {
-    let state = freshState ()
-    let dv = Blob.newEphemeral state [| 0x01uy; 0x02uy |]
+    let dv = Blob.newEphemeral [| 0x01uy; 0x02uy |]
     Expect.isTrue (Equals.equals dv dv) "same ephemeral handle compares equal"
   }
 
 let equalsEphemeralEphemeralSameBytesIsFalse =
   test "blob equality: two distinct ephemerals with same bytes are unequal" {
-    let state = freshState ()
     let payload = [| 0x11uy; 0x22uy; 0x33uy |]
-    let a = Blob.newEphemeral state payload
-    let b = Blob.newEphemeral state payload
+    let a = Blob.newEphemeral payload
+    let b = Blob.newEphemeral payload
     Expect.notEqual (ephemeralId a) (ephemeralId b) "distinct UUIDs"
     Expect.isFalse (Equals.equals a b) "ephemeral identity is by UUID, not by bytes"
   }
 
 let equalsEphemeralPersistentSameBytesIsFalse =
   test "blob equality: ephemeral vs persistent with same bytes are unequal" {
-    let state = freshState ()
     let payload = [| 0xDEuy; 0xADuy |]
-    let eph = Blob.newEphemeral state payload
+    let eph = Blob.newEphemeral payload
     let per = RT.DBlob(RT.Persistent(Blob.sha256Hex payload, int64 payload.Length))
     Expect.isFalse
       (Equals.equals eph per)
@@ -651,9 +570,8 @@ let equalsPersistentPersistentDifferentHashes =
 
 let equalsEphemeralDifferentBytes =
   test "blob equality: two ephemerals with different bytes are unequal" {
-    let state = freshState ()
-    let a = Blob.newEphemeral state [| 0x00uy |]
-    let b = Blob.newEphemeral state [| 0xFFuy |]
+    let a = Blob.newEphemeral [| 0x00uy |]
+    let b = Blob.newEphemeral [| 0xFFuy |]
     Expect.isFalse (Equals.equals a b) "distinct UUIDs = unequal"
   }
 
@@ -772,11 +690,10 @@ let private fakeAppNamedFn (argsSoFar : List<RT.Dval>) : RT.Dval =
 
 let promoteRewritesInsideClosedRegisters =
   testTask "Blob.promote: ephemeral inside AppLambda.closedRegisters is promoted" {
-    let state = freshState ()
     let payload = uniquePayload "promote-closure"
-    let ephemeral = Blob.newEphemeral state payload
+    let ephemeral = Blob.newEphemeral payload
     let dv = fakeAppLambda [ (1, ephemeral) ] []
-    let! promoted = Blob.promote state PMBlob.insert dv |> Ply.toTask
+    let! promoted = Blob.promote PMBlob.insert dv |> Ply.toTask
     match promoted with
     | RT.DApplicable(RT.AppLambda lambda) ->
       match lambda.closedRegisters with
@@ -789,11 +706,10 @@ let promoteRewritesInsideClosedRegisters =
 
 let promoteRewritesInsideAppLambdaArgs =
   testTask "Blob.promote: ephemeral inside AppLambda.argsSoFar is promoted" {
-    let state = freshState ()
     let payload = uniquePayload "promote-applambda-args"
-    let ephemeral = Blob.newEphemeral state payload
+    let ephemeral = Blob.newEphemeral payload
     let dv = fakeAppLambda [] [ ephemeral ]
-    let! promoted = Blob.promote state PMBlob.insert dv |> Ply.toTask
+    let! promoted = Blob.promote PMBlob.insert dv |> Ply.toTask
     match promoted with
     | RT.DApplicable(RT.AppLambda lambda) ->
       match lambda.argsSoFar with
@@ -805,11 +721,10 @@ let promoteRewritesInsideAppLambdaArgs =
 
 let promoteRewritesInsideAppNamedFnArgs =
   testTask "Blob.promote: ephemeral inside AppNamedFn.argsSoFar is promoted" {
-    let state = freshState ()
     let payload = uniquePayload "promote-namedfn-args"
-    let ephemeral = Blob.newEphemeral state payload
+    let ephemeral = Blob.newEphemeral payload
     let dv = fakeAppNamedFn [ ephemeral ]
-    let! promoted = Blob.promote state PMBlob.insert dv |> Ply.toTask
+    let! promoted = Blob.promote PMBlob.insert dv |> Ply.toTask
     match promoted with
     | RT.DApplicable(RT.AppNamedFn fn) ->
       match fn.argsSoFar with
@@ -911,7 +826,6 @@ let tests =
     "blob"
     [ ephemeralRoundtrip
       twoEphemeralsAreDistinct
-      missingEphemeralRaises
       persistentBlobBinaryRoundtrip
       ephemeralBlobBinaryRaises
       tblobBinaryRoundtrip
@@ -931,10 +845,6 @@ let tests =
       fileReadMemoryBound
       queryableJsonRoundtrip
       queryableJsonEphemeralRaises
-      pushPopReclaimsScopedBlobs
-      scopeNestsLikeAStack
-      popWithoutPushIsNoOp
-      promotedBlobsSurviveScopePop
       persistableAcceptsPlainShapes
       persistableRejectsEphemeralBlob
       persistableRejectsStream

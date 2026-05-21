@@ -54,15 +54,6 @@ let createState
 
     allowHarmful = false
 
-    blobStore =
-      new System.Collections.Concurrent.ConcurrentDictionary<System.Guid, byte[]>()
-
-    // No active scope by default. HttpServer (and anything else with a
-    // request/handler lifecycle) pushes one per invocation so ephemeral
-    // blob bytes don't leak across requests.
-    blobScopes =
-      new System.Collections.Generic.Stack<System.Collections.Generic.HashSet<System.Guid>>()
-
     accountID = None }
 
 

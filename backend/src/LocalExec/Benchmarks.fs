@@ -115,7 +115,7 @@ let private printSummary (results : List<Scenarios.Result>) : unit =
 
 let runAll () : Ply<Result<unit, string>> =
   uply {
-    let results = Scenarios.run (Scenarios.freshState ())
+    let results = Scenarios.run ()
     let timestamp = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ssZ")
     let json = serializeSnapshot timestamp (gitCommit ()) results
 

@@ -1,10 +1,10 @@
 /// Runtime helpers for the `Blob` Dval type.
 ///
-/// `Blob`s carry a `BlobRef` pointing at byte content held either
-/// in-process (Ephemeral) or in the content-addressed `package_blobs`
-/// table (Persistent). This module owns the byte-store mechanics
-/// (mint, read, scope-based reclaim) and the leaf logic for
-/// ephemeral-to-persistent promotion ([promoteEphemeralLeaf]).
+/// `Blob`s carry a `BlobRef`: ephemeral blobs hold their bytes inline
+/// (lifetime is GC), persistent blobs hold a content hash backed by the
+/// content-addressed `package_blobs` table. This module owns minting,
+/// reading, and the leaf logic for ephemeral-to-persistent promotion
+/// ([promoteEphemeralLeaf]).
 ///
 /// Promotion runs at every persistence boundary; structural recursion
 /// over the surrounding Dval shape is delegated to [Dval.rewriteWith] in
@@ -38,58 +38,28 @@ let sha256Hex (bytes : byte[]) : string =
   System.Convert.ToHexStringLower(digest)
 
 
-/// Mint a fresh ephemeral blob: register the bytes in the exeState's
-/// blob store and return a DBlob that references them. Caller retains
-/// no direct handle on the byte[] past this point.
+/// Mint a fresh ephemeral blob holding [bytes] inline. Each mint gets a
+/// fresh identity (`id`), so two ephemerals with the same bytes are
+/// distinct values; the bytes are reachable only through the returned
+/// Dval, so GC reclaims them when it's collected. No store, no scope,
+/// and so no ExecutionState — minting needs no execution context.
 ///
-/// If a blob-scope is active (see [pushScope]), the new UUID is
-/// recorded in the top scope so [popScope] can reclaim the bytes
-/// when the scope exits. Runs without an active scope (CLI, tests)
-/// leave the bytes in the ExecutionState for its full lifetime.
-let newEphemeral (exeState : ExecutionState) (bytes : byte[]) : Dval =
-  let id = System.Guid.NewGuid()
-  exeState.blobStore[id] <- bytes
-  if exeState.blobScopes.Count > 0 then
-    exeState.blobScopes.Peek().Add(id) |> ignore<bool>
-  DBlob(Ephemeral id)
+/// Takes ownership of [bytes]: the array is stored as-is (not copied),
+/// so the caller must not mutate it afterwards.
+let newEphemeral (bytes : byte[]) : Dval =
+  DBlob(Ephemeral { id = System.Guid.NewGuid(); bytes = bytes })
 
 
-/// Push a fresh, empty blob-scope onto the stack. Each subsequent
-/// [newEphemeral] records its UUID in this scope until it's popped.
-/// Used by long-lived VMs (http-server) around per-handler work so
-/// ephemeral blobs don't accumulate across requests.
-let pushScope (exeState : ExecutionState) : unit =
-  exeState.blobScopes.Push(System.Collections.Generic.HashSet<System.Guid>())
-
-
-/// Pop the top blob-scope: drop every UUID it tracked from
-/// `blobStore`. Safe to call without a push (no-op on empty stack).
-/// Caller should wrap `pushScope` / `popScope` in a `try/finally` so
-/// failures don't leak blob bytes.
-///
-/// Blobs promoted to `Persistent` inside this scope are unaffected —
-/// promotion writes to `package_blobs` (a separate durable table)
-/// and the DBlob reference swaps to `Persistent`. We only drop the
-/// in-memory ephemeral byte cache.
-let popScope (exeState : ExecutionState) : unit =
-  if exeState.blobScopes.Count > 0 then
-    let scope = exeState.blobScopes.Pop()
-    for id in scope do
-      exeState.blobStore.TryRemove(id) |> ignore<bool * byte[]>
-
-
-/// Resolve a BlobRef to its bytes. Ephemerals read from the VM store;
+/// Resolve a BlobRef to its bytes. Ephemerals carry their bytes inline;
 /// persistent refs hit package_blobs via the ExecutionState's blob
 /// accessor. Shared by every builtin that dereferences a DBlob.
+///
+/// For ephemerals this returns the blob's own array, not a copy — treat
+/// the result as read-only; mutating it mutates the blob.
 let readBytes (state : ExecutionState) (ref : BlobRef) : Ply.Ply<byte[]> =
   uply {
     match ref with
-    | Ephemeral id ->
-      let mutable bs : byte[] = null
-      if state.blobStore.TryGetValue(id, &bs) then
-        return bs
-      else
-        return Exception.raiseInternal "ephemeral blob not found" [ "id", id ]
+    | Ephemeral eph -> return eph.bytes
     | Persistent(hash, _length) when hash = emptyHash -> return [||]
     | Persistent(hash, _length) ->
       let! got = state.blobs.get hash
@@ -104,29 +74,22 @@ let readBytes (state : ExecutionState) (ref : BlobRef) : Ply.Ply<byte[]> =
 
 
 /// [Dval.rewriteWith] leaf handler that promotes a `DBlob(Ephemeral _)`:
-/// look up bytes in `exeState.blobStore`, hash them, persist via
-/// [insert], and return `Some(DBlob(Persistent _))`. Returns `None`
-/// for anything else so the walker keeps descending. Raises with
-/// [errorContext] if the ephemeral UUID has no entry in the store —
-/// either the scope was popped early or the Dval is from a different
-/// VM.
+/// hash the inline bytes, persist them via [insert], and return
+/// `Some(DBlob(Persistent _))`. Returns `None` for anything else so the
+/// walker keeps descending. Can't fail to find bytes — they travel with
+/// the value.
 let promoteEphemeralLeaf
-  (exeState : ExecutionState)
   (insert : string -> byte[] -> Ply.Ply<unit>)
-  (errorContext : string)
   (dv : Dval)
   : Ply.Ply<Dval option> =
   uply {
     match dv with
-    | DBlob(Ephemeral id) ->
-      let mutable bs : byte[] = null
-      if exeState.blobStore.TryGetValue(id, &bs) then
-        let h = sha256Hex bs
-        let n : int64 = System.Convert.ToInt64 bs.Length
-        do! insert h bs
-        return Some(DBlob(Persistent(h, n)))
-      else
-        return Exception.raiseInternal errorContext [ "id", id ]
+    | DBlob(Ephemeral eph) ->
+      let bs = eph.bytes
+      let h = sha256Hex bs
+      let n : int64 = System.Convert.ToInt64 bs.Length
+      do! insert h bs
+      return Some(DBlob(Persistent(h, n)))
     | _ -> return None
   }
 
@@ -149,14 +112,7 @@ let promoteEphemeralLeaf
 /// here. A lambda closing over an ephemeral blob has its capture
 /// environment promoted along with the rest of the value graph.
 let promote
-  (exeState : ExecutionState)
   (insert : string -> byte[] -> Ply.Ply<unit>)
   (dv : Dval)
   : Ply.Ply<Dval> =
-  dv
-  |> Dval.rewriteWith (
-    promoteEphemeralLeaf
-      exeState
-      insert
-      "Ephemeral blob not found in store during promotion"
-  )
+  dv |> Dval.rewriteWith (promoteEphemeralLeaf insert)

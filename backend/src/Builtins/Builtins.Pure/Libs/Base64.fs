@@ -26,7 +26,7 @@ let fns () : List<BuiltInFn> =
         let resultOk r = Dval.resultOk KTBlob KTString r |> Ply
         let resultError r = Dval.resultError KTBlob KTString r |> Ply
         (function
-        | state, _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           let base64FromUrlEncoded (str : string) : string =
             let initial = str.Replace('-', '+').Replace('_', '/')
             let length = initial.Length
@@ -36,7 +36,7 @@ let fns () : List<BuiltInFn> =
             else initial
 
           if s = "" then
-            resultOk (Blob.newEphemeral state [||])
+            resultOk (Blob.newEphemeral [||])
           elif Regex.IsMatch(s, @"\s") then
             // dotnet ignores whitespace but we don't allow it
             resultError (DString "Not a valid base64 string")
@@ -44,7 +44,7 @@ let fns () : List<BuiltInFn> =
             try
               let bytes =
                 s |> base64FromUrlEncoded |> System.Convert.FromBase64String
-              resultOk (Blob.newEphemeral state bytes)
+              resultOk (Blob.newEphemeral bytes)
             with _ ->
               resultError (DString "Not a valid base64 string")
         | _ -> incorrectArgs ())

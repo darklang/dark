@@ -48,7 +48,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTBlob errType
         let resultError = Dval.resultError KTBlob errType
         (function
-        | state, _, _, [ DString path ] ->
+        | _, _, _, [ DString path ] ->
           uply {
             try
               let path =
@@ -58,7 +58,7 @@ let fns () : List<BuiltInFn> =
                 )
 
               let! contents = System.IO.File.ReadAllBytesAsync path
-              return resultOk (Blob.newEphemeral state contents)
+              return resultOk (Blob.newEphemeral contents)
             with e ->
               return resultError (FileError.fromException e)
           }

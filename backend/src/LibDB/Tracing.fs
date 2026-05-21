@@ -431,11 +431,7 @@ let prepareDvalForStorage
   (exeState : RT.ExecutionState)
   (dv : RT.Dval)
   : Ply.Ply<RT.Dval> =
-  let promoteBlob =
-    Blob.promoteEphemeralLeaf
-      exeState
-      exeState.blobs.persist
-      "Ephemeral blob not found in store during trace preparation"
+  let promoteBlob = Blob.promoteEphemeralLeaf exeState.blobs.persist
   dv
   |> RT.Dval.rewriteWith (fun dv ->
     uply {

@@ -243,7 +243,7 @@ let makeTest versionName filename =
         task {
           match r with
           | Ok dv ->
-            let! p = LibExecution.Blob.promote exeState noopInsert dv |> Ply.toTask
+            let! p = LibExecution.Blob.promote noopInsert dv |> Ply.toTask
             return Ok p
           | Error _ -> return r
         }
