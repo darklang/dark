@@ -365,13 +365,26 @@ type StringSegment =
 /// not byte equality. `Blob.newEphemeral` mints a fresh id and takes
 /// ownership of the byte array, which callers must treat as immutable.
 ///
-/// CLEANUP: this is a plain public record, so those invariants are by
-/// convention: callers can construct records directly, F# record equality
-/// still compares `bytes`, and `bytes` can be mutated if a caller keeps
-/// or receives the array. For example, hand-built blobs can reuse an `id`,
-/// F# `=` can disagree with Dark equality by comparing bytes, and a caller
-/// can mutate the array after `Blob.newEphemeral` stores it.
-type EphemeralBlob = { id : uuid; bytes : byte[] }
+/// Custom `Equals`/`GetHashCode` key on `id`, so F# `=` (reachable on any
+/// Dval containing a blob) agrees with Dark equality and hashing never
+/// scans the byte array. `NoComparison` is required alongside
+/// `CustomEquality`; it costs nothing here, since F# structural comparison
+/// of blobs is never used — Dark ordering is hand-coded in `List.compareDval`
+/// (by `id`) and Dval itself is already `NoComparison`.
+///
+/// CLEANUP: `bytes` can still be mutated if a caller keeps or receives the
+/// array, and a hand-built record can reuse an `id`. Both are by
+/// convention — not reachable from Dark, only from future internal code.
+[<CustomEquality; NoComparison>]
+type EphemeralBlob =
+  { id : uuid
+    bytes : byte[] }
+
+  override this.Equals(o : obj) : bool =
+    match o with
+    | :? EphemeralBlob as other -> this.id = other.id
+    | _ -> false
+  override this.GetHashCode() : int = this.id.GetHashCode()
 
 /// Where the bytes of a DBlob live. Ephemeral refs carry their bytes
 /// inline ([EphemeralBlob]); persistent refs hold a content hash and
