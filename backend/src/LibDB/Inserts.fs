@@ -180,79 +180,265 @@ let insertAndApplyOpsAsWip
   insertAndApplyOps branchId None ops
 
 
+// A commit stamps package_ops plus the projection rows it publishes.
+// TODO: subset commits match projection rows by content key, so two WIP ops
+// that publish the same projection row cannot be committed or discarded
+// independently. The clearest case is re-deprecating an item with a changed
+// message/kind: same projection key (item_hash, kind, "deprecated"), different
+// op id, so committing one stamps the other's row too. (Also: should we even
+// allow deprecating an already-deprecated item?)
+
+/// Every requested id must currently be WIP on the branch. If any id is already
+/// committed, discarded, or from another branch, reject the whole commit.
+let private validateRequestedIds
+  (opIdSet : Set<uuid>)
+  (allWip : List<uuid * PT.PackageOp>)
+  : Result<unit, string> =
+  let wipIdSet = allWip |> List.map fst |> Set.ofList
+  let missing = opIdSet |> Set.filter (fun id -> not (Set.contains id wipIdSet))
+
+  if Set.isEmpty missing then
+    Ok()
+  else
+    Error(
+      $"{Set.count missing} of {Set.count opIdSet} requested op id(s) are not WIP "
+      + "on this branch (they may already be committed, discarded, or belong to "
+      + "another branch); nothing was committed."
+    )
+
+/// SQL to flip WIP rows for a commit. Full commits use branch-wide updates;
+/// subset commits only stamp projection rows derived from the selected ops.
+let private projectionStatements
+  (commitHashStr : string)
+  (branchId : PT.BranchId)
+  (allSelected : bool)
+  (selectedOps : List<uuid * PT.PackageOp>)
+  =
+  if allSelected then
+    [ ("""
+       UPDATE package_ops
+       SET commit_hash = @commit_hash
+       WHERE branch_id = @branch_id AND commit_hash IS NULL
+       """,
+       [ [ "commit_hash", Sql.string commitHashStr; "branch_id", Sql.uuid branchId ] ])
+
+      ("""
+       UPDATE locations
+       SET commit_hash = @commit_hash
+       WHERE branch_id = @branch_id AND commit_hash IS NULL
+       """,
+       [ [ "commit_hash", Sql.string commitHashStr; "branch_id", Sql.uuid branchId ] ])
+
+      ("""
+       UPDATE deprecations
+       SET commit_hash = @commit_hash
+       WHERE branch_id = @branch_id AND commit_hash IS NULL
+       """,
+       [ [ "commit_hash", Sql.string commitHashStr; "branch_id", Sql.uuid branchId ] ]) ]
+  else
+    let selectedOpIds = selectedOps |> List.map fst
+
+    // SetName stamps its location row, keyed by FQN and item_hash so a second
+    // SetName on the same FQN doesn't drag the prior (unlisted but still WIP)
+    // row in.
+    let selectedLocations : List<PT.PackageLocation * PT.ItemKind * Hash> =
+      selectedOps
+      |> List.choose (fun (_, op) ->
+        match op with
+        | PT.PackageOp.SetName(loc, target) -> Some(loc, target.kind, target.hash)
+        | _ -> None)
+      |> List.distinct
+
+    // Deprecate/Undeprecate stamps its deprecation row, keyed by (item_hash, kind,
+    // state) so committing a Deprecate doesn't drag in a still-WIP Undeprecate
+    // of the same item. The "deprecated"/"undeprecated" strings mirror the
+    // `state` column written by applyDeprecate / applyUndeprecate. (Two ops
+    // projecting the same state for one (hash, kind) are still
+    // indistinguishable; see the TODO above.)
+    let selectedDeps : List<Hash * PT.ItemKind * string> =
+      selectedOps
+      |> List.choose (fun (_, op) ->
+        match op with
+        | PT.PackageOp.Deprecate(target, _, _) ->
+          Some(target.hash, target.kind, "deprecated")
+        | PT.PackageOp.Undeprecate target ->
+          Some(target.hash, target.kind, "undeprecated")
+        | _ -> None)
+      |> List.distinct
+
+    let packageOpStmts =
+      selectedOpIds
+      |> List.map (fun opId ->
+        ("""
+         UPDATE package_ops
+         SET commit_hash = @commit_hash
+         WHERE id = @id AND branch_id = @branch_id AND commit_hash IS NULL
+         """,
+         [ [ "commit_hash", Sql.string commitHashStr
+             "id", Sql.uuid opId
+             "branch_id", Sql.uuid branchId ] ]))
+
+    let locationStmts =
+      selectedLocations
+      |> List.map (fun (loc, kind, hash) ->
+        let modulesStr = String.concat "." loc.modules
+        let itemTypeStr = kind.toString ()
+        let (Hash hashStr) = hash
+        ("""
+         UPDATE locations
+         SET commit_hash = @commit_hash
+         WHERE branch_id = @branch_id
+           AND commit_hash IS NULL
+           AND owner = @owner
+           AND modules = @modules
+           AND name = @name
+           AND item_type = @item_type
+           AND item_hash = @item_hash
+         """,
+         [ [ "commit_hash", Sql.string commitHashStr
+             "branch_id", Sql.uuid branchId
+             "owner", Sql.string loc.owner
+             "modules", Sql.string modulesStr
+             "name", Sql.string loc.name
+             "item_type", Sql.string itemTypeStr
+             "item_hash", Sql.string hashStr ] ]))
+
+    let deprecationStmts =
+      selectedDeps
+      |> List.map (fun (hash, kind, state) ->
+        let (Hash hashStr) = hash
+        let itemKindStr = kind.toString ()
+        ("""
+         UPDATE deprecations
+         SET commit_hash = @commit_hash
+         WHERE branch_id = @branch_id
+           AND commit_hash IS NULL
+           AND item_hash = @item_hash
+           AND item_kind = @item_kind
+           AND state = @state
+         """,
+         [ [ "commit_hash", Sql.string commitHashStr
+             "branch_id", Sql.uuid branchId
+             "item_hash", Sql.string hashStr
+             "item_kind", Sql.string itemKindStr
+             "state", Sql.string state ] ]))
+
+    packageOpStmts @ locationStmts @ deprecationStmts
+
+
 /// Commit all WIP ops on a branch by creating a new commit and assigning commit_hash.
 /// Commit hash is content-addressed: hash(parentHash + sorted opHashes).
 /// Returns the commit Hash on success.
-let commitWipOps
+let rec commitWipOps
   (accountId : AccountID)
   (branchId : PT.BranchId)
   (message : string)
   : Task<Result<Hash, string>> =
+  // Commit-all is just "commit every WIP op id": gather the ids and defer to
+  // commitWipOpsByIds, which takes a branch-wide bulk fast-path when handed
+  // the full set (see below). Keeps one commit-construction code path.
+  task {
+    let! ids =
+      Sql.query
+        """
+        SELECT id
+        FROM package_ops
+        WHERE branch_id = @branch_id AND commit_hash IS NULL
+        ORDER BY created_at ASC
+        """
+      |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
+      |> Sql.executeAsync (fun read -> read.uuid "id")
+
+    if List.isEmpty ids then
+      return Error "Nothing to commit"
+    else
+      return! commitWipOpsByIds accountId branchId message ids
+  }
+
+
+/// Commit exactly the WIP ops with the given IDs.
+///
+/// The caller owns selection policy. This function validates that every
+/// requested id is still WIP, creates the commit, and stamps the selected ops
+/// plus their derived projection rows. If the requested ids cover the whole WIP
+/// set, it uses the commit-all projection path.
+///
+/// CLEANUP: if SCM becomes a shared multi-writer service, move validation,
+/// parent lookup, commit creation, and row stamping into one transaction
+/// on one connection.
+and commitWipOpsByIds
+  (accountId : AccountID)
+  (branchId : PT.BranchId)
+  (message : string)
+  (opIds : List<uuid>)
+  : Task<Result<Hash, string>> =
   task {
     try
-      // Get WIP ops with their hashes
-      let! wipOps =
-        Sql.query
-          """
-          SELECT id, op_blob
-          FROM package_ops
-          WHERE branch_id = @branch_id AND commit_hash IS NULL
-          ORDER BY created_at ASC
-          """
-        |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-        |> Sql.executeAsync (fun read ->
-          let opId = read.uuid "id"
-          let opBlob = read.bytes "op_blob"
-          let op = BS.PT.PackageOp.deserialize opId opBlob
-          (opId, op))
-
-      if List.isEmpty wipOps then
-        return Error "Nothing to commit"
+      if List.isEmpty opIds then
+        return Error "No ops selected"
       else
-        // Get parent commit hash (latest commit on this branch)
-        let! parentHash =
+        let opIdSet = Set.ofList opIds
+
+        let! allWip =
           Sql.query
             """
-            SELECT hash FROM commits
-            WHERE branch_id = @branch_id
-            ORDER BY created_at DESC
-            LIMIT 1
+            SELECT id, op_blob
+            FROM package_ops
+            WHERE branch_id = @branch_id AND commit_hash IS NULL
+            ORDER BY created_at ASC
             """
           |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-          |> Sql.executeRowOptionAsync (fun read -> Hash(read.string "hash"))
+          |> Sql.executeAsync (fun read ->
+            let opId = read.uuid "id"
+            let opBlob = read.bytes "op_blob"
+            let op = BS.PT.PackageOp.deserialize opId opBlob
+            (opId, op))
 
-        // Compute op hashes
-        let opHashes = wipOps |> List.map (fun (_, op) -> Hashing.computeOpHash op)
+        match validateRequestedIds opIdSet allWip with
+        | Error e -> return Error e
+        | Ok() ->
+          let selectedOps =
+            allWip |> List.filter (fun (id, _) -> Set.contains id opIdSet)
 
-        // Compute content-addressed commit hash
-        let commitHash =
-          Hashing.computeCommitHash accountId branchId parentHash opHashes
-        let (Hash commitHashStr) = commitHash
+          let! parentHash =
+            Sql.query
+              """
+              SELECT hash FROM commits
+              WHERE branch_id = @branch_id
+              ORDER BY created_at DESC
+              LIMIT 1
+              """
+            |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
+            |> Sql.executeRowOptionAsync (fun read -> Hash(read.string "hash"))
 
-        // The whole flip from WIP → committed runs atomically: the
-        // BranchOp insert, the `commits` row, and the three column
-        // re-points all in one transaction. A crash mid-write used to
-        // leave a `commits` row whose `package_ops` were still WIP,
-        // which `getCommits` would surface but `getCommitOps` wouldn't.
-        let op =
-          PT.BranchOp.CreateCommit(
-            commitHash,
-            message,
-            accountId,
-            branchId,
-            opHashes
-          )
-        let opHash = Hashing.computeBranchOpHash op
-        let (Hash branchOpHashStr) = opHash
-        let opBlob = BS.PT.BranchOp.serialize branchOpHashStr op
+          let opHashes =
+            selectedOps |> List.map (fun (_, op) -> Hashing.computeOpHash op)
 
-        let statements =
-          [ ("""
+          let commitHash =
+            Hashing.computeCommitHash accountId branchId parentHash opHashes
+          let (Hash commitHashStr) = commitHash
+
+          let branchOp =
+            PT.BranchOp.CreateCommit(
+              commitHash,
+              message,
+              accountId,
+              branchId,
+              opHashes
+            )
+          let branchOpHash = Hashing.computeBranchOpHash branchOp
+          let (Hash branchOpHashStr) = branchOpHash
+          let branchOpBlob = BS.PT.BranchOp.serialize branchOpHashStr branchOp
+
+          let branchOpStmt =
+            ("""
              INSERT OR IGNORE INTO branch_ops (id, op_blob, applied, created_at)
              VALUES (@id, @op_blob, 1, datetime('now'))
              """,
-             [ [ "id", Sql.string branchOpHashStr; "op_blob", Sql.bytes opBlob ] ])
+             [ [ "id", Sql.string branchOpHashStr
+                 "op_blob", Sql.bytes branchOpBlob ] ])
 
+          let commitStmt =
             ("""
              INSERT OR IGNORE INTO commits
                  (hash, message, branch_id, account_id, created_at)
@@ -264,33 +450,18 @@ let commitWipOps
                  "branch_id", Sql.uuid branchId
                  "account_id", Sql.uuid accountId ] ])
 
-            ("""
-             UPDATE package_ops
-             SET commit_hash = @commit_hash
-             WHERE branch_id = @branch_id AND commit_hash IS NULL
-             """,
-             [ [ "commit_hash", Sql.string commitHashStr
-                 "branch_id", Sql.uuid branchId ] ])
+          // selectedOps is allWip filtered by the requested id set, so equal
+          // lengths means every WIP op was selected.
+          let allSelected = List.length selectedOps = List.length allWip
 
-            ("""
-             UPDATE locations
-             SET commit_hash = @commit_hash
-             WHERE branch_id = @branch_id AND commit_hash IS NULL
-             """,
-             [ [ "commit_hash", Sql.string commitHashStr
-                 "branch_id", Sql.uuid branchId ] ])
+          let projStmts =
+            projectionStatements commitHashStr branchId allSelected selectedOps
 
-            ("""
-             UPDATE deprecations
-             SET commit_hash = @commit_hash
-             WHERE branch_id = @branch_id AND commit_hash IS NULL
-             """,
-             [ [ "commit_hash", Sql.string commitHashStr
-                 "branch_id", Sql.uuid branchId ] ]) ]
+          let statements = [ branchOpStmt; commitStmt ] @ projStmts
 
-        let _ = Sql.executeTransactionSync statements
+          let _ = Sql.executeTransactionSync statements
 
-        return Ok commitHash
+          return Ok commitHash
     with ex ->
       return Error ex.Message
   }
@@ -408,7 +579,7 @@ let discardWipOps (branchId : PT.BranchId) : Task<Result<int64, string>> =
         // on retry, the consequence was orphan WIP rows or active rows
         // that should still have been hidden. WIP-deprecations: their
         // supersession set `unlisted_at` on prior rows; we don't restore
-        // those here — the op log is source of truth, so a re-run via
+        // those here. The op log is source of truth, so a re-run via
         // `commit` + reload would rebuild state.
         let branchParam = [ [ "branch_id", Sql.uuid branchId ] ]
         let discardStatements =

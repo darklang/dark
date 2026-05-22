@@ -33,7 +33,34 @@ let getRecent (limit: Int64) : List<LanguageTools.ProgramTypes.PackageOp> =
 
 /// Get all WIP (uncommitted) ops on a branch
 let getWip (branchId: Uuid) : List<LanguageTools.ProgramTypes.PackageOp> =
-  Builtin.scmGetWipOps branchId
+  branchId |> getWipWithIds |> Stdlib.List.map (fun e -> e.op)
+
+
+/// A WIP package op with its DB row id and optional propagation batch id.
+type WipOpEntry =
+  { id: Uuid
+    op: LanguageTools.ProgramTypes.PackageOp
+    propagationId: Stdlib.Option.Option<Uuid> }
+
+
+/// Get all WIP ops on a branch as `WipOpEntry` records (op + DB id + batch).
+let getWipWithIds (branchId: Uuid) : List<WipOpEntry> =
+  branchId
+  |> Builtin.scmGetWipOpsWithIds
+  |> Stdlib.List.map (fun tuple ->
+    let (id, op, propId) = tuple
+    WipOpEntry { id = id; op = op; propagationId = propId })
+
+
+/// Render a PackageLocation as its dotted FQN string. Mirrors
+/// `LibDB.PackageLocation.toFQN` on the F# side so CLI-side name matching
+/// agrees with what `getWipItems` returns.
+let locationToFqn (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
+  if Stdlib.List.isEmpty loc.modules then
+    $"{loc.owner}.{loc.name}"
+  else
+    let modStr = Stdlib.String.join loc.modules "."
+    $"{loc.owner}.{modStr}.{loc.name}"
 
 
 /// Summary of WIP (uncommitted) changes on a branch
@@ -83,7 +110,24 @@ let commit
   (branchId: Uuid)
   (message: String)
   : Stdlib.Result.Result<String, String> =
-  Builtin.scmCommit accountId branchId message
+  // Full commit means committing every WIP op id.
+  let opIds =
+    branchId |> getWipWithIds |> Stdlib.List.map (fun e -> e.id)
+
+  if Stdlib.List.isEmpty opIds then
+    Stdlib.Result.Result.Error "Nothing to commit"
+  else
+    commitOpIds accountId branchId message opIds
+
+
+/// Commit the selected WIP op IDs. Caller owns selection policy.
+let commitOpIds
+  (accountId: Uuid)
+  (branchId: Uuid)
+  (message: String)
+  (opIds: List<Uuid>)
+  : Stdlib.Result.Result<String, String> =
+  Builtin.scmCommitWipOpsByIds accountId branchId message opIds
 
 
 /// Discard all WIP ops on a branch

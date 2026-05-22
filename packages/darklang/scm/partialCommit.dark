@@ -1,0 +1,747 @@
+module Darklang.SCM.PartialCommit
+
+// Pure planning for `commit --include=…`: resolve the requested names against
+// the WIP set, detect ambiguity, and turn a resolved selection into the op-id
+// set + display summary the CLI commits. No I/O — the CLI shell owns prompts,
+// printing, and the actual commit call. Kept separate so this logic is testable
+// without faking stdin.
+
+
+/// A resolved item: PackageLocation + ItemKind + display name (FQN).
+type SelectedItem =
+  { location: LanguageTools.ProgramTypes.PackageLocation
+    kind: LanguageTools.ProgramTypes.ItemKind
+    fqn: String }
+
+
+/// A WIP SetName match for a requested name: which item, what kind, its hash.
+type Candidate =
+  { location: LanguageTools.ProgramTypes.PackageLocation
+    kind: LanguageTools.ProgramTypes.ItemKind
+    hash: LanguageTools.ProgramTypes.Hash }
+
+
+/// Every *authored* WIP SetName op binding `fqn`, as candidates (one per op).
+///
+/// Only authored SetNames (`propagationId == None`) are selectable by name —
+/// propagated repoints carry the batch's `propagation_id` and are excluded, so
+/// `--include` can't pick a dependent's rebind out of its batch (which would
+/// commit the rebind while leaving its PropagateUpdate WIP). This also makes
+/// `--include` match what `status` shows, since `getWipItems` excludes
+/// propagated ops too. A repoint still rides along when its *source* is
+/// selected (handled by `collectIncludedPropIds`, not here).
+let candidatesFor
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (fqn: String)
+  : List<Candidate> =
+  wipOps
+  |> Stdlib.List.filterMap (fun entry ->
+    match entry.op with
+    | SetName(loc, target) ->
+      if
+        (entry.propagationId == Stdlib.Option.Option.None)
+        && ((SCM.PackageOps.locationToFqn loc) == fqn)
+      then
+        Stdlib.Option.Option.Some(
+          Candidate
+            { location = loc
+              kind = LanguageTools.ProgramTypes.Reference.kind target
+              hash = LanguageTools.ProgramTypes.Reference.hash target }
+        )
+      else
+        Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+
+
+/// Outcome of resolving one requested --include token.
+type TokenResolution =
+  | Resolved of SelectedItem
+  | NotFound of String
+  // The name matches more than one WIP item. Names are meant to be unique, so
+  // rather than guess (or pick by kind) we fail closed and list the conflicts.
+  | NonUnique of
+    String *
+      List<(LanguageTools.ProgramTypes.ItemKind *
+        LanguageTools.ProgramTypes.Hash)>
+
+
+/// Resolve one requested token (a plain FQN) to a single WIP item. Names are
+/// unique, so a hit is exactly one item; more than one is NonUnique.
+let resolveToken
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (raw: String)
+  : TokenResolution =
+  match candidatesFor wipOps raw with
+  | [] -> TokenResolution.NotFound raw
+  | [ c ] ->
+    TokenResolution.Resolved(
+      SelectedItem { location = c.location; kind = c.kind; fqn = raw }
+    )
+  | cands ->
+    let pairs = cands |> Stdlib.List.map (fun c -> (c.kind, c.hash))
+    TokenResolution.NonUnique(raw, pairs)
+
+
+/// Resolve every requested token. Ok of resolved items, or Error with a
+/// ready-to-print message: non-unique names first, then missing tokens.
+let resolveSelection
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (requestedNames: List<String>)
+  : Stdlib.Result.Result<List<SelectedItem>, String> =
+  let resolutions =
+    requestedNames |> Stdlib.List.map (fun raw -> resolveToken wipOps raw)
+
+  let nonUnique =
+    resolutions
+    |> Stdlib.List.filterMap (fun r ->
+      match r with
+      | NonUnique(fqn, cands) -> Stdlib.Option.Option.Some((fqn, cands))
+      | _ -> Stdlib.Option.Option.None)
+
+  let notFound =
+    resolutions
+    |> Stdlib.List.filterMap (fun r ->
+      match r with
+      | NotFound raw -> Stdlib.Option.Option.Some raw
+      | _ -> Stdlib.Option.Option.None)
+
+  if Stdlib.Bool.not (Stdlib.List.isEmpty nonUnique) then
+    // A name resolving to >1 WIP item — fail closed rather than guess.
+    let blocks =
+      nonUnique
+      |> Stdlib.List.map (fun pair ->
+        let (fqn, cands) = pair
+
+        let rows =
+          cands
+          |> Stdlib.List.map (fun kh ->
+            let (kind, hash) = kh
+            let short = LanguageTools.ProgramTypes.hashToShort hash
+            $"    {itemKindLabel kind}  {fqn}  {short}")
+
+        let head = $"  \"{fqn}\" matches more than one WIP item:"
+        Stdlib.String.join (Stdlib.List.append [ head ] rows) "\n")
+
+    let header =
+      [ "Some --include items match more than one WIP item (names must be"
+        "unique). Nothing was committed:"
+        "" ]
+
+    Stdlib.Result.Result.Error(
+      Stdlib.String.join (Stdlib.List.append header blocks) "\n"
+    )
+  else if Stdlib.Bool.not (Stdlib.List.isEmpty notFound) then
+    let lines = notFound |> Stdlib.List.map (fun n -> $"  - {n}")
+    let header = [ "Some --include items are not in the WIP list:" ]
+    let body = Stdlib.String.join (Stdlib.List.append header lines) "\n"
+
+    Stdlib.Result.Result.Error $"{body}\n\nRun `status` to see WIP items."
+  else
+    let resolved =
+      resolutions
+      |> Stdlib.List.filterMap (fun r ->
+        match r with
+        | Resolved item -> Stdlib.Option.Option.Some item
+        | _ -> Stdlib.Option.Option.None)
+
+    Stdlib.Result.Result.Ok resolved
+
+
+let itemKindLabel (kind: LanguageTools.ProgramTypes.ItemKind) : String =
+  match kind with
+  | Fn -> "fn"
+  | Type -> "type"
+  | Value -> "value"
+
+
+let selectionContains
+  (selection: List<SelectedItem>)
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  : Bool =
+  selection
+  |> Stdlib.List.any (fun item -> item.location == loc && item.kind == kind)
+
+
+// ---------------------------------------------------------------------------
+// Op-selection policy.
+//
+// Given a resolved selection (location + kind), decide exactly which WIP op ids
+// the commit should stamp. This is the item-local op closure — the Add/SetName
+// ops for selected items, the deprecations targeting them, and (optionally) the
+// propagation batches they source. Dependency closure across items is the
+// caller's job (see `uncommittedDepClosure`). Kept here, not in PackageOps, so
+// PackageOps stays a thin DB/builtin wrapper and all commit-selection policy
+// lives in one place.
+// ---------------------------------------------------------------------------
+
+
+/// True iff (loc, kind) appears in `selection`.
+let isSelected
+  (selection:
+    List<(LanguageTools.ProgramTypes.PackageLocation *
+      LanguageTools.ProgramTypes.ItemKind)>)
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  : Bool =
+  Stdlib.List.member_v0 selection (loc, kind)
+
+
+/// Pick the propagation IDs of batches whose source is in the selection.
+let collectIncludedPropIds
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (selection:
+    List<(LanguageTools.ProgramTypes.PackageLocation *
+      LanguageTools.ProgramTypes.ItemKind)>)
+  : List<Uuid> =
+  wipOps
+  |> Stdlib.List.filterMap (fun entry ->
+    match entry.op with
+    | PropagateUpdate(pid, sloc, _, toRef, _) ->
+      let kind = LanguageTools.ProgramTypes.Reference.kind toRef
+
+      if isSelected selection sloc kind then
+        Stdlib.Option.Option.Some pid
+      else
+        Stdlib.Option.Option.None
+    | RevertPropagation(rid, _, sloc, restored, _) ->
+      let kind = LanguageTools.ProgramTypes.Reference.kind restored
+
+      if isSelected selection sloc kind then
+        Stdlib.Option.Option.Some rid
+      else
+        Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+
+
+let inPropBatch
+  (includedPropIds: List<Uuid>)
+  (propId: Stdlib.Option.Option<Uuid>)
+  : Bool =
+  match propId with
+  | Some p -> Stdlib.List.member_v0 includedPropIds p
+  | None -> false
+
+
+/// Hashes bound by SetName ops that will be in the commit. AddX /
+/// Deprecate / Undeprecate get pulled in when they reference one of these.
+let collectReferencedHashes
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (selection:
+    List<(LanguageTools.ProgramTypes.PackageLocation *
+      LanguageTools.ProgramTypes.ItemKind)>)
+  (includedPropIds: List<Uuid>)
+  : List<(LanguageTools.ProgramTypes.Hash *
+    LanguageTools.ProgramTypes.ItemKind)> =
+  wipOps
+  |> Stdlib.List.filterMap (fun entry ->
+    match entry.op with
+    | SetName(loc, target) ->
+      let kind = LanguageTools.ProgramTypes.Reference.kind target
+
+      if
+        (isSelected selection loc kind)
+        || (inPropBatch includedPropIds entry.propagationId)
+      then
+        let hash = LanguageTools.ProgramTypes.Reference.hash target
+        Stdlib.Option.Option.Some((hash, kind))
+      else
+        Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+
+
+let referencedHashContains
+  (referencedHashes:
+    List<(LanguageTools.ProgramTypes.Hash *
+      LanguageTools.ProgramTypes.ItemKind)>)
+  (target: LanguageTools.ProgramTypes.Reference)
+  : Bool =
+  let h = LanguageTools.ProgramTypes.Reference.hash target
+  let k = LanguageTools.ProgramTypes.Reference.kind target
+  Stdlib.List.member_v0 referencedHashes (h, k)
+
+
+/// Decide whether one WIP op should be in the partial commit.
+let shouldInclude
+  (selection:
+    List<(LanguageTools.ProgramTypes.PackageLocation *
+      LanguageTools.ProgramTypes.ItemKind)>)
+  (referencedHashes:
+    List<(LanguageTools.ProgramTypes.Hash *
+      LanguageTools.ProgramTypes.ItemKind)>)
+  (includedPropIds: List<Uuid>)
+  (entry: SCM.PackageOps.WipOpEntry)
+  : Bool =
+  if inPropBatch includedPropIds entry.propagationId then
+    true
+  else
+    match entry.op with
+    | AddType t ->
+      Stdlib.List.member_v0
+        referencedHashes
+        (t.hash, LanguageTools.ProgramTypes.ItemKind.Type)
+    | AddValue v ->
+      Stdlib.List.member_v0
+        referencedHashes
+        (v.hash, LanguageTools.ProgramTypes.ItemKind.Value)
+    | AddFn f ->
+      Stdlib.List.member_v0
+        referencedHashes
+        (f.hash, LanguageTools.ProgramTypes.ItemKind.Fn)
+    | SetName(loc, target) ->
+      let k = LanguageTools.ProgramTypes.Reference.kind target
+      isSelected selection loc k
+    | Deprecate(target, _, _) -> referencedHashContains referencedHashes target
+    | Undeprecate target -> referencedHashContains referencedHashes target
+    | PropagateUpdate(_, _, _, _, _) -> false
+    | RevertPropagation(_, _, _, _, _) -> false
+
+
+/// Pick the WIP op IDs for selected items. This includes item-local Add/SetName
+/// ops, matching deprecations, and optional propagation batches. Dependency
+/// closure is handled by the caller.
+let selectOpIdsForItems
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (selection:
+    List<(LanguageTools.ProgramTypes.PackageLocation *
+      LanguageTools.ProgramTypes.ItemKind)>)
+  (includePropagations: Bool)
+  : List<Uuid> =
+  let includedPropIds =
+    if Stdlib.Bool.not includePropagations then
+      []
+    else
+      collectIncludedPropIds wipOps selection
+
+  let referencedHashes =
+    collectReferencedHashes wipOps selection includedPropIds
+
+  wipOps
+  |> Stdlib.List.filterMap (fun entry ->
+    if shouldInclude selection referencedHashes includedPropIds entry then
+      Stdlib.Option.Option.Some entry.id
+    else
+      Stdlib.Option.Option.None)
+
+
+/// Turn a resolved --include selection into the op-id set to commit.
+/// `includePropagations` is the (already-made) decision about whether to pull in
+/// dependent repoint batches.
+let planForSelection
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (selection: List<SelectedItem>)
+  (includePropagations: Bool)
+  : List<Uuid> =
+  let selectionForBuiltin =
+    selection |> Stdlib.List.map (fun item -> (item.location, item.kind))
+
+  selectOpIdsForItems wipOps selectionForBuiltin includePropagations
+
+
+// ---------------------------------------------------------------------------
+// Downward dependency closure.
+//
+// A `commit --include=…` of item A that references a still-WIP item B publishes
+// a name whose meaning depends on something unpublished. The content resolves
+// (references are by hash), so it's not *broken* — but the committed namespace
+// is incoherent until B is committed too. So before committing we compute the
+// transitive set of WIP-only items the selection references but doesn't include,
+// and let the user pull them in (one prompt, default yes). Declining is allowed
+// — the CLI shell owns that prompt.
+// ---------------------------------------------------------------------------
+
+
+/// An uncommitted item discovered as a dependency of the selection. Carries the
+/// hash so the closure walk can expand it to *its* dependencies in turn.
+type DepItem =
+  { hash: LanguageTools.ProgramTypes.Hash
+    kind: LanguageTools.ProgramTypes.ItemKind
+    location: LanguageTools.ProgramTypes.PackageLocation
+    fqn: String }
+
+
+/// The hash bound by the WIP SetName op for (loc, kind), if any. None means the
+/// item isn't WIP at that kind (e.g. it's already committed).
+///
+/// Only authored SetNames (`propagationId == None`) count — a propagated repoint
+/// must never be surfaced as a standalone dependency, or the closure could
+/// commit it apart from its propagation batch (see `oneLevelDeps`).
+let wipHashForLocation
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash> =
+  wipOps
+  |> Stdlib.List.filterMap (fun entry ->
+    match entry.op with
+    | SetName(l, target) ->
+      if
+        (entry.propagationId == Stdlib.Option.Option.None)
+        && (l == loc)
+        && (LanguageTools.ProgramTypes.Reference.kind target == kind)
+      then
+        Stdlib.Option.Option.Some(LanguageTools.ProgramTypes.Reference.hash target)
+      else
+        Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.head
+
+
+/// The location bound by the WIP SetName op for (hash, kind), if any. A match
+/// means that exact version is uncommitted (bound only in the WIP set).
+///
+/// Authored SetNames only (`propagationId == None`): a propagated repoint binds
+/// its hash too, but pulling it in here as a dependency would split it from its
+/// PropagateUpdate batch, leaving a half-committed propagation.
+let wipLocationForHash
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
+  wipOps
+  |> Stdlib.List.filterMap (fun entry ->
+    match entry.op with
+    | SetName(loc, target) ->
+      if
+        (entry.propagationId == Stdlib.Option.Option.None)
+        && (LanguageTools.ProgramTypes.Reference.hash target == hash)
+        && (LanguageTools.ProgramTypes.Reference.kind target == kind)
+      then
+        Stdlib.Option.Option.Some loc
+      else
+        Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.head
+
+
+/// The selection itself, as DepItems (the starting frontier for the walk).
+let seedDepItems
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (selection: List<SelectedItem>)
+  : List<DepItem> =
+  selection
+  |> Stdlib.List.filterMap (fun item ->
+    match wipHashForLocation wipOps item.location item.kind with
+    | Some h ->
+      Stdlib.Option.Option.Some(
+        DepItem
+          { hash = h
+            kind = item.kind
+            location = item.location
+            fqn = item.fqn }
+      )
+    | None -> Stdlib.Option.Option.None)
+
+
+/// One BFS step: the WIP-only items the frontier depends on, excluding anything
+/// already in the selection or already discovered (`seenKeys`).
+let oneLevelDeps
+  (branchId: Uuid)
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (selection: List<SelectedItem>)
+  (seenKeys:
+    List<(LanguageTools.ProgramTypes.PackageLocation *
+      LanguageTools.ProgramTypes.ItemKind)>)
+  (frontier: List<DepItem>)
+  : List<DepItem> =
+  frontier
+  |> Stdlib.List.map (fun item -> Builtin.scmGetDependencies branchId item.hash)
+  |> Stdlib.List.flatten
+  |> Stdlib.List.unique
+  |> Stdlib.List.filterMap (fun dep ->
+    let (dHash, dKind) = dep
+
+    match wipLocationForHash wipOps dHash dKind with
+    | Some loc ->
+      if
+        (selectionContains selection loc dKind)
+        || (Stdlib.List.member_v0 seenKeys (loc, dKind))
+      then
+        Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.Some(
+          DepItem
+            { hash = dHash
+              kind = dKind
+              location = loc
+              fqn = SCM.PackageOps.locationToFqn loc }
+        )
+    | None -> Stdlib.Option.Option.None)
+
+
+/// Walk dependency edges breadth-first, accumulating WIP-only items not in the
+/// selection. Terminates: the WIP set is finite and a key is never revisited.
+let depClosureLoop
+  (branchId: Uuid)
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (selection: List<SelectedItem>)
+  (frontier: List<DepItem>)
+  (acc: List<DepItem>)
+  : List<DepItem> =
+  match frontier with
+  | [] -> acc
+  | _ ->
+    let accKeys = acc |> Stdlib.List.map (fun d -> (d.location, d.kind))
+    let next = oneLevelDeps branchId wipOps selection accKeys frontier
+
+    if Stdlib.List.isEmpty next then
+      acc
+    else
+      depClosureLoop branchId wipOps selection next (Stdlib.List.append acc next)
+
+
+/// The transitive set of WIP-only items the selection references but does not
+/// include. Empty when the selection is already self-contained.
+let uncommittedDepClosure
+  (branchId: Uuid)
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (selection: List<SelectedItem>)
+  : List<SelectedItem> =
+  let seed = seedDepItems wipOps selection
+  let deps = depClosureLoop branchId wipOps selection seed []
+
+  deps
+  |> Stdlib.List.map (fun d ->
+    SelectedItem { location = d.location; kind = d.kind; fqn = d.fqn })
+
+
+// ---------------------------------------------------------------------------
+// Commit-contents display.
+//
+// The confirmation shows what will actually be committed, at item granularity,
+// grouped by why each item is included: what you named, what dependency closure
+// pulled in, and the propagated repoints that ride along. Long propagation
+// lists collapse to a count + a few examples so a big ripple isn't a wall of
+// mechanical entries.
+// ---------------------------------------------------------------------------
+
+
+/// An indented "label:" header + one "kind fqn" row per item. [] when empty.
+let groupLines (label: String) (items: List<SelectedItem>) : List<String> =
+  if Stdlib.List.isEmpty items then
+    []
+  else
+    let header = $"  {label}:"
+
+    let rows =
+      items |> Stdlib.List.map (fun i -> $"    {itemKindLabel i.kind} {i.fqn}")
+
+    Stdlib.List.append [ header ] rows
+
+
+/// The propagated-repoint group, collapsed to a count + first few when long.
+let propagationLines (items: List<SelectedItem>) : List<String> =
+  let n = Stdlib.List.length items
+
+  if n == 0L then
+    []
+  else
+    let header = $"  propagated repoints ({Stdlib.Int64.toString n}):"
+    let shown = Stdlib.List.take items 5L
+
+    let rows =
+      shown |> Stdlib.List.map (fun i -> $"    {itemKindLabel i.kind} {i.fqn}")
+
+    let more = n - (Stdlib.List.length shown)
+
+    let tail =
+      if more > 0L then
+        [ $"    ... and {Stdlib.Int64.toString more} more" ]
+      else
+        []
+
+    Stdlib.List.append (Stdlib.List.append [ header ] rows) tail
+
+
+/// A PropagateRepoint rendered as a display item (the repointed dependent).
+let repointToItem
+  (rp: LanguageTools.ProgramTypes.PropagateRepoint)
+  : SelectedItem =
+  SelectedItem
+    { location = rp.location
+      kind = LanguageTools.ProgramTypes.Reference.kind rp.toRef
+      fqn = SCM.PackageOps.locationToFqn rp.location }
+
+
+/// Dependents repointed by propagation batches whose source is in `selection`.
+let propagatedItemsForSelection
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (selection: List<SelectedItem>)
+  : List<SelectedItem> =
+  wipOps
+  |> Stdlib.List.filterMap (fun entry ->
+    match entry.op with
+    | PropagateUpdate(_, sloc, _, toRef, repoints) ->
+      if
+        selectionContains
+          selection
+          sloc
+          (LanguageTools.ProgramTypes.Reference.kind toRef)
+      then
+        Stdlib.Option.Option.Some repoints
+      else
+        Stdlib.Option.Option.None
+    | RevertPropagation(_, _, sloc, restored, reverted) ->
+      if
+        selectionContains
+          selection
+          sloc
+          (LanguageTools.ProgramTypes.Reference.kind restored)
+      then
+        Stdlib.Option.Option.Some reverted
+      else
+        Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.flatten
+  |> Stdlib.List.map repointToItem
+  |> Stdlib.List.unique
+
+
+/// Every dependent repointed by any propagation batch — for full commits, where
+/// every source is committed so every batch applies.
+let allPropagatedItems
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  : List<SelectedItem> =
+  wipOps
+  |> Stdlib.List.filterMap (fun entry ->
+    match entry.op with
+    | PropagateUpdate(_, _, _, _, repoints) -> Stdlib.Option.Option.Some repoints
+    | RevertPropagation(_, _, _, _, reverted) ->
+      Stdlib.Option.Option.Some reverted
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.flatten
+  |> Stdlib.List.map repointToItem
+  |> Stdlib.List.unique
+
+
+/// Every authored (SetName) item in the WIP set, as display items.
+///
+/// Authored SetNames only (`propagationId == None`). Propagated repoints are
+/// also SetName ops, but they're shown by `allPropagatedItems` under the
+/// "propagated repoints" group — including them here too would list every
+/// dependent twice in the full-commit confirmation.
+let allWipNamedItems
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  : List<SelectedItem> =
+  wipOps
+  |> Stdlib.List.filterMap (fun entry ->
+    match entry.op with
+    | SetName(loc, target) ->
+      if entry.propagationId == Stdlib.Option.Option.None then
+        Stdlib.Option.Option.Some(
+          SelectedItem
+            { location = loc
+              kind = LanguageTools.ProgramTypes.Reference.kind target
+              fqn = SCM.PackageOps.locationToFqn loc }
+        )
+      else
+        Stdlib.Option.Option.None
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.unique
+
+
+/// Deprecate / undeprecate ops as display lines. A standalone deprecation has
+/// no SetName (and no resolvable name yet — see the deferred select-by-name
+/// work), so it's shown by kind + short hash rather than dropped silently.
+let deprecationLines
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  : List<String> =
+  let entries =
+    wipOps
+    |> Stdlib.List.filterMap (fun entry ->
+      match entry.op with
+      | Deprecate(target, _, _) -> Stdlib.Option.Option.Some(("deprecate", target))
+      | Undeprecate target -> Stdlib.Option.Option.Some(("undeprecate", target))
+      | _ -> Stdlib.Option.Option.None)
+
+  if Stdlib.List.isEmpty entries then
+    []
+  else
+    let rows =
+      entries
+      |> Stdlib.List.map (fun pair ->
+        let (verb, target) = pair
+        let short =
+          LanguageTools.ProgramTypes.hashToShort
+            (LanguageTools.ProgramTypes.Reference.hash target)
+        let kind =
+          itemKindLabel (LanguageTools.ProgramTypes.Reference.kind target)
+
+        $"    {verb} {kind} {short}")
+
+    Stdlib.List.append [ "  deprecations:" ] rows
+
+
+/// Confirmation lines for a full commit (no --include): every authored item,
+/// any deprecations, plus the propagated repoints (collapsed).
+let displayLinesForFull
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  : List<String> =
+  let named = allWipNamedItems wipOps
+
+  let itemLines =
+    named |> Stdlib.List.map (fun i -> $"  {itemKindLabel i.kind} {i.fqn}")
+
+  Stdlib.List.append
+    itemLines
+    (Stdlib.List.append
+      (deprecationLines wipOps)
+      (propagationLines (allPropagatedItems wipOps)))
+
+
+/// Deprecate / undeprecate ops pulled into a partial commit because their
+/// target hash belongs to a selected item (`shouldInclude` does this). Shown by
+/// the item's FQN — since these target selected items, the name is known.
+let deprecationLinesForSelection
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (finalSelection: List<SelectedItem>)
+  : List<String> =
+  let selItems = seedDepItems wipOps finalSelection
+
+  let rows =
+    wipOps
+    |> Stdlib.List.filterMap (fun entry ->
+      let verbAndTarget =
+        match entry.op with
+        | Deprecate(target, _, _) -> Stdlib.Option.Option.Some(("deprecate", target))
+        | Undeprecate target ->
+          Stdlib.Option.Option.Some(("undeprecate", target))
+        | _ -> Stdlib.Option.Option.None
+
+      match verbAndTarget with
+      | Some pair ->
+        let (verb, target) = pair
+        let h = LanguageTools.ProgramTypes.Reference.hash target
+        let k = LanguageTools.ProgramTypes.Reference.kind target
+
+        match
+          selItems |> Stdlib.List.findFirst (fun d -> d.hash == h && d.kind == k)
+          with
+        | Some d -> Stdlib.Option.Option.Some $"    {verb} {itemKindLabel k} {d.fqn}"
+        | None -> Stdlib.Option.Option.None
+      | None -> Stdlib.Option.Option.None)
+
+  if Stdlib.List.isEmpty rows then
+    []
+  else
+    Stdlib.List.append [ "  deprecations:" ] rows
+
+
+/// Confirmation lines for a partial commit, grouped by why each item is in:
+/// what you named (`selected`), what closure pulled in (`pulledIn`), the
+/// deprecations carried with selected items, and the propagated repoints.
+let displayLinesForSelection
+  (wipOps: List<SCM.PackageOps.WipOpEntry>)
+  (selected: List<SelectedItem>)
+  (pulledIn: List<SelectedItem>)
+  (finalSelection: List<SelectedItem>)
+  : List<String> =
+  let propagated = propagatedItemsForSelection wipOps finalSelection
+
+  Stdlib.List.append
+    (groupLines "selected" selected)
+    (Stdlib.List.append
+      (groupLines "dependencies (pulled in)" pulledIn)
+      (Stdlib.List.append
+        (deprecationLinesForSelection wipOps finalSelection)
+        (propagationLines propagated)))
