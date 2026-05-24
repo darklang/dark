@@ -224,9 +224,18 @@ let search
       (joinColumn : string)
       deserializeFn
       =
+      // A dotted query (e.g. "List.map") spans module path + name, so the
+      // full qualified path must be matched, not just the name column.
+      let isQualified = query.text.Contains "."
       let nameCondition =
         if query.exactMatch then
-          "l.name = @searchText"
+          if isQualified then
+            "((l.owner || '.' || l.modules || '.' || l.name) = @searchText
+              OR (l.owner || '.' || l.modules || '.' || l.name) LIKE '%.' || @searchText)"
+          else
+            "l.name = @searchText"
+        else if isQualified then
+          "(l.owner || '.' || l.modules || '.' || l.name) LIKE '%' || @searchText || '%'"
         else
           "l.name LIKE '%' || @searchText || '%'"
 
