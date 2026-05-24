@@ -125,12 +125,11 @@ let tEval (name : string) (input : string) (expected : RT.Dval) =
   }
 
 
-/// Asserts the ParseError case name returned by `parseForCli`. Uses
-/// `parseForCli` (the same parse path the CLI uses) because it surfaces
-/// `unparseableStuff` as `Result.Error` — `parsePTSourceFileWithOps` swallows
+/// Uses `parseForCli` (the same parse path the CLI uses) because it surfaces
+/// `unparseableStuff` as `Result.Error`; `parsePTSourceFileWithOps` swallows
 /// per-declaration parse failures into a side list and returns Ok overall.
-let tParseErrorVariant (name : string) (input : string) (expectedCaseName : string) =
-  testTask name {
+let parseForCliDval (input : string) =
+  task {
     let parseFnName =
       RT.FQFnName.fqPackage (
         PackageRefs.Fn.LanguageTools.Parser.CliScript.parseForCli ()
@@ -146,6 +145,14 @@ let tParseErrorVariant (name : string) (input : string) (expectedCaseName : stri
     let! parseResult =
       LibExecution.Execution.executeFunction parseExeState parseFnName [] args
     let! parseDval = unwrapExecutionResult parseExeState parseResult |> Ply.toTask
+    return parseDval
+  }
+
+
+let tParseErrorVariant (name : string) (input : string) (expectedCaseName : string) =
+  testTask name {
+    let! parseDval = parseForCliDval input
+
     match parseDval with
     | RT.DEnum(tn, _, _, "Error", [ RT.DEnum(_, _, _, caseName, _) ]) when
       tn = Dval.resultType ()
@@ -159,6 +166,27 @@ let tParseErrorVariant (name : string) (input : string) (expectedCaseName : stri
       return
         failtest
           $"Expected Result.Error containing a ParseError variant; got {parseDval}"
+  }
+
+
+/// Like `tParseErrorVariant`, but also asserts the exact `Unparseable` note.
+let tParseErrorNote (name : string) (input : string) (expectedNote : string) =
+  testTask name {
+    let! parseDval = parseForCliDval input
+
+    match parseDval with
+    | RT.DEnum(tn, _, _, "Error", [ errVariant ]) when tn = Dval.resultType () ->
+      match errVariant with
+      | RT.DEnum(_, _, _, "Unparseable", [ RT.DRecord(_, _, _, fields) ]) ->
+        match Map.tryFind "note" fields with
+        | Some(RT.DEnum(_, _, _, "Some", [ RT.DString note ])) ->
+          return Expect.equal note expectedNote $"wrong Unparseable note for {input}"
+        | other ->
+          return
+            failtest $"Expected an Unparseable with a Some note; got note = {other}"
+      | other -> return failtest $"Expected an Unparseable variant; got {other}"
+    | _ ->
+      return failtest $"Expected Result.Error (Unparseable ...); got {parseDval}"
   }
 
 
@@ -825,6 +853,28 @@ let exprs =
       "invalid escape in char match pattern"
       "match c with\n| '\\d' -> 1L\n| _ -> 0L"
       "Unparseable"
+    // A qualified enum-case pattern is unsupported (use the bare case name).
+    // tree-sitter keeps only the first path segment and error-recovers the
+    // rest; reject it instead of silently building a truncated pattern. The
+    // rejection holds across path lengths and whether or not fields are bound.
+    tParseErrorVariant
+      "qualified enum-case match pattern (fully qualified)"
+      "match x with\n| Stdlib.Result.Result.Ok n -> 1L\n| _ -> 0L"
+      "Unparseable"
+    tParseErrorVariant
+      "qualified enum-case match pattern (two segments)"
+      "match x with\n| Result.Ok n -> 1L\n| _ -> 0L"
+      "Unparseable"
+    tParseErrorVariant
+      "qualified enum-case match pattern (no field binding)"
+      "match x with\n| Stdlib.Result.Ok -> 1L\n| _ -> 0L"
+      "Unparseable"
+    // The diagnostic must name the actual problem (qualified path) so the user
+    // knows to use the bare case name, not just report a generic failure.
+    tParseErrorNote
+      "qualified enum-case match pattern suggests bare case name"
+      "match x with\n| Stdlib.Result.Result.Ok n -> 1L\n| _ -> 0L"
+      "Invalid match pattern. Enum patterns use the bare case name (e.g. `| Ok n`), not a qualified path like `| Stdlib.Result.Result.Ok n`."
     // Codepoints that tree-sitter accepts as well-formed escapes but that
     // are not valid Unicode scalars must be rejected by the decoder:
     //   - surrogate range (D800..DFFF)
