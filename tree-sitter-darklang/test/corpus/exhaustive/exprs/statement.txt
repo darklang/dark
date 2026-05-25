@@ -11,9 +11,11 @@ Builtin.printline "hello"
   (expression
     (statement
       (expression
-        (apply
-          (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-          (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+        (simple_expression
+          (apply
+            (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+            (string_segment (string_literal (symbol) (string_content) (symbol)))
+          )
         )
       )
       (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
@@ -38,15 +40,19 @@ Builtin.printline "world"
       (expression
         (statement
           (expression
-            (apply
-              (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-              (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+            (simple_expression
+              (apply
+                (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+                (string_segment (string_literal (symbol) (string_content) (symbol)))
+              )
             )
           )
           (expression
-            (apply
-              (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-              (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+            (simple_expression
+              (apply
+                (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+                (string_segment (string_literal (symbol) (string_content) (symbol)))
+              )
             )
           )
         )

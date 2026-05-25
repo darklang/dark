@@ -10,11 +10,11 @@ Person {name = "John"}
   (expression
     (simple_expression (record_literal
       (qualified_type_name (type_identifier))
-      (symbol)
-      (record_content
+        (symbol)
+        (record_content
         (record_pair (variable_identifier) (symbol) (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))))
       )
-      (symbol)
+                    (symbol)
     ))
   )
 )
@@ -32,13 +32,13 @@ Person {name = "John"; age = 30L}
   (expression
     (simple_expression (record_literal
       (qualified_type_name (type_identifier))
-      (symbol)
-      (record_content
-        (record_pair (variable_identifier) (symbol) (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))))
         (symbol)
+        (record_content
+        (record_pair (variable_identifier) (symbol) (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))))
+          (symbol)
         (record_pair (variable_identifier) (symbol) (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
       )
-      (symbol)
+            (symbol)
     ))
   )
 )
@@ -72,7 +72,7 @@ Person {name = "John"; age = 30L; hobbies = ["reading"; "swimming"]}
                     (symbol)
                     (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
                   )
-                  (symbol)
+                            (symbol)
                 )
               )
             )
@@ -134,7 +134,7 @@ Person {name = "John"; address = Address {city = "New York"; street = "5th Avenu
                       )
                     )
                   )
-                  (symbol)
+                              (symbol)
                 )
               )
             )
@@ -192,7 +192,7 @@ Person {
                     (symbol)
                     (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
                   )
-                  (symbol)
+                            (symbol)
                 )
               )
             )
@@ -231,7 +231,7 @@ MyRecord<String> { name = "test" }
             (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
           )
         )
-        (symbol)
+                    (symbol)
       )
     )
   )
@@ -266,9 +266,10 @@ MyRecord {
             (variable_identifier)
             (symbol)
             (expression
-              (apply
-                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+              (simple_expression
+                (apply
+                  (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                  (int64_literal (digits (positive_digits)) (symbol)))
               )
             )
           )
@@ -322,12 +323,14 @@ MyRecord {
             (symbol)
             (indent)
             (expression
-              (apply
-                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                (indent)
-                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-                (dedent)
+              (simple_expression
+                (apply
+                  (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                  (indent)
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (dedent)
+                )
               )
             )
             (dedent)
@@ -355,24 +358,26 @@ MyRecord {
                       (symbol)
                       (indent)
                       (expression
-                        (apply
-                          (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                          (indent)
-                          (expression
-                            (simple_expression
-                              (list_literal
-                                (symbol)
-                                (list_content
-                                  (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                        (simple_expression
+                          (apply
+                            (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                            (indent)
+                            (expression
+                              (simple_expression
+                                (list_literal
                                   (symbol)
-                                  (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                                  (list_content
+                                    (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                                    (symbol)
+                                    (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                                  )
+                                  (symbol)
                                 )
-                                (symbol)
                               )
                             )
+                            (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
+                            (dedent)
                           )
-                          (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
-                          (dedent)
                         )
                       )
                       (dedent)
@@ -423,12 +428,14 @@ MyRecord {
             (symbol)
             (indent)
             (expression
-              (apply
-                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                (indent)
-                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-                (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-                (dedent)
+              (simple_expression
+                (apply
+                  (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                  (indent)
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+                  (dedent)
+                )
               )
             )
             (dedent)
@@ -607,15 +614,16 @@ if node.typ == "val_decl" then
             (match_pattern (variable))
             (symbol)
             (expression
-              (apply
-                (qualified_fn_name (fn_identifier))
-                (simple_expression (variable_identifier))
+              (simple_expression
+                (apply
+                  (qualified_fn_name (fn_identifier))
+                  (variable_identifier))
               )
             )
           )
         )
       )
-    (dedent)
+      (dedent)
+      )
     )
   )
-)

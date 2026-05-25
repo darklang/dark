@@ -221,9 +221,11 @@ fun x ->
           (expression
             (statement
               (expression
-                (apply
-                  (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-                  (simple_expression (variable_identifier))
+                (simple_expression
+                  (apply
+                    (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+                    (variable_identifier)
+                  )
                 )
               )
               (expression (simple_expression (variable_identifier)))

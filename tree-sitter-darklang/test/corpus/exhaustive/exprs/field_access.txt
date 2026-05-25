@@ -95,7 +95,7 @@ field access fn_call
         (paren_expression
           (symbol)
           (expression
-            (apply (qualified_fn_name (fn_identifier)) (simple_expression (unit)))
+            (simple_expression (apply (qualified_fn_name (fn_identifier)) (unit)))
           )
           (symbol)
         )
@@ -122,7 +122,7 @@ field access fn_call - nested
         (field_access
           (paren_expression
             (symbol)
-            (expression (apply (qualified_fn_name (fn_identifier)) (simple_expression (unit))))
+            (expression (simple_expression (apply (qualified_fn_name (fn_identifier)) (unit))))
             (symbol)
           )
           (symbol)

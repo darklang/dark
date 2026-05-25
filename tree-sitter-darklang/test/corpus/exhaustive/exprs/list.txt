@@ -491,9 +491,9 @@ List of fn calls
         (list_content
           (indent)
           (expression
-            (apply
-              (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-              (simple_expression
+            (simple_expression
+              (apply
+                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
                 (tuple_literal
                   (symbol)
                   (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
@@ -506,17 +506,19 @@ List of fn calls
           )
           (newline)
           (expression
-            (apply
-              (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
-              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+            (simple_expression
+              (apply
+                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                (int64_literal (digits (positive_digits)) (symbol))
+                (int64_literal (digits (positive_digits)) (symbol))
+              )
             )
           )
           (newline)
           (expression
-            (apply
-              (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-              (simple_expression
+            (simple_expression
+              (apply
+                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
                 (list_literal
                   (symbol)
                   (list_content
@@ -560,12 +562,14 @@ List of fn calls
               (paren_expression
                 (symbol)
                 (expression
-                  (apply
-                    (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                    (indent)
+                  (simple_expression
+                    (apply
+                      (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                      (indent)
                     (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
                     (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-                    (dedent)
+                      (dedent)
+                    )
                   )
                 )
                 (symbol)
@@ -574,9 +578,9 @@ List of fn calls
           )
           (newline)
           (expression
-            (apply
-              (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-              (simple_expression
+            (simple_expression
+              (apply
+                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
                 (tuple_literal
                   (symbol)
                   (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
@@ -589,9 +593,9 @@ List of fn calls
           )
           (newline)
           (expression
-            (apply
-              (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-              (simple_expression
+            (simple_expression
+              (apply
+                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
                 (list_literal
                   (symbol)
                   (list_content

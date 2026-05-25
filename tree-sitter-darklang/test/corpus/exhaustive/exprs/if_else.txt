@@ -429,14 +429,17 @@ if a > b then
           (expression
             (statement
               (expression
-                (apply
-                  (qualified_fn_name (fn_identifier))
-                  (indent)
+                (simple_expression
+                  (apply
+                    (qualified_fn_name (fn_identifier))
+                    (indent)
                   (expression (simple_expression (variable_identifier)))
-                  (dedent)
+                    (dedent)
+                  )
                 )
               )
-              (expression (simple_expression (variable_identifier)))
+              (expression (simple_expression (variable_identifier))
+              )
             )
           )
         )

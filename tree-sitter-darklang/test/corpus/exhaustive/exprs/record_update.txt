@@ -279,41 +279,41 @@ record_update - apply
             (variable_identifier)
             (symbol)
             (expression
-              (apply
-                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                (simple_expression
+              (simple_expression
+                (apply
+                  (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
                   (list_literal
                     (symbol)
                     (list_content (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
                     (symbol)
                   )
+                  (int64_literal (digits (positive_digits)) (symbol))
                 )
-                (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
               )
             )
           )
           (newline)
-
           (record_update_field
             (variable_identifier)
             (symbol)
             (expression
-              (apply
-                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
-                (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+              (simple_expression
+                (apply
+                  (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                  (int64_literal (digits (positive_digits)) (symbol))
+                  (int64_literal (digits (positive_digits)) (symbol))
+                )
               )
             )
           )
           (newline)
-
           (record_update_field
             (variable_identifier)
             (symbol)
             (expression
-              (apply
-                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                (simple_expression
+              (simple_expression
+                (apply
+                  (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
                   (tuple_literal
                     (symbol)
                     (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
@@ -371,24 +371,24 @@ record_update - mix
                     (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
                   )
                   (symbol))
-                )
-              )
-            )
-          (newline)
-
-          (record_update_field
-            (variable_identifier)
-            (symbol)
-            (expression
-              (apply
-                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
-                (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
               )
             )
           )
           (newline)
-
+          (record_update_field
+            (variable_identifier)
+            (symbol)
+            (expression
+              (simple_expression
+                (apply
+                  (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                  (int64_literal (digits (positive_digits)) (symbol))
+                  (int64_literal (digits (positive_digits)) (symbol))
+                )
+              )
+            )
+          )
+          (newline)
           (record_update_field
             (variable_identifier)
             (symbol)
@@ -430,20 +430,22 @@ record_update - apply
             (symbol)
             (indent)
             (expression
-              (apply
-                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                (indent)
-                (expression
-                  (simple_expression
-                    (list_literal
-                      (symbol)
+              (simple_expression
+                (apply
+                  (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                  (indent)
+                  (expression
+                    (simple_expression
+                      (list_literal
+                        (symbol)
                       (list_content (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
-                      (symbol)
+                        (symbol)
+                      )
                     )
                   )
-                )
                 (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-                (dedent)
+                  (dedent)
+                )
               )
             )
             (dedent)
