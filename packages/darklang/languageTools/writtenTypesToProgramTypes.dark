@@ -1384,7 +1384,24 @@ module FunctionDeclaration =
     | TFn (args, ret) ->
       let acc = args |> Stdlib.List.fold acc collectTVarsInTypeRef
       collectTVarsInTypeRef acc ret
-    | _ -> acc
+    | TUnit
+    | TBool
+    | TInt8
+    | TUInt8
+    | TInt16
+    | TUInt16
+    | TInt32
+    | TUInt32
+    | TInt64
+    | TUInt64
+    | TInt128
+    | TUInt128
+    | TFloat
+    | TChar
+    | TString
+    | TDateTime
+    | TUuid
+    | TBlob -> acc
 
   let toPackageFnPT
     (ctx: NameResolver.NRContext)
