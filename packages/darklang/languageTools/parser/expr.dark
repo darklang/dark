@@ -151,12 +151,8 @@ let parseStringLiteral
     // tree-sitter classifies invalid escape sequences (e.g. "\d") as ERROR
     // children rather than `char_or_string_escape_sequence`. Surface them as
     // a parse failure instead of silently dropping content.
-    let hasErrorChild =
-      stringSegment.children
-      |> Stdlib.List.any (fun c -> c.typ == "ERROR")
-
     let contents =
-      if hasErrorChild then
+      if hasErrorChild stringSegment then
         createUnparseableErrorMsg
           stringSegment
           "Invalid escape sequence in string literal"
@@ -181,10 +177,7 @@ let parseStringLiteral
           | Some interpolationContent ->
             // ERROR children inside the interpolation content are the same
             // bug surface as the top-level case — refuse rather than drop.
-            let interpHasErrorChild =
-              interpolationContent.children
-              |> Stdlib.List.any (fun c -> c.typ == "ERROR")
-            if interpHasErrorChild then
+            if hasErrorChild interpolationContent then
               createUnparseableErrorMsg
                 interpolationContent
                 "Invalid escape sequence in interpolated string"
@@ -222,10 +215,7 @@ let parseCharLiteral
   // Invalid escapes in char literals (e.g. `'\d'`) make tree-sitter emit an
   // ERROR child at the char_literal level and a MISSING close-quote. Catch
   // this directly so the error message names the actual problem.
-  let hasErrorChild =
-    node.children |> Stdlib.List.any (fun c -> c.typ == "ERROR")
-
-  if hasErrorChild then
+  if hasErrorChild node then
     createUnparseableErrorMsg node "Invalid escape sequence in char literal"
   else
     let openQuoteNode = findField node "symbol_open_single_quote"
@@ -682,15 +672,32 @@ let parseMatchCase
       (whenKeyword, guardExpr) |> Stdlib.Option.Option.Some
     | _ -> Stdlib.Option.Option.None
 
-  match pipeSym, pattern, arrowSym, rhs with
-  | Ok pipe, Ok pattern, Ok arrow, Ok rhs ->
-    (WrittenTypes.MatchCase
-      { pat = (pipe.range, pattern, arrow.range)
-        whenCondition = guardExpr
-        rhs = rhs })
-    |> Stdlib.Result.Result.Ok
+  // An ERROR child means tree-sitter couldn't parse the case and recovered by
+  // dropping content. Reject it rather than silently building a case from the
+  // surviving fragment (which then never matches at runtime, with no error).
+  let errorChild =
+    node.children |> Stdlib.List.findFirst (fun c -> c.typ == "ERROR")
 
-  | _ -> createUnparseableError node
+  match errorChild with
+  // Qualified enum-case patterns like `| Stdlib.Result.Result.Ok n ->` are
+  // unsupported (use the bare case name `| Ok n`). In this recovery shape,
+  // tree-sitter keeps the first path segment as the case name and puts the
+  // remaining dotted path in an ERROR child.
+  | Some err when Stdlib.String.contains err.text "." ->
+    createUnparseableErrorMsg
+      node
+      "Invalid match pattern. Enum patterns use the bare case name (e.g. `| Ok n`), not a qualified path like `| Stdlib.Result.Result.Ok n`."
+  | Some _ -> createUnparseableErrorMsg node "Invalid match case syntax."
+  | None ->
+    match pipeSym, pattern, arrowSym, rhs with
+    | Ok pipe, Ok pattern, Ok arrow, Ok rhs ->
+      (WrittenTypes.MatchCase
+        { pat = (pipe.range, pattern, arrow.range)
+          whenCondition = guardExpr
+          rhs = rhs })
+      |> Stdlib.Result.Result.Ok
+
+    | _ -> createUnparseableError node
 
 
 let parseMatchExpression
@@ -720,6 +727,9 @@ let parseMatchExpression
     ))
     |> Stdlib.Result.Result.Ok
 
+  // Propagate a case's own parse error (keeping its note and precise range)
+  // rather than discarding it behind a generic whole-match error.
+  | _, _, _, Error caseErr -> Stdlib.Result.Result.Error caseErr
   | _ -> createUnparseableError node
 
 

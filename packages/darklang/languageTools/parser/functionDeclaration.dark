@@ -155,6 +155,9 @@ let parse
           symbolEquals = equals.range })
       |> Stdlib.Result.Result.Ok
 
+    // Propagate the body's own parse error (note + precise range) instead of
+    // collapsing it into a generic whole-declaration error.
+    | _, _, _, _, Error bodyErr, _, _, _ -> Stdlib.Result.Result.Error bodyErr
     | _ -> createUnparseableError node
 
   else

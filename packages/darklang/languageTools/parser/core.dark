@@ -65,6 +65,10 @@ let findNodeByFieldName
   | _ -> Stdlib.Option.Option.None // TODO: this should error, there are multiple matches
 
 
+let hasErrorChild (node: ParsedNode) : Bool =
+  node.children |> Stdlib.List.any (fun c -> c.typ == "ERROR")
+
+
 let createUnparseableError
   (node: ParsedNode)
   : Stdlib.Result.Result<'a, WrittenTypes.Unparseable> =

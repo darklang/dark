@@ -130,8 +130,15 @@ let createFnInline
             state
 
       | Error unparseable ->
-        Stdlib.printLine (Colors.error "Failed to parse function definition")
-        Stdlib.printLine $"Parse error at range: {unparseable.source.range}"
+        let r = unparseable.source.range
+        let detail =
+          match unparseable.note with
+          | Some note -> note
+          | None -> "Make sure your syntax is correct."
+        [ Colors.error "Failed to parse function definition"
+          $"  at line {Stdlib.Int64.toString (r.start.row + 1L)}, column {Stdlib.Int64.toString (r.start.column + 1L)}"
+          detail ]
+        |> Stdlib.printLines
         state
     | None ->
       [

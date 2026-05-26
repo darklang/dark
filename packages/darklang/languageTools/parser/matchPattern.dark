@@ -115,11 +115,8 @@ let parseMPString
   // tree-sitter classifies invalid escape sequences (e.g. "\d") as ERROR
   // children rather than `char_or_string_escape_sequence`. Surface them as
   // a parse failure instead of silently dropping content.
-  let hasErrorChild =
-    node.children |> Stdlib.List.any (fun c -> c.typ == "ERROR")
-
   let contents =
-    if hasErrorChild then
+    if hasErrorChild node then
       createUnparseableErrorMsg
         node
         "Invalid escape sequence in string match pattern"
@@ -146,10 +143,7 @@ let parseMPString
 let parseMPChar
   (node: ParsedNode)
   : Stdlib.Result.Result<WrittenTypes.MatchPattern, WrittenTypes.Unparseable> =
-  let hasErrorChild =
-    node.children |> Stdlib.List.any (fun c -> c.typ == "ERROR")
-
-  if hasErrorChild then
+  if hasErrorChild node then
     createUnparseableErrorMsg node "Invalid escape sequence in char match pattern"
   else
     let openQuoteNode = findField node "symbol_open_single_quote"
