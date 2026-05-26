@@ -77,6 +77,10 @@ let typeReferenceEqual
   | (TString, TString) -> true
   | (TDateTime, TDateTime) -> true
   | (TUuid, TUuid) -> true
+  | (TBlob, TBlob) -> true
+
+  | (TStream innerA, TStream innerB) ->
+    typeReferenceEqual branchId innerA innerB
 
   | (TList innerA, TList innerB) ->
     typeReferenceEqual branchId innerA innerB

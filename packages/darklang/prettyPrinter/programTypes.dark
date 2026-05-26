@@ -375,10 +375,6 @@ let typeReference
       |> Stdlib.String.join " -> "
 
     $"{argPart} -> {typeReference ctx ret}"
-  | _ ->
-    let s = Builtin.Json.serialize<LanguageTools.ProgramTypes.TypeReference> t
-
-    $"({s})"
 
 
 let letPattern (lp: LanguageTools.ProgramTypes.LetPattern) : String =

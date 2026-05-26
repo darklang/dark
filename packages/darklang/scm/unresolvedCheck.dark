@@ -21,6 +21,7 @@ let checkTypeRef (tr: LanguageTools.ProgramTypes.TypeReference) : List<String> =
   | TList inner -> checkTypeRef inner
   | TDict inner -> checkTypeRef inner
   | TDB inner -> checkTypeRef inner
+  | TStream inner -> checkTypeRef inner
   | TTuple(first, second, rest) ->
     Stdlib.List.flatten
       [ checkTypeRef first
@@ -51,6 +52,7 @@ let checkTypeRef (tr: LanguageTools.ProgramTypes.TypeReference) : List<String> =
   | TString
   | TUuid
   | TDateTime
+  | TBlob
   | TVariable _ -> []
 
 
