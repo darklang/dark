@@ -42,12 +42,12 @@ Builtin.printLine (myFn ())
             )
           )
           (expression
-            (apply
-              (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-              (simple_expression
+            (simple_expression
+              (apply
+                (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
                 (paren_expression
                   (symbol)
-                  (expression (apply (qualified_fn_name (fn_identifier)) (simple_expression (unit))))
+                  (expression (simple_expression (apply (qualified_fn_name (fn_identifier)) (unit))))
                   (symbol)
                 )
               )
@@ -85,9 +85,9 @@ helloworld ()
         (symbol)
         (indent)
         (expression
-          (apply
-            (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-            (simple_expression
+          (simple_expression
+            (apply
+              (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
               (paren_expression
                 (symbol)
                 (expression (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol)))))
@@ -103,6 +103,6 @@ helloworld ()
   )
 
   (expression
-    (apply (qualified_fn_name (fn_identifier)) (simple_expression (unit)))
+    (simple_expression (apply (qualified_fn_name (fn_identifier)) (unit)))
   )
 )

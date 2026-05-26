@@ -376,7 +376,13 @@ module.exports = grammar({
      */
 
     // TODO: reconsider having enum_literal as a simple_expression
-    simple_expression: $ =>
+    // an "atom": a self-delimiting expression usable as a function argument
+    // without parentheses. Hidden (leading `_`) so it inlines to its single
+    // child, leaving the CST shape unchanged. Deliberately excludes
+    // `infix_operation` and `apply` so that application binds tighter than
+    // infix (`f x ++ g y` is `(f x) ++ (g y)`) and apply args don't swallow
+    // operators (`f a + b` is `(f a) + b`).
+    _atom: $ =>
       choice(
         $.unit,
         $.bool_literal,
@@ -403,20 +409,28 @@ module.exports = grammar({
         $.record_update,
         $.qualified_val_or_fn_name,
         $.dbReference,
-        $.infix_operation,
         $.paren_expression,
+      ),
+
+    // operand/value tier: an atom, a function application, or an infix chain.
+    // `apply` is included so applications can be infix operands and values.
+    simple_expression: $ =>
+      choice(
+        $._atom,
+        $.apply,
+        $.infix_operation,
       ),
 
     expression: $ =>
       choice(
+        // `apply` is reachable via `simple_expression`; not listed separately
+        // here (that would make it derivable two ways → grammar conflict).
         $.simple_expression,
 
         $.if_expression,
         $.let_expression,
 
         $.match_expression,
-
-        $.apply,
 
         $.lambda_expression,
         $.pipe_expression,
@@ -889,7 +903,10 @@ module.exports = grammar({
           field("fn", $.qualified_fn_name),
           choice(
             seq(
-              field("args", repeat1($.simple_expression)),
+              // args are `_atom`s (not `simple_expression`) so application
+              // binds tighter than infix: `f a + b` is `(f a) + b`, and an
+              // operator stops arg collection so `f x ++ g y` is `(f x) ++ (g y)`.
+              field("args", repeat1($._atom)),
               optional($._function_boundary),
             ),
             seq(

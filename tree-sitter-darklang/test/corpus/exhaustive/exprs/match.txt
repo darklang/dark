@@ -157,9 +157,11 @@ match [ true ] with
                 (paren_expression
                   (symbol)
                   (expression
-                    (apply
-                      (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-                      (simple_expression (variable_identifier))
+                    (simple_expression
+                      (apply
+                        (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                        (variable_identifier)
+                      )
                     )
                   )
                   (symbol)
@@ -174,7 +176,7 @@ match [ true ] with
       (match_case
         (symbol)
         (match_pattern (list (symbol) (mp_list_content (match_pattern (bool))) (symbol)))
-        (symbol)
+            (symbol)
         (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
       )
       (match_case
@@ -720,10 +722,12 @@ match var with
         (match_pattern (int64 (digits (positive_digits)) (symbol)))
         (symbol)
         (expression
-          (apply
-            (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-            (simple_expression (variable_identifier))
-            (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+          (simple_expression
+            (apply
+              (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+              (variable_identifier)
+              (int64_literal (digits (positive_digits)) (symbol))
+            )
           )
         )
       )
@@ -755,7 +759,7 @@ match var with
       (match_case
         (symbol)
         (match_pattern (int64 (digits (positive_digits)) (symbol)))
-        (symbol)
+            (symbol)
         (expression (simple_expression (variable_identifier)))
       )
     )

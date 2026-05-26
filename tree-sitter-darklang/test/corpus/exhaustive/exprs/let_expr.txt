@@ -227,10 +227,12 @@ x
     (let_expression
       (keyword) (let_pattern (variable_identifier)) (symbol)
       (expression
-        (apply
-          (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-          (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
-          (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+        (simple_expression
+          (apply
+            (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+            (int64_literal (digits (positive_digits)) (symbol))
+            (int64_literal (digits (positive_digits)) (symbol))
+          )
         )
       )
       (expression (simple_expression (variable_identifier)))
@@ -256,12 +258,14 @@ x
       (keyword) (let_pattern (variable_identifier)) (symbol)
       (indent)
       (expression
-        (apply
-          (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-          (indent)
-          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-          (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
-          (dedent)
+        (simple_expression
+          (apply
+            (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+            (indent)
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
+            (dedent)
+          )
         )
       )
       (dedent)
@@ -291,9 +295,12 @@ x
           (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol))))
           (keyword)
           (expression
-            (apply (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
-              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
-              (simple_expression (int64_literal (digits (positive_digits)) (symbol)))
+            (simple_expression
+              (apply
+                (qualified_fn_name (module_identifier) (symbol) (module_identifier) (symbol) (fn_identifier))
+                (int64_literal (digits (positive_digits)) (symbol))
+                (int64_literal (digits (positive_digits)) (symbol))
+              )
             )
           )
         )

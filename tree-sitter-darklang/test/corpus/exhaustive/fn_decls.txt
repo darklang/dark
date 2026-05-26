@@ -72,10 +72,12 @@ let isHigher (a: Int64) (b: Int64): Bool =
     (symbol)
     (indent)
     (expression
-      (apply
-        (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-        (simple_expression (variable_identifier))
-        (simple_expression (variable_identifier))
+      (simple_expression
+        (apply
+          (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+          (variable_identifier)
+          (variable_identifier)
+        )
       )
     )
     (dedent)
@@ -174,14 +176,16 @@ let helloworld () : Int64 =
         (symbol)
         (indent)
         (expression
-          (apply
-            (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
-            (simple_expression (string_segment (string_literal (symbol) (string_content) (symbol))))
+          (simple_expression
+            (apply
+              (qualified_fn_name (module_identifier) (symbol) (fn_identifier))
+              (string_segment (string_literal (symbol) (string_content) (symbol)))
+            )
           )
         )
         (dedent)
         (expression (simple_expression (int64_literal (digits (positive_digits)) (symbol)))))
-      )
+    )
     (dedent)
   )
 )
@@ -251,9 +255,11 @@ let processItem (item: Item) : Result<Items.Item, Error.ProcessingError> =
                 (symbol)
                 (indent)
                 (expression
-                  (apply
-                    (qualified_fn_name (fn_identifier))
-                    (simple_expression (variable_identifier))
+                  (simple_expression
+                    (apply
+                      (qualified_fn_name (fn_identifier))
+                      (variable_identifier)
+                    )
                   )
                 )
                 (dedent)
@@ -263,9 +269,11 @@ let processItem (item: Item) : Result<Items.Item, Error.ProcessingError> =
                 (match_pattern (variable))
                 (symbol)
                 (expression
-                  (apply
-                    (qualified_fn_name (fn_identifier))
-                    (simple_expression (variable_identifier))
+                  (simple_expression
+                    (apply
+                      (qualified_fn_name (fn_identifier))
+                      (variable_identifier)
+                    )
                   )
                 )
               )
@@ -278,9 +286,11 @@ let processItem (item: Item) : Result<Items.Item, Error.ProcessingError> =
           (match_pattern (variable))
           (symbol)
           (expression
-            (apply
-              (qualified_fn_name (fn_identifier))
-              (simple_expression (variable_identifier))
+            (simple_expression
+              (apply
+                (qualified_fn_name (fn_identifier))
+                (variable_identifier)
+              )
             )
           )
         )

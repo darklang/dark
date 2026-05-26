@@ -8,11 +8,111 @@
         "required": true,
         "types": [
           {
+            "type": "bool_literal",
+            "named": true
+          },
+          {
+            "type": "char_literal",
+            "named": true
+          },
+          {
+            "type": "dbReference",
+            "named": true
+          },
+          {
+            "type": "dict_literal",
+            "named": true
+          },
+          {
+            "type": "enum_literal",
+            "named": true
+          },
+          {
             "type": "expression",
             "named": true
           },
           {
-            "type": "simple_expression",
+            "type": "field_access",
+            "named": true
+          },
+          {
+            "type": "float_literal",
+            "named": true
+          },
+          {
+            "type": "int128_literal",
+            "named": true
+          },
+          {
+            "type": "int16_literal",
+            "named": true
+          },
+          {
+            "type": "int32_literal",
+            "named": true
+          },
+          {
+            "type": "int64_literal",
+            "named": true
+          },
+          {
+            "type": "int8_literal",
+            "named": true
+          },
+          {
+            "type": "list_literal",
+            "named": true
+          },
+          {
+            "type": "paren_expression",
+            "named": true
+          },
+          {
+            "type": "qualified_val_or_fn_name",
+            "named": true
+          },
+          {
+            "type": "record_literal",
+            "named": true
+          },
+          {
+            "type": "record_update",
+            "named": true
+          },
+          {
+            "type": "string_segment",
+            "named": true
+          },
+          {
+            "type": "tuple_literal",
+            "named": true
+          },
+          {
+            "type": "uint128_literal",
+            "named": true
+          },
+          {
+            "type": "uint16_literal",
+            "named": true
+          },
+          {
+            "type": "uint32_literal",
+            "named": true
+          },
+          {
+            "type": "uint64_literal",
+            "named": true
+          },
+          {
+            "type": "uint8_literal",
+            "named": true
+          },
+          {
+            "type": "unit",
+            "named": true
+          },
+          {
+            "type": "variable_identifier",
             "named": true
           }
         ]
@@ -586,10 +686,6 @@
       "multiple": false,
       "required": true,
       "types": [
-        {
-          "type": "apply",
-          "named": true
-        },
         {
           "type": "if_expression",
           "named": true
@@ -2956,6 +3052,10 @@
       "multiple": false,
       "required": true,
       "types": [
+        {
+          "type": "apply",
+          "named": true
+        },
         {
           "type": "bool_literal",
           "named": true

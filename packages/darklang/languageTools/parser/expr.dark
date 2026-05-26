@@ -780,7 +780,15 @@ let parseFunctionCall
       match c.fieldName with
       | Some fName -> fName == "args"
       | None -> false)
-    |> Stdlib.List.map Expr.parse
+    |> Stdlib.List.map (fun arg ->
+      // The grammar's `apply` rule has two arg shapes: single-line apply
+      // (`f 1L 2L`) yields bare `_atom` arg nodes, while multi-line/indented
+      // apply wraps each arg in `expression`. `parse` unwraps the latter;
+      // `parseCase` handles the bare atoms (and paren args) of the former.
+      if arg.typ == "expression" then
+        Expr.parse arg
+      else
+        Expr.parseCase arg)
     |> Stdlib.Result.collect
 
   match fnNameNode, args with

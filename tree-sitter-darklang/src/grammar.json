@@ -1836,7 +1836,7 @@
         }
       }
     },
-    "simple_expression": {
+    "_atom": {
       "type": "CHOICE",
       "members": [
         {
@@ -1941,11 +1941,24 @@
         },
         {
           "type": "SYMBOL",
-          "name": "infix_operation"
+          "name": "paren_expression"
+        }
+      ]
+    },
+    "simple_expression": {
+      "type": "CHOICE",
+      "members": [
+        {
+          "type": "SYMBOL",
+          "name": "_atom"
         },
         {
           "type": "SYMBOL",
-          "name": "paren_expression"
+          "name": "apply"
+        },
+        {
+          "type": "SYMBOL",
+          "name": "infix_operation"
         }
       ]
     },
@@ -1967,10 +1980,6 @@
         {
           "type": "SYMBOL",
           "name": "match_expression"
-        },
-        {
-          "type": "SYMBOL",
-          "name": "apply"
         },
         {
           "type": "SYMBOL",
@@ -5103,7 +5112,7 @@
                       "type": "REPEAT1",
                       "content": {
                         "type": "SYMBOL",
-                        "name": "simple_expression"
+                        "name": "_atom"
                       }
                     }
                   },
