@@ -144,7 +144,10 @@ let clamp (value: Int32) (limitA: Int32) (limitB: Int32) : Int32 =
   else value
 
 
-/// Returns the <type Int32> value of a <type String>
+/// Parses a <type String> into an <type Int32>, returning {{Ok}} with the
+/// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
+/// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
+/// <type Int32> range).
 let parse (s: String) : Stdlib.Result.Result<Int32, Stdlib.Int32.ParseError> =
   Builtin.int32Parse s
 

@@ -144,7 +144,10 @@ let clamp (value: Int8) (limitA: Int8) (limitB: Int8) : Int8 =
   else value
 
 
-/// Returns the <type Int8> value of a <type String>
+/// Parses a <type String> into an <type Int8>, returning {{Ok}} with the
+/// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
+/// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
+/// <type Int8> range).
 let parse (s: String) : Stdlib.Result.Result<Int8, Stdlib.Int8.ParseError> =
   Builtin.int8Parse s
 

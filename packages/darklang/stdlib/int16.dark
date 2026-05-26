@@ -144,7 +144,10 @@ let clamp (value: Int16) (limitA: Int16) (limitB: Int16) : Int16 =
   else value
 
 
-/// Returns the <type Int16> value of a <type String>
+/// Parses a <type String> into an <type Int16>, returning {{Ok}} with the
+/// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
+/// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
+/// <type Int16> range).
 let parse (s: String) : Stdlib.Result.Result<Int16, Stdlib.Int16.ParseError> =
   Builtin.int16Parse s
 

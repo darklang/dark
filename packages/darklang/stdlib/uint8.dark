@@ -108,7 +108,10 @@ let clamp (value: UInt8) (limitA: UInt8) (limitB: UInt8) : UInt8 =
   else value
 
 
-/// Returns the <type UInt8> value of a <type String>
+/// Parses a <type String> into a <type UInt8>, returning {{Ok}} with the
+/// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
+/// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
+/// <type UInt8> range).
 let parse (s: String) : Stdlib.Result.Result<UInt8, Stdlib.UInt8.ParseError> =
   Builtin.uint8Parse s
 

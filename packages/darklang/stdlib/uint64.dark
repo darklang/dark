@@ -109,7 +109,10 @@ let clamp (value: UInt64) (limitA: UInt64) (limitB: UInt64) : UInt64 =
   else value
 
 
-/// Returns the <type UInt64> value of a <type String>
+/// Parses a <type String> into a <type UInt64>, returning {{Ok}} with the
+/// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
+/// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
+/// <type UInt64> range).
 let parse
   (s: String)
   : Stdlib.Result.Result<UInt64, Stdlib.UInt64.ParseError> =
