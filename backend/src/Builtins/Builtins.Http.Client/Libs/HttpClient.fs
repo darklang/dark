@@ -737,7 +737,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                     let fields =
                       [ ("statusCode", DInt64(int64 response.statusCode))
                         ("headers", responseHeaders)
-                        ("body", Blob.newEphemeral state response.body) ]
+                        ("body", Blob.newEphemeral response.body) ]
 
                     return Ok(DRecord(typ, typ, [], Map fields) |> resultOk)
 

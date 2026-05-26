@@ -39,9 +39,9 @@ let fns () : List<BuiltInFn> =
       description = "Encodes <param s> as UTF-8 bytes in a fresh ephemeral Blob."
       fn =
         (function
-        | state, _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           let bs = System.Text.Encoding.UTF8.GetBytes(s)
-          Blob.newEphemeral state bs |> Ply
+          Blob.newEphemeral bs |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -103,10 +103,10 @@ let fns () : List<BuiltInFn> =
         let ok b = Dval.resultOk KTBlob KTString b
         let err s = Dval.resultError KTBlob KTString (DString s)
         (function
-        | state, _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           try
             let bs = System.Convert.FromHexString(s)
-            ok (Blob.newEphemeral state bs) |> Ply
+            ok (Blob.newEphemeral bs) |> Ply
           with e ->
             err $"Invalid hex string: {e.Message}" |> Ply
         | _ -> incorrectArgs ())
@@ -144,7 +144,7 @@ let fns () : List<BuiltInFn> =
         let ok b = Dval.resultOk KTBlob KTString b
         let err s = Dval.resultError KTBlob KTString (DString s)
         (function
-        | state, _, _, [ DString s ] ->
+        | _, _, _, [ DString s ] ->
           let normalized =
             // Accept URL-safe alphabet + optional padding — matches
             // the old base64Decode behaviour.
@@ -155,7 +155,7 @@ let fns () : List<BuiltInFn> =
             | _ -> base0
           try
             let bs = System.Convert.FromBase64String(normalized)
-            ok (Blob.newEphemeral state bs) |> Ply
+            ok (Blob.newEphemeral bs) |> Ply
           with e ->
             err $"Invalid base64 string: {e.Message}" |> Ply
         | _ -> incorrectArgs ())
@@ -185,7 +185,7 @@ let fns () : List<BuiltInFn> =
                   Exception.raiseInternal
                     "blobConcat: expected DBlob"
                     [ "item", item ]
-            return Blob.newEphemeral state (collected.ToArray())
+            return Blob.newEphemeral (collected.ToArray())
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -217,7 +217,7 @@ let fns () : List<BuiltInFn> =
             let slice = Array.zeroCreate<byte> (int safeLen)
             if safeLen > 0L then
               System.Array.Copy(bs, int safeStart, slice, 0, int safeLen)
-            return Blob.newEphemeral state slice
+            return Blob.newEphemeral slice
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -252,9 +252,9 @@ let fns () : List<BuiltInFn> =
         "Collects a List<UInt8> into a fresh ephemeral Blob. Escape hatch for bridging old and new code."
       fn =
         (function
-        | state, _, _, [ DList(_, items) ] ->
+        | _, _, _, [ DList(_, items) ] ->
           let bs = Dval.dlistToByteArray items
-          Blob.newEphemeral state bs |> Ply
+          Blob.newEphemeral bs |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

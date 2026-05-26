@@ -28,7 +28,7 @@ let fns () : List<BuiltInFn> =
           uply {
             let! data = Blob.readBytes state ref
             let hash = SHA256.HashData(System.ReadOnlySpan(data))
-            return Blob.newEphemeral state hash
+            return Blob.newEphemeral hash
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -47,7 +47,7 @@ let fns () : List<BuiltInFn> =
           uply {
             let! data = Blob.readBytes state ref
             let hash = SHA384.HashData(System.ReadOnlySpan data)
-            return Blob.newEphemeral state hash
+            return Blob.newEphemeral hash
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -67,7 +67,7 @@ let fns () : List<BuiltInFn> =
           uply {
             let! data = Blob.readBytes state ref
             let hash = MD5.HashData(System.ReadOnlySpan data)
-            return Blob.newEphemeral state hash
+            return Blob.newEphemeral hash
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -89,7 +89,7 @@ let fns () : List<BuiltInFn> =
             let! data = Blob.readBytes state dataRef
             use hmac = new HMACSHA256(key)
             let hash = hmac.ComputeHash(data)
-            return Blob.newEphemeral state hash
+            return Blob.newEphemeral hash
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -111,7 +111,7 @@ let fns () : List<BuiltInFn> =
             let! data = Blob.readBytes state dataRef
             use hmac = new HMACSHA1(key)
             let hash = hmac.ComputeHash(data)
-            return Blob.newEphemeral state hash
+            return Blob.newEphemeral hash
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

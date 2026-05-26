@@ -915,11 +915,11 @@ let fns () : List<BuiltInFn> =
         "Reads up to count bytes from a file descriptor into an ephemeral Blob."
       fn =
         (function
-        | state, _, _, [ DInt64 fd; DInt64 count ] ->
+        | _, _, _, [ DInt64 fd; DInt64 count ] ->
           let resultOk = Dval.resultOk KTBlob (posixErrorKT ())
           let resultError = Dval.resultError KTBlob (posixErrorKT ())
           match Libc.fdRead (int fd) (int count) with
-          | Ok bytes -> resultOk (Blob.newEphemeral state bytes) |> Ply
+          | Ok bytes -> resultOk (Blob.newEphemeral bytes) |> Ply
           | Error e -> resultError (dPosixError e) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

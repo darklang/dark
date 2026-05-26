@@ -444,6 +444,95 @@ let private runFixture (test : Test) : Task<unit> =
   }
 
 
+/// Regression test for the ephemeral-blob HTTP race. The request body
+/// becomes an ephemeral blob (`Http.Request.fromRequest`), which the handler reads
+/// back and the tracer promotes. Under the old shared blob store + scope
+/// stack, concurrent requests deleted each other's blobs — surfacing as
+/// "Ephemeral blob not found during trace preparation" (→ 500s) or
+/// cross-wired bodies. With bytes inline there's no shared state to race
+/// over: this fires many overlapping body-echo requests and asserts each
+/// one gets ITS OWN body back, with status 200.
+let private concurrentEphemeralBlobRequests =
+  testTask "concurrent requests don't lose or cross ephemeral blob bodies" {
+    let! exeState = executionStateFor pmPT true Map.empty
+    let test =
+      { handlers =
+          [ { version = Http
+              route = "/"
+              method = "POST"
+              code = "Darklang.Stdlib.Http.response request.body 200L" } ]
+        request = [||]
+        expectedResponse = [||] }
+    let! handler = buildRouterForTest exeState test
+    let port = allocateFreePort ()
+    let cts = new CancellationTokenSource()
+
+    let listenerTask =
+      HttpServer.runListener
+        exeState
+        (int64 port)
+        handler
+        HttpServer.defaultMaxBodyBytes
+        false // injectStandardHeaders
+        false // canonicalizeFromForwardedProto
+        false // logRequests
+        cts.Token
+
+    // Distinct, non-trivial body per request so a lost/mis-tagged blob
+    // shows up as a wrong or empty echo, not a coincidental match.
+    let bodyFor (i : int) : byte[] = UTF8.toBytes (String.replicate 64 $"req{i:D4}-")
+
+    let oneRequest (i : int) : Task<string * byte[]> =
+      task {
+        let body = bodyFor i
+        let header =
+          UTF8.toBytes
+            $"POST / HTTP/1.1\r\nHost: localhost:{port}\r\nContent-Length: {body.Length}\r\nConnection: close\r\n\r\n"
+        let reqBytes = Array.append header body
+        use client = new TcpClient()
+        do! client.ConnectAsync("127.0.0.1", port)
+        use stream = client.GetStream()
+        do! stream.WriteAsync(reqBytes, 0, reqBytes.Length)
+        do! stream.FlushAsync()
+        // Read until the server closes (Connection: close); 10s cancel
+        // guards against a hang if a connection is ever kept alive.
+        use ms = new System.IO.MemoryStream()
+        let buf = Array.zeroCreate 8192
+        use readCts = new CancellationTokenSource(10_000)
+        let mutable reading = true
+        try
+          while reading do
+            let! n = stream.ReadAsync(buf, 0, buf.Length, readCts.Token)
+            if n = 0 then reading <- false else ms.Write(buf, 0, n)
+        with :? System.OperationCanceledException ->
+          ()
+        let parsed = Http.split (ms.ToArray())
+        return (parsed.status, parsed.body)
+      }
+
+    try
+      // `task { }` is hot, so mapping starts all requests concurrently.
+      let! results = [ 1..64 ] |> List.map oneRequest |> Task.WhenAll
+      results
+      |> Array.iteri (fun idx (status, body) ->
+        let i = idx + 1
+        Expect.stringContains
+          status
+          "200"
+          $"request {i}: status 200 (lost blob => 500)"
+        Expect.equal
+          body
+          (bodyFor i)
+          $"request {i}: body echoed intact (no cross-request blob)")
+    finally
+      cts.Cancel()
+      try
+        listenerTask.Wait 2000 |> ignore<bool>
+      with _ ->
+        ()
+  }
+
+
 let tests =
   let t rootDir (filename : string) =
     testTask $"Http files: {filename}" {
@@ -463,12 +552,13 @@ let tests =
         do! runFixture test
     }
 
-  [ ($"{basePath}", "http") ]
-  |> List.map (fun (dir, testListName) ->
-    let tests =
-      System.IO.Directory.GetFiles(dir, "*.test")
-      |> Array.map (System.IO.Path.GetFileName)
-      |> Array.toList
-      |> List.map (t dir)
-    testList testListName tests)
-  |> testList "HttpServer"
+  let fileTestLists =
+    [ ($"{basePath}", "http") ]
+    |> List.map (fun (dir, testListName) ->
+      let tests =
+        System.IO.Directory.GetFiles(dir, "*.test")
+        |> Array.map (System.IO.Path.GetFileName)
+        |> Array.toList
+        |> List.map (t dir)
+      testList testListName tests)
+  testList "HttpServer" (concurrentEphemeralBlobRequests :: fileTestLists)

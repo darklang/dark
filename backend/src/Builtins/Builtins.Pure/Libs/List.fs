@@ -95,7 +95,7 @@ module DvalComparator =
       // persistent refs, UUID for ephemeral, to keep sort stable.
       match a, b with
       | Persistent(h1, _), Persistent(h2, _) -> order h1 h2
-      | Ephemeral id1, Ephemeral id2 -> order id1 id2
+      | Ephemeral e1, Ephemeral e2 -> order e1.id e2.id
       | Persistent _, Ephemeral _ -> Less
       | Ephemeral _, Persistent _ -> Greater
 

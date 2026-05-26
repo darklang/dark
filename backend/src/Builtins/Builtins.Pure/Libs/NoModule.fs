@@ -121,7 +121,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
     // want byte-equality.
     match refA, refB with
     | Persistent(h1, l1), Persistent(h2, l2) -> h1 = h2 && l1 = l2
-    | Ephemeral id1, Ephemeral id2 -> id1 = id2
+    | Ephemeral e1, Ephemeral e2 -> e1.id = e2.id
     | _ -> false
 
   | DStream(_, _, lockA), DStream(_, _, lockB) ->

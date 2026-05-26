@@ -361,9 +361,9 @@ let fns () : List<BuiltInFn> =
       description = "Converts the given unicode string to a UTF8-encoded Blob."
       fn =
         (function
-        | state, _, _, [ DString str ] ->
+        | _, _, _, [ DString str ] ->
           let theBytes = System.Text.Encoding.UTF8.GetBytes str
-          Blob.newEphemeral state theBytes |> Ply
+          Blob.newEphemeral theBytes |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

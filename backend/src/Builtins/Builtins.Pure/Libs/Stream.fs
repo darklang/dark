@@ -208,7 +208,7 @@ let fns () : List<BuiltInFn> =
         "Drains a byte stream into a single ephemeral Blob, consuming <param stream>."
       fn =
         (function
-        | state, _, _, [ s ] ->
+        | _, _, _, [ s ] ->
           uply {
             // Drain via `readStreamChunk` so IO-backed byte streams
             // (HttpClient.stream) hand back a whole buffer per pull
@@ -223,7 +223,7 @@ let fns () : List<BuiltInFn> =
               match chunk with
               | Some buf -> collected.Write(buf, 0, buf.Length)
               | None -> keepGoing <- false
-            return Blob.newEphemeral state (collected.ToArray())
+            return Blob.newEphemeral (collected.ToArray())
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

@@ -69,23 +69,9 @@ let private randomBytes (seed : int) (size : int) : byte[] =
   buf
 
 
-/// Fresh ExecutionState for measurement runs. Uses TestUtils' canonical
-/// PMs (benchmarks share that wiring with the test infra).
-let freshState () : RT.ExecutionState =
-  let builtins = TestUtils.TestUtils.localBuiltIns TestUtils.TestUtils.pmPT
-  LibExecution.Execution.createState
-    builtins
-    TestUtils.TestUtils.pmRT
-    LibExecution.Execution.noTracing
-    (fun _ _ _ _ -> uply { return () })
-    (fun _ _ _ _ -> uply { return () })
-    LibExecution.ProgramTypes.mainBranchId
-    { dbs = Map.empty }
-
-
 // ─── Scenarios ───────────────────────────────────────────────────
 
-let private fileRead (state : RT.ExecutionState) : List<Result> =
+let private fileRead () : List<Result> =
   let tempDir = System.IO.Path.Combine(System.IO.Path.GetTempPath(), "dark-bench")
   System.IO.Directory.CreateDirectory(tempDir) |> ignore<System.IO.DirectoryInfo>
   let rng = System.Random(0)
@@ -99,14 +85,13 @@ let private fileRead (state : RT.ExecutionState) : List<Result> =
       System.IO.File.WriteAllBytes(path, buf)
     try
       let dv, sample =
-        measure (fun () ->
-          Blob.newEphemeral state (System.IO.File.ReadAllBytes(path)))
+        measure (fun () -> Blob.newEphemeral (System.IO.File.ReadAllBytes(path)))
       mkResult "fileRead" size (countDvalNodes dv) "ok" sample
     with :? System.OutOfMemoryException ->
       mkResult "fileRead" size -1 "oom" { allocBytes = -1L; elapsedMs = -1L })
 
 
-let private httpBody (state : RT.ExecutionState) : List<Result> =
+let private httpBody () : List<Result> =
   [ 100_000; 1_000_000; 10_000_000 ]
   |> List.map (fun size ->
     let payload = randomBytes 0 size
@@ -123,27 +108,27 @@ let private httpBody (state : RT.ExecutionState) : List<Result> =
         let resp =
           client.GetAsync("http://fake.local/body").GetAwaiter().GetResult()
         let bytes = resp.Content.ReadAsByteArrayAsync().GetAwaiter().GetResult()
-        Blob.newEphemeral state bytes)
+        Blob.newEphemeral bytes)
     mkResult "httpBody" size (countDvalNodes dv) "simulated-handler" sample)
 
 
-let private hexEncode (state : RT.ExecutionState) : List<Result> =
+let private hexEncode () : List<Result> =
   // Mirror Builtin.blobToHex: mint blob, deref bytes, hex-encode.
   let size = 1_000_000
   let raw = randomBytes 0 size
   let _, sample =
     measure (fun () ->
-      let _ = Blob.newEphemeral state raw
+      let _ = Blob.newEphemeral raw
       System.Convert.ToHexString(raw))
   [ mkResult "hexEncode" size 1 "ok" sample ]
 
 
-let private base64Encode (state : RT.ExecutionState) : List<Result> =
+let private base64Encode () : List<Result> =
   let size = 1_000_000
   let raw = randomBytes 0 size
   let _, sample =
     measure (fun () ->
-      let _ = Blob.newEphemeral state raw
+      let _ = Blob.newEphemeral raw
       System.Convert.ToBase64String(raw))
   [ mkResult "base64Encode" size 1 "ok" sample ]
 
@@ -151,7 +136,7 @@ let private base64Encode (state : RT.ExecutionState) : List<Result> =
 /// Many small ephemeral blobs in one scope, each with distinct bytes.
 /// Stresses the ConcurrentDictionary/GUID-gen/Dval-wrapper hot path
 /// that fileRead amortises away.
-let private manyBlobs (state : RT.ExecutionState) : List<Result> =
+let private manyBlobs () : List<Result> =
   let rng = System.Random(1)
   [ 100, 1_024; 1_000, 1_024; 10_000, 256 ]
   |> List.map (fun (count, perBlobBytes) ->
@@ -163,7 +148,7 @@ let private manyBlobs (state : RT.ExecutionState) : List<Result> =
     let _, sample =
       measure (fun () ->
         for i in 0 .. count - 1 do
-          ignore<RT.Dval> (Blob.newEphemeral state payloads[i]))
+          ignore<RT.Dval> (Blob.newEphemeral payloads[i]))
     mkResult
       $"manyBlobs/{count}x{perBlobBytes}B"
       (count * perBlobBytes)
@@ -174,7 +159,7 @@ let private manyBlobs (state : RT.ExecutionState) : List<Result> =
 
 /// Drain a Stream<UInt8> into a Blob via the chunked path — the bulk
 /// path that pulls 64 KB buffers instead of boxing one DUInt8 per byte.
-let private streamToBlob (state : RT.ExecutionState) : List<Result> =
+let private streamToBlob () : List<Result> =
   [ 100_000; 1_000_000; 10_000_000 ]
   |> List.map (fun size ->
     let payload = randomBytes 0 size
@@ -201,14 +186,14 @@ let private streamToBlob (state : RT.ExecutionState) : List<Result> =
             | None -> return ()
           }
         drain () |> Ply.toTask |> _.Wait()
-        ignore<RT.Dval> (Blob.newEphemeral state (collected.ToArray())))
+        ignore<RT.Dval> (Blob.newEphemeral (collected.ToArray())))
     mkResult "streamToBlob" size 1 "chunked-drain" sample)
 
 
 /// Multipart-style body construction: build a Blob by concatenating
 /// many text/binary parts. Mirrors the openai/audio.dark
 /// MultipartRequest pattern.
-let private multipart (state : RT.ExecutionState) : List<Result> =
+let private multipart () : List<Result> =
   [ 10, 1_024; 100, 10_240; 50, 100_000 ]
   |> List.map (fun (parts, perPartBytes) ->
     let part = randomBytes 0 perPartBytes
@@ -216,9 +201,9 @@ let private multipart (state : RT.ExecutionState) : List<Result> =
       measure (fun () ->
         use buf = new System.IO.MemoryStream()
         for _ in 1..parts do
-          let _ = Blob.newEphemeral state part
+          let _ = Blob.newEphemeral part
           buf.Write(part, 0, part.Length)
-        ignore<RT.Dval> (Blob.newEphemeral state (buf.ToArray())))
+        ignore<RT.Dval> (Blob.newEphemeral (buf.ToArray())))
     mkResult
       $"multipart/{parts}x{perPartBytes}B"
       (parts * perPartBytes)
@@ -228,11 +213,11 @@ let private multipart (state : RT.ExecutionState) : List<Result> =
 
 
 /// Run every scenario; concatenate their Result rows.
-let run (state : RT.ExecutionState) : List<Result> =
-  [ yield! fileRead state
-    yield! httpBody state
-    yield! hexEncode state
-    yield! base64Encode state
-    yield! manyBlobs state
-    yield! streamToBlob state
-    yield! multipart state ]
+let run () : List<Result> =
+  [ yield! fileRead ()
+    yield! httpBody ()
+    yield! hexEncode ()
+    yield! base64Encode ()
+    yield! manyBlobs ()
+    yield! streamToBlob ()
+    yield! multipart () ]

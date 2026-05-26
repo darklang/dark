@@ -189,14 +189,12 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
     w.Write 24uy
     String.write w hash
     w.Write length
-  | DBlob(Ephemeral id) ->
-    // Ephemeral blobs aren't serialisable — the bytes live in the
-    // producing VM's blob store and won't resolve across VM
-    // boundaries. Callers must promote to Persistent first (see
-    // `Blob.promote`); we raise here rather than silently
-    // write a dangling handle.
+  | DBlob(Ephemeral eph) ->
+    // The binary format only serializes persistent blob refs. Ephemeral
+    // bytes live inline on the runtime DBlob and are not addressable after
+    // serialization, so callers must promote to Persistent first.
     raiseFormatError
-      $"Cannot serialize ephemeral blob {id} — promote to persistent first"
+      $"Cannot serialize ephemeral blob {eph.id}; promote to Persistent first"
   | DStream _ ->
     // Streams are not persistable by design — lifetime is bounded by
     // the VM that produced them. Caller should drain to Blob first.
