@@ -55,7 +55,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description =
         "Add package ops to the database as WIP (uncommitted) on the given branch.
         Returns the number of inserted ops on success (duplicates are skipped), or an error message on failure.
-        Use scmCommit to commit WIP ops."
+        Use scmCommitWipOpsByIds to commit WIP ops."
       fn =
         let resultOk = Dval.resultOk KTInt64 KTString
         let resultError = Dval.resultError KTInt64 KTString
@@ -65,7 +65,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             try
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
 
-              // All ops are added as WIP - use scmCommit to commit them
+              // All ops are added as WIP - use scmCommitWipOpsByIds to commit them
               let! insertedCount = LibDB.Inserts.insertAndApplyOpsAsWip branchId ops
 
               // Auto-refresh existing WIP items: re-resolve names and
@@ -73,7 +73,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               let! _refreshed = LibDB.WipRefresh.refresh pm branchId
 
               // Populate `rt_dval` for any package_values rows still
-              // NULL after this insert+refresh — `applyAddValue` always
+              // NULL after this insert+refresh. `applyAddValue` always
               // inserts NULL and Phase-3 `evaluateAllValues` only runs
               // at startup when there are unapplied ops. Without this
               // step, a CLI-added value that references another value
@@ -111,24 +111,6 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "scmGetWipOps" 0
-      typeParams = []
-      parameters = [ Param.make "branchId" TUuid "Branch ID" ]
-      returnType = TList(TCustomType(NR.ok (packageOpTypeName ()), []))
-      description = "Get all WIP (uncommitted) package ops on a branch."
-      fn =
-        function
-        | _, _, _, [ DUuid branchId ] ->
-          uply {
-            let! ops = LibDB.Queries.getWipOps branchId
-            return Dval.list (packageOpKT ()) (ops |> List.map PT2DT.PackageOp.toDT)
-          }
-        | _ -> incorrectArgs ()
-      sqlSpec = NotQueryable
-      previewable = Impure
-      deprecated = NotDeprecated }
-
-
     { name = fn "scmGetWipSummary" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch ID" ]
@@ -155,7 +137,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    // CLEANUP: these three builtins are performance workarounds — see Queries.fs
+    // CLEANUP: these three builtins are performance workarounds; see Queries.fs.
     { name = fn "scmGetWipItems" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch ID" ]
@@ -220,28 +202,86 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "scmCommit" 0
+    { name = fn "scmGetWipOpsWithIds" 0
+      typeParams = []
+      parameters = [ Param.make "branchId" TUuid "Branch ID" ]
+      returnType =
+        TList(
+          TTuple(
+            TUuid,
+            TCustomType(NR.ok (packageOpTypeName ()), []),
+            [ TypeReference.option TUuid ]
+          )
+        )
+      description =
+        "Get all WIP ops on a branch with their DB row id and propagation_id
+        (None unless the op is part of a propagation batch). Use this when you
+        need to operate on individual ops (e.g. partial commit / discard)."
+      fn =
+        function
+        | _, vm, _, [ DUuid branchId ] ->
+          uply {
+            let! entries = LibDB.Queries.getWipOpsWithIds branchId
+            let optionUuidDval =
+              LibExecution.TypeChecker.DvalCreator.option vm.threadID VT.uuid
+            let optionUuidVT =
+              VT.known (KTCustomType(Dval.optionType (), [ VT.uuid ]))
+            return
+              entries
+              |> List.map (fun (id, op, propId) ->
+                let propDval = propId |> Option.map DUuid |> optionUuidDval
+                DTuple(DUuid id, PT2DT.PackageOp.toDT op, [ propDval ]))
+              |> Dval.list (
+                KTTuple(VT.uuid, VT.known (packageOpKT ()), [ optionUuidVT ])
+              )
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmCommitWipOpsByIds" 0
       typeParams = []
       parameters =
         [ Param.make "accountId" TUuid "Author of the commit"
           Param.make "branchId" TUuid "Branch ID"
-          Param.make "message" TString "Commit message" ]
+          Param.make "message" TString "Commit message"
+          Param.make
+            "opIds"
+            (TList TUuid)
+            "WIP op IDs from scmGetWipOpsWithIds. Every id must belong to this
+            branch and still be WIP, or nothing is committed." ]
       returnType = TypeReference.result TString TString
       description =
-        "Commit all WIP ops on a branch with the given message + committer.
-        Returns the commit hash on success, or an error message on failure."
+        "Commit the named WIP ops and their derived projection rows. The caller
+        owns selection policy and dependency closure. Projection rows are matched
+        by content key until they can be tied directly to source op IDs. Returns
+        the commit hash, or an error message on failure."
       fn =
         let resultOk = Dval.resultOk KTString KTString
         let resultError = Dval.resultError KTString KTString
         (function
-        | _, _, _, [ DUuid accountId; DUuid branchId; DString message ] ->
+        | _,
+          _,
+          _,
+          [ DUuid accountId; DUuid branchId; DString message; DList(_, opIds) ] ->
           uply {
-            let! result = LibDB.Inserts.commitWipOps accountId branchId message
-            match result with
-            | Ok commitHash ->
-              let (PT.Hash h) = commitHash
-              return resultOk (Dval.string h)
-            | Error msg -> return resultError (Dval.string msg)
+            try
+              let ids =
+                opIds
+                |> List.map (function
+                  | DUuid u -> u
+                  | _ -> Exception.raiseInternal "opIds must be uuids" [])
+              let! result =
+                LibDB.Inserts.commitWipOpsByIds accountId branchId message ids
+              match result with
+              | Ok commitHash ->
+                let (PT.Hash h) = commitHash
+                return resultOk (Dval.string h)
+              | Error msg -> return resultError (Dval.string msg)
+            with ex ->
+              return resultError (Dval.string ex.Message)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -333,6 +373,55 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             return Dval.list (packageOpKT ()) (ops |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      deprecated = NotDeprecated }
+
+
+    { name = fn "scmGetDependencies" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid "Branch whose chain to resolve against"
+          Param.make
+            "itemHash"
+            (TCustomType(NR.ok (PT2DT.Hash.typeName ()), []))
+            "Content hash of the item whose forward dependencies to fetch" ]
+      returnType =
+        TList(
+          TTuple(
+            TCustomType(NR.ok (PT2DT.Hash.typeName ()), []),
+            TCustomType(NR.ok (PT2DT.ItemKind.typeName ()), []),
+            []
+          )
+        )
+      description =
+        "Get the items (content hash + kind) that the given item directly depends
+        on, resolved over the branch chain. Used by partial commit to warn when a
+        selected item references uncommitted items not in the selection."
+      fn =
+        (function
+        | _, _, _, [ DUuid branchId; hashDval ] ->
+          uply {
+            let itemHash = PT2DT.Hash.fromDT hashDval
+            let! chain = LibDB.Branches.getBranchChain branchId
+            let! deps = LibDB.Queries.getDependencies chain itemHash
+            return
+              deps
+              |> List.map (fun d ->
+                DTuple(
+                  PT2DT.Hash.toDT d.itemHash,
+                  PT2DT.ItemKind.toDT d.itemKind,
+                  []
+                ))
+              |> Dval.list (
+                KTTuple(
+                  VT.known (PT2DT.Hash.knownType ()),
+                  VT.known (PT2DT.ItemKind.knownType ()),
+                  []
+                )
+              )
+          }
+        | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
       deprecated = NotDeprecated } ]

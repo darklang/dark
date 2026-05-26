@@ -311,6 +311,31 @@ let getWipOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
   }
 
 
+/// Get all WIP ops on a branch with their DB row id and propagation_id.
+/// Used by callers that need to operate on individual ops (e.g. partial
+/// commit / partial discard).
+let getWipOpsWithIds
+  (branchId : PT.BranchId)
+  : Task<List<uuid * PT.PackageOp * Option<uuid>>> =
+  task {
+    return!
+      Sql.query
+        """
+        SELECT id, op_blob, propagation_id
+        FROM package_ops
+        WHERE branch_id = @branch_id AND commit_hash IS NULL
+        ORDER BY created_at ASC
+        """
+      |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
+      |> Sql.executeAsync (fun read ->
+        let opId = read.uuid "id"
+        let opBlob = read.bytes "op_blob"
+        let propId = read.uuidOrNone "propagation_id"
+        let op = BS.PT.PackageOp.deserialize opId opBlob
+        (opId, op, propId))
+  }
+
+
 /// Summary of WIP changes
 type WipSummary =
   { types : int64
@@ -383,7 +408,7 @@ let getWipSummary (branchId : PT.BranchId) : Task<WipSummary> =
 // CLEANUP: getWipItems, getWipOpCount, and getCommitCount exist as F# builtins
 // purely for performance — they avoid sending large op lists to the Dark runtime.
 // When Dark execution is fast enough, replace these with Dark implementations that
-// use the existing getWipOps/getCommits builtins directly.
+// use the existing scmGetWipOpsWithIds/scmGetCommits builtins directly.
 
 /// A WIP item on a branch (excludes auto-propagated ops)
 type WipItem =

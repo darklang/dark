@@ -1,0 +1,259 @@
+// Tests for the pure `commit --include` planner (Darklang.SCM.PartialCommit),
+// extracted from the CLI so its selection/ambiguity logic is testable without
+// faking stdin. resolveSelection returns content-derived items, so these
+// assert on FQNs / error-vs-ok without needing op-id values.
+
+module PartialCommitPlanning =
+  let fnRef (h: String) : Darklang.LanguageTools.ProgramTypes.Reference =
+    Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(
+      Darklang.LanguageTools.ProgramTypes.Hash.Hash h
+    )
+
+  let typeRef (h: String) : Darklang.LanguageTools.ProgramTypes.Reference =
+    Darklang.LanguageTools.ProgramTypes.Reference.PackageType(
+      Darklang.LanguageTools.ProgramTypes.Hash.Hash h
+    )
+
+  let setNameEntry
+    (uuid: String)
+    (name: String)
+    (target: Darklang.LanguageTools.ProgramTypes.Reference)
+    : Darklang.SCM.PackageOps.WipOpEntry =
+    Darklang.SCM.PackageOps.WipOpEntry
+      { id = Builtin.unwrap (Stdlib.Uuid.parse_v0 uuid)
+        op =
+          Darklang.LanguageTools.ProgramTypes.PackageOp.SetName(
+            Darklang.LanguageTools.ProgramTypes.PackageLocation
+              { owner = "Test"; modules = [ "M" ]; name = name },
+            target
+          )
+        propagationId = Stdlib.Option.Option.None }
+
+  // WIP set: fn "main", fn "helper", and a type *also* named "main" — so
+  // "Test.M.main" is cross-kind ambiguous, "Test.M.helper" is unique.
+  let wip () : List<Darklang.SCM.PackageOps.WipOpEntry> =
+    [ setNameEntry
+        "00000000-0000-0000-0000-000000000001"
+        "main"
+        (fnRef "1111111111111111111111111111111111111111111111111111111111111111")
+      setNameEntry
+        "00000000-0000-0000-0000-000000000002"
+        "helper"
+        (fnRef "2222222222222222222222222222222222222222222222222222222222222222")
+      setNameEntry
+        "00000000-0000-0000-0000-000000000003"
+        "main"
+        (typeRef "3333333333333333333333333333333333333333333333333333333333333333") ]
+
+  // A unique name resolves to its FQN.
+  (match Darklang.SCM.PartialCommit.resolveSelection (wip ()) [ "Test.M.helper" ] with
+   | Ok items -> items |> Stdlib.List.map (fun i -> i.fqn)
+   | Error _ -> []) = [ "Test.M.helper" ]
+
+  // A name matching more than one WIP item (here a fn and a type sharing an
+  // FQN) is rejected — names must be unique, so there's no kind-prefix to pick
+  // one. The error lists the conflicts.
+  (match Darklang.SCM.PartialCommit.resolveSelection (wip ()) [ "Test.M.main" ] with
+   | Ok _ -> false
+   | Error msg ->
+     (Stdlib.String.contains msg "matches more than one WIP item")
+     && (Stdlib.String.contains msg "fn  Test.M.main")
+     && (Stdlib.String.contains msg "type  Test.M.main")) = true
+
+  // A name not present in WIP is rejected.
+  (match Darklang.SCM.PartialCommit.resolveSelection (wip ()) [ "Test.M.nope" ] with
+   | Ok _ -> "ok"
+   | Error _ -> "error") = "error"
+
+
+  // The hash <-> location lookups underpinning the dependency closure must
+  // respect kind, since the fn "main" and the type "main" share an FQN.
+  let loc (name: String) : Darklang.LanguageTools.ProgramTypes.PackageLocation =
+    Darklang.LanguageTools.ProgramTypes.PackageLocation
+      { owner = "Test"; modules = [ "M" ]; name = name }
+
+  let fnHash = "1111111111111111111111111111111111111111111111111111111111111111"
+  let helperHash = "2222222222222222222222222222222222222222222222222222222222222222"
+  let typeHash = "3333333333333333333333333333333333333333333333333333333333333333"
+
+  // wipHashForLocation: (loc "main", Fn) -> the fn's hash, not the type's.
+  (Darklang.SCM.PartialCommit.wipHashForLocation
+    (wip ())
+    (loc "main")
+    Darklang.LanguageTools.ProgramTypes.ItemKind.Fn) = Stdlib.Option.Option.Some(
+    Darklang.LanguageTools.ProgramTypes.Hash.Hash fnHash)
+
+  // ...and (loc "main", Type) -> the type's hash.
+  (Darklang.SCM.PartialCommit.wipHashForLocation
+    (wip ())
+    (loc "main")
+    Darklang.LanguageTools.ProgramTypes.ItemKind.Type) = Stdlib.Option.Option.Some(
+    Darklang.LanguageTools.ProgramTypes.Hash.Hash typeHash)
+
+  // wipLocationForHash is the reverse: helper's hash -> helper's location.
+  (Darklang.SCM.PartialCommit.wipLocationForHash
+    (wip ())
+    (Darklang.LanguageTools.ProgramTypes.Hash.Hash helperHash)
+    Darklang.LanguageTools.ProgramTypes.ItemKind.Fn) = Stdlib.Option.Option.Some(
+    loc "helper")
+
+  // A hash bound at a different kind doesn't match (typeHash is a Type, not Fn).
+  (Darklang.SCM.PartialCommit.wipLocationForHash
+    (wip ())
+    (Darklang.LanguageTools.ProgramTypes.Hash.Hash typeHash)
+    Darklang.LanguageTools.ProgramTypes.ItemKind.Fn) = Stdlib.Option.Option.None
+
+  // seedDepItems carries each selected item's hash through for the walk.
+  (match Darklang.SCM.PartialCommit.resolveSelection (wip ()) [ "Test.M.helper" ] with
+   | Ok selection ->
+     let seeded = Darklang.SCM.PartialCommit.seedDepItems (wip ()) selection
+     seeded |> Stdlib.List.map (fun d -> (d.fqn, d.hash))
+   | Error _ -> []) = [ ("Test.M.helper",
+                         Darklang.LanguageTools.ProgramTypes.Hash.Hash helperHash) ]
+
+  // Two WIP fns at one FQN (a same-kind duplicate) also resolve to >1 item, so
+  // resolveSelection fails closed rather than committing an arbitrary one.
+  let dupA = "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+  let dupB = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+
+  let dupWip2 () : List<Darklang.SCM.PackageOps.WipOpEntry> =
+    [ setNameEntry "00000000-0000-0000-0000-0000000000a1" "dup" (fnRef dupA)
+      setNameEntry "00000000-0000-0000-0000-0000000000a2" "dup" (fnRef dupB) ]
+
+  (match
+    Darklang.SCM.PartialCommit.resolveSelection (dupWip2 ()) [ "Test.M.dup" ]
+   with
+   | Ok _ -> false
+   | Error msg ->
+     (Stdlib.String.contains msg "matches more than one WIP item")
+     && (Stdlib.String.contains msg "Test.M.dup")) = true
+
+  // A deprecation of a selected item shows in the partial-commit confirmation,
+  // by the item's FQN.
+  let deprecateEntry
+    (uuid: String)
+    (target: Darklang.LanguageTools.ProgramTypes.Reference)
+    : Darklang.SCM.PackageOps.WipOpEntry =
+    Darklang.SCM.PackageOps.WipOpEntry
+      { id = Builtin.unwrap (Stdlib.Uuid.parse_v0 uuid)
+        op =
+          Darklang.LanguageTools.ProgramTypes.PackageOp.Deprecate(
+            target,
+            Darklang.LanguageTools.ProgramTypes.DeprecationKind.Obsolete,
+            "old"
+          )
+        propagationId = Stdlib.Option.Option.None }
+
+  let depWip () : List<Darklang.SCM.PackageOps.WipOpEntry> =
+    [ setNameEntry "00000000-0000-0000-0000-0000000000b1" "foo" (fnRef fnHash)
+      deprecateEntry "00000000-0000-0000-0000-0000000000b2" (fnRef fnHash) ]
+
+  (Darklang.SCM.PartialCommit.deprecationLinesForSelection
+    (depWip ())
+    [ Darklang.SCM.PartialCommit.SelectedItem
+        { location = loc "foo"
+          kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn
+          fqn = "Test.M.foo" } ]) = [ "  deprecations:"; "    deprecate fn Test.M.foo" ]
+
+  // A propagated SetName (propagation_id set) is NOT selectable by name — only
+  // its source is, so `--include=fn:Dependent` can't split a propagation batch.
+  let propagatedWip () : List<Darklang.SCM.PackageOps.WipOpEntry> =
+    [ Darklang.SCM.PackageOps.WipOpEntry
+        { id = Builtin.unwrap (Stdlib.Uuid.parse_v0 "00000000-0000-0000-0000-0000000000c1")
+          op =
+            Darklang.LanguageTools.ProgramTypes.PackageOp.SetName(
+              Darklang.LanguageTools.ProgramTypes.PackageLocation
+                { owner = "Test"; modules = [ "M" ]; name = "dependent" },
+              fnRef fnHash
+            )
+          propagationId =
+            Stdlib.Option.Option.Some(
+              Builtin.unwrap (Stdlib.Uuid.parse_v0 "00000000-0000-0000-0000-0000000000c9")
+            ) } ]
+
+  (match
+    Darklang.SCM.PartialCommit.resolveSelection
+      (propagatedWip ())
+      [ "Test.M.dependent" ]
+   with
+   | Ok _ -> "ok"
+   | Error _ -> "error") = "error"
+
+  // The dependency-closure lookups must likewise ignore propagated SetNames: a
+  // propagated repoint binds (loc, hash) too, but surfacing it here would let
+  // the closure pull it in and split it from its PropagateUpdate batch.
+  (Darklang.SCM.PartialCommit.wipLocationForHash
+    (propagatedWip ())
+    (Darklang.LanguageTools.ProgramTypes.Hash.Hash fnHash)
+    Darklang.LanguageTools.ProgramTypes.ItemKind.Fn) = Stdlib.Option.Option.None
+
+  (Darklang.SCM.PartialCommit.wipHashForLocation
+    (propagatedWip ())
+    (loc "dependent")
+    Darklang.LanguageTools.ProgramTypes.ItemKind.Fn) = Stdlib.Option.Option.None
+
+  // allWipNamedItems lists only authored items, so a propagated repoint isn't
+  // double-counted (once as a named item, once under "propagated repoints") in
+  // the full-commit confirmation.
+  (Darklang.SCM.PartialCommit.allWipNamedItems (propagatedWip ())) = []
+
+
+// Confirmation-display rendering: grouping and the propagation-collapse.
+module PartialCommitDisplay =
+  let mkItem (name: String) : Darklang.SCM.PartialCommit.SelectedItem =
+    Darklang.SCM.PartialCommit.SelectedItem
+      { location =
+          Darklang.LanguageTools.ProgramTypes.PackageLocation
+            { owner = "Test"; modules = [ "M" ]; name = name }
+        kind = Darklang.LanguageTools.ProgramTypes.ItemKind.Fn
+        fqn = $"Test.M.{name}" }
+
+  // groupLines: empty group renders nothing.
+  (Darklang.SCM.PartialCommit.groupLines "selected" []) = []
+
+  // groupLines: a "label:" header + one indented "kind fqn" row per item.
+  (Darklang.SCM.PartialCommit.groupLines "selected" [ mkItem "a"; mkItem "b" ]) =
+    [ "  selected:"; "    fn Test.M.a"; "    fn Test.M.b" ]
+
+  // propagationLines: empty renders nothing.
+  (Darklang.SCM.PartialCommit.propagationLines []) = []
+
+  // propagationLines: <= 5 items are all listed, no "... more".
+  (Darklang.SCM.PartialCommit.propagationLines [ mkItem "a"; mkItem "b" ]) =
+    [ "  propagated repoints (2):"; "    fn Test.M.a"; "    fn Test.M.b" ]
+
+  // propagationLines: > 5 collapses to the first 5 + an "... and N more" tail.
+  (Darklang.SCM.PartialCommit.propagationLines
+    [ mkItem "a"
+      mkItem "b"
+      mkItem "c"
+      mkItem "d"
+      mkItem "e"
+      mkItem "f"
+      mkItem "g" ]) =
+    [ "  propagated repoints (7):"
+      "    fn Test.M.a"
+      "    fn Test.M.b"
+      "    fn Test.M.c"
+      "    fn Test.M.d"
+      "    fn Test.M.e"
+      "    ... and 2 more" ]
+
+
+// `--include=` parsing: comma-lists and accumulation across repeated flags.
+module PartialCommitParseInclude =
+  // A single flag splits on commas.
+  (Darklang.Cli.SCM.Commit.parseInclude [ "--include=a,b,c"; "msg" ]) =
+    Stdlib.Option.Option.Some [ "a"; "b"; "c" ]
+
+  // Repeated flags accumulate (previously all but the first were dropped).
+  (Darklang.Cli.SCM.Commit.parseInclude [ "--include=a"; "--include=b,c" ]) =
+    Stdlib.Option.Option.Some [ "a"; "b"; "c" ]
+
+  // No --include= flag at all → None (a full commit).
+  (Darklang.Cli.SCM.Commit.parseInclude [ "just"; "a"; "message" ]) =
+    Stdlib.Option.Option.None
+
+  // A present-but-empty flag → Some [] (the caller turns this into an error).
+  (Darklang.Cli.SCM.Commit.parseInclude [ "--include=" ]) =
+    Stdlib.Option.Option.Some []

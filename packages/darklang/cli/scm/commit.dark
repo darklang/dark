@@ -1,6 +1,61 @@
 module Darklang.Cli.SCM.Commit
 
 
+/// Parse repeated comma-separated `--include=` flags.
+/// None means full commit; Some [] means an empty include flag was provided.
+let parseInclude (args: List<String>) : Stdlib.Option.Option<List<String>> =
+  let prefix = "--include="
+
+  let flags =
+    args |> Stdlib.List.filter (fun a -> Stdlib.String.startsWith a prefix)
+
+  if Stdlib.List.isEmpty flags then
+    Stdlib.Option.Option.None
+  else
+    let names =
+      flags
+      |> Stdlib.List.map (fun a ->
+        let raw = Stdlib.String.dropFirst a (Stdlib.String.length prefix)
+
+        raw
+        |> Stdlib.String.split ","
+        |> Stdlib.List.map Stdlib.String.trim
+        |> Stdlib.List.filter (fun s ->
+          Stdlib.Bool.not (Stdlib.String.isEmpty s)))
+      |> Stdlib.List.flatten
+
+    Stdlib.Option.Option.Some names
+
+
+/// Ask a y/n question. `--yes` auto-confirms. An empty answer takes
+/// `defaultYes` (so a "(Y/n)" prompt defaults to yes, "(y/n)" to no).
+let promptYesNo (question: String) (autoConfirm: Bool) (defaultYes: Bool) : Bool =
+  if autoConfirm then
+    true
+  else
+    Stdlib.printLine question
+    let response = Builtin.stdinReadLine ()
+
+    if Stdlib.String.isEmpty (Stdlib.String.trim response) then
+      defaultYes
+    else
+      (response == "y") || (response == "Y")
+
+
+let printUnresolved (items: List<SCM.UnresolvedCheck.UnresolvedItem>) : Unit =
+  Stdlib.printLine (Colors.error "Cannot commit: unresolved references found:")
+
+  items
+  |> Stdlib.List.iter (fun item ->
+    Stdlib.printLine (Colors.error $"  {item.label}:")
+
+    item.names
+    |> Stdlib.List.iter (fun name ->
+      Stdlib.printLine (Colors.error $"    - {name}")))
+
+  Stdlib.printLine ""
+
+
 let execute (state: AppState) (args: List<String>) : AppState =
   match state.accountID with
   | None ->
@@ -14,6 +69,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   let autoConfirm =
     (Stdlib.List.member_v0 args "--yes") || (Stdlib.List.member_v0 args "-y")
+
+  let includeNames = parseInclude args
 
   // Get message from args (everything that's not a flag)
   let messageParts =
@@ -29,65 +86,106 @@ let execute (state: AppState) (args: List<String>) : AppState =
     Stdlib.printLine "Usage: commit \"Your commit message\""
     state
   else
-    // Show what will be committed
-    let summary = SCM.PackageOps.getWipSummary branchId
+    let wipOps = SCM.PackageOps.getWipWithIds branchId
 
-    if summary.total == 0L then
+    if Stdlib.List.isEmpty wipOps then
       Stdlib.printLine "Nothing to commit."
       state
     else
-      Stdlib.printLine "Will commit:"
+      // Pick op IDs to commit + display lines for the confirm prompt.
+      let plan =
+        match includeNames with
+        | Some names when Stdlib.List.isEmpty names ->
+          Stdlib.Result.Result.Error
+            "`--include=` requires at least one item name."
 
-      if summary.types > 0L then
-        Stdlib.printLine $"  {Stdlib.Int64.toString summary.types} type(s)"
+        | Some names ->
+          match SCM.PartialCommit.resolveSelection wipOps names with
+          | Error msg -> Stdlib.Result.Result.Error msg
 
-      if summary.values > 0L then
-        Stdlib.printLine $"  {Stdlib.Int64.toString summary.values} value(s)"
+          | Ok selection ->
+            // Offer to include WIP-only dependencies of the selected items.
+            let depClosure =
+              SCM.PartialCommit.uncommittedDepClosure branchId wipOps selection
 
-      if summary.fns > 0L then
-        Stdlib.printLine $"  {Stdlib.Int64.toString summary.fns} function(s)"
+            // Keep pulled-in dependencies separate for the confirmation summary.
+            let (finalSelection, pulledIn) =
+              if Stdlib.List.isEmpty depClosure then
+                (selection, [])
+              else
+                Stdlib.printLine
+                  (Colors.warning
+                    "Selected item(s) reference uncommitted item(s) not in the selection:")
 
-      Stdlib.printLine ""
+                depClosure
+                |> Stdlib.List.iter (fun item ->
+                  Stdlib.printLine
+                    $"  {SCM.PartialCommit.itemKindLabel item.kind} {item.fqn}")
 
-      let proceed =
-        if autoConfirm then
-          true
-        else
-          Stdlib.printLine "Proceed? (y/n): "
-          let response = Builtin.stdinReadLine ()
-          (response == "y") || (response == "Y")
+                if
+                  promptYesNo "Include them in this commit? (Y/n): " autoConfirm true
+                then
+                  (Stdlib.List.append selection depClosure, depClosure)
+                else
+                  (selection, [])
 
-      if proceed then
-        // Check for unresolved references before committing
-        let ops = SCM.PackageOps.getWip branchId
-        let unresolvedItems = SCM.UnresolvedCheck.findUnresolvedInOps ops
+            let opIds =
+              SCM.PartialCommit.planForSelection wipOps finalSelection true
 
-        if (Stdlib.List.isEmpty unresolvedItems) |> Stdlib.Bool.not then
-          Stdlib.printLine
-            (Colors.error "Cannot commit: unresolved references found:")
+            let summary =
+              SCM.PartialCommit.displayLinesForSelection
+                wipOps
+                selection
+                pulledIn
+                finalSelection
 
-          unresolvedItems
-          |> Stdlib.List.iter (fun item ->
-            Stdlib.printLine (Colors.error $"  {item.label}:")
+            Stdlib.Result.Result.Ok((opIds, summary))
 
-            item.names
-            |> Stdlib.List.iter (fun name ->
-              Stdlib.printLine (Colors.error $"    - {name}")))
+        | None ->
+          // Full commit: every WIP op id.
+          let opIds = wipOps |> Stdlib.List.map (fun e -> e.id)
+          let summary = SCM.PartialCommit.displayLinesForFull wipOps
+          Stdlib.Result.Result.Ok((opIds, summary))
 
-          Stdlib.printLine ""
+      match plan with
+      | Error msg ->
+        Stdlib.printLine (Colors.error msg)
+        state
+
+      | Ok((opIds, summaryLines)) ->
+        if Stdlib.List.isEmpty opIds then
+          Stdlib.printLine "Nothing to commit."
           state
         else
-          match SCM.PackageOps.commit accountId branchId message with
-          | Ok commitHash ->
-            let shortId = Stdlib.String.first commitHash 8L
-            Stdlib.printLine (Colors.success $"Created commit {shortId}")
+          Stdlib.printLine "Will commit:"
+          summaryLines |> Stdlib.List.iter Stdlib.printLine
+          Stdlib.printLine ""
+
+          if promptYesNo "Proceed? (y/n): " autoConfirm false then
+            // Only selected ops should block this commit on unresolved names.
+            let selectedOps =
+              wipOps
+              |> Stdlib.List.filter (fun e -> Stdlib.List.member_v0 opIds e.id)
+              |> Stdlib.List.map (fun e -> e.op)
+            let unresolved = SCM.UnresolvedCheck.findUnresolvedInOps selectedOps
+
+            if (Stdlib.List.isEmpty unresolved) |> Stdlib.Bool.not then
+              printUnresolved unresolved
+              state
+            else
+              match
+                SCM.PackageOps.commitOpIds accountId branchId message opIds
+                with
+              | Ok commitHash ->
+                let shortId = Stdlib.String.first commitHash 8L
+                Stdlib.printLine (Colors.success $"Created commit {shortId}")
+                state
+              | Error e ->
+                Stdlib.printLine (Colors.error $"Commit failed: {e}")
+                state
+          else
+            Stdlib.printLine "Commit cancelled."
             state
-          | Error e ->
-            Stdlib.printLine (Colors.error $"Commit failed: {e}")
-            state
-      else
-        Stdlib.printLine "Commit cancelled."
-        state
 
 
 let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =
@@ -95,12 +193,19 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
 
 
 let help (_state: AppState) : Unit =
-  [ "Usage: commit \"message\" [--yes|-y]"
-    "Commit all uncommitted (WIP) changes on the current branch."
+  [ "Usage: commit \"message\" [--include=name1,name2] [--yes|-y]"
+    "Commit uncommitted (WIP) changes on the current branch."
     ""
     "Arguments:"
     "  message   Commit message describing the changes"
     ""
     "Flags:"
-    "  --yes, -y   Skip confirmation prompt" ]
+    "  --include=<names>   Only commit the named items (comma-separated FQNs)."
+    "                      Names must match WIP items as listed by `status`."
+    "                      Auto-propagated repoints to dependents are always"
+    "                      committed with their source item. If a selected item"
+    "                      references other uncommitted items, you'll be asked"
+    "                      whether to pull them into the commit."
+    "  --yes, -y           Skip confirmation prompts (includes referenced"
+    "                      uncommitted items)" ]
   |> Stdlib.printLines
