@@ -120,7 +120,10 @@ let clamp (value: Int128) (limitA: Int128) (limitB: Int128) : Int128 =
 let toString (int128: Int128) : String = Builtin.int128ToString int128
 
 
-/// Returns the <type Int128> value of a <type String>
+/// Parses a <type String> into an <type Int128>, returning {{Ok}} with the
+/// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
+/// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
+/// <type Int128> range).
 let parse
   (s: String)
   : Stdlib.Result.Result<Int128, Stdlib.Int128.ParseError> =

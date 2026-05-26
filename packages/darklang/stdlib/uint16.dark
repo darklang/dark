@@ -108,7 +108,10 @@ let clamp (value: UInt16) (limitA: UInt16) (limitB: UInt16) : UInt16 =
   else value
 
 
-/// Returns the <type UInt16> value of a <type String>
+/// Parses a <type String> into a <type UInt16>, returning {{Ok}} with the
+/// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
+/// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
+/// <type UInt16> range).
 let parse
   (s: String)
   : Stdlib.Result.Result<UInt16, Stdlib.UInt16.ParseError> =

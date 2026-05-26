@@ -125,7 +125,10 @@ let clamp (value: Int64) (limitA: Int64) (limitB: Int64) : Int64 =
   else value
 
 
-/// Returns the <type Int64> value of a <type String>
+/// Parses a <type String> into an <type Int64>, returning {{Ok}} with the
+/// parsed value on success, or {{Error}} with a <type ParseError> ({{BadFormat}}
+/// if the string isn't a valid integer, {{OutOfRange}} if it's outside the
+/// <type Int64> range).
 let parse (s: String) : Stdlib.Result.Result<Int64, Stdlib.Int64.ParseError> =
   Builtin.int64Parse s
 
