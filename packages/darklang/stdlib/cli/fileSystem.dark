@@ -69,6 +69,20 @@ let readFile (path: String) : Result.Result<Blob, FileError> =
   Builtin.fileRead path
 
 
+/// Read an entire file and decode it as UTF-8. Convenience over
+/// <fn readFile> + <fn Stdlib.String.fromBlob> for text files. Returns
+/// {{FileError.Other}} if the bytes aren't valid UTF-8.
+let readFileAsString (path: String) : Result.Result<String, FileError> =
+  match readFile path with
+  | Ok blob ->
+    match Stdlib.String.fromBlob blob with
+    | Some s -> Stdlib.Result.Result.Ok s
+    | None ->
+      Stdlib.Result.Result.Error
+        (FileError.Other "File contents are not valid UTF-8")
+  | Error e -> Stdlib.Result.Result.Error e
+
+
 /// Write content to a file, creating any missing parent directories.
 let writeFile (path: String) (content: Blob) : Result.Result<Unit, String> =
   let parentDir = Path.parent path
