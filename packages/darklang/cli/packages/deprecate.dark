@@ -255,7 +255,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "  deprecate fn Darklang.Legacy.oldThing --kind obsolete --yes"
     ""
     "Related:"
-    "  delete — sugar for `deprecate --kind obsolete` with --force gate"
+    "  delete — sugar for `deprecate --kind obsolete` with dependents gate"
     "  undo   — reverse a WIP deprecate on the current branch" ]
   |> Stdlib.printLines
   state

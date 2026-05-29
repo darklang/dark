@@ -61,7 +61,8 @@ For non-interactive use: `DARK_ACCOUNT=alice ./scripts/run-cli commit "msg" -y`
 ## Deprecation (mark items as unused / dangerous / obsolete)
   deprecate <fn|type|value> <name> --kind <k> [options]
     kinds: superseded-by (requires --replacement), harmful, obsolete
-  delete <fn|type|value> <name> [--force]     # sugar for --kind obsolete
+  delete <fn|type|value> <name> [options]     # sugar for --kind obsolete
+    options: --ignore-dependents; --force = --ignore-dependents + --yes
   undo <fn|type|value> <name>                 # reverse a WIP deprecate
   eval --allow-harmful <fn>                   # opt out of harmful halt
   (see: docs deprecation)
