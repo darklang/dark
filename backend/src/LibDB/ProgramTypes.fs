@@ -149,6 +149,16 @@ module Fn =
   let getLocations = getItemLocations "fn"
 
 
+/// Split a search query into lowercase tokens for name/doc matching.
+let private tokenizeQuery (s : string) : List<string> =
+  let spaced =
+    System.Text.RegularExpressions.Regex.Replace(s, "([a-z0-9])([A-Z])", "$1 $2")
+  spaced.Split([| ' '; '\t'; '.'; '-'; '_'; '/'; ','; ':' |])
+  |> Array.toList
+  |> List.map (fun t -> t.Trim().ToLower())
+  |> List.filter (fun t -> t <> "")
+
+
 let search
   (branchChain : List<PT.BranchId>)
   (query : PT.Search.SearchQuery)
@@ -227,8 +237,25 @@ let search
       // A dotted query (e.g. "List.map") spans module path + name, so the
       // full qualified path must be matched, not just the name column.
       let isQualified = query.text.Contains "."
+
+      // Multi-token searches require every significant token to match either the
+      // item name or doc comment. Single unqualified queries of 3+ chars also search docs.
+      let tokens = tokenizeQuery query.text
+      let useTokenSearch =
+        (not query.exactMatch) && (not isQualified) && (List.length tokens > 1)
+
+      // Ignore short filler tokens in multi-token searches, unless every token is short.
+      let matchTokens =
+        let kept = tokens |> List.filter (fun t -> String.length t > 2)
+        if List.isEmpty kept then tokens else kept
+
       let nameCondition =
-        if query.exactMatch then
+        if useTokenSearch then
+          matchTokens
+          |> List.mapi (fun i _ ->
+            $"(l.name LIKE '%%' || @tok{i} || '%%' OR c.description LIKE '%%' || @tok{i} || '%%')")
+          |> String.concat " AND "
+        elif query.exactMatch then
           if isQualified then
             "((l.owner || '.' || l.modules || '.' || l.name) = @searchText
               OR (l.owner || '.' || l.modules || '.' || l.name) LIKE '%.' || @searchText)"
@@ -236,8 +263,17 @@ let search
             "l.name = @searchText"
         else if isQualified then
           "(l.owner || '.' || l.modules || '.' || l.name) LIKE '%' || @searchText || '%'"
+        else if String.length query.text > 2 then
+          "(l.name LIKE '%' || @searchText || '%'
+            OR c.description LIKE '%' || @searchText || '%')"
         else
           "l.name LIKE '%' || @searchText || '%'"
+
+      let tokenParams =
+        if useTokenSearch then
+          matchTokens |> List.mapi (fun i tok -> $"tok{i}", Sql.string tok)
+        else
+          []
 
       let locationCondition =
         if
@@ -267,6 +303,7 @@ let search
         [ "modules", Sql.string currentModule
           "fqname", Sql.string currentModule
           "searchText", Sql.string query.text ]
+        @ tokenParams
         @ branchParams
       )
       |> Sql.executeAsync (fun read ->
