@@ -1,0 +1,150 @@
+module Darklang.Cli.Commands.Apps
+
+// `dark apps` — list + install the apps declared in `Darklang.Apps`, and start/stop/status/logs the
+// daemon ones via the generic pidfile manager (`Darklang.Cli.Daemons`). Foreground apps run with
+// `dark run`; UI apps run attached — the listing says which.
+
+let defaultIntervalMs = 5000L
+
+// One `apps list` row: name, [kind], description — and for daemons, the live running/stopped state.
+let listRow (app: Darklang.Apps.App) : String =
+  let tag = Darklang.Apps.kindTag app.kind
+  let state =
+    match app.kind with
+    | Daemon -> "  (" ++ (if Darklang.Cli.Daemons.isRunning app.name then "running" else "stopped") ++ ")"
+    | Foreground -> ""
+    | Ui -> ""
+
+  $"  {app.name}  [{tag}]  {app.description}{state}"
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] | [ "list" ] ->
+    Stdlib.printLine "Apps:"
+    Darklang.Apps.all
+    |> Stdlib.List.map (fun app -> Commands.Apps.listRow app)
+    |> Stdlib.printLines
+
+    Stdlib.printLine ""
+    Stdlib.printLine
+      (Colors.dimText "  daemons: `apps start/stop/status/logs <name>`  ·  others: `dark run <entrypoint>`")
+    state
+
+  | [ "status" ] ->
+    let daemons = Darklang.Apps.all |> Stdlib.List.filter (fun a -> a.kind == Darklang.Apps.AppKind.Daemon)
+
+    if Stdlib.List.isEmpty daemons then
+      Stdlib.printLine (Colors.dimText "no daemon apps declared")
+    else
+      Stdlib.printLine "Daemon status:"
+      daemons
+      |> Stdlib.List.map (fun a -> "  " ++ Darklang.Cli.Daemons.statusLine a.name)
+      |> Stdlib.printLines
+
+    state
+
+  | [ "install"; name ] ->
+    match Darklang.Apps.findByName name with
+    | None -> Stdlib.printLine (Colors.error $"no app named '{name}' (see `apps list`)")
+    | Some app ->
+      Stdlib.printLine $"Install plan for '{app.name}' [{Darklang.Apps.kindTag app.kind}]:"
+      Stdlib.printLine $"  alias path:  {Darklang.Apps.aliasPath app.name}"
+      Stdlib.printLine $"  shim:        exec dark run {app.entrypoint} \"$@\""
+      Stdlib.printLine (Colors.dimText "  (preview; the write step needs a live env)")
+
+    state
+
+  | [ "start"; name ] -> Commands.Apps.startDaemon state name Commands.Apps.defaultIntervalMs
+
+  | [ "start"; name; intervalStr ] ->
+    match Stdlib.Int64.parse intervalStr with
+    | Ok ms -> Commands.Apps.startDaemon state name ms
+    | Error _ ->
+      Stdlib.printLine (Colors.error $"interval must be a number of ms, got '{intervalStr}'")
+      state
+
+  | [ "stop"; name ] ->
+    match Darklang.Cli.Daemons.stop name with
+    | Ok msg -> Stdlib.printLine (Colors.success msg)
+    | Error e -> Stdlib.printLine (Colors.error e)
+
+    state
+
+  | [ "logs"; name ] ->
+    let lines = Darklang.Cli.Daemons.tailLog name 20L
+
+    if Stdlib.List.isEmpty lines then
+      Stdlib.printLine (Colors.dimText $"no logs for '{name}' (has it run?)")
+    else
+      Stdlib.printLines lines
+
+    state
+
+  | _ ->
+    Stdlib.printLine
+      (Colors.error
+        "Usage: apps [list] | install <name> | status | start <name> [intervalMs] | stop <name> | logs <name>")
+    state
+
+
+// Start an app by name. Only DAEMON apps detach via the pidfile manager; foreground/UI apps are run
+// differently and `start` explains how rather than backgrounding a one-shot or a TUI.
+let startDaemon (state: Cli.AppState) (name: String) (intervalMs: Int64) : Cli.AppState =
+  match Darklang.Apps.findByName name with
+  | None -> Stdlib.printLine (Colors.error $"no app named '{name}' (see `apps list`)")
+  | Some app ->
+    match app.kind with
+    | Daemon ->
+      // build the detached entrypoint expression: `<entrypoint> "<name>" <intervalMs>L`
+      let q = "\""
+      let expr =
+        app.entrypoint ++ " " ++ q ++ name ++ q ++ " " ++ (Stdlib.Int64.toString intervalMs) ++ "L"
+
+      let okMsg =
+        $"{name} launching (interval {Stdlib.Int64.toString intervalMs}ms) — `apps status` to confirm"
+
+      match Darklang.Cli.Daemons.start name expr okMsg with
+      | Ok msg -> Stdlib.printLine (Colors.success msg)
+      | Error e -> Stdlib.printLine (Colors.error e)
+    | Foreground ->
+      Stdlib.printLine
+        (Colors.dimText $"'{name}' is a foreground app — run it with `dark run {app.entrypoint}`")
+    | Ui ->
+      Stdlib.printLine
+        (Colors.dimText $"'{name}' is a UI app — it runs attached; launch it from the CLI (e.g. `{name}`)")
+
+  state
+
+
+let complete
+  (_state: Cli.AppState)
+  (_args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  [ Cli.Completion.simple "list"
+    Cli.Completion.simple "install"
+    Cli.Completion.simple "status"
+    Cli.Completion.simple "start"
+    Cli.Completion.simple "stop"
+    Cli.Completion.simple "logs" ]
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [ "Usage: apps [list] | apps install <name> | apps status | apps start/stop/logs <name>"
+    ""
+    "List, install, and manage declared apps. Three kinds, one surface:"
+    "  daemon       backgrounded long-runner — start/stop/status/logs manage it via a pidfile"
+    "  foreground   a normal `dark run` that finishes (e.g. print-md)"
+    "  ui           an interactive full-screen TUI that runs attached (e.g. the outliner)"
+    ""
+    "  list                       Show every app: name, [kind], description (+ daemon state)"
+    "  install <name>             Preview the install plan (PATH shim)"
+    "  status                     Show each daemon's running/stopped/stale state"
+    "  start <name> [intervalMs]  Launch a daemon detached (pidfile-tracked)"
+    "  stop <name>                SIGTERM a daemon and clear its pidfile"
+    "  logs <name>                Show a daemon's last 20 log lines"
+    ""
+    "Foreground apps run with `dark run <entrypoint>`; UI apps run attached." ]
+  |> Stdlib.printLines
+
+  state

@@ -1,0 +1,130 @@
+module Darklang.Cli.Daemons
+
+// Background-daemon process management for the Dark CLI. A daemon is a DETACHED `dark` process
+// tracked by a pidfile, so the launching CLI can exit and the daemon keeps running. Built on the
+// POSIX stdlib: pidfile via `Stdlib.Cli.File`, signal-0 liveness via `Posix.isProcessRunning`,
+// detached launch + SIGTERM via `Process`/`Posix`. Generic — it manages ANY named daemon; the
+// caller supplies the entrypoint expression.
+
+// ── pidfile + log location ──  ~/.darklang/run/<name>.{pid,log}
+let runDir () : String =
+  let home = Stdlib.Option.withDefault (Stdlib.Cli.Env.home ()) "/tmp"
+  home ++ "/.darklang/run"
+
+let pidfilePath (name: String) : String =
+  (runDir ()) ++ "/" ++ name ++ ".pid"
+
+// A detached daemon has no terminal, so its output + startup errors append here; `logs` reads it.
+let logPath (name: String) : String =
+  (runDir ()) ++ "/" ++ name ++ ".log"
+
+// The daemon's last `n` log lines (newest at the bottom); empty if it never logged.
+let tailLog (name: String) (n: Int64) : List<String> =
+  match Stdlib.Cli.File.readLines (logPath name) with
+  | Ok lines ->
+    let total = Stdlib.List.length lines
+    if total <= n then lines else Stdlib.List.drop lines (total - n)
+  | Error _ -> []
+
+
+// Record THIS process as the named daemon. The entrypoint calls this on startup, so the pidfile
+// holds the real detached-worker pid, not a transient launcher.
+let claimPidfile (name: String) : Stdlib.Result.Result<Unit, String> =
+  match Stdlib.Cli.Posix.mkdirRecursive (runDir ()) with
+  | Error e -> Stdlib.Result.Result.Error e.message
+  | Ok _ ->
+    let pid = Stdlib.Cli.Sys.currentPid ()
+
+    match Stdlib.Cli.File.writeText (pidfilePath name) (Stdlib.Int64.toString pid) with
+    | Error e -> Stdlib.Result.Result.Error e.message
+    | Ok _ -> Stdlib.Result.Result.Ok()
+
+
+// The pid recorded for a daemon, if its pidfile exists and parses.
+let recordedPid (name: String) : Stdlib.Option.Option<Int64> =
+  let path = pidfilePath name
+
+  if Stdlib.Cli.File.exists path then
+    match Stdlib.Cli.File.readText path with
+    | Ok content -> Stdlib.Result.toOption (Stdlib.Int64.parse (Stdlib.String.trim content))
+    | Error _ -> Stdlib.Option.Option.None
+  else
+    Stdlib.Option.Option.None
+
+
+// Alive? pidfile present AND that pid is a running process (signal-0) — so a stale pidfile (daemon
+// killed without cleanup) correctly reads as not running.
+let isRunning (name: String) : Bool =
+  match recordedPid name with
+  | Some pid -> Stdlib.Cli.Posix.isProcessRunning pid
+  | None -> false
+
+
+// One status line: running / stopped / stale (pidfile present but its pid is dead).
+let statusLine (name: String) : String =
+  match recordedPid name with
+  | Some pid ->
+    if Stdlib.Cli.Posix.isProcessRunning pid then
+      $"{name}: running (pid {Stdlib.Int64.toString pid})"
+    else
+      $"{name}: stale (pid {Stdlib.Int64.toString pid} not running — `stop` clears it)"
+  | None -> $"{name}: stopped"
+
+
+// Stop the named daemon: SIGTERM the recorded pid (if alive), then remove the pidfile. Idempotent.
+let stop (name: String) : Stdlib.Result.Result<String, String> =
+  match recordedPid name with
+  | None -> Stdlib.Result.Result.Ok $"{name}: not running"
+  | Some pid ->
+    let wasRunning = Stdlib.Cli.Posix.isProcessRunning pid
+
+    let _killed =
+      if wasRunning then
+        Stdlib.Cli.Posix.kill pid Stdlib.Cli.Posix.sigterm
+      else
+        Stdlib.Result.Result.Ok()
+
+    let _removed = Stdlib.Cli.File.delete (pidfilePath name)
+
+    if wasRunning then
+      Stdlib.Result.Result.Ok $"{name}: stopped (pid {Stdlib.Int64.toString pid})"
+    else
+      Stdlib.Result.Result.Ok
+        $"{name}: cleared stale pidfile (pid {Stdlib.Int64.toString pid} was not running)"
+
+
+// ── launch ──
+
+// The `dark` launcher to re-invoke for the detached child: `dark` is on PATH in production; in a
+// dev container the built Cli exe isn't named `dark`, so DARK_CLI overrides the launcher path.
+let launcher () : String =
+  match Stdlib.Cli.Posix.getenv "DARK_CLI" with
+  | Some path -> path
+  | None -> "dark"
+
+
+// Spawn `expr` DETACHED so it survives this CLI exiting: `nohup … &` backgrounds it + shields it
+// from hangups, the launching `sh -c` returns immediately, and the child reparents to init. Output
+// appends to the daemon's logfile. The entrypoint must `claimPidfile name` first.
+let launchDetached
+  (name: String)
+  (expr: String)
+  (okMsg: String)
+  : Stdlib.Result.Result<String, String> =
+  let cmd = $"nohup {launcher ()} eval '{expr}' >> {logPath name} 2>&1 &"
+
+  match Stdlib.Cli.Process.exec "/bin/sh" [ "-c"; cmd ] with
+  | Ok _ -> Stdlib.Result.Result.Ok okMsg
+  | Error e -> Stdlib.Result.Result.Error $"failed to launch {name}: {e}"
+
+
+// Launch a named daemon detached, running `entrypointExpr`. Refuses if it's already running.
+let start
+  (name: String)
+  (entrypointExpr: String)
+  (okMsg: String)
+  : Stdlib.Result.Result<String, String> =
+  if isRunning name then
+    Stdlib.Result.Result.Error $"{name} is already running (see `status`)"
+  else
+    Darklang.Cli.Daemons.launchDetached name entrypointExpr okMsg

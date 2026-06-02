@@ -1,0 +1,29 @@
+module Darklang.Apps.Examples
+
+// The reference DAEMON entrypoint — a self-contained heartbeat. `dark apps start heartbeat` launches
+// it detached; it claims its pidfile, then logs a line every interval until `apps stop` SIGTERMs it.
+// Proves the daemon management surface end to end.
+
+// One beat: log the time + pid, sleep the interval, recurse. `remaining` is a very large step count
+// (≈ forever); the daemon is meant to be ended by `apps stop` (SIGTERM), not by running out.
+let beat (name: String) (intervalMs: Int64) (remaining: Int64) : Int64 =
+  if remaining <= 0L then
+    0L
+  else
+    let pid = Stdlib.Cli.Sys.currentPid ()
+    Stdlib.printLine $"{name}: beat (pid {Stdlib.Int64.toString pid})"
+    Stdlib.Cli.Posix.sleep (Stdlib.Int64.toFloat intervalMs)
+    Darklang.Apps.Examples.beat name intervalMs (remaining - 1L)
+
+
+// The daemon entrypoint: claim the pidfile (recording THIS detached process's pid), then beat
+// forever. Invoked as `Darklang.Apps.Examples.heartbeat "heartbeat" 5000L` by `apps start`.
+let heartbeat (name: String) (intervalMs: Int64) : Int64 =
+  let _logged =
+    match Darklang.Cli.Daemons.claimPidfile name with
+    | Error e -> Stdlib.printLine $"{name}: could not write pidfile: {e}"
+    | Ok _ ->
+      Stdlib.printLine
+        $"{name}: started (pid {Stdlib.Int64.toString (Stdlib.Cli.Sys.currentPid ())}, interval {Stdlib.Int64.toString intervalMs}ms)"
+
+  Darklang.Apps.Examples.beat name intervalMs 1000000000L

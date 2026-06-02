@@ -1,0 +1,13 @@
+// `Darklang.Apps` — the pure helpers (kind tags + the install-string builders). The daemon lifecycle
+// + the install write step need a live env; these are testable here.
+
+// kindTag — the three launch kinds render to stable tags
+Darklang.Apps.kindTag Darklang.Apps.AppKind.Daemon = "daemon"
+Darklang.Apps.kindTag Darklang.Apps.AppKind.Foreground = "foreground"
+Darklang.Apps.kindTag Darklang.Apps.AppKind.Ui = "ui"
+
+// (findByName is exercised live via `dark apps list`; it reads the `all` package-VALUE registry,
+//  which the .dark testfile harness can't resolve — so it's covered at the CLI layer, not here.)
+
+// aliasPath — one dir on PATH, so uninstall is one file
+Darklang.Apps.aliasPath "ui-demo" = "~/.darklang/bin/ui-demo"

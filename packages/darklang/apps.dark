@@ -1,0 +1,103 @@
+module Darklang.Apps
+
+// An App — the thin manifest `dark apps` lists, installs, and (for daemons) manages. One surface
+// covers three launch kinds:
+//
+//   Daemon      a backgrounded long-runner, managed via a pidfile (start/stop/status/logs). Detached.
+//   Foreground  a normal `dark run <entrypoint>` that does its job and finishes (e.g. ui-demo).
+//   Ui          a full-screen TUI that runs ATTACHED until you quit (e.g. the outliner).
+//
+// An App is a package VALUE, so it's discoverable + shareable like any other value. This PR lists a
+// static `all` registry; value-index discovery is a follow-up.
+
+type AppKind =
+  | Daemon
+  | Foreground
+  | Ui
+
+type App =
+  { name: String
+    // The fn the app runs. Daemon: the loop entrypoint (invoked via `eval`, detached); Foreground:
+    // the `dark run` target; Ui: the interactive app fn.
+    entrypoint: String
+    description: String
+    kind: AppKind }
+
+
+let kindTag (kind: AppKind) : String =
+  match kind with
+  | Daemon -> "daemon"
+  | Foreground -> "foreground"
+  | Ui -> "ui"
+
+
+// ── the registry ── (static for now; a value-index is the follow-up)
+
+// heartbeat — a self-contained DAEMON: a detached process that logs a line every interval until
+// `apps stop`. The reference daemon — proves start/stop/status/logs end to end.
+let heartbeat : App =
+  App
+    { name = "heartbeat"
+      entrypoint = "Darklang.Apps.Examples.heartbeat"
+      description = "A demo daemon: log a heartbeat every interval until stopped"
+      kind = AppKind.Daemon }
+
+
+// outliner — the interactive tree-outliner TUI (runs attached).
+let outliner : App =
+  App
+    { name = "outliner"
+      entrypoint = "Darklang.Cli.Apps.Outliner.App.execute"
+      description = "Interactive tree outliner (full-screen TUI)"
+      kind = AppKind.Ui }
+
+
+// review — review a branch's changesets (TUI).
+let review : App =
+  App
+    { name = "review"
+      entrypoint = "Darklang.Cli.Apps.Review.App.execute"
+      description = "Review branch changesets"
+      kind = AppKind.Ui }
+
+
+// views — browse + preview the CLI's views (TUI).
+let views : App =
+  App
+    { name = "views"
+      entrypoint = "Darklang.Cli.Apps.Views.App.execute"
+      description = "Browse and preview CLI views"
+      kind = AppKind.Ui }
+
+
+// ui-demo — render the UI component gallery, then exit (a FOREGROUND `dark run`).
+let uiDemo : App =
+  App
+    { name = "ui-demo"
+      entrypoint = "Darklang.CLI.UI.Demo.run"
+      description = "Render the UI component gallery (a visual check)"
+      kind = AppKind.Foreground }
+
+
+// Every declared app. `dark apps list` iterates this.
+let all : List<App> =
+  [ Darklang.Apps.heartbeat
+    Darklang.Apps.outliner
+    Darklang.Apps.review
+    Darklang.Apps.views
+    Darklang.Apps.uiDemo ]
+
+
+let findByName (name: String) : Stdlib.Option.Option<App> =
+  Stdlib.List.findFirst Darklang.Apps.all (fun a -> a.name == name)
+
+
+// ── install ── the PATH shim `dark apps install` writes (the write step needs a live env).
+
+// the shim: typing `<app> …` runs the app's entrypoint via `dark run`.
+let aliasShim (entrypoint: String) : String =
+  "#!/bin/sh\nexec dark run " ++ entrypoint ++ " \"$@\"\n"
+
+// where the shim is written — one dir on PATH, so uninstall is one file.
+let aliasPath (appName: String) : String =
+  "~/.darklang/bin/" ++ appName
