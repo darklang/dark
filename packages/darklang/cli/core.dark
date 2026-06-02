@@ -273,7 +273,8 @@ module Registry =
       ("review", "Review branch changesets", [], Darklang.Cli.Apps.Review.App.execute, Darklang.Cli.Apps.Review.App.help, Darklang.Cli.Apps.Review.App.complete)
       ("views", "Browse and preview CLI views", [], Darklang.Cli.Apps.Views.App.execute, Darklang.Cli.Apps.Views.App.help, Darklang.Cli.Apps.Views.App.complete)
       ("login", "Log in as a seeded account (required for commit / serve)", [], Commands.Login.execute, Commands.Login.help, Commands.Login.complete)
-      ("logout", "Clear the active account", [], Commands.Logout.execute, Commands.Logout.help, Commands.Logout.complete) ]
+      ("logout", "Clear the active account", [], Commands.Logout.execute, Commands.Logout.help, Commands.Logout.complete)
+      ("devices", "Your tailnet devices (status / serve / ping), over the `tailscale` CLI", [], Commands.Devices.execute, Commands.Devices.help, Commands.Devices.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->
@@ -351,6 +352,7 @@ module Registry =
       ("Execution", [ "run"; "eval"; "scripts" ])
       ("Installation", [ "install"; "update"; "uninstall"; "version" ])
       ("AI", [ "agent" ])
+      ("Network", [ "devices" ])
       ("Utilities", [ "clear"; "help"; "docs"; "quit"; "builtins"; "export-seed"; "views" ]) ]
 
   // Helper function to format a group of commands with details
