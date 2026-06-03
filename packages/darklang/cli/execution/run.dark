@@ -7,21 +7,21 @@ module Darklang.Cli.Run
 let execute (state: AppState) (args: List<String>) : AppState =
   let allowHarmful =
     Stdlib.List.member_v0 args "--allow-harmful"
-  // `dark run` is secure-by-default: the script body gets NO capabilities.
-  // `--apply-host-caps` opts into inheriting the host shell's granted caps.
-  let applyHostCaps =
-    Stdlib.List.member_v0 args "--apply-host-caps"
+  // `dark run` respects the host's configured grant by default (same as `eval`).
+  // `--sandbox` drops to NO capabilities, for running untrusted scripts.
+  let sandbox =
+    Stdlib.List.member_v0 args "--sandbox"
   let args =
     args
     |> Stdlib.List.filter (fun a ->
-      (a != "--allow-harmful") && (a != "--apply-host-caps"))
+      (a != "--allow-harmful") && (a != "--sandbox"))
 
   match args with
   | [] ->
     help state
     state
   | scriptPath :: scriptArgs ->
-    executeScript state scriptPath scriptArgs allowHarmful applyHostCaps
+    executeScript state scriptPath scriptArgs allowHarmful sandbox
 
 
 let executeScript
@@ -29,7 +29,7 @@ let executeScript
   (scriptPath: String)
   (args: List<String>)
   (allowHarmful: Bool)
-  (applyHostCaps: Bool)
+  (sandbox: Bool)
   : AppState =
   match Builtin.fileRead scriptPath with
   | Error e ->
@@ -48,7 +48,7 @@ let executeScript
         scriptSourceCode
         args
         allowHarmful
-        applyHostCaps
+        sandbox
 
     match result with
     | Ok exitCode ->
@@ -93,6 +93,11 @@ let help (state: AppState) : Unit =
     "Examples:"
     "  run-script script.dark            - Run a script"
     "  run-script script.dark a b c      - Run with args"
+    ""
+    "Flags:"
+    "  --sandbox          - Run with NO capabilities (deny-all) for untrusted scripts."
+    "                       By default a script runs under your configured grant (see `caps`)."
+    "  --allow-harmful    - Opt out of Harmful-deprecation halting."
     ""
     "To call a package function, use 'eval' instead:"
     "  eval Stdlib.Int64.add 5L 3L" ]

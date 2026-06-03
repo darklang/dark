@@ -6,10 +6,11 @@ module Darklang.Cli.Commands.Caps
 // in `~/.darklang/capabilities.bin`, default NONE — effectful code is blocked until granted. The
 // runtime gate ENFORCES it (a builtin call whose need isn't covered is denied).
 //
-// Only TWO builtins back this: `pmCapsGet` (the grant, as spec strings) and `pmCapsSet` (replace from
-// spec strings). Every adjustment below — grant one, revoke a domain, clear, apply a profile — is a
-// get-modify-set composed here in `.dark`. Rendering is shared via `Darklang.PrettyPrinter.Capabilities`
-// so `caps list`, `caps needed-for <fn>`, the app, and any other command render identically.
+// The builtins (`pmCapsGet` / `pmCapsSet`) exchange the STRUCTURED `Capabilities` value; the grant-spec
+// LANGUAGE (parse/render) lives in `.dark` (`LanguageTools.Capabilities`) and is applied at the boundary
+// wrappers below, so the rest of this command works on spec strings. Every adjustment — grant one,
+// revoke a domain, clear, grant-all, apply a profile — is a get-modify-set composed here. Rendering is
+// shared via `Darklang.PrettyPrinter.Capabilities` so every caps surface renders identically.
 
 // Named PRESET grants — common bundles you apply in one go (`caps profile local-dev`). The http-client
 // grant is a LIST of (method × URL) rules that couple per-rule, so a preset CAN say "any method to
@@ -48,10 +49,13 @@ let profiles : List<(String * List<String>)> =
 let currentSpecs () : List<String> =
   (Builtin.pmCapsGet ()) |> LanguageTools.Capabilities.render
 
+// the single `pmCapsSet` call site (keeps the builtin to one wrapper); takes the already-structured grant.
+let writeCaps (caps: LanguageTools.Capabilities.Capabilities) : Unit = Builtin.pmCapsSet caps
+
 let writeSpecs (specs: List<String>) : Stdlib.Option.Option<String> =
   match LanguageTools.Capabilities.parse specs with
   | Ok caps ->
-    let _ = Builtin.pmCapsSet caps
+    Commands.Caps.writeCaps caps
     Stdlib.Option.Option.None
   | Error bad -> Stdlib.Option.Option.Some bad
 
@@ -195,6 +199,15 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (Colors.success "✓ cleared — all capabilities revoked (NONE)")
     state
 
+  // `caps grant-all` — REPLACE the grant with everything (unrestricted). The one-command "let it all
+  // through" for when capability prompts are getting in the way (common for agents / trusted local work).
+  // TODO this hands back the full unrestricted grant — see the trust-boundary TODO in
+  // `LanguageTools.Capabilities.all`. It's a convenience, not a security control.
+  | [ "grant-all" ] | [ "allow-all" ] ->
+    Commands.Caps.writeCaps (LanguageTools.Capabilities.all ())
+    Stdlib.printLine (Colors.success "✓ granted ALL capabilities — this instance is now unrestricted")
+    Commands.Caps.show state
+
   | [ "revoke"; domain ] ->
     if Commands.Caps.revokeDomain domain then
       Stdlib.printLine (Colors.success $"✓ revoked  {domain}")
@@ -240,7 +253,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | _ ->
     Stdlib.printLine
-      (Colors.error "Usage: caps [list] | grant <spec> | set <spec>… | clear | revoke <domain> | grant-for-fn <fn> | needed-for <fn>")
+      (Colors.error "Usage: caps [list] | grant <spec> | set <spec>… | clear | grant-all | revoke <domain> | grant-for-fn <fn> | needed-for <fn>")
     state
 
 
@@ -252,6 +265,7 @@ let complete
     Cli.Completion.simple "grant"
     Cli.Completion.simple "set"
     Cli.Completion.simple "clear"
+    Cli.Completion.simple "grant-all"
     Cli.Completion.simple "revoke"
     Cli.Completion.simple "grant-for-fn"
     Cli.Completion.simple "needed-for"
@@ -259,7 +273,7 @@ let complete
 
 
 let help (state: Cli.AppState) : Cli.AppState =
-  [ "Usage: caps [list] | grant <spec> | set <spec>… | clear | revoke <domain> | grant-for-fn <fn> | needed-for <fn>"
+  [ "Usage: caps [list] | grant <spec> | set <spec>… | clear | grant-all | revoke <domain> | grant-for-fn <fn> | needed-for <fn>"
     ""
     "View + control the capabilities this instance grants to the code it runs. LOCAL (never synced),"
     "stored in ~/.darklang/capabilities.bin, default NONE. The runtime gate enforces it."
@@ -276,6 +290,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "  Replace the whole grant (direct control):"
     "    set <spec>; <spec>; …    Set caps to EXACTLY these specs (semicolon-separated)"
     "    clear                    Set NONE — revoke everything"
+    "    grant-all                Set ALL — unrestricted (convenience; not a security boundary)"
     "    profile [name]           List, or apply, a preset posture — applying REPLACES the grant"
     "                               (read-only · local-dev · trusted; layer extras with `grant` after)"
     "    (`caps edit` opens an interactive editor; the file itself is a binary blob)"

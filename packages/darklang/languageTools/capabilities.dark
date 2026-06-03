@@ -75,6 +75,39 @@ let empty () : LanguageTools.Capabilities.Capabilities =
       clock = false
       llm = false }
 
+// TODO the sandbox intent is undercut by `all ()` + `caps grant-all`: any code (or agent) that can run
+// a command can also lift every restriction. Until there's a real trust boundary (signed/locked grants,
+// an out-of-band approval, a read-only enforcement layer), "allow all" is a convenience, not a control.
+/// The fully-permissive grant — every domain unscoped, every flag on (`caps grant-all`).
+let all () : LanguageTools.Capabilities.Capabilities =
+  LanguageTools.Capabilities.Capabilities
+    { httpClient =
+        [ LanguageTools.Capabilities.HttpRule
+            { methods = LanguageTools.Capabilities.Scope.Any
+              url = LanguageTools.Capabilities.anyUrl () } ]
+      httpServer = LanguageTools.Capabilities.Scope.Any
+      file =
+        LanguageTools.Capabilities.RW
+          { read = LanguageTools.Capabilities.Scope.Any
+            write = LanguageTools.Capabilities.Scope.Any }
+      env =
+        LanguageTools.Capabilities.RW
+          { read = LanguageTools.Capabilities.Scope.Any
+            write = LanguageTools.Capabilities.Scope.Any }
+      db =
+        LanguageTools.Capabilities.RW
+          { read = LanguageTools.Capabilities.Scope.Any
+            write = LanguageTools.Capabilities.Scope.Any }
+      exec =
+        [ LanguageTools.Capabilities.ExecRule
+            { programs = LanguageTools.Capabilities.Scope.Any
+              args = LanguageTools.Capabilities.Scope.Any } ]
+      stdout = true
+      stdin = true
+      random = true
+      clock = true
+      llm = true }
+
 let joinScope
   (a: LanguageTools.Capabilities.Scope<'a>)
   (b: LanguageTools.Capabilities.Scope<'a>)

@@ -15,6 +15,9 @@ let ruleDomains : List<String> =
 type Row =
   | FlagRow of String * Bool
   | RuleRow of String
+  // a selectable "+ Add rule…" affordance at the end of the scoped-rules section — `enter` on it opens
+  // the same domain picker as the `a` shortcut, so the add flow is discoverable without knowing the key.
+  | AddRuleRow
 
 // each Edit* carries the ORIGINAL spec being edited ("" when adding a new rule), so saving the edit
 // removes the original before adding the new one (otherwise editing a rule would duplicate it).
@@ -61,7 +64,7 @@ let rows (state: State) : List<Row> =
       let d = Darklang.PrettyPrinter.Capabilities.domainOf s
       Stdlib.Bool.not (isFlag d))
     |> Stdlib.List.map (fun s -> Row.RuleRow s)
-  Stdlib.List.append flagRows ruleRows
+  Stdlib.List.append flagRows (Stdlib.List.append ruleRows [ Row.AddRuleRow ])
 
 let rowCount (state: State) : Int64 = Stdlib.List.length (rows state)
 
@@ -148,6 +151,8 @@ let handleBrowsing
     match Stdlib.List.getAt (rows state) state.cursor with
     | Some(FlagRow(d, _)) -> KeyResult.Continue (toggleFlag state d)
     | Some(RuleRow spec) -> KeyResult.Continue (editSpec state spec)
+    | Some AddRuleRow ->
+      KeyResult.Continue ({ state with screen = Screen.AddPickDomain 0L })
     | None -> KeyResult.Continue state
   | _ ->
     match keyChar with
@@ -238,18 +243,31 @@ let private rowText (row: Row) : String =
     let box = if granted then "[x]" else "[ ]"
     $"{box} {d}"
   | RuleRow spec -> Darklang.PrettyPrinter.Capabilities.line spec
+  | AddRuleRow -> "+ Add rule…"
 
+let private printOneRow (state: State) (pair: (Int64 * Row)) : Unit =
+  let (i, r) = pair
+  let selected = i == state.cursor
+  let prefix = if selected then "›" else " "
+  let line = $"  {prefix} {rowText r}"
+  let styled =
+    if selected then Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
+    else line
+  Stdlib.printLine styled
+
+// flag checklist on top, then a labelled "Scoped rules" section (existing rules + the "+ Add rule…"
+// affordance). The cursor index maps into `rows`; the section label is printed between, not selectable.
 let private printRows (state: State) : Unit =
+  let flagCount = Stdlib.List.length flagDomains
   let indexed = Stdlib.List.indexedMap (rows state) (fun i r -> (i, r))
-  Stdlib.List.iter indexed (fun pair ->
-    let (i, r) = pair
-    let selected = i == state.cursor
-    let prefix = if selected then "›" else " "
-    let line = $"  {prefix} {rowText r}"
-    let styled =
-      if selected then Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
-      else line
-    Stdlib.printLine styled)
+  indexed
+  |> Stdlib.List.filter (fun pair -> Stdlib.Tuple2.first pair < flagCount)
+  |> Stdlib.List.iter (fun pair -> printOneRow state pair)
+  Stdlib.printLine ""
+  Stdlib.printLine (Darklang.Cli.Colors.dimText "  Scoped rules")
+  indexed
+  |> Stdlib.List.filter (fun pair -> Stdlib.Tuple2.first pair >= flagCount)
+  |> Stdlib.List.iter (fun pair -> printOneRow state pair)
 
 let private printMenu (title: String) (items: List<String>) (cursor: Int64) : Unit =
   Stdlib.printLine title
@@ -282,7 +300,7 @@ let render (state: State) : Unit =
     Stdlib.printLine ""
     Stdlib.printLine
       (Darklang.Cli.Colors.dimText
-        "  ↑↓ move · space toggle · enter edit · a add · d delete · p profile · w write · esc exit")
+        "  ↑↓ move · space toggle · enter edit/add · a add rule · d delete · p profile · w write · esc exit")
   | AddPickDomain cursor ->
     printMenu "  Add a rule for which domain?" ruleDomains cursor
     Stdlib.printLine ""

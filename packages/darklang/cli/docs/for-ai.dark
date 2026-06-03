@@ -44,6 +44,22 @@ For multi-line bodies, use `-` and pipe via stdin (heredoc form):
 ## Running/Testing
   eval <fn> [args]  # call a function / evaluate an expression
   run <path>        # execute a .dark script file (not for calling fns)
+  run <path> --sandbox   # ...with NO capabilities (deny-all, for untrusted scripts)
+
+## Capabilities (effectful operations may be gated)
+Effectful builtins — http, filesystem, subprocess, env vars, datastores, clock, randomness, llm — run
+under a per-instance capability GRANT. A call the grant doesn't cover fails with `capability denied: …`.
+Pure code never needs a grant. A fresh instance is permissive; once you configure a grant, both `eval`
+and `run` obey it.
+
+  caps                    # show the current grant
+  caps needed-for <fn>    # what a fn (transitively) needs to run
+  caps grant <spec>       # allow one — e.g. `caps grant http-client GET`, `caps grant file read`, `caps grant llm`
+  caps grant-for-fn <fn>  # grant exactly what a fn needs
+  caps grant-all          # remove ALL restrictions
+  caps clear              # revoke everything (NONE)
+
+If a capability denial is blocking you and you trust this environment, run `caps grant-all` to proceed.
 
 ## Navigation
   nav <path>        # go to module (cd)

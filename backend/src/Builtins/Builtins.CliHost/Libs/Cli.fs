@@ -305,9 +305,9 @@ let fns () : List<BuiltInFn> =
             TBool
             "Opt out of Harmful-deprecation halting (see docs/deprecation)"
           Param.make
-            "applyHostCaps"
+            "sandbox"
             TBool
-            "Run the script with the host's granted capabilities instead of none (`dark run` is secure-by-default: no caps)" ]
+            "Run the script body with NO capabilities (a deny-all sandbox for untrusted scripts), instead of the host's configured grant" ]
       returnType = TypeReference.result TInt64 (ExecutionError.typeRef ())
       description =
         "Parses Dark code as a script, and and executes it, returning an exit code"
@@ -325,7 +325,7 @@ let fns () : List<BuiltInFn> =
             DString code
             DList(_vtTODO, scriptArgs)
             DBool allowHarmful
-            DBool applyHostCaps ] ->
+            DBool sandbox ] ->
           uply {
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`. None passes through
@@ -348,15 +348,19 @@ let fns () : List<BuiltInFn> =
 
               match parsedScript with
               | Ok mod' ->
-                // `dark run` is the secure-by-default SANDBOX: the script body gets NO capabilities, so
-                // an effectful builtin (http, fs, time, …) raises unless the run opts into the host's
-                // capabilities via `--apply-host-caps` (`hostCaps`: allCaps until an instance grant is
-                // configured, then that grant).
+                // `dark run` RESPECTS the host's configured grant by default (`hostCaps`: allCaps until
+                // an instance grant is configured, then that grant) — the same posture as `eval`, so the
+                // grant you set is the grant scripts obey. `--sandbox` drops to NO capabilities for
+                // running untrusted scripts (any effectful builtin then raises).
+                // TODO product decision, revisit: this favors "run my own script" over "run an untrusted
+                // script" (sandbox is opt-IN). If `dark run <url>` / piping untrusted code becomes common,
+                // a deny-all default + `--trust`/`--apply-host-caps` opt-in may be safer. See also the
+                // trust-boundary TODO in `LanguageTools.Capabilities.all`.
                 let runCaps =
-                  if applyHostCaps then
-                    LibDB.CapabilityGrants.hostCaps ()
-                  else
+                  if sandbox then
                     LibExecution.Capabilities.noCaps
+                  else
+                    LibDB.CapabilityGrants.hostCaps ()
                 let exeState = { exeState with grantedCaps = runCaps }
                 match!
                   execute
