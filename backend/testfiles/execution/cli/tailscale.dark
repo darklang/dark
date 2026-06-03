@@ -1,0 +1,12 @@
+// `Darklang.Tailscale` — minimal wrappers over the `tailscale` CLI (backs `dark devices`). The
+// shell-outs (`run`/`status`/`serve`/`ping`) need the daemon in the environment; the two PURE helpers
+// — the MagicDNS peer URL and the identity-header reader — are testable here.
+
+// peerUrl builds the MagicDNS URL a peer is reached at
+Darklang.Tailscale.peerUrl "major" "tail-scale" = "https://major.tail-scale.ts.net"
+Darklang.Tailscale.peerUrl "laptop" "example" = "https://laptop.example.ts.net"
+
+// loginHeader extracts the injected `Tailscale-User-Login` identity (present, missing, empty cases)
+Darklang.Tailscale.loginHeader [("Tailscale-User-Login", "user@example.com"); ("X-Other", "y")] = Stdlib.Option.Option.Some "user@example.com"
+Darklang.Tailscale.loginHeader [("X-Other", "y")] = Stdlib.Option.Option.None
+Darklang.Tailscale.loginHeader [] = Stdlib.Option.Option.None

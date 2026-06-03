@@ -274,7 +274,8 @@ module Registry =
       ("views", "Browse and preview CLI views", [], Darklang.Cli.Apps.Views.App.execute, Darklang.Cli.Apps.Views.App.help, Darklang.Cli.Apps.Views.App.complete)
       ("login", "Log in as a seeded account (required for commit / serve)", [], Commands.Login.execute, Commands.Login.help, Commands.Login.complete)
       ("logout", "Clear the active account", [], Commands.Logout.execute, Commands.Logout.help, Commands.Logout.complete)
-      ("caps", "View + control this instance's capability grant (default NONE)", [ "capabilities" ], Commands.Caps.execute, Commands.Caps.help, Commands.Caps.complete) ]
+      ("caps", "View + control this instance's capability grant (default NONE)", [ "capabilities" ], Commands.Caps.execute, Commands.Caps.help, Commands.Caps.complete)
+      ("devices", "Your tailnet devices (status / serve / ping), over the `tailscale` CLI", [], Commands.Devices.execute, Commands.Devices.help, Commands.Devices.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->
@@ -353,6 +354,7 @@ module Registry =
       ("Installation", [ "install"; "update"; "uninstall"; "version" ])
       ("AI", [ "agent" ])
       ("Security", [ "caps" ])
+      ("Network", [ "devices" ])
       ("Utilities", [ "clear"; "help"; "docs"; "quit"; "builtins"; "export-seed"; "views" ]) ]
 
   // Helper function to format a group of commands with details
