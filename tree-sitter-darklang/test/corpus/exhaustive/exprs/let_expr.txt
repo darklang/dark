@@ -309,3 +309,407 @@ x
     )
   )
 )
+
+==================
+let expression with nested function definition
+==================
+
+(let double (x: Int64) : Int64 = x * 2L
+ double 5L)
+---
+
+(source_file
+  (expression
+    (simple_expression
+      (paren_expression
+        (symbol)
+        (expression
+          (let_expression
+            (keyword)
+            (variable_identifier)
+            (fn_decl_params
+              (fn_decl_param
+                (symbol) (variable_identifier) (symbol)
+                (type_reference (builtin_type))
+                (symbol)))
+            (symbol)
+            (type_reference (builtin_type))
+            (symbol)
+            (expression
+              (simple_expression
+                (infix_operation
+                  (simple_expression (variable_identifier))
+                  (operator)
+                  (simple_expression
+                    (int64_literal (digits (positive_digits)) (symbol))))))
+            (expression
+              (simple_expression
+                (apply
+                  (qualified_fn_name (fn_identifier))
+                  (int64_literal (digits (positive_digits)) (symbol)))))))
+        (symbol)))))
+
+================================================================================
+nested function definition - multiple params
+================================================================================
+
+(let combine (x: Int64) (y: Int64) : Int64 =
+   x + y
+ combine 1L 2L)
+--------------------------------------------------------------------------------
+
+(source_file
+  (expression
+    (simple_expression
+      (paren_expression
+        (symbol)
+        (expression
+          (let_expression
+            (keyword)
+            (variable_identifier)
+            (fn_decl_params
+              (fn_decl_param
+                (symbol)
+                (variable_identifier)
+                (symbol)
+                (type_reference
+                  (builtin_type))
+                (symbol))
+              (fn_decl_param
+                (symbol)
+                (variable_identifier)
+                (symbol)
+                (type_reference
+                  (builtin_type))
+                (symbol)))
+            (symbol)
+            (type_reference
+              (builtin_type))
+            (symbol)
+            (indent)
+            (expression
+              (simple_expression
+                (infix_operation
+                  (simple_expression
+                    (variable_identifier))
+                  (operator)
+                  (simple_expression
+                    (variable_identifier)))))
+            (dedent)
+            (expression
+              (simple_expression
+                (apply
+                  (qualified_fn_name
+                    (fn_identifier))
+                  (int64_literal
+                    (digits
+                      (positive_digits))
+                    (symbol))
+                  (int64_literal
+                    (digits
+                      (positive_digits))
+                    (symbol)))))))
+        (symbol)))))
+
+================================================================================
+nested function definition - unit param
+================================================================================
+
+(let getFive () : Int64 = 5L
+ getFive ())
+--------------------------------------------------------------------------------
+
+(source_file
+  (expression
+    (simple_expression
+      (paren_expression
+        (symbol)
+        (expression
+          (let_expression
+            (keyword)
+            (variable_identifier)
+            (fn_decl_params
+              (unit))
+            (symbol)
+            (type_reference
+              (builtin_type))
+            (symbol)
+            (expression
+              (simple_expression
+                (int64_literal
+                  (digits
+                    (positive_digits))
+                  (symbol))))
+            (expression
+              (simple_expression
+                (apply
+                  (qualified_fn_name
+                    (fn_identifier))
+                  (unit))))))
+        (symbol)))))
+
+================================================================================
+nested function definition - generic type annotations
+================================================================================
+
+(let rev (list: List<'a>) (acc: List<'a>) : List<'a> =
+   acc
+ rev [ 1L ] [])
+--------------------------------------------------------------------------------
+
+(source_file
+  (expression
+    (simple_expression
+      (paren_expression
+        (symbol)
+        (expression
+          (let_expression
+            (keyword)
+            (variable_identifier)
+            (fn_decl_params
+              (fn_decl_param
+                (symbol)
+                (variable_identifier)
+                (symbol)
+                (type_reference
+                  (builtin_type
+                    (list_type_reference
+                      (keyword)
+                      (symbol)
+                      (type_reference
+                        (builtin_type
+                          (variable_type_reference
+                            (symbol)
+                            (variable_identifier))))
+                      (symbol))))
+                (symbol))
+              (fn_decl_param
+                (symbol)
+                (variable_identifier)
+                (symbol)
+                (type_reference
+                  (builtin_type
+                    (list_type_reference
+                      (keyword)
+                      (symbol)
+                      (type_reference
+                        (builtin_type
+                          (variable_type_reference
+                            (symbol)
+                            (variable_identifier))))
+                      (symbol))))
+                (symbol)))
+            (symbol)
+            (type_reference
+              (builtin_type
+                (list_type_reference
+                  (keyword)
+                  (symbol)
+                  (type_reference
+                    (builtin_type
+                      (variable_type_reference
+                        (symbol)
+                        (variable_identifier))))
+                  (symbol))))
+            (symbol)
+            (indent)
+            (expression
+              (simple_expression
+                (variable_identifier)))
+            (dedent)
+            (expression
+              (simple_expression
+                (apply
+                  (qualified_fn_name
+                    (fn_identifier))
+                  (list_literal
+                    (symbol)
+                    (list_content
+                      (expression
+                        (simple_expression
+                          (int64_literal
+                            (digits
+                              (positive_digits))
+                            (symbol)))))
+                    (symbol))
+                  (list_literal
+                    (symbol)
+                    (symbol)))))))
+        (symbol)))))
+
+================================================================================
+nested function definition - indented recursive body
+================================================================================
+
+(let fact (n: Int64) : Int64 =
+   if n <= 1L then 1L else fact (n - 1L)
+ fact 5L)
+--------------------------------------------------------------------------------
+
+(source_file
+  (expression
+    (simple_expression
+      (paren_expression
+        (symbol)
+        (expression
+          (let_expression
+            (keyword)
+            (variable_identifier)
+            (fn_decl_params
+              (fn_decl_param
+                (symbol)
+                (variable_identifier)
+                (symbol)
+                (type_reference
+                  (builtin_type))
+                (symbol)))
+            (symbol)
+            (type_reference
+              (builtin_type))
+            (symbol)
+            (indent)
+            (expression
+              (if_expression
+                (keyword)
+                (expression
+                  (simple_expression
+                    (infix_operation
+                      (simple_expression
+                        (variable_identifier))
+                      (operator)
+                      (simple_expression
+                        (int64_literal
+                          (digits
+                            (positive_digits))
+                          (symbol))))))
+                (keyword)
+                (expression
+                  (simple_expression
+                    (int64_literal
+                      (digits
+                        (positive_digits))
+                      (symbol))))
+                (keyword)
+                (expression
+                  (simple_expression
+                    (apply
+                      (qualified_fn_name
+                        (fn_identifier))
+                      (paren_expression
+                        (symbol)
+                        (expression
+                          (simple_expression
+                            (infix_operation
+                              (simple_expression
+                                (variable_identifier))
+                              (operator)
+                              (simple_expression
+                                (int64_literal
+                                  (digits
+                                    (positive_digits))
+                                  (symbol))))))
+                        (symbol)))))))
+            (dedent)
+            (expression
+              (simple_expression
+                (apply
+                  (qualified_fn_name
+                    (fn_identifier))
+                  (int64_literal
+                    (digits
+                      (positive_digits))
+                    (symbol)))))))
+        (symbol)))))
+
+================================================================================
+nested function sugar on a non-variable pattern is invalid
+================================================================================
+
+(let () (x: Int64) : Int64 = x
+ 5L)
+--------------------------------------------------------------------------------
+
+(source_file
+  (expression
+    (simple_expression
+      (paren_expression
+        (symbol)
+        (ERROR
+          (keyword)
+          (ERROR
+            (let_pattern
+              (unit)))
+          (symbol)
+          (let_pattern
+            (variable_identifier))
+          (symbol)
+          (symbol)
+          (symbol)
+          (symbol)
+          (UNEXPECTED 'x'))
+        (expression
+          (simple_expression
+            (int64_literal
+              (digits
+                (positive_digits))
+              (symbol))))
+        (symbol)))))
+
+================================================================================
+nested function definition - explicit type params
+================================================================================
+
+(let identity<'a> (x: 'a) : 'a =
+   x
+ identity 5L)
+--------------------------------------------------------------------------------
+
+(source_file
+  (expression
+    (simple_expression
+      (paren_expression
+        (symbol)
+        (expression
+          (let_expression
+            (keyword)
+            (variable_identifier)
+            (type_params
+              (symbol)
+              (type_params_items
+                (variable_type_reference
+                  (symbol)
+                  (variable_identifier)))
+              (symbol))
+            (fn_decl_params
+              (fn_decl_param
+                (symbol)
+                (variable_identifier)
+                (symbol)
+                (type_reference
+                  (builtin_type
+                    (variable_type_reference
+                      (symbol)
+                      (variable_identifier))))
+                (symbol)))
+            (symbol)
+            (type_reference
+              (builtin_type
+                (variable_type_reference
+                  (symbol)
+                  (variable_identifier))))
+            (symbol)
+            (indent)
+            (expression
+              (simple_expression
+                (variable_identifier)))
+            (dedent)
+            (expression
+              (simple_expression
+                (apply
+                  (qualified_fn_name
+                    (fn_identifier))
+                  (int64_literal
+                    (digits
+                      (positive_digits))
+                    (symbol)))))))
+        (symbol)))))

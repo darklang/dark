@@ -125,6 +125,72 @@ let tEval (name : string) (input : string) (expected : RT.Dval) =
   }
 
 
+/// Parses `input` as a Darklang source file declaring one fn (the same path the
+/// CLI and LSP use to create package fns), registers it, then executes it with
+/// `arg` and asserts the result. Execution catches resolution bugs inside the fn
+/// body that a pretty-print roundtrip can't.
+let tEvalSourceFileFn
+  (name : string)
+  (input : string)
+  (arg : RT.Dval)
+  (expected : RT.Dval)
+  =
+  let parseFnName =
+    RT.FQFnName.fqPackage (
+      PackageRefs.Fn.LanguageTools.Parser.parsePTSourceFileWithOps ()
+    )
+
+  testTask name {
+    let! parseExeState = executionStateFor pmPT false Map.empty
+
+    let args = NEList.singleton (RT.DString input)
+    let! parseResult =
+      LibExecution.Execution.executeFunction parseExeState parseFnName [] args
+    let! parseDval = unwrapExecutionResult parseExeState parseResult |> Ply.toTask
+
+    match parseDval with
+    | RT.DEnum(tn, _, _, "Ok", [ RT.DTuple(_, opsList, []) ]) when
+      tn = Dval.resultType ()
+      ->
+      // register the declared fn, as the CLI does
+      let packageOps =
+        match opsList with
+        | RT.DList(_vt, ops) ->
+          ops |> List.choose LibExecution.ProgramTypesToDarkTypes.PackageOp.fromDT
+        | _ -> []
+      let enhancedPM = LibDB.PackageManager.withExtraOps pmPT packageOps
+
+      let fnHashes =
+        packageOps
+        |> List.choose (fun op ->
+          match op with
+          | PT.AddFn fn ->
+            let (PT.Hash hashStr) = fn.hash
+            Some hashStr
+          | _ -> None)
+
+      match fnHashes with
+      | [ hashStr ] ->
+        let! exeState = executionStateFor enhancedPM false Map.empty
+        let! actual =
+          LibExecution.Execution.executeFunction
+            exeState
+            (RT.FQFnName.fqPackage hashStr)
+            []
+            (NEList.singleton arg)
+        match actual with
+        | Ok result ->
+          return Expect.RT.equalDval result expected "Unexpected execution result"
+        | Error(rte, _) -> return failtest $"Evaluation failed: {rte}"
+      | hashes ->
+        return failtest $"Expected exactly one declared fn; got {List.length hashes}"
+
+    | RT.DEnum(tn, _, _, "Error", [ RT.DString errMsg ]) when tn = Dval.resultType () ->
+      return failtest $"Parse error: {errMsg}"
+    | _ -> return failtest $"Unexpected parse result format: {parseDval}"
+  }
+
+
 /// Uses `parseForCli` (the same parse path the CLI uses) because it surfaces
 /// `unparseableStuff` as `Result.Error`; `parsePTSourceFileWithOps` swallows
 /// per-declaration parse failures into a side list and returns Ok overall.
@@ -1196,6 +1262,19 @@ let exprs =
       false
     // TODO: this is ugly
     t "simple let expr" "let x = 1L\n  x" "let x =\n  1L\nx" [] [] [] false
+    // A nested function definition desugars to a lambda bound by a let, so the
+    // roundtrip is intentionally lossy: the param/return types are dropped and the
+    // `let f (x) = ...` sugar prints as `let f = (fun x -> ...)`. (Top-level
+    // `let f (x): R = ...` is a fn_decl and keeps its types - this only applies to
+    // a `let` nested inside an expression.)
+    t
+      "nested function definition (desugars to lambda)"
+      "let result =\n  let double (x: Int64): Int64 = x * 2L\n  double 5L\nresult"
+      "let result =\n  let double =\n    (fun x ->\n      (x) * (2L))\n  double 5L\nresult"
+      []
+      []
+      []
+      false
     t "let expr with indent" "let x =\n  1L\nx" "let x =\n  1L\nx" [] [] [] false
 
     t
@@ -2220,7 +2299,27 @@ Builtin.printLine (getTitle curiousGeorgeBookId)
       []
       []
       []
-      false ]
+      false
+
+    // In the CLI/LSP path, a nested recursive fn should resolve its own name as
+    // a local variable while WT2PT converts the body, not as an unresolved fn
+    // name. This test executes the fn so we catch that case directly.
+    tEvalSourceFileFn
+      "fn decl containing a nested recursive fn (CLI/LSP path)"
+      "let myRev (list: List<Int64>): List<Int64> =
+  let helper (l: List<Int64>) (acc: List<Int64>): List<Int64> =
+    match l with
+    | [] -> acc
+    | head :: tail -> helper tail (Stdlib.List.push acc head)
+  helper list []"
+      (RT.DList(
+        LibExecution.ValueType.int64,
+        [ RT.DInt64 1L; RT.DInt64 2L; RT.DInt64 3L ]
+      ))
+      (RT.DList(
+        LibExecution.ValueType.int64,
+        [ RT.DInt64 3L; RT.DInt64 2L; RT.DInt64 1L ]
+      )) ]
   |> testList "cli scripts"
 
 let tests =
