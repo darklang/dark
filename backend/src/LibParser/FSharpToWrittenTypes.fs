@@ -180,6 +180,8 @@ module LetPattern =
 
     match pat with
     | SynPat.Paren(subPat, _) -> mapPat subPat
+    // `(x : Int64)` - we don't track the type annotation here, just the binding
+    | SynPat.Typed(subPat, _, _) -> mapPat subPat
     | SynPat.Wild(_) -> WT.LPWildcard(gid ())
     | SynPat.Named(SynIdent(name, _), _, _, _) -> WT.LPVariable(gid (), name.idText)
     | SynPat.Const(SynConst.Unit, _) -> WT.LPUnit(gid ())
@@ -659,6 +661,56 @@ module Expr =
     // if/else expressions
     | SynExpr.IfThenElse(cond, thenExpr, elseExpr, _, _, _, _) ->
       WT.EIf(id, c cond, c thenExpr, Option.map c elseExpr)
+
+
+    // nested function definitions, e.g. `let f (x: Int64) : Int64 = x + 1L`
+    // desugared to a lambda bound by a let. The return type and type params are
+    // not tracked at this level (lambdas are untyped at runtime); the binding is
+    // self-recursive (the function may call itself by name in its own body).
+    //
+    // The guard restricts this to the fully-annotated nested-fn form: lowercase
+    // fn name, parenthesized typed params (or unit), and a return type.
+    // Anything else (`let f x = ...`, `let Some x = ...`, `let (+) a b = ...`)
+    // falls through to the general let case and its loud "unsupported" error.
+    | SynExpr.LetOrUse(_,
+                       _,
+                       _,
+                       _,
+                       [ SynBinding(_,
+                                    _,
+                                    _,
+                                    _,
+                                    _,
+                                    _,
+                                    _,
+                                    SynPat.LongIdent(SynLongIdent([ name ], _, _),
+                                                     _,
+                                                     _,
+                                                     SynArgPats.Pats(p1 :: pRest),
+                                                     _,
+                                                     _),
+                                    returnInfo,
+                                    rhs,
+                                    _,
+                                    _,
+                                    _) ],
+                       body,
+                       _,
+                       _) when
+      (let text = name.idText
+       text.Length > 0 && System.Char.IsLower text[0] && not (text.StartsWith "op_"))
+      && Option.isSome returnInfo
+      && (p1 :: pRest)
+         |> List.forall (fun p ->
+           match p with
+           | SynPat.Paren(SynPat.Typed _, _)
+           | SynPat.Paren(SynPat.Const(SynConst.Unit, _), _)
+           | SynPat.Const(SynConst.Unit, _) -> true
+           | _ -> false)
+      ->
+      let paramPats = NEList.ofList p1 pRest |> NEList.map LetPattern.fromSynPat
+      let lambda = WT.ELambda(gid (), paramPats, c rhs)
+      WT.ELet(id, WT.LPVariable(gid (), name.idText), lambda, c body)
 
 
     // `let` bindings

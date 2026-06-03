@@ -1481,6 +1481,16 @@
           }
         ]
       },
+      "fn_name": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "variable_identifier",
+            "named": true
+          }
+        ]
+      },
       "keyword_let": {
         "multiple": false,
         "required": true,
@@ -1491,12 +1501,42 @@
           }
         ]
       },
+      "params": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "fn_decl_params",
+            "named": true
+          }
+        ]
+      },
       "pattern": {
         "multiple": false,
-        "required": true,
+        "required": false,
         "types": [
           {
             "type": "let_pattern",
+            "named": true
+          }
+        ]
+      },
+      "return_type": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type_reference",
+            "named": true
+          }
+        ]
+      },
+      "symbol_colon": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "symbol",
             "named": true
           }
         ]
@@ -1507,6 +1547,16 @@
         "types": [
           {
             "type": "symbol",
+            "named": true
+          }
+        ]
+      },
+      "type_params": {
+        "multiple": false,
+        "required": false,
+        "types": [
+          {
+            "type": "type_params",
             "named": true
           }
         ]

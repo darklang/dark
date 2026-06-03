@@ -705,7 +705,19 @@ module Expr =
 
     // declaring and accessing variables
     | ELet(_, pat, rhs, body, _, _) ->
-      let (rhs, rhsUnresolvedNames) = toPT ctx context rhs
+      // If a let-bound lambda refers to its own name, treat that name as a
+      // local while converting the rhs so recursion becomes an `EVariable`.
+      // Resolved package names still stay resolved.
+      let rhsContext =
+        match (pat, rhs) with
+        | (LPVariable(_, name), ELambda(_, _, _, _, _)) ->
+          Context
+            { currentFnName = context.currentFnName
+              argMap = context.argMap
+              localBindings = Stdlib.List.push context.localBindings name }
+        | _ -> context
+
+      let (rhs, rhsUnresolvedNames) = toPT ctx rhsContext rhs
 
       // Get the new context from LetPattern processing
       let (bodyContext, ptPattern) = LetPattern.toPT context pat

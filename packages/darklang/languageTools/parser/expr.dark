@@ -430,29 +430,86 @@ let parseEnumLiteral
       |> Stdlib.Result.Result.Ok)
 
 
+/// Converts a function-declaration parameter (`(x: Int64)` or `()`) into a
+/// LetPattern, dropping the type annotation. Used to desugar a nested function
+/// definition into a lambda.
+let letPatternFromFnParam
+  (node: ParsedNode)
+  : Stdlib.Result.Result<WrittenTypes.LetPattern, WrittenTypes.Unparseable> =
+  if node.typ == "unit" then
+    (WrittenTypes.LetPattern.LPUnit(node.range)) |> Stdlib.Result.Result.Ok
+  elif node.typ == "fn_decl_param" then
+    match findField node "identifier" with
+    | Ok ident ->
+      (WrittenTypes.LetPattern.LPVariable(ident.range, getText ident))
+      |> Stdlib.Result.Result.Ok
+    | Error _ -> createUnparseableError node
+  else
+    createUnparseableError node
+
+
 let parseLetExpr
   (node: ParsedNode)
   : Stdlib.Result.Result<WrittenTypes.Expr, WrittenTypes.Unparseable> =
   let keywordLetNode = findField node "keyword_let"
-  let patternNode = findField node "pattern"
   let symbolEqualsNode = findField node "symbol_equals"
   let expr = findAndParseRequired node "expr" Expr.parse
   let body = findAndParseRequired node "body" Expr.parse
 
-  match keywordLetNode, patternNode, symbolEqualsNode, expr, body with
-  | Ok keywordLet, Ok pattern, Ok symbolEquals, Ok expr, Ok body ->
-    match parseLetPattern pattern with
-    | Ok pattern ->
+  match keywordLetNode, symbolEqualsNode, expr, body with
+  | Ok keywordLet, Ok symbolEquals, Ok expr, Ok body ->
+    // a nested function definition (`let f (x: Int64) : Int64 = ...`) carries a
+    // `fn_name` + `params` instead of a `pattern` (the grammar restricts a fn name
+    // to a plain variable). Desugar it to a lambda bound by the let; the recursion
+    // and type-dropping then match the F# parser + PT2RT path. A plain let carries
+    // a `pattern` and binds the expr as-is.
+    let patternAndRhs =
+      match findField node "fn_name" with
+      | Ok fnName ->
+        let paramPats =
+          match findField node "params" with
+          | Ok paramsNode ->
+            paramsNode.children
+            |> Stdlib.List.map letPatternFromFnParam
+            |> Stdlib.Result.collect
+          | Error _ -> createUnparseableError node
+
+        match paramPats with
+        | Ok paramPats ->
+          let pattern =
+            WrittenTypes.LetPattern.LPVariable(fnName.range, getText fnName)
+
+          let lambda =
+            WrittenTypes.Expr.ELambda(
+              node.range,
+              paramPats,
+              expr,
+              keywordLet.range,
+              symbolEquals.range
+            )
+
+          (pattern, lambda) |> Stdlib.Result.Result.Ok
+        | Error _ -> createUnparseableError node
+
+      | Error _ ->
+        match findField node "pattern" with
+        | Ok patternNode ->
+          match parseLetPattern patternNode with
+          | Ok pattern -> (pattern, expr) |> Stdlib.Result.Result.Ok
+          | Error _ -> createUnparseableError node
+        | Error _ -> createUnparseableError node
+
+    match patternAndRhs with
+    | Ok((pattern, rhs)) ->
       (WrittenTypes.Expr.ELet(
         node.range,
         pattern,
-        expr,
+        rhs,
         body,
         keywordLet.range,
         symbolEquals.range
       ))
       |> Stdlib.Result.Result.Ok
-
     | Error _ -> createUnparseableError node
 
   | _ -> createUnparseableError node

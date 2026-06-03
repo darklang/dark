@@ -159,6 +159,7 @@ module LambdaImpl =
         w.Write(copyFrom : int)
         w.Write(copyTo : int))
       l.registersToCloseOver
+    Option.write w (fun w (reg : int) -> w.Write reg) l.selfRegister
     Instructions.write w l.instructions
 
 
@@ -170,11 +171,13 @@ module LambdaImpl =
         let copyFrom = r.ReadInt32()
         let copyTo = r.ReadInt32()
         (copyFrom, copyTo))
+    let selfRegister = Option.read r (fun r -> r.ReadInt32())
 
     let instructions = Instructions.read r
     { exprId = exprId
       patterns = patterns
       registersToCloseOver = registersToCloseOver
+      selfRegister = selfRegister
       instructions = instructions }
 
 

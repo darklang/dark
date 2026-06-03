@@ -567,6 +567,13 @@ and LambdaImpl =
     /// symtable for the evaluation of the expr on the RHS
     registersToCloseOver : List<Register * Register>
 
+    /// For a self-recursive nested function, the register in this frame that holds
+    /// the function value itself, so the body can call itself by name. Unlike
+    /// closed-over registers (captured by value when the lambda is created), this is
+    /// filled at call time with the lambda value - which doesn't exist yet at
+    /// creation. `None` for ordinary, non-recursive lambdas.
+    selfRegister : Option<Register>
+
     instructions : Instructions
   }
 

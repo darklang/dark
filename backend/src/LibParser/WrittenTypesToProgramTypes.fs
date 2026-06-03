@@ -478,7 +478,15 @@ module Expr =
             body
           )
       | WT.ELet(id, pat, rhs, body) ->
-        let! rhs = toPT context rhs
+        // If a let-bound lambda refers to its own name, treat that name as a
+        // local while converting the rhs so recursion becomes an `EVariable`.
+        // Resolved package names still stay resolved.
+        let rhsContext =
+          match pat, rhs with
+          | WT.LPVariable(_, name), WT.ELambda _ ->
+            { context with localBindings = Set.add name context.localBindings }
+          | _ -> context
+        let! rhs = toPT rhsContext rhs
         let (newContext, ptPat) = LetPattern.toPT context pat
         let! body = toPT newContext body
         return PT.ELet(id, ptPat, rhs, body)

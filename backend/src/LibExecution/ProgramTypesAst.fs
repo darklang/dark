@@ -108,3 +108,115 @@ and symbolsUsedInPipeExpr (pipeExpr : PipeExpr) : Set<string> =
   | EPipeFnCall(_, _, _, args) -> args |> List.map r |> Set.unionMany
   | EPipeEnum(_, _, _, fields) -> fields |> List.map r |> Set.unionMany
   | EPipeVariable(_, _, args) -> args |> List.map r |> Set.unionMany
+
+
+/// Finds unqualified names in an expr that resolved to package fns or values.
+/// Used to reject nested fn names that would be ambiguous with a package item.
+let rec unqualifiedResolvedNamesInExpr (expr : Expr) : Set<string> =
+  let r = unqualifiedResolvedNamesInExpr
+
+  match expr with
+  // simple values
+  | EUnit _
+  | EBool _
+  | EInt8 _
+  | EUInt8 _
+  | EInt16 _
+  | EUInt16 _
+  | EInt32 _
+  | EUInt32 _
+  | EInt64 _
+  | EUInt64 _
+  | EInt128 _
+  | EUInt128 _
+  | EFloat _
+  | EChar _ -> Set.empty
+
+  | EString(_, segments) ->
+    segments
+    |> List.map (fun s ->
+      match s with
+      | StringText _ -> Set.empty
+      | StringInterpolation e -> r e)
+    |> Set.unionMany
+
+  // simple structures
+  | ETuple(_, first, second, theRest) ->
+    [ r first; r second; theRest |> List.map r |> Set.unionMany ] |> Set.unionMany
+
+  | EList(_, exprs) -> exprs |> List.map r |> Set.unionMany
+
+  | EDict(_, pairs) -> pairs |> List.map (fun (_k, v) -> r v) |> Set.unionMany
+
+
+  // variables
+  | EVariable _ -> Set.empty
+  | EArg _ -> Set.empty
+
+  | ELet(_, _, rhs, next) -> Set.union (r rhs) (r next)
+
+
+  // flow control
+  | EIf(_, condExpr, ifExpr, elseExprMaybe) ->
+    match elseExprMaybe with
+    | None -> Set.union (r condExpr) (r ifExpr)
+    | Some elseExpr -> Set.unionMany [ r condExpr; r ifExpr; r elseExpr ]
+
+  | EMatch(_, target, cases) ->
+    let targetNames = r target
+    let whenNames =
+      cases
+      |> List.map (fun c ->
+        match c.whenCondition with
+        | None -> Set.empty
+        | Some w -> r w)
+      |> Set.unionMany
+    let rhsNames = cases |> List.map _.rhs |> List.map r |> Set.unionMany
+    Set.unionMany [ targetNames; whenNames; rhsNames ]
+
+  | EPipe(_, expr, parts) ->
+    Set.union
+      (r expr)
+      (parts |> List.map unqualifiedResolvedNamesInPipeExpr |> Set.unionMany)
+
+
+  // custom data
+  | EEnum(_, _, _, _, fields) -> fields |> List.map r |> Set.unionMany
+
+  | ERecord(_, _, _, fields) ->
+    fields |> List.map (fun (_, e) -> r e) |> Set.unionMany
+
+  | ERecordFieldAccess(_, expr, _) -> r expr
+
+  | ERecordUpdate(_, expr, updates) ->
+    Set.union
+      (r expr)
+      (updates |> NEList.toList |> List.map (fun (_, e) -> r e) |> Set.unionMany)
+
+  // the references we're collecting
+  | EValue(_, { originalName = [ name ]; resolved = Ok _ }) -> Set.singleton name
+  | EValue _ -> Set.empty
+  | EFnName(_, { originalName = [ name ]; resolved = Ok _ }) -> Set.singleton name
+  | EFnName _ -> Set.empty
+
+  // things that can be applied
+  | EInfix(_, _, left, right) -> Set.union (r left) (r right)
+  | ELambda(_, _, body) -> r body
+  | EApply(_, thingToApply, _, args) ->
+    Set.unionMany
+      [ r thingToApply; args |> NEList.toList |> List.map r |> Set.unionMany ]
+
+  | EStatement(_, expr, next) -> Set.union (r expr) (r next)
+  | ESelf _ -> Set.empty
+
+and unqualifiedResolvedNamesInPipeExpr (pipeExpr : PipeExpr) : Set<string> =
+  let r = unqualifiedResolvedNamesInExpr
+
+  match pipeExpr with
+  | EPipeLambda(_, _, body) -> r body
+  | EPipeInfix(_, _, expr) -> r expr
+  | EPipeFnCall(_, { originalName = [ name ]; resolved = Ok _ }, _, args) ->
+    Set.add name (args |> List.map r |> Set.unionMany)
+  | EPipeFnCall(_, _, _, args) -> args |> List.map r |> Set.unionMany
+  | EPipeEnum(_, _, _, fields) -> fields |> List.map r |> Set.unionMany
+  | EPipeVariable(_, _, args) -> args |> List.map r |> Set.unionMany
