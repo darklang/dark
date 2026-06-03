@@ -13,6 +13,17 @@ module PT = LibExecution.ProgramTypes
 open Utils
 
 
+/// Captures a `///` doc comment as written. FCS strips the leading `///` but
+/// keeps the conventional single space that follows it, so we drop that one
+/// space per line (preserving any deeper indentation), join with newlines, and
+/// trim surrounding blank lines. Returns "" when there's no doc comment.
+let xmlDocToString (xmlDoc : Xml.PreXmlDoc) : string =
+  xmlDoc.ToXmlDoc(false, None).UnprocessedLines
+  |> Array.map (fun line -> if line.StartsWith " " then line.Substring 1 else line)
+  |> String.concat "\n"
+  |> (fun s -> s.Trim())
+
+
 let (|SynExprLongIdentPat|_|) (names : List<string>) (input : SynExpr) =
   match input with
   | SynExpr.LongIdent(_, SynLongIdent(longIdent, _, _), _, _) when
@@ -965,13 +976,17 @@ module PackageFn =
     (b : SynBinding)
     : WT.PackageFn.PackageFn =
     let f = Function.fromSynBinding b
+    let description =
+      match b with
+      | SynBinding(_, _, _, _, _, xmlDoc, _, _, _, _, _, _, _) ->
+        xmlDocToString xmlDoc
     { name = { owner = owner; modules = modules; name = f.name }
       typeParams = f.typeParams
       parameters =
         f.parameters
         |> NEList.map (fun p -> { name = p.name; description = ""; typ = p.typ })
       returnType = f.returnType
-      description = ""
+      description = description
       body = f.body }
 
 module TypeDeclaration =
@@ -1105,8 +1120,12 @@ module PackageType =
         [ "typeDef", typeDef ]
       |> Expr.parseTypeName
       |> Exception.unwrapResultInternal []
+    let description =
+      match typeDef with
+      | SynTypeDefn(SynComponentInfo(_, _, _, _, xmlDoc, _, _, _), _, _, _, _, _) ->
+        xmlDocToString xmlDoc
     { name = { owner = owner; modules = modules; name = name }
-      description = ""
+      description = description
       declaration = { typeParams = typeParams; definition = definition } }
 
 module PackageValue =
@@ -1121,7 +1140,7 @@ module PackageValue =
                  _,
                  _,
                  _,
-                 _,
+                 xmlDoc,
                  _,
                  SynPat.Named(SynIdent(name, _), _, _, _),
                  _,
@@ -1130,7 +1149,7 @@ module PackageValue =
                  _,
                  _) ->
       { name = { owner = owner; modules = modules; name = name.idText }
-        description = ""
+        description = xmlDocToString xmlDoc
         body = Expr.fromSynExpr expr }
     | _ ->
       raiseParserError

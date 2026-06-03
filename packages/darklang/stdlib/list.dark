@@ -51,7 +51,7 @@ let last (list: List<'a>) : Option.Option<'a> =
     | _ -> last tail
 
 
-// Todo: remove the helper function once we have recursive lambdas
+// Todo: inline as a nested helper fn once Dark supports local function definitions
 let reverseHelper (list: List<'a>) (acc: List<'a>) : List<'a> =
   match list with
   | [] -> acc
@@ -79,12 +79,8 @@ let findFirst (list: List<'a>) (fn: 'a -> Bool) : Option.Option<'a> =
 let findFirstIndex (list: List<'a>) (fn: 'a -> Bool) : Option.Option<Int64> =
   list
   |> indexedMap (fun i item -> (i, item))
-  |> findFirst (fun pair ->
-    let (_i, item) = pair
-    fn item)
-  |> Stdlib.Option.map (fun pair ->
-    let (i, _item) = pair
-    i)
+  |> findFirst (fun (_i, item) -> fn item)
+  |> Stdlib.Option.map (fun (i, _item) -> i)
 
 
 /// Returns {{true}} if <param value> is in the list
@@ -92,7 +88,7 @@ let ``member`` (list: List<'a>) (value: 'a) : Bool =
   Option.isSome (findFirst list (fun elem -> elem == value))
 
 
-// TODO: remove this once we have a way to call lambdas recursively
+// TODO: inline as a nested helper fn once Dark supports local function definitions
 let repeatUnsafe (times: Int64) (value: 'a) : List<'a> =
   if times <= 0L then
     []
@@ -312,22 +308,22 @@ let any (list: List<'a>) (fn: 'a -> Bool) : Bool =
       any tail fn
 
 
-// Calls <param f> on every <var val> in <param list>, returning a list of only
-// those values for which {{fn val}} returns {{true}}.
-// Preserves the order of values that were not dropped. Consider <fn
-// filterMap> if you also want to transform the values.
+/// Calls <param f> on every <var val> in <param list>, returning a list of only
+/// those values for which {{fn val}} returns {{true}}.
+/// Preserves the order of values that were not dropped. Consider <fn
+/// filterMap> if you also want to transform the values.
 let filter (list: List<'a>) (f: 'a -> Bool) : List<'a> =
   (fold list [] (fun acc elem ->
     if (f elem) then push acc elem else acc))
   |> reverse
 
 
-// Calls <param fn> on every <var val> in <param list>, returning a list that
-// drops some values (filter) and transforms others (map).
-// If {{fn val}} returns {{None}}, drops <var val> from the list.
-// If {{fn val}} returns {{Some newValue}}, replaces <var val> with <var newValue>.
-// Preserves the order of values that were not dropped.
-// This function combines <fn filter> and <fn map>.
+/// Calls <param fn> on every <var val> in <param list>, returning a list that
+/// drops some values (filter) and transforms others (map).
+/// If {{fn val}} returns {{None}}, drops <var val> from the list.
+/// If {{fn val}} returns {{Some newValue}}, replaces <var val> with <var newValue>.
+/// Preserves the order of values that were not dropped.
+/// This function combines <fn filter> and <fn map>.
 let filterMap
   (list: List<'a>)
   (fn: 'a -> Option.Option<'b>)
@@ -390,9 +386,9 @@ let takeWhile (list: List<'a>) (fn: 'a -> Bool) : List<'a> =
       []
 
 
-// Calls <param fn> on every <var val> in <param list>, returning a list of the
-// results of those calls.
-// Consider <fn filterMap> if you also want to drop some of the values.
+/// Calls <param fn> on every <var val> in <param list>, returning a list of the
+/// results of those calls.
+/// Consider <fn filterMap> if you also want to drop some of the values.
 let map (list: List<'a>) (fn: 'a -> 'b) : List<'b> =
   (fold list [] (fun acc elem -> push acc (fn elem)))
   |> reverse

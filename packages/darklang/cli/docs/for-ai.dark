@@ -25,6 +25,22 @@ You don't write scripts - you build a persistent package tree.
   search <term>     # find anything
   view <name>       # inspect entity (full source + docs)
 
+## Finding a function
+  search <term>              # ranked hits across all modules (best matches +
+                             #   Stdlib first), with parameter names, e.g.
+                             #   `List.map (l: List<'a>) (fn: 'a -> 'b) -> List<'b>`
+  search <term> --with-docs  # also show doc comments
+  search <term> --fn         # functions only (also --type, --val)
+  search <term> --exact      # exact name match (default is fuzzy)
+  docs signatures <module>   # browse every signature in a module you already know
+  view <name>                # full source + docs for one entity
+
+`search` matches the term against names and (for multi-word or 3+ char queries)
+doc comments, so a concept usually resolves even when the name differs: `search
+map`, `search toList`, `search modulo` (finds `mod`). Operator symbols map to
+their operation: `search %` -> `mod`, `search ++` -> concat, `search /` ->
+`divide`. 1-2 searches is usually enough; drill into the module if unsure.
+
 ## Creating Code (use these, not eval!)
   fn <name>         # create function - MAIN WAY TO WRITE CODE
   type <name>       # create type
@@ -61,7 +77,8 @@ For non-interactive use: `DARK_ACCOUNT=alice ./scripts/run-cli commit "msg" -y`
 ## Deprecation (mark items as unused / dangerous / obsolete)
   deprecate <fn|type|value> <name> --kind <k> [options]
     kinds: superseded-by (requires --replacement), harmful, obsolete
-  delete <fn|type|value> <name> [--force]     # sugar for --kind obsolete
+  delete <fn|type|value> <name> [options]     # sugar for --kind obsolete
+    options: --ignore-dependents; --force = --ignore-dependents + --yes
   undo <fn|type|value> <name>                 # reverse a WIP deprecate
   eval --allow-harmful <fn>                   # opt out of harmful halt
   (see: docs deprecation)

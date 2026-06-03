@@ -48,17 +48,16 @@ let extractGroup (name: String): String =
 // Get display name for a group
 let getDisplayName (prefix: String): String =
   let found =
-    Stdlib.List.findFirst knownGroups (fun pair ->
-      (Stdlib.Tuple2.first pair) == prefix)
+    Stdlib.List.findFirst knownGroups (fun (groupPrefix, _) -> groupPrefix == prefix)
 
   match found with
-  | Some pair -> Stdlib.Tuple2.second pair
+  | Some((_, displayName)) -> displayName
   | None -> Stdlib.String.toUppercase prefix
 
 
 // Check if a group is in the known list
 let isKnownGroup (prefix: String): Bool =
-  Stdlib.List.any knownGroups (fun pair -> (Stdlib.Tuple2.first pair) == prefix)
+  Stdlib.List.any knownGroups (fun (groupPrefix, _) -> groupPrefix == prefix)
 
 
 let versionSuffix (v: Int32) : String =
@@ -76,22 +75,21 @@ let purityTag (purity: LanguageTools.BuiltinFunctionPurity) : String =
 let sortGroups
   (groups: List<String * List<LanguageTools.BuiltinFunction>>)
   : List<String * List<LanguageTools.BuiltinFunction>> =
-  let knownPrefixes = Stdlib.List.map knownGroups (fun pair -> Stdlib.Tuple2.first pair)
+  let knownPrefixes = Stdlib.List.map knownGroups (fun (groupPrefix, _) -> groupPrefix)
 
   let knownInOrder =
     knownPrefixes
     |> Stdlib.List.filterMap (fun prefix ->
       let found =
-        Stdlib.List.findFirst groups (fun pair ->
-          (Stdlib.Tuple2.first pair) == prefix)
+        Stdlib.List.findFirst groups (fun (groupPrefix, _) -> groupPrefix == prefix)
 
       found)
 
   let unknown =
     groups
-    |> Stdlib.List.filter (fun pair ->
-      Stdlib.Bool.not (isKnownGroup (Stdlib.Tuple2.first pair)))
-    |> Stdlib.List.sortBy (fun pair -> Stdlib.Tuple2.first pair)
+    |> Stdlib.List.filter (fun (groupPrefix, _) ->
+      Stdlib.Bool.not (isKnownGroup groupPrefix))
+    |> Stdlib.List.sortBy (fun (groupPrefix, _) -> groupPrefix)
 
   Stdlib.List.append knownInOrder unknown
 

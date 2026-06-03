@@ -1,5 +1,211 @@
 module Darklang.Cli.Packages.Search
 
+// Max results rendered per entity type.
+let displayCap = 20L
+
+
+// Operator symbols aren't function names, so a literal search for one finds
+// nothing useful. Map each to the keyword that surfaces its named operation —
+// `search %` -> `mod`, `search ++` -> string concat, `search &&` -> `Bool.and`,
+// `search /` -> `divide` (handy given Float math has no infix). Returns None for
+// an ordinary query, which searches unchanged.
+let operatorAlias (query: String) : Stdlib.Option.Option<String> =
+  match Stdlib.String.trim query with
+  | "+" -> Stdlib.Option.Option.Some "add"
+  | "-" -> Stdlib.Option.Option.Some "subtract"
+  | "*" -> Stdlib.Option.Option.Some "multiply"
+  | "/" -> Stdlib.Option.Option.Some "divide"
+  | "%" -> Stdlib.Option.Option.Some "mod"
+  | "^" -> Stdlib.Option.Option.Some "power"
+  | ">" -> Stdlib.Option.Option.Some "greaterThan"
+  | ">=" -> Stdlib.Option.Option.Some "greaterThanOrEqual"
+  | "<" -> Stdlib.Option.Option.Some "lessThan"
+  | "<=" -> Stdlib.Option.Option.Some "lessThanOrEqual"
+  | "==" -> Stdlib.Option.Option.Some "equals"
+  | "!=" -> Stdlib.Option.Option.Some "notEquals"
+  | "&&" -> Stdlib.Option.Option.Some "and"
+  | "||" -> Stdlib.Option.Option.Some "or"
+  | "++" -> Stdlib.Option.Option.Some "append"
+  | _ -> Stdlib.Option.Option.None
+
+
+// Ranks a name by how directly it answers the query (lower = better).
+// Beyond exact and prefix matches, we reward a name the query *elaborates* —
+// `parse` for the query `parseInt`, `get` for `getEnvVar` — since that name is
+// the canonical operation the camelCase concept is built on. A hit matched only
+// via its doc comment (the query token isn't in the name at all) ranks last, so
+// the name-relevant results aren't pushed under the display cap. Case-insensitive.
+let matchRank (query: String) (name: String) : Int64 =
+  let q = Stdlib.String.toLowercase query
+  let n = Stdlib.String.toLowercase name
+  if n == q then 0L
+  else if Stdlib.String.startsWith q n then 1L // query elaborates name: parseInt ⊃ parse
+  else if Stdlib.String.startsWith n q then 2L // name elaborates query: parseIntLiteral ⊃ parseInt
+  else if Stdlib.String.contains n q then 3L
+  else 4L
+
+
+let isStdlib (owner: String) (modules: List<String>) : Bool =
+  (owner == "Darklang")
+  && (Stdlib.List.head modules == Stdlib.Option.Option.Some "Stdlib")
+
+
+// Sort key: match quality first, then Stdlib-first, then name. Both ranks are a
+// single digit, so plain string ordering under `sortBy` gives the right result.
+let sortKey
+  (query: String)
+  (owner: String)
+  (modules: List<String>)
+  (name: String)
+  : String =
+  let mr = Stdlib.Int64.toString (matchRank query name)
+  let st = if isStdlib owner modules then "0" else "1"
+  $"{mr}{st}:{name}"
+
+
+let docBlock (desc: String) (indent: String) : String =
+  if Stdlib.String.isEmpty desc then
+    ""
+  else
+    let lines = Stdlib.String.splitOnNewline desc
+    lines
+    |> Stdlib.List.map (fun line -> Colors.dimText (indent ++ line))
+    |> Stdlib.String.join "\n"
+
+
+let withDoc (headline: String) (desc: String) : String =
+  let doc = docBlock desc "  "
+  if Stdlib.String.isEmpty doc then headline else headline ++ "\n" ++ doc
+
+
+// A rendered result line, with its doc comment appended only under --with-docs.
+// The trailing blank line separates multi-line doc entries.
+let withOptionalDoc (withDocs: Bool) (headline: String) (desc: String) : String =
+  if withDocs then (withDoc headline desc) ++ "\n" else headline
+
+
+let overflowNote (total: Int64) (shown: Int64) : Unit =
+  let extra = total - shown
+  if extra > 0L then
+    Stdlib.printLine (
+      Colors.hint
+        $"  ... and {Stdlib.Int64.toString extra} more (narrow with --exact or `nav` into a module)")
+  else
+    ()
+
+
+let fullPathOf (item: LanguageTools.ProgramTypes.LocatedItem<'a>) : String =
+  [ [ item.location.owner ]; item.location.modules; [ item.location.name ] ]
+  |> Stdlib.List.flatten
+  |> Stdlib.String.join "."
+
+
+// Pretty-printer context for rendering an item's signature. Type references are
+// abbreviated relative to the item's own module, so `Stdlib.Option.Option` shows
+// as `Option.Option` for a Stdlib hit, and a package hit's types collapse to its
+// own root rather than being forced through the Stdlib namespace.
+let contextFor
+  (branchId: Uuid)
+  (item: LanguageTools.ProgramTypes.LocatedItem<'a>)
+  : PrettyPrinter.ProgramTypes.Context =
+  let modulePath = Stdlib.List.append [item.location.owner] item.location.modules
+  Commands.Signatures.rootContext branchId modulePath
+
+
+// Renders one result section (types/values/fns): header, sorted + capped hits
+// (one line each via `renderItem`), and an overflow footer. Nothing is printed
+// for an empty section. `renderItem` does the per-entity formatting at the call
+// site, so this stays generic over the entity type.
+let renderSection
+  (header: String)
+  (query: String)
+  (items: List<LanguageTools.ProgramTypes.LocatedItem<'a>>)
+  (renderItem: LanguageTools.ProgramTypes.LocatedItem<'a> -> String)
+  : Unit =
+  if Stdlib.List.isEmpty items then
+    ()
+  else
+    Stdlib.printLine (Display.getSectionHeader header)
+    let sorted =
+      items
+      |> Stdlib.List.sortBy (fun i ->
+        sortKey query i.location.owner i.location.modules i.location.name)
+    let shown = Stdlib.List.take sorted displayCap
+    shown |> Stdlib.List.iter (fun item -> Stdlib.printLine (renderItem item))
+    overflowNote (Stdlib.List.length sorted) (Stdlib.List.length shown)
+    Stdlib.printLine ""
+
+
+type ParsedArgs =
+  { queryParts: List<String>
+    entityTypes: List<LanguageTools.ProgramTypes.Search.EntityType>
+    exactMatch: Bool
+    withDocs: Bool
+    shallow: Bool
+    includeDeprecated: Bool
+    unknownFlags: List<String> }
+
+
+let emptyArgs: ParsedArgs =
+  ParsedArgs
+    { queryParts = []
+      entityTypes = []
+      exactMatch = false
+      withDocs = false
+      shallow = false
+      includeDeprecated = false
+      unknownFlags = [] }
+
+
+let addEntityType
+  (entityType: LanguageTools.ProgramTypes.Search.EntityType)
+  (args: ParsedArgs)
+  : ParsedArgs =
+  { args with entityTypes = Stdlib.List.append args.entityTypes [entityType] }
+
+
+let parseArgsLoop (acc: ParsedArgs) (remaining: List<String>) : ParsedArgs =
+  match remaining with
+  | [] -> acc
+  | "--type" :: rest ->
+    parseArgsLoop
+      (addEntityType LanguageTools.ProgramTypes.Search.EntityType.Type acc)
+      rest
+  | "--fn" :: rest
+  | "--function" :: rest ->
+    parseArgsLoop
+      (addEntityType LanguageTools.ProgramTypes.Search.EntityType.Fn acc)
+      rest
+  | "--val" :: rest
+  | "--value" :: rest ->
+    parseArgsLoop
+      (addEntityType LanguageTools.ProgramTypes.Search.EntityType.Value acc)
+      rest
+  | "--exact" :: rest -> parseArgsLoop ({ acc with exactMatch = true }) rest
+  // TODO: `--shallow` is current-location scoped, which is confusing for
+  // qualified queries like `search Darklang.Stdlib.List --shallow`.
+  | "--shallow" :: rest -> parseArgsLoop ({ acc with shallow = true }) rest
+  | "--with-docs" :: rest -> parseArgsLoop ({ acc with withDocs = true }) rest
+  | "--include-deprecated" :: rest ->
+    parseArgsLoop ({ acc with includeDeprecated = true }) rest
+  | token :: rest ->
+    if Stdlib.String.startsWith token "--" then
+      parseArgsLoop
+        ({ acc with unknownFlags = Stdlib.List.append acc.unknownFlags [token] })
+        rest
+    else
+      parseArgsLoop
+        ({ acc with queryParts = Stdlib.List.append acc.queryParts [token] })
+        rest
+
+
+let parseArgs (args: List<String>) : ParsedArgs =
+  parseArgsLoop emptyArgs args
+
+
+let usage =
+  "Usage: search <query> [--type] [--fn] [--val] [--exact] [--shallow] [--with-docs] [--include-deprecated]"
+
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
@@ -14,152 +220,104 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         prompt = Prompt.Editing.clear state.prompt }
 
   | _ ->
-    // Parse flags and query text
-    let (flags, queryParts) =
-      args
-      |> Stdlib.List.fold ([], []) (fun (flags, parts) arg ->
-        if Stdlib.String.startsWith arg "--" then
-          (Stdlib.List.append flags [arg], parts)
-        else
-          (flags, Stdlib.List.append parts [arg]))
+    let parsed = parseArgs args
 
-    let queryText = Stdlib.String.join queryParts " "
-
-    if Stdlib.String.isEmpty queryText then
-      Stdlib.printLine (Colors.error "Error: Search query cannot be empty")
+    if Stdlib.Bool.not (Stdlib.List.isEmpty parsed.unknownFlags) then
+      let bad = Stdlib.String.join parsed.unknownFlags " "
+      Stdlib.printLine (Colors.error $"Error: unknown flag(s): {bad}")
       Stdlib.printLine ""
-      Stdlib.printLine "Usage: search <query> [--type] [--fn] [--val] [--exact] [--shallow]"
+      Stdlib.printLine usage
       state
     else
-      // Determine entity types to search based on flags
-      let entityTypes =
-        if Stdlib.List.isEmpty flags then
-          [] // Empty list means search all types
-        else
-          flags
-          |> Stdlib.List.filterMap (fun flag ->
-            match flag with
-            | "--type" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.Search.EntityType.Type
-            | "--fn" | "--function" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.Search.EntityType.Fn
-            | "--val" | "--value" -> Stdlib.Option.Option.Some LanguageTools.ProgramTypes.Search.EntityType.Value
-            | _ -> Stdlib.Option.Option.None)
+      let rawQueryText = Stdlib.String.join parsed.queryParts " "
 
-      // Determine if exact match is requested
-      let exactMatch =
-        flags
-        |> Stdlib.List.findFirst (fun f -> f == "--exact")
-        |> Stdlib.Option.isSome
+      let aliasKeyword = operatorAlias rawQueryText
+      let queryText = Stdlib.Option.withDefault aliasKeyword rawQueryText
 
-      // Determine search depth - default to deep for search command
-      let searchDepth =
-        let isShallow =
-          flags
-          |> Stdlib.List.findFirst (fun f -> f == "--shallow")
-          |> Stdlib.Option.isSome
-
-        if isShallow then
-          LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
-        else
-          LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
-
-      let includeDeprecated =
-        flags
-        |> Stdlib.List.findFirst (fun f -> f == "--include-deprecated")
-        |> Stdlib.Option.isSome
-
-      // Get current module path from state
-      let currentModule =
-        match state.packageData.currentLocation with
-        | Module path -> path
-        // CLEANUP there must be a helper for this
-        | Type t -> Stdlib.List.append [t.owner] t.modules
-        | Value v -> Stdlib.List.append [v.owner] v.modules
-        | Function f -> Stdlib.List.append [f.owner] f.modules
-
-      // Build search query
-      let query =
-        LanguageTools.ProgramTypes.Search.SearchQuery
-          { currentModule = currentModule
-            text = queryText
-            searchDepth = searchDepth
-            entityTypes = entityTypes
-            exactMatch = exactMatch }
-
-      // Execute search, then apply deprecation visibility filter
-      let rawResults = LanguageTools.PackageManager.Search.search state.currentBranchId query
-      let depSets = Query.loadDeprecationSets state.currentBranchId
-      let results = Query.filterDeprecated rawResults depSets includeDeprecated
-
-      // Display results
-      // Only count submodules when no entity type filter is specified
-      let submodulesCount =
-        if Stdlib.List.isEmpty entityTypes then
-          Stdlib.List.length results.submodules
-        else
-          0L
-
-      let totalResults =
-        (Stdlib.List.length results.types)
-        + (Stdlib.List.length results.values)
-        + (Stdlib.List.length results.fns)
-        + submodulesCount
-
-      if totalResults == 0L then
-        Stdlib.printLine (Colors.dimText $"No results found for: {queryText}")
+      if Stdlib.String.isEmpty queryText then
+        Stdlib.printLine (Colors.error "Error: Search query cannot be empty")
         Stdlib.printLine ""
+        Stdlib.printLine usage
+        state
       else
-        Stdlib.printLine (Colors.boldText $"Search results for: {queryText}")
-        Stdlib.printLine ""
+        let searchDepth =
+          if parsed.shallow then
+            LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+          else
+            LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
 
-        // Display submodules (only when no entity type filter is specified)
-        if (Stdlib.List.isEmpty entityTypes) && (Stdlib.Bool.not (Stdlib.List.isEmpty results.submodules)) then
-          Stdlib.printLine (Display.getSectionHeader "module")
-          results.submodules
-          |> Stdlib.List.iter (fun modulePath ->
-            let moduleStr = Stdlib.String.join modulePath "."
-            Stdlib.printLine $"  {moduleStr}")
+        let currentModule =
+          Traversal.getCurrentModulePath state.packageData.currentLocation
+
+        let query =
+          LanguageTools.ProgramTypes.Search.SearchQuery
+            { currentModule = currentModule
+              text = queryText
+              searchDepth = searchDepth
+              entityTypes = parsed.entityTypes
+              exactMatch = parsed.exactMatch }
+
+        // Execute search, then apply deprecation visibility filter
+        let rawResults = LanguageTools.PackageManager.Search.search state.currentBranchId query
+        let depSets = Query.loadDeprecationSets state.currentBranchId
+        let results = Query.filterDeprecated rawResults depSets parsed.includeDeprecated
+
+        // Only count submodules when no entity type filter is specified
+        let submodulesCount =
+          if Stdlib.List.isEmpty parsed.entityTypes then
+            Stdlib.List.length results.submodules
+          else
+            0L
+
+        let totalResults =
+          (Stdlib.List.length results.types)
+          + (Stdlib.List.length results.values)
+          + (Stdlib.List.length results.fns)
+          + submodulesCount
+
+        if totalResults == 0L then
+          Stdlib.printLine (Colors.dimText $"No results found for: {queryText}")
+          Stdlib.printLine ""
+        else
+          Stdlib.printLine (Colors.boldText $"Search results for: {queryText}")
+          match aliasKeyword with
+          | Some kw ->
+            Stdlib.printLine (
+              Colors.hint $"  (operator {rawQueryText} maps to the \"{kw}\" operation)")
+          | None -> ()
           Stdlib.printLine ""
 
-        // Display types
-        if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) then
-          Stdlib.printLine (Display.getSectionHeader "type")
-          results.types
-          |> Stdlib.List.iter (fun item ->
-            let fullPath =
-              [ [ item.location.owner ]; item.location.modules; [ item.location.name ] ]
-              |> Stdlib.List.flatten
-              |> Stdlib.String.join "."
+          if (Stdlib.List.isEmpty parsed.entityTypes) && (Stdlib.Bool.not (Stdlib.List.isEmpty results.submodules)) then
+            Stdlib.printLine (Display.getSectionHeader "module")
+            results.submodules
+            |> Stdlib.List.sortBy (fun modulePath ->
+              let modName = Stdlib.Option.withDefault (Stdlib.List.last modulePath) ""
+              let owner = Stdlib.Option.withDefault (Stdlib.List.head modulePath) ""
+              let mods = Stdlib.Option.withDefault (Stdlib.List.tail modulePath) []
+              sortKey queryText owner mods modName)
+            |> Stdlib.List.iter (fun modulePath ->
+              let moduleStr = Stdlib.String.join modulePath "."
+              Stdlib.printLine moduleStr)
+            Stdlib.printLine ""
+
+          renderSection "type" queryText results.types (fun item ->
             let mark = Query.deprecationMarker depSets item.entity.hash
-            Stdlib.printLine $"  {fullPath}{mark}")
-          Stdlib.printLine ""
+            let ctx = contextFor state.currentBranchId item
+            let defn = Commands.Signatures.formatType ctx (fullPathOf item) item.entity
+            withOptionalDoc parsed.withDocs $"{defn}{mark}" item.entity.description)
 
-        // Display values
-        if Stdlib.Bool.not (Stdlib.List.isEmpty results.values) then
-          Stdlib.printLine (Display.getSectionHeader "value")
-          results.values
-          |> Stdlib.List.iter (fun item ->
-            let fullPath =
-              [ [ item.location.owner ]; item.location.modules; [ item.location.name ] ]
-              |> Stdlib.List.flatten
-              |> Stdlib.String.join "."
+          renderSection "value" queryText results.values (fun item ->
             let mark = Query.deprecationMarker depSets item.entity.hash
-            Stdlib.printLine $"  {fullPath}{mark}")
-          Stdlib.printLine ""
+            withOptionalDoc parsed.withDocs $"{fullPathOf item}{mark}" item.entity.description)
 
-        // Display functions
-        if Stdlib.Bool.not (Stdlib.List.isEmpty results.fns) then
-          Stdlib.printLine (Display.getSectionHeader "function")
-          results.fns
-          |> Stdlib.List.iter (fun item ->
-            let fullPath =
-              [ [ item.location.owner ]; item.location.modules; [ item.location.name ] ]
-              |> Stdlib.List.flatten
-              |> Stdlib.String.join "."
+          renderSection "function" queryText results.fns (fun item ->
             let mark = Query.deprecationMarker depSets item.entity.hash
-            Stdlib.printLine $"  {fullPath}{mark}")
-          Stdlib.printLine ""
+            let ctx = contextFor state.currentBranchId item
+            let sigBody = Commands.Signatures.formatFn ctx item.entity
+            let line = $"{fullPathOf item} {Colors.dimText sigBody}{mark}"
+            withOptionalDoc parsed.withDocs line item.entity.description)
 
-      state
+        state
 
 
 let help (state: Cli.AppState) : Cli.AppState =
@@ -177,13 +335,15 @@ let help (state: Cli.AppState) : Cli.AppState =
     "  --val                  Search only values"
     "  --exact                Require exact match (default: fuzzy)"
     "  --shallow              Search only direct descendants (default: all descendants)"
+    "  --with-docs            Also show doc comments"
     "  --include-deprecated   Include items deprecated with no live callers"
     ""
     "Examples:"
     "  search                      # Launch interactive search mode"
     "  search List                 # Find all entities matching 'List' (recursively)"
     "  search List --shallow       # Find all entities matching 'List' (direct descendants only)"
-    "  search map --fn             # Find functions matching 'map'"
+    "  search map --fn             # Find functions matching 'map' (with param names)"
+    "  search map --fn --with-docs # ...and doc comments too"
     "  search String --type        # Find types matching 'String'"
     "  search parseJson --exact    # Find exact match for 'parseJson'"
     "  search Http --fn --val      # Find functions and values matching 'Http'"
@@ -202,7 +362,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
   match Stdlib.List.last args with
   | Some lastArg ->
     if Stdlib.String.startsWith lastArg "--" then
-      ["--type"; "--fn"; "--val"; "--exact"; "--shallow"; "--include-deprecated"]
+      ["--type"; "--fn"; "--val"; "--exact"; "--shallow"; "--with-docs"; "--include-deprecated"]
       |> Stdlib.List.filter (fun flag -> Stdlib.String.startsWith flag lastArg)
       |> Stdlib.List.map Cli.Completion.simple
     else

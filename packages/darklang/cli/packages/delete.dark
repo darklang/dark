@@ -1,8 +1,8 @@
 module Darklang.Cli.Packages.Delete
 
 // `delete` is `deprecate --kind obsolete` with one extra guardrail: when the
-// target still has live dependents, it refuses unless `--force` is set.
-// Implementation is a thin shim over `Deprecate.execute`.
+// target still has live dependents, it refuses unless `--ignore-dependents`
+// is set. Implementation is a thin shim over `Deprecate.execute`.
 //
 // TODO (v1.5): `--json` output for agents, matching `deprecate`.
 
@@ -12,7 +12,7 @@ type ParsedArgs =
     target: Stdlib.Option.Option<String>
     message: String
     autoConfirm: Bool
-    force: Bool
+    ignoreDependents: Bool
     dryRun: Bool }
 
 
@@ -22,7 +22,7 @@ let emptyArgs: ParsedArgs =
       target = Stdlib.Option.Option.None
       message = ""
       autoConfirm = false
-      force = false
+      ignoreDependents = false
       dryRun = false }
 
 
@@ -31,7 +31,13 @@ let parseArgsLoop (acc: ParsedArgs) (remaining: List<String>) : ParsedArgs =
   | [] -> acc
   | "--yes" :: rest
   | "-y" :: rest -> parseArgsLoop ({ acc with autoConfirm = true }) rest
-  | "--force" :: rest -> parseArgsLoop ({ acc with force = true }) rest
+  | "--ignore-dependents" :: rest ->
+    parseArgsLoop ({ acc with ignoreDependents = true }) rest
+  // --force is shorthand for --ignore-dependents --yes: ignore live dependents and skip the prompt.
+  | "--force" :: rest ->
+    parseArgsLoop
+      ({ acc with ignoreDependents = true; autoConfirm = true })
+      rest
   | "--dry-run" :: rest -> parseArgsLoop ({ acc with dryRun = true }) rest
   | "-m" :: v :: rest
   | "--message" :: v :: rest ->
@@ -121,12 +127,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             // Only gate `delete` adds over `deprecate --kind obsolete`: refuse
             // when LIVE dependents exist. Deprecated-only callers don't block.
             let depCount = countLiveDependents branchId targetLoc itemKind
-            if depCount > 0L && Stdlib.Bool.not parsed.force then
+            if depCount > 0L && Stdlib.Bool.not parsed.ignoreDependents then
               Stdlib.printLine
                 (Colors.error
                   $"{Stdlib.Int64.toString depCount} live dependent(s) still reference this item.")
               Stdlib.printLine
-                "Use `deprecate` to give them time to migrate, or pass `--force`."
+                "Use `deprecate` to give them time to migrate, or pass `--ignore-dependents` / `--force`."
               state
             else
               Deprecate.execute state (toDeprecateArgs parsed itemTypeStr target)
@@ -137,17 +143,18 @@ let help (state: Cli.AppState) : Cli.AppState =
     ""
     "Usage: delete <fn|type|value> <name-or-hash> [options]"
     ""
-    "Refuses without --force when the target has live dependents."
+    "Refuses without --ignore-dependents when the target has live dependents."
     ""
     "Options:"
     "  -m, --message <text>          Free-form reason; tooling surfaces it"
-    "  --force                       Proceed even if live dependents exist"
+    "  --ignore-dependents           Proceed even if live dependents exist"
     "  --yes, -y                     Skip confirmation prompt"
+    "  --force                       Ignore dependents and skip confirmation"
     "  --dry-run                     Print what would happen; emit no ops"
     ""
     "Examples:"
     "  delete fn Darklang.Legacy.oldThing -m 'no longer maintained' --yes"
-    "  delete fn Darklang.Debug.trace --force --yes"
+    "  delete fn Darklang.Debug.trace --force"
     ""
     "Prefer `deprecate --kind superseded-by` or `deprecate --kind harmful` when"
     "an item has a proper replacement or should runtime-halt, respectively." ]

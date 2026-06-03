@@ -26,18 +26,12 @@ let rootContext (branchId: Uuid) (modulePath: List<String>) : PrettyPrinter.Prog
       currentFunction = Stdlib.Option.Option.None }
 
 
+// Renders the signature body only (no name) — e.g.
+// `(list: List<'a>) (fn: 'a -> 'b) -> List<'b>`. Callers prepend the name.
 let formatFn
   (ctx: PrettyPrinter.ProgramTypes.Context)
-  (name: String)
   (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : String =
-  let typeParams =
-    match fn.typeParams with
-    | [] -> ""
-    | tps ->
-      let parts = tps |> Stdlib.List.map (fun t -> $"'{t}") |> Stdlib.String.join ", "
-      $"<{parts}>"
-
   // Single Unit param is the Dark convention for a nullary fn; collapse to ().
   let isUnitOnly =
     match fn.parameters with
@@ -47,20 +41,20 @@ let formatFn
       | _ -> false
     | _ -> false
 
-  let params =
-    if isUnitOnly then "()"
+  let paramStrs =
+    if isUnitOnly then ["()"]
     else
       match fn.parameters with
-      | [] -> "()"
+      | [] -> ["()"]
       | _ ->
         fn.parameters
         |> Stdlib.List.map (fun p ->
           let typStr = PrettyPrinter.ProgramTypes.typeReference ctx p.typ
           $"({p.name}: {typStr})")
-        |> Stdlib.String.join " "
 
   let ret = PrettyPrinter.ProgramTypes.typeReference ctx fn.returnType
-  $"{name}{typeParams} {params}: {ret}"
+  let paramsJoined = Stdlib.String.join paramStrs " "
+  $"{paramsJoined} -> {ret}"
 
 
 let formatType
@@ -150,7 +144,7 @@ let renderModule
   let fnLines =
     fns
     |> Stdlib.List.sortBy (fun i -> i.location.name)
-    |> Stdlib.List.map (fun i -> formatFn ctx i.location.name i.entity)
+    |> Stdlib.List.map (fun i -> $"{i.location.name} {formatFn ctx i.entity}")
 
   let body = (Stdlib.List.append typeLines fnLines) |> Stdlib.String.join "\n"
   $"{header}\n{body}"

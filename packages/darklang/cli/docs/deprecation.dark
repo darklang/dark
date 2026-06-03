@@ -22,9 +22,10 @@ a replacement is.
   delete    <fn|type|value> <name-or-hash> [options]
   undo      <fn|type|value> <name>           # reverses a WIP deprecate
 
-`delete` is sugar for `deprecate --kind obsolete`, but it requires --force
-when the target has live dependents. Prefer `deprecate --kind superseded-by`
-or `deprecate --kind harmful` when a replacement or runtime-halt is wanted.
+`delete` is sugar for `deprecate --kind obsolete`, but it requires
+--ignore-dependents when the target has live dependents. Prefer
+`deprecate --kind superseded-by` or `deprecate --kind harmful` when a
+replacement or runtime-halt is wanted.
 
 ## Options
 
@@ -33,7 +34,8 @@ or `deprecate --kind harmful` when a replacement or runtime-halt is wanted.
   -m, --message <text>          Free-form reason; shown in view/search/LSP
   --yes, -y                     Skip confirmation prompt
   --dry-run                     Print what would happen; emit no ops
-  --force                       (delete only) proceed despite live dependents
+  --ignore-dependents           (delete only) proceed despite live dependents
+  --force                       (delete only) ignore dependents and skip confirmation
 
 ## Runtime behaviour
 
@@ -75,6 +77,6 @@ see them anyway. `view` always shows the deprecation header when present.
     thing. Re-deprecate the new hash if you want.
   * Branch-chain visibility: deprecating on a child branch extends the parent;
     a child can un-deprecate what the parent deprecated.
-  * `delete` refuses without `--force` if live dependents exist. Use plain
-    `deprecate` to give them time to migrate.
+  * `delete` refuses without `--ignore-dependents` if live dependents exist.
+    Use plain `deprecate` to give them time to migrate.
 """

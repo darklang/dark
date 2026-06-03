@@ -186,7 +186,8 @@ let digest (s: String) : String =
   sha384Hash |> Base64.urlEncode
 
 
-/// Generate a <type String> of length <param length> from random characters
+/// Generate a random alphanumeric <type String> of length <param length>.
+/// Charset is {{[A-Za-z0-9]}} (62 chars). Errors if <param length> is negative.
 let random (length: Int64) : Result.Result<String, String> =
   if length < 0L then
     Result.Result.Error
@@ -503,3 +504,9 @@ let head (str: String) : Option.Option<Char> =
     Option.Option.None
   else
     str |> String.toList |> List.head
+
+
+/// Returns {{Some c}} for the character at <param index> (0-based, EGC, not
+/// byte), or {{None}} if <param index> is negative or past the end.
+let charAt (str: String) (index: Int64) : Option.Option<Char> =
+  str |> String.toList |> List.getAt index

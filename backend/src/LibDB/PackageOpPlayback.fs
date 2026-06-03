@@ -180,12 +180,13 @@ let private applyAddType
 
     do!
       exec ctx """
-        INSERT OR REPLACE INTO package_types (hash, pt_def, rt_def)
-        VALUES ($hash, $pt_def, $rt_def)
+        INSERT OR REPLACE INTO package_types (hash, pt_def, rt_def, description)
+        VALUES ($hash, $pt_def, $rt_def, $description)
         """ (fun cmd ->
         p cmd "$hash" hashStr
         p cmd "$pt_def" ptDef
-        p cmd "$rt_def" rtDef)
+        p cmd "$rt_def" rtDef
+        p cmd "$description" typ.description)
 
     // Extract and store dependency references atomically. Each
     // Dependency carries its own location (populated by the resolver).
@@ -215,13 +216,15 @@ let private applyAddValue
     // the same hash via re-applied or duplicated ops.
     do!
       exec ctx """
-        INSERT INTO package_values (hash, pt_def, rt_dval, value_type)
-        VALUES ($hash, $pt_def, NULL, NULL)
+        INSERT INTO package_values (hash, pt_def, rt_dval, value_type, description)
+        VALUES ($hash, $pt_def, NULL, NULL, $description)
         ON CONFLICT(hash) DO UPDATE SET
-          pt_def = excluded.pt_def
+          pt_def = excluded.pt_def,
+          description = excluded.description
         """ (fun cmd ->
         p cmd "$hash" hashStr
-        p cmd "$pt_def" ptDef)
+        p cmd "$pt_def" ptDef
+        p cmd "$description" value.description)
 
     let refs = DE.extractFromValue value
     do! updateDependencies ctx hashStr refs
@@ -242,12 +245,13 @@ let private applyAddFn (ctx : Ctx) (fn : PT.PackageFn.PackageFn) : Task<unit> =
 
     do!
       exec ctx """
-        INSERT OR REPLACE INTO package_functions (hash, pt_def, rt_instrs)
-        VALUES ($hash, $pt_def, $rt_instrs)
+        INSERT OR REPLACE INTO package_functions (hash, pt_def, rt_instrs, description)
+        VALUES ($hash, $pt_def, $rt_instrs, $description)
         """ (fun cmd ->
         p cmd "$hash" hashStr
         p cmd "$pt_def" ptDef
-        p cmd "$rt_instrs" rtInstrs)
+        p cmd "$rt_instrs" rtInstrs
+        p cmd "$description" fn.description)
 
     let refs = DE.extractFromFn fn
     do! updateDependencies ctx hashStr refs
