@@ -495,6 +495,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -513,6 +514,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.exec
       deprecated = NotDeprecated }
 
 
@@ -525,7 +527,8 @@ let fns () : List<BuiltInFn> =
       description = "Sets an environment variable via libc setenv()"
       fn =
         (function
-        | _, _, _, [ DString name; DString value ] ->
+        | state, _, _, [ DString name; DString value ] ->
+          LibExecution.CapabilityCheck.requireEnvWrite state.grantedCaps name
           match Libc.setenv name value with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
@@ -533,6 +536,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.envWrite
       deprecated = NotDeprecated }
 
 
@@ -543,7 +547,8 @@ let fns () : List<BuiltInFn> =
       description = "Removes an environment variable via libc unsetenv()"
       fn =
         (function
-        | _, _, _, [ DString name ] ->
+        | state, _, _, [ DString name ] ->
+          LibExecution.CapabilityCheck.requireEnvWrite state.grantedCaps name
           match Libc.unsetenv name with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
@@ -551,6 +556,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.envWrite
       deprecated = NotDeprecated }
 
 
@@ -563,7 +569,8 @@ let fns () : List<BuiltInFn> =
       description = "Creates a directory via libc mkdir()"
       fn =
         (function
-        | _, _, _, [ DString path; DInt64 mode ] ->
+        | state, _, _, [ DString path; DInt64 mode ] ->
+          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           match Libc.mkdir path (int mode) with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
@@ -571,6 +578,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -581,7 +589,8 @@ let fns () : List<BuiltInFn> =
       description = "Removes an empty directory via libc rmdir()"
       fn =
         (function
-        | _, _, _, [ DString path ] ->
+        | state, _, _, [ DString path ] ->
+          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           match Libc.rmdir path with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
@@ -589,6 +598,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -599,7 +609,8 @@ let fns () : List<BuiltInFn> =
       description = "Removes a file via libc unlink()"
       fn =
         (function
-        | _, _, _, [ DString path ] ->
+        | state, _, _, [ DString path ] ->
+          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           match Libc.unlink path with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
@@ -607,6 +618,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -619,7 +631,8 @@ let fns () : List<BuiltInFn> =
       description = "Renames/moves a file or directory via libc rename()"
       fn =
         (function
-        | _, _, _, [ DString oldpath; DString newpath ] ->
+        | state, _, _, [ DString oldpath; DString newpath ] ->
+          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps oldpath
           match Libc.rename oldpath newpath with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
@@ -627,6 +640,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -639,7 +653,8 @@ let fns () : List<BuiltInFn> =
       description = "Changes file permissions via libc chmod()"
       fn =
         (function
-        | _, _, _, [ DString path; DInt64 mode ] ->
+        | state, _, _, [ DString path; DInt64 mode ] ->
+          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           match Libc.chmod path (int mode) with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
@@ -647,6 +662,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -657,7 +673,8 @@ let fns () : List<BuiltInFn> =
       description = "Updates atime and mtime to now via libc utimes(path, NULL)"
       fn =
         (function
-        | _, _, _, [ DString path ] ->
+        | state, _, _, [ DString path ] ->
+          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           match Libc.utimesNow path with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
@@ -665,6 +682,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -677,7 +695,8 @@ let fns () : List<BuiltInFn> =
       description = "Creates a symbolic link via libc symlink()"
       fn =
         (function
-        | _, _, _, [ DString target; DString linkpath ] ->
+        | state, _, _, [ DString target; DString linkpath ] ->
+          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps target
           match Libc.symlink target linkpath with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
@@ -685,6 +704,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -695,7 +715,8 @@ let fns () : List<BuiltInFn> =
       description = "Reads the target of a symbolic link via libc readlink()"
       fn =
         (function
-        | _, _, _, [ DString path ] ->
+        | state, _, _, [ DString path ] ->
+          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           match Libc.readlink path with
           | Ok target ->
             Dval.resultOk KTString (posixErrorKT ()) (DString target) |> Ply
@@ -704,6 +725,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -720,7 +742,8 @@ let fns () : List<BuiltInFn> =
         "Creates a unique temp file via libc mkstemp(). Returns (fd, path)."
       fn =
         (function
-        | _, _, _, [ DString prefix ] ->
+        | state, _, _, [ DString prefix ] ->
+          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps prefix
           let resultOk =
             Dval.resultOk (KTTuple(VT.int64, VT.string, [])) (posixErrorKT ())
           let resultError =
@@ -732,6 +755,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -747,7 +771,8 @@ let fns () : List<BuiltInFn> =
         "Creates a unique temp directory via libc mkdtemp(). Returns the path."
       fn =
         (function
-        | _, _, _, [ DString prefix ] ->
+        | state, _, _, [ DString prefix ] ->
+          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps prefix
           match Libc.mkdtemp prefix with
           | Ok path -> Dval.resultOk KTString (posixErrorKT ()) (DString path) |> Ply
           | Error e ->
@@ -755,6 +780,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -766,7 +792,8 @@ let fns () : List<BuiltInFn> =
         "Lists entries in a directory via libc opendir/readdir/closedir. Excludes '.' and '..'."
       fn =
         (function
-        | _, _, _, [ DString path ] ->
+        | state, _, _, [ DString path ] ->
+          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           let resultOk =
             Dval.resultOk (KTList(ValueType.Known KTString)) (posixErrorKT ())
           let resultError =
@@ -779,6 +806,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -789,13 +817,15 @@ let fns () : List<BuiltInFn> =
       description = "Gets an environment variable via libc getenv()"
       fn =
         (function
-        | _, _, _, [ DString name ] ->
+        | state, _, _, [ DString name ] ->
+          LibExecution.CapabilityCheck.requireEnvRead state.grantedCaps name
           match Libc.getenv name with
           | Some v -> Dval.optionSome KTString (DString v) |> Ply
           | None -> Dval.optionNone KTString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.envRead
       deprecated = NotDeprecated }
 
 
@@ -812,7 +842,7 @@ let fns () : List<BuiltInFn> =
         "Spawns a child process, waits for it to finish, returns (exitCode, stdout, stderr)."
       fn =
         (function
-        | _, _, _, [ DString program; DList(_, args) ] ->
+        | state, _, _, [ DString program; DList(_, args) ] ->
           let resultOk =
             Dval.resultOk
               (KTTuple(VT.int64, VT.string, [ VT.string ]))
@@ -827,6 +857,8 @@ let fns () : List<BuiltInFn> =
               match d with
               | DString s -> s
               | _ -> incorrectArgs ())
+          // precise check: this exact program + args must be covered (gate only checked exec presence).
+          LibExecution.CapabilityCheck.requireExec state.grantedCaps program argStrs
           match Libc.spawnAndWait program argStrs with
           | Ok(exitCode, stdout, stderr) ->
             resultOk (
@@ -837,6 +869,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.exec
       deprecated = NotDeprecated }
 
 
@@ -854,7 +887,7 @@ let fns () : List<BuiltInFn> =
         "Spawns a child process with a timeout. Returns (exitCode, stdout, stderr) or Error on timeout."
       fn =
         (function
-        | _, _, _, [ DString program; DList(_, args); DInt64 timeoutMs ] ->
+        | state, _, _, [ DString program; DList(_, args); DInt64 timeoutMs ] ->
           let resultOk =
             Dval.resultOk
               (KTTuple(VT.int64, VT.string, [ VT.string ]))
@@ -869,6 +902,8 @@ let fns () : List<BuiltInFn> =
               match d with
               | DString s -> s
               | _ -> incorrectArgs ())
+          // precise check: this exact program + args must be covered (gate only checked exec presence).
+          LibExecution.CapabilityCheck.requireExec state.grantedCaps program argStrs
           match Libc.spawnAndWaitWithTimeout program argStrs (int timeoutMs) with
           | Ok(exitCode, stdout, stderr) ->
             resultOk (
@@ -879,6 +914,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.exec
       deprecated = NotDeprecated }
 
 
@@ -902,6 +938,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.exec
       deprecated = NotDeprecated }
 
 
@@ -924,6 +961,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -948,6 +986,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -966,6 +1005,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -982,7 +1022,8 @@ let fns () : List<BuiltInFn> =
       description = "Opens a file via libc open(). Returns a file descriptor."
       fn =
         (function
-        | _, _, _, [ DString path; DInt64 flags; DInt64 mode ] ->
+        | state, _, _, [ DString path; DInt64 flags; DInt64 mode ] ->
+          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           match Libc.openFile path (int flags) (int mode) with
           | Ok fd ->
             Dval.resultOk KTInt64 (posixErrorKT ()) (DInt64(int64 fd)) |> Ply
@@ -991,6 +1032,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -1005,6 +1047,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -1019,6 +1062,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -1033,6 +1077,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -1047,6 +1092,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -1061,6 +1107,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -1075,6 +1122,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -1088,7 +1136,8 @@ let fns () : List<BuiltInFn> =
       description = "Stats a file via libc stat(). Returns (mode, size, mtimeSec)."
       fn =
         (function
-        | _, _, _, [ DString path ] ->
+        | state, _, _, [ DString path ] ->
+          LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           let resultOk =
             Dval.resultOk
               (KTTuple(VT.int64, VT.int64, [ VT.int64 ]))
@@ -1105,6 +1154,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -1135,6 +1185,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -1149,6 +1200,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -1163,6 +1215,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -1182,6 +1235,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -1196,6 +1250,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -1214,6 +1269,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -1233,6 +1289,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -1254,6 +1311,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
       deprecated = NotDeprecated }
 
 
@@ -1272,6 +1330,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated } ]
 
 

@@ -1,0 +1,477 @@
+/// The capability model, mirrored from F# `LibExecution.Capabilities`. This is the STRUCTURED form that
+/// crosses the F#/Dark boundary (via `CapabilitiesToDarkTypes`): `pmCapsGet` returns it (the instance's
+/// grant), `pmCapsSet` takes it (replace the grant), `pmFnEffectiveCaps` returns it (what a fn needs).
+/// All grant-spec PARSING and RENDERING lives in Dark (the CLI) — F# only ever sees this structure.
+module Darklang.LanguageTools.Capabilities
+
+/// A set-or-everything scope over some token (method, host, path, port, program, …).
+type Scope<'a> =
+  | Any
+  | Only of List<'a>
+
+/// How a granted host matches a request host.
+type HostMatch =
+  | AnyHost
+  | ExactHost of String
+  | Subdomain of String
+
+/// A URL pattern, dimension by dimension.
+type UrlScope =
+  { schemes: Capabilities.Scope<String>
+    hosts: List<Capabilities.HostMatch>
+    ports: Capabilities.Scope<Int64>
+    paths: Capabilities.Scope<String> }
+
+/// One http-client rule: a set of methods coupled to a URL scope.
+type HttpRule =
+  { methods: Capabilities.Scope<String>
+    url: Capabilities.UrlScope }
+
+/// One exec rule: a set of programs coupled to an allowed-args scope.
+type ExecRule =
+  { programs: Capabilities.Scope<String>
+    args: Capabilities.Scope<String> }
+
+/// A read/write split for a path-like domain (file, env, db).
+type RW<'a> =
+  { read: Capabilities.Scope<'a>
+    write: Capabilities.Scope<'a> }
+
+/// The whole grant/need — one field per impurity. All-empty (`Only []` everywhere, all bools false) is
+/// pure / NONE.
+type Capabilities =
+  { httpClient: List<Capabilities.HttpRule>
+    httpServer: Capabilities.Scope<Int64>
+    file: Capabilities.RW<String>
+    env: Capabilities.RW<String>
+    db: Capabilities.RW<String>
+    exec: List<Capabilities.ExecRule>
+    stdout: Bool
+    stdin: Bool
+    random: Bool
+    clock: Bool
+    llm: Bool }
+
+
+// ───────────────────────────────────────────────────────────────────────────
+// Grammar — the CLI grant language (spec string ⇄ structured). All PARSING + RENDERING live HERE in
+// Dark; F# only ever sees the structured `Capabilities` (via CapabilitiesToDarkTypes). Mirrors the
+// retired F# `LibExecution.Capabilities.Grammar`.
+// ───────────────────────────────────────────────────────────────────────────
+
+/// The empty grant / NONE (pure): every scope empty, every flag false.
+let empty () : LanguageTools.Capabilities.Capabilities =
+  let noScope = LanguageTools.Capabilities.Scope.Only []
+  LanguageTools.Capabilities.Capabilities
+    { httpClient = []
+      httpServer = LanguageTools.Capabilities.Scope.Only []
+      file = LanguageTools.Capabilities.RW { read = noScope; write = noScope }
+      env = LanguageTools.Capabilities.RW { read = noScope; write = noScope }
+      db = LanguageTools.Capabilities.RW { read = noScope; write = noScope }
+      exec = []
+      stdout = false
+      stdin = false
+      random = false
+      clock = false
+      llm = false }
+
+// TODO the sandbox intent is undercut by `all ()` + `caps grant-all`: any code (or agent) that can run
+// a command can also lift every restriction. Until there's a real trust boundary (signed/locked grants,
+// an out-of-band approval, a read-only enforcement layer), "allow all" is a convenience, not a control.
+/// The fully-permissive grant — every domain unscoped, every flag on (`caps grant-all`).
+let all () : LanguageTools.Capabilities.Capabilities =
+  LanguageTools.Capabilities.Capabilities
+    { httpClient =
+        [ LanguageTools.Capabilities.HttpRule
+            { methods = LanguageTools.Capabilities.Scope.Any
+              url = LanguageTools.Capabilities.anyUrl () } ]
+      httpServer = LanguageTools.Capabilities.Scope.Any
+      file =
+        LanguageTools.Capabilities.RW
+          { read = LanguageTools.Capabilities.Scope.Any
+            write = LanguageTools.Capabilities.Scope.Any }
+      env =
+        LanguageTools.Capabilities.RW
+          { read = LanguageTools.Capabilities.Scope.Any
+            write = LanguageTools.Capabilities.Scope.Any }
+      db =
+        LanguageTools.Capabilities.RW
+          { read = LanguageTools.Capabilities.Scope.Any
+            write = LanguageTools.Capabilities.Scope.Any }
+      exec =
+        [ LanguageTools.Capabilities.ExecRule
+            { programs = LanguageTools.Capabilities.Scope.Any
+              args = LanguageTools.Capabilities.Scope.Any } ]
+      stdout = true
+      stdin = true
+      random = true
+      clock = true
+      llm = true }
+
+let joinScope
+  (a: LanguageTools.Capabilities.Scope<'a>)
+  (b: LanguageTools.Capabilities.Scope<'a>)
+  : LanguageTools.Capabilities.Scope<'a> =
+  match (a, b) with
+  | (Any, _) -> LanguageTools.Capabilities.Scope.Any
+  | (_, Any) -> LanguageTools.Capabilities.Scope.Any
+  | (Only x, Only y) ->
+    LanguageTools.Capabilities.Scope.Only(Stdlib.List.unique (Stdlib.List.append x y))
+
+let joinRW
+  (a: LanguageTools.Capabilities.RW<'a>)
+  (b: LanguageTools.Capabilities.RW<'a>)
+  : LanguageTools.Capabilities.RW<'a> =
+  LanguageTools.Capabilities.RW
+    { read = LanguageTools.Capabilities.joinScope a.read b.read
+      write = LanguageTools.Capabilities.joinScope a.write b.write }
+
+let join
+  (a: LanguageTools.Capabilities.Capabilities)
+  (b: LanguageTools.Capabilities.Capabilities)
+  : LanguageTools.Capabilities.Capabilities =
+  LanguageTools.Capabilities.Capabilities
+    { httpClient = Stdlib.List.unique (Stdlib.List.append a.httpClient b.httpClient)
+      httpServer = LanguageTools.Capabilities.joinScope a.httpServer b.httpServer
+      file = LanguageTools.Capabilities.joinRW a.file b.file
+      env = LanguageTools.Capabilities.joinRW a.env b.env
+      db = LanguageTools.Capabilities.joinRW a.db b.db
+      exec = Stdlib.List.unique (Stdlib.List.append a.exec b.exec)
+      stdout = a.stdout || b.stdout
+      stdin = a.stdin || b.stdin
+      random = a.random || b.random
+      clock = a.clock || b.clock
+      llm = a.llm || b.llm }
+
+/// The fully-permissive URL pattern (any scheme/host/port/path).
+let anyUrl () : LanguageTools.Capabilities.UrlScope =
+  LanguageTools.Capabilities.UrlScope
+    { schemes = LanguageTools.Capabilities.Scope.Any
+      hosts = [ LanguageTools.Capabilities.HostMatch.AnyHost ]
+      ports = LanguageTools.Capabilities.Scope.Any
+      paths = LanguageTools.Capabilities.Scope.Any }
+
+/// The standard port for a single concrete scheme (so an omitted port narrows to it, not to Any).
+let defaultPortFor
+  (schemes: LanguageTools.Capabilities.Scope<String>)
+  : LanguageTools.Capabilities.Scope<Int64> =
+  match schemes with
+  | Only [ scheme ] ->
+    (match scheme with
+     | "https" -> LanguageTools.Capabilities.Scope.Only [ 443L ]
+     | "wss" -> LanguageTools.Capabilities.Scope.Only [ 443L ]
+     | "http" -> LanguageTools.Capabilities.Scope.Only [ 80L ]
+     | "ws" -> LanguageTools.Capabilities.Scope.Only [ 80L ]
+     | _ -> LanguageTools.Capabilities.Scope.Any)
+  | _ -> LanguageTools.Capabilities.Scope.Any
+
+/// Parse a URL PATTERN (`[scheme://]host[:port][/path]`) into a structured `UrlScope`.
+let parseUrl (pattern: String) : LanguageTools.Capabilities.UrlScope =
+  let (schemeStr, afterScheme) =
+    match Stdlib.String.splitFirst pattern "://" with
+    | Some((s, rest)) -> (s, rest)
+    | None -> ("https", pattern)
+  let schemes =
+    if schemeStr == "*" then
+      LanguageTools.Capabilities.Scope.Any
+    else
+      LanguageTools.Capabilities.Scope.Only [ Stdlib.String.toLowercase schemeStr ]
+  let (hostPort, pathStr) =
+    match Stdlib.String.splitFirst afterScheme "/" with
+    | Some((hp, rest)) -> (hp, Stdlib.Option.Option.Some $"/{rest}")
+    | None -> (afterScheme, Stdlib.Option.Option.None)
+  let (hostStr, portStr) =
+    match Stdlib.String.splitFirst hostPort ":" with
+    | Some((h, p)) -> (h, Stdlib.Option.Option.Some p)
+    | None -> (hostPort, Stdlib.Option.Option.None)
+  let hosts =
+    if hostStr == "*" then
+      [ LanguageTools.Capabilities.HostMatch.AnyHost ]
+    else if Stdlib.String.startsWith hostStr "*." then
+      [ LanguageTools.Capabilities.HostMatch.Subdomain(
+          Stdlib.String.toLowercase (Stdlib.String.dropFirst hostStr 2L)) ]
+    else
+      [ LanguageTools.Capabilities.HostMatch.ExactHost(Stdlib.String.toLowercase hostStr) ]
+  let ports =
+    match portStr with
+    | Some "*" -> LanguageTools.Capabilities.Scope.Any
+    | Some p ->
+      (match Stdlib.Int64.parse p with
+       | Ok n -> LanguageTools.Capabilities.Scope.Only [ n ]
+       | Error _ -> LanguageTools.Capabilities.Scope.Any)
+    | None -> LanguageTools.Capabilities.defaultPortFor schemes
+  let paths =
+    match pathStr with
+    | Some pp -> LanguageTools.Capabilities.Scope.Only [ pp ]
+    | None -> LanguageTools.Capabilities.Scope.Any
+  LanguageTools.Capabilities.UrlScope
+    { schemes = schemes; hosts = hosts; ports = ports; paths = paths }
+
+/// read/write split from an access token.
+let rwFor
+  (access: String)
+  (scope: LanguageTools.Capabilities.Scope<String>)
+  : Stdlib.Option.Option<LanguageTools.Capabilities.RW<String>> =
+  let none = LanguageTools.Capabilities.Scope.Only []
+  match Stdlib.String.toLowercase access with
+  | "read" ->
+    Stdlib.Option.Option.Some(
+      LanguageTools.Capabilities.RW { read = scope; write = none })
+  | "write" ->
+    Stdlib.Option.Option.Some(
+      LanguageTools.Capabilities.RW { read = none; write = scope })
+  | "read+write" ->
+    Stdlib.Option.Option.Some(
+      LanguageTools.Capabilities.RW { read = scope; write = scope })
+  | "readwrite" ->
+    Stdlib.Option.Option.Some(
+      LanguageTools.Capabilities.RW { read = scope; write = scope })
+  | "rw" ->
+    Stdlib.Option.Option.Some(
+      LanguageTools.Capabilities.RW { read = scope; write = scope })
+  | _ -> Stdlib.Option.Option.None
+
+/// `*` ⇒ any method, else the upper-cased literal.
+let methodScope (m: String) : LanguageTools.Capabilities.Scope<String> =
+  if m == "*" then
+    LanguageTools.Capabilities.Scope.Any
+  else
+    LanguageTools.Capabilities.Scope.Only [ Stdlib.String.toUppercase m ]
+
+/// `*` ⇒ any program, else the literal.
+let programScope (p: String) : LanguageTools.Capabilities.Scope<String> =
+  if p == "*" then
+    LanguageTools.Capabilities.Scope.Any
+  else
+    LanguageTools.Capabilities.Scope.Only [ p ]
+
+let capHttp
+  (m: LanguageTools.Capabilities.Scope<String>)
+  (url: LanguageTools.Capabilities.UrlScope)
+  : LanguageTools.Capabilities.Capabilities =
+  let e = LanguageTools.Capabilities.empty ()
+  { e with
+      httpClient = [ LanguageTools.Capabilities.HttpRule { methods = m; url = url } ] }
+
+let capExec
+  (p: LanguageTools.Capabilities.Scope<String>)
+  (a: LanguageTools.Capabilities.Scope<String>)
+  : LanguageTools.Capabilities.Capabilities =
+  let e = LanguageTools.Capabilities.empty ()
+  { e with exec = [ LanguageTools.Capabilities.ExecRule { programs = p; args = a } ] }
+
+/// Parse one already-tokenized `dark caps grant …` spec into a sparse Capabilities.
+let parseGrant
+  (args: List<String>)
+  : Stdlib.Option.Option<LanguageTools.Capabilities.Capabilities> =
+  let e = LanguageTools.Capabilities.empty ()
+  match args with
+  | [ "http-client" ] ->
+    Stdlib.Option.Option.Some(
+      LanguageTools.Capabilities.capHttp
+        LanguageTools.Capabilities.Scope.Any
+        (LanguageTools.Capabilities.anyUrl ()))
+  | [ "http-client"; m ] ->
+    Stdlib.Option.Option.Some(
+      LanguageTools.Capabilities.capHttp
+        (LanguageTools.Capabilities.methodScope m)
+        (LanguageTools.Capabilities.anyUrl ()))
+  | [ "http-client"; m; url ] ->
+    Stdlib.Option.Option.Some(
+      LanguageTools.Capabilities.capHttp
+        (LanguageTools.Capabilities.methodScope m)
+        (LanguageTools.Capabilities.parseUrl url))
+  | [ "http-server" ] ->
+    Stdlib.Option.Option.Some({ e with httpServer = LanguageTools.Capabilities.Scope.Any })
+  | [ "exec" ] ->
+    Stdlib.Option.Option.Some(
+      LanguageTools.Capabilities.capExec
+        LanguageTools.Capabilities.Scope.Any
+        LanguageTools.Capabilities.Scope.Any)
+  | [ "exec"; p ] ->
+    Stdlib.Option.Option.Some(
+      LanguageTools.Capabilities.capExec
+        (LanguageTools.Capabilities.programScope p)
+        LanguageTools.Capabilities.Scope.Any)
+  | "exec" :: p :: argv ->
+    Stdlib.Option.Option.Some(
+      LanguageTools.Capabilities.capExec
+        (LanguageTools.Capabilities.programScope p)
+        (LanguageTools.Capabilities.Scope.Only argv))
+  | [ "file"; a ] ->
+    (match LanguageTools.Capabilities.rwFor a LanguageTools.Capabilities.Scope.Any with
+     | Some rw -> Stdlib.Option.Option.Some({ e with file = rw })
+     | None -> Stdlib.Option.Option.None)
+  | [ "file"; a; p ] ->
+    (match LanguageTools.Capabilities.rwFor a (LanguageTools.Capabilities.Scope.Only [ p ]) with
+     | Some rw -> Stdlib.Option.Option.Some({ e with file = rw })
+     | None -> Stdlib.Option.Option.None)
+  | [ "env"; a ] ->
+    (match LanguageTools.Capabilities.rwFor a LanguageTools.Capabilities.Scope.Any with
+     | Some rw -> Stdlib.Option.Option.Some({ e with env = rw })
+     | None -> Stdlib.Option.Option.None)
+  | [ "env"; a; v ] ->
+    (match LanguageTools.Capabilities.rwFor a (LanguageTools.Capabilities.Scope.Only [ v ]) with
+     | Some rw -> Stdlib.Option.Option.Some({ e with env = rw })
+     | None -> Stdlib.Option.Option.None)
+  | [ "db"; a ] ->
+    (match LanguageTools.Capabilities.rwFor a LanguageTools.Capabilities.Scope.Any with
+     | Some rw -> Stdlib.Option.Option.Some({ e with db = rw })
+     | None -> Stdlib.Option.Option.None)
+  | [ "db"; a; t ] ->
+    (match LanguageTools.Capabilities.rwFor a (LanguageTools.Capabilities.Scope.Only [ t ]) with
+     | Some rw -> Stdlib.Option.Option.Some({ e with db = rw })
+     | None -> Stdlib.Option.Option.None)
+  | [ "stdout" ] -> Stdlib.Option.Option.Some({ e with stdout = true })
+  | [ "stdin" ] -> Stdlib.Option.Option.Some({ e with stdin = true })
+  | [ "random" ] -> Stdlib.Option.Option.Some({ e with random = true })
+  | [ "clock" ] -> Stdlib.Option.Option.Some({ e with clock = true })
+  | [ "llm" ] -> Stdlib.Option.Option.Some({ e with llm = true })
+  | _ -> Stdlib.Option.Option.None
+
+/// Parse one spec string (tokenizes, then `parseGrant`).
+let parseSpec
+  (spec: String)
+  : Stdlib.Option.Option<LanguageTools.Capabilities.Capabilities> =
+  let toks = (Stdlib.String.split spec " ") |> Stdlib.List.filter (fun w -> w != "")
+  LanguageTools.Capabilities.parseGrant toks
+
+/// Parse a full spec list into one grant (folded from empty), or `Error badSpec` naming the first spec
+/// that doesn't parse.
+let parse
+  (specs: List<String>)
+  : Stdlib.Result.Result<LanguageTools.Capabilities.Capabilities, String> =
+  let cleaned =
+    specs
+    |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
+    |> Stdlib.List.filter (fun s -> s != "")
+  Stdlib.List.fold
+    cleaned
+    (Stdlib.Result.Result.Ok(LanguageTools.Capabilities.empty ()))
+    (fun acc spec ->
+      match acc with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok cur ->
+        match LanguageTools.Capabilities.parseSpec spec with
+        | Some c -> Stdlib.Result.Result.Ok(LanguageTools.Capabilities.join cur c)
+        | None -> Stdlib.Result.Result.Error spec)
+
+let defaultPortValue (schemeTok: String) : Int64 =
+  match schemeTok with
+  | "https" -> 443L
+  | "wss" -> 443L
+  | "http" -> 80L
+  | "ws" -> 80L
+  | _ -> -1L
+
+/// Inverse of `parseUrl` for the single-valued scopes `parseGrant` produces.
+let urlToPattern (url: LanguageTools.Capabilities.UrlScope) : String =
+  let schemeTok =
+    match url.schemes with
+    | Any -> "*"
+    | Only [ s ] -> s
+    | _ -> "*"
+  let hostTok =
+    match url.hosts with
+    | [ AnyHost ] -> "*"
+    | [ ExactHost h ] -> h
+    | [ Subdomain d ] -> $"*.{d}"
+    | _ -> "*"
+  let schemePrefix = if schemeTok == "https" then "" else $"{schemeTok}://"
+  let portTok =
+    match url.ports with
+    | Any -> ":*"
+    | Only [ n ] ->
+      if n == LanguageTools.Capabilities.defaultPortValue schemeTok then "" else $":{n}"
+    | _ -> ""
+  let pathTok =
+    match url.paths with
+    | Only [ p ] -> p
+    | _ -> ""
+  $"{schemePrefix}{hostTok}{portTok}{pathTok}"
+
+let scopeArgs (s: LanguageTools.Capabilities.Scope<String>) : List<List<String>> =
+  match s with
+  | Any -> [ [] ]
+  | Only xs -> if Stdlib.List.isEmpty xs then [] else Stdlib.List.map xs (fun x -> [ x ])
+
+/// `prefix` tokens (e.g. ["file"; "read"]) joined with the scope arg into one spec line.
+let specLine (prefix: List<String>) (a: List<String>) : String =
+  Stdlib.String.join (Stdlib.List.append prefix a) " "
+
+/// Render a grant as parse-compatible spec strings (the inverse of `parse`).
+let render (c: LanguageTools.Capabilities.Capabilities) : List<String> =
+  let httpSpecs =
+    c.httpClient
+    |> Stdlib.List.map (fun rule ->
+      let ms =
+        match rule.methods with
+        | Any -> [ "*" ]
+        | Only m -> m
+      let hasHost =
+        match rule.url.hosts with
+        | [] -> false
+        | _ -> true
+      let isAnyUrl = rule.url == LanguageTools.Capabilities.anyUrl ()
+      ms
+      |> Stdlib.List.filterMap (fun m ->
+        if hasHost then
+          (if isAnyUrl then
+             (if m == "*" then
+                Stdlib.Option.Option.Some "http-client"
+              else
+                Stdlib.Option.Option.Some $"http-client {m}")
+           else
+             Stdlib.Option.Option.Some
+               $"http-client {m} {LanguageTools.Capabilities.urlToPattern rule.url}")
+        else
+          Stdlib.Option.Option.None))
+    |> Stdlib.List.flatten
+  let serverSpecs =
+    match c.httpServer with
+    | Only [] -> []
+    | _ -> [ "http-server" ]
+  let fileSpecs =
+    Stdlib.List.append
+      ((LanguageTools.Capabilities.scopeArgs c.file.read)
+       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "file"; "read" ] a))
+      ((LanguageTools.Capabilities.scopeArgs c.file.write)
+       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "file"; "write" ] a))
+  let execSpecs =
+    c.exec
+    |> Stdlib.List.map (fun rule ->
+      let progs =
+        match rule.programs with
+        | Any -> [ "*" ]
+        | Only p -> p
+      let argToks =
+        match rule.args with
+        | Any -> []
+        | Only a -> a
+      progs
+      |> Stdlib.List.map (fun p ->
+        match (p, argToks) with
+        | ("*", []) -> "exec"
+        | _ -> Stdlib.String.join (Stdlib.List.append [ "exec"; p ] argToks) " "))
+    |> Stdlib.List.flatten
+  let envSpecs =
+    Stdlib.List.append
+      ((LanguageTools.Capabilities.scopeArgs c.env.read)
+       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "env"; "read" ] a))
+      ((LanguageTools.Capabilities.scopeArgs c.env.write)
+       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "env"; "write" ] a))
+  let dbSpecs =
+    Stdlib.List.append
+      ((LanguageTools.Capabilities.scopeArgs c.db.read)
+       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "db"; "read" ] a))
+      ((LanguageTools.Capabilities.scopeArgs c.db.write)
+       |> Stdlib.List.map (fun a -> LanguageTools.Capabilities.specLine [ "db"; "write" ] a))
+  let flagSpecs =
+    Stdlib.List.flatten
+      [ (if c.stdout then [ "stdout" ] else [])
+        (if c.stdin then [ "stdin" ] else [])
+        (if c.random then [ "random" ] else [])
+        (if c.clock then [ "clock" ] else [])
+        (if c.llm then [ "llm" ] else []) ]
+  Stdlib.List.flatten
+    [ httpSpecs; serverSpecs; fileSpecs; execSpecs; envSpecs; dbSpecs; flagSpecs ]

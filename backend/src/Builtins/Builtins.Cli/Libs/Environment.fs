@@ -22,7 +22,9 @@ let fns () : List<BuiltInFn> =
         "Gets the value of the environment variable with the given <param varName> if it exists."
       fn =
         (function
-        | _, _, _, [ DString varName ] ->
+        | state, _, _, [ DString varName ] ->
+          // precise check: reading this exact env var must be covered (gate checked env presence).
+          LibExecution.CapabilityCheck.requireEnvRead state.grantedCaps varName
           let envValue = System.Environment.GetEnvironmentVariable(varName)
 
           if isNull envValue then
@@ -32,6 +34,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.envRead
       deprecated = NotDeprecated }
 
 
@@ -43,7 +46,9 @@ let fns () : List<BuiltInFn> =
         "Returns a list of tuples containing all the environment variables and their values."
       fn =
         (function
-        | _, _, _, [ DUnit ] ->
+        | state, _, _, [ DUnit ] ->
+          // precise check: reading the WHOLE environment needs an unscoped env-read grant.
+          LibExecution.CapabilityCheck.requireEnvReadAll state.grantedCaps
           let envVars = System.Environment.GetEnvironmentVariables()
 
           let envMap =
@@ -57,6 +62,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.envRead
       deprecated = NotDeprecated }
 
 
@@ -71,6 +77,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated } ]
 
 

@@ -169,6 +169,17 @@ module Type =
     let builtinFn = p [] "BuiltinFunction"
     let builtinFnPurity = p [] "BuiltinFunctionPurity"
 
+    /// The structured capability model — the F#/Dark wire form (see `CapabilitiesToDarkTypes`).
+    module Capabilities =
+      let private p addl = p ("Capabilities" :: addl)
+      let scope = p [] "Scope"
+      let hostMatch = p [] "HostMatch"
+      let urlScope = p [] "UrlScope"
+      let httpRule = p [] "HttpRule"
+      let execRule = p [] "ExecRule"
+      let rw = p [] "RW"
+      let capabilities = p [] "Capabilities"
+
     module Parser =
       let private p addl = p ("Parser" :: addl)
       let point = p [] "Point"

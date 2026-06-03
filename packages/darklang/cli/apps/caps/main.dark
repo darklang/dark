@@ -1,0 +1,324 @@
+module Darklang.Cli.Apps.Caps.Main
+
+// The interactive caps editor. A working copy of the grant (spec strings) that you navigate and mutate;
+// `w` writes it through `pmCapsSet`. Flag domains (random/clock/…) toggle in place; scoped/coupled
+// rules (http-client/file/env/db/exec) open the matching composable editor. Profiles replace the set.
+
+// the toggle-only domains (no scope/coupling) — shown as a checklist at the top
+let flagDomains : List<String> =
+  [ "random"; "clock"; "stdout"; "stdin"; "llm"; "http-server" ]
+
+// the domains that need a rule editor (and which one)
+let ruleDomains : List<String> =
+  [ "http-client"; "file"; "env"; "db"; "exec" ]
+
+type Row =
+  | FlagRow of String * Bool
+  | RuleRow of String
+  // a selectable "+ Add rule…" affordance at the end of the scoped-rules section — `enter` on it opens
+  // the same domain picker as the `a` shortcut, so the add flow is discoverable without knowing the key.
+  | AddRuleRow
+
+// each Edit* carries the ORIGINAL spec being edited ("" when adding a new rule), so saving the edit
+// removes the original before adding the new one (otherwise editing a rule would duplicate it).
+type Screen =
+  | Browsing
+  | AddPickDomain of Int64
+  | EditHttp of String * Darklang.Cli.Apps.Caps.HttpRuleEditor.State
+  | EditExec of String * Darklang.Cli.Apps.Caps.ExecRuleEditor.State
+  | EditAccess of String * Darklang.Cli.Apps.Caps.AccessEditor.State
+  | PickProfile of Int64
+
+type State =
+  { specs: List<String>
+    saved: List<String>
+    cursor: Int64
+    dirty: Bool
+    screen: Screen }
+
+type KeyResult =
+  | Continue of State
+  | Save of State
+  | Exit of State
+
+let load () : State =
+  let specs = Commands.Caps.currentSpecs ()
+  State
+    { specs = specs
+      saved = specs
+      cursor = 0L
+      dirty = false
+      screen = Screen.Browsing }
+
+let isFlag (domain: String) : Bool = Stdlib.List.member_v0 flagDomains domain
+
+// the visible rows: the flag checklist, then one row per scoped/coupled rule spec
+let rows (state: State) : List<Row> =
+  let flagRows =
+    Stdlib.List.map flagDomains (fun d ->
+      let granted = Stdlib.List.member_v0 state.specs d
+      Row.FlagRow(d, granted))
+  let ruleRows =
+    state.specs
+    |> Stdlib.List.filter (fun s ->
+      let d = Darklang.PrettyPrinter.Capabilities.domainOf s
+      Stdlib.Bool.not (isFlag d))
+    |> Stdlib.List.map (fun s -> Row.RuleRow s)
+  Stdlib.List.append flagRows (Stdlib.List.append ruleRows [ Row.AddRuleRow ])
+
+let rowCount (state: State) : Int64 = Stdlib.List.length (rows state)
+
+let toggleFlag (state: State) (domain: String) : State =
+  if Stdlib.List.member_v0 state.specs domain then
+    let next = Stdlib.List.filter state.specs (fun s -> s != domain)
+    { state with specs = next; dirty = true }
+  else
+    { state with specs = Stdlib.List.append state.specs [ domain ]; dirty = true }
+
+let removeSpec (state: State) (spec: String) : State =
+  { state with
+      specs = Stdlib.List.filter state.specs (fun s -> s != spec)
+      dirty = true }
+
+// add a spec produced by an editor (replace any identical, then append) and return to Browsing
+let addSpec (state: State) (spec: String) : State =
+  let without = Stdlib.List.filter state.specs (fun s -> s != spec)
+  { state with
+      specs = Stdlib.List.append without [ spec ]
+      dirty = true
+      screen = Screen.Browsing }
+
+// replace the original spec (if any) with a freshly-edited one, then return to Browsing
+let replaceSpec (state: State) (orig: String) (newSpec: String) : State =
+  let cleared =
+    if orig == "" then state else removeSpec state orig
+  addSpec cleared newSpec
+
+// open the right editor for an existing rule spec (carrying the original so the edit replaces it)
+let editSpec (state: State) (spec: String) : State =
+  let domain = Darklang.PrettyPrinter.Capabilities.domainOf spec
+  if domain == "http-client" then
+    { state with screen = Screen.EditHttp(spec, Darklang.Cli.Apps.Caps.HttpRuleEditor.fromSpec spec) }
+  else if domain == "exec" then
+    { state with screen = Screen.EditExec(spec, Darklang.Cli.Apps.Caps.ExecRuleEditor.fromSpec spec) }
+  else
+    { state with screen = Screen.EditAccess(spec, Darklang.Cli.Apps.Caps.AccessEditor.fromSpec spec) }
+
+// open a fresh editor for a chosen domain (no original spec to replace)
+let editNew (state: State) (domain: String) : State =
+  if domain == "http-client" then
+    { state with screen = Screen.EditHttp("", Darklang.Cli.Apps.Caps.HttpRuleEditor.empty) }
+  else if domain == "exec" then
+    { state with screen = Screen.EditExec("", Darklang.Cli.Apps.Caps.ExecRuleEditor.empty) }
+  else
+    { state with screen = Screen.EditAccess("", Darklang.Cli.Apps.Caps.AccessEditor.forDomain domain) }
+
+
+// ─────────────────────────────────────────────────────────────────────
+// key handling
+// ─────────────────────────────────────────────────────────────────────
+
+let private clampCursor (state: State) : State =
+  let count = rowCount state
+  let c =
+    if count == 0L then 0L
+    else if state.cursor >= count then count - 1L
+    else if state.cursor < 0L then 0L
+    else state.cursor
+  { state with cursor = c }
+
+let handleBrowsing
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (keyChar: Stdlib.Option.Option<String>)
+  : KeyResult =
+  match key with
+  | Escape ->
+    // discard unsaved edits: restore the last-saved set so onSave writes it unchanged
+    KeyResult.Exit ({ state with specs = state.saved })
+  | UpArrow ->
+    let c = if state.cursor > 0L then state.cursor - 1L else 0L
+    KeyResult.Continue ({ state with cursor = c })
+  | DownArrow ->
+    let maxIdx = rowCount state - 1L
+    let c = if state.cursor < maxIdx then state.cursor + 1L else maxIdx
+    KeyResult.Continue ({ state with cursor = c })
+  | Spacebar ->
+    match Stdlib.List.getAt (rows state) state.cursor with
+    | Some(FlagRow(d, _)) -> KeyResult.Continue (toggleFlag state d)
+    | _ -> KeyResult.Continue state
+  | Enter ->
+    match Stdlib.List.getAt (rows state) state.cursor with
+    | Some(FlagRow(d, _)) -> KeyResult.Continue (toggleFlag state d)
+    | Some(RuleRow spec) -> KeyResult.Continue (editSpec state spec)
+    | Some AddRuleRow ->
+      KeyResult.Continue ({ state with screen = Screen.AddPickDomain 0L })
+    | None -> KeyResult.Continue state
+  | _ ->
+    match keyChar with
+    | Some "a" -> KeyResult.Continue ({ state with screen = Screen.AddPickDomain 0L })
+    | Some "p" -> KeyResult.Continue ({ state with screen = Screen.PickProfile 0L })
+    | Some "d" ->
+      match Stdlib.List.getAt (rows state) state.cursor with
+      | Some(RuleRow spec) -> KeyResult.Continue (clampCursor (removeSpec state spec))
+      | _ -> KeyResult.Continue state
+    | Some "w" ->
+      KeyResult.Save ({ state with saved = state.specs; dirty = false })
+    | Some "q" -> KeyResult.Exit ({ state with specs = state.saved })
+    | _ -> KeyResult.Continue state
+
+let handleMenu
+  (cursor: Int64)
+  (count: Int64)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  : Stdlib.Option.Option<Int64> =
+  // returns Some newCursor while browsing; None signals Enter/Escape handled by caller via key match
+  match key with
+  | UpArrow ->
+    let c = if cursor > 0L then cursor - 1L else 0L
+    Stdlib.Option.Option.Some c
+  | DownArrow ->
+    let c = if cursor < count - 1L then cursor + 1L else count - 1L
+    Stdlib.Option.Option.Some c
+  | _ -> Stdlib.Option.Option.None
+
+let handleKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : KeyResult =
+  match state.screen with
+  | Browsing -> handleBrowsing state key keyChar
+  | AddPickDomain cursor ->
+    match key with
+    | Escape -> KeyResult.Continue ({ state with screen = Screen.Browsing })
+    | Enter ->
+      match Stdlib.List.getAt ruleDomains cursor with
+      | Some d -> KeyResult.Continue (editNew state d)
+      | None -> KeyResult.Continue ({ state with screen = Screen.Browsing })
+    | _ ->
+      match handleMenu cursor (Stdlib.List.length ruleDomains) key with
+      | Some c -> KeyResult.Continue ({ state with screen = Screen.AddPickDomain c })
+      | None -> KeyResult.Continue state
+  | PickProfile cursor ->
+    match key with
+    | Escape -> KeyResult.Continue ({ state with screen = Screen.Browsing })
+    | Enter ->
+      match Stdlib.List.getAt Commands.Caps.profiles cursor with
+      | Some((_, specs)) ->
+        // a profile can have fewer rows than the current grant — clamp the cursor back in range
+        KeyResult.Continue
+          (clampCursor
+            ({ state with specs = specs; dirty = true; screen = Screen.Browsing }))
+      | None -> KeyResult.Continue ({ state with screen = Screen.Browsing })
+    | _ ->
+      match handleMenu cursor (Stdlib.List.length Commands.Caps.profiles) key with
+      | Some c -> KeyResult.Continue ({ state with screen = Screen.PickProfile c })
+      | None -> KeyResult.Continue state
+  | EditHttp(orig, editor) ->
+    match Darklang.Cli.Apps.Caps.HttpRuleEditor.handleKey editor key modifiers keyChar with
+    | Editing e -> KeyResult.Continue ({ state with screen = Screen.EditHttp(orig, e) })
+    | Finished spec -> KeyResult.Continue (clampCursor (replaceSpec state orig spec))
+    | Cancelled -> KeyResult.Continue ({ state with screen = Screen.Browsing })
+  | EditExec(orig, editor) ->
+    match Darklang.Cli.Apps.Caps.ExecRuleEditor.handleKey editor key modifiers keyChar with
+    | Editing e -> KeyResult.Continue ({ state with screen = Screen.EditExec(orig, e) })
+    | Finished spec -> KeyResult.Continue (clampCursor (replaceSpec state orig spec))
+    | Cancelled -> KeyResult.Continue ({ state with screen = Screen.Browsing })
+  | EditAccess(orig, editor) ->
+    match Darklang.Cli.Apps.Caps.AccessEditor.handleKey editor key modifiers keyChar with
+    | Editing e -> KeyResult.Continue ({ state with screen = Screen.EditAccess(orig, e) })
+    | Finished spec -> KeyResult.Continue (clampCursor (replaceSpec state orig spec))
+    | Cancelled -> KeyResult.Continue ({ state with screen = Screen.Browsing })
+
+
+// ─────────────────────────────────────────────────────────────────────
+// rendering
+// ─────────────────────────────────────────────────────────────────────
+
+let private rowText (row: Row) : String =
+  match row with
+  | FlagRow(d, granted) ->
+    let box = if granted then "[x]" else "[ ]"
+    $"{box} {d}"
+  | RuleRow spec -> Darklang.PrettyPrinter.Capabilities.line spec
+  | AddRuleRow -> "+ Add rule…"
+
+let private printOneRow (state: State) (pair: (Int64 * Row)) : Unit =
+  let (i, r) = pair
+  let selected = i == state.cursor
+  let prefix = if selected then "›" else " "
+  let line = $"  {prefix} {rowText r}"
+  let styled =
+    if selected then Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
+    else line
+  Stdlib.printLine styled
+
+// flag checklist on top, then a labelled "Scoped rules" section (existing rules + the "+ Add rule…"
+// affordance). The cursor index maps into `rows`; the section label is printed between, not selectable.
+let private printRows (state: State) : Unit =
+  let flagCount = Stdlib.List.length flagDomains
+  let indexed = Stdlib.List.indexedMap (rows state) (fun i r -> (i, r))
+  indexed
+  |> Stdlib.List.filter (fun pair -> Stdlib.Tuple2.first pair < flagCount)
+  |> Stdlib.List.iter (fun pair -> printOneRow state pair)
+  Stdlib.printLine ""
+  Stdlib.printLine (Darklang.Cli.Colors.dimText "  Scoped rules")
+  indexed
+  |> Stdlib.List.filter (fun pair -> Stdlib.Tuple2.first pair >= flagCount)
+  |> Stdlib.List.iter (fun pair -> printOneRow state pair)
+
+let private printMenu (title: String) (items: List<String>) (cursor: Int64) : Unit =
+  Stdlib.printLine title
+  Stdlib.printLine ""
+  let indexed = Stdlib.List.indexedMap items (fun i x -> (i, x))
+  Stdlib.List.iter indexed (fun pair ->
+    let (i, x) = pair
+    let selected = i == cursor
+    let prefix = if selected then "›" else " "
+    let line = $"  {prefix} {x}"
+    let styled =
+      if selected then Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
+      else line
+    Stdlib.printLine styled)
+
+let render (state: State) : Unit =
+  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
+  let dirtyTag =
+    if state.dirty then Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow "  ● unsaved"
+    else ""
+  let title =
+    Darklang.Cli.Colors.colorize
+      (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold)
+      " capabilities "
+  Stdlib.printLine $"{title}{dirtyTag}"
+  Stdlib.printLine ""
+  match state.screen with
+  | Browsing ->
+    printRows state
+    Stdlib.printLine ""
+    Stdlib.printLine
+      (Darklang.Cli.Colors.dimText
+        "  ↑↓ move · space toggle · enter edit/add · a add rule · d delete · p profile · w write · esc exit")
+  | AddPickDomain cursor ->
+    printMenu "  Add a rule for which domain?" ruleDomains cursor
+    Stdlib.printLine ""
+    Stdlib.printLine
+      (Darklang.Cli.Colors.dimText "  ↑↓ move · enter choose · esc cancel")
+  | PickProfile cursor ->
+    let names = Stdlib.List.map Commands.Caps.profiles (fun pair -> Stdlib.Tuple2.first pair)
+    printMenu "  Apply a profile (REPLACES the grant):" names cursor
+    Stdlib.printLine ""
+    Stdlib.printLine
+      (Darklang.Cli.Colors.dimText "  ↑↓ move · enter apply · esc cancel")
+  | EditHttp(_, editor) ->
+    Stdlib.printLines (Darklang.Cli.Apps.Caps.HttpRuleEditor.render editor)
+  | EditExec(_, editor) ->
+    Stdlib.printLines (Darklang.Cli.Apps.Caps.ExecRuleEditor.render editor)
+  | EditAccess(_, editor) ->
+    Stdlib.printLines (Darklang.Cli.Apps.Caps.AccessEditor.render editor)
+
+let save (state: State) : Unit =
+  let _ = Commands.Caps.writeSpecs state.specs
+  ()

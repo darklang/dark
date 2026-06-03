@@ -54,6 +54,11 @@ let createState
 
     allowHarmful = false
 
+    // The base default is permissive — `createState` is RT-level and can't read the on-disk grant, so
+    // the gate is a no-op here. The CLI host narrows it per entry point (`eval`/host → the configured
+    // grant; `dark run` → NONE) before executing user code; tests run permissive.
+    grantedCaps = LibExecution.Capabilities.allCaps
+
     accountID = None }
 
 

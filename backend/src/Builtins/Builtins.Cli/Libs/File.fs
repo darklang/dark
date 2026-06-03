@@ -48,8 +48,10 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTBlob errType
         let resultError = Dval.resultError KTBlob errType
         (function
-        | _, _, _, [ DString path ] ->
+        | state, _, _, [ DString path ] ->
           uply {
+            // precise check: this exact path must be covered (gate checked file presence).
+            LibExecution.CapabilityCheck.requireFileRead state.grantedCaps path
             try
               let path =
                 path.Replace(
@@ -65,6 +67,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileRead
       deprecated = NotDeprecated }
 
 
@@ -80,6 +83,8 @@ let fns () : List<BuiltInFn> =
         (function
         | state, _, _, [ DBlob ref; DString path ] ->
           uply {
+            // precise check: this exact path must be covered (gate checked file presence).
+            LibExecution.CapabilityCheck.requireFileWrite state.grantedCaps path
             try
               let path =
                 path.Replace(
@@ -96,6 +101,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileWrite
       deprecated = NotDeprecated }
 
 
@@ -106,8 +112,10 @@ let fns () : List<BuiltInFn> =
       description = "Deletes the file specified by <param path>"
       fn =
         (function
-        | _, _, _, [ DString path ] ->
+        | state, _, _, [ DString path ] ->
           uply {
+            // precise check: this exact path must be covered (gate checked file presence).
+            LibExecution.CapabilityCheck.requireFileWrite state.grantedCaps path
             try
               System.IO.File.Delete path
               return Dval.resultOk KTUnit KTString DUnit
@@ -121,6 +129,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileWrite
       deprecated = NotDeprecated }
 
 
@@ -134,8 +143,10 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTUnit KTString
         let resultError = Dval.resultError KTUnit KTString
         (function
-        | _, _, _, [ DString path; DString content ] ->
+        | state, _, _, [ DString path; DString content ] ->
           uply {
+            // precise check: this exact path must be covered (gate checked file presence).
+            LibExecution.CapabilityCheck.requireFileWrite state.grantedCaps path
             try
               do! System.IO.File.AppendAllTextAsync(path, content)
               return resultOk DUnit
@@ -145,6 +156,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileWrite
       deprecated = NotDeprecated }
 
 
@@ -156,8 +168,10 @@ let fns () : List<BuiltInFn> =
         "Returns true if the file specified by <param path> is a directory, or false if it is a file or does not exist"
       fn =
         (function
-        | _, _, _, [ DString path ] ->
+        | state, _, _, [ DString path ] ->
           uply {
+            // precise check: this exact path must be covered (gate checked file presence).
+            LibExecution.CapabilityCheck.requireFileRead state.grantedCaps path
             try
               let attrs = System.IO.File.GetAttributes(path)
               let isDir = attrs.HasFlag(System.IO.FileAttributes.Directory)
@@ -168,6 +182,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileRead
       deprecated = NotDeprecated }
 
 
@@ -179,8 +194,10 @@ let fns () : List<BuiltInFn> =
         "Returns true if a file or directory exists at the specified <param path>, or false otherwise"
       fn =
         (function
-        | _, _, _, [ DString path ] ->
+        | state, _, _, [ DString path ] ->
           uply {
+            // precise check: this exact path must be covered (gate checked file presence).
+            LibExecution.CapabilityCheck.requireFileRead state.grantedCaps path
             try
               let exists =
                 System.IO.File.Exists(path) || System.IO.Directory.Exists(path)
@@ -191,6 +208,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileRead
       deprecated = NotDeprecated } ]
 
 

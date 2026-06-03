@@ -838,6 +838,35 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                             0L
                         else
                           0L
+                      // capabilities gate: a builtin runs only if the instance's grant covers the DOMAIN
+                      // it declares it needs (`fn.capabilities`) — a structural PRESENCE check, no name
+                      // matching. Nuanced builtins (http/file/exec/…) additionally enforce the SPECIFIC
+                      // target (URL/path/args) in their own body via `CapabilityCheck`. Default grant is
+                      // allCaps (no behavior change); a real instance narrows it (default NONE for `dark run`).
+                      // fast-path: pure builtins (the vast majority) all share the one `noCaps` instance,
+                      // so a reference check skips the structural scan entirely in the hot path. A false
+                      // negative (an all-empty need built fresh) just runs the full check — still correct.
+                      if
+                        not (
+                          System.Object.ReferenceEquals(
+                            fn.capabilities,
+                            Capabilities.noCaps
+                          )
+                        )
+                      then
+                        match
+                          Capabilities.coversStructurally
+                            exeState.grantedCaps
+                            fn.capabilities
+                        with
+                        | Capabilities.Denied what ->
+                          raiseRTE (
+                            RTE.UncaughtException(
+                              $"capability denied: `{fn.name.name}` needs {what}, which this instance doesn't grant. Grant it with `dark caps`.",
+                              []
+                            )
+                          )
+                        | Capabilities.Allowed -> ()
                       let! result = fn.fn (exeState, vm, resolvedTypeArgs, allArgs)
                       if vm.stats.enabled && vm.stats.detailedTiming then
                         let elapsed =

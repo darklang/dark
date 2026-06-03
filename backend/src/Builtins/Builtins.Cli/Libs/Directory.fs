@@ -28,6 +28,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileRead
       deprecated = NotDeprecated }
 
 
@@ -38,8 +39,10 @@ let fns () : List<BuiltInFn> =
       description = "Returns the directory at <param path>"
       fn =
         (function
-        | _, _, _, [ DString path ] ->
+        | state, _, _, [ DString path ] ->
           uply {
+            // precise check: this exact path must be covered (gate checked file presence).
+            LibExecution.CapabilityCheck.requireFileRead state.grantedCaps path
             // TODO make async
             let contents =
               try
@@ -52,6 +55,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileRead
       deprecated = NotDeprecated }
 
 
@@ -71,6 +75,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated } ]
 
 

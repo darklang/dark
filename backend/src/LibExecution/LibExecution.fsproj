@@ -23,8 +23,11 @@
   <ItemGroup>
     <Compile Include="DarkDateTime.fs" />
     <Compile Include="PackageRefs.fs" />
+    <!-- Capabilities (resource-domain gating model — RT-independent) /-->
+    <Compile Include="Capabilities.fs" />
     <!-- Runtime /-->
     <Compile Include="RuntimeTypes.fs" />
+    <Compile Include="CapabilityCheck.fs" />
     <Compile Include="ValueType.fs" />
     <Compile Include="Blob.fs" />
     <Compile Include="Stream.fs" />
@@ -35,12 +38,14 @@
     <Compile Include="AnalysisTypes.fs" />
     <!-- Dev-time, Language Design, Mental Model /-->
     <Compile Include="ProgramTypes.fs" />
+    <Compile Include="CapabilityAnalysis.fs" />
     <Compile Include="ProgramTypesAst.fs" />
     <Compile Include="RTQueryCompiler.fs" />
     <Compile Include="ProgramTypesToRuntimeTypes.fs" />
     <!-- User+Runtime I/O /-->
     <Compile Include="DvalDecoder.fs" />
     <Compile Include="CommonToDarkTypes.fs" />
+    <Compile Include="CapabilitiesToDarkTypes.fs" />
     <Compile Include="RuntimeTypesToDarkTypes.fs" />
     <Compile Include="ProgramTypesToDarkTypes.fs" />
     <!-- Expose the runtime to the outside world /-->

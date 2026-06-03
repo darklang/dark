@@ -19,6 +19,7 @@
     <Compile Include="Libs/PM/Scripts.fs" />
     <Compile Include="Libs/PM/Dependencies.fs" />
     <Compile Include="Libs/PM/Seed.fs" />
+    <Compile Include="Libs/PM/Caps.fs" />
 
     <!-- Tracing (reader) -->
     <Compile Include="Libs/Traces.fs" />

@@ -667,6 +667,8 @@ let fns (config : Configuration) : List<BuiltInFn> =
           _,
           [ DString method; DString uri; DList(_, reqHeaders); DBlob bodyRef ] ->
           uply {
+            // precise check: this exact method+URL must be covered (the gate only checked http presence).
+            LibExecution.CapabilityCheck.requireHttp state.grantedCaps method uri
             let! reqBodyBytes = Blob.readBytes state bodyRef
             let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
               reqHeaders
@@ -755,6 +757,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.http
       deprecated = NotDeprecated }
 
 
@@ -797,8 +800,10 @@ let fns (config : Configuration) : List<BuiltInFn> =
         let resultOk = Dval.resultOk streamTypeOk streamTypeErr
         let resultError = Dval.resultError streamTypeOk streamTypeErr
         (function
-        | _, vm, _, [ DString method; DString uri; DList(_, reqHeaders) ] ->
+        | state, vm, _, [ DString method; DString uri; DList(_, reqHeaders) ] ->
           uply {
+            // precise check: this exact method+URL must be covered (the gate only checked http presence).
+            LibExecution.CapabilityCheck.requireHttp state.grantedCaps method uri
             let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
               reqHeaders
               |> Ply.List.mapSequentially (fun item ->
@@ -905,6 +910,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.http
       deprecated = NotDeprecated } ]
 
 

@@ -303,7 +303,11 @@ let fns () : List<BuiltInFn> =
           Param.make
             "allowHarmful"
             TBool
-            "Opt out of Harmful-deprecation halting (see docs/deprecation)" ]
+            "Opt out of Harmful-deprecation halting (see docs/deprecation)"
+          Param.make
+            "sandbox"
+            TBool
+            "Run the script body with NO capabilities (a deny-all sandbox for untrusted scripts), instead of the host's configured grant" ]
       returnType = TypeReference.result TInt64 (ExecutionError.typeRef ())
       description =
         "Parses Dark code as a script, and and executes it, returning an exit code"
@@ -320,14 +324,18 @@ let fns () : List<BuiltInFn> =
             DString filename
             DString code
             DList(_vtTODO, scriptArgs)
-            DBool allowHarmful ] ->
+            DBool allowHarmful
+            DBool sandbox ] ->
           uply {
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`. None passes through
             // (anonymous runs, tests).
             let accountID = C2DT.Option.fromDT D.uuid accountIDDval
             let exeState = { exeState with accountID = accountID }
-            // Use branch-specific state for parsing so name resolution uses the right branch
+            // Use branch-specific state for parsing so name resolution uses the right branch.
+            // Parsing keeps the host's caps — name resolution / package loading needs
+            // cli-host effects to boot (the noCaps-breaks-bootstrap case). Only the script
+            // *body* is sandboxed below (`runState`).
             let branchState = createBranchState exeState branchId allowHarmful
 
             try
@@ -340,6 +348,20 @@ let fns () : List<BuiltInFn> =
 
               match parsedScript with
               | Ok mod' ->
+                // `dark run` RESPECTS the host's configured grant by default (`hostCaps`: allCaps until
+                // an instance grant is configured, then that grant) — the same posture as `eval`, so the
+                // grant you set is the grant scripts obey. `--sandbox` drops to NO capabilities for
+                // running untrusted scripts (any effectful builtin then raises).
+                // TODO product decision, revisit: this favors "run my own script" over "run an untrusted
+                // script" (sandbox is opt-IN). If `dark run <url>` / piping untrusted code becomes common,
+                // a deny-all default + `--trust`/`--apply-host-caps` opt-in may be safer. See also the
+                // trust-boundary TODO in `LanguageTools.Capabilities.all`.
+                let runCaps =
+                  if sandbox then
+                    LibExecution.Capabilities.noCaps
+                  else
+                    LibDB.CapabilityGrants.hostCaps ()
+                let exeState = { exeState with grantedCaps = runCaps }
                 match!
                   execute
                     exeState
@@ -381,6 +403,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -417,7 +440,12 @@ let fns () : List<BuiltInFn> =
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`.
             let accountID = C2DT.Option.fromDT D.uuid accountIDDval
-            let exeState = { exeState with accountID = accountID }
+            // `eval` runs the expression under the HOST's capabilities — `allCaps` until an instance
+            // grant is configured, then whatever that grant allows (the gate denies uncovered builtins).
+            let exeState =
+              { exeState with
+                  accountID = accountID
+                  grantedCaps = LibDB.CapabilityGrants.hostCaps () }
             // Use branch-specific state for parsing so name resolution uses the right branch
             let branchState = createBranchState exeState branchId allowHarmful
 
@@ -466,6 +494,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 

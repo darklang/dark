@@ -53,6 +53,7 @@
 
     <Compile Include="Blob.Tests.fs" />
     <Compile Include="Stream.Tests.fs" />
+    <Compile Include="Capabilities.Tests.fs" />
 
     <Compile Include="Tests.fs" />
   </ItemGroup>
