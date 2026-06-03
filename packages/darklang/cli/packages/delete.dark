@@ -13,52 +13,33 @@ type ParsedArgs =
     message: String
     autoConfirm: Bool
     ignoreDependents: Bool
-    dryRun: Bool }
+    dryRun: Bool
+    parseErrors: List<FlagParser.ParseError> }
 
 
-let emptyArgs: ParsedArgs =
-  ParsedArgs
-    { itemType = Stdlib.Option.Option.None
-      target = Stdlib.Option.Option.None
-      message = ""
-      autoConfirm = false
-      ignoreDependents = false
-      dryRun = false }
+let argSpec: FlagParser.Spec =
+  FlagParser.Spec
+    { flags =
+        [ ("--yes", [ "-y" ])
+          ("--ignore-dependents", [])
+          ("--force", [])
+          ("--dry-run", []) ]
+      valueFlags = [ ("--message", [ "-m" ]) ] }
 
 
-let parseArgsLoop (acc: ParsedArgs) (remaining: List<String>) : ParsedArgs =
-  match remaining with
-  | [] -> acc
-  | "--yes" :: rest
-  | "-y" :: rest -> parseArgsLoop ({ acc with autoConfirm = true }) rest
-  | "--ignore-dependents" :: rest ->
-    parseArgsLoop ({ acc with ignoreDependents = true }) rest
-  // --force is shorthand for --ignore-dependents --yes: ignore live dependents and skip the prompt.
-  | "--force" :: rest ->
-    parseArgsLoop
-      ({ acc with ignoreDependents = true; autoConfirm = true })
-      rest
-  | "--dry-run" :: rest -> parseArgsLoop ({ acc with dryRun = true }) rest
-  | "-m" :: v :: rest
-  | "--message" :: v :: rest ->
-    parseArgsLoop ({ acc with message = v }) rest
-  | positional :: rest ->
-    match acc.itemType with
-    | None ->
-      parseArgsLoop
-        ({ acc with itemType = Stdlib.Option.Option.Some positional })
-        rest
-    | Some _ ->
-      match acc.target with
-      | None ->
-        parseArgsLoop
-          ({ acc with target = Stdlib.Option.Option.Some positional })
-          rest
-      | Some _ -> parseArgsLoop acc rest
-
-
+/// Positional args fill itemType, then target. `--force` is shorthand for
+/// `--ignore-dependents --yes`: ignore live dependents and skip the prompt.
 let parseArgs (args: List<String>) : ParsedArgs =
-  parseArgsLoop emptyArgs args
+  let p = FlagParser.parse argSpec args
+  let forced = FlagParser.hasFlag p "--force"
+  ParsedArgs
+    { itemType = Stdlib.List.getAt p.positionals 0L
+      target = Stdlib.List.getAt p.positionals 1L
+      message = FlagParser.getOptionOr p "--message" ""
+      autoConfirm = (FlagParser.hasFlag p "--yes") || forced
+      ignoreDependents = (FlagParser.hasFlag p "--ignore-dependents") || forced
+      dryRun = FlagParser.hasFlag p "--dry-run"
+      parseErrors = p.errors }
 
 
 /// Count live (non-deprecated) dependents on `targetLoc`. 0 means no gate
@@ -98,6 +79,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   let branchId = state.currentBranchId
 
   match (parsed.itemType, parsed.target) with
+  | _ when Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) ->
+    Stdlib.printLine (Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
+    help state
   | (None, _) -> help state
   | (Some itemTypeStr, targetOpt) ->
     match Propagate.itemKindFromString itemTypeStr with
