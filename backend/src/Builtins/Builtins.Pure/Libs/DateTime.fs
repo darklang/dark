@@ -50,6 +50,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -77,6 +78,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -95,6 +97,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -110,6 +113,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -126,6 +130,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "+"
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -147,6 +152,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -161,6 +167,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">"
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -175,6 +182,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<"
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -189,6 +197,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">="
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -203,6 +212,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<="
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -219,6 +229,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -239,6 +250,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -253,6 +265,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'year'" ])
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -268,6 +281,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'month'" ])
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -282,6 +296,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'day'" ])
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -298,6 +313,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -312,6 +328,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -326,6 +343,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -340,6 +358,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -355,6 +374,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunctionWithPrefixArgs("date_trunc", [ "'day'" ])
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -377,6 +397,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -393,6 +414,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -413,6 +435,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -430,6 +453,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -447,6 +471,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -462,6 +487,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -480,6 +506,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated } ]
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

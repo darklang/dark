@@ -113,7 +113,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | ["run"; name] ->
     match Builtin.pmScriptsGet name with
     | Some script ->
-      let result = Builtin.cliParseAndExecuteScript state.accountID state.currentBranchId $"script:{name}" script.text [] false
+      let result = Builtin.cliParseAndExecuteScript state.accountID state.currentBranchId $"script:{name}" script.text [] false false
       match result with
       | Ok 0L -> state
       | Ok exitCode ->

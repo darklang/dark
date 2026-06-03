@@ -23,6 +23,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "not"
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated } ]
 
 

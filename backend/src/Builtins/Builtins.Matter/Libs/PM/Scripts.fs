@@ -43,6 +43,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -64,6 +65,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -86,6 +88,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -108,6 +111,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -130,6 +134,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated } ]
 
 let builtins () = Builtin.make [] (fns ())

@@ -7,15 +7,21 @@ module Darklang.Cli.Run
 let execute (state: AppState) (args: List<String>) : AppState =
   let allowHarmful =
     Stdlib.List.member_v0 args "--allow-harmful"
+  // `dark run` is secure-by-default: the script body gets NO capabilities.
+  // `--apply-host-caps` opts into inheriting the host shell's granted caps.
+  let applyHostCaps =
+    Stdlib.List.member_v0 args "--apply-host-caps"
   let args =
-    args |> Stdlib.List.filter (fun a -> a != "--allow-harmful")
+    args
+    |> Stdlib.List.filter (fun a ->
+      (a != "--allow-harmful") && (a != "--apply-host-caps"))
 
   match args with
   | [] ->
     help state
     state
   | scriptPath :: scriptArgs ->
-    executeScript state scriptPath scriptArgs allowHarmful
+    executeScript state scriptPath scriptArgs allowHarmful applyHostCaps
 
 
 let executeScript
@@ -23,6 +29,7 @@ let executeScript
   (scriptPath: String)
   (args: List<String>)
   (allowHarmful: Bool)
+  (applyHostCaps: Bool)
   : AppState =
   match Builtin.fileRead scriptPath with
   | Error e ->
@@ -41,6 +48,7 @@ let executeScript
         scriptSourceCode
         args
         allowHarmful
+        applyHostCaps
 
     match result with
     | Ok exitCode ->

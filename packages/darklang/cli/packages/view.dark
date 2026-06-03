@@ -146,6 +146,11 @@ let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       Stdlib.printLine highlighted
+      // the capabilities this fn (transitively) needs — what it would be allowed to do if run
+      let capsBadge =
+        Commands.Caps.badgeForHash
+          (LanguageTools.ProgramTypes.hashToString item.entity.hash)
+      Stdlib.printLine (Colors.dimText $"capabilities: {capsBadge}")
 
   | Value name ->
     // Find and display the specific value

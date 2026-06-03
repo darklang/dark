@@ -248,6 +248,13 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_package_dependencies_unique
     COALESCE(depends_on_name, '')
   );
 
+-- package_caps — content-addressed cache of a fn's effective capabilities (see PackageCaps.fs).
+-- `caps` = newline-joined sorted grant-specs; '' = pure.
+CREATE TABLE IF NOT EXISTS package_caps (
+  hash TEXT PRIMARY KEY,
+  caps TEXT NOT NULL
+);
+
 
 --------------------
 -- Traces

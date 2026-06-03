@@ -42,6 +42,8 @@
     <Compile Include="Scripts.fs" />
     <Compile Include="PackageRefsGenerator.fs" />
     <Compile Include="Seed.fs" />
+    <Compile Include="CapabilityGrants.fs" />
+    <Compile Include="PackageCaps.fs" />
 
     <!-- ex-LibCloud SQLite-bound modules /-->
     <Compile Include="Tracing.fs" />

@@ -1,0 +1,71 @@
+module Darklang.PrettyPrinter.Capabilities
+
+// Pretty-print a Darklang capability GRANT or NEED for display. Capabilities cross the F#/Dark boundary
+// as grant-spec strings — the stable wire form produced by `pmCapsGet` (the instance's grant) and
+// `pmFnEffectiveCaps` (what a fn transitively needs), e.g. "http-client GET", "file write ~/x", "random".
+// This is the ONE place that turns those specs into readable output, so `dark caps`, the caps app, and
+// any command that shows "what is this fn allowed to do?" all render identically.
+
+let methodLabel (m: String) : String = if m == "*" then "any" else m
+
+let pad (s: String) (goal: Int64) : String =
+  match Stdlib.String.padEnd s " " goal with
+  | Ok r -> r
+  | Error _ -> s
+
+/// The domain token of a spec — its first word. "http-client GET" → "http-client".
+let domainOf (spec: String) : String =
+  match Stdlib.String.split spec " " with
+  | head :: _ -> head
+  | [] -> ""
+
+/// The human-readable detail of one spec (everything after the domain), per-domain semantics. "" for
+/// the flag domains (random / clock / stdout / stdin / llm) — the domain name says it all.
+let detail (spec: String) : String =
+  let parts =
+    (Stdlib.String.split spec " ")
+    |> Stdlib.List.filter (fun s -> s != "")
+  match parts with
+  | [ "http-client" ] -> "any method → anywhere"
+  | [ "http-client"; m ] -> $"{PrettyPrinter.Capabilities.methodLabel m} → anywhere"
+  | [ "http-client"; m; url ] -> $"{PrettyPrinter.Capabilities.methodLabel m} → {url}"
+  | [ "http-server" ] -> "bind any port"
+  | [ "file"; rw ] -> $"{rw} → anywhere"
+  | [ "file"; rw; p ] -> $"{rw} → {p}"
+  | [ "env"; rw ] -> $"{rw} → any var"
+  | [ "env"; rw; v ] -> $"{rw} → {v}"
+  | [ "db"; rw ] -> $"{rw} → any table"
+  | [ "db"; rw; t ] -> $"{rw} → {t}"
+  | [ "exec" ] -> "any program"
+  | [ "exec"; prog ] -> prog
+  | "exec" :: prog :: progArgs -> $"""{prog}  ({Stdlib.String.join progArgs " "})"""
+  | [ _ ] -> "" // flag domains
+  | _ -> Stdlib.String.join (Stdlib.List.drop parts 1L) " "
+
+/// One aligned "domain   detail" line for a single spec — the single source of truth for a caps row
+/// (used by `caps list`, `caps <fn>`, and the interactive editor's rows).
+let line (spec: String) : String =
+  let det = PrettyPrinter.Capabilities.detail spec
+  if det == "" then
+    PrettyPrinter.Capabilities.domainOf spec
+  else
+    $"{PrettyPrinter.Capabilities.pad (PrettyPrinter.Capabilities.domainOf spec) 14L}{det}"
+
+/// The multi-line view: one aligned line per spec.
+let lines (specs: List<String>) : List<String> =
+  Stdlib.List.map specs (fun s -> PrettyPrinter.Capabilities.line s)
+
+/// A one-line summary: the distinct domains, e.g. "http-client, file, random".
+let compact (specs: List<String>) : String =
+  let domains =
+    specs
+    |> Stdlib.List.map (fun s -> PrettyPrinter.Capabilities.domainOf s)
+    |> Stdlib.List.unique
+  Stdlib.String.join domains ", "
+
+/// An inline badge: "pure" when there are no caps, else the compact domain summary.
+let badge (specs: List<String>) : String =
+  if Stdlib.List.isEmpty specs then
+    "pure"
+  else
+    PrettyPrinter.Capabilities.compact specs

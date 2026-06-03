@@ -3,8 +3,10 @@ module Tests.Interpreter
 open Expecto
 open Prelude
 open TestUtils.TestUtils
+open TestUtils.PTShortcuts
 
 module RT = LibExecution.RuntimeTypes
+module Cap = LibExecution.Capabilities
 module VT = LibExecution.ValueType
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module RTE = RT.RuntimeError
@@ -728,10 +730,61 @@ module Statement =
   let tests = testList "Statement" [ simple; nested; shouldError ]
 
 
+module CapsGate =
+  // the call-site gate ENFORCES — a builtin whose capability isn't granted raises at runtime.
+  // `timeNowMs` needs `clock`; under noCaps it's denied, under allCaps (the default) it runs. Proves
+  // "blockers work" end-to-end through the interpreter.
+  let clockCall () =
+    eApply (eBuiltinFn "timeNowMs" 0) [] [ eUnit () ]
+    |> PT2RT.Expr.toRT Map.empty 0 None
+
+  let denied =
+    testTask "an effectful builtin is DENIED when its capability isn't granted" {
+      let! exeState = executionStateFor TestValues.pm false Map.empty
+      let restricted : RT.ExecutionState = { exeState with grantedCaps = Cap.noCaps }
+      let! actual = LibExecution.Execution.executeExpr restricted (clockCall ())
+      match actual with
+      | Ok _ -> Expect.equal 1 2 "expected a capability-denied RTE, got success"
+      | Error(RTE.Error.UncaughtException(msg, _), _) ->
+        Expect.stringContains
+          msg
+          "capability denied"
+          "the gate denied the ungranted builtin"
+        Expect.stringContains msg "clock" "the error names the missing domain"
+      | Error(other, _) ->
+        Expect.equal
+          1
+          2
+          $"expected UncaughtException(capability denied), got {other}"
+    }
+
+  let allowed =
+    testTask
+      "the gate does NOT deny when the capability IS granted (allCaps default)" {
+      let! exeState = executionStateFor TestValues.pm false Map.empty // allCaps
+      let! actual = LibExecution.Execution.executeExpr exeState (clockCall ())
+      // We only assert the GATE was transparent — the builtin reaches `fn.fn`. (Its result may not
+      // typecheck headless without the OS package type; that's downstream of the gate, not a denial.)
+      match actual with
+      | Ok _ -> ()
+      | Error(RTE.Error.UncaughtException(msg, _), _) ->
+        Expect.isFalse
+          (msg.Contains "capability denied")
+          "under allCaps the gate must NOT deny — it got past the gate"
+      | Error _ -> () // any other RTE means it ran past the gate — fine
+    }
+
+  // NOTE: the path-scoped file/env/db enforcement (gate refines the need to the concrete target) is
+  // covered at the unit level by `scopedGrantsEnforcedByRefine` in Capabilities.Tests — the Cli file
+  // builtins aren't registered in this test execution state, so it can't be exercised end-to-end here.
+  let tests = testList "CapsGate" [ denied; allowed ]
+
+
 let tests =
   testList
     "Interpreter"
     [ Basic.tests
+      CapsGate.tests
       List.tests
       Let.tests
       String.tests

@@ -59,7 +59,8 @@ let main (args : string array) : int =
         Tests.LibExecution.tests.Force()
 
         Tests.Blob.tests
-        Tests.Stream.tests ]
+        Tests.Stream.tests
+        Tests.Capabilities.tests ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token

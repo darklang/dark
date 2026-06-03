@@ -29,6 +29,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -45,6 +46,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -70,6 +72,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -90,6 +93,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -112,6 +116,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -131,6 +136,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -161,6 +167,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -190,6 +197,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -222,6 +230,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -241,6 +250,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -258,6 +268,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated } ]
 
 // TODO `blobEmpty` is the only BuiltInValue we ship. The pattern is

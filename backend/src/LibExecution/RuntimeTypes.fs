@@ -1791,7 +1791,8 @@ type BuiltInValue =
 /// (Generally shouldn't be accessed directly,
 /// except by a single stdlib Package fn that wraps it)
 type BuiltInFn =
-  { name : FQFnName.Builtin
+  {
+    name : FQFnName.Builtin
     typeParams : List<string>
     parameters : List<BuiltInParam> // TODO: should be NEList but there's so much to change!
     returnType : TypeReference
@@ -1799,7 +1800,12 @@ type BuiltInFn =
     previewable : Previewable
     deprecated : Deprecation<FQFnName.FQFnName>
     sqlSpec : SqlSpec
-    fn : BuiltInFnSig }
+    /// The capabilities this builtin needs — pure (`noCaps`) by default; effectful builtins declare
+    /// their need. The call-site gate checks PRESENCE against this; nuanced builtins (http/file/exec)
+    /// additionally enforce the specific scope (URL/path/args) in their own body.
+    capabilities : Capabilities.Capabilities
+    fn : BuiltInFnSig
+  }
 
 and BuiltInFnSig =
   // (exeState * vmState * typeArgs * fnArgs) -> result
@@ -1871,6 +1877,11 @@ and ExecutionState =
     types : Types
     fns : Functions
     values : Values
+
+    /// The capabilities the running code is allowed — read by the call-site gate (an uncovered builtin
+    /// call is denied). Callers set it: `eval`/host use the configured grant (allCaps by default), `dark
+    /// run` uses NONE.
+    grantedCaps : Capabilities.Capabilities
 
     /// Content-addressed persistent blob store (`package_blobs`).
     /// Ephemeral blobs carry their bytes inline and need no store;

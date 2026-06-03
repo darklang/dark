@@ -303,7 +303,11 @@ let fns () : List<BuiltInFn> =
           Param.make
             "allowHarmful"
             TBool
-            "Opt out of Harmful-deprecation halting (see docs/deprecation)" ]
+            "Opt out of Harmful-deprecation halting (see docs/deprecation)"
+          Param.make
+            "applyHostCaps"
+            TBool
+            "Run the script with the host's granted capabilities instead of none (`dark run` is secure-by-default: no caps)" ]
       returnType = TypeReference.result TInt64 (ExecutionError.typeRef ())
       description =
         "Parses Dark code as a script, and and executes it, returning an exit code"
@@ -320,14 +324,18 @@ let fns () : List<BuiltInFn> =
             DString filename
             DString code
             DList(_vtTODO, scriptArgs)
-            DBool allowHarmful ] ->
+            DBool allowHarmful
+            DBool applyHostCaps ] ->
           uply {
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`. None passes through
             // (anonymous runs, tests).
             let accountID = C2DT.Option.fromDT D.uuid accountIDDval
             let exeState = { exeState with accountID = accountID }
-            // Use branch-specific state for parsing so name resolution uses the right branch
+            // Use branch-specific state for parsing so name resolution uses the right branch.
+            // Parsing keeps the host's caps — name resolution / package loading needs
+            // cli-host effects to boot (the noCaps-breaks-bootstrap case). Only the script
+            // *body* is sandboxed below (`runState`).
             let branchState = createBranchState exeState branchId allowHarmful
 
             try
@@ -340,6 +348,16 @@ let fns () : List<BuiltInFn> =
 
               match parsedScript with
               | Ok mod' ->
+                // `dark run` is the secure-by-default SANDBOX: the script body gets NO capabilities, so
+                // an effectful builtin (http, fs, time, …) raises unless the run opts into the host's
+                // capabilities via `--apply-host-caps` (`hostCaps`: allCaps until an instance grant is
+                // configured, then that grant).
+                let runCaps =
+                  if applyHostCaps then
+                    LibDB.CapabilityGrants.hostCaps ()
+                  else
+                    LibExecution.Capabilities.noCaps
+                let exeState = { exeState with grantedCaps = runCaps }
                 match!
                   execute
                     exeState
@@ -381,6 +399,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 
@@ -417,7 +436,12 @@ let fns () : List<BuiltInFn> =
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`.
             let accountID = C2DT.Option.fromDT D.uuid accountIDDval
-            let exeState = { exeState with accountID = accountID }
+            // `eval` runs the expression under the HOST's capabilities — `allCaps` until an instance
+            // grant is configured, then whatever that grant allows (the gate denies uncovered builtins).
+            let exeState =
+              { exeState with
+                  accountID = accountID
+                  grantedCaps = LibDB.CapabilityGrants.hostCaps () }
             // Use branch-specific state for parsing so name resolution uses the right branch
             let branchState = createBranchState exeState branchId allowHarmful
 
@@ -466,6 +490,7 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 

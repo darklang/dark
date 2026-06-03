@@ -1,0 +1,139 @@
+module Darklang.Cli.Apps.Caps.AccessEditor
+
+// A composable editor for ONE file/env/db access rule: an access mode (read / write / read+write)
+// coupled with a path/var/table scope. Emits a grant-spec like `file write ~/.darklang/`. The domain
+// (`file`/`env`/`db`) is fixed when the editor is opened. Empty scope ⇒ anywhere.
+
+type Field =
+  | AccessField
+  | ScopeField
+
+type State =
+  { domain: String
+    accessIdx: Int64
+    scope: Darklang.Cli.Apps.Caps.LineInput.State
+    field: Field }
+
+type EditResult =
+  | Editing of State
+  | Finished of String
+  | Cancelled
+
+let accesses : List<String> = [ "read"; "write"; "read+write" ]
+
+let forDomain (domain: String) : State =
+  State
+    { domain = domain
+      accessIdx = 0L
+      scope = Darklang.Cli.Apps.Caps.LineInput.empty
+      field = Field.AccessField }
+
+let indexOfAccess (a: String) : Int64 =
+  let indexed = Stdlib.List.indexedMap accesses (fun i x -> (i, x))
+  Stdlib.List.fold indexed 0L (fun acc pair ->
+    let (i, x) = pair
+    if x == a then i else acc)
+
+let fromSpec (spec: String) : State =
+  let parts =
+    (Stdlib.String.split spec " ") |> Stdlib.List.filter (fun s -> s != "")
+  match parts with
+  | domain :: access :: rest ->
+    // `rest` may contain spaces (e.g. a path with a space) — rejoin it as the scope
+    let scope = Stdlib.String.join rest " "
+    State
+      { domain = domain
+        accessIdx = indexOfAccess access
+        scope =
+          if scope == "" then Darklang.Cli.Apps.Caps.LineInput.empty
+          else Darklang.Cli.Apps.Caps.LineInput.make scope
+        field = Field.AccessField }
+  | _ -> forDomain "file"
+
+let currentAccess (state: State) : String =
+  accesses |> Stdlib.List.getAt state.accessIdx |> Stdlib.Option.withDefault "read"
+
+let toSpec (state: State) : String =
+  let access = currentAccess state
+  let scopeState = state.scope
+  let scope = Stdlib.String.trim scopeState.text
+  if scope == "" then $"{state.domain} {access}"
+  else $"{state.domain} {access} {scope}"
+
+let cycleAccess (state: State) (delta: Int64) : State =
+  let count = Stdlib.List.length accesses
+  let raw = state.accessIdx + delta
+  let next =
+    if raw < 0L then count - 1L
+    else if raw >= count then 0L
+    else raw
+  { state with accessIdx = next }
+
+let toggleField (state: State) : State =
+  let next =
+    match state.field with
+    | AccessField -> Field.ScopeField
+    | ScopeField -> Field.AccessField
+  { state with field = next }
+
+let applyScopeKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (keyChar: Stdlib.Option.Option<String>)
+  : State =
+  if state.field == Field.ScopeField then
+    match Darklang.Cli.Apps.Caps.LineInput.handleKey state.scope key keyChar with
+    | Some s -> { state with scope = s }
+    | None -> state
+  else
+    state
+
+let handleKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (_modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : EditResult =
+  let onAccess = state.field == Field.AccessField
+  match key with
+  | Enter -> EditResult.Finished (toSpec state)
+  | Escape -> EditResult.Cancelled
+  | Tab -> EditResult.Editing (toggleField state)
+  | UpArrow -> EditResult.Editing ({ state with field = Field.AccessField })
+  | DownArrow -> EditResult.Editing ({ state with field = Field.ScopeField })
+  | LeftArrow ->
+    if onAccess then EditResult.Editing (cycleAccess state (0L - 1L))
+    else EditResult.Editing (applyScopeKey state key keyChar)
+  | RightArrow ->
+    if onAccess then EditResult.Editing (cycleAccess state 1L)
+    else EditResult.Editing (applyScopeKey state key keyChar)
+  | Spacebar ->
+    if onAccess then EditResult.Editing (cycleAccess state 1L)
+    else EditResult.Editing (applyScopeKey state key keyChar)
+  | _ -> EditResult.Editing (applyScopeKey state key keyChar)
+
+let render (state: State) : List<String> =
+  let accessFocused = state.field == Field.AccessField
+  let scopeFocused = state.field == Field.ScopeField
+  let access = currentAccess state
+  let accessVal =
+    if accessFocused then
+      Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection $" {access} "
+    else
+      $"[{access}]"
+  let scopePlaceholder =
+    if state.domain == "file" then "anywhere"
+    else if state.domain == "env" then "any var"
+    else "any table"
+  let scopeVal =
+    Darklang.Cli.Apps.Caps.LineInput.render state.scope scopeFocused scopePlaceholder
+  let hint =
+    Darklang.Cli.Colors.dimText
+      "  (left/right cycle access, Tab switch field, Enter save, Esc cancel)"
+  let specLabel = Darklang.Cli.Colors.dimText "spec:"
+  [ $"  Edit {state.domain} rule:"
+    $"    access:  {accessVal}"
+    $"    scope:   {scopeVal}"
+    hint
+    ""
+    $"    {specLabel} {toSpec state}" ]
