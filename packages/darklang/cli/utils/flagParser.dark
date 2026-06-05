@@ -1,0 +1,125 @@
+module Darklang.Cli.FlagParser
+
+// A small declarative arg parser shared by CLI commands. Each command declares
+// its bare flags and value-taking flags (with aliases); `parse` walks the token
+// list once and returns a neutral `Parsed`, which the command reads into its own
+// typed config via `hasFlag`, `getOption`, `positionals`, and `errors`.
+
+
+type Spec =
+  { // bare boolean flags: (canonicalName, aliases). e.g. ("--yes", ["-y"])
+    flags: List<(String * List<String>)>
+    // `--key value` flags: (canonicalName, aliases). e.g. ("--message", ["-m"]).
+    // Greedy: consumes the next token even if it looks like a flag; errors only
+    // when nothing follows.
+    valueFlags: List<(String * List<String>)> }
+
+
+type ParseError =
+  | UnknownFlag of String
+  | MissingValue of String
+
+
+type Parsed =
+  { // canonical names of bare flags seen, in encounter order (duplicates kept)
+    flags: List<String>
+    // (canonicalName, value) pairs in encounter order
+    options: List<(String * String)>
+    positionals: List<String>
+    errors: List<ParseError> }
+
+
+let emptyParsed: Parsed =
+  Parsed { flags = []; options = []; positionals = []; errors = [] }
+
+
+// The canonical name for `token` if it matches an entry's name or an alias.
+let canonicalFor
+  (entries: List<(String * List<String>)>)
+  (token: String)
+  : Stdlib.Option.Option<String> =
+  entries
+  |> Stdlib.List.findFirst (fun entry ->
+    let (name, aliases) = entry
+    (token == name) || (Stdlib.List.any aliases (fun a -> a == token)))
+  |> Stdlib.Option.map (fun entry ->
+    let (name, _aliases) = entry
+    name)
+
+
+let isFlagLike (token: String) : Bool =
+  token != "-" && Stdlib.String.startsWith token "-"
+
+
+let addFlag (acc: Parsed) (name: String) : Parsed =
+  { acc with flags = Stdlib.List.append acc.flags [ name ] }
+
+
+let addOption (acc: Parsed) (name: String) (value: String) : Parsed =
+  { acc with options = Stdlib.List.append acc.options [ (name, value) ] }
+
+
+let addUnknown (acc: Parsed) (token: String) : Parsed =
+  { acc with errors = Stdlib.List.append acc.errors [ ParseError.UnknownFlag token ] }
+
+
+let addMissingValue (acc: Parsed) (token: String) : Parsed =
+  { acc with errors = Stdlib.List.append acc.errors [ ParseError.MissingValue token ] }
+
+
+let parseLoop (spec: Spec) (acc: Parsed) (remaining: List<String>) : Parsed =
+  match remaining with
+  | [] -> acc
+
+  | token :: rest ->
+    match canonicalFor spec.valueFlags token with
+    | Some name ->
+      match rest with
+      | value :: tail -> parseLoop spec (addOption acc name value) tail
+      | [] -> parseLoop spec (addMissingValue acc token) rest
+    | None ->
+      match canonicalFor spec.flags token with
+      | Some name -> parseLoop spec (addFlag acc name) rest
+      | None ->
+        if isFlagLike token then
+          parseLoop spec (addUnknown acc token) rest
+        else
+          parseLoop
+            spec
+            { acc with positionals = Stdlib.List.append acc.positionals [ token ] }
+            rest
+
+
+let parse (spec: Spec) (args: List<String>) : Parsed =
+  parseLoop spec emptyParsed args
+
+
+let hasFlag (p: Parsed) (name: String) : Bool =
+  Stdlib.List.any p.flags (fun f -> f == name)
+
+
+// The value for `name`; last occurrence wins, matching the old
+// `{ acc with x = v }` overwrite-on-repeat behavior.
+let getOption (p: Parsed) (name: String) : Stdlib.Option.Option<String> =
+  p.options
+  |> Stdlib.List.filter (fun pair ->
+    let (k, _v) = pair
+    k == name)
+  |> Stdlib.List.last
+  |> Stdlib.Option.map (fun pair ->
+    let (_k, v) = pair
+    v)
+
+
+let getOptionOr (p: Parsed) (name: String) (default_: String) : String =
+  Stdlib.Option.withDefault (getOption p name) default_
+
+
+let parseErrorMessage (err: ParseError) : String =
+  match err with
+  | UnknownFlag token -> $"Error: unknown flag: {token}"
+  | MissingValue token -> $"Error: {token} requires a value"
+
+
+let parseErrorsMessage (errors: List<ParseError>) : String =
+  errors |> Stdlib.List.map parseErrorMessage |> Stdlib.String.join "\n"

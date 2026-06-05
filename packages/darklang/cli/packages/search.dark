@@ -143,64 +143,51 @@ type ParsedArgs =
     withDocs: Bool
     shallow: Bool
     includeDeprecated: Bool
-    unknownFlags: List<String> }
+    parseErrors: List<FlagParser.ParseError> }
 
 
-let emptyArgs: ParsedArgs =
-  ParsedArgs
-    { queryParts = []
-      entityTypes = []
-      exactMatch = false
-      withDocs = false
-      shallow = false
-      includeDeprecated = false
-      unknownFlags = [] }
-
-
-let addEntityType
-  (entityType: LanguageTools.ProgramTypes.Search.EntityType)
-  (args: ParsedArgs)
-  : ParsedArgs =
-  { args with entityTypes = Stdlib.List.append args.entityTypes [entityType] }
-
-
-let parseArgsLoop (acc: ParsedArgs) (remaining: List<String>) : ParsedArgs =
-  match remaining with
-  | [] -> acc
-  | "--type" :: rest ->
-    parseArgsLoop
-      (addEntityType LanguageTools.ProgramTypes.Search.EntityType.Type acc)
-      rest
-  | "--fn" :: rest
-  | "--function" :: rest ->
-    parseArgsLoop
-      (addEntityType LanguageTools.ProgramTypes.Search.EntityType.Fn acc)
-      rest
-  | "--val" :: rest
-  | "--value" :: rest ->
-    parseArgsLoop
-      (addEntityType LanguageTools.ProgramTypes.Search.EntityType.Value acc)
-      rest
-  | "--exact" :: rest -> parseArgsLoop ({ acc with exactMatch = true }) rest
-  // TODO: `--shallow` is current-location scoped, which is confusing for
-  // qualified queries like `search Darklang.Stdlib.List --shallow`.
-  | "--shallow" :: rest -> parseArgsLoop ({ acc with shallow = true }) rest
-  | "--with-docs" :: rest -> parseArgsLoop ({ acc with withDocs = true }) rest
-  | "--include-deprecated" :: rest ->
-    parseArgsLoop ({ acc with includeDeprecated = true }) rest
-  | token :: rest ->
-    if Stdlib.String.startsWith token "--" then
-      parseArgsLoop
-        ({ acc with unknownFlags = Stdlib.List.append acc.unknownFlags [token] })
-        rest
-    else
-      parseArgsLoop
-        ({ acc with queryParts = Stdlib.List.append acc.queryParts [token] })
-        rest
+// TODO: `--shallow` is current-location scoped, which is confusing for
+// qualified queries like `search Darklang.Stdlib.List --shallow`.
+let argSpec: FlagParser.Spec =
+  FlagParser.Spec
+    { flags =
+        [ ("--type", [])
+          ("--fn", [ "--function" ])
+          ("--val", [ "--value" ])
+          ("--exact", [])
+          ("--shallow", [])
+          ("--with-docs", [])
+          ("--include-deprecated", []) ]
+      valueFlags = [] }
 
 
 let parseArgs (args: List<String>) : ParsedArgs =
-  parseArgsLoop emptyArgs args
+  let p = FlagParser.parse argSpec args
+  // Entity types are preserved in the order their flags appeared.
+  let entityTypes =
+    p.flags
+    |> Stdlib.List.fold [] (fun acc f ->
+      match f with
+      | "--type" ->
+        Stdlib.List.append
+          acc
+          [ LanguageTools.ProgramTypes.Search.EntityType.Type ]
+      | "--fn" ->
+        Stdlib.List.append acc [ LanguageTools.ProgramTypes.Search.EntityType.Fn ]
+      | "--val" ->
+        Stdlib.List.append
+          acc
+          [ LanguageTools.ProgramTypes.Search.EntityType.Value ]
+      | _ -> acc)
+
+  ParsedArgs
+    { queryParts = p.positionals
+      entityTypes = entityTypes
+      exactMatch = FlagParser.hasFlag p "--exact"
+      withDocs = FlagParser.hasFlag p "--with-docs"
+      shallow = FlagParser.hasFlag p "--shallow"
+      includeDeprecated = FlagParser.hasFlag p "--include-deprecated"
+      parseErrors = p.errors }
 
 
 let usage =
@@ -222,9 +209,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | _ ->
     let parsed = parseArgs args
 
-    if Stdlib.Bool.not (Stdlib.List.isEmpty parsed.unknownFlags) then
-      let bad = Stdlib.String.join parsed.unknownFlags " "
-      Stdlib.printLine (Colors.error $"Error: unknown flag(s): {bad}")
+    if Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) then
+      Stdlib.printLine (Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
       Stdlib.printLine ""
       Stdlib.printLine usage
       state

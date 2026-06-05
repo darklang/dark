@@ -150,32 +150,37 @@ let renderModule
   $"{header}\n{body}"
 
 
-// Returns (rootModulePath, includeTypes, includeDeprecated, filterText, all)
-let parseArgsLoop
-  (remaining: List<String>)
-  (root: List<String>)
-  (types: Bool)
-  (dep: Bool)
-  (filter: Stdlib.Option.Option<String>)
-  (all: Bool)
-  : (List<String> * Bool * Bool * Stdlib.Option.Option<String> * Bool) =
-  match remaining with
-  | [] -> (root, types, dep, filter, all)
-  | "--types" :: rest -> parseArgsLoop rest root true dep filter all
-  | "--include-deprecated" :: rest -> parseArgsLoop rest root types true filter all
-  | "--all" :: rest -> parseArgsLoop rest root types dep filter true
-  | "--module" :: path :: rest ->
-    parseArgsLoop rest (Stdlib.String.split path ".") types dep filter all
-  | arg :: rest ->
-    match filter with
-    | None -> parseArgsLoop rest root types dep (Stdlib.Option.Option.Some arg) all
-    | Some _ -> parseArgsLoop rest root types dep filter all
+type ParsedArgs =
+  { root: List<String>
+    includeTypes: Bool
+    includeDeprecated: Bool
+    filter: Stdlib.Option.Option<String>
+    all: Bool
+    parseErrors: List<FlagParser.ParseError> }
 
 
-let parseArgs
-  (args: List<String>)
-  : (List<String> * Bool * Bool * Stdlib.Option.Option<String> * Bool) =
-  parseArgsLoop args ["Darklang"; "Stdlib"] false false Stdlib.Option.Option.None false
+let argSpec: FlagParser.Spec =
+  FlagParser.Spec
+    { flags =
+        [ ("--types", []); ("--include-deprecated", []); ("--all", []) ]
+      valueFlags = [ ("--module", []) ] }
+
+
+// The first positional is the filter; later ones are ignored.
+let parseArgs (args: List<String>) : ParsedArgs =
+  let p = FlagParser.parse argSpec args
+  let root =
+    match FlagParser.getOption p "--module" with
+    | Some path -> Stdlib.String.split path "."
+    | None -> [ "Darklang"; "Stdlib" ]
+
+  ParsedArgs
+    { root = root
+      includeTypes = FlagParser.hasFlag p "--types"
+      includeDeprecated = FlagParser.hasFlag p "--include-deprecated"
+      filter = Stdlib.List.head p.positionals
+      all = FlagParser.hasFlag p "--all"
+      parseErrors = p.errors }
 
 
 let executeFiltered
@@ -271,24 +276,32 @@ let executeFiltered
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
-  let (rootPath, includeTypes, includeDeprecated, filterText, all) = parseArgs args
+  let parsed = parseArgs args
 
   // No scope, no filter, no --all: redirect to the cheap overview rather
   // than dumping every stdlib signature by default.
   let isDefaultRoot =
-    match rootPath with
+    match parsed.root with
     | [ "Darklang"; "Stdlib" ] -> true
     | _ -> false
 
   let isUnscoped =
     isDefaultRoot
-    && (Stdlib.Option.isNone filterText)
-    && (Stdlib.Bool.not all)
+    && (Stdlib.Option.isNone parsed.filter)
+    && (Stdlib.Bool.not parsed.all)
 
-  if isUnscoped then
+  if Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) then
+    Stdlib.printLine (Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
+    help state
+  else if isUnscoped then
     StdlibOverview.execute state args
   else
-    executeFiltered state rootPath includeTypes includeDeprecated filterText
+    executeFiltered
+      state
+      parsed.root
+      parsed.includeTypes
+      parsed.includeDeprecated
+      parsed.filter
 
 
 let help (state: Cli.AppState) : Cli.AppState =

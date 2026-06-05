@@ -14,57 +14,30 @@ type ParsedArgs =
     replacement: Stdlib.Option.Option<String>
     message: String
     autoConfirm: Bool
-    dryRun: Bool }
+    dryRun: Bool
+    parseErrors: List<FlagParser.ParseError> }
 
 
-let emptyArgs: ParsedArgs =
-  ParsedArgs
-    { itemType = Stdlib.Option.Option.None
-      target = Stdlib.Option.Option.None
-      kind = Stdlib.Option.Option.None
-      replacement = Stdlib.Option.Option.None
-      message = ""
-      autoConfirm = false
-      dryRun = false }
-
-
-let parseArgsLoop
-  (acc: ParsedArgs)
-  (remaining: List<String>)
-  : ParsedArgs =
-  match remaining with
-  | [] -> acc
-  | "--yes" :: rest
-  | "-y" :: rest -> parseArgsLoop ({ acc with autoConfirm = true }) rest
-  | "--dry-run" :: rest -> parseArgsLoop ({ acc with dryRun = true }) rest
-  | "--kind" :: v :: rest ->
-    parseArgsLoop ({ acc with kind = Stdlib.Option.Option.Some v }) rest
-  | "--replacement" :: v :: rest ->
-    parseArgsLoop
-      ({ acc with replacement = Stdlib.Option.Option.Some v })
-      rest
-  | "-m" :: v :: rest
-  | "--message" :: v :: rest ->
-    parseArgsLoop ({ acc with message = v }) rest
-  | positional :: rest ->
-    match acc.itemType with
-    | None ->
-      parseArgsLoop
-        ({ acc with itemType = Stdlib.Option.Option.Some positional })
-        rest
-    | Some _ ->
-      match acc.target with
-      | None ->
-        parseArgsLoop
-          ({ acc with target = Stdlib.Option.Option.Some positional })
-          rest
-      | Some _ -> parseArgsLoop acc rest
+let argSpec: FlagParser.Spec =
+  FlagParser.Spec
+    { flags = [ ("--yes", [ "-y" ]); ("--dry-run", []) ]
+      valueFlags =
+        [ ("--kind", []); ("--replacement", []); ("--message", [ "-m" ]) ] }
 
 
 /// Parse `--key value` / `--flag` style args into a ParsedArgs.
 /// Positional args fill itemType, then target.
 let parseArgs (args: List<String>) : ParsedArgs =
-  parseArgsLoop emptyArgs args
+  let p = FlagParser.parse argSpec args
+  ParsedArgs
+    { itemType = Stdlib.List.getAt p.positionals 0L
+      target = Stdlib.List.getAt p.positionals 1L
+      kind = FlagParser.getOption p "--kind"
+      replacement = FlagParser.getOption p "--replacement"
+      message = FlagParser.getOptionOr p "--message" ""
+      autoConfirm = FlagParser.hasFlag p "--yes"
+      dryRun = FlagParser.hasFlag p "--dry-run"
+      parseErrors = p.errors }
 
 
 /// Build a Reference by resolving a location string (FQN).
@@ -128,6 +101,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   let branchId = state.currentBranchId
 
   match (parsed.itemType, parsed.target, parsed.kind) with
+  | _ when Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) ->
+    Stdlib.printLine (Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
+    help state
+
   | (None, _, _) ->
     help state
 
