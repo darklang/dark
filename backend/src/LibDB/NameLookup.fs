@@ -26,11 +26,17 @@ let namesToTry
       let newNameToTry = { given with modules = modulesToPrepend @ given.modules }
       newNameToTry :: loop allButLast
 
-  // handle explicit Stdlib.etc shortcut
+  // Handle explicit Stdlib.etc shortcut, plus a final stdlib fallback for
+  // Result/Option. Their constructors (Ok/Error, Some/None) already resolve
+  // unqualified from any module, so their unqualified type names should resolve the
+  // same way while still allowing local definitions to win first.
   let addl =
-    match given.modules with
-    | "Stdlib" :: _ -> [ { given with modules = "Darklang" :: given.modules } ]
-    | _ -> []
+    match given.modules, given.name with
+    | "Stdlib" :: _, _ -> [ { given with modules = "Darklang" :: given.modules } ]
+    | ([] | [ "Result" ]), "Result"
+    | ([] | [ "Option" ]), "Option" ->
+      [ { given with modules = [ "Darklang"; "Stdlib"; given.name ] } ]
+    | _, _ -> []
 
   (loop currentModule) @ addl
 
