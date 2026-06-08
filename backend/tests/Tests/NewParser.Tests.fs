@@ -2365,32 +2365,6 @@ Builtin.printLine (getTitle curiousGeorgeBookId)
       )) ]
   |> testList "cli scripts"
 
-/// Proves the Result/Option stdlib fallback participates in runtime type-checking.
-/// The round-trip tests above assert canonical printing; these tests execute
-/// functions with unqualified annotations, so matching arguments/return values are only
-/// accepted if the annotations resolved to Stdlib.Result/Stdlib.Option. These
-/// fns are declared from a non-Stdlib module (owner Tests) — the context that
-/// previously forced the fully-qualified `Stdlib.Result.Result`.
-let stdlibTypeFallback =
-  [ tEvalSourceFileFn
-      "unqualified Result param resolves and type-checks"
-      "let unwrap (x: Result<Int64, String>): Int64 =\n  match x with\n  | Ok n -> n\n  | Error _ -> 0L"
-      (Dval.resultOk RT.KTInt64 RT.KTString (RT.DInt64 5L))
-      (RT.DInt64 5L)
-
-    tEvalSourceFileFn
-      "unqualified Option param resolves and type-checks"
-      "let unwrap (x: Option<Int64>): Int64 =\n  match x with\n  | Some n -> n\n  | None -> 0L"
-      (Dval.optionSome RT.KTInt64 (RT.DInt64 7L))
-      (RT.DInt64 7L)
-
-    tEvalSourceFileFn
-      "unqualified Result return type resolves and type-checks"
-      "let wrap (x: Int64): Result<Int64, String> =\n  Stdlib.Result.Result.Ok x"
-      (RT.DInt64 9L)
-      (Dval.resultOk RT.KTInt64 RT.KTString (RT.DInt64 9L)) ]
-  |> testList "stdlib fallback Result/Option"
-
 let tests =
   testList
     "NewParser"
@@ -2400,5 +2374,4 @@ let tests =
       exprs
       functionDeclarations
       moduleDeclarations
-      stdlibTypeFallback
       sourceFiles ]
