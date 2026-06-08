@@ -108,7 +108,7 @@ let toFloat (a: Int8) : Float = Builtin.int8ToFloat a
 
 /// Returns the sum of all the ints in the list
 let sum (lst: List<Int8>) : Int8 =
-  Stdlib.List.fold lst 0y (fun acc x -> acc + x)
+  Stdlib.List.fold lst 0y (fun acc x -> add acc x)
 
 
 /// Returns the higher of <param a> and <param b>

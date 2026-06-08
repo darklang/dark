@@ -58,7 +58,7 @@ let toFloat (a: UInt128) : Float = Builtin.uint128ToFloat a
 
 /// Returns the sum of all the ints in the list
 let sum (lst: List<UInt128>) : UInt128 =
-  Stdlib.List.fold lst 0Z (fun acc x -> acc + x)
+  Stdlib.List.fold lst 0Z (fun acc x -> add acc x)
 
 
 /// Returns the higher of <param a> and <param b>

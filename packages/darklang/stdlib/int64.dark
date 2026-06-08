@@ -10,7 +10,7 @@ type ParseError =
 /// The modulus <param b> must be greater than 0
 /// Use <fn Int64.remainder> if you want the remainder after division, which has
 /// a different behavior for negative numbers.
-let ``mod`` (a: Int64) (b: Int64) : Int64 = a % b
+let ``mod`` (a: Int64) (b: Int64) : Int64 = Builtin.int64Mod a b
 
 
 /// Returns the integer remainder left over after dividing <param value> by
@@ -27,15 +27,15 @@ let remainder
 
 
 /// Adds two integers together
-let add (a: Int64) (b: Int64) : Int64 = a + b
+let add (a: Int64) (b: Int64) : Int64 = Builtin.int64Add a b
 
 
 /// Subtracts two integers
-let subtract (a: Int64) (b: Int64) : Int64 = a - b
+let subtract (a: Int64) (b: Int64) : Int64 = Builtin.int64Subtract a b
 
 
 /// Multiplies two integers
-let multiply (a: Int64) (b: Int64) : Int64 = a * b
+let multiply (a: Int64) (b: Int64) : Int64 = Builtin.int64Multiply a b
 
 
 /// Divides two integers
@@ -53,32 +53,35 @@ let power (``base``: Int64) (exponent: Int64) : Int64 =
   if ``base`` == 0L && exponent == 0L then 1L
   else if ``base`` == 0L then 0L
   else if ``base`` == 1L then 1L
-  else if ``base`` == -1L && exponent % 2L == 0L then 1L
+  else if ``base`` == -1L && (``mod`` exponent 2L == 0L) then 1L
   else if ``base`` == -1L then -1L
-  else ``base`` ^ exponent
+  else Builtin.int64Power ``base`` exponent
 
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
-let absoluteValue (a: Int64) : Int64 = if a < 0L then -a else a
+let absoluteValue (a: Int64) : Int64 =
+  if lessThan a 0L then negate a else a
 
 
 /// Returns the negation of <param a>, {{-a}}
-let negate (a: Int64) : Int64 = -a
+let negate (a: Int64) : Int64 = Builtin.int64Negate a
 
 
 /// Returns {{true}} if <param a> is greater than <param b>
-let greaterThan (a: Int64) (b: Int64) : Bool = a > b
+let greaterThan (a: Int64) (b: Int64) : Bool = Builtin.int64GreaterThan a b
 
 
 /// Returns {{true}} if <param a> is greater than or equal to <param b>
-let greaterThanOrEqualTo (a: Int64) (b: Int64) : Bool = a >= b
+let greaterThanOrEqualTo (a: Int64) (b: Int64) : Bool =
+  Builtin.int64GreaterThanOrEqualTo a b
 
 
 /// Returns {{true}} if <param a> is less than <param b>
-let lessThan (a: Int64) (b: Int64) : Bool = a < b
+let lessThan (a: Int64) (b: Int64) : Bool = Builtin.int64LessThan a b
 
 /// Returns {{true}} if <param a> is less than or equal to <param b>
-let lessThanOrEqualTo (a: Int64) (b: Int64) : Bool = a <= b
+let lessThanOrEqualTo (a: Int64) (b: Int64) : Bool =
+  Builtin.int64LessThanOrEqualTo a b
 
 
 /// Returns a random integer between <param start> and <param end> (inclusive)
@@ -100,15 +103,15 @@ let fromFloat (a: Float) : Int64 = Builtin.floatToInt64 a
 
 /// Returns the sum of all the ints in the list
 let sum (lst: List<Int64>) : Int64 =
-  Stdlib.List.fold lst 0L (fun acc x -> acc + x)
+  Stdlib.List.fold lst 0L (fun acc x -> add acc x)
 
 
 /// Returns the higher of <param a> and <param b>
-let max (a: Int64) (b: Int64) : Int64 = if a > b then a else b
+let max (a: Int64) (b: Int64) : Int64 = if greaterThan a b then a else b
 
 
 /// Returns the lower of <param a> and <param b>
-let min (a: Int64) (b: Int64) : Int64 = if a < b then a else b
+let min (a: Int64) (b: Int64) : Int64 = if lessThan a b then a else b
 
 
 /// If <param value> is within the range given by <param limitA> and <param
@@ -117,11 +120,11 @@ let min (a: Int64) (b: Int64) : Int64 = if a < b then a else b
 /// limitB>, whichever is closer to <param value>.
 /// <param limitA> and <param limitB> can be provided in any order.
 let clamp (value: Int64) (limitA: Int64) (limitB: Int64) : Int64 =
-  let min = if limitA < limitB then limitA else limitB
-  let max = if limitA > limitB then limitA else limitB
+  let min = if lessThan limitA limitB then limitA else limitB
+  let max = if greaterThan limitA limitB then limitA else limitB
 
-  if value < min then min
-  else if value > max then max
+  if lessThan value min then min
+  else if greaterThan value max then max
   else value
 
 
