@@ -43,7 +43,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [ DUInt16 v; DUInt16 m ] ->
           if m = 0us then
-            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID |> Ply
+            RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
           else
             let result = v % m
             let result = if result < 0us then m + result else result
@@ -67,7 +67,7 @@ let fns () : List<BuiltInFn> =
             let result = Checked.(+) a b
             Ply(DUInt16(result))
           with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID |> Ply
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
 
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -88,7 +88,7 @@ let fns () : List<BuiltInFn> =
             let result = Checked.(-) a b
             Ply(DUInt16(result))
           with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID |> Ply
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
 
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -109,7 +109,7 @@ let fns () : List<BuiltInFn> =
             let result = Checked.(*) a b
             Ply(DUInt16(result))
           with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID |> Ply
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
 
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -132,7 +132,7 @@ let fns () : List<BuiltInFn> =
           (try
             (bigint number) ** (int exp) |> uint16 |> DUInt16 |> Ply
            with :? System.OverflowException ->
-             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID |> Ply)
+             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -149,13 +149,13 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [ DUInt16 a; DUInt16 b ] ->
           if b = 0us then
-            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID |> Ply
+            RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
           else
             let result = a / b
             if
               result < System.UInt16.MinValue || result > System.UInt16.MaxValue
             then
-              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID |> Ply
+              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
             else
               Ply(DUInt16(uint16 result))
 
