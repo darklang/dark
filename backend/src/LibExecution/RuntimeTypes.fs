@@ -1057,6 +1057,7 @@ module RuntimeError =
     | VariableNotFound of attemptedVarName : string
 
     | EqualityCheckOnIncompatibleTypes of left : ValueType * right : ValueType
+    | NumericOperationOnIncompatibleTypes of left : ValueType * right : ValueType
 
     | IfConditionNotBool of actualValue : Dval * actualValueType : ValueType
 

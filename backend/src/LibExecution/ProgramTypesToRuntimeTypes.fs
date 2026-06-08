@@ -169,17 +169,20 @@ module InfixFnName =
   let toFnName (name : PT.InfixFnName) : RT.FQFnName.Builtin =
     let make = RT.FQFnName.builtin
 
+    // Numeric operators dispatch to polymorphic builtins that inspect the
+    // runtime value type (like `equals`), so `1.0 + 2.0`, `1y < 2y`, etc.
+    // all work without per-type operator routing.
     match name with
-    | PT.ArithmeticPlus -> make "int64Add" 0
-    | PT.ArithmeticMinus -> make "int64Subtract" 0
-    | PT.ArithmeticMultiply -> make "int64Multiply" 0
-    | PT.ArithmeticDivide -> make "floatDivide" 0
-    | PT.ArithmeticModulo -> make "int64Mod" 0
-    | PT.ArithmeticPower -> make "int64Power" 0
-    | PT.ComparisonGreaterThan -> make "int64GreaterThan" 0
-    | PT.ComparisonGreaterThanOrEqual -> make "int64GreaterThanOrEqualTo" 0
-    | PT.ComparisonLessThan -> make "int64LessThan" 0
-    | PT.ComparisonLessThanOrEqual -> make "int64LessThanOrEqualTo" 0
+    | PT.ArithmeticPlus -> make "add" 0
+    | PT.ArithmeticMinus -> make "subtract" 0
+    | PT.ArithmeticMultiply -> make "multiply" 0
+    | PT.ArithmeticDivide -> make "divide" 0
+    | PT.ArithmeticModulo -> make "modulo" 0
+    | PT.ArithmeticPower -> make "power" 0
+    | PT.ComparisonGreaterThan -> make "greaterThan" 0
+    | PT.ComparisonGreaterThanOrEqual -> make "greaterThanOrEqualTo" 0
+    | PT.ComparisonLessThan -> make "lessThan" 0
+    | PT.ComparisonLessThanOrEqual -> make "lessThanOrEqualTo" 0
     | PT.StringConcat -> make "stringAppend" 0
     | PT.ComparisonEquals -> make "equals" 0
     | PT.ComparisonNotEquals -> make "notEquals" 0

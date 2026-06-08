@@ -234,6 +234,12 @@ module RuntimeError =
         ES.String " and "
         ES.ValueType right ]
 
+    | NumericOperationOnIncompatibleTypes (left, right) ->
+      [ ES.String "Cannot perform numeric operation on "
+        ES.ValueType left
+        ES.String " and "
+        ES.ValueType right ]
+
     | IfConditionNotBool (actualValue, actualValueType) ->
       [ ES.String "If condition must be a Bool, but got "
         ES.ValueType actualValueType

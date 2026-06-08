@@ -26,6 +26,10 @@ Stdlib.UInt64.power_v0 200UL 20UL = error="Encountered out-of-range value for ty
 Stdlib.UInt64.power_v0 200UL 7UL = 12800000000000000UL
 
 Stdlib.UInt64.power_v0 1UL 2147483649UL = 1UL
+// Non-trivial base with an out-of-Int32-range exponent overflows rather than
+// crashing on the internal `bigint ** (int exp)` narrowing.
+Stdlib.UInt64.power_v0 2UL 2147483649UL = error="Encountered out-of-range value for type of Int"
+Stdlib.UInt64.power_v0 2UL 64UL = error="Encountered out-of-range value for type of Int"
 
 Stdlib.UInt64.greaterThan_v0 20UL 1UL = true
 

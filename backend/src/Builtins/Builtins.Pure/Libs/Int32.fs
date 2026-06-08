@@ -98,7 +98,11 @@ let fns () : List<BuiltInFn> =
       description = "Adds two 32-bit signed integers together"
       fn =
         (function
-        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a + b))
+        | _, vm, _, [ DInt32 a; DInt32 b ] ->
+          try
+            DInt32(Checked.(+) a b) |> Ply
+          with :? System.OverflowException ->
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -113,7 +117,11 @@ let fns () : List<BuiltInFn> =
       description = "Subtracts two 32-bit signed integers"
       fn =
         (function
-        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a - b))
+        | _, vm, _, [ DInt32 a; DInt32 b ] ->
+          try
+            DInt32(Checked.(-) a b) |> Ply
+          with :? System.OverflowException ->
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -128,7 +136,11 @@ let fns () : List<BuiltInFn> =
       description = "Multiplies two 32-bit signed integers"
       fn =
         (function
-        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a * b))
+        | _, vm, _, [ DInt32 a; DInt32 b ] ->
+          try
+            DInt32(Checked.(*) a b) |> Ply
+          with :? System.OverflowException ->
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -171,6 +183,8 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [ DInt32 a; DInt32 b ] ->
           if b = 0 then
             RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
+          else if a = System.Int32.MinValue && b = -1 then
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
           else
             Ply(DInt32(a / b))
         | _ -> incorrectArgs ())
@@ -187,7 +201,11 @@ let fns () : List<BuiltInFn> =
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | _, _, _, [ DInt32 a ] -> Ply(DInt32(-a))
+        | _, vm, _, [ DInt32 a ] ->
+          if a = System.Int32.MinValue then
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+          else
+            Ply(DInt32(-a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

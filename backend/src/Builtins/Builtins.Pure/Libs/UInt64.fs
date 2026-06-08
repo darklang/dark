@@ -122,10 +122,25 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [ DUInt64 number; DUInt64 exp ] ->
-          (try
-            (bigint number) ** (int exp) |> uint64 |> DUInt64 |> Ply
-           with :? System.OverflowException ->
-             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID)
+          if exp > uint64 System.Int32.MaxValue then
+            // `bigint ** int` needs an Int32 exponent; an exponent this large
+            // overflows UInt64 unless the base is trivial. (Without this guard
+            // `int exp` silently truncates to a bogus — possibly negative —
+            // Int32, and `bigint ** negative` throws an uncaught exception.)
+            match number with
+            | 0UL -> Ply(DUInt64 0UL)
+            | 1UL -> Ply(DUInt64 1UL)
+            | _ -> RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+          elif exp > 63UL && number > 1UL then
+            // Avoid constructing enormous bigints that can never fit in UInt64.
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+          else
+            // `uint64` narrowing throws OverflowException when the result
+            // exceeds UInt64 range.
+            try
+              (bigint number) ** (int exp) |> uint64 |> DUInt64 |> Ply
+            with :? System.OverflowException ->
+              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

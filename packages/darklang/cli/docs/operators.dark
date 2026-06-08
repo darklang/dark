@@ -5,18 +5,21 @@ let content () : String =
 
 ## Comparison
   == != < > <= >=
+  (< > <= >= are polymorphic over numeric types — Int8..Int128, UInt*, Float)
 
 ## Boolean
   && || (use Stdlib.Bool.not for negation)
 
-## Int64
-  + - * %
-  NO / -> Stdlib.Int64.divide
-
-## Float
-  NO infix operators — use Stdlib.Float.add / subtract / multiply / divide
-  (`+`/`-`/`*` parse-dispatch to Int64 at parse time; `1.0 + 2.0`
-   fails at runtime with an int64Add type error.)
+## Numeric (all int types + Float)
+  + - * / % ^   and unary -x
+  Polymorphic at runtime: both operands must be the same numeric type.
+  `1 + 2`, `1.0 + 2.0`, and `1y * 2y` all work.
+  `/` is integer division on ints, float division on floats.
+  `%` works on all numeric types (the modulus must be > 0).
+  `^` (power) works on all integer types and Float (not Int128/UInt128).
+  Unary `-x` negates signed ints and Float (not unsigned types).
+  Integer overflow (+ - * / ^ and unary -) raises a runtime error.
+  Float arithmetic follows IEEE (overflow -> infinity).
 
 ## String
   ++   concat
