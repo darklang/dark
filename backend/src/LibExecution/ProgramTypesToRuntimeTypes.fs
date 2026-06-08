@@ -440,6 +440,145 @@ module Expr =
         instructions = [ RT.LoadVal(rc, dv) ]
         resultIn = rc }
 
+    // Names bound to lambdas later in a let chain. Used to detect attempted
+    // mutual recursion between nested fns.
+    let rec laterNestedFnNames (e : PT.Expr) : Set<string> =
+      match e with
+      | PT.ELet(_, PT.LPVariable(_, n), PT.ELambda _, rest) ->
+        Set.add n (laterNestedFnNames rest)
+      | PT.ELet(_, _, _, rest) -> laterNestedFnNames rest
+      | _ -> Set.empty
+
+    // Compile a lambda. If `selfNameCandidate` is set and the body uses that
+    // name recursively, give it a self register instead of closing over it.
+    // Referencing a name in `laterFnNames` is attempted mutual recursion,
+    // which isn't supported - error clearly instead of "variable not found".
+    let compileLambda
+      (symbols : Map<string, RT.Register>)
+      (rc : int)
+      (id : id)
+      (pats : NEList<PT.LetPattern>)
+      (body : PT.Expr)
+      (selfNameCandidate : Option<string>)
+      (laterFnNames : Set<string>)
+      : RT.Instructions =
+      let symbolsUsedInBody = ProgramTypesAst.symbolsUsedInExpr body
+      let symbolsUsedInPats =
+        pats |> NEList.toList |> List.map PT.LetPattern.symbolsUsed |> Set.unionMany
+
+      // The lambda is self-recursive only if the body references the binding name,
+      // no param shadows it (in `let x = fun x -> x` the inner `x` is the param),
+      // and the name isn't an existing outer binding being rebound (in
+      // `let f = 1L
+      //  let f = fun x -> f + x`
+      // the lambda captures the outer `f`, it doesn't recurse).
+      let selfName =
+        selfNameCandidate
+        |> Option.filter (fun n ->
+          Set.contains n symbolsUsedInBody
+          && not (Set.contains n symbolsUsedInPats)
+          && not (Map.containsKey n symbols))
+
+      // Reject ambiguity when the body also resolves the same unqualified name to
+      // a package fn/value. In that case, require the user to rename instead of
+      // silently choosing recursion or the package item.
+      let collidingSelfName =
+        match selfNameCandidate with
+        | Some n when
+          Set.contains n (ProgramTypesAst.unqualifiedResolvedNamesInExpr body)
+          ->
+          Some n
+        | _ -> None
+
+      let selfSet =
+        match selfName with
+        | Some n -> Set.singleton n
+        | None -> Set.empty
+      let symbolsUsedInBodyNotDefinedInPats =
+        Set.difference (Set.difference symbolsUsedInBody symbolsUsedInPats) selfSet
+
+      let (rtPats, symbolsAfterPats, rcAfterPats)
+        : (List<RT.LetPattern> * Map<string, int> * int) =
+        pats
+        |> NEList.toList
+        |> List.fold
+          (fun (pats, symbols, rc) p ->
+            let (pat, newSymbols, rcAfterPat) = LetPattern.toRT symbols rc p
+            (pats @ [ pat ], Map.mergeFavoringRight symbols newSymbols, rcAfterPat))
+          ([], Map.empty, 0)
+
+      let (selfRegister, symbolsAfterSelf, rcAfterSelf) =
+        match selfName with
+        | Some n ->
+          (Some rcAfterPats, Map.add n rcAfterPats symbolsAfterPats, rcAfterPats + 1)
+        | None -> (None, symbolsAfterPats, rcAfterPats)
+
+      let (registersToCloseOver, symbolsFinal, rcFinal)
+        : (List<RT.Register * RT.Register> * Map<string, int> * int) =
+        symbolsUsedInBodyNotDefinedInPats
+        |> Set.toList
+        |> List.fold
+          (fun (regs, newSymbols, rc) name ->
+            match Map.tryFind name symbols with
+            | Some parentReg ->
+              (regs @ [ parentReg, rc ], Map.add name rc newSymbols, rc + 1)
+            | None -> (regs, newSymbols, rc))
+          ([], symbolsAfterSelf, rcAfterSelf)
+
+      match collidingSelfName with
+      | Some n ->
+        { registerCount = rc + 1
+          instructions =
+            [ RT.RaiseNRE(
+                [ $"Nested function name `{n}` (a function or value with this name already exists in scope)" ],
+                RT.NameResolutionError.InvalidName
+              ) ]
+          resultIn = rc }
+      | None ->
+        let bodyInstrs = toRT symbolsFinal rcFinal currentFnName body
+
+        // An unresolved reference to a nested fn defined later is attempted mutual
+        // recursion. Swap its VarNotFound for a clearer error - same place, same
+        // timing, better message. (Resolved/shadowed names never emit VarNotFound,
+        // so this can't fire on working code.)
+        let rec rewriteForwardRefs instrs =
+          instrs
+          |> List.map (fun instr ->
+            match instr with
+            | RT.VarNotFound(_, n) when Set.contains n laterFnNames ->
+              RT.RaiseNRE(
+                [ $"`{n}` (forward calls between nested functions aren't supported; use top-level functions instead)" ],
+                RT.NameResolutionError.NotFound
+              )
+            | RT.CreateLambda(reg, inner) ->
+              RT.CreateLambda(
+                reg,
+                { inner with
+                    instructions =
+                      { inner.instructions with
+                          instructions =
+                            rewriteForwardRefs inner.instructions.instructions } }
+              )
+            | instr -> instr)
+
+        let bodyInstrs =
+          if Set.isEmpty laterFnNames then
+            bodyInstrs
+          else
+            { bodyInstrs with
+                instructions = rewriteForwardRefs bodyInstrs.instructions }
+
+        let impl : RT.LambdaImpl =
+          { exprId = id
+            patterns = rtPats |> NEList.ofListUnsafe "" []
+            registersToCloseOver = registersToCloseOver
+            selfRegister = selfRegister
+            instructions = bodyInstrs }
+
+        { registerCount = rc + 1
+          instructions = [ RT.CreateLambda(rc, impl) ]
+          resultIn = rc }
+
     match e with
     | PT.EUnit _id -> justLoadDval RT.DUnit
 
@@ -554,6 +693,21 @@ module Expr =
           @ [ RT.CreateTuple(tupleReg, first.resultIn, second.resultIn, theRestRegs) ]
         resultIn = tupleReg }
 
+
+    // a lambda bound to a name: `let f = fun ... -> ... in body`
+    // (including a nested fn definition, which the parser desugars to this shape).
+    // Compile the lambda with `f` as its self-name candidate: compileLambda decides
+    // whether the body actually recurses on `f` (vs. shadowing by a param, or
+    // rebinding an outer `f`, which capture instead), then bind `f` for the
+    // continuation.
+    | PT.ELet(_id, PT.LPVariable(_, name), (PT.ELambda(lid, pats, lbody)), cont) ->
+      let lambdaInstrs =
+        compileLambda symbols rc lid pats lbody (Some name) (laterNestedFnNames cont)
+      let symbols = Map.add name lambdaInstrs.resultIn symbols
+      let contInstrs = toRT symbols lambdaInstrs.registerCount currentFnName cont
+      { registerCount = contInstrs.registerCount
+        instructions = lambdaInstrs.instructions @ contInstrs.instructions
+        resultIn = contInstrs.resultIn }
 
     // let x = 1
     | PT.ELet(_id, pat, expr, body) ->
@@ -1011,49 +1165,7 @@ module Expr =
 
 
     | PT.ELambda(id, pats, body) ->
-      let symbolsUsedInBody = ProgramTypesAst.symbolsUsedInExpr body
-      let symbolsUsedInPats =
-        pats |> NEList.toList |> List.map PT.LetPattern.symbolsUsed |> Set.unionMany
-      let symbolsUsedInBodyNotDefinedInPats =
-        Set.difference symbolsUsedInBody symbolsUsedInPats
-
-      let (pats, symbolsOfNewFrameAfterPats, rcOfNewFrameAfterPats)
-        : (List<RT.LetPattern> * Map<string, int> * int) =
-        pats
-        |> NEList.toList
-        |> List.fold
-          (fun (pats, symbols, rc) p ->
-            let (pat, newSymbols, rcAfterPat) = LetPattern.toRT symbols rc p
-            (pats @ [ pat ], Map.mergeFavoringRight symbols newSymbols, rcAfterPat))
-          ([], Map.empty, 0)
-
-      let (registersToCloseOver,
-           symbolsOfNewFrameAfterOnesOnlyUsedInBody,
-           rcOfNewFrame) : (List<RT.Register * RT.Register> * Map<string, int> * int) =
-        symbolsUsedInBodyNotDefinedInPats
-        |> Set.toList
-        |> List.fold
-          (fun (regs, newSymbols, rc) name ->
-            match Map.tryFind name symbols with
-            | Some parentReg ->
-              (regs @ [ parentReg, rc ], Map.add name rc newSymbols, rc + 1)
-            | None -> (regs, newSymbols, rc)) // should we raise an error here? or should we just ignore it, and let the runtime raise an error?
-          ([], symbolsOfNewFrameAfterPats, rcOfNewFrameAfterPats)
-
-      let impl : RT.LambdaImpl =
-        { exprId = id
-          patterns = pats |> NEList.ofListUnsafe "" []
-          registersToCloseOver = registersToCloseOver
-          instructions =
-            toRT
-              symbolsOfNewFrameAfterOnesOnlyUsedInBody
-              rcOfNewFrame
-              currentFnName
-              body }
-
-      { registerCount = rc + 1
-        instructions = [ RT.CreateLambda(rc, impl) ]
-        resultIn = rc }
+      compileLambda symbols rc id pats body None Set.empty
 
     | PT.EStatement(_id, expr, next) ->
       let firstExpr = toRT symbols rc currentFnName expr

@@ -658,6 +658,18 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                     appLambda.closedRegisters
                     |> List.iter (fun (reg, value) -> r[reg] <- value)
 
+                    // Put the lambda itself in the self register so the body can
+                    // call itself. If it already has no applied args, reuse it
+                    // as-is.
+                    match foundLambda.selfRegister with
+                    | Some selfReg ->
+                      r[selfReg] <-
+                        if List.isEmpty appLambda.argsSoFar then
+                          DApplicable(AppLambda appLambda)
+                        else
+                          DApplicable(AppLambda { appLambda with argsSoFar = [] })
+                    | None -> ()
+
                     r
                   typeSymbolTable =
                     if Map.isEmpty appLambda.typeSymbolTable then

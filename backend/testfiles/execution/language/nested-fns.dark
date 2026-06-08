@@ -1,0 +1,76 @@
+// Nested function definitions: `let f (x: T) : R = ...` desugars to a lambda
+// bound by a let (see LibParser/FSharpToWrittenTypes.fs). The binding is
+// self-recursive - the function may call itself by name in its own body - via
+// the `selfRegister` mechanism in ProgramTypesToRuntimeTypes + Interpreter.
+
+// non-recursive nested fn with type annotations
+(let double (x: Int64) : Int64 = x * 2L
+ double 5L) = 10L
+
+// self-recursive nested fn
+(let fact (n: Int64) : Int64 =
+   if n <= 1L then 1L else n * (fact (n - 1L))
+ fact 5L) = 120L
+
+// the reverse/reverseHelper example, with the helper nested inside
+(let reverseHelper (list: List<Int64>) (acc: List<Int64>) : List<Int64> =
+   match list with
+   | [] -> acc
+   | head :: tail -> reverseHelper tail (Stdlib.List.push acc head)
+ reverseHelper [ 1L; 2L; 3L ] []) = [ 3L; 2L; 1L ]
+
+// generic type params in annotations are accepted (dropped at runtime)
+(let rev (list: List<'a>) (acc: List<'a>) : List<'a> =
+   match list with
+   | [] -> acc
+   | head :: tail -> rev tail (Stdlib.List.push acc head)
+ rev [ "a"; "b"; "c" ] []) = [ "c"; "b"; "a" ]
+
+// nested fn closes over an outer let binding AND recurses
+(let limit = 10L
+ let sumUpTo (i: Int64) : Int64 =
+   if i > limit then 0L else i + (sumUpTo (i + 1L))
+ sumUpTo 1L) = 55L
+
+// nested fn that closes over an outer binding without recursing
+(let multiplier = 3L
+ let scale (x: Int64) : Int64 = x * multiplier
+ scale 4L) = 12L
+
+// rebinding a name to a lambda that references the OUTER binding captures the
+// outer value - it is not self-recursion
+(let f = 1L
+ let f = (fun x -> f + x)
+ f 5L) = 6L
+
+// a lambda param that shadows the binding name is the param, not recursion
+(let x = (fun x -> x * 2L)
+ x 3L) = 6L
+
+// a nested fn whose name collides with a fn in scope is rejected - the
+// reference inside the body is ambiguous (recursion vs. the outer fn), so
+// it's an error rather than silently picking one
+let sumDown (x: Int64) : Int64 = x + 100L
+
+(let sumDown (n: Int64) : Int64 =
+   if n <= 0L then 0L else n + (sumDown (n - 1L))
+ sumDown 3L) = error="Nested function name `sumDown` (a function or value with this name already exists in scope) is not a valid name"
+
+// mutually recursive nested fns aren't supported - clear error, not "variable not found"
+(let isEven (n: Int64) : Bool =
+   if n == 0L then true else isOdd (n - 1L)
+ let isOdd (n: Int64) : Bool =
+   if n == 0L then false else isEven (n - 1L)
+ isEven 4L) = error="`isOdd` (forward calls between nested functions aren't supported; use top-level functions instead) not found"
+
+// but a nested fn CAN call one defined before it (plain closure capture)
+(let double (x: Int64) : Int64 = x * 2L
+ let quadruple (x: Int64) : Int64 = double (double x)
+ quadruple 3L) = 12L
+
+// an inner binding that shadows a later nested fn's name is fine - not mutual recursion
+(let f (n: Int64) : Int64 =
+   let foo = 5L
+   foo + n
+ let foo (x: Int64) : Int64 = x
+ f 1L) = 6L

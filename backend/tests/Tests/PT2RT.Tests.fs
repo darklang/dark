@@ -608,6 +608,7 @@ module Expr =
              { exprId = E.Pipes.pipeID
                patterns = NEList.ofList (RT.LPVariable 0) []
                registersToCloseOver = []
+               selfRegister = None
                instructions = { registerCount = 1; instructions = []; resultIn = 0 } }
            )
            RT.Apply(2, 1, [], NEList.ofList 0 []) ],
@@ -657,12 +658,13 @@ module Expr =
       t
         "let myLambda = fun x -> x + 1\n1 |> myLambda"
         E.Pipes.variable
-        (4,
+        (3,
          [ RT.CreateLambda(
              0,
              { exprId = E.Pipes.lambdaID
                patterns = NEList.ofList (RT.LPVariable 0) []
                registersToCloseOver = []
+               selfRegister = None
                instructions =
                  { registerCount = 4
                    instructions =
@@ -680,21 +682,21 @@ module Expr =
                        RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
                    resultIn = 3 } }
            )
-           RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1)
-           RT.LoadVal(2, RT.DInt64 1L)
-           RT.Apply(3, 1, [], NEList.ofList 2 []) ],
-         3)
+           RT.LoadVal(1, RT.DInt64 1L)
+           RT.Apply(2, 0, [], NEList.ofList 1 []) ],
+         2)
 
     let multiple =
       t
         "let incr = fun x -> x + 1\n2 |> incr |> fun x -> x * 2 |> Builtin.int64Add 3 |> (+) 4"
         E.Pipes.multiple
-        (12,
+        (11,
          [ RT.CreateLambda(
              0,
              { exprId = E.Pipes.lambdaID
                patterns = NEList.ofList (RT.LPVariable 0) []
                registersToCloseOver = []
+               selfRegister = None
                instructions =
                  { registerCount = 4
                    instructions =
@@ -712,14 +714,14 @@ module Expr =
                        RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
                    resultIn = 3 } }
            )
-           RT.CheckLetPatternAndExtractVars(0, RT.LPVariable 1)
-           RT.LoadVal(2, RT.DInt64 2L)
-           RT.Apply(3, 1, [], NEList.ofList 2 [])
+           RT.LoadVal(1, RT.DInt64 2L)
+           RT.Apply(2, 0, [], NEList.ofList 1 [])
            RT.CreateLambda(
-             4,
+             3,
              { exprId = E.Pipes.pipeID
                patterns = NEList.ofList (RT.LPVariable 0) []
                registersToCloseOver = []
+               selfRegister = None
                instructions =
                  { registerCount = 4
                    instructions =
@@ -737,11 +739,11 @@ module Expr =
                        RT.Apply(3, 2, [], NEList.ofList 0 [ 1 ]) ]
                    resultIn = 3 } }
            )
-           RT.Apply(5, 4, [], NEList.ofList 3 [])
+           RT.Apply(4, 3, [], NEList.ofList 2 [])
 
-           RT.LoadVal(6, RT.DInt64 3L)
+           RT.LoadVal(5, RT.DInt64 3L)
            RT.LoadVal(
-             7,
+             6,
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "int64Add" 0
@@ -751,10 +753,10 @@ module Expr =
              )
            )
 
-           RT.Apply(8, 7, [], NEList.ofList 5 [ 6 ])
-           RT.LoadVal(9, RT.DInt64 4L)
+           RT.Apply(7, 6, [], NEList.ofList 4 [ 5 ])
+           RT.LoadVal(8, RT.DInt64 4L)
            RT.LoadVal(
-             10,
+             9,
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "int64Add" 0
@@ -763,8 +765,8 @@ module Expr =
                    argsSoFar = [] }
              )
            )
-           RT.Apply(11, 10, [], NEList.ofList 8 [ 9 ]) ],
-         11)
+           RT.Apply(10, 9, [], NEList.ofList 7 [ 8 ]) ],
+         10)
 
 
 
@@ -1041,6 +1043,7 @@ module Expr =
                { exprId = E.Lambdas.Identity.id
                  patterns = NEList.ofList (RT.LPVariable 0) []
                  registersToCloseOver = []
+                 selfRegister = None
                  instructions =
                    { registerCount = 1; instructions = []; resultIn = 0 } }
              ) ],
@@ -1057,6 +1060,7 @@ module Expr =
                { exprId = E.Lambdas.Identity.id
                  patterns = NEList.ofList (RT.LPVariable 0) []
                  registersToCloseOver = []
+                 selfRegister = None
                  instructions =
                    { registerCount = 1; instructions = []; resultIn = 0 } }
              )
@@ -1076,6 +1080,7 @@ module Expr =
                { exprId = E.Lambdas.Add.id
                  patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
                  registersToCloseOver = []
+                 selfRegister = None
                  instructions =
                    { registerCount = 4
                      instructions =
@@ -1105,6 +1110,7 @@ module Expr =
                { exprId = E.Lambdas.Add.id
                  patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
                  registersToCloseOver = []
+                 selfRegister = None
                  instructions =
                    { registerCount = 4
                      instructions =
@@ -1137,6 +1143,7 @@ module Expr =
                { exprId = E.Lambdas.Add.id
                  patterns = NEList.ofList (RT.LPVariable 0) [ RT.LPVariable 1 ]
                  registersToCloseOver = []
+                 selfRegister = None
                  instructions =
                    { registerCount = 4
                      instructions =
@@ -1174,6 +1181,7 @@ module Expr =
                      (RT.LPTuple(RT.LPVariable 0, RT.LPVariable 1, []))
                      []
                  registersToCloseOver = []
+                 selfRegister = None
                  instructions =
                    { registerCount = 4
                      instructions =
@@ -1208,6 +1216,7 @@ module Expr =
                      (RT.LPTuple(RT.LPVariable 0, RT.LPVariable 1, []))
                      []
                  registersToCloseOver = []
+                 selfRegister = None
                  instructions =
                    { registerCount = 4
                      instructions =
@@ -1253,6 +1262,7 @@ module Expr =
                { exprId = E.Lambdas.AddToClosedVars.id
                  patterns = NEList.ofList (RT.LPVariable 0) []
                  registersToCloseOver = [ (1, 1); (3, 2) ]
+                 selfRegister = None
                  instructions =
                    { registerCount = 7
                      instructions =
@@ -1298,6 +1308,7 @@ module Expr =
                { exprId = E.Lambdas.AddToClosedVars.id
                  patterns = NEList.ofList (RT.LPVariable 0) []
                  registersToCloseOver = [ (1, 1); (3, 2) ]
+                 selfRegister = None
                  instructions =
                    { registerCount = 7
                      instructions =
@@ -1502,6 +1513,7 @@ module Expr =
                  { exprId = E.Fns.Package.MyFnThatTakesALambda.lambdaID
                    patterns = { head = RT.LPVariable 0; tail = [] }
                    registersToCloseOver = []
+                   selfRegister = None
                    instructions =
                      { registerCount = 4
                        instructions =

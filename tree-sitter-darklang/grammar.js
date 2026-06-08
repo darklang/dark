@@ -857,7 +857,21 @@ module.exports = grammar({
     let_expression: $ =>
       seq(
         field("keyword_let", alias("let", $.keyword)),
-        field("pattern", $.let_pattern),
+        choice(
+          // a nested function definition: `let f (x: Int64) : Int64 = ...`. Only
+          // a plain variable can name a fn (not unit or a tuple pattern). The
+          // params/return-type are parsed but dropped when desugaring to a lambda
+          // (lambdas are untyped); see parser/expr.dark.
+          seq(
+            field("fn_name", $.variable_identifier),
+            optional(field("type_params", $.type_params)),
+            field("params", $.fn_decl_params),
+            field("symbol_colon", alias(":", $.symbol)),
+            field("return_type", $.type_reference),
+          ),
+          // a plain let binding: `let <pattern> = ...`
+          field("pattern", $.let_pattern),
+        ),
         field("symbol_equals", alias("=", $.symbol)),
         choice(
           seq(field("expr", $.expression), "\n"),
