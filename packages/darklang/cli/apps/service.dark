@@ -1,0 +1,83 @@
+/// Auto-start setup for daemon apps — `apps enable` registers a daemon as an OS service (systemd user
+/// unit on Linux, launchd agent on macOS) so it relaunches on login/boot; `apps disable` removes it.
+/// Unsupported elsewhere (e.g. Windows), where it degrades to a clear message.
+module Darklang.Cli.Apps.Service
+
+type Platform =
+  | Linux
+  | Mac
+  | Unsupported
+
+let platform () : Platform =
+  match Stdlib.Cli.Sys.os () with
+  | Ok "Linux" -> Platform.Linux
+  | Ok "Darwin" -> Platform.Mac
+  | _ -> Platform.Unsupported
+
+let private home () : String =
+  Stdlib.Option.withDefault (Stdlib.Cli.Env.home ()) ""
+
+/// Where the OS service file lives for `slug` on this platform ("" if unsupported).
+let unitPath (slug: String) : String =
+  match platform () with
+  | Linux -> (home ()) ++ "/.config/systemd/user/dark-" ++ slug ++ ".service"
+  | Mac -> (home ()) ++ "/Library/LaunchAgents/com.darklang." ++ slug ++ ".plist"
+  | Unsupported -> ""
+
+/// The foreground command the OS service supervises — the daemon entrypoint, `eval`'d by the running exe.
+let private daemonCommand (app: Model.App) : String =
+  match app.target with
+  | Daemon entrypoint ->
+    (Stdlib.Cli.Daemon.launcher ()) ++ " eval '" ++ entrypoint ++ " \"" ++ app.slug ++ "\"'"
+  | Foreground _ -> ""
+
+let private systemdUnit (app: Model.App) : String =
+  $"[Unit]\nDescription={app.name} (Dark app)\n\n[Service]\nExecStart={daemonCommand app}\nRestart=on-failure\n\n[Install]\nWantedBy=default.target\n"
+
+let private launchdPlist (app: Model.App) : String =
+  $"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\"><dict>\n  <key>Label</key><string>com.darklang.{app.slug}</string>\n  <key>ProgramArguments</key><array><string>/bin/sh</string><string>-c</string><string>{daemonCommand app}</string></array>\n  <key>RunAtLoad</key><true/>\n  <key>KeepAlive</key><true/>\n</dict></plist>\n"
+
+/// Register `app` as an OS service. Writes the unit and tries to activate it; on failure returns the
+/// manual activation command so it still works on real systems.
+let enable (app: Model.App) : Stdlib.Result.Result<String, String> =
+  if Stdlib.Bool.not (Model.isDaemon app.target) then
+    Stdlib.Result.Result.Error $"'{app.slug}' is a foreground app — only daemons can auto-start"
+  else
+    match platform () with
+    | Unsupported ->
+      Stdlib.Result.Result.Error "auto-start isn't supported on this platform (Linux / macOS only)"
+    | Linux ->
+      let path = unitPath app.slug
+      let _dir = Stdlib.Cli.Posix.mkdirRecursive ((home ()) ++ "/.config/systemd/user")
+      match Stdlib.Cli.File.writeText path (systemdUnit app) with
+      | Error e -> Stdlib.Result.Result.Error e.message
+      | Ok _ ->
+        let activate = $"systemctl --user enable --now dark-{app.slug}.service"
+        match Stdlib.Cli.Process.exec "/bin/sh" [ "-c"; activate ] with
+        | Ok _ -> Stdlib.Result.Result.Ok $"enabled — {app.name} will start on login (systemd: dark-{app.slug})"
+        | Error _ ->
+          Stdlib.Result.Result.Ok $"wrote {path} — activate with: {activate}"
+    | Mac ->
+      let path = unitPath app.slug
+      let _dir = Stdlib.Cli.Posix.mkdirRecursive ((home ()) ++ "/Library/LaunchAgents")
+      match Stdlib.Cli.File.writeText path (launchdPlist app) with
+      | Error e -> Stdlib.Result.Result.Error e.message
+      | Ok _ ->
+        let activate = $"launchctl load {path}"
+        match Stdlib.Cli.Process.exec "/bin/sh" [ "-c"; activate ] with
+        | Ok _ -> Stdlib.Result.Result.Ok $"enabled — {app.name} will start on login (launchd: com.darklang.{app.slug})"
+        | Error _ -> Stdlib.Result.Result.Ok $"wrote {path} — activate with: {activate}"
+
+/// Remove the OS service for `slug` (deactivate + delete the unit). Idempotent.
+let disable (slug: String) : Stdlib.Result.Result<String, String> =
+  match platform () with
+  | Unsupported ->
+    Stdlib.Result.Result.Error "auto-start isn't supported on this platform (Linux / macOS only)"
+  | Linux ->
+    let _ = Stdlib.Cli.Process.exec "/bin/sh" [ "-c"; $"systemctl --user disable --now dark-{slug}.service" ]
+    let _ = Stdlib.Cli.File.delete (unitPath slug)
+    Stdlib.Result.Result.Ok $"disabled auto-start for '{slug}'"
+  | Mac ->
+    let _ = Stdlib.Cli.Process.exec "/bin/sh" [ "-c"; $"launchctl unload {unitPath slug}" ]
+    let _ = Stdlib.Cli.File.delete (unitPath slug)
+    Stdlib.Result.Result.Ok $"disabled auto-start for '{slug}'"

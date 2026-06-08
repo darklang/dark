@@ -2,10 +2,10 @@
 /// A high-level, provider-agnostic framework for building AI agents.
 ///
 /// Architecture:
-///   CLI commands (Darklang.Cli.Commands.Agent) use ONLY this Darklang.LLM.* layer.
+///   CLI commands (Darklang.Cli.AI.Agent) use ONLY this Darklang.LLM.* layer.
 ///   They never import provider-specific bindings directly.
 ///
-///   Darklang.Cli.Commands.Agent          -- CLI entry point
+///   Darklang.Cli.AI.Agent          -- CLI entry point
 ///     -> Darklang.LLM.Agent              -- this module: config builder + run/chat
 ///     -> Darklang.LLM.Internal.AgentLoop -- tool-call loop, retries
 ///     -> Darklang.LLM.Provider           -- provider-agnostic request/response types

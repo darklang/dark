@@ -1,0 +1,70 @@
+/// Reference example apps — one of each kind:
+///   - `heartbeat`, a daemon: claims a pidfile (via `Stdlib.Cli.Daemon`) and logs a beat every interval
+///     until `apps stop` SIGTERMs it.
+///   - `TextEdit`, a foreground app: the outliner's `TextEditor` widget surfaced standalone via the generic
+///     `Cli.Component` adapter — shows how a self-contained component becomes an app in a few lines.
+module Darklang.Cli.Apps.Examples
+
+// One beat: log the time + pid, sleep the interval, recurse. `remaining` is a very large step count
+// (≈ forever); the daemon is meant to be ended by `apps stop` (SIGTERM), not by running out.
+let beat (name: String) (intervalMs: Int64) (remaining: Int64) : Int64 =
+  if remaining <= 0L then
+    0L
+  else
+    let pid = Stdlib.Cli.Sys.currentPid ()
+    Stdlib.printLine $"{name}: beat (pid {Stdlib.Int64.toString pid})"
+    Stdlib.Cli.Posix.sleep (Stdlib.Int64.toFloat intervalMs)
+    beat name intervalMs (remaining - 1L)
+
+
+// The daemon entrypoint: claim the pidfile (recording THIS detached process's pid), then beat forever.
+// Invoked as `Darklang.Cli.Apps.Examples.heartbeat "heartbeat"` by `apps start`. The interval is read
+// from config (`apps.<name>.intervalMs`, default 5000) — daemons take their config from cli-config.json,
+// not argv.
+let heartbeat (name: String) : Int64 =
+  let intervalMs = Config.getInt ("apps." ++ name ++ ".intervalMs") 5000L
+
+  let _logged =
+    match Stdlib.Cli.Daemon.claimPidfile name with
+    | Error e -> Stdlib.printLine $"{name}: could not write pidfile: {e}"
+    | Ok _ ->
+      Stdlib.printLine
+        $"{name}: started (pid {Stdlib.Int64.toString (Stdlib.Cli.Sys.currentPid ())}, interval {Stdlib.Int64.toString intervalMs}ms)"
+
+  beat name intervalMs 1000000000L
+
+
+module TextEdit =
+  // The outliner's `TextEditor` (state + handleKey + renderInline) as a standalone foreground app: a thin
+  // render/onKey adapter over the generic `Cli.Component`, then one `launch`. That's the whole wrapper.
+  // (Named fns, not inline lambdas — see `Cli.Component` on why.)
+  let render (state: Outliner.TextEditor.State) : String =
+    "  text editor (demo) — type, Enter or Esc to exit\n\n  "
+    ++ (Outliner.TextEditor.renderInline state)
+
+  let onKey
+    (state: Outliner.TextEditor.State)
+    (key: Stdlib.Cli.Stdin.Key.Key)
+    (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+    (keyChar: Stdlib.Option.Option<String>)
+    : Component.Step<Outliner.TextEditor.State> =
+    match Outliner.TextEditor.handleKey state key modifiers keyChar with
+    | Editing next -> Component.Step.Stay next
+    | Finished _ -> Component.Step.Exit
+    | Cancelled -> Component.Step.Exit
+
+  let component : Component.Component<Outliner.TextEditor.State> =
+    Component.Component { render = render; onKey = onKey }
+
+  let execute (cliState: Cli.AppState) (_args: List<String>) : Cli.AppState =
+    Component.launch cliState component Outliner.TextEditor.empty
+
+  let help (state: Cli.AppState) : Cli.AppState =
+    Stdlib.printLine "A tiny text editor (demo) — type, Enter or Esc to exit."
+    state
+
+  let complete
+    (_state: Cli.AppState)
+    (_args: List<String>)
+    : List<Cli.Completion.CompletionItem> =
+    []

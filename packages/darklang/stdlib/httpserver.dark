@@ -188,8 +188,38 @@ let getPathParam (req: Http.Request) (routePattern: String) (paramName: String) 
     | None -> Option.Option.None
 
 
-/// Start an HTTP server with a handler function
-/// The handler receives each request and returns a response
-/// This function blocks forever
-let serve (port: Int64) (handler: Http.Request -> Http.Response) : Unit =
-  Builtin.httpServerServe port handler
+/// Configuration for `serve`. Build defaults with `Config.defaults port`, then override any field with
+/// record-update, e.g. `{ HttpServer.Config.defaults 8080L with logRequests = false }`.
+module Config =
+  type Config =
+    { port: Int64
+      /// Maximum request body size in bytes (over-limit → 413).
+      maxBodyBytes: Int64
+      /// Auto-add `Server: darklang` + HSTS unless the handler set them.
+      injectStandardHeaders: Bool
+      /// Rewrite request.url to https:// when X-Forwarded-Proto: https is present.
+      canonicalizeFromForwardedProto: Bool
+      /// Emit a per-request stdout line + telemetry event.
+      logRequests: Bool }
+
+  /// Default max request body size: 30 MB.
+  let defaultMaxBodyBytes : Int64 = 31457280L
+
+  /// Sensible serve defaults for `port`: 30 MB max body, standard headers, proto canonicalization, logging.
+  let defaults (port: Int64) : Config =
+    Config
+      { port = port
+        maxBodyBytes = defaultMaxBodyBytes
+        injectStandardHeaders = true
+        canonicalizeFromForwardedProto = true
+        logRequests = true }
+
+/// Start an HTTP server: bind `handler` per `config` and serve until SIGTERM (blocks).
+let serve (config: Config.Config) (handler: Http.Request -> Http.Response) : Unit =
+  Builtin.httpServerServe
+    config.port
+    handler
+    config.maxBodyBytes
+    config.injectStandardHeaders
+    config.canonicalizeFromForwardedProto
+    config.logRequests

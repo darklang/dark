@@ -1,0 +1,39 @@
+/// The `App` model — a named, launchable Dark thing surfaced through `dark apps`:
+/// an interactive tool you built, or a background daemon.
+module Darklang.Cli.Apps.Model
+
+/// How an app launches, and the reference it carries — one axis, no invalid states.
+type Target =
+  /// a CLI command, dispatched in-process — `run` (attached)
+  | Foreground of command: String
+  /// a fully-qualified fn, `eval`'d detached — start / stop / status / logs
+  | Daemon of entrypoint: String
+
+type App =
+  { /// Pretty label for display, e.g. "Dark Packages HTTP Server".
+    name: String
+
+    /// Stable kebab-case id used by `apps <verb>`, the pidfile, the shim file, and config keys.
+    slug: String
+
+    /// One-line summary.
+    description: String
+
+    target: Target }
+
+
+let kindTag (target: Target) : String =
+  match target with
+  | Foreground _ -> "foreground"
+  | Daemon _ -> "daemon"
+
+let isDaemon (target: Target) : Bool =
+  match target with
+  | Daemon _ -> true
+  | Foreground _ -> false
+
+/// The command name / fn the target carries (for display + the install shim).
+let reference (target: Target) : String =
+  match target with
+  | Foreground command -> command
+  | Daemon entrypoint -> entrypoint

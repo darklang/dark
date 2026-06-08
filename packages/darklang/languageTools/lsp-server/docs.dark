@@ -6,7 +6,7 @@ let handleGetTopicsRequest
   (state: LspState)
   (requestId: JsonRPC.RequestID)
   : LspState =
-  let topics = Cli.Commands.Docs.Topics.allTopics ()
+  let topics = Cli.Docs.Command.Topics.allTopics ()
 
   let filtered =
     topics
@@ -37,7 +37,7 @@ let handleGetContentRequest
   (topicName: String)
   : LspState =
   let responseJson =
-    match Cli.Commands.Docs.Topics.findTopic topicName with
+    match Cli.Docs.Command.Topics.findTopic topicName with
     | Some topic ->
       let contentFn = topic.content
       Stdlib.AltJson.Json.Object

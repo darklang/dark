@@ -1,0 +1,274 @@
+module Darklang.Cli.Apps.Editor
+
+// The interactive `dark apps` browser — review the whole catalog grouped by kind, install/remove apps,
+// run foreground apps, and start/stop daemons, all on one screen. Enter is the primary action: it runs a
+// foreground app (handing the screen over to it) or toggles a daemon. A SubApp the CLI main loop drives.
+
+type State =
+  { /// the full catalog, ordered daemons-first (so selection indices line up with the grouped display)
+    apps: List<Model.App>
+    selected: Int64
+    /// last action feedback, shown near the footer
+    message: String
+    /// when true, show the selected app's detail (slug + target, and for daemons recent logs) below the list
+    showDetail: Bool }
+
+type Action =
+  | Continue of State
+  | Exit of State
+  /// run a foreground app's command, handing the screen over to it
+  | LaunchFg of String
+
+
+let selectedApp (state: State) : Stdlib.Option.Option<Model.App> =
+  Stdlib.List.getAt state.apps state.selected
+
+
+// ── rendering ──
+
+// `s` cut to `maxLen` display columns, with a trailing ellipsis when it doesn't fit.
+let private truncate (s: String) (maxLen: Int64) : String =
+  if Stdlib.String.length s <= maxLen then
+    s
+  else
+    (Stdlib.String.slice s 0L (maxLen - 1L)) ++ "…"
+
+
+let private appRow (state: State) (idx: Int64) (app: Model.App) : String =
+  let pointer =
+    if idx == state.selected then
+      Colors.colorize (Colors.bold ++ Colors.cyan) "▸ "
+    else
+      "  "
+  let installGlyph = if Registry.isInstalled app.slug then Colors.success "✓" else Colors.dimText "·"
+
+  // Daemon liveness, shown twice so it reads at a glance: a colored dot right up front (scan the column)
+  // and the colored state word at the end. ● green = running, ● yellow = stale, ○ dim = stopped.
+  let rawState =
+    match app.target with
+    | Daemon _ -> Command.daemonState app.slug
+    | Foreground _ -> ""
+  let isRunning = Stdlib.String.startsWith rawState "running"
+  let isStale = Stdlib.String.startsWith rawState "stale"
+
+  let runGlyph =
+    match app.target with
+    | Foreground _ -> " "
+    | Daemon _ ->
+      if isRunning then Colors.colorize Colors.green "●"
+      else if isStale then Colors.colorize Colors.yellow "●"
+      else Colors.dimText "○"
+
+  let stateText =
+    if rawState == "" then ""
+    else if isRunning then Colors.colorize Colors.green rawState
+    else if isStale then Colors.colorize Colors.yellow rawState
+    else Colors.dimText rawState
+  let stateWidth = if rawState == "" then 0L else (Stdlib.String.length rawState) + 3L
+
+  let name = Stdlib.Result.withDefault (Stdlib.String.padEnd app.name " " 26L) app.name
+  let w = Darklang.Cli.Terminal.getWidth ()
+  let width = if w <= 0L then 80L else w
+  // prefix (▸ + install glyph + run glyph + space) = 5 cols, name column = 26, gap before description = 2
+  let descBudget = Stdlib.Int64.max (width - 5L - 26L - 2L - stateWidth) 8L
+  let desc = truncate app.description descBudget
+
+  let trailing = if stateText == "" then "" else "   " ++ stateText
+  pointer ++ installGlyph ++ runGlyph ++ " " ++ name ++ "  " ++ (Colors.dimText desc) ++ trailing
+
+
+// A titled group of rows (nothing if the group is empty). `rows` carries each app's catalog index so the
+// selection highlight stays correct across the split.
+let private printSection (state: State) (title: String) (rows: List<(Int64 * Model.App)>) : Unit =
+  if Stdlib.List.isEmpty rows then
+    ()
+  else
+    Stdlib.printLine (Colors.dimText ("  " ++ title))
+
+    rows
+    |> Stdlib.List.map (fun pair ->
+      let (i, a) = pair
+      appRow state i a)
+    |> Stdlib.printLines
+
+
+let render (state: State) : Unit =
+  Stdlib.print "[2J[H"
+  Stdlib.printLine (Colors.boldText " Apps ")
+  Stdlib.printLine ""
+
+  if Stdlib.List.isEmpty state.apps then
+    Stdlib.printLine (Colors.dimText "  No apps in the catalog.")
+  else
+    let indexed = state.apps |> Stdlib.List.indexedMap (fun i a -> (i, a))
+
+    let daemons =
+      indexed
+      |> Stdlib.List.filter (fun pair ->
+        let (_i, a) = pair
+        Model.isDaemon a.target)
+
+    let foreground =
+      indexed
+      |> Stdlib.List.filter (fun pair ->
+        let (_i, a) = pair
+        Stdlib.Bool.not (Model.isDaemon a.target))
+
+    printSection state "Daemons" daemons
+    Stdlib.printLine ""
+    printSection state "Foreground apps" foreground
+
+  // optional detail pane for the selected app (`i`)
+  let _detail =
+    if state.showDetail then
+      match selectedApp state with
+      | Some app ->
+        Stdlib.printLine ""
+        Stdlib.printLine
+          (Colors.dimText ("  slug: " ++ app.slug ++ "   target: " ++ Model.reference app.target))
+
+        match app.target with
+        | Daemon _ ->
+          let logs = Stdlib.Cli.Daemon.tailLog app.slug 5L
+          if Stdlib.List.isEmpty logs then
+            ()
+          else
+            Stdlib.printLine (Colors.dimText "  recent logs:")
+            logs
+            |> Stdlib.List.map (fun l -> "    " ++ Colors.dimText l)
+            |> Stdlib.printLines
+        // TODO: for foreground apps, surface running copies here (pids of processes running this command),
+        // so `i` is useful for them too — today it only shows slug + target.
+        | Foreground _ -> ()
+      | None -> ()
+    else
+      ()
+
+  Stdlib.printLine ""
+  if state.message != "" then
+    Stdlib.printLine ("  " ++ state.message)
+    Stdlib.printLine ""
+  else
+    ()
+
+  Stdlib.printLine
+    (Colors.dimText
+      "  ↑↓ move · enter run/start · a add · x remove · i detail · esc exit")
+
+
+// ── actions ──
+
+/// `a` — install the selected app (curate + write a shim for foreground apps).
+let install (state: State) : State =
+  match selectedApp state with
+  | None -> state
+  | Some app ->
+    if Registry.isInstalled app.slug then
+      { state with message = Colors.dimText $"'{app.name}' is already added" }
+    else
+      Registry.addInstalled app.slug
+
+      match app.target with
+      | Foreground _ ->
+        match Install.writeAlias app with
+        | Ok _ -> { state with message = Colors.success $"added {app.name} (run `{app.slug}` from the shell)" }
+        | Error e -> { state with message = Colors.error $"added {app.name}, but its shim failed: {e}" }
+      | Daemon _ -> { state with message = Colors.success $"added {app.name}" }
+
+/// `x` — uninstall the selected app (and remove its shim).
+let uninstall (state: State) : State =
+  match selectedApp state with
+  | None -> state
+  | Some app ->
+    if Registry.isInstalled app.slug then
+      Registry.removeInstalled app.slug
+      Install.removeAlias app.slug
+      { state with message = Colors.dimText $"removed {app.name}" }
+    else
+      state
+
+/// Start the selected daemon if stopped, stop it if running.
+let toggleDaemon (state: State) (app: Model.App) (entrypoint: String) : State =
+  if Stdlib.Cli.Daemon.isRunning app.slug then
+    match Stdlib.Cli.Daemon.stop app.slug with
+    | Ok msg -> { state with message = Colors.success msg }
+    | Error e -> { state with message = Colors.error e }
+  else
+    let q = "\""
+    let expr = entrypoint ++ " " ++ q ++ app.slug ++ q
+    match Stdlib.Cli.Daemon.start app.slug expr with
+    | Ok pid -> { state with message = Colors.success $"started {app.name} (pid {Stdlib.Int64.toString pid})" }
+    | Error e -> { state with message = Colors.error e }
+
+/// enter — the primary action: run a foreground app (hand it the screen) / toggle a daemon.
+let activate (state: State) : Action =
+  match selectedApp state with
+  | None -> Action.Continue state
+  | Some app ->
+    match app.target with
+    | Foreground command -> Action.LaunchFg command
+    | Daemon entrypoint -> Action.Continue (toggleDaemon state app entrypoint)
+
+
+let handleKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (_modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Action =
+  let count = Stdlib.List.length state.apps
+  match key with
+  | Escape -> Action.Exit state
+  | UpArrow ->
+    let s = if state.selected > 0L then state.selected - 1L else 0L
+    Action.Continue ({ state with selected = s })
+  | DownArrow ->
+    let maxIdx = count - 1L
+    let s = if state.selected < maxIdx then state.selected + 1L else maxIdx
+    Action.Continue ({ state with selected = s })
+  | Enter -> activate state
+  | _ ->
+    match keyChar with
+    | Some "a" -> Action.Continue (install state)
+    | Some "x" -> Action.Continue (uninstall state)
+    | Some "i" -> Action.Continue ({ state with showDetail = Stdlib.Bool.not state.showDetail })
+    | Some "q" -> Action.Exit state
+    | _ -> Action.Continue state
+
+
+// ── SubApp adapter + launch ──
+
+let makeSubApp (state: State) : Cli.SubApp =
+  Cli.SubApp
+    { onKey =
+        fun key modifiers keyChar ->
+          match handleKey state key modifiers keyChar with
+          | Continue s -> (Cli.SubAppAction.Continue, makeSubApp s)
+          | Exit s -> (Cli.SubAppAction.Exit, makeSubApp s)
+          | LaunchFg cmd -> (Cli.SubAppAction.LaunchCommand cmd, makeSubApp state)
+      onDisplay = fun () -> render state
+      onSave = fun () -> () }
+
+
+/// Launch the interactive browser over the whole catalog (daemons first). Returns a cliState whose current
+/// page is this SubApp (the CLI main loop then drives it until Esc).
+let launch (cliState: Cli.AppState) : Cli.AppState =
+  Stdlib.print "[?1049h"
+
+  let all = Registry.catalog cliState.currentBranchId
+  let daemons = all |> Stdlib.List.filter (fun a -> Model.isDaemon a.target)
+  let foreground = all |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Model.isDaemon a.target))
+  let ordered = Stdlib.List.append daemons foreground
+
+  let state =
+    Editor.State
+      { apps = ordered
+        selected = 0L
+        message = ""
+        showDetail = false }
+
+  let app = makeSubApp state
+
+  { cliState with
+      currentPage = Cli.Page.SubApp app
+      needsFullRedraw = true }

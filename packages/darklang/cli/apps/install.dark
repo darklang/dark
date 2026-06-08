@@ -1,0 +1,12 @@
+/// App-level install glue: writing/removing the PATH shim `dark apps add` sets up for a foreground app,
+/// so `<slug>` runs straight from the shell. The OS mechanics (shim script, `~/.darklang/bin`, perms)
+/// live in `Stdlib.Cli.Shim`; this just maps an `App` onto it.
+module Darklang.Cli.Apps.Install
+
+/// Write the executable PATH shim for foreground `app` (so `<slug>` runs from the shell); returns the path.
+let writeAlias (app: Model.App) : Stdlib.Result.Result<String, String> =
+  Stdlib.Cli.Shim.install app.slug (Model.reference app.target)
+
+/// Remove the PATH shim for `slug`, if present. Idempotent.
+let removeAlias (slug: String) : Unit =
+  Stdlib.Cli.Shim.remove slug

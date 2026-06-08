@@ -1,0 +1,99 @@
+/// The app registry: the AVAILABLE catalog (what the CLI knows about) and the
+/// INSTALLED list (the per-instance subset you curate, persisted in cli-config.json).
+module Darklang.Cli.Apps.Registry
+
+// A hardcoded seed of the apps the CLI ships knowing about (the curated floor; `catalog` also discovers
+// any `App` value declared in packages, by type).
+//
+// TODO once they fit the model, seed the LSP server (`LanguageTools.LspServer.runServerCli`) and the
+// internal MCP server (`…McpServer.main`). Both are stdio servers a client attaches to over the process's
+// stdin/stdout, so they need an "attached server" target rather than a detached daemon. jsoncanvas
+// (`packages/stachu/jsoncanvas.dark`) is a good HTTP-server candidate once it has a clean entrypoint.
+let available () : List<Model.App> =
+  [ Model.App
+      { name = "Heartbeat"
+        slug = "heartbeat"
+        description = "Demo daemon: logs a heartbeat every interval until stopped"
+        target = Model.Target.Daemon "Darklang.Cli.Apps.Examples.heartbeat" }
+    Model.App
+      { name = "Outliner"
+        slug = "outliner"
+        description = "Interactive tree outliner (full-screen TUI)"
+        target = Model.Target.Foreground "outliner" }
+    Model.App
+      { name = "CLI Views"
+        slug = "views"
+        description = "Browse and preview CLI views"
+        target = Model.Target.Foreground "views" }
+    Model.App
+      { name = "Text Editor (demo)"
+        slug = "text-editor"
+        description = "A tiny text editor — the outliner's TextEditor widget surfaced as an app"
+        target = Model.Target.Foreground "text-editor" }
+    Model.App
+      { name = "Dark Packages HTTP Server"
+        slug = "dark-packages"
+        description = "The package API (powers wip.darklang.com/packages)"
+        target = Model.Target.Daemon "Darklang.Cli.Apps.Servers.darkPackages" }
+    Model.App
+      { name = "Demo HTTP Server"
+        slug = "demo-http"
+        description = "A tiny demo server (/, /hello, /echo)"
+        target = Model.Target.Daemon "Darklang.Cli.Apps.Servers.demoHttp" } ]
+
+
+/// Any `App` value declared anywhere, discovered by type — so a user's own app shows up in
+/// `list-available` without editing this file.
+let discover (branchId: Uuid) : List<Model.App> =
+  match Packages.FindValues.resolveTypeHash branchId "Darklang.Cli.Apps.Model.App" with
+  | Ok typeHash ->
+    let found : List<Stdlib.ValueSearch.FoundValue<Model.App>> =
+      Stdlib.ValueSearch.findByType branchId "" typeHash
+    found |> Stdlib.List.map (fun f -> f.value)
+  | Error _ -> []
+
+/// The full catalog: the curated `available` set plus any discovered apps not already in it (by slug).
+let catalog (branchId: Uuid) : List<Model.App> =
+  let seedSlugs = (available ()) |> Stdlib.List.map (fun a -> a.slug)
+  let extra =
+    (discover branchId)
+    |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Stdlib.List.member_v0 seedSlugs a.slug))
+  Stdlib.List.append (available ()) extra
+
+
+let findBySlug (slug: String) : Stdlib.Option.Option<Model.App> =
+  Stdlib.List.findFirst (available ()) (fun a -> a.slug == slug)
+
+
+// ── the installed list ── persisted per-instance in cli-config.json (comma-separated slugs under one key)
+
+let installedKey : String = "apps.installed"
+
+let installedSlugs () : List<String> =
+  match Config.get installedKey with
+  | Some s ->
+    (Stdlib.String.split s ",")
+    |> Stdlib.List.map (fun n -> Stdlib.String.trim n)
+    |> Stdlib.List.filter (fun n -> n != "")
+  | None -> []
+
+let isInstalled (slug: String) : Bool =
+  Stdlib.List.member_v0 (installedSlugs ()) slug
+
+let saveInstalled (slugs: List<String>) : Unit =
+  let cfg = Config.readConfig ()
+  let joined = Stdlib.String.join (Stdlib.List.unique slugs) ","
+  // setOverridingDuplicates, not set: `set` errors if the key already exists (every update after the first).
+  let cfg2 = Stdlib.Dict.setOverridingDuplicates cfg installedKey joined
+  Config.writeConfig cfg2
+
+let addInstalled (slug: String) : Unit =
+  saveInstalled (Stdlib.List.append (installedSlugs ()) [ slug ])
+
+let removeInstalled (slug: String) : Unit =
+  saveInstalled ((installedSlugs ()) |> Stdlib.List.filter (fun s -> s != slug))
+
+/// The apps this instance has installed — `available` filtered to the curated list. Empty by default.
+let installed () : List<Model.App> =
+  let slugs = installedSlugs ()
+  (available ()) |> Stdlib.List.filter (fun a -> Stdlib.List.member_v0 slugs a.slug)

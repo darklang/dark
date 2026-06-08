@@ -39,6 +39,12 @@ let get (key: String) : Stdlib.Option.Option<String> =
   let config = readConfig ()
   Stdlib.Dict.get config key
 
+// A single Int64 config value, falling back to `default_` when absent or unparseable.
+let getInt (key: String) (default_: Int64) : Int64 =
+  match get key with
+  | Some s -> Stdlib.Result.withDefault (Stdlib.Int64.parse s) default_
+  | None -> default_
+
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
@@ -55,7 +61,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | ["set"; key; value] ->
     let config = readConfig ()
-    let updatedConfig = Stdlib.Dict.set config key value
+    let updatedConfig = Stdlib.Dict.setOverridingDuplicates config key value
     writeConfig updatedConfig
     Stdlib.printLine (Colors.success $"Set {key} = {value}")
     state

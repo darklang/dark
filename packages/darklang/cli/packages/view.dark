@@ -148,7 +148,7 @@ let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
       Stdlib.printLine highlighted
       // the capabilities this fn (transitively) needs — what it would be allowed to do if run
       let capsBadge =
-        Commands.Caps.badgeForHash
+        Caps.Command.badgeForHash
           (LanguageTools.ProgramTypes.hashToString item.entity.hash)
       Stdlib.printLine (Colors.dimText $"capabilities: {capsBadge}")
 
