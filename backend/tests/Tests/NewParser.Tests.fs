@@ -626,6 +626,36 @@ let typeReferences =
       []
       []
       []
+      false
+
+    // Unqualified Result/Option type names resolve via the stdlib fallback from any
+    // module, mirroring how their constructors (Ok/Error, Some/None) already
+    // resolve unqualified everywhere. Once resolved, the name pretty-prints in
+    // the canonical `Stdlib.X.Y` form, so the unqualified input round-trips to the
+    // qualified output.
+    t
+      "unqualified Result resolves through stdlib fallback"
+      "type MyResult = Result<Int64, String>"
+      "type MyResult =\n  Stdlib.Result.Result<Int64, String>"
+      []
+      []
+      []
+      false
+    t
+      "unqualified Option resolves through stdlib fallback"
+      "type MyOpt = Option<Int64>"
+      "type MyOpt =\n  Stdlib.Option.Option<Int64>"
+      []
+      []
+      []
+      false
+    t
+      "unqualified Result unapplied resolves through stdlib fallback"
+      "type MyResult = Result"
+      "type MyResult =\n  Stdlib.Result.Result"
+      []
+      []
+      []
       false ]
   |> testList "type references"
 
@@ -919,7 +949,7 @@ let exprs =
       "invalid escape in char match pattern"
       "match c with\n| '\\d' -> 1L\n| _ -> 0L"
       "Unparseable"
-    // A qualified enum-case pattern is unsupported (use the bare case name).
+    // A qualified enum-case pattern is unsupported (use the unqualified case name).
     // tree-sitter keeps only the first path segment and error-recovers the
     // rest; reject it instead of silently building a truncated pattern. The
     // rejection holds across path lengths and whether or not fields are bound.
@@ -936,11 +966,11 @@ let exprs =
       "match x with\n| Stdlib.Result.Ok -> 1L\n| _ -> 0L"
       "Unparseable"
     // The diagnostic must name the actual problem (qualified path) so the user
-    // knows to use the bare case name, not just report a generic failure.
+    // knows to use the unqualified case name, not just report a generic failure.
     tParseErrorNote
-      "qualified enum-case match pattern suggests bare case name"
+      "qualified enum-case match pattern suggests unqualified case name"
       "match x with\n| Stdlib.Result.Result.Ok n -> 1L\n| _ -> 0L"
-      "Invalid match pattern. Enum patterns use the bare case name (e.g. `| Ok n`), not a qualified path like `| Stdlib.Result.Result.Ok n`."
+      "Invalid match pattern. Enum patterns use the unqualified case name (e.g. `| Ok n`), not a qualified path like `| Stdlib.Result.Result.Ok n`."
     // Codepoints that tree-sitter accepts as well-formed escapes but that
     // are not valid Unicode scalars must be rejected by the decoder:
     //   - surrogate range (D800..DFFF)
@@ -2222,6 +2252,19 @@ let moduleDeclarations =
       []
       []
       false
+
+    // Unqualified Result resolves from inside a non-Stdlib module (here
+    // Tests.MyModule), the scenario that motivated the stdlib fallback.
+    // Previously this required the fully-qualified `Stdlib.Result.Result`.
+    t
+      "unqualified Result resolves inside a non-Stdlib module"
+      "module MyModule =\n  type MyResult = Result<Int64, String>"
+      "module Tests =\n  module MyModule =\n    type MyResult =\n      Stdlib.Result.Result<Int64, String>"
+      []
+      []
+      []
+      false
+
 
     t
       "module with types, fns, and vals"

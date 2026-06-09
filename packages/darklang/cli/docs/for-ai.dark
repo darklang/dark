@@ -137,7 +137,9 @@ Rules:
 
 ## Critical Syntax
 - Whitespace-sensitive (like Python)
-- NO nested function definitions
+- Nested function definitions are supported only in the fully annotated form:
+  `let helper (x: Int64) : Int64 = ...`. The parser desugars this to a local
+  lambda, so use it for task-local helpers; mutual recursion is not supported.
 - NO binding modules to variables (`let c = Darklang.Cli.Colors` is invalid —
   modules are not first-class values. Use the full path each time.)
 - Pipe needs parens: (complex expr) |> fn

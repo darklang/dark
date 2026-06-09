@@ -144,13 +144,14 @@ Dark parses pipes greedily; `Stdlib.List.length xs |> Stdlib.Int64.toString`
 raises "Pipe: LongIdent". Wrap the left side in parens:
   (Stdlib.List.length xs) |> Stdlib.Int64.toString
 
-## No nested functions, no `rec` keyword
-Dark rejects nested `let` that defines a function — move helpers to module
-scope instead. Dark also has no `rec` keyword: a top-level `let` is
-automatically self-recursive. The common idiom is a top-level
-`let fooLoop acc xs = ...` that `let foo xs = fooLoop empty xs` wraps.
-Parser error for the nested-let case reads:
-"Unsupported let or use expr pat type / pat: LongIdent".
+## Nested functions and recursion
+Dark supports nested function definitions only in the fully annotated form:
+  let helper (x: Int64) : Int64 = ...
+This desugars to a local lambda. It can close over outer bindings and can call
+itself by name, but mutual recursion between nested functions is not supported.
+Forms such as `let helper x = ...` are not supported; use typed, parenthesized
+params and a return type. Dark has no `rec` keyword: top-level functions are
+automatically self-recursive.
 
 ## Record update doesn't take a type-tag
 `{ state with field = v }` is correct. `MyType { state with field = v }`

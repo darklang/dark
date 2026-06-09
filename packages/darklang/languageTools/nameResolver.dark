@@ -54,11 +54,21 @@ let namesToTry
   (currentModule: List<String>)
   (given: GenericName)
   : List<GenericName> =
+  // Stdlib.etc shortcut, plus a final stdlib fallback for Result/Option. Their
+  // constructors (Ok/Error, Some/None) already resolve unqualified from any
+  // module, so their unqualified type names should resolve the same way while still
+  // allowing local definitions to win first.
   let addl =
-    match given.modules with
-    | "Stdlib" :: _ ->
+    match (given.modules, given.name) with
+    | ("Stdlib" :: _, _) ->
       [ { given with
             modules = Stdlib.List.append [ "Darklang" ] given.modules } ]
+    | ([], "Result") -> [ { given with modules = [ "Darklang"; "Stdlib"; "Result" ] } ]
+    | ([ "Result" ], "Result") ->
+      [ { given with modules = [ "Darklang"; "Stdlib"; "Result" ] } ]
+    | ([], "Option") -> [ { given with modules = [ "Darklang"; "Stdlib"; "Option" ] } ]
+    | ([ "Option" ], "Option") ->
+      [ { given with modules = [ "Darklang"; "Stdlib"; "Option" ] } ]
     | _ -> []
 
   let currentModule = Stdlib.List.append [ owner ] currentModule
