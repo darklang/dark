@@ -21,8 +21,8 @@ let content () : String =
   - Check spelling/case
 
 ## Operator errors
-  - Int division: use Stdlib.Int64.divide
-  - Float subtract: use Stdlib.Float.subtract
+  - Numeric operators require matching numeric operand types
+  - Integer / and ^ can raise out-of-range runtime errors
   - List concat: use Stdlib.List.append
 
 ## Enum errors

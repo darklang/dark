@@ -140,7 +140,11 @@ let fns () : List<BuiltInFn> =
       description = "Adds two integers together"
       fn =
         (function
-        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a + b))
+        | _, vm, _, [ DInt64 a; DInt64 b ] ->
+          try
+            DInt64(Checked.(+) a b) |> Ply
+          with :? System.OverflowException ->
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "+"
       previewable = Pure
@@ -155,7 +159,11 @@ let fns () : List<BuiltInFn> =
       description = "Subtracts two integers"
       fn =
         (function
-        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a - b))
+        | _, vm, _, [ DInt64 a; DInt64 b ] ->
+          try
+            DInt64(Checked.(-) a b) |> Ply
+          with :? System.OverflowException ->
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
@@ -170,7 +178,11 @@ let fns () : List<BuiltInFn> =
       description = "Multiplies two integers"
       fn =
         (function
-        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a * b))
+        | _, vm, _, [ DInt64 a; DInt64 b ] ->
+          try
+            DInt64(Checked.(*) a b) |> Ply
+          with :? System.OverflowException ->
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "*"
       previewable = Pure
@@ -189,13 +201,28 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [ DInt64 number; DInt64 exp ] ->
-          (try
-            if exp < 0L then
-              RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
-            else
+          if exp < 0L then
+            RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
+          elif exp > int64 System.Int32.MaxValue then
+            // `bigint ** int` needs an Int32 exponent; an exponent this large
+            // overflows Int64 unless the base is trivial. (Without this guard
+            // `int exp` silently truncates to a bogus — possibly negative —
+            // Int32, and `bigint ** negative` throws an uncaught exception.)
+            match number with
+            | 0L -> Ply(DInt64 0L)
+            | 1L -> Ply(DInt64 1L)
+            | -1L -> Ply(DInt64(if exp % 2L = 0L then 1L else -1L))
+            | _ -> RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+          elif exp > 63L && (number > 1L || number < -1L) then
+            // Avoid constructing enormous bigints that can never fit in Int64.
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+          else
+            // `int64` narrowing throws OverflowException when the result
+            // exceeds Int64 range.
+            try
               (bigint number) ** (int exp) |> int64 |> DInt64 |> Ply
-           with :? System.OverflowException ->
-             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID)
+            with :? System.OverflowException ->
+              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "POWER"
       previewable = Pure
@@ -213,6 +240,8 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [ DInt64 a; DInt64 b ] ->
           if b = 0L then
             RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
+          else if a = System.Int64.MinValue && b = -1L then
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
           else
             Ply(DInt64(a / b))
         | _ -> incorrectArgs ())
@@ -229,7 +258,11 @@ let fns () : List<BuiltInFn> =
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | _, _, _, [ DInt64 a ] -> Ply(DInt64(-a))
+        | _, vm, _, [ DInt64 a ] ->
+          if a = System.Int64.MinValue then
+            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+          else
+            Ply(DInt64(-a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

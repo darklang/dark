@@ -1445,6 +1445,9 @@ module RuntimeError =
       | RuntimeError.EqualityCheckOnIncompatibleTypes(left, right) ->
         "EqualityCheckOnIncompatibleTypes",
         [ ValueType.toDT left; ValueType.toDT right ]
+      | RuntimeError.NumericOperationOnIncompatibleTypes(left, right) ->
+        "NumericOperationOnIncompatibleTypes",
+        [ ValueType.toDT left; ValueType.toDT right ]
       | RuntimeError.IfConditionNotBool(actualValue, actualValueType) ->
         "IfConditionNotBool",
         [ Dval.toDT actualValue; ValueType.toDT actualValueType ]
@@ -1491,6 +1494,11 @@ module RuntimeError =
       RuntimeError.VariableNotFound attemptedVarName
     | DEnum(_, _, [], "EqualityCheckOnIncompatibleTypes", [ left; right ]) ->
       RuntimeError.EqualityCheckOnIncompatibleTypes(
+        ValueType.fromDT left,
+        ValueType.fromDT right
+      )
+    | DEnum(_, _, [], "NumericOperationOnIncompatibleTypes", [ left; right ]) ->
+      RuntimeError.NumericOperationOnIncompatibleTypes(
         ValueType.fromDT left,
         ValueType.fromDT right
       )

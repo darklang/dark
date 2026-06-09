@@ -146,7 +146,9 @@ Rules:
 - Lists: [1L; 2L; 3L] (semicolons)
 - String concat: ++ (not @)
 - String interpolation: $"x = {expr}; total = {a ++ b}"
-- Int division: Stdlib.Int64.divide (not /)
+- Numeric operators (+ - * / % ^ < > <= >= and unary -) are polymorphic over
+  numeric types; operands must match (`1 + 2`, `1.0 + 2.0`). `/` is integer
+  division on ints; integer overflow raises a runtime error.
 
 ## Records
   MyRecord { a = 1L; b = 2L }

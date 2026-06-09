@@ -71,17 +71,18 @@ let oldFunctionsAreDeprecated =
 /// for `-x`.
 let private infixDispatched : Set<string> =
   Set.ofList
-    [ "int64Add"
-      "int64Subtract"
-      "int64Multiply"
-      "int64Mod"
-      "int64Power"
-      "int64Negate"
-      "int64GreaterThan"
-      "int64GreaterThanOrEqualTo"
-      "int64LessThan"
-      "int64LessThanOrEqualTo"
-      "floatDivide"
+    [ // Polymorphic numeric operators
+      "add"
+      "subtract"
+      "multiply"
+      "divide"
+      "modulo"
+      "power"
+      "greaterThan"
+      "greaterThanOrEqualTo"
+      "lessThan"
+      "lessThanOrEqualTo"
+      "negate"
       "stringAppend"
       "equals"
       "notEquals" ]
