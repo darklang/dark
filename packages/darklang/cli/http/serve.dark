@@ -1,0 +1,133 @@
+module Darklang.Cli.Http.Serve
+
+// Run an HTTP server backed by a Darklang router.
+// Usage: serve <router-path> [--port N] [--max-body-bytes N]
+
+/// Parsed flags + positional. `routerPath = ""` means "no router given".
+type Args =
+  { routerPath: String
+    port: Int64
+    maxBodyBytes: Int64
+    error: Stdlib.Option.Option<String> }
+
+let defaultArgs (): Args =
+  Args
+    { routerPath = ""
+      port = 8080L
+      maxBodyBytes = Stdlib.HttpServer.Config.defaultMaxBodyBytes
+      error = Stdlib.Option.Option.None }
+
+/// Parse a list of args left-to-right. Recognized: a single positional
+/// (the router path), `--port N`, `--max-body-bytes N`. Unknown flags or
+/// duplicate positionals → an error string in `args.error`.
+let rec parseArgs (rest: List<String>) (acc: Args) : Args =
+  match rest with
+  | [] -> acc
+  | "--port" :: value :: tail ->
+    match Stdlib.Int64.parse value with
+    | Error _ ->
+      { acc with error = Stdlib.Option.Option.Some $"Invalid --port: {value}" }
+    | Ok p -> parseArgs tail { acc with port = p }
+  | "--max-body-bytes" :: value :: tail ->
+    match Stdlib.Int64.parse value with
+    | Error _ ->
+      Args
+        { acc with
+            error = Stdlib.Option.Option.Some $"Invalid --max-body-bytes: {value}" }
+    | Ok n -> parseArgs tail { acc with maxBodyBytes = n }
+  | flag :: _ when Stdlib.String.startsWith flag "--" ->
+    { acc with
+        error = Stdlib.Option.Option.Some $"Unknown or incomplete flag: {flag}" }
+  | positional :: tail ->
+    if acc.routerPath == "" then
+      parseArgs tail { acc with routerPath = positional }
+    else
+      { acc with
+          error =
+            Stdlib.Option.Option.Some
+              $"Unexpected extra argument: {positional} (router path already given as {acc.routerPath})" }
+
+
+let usageLines () : List<String> =
+  [ "Usage: serve <router-path> [--port N] [--max-body-bytes N]"
+    ""
+    "Arguments:"
+    "  router-path        Dotted path to a router fn or value (Request -> Response)"
+    "  --port N           TCP port to listen on (default: 8080)"
+    "  --max-body-bytes N Reject request bodies larger than N bytes (default: 31457280, 30 MB)"
+    ""
+    "Examples:"
+    "  serve Darklang.DemoData.HttpServerTest.router"
+    "  serve Some.Adhoc.Router --port 9000"
+    "  serve My.Service.app --port 80 --max-body-bytes 5242880" ]
+
+let printUsage () : Unit = (usageLines ()) |> Stdlib.printLines
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] ->
+    printUsage ()
+    state
+
+  | _ ->
+    let parsed = parseArgs args (defaultArgs ())
+
+    match parsed.error with
+    | Some err ->
+      Stdlib.printLine (Colors.error err)
+      printUsage ()
+      state
+    | None ->
+      if parsed.routerPath == "" then
+        Stdlib.printLine
+          (Colors.error
+            "Missing router path. Usage: serve <router-path> [--port N] [--max-body-bytes N]")
+        state
+      else
+        let portStr = Stdlib.Int64.toString parsed.port
+        let maxBytesStr = Stdlib.Int64.toString parsed.maxBodyBytes
+
+        [ $"Using router: {parsed.routerPath}"
+          $"Max body bytes: {maxBytesStr}"
+          ""
+          Colors.success $"Listening on http://localhost:{portStr}"
+          "Press Ctrl+C to stop"
+          "" ]
+        |> Stdlib.printLines
+
+        // serve via the stdlib helper; only a non-default max body needs a record-update on the config.
+        let configExpr =
+          if parsed.maxBodyBytes == Stdlib.HttpServer.Config.defaultMaxBodyBytes then
+            $"Stdlib.HttpServer.Config.defaults {portStr}L"
+          else
+            $"{{ Stdlib.HttpServer.Config.defaults {portStr}L with maxBodyBytes = {maxBytesStr}L }}"
+
+        let expr = $"Stdlib.HttpServer.serve ({configExpr}) {parsed.routerPath}"
+
+        match
+          Builtin.cliEvaluateExpression
+            state.accountID
+            state.currentBranchId
+            expr
+            false
+         with
+        | Ok _ -> state
+        | Error err ->
+          let pretty = Cli.ExecutionError.toString state.currentBranchId err
+          Stdlib.printLine (Colors.error $"Server failed: {pretty}")
+          state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  Stdlib.printLine "Start an HTTP server backed by a Darklang router."
+  Stdlib.printLine ""
+  printUsage ()
+  state
+
+
+let complete
+  (state: Cli.AppState)
+  (args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  []

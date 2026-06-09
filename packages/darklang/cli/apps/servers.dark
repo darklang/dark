@@ -1,0 +1,28 @@
+/// HTTP-server daemon entrypoints. Each is a `(name) -> Unit` daemon: it claims its pidfile (so
+/// `dark apps` manages it), reads its port from cli-config.json (`apps.<name>.port`, with a default),
+/// then serves its router via `Stdlib.HttpServer.serve` (blocks until SIGTERM; override knobs with
+/// record-update on `Config.defaults`). The generic daemon lifecycle (pidfile / liveness / stop) lives in
+/// `Stdlib.Cli.Daemon`; these just bind a router to a port.
+module Darklang.Cli.Apps.Servers
+
+// Claim the pidfile, resolve the port (config `apps.<name>.port`, else `defaultPort`), then serve `router`.
+let httpDaemon
+  (name: String)
+  (defaultPort: Int64)
+  (label: String)
+  (router: Stdlib.Http.Request -> Stdlib.Http.Response)
+  : Unit =
+  let _claimed = Stdlib.Cli.Daemon.claimPidfile name
+  let port = Config.getInt ("apps." ++ name ++ ".port") defaultPort
+  Stdlib.printLine $"{name}: serving {label} on http://localhost:{Stdlib.Int64.toString port}"
+  Stdlib.HttpServer.serve (Stdlib.HttpServer.Config.defaults port) router
+
+
+// `dark-packages` — the package API server that powers wip.darklang.com/packages. Defaults to 9090, a
+// port the devcontainer forwards (9090–9099), so it's reachable from the host; override via config.
+let darkPackages (name: String) : Unit =
+  httpDaemon name 9090L "DarkPackages.router" Darklang.Internal.DarkPackages.router
+
+// `demo-http` — a tiny demo server (/, /hello, /echo). Defaults to 9091 (a devcontainer-forwarded port).
+let demoHttp (name: String) : Unit =
+  httpDaemon name 9091L "HttpServerTest.router" Darklang.DemoData.HttpServerTest.router

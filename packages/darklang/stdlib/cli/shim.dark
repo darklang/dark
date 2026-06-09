@@ -1,0 +1,37 @@
+/// Install a command *shim*: a tiny executable in `~/.darklang/bin` that re-execs the running `dark`
+/// binary with a fixed command, so `<name>` runs `dark <command>` straight from the shell (with
+/// `~/.darklang/bin` on PATH). The OS-level half of "make a CLI command runnable from anywhere" —
+/// sibling to `Daemon` (which owns detached processes). Apps build on top; see `Cli.Apps.Install`.
+module Darklang.Stdlib.Cli.Shim
+
+/// `~/.darklang/bin` — where shims live (put it on PATH to run them as bare commands).
+let binDir () : String =
+  let home = Stdlib.Option.withDefault (Env.home ()) "/tmp"
+  Path.join [ home; ".darklang"; "bin" ]
+
+let path (name: String) : String =
+  Path.join [ binDir (); name ]
+
+// `<exe> <command> "$@"` — forward to the running dark binary (resolved at install time, so the shim
+// keeps working wherever the binary lives) and pass the caller's args straight through.
+let private script (command: String) : String =
+  "#!/bin/sh\nexec " ++ (Daemon.launcher ()) ++ " " ++ command ++ " \"$@\"\n"
+
+/// Write an executable shim `~/.darklang/bin/<name>` that runs `dark <command>`. Returns the path written.
+let install (name: String) (command: String) : Stdlib.Result.Result<String, String> =
+  let p = path name
+
+  match Dir.createRecursive (binDir ()) with
+  | Error e -> Stdlib.Result.Result.Error e.message
+  | Ok _ ->
+    match File.writeText p (script command) with
+    | Error e -> Stdlib.Result.Result.Error e.message
+    | Ok _ ->
+      match Unix.grantExecutePermission p with
+      | Ok _ -> Stdlib.Result.Result.Ok p
+      | Error e -> Stdlib.Result.Result.Error e
+
+/// Remove the shim for `name`, if present. Idempotent.
+let remove (name: String) : Unit =
+  let _ = File.delete (path name)
+  ()

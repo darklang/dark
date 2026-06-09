@@ -110,6 +110,7 @@ docker run \
   -p 10030:10030 \
   -p 11001:11001 \
   -p 11002:11002 \
+  -p 9090-9099:9090-9099 \
   -w /home/dark/app \
   --user "$uid:$gid" \
   --cap-add=ALL \

@@ -65,8 +65,10 @@ GIT_COMMIT=$(git rev-parse --short HEAD)
 export GIT_COMMIT
 
 # context: 'tee' was screwing up our MCP server running through this script
-# so a --no-log argument is supported to skip logging to the file
-if [[ "$NO_LOG" == "true" ]]; then
+# so a --no-log argument is supported to skip logging to the file.
+# also skip the tee when stdout is a tty (interactive): the pipe makes stdout a
+# non-tty, which breaks full-screen TUIs (`dark apps`, `dark outliner`, …).
+if [[ "$NO_LOG" == "true" ]] || [ -t 1 ]; then
   "${EXE}" "$@"
 else
   "${EXE}" "$@" 2>&1 | tee "${CLI_LOG}"

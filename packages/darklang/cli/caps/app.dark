@@ -1,0 +1,47 @@
+module Darklang.Cli.Caps.App
+
+// The interactive capability editor, wrapped as a CLI SubApp. Composes the http/exec/access rule
+// editors + flag toggles + profile picker over a working copy of the grant, written via `pmCapsSet`.
+
+let makeSubApp (state: Main.State) : Darklang.Cli.SubApp =
+  Darklang.Cli.SubApp
+    { onKey =
+        fun key modifiers keyChar ->
+          match Main.handleKey state key modifiers keyChar with
+          | Continue s -> (Darklang.Cli.SubAppAction.Continue, makeSubApp s)
+          | Save s -> (Darklang.Cli.SubAppAction.Save, makeSubApp s)
+          | Exit s -> (Darklang.Cli.SubAppAction.Exit, makeSubApp s)
+      onDisplay = fun () -> Main.render state
+      onSave = fun () -> Main.save state }
+
+let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.Cli.AppState =
+  Stdlib.print "\u001b[?1049h"
+  let state = Main.load ()
+  let app = makeSubApp state
+  { cliState with
+      currentPage = Darklang.Cli.Page.SubApp app
+      needsFullRedraw = true }
+
+let help (state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
+  [ "Usage: caps-edit"
+    "Interactive editor for this instance's capability grant."
+    ""
+    "  Up/Down      Move between rows"
+    "  Space        Toggle a flag capability (random, clock, …)"
+    "  Enter        Edit the selected rule (or toggle a flag)"
+    "  a            Add a rule (http-client / file / env / db / exec)"
+    "  d            Delete the selected rule"
+    "  p            Apply a profile (replaces the grant)"
+    "  w            Write the grant to ~/.darklang/capabilities.bin"
+    "  Esc          Exit (discards unsaved edits)"
+    ""
+    "Inside a rule editor: Tab switches field, arrows cycle/move, Enter saves, Esc cancels." ]
+  |> Stdlib.printLines
+
+  state
+
+let complete
+  (_state: Darklang.Cli.AppState)
+  (_args: List<String>)
+  : List<Darklang.Cli.Completion.CompletionItem> =
+  []

@@ -1,0 +1,313 @@
+module Darklang.Cli.Caps.Command
+
+// `dark caps` — view + control the CAPABILITIES this instance grants to the code it runs. A grant is
+// nuanced: a domain (http-client, file, exec, …) with an access/scope (e.g. `http-client GET` = GET
+// to any host; `file write ~/.darklang/` = write only inside that dir). LOCAL (never synced), stored
+// in `~/.darklang/capabilities.bin`, default NONE — effectful code is blocked until granted. The
+// runtime gate ENFORCES it (a builtin call whose need isn't covered is denied).
+//
+// The builtins (`pmCapsGet` / `pmCapsSet`) exchange the STRUCTURED `Capabilities` value; the grant-spec
+// LANGUAGE (parse/render) lives in `.dark` (`LanguageTools.Capabilities`) and is applied at the boundary
+// wrappers below, so the rest of this command works on spec strings. Every adjustment — grant one,
+// revoke a domain, clear, grant-all, apply a profile — is a get-modify-set composed here. Rendering is
+// shared via `Darklang.PrettyPrinter.Capabilities` so every caps surface renders identically.
+
+// Named PRESET grants — common bundles you apply in one go (`caps profile local-dev`). The http-client
+// grant is a LIST of (method × URL) rules that couple per-rule, so a preset CAN say "any method to
+// localhost, but GET-only externally": `http-client * *://localhost:*` + `http-client GET`.
+let profiles : List<(String * List<String>)> =
+  [ ("read-only",
+     [ "http-client GET"; "file read"; "db read"; "env read"; "clock"; "random"; "stdin"; "stdout" ])
+    ("local-dev",
+     [ "http-server"
+       "http-client * *://localhost:*" // any method/scheme/port to your own local services
+       "http-client GET" // but only GET (https) to the outside world
+       "file read"
+       "file write ~/.darklang/"
+       "stdout"
+       "stdin"
+       "clock"
+       "random" ])
+    ("trusted",
+     [ "http-client"
+       "http-server"
+       "file read+write"
+       "exec"
+       "env read+write"
+       "db read+write"
+       "stdout"
+       "stdin"
+       "clock"
+       "random"
+       "llm" ]) ]
+
+
+// The three caps builtins, each behind a single wrapper so callers (this command, the app) go through
+// one call site. The builtins exchange the STRUCTURED `Capabilities` value; the grant-spec LANGUAGE
+// (parse/render) is applied HERE at the boundary, so the rest of this command + the pretty-printer keep
+// working on spec strings.
+let currentSpecs () : List<String> =
+  (Builtin.pmCapsGet ()) |> LanguageTools.Capabilities.render
+
+// the single `pmCapsSet` call site (keeps the builtin to one wrapper); takes the already-structured grant.
+let writeCaps (caps: LanguageTools.Capabilities.Capabilities) : Unit = Builtin.pmCapsSet caps
+
+let writeSpecs (specs: List<String>) : Stdlib.Option.Option<String> =
+  match LanguageTools.Capabilities.parse specs with
+  | Ok caps ->
+    Command.writeCaps caps
+    Stdlib.Option.Option.None
+  | Error bad -> Stdlib.Option.Option.Some bad
+
+let effectiveCapsForHash (hash: String) : List<String> =
+  (Builtin.pmFnEffectiveCaps hash) |> LanguageTools.Capabilities.render
+
+
+// Rendering of caps lives in the shared pretty-printer (`Darklang.PrettyPrinter.Capabilities`), so
+// `caps list`, `caps needed-for <fn>`, the caps app, and any other command render identically.
+
+// The compact caps badge for a package fn (by hash): "pure" or e.g. "http-client, file". Other
+// commands/apps that list fns can call this to show what each fn would be allowed to do.
+let badgeForHash (hash: String) : String =
+  PrettyPrinter.Capabilities.badge (Command.effectiveCapsForHash hash)
+
+
+// ───────────────────────────────────────────────────────────────────────────
+// Adjustments — get-modify-set over the two primitives (pmCapsGet / pmCapsSet)
+// ───────────────────────────────────────────────────────────────────────────
+
+// add one spec to the grant. Ok () on success; Error badSpec if it didn't parse (grant unchanged).
+let grantSpec (spec: String) : Stdlib.Result.Result<Unit, String> =
+  let next = Stdlib.List.append (currentSpecs ()) [ spec ]
+  match writeSpecs next with
+  | None -> Stdlib.Result.Result.Ok()
+  | Some bad -> Stdlib.Result.Result.Error bad
+
+// drop every spec belonging to a domain. Returns whether anything was removed.
+let revokeDomain (domain: String) : Bool =
+  let before = currentSpecs ()
+  let after =
+    before
+    |> Stdlib.List.filter (fun s -> PrettyPrinter.Capabilities.domainOf s != domain)
+  if Stdlib.List.length after == Stdlib.List.length before then
+    false
+  else
+    let _ = writeSpecs after
+    true
+
+
+// ───────────────────────────────────────────────────────────────────────────
+
+let show (state: Cli.AppState) : Cli.AppState =
+  let specs = currentSpecs ()
+  Stdlib.printLine "Capabilities (this instance grants):"
+  if Stdlib.List.isEmpty specs then
+    Stdlib.printLine (Colors.dimText "  (none — NONE is the default)")
+  else
+    Stdlib.printLines
+      ((PrettyPrinter.Capabilities.lines specs) |> Stdlib.List.map (fun l -> "  " ++ l))
+  Stdlib.printLine ""
+  Stdlib.printLine
+    (Colors.dimText "  adjust: `caps grant http-client GET` · `caps revoke <domain>` · `caps grant-for-fn <fn>`")
+  Stdlib.printLine
+    (Colors.dimText "  replace: `caps set <spec>; <spec>…` · `caps clear` · `caps edit` (TUI)")
+  state
+
+
+// Show what a fn (transitively) needs — the shared nice rendering (used by `caps needed-for <fn>`).
+let showFnNeeds (state: Cli.AppState) (fnName: String) : Unit =
+  match Cli.Packages.Location.parseRelativeTo state.packageData.currentLocation fnName with
+  | Error e -> Stdlib.printLine (Colors.error e)
+  | Ok location ->
+    match LanguageTools.PackageManager.findAny state.currentBranchId location with
+    | Some((hash, Fn)) ->
+      let specs =
+        effectiveCapsForHash (LanguageTools.ProgramTypes.hashToString hash)
+      if Stdlib.List.isEmpty specs then
+        Stdlib.printLine (Colors.success $"{fnName}  ✓ pure — needs no capabilities")
+      else
+        Stdlib.printLine $"{fnName} needs:"
+        Stdlib.printLines
+          ((PrettyPrinter.Capabilities.lines specs) |> Stdlib.List.map (fun l -> "  " ++ l))
+        Stdlib.printLine
+          (Colors.dimText $"  grant them all with `caps grant-for-fn {fnName}`")
+    | Some((_, _)) -> Stdlib.printLine (Colors.error "caps analysis is for functions")
+    | None -> Stdlib.printLine (Colors.error $"'{fnName}' not found at this location")
+
+
+// `caps grant-for-fn <fn>` — grant exactly the capabilities a fn (transitively) needs.
+let grantForFn (state: Cli.AppState) (fnName: String) : Cli.AppState =
+  match Cli.Packages.Location.parseRelativeTo state.packageData.currentLocation fnName with
+  | Error e -> Stdlib.printLine (Colors.error e)
+  | Ok location ->
+    match LanguageTools.PackageManager.findAny state.currentBranchId location with
+    | Some((hash, Fn)) ->
+      let specs = effectiveCapsForHash (LanguageTools.ProgramTypes.hashToString hash)
+      if Stdlib.List.isEmpty specs then
+        Stdlib.printLine (Colors.dimText $"{fnName} needs no capabilities (pure) — nothing to grant")
+      else
+        Stdlib.List.iter specs (fun spec ->
+          match Command.grantSpec spec with
+          | Ok() -> Stdlib.printLine (Colors.success $"✓ granted  {spec}")
+          | Error bad -> Stdlib.printLine (Colors.error $"couldn't grant '{bad}'"))
+    | Some((_, _)) -> Stdlib.printLine (Colors.error "caps analysis is for functions")
+    | None -> Stdlib.printLine (Colors.error $"'{fnName}' not found at this location")
+  state
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] | [ "list" ] | [ "status" ] -> Command.show state
+
+  // `caps edit` — launch the interactive TUI editor
+  | [ "edit" ] | [ "ui" ] -> App.execute state []
+
+  // `caps grant <spec…>` — e.g. `grant http-client GET`, `grant file write ~/x`, `grant random`
+  | "grant" :: specWords ->
+    let spec = Stdlib.String.join specWords " "
+    match Command.grantSpec spec with
+    | Ok() -> Stdlib.printLine (Colors.success $"✓ granted  {spec}")
+    | Error bad ->
+      Stdlib.printLine
+        (Colors.error $"couldn't parse '{bad}' — see `caps help` for the grammar")
+    state
+
+  // `caps set <spec>[; <spec>…]` — REPLACE the whole grant with exactly these specs (direct control).
+  | "set" :: rest ->
+    let joined = Stdlib.String.join rest " "
+    let specs =
+      (Stdlib.String.split joined ";")
+      |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
+      |> Stdlib.List.filter (fun s -> s != "")
+    if Stdlib.List.isEmpty specs then
+      // an empty set would silently wipe the grant — make the user say `caps clear` for that
+      Stdlib.printLine (Colors.error "usage: caps set <spec>; <spec>… — to revoke everything use `caps clear`")
+      state
+    else
+      match writeSpecs specs with
+      | None ->
+        Stdlib.printLine (Colors.success "✓ capabilities set")
+        Command.show state
+      | Some badSpec ->
+        Stdlib.printLine
+          (Colors.error $"couldn't parse '{badSpec}' — nothing changed. See `caps help` for the grammar.")
+        state
+
+  // `caps clear` — REPLACE the grant with NONE (revoke everything).
+  | [ "clear" ] | [ "none" ] ->
+    let _ = writeSpecs []
+    Stdlib.printLine (Colors.success "✓ cleared — all capabilities revoked (NONE)")
+    state
+
+  // `caps grant-all` — REPLACE the grant with everything (unrestricted). The one-command "let it all
+  // through" for when capability prompts are getting in the way (common for agents / trusted local work).
+  // TODO this hands back the full unrestricted grant — see the trust-boundary TODO in
+  // `LanguageTools.Capabilities.all`. It's a convenience, not a security control.
+  | [ "grant-all" ] | [ "allow-all" ] ->
+    Command.writeCaps (LanguageTools.Capabilities.all ())
+    Stdlib.printLine (Colors.success "✓ granted ALL capabilities — this instance is now unrestricted")
+    Command.show state
+
+  | [ "revoke"; domain ] ->
+    if Command.revokeDomain domain then
+      Stdlib.printLine (Colors.success $"✓ revoked  {domain}")
+    else
+      Stdlib.printLine (Colors.dimText $"'{domain}' was not granted (nothing to revoke)")
+    state
+
+  | [ "grant-for-fn"; fnName ] -> Command.grantForFn state fnName
+
+  | [ "profile" ] ->
+    Stdlib.printLine
+      "Capability profiles — `caps profile <name>` REPLACES the grant with that posture:"
+    Stdlib.List.iter Command.profiles (fun (name, specs) ->
+      let label =
+        match Stdlib.String.padEnd name " " 12L with
+        | Ok r -> r
+        | Error _ -> name
+      Stdlib.printLine $"  {label}{Colors.dimText (PrettyPrinter.Capabilities.compact specs)}")
+    Stdlib.printLine
+      (Colors.dimText "  (to layer one on top of your grant, apply it then `caps grant …` the extras)")
+    state
+
+  // A profile is a complete posture, so applying one REPLACES the grant (set, not adjust).
+  | [ "profile"; name ] ->
+    match Stdlib.List.findFirst Command.profiles (fun (n, _) -> n == name) with
+    | None ->
+      Stdlib.printLine (Colors.error $"no profile '{name}' — see `caps profile`")
+      state
+    | Some((_, specs)) ->
+      match writeSpecs specs with
+      | None ->
+        Stdlib.printLine (Colors.success $"✓ capabilities set to profile '{name}'")
+        Command.show state
+      | Some badSpec ->
+        Stdlib.printLine
+          (Colors.error $"profile '{name}' has a spec that didn't parse ('{badSpec}') — nothing changed")
+        state
+
+  // `caps needed-for <fn>` — the capabilities a function (transitively) needs.
+  | [ "needed-for"; fnName ] ->
+    Command.showFnNeeds state fnName
+    state
+
+  | _ ->
+    Stdlib.printLine
+      (Colors.error "Usage: caps [list] | grant <spec> | set <spec>… | clear | grant-all | revoke <domain> | grant-for-fn <fn> | needed-for <fn>")
+    state
+
+
+let complete
+  (_state: Cli.AppState)
+  (_args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  [ Cli.Completion.simple "list"
+    Cli.Completion.simple "grant"
+    Cli.Completion.simple "set"
+    Cli.Completion.simple "clear"
+    Cli.Completion.simple "grant-all"
+    Cli.Completion.simple "revoke"
+    Cli.Completion.simple "grant-for-fn"
+    Cli.Completion.simple "needed-for"
+    Cli.Completion.simple "profile" ]
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [ "Usage: caps [list] | grant <spec> | set <spec>… | clear | grant-all | revoke <domain> | grant-for-fn <fn> | needed-for <fn>"
+    ""
+    "View + control the capabilities this instance grants to the code it runs. LOCAL (never synced),"
+    "stored in ~/.darklang/capabilities.bin, default NONE. The runtime gate enforces it."
+    ""
+    "  list                       Show the current grant"
+    "  edit                       Open the interactive editor (TUI)"
+    "  needed-for <fn>            Show what a fn (transitively) needs"
+    "  grant-for-fn <fn>          Grant exactly what a fn needs (adjusts)"
+    ""
+    "  Adjust the current grant:"
+    "    grant <spec>             Add one capability"
+    "    revoke <domain>          Clear a domain (http-client, file, random, …)"
+    ""
+    "  Replace the whole grant (direct control):"
+    "    set <spec>; <spec>; …    Set caps to EXACTLY these specs (semicolon-separated)"
+    "    clear                    Set NONE — revoke everything"
+    "    grant-all                Set ALL — unrestricted (convenience; not a security boundary)"
+    "    profile [name]           List, or apply, a preset posture — applying REPLACES the grant"
+    "                               (read-only · local-dev · trusted; layer extras with `grant` after)"
+    "    (`caps edit` opens an interactive editor; the file itself is a binary blob)"
+    ""
+    "  <spec> grammar:"
+    "    http-client [METHOD [URL]]    METHOD: GET/POST/… or `*` = any."
+    "                                  URL pattern: [scheme://]host[:port][/path], where omitted scheme = https,"
+    "                                  omitted port = the scheme's default, omitted path = any; `*` is the wildcard"
+    "                                  per part (`*://` any scheme, `:*` any port, `*.github.com` = subdomains)."
+    "                                  e.g. `http-client GET` (GET anywhere) · `http-client GET https://*.github.com/api`"
+    "                                       `http-client * *://localhost:*` (any method/scheme/port to localhost)."
+    "                                  Repeat to couple rules: a request must match SOME rule."
+    "    exec [PROG [ARG…]]           e.g. `exec git` = git any-args; `exec rm --dry-run` = rm only with --dry-run;"
+    "                                  PROG `*` = any program. Repeat to couple per-program arg allowlists."
+    "    file read|write [PATH]        e.g. `file write ~/.darklang/` = write only inside that dir"
+    "    env read|write [VAR]   ·  db read|write [TABLE]   ·  http-server"
+    "    random  ·  clock  ·  stdout  ·  stdin  ·  llm" ]
+  |> Stdlib.printLines
+
+  state

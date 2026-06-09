@@ -1,0 +1,284 @@
+module Darklang.Cli.Apps.Command
+
+// `dark apps` — see, curate, run, and manage the Dark apps this instance cares about. `list` shows the
+// apps you've INSTALLED (empty by default); `list-available` is the catalog. Foreground apps `run`
+// attached; daemons `start`/`stop`/`status`/`logs`/`inspect` via `Stdlib.Cli.Daemon`. Apps are referenced
+// by their kebab-case slug.
+
+/// The port a running HTTP daemon bound to, read from its log (`… on http://localhost:<port>`). This is
+/// the *actual* port (default or config override), so it's accurate without the browser knowing defaults.
+/// `None` for daemons that aren't HTTP servers (they never log a port).
+let daemonPort (slug: String) : Stdlib.Option.Option<Int64> =
+  let portLines =
+    (Stdlib.Cli.Daemon.tailLog slug 25L)
+    |> Stdlib.List.filter (fun l -> Stdlib.String.contains l "localhost:")
+
+  match Stdlib.List.last portLines with
+  | None -> Stdlib.Option.Option.None
+  | Some line ->
+    match Stdlib.List.last (Stdlib.String.split line "localhost:") with
+    | None -> Stdlib.Option.Option.None
+    | Some tail -> Stdlib.Result.toOption (Stdlib.Int64.parse (Stdlib.String.trim tail))
+
+/// The live state of a daemon, for listing: "running (pid N) :port" / "stale (pid N)" / "stopped".
+/// HTTP daemons append the port they actually bound to.
+let daemonState (slug: String) : String =
+  match Stdlib.Cli.Daemon.recordedPid slug with
+  | Some pid ->
+    if Stdlib.Cli.Posix.isProcessRunning pid then
+      let portStr =
+        match daemonPort slug with
+        | Some p -> $" :{Stdlib.Int64.toString p}"
+        | None -> ""
+      $"running (pid {Stdlib.Int64.toString pid}){portStr}"
+    else
+      $"stale (pid {Stdlib.Int64.toString pid})"
+  | None -> "stopped"
+
+/// One list row: pretty label · (slug) · [kind] · description — daemons append their live state.
+let row (app: Model.App) : String =
+  let tag = Model.kindTag app.target
+  let extra =
+    match app.target with
+    | Daemon _ -> "  " ++ Colors.dimText ("· " ++ daemonState app.slug)
+    | Foreground _ -> ""
+  $"  {app.name}  {Colors.dimText ($"({app.slug})  [{tag}]")}  {Colors.dimText app.description}{extra}"
+
+
+/// `apps run <slug>` — run a foreground app attached, dispatching its CLI command in-process.
+let runApp (state: Cli.AppState) (slug: String) : Cli.AppState =
+  match Registry.findBySlug slug with
+  | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
+  | Some app ->
+    match app.target with
+    | Foreground command -> Cli.Registry.executeCommand command state []
+    | Daemon _ ->
+      Stdlib.printLine (Colors.dimText $"'{slug}' is a daemon — start it with `apps start {slug}`")
+      state
+
+/// `apps start <slug>` — launch a daemon detached (verified) and report its pid.
+let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
+  if Service.platform () == Service.Platform.Unsupported then
+    Stdlib.printLine
+      (Colors.error "Background daemons need Linux or macOS — they're not supported on this platform yet.")
+    state
+  else
+
+  match Registry.findBySlug slug with
+  | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
+  | Some app ->
+    match app.target with
+    | Daemon entrypoint ->
+      let q = "\""
+      let expr = entrypoint ++ " " ++ q ++ slug ++ q
+
+      match Stdlib.Cli.Daemon.start slug expr with
+      | Ok pid ->
+        Stdlib.printLine (Colors.success $"✓ {app.name} started (pid {Stdlib.Int64.toString pid})")
+      | Error e -> Stdlib.printLine (Colors.error e)
+    | Foreground _ ->
+      Stdlib.printLine (Colors.dimText $"'{slug}' is a foreground app — run it with `apps run {slug}`")
+
+  state
+
+/// `apps inspect <slug>` — label, slug, target, installed?, and (daemons) status + recent logs.
+let inspect (state: Cli.AppState) (slug: String) : Cli.AppState =
+  match Registry.findBySlug slug with
+  | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
+  | Some app ->
+    Stdlib.printLine $"{app.name}  [{Model.kindTag app.target}]"
+    Stdlib.printLine (Colors.dimText $"  {app.slug} — {app.description}")
+    Stdlib.printLine $"  target:    {Model.reference app.target}"
+    let installedStr = if Registry.isInstalled slug then "yes" else "no"
+    Stdlib.printLine $"  installed: {installedStr}"
+
+    match app.target with
+    | Daemon _ ->
+      Stdlib.printLine $"  status:    {Stdlib.Cli.Daemon.statusLine slug}"
+      let logs = Stdlib.Cli.Daemon.tailLog slug 5L
+      if Stdlib.List.isEmpty logs then
+        ()
+      else
+        Stdlib.printLine "  recent logs:"
+        logs |> Stdlib.List.map (fun l -> "    " ++ l) |> Stdlib.printLines
+    | Foreground _ -> ()
+
+  state
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  // `dark apps` with no args opens the interactive browser.
+  | [] -> Editor.launch state
+
+  | [ "list" ] ->
+    let apps = Registry.installed ()
+    if Stdlib.List.isEmpty apps then
+      Stdlib.printLine
+        (Colors.dimText
+          "No apps installed. `apps list-available` shows the catalog; `apps add <slug>` adds one.")
+    else
+      Stdlib.printLine "Installed apps:"
+      apps |> Stdlib.List.map (fun a -> row a) |> Stdlib.printLines
+
+    state
+
+  | [ "list-available" ] | [ "available" ] ->
+    Stdlib.printLine "Available apps:"
+    (Registry.catalog state.currentBranchId)
+    |> Stdlib.List.map (fun a ->
+      let installedTag =
+        if Registry.isInstalled a.slug then Colors.success "  ✓ installed" else ""
+      (row a) ++ installedTag)
+    |> Stdlib.printLines
+
+    Stdlib.printLine ""
+    Stdlib.printLine (Colors.dimText "  `apps add <slug>` to add one to this instance")
+    state
+
+  | [ "add"; slug ] ->
+    match Registry.findBySlug slug with
+    | None ->
+      Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
+      state
+    | Some app ->
+      if Registry.isInstalled slug then
+        Stdlib.printLine (Colors.dimText $"'{app.name}' is already installed")
+        state
+      else
+        Registry.addInstalled slug
+        Stdlib.printLine (Colors.success $"✓ added {app.name}")
+        // Foreground apps get a PATH shim so `<slug>` runs from the shell; daemons are start/stop-managed.
+        match app.target with
+        | Foreground _ ->
+          match Install.writeAlias app with
+          | Ok path ->
+            Stdlib.printLine (Colors.dimText $"  installed shim {path} — run `{slug}` from the shell (or `apps run {slug}`)")
+          | Error e ->
+            Stdlib.printLine (Colors.dimText $"  (couldn't write shell shim: {e}) — run it with `apps run {slug}`")
+        | Daemon _ -> Stdlib.printLine (Colors.dimText $"  start it with `apps start {slug}`")
+        state
+
+  | [ "remove"; slug ] ->
+    if Registry.isInstalled slug then
+      Registry.removeInstalled slug
+      Install.removeAlias slug
+      Stdlib.printLine (Colors.success $"✓ removed '{slug}'")
+    else
+      Stdlib.printLine (Colors.dimText $"'{slug}' is not installed")
+
+    state
+
+  | [ "run"; slug ] -> runApp state slug
+
+  // `spawn` is an alias for `start` (the verb for bringing a daemon to life).
+  | [ "start"; slug ] | [ "spawn"; slug ] -> startDaemon state slug
+
+  | [ "stop"; slug ] ->
+    match Stdlib.Cli.Daemon.stop slug with
+    | Ok msg -> Stdlib.printLine (Colors.success msg)
+    | Error e -> Stdlib.printLine (Colors.error e)
+
+    state
+
+  | [ "status" ] ->
+    let daemons =
+      (Registry.installed ())
+      |> Stdlib.List.filter (fun a -> Model.isDaemon a.target)
+
+    if Stdlib.List.isEmpty daemons then
+      Stdlib.printLine (Colors.dimText "no daemon apps installed")
+    else
+      Stdlib.printLine "Daemon status:"
+      daemons
+      |> Stdlib.List.map (fun a -> "  " ++ Stdlib.Cli.Daemon.statusLine a.slug)
+      |> Stdlib.printLines
+
+    state
+
+  | [ "status"; slug ] ->
+    Stdlib.printLine ("  " ++ Stdlib.Cli.Daemon.statusLine slug)
+    state
+
+  | [ "logs"; slug ] ->
+    let lines = Stdlib.Cli.Daemon.tailLog slug 20L
+
+    if Stdlib.List.isEmpty lines then
+      Stdlib.printLine (Colors.dimText $"no logs for '{slug}' (has it run?)")
+    else
+      Stdlib.printLines lines
+
+    state
+
+  | [ "inspect"; slug ] -> inspect state slug
+
+  | [ "enable"; slug ] ->
+    match Registry.findBySlug slug with
+    | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
+    | Some app ->
+      match Service.enable app with
+      | Ok msg -> Stdlib.printLine (Colors.success $"✓ {msg}")
+      | Error e -> Stdlib.printLine (Colors.error e)
+    state
+
+  | [ "disable"; slug ] ->
+    match Service.disable slug with
+    | Ok msg -> Stdlib.printLine (Colors.success $"✓ {msg}")
+    | Error e -> Stdlib.printLine (Colors.error e)
+    state
+
+  | _ -> Command.help state
+
+
+let complete
+  (_state: Cli.AppState)
+  (_args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  [ Cli.Completion.simple "list"
+    Cli.Completion.simple "list-available"
+    Cli.Completion.simple "add"
+    Cli.Completion.simple "remove"
+    Cli.Completion.simple "run"
+    Cli.Completion.simple "start"
+    Cli.Completion.simple "spawn"
+    Cli.Completion.simple "stop"
+    Cli.Completion.simple "status"
+    Cli.Completion.simple "logs"
+    Cli.Completion.simple "inspect"
+    Cli.Completion.simple "enable"
+    Cli.Completion.simple "disable" ]
+
+
+// A single help line: "  cmd <args>   description", padded for a clean column.
+let helpLine (usage: String) (desc: String) : String =
+  let pad = Stdlib.Result.withDefault (Stdlib.String.padEnd usage " " 26L) usage
+  "  " ++ pad ++ Colors.dimText desc
+
+let help (state: Cli.AppState) : Cli.AppState =
+  Stdlib.printLine (Colors.boldText "dark apps")
+  Stdlib.printLine (Colors.dimText "  See, curate, run, and manage the Dark apps this instance cares about.")
+  Stdlib.printLine ""
+  // Shared — work on any app.
+  [ helpLine "apps" "Interactive browser: review the catalog, install, start/stop"
+    helpLine "apps list" "Apps you've installed (empty by default)"
+    helpLine "apps list-available" "The full catalog (+ which you've installed)"
+    helpLine "apps add <slug>" "Install an app (foreground apps get a shell shim)"
+    helpLine "apps remove <slug>" "Uninstall it"
+    helpLine "apps inspect <slug>" "Detail: target, installed?, status + logs" ]
+  |> Stdlib.printLines
+
+  Stdlib.printLine ""
+  Stdlib.printLine (Colors.boldText "  Foreground apps")
+  [ helpLine "apps run <slug>" "Run attached in your terminal" ] |> Stdlib.printLines
+
+  Stdlib.printLine ""
+  Stdlib.printLine (Colors.boldText "  Daemons")
+  [ helpLine "apps start <slug>" "Launch detached (alias: spawn)"
+    helpLine "apps stop <slug>" "Stop a running daemon"
+    helpLine "apps status [slug]" "Running / stopped / stale (+ pid)"
+    helpLine "apps logs <slug>" "Recent log lines"
+    helpLine "apps enable <slug>" "Auto-start on login (OS service)"
+    helpLine "apps disable <slug>" "Remove its auto-start" ]
+  |> Stdlib.printLines
+
+  state

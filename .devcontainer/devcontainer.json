@@ -52,6 +52,9 @@
     "--dns",
     "8.8.4.4",
     "--ulimit=nofile=1048576:1048576",
+    // publish the reserved serve ports so host localhost:9090-9099 reaches in-container daemons
+    // (works outside VS Code's port-forwarding, which only runs when VS Code manages the container)
+    "--publish=9090-9099:9090-9099",
     "--hostname",
     "dark-dev",
     "--env-file",

@@ -1,0 +1,35 @@
+/// Turn a self-contained interactive component into a full-screen CLI app.
+///
+/// A `Component` is a `render` (state → screen) + an `onKey` (state + key → stay-or-exit). `launch` wraps
+/// one as a SubApp the CLI main loop drives — no per-component SubApp boilerplate. Pass *named* functions
+/// (not inline lambdas): the component lives in `AppState` across loop iterations, and Dark only preserves
+/// named-fn references there, not lambda bodies.
+module Darklang.Cli.Component
+
+/// On each key, a component either stays (with new state) or exits.
+type Step<'s> =
+  | Stay of 's
+  | Exit
+
+type Component<'s> =
+  { render: 's -> String
+    onKey: 's -> Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> Step<'s> }
+
+
+let private toSubApp (c: Component<'s>) (state: 's) : Cli.SubApp =
+  Cli.SubApp
+    { onKey =
+        fun key modifiers keyChar ->
+          match c.onKey state key modifiers keyChar with
+          | Stay next -> (Cli.SubAppAction.Continue, toSubApp c next)
+          | Exit -> (Cli.SubAppAction.Exit, toSubApp c state)
+      onDisplay = fun () -> Stdlib.print ("\u001b[2J\u001b[H" ++ c.render state)
+      onSave = fun () -> () }
+
+
+/// Launch `c` (starting at `init`) as the CLI's current full-screen page.
+let launch (cliState: Cli.AppState) (c: Component<'s>) (init: 's) : Cli.AppState =
+  Stdlib.print "\u001b[?1049h"
+  { cliState with
+      currentPage = Cli.Page.SubApp (toSubApp c init)
+      needsFullRedraw = true }

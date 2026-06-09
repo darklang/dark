@@ -4,6 +4,8 @@ type SubAppAction =
   | Continue
   | Save
   | Exit
+  /// Hand off to another command (e.g. a browser launching a foreground app), replacing this page.
+  | LaunchCommand of String
 
 type SubApp =
   { onKey: Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> (SubAppAction * SubApp)
@@ -259,23 +261,25 @@ module Registry =
       ("rebase", "Rebase current branch onto parent", [], SCM.Rebase.execute, SCM.Rebase.help, SCM.Rebase.complete)
       ("merge", "Merge current branch into parent", [], SCM.Merge.execute, SCM.Merge.help, SCM.Merge.complete)
       ("builtins", "List all builtin functions", [], Builtins.execute, Builtins.help, Builtins.complete)
-      ("find-values", "Find values of a given type", [], Commands.FindValues.execute, Commands.FindValues.help, Commands.FindValues.complete)
-      ("agent", "AI assistant workflows (ask/code/review/fix/diff)", [ "ai" ], Commands.Agent.execute, Commands.Agent.help, Commands.Agent.complete)
-      ("serve", "Start an HTTP server", [ "http-server" ], Commands.Serve.execute, Commands.Serve.help, Commands.Serve.complete)
-      ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Commands.Docs.execute, Commands.Docs.help, Commands.Docs.complete)
+      ("find-values", "Find values of a given type", [], Packages.FindValues.execute, Packages.FindValues.help, Packages.FindValues.complete)
+      ("agent", "AI assistant workflows (ask/code/review/fix/diff)", [ "ai" ], AI.Agent.execute, AI.Agent.help, AI.Agent.complete)
+      ("serve", "Start an HTTP server", [ "http-server" ], Http.Serve.execute, Http.Serve.help, Http.Serve.complete)
+      ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Docs.Command.execute, Docs.Command.help, Docs.Command.complete)
       ("undo", "Undo WIP changes to a fn/type/value", [], Packages.Undo.execute, Packages.Undo.help, Packages.Undo.complete)
       ("deprecate", "Mark a fn/type/value as deprecated", [], Packages.Deprecate.execute, Packages.Deprecate.help, Packages.Deprecate.complete)
       ("delete", "Take a fn/type/value off the shelf (sugar for deprecate --kind obsolete)", [], Packages.Delete.execute, Packages.Delete.help, Packages.Delete.complete)
       ("db", "Manage databases", [], Packages.DB.execute, Packages.DB.help, Packages.DB.complete)
-      ("outliner", "Interactive tree outliner", [ "tree-exp" ], Darklang.Cli.Apps.Outliner.App.execute, Darklang.Cli.Apps.Outliner.App.help, Darklang.Cli.Apps.Outliner.App.complete)
-      ("export-seed", "Export minimal seed.db from current database", [], Commands.ExportSeed.execute, Commands.ExportSeed.help, Commands.ExportSeed.complete)
-      ("traces", "List and view execution traces", [ "trace" ], Commands.Traces.execute, Commands.Traces.help, Commands.Traces.complete)
-      ("review", "Review branch changesets", [], Darklang.Cli.Apps.Review.App.execute, Darklang.Cli.Apps.Review.App.help, Darklang.Cli.Apps.Review.App.complete)
-      ("views", "Browse and preview CLI views", [], Darklang.Cli.Apps.Views.App.execute, Darklang.Cli.Apps.Views.App.help, Darklang.Cli.Apps.Views.App.complete)
-      ("login", "Log in as a seeded account (required for commit / serve)", [], Commands.Login.execute, Commands.Login.help, Commands.Login.complete)
-      ("logout", "Clear the active account", [], Commands.Logout.execute, Commands.Logout.help, Commands.Logout.complete)
-      ("caps", "View + control this instance's capability grant (default NONE)", [ "capabilities" ], Commands.Caps.execute, Commands.Caps.help, Commands.Caps.complete)
-      ("devices", "Your tailnet devices (status / serve / ping), over the `tailscale` CLI", [], Commands.Devices.execute, Commands.Devices.help, Commands.Devices.complete) ]
+      ("outliner", "Interactive tree outliner", [ "tree-exp" ], Outliner.App.execute, Outliner.App.help, Outliner.App.complete)
+      ("export-seed", "Export minimal seed.db from current database", [], ExportSeed.execute, ExportSeed.help, ExportSeed.complete)
+      ("traces", "List and view execution traces", [ "trace" ], Tracing.execute, Tracing.help, Tracing.complete)
+      ("review", "Review branch changesets", [], SCM.Review.App.execute, SCM.Review.App.help, SCM.Review.App.complete)
+      ("views", "Browse and preview CLI views", [], Apps.Views.App.execute, Apps.Views.App.help, Apps.Views.App.complete)
+      ("login", "Log in as a seeded account (required for commit / serve)", [], Auth.Login.execute, Auth.Login.help, Auth.Login.complete)
+      ("logout", "Clear the active account", [], Auth.Logout.execute, Auth.Logout.help, Auth.Logout.complete)
+      ("caps", "View + control this instance's capability grant (default NONE)", [ "capabilities" ], Caps.Command.execute, Caps.Command.help, Caps.Command.complete)
+      ("devices", "Your tailnet devices (status / serve / ping), over the `tailscale` CLI", [], Devices.execute, Devices.help, Devices.complete)
+      ("apps", "List, install, and manage apps (daemons, foreground, UI)", [], Apps.Command.execute, Apps.Command.help, Apps.Command.complete)
+      ("text-editor", "Demo: a tiny text editor (the outliner's widget surfaced as an app)", [], Apps.Examples.TextEdit.execute, Apps.Examples.TextEdit.help, Apps.Examples.TextEdit.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->
@@ -355,6 +359,7 @@ module Registry =
       ("AI", [ "agent" ])
       ("Security", [ "caps" ])
       ("Network", [ "devices" ])
+      ("Apps", [ "apps" ])
       ("Utilities", [ "clear"; "help"; "docs"; "quit"; "builtins"; "export-seed"; "views" ]) ]
 
   // Helper function to format a group of commands with details
@@ -663,9 +668,17 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
     | Exit ->
       newApp.onSave ()
       Stdlib.print "\u001b[?1049l"
-      { state with
-          currentPage = Page.MainPrompt
-          needsFullRedraw = true }
+      // Launched one-shot (`dark apps`)? Exit to the shell. Inside the REPL? Back to the prompt.
+      if state.nonInteractive then
+        { state with isExiting = true }
+      else
+        { state with
+            currentPage = Page.MainPrompt
+            needsFullRedraw = true }
+    | LaunchCommand cmd ->
+      // Replace this page by running `cmd` (which sets up its own page, e.g. a foreground app's SubApp).
+      let launched = Registry.executeCommand cmd state []
+      { launched with needsFullRedraw = true }
 
 
 module Update =
@@ -717,7 +730,10 @@ let runInteractiveLoop (state: AppState) : Int64 =
 
     let promptOutput =
       Prompt.Display.formatPromptWithInput location state.prompt.text hint
-    let terminalWidth = Terminal.getWidth ()
+    // Fall back to 80 if the size query returns 0 (can happen at startup) — never divide by 0 below.
+    let terminalWidth =
+      let w = Terminal.getWidth ()
+      if w <= 0L then 80L else w
     // Visual length (0-based char count; inputStartColumn is 1-based so subtract 1)
     let visualLength =
       (inputStartColumn - 1L) + (Stdlib.String.length state.prompt.text) + (Stdlib.String.length hint)
@@ -877,5 +893,12 @@ let executeCliCommand (args: List<String>) : Int64 =
   // Otherwise, execute command directly (shell already split args correctly)
   | commandName :: commandArgs ->
     let nonInteractiveState = { initialState with nonInteractive = true }
-    let _ = Registry.executeCommand commandName nonInteractiveState commandArgs
-    0L
+    let resultState = Registry.executeCommand commandName nonInteractiveState commandArgs
+
+    // If the command launched a full-screen SubApp (a TUI like `apps` / `outliner`), hand off to the
+    // interactive loop so it actually runs, instead of exiting the instant the command returns.
+    match resultState.currentPage with
+    | SubApp _ ->
+      StatusBar.init ()
+      runInteractiveLoop resultState
+    | _ -> 0L

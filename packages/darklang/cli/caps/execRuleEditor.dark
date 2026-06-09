@@ -1,0 +1,98 @@
+module Darklang.Cli.Caps.ExecRuleEditor
+
+// A composable editor for ONE exec rule: a program coupled with an arg-allowlist. Emits a grant-spec
+// like `exec rm --dry-run`. Standalone or embedded. Empty program ⇒ `exec` (any program); empty args
+// ⇒ any args.
+
+type Field =
+  | ProgramField
+  | ArgsField
+
+type State =
+  { program: LineInput.State
+    args: LineInput.State
+    field: Field }
+
+type EditResult =
+  | Editing of State
+  | Finished of String
+  | Cancelled
+
+let empty : State =
+  State
+    { program = LineInput.empty
+      args = LineInput.empty
+      field = Field.ProgramField }
+
+let fromSpec (spec: String) : State =
+  let parts =
+    (Stdlib.String.split spec " ") |> Stdlib.List.filter (fun s -> s != "")
+  match parts with
+  | "exec" :: prog :: argv ->
+    State
+      { program = LineInput.make prog
+        args = LineInput.make (Stdlib.String.join argv " ")
+        field = Field.ProgramField }
+  | _ -> empty
+
+let toSpec (state: State) : String =
+  let progState = state.program
+  let argsState = state.args
+  let prog = Stdlib.String.trim progState.text
+  let args = Stdlib.String.trim argsState.text
+  if prog == "" then "exec"
+  else if args == "" then $"exec {prog}"
+  else $"exec {prog} {args}"
+
+let toggleField (state: State) : State =
+  let next =
+    match state.field with
+    | ProgramField -> Field.ArgsField
+    | ArgsField -> Field.ProgramField
+  { state with field = next }
+
+let applyKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (keyChar: Stdlib.Option.Option<String>)
+  : State =
+  match state.field with
+  | ProgramField ->
+    match LineInput.handleKey state.program key keyChar with
+    | Some p -> { state with program = p }
+    | None -> state
+  | ArgsField ->
+    match LineInput.handleKey state.args key keyChar with
+    | Some a -> { state with args = a }
+    | None -> state
+
+let handleKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (_modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : EditResult =
+  match key with
+  | Enter -> EditResult.Finished (toSpec state)
+  | Escape -> EditResult.Cancelled
+  | Tab -> EditResult.Editing (toggleField state)
+  | UpArrow -> EditResult.Editing ({ state with field = Field.ProgramField })
+  | DownArrow -> EditResult.Editing ({ state with field = Field.ArgsField })
+  | _ -> EditResult.Editing (applyKey state key keyChar)
+
+let render (state: State) : List<String> =
+  let progFocused = state.field == Field.ProgramField
+  let argsFocused = state.field == Field.ArgsField
+  let progVal =
+    LineInput.render state.program progFocused "any program"
+  let argsVal =
+    LineInput.render state.args argsFocused "any args"
+  let hint =
+    Darklang.Cli.Colors.dimText "  (Tab switch field, Enter save, Esc cancel)"
+  let specLabel = Darklang.Cli.Colors.dimText "spec:"
+  [ "  Edit exec rule:"
+    $"    program:  {progVal}"
+    $"    args:     {argsVal}"
+    hint
+    ""
+    $"    {specLabel} {toSpec state}" ]
