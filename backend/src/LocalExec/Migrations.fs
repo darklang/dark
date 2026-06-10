@@ -27,10 +27,9 @@
 ///
 /// CLEANUP maybe move this to LibDB?
 ///
-/// Pre-cutover DBs (those whose `system_migrations_v0` already lists
-/// 13 historical names) get adopted: stamp the current schema hash
-/// without dropping data. Drop this adapter once nobody's pulling
-/// pre-2026-05-08 main.
+/// A legacy DB (one whose `system_migrations_v0` already lists the full
+/// set of old migration names) is adopted: stamp the current schema hash
+/// without dropping data.
 module LocalExec.Migrations
 
 open System.IO
@@ -82,23 +81,34 @@ let private storedHash () : Option<string> =
     | Error err -> Exception.raiseInternal $"storedHash: {err}" [ "err", err ]
 
 
-let private dropAllUserTables () : unit =
-  // Disable FK enforcement for the bulk drop. Without this, SQLite refuses
-  // to drop parent tables before children when the child table's FK
-  // column is non-nullable; drop order is sqlite_master row order,
-  // not topological. PRAGMA foreign_keys is connection-scoped, so the
-  // next connection (which runs schema.sql) gets the default back.
+/// Drop ONLY the regenerable projection tables — never the canonical op log, blobs, branches,
+/// commits, or account/user state. This is what lets a schema change keep your work: your authored
+/// ops survive; only the cache is rebuilt. The list is `Seed.projectionTables` (single source
+/// of truth — the same set the runtime's `rebuildProjections` clears), so it can't drift.
+let private dropProjectionTables () : unit =
+  // FK off for the drop (a child projection may FK a parent we're keeping); connection-scoped, so
+  // the next connection (which replays schema.sql) gets the default back.
   Sql.query "PRAGMA foreign_keys = OFF" |> Sql.executeStatementSync
-  let userTables =
-    Sql.query
-      "SELECT name FROM sqlite_master
-       WHERE type = 'table'
-         AND name NOT LIKE 'sqlite_%'
-         AND name <> 'schema_state_v0'"
-    |> Sql.execute (fun read -> read.string "name")
-    |> Result.unwrap
-  for t in userTables do
+  for t in LibDB.Seed.projectionTables do
     Sql.query (sprintf "DROP TABLE IF EXISTS \"%s\"" t) |> Sql.executeStatementSync
+
+/// Mark every op unapplied so the next `Seed.growIfNeeded` re-folds the whole log into the freshly
+/// recreated projections. Re-folding (with value evaluation) needs the runtime, which the migration
+/// phase doesn't have — so we defer the fold to startup, exactly like a fresh seed does.
+let private markOpsUnapplied () : unit =
+  if tableExists "package_ops" then
+    Sql.query "UPDATE package_ops SET applied = 0" |> Sql.executeStatementSync
+
+let private opCount () : int =
+  if tableExists "package_ops" then
+    match
+      Sql.query "SELECT COUNT(*) AS c FROM package_ops"
+      |> Sql.execute (fun read -> read.int "c")
+    with
+    | Ok(c :: _) -> c
+    | _ -> 0
+  else
+    0
 
 
 let private writeHash (hash : string) : unit =
@@ -111,11 +121,10 @@ let private writeHash (hash : string) : unit =
   |> Sql.executeStatementSync
 
 
-/// Pre-cutover DBs were migrated by name through `system_migrations_v0`.
-/// If we see one with the full set of old migration names already
-/// applied, treat it as fully-migrated under the new flow — write the
-/// current schema hash so subsequent runs see "up to date" and don't
-/// kill-and-fill. Drop this once nobody's pulling pre-2026-05-08 main.
+/// A legacy DB was migrated by name through `system_migrations_v0`. If one
+/// already has the full set of old migration names applied, treat it as
+/// fully migrated under the schema-hash flow — write the current schema
+/// hash so subsequent runs see "up to date" and don't kill-and-fill.
 let private adoptLegacyDB (currentHash : string) : bool =
   if not (tableExists "system_migrations_v0") then
     false
@@ -129,7 +138,7 @@ let private adoptLegacyDB (currentHash : string) : bool =
       | _ -> 0
     if count >= 13 then
       print
-        $"Adopting pre-cutover DB ({count} migrations on record). \
+        $"Adopting legacy DB ({count} migrations on record). \
           Stamping schema hash; no data dropped."
       writeHash currentHash
       true
@@ -144,11 +153,19 @@ let private runSchemaBootstrap () : unit =
   match storedHash () with
   | Some have when have = want -> ()
   | Some have ->
+    // Preserve-and-refold (not kill-and-fill): drop only the regenerable projections; the canonical op
+    // log + blobs + branch/commit/account state survive. Replaying schema.sql recreates the dropped
+    // projections in their new shape and is a no-op for the surviving canonical tables
+    // (CREATE TABLE IF NOT EXISTS). Marking ops unapplied makes the next `growIfNeeded` re-fold them.
+    // NOTE: a canonical-table SHAPE change can't go through this path (CREATE IF NOT EXISTS won't
+    // alter an existing table) — it needs a data-preserving incremental (the Release migrator).
+    let ops = opCount ()
     print
-      $"schema.sql changed (hash {have[0..7]} → {want[0..7]}); \
-        kill-and-fill."
-    dropAllUserTables ()
+      $"schema.sql changed (hash {have[0..7]} → {want[0..7]}); preserving {ops} op(s), \
+        rebuilding projections."
+    dropProjectionTables ()
     Sql.query sql |> Sql.executeStatementSync
+    markOpsUnapplied ()
     writeHash want
   | None ->
     if adoptLegacyDB want then
@@ -162,10 +179,9 @@ let private runSchemaBootstrap () : unit =
 // Per-file incremental migrations (atop the schema.sql base)
 // ---------------------
 //
-// Lifted from the pre-cutover shape — name-dedup'd via
-// `system_migrations_v0`. schema.sql guarantees the table exists, so
-// no separate init step. File naming convention:
-// `YYYYMMDD_HHMMSS_<short-tag>.sql`.
+// Each file runs once, name-dedup'd via `system_migrations_v0`.
+// schema.sql guarantees the table exists, so no separate init step.
+// File naming convention: `YYYYMMDD_HHMMSS_<short-tag>.sql`.
 
 let private incrementalDir = "incremental"
 
@@ -240,4 +256,10 @@ let private runIncrementalMigrations () : unit =
 
 let run () : unit =
   runSchemaBootstrap ()
+  // The Release migrator: after the schema-hash bootstrap, reconcile the store's Release coordinate
+  // (the op-format/language/hash version) with this binary's. A fresh store is stamped at the current
+  // Release; an older store runs the pending migration steps; a NEWER store is refused (older code
+  // must not open it). The single coordinate is `Sync.wireFormatVersion` — the same one that gates
+  // cross-instance sync. The step registry lives in `LibDB.Releases`.
+  LibDB.Releases.applyPending LibDB.Sync.wireFormatVersion
   runIncrementalMigrations ()
