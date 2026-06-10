@@ -148,3 +148,47 @@ let conflictReport
     Stdlib.List.append
       (Stdlib.List.append [ header; "" ] blocks)
       [ ""; footer ]
+
+
+// ── daemon activity (`sync events`): the autosync telemetry as a compact table ──
+// Pure over the structured rows `(at, peersPolled, changed, conflicts, skews)` from
+// `pmSyncRecentDaemonEvents` (newest first) — so the display is package-testable.
+
+let private padR (s: String) (w: Int64) : String =
+  let len = Stdlib.String.length s
+  if len >= w then s else s ++ (Stdlib.String.repeat " " (w - len))
+
+let daemonEventRow
+  (at: String)
+  (peers: Int64)
+  (changed: Bool)
+  (conflicts: Int64)
+  (skews: Int64)
+  : String =
+  let result = if changed then "↓ changes" else "· idle"
+  let conflictPart =
+    if conflicts > 0L then $"  {Stdlib.Int64.toString conflicts} conflict(s)" else ""
+  let skewPart =
+    if skews > 0L then $"  {Stdlib.Int64.toString skews} paused" else ""
+
+  (padR at 26L)
+  ++ "  "
+  ++ (padR ((Stdlib.Int64.toString peers) ++ " peer(s)") 10L)
+  ++ "  "
+  ++ (padR result 11L)
+  ++ conflictPart
+  ++ skewPart
+
+let daemonEventsTable
+  (events: List<(String * Int64 * Bool * Int64 * Int64)>)
+  : List<String> =
+  if Stdlib.List.isEmpty events then
+    [ "no daemon activity yet — start it with `dark apps start sync` (or `sync daemon start`)" ]
+  else
+    let header = (padR "WHEN" 26L) ++ "  " ++ (padR "PEERS" 10L) ++ "  " ++ "RESULT"
+    let rows =
+      events
+      |> Stdlib.List.map (fun (at, peers, changed, conflicts, skews) ->
+        daemonEventRow at peers changed conflicts skews)
+
+    Stdlib.List.append [ header ] rows

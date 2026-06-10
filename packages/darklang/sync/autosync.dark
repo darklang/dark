@@ -148,6 +148,14 @@ let runLoopAll (intervalMs: Int64) (times: Int64) : Int64 =
     let (sawChanges, conflicts, skews) = pollAllPeers peers
     let nextMs = nextPollMs sawChanges intervalMs
 
+    // record this cycle as structured telemetry (read back by `sync events` / a dashboard view)
+    let _ =
+      Builtin.pmSyncRecordDaemonEvent
+        (Stdlib.List.length peers)
+        sawChanges
+        conflicts
+        (Stdlib.List.length skews)
+
     let conflictNote =
       if conflicts > 0L then
         $", {Stdlib.Int64.toString conflicts} conflict(s) auto-resolved"

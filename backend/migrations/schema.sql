@@ -395,3 +395,15 @@ CREATE TABLE IF NOT EXISTS sync_conflicts (
   acknowledged INTEGER NOT NULL DEFAULT 0,
   overridden INTEGER NOT NULL DEFAULT 0
 );
+
+-- Structured telemetry from the autosync daemon: one row per poll cycle, so `sync events` (and a
+-- future dashboard view) can show activity as DATA rather than scraping the text log. Local-only,
+-- never synced; trimmed to the most recent rows so it stays bounded.
+CREATE TABLE IF NOT EXISTS sync_daemon_events (
+  id INTEGER PRIMARY KEY,
+  at TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  peers_polled INTEGER NOT NULL,
+  changed INTEGER NOT NULL,
+  conflicts INTEGER NOT NULL,
+  skews INTEGER NOT NULL
+);

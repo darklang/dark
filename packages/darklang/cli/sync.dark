@@ -147,7 +147,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
   | [ "daemon" ] | [ "daemon"; "status" ] ->
     // the background auto-sync daemon's state (running / stopped / stale), via its pidfile
-    Stdlib.printLine (Darklang.Sync.Daemon.statusLine "sync-daemon")
+    Stdlib.printLine (Darklang.Sync.Daemon.statusLine "sync")
     state
   | [ "daemon"; "start" ] ->
     // tailnet-wide: poll EVERY known peer on an adaptive interval, detached (survives CLI exit)
@@ -162,21 +162,26 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | Error e -> Stdlib.printLine (Colors.error e)
     state
   | [ "daemon"; "stop" ] ->
-    match Darklang.Sync.Daemon.stop "sync-daemon" with
+    match Darklang.Sync.Daemon.stop "sync" with
     | Ok msg -> Stdlib.printLine (Colors.success msg)
     | Error e -> Stdlib.printLine (Colors.error e)
     state
   | [ "daemon"; "logs" ] ->
-    let lines = Darklang.Sync.Daemon.tailLog "sync-daemon" 20L
+    let lines = Darklang.Sync.Daemon.tailLog "sync" 20L
     if Stdlib.List.isEmpty lines then
       Stdlib.printLine (Colors.dimText "no daemon logs yet (has it run?)")
     else
       Stdlib.printLines lines
     state
+  | [ "events" ] ->
+    // the autosync daemon's recent poll cycles as a structured table (telemetry, newest first)
+    let rows = Builtin.pmSyncRecentDaemonEvents 20L
+    Stdlib.printLines (Darklang.Sync.Display.daemonEventsTable rows)
+    state
   | _ ->
     Stdlib.printLine (
       Colors.error
-        "Usage: sync pull <peer> | status | auto <peer> [times] | check <url> | daemon start/stop/status/logs"
+        "Usage: sync pull <peer> | status | auto <peer> [times] | check <url> | daemon start/stop/status/logs | events"
     )
 
     state
@@ -190,11 +195,12 @@ let complete
     Completion.simple "status"
     Completion.simple "auto"
     Completion.simple "check"
-    Completion.simple "daemon" ]
+    Completion.simple "daemon"
+    Completion.simple "events" ]
 
 
 let help (state: AppState) : AppState =
-  [ "Usage: sync pull <peer> | status | auto <peer> [times] | check <url> | daemon start/stop/status/logs"
+  [ "Usage: sync pull <peer> | status | auto <peer> [times] | check <url> | daemon start/stop/status/logs | events"
     ""
     "Sync package ops across instances (tailnet-wide). The receiver applies ops idempotently"
     "(op log + projections) and resumes from a per-peer cursor, so re-running only applies what's new."
@@ -209,6 +215,9 @@ let help (state: AppState) : AppState =
     "  daemon stop                Stop the background daemon"
     "  daemon status              Is the daemon running?"
     "  daemon logs                Tail recent daemon output"
+    "  events                     Recent daemon poll cycles as a table (structured telemetry)"
+    ""
+    "Tip: `dark apps enable sync --boot` keeps it running across reboots (systemd/launchd)."
     ""
     "To SERVE ops to peers (run on the always-on box, e.g. the desktop):"
     "  dark serve Darklang.Sync.Server.router --port <N>"

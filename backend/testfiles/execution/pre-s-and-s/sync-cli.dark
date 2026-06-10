@@ -22,3 +22,10 @@ Darklang.Sync.Display.intervalLabel 2000L = "2s"
 Darklang.Sync.Display.intervalLabel 60000L = "60s"
 Darklang.Sync.Display.intervalLabel 500L = "500ms"
 Darklang.Sync.Display.intervalLabel 1500L = "1500ms"
+
+// daemon-events table: empty → a start hint; otherwise a header line + one line per cycle
+Darklang.Sync.Display.daemonEventsTable [] = [ "no daemon activity yet — start it with `dark apps start sync` (or `sync daemon start`)" ]
+Stdlib.List.length (Darklang.Sync.Display.daemonEventsTable [(("2026-06-10T20:00:00.000Z", 3L, true, 1L, 0L))]) = 2L
+// an idle cycle row contains the peer count and the idle marker
+Stdlib.String.contains (Darklang.Sync.Display.daemonEventRow "now" 1L false 0L 0L) "1 peer(s)" = true
+Stdlib.String.contains (Darklang.Sync.Display.daemonEventRow "now" 2L true 3L 1L) "3 conflict(s)" = true

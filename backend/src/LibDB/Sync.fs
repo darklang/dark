@@ -225,6 +225,54 @@ let recordDivergences
   }
 
 
+// ── daemon telemetry (local, not synced): one row per autosync poll cycle ──
+
+/// Record one autosync cycle's outcome, then trim the table to the most recent 500 rows so this
+/// telemetry stays bounded (the daemon polls every few seconds to a minute, forever).
+let recordDaemonEvent
+  (peersPolled : int)
+  (changed : bool)
+  (conflicts : int)
+  (skews : int)
+  : Task<unit> =
+  task {
+    do!
+      Sql.query
+        """
+        INSERT INTO sync_daemon_events (peers_polled, changed, conflicts, skews)
+        VALUES (@p, @c, @x, @s)
+        """
+      |> Sql.parameters
+        [ "p", Sql.int peersPolled
+          "c", Sql.int (if changed then 1 else 0)
+          "x", Sql.int conflicts
+          "s", Sql.int skews ]
+      |> Sql.executeStatementAsync
+    do!
+      Sql.query
+        """
+        DELETE FROM sync_daemon_events
+        WHERE id NOT IN (SELECT id FROM sync_daemon_events ORDER BY id DESC LIMIT 500)
+        """
+      |> Sql.executeStatementAsync
+  }
+
+/// The most recent `limit` daemon cycles, newest first — `(at, peersPolled, changed, conflicts, skews)`.
+let recentDaemonEvents (limit : int) : Task<List<string * int * int * int * int>> =
+  Sql.query
+    """
+    SELECT at, peers_polled, changed, conflicts, skews
+    FROM sync_daemon_events ORDER BY id DESC LIMIT @n
+    """
+  |> Sql.parameters [ "n", Sql.int limit ]
+  |> Sql.executeAsync (fun read ->
+    (read.string "at",
+     read.int "peers_polled",
+     read.int "changed",
+     read.int "conflicts",
+     read.int "skews"))
+
+
 /// The item kind of a content hash — needed to rebuild a `SetName` Reference for a keep-local
 /// reconcile (the transport surfaced the divergence as data, so the original op isn't retained).
 /// Reads `locations.item_type` first — that's the kind of the very binding we're restoring, present

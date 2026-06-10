@@ -6,7 +6,9 @@ module Darklang.Sync.Daemon
 // the shared `Stdlib.Cli.Daemon` substrate (the same one `dark apps` daemons use). Only the sync-specific
 // entrypoints and the launch expression live here.
 
-let private daemonName : String = "sync-daemon"
+// One identity for the daemon across every control surface: the manual `sync daemon …` subcommands,
+// `apps start/stop/status/logs sync`, and the `apps enable sync` OS service all manage this pidfile.
+let private daemonName : String = "sync"
 
 
 // ── lifecycle: thin pass-throughs to the shared daemon substrate ──
@@ -32,6 +34,16 @@ let runDaemonAll (intervalMs: Int64) : Int64 =
   Stdlib.printLine
     $"daemon: started for all peers (pid {Stdlib.Int64.toString (Stdlib.Cli.Sys.currentPid ())})"
   Darklang.Sync.Autosync.runLoopAll intervalMs 1000000000L
+
+
+// The apps-managed entrypoint: `apps start sync` evals `runManaged "sync"` (the substrate passes the
+// app slug). Claims the pidfile under that slug, then polls every peer forever. The start interval is
+// the adaptive floor — it converges within a cycle or two regardless, so it isn't configurable here.
+let runManaged (name: String) : Int64 =
+  let _ = Stdlib.Cli.Daemon.claimPidfile name
+  Stdlib.printLine
+    $"sync-daemon: started for all peers (pid {Stdlib.Int64.toString (Stdlib.Cli.Sys.currentPid ())})"
+  Darklang.Sync.Autosync.runLoopAll 2000L 1000000000L
 
 
 // ── launch: spawn the entrypoint detached + verified (refuses if already running) via the substrate ──

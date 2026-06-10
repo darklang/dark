@@ -495,6 +495,72 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "pmSyncRecordDaemonEvent" 0
+      typeParams = []
+      parameters =
+        [ Param.make "peersPolled" TInt64 "How many peers this cycle polled"
+          Param.make "changed" TBool "Did any peer advance this cycle?"
+          Param.make "conflicts" TInt64 "Divergences auto-resolved this cycle"
+          Param.make "skews" TInt64 "Peers paused on a Release skew this cycle" ]
+      returnType = TUnit
+      description =
+        "Record one autosync cycle's outcome to the local `sync_daemon_events` telemetry (trimmed to
+         the most recent rows). Lets `sync events` and a dashboard view show daemon activity as data,
+         not scraped log text."
+      fn =
+        (function
+        | _, _, _, [ DInt64 peers; DBool changed; DInt64 conflicts; DInt64 skews ] ->
+          uply {
+            do!
+              LibDB.Sync.recordDaemonEvent
+                (int peers)
+                changed
+                (int conflicts)
+                (int skews)
+            return DUnit
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "pmSyncRecentDaemonEvents" 0
+      typeParams = []
+      parameters =
+        [ Param.make "limit" TInt64 "How many recent cycles to return (newest first)" ]
+      returnType = TList(TTuple(TString, TInt64, [ TBool; TInt64; TInt64 ]))
+      description =
+        "The autosync daemon's most recent poll cycles as STRUCTURED rows for `sync events` to format
+         in Dark: `(at, peersPolled, changed, conflicts, skews)`, newest first. Empty if it never ran."
+      fn =
+        (function
+        | _, _, _, [ DInt64 limit ] ->
+          uply {
+            let! rows = LibDB.Sync.recentDaemonEvents (int limit)
+            let dvals =
+              rows
+              |> List.map (fun (at, peers, changed, conflicts, skews) ->
+                DTuple(
+                  DString at,
+                  DInt64(int64 peers),
+                  [ DBool(changed <> 0)
+                    DInt64(int64 conflicts)
+                    DInt64(int64 skews) ]
+                ))
+            return
+              Dval.list
+                (KTTuple(VT.string, VT.int64, [ VT.bool; VT.int64; VT.int64 ]))
+                dvals
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "pmConflictAck" 0
       typeParams = []
       parameters =

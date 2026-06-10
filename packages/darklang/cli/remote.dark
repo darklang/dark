@@ -2,7 +2,7 @@ module Darklang.Cli.Remote
 
 // `dark remote` — the sync SETUP surface: register the tailnet peers this instance syncs with. A
 // remote is a (name, url) where url is an http(s) sync-server URL or a local data.db path. The
-// tailnet-wide daemon (`dark apps start sync-daemon`) polls every registered remote — so `remote
+// tailnet-wide daemon (`dark apps start sync`) polls every registered remote — so `remote
 // add` lets you wire a peer once and have it sync automatically, without a manual `sync pull` first.
 // Remotes are LOCAL setup (not synced), like git's.
 
