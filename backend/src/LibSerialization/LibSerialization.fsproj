@@ -42,6 +42,7 @@
     <Compile Include="Binary/Serialization.fs" />
 
     <Compile Include="Hashing/Canonical.fs" />
+    <Compile Include="Hashing/AlphaNormalize.fs" />
     <Compile Include="Hashing/Hashing.fs" />
 
     <!-- SQL-queryable JSON repr of Dvals (User DB row storage) /-->

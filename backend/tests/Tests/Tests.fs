@@ -39,6 +39,7 @@ let main (args : string array) : int =
         // package manager
         Tests.Propagation.tests
         Tests.Hashing.tests
+        Tests.AlphaNormalize.tests
         Tests.BranchOps.tests
 
         // serialization
@@ -60,7 +61,13 @@ let main (args : string array) : int =
 
         Tests.Blob.tests
         Tests.Stream.tests
-        Tests.Capabilities.tests ]
+        Tests.Capabilities.tests
+        Tests.OpsProjections.tests
+        Tests.ConflictDispatch.tests
+        Tests.SyncIdempotency.tests
+        Tests.SyncScenarios.tests
+        Tests.Releases.tests
+        Tests.Remotes.tests ]
 
     let cancelationTokenSource = new System.Threading.CancellationTokenSource()
     let httpClientTestsTask = Tests.HttpClient.init cancelationTokenSource.Token
