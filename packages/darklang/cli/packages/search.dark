@@ -63,6 +63,25 @@ let sortKey
   $"{mr}{st}:{name}"
 
 
+// Used to rank result sections; empty sections sort last.
+let bestItemRank
+  (query: String)
+  (items: List<LanguageTools.ProgramTypes.LocatedItem<'a>>)
+  : Int64 =
+  items
+  |> Stdlib.List.fold 9L (fun acc item ->
+    let r = matchRank query item.location.name
+    if r < acc then r else acc)
+
+
+let bestModuleRank (query: String) (modules: List<List<String>>) : Int64 =
+  modules
+  |> Stdlib.List.fold 9L (fun acc modulePath ->
+    let modName = Stdlib.Option.withDefault (Stdlib.List.last modulePath) ""
+    let r = matchRank query modName
+    if r < acc then r else acc)
+
+
 let docBlock (desc: String) (indent: String) : String =
   if Stdlib.String.isEmpty desc then
     ""
@@ -109,7 +128,7 @@ let contextFor
   (item: LanguageTools.ProgramTypes.LocatedItem<'a>)
   : PrettyPrinter.ProgramTypes.Context =
   let modulePath = Stdlib.List.append [item.location.owner] item.location.modules
-  Commands.Signatures.rootContext branchId modulePath
+  Signatures.rootContext branchId modulePath
 
 
 // Renders one result section (types/values/fns): header, sorted + capped hits
@@ -273,35 +292,60 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           | None -> ()
           Stdlib.printLine ""
 
-          if (Stdlib.List.isEmpty parsed.entityTypes) && (Stdlib.Bool.not (Stdlib.List.isEmpty results.submodules)) then
-            Stdlib.printLine (Display.getSectionHeader "module")
-            results.submodules
-            |> Stdlib.List.sortBy (fun modulePath ->
-              let modName = Stdlib.Option.withDefault (Stdlib.List.last modulePath) ""
-              let owner = Stdlib.Option.withDefault (Stdlib.List.head modulePath) ""
-              let mods = Stdlib.Option.withDefault (Stdlib.List.tail modulePath) []
-              sortKey queryText owner mods modName)
-            |> Stdlib.List.iter (fun modulePath ->
-              let moduleStr = Stdlib.String.join modulePath "."
-              Stdlib.printLine moduleStr)
-            Stdlib.printLine ""
+          // Key format: match rank followed by the fixed section order.
+          let moduleRank =
+            if Stdlib.List.isEmpty parsed.entityTypes then
+              bestModuleRank queryText results.submodules
+            else
+              9L
 
-          renderSection "type" queryText results.types (fun item ->
-            let mark = Query.deprecationMarker depSets item.entity.hash
-            let ctx = contextFor state.currentBranchId item
-            let defn = Commands.Signatures.formatType ctx (fullPathOf item) item.entity
-            withOptionalDoc parsed.withDocs $"{defn}{mark}" item.entity.description)
+          let sectionKeys =
+            [ ($"{Stdlib.Int64.toString moduleRank}0", "module")
+              ($"{Stdlib.Int64.toString (bestItemRank queryText results.types)}1", "type")
+              ($"{Stdlib.Int64.toString (bestItemRank queryText results.values)}2", "value")
+              ($"{Stdlib.Int64.toString (bestItemRank queryText results.fns)}3", "function") ]
 
-          renderSection "value" queryText results.values (fun item ->
-            let mark = Query.deprecationMarker depSets item.entity.hash
-            withOptionalDoc parsed.withDocs $"{fullPathOf item}{mark}" item.entity.description)
+          let order =
+            sectionKeys
+            |> Stdlib.List.sortBy (fun (key, _) -> key)
+            |> Stdlib.List.map (fun (_, tag) -> tag)
 
-          renderSection "function" queryText results.fns (fun item ->
-            let mark = Query.deprecationMarker depSets item.entity.hash
-            let ctx = contextFor state.currentBranchId item
-            let sigBody = Commands.Signatures.formatFn ctx item.entity
-            let line = $"{fullPathOf item} {Colors.dimText sigBody}{mark}"
-            withOptionalDoc parsed.withDocs line item.entity.description)
+          order
+          |> Stdlib.List.iter (fun tag ->
+            match tag with
+            | "function" ->
+              renderSection "function" queryText results.fns (fun item ->
+                let mark = Query.deprecationMarker depSets item.entity.hash
+                let ctx = contextFor state.currentBranchId item
+                let sigBody = Signatures.formatFn ctx item.entity
+                let line = $"{fullPathOf item} {Colors.dimText sigBody}{mark}"
+                withOptionalDoc parsed.withDocs line item.entity.description)
+            | "value" ->
+              renderSection "value" queryText results.values (fun item ->
+                let mark = Query.deprecationMarker depSets item.entity.hash
+                withOptionalDoc parsed.withDocs $"{fullPathOf item}{mark}" item.entity.description)
+            | "type" ->
+              renderSection "type" queryText results.types (fun item ->
+                let mark = Query.deprecationMarker depSets item.entity.hash
+                let ctx = contextFor state.currentBranchId item
+                let defn = Signatures.formatType ctx (fullPathOf item) item.entity
+                withOptionalDoc parsed.withDocs $"{defn}{mark}" item.entity.description)
+            | "module" ->
+              if (Stdlib.List.isEmpty parsed.entityTypes) && (Stdlib.Bool.not (Stdlib.List.isEmpty results.submodules)) then
+                Stdlib.printLine (Display.getSectionHeader "module")
+                results.submodules
+                |> Stdlib.List.sortBy (fun modulePath ->
+                  let modName = Stdlib.Option.withDefault (Stdlib.List.last modulePath) ""
+                  let owner = Stdlib.Option.withDefault (Stdlib.List.head modulePath) ""
+                  let mods = Stdlib.Option.withDefault (Stdlib.List.tail modulePath) []
+                  sortKey queryText owner mods modName)
+                |> Stdlib.List.iter (fun modulePath ->
+                  let moduleStr = Stdlib.String.join modulePath "."
+                  Stdlib.printLine moduleStr)
+                Stdlib.printLine ""
+              else
+                ()
+            | _ -> ())
 
         state
 
