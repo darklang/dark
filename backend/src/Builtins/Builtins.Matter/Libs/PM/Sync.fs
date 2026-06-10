@@ -62,7 +62,8 @@ let fns () : List<BuiltInFn> =
       description =
         "The sync SERVER read (the `GET /sync/events?since=cursor` body): the ops the puller
          hasn't seen, encoded as a base64 wire batch. A Darklang HTTP router returns this string;
-         the puller decodes + applies it via `pmSyncApplyWire`."
+         the puller decodes + applies it via `pmSyncApplyWire`. Committed-only today (so equivalent to
+         `pmSyncOpsSinceCommitted`); kept as the general entry point for when WIP/own-device sync returns."
       fn =
         (function
         | _, _, _, [ DInt64 cursor ] ->

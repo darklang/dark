@@ -36,11 +36,22 @@ let kindPart (kinds: List<String>) (k: String) : List<String> =
 
 let opKindBreakdown (kinds: List<String>) : String =
   let parts =
-    Stdlib.List.append
-      (Stdlib.List.append (kindPart kinds "fn") (kindPart kinds "type"))
-      (Stdlib.List.append (kindPart kinds "value") (kindPart kinds "rename"))
+    [ kindPart kinds "fn"
+      kindPart kinds "type"
+      kindPart kinds "value"
+      kindPart kinds "rename" ]
+    |> Stdlib.List.flatten
 
   Stdlib.String.join parts ", "
+
+
+// The "(N name divergence(s) surfaced — not blocked)" tail on a `dark sync pull` line. Empty when
+// nothing diverged. Shared by the HTTP and file-pull branches so both word it identically.
+let divergenceNote (divCount: Int64) : String =
+  if divCount > 0L then
+    $" ({Stdlib.Int64.toString divCount} name divergence(s) surfaced — not blocked; see `dark conflicts`)"
+  else
+    ""
 
 
 // ── conflict display: surfacing last-write-wins auto-resolutions for eventual ack ──

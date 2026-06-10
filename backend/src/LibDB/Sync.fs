@@ -95,20 +95,39 @@ let decodeBatch (bytes : byte[]) : List<int64 * System.Guid * string * byte[]> =
 let opsToSend (cursor : int64) : Task<List<int64 * System.Guid * string * byte[]>> =
   Inserts.opsSinceCommitted cursor
 
+/// Render a `PackageLocation` as the FQ "owner[.modules].name" string sync uses on the wire and in
+/// the conflict store — the inverse of `parseLocation`.
+let private formatLocation (loc : PT.PackageLocation) : string =
+  let modulesStr = String.concat "." loc.modules
+  if modulesStr = "" then
+    $"{loc.owner}.{loc.name}"
+  else
+    $"{loc.owner}.{modulesStr}.{loc.name}"
+
+/// Parse an FQ "owner[.modules].name" location back into a `PackageLocation` (owner = head,
+/// name = last, modules = the middle) — the inverse of `formatLocation`.
+let private parseLocation (location : string) : Option<PT.PackageLocation> =
+  match location.Split('.') |> List.ofArray with
+  | owner :: rest ->
+    match List.rev rest with
+    | name :: revModules ->
+      Some { owner = owner; modules = List.rev revModules; name = name }
+    | [] -> None
+  | _ -> None
+
 /// Detect sync divergences in a remote batch BEFORE applying it. For each incoming
 /// `SetName`, if the location is already bound LOCALLY to a *different*, non-deprecated hash,
 /// two peers gave the same name different content. Returns `(location, existingHash,
 /// incomingHash)` per divergence — surfaced as **data** so the receiver never blocks; a higher
 /// layer turns these into `Conflict.CSyncDivergence` for the resolution policy.
-/// Internal core of both `detectDivergences` (which stringifies these) and `reconcileBatch` (which
-/// turns them into reconciling ops): for each incoming `SetName` whose location is locally bound to
-/// a DIFFERENT non-deprecated hash, the `(incoming op, existing local hash)` pair.
+/// `divergentBindings` is the core (it returns the structured location + hashes); `detectDivergences`
+/// just renders the location to its FQ string.
 let private divergentBindings
   (branchId : PT.BranchId)
   (ops : List<PT.PackageOp>)
-  : Task<List<PT.PackageOp * string>> =
+  : Task<List<PT.PackageLocation * string * string>> =
   task {
-    let result = ResizeArray<PT.PackageOp * string>()
+    let result = ResizeArray<PT.PackageLocation * string * string>()
     for op in ops do
       match op with
       | PT.PackageOp.SetName(loc, target) ->
@@ -131,7 +150,7 @@ let private divergentBindings
           |> Sql.executeAsync (fun read -> read.string "item_hash")
         match existing with
         | existingHash :: _ when existingHash <> incomingHash ->
-          result.Add((op, existingHash))
+          result.Add((loc, existingHash, incomingHash))
         | _ -> ()
       | _ -> ()
     return List.ofSeq result
@@ -142,22 +161,11 @@ let detectDivergences
   (ops : List<PT.PackageOp>)
   : Task<List<string * string * string>> =
   task {
-    let! pairs = divergentBindings branchId ops
+    let! triples = divergentBindings branchId ops
     return
-      pairs
-      |> List.map (fun (op, existingHash) ->
-        match op with
-        | PT.PackageOp.SetName(loc, target) ->
-          let modulesStr = String.concat "." loc.modules
-          let (PT.Hash incomingHash) = target.hash
-          let locStr =
-            if modulesStr = "" then
-              $"{loc.owner}.{loc.name}"
-            else
-              $"{loc.owner}.{modulesStr}.{loc.name}"
-          (locStr, existingHash, incomingHash)
-        // divergentBindings only ever returns SetName ops, so this is unreachable
-        | _ -> ("", existingHash, ""))
+      triples
+      |> List.map (fun (loc, existingHash, incomingHash) ->
+        (formatLocation loc, existingHash, incomingHash))
   }
 
 
@@ -178,27 +186,23 @@ let detectDivergences
 // the `LIMIT 1` deterministic (newest row) in the meantime.
 let private liveBindingHash (location : string) : Task<Option<string>> =
   task {
-    match location.Split('.') |> List.ofArray with
-    | owner :: rest ->
-      match List.rev rest with
-      | name :: revModules ->
-        let modulesStr = revModules |> List.rev |> String.concat "."
-        let! rows =
-          Sql.query
-            """
-            SELECT item_hash FROM locations
-            WHERE owner = @o AND modules = @m AND name = @n AND unlisted_at IS NULL
-            ORDER BY rowid DESC
-            LIMIT 1
-            """
-          |> Sql.parameters
-            [ "o", Sql.string owner
-              "m", Sql.string modulesStr
-              "n", Sql.string name ]
-          |> Sql.executeAsync (fun read -> read.string "item_hash")
-        return List.tryHead rows
-      | [] -> return None
-    | _ -> return None
+    match parseLocation location with
+    | Some loc ->
+      let! rows =
+        Sql.query
+          """
+          SELECT item_hash FROM locations
+          WHERE owner = @o AND modules = @m AND name = @n AND unlisted_at IS NULL
+          ORDER BY rowid DESC
+          LIMIT 1
+          """
+        |> Sql.parameters
+          [ "o", Sql.string loc.owner
+            "m", Sql.string (String.concat "." loc.modules)
+            "n", Sql.string loc.name ]
+        |> Sql.executeAsync (fun read -> read.string "item_hash")
+      return List.tryHead rows
+    | None -> return None
   }
 
 let recordDivergences
@@ -242,16 +246,25 @@ let private kindOfHash (hash : string) : Task<Option<PT.ItemKind>> =
     return rows |> List.tryHead |> Option.map PT.ItemKind.fromString
   }
 
-/// Parse an FQ "owner[.modules].name" location back into a `PackageLocation` (owner = head,
-/// name = last, modules = the middle) — the inverse of `detectDivergences`' stringification.
-let private parseLocation (location : string) : Option<PT.PackageLocation> =
-  match location.Split('.') |> List.ofArray with
-  | owner :: rest ->
-    match List.rev rest with
-    | name :: revModules ->
-      Some { owner = owner; modules = List.rev revModules; name = name }
-    | [] -> None
-  | _ -> None
+/// Re-stamp a keep-local override op's `origin_ts` to now and re-fold it. Shared by the automatic
+/// keep-local policy (`routeDivergences`) and the human 'mine' override (`resolveConflict`): both
+/// re-bind a location to OUR hash by re-stamping the op that first bound it (a `SetName` content-
+/// identical to one already in the log, so it's addressed by `computeOpHash`) and re-folding it
+/// directly. The fresh stamp makes it win timestamp-LWW locally AND rides sync so peers re-adopt it.
+/// `applyOps` (not `insertAndApplyOps`) because the op is already in the log — `insertAndApplyOps`
+/// only folds NEWLY-inserted ops, so the binding would never flip back.
+let private restampAndRefold
+  (branchId : PT.BranchId)
+  (mineOp : PT.PackageOp)
+  : Task<unit> =
+  task {
+    do!
+      Sql.query
+        "UPDATE package_ops SET origin_ts = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = @id"
+      |> Sql.parameters [ "id", Sql.uuid (Inserts.computeOpHash mineOp) ]
+      |> Sql.executeStatementAsync
+    do! PackageOpPlayback.applyOps branchId None [ mineOp ]
+  }
 
 /// Route each detected divergence through the runtime conflict-dispatch seam
 /// (`exeState.conflictDispatch`). This is the "higher layer" the transport defers to: the receiver
@@ -281,16 +294,10 @@ let routeDivergences
       let! resolution = dispatch conflict callCtx |> Ply.toTask
       match resolution with
       | RT.RSubstitute(RT.DString keepHash) when keepHash = existingHash ->
-        // keep local: re-bind the location to our existing hash, overriding the incoming bind.
-        // This is the same move as a human 'mine' override (`resolveConflict`): the `SetName` to our
-        // hash is content-identical to the op that first bound it, so it's already in the log and a
-        // fresh insert would `INSERT OR IGNORE`-dedup. RE-STAMP that op's `origin_ts` to now (so it
-        // wins timestamp-LWW, and the newer stamp rides sync so peers re-adopt our hash too) and
-        // RE-FOLD it directly via `applyOps` (which re-runs `applySetName`, un-listing the incoming
-        // row and re-activating ours) — `insertAndApplyOps` only folds NEWLY-inserted ops.
-        // The re-fold below re-binds locally regardless of whether the re-stamp matched a row, so the
-        // worst case (the original op somehow absent from the log) is a non-propagating override, never
-        // a wrong local binding.
+        // keep local: re-bind the location to our existing hash via `restampAndRefold` (the same move
+        // a human 'mine' override makes in `resolveConflict`). The re-fold re-binds locally regardless
+        // of whether the re-stamp matched a row, so the worst case (the original op somehow absent from
+        // the log) is a non-propagating override, never a wrong local binding.
         match! kindOfHash existingHash with
         | Some kind ->
           match parseLocation location with
@@ -300,12 +307,7 @@ let routeDivergences
                 loc,
                 PT.Reference.fromHashAndKind (PT.Hash existingHash, kind)
               )
-            do!
-              Sql.query
-                "UPDATE package_ops SET origin_ts = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = @id"
-              |> Sql.parameters [ "id", Sql.uuid (Inserts.computeOpHash mineOp) ]
-              |> Sql.executeStatementAsync
-            do! PackageOpPlayback.applyOps branchId None [ mineOp ]
+            do! restampAndRefold branchId mineOp
             do! Conflicts.markOverriddenByLocation remote location
             reconciled <- reconciled + 1
           | None -> ()
@@ -562,56 +564,33 @@ let resolveConflict (conflictId : string) (keepMine : bool) : Task<bool> =
         do! Conflicts.markOverridden c.id
         return true
       else
-        // "mine" — re-bind the location to our hash. Parse the FQ "owner[.modules].name" and read
-        // the binding's kind + branch from `locations`, then emit + apply a WIP SetName to our hash.
-        // FQ "owner[.modules].name" → owner = head, name = last, modules = the middle. Reverse-match
-        // to bind name + modules directly (this codebase's List.head/last return Option).
-        match c.location.Split('.') |> List.ofArray with
-        | owner :: rest ->
-          match List.rev rest with
-          | name :: revModules ->
-            let modulesStr = revModules |> List.rev |> String.concat "."
-            let! meta =
-              Sql.query
-                """
-                SELECT item_type, branch_id FROM locations
-                WHERE owner = @o AND modules = @m AND name = @n LIMIT 1
-                """
-              |> Sql.parameters
-                [ "o", Sql.string owner
-                  "m", Sql.string modulesStr
-                  "n", Sql.string name ]
-              |> Sql.executeAsync (fun read ->
-                (read.string "item_type", (read.uuid "branch_id" : PT.BranchId)))
-            match meta with
-            | (itemType, branchId) :: _ ->
-              let kind = PT.ItemKind.fromString itemType
-              let modulesList =
-                if modulesStr = "" then [] else modulesStr.Split('.') |> List.ofArray
-              let loc : PT.PackageLocation =
-                { owner = owner; modules = modulesList; name = name }
-              let target = PT.Reference.fromHashAndKind (PT.Hash c.localHash, kind)
-              let mineOp = PT.PackageOp.SetName(loc, target)
-              // A human override is the LATEST decision — RE-STAMP our op's origin_ts to now so it
-              // wins timestamp-LWW (last-resolver-wins) AND propagates: the re-stamp rides the op on
-              // sync (preserve-on-receive), so peers see our hash as the most-recent-by-creation and
-              // adopt it too. (This is also what un-blocks the playback stale-check from skipping our
-              // re-fold below — without it, our op's OLD origin_ts would read as stale vs the
-              // incoming that just won, and the binding wouldn't flip back.)
-              do!
-                Sql.query
-                  "UPDATE package_ops SET origin_ts = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = @id"
-                |> Sql.parameters [ "id", Sql.uuid (Inserts.computeOpHash mineOp) ]
-                |> Sql.executeStatementAsync
-              // RE-FOLD the SetName directly. We can't go through insertAndApplyOps: `SetName(loc,
-              // ourHash)` is content-identical to the op that first bound our hash, so it's already
-              // in the op log and INSERT OR IGNORE would dedup it — and insertAndApplyOps only folds
-              // NEWLY-inserted ops, so the binding would never flip back. applyOps re-runs
-              // applySetName (un-list the incoming row, re-activate ours — now the freshest stamp).
-              do! PackageOpPlayback.applyOps branchId None [ mineOp ]
-              do! Conflicts.markOverridden c.id
-              return true
-            | [] -> return false // the location no longer exists locally
-          | [] -> return false // "owner" only, no name
-        | _ -> return false // unparseable location
+        // "mine" — re-bind the location to our hash. Parse the FQ "owner[.modules].name", read the
+        // binding's kind + branch from `locations`, then re-stamp + re-fold a SetName to our hash. A
+        // human override is the LATEST decision, so `restampAndRefold` makes it win timestamp-LWW
+        // (last-resolver-wins) and ride sync so peers re-adopt our hash too.
+        match parseLocation c.location with
+        | Some loc ->
+          let modulesStr = String.concat "." loc.modules
+          let! meta =
+            Sql.query
+              """
+              SELECT item_type, branch_id FROM locations
+              WHERE owner = @o AND modules = @m AND name = @n LIMIT 1
+              """
+            |> Sql.parameters
+              [ "o", Sql.string loc.owner
+                "m", Sql.string modulesStr
+                "n", Sql.string loc.name ]
+            |> Sql.executeAsync (fun read ->
+              (read.string "item_type", (read.uuid "branch_id" : PT.BranchId)))
+          match meta with
+          | (itemType, branchId) :: _ ->
+            let kind = PT.ItemKind.fromString itemType
+            let target = PT.Reference.fromHashAndKind (PT.Hash c.localHash, kind)
+            let mineOp = PT.PackageOp.SetName(loc, target)
+            do! restampAndRefold branchId mineOp
+            do! Conflicts.markOverridden c.id
+            return true
+          | [] -> return false // the location no longer exists locally
+        | None -> return false // unparseable location
   }

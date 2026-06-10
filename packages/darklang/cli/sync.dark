@@ -24,11 +24,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           else
             ""
 
-        let divNote =
-          if divCount > 0L then
-            $" ({Stdlib.Int64.toString divCount} name divergence(s) surfaced — not blocked; see `dark conflicts`)"
-          else
-            ""
+        let divNote = Darklang.Sync.Display.divergenceNote divCount
 
         let summary = Darklang.Sync.Display.syncSummary target (newCursor - before)
 
@@ -55,11 +51,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       // pull from a peer's local data.db file
       let (newCursor, divCount) = Darklang.Sync.pullFromFile target
 
-      let divNote =
-        if divCount > 0L then
-          $" ({Stdlib.Int64.toString divCount} name divergence(s) surfaced — not blocked; see `dark conflicts`)"
-        else
-          ""
+      let divNote = Darklang.Sync.Display.divergenceNote divCount
 
       let pulled = newCursor - before
       let summary = Darklang.Sync.Display.syncSummary target pulled
