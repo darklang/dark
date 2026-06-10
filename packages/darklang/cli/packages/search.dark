@@ -299,8 +299,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             else
               9L
 
+          // Suffix orders sections on a rank tie. Modules are navigation, not the
+          // usual discovery target, so they sort last - a wall of namespace
+          // matches shouldn't precede an equally-ranked fn/type/value hit.
           let sectionKeys =
-            [ ($"{Stdlib.Int64.toString moduleRank}0", "module")
+            [ ($"{Stdlib.Int64.toString moduleRank}4", "module")
               ($"{Stdlib.Int64.toString (bestItemRank queryText results.types)}1", "type")
               ($"{Stdlib.Int64.toString (bestItemRank queryText results.values)}2", "value")
               ($"{Stdlib.Int64.toString (bestItemRank queryText results.fns)}3", "function") ]
@@ -333,19 +336,29 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             | "module" ->
               if (Stdlib.List.isEmpty parsed.entityTypes) && (Stdlib.Bool.not (Stdlib.List.isEmpty results.submodules)) then
                 Stdlib.printLine (Display.getSectionHeader "module")
-                results.submodules
-                |> Stdlib.List.sortBy (fun modulePath ->
-                  let modName = Stdlib.Option.withDefault (Stdlib.List.last modulePath) ""
-                  let owner = Stdlib.Option.withDefault (Stdlib.List.head modulePath) ""
-                  let mods = Stdlib.Option.withDefault (Stdlib.List.tail modulePath) []
-                  sortKey queryText owner mods modName)
+                let sortedMods =
+                  results.submodules
+                  |> Stdlib.List.sortBy (fun modulePath ->
+                    let modName = Stdlib.Option.withDefault (Stdlib.List.last modulePath) ""
+                    let owner = Stdlib.Option.withDefault (Stdlib.List.head modulePath) ""
+                    let mods = Stdlib.Option.withDefault (Stdlib.List.tail modulePath) []
+                    sortKey queryText owner mods modName)
+                let shownMods = Stdlib.List.take sortedMods displayCap
+                shownMods
                 |> Stdlib.List.iter (fun modulePath ->
                   let moduleStr = Stdlib.String.join modulePath "."
                   Stdlib.printLine moduleStr)
+                overflowNote (Stdlib.List.length sortedMods) (Stdlib.List.length shownMods)
                 Stdlib.printLine ""
               else
                 ()
             | _ -> ())
+
+          // show hint about --with-docs if results have descriptions but weren't shown
+          if Stdlib.Bool.not parsed.withDocs then
+            Stdlib.printLine (Colors.hint "  (add --with-docs to show doc comments)")
+          else
+            ()
 
         state
 
