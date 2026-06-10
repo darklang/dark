@@ -14,6 +14,8 @@ CREATE TABLE package_ops (
   applied INTEGER NOT NULL DEFAULT 0,
   propagation_id TEXT NULL,
   created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
+  -- sync timestamp-LWW (must mirror schema.sql; this rebuild re-runs on kill-and-fill)
+  origin_ts TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
   PRIMARY KEY (id, branch_id)
 );
 

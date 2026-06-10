@@ -6,7 +6,7 @@
 -- final shape is what runs against an empty DB.
 --
 -- system_migrations_v0 (the legacy per-named-migration table) is the one
--- exception, since pre-cutover DBs are adopted via that table; created
+-- exception, since legacy DBs are adopted via that table; created
 -- here AND by Migrations.fs's adoptLegacyDB path.
 --
 -- Order: bookkeeping → branches → commits → ops → package projections →
@@ -95,7 +95,13 @@ CREATE TABLE IF NOT EXISTS package_ops (
   commit_hash TEXT REFERENCES commits(hash),  -- NULL = WIP
   applied INTEGER NOT NULL DEFAULT 0,
   propagation_id TEXT NULL,                   -- direct lookup for PropagateUpdate ops
-  created_at TIMESTAMP NOT NULL DEFAULT (datetime('now'))
+  created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
+  -- Authoring timestamp, PORTABLE across sync. A
+  -- locally-authored op self-stamps here at insert; a SYNCED op preserves its origin (the sync
+  -- receiver writes the peer's value), so every instance agrees on a given op's origin_ts and
+  -- max(origin_ts) picks the same divergence winner → no swap. Distinct from `created_at` (which
+  -- is local-insert time and differs per instance for the same op).
+  origin_ts TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
 );
 CREATE INDEX IF NOT EXISTS idx_package_ops_wip
   ON package_ops(branch_id) WHERE commit_hash IS NULL;
@@ -169,7 +175,12 @@ CREATE TABLE IF NOT EXISTS locations (
   branch_id TEXT NOT NULL REFERENCES branches(id),
   commit_hash TEXT REFERENCES commits(hash),  -- NULL = WIP
   created_at TIMESTAMP NOT NULL DEFAULT (datetime('now')),
-  unlisted_at TIMESTAMP NULL              -- set when a later row supersedes this one
+  unlisted_at TIMESTAMP NULL,             -- set when a later row supersedes this one
+  -- The origin_ts of the op that set THIS binding — the name→authoring-time mapping that lets
+  -- playback order by CREATION, not arrival (timestamp-LWW). A SetName whose op was created
+  -- EARLIER than the current binding (an old op arriving late via sync) is stale: playback skips
+  -- the rebind, so the latest-by-creation name wins on every instance regardless of sync order.
+  origin_ts TEXT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_locations_branch_lookup
   ON locations(branch_id, owner, modules, name, item_type)
@@ -350,4 +361,37 @@ CREATE TABLE IF NOT EXISTS scripts_v0 (
   id TEXT PRIMARY KEY,
   name TEXT NOT NULL UNIQUE,
   text TEXT NOT NULL
+);
+
+
+--------------------
+-- Sync (local-only setup; NOT synced) — see LibDB/{Remotes,SyncCursors,Conflicts}.fs
+--------------------
+
+-- Registered sync peers (managed via `dark remote ...`). Each row is a (name, url) the
+-- tailnet sync daemon polls.
+CREATE TABLE IF NOT EXISTS sync_remotes (
+  name TEXT PRIMARY KEY,
+  url TEXT NOT NULL
+);
+
+-- Per-remote poll resume state: how far this instance has folded each peer's op stream.
+-- The cursor is a `package_ops` rowid (SQLite's monotonic insertion order).
+CREATE TABLE IF NOT EXISTS sync_cursors (
+  remote TEXT PRIMARY KEY,
+  folded_through_rowid INTEGER NOT NULL DEFAULT 0
+);
+
+-- The recorded, reviewable log of auto-resolved name-binding divergences (`dark conflicts`).
+-- Recorded at pull time; auto-resolved by policy (default last-writer-wins) but never silently lost.
+CREATE TABLE IF NOT EXISTS sync_conflicts (
+  id TEXT PRIMARY KEY,
+  location TEXT NOT NULL,
+  local_hash TEXT NOT NULL,
+  incoming_hash TEXT NOT NULL,
+  resolution TEXT NOT NULL,
+  remote TEXT NOT NULL,
+  detected_at TEXT NOT NULL DEFAULT (datetime('now')),
+  acknowledged INTEGER NOT NULL DEFAULT 0,
+  overridden INTEGER NOT NULL DEFAULT 0
 );

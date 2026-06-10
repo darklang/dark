@@ -196,7 +196,7 @@ let private applyAddType
 
 /// Apply a single AddValue op to the package_values table.
 /// Note: rt_dval and value_type are stored as NULL here. They are populated
-/// in Phase 3 by Seed.evaluateAllValues after all ops are applied, so cross-
+/// by Seed.evaluateAllValues after all ops are applied, so cross-
 /// package references resolve correctly.
 let private applyAddValue
   (ctx : Ctx)
@@ -276,55 +276,128 @@ let private applySetName
     let locationId = System.Guid.NewGuid()
     let (Hash itemHashStr) = itemHash
 
-    // 1. Deprecate any existing location at the target path (handles updates)
-    do!
-      exec ctx """
-        UPDATE locations
-        SET unlisted_at = datetime('now')
-        WHERE owner = $owner
-          AND modules = $modules
-          AND name = $name
-          AND item_type = $item_type
-          AND unlisted_at IS NULL
-          AND branch_id = $branch_id
-        """ (fun cmd ->
-        p cmd "$owner" location.owner
-        p cmd "$modules" modulesStr
-        p cmd "$name" location.name
-        p cmd "$item_type" itemTypeStr
-        pUuid cmd "$branch_id" branchId)
+    // ── timestamp-LWW: order this binding by the op's CREATION time,
+    // not arrival. Read this op's `origin_ts` (the authoring stamp, already in package_ops) and the
+    // CURRENT binding's `origin_ts` (the name→authoring-time mapping in `locations`). If this op was
+    // created BEFORE the current binding's op — an old op arriving late via sync — it's stale: keep the
+    // existing, newer-by-creation binding (the op still lives in the log; it's just not the active name).
+    // Computed identically on every instance, so all converge to the SAME hash regardless of arrival
+    // order. Unknown stamps (op not in package_ops / pre-origin_ts data) → no skip = prior last-writer
+    // behavior, so non-sync playback (seed grow, local authoring) is unchanged. Reads run on ctx.conn so
+    // they see writes from earlier ops in this same applyOps transaction.
+    let thisOp =
+      PT.PackageOp.SetName(
+        location,
+        PT.Reference.fromHashAndKind (itemHash, itemKind)
+      )
+    let (Hash thisOpHashStr) = LibSerialization.Hashing.Hashing.computeOpHash thisOp
+    let thisOpId = System.Guid(System.Convert.FromHexString(thisOpHashStr)[0..15])
 
-    // 2. If this is a rename (standalone SetName, not paired with Add*),
-    //    also deprecate old locations pointing to the same hash.
-    //    We do NOT do this for Add+SetName pairs because multiple items can
-    //    legitimately share the same hash (e.g. Int8.ParseError and
-    //    Int16.ParseError have identical definitions).
-    if isRename then
+    let! thisTs =
+      task {
+        use cmd = ctx.conn.CreateCommand()
+        cmd.CommandText <- "SELECT origin_ts FROM package_ops WHERE id = $id"
+        cmd.Parameters.AddWithValue("$id", string thisOpId)
+        |> ignore<SqliteParameter>
+        use! reader = cmd.ExecuteReaderAsync()
+        let! hasRow = reader.ReadAsync()
+        if hasRow && not (reader.IsDBNull 0) then
+          return Some(reader.GetString 0)
+        else
+          return None
+      }
+
+    let! curBinding =
+      task {
+        use cmd = ctx.conn.CreateCommand()
+        cmd.CommandText <-
+          "SELECT item_hash, origin_ts FROM locations "
+          + "WHERE owner = $owner AND modules = $modules AND name = $name "
+          + "AND item_type = $item_type AND branch_id = $branch_id AND unlisted_at IS NULL LIMIT 1"
+        cmd.Parameters.AddWithValue("$owner", location.owner)
+        |> ignore<SqliteParameter>
+        cmd.Parameters.AddWithValue("$modules", modulesStr)
+        |> ignore<SqliteParameter>
+        cmd.Parameters.AddWithValue("$name", location.name)
+        |> ignore<SqliteParameter>
+        cmd.Parameters.AddWithValue("$item_type", itemTypeStr)
+        |> ignore<SqliteParameter>
+        cmd.Parameters.AddWithValue("$branch_id", string branchId)
+        |> ignore<SqliteParameter>
+        use! reader = cmd.ExecuteReaderAsync()
+        let! hasRow = reader.ReadAsync()
+        if hasRow then
+          let h = reader.GetString 0
+          let ts = if reader.IsDBNull 1 then None else Some(reader.GetString 1)
+          return Some(h, ts)
+        else
+          return None
+      }
+
+    let isStale =
+      match curBinding, thisTs with
+      // Order a binding by its op's CREATION time (origin_ts); a stale op arriving late via sync loses
+      // to the newer binding. On an EXACT TIE (two DIFFERENT ops for one name stamped the same
+      // millisecond — a genuine cross-instance race), break deterministically by item hash: the higher
+      // hash wins. That tie-break is PORTABLE (content, not arrival/rowid), so every instance — and a
+      // from-scratch projection rebuild — converges on the same winner. Local sequential authoring
+      // (v2 replacing v1 in one batch) never reaches this tie: `Inserts` self-stamps each op in a
+      // local batch with a strictly-increasing origin_ts, so v2 is newer-by-creation and just wins.
+      | Some(curHash, Some curTs), Some t when curHash <> itemHashStr ->
+        t < curTs || (t = curTs && itemHashStr < curHash)
+      | _ -> false
+
+    if isStale then
+      return ()
+    else
+      // 1. Deprecate any existing location at the target path (handles updates)
       do!
         exec ctx """
           UPDATE locations
           SET unlisted_at = datetime('now')
-          WHERE item_hash = $item_hash
-            AND branch_id = $branch_id
+          WHERE owner = $owner
+            AND modules = $modules
+            AND name = $name
+            AND item_type = $item_type
             AND unlisted_at IS NULL
+            AND branch_id = $branch_id
           """ (fun cmd ->
-          p cmd "$item_hash" itemHashStr
+          p cmd "$owner" location.owner
+          p cmd "$modules" modulesStr
+          p cmd "$name" location.name
+          p cmd "$item_type" itemTypeStr
           pUuid cmd "$branch_id" branchId)
 
-    // 3. Insert new location entry.
-    do!
-      exec ctx """
-        INSERT INTO locations (location_id, item_hash, owner, modules, name, item_type, branch_id, commit_hash)
-        VALUES ($location_id, $item_hash, $owner, $modules, $name, $item_type, $branch_id, $commit_hash)
-        """ (fun cmd ->
-        pUuid cmd "$location_id" locationId
-        p cmd "$item_hash" itemHashStr
-        p cmd "$owner" location.owner
-        p cmd "$modules" modulesStr
-        p cmd "$name" location.name
-        p cmd "$item_type" itemTypeStr
-        pUuid cmd "$branch_id" branchId
-        pOpt cmd "$commit_hash" commitHash)
+      // 2. If this is a rename (standalone SetName, not paired with Add*), also deprecate old locations
+      //    pointing to the same hash. We do NOT do this for Add+SetName pairs because multiple items can
+      //    legitimately share the same hash (e.g. Int8.ParseError and Int16.ParseError).
+      if isRename then
+        do!
+          exec ctx """
+            UPDATE locations
+            SET unlisted_at = datetime('now')
+            WHERE item_hash = $item_hash
+              AND branch_id = $branch_id
+              AND unlisted_at IS NULL
+            """ (fun cmd ->
+            p cmd "$item_hash" itemHashStr
+            pUuid cmd "$branch_id" branchId)
+
+      // 3. Insert new location entry (with origin_ts for cross-instance timestamp-LWW).
+      do!
+        exec ctx """
+          INSERT INTO locations (location_id, item_hash, owner, modules, name, item_type, branch_id, commit_hash, origin_ts)
+          VALUES ($location_id, $item_hash, $owner, $modules, $name, $item_type, $branch_id, $commit_hash, $origin_ts)
+          """ (fun cmd ->
+          pUuid cmd "$location_id" locationId
+          p cmd "$item_hash" itemHashStr
+          p cmd "$owner" location.owner
+          p cmd "$modules" modulesStr
+          p cmd "$name" location.name
+          p cmd "$item_type" itemTypeStr
+          pUuid cmd "$branch_id" branchId
+          pOpt cmd "$commit_hash" commitHash
+          pOpt cmd "$origin_ts" thisTs)
   }
 
 
