@@ -314,7 +314,29 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 exeState.packageFnInstrCache[fn.hash] <- instrData
                 return instrData
 
-              | None -> return raiseRTE (RTE.FnNotFound(FQFnName.Package fn))
+              | None ->
+                // Route a missing package fn through the conflict-dispatch seam — the runtime's
+                // shared "I can't proceed; here are the options" hook (the SAME hook sync's
+                // divergence routing uses, so the dispatch is real infrastructure, not a sync-only
+                // appendage). The default policy returns `RFailLoudly (FnNotFound …)` → raise, so
+                // this is byte-identical to before. The teed-up consumer is fetch-on-miss: a policy
+                // pulls the fn from a peer and resolves it, instead of failing. (notes/sync-future-ops.md)
+                let cc : CallContext =
+                  { branchId = exeState.branchId; threadID = vm.threadID }
+                match!
+                  exeState.conflictDispatch (CFnNotFound(FQFnName.Package fn)) cc
+                with
+                | RFailLoudly rte -> return raiseRTE rte
+                | RSubstitute _ ->
+                  // A policy substituted a value for the missing fn, but result-injection isn't wired
+                  // at this call site yet (it needs the call to return a Dval, not instructions). Raise
+                  // a DISTINCT internal error — not a bare FnNotFound — so if a policy ever returns
+                  // RSubstitute here before fetch-on-miss lands, the unwired path is diagnosable rather
+                  // than masquerading as "the fn doesn't exist".
+                  return
+                    Exception.raiseInternal
+                      "conflict-dispatch returned RSubstitute for a missing package fn, but value-substitution is not wired at this call site yet"
+                      [ "fn", fn ]
           }
 
 

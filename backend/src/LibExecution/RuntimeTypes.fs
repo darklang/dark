@@ -1849,11 +1849,46 @@ and ExceptionReporter = ExecutionState -> VMState -> Metadata -> exn -> Ply<unit
 
 and Notifier = ExecutionState -> VMState -> string -> Metadata -> Ply<unit>
 
+// -- Conflict dispatch: the runtime "I can't proceed; here are my options" hook. --
+// These MUST live here (the and-chain), not a separate ConflictTypes.fs: they mention
+// RuntimeError.Error/Dval (defined above) AND ExecutionState references ConflictDispatch,
+// so a later file can't satisfy both. (Same constraint a buses field would have.)
+and Conflict =
+  // Extensible by design — `Conflict` is the meta-model. As more ops are added, new cases join here
+  // and a policy decides each the same way (RSubstitute / FailLoudly). Anticipated future cases: a
+  // move collision (a MoveItem/MoveModule lands a name where one already lives), a value-update race
+  // (two concurrent updates to one mutable package value), a capability denial (a gate refused; a
+  // policy could prompt or escalate instead of failing).
+  | CRuntimeError of RuntimeError.Error
+  | CFnNotFound of FQFnName.FQFnName
+  // A name bound to two different hashes across synced instances — the `name → two hashes`
+  // divergence. Hashes are RT-level strings (PT's `Hash of string` can't be referenced here — PT
+  // depends on RT, not the reverse). Default dispatch surfaces it loudly; a sync policy can
+  // RSubstitute the converged winner (last-writer-wins).
+  | CSyncDivergence of
+    location : string *
+    existingHash : string *
+    incomingHash : string
+
+and Resolution =
+  // How a policy answers a Conflict: substitute a value to proceed, or fail loudly. (A future
+  // "park" resolution — pause and await external input — would be added here.)
+  | RSubstitute of Dval
+  | RFailLoudly of RuntimeError.Error
+
+and CallContext = { branchId : BranchId; threadID : uuid } // assembled from ExecState + VMState
+
+and ConflictDispatch = Conflict -> CallContext -> Ply<Resolution>
+
 /// All state set when starting an execution; non-changing
 /// (as opposed to the VMState, which changes as the execution progresses)
 and ExecutionState =
   { // -- Set consistently across a runtime --
     tracing : Tracing.Tracing
+
+    /// The conflict-dispatch hook. Default (createState) returns FailLoudly for every
+    /// conflict — the behavior before this seam existed. A policy can install substitute/park later.
+    conflictDispatch : ConflictDispatch
     test : TestContext
 
     /// Lambda instructions registered by `CreateLambda`, looked up on `Apply`.
