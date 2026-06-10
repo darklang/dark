@@ -82,6 +82,42 @@ let canMerge (branchId : PT.BranchId) : Task<Result<unit, PT.MergeError>> =
   }
 
 
+/// A merge collision: the merging branch and its parent BOTH have a listed binding for the same FQN,
+/// to DIFFERENT content. A `MergeBranch` silently lets the child win (it unlists the parent's
+/// binding) — so, exactly like a sync divergence, we detect these and RECORD them in the same
+/// reviewable conflict store, rather than dropping the parent's binding without a trace. Two AI
+/// agents editing the same item on two branches across two instances converge here: the merge still
+/// completes (child-wins stands), but the overwrite is visible via `dark conflicts`, not silent.
+///
+/// Returns `(location, parentHash, childHash)` per collision, with `location` formatted exactly as
+/// `Sync.detectDivergences` formats it, so merge collisions and sync divergences read identically.
+let detectMergeCollisions
+  (branchId : PT.BranchId)
+  (parentId : PT.BranchId)
+  : Task<List<string * string * string>> =
+  Sql.query
+    """
+    SELECT ch.owner AS owner, ch.modules AS modules, ch.name AS name,
+           p.item_hash AS parent_hash, ch.item_hash AS child_hash
+    FROM locations ch
+    JOIN locations p
+      ON p.owner = ch.owner AND p.modules = ch.modules
+         AND p.name = ch.name AND p.item_type = ch.item_type
+    WHERE ch.branch_id = @branch_id AND ch.unlisted_at IS NULL
+      AND p.branch_id = @parent_id AND p.unlisted_at IS NULL
+      AND p.item_hash <> ch.item_hash
+    """
+  |> Sql.parameters
+    [ "branch_id", Sql.uuid branchId; "parent_id", Sql.uuid parentId ]
+  |> Sql.executeAsync (fun read ->
+    let owner = read.string "owner"
+    let modules = read.string "modules"
+    let name = read.string "name"
+    let locStr =
+      if modules = "" then $"{owner}.{name}" else $"{owner}.{modules}.{name}"
+    (locStr, read.string "parent_hash", read.string "child_hash"))
+
+
 /// Merge a branch into its parent.
 ///
 /// TODO (multi-tenant): reads parent's state (`canMerge` queries
@@ -100,6 +136,21 @@ let merge (branchId : PT.BranchId) : Task<Result<unit, PT.MergeError>> =
       | None -> return Error PT.MergeError.NotFound
       | Some branch ->
         let parentId = branch.parentBranchId |> Option.defaultValue PT.mainBranchId
+
+        // Detect + record merge collisions BEFORE MergeBranch unlists the parent's binding. The
+        // child still wins (the merge semantics are unchanged), but each silently-overwritten parent
+        // binding is recorded in the same store sync uses — reviewable via `dark conflicts`, keyed
+        // by `merge:<branch>` so its origin is clear. localHash = the parent binding we replaced,
+        // incomingHash = the child binding that won (mirrors sync's local-vs-incoming).
+        let! collisions = detectMergeCollisions branchId parentId
+        for (locStr, parentHash, childHash) in collisions do
+          do!
+            Conflicts.record
+              $"merge:{branch.name}"
+              locStr
+              parentHash
+              childHash
+              "MergeChildWins"
 
         do!
           BranchOpPlayback.insertAndApply (
