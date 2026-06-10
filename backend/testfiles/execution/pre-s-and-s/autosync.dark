@@ -1,0 +1,41 @@
+// autosync — the ADAPTIVE poll interval, now a real package:
+// `Darklang.Sync.Autosync.nextPollMs`. Snap to a short floor right after a sync that pulled
+// changes (be responsive); back off (double, capped at a ceiling) while idle (don't hammer the
+// tailnet). This file is the test of that package fn. (Params: 2s floor, 60s ceiling.)
+
+// changes seen → snap back to the responsive floor (from any interval)
+Darklang.Sync.Autosync.nextPollMs true 60000L = 2000L
+Darklang.Sync.Autosync.nextPollMs true 2000L = 2000L
+
+// idle → back off by doubling
+Darklang.Sync.Autosync.nextPollMs false 2000L = 4000L
+Darklang.Sync.Autosync.nextPollMs false 16000L = 32000L
+
+// idle → capped at the ceiling (never overshoots)
+Darklang.Sync.Autosync.nextPollMs false 40000L = 60000L
+Darklang.Sync.Autosync.nextPollMs false 60000L = 60000L
+
+// decideNext — the adaptive decision over a pull's cursor before/after (the pure half of pollOnce).
+// cursor ADVANCED (changes arrived) → keep the new cursor, snap to the floor
+Darklang.Sync.Autosync.decideNext 5L 8L 16000L = (8L, 2000L)
+// cursor UNCHANGED (a converged, empty pull) → same cursor, back off (double, capped at ceiling)
+Darklang.Sync.Autosync.decideNext 5L 5L 16000L = (5L, 32000L)
+Darklang.Sync.Autosync.decideNext 5L 5L 40000L = (5L, 60000L)
+// the steady state: once converged, every poll is empty → cursor stays → the tailnet quiets down
+
+// tailnet-wide poll (the daemon syncs EVERY known peer, not one):
+// an empty peer set → nothing advanced, no conflicts, no Release-skew → (no changes, 0, no skews)
+Darklang.Sync.Autosync.pollAllPeers [] = (false, 0L, [])
+// runLoopAll with zero steps is a no-op that returns the interval unchanged (no peers polled)
+Darklang.Sync.Autosync.runLoopAll 8000L 0L = 8000L
+
+// Release-skew gate (the migrator's version coordinate gating the daemon): a peer only syncs when its
+// Release matches ours — else it's paused + surfaced, not silently no-advanced.
+// same Release → in sync, pull it
+Darklang.Sync.Autosync.peerInSync 2L 2L = true
+// peer on a newer Release → skew, skip (upgrade this machine)
+Darklang.Sync.Autosync.peerInSync 2L 3L = false
+// peer on an older Release → skew, skip (upgrade the peer)
+Darklang.Sync.Autosync.peerInSync 2L 1L = false
+// peer with no release stamp (an old pre-release Dark reports 0) → skew, skip
+Darklang.Sync.Autosync.peerInSync 2L 0L = false

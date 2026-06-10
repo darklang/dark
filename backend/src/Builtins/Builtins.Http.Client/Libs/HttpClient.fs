@@ -761,6 +761,41 @@ let fns (config : Configuration) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "httpClientGetUnsafe" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "uri"
+            TString
+            "URL to GET with SSRF guards OFF (loopback/private/tailnet allowed)" ]
+      returnType = TypeReference.result TString TString
+      description =
+        "GET <param uri> with NO SSRF guards — loopback, RFC-1918, and Tailscale (100.64/10)
+         addresses are reachable, unlike the guarded `httpClient.request`. TRUSTED-CLI use only
+         (the caller IS the code author): used by `dark sync pull <url>` to reach a tailnet peer's
+         sync server. Returns the response body as a String (Ok) or an error message (Error)."
+      fn =
+        let looseClient = BaseClient.create looseConfig
+        let resultOk = Dval.resultOk KTString KTString
+        let resultError = Dval.resultError KTString KTString
+        (function
+        | _, _, _, [ DString uri ] ->
+          uply {
+            let request : Request =
+              { url = uri; method = HttpMethod "GET"; headers = []; body = [||] }
+            let! response = makeRequest looseConfig looseClient request
+            match response with
+            | Ok r ->
+              return resultOk (DString(System.Text.Encoding.UTF8.GetString r.body))
+            | Error _ -> return resultError (DString "sync fetch failed")
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.http
+      deprecated = NotDeprecated }
+
+
     // ——————————————————————————————————————————————————————————
     // Streaming HTTP.
     //

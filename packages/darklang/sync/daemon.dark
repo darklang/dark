@@ -1,0 +1,65 @@
+module Darklang.Sync.Daemon
+
+// The background sync daemon: a DETACHED `dark` process running the adaptive autosync poll loop, tracked
+// by a pidfile so `sync daemon start/stop/status/logs` (and `dark apps`) can manage it. The generic
+// process lifecycle — pidfile, signal-0 liveness, SIGTERM stop, log tail, verified detached launch — is
+// the shared `Stdlib.Cli.Daemon` substrate (the same one `dark apps` daemons use). Only the sync-specific
+// entrypoints and the launch expression live here.
+
+let private daemonName : String = "sync-daemon"
+
+
+// ── lifecycle: thin pass-throughs to the shared daemon substrate ──
+
+let statusLine (name: String) : String = Stdlib.Cli.Daemon.statusLine name
+
+let stop (name: String) : Stdlib.Result.Result<String, String> = Stdlib.Cli.Daemon.stop name
+
+let tailLog (name: String) (n: Int64) : List<String> = Stdlib.Cli.Daemon.tailLog name n
+
+
+// ── entrypoints: run detached, claim the pidfile (recording this worker's pid), then poll forever
+//    (≈ a billion steps); a SIGTERM from `sync daemon stop` ends it. Invoked via `eval`, see `start`. ──
+
+let runDaemon (peer: String) (intervalMs: Int64) : Int64 =
+  let _ = Stdlib.Cli.Daemon.claimPidfile daemonName
+  Stdlib.printLine
+    $"daemon: started for {peer} (pid {Stdlib.Int64.toString (Stdlib.Cli.Sys.currentPid ())})"
+  Darklang.Sync.Autosync.runLoop peer intervalMs 1000000000L
+
+let runDaemonAll (intervalMs: Int64) : Int64 =
+  let _ = Stdlib.Cli.Daemon.claimPidfile daemonName
+  Stdlib.printLine
+    $"daemon: started for all peers (pid {Stdlib.Int64.toString (Stdlib.Cli.Sys.currentPid ())})"
+  Darklang.Sync.Autosync.runLoopAll intervalMs 1000000000L
+
+
+// ── launch: spawn the entrypoint detached + verified (refuses if already running) via the substrate ──
+
+let start (peer: String) (intervalMs: Int64) : Stdlib.Result.Result<String, String> =
+  // a file peer that doesn't exist would launch a daemon that crashes on the first pull and goes stale —
+  // refuse early. (http peers are checked at poll time: an unreachable one just backs off, doesn't crash.)
+  if
+    (Stdlib.Bool.not (Stdlib.String.startsWith peer "http"))
+    && (Stdlib.Bool.not (Stdlib.Cli.File.exists peer))
+  then
+    Stdlib.Result.Result.Error $"peer file not found: {peer} (nothing to sync from)"
+  else
+    let q = "\""
+    let expr =
+      "Darklang.Sync.Daemon.runDaemon " ++ q ++ peer ++ q ++ " " ++ (Stdlib.Int64.toString intervalMs) ++ "L"
+
+    match Stdlib.Cli.Daemon.start daemonName expr with
+    | Ok pid ->
+      Stdlib.Result.Result.Ok
+        $"sync-daemon started for {peer} (pid {Stdlib.Int64.toString pid}, interval {Stdlib.Int64.toString intervalMs}ms)"
+    | Error e -> Stdlib.Result.Result.Error e
+
+let startAll (intervalMs: Int64) : Stdlib.Result.Result<String, String> =
+  let expr = "Darklang.Sync.Daemon.runDaemonAll " ++ (Stdlib.Int64.toString intervalMs) ++ "L"
+
+  match Stdlib.Cli.Daemon.start daemonName expr with
+  | Ok pid ->
+    Stdlib.Result.Result.Ok
+      $"sync-daemon started for all peers (pid {Stdlib.Int64.toString pid}, interval {Stdlib.Int64.toString intervalMs}ms)"
+  | Error e -> Stdlib.Result.Result.Error e

@@ -112,6 +112,26 @@ module Blob =
       return ()
     }
 
+  /// Of `hashes`, the ones this store does NOT already have — the receiver's blob request
+  /// (sync's fetch-on-miss: `package_blobs` don't ride the op stream). Content-addressed, so
+  /// a hash we have is identical content; only the genuinely-absent ones need fetching.
+  let missing (hashes : List<string>) : Ply<List<string>> =
+    uply {
+      let! present =
+        Sql.query "SELECT hash FROM package_blobs"
+        |> Sql.executeAsync (fun read -> read.string "hash")
+      let presentSet = Set.ofList present
+      return hashes |> List.filter (fun h -> not (Set.contains h presentSet))
+    }
+
+  /// Every content hash this store holds — the sync blob MANIFEST (sender side of fetch-on-miss).
+  let allHashes () : Ply<List<string>> =
+    uply {
+      return!
+        Sql.query "SELECT hash FROM package_blobs"
+        |> Sql.executeAsync (fun read -> read.string "hash")
+    }
+
 
   /// Walk a Dval tree and collect every `Persistent` blob hash it
   /// references. Ephemeral blobs aren't rows in `package_blobs` — they
@@ -160,10 +180,12 @@ module Blob =
   /// that might later hold Dvals (User DB rows, `trace_data`) will
   /// need their own reference-collection pass.
   ///
-  /// Idempotent: re-running after a clean sweep deletes nothing. Safe
-  /// to run while the system is live — worst-case race is a concurrent
-  /// promote racing the delete, which the foreign-key-style orphan
-  /// check prevents (content-addressed re-insert is cheap).
+  /// Idempotent: re-running after a clean sweep deletes nothing. Safe to
+  /// run while the system is live, with one caveat: the reference scan and
+  /// the per-orphan DELETE are NOT one transaction, so a value promoted in
+  /// that window could have its blob swept. Benign because blobs are
+  /// content-addressed — the next promote re-inserts it cheaply — but run
+  /// sweeps when writes are quiet if that window matters.
   ///
   /// For a package set with N values and M blobs, cost is O(N+M)
   /// deserialise passes plus one DELETE per orphan. Good enough for

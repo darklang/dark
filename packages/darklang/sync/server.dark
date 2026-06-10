@@ -1,0 +1,108 @@
+module Darklang.Sync.Server
+
+// The sync SERVER side (cross-machine sync over HTTP/Tailscale). Serve this with
+// `dark serve Darklang.Sync.Server.router --port <N>`; a peer pulls from it with
+// `dark sync pull http://<host>:<N>`. The body is a base64 wire batch (from `pmSyncOpsSince`)
+// the puller decodes + applies via `pmSyncApplyWire` — the same op-playback fold the file
+// transport uses, just carried over HTTP.
+
+// Parse the `?since=<cursor>` resume point from a request URL. Defaults to 0 (the whole log) when
+// the param is ABSENT or UNPARSEABLE — so a bare or malformed GET from a confused client still
+// bootstraps the peer instead of erroring. Pure, so it's testable without a live server.
+let parseSince (url: String) : Int64 =
+  match Stdlib.Dict.get (Stdlib.Http.parseQueryString url) "since" with
+  | Some s ->
+    match Stdlib.Int64.parse s with
+    | Ok n -> n
+    | Error _ -> 0L
+  | None -> 0L
+
+
+// Parse `?committed=1` (or `committed=true`). RESERVED: sync ships committed ops only for now (the
+// unit of sync is the commit; WIP stays local — see `Inserts.opsSinceCommitted`). Both builtins are
+// committed-only today, so this toggle is a no-op kept for when WIP/own-device sync is added back.
+let parseCommitted (url: String) : Bool =
+  match Stdlib.Dict.get (Stdlib.Http.parseQueryString url) "committed" with
+  | Some s -> s == "1" || s == "true"
+  | None -> false
+
+
+// GET /sync/events?since=<cursor> — the COMMITTED ops after `since`, as a base64 wire batch.
+// `since` is a commit-rowid cursor (commit-granular). WIP is never shipped (deferred).
+let eventsHandlerFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  let since = parseSince req.url
+
+  // Both arms are committed-only today (pmSyncOpsSince now reads opsSinceCommitted). Kept structurally
+  // so re-enabling WIP sync later is a one-line change, not a re-plumb.
+  let body =
+    if parseCommitted req.url then
+      Builtin.pmSyncOpsSinceCommitted since
+    else
+      Builtin.pmSyncOpsSince since
+
+  Stdlib.Http.responseWithText body 200L
+
+
+let eventsHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler
+    { route = "/sync/events"
+      method = "GET"
+      handler = eventsHandlerFn }
+
+
+// GET /sync/health — liveness + op count. A puller (or a person) hits this to confirm the server
+// is up and reachable BEFORE pulling (the readiness probe the live cross-machine setup needs), and
+// to see convergence: compare the server's op count to the local one.
+let healthHandlerFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText (Builtin.pmSyncHealth ()) 200L
+
+
+let healthHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler
+    { route = "/sync/health"
+      method = "GET"
+      handler = healthHandlerFn }
+
+
+// ── HTTP blob channel (sender side) — closes the file/HTTP asymmetry: code rides in ops, but a
+// value's large `package_blobs` content needs its own transfer. Mirrors the file pull's blob fetch.
+
+// GET /sync/blobs — the blob manifest (every content hash this server holds, newline-joined).
+let blobsHandlerFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText (Builtin.pmSyncBlobHashes ()) 200L
+
+
+let blobsHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler
+    { route = "/sync/blobs"
+      method = "GET"
+      handler = blobsHandlerFn }
+
+
+// Parse `?hash=<content-hash>` for the single-blob fetch. Empty if absent. Pure, so it's testable.
+let parseHash (url: String) : String =
+  match Stdlib.Dict.get (Stdlib.Http.parseQueryString url) "hash" with
+  | Some h -> h
+  | None -> ""
+
+
+// GET /sync/blob?hash=<hash> — the base64 bytes for one content hash (empty body if this server
+// lacks it). The receiver base64-decodes + inserts (content-addressed, so the insert dedups).
+let blobHandlerFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText (Builtin.pmSyncBlobBytes (parseHash req.url)) 200L
+
+
+let blobHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler
+    { route = "/sync/blob"
+      method = "GET"
+      handler = blobHandlerFn }
+
+
+let handlers: List<Stdlib.HttpServer.Handler> =
+  [ eventsHandler; healthHandler; blobsHandler; blobHandler ]
+
+
+/// Router for the sync server — pass to `dark serve` (a named fn so the builtin can call it).
+let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.HttpServer.routeRequest handlers req

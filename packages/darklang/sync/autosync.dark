@@ -1,0 +1,174 @@
+module Darklang.Sync.Autosync
+
+// Autosync poll core. The ADAPTIVE interval: snap to a responsive floor right after a
+// sync that pulled changes, back off (double, capped at a ceiling) while idle — so a quiet
+// tailnet isn't hammered but a real change propagates fast. Pure arithmetic; the loop that
+// sleeps + repeats is the daemon (the one part needing a timer + background process).
+
+let pollFloorMs () : Int64 = 2000L
+let pollCeilingMs () : Int64 = 60000L
+
+let nextPollMs (sawChanges: Bool) (currentMs: Int64) : Int64 =
+  if sawChanges then
+    pollFloorMs ()
+  else
+    let doubled = currentMs * 2L
+
+    if doubled > (pollCeilingMs ()) then
+      pollCeilingMs ()
+    else
+      doubled
+
+
+// The adaptive DECISION, given the cursor before/after a pull: `(newCursor, nextIntervalMs)`. The
+// cursor ADVANCING means changes arrived → snap to the responsive floor; UNCHANGED (a converged,
+// empty pull) → back off. Pure — separated from pollOnce's pull side-effect so it's testable; this
+// is what makes a converged tailnet quiet down instead of polling at the floor forever.
+let decideNext (before: Int64) (after: Int64) (currentMs: Int64) : (Int64 * Int64) =
+  (after, nextPollMs (after > before) currentMs)
+
+
+// Pull a peer regardless of transport: an `http(s)` URL pulls over HTTP (ops + content blobs),
+// anything else is a local `data.db` file path. Returns `(newCursor, divCount)`. An unreachable
+// HTTP peer doesn't advance the cursor — so the poll treats it as idle and backs off (no crash).
+let pullPeer (peer: String) : (Int64 * Int64) =
+  if Stdlib.String.startsWith peer "http" then
+    match Darklang.Sync.pullHttp peer with
+    | Ok((c, d, _b)) -> (c, d)
+    | Error _ -> ((Darklang.Sync.cursorFor peer), 0L)
+  else if Stdlib.Cli.File.exists peer then
+    Darklang.Sync.pullFromFile peer
+  else
+    // a local peer whose db is currently missing (offline/removed) must NOT crash the daemon — treat
+    // it like an unreachable http peer: no advance, back off. (Essential for a tailnet-wide daemon,
+    // where peers come and go.)
+    ((Darklang.Sync.cursorFor peer), 0L)
+
+
+// Pure: may we sync with a peer on `peerRelease`, given we're on `ourRelease`? Both must match — the
+// wire gate fails closed on a mismatch (a skewed batch is rejected, never misread). A peer with no
+// release stamp (an old pre-release Dark) reports 0, which never matches a real release → skip. This
+// is the Release coordinate (the migrator's version) gating the daemon, same as it gates the wire.
+let peerInSync (ourRelease: Int64) (peerRelease: Int64) : Bool =
+  ourRelease == peerRelease
+
+
+// Release-aware pull of one HTTP peer: check the peer's `/sync/health` release FIRST, and only pull
+// when it matches ours. On a skew, SKIP the pull and return the actionable skew line (which side to
+// upgrade) — so a half-upgraded tailnet shows its paused peers plainly, instead of the silent
+// no-advance you'd get from letting the wire gate reject the batch. Returns
+// `(newCursor, divCount, skewLine)` — `skewLine` is "" when in sync (or for a local file peer, which
+// has no health endpoint and is pulled as before). An unreachable peer is treated as idle, no skew.
+let pullPeerReleaseAware (peer: String) : (Int64 * Int64 * String) =
+  if Stdlib.String.startsWith peer "http" then
+    match Darklang.Sync.httpGet (Darklang.Sync.healthUrl peer) with
+    | Ok health ->
+      let ours = Darklang.Sync.ourRelease ()
+      let peerRel = Darklang.Sync.parseHealthRelease health
+
+      if peerInSync ours peerRel then
+        let (c, d) = pullPeer peer
+        (c, d, "")
+      else
+        ((Darklang.Sync.cursorFor peer), 0L, Darklang.Sync.releaseSkewLine peer ours peerRel)
+    | Error _ -> ((Darklang.Sync.cursorFor peer), 0L, "")
+  else
+    let (c, d) = pullPeer peer
+    (c, d, "")
+
+
+// One poll step: pull the peer (HTTP or file, Release-aware — a skewed HTTP peer is paused, not
+// pulled), then decide the next interval — responsive if it brought new ops, backing off if idle.
+// Returns `(newCursor, nextIntervalMs, skewLine)`; `skewLine` is "" unless the peer was paused on a
+// Release mismatch. A daemon calls this on a timer, sleeping `nextIntervalMs` between calls.
+let pollOnce (peer: String) (currentIntervalMs: Int64) : (Int64 * Int64 * String) =
+  let before = Darklang.Sync.cursorFor peer
+  let (after, _divCount, skew) = pullPeerReleaseAware peer
+  let (cursor, nextMs) = decideNext before after currentIntervalMs
+  (cursor, nextMs, skew)
+
+
+// Run `times` adaptive poll steps, sleeping the computed interval BETWEEN steps (not after the
+// last). A blocking FOREGROUND loop — the true background daemon (non-blocking, survives CLI
+// exit) is a future detached daemon. Returns the last interval.
+let runLoop (peer: String) (intervalMs: Int64) (times: Int64) : Int64 =
+  if times <= 0L then
+    intervalMs
+  else
+    let (cursor, nextMs, skew) = pollOnce peer intervalMs
+
+    if skew != "" then
+      Stdlib.printLine $"  [autosync] {skew}"
+    else
+      ()
+
+    Stdlib.printLine
+      $"  [autosync] {peer} → op {Stdlib.Int64.toString cursor}, next in {Darklang.Sync.Display.intervalLabel nextMs}"
+
+    if times > 1L then
+      Stdlib.Cli.Posix.sleep (Stdlib.Int64.toFloat nextMs)
+    else
+      ()
+
+    runLoop peer nextMs (times - 1L)
+
+
+// ── tailnet-wide poll ── the daemon syncs EVERY known peer, not one. (Sync is tailnet-wide.)
+
+// Poll every peer once; return `(sawChanges, conflictsRecorded)` — whether ANY peer advanced (one
+// cursor advancing is enough to call the cycle "saw changes" → snap back to the floor) and the total
+// divergences auto-resolved this cycle (so the daemon LOG records background conflict resolution —
+// the user isn't watching, so this is where it's surfaced, alongside `dark conflicts`/`sync status`).
+let pollAllPeers (peers: List<String>) : (Bool * Int64 * List<String>) =
+  let results =
+    peers
+    |> Stdlib.List.map (fun p ->
+      let before = Darklang.Sync.cursorFor p
+      let (after, div, skew) = pullPeerReleaseAware p
+      (after > before, div, skew))
+
+  let sawChanges = Stdlib.List.any results (fun (changed, _div, _skew) -> changed)
+  let conflicts = Stdlib.List.fold results 0L (fun acc (_changed, div, _skew) -> acc + div)
+  // peers paused this cycle on a Release mismatch — surfaced so a half-upgraded tailnet is legible
+  let skews =
+    results
+    |> Stdlib.List.map (fun (_changed, _div, skew) -> skew)
+    |> Stdlib.List.filter (fun s -> s != "")
+  (sawChanges, conflicts, skews)
+
+
+// The tailnet-wide adaptive loop: each cycle re-reads the peer set (so peers added mid-run are
+// picked up) and polls them all, then sleeps an interval that snaps to the floor if ANY peer brought
+// changes and backs off when the whole tailnet is quiet. Returns the last interval.
+let runLoopAll (intervalMs: Int64) (times: Int64) : Int64 =
+  if times <= 0L then
+    intervalMs
+  else
+    let peers = Darklang.Sync.remotes ()
+    let (sawChanges, conflicts, skews) = pollAllPeers peers
+    let nextMs = nextPollMs sawChanges intervalMs
+
+    let conflictNote =
+      if conflicts > 0L then
+        $", {Stdlib.Int64.toString conflicts} conflict(s) auto-resolved"
+      else
+        ""
+
+    let skewNote =
+      if Stdlib.List.isEmpty skews then
+        ""
+      else
+        $", {Stdlib.Int64.toString (Stdlib.List.length skews)} peer(s) paused (Release skew)"
+
+    Stdlib.printLine
+      $"  [autosync] polled {Stdlib.Int64.toString (Stdlib.List.length peers)} peer(s), changes={Stdlib.Bool.toString sawChanges}{conflictNote}{skewNote} → next in {Darklang.Sync.Display.intervalLabel nextMs}"
+
+    // surface each paused peer's actionable upgrade line (which side to upgrade) in the daemon log
+    skews |> Stdlib.List.iter (fun line -> Stdlib.printLine $"  [autosync] {line}")
+
+    if times > 1L then
+      Stdlib.Cli.Posix.sleep (Stdlib.Int64.toFloat nextMs)
+    else
+      ()
+
+    runLoopAll nextMs (times - 1L)

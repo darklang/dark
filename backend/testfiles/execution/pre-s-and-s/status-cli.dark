@@ -1,0 +1,12 @@
+// `dark status` projection-currency line — now a real package fn,
+// `Darklang.Cli.SCM.Status.statusLine`. opsCount = rows in `package_ops`; foldedThrough = how
+// many are folded (applied). Pure arithmetic over the two — this file tests that package fn.
+// (The real `dark status` reads the two counts via `Builtin.pmProjectionStatus`.)
+
+// caught up (incl. the empty DB)
+Darklang.Cli.SCM.Status.statusLine 1234L 1234L = "✓ up to date (1234 ops)"
+Darklang.Cli.SCM.Status.statusLine 0L 0L = "✓ up to date (0 ops)"
+
+// behind — shows how many ops the projections still owe
+Darklang.Cli.SCM.Status.statusLine 1234L 1230L = "core.db: 1234 ops · projections folded through 1230 (4 behind)"
+Darklang.Cli.SCM.Status.statusLine 5L 0L = "core.db: 5 ops · projections folded through 0 (5 behind)"

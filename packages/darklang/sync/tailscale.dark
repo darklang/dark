@@ -1,0 +1,11 @@
+module Darklang.Sync.Tailscale
+
+// Sync's USE of the base `Darklang.Tailscale` surface — the seam between the generic tailnet
+// helpers and how sync addresses a peer. The CLI (`dark remote add-ts`) goes through here rather
+// than reaching into the base lib directly, so the sync layer owns "what a tailnet peer means to
+// sync" (today: its sync server is reached at the peer's MagicDNS https URL).
+
+// The sync-peer URL for a tailnet peer: where this peer's sync server is served (via
+// `tailscale serve`). Delegates to the base lib's URL builder.
+let peerUrl (name: String) (tailnet: String) : String =
+  Darklang.Tailscale.peerUrl name tailnet

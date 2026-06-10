@@ -25,6 +25,8 @@ let builtins (pm : PT.PackageManager) : Builtins =
       Libs.PM.Dependencies.builtins ()
       Libs.PM.Seed.builtins
       Libs.PM.Caps.builtins
+      Libs.PM.Sync.builtins ()
+      Libs.PM.Remotes.builtins
 
       // Traces (reader surface)
       Libs.Traces.builtins ()

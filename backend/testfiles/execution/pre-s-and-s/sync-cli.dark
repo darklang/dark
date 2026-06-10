@@ -1,0 +1,24 @@
+// `dark sync` CLI output — the pure human-facing summary over a sync result, in the package
+// `Darklang.Sync.Display`. The counts come from the pull (cursor delta = ops pulled, the log being
+// append-only/contiguous); this formats them. `syncSummary` is wired into `dark sync pull`.
+
+// pluralization
+Darklang.Sync.Display.opWord 1L = "op"
+Darklang.Sync.Display.opWord 4L = "ops"
+
+// op-kind breakdown: mixed, single, empty, all-one-kind (only present kinds, in fn/type/value/rename order)
+Darklang.Sync.Display.opKindBreakdown ["fn"; "fn"; "type"; "rename"] = "2 fns, 1 type, 1 rename"
+Darklang.Sync.Display.opKindBreakdown ["fn"] = "1 fn"
+Darklang.Sync.Display.opKindBreakdown [] = ""
+Darklang.Sync.Display.opKindBreakdown ["value"; "value"] = "2 values"
+
+// pulled something / already in sync
+Darklang.Sync.Display.syncSummary "major" 4L = "↓ pulled 4 ops from major"
+Darklang.Sync.Display.syncSummary "major" 1L = "↓ pulled 1 op from major"
+Darklang.Sync.Display.syncSummary "major" 0L = "✓ already in sync with major"
+
+// poll-interval label: whole seconds when divisible (the adaptive intervals always are), else ms
+Darklang.Sync.Display.intervalLabel 2000L = "2s"
+Darklang.Sync.Display.intervalLabel 60000L = "60s"
+Darklang.Sync.Display.intervalLabel 500L = "500ms"
+Darklang.Sync.Display.intervalLabel 1500L = "1500ms"

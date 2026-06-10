@@ -1,0 +1,90 @@
+module Darklang.Cli.Remote
+
+// `dark remote` — the sync SETUP surface: register the tailnet peers this instance syncs with. A
+// remote is a (name, url) where url is an http(s) sync-server URL or a local data.db path. The
+// tailnet-wide daemon (`dark apps start sync-daemon`) polls every registered remote — so `remote
+// add` lets you wire a peer once and have it sync automatically, without a manual `sync pull` first.
+// Remotes are LOCAL setup (not synced), like git's.
+
+// Register a remote + report it. The single call site for the `pmRemoteAdd` builtin, so both
+// `add` and `add-ts` share one place.
+let register (name: String) (url: String) (note: String) : Unit =
+  Builtin.pmRemoteAdd name url
+  // "registered" rather than "added": pmRemoteAdd is an upsert, so this also covers updating an
+  // existing remote's url.
+  Stdlib.printLine (Colors.success $"✓ remote '{name}' registered — {url}")
+  Stdlib.printLine (Colors.dimText note)
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] | [ "list" ] ->
+    let lines = Builtin.pmRemoteList ()
+
+    if Stdlib.List.isEmpty lines then
+      Stdlib.printLine (Colors.dimText "no remotes registered — `remote add <name> <url>`")
+    else
+      Stdlib.printLine "Remotes:"
+      Stdlib.printLines lines
+
+    state
+
+  | [ "add"; name; url ] ->
+    register
+      name
+      url
+      "  the sync daemon will poll it; `sync pull` now also accepts the url"
+    state
+
+  | [ "add-ts"; name; tailnet ] ->
+    // tailnet convenience: derive the MagicDNS URL (https://<name>.<tailnet>.ts.net, fronted by
+    // `tailscale serve --https=443 <port>`) instead of typing it out.
+    let url = Darklang.Sync.Tailscale.peerUrl name tailnet
+
+    register
+      name
+      url
+      "  tailnet peer via MagicDNS; ensure `tailscale serve --https=443 <port>` runs there"
+    state
+
+  | [ "remove"; name ] ->
+    if Builtin.pmRemoteRemove name then
+      Stdlib.printLine (Colors.success $"✓ remote '{name}' removed")
+    else
+      Stdlib.printLine (Colors.error $"no remote named '{name}' (see `remote list`)")
+
+    state
+
+  | _ ->
+    Stdlib.printLine
+      (Colors.error
+        "Usage: remote [list] | add <name> <url> | add-ts <name> <tailnet> | remove <name>")
+    state
+
+
+let complete
+  (_state: AppState)
+  (_args: List<String>)
+  : List<Completion.CompletionItem> =
+  [ Completion.simple "list"
+    Completion.simple "add"
+    Completion.simple "add-ts"
+    Completion.simple "remove" ]
+
+
+let help (state: AppState) : AppState =
+  [ "Usage: remote [list] | remote add <name> <url> | remote remove <name>"
+    ""
+    "Register the tailnet peers this instance syncs with. A remote is a (name, url) where url is an"
+    "http(s) sync-server URL or a local data.db path. The tailnet-wide sync daemon polls every"
+    "registered remote, so you can wire a peer once and have it sync automatically."
+    ""
+    "  list                      Show registered remotes (name → url)"
+    "  add <name> <url>          Register (or update) a remote by name"
+    "  add-ts <name> <tailnet>   Register a tailnet peer by MagicDNS (derives the https URL)"
+    "  remove <name>             Unregister a remote (its sync cursor is left intact)"
+    ""
+    "Remotes are LOCAL setup (not synced), like git's." ]
+  |> Stdlib.printLines
+
+  state
