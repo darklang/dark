@@ -7,11 +7,11 @@ module Darklang.Cli.Conflicts
 
 // Single home for the pmConflictsList builtin — every other
 // caller (the display below, the `sync status` count) routes through this one fn. Returns STRUCTURED
-// rows `(id, location, status, resolution, localHash, incomingHash, remote)`; the human formatting
-// lives in `Darklang.Sync.Display.conflictReport` (pure → package-testable, iterable without a rebuild).
+// rows `(id, location, status, chosenHash, resolvedBy, localHash, incomingHash, remote)`; the human
+// formatting lives in `Darklang.Sync.Display.conflictReport` (pure → package-testable, no rebuild).
 let recorded
   (includeResolved: Bool)
-  : List<(String * String * String * String * String * String * String)> =
+  : List<(String * String * String * String * String * String * String * String)> =
   Builtin.pmConflictsList includeResolved
 
 // How many conflicts are still pending (unacknowledged) — the `dark sync status` glance shows this.

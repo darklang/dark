@@ -490,8 +490,8 @@ let testMergeRecordsCollisions =
         cHash
         "child (winning) hash is the incoming side"
       Expect.equal
-        conflict.resolution
-        "MergeChildWins"
+        conflict.resolvedBy
+        "auto:merge-child-wins"
         "the merge auto-resolution is recorded for review"
     | other ->
       failtest $"expected one recorded merge collision, got {List.length other}"

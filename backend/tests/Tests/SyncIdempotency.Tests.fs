@@ -678,9 +678,9 @@ let tests =
         | [ c ] ->
           Expect.equal c.remote remote "recorded against the peer it came from"
           Expect.equal c.localHash "hMine" "records what we had"
-          Expect.stringContains
-            c.resolution
-            "timestamp-LWW"
+          Expect.equal
+            c.resolvedBy
+            "auto:last-writer-wins"
             "tagged with the auto-resolution policy"
         | other ->
           failtest $"expected the divergence recorded once, got {List.length other}"

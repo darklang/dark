@@ -69,19 +69,6 @@ type Conflict =
   /// Did a deliberate override replace the auto-resolution?
   member this.overridden = this.status = "overridden"
 
-  /// LEGACY prose bridge — reconstructs the human resolution string the `.dark` display still parses.
-  /// Removed in the next step, which renders `chosenHash`/`resolvedBy` structurally (no string match).
-  member this.resolution =
-    match this.resolvedBy with
-    | "auto:merge-child-wins" -> "MergeChildWins"
-    | _ ->
-      if this.chosenHash = this.incomingHash then
-        "auto: timestamp-LWW — incoming won (newer creation)"
-      elif this.chosenHash = this.localHash then
-        "auto: timestamp-LWW — kept local (newer creation)"
-      else
-        "auto: timestamp-LWW"
-
 // ── location parsing + kind lookup (to rebuild the structured conflict from raw hashes) ──
 
 /// Parse "owner[.modules].name" → PackageLocation (head = owner, last = name, middle = modules).

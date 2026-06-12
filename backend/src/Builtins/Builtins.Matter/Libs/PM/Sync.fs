@@ -442,14 +442,19 @@ let fns () : List<BuiltInFn> =
             "true = include acked/overridden (history); false = only pending" ]
       returnType =
         TList(
-          TTuple(TString, TString, [ TString; TString; TString; TString; TString ])
+          TTuple(
+            TString,
+            TString,
+            [ TString; TString; TString; TString; TString; TString ]
+          )
         )
       description =
         "Recorded sync conflicts (auto-resolved name-binding divergences), one STRUCTURED tuple each
          for `dark conflicts` to format in Dark (so the display is package-testable + iterable):
-         `(id, location, status, resolution, localHash, incomingHash, remote)`. `status` is
-         NEW/acked/overridden; hashes are full (the Dark formatter shortens). `includeResolved=false`
-         shows only pending (the actionable view — acked/overridden drop out, the ack-to-dismiss
+         `(id, location, status, chosenHash, resolvedBy, localHash, incomingHash, remote)`. `status`
+         is NEW/acked/overridden; `chosenHash` is which content won and `resolvedBy` the policy that
+         picked it (e.g. `auto:last-writer-wins`); hashes are full (the Dark formatter shortens).
+         `includeResolved=false` shows only pending (acked/overridden drop out, the ack-to-dismiss
          model). Empty if none match."
       fn =
         (function
@@ -474,7 +479,8 @@ let fns () : List<BuiltInFn> =
                   DString c.id,
                   DString c.location,
                   [ DString status
-                    DString c.resolution
+                    DString c.chosenHash
+                    DString c.resolvedBy
                     DString c.localHash
                     DString c.incomingHash
                     DString c.remote ]
@@ -484,7 +490,12 @@ let fns () : List<BuiltInFn> =
                 (KTTuple(
                   VT.string,
                   VT.string,
-                  [ VT.string; VT.string; VT.string; VT.string; VT.string ]
+                  [ VT.string
+                    VT.string
+                    VT.string
+                    VT.string
+                    VT.string
+                    VT.string ]
                 ))
                 rows
           }

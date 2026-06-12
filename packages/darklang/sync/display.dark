@@ -64,28 +64,34 @@ let divergenceNote (divCount: Int64) : String =
 let shortHash (h: String) : String =
   if Stdlib.String.length h > 8L then Stdlib.String.slice h 0L 8L else h
 
-// Which side timestamp-LWW kept, read from the recorded resolution tag: "you" | "them" | "" (unknown).
-let conflictWinner (resolution: String) : String =
-  if Stdlib.String.contains resolution "incoming won" then
-    "them"
-  else if Stdlib.String.contains resolution "kept local" then
-    "you"
-  else
-    ""
+// Which side won, read STRUCTURALLY: the chosen hash equals the local ("you") or incoming ("them")
+// candidate. No prose parsing — `chosenHash` comes straight off the recorded resolution.
+let conflictWinner (chosenHash: String) (localHash: String) (incomingHash: String) : String =
+  if chosenHash == incomingHash then "them"
+  else if chosenHash == localHash then "you"
+  else ""
 
-// The human verdict phrase — always names last-write-wins so the auto-resolution is never opaque.
-let conflictVerdict (resolution: String) : String =
-  match conflictWinner resolution with
-  | "them" -> "last-write-wins → kept theirs"
-  | "you" -> "last-write-wins → kept yours"
-  | _ -> "auto-resolved (last-write-wins)"
+// The human verdict phrase — names the resolving policy + which side it kept, so the auto-resolution
+// is never opaque. `resolvedBy` is the structured tag ('auto:last-writer-wins' | 'human' | …).
+let conflictVerdict (resolvedBy: String) (winner: String) : String =
+  let label =
+    match resolvedBy with
+    | "auto:last-writer-wins" -> "last-write-wins"
+    | "auto:merge-child-wins" -> "merge"
+    | "human" -> "override"
+    | other -> other
+
+  match winner with
+  | "them" -> label ++ " → kept theirs"
+  | "you" -> label ++ " → kept yours"
+  | _ -> "auto-resolved (" ++ label ++ ")"
 
 // you/them hashes with a ✓ on the side that won (and the arrow pointing to it).
-let conflictHashes (resolution: String) (localHash: String) (incomingHash: String) : String =
+let conflictHashes (chosenHash: String) (localHash: String) (incomingHash: String) : String =
   let you = shortHash localHash
   let them = shortHash incomingHash
 
-  match conflictWinner resolution with
+  match conflictWinner chosenHash localHash incomingHash with
   | "them" -> "you " ++ you ++ "  →  them " ++ them ++ " ✓"
   | "you" -> "you " ++ you ++ " ✓  ←  them " ++ them
   | _ -> "you " ++ you ++ "  ·  them " ++ them
@@ -102,19 +108,22 @@ let conflictBlock
   (id: String)
   (location: String)
   (status: String)
-  (resolution: String)
+  (chosenHash: String)
+  (resolvedBy: String)
   (localHash: String)
   (incomingHash: String)
   (remote: String)
   : List<String> =
+  let winner = conflictWinner chosenHash localHash incomingHash
+
   let ackHint =
     if status == "NEW" then "  ·  ack " ++ (shortHash id) else ""
 
   [ (conflictGlyph status) ++ " " ++ location
     "    "
-    ++ (conflictVerdict resolution)
+    ++ (conflictVerdict resolvedBy winner)
     ++ "   "
-    ++ (conflictHashes resolution localHash incomingHash)
+    ++ (conflictHashes chosenHash localHash incomingHash)
     ++ "  ·  from "
     ++ remote
     ++ ackHint ]
@@ -122,7 +131,8 @@ let conflictBlock
 // The full `dark conflicts` report over the structured rows from `pmConflictsList`.
 // Header frames the ack model; the footer lists the actions. Empty → a clean "nothing pending".
 let conflictReport
-  (conflicts: List<(String * String * String * String * String * String * String)>)
+  (conflicts:
+    List<(String * String * String * String * String * String * String * String)>)
   (includeResolved: Bool)
   : List<String> =
   if Stdlib.List.isEmpty conflicts then
@@ -139,8 +149,8 @@ let conflictReport
 
     let blocks =
       conflicts
-      |> Stdlib.List.map (fun (id, location, status, resolution, localHash, incomingHash, remote) ->
-        conflictBlock id location status resolution localHash incomingHash remote)
+      |> Stdlib.List.map (fun (id, location, status, chosenHash, resolvedBy, localHash, incomingHash, remote) ->
+        conflictBlock id location status chosenHash resolvedBy localHash incomingHash remote)
       |> Stdlib.List.flatten
 
     let footer = "  ack <id> (agree)  ·  ack all  ·  resolve <id> mine|theirs (override)"
