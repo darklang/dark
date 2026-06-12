@@ -213,6 +213,14 @@ let rec symbolicToSql
     | RT.DBool true -> Ok("1", state)
     | RT.DBool false -> Ok("0", state)
     | RT.DInt64 n -> Ok(string n, state)
+    // The arbitrary-precision `Int` is deliberately NOT queryable yet: SQLite has
+    // no native bignum, so emitting it as a number would let values past 2^63 be
+    // compared as lossy floats (silently wrong). Reject loudly instead — use a
+    // sized type like `Int64` for indexed numeric fields. (A future order-
+    // preserving encoded projection will make `Int` queryable.)
+    | RT.DInt _ ->
+      Error
+        "The arbitrary-precision Int type is not yet queryable in DB.query. Use a sized integer type (e.g. Int64) for fields you filter or sort on."
     | RT.DFloat f -> Ok(string f, state)
     | RT.DString _ ->
       // Use a parameter to prevent SQL injection
@@ -620,6 +628,7 @@ let compileLambda
         | RT.DUInt64 _ -> "UInt64"
         | RT.DInt128 _ -> "Int128"
         | RT.DUInt128 _ -> "UInt128"
+        | RT.DInt _ -> "Int"
         | RT.DFloat _ -> "Float"
         | RT.DChar _ -> "Char"
         | RT.DString _ -> "String"

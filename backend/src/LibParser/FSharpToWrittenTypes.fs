@@ -76,6 +76,7 @@ module TypeReference =
     | [], "UInt32", [] -> WT.TUInt32
     | [], "Int128", [] -> WT.TInt128
     | [], "UInt128", [] -> WT.TUInt128
+    | [], "Int", [] -> WT.TInt
     | [], "String", [] -> WT.TString
     | [], "Char", [] -> WT.TChar
     | [], "Float", [] -> WT.TFloat
@@ -248,6 +249,12 @@ module MatchPattern =
       | false, _ ->
         raiseParserError "Failed to parse UInt128" [ "pat", pat ] (Some pat.Range)
 
+    | SynPat.Const(SynConst.UserNum(s, "I"), _) ->
+      match System.Numerics.BigInteger.TryParse(s) with
+      | true, i -> WT.MPInt(id, i)
+      | false, _ ->
+        raiseParserError "Failed to parse Int" [ "pat", pat ] (Some pat.Range)
+
     | SynPat.Const(SynConst.Double d, _) ->
       let sign, whole, fraction = readFloat d
       WT.MPFloat(id, sign, whole, fraction)
@@ -400,6 +407,15 @@ module Expr =
       | true, uint128 -> WT.EUInt128(id, uint128)
       | false, _ ->
         raiseParserError "Failed to parse UInt128" [ "ast", ast ] (Some ast.Range)
+
+    // `1I` is the arbitrary-precision `Int`. F#'s bigint suffix; the suffix-less
+    // default lives in the Dark (tree-sitter) parser, which can distinguish a
+    // bare literal from `1l` (Int32) — FCS cannot.
+    | SynExpr.Const(SynConst.UserNum(s, "I"), _) ->
+      match System.Numerics.BigInteger.TryParse(s) with
+      | true, i -> WT.EInt(id, i)
+      | false, _ ->
+        raiseParserError "Failed to parse Int" [ "ast", ast ] (Some ast.Range)
 
     | SynExpr.Const(SynConst.Char c, _) -> WT.EChar(id, string c)
     | SynExpr.Const(SynConst.Bool b, _) -> WT.EBool(id, b)

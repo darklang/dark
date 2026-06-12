@@ -48,6 +48,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DUInt64 a, DUInt64 b -> a = b
   | DInt128 a, DInt128 b -> a = b
   | DUInt128 a, DUInt128 b -> a = b
+  | DInt a, DInt b -> a = b
 
   | DFloat a, DFloat b -> a = b
 
@@ -144,6 +145,7 @@ let rec equals (a : Dval) (b : Dval) : bool =
   | DUInt64 _, _
   | DInt128 _, _
   | DUInt128 _, _
+  | DInt _, _
   | DFloat _, _
   | DChar _, _
   | DString _, _
@@ -245,8 +247,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = varA
       description =
-        "Adds two numbers of the same numeric type. Integer overflow raises a
-         runtime error; float arithmetic follows IEEE (overflow to infinity)."
+        "Adds two numbers of the same numeric type. Fixed-width integer overflow
+         raises a runtime error; the arbitrary-precision Int grows instead of
+         overflowing; float arithmetic follows IEEE (overflow to infinity)."
       fn =
         (function
         | _, vm, _, [ DInt8 a; DInt8 b ] ->
@@ -271,6 +274,7 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [ DUInt128 a; DUInt128 b ] ->
           overflowChecked vm (fun () ->
             DUInt128(System.UInt128.op_CheckedAddition (a, b)))
+        | _, _, _, [ DInt a; DInt b ] -> Ply(DInt(DarkInt.add a b))
         | _, _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a + b))
         | _, vm, _, [ a; b ] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
@@ -285,8 +289,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = varA
       description =
-        "Subtracts two numbers of the same numeric type. Integer overflow raises a
-         runtime error; float arithmetic follows IEEE (overflow to infinity)."
+        "Subtracts two numbers of the same numeric type. Fixed-width integer
+         overflow raises a runtime error; the arbitrary-precision Int grows
+         instead of overflowing; float arithmetic follows IEEE (overflow to
+         infinity)."
       fn =
         (function
         | _, vm, _, [ DInt8 a; DInt8 b ] ->
@@ -311,6 +317,7 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [ DUInt128 a; DUInt128 b ] ->
           overflowChecked vm (fun () ->
             DUInt128(System.UInt128.op_CheckedSubtraction (a, b)))
+        | _, _, _, [ DInt a; DInt b ] -> Ply(DInt(DarkInt.subtract a b))
         | _, _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a - b))
         | _, vm, _, [ a; b ] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
@@ -325,8 +332,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = varA
       description =
-        "Multiplies two numbers of the same numeric type. Integer overflow raises a
-         runtime error; float arithmetic follows IEEE (overflow to infinity)."
+        "Multiplies two numbers of the same numeric type. Fixed-width integer
+         overflow raises a runtime error; the arbitrary-precision Int grows
+         instead of overflowing; float arithmetic follows IEEE (overflow to
+         infinity)."
       fn =
         (function
         | _, vm, _, [ DInt8 a; DInt8 b ] ->
@@ -351,6 +360,7 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [ DUInt128 a; DUInt128 b ] ->
           overflowChecked vm (fun () ->
             DUInt128(System.UInt128.op_CheckedMultiply (a, b)))
+        | _, _, _, [ DInt a; DInt b ] -> Ply(DInt(DarkInt.multiply a b))
         | _, _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a * b))
         | _, vm, _, [ a; b ] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
@@ -408,6 +418,8 @@ let fns () : List<BuiltInFn> =
             overflowChecked vm (fun () -> DInt128(a / b))
         | _, vm, _, [ DUInt128 a; DUInt128 b ] ->
           if b = System.UInt128.Zero then divideByZero vm else Ply(DUInt128(a / b))
+        | _, vm, _, [ DInt a; DInt b ] ->
+          if DarkInt.isZero b then divideByZero vm else Ply(DInt(DarkInt.divide a b))
         // Float division by zero follows IEEE semantics (Infinity/NaN), as before
         | _, _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a / b))
         | _, vm, _, [ a; b ] -> numericTypeError vm a b
@@ -477,6 +489,15 @@ let fns () : List<BuiltInFn> =
             Ply(DInt128(if r < System.Int128.Zero then m + r else r))
         | _, vm, _, [ DUInt128 v; DUInt128 m ] ->
           if m = System.UInt128.Zero then zeroModulus vm else Ply(DUInt128(v % m))
+        | _, vm, _, [ DInt v; DInt m ] ->
+          let m = DarkInt.toBigInt m
+          if m = System.Numerics.BigInteger.Zero then
+            zeroModulus vm
+          elif m < System.Numerics.BigInteger.Zero then
+            negativeModulus vm
+          else
+            let r = DarkInt.toBigInt v % m
+            Ply(Dval.int (if r < System.Numerics.BigInteger.Zero then m + r else r))
         | _, vm, _, [ DFloat v; DFloat m ] ->
           if m = 0.0 then
             zeroModulus vm
@@ -500,7 +521,8 @@ let fns () : List<BuiltInFn> =
       description =
         "Raises a number to the power of another number of the same type.
          Supported for every integer type and Float (not Int128/UInt128).
-         Integer exponents must be non-negative; integer overflow raises."
+         Integer exponents must be non-negative. Fixed-width integer overflow
+         raises a runtime error; the arbitrary-precision Int grows instead."
       fn =
         (function
         | _, vm, _, [ DInt8 number; DInt8 exp ] ->
@@ -560,6 +582,30 @@ let fns () : List<BuiltInFn> =
             // exceeds Int64 range.
             overflowChecked vm (fun () ->
               (bigint number) ** (int exp) |> int64 |> DInt64)
+        | _, vm, _, [ DInt number; DInt exp ] ->
+          let number = DarkInt.toBigInt number
+          let exp = DarkInt.toBigInt exp
+          if exp < System.Numerics.BigInteger.Zero then
+            negativeExponent vm
+          elif exp > bigint System.Int32.MaxValue then
+            // `**` needs an Int32 exponent; only trivial bases are representable.
+            if number = System.Numerics.BigInteger.Zero then
+              Ply(Dval.int System.Numerics.BigInteger.Zero)
+            elif number = System.Numerics.BigInteger.One then
+              Ply(Dval.int System.Numerics.BigInteger.One)
+            elif number = System.Numerics.BigInteger.MinusOne then
+              Ply(
+                Dval.int (
+                  if exp % (bigint 2) = System.Numerics.BigInteger.Zero then
+                    System.Numerics.BigInteger.One
+                  else
+                    System.Numerics.BigInteger.MinusOne
+                )
+              )
+            else
+              outOfRange vm
+          else
+            Ply(Dval.int (number ** (int exp)))
         | _, _, _, [ DFloat number; DFloat exp ] -> Ply(DFloat(number ** exp))
         | _, vm, _, [ a; b ] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
@@ -593,6 +639,7 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [ DInt128 a ] ->
           overflowChecked vm (fun () ->
             DInt128(System.Int128.op_CheckedUnaryNegation a))
+        | _, _, _, [ DInt a ] -> Ply(DInt(DarkInt.negate a))
         | _, _, _, [ DFloat a ] -> Ply(DFloat(-a))
         | _, vm, _, [ a ] -> numericTypeError vm a a
         | _ -> incorrectArgs ())
@@ -619,6 +666,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a > b))
         | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DBool(a > b))
         | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DBool(a > b))
+        | _, _, _, [ DInt a; DInt b ] -> Ply(DBool(DarkInt.compare a b > 0))
         | _, _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a > b))
         | _, vm, _, [ a; b ] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
@@ -646,6 +694,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a >= b))
         | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DBool(a >= b))
         | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DBool(a >= b))
+        | _, _, _, [ DInt a; DInt b ] -> Ply(DBool(DarkInt.compare a b >= 0))
         | _, _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a >= b))
         | _, vm, _, [ a; b ] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
@@ -672,6 +721,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a < b))
         | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DBool(a < b))
         | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DBool(a < b))
+        | _, _, _, [ DInt a; DInt b ] -> Ply(DBool(DarkInt.compare a b < 0))
         | _, _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a < b))
         | _, vm, _, [ a; b ] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
@@ -699,6 +749,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a <= b))
         | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DBool(a <= b))
         | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DBool(a <= b))
+        | _, _, _, [ DInt a; DInt b ] -> Ply(DBool(DarkInt.compare a b <= 0))
         | _, _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a <= b))
         | _, vm, _, [ a; b ] -> numericTypeError vm a b
         | _ -> incorrectArgs ())

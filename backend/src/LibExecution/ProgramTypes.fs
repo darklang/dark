@@ -283,6 +283,7 @@ type MatchPattern =
   | MPUInt64 of id * uint64
   | MPInt128 of id * System.Int128
   | MPUInt128 of id * System.UInt128
+  | MPInt of id * bigint
 
   | MPFloat of id * Sign * string * string
 
@@ -342,6 +343,7 @@ type TypeReference =
   | TUInt64
   | TInt128
   | TUInt128
+  | TInt
 
   | TFloat
 
@@ -395,6 +397,7 @@ type Expr =
   | EUInt64 of id * uint64
   | EInt128 of id * System.Int128
   | EUInt128 of id * System.UInt128
+  | EInt of id * bigint
 
   // Allow the user to have arbitrarily big numbers, even if they don't make sense as
   // floats. The float is split as we want to preserve what the user entered.
@@ -561,6 +564,7 @@ module Expr =
     | EUInt64(id, _)
     | EInt128(id, _)
     | EUInt128(id, _)
+    | EInt(id, _)
     | EChar(id, _)
     | EString(id, _)
     | EFloat(id, _, _, _)

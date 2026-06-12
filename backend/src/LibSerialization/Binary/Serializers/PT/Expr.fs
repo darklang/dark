@@ -208,6 +208,10 @@ module MatchPattern =
       w.Write 20uy
       w.Write id
       NEList.write write w patterns
+    | MPInt(id, value) ->
+      w.Write 21uy
+      w.Write id
+      String.write w (string value)
 
   let rec read (r : BinaryReader) : MatchPattern =
     match r.ReadByte() with
@@ -300,6 +304,10 @@ module MatchPattern =
       let id = r.ReadUInt64()
       let patterns = NEList.read read r
       MPOr(id, patterns)
+    | 21uy ->
+      let id = r.ReadUInt64()
+      let value = String.read r |> System.Numerics.BigInteger.Parse
+      MPInt(id, value)
     | b -> raiseFormatError $"Invalid MatchPattern tag: {b}"
 
 
@@ -437,6 +445,10 @@ module Expr =
       String.write w (string value)
     | EUInt128(id, value) ->
       w.Write 9uy
+      w.Write id
+      String.write w (string value)
+    | EInt(id, value) ->
+      w.Write 35uy
       w.Write id
       String.write w (string value)
     | EBool(id, value) ->
@@ -753,4 +765,8 @@ module Expr =
       let id = r.ReadUInt64()
       let index = r.ReadInt32()
       EArg(id, index)
+    | 35uy ->
+      let id = r.ReadUInt64()
+      let value = String.read r |> System.Numerics.BigInteger.Parse
+      EInt(id, value)
     | b -> raiseFormatError $"Invalid Expr tag: {b}"

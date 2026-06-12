@@ -107,6 +107,7 @@ let rec private toJsonV0
     | DUInt64 i -> w.WriteNumberValue i
     | DInt128 i -> w.WriteRawValue(i.ToString())
     | DUInt128 i -> w.WriteRawValue(i.ToString())
+    | DInt i -> w.WriteRawValue(string (DarkInt.toBigInt i))
 
     | DFloat f ->
       if System.Double.IsNaN f then
@@ -237,6 +238,8 @@ let parseJsonV0
       j.GetRawText() |> System.Int128.Parse |> DInt128 |> Ply
     | TUInt128, JsonValueKind.Number ->
       j.GetRawText() |> System.UInt128.Parse |> DUInt128 |> Ply
+    | TInt, JsonValueKind.Number ->
+      j.GetRawText() |> System.Numerics.BigInteger.Parse |> Dval.int |> Ply
 
     | TFloat, JsonValueKind.Number -> j.GetDouble() |> DFloat |> Ply
     | TFloat, JsonValueKind.String ->
@@ -406,6 +409,7 @@ let parseJsonV0
     | TUInt64, _
     | TInt128, _
     | TUInt128, _
+    | TInt, _
     | TFloat, _
     | TChar, _
     | TString, _
@@ -438,6 +442,7 @@ module Test =
     | DUInt64 _
     | DInt128 _
     | DUInt128 _
+    | DInt _
     | DFloat _
     | DChar _
     | DString _

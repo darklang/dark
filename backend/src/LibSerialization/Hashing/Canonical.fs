@@ -209,6 +209,7 @@ let writeTypeReference
   | PT.TStream inner ->
     w.Write 25uy
     writeTypeReference mode w inner
+  | PT.TInt -> w.Write 26uy
 
 
 // =====================
@@ -298,6 +299,9 @@ let writeMatchPattern (w : BinaryWriter) (pattern : PT.MatchPattern) =
   | PT.MPOr(_id, patterns) ->
     w.Write 20uy
     Common.NEList.write writeMatchPattern w patterns
+  | PT.MPInt(_id, value) ->
+    w.Write 21uy
+    Common.String.write w (string value)
 
 
 // =====================
@@ -491,6 +495,9 @@ let writeExpr (mode : HashRefMode) (w : BinaryWriter) (expr : PT.Expr) =
   | PT.EArg(_id, index) ->
     w.Write 34uy
     w.Write index
+  | PT.EInt(_id, value) ->
+    w.Write 35uy
+    Common.String.write w (string value)
 
 
 // =====================

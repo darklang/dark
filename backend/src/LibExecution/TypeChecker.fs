@@ -52,6 +52,7 @@ let rec unifyValueType
     | TUInt64, ValueType.Known KTUInt64 -> return Ok tst
     | TInt128, ValueType.Known KTInt128 -> return Ok tst
     | TUInt128, ValueType.Known KTUInt128 -> return Ok tst
+    | TInt, ValueType.Known KTInt -> return Ok tst
 
     | TFloat, ValueType.Known KTFloat -> return Ok tst
 

@@ -106,6 +106,9 @@ module MatchPattern =
     | MPOr patterns ->
       w.Write 20uy
       NEList.write write w patterns
+    | MPInt value ->
+      w.Write 21uy
+      String.write w (value.ToString())
 
   let rec read (r : BinaryReader) : MatchPattern =
     match r.ReadByte() with
@@ -146,6 +149,7 @@ module MatchPattern =
     | 20uy ->
       let patterns = NEList.read read r
       MPOr(patterns)
+    | 21uy -> MPInt(System.Numerics.BigInteger.Parse(String.read r))
     | b -> raiseFormatError $"Invalid MatchPattern tag: {b}"
 
 

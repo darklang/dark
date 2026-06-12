@@ -56,6 +56,7 @@ let rec private isFullyKnown (vt : ValueType) : bool =
     | KTUInt64
     | KTInt128
     | KTUInt128
+    | KTInt
     | KTFloat
     | KTChar
     | KTString
@@ -198,6 +199,7 @@ let rec checkAndExtractMatchPattern
   | MPUInt64 l, DUInt64 r -> l = r, []
   | MPInt128 l, DInt128 r -> l = r, []
   | MPUInt128 l, DUInt128 r -> l = r, []
+  | MPInt l, DInt r -> l = DarkInt.toBigInt r, []
   | MPFloat l, DFloat r -> l = r, []
   | MPChar l, DChar r -> l = r, []
   | MPString l, DString r -> l = r, []
@@ -247,6 +249,7 @@ let rec checkAndExtractMatchPattern
   | MPUInt64 _, _
   | MPInt128 _, _
   | MPUInt128 _, _
+  | MPInt _, _
   | MPFloat _, _
   | MPChar _, _
   | MPString _, _

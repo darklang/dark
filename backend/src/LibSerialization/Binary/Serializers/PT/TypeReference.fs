@@ -58,6 +58,7 @@ let rec write (w : BinaryWriter) (t : TypeReference) : unit =
   | TStream inner ->
     w.Write 25uy
     write w inner
+  | TInt -> w.Write 26uy
 
 let rec read (r : BinaryReader) : TypeReference =
   match r.ReadByte() with
@@ -99,4 +100,5 @@ let rec read (r : BinaryReader) : TypeReference =
     TTuple(first, second, rest)
   | 24uy -> TBlob
   | 25uy -> TStream(read r)
+  | 26uy -> TInt
   | b -> raiseFormatError $"Invalid TypeReference tag: {b}"

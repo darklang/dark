@@ -73,6 +73,7 @@ type MatchPattern =
   | MPUInt32 of id * uint32
   | MPInt128 of id * System.Int128
   | MPUInt128 of id * System.UInt128
+  | MPInt of id * bigint
   | MPFloat of id * Sign * string * string
   | MPChar of id * string
   | MPString of id * string
@@ -126,6 +127,7 @@ type TypeReference =
   | TUInt32
   | TInt128
   | TUInt128
+  | TInt
   | TFloat
   | TChar
   | TString
@@ -159,6 +161,7 @@ type Expr =
   | EUInt32 of id * uint32
   | EInt128 of id * System.Int128
   | EUInt128 of id * System.UInt128
+  | EInt of id * bigint
   | EFloat of id * Sign * string * string
   | EChar of id * string
   | EString of id * List<StringSegment>

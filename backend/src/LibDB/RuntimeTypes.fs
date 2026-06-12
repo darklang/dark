@@ -134,6 +134,7 @@ module Blob =
       | RT.DUInt64 _
       | RT.DInt128 _
       | RT.DUInt128 _
+      | RT.DInt _
       | RT.DFloat _
       | RT.DChar _
       | RT.DString _
