@@ -408,24 +408,6 @@ let private keepLocalRecordsPropagableResolution =
       "a resolution choosing our hash was recorded (rides the resolution channel)"
   }
 
-// An override only propagates if it survives the wire: a peer DESERIALIZES the op_blob (read tag 8) and
-// folds it. The keep-local path only ever serializes + folds the in-memory op, so exercise the read path
-// directly — `OverrideName` (with its `resolvedAt`) must round-trip byte-for-byte through the op codec.
-let private overrideOpRoundTrips =
-  test "OverrideName round-trips through the op serializer (rides the wire — tag 8)" {
-    let loc : PT.PackageLocation = { owner = "RT"; modules = [ "M" ]; name = "x" }
-    let target = PT.Reference.fromHashAndKind (PT.Hash(hashChar 'a'), PT.ItemKind.Fn)
-    let op = PT.PackageOp.OverrideName(loc, target, "2026-06-11T12:34:56.789Z")
-    let id = Inserts.computeOpHash op
-    let blob = LibSerialization.Binary.Serialization.PT.PackageOp.serialize id op
-    let decoded =
-      LibSerialization.Binary.Serialization.PT.PackageOp.deserialize id blob
-    Expect.equal
-      decoded
-      op
-      "OverrideName survives binary serialize → deserialize unchanged"
-  }
-
 // A `SyncConflict` and its `DivergenceResolution` must survive the binary codec — they're persisted
 // (the recorded conflict's blob) and may travel, so a tag-byte round-trip is the contract. Covers both
 // `ResolvedBy` cases (`Auto policy` and `Human`) since they have distinct tags.
@@ -465,51 +447,6 @@ let private syncConflictRoundTrips =
         "h"
         hBlob
     Expect.equal hDecoded resHuman "DivergenceResolution(Human) survives round-trip"
-  }
-
-// End-to-end, the RECEIVER half: a peer currently bound to the incoming hash (it already pulled the
-// race) receives the OTHER machine's committed override op over the normal receive path and must ADOPT
-// our hash. This is the actual cross-machine propagation — the headline override-propagation claim — exercised through
-// `applyRemoteOps` (the same path an HTTP/file pull uses). An `OverrideName` is NOT re-flagged as a new
-// divergence (it isn't a SetName), so it just folds, and its newer stamp wins timestamp-LWW.
-let private overridePropagatesToPeer =
-  testTask
-    "a peer receiving a committed override op adopts our hash (end-to-end, receiver side)" {
-    let loc : PT.PackageLocation =
-      { owner = "Recv"; modules = [ "O" ]; name = uniqueName "r" }
-    let ours, theirs = hashChar 'a', hashChar 'b'
-    let remote = uniqueName "rrecv"
-    // the peer is currently bound to the incoming hash `theirs` (older), having pulled the race already
-    let theirsOp =
-      PT.PackageOp.SetName(
-        loc,
-        PT.Reference.fromHashAndKind (PT.Hash theirs, PT.ItemKind.Fn)
-      )
-    let! _ =
-      Inserts.insertAndApplyOpsWithOrigin
-        PT.mainBranchId
-        None
-        [ theirsOp ]
-        (Map.ofList [ (Inserts.computeOpHash theirsOp, relTs -60.0) ])
-    let! before = liveHash loc
-    Expect.equal
-      before
-      (Some theirs)
-      "precondition: the peer holds the incoming hash"
-    // now it pulls the other machine's override op (re-bind to `ours`, newest stamp) over the wire path
-    let overrideOp =
-      PT.PackageOp.OverrideName(
-        loc,
-        PT.Reference.fromHashAndKind (PT.Hash ours, PT.ItemKind.Fn),
-        relTs 0.0
-      )
-    let! _ =
-      Sync.applyRemoteOps remote PT.mainBranchId None [ (1L, relTs 0.0, overrideOp) ]
-    let! after = liveHash loc
-    Expect.equal
-      after
-      (Some ours)
-      "the peer adopted our override — the resolution propagated cross-machine"
   }
 
 let private orderIndependent =
@@ -781,9 +718,7 @@ let tests =
          sameMsTie
          multiDivergenceBatch
          keepLocalRecordsPropagableResolution
-         overrideOpRoundTrips
          syncConflictRoundTrips
-         overridePropagatesToPeer
          orderIndependent
          idempotentRePull
          resolutionSticks

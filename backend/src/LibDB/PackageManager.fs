@@ -124,12 +124,6 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
       | PT.PackageType h -> typeLocations.Add(loc, h)
       | PT.PackageValue h -> valueLocations.Add(loc, h)
       | PT.PackageFn h -> fnLocations.Add(loc, h)
-    | PT.PackageOp.OverrideName(loc, target, _) ->
-      // an override binds a name just like SetName
-      match target with
-      | PT.PackageType h -> typeLocations.Add(loc, h)
-      | PT.PackageValue h -> valueLocations.Add(loc, h)
-      | PT.PackageFn h -> fnLocations.Add(loc, h)
     | PT.PackageOp.AddType _
     | PT.PackageOp.AddValue _
     | PT.PackageOp.AddFn _ -> ()

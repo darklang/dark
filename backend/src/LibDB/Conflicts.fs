@@ -33,7 +33,7 @@ module Serialize = LibSerialization.Binary.Serialization
 
 /// One recorded conflict. `conflict` is the deserialized `SyncConflict` (its candidates); `chosenHash`
 /// + `resolvedBy` are the resolution (which content won, and the policy/human that chose it);
-/// `overrideOpId` is the `OverrideName` op a deliberate override minted (None until then); `status` is
+/// `overrideOpId` is the id of the `Resolution` a deliberate override records (None until wired); `status` is
 /// the review lifecycle (`auto-resolved` | `acknowledged` | `overridden`).
 type Conflict =
   { id : string

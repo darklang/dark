@@ -262,8 +262,7 @@ let private applyAddFn (ctx : Ctx) (fn : PT.PackageFn.PackageFn) : Task<unit> =
 /// isRename = true when this SetName is a standalone rename (not paired with Add*),
 ///   meaning old locations for the same hash should be deprecated.
 /// The op's id as stored in `package_ops` (UUID derived from the content hash) — used to read the op's
-/// own `origin_ts` back. Must be computed from the ACTUAL op (`SetName` vs `OverrideName` hash to
-/// different ids), so an override reads its own resolver stamp, not the original SetName's stale one.
+/// own `origin_ts` back (so `applySetName` orders the binding by this op's creation time).
 let private opIdOf (op : PT.PackageOp) : System.Guid =
   let (Hash h) = LibSerialization.Hashing.Hashing.computeOpHash op
   System.Guid(System.Convert.FromHexString(h)[0..15])
@@ -621,20 +620,6 @@ let private applyOp
     | PT.PackageOp.AddValue value -> do! applyAddValue ctx value
     | PT.PackageOp.AddFn fn -> do! applyAddFn ctx fn
     | PT.PackageOp.SetName(loc, target) ->
-      let isRename = not (Set.contains target.hash addedHashes)
-      do!
-        applySetName
-          ctx
-          branchId
-          commitHash
-          isRename
-          target.hash
-          loc
-          target.kind
-          (opIdOf op)
-    | PT.PackageOp.OverrideName(loc, target, _resolvedAt) ->
-      // Folds exactly like SetName — re-bind the location to `target`. The op's `origin_ts` (a fresh
-      // resolver stamp) is the newest, so the timestamp-LWW playback re-activates this binding.
       let isRename = not (Set.contains target.hash addedHashes)
       do!
         applySetName

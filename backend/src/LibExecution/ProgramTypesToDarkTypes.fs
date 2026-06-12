@@ -1637,11 +1637,6 @@ module PackageOp =
       | PT.PackageOp.AddFn f -> "AddFn", [ PackageFn.toDT f ]
       | PT.PackageOp.SetName(loc, target) ->
         "SetName", [ PackageLocation.toDT loc; Reference.toDT target ]
-      // An override binds a name like SetName; Dark code never authors one (it's created in F# by the
-      // conflict resolver), so it surfaces to the Dark side as a plain SetName — the `resolvedAt` stamp
-      // exists only to distinguish the op for sync and isn't part of the binding's meaning.
-      | PT.PackageOp.OverrideName(loc, target, _resolvedAt) ->
-        "SetName", [ PackageLocation.toDT loc; Reference.toDT target ]
       | PT.PackageOp.Deprecate(target, kind, message) ->
         "Deprecate",
         [ Reference.toDT target; DeprecationKind.toDT kind; DString message ]
