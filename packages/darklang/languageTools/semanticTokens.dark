@@ -144,6 +144,7 @@ module TypeReference =
       | TUInt64 r
       | TInt128 r
       | TUInt128 r
+      | TInt r
       | TFloat r
       | TChar r
       | TString r
@@ -414,6 +415,8 @@ module MatchPattern =
     | MPUInt128(_, (intPartRange, _), suffixPartRange) ->
       [ makeToken intPartRange TokenType.Number
         makeToken suffixPartRange TokenType.Symbol ]
+    // suffix-less Int
+    | MPInt(_, (intPartRange, _)) -> [ makeToken intPartRange TokenType.Number ]
     | MPFloat(range, _sign, _whole, _fraction) ->
       [ makeToken range TokenType.Number ]
     | MPBool(range, _b) -> [ makeToken range TokenType.Keyword ]
@@ -646,6 +649,9 @@ module Expr =
     | EUInt128(_, (intPartRange, _), suffixPartRange) ->
       [ makeToken intPartRange TokenType.Number
         makeToken suffixPartRange TokenType.Symbol ]
+
+    // suffix-less Int
+    | EInt(_, (intPartRange, _)) -> [ makeToken intPartRange TokenType.Number ]
 
     // 12.0
     | EFloat(range, _sign, _whole, _fraction) ->

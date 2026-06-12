@@ -150,6 +150,7 @@ let typeReference
   | TUInt64 -> "UInt64"
   | TInt128 -> "Int128"
   | TUInt128 -> "UInt128"
+  | TInt -> "Int"
 
   | TFloat -> "Float"
 
@@ -229,6 +230,7 @@ let knownType
   | KTUInt64 -> "UInt64"
   | KTInt128 -> "Int128"
   | KTUInt128 -> "UInt128"
+  | KTInt -> "Int"
 
   | KTFloat -> "Float"
 
@@ -314,6 +316,7 @@ module Dval =
     | DUInt64 _ -> "UInt64"
     | DInt128 _ -> "Int128"
     | DUInt128 _ -> "UInt128"
+    | DInt _ -> "Int"
     | DFloat _ -> "Float"
     | DChar _ -> "Char"
     | DString _ -> "String"
@@ -391,6 +394,7 @@ module Dval =
     | DUInt64 i -> Stdlib.UInt64.toString i
     | DInt128 i -> Stdlib.Int128.toString i
     | DUInt128 i -> Stdlib.UInt128.toString i
+    | DInt i -> Stdlib.Int.toString i
 
     | DFloat f -> Stdlib.Float.toString f // CLEANUP: deal with Infinity, NegativeInfinity, and NaN
 

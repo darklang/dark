@@ -47,6 +47,7 @@ let checkTypeRef (tr: LanguageTools.ProgramTypes.TypeReference) : List<String> =
   | TUInt64
   | TInt128
   | TUInt128
+  | TInt
   | TFloat
   | TChar
   | TString
@@ -165,6 +166,7 @@ let checkExpr (expr: LanguageTools.ProgramTypes.Expr) : List<String> =
   | EUInt64 (_id, _v)
   | EInt128 (_id, _v)
   | EUInt128 (_id, _v)
+  | EInt (_id, _v)
   | EChar (_id, _v)
   | EVariable (_id, _v)
   | EArg (_id, _idx) -> []

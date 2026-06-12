@@ -327,6 +327,7 @@ let typeReference
   | TUInt64 -> "UInt64"
   | TInt128 -> "Int128"
   | TUInt128 -> "UInt128"
+  | TInt -> "Int"
   | TFloat -> "Float"
   | TChar -> "Char"
   | TString -> "String"
@@ -406,6 +407,7 @@ let matchPattern (mp: LanguageTools.ProgramTypes.MatchPattern) : String =
   | MPUInt64(_id, i) -> (Stdlib.UInt64.toString i) ++ "UL"
   | MPInt128(_id, i) -> (Stdlib.Int128.toString i) ++ "Q"
   | MPUInt128(_id, i) -> (Stdlib.UInt128.toString i) ++ "Z"
+  | MPInt(_id, i) -> Stdlib.Int.toString i
 
   | MPFloat(_id, sign, whole, remainder) ->
     let remainderPart = PrettyPrinter.processRemainder remainder
@@ -560,6 +562,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   | EUInt64(_id, i) -> (Stdlib.UInt64.toString i) ++ "UL"
   | EInt128(_id, i) -> Stdlib.Int128.toString i ++ "Q"
   | EUInt128(_id, i) -> Stdlib.UInt128.toString i ++ "Z"
+  | EInt(_id, i) -> Stdlib.Int.toString i
 
   | EFloat(_id, sign, whole, remainder) ->
     let signPart = PrettyPrinter.sign sign

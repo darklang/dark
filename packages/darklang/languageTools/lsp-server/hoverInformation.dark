@@ -322,6 +322,7 @@ let collectBuiltinTypeHoverInfoAtPos
   | TUInt64 r -> createBuiltinTypeInfoIfInRange ctx r "UInt64" position
   | TInt128 r -> createBuiltinTypeInfoIfInRange ctx r "Int128" position
   | TUInt128 r -> createBuiltinTypeInfoIfInRange ctx r "UInt128" position
+  | TInt r -> createBuiltinTypeInfoIfInRange ctx r "Int" position
   | TFloat r -> createBuiltinTypeInfoIfInRange ctx r "Float" position
   | TChar r -> createBuiltinTypeInfoIfInRange ctx r "Char" position
   | TString r -> createBuiltinTypeInfoIfInRange ctx r "String" position
@@ -932,6 +933,7 @@ let collectMatchPatternHoverInfoAtPos
   | MPUInt64(r, _, _)
   | MPInt128(r, _, _)
   | MPUInt128(r, _, _)
+  | MPInt(r, _)
   | MPFloat(r, _, _, _)
   | MPChar(r, _, _, _)
   | MPString(r, _, _, _) -> Stdlib.Option.Option.None

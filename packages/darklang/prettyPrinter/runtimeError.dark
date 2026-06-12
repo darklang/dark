@@ -138,6 +138,7 @@ module RuntimeError =
     | Known KTUInt64 -> ". Try wrapping it with `Stdlib.UInt64.toString`."
     | Known KTInt128 -> ". Try wrapping it with `Stdlib.Int128.toString`."
     | Known KTUInt128 -> ". Try wrapping it with `Stdlib.UInt128.toString`."
+    | Known KTInt -> ". Try wrapping it with `Stdlib.Int.toString`."
     | Known KTFloat -> ". Try wrapping it with `Stdlib.Float.toString`."
     | Known KTBool -> ". Try wrapping it with `Stdlib.Bool.toString`."
     | Known KTChar -> ". Try wrapping it with `Stdlib.Char.toString`."

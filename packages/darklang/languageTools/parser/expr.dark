@@ -70,6 +70,16 @@ let parseIntLiteral
       | Error _ -> createUnparseableError node
     | _ -> createUnparseableError node
 
+  // The default `Int` - a suffix-less arbitrary-precision integer literal.
+  | Ok intPart, Error _ ->
+    match Stdlib.Int.parse (getText intPart) with
+    | Ok parsedValue ->
+      (WrittenTypes.Expr.EInt(node.range, (intPart.range, parsedValue)))
+      |> Stdlib.Result.Result.Ok
+    | Error _ -> createUnparseableError node
+
+  | _ -> createUnparseableError node
+
 
 let parseFloatLiteral
   (node: ParsedNode)
@@ -754,6 +764,9 @@ let parseMatchCase
           rhs = rhs })
       |> Stdlib.Result.Result.Ok
 
+    // Propagate a specific pattern error (e.g. the qualified-enum-case note)
+    // rather than masking it with a generic failure.
+    | _, Error e, _, _ -> Stdlib.Result.Result.Error e
     | _ -> createUnparseableError node
 
 
@@ -911,7 +924,8 @@ let parseCase
   | "int64_literal"
   | "uint64_literal"
   | "int128_literal"
-  | "uint128_literal" -> parseIntLiteral node
+  | "uint128_literal"
+  | "bigint_literal" -> parseIntLiteral node
   | "float_literal" -> parseFloatLiteral node
   | "string_segment" -> parseStringLiteral node
   | "char_literal" -> parseCharLiteral node
