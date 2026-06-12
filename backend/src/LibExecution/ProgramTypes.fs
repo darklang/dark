@@ -735,29 +735,17 @@ type PackageOp =
 
 /// A SYNC conflict — surfaced when applying a peer's ops reveals state two instances disagree on.
 /// It lives HERE, beside `PackageOp`, because every sync conflict is ultimately a disagreement about
-/// the op log, and its resolution is itself an op. This is deliberately distinct from a *runtime*
-/// conflict (`RuntimeTypes.Conflict`, e.g. a missing fn mid-execution): different lifetime, different
-/// surface — only the dispatch PATTERN is shared. One case today; a new kind (a move collision, a
-/// value-update race) joins here and resolves the same way — a per-kind resolution recorded as an op —
-/// with no change to the sync engine.
+/// the op log. Distinct from a *runtime* error (`RuntimeError`, e.g. a missing fn mid-execution): a
+/// sync conflict has choosable resolutions; a runtime wall doesn't. One case today; a new kind (a move
+/// collision, a value-update race) joins here and is resolved the same way — a per-kind decision
+/// recorded as a synced `Resolution` overlaid on the op-fold (`LibDB.Resolutions`) — with no change to
+/// the sync engine. (A resolution is stored flattened: the chosen content hash + who/what chose it,
+/// `'auto:<policy>'` | `'human'` — see `LibDB.Conflicts`/`Resolutions`.)
 and SyncConflict =
   /// One location bound to two different contents across instances (the `name → two hashes`
   /// divergence). `candidates` are the contending references — today exactly two, ordered
   /// [local; incoming].
   | Divergence of location : PackageLocation * candidates : List<Reference>
-
-/// WHO/what chose a conflict's resolution. `Auto` carries the policy name that picked it (e.g.
-/// `"last-writer-wins"`) so a surfaced auto-resolution is self-describing; `Human` is an explicit
-/// override. There is no "unresolved" case — an unresolved conflict has no resolution recorded yet
-/// (that's a status, not a resolution).
-and ResolvedBy =
-  | Auto of policy : string
-  | Human
-
-/// The resolution of a `Divergence`: which reference won the location, and by whom/what. This is the
-/// per-kind resolution shape — as `SyncConflict` gains cases, each gets its own resolution record,
-/// rather than one global `Resolution` enum straining to cover every conflict.
-and DivergenceResolution = { chosen : Reference; by : ResolvedBy }
 
 
 /// The kind of package item (function, type, or value)

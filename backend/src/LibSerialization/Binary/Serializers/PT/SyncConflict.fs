@@ -14,8 +14,8 @@ module Reference = LibSerialization.Binary.Serializers.PT.PackageOp.Reference
 
 
 // -- SyncConflict --
-// (only `SyncConflict` is serialized — it backs the recorded `conflict_blob`. A resolution is stored
-//  flattened to columns, `chosen_hash` + `resolved_by`, so `DivergenceResolution` has no wire form.)
+// (`SyncConflict` is serialized to back the recorded `conflict_blob`. A resolution has no wire form of
+//  its own — it's stored flattened to columns: `chosen_hash` + `resolved_by`.)
 
 let write (w : BinaryWriter) (conflict : SyncConflict) : unit =
   match conflict with
