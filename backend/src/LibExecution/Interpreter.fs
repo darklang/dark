@@ -315,29 +315,11 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 return instrData
 
               | None ->
-                // Route a missing package fn through the runtime conflict-dispatch seam — the
-                // runtime's shared "I can't proceed; here are the options" hook. The default policy
-                // returns `FailLoudly (FnNotFound …)` → raise, so this is byte-identical to before.
-                // The teed-up consumer is fetch-on-miss: a policy pulls the fn from a peer and
-                // resolves it, instead of failing.
-                let cc : CallContext =
-                  { branchId = exeState.branchId; threadID = vm.threadID }
-                match!
-                  exeState.conflictDispatch
-                    (Conflict.FnNotFound(FQFnName.Package fn))
-                    cc
-                with
-                | Resolution.FailLoudly rte -> return raiseRTE rte
-                | Resolution.Substitute _ ->
-                  // A policy substituted a value for the missing fn, but result-injection isn't wired
-                  // at this call site yet (it needs the call to return a Dval, not instructions). Raise
-                  // a DISTINCT internal error — not a bare FnNotFound — so if a policy ever returns
-                  // Substitute here before fetch-on-miss lands, the unwired path is diagnosable rather
-                  // than masquerading as "the fn doesn't exist".
-                  return
-                    Exception.raiseInternal
-                      "conflict-dispatch returned Substitute for a missing package fn, but value-substitution is not wired at this call site yet"
-                      [ "fn", fn ]
+                // A missing package fn is a runtime error today — surface it as one. (A later PR will
+                // give the runtime real conflict/resolution handling: e.g. PARK the execution, write
+                // the fn on demand — PDD-style — then resume, instead of failing outright. When that
+                // lands, a dispatch seam returns here; until then RuntimeError is the model.)
+                return raiseRTE (RTE.FnNotFound(FQFnName.Package fn))
           }
 
 

@@ -38,16 +38,6 @@ let createState
     reportException = reportException
     notify = notify
 
-    // Default: FailLoudly for every runtime conflict — unchanged from the behavior before this seam
-    // existed. (Sync conflicts no longer ride this seam; they're decided by a `Sync.SyncPolicy`.)
-    conflictDispatch =
-      fun conflict _ctx ->
-        uply {
-          match conflict with
-          | RT.Conflict.FnNotFound name ->
-            return RT.Resolution.FailLoudly(RTE.FnNotFound name)
-        }
-
     lambdaInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
     packageFnInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
 

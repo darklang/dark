@@ -332,9 +332,9 @@ type SyncPolicyChoice =
   | AcceptLww
   | OverrideTo of PT.Reference
 
-/// How sync conflicts are decided — the sync-side analogue of the runtime `ConflictDispatch`. Pure
-/// (the shipped LWW policy needs no IO); `CallContext` is passed for parity and future policies that
-/// branch on it (e.g. per-branch rules).
+/// How sync conflicts are decided: given a surfaced conflict + the execution `CallContext`, pick an
+/// outcome. Pure (the shipped LWW policy needs no IO); `CallContext` is passed for future policies
+/// that branch on it (e.g. per-branch rules).
 type SyncPolicy = PT.SyncConflict -> RT.CallContext -> SyncPolicyChoice
 
 /// The shipped default: accept the last-writer-wins outcome the fold already applied — surface as

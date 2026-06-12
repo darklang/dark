@@ -63,7 +63,6 @@ let main (args : string array) : int =
         Tests.Stream.tests
         Tests.Capabilities.tests
         Tests.OpsProjections.tests
-        Tests.ConflictDispatch.tests
         Tests.SyncIdempotency.tests
         Tests.SyncScenarios.tests
         Tests.Releases.tests

@@ -54,7 +54,6 @@
 
     <Compile Include="Blob.Tests.fs" />
     <Compile Include="OpsProjections.Tests.fs" />
-    <Compile Include="ConflictDispatch.Tests.fs" />
     <Compile Include="Stream.Tests.fs" />
     <Compile Include="Capabilities.Tests.fs" />
     <Compile Include="SyncIdempotency.Tests.fs" />

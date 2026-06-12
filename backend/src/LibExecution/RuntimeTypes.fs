@@ -1849,27 +1849,16 @@ and ExceptionReporter = ExecutionState -> VMState -> Metadata -> exn -> Ply<unit
 
 and Notifier = ExecutionState -> VMState -> string -> Metadata -> Ply<unit>
 
-// -- Conflict dispatch: the runtime "I can't proceed; here are my options" hook. --
-// These MUST live here (the and-chain), not a separate ConflictTypes.fs: they mention
-// RuntimeError.Error/Dval (defined above) AND ExecutionState references ConflictDispatch,
-// so a later file can't satisfy both. (Same constraint a buses field would have.)
-and Conflict =
-  // A *runtime* conflict: execution reached a point it can't proceed past on its own, and a policy
-  // must decide. One case today — a missing package fn — but the seam is shared infra: future cases
-  // (a capability denial, a value-update race seen at execution time) join here and a policy decides
-  // each the same way (`Substitute` / `FailLoudly`). SYNC conflicts are modeled separately, over in
-  // `ProgramTypes.SyncConflict`, next to the op log they're about — they don't ride this seam.
-  | FnNotFound of FQFnName.FQFnName
-
-and Resolution =
-  // How a policy answers a Conflict: substitute a value to proceed, or fail loudly. (A future
-  // "park" resolution — pause and await external input — would be added here.)
-  | Substitute of Dval
-  | FailLoudly of RuntimeError.Error
-
-and CallContext = { branchId : BranchId; threadID : uuid } // assembled from ExecState + VMState
-
-and ConflictDispatch = Conflict -> CallContext -> Ply<Resolution>
+// CallContext: the runtime coordinates (which branch, which thread) a sync-policy decision is made
+// against — assembled from ExecutionState + VMState and handed to `LibDB.Sync`'s `SyncPolicy` when an
+// execution triggers a pull. Lives in this and-chain because it's built from runtime state.
+//
+// There is deliberately NO runtime conflict/resolution model here: a runtime "I can't proceed" (e.g.
+// a missing fn) is a `RuntimeError`, full stop. The only conflicts with real, choosable resolutions
+// today are SYNC conflicts — `ProgramTypes.SyncConflict`, beside the op log. (A later PR will give the
+// runtime genuine conflict handling — park-and-write-on-demand, PDD-style — at which point a seam
+// returns here, designed against that real requirement rather than guessed at now.)
+and CallContext = { branchId : BranchId; threadID : uuid }
 
 /// All state set when starting an execution; non-changing
 /// (as opposed to the VMState, which changes as the execution progresses)
@@ -1877,9 +1866,6 @@ and ExecutionState =
   { // -- Set consistently across a runtime --
     tracing : Tracing.Tracing
 
-    /// The conflict-dispatch hook. Default (createState) returns FailLoudly for every
-    /// conflict — the behavior before this seam existed. A policy can install substitute/park later.
-    conflictDispatch : ConflictDispatch
     test : TestContext
 
     /// Lambda instructions registered by `CreateLambda`, looked up on `Apply`.
