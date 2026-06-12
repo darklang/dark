@@ -402,6 +402,29 @@ CREATE TABLE IF NOT EXISTS sync_cursors (
   folded_through_rowid INTEGER NOT NULL DEFAULT 0
 );
 
+-- Resolutions — synced decisions that OVERRIDE the op-fold for a contested name. A conflict (e.g. a
+-- name diverged across instances) auto-resolves by policy (last-writer-wins), but a human (or a
+-- keep-local policy) can decide differently. That decision is NOT a new op — the op log is authored
+-- content/structure; a resolution is a thin overlay picking among existing candidates. The effective
+-- binding is: fold(ops) [LWW] → then apply resolutions per location [last-resolver-wins by `at`]. A
+-- resolution carries its own fresh `at` stamp, so it wins the same timestamp-LWW that orders bindings —
+-- which is what makes a "keep mine" decision propagate where re-emitting the original SetName (same
+-- content hash → same op id) could not. Synced (its own rowid cursors the wire); the implicit rowid
+-- orders the sync. This REPLACES the old `OverrideName` op (an op invented only to dodge that hash
+-- collision). `at` is the resolver time; `id` is a uuid carried over the wire for INSERT-OR-IGNORE dedup.
+CREATE TABLE IF NOT EXISTS resolutions (
+  id TEXT PRIMARY KEY,                      -- uuid, carried over the wire (idempotent apply)
+  owner TEXT NOT NULL,
+  modules TEXT NOT NULL,
+  name TEXT NOT NULL,
+  item_type TEXT NOT NULL,                  -- 'fn' | 'type' | 'value' (kind of the chosen content)
+  chosen_hash TEXT NOT NULL,               -- the content hash this resolution binds the name to
+  resolved_by TEXT NOT NULL,               -- 'human' | 'auto:keep-local' | …
+  branch_id TEXT NOT NULL,
+  at TEXT NOT NULL,                         -- resolver timestamp — the LWW stamp this binding competes on
+  created_at TIMESTAMP NOT NULL DEFAULT (datetime('now'))
+);
+
 -- The recorded, reviewable log of auto-resolved sync conflicts (`dark conflicts`). Recorded at pull
 -- time; auto-resolved by policy (default last-writer-wins) but never silently lost. Local-only, never
 -- synced, re-derivable by replaying the op log. Stores the STRUCTURED conflict (`conflict_blob` = a

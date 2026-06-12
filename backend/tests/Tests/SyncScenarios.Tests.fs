@@ -21,6 +21,7 @@ open LibDB.Sqlite
 
 module Inserts = LibDB.Inserts
 module Conflicts = LibDB.Conflicts
+module Resolutions = LibDB.Resolutions
 module Sync = LibDB.Sync
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
@@ -695,6 +696,48 @@ let private threeWayConverge =
       "converges to the newest ('b' @ -30) — arrival order b, a, c (same winner)"
   }
 
+// The resolution OVERLAY: a resolution overrides the op-fold binding when its `at` is newer, and is
+// skipped when stale — the same timestamp-LWW that orders ops, so it converges. This is the mechanism
+// that replaces `OverrideName` (a synced decision over the fold, not a new op).
+let private resolutionOverlayApplies =
+  testTask
+    "a resolution overrides the op-fold binding by its newer `at` (a stale one is skipped)" {
+    let loc : PT.PackageLocation =
+      { owner = "Resln"; modules = [ "R" ]; name = uniqueName "r" }
+    let a, b, c = hashChar 'a', hashChar 'b', hashChar 'c'
+    let refOf h = PT.Reference.fromHashAndKind (PT.Hash h, PT.ItemKind.Fn)
+    // op-fold binds loc -> a (authored -60)
+    let aOp = PT.PackageOp.SetName(loc, refOf a)
+    let! _ =
+      Inserts.insertAndApplyOpsWithOrigin
+        PT.mainBranchId
+        None
+        [ aOp ]
+        (Map.ofList [ (Inserts.computeOpHash aOp, relTs -60.0) ])
+    let! before = liveHash loc
+    Expect.equal before (Some a) "precondition: op-fold bound loc -> a"
+    // a resolution choosing b, stamped NEWER (now) -> overrides to b
+    do!
+      Resolutions.recordAndApply (
+        Resolutions.mk loc (refOf b) "human" PT.mainBranchId (relTs 0.0)
+      )
+    let! afterB = liveHash loc
+    Expect.equal
+      afterB
+      (Some b)
+      "the resolution (newer `at`) overrode the binding to b"
+    // a STALE resolution choosing c, stamped OLDER (-120) -> skipped, b stays
+    do!
+      Resolutions.recordAndApply (
+        Resolutions.mk loc (refOf c) "human" PT.mainBranchId (relTs -120.0)
+      )
+    let! afterC = liveHash loc
+    Expect.equal
+      afterC
+      (Some b)
+      "the stale resolution (older `at`) was skipped — b stays"
+  }
+
 // ── all scenarios ──────────────────────────────────────────────────────────────────────────────
 
 let tests =
@@ -713,4 +756,5 @@ let tests =
          idempotentRePull
          resolutionSticks
          lateStaleArrival
-         threeWayConverge ])
+         threeWayConverge
+         resolutionOverlayApplies ])

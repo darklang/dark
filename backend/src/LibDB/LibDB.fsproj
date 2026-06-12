@@ -34,6 +34,7 @@
     <!-- Conflicts compiles before Merge so a branch merge can record its collisions in the same
          reviewable store sync uses (the conflict store is dependency-free — only Sqlite). /-->
     <Compile Include="Conflicts.fs" />
+    <Compile Include="Resolutions.fs" />
     <Compile Include="Rebase.fs" />
     <Compile Include="Merge.fs" />
     <Compile Include="Stats.fs" />
