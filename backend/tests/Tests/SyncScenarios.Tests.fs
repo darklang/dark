@@ -431,6 +431,47 @@ let private overrideOpRoundTrips =
       "OverrideName survives binary serialize → deserialize unchanged"
   }
 
+// A `SyncConflict` and its `DivergenceResolution` must survive the binary codec — they're persisted
+// (the recorded conflict's blob) and may travel, so a tag-byte round-trip is the contract. Covers both
+// `ResolvedBy` cases (`Auto policy` and `Human`) since they have distinct tags.
+let private syncConflictRoundTrips =
+  test "SyncConflict + DivergenceResolution round-trip through the binary serializer" {
+    let loc : PT.PackageLocation = { owner = "RT"; modules = [ "M" ]; name = "x" }
+    let refA = PT.Reference.fromHashAndKind (PT.Hash(hashChar 'a'), PT.ItemKind.Fn)
+    let refB = PT.Reference.fromHashAndKind (PT.Hash(hashChar 'b'), PT.ItemKind.Fn)
+
+    let conflict = PT.SyncConflict.Divergence(loc, [ refA; refB ])
+    let cBlob =
+      LibSerialization.Binary.Serialization.PT.SyncConflict.serialize "c" conflict
+    let cDecoded =
+      LibSerialization.Binary.Serialization.PT.SyncConflict.deserialize "c" cBlob
+    Expect.equal cDecoded conflict "SyncConflict survives serialize → deserialize"
+
+    let resAuto : PT.DivergenceResolution =
+      { chosen = refB; by = PT.ResolvedBy.Auto "last-writer-wins" }
+    let aBlob =
+      LibSerialization.Binary.Serialization.PT.DivergenceResolution.serialize
+        "a"
+        resAuto
+    let aDecoded =
+      LibSerialization.Binary.Serialization.PT.DivergenceResolution.deserialize
+        "a"
+        aBlob
+    Expect.equal aDecoded resAuto "DivergenceResolution(Auto) survives round-trip"
+
+    let resHuman : PT.DivergenceResolution =
+      { chosen = refA; by = PT.ResolvedBy.Human }
+    let hBlob =
+      LibSerialization.Binary.Serialization.PT.DivergenceResolution.serialize
+        "h"
+        resHuman
+    let hDecoded =
+      LibSerialization.Binary.Serialization.PT.DivergenceResolution.deserialize
+        "h"
+        hBlob
+    Expect.equal hDecoded resHuman "DivergenceResolution(Human) survives round-trip"
+  }
+
 // End-to-end, the RECEIVER half: a peer currently bound to the incoming hash (it already pulled the
 // race) receives the OTHER machine's committed override op over the normal receive path and must ADOPT
 // our hash. This is the actual cross-machine propagation — the headline override-propagation claim — exercised through
@@ -666,6 +707,7 @@ let tests =
          multiDivergenceBatch
          keepLocalAppendsPropagableOverride
          overrideOpRoundTrips
+         syncConflictRoundTrips
          overridePropagatesToPeer
          orderIndependent
          idempotentRePull
