@@ -119,7 +119,7 @@ let private parseLocation (location : string) : Option<PT.PackageLocation> =
 /// `SetName`, if the location is already bound LOCALLY to a *different*, non-deprecated hash,
 /// two peers gave the same name different content. Returns `(location, existingHash,
 /// incomingHash)` per divergence — surfaced as **data** so the receiver never blocks; a higher
-/// layer turns these into `Conflict.CSyncDivergence` for the resolution policy.
+/// layer (`routeDivergences`) turns these into a `PT.SyncConflict.Divergence` for the sync policy.
 /// `divergentBindings` is the core (it returns the structured location + hashes); `detectDivergences`
 /// just renders the location to its FQ string.
 let private divergentBindings
@@ -324,22 +324,38 @@ let private overrideBinding
     return ()
   }
 
-/// Route each detected divergence through the runtime conflict-dispatch seam
-/// (`exeState.conflictDispatch`). This is the "higher layer" the transport defers to: the receiver
-/// surfaces each `name → two hashes` divergence as data (never blocks); HERE it becomes a first-class
-/// `Conflict.CSyncDivergence` the runtime policy resolves —
-///   - default policy (`FailLoudly`) → no reconciling op: the divergence stays surfaced and the
-///     timestamp-LWW outcome the fold already applied stands. Behaviorally unchanged (the timestamp-LWW outcome already applied stands).
-///   - a sync policy may return `RSubstitute (DString hash)`:
-///       · hash = the LOCAL (existing) hash → KEEP LOCAL: emit + apply a reconciling `SetName`
-///         re-binding the location to our hash (a fresh op that also propagates the decision to
-///         peers, like a human override), and mark the recorded conflict overridden.
-///       · hash = the incoming hash / anything else → no-op: the incoming bind already applied.
+/// A sync policy's verdict on a `SyncConflict`: accept the convergent last-writer-wins outcome the
+/// fold already applied, or override the location to a specific reference. `OverrideTo` the LOCAL
+/// reference is the "keep mine" move — it mints a propagating `OverrideName` op; `OverrideTo` the
+/// incoming (or anything already applied) is a no-op.
+type SyncPolicyChoice =
+  | AcceptLww
+  | OverrideTo of PT.Reference
+
+/// How sync conflicts are decided — the sync-side analogue of the runtime `ConflictDispatch`. Pure
+/// (the shipped LWW policy needs no IO); `CallContext` is passed for parity and future policies that
+/// branch on it (e.g. per-branch rules).
+type SyncPolicy = PT.SyncConflict -> RT.CallContext -> SyncPolicyChoice
+
+/// The shipped default: accept the last-writer-wins outcome the fold already applied — surface as
+/// data, never block, pick no override. Swappable in tests / future config for keep-local or
+/// ask-human policies.
+let defaultSyncPolicy : SyncPolicy = fun _conflict _ctx -> AcceptLww
+
+/// Route each detected divergence through the **sync policy**. This is the "higher layer" the
+/// transport defers to: the receiver surfaces each `name → two hashes` divergence as data (never
+/// blocks); HERE it becomes a first-class `PT.SyncConflict.Divergence` the policy resolves —
+///   - `AcceptLww` (the default) → no reconciling op: the divergence stays surfaced and the
+///     timestamp-LWW outcome the fold already applied stands. Behaviorally unchanged.
+///   - `OverrideTo localRef` → KEEP LOCAL: emit + apply a reconciling `OverrideName` re-binding the
+///     location to our hash (a fresh op that also propagates the decision to peers, like a human
+///     override), and mark the recorded conflict overridden.
+///   - `OverrideTo` the incoming ref / anything else → no-op: that bind already applied.
 /// `branchId` is the branch the reconcile op is written to (the receiver's current branch — sync
 /// divergences are name bindings, applied on the branch the puller is on). Returns the number of
 /// divergences the policy actively reconciled (0 under the default).
 let routeDivergences
-  (dispatch : RT.ConflictDispatch)
+  (policy : SyncPolicy)
   (callCtx : RT.CallContext)
   (remote : string)
   (branchId : PT.BranchId)
@@ -348,24 +364,27 @@ let routeDivergences
   task {
     let mutable reconciled = 0
     for (location, existingHash, incomingHash) in divergences do
-      let conflict = RT.CSyncDivergence(location, existingHash, incomingHash)
-      let! resolution = dispatch conflict callCtx |> Ply.toTask
-      match resolution with
-      | RT.RSubstitute(RT.DString keepHash) when keepHash = existingHash ->
-        // keep local: re-bind the location to our existing hash via `overrideBinding` (the same move a
-        // human 'mine' override makes in `resolveConflict`) — a fresh `OverrideName` op that rides sync
-        // so peers re-adopt our hash too.
-        match! kindOfHash existingHash with
-        | Some kind ->
-          match parseLocation location with
-          | Some loc ->
-            let target = PT.Reference.fromHashAndKind (PT.Hash existingHash, kind)
+      // Rebuild the contending references so the conflict is first-class data. Both contend for the
+      // same location, hence the same kind; `kindOfHash` reads it from the binding we're restoring.
+      match! kindOfHash existingHash with
+      | Some kind ->
+        match parseLocation location with
+        | Some loc ->
+          let localRef = PT.Reference.fromHashAndKind (PT.Hash existingHash, kind)
+          let incomingRef = PT.Reference.fromHashAndKind (PT.Hash incomingHash, kind)
+          let conflict = PT.SyncConflict.Divergence(loc, [ localRef; incomingRef ])
+          match policy conflict callCtx with
+          | OverrideTo target when target = localRef ->
+            // keep local: re-bind the location to our hash via `overrideBinding` (the same move a
+            // human 'mine' override makes in `resolveConflict`) — a fresh `OverrideName` op that rides
+            // sync so peers re-adopt our hash too — and mark the recorded conflict overridden.
             do! overrideBinding branchId loc target
             do! Conflicts.markOverriddenByLocation remote location
             reconciled <- reconciled + 1
-          | None -> ()
+          | AcceptLww
+          | OverrideTo _ -> () // accept LWW, or override-to-incoming (already applied) → no new op
         | None -> ()
-      | _ -> () // RFailLoudly / RSubstitute(incoming|other) → surfaced-as-data, LWW stands
+      | None -> ()
     return reconciled
   }
 

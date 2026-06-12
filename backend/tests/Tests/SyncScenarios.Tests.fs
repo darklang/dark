@@ -1,7 +1,7 @@
-/// Scenario coverage for the sync conflict-dispatch seam (`Sync.routeDivergences`) — the wire that
-/// turns a surfaced `name → two hashes` divergence into a first-class `Conflict.CSyncDivergence` the
-/// runtime resolution policy (`ExecutionState.conflictDispatch`) decides. Complements
-/// `SyncIdempotency.Tests` (the transport's idempotence + LWW); here we exercise the POLICY layer.
+/// Scenario coverage for the sync conflict layer (`Sync.routeDivergences`) — the wire that turns a
+/// surfaced `name → two hashes` divergence into a first-class `PT.SyncConflict.Divergence` a
+/// `Sync.SyncPolicy` decides. Complements `SyncIdempotency.Tests` (the transport's idempotence +
+/// LWW); here we exercise the POLICY layer.
 ///
 /// Most scenarios are DATA: one `Scenario` record describes a divergent pull (local vs incoming hash +
 /// authoring times) and a policy, and `runScenario` runs it and checks the live binding, the number of
@@ -24,7 +24,6 @@ module Conflicts = LibDB.Conflicts
 module Sync = LibDB.Sync
 module PT = LibExecution.ProgramTypes
 module RT = LibExecution.RuntimeTypes
-module RTE = LibExecution.RuntimeTypes.RuntimeError
 
 // ── helpers ──────────────────────────────────────────────────────────────────────────────────
 
@@ -38,40 +37,25 @@ let private relTs (minutesFromNow : float) : string =
 let private callCtx : RT.CallContext =
   { branchId = PT.mainBranchId; threadID = System.Guid.NewGuid() }
 
-/// The runtime default (mirrors `Execution.createState`): every divergence fails loudly — meaning,
-/// to the sync receiver, "I pick no winner", so `routeDivergences` leaves the LWW outcome standing.
-let private defaultDispatch : RT.ConflictDispatch =
-  fun conflict _ctx ->
-    uply {
-      match conflict with
-      | RT.CSyncDivergence(loc, e, i) ->
-        return
-          RT.RFailLoudly(RTE.UncaughtException($"divergence {loc}: {e} vs {i}", []))
-      | RT.CRuntimeError rte -> return RT.RFailLoudly rte
-      | RT.CFnNotFound name -> return RT.RFailLoudly(RTE.FnNotFound name)
-    }
+/// The shipped default (mirrors `Sync.defaultSyncPolicy`): accept the last-writer-wins outcome the
+/// fold already applied — pick no override, so `routeDivergences` leaves the LWW outcome standing.
+let private defaultPolicy : Sync.SyncPolicy = fun _conflict _ctx -> Sync.AcceptLww
 
-/// A keep-local policy: always substitute the EXISTING (local) hash — "my version wins".
-let private keepLocalDispatch : RT.ConflictDispatch =
+/// A keep-local policy: override to the LOCAL candidate (candidates[0]) — "my version wins".
+let private keepLocalPolicy : Sync.SyncPolicy =
   fun conflict _ctx ->
-    uply {
-      match conflict with
-      | RT.CSyncDivergence(_loc, existing, _incoming) ->
-        return RT.RSubstitute(RT.DString existing)
-      | RT.CRuntimeError rte -> return RT.RFailLoudly rte
-      | RT.CFnNotFound name -> return RT.RFailLoudly(RTE.FnNotFound name)
-    }
+    match conflict with
+    | PT.SyncConflict.Divergence(_loc, local :: _) -> Sync.OverrideTo local
+    | PT.SyncConflict.Divergence(_loc, []) -> Sync.AcceptLww
 
-/// A keep-incoming policy: substitute the INCOMING hash (= what already applied) — a no-op rebind.
-let private keepIncomingDispatch : RT.ConflictDispatch =
+/// A keep-incoming policy: override to the INCOMING candidate (candidates[1]) — what already applied,
+/// so a no-op rebind.
+let private keepIncomingPolicy : Sync.SyncPolicy =
   fun conflict _ctx ->
-    uply {
-      match conflict with
-      | RT.CSyncDivergence(_loc, _existing, incoming) ->
-        return RT.RSubstitute(RT.DString incoming)
-      | RT.CRuntimeError rte -> return RT.RFailLoudly rte
-      | RT.CFnNotFound name -> return RT.RFailLoudly(RTE.FnNotFound name)
-    }
+    match conflict with
+    | PT.SyncConflict.Divergence(_loc, _local :: incoming :: _) ->
+      Sync.OverrideTo incoming
+    | PT.SyncConflict.Divergence _ -> Sync.AcceptLww
 
 let private liveHash (loc : PT.PackageLocation) : Task<Option<string>> =
   Sql.query
@@ -159,13 +143,16 @@ type private Scenario =
     reconciled : int
     overridden : bool }
 
-let private dispatchFor (policy : Policy) : RT.ConflictDispatch =
+let private policyFor (policy : Policy) : Sync.SyncPolicy =
   match policy with
-  | Default -> defaultDispatch
-  | KeepLocal -> keepLocalDispatch
-  | KeepIncoming -> keepIncomingDispatch
+  | Default -> defaultPolicy
+  | KeepLocal -> keepLocalPolicy
+  | KeepIncoming -> keepIncomingPolicy
   | SubstituteUnrelated ->
-    fun _ _ -> uply { return RT.RSubstitute(RT.DString(hashChar 'z')) }
+    fun _ _ ->
+      Sync.OverrideTo(
+        PT.Reference.fromHashAndKind (PT.Hash(hashChar 'z'), PT.ItemKind.Fn)
+      )
 
 let private runScenario (s : Scenario) : Test =
   testTask s.desc {
@@ -177,12 +164,7 @@ let private runScenario (s : Scenario) : Test =
       setupDivergentPull loc s.kind localH s.localAge incomingH s.incomingAge remote
     Expect.equal (List.length divs) 1 $"{s.desc}: exactly one divergence surfaced"
     let! reconciled =
-      Sync.routeDivergences
-        (dispatchFor s.policy)
-        callCtx
-        remote
-        PT.mainBranchId
-        divs
+      Sync.routeDivergences (policyFor s.policy) callCtx remote PT.mainBranchId divs
     Expect.equal reconciled s.reconciled $"{s.desc}: reconciling-op count"
     let! winner = liveHash loc
     let expected =
@@ -313,7 +295,7 @@ let private emptyConverged =
     "empty divergence list routes to a clean zero (the converged steady state)" {
     let remote = uniqueName "rempty"
     let! reconciled =
-      Sync.routeDivergences keepLocalDispatch callCtx remote PT.mainBranchId []
+      Sync.routeDivergences keepLocalPolicy callCtx remote PT.mainBranchId []
     Expect.equal reconciled 0 "no divergences → nothing reconciled, no ops"
   }
 
@@ -374,7 +356,7 @@ let private multiDivergenceBatch =
     let divs = divs1 @ divs2
     Expect.equal (List.length divs) 2 "two divergences collected from the batch"
     let! reconciled =
-      Sync.routeDivergences defaultDispatch callCtx remote PT.mainBranchId divs
+      Sync.routeDivergences defaultPolicy callCtx remote PT.mainBranchId divs
     Expect.equal reconciled 0 "default policy reconciles nothing (surface-as-data)"
     let! w1 = liveHash loc1
     let! w2 = liveHash loc2
@@ -389,8 +371,7 @@ let private multiDivergenceBatch =
 // asserts both the local effect (our hash wins) AND the propagation property (a new op, above the prior
 // max rowid, carrying the newest stamp).
 let private keepLocalAppendsPropagableOverride =
-  testTask
-    "keep-local override appends a distinct, newer op so it can propagate" {
+  testTask "keep-local override appends a distinct, newer op so it can propagate" {
     let loc : PT.PackageLocation =
       { owner = "Scenario"; modules = [ "Prop" ]; name = uniqueName "p" }
     let local, incoming = hashChar 'a', hashChar 'b'
@@ -413,7 +394,7 @@ let private keepLocalAppendsPropagableOverride =
         [ "id", Sql.uuid incomingOpId ]
     // keep-local override (the same path the human 'mine' override uses)
     let! _ =
-      Sync.routeDivergences keepLocalDispatch callCtx remote PT.mainBranchId divs
+      Sync.routeDivergences keepLocalPolicy callCtx remote PT.mainBranchId divs
     // 1. our hash is the live binding
     let! winner = liveHash loc
     Expect.equal winner (Some local) "keep-local: our hash is the live binding"
@@ -442,8 +423,12 @@ let private overrideOpRoundTrips =
     let op = PT.PackageOp.OverrideName(loc, target, "2026-06-11T12:34:56.789Z")
     let id = Inserts.computeOpHash op
     let blob = LibSerialization.Binary.Serialization.PT.PackageOp.serialize id op
-    let decoded = LibSerialization.Binary.Serialization.PT.PackageOp.deserialize id blob
-    Expect.equal decoded op "OverrideName survives binary serialize → deserialize unchanged"
+    let decoded =
+      LibSerialization.Binary.Serialization.PT.PackageOp.deserialize id blob
+    Expect.equal
+      decoded
+      op
+      "OverrideName survives binary serialize → deserialize unchanged"
   }
 
 // End-to-end, the RECEIVER half: a peer currently bound to the incoming hash (it already pulled the
@@ -471,7 +456,10 @@ let private overridePropagatesToPeer =
         [ theirsOp ]
         (Map.ofList [ (Inserts.computeOpHash theirsOp, relTs -60.0) ])
     let! before = liveHash loc
-    Expect.equal before (Some theirs) "precondition: the peer holds the incoming hash"
+    Expect.equal
+      before
+      (Some theirs)
+      "precondition: the peer holds the incoming hash"
     // now it pulls the other machine's override op (re-bind to `ours`, newest stamp) over the wire path
     let overrideOp =
       PT.PackageOp.OverrideName(
@@ -554,7 +542,7 @@ let private resolutionSticks =
     let! divs =
       setupDivergentPull loc PT.ItemKind.Fn local -120.0 incoming -60.0 remote
     let! _ =
-      Sync.routeDivergences keepLocalDispatch callCtx remote PT.mainBranchId divs
+      Sync.routeDivergences keepLocalPolicy callCtx remote PT.mainBranchId divs
     let! afterResolve = liveHash loc
     Expect.equal
       afterResolve

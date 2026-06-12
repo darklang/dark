@@ -1854,27 +1854,18 @@ and Notifier = ExecutionState -> VMState -> string -> Metadata -> Ply<unit>
 // RuntimeError.Error/Dval (defined above) AND ExecutionState references ConflictDispatch,
 // so a later file can't satisfy both. (Same constraint a buses field would have.)
 and Conflict =
-  // Extensible by design — `Conflict` is the meta-model. As more ops are added, new cases join here
-  // and a policy decides each the same way (RSubstitute / FailLoudly). Anticipated future cases: a
-  // move collision (a MoveItem/MoveModule lands a name where one already lives), a value-update race
-  // (two concurrent updates to one mutable package value), a capability denial (a gate refused; a
-  // policy could prompt or escalate instead of failing).
-  | CRuntimeError of RuntimeError.Error
-  | CFnNotFound of FQFnName.FQFnName
-  // A name bound to two different hashes across synced instances — the `name → two hashes`
-  // divergence. Hashes are RT-level strings (PT's `Hash of string` can't be referenced here — PT
-  // depends on RT, not the reverse). Default dispatch surfaces it loudly; a sync policy can
-  // RSubstitute the converged winner (last-writer-wins).
-  | CSyncDivergence of
-    location : string *
-    existingHash : string *
-    incomingHash : string
+  // A *runtime* conflict: execution reached a point it can't proceed past on its own, and a policy
+  // must decide. One case today — a missing package fn — but the seam is shared infra: future cases
+  // (a capability denial, a value-update race seen at execution time) join here and a policy decides
+  // each the same way (`Substitute` / `FailLoudly`). SYNC conflicts are modeled separately, over in
+  // `ProgramTypes.SyncConflict`, next to the op log they're about — they don't ride this seam.
+  | FnNotFound of FQFnName.FQFnName
 
 and Resolution =
   // How a policy answers a Conflict: substitute a value to proceed, or fail loudly. (A future
   // "park" resolution — pause and await external input — would be added here.)
-  | RSubstitute of Dval
-  | RFailLoudly of RuntimeError.Error
+  | Substitute of Dval
+  | FailLoudly of RuntimeError.Error
 
 and CallContext = { branchId : BranchId; threadID : uuid } // assembled from ExecState + VMState
 

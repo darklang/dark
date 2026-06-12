@@ -28,14 +28,14 @@ let fns () : List<BuiltInFn> =
         | exeState, vm, _, [ DString sourcePath ] ->
           uply {
             let! (newCursor, divergences) = LibDB.Sync.pullFromFile sourcePath
-            // Route each surfaced divergence through the runtime conflict-dispatch seam. The
-            // default policy keeps today's behavior (surface-as-data, LWW stands); a sync policy
-            // can keep-local. branchId = the puller's current branch.
+            // Route each surfaced divergence through the sync policy. The default keeps today's
+            // behavior (surface-as-data, LWW stands); a policy can keep-local. branchId = the
+            // puller's current branch.
             let callCtx : CallContext =
               { branchId = exeState.branchId; threadID = vm.threadID }
             let! _reconciled =
               LibDB.Sync.routeDivergences
-                exeState.conflictDispatch
+                LibDB.Sync.defaultSyncPolicy
                 callCtx
                 sourcePath
                 exeState.branchId
@@ -128,12 +128,12 @@ let fns () : List<BuiltInFn> =
             let bytes = System.Convert.FromBase64String wireB64
             let! (newCursor, divergences) =
               LibDB.Sync.applyWireBatch remote PT.mainBranchId None bytes
-            // Same dispatch routing as the file pull (the wire batch applies on main).
+            // Same policy routing as the file pull (the wire batch applies on main).
             let callCtx : CallContext =
               { branchId = exeState.branchId; threadID = vm.threadID }
             let! _reconciled =
               LibDB.Sync.routeDivergences
-                exeState.conflictDispatch
+                LibDB.Sync.defaultSyncPolicy
                 callCtx
                 remote
                 PT.mainBranchId

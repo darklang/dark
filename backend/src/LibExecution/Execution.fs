@@ -38,23 +38,14 @@ let createState
     reportException = reportException
     notify = notify
 
-    // Default: FailLoudly for every conflict — unchanged from the behavior before this seam existed.
+    // Default: FailLoudly for every runtime conflict — unchanged from the behavior before this seam
+    // existed. (Sync conflicts no longer ride this seam; they're decided by a `Sync.SyncPolicy`.)
     conflictDispatch =
       fun conflict _ctx ->
         uply {
           match conflict with
-          | RT.CRuntimeError rte -> return RT.RFailLoudly rte
-          | RT.CFnNotFound name -> return RT.RFailLoudly(RTE.FnNotFound name)
-          | RT.CSyncDivergence(location, existing, incoming) ->
-            // strict default: fail loudly. A sync policy installs surface-as-data / last-writer
-            // so the receiver never blocks — but the default doesn't pick a winner.
-            return
-              RT.RFailLoudly(
-                RTE.UncaughtException(
-                  $"sync divergence at {location}: {existing} vs {incoming}",
-                  []
-                )
-              )
+          | RT.Conflict.FnNotFound name ->
+            return RT.Resolution.FailLoudly(RTE.FnNotFound name)
         }
 
     lambdaInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
