@@ -8,6 +8,10 @@
         "required": true,
         "types": [
           {
+            "type": "bigint_literal",
+            "named": true
+          },
+          {
             "type": "bool_literal",
             "named": true
           },
@@ -141,6 +145,22 @@
           "named": true
         }
       ]
+    }
+  },
+  {
+    "type": "bigint_literal",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "digits",
+            "named": true
+          }
+        ]
+      }
     }
   },
   {
@@ -1122,6 +1142,22 @@
     }
   },
   {
+    "type": "int",
+    "named": true,
+    "fields": {
+      "digits": {
+        "multiple": false,
+        "required": true,
+        "types": [
+          {
+            "type": "digits",
+            "named": true
+          }
+        ]
+      }
+    }
+  },
+  {
     "type": "int128",
     "named": true,
     "fields": {
@@ -2056,6 +2092,10 @@
         },
         {
           "type": "float",
+          "named": true
+        },
+        {
+          "type": "int",
           "named": true
         },
         {
@@ -3104,6 +3144,10 @@
       "types": [
         {
           "type": "apply",
+          "named": true
+        },
+        {
+          "type": "bigint_literal",
           "named": true
         },
         {

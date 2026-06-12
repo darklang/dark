@@ -264,6 +264,7 @@ module.exports = grammar({
         alias($.uint64_literal, $.uint64),
         alias($.int128_literal, $.int128),
         alias($.uint128_literal, $.uint128),
+        alias($.bigint_literal, $.int),
         alias($.float_literal, $.float),
         alias($.char_literal, $.char),
         alias($.string_literal, $.string),
@@ -396,6 +397,7 @@ module.exports = grammar({
         $.uint64_literal,
         $.int128_literal,
         $.uint128_literal,
+        $.bigint_literal,
         $.float_literal,
         $.string_segment,
         $.char_literal,
@@ -506,6 +508,9 @@ module.exports = grammar({
         field("digits", $.positive_digits),
         field("suffix", alias("Z", $.symbol)),
       ),
+
+    // The default, arbitrary-precision `Int` — a suffix-less integer literal.
+    bigint_literal: $ => field("digits", $.digits),
 
     //
     // Floats
@@ -1026,6 +1031,7 @@ module.exports = grammar({
         /UInt64/,
         /Int128/,
         /UInt128/,
+        /Int/,
         /Float/,
         /Char/,
         /String/,

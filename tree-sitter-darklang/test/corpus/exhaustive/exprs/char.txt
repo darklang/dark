@@ -124,13 +124,12 @@ char - invalid escape produces ERROR
 ---
 
 (source_file
+  (ERROR
+    (symbol)
+    (UNEXPECTED 'd'))
   (expression
     (simple_expression
-      (char_literal
-        (symbol)
-        (ERROR (UNEXPECTED 'd'))
-        (character)
-        (MISSING symbol)))))
+      (variable_identifier))))
 
 
 ==================
