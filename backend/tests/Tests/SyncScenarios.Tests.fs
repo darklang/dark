@@ -738,6 +738,44 @@ let private resolutionOverlayApplies =
       "the stale resolution (older `at`) was skipped — b stays"
   }
 
+// The resolution CHANNEL: a resolution rides its own wire (encode → decode) and a peer applies it to
+// its binding — idempotently. This is what propagates an override cross-machine WITHOUT a new op.
+let private resolutionWireRoundTripsAndApplies =
+  testTask
+    "a resolution rides the wire (encode→decode) and a peer applies it (idempotently)" {
+    let loc : PT.PackageLocation =
+      { owner = "RWire"; modules = [ "W" ]; name = uniqueName "w" }
+    let other, chosen = hashChar 'a', hashChar 'b'
+    let refOf h = PT.Reference.fromHashAndKind (PT.Hash h, PT.ItemKind.Fn)
+    // the receiver currently has loc -> other (older)
+    let otherOp = PT.PackageOp.SetName(loc, refOf other)
+    let! _ =
+      Inserts.insertAndApplyOpsWithOrigin
+        PT.mainBranchId
+        None
+        [ otherOp ]
+        (Map.ofList [ (Inserts.computeOpHash otherOp, relTs -60.0) ])
+    // a sender authored a resolution choosing `chosen`; serialize + ship it
+    let resn = Resolutions.mk loc (refOf chosen) "human" PT.mainBranchId (relTs 0.0)
+    let decoded = Sync.decodeResolutions (Sync.encodeResolutions [ (1L, resn) ])
+    Expect.equal (List.length decoded) 1 "one resolution survived the wire"
+    let remote = uniqueName "rwire"
+    let! cursor = Sync.applyRemoteResolutions remote decoded
+    Expect.equal cursor 1L "cursor advanced to the applied rowid"
+    let! after = liveHash loc
+    Expect.equal
+      after
+      (Some chosen)
+      "the peer adopted the resolution's chosen binding"
+    // idempotent re-apply: same resolution again is a no-op
+    let! _ = Sync.applyRemoteResolutions remote decoded
+    let! after2 = liveHash loc
+    Expect.equal
+      after2
+      (Some chosen)
+      "re-applying the resolution is a no-op — chosen stays"
+  }
+
 // ── all scenarios ──────────────────────────────────────────────────────────────────────────────
 
 let tests =
@@ -757,4 +795,5 @@ let tests =
          resolutionSticks
          lateStaleArrival
          threeWayConverge
-         resolutionOverlayApplies ])
+         resolutionOverlayApplies
+         resolutionWireRoundTripsAndApplies ])

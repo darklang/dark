@@ -45,6 +45,35 @@ let advanceCursor (remote : string) (rowid : int64) : Task<unit> =
   |> Sql.parameters [ "remote", Sql.string remote; "rowid", Sql.int64 rowid ]
   |> Sql.executeStatementAsync
 
+/// How far we've applied `remote`'s RESOLUTIONS stream (0 if never). A separate cursor from the op
+/// cursor — resolutions sync on their own channel (their own `resolutions` rowid).
+let resolutionCursorFor (remote : string) : Task<int64> =
+  task {
+    let! rows =
+      Sql.query
+        "SELECT resolutions_through_rowid AS r FROM sync_cursors WHERE remote = @remote"
+      |> Sql.parameters [ "remote", Sql.string remote ]
+      |> Sql.executeAsync (fun read -> read.int64 "r")
+    return
+      (match rows with
+       | r :: _ -> r
+       | [] -> 0L)
+  }
+
+/// Advance `remote`'s RESOLUTIONS cursor to `rowid` (monotonic upsert; never rewinds), mirroring
+/// `advanceCursor`. Coexists with the op cursor on the same `sync_cursors` row.
+let advanceResolutionCursor (remote : string) (rowid : int64) : Task<unit> =
+  Sql.query
+    """
+    INSERT INTO sync_cursors (remote, resolutions_through_rowid)
+    VALUES (@remote, @rowid)
+    ON CONFLICT(remote) DO UPDATE SET
+      resolutions_through_rowid =
+        MAX(sync_cursors.resolutions_through_rowid, excluded.resolutions_through_rowid)
+    """
+  |> Sql.parameters [ "remote", Sql.string remote; "rowid", Sql.int64 rowid ]
+  |> Sql.executeStatementAsync
+
 /// All known peers and how far we've synced each — the `dark sync status` surface. Empty if we've
 /// never synced. Ordered by `remote` for a stable display.
 let listCursors () : Task<List<string * int64>> =

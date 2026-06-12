@@ -399,7 +399,10 @@ CREATE TABLE IF NOT EXISTS sync_remotes (
 -- The cursor is a `package_ops` rowid (SQLite's monotonic insertion order).
 CREATE TABLE IF NOT EXISTS sync_cursors (
   remote TEXT PRIMARY KEY,
-  folded_through_rowid INTEGER NOT NULL DEFAULT 0
+  folded_through_rowid INTEGER NOT NULL DEFAULT 0,
+  -- how far we've applied this remote's RESOLUTIONS stream (a separate `resolutions` rowid cursor,
+  -- since resolutions sync on their own channel alongside the op log)
+  resolutions_through_rowid INTEGER NOT NULL DEFAULT 0
 );
 
 -- Resolutions — synced decisions that OVERRIDE the op-fold for a contested name. A conflict (e.g. a

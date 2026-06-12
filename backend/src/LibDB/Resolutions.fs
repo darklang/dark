@@ -98,13 +98,16 @@ let applyToLocations (r : Resolution) : Task<unit> =
       |> Sql.executeAsync (fun read ->
         (read.string "item_hash", read.stringOrNone "origin_ts"))
 
-    let isStale =
+    let skip =
       match cur with
+      // already bound to the chosen content — idempotent no-op (so a re-pulled resolution doesn't churn)
+      | (curHash, _) :: _ when curHash = r.chosenHash -> true
+      // stale: this resolution is older-by-creation than the live binding (exact tie → higher hash wins)
       | (curHash, Some curTs) :: _ when curHash <> r.chosenHash ->
         r.at < curTs || (r.at = curTs && r.chosenHash < curHash)
       | _ -> false
 
-    if isStale then
+    if skip then
       return ()
     else
       // supersede the existing binding at this path, then insert the resolved one with origin_ts = at
@@ -148,23 +151,33 @@ let recordAndApply (r : Resolution) : Task<unit> =
     do! applyToLocations r
   }
 
-/// All resolutions, oldest first (creation order) — for inspection and (later) syncing to peers.
+/// Read a `Resolution` off a `resolutions` row (shared by `list` + the sync read).
+let ofRow (read : RowReader) : Resolution =
+  { id = read.string "id"
+    location =
+      { owner = read.string "owner"
+        modules =
+          let m = read.string "modules"
+          if m = "" then [] else String.split "." m
+        name = read.string "name" }
+    itemKind = PT.ItemKind.fromString (read.string "item_type")
+    chosenHash = read.string "chosen_hash"
+    resolvedBy = read.string "resolved_by"
+    branchId = read.uuid "branch_id"
+    at = read.string "at" }
+
+let private cols =
+  "id, owner, modules, name, item_type, chosen_hash, resolved_by, branch_id, at"
+
+/// All resolutions, oldest first (creation order) — for inspection.
 let list () : Task<List<Resolution>> =
+  Sql.query $"SELECT {cols} FROM resolutions ORDER BY rowid ASC"
+  |> Sql.executeAsync ofRow
+
+/// Resolutions authored with rowid > `cursor`, oldest first, paired with their rowid — the sender read
+/// for a peer pull (the resolution channel's analogue of `Inserts.opsSince`).
+let since (cursor : int64) : Task<List<int64 * Resolution>> =
   Sql.query
-    """
-    SELECT id, owner, modules, name, item_type, chosen_hash, resolved_by, branch_id, at
-    FROM resolutions ORDER BY rowid ASC
-    """
-  |> Sql.executeAsync (fun read ->
-    { id = read.string "id"
-      location =
-        { owner = read.string "owner"
-          modules =
-            let m = read.string "modules"
-            if m = "" then [] else String.split "." m
-          name = read.string "name" }
-      itemKind = PT.ItemKind.fromString (read.string "item_type")
-      chosenHash = read.string "chosen_hash"
-      resolvedBy = read.string "resolved_by"
-      branchId = read.uuid "branch_id"
-      at = read.string "at" })
+    $"SELECT rowid, {cols} FROM resolutions WHERE rowid > @cursor ORDER BY rowid ASC"
+  |> Sql.parameters [ "cursor", Sql.int64 cursor ]
+  |> Sql.executeAsync (fun r -> (r.int64 "rowid", ofRow r))

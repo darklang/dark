@@ -95,6 +95,84 @@ let decodeBatch (bytes : byte[]) : List<int64 * System.Guid * string * byte[]> =
 let opsToSend (cursor : int64) : Task<List<int64 * System.Guid * string * byte[]>> =
   Inserts.opsSinceCommitted cursor
 
+
+// ── the RESOLUTION channel: synced decisions ride alongside the op log (their own rowid cursor) ──
+
+/// Encode a resolution batch: int32 version, int32 count, then per resolution `rowid:int64` followed by
+/// the fields as length-prefixed UTF-8 strings (id, owner, modules, name, item_type, chosen_hash,
+/// resolved_by, branch_id, at). The resolution-channel analogue of `encodeBatch`.
+let encodeResolutions (rs : List<int64 * Resolutions.Resolution>) : byte[] =
+  use ms = new System.IO.MemoryStream()
+  use w = new System.IO.BinaryWriter(ms)
+  w.Write(wireFormatVersion)
+  w.Write(List.length rs)
+  for (rowid, r) in rs do
+    w.Write(rowid)
+    w.Write(r.id)
+    w.Write(r.location.owner)
+    w.Write(String.concat "." r.location.modules)
+    w.Write(r.location.name)
+    w.Write(r.itemKind.toString ())
+    w.Write(r.chosenHash)
+    w.Write(r.resolvedBy)
+    w.Write(string r.branchId)
+    w.Write(r.at)
+  w.Flush()
+  ms.ToArray()
+
+/// Decode a resolution wire buffer (inverse of `encodeResolutions`).
+let decodeResolutions (bytes : byte[]) : List<int64 * Resolutions.Resolution> =
+  use ms = new System.IO.MemoryStream(bytes)
+  use r = new System.IO.BinaryReader(ms)
+  let version = r.ReadInt32()
+  if version <> wireFormatVersion then
+    Exception.raiseInternal
+      $"decodeResolutions: wire-format version mismatch — peer sent {version}, this instance speaks {wireFormatVersion}. Upgrade to sync."
+      []
+  let count = r.ReadInt32()
+  [ for _ in 1..count do
+      let rowid = r.ReadInt64()
+      let id = r.ReadString()
+      let owner = r.ReadString()
+      let modules = r.ReadString()
+      let name = r.ReadString()
+      let itemType = r.ReadString()
+      let chosenHash = r.ReadString()
+      let resolvedBy = r.ReadString()
+      let branchId = r.ReadString()
+      let at = r.ReadString()
+      yield
+        (rowid,
+         ({ id = id
+            location =
+              { owner = owner
+                modules = (if modules = "" then [] else String.split "." modules)
+                name = name }
+            itemKind = PT.ItemKind.fromString itemType
+            chosenHash = chosenHash
+            resolvedBy = resolvedBy
+            branchId = System.Guid.Parse branchId
+            at = at }
+         : Resolutions.Resolution)) ]
+
+/// Apply a peer's resolutions: record each (idempotent by id) + fold it into `locations` (the overlay,
+/// LWW by `at`), then advance this peer's resolution cursor. Returns the new cursor (max rowid applied,
+/// or the existing cursor if the batch is empty).
+let applyRemoteResolutions
+  (remote : string)
+  (rs : List<int64 * Resolutions.Resolution>)
+  : Task<int64> =
+  task {
+    match rs with
+    | [] -> return! SyncCursors.resolutionCursorFor remote
+    | _ ->
+      for (_, r) in rs do
+        do! Resolutions.recordAndApply r
+      let maxRowid = rs |> List.map fst |> List.max
+      do! SyncCursors.advanceResolutionCursor remote maxRowid
+      return maxRowid
+  }
+
 /// Render a `PackageLocation` as the FQ "owner[.modules].name" string sync uses on the wire and in
 /// the conflict store — the inverse of `parseLocation`.
 let private formatLocation (loc : PT.PackageLocation) : string =
