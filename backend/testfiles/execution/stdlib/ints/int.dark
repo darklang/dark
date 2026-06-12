@@ -3,9 +3,9 @@
 // `Int` is stored as a small (Int64-backed) value when it fits, and only
 // promotes to a big representation on overflow. Values are NORMALIZED: any
 // result that fits Int64 always uses the small representation. These tests
-// exercise the boundary, promotion, demotion, and cross-representation equality
-// — the properties that break if normalization is wrong. Literals use the F#
-// `I` suffix because these testfiles are parsed by the F# parser.
+// exercise the boundary, promotion, demotion, normalization, and finite/infinite
+// ordering — the properties that break if normalization is wrong. Literals use
+// the F# `I` suffix because these testfiles are parsed by the F# parser.
 
 // --- boundary: largest small value vs first big value ---
 9223372036854775807I + 0I = 9223372036854775807I // Int64.MAX stays small
@@ -43,3 +43,24 @@ Stdlib.Int.fromInt64 5L = 5I
 // toInt64 relies on the invariant: a small Int always fits, a big Int never does
 Stdlib.Int.toInt64 5I = Stdlib.Option.Option.Some 5L
 Stdlib.Int.toInt64 9223372036854775808I = Stdlib.Option.Option.None
+
+
+// --- conversions from the fixed-width types (always succeed) ---
+Stdlib.Int.fromInt8 127y = 127I
+Stdlib.Int.fromUInt8 255uy = 255I
+Stdlib.Int.fromInt16 32767s = 32767I
+Stdlib.Int.fromUInt32 4294967295ul = 4294967295I
+// values past Int64 still convert exactly
+Stdlib.Int.fromUInt64 18446744073709551615UL = 18446744073709551615I
+Stdlib.Int.fromUInt128 340282366920938463463374607431768211455Z =
+  340282366920938463463374607431768211455I
+
+// --- conversions into the fixed-width types (Some if it fits, else None) ---
+Stdlib.Int.toInt8 100I = Stdlib.Option.Option.Some 100y
+Stdlib.Int.toInt8 200I = Stdlib.Option.Option.None
+Stdlib.Int.toUInt8 (Stdlib.Int.negate 1I) = Stdlib.Option.Option.None
+Stdlib.Int.toInt32 (2I ^ 40I) = Stdlib.Option.Option.None
+Stdlib.Int.toInt128 (2I ^ 100I) =
+  Stdlib.Option.Option.Some 1267650600228229401496703205376Q
+Stdlib.Int.toInt128 (2I ^ 200I) = Stdlib.Option.Option.None
+Stdlib.Int.toUInt128 (2I ^ 200I) = Stdlib.Option.Option.None

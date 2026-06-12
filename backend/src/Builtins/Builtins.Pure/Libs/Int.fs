@@ -31,6 +31,30 @@ let private negativeExponent (vm : VMState) : 'a =
 let private outOfRange (vm : VMState) : 'a =
   RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
 
+// BigInteger <-> 128-bit conversions (no `bigint`/cast operator covers these)
+let private i128ToBig (a : System.Int128) : bigint =
+  System.Numerics.BigInteger.op_Implicit a
+let private u128ToBig (a : System.UInt128) : bigint =
+  System.Numerics.BigInteger.op_Implicit a
+let private bigToI128 (b : bigint) : System.Int128 =
+  System.Numerics.BigInteger.op_Explicit b
+let private bigToU128 (b : bigint) : System.UInt128 =
+  System.Numerics.BigInteger.op_Explicit b
+
+/// `Int` -> a fixed-width type: `Some` if the value fits `[lo, hi]`, else `None`.
+let private toFixed
+  (resultType : KnownType)
+  (lo : bigint)
+  (hi : bigint)
+  (make : bigint -> Dval)
+  (v : Dval)
+  : Ply<Dval> =
+  let b = Dval.asBigInt v
+  if b >= lo && b <= hi then
+    Dval.optionSome resultType (make b) |> Ply
+  else
+    Dval.optionNone resultType |> Ply
+
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "intMod" 0
@@ -330,6 +354,99 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // Conversions from the fixed-width integer types into `Int`. Every
+    // fixed-width value fits, so these are total.
+
+    { name = fn "intFromInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt8 "" ]
+      returnType = TInt
+      description = "Converts an Int8 to an arbitrary-precision Int."
+      fn =
+        (function
+        | _, _, _, [ DInt8 a ] -> Dval.int (bigint a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intFromUInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt8 "" ]
+      returnType = TInt
+      description = "Converts a UInt8 to an arbitrary-precision Int."
+      fn =
+        (function
+        | _, _, _, [ DUInt8 a ] -> Dval.int (bigint a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intFromInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt16 "" ]
+      returnType = TInt
+      description = "Converts an Int16 to an arbitrary-precision Int."
+      fn =
+        (function
+        | _, _, _, [ DInt16 a ] -> Dval.int (bigint a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intFromUInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt16 "" ]
+      returnType = TInt
+      description = "Converts a UInt16 to an arbitrary-precision Int."
+      fn =
+        (function
+        | _, _, _, [ DUInt16 a ] -> Dval.int (bigint a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intFromInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt32 "" ]
+      returnType = TInt
+      description = "Converts an Int32 to an arbitrary-precision Int."
+      fn =
+        (function
+        | _, _, _, [ DInt32 a ] -> Dval.int (bigint a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intFromUInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt32 "" ]
+      returnType = TInt
+      description = "Converts a UInt32 to an arbitrary-precision Int."
+      fn =
+        (function
+        | _, _, _, [ DUInt32 a ] -> Dval.int (bigint a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "intFromInt64" 0
       typeParams = []
       parameters = [ Param.make "a" TInt64 "" ]
@@ -337,8 +454,182 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int64 to an arbitrary-precision Int."
       fn =
         (function
-        // An Int64 always fits Int64, so it's the `Finite` representation.
+        // An Int64 is always in `DarkInt.Finite` range.
         | _, _, _, [ DInt64 a ] -> DInt(DarkInt.Finite a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intFromUInt64" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt64 "" ]
+      returnType = TInt
+      description = "Converts a UInt64 to an arbitrary-precision Int."
+      fn =
+        (function
+        | _, _, _, [ DUInt64 a ] -> Dval.int (bigint a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intFromInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt128 "" ]
+      returnType = TInt
+      description = "Converts an Int128 to an arbitrary-precision Int."
+      fn =
+        (function
+        | _, _, _, [ DInt128 a ] -> Dval.int (i128ToBig a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intFromUInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TUInt128 "" ]
+      returnType = TInt
+      description = "Converts a UInt128 to an arbitrary-precision Int."
+      fn =
+        (function
+        | _, _, _, [ DUInt128 a ] -> Dval.int (u128ToBig a) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    // Conversions from `Int` into the fixed-width integer types. The value may
+    // not fit the target range, so each returns an `Option`.
+
+    { name = fn "intToInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt "" ]
+      returnType = TypeReference.option TInt8
+      description = "Converts an Int to an Int8, returning None if it doesn't fit."
+      fn =
+        (function
+        | _, _, _, [ (DInt _) as v ] ->
+          toFixed
+            KTInt8
+            (bigint System.SByte.MinValue)
+            (bigint System.SByte.MaxValue)
+            (fun b -> DInt8(sbyte b))
+            v
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intToUInt8" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt "" ]
+      returnType = TypeReference.option TUInt8
+      description = "Converts an Int to a UInt8, returning None if it doesn't fit."
+      fn =
+        (function
+        | _, _, _, [ (DInt _) as v ] ->
+          toFixed
+            KTUInt8
+            (bigint System.Byte.MinValue)
+            (bigint System.Byte.MaxValue)
+            (fun b -> DUInt8(byte b))
+            v
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intToInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt "" ]
+      returnType = TypeReference.option TInt16
+      description = "Converts an Int to an Int16, returning None if it doesn't fit."
+      fn =
+        (function
+        | _, _, _, [ (DInt _) as v ] ->
+          toFixed
+            KTInt16
+            (bigint System.Int16.MinValue)
+            (bigint System.Int16.MaxValue)
+            (fun b -> DInt16(int16 b))
+            v
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intToUInt16" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt "" ]
+      returnType = TypeReference.option TUInt16
+      description = "Converts an Int to a UInt16, returning None if it doesn't fit."
+      fn =
+        (function
+        | _, _, _, [ (DInt _) as v ] ->
+          toFixed
+            KTUInt16
+            (bigint System.UInt16.MinValue)
+            (bigint System.UInt16.MaxValue)
+            (fun b -> DUInt16(uint16 b))
+            v
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intToInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt "" ]
+      returnType = TypeReference.option TInt32
+      description = "Converts an Int to an Int32, returning None if it doesn't fit."
+      fn =
+        (function
+        | _, _, _, [ (DInt _) as v ] ->
+          toFixed
+            KTInt32
+            (bigint System.Int32.MinValue)
+            (bigint System.Int32.MaxValue)
+            (fun b -> DInt32(int32 b))
+            v
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intToUInt32" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt "" ]
+      returnType = TypeReference.option TUInt32
+      description = "Converts an Int to a UInt32, returning None if it doesn't fit."
+      fn =
+        (function
+        | _, _, _, [ (DInt _) as v ] ->
+          toFixed
+            KTUInt32
+            (bigint System.UInt32.MinValue)
+            (bigint System.UInt32.MaxValue)
+            (fun b -> DUInt32(uint32 b))
+            v
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -361,6 +652,69 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DInt(DarkInt.Finite a) ] ->
           Dval.optionSome someType (DInt64 a) |> Ply
         | _, _, _, [ DInt(DarkInt.Infinite _) ] -> Dval.optionNone someType |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intToUInt64" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt "" ]
+      returnType = TypeReference.option TUInt64
+      description = "Converts an Int to a UInt64, returning None if it doesn't fit."
+      fn =
+        (function
+        | _, _, _, [ (DInt _) as v ] ->
+          toFixed
+            KTUInt64
+            (bigint System.UInt64.MinValue)
+            (bigint System.UInt64.MaxValue)
+            (fun b -> DUInt64(uint64 b))
+            v
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intToInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt "" ]
+      returnType = TypeReference.option TInt128
+      description = "Converts an Int to an Int128, returning None if it doesn't fit."
+      fn =
+        (function
+        | _, _, _, [ (DInt _) as v ] ->
+          toFixed
+            KTInt128
+            (i128ToBig System.Int128.MinValue)
+            (i128ToBig System.Int128.MaxValue)
+            (fun b -> DInt128(bigToI128 b))
+            v
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intToUInt128" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt "" ]
+      returnType = TypeReference.option TUInt128
+      description = "Converts an Int to a UInt128, returning None if it doesn't fit."
+      fn =
+        (function
+        | _, _, _, [ (DInt _) as v ] ->
+          toFixed
+            KTUInt128
+            (u128ToBig System.UInt128.MinValue)
+            (u128ToBig System.UInt128.MaxValue)
+            (fun b -> DUInt128(bigToU128 b))
+            v
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
