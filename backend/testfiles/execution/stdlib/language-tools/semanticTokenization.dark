@@ -453,6 +453,12 @@ module TokenizeExpression =
   ("1Z" |> tokenize) = [ (TokenType.Number, (0L, 0L), (0L, 1L))
                          (TokenType.Symbol, (0L, 1L), (0L, 2L)) ]
 
+  // suffixless Int literal: just a Number token, no suffix Symbol
+  ("1" |> tokenize) = [ (TokenType.Number, (0L, 0L), (0L, 1L)) ]
+
+  ("12345678901234567890" |> tokenize) =
+    [ (TokenType.Number, (0L, 0L), (0L, 20L)) ]
+
   ("1.0" |> tokenize) = [ (TokenType.Number, (0L, 0L), (0L, 3L)) ]
 
   ("\"hello\"" |> tokenize) =
@@ -702,6 +708,16 @@ module TokenizeMatchExpression =
       (TokenType.Symbol, (1L, 4L), (1L, 6L))
       (TokenType.Number, (1L, 7L), (1L, 8L))
       (TokenType.Symbol, (1L, 8L), (1L, 9L)) ]
+
+  // suffixless Int in both pattern and rhs: Number tokens with no suffix Symbol
+  ("match x with\n| 1 -> 2" |> tokenize) =
+    [ (TokenType.Keyword, (0L, 0L), (0L, 5L))
+      (TokenType.VariableName, (0L, 6L), (0L, 7L))
+      (TokenType.Keyword, (0L, 8L), (0L, 12L))
+      (TokenType.Symbol, (1L, 0L), (1L, 1L))
+      (TokenType.Number, (1L, 2L), (1L, 3L))
+      (TokenType.Symbol, (1L, 4L), (1L, 6L))
+      (TokenType.Number, (1L, 7L), (1L, 8L)) ]
 
   ("match 1L with\n| 1L -> 1L" |> tokenize) =
     [ (TokenType.Keyword, (0L, 0L), (0L, 5L))

@@ -22,6 +22,13 @@ type SortedX = { x: String; sortBy: Int64 }
 [<DB>]
 type SortedXDB = SortedX
 
+// has both an arbitrary-precision Int field (not queryable) and an Int64 field
+// (queryable), to check the v1 query-compiler policy
+type IntFields = { big: Int; sized: Int64 }
+
+[<DB>]
+type IntFieldsDB = IntFields
+
 // simple data stores of Enums
 // , and Records containing Enums
 
@@ -753,6 +760,16 @@ module FindAll =
 
   // bad variable name
   friendsError (fun p -> let x = 32L in true && p.height > y) = sqlerror="This variable is not defined: y"
+
+  // arbitrary-precision Int is not queryable yet (v1): comparing an Int field
+  // rejects loudly, while the sized Int64 field compiles fine.
+  (Stdlib.DB.query IntFieldsDB (fun p -> p.big > 5I)) = sqlerror="The arbitrary-precision Int type is not yet queryable in DB.query. Use a sized integer type (e.g. Int64) for fields you filter or sort on."
+  (Stdlib.DB.query IntFieldsDB (fun p -> p.sized > 5L)) = []
+
+  // storage is untouched: a >Int64 value round-trips through set/get fine
+  // (it's only numeric *querying* that's restricted)
+  (let _ = Stdlib.DB.set (IntFields { big = 9223372036854775808I; sized = 5L }) "k" IntFieldsDB
+   Stdlib.DB.get "k" IntFieldsDB) = Stdlib.Option.Option.Some(IntFields { big = 9223372036854775808I; sized = 5L })
 
   // sql injection
   (friendsError (fun p -> "; select * from users;" == p.name)) = []
