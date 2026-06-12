@@ -174,6 +174,93 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    // ── the RESOLUTION channel over HTTP — override decisions ride alongside the op log ──
+    { name = fn "pmSyncResolutionsSince" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "cursor"
+            TInt64
+            "Resume point — the last resolution rowid the puller already has" ]
+      returnType = TString
+      description =
+        "The resolution-channel server read (`GET /sync/resolutions?since=cursor`): the override
+         decisions the puller hasn't seen, encoded as a base64 wire batch (the client decodes + folds
+         them via `pmSyncApplyResolutions`). Resolutions sync immediately — a decision is published
+         when made, not gated by commit."
+      fn =
+        (function
+        | _, _, _, [ DInt64 cursor ] ->
+          uply {
+            let! rs = LibDB.Resolutions.since cursor
+            return
+              DString(System.Convert.ToBase64String(LibDB.Sync.encodeResolutions rs))
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "pmSyncResolutionCursorFor" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "remote"
+            TString
+            "Peer identity (path or URL) — the resolution-cursor key" ]
+      returnType = TInt64
+      description =
+        "The stored RESOLUTION cursor for this peer — the last resolution rowid we've applied from it,
+         or 0 if never synced. The HTTP client passes this as `?since=` so the server returns only the
+         resolutions we don't yet have (a separate cursor from the op cursor)."
+      fn =
+        (function
+        | _, _, _, [ DString remote ] ->
+          uply {
+            let! cursor = LibDB.SyncCursors.resolutionCursorFor remote
+            return DInt64 cursor
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "pmSyncApplyResolutions" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "remote"
+            TString
+            "Peer identity (e.g. its URL) — keys the resolution cursor"
+          Param.make
+            "wireB64"
+            TString
+            "A base64 resolution wire batch from the peer's `pmSyncResolutionsSince`" ]
+      returnType = TInt64
+      description =
+        "The resolution-channel client apply (after `httpRequest`-ing a peer's `/sync/resolutions`):
+         decode the base64 batch and fold each resolution into this instance's bindings (the overlay,
+         idempotent), advancing this peer's resolution cursor. Returns the new cursor."
+      fn =
+        (function
+        | _, _, _, [ DString remote; DString wireB64 ] ->
+          uply {
+            let bytes = System.Convert.FromBase64String wireB64
+            let decoded = LibDB.Sync.decodeResolutions bytes
+            let! cursor = LibDB.Sync.applyRemoteResolutions remote decoded
+            return DInt64 cursor
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "pmSyncOpKindsSince" 0
       typeParams = []
       parameters =

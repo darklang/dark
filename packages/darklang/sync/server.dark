@@ -99,8 +99,26 @@ let blobHandler: Stdlib.HttpServer.Handler =
       handler = blobHandlerFn }
 
 
+// GET /sync/resolutions?since=<cursor> — the override decisions (resolutions) after `since`, as a
+// base64 wire batch. A separate channel + cursor from `/sync/events`: resolutions overlay the op-fold
+// and sync immediately (a decision is published when made, not gated by commit).
+let resolutionsHandlerFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText (Builtin.pmSyncResolutionsSince (parseSince req.url)) 200L
+
+
+let resolutionsHandler: Stdlib.HttpServer.Handler =
+  Stdlib.HttpServer.Handler
+    { route = "/sync/resolutions"
+      method = "GET"
+      handler = resolutionsHandlerFn }
+
+
 let handlers: List<Stdlib.HttpServer.Handler> =
-  [ eventsHandler; healthHandler; blobsHandler; blobHandler ]
+  [ eventsHandler
+    healthHandler
+    blobsHandler
+    blobHandler
+    resolutionsHandler ]
 
 
 /// Router for the sync server — pass to `dark serve` (a named fn so the builtin can call it).

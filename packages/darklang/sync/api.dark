@@ -53,6 +53,10 @@ let blobsUrl (baseUrl: String) : String =
 let blobUrl (baseUrl: String) (hash: String) : String =
   (normalizeBase baseUrl) ++ "/sync/blob?hash=" ++ hash
 
+// The `/sync/resolutions` URL for an incremental pull of the override decisions we don't yet have.
+let resolutionsUrl (baseUrl: String) (cursor: Int64) : String =
+  (normalizeBase baseUrl) ++ "/sync/resolutions?since=" ++ (Stdlib.Int64.toString cursor)
+
 // One trusted-peer HTTP GET (the tailnet is the trust boundary). The single call site for the
 // SSRF-unguarded fetch builtin, so it's referenced exactly once even as more GETs (events, blobs)
 // are added.
@@ -84,8 +88,18 @@ let fetchMissingBlobs (baseUrl: String) : Int64 =
     inserted |> Stdlib.List.filter (fun r -> r) |> Stdlib.List.length
 
 
-// The full HTTP pull: the peer's new ops THEN its missing content blobs — the reusable
-// core behind both `dark sync pull <url>` and HTTP autosync. Returns
+// Pull a peer's RESOLUTIONS (the override decisions) over HTTP — the override channel's HTTP
+// counterpart to the op pull. Resume from + advance a SEPARATE resolution cursor. Best-effort: a
+// failed GET doesn't advance (retries next pull). Returns the new resolution cursor.
+let pullResolutions (baseUrl: String) : Int64 =
+  let cursor = Builtin.pmSyncResolutionCursorFor baseUrl
+
+  match httpGet (resolutionsUrl baseUrl cursor) with
+  | Ok body -> Builtin.pmSyncApplyResolutions baseUrl body
+  | Error _ -> cursor
+
+// The full HTTP pull: the peer's new ops, its missing content blobs, THEN its resolutions (the
+// override channel) — the reusable core behind both `dark sync pull <url>` and HTTP autosync. Returns
 // `(newCursor, divergenceCount, blobsFetched)` on success, or the GET error (unreachable peer) so
 // the caller can react (the CLI shows an actionable hint; autosync just doesn't advance).
 let pullHttp
@@ -97,6 +111,7 @@ let pullHttp
   | Ok body ->
     let (newCursor, divCount) = applyWire baseUrl body
     let blobs = fetchMissingBlobs baseUrl
+    let _resolutions = pullResolutions baseUrl
     Stdlib.Result.Result.Ok((newCursor, divCount, blobs))
   | Error e -> Stdlib.Result.Result.Error e
 
