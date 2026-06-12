@@ -32,12 +32,14 @@ module Value =
   let get (hash : Hash) : Ply<Option<RT.PackageValue.PackageValue>> =
     uply {
       let (Hash hashStr) = hash
+      // `rt_dval` is NULL until the value is evaluated (Seed.evaluateAllValues). Filter NULLs out so an
+      // unevaluated value reads as "not materialized" (None) instead of crashing `read.bytes` on a NULL.
       return!
         Sql.query
           """
           SELECT rt_dval
           FROM package_values
-          WHERE hash = @hash
+          WHERE hash = @hash AND rt_dval IS NOT NULL
           """
         |> Sql.parameters [ "hash", Sql.string hashStr ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_dval")

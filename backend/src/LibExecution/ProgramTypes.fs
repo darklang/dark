@@ -673,6 +673,17 @@ type PackageOp =
   // branch-scoped FQ path.
   | SetName of location : PackageLocation * target : Reference
 
+  // Conflict OVERRIDE: re-bind a name to a content we already have, as a deliberate resolution
+  // ("keep mine"). Folds exactly like SetName, but it is a DISTINCT op carrying a `resolvedAt`
+  // resolver stamp — so its content hash differs from the original SetName, giving it a fresh op id
+  // and a fresh commit-rowid. That's what lets an override propagate: incremental sync is by
+  // commit-rowid, so re-stamping the original op in place (same rowid) never reaches a peer that
+  // already pulled it; a fresh OverrideName op rides the next pull and wins last-writer-wins.
+  | OverrideName of
+    location : PackageLocation *
+    target : Reference *
+    resolvedAt : string
+
   // Deprecation: author-initiated annotation on a specific content hash.
   //
   // Future: implicit deprecations as Constraints.

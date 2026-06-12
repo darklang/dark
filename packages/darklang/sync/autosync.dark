@@ -77,13 +77,29 @@ let pullPeerReleaseAware (peer: String) : (Int64 * Int64 * String) =
     (c, d, "")
 
 
+// Single call site for the `pmSyncRecordDaemonEvent` builtin — both the single-peer (`pollOnce`) and
+// tailnet (`runLoopAll`) loops record one cycle's telemetry through here.
+let recordEvent
+  (peersPolled: Int64)
+  (changed: Bool)
+  (conflicts: Int64)
+  (skews: Int64)
+  : Unit =
+  Builtin.pmSyncRecordDaemonEvent peersPolled changed conflicts skews
+
+
 // One poll step: pull the peer (HTTP or file, Release-aware — a skewed HTTP peer is paused, not
 // pulled), then decide the next interval — responsive if it brought new ops, backing off if idle.
 // Returns `(newCursor, nextIntervalMs, skewLine)`; `skewLine` is "" unless the peer was paused on a
 // Release mismatch. A daemon calls this on a timer, sleeping `nextIntervalMs` between calls.
 let pollOnce (peer: String) (currentIntervalMs: Int64) : (Int64 * Int64 * String) =
   let before = Darklang.Sync.cursorFor peer
-  let (after, _divCount, skew) = pullPeerReleaseAware peer
+  let (after, divCount, skew) = pullPeerReleaseAware peer
+
+  // record this single-peer cycle as structured telemetry, so `sync events` is populated for a
+  // single-peer daemon (`daemon start <peer>`) too — not only the tailnet-wide `runLoopAll`.
+  let _ = recordEvent 1L (after > before) divCount (if skew == "" then 0L else 1L)
+
   let (cursor, nextMs) = decideNext before after currentIntervalMs
   (cursor, nextMs, skew)
 
@@ -150,7 +166,7 @@ let runLoopAll (intervalMs: Int64) (times: Int64) : Int64 =
 
     // record this cycle as structured telemetry (read back by `sync events` / a dashboard view)
     let _ =
-      Builtin.pmSyncRecordDaemonEvent
+      recordEvent
         (Stdlib.List.length peers)
         sawChanges
         conflicts

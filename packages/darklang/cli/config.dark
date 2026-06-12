@@ -1,9 +1,23 @@
 module Darklang.Cli.Config
 
-// Config file path - uses rundir/ in portable mode, ~/.darklang/ when installed
+// Config file path - lives beside data.db in the portable .darklang/
+// dir, or in ~/.darklang/ when installed.
 let configFilePath () : String =
   match Installation.System.getInstallationMode () with
-  | Portable -> "rundir/cli-config.json"
+  | Portable ->
+    // Colocate the config with the portable data.db, which lives in a
+    // `.darklang/` next to the executable (the runtime resolves it from
+    // AppContext.BaseDirectory — the binary's dir — not the cwd). Deriving
+    // from the exe path keeps config + data together even when the binary
+    // is on PATH and run from an arbitrary cwd. The old bare relative
+    // `rundir/cli-config.json` was written nowhere (no such dir next to an
+    // AOT install), so the failed write was swallowed and login never stuck.
+    let exeDir =
+      (Builtin.getCurrentExecutablePath ())
+      |> Stdlib.String.split "/"
+      |> Stdlib.List.dropLast
+      |> (fun parts -> Stdlib.String.join parts "/")
+    $"{exeDir}/.darklang/cli-config.json"
   | Installed ->
     let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
     let darklangHomeDir = Installation.Config.getDarklangHomeDir host
@@ -30,8 +44,15 @@ let readConfig () : Dict<String> =
 let writeConfig (config: Dict<String>) : Unit =
   let json = Stdlib.Json.serialize<Dict<String>> config
   let jsonBytes = Stdlib.String.toBlob json
-  let _ = Builtin.fileWrite jsonBytes (configFilePath ())
-  ()
+
+  match Builtin.fileWrite jsonBytes (configFilePath ()) with
+  | Ok _ -> ()
+  | Error e ->
+    // Surface a failed config write LOUDLY. A silently-discarded failure here (the old `let _ = …`)
+    // hid a "login never persists" bug — config was written to a path that didn't exist and the error
+    // vanished. Better a visible warning than a silently-dropped write.
+    Stdlib.printLine
+      (Colors.error $"⚠ could not save config to {configFilePath ()}: {e}")
 
 
 // Helper to get a single config value

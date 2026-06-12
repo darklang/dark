@@ -199,6 +199,24 @@ let tests =
         Expect.equal commitsAfter commitsBefore "commits preserved across a re-fold"
       }
 
+      // Durable-canon recreates the projection tables FROM schema.sql (drop + replay), then re-folds an
+      // INSERT that writes `description`. That column once lived ONLY in an incremental, so a fresh build's
+      // schema.sql-recreated table lacked it and the re-fold INSERT crashed at boot.
+      // The incremental is now deleted → schema.sql is the SOLE provider. This pins that contract so a
+      // schema.sql regression fails here, not on a user's first run.
+      testTask
+        "schema completeness: projection tables carry `description`" {
+        for table in [ "package_functions"; "package_types"; "package_values" ] do
+          let! present =
+            Sql.query
+              $"SELECT COUNT(*) as n FROM pragma_table_info('{table}') WHERE name = 'description'"
+            |> Sql.executeRowAsync (fun read -> read.int64 "n")
+          Expect.equal
+            present
+            1L
+            $"{table} must have a `description` column in schema.sql (durable-canon re-fold INSERTs it)"
+      }
+
       // Projection-currency counters — the `dark status` glance (`projectionStatus` → opsCount vs
       // folded-through). Equal when the cache is current; a gap when ops are appended/pulled but not yet
       // folded. Guards the surface that tells you a `branch rebuild` is owed.

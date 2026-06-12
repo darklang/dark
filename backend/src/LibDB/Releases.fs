@@ -99,11 +99,9 @@ let storedRelease () : int option =
     | Ok [ r ] -> Some(int r)
     | _ -> None
 
-/// Stamp the store at Release `n`.
+/// Stamp the store at Release `n`. `release_state_v0` is defined in schema.sql and created when it's
+/// applied (the schema bootstrap runs before the Release migrator), so this just writes the row.
 let writeRelease (n : int) : unit =
-  Sql.query
-    $"CREATE TABLE IF NOT EXISTS {releaseTable} (id INTEGER PRIMARY KEY, release INTEGER NOT NULL)"
-  |> Sql.executeStatementSync
   Sql.query $"INSERT OR REPLACE INTO {releaseTable} (id, release) VALUES (0, @r)"
   |> Sql.parameters [ "r", Sql.int64 (int64 n) ]
   |> Sql.executeStatementSync

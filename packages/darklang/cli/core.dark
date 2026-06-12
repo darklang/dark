@@ -41,7 +41,11 @@ type AppState =
     cachedStatusBar: String
     cachedStatusBarBranch: Uuid
     /// When true, write telemetry to rundir/logs/telemetry.jsonl
-    telemetryEnabled: Bool }
+    telemetryEnabled: Bool
+
+    /// Process exit code for a non-interactive (`dark <cmd>`) run. 0 = success; a command sets this
+    /// non-zero on failure so scripts/daemons wrapping the CLI can detect it (e.g. a failed `sync pull`).
+    exitCode: Int64 }
 
 let locationStr (state: AppState) : String =
   Packages.formatLocation state.packageData.currentLocation
@@ -112,7 +116,8 @@ let initState () : AppState =
       commandOptionsCache = commandOptions ()
       cachedStatusBar = ""
       cachedStatusBarBranch = Builtin.unwrap (Stdlib.Uuid.parse_v0 "00000000-0000-0000-0000-000000000000")
-      telemetryEnabled = (Builtin.environmentGet "DARK_TELEMETRY") == Stdlib.Option.Option.Some "1" }
+      telemetryEnabled = (Builtin.environmentGet "DARK_TELEMETRY") == Stdlib.Option.Option.Some "1"
+      exitCode = 0L }
 
 type Msg =
   | ProcessInput of String
@@ -905,4 +910,4 @@ let executeCliCommand (args: List<String>) : Int64 =
     | SubApp _ ->
       StatusBar.init ()
       runInteractiveLoop resultState
-    | _ -> 0L
+    | _ -> resultState.exitCode

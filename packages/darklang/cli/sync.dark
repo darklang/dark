@@ -40,13 +40,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
           Colors.dimText
             $"  is `dark serve Darklang.Sync.Server.router --port <N>` running there? check host/port — try {Darklang.Sync.healthUrl target}"
         )
-        state
+        { state with exitCode = 1L }
     else if Stdlib.Bool.not (Stdlib.Cli.File.exists target) then
       // a missing peer file would throw a raw SQLite error from pullFromFile — refuse cleanly
       Stdlib.printLine (Colors.error $"sync pull: no such peer db: {target}")
       Stdlib.printLine
         (Colors.dimText "  give a local data.db path, or an http(s):// sync-server URL")
-      state
+      { state with exitCode = 1L }
     else
       // pull from a peer's local data.db file
       let (newCursor, divCount) = Darklang.Sync.pullFromFile target
@@ -141,10 +141,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
         Stdlib.printLine
           (Colors.error
             $"sync check: could not reach {target} — is `dark serve` running there?")
-        state
+        { state with exitCode = 1L }
     else
       Stdlib.printLine (Colors.error "sync check needs an http(s) peer URL")
-      state
+      { state with exitCode = 1L }
   | [ "daemon" ] | [ "daemon"; "status" ] ->
     // the background auto-sync daemon's state (running / stopped / stale), via its pidfile
     Stdlib.printLine (Darklang.Sync.Daemon.statusLine "sync")

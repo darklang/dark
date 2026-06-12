@@ -320,7 +320,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 // divergence routing uses, so the dispatch is real infrastructure, not a sync-only
                 // appendage). The default policy returns `RFailLoudly (FnNotFound …)` → raise, so
                 // this is byte-identical to before. The teed-up consumer is fetch-on-miss: a policy
-                // pulls the fn from a peer and resolves it, instead of failing. (notes/sync-future-ops.md)
+                // pulls the fn from a peer and resolves it, instead of failing.
                 let cc : CallContext =
                   { branchId = exeState.branchId; threadID = vm.threadID }
                 match!

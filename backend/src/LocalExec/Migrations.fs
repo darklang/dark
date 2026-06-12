@@ -111,39 +111,12 @@ let private opCount () : int =
     0
 
 
+// schema_state_v0 is defined in schema.sql and created when it's applied (below), so this just writes
+// the row — the table always exists by the time writeHash runs.
 let private writeHash (hash : string) : unit =
-  Sql.query
-    "CREATE TABLE IF NOT EXISTS schema_state_v0
-     (id INTEGER PRIMARY KEY, hash TEXT NOT NULL)"
-  |> Sql.executeStatementSync
   Sql.query "INSERT OR REPLACE INTO schema_state_v0 (id, hash) VALUES (0, @hash)"
   |> Sql.parameters [ "hash", Sql.string hash ]
   |> Sql.executeStatementSync
-
-
-/// A legacy DB was migrated by name through `system_migrations_v0`. If one
-/// already has the full set of old migration names applied, treat it as
-/// fully migrated under the schema-hash flow — write the current schema
-/// hash so subsequent runs see "up to date" and don't kill-and-fill.
-let private adoptLegacyDB (currentHash : string) : bool =
-  if not (tableExists "system_migrations_v0") then
-    false
-  else
-    let count =
-      match
-        Sql.query "SELECT COUNT(*) AS c FROM system_migrations_v0"
-        |> Sql.execute (fun read -> read.int "c")
-      with
-      | Ok [ c ] -> c
-      | _ -> 0
-    if count >= 13 then
-      print
-        $"Adopting legacy DB ({count} migrations on record). \
-          Stamping schema hash; no data dropped."
-      writeHash currentHash
-      true
-    else
-      false
 
 
 let private runSchemaBootstrap () : unit =
@@ -168,11 +141,10 @@ let private runSchemaBootstrap () : unit =
     markOpsUnapplied ()
     writeHash want
   | None ->
-    if adoptLegacyDB want then
-      ()
-    else
-      Sql.query sql |> Sql.executeStatementSync
-      writeHash want
+    // fresh (or pre-stamp) store: apply schema.sql in full, then stamp its hash. `CREATE TABLE IF NOT
+    // EXISTS` is idempotent, so this is safe even if some tables already exist.
+    Sql.query sql |> Sql.executeStatementSync
+    writeHash want
 
 
 // ---------------------

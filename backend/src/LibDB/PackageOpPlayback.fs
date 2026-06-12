@@ -261,6 +261,13 @@ let private applyAddFn (ctx : Ctx) (fn : PT.PackageFn.PackageFn) : Task<unit> =
 /// branchId = branch context, commitHash = None means WIP, Some id means committed.
 /// isRename = true when this SetName is a standalone rename (not paired with Add*),
 ///   meaning old locations for the same hash should be deprecated.
+/// The op's id as stored in `package_ops` (UUID derived from the content hash) — used to read the op's
+/// own `origin_ts` back. Must be computed from the ACTUAL op (`SetName` vs `OverrideName` hash to
+/// different ids), so an override reads its own resolver stamp, not the original SetName's stale one.
+let private opIdOf (op : PT.PackageOp) : System.Guid =
+  let (Hash h) = LibSerialization.Hashing.Hashing.computeOpHash op
+  System.Guid(System.Convert.FromHexString(h)[0..15])
+
 let private applySetName
   (ctx : Ctx)
   (branchId : PT.BranchId)
@@ -269,6 +276,7 @@ let private applySetName
   (itemHash : Hash)
   (location : PT.PackageLocation)
   (itemKind : PT.ItemKind)
+  (opId : System.Guid)
   : Task<unit> =
   task {
     let modulesStr = String.concat "." location.modules
@@ -285,20 +293,11 @@ let private applySetName
     // order. Unknown stamps (op not in package_ops / pre-origin_ts data) → no skip = prior last-writer
     // behavior, so non-sync playback (seed grow, local authoring) is unchanged. Reads run on ctx.conn so
     // they see writes from earlier ops in this same applyOps transaction.
-    let thisOp =
-      PT.PackageOp.SetName(
-        location,
-        PT.Reference.fromHashAndKind (itemHash, itemKind)
-      )
-    let (Hash thisOpHashStr) = LibSerialization.Hashing.Hashing.computeOpHash thisOp
-    let thisOpId = System.Guid(System.Convert.FromHexString(thisOpHashStr)[0..15])
-
     let! thisTs =
       task {
         use cmd = ctx.conn.CreateCommand()
         cmd.CommandText <- "SELECT origin_ts FROM package_ops WHERE id = $id"
-        cmd.Parameters.AddWithValue("$id", string thisOpId)
-        |> ignore<SqliteParameter>
+        cmd.Parameters.AddWithValue("$id", string opId) |> ignore<SqliteParameter>
         use! reader = cmd.ExecuteReaderAsync()
         let! hasRow = reader.ReadAsync()
         if hasRow && not (reader.IsDBNull 0) then
@@ -623,7 +622,30 @@ let private applyOp
     | PT.PackageOp.AddFn fn -> do! applyAddFn ctx fn
     | PT.PackageOp.SetName(loc, target) ->
       let isRename = not (Set.contains target.hash addedHashes)
-      do! applySetName ctx branchId commitHash isRename target.hash loc target.kind
+      do!
+        applySetName
+          ctx
+          branchId
+          commitHash
+          isRename
+          target.hash
+          loc
+          target.kind
+          (opIdOf op)
+    | PT.PackageOp.OverrideName(loc, target, _resolvedAt) ->
+      // Folds exactly like SetName — re-bind the location to `target`. The op's `origin_ts` (a fresh
+      // resolver stamp) is the newest, so the timestamp-LWW playback re-activates this binding.
+      let isRename = not (Set.contains target.hash addedHashes)
+      do!
+        applySetName
+          ctx
+          branchId
+          commitHash
+          isRename
+          target.hash
+          loc
+          target.kind
+          (opIdOf op)
     | PT.PackageOp.Deprecate(target, kind, message) ->
       do! applyDeprecate ctx branchId commitHash target kind message
     | PT.PackageOp.Undeprecate target ->

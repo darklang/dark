@@ -285,6 +285,9 @@ let opKindName (op : PT.PackageOp) : string =
   | PT.PackageOp.AddValue _ -> "AddValue"
   | PT.PackageOp.AddFn _ -> "AddFn"
   | PT.PackageOp.SetName _ -> "SetName"
+  // An override folds exactly like SetName (same `locations` projection, same rename detection), so for
+  // the dirty-tracking refold it IS a SetName — this keeps it in SetName's dirtied-set + Add* handling.
+  | PT.PackageOp.OverrideName _ -> "SetName"
   | PT.PackageOp.Deprecate _ -> "Deprecate"
   | PT.PackageOp.Undeprecate _ -> "Undeprecate"
   | PT.PackageOp.PropagateUpdate _ -> "PropagateUpdate"

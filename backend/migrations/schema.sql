@@ -5,9 +5,9 @@
 -- no "build vN then DROP and rebuild as vN+1" — kill-and-fill means the
 -- final shape is what runs against an empty DB.
 --
--- system_migrations_v0 (the legacy per-named-migration table) is the one
--- exception, since legacy DBs are adopted via that table; created
--- here AND by Migrations.fs's adoptLegacyDB path.
+-- The migrator's OWN bookkeeping tables live here too (the schema-hash stamp, the Release coordinate,
+-- the legacy per-named-migration log) — schema.sql is the single home for every CREATE TABLE; the
+-- migrator code only reads/writes rows.
 --
 -- Order: bookkeeping → branches → commits → ops → package projections →
 -- locations → traces → user-data, toplevels, scripts. FK targets come
@@ -22,6 +22,20 @@ CREATE TABLE IF NOT EXISTS system_migrations_v0 (
   name TEXT PRIMARY KEY,
   execution_date TEXT NOT NULL,  -- ISO-8601 timestamp
   sql TEXT NOT NULL
+);
+
+-- The schema-hash stamp: the hash of THIS file when last applied, so a change is detected and triggers
+-- a durable-canon preserve-and-refold. Rows written by `LocalExec/Migrations.fs` after applying schema.sql.
+CREATE TABLE IF NOT EXISTS schema_state_v0 (
+  id INTEGER PRIMARY KEY,
+  hash TEXT NOT NULL
+);
+
+-- The store's Release coordinate (the op-format/language/hash version) — the same integer that gates
+-- cross-instance sync. Rows written by the Release migrator (`LibDB/Releases.fs`).
+CREATE TABLE IF NOT EXISTS release_state_v0 (
+  id INTEGER PRIMARY KEY,
+  release INTEGER NOT NULL
 );
 
 
@@ -89,7 +103,9 @@ CREATE INDEX IF NOT EXISTS idx_commits_branch
 
 -- The source of truth for all package changes (branch-scoped).
 CREATE TABLE IF NOT EXISTS package_ops (
-  id TEXT PRIMARY KEY,
+  -- (id, branch_id) is the PK: the SAME content-addressed op id can exist on different branches, so an
+  -- op is identified by id WITHIN a branch (a branch is a self-contained op stream).
+  id TEXT NOT NULL,
   op_blob BLOB NOT NULL,
   branch_id TEXT NOT NULL REFERENCES branches(id),
   commit_hash TEXT REFERENCES commits(hash),  -- NULL = WIP
@@ -101,7 +117,8 @@ CREATE TABLE IF NOT EXISTS package_ops (
   -- receiver writes the peer's value), so every instance agrees on a given op's origin_ts and
   -- max(origin_ts) picks the same divergence winner → no swap. Distinct from `created_at` (which
   -- is local-insert time and differs per instance for the same op).
-  origin_ts TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now'))
+  origin_ts TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')),
+  PRIMARY KEY (id, branch_id)
 );
 CREATE INDEX IF NOT EXISTS idx_package_ops_wip
   ON package_ops(branch_id) WHERE commit_hash IS NULL;
@@ -133,6 +150,7 @@ CREATE TABLE IF NOT EXISTS package_types (
   hash TEXT PRIMARY KEY,
   pt_def BLOB NOT NULL,
   rt_def BLOB NOT NULL,
+  description TEXT NOT NULL DEFAULT '',  -- plain-text doc comment (not hashed)
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -141,6 +159,7 @@ CREATE TABLE IF NOT EXISTS package_values (
   pt_def BLOB NOT NULL,
   rt_dval BLOB,                  -- NULL until evaluated
   value_type BLOB,               -- for finding values of a given ValueType
+  description TEXT NOT NULL DEFAULT '',  -- plain-text doc comment (not hashed)
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_package_values_type ON package_values(value_type);
@@ -149,6 +168,7 @@ CREATE TABLE IF NOT EXISTS package_functions (
   hash TEXT PRIMARY KEY,
   pt_def BLOB NOT NULL,
   rt_instrs BLOB NOT NULL,
+  description TEXT NOT NULL DEFAULT '',  -- plain-text doc comment (not hashed)
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

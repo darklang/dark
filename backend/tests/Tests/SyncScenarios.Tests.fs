@@ -382,34 +382,110 @@ let private multiDivergenceBatch =
     Expect.equal w2 (Some incoming2) "second location converged to its LWW winner"
   }
 
-let private keepLocalPropagates =
+// Regression: a keep-local override must APPEND a distinct, newer op (a fresh `OverrideName` with its
+// own rowid), not re-stamp the existing op in place. Incremental sync is by commit-rowid, so a re-stamp
+// (same rowid) never reaches a peer that already pulled the op — the binding stays diverged. A fresh op
+// above the peer's cursor DOES ride the next pull, and its newest `origin_ts` wins timestamp-LWW. This
+// asserts both the local effect (our hash wins) AND the propagation property (a new op, above the prior
+// max rowid, carrying the newest stamp).
+let private keepLocalAppendsPropagableOverride =
   testTask
-    "keep-local re-stamp makes our op the newest-by-creation (rides sync to peers)" {
+    "keep-local override appends a distinct, newer op so it can propagate" {
     let loc : PT.PackageLocation =
       { owner = "Scenario"; modules = [ "Prop" ]; name = uniqueName "p" }
     let local, incoming = hashChar 'a', hashChar 'b'
     let remote = uniqueName "rprop"
     let! divs =
       setupDivergentPull loc PT.ItemKind.Fn local -120.0 incoming -60.0 remote
-    let localRef = PT.Reference.fromHashAndKind (PT.Hash local, PT.ItemKind.Fn)
-    let localOpId = Inserts.computeOpHash (PT.PackageOp.SetName(loc, localRef))
+    let maxRowid () : Task<int64> =
+      Sql.query "SELECT COALESCE(MAX(rowid), 0) AS m FROM package_ops"
+      |> Sql.executeRowAsync (fun read -> read.int64 "m")
+    let stampOf sql ps : Task<string> =
+      Sql.query sql
+      |> Sql.parameters ps
+      |> Sql.executeRowAsync (fun read -> read.string "origin_ts")
     let incomingRef = PT.Reference.fromHashAndKind (PT.Hash incoming, PT.ItemKind.Fn)
     let incomingOpId = Inserts.computeOpHash (PT.PackageOp.SetName(loc, incomingRef))
-    let originTs (id : System.Guid) : Task<string> =
-      Sql.query "SELECT origin_ts FROM package_ops WHERE id = @id LIMIT 1"
-      |> Sql.parameters [ "id", Sql.uuid id ]
-      |> Sql.executeRowAsync (fun read -> read.string "origin_ts")
+    let! cursorBefore = maxRowid ()
+    let! incomingStamp =
+      stampOf
+        "SELECT origin_ts FROM package_ops WHERE id = @id LIMIT 1"
+        [ "id", Sql.uuid incomingOpId ]
+    // keep-local override (the same path the human 'mine' override uses)
     let! _ =
       Sync.routeDivergences keepLocalDispatch callCtx remote PT.mainBranchId divs
-    // after keep-local, OUR op's origin_ts is re-stamped to now — strictly newer than the incoming's.
-    // A peer re-pulling reads our op's adjacent (newer) origin_ts and, by the same timestamp-LWW,
-    // re-adopts our hash. Convergence, not divergence forever.
-    let! localStamp = originTs localOpId
-    let! incomingStamp = originTs incomingOpId
+    // 1. our hash is the live binding
+    let! winner = liveHash loc
+    Expect.equal winner (Some local) "keep-local: our hash is the live binding"
+    // 2. a NEW op was appended above any synced peer's cursor (an in-place re-stamp would add no row)
+    let! cursorAfter = maxRowid ()
     Expect.isGreaterThan
-      localStamp
+      cursorAfter
+      cursorBefore
+      "the override appended a new op above the peer's cursor — so it rides the next incremental pull"
+    // 3. that newest op carries the newest origin_ts → a re-pulling peer adopts our hash by timestamp-LWW
+    let! overrideStamp =
+      stampOf "SELECT origin_ts FROM package_ops ORDER BY rowid DESC LIMIT 1" []
+    Expect.isGreaterThan
+      overrideStamp
       incomingStamp
-      "our op is now the newest-by-creation (the re-stamp rides sync so peers re-adopt local)"
+      "the override op's origin_ts is the newest — a re-pulling peer re-adopts our hash"
+  }
+
+// An override only propagates if it survives the wire: a peer DESERIALIZES the op_blob (read tag 8) and
+// folds it. The keep-local path only ever serializes + folds the in-memory op, so exercise the read path
+// directly — `OverrideName` (with its `resolvedAt`) must round-trip byte-for-byte through the op codec.
+let private overrideOpRoundTrips =
+  test "OverrideName round-trips through the op serializer (rides the wire — tag 8)" {
+    let loc : PT.PackageLocation = { owner = "RT"; modules = [ "M" ]; name = "x" }
+    let target = PT.Reference.fromHashAndKind (PT.Hash(hashChar 'a'), PT.ItemKind.Fn)
+    let op = PT.PackageOp.OverrideName(loc, target, "2026-06-11T12:34:56.789Z")
+    let id = Inserts.computeOpHash op
+    let blob = LibSerialization.Binary.Serialization.PT.PackageOp.serialize id op
+    let decoded = LibSerialization.Binary.Serialization.PT.PackageOp.deserialize id blob
+    Expect.equal decoded op "OverrideName survives binary serialize → deserialize unchanged"
+  }
+
+// End-to-end, the RECEIVER half: a peer currently bound to the incoming hash (it already pulled the
+// race) receives the OTHER machine's committed override op over the normal receive path and must ADOPT
+// our hash. This is the actual cross-machine propagation — the headline override-propagation claim — exercised through
+// `applyRemoteOps` (the same path an HTTP/file pull uses). An `OverrideName` is NOT re-flagged as a new
+// divergence (it isn't a SetName), so it just folds, and its newer stamp wins timestamp-LWW.
+let private overridePropagatesToPeer =
+  testTask
+    "a peer receiving a committed override op adopts our hash (end-to-end, receiver side)" {
+    let loc : PT.PackageLocation =
+      { owner = "Recv"; modules = [ "O" ]; name = uniqueName "r" }
+    let ours, theirs = hashChar 'a', hashChar 'b'
+    let remote = uniqueName "rrecv"
+    // the peer is currently bound to the incoming hash `theirs` (older), having pulled the race already
+    let theirsOp =
+      PT.PackageOp.SetName(
+        loc,
+        PT.Reference.fromHashAndKind (PT.Hash theirs, PT.ItemKind.Fn)
+      )
+    let! _ =
+      Inserts.insertAndApplyOpsWithOrigin
+        PT.mainBranchId
+        None
+        [ theirsOp ]
+        (Map.ofList [ (Inserts.computeOpHash theirsOp, relTs -60.0) ])
+    let! before = liveHash loc
+    Expect.equal before (Some theirs) "precondition: the peer holds the incoming hash"
+    // now it pulls the other machine's override op (re-bind to `ours`, newest stamp) over the wire path
+    let overrideOp =
+      PT.PackageOp.OverrideName(
+        loc,
+        PT.Reference.fromHashAndKind (PT.Hash ours, PT.ItemKind.Fn),
+        relTs 0.0
+      )
+    let! _ =
+      Sync.applyRemoteOps remote PT.mainBranchId None [ (1L, relTs 0.0, overrideOp) ]
+    let! after = liveHash loc
+    Expect.equal
+      after
+      (Some ours)
+      "the peer adopted our override — the resolution propagated cross-machine"
   }
 
 let private orderIndependent =
@@ -474,7 +550,7 @@ let private resolutionSticks =
       { owner = "Scenario"; modules = [ "Stick" ]; name = uniqueName "st" }
     let local, incoming = hashChar 'a', hashChar 'b'
     let remote = uniqueName "rstick"
-    // incoming newer → it won the pull; keep-local overrides + re-stamps our hash to now
+    // incoming newer → it won the pull; keep-local overrides, re-binding our hash with a now-stamp
     let! divs =
       setupDivergentPull loc PT.ItemKind.Fn local -120.0 incoming -60.0 remote
     let! _ =
@@ -600,7 +676,9 @@ let tests =
      @ [ emptyConverged
          sameMsTie
          multiDivergenceBatch
-         keepLocalPropagates
+         keepLocalAppendsPropagableOverride
+         overrideOpRoundTrips
+         overridePropagatesToPeer
          orderIndependent
          idempotentRePull
          resolutionSticks

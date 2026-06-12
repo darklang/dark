@@ -83,6 +83,11 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
     w.Write(3uy)
     PackageLocation.write w location
     Reference.write w target
+  | PackageOp.OverrideName(location, target, resolvedAt) ->
+    w.Write(8uy)
+    PackageLocation.write w location
+    Reference.write w target
+    String.write w resolvedAt
   | PackageOp.Deprecate(target, kind, message) ->
     w.Write(4uy)
     Reference.write w target
@@ -130,6 +135,11 @@ let read (r : BinaryReader) : PackageOp =
     let location = PackageLocation.read r
     let target = Reference.read r
     PackageOp.SetName(location, target)
+  | 8uy ->
+    let location = PackageLocation.read r
+    let target = Reference.read r
+    let resolvedAt = String.read r
+    PackageOp.OverrideName(location, target, resolvedAt)
   | 4uy ->
     let target = Reference.read r
     let kind = DeprecationKind.read r

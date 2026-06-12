@@ -294,24 +294,34 @@ let private kindOfHash (hash : string) : Task<Option<PT.ItemKind>> =
     return rows |> List.tryHead |> Option.map PT.ItemKind.fromString
   }
 
-/// Re-stamp a keep-local override op's `origin_ts` to now and re-fold it. Shared by the automatic
-/// keep-local policy (`routeDivergences`) and the human 'mine' override (`resolveConflict`): both
-/// re-bind a location to OUR hash by re-stamping the op that first bound it (a `SetName` content-
-/// identical to one already in the log, so it's addressed by `computeOpHash`) and re-folding it
-/// directly. The fresh stamp makes it win timestamp-LWW locally AND rides sync so peers re-adopt it.
-/// `applyOps` (not `insertAndApplyOps`) because the op is already in the log — `insertAndApplyOps`
-/// only folds NEWLY-inserted ops, so the binding would never flip back.
-let private restampAndRefold
+/// Re-bind a location to OUR hash as a deliberate override ("keep mine"). Shared by the automatic
+/// keep-local policy (`routeDivergences`) and the human 'mine' override (`resolveConflict`).
+///
+/// It emits a DISTINCT `OverrideName` op carrying a fresh resolver stamp — so its content hash (and thus
+/// its op id and commit-rowid) differs from the original `SetName`. That distinctness is the whole point:
+/// sync is incremental by commit-rowid, so re-stamping the original op IN PLACE (same rowid) would never
+/// reach a peer that already pulled it. A fresh `OverrideName` op rides the next incremental pull, and its
+/// resolver stamp (the newest `origin_ts`) wins timestamp-LWW — so peers actually adopt our choice.
+///
+/// The op is inserted as WIP (uncommitted) and folded immediately (re-binds locally now); the user's next
+/// `commit` ships it to peers.
+let private overrideBinding
   (branchId : PT.BranchId)
-  (mineOp : PT.PackageOp)
+  (loc : PT.PackageLocation)
+  (target : PT.Reference)
   : Task<unit> =
   task {
-    do!
-      Sql.query
-        "UPDATE package_ops SET origin_ts = strftime('%Y-%m-%dT%H:%M:%fZ','now') WHERE id = @id"
-      |> Sql.parameters [ "id", Sql.uuid (Inserts.computeOpHash mineOp) ]
-      |> Sql.executeStatementAsync
-    do! PackageOpPlayback.applyOps branchId None [ mineOp ]
+    let resolvedAt = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+    let overrideOp = PT.PackageOp.OverrideName(loc, target, resolvedAt)
+    // stamp origin_ts = the resolver time (newest) so playback's timestamp-LWW re-activates this binding
+    let opId = Inserts.computeOpHash overrideOp
+    let! _inserted =
+      Inserts.insertAndApplyOpsWithOrigin
+        branchId
+        None
+        [ overrideOp ]
+        (Map.ofList [ (opId, resolvedAt) ])
+    return ()
   }
 
 /// Route each detected divergence through the runtime conflict-dispatch seam
@@ -342,20 +352,15 @@ let routeDivergences
       let! resolution = dispatch conflict callCtx |> Ply.toTask
       match resolution with
       | RT.RSubstitute(RT.DString keepHash) when keepHash = existingHash ->
-        // keep local: re-bind the location to our existing hash via `restampAndRefold` (the same move
-        // a human 'mine' override makes in `resolveConflict`). The re-fold re-binds locally regardless
-        // of whether the re-stamp matched a row, so the worst case (the original op somehow absent from
-        // the log) is a non-propagating override, never a wrong local binding.
+        // keep local: re-bind the location to our existing hash via `overrideBinding` (the same move a
+        // human 'mine' override makes in `resolveConflict`) — a fresh `OverrideName` op that rides sync
+        // so peers re-adopt our hash too.
         match! kindOfHash existingHash with
         | Some kind ->
           match parseLocation location with
           | Some loc ->
-            let mineOp =
-              PT.PackageOp.SetName(
-                loc,
-                PT.Reference.fromHashAndKind (PT.Hash existingHash, kind)
-              )
-            do! restampAndRefold branchId mineOp
+            let target = PT.Reference.fromHashAndKind (PT.Hash existingHash, kind)
+            do! overrideBinding branchId loc target
             do! Conflicts.markOverriddenByLocation remote location
             reconciled <- reconciled + 1
           | None -> ()
@@ -613,9 +618,9 @@ let resolveConflict (conflictId : string) (keepMine : bool) : Task<bool> =
         return true
       else
         // "mine" — re-bind the location to our hash. Parse the FQ "owner[.modules].name", read the
-        // binding's kind + branch from `locations`, then re-stamp + re-fold a SetName to our hash. A
-        // human override is the LATEST decision, so `restampAndRefold` makes it win timestamp-LWW
-        // (last-resolver-wins) and ride sync so peers re-adopt our hash too.
+        // binding's kind + branch from `locations`, then emit an `OverrideName` op for our hash. A human
+        // override is the LATEST decision, so `overrideBinding` makes it win timestamp-LWW
+        // (last-resolver-wins) and — as a distinct op with a fresh rowid — rides sync so peers re-adopt it.
         match parseLocation c.location with
         | Some loc ->
           let modulesStr = String.concat "." loc.modules
@@ -635,8 +640,7 @@ let resolveConflict (conflictId : string) (keepMine : bool) : Task<bool> =
           | (itemType, branchId) :: _ ->
             let kind = PT.ItemKind.fromString itemType
             let target = PT.Reference.fromHashAndKind (PT.Hash c.localHash, kind)
-            let mineOp = PT.PackageOp.SetName(loc, target)
-            do! restampAndRefold branchId mineOp
+            do! overrideBinding branchId loc target
             do! Conflicts.markOverridden c.id
             return true
           | [] -> return false // the location no longer exists locally
