@@ -181,3 +181,12 @@ let since (cursor : int64) : Task<List<int64 * Resolution>> =
     $"SELECT rowid, {cols} FROM resolutions WHERE rowid > @cursor ORDER BY rowid ASC"
   |> Sql.parameters [ "cursor", Sql.int64 cursor ]
   |> Sql.executeAsync (fun r -> (r.int64 "rowid", ofRow r))
+
+/// Re-apply every recorded resolution to `locations`, in creation (rowid) order — the overlay run after
+/// a projection refold rebuilds `locations` from the op log alone, so overrides survive the rebuild.
+let applyAll () : Task<unit> =
+  task {
+    let! all = list ()
+    for r in all do
+      do! applyToLocations r
+  }

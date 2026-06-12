@@ -376,36 +376,23 @@ let private kindOfHash (hash : string) : Task<Option<PT.ItemKind>> =
 /// Re-bind a location to OUR hash as a deliberate override ("keep mine"). Shared by the automatic
 /// keep-local policy (`routeDivergences`) and the human 'mine' override (`resolveConflict`).
 ///
-/// It emits a DISTINCT `OverrideName` op carrying a fresh resolver stamp — so its content hash (and thus
-/// its op id and commit-rowid) differs from the original `SetName`. That distinctness is the whole point:
-/// sync is incremental by commit-rowid, so re-stamping the original op IN PLACE (same rowid) would never
-/// reach a peer that already pulled it. A fresh `OverrideName` op rides the next incremental pull, and its
-/// resolver stamp (the newest `origin_ts`) wins timestamp-LWW — so peers actually adopt our choice.
-///
-/// The op is inserted as WIP (uncommitted) and folded immediately (re-binds locally now); the user's next
-/// `commit` ships it to peers.
+/// It records a `Resolution` — a synced decision that overrides the op-fold for this location — and
+/// applies it immediately (re-binds locally now). The resolution's fresh `at` stamp is the newest, so it
+/// wins timestamp-LWW; and because resolutions sync on their own channel (rowid-cursored, not gated by
+/// commit), a re-pulling peer re-adopts our choice. This is what the old `OverrideName` op did, without
+/// minting an op to dodge the content-hash collision — the override is a resolution, not new content.
 let private overrideBinding
   (branchId : PT.BranchId)
   (loc : PT.PackageLocation)
   (target : PT.Reference)
+  (resolvedBy : string)
   : Task<unit> =
-  task {
-    let resolvedAt = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
-    let overrideOp = PT.PackageOp.OverrideName(loc, target, resolvedAt)
-    // stamp origin_ts = the resolver time (newest) so playback's timestamp-LWW re-activates this binding
-    let opId = Inserts.computeOpHash overrideOp
-    let! _inserted =
-      Inserts.insertAndApplyOpsWithOrigin
-        branchId
-        None
-        [ overrideOp ]
-        (Map.ofList [ (opId, resolvedAt) ])
-    return ()
-  }
+  let at = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+  Resolutions.recordAndApply (Resolutions.mk loc target resolvedBy branchId at)
 
 /// A sync policy's verdict on a `SyncConflict`: accept the convergent last-writer-wins outcome the
 /// fold already applied, or override the location to a specific reference. `OverrideTo` the LOCAL
-/// reference is the "keep mine" move — it mints a propagating `OverrideName` op; `OverrideTo` the
+/// reference is the "keep mine" move — it records a propagating `Resolution`; `OverrideTo` the
 /// incoming (or anything already applied) is a no-op.
 type SyncPolicyChoice =
   | AcceptLww
@@ -426,8 +413,8 @@ let defaultSyncPolicy : SyncPolicy = fun _conflict _ctx -> AcceptLww
 /// blocks); HERE it becomes a first-class `PT.SyncConflict.Divergence` the policy resolves —
 ///   - `AcceptLww` (the default) → no reconciling op: the divergence stays surfaced and the
 ///     timestamp-LWW outcome the fold already applied stands. Behaviorally unchanged.
-///   - `OverrideTo localRef` → KEEP LOCAL: emit + apply a reconciling `OverrideName` re-binding the
-///     location to our hash (a fresh op that also propagates the decision to peers, like a human
+///   - `OverrideTo localRef` → KEEP LOCAL: record + apply a reconciling `Resolution` re-binding the
+///     location to our hash (a synced decision that also propagates to peers, like a human
 ///     override), and mark the recorded conflict overridden.
 ///   - `OverrideTo` the incoming ref / anything else → no-op: that bind already applied.
 /// `branchId` is the branch the reconcile op is written to (the receiver's current branch — sync
@@ -455,9 +442,9 @@ let routeDivergences
           match policy conflict callCtx with
           | OverrideTo target when target = localRef ->
             // keep local: re-bind the location to our hash via `overrideBinding` (the same move a
-            // human 'mine' override makes in `resolveConflict`) — a fresh `OverrideName` op that rides
-            // sync so peers re-adopt our hash too — and mark the recorded conflict overridden.
-            do! overrideBinding branchId loc target
+            // human 'mine' override makes in `resolveConflict`) — a synced `Resolution` that rides the
+            // resolution channel so peers re-adopt our hash too — and mark the recorded conflict overridden.
+            do! overrideBinding branchId loc target "auto:keep-local"
             do! Conflicts.markOverriddenByLocation remote location
             reconciled <- reconciled + 1
           | AcceptLww
@@ -765,7 +752,7 @@ let resolveConflict (conflictId : string) (keepMine : bool) : Task<bool> =
         return true
       else
         // "mine" — re-bind the location to our hash. Parse the FQ "owner[.modules].name", read the
-        // binding's kind + branch from `locations`, then emit an `OverrideName` op for our hash. A human
+        // binding's kind + branch from `locations`, then record a `Resolution` for our hash. A human
         // override is the LATEST decision, so `overrideBinding` makes it win timestamp-LWW
         // (last-resolver-wins) and — as a distinct op with a fresh rowid — rides sync so peers re-adopt it.
         match parseLocation c.location with
@@ -787,7 +774,7 @@ let resolveConflict (conflictId : string) (keepMine : bool) : Task<bool> =
           | (itemType, branchId) :: _ ->
             let kind = PT.ItemKind.fromString itemType
             let target = PT.Reference.fromHashAndKind (PT.Hash c.localHash, kind)
-            do! overrideBinding branchId loc target
+            do! overrideBinding branchId loc target "human"
             do! Conflicts.markOverridden c.id
             return true
           | [] -> return false // the location no longer exists locally

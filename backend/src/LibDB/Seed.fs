@@ -337,7 +337,12 @@ let rebuildProjections () : Task<int64> =
     // 2. mark all ops unapplied so the fold reprocesses the whole log
     do! Sql.query "UPDATE package_ops SET applied = 0" |> Sql.executeStatementAsync
     // 3. re-fold ops -> projections via the existing playback path
-    return! applyUnappliedOps ()
+    let! folded = applyUnappliedOps ()
+    // 4. re-apply resolutions OVER the rebuilt op-fold — they overlay the contested bindings, and the
+    //    op log alone doesn't carry them (a resolution isn't an op), so a refold would otherwise lose
+    //    every override. Idempotent + LWW-gated, so this is safe to run after every rebuild.
+    do! Resolutions.applyAll ()
+    return folded
   }
 
 

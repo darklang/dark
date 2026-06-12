@@ -65,7 +65,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       if Builtin.pmConflictResolve id keepMine then
         let what =
           if keepMine then
-            "kept YOUR version — re-bound here (a WIP override; commit to share it with peers)"
+            "kept YOUR version — re-bound here (a resolution; it syncs to peers on the next pull)"
           else
             "kept the incoming version"
 
@@ -104,7 +104,7 @@ let help (state: AppState) : AppState =
     "  list all                 Show every recorded conflict, including acked/overridden history"
     "  ack <id>                 Acknowledge — 'the auto-resolution was right' (the common case)"
     "  ack all                  Acknowledge ALL pending conflicts at once (bulk 'all were right')"
-    "  resolve <id> mine        Override — re-bind to YOUR version (a WIP override; commit to share it)"
+    "  resolve <id> mine        Override — re-bind to YOUR version (a resolution that syncs to peers)"
     "  resolve <id> theirs      Override — keep the incoming version (what already won)"
     ""
     "<id> is the short id from `conflicts list` (a unique prefix is fine)." ]

@@ -365,53 +365,47 @@ let private multiDivergenceBatch =
     Expect.equal w2 (Some incoming2) "second location converged to its LWW winner"
   }
 
-// Regression: a keep-local override must APPEND a distinct, newer op (a fresh `OverrideName` with its
-// own rowid), not re-stamp the existing op in place. Incremental sync is by commit-rowid, so a re-stamp
-// (same rowid) never reaches a peer that already pulled the op — the binding stays diverged. A fresh op
-// above the peer's cursor DOES ride the next pull, and its newest `origin_ts` wins timestamp-LWW. This
-// asserts both the local effect (our hash wins) AND the propagation property (a new op, above the prior
-// max rowid, carrying the newest stamp).
-let private keepLocalAppendsPropagableOverride =
-  testTask "keep-local override appends a distinct, newer op so it can propagate" {
+// Regression: a keep-local override does NOT append an op — it records a synced `Resolution` (a fresh
+// decision over the op-fold). The resolution re-binds OUR hash locally now AND carries the newest `at`,
+// so it rides the resolution channel + wins timestamp-LWW — a re-pulling peer re-adopts our hash. This
+// asserts the local effect (our hash wins), that NO op was appended (it's a resolution, not new
+// content), and the propagation property (a recorded resolution choosing our hash).
+let private keepLocalRecordsPropagableResolution =
+  testTask "keep-local override records a propagable resolution (no new op)" {
     let loc : PT.PackageLocation =
       { owner = "Scenario"; modules = [ "Prop" ]; name = uniqueName "p" }
     let local, incoming = hashChar 'a', hashChar 'b'
     let remote = uniqueName "rprop"
     let! divs =
       setupDivergentPull loc PT.ItemKind.Fn local -120.0 incoming -60.0 remote
-    let maxRowid () : Task<int64> =
-      Sql.query "SELECT COALESCE(MAX(rowid), 0) AS m FROM package_ops"
+    let opCount () : Task<int64> =
+      Sql.query "SELECT COUNT(*) AS m FROM package_ops"
       |> Sql.executeRowAsync (fun read -> read.int64 "m")
-    let stampOf sql ps : Task<string> =
-      Sql.query sql
-      |> Sql.parameters ps
-      |> Sql.executeRowAsync (fun read -> read.string "origin_ts")
-    let incomingRef = PT.Reference.fromHashAndKind (PT.Hash incoming, PT.ItemKind.Fn)
-    let incomingOpId = Inserts.computeOpHash (PT.PackageOp.SetName(loc, incomingRef))
-    let! cursorBefore = maxRowid ()
-    let! incomingStamp =
-      stampOf
-        "SELECT origin_ts FROM package_ops WHERE id = @id LIMIT 1"
-        [ "id", Sql.uuid incomingOpId ]
+    let! opsBefore = opCount ()
     // keep-local override (the same path the human 'mine' override uses)
     let! _ =
       Sync.routeDivergences keepLocalPolicy callCtx remote PT.mainBranchId divs
-    // 1. our hash is the live binding
+    // 1. our hash is the live binding (the overlay re-bound it)
     let! winner = liveHash loc
     Expect.equal winner (Some local) "keep-local: our hash is the live binding"
-    // 2. a NEW op was appended above any synced peer's cursor (an in-place re-stamp would add no row)
-    let! cursorAfter = maxRowid ()
-    Expect.isGreaterThan
-      cursorAfter
-      cursorBefore
-      "the override appended a new op above the peer's cursor — so it rides the next incremental pull"
-    // 3. that newest op carries the newest origin_ts → a re-pulling peer adopts our hash by timestamp-LWW
-    let! overrideStamp =
-      stampOf "SELECT origin_ts FROM package_ops ORDER BY rowid DESC LIMIT 1" []
-    Expect.isGreaterThan
-      overrideStamp
-      incomingStamp
-      "the override op's origin_ts is the newest — a re-pulling peer re-adopts our hash"
+    // 2. NO new op was appended — the override is a resolution, not an op
+    let! opsAfter = opCount ()
+    Expect.equal
+      opsAfter
+      opsBefore
+      "keep-local appended no op (the override is a synced resolution, not new content)"
+    // 3. a resolution choosing our hash was recorded — that's what rides the resolution channel
+    let! resns = Resolutions.list ()
+    let mine =
+      resns
+      |> List.filter (fun (r : Resolutions.Resolution) ->
+        r.location.owner = loc.owner
+        && r.location.name = loc.name
+        && r.chosenHash = local)
+    Expect.equal
+      (List.length mine)
+      1
+      "a resolution choosing our hash was recorded (rides the resolution channel)"
   }
 
 // An override only propagates if it survives the wire: a peer DESERIALIZES the op_blob (read tag 8) and
@@ -786,7 +780,7 @@ let tests =
      @ [ emptyConverged
          sameMsTie
          multiDivergenceBatch
-         keepLocalAppendsPropagableOverride
+         keepLocalRecordsPropagableResolution
          overrideOpRoundTrips
          syncConflictRoundTrips
          overridePropagatesToPeer
