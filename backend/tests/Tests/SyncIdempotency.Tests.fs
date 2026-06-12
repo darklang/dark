@@ -484,6 +484,66 @@ let tests =
           if System.IO.File.Exists srcPath then System.IO.File.Delete srcPath
       }
 
+      // The RESOLUTION channel end-to-end over the file pull: a peer's `resolutions` table carries an
+      // override decision; `pullFromFile` applies it to this instance's `locations` (the overlay). The
+      // op/blob channels are empty here, so this isolates the resolution pull.
+      testTask
+        "Sync.pullFromFile applies a peer's resolutions (the override channel)" {
+        let srcPath =
+          $"{System.IO.Path.GetTempPath()}sync-resn-src-{System.Guid.NewGuid()}.db"
+        let srcConn =
+          $"Data Source={srcPath};Mode=ReadWriteCreate;Foreign Keys=False"
+        let execOn (sql : string) (ps : (string * obj) list) : unit =
+          use conn = new SqliteConnection(srcConn)
+          conn.Open()
+          use cmd = conn.CreateCommand()
+          cmd.CommandText <- sql
+          ps
+          |> List.iter (fun (k, v) ->
+            cmd.Parameters.AddWithValue(k, v) |> ignore<SqliteParameter>)
+          cmd.ExecuteNonQuery() |> ignore<int>
+          conn.Close()
+        try
+          // minimal peer store: empty op/commit/blob tables (those channels are no-ops) + one resolution
+          execOn
+            "CREATE TABLE package_ops (id TEXT NOT NULL, op_blob BLOB NOT NULL, branch_id TEXT NOT NULL, commit_hash TEXT, origin_ts TEXT, PRIMARY KEY (id, branch_id))"
+            []
+          execOn "CREATE TABLE commits (hash TEXT PRIMARY KEY)" []
+          execOn
+            "CREATE TABLE package_blobs (hash TEXT PRIMARY KEY, length INTEGER NOT NULL, bytes BLOB NOT NULL)"
+            []
+          execOn
+            "CREATE TABLE resolutions (id TEXT PRIMARY KEY, owner TEXT, modules TEXT, name TEXT, item_type TEXT, chosen_hash TEXT, resolved_by TEXT, branch_id TEXT, at TEXT, created_at TEXT)"
+            []
+          let nm = "resnpull" + System.Guid.NewGuid().ToString().Replace("-", "")
+          let chosen = System.String('b', 64)
+          let at = System.DateTime.UtcNow.ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+          execOn
+            "INSERT INTO resolutions (id, owner, modules, name, item_type, chosen_hash, resolved_by, branch_id, at) VALUES ($id, $o, $m, $n, $t, $h, $by, $b, $at)"
+            [ "$id", box (System.Guid.NewGuid() |> string)
+              "$o", box "ResnPull"
+              "$m", box "R"
+              "$n", box nm
+              "$t", box "fn"
+              "$h", box chosen
+              "$by", box "human"
+              "$b", box (string PT.mainBranchId)
+              "$at", box at ]
+          let! _ = Sync.pullFromFile srcPath
+          let! bound =
+            Sql.query
+              "SELECT item_hash FROM locations WHERE owner=@o AND modules=@m AND name=@n AND unlisted_at IS NULL LIMIT 1"
+            |> Sql.parameters
+              [ "o", Sql.string "ResnPull"; "m", Sql.string "R"; "n", Sql.string nm ]
+            |> Sql.executeAsync (fun read -> read.string "item_hash")
+          Expect.equal
+            (List.tryHead bound)
+            (Some chosen)
+            "pull applied the peer's resolution → the location is bound to chosen"
+        finally
+          if System.IO.File.Exists srcPath then System.IO.File.Delete srcPath
+      }
+
       // Sync wire codec (the HTTP transport): an op batch round-trips through encode → decode
       // byte-for-byte. The HTTP body reuses the existing op_blob bytes, so the wire carries exactly
       // what the file-based pull reads; only the carrier differs.

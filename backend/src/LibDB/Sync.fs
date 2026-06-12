@@ -627,10 +627,58 @@ let private pullBlobsFromStore (sourceConnStr : string) : Task<int> =
     return fetched
   }
 
+/// Pull a file peer's RESOLUTIONS (the synced override decisions) into this instance, on the
+/// resolution channel: read the rows above our resolution-cursor for this peer, record + fold each
+/// (the overlay, LWW by `at`), and advance the cursor. Mirrors `pullBlobsFromStore` for resolutions.
+/// Tolerates a peer with no `resolutions` table (an older store / a minimal test db) → nothing to pull.
+let private pullResolutionsFromStore
+  (sourcePath : string)
+  (sourceConnStr : string)
+  : Task<int> =
+  task {
+    use source = new Microsoft.Data.Sqlite.SqliteConnection(sourceConnStr)
+    source.Open()
+
+    use existsCmd = source.CreateCommand()
+    existsCmd.CommandText <-
+      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'resolutions'"
+    if isNull (existsCmd.ExecuteScalar()) then
+      return 0
+    else
+      let! cursor = SyncCursors.resolutionCursorFor sourcePath
+      use cmd = source.CreateCommand()
+      cmd.CommandText <-
+        "SELECT rowid, id, owner, modules, name, item_type, chosen_hash, resolved_by, branch_id, at "
+        + "FROM resolutions WHERE rowid > $cursor ORDER BY rowid ASC"
+      cmd.Parameters.AddWithValue("$cursor", cursor)
+      |> ignore<Microsoft.Data.Sqlite.SqliteParameter>
+      let rows = ResizeArray<int64 * Resolutions.Resolution>()
+      use reader = cmd.ExecuteReader()
+      while reader.Read() do
+        let modules = reader.GetString 3
+        rows.Add(
+          reader.GetInt64 0,
+          { id = reader.GetString 1
+            location =
+              { owner = reader.GetString 2
+                modules = (if modules = "" then [] else String.split "." modules)
+                name = reader.GetString 4 }
+            itemKind = PT.ItemKind.fromString (reader.GetString 5)
+            chosenHash = reader.GetString 6
+            resolvedBy = reader.GetString 7
+            branchId = System.Guid.Parse(reader.GetString 8)
+            at = reader.GetString 9 }
+        )
+      reader.Close()
+      let rowList = List.ofSeq rows
+      let! _ = applyRemoteResolutions sourcePath rowList
+      return List.length rowList
+  }
+
 /// `dark sync pull <other-data.db>`, F# half: resume from the stored cursor for this peer,
-/// `pull` its new ops into the local instance, fetch any content blobs we're missing, then
-/// persist the advanced cursor — so the next pull resumes where this left off. The peer key is
-/// the source path. Returns the new cursor.
+/// `pull` its new ops into the local instance, fetch any content blobs we're missing, apply any
+/// resolutions it has, then persist the advanced cursor — so the next pull resumes where this left
+/// off. The peer key is the source path. Returns the new cursor.
 let pullFromFile
   (sourcePath : string)
   : Task<int64 * List<string * string * string>> =
@@ -639,6 +687,7 @@ let pullFromFile
     let! cursor = SyncCursors.cursorFor sourcePath
     let! (newCursor, divergences) = pull connStr cursor
     let! _blobsFetched = pullBlobsFromStore connStr
+    let! _resolutionsApplied = pullResolutionsFromStore sourcePath connStr
     do! SyncCursors.advanceCursor sourcePath newCursor
     // auto-resolved (last-writer-wins) — record so it's reviewable, not silently lost
     do! recordDivergences sourcePath divergences
