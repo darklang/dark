@@ -707,6 +707,84 @@ let private resolutionWireRoundTripsAndApplies =
       "re-applying the resolution is a no-op — chosen stays"
   }
 
+// The overlay is NOT a permanent pin: a genuinely NEWER authored op (a later `SetName`) supersedes an
+// older resolution — convergence is still by timestamp-LWW across BOTH ops and resolutions.
+let private resolutionSupersededByNewerOp =
+  testTask
+    "a newer authored op supersedes an older resolution (the overlay isn't a pin)" {
+    let loc : PT.PackageLocation =
+      { owner = "Resln"; modules = [ "Sup" ]; name = uniqueName "s" }
+    let a, b, c = hashChar 'a', hashChar 'b', hashChar 'c'
+    let refOf h = PT.Reference.fromHashAndKind (PT.Hash h, PT.ItemKind.Fn)
+    // op binds loc -> a @ -120
+    let aOp = PT.PackageOp.SetName(loc, refOf a)
+    let! _ =
+      Inserts.insertAndApplyOpsWithOrigin
+        PT.mainBranchId
+        None
+        [ aOp ]
+        (Map.ofList [ (Inserts.computeOpHash aOp, relTs -120.0) ])
+    // a resolution overrides to b @ -60 (newer than the op) -> b
+    do!
+      Resolutions.recordAndApply (
+        Resolutions.mk loc (refOf b) "human" PT.mainBranchId (relTs -60.0)
+      )
+    let! mid = liveHash loc
+    Expect.equal mid (Some b) "the resolution (newer than the op) bound loc -> b"
+    // a genuinely NEWER op binds loc -> c @ now -> it wins (authored after the resolution)
+    let! _ =
+      Sync.applyRemoteOps
+        (uniqueName "rsup")
+        PT.mainBranchId
+        None
+        [ (1L, relTs 0.0, PT.PackageOp.SetName(loc, refOf c)) ]
+    let! after = liveHash loc
+    Expect.equal after (Some c) "a newer authored op supersedes the older resolution"
+  }
+
+// Refold safety: after a projection refold clears `locations`, `Resolutions.applyAll` re-applies the
+// recorded overrides over the rebuilt op-fold (the op log alone doesn't carry them). Exercised at the
+// single-location grain (clear this binding, then applyAll restores it) to avoid a global rebuild.
+let private applyAllReappliesOverrides =
+  testTask
+    "Resolutions.applyAll re-applies a recorded override after its binding is cleared" {
+    let loc : PT.PackageLocation =
+      { owner = "Resln"; modules = [ "All" ]; name = uniqueName "a" }
+    let a, b = hashChar 'a', hashChar 'b'
+    let refOf h = PT.Reference.fromHashAndKind (PT.Hash h, PT.ItemKind.Fn)
+    let aOp = PT.PackageOp.SetName(loc, refOf a)
+    let! _ =
+      Inserts.insertAndApplyOpsWithOrigin
+        PT.mainBranchId
+        None
+        [ aOp ]
+        (Map.ofList [ (Inserts.computeOpHash aOp, relTs -60.0) ])
+    do!
+      Resolutions.recordAndApply (
+        Resolutions.mk loc (refOf b) "human" PT.mainBranchId (relTs 0.0)
+      )
+    let! bound = liveHash loc
+    Expect.equal bound (Some b) "override bound loc -> b"
+    // clear THIS location's binding (as a refold does before re-folding)
+    do!
+      Sql.query
+        "UPDATE locations SET unlisted_at = datetime('now') WHERE owner=@o AND modules=@m AND name=@n AND unlisted_at IS NULL"
+      |> Sql.parameters
+        [ "o", Sql.string loc.owner
+          "m", Sql.string "All"
+          "n", Sql.string loc.name ]
+      |> Sql.executeStatementAsync
+    let! wiped = liveHash loc
+    Expect.equal wiped None "binding cleared (simulating a refold's pre-fold state)"
+    // applyAll re-applies the recorded resolution -> b restored
+    do! Resolutions.applyAll ()
+    let! restored = liveHash loc
+    Expect.equal
+      restored
+      (Some b)
+      "applyAll restored the override (b) over the cleared binding"
+  }
+
 // ── all scenarios ──────────────────────────────────────────────────────────────────────────────
 
 let tests =
@@ -725,4 +803,6 @@ let tests =
          lateStaleArrival
          threeWayConverge
          resolutionOverlayApplies
-         resolutionWireRoundTripsAndApplies ])
+         resolutionWireRoundTripsAndApplies
+         resolutionSupersededByNewerOp
+         applyAllReappliesOverrides ])
