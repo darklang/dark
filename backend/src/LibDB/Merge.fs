@@ -150,7 +150,8 @@ let merge (branchId : PT.BranchId) : Task<Result<unit, PT.MergeError>> =
               locStr
               parentHash
               childHash
-              "MergeChildWins"
+              childHash // the child binding won
+              "auto:merge-child-wins"
 
         do!
           BranchOpPlayback.insertAndApply (

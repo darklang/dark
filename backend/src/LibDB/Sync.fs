@@ -212,16 +212,17 @@ let recordDivergences
   task {
     for (location, localHash, incomingHash) in divergences do
       // record the ACTUAL outcome after timestamp-LWW (the fold may have kept the local op if the
-      // incoming was older-by-creation) — not a blanket "incoming won". Read the live binding.
+      // incoming was older-by-creation) — read the live binding to get the chosen winner.
       let! winner = liveBindingHash location
-      let resolution =
-        if winner = Some incomingHash then
-          "auto: timestamp-LWW — incoming won (newer creation)"
-        elif winner = Some localHash then
-          "auto: timestamp-LWW — kept local (newer creation)"
-        else
-          "auto: timestamp-LWW"
-      do! Conflicts.record remote location localHash incomingHash resolution
+      let chosenHash = winner |> Option.defaultValue incomingHash
+      do!
+        Conflicts.record
+          remote
+          location
+          localHash
+          incomingHash
+          chosenHash
+          "auto:last-writer-wins"
   }
 
 

@@ -621,10 +621,23 @@ let tests =
         "Conflicts: record an auto-resolved divergence, list it, dedup on re-detect, acknowledge" {
         let remote = $"conflict-peer-{System.Guid.NewGuid()}"
         let loc = $"Stachu.Foo.bar-{System.Guid.NewGuid()}"
-        let res = "auto: last-writer-wins (incoming)"
-        do! Conflicts.record remote loc "hashLocal" "hashIncoming" res
+        do!
+          Conflicts.record
+            remote
+            loc
+            "hashLocal"
+            "hashIncoming"
+            "hashIncoming"
+            "auto:last-writer-wins"
         // dedup — the same conflict re-detected on a re-pull doesn't pile up a second row
-        do! Conflicts.record remote loc "hashLocal" "hashIncoming" res
+        do!
+          Conflicts.record
+            remote
+            loc
+            "hashLocal"
+            "hashIncoming"
+            "hashIncoming"
+            "auto:last-writer-wins"
         let! all = Conflicts.list ()
         match
           all |> List.filter (fun (x : Conflicts.Conflict) -> x.location = loc)
@@ -929,7 +942,8 @@ let tests =
             loc
             (System.String('a', 64))
             (System.String('b', 64))
-            "auto"
+            (System.String('b', 64)) // chosen winner
+            "auto:last-writer-wins"
         let! before = Conflicts.list ()
         Expect.isTrue
           (before

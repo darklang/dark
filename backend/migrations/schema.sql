@@ -402,18 +402,23 @@ CREATE TABLE IF NOT EXISTS sync_cursors (
   folded_through_rowid INTEGER NOT NULL DEFAULT 0
 );
 
--- The recorded, reviewable log of auto-resolved name-binding divergences (`dark conflicts`).
--- Recorded at pull time; auto-resolved by policy (default last-writer-wins) but never silently lost.
+-- The recorded, reviewable log of auto-resolved sync conflicts (`dark conflicts`). Recorded at pull
+-- time; auto-resolved by policy (default last-writer-wins) but never silently lost. Local-only, never
+-- synced, re-derivable by replaying the op log. Stores the STRUCTURED conflict (`conflict_blob` = a
+-- serialized PT.SyncConflict — the candidates) plus its resolution flattened into columns:
+-- `chosen_hash` (which content won), `resolved_by` ('auto:<policy>' e.g. 'auto:last-writer-wins', or
+-- 'human'), and `override_op_id` (the OverrideName op a deliberate override mints, NULL until then).
 CREATE TABLE IF NOT EXISTS sync_conflicts (
   id TEXT PRIMARY KEY,
+  kind TEXT NOT NULL,                              -- SyncConflict discriminator, e.g. 'divergence'
   location TEXT NOT NULL,
-  local_hash TEXT NOT NULL,
-  incoming_hash TEXT NOT NULL,
-  resolution TEXT NOT NULL,
+  conflict_blob BLOB NOT NULL,                     -- serialized PT.SyncConflict (the candidates)
+  chosen_hash TEXT NOT NULL,                       -- the resolution's chosen content hash
+  resolved_by TEXT NOT NULL,                       -- 'auto:<policy>' or 'human'
+  override_op_id TEXT,                             -- the OverrideName op id, once an override mints one
   remote TEXT NOT NULL,
   detected_at TEXT NOT NULL DEFAULT (datetime('now')),
-  acknowledged INTEGER NOT NULL DEFAULT 0,
-  overridden INTEGER NOT NULL DEFAULT 0
+  status TEXT NOT NULL DEFAULT 'auto-resolved'     -- 'auto-resolved' | 'acknowledged' | 'overridden'
 );
 
 -- Structured telemetry from the autosync daemon: one row per poll cycle, so `sync events` (and a
