@@ -9,8 +9,8 @@
 /// What's stored is the STRUCTURED conflict, not prose: a serialized `PT.SyncConflict` (the
 /// `conflict_blob` — the candidates), the `chosen_hash` (which content won) + `resolved_by` (the
 /// policy that picked it, e.g. `auto:last-writer-wins`, or `human`), and a `status` lifecycle
-/// (`auto-resolved` → `acknowledged` | `overridden`). The op id of a human/keep-local override lands
-/// in `override_op_id`. The display reconstructs everything from these fields — no string parsing.
+/// (`auto-resolved` → `acknowledged` | `overridden`). The display reconstructs everything from these
+/// fields — no string parsing.
 ///
 /// Why a recorded log, not a pure op-log projection: everyone's "main" shares the constant
 /// `PT.mainBranchId`, so two competing edits are SAME-branch — the log can't distinguish "a peer
@@ -32,8 +32,7 @@ module PT = LibExecution.ProgramTypes
 module Serialize = LibSerialization.Binary.Serialization
 
 /// One recorded conflict. `conflict` is the deserialized `SyncConflict` (its candidates); `chosenHash`
-/// + `resolvedBy` are the resolution (which content won, and the policy/human that chose it);
-/// `overrideOpId` is the id of the `Resolution` a deliberate override records (None until wired); `status` is
+/// + `resolvedBy` are the resolution (which content won, and the policy/human that chose it); `status` is
 /// the review lifecycle (`auto-resolved` | `acknowledged` | `overridden`).
 type Conflict =
   { id : string
@@ -42,7 +41,6 @@ type Conflict =
     conflict : PT.SyncConflict
     chosenHash : string
     resolvedBy : string
-    overrideOpId : string option
     remote : string
     status : string }
 
@@ -71,15 +69,11 @@ type Conflict =
 
 // ── location parsing + kind lookup (to rebuild the structured conflict from raw hashes) ──
 
-/// Parse "owner[.modules].name" → PackageLocation (head = owner, last = name, middle = modules).
+/// Parse "owner[.modules].name" → PackageLocation via the shared `PackageLocation.fromFQN`, with a
+/// lenient fallback (a degenerate location named after the raw string) for a malformed key.
 let private parseLoc (location : string) : PT.PackageLocation =
-  match location.Split('.') |> List.ofArray with
-  | owner :: rest when not (List.isEmpty rest) ->
-    match List.rev rest with
-    | name :: revModules ->
-      { owner = owner; modules = List.rev revModules; name = name }
-    | [] -> { owner = owner; modules = []; name = "" }
-  | _ -> { owner = ""; modules = []; name = location }
+  PackageLocation.fromFQN location
+  |> Option.defaultValue { owner = ""; modules = []; name = location }
 
 /// The item kind bound at a location — needed to rebuild the candidate `Reference`s. Falls back to
 /// `Fn` when the location isn't (or isn't yet) in `locations` (e.g. a synthetic test record); the
@@ -165,8 +159,7 @@ let list () : Task<List<Conflict>> =
     return!
       Sql.query
         """
-        SELECT id, kind, location, conflict_blob, chosen_hash, resolved_by,
-               override_op_id, remote, status
+        SELECT id, kind, location, conflict_blob, chosen_hash, resolved_by, remote, status
         FROM sync_conflicts ORDER BY detected_at DESC
         """
       |> Sql.executeAsync (fun read ->
@@ -179,7 +172,6 @@ let list () : Task<List<Conflict>> =
           conflict = conflict
           chosenHash = read.string "chosen_hash"
           resolvedBy = read.string "resolved_by"
-          overrideOpId = read.stringOrNone "override_op_id"
           remote = read.string "remote"
           status = read.string "status" })
   }

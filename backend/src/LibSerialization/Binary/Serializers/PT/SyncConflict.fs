@@ -13,37 +13,9 @@ open LibSerialization.Binary.Serializers.PT.Common
 module Reference = LibSerialization.Binary.Serializers.PT.PackageOp.Reference
 
 
-// -- ResolvedBy --
-
-module ResolvedBy =
-  let write (w : BinaryWriter) (by : ResolvedBy) : unit =
-    match by with
-    | Auto policy ->
-      w.Write(0uy)
-      String.write w policy
-    | Human -> w.Write(1uy)
-
-  let read (r : BinaryReader) : ResolvedBy =
-    match r.ReadByte() with
-    | 0uy -> Auto(String.read r)
-    | 1uy -> Human
-    | b -> raiseFormatError $"Invalid ResolvedBy tag: {b}"
-
-
-// -- DivergenceResolution --
-
-module DivergenceResolution =
-  let write (w : BinaryWriter) (res : DivergenceResolution) : unit =
-    Reference.write w res.chosen
-    ResolvedBy.write w res.by
-
-  let read (r : BinaryReader) : DivergenceResolution =
-    let chosen = Reference.read r
-    let by = ResolvedBy.read r
-    { chosen = chosen; by = by }
-
-
 // -- SyncConflict --
+// (only `SyncConflict` is serialized — it backs the recorded `conflict_blob`. A resolution is stored
+//  flattened to columns, `chosen_hash` + `resolved_by`, so `DivergenceResolution` has no wire form.)
 
 let write (w : BinaryWriter) (conflict : SyncConflict) : unit =
   match conflict with

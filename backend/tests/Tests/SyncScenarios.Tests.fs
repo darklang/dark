@@ -408,45 +408,20 @@ let private keepLocalRecordsPropagableResolution =
       "a resolution choosing our hash was recorded (rides the resolution channel)"
   }
 
-// A `SyncConflict` and its `DivergenceResolution` must survive the binary codec — they're persisted
-// (the recorded conflict's blob) and may travel, so a tag-byte round-trip is the contract. Covers both
-// `ResolvedBy` cases (`Auto policy` and `Human`) since they have distinct tags.
+// A `SyncConflict` must survive the binary codec — it backs the recorded `conflict_blob` and may
+// travel, so a tag-byte round-trip is the contract.
 let private syncConflictRoundTrips =
-  test "SyncConflict + DivergenceResolution round-trip through the binary serializer" {
+  test "SyncConflict round-trips through the binary serializer" {
     let loc : PT.PackageLocation = { owner = "RT"; modules = [ "M" ]; name = "x" }
     let refA = PT.Reference.fromHashAndKind (PT.Hash(hashChar 'a'), PT.ItemKind.Fn)
     let refB = PT.Reference.fromHashAndKind (PT.Hash(hashChar 'b'), PT.ItemKind.Fn)
 
     let conflict = PT.SyncConflict.Divergence(loc, [ refA; refB ])
-    let cBlob =
+    let blob =
       LibSerialization.Binary.Serialization.PT.SyncConflict.serialize "c" conflict
-    let cDecoded =
-      LibSerialization.Binary.Serialization.PT.SyncConflict.deserialize "c" cBlob
-    Expect.equal cDecoded conflict "SyncConflict survives serialize → deserialize"
-
-    let resAuto : PT.DivergenceResolution =
-      { chosen = refB; by = PT.ResolvedBy.Auto "last-writer-wins" }
-    let aBlob =
-      LibSerialization.Binary.Serialization.PT.DivergenceResolution.serialize
-        "a"
-        resAuto
-    let aDecoded =
-      LibSerialization.Binary.Serialization.PT.DivergenceResolution.deserialize
-        "a"
-        aBlob
-    Expect.equal aDecoded resAuto "DivergenceResolution(Auto) survives round-trip"
-
-    let resHuman : PT.DivergenceResolution =
-      { chosen = refA; by = PT.ResolvedBy.Human }
-    let hBlob =
-      LibSerialization.Binary.Serialization.PT.DivergenceResolution.serialize
-        "h"
-        resHuman
-    let hDecoded =
-      LibSerialization.Binary.Serialization.PT.DivergenceResolution.deserialize
-        "h"
-        hBlob
-    Expect.equal hDecoded resHuman "DivergenceResolution(Human) survives round-trip"
+    let decoded =
+      LibSerialization.Binary.Serialization.PT.SyncConflict.deserialize "c" blob
+    Expect.equal decoded conflict "SyncConflict survives serialize → deserialize"
   }
 
 let private orderIndependent =

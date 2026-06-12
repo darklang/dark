@@ -146,7 +146,7 @@ let decodeResolutions (bytes : byte[]) : List<int64 * Resolutions.Resolution> =
          ({ id = id
             location =
               { owner = owner
-                modules = (if modules = "" then [] else String.split "." modules)
+                modules = PackageLocation.modulesOfString modules
                 name = name }
             itemKind = PT.ItemKind.fromString itemType
             chosenHash = chosenHash
@@ -173,25 +173,7 @@ let applyRemoteResolutions
       return maxRowid
   }
 
-/// Render a `PackageLocation` as the FQ "owner[.modules].name" string sync uses on the wire and in
-/// the conflict store — the inverse of `parseLocation`.
-let private formatLocation (loc : PT.PackageLocation) : string =
-  let modulesStr = String.concat "." loc.modules
-  if modulesStr = "" then
-    $"{loc.owner}.{loc.name}"
-  else
-    $"{loc.owner}.{modulesStr}.{loc.name}"
-
-/// Parse an FQ "owner[.modules].name" location back into a `PackageLocation` (owner = head,
-/// name = last, modules = the middle) — the inverse of `formatLocation`.
-let private parseLocation (location : string) : Option<PT.PackageLocation> =
-  match location.Split('.') |> List.ofArray with
-  | owner :: rest ->
-    match List.rev rest with
-    | name :: revModules ->
-      Some { owner = owner; modules = List.rev revModules; name = name }
-    | [] -> None
-  | _ -> None
+// Location FQ rendering/parsing is shared: `PackageLocation.toFQN` (render) + `.fromFQN` (parse).
 
 /// Detect sync divergences in a remote batch BEFORE applying it. For each incoming
 /// `SetName`, if the location is already bound LOCALLY to a *different*, non-deprecated hash,
@@ -243,7 +225,7 @@ let detectDivergences
     return
       triples
       |> List.map (fun (loc, existingHash, incomingHash) ->
-        (formatLocation loc, existingHash, incomingHash))
+        (PackageLocation.toFQN loc, existingHash, incomingHash))
   }
 
 
@@ -264,7 +246,7 @@ let detectDivergences
 // the `LIMIT 1` deterministic (newest row) in the meantime.
 let private liveBindingHash (location : string) : Task<Option<string>> =
   task {
-    match parseLocation location with
+    match PackageLocation.fromFQN location with
     | Some loc ->
       let! rows =
         Sql.query
@@ -434,7 +416,7 @@ let routeDivergences
       // same location, hence the same kind; `kindOfHash` reads it from the binding we're restoring.
       match! kindOfHash existingHash with
       | Some kind ->
-        match parseLocation location with
+        match PackageLocation.fromFQN location with
         | Some loc ->
           let localRef = PT.Reference.fromHashAndKind (PT.Hash existingHash, kind)
           let incomingRef = PT.Reference.fromHashAndKind (PT.Hash incomingHash, kind)
@@ -648,7 +630,7 @@ let private pullResolutionsFromStore
           { id = reader.GetString 1
             location =
               { owner = reader.GetString 2
-                modules = (if modules = "" then [] else String.split "." modules)
+                modules = PackageLocation.modulesOfString modules
                 name = reader.GetString 4 }
             itemKind = PT.ItemKind.fromString (reader.GetString 5)
             chosenHash = reader.GetString 6
@@ -755,7 +737,7 @@ let resolveConflict (conflictId : string) (keepMine : bool) : Task<bool> =
         // binding's kind + branch from `locations`, then record a `Resolution` for our hash. A human
         // override is the LATEST decision, so `overrideBinding` makes it win timestamp-LWW
         // (last-resolver-wins) and — as a distinct op with a fresh rowid — rides sync so peers re-adopt it.
-        match parseLocation c.location with
+        match PackageLocation.fromFQN c.location with
         | Some loc ->
           let modulesStr = String.concat "." loc.modules
           let! meta =

@@ -432,8 +432,8 @@ CREATE TABLE IF NOT EXISTS resolutions (
 -- time; auto-resolved by policy (default last-writer-wins) but never silently lost. Local-only, never
 -- synced, re-derivable by replaying the op log. Stores the STRUCTURED conflict (`conflict_blob` = a
 -- serialized PT.SyncConflict — the candidates) plus its resolution flattened into columns:
--- `chosen_hash` (which content won), `resolved_by` ('auto:<policy>' e.g. 'auto:last-writer-wins', or
--- 'human'), and `override_op_id` (the OverrideName op a deliberate override mints, NULL until then).
+-- `chosen_hash` (which content won) and `resolved_by` ('auto:<policy>' e.g. 'auto:last-writer-wins', or
+-- 'human').
 CREATE TABLE IF NOT EXISTS sync_conflicts (
   id TEXT PRIMARY KEY,
   kind TEXT NOT NULL,                              -- SyncConflict discriminator, e.g. 'divergence'
@@ -441,7 +441,6 @@ CREATE TABLE IF NOT EXISTS sync_conflicts (
   conflict_blob BLOB NOT NULL,                     -- serialized PT.SyncConflict (the candidates)
   chosen_hash TEXT NOT NULL,                       -- the resolution's chosen content hash
   resolved_by TEXT NOT NULL,                       -- 'auto:<policy>' or 'human'
-  override_op_id TEXT,                             -- the OverrideName op id, once an override mints one
   remote TEXT NOT NULL,
   detected_at TEXT NOT NULL DEFAULT (datetime('now')),
   status TEXT NOT NULL DEFAULT 'auto-resolved'     -- 'auto-resolved' | 'acknowledged' | 'overridden'
