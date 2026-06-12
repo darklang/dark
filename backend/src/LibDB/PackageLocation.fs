@@ -25,3 +25,15 @@ let fromFQN (fqn : string) : Option<PT.PackageLocation> =
 /// `String.concat "."` the writers use.
 let modulesOfString (modules : string) : List<string> =
   if modules = "" then [] else modules.Split('.') |> Array.toList
+
+/// The portable timestamp-LWW comparison both the op fold (`applySetName`) and the resolution overlay
+/// (`Resolutions.applyToLocations`) use to order two DIFFERENT bindings of one name: is the NEW binding
+/// (content `newHash`, creation/resolver stamp `newTs`) stale vs the CURRENT (`curHash`/`curTs`)?
+/// Older-by-stamp loses; an exact same-stamp tie is broken by the HIGHER content hash — a tie-break over
+/// CONTENT (not arrival), so every instance and a from-scratch refold converge on the same winner.
+/// (Callers handle the same-content case — a re-bind to what's already there — separately.)
+let bindingIsStale
+  (curHash : string, curTs : string)
+  (newHash : string, newTs : string)
+  : bool =
+  newTs < curTs || (newTs = curTs && newHash < curHash)

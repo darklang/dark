@@ -102,9 +102,9 @@ let applyToLocations (r : Resolution) : Task<unit> =
       match cur with
       // already bound to the chosen content — idempotent no-op (so a re-pulled resolution doesn't churn)
       | (curHash, _) :: _ when curHash = r.chosenHash -> true
-      // stale: this resolution is older-by-creation than the live binding (exact tie → higher hash wins)
+      // stale: older-by-stamp than the live binding (the shared LWW rule, exact tie → higher hash wins)
       | (curHash, Some curTs) :: _ when curHash <> r.chosenHash ->
-        r.at < curTs || (r.at = curTs && r.chosenHash < curHash)
+        LibDB.PackageLocation.bindingIsStale (curHash, curTs) (r.chosenHash, r.at)
       | _ -> false
 
     if skip then

@@ -760,6 +760,26 @@ let private applyAllReappliesOverrides =
       "applyAll restored the override (b) over the cleared binding"
   }
 
+// The shared LWW rule, directly: both the op fold and the resolution overlay route through it, so pin
+// its contract — older loses, newer wins, and an exact same-stamp tie breaks by the higher content hash.
+let private bindingLwwRule =
+  test
+    "PackageLocation.bindingIsStale: older loses, newer wins, exact tie → higher hash wins" {
+    let stale = LibDB.PackageLocation.bindingIsStale
+    Expect.isTrue
+      (stale ("aaaa", "2025-01-02") ("bbbb", "2025-01-01"))
+      "older-by-stamp is stale"
+    Expect.isFalse
+      (stale ("aaaa", "2025-01-01") ("bbbb", "2025-01-02"))
+      "newer-by-stamp wins"
+    Expect.isTrue
+      (stale ("bbbb", "2025-01-01") ("aaaa", "2025-01-01"))
+      "exact tie: lower hash loses"
+    Expect.isFalse
+      (stale ("aaaa", "2025-01-01") ("bbbb", "2025-01-01"))
+      "exact tie: higher hash wins"
+  }
+
 // ── all scenarios ──────────────────────────────────────────────────────────────────────────────
 
 let tests =
@@ -780,4 +800,5 @@ let tests =
          resolutionOverlayApplies
          resolutionWireRoundTripsAndApplies
          resolutionSupersededByNewerOp
-         applyAllReappliesOverrides ])
+         applyAllReappliesOverrides
+         bindingLwwRule ])
