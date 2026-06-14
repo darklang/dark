@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Seed shim: dispatches CLI args to the TypeScript implementation.
+# The implementation should live in main.ts.
+# Do not modify this file.
+set -e
+exec bun "$(dirname "$0")/main.ts" "$@"
