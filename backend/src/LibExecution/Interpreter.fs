@@ -314,7 +314,12 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 exeState.packageFnInstrCache[fn.hash] <- instrData
                 return instrData
 
-              | None -> return raiseRTE (RTE.FnNotFound(FQFnName.Package fn))
+              | None ->
+                // A missing package fn is a runtime error today — surface it as one. (A later PR will
+                // give the runtime real conflict/resolution handling: e.g. PARK the execution, write
+                // the fn on demand — PDD-style — then resume, instead of failing outright. When that
+                // lands, a dispatch seam returns here; until then RuntimeError is the model.)
+                return raiseRTE (RTE.FnNotFound(FQFnName.Package fn))
           }
 
 

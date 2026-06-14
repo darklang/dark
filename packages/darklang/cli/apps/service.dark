@@ -68,6 +68,21 @@ let enable (app: Model.App) : Stdlib.Result.Result<String, String> =
         | Ok _ -> Stdlib.Result.Result.Ok $"enabled — {app.name} will start on login (launchd: com.darklang.{app.slug})"
         | Error _ -> Stdlib.Result.Result.Ok $"wrote {path} — activate with: {activate}"
 
+/// Linux only: enable user-service "lingering" so `enable`d daemons start at BOOT, not just at login
+/// (`loginctl enable-linger`). macOS launch agents already load at login, which on a personal machine
+/// is effectively "when you're at the PC".
+let enableLinger () : Stdlib.Result.Result<String, String> =
+  match platform () with
+  | Linux ->
+    match Stdlib.Cli.Process.exec "/bin/sh" [ "-c"; "loginctl enable-linger" ] with
+    | Ok _ ->
+      Stdlib.Result.Result.Ok "lingering enabled — user services start at boot (no login needed)"
+    | Error _ ->
+      Stdlib.Result.Result.Error "could not enable lingering — run: loginctl enable-linger"
+  | Mac -> Stdlib.Result.Result.Ok "macOS launch agents already start at login"
+  | Unsupported ->
+    Stdlib.Result.Result.Error "auto-start isn't supported on this platform (Linux / macOS only)"
+
 /// Remove the OS service for `slug` (deactivate + delete the unit). Idempotent.
 let disable (slug: String) : Stdlib.Result.Result<String, String> =
   match platform () with

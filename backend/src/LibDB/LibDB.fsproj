@@ -31,6 +31,10 @@
     <Compile Include="PackageOpPlayback.fs" />
     <Compile Include="Inserts.fs" />
     <Compile Include="Queries.fs" />
+    <!-- Conflicts compiles before Merge so a branch merge can record its collisions in the same
+         reviewable store sync uses (the conflict store is dependency-free — only Sqlite). /-->
+    <Compile Include="Conflicts.fs" />
+    <Compile Include="Resolutions.fs" />
     <Compile Include="Rebase.fs" />
     <Compile Include="Merge.fs" />
     <Compile Include="Stats.fs" />
@@ -44,6 +48,14 @@
     <Compile Include="Seed.fs" />
     <Compile Include="CapabilityGrants.fs" />
     <Compile Include="PackageCaps.fs" />
+
+    <!-- Sync (read/write op-log between instances) /-->
+    <Compile Include="Remotes.fs" />
+    <Compile Include="SyncCursors.fs" />
+    <Compile Include="Sync.fs" />
+
+    <!-- The Release migrator: move a store forward one Release at a time; refuse a newer store. /-->
+    <Compile Include="Releases.fs" />
 
     <!-- ex-LibCloud SQLite-bound modules /-->
     <Compile Include="Tracing.fs" />

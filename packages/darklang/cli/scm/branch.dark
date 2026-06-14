@@ -201,15 +201,26 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine (Colors.error $"Branch '{name}' not found.")
       state
 
+  | [ "rebuild" ] ->
+    // ops⊥projections recovery: drop every regenerable projection table and re-fold the whole
+    // canonical op log. Projections are non-authoritative, so this is always safe (it only costs
+    // the CPU to re-fold) — use it after a schema bump or if a projection looks stale.
+    let refolded = Builtin.pmRebuildProjections ()
+    let n = Stdlib.Int64.toString refolded
+    Stdlib.printLine
+      (Colors.success $"Rebuilt projections — re-folded {n} ops from the canonical log.")
+    state
+
   | _ ->
-    Stdlib.printLine "Usage: branch [list|create|switch|rename|archive] [args]"
+    Stdlib.printLine
+      "Usage: branch [list|create|switch|rename|archive|rebuild] [args]"
     state
 
 
 let complete (_state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
   match args with
   | [] ->
-    [ "list"; "create"; "switch"; "rename"; "archive" ]
+    [ "list"; "create"; "switch"; "rename"; "archive"; "rebuild" ]
     |> Stdlib.List.map Completion.simple
   | [ "switch" ] | [ "archive" ] | [ "delete" ] ->
     let branches = SCM.Branch.list ()
@@ -228,6 +239,7 @@ let help (_state: AppState) : Unit =
     "  rename <old> <new>      Rename a branch"
     "  archive <name>          Archive a branch (soft delete)"
     "  delete <name>           Archive a branch (alias for archive)"
+    "  rebuild                 Drop + re-fold this branch's projections from the op log (recovery)"
     ""
     "Note: branch context does not persist between CLI invocations."
     "In interactive mode, 'branch switch' works for the session."

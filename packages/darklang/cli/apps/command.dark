@@ -212,6 +212,20 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | [ "inspect"; slug ] -> inspect state slug
 
+  | [ "enable"; slug; "--boot" ] ->
+    // like `enable`, plus start-at-boot (not just login) via user-service lingering
+    match Registry.findBySlug slug with
+    | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
+    | Some app ->
+      match Service.enable app with
+      | Error e -> Stdlib.printLine (Colors.error e)
+      | Ok msg ->
+        Stdlib.printLine (Colors.success $"✓ {msg}")
+        match Service.enableLinger () with
+        | Ok m -> Stdlib.printLine (Colors.success $"✓ {m}")
+        | Error e -> Stdlib.printLine (Colors.warning e)
+    state
+
   | [ "enable"; slug ] ->
     match Registry.findBySlug slug with
     | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")

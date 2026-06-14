@@ -130,6 +130,10 @@ module PT =
     let serialize id value = makeSerializer PT.PackageOp.write id value
     let deserialize id data = makeDeserializer PT.PackageOp.read id data
 
+  module SyncConflict =
+    let serialize id value = makeSerializer PT.SyncConflict.write id value
+    let deserialize id data = makeDeserializer PT.SyncConflict.read id data
+
   module BranchOp =
     let serialize = PT.BranchOp.serialize
     let deserialize = PT.BranchOp.deserialize

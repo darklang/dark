@@ -502,7 +502,9 @@ let writeParameter
   (w : BinaryWriter)
   (p : PT.PackageFn.Parameter)
   =
-  Common.String.write w p.name
+  // The parameter NAME is not hashed: a body references parameters by position (the parser lowers a
+  // parameter use to `EArg index`), so the name is cosmetic and a rename leaves the function's meaning
+  // unchanged. Only the type is part of the content hash.
   writeTypeReference mode w p.typ
 
 let writeRecordField

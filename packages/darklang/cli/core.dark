@@ -41,7 +41,11 @@ type AppState =
     cachedStatusBar: String
     cachedStatusBarBranch: Uuid
     /// When true, write telemetry to rundir/logs/telemetry.jsonl
-    telemetryEnabled: Bool }
+    telemetryEnabled: Bool
+
+    /// Process exit code for a non-interactive (`dark <cmd>`) run. 0 = success; a command sets this
+    /// non-zero on failure so scripts/daemons wrapping the CLI can detect it (e.g. a failed `sync pull`).
+    exitCode: Int64 }
 
 let locationStr (state: AppState) : String =
   Packages.formatLocation state.packageData.currentLocation
@@ -112,7 +116,8 @@ let initState () : AppState =
       commandOptionsCache = commandOptions ()
       cachedStatusBar = ""
       cachedStatusBarBranch = Builtin.unwrap (Stdlib.Uuid.parse_v0 "00000000-0000-0000-0000-000000000000")
-      telemetryEnabled = (Builtin.environmentGet "DARK_TELEMETRY") == Stdlib.Option.Option.Some "1" }
+      telemetryEnabled = (Builtin.environmentGet "DARK_TELEMETRY") == Stdlib.Option.Option.Some "1"
+      exitCode = 0L }
 
 type Msg =
   | ProcessInput of String
@@ -279,7 +284,10 @@ module Registry =
       ("caps", "View + control this instance's capability grant (default NONE)", [ "capabilities" ], Caps.Command.execute, Caps.Command.help, Caps.Command.complete)
       ("devices", "Your tailnet devices (status / serve / ping), over the `tailscale` CLI", [], Devices.execute, Devices.help, Devices.complete)
       ("apps", "List, install, and manage apps (daemons, foreground, UI)", [], Apps.Command.execute, Apps.Command.help, Apps.Command.complete)
-      ("text-editor", "Demo: a tiny text editor (the outliner's widget surfaced as an app)", [], Apps.Examples.TextEdit.execute, Apps.Examples.TextEdit.help, Apps.Examples.TextEdit.complete) ]
+      ("text-editor", "Demo: a tiny text editor (the outliner's widget surfaced as an app)", [], Apps.Examples.TextEdit.execute, Apps.Examples.TextEdit.help, Apps.Examples.TextEdit.complete)
+      ("sync", "Pull package ops from a peer (file or HTTP) + show sync status", [], Sync.execute, Sync.help, Sync.complete)
+      ("conflicts", "Review + resolve recorded sync conflicts", [], Conflicts.execute, Conflicts.help, Conflicts.complete)
+      ("remote", "Register tailnet sync peers (add/list/remove/add-ts)", [], Remote.execute, Remote.help, Remote.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->
@@ -354,6 +362,7 @@ module Registry =
   let commandGroups () : List<(String * List<String>)> =
     [ ("Packages", [ "nav"; "ls"; "view"; "tree"; "back"; "search"; "deps"; "val"; "let"; "fn"; "type"; "hash"; "db"; "deprecate"; "delete" ])
       ("SCM", [ "status"; "log"; "commit"; "discard"; "show"; "branch"; "rebase"; "merge"; "review" ])
+      ("Sync", [ "sync"; "conflicts"; "remote" ])
       ("Execution", [ "run"; "eval"; "scripts" ])
       ("Installation", [ "install"; "update"; "uninstall"; "version" ])
       ("AI", [ "agent" ])
@@ -901,4 +910,4 @@ let executeCliCommand (args: List<String>) : Int64 =
     | SubApp _ ->
       StatusBar.init ()
       runInteractiveLoop resultState
-    | _ -> 0L
+    | _ -> resultState.exitCode

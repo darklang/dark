@@ -1,0 +1,204 @@
+module Darklang.Sync.Display
+
+// The human-facing summary over a sync result — the UX surface of `dark sync`. Pure: the counts
+// come from the pull (cursor delta = ops pulled, since the op log is append-only and contiguous);
+// this just formats them.
+
+let opWord (n: Int64) : String =
+  if n == 1L then "op" else "ops"
+
+let pullLine (remote: String) (pulled: Int64) : String =
+  "↓ pulled " ++ (Stdlib.Int64.toString pulled) ++ " " ++ (opWord pulled) ++ " from " ++ remote
+
+let syncSummary (remote: String) (pulled: Int64) : String =
+  if pulled == 0L then "✓ already in sync with " ++ remote else pullLine remote pulled
+
+// Render a poll interval for humans: whole seconds when it divides evenly (the adaptive intervals
+// always do — floor, ceiling, and doublings are all whole seconds), else milliseconds.
+let intervalLabel (ms: Int64) : String =
+  if ms >= 1000L && ms % 1000L == 0L then
+    (Stdlib.Int64.toString (ms / 1000L)) ++ "s"
+  else
+    (Stdlib.Int64.toString ms) ++ "ms"
+
+
+// the richer op-kind breakdown: "(2 fns, 1 type, 1 rename)" over the pulled op kinds. (The kinds
+// themselves aren't threaded through the pull path yet — these formatters are ready for when they are.)
+let countOf (kinds: List<String>) (k: String) : Int64 =
+  Stdlib.List.length (Stdlib.List.filter kinds (fun x -> x == k))
+
+let pluralKind (k: String) (n: Int64) : String =
+  if n == 1L then k else k ++ "s"
+
+let kindPart (kinds: List<String>) (k: String) : List<String> =
+  let n = countOf kinds k
+  if n == 0L then [] else [ (Stdlib.Int64.toString n) ++ " " ++ (pluralKind k n) ]
+
+let opKindBreakdown (kinds: List<String>) : String =
+  let parts =
+    [ kindPart kinds "fn"
+      kindPart kinds "type"
+      kindPart kinds "value"
+      kindPart kinds "rename" ]
+    |> Stdlib.List.flatten
+
+  Stdlib.String.join parts ", "
+
+
+// The "(N name divergence(s) surfaced — not blocked)" tail on a `dark sync pull` line. Empty when
+// nothing diverged. Shared by the HTTP and file-pull branches so both word it identically.
+let divergenceNote (divCount: Int64) : String =
+  if divCount > 0L then
+    $" ({Stdlib.Int64.toString divCount} name divergence(s) surfaced — not blocked; see `dark conflicts`)"
+  else
+    ""
+
+
+// ── conflict display: surfacing last-write-wins auto-resolutions for eventual ack ──
+// Sync NEVER blocks — a `name → two hashes` divergence is auto-resolved by timestamp-LWW (newest
+// authoring time wins) and RECORDED so it's never silently lost. This is the review surface
+// (`dark conflicts`): it shows what was auto-kept, which side won, and nudges the user to `ack`
+// (agree) or `resolve … mine|theirs` (override). Pure over the structured tuples from
+// `pmConflictsList` — testable in testfiles/execution/pre-s-and-s/conflicts-list.dark.
+
+let shortHash (h: String) : String =
+  if Stdlib.String.length h > 8L then Stdlib.String.slice h 0L 8L else h
+
+// Which side won, read STRUCTURALLY: the chosen hash equals the local ("you") or incoming ("them")
+// candidate. No prose parsing — `chosenHash` comes straight off the recorded resolution.
+let conflictWinner (chosenHash: String) (localHash: String) (incomingHash: String) : String =
+  if chosenHash == incomingHash then "them"
+  else if chosenHash == localHash then "you"
+  else ""
+
+// The human verdict phrase — names the resolving policy + which side it kept, so the auto-resolution
+// is never opaque. `resolvedBy` is the structured tag ('auto:last-writer-wins' | 'human' | …).
+let conflictVerdict (resolvedBy: String) (winner: String) : String =
+  let label =
+    match resolvedBy with
+    | "auto:last-writer-wins" -> "last-write-wins"
+    | "auto:merge-child-wins" -> "merge"
+    | "human" -> "override"
+    | other -> other
+
+  match winner with
+  | "them" -> label ++ " → kept theirs"
+  | "you" -> label ++ " → kept yours"
+  | _ -> "auto-resolved (" ++ label ++ ")"
+
+// you/them hashes with a ✓ on the side that won (and the arrow pointing to it).
+let conflictHashes (chosenHash: String) (localHash: String) (incomingHash: String) : String =
+  let you = shortHash localHash
+  let them = shortHash incomingHash
+
+  match conflictWinner chosenHash localHash incomingHash with
+  | "them" -> "you " ++ you ++ "  →  them " ++ them ++ " ✓"
+  | "you" -> "you " ++ you ++ " ✓  ←  them " ++ them
+  | _ -> "you " ++ you ++ "  ·  them " ++ them
+
+// status glyph: pending (needs ack) vs already-dismissed history.
+let conflictGlyph (status: String) : String =
+  if status == "acked" then "✓"
+  else if status == "overridden" then "↩"
+  else "⚠"
+
+// One recorded conflict as a 2-line block: the location headline, then the indented verdict +
+// who-won + peer + (for pending) the exact `ack <id>` to dismiss it.
+let conflictBlock
+  (id: String)
+  (location: String)
+  (status: String)
+  (chosenHash: String)
+  (resolvedBy: String)
+  (localHash: String)
+  (incomingHash: String)
+  (remote: String)
+  : List<String> =
+  let winner = conflictWinner chosenHash localHash incomingHash
+
+  let ackHint =
+    if status == "NEW" then "  ·  ack " ++ (shortHash id) else ""
+
+  [ (conflictGlyph status) ++ " " ++ location
+    "    "
+    ++ (conflictVerdict resolvedBy winner)
+    ++ "   "
+    ++ (conflictHashes chosenHash localHash incomingHash)
+    ++ "  ·  from "
+    ++ remote
+    ++ ackHint ]
+
+// The full `dark conflicts` report over the structured rows from `pmConflictsList`.
+// Header frames the ack model; the footer lists the actions. Empty → a clean "nothing pending".
+let conflictReport
+  (conflicts:
+    List<(String * String * String * String * String * String * String * String)>)
+  (includeResolved: Bool)
+  : List<String> =
+  if Stdlib.List.isEmpty conflicts then
+    if includeResolved then
+      [ "✓ no sync conflicts on record" ]
+    else
+      [ "✓ no pending sync conflicts — every divergence is acknowledged" ]
+  else
+    let n = Stdlib.List.length conflicts
+
+    let header =
+      (Stdlib.Int64.toString n)
+      ++ " auto-resolved conflict(s) awaiting ack — last-write-wins kept one side, nothing lost:"
+
+    let blocks =
+      conflicts
+      |> Stdlib.List.map (fun (id, location, status, chosenHash, resolvedBy, localHash, incomingHash, remote) ->
+        conflictBlock id location status chosenHash resolvedBy localHash incomingHash remote)
+      |> Stdlib.List.flatten
+
+    let footer = "  ack <id> (agree)  ·  ack all  ·  resolve <id> mine|theirs (override)"
+
+    Stdlib.List.append
+      (Stdlib.List.append [ header; "" ] blocks)
+      [ ""; footer ]
+
+
+// ── daemon activity (`sync events`): the autosync telemetry as a compact table ──
+// Pure over the structured rows `(at, peersPolled, changed, conflicts, skews)` from
+// `pmSyncRecentDaemonEvents` (newest first) — so the display is package-testable.
+
+let private padR (s: String) (w: Int64) : String =
+  let len = Stdlib.String.length s
+  if len >= w then s else s ++ (Stdlib.String.repeat " " (w - len))
+
+let daemonEventRow
+  (at: String)
+  (peers: Int64)
+  (changed: Bool)
+  (conflicts: Int64)
+  (skews: Int64)
+  : String =
+  let result = if changed then "↓ changes" else "· idle"
+  let conflictPart =
+    if conflicts > 0L then $"  {Stdlib.Int64.toString conflicts} conflict(s)" else ""
+  let skewPart =
+    if skews > 0L then $"  {Stdlib.Int64.toString skews} paused" else ""
+
+  (padR at 26L)
+  ++ "  "
+  ++ (padR ((Stdlib.Int64.toString peers) ++ " peer(s)") 10L)
+  ++ "  "
+  ++ (padR result 11L)
+  ++ conflictPart
+  ++ skewPart
+
+let daemonEventsTable
+  (events: List<(String * Int64 * Bool * Int64 * Int64)>)
+  : List<String> =
+  if Stdlib.List.isEmpty events then
+    [ "no daemon activity yet — start it with `dark apps start sync` (or `sync daemon start`)" ]
+  else
+    let header = (padR "WHEN" 26L) ++ "  " ++ (padR "PEERS" 10L) ++ "  " ++ "RESULT"
+    let rows =
+      events
+      |> Stdlib.List.map (fun (at, peers, changed, conflicts, skews) ->
+        daemonEventRow at peers changed conflicts skews)
+
+    Stdlib.List.append [ header ] rows

@@ -1,0 +1,113 @@
+module Darklang.Cli.Conflicts
+
+// `dark conflicts` — recorded sync conflicts: auto-resolved name-binding divergences (you and a peer
+// defined the same name differently). Auto-resolve is last-writer-wins and NEVER blocks the sync;
+// this surfaces what was resolved so nothing is silently lost. The common case is `ack` ("the auto
+// thing was right"); `resolve <id> mine|theirs` overrides it the other way.
+
+// Single home for the pmConflictsList builtin — every other
+// caller (the display below, the `sync status` count) routes through this one fn. Returns STRUCTURED
+// rows `(id, location, status, chosenHash, resolvedBy, localHash, incomingHash, remote)`; the human
+// formatting lives in `Darklang.Sync.Display.conflictReport` (pure → package-testable, no rebuild).
+let recorded
+  (includeResolved: Bool)
+  : List<(String * String * String * String * String * String * String * String)> =
+  Builtin.pmConflictsList includeResolved
+
+// How many conflicts are still pending (unacknowledged) — the `dark sync status` glance shows this.
+let pendingCount () : Int64 =
+  Stdlib.List.length (recorded false)
+
+// Print the conflict list — pending only, or all (including acked/overridden history). The report
+// frames the last-write-wins auto-resolution, marks the winning side, and nudges toward `ack`.
+let showConflicts (includeResolved: Bool) : Unit =
+  Stdlib.printLines (
+    Darklang.Sync.Display.conflictReport (recorded includeResolved) includeResolved
+  )
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] | [ "list" ] ->
+    // default view: PENDING only (acked/overridden drop out — the ack-to-dismiss model)
+    showConflicts false
+    state
+
+  | [ "list"; "all" ] ->
+    // history: every recorded conflict, including acked/overridden
+    showConflicts true
+    state
+
+  | [ "ack"; "all" ] ->
+    // bulk "the auto thing was right" — clear every pending conflict at once
+    let n = Builtin.pmConflictAckAll ()
+
+    if n == 0L then
+      Stdlib.printLine (Colors.success "✓ no unacknowledged conflicts")
+    else
+      Stdlib.printLine (Colors.success $"acknowledged {Stdlib.Int64.toString n} conflict(s)")
+
+    state
+
+  | [ "ack"; id ] ->
+    if Builtin.pmConflictAck id then
+      Stdlib.printLine (Colors.success $"acknowledged conflict {id}")
+    else
+      Stdlib.printLine
+        (Colors.error $"no single conflict matching '{id}' (check `conflicts list`)")
+
+    state
+
+  | [ "resolve"; id; choice ] ->
+    if (choice == "mine") || (choice == "theirs") then
+      let keepMine = choice == "mine"
+
+      if Builtin.pmConflictResolve id keepMine then
+        let what =
+          if keepMine then
+            "kept YOUR version — re-bound here (a resolution; it syncs to peers on the next pull)"
+          else
+            "kept the incoming version"
+
+        Stdlib.printLine (Colors.success $"resolved conflict {id} — {what}")
+      else
+        Stdlib.printLine
+          (Colors.error $"no single conflict matching '{id}' (check `conflicts list`)")
+    else
+      Stdlib.printLine (Colors.error "resolve <id> mine|theirs  (choice must be 'mine' or 'theirs')")
+
+    state
+
+  | _ ->
+    Stdlib.printLine
+      (Colors.error "Usage: conflicts [list] | conflicts ack <id> | conflicts resolve <id> mine|theirs")
+    state
+
+
+let complete
+  (_state: AppState)
+  (_args: List<String>)
+  : List<Completion.CompletionItem> =
+  [ Completion.simple "list"
+    Completion.simple "ack"
+    Completion.simple "resolve" ]
+
+
+let help (state: AppState) : AppState =
+  [ "Usage: conflicts [list] | conflicts ack <id> | conflicts resolve <id> mine|theirs"
+    ""
+    "Recorded sync conflicts — auto-resolved name-binding divergences (you and a peer defined the"
+    "same name differently). Auto-resolve is last-writer-wins and never blocks the sync; this"
+    "surfaces what was resolved so nothing is silently lost."
+    ""
+    "  list                     Show PENDING conflicts (acked/overridden drop out — ack to dismiss)"
+    "  list all                 Show every recorded conflict, including acked/overridden history"
+    "  ack <id>                 Acknowledge — 'the auto-resolution was right' (the common case)"
+    "  ack all                  Acknowledge ALL pending conflicts at once (bulk 'all were right')"
+    "  resolve <id> mine        Override — re-bind to YOUR version (a resolution that syncs to peers)"
+    "  resolve <id> theirs      Override — keep the incoming version (what already won)"
+    ""
+    "<id> is the short id from `conflicts list` (a unique prefix is fine)." ]
+  |> Stdlib.printLines
+
+  state

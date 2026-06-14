@@ -1,0 +1,228 @@
+module Darklang.Cli.Sync
+
+// `dark sync pull <path-to-peer-data.db>` — local two-instance sync: pull a peer's package ops
+// from a local data.db file into this instance (op log + projections), resuming + persisting a
+// per-peer cursor. The fold is the same op-playback used everywhere; only the source differs.
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [ "pull"; target ] ->
+    // cursor BEFORE the pull → the delta is exactly the ops pulled (the op log is append-only, so
+    // its rowids are contiguous and `after - before` can't over/under-count).
+    let before = Darklang.Sync.cursorFor target
+
+    if Stdlib.String.startsWith target "http" then
+      // pull over HTTP from a peer's sync server (tailnet-wide). Uses the
+      // SSRF-unguarded fetch: a tailnet/localhost peer is trusted (the tailnet is the trust
+      // boundary), and the guarded client blocks loopback + the 100.64/10 tailnet range.
+      // `?since=<our cursor>` makes it incremental — only the ops we don't yet have.
+      match Darklang.Sync.pullHttp target with
+      | Ok((newCursor, divCount, blobsFetched)) ->
+        let blobNote =
+          if blobsFetched > 0L then
+            $" + {Stdlib.Int64.toString blobsFetched} blob(s)"
+          else
+            ""
+
+        let divNote = Darklang.Sync.Display.divergenceNote divCount
+
+        let summary = Darklang.Sync.Display.syncSummary target (newCursor - before)
+
+        Stdlib.printLine (
+          Colors.success
+            $"{summary} (at op {Stdlib.Int64.toString newCursor}){blobNote}.{divNote}"
+        )
+
+        state
+      | Error _ ->
+        Stdlib.printLine (Colors.error $"sync pull failed: could not reach {target}")
+        Stdlib.printLine (
+          Colors.dimText
+            $"  is `dark serve Darklang.Sync.Server.router --port <N>` running there? check host/port — try {Darklang.Sync.healthUrl target}"
+        )
+        { state with exitCode = 1L }
+    else if Stdlib.Bool.not (Stdlib.Cli.File.exists target) then
+      // a missing peer file would throw a raw SQLite error from pullFromFile — refuse cleanly
+      Stdlib.printLine (Colors.error $"sync pull: no such peer db: {target}")
+      Stdlib.printLine
+        (Colors.dimText "  give a local data.db path, or an http(s):// sync-server URL")
+      { state with exitCode = 1L }
+    else
+      // pull from a peer's local data.db file
+      let (newCursor, divCount) = Darklang.Sync.pullFromFile target
+
+      let divNote = Darklang.Sync.Display.divergenceNote divCount
+
+      let pulled = newCursor - before
+      let summary = Darklang.Sync.Display.syncSummary target pulled
+
+      // op-kind breakdown (file peers only): "(2 fns, 1 type)" over the naming ops just pulled
+      let kindNote =
+        if pulled > 0L then
+          let breakdown =
+            Darklang.Sync.Display.opKindBreakdown (Builtin.pmSyncOpKindsSince target before)
+
+          if breakdown == "" then "" else $" ({breakdown})"
+        else
+          ""
+
+      Stdlib.printLine (
+        Colors.success
+          $"{summary} (at op {Stdlib.Int64.toString newCursor}){kindNote}.{divNote}"
+      )
+
+      state
+  | [] | [ "status" ] ->
+    // bare `dark sync` defaults to the status glance (consistent with conflicts/remote/apps)
+    let lines = Darklang.Sync.status ()
+
+    if Stdlib.List.isEmpty lines then
+      Stdlib.printLine "No peers synced yet."
+    else
+      Stdlib.printLines lines
+
+    // fold the unacknowledged-conflict count into the status glance (routes through the single
+    // pmConflictsList call site in conflicts.dark)
+    let pending = Conflicts.pendingCount ()
+
+    if pending > 0L then
+      Stdlib.printLine (
+        Colors.warning
+          $"⚠ {Stdlib.Int64.toString pending} unacknowledged conflict(s) — `dark conflicts` to review"
+      )
+
+    state
+  | [ "auto"; peer ] ->
+    // one adaptive poll step (pull + decide the next interval); a daemon loops this on a timer.
+    // Release-aware: a peer on a different Release is paused (not pulled) and reported, not synced.
+    let (cursor, nextMs, skew) = Darklang.Sync.Autosync.pollOnce peer 2000L
+
+    if skew != "" then
+      Stdlib.printLine (Colors.warning $"⚠ {skew}")
+    else
+      Stdlib.printLine (
+        Colors.success
+          $"Synced {peer} through op {Stdlib.Int64.toString cursor} — next poll in {Darklang.Sync.Display.intervalLabel nextMs} (adaptive)"
+      )
+
+    state
+  | [ "auto"; peer; timesStr ] ->
+    // run `times` adaptive poll steps (blocking foreground loop), sleeping between each
+    match Stdlib.Int64.parse timesStr with
+    | Ok times ->
+      let _lastInterval = Darklang.Sync.Autosync.runLoop peer 2000L times
+      Stdlib.printLine (Colors.success $"autosync: ran {timesStr} poll steps for {peer}")
+      state
+    | Error _ ->
+      Stdlib.printLine (Colors.error "Usage: sync auto <peer> [times]")
+      state
+  | [ "check"; target ] ->
+    // "am I caught up?" — GET the peer's /sync/health, compare its op count to our synced cursor
+    if Stdlib.String.startsWith target "http" then
+      match Darklang.Sync.httpGet (Darklang.Sync.healthUrl target) with
+      | Ok body ->
+        // version-skew first: if the peer's release differs from ours, sync can't proceed (the wire
+        // gate fails closed) — say which side to upgrade, instead of letting a pull decode-error later.
+        let skew =
+          Darklang.Sync.releaseSkewLine
+            target
+            (Darklang.Sync.ourRelease ())
+            (Darklang.Sync.parseHealthRelease body)
+
+        if skew == "" then
+          let peerOps = Darklang.Sync.parseHealthOps body
+          let ourCursor = Darklang.Sync.cursorFor target
+          Stdlib.printLine (Darklang.Sync.convergenceLine target ourCursor peerOps)
+        else
+          Stdlib.printLine (Colors.warning skew)
+
+        state
+      | Error _ ->
+        Stdlib.printLine
+          (Colors.error
+            $"sync check: could not reach {target} — is `dark serve` running there?")
+        { state with exitCode = 1L }
+    else
+      Stdlib.printLine (Colors.error "sync check needs an http(s) peer URL")
+      { state with exitCode = 1L }
+  | [ "daemon" ] | [ "daemon"; "status" ] ->
+    // the background auto-sync daemon's state (running / stopped / stale), via its pidfile
+    Stdlib.printLine (Darklang.Sync.Daemon.statusLine "sync")
+    state
+  | [ "daemon"; "start" ] ->
+    // tailnet-wide: poll EVERY known peer on an adaptive interval, detached (survives CLI exit)
+    match Darklang.Sync.Daemon.startAll 5000L with
+    | Ok msg -> Stdlib.printLine (Colors.success msg)
+    | Error e -> Stdlib.printLine (Colors.error e)
+    state
+  | [ "daemon"; "start"; peer ] ->
+    // single-peer daemon (a file path or http(s):// URL)
+    match Darklang.Sync.Daemon.start peer 5000L with
+    | Ok msg -> Stdlib.printLine (Colors.success msg)
+    | Error e -> Stdlib.printLine (Colors.error e)
+    state
+  | [ "daemon"; "stop" ] ->
+    match Darklang.Sync.Daemon.stop "sync" with
+    | Ok msg -> Stdlib.printLine (Colors.success msg)
+    | Error e -> Stdlib.printLine (Colors.error e)
+    state
+  | [ "daemon"; "logs" ] ->
+    let lines = Darklang.Sync.Daemon.tailLog "sync" 20L
+    if Stdlib.List.isEmpty lines then
+      Stdlib.printLine (Colors.dimText "no daemon logs yet (has it run?)")
+    else
+      Stdlib.printLines lines
+    state
+  | [ "events" ] ->
+    // the autosync daemon's recent poll cycles as a structured table (telemetry, newest first)
+    let rows = Builtin.pmSyncRecentDaemonEvents 20L
+    Stdlib.printLines (Darklang.Sync.Display.daemonEventsTable rows)
+    state
+  | _ ->
+    Stdlib.printLine (
+      Colors.error
+        "Usage: sync pull <peer> | status | auto <peer> [times] | check <url> | daemon start/stop/status/logs | events"
+    )
+
+    state
+
+
+let complete
+  (_state: AppState)
+  (_args: List<String>)
+  : List<Completion.CompletionItem> =
+  [ Completion.simple "pull"
+    Completion.simple "status"
+    Completion.simple "auto"
+    Completion.simple "check"
+    Completion.simple "daemon"
+    Completion.simple "events" ]
+
+
+let help (state: AppState) : AppState =
+  [ "Usage: sync pull <peer> | status | auto <peer> [times] | check <url> | daemon start/stop/status/logs | events"
+    ""
+    "Sync package ops across instances (tailnet-wide). The receiver applies ops idempotently"
+    "(op log + projections) and resumes from a per-peer cursor, so re-running only applies what's new."
+    ""
+    "  pull <peer.db>             Pull from a peer's local data.db file"
+    "  pull http://host:port      Pull from a peer's sync server over HTTP/tailnet"
+    "  status                     Show each synced peer and how far (last applied op)"
+    "  auto <peer>                One adaptive poll step (pull + decide the next interval)"
+    "  auto <peer> <times>        Run N adaptive poll steps (foreground loop)"
+    "  check <url>                Am I caught up? Compare a peer's op count to our synced cursor"
+    "  daemon start [peer]        Start the background auto-sync daemon (all peers, or just one)"
+    "  daemon stop                Stop the background daemon"
+    "  daemon status              Is the daemon running?"
+    "  daemon logs                Tail recent daemon output"
+    "  events                     Recent daemon poll cycles as a table (structured telemetry)"
+    ""
+    "Tip: `dark apps enable sync --boot` keeps it running across reboots (systemd/launchd)."
+    ""
+    "To SERVE ops to peers (run on the always-on box, e.g. the desktop):"
+    "  dark serve Darklang.Sync.Server.router --port <N>"
+    "  peers pull with:  dark sync pull http://<this-host>:<N>"
+    "  check it's up:    open http://<this-host>:<N>/sync/health" ]
+  |> Stdlib.printLines
+
+  state

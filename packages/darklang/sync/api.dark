@@ -1,0 +1,197 @@
+module Darklang.Sync
+
+// The programmatic sync client API — a thin Dark surface over the sync builtins, so Dark code
+// (e.g. the autosync poll loop) can sync without reaching for `Builtin.*`. The CLI's
+// `dark sync pull`/`status` are one caller; an autosync daemon is the next.
+
+// Pull a peer's package ops into this instance (op log + projections + missing blobs), resuming
+// from + persisting a per-peer cursor. `peer` is a local data.db path. Returns
+// `(newCursor, divergenceCount)` — divergences are surfaced, never block.
+let pullFromFile (peer: String) : (Int64 * Int64) =
+  Builtin.pmSyncPull peer
+
+// The stored resume cursor for a peer (last applied rowid), or 0 if never synced.
+let cursorFor (peer: String) : Int64 =
+  Builtin.pmSyncCursorFor peer
+
+// Apply a base64 wire batch (an HTTP `/sync/events` body) into this instance, advancing the
+// peer's cursor. Returns `(newCursor, divergenceCount)`. Used by the HTTP pull path.
+let applyWire (peer: String) (wireB64: String) : (Int64 * Int64) =
+  Builtin.pmSyncApplyWire peer wireB64
+
+// One `"<peer> — synced through op N"` line per peer this instance has synced with.
+let status () : List<String> =
+  Builtin.pmSyncStatus ()
+
+// The raw list of every peer this instance has a sync cursor for — what a tailnet-wide daemon polls.
+let remotes () : List<String> =
+  Builtin.pmSyncRemotes ()
+
+
+// ── HTTP peer URL construction ── pure, so the live cross-machine setup can't trip on a
+// trailing slash. A `http://host:9912/` base must NOT produce `…//sync/events`.
+
+// Strip a trailing "/" from a peer base URL.
+let normalizeBase (baseUrl: String) : String =
+  if Stdlib.String.endsWith baseUrl "/" then
+    Stdlib.String.dropLast baseUrl 1L
+  else
+    baseUrl
+
+// The `/sync/events` URL for an incremental pull from `cursor` (the ops we don't yet have).
+let eventsUrl (baseUrl: String) (cursor: Int64) : String =
+  (normalizeBase baseUrl) ++ "/sync/events?since=" ++ (Stdlib.Int64.toString cursor)
+
+// The `/sync/health` readiness-probe URL — confirm a peer's server is up before pulling.
+let healthUrl (baseUrl: String) : String =
+  (normalizeBase baseUrl) ++ "/sync/health"
+
+// The blob channel URLs: the manifest (all the peer's content hashes) + a single blob.
+let blobsUrl (baseUrl: String) : String =
+  (normalizeBase baseUrl) ++ "/sync/blobs"
+
+let blobUrl (baseUrl: String) (hash: String) : String =
+  (normalizeBase baseUrl) ++ "/sync/blob?hash=" ++ hash
+
+// The `/sync/resolutions` URL for an incremental pull of the override decisions we don't yet have.
+let resolutionsUrl (baseUrl: String) (cursor: Int64) : String =
+  (normalizeBase baseUrl) ++ "/sync/resolutions?since=" ++ (Stdlib.Int64.toString cursor)
+
+// One trusted-peer HTTP GET (the tailnet is the trust boundary). The single call site for the
+// SSRF-unguarded fetch builtin, so it's referenced exactly once even as more GETs (events, blobs)
+// are added.
+let httpGet (url: String) : Stdlib.Result.Result<String, String> =
+  Builtin.httpClientGetUnsafe url
+
+
+// After applying a peer's ops over HTTP, fetch the content blobs we lack — the HTTP counterpart to
+// the file pull's `pullBlobsFromStore`. GET the peer's manifest, keep what we're missing, GET +
+// insert each. Returns the count inserted. Best-effort: a failed GET or empty body is skipped — the
+// blob retries on the next pull (content-addressed, so the insert dedups, like ops).
+let fetchMissingBlobs (baseUrl: String) : Int64 =
+  match httpGet (blobsUrl baseUrl) with
+  | Error _ -> 0L
+  | Ok manifest ->
+    let offered =
+      (Stdlib.String.split manifest "\n")
+      |> Stdlib.List.filter (fun h -> h != "")
+
+    let missing = Builtin.pmBlobMissing offered
+
+    let inserted =
+      missing
+      |> Stdlib.List.map (fun h ->
+        match httpGet (blobUrl baseUrl h) with
+        | Ok b64 -> Builtin.pmBlobInsert h b64
+        | Error _ -> false)
+
+    inserted |> Stdlib.List.filter (fun r -> r) |> Stdlib.List.length
+
+
+// Pull a peer's RESOLUTIONS (the override decisions) over HTTP — the override channel's HTTP
+// counterpart to the op pull. Resume from + advance a SEPARATE resolution cursor. Best-effort: a
+// failed GET doesn't advance (retries next pull). Returns the new resolution cursor.
+let pullResolutions (baseUrl: String) : Int64 =
+  let cursor = Builtin.pmSyncResolutionCursorFor baseUrl
+
+  match httpGet (resolutionsUrl baseUrl cursor) with
+  | Ok body -> Builtin.pmSyncApplyResolutions baseUrl body
+  | Error _ -> cursor
+
+// The full HTTP pull: the peer's new ops, its missing content blobs, THEN its resolutions (the
+// override channel) — the reusable core behind both `dark sync pull <url>` and HTTP autosync. Returns
+// `(newCursor, divergenceCount, blobsFetched)` on success, or the GET error (unreachable peer) so
+// the caller can react (the CLI shows an actionable hint; autosync just doesn't advance).
+let pullHttp
+  (baseUrl: String)
+  : Stdlib.Result.Result<(Int64 * Int64 * Int64), String> =
+  let cursor = cursorFor baseUrl
+
+  match httpGet (eventsUrl baseUrl cursor) with
+  | Ok body ->
+    let (newCursor, divCount) = applyWire baseUrl body
+    let blobs = fetchMissingBlobs baseUrl
+    let _resolutions = pullResolutions baseUrl
+    Stdlib.Result.Result.Ok((newCursor, divCount, blobs))
+  | Error e -> Stdlib.Result.Result.Error e
+
+
+// Parse the op count out of a `/sync/health` body (`"sync-server ok; ops=N"`). 0 if unparseable.
+// Pure, so the convergence display is testable without a live server.
+let parseHealthOps (healthBody: String) : Int64 =
+  match Stdlib.String.split healthBody "ops=" with
+  | [ _before; n ] ->
+    match Stdlib.Int64.parse n with
+    | Ok v -> v
+    | Error _ -> 0L
+  | _ -> 0L
+
+// The peer's sync RELEASE from its `/sync/health` body ("...; release=<N>; ops=<M>"). The single
+// coordinate that must match ours for sync to proceed. A peer that omits it (an OLD pre-release
+// version) parses to 0 — which reads as a mismatch against any real release, exactly the intent.
+let parseHealthRelease (healthBody: String) : Int64 =
+  match Stdlib.String.split healthBody "release=" with
+  | [ _before; rest ] ->
+    // `rest` is "<N>; ops=<M>" — take the digits before the next ";"
+    match Stdlib.String.split rest ";" with
+    | n :: _ ->
+      match Stdlib.Int64.parse n with
+      | Ok v -> v
+      | Error _ -> 0L
+    | _ -> 0L
+  | _ -> 0L
+
+// THIS instance's sync release. Single home for the `pmSyncReleaseVersion` builtin (the multi-ref
+// guard wants ≤1 reference) — every caller routes through here.
+let ourRelease () : Int64 =
+  Builtin.pmSyncReleaseVersion ()
+
+// Sync requires both sides on the SAME release (the wire gate fails closed — a mismatched batch is
+// rejected, never misread). When they differ, this is the clear, actionable line — saying WHICH side
+// to upgrade — that a `check`/`pull` shows instead of a raw decode error. "" when releases match (no
+// skew). A peer with no release stamp parses to 0 (an old pre-release Dark) → "upgrade it".
+let releaseSkewLine
+  (peerLabel: String)
+  (ourRelease: Int64)
+  (peerRelease: Int64)
+  : String =
+  if ourRelease == peerRelease then
+    ""
+  else if peerRelease == 0L then
+    "⚠ " ++ peerLabel ++ " is on an older Dark (no release) — upgrade it to sync"
+  else
+    let theirs = Stdlib.Int64.toString peerRelease
+    let ours = Stdlib.Int64.toString ourRelease
+    let which = if peerRelease < ourRelease then peerLabel else "this machine"
+
+    "⚠ "
+    ++ peerLabel
+    ++ " is on Release "
+    ++ theirs
+    ++ ", you're on "
+    ++ ours
+    ++ " — upgrade "
+    ++ which
+    ++ " to sync"
+
+// "Am I caught up with this peer?" — compare our synced cursor to the peer's op count. Caught up
+// when our cursor has reached the peer's latest op; else how far behind, both sides shown.
+let convergenceLine
+  (peerLabel: String)
+  (ourCursor: Int64)
+  (peerOpCount: Int64)
+  : String =
+  if ourCursor >= peerOpCount then
+    "✓ " ++ peerLabel ++ " — caught up (" ++ (Stdlib.Int64.toString peerOpCount) ++ " ops)"
+  else
+    let behind = peerOpCount - ourCursor
+
+    "⟳ "
+    ++ peerLabel
+    ++ " — "
+    ++ (Stdlib.Int64.toString behind)
+    ++ " behind (you "
+    ++ (Stdlib.Int64.toString ourCursor)
+    ++ " / peer "
+    ++ (Stdlib.Int64.toString peerOpCount)
+    ++ ")"

@@ -1,0 +1,69 @@
+// `dark conflicts` — the review surface for auto-resolved sync conflicts. Sync NEVER blocks: a
+// `name → two hashes` divergence is auto-resolved by policy (default last-writer-wins) and RECORDED
+// so it's never silently lost — the user eventually `ack`s (agrees) or overrides. These pure
+// formatters (`Darklang.Sync.Display.conflict*`) render that surface STRUCTURALLY (from the chosen
+// hash + the resolving policy, no prose parsing); this file pins the UX.
+
+// ── winner read structurally: the chosen hash equals the local ("you") or incoming ("them") side ──
+Darklang.Sync.Display.conflictWinner "e5f6a7b80000" "a1b2c3d4ffff" "e5f6a7b80000" = "them"
+Darklang.Sync.Display.conflictWinner "a1b2c3d4ffff" "a1b2c3d4ffff" "e5f6a7b80000" = "you"
+Darklang.Sync.Display.conflictWinner "ffff0000" "a1b2c3d4ffff" "e5f6a7b80000" = ""
+
+// ── verdict names the resolving policy + which side it kept (never opaque) ──
+Darklang.Sync.Display.conflictVerdict "auto:last-writer-wins" "them" = "last-write-wins → kept theirs"
+Darklang.Sync.Display.conflictVerdict "auto:last-writer-wins" "you" = "last-write-wins → kept yours"
+Darklang.Sync.Display.conflictVerdict "auto:last-writer-wins" "" = "auto-resolved (last-write-wins)"
+Darklang.Sync.Display.conflictVerdict "human" "you" = "override → kept yours"
+Darklang.Sync.Display.conflictVerdict "auto:merge-child-wins" "them" = "merge → kept theirs"
+
+// ── hashes: ✓ marks the winning side, the arrow points to it ──
+Darklang.Sync.Display.conflictHashes "e5f6a7b80000" "a1b2c3d4ffff" "e5f6a7b80000" = "you a1b2c3d4  →  them e5f6a7b8 ✓"
+Darklang.Sync.Display.conflictHashes "a1b2c3d4ffff" "a1b2c3d4ffff" "e5f6a7b80000" = "you a1b2c3d4 ✓  ←  them e5f6a7b8"
+Darklang.Sync.Display.conflictHashes "ffff0000" "a1b2c3d4ffff" "e5f6a7b80000" = "you a1b2c3d4  ·  them e5f6a7b8"
+
+// short hash (full → first 8; already-short unchanged)
+Darklang.Sync.Display.shortHash "abcdefgh12345" = "abcdefgh"
+Darklang.Sync.Display.shortHash "abc" = "abc"
+
+// status glyph: pending needs ack; acked/overridden are dismissed history
+Darklang.Sync.Display.conflictGlyph "NEW" = "⚠"
+Darklang.Sync.Display.conflictGlyph "acked" = "✓"
+Darklang.Sync.Display.conflictGlyph "overridden" = "↩"
+
+// ── empty report: pending view vs full history ──
+Darklang.Sync.Display.conflictReport [] false = ["✓ no pending sync conflicts — every divergence is acknowledged"]
+Darklang.Sync.Display.conflictReport [] true = ["✓ no sync conflicts on record"]
+
+// ── one PENDING conflict → header (frames the ack model) + 2-line block + footer (the actions) ──
+// 8-tuple: (id, location, status, chosenHash, resolvedBy, localHash, incomingHash, remote)
+// chosen == incoming → "them" won; the block names it (✓/→) and prints the exact `ack <id>`
+Darklang.Sync.Display.conflictReport [(("3f8a92c1deadbeef", "Stachu.MyApp.greeting", "NEW", "e5f6a7b80000", "auto:last-writer-wins", "a1b2c3d4ffff", "e5f6a7b80000", "desktop"))] false = [
+  "1 auto-resolved conflict(s) awaiting ack — last-write-wins kept one side, nothing lost:";
+  "";
+  "⚠ Stachu.MyApp.greeting";
+  "    last-write-wins → kept theirs   you a1b2c3d4  →  them e5f6a7b8 ✓  ·  from desktop  ·  ack 3f8a92c1";
+  "";
+  "  ack <id> (agree)  ·  ack all  ·  resolve <id> mine|theirs (override)"
+]
+
+// an acked conflict in the history view → ✓ glyph, no ack hint; chosen == local → "you" won
+Darklang.Sync.Display.conflictReport [(("7c0ffee0", "Stachu.Lib.parse", "acked", "11112222", "auto:last-writer-wins", "11112222", "33334444", "laptop"))] true = [
+  "1 auto-resolved conflict(s) awaiting ack — last-write-wins kept one side, nothing lost:";
+  "";
+  "✓ Stachu.Lib.parse";
+  "    last-write-wins → kept yours   you 11112222 ✓  ←  them 33334444  ·  from laptop";
+  "";
+  "  ack <id> (agree)  ·  ack all  ·  resolve <id> mine|theirs (override)"
+]
+
+// TWO pending races from different peers → header counts both, one block each (a realistic review)
+Darklang.Sync.Display.conflictReport [(("aaaa1111", "Stachu.MyApp.greeting", "NEW", "22222222", "auto:last-writer-wins", "11111111", "22222222", "desktop")); (("bbbb2222", "Stachu.MyApp.config", "NEW", "33333333", "auto:last-writer-wins", "33333333", "44444444", "laptop"))] false = [
+  "2 auto-resolved conflict(s) awaiting ack — last-write-wins kept one side, nothing lost:";
+  "";
+  "⚠ Stachu.MyApp.greeting";
+  "    last-write-wins → kept theirs   you 11111111  →  them 22222222 ✓  ·  from desktop  ·  ack aaaa1111";
+  "⚠ Stachu.MyApp.config";
+  "    last-write-wins → kept yours   you 33333333 ✓  ←  them 44444444  ·  from laptop  ·  ack bbbb2222";
+  "";
+  "  ack <id> (agree)  ·  ack all  ·  resolve <id> mine|theirs (override)"
+]

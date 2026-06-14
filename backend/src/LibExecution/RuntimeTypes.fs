@@ -1849,11 +1849,23 @@ and ExceptionReporter = ExecutionState -> VMState -> Metadata -> exn -> Ply<unit
 
 and Notifier = ExecutionState -> VMState -> string -> Metadata -> Ply<unit>
 
+// CallContext: the runtime coordinates (which branch, which thread) a sync-policy decision is made
+// against — assembled from ExecutionState + VMState and handed to `LibDB.Sync`'s `SyncPolicy` when an
+// execution triggers a pull. Lives in this and-chain because it's built from runtime state.
+//
+// There is deliberately NO runtime conflict/resolution model here: a runtime "I can't proceed" (e.g.
+// a missing fn) is a `RuntimeError`, full stop. The only conflicts with real, choosable resolutions
+// today are SYNC conflicts — `ProgramTypes.SyncConflict`, beside the op log. (A later PR will give the
+// runtime genuine conflict handling — park-and-write-on-demand, PDD-style — at which point a seam
+// returns here, designed against that real requirement rather than guessed at now.)
+and CallContext = { branchId : BranchId; threadID : uuid }
+
 /// All state set when starting an execution; non-changing
 /// (as opposed to the VMState, which changes as the execution progresses)
 and ExecutionState =
   { // -- Set consistently across a runtime --
     tracing : Tracing.Tracing
+
     test : TestContext
 
     /// Lambda instructions registered by `CreateLambda`, looked up on `Apply`.

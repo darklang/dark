@@ -49,9 +49,11 @@ module Hashing =
     hashWithWriter (fun w -> Canonical.writeType mode w t)
 
 
-  /// Hash a PackageFn (skip id, description, deprecated, param descriptions)
+  /// Hash a PackageFn (skip id, description, deprecated, param descriptions).
+  /// MEANING-STABLE: alpha-normalize first, so bound-variable names (parameters, let/lambda/match
+  /// binders) don't affect the hash — `fn add x y = x + y` and `fn add a b = a + b` hash identically.
   let computeFnHash (mode : HashRefMode) (fn : PT.PackageFn.PackageFn) : Hash =
-    hashWithWriter (fun w -> Canonical.writeFn mode w fn)
+    hashWithWriter (fun w -> Canonical.writeFn mode w (AlphaNormalize.fn fn))
 
 
   /// Hash a PackageValue (skip id, description, deprecated)
@@ -59,7 +61,8 @@ module Hashing =
     (mode : HashRefMode)
     (v : PT.PackageValue.PackageValue)
     : Hash =
-    hashWithWriter (fun w -> Canonical.writeValue mode w v)
+    // meaning-stable: alpha-normalize the body's binders first (see computeFnHash)
+    hashWithWriter (fun w -> Canonical.writeValue mode w (AlphaNormalize.value v))
 
 
   /// Hash a PackageOp (reuse existing PackageOp.write — ops have no metadata to skip)
@@ -201,10 +204,12 @@ module Hashing =
     : byte array =
     use ms = new MemoryStream()
     use w = new BinaryWriter(ms)
+    // meaning-stable: alpha-normalize fns/values so the batch (SCC) hash, like the single-item hash,
+    // ignores bound-variable names. Types have no binders, so they pass through unchanged.
     match item with
     | TypeItem(t, _, _, _) -> Canonical.writeType mode w t
-    | FnItem(fn, _, _, _) -> Canonical.writeFn mode w fn
-    | ValueItem(v, _, _, _) -> Canonical.writeValue mode w v
+    | FnItem(fn, _, _, _) -> Canonical.writeFn mode w (AlphaNormalize.fn fn)
+    | ValueItem(v, _, _, _) -> Canonical.writeValue mode w (AlphaNormalize.value v)
     ms.ToArray()
 
 

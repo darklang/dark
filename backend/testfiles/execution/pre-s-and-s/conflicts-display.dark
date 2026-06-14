@@ -1,0 +1,32 @@
+// Conflict/divergence display — the PURE "surface as
+// data" UX over a sync result. Sync.detectDivergences (built in F#) returns
+// (location, existingHash, incomingHash) tuples and NEVER blocks the apply; this formats them
+// for `dark sync`/`dark conflicts`. Pure, testable — completes the divergence story end to end.
+
+let divergenceLine (location: String) (existing: String) (incoming: String) : String =
+  "⚠ divergence at " ++ location ++ ": " ++ existing ++ " vs " ++ incoming
+
+let divergenceHeader (n: Int64) : String =
+  if n == 0L then
+    "✓ no divergences"
+  else if n == 1L then
+    "⚠ 1 divergence surfaced (not blocked)"
+  else
+    "⚠ " ++ (Stdlib.Int64.toString n) ++ " divergences surfaced (not blocked)"
+
+let divergenceReport (divs: List<(String * String * String)>) : String =
+  let header = divergenceHeader (Stdlib.List.length divs)
+  let lines = Stdlib.List.map divs (fun (loc, ex, inc) -> divergenceLine loc ex inc)
+  Stdlib.String.join (Stdlib.List.append [header] lines) "\n"
+
+// one divergence's line
+divergenceLine "Stachu.foo" "hashA" "hashB" = "⚠ divergence at Stachu.foo: hashA vs hashB"
+
+// the header (none / one / many), with pluralization
+divergenceHeader 0L = "✓ no divergences"
+divergenceHeader 1L = "⚠ 1 divergence surfaced (not blocked)"
+divergenceHeader 3L = "⚠ 3 divergences surfaced (not blocked)"
+
+// the full report over a list of detectDivergences tuples
+divergenceReport [] = "✓ no divergences"
+divergenceReport [("Stachu.foo", "hashA", "hashB")] = "⚠ 1 divergence surfaced (not blocked)\n⚠ divergence at Stachu.foo: hashA vs hashB"

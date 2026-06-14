@@ -69,6 +69,7 @@ let export (outputPath : string) : Task<unit> =
       DELETE FROM package_values;
       DELETE FROM package_functions;
       DELETE FROM package_dependencies;
+      DELETE FROM deprecations;
 
       DELETE FROM package_ops WHERE branch_id IN (
         SELECT id FROM branches WHERE archived_at IS NOT NULL);
@@ -234,6 +235,127 @@ let applyUnappliedOps () : Task<int64> =
             [ "first_violations", summary ]
 
         return int64 opCount
+  }
+
+
+/// ops⊥projections prototype: drop every projection table and re-fold the entire
+/// package_ops log to rebuild them. Proves projections are *regenerable from the ops*
+/// (the ops⊥projections split) — losing a projection costs only the CPU to re-fold; the
+/// op log (package_ops) is the canonical durable state and is never touched here.
+/// Returns the count of ops re-applied.
+/// A regenerable projection in the per-branch cache: `table` is the projection, and `dirtiedBy` is
+/// the set of `package_ops` kinds whose arrival invalidates it (so an incremental update re-folds
+/// only the projections an incoming op touches). Op-kind names match the `PackageOp` DU cases.
+type Projection = { table : string; dirtiedBy : Set<string> }
+
+/// The regenerable projections — every table the op-fold writes. `deprecations` is one: it's folded
+/// from `Deprecate`/`Undeprecate` ops (its `annotation_blob` reconstructs from the op), so it's
+/// regenerable and `export` strips it like the others. NOT `package_blobs` (canonical content —
+/// op-playback never writes it), nor the op log / branch / commit / account state.
+let projectionRegistry : List<Projection> =
+  [ { table = "package_functions"; dirtiedBy = Set.ofList [ "AddFn" ] }
+    { table = "package_types"; dirtiedBy = Set.ofList [ "AddType" ] }
+    { table = "package_values"; dirtiedBy = Set.ofList [ "AddValue" ] }
+    { table = "locations"
+      dirtiedBy = Set.ofList [ "SetName"; "RevertPropagation" ] }
+    { table = "package_dependencies"
+      dirtiedBy = Set.ofList [ "AddFn"; "AddType"; "AddValue" ] }
+    { table = "deprecations"; dirtiedBy = Set.ofList [ "Deprecate"; "Undeprecate" ] } ]
+
+/// The tables a full rebuild clears + refolds — derived from the registry (single source of truth).
+let projectionTables : List<string> =
+  projectionRegistry |> List.map (fun p -> p.table)
+
+/// Which projection tables an incoming op kind invalidates (incremental-refold targets).
+let projectionsDirtiedBy (opKind : string) : List<string> =
+  projectionRegistry
+  |> List.filter (fun p -> Set.contains opKind p.dirtiedBy)
+  |> List.map (fun p -> p.table)
+
+/// The projection tables a whole op BATCH dirties — the union over its op kinds. This is the
+/// incremental-refold *decision*: a rebuild after appending a batch need only clear+refold
+/// these tables, leaving every other projection (and its rows) untouched.
+let projectionsDirtiedByBatch (opKinds : Set<string>) : Set<string> =
+  opKinds |> Set.toList |> List.collect projectionsDirtiedBy |> Set.ofList
+
+/// An op's kind name (matches the registry's keys).
+let opKindName (op : PT.PackageOp) : string =
+  match op with
+  | PT.PackageOp.AddType _ -> "AddType"
+  | PT.PackageOp.AddValue _ -> "AddValue"
+  | PT.PackageOp.AddFn _ -> "AddFn"
+  | PT.PackageOp.SetName _ -> "SetName"
+  | PT.PackageOp.Deprecate _ -> "Deprecate"
+  | PT.PackageOp.Undeprecate _ -> "Undeprecate"
+  | PT.PackageOp.PropagateUpdate _ -> "PropagateUpdate"
+  | PT.PackageOp.RevertPropagation _ -> "RevertPropagation"
+
+/// Incremental refold (the selective counterpart to `rebuildProjections`): clear ONLY the
+/// projections this op-kind batch dirties, then re-fold ONLY the ops of those kinds back into
+/// them — leaving every other projection untouched. Returns the count re-folded.
+///
+/// Faithful for content-addressed `Add*` kinds (their fold is batch-independent). Note: a
+/// `SetName`-only refold would mis-detect renames (rename detection needs the batch's added
+/// hashes), so include the accompanying `Add*` kinds when refolding `SetName`.
+let rebuildDirtied (opKinds : Set<string>) : Task<int64> =
+  task {
+    let dirtied = projectionsDirtiedByBatch opKinds
+    for t in Set.toList dirtied do
+      do! Sql.query $"DELETE FROM {t}" |> Sql.executeStatementAsync
+
+    let! ops =
+      Sql.query
+        "SELECT id, op_blob, branch_id, commit_hash FROM package_ops ORDER BY created_at ASC"
+      |> Sql.executeAsync (fun read ->
+        let opId = read.uuid "id"
+        let op = BS.PT.PackageOp.deserialize opId (read.bytes "op_blob")
+        let branchId : PT.BranchId = read.uuid "branch_id"
+        let commitHash = read.stringOrNone "commit_hash"
+        (op, branchId, commitHash))
+
+    let relevant =
+      ops |> List.filter (fun (op, _, _) -> Set.contains (opKindName op) opKinds)
+    let groups = relevant |> List.groupBy (fun (_, b, c) -> (b, c)) |> Map.toList
+    for ((branchId, commitHash), g) in groups do
+      do!
+        PackageOpPlayback.applyOps
+          branchId
+          commitHash
+          (g |> List.map (fun (op, _, _) -> op))
+    return int64 (List.length relevant)
+  }
+
+let rebuildProjections () : Task<int64> =
+  task {
+    // 1. clear the regenerable projection tables — from the projection registry (single
+    // source of truth), so the rebuild set can never drift from the fold/dirty descriptors.
+    for t in projectionTables do
+      do! Sql.query $"DELETE FROM {t}" |> Sql.executeStatementAsync
+    // 2. mark all ops unapplied so the fold reprocesses the whole log
+    do! Sql.query "UPDATE package_ops SET applied = 0" |> Sql.executeStatementAsync
+    // 3. re-fold ops -> projections via the existing playback path
+    let! folded = applyUnappliedOps ()
+    // 4. re-apply resolutions OVER the rebuilt op-fold — they overlay the contested bindings, and the
+    //    op log alone doesn't carry them (a resolution isn't an op), so a refold would otherwise lose
+    //    every override. Idempotent + LWW-gated, so this is safe to run after every rebuild.
+    do! Resolutions.applyAll ()
+    return folded
+  }
+
+
+/// Projection-currency counters for `dark status`: `(opsCount, foldedThrough)` — total ops in the
+/// canonical `package_ops` log vs how many are folded into the projections (the `applied` flag).
+/// Equal => the projection cache is current; a gap => ops have been appended/pulled but not yet
+/// folded (run `branch rebuild`, or restart to `growIfNeeded`).
+let projectionStatus () : Task<int64 * int64> =
+  task {
+    let! total =
+      Sql.query "SELECT COUNT(*) as cnt FROM package_ops"
+      |> Sql.executeRowAsync (fun read -> read.int64 "cnt")
+    let! folded =
+      Sql.query "SELECT COUNT(*) as cnt FROM package_ops WHERE applied = 1"
+      |> Sql.executeRowAsync (fun read -> read.int64 "cnt")
+    return (total, folded)
   }
 
 

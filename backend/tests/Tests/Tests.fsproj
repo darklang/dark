@@ -40,6 +40,7 @@
     <Compile Include="LibExecution.Tests.fs" />
     <Compile Include="Propagation.Tests.fs" />
     <Compile Include="Hashing.Tests.fs" />
+    <Compile Include="AlphaNormalize.Tests.fs" />
     <Compile Include="BranchOps.Tests.fs" />
 
     <!-- cloud stuff /-->
@@ -52,8 +53,13 @@
     <Compile Include="Serialization.DarkTypes.Tests.fs" />
 
     <Compile Include="Blob.Tests.fs" />
+    <Compile Include="OpsProjections.Tests.fs" />
     <Compile Include="Stream.Tests.fs" />
     <Compile Include="Capabilities.Tests.fs" />
+    <Compile Include="SyncIdempotency.Tests.fs" />
+    <Compile Include="SyncScenarios.Tests.fs" />
+    <Compile Include="Releases.Tests.fs" />
+    <Compile Include="Remotes.Tests.fs" />
 
     <Compile Include="Tests.fs" />
   </ItemGroup>

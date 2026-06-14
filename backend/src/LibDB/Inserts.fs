@@ -29,22 +29,25 @@ let computeOpHash (op : PT.PackageOp) : System.Guid =
 /// commitHash = None means WIP (commit_hash = NULL), Some id means committed
 /// Returns the count of ops actually inserted (duplicates are skipped via INSERT OR IGNORE)
 ///
-/// Uses a two-phase approach for consistency:
-/// 1. Insert ops with applied=false
-/// 2. Apply ops to projection tables
-/// 3. Mark ops as applied=true
-///
-/// This ensures that if step 2 fails, we can identify unapplied ops and retry/rollback.
-let insertAndApplyOps
+/// Two steps: (1) insert ops as applied=false, (2) apply them to the projection tables, then mark
+/// applied=true. The `applied` flag is ADVISORY — a diagnostic record of which ops cleared the fold
+/// — not an automatic recovery trigger: nothing reads `applied = 0` to retry or roll back. The final
+/// mark is best-effort (a failure is logged, not fatal; the ops are already applied).
+/// Shared impl. `originTs` maps an op-id → the authoring stamp to store; for ops not in the map
+/// (the normal local-authoring path) the op self-stamps `now`. The SYNC path supplies the peer's
+/// origin_ts here so the op is inserted with its TRUE creation time BEFORE the fold — so playback's
+/// `applySetName` orders the binding by creation, not arrival (timestamp-LWW).
+let private insertAndApplyOpsImpl
   (branchId : PT.BranchId)
   (commitHash : Option<string>)
   (ops : List<PT.PackageOp>)
+  (originTs : Map<System.Guid, string>)
   : Task<int64> =
   task {
     if List.isEmpty ops then
       return 0L
     else
-      // Phase 1: Insert ops with applied=false
+      // Insert ops as unapplied
       // Tag all ops in a propagation batch with the same propagation_id.
       // This allows cleanup of all related ops when undoing a propagation.
       let batchPropagationId =
@@ -62,13 +65,20 @@ let insertAndApplyOps
           let opBlob = BS.PT.PackageOp.serialize opId op
           (opId, op, opBlob, batchPropagationId))
 
+      // Base stamp for locally-authored ops. Each op in this batch gets `baseNow + its index` ms, so a
+      // same-batch rebind of one name (v1 then v2) gets STRICTLY-INCREASING origin_ts — v2 is
+      // newer-by-creation and wins outright, never hitting playback's same-millisecond hash tie-break
+      // (which is reserved for genuine cross-instance races). Sub-millisecond authoring would otherwise
+      // tie, making a local rebind resolve by content hash instead of order.
+      let baseNow = System.DateTime.UtcNow
+
       let insertStatements =
         opsWithIds
-        |> List.map (fun (opId, _op, opBlob, propagationId) ->
+        |> List.mapi (fun i (opId, _op, opBlob, propagationId) ->
           let sql =
             """
-            INSERT OR IGNORE INTO package_ops (id, op_blob, branch_id, applied, commit_hash, propagation_id)
-            VALUES (@id, @op_blob, @branch_id, @applied, @commit_hash, @propagation_id)
+            INSERT OR IGNORE INTO package_ops (id, op_blob, branch_id, applied, commit_hash, propagation_id, origin_ts)
+            VALUES (@id, @op_blob, @branch_id, @applied, @commit_hash, @propagation_id, @origin_ts)
             """
 
           let commitHashParam =
@@ -76,12 +86,21 @@ let insertAndApplyOps
             | Some s -> Sql.string s
             | None -> Sql.dbnull
 
+          // the op's authoring stamp: the peer's value on sync (preserve it), else a strictly-increasing
+          // local stamp (`baseNow + index`) so same-batch rebinds order by authoring sequence.
+          let originTsVal =
+            match Map.tryFind opId originTs with
+            | Some t -> t
+            | None ->
+              baseNow.AddMilliseconds(float i).ToString("yyyy-MM-ddTHH:mm:ss.fffZ")
+
           let parameters =
             [ "id", Sql.uuid opId
               "op_blob", Sql.bytes opBlob
               "branch_id", Sql.uuid branchId
               "applied", Sql.bool false // Insert as unapplied
               "commit_hash", commitHashParam
+              "origin_ts", Sql.string originTsVal
               "propagation_id",
               (match propagationId with
                | Some id -> Sql.uuid id
@@ -130,6 +149,24 @@ let insertAndApplyOps
 
       return insertedCount
   }
+
+/// Insert + apply ops authored locally (each self-stamps `now` as its origin_ts).
+let insertAndApplyOps
+  (branchId : PT.BranchId)
+  (commitHash : Option<string>)
+  (ops : List<PT.PackageOp>)
+  : Task<int64> =
+  insertAndApplyOpsImpl branchId commitHash ops Map.empty
+
+/// Insert + apply ops received via SYNC, preserving each op's authoring stamp (`originTs` by op-id)
+/// so the fold orders bindings by CREATION time, not arrival (timestamp-LWW, conflicts doc).
+let insertAndApplyOpsWithOrigin
+  (branchId : PT.BranchId)
+  (commitHash : Option<string>)
+  (ops : List<PT.PackageOp>)
+  (originTs : Map<System.Guid, string>)
+  : Task<int64> =
+  insertAndApplyOpsImpl branchId commitHash ops originTs
 
 
 /// Create a new commit and insert ops with that commit_hash
@@ -644,3 +681,45 @@ let discardWipOps (branchId : PT.BranchId) : Task<Result<int64, string>> =
     with ex ->
       return Error ex.Message
   }
+
+
+/// Sync read path: all ops with rowid > cursor, in insertion order.
+/// Uses SQLite's implicit `rowid` as a monotonic cursor — `package_ops`'s PK is TEXT, so the
+/// rowid is a free, strictly-increasing insertion sequence; no `seq` column / migration needed.
+/// Returns (rowid, opId, opBlob) per op so a poller advances `since` to the last rowid seen.
+let opsSince (cursor : int64) : Task<List<int64 * System.Guid * string * byte[]>> =
+  Sql.query
+    "SELECT rowid, id, origin_ts, op_blob FROM package_ops WHERE rowid > @cursor ORDER BY rowid ASC"
+  |> Sql.parameters [ "cursor", Sql.int64 cursor ]
+  |> Sql.executeAsync (fun read ->
+    (read.int64 "rowid",
+     read.uuid "id",
+     read.string "origin_ts",
+     read.bytes "op_blob"))
+
+/// COMMITTED-ONLY variant of `opsSince` — only ops belonging to a commit (`commit_hash` set),
+/// excluding WIP (`commit_hash IS NULL`). This is the DEFAULT sync read: a peer (another of your
+/// devices, or a coworker) syncs your committed history, never your uncommitted mid-edit work.
+///
+/// **Cursors on the COMMIT's rowid, not the op's.** A WIP op gets its `package_ops.rowid` at insert
+/// time, then a later commit promotes it IN PLACE (the rowid never moves). So an op-rowid cursor can
+/// permanently skip an op that commits *after* the cursor already advanced past its rowid (e.g. a
+/// fresh-committed op syncs first, lifting the cursor over an older still-WIP op). Cursoring on
+/// `commits.rowid` — assigned when the commit is created, monotonic, and shared by every op in the
+/// commit — fixes this: a newly-created commit always sorts AFTER everything already synced, and a
+/// commit's ops travel together (the unit of sync is the commit). The returned first element is the
+/// commit's rowid (the cursor coordinate the receiver stores), not the op's. No schema change.
+let opsSinceCommitted
+  (cursor : int64)
+  : Task<List<int64 * System.Guid * string * byte[]>> =
+  Sql.query
+    "SELECT c.rowid AS crowid, po.id, po.origin_ts, po.op_blob
+     FROM package_ops po JOIN commits c ON po.commit_hash = c.hash
+     WHERE c.rowid > @cursor
+     ORDER BY c.rowid ASC, po.rowid ASC"
+  |> Sql.parameters [ "cursor", Sql.int64 cursor ]
+  |> Sql.executeAsync (fun read ->
+    (read.int64 "crowid",
+     read.uuid "id",
+     read.string "origin_ts",
+     read.bytes "op_blob"))

@@ -12,7 +12,6 @@ open TestUtils.PTShortcuts
 module PT = LibExecution.ProgramTypes
 module Branches = LibDB.Branches
 module Inserts = LibDB.Inserts
-module BranchOpPlayback = LibDB.BranchOpPlayback
 
 open Fumble
 open LibDB.Sqlite
@@ -387,6 +386,166 @@ let testPartialCommitDeprecationState =
   }
 
 
+// MERGE COLLISIONS through the conflict mechanism. Two branches (think: two AI agents on two
+// instances) both bind the SAME name to DIFFERENT content. A merge silently lets the child win
+// (the parent binding is unlisted) — so, exactly like a sync divergence, the collision is DETECTED
+// and RECORDED in the same reviewable store, instead of vanishing. This pins the detection.
+let testMergeCollisionDetection =
+  testTask
+    "merge collisions: same FQN bound to different content on two branches is detected" {
+    let! (parent : PT.Branch) = Branches.create "mc-parent" PT.mainBranchId
+    let! (child : PT.Branch) = Branches.create "mc-child" PT.mainBranchId
+
+    let fnP = makeFn (eVar "x")
+    let fnC = makeFn (eVar "y") // different body → different content hash
+    Expect.notEqual
+      fnP.hash
+      fnC.hash
+      "the two fns differ in content (different hashes)"
+
+    // same location, different hash, on each branch (WIP is enough — detection reads `locations`)
+    let! (_ : int64) =
+      Inserts.insertAndApplyOpsAsWip
+        parent.id
+        [ PT.PackageOp.AddFn fnP
+          PT.PackageOp.SetName(loc "collide", PT.PackageFn fnP.hash) ]
+    let! (_ : int64) =
+      Inserts.insertAndApplyOpsAsWip
+        child.id
+        [ PT.PackageOp.AddFn fnC
+          PT.PackageOp.SetName(loc "collide", PT.PackageFn fnC.hash) ]
+    // a child-only name must NOT count as a collision
+    let fnSolo = makeFn (eInt64 7L)
+    let! (_ : int64) =
+      Inserts.insertAndApplyOpsAsWip
+        child.id
+        [ PT.PackageOp.AddFn fnSolo
+          PT.PackageOp.SetName(loc "childonly", PT.PackageFn fnSolo.hash) ]
+
+    let! collisions = LibDB.Merge.detectMergeCollisions child.id parent.id
+    let (PT.Hash pHash) = fnP.hash
+    let (PT.Hash cHash) = fnC.hash
+    match
+      collisions |> List.filter (fun (l, _, _) -> l = "Test.BranchOps.collide")
+    with
+    | [ (_, parentHash, childHash) ] ->
+      Expect.equal parentHash pHash "parent's (overwritten/local) hash is recorded"
+      Expect.equal childHash cHash "child's (incoming/winning) hash is recorded"
+    | other ->
+      failtest
+        $"expected exactly one collision at Test.BranchOps.collide, got {List.length other}"
+    Expect.isFalse
+      (collisions |> List.exists (fun (l, _, _) -> l = "Test.BranchOps.childonly"))
+      "a name only the child branch has is not a collision"
+  }
+
+
+// MERGE COLLISIONS, end to end: a real `merge` records each collision in the conflict store (the
+// SAME `dark conflicts` surface sync uses). Everything is kept off `main` (P off main, C off P) so
+// the shared main bindings aren't disturbed by the parallel suite.
+let testMergeRecordsCollisions =
+  testTask
+    "merge records each collision in the conflict store (the surface sync uses)" {
+    let! (p : PT.Branch) = Branches.create "mc-rec-parent" PT.mainBranchId
+    let fnP = makeFn (eVar "x")
+    let! (_ : int64) =
+      Inserts.insertAndApplyOpsAsWip
+        p.id
+        [ PT.PackageOp.AddFn fnP
+          PT.PackageOp.SetName(loc "reccollide", PT.PackageFn fnP.hash) ]
+    let! (commitP : Result<PT.Hash, string>) =
+      Inserts.commitWipOps LibCloud.Account.IDs.darklang p.id "p binds reccollide"
+    Expect.isOk commitP "P's commit should succeed"
+
+    // C branches off P's latest commit (so it's rebased), then rebinds the name to different content
+    let! (c : PT.Branch) = Branches.create "mc-rec-child" p.id
+    let fnC = makeFn (eVar "y")
+    let! (_ : int64) =
+      Inserts.insertAndApplyOpsAsWip
+        c.id
+        [ PT.PackageOp.AddFn fnC
+          PT.PackageOp.SetName(loc "reccollide", PT.PackageFn fnC.hash) ]
+    let! (commitC : Result<PT.Hash, string>) =
+      Inserts.commitWipOps LibCloud.Account.IDs.darklang c.id "c rebinds reccollide"
+    Expect.isOk commitC "C's commit should succeed"
+
+    let! (mergeResult : Result<unit, PT.MergeError>) = LibDB.Merge.merge c.id
+    Expect.isOk mergeResult "merge C into P should succeed"
+
+    let! all = LibDB.Conflicts.list ()
+    let (PT.Hash pHash) = fnP.hash
+    let (PT.Hash cHash) = fnC.hash
+    let recorded =
+      all
+      |> List.filter (fun (x : LibDB.Conflicts.Conflict) ->
+        x.location = "Test.BranchOps.reccollide" && x.remote = "merge:mc-rec-child")
+    match recorded with
+    | [ conflict ] ->
+      Expect.equal
+        conflict.localHash
+        pHash
+        "parent (overwritten) hash is the local side"
+      Expect.equal
+        conflict.incomingHash
+        cHash
+        "child (winning) hash is the incoming side"
+      Expect.equal
+        conflict.resolvedBy
+        "auto:merge-child-wins"
+        "the merge auto-resolution is recorded for review"
+    | other ->
+      failtest $"expected one recorded merge collision, got {List.length other}"
+  }
+
+
+// The real edit → commit flow on a branch — the op path `dark --branch feat fn …` and
+// `dark --branch feat commit …` drive (insertAndApplyOpsAsWip → commitWipOps) — wired to the
+// committed-only sync read. A WIP edit is NOT shippable to a peer; committing it is what makes the
+// op appear in the sync stream. (The commit is the unit of sync.)
+let testEditCommitSyncFlow =
+  testTask
+    "edit → commit on a branch: WIP isn't synced, the commit makes it shippable" {
+    let! (branch : PT.Branch) = Branches.create "sync-flow" PT.mainBranchId
+
+    // `dark --branch sync-flow fn Test.BranchOps.flow …` → a WIP AddFn + SetName on the branch
+    let fn = makeFn (eVar "x")
+    let ops =
+      [ PT.PackageOp.AddFn fn
+        PT.PackageOp.SetName(loc "flow", PT.PackageFn fn.hash) ]
+    let! (_ : int64) = Inserts.insertAndApplyOpsAsWip branch.id ops
+
+    let committedOnBranch () : Task<int64> =
+      Sql.query
+        "SELECT COUNT(*) as cnt FROM package_ops WHERE branch_id = @b AND commit_hash IS NOT NULL"
+      |> Sql.parameters [ "b", Sql.uuid branch.id ]
+      |> Sql.executeRowAsync (fun read -> read.int64 "cnt")
+
+    // WIP: nothing committed on the branch yet → the committed-only sync read won't ship it
+    let! committedBefore = committedOnBranch ()
+    Expect.equal
+      committedBefore
+      0L
+      "a WIP edit is uncommitted, so sync won't ship it"
+    let! syncBefore = Inserts.opsSinceCommitted 0L
+
+    // `dark --branch sync-flow commit "add flow"`
+    let! (commitResult : Result<PT.Hash, string>) =
+      Inserts.commitWipOps LibCloud.Account.IDs.darklang branch.id "add flow"
+    Expect.isOk commitResult "commit should succeed"
+
+    // now the branch's two ops are committed AND appear in the committed-only sync stream
+    let! committedAfter = committedOnBranch ()
+    Expect.equal
+      committedAfter
+      2L
+      "after commit, the branch's AddFn + SetName are committed"
+    let! syncAfter = Inserts.opsSinceCommitted 0L
+    Expect.isTrue
+      (List.length syncAfter >= List.length syncBefore + 2)
+      "the committed ops now appear in the committed-only sync read (committing is publishing)"
+  }
+
+
 let tests =
   testList
     "BranchOps"
@@ -396,4 +555,7 @@ let tests =
       testGhostFunctionCrossBranch
       testPartialCommit
       testPartialCommitSameFqn
-      testPartialCommitDeprecationState ]
+      testPartialCommitDeprecationState
+      testMergeCollisionDetection
+      testMergeRecordsCollisions
+      testEditCommitSyncFlow ]

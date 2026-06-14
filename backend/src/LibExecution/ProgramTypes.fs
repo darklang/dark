@@ -733,6 +733,21 @@ type PackageOp =
 
 
 
+/// A SYNC conflict — surfaced when applying a peer's ops reveals state two instances disagree on.
+/// It lives HERE, beside `PackageOp`, because every sync conflict is ultimately a disagreement about
+/// the op log. Distinct from a *runtime* error (`RuntimeError`, e.g. a missing fn mid-execution): a
+/// sync conflict has choosable resolutions; a runtime wall doesn't. One case today; a new kind (a move
+/// collision, a value-update race) joins here and is resolved the same way — a per-kind decision
+/// recorded as a synced `Resolution` overlaid on the op-fold (`LibDB.Resolutions`) — with no change to
+/// the sync engine. (A resolution is stored flattened: the chosen content hash + who/what chose it,
+/// `'auto:<policy>'` | `'human'` — see `LibDB.Conflicts`/`Resolutions`.)
+and SyncConflict =
+  /// One location bound to two different contents across instances (the `name → two hashes`
+  /// divergence). `candidates` are the contending references — today exactly two, ordered
+  /// [local; incoming].
+  | Divergence of location : PackageLocation * candidates : List<Reference>
+
+
 /// The kind of package item (function, type, or value)
 and ItemKind =
   | Fn

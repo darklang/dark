@@ -31,6 +31,11 @@ let available () : List<Model.App> =
         description = "A tiny text editor — the outliner's TextEditor widget surfaced as an app"
         target = Model.Target.Foreground "text-editor" }
     Model.App
+      { name = "Sync"
+        slug = "sync"
+        description = "Always-on package sync across your tailnet (poll every peer, adaptive interval)"
+        target = Model.Target.Daemon "Darklang.Sync.Daemon.runManaged" }
+    Model.App
       { name = "Dark Packages HTTP Server"
         slug = "dark-packages"
         description = "The package API (powers wip.darklang.com/packages)"

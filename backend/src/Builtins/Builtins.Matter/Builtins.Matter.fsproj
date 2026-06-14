@@ -20,6 +20,8 @@
     <Compile Include="Libs/PM/Dependencies.fs" />
     <Compile Include="Libs/PM/Seed.fs" />
     <Compile Include="Libs/PM/Caps.fs" />
+    <Compile Include="Libs/PM/Sync.fs" />
+    <Compile Include="Libs/PM/Remotes.fs" />
 
     <!-- Tracing (reader) -->
     <Compile Include="Libs/Traces.fs" />

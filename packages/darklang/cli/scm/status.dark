@@ -1,6 +1,24 @@
 module Darklang.Cli.SCM.Status
 
 
+// The ops⊥projections currency line: is the local projection cache current with the canonical op
+// log? `opsCount` = rows in `package_ops`; `foldedThrough` = how many are folded (applied). Pure
+// arithmetic over the two — testable without a live DB (see testfiles/.../status-cli.dark).
+let statusLine (opsCount: Int64) (foldedThrough: Int64) : String =
+  if foldedThrough >= opsCount then
+    "✓ up to date (" ++ (Stdlib.Int64.toString opsCount) ++ " ops)"
+  else
+    let behind = opsCount - foldedThrough
+
+    "core.db: "
+    ++ (Stdlib.Int64.toString opsCount)
+    ++ " ops · projections folded through "
+    ++ (Stdlib.Int64.toString foldedThrough)
+    ++ " ("
+    ++ (Stdlib.Int64.toString behind)
+    ++ " behind)"
+
+
 let execute (state: AppState) (args: List<String>) : AppState =
   let branchId = state.currentBranchId
 
@@ -11,6 +29,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | None -> "unknown"
 
   Stdlib.printLine $"On branch {Cli.Colors.cyan}{branchName}{Cli.Colors.reset}"
+
+  // projection-cache currency (canonical op log vs how far projections are folded)
+  let (opsCount, foldedThrough) = Builtin.pmProjectionStatus ()
+  Stdlib.printLine (Cli.Colors.dimText (statusLine opsCount foldedThrough))
 
   let summary = SCM.PackageOps.getWipSummary branchId
 
