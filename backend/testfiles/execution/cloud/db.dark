@@ -573,17 +573,17 @@ module DeleteAll =
 
 module Count =
   // empty
-  Stdlib.DB.count XDB = 0L
+  Stdlib.DB.count XDB = 0I
 
   // one entries
-  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB in Stdlib.DB.count XDB) = 1L
+  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB in Stdlib.DB.count XDB) = 1I
 
   // multiple entries
   (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
    let _ = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
    let _ = Stdlib.DB.set (X { x = "howdy" }) "three" XDB
    let _ = Stdlib.DB.set (X { x = "cheers" }) "four" XDB
-   Stdlib.DB.count XDB) = 4L
+   Stdlib.DB.count XDB) = 4I
 
 // ------------
 // SqlCompiler queries
@@ -1047,11 +1047,11 @@ module QueryWithKey =
 module QueryCount =
   // none
   (let _ = prepFriends ()
-   Stdlib.DB.queryCount PersonDB (fun p -> p.name == "bob")) = 0L
+   Stdlib.DB.queryCount PersonDB (fun p -> p.name == "bob")) = 0I
 
   // one
   (let _ = prepFriends ()
-   Stdlib.DB.queryCount PersonDB (fun p -> p.height > 3L)) = 4L
+   Stdlib.DB.queryCount PersonDB (fun p -> p.height > 3L)) = 4I
 
 
 ((Stdlib.DB.generateKey ()) |> Stdlib.String.length) = 36L

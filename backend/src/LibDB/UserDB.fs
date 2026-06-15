@@ -570,5 +570,5 @@ let executeCompiledQuery
         |> Sql.parameters allParams
         |> Sql.executeRowAsync (fun read -> read.int "count")
 
-      return RT.DInt64(int64 count)
+      return RT.Dval.int (bigint count)
   }

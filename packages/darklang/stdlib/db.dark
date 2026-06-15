@@ -49,7 +49,7 @@ let getAllWithKeys (table: 'a) : Dict<'a> = Builtin.dbGetAllWithKeys table
 
 
 /// Return the number of items stored in <param table>
-let count (table: 'a) : Int64 = Builtin.dbCount table
+let count (table: 'a) : Int = Builtin.dbCount table
 
 
 /// Returns a random key suitable for use as a DB key
@@ -94,5 +94,5 @@ let queryOneWithKey
 
 /// Return the number of items from <param table> for which filter returns true. Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.
 /// Errors at compile-time if Dark's compiler does not support the code in question.
-let queryCount (table: 'a) (filter: ('a -> Bool)) : Int64 =
+let queryCount (table: 'a) (filter: ('a -> Bool)) : Int =
   Builtin.dbQueryCount table filter
