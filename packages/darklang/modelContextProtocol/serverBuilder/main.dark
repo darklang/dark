@@ -222,9 +222,9 @@ let run (server: McpServerBuilder) : Int64 =
   |> Stdlib.DateTime.toString
   |> fun nowStr -> logWithPath logFilePath $"Running {server.name} MCP Server {nowStr}"
 
-  let toolCount = (Stdlib.Dict.size server.tools) |> Stdlib.Int64.toString
-  let resourceCount = (Stdlib.Dict.size server.resources) |> Stdlib.Int64.toString
-  let promptCount = (Stdlib.Dict.size server.prompts) |> Stdlib.Int64.toString
+  let toolCount = (Stdlib.Dict.size server.tools) |> Stdlib.Int.toString
+  let resourceCount = (Stdlib.Dict.size server.resources) |> Stdlib.Int.toString
+  let promptCount = (Stdlib.Dict.size server.prompts) |> Stdlib.Int.toString
 
   logWithPath logFilePath $"Server '{server.name}' features:"
   logWithPath logFilePath $"  - Tools: {toolCount} registered"
