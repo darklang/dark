@@ -12,7 +12,7 @@ let empty = Builtin.blobEmpty
 
 
 /// Returns the length of <param blob> in bytes.
-let length (blob: Blob) : Int64 = Builtin.blobLength blob
+let length (blob: Blob) : Int = Builtin.blobLength blob
 
 
 /// Concatenates a list of Blobs into a single Blob.
@@ -21,7 +21,7 @@ let concat (blobs: List<Blob>) : Blob = Builtin.blobConcat blobs
 
 /// Copies <param length> bytes starting at <param start> into a new
 /// Blob. Out-of-range slices are clamped.
-let slice (blob: Blob) (start: Int64) (length: Int64) : Blob =
+let slice (blob: Blob) (start: Int) (length: Int) : Blob =
   Builtin.blobSlice blob start length
 
 

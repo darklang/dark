@@ -31,7 +31,7 @@ module BigTestCase =
    |> (++) "\nstring length: "
    |> (++) (Stdlib.Int64.toString_v0 sl)
    |> (++) "\nbytes length: "
-   |> (++) (Stdlib.Int64.toString_v0 bl)
+   |> (++) (Stdlib.Int.toString bl)
    |> (++) "\nbool: "
    |> (++) (Stdlib.Bool.toString_v0 r)
    |> (++) "\nfloat: "
