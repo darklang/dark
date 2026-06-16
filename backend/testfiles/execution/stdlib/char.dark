@@ -134,23 +134,23 @@ Stdlib.Char.isASCII_v0 ' ' = true
 Stdlib.Char.isASCII_v0 '\t' = true
 
 
-Stdlib.Char.toAsciiCode 'a' = Stdlib.Option.Option.Some 97L
-Stdlib.Char.toAsciiCode 'A' = Stdlib.Option.Option.Some 65L
-Stdlib.Char.toAsciiCode 'á' = Stdlib.Option.Option.Some 225L
-Stdlib.Char.toAsciiCode 'Á' = Stdlib.Option.Option.Some 193L
-Stdlib.Char.toAsciiCode '3' = Stdlib.Option.Option.Some 51L
+Stdlib.Char.toAsciiCode 'a' = Stdlib.Option.Option.Some 97I
+Stdlib.Char.toAsciiCode 'A' = Stdlib.Option.Option.Some 65I
+Stdlib.Char.toAsciiCode 'á' = Stdlib.Option.Option.Some 225I
+Stdlib.Char.toAsciiCode 'Á' = Stdlib.Option.Option.Some 193I
+Stdlib.Char.toAsciiCode '3' = Stdlib.Option.Option.Some 51I
 Stdlib.Char.toAsciiCode (smiley ()) = Stdlib.Option.Option.None
 Stdlib.Char.toAsciiCode 'ż' = Stdlib.Option.Option.None
 Stdlib.Char.toAsciiCode 'Ż' = Stdlib.Option.Option.None
-Stdlib.Char.toAsciiCode 'ó' = Stdlib.Option.Option.Some 243L
-Stdlib.Char.toAsciiCode 'Ó' = Stdlib.Option.Option.Some 211L
+Stdlib.Char.toAsciiCode 'ó' = Stdlib.Option.Option.Some 243I
+Stdlib.Char.toAsciiCode 'Ó' = Stdlib.Option.Option.Some 211I
 Stdlib.Char.toAsciiCode 'ł' = Stdlib.Option.Option.None
 Stdlib.Char.toAsciiCode 'Ł' = Stdlib.Option.Option.None
 Stdlib.Char.toAsciiCode (hand ()) = Stdlib.Option.Option.None
 Stdlib.Char.toAsciiCode 'ჾ' = Stdlib.Option.Option.None
 Stdlib.Char.toAsciiCode 'Ჾ' = Stdlib.Option.Option.None
-Stdlib.Char.toAsciiCode ' ' = Stdlib.Option.Option.Some 32L
-Stdlib.Char.toAsciiCode '\t' = Stdlib.Option.Option.Some 9L
+Stdlib.Char.toAsciiCode ' ' = Stdlib.Option.Option.Some 32I
+Stdlib.Char.toAsciiCode '\t' = Stdlib.Option.Option.Some 9I
 
 
 Stdlib.Char.isLessThan_v0 'a' 'b' = true
@@ -205,20 +205,20 @@ Stdlib.Char.toString 'ჾ' = "ჾ"
 
 
 // Valid codepoints
-Stdlib.Char.fromCodepoint 65L = Stdlib.Option.Option.Some 'A'
-Stdlib.Char.fromCodepoint 233L = Stdlib.Option.Option.Some 'é'
+Stdlib.Char.fromCodepoint 65I = Stdlib.Option.Option.Some 'A'
+Stdlib.Char.fromCodepoint 233I = Stdlib.Option.Option.Some 'é'
 // Non-BMP: pins the surrogate-pair path through ConvertFromUtf32. 0x1F602 = 😂
-Stdlib.Char.fromCodepoint 128514L = Stdlib.Option.Option.Some (smiley ())
+Stdlib.Char.fromCodepoint 128514I = Stdlib.Option.Option.Some (smiley ())
 
 // Invalid: surrogate range (D800..DFFF) — reserved for UTF-16 surrogate pairs
-Stdlib.Char.fromCodepoint 55296L = Stdlib.Option.Option.None
-Stdlib.Char.fromCodepoint 56319L = Stdlib.Option.Option.None
-Stdlib.Char.fromCodepoint 57343L = Stdlib.Option.Option.None
+Stdlib.Char.fromCodepoint 55296I = Stdlib.Option.Option.None
+Stdlib.Char.fromCodepoint 56319I = Stdlib.Option.Option.None
+Stdlib.Char.fromCodepoint 57343I = Stdlib.Option.Option.None
 
 // Invalid: above Unicode max (0x10FFFF)
-Stdlib.Char.fromCodepoint 1114112L = Stdlib.Option.Option.None
-Stdlib.Char.fromCodepoint 2147483647L = Stdlib.Option.Option.None
+Stdlib.Char.fromCodepoint 1114112I = Stdlib.Option.Option.None
+Stdlib.Char.fromCodepoint 2147483647I = Stdlib.Option.Option.None
 
 // Invalid: negative — the F# test parser rejects `-NL`, so build via `0L - N`.
-Stdlib.Char.fromCodepoint (0L - 1L) = Stdlib.Option.Option.None
-Stdlib.Char.fromCodepoint (0L - 1000L) = Stdlib.Option.Option.None
+Stdlib.Char.fromCodepoint (0I - 1I) = Stdlib.Option.Option.None
+Stdlib.Char.fromCodepoint (0I - 1000I) = Stdlib.Option.Option.None

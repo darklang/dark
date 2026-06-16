@@ -38,12 +38,12 @@ let isASCII (c: Char) : Bool =
   let asciiCode = Stdlib.Char.toAsciiCode c
 
   match asciiCode with
-  | Some ascii -> (ascii >= 0L) && (ascii <= 127L)
+  | Some ascii -> (ascii >= 0I) && (ascii <= 127I)
   | None -> false
 
 
 /// Return {{Some <var code>}} if <param c> is a valid ASCII character, otherwise {{None}}"
-let toAsciiCode (c: Char) : Stdlib.Option.Option<Int64> =
+let toAsciiCode (c: Char) : Stdlib.Option.Option<Int> =
   Builtin.charToAsciiCode c
 
 
@@ -72,5 +72,5 @@ let toString (c: Char) : String = Builtin.charToString c
 
 /// Return {{Some <var c>}} for the Unicode codepoint <param codepoint>,
 /// or {{None}} if the value is not a valid scalar (negative, > 0x10FFFF, or a surrogate).
-let fromCodepoint (codepoint: Int64) : Stdlib.Option.Option<Char> =
+let fromCodepoint (codepoint: Int) : Stdlib.Option.Option<Char> =
   Builtin.charFromCodepoint codepoint

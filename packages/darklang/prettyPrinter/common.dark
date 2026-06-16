@@ -41,6 +41,9 @@ let encodeChar (c: Char) : String =
   match Stdlib.Char.toAsciiCode c with
   | None -> Stdlib.Char.toString c
   | Some code ->
+    // CLEANUP drop this bridge once String.slice / hexDigitChar move to Int
+    let code = Builtin.unwrap (Stdlib.Int.toInt64 code)
+
     if code == 92L then "\\\\"
     else if code == 7L then "\\a"
     else if code == 8L then "\\b"
