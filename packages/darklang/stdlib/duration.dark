@@ -5,7 +5,7 @@ module Darklang.Stdlib.Duration
 
 /// Parse a short duration string ("30s", "5m", "1h", "2d") into seconds.
 /// Bare numbers are rejected — every duration must end with a unit.
-let parse (s: String) : Stdlib.Result.Result<Int64, String> =
+let parse (s: String) : Stdlib.Result.Result<Int, String> =
   let len = Stdlib.String.length s
   if len < 2L then
     Stdlib.Result.Result.Error
@@ -13,16 +13,16 @@ let parse (s: String) : Stdlib.Result.Result<Int64, String> =
   else
     let unit = Stdlib.String.last s 1L
     let numPart = Stdlib.String.dropLast s 1L
-    match Stdlib.Int64.parse numPart with
+    match Stdlib.Int.parse numPart with
     | Error _ ->
       Stdlib.Result.Result.Error
         $"Invalid duration '{s}'; need a number + unit (s/m/h/d), e.g. 5m"
     | Ok n ->
       match unit with
       | "s" -> Stdlib.Result.Result.Ok n
-      | "m" -> Stdlib.Result.Result.Ok(n * 60L)
-      | "h" -> Stdlib.Result.Result.Ok(n * 3600L)
-      | "d" -> Stdlib.Result.Result.Ok(n * 86400L)
+      | "m" -> Stdlib.Result.Result.Ok(n * 60I)
+      | "h" -> Stdlib.Result.Result.Ok(n * 3600I)
+      | "d" -> Stdlib.Result.Result.Ok(n * 86400I)
       | _ ->
         Stdlib.Result.Result.Error
           $"Unknown unit '{unit}' in '{s}'; use s, m, h, or d"

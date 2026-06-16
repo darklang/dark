@@ -1139,7 +1139,7 @@ let executeClear (state: Cli.AppState) : Cli.AppState =
 /// Parse a CLI duration arg. `-`-prefixed inputs are reported as
 /// "Unknown flag" rather than "Invalid duration" — same logic as
 /// `parsePositionalErr`. Otherwise delegates to `Stdlib.Duration.parse`.
-let parseDuration (s: String) : Stdlib.Result.Result<Int64, String> =
+let parseDuration (s: String) : Stdlib.Result.Result<Int, String> =
   if Stdlib.String.startsWith s "-" then
     Stdlib.Result.Result.Error $"Unknown flag: {s}"
   else
@@ -1158,7 +1158,9 @@ let executeClearBefore
     state
   | Ok seconds ->
     let now = Stdlib.DateTime.now ()
-    let cutoffDt = Stdlib.DateTime.subtractSeconds now seconds
+    // cleanup
+    let cutoffDt =
+      Stdlib.DateTime.subtractSeconds now (Builtin.unwrap (Stdlib.Int.toInt64 seconds))
     let cutoff = Stdlib.DateTime.toString cutoffDt
     let count = Builtin.tracesClearBefore cutoff
     match count with
