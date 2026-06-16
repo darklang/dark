@@ -64,3 +64,29 @@ Stdlib.Int.toInt128 (2I ^ 100I) =
   Stdlib.Option.Option.Some 1267650600228229401496703205376Q
 Stdlib.Int.toInt128 (2I ^ 200I) = Stdlib.Option.Option.None
 Stdlib.Int.toUInt128 (2I ^ 200I) = Stdlib.Option.Option.None
+
+
+// --- remainder: Result<Int>; sign follows the dividend; Error only if divisor is 0 ---
+Stdlib.Int.remainder 15I 6I = Stdlib.Result.Result.Ok 3I
+Stdlib.Int.remainder 20I 8I = Stdlib.Result.Result.Ok 4I
+Stdlib.Int.remainder -20I 8I = Stdlib.Result.Result.Ok -4I
+Stdlib.Int.remainder -20I -8I = Stdlib.Result.Result.Ok -4I
+Stdlib.Int.remainder -15I 6I = Stdlib.Result.Result.Ok -3I
+Stdlib.Int.remainder 5I 0I = error="Cannot divide by 0"
+// arbitrary precision: 2^100 mod 7 == 2, with a dividend well past Int64
+Stdlib.Int.remainder (2I ^ 100I) 7I = Stdlib.Result.Result.Ok 2I
+
+// --- mod: wraps into [0, b); RTE if b <= 0 ---
+Stdlib.Int.mod_v0 15I 5I = 0I
+Stdlib.Int.mod_v0 15I 6I = 3I
+Stdlib.Int.mod_v0 0I 15I = 0I
+Stdlib.Int.mod_v0 -1I 2I = 1I
+Stdlib.Int.mod_v0 -754I 53I = 41I
+Stdlib.Int.mod_v0 (2I ^ 100I) 7I = 2I
+Stdlib.Int.mod_v0 5I 0I = error="Cannot evaluate modulus against 0"
+Stdlib.Int.mod_v0 5I -5I = error="Cannot evaluate modulus against a negative number"
+
+// the % operator dispatches to mod
+15I % 5I = 0I
+5I % 0I = error="Cannot evaluate modulus against 0"
+5I % -5I = error="Cannot evaluate modulus against a negative number"

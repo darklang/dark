@@ -29,7 +29,8 @@ let fns () : List<BuiltInFn> =
       description = "Round up to an integer value"
       fn =
         (function
-        | _, _, _, [ DFloat a ] -> a |> System.Math.Ceiling |> bigint |> Dval.int |> Ply
+        | _, _, _, [ DFloat a ] ->
+          a |> System.Math.Ceiling |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -44,7 +45,8 @@ let fns () : List<BuiltInFn> =
       description = "Round up to an integer value"
       fn =
         (function
-        | _, _, _, [ DFloat a ] -> a |> System.Math.Ceiling |> bigint |> Dval.int |> Ply
+        | _, _, _, [ DFloat a ] ->
+          a |> System.Math.Ceiling |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -64,7 +66,8 @@ let fns () : List<BuiltInFn> =
         but {{Float.truncate -1.9 == -1.0}}"
       fn =
         (function
-        | _, _, _, [ DFloat a ] -> a |> System.Math.Floor |> bigint |> Dval.int |> Ply
+        | _, _, _, [ DFloat a ] ->
+          a |> System.Math.Floor |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -85,7 +88,8 @@ let fns () : List<BuiltInFn> =
 
       fn =
         (function
-        | _, _, _, [ DFloat a ] -> a |> System.Math.Floor |> bigint |> Dval.int |> Ply
+        | _, _, _, [ DFloat a ] ->
+          a |> System.Math.Floor |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -100,7 +104,8 @@ let fns () : List<BuiltInFn> =
       description = "Round to the nearest integer value"
       fn =
         (function
-        | _, _, _, [ DFloat a ] -> a |> System.Math.Round |> bigint |> Dval.int |> Ply
+        | _, _, _, [ DFloat a ] ->
+          a |> System.Math.Round |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

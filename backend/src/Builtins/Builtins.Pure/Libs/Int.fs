@@ -95,12 +95,11 @@ let fns () : List<BuiltInFn> =
          outcome. Returns an {{Error}} if <param divisor> is {{0}}."
       fn =
         let resultOk = Dval.resultOk KTInt KTString
-        let resultError = Dval.resultError KTInt KTString
         (function
-        | _, _, _, [ DInt value; DInt divisor ] ->
+        | _, vm, _, [ DInt value; DInt divisor ] ->
           let d = DarkInt.toBigInt divisor
           if d = bigZero then
-            DString "`divisor` must be non-zero" |> resultError |> Ply
+            divideByZero vm
           else
             DarkInt.toBigInt value % d |> Dval.int |> resultOk |> Ply
         | _ -> incorrectArgs ())
