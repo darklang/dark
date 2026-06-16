@@ -21,7 +21,7 @@ type Action =
 
 
 let selectedApp (state: State) : Stdlib.Option.Option<Model.App> =
-  Stdlib.List.getAt state.apps state.selected
+  Stdlib.List.getAt state.apps (Stdlib.Int.fromInt64 state.selected)
 
 
 // ── rendering ──
@@ -100,7 +100,7 @@ let render (state: State) : Unit =
   if Stdlib.List.isEmpty state.apps then
     Stdlib.printLine (Colors.dimText "  No apps in the catalog.")
   else
-    let indexed = state.apps |> Stdlib.List.indexedMap (fun i a -> (i, a))
+    let indexed = state.apps |> Stdlib.List.indexedMap (fun i a -> (Builtin.unwrap (Stdlib.Int.toInt64 i), a))
 
     let daemons =
       indexed
@@ -129,7 +129,7 @@ let render (state: State) : Unit =
 
         match app.target with
         | Daemon _ ->
-          let logs = Stdlib.Cli.Daemon.tailLog app.slug 5L
+          let logs = Stdlib.Cli.Daemon.tailLog app.slug 5I
           if Stdlib.List.isEmpty logs then
             ()
           else
@@ -225,7 +225,7 @@ let handleKey
   (_modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
   (keyChar: Stdlib.Option.Option<String>)
   : Action =
-  let count = Stdlib.List.length state.apps
+  let count = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length state.apps)))
   match key with
   | Escape -> Action.Exit state
   | UpArrow ->

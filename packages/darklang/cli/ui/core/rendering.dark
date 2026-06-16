@@ -88,8 +88,8 @@ let drawBoxWithStyle (bounds: Types.Bounds) (title: String) (content: List<Strin
   let width = bounds.dimensions.width
   let (horiz, vert, tl, tr, bl, br) = getBoxCharsForStyle style
 
-  let topBorder = tl ++ Stdlib.String.repeat horiz (width - 2L) ++ tr
-  let bottomBorder = bl ++ Stdlib.String.repeat horiz (width - 2L) ++ br
+  let topBorder = tl ++ Stdlib.String.repeat horiz (Stdlib.Int.fromInt64 (width - 2L)) ++ tr
+  let bottomBorder = bl ++ Stdlib.String.repeat horiz (Stdlib.Int.fromInt64 (width - 2L)) ++ br
 
   let innerWidth = width - 2L
 
@@ -101,13 +101,13 @@ let drawBoxWithStyle (bounds: Types.Bounds) (title: String) (content: List<Strin
       let titleWidth = Stdlib.String.length paddedTitle
       let leftPadding = Stdlib.Int64.divide (innerWidth - titleWidth) 2L
       let rightPadding = innerWidth - titleWidth - leftPadding
-      [vert ++ Stdlib.String.repeat " " leftPadding ++ bold paddedTitle ++ Stdlib.String.repeat " " rightPadding ++ vert]
+      [vert ++ Stdlib.String.repeat " " (Stdlib.Int.fromInt64 leftPadding) ++ bold paddedTitle ++ Stdlib.String.repeat " " (Stdlib.Int.fromInt64 rightPadding) ++ vert]
 
   let contentLines =
     content
     |> Stdlib.List.map (fun line ->
       let lineLength = Stdlib.String.length line
-      let padding = if lineLength < innerWidth - 1L then Stdlib.String.repeat " " (innerWidth - 1L - lineLength) else ""
+      let padding = if lineLength < innerWidth - 1L then Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (innerWidth - 1L - lineLength)) else ""
       vert ++ " " ++ line ++ padding ++ vert)
 
   [topBorder]
@@ -126,13 +126,13 @@ let padText (text: String) (width: Int64) (alignment: Types.Alignment) : String 
   else
     let padding = width - textLength
     match alignment with
-    | Left -> text ++ Stdlib.String.repeat " " padding
-    | Right -> Stdlib.String.repeat " " padding ++ text
+    | Left -> text ++ Stdlib.String.repeat " " (Stdlib.Int.fromInt64 padding)
+    | Right -> Stdlib.String.repeat " " (Stdlib.Int.fromInt64 padding) ++ text
     | Center ->
         let leftPad = Stdlib.Int64.divide padding 2L
         let rightPad = padding - leftPad
-        Stdlib.String.repeat " " leftPad ++ text ++ Stdlib.String.repeat " " rightPad
-    | Justify -> text ++ Stdlib.String.repeat " " padding
+        Stdlib.String.repeat " " (Stdlib.Int.fromInt64 leftPad) ++ text ++ Stdlib.String.repeat " " (Stdlib.Int.fromInt64 rightPad)
+    | Justify -> text ++ Stdlib.String.repeat " " (Stdlib.Int.fromInt64 padding)
 
 let truncateText (text: String) (maxWidth: Int64) : String =
   if Stdlib.String.length text <= maxWidth then

@@ -76,7 +76,7 @@ let findFirst (list: List<'a>) (fn: 'a -> Bool) : Option.Option<'a> =
 
 /// Returns the index of the first element in <param list> for which <param fn>
 /// returns true. Returns {{None}} if no such element exists.
-let findFirstIndex (list: List<'a>) (fn: 'a -> Bool) : Option.Option<Int64> =
+let findFirstIndex (list: List<'a>) (fn: 'a -> Bool) : Option.Option<Int> =
   list
   |> indexedMap (fun i item -> (i, item))
   |> findFirst (fun (_i, item) -> fn item)
@@ -89,37 +89,37 @@ let ``member`` (list: List<'a>) (value: 'a) : Bool =
 
 
 // TODO: inline as a nested helper fn once Dark supports local function definitions
-let repeatUnsafe (times: Int64) (value: 'a) : List<'a> =
-  if times <= 0L then
+let repeatUnsafe (times: Int) (value: 'a) : List<'a> =
+  if times <= 0I then
     []
   else
-    push (repeatUnsafe (times - 1L) value) value
+    push (repeatUnsafe (times - 1I) value) value
 
 
 /// Returns a list containing <param val> repeated <param times> times
 let repeat
-  (times: Int64)
+  (times: Int)
   (value: 'a)
   : Result.Result<List<'a>, String> =
-  if times < 0L then
+  if times < 0I then
     Result.Result.Error
-      $"Expected `times` to be positive, but it was `{times |> Int64.toString}`"
+      $"Expected `times` to be positive, but it was `{times |> Int.toString}`"
   else
     Result.Result.Ok(repeatUnsafe times value)
 
 
 /// Returns the number of values in <param list>
-let ``length`` (list: List<'a>) : Int64 =
+let ``length`` (list: List<'a>) : Int =
   Builtin.listLength list
 
 
 /// Returns a list of numbers where each element is {{1}} larger than the
 /// previous. You provide the <param lowest> and <param highest> numbers in the list.
-let range (lowest: Int64) (highest: Int64) : List<Int64> =
+let range (lowest: Int) (highest: Int) : List<Int> =
   if lowest > highest then
     []
   else
-    push (range (lowest + 1L) highest) lowest
+    push (range (lowest + 1I) highest) lowest
 
 
 /// Folds <param list> into a single value, by repeatedly applying <param fn> to any two pairs.
@@ -216,20 +216,20 @@ let sortBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
 /// This is a bit much. CLEANUP tidy this up
 module SortByComparatorHelpers =
   let validate
-    (comparator: 'a -> 'a -> Int64)
+    (comparator: 'a -> 'a -> Int)
     (x: 'a)
     (y: 'a)
-    : Result.Result<Int64, String> =
+    : Result.Result<Int, String> =
     let result = comparator x y
 
-    if result == -1L || result == 0L || result == 1L then
+    if result == -1I || result == 0I || result == 1I then
       Result.Result.Ok result
     else
       Result.Result.Error
-        $"Expected comparator function to return -1, 0, or 1, but it returned {Int64.toString result}"
+        $"Expected comparator function to return -1, 0, or 1, but it returned {Int.toString result}"
 
   let merge
-    (comparator: 'a -> 'a -> Int64)
+    (comparator: 'a -> 'a -> Int)
     (left: List<'a>)
     (right: List<'a>)
     : Result.Result<List<'a>, String> =
@@ -240,7 +240,7 @@ module SortByComparatorHelpers =
       match validate comparator x y with
       | Error msg -> Result.Result.Error msg
       | Ok result ->
-        if result <= 0L then
+        if result <= 0I then
           match merge comparator xs right with
           | Error msg -> Result.Result.Error msg
           | Ok merged -> Result.Result.Ok(push merged x)
@@ -258,7 +258,7 @@ module SortByComparatorHelpers =
       (push left x, push right y)
 
   let mergeSort
-    (comparator: 'a -> 'a -> Int64)
+    (comparator: 'a -> 'a -> Int)
     (lst: List<'a>)
     : Result.Result<List<'a>, String> =
     match lst with
@@ -283,7 +283,7 @@ module SortByComparatorHelpers =
 /// of control.
 let sortByComparator
   (list: List<'a>)
-  (fn: 'a -> 'a -> Int64)
+  (fn: 'a -> 'a -> Int)
   : Result.Result<List<'a>, String> =
   SortByComparatorHelpers.mergeSort fn list
 
@@ -338,13 +338,13 @@ let filterMap
 
 
 /// Drops the first <param count> values from <param list>
-let drop (list: List<'a>) (count: Int64) : List<'a> =
-  if count <= 0L then
+let drop (list: List<'a>) (count: Int) : List<'a> =
+  if count <= 0I then
     list
   else
     match list with
     | [] -> []
-    | _ :: tail -> drop tail (count - 1L)
+    | _ :: tail -> drop tail (count - 1I)
 
 
 /// Drops the longest prefix of <param list> which satisfies the predicate <param val>
@@ -365,14 +365,14 @@ let dropLast (list: List<'a>) : List<'a> =
 
 
 /// Drops all but the first <param count> values from <param list>
-let take (list: List<'a>) (count: Int64) : List<'a> =
-  if count <= 0L then
+let take (list: List<'a>) (count: Int) : List<'a> =
+  if count <= 0I then
     []
   else
     match list with
     | [] -> []
     | head :: tail ->
-      push (take tail (count - 1L)) head
+      push (take tail (count - 1I)) head
 
 
 /// Return the longest prefix of <param list> which satisfies the predicate <param fn>
@@ -397,11 +397,11 @@ let map (list: List<'a>) (fn: 'a -> 'b) : List<'b> =
 /// Calls <fn fn> on every <var val> and its <var index> in <param list>,
 /// returning a list of the results of those calls.
 /// Consider <fn map> if you don't need the index.
-let indexedMap (list: List<'a>) (fn: Int64 -> 'a -> 'b) : List<'b> =
+let indexedMap (list: List<'a>) (fn: Int -> 'a -> 'b) : List<'b> =
   list
-  |> fold ([], 0L) (fun (acc, index) item ->
+  |> fold ([], 0I) (fun (acc, index) item ->
     let mappedItem = fn index item
-    (pushBack acc mappedItem, index + 1L))
+    (pushBack acc mappedItem, index + 1I))
   |> Tuple2.first
 
 
@@ -515,17 +515,17 @@ let unzip (pairs: List<('a * 'b)>) : (List<'a> * List<'b>) =
 
 /// Returns {{Some value}} at <param index> in <param list> if <param index> is
 /// less than the length of the list otherwise returns {{None}}.
-let getAt (list: List<'a>) (index: Int64) : Option.Option<'a> =
-  if index < 0L then
+let getAt (list: List<'a>) (index: Int) : Option.Option<'a> =
+  if index < 0I then
     Option.Option.None
   else
     match list with
     | [] -> Option.Option.None
     | head :: tail ->
-      if index == 0L then
+      if index == 0I then
         Option.Option.Some head
       else
-        getAt tail (index - 1L)
+        getAt tail (index - 1I)
 
 
 /// Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly
@@ -583,7 +583,7 @@ let iter (list: List<'a>) (f: 'a -> Unit) : Unit =
 
 /// Helper function for chunkBySize. Recursively divides a list into chunks of a given size.
 let chunkBySizeHelper
-  (size: Int64)
+  (size: Int)
   (currentList: List<'a>)
   (accum: List<List<'a>>)
   : List<List<'a>> =
@@ -607,9 +607,9 @@ type ChunkBySizeError = | SizeMustBeGreaterThanZero
 /// If <param size> is less than or equal to zero, returns an error
 let chunkBySize
   (list: List<'a>)
-  (size: Int64)
+  (size: Int)
   : Result.Result<List<List<'a>>, ChunkBySizeError> =
-  if size <= 0L then
+  if size <= 0I then
     Result.Result.Error
       ChunkBySizeError.SizeMustBeGreaterThanZero
   else

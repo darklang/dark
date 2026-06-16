@@ -289,11 +289,11 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "listLength" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Returns the number of values in <param list>"
       fn =
         (function
-        | _, _, _, [ DList(_, l) ] -> Ply(Dval.int64 (l.Length))
+        | _, _, _, [ DList(_, l) ] -> Ply(Dval.int (bigint l.Length))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -18,12 +18,13 @@ let fromOutline (outline: Outline) : State =
 
 let getVisibleNodeAtCursor (state: State) : Stdlib.Option.Option<VisibleNode> =
   let flat = flattenVisible state.outline
-  Stdlib.List.getAt flat state.cursor
+  Stdlib.List.getAt flat (Stdlib.Int.fromInt64 state.cursor)
 
 let findCursorIndex (outline: Outline) (nodeId: Int64) (fallback: Int64) : Int64 =
   let flat = flattenVisible outline
   flat
   |> Stdlib.List.findFirstIndex (fun vn -> vn.id == nodeId)
+  |> Stdlib.Option.map (fun i -> Builtin.unwrap (Stdlib.Int.toInt64 i))
   |> Stdlib.Option.withDefault fallback
 
 
@@ -78,7 +79,7 @@ let deleteNode (state: State) : State =
       let o1 = setChildren outline parentId newSiblings
       let o2 = removeNodeData o1 vn.id
       let flat = flattenVisible o2
-      let maxIdx = Stdlib.Int64.max 0L ((Stdlib.List.length flat) - 1L)
+      let maxIdx = Stdlib.Int64.max 0L ((Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length flat))) - 1L)
       let newCursor =
         if state.cursor > maxIdx then maxIdx
         else state.cursor
@@ -95,10 +96,10 @@ let indentNode (state: State) : State =
     match idx with
     | None -> state
     | Some i ->
-      if i == 0L then
+      if i == 0I then
         state
       else
-        match Stdlib.List.getAt siblings (i - 1L) with
+        match Stdlib.List.getAt siblings (i - 1I) with
         | None -> state
         | Some prevSibId ->
           let newSiblings = Stdlib.List.filter siblings (fun id -> id != vn.id)
@@ -140,10 +141,11 @@ let moveNodeUp (state: State) : State =
     match idx with
     | None -> state
     | Some i ->
-      if i == 0L then
+      if i == 0I then
         state
       else
-        let swapped = swapAt siblings (i - 1L) i
+        let i64 = Builtin.unwrap (Stdlib.Int.toInt64 i)
+        let swapped = swapAt siblings (i64 - 1L) i64
         let o1 = setChildren outline parentId swapped
         { state with outline = o1; cursor = findCursorIndex o1 vn.id state.cursor }
 
@@ -158,10 +160,11 @@ let moveNodeDown (state: State) : State =
     match idx with
     | None -> state
     | Some i ->
-      if i >= ((Stdlib.List.length siblings) - 1L) then
+      if i >= ((Stdlib.List.length siblings) - 1I) then
         state
       else
-        let swapped = swapAt siblings i (i + 1L)
+        let i64 = Builtin.unwrap (Stdlib.Int.toInt64 i)
+        let swapped = swapAt siblings i64 (i64 + 1L)
         let o1 = setChildren outline parentId swapped
         { state with outline = o1; cursor = findCursorIndex o1 vn.id state.cursor }
 
@@ -173,7 +176,7 @@ let moveCursorUp (state: State) : State =
 
 let moveCursorDown (state: State) : State =
   let flat = flattenVisible state.outline
-  let maxIndex = (Stdlib.List.length flat) - 1L
+  let maxIndex = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length flat))) - 1L
   if state.cursor < maxIndex then
     { state with cursor = state.cursor + 1L }
   else
@@ -264,23 +267,23 @@ let renderBody (state: State) (region: Darklang.Cli.UI.Layout.Region) : Unit =
     else if state.cursor >= region.rows then
       Darklang.Cli.Terminal.clampScrollOffset
         (state.cursor - region.rows + 1L)
-        totalItems
+        (Builtin.unwrap (Stdlib.Int.toInt64 totalItems))
         region.rows
     else
       0L
 
   let visibleItems =
     flat
-    |> Stdlib.List.drop scrollOffset
-    |> Stdlib.List.take region.rows
+    |> Stdlib.List.drop (Stdlib.Int.fromInt64 scrollOffset)
+    |> Stdlib.List.take (Stdlib.Int.fromInt64 region.rows)
 
   visibleItems
-  |> Stdlib.List.indexedMap (fun relIdx vn -> (relIdx, vn))
+  |> Stdlib.List.indexedMap (fun relIdx vn -> ((Builtin.unwrap (Stdlib.Int.toInt64 relIdx)), vn))
   |> Stdlib.List.iter (fun pair ->
     let (relIdx, vn) = pair
     let absoluteIdx = scrollOffset + relIdx
     let isSelected = absoluteIdx == state.cursor
-    let indent = Stdlib.String.repeat "  " vn.depth
+    let indent = Stdlib.String.repeat "  " (Stdlib.Int.fromInt64 vn.depth)
     let bullet =
       if vn.isCollapsed && vn.hasChildren then
         Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow ">"
@@ -324,7 +327,7 @@ let renderTitleBar (title: String) (isEditing: Bool) (region: Darklang.Cli.UI.La
 let renderHelpBar (helpText: String) (region: Darklang.Cli.UI.Layout.Region) : Unit =
   let helpLen = Stdlib.String.length helpText
   let helpPadding =
-    if region.cols > helpLen then Stdlib.String.repeat " " (region.cols - helpLen)
+    if region.cols > helpLen then Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (region.cols - helpLen))
     else ""
   let styled = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding)
   Darklang.Cli.UI.Layout.printAt region 0L 0L styled

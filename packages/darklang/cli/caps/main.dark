@@ -66,7 +66,7 @@ let rows (state: State) : List<Row> =
     |> Stdlib.List.map (fun s -> Row.RuleRow s)
   Stdlib.List.append flagRows (Stdlib.List.append ruleRows [ Row.AddRuleRow ])
 
-let rowCount (state: State) : Int64 = Stdlib.List.length (rows state)
+let rowCount (state: State) : Int64 = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length (rows state))))
 
 let toggleFlag (state: State) (domain: String) : State =
   if Stdlib.List.member_v0 state.specs domain then
@@ -144,11 +144,11 @@ let handleBrowsing
     let c = if state.cursor < maxIdx then state.cursor + 1L else maxIdx
     KeyResult.Continue ({ state with cursor = c })
   | Spacebar ->
-    match Stdlib.List.getAt (rows state) state.cursor with
+    match Stdlib.List.getAt (rows state) (Stdlib.Int.fromInt64 state.cursor) with
     | Some(FlagRow(d, _)) -> KeyResult.Continue (toggleFlag state d)
     | _ -> KeyResult.Continue state
   | Enter ->
-    match Stdlib.List.getAt (rows state) state.cursor with
+    match Stdlib.List.getAt (rows state) (Stdlib.Int.fromInt64 state.cursor) with
     | Some(FlagRow(d, _)) -> KeyResult.Continue (toggleFlag state d)
     | Some(RuleRow spec) -> KeyResult.Continue (editSpec state spec)
     | Some AddRuleRow ->
@@ -159,7 +159,7 @@ let handleBrowsing
     | Some "a" -> KeyResult.Continue ({ state with screen = Screen.AddPickDomain 0L })
     | Some "p" -> KeyResult.Continue ({ state with screen = Screen.PickProfile 0L })
     | Some "d" ->
-      match Stdlib.List.getAt (rows state) state.cursor with
+      match Stdlib.List.getAt (rows state) (Stdlib.Int.fromInt64 state.cursor) with
       | Some(RuleRow spec) -> KeyResult.Continue (clampCursor (removeSpec state spec))
       | _ -> KeyResult.Continue state
     | Some "w" ->
@@ -194,18 +194,18 @@ let handleKey
     match key with
     | Escape -> KeyResult.Continue ({ state with screen = Screen.Browsing })
     | Enter ->
-      match Stdlib.List.getAt ruleDomains cursor with
+      match Stdlib.List.getAt ruleDomains (Stdlib.Int.fromInt64 cursor) with
       | Some d -> KeyResult.Continue (editNew state d)
       | None -> KeyResult.Continue ({ state with screen = Screen.Browsing })
     | _ ->
-      match handleMenu cursor (Stdlib.List.length ruleDomains) key with
+      match handleMenu cursor (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length ruleDomains))) key with
       | Some c -> KeyResult.Continue ({ state with screen = Screen.AddPickDomain c })
       | None -> KeyResult.Continue state
   | PickProfile cursor ->
     match key with
     | Escape -> KeyResult.Continue ({ state with screen = Screen.Browsing })
     | Enter ->
-      match Stdlib.List.getAt Command.profiles cursor with
+      match Stdlib.List.getAt Command.profiles (Stdlib.Int.fromInt64 cursor) with
       | Some((_, specs)) ->
         // a profile can have fewer rows than the current grant — clamp the cursor back in range
         KeyResult.Continue
@@ -213,7 +213,7 @@ let handleKey
             ({ state with specs = specs; dirty = true; screen = Screen.Browsing }))
       | None -> KeyResult.Continue ({ state with screen = Screen.Browsing })
     | _ ->
-      match handleMenu cursor (Stdlib.List.length Command.profiles) key with
+      match handleMenu cursor (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length Command.profiles))) key with
       | Some c -> KeyResult.Continue ({ state with screen = Screen.PickProfile c })
       | None -> KeyResult.Continue state
   | EditHttp(orig, editor) ->
@@ -258,8 +258,8 @@ let private printOneRow (state: State) (pair: (Int64 * Row)) : Unit =
 // flag checklist on top, then a labelled "Scoped rules" section (existing rules + the "+ Add rule…"
 // affordance). The cursor index maps into `rows`; the section label is printed between, not selectable.
 let private printRows (state: State) : Unit =
-  let flagCount = Stdlib.List.length flagDomains
-  let indexed = Stdlib.List.indexedMap (rows state) (fun i r -> (i, r))
+  let flagCount = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length flagDomains)))
+  let indexed = Stdlib.List.indexedMap (rows state) (fun i r -> (Builtin.unwrap (Stdlib.Int.toInt64 i), r))
   indexed
   |> Stdlib.List.filter (fun pair -> Stdlib.Tuple2.first pair < flagCount)
   |> Stdlib.List.iter (fun pair -> printOneRow state pair)
@@ -272,7 +272,7 @@ let private printRows (state: State) : Unit =
 let private printMenu (title: String) (items: List<String>) (cursor: Int64) : Unit =
   Stdlib.printLine title
   Stdlib.printLine ""
-  let indexed = Stdlib.List.indexedMap items (fun i x -> (i, x))
+  let indexed = Stdlib.List.indexedMap items (fun i x -> (Builtin.unwrap (Stdlib.Int.toInt64 i), x))
   Stdlib.List.iter indexed (fun pair ->
     let (i, x) = pair
     let selected = i == cursor

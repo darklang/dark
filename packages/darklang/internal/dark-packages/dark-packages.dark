@@ -41,7 +41,7 @@ let parseNameToLocation
   let parts = Stdlib.String.split name "."
   let partsLength = Stdlib.List.length parts
 
-  if partsLength < 2L then
+  if partsLength < 2I then
     Stdlib.Result.Result.Error
       "Invalid name format. Expected 'Owner.Module.Name' or 'Owner.Name'"
   else
@@ -56,7 +56,7 @@ let parseNameToLocation
         match Stdlib.List.tail parts with
         | None -> Stdlib.Result.Result.Error "Invalid name format"
         | Some middleParts ->
-          let modules = Stdlib.List.take middleParts (partsLength - 2L)
+          let modules = Stdlib.List.take middleParts (partsLength - 2I)
           Stdlib.Result.Result.Ok
             (LanguageTools.ProgramTypes.PackageLocation
               { owner = owner; modules = modules; name = entityName })
@@ -216,9 +216,9 @@ let locationHandlerFn (req: HttpRequest) : HttpResponse =
     let parts = Stdlib.String.split location "."
     let partsLength = Stdlib.List.length parts
 
-    if partsLength < 1L then
+    if partsLength < 1I then
       Stdlib.Http.badRequest "Invalid location format. Expected 'Owner', 'Owner.Module', or 'Owner.Module.Name'"
-    else if partsLength == 1L then
+    else if partsLength == 1I then
       // single segment → list direct descendants under that owner
       match Stdlib.List.head parts with
       | None -> Stdlib.Http.badRequest "Invalid location: empty segment"

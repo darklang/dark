@@ -29,7 +29,7 @@ let renderScrollbar (component: Core.Types.Component<ScrollbarModel>) (context: 
 
   if model.total <= model.visible then
     let maxIndex = model.height - 1L
-    (Stdlib.List.range 0L maxIndex)
+    (Stdlib.List.range 0I (Stdlib.Int.fromInt64 maxIndex))
     |> Stdlib.List.map (fun _ -> "│")
   else
     let thumbSize = Stdlib.Int64.max 1L (Stdlib.Int64.divide (model.visible * model.height) model.total)
@@ -42,9 +42,9 @@ let renderScrollbar (component: Core.Types.Component<ScrollbarModel>) (context: 
         Stdlib.Int64.divide (model.position * heightOffset) remainingSpace
 
     let maxIndex = model.height - 1L
-    (Stdlib.List.range 0L maxIndex)
+    (Stdlib.List.range 0I (Stdlib.Int.fromInt64 maxIndex))
     |> Stdlib.List.map (fun i ->
-        if i >= thumbPos && i < (thumbPos + thumbSize) then
+        if (Builtin.unwrap (Stdlib.Int.toInt64 i)) >= thumbPos && (Builtin.unwrap (Stdlib.Int.toInt64 i)) < (thumbPos + thumbSize) then
           "█"
         else
           "░")
@@ -64,7 +64,7 @@ let renderHorizontalScrollbar (component: Core.Types.Component<ScrollbarModel>) 
   let model = component.model
 
   if model.total <= model.visible then
-    [Stdlib.String.repeat "─" model.height]
+    [Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 model.height)]
   else
     let thumbSize = Stdlib.Int64.max 1L (Stdlib.Int64.divide (model.visible * model.height) model.total)
     let remainingSpace = model.total - model.visible
@@ -76,9 +76,9 @@ let renderHorizontalScrollbar (component: Core.Types.Component<ScrollbarModel>) 
 
     let maxIndex = model.height - 1L
     let scrollLine =
-      (Stdlib.List.range 0L maxIndex)
+      (Stdlib.List.range 0I (Stdlib.Int.fromInt64 maxIndex))
       |> Stdlib.List.map (fun i ->
-          if i >= thumbPos && i < (thumbPos + thumbSize) then
+          if (Builtin.unwrap (Stdlib.Int.toInt64 i)) >= thumbPos && (Builtin.unwrap (Stdlib.Int.toInt64 i)) < (thumbPos + thumbSize) then
             "█"
           else
             "░")

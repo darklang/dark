@@ -61,7 +61,7 @@ let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
 
     let locationStr = Packages.formatLocation location
     Stdlib.printLine locationStr
-    Stdlib.printLine (Stdlib.String.repeat "=" (Stdlib.String.length locationStr))
+    Stdlib.printLine (Stdlib.String.repeat "=" (Stdlib.Int.fromInt64 (Stdlib.String.length locationStr)))
     Stdlib.printLine ""
 
     // Display submodules

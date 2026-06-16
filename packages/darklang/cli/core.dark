@@ -189,7 +189,7 @@ module StatusBar =
 
     let padding =
       if paddingLen > 0L then
-        Colors.colorize Colors.grayBg (Stdlib.String.repeat " " paddingLen)
+        Colors.colorize Colors.grayBg (Stdlib.String.repeat " " (Stdlib.Int.fromInt64 paddingLen))
       else
         ""
 
@@ -571,7 +571,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       // Handle tab completion
       let tTab = Telemetry.now ()
       let completions = Registry.getCompletions state state.prompt.text
-      Telemetry.logWithContext "tabComplete" tTab [("resultCount", Stdlib.Int64.toString (Stdlib.List.length completions)); ("input", state.prompt.text)]
+      Telemetry.logWithContext "tabComplete" tTab [("resultCount", Stdlib.Int.toString (Stdlib.List.length completions)); ("input", state.prompt.text)]
 
       // CLEANUP: When there are multiple completions with a common prefix (e.g. "filter" and "filterMap"),
       // Tab should complete up to the common part ("filter") rather than just showing options
@@ -841,7 +841,7 @@ let parseBranchFlag (args: List<String>) : (Stdlib.Option.Option<Uuid> * List<St
     let (idx, _flag) = flagPair
 
     let branchName =
-      match Stdlib.List.getAt args (idx + 1L) with
+      match Stdlib.List.getAt args (idx + 1I) with
       | Some name -> name
       | None -> ""
 
@@ -854,7 +854,7 @@ let parseBranchFlag (args: List<String>) : (Stdlib.Option.Option<Uuid> * List<St
         indexed
         |> Stdlib.List.filter (fun pair ->
           let (i, _a) = pair
-          i != idx && i != (idx + 1L))
+          i != idx && i != (idx + 1I))
         |> Stdlib.List.map (fun pair ->
           let (_i, a) = pair
           a)

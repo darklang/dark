@@ -24,8 +24,8 @@ let renderProgressBar (component: Core.Types.Component<ProgressModel>) (context:
   let progress = model.value - model.min
   let availableWidth = component.bounds.dimensions.width - 2L
   let filledWidth = if range == 0L then 0L else Stdlib.Int64.divide (progress * availableWidth) range
-  let filled = Stdlib.String.repeat "█" filledWidth
-  let empty = Stdlib.String.repeat "░" (component.bounds.dimensions.width - 2L - filledWidth)
+  let filled = Stdlib.String.repeat "█" (Stdlib.Int.fromInt64 filledWidth)
+  let empty = Stdlib.String.repeat "░" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 2L - filledWidth))
 
   let progressText = "[" ++ filled ++ empty ++ "]"
   let coloredProgress = Core.Rendering.colorize model.color progressText

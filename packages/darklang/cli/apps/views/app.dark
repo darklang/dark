@@ -20,14 +20,14 @@ let renderViewList (state: State) (selected: Int64) : Unit =
     ++ "  "
     ++ Darklang.Cli.Colors.boldText "Views"
     ++ "  "
-    ++ Darklang.Cli.Colors.dimText ("—  " ++ Stdlib.Int64.toString (Stdlib.List.length state.views) ++ " available")
+    ++ Darklang.Cli.Colors.dimText ("—  " ++ Stdlib.Int.toString (Stdlib.List.length state.views) ++ " available")
     ++ "\n\n"
-    ++ Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" termWidth)
+    ++ Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 termWidth))
     ++ "\n\n"
 
   let viewLines =
     state.views
-    |> Stdlib.List.indexedMap (fun idx view -> (idx, view))
+    |> Stdlib.List.indexedMap (fun idx view -> (Builtin.unwrap (Stdlib.Int.toInt64 idx), view))
     |> Stdlib.List.map (fun pair ->
       let (idx, view) = pair
       let isSelected = idx == selected
@@ -48,7 +48,7 @@ let renderViewList (state: State) (selected: Int64) : Unit =
 
   let footer =
     "\n"
-    ++ Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" termWidth)
+    ++ Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 termWidth))
     ++ "\n\n"
     ++ "  "
     ++ Darklang.Cli.Colors.dimText "↑↓"
@@ -67,7 +67,7 @@ let renderViewDisplay (state: State) (viewIndex: Int64) : Unit =
   // Hide cursor + clear in one shot, then render view
   Stdlib.print ("\u001b[?25l" ++ Darklang.Cli.Terminal.Display.clearScreen)
 
-  match Stdlib.List.getAt state.views viewIndex with
+  match Stdlib.List.getAt state.views (Stdlib.Int.fromInt64 viewIndex) with
   | Some view -> view.render ()
   | None ->
     Stdlib.printLine (Darklang.Cli.Colors.error "View not found")
@@ -99,7 +99,7 @@ let handleKey
   : Action =
   match state.screen with
   | ViewList selected ->
-    let viewCount = Stdlib.List.length state.views
+    let viewCount = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length state.views)))
     match key with
     | Escape -> Action.Exit state
     | UpArrow ->

@@ -245,12 +245,12 @@ let executeFiltered
   let totalFns =
     (Stdlib.Dict.values fnsBy)
     |> Stdlib.List.map (fun xs -> Stdlib.List.length xs)
-    |> Stdlib.List.fold 0L (fun a b -> a + b)
+    |> Stdlib.List.fold 0I (fun a b -> a + b)
 
   let totalTypes =
     (Stdlib.Dict.values typesBy)
     |> Stdlib.List.map (fun xs -> Stdlib.List.length xs)
-    |> Stdlib.List.fold 0L (fun a b -> a + b)
+    |> Stdlib.List.fold 0I (fun a b -> a + b)
 
   let title =
     match filterText with
@@ -263,10 +263,10 @@ let executeFiltered
   Stdlib.printLine ""
 
   let typesNote =
-    if includeTypes then $", {Stdlib.Int64.toString totalTypes} types"
+    if includeTypes then $", {Stdlib.Int.toString totalTypes} types"
     else ""
 
-  let summary = $"{Stdlib.Int64.toString totalFns} fns{typesNote} across {Stdlib.Int64.toString (Stdlib.List.length allKeys)} modules"
+  let summary = $"{Stdlib.Int.toString totalFns} fns{typesNote} across {Stdlib.Int.toString (Stdlib.List.length allKeys)} modules"
   Stdlib.printLine (Colors.hint summary)
 
   if Stdlib.Bool.not includeTypes then

@@ -5,7 +5,7 @@ let exportHelper (outline: Outline) (ids: List<Int64>) (depth: Int64) : List<Str
   |> Stdlib.List.fold [] (fun acc id ->
     let text = getNodeText outline id
     let s = getStructure outline id
-    let indent = Stdlib.String.repeat "  " depth
+    let indent = Stdlib.String.repeat "  " (Stdlib.Int.fromInt64 depth)
     let line = $"{indent}- {text}"
     let childLines =
       exportHelper outline s.children (depth + 1L)
@@ -30,7 +30,7 @@ let import (markdown: String) : Document =
     match Stdlib.List.head lines with
     | Some first ->
       if Stdlib.String.startsWith first "# " then
-        Stdlib.List.drop lines 1L
+        Stdlib.List.drop lines 1I
       else
         lines
     | None -> []

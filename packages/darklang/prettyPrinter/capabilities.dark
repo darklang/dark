@@ -40,7 +40,7 @@ let detail (spec: String) : String =
   | [ "exec"; prog ] -> prog
   | "exec" :: prog :: progArgs -> $"""{prog}  ({Stdlib.String.join progArgs " "})"""
   | [ _ ] -> "" // flag domains
-  | _ -> Stdlib.String.join (Stdlib.List.drop parts 1L) " "
+  | _ -> Stdlib.String.join (Stdlib.List.drop parts 1I) " "
 
 /// One aligned "domain   detail" line for a single spec — the single source of truth for a caps row
 /// (used by `caps list`, `caps <fn>`, and the interactive editor's rows).

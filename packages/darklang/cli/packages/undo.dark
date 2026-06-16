@@ -158,7 +158,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               let count = Stdlib.List.length myRepoints
 
               Stdlib.printLine
-                $"  This will revert {Stdlib.Int64.toString count} dependent(s):"
+                $"  This will revert {Stdlib.Int.toString count} dependent(s):"
 
               myRepoints
               |> Stdlib.List.iter (fun r ->

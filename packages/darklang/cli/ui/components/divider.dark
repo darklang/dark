@@ -18,7 +18,7 @@ let createDivider (character: String) (length: Int64) (color: Core.Types.Color) 
 
 let renderDivider (component: Core.Types.Component<DividerModel>) (context: Core.Types.RenderContext) : List<String> =
   let model = component.model
-  let line = Stdlib.String.repeat model.character model.length
+  let line = Stdlib.String.repeat model.character (Stdlib.Int.fromInt64 model.length)
   let coloredLine = Core.Rendering.colorize model.color line
   [ coloredLine ]
 

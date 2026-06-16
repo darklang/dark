@@ -1,7 +1,7 @@
 module Darklang.Cli.Packages.Search
 
 // Max results rendered per entity type.
-let displayCap = 20L
+let displayCap = 20I
 
 
 // Operator symbols aren't function names, so a literal search for one finds
@@ -103,12 +103,12 @@ let withOptionalDoc (withDocs: Bool) (headline: String) (desc: String) : String 
   if withDocs then (withDoc headline desc) ++ "\n" else headline
 
 
-let overflowNote (total: Int64) (shown: Int64) : Unit =
+let overflowNote (total: Int) (shown: Int) : Unit =
   let extra = total - shown
-  if extra > 0L then
+  if extra > 0I then
     Stdlib.printLine (
       Colors.hint
-        $"  ... and {Stdlib.Int64.toString extra} more (narrow with --exact or `nav` into a module)")
+        $"  ... and {Stdlib.Int.toString extra} more (narrow with --exact or `nav` into a module)")
   else
     ()
 
@@ -272,7 +272,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           if Stdlib.List.isEmpty parsed.entityTypes then
             Stdlib.List.length results.submodules
           else
-            0L
+            0I
 
         let totalResults =
           (Stdlib.List.length results.types)
@@ -280,7 +280,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           + (Stdlib.List.length results.fns)
           + submodulesCount
 
-        if totalResults == 0L then
+        if totalResults == 0I then
           Stdlib.printLine (Colors.dimText $"No results found for: {queryText}")
           Stdlib.printLine ""
         else

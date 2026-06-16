@@ -33,8 +33,8 @@ let parseArgs (args: List<String>) : ParsedArgs =
   let p = FlagParser.parse argSpec args
   let forced = FlagParser.hasFlag p "--force"
   ParsedArgs
-    { itemType = Stdlib.List.getAt p.positionals 0L
-      target = Stdlib.List.getAt p.positionals 1L
+    { itemType = Stdlib.List.getAt p.positionals 0I
+      target = Stdlib.List.getAt p.positionals 1I
       message = FlagParser.getOptionOr p "--message" ""
       autoConfirm = (FlagParser.hasFlag p "--yes") || forced
       ignoreDependents = (FlagParser.hasFlag p "--ignore-dependents") || forced
@@ -57,6 +57,8 @@ let countLiveDependents
     let (depHash, _depLoc, _depKind) = entry
     Stdlib.Bool.not (Query.isDeprecated depSets depHash))
   |> Stdlib.List.length
+  |> Stdlib.Int.toInt64
+  |> Builtin.unwrap
 
 
 /// Translate delete's ParsedArgs into the equivalent `deprecate --kind obsolete`

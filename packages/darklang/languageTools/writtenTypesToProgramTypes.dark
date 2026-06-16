@@ -1454,7 +1454,8 @@ module FunctionDeclaration =
       // Build argument mapping from parameter names to indices
       let argMap =
         params
-        |> Stdlib.List.indexedMap (fun i param -> (param.name, i))
+        |> Stdlib.List.indexedMap (fun i param ->
+          (param.name, (Builtin.unwrap (Stdlib.Int.toInt64 i))))
         |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (name, idx) ->
           Stdlib.Dict.set acc name idx)
       let functionContext =

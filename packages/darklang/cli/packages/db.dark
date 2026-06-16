@@ -98,7 +98,7 @@ let listDBs (state: Cli.AppState) : Cli.AppState =
     let typeHeader = "Type"
 
     Stdlib.printLine $"{nameHeader}{typeHeader}"
-    Stdlib.printLine (Stdlib.String.repeat "─" 60L)
+    Stdlib.printLine (Stdlib.String.repeat "─" 60I)
 
     // Print each DB
     dbs
@@ -167,9 +167,9 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
 
       let totalWidth =
         colWidth
-        + (Stdlib.Int64.multiply (Stdlib.List.length fieldNames) colWidth)
+        + (Stdlib.Int64.multiply (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length fieldNames))) colWidth)
 
-      Stdlib.printLine (Stdlib.String.repeat "─" totalWidth)
+      Stdlib.printLine (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 totalWidth))
 
       if Stdlib.String.isEmpty result then
         Stdlib.printLine "  (empty)"
@@ -193,7 +193,7 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
         Stdlib.printLine ""
 
         let rowCount = Stdlib.List.length rows
-        Stdlib.printLine $"{Stdlib.Int64.toString rowCount} row(s)"
+        Stdlib.printLine $"{Stdlib.Int.toString rowCount} row(s)"
 
       Stdlib.printLine ""
       state

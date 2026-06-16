@@ -26,7 +26,7 @@ let createTable (columns: List<Column>) (rows: List<List<String>>) : Core.Types.
     |> Stdlib.List.map (fun col -> col.width + 1L)
     |> Stdlib.List.fold 1L (fun acc w -> acc + w)
 
-  let height = (Stdlib.List.length rows) + 3L
+  let height = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length rows))) + 3L
 
   let model =
     TableModel
@@ -65,7 +65,7 @@ let renderTable (component: Core.Types.Component<TableModel>) (context: Core.Typ
 
   // Build column separator segments (horizontal lines for each column width)
   let columnSegments =
-    model.columns |> Stdlib.List.map (fun col -> Stdlib.String.repeat horiz col.width)
+    model.columns |> Stdlib.List.map (fun col -> Stdlib.String.repeat horiz (Stdlib.Int.fromInt64 col.width))
 
   // Top border: ┌───┬───┬───┐
   let topBorder =
@@ -98,7 +98,7 @@ let renderTable (component: Core.Types.Component<TableModel>) (context: Core.Typ
   let dataLines =
     model.rows
     |> Stdlib.List.indexedMap (fun rowIndex row ->
-        let isSelected = rowIndex == model.selectedRow
+        let isSelected = (Builtin.unwrap (Stdlib.Int.toInt64 rowIndex)) == model.selectedRow
 
         let cellsOpt =
           Stdlib.List.map2 row model.columns (fun cellValue col ->
@@ -133,7 +133,7 @@ let addTableRow (component: Core.Types.Component<TableModel>) (row: List<String>
 
 let selectRow (component: Core.Types.Component<TableModel>) (index: Int64) : Core.Types.Component<TableModel> =
   let model = component.model
-  let maxIndex = (Stdlib.List.length model.rows) - 1L
+  let maxIndex = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length model.rows))) - 1L
   let clampedIndex =
     if index < 0L then
       0L
@@ -145,7 +145,7 @@ let selectRow (component: Core.Types.Component<TableModel>) (index: Int64) : Cor
 
 let selectNextRow (component: Core.Types.Component<TableModel>) : Core.Types.Component<TableModel> =
   let model = component.model
-  let maxIndex = (Stdlib.List.length model.rows) - 1L
+  let maxIndex = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length model.rows))) - 1L
   let nextIndex =
     if model.selectedRow < maxIndex then
       model.selectedRow + 1L
@@ -181,6 +181,6 @@ let showTableHeader (component: Core.Types.Component<TableModel>) : Core.Types.C
 let getSelectedRow (component: Core.Types.Component<TableModel>) : Stdlib.Option.Option<List<String>> =
   let model = component.model
   if model.selectedRow >= 0L then
-    Stdlib.List.getAt model.rows model.selectedRow
+    Stdlib.List.getAt model.rows (Stdlib.Int.fromInt64 model.selectedRow)
   else
     Stdlib.Option.Option.None

@@ -59,7 +59,7 @@ let renderCard (component: Core.Types.Component<CardModel>) (context: Core.Types
         else
           // Calculate padding based on raw text, then apply styling
           let titleLen = Stdlib.String.length model.title
-          let rightPad = if innerWidth > titleLen then Stdlib.String.repeat " " (innerWidth - titleLen) else ""
+          let rightPad = if innerWidth > titleLen then Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (innerWidth - titleLen)) else ""
           let styledTitle = Core.Rendering.colorize model.headerColor (Core.Rendering.bold model.title)
           left ++ " " ++ styledTitle ++ rightPad ++ " " ++ right
 
@@ -70,14 +70,14 @@ let renderCard (component: Core.Types.Component<CardModel>) (context: Core.Types
           let paddedSubtitle = Core.Rendering.padText model.subtitle innerWidth Core.Types.Alignment.Left
           left ++ " " ++ paddedSubtitle ++ " " ++ right
 
-      let headerSeparator = left ++ Stdlib.String.repeat horizontal (model.width - 2L) ++ right
+      let headerSeparator = left ++ Stdlib.String.repeat horizontal (Stdlib.Int.fromInt64 (model.width - 2L)) ++ right
 
       [titleLine; subtitleLine; headerSeparator]
       |> Stdlib.List.filter (fun line -> Stdlib.Bool.not (Stdlib.String.isEmpty line))
 
   // Create content section
   let contentLines =
-    let maxContentHeight = model.height - 2L - Stdlib.List.length headerLines - Stdlib.List.length model.footer
+    let maxContentHeight = (Stdlib.Int.fromInt64 (model.height - 2L)) - Stdlib.List.length headerLines - Stdlib.List.length model.footer
     let paddedContent =
       model.content
       |> Stdlib.List.take maxContentHeight
@@ -88,8 +88,8 @@ let renderCard (component: Core.Types.Component<CardModel>) (context: Core.Types
 
     let remainingHeight = maxContentHeight - Stdlib.List.length paddedContent
     let emptyLines =
-      if remainingHeight > 0L then
-        let emptyLine = left ++ Stdlib.String.repeat " " (model.width - 2L) ++ right
+      if remainingHeight > 0I then
+        let emptyLine = left ++ Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (model.width - 2L)) ++ right
         match Stdlib.List.repeat remainingHeight emptyLine with
         | Ok lines -> lines
         | Error _ -> []
@@ -104,7 +104,7 @@ let renderCard (component: Core.Types.Component<CardModel>) (context: Core.Types
     if Stdlib.List.isEmpty model.footer then
       []
     else
-      let footerSeparator = left ++ (Stdlib.String.repeat horizontal (model.width - 2L)) ++ right
+      let footerSeparator = left ++ (Stdlib.String.repeat horizontal (Stdlib.Int.fromInt64 (model.width - 2L))) ++ right
       let footerContent =
         model.footer
         |> Stdlib.List.map (fun line ->
@@ -117,11 +117,11 @@ let renderCard (component: Core.Types.Component<CardModel>) (context: Core.Types
   // Create borders
   let topBorder =
     if Stdlib.List.isEmpty headerLines then
-      top ++ (Stdlib.String.repeat horizontal (model.width - 2L)) ++ topRight
+      top ++ (Stdlib.String.repeat horizontal (Stdlib.Int.fromInt64 (model.width - 2L))) ++ topRight
     else
-      top ++ (Stdlib.String.repeat horizontal (model.width - 2L)) ++ topRight
+      top ++ (Stdlib.String.repeat horizontal (Stdlib.Int.fromInt64 (model.width - 2L))) ++ topRight
 
-  let bottomBorder = bottom ++ (Stdlib.String.repeat horizontal (model.width - 2L)) ++ bottomRight
+  let bottomBorder = bottom ++ (Stdlib.String.repeat horizontal (Stdlib.Int.fromInt64 (model.width - 2L))) ++ bottomRight
 
   // Combine all sections
   let cardContent =
@@ -136,12 +136,12 @@ let renderCard (component: Core.Types.Component<CardModel>) (context: Core.Types
     let shadowedContent =
       cardContent
       |> Stdlib.List.indexedMap (fun i line ->
-          if i == Stdlib.List.length cardContent - 1L then
-            line ++ " " ++ (Core.Rendering.dim (Stdlib.String.repeat "▄" (model.width - 1L)))
+          if i == Stdlib.List.length cardContent - 1I then
+            line ++ " " ++ (Core.Rendering.dim (Stdlib.String.repeat "▄" (Stdlib.Int.fromInt64 (model.width - 1L))))
           else
             line ++ Core.Rendering.dim "▌")
 
-    let shadowBottom = " " ++ (Core.Rendering.dim (Stdlib.String.repeat "▀" model.width))
+    let shadowBottom = " " ++ (Core.Rendering.dim (Stdlib.String.repeat "▀" (Stdlib.Int.fromInt64 model.width)))
     shadowedContent
     |> Stdlib.List.append [shadowBottom]
   else
@@ -202,20 +202,20 @@ let createMediaCard (title: String) (description: String) (mediaWidth: Int64) (m
 let renderMediaCard (component: Core.Types.Component<MediaCardModel>) (context: Core.Types.RenderContext) : List<String> =
   let model = component.model
 
-  let topBorder = "┌" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┐"
-  let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┘"
+  let topBorder = "┌" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┐"
+  let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┘"
 
   // Create media placeholder
   let mediaLines =
-    let centerY = Stdlib.Int64.divide model.mediaHeight 2L
-    (Stdlib.List.range 0L model.mediaHeight)
+    let centerY = Stdlib.Int.fromInt64 (Stdlib.Int64.divide model.mediaHeight 2L)
+    (Stdlib.List.range 0I (Stdlib.Int.fromInt64 model.mediaHeight))
     |> Stdlib.List.map (fun i ->
         if i == centerY then
           let centeredPlaceholder = Core.Rendering.padText model.mediaPlaceholder model.mediaWidth Core.Types.Alignment.Center
           let borderedLine = Core.Rendering.padText centeredPlaceholder (model.width - 4L) Core.Types.Alignment.Center
           "│ " ++ borderedLine ++ " │"
         else
-          let emptyLine = Stdlib.String.repeat " " (model.width - 4L)
+          let emptyLine = Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (model.width - 4L))
           "│ " ++ emptyLine ++ " │")
 
   // Create title and description
@@ -228,7 +228,7 @@ let renderMediaCard (component: Core.Types.Component<MediaCardModel>) (context: 
     let paddedDesc = Core.Rendering.padText model.description (model.width - 4L) Core.Types.Alignment.Left
     "│ " ++ paddedDesc ++ " │"
 
-  let separatorLine = "├" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┤"
+  let separatorLine = "├" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┤"
 
   // Create actions if any
   let actionLines =

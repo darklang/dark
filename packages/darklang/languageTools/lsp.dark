@@ -62,7 +62,8 @@ let getDiagnostics (uri: String) (text: String) : String =
           | None -> 0L
 
         Position
-          { line = (Stdlib.List.length lines) - 1L
+          { line =
+              (Builtin.unwrap (Stdlib.Int.toInt64 ((Stdlib.List.length lines) - 1I)))
             character = lastLineLength }
 
       Range { start = start; end_ = end' }

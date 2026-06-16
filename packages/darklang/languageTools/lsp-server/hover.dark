@@ -10,7 +10,7 @@ let getTextAtRange
   let endColumn = range.end_.column
 
   let lines = text |> Stdlib.String.split "\n"
-  let textLines = lines |> Stdlib.List.getAt startLine
+  let textLines = lines |> Stdlib.List.getAt (Stdlib.Int.fromInt64 startLine)
 
   match textLines with
   | Some line ->

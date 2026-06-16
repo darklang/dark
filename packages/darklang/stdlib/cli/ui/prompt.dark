@@ -21,14 +21,14 @@ let select (question: String) (choices: List<String>) : String =
   let _ =
     choices
     |> Stdlib.List.indexedMap (fun i choice ->
-      Builtin.printLine ($"  {Color.bold (Stdlib.Int64.toString (i + 1L))}. {choice}"))
+      Builtin.printLine ($"  {Color.bold (Stdlib.Int.toString (i + 1I))}. {choice}"))
 
   Builtin.print "Enter number: "
   let input = Builtin.stdinReadLine ()
 
-  match Stdlib.Int64.parse input with
+  match Stdlib.Int.parse input with
   | Ok n ->
-    match Stdlib.List.getAt choices (n - 1L) with
+    match Stdlib.List.getAt choices (n - 1I) with
     | Some choice -> choice
     | None ->
       Builtin.printLine (Color.red "Invalid selection")

@@ -187,7 +187,7 @@ let decodeChars
   match chars with
   | [] -> Stdlib.Result.Result.Ok acc
   | '\\' :: afterBackslash :: _ ->
-    let len = escapeLength afterBackslash
+    let len = Stdlib.Int.fromInt64 (escapeLength afterBackslash)
     let escapeChars = Stdlib.List.take chars len
     let remaining = Stdlib.List.drop chars len
     if Stdlib.List.length escapeChars < len then
@@ -291,7 +291,7 @@ let baseParseList
       contentsNode.children
       |> Stdlib.List.filter (fun c ->
           c.typ != "indent" && c.typ != "dedent")
-      |> Stdlib.List.chunkBySize 2L
+      |> Stdlib.List.chunkBySize 2I
       |> (fun chunkedResult ->
         match chunkedResult with
         | Ok pairs ->
@@ -344,7 +344,7 @@ let baseParseTuple
     (findNodeByFieldName node "rest")
     |> Stdlib.Option.map (fun restNode ->
       restNode.children
-      |> Stdlib.List.chunkBySize 2L
+      |> Stdlib.List.chunkBySize 2I
       |> (fun chunkedResult ->
         match chunkedResult with
         | Ok pairs ->
@@ -398,7 +398,7 @@ let baseParseDict
     |> findNodeByFieldName "content"
     |> Stdlib.Option.map (fun contentsNode ->
       contentsNode.children
-      |> Stdlib.List.chunkBySize 2L
+      |> Stdlib.List.chunkBySize 2I
       |> (fun chunkedResult ->
         match chunkedResult with
         | Ok pairs ->
@@ -467,7 +467,7 @@ let baseParseEnum
       enumFieldsNode.children
       |> Stdlib.List.filter (fun c ->
         c.typ != "indent" && c.typ != "dedent")
-      |> Stdlib.List.chunkBySize 2L
+      |> Stdlib.List.chunkBySize 2I
       |> (fun chunkedResult ->
         match chunkedResult with
         | Ok pairs ->

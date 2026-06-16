@@ -34,17 +34,17 @@ let renderListView (component: Core.Types.Component<ListViewModel>) (context: Co
 
   let visibleItems =
     model.items
-    |> Stdlib.List.drop model.scrollOffset
-    |> Stdlib.List.take (model.height - 2L)
+    |> Stdlib.List.drop (Stdlib.Int.fromInt64 model.scrollOffset)
+    |> Stdlib.List.take (Stdlib.Int.fromInt64 (model.height - 2L))
 
   let content =
     visibleItems
     |> Stdlib.List.indexedMap (fun i item ->
-        let globalIndex = model.scrollOffset + i
+        let globalIndex = model.scrollOffset + (Builtin.unwrap (Stdlib.Int.toInt64 i))
         let marker = if globalIndex == model.selectedIndex then "▶ " else "  "
         let rawText = marker ++ item.text
         let textLen = Stdlib.String.length rawText
-        let rightPad = if innerWidth > textLen then Stdlib.String.repeat " " (innerWidth - textLen) else ""
+        let rightPad = if innerWidth > textLen then Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (innerWidth - textLen)) else ""
 
         // Style after calculating padding
         let styledText =
@@ -59,8 +59,8 @@ let renderListView (component: Core.Types.Component<ListViewModel>) (context: Co
 
         styledText ++ rightPad)
 
-  let topBorder = "┌" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┐"
-  let bottomBorder = "└" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┘"
+  let topBorder = "┌" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L)) ++ "┐"
+  let bottomBorder = "└" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L)) ++ "┘"
   let contentLines =
     content
     |> Stdlib.List.map (fun line -> "│ " ++ line ++ " │")
@@ -71,11 +71,11 @@ let renderListView (component: Core.Types.Component<ListViewModel>) (context: Co
 
 let selectItem (component: Core.Types.Component<ListViewModel>) (index: Int64) : Core.Types.Component<ListViewModel> =
   let model = component.model
-  let clampedIndex = Stdlib.Int64.max 0L (Stdlib.Int64.min index (Stdlib.List.length model.items - 1L))
+  let clampedIndex = Stdlib.Int64.max 0L (Stdlib.Int64.min index ((Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length model.items))) - 1L))
   { component with model = { model with selectedIndex = clampedIndex } }
 
 let getSelectedItem (component: Core.Types.Component<ListViewModel>) : ListItem =
   let model = component.model
-  match Stdlib.List.getAt model.items model.selectedIndex with
+  match Stdlib.List.getAt model.items (Stdlib.Int.fromInt64 model.selectedIndex) with
   | Some item -> item
   | None -> ListItem { text = ""; enabled = false; data = "" }

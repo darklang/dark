@@ -104,7 +104,7 @@ let parseBuiltIn
             firstChild
             |> findNodeByFieldName "rest"
             |> Stdlib.Option.map (fun restNode ->
-            match restNode.children |> Stdlib.List.chunkBySize 2L with
+            match restNode.children |> Stdlib.List.chunkBySize 2I with
             | Ok pairs ->
               pairs |> Stdlib.List.map (fun symbolTypePair ->
                 match symbolTypePair with
@@ -166,7 +166,7 @@ let parseBuiltIn
             | None -> createUnparseableError firstChild
 
           let argsNodes =
-            match firstChild.children |> Stdlib.List.dropLast |> Stdlib.List.chunkBySize 2L with
+            match firstChild.children |> Stdlib.List.dropLast |> Stdlib.List.chunkBySize 2I with
             | Ok pairs ->
               pairs |> Stdlib.List.map (fun typeArrowPair ->
                 match typeArrowPair with

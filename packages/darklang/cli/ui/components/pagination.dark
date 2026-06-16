@@ -65,12 +65,12 @@ let renderPagination (component: Core.Types.Component<PaginationModel>) (context
     let endPage = Stdlib.Int64.min model.totalPages (startPage + model.maxVisiblePages - 1L)
     let adjustedStartPage = Stdlib.Int64.max 1L (endPage - model.maxVisiblePages + 1L)
 
-    let pages = Stdlib.List.range adjustedStartPage endPage
+    let pages = Stdlib.List.range (Stdlib.Int.fromInt64 adjustedStartPage) (Stdlib.Int.fromInt64 endPage)
     let pageButtons =
       pages
       |> Stdlib.List.map (fun page ->
-          let isCurrent = page == model.currentPage
-          renderPageButton model.style page isCurrent false)
+          let isCurrent = (Builtin.unwrap (Stdlib.Int.toInt64 page)) == model.currentPage
+          renderPageButton model.style (Builtin.unwrap (Stdlib.Int.toInt64 page)) isCurrent false)
 
     let prevButton =
       if model.currentPage > 1L then
@@ -202,7 +202,7 @@ let addStep (component: Core.Types.Component<StepNavigationModel>) (step: StepMo
   let newSteps = model.steps |> Stdlib.List.append [step]
   let newHeight =
     match model.style with
-    | Vertical -> (Stdlib.List.length newSteps * 2L) + 1L
+    | Vertical -> ((Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length newSteps))) * 2L) + 1L
     | _ -> 3L
   let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = model.width; height = newHeight } }
   { component with
@@ -217,8 +217,8 @@ let renderStepNavigation (component: Core.Types.Component<StepNavigationModel>) 
       let stepTexts =
         model.steps
         |> Stdlib.List.indexedMap (fun i step ->
-            let stepNumber = Stdlib.Int64.toString (i + 1L)
-            let isActive = i == model.currentStep
+            let stepNumber = Stdlib.Int.toString (i + 1I)
+            let isActive = (Builtin.unwrap (Stdlib.Int.toInt64 i)) == model.currentStep
             let stepText = if model.showNumbers then stepNumber ++ "." ++ step.title else step.title
 
             let stepColor =
@@ -234,21 +234,21 @@ let renderStepNavigation (component: Core.Types.Component<StepNavigationModel>) 
       let combinedSteps = Stdlib.String.join stepTexts separator
       let paddedSteps = Core.Rendering.padText combinedSteps model.width Core.Types.Alignment.Center
 
-      let topBorder = "┌" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┐"
-      let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┘"
+      let topBorder = "┌" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┐"
+      let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┘"
       let stepLine = "│ " ++ paddedSteps ++ " │"
 
       [topBorder; stepLine; bottomBorder]
 
   | Vertical ->
-      let topBorder = "┌" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┐"
-      let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┘"
+      let topBorder = "┌" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┐"
+      let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┘"
 
       let stepLines =
         model.steps
         |> Stdlib.List.indexedMap (fun i step ->
-            let stepNumber = Stdlib.Int64.toString (i + 1L)
-            let isActive = i == model.currentStep
+            let stepNumber = Stdlib.Int.toString (i + 1I)
+            let isActive = (Builtin.unwrap (Stdlib.Int.toInt64 i)) == model.currentStep
             let stepText = if model.showNumbers then stepNumber ++ ". " ++ step.title else step.title
 
             let stepColor =
@@ -266,8 +266,8 @@ let renderStepNavigation (component: Core.Types.Component<StepNavigationModel>) 
             let paddedStep = Core.Rendering.padText styledStep (model.width - 4L) Core.Types.Alignment.Left
             let stepLine = "│ " ++ paddedStep ++ " │"
 
-            if i < Stdlib.List.length model.steps - 1L then
-              [stepLine; "│" ++ (Stdlib.String.repeat " " (model.width - 2L)) ++ "│"]
+            if i < Stdlib.List.length model.steps - 1I then
+              [stepLine; "│" ++ (Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "│"]
             else
               [stepLine])
         |> Stdlib.List.fold [] Stdlib.List.append
@@ -280,7 +280,7 @@ let renderStepNavigation (component: Core.Types.Component<StepNavigationModel>) 
       let dotTexts =
         model.steps
         |> Stdlib.List.indexedMap (fun i step ->
-            let isActive = i == model.currentStep
+            let isActive = (Builtin.unwrap (Stdlib.Int.toInt64 i)) == model.currentStep
             let dot =
               if step.isCompleted then "●"
               else if isActive then "◉"
@@ -301,8 +301,8 @@ let renderStepNavigation (component: Core.Types.Component<StepNavigationModel>) 
 
 let goToStep (component: Core.Types.Component<StepNavigationModel>) (stepIndex: Int64) : Core.Types.Component<StepNavigationModel> =
   let model = component.model
-  if stepIndex >= 0L && stepIndex < Stdlib.List.length model.steps then
-    match Stdlib.List.getAt model.steps stepIndex with
+  if stepIndex >= 0L && stepIndex < (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length model.steps))) then
+    match Stdlib.List.getAt model.steps (Stdlib.Int.fromInt64 stepIndex) with
     | Some step ->
         if step.isDisabled then
           component
@@ -314,7 +314,7 @@ let goToStep (component: Core.Types.Component<StepNavigationModel>) (stepIndex: 
 
 let nextStep (component: Core.Types.Component<StepNavigationModel>) : Core.Types.Component<StepNavigationModel> =
   let model = component.model
-  if model.currentStep < Stdlib.List.length model.steps - 1L then
+  if model.currentStep < (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length model.steps))) - 1L then
     { component with model = { model with currentStep = model.currentStep + 1L } }
   else
     component
@@ -331,7 +331,7 @@ let completeCurrentStep (component: Core.Types.Component<StepNavigationModel>) :
   let updatedSteps =
     model.steps
     |> Stdlib.List.indexedMap (fun i step ->
-        if i == model.currentStep then
+        if (Builtin.unwrap (Stdlib.Int.toInt64 i)) == model.currentStep then
           { step with isCompleted = true }
         else
           step)

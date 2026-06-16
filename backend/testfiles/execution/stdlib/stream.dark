@@ -145,4 +145,4 @@
  let b2 = Stdlib.Blob.fromString "there"
  let s = Stdlib.Stream.fromList [ b1; b2 ]
  let result = Stdlib.Stream.toList s
- Stdlib.List.length result) = 2L
+ Stdlib.List.length result) = 2I

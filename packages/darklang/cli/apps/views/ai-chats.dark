@@ -80,18 +80,18 @@ let statusBadge (status: String) : String =
 
 let hr () : String =
   let cols = Darklang.Cli.Terminal.getWidth ()
-  Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" cols)
+  Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 cols))
 
 let thinHr () : String =
   let cols = Darklang.Cli.Terminal.getWidth ()
-  Darklang.Cli.Colors.dimText (Stdlib.String.repeat "╌" cols)
+  Darklang.Cli.Colors.dimText (Stdlib.String.repeat "╌" (Stdlib.Int.fromInt64 cols))
 
 let padRight (s: String) (width: Int64) : String =
   let len = Stdlib.String.length s
   if len >= width then
     Stdlib.String.slice s 0L width
   else
-    s ++ (Stdlib.String.repeat " " (width - len))
+    s ++ (Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (width - len)))
 
 let renderThread (thread: Thread) : Unit =
   let idStr = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.cyan) ("#" ++ Stdlib.Int64.toString thread.id)
@@ -141,7 +141,7 @@ let render () : Unit =
     ("  "
      ++ Darklang.Cli.Colors.boldText "dark ai chats"
      ++ "  "
-     ++ Darklang.Cli.Colors.dimText ("—  " ++ Stdlib.Int64.toString threadCount ++ " threads  •  " ++ Stdlib.Int64.toString runningCount ++ " running  •  " ++ Stdlib.Int64.toString reviewCount ++ " awaiting review"))
+     ++ Darklang.Cli.Colors.dimText ("—  " ++ Stdlib.Int.toString threadCount ++ " threads  •  " ++ Stdlib.Int.toString runningCount ++ " running  •  " ++ Stdlib.Int.toString reviewCount ++ " awaiting review"))
   Stdlib.printLine ""
   Stdlib.printLine (hr ())
 

@@ -406,7 +406,7 @@ module RuntimeError =
       | NonOptionOrResult actual -> [ ES.String "Can only unwrap Options and Results, yet got "; ES.FullValue actual ]
       | MultipleArgs args ->
         [ ES.String "Unwrap expects a single argument, but got "
-          ES.Int(Stdlib.List.length args) ]
+          ES.Int(Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length args))) ]
 
     | Apply err ->
       match err with

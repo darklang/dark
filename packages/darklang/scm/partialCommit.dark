@@ -533,11 +533,11 @@ let groupLines (label: String) (items: List<SelectedItem>) : List<String> =
 let propagationLines (items: List<SelectedItem>) : List<String> =
   let n = Stdlib.List.length items
 
-  if n == 0L then
+  if n == 0I then
     []
   else
-    let header = $"  propagated repoints ({Stdlib.Int64.toString n}):"
-    let shown = Stdlib.List.take items 5L
+    let header = $"  propagated repoints ({Stdlib.Int.toString n}):"
+    let shown = Stdlib.List.take items 5I
 
     let rows =
       shown |> Stdlib.List.map (fun i -> $"    {itemKindLabel i.kind} {i.fqn}")
@@ -545,8 +545,8 @@ let propagationLines (items: List<SelectedItem>) : List<String> =
     let more = n - (Stdlib.List.length shown)
 
     let tail =
-      if more > 0L then
-        [ $"    ... and {Stdlib.Int64.toString more} more" ]
+      if more > 0I then
+        [ $"    ... and {Stdlib.Int.toString more} more" ]
       else
         []
 

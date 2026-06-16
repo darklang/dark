@@ -62,7 +62,7 @@ module Releases =
           | Some firstAsset ->
             // Asset name format: darklang-alpha-BUILDHASH-platform
             let parts = Stdlib.String.split firstAsset.name "-"
-            match Stdlib.List.getAt parts 2L with
+            match Stdlib.List.getAt parts 2I with
             | Some hash ->
               // Return in same format as CLI version (first 7 chars)
               Stdlib.Result.Result.Ok $"alpha-{Stdlib.String.slice hash 0L 7L}"

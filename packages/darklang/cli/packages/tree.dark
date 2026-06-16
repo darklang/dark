@@ -231,7 +231,7 @@ let displayTree
     allEntities
     |> Stdlib.List.indexedMap (fun index entry ->
       let (name, entityType, hash) = entry
-      let isLast = index == (entitiesCount - 1L)
+      let isLast = index == (entitiesCount - 1I)
       let treeBranch = if isLast then "└── " else "├── "
       let fullPrefix = prefix ++ treeBranch
 

@@ -35,8 +35,8 @@ let renderMessage (component: Core.Types.Component<MessageModel>) (context: Core
       | Info -> "ℹ"
       | _ -> "•"
 
-    let topBorder = "┌" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┐"
-    let bottomBorder = "└" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┘"
+    let topBorder = "┌" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L)) ++ "┐"
+    let bottomBorder = "└" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L)) ++ "┘"
 
     let titleLine =
       let dismissButton = if model.isDismissible then "✕" else ""
@@ -46,7 +46,7 @@ let renderMessage (component: Core.Types.Component<MessageModel>) (context: Core
       let rawTitleLen = Stdlib.String.length rawTitle
       let innerWidth = model.width - 4L  // borders and padding
       let paddingNeeded = innerWidth - rawTitleLen - dismissLen
-      let rightPad = if paddingNeeded > 0L then Stdlib.String.repeat " " paddingNeeded else ""
+      let rightPad = if paddingNeeded > 0L then Stdlib.String.repeat " " (Stdlib.Int.fromInt64 paddingNeeded) else ""
 
       // Apply styling after calculating padding
       let styledTitle = Core.Rendering.colorize model.messageType (Core.Rendering.bold rawTitle)
@@ -111,14 +111,14 @@ let renderToast (component: Core.Types.Component<ToastModel>) (context: Core.Typ
     let rawText = typeIcon ++ " " ++ model.message
     let innerWidth = component.bounds.dimensions.width - 4L
     let textLen = Stdlib.String.length rawText
-    let rightPad = if innerWidth > textLen then Stdlib.String.repeat " " (innerWidth - textLen) else ""
+    let rightPad = if innerWidth > textLen then Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (innerWidth - textLen)) else ""
 
     // Style the content
     let styledContent = Core.Rendering.colorize model.toastType rawText
 
-    let topBorder = "╭" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "╮"
+    let topBorder = "╭" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 2L)) ++ "╮"
     let contentLine = "│ " ++ styledContent ++ rightPad ++ " │"
-    let bottomBorder = "╰" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "╯"
+    let bottomBorder = "╰" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 2L)) ++ "╯"
 
     [topBorder; contentLine; bottomBorder]
 

@@ -183,8 +183,8 @@ let manyStrings (parser: Parser<String>) : Parser<List<String>> =
   Parser
     { run =
         (fun input ->
-          let maxIterations = 100L
-          let indices = Stdlib.List.range 0L maxIterations
+          let maxIterations = 100I
+          let indices = Stdlib.List.range 0I maxIterations
 
           let initialAcc =
             ManyAcc { results = []; remaining = input; done_ = false }
@@ -224,8 +224,8 @@ let many (parser: Parser<'a>) : Parser<List<'a>> =
   Parser
     { run =
         (fun input ->
-          let maxIterations = 100L
-          let indices = Stdlib.List.range 0L maxIterations
+          let maxIterations = 100I
+          let indices = Stdlib.List.range 0I maxIterations
 
           let initialAcc =
             ManyAccGeneric { results = []; remaining = input; done_ = false }

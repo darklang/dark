@@ -171,5 +171,5 @@ let relativeTo
 
       let parts = Stdlib.List.append ups tail
 
-      if Stdlib.List.length parts == 0L then "."
+      if Stdlib.List.length parts == 0I then "."
       else Stdlib.String.join parts "/"))

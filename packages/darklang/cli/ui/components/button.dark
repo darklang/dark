@@ -41,12 +41,12 @@ let renderButton (component: Core.Types.Component<ButtonModel>) (context: Core.T
       Core.Rendering.colorize model.color model.text
 
   // Build padded text with spacing around styled content
-  let paddedText = Stdlib.String.repeat " " leftPad ++ styledText ++ Stdlib.String.repeat " " rightPad
+  let paddedText = Stdlib.String.repeat " " (Stdlib.Int.fromInt64 leftPad) ++ styledText ++ Stdlib.String.repeat " " (Stdlib.Int.fromInt64 rightPad)
   let focusIndicator = if hasFocus then "► " else "  "
 
-  [ focusIndicator ++ "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┐"
+  [ focusIndicator ++ "┌" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 2L)) ++ "┐"
     focusIndicator ++ "│" ++ paddedText ++ "│"
-    focusIndicator ++ "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘" ]
+    focusIndicator ++ "└" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 2L)) ++ "┘" ]
 
 let setButtonText (component: Core.Types.Component<ButtonModel>) (text: String) : Core.Types.Component<ButtonModel> =
   let model = component.model

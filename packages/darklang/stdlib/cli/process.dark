@@ -115,7 +115,7 @@ let runWithEnv
       let (k, _v) = pair
       (Stdlib.String.contains k "=") || (Stdlib.String.contains k " "))
 
-  if (Stdlib.List.length invalid) > 0L then
+  if (Stdlib.List.length invalid) > 0I then
     let badName =
       (Stdlib.List.head invalid)
       |> Builtin.unwrap

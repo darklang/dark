@@ -66,7 +66,7 @@ let matchRoute (routePattern: String) (requestPath: String) : RouteMatch =
   let routeLen = List.length routeSegs
   let pathLen = List.length pathSegs
 
-  if (routeLen == 0L) && (pathLen == 0L) then
+  if (routeLen == 0I) && (pathLen == 0I) then
     RouteMatch { matched = true; vars = [] }
   else if routeLen != pathLen then
     RouteMatch { matched = false; vars = [] }

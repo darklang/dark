@@ -145,7 +145,7 @@ module NestedRecordFieldAccess =
    let shouldBeJustJoe =
      Stdlib.DB.query TestNestedRecord (fun p -> p.details.numbers.age == 41L)
 
-   Stdlib.List.length shouldBeJustJoe) = 1L
+   Stdlib.List.length shouldBeJustJoe) = 1I
 
   // same as above, but with aliases
   (Stdlib.DB.set
@@ -161,7 +161,7 @@ module NestedRecordFieldAccess =
    let shouldBeJustJeremy =
      Stdlib.DB.query TestNestedAliasRecord (fun p -> p.details.numbers.age == 38L)
 
-   Stdlib.List.length shouldBeJustJeremy) = 1L
+   Stdlib.List.length shouldBeJustJeremy) = 1I
 
 
 
@@ -1010,7 +1010,7 @@ module PartialEvaluation =
 
   (friends (fun p ->
     let x = YL { y = ZL { z = AL { a = [ 1L; 2L; 3L; 4L; 5L ] } } }
-    (Stdlib.List.length x.y.z.a) < p.height)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+    (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length x.y.z.a))) < p.height)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // tuple destructuring inside query - requires tuple pattern support
   (friends (fun p ->

@@ -24,7 +24,7 @@ let searchFunctions () : ModelContextProtocol.ServerBuilder.Tool =
     handler =
       fun query ->
         let results = LanguageTools.FunctionSearch.search query
-        let resultCount = (Stdlib.List.length results) |> Stdlib.Int64.toString
+        let resultCount = (Stdlib.List.length results) |> Stdlib.Int.toString
         let formattedResults =
           results
           |> Stdlib.List.map (fun fn -> $"- {fn.name}: {fn.description}")
@@ -57,7 +57,7 @@ let listPackages () : ModelContextProtocol.ServerBuilder.Tool =
     description = "List all available Darklang packages"
     handler = fun filter ->
       let packages = LanguageTools.PackageManager.listPackages filter
-      let packageCount = (Stdlib.List.length packages) |> Stdlib.Int64.toString
+      let packageCount = (Stdlib.List.length packages) |> Stdlib.Int.toString
       let formattedPackages =
         packages
         |> Stdlib.List.map (fun pkg -> $"- {pkg.name} (v{pkg.version}): {pkg.description}")

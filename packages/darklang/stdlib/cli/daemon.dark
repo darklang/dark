@@ -24,7 +24,7 @@ let logPath (name: String) : String =
   (runDir ()) ++ "/" ++ name ++ ".log"
 
 // The daemon's last `n` log lines (newest at the bottom); empty if it never logged.
-let tailLog (name: String) (n: Int64) : List<String> =
+let tailLog (name: String) (n: Int) : List<String> =
   match File.readLines (logPath name) with
   | Ok lines ->
     let total = Stdlib.List.length lines
@@ -135,7 +135,7 @@ let waitUntilRunning
   : Stdlib.Result.Result<Int64, String> =
   if tries <= 0L then
     let hint =
-      match tailLog name 1L with
+      match tailLog name 1I with
       | [ line ] -> $" (last log: {line})"
       | _ -> ""
 

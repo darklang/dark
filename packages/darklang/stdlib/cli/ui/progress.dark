@@ -14,8 +14,8 @@ let bar (current: Int64) (total: Int64) (label: String) : Unit =
 
   let empty = width - filled
 
-  let filledStr = Stdlib.String.repeat "#" filled
-  let emptyStr = Stdlib.String.repeat "-" empty
+  let filledStr = Stdlib.String.repeat "#" (Stdlib.Int.fromInt64 filled)
+  let emptyStr = Stdlib.String.repeat "-" (Stdlib.Int.fromInt64 empty)
 
   let pct =
     if total == 0L then 0L

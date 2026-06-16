@@ -787,11 +787,11 @@ module String =
     "Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed non risus. Suspendisse lectus tortor, dignissim sit amet, adipiscing nec, ultricies sed, dolor."
 
 
-  Stdlib.Json.serialize<String> (Stdlib.String.repeat_v0 "a" 100L) = "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
+  Stdlib.Json.serialize<String> (Stdlib.String.repeat_v0 "a" 100I) = "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\""
 
   Stdlib.Json.parse<String>
     "\"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\"" = Result
-    .Ok(Stdlib.String.repeat_v0 "a" 100L)
+    .Ok(Stdlib.String.repeat_v0 "a" 100I)
 
 
 module DateTime =

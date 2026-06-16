@@ -67,15 +67,15 @@ module EncodeSemanticTokens =
         let bStart = b.range.start
 
         if Stdlib.Int64.lessThan aStart.row bStart.row then
-          -1L
+          -1I
         elif Stdlib.Int64.greaterThan aStart.row bStart.row then
-          1L
+          1I
         else if Stdlib.Int64.lessThan aStart.column bStart.column then
-          -1L
+          -1I
         else if Stdlib.Int64.greaterThan aStart.column bStart.column then
-          1L
+          1I
         else
-          0L)
+          0I)
 
     match sortedTokens with
     | Error _ -> []

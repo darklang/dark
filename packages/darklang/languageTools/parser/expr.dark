@@ -313,7 +313,7 @@ let parseRecordLiteral
     |> findNodeByFieldName "content"
     |> Stdlib.Option.map (fun contentsNode ->
       contentsNode.children
-      |> Stdlib.List.chunkBySize 2L
+      |> Stdlib.List.chunkBySize 2I
       |> (fun chunkedResult ->
         match chunkedResult with
         | Ok pairs ->
@@ -373,7 +373,7 @@ let parseRecordUpdate
       fieldUpdatesNode.children
       |> Stdlib.List.filter (fun c ->
         c.typ != "indent" && c.typ != "dedent")
-      |> Stdlib.List.chunkBySize 2L
+      |> Stdlib.List.chunkBySize 2I
       |> (fun chunkedResult ->
         match chunkedResult with
         | Ok pairs ->
@@ -812,7 +812,7 @@ let parsePipeExpression
     (findNodeByFieldName node "pipe_exprs")
     |> Stdlib.Option.map (fun pipeExprNode ->
       pipeExprNode.children
-      |> Stdlib.List.chunkBySize 2L
+      |> Stdlib.List.chunkBySize 2I
       |> (fun chunkedResult ->
         match chunkedResult with
         | Ok pairs ->

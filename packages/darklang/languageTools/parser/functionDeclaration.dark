@@ -87,7 +87,7 @@ let parse
         typeParamsNode
         |> findNodeByFieldName "params"
         |> Stdlib.Option.map (fun node ->
-          match node.children |> Stdlib.List.chunkBySize 2L with
+          match node.children |> Stdlib.List.chunkBySize 2I with
           | Ok pairs ->
             pairs |> Stdlib.List.map (fun typeParamSeparatorPair ->
               match typeParamSeparatorPair with

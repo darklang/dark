@@ -52,7 +52,7 @@ let createDocument (state: State) (title: String) : State =
 
 let deleteDocument (state: State) (docId: Int64) : State =
   let docCount = Stdlib.List.length state.documents
-  if docCount <= 1L then
+  if docCount <= 1I then
     state
   else
     let remaining = Stdlib.List.filter state.documents (fun d -> d.id != docId)
@@ -78,7 +78,7 @@ let renameDocument (state: State) (docId: Int64) (newTitle: String) : State =
 let makeDocPicker (state: State) : ListPicker.State<Document> =
   ListPicker.make state.documents (fun doc ->
     let nodeCount = Stdlib.List.length doc.outline.rootChildren
-    $"{doc.title}  ({Stdlib.Int64.toString nodeCount} items)")
+    $"{doc.title}  ({Stdlib.Int.toString nodeCount} items)")
 
 let exportFormats : List<(String * String)> =
   [ ("Markdown", ".md")
@@ -110,17 +110,17 @@ let handleDocPickerKey
   match keyChar with
   | Some "n" -> KeyResult.Save (createDocument state "Untitled")
   | Some "d" ->
-    match Stdlib.List.getAt picker.items picker.selected with
+    match Stdlib.List.getAt picker.items (Stdlib.Int.fromInt64 picker.selected) with
     | Some doc -> KeyResult.Save (deleteDocument state doc.id)
     | None -> KeyResult.Continue state
   | Some "r" ->
-    match Stdlib.List.getAt picker.items picker.selected with
+    match Stdlib.List.getAt picker.items (Stdlib.Int.fromInt64 picker.selected) with
     | Some doc ->
       let te = TextEditor.fromText doc.title
       KeyResult.Continue ({ state with screen = Screen.DocRenaming (doc.id, picker, te) })
     | None -> KeyResult.Continue state
   | Some "e" ->
-    match Stdlib.List.getAt picker.items picker.selected with
+    match Stdlib.List.getAt picker.items (Stdlib.Int.fromInt64 picker.selected) with
     | Some doc ->
       KeyResult.Continue
         ({ state with
@@ -215,7 +215,7 @@ let renderTitleBar (titleText: String) (modeText: String) (modeColor: String) (r
 let renderHelpBar (helpText: String) (region: Darklang.Cli.UI.Layout.Region) : Unit =
   let helpLen = Stdlib.String.length helpText
   let helpPadding =
-    if region.cols > helpLen then Stdlib.String.repeat " " (region.cols - helpLen)
+    if region.cols > helpLen then Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (region.cols - helpLen))
     else ""
   let styled = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding)
   Darklang.Cli.UI.Layout.printAt region 0L 0L styled
@@ -260,7 +260,7 @@ let render (state: State) : Unit =
         |> Stdlib.List.indexedMap (fun idx item -> (idx, item))
         |> Stdlib.List.iter (fun pair ->
           let (idx, item) = pair
-          let isSelected = idx == picker.selected
+          let isSelected = idx == Stdlib.Int.fromInt64 picker.selected
           let displayText =
             match Stdlib.List.getAt picker.items idx with
             | Some doc ->
@@ -274,7 +274,7 @@ let render (state: State) : Unit =
               Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
             else
               line
-          Darklang.Cli.UI.Layout.printAt region idx 0L styled))
+          Darklang.Cli.UI.Layout.printAt region (Builtin.unwrap (Stdlib.Int.toInt64 idx)) 0L styled))
 
   | Editor editor ->
     let doc = activeDoc state
@@ -344,7 +344,7 @@ module Persistence =
           let picker =
             ListPicker.make docs (fun doc ->
               let nodeCount = Stdlib.List.length doc.outline.rootChildren
-              $"{doc.title}  ({Stdlib.Int64.toString nodeCount} items)")
+              $"{doc.title}  ({Stdlib.Int.toString nodeCount} items)")
           State
             { documents = docs
               activeDocId = data.activeDocId
@@ -399,7 +399,7 @@ let defaultState () : State =
   let picker =
     ListPicker.make docs (fun doc ->
       let nodeCount = Stdlib.List.length doc.outline.rootChildren
-      $"{doc.title}  ({Stdlib.Int64.toString nodeCount} items)")
+      $"{doc.title}  ({Stdlib.Int.toString nodeCount} items)")
   State
     { documents = docs
       activeDocId = 1L

@@ -43,13 +43,14 @@ let printAt (region: Region) (row: Int64) (col: Int64) (text: String) : Unit =
 
 /// Fill a row with a repeated character, within the region.
 let fillRow (region: Region) (row: Int64) (ch: String) : Unit =
-  let line = Stdlib.String.repeat ch region.cols
+  let line = Stdlib.String.repeat ch (Stdlib.Int.fromInt64 region.cols)
   printAt region row 0L line
 
 /// Fill the entire region with spaces (clear it).
 let clearRegion (region: Region) : Unit =
-  (Stdlib.List.range 0L (region.rows - 1L))
-  |> Stdlib.List.iter (fun row -> fillRow region row " ")
+  (Stdlib.List.range 0I (Stdlib.Int.fromInt64 (region.rows - 1L)))
+  |> Stdlib.List.iter (fun row ->
+    fillRow region (Builtin.unwrap (Stdlib.Int.toInt64 row)) " ")
 
 
 // --- Layout negotiation ---
@@ -58,7 +59,7 @@ let clearRegion (region: Region) : Unit =
 /// Each gets at least min, then remaining space is split toward preferred.
 let distributeRows (totalRows: Int64) (requests: List<SizeRequest>) : List<Int64> =
   let count = Stdlib.List.length requests
-  if count == 0L then
+  if count == 0I then
     []
   else
     // First pass: give everyone their minimum

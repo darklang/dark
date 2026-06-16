@@ -54,7 +54,7 @@ let runServerCliLoop (state: State.BuilderServerState) : Int64 =
 
       | BatchOfRequests items ->
           // Handle batch requests by processing each one in sequence
-          let len = (Stdlib.List.length items) |> Stdlib.Int64.toString
+          let len = (Stdlib.List.length items) |> Stdlib.Int.toString
           logWithPath state.logFilePath $"Got batch request with {len} items"
 
           let processedState =

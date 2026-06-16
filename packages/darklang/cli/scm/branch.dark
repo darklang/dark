@@ -26,8 +26,8 @@ let branchAnnotation
       let commits = SCM.PackageOps.getCommits branch.id 1000L
       let commitCount = Stdlib.List.length commits
 
-      if commitCount > 0L then
-        let count = Stdlib.Int64.toString commitCount
+      if commitCount > 0I then
+        let count = Stdlib.Int.toString commitCount
         [ Colors.info $"{count} committed" ]
       else
         []
@@ -59,7 +59,7 @@ let printBranchTree
 
   children
   |> Stdlib.List.indexedMap (fun i child ->
-    let isLastChild = i == (childCount - 1L)
+    let isLastChild = i == (childCount - 1I)
 
     let connector =
       if isLastChild then

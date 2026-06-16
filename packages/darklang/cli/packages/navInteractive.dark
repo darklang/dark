@@ -108,14 +108,14 @@ let viewEntityTruncated (branchId: Uuid) (location: PackageLocation) : Unit =
     let lineCount =
       if Stdlib.Bool.not (Stdlib.List.isEmpty directSubmodules) then
         Stdlib.printLine (Display.getSectionHeader "submodule")
-        let itemsToShow = Stdlib.List.take directSubmodules maxItemsPerCategory
+        let itemsToShow = Stdlib.List.take directSubmodules (Stdlib.Int.fromInt64 maxItemsPerCategory)
         itemsToShow |> Stdlib.List.iter (fun name -> Stdlib.printLine $"  {name}/")
 
-        let remaining = (Stdlib.List.length directSubmodules) - maxItemsPerCategory
+        let remaining = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length directSubmodules))) - maxItemsPerCategory
         if remaining > 0L then
           Stdlib.printLine $"  ... and {Stdlib.Int64.toString remaining} more modules"
 
-        lineCount + 1L + (Stdlib.List.length itemsToShow) + (if remaining > 0L then 1L else 0L)
+        lineCount + 1L + (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length itemsToShow))) + (if remaining > 0L then 1L else 0L)
       else
         lineCount
 
@@ -127,10 +127,10 @@ let viewEntityTruncated (branchId: Uuid) (location: PackageLocation) : Unit =
       // Show types (limited)
       if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) && itemsPerRemaining > 0L then
         Stdlib.printLine (Display.getSectionHeader "type")
-        let typesToShow = Stdlib.List.take results.types itemsPerRemaining
+        let typesToShow = Stdlib.List.take results.types (Stdlib.Int.fromInt64 itemsPerRemaining)
         typesToShow |> Stdlib.List.iter (fun t -> Stdlib.printLine $"  {t.location.name}")
 
-        let remaining = (Stdlib.List.length results.types) - itemsPerRemaining
+        let remaining = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length results.types))) - itemsPerRemaining
         if remaining > 0L then
           Stdlib.printLine $"  ... and {Stdlib.Int64.toString remaining} more types"
 
@@ -159,16 +159,16 @@ let display (navState: State) : Unit =
   match navState.mode with
   | Nav ->
     Stdlib.printLine (Colors.boldText $"{headerPrefix} {locationStr}{displaySuffix}")
-    Stdlib.printLine (Stdlib.String.repeat "─" 60L)
+    Stdlib.printLine (Stdlib.String.repeat "─" 60I)
   | Search ->
     Stdlib.printLine (Colors.boldText $"{headerPrefix} {locationStr}{displaySuffix}")
-    Stdlib.printLine (Stdlib.String.repeat "━" 60L)
+    Stdlib.printLine (Stdlib.String.repeat "━" 60I)
     Stdlib.printLine $"  {navState.searchQuery}_"
-    Stdlib.printLine (Stdlib.String.repeat "━" 60L)
+    Stdlib.printLine (Stdlib.String.repeat "━" 60I)
 
   // Calculate viewport
   let viewportHeight = 12L
-  let totalItems = Stdlib.List.length navState.items
+  let totalItems = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length navState.items)))
 
   if totalItems == 0L then
     Stdlib.printLine "  (empty directory)"
@@ -179,13 +179,13 @@ let display (navState: State) : Unit =
 
     let visibleItems =
       navState.items
-      |> Stdlib.List.drop startIndex
-      |> Stdlib.List.take (endIndex - startIndex)
+      |> Stdlib.List.drop (Stdlib.Int.fromInt64 startIndex)
+      |> Stdlib.List.take (Stdlib.Int.fromInt64 (endIndex - startIndex))
 
     // Display items
     visibleItems
     |> Stdlib.List.indexedMap (fun relativeIndex item ->
-      let absoluteIndex = startIndex + relativeIndex
+      let absoluteIndex = startIndex + (Builtin.unwrap (Stdlib.Int.toInt64 relativeIndex))
       let isSelected = absoluteIndex == navState.selectedIndex
 
       let icon = Display.getIcon item.entityType
@@ -208,11 +208,11 @@ let display (navState: State) : Unit =
   match navState.display with
   | Source ->
     if totalItems > 0L then
-      match Stdlib.List.getAt navState.items navState.selectedIndex with
+      match Stdlib.List.getAt navState.items (Stdlib.Int.fromInt64 navState.selectedIndex) with
       | Some selectedItem ->
-        Stdlib.printLines [ ""; (Stdlib.String.repeat "─" 60L) ]
+        Stdlib.printLines [ ""; (Stdlib.String.repeat "─" 60I) ]
         viewEntityTruncated navState.branchId selectedItem.location
-        Stdlib.printLines [ ""; (Stdlib.String.repeat "─" 60L) ]
+        Stdlib.printLines [ ""; (Stdlib.String.repeat "─" 60I) ]
       | None -> ()
   | JustName -> ()
 
@@ -227,7 +227,7 @@ let display (navState: State) : Unit =
 
 // Navigation helper functions
 let moveUp (navState: State) : State =
-  let totalItems = Stdlib.List.length navState.items
+  let totalItems = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length navState.items)))
   if totalItems > 0L then
     let newIndex =
       if navState.selectedIndex > 0L then
@@ -248,7 +248,7 @@ let moveUp (navState: State) : State =
     navState
 
 let moveDown (navState: State) : State =
-  let totalItems = Stdlib.List.length navState.items
+  let totalItems = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length navState.items)))
   if totalItems > 0L then
     let newIndex =
       if navState.selectedIndex < totalItems - 1L then
@@ -277,9 +277,9 @@ let exitToMainPrompt (state: Cli.AppState) : Cli.AppState =
       prompt = Prompt.Editing.clear state.prompt }
 
 let selectAndExit (state: Cli.AppState) (navState: State) : Cli.AppState =
-  let totalItems = Stdlib.List.length navState.items
+  let totalItems = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length navState.items)))
   if totalItems > 0L then
-    match Stdlib.List.getAt navState.items navState.selectedIndex with
+    match Stdlib.List.getAt navState.items (Stdlib.Int.fromInt64 navState.selectedIndex) with
     | Some selectedItem ->
       exitAlternateScreen ()
       let newState = Nav.navTo state selectedItem.location
@@ -294,9 +294,9 @@ let selectAndExit (state: Cli.AppState) (navState: State) : Cli.AppState =
     exitToMainPrompt state
 
 let navigateIntoModule (state: Cli.AppState) (navState: State) : Cli.AppState =
-  let totalItems = Stdlib.List.length navState.items
+  let totalItems = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length navState.items)))
   if totalItems > 0L then
-    match Stdlib.List.getAt navState.items navState.selectedIndex with
+    match Stdlib.List.getAt navState.items (Stdlib.Int.fromInt64 navState.selectedIndex) with
     | Some selectedItem ->
       match selectedItem.entityType with
       | Module ->
@@ -455,9 +455,9 @@ let handleNavModeKeys
   | U ->
     match navState.display with
     | Source ->
-      let totalItems = Stdlib.List.length navState.items
+      let totalItems = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length navState.items)))
       if totalItems > 0L then
-        match Stdlib.List.getAt navState.items navState.selectedIndex with
+        match Stdlib.List.getAt navState.items (Stdlib.Int.fromInt64 navState.selectedIndex) with
         | Some selectedItem ->
           exitAlternateScreen ()
           let locationStr = Packages.formatLocation selectedItem.location

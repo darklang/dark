@@ -76,7 +76,7 @@ let applyTokenColors
     // For the current line, find all tokens that belong to it by filtering tokens where the row matches the current line index
     let lineTokens =
       sortedTokens
-      |> Stdlib.List.filter (fun token -> token.range.start.row == lineIndex)
+      |> Stdlib.List.filter (fun token -> Stdlib.Int.fromInt64 token.range.start.row == lineIndex)
 
     if Stdlib.List.isEmpty lineTokens then
       line

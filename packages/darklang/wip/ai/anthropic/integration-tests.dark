@@ -929,7 +929,7 @@ module BatchTests =
     (batchId: String)
     (maxAttempts: Int64)
     : Stdlib.Result.Result<Batch.MessageBatch, String> =
-    let attempts = Stdlib.List.range 1L maxAttempts
+    let attempts = Stdlib.List.range 1I (Stdlib.Int.fromInt64 maxAttempts)
 
     Stdlib.List.fold
       attempts
@@ -969,7 +969,7 @@ module BatchTests =
           match Batch.getBatchResults apiKey completedBatch.id with
           | Ok results ->
             let successfulResults = Batch.getSuccessfulResults results
-            if Stdlib.List.length successfulResults >= 1L then
+            if Stdlib.List.length successfulResults >= 1I then
               TestResult.Pass
             else
               TestResult.Fail "No successful results found"
@@ -1005,7 +1005,7 @@ module PromptCachingTests =
       // Create a large system prompt that will be cached (must be > 1024 tokens for caching)
       let largeSystemPrompt =
         "You are a helpful assistant. " ++
-        (Stdlib.String.repeat "This is filler text to make the prompt large enough for caching. " 200L)
+        (Stdlib.String.repeat "This is filler text to make the prompt large enough for caching. " 200I)
 
       let cachedBlock =
         Content.systemBlockCached

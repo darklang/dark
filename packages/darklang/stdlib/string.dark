@@ -188,10 +188,10 @@ let digest (s: String) : String =
 
 /// Generate a random alphanumeric <type String> of length <param length>.
 /// Charset is {{[A-Za-z0-9]}} (62 chars). Errors if <param length> is negative.
-let random (length: Int64) : Result.Result<String, String> =
-  if length < 0L then
+let random (length: Int) : Result.Result<String, String> =
+  if length < 0I then
     Result.Result.Error
-      $"Expected `length` to be positive, but it was `{length |> Int64.toString}`"
+      $"Expected `length` to be positive, but it was `{length |> Int.toString}`"
   else
     let characters =
       "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -203,7 +203,7 @@ let random (length: Int64) : Result.Result<String, String> =
          String.slice characters index (index + 1L))
 
     let result =
-      (List.range 0L (length - 1L))
+      (List.range 0I (length - 1I))
       |> List.map (fun _ -> randomChar ())
       |> String.join ""
 
@@ -327,7 +327,7 @@ let padStart
     Result.Result.Ok string
   else
     let padCount = goalLength - String.length string
-    let pad = String.repeat padWith padCount
+    let pad = String.repeat padWith (Stdlib.Int.fromInt64 padCount)
     Result.Result.Ok(pad ++ string)
 
 
@@ -347,7 +347,7 @@ let padEnd
     Result.Result.Ok string
   else
     let padCount = goalLength - String.length string
-    let pad = String.repeat padWith padCount
+    let pad = String.repeat padWith (Stdlib.Int.fromInt64 padCount)
     Result.Result.Ok(string ++ pad)
 
 
@@ -473,8 +473,8 @@ let lastIndexOfEgc
 
 /// Returns the <param string> repeated for a specified <param count> times.
 /// If <param count> is less than or equal to 0, returns an empty string.
-let repeat (string: String) (count: Int64) : String =
-  if count <= 0L then
+let repeat (string: String) (count: Int) : String =
+  if count <= 0I then
     ""
   else
     String.join ((List.repeat count string) |> Builtin.unwrap) ""
@@ -508,5 +508,5 @@ let head (str: String) : Option.Option<Char> =
 
 /// Returns {{Some c}} for the character at <param index> (0-based, EGC, not
 /// byte), or {{None}} if <param index> is negative or past the end.
-let charAt (str: String) (index: Int64) : Option.Option<Char> =
+let charAt (str: String) (index: Int) : Option.Option<Char> =
   str |> String.toList |> List.getAt index

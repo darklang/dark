@@ -14,7 +14,7 @@ let escapeXml (text: String) : String =
 let nodesToOpml (nodes: List<Node>) (depth: Int64) : List<String> =
   nodes
   |> Stdlib.List.fold [] (fun acc node ->
-    let indent = Stdlib.String.repeat "  " (depth + 2L)
+    let indent = Stdlib.String.repeat "  " (Stdlib.Int.fromInt64 (depth + 2L))
     let escaped = escapeXml node.text
     if Stdlib.List.isEmpty node.children then
       Stdlib.List.append acc [$"{indent}<outline text=\"{escaped}\"/>"]

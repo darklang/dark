@@ -29,7 +29,7 @@ let empty : State =
 
 // find a method's index (default 0 = `*`)
 let indexOfMethod (m: String) : Int64 =
-  let indexed = Stdlib.List.indexedMap methods (fun i x -> (i, x))
+  let indexed = Stdlib.List.indexedMap methods (fun i x -> (Builtin.unwrap (Stdlib.Int.toInt64 i), x))
   Stdlib.List.fold indexed 0L (fun acc pair ->
     let (i, x) = pair
     if x == m then i else acc)
@@ -52,7 +52,7 @@ let fromSpec (spec: String) : State =
   | _ -> empty
 
 let currentMethod (state: State) : String =
-  methods |> Stdlib.List.getAt state.methodIdx |> Stdlib.Option.withDefault "*"
+  methods |> Stdlib.List.getAt (Stdlib.Int.fromInt64 state.methodIdx) |> Stdlib.Option.withDefault "*"
 
 let toSpec (state: State) : String =
   let m = currentMethod state
@@ -61,7 +61,7 @@ let toSpec (state: State) : String =
   if u == "" then $"http-client {m}" else $"http-client {m} {u}"
 
 let cycleMethod (state: State) (delta: Int64) : State =
-  let count = Stdlib.List.length methods
+  let count = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length methods)))
   let raw = state.methodIdx + delta
   let next =
     if raw < 0L then count - 1L

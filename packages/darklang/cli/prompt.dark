@@ -102,7 +102,7 @@ module History =
   /// Navigate to previous command in history
   let navigatePrevious (state: State) : State =
     if Stdlib.Bool.not (Stdlib.List.isEmpty state.commandHistory) then
-      let historyLength = Stdlib.List.length state.commandHistory
+      let historyLength = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length state.commandHistory)))
       let newIndex =
         if state.historyIndex == -1L then
           0L  // Start from the most recent command
@@ -111,7 +111,7 @@ module History =
             state.historyIndex + 1L
           else
             state.historyIndex  // Stay at oldest command
-      match Stdlib.List.getAt state.commandHistory newIndex with
+      match Stdlib.List.getAt state.commandHistory (Stdlib.Int.fromInt64 newIndex) with
       | Some command ->
         let commandLength = Stdlib.String.length command
         let newSavedPrompt =
@@ -144,7 +144,7 @@ module History =
             cursorPosition = restoredPromptLength
             historyIndex = newIndex }
       else
-        match Stdlib.List.getAt state.commandHistory newIndex with
+        match Stdlib.List.getAt state.commandHistory (Stdlib.Int.fromInt64 newIndex) with
         | Some command ->
           let commandLength = Stdlib.String.length command
           { state with

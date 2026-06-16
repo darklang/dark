@@ -2,8 +2,8 @@ Stdlib.List.empty_v0 = []
 
 Stdlib.List.singleton_v0 1L = [ 1L ]
 
-Stdlib.List.length_v0 [ 1L; 2L; 3L ] = 3L
-Stdlib.List.length_v0 [] = 0L
+Stdlib.List.length_v0 [ 1L; 2L; 3L ] = 3I
+Stdlib.List.length_v0 [] = 0I
 
 Stdlib.List.isEmpty_v0 [ 1L ] = false
 Stdlib.List.isEmpty_v0 [] = true
@@ -36,19 +36,19 @@ Stdlib.List.any_v0 [ 4L; 5L ] (fun item -> item < 3L) = false
 Stdlib.List.any_v0 [ 4L; 1L ] (fun item -> item < 3L) = true
 
 
-Stdlib.List.drop_v0 [ "a"; "b"; "c"; "d" ] -3L = [ "a"; "b"; "c"; "d" ]
-Stdlib.List.drop_v0 [ "a"; "b"; "c"; "d" ] 3L = [ "d" ]
-Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] -1L = [ 1L; 2L; 3L; 4L ]
-Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 0L = [ 1L; 2L; 3L; 4L ]
-Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 440737095L = []
-Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 1184467440737095L = []
-Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 2L = [ 3L; 4L ]
-Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 4L = []
-Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 5L = []
-Stdlib.List.drop_v0 [ 3L; 3L; 3L ] 0L = [ 3L; 3L; 3L ]
-Stdlib.List.drop_v0 [ 5L; 4L; 3L; 2L; 1L ] 5L = []
-Stdlib.List.drop_v0 [ 5L ] 4L = []
-Stdlib.List.drop_v0 [] 4L = []
+Stdlib.List.drop_v0 [ "a"; "b"; "c"; "d" ] -3I = [ "a"; "b"; "c"; "d" ]
+Stdlib.List.drop_v0 [ "a"; "b"; "c"; "d" ] 3I = [ "d" ]
+Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] -1I = [ 1L; 2L; 3L; 4L ]
+Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 0I = [ 1L; 2L; 3L; 4L ]
+Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 440737095I = []
+Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 1184467440737095I = []
+Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 2I = [ 3L; 4L ]
+Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 4I = []
+Stdlib.List.drop_v0 [ 1L; 2L; 3L; 4L ] 5I = []
+Stdlib.List.drop_v0 [ 3L; 3L; 3L ] 0I = [ 3L; 3L; 3L ]
+Stdlib.List.drop_v0 [ 5L; 4L; 3L; 2L; 1L ] 5I = []
+Stdlib.List.drop_v0 [ 5L ] 4I = []
+Stdlib.List.drop_v0 [] 4I = []
 
 Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> 0L - 1L) = error="Encountered a condition that must be a Bool, but got an Int64 (-1)"
 Stdlib.List.dropWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> item < 3L) = [ 3L; 4L ]
@@ -116,12 +116,12 @@ Stdlib.List.findFirst [ 0L; 5L; -6L; -10L ] (fun x -> x < 0L) = Stdlib.Option.Op
 Stdlib.List.findFirst [ 1L; -33L; 3L; -2L; 12L ] (fun x -> (x < 0L && x % 2L == 0L)) = Stdlib.Option.Option.Some -2L
 
 module FindFirstIndex =
-  Stdlib.List.findFirstIndex [1L; 2L; 3L] (fun x -> x == 2L) = Stdlib.Option.Option.Some 1L
+  Stdlib.List.findFirstIndex [1L; 2L; 3L] (fun x -> x == 2L) = Stdlib.Option.Option.Some 1I
   Stdlib.List.findFirstIndex [1L; 2L; 3L] (fun x -> x > 5L) = Stdlib.Option.Option.None
   Stdlib.List.findFirstIndex [] (fun _x -> true) = Stdlib.Option.Option.None
-  Stdlib.List.findFirstIndex [10L; 20L; 30L; 20L] (fun x -> x == 20L) = Stdlib.Option.Option.Some 1L
-  Stdlib.List.findFirstIndex ["a"; "b"; "c"] (fun x -> x == "c") = Stdlib.Option.Option.Some 2L
-  Stdlib.List.findFirstIndex [1L; 2L; 3L] (fun x -> x == 1L) = Stdlib.Option.Option.Some 0L
+  Stdlib.List.findFirstIndex [10L; 20L; 30L; 20L] (fun x -> x == 20L) = Stdlib.Option.Option.Some 1I
+  Stdlib.List.findFirstIndex ["a"; "b"; "c"] (fun x -> x == "c") = Stdlib.Option.Option.Some 2I
+  Stdlib.List.findFirstIndex [1L; 2L; 3L] (fun x -> x == 1L) = Stdlib.Option.Option.Some 0I
 
 module Flatten =
   Stdlib.List.flatten_v0 [ [ 1L ]; [ 2L ]; [ 3L ] ] = [ 1L; 2L; 3L ]
@@ -141,15 +141,15 @@ module Fold =
     Stdlib.List.pushBack_v0 accum (curr + 1L)) = [ 2L; 3L; 4L; 5L; 6L ]
 
 module GetAt =
-  Stdlib.List.getAt [ "a"; "b"; "c"; "d" ] -1L = Stdlib.Option.Option.None
-  Stdlib.List.getAt [ 0L ] 1L = Stdlib.Option.Option.None
-  Stdlib.List.getAt [] 1L = Stdlib.Option.Option.None
-  Stdlib.List.getAt [ 1L; 2L; 3L; 4L ] 6018427387902L = Stdlib.Option.Option.None
+  Stdlib.List.getAt [ "a"; "b"; "c"; "d" ] -1I = Stdlib.Option.Option.None
+  Stdlib.List.getAt [ 0L ] 1I = Stdlib.Option.Option.None
+  Stdlib.List.getAt [] 1I = Stdlib.Option.Option.None
+  Stdlib.List.getAt [ 1L; 2L; 3L; 4L ] 6018427387902I = Stdlib.Option.Option.None
 
-  Stdlib.List.getAt [ 1L; 2L; 3L; 4L ] 0L = Stdlib.Option.Option.Some 1L
+  Stdlib.List.getAt [ 1L; 2L; 3L; 4L ] 0I = Stdlib.Option.Option.Some 1L
 
-  Stdlib.List.getAt [ 3L; 3L; 3L ] -5L = Stdlib.Option.Option.None
-  Stdlib.List.getAt [ 3L; 3L; 3L ] 2147483648L = Stdlib.Option.Option.None
+  Stdlib.List.getAt [ 3L; 3L; 3L ] -5I = Stdlib.Option.Option.None
+  Stdlib.List.getAt [ 3L; 3L; 3L ] 2147483648I = Stdlib.Option.Option.None
 
 module Head =
   Stdlib.List.head [ 1L; 2L; 3L ] = Stdlib.Option.Option.Some 1L
@@ -158,9 +158,9 @@ module Head =
   Stdlib.List.head [] = Stdlib.Option.Option.None
 
 module IndexedMap =
-  Stdlib.List.indexedMap_v0 [ 3L; 2L; 1L ] (fun i v -> v - i) = [ 3L; 1L; -1L ]
-  Stdlib.List.indexedMap_v0 [] (fun i v -> v - i) = []
-  Stdlib.List.indexedMap_v0 [ 3L; 2L; 1L ] (fun i v -> i) = [ 0L; 1L; 2L ]
+  Stdlib.List.indexedMap_v0 [ 3L; 2L; 1L ] (fun i v -> v - (Builtin.unwrap (Stdlib.Int.toInt64 i))) = [ 3L; 1L; -1L ]
+  Stdlib.List.indexedMap_v0 [] (fun i v -> v - (Builtin.unwrap (Stdlib.Int.toInt64 i))) = []
+  Stdlib.List.indexedMap_v0 [ 3L; 2L; 1L ] (fun i v -> i) = [ 0I; 1I; 2I ]
 
 module Interleave =
   Stdlib.List.interleave_v0 [ 1L; 2L; 3L ] [ 4L; 5L; 6L ] = [ 1L; 4L; 2L; 5L; 3L; 6L ]
@@ -185,7 +185,7 @@ module Last =
   Stdlib.List.last [] = Stdlib.Option.Option.None
 
 module Map =
-  Stdlib.List.map_v0 (Stdlib.List.range_v0 1L 5L) (fun x -> x + 1L) = [ 2L; 3L; 4L; 5L; 6L ]
+  Stdlib.List.map_v0 (Stdlib.List.range_v0 1I 5I) (fun x -> x + 1I) = [ 2I; 3I; 4I; 5I; 6I ]
 
   Stdlib.List.map_v0 [ 1L; 2L; 3L ] (fun x ->
     Stdlib.Bool.and_v0
@@ -236,18 +236,18 @@ Stdlib.List.randomElement_v0 [ 1L ] = Stdlib.Option.Option.Some 1L
 Stdlib.List.randomElement_v0 [] = Stdlib.Option.Option.None
 
 Stdlib.List.randomElement_v0 [ Builtin.testRuntimeError "test" ] = error="Uncaught exception: test"
-Stdlib.List.range_v0 -1L 0L = [ -1L; 0L ]
-Stdlib.List.range_v0 -5L 5L = [ -5L; -4L; -3L; -2L; -1L; 0L; 1L; 2L; 3L; 4L; 5L ]
-Stdlib.List.range_v0 5L 0L = []
-Stdlib.List.repeat_v0 0L 1L = Stdlib.Result.Result.Ok []
-Stdlib.List.repeat_v0 1L "a" = Stdlib.Result.Result.Ok [ "a" ]
-Stdlib.List.repeat_v0 1L 1L = Stdlib.Result.Result.Ok [ 1L ]
-Stdlib.List.repeat_v0 3L 1L = Stdlib.Result.Result.Ok [ 1L; 1L; 1L ]
-Stdlib.List.repeat_v0 3L 3L = Stdlib.Result.Result.Ok [ 3L; 3L; 3L ]
-Stdlib.List.repeat_v0 5L "a" = Stdlib.Result.Result.Ok [ "a"; "a"; "a"; "a"; "a" ]
-Stdlib.List.repeat_v0 -4L "a" = Stdlib.Result.Result.Error "Expected `times` to be positive, but it was `-4`"
-Stdlib.List.repeat_v0 3L [ 1L; 2L; 3L ] = Stdlib.Result.Result.Ok [ [ 1L; 2L; 3L ]; [ 1L; 2L; 3L ]; [ 1L; 2L; 3L ] ]
-Stdlib.List.repeat_v0 3L [] = Stdlib.Result.Result.Ok [ []; []; [] ]
+Stdlib.List.range_v0 -1I 0I = [ -1I; 0I ]
+Stdlib.List.range_v0 -5I 5I = [ -5I; -4I; -3I; -2I; -1I; 0I; 1I; 2I; 3I; 4I; 5I ]
+Stdlib.List.range_v0 5I 0I = []
+Stdlib.List.repeat_v0 0I 1L = Stdlib.Result.Result.Ok []
+Stdlib.List.repeat_v0 1I "a" = Stdlib.Result.Result.Ok [ "a" ]
+Stdlib.List.repeat_v0 1I 1L = Stdlib.Result.Result.Ok [ 1L ]
+Stdlib.List.repeat_v0 3I 1L = Stdlib.Result.Result.Ok [ 1L; 1L; 1L ]
+Stdlib.List.repeat_v0 3I 3L = Stdlib.Result.Result.Ok [ 3L; 3L; 3L ]
+Stdlib.List.repeat_v0 5I "a" = Stdlib.Result.Result.Ok [ "a"; "a"; "a"; "a"; "a" ]
+Stdlib.List.repeat_v0 -4I "a" = Stdlib.Result.Result.Error "Expected `times` to be positive, but it was `-4`"
+Stdlib.List.repeat_v0 3I [ 1L; 2L; 3L ] = Stdlib.Result.Result.Ok [ [ 1L; 2L; 3L ]; [ 1L; 2L; 3L ]; [ 1L; 2L; 3L ] ]
+Stdlib.List.repeat_v0 3I [] = Stdlib.Result.Result.Ok [ []; []; [] ]
 
 Stdlib.List.reverse_v0 [ "a"; "b"; "c"; "d" ] = [ "d"; "c"; "b"; "a" ]
 Stdlib.List.reverse_v0 [ 5L; 4L; 3L; 2L; 1L ] = [ 1L; 2L; 3L; 4L; 5L ]
@@ -261,22 +261,22 @@ Stdlib.List.sort_v0 [ 6L; 2L; 8L; 3L ] = [ 2L; 3L; 6L; 8L ]
 Stdlib.List.sort_v0 [] = []
 
 // CLEANUP: it should be a type error on the function not returning an Int64
-Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 0.1) = error="Cannot perform equality check on Float and Int64"
-Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 3L) =
+Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 0.1) = error="Cannot perform equality check on Float and Int"
+Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b -> 3I) =
   Stdlib.Result.Result.Error "Expected comparator function to return -1, 0, or 1, but it returned 3"
 
 // CLEANUP: it should be a type error on the function not returning an Int64
-Stdlib.List.sortByComparator_v0 [ 1L; 2L; 3L ] (fun a b -> "㧑༷釺") = error="Cannot perform equality check on String and Int64"
+Stdlib.List.sortByComparator_v0 [ 1L; 2L; 3L ] (fun a b -> "㧑༷釺") = error="Cannot perform equality check on String and Int"
 Stdlib.List.sortByComparator_v0 [ 3L; 1L; 2L ] (fun a b ->
-  if Stdlib.Int64.lessThan_v0 a b then -1L else 1L) = Stdlib.Result.Result.Ok
+  if Stdlib.Int64.lessThan_v0 a b then -1I else 1I) = Stdlib.Result.Result.Ok
   [ 1L; 2L; 3L ]
 
 Stdlib.List.sortByComparator_v0 [] (fun a b ->
-  if Stdlib.Int64.lessThan_v0 a b then -1L else 1L) = Stdlib.Result.Result.Ok []
+  if Stdlib.Int64.lessThan_v0 a b then -1I else 1I) = Stdlib.Result.Result.Ok []
 
 Stdlib.List.sortByComparator_v0
   [ 3L; 1L; 2L; 67L; 3L; -1L; 6L; 3L; 5L; 6L; 2L; 5L; 63L; 2L; 3L; 5L; -1L; -1L; -1L ]
-  (fun a b -> if Stdlib.Int64.lessThan_v0 a b then -1L else 1L) =
+  (fun a b -> if Stdlib.Int64.lessThan_v0 a b then -1I else 1I) =
   Stdlib.Result.Result.Ok [ -1L; -1L; -1L; -1L; 1L; 2L; 2L; 2L; 3L; 3L; 3L; 3L; 5L; 5L; 5L; 6L; 6L; 63L; 67L ]
 
 // CLEANUP this error message is not ideal in 2 ways:
@@ -290,13 +290,13 @@ Stdlib.List.sortByComparator_v0
 Stdlib.List.tail_v0 [ 10L; 20L; 30L; 40L ] = Stdlib.Option.Option.Some[ 20L; 30L; 40L ]
 Stdlib.List.tail_v0 [] = Stdlib.Option.Option.None
 
-Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] -1L = []
-Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] 2147483648L = [ "a"; "b"; "c"; "d" ]
-Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] 3L = [ "a"; "b"; "c" ]
-Stdlib.List.take_v0 [ 3L; 3L; 3L ] 0L = []
-Stdlib.List.take_v0 [ 5L; 4L; 3L; 2L; 1L ] 5L = [ 5L; 4L; 3L; 2L; 1L ]
-Stdlib.List.take_v0 [ 5L ] 4L = [ 5L ]
-Stdlib.List.take_v0 [] 4L = []
+Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] -1I = []
+Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] 2147483648I = [ "a"; "b"; "c"; "d" ]
+Stdlib.List.take_v0 [ "a"; "b"; "c"; "d" ] 3I = [ "a"; "b"; "c" ]
+Stdlib.List.take_v0 [ 3L; 3L; 3L ] 0I = []
+Stdlib.List.take_v0 [ 5L; 4L; 3L; 2L; 1L ] 5I = [ 5L; 4L; 3L; 2L; 1L ]
+Stdlib.List.take_v0 [ 5L ] 4I = [ 5L ]
+Stdlib.List.take_v0 [] 4I = []
 
 //TODO: better error message
 Stdlib.List.takeWhile_v0 [ 1L; 2L; 3L; 4L ] (fun item -> 0L - 1L) = error="Encountered a condition that must be a Bool, but got an Int64 (-1)"
@@ -365,13 +365,13 @@ Stdlib.List.dropLast [ 1L; 2L; 3L; 4L; 5L ] = [ 1L; 2L; 3L; 4L ]
 Stdlib.List.dropLast [ 1L ] = []
 Stdlib.List.dropLast [] = []
 
-Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L; 5L ] 2L = Stdlib.Result.Result.Ok [ [ 1L; 2L ]; [ 3L; 4L ]; [ 5L ] ]
-Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L; 5L; 6L ] 3L = Stdlib.Result.Result.Ok [ [ 1L; 2L; 3L ]; [ 4L; 5L; 6L ] ]
-Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L ] 1L = Stdlib.Result.Result.Ok [ [ 1L ]; [ 2L ]; [ 3L ] ]
-Stdlib.List.chunkBySize_v0 [ 1L; 2L ] 3L = Stdlib.Result.Result.Ok [ [ 1L; 2L ] ]
-Stdlib.List.chunkBySize_v0 [] 4L = Stdlib.Result.Result.Ok []
-Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L ] 0L = Stdlib.Result.Result.Error Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero
-Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L ] -1L = Stdlib.Result.Result.Error Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero
+Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L; 5L ] 2I = Stdlib.Result.Result.Ok [ [ 1L; 2L ]; [ 3L; 4L ]; [ 5L ] ]
+Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L; 5L; 6L ] 3I = Stdlib.Result.Result.Ok [ [ 1L; 2L; 3L ]; [ 4L; 5L; 6L ] ]
+Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L ] 1I = Stdlib.Result.Result.Ok [ [ 1L ]; [ 2L ]; [ 3L ] ]
+Stdlib.List.chunkBySize_v0 [ 1L; 2L ] 3I = Stdlib.Result.Result.Ok [ [ 1L; 2L ] ]
+Stdlib.List.chunkBySize_v0 [] 4I = Stdlib.Result.Result.Ok []
+Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L ] 0I = Stdlib.Result.Result.Error Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero
+Stdlib.List.chunkBySize_v0 [ 1L; 2L; 3L; 4L ] -1I = Stdlib.Result.Result.Error Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero
 
 Stdlib.List.splitLast [] = Stdlib.Option.Option.None
 Stdlib.List.splitLast [ 1L ] = Stdlib.Option.Option.Some(([], 1L))

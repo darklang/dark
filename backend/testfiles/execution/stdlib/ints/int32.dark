@@ -124,36 +124,36 @@ Stdlib.Int32.divide_v0 0l 1l = 0l
 
 Stdlib.Int32.divide_v0 1l 0l = error="Cannot divide by 0"
 Stdlib.Int32.divide_v0 (-2147483648l) -1l = -2147483648l
-(Stdlib.List.range_v0 1L 5L)
+(Stdlib.List.range_v0 1I 5I)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 1l 2l)
 |> Stdlib.List.map_v0 (fun x ->
   (Stdlib.Int32.greaterThanOrEqualTo x 1l)
   && (Stdlib.Int32.lessThanOrEqualTo x 2l)) = [ true; true; true; true; true ]
 
-(Stdlib.List.range_v0 1L 5L)
+(Stdlib.List.range_v0 1I 5I)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 10l 20l)
 |> Stdlib.List.map_v0 (fun x ->
   (Stdlib.Int32.greaterThanOrEqualTo x 10l)
   && (Stdlib.Int32.lessThanOrEqualTo x 20l)) = [ true; true; true; true; true ]
 
-(Stdlib.List.range_v0 1L 5L)
+(Stdlib.List.range_v0 1I 5I)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 2l 1l)
 |> Stdlib.List.map_v0 (fun x ->
   (Stdlib.Int32.greaterThanOrEqualTo x 1l)
   && (Stdlib.Int32.lessThanOrEqualTo x 2l)) = [ true; true; true; true; true ]
 
-(Stdlib.List.range_v0 1L 5L)
+(Stdlib.List.range_v0 1I 5I)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 20l 10l)
 |> Stdlib.List.map_v0 (fun x ->
   (Stdlib.Int32.greaterThanOrEqualTo x 10l)
   && (Stdlib.Int32.lessThanOrEqualTo x 20l)) = [ true; true; true; true; true ]
 
-((Stdlib.List.range_v0 1L 100L)
+((Stdlib.List.range_v0 1I 100I)
  |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 0l 1l)
  |> Stdlib.List.unique_v0) = [ 0l; 1l ]
 
 
-((Stdlib.List.range_v0 1L 100L)
+((Stdlib.List.range_v0 1I 100I)
  |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 0l 2l)
  |> Stdlib.List.unique_v0) = [ 0l; 1l; 2l ]
 

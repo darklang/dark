@@ -57,10 +57,10 @@ let renderSpinner (component: Core.Types.Component<SpinnerModel>) (context: Core
 
     let frame =
       let frameIndex =
-        match Stdlib.Int64.remainder model.frameIndex frameCount with
+        match Stdlib.Int64.remainder model.frameIndex (Builtin.unwrap (Stdlib.Int.toInt64 frameCount)) with
         | Ok idx -> idx
         | Error _ -> 0L
-      match Stdlib.List.getAt frames frameIndex with
+      match Stdlib.List.getAt frames (Stdlib.Int.fromInt64 frameIndex) with
       | Some f -> f
       | None -> "?"
 
@@ -73,7 +73,7 @@ let tick (component: Core.Types.Component<SpinnerModel>) : Core.Types.Component<
     let frames = getFrames model.style
     let frameCount = Stdlib.List.length frames
     let nextIndex =
-      match Stdlib.Int64.remainder (model.frameIndex + 1L) frameCount with
+      match Stdlib.Int64.remainder (model.frameIndex + 1L) (Builtin.unwrap (Stdlib.Int.toInt64 frameCount)) with
       | Ok idx -> idx
       | Error _ -> 0L
     { component with model = { model with frameIndex = nextIndex } }

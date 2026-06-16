@@ -77,7 +77,7 @@ let flattenGroups (groups: List<(String * List<PackageItem>)>) : List<DetailItem
   groups
   |> Stdlib.List.indexedMap (fun idx group ->
     let (modPath, items) = group
-    let spacer = if idx > 0L then [ DetailItem.ModuleHeader "" ] else []
+    let spacer = if idx > 0I then [ DetailItem.ModuleHeader "" ] else []
     let header = [ DetailItem.ModuleHeader modPath ]
     let entries = Stdlib.List.map items (fun item -> DetailItem.ItemEntry item)
     Stdlib.List.append spacer (Stdlib.List.append header entries))
@@ -294,7 +294,7 @@ let buildCommitDiffState (commitList: CommitListState) (entry: CommitEntry) : Di
 // ── Key handling ──
 
 let openDiff (state: AppModel) (detail: DetailState) : KeyResult =
-  match Stdlib.List.getAt detail.flatItems detail.selected with
+  match Stdlib.List.getAt detail.flatItems (Stdlib.Int.fromInt64 detail.selected) with
   | Some flatItem ->
     match flatItem with
     | ItemEntry pkg ->
@@ -305,13 +305,13 @@ let openDiff (state: AppModel) (detail: DetailState) : KeyResult =
   | None -> KeyResult.Continue state
 
 let openCommitDiff (state: AppModel) (commitList: CommitListState) : KeyResult =
-  match Stdlib.List.getAt commitList.commits commitList.selected with
+  match Stdlib.List.getAt commitList.commits (Stdlib.Int.fromInt64 commitList.selected) with
   | Some entry ->
     KeyResult.Continue ({ state with screen = Screen.DiffView (buildCommitDiffState commitList entry) })
   | None -> KeyResult.Continue state
 
 let handleBranchListKey (state: AppModel) (branchList: BranchListState) (key: Stdlib.Cli.Stdin.Key.Key) (keyChar: Stdlib.Option.Option<String>) : KeyResult =
-  let itemCount = Stdlib.List.length branchList.items
+  let itemCount = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length branchList.items))
   match keyChar with
   | Some "r" ->
     let newBranchList = BranchListState { items = loadBranchList (); selected = 0L }
@@ -324,7 +324,7 @@ let handleBranchListKey (state: AppModel) (branchList: BranchListState) (key: St
     | DownArrow ->
       KeyResult.Continue ({ state with screen = Screen.BranchList ({ branchList with selected = moveDown branchList.selected itemCount }) })
     | Enter | RightArrow ->
-      match Stdlib.List.getAt branchList.items branchList.selected with
+      match Stdlib.List.getAt branchList.items (Stdlib.Int.fromInt64 branchList.selected) with
       | Some item -> KeyResult.Continue ({ state with screen = Screen.Detail (buildDetailState item) })
       | None -> KeyResult.Continue state
     | _ -> KeyResult.Continue state
@@ -359,12 +359,12 @@ let handleDiffKey (state: AppModel) (diffState: DiffState) (key: Stdlib.Cli.Stdi
   | UpArrow ->
     KeyResult.Continue ({ state with screen = Screen.DiffView ({ diffState with scrollOffset = moveUp diffState.scrollOffset }) })
   | DownArrow ->
-    let lineCount = Stdlib.List.length diffState.diffLines
+    let lineCount = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length diffState.diffLines))
     KeyResult.Continue ({ state with screen = Screen.DiffView ({ diffState with scrollOffset = moveDown diffState.scrollOffset lineCount }) })
   | _ -> KeyResult.Continue state
 
 let handleCommitListKey (state: AppModel) (commitList: CommitListState) (key: Stdlib.Cli.Stdin.Key.Key) : KeyResult =
-  let itemCount = Stdlib.List.length commitList.commits
+  let itemCount = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length commitList.commits))
   match key with
   | Escape | LeftArrow -> KeyResult.Continue ({ state with screen = Screen.Detail commitList.returnTo })
   | UpArrow ->
@@ -409,8 +409,8 @@ let printLine (region: Darklang.Cli.UI.Layout.Region) (row: Int64) (text: String
   Darklang.Cli.UI.Layout.printAt region row 0L (text ++ "\u001b[K")
 
 let clearRows (region: Darklang.Cli.UI.Layout.Region) (startRow: Int64) : Unit =
-  let rows = Stdlib.List.range startRow (region.rows - 1L)
-  Stdlib.List.iter rows (fun row -> Darklang.Cli.UI.Layout.printAt region row 0L "\u001b[K")
+  let rows = Stdlib.List.range (Stdlib.Int.fromInt64 startRow) (Stdlib.Int.fromInt64 (region.rows - 1L))
+  Stdlib.List.iter rows (fun row -> Darklang.Cli.UI.Layout.printAt region (Builtin.unwrap (Stdlib.Int.toInt64 row)) 0L "\u001b[K")
 
 let renderScrollableList
   (region: Darklang.Cli.UI.Layout.Region)
@@ -420,14 +420,14 @@ let renderScrollableList
   (rowsPerItem: Int64)
   (renderItem: Darklang.Cli.UI.Layout.Region -> Int64 -> 'a -> Bool -> Unit)
   : Unit =
-  let itemCount = Stdlib.List.length items
+  let itemCount = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length items))
   let listRows = region.rows - startRow
   let visibleCount = Stdlib.Int64.divide listRows rowsPerItem
   let scrollOffset = computeScrollOffset selected visibleCount
   items
-  |> Stdlib.List.indexedMap (fun idx item -> (idx, item))
-  |> Stdlib.List.drop scrollOffset
-  |> Stdlib.List.take visibleCount
+  |> Stdlib.List.indexedMap (fun idx item -> (Builtin.unwrap (Stdlib.Int.toInt64 idx), item))
+  |> Stdlib.List.drop (Stdlib.Int.fromInt64 scrollOffset)
+  |> Stdlib.List.take (Stdlib.Int.fromInt64 visibleCount)
   |> Stdlib.List.iter (fun pair ->
     let (idx, item) = pair
     let itemRow = ((idx - scrollOffset) * rowsPerItem) + startRow
@@ -447,12 +447,12 @@ let renderHelpBar (region: Darklang.Cli.UI.Layout.Region) (helpText: String) : U
 let renderBranchListBody (branchList: BranchListState) (region: Darklang.Cli.UI.Layout.Region) : Unit =
   let itemCount = Stdlib.List.length branchList.items
   printLine region 0L $"  {Darklang.Cli.Colors.bold}branches to review{Darklang.Cli.Colors.reset}"
-  if itemCount == 0L then
+  if itemCount == 0I then
     printLine region 2L (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  No branches with changes to review.")
     clearRows region 3L
   else
   let dim = Darklang.Cli.Colors.dim ++ Darklang.Cli.Colors.brightBlack
-  let hBar = Stdlib.String.repeat "─" (Stdlib.Int64.max 0L (region.cols - 5L))
+  let hBar = Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (Stdlib.Int64.max 0L (region.cols - 5L)))
   renderScrollableList region branchList.items branchList.selected 2L 4L (fun r cardRow item isSelected ->
     let borderColor = if isSelected then Darklang.Cli.Colors.cyan else dim
     let bar = Darklang.Cli.Colors.colorize borderColor "│"
@@ -469,7 +469,7 @@ let renderBranchListBody (branchList: BranchListState) (region: Darklang.Cli.UI.
 let renderDetailBody (detail: DetailState) (region: Darklang.Cli.UI.Layout.Region) : Unit =
   printLine region 0L $"  {Darklang.Cli.Colors.dim}review >{Darklang.Cli.Colors.reset} {Darklang.Cli.Colors.cyan}{detail.branchName}{Darklang.Cli.Colors.reset}"
   let itemCount = Stdlib.List.length detail.flatItems
-  if itemCount == 0L then
+  if itemCount == 0I then
     printLine region 2L (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  No changes on this branch.")
     clearRows region 3L
   else
@@ -496,11 +496,11 @@ let renderDiffBody (diffState: DiffState) (region: Darklang.Cli.UI.Layout.Region
     | ReturnToCommits commitList -> commitList.branchName
   printLine region 0L $"  {Darklang.Cli.Colors.dim}review > {branchName} >{Darklang.Cli.Colors.reset} {Darklang.Cli.Colors.cyan}{diffState.itemName}{Darklang.Cli.Colors.reset}"
   let listRows = region.rows - 2L
-  let lineCount = Stdlib.List.length diffState.diffLines
+  let lineCount = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length diffState.diffLines))
   diffState.diffLines
-  |> Stdlib.List.indexedMap (fun idx line -> (idx, line))
-  |> Stdlib.List.drop diffState.scrollOffset
-  |> Stdlib.List.take listRows
+  |> Stdlib.List.indexedMap (fun idx line -> (Builtin.unwrap (Stdlib.Int.toInt64 idx), line))
+  |> Stdlib.List.drop (Stdlib.Int.fromInt64 diffState.scrollOffset)
+  |> Stdlib.List.take (Stdlib.Int.fromInt64 listRows)
   |> Stdlib.List.iter (fun pair ->
     let (idx, diffLine) = pair
     let row = (idx - diffState.scrollOffset) + 2L
@@ -515,7 +515,7 @@ let renderDiffBody (diffState: DiffState) (region: Darklang.Cli.UI.Layout.Region
 let renderCommitListBody (commitList: CommitListState) (region: Darklang.Cli.UI.Layout.Region) : Unit =
   printLine region 0L $"  {Darklang.Cli.Colors.dim}review > {commitList.branchName} >{Darklang.Cli.Colors.reset} {Darklang.Cli.Colors.bold}commits{Darklang.Cli.Colors.reset}"
   let itemCount = Stdlib.List.length commitList.commits
-  if itemCount == 0L then
+  if itemCount == 0I then
     printLine region 2L (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  No commits on this branch.")
     clearRows region 3L
   else

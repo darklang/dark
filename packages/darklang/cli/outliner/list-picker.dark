@@ -28,13 +28,13 @@ let handleKey
       else state.selected
     Result.Browsing ({ state with selected = newIdx })
   | DownArrow ->
-    let maxIdx = itemCount - 1L
+    let maxIdx = (Builtin.unwrap (Stdlib.Int.toInt64 itemCount)) - 1L
     let newIdx =
       if state.selected < maxIdx then state.selected + 1L
       else state.selected
     Result.Browsing ({ state with selected = newIdx })
   | Enter ->
-    match Stdlib.List.getAt state.items state.selected with
+    match Stdlib.List.getAt state.items (Stdlib.Int.fromInt64 state.selected) with
     | Some item -> Result.Selected item
     | None -> Result.Cancelled
   | _ -> Result.Browsing state
@@ -46,14 +46,14 @@ let renderInRegion (state: State<'item>) (region: Darklang.Cli.UI.Layout.Region)
     if state.selected >= region.rows then
       Darklang.Cli.Terminal.clampScrollOffset
         (state.selected - region.rows + 1L)
-        itemCount
+        (Builtin.unwrap (Stdlib.Int.toInt64 itemCount))
         region.rows
     else
       0L
   state.items
-  |> Stdlib.List.indexedMap (fun idx item -> (idx, item))
-  |> Stdlib.List.drop scrollOffset
-  |> Stdlib.List.take region.rows
+  |> Stdlib.List.indexedMap (fun idx item -> ((Builtin.unwrap (Stdlib.Int.toInt64 idx)), item))
+  |> Stdlib.List.drop (Stdlib.Int.fromInt64 scrollOffset)
+  |> Stdlib.List.take (Stdlib.Int.fromInt64 region.rows)
   |> Stdlib.List.iter (fun pair ->
     let (idx, item) = pair
     let row = idx - scrollOffset

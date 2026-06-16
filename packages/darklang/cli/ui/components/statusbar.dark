@@ -33,7 +33,7 @@ let renderStatusBar (component: Core.Types.Component<StatusBarModel>) (context: 
       let paddingSpace = model.width - leftLen - rightLen
       let padding =
         if paddingSpace > 0L then
-          Stdlib.String.repeat " " paddingSpace
+          Stdlib.String.repeat " " (Stdlib.Int.fromInt64 paddingSpace)
         else
           ""
       model.leftText ++ padding ++ model.rightText
@@ -46,12 +46,12 @@ let renderStatusBar (component: Core.Types.Component<StatusBarModel>) (context: 
         let rightPadding = model.width - leftLen - centerLen - leftPadding
         let leftPad =
           if leftPadding > 0L then
-            Stdlib.String.repeat " " leftPadding
+            Stdlib.String.repeat " " (Stdlib.Int.fromInt64 leftPadding)
           else
             ""
         let rightPad =
           if rightPadding > 0L then
-            Stdlib.String.repeat " " rightPadding
+            Stdlib.String.repeat " " (Stdlib.Int.fromInt64 rightPadding)
           else
             ""
         model.leftText ++ leftPad ++ model.centerText ++ rightPad

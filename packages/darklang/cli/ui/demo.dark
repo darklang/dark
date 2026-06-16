@@ -44,7 +44,7 @@ let run (unit: Unit) : Int64 =
   printSection "Spinner Styles"
   let dotsFrames = Components.Spinner.getFrames Components.Spinner.SpinnerStyle.Dots
   let lineFrames = Components.Spinner.getFrames Components.Spinner.SpinnerStyle.Line
-  Stdlib.printLine ("Dots: " ++ Stdlib.String.join (Stdlib.List.take dotsFrames 6L) " ")
+  Stdlib.printLine ("Dots: " ++ Stdlib.String.join (Stdlib.List.take dotsFrames 6I) " ")
   Stdlib.printLine ("Line: " ++ Stdlib.String.join lineFrames " ")
 
   // Table

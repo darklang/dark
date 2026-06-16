@@ -77,7 +77,7 @@ let moveDown (selected: Int64) (itemCount: Int64) : Int64 =
 /// Move up, skipping empty spacer items
 let moveUpSkipping (selected: Int64) (items: List<DetailItem>) : Int64 =
   let candidate = moveUp selected
-  match Stdlib.List.getAt items candidate with
+  match Stdlib.List.getAt items (Stdlib.Int.fromInt64 candidate) with
   | Some flatItem ->
     match flatItem with
     | ModuleHeader modPath ->
@@ -88,9 +88,9 @@ let moveUpSkipping (selected: Int64) (items: List<DetailItem>) : Int64 =
 
 /// Move down, skipping empty spacer items
 let moveDownSkipping (selected: Int64) (items: List<DetailItem>) : Int64 =
-  let itemCount = Stdlib.List.length items
+  let itemCount = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length items))
   let candidate = moveDown selected itemCount
-  match Stdlib.List.getAt items candidate with
+  match Stdlib.List.getAt items (Stdlib.Int.fromInt64 candidate) with
   | Some flatItem ->
     match flatItem with
     | ModuleHeader modPath ->

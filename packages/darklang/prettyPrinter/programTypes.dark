@@ -1008,7 +1008,8 @@ let packageFn
 
   let argMap =
     p.parameters
-    |> Stdlib.List.indexedMap (fun i param -> (param.name, i))
+    |> Stdlib.List.indexedMap (fun i param ->
+      (param.name, (Builtin.unwrap (Stdlib.Int.toInt64 i))))
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (name, idx) ->
       Stdlib.Dict.set acc name idx)
 
@@ -1100,9 +1101,9 @@ module PackageOp =
     | Undeprecate _target -> "Undeprecate"
 
     | PropagateUpdate (_propId, _sloc, _fromRefs, _toRef, repoints) ->
-      let count = (Stdlib.List.length repoints) |> Stdlib.Int64.toString
+      let count = (Stdlib.List.length repoints) |> Stdlib.Int.toString
       $"PropagateUpdate ({count} repoint(s))"
 
     | RevertPropagation (_revertId, _propIds, _sloc, _restoredRef, repoints) ->
-      let count = (Stdlib.List.length repoints) |> Stdlib.Int64.toString
+      let count = (Stdlib.List.length repoints) |> Stdlib.Int.toString
       $"RevertPropagation ({count} repoint(s))"

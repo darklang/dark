@@ -256,7 +256,7 @@ let parseMPEnum
     let enumFieldsNode =
       (findNodeByFieldName node "enum_fields")
       |> Stdlib.Option.map (fun enumFieldsNode ->
-        match enumFieldsNode.children |> Stdlib.List.chunkBySize 2L with
+        match enumFieldsNode.children |> Stdlib.List.chunkBySize 2I with
         | Ok pairs ->
           pairs
           |> Stdlib.List.map (fun contentSymbolPair ->
@@ -288,7 +288,7 @@ let parseMPOr
     | firstPattern :: restPatterns ->
       let firstPattern = MatchPattern.parseMatchPattern firstPattern
       let restPatterns =
-        match restPatterns |> Stdlib.List.chunkBySize 2L with
+        match restPatterns |> Stdlib.List.chunkBySize 2I with
         | Ok chunks ->
           chunks
           |> Stdlib.List.map (fun patternPipeSymbolPair ->

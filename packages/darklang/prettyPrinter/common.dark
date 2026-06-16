@@ -15,7 +15,7 @@ let indent (s: String) : String =
   |> Stdlib.String.join "\n"
 
 let indentByLevel (level: Int64) (s: String) : String =
-  let indentStr = Stdlib.String.repeat "  " level
+  let indentStr = Stdlib.String.repeat "  " (Stdlib.Int.fromInt64 level)
 
   s
   |> Stdlib.String.split "\n"

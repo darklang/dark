@@ -12,7 +12,7 @@ module Darklang.Cli.Apps.Command
 // TODO: Log text isn't a reliable source of truth; store structured daemon metadata instead.
 let daemonPort (slug: String) : Stdlib.Option.Option<Int64> =
   let portLines =
-    (Stdlib.Cli.Daemon.tailLog slug 25L)
+    (Stdlib.Cli.Daemon.tailLog slug 25I)
     |> Stdlib.List.filter (fun l -> Stdlib.String.contains l "localhost:")
 
   match Stdlib.List.last portLines with
@@ -97,7 +97,7 @@ let inspect (state: Cli.AppState) (slug: String) : Cli.AppState =
     match app.target with
     | Daemon _ ->
       Stdlib.printLine $"  status:    {Stdlib.Cli.Daemon.statusLine slug}"
-      let logs = Stdlib.Cli.Daemon.tailLog slug 5L
+      let logs = Stdlib.Cli.Daemon.tailLog slug 5I
       if Stdlib.List.isEmpty logs then
         ()
       else
@@ -203,7 +203,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   | [ "logs"; slug ] ->
-    let lines = Stdlib.Cli.Daemon.tailLog slug 20L
+    let lines = Stdlib.Cli.Daemon.tailLog slug 20I
 
     if Stdlib.List.isEmpty lines then
       Stdlib.printLine (Colors.dimText $"no logs for '{slug}' (has it run?)")

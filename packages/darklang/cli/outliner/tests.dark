@@ -55,7 +55,7 @@ let testFlattenVisibleCountsAllNodes () : TestResult =
       [1L; 4L]
       5L
   let flat = flattenVisible outline
-  assertInt "visible count" (Stdlib.List.length flat) 4L
+  assertInt "visible count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length flat))) 4L
 
 let testFlattenVisibleRespectsCollapse () : TestResult =
   let outline =
@@ -66,7 +66,7 @@ let testFlattenVisibleRespectsCollapse () : TestResult =
       5L
   let collapsed = setCollapsed outline 1L true
   let flat = flattenVisible collapsed
-  assertInt "visible count" (Stdlib.List.length flat) 2L
+  assertInt "visible count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length flat))) 2L
 
 let testBuildOutline () : TestResult =
   let outline =
@@ -76,7 +76,7 @@ let testBuildOutline () : TestResult =
       [1L]
       4L
   let flat = flattenVisible outline
-  if Stdlib.List.length flat == 3L then
+  if Stdlib.List.length flat == 3I then
     match Stdlib.List.head flat with
     | Some vn ->
       if vn.text == "A" && vn.hasChildren && vn.depth == 0L then
@@ -85,7 +85,7 @@ let testBuildOutline () : TestResult =
         TestResult.Fail "First node should be A with children at depth 0"
     | None -> TestResult.Fail "No visible nodes"
   else
-    TestResult.Fail $"Expected 3 visible, got {Stdlib.Int64.toString (Stdlib.List.length flat)}"
+    TestResult.Fail $"Expected 3 visible, got {Stdlib.Int.toString (Stdlib.List.length flat)}"
 
 let testFindParentId () : TestResult =
   let outline =
@@ -119,13 +119,13 @@ let testInsertAfterAddsNode () : TestResult =
   let editor = makeEditor outline
   let newEditor = OutlineEditor.insertAfter editor
   let flat = flattenVisible newEditor.outline
-  assertInt "visible count" (Stdlib.List.length flat) 2L
+  assertInt "visible count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length flat))) 2L
 
 let testInsertAfterEmptyTree () : TestResult =
   let outline = emptyOutline ()
   let editor = makeEditor outline
   let newEditor = OutlineEditor.insertAfter editor
-  assertInt "root count" (Stdlib.List.length newEditor.outline.rootChildren) 1L
+  assertInt "root count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length newEditor.outline.rootChildren))) 1L
 
 let testDeleteEmptyNode () : TestResult =
   let outline =
@@ -136,7 +136,7 @@ let testDeleteEmptyNode () : TestResult =
       3L
   let editor = makeEditor outline
   let newEditor = OutlineEditor.deleteNode editor
-  assertInt "root count" (Stdlib.List.length newEditor.outline.rootChildren) 1L
+  assertInt "root count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length newEditor.outline.rootChildren))) 1L
 
 let testDeleteNonEmptyNodeDoesNothing () : TestResult =
   let outline =
@@ -147,7 +147,7 @@ let testDeleteNonEmptyNodeDoesNothing () : TestResult =
       2L
   let editor = makeEditor outline
   let newEditor = OutlineEditor.deleteNode editor
-  assertInt "root count" (Stdlib.List.length newEditor.outline.rootChildren) 1L
+  assertInt "root count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length newEditor.outline.rootChildren))) 1L
 
 let testToggleCollapse () : TestResult =
   let outline =
@@ -185,11 +185,11 @@ let testIndentNode () : TestResult =
   let editor = { (makeEditor outline) with cursor = 1L }
   let newEditor = OutlineEditor.indentNode editor
   let rootCount = Stdlib.List.length newEditor.outline.rootChildren
-  if rootCount == 1L then
+  if rootCount == 1I then
     let s = getStructure newEditor.outline 1L
-    assertInt "child count" (Stdlib.List.length s.children) 1L
+    assertInt "child count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length s.children))) 1L
   else
-    TestResult.Fail $"Expected 1 root after indent, got {Stdlib.Int64.toString rootCount}"
+    TestResult.Fail $"Expected 1 root after indent, got {Stdlib.Int.toString rootCount}"
 
 let testOutdentNode () : TestResult =
   let outline =
@@ -200,7 +200,7 @@ let testOutdentNode () : TestResult =
       3L
   let editor = { (makeEditor outline) with cursor = 1L }
   let newEditor = OutlineEditor.outdentNode editor
-  assertInt "root count" (Stdlib.List.length newEditor.outline.rootChildren) 2L
+  assertInt "root count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length newEditor.outline.rootChildren))) 2L
 
 let testMoveNodeUp () : TestResult =
   let outline =
@@ -326,7 +326,7 @@ let testFinishEditing () : TestResult =
 
 let testDefaultStateHasTwoDocs () : TestResult =
   let state = Main.defaultState ()
-  assertInt "doc count" (Stdlib.List.length state.documents) 2L
+  assertInt "doc count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length state.documents))) 2L
 
 let testActiveDocReturnsCorrectDoc () : TestResult =
   let state = Main.defaultState ()
@@ -337,23 +337,23 @@ let testCreateDocument () : TestResult =
   let state = Main.defaultState ()
   let newState = Main.createDocument state "Third Doc"
   let count = Stdlib.List.length newState.documents
-  if count == 3L && newState.activeDocId == state.nextDocId then
+  if count == 3I && newState.activeDocId == state.nextDocId then
     let doc = Main.activeDoc newState
     assertEq "doc title" doc.title "Third Doc"
   else
-    TestResult.Fail $"Expected 3 docs, got {Stdlib.Int64.toString count}"
+    TestResult.Fail $"Expected 3 docs, got {Stdlib.Int.toString count}"
 
 let testDeleteDocument () : TestResult =
   let state = Main.defaultState ()
   let newState = Main.createDocument state "Third"
   let thirdDocId = newState.activeDocId
   let afterDelete = Main.deleteDocument newState thirdDocId
-  assertInt "doc count" (Stdlib.List.length afterDelete.documents) 2L
+  assertInt "doc count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length afterDelete.documents))) 2L
 
 let testDeleteOnlyDocDoesNothing () : TestResult =
   let state = makeMainState (buildOutline [(1L, "X")] [] [1L] 2L)
   let afterDelete = Main.deleteDocument state 1L
-  assertInt "doc count" (Stdlib.List.length afterDelete.documents) 1L
+  assertInt "doc count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length afterDelete.documents))) 1L
 
 let testRenameDocument () : TestResult =
   let state = Main.defaultState ()
@@ -397,7 +397,7 @@ let testImportMarkdown () : TestResult =
   let doc = Markdown.import md
   if doc.title == "My Doc" then
     let flat = flattenVisible doc.outline
-    assertInt "visible count" (Stdlib.List.length flat) 3L
+    assertInt "visible count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length flat))) 3L
   else
     TestResult.Fail $"Expected title 'My Doc', got '{doc.title}'"
 

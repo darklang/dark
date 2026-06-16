@@ -23,21 +23,21 @@ let padRight (s: String) (width: Int64) : String =
   if len >= width then
     Stdlib.String.slice s 0L width
   else
-    s ++ (Stdlib.String.repeat " " (width - len))
+    s ++ (Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (width - len)))
 
 let padLeft (s: String) (width: Int64) : String =
   let len = Stdlib.String.length s
   if len >= width then
     Stdlib.String.slice s 0L width
   else
-    (Stdlib.String.repeat " " (width - len)) ++ s
+    (Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (width - len))) ++ s
 
 let bar (value: Int64) (maxVal: Int64) (width: Int64) (color: String) : String =
   let barLen =
     if maxVal == 0L then 0L
     else Stdlib.Int64.divide (value * width) maxVal
-  let filled = Stdlib.String.repeat "█" barLen
-  let empty = Stdlib.String.repeat "░" (width - barLen)
+  let filled = Stdlib.String.repeat "█" (Stdlib.Int.fromInt64 barLen)
+  let empty = Stdlib.String.repeat "░" (Stdlib.Int.fromInt64 (width - barLen))
   (Darklang.Cli.Colors.colorize color filled) ++ (Darklang.Cli.Colors.dimText empty)
 
 
@@ -55,7 +55,7 @@ let render () : Unit =
     ("  "
      ++ Darklang.Cli.Colors.boldText "Package Statistics"
      ++ "  "
-     ++ Darklang.Cli.Colors.dimText ("—  " ++ Stdlib.Int64.toString (Stdlib.List.length stats) ++ " top-level modules"))
+     ++ Darklang.Cli.Colors.dimText ("—  " ++ Stdlib.Int.toString (Stdlib.List.length stats) ++ " top-level modules"))
   Stdlib.printLine ""
 
   // Summary cards
@@ -73,7 +73,7 @@ let render () : Unit =
 
   // Table header
   let termCols = Darklang.Cli.Terminal.getWidth ()
-  Stdlib.printLine (Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" termCols))
+  Stdlib.printLine (Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 termCols)))
 
   let boldDim = Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim
   let headerLine =
@@ -90,7 +90,7 @@ let render () : Unit =
     ++ "  "
     ++ Darklang.Cli.Colors.colorize boldDim "FUNCTIONS"
   Stdlib.printLine headerLine
-  Stdlib.printLine (Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" termCols))
+  Stdlib.printLine (Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 termCols)))
 
   let maxFns =
     stats
@@ -114,7 +114,7 @@ let render () : Unit =
 
     Stdlib.printLine ("  " ++ nameStr ++ "  " ++ fnStr ++ "  " ++ typeStr ++ "  " ++ valStr ++ "  " ++ modStr ++ "  " ++ barStr))
 
-  Stdlib.printLine (Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" termCols))
+  Stdlib.printLine (Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 termCols)))
   Stdlib.printLine ""
 
   // Footer

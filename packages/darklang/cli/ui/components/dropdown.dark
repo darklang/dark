@@ -24,7 +24,7 @@ let createDropdown (placeholder: String) (items: List<DropdownItem>) : Core.Type
     |> Stdlib.List.map (fun item -> Stdlib.String.length item.label)
     |> Stdlib.List.append [Stdlib.String.length placeholder]
     |> Stdlib.List.fold 20L (fun acc len -> if len > acc then len else acc)
-  let height = if model.isOpen then Stdlib.Int64.min model.maxHeight (Stdlib.List.length items + 2L) else 1L
+  let height = if model.isOpen then Stdlib.Int64.min model.maxHeight ((Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length items))) + 2L) else 1L
   let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxWidth + 4L; height = height } }
   Core.Types.Component
     { id = "dropdown"
@@ -40,7 +40,7 @@ let renderDropdown (component: Core.Types.Component<DropdownModel>) (context: Co
 
   let displayText =
     if model.selectedIndex >= 0L then
-      match Stdlib.List.getAt model.items model.selectedIndex with
+      match Stdlib.List.getAt model.items (Stdlib.Int.fromInt64 model.selectedIndex) with
       | Some item -> item.label
       | None -> model.placeholder
     else
@@ -58,13 +58,13 @@ let renderDropdown (component: Core.Types.Component<DropdownModel>) (context: Co
   if model.isOpen then
     let visibleItems =
       model.items
-      |> Stdlib.List.take model.maxHeight
+      |> Stdlib.List.take (Stdlib.Int.fromInt64 model.maxHeight)
       |> Stdlib.List.indexedMap (fun i item ->
           if item.separator then
-            "  ├" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 4L) ++ "┤"
+            "  ├" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 4L)) ++ "┤"
           else
-            let isSelected = i == model.selectedIndex
-            let isHovered = hasFocus && i == model.selectedIndex
+            let isSelected = (Builtin.unwrap (Stdlib.Int.toInt64 i)) == model.selectedIndex
+            let isHovered = hasFocus && (Builtin.unwrap (Stdlib.Int.toInt64 i)) == model.selectedIndex
             let prefix = if isSelected then "●" else " "
 
             let itemColor =
@@ -76,7 +76,7 @@ let renderDropdown (component: Core.Types.Component<DropdownModel>) (context: Co
             let paddedLabel = Core.Rendering.padText styledLabel (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left
             "  │ " ++ paddedLabel ++ " │")
 
-    let bottomBorder = "  └" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 4L) ++ "┘"
+    let bottomBorder = "  └" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 4L)) ++ "┘"
     [mainLine]
     |> Stdlib.List.append visibleItems
     |> Stdlib.List.append [bottomBorder]
@@ -85,8 +85,8 @@ let renderDropdown (component: Core.Types.Component<DropdownModel>) (context: Co
 
 let selectDropdownItem (component: Core.Types.Component<DropdownModel>) (index: Int64) : Core.Types.Component<DropdownModel> =
   let model = component.model
-  if index >= 0L && index < Stdlib.List.length model.items then
-    match Stdlib.List.getAt model.items index with
+  if index >= 0L && index < (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length model.items))) then
+    match Stdlib.List.getAt model.items (Stdlib.Int.fromInt64 index) with
     | Some item ->
         if item.disabled || item.separator then
           component
@@ -128,7 +128,7 @@ let createMultiSelect (placeholder: String) (items: List<DropdownItem>) (maxSele
     |> Stdlib.List.map (fun item -> Stdlib.String.length item.label)
     |> Stdlib.List.append [Stdlib.String.length placeholder]
     |> Stdlib.List.fold 25L (fun acc len -> if len > acc then len else acc)
-  let height = if model.isOpen then Stdlib.Int64.min model.maxHeight (Stdlib.List.length items + 2L) else 1L
+  let height = if model.isOpen then Stdlib.Int64.min model.maxHeight ((Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length items))) + 2L) else 1L
   let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxWidth + 4L; height = height } }
   Core.Types.Component
     { id = "multiselect"
@@ -147,7 +147,7 @@ let renderMultiSelect (component: Core.Types.Component<MultiSelectModel>) (conte
       model.placeholder
     else
       let selectedCount = Stdlib.List.length model.selectedIndices
-      Stdlib.Int64.toString selectedCount ++ " selected"
+      Stdlib.Int.toString selectedCount ++ " selected"
 
   let paddedText = Core.Rendering.padText displayText (component.bounds.dimensions.width - 6L) Core.Types.Alignment.Left
   let arrow = if model.isOpen then "▲" else "▼"
@@ -161,12 +161,12 @@ let renderMultiSelect (component: Core.Types.Component<MultiSelectModel>) (conte
   if model.isOpen then
     let visibleItems =
       model.items
-      |> Stdlib.List.take model.maxHeight
+      |> Stdlib.List.take (Stdlib.Int.fromInt64 model.maxHeight)
       |> Stdlib.List.indexedMap (fun i item ->
           if item.separator then
-            "  ├" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 4L) ++ "┤"
+            "  ├" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 4L)) ++ "┤"
           else
-            let isSelected = Stdlib.List.``member`` model.selectedIndices i
+            let isSelected = Stdlib.List.``member`` model.selectedIndices (Builtin.unwrap (Stdlib.Int.toInt64 i))
             let checkMark = if isSelected then "☑" else "☐"
 
             let itemColor =
@@ -178,7 +178,7 @@ let renderMultiSelect (component: Core.Types.Component<MultiSelectModel>) (conte
             let paddedLabel = Core.Rendering.padText styledLabel (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left
             "  │ " ++ paddedLabel ++ " │")
 
-    let bottomBorder = "  └" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 4L) ++ "┘"
+    let bottomBorder = "  └" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 4L)) ++ "┘"
     [mainLine]
     |> Stdlib.List.append visibleItems
     |> Stdlib.List.append [bottomBorder]
@@ -187,8 +187,8 @@ let renderMultiSelect (component: Core.Types.Component<MultiSelectModel>) (conte
 
 let toggleMultiSelectItem (component: Core.Types.Component<MultiSelectModel>) (index: Int64) : Core.Types.Component<MultiSelectModel> =
   let model = component.model
-  if index >= 0L && index < Stdlib.List.length model.items then
-    match Stdlib.List.getAt model.items index with
+  if index >= 0L && index < (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length model.items))) then
+    match Stdlib.List.getAt model.items (Stdlib.Int.fromInt64 index) with
     | Some item ->
         if item.disabled || item.separator then
           component
@@ -198,7 +198,7 @@ let toggleMultiSelectItem (component: Core.Types.Component<MultiSelectModel>) (i
             if isSelected then
               Stdlib.List.filter model.selectedIndices (fun i -> i != index)
             else
-              if Stdlib.List.length model.selectedIndices < model.maxSelections then
+              if (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length model.selectedIndices))) < model.maxSelections then
                 model.selectedIndices
                 |> Stdlib.List.append [index]
               else
@@ -220,7 +220,7 @@ let createContextMenu (items: List<DropdownItem>) : Core.Types.Component<Context
     items
     |> Stdlib.List.map (fun item -> Stdlib.String.length item.label + 4L)
     |> Stdlib.List.fold 15L (fun acc len -> if len > acc then len else acc)
-  let height = Stdlib.List.length items + 2L
+  let height = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length items))) + 2L
   let bounds = Core.Types.Bounds { position = model.position; dimensions = Core.Types.Dimensions { width = maxWidth; height = height } }
   Core.Types.Component
     { id = "contextmenu"
@@ -237,14 +237,14 @@ let renderContextMenu (component: Core.Types.Component<ContextMenuModel>) (conte
   else
     let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
 
-    let topBorder = "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┐"
-    let bottomBorder = "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘"
+    let topBorder = "┌" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 2L)) ++ "┐"
+    let bottomBorder = "└" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 2L)) ++ "┘"
 
     let menuItems =
       model.items
       |> Stdlib.List.map (fun item ->
           if item.separator then
-            "├" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┤"
+            "├" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 2L)) ++ "┤"
           else
             let itemColor = if item.disabled then Core.Types.Color.Dark else Core.Types.Color.Default
             let paddedLabel = Core.Rendering.padText item.label (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left

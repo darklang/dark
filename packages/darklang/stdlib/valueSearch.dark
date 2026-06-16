@@ -20,7 +20,7 @@ let isValueInNamespace
   (namespaceParts: List<String>)
   (valuePath: List<String>)
   : Bool =
-  if (Stdlib.List.length namespaceParts) == 0L then
+  if (Stdlib.List.length namespaceParts) == 0I then
     true
   else
     (Stdlib.List.take valuePath (Stdlib.List.length namespaceParts))

@@ -536,9 +536,9 @@ let executeHotspots
       state
     | _ ->
       let fnCount = Stdlib.List.length rows
-      let fnWord = if fnCount == 1L then "fn" else "fns"
+      let fnWord = if fnCount == 1I then "fn" else "fns"
       Stdlib.printLine
-        $"Hotspots (last {Stdlib.Int64.toString traceLimit} traces, top {Stdlib.Int64.toString fnCount} {fnWord} by total ms):"
+        $"Hotspots (last {Stdlib.Int64.toString traceLimit} traces, top {Stdlib.Int.toString fnCount} {fnWord} by total ms):"
       Stdlib.printLine ""
       Stdlib.printLine "  total ms │   max ms │ count │ fn"
       Stdlib.printLine "  ─────────┼──────────┼───────┼─────────────────────────"
@@ -697,7 +697,7 @@ let executeTail
       | None -> allRows
 
     // Drop the first (n-1) — the Nth-most-recent is what's left at head.
-    let after = Stdlib.List.drop candidates (n - 1L)
+    let after = Stdlib.List.drop candidates (Stdlib.Int.fromInt64 (n - 1L))
     match after with
     | [] ->
       let suffix =
@@ -887,7 +887,7 @@ let executeListByRoute
       |> Stdlib.List.filter (fun row ->
         Stdlib.String.contains
           (Stdlib.String.toUppercase row.handler) routeUpper)
-      |> Stdlib.List.take limit
+      |> Stdlib.List.take (Stdlib.Int.fromInt64 limit)
 
     if jsonMode then
       Stdlib.printLine (Stdlib.Json.serialize<List<TraceSummary>> matching)
@@ -1003,7 +1003,7 @@ let renderCall
         renderCall opts branchId childrenMap c childDepth matchedHere)
       |> Stdlib.List.flatten
     if visible then
-      let indent = Stdlib.String.repeat "  " (depth + 1L)
+      let indent = Stdlib.String.repeat "  " (Stdlib.Int.fromInt64 (depth + 1L))
       let resultRepr = compactDval branchId call.result
       let durationSuffix =
         if call.durationMs > 0L then

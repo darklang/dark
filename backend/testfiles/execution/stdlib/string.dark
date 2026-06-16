@@ -40,17 +40,17 @@ module Join =
   Stdlib.String.join_v0 [ "🧑🏽‍🦰‍"; "🧑🏼‍💻‍‍" ] "" = "🧑🏽‍🦰‍🧑🏼‍💻‍‍"
 
 module ToBytes =
-  Stdlib.List.length (Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62L
-  Stdlib.List.length (Stdlib.String.toBytes_v0 "😄APPLE🍏") = 13L
-  Stdlib.List.length (Stdlib.String.toBytes_v0 "Είναι προικισμένοι με λογική") = 53L
-  Stdlib.List.length (Stdlib.String.toBytes_v0 "") = 0L
-  Stdlib.List.length (Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62L
-  Stdlib.List.length (Stdlib.String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = 48L
-  Stdlib.List.length (Stdlib.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = 44L
-  Stdlib.List.length (Stdlib.String.toBytes_v0 "🧟‍♀️🧟‍♂️") = 26L
-  Stdlib.List.length (Stdlib.String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷") = 82L
-  Stdlib.List.length (Stdlib.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = 49L
-  Stdlib.List.length (Stdlib.String.toBytes_v0 "") = 0L
+  Stdlib.List.length (Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62I
+  Stdlib.List.length (Stdlib.String.toBytes_v0 "😄APPLE🍏") = 13I
+  Stdlib.List.length (Stdlib.String.toBytes_v0 "Είναι προικισμένοι με λογική") = 53I
+  Stdlib.List.length (Stdlib.String.toBytes_v0 "") = 0I
+  Stdlib.List.length (Stdlib.String.toBytes_v0 "🧑🏽‍🦰🧑🏼‍💻🧑🏻‍🍼✋✋🏻✋🏿") = 62I
+  Stdlib.List.length (Stdlib.String.toBytes_v0 "﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽﷽") = 48I
+  Stdlib.List.length (Stdlib.String.toBytes_v0 "👱👱🏻👱🏼👱🏽👱🏾👱🏿") = 44I
+  Stdlib.List.length (Stdlib.String.toBytes_v0 "🧟‍♀️🧟‍♂️") = 26I
+  Stdlib.List.length (Stdlib.String.toBytes_v0 "👨‍❤️‍💋‍👨👩‍👩‍👧‍👦🏳️‍⚧️‍️🇵🇷") = 82I
+  Stdlib.List.length (Stdlib.String.toBytes_v0 "Z̤͔ͧ̑̓ä͖̭̈̇lͮ̒ͫǧ̗͚̚o̙̔ͮ̇͐̇") = 49I
+  Stdlib.List.length (Stdlib.String.toBytes_v0 "") = 0I
 
 
 // `Stdlib.String.{fromBytes, fromBytesWithReplacement, toBytes}` still
@@ -290,13 +290,13 @@ module Digest =
 
 
 module Random =
-  (Stdlib.String.random 5L) == (Stdlib.String.random 5L) = false
+  (Stdlib.String.random 5I) == (Stdlib.String.random 5I) = false
 
-  Stdlib.String.length ((Stdlib.String.random 10L) |> Builtin.unwrap) = 10L
-  Stdlib.String.length ((Stdlib.String.random 5L) |> Builtin.unwrap) = 5L
-  Stdlib.String.length ((Stdlib.String.random 0L) |> Builtin.unwrap) = 0L
+  Stdlib.String.length ((Stdlib.String.random 10I) |> Builtin.unwrap) = 10L
+  Stdlib.String.length ((Stdlib.String.random 5I) |> Builtin.unwrap) = 5L
+  Stdlib.String.length ((Stdlib.String.random 0I) |> Builtin.unwrap) = 0L
 
-  Stdlib.String.random -1L = Stdlib.Result.Result.Error "Expected `length` to be positive, but it was `-1`"
+  Stdlib.String.random -1I = Stdlib.Result.Result.Error "Expected `length` to be positive, but it was `-1`"
 
 
 module HtmlEscape =

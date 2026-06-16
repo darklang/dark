@@ -244,7 +244,7 @@ let propagateFromHashes
       | [] -> ()
       | _ ->
         let count = Stdlib.List.length repoints
-        Stdlib.printLine $"  Propagated to {Stdlib.Int64.toString count} dependents:"
+        Stdlib.printLine $"  Propagated to {Stdlib.Int.toString count} dependents:"
 
         let ids = repoints |> Stdlib.List.map (fun r -> LanguageTools.ProgramTypes.Reference.hash r.toRef) |> Stdlib.List.unique
         let namesDict = Deps.resolveNames branchId ids

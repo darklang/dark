@@ -25,7 +25,7 @@ let print (columns: List<String>) (rows: List<List<String>>) : Unit =
     let padding = width - (Stdlib.String.length s)
 
     if padding <= 0L then s
-    else s ++ (Stdlib.String.repeat " " padding))
+    else s ++ (Stdlib.String.repeat " " (Stdlib.Int.fromInt64 padding)))
 
   // Print header row
   let headerLine =
@@ -41,7 +41,7 @@ let print (columns: List<String>) (rows: List<List<String>>) : Unit =
   // Print separator
   let sepLine =
     colWidths
-    |> Stdlib.List.map (fun w -> Stdlib.String.repeat "-" w)
+    |> Stdlib.List.map (fun w -> Stdlib.String.repeat "-" (Stdlib.Int.fromInt64 w))
     |> Stdlib.String.join "  "
 
   Builtin.printLine sepLine

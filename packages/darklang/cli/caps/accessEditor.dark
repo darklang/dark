@@ -29,7 +29,7 @@ let forDomain (domain: String) : State =
       field = Field.AccessField }
 
 let indexOfAccess (a: String) : Int64 =
-  let indexed = Stdlib.List.indexedMap accesses (fun i x -> (i, x))
+  let indexed = Stdlib.List.indexedMap accesses (fun i x -> (Builtin.unwrap (Stdlib.Int.toInt64 i), x))
   Stdlib.List.fold indexed 0L (fun acc pair ->
     let (i, x) = pair
     if x == a then i else acc)
@@ -51,7 +51,7 @@ let fromSpec (spec: String) : State =
   | _ -> forDomain "file"
 
 let currentAccess (state: State) : String =
-  accesses |> Stdlib.List.getAt state.accessIdx |> Stdlib.Option.withDefault "read"
+  accesses |> Stdlib.List.getAt (Stdlib.Int.fromInt64 state.accessIdx) |> Stdlib.Option.withDefault "read"
 
 let toSpec (state: State) : String =
   let access = currentAccess state
@@ -61,7 +61,7 @@ let toSpec (state: State) : String =
   else $"{state.domain} {access} {scope}"
 
 let cycleAccess (state: State) (delta: Int64) : State =
-  let count = Stdlib.List.length accesses
+  let count = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length accesses)))
   let raw = state.accessIdx + delta
   let next =
     if raw < 0L then count - 1L

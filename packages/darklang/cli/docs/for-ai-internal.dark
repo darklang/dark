@@ -140,9 +140,9 @@ Exception to the rule: `| Case ... ->` in a match is resolved by the
 matched value's type, so bare `PackageFn h` is fine in a match arm.
 
 ## Cross-module pipes
-Dark parses pipes greedily; `Stdlib.List.length xs |> Stdlib.Int64.toString`
+Dark parses pipes greedily; `Stdlib.List.length xs |> Stdlib.Int.toString`
 raises "Pipe: LongIdent". Wrap the left side in parens:
-  (Stdlib.List.length xs) |> Stdlib.Int64.toString
+  (Stdlib.List.length xs) |> Stdlib.Int.toString
 
 ## Nested functions and recursion
 Dark supports nested function definitions only in the fully annotated form:

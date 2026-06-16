@@ -40,7 +40,7 @@ let createPanel (title: String) (width: Int64) : Core.Types.Component<PanelModel
 let addPanelItem (component: Core.Types.Component<PanelModel>) (item: PanelItem) : Core.Types.Component<PanelModel> =
   let model = component.model
   let newItems = model.items |> Stdlib.List.append [item]
-  let newHeight = if model.showHeader then Stdlib.List.length newItems + 3L else Stdlib.List.length newItems + 2L
+  let newHeight = if model.showHeader then (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length newItems))) + 3L else (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length newItems))) + 2L
   let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = model.width; height = newHeight } }
   { component with
       model = { model with items = newItems }
@@ -50,15 +50,15 @@ let renderPanel (component: Core.Types.Component<PanelModel>) (context: Core.Typ
   let model = component.model
   let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
 
-  let topBorder = "┌" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┐"
-  let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┘"
+  let topBorder = "┌" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┐"
+  let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┘"
 
   let headerLines =
     if model.showHeader then
       let styledTitle = Core.Rendering.colorize model.headerColor (Core.Rendering.bold model.title)
       let paddedTitle = Core.Rendering.padText styledTitle (model.width - 4L) Core.Types.Alignment.Center
       let titleLine = "│ " ++ paddedTitle ++ " │"
-      let separatorLine = "├" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┤"
+      let separatorLine = "├" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┤"
       [titleLine; separatorLine]
     else
       []
@@ -67,10 +67,10 @@ let renderPanel (component: Core.Types.Component<PanelModel>) (context: Core.Typ
     model.items
     |> Stdlib.List.indexedMap (fun i item ->
         if item.itemType == PanelItemType.Separator then
-          "├" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┤"
+          "├" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┤"
         else
-          let isSelected = i == model.selectedIndex
-          let isHovered = hasFocus && i == model.selectedIndex
+          let isSelected = (Builtin.unwrap (Stdlib.Int.toInt64 i)) == model.selectedIndex
+          let isHovered = hasFocus && (Builtin.unwrap (Stdlib.Int.toInt64 i)) == model.selectedIndex
 
           let prefix =
             if item.isDisabled then " "
@@ -98,8 +98,8 @@ let renderPanel (component: Core.Types.Component<PanelModel>) (context: Core.Typ
 
 let selectPanelItem (component: Core.Types.Component<PanelModel>) (index: Int64) : Core.Types.Component<PanelModel> =
   let model = component.model
-  if index >= 0L && index < Stdlib.List.length model.items then
-    match Stdlib.List.getAt model.items index with
+  if index >= 0L && index < (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length model.items))) then
+    match Stdlib.List.getAt model.items (Stdlib.Int.fromInt64 index) with
     | Some item ->
         if item.isDisabled || item.itemType == PanelItemType.Separator then
           component
@@ -119,7 +119,7 @@ let setPanelColors (component: Core.Types.Component<PanelModel>) (headerColor: C
 
 let hideHeader (component: Core.Types.Component<PanelModel>) : Core.Types.Component<PanelModel> =
   let model = component.model
-  let newHeight = Stdlib.List.length model.items + 2L
+  let newHeight = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length model.items))) + 2L
   let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = model.width; height = newHeight } }
   { component with
       model = { model with showHeader = false }
@@ -160,14 +160,14 @@ let renderTabPanel (component: Core.Types.Component<TabPanelModel>) (context: Co
 
   match model.tabStyle with
   | Boxed ->
-      let topBorder = "┌" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┐"
-      let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┘"
+      let topBorder = "┌" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┐"
+      let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┘"
 
       let tabLine =
         let tabTexts =
           model.tabs
           |> Stdlib.List.indexedMap (fun i tab ->
-              let isActive = i == model.activeTabIndex
+              let isActive = (Builtin.unwrap (Stdlib.Int.toInt64 i)) == model.activeTabIndex
               let tabColor = if isActive then Core.Types.Color.Primary else Core.Types.Color.Default
               let styledTab = Core.Rendering.colorize tabColor tab.label
               if isActive then "[" ++ styledTab ++ "]" else " " ++ styledTab ++ " ")
@@ -183,7 +183,7 @@ let renderTabPanel (component: Core.Types.Component<TabPanelModel>) (context: Co
         let tabTexts =
           model.tabs
           |> Stdlib.List.indexedMap (fun i tab ->
-              let isActive = i == model.activeTabIndex
+              let isActive = (Builtin.unwrap (Stdlib.Int.toInt64 i)) == model.activeTabIndex
               if isActive then "●" ++ tab.label else "○" ++ tab.label)
 
         let combinedTabs = Stdlib.String.join tabTexts " │ "
@@ -197,7 +197,7 @@ let renderTabPanel (component: Core.Types.Component<TabPanelModel>) (context: Co
         let tabTexts =
           model.tabs
           |> Stdlib.List.indexedMap (fun i tab ->
-              let isActive = i == model.activeTabIndex
+              let isActive = (Builtin.unwrap (Stdlib.Int.toInt64 i)) == model.activeTabIndex
               let tabColor = if isActive then Core.Types.Color.Primary else Core.Types.Color.Secondary
               let styledTab = Core.Rendering.colorize tabColor tab.label
               if isActive then "(" ++ styledTab ++ ")" else " " ++ styledTab ++ " ")
@@ -210,7 +210,7 @@ let renderTabPanel (component: Core.Types.Component<TabPanelModel>) (context: Co
 
 let setActiveTab (component: Core.Types.Component<TabPanelModel>) (index: Int64) : Core.Types.Component<TabPanelModel> =
   let model = component.model
-  if index >= 0L && index < Stdlib.List.length model.tabs then
+  if index >= 0L && index < (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length model.tabs))) then
     { component with model = { model with activeTabIndex = index } }
   else
     component
@@ -237,7 +237,7 @@ let createFilterPanel (title: String) (width: Int64) : Core.Types.Component<Filt
 let addFilter (component: Core.Types.Component<FilterPanelModel>) (filter: PanelItem) : Core.Types.Component<FilterPanelModel> =
   let model = component.model
   let newFilters = model.filters |> Stdlib.List.append [filter]
-  let newHeight = Stdlib.List.length newFilters + 3L
+  let newHeight = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length newFilters))) + 3L
   let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = model.width; height = newHeight } }
   { component with
       model = { model with filters = newFilters }
@@ -246,20 +246,20 @@ let addFilter (component: Core.Types.Component<FilterPanelModel>) (filter: Panel
 let renderFilterPanel (component: Core.Types.Component<FilterPanelModel>) (context: Core.Types.RenderContext) : List<String> =
   let model = component.model
 
-  let topBorder = "┌" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┐"
-  let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┘"
+  let topBorder = "┌" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┐"
+  let bottomBorder = "└" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┘"
 
   let titleLine =
     let styledTitle = Core.Rendering.colorize Core.Types.Color.Primary (Core.Rendering.bold model.title)
     let paddedTitle = Core.Rendering.padText styledTitle (model.width - 4L) Core.Types.Alignment.Left
     "│ " ++ paddedTitle ++ " │"
 
-  let separatorLine = "├" ++ (Stdlib.String.repeat "─" (model.width - 2L)) ++ "┤"
+  let separatorLine = "├" ++ (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (model.width - 2L))) ++ "┤"
 
   let filterLines =
     model.filters
     |> Stdlib.List.indexedMap (fun i filter ->
-        let isApplied = Stdlib.List.``member`` model.appliedFilters i
+        let isApplied = Stdlib.List.``member`` model.appliedFilters (Builtin.unwrap (Stdlib.Int.toInt64 i))
         let checkbox = if isApplied then "☑" else "☐"
         let filterColor = if isApplied then Core.Types.Color.Success else Core.Types.Color.Default
         let styledLabel = Core.Rendering.colorize filterColor (checkbox ++ " " ++ filter.label)
@@ -272,7 +272,7 @@ let renderFilterPanel (component: Core.Types.Component<FilterPanelModel>) (conte
 
 let toggleFilter (component: Core.Types.Component<FilterPanelModel>) (index: Int64) : Core.Types.Component<FilterPanelModel> =
   let model = component.model
-  if index >= 0L && index < Stdlib.List.length model.filters then
+  if index >= 0L && index < (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length model.filters))) then
     let isApplied = Stdlib.List.``member`` model.appliedFilters index
     let newAppliedFilters =
       if isApplied then

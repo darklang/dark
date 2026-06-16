@@ -127,13 +127,13 @@ let insertIdAfter (ids: List<Int64>) (afterId: Int64) (newId: Int64) : List<Int6
 
 let swapAt (ids: List<Int64>) (i: Int64) (j: Int64) : List<Int64> =
   let iVal =
-    (Stdlib.List.getAt ids i) |> Stdlib.Option.withDefault 0L
+    (Stdlib.List.getAt ids (Stdlib.Int.fromInt64 i)) |> Stdlib.Option.withDefault 0L
   let jVal =
-    (Stdlib.List.getAt ids j) |> Stdlib.Option.withDefault 0L
+    (Stdlib.List.getAt ids (Stdlib.Int.fromInt64 j)) |> Stdlib.Option.withDefault 0L
   ids
   |> Stdlib.List.indexedMap (fun idx id ->
-    if idx == i then jVal
-    else if idx == j then iVal
+    if idx == Stdlib.Int.fromInt64 i then jVal
+    else if idx == Stdlib.Int.fromInt64 j then iVal
     else id)
 
 
@@ -151,7 +151,7 @@ let flattenVisibleHelper (outline: Outline) (ids: List<Int64>) (depth: Int64) : 
           text = text
           depth = depth
           hasChildren = hasChildren
-          childCount = Stdlib.List.length s.children
+          childCount = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length s.children)))
           isCollapsed = s.collapsed }
     let childNodes =
       if s.collapsed then

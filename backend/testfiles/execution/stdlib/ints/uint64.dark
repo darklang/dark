@@ -79,35 +79,35 @@ Stdlib.UInt64.divide_v0 17UL 3UL = 5UL
 Stdlib.UInt64.divide_v0 0UL 1UL = 0UL
 
 Stdlib.UInt64.divide_v0 1UL 0UL = error="Cannot divide by 0"
-(Stdlib.List.range_v0 1L 5L)
+(Stdlib.List.range_v0 1I 5I)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt64.random 1UL 2UL)
 |> Stdlib.List.map_v0 (fun x ->
   (Builtin.uint64GreaterThanOrEqualTo x 1UL)
   && (Builtin.uint64LessThanOrEqualTo x 2UL)) = [ true; true; true; true; true ]
 
-(Stdlib.List.range_v0 1L 5L)
+(Stdlib.List.range_v0 1I 5I)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt64.random 10UL 20UL)
 |> Stdlib.List.map_v0 (fun x ->
   (Builtin.uint64GreaterThanOrEqualTo x 10UL)
   && (Builtin.uint64LessThanOrEqualTo x 20UL)) = [ true; true; true; true; true ]
 
-(Stdlib.List.range_v0 1L 5L)
+(Stdlib.List.range_v0 1I 5I)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt64.random 2UL 1UL)
 |> Stdlib.List.map_v0 (fun x ->
   (Builtin.uint64GreaterThanOrEqualTo x 1UL)
   && (Builtin.uint64LessThanOrEqualTo x 2UL)) = [ true; true; true; true; true ]
 
-(Stdlib.List.range_v0 1L 5L)
+(Stdlib.List.range_v0 1I 5I)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt64.random 20UL 10UL)
 |> Stdlib.List.map_v0 (fun x ->
   (Builtin.uint64GreaterThanOrEqualTo x 10UL)
   && (Builtin.uint64LessThanOrEqualTo x 20UL)) = [ true; true; true; true; true ]
 
-((Stdlib.List.range_v0 1L 100L)
+((Stdlib.List.range_v0 1I 100I)
  |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt64.random 0UL 1UL)
  |> Stdlib.List.unique_v0) = [ 0UL; 1UL ]
 
-((Stdlib.List.range_v0 1L 100L)
+((Stdlib.List.range_v0 1I 100I)
  |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt64.random 0UL 2UL)
  |> Stdlib.List.unique_v0) = [ 0UL; 1UL; 2UL ]
 

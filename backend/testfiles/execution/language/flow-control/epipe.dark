@@ -36,7 +36,7 @@ type Y = { z: Z }
 type X = { y: Y }
 
 (let x = X { y = Y { z = Z { a = [ 1L; 2L; 3L; 4L; 5L ] } } }
- (x.y.z.a |> Stdlib.List.length_v0)) = 5L
+ (x.y.z.a |> Stdlib.List.length_v0)) = 5I
 
 type MyEnum = A of Int64 * Int64 * Int64
 (33L |> MyEnum.A 21L 42L) = MyEnum.A 33L 21L 42L

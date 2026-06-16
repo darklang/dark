@@ -35,15 +35,15 @@ let renderModal (component: Core.Types.Component<ModalModel>) (context: Core.Typ
     let backdropWidth = 60L
     let backdropHeight = 20L
     let backdrop =
-      Stdlib.List.repeat backdropHeight (Core.Rendering.dim (Stdlib.String.repeat "░" backdropWidth))
+      Stdlib.List.repeat (Stdlib.Int.fromInt64 backdropHeight) (Core.Rendering.dim (Stdlib.String.repeat "░" (Stdlib.Int.fromInt64 backdropWidth)))
 
     // Calculate modal position (centered)
     let modalX = Stdlib.Int64.divide (backdropWidth - model.width) 2L
-    let modalY = Stdlib.Int64.divide (backdropHeight - model.height) 2L
+    let modalY = Stdlib.Int.fromInt64 (Stdlib.Int64.divide (backdropHeight - model.height) 2L)
 
     // Create modal box
-    let topBorder = "╔" ++ Stdlib.String.repeat "═" (model.width - 2L) ++ "╗"
-    let bottomBorder = "╚" ++ Stdlib.String.repeat "═" (model.width - 2L) ++ "╝"
+    let topBorder = "╔" ++ Stdlib.String.repeat "═" (Stdlib.Int.fromInt64 (model.width - 2L)) ++ "╗"
+    let bottomBorder = "╚" ++ Stdlib.String.repeat "═" (Stdlib.Int.fromInt64 (model.width - 2L)) ++ "╝"
 
     let titleLine =
       let closeButton = if model.hasCloseButton then " ✕" else ""
@@ -52,7 +52,7 @@ let renderModal (component: Core.Types.Component<ModalModel>) (context: Core.Typ
       let titleColor = if hasFocus then Core.Types.Color.Primary else Core.Types.Color.Default
       "║ " ++ Core.Rendering.colorize titleColor (Core.Rendering.bold paddedTitle) ++ closeButton ++ " ║"
 
-    let separatorLine = "╠" ++ Stdlib.String.repeat "═" (model.width - 2L) ++ "╣"
+    let separatorLine = "╠" ++ Stdlib.String.repeat "═" (Stdlib.Int.fromInt64 (model.width - 2L)) ++ "╣"
 
     let contentLines =
       model.content
@@ -61,10 +61,10 @@ let renderModal (component: Core.Types.Component<ModalModel>) (context: Core.Typ
           "║ " ++ paddedLine ++ " ║")
 
     // Fill remaining space if content is shorter than modal height
-    let remainingHeight = model.height - 4L - Stdlib.List.length contentLines
+    let remainingHeight = (Stdlib.Int.fromInt64 (model.height - 4L)) - Stdlib.List.length contentLines
     let fillerLines =
-      if remainingHeight > 0L then
-        Stdlib.List.repeat remainingHeight ("║" ++ Stdlib.String.repeat " " (model.width - 2L) ++ "║")
+      if remainingHeight > 0I then
+        Stdlib.List.repeat remainingHeight ("║" ++ Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (model.width - 2L)) ++ "║")
       else
         []
 
@@ -82,8 +82,8 @@ let renderModal (component: Core.Types.Component<ModalModel>) (context: Core.Typ
             let modalLineIndex = i - modalY
             match Stdlib.List.getAt modalContent modalLineIndex with
             | Some modalLine ->
-                let beforeModal = Stdlib.String.repeat " " modalX
-                let afterModal = Stdlib.String.repeat " " (backdropWidth - modalX - model.width)
+                let beforeModal = Stdlib.String.repeat " " (Stdlib.Int.fromInt64 modalX)
+                let afterModal = Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (backdropWidth - modalX - model.width))
                 beforeModal ++ modalLine ++ afterModal
             | None -> backdropLine
           else
@@ -136,21 +136,21 @@ let renderConfirmDialog (component: Core.Types.Component<ConfirmDialogModel>) (c
   else
     let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
 
-    let topBorder = "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┐"
-    let bottomBorder = "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘"
+    let topBorder = "┌" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 2L)) ++ "┐"
+    let bottomBorder = "└" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 2L)) ++ "┘"
 
     let titleLine =
       let paddedTitle = Core.Rendering.padText model.title (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Center
       let titleColor = if hasFocus then Core.Types.Color.Warning else Core.Types.Color.Default
       "│ " ++ Core.Rendering.colorize titleColor (Core.Rendering.bold paddedTitle) ++ " │"
 
-    let separatorLine = "├" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┤"
+    let separatorLine = "├" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 2L)) ++ "┤"
 
     let messageLine =
       let paddedMessage = Core.Rendering.padText model.message (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Center
       "│ " ++ paddedMessage ++ " │"
 
-    let emptyLine = "│" ++ Stdlib.String.repeat " " (component.bounds.dimensions.width - 2L) ++ "│"
+    let emptyLine = "│" ++ Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 2L)) ++ "│"
 
     let buttonLine =
       let confirmButton =
