@@ -15,13 +15,13 @@ let expectedJsonRpcVersion = "2.0"
 
 type RequestID =
   | Null
-  | Int of Int64
+  | Int of Int
   | String of String
 
 let requestIdToJson (id: RequestID) : Json =
   match id with
   | Null -> Json.Null
-  | Int i -> Json.Number(Stdlib.Int64.toFloat i)
+  | Int i -> Json.Number(Stdlib.Int.toFloat i)
   | String s -> Json.String s
 
 

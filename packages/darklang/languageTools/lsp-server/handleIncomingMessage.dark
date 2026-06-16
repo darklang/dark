@@ -307,7 +307,7 @@ let handleIncomingMessage
           Scm.handleGetWipSummaryRequest state requestId
 
         | ("dark/scm/getCommits", Some requestId, Some(Object [ ("limit", Number n) ])) ->
-          Scm.handleGetCommitsRequest state requestId (Stdlib.Float.truncate n)
+          Scm.handleGetCommitsRequest state requestId (Stdlib.Int64.fromFloat n)
 
         | ("dark/scm/getCommits", Some requestId, _) ->
           Scm.handleGetCommitsRequest state requestId 10L

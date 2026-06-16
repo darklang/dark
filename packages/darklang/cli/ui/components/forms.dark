@@ -258,6 +258,8 @@ let renderSlider (component: Core.Types.Component<SliderModel>) (context: Core.T
   let filledWidth =
     (Stdlib.Float.multiply (Stdlib.Int64.toFloat model.width) percentage)
     |> Stdlib.Float.round
+    |> Stdlib.Int.toInt64
+    |> Builtin.unwrap
   let emptyWidth = Stdlib.Int64.subtract model.width filledWidth
 
   let track = Stdlib.String.repeat "═" filledWidth ++ Stdlib.String.repeat "─" emptyWidth

@@ -80,7 +80,7 @@ module Helpers =
     match found with
     | Some pair ->
       match Tuple2.second pair with
-      | Number n -> Float.truncate n
+      | Number n -> Int64.fromFloat n
       | _ -> 0L
     | None -> 0L
 
@@ -95,7 +95,7 @@ module Helpers =
     match found with
     | Some pair ->
       match Tuple2.second pair with
-      | Number n -> Option.Option.Some(Float.truncate n)
+      | Number n -> Option.Option.Some(Int64.fromFloat n)
       | _ -> Option.Option.None
     | None -> Option.Option.None
 

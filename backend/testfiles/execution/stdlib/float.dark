@@ -1,43 +1,43 @@
 Stdlib.Float.add_v0 1.2 1.3 = 2.5
 
-Stdlib.Float.ceiling_v0 1.3 = 2L
-Stdlib.Float.ceiling_v0 1.0000001 = 2L
-Stdlib.Float.ceiling_v0 -2147483647.8 = -2147483647L
-Stdlib.Float.ceiling_v0 2147483647.0 = 2147483647L
-Stdlib.Float.ceiling_v0 0000000.1 = 1L
-Stdlib.Float.ceiling_v0 0.0 = 0L
-Stdlib.Float.ceiling_v0 17.55042081 = 18L
+Stdlib.Float.ceiling_v0 1.3 = 2I
+Stdlib.Float.ceiling_v0 1.0000001 = 2I
+Stdlib.Float.ceiling_v0 -2147483647.8 = -2147483647I
+Stdlib.Float.ceiling_v0 2147483647.0 = 2147483647I
+Stdlib.Float.ceiling_v0 0000000.1 = 1I
+Stdlib.Float.ceiling_v0 0.0 = 0I
+Stdlib.Float.ceiling_v0 17.55042081 = 18I
 
-Stdlib.Float.roundUp_v0 1.3 = 2L
-Stdlib.Float.roundUp_v0 1.0000001 = 2L
-Stdlib.Float.roundUp_v0 -2147483647.8 = -2147483647L
-Stdlib.Float.roundUp_v0 2147483647.0 = 2147483647L
-Stdlib.Float.roundUp_v0 0000000.1 = 1L
-Stdlib.Float.roundUp_v0 0.0 = 0L
+Stdlib.Float.roundUp_v0 1.3 = 2I
+Stdlib.Float.roundUp_v0 1.0000001 = 2I
+Stdlib.Float.roundUp_v0 -2147483647.8 = -2147483647I
+Stdlib.Float.roundUp_v0 2147483647.0 = 2147483647I
+Stdlib.Float.roundUp_v0 0000000.1 = 1I
+Stdlib.Float.roundUp_v0 0.0 = 0I
 
-Stdlib.Float.floor_v0 1.8 = 1L
-Stdlib.Float.floor_v0 -1.0000001 = -2L
-Stdlib.Float.floor_v0 -2147483647.8 = -2147483648L
-Stdlib.Float.floor_v0 2147483647.0 = 2147483647L
-Stdlib.Float.floor_v0 0000000.1 = 0L
-Stdlib.Float.floor_v0 0.0 = 0L
+Stdlib.Float.floor_v0 1.8 = 1I
+Stdlib.Float.floor_v0 -1.0000001 = -2I
+Stdlib.Float.floor_v0 -2147483647.8 = -2147483648I
+Stdlib.Float.floor_v0 2147483647.0 = 2147483647I
+Stdlib.Float.floor_v0 0000000.1 = 0I
+Stdlib.Float.floor_v0 0.0 = 0I
 
-Stdlib.Float.roundDown_v0 1.8 = 1L
-Stdlib.Float.roundDown_v0 -1.0000001 = -2L
-Stdlib.Float.roundDown_v0 -2147483647.8 = -2147483648L
-Stdlib.Float.roundDown_v0 2147483647.0 = 2147483647L
-Stdlib.Float.roundDown_v0 0000000.1 = 0L
-Stdlib.Float.roundDown_v0 0.0 = 0L
+Stdlib.Float.roundDown_v0 1.8 = 1I
+Stdlib.Float.roundDown_v0 -1.0000001 = -2I
+Stdlib.Float.roundDown_v0 -2147483647.8 = -2147483648I
+Stdlib.Float.roundDown_v0 2147483647.0 = 2147483647I
+Stdlib.Float.roundDown_v0 0000000.1 = 0I
+Stdlib.Float.roundDown_v0 0.0 = 0I
 
-Stdlib.Float.round_v0 -2147483647.8 = -2147483648L
-Stdlib.Float.round_v0 0000000.1 = 0L
-Stdlib.Float.round_v0 2147483647.000009 = 2147483647L
+Stdlib.Float.round_v0 -2147483647.8 = -2147483648I
+Stdlib.Float.round_v0 0000000.1 = 0I
+Stdlib.Float.round_v0 2147483647.000009 = 2147483647I
 
-Stdlib.Float.truncate_v0 -2367.9267 = -2367L
-Stdlib.Float.truncate_v0 000000.9 = 0L
-Stdlib.Float.truncate_v0 -000000.9 = 0L
-Stdlib.Float.truncate_v0 0.0 = 0L
-Stdlib.Float.truncate_v0 2147483647.000009 = 2147483647L
+Stdlib.Float.truncate_v0 -2367.9267 = -2367I
+Stdlib.Float.truncate_v0 000000.9 = 0I
+Stdlib.Float.truncate_v0 -000000.9 = 0I
+Stdlib.Float.truncate_v0 0.0 = 0I
+Stdlib.Float.truncate_v0 2147483647.000009 = 2147483647I
 
 Stdlib.Float.absoluteValue_v0 Builtin.testNegativeInfinity_v0 = Builtin.testInfinity_v0
 Stdlib.Float.absoluteValue_v0 Builtin.testNan_v0 = Builtin.testNan_v0
@@ -165,11 +165,11 @@ Stdlib.Float.parse_v0 "1.8E+308" = Stdlib.Result.Result.Ok Builtin.testInfinity_
 Stdlib.Float.power_v0 4.0 -0.5 = 0.5
 Stdlib.Float.power_v0 4.0 0.5 = 2.0
 
-Stdlib.Float.roundTowardsZero -2367.9267 = -2367L
-Stdlib.Float.roundTowardsZero 000000.9 = 0L
-Stdlib.Float.roundTowardsZero -000000.9 = 0L
-Stdlib.Float.roundTowardsZero 0.0 = 0L
-Stdlib.Float.roundTowardsZero 2147483647.000009 = 2147483647L
+Stdlib.Float.roundTowardsZero -2367.9267 = -2367I
+Stdlib.Float.roundTowardsZero 000000.9 = 0I
+Stdlib.Float.roundTowardsZero -000000.9 = 0I
+Stdlib.Float.roundTowardsZero 0.0 = 0I
+Stdlib.Float.roundTowardsZero 2147483647.000009 = 2147483647I
 
 Stdlib.Float.sqrt_v0 25.0 = 5.0
 Stdlib.Float.sqrt_v0 0.0 = 0.0
