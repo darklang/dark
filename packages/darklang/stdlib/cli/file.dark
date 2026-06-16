@@ -14,9 +14,10 @@ let exists (path: String) : Bool =
 
 
 /// Get the size of a file in bytes.
-let size (path: String) : Result.Result<Int64, Posix.Error> =
+let size (path: String) : Result.Result<Int, Posix.Error> =
   match Posix.stat path with
-  | Ok result -> Stdlib.Result.Result.Ok result.size
+  // Cleanup?
+  | Ok result -> Stdlib.Result.Result.Ok(Stdlib.Int.fromInt64 result.size)
   | Error e -> Stdlib.Result.Result.Error e
 
 
