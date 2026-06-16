@@ -38,6 +38,7 @@ Stdlib.Int.toString 5I = "5"
 Stdlib.Int.toString 9223372036854775808I = "9223372036854775808"
 Stdlib.Int.parse "9223372036854775808" = Stdlib.Result.Result.Ok 9223372036854775808I
 Stdlib.Int.parse "5" = Stdlib.Result.Result.Ok 5I
+Stdlib.Int.parse "not a number" = Stdlib.Result.Result.Error Stdlib.Int.ParseError.BadFormat
 Stdlib.Int.fromInt64 5L = 5I
 
 // toInt64 relies on the invariant: a small Int always fits, a big Int never does

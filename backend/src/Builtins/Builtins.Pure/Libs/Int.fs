@@ -10,7 +10,21 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
+module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
+module NR = LibExecution.RuntimeTypes.NameResolution
+
+module ParseError =
+  type ParseError = | BadFormat
+
+  let toDT (e : ParseError) : Dval =
+    let (caseName, fields) =
+      match e with
+      | BadFormat -> "BadFormat", []
+
+    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.intParseError ())
+    DEnum(typeName, typeName, [], caseName, fields)
+
 
 let private bigZero = System.Numerics.BigInteger.Zero
 let private bigOne = System.Numerics.BigInteger.One
@@ -319,18 +333,23 @@ let fns () : List<BuiltInFn> =
     { name = fn "intParse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TypeReference.result TInt TString
+      returnType =
+        let errorType =
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.intParseError ())
+        TypeReference.result TInt (TCustomType(NR.ok errorType, []))
       description =
         "Returns the <type Int> value of a <type String>. Arbitrary precision, so
          the only failure is a badly-formatted string."
       fn =
-        let resultOk = Dval.resultOk KTInt KTString
-        let resultError = Dval.resultError KTInt KTString
+        let typeName =
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.intParseError ())
+        let resultOk = Dval.resultOk KTInt (KTCustomType(typeName, []))
+        let resultError = Dval.resultError KTInt (KTCustomType(typeName, []))
         (function
         | _, _, _, [ DString s ] ->
           match System.Numerics.BigInteger.TryParse(s) with
           | true, i -> i |> Dval.int |> resultOk |> Ply
-          | false, _ -> DString "Invalid Int" |> resultError |> Ply
+          | false, _ -> ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -8,6 +8,8 @@ module Darklang.Stdlib.Int
 // Note: because this file is parsed by the F# host parser, every `Int` literal
 // below needs the `I` suffix (a bare `1` would be an `Int32` here).
 
+type ParseError = | BadFormat
+
 
 /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
 /// The modulus <param b> must be greater than 0.
@@ -110,7 +112,10 @@ let clamp (value: Int) (limitA: Int) (limitB: Int) : Int =
 
 /// Returns the <type Int> value of a <type String>. Because <type Int> is
 /// arbitrary-precision, the only failure is a badly-formatted string.
-let parse (s: String) : Stdlib.Result.Result<Int, String> = Builtin.intParse s
+let parse
+  (s: String)
+  : Stdlib.Result.Result<Int, Stdlib.Int.ParseError> =
+  Builtin.intParse s
 
 
 /// Stringify <param int>
