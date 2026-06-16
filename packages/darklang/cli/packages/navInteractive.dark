@@ -24,8 +24,8 @@ type Mode =
 
 type State =
   { items: List<NavItem>
-    selectedIndex: Int64
-    scrollOffset: Int64
+    selectedIndex: Int
+    scrollOffset: Int
     currentLocation: PackageLocation
     mode: Mode
     display: Display
@@ -81,8 +81,8 @@ let buildState (branchId: Uuid) (location: PackageLocation) : State =
 
   State
     { items = allItems
-      selectedIndex = 0L
-      scrollOffset = 0L
+      selectedIndex = 0I
+      scrollOffset = 0I
       currentLocation = location
       mode = Mode.Nav
       display = Display.JustName
@@ -92,8 +92,8 @@ let buildState (branchId: Uuid) (location: PackageLocation) : State =
 
 // Truncated view for inline display to avoid flooding screen with large modules
 let viewEntityTruncated (branchId: Uuid) (location: PackageLocation) : Unit =
-  let maxItemsPerCategory = 3L
-  let maxTotalLines = 12L
+  let maxItemsPerCategory = 3I
+  let maxTotalLines = 12I
 
   match location with
   | Module path ->
@@ -104,35 +104,35 @@ let viewEntityTruncated (branchId: Uuid) (location: PackageLocation) : Unit =
     let currentPathLength = Stdlib.List.length path
     let directSubmodules = Query.getDirectSubmodules results currentPathLength
 
-    let lineCount = 1L // Start with location line
+    let lineCount = 1I // Start with location line
     let lineCount =
       if Stdlib.Bool.not (Stdlib.List.isEmpty directSubmodules) then
         Stdlib.printLine (Display.getSectionHeader "submodule")
-        let itemsToShow = Stdlib.List.take directSubmodules (Stdlib.Int.fromInt64 maxItemsPerCategory)
+        let itemsToShow = Stdlib.List.take directSubmodules maxItemsPerCategory
         itemsToShow |> Stdlib.List.iter (fun name -> Stdlib.printLine $"  {name}/")
 
-        let remaining = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length directSubmodules))) - maxItemsPerCategory
-        if remaining > 0L then
-          Stdlib.printLine $"  ... and {Stdlib.Int64.toString remaining} more modules"
+        let remaining = (Stdlib.List.length directSubmodules) - maxItemsPerCategory
+        if remaining > 0I then
+          Stdlib.printLine $"  ... and {Stdlib.Int.toString remaining} more modules"
 
-        lineCount + 1L + (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length itemsToShow))) + (if remaining > 0L then 1L else 0L)
+        lineCount + 1I + (Stdlib.List.length itemsToShow) + (if remaining > 0I then 1I else 0I)
       else
         lineCount
 
     // Only show other categories if we haven't exceeded line limit
     if lineCount < maxTotalLines then
       let remainingLines = maxTotalLines - lineCount
-      let itemsPerRemaining = Stdlib.Int64.min 2L remainingLines
+      let itemsPerRemaining = Stdlib.Int.min 2I remainingLines
 
       // Show types (limited)
-      if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) && itemsPerRemaining > 0L then
+      if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) && itemsPerRemaining > 0I then
         Stdlib.printLine (Display.getSectionHeader "type")
-        let typesToShow = Stdlib.List.take results.types (Stdlib.Int.fromInt64 itemsPerRemaining)
+        let typesToShow = Stdlib.List.take results.types itemsPerRemaining
         typesToShow |> Stdlib.List.iter (fun t -> Stdlib.printLine $"  {t.location.name}")
 
-        let remaining = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length results.types))) - itemsPerRemaining
-        if remaining > 0L then
-          Stdlib.printLine $"  ... and {Stdlib.Int64.toString remaining} more types"
+        let remaining = (Stdlib.List.length results.types) - itemsPerRemaining
+        if remaining > 0I then
+          Stdlib.printLine $"  ... and {Stdlib.Int.toString remaining} more types"
 
   | _ ->
     // For individual entities, show full view since they're typically small
@@ -167,25 +167,25 @@ let display (navState: State) : Unit =
     Stdlib.printLine (Stdlib.String.repeat "━" 60I)
 
   // Calculate viewport
-  let viewportHeight = 12L
-  let totalItems = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length navState.items)))
+  let viewportHeight = 12I
+  let totalItems = (Stdlib.List.length navState.items)
 
-  if totalItems == 0L then
+  if totalItems == 0I then
     Stdlib.printLine "  (empty directory)"
   else
     // Calculate visible items
     let startIndex = navState.scrollOffset
-    let endIndex = Stdlib.Int64.min (startIndex + viewportHeight) totalItems
+    let endIndex = Stdlib.Int.min (startIndex + viewportHeight) totalItems
 
     let visibleItems =
       navState.items
-      |> Stdlib.List.drop (Stdlib.Int.fromInt64 startIndex)
-      |> Stdlib.List.take (Stdlib.Int.fromInt64 (endIndex - startIndex))
+      |> Stdlib.List.drop startIndex
+      |> Stdlib.List.take (endIndex - startIndex)
 
     // Display items
     visibleItems
     |> Stdlib.List.indexedMap (fun relativeIndex item ->
-      let absoluteIndex = startIndex + (Builtin.unwrap (Stdlib.Int.toInt64 relativeIndex))
+      let absoluteIndex = startIndex + relativeIndex
       let isSelected = absoluteIndex == navState.selectedIndex
 
       let icon = Display.getIcon item.entityType
@@ -207,8 +207,8 @@ let display (navState: State) : Unit =
   // Show inline view and actions if displaying source and there are items
   match navState.display with
   | Source ->
-    if totalItems > 0L then
-      match Stdlib.List.getAt navState.items (Stdlib.Int.fromInt64 navState.selectedIndex) with
+    if totalItems > 0I then
+      match Stdlib.List.getAt navState.items navState.selectedIndex with
       | Some selectedItem ->
         Stdlib.printLines [ ""; (Stdlib.String.repeat "─" 60I) ]
         viewEntityTruncated navState.branchId selectedItem.location
@@ -227,13 +227,13 @@ let display (navState: State) : Unit =
 
 // Navigation helper functions
 let moveUp (navState: State) : State =
-  let totalItems = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length navState.items)))
-  if totalItems > 0L then
+  let totalItems = (Stdlib.List.length navState.items)
+  if totalItems > 0I then
     let newIndex =
-      if navState.selectedIndex > 0L then
-        navState.selectedIndex - 1L
+      if navState.selectedIndex > 0I then
+        navState.selectedIndex - 1I
       else
-        totalItems - 1L
+        totalItems - 1I
 
     let newScrollOffset =
       if newIndex < navState.scrollOffset then
@@ -248,18 +248,18 @@ let moveUp (navState: State) : State =
     navState
 
 let moveDown (navState: State) : State =
-  let totalItems = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length navState.items)))
-  if totalItems > 0L then
+  let totalItems = (Stdlib.List.length navState.items)
+  if totalItems > 0I then
     let newIndex =
-      if navState.selectedIndex < totalItems - 1L then
-        navState.selectedIndex + 1L
+      if navState.selectedIndex < totalItems - 1I then
+        navState.selectedIndex + 1I
       else
-        0L
+        0I
 
-    let viewportHeight = 12L
+    let viewportHeight = 12I
     let newScrollOffset =
       if newIndex >= navState.scrollOffset + viewportHeight then
-        newIndex - viewportHeight + 1L
+        newIndex - viewportHeight + 1I
       else
         navState.scrollOffset
 
@@ -277,9 +277,9 @@ let exitToMainPrompt (state: Cli.AppState) : Cli.AppState =
       prompt = Prompt.Editing.clear state.prompt }
 
 let selectAndExit (state: Cli.AppState) (navState: State) : Cli.AppState =
-  let totalItems = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length navState.items)))
-  if totalItems > 0L then
-    match Stdlib.List.getAt navState.items (Stdlib.Int.fromInt64 navState.selectedIndex) with
+  let totalItems = (Stdlib.List.length navState.items)
+  if totalItems > 0I then
+    match Stdlib.List.getAt navState.items navState.selectedIndex with
     | Some selectedItem ->
       exitAlternateScreen ()
       let newState = Nav.navTo state selectedItem.location
@@ -294,9 +294,9 @@ let selectAndExit (state: Cli.AppState) (navState: State) : Cli.AppState =
     exitToMainPrompt state
 
 let navigateIntoModule (state: Cli.AppState) (navState: State) : Cli.AppState =
-  let totalItems = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length navState.items)))
-  if totalItems > 0L then
-    match Stdlib.List.getAt navState.items (Stdlib.Int.fromInt64 navState.selectedIndex) with
+  let totalItems = (Stdlib.List.length navState.items)
+  if totalItems > 0I then
+    match Stdlib.List.getAt navState.items navState.selectedIndex with
     | Some selectedItem ->
       match selectedItem.entityType with
       | Module ->
@@ -328,8 +328,8 @@ let performSearch (navState: State) : State =
     // Empty query - restore all items
     { navState with
         items = navState.allItems
-        selectedIndex = 0L
-        scrollOffset = 0L }
+        selectedIndex = 0I
+        scrollOffset = 0I }
   else
     // Search through package system
     let currentModule = modulePathOf navState.currentLocation
@@ -373,8 +373,8 @@ let performSearch (navState: State) : State =
 
     { navState with
         items = searchItems
-        selectedIndex = 0L
-        scrollOffset = 0L }
+        selectedIndex = 0I
+        scrollOffset = 0I }
 
 // Common key handlers
 let handleNavKeys (navState: State) (key: Stdlib.Cli.Stdin.Key.Key) : Stdlib.Option.Option<State> =
@@ -404,8 +404,8 @@ let handleSearchKeys
           mode = Mode.Nav
           searchQuery = ""
           items = navState.allItems
-          selectedIndex = 0L
-          scrollOffset = 0L }
+          selectedIndex = 0I
+          scrollOffset = 0I }
     Stdlib.Option.Option.Some( { state with currentPage = Page.InteractiveNav newNavState })
 
   | Backspace ->
@@ -455,9 +455,9 @@ let handleNavModeKeys
   | U ->
     match navState.display with
     | Source ->
-      let totalItems = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length navState.items)))
-      if totalItems > 0L then
-        match Stdlib.List.getAt navState.items (Stdlib.Int.fromInt64 navState.selectedIndex) with
+      let totalItems = (Stdlib.List.length navState.items)
+      if totalItems > 0I then
+        match Stdlib.List.getAt navState.items navState.selectedIndex with
         | Some selectedItem ->
           exitAlternateScreen ()
           let locationStr = Packages.formatLocation selectedItem.location
