@@ -28,7 +28,7 @@ type AppState =
     accountID: Stdlib.Option.Option<Uuid>
     accountName: String
     /// How many terminal rows the prompt used last frame
-    previousRenderedRows: Int64
+    previousRenderedRows: Int
     /// True when invoked from the command line (not the interactive REPL)
     nonInteractive: Bool
     /// Cached completion hint — skip recompute when prompt text unchanged
@@ -104,7 +104,7 @@ let initState () : AppState =
       currentBranchId = branchId
       accountID = accountID
       accountName = accountName
-      previousRenderedRows = 0L
+      previousRenderedRows = 0I
       nonInteractive = false
       cachedHintInput = ""
       cachedHintValue = ""
@@ -170,7 +170,7 @@ module StatusBar =
   let init () : Unit =
     let terminalHeight = Terminal.getHeight ()
     // Set scroll region to all rows except the last one
-    Stdlib.print (Colors.setScrollRegion 1L (terminalHeight - 1L))
+    Stdlib.print (Colors.setScrollRegion 1I (terminalHeight - 1I))
 
   /// Build the status bar string for the given state
   let build (state: AppState) : String =
@@ -184,12 +184,12 @@ module StatusBar =
     let branchPart =
       Colors.colorize (Colors.grayBg ++ Colors.white) branchText
 
-    let leftLen = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length leftText + Stdlib.String.length branchText))
+    let leftLen = Stdlib.String.length leftText + Stdlib.String.length branchText
     let paddingLen = terminalWidth - leftLen
 
     let padding =
-      if paddingLen > 0L then
-        Colors.colorize Colors.grayBg (Stdlib.String.repeat " " (Stdlib.Int.fromInt64 paddingLen))
+      if paddingLen > 0I then
+        Colors.colorize Colors.grayBg (Stdlib.String.repeat " " paddingLen)
       else
         ""
 
@@ -200,7 +200,7 @@ module StatusBar =
     let terminalHeight = Terminal.getHeight ()
     Stdlib.print
       (Colors.saveCursor
-       ++ Colors.moveCursorTo terminalHeight 1L
+       ++ Colors.moveCursorTo terminalHeight 1I
        ++ statusLine
        ++ Colors.restoreCursor)
 
@@ -211,7 +211,7 @@ module StatusBar =
     Stdlib.print
       (Colors.saveCursor
        ++ Colors.resetScrollRegion
-       ++ Colors.moveCursorTo terminalHeight 1L
+       ++ Colors.moveCursorTo terminalHeight 1I
        ++ Colors.clearLine
        ++ Colors.restoreCursor)
 
@@ -705,7 +705,7 @@ let runInteractiveLoop (state: AppState) : Int64 =
     // Clear status bar and prompt line before exiting
     StatusBar.clear ()
     // Move to column 1, clear entire line, then newline for clean shell prompt
-    Stdlib.print (Colors.moveCursorToColumn 1L ++ "\u001b[2K" ++ "\n")
+    Stdlib.print (Colors.moveCursorToColumn 1I ++ "\u001b[2K" ++ "\n")
     0L
   else
     let tLoopStart = if state.telemetryEnabled then Telemetry.now () else 0L
@@ -733,13 +733,13 @@ let runInteractiveLoop (state: AppState) : Int64 =
     // Fall back to 80 if the size query returns 0 (can happen at startup) — never divide by 0 below.
     let terminalWidth =
       let w = Terminal.getWidth ()
-      if w <= 0L then 80L else w
+      if w <= 0I then 80I else w
     // Visual length (0-based char count; inputStartColumn is 1-based so subtract 1)
     let visualLength =
-      (inputStartColumn - 1L) + (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length state.prompt.text))) + (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length hint)))
+      (inputStartColumn - 1I) + (Stdlib.String.length state.prompt.text) + (Stdlib.String.length hint)
     let renderedRows =
-      if visualLength <= terminalWidth then 1L
-      else (Stdlib.Int64.divide (visualLength - 1L) terminalWidth) + 1L
+      if visualLength <= terminalWidth then 1I
+      else (Stdlib.Int.divide (visualLength - 1I) terminalWidth) + 1I
 
     // Display current page
     let tRender = if state.telemetryEnabled then Telemetry.now () else 0L
@@ -751,25 +751,25 @@ let runInteractiveLoop (state: AppState) : Int64 =
       // Move up to prompt start if previous render occupied multiple rows
       // Skip on full redraw — cursor is already positioned after command output
       if Stdlib.Bool.not state.needsFullRedraw then
-        if state.previousRenderedRows > 1L then
-          Stdlib.print (Colors.moveCursorUp (state.previousRenderedRows - 1L))
+        if state.previousRenderedRows > 1I then
+          Stdlib.print (Colors.moveCursorUp (state.previousRenderedRows - 1I))
 
       Stdlib.print Colors.carriageReturn
       Stdlib.print promptOutput
       Stdlib.print "\u001b[J" // Clear any leftover rows
 
       // Position cursor at correct location within user input
-      let absoluteCursorPos = (inputStartColumn - 1L) + state.prompt.cursorPosition
-      if renderedRows > 1L then
-        let cursorRow = Stdlib.Int64.divide absoluteCursorPos terminalWidth
-        let cursorCol = (absoluteCursorPos % terminalWidth) + 1L
-        let textEndRow = renderedRows - 1L
+      let absoluteCursorPos = (inputStartColumn - 1I) + state.prompt.cursorPosition
+      if renderedRows > 1I then
+        let cursorRow = Stdlib.Int.divide absoluteCursorPos terminalWidth
+        let cursorCol = (absoluteCursorPos % terminalWidth) + 1I
+        let textEndRow = renderedRows - 1I
         let rowDiff = textEndRow - cursorRow
-        if rowDiff > 0L then
+        if rowDiff > 0I then
           Stdlib.print (Colors.moveCursorUp rowDiff)
         Stdlib.print (Colors.moveCursorToColumn cursorCol)
       else
-        Stdlib.print (Colors.moveCursorToColumn (absoluteCursorPos + 1L))
+        Stdlib.print (Colors.moveCursorToColumn (absoluteCursorPos + 1I))
 
       Stdlib.print "\u001b[?25h" // Show cursor
 

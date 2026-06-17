@@ -11,14 +11,14 @@ let reverse = "\u001b[7m"
 // Cursor and line control
 let clearLine = "\u001b[K"
 let carriageReturn = "\r"
-let moveCursorToColumn (col: Int64) : String = $"\u001b[{Stdlib.Int64.toString col}G"
-let moveCursorUp (n: Int64) : String = $"\u001b[{Stdlib.Int64.toString n}A"
+let moveCursorToColumn (col: Int) : String = $"\u001b[{Stdlib.Int.toString col}G"
+let moveCursorUp (n: Int) : String = $"\u001b[{Stdlib.Int.toString n}A"
 let saveCursor = "\u001b[s"
 let restoreCursor = "\u001b[u"
 /// Move cursor to absolute position (row, col). Used to jump to the status bar without disrupting where the user is typing.
-let moveCursorTo (row: Int64) (col: Int64) : String = $"\u001b[{Stdlib.Int64.toString row};{Stdlib.Int64.toString col}H"
+let moveCursorTo (row: Int) (col: Int) : String = $"\u001b[{Stdlib.Int.toString row};{Stdlib.Int.toString col}H"
 /// Define which rows can scroll. Content outside this region stays fixed. Used to keep the status bar pinned at the bottom.
-let setScrollRegion (top: Int64) (bottom: Int64) : String = $"\u001b[{Stdlib.Int64.toString top};{Stdlib.Int64.toString bottom}r"
+let setScrollRegion (top: Int) (bottom: Int) : String = $"\u001b[{Stdlib.Int.toString top};{Stdlib.Int.toString bottom}r"
 let resetScrollRegion = "\u001b[r"
 
 // Standard colors

@@ -110,17 +110,17 @@ let handleDocPickerKey
   match keyChar with
   | Some "n" -> KeyResult.Save (createDocument state "Untitled")
   | Some "d" ->
-    match Stdlib.List.getAt picker.items (Stdlib.Int.fromInt64 picker.selected) with
+    match Stdlib.List.getAt picker.items picker.selected with
     | Some doc -> KeyResult.Save (deleteDocument state doc.id)
     | None -> KeyResult.Continue state
   | Some "r" ->
-    match Stdlib.List.getAt picker.items (Stdlib.Int.fromInt64 picker.selected) with
+    match Stdlib.List.getAt picker.items picker.selected with
     | Some doc ->
       let te = TextEditor.fromText doc.title
       KeyResult.Continue ({ state with screen = Screen.DocRenaming (doc.id, picker, te) })
     | None -> KeyResult.Continue state
   | Some "e" ->
-    match Stdlib.List.getAt picker.items (Stdlib.Int.fromInt64 picker.selected) with
+    match Stdlib.List.getAt picker.items picker.selected with
     | Some doc ->
       KeyResult.Continue
         ({ state with
@@ -210,15 +210,15 @@ let handleKey
 let renderTitleBar (titleText: String) (modeText: String) (modeColor: String) (region: Darklang.Cli.UI.Layout.Region) : Unit =
   let title = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) $" {titleText} "
   let modeIndicator = Darklang.Cli.Colors.colorize modeColor modeText
-  Darklang.Cli.UI.Layout.printAt region 0L 0L (title ++ " " ++ modeIndicator)
+  Darklang.Cli.UI.Layout.printAt region 0I 0I (title ++ " " ++ modeIndicator)
 
 let renderHelpBar (helpText: String) (region: Darklang.Cli.UI.Layout.Region) : Unit =
-  let helpLen = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length helpText))
+  let helpLen = Stdlib.String.length helpText
   let helpPadding =
-    if region.cols > helpLen then Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (region.cols - helpLen))
+    if region.cols > helpLen then Stdlib.String.repeat " " (region.cols - helpLen)
     else ""
   let styled = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding)
-  Darklang.Cli.UI.Layout.printAt region 0L 0L styled
+  Darklang.Cli.UI.Layout.printAt region 0I 0I styled
 
 let renderChrome (titleText: String) (modeText: String) (modeColor: String) (helpText: String) (renderBody: Darklang.Cli.UI.Layout.Region -> Unit) : Unit =
   let termHeight = Darklang.Cli.Terminal.getHeight ()
@@ -226,14 +226,14 @@ let renderChrome (titleText: String) (modeText: String) (modeColor: String) (hel
   Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
 
   let screen =
-    Darklang.Cli.UI.Layout.Region { top = 1L; left = 1L; rows = termHeight - 1L; cols = termWidth }
+    Darklang.Cli.UI.Layout.Region { top = 1I; left = 1I; rows = termHeight - 1I; cols = termWidth }
 
   let titleComp =
-    Darklang.Cli.UI.Layout.fixedSize 2L (fun region -> renderTitleBar titleText modeText modeColor region)
+    Darklang.Cli.UI.Layout.fixedSize 2I (fun region -> renderTitleBar titleText modeText modeColor region)
   let bodyComp =
     Darklang.Cli.UI.Layout.greedy renderBody
   let helpComp =
-    Darklang.Cli.UI.Layout.fixedSize 1L (fun region -> renderHelpBar helpText region)
+    Darklang.Cli.UI.Layout.fixedSize 1I (fun region -> renderHelpBar helpText region)
   let components = [titleComp; bodyComp; helpComp]
   Darklang.Cli.UI.Layout.vstack screen components
   Stdlib.print "\u001b[?25h"
@@ -260,7 +260,7 @@ let render (state: State) : Unit =
         |> Stdlib.List.indexedMap (fun idx item -> (idx, item))
         |> Stdlib.List.iter (fun pair ->
           let (idx, item) = pair
-          let isSelected = idx == Stdlib.Int.fromInt64 picker.selected
+          let isSelected = idx == picker.selected
           let displayText =
             match Stdlib.List.getAt picker.items idx with
             | Some doc ->
@@ -274,7 +274,7 @@ let render (state: State) : Unit =
               Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
             else
               line
-          Darklang.Cli.UI.Layout.printAt region (Builtin.unwrap (Stdlib.Int.toInt64 idx)) 0L styled))
+          Darklang.Cli.UI.Layout.printAt region idx 0I styled))
 
   | Editor editor ->
     let doc = activeDoc state
@@ -300,8 +300,8 @@ let render (state: State) : Unit =
       "Edit path | Enter: export | Esc: cancel"
       (fun region ->
         let label = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  Path: "
-        Darklang.Cli.UI.Layout.printAt region 0L 0L $"  Format: {formatName}"
-        Darklang.Cli.UI.Layout.printAt region 2L 0L (label ++ (TextEditor.renderInline te)))
+        Darklang.Cli.UI.Layout.printAt region 0I 0I $"  Format: {formatName}"
+        Darklang.Cli.UI.Layout.printAt region 2I 0I (label ++ (TextEditor.renderInline te)))
 
 
 // --- Persistence ---

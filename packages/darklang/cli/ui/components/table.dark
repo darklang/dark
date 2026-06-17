@@ -2,37 +2,37 @@ module Darklang.CLI.UI.Components.Table
 
 type Column =
   { header: String
-    width: Int64
+    width: Int
     alignment: Core.Types.Alignment }
 
 type TableModel =
   { columns: List<Column>
     rows: List<List<String>>
-    selectedRow: Int64
+    selectedRow: Int
     showHeader: Bool
     borderStyle: Core.Rendering.BoxStyle
     headerColor: Core.Types.Color
     selectedColor: Core.Types.Color }
 
-let createColumn (header: String) (width: Int64) : Column =
+let createColumn (header: String) (width: Int) : Column =
   Column { header = header; width = width; alignment = Core.Types.Alignment.Left }
 
-let createColumnWithAlignment (header: String) (width: Int64) (alignment: Core.Types.Alignment) : Column =
+let createColumnWithAlignment (header: String) (width: Int) (alignment: Core.Types.Alignment) : Column =
   Column { header = header; width = width; alignment = alignment }
 
 let createTable (columns: List<Column>) (rows: List<List<String>>) : Core.Types.Component<TableModel> =
   let totalWidth =
     columns
-    |> Stdlib.List.map (fun col -> col.width + 1L)
-    |> Stdlib.List.fold 1L (fun acc w -> acc + w)
+    |> Stdlib.List.map (fun col -> col.width + 1I)
+    |> Stdlib.List.fold 1I (fun acc w -> acc + w)
 
-  let height = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length rows))) + 3L
+  let height = (Stdlib.List.length rows) + 3I
 
   let model =
     TableModel
       { columns = columns
         rows = rows
-        selectedRow = -1L
+        selectedRow = -1I
         showHeader = true
         borderStyle = Core.Rendering.BoxStyle.Single
         headerColor = Core.Types.Color.Primary
@@ -40,7 +40,7 @@ let createTable (columns: List<Column>) (rows: List<List<String>>) : Core.Types.
 
   let bounds =
     Core.Types.Bounds
-      { position = Core.Types.Position { x = 0L; y = 0L }
+      { position = Core.Types.Position { x = 0I; y = 0I }
         dimensions = Core.Types.Dimensions { width = totalWidth; height = height } }
 
   Core.Types.Component
@@ -65,7 +65,7 @@ let renderTable (component: Core.Types.Component<TableModel>) (context: Core.Typ
 
   // Build column separator segments (horizontal lines for each column width)
   let columnSegments =
-    model.columns |> Stdlib.List.map (fun col -> Stdlib.String.repeat horiz (Stdlib.Int.fromInt64 col.width))
+    model.columns |> Stdlib.List.map (fun col -> Stdlib.String.repeat horiz col.width)
 
   // Top border: ┌───┬───┬───┐
   let topBorder =
@@ -98,7 +98,7 @@ let renderTable (component: Core.Types.Component<TableModel>) (context: Core.Typ
   let dataLines =
     model.rows
     |> Stdlib.List.indexedMap (fun rowIndex row ->
-        let isSelected = (Builtin.unwrap (Stdlib.Int.toInt64 rowIndex)) == model.selectedRow
+        let isSelected = rowIndex == model.selectedRow
 
         let cellsOpt =
           Stdlib.List.map2 row model.columns (fun cellValue col ->
@@ -131,12 +131,12 @@ let addTableRow (component: Core.Types.Component<TableModel>) (row: List<String>
   let model = component.model
   { component with model = { model with rows = Stdlib.List.append model.rows [row] } }
 
-let selectRow (component: Core.Types.Component<TableModel>) (index: Int64) : Core.Types.Component<TableModel> =
+let selectRow (component: Core.Types.Component<TableModel>) (index: Int) : Core.Types.Component<TableModel> =
   let model = component.model
-  let maxIndex = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length model.rows))) - 1L
+  let maxIndex = (Stdlib.List.length model.rows) - 1I
   let clampedIndex =
-    if index < 0L then
-      0L
+    if index < 0I then
+      0I
     else if index > maxIndex then
       maxIndex
     else
@@ -145,10 +145,10 @@ let selectRow (component: Core.Types.Component<TableModel>) (index: Int64) : Cor
 
 let selectNextRow (component: Core.Types.Component<TableModel>) : Core.Types.Component<TableModel> =
   let model = component.model
-  let maxIndex = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length model.rows))) - 1L
+  let maxIndex = (Stdlib.List.length model.rows) - 1I
   let nextIndex =
     if model.selectedRow < maxIndex then
-      model.selectedRow + 1L
+      model.selectedRow + 1I
     else
       model.selectedRow
   { component with model = { model with selectedRow = nextIndex } }
@@ -156,10 +156,10 @@ let selectNextRow (component: Core.Types.Component<TableModel>) : Core.Types.Com
 let selectPreviousRow (component: Core.Types.Component<TableModel>) : Core.Types.Component<TableModel> =
   let model = component.model
   let prevIndex =
-    if model.selectedRow > 0L then
-      model.selectedRow - 1L
+    if model.selectedRow > 0I then
+      model.selectedRow - 1I
     else
-      0L
+      0I
   { component with model = { model with selectedRow = prevIndex } }
 
 let setTableBorderStyle (component: Core.Types.Component<TableModel>) (style: Core.Rendering.BoxStyle) : Core.Types.Component<TableModel> =
@@ -180,7 +180,7 @@ let showTableHeader (component: Core.Types.Component<TableModel>) : Core.Types.C
 
 let getSelectedRow (component: Core.Types.Component<TableModel>) : Stdlib.Option.Option<List<String>> =
   let model = component.model
-  if model.selectedRow >= 0L then
-    Stdlib.List.getAt model.rows (Stdlib.Int.fromInt64 model.selectedRow)
+  if model.selectedRow >= 0I then
+    Stdlib.List.getAt model.rows model.selectedRow
   else
     Stdlib.Option.Option.None

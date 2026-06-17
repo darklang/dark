@@ -7,12 +7,12 @@ type StatusBarModel =
   { leftText: String
     rightText: String
     centerText: String
-    width: Int64
+    width: Int
     backgroundColor: Core.Types.Color }
 
-let createStatusBar (leftText: String) (rightText: String) (width: Int64) : Core.Types.Component<StatusBarModel> =
+let createStatusBar (leftText: String) (rightText: String) (width: Int) : Core.Types.Component<StatusBarModel> =
   let model = StatusBarModel { leftText = leftText; rightText = rightText; centerText = ""; width = width; backgroundColor = Core.Types.Color.Dark }
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = 1L } }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = width; height = 1I } }
   Core.Types.Component
     { id = "statusbar"
       model = model
@@ -24,34 +24,34 @@ let createStatusBar (leftText: String) (rightText: String) (width: Int64) : Core
 let renderStatusBar (component: Core.Types.Component<StatusBarModel>) (context: Core.Types.RenderContext) : List<String> =
   let model = component.model
 
-  let leftLen = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length model.leftText))
-  let rightLen = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length model.rightText))
-  let centerLen = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length model.centerText))
+  let leftLen = Stdlib.String.length model.leftText
+  let rightLen = Stdlib.String.length model.rightText
+  let centerLen = Stdlib.String.length model.centerText
 
   let line =
     if Stdlib.String.isEmpty model.centerText then
       let paddingSpace = model.width - leftLen - rightLen
       let padding =
-        if paddingSpace > 0L then
-          Stdlib.String.repeat " " (Stdlib.Int.fromInt64 paddingSpace)
+        if paddingSpace > 0I then
+          Stdlib.String.repeat " " paddingSpace
         else
           ""
       model.leftText ++ padding ++ model.rightText
     else
       let totalContentLen = leftLen + centerLen + rightLen
       if totalContentLen >= model.width then
-        Stdlib.String.slice (model.leftText ++ model.centerText ++ model.rightText) 0I (Stdlib.Int.fromInt64 model.width)
+        Stdlib.String.slice (model.leftText ++ model.centerText ++ model.rightText) 0I model.width
       else
-        let leftPadding = Stdlib.Int64.divide (model.width - centerLen) 2L - leftLen
+        let leftPadding = Stdlib.Int.divide (model.width - centerLen) 2I - leftLen
         let rightPadding = model.width - leftLen - centerLen - leftPadding
         let leftPad =
-          if leftPadding > 0L then
-            Stdlib.String.repeat " " (Stdlib.Int.fromInt64 leftPadding)
+          if leftPadding > 0I then
+            Stdlib.String.repeat " " leftPadding
           else
             ""
         let rightPad =
-          if rightPadding > 0L then
-            Stdlib.String.repeat " " (Stdlib.Int.fromInt64 rightPadding)
+          if rightPadding > 0I then
+            Stdlib.String.repeat " " rightPadding
           else
             ""
         model.leftText ++ leftPad ++ model.centerText ++ rightPad

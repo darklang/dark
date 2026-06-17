@@ -182,7 +182,7 @@ let testIndentNode () : TestResult =
       []
       [1L; 2L]
       3L
-  let editor = { (makeEditor outline) with cursor = 1L }
+  let editor = { (makeEditor outline) with cursor = 1I }
   let newEditor = OutlineEditor.indentNode editor
   let rootCount = Stdlib.List.length newEditor.outline.rootChildren
   if rootCount == 1I then
@@ -198,7 +198,7 @@ let testOutdentNode () : TestResult =
       [(1L, [2L])]
       [1L]
       3L
-  let editor = { (makeEditor outline) with cursor = 1L }
+  let editor = { (makeEditor outline) with cursor = 1I }
   let newEditor = OutlineEditor.outdentNode editor
   assertInt "root count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length newEditor.outline.rootChildren))) 2L
 
@@ -209,7 +209,7 @@ let testMoveNodeUp () : TestResult =
       []
       [1L; 2L]
       3L
-  let editor = { (makeEditor outline) with cursor = 1L }
+  let editor = { (makeEditor outline) with cursor = 1I }
   let newEditor = OutlineEditor.moveNodeUp editor
   match Stdlib.List.head newEditor.outline.rootChildren with
   | Some firstId ->
@@ -243,10 +243,10 @@ let testMoveCursorUpDown () : TestResult =
   let down1 = OutlineEditor.moveCursorDown editor
   let down2 = OutlineEditor.moveCursorDown down1
   let up1 = OutlineEditor.moveCursorUp down2
-  if down1.cursor == 1L && down2.cursor == 2L && up1.cursor == 1L then
+  if down1.cursor == 1I && down2.cursor == 2I && up1.cursor == 1I then
     TestResult.Pass
   else
-    TestResult.Fail $"Cursor movement: d1={Stdlib.Int64.toString down1.cursor} d2={Stdlib.Int64.toString down2.cursor} u1={Stdlib.Int64.toString up1.cursor}"
+    TestResult.Fail $"Cursor movement: d1={Stdlib.Int.toString down1.cursor} d2={Stdlib.Int.toString down2.cursor} u1={Stdlib.Int.toString up1.cursor}"
 
 let testMoveCursorBounds () : TestResult =
   let outline =
@@ -258,7 +258,7 @@ let testMoveCursorBounds () : TestResult =
   let editor = makeEditor outline
   let upFromZero = OutlineEditor.moveCursorUp editor
   let downFromMax = OutlineEditor.moveCursorDown editor
-  if upFromZero.cursor == 0L && downFromMax.cursor == 0L then
+  if upFromZero.cursor == 0I && downFromMax.cursor == 0I then
     TestResult.Pass
   else
     TestResult.Fail "Cursor should not move past bounds"

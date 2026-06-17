@@ -8,26 +8,26 @@ module Display =
   let exitAltScreen = "\x1b[?1049l"
 
 /// Gets terminal height
-let getHeight () : Int64 =
+let getHeight () : Int =
   Builtin.cliGetTerminalHeight ()
 
 /// Gets terminal width
-let getWidth () : Int64 =
+let getWidth () : Int =
   Builtin.cliGetTerminalWidth ()
 
 /// Calculates viewport height for scrollable content
-let getViewportHeight (reservedLines: Int64) : Int64 =
+let getViewportHeight (reservedLines: Int) : Int =
   let terminalHeight = getHeight ()
-  let availableHeight = Stdlib.Int64.max 1L (terminalHeight - reservedLines)
+  let availableHeight = Stdlib.Int.max 1I (terminalHeight - reservedLines)
   availableHeight
 
 /// Calculate scroll offset bounds for safe scrolling
-let calculateScrollBounds (totalItems: Int64) (viewportHeight: Int64) : (Int64 * Int64) =
-  let maxOffset = Stdlib.Int64.max 0L (totalItems - viewportHeight)
-  (0L, maxOffset)
+let calculateScrollBounds (totalItems: Int) (viewportHeight: Int) : (Int * Int) =
+  let maxOffset = Stdlib.Int.max 0I (totalItems - viewportHeight)
+  (0I, maxOffset)
 
 /// Clamp scroll offset to safe bounds
-let clampScrollOffset (offset: Int64) (totalItems: Int64) (viewportHeight: Int64) : Int64 =
+let clampScrollOffset (offset: Int) (totalItems: Int) (viewportHeight: Int) : Int =
   let (minOffset, maxOffset) = calculateScrollBounds totalItems viewportHeight
   if offset < minOffset then minOffset
   else if offset > maxOffset then maxOffset

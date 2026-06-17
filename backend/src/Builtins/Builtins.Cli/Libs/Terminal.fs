@@ -86,19 +86,19 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "cliGetTerminalHeight" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Get the current terminal viewport height in number of lines"
       fn =
         (function
         | _, _, [], [ DUnit ] ->
-          DInt64(
-            getDimension
-              "LINES"
-              (fun () -> System.Console.WindowHeight)
-              "lines"
-              24
-              &cachedHeight
-          )
+          getDimension
+            "LINES"
+            (fun () -> System.Console.WindowHeight)
+            "lines"
+            24
+            &cachedHeight
+          |> bigint
+          |> Dval.int
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -110,19 +110,19 @@ let fns () : List<BuiltInFn> =
     { name = fn "cliGetTerminalWidth" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Get the current terminal viewport width in number of columns"
       fn =
         (function
         | _, _, [], [ DUnit ] ->
-          DInt64(
-            getDimension
-              "COLUMNS"
-              (fun () -> System.Console.WindowWidth)
-              "cols"
-              80
-              &cachedWidth
-          )
+          getDimension
+            "COLUMNS"
+            (fun () -> System.Console.WindowWidth)
+            "cols"
+            80
+            &cachedWidth
+          |> bigint
+          |> Dval.int
           |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

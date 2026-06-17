@@ -3,14 +3,14 @@ module Darklang.CLI.UI.Components.Layout
 // Container Component
 type ContainerModel<'TChild> =
   { children: List<'TChild>
-    padding: Int64
+    padding: Int
     border: Bool
     title: String }
 
 let createContainer (children: List<'TChild>) (title: String) (border: Bool) : Core.Types.Component<ContainerModel<'TChild>> =
-  let model = ContainerModel { children = children; padding = 1L; border = border; title = title }
+  let model = ContainerModel { children = children; padding = 1I; border = border; title = title }
   // Calculate container size based on children (simplified)
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = 40L; height = 20L } }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = 40I; height = 20I } }
   Core.Types.Component
     { id = "container-" ++ title
       model = model
@@ -44,12 +44,12 @@ type PanelModel =
 
 let createPanel (title: String) (content: List<String>) (color: Core.Types.Color) : Core.Types.Component<PanelModel> =
   let model = PanelModel { content = content; title = title; color = color; collapsible = false; collapsed = false }
-  let contentHeight = if model.collapsed then 1L else (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length content))) + 2L
+  let contentHeight = if model.collapsed then 1I else (Stdlib.List.length content) + 2I
   let maxWidth =
     (Stdlib.List.push content title)
-    |> Stdlib.List.map (fun s -> Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length s)))
-    |> Stdlib.List.fold 20L (fun acc len -> if len > acc then len else acc)
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxWidth + 4L; height = contentHeight } }
+    |> Stdlib.List.map (fun s -> Stdlib.String.length s)
+    |> Stdlib.List.fold 20I (fun acc len -> if len > acc then len else acc)
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = maxWidth + 4I; height = contentHeight } }
   Core.Types.Component
     { id = "panel-" ++ title
       model = model
@@ -83,17 +83,17 @@ let togglePanel (component: Core.Types.Component<PanelModel>) : Core.Types.Compo
 // Grid Layout Component
 type GridModel<'TItem> =
   { items: List<'TItem>
-    columns: Int64
-    spacing: Int64
-    itemWidth: Int64
-    itemHeight: Int64 }
+    columns: Int
+    spacing: Int
+    itemWidth: Int
+    itemHeight: Int }
 
-let createGrid (items: List<'TItem>) (columns: Int64) (itemWidth: Int64) (itemHeight: Int64) : Core.Types.Component<GridModel<'TItem>> =
-  let model = GridModel { items = items; columns = columns; spacing = 1L; itemWidth = itemWidth; itemHeight = itemHeight }
-  let rows = Stdlib.Int64.divide ((Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length items))) + columns - 1L) columns
-  let totalWidth = columns * itemWidth + (columns - 1L) * model.spacing
-  let totalHeight = rows * itemHeight + (rows - 1L) * model.spacing
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = totalWidth; height = totalHeight } }
+let createGrid (items: List<'TItem>) (columns: Int) (itemWidth: Int) (itemHeight: Int) : Core.Types.Component<GridModel<'TItem>> =
+  let model = GridModel { items = items; columns = columns; spacing = 1I; itemWidth = itemWidth; itemHeight = itemHeight }
+  let rows = Stdlib.Int.divide ((Stdlib.List.length items) + columns - 1I) columns
+  let totalWidth = columns * itemWidth + (columns - 1I) * model.spacing
+  let totalHeight = rows * itemHeight + (rows - 1I) * model.spacing
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = totalWidth; height = totalHeight } }
   Core.Types.Component
     { id = "grid"
       model = model
@@ -102,25 +102,25 @@ let createGrid (items: List<'TItem>) (columns: Int64) (itemWidth: Int64) (itemHe
       visible = true
       focusable = true }
 
-let renderGrid (component: Core.Types.Component<GridModel<'TItem>>) (context: Core.Types.RenderContext) (renderItem: 'TItem -> Int64 -> Core.Types.RenderContext -> List<String>) : List<String> =
+let renderGrid (component: Core.Types.Component<GridModel<'TItem>>) (context: Core.Types.RenderContext) (renderItem: 'TItem -> Int -> Core.Types.RenderContext -> List<String>) : List<String> =
   let model = component.model
   // Simplified grid rendering - just render items in a vertical list for now
   model.items
   |> Stdlib.List.indexedMap (fun index item ->
-      let renderedItem = renderItem item (Builtin.unwrap (Stdlib.Int.toInt64 index)) context
+      let renderedItem = renderItem item index context
       renderedItem)
   |> Stdlib.List.flatten
 
 // Horizontal Stack Component
 type HStackModel<'TItem> =
   { items: List<'TItem>
-    spacing: Int64
+    spacing: Int
     alignment: Core.Types.Alignment }
 
-let createHStack (items: List<'TItem>) (spacing: Int64) (alignment: Core.Types.Alignment) : Core.Types.Component<HStackModel<'TItem>> =
+let createHStack (items: List<'TItem>) (spacing: Int) (alignment: Core.Types.Alignment) : Core.Types.Component<HStackModel<'TItem>> =
   let model = HStackModel { items = items; spacing = spacing; alignment = alignment }
   // Calculate size based on items (simplified)
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = 60L; height = 5L } }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = 60I; height = 5I } }
   Core.Types.Component
     { id = "hstack"
       model = model
@@ -147,16 +147,16 @@ let renderHStack (component: Core.Types.Component<HStackModel<'TItem>>) (context
           match Stdlib.List.getAt itemLines lineIndex with
           | Some line -> line
           | None -> "")
-      |> Stdlib.String.join (Stdlib.String.repeat " " (Stdlib.Int.fromInt64 model.spacing)))
+      |> Stdlib.String.join (Stdlib.String.repeat " " model.spacing))
 
 // Vertical Stack Component
 type VStackModel<'TItem> =
   { items: List<'TItem>
-    spacing: Int64 }
+    spacing: Int }
 
-let createVStack (items: List<'TItem>) (spacing: Int64) : Core.Types.Component<VStackModel<'TItem>> =
+let createVStack (items: List<'TItem>) (spacing: Int) : Core.Types.Component<VStackModel<'TItem>> =
   let model = VStackModel { items = items; spacing = spacing }
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = 40L; height = 20L } }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = 40I; height = 20I } }
   Core.Types.Component
     { id = "vstack"
       model = model
@@ -167,7 +167,7 @@ let createVStack (items: List<'TItem>) (spacing: Int64) : Core.Types.Component<V
 
 let renderVStack (component: Core.Types.Component<VStackModel<'TItem>>) (context: Core.Types.RenderContext) (renderItem: 'TItem -> Core.Types.RenderContext -> List<String>) : List<String> =
   let model = component.model
-  let spacingLines = (Stdlib.List.range 0I (Stdlib.Int.fromInt64 (model.spacing - 1L))) |> Stdlib.List.map (fun _ -> "")
+  let spacingLines = (Stdlib.List.range 0I (model.spacing - 1I)) |> Stdlib.List.map (fun _ -> "")
 
   model.items
   |> Stdlib.List.map (fun item -> renderItem item context)

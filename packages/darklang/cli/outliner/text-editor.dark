@@ -2,7 +2,7 @@ module Darklang.Cli.Outliner.TextEditor
 
 type State =
   { text: String
-    cursor: Int64 }
+    cursor: Int }
 
 type Result =
   | Editing of State
@@ -10,10 +10,10 @@ type Result =
   | Cancelled
 
 let empty : State =
-  State { text = ""; cursor = 0L }
+  State { text = ""; cursor = 0I }
 
 let fromText (text: String) : State =
-  State { text = text; cursor = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length text)) }
+  State { text = text; cursor = Stdlib.String.length text }
 
 let handleKey
   (state: State)
@@ -25,43 +25,43 @@ let handleKey
   | Enter -> Result.Finished state.text
   | Escape -> Result.Cancelled
   | Backspace ->
-    if state.cursor == 0L then
+    if state.cursor == 0I then
       Result.Editing state
     else
-      let before = Stdlib.String.slice state.text 0I (Stdlib.Int.fromInt64 (state.cursor - 1L))
-      let after = Stdlib.String.dropFirst state.text (Stdlib.Int.fromInt64 state.cursor)
-      Result.Editing (State { text = before ++ after; cursor = state.cursor - 1L })
+      let before = Stdlib.String.slice state.text 0I (state.cursor - 1I)
+      let after = Stdlib.String.dropFirst state.text state.cursor
+      Result.Editing (State { text = before ++ after; cursor = state.cursor - 1I })
   | LeftArrow ->
-    if state.cursor > 0L then
-      Result.Editing ({ state with cursor = state.cursor - 1L })
+    if state.cursor > 0I then
+      Result.Editing ({ state with cursor = state.cursor - 1I })
     else
       Result.Editing state
   | RightArrow ->
-    let textLen = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length state.text))
+    let textLen = Stdlib.String.length state.text
     if state.cursor < textLen then
-      Result.Editing ({ state with cursor = state.cursor + 1L })
+      Result.Editing ({ state with cursor = state.cursor + 1I })
     else
       Result.Editing state
   | _ ->
     match keyChar with
     | Some ch ->
-      let before = Stdlib.String.slice state.text 0I (Stdlib.Int.fromInt64 state.cursor)
-      let after = Stdlib.String.dropFirst state.text (Stdlib.Int.fromInt64 state.cursor)
-      Result.Editing (State { text = before ++ ch ++ after; cursor = state.cursor + 1L })
+      let before = Stdlib.String.slice state.text 0I state.cursor
+      let after = Stdlib.String.dropFirst state.text state.cursor
+      Result.Editing (State { text = before ++ ch ++ after; cursor = state.cursor + 1I })
     | None -> Result.Editing state
 
 /// Render text with a visible cursor. Returns a styled string, does not print.
 let renderInline (state: State) : String =
-  let before = Stdlib.String.slice state.text 0I (Stdlib.Int.fromInt64 state.cursor)
+  let before = Stdlib.String.slice state.text 0I state.cursor
   let cursorChar =
-    if state.cursor < (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length state.text))) then
-      Stdlib.String.slice state.text (Stdlib.Int.fromInt64 state.cursor) (Stdlib.Int.fromInt64 (state.cursor + 1L))
+    if state.cursor < (Stdlib.String.length state.text) then
+      Stdlib.String.slice state.text state.cursor (state.cursor + 1I)
     else
       " "
   let cursorDisplay = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.reverse cursorChar
   let afterCursor =
-    if state.cursor < (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length state.text))) then
-      Stdlib.String.dropFirst state.text (Stdlib.Int.fromInt64 (state.cursor + 1L))
+    if state.cursor < (Stdlib.String.length state.text) then
+      Stdlib.String.dropFirst state.text (state.cursor + 1I)
     else
       ""
   before ++ cursorDisplay ++ afterCursor

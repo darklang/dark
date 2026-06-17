@@ -80,36 +80,36 @@ let statusBadge (status: String) : String =
 
 let hr () : String =
   let cols = Darklang.Cli.Terminal.getWidth ()
-  Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 cols))
+  Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" cols)
 
 let thinHr () : String =
   let cols = Darklang.Cli.Terminal.getWidth ()
-  Darklang.Cli.Colors.dimText (Stdlib.String.repeat "╌" (Stdlib.Int.fromInt64 cols))
+  Darklang.Cli.Colors.dimText (Stdlib.String.repeat "╌" cols)
 
-let padRight (s: String) (width: Int64) : String =
-  let len = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length s))
+let padRight (s: String) (width: Int) : String =
+  let len = Stdlib.String.length s
   if len >= width then
-    Stdlib.String.slice s 0I (Stdlib.Int.fromInt64 width)
+    Stdlib.String.slice s 0I width
   else
-    s ++ (Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (width - len)))
+    s ++ (Stdlib.String.repeat " " (width - len))
 
 let renderThread (thread: Thread) : Unit =
   let idStr = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.cyan) ("#" ++ Stdlib.Int64.toString thread.id)
   let badge = statusBadge thread.status
   let topicStr =
     if thread.status == "done" then
-      Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight thread.topic 40L)
+      Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight thread.topic 40I)
     else
-      Darklang.Cli.Colors.boldText (padRight thread.topic 40L)
-  let branchStr = Darklang.Cli.Colors.dimText (padRight thread.branch 10L)
+      Darklang.Cli.Colors.boldText (padRight thread.topic 40I)
+  let branchStr = Darklang.Cli.Colors.dimText (padRight thread.branch 10I)
   let costColor =
     match thread.status with
     | "running" -> Darklang.Cli.Colors.green
     | "review" -> Darklang.Cli.Colors.yellow
     | _ -> Darklang.Cli.Colors.dim
-  let costStr = Darklang.Cli.Colors.colorize costColor (padRight thread.cost 10L)
-  let tokensStr = Darklang.Cli.Colors.dimText (padRight thread.tokens 10L)
-  let timeStr = Darklang.Cli.Colors.dimText (padRight thread.time 8L)
+  let costStr = Darklang.Cli.Colors.colorize costColor (padRight thread.cost 10I)
+  let tokensStr = Darklang.Cli.Colors.dimText (padRight thread.tokens 10I)
+  let timeStr = Darklang.Cli.Colors.dimText (padRight thread.time 8I)
 
   Stdlib.printLine ("  " ++ idStr ++ "    " ++ badge ++ "  " ++ topicStr ++ "  " ++ branchStr ++ "  " ++ costStr ++ "  " ++ tokensStr ++ "  " ++ timeStr)
 
@@ -148,19 +148,19 @@ let render () : Unit =
   // Column headers
   let headerLine =
     "  "
-    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "ID" 4L)
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "ID" 4I)
     ++ "    "
-    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "STATUS" 10L)
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "STATUS" 10I)
     ++ "  "
-    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "TOPIC" 40L)
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "TOPIC" 40I)
     ++ "  "
-    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "BRANCH" 10L)
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "BRANCH" 10I)
     ++ "  "
-    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "COST" 10L)
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "COST" 10I)
     ++ "  "
-    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "TOKENS" 10L)
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "TOKENS" 10I)
     ++ "  "
-    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "TIME" 8L)
+    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "TIME" 8I)
   Stdlib.printLine headerLine
   Stdlib.printLine (hr ())
 

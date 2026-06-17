@@ -5,14 +5,14 @@ module Darklang.CLI.UI.Components.Forms
 type TextInputModel =
   { value: String
     placeholder: String
-    maxLength: Int64
+    maxLength: Int
     disabled: Bool
     password: Bool
-    cursorPosition: Int64 }
+    cursorPosition: Int }
 
-let createTextInput (placeholder: String) (maxLength: Int64) : Core.Types.Component<TextInputModel> =
-  let model = TextInputModel { value = ""; placeholder = placeholder; maxLength = maxLength; disabled = false; password = false; cursorPosition = 0L }
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxLength + 4L; height = 3L } }
+let createTextInput (placeholder: String) (maxLength: Int) : Core.Types.Component<TextInputModel> =
+  let model = TextInputModel { value = ""; placeholder = placeholder; maxLength = maxLength; disabled = false; password = false; cursorPosition = 0I }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = maxLength + 4I; height = 3I } }
   Core.Types.Component
     { id = "textinput"
       model = model
@@ -24,7 +24,7 @@ let createTextInput (placeholder: String) (maxLength: Int64) : Core.Types.Compon
 let renderTextInput (component: Core.Types.Component<TextInputModel>) (context: Core.Types.RenderContext) : List<String> =
   let model = component.model
   let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-  let innerWidth = component.bounds.dimensions.width - 4L
+  let innerWidth = component.bounds.dimensions.width - 4I
 
   // Calculate padding based on raw text length
   let (rawValue, styledValue) =
@@ -36,14 +36,14 @@ let renderTextInput (component: Core.Types.Component<TextInputModel>) (context: 
     else
       (model.value, model.value)
 
-  let textLen = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length rawValue))
-  let rightPad = if innerWidth > textLen then Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (innerWidth - textLen)) else ""
+  let textLen = Stdlib.String.length rawValue
+  let rightPad = if innerWidth > textLen then Stdlib.String.repeat " " (innerWidth - textLen) else ""
   let cursor = if hasFocus then "│" else " "
   let focusIndicator = if hasFocus then "► " else "  "
 
-  [ focusIndicator ++ "┌" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 2L)) ++ "┐"
+  [ focusIndicator ++ "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2I) ++ "┐"
     focusIndicator ++ "│ " ++ styledValue ++ rightPad ++ cursor ++ " │"
-    focusIndicator ++ "└" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 2L)) ++ "┘" ]
+    focusIndicator ++ "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2I) ++ "┘" ]
 
 let updateTextInput (component: Core.Types.Component<TextInputModel>) (event: Core.Types.ComponentEvent) : Core.Types.Component<TextInputModel> =
   match event with
@@ -51,23 +51,23 @@ let updateTextInput (component: Core.Types.Component<TextInputModel>) (event: Co
       let model = component.model
       (match keyEvent with
       | Character char ->
-          if (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length model.value))) < model.maxLength then
+          if (Stdlib.String.length model.value) < model.maxLength then
             let newValue = model.value ++ char
-            { component with model = { model with value = newValue; cursorPosition = model.cursorPosition + 1L } }
+            { component with model = { model with value = newValue; cursorPosition = model.cursorPosition + 1I } }
           else
             component
       | Backspace ->
-          if model.cursorPosition > 0L then
-            let newValue = Stdlib.String.slice model.value 0I (Stdlib.Int.fromInt64 (model.cursorPosition - 1L))
-            { component with model = { model with value = newValue; cursorPosition = model.cursorPosition - 1L } }
+          if model.cursorPosition > 0I then
+            let newValue = Stdlib.String.slice model.value 0I (model.cursorPosition - 1I)
+            { component with model = { model with value = newValue; cursorPosition = model.cursorPosition - 1I } }
           else
             component
       | Left ->
-          let newPos = if model.cursorPosition > 0L then model.cursorPosition - 1L else 0L
+          let newPos = if model.cursorPosition > 0I then model.cursorPosition - 1I else 0I
           { component with model = { model with cursorPosition = newPos } }
       | Right ->
-          let maxPos = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length model.value))
-          let newPos = if model.cursorPosition < maxPos then model.cursorPosition + 1L else maxPos
+          let maxPos = Stdlib.String.length model.value
+          let newPos = if model.cursorPosition < maxPos then model.cursorPosition + 1I else maxPos
           { component with model = { model with cursorPosition = newPos } }
       | _ -> component)
   | _ -> component
@@ -81,8 +81,8 @@ type CheckboxModel =
 
 let createCheckbox (label: String) (checked: Bool) : Core.Types.Component<CheckboxModel> =
   let model = CheckboxModel { checked = checked; label = label; disabled = false }
-  let labelLength = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length label))
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = labelLength + 6L; height = 1L } }
+  let labelLength = Stdlib.String.length label
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = labelLength + 6I; height = 1I } }
   Core.Types.Component
     { id = "checkbox-" ++ label
       model = model
@@ -116,17 +116,17 @@ let toggleCheckbox (component: Core.Types.Component<CheckboxModel>) : Core.Types
 // Radio Button Group Component
 type RadioModel =
   { options: List<String>
-    selectedIndex: Int64
+    selectedIndex: Int
     disabled: Bool }
 
-let createRadioGroup (options: List<String>) (selectedIndex: Int64) : Core.Types.Component<RadioModel> =
+let createRadioGroup (options: List<String>) (selectedIndex: Int) : Core.Types.Component<RadioModel> =
   let model = RadioModel { options = options; selectedIndex = selectedIndex; disabled = false }
   let maxWidth =
     options
-    |> Stdlib.List.map (fun opt -> (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length opt))) + 6L)
-    |> Stdlib.List.fold 20L (fun acc len -> if len > acc then len else acc)
-  let height = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length options))
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxWidth; height = height } }
+    |> Stdlib.List.map (fun opt -> (Stdlib.String.length opt) + 6I)
+    |> Stdlib.List.fold 20I (fun acc len -> if len > acc then len else acc)
+  let height = Stdlib.List.length options
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = maxWidth; height = height } }
   Core.Types.Component
     { id = "radiogroup"
       model = model
@@ -141,20 +141,20 @@ let renderRadioGroup (component: Core.Types.Component<RadioModel>) (context: Cor
 
   model.options
   |> Stdlib.List.indexedMap (fun i option ->
-      let isSelected = (Builtin.unwrap (Stdlib.Int.toInt64 i)) == model.selectedIndex
+      let isSelected = i == model.selectedIndex
       let radioSymbol = if isSelected then "●" else "○"
       let boxColor = if model.disabled then Core.Types.Color.Dark else Core.Types.Color.Primary
       let labelColor = if model.disabled then Core.Types.Color.Dark else Core.Types.Color.Default
 
       let styledRadio = Core.Rendering.colorize boxColor ("(" ++ radioSymbol ++ ")")
       let styledLabel = Core.Rendering.colorize labelColor option
-      let focusIndicator = if hasFocus && (Builtin.unwrap (Stdlib.Int.toInt64 i)) == model.selectedIndex then "► " else "  "
+      let focusIndicator = if hasFocus && i == model.selectedIndex then "► " else "  "
 
       focusIndicator ++ styledRadio ++ " " ++ styledLabel)
 
-let selectRadioOption (component: Core.Types.Component<RadioModel>) (index: Int64) : Core.Types.Component<RadioModel> =
+let selectRadioOption (component: Core.Types.Component<RadioModel>) (index: Int) : Core.Types.Component<RadioModel> =
   let model = component.model
-  if model.disabled || index < 0L || index >= (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length model.options))) then
+  if model.disabled || index < 0I || index >= (Stdlib.List.length model.options) then
     component
   else
     { component with model = { model with selectedIndex = index } }
@@ -163,18 +163,18 @@ let selectRadioOption (component: Core.Types.Component<RadioModel>) (index: Int6
 // Select Dropdown Component
 type SelectModel =
   { options: List<String>
-    selectedIndex: Int64
+    selectedIndex: Int
     isOpen: Bool
     disabled: Bool }
 
-let createSelect (options: List<String>) (selectedIndex: Int64) : Core.Types.Component<SelectModel> =
+let createSelect (options: List<String>) (selectedIndex: Int) : Core.Types.Component<SelectModel> =
   let model = SelectModel { options = options; selectedIndex = selectedIndex; isOpen = false; disabled = false }
   let maxWidth =
     options
-    |> Stdlib.List.map (fun opt -> Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length opt)))
-    |> Stdlib.List.fold 10L (fun acc len -> if len > acc then len else acc)
-  let baseHeight = if model.isOpen then (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length options))) + 2L else 1L
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxWidth + 4L; height = baseHeight } }
+    |> Stdlib.List.map (fun opt -> Stdlib.String.length opt)
+    |> Stdlib.List.fold 10I (fun acc len -> if len > acc then len else acc)
+  let baseHeight = if model.isOpen then (Stdlib.List.length options) + 2I else 1I
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = maxWidth + 4I; height = baseHeight } }
   Core.Types.Component
     { id = "select"
       model = model
@@ -188,11 +188,11 @@ let renderSelect (component: Core.Types.Component<SelectModel>) (context: Core.T
   let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
 
   let selectedOption =
-    match Stdlib.List.getAt model.options (Stdlib.Int.fromInt64 model.selectedIndex) with
+    match Stdlib.List.getAt model.options model.selectedIndex with
     | Some opt -> opt
     | None -> ""
 
-  let paddedOption = Core.Rendering.padText selectedOption (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left
+  let paddedOption = Core.Rendering.padText selectedOption (component.bounds.dimensions.width - 4I) Core.Types.Alignment.Left
   let arrow = if model.isOpen then "▲" else "▼"
   let focusIndicator = if hasFocus then "► " else "  "
 
@@ -202,16 +202,16 @@ let renderSelect (component: Core.Types.Component<SelectModel>) (context: Core.T
     let optionLines =
       model.options
       |> Stdlib.List.indexedMap (fun i option ->
-          let isSelected = (Builtin.unwrap (Stdlib.Int.toInt64 i)) == model.selectedIndex
+          let isSelected = i == model.selectedIndex
           let prefix = if isSelected then "►" else " "
           let styledOption =
             if isSelected then
               Core.Rendering.colorize Core.Types.Color.Primary (prefix ++ " " ++ option)
             else
               prefix ++ " " ++ option
-          "  │" ++ Core.Rendering.padText styledOption (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Left ++ "│")
+          "  │" ++ Core.Rendering.padText styledOption (component.bounds.dimensions.width - 4I) Core.Types.Alignment.Left ++ "│")
 
-    let bottomLine = "  └" ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 (component.bounds.dimensions.width - 2L)) ++ "┘"
+    let bottomLine = "  └" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2I) ++ "┘"
     [mainLine]
     |> Stdlib.List.append optionLines
     |> Stdlib.List.append [bottomLine]
@@ -226,10 +226,10 @@ type SliderModel =
     max: Float
     step: Float
     label: String
-    width: Int64
+    width: Int
     disabled: Bool }
 
-let createSlider (label: String) (min: Float) (max: Float) (value: Float) (width: Int64) : Core.Types.Component<SliderModel> =
+let createSlider (label: String) (min: Float) (max: Float) (value: Float) (width: Int) : Core.Types.Component<SliderModel> =
   let model =
     SliderModel
       { value = value
@@ -239,7 +239,7 @@ let createSlider (label: String) (min: Float) (max: Float) (value: Float) (width
       ; label = label
       ; width = width
       ; disabled = false }
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width + 4L; height = 3L } }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = width + 4I; height = 3I } }
   Core.Types.Component
     { id = "slider-" ++ label
       model = model
@@ -256,20 +256,18 @@ let renderSlider (component: Core.Types.Component<SliderModel>) (context: Core.T
     (Stdlib.Float.subtract model.value model.min)
     |> fun diff -> Stdlib.Float.divide diff (Stdlib.Float.subtract model.max model.min)
   let filledWidth =
-    (Stdlib.Float.multiply (Stdlib.Int64.toFloat model.width) percentage)
+    (Stdlib.Float.multiply (Stdlib.Int.toFloat model.width) percentage)
     |> Stdlib.Float.round
-    |> Stdlib.Int.toInt64
-    |> Builtin.unwrap
-  let emptyWidth = Stdlib.Int64.subtract model.width filledWidth
+  let emptyWidth = model.width - filledWidth
 
-  let track = Stdlib.String.repeat "═" (Stdlib.Int.fromInt64 filledWidth) ++ Stdlib.String.repeat "─" (Stdlib.Int.fromInt64 emptyWidth)
+  let track = Stdlib.String.repeat "═" filledWidth ++ Stdlib.String.repeat "─" emptyWidth
   let handle = "●"
   let valueText = "Value: " ++ Stdlib.Float.toString model.value
   let focusIndicator = if hasFocus then "► " else "  "
 
   [ focusIndicator ++ model.label ++ " (" ++ valueText ++ ")"
     focusIndicator ++ "├" ++ track ++ "┤"
-    focusIndicator ++ Stdlib.String.repeat " " (Stdlib.Int.fromInt64 filledWidth) ++ handle ]
+    focusIndicator ++ Stdlib.String.repeat " " filledWidth ++ handle ]
 
 let updateSlider (component: Core.Types.Component<SliderModel>) (direction: String) : Core.Types.Component<SliderModel> =
   let model = component.model
@@ -288,9 +286,9 @@ let updateSlider (component: Core.Types.Component<SliderModel>) (direction: Stri
 
 // DateField Component
 type DateFieldModel =
-  { day: Int64
-    month: Int64
-    year: Int64
+  { day: Int
+    month: Int
+    year: Int
     placeholder: String
     disabled: Bool
     focused: String } // "day", "month", "year", or ""
@@ -298,13 +296,13 @@ type DateFieldModel =
 let createDateField (placeholder: String) : Core.Types.Component<DateFieldModel> =
   let model =
     DateFieldModel
-      { day = 1L
-      ; month = 1L
-      ; year = 2024L
+      { day = 1I
+      ; month = 1I
+      ; year = 2024I
       ; placeholder = placeholder
       ; disabled = false
       ; focused = "" }
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = 20L; height = 3L } }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = 20I; height = 3I } }
   Core.Types.Component
     { id = "datefield"
       model = model
@@ -317,9 +315,9 @@ let renderDateField (component: Core.Types.Component<DateFieldModel>) (context: 
   let model = component.model
   let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
 
-  let dayStr = if model.day < 10L then "0" ++ Stdlib.Int64.toString model.day else Stdlib.Int64.toString model.day
-  let monthStr = if model.month < 10L then "0" ++ Stdlib.Int64.toString model.month else Stdlib.Int64.toString model.month
-  let yearStr = Stdlib.Int64.toString model.year
+  let dayStr = if model.day < 10I then "0" ++ Stdlib.Int.toString model.day else Stdlib.Int.toString model.day
+  let monthStr = if model.month < 10I then "0" ++ Stdlib.Int.toString model.month else Stdlib.Int.toString model.month
+  let yearStr = Stdlib.Int.toString model.year
 
   let dayPart = if model.focused == "day" && hasFocus then "[" ++ dayStr ++ "]" else dayStr
   let monthPart = if model.focused == "month" && hasFocus then "[" ++ monthStr ++ "]" else monthStr
@@ -330,7 +328,7 @@ let renderDateField (component: Core.Types.Component<DateFieldModel>) (context: 
 
   [ focusIndicator ++ model.placeholder
     focusIndicator ++ "┌──────────────────┐"
-    focusIndicator ++ "│ " ++ Core.Rendering.padText dateValue 16L Core.Types.Alignment.Center ++ " │"
+    focusIndicator ++ "│ " ++ Core.Rendering.padText dateValue 16I Core.Types.Alignment.Center ++ " │"
     focusIndicator ++ "└──────────────────┘" ]
 
 let updateDateField (component: Core.Types.Component<DateFieldModel>) (field: String) (increment: Bool) : Core.Types.Component<DateFieldModel> =
@@ -340,16 +338,16 @@ let updateDateField (component: Core.Types.Component<DateFieldModel>) (field: St
   else
     let (newDay, newMonth, newYear) =
       if field == "day" then
-        let newDay = if increment then model.day + 1L else model.day - 1L
-        let clampedDay = if newDay > 31L then 1L else if newDay < 1L then 31L else newDay
+        let newDay = if increment then model.day + 1I else model.day - 1I
+        let clampedDay = if newDay > 31I then 1I else if newDay < 1I then 31I else newDay
         (clampedDay, model.month, model.year)
       else if field == "month" then
-        let newMonth = if increment then model.month + 1L else model.month - 1L
-        let clampedMonth = if newMonth > 12L then 1L else if newMonth < 1L then 12L else newMonth
+        let newMonth = if increment then model.month + 1I else model.month - 1I
+        let clampedMonth = if newMonth > 12I then 1I else if newMonth < 1I then 12I else newMonth
         (model.day, clampedMonth, model.year)
       else if field == "year" then
-        let newYear = if increment then model.year + 1L else model.year - 1L
-        let clampedYear = if newYear < 1900L then 1900L else if newYear > 2100L then 2100L else newYear
+        let newYear = if increment then model.year + 1I else model.year - 1I
+        let clampedYear = if newYear < 1900I then 1900I else if newYear > 2100I then 2100I else newYear
         (model.day, model.month, clampedYear)
       else
         (model.day, model.month, model.year)
