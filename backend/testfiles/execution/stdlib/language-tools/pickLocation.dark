@@ -29,16 +29,16 @@ let emptyCtx () : Darklang.LanguageTools.PackageManager.PickContext =
 // countMatchingPrefix
 // ========================================
 
-Darklang.LanguageTools.PackageManager.countMatchingPrefix [] [] = 0L
-Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"] [] = 0L
-Darklang.LanguageTools.PackageManager.countMatchingPrefix [] ["A"] = 0L
-Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"] ["A"] = 1L
-Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"] = 2L
-Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"; "C"] ["A"; "B"; "C"] = 3L
-Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "X"] = 1L
-Darklang.LanguageTools.PackageManager.countMatchingPrefix ["X"; "B"] ["A"; "B"] = 0L
-Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"; "C"] ["A"; "B"] = 2L
-Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"; "C"] = 2L
+Darklang.LanguageTools.PackageManager.countMatchingPrefix [] [] = 0I
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"] [] = 0I
+Darklang.LanguageTools.PackageManager.countMatchingPrefix [] ["A"] = 0I
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"] ["A"] = 1I
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"] = 2I
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"; "C"] ["A"; "B"; "C"] = 3I
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "X"] = 1I
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["X"; "B"] ["A"; "B"] = 0I
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"; "C"] ["A"; "B"] = 2I
+Darklang.LanguageTools.PackageManager.countMatchingPrefix ["A"; "B"] ["A"; "B"; "C"] = 2I
 
 
 // ========================================

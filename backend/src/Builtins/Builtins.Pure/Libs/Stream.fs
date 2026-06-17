@@ -348,7 +348,7 @@ let fns () : List<BuiltInFn> =
       typeParams = [ "a" ]
       parameters =
         [ Param.make "stream" (TStream varA) ""
-          Param.make "n" TInt64 "Maximum number of elements to yield." ]
+          Param.make "n" TInt "Maximum number of elements to yield." ]
       returnType = TStream varA
       description =
         "Returns a new stream that yields at most the first <param n> elements
@@ -356,10 +356,10 @@ let fns () : List<BuiltInFn> =
          Terminates early without pulling the source past the limit."
       fn =
         (function
-        | _, _, _, [ DStream(src, _, _); DInt64 n ] ->
+        | _, _, _, [ DStream(src, _, _); DInt n ] ->
           // Clamp negative n to 0 — pullStreamImpl treats remaining<=0
           // as done, so a negative here becomes an empty stream.
-          let clamped = max 0L n
+          let clamped = max 0L (int64 (DarkInt.toBigInt n))
           Stream.wrapImpl (Take(src, clamped, ref clamped)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

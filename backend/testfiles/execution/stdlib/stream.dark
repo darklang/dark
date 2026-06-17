@@ -53,17 +53,17 @@
 
 // take caps at n
 (let s = Stdlib.Stream.fromList [ 10L; 20L; 30L; 40L ]
- let first2 = Stdlib.Stream.take s 2L
+ let first2 = Stdlib.Stream.take s 2I
  Stdlib.Stream.toList first2) = [ 10L; 20L ]
 
 // take more than available returns all available
 (let s = Stdlib.Stream.fromList [ 7L; 8L ]
- let wide = Stdlib.Stream.take s 10L
+ let wide = Stdlib.Stream.take s 10I
  Stdlib.Stream.toList wide) = [ 7L; 8L ]
 
 // take 0 returns empty without pulling
 (let s = Stdlib.Stream.fromList [ 1L; 2L ]
- let none = Stdlib.Stream.take s 0L
+ let none = Stdlib.Stream.take s 0I
  Stdlib.Stream.toList none) = []
 
 // concat drains streams in list order
@@ -88,7 +88,7 @@
 (let s = Stdlib.Stream.fromList [ 1L; 2L; 3L; 4L; 5L; 6L; 7L; 8L; 9L; 10L ]
  let filtered = Stdlib.Stream.filter s (fun n -> n % 2L == 0L)
  let mapped = Stdlib.Stream.map filtered (fun n -> n + 1L)
- let taken = Stdlib.Stream.take mapped 3L
+ let taken = Stdlib.Stream.take mapped 3I
  Stdlib.Stream.toList taken) = [ 3L; 5L; 7L ]
 
 
@@ -102,12 +102,12 @@
 // take after map — the take limit applies to the mapped output
 (let s = Stdlib.Stream.fromList [ 1L; 2L; 3L; 4L; 5L ]
  let mapped = Stdlib.Stream.map s (fun n -> n * 10L)
- let taken = Stdlib.Stream.take mapped 2L
+ let taken = Stdlib.Stream.take mapped 2I
  Stdlib.Stream.toList taken) = [ 10L; 20L ]
 
 // map after take — map only applies to elements that survive the take
 (let s = Stdlib.Stream.fromList [ 1L; 2L; 3L; 4L; 5L ]
- let taken = Stdlib.Stream.take s 3L
+ let taken = Stdlib.Stream.take s 3I
  let mapped = Stdlib.Stream.map taken (fun n -> n * n)
  Stdlib.Stream.toList mapped) = [ 1L; 4L; 9L ]
 
@@ -122,7 +122,7 @@
 // filter then take: early-terminate once Take is satisfied
 (let s = Stdlib.Stream.fromList [ 1L; 2L; 3L; 4L; 5L; 6L; 7L; 8L ]
  let evens = Stdlib.Stream.filter s (fun n -> n % 2L == 0L)
- let firstTwo = Stdlib.Stream.take evens 2L
+ let firstTwo = Stdlib.Stream.take evens 2I
  Stdlib.Stream.toList firstTwo) = [ 2L; 4L ]
 
 // concat of concats flattens correctly
@@ -137,7 +137,7 @@
 (let s = Stdlib.Stream.fromList<Int64> []
  let mapped = Stdlib.Stream.map s (fun n -> n + 1L)
  let filtered = Stdlib.Stream.filter mapped (fun n -> n > 0L)
- let taken = Stdlib.Stream.take filtered 5L
+ let taken = Stdlib.Stream.take filtered 5I
  Stdlib.Stream.toList taken) = []
 
 // Stream<Blob> round-trips via fromList/toList
