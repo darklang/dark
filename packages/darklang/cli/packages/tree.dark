@@ -129,11 +129,11 @@ let execute (state: AppState) (args: List<String>): AppState =
       match Stdlib.List.findFirst args (fun arg -> Stdlib.String.startsWith arg "--depth=") with
       | Some depthArg ->
         let depthStr = Stdlib.String.dropFirst depthArg 8I // Remove "--depth="
-        match Stdlib.Int64.parse depthStr with
+        match Stdlib.Int.parse depthStr with
         | Ok depth ->
-          if depth > 0L && depth <= 10L then depth else 2L // Limit to reasonable range
-        | Error _ -> 2L
-      | None -> 2L // Default depth of 2 for concise but useful view
+          if depth > 0I && depth <= 10I then depth else 2I // Limit to reasonable range
+        | Error _ -> 2I
+      | None -> 2I // Default depth of 2 for concise but useful view
 
     // Determine starting location
     let branchId = state.currentBranchId
@@ -157,7 +157,7 @@ let execute (state: AppState) (args: List<String>): AppState =
     let locationStr = Packages.formatLocation startLocation
     Stdlib.printLine $"Package tree from {locationStr}:"
     Stdlib.printLine ""
-    displayTree branchId startLocation maxDepth 0L "" depSets includeDeprecated
+    displayTree branchId startLocation maxDepth 0I "" depSets includeDeprecated
 
     state
 
@@ -169,13 +169,13 @@ let execute (state: AppState) (args: List<String>): AppState =
 let displayTree
   (branchId: Uuid)
   (location: PackageLocation)
-  (remainingDepth: Int64)
-  (currentDepth: Int64)
+  (remainingDepth: Int)
+  (currentDepth: Int)
   (prefix: String)
   (depSets: Query.DeprecationSets)
   (includeDeprecated: Bool)
   : Unit =
-  if remainingDepth <= 0L then
+  if remainingDepth <= 0I then
     ()
   else
     let modulePath =
@@ -243,15 +243,15 @@ let displayTree
       Stdlib.printLine $"{fullPrefix}{icon}{name}{mark}"
 
       // Recursively display submodules
-      if entityType == EntityType.Module && remainingDepth > 1L then
+      if entityType == EntityType.Module && remainingDepth > 1I then
         let newPrefix = prefix ++ (if isLast then "    " else "│   ")
         let newModulePath = Stdlib.List.append modulePath [name]
         let newLocation = PackageLocation.Module newModulePath
         displayTree
           branchId
           newLocation
-          (remainingDepth - 1L)
-          (currentDepth + 1L)
+          (remainingDepth - 1I)
+          (currentDepth + 1I)
           newPrefix
           depSets
           includeDeprecated

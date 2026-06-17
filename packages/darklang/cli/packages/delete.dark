@@ -49,7 +49,7 @@ let countLiveDependents
   (branchId: Uuid)
   (targetLoc: LanguageTools.ProgramTypes.PackageLocation)
   (targetKind: LanguageTools.ProgramTypes.ItemKind)
-  : Int64 =
+  : Int =
   let deps = Builtin.depsGetDependents branchId [ (targetLoc, targetKind) ]
   let depSets = Query.loadDeprecationSets branchId
   deps
@@ -57,8 +57,6 @@ let countLiveDependents
     let (depHash, _depLoc, _depKind) = entry
     Stdlib.Bool.not (Query.isDeprecated depSets depHash))
   |> Stdlib.List.length
-  |> Stdlib.Int.toInt64
-  |> Builtin.unwrap
 
 
 /// Translate delete's ParsedArgs into the equivalent `deprecate --kind obsolete`
@@ -113,10 +111,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             // Only gate `delete` adds over `deprecate --kind obsolete`: refuse
             // when LIVE dependents exist. Deprecated-only callers don't block.
             let depCount = countLiveDependents branchId targetLoc itemKind
-            if depCount > 0L && Stdlib.Bool.not parsed.ignoreDependents then
+            if depCount > 0I && Stdlib.Bool.not parsed.ignoreDependents then
               Stdlib.printLine
                 (Colors.error
-                  $"{Stdlib.Int64.toString depCount} live dependent(s) still reference this item.")
+                  $"{Stdlib.Int.toString depCount} live dependent(s) still reference this item.")
               Stdlib.printLine
                 "Use `deprecate` to give them time to migrate, or pass `--ignore-dependents` / `--force`."
               state
