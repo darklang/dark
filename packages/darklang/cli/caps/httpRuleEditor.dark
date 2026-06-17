@@ -9,7 +9,7 @@ type Field =
   | UrlField
 
 type State =
-  { methodIdx: Int64
+  { methodIdx: Int
     url: LineInput.State
     field: Field }
 
@@ -23,14 +23,14 @@ let methods : List<String> =
 
 let empty : State =
   State
-    { methodIdx = 1L
+    { methodIdx = 1I
       url = LineInput.empty
       field = Field.MethodField }
 
 // find a method's index (default 0 = `*`)
-let indexOfMethod (m: String) : Int64 =
-  let indexed = Stdlib.List.indexedMap methods (fun i x -> (Builtin.unwrap (Stdlib.Int.toInt64 i), x))
-  Stdlib.List.fold indexed 0L (fun acc pair ->
+let indexOfMethod (m: String) : Int =
+  let indexed = Stdlib.List.indexedMap methods (fun i x -> (i, x))
+  Stdlib.List.fold indexed 0I (fun acc pair ->
     let (i, x) = pair
     if x == m then i else acc)
 
@@ -52,7 +52,7 @@ let fromSpec (spec: String) : State =
   | _ -> empty
 
 let currentMethod (state: State) : String =
-  methods |> Stdlib.List.getAt (Stdlib.Int.fromInt64 state.methodIdx) |> Stdlib.Option.withDefault "*"
+  methods |> Stdlib.List.getAt state.methodIdx |> Stdlib.Option.withDefault "*"
 
 let toSpec (state: State) : String =
   let m = currentMethod state
@@ -60,12 +60,12 @@ let toSpec (state: State) : String =
   let u = Stdlib.String.trim urlState.text
   if u == "" then $"http-client {m}" else $"http-client {m} {u}"
 
-let cycleMethod (state: State) (delta: Int64) : State =
-  let count = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length methods)))
+let cycleMethod (state: State) (delta: Int) : State =
+  let count = (Stdlib.List.length methods)
   let raw = state.methodIdx + delta
   let next =
-    if raw < 0L then count - 1L
-    else if raw >= count then 0L
+    if raw < 0I then count - 1I
+    else if raw >= count then 0I
     else raw
   { state with methodIdx = next }
 
@@ -103,13 +103,13 @@ let handleKey
   | UpArrow -> EditResult.Editing ({ state with field = Field.MethodField })
   | DownArrow -> EditResult.Editing ({ state with field = Field.UrlField })
   | LeftArrow ->
-    if onMethod then EditResult.Editing (cycleMethod state (0L - 1L))
+    if onMethod then EditResult.Editing (cycleMethod state (0I - 1I))
     else EditResult.Editing (applyUrlKey state key keyChar)
   | RightArrow ->
-    if onMethod then EditResult.Editing (cycleMethod state 1L)
+    if onMethod then EditResult.Editing (cycleMethod state 1I)
     else EditResult.Editing (applyUrlKey state key keyChar)
   | Spacebar ->
-    if onMethod then EditResult.Editing (cycleMethod state 1L)
+    if onMethod then EditResult.Editing (cycleMethod state 1I)
     else EditResult.Editing (applyUrlKey state key keyChar)
   | _ -> EditResult.Editing (applyUrlKey state key keyChar)
 

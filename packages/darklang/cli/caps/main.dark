@@ -23,16 +23,16 @@ type Row =
 // removes the original before adding the new one (otherwise editing a rule would duplicate it).
 type Screen =
   | Browsing
-  | AddPickDomain of Int64
+  | AddPickDomain of Int
   | EditHttp of String * HttpRuleEditor.State
   | EditExec of String * ExecRuleEditor.State
   | EditAccess of String * AccessEditor.State
-  | PickProfile of Int64
+  | PickProfile of Int
 
 type State =
   { specs: List<String>
     saved: List<String>
-    cursor: Int64
+    cursor: Int
     dirty: Bool
     screen: Screen }
 
@@ -46,7 +46,7 @@ let load () : State =
   State
     { specs = specs
       saved = specs
-      cursor = 0L
+      cursor = 0I
       dirty = false
       screen = Screen.Browsing }
 
@@ -66,7 +66,7 @@ let rows (state: State) : List<Row> =
     |> Stdlib.List.map (fun s -> Row.RuleRow s)
   Stdlib.List.append flagRows (Stdlib.List.append ruleRows [ Row.AddRuleRow ])
 
-let rowCount (state: State) : Int64 = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length (rows state))))
+let rowCount (state: State) : Int = (Stdlib.List.length (rows state))
 
 let toggleFlag (state: State) (domain: String) : State =
   if Stdlib.List.member_v0 state.specs domain then
@@ -121,9 +121,9 @@ let editNew (state: State) (domain: String) : State =
 let private clampCursor (state: State) : State =
   let count = rowCount state
   let c =
-    if count == 0L then 0L
-    else if state.cursor >= count then count - 1L
-    else if state.cursor < 0L then 0L
+    if count == 0I then 0I
+    else if state.cursor >= count then count - 1I
+    else if state.cursor < 0I then 0I
     else state.cursor
   { state with cursor = c }
 
@@ -137,29 +137,29 @@ let handleBrowsing
     // discard unsaved edits: restore the last-saved set so onSave writes it unchanged
     KeyResult.Exit ({ state with specs = state.saved })
   | UpArrow ->
-    let c = if state.cursor > 0L then state.cursor - 1L else 0L
+    let c = if state.cursor > 0I then state.cursor - 1I else 0I
     KeyResult.Continue ({ state with cursor = c })
   | DownArrow ->
-    let maxIdx = rowCount state - 1L
-    let c = if state.cursor < maxIdx then state.cursor + 1L else maxIdx
+    let maxIdx = rowCount state - 1I
+    let c = if state.cursor < maxIdx then state.cursor + 1I else maxIdx
     KeyResult.Continue ({ state with cursor = c })
   | Spacebar ->
-    match Stdlib.List.getAt (rows state) (Stdlib.Int.fromInt64 state.cursor) with
+    match Stdlib.List.getAt (rows state) state.cursor with
     | Some(FlagRow(d, _)) -> KeyResult.Continue (toggleFlag state d)
     | _ -> KeyResult.Continue state
   | Enter ->
-    match Stdlib.List.getAt (rows state) (Stdlib.Int.fromInt64 state.cursor) with
+    match Stdlib.List.getAt (rows state) state.cursor with
     | Some(FlagRow(d, _)) -> KeyResult.Continue (toggleFlag state d)
     | Some(RuleRow spec) -> KeyResult.Continue (editSpec state spec)
     | Some AddRuleRow ->
-      KeyResult.Continue ({ state with screen = Screen.AddPickDomain 0L })
+      KeyResult.Continue ({ state with screen = Screen.AddPickDomain 0I })
     | None -> KeyResult.Continue state
   | _ ->
     match keyChar with
-    | Some "a" -> KeyResult.Continue ({ state with screen = Screen.AddPickDomain 0L })
-    | Some "p" -> KeyResult.Continue ({ state with screen = Screen.PickProfile 0L })
+    | Some "a" -> KeyResult.Continue ({ state with screen = Screen.AddPickDomain 0I })
+    | Some "p" -> KeyResult.Continue ({ state with screen = Screen.PickProfile 0I })
     | Some "d" ->
-      match Stdlib.List.getAt (rows state) (Stdlib.Int.fromInt64 state.cursor) with
+      match Stdlib.List.getAt (rows state) state.cursor with
       | Some(RuleRow spec) -> KeyResult.Continue (clampCursor (removeSpec state spec))
       | _ -> KeyResult.Continue state
     | Some "w" ->
@@ -168,17 +168,17 @@ let handleBrowsing
     | _ -> KeyResult.Continue state
 
 let handleMenu
-  (cursor: Int64)
-  (count: Int64)
+  (cursor: Int)
+  (count: Int)
   (key: Stdlib.Cli.Stdin.Key.Key)
-  : Stdlib.Option.Option<Int64> =
+  : Stdlib.Option.Option<Int> =
   // returns Some newCursor while browsing; None signals Enter/Escape handled by caller via key match
   match key with
   | UpArrow ->
-    let c = if cursor > 0L then cursor - 1L else 0L
+    let c = if cursor > 0I then cursor - 1I else 0I
     Stdlib.Option.Option.Some c
   | DownArrow ->
-    let c = if cursor < count - 1L then cursor + 1L else count - 1L
+    let c = if cursor < count - 1I then cursor + 1I else count - 1I
     Stdlib.Option.Option.Some c
   | _ -> Stdlib.Option.Option.None
 
@@ -194,18 +194,18 @@ let handleKey
     match key with
     | Escape -> KeyResult.Continue ({ state with screen = Screen.Browsing })
     | Enter ->
-      match Stdlib.List.getAt ruleDomains (Stdlib.Int.fromInt64 cursor) with
+      match Stdlib.List.getAt ruleDomains cursor with
       | Some d -> KeyResult.Continue (editNew state d)
       | None -> KeyResult.Continue ({ state with screen = Screen.Browsing })
     | _ ->
-      match handleMenu cursor (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length ruleDomains))) key with
+      match handleMenu cursor (Stdlib.List.length ruleDomains) key with
       | Some c -> KeyResult.Continue ({ state with screen = Screen.AddPickDomain c })
       | None -> KeyResult.Continue state
   | PickProfile cursor ->
     match key with
     | Escape -> KeyResult.Continue ({ state with screen = Screen.Browsing })
     | Enter ->
-      match Stdlib.List.getAt Command.profiles (Stdlib.Int.fromInt64 cursor) with
+      match Stdlib.List.getAt Command.profiles cursor with
       | Some((_, specs)) ->
         // a profile can have fewer rows than the current grant — clamp the cursor back in range
         KeyResult.Continue
@@ -213,7 +213,7 @@ let handleKey
             ({ state with specs = specs; dirty = true; screen = Screen.Browsing }))
       | None -> KeyResult.Continue ({ state with screen = Screen.Browsing })
     | _ ->
-      match handleMenu cursor (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length Command.profiles))) key with
+      match handleMenu cursor (Stdlib.List.length Command.profiles) key with
       | Some c -> KeyResult.Continue ({ state with screen = Screen.PickProfile c })
       | None -> KeyResult.Continue state
   | EditHttp(orig, editor) ->
@@ -245,7 +245,7 @@ let private rowText (row: Row) : String =
   | RuleRow spec -> Darklang.PrettyPrinter.Capabilities.line spec
   | AddRuleRow -> "+ Add rule…"
 
-let private printOneRow (state: State) (pair: (Int64 * Row)) : Unit =
+let private printOneRow (state: State) (pair: (Int * Row)) : Unit =
   let (i, r) = pair
   let selected = i == state.cursor
   let prefix = if selected then "›" else " "
@@ -258,8 +258,8 @@ let private printOneRow (state: State) (pair: (Int64 * Row)) : Unit =
 // flag checklist on top, then a labelled "Scoped rules" section (existing rules + the "+ Add rule…"
 // affordance). The cursor index maps into `rows`; the section label is printed between, not selectable.
 let private printRows (state: State) : Unit =
-  let flagCount = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length flagDomains)))
-  let indexed = Stdlib.List.indexedMap (rows state) (fun i r -> (Builtin.unwrap (Stdlib.Int.toInt64 i), r))
+  let flagCount = (Stdlib.List.length flagDomains)
+  let indexed = Stdlib.List.indexedMap (rows state) (fun i r -> (i, r))
   indexed
   |> Stdlib.List.filter (fun pair -> Stdlib.Tuple2.first pair < flagCount)
   |> Stdlib.List.iter (fun pair -> printOneRow state pair)
@@ -269,10 +269,10 @@ let private printRows (state: State) : Unit =
   |> Stdlib.List.filter (fun pair -> Stdlib.Tuple2.first pair >= flagCount)
   |> Stdlib.List.iter (fun pair -> printOneRow state pair)
 
-let private printMenu (title: String) (items: List<String>) (cursor: Int64) : Unit =
+let private printMenu (title: String) (items: List<String>) (cursor: Int) : Unit =
   Stdlib.printLine title
   Stdlib.printLine ""
-  let indexed = Stdlib.List.indexedMap items (fun i x -> (Builtin.unwrap (Stdlib.Int.toInt64 i), x))
+  let indexed = Stdlib.List.indexedMap items (fun i x -> (i, x))
   Stdlib.List.iter indexed (fun pair ->
     let (i, x) = pair
     let selected = i == cursor

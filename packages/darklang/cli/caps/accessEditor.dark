@@ -10,7 +10,7 @@ type Field =
 
 type State =
   { domain: String
-    accessIdx: Int64
+    accessIdx: Int
     scope: LineInput.State
     field: Field }
 
@@ -24,13 +24,13 @@ let accesses : List<String> = [ "read"; "write"; "read+write" ]
 let forDomain (domain: String) : State =
   State
     { domain = domain
-      accessIdx = 0L
+      accessIdx = 0I
       scope = LineInput.empty
       field = Field.AccessField }
 
-let indexOfAccess (a: String) : Int64 =
-  let indexed = Stdlib.List.indexedMap accesses (fun i x -> (Builtin.unwrap (Stdlib.Int.toInt64 i), x))
-  Stdlib.List.fold indexed 0L (fun acc pair ->
+let indexOfAccess (a: String) : Int =
+  let indexed = Stdlib.List.indexedMap accesses (fun i x -> (i, x))
+  Stdlib.List.fold indexed 0I (fun acc pair ->
     let (i, x) = pair
     if x == a then i else acc)
 
@@ -51,7 +51,7 @@ let fromSpec (spec: String) : State =
   | _ -> forDomain "file"
 
 let currentAccess (state: State) : String =
-  accesses |> Stdlib.List.getAt (Stdlib.Int.fromInt64 state.accessIdx) |> Stdlib.Option.withDefault "read"
+  accesses |> Stdlib.List.getAt state.accessIdx |> Stdlib.Option.withDefault "read"
 
 let toSpec (state: State) : String =
   let access = currentAccess state
@@ -60,12 +60,12 @@ let toSpec (state: State) : String =
   if scope == "" then $"{state.domain} {access}"
   else $"{state.domain} {access} {scope}"
 
-let cycleAccess (state: State) (delta: Int64) : State =
-  let count = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length accesses)))
+let cycleAccess (state: State) (delta: Int) : State =
+  let count = (Stdlib.List.length accesses)
   let raw = state.accessIdx + delta
   let next =
-    if raw < 0L then count - 1L
-    else if raw >= count then 0L
+    if raw < 0I then count - 1I
+    else if raw >= count then 0I
     else raw
   { state with accessIdx = next }
 
@@ -102,13 +102,13 @@ let handleKey
   | UpArrow -> EditResult.Editing ({ state with field = Field.AccessField })
   | DownArrow -> EditResult.Editing ({ state with field = Field.ScopeField })
   | LeftArrow ->
-    if onAccess then EditResult.Editing (cycleAccess state (0L - 1L))
+    if onAccess then EditResult.Editing (cycleAccess state (0I - 1I))
     else EditResult.Editing (applyScopeKey state key keyChar)
   | RightArrow ->
-    if onAccess then EditResult.Editing (cycleAccess state 1L)
+    if onAccess then EditResult.Editing (cycleAccess state 1I)
     else EditResult.Editing (applyScopeKey state key keyChar)
   | Spacebar ->
-    if onAccess then EditResult.Editing (cycleAccess state 1L)
+    if onAccess then EditResult.Editing (cycleAccess state 1I)
     else EditResult.Editing (applyScopeKey state key keyChar)
   | _ -> EditResult.Editing (applyScopeKey state key keyChar)
 
