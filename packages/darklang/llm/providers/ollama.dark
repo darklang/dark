@@ -18,7 +18,7 @@ let configWithUrl (baseUrl: String) : Providers.OpenAI.Config =
       baseUrl = baseUrl ++ "/v1/chat/completions"
       providerId = "ollama"
       providerName = "Ollama (Local)"
-      maxContextTokens = 128000L }
+      maxContextTokens = 128000I }
 
 /// Ollama configuration (reads OLLAMA_BASE_URL, defaults to localhost:11434)
 let config () : Providers.OpenAI.Config =

@@ -72,13 +72,13 @@ let formatDirectoryEntries (entries: List<String>) : String =
 // FILE SEARCH
 
 type SearchState =
-  { filesScanned: Int64
+  { filesScanned: Int
     matches: List<String>
     hitResultLimit: Bool
     hitFileLimit: Bool }
 
-let maxSearchResults : Int64 = 50L
-let maxSearchFiles : Int64 = 200L
+let maxSearchResults : Int = 50I
+let maxSearchFiles : Int = 200I
 
 let filePathToDisplayPath (fullPath: String) : String =
   let cwd = Builtin.directoryCurrent ()
@@ -98,7 +98,7 @@ let searchFileForPattern
   if state.hitResultLimit || state.hitFileLimit then
     state
   else
-    let nextState = { state with filesScanned = state.filesScanned + 1L }
+    let nextState = { state with filesScanned = state.filesScanned + 1I }
     if nextState.filesScanned > maxSearchFiles then
       { nextState with hitFileLimit = true }
     else
@@ -111,20 +111,20 @@ let searchFileForPattern
 
         let (_, finalState) =
           lines
-          |> Stdlib.List.fold (1L, nextState) (fun (lineNumber, currentState) line ->
+          |> Stdlib.List.fold (1I, nextState) (fun (lineNumber, currentState) line ->
             if currentState.hitResultLimit then
-              (lineNumber + 1L, currentState)
+              (lineNumber + 1I, currentState)
             else if Stdlib.String.contains line pattern then
-              let matchText = $"{displayPath}:{Stdlib.Int64.toString lineNumber}: {line}"
+              let matchText = $"{displayPath}:{Stdlib.Int.toString lineNumber}: {line}"
               let updatedMatches = Stdlib.List.append currentState.matches [ matchText ]
-              let reachedLimit = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length updatedMatches))) >= maxSearchResults
+              let reachedLimit = (Stdlib.List.length updatedMatches) >= maxSearchResults
               let updatedState =
                 { currentState with
                     matches = updatedMatches
                     hitResultLimit = reachedLimit }
-              (lineNumber + 1L, updatedState)
+              (lineNumber + 1I, updatedState)
             else
-              (lineNumber + 1L, currentState))
+              (lineNumber + 1I, currentState))
 
         finalState
 
@@ -233,7 +233,7 @@ let handleSearch (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
         | Ok fullPath ->
           let initialState =
             SearchState
-              { filesScanned = 0L
+              { filesScanned = 0I
                 matches = []
                 hitResultLimit = false
                 hitFileLimit = false }

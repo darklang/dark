@@ -677,7 +677,7 @@ let buildProvider (config: Config) : Provider =
             supportsStreaming = false
             supportsSystemPrompt = true
             supportsImages = true
-            maxContextTokens = 200000L } }
+            maxContextTokens = 200000I } }
 
 
 /// Create an Anthropic provider with default configuration
