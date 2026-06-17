@@ -52,30 +52,30 @@ let chatWithModel
 
 /// Use Anthropic Claude
 let withAnthropic (question: String) : String =
-  chatWithModel Models.Anthropic.sonnet45 4096L question
+  chatWithModel Models.Anthropic.sonnet45 4096I question
 
 /// Use OpenAI GPT
 let withOpenAI (question: String) : String =
-  chatWithModel Models.OpenAI.gpt4o 4096L question
+  chatWithModel Models.OpenAI.gpt4o 4096I question
 
 /// Use local Ollama
 let withOllama (question: String) : String =
-  chatWithModel Models.Local.llama3 4096L question
+  chatWithModel Models.Local.llama3 4096I question
 
 
 // MODEL TIERS (Fast vs Balanced vs Smart)
 
 /// Use fast model (Haiku) - good for simple tasks
 let fast (question: String) : String =
-  chatWithModel Models.Anthropic.haiku45 500L question
+  chatWithModel Models.Anthropic.haiku45 500I question
 
 /// Use balanced model (Sonnet) - good for most tasks
 let balanced (question: String) : String =
-  chatWithModel Models.Anthropic.sonnet45 2000L question
+  chatWithModel Models.Anthropic.sonnet45 2000I question
 
 /// Use smart model (Opus) - good for complex reasoning
 let smart (question: String) : String =
-  chatWithModel Models.Anthropic.opus46 4000L question
+  chatWithModel Models.Anthropic.opus46 4000I question
 
 
 
