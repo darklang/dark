@@ -57,7 +57,7 @@ module Response =
       let body = Map.get "body" fields
 
       match code, headers, body with
-      | Some(RT.DInt64 code), Some(RT.DList(_, headers)), Some(RT.DBlob bodyRef) ->
+      | Some(RT.DInt code), Some(RT.DList(_, headers)), Some(RT.DBlob bodyRef) ->
         let headers =
           headers
           |> List.fold
@@ -74,7 +74,7 @@ module Response =
         | Ok headers ->
           let! body = Blob.readBytes state bodyRef
           return
-            { statusCode = int code
+            { statusCode = int (RT.DarkInt.toBigInt code)
               headers = lowercaseHeaderKeys headers
               body = body }
         | Error msg ->
@@ -106,7 +106,7 @@ module Response =
           ""
           "HTTP handlers should return results in the form:"
           "  Darklang.Stdlib.Http.Response {"
-          "    statusCode : Int64"
+          "    statusCode : Int"
           "    headers : List<String*String>"
           "    body : Blob"
           "  }" ]

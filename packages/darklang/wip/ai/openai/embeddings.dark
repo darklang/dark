@@ -139,7 +139,7 @@ let createWithOptions
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
           let dataArray = Stdlib.AltJson.Helpers.getArray "data" fields
@@ -157,8 +157,8 @@ let createWithOptions
                   usage = usage })
           | _ -> Stdlib.Result.Result.Error "Missing required fields in response"
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
       | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
 
 /// Generate embeddings for text
@@ -258,7 +258,7 @@ let createBatchWithOptions
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
           let dataArray = Stdlib.AltJson.Helpers.getArray "data" fields
@@ -276,8 +276,8 @@ let createBatchWithOptions
                   usage = usage })
           | _ -> Stdlib.Result.Result.Error "Missing required fields in response"
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
       | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
 
 /// Generate embeddings for multiple texts (uses text-embedding-3-small)

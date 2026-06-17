@@ -20,7 +20,7 @@ Some-Header: {}
  {response with headers = respHeaders}) =
    Darklang.Stdlib.HttpClient.Response
     { body = "\"Hello back\""
-      statusCode = 200L
+      statusCode = 200
       headers =
         [
           "Some-Header" = "{}"

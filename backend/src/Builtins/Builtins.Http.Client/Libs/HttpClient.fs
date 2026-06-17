@@ -737,7 +737,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                       )
 
                     let fields =
-                      [ ("statusCode", DInt64(int64 response.statusCode))
+                      [ ("statusCode", Dval.int (bigint response.statusCode))
                         ("headers", responseHeaders)
                         ("body", Blob.newEphemeral response.body) ]
 
@@ -894,7 +894,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
 
                 let typ = streamResponseType ()
                 let fields =
-                  [ ("statusCode", DInt64(int64 response.StatusCode))
+                  [ ("statusCode", Dval.int (bigint (int response.StatusCode)))
                     ("headers", headersDval)
                     ("body", body) ]
                 return DRecord(typ, typ, [], Map fields) |> resultOk

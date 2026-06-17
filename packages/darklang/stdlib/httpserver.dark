@@ -192,9 +192,9 @@ let getPathParam (req: Http.Request) (routePattern: String) (paramName: String) 
 /// record-update, e.g. `{ HttpServer.Config.defaults 8080L with logRequests = false }`.
 module Config =
   type Config =
-    { port: Int64
+    { port: Int
       /// Maximum request body size in bytes (over-limit → 413).
-      maxBodyBytes: Int64
+      maxBodyBytes: Int
       /// Auto-add `Server: darklang` + HSTS unless the handler set them.
       injectStandardHeaders: Bool
       /// Rewrite request.url to https:// when X-Forwarded-Proto: https is present.
@@ -203,10 +203,10 @@ module Config =
       logRequests: Bool }
 
   /// Default max request body size: 30 MB.
-  let defaultMaxBodyBytes : Int64 = 31457280L
+  let defaultMaxBodyBytes : Int = 31457280I
 
   /// Sensible serve defaults for `port`: 30 MB max body, standard headers, proto canonicalization, logging.
-  let defaults (port: Int64) : Config =
+  let defaults (port: Int) : Config =
     Config
       { port = port
         maxBodyBytes = defaultMaxBodyBytes

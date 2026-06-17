@@ -101,7 +101,7 @@ let serverBranchId: Uuid = SCM.Branch.mainBranchId
 // ────────────────────────── handlers ──────────────────────────
 
 let pingHandlerFn (req: HttpRequest) : HttpResponse =
-  Stdlib.Http.responseWithText "pong" 200L
+  Stdlib.Http.responseWithText "pong" 200I
 
 let pingHandler: Handler =
   Handler { route = "/ping"; method = "GET"; handler = pingHandlerFn }
@@ -114,7 +114,7 @@ let opsPostHandlerFn (req: HttpRequest) : HttpResponse =
     match SCM.PackageOps.add serverBranchId ops with
     | Ok insertedCount ->
       let countStr = Stdlib.Int64.toString insertedCount
-      Stdlib.Http.responseWithText $"Successfully received and applied {countStr} ops" 200L
+      Stdlib.Http.responseWithText $"Successfully received and applied {countStr} ops" 200I
     | Error errorMsg -> Stdlib.Http.serverError errorMsg
   | Error _err ->
     Stdlib.Http.badRequest "Invalid request body. Expected JSON list of PackageOp."
@@ -132,7 +132,7 @@ let opsGetHandlerFn (req: HttpRequest) : HttpResponse =
     | Ok limit ->
       let ops = SCM.PackageOps.getRecent limit
       let json = ops |> Stdlib.Json.serialize<List<LanguageTools.ProgramTypes.PackageOp>>
-      Stdlib.Http.responseWithJson json 200L
+      Stdlib.Http.responseWithJson json 200I
 
 let opsGetHandler: Handler =
   Handler { route = "/ops"; method = "GET"; handler = opsGetHandlerFn }
@@ -145,7 +145,7 @@ let statsHandlerFn (req: HttpRequest) : HttpResponse =
 - types: {stats.types |> Stdlib.Int64.toString}
 - fns: {stats.fns |> Stdlib.Int64.toString}
 - values: {stats.values |> Stdlib.Int64.toString}"
-  Stdlib.Http.responseWithText body 200L
+  Stdlib.Http.responseWithText body 200I
 
 let statsHandler: Handler =
   Handler
@@ -198,7 +198,7 @@ let searchHandlerFn (req: HttpRequest) : HttpResponse =
 
               let results = Builtin.pmSearch serverBranchId query
               let json = results |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Search.SearchResults>
-              Stdlib.Http.responseWithJson json 200L
+              Stdlib.Http.responseWithJson json 200I
 
 let searchHandler: Handler =
   Handler { route = "/search"; method = "GET"; handler = searchHandlerFn }
@@ -233,7 +233,7 @@ let locationHandlerFn (req: HttpRequest) : HttpResponse =
 
         let results = Builtin.pmSearch serverBranchId searchQuery
         let json = results |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Search.SearchResults>
-        Stdlib.Http.responseWithJson json 200L
+        Stdlib.Http.responseWithJson json 200I
     else
       match parseNameToLocation location with
       | Error errorMsg -> Stdlib.Http.badRequest errorMsg
@@ -246,19 +246,19 @@ let locationHandlerFn (req: HttpRequest) : HttpResponse =
             match Builtin.pmGetFn hash with
             | Some fn ->
               let json = fn |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
-              Stdlib.Http.responseWithJson json 200L
+              Stdlib.Http.responseWithJson json 200I
             | None -> Stdlib.Http.notFound ()
           | Type ->
             match Builtin.pmGetType hash with
             | Some t ->
               let json = t |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageType.PackageType>
-              Stdlib.Http.responseWithJson json 200L
+              Stdlib.Http.responseWithJson json 200I
             | None -> Stdlib.Http.notFound ()
           | Value ->
             match Builtin.pmGetValue hash with
             | Some v ->
               let json = v |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
-              Stdlib.Http.responseWithJson json 200L
+              Stdlib.Http.responseWithJson json 200I
             | None -> Stdlib.Http.notFound ()
         | None ->
           // Not a leaf — treat the whole path as a module to browse.
@@ -273,7 +273,7 @@ let locationHandlerFn (req: HttpRequest) : HttpResponse =
           let json =
             results
             |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Search.SearchResults>
-          Stdlib.Http.responseWithJson json 200L
+          Stdlib.Http.responseWithJson json 200I
 
 let locationHandler: Handler =
   Handler
@@ -299,7 +299,7 @@ let typeFindHandlerFn (req: HttpRequest) : HttpResponse =
     | Ok location ->
       match Builtin.pmFindType serverBranchId location with
       | Some hash ->
-        Stdlib.Http.responseWithJson (hash |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>) 200L
+        Stdlib.Http.responseWithJson (hash |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>) 200I
       | None -> Stdlib.Http.notFound ()
 
 let typeFindHandler: Handler =
@@ -315,7 +315,7 @@ let typeGetHandlerFn (req: HttpRequest) : HttpResponse =
     match Builtin.pmGetType hash with
     | Some t ->
       let json = t |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageType.PackageType>
-      Stdlib.Http.responseWithJson json 200L
+      Stdlib.Http.responseWithJson json 200I
     | None -> Stdlib.Http.notFound ()
 
 let typeGetHandler: Handler =
@@ -335,7 +335,7 @@ let typeGetWithLocationHandlerFn
       let json =
         locatedItem
         |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageType.PackageType>>
-      Stdlib.Http.responseWithJson json 200L
+      Stdlib.Http.responseWithJson json 200I
     | None -> Stdlib.Http.notFound ()
 
 let typeGetWithLocationHandler: Handler =
@@ -355,7 +355,7 @@ let valueFindHandlerFn (req: HttpRequest) : HttpResponse =
     | Ok location ->
       match Builtin.pmFindValue serverBranchId location with
       | Some hash ->
-        Stdlib.Http.responseWithJson (hash |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>) 200L
+        Stdlib.Http.responseWithJson (hash |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>) 200I
       | None -> Stdlib.Http.notFound ()
 
 let valueFindHandler: Handler =
@@ -372,7 +372,7 @@ let valueGetHandlerFn (req: HttpRequest) : HttpResponse =
     match Builtin.pmGetValue hash with
     | Some v ->
       let json = v |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
-      Stdlib.Http.responseWithJson json 200L
+      Stdlib.Http.responseWithJson json 200I
     | None -> Stdlib.Http.notFound ()
 
 let valueGetHandler: Handler =
@@ -393,7 +393,7 @@ let valueGetWithLocationHandlerFn
       let json =
         locatedItem
         |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageValue.PackageValue>>
-      Stdlib.Http.responseWithJson json 200L
+      Stdlib.Http.responseWithJson json 200I
     | None -> Stdlib.Http.notFound ()
 
 let valueGetWithLocationHandler: Handler =
@@ -413,7 +413,7 @@ let functionFindHandlerFn (req: HttpRequest) : HttpResponse =
     | Ok location ->
       match Builtin.pmFindFn serverBranchId location with
       | Some hash ->
-        Stdlib.Http.responseWithJson (hash |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>) 200L
+        Stdlib.Http.responseWithJson (hash |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>) 200I
       | None -> Stdlib.Http.notFound ()
 
 let functionFindHandler: Handler =
@@ -432,7 +432,7 @@ let functionGetHandlerFn (req: HttpRequest) : HttpResponse =
     match Builtin.pmGetFn hash with
     | Some f ->
       let json = f |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
-      Stdlib.Http.responseWithJson json 200L
+      Stdlib.Http.responseWithJson json 200I
     | None -> Stdlib.Http.notFound ()
 
 let functionGetHandler: Handler =
@@ -457,7 +457,7 @@ let functionGetWithLocationHandlerFn
       let json =
         locatedItem
         |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.LocatedItem<LanguageTools.ProgramTypes.PackageFn.PackageFn>>
-      Stdlib.Http.responseWithJson json 200L
+      Stdlib.Http.responseWithJson json 200I
     | None -> Stdlib.Http.notFound ()
 
 let functionGetWithLocationHandler: Handler =

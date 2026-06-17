@@ -68,7 +68,7 @@ type Error =
   | RequestFailed of Stdlib.HttpClient.RequestError
   /// Discord returned a non-2xx response.
   /// Common cases: 401 invalid token, 404 unknown webhook, 429 rate limited.
-  | DiscordError of statusCode: Int64 * body: String
+  | DiscordError of statusCode: Int * body: String
 
 
 let toString (e: Error) : String =
@@ -76,7 +76,7 @@ let toString (e: Error) : String =
   | RequestFailed re ->
     "HTTP request failed: " ++ Stdlib.HttpClient.toString re
   | DiscordError(code, body) ->
-    $"Discord returned {Stdlib.Int64.toString code}: {body}"
+    $"Discord returned {Stdlib.Int.toString code}: {body}"
 
 
 /// Build a minimal message with just text content.
@@ -242,7 +242,7 @@ let post
 
   match Stdlib.HttpClient.post webhookUrl headers body with
   | Ok response ->
-    if response.statusCode >= 200L && response.statusCode < 300L then
+    if response.statusCode >= 200I && response.statusCode < 300I then
       Stdlib.Result.Result.Ok()
     else
       let bodyStr =

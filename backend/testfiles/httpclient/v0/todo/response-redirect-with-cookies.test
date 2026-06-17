@@ -20,7 +20,7 @@ Location: /v0/response-redirect-dest-with-cookies
  {response with headers = respHeaders}) =
    Darklang.Stdlib.HttpClient.Response
     { body = "Redirect destination reached with cookies"
-      statusCode = 200L
+      statusCode = 200
       headers =
         [
           "Arbitrary-header" = "Test value"

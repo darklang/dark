@@ -18,10 +18,10 @@ let sendNotification (message: String) (title: String) : String =
 
       (match Darklang.Stdlib.HttpClient.post url headers body with
       | Ok response ->
-        if response.statusCode == 200L then
+        if response.statusCode == 200I then
           "Pushover notification sent successfully"
         else
-          "Failed to send Pushover notification. Status: " ++ (Darklang.Stdlib.Int64.toString response.statusCode)
+          "Failed to send Pushover notification. Status: " ++ (Darklang.Stdlib.Int.toString response.statusCode)
       | Error err ->
         "Error sending Pushover notification: " ++ (Darklang.Stdlib.HttpClient.toString err))
     | None ->

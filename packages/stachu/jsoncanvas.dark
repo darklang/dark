@@ -516,7 +516,7 @@ loadCanvas('example');"
 
 module Server =
   let indexHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-    Stdlib.Http.responseWithHtml (Viewer.html ()) 200L
+    Stdlib.Http.responseWithHtml (Viewer.html ()) 200I
 
   // Pre-rendered JSON — httpServerServe's executeNamedFn doesn't support
   // lambdas (e.g. List.map) in the handler call chain, so we inline the
@@ -531,13 +531,13 @@ module Server =
     "{\"nodes\":[{\"id\":\"step1\",\"type\":\"text\",\"x\":50,\"y\":50,\"width\":180,\"height\":80,\"text\":\"Receive Request\"},{\"id\":\"step2\",\"type\":\"text\",\"x\":50,\"y\":180,\"width\":180,\"height\":80,\"text\":\"Parse JSON\"},{\"id\":\"step3\",\"type\":\"text\",\"x\":50,\"y\":310,\"width\":180,\"height\":80,\"text\":\"Validate Data\"},{\"id\":\"step4\",\"type\":\"text\",\"x\":50,\"y\":440,\"width\":180,\"height\":80,\"text\":\"Process & Respond\"},{\"id\":\"error\",\"type\":\"text\",\"x\":300,\"y\":250,\"width\":180,\"height\":80,\"text\":\"Return Error\"}],\"edges\":[{\"id\":\"f1\",\"fromNode\":\"step1\",\"toNode\":\"step2\"},{\"id\":\"f2\",\"fromNode\":\"step2\",\"toNode\":\"step3\"},{\"id\":\"f3\",\"fromNode\":\"step3\",\"toNode\":\"step4\",\"label\":\"valid\"},{\"id\":\"f4\",\"fromNode\":\"step3\",\"toNode\":\"error\",\"label\":\"invalid\"}]}"
 
   let exampleHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-    Stdlib.Http.responseWithJson exampleJson 200L
+    Stdlib.Http.responseWithJson exampleJson 200I
 
   let mindmapHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-    Stdlib.Http.responseWithJson mindmapJson 200L
+    Stdlib.Http.responseWithJson mindmapJson 200I
 
   let workflowHandler (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-    Stdlib.Http.responseWithJson workflowJson 200L
+    Stdlib.Http.responseWithJson workflowJson 200I
 
   // Simple path-based routing (no Stdlib.HttpServer.routeRequest because
   // it uses lambdas internally, which don't work in httpServerServe context)

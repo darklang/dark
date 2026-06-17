@@ -161,13 +161,13 @@ module Request =
 
 
 type Response =
-  { statusCode: Int64
+  { statusCode: Int
     headers: List<String * String>
     body: Blob }
 
 /// Returns a <type Response> that can be returned from an HTTP handler to
 /// respond with HTTP status <param code> and <param response> body.
-let response (body: Blob) (statusCode: Int64) : Stdlib.Http.Response =
+let response (body: Blob) (statusCode: Int) : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
       headers = []
@@ -179,7 +179,7 @@ let response (body: Blob) (statusCode: Int64) : Stdlib.Http.Response =
 let responseWithHeaders
   (body: Blob)
   (headers: List<String * String>)
-  (statusCode: Int64)
+  (statusCode: Int)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
@@ -190,7 +190,7 @@ let responseWithHeaders
 /// respond with HTTP status 200 and <param response> body.
 let success (body: Blob) : Stdlib.Http.Response =
   Stdlib.Http.Response
-    { statusCode = 200L
+    { statusCode = 200I
       headers = []
       body = body }
 
@@ -199,7 +199,7 @@ let success (body: Blob) : Stdlib.Http.Response =
 /// Content-Type header set to "text/html; charset=utf-8".
 let responseWithHtml
   (body: String)
-  (statusCode: Int64)
+  (statusCode: Int)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
@@ -212,7 +212,7 @@ let responseWithHtml
 /// Content-Type header set to "text/plain; charset=utf-8".
 let responseWithText
   (text: String)
-  (statusCode: Int64)
+  (statusCode: Int)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
@@ -224,7 +224,7 @@ let responseWithText
 /// Content-Type header set to "application/json".
 let responseWithJson
   (json: String)
-  (statusCode: Int64)
+  (statusCode: Int)
   : Stdlib.Http.Response =
   Stdlib.Http.Response
     { statusCode = statusCode
@@ -235,7 +235,7 @@ let responseWithJson
 /// respond with {{302}} status code and redirect to <param url>.
 let redirectTo (url: String) : Stdlib.Http.Response =
   Stdlib.Http.Response
-    { statusCode = 302L
+    { statusCode = 302I
       headers = [ ("Location", url) ]
       body = Stdlib.Blob.empty }
 
@@ -243,7 +243,7 @@ let redirectTo (url: String) : Stdlib.Http.Response =
 /// respond with {{400}} status code and <param response> body.
 let badRequest (error: String) : Stdlib.Http.Response =
   Stdlib.Http.Response
-    { statusCode = 400L
+    { statusCode = 400I
       headers = []
       body = Stdlib.String.toBlob error }
 
@@ -251,7 +251,7 @@ let badRequest (error: String) : Stdlib.Http.Response =
 /// respond with {{404}} status code.
 let notFound () : Stdlib.Http.Response =
   Stdlib.Http.Response
-    { statusCode = 404L
+    { statusCode = 404I
       headers = []
       body = Stdlib.Blob.empty }
 
@@ -259,7 +259,7 @@ let notFound () : Stdlib.Http.Response =
 /// respond with {{401}} status code.
 let unauthorized () : Stdlib.Http.Response =
   Stdlib.Http.Response
-    { statusCode = 401L
+    { statusCode = 401I
       headers = []
       body = Stdlib.Blob.empty }
 
@@ -267,7 +267,7 @@ let unauthorized () : Stdlib.Http.Response =
 /// respond with {{403}} status code.
 let forbidden () : Stdlib.Http.Response =
   Stdlib.Http.Response
-    { statusCode = 403L
+    { statusCode = 403I
       headers = []
       body = Stdlib.Blob.empty }
 
@@ -275,13 +275,13 @@ let forbidden () : Stdlib.Http.Response =
 /// respond with {{500}} status code and <param error> body.
 let serverError (error: String) : Stdlib.Http.Response =
   Stdlib.Http.Response
-    { statusCode = 500L
+    { statusCode = 500I
       headers = []
       body = Stdlib.String.toBlob error }
 
 type Cookie =
   { expires: DateTime
-    maxAge: Int64
+    maxAge: Int
     domain: String
     path: String
     secure: Bool

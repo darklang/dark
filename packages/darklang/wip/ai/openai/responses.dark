@@ -831,13 +831,13 @@ let send
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok json -> parseResponse json
         | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ e)
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
-      | code when code >= 500L -> Stdlib.Result.Result.Error("OpenAI server error: " ++ bodyStr)
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | code when code >= 500I -> Stdlib.Result.Result.Error("OpenAI server error: " ++ bodyStr)
       | _ ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
@@ -866,13 +866,13 @@ let get
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok json -> parseResponse json
         | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ e)
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 404L -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404I -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
       | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
 
 /// Delete a response by ID
@@ -892,11 +892,11 @@ let delete
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         Stdlib.Result.Result.Ok()
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 404L -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404I -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
       | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
 
 /// Input items response
@@ -924,7 +924,7 @@ let listInputItems
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
           let object_ = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "object" fields) "list"
@@ -941,9 +941,9 @@ let listInputItems
                 lastId = lastId
                 hasMore = hasMore })
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 404L -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404I -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
       | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
 
 

@@ -1,6 +1,6 @@
 [http-handler POST /]
 (let body = (request.body |> Darklang.Stdlib.Blob.length |> Darklang.Stdlib.Int.toString |> Darklang.Stdlib.String.toBlob)
- Darklang.Stdlib.Http.response body 200L)
+ Darklang.Stdlib.Http.response body 200)
 
 [request]
 POST / HTTP/1.1

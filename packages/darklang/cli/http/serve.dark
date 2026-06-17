@@ -6,14 +6,14 @@ module Darklang.Cli.Http.Serve
 /// Parsed flags + positional. `routerPath = ""` means "no router given".
 type Args =
   { routerPath: String
-    port: Int64
-    maxBodyBytes: Int64
+    port: Int
+    maxBodyBytes: Int
     error: Stdlib.Option.Option<String> }
 
 let defaultArgs (): Args =
   Args
     { routerPath = ""
-      port = 8080L
+      port = 8080I
       maxBodyBytes = Stdlib.HttpServer.Config.defaultMaxBodyBytes
       error = Stdlib.Option.Option.None }
 
@@ -24,12 +24,12 @@ let rec parseArgs (rest: List<String>) (acc: Args) : Args =
   match rest with
   | [] -> acc
   | "--port" :: value :: tail ->
-    match Stdlib.Int64.parse value with
+    match Stdlib.Int.parse value with
     | Error _ ->
       { acc with error = Stdlib.Option.Option.Some $"Invalid --port: {value}" }
     | Ok p -> parseArgs tail { acc with port = p }
   | "--max-body-bytes" :: value :: tail ->
-    match Stdlib.Int64.parse value with
+    match Stdlib.Int.parse value with
     | Error _ ->
       Args
         { acc with
@@ -85,8 +85,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             "Missing router path. Usage: serve <router-path> [--port N] [--max-body-bytes N]")
         state
       else
-        let portStr = Stdlib.Int64.toString parsed.port
-        let maxBytesStr = Stdlib.Int64.toString parsed.maxBodyBytes
+        let portStr = Stdlib.Int.toString parsed.port
+        let maxBytesStr = Stdlib.Int.toString parsed.maxBodyBytes
 
         [ $"Using router: {parsed.routerPath}"
           $"Max body bytes: {maxBytesStr}"
@@ -99,9 +99,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         // serve via the stdlib helper; only a non-default max body needs a record-update on the config.
         let configExpr =
           if parsed.maxBodyBytes == Stdlib.HttpServer.Config.defaultMaxBodyBytes then
-            $"Stdlib.HttpServer.Config.defaults {portStr}L"
+            $"Stdlib.HttpServer.Config.defaults {portStr}I"
           else
-            $"{{ Stdlib.HttpServer.Config.defaults {portStr}L with maxBodyBytes = {maxBytesStr}L }}"
+            $"{{ Stdlib.HttpServer.Config.defaults {portStr}I with maxBodyBytes = {maxBytesStr}I }}"
 
         let expr = $"Stdlib.HttpServer.serve ({configExpr}) {parsed.routerPath}"
 

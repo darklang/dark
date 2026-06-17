@@ -46,7 +46,7 @@ let toString (e: RequestError) : String =
 
 /// The response from a HTTP request
 type Response =
-  { statusCode: Int64
+  { statusCode: Int
     headers: List<(String * String)>
     body: Blob }
 
@@ -56,7 +56,7 @@ type Response =
 /// The underlying HTTP response is released when the stream is
 /// drained to completion or `Builtin.streamClose`d.
 type StreamResponse =
-  { statusCode: Int64
+  { statusCode: Int
     headers: List<(String * String)>
     body: Stream<UInt8> }
 

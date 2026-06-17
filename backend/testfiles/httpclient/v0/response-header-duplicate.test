@@ -18,7 +18,7 @@ Hello back
  let respHeaders = (response.headers |> Darklang.Stdlib.List.filter (fun h -> (Darklang.Stdlib.Tuple2.first h) != "date"))
  {response with headers = respHeaders}) ==
    Darklang.Stdlib.HttpClient.Response
-    { statusCode = 200L
+    { statusCode = 200
       headers =
         [
           ("server", "kestrel")

@@ -320,7 +320,7 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "httpServerServe" 0
       typeParams = []
       parameters =
-        [ Param.make "port" TInt64 "TCP port to listen on"
+        [ Param.make "port" TInt "TCP port to listen on"
           Param.makeWithArgs
             "handler"
             // CLEANUP real types
@@ -329,7 +329,7 @@ let fns () : List<BuiltInFn> =
             [ "request" ]
           Param.make
             "maxBodyBytes"
-            TInt64
+            TInt
             "Maximum request body size in bytes (over-limit → 413)"
           Param.make
             "injectStandardHeaders"
@@ -351,13 +351,17 @@ let fns () : List<BuiltInFn> =
         | exeState,
           _,
           _,
-          [ DInt64 port
+          [ DInt portArg
             DApplicable handler
-            DInt64 maxBodyBytes
+            DInt maxBodyBytesArg
             DBool injectStandardHeaders
             DBool canonicalizeFromForwardedProto
             DBool logRequests ] ->
           uply {
+            // port/maxBodyBytes are the arbitrary-precision Int; the listener
+            // plumbing below uses int64.
+            let port = int64 (DarkInt.toBigInt portArg)
+            let maxBodyBytes = int64 (DarkInt.toBigInt maxBodyBytesArg)
             use _serveSpan =
               Telemetry.span "httpserver.serve" [ "port", string port ]
 
