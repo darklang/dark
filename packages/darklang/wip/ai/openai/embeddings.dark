@@ -21,7 +21,7 @@ type Options =
     input: String
     /// Number of dimensions (only for text-embedding-3 models)
     /// Allows shortening embeddings for storage efficiency
-    dimensions: Stdlib.Option.Option<Int64>
+    dimensions: Stdlib.Option.Option<Int>
     /// Encoding format (float or base64)
     encodingFormat: Stdlib.Option.Option<EncodingFormat>
     /// End-user ID for abuse detection
@@ -41,7 +41,7 @@ let withModel (opts: Options) (model: String) : Options =
   { opts with model = model }
 
 /// Set dimensions (only for text-embedding-3 models)
-let withDimensions (opts: Options) (dims: Int64) : Options =
+let withDimensions (opts: Options) (dims: Int) : Options =
   { opts with dimensions = Stdlib.Option.Option.Some dims }
 
 /// Set encoding format
@@ -54,13 +54,13 @@ let withUser (opts: Options) (userId: String) : Options =
 
 /// Token usage information
 type Usage =
-  { promptTokens: Int64
-    totalTokens: Int64 }
+  { promptTokens: Int
+    totalTokens: Int }
 
 /// Represents an embedding vector returned by embedding endpoint
 type Embedding =
   { embedding: List<Float>
-    index: Int64
+    index: Int
     object_: String }
 
 /// Response from creating embeddings
@@ -84,7 +84,7 @@ let parseEmbedding (item: Json) : Stdlib.Option.Option<Embedding> =
           | Number n -> Stdlib.Option.Option.Some n
           | _ -> Stdlib.Option.Option.None)
       Stdlib.Option.Option.Some(
-        Embedding { embedding = floats; index = index; object_ = obj })
+        Embedding { embedding = floats; index = Stdlib.Int.fromInt64 index; object_ = obj })
     | _ -> Stdlib.Option.Option.None
   | _ -> Stdlib.Option.Option.None
 
@@ -96,7 +96,9 @@ let parseUsage (fields: List<(String * Json)>) : Stdlib.Option.Option<Usage> =
            Stdlib.AltJson.Helpers.getInt "total_tokens" usageFields) with
     | (Some promptTokens, Some totalTokens) ->
       Stdlib.Option.Option.Some(
-        Usage { promptTokens = promptTokens; totalTokens = totalTokens })
+        Usage
+          { promptTokens = Stdlib.Int.fromInt64 promptTokens
+            totalTokens = Stdlib.Int.fromInt64 totalTokens })
     | _ -> Stdlib.Option.Option.None
   | _ -> Stdlib.Option.Option.None
 
@@ -115,7 +117,7 @@ let createWithOptions
 
     let withDims =
       match opts.dimensions with
-      | Some d -> Stdlib.List.append baseFields [ ("dimensions", Json.Number(Stdlib.Int64.toFloat d)) ]
+      | Some d -> Stdlib.List.append baseFields [ ("dimensions", Json.Number(Stdlib.Int.toFloat d)) ]
       | None -> baseFields
 
     let withEncoding =
@@ -182,7 +184,7 @@ let createWithDimensions
   (apiKey: String)
   (model: String)
   (input: String)
-  (dimensions: Int64)
+  (dimensions: Int)
   : Stdlib.Result.Result<CreateEmbeddingResponse, String> =
   let opts =
     (defaultOptions input)
@@ -195,7 +197,7 @@ type BatchOptions =
   { model: String
     inputs: List<String>
     /// Number of dimensions (only for text-embedding-3 models)
-    dimensions: Stdlib.Option.Option<Int64>
+    dimensions: Stdlib.Option.Option<Int>
     /// Encoding format (float or base64)
     encodingFormat: Stdlib.Option.Option<EncodingFormat>
     /// End-user ID for abuse detection
@@ -215,7 +217,7 @@ let withBatchModel (opts: BatchOptions) (model: String) : BatchOptions =
   { opts with model = model }
 
 /// Set dimensions for batch options
-let withBatchDimensions (opts: BatchOptions) (dims: Int64) : BatchOptions =
+let withBatchDimensions (opts: BatchOptions) (dims: Int) : BatchOptions =
   { opts with dimensions = Stdlib.Option.Option.Some dims }
 
 /// Generate embeddings for multiple texts with full options
@@ -234,7 +236,7 @@ let createBatchWithOptions
 
     let withDims =
       match opts.dimensions with
-      | Some d -> Stdlib.List.append baseFields [ ("dimensions", Json.Number(Stdlib.Int64.toFloat d)) ]
+      | Some d -> Stdlib.List.append baseFields [ ("dimensions", Json.Number(Stdlib.Int.toFloat d)) ]
       | None -> baseFields
 
     let withEncoding =

@@ -296,7 +296,7 @@ let extractUsage (fields: List<(String * Json)>) : Provider.Usage =
   Provider.Usage
     { inputTokens = promptTokens
       outputTokens = completionTokens
-      cacheCreationTokens = 0L  // OpenAI doesn't track cache creation separately
+      cacheCreationTokens = 0I  // OpenAI doesn't track cache creation separately
       cacheReadTokens = cachedTokens }
 
 
@@ -381,7 +381,7 @@ let buildExtendedRequest
 
   let baseFields =
     [ ("model", Json.String req.model)
-      ("max_tokens", Json.Number (Stdlib.Int64.toFloat req.maxTokens))
+      ("max_tokens", Json.Number (Stdlib.Int.toFloat req.maxTokens))
       ("messages", Json.Array messages) ]
 
   // Add tools if present, with parallel_tool_calls control

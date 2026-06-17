@@ -110,7 +110,7 @@ let audioParamToJson (param: AudioParam) : Json =
 type AudioResponse =
   { id: String          // Unique identifier for the audio
     data: String        // Base64-encoded audio data
-    expiresAt: Int64    // Unix timestamp when audio expires
+    expiresAt: Int64    // Unix timestamp when audio expires (KEPT Int64: timestamp)
     transcript: String } // Transcript of the audio
 
 /// Parse audio response from JSON
@@ -133,13 +133,13 @@ let parseAudioResponse (fields: List<(String * Json)>) : Stdlib.Option.Option<Au
 type TopLogprob =
   { token: String
     logprob: Float
-    bytes: Stdlib.Option.Option<List<Int64>> }
+    bytes: Stdlib.Option.Option<List<Int>> }
 
 /// Token log probability
 type TokenLogprob =
   { token: String
     logprob: Float
-    bytes: Stdlib.Option.Option<List<Int64>>
+    bytes: Stdlib.Option.Option<List<Int>>
     topLogprobs: List<TopLogprob> }
 
 /// Log probabilities for a choice
@@ -428,8 +428,8 @@ type Request =
     modalities: Stdlib.Option.Option<List<Modality>>
     audio: Stdlib.Option.Option<AudioParam>
     // Token limits
-    maxTokens: Stdlib.Option.Option<Int64>  // Deprecated
-    maxCompletionTokens: Stdlib.Option.Option<Int64>
+    maxTokens: Stdlib.Option.Option<Int>  // Deprecated
+    maxCompletionTokens: Stdlib.Option.Option<Int>
     // Sampling parameters
     temperature: Stdlib.Option.Option<Float>
     topP: Stdlib.Option.Option<Float>
@@ -443,13 +443,13 @@ type Request =
     metadata: Stdlib.Option.Option<List<(String * String)>>
     serviceTier: Stdlib.Option.Option<ServiceTier.Tier>
     // Generation options
-    n: Stdlib.Option.Option<Int64>
-    seed: Stdlib.Option.Option<Int64>
+    n: Stdlib.Option.Option<Int>
+    seed: Stdlib.Option.Option<Int64>  // KEPT Int64: opaque reproducibility value, not a count
     user: Stdlib.Option.Option<String>
     // Log probabilities
     logprobs: Stdlib.Option.Option<Bool>
-    topLogprobs: Stdlib.Option.Option<Int64>
-    logitBias: Stdlib.Option.Option<List<(String * Int64)>>
+    topLogprobs: Stdlib.Option.Option<Int>
+    logitBias: Stdlib.Option.Option<List<(String * Int)>>
     // Advanced features
     webSearchOptions: Stdlib.Option.Option<WebSearch.WebSearchTool>
     prediction: Stdlib.Option.Option<Prediction.PredictedOutput> }
@@ -564,11 +564,11 @@ let withAudioParam (req: Request) (param: AudioParam) : Request =
   { req with audio = Stdlib.Option.Option.Some param }
 
 /// Set max tokens (deprecated, use withMaxCompletionTokens)
-let withMaxTokens (req: Request) (tokens: Int64) : Request =
+let withMaxTokens (req: Request) (tokens: Int) : Request =
   { req with maxTokens = Stdlib.Option.Option.Some tokens }
 
 /// Set max completion tokens
-let withMaxCompletionTokens (req: Request) (tokens: Int64) : Request =
+let withMaxCompletionTokens (req: Request) (tokens: Int) : Request =
   { req with maxCompletionTokens = Stdlib.Option.Option.Some tokens }
 
 /// Set temperature
@@ -608,10 +608,10 @@ let withServiceTier (req: Request) (tier: ServiceTier.Tier) : Request =
   { req with serviceTier = Stdlib.Option.Option.Some tier }
 
 /// Set number of completions
-let withN (req: Request) (count: Int64) : Request =
+let withN (req: Request) (count: Int) : Request =
   { req with n = Stdlib.Option.Option.Some count }
 
-/// Set seed
+/// Set seed (KEPT Int64: opaque reproducibility value, not a count)
 let withSeed (req: Request) (seed: Int64) : Request =
   { req with seed = Stdlib.Option.Option.Some seed }
 
@@ -624,11 +624,11 @@ let withLogprobs (req: Request) (enabled: Bool) : Request =
   { req with logprobs = Stdlib.Option.Option.Some enabled }
 
 /// Set top log probabilities count
-let withTopLogprobs (req: Request) (count: Int64) : Request =
+let withTopLogprobs (req: Request) (count: Int) : Request =
   { req with topLogprobs = Stdlib.Option.Option.Some count }
 
 /// Set logit bias
-let withLogitBias (req: Request) (biases: List<(String * Int64)>) : Request =
+let withLogitBias (req: Request) (biases: List<(String * Int)>) : Request =
   { req with logitBias = Stdlib.Option.Option.Some biases }
 
 /// Enable web search
@@ -800,20 +800,20 @@ let buildRequestJson (req: Request) : Json =
     if caps.requiresMaxCompletionTokens then
       match req.maxCompletionTokens with
       | Some t ->
-        Stdlib.List.append withAudio_ [ ("max_completion_tokens", Json.Number(Stdlib.Int64.toFloat t)) ]
+        Stdlib.List.append withAudio_ [ ("max_completion_tokens", Json.Number(Stdlib.Int.toFloat t)) ]
       | None ->
         match req.maxTokens with
         | Some t ->
-          Stdlib.List.append withAudio_ [ ("max_completion_tokens", Json.Number(Stdlib.Int64.toFloat t)) ]
+          Stdlib.List.append withAudio_ [ ("max_completion_tokens", Json.Number(Stdlib.Int.toFloat t)) ]
         | None -> withAudio_
     else
       match req.maxCompletionTokens with
       | Some t ->
-        Stdlib.List.append withAudio_ [ ("max_completion_tokens", Json.Number(Stdlib.Int64.toFloat t)) ]
+        Stdlib.List.append withAudio_ [ ("max_completion_tokens", Json.Number(Stdlib.Int.toFloat t)) ]
       | None ->
         match req.maxTokens with
         | Some t ->
-          Stdlib.List.append withAudio_ [ ("max_tokens", Json.Number(Stdlib.Int64.toFloat t)) ]
+          Stdlib.List.append withAudio_ [ ("max_tokens", Json.Number(Stdlib.Int.toFloat t)) ]
         | None -> withAudio_
 
   // Reasoning effort
@@ -903,7 +903,7 @@ let buildRequestJson (req: Request) : Json =
   let withN_ =
     match req.n with
     | Some count ->
-      Stdlib.List.append withServiceTier_ [ ("n", Json.Number(Stdlib.Int64.toFloat count)) ]
+      Stdlib.List.append withServiceTier_ [ ("n", Json.Number(Stdlib.Int.toFloat count)) ]
     | None -> withServiceTier_
 
   // Seed
@@ -931,14 +931,14 @@ let buildRequestJson (req: Request) : Json =
   let withTopLogprobs_ =
     match req.topLogprobs with
     | Some count ->
-      Stdlib.List.append withLogprobs_ [ ("top_logprobs", Json.Number(Stdlib.Int64.toFloat count)) ]
+      Stdlib.List.append withLogprobs_ [ ("top_logprobs", Json.Number(Stdlib.Int.toFloat count)) ]
     | None -> withLogprobs_
 
   // Logit bias
   let withLogitBias_ =
     match req.logitBias with
     | Some biases ->
-      let biasJson = Stdlib.List.map biases (fun (k, v) -> (k, Json.Number(Stdlib.Int64.toFloat v)))
+      let biasJson = Stdlib.List.map biases (fun (k, v) -> (k, Json.Number(Stdlib.Int.toFloat v)))
       Stdlib.List.append withTopLogprobs_ [ ("logit_bias", Json.Object biasJson) ]
     | None -> withTopLogprobs_
 
@@ -973,26 +973,26 @@ type ResponseMessage =
 
 /// A choice in the chat completion (part of ChatCompletion.choices)
 type Choice =
-  { index: Int64
+  { index: Int
     message: ResponseMessage
     finishReason: String
     logprobs: Stdlib.Option.Option<Logprobs> }
 
 /// Token usage information
 type Usage =
-  { promptTokens: Int64
-    completionTokens: Int64
-    totalTokens: Int64
+  { promptTokens: Int
+    completionTokens: Int
+    totalTokens: Int
     /// Reasoning tokens (o-series models)
-    reasoningTokens: Int64
+    reasoningTokens: Int
     /// Cached prompt tokens
-    cachedTokens: Int64 }
+    cachedTokens: Int }
 
 /// Chat completion response (ChatCompletion)
 type Response =
   { id: String
     object_: String  // "chat.completion"
-    created: Int64
+    created: Int64  // KEPT Int64: Unix timestamp
     model: String
     choices: List<Choice>
     usage: Usage
@@ -1260,7 +1260,7 @@ type StoredMessage =
 /// GET /chat/completions
 let list
   (apiKey: String)
-  (limit: Stdlib.Option.Option<Int64>)
+  (limit: Stdlib.Option.Option<Int>)
   (after: Stdlib.Option.Option<String>)
   (order: Stdlib.Option.Option<String>)
   : Stdlib.Result.Result<List<Response>, String> =
@@ -1274,7 +1274,7 @@ let list
       let params = []
       let withLimit =
         match limit with
-        | Some l -> Stdlib.List.append params [ ("limit", Stdlib.Int64.toString l) ]
+        | Some l -> Stdlib.List.append params [ ("limit", Stdlib.Int.toString l) ]
         | None -> params
       let withAfter =
         match after with

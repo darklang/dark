@@ -290,9 +290,9 @@ type WebSearchCall =
 /// URL citation annotation from web search results
 type UrlCitation =
   { /// Start index in the text where citation appears
-    startIndex: Int64
+    startIndex: Int
     /// End index in the text where citation ends
-    endIndex: Int64
+    endIndex: Int
     /// The cited URL
     url: String
     /// Title of the cited source
@@ -327,10 +327,14 @@ let parseUrlCitation (json: Json) : Stdlib.Option.Option<UrlCitation> =
   match json with
   | Object fields ->
     let startIndexJson = getJsonField fields "start_index"
-    let startIndex = Stdlib.Option.andThen startIndexJson (fun v -> jsonToInt64 v)
+    let startIndex =
+      (Stdlib.Option.andThen startIndexJson (fun v -> jsonToInt64 v))
+      |> Stdlib.Option.map (fun n -> Stdlib.Int.fromInt64 n)
 
     let endIndexJson = getJsonField fields "end_index"
-    let endIndex = Stdlib.Option.andThen endIndexJson (fun v -> jsonToInt64 v)
+    let endIndex =
+      (Stdlib.Option.andThen endIndexJson (fun v -> jsonToInt64 v))
+      |> Stdlib.Option.map (fun n -> Stdlib.Int.fromInt64 n)
 
     let urlJson = getJsonField fields "url"
     let url = Stdlib.Option.andThen urlJson (fun v -> jsonToString v)

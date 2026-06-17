@@ -161,7 +161,7 @@ let buildRequest (config: AgentConfig) (state: LoopState) : Provider.Request =
     (Provider.createRequest config.model.id)
     |> Provider.withMessages state.messages
     |> Provider.withTools toolSchemas
-    |> Provider.withMaxTokens config.maxTokens
+    |> Provider.withMaxTokens (Stdlib.Int.fromInt64 config.maxTokens)
 
   let request =
     match config.systemPrompt with

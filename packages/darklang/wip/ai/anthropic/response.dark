@@ -50,18 +50,18 @@ let parseStopReason (s: String) : StopReason = StopReason.parse s
 
 /// Detailed cache creation breakdown
 type CacheCreationUsage =
-  { ephemeral_5m_input_tokens: Stdlib.Option.Option<Int64>
-    ephemeral_1h_input_tokens: Stdlib.Option.Option<Int64> }
+  { ephemeral_5m_input_tokens: Stdlib.Option.Option<Int>
+    ephemeral_1h_input_tokens: Stdlib.Option.Option<Int> }
 
 /// Server tool usage tracking
 type ServerToolUsage =
-  { web_search_requests: Stdlib.Option.Option<Int64> }
+  { web_search_requests: Stdlib.Option.Option<Int> }
 
 type Usage =
-  { input_tokens: Int64
-    output_tokens: Int64
-    cache_creation_input_tokens: Stdlib.Option.Option<Int64>
-    cache_read_input_tokens: Stdlib.Option.Option<Int64>
+  { input_tokens: Int
+    output_tokens: Int
+    cache_creation_input_tokens: Stdlib.Option.Option<Int>
+    cache_read_input_tokens: Stdlib.Option.Option<Int>
     cache_creation: Stdlib.Option.Option<CacheCreationUsage>
     server_tool_use: Stdlib.Option.Option<ServerToolUsage>
     service_tier: Stdlib.Option.Option<String>
@@ -105,7 +105,7 @@ type ApiError =
   | ServerError of String
   | Overloaded of String
   | InvalidResponse of String
-  | UnknownError of statusCode: Int64 * body: String
+  | UnknownError of statusCode: Int * body: String
 
 module ApiError =
   /// Convert an ApiError to a human-readable string
@@ -126,7 +126,7 @@ module ApiError =
     | Overloaded msg -> "API overloaded: " ++ msg
     | InvalidResponse msg -> "Invalid response: " ++ msg
     | UnknownError(statusCode, body) ->
-      "HTTP " ++ Stdlib.Int64.toString statusCode ++ " error: " ++ body
+      "HTTP " ++ Stdlib.Int.toString statusCode ++ " error: " ++ body
 
   /// Check if the error is retryable
   let isRetryable (err: ApiError) : Bool =
@@ -139,17 +139,17 @@ module ApiError =
     | _ -> false
 
   /// Parse an HTTP status code and body into an ApiError
-  let fromHttpResponse (statusCode: Int64) (body: String) : ApiError =
+  let fromHttpResponse (statusCode: Int) (body: String) : ApiError =
     match statusCode with
-    | 400L -> ApiError.InvalidRequest body
-    | 401L -> ApiError.AuthenticationError body
-    | 403L -> ApiError.PermissionDenied body
-    | 404L -> ApiError.NotFoundError body
-    | 413L -> ApiError.RequestTooLarge body
-    | 429L -> ApiError.RateLimited
-    | 500L -> ApiError.ServerError body
-    | 529L -> ApiError.Overloaded body
-    | _ when statusCode >= 500L -> ApiError.ServerError body
+    | 400I -> ApiError.InvalidRequest body
+    | 401I -> ApiError.AuthenticationError body
+    | 403I -> ApiError.PermissionDenied body
+    | 404I -> ApiError.NotFoundError body
+    | 413I -> ApiError.RequestTooLarge body
+    | 429I -> ApiError.RateLimited
+    | 500I -> ApiError.ServerError body
+    | 529I -> ApiError.Overloaded body
+    | _ when statusCode >= 500I -> ApiError.ServerError body
     | _ -> ApiError.UnknownError(statusCode, body)
 
   /// Convert an HttpClient.RequestError to an ApiError
@@ -327,9 +327,9 @@ let getDocumentCitations (response: Response) : List<Content.Citation> =
 let toAssistantBlocks (response: Response) : List<Content.ContentBlock> =
   response.content
 
-let totalTokens (response: Response) : Int64 =
-  Stdlib.Int64.add response.usage.input_tokens response.usage.output_tokens
+let totalTokens (response: Response) : Int =
+  response.usage.input_tokens + response.usage.output_tokens
 
-let cacheHitTokens (response: Response) : Int64 =
+let cacheHitTokens (response: Response) : Int =
   response.usage.cache_read_input_tokens
-  |> Stdlib.Option.withDefault 0L
+  |> Stdlib.Option.withDefault 0I

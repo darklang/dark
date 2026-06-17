@@ -330,6 +330,24 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "intFromFloat" 0
+      typeParams = []
+      parameters = [ Param.make "a" TFloat "" ]
+      returnType = TInt
+      description =
+        "Converts a <type Float> to an <type Int>, truncating toward zero.
+         Unlike going via Int64, this preserves the full integer part of the
+         float (no 64-bit clamp)."
+      fn =
+        (function
+        | _, _, _, [ DFloat f ] -> Ply(Dval.int (bigint f))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "intParse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]

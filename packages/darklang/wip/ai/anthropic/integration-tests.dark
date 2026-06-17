@@ -40,7 +40,7 @@ module DirectApiTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Haiku35
-        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withMaxTokens 50I
         |> Chat.Request.withUserMessage "Say 'test passed'"
 
       match Chat.Request.send apiKey req with
@@ -61,7 +61,7 @@ module DirectApiTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Haiku35
-        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withMaxTokens 50I
         |> Chat.Request.withUserMessage "Reply with: hello"
 
       match Chat.Request.send apiKey req with
@@ -70,7 +70,7 @@ module DirectApiTests =
           match Response.getStopReason response with
           | Some _ -> true
           | None -> false
-        let hasUsage = response.usage.input_tokens > 0L
+        let hasUsage = response.usage.input_tokens > 0I
         let isComplete = Response.isComplete response
 
         if hasStopReason && hasUsage && isComplete then
@@ -102,7 +102,7 @@ module TokenCountingTests =
 
       match Chat.countTokens apiKey req with
       | Ok result ->
-        if result.input_tokens > 0L then
+        if result.input_tokens > 0I then
           TestResult.Pass
         else
           TestResult.Fail $"Expected positive token count, got {result.input_tokens}"
@@ -116,7 +116,7 @@ module TokenCountingTests =
     | Some apiKey ->
       match Chat.countTokensForPrompt apiKey "What is 2+2?" with
       | Ok result ->
-        if result.input_tokens > 0L then
+        if result.input_tokens > 0I then
           TestResult.Pass
         else
           TestResult.Fail "Expected positive token count"
@@ -173,7 +173,7 @@ module JsonSchemaTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Sonnet45
-        |> Chat.Request.withMaxTokens 200L
+        |> Chat.Request.withMaxTokens 200I
         |> Chat.Request.withJsonSchema schema
         |> Chat.Request.withUserMessage "Generate a JSON object for a person named Alice who is 30 years old."
 
@@ -206,7 +206,7 @@ module StopSequenceTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Haiku35
-        |> Chat.Request.withMaxTokens 100L
+        |> Chat.Request.withMaxTokens 100I
         |> Chat.Request.withStopSequences [ "STOP" ]
         |> Chat.Request.withUserMessage "Count from 1 to 10, then write STOP, then continue to 20."
 
@@ -250,7 +250,7 @@ module ServerToolTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Sonnet45
-        |> Chat.Request.withMaxTokens 1000L
+        |> Chat.Request.withMaxTokens 1000I
         |> Chat.Request.withToolsJson [ toolJson ]
         |> Chat.Request.withUserMessage "Use code execution to calculate 15 * 23 and tell me the result."
 
@@ -281,7 +281,7 @@ module ServerToolTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Sonnet45
-        |> Chat.Request.withMaxTokens 1000L
+        |> Chat.Request.withMaxTokens 1000I
         |> Chat.Request.withToolsJson [ toolJson ]
         |> Chat.Request.withUserMessage "Use the bash tool to run 'echo hello' and tell me the output."
 
@@ -312,7 +312,7 @@ module ServerToolTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Sonnet45
-        |> Chat.Request.withMaxTokens 1000L
+        |> Chat.Request.withMaxTokens 1000I
         |> Chat.Request.withToolsJson [ toolJson ]
         |> Chat.Request.withUserMessage "Use the text editor to view the contents of /etc/hostname"
 
@@ -355,7 +355,7 @@ module WebFetchTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Sonnet45
-        |> Chat.Request.withMaxTokens 1000L
+        |> Chat.Request.withMaxTokens 1000I
         |> Chat.Request.withToolsJson [ toolJson ]
         |> Chat.Request.withUserMessage "Fetch the content from https://example.com and summarize it."
 
@@ -382,7 +382,7 @@ module WebFetchTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Sonnet45
-        |> Chat.Request.withMaxTokens 1000L
+        |> Chat.Request.withMaxTokens 1000I
         |> Chat.Request.withToolsJson [ toolJson ]
         |> Chat.Request.withUserMessage "Fetch https://example.com and tell me the title. Include a citation."
 
@@ -442,7 +442,7 @@ module VisionTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Sonnet45
-        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withMaxTokens 50I
         |> Chat.Request.withBlockMessages [ userMessage ]
 
       match Chat.Request.send apiKey req with
@@ -477,7 +477,7 @@ module VisionTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Sonnet45
-        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withMaxTokens 50I
         |> Chat.Request.withBlockMessages [ userMessage ]
 
       match Chat.Request.send apiKey req with
@@ -512,7 +512,7 @@ module VisionTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Sonnet45
-        |> Chat.Request.withMaxTokens 100L
+        |> Chat.Request.withMaxTokens 100I
         |> Chat.Request.withBlockMessages [ userMessage ]
 
       match Chat.Request.send apiKey req with
@@ -547,7 +547,7 @@ module VisionTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Sonnet45
-        |> Chat.Request.withMaxTokens 200L
+        |> Chat.Request.withMaxTokens 200I
         |> Chat.Request.withBlockMessages [ userMessage ]
 
       match Chat.Request.send apiKey req with
@@ -586,7 +586,7 @@ module VisionTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Sonnet45
-        |> Chat.Request.withMaxTokens 100L
+        |> Chat.Request.withMaxTokens 100I
         |> Chat.Request.withBlockMessages [ userMessage ]
 
       match Chat.Request.send apiKey req with
@@ -631,7 +631,7 @@ module AdaptiveThinkingTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Opus46
-        |> Chat.Request.withMaxTokens 2000L
+        |> Chat.Request.withMaxTokens 2000I
         |> Chat.Request.withAdaptiveThinking
         |> Chat.Request.withUserMessage "What is the square root of 144? Think through this carefully."
 
@@ -673,7 +673,7 @@ module ServiceTierTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Haiku35
-        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withMaxTokens 50I
         |> Chat.Request.withServiceTier Chat.ServiceTier.StandardOnly
         |> Chat.Request.withUserMessage "Say OK"
 
@@ -694,7 +694,7 @@ module ServiceTierTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Haiku35
-        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withMaxTokens 50I
         |> Chat.Request.withServiceTier Chat.ServiceTier.Auto
         |> Chat.Request.withUserMessage "Say OK"
 
@@ -726,7 +726,7 @@ module SamplingParameterTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Haiku35
-        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withMaxTokens 50I
         |> Chat.Request.withTopP 0.9
         |> Chat.Request.withUserMessage "Say OK"
 
@@ -747,8 +747,8 @@ module SamplingParameterTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Haiku35
-        |> Chat.Request.withMaxTokens 50L
-        |> Chat.Request.withTopK 40L
+        |> Chat.Request.withMaxTokens 50I
+        |> Chat.Request.withTopK 40I
         |> Chat.Request.withUserMessage "Say OK"
 
       match Chat.Request.send apiKey req with
@@ -768,9 +768,9 @@ module SamplingParameterTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Haiku35
-        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withMaxTokens 50I
         |> Chat.Request.withTopP 0.95
-        |> Chat.Request.withTopK 50L
+        |> Chat.Request.withTopK 50I
         |> Chat.Request.withUserMessage "Say OK"
 
       match Chat.Request.send apiKey req with
@@ -802,7 +802,7 @@ module MetadataTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Haiku35
-        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withMaxTokens 50I
         |> Chat.Request.withUserId "test-user-12345"
         |> Chat.Request.withUserMessage "Say OK"
 
@@ -833,13 +833,13 @@ module BatchTests =
       let req1 =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Haiku35
-        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withMaxTokens 50I
         |> Chat.Request.withUserMessage "Say hello"
 
       let req2 =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Haiku35
-        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withMaxTokens 50I
         |> Chat.Request.withUserMessage "Say goodbye"
 
       let batchRequests =
@@ -860,7 +860,7 @@ module BatchTests =
     match getApiKey () with
     | None -> TestResult.Skipped "ANTHROPIC_API_KEY not set"
     | Some apiKey ->
-      match Batch.listBatches apiKey (Stdlib.Option.Option.Some 5L) Stdlib.Option.Option.None with
+      match Batch.listBatches apiKey (Stdlib.Option.Option.Some 5I) Stdlib.Option.Option.None with
       | Ok response ->
         // Just verify we got a valid response (list could be empty)
         TestResult.Pass
@@ -876,7 +876,7 @@ module BatchTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Haiku35
-        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withMaxTokens 50I
         |> Chat.Request.withUserMessage "Say test"
 
       let batchRequests = [ Batch.batchRequest "retrieve-test" req ]
@@ -903,7 +903,7 @@ module BatchTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Haiku35
-        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withMaxTokens 50I
         |> Chat.Request.withUserMessage "Test"
 
       let batchRequests = [ Batch.batchRequest "helper-test" req ]
@@ -915,7 +915,7 @@ module BatchTests =
         let isComplete = Batch.isComplete batch
         let total = Batch.totalRequests batch
 
-        if (isProcessing || isComplete) && total >= 1L then
+        if (isProcessing || isComplete) && total >= 1I then
           TestResult.Pass
         else
           TestResult.Fail $"Unexpected batch state: processing={isProcessing}, complete={isComplete}, total={total}"
@@ -927,9 +927,9 @@ module BatchTests =
   let pollBatchUntilComplete
     (apiKey: String)
     (batchId: String)
-    (maxAttempts: Int64)
+    (maxAttempts: Int)
     : Stdlib.Result.Result<Batch.MessageBatch, String> =
-    let attempts = Stdlib.List.range 1I (Stdlib.Int.fromInt64 maxAttempts)
+    let attempts = Stdlib.List.range 1I maxAttempts
 
     Stdlib.List.fold
       attempts
@@ -957,14 +957,14 @@ module BatchTests =
       let req =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Haiku35
-        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withMaxTokens 50I
         |> Chat.Request.withUserMessage "Reply with just: OK"
 
       let batchRequests = [ Batch.batchRequest "results-test" req ]
 
       match Batch.createBatch apiKey batchRequests with
       | Ok batch ->
-        match pollBatchUntilComplete apiKey batch.id 30L with
+        match pollBatchUntilComplete apiKey batch.id 30I with
         | Ok completedBatch ->
           match Batch.getBatchResults apiKey completedBatch.id with
           | Ok results ->
@@ -1016,7 +1016,7 @@ module PromptCachingTests =
       let req1 =
         (Chat.Request.create ())
         |> Chat.Request.withModel Models.Model.Sonnet45
-        |> Chat.Request.withMaxTokens 50L
+        |> Chat.Request.withMaxTokens 50I
         |> Chat.Request.withSystemBlocks [ cachedBlock ]
         |> Chat.Request.withUserMessage "Say hello"
 
@@ -1025,14 +1025,14 @@ module PromptCachingTests =
         // Check cache_creation_input_tokens
         let cacheCreated =
           match response1.usage.cache_creation_input_tokens with
-          | Some tokens -> tokens > 0L
+          | Some tokens -> tokens > 0I
           | None -> false
 
         // Second request - should read from cache
         let req2 =
           (Chat.Request.create ())
           |> Chat.Request.withModel Models.Model.Sonnet45
-          |> Chat.Request.withMaxTokens 50L
+          |> Chat.Request.withMaxTokens 50I
           |> Chat.Request.withSystemBlocks [ cachedBlock ]
           |> Chat.Request.withUserMessage "Say goodbye"
 
@@ -1040,7 +1040,7 @@ module PromptCachingTests =
         | Ok response2 ->
           let cacheRead =
             match response2.usage.cache_read_input_tokens with
-            | Some tokens -> tokens > 0L
+            | Some tokens -> tokens > 0I
             | None -> false
 
           // Either cache was created on first call OR read on second call
@@ -1067,10 +1067,10 @@ module PromptCachingTests =
 // =============================================================================
 
 type TestSummary =
-  { totalTests: Int64
-    passedTests: Int64
-    failedTests: Int64
-    skippedTests: Int64
+  { totalTests: Int
+    passedTests: Int
+    failedTests: Int
+    skippedTests: Int
     failedTestNames: List<String> }
 
 type TestList = List<(String * TestFunction)>
@@ -1078,31 +1078,31 @@ type TestList = List<(String * TestFunction)>
 let runTestGroup (groupName: String) (tests: TestList) : TestSummary =
   let initialSummary =
     TestSummary
-      { totalTests = 0L
-        passedTests = 0L
-        failedTests = 0L
-        skippedTests = 0L
+      { totalTests = 0I
+        passedTests = 0I
+        failedTests = 0I
+        skippedTests = 0I
         failedTestNames = [] }
 
   tests
   |> Stdlib.List.fold initialSummary (fun summary nameFnPair ->
     let name = Stdlib.Tuple2.first nameFnPair
     let testFn = Stdlib.Tuple2.second nameFnPair
-    let newSummary = { summary with totalTests = summary.totalTests + 1L }
+    let newSummary = { summary with totalTests = summary.totalTests + 1I }
 
     let result = testFn ()
 
     match result with
     | Pass ->
       Stdlib.printLine $"  [PASS] {name}"
-      { newSummary with passedTests = newSummary.passedTests + 1L }
+      { newSummary with passedTests = newSummary.passedTests + 1I }
     | Skipped reason ->
       Stdlib.printLine $"  [SKIP] {name}: {reason}"
-      { newSummary with skippedTests = newSummary.skippedTests + 1L }
+      { newSummary with skippedTests = newSummary.skippedTests + 1I }
     | Fail message ->
       Stdlib.printLine $"  [FAIL] {name}: {message}"
       { newSummary with
-          failedTests = newSummary.failedTests + 1L
+          failedTests = newSummary.failedTests + 1I
           failedTestNames = Stdlib.List.push newSummary.failedTestNames $"{name}: {message}" })
 
 let combineSummaries (a: TestSummary) (b: TestSummary) : TestSummary =
@@ -1131,10 +1131,10 @@ let runAllTests () : String =
 
   let emptySummary =
     TestSummary
-      { totalTests = 0L
-        passedTests = 0L
-        failedTests = 0L
-        skippedTests = 0L
+      { totalTests = 0I
+        passedTests = 0I
+        failedTests = 0I
+        skippedTests = 0I
         failedTestNames = [] }
 
   let _ = Stdlib.printLine "Anthropic API Integration Tests"
@@ -1150,13 +1150,13 @@ let runAllTests () : String =
       combineSummaries acc groupSummary)
 
   let resultLine =
-    if finalSummary.failedTests == 0L then
-      if finalSummary.skippedTests > 0L then
-        $"All run tests passed! ({Stdlib.Int64.toString finalSummary.skippedTests} skipped)"
+    if finalSummary.failedTests == 0I then
+      if finalSummary.skippedTests > 0I then
+        $"All run tests passed! ({Stdlib.Int.toString finalSummary.skippedTests} skipped)"
       else
         "All tests passed!"
     else
       let failedNames = Stdlib.String.join finalSummary.failedTestNames "\n  - "
       $"Failed tests:\n  - {failedNames}"
 
-  $"Anthropic API Integration Tests\nTotal: {Stdlib.Int64.toString finalSummary.totalTests}, Passed: {Stdlib.Int64.toString finalSummary.passedTests}, Failed: {Stdlib.Int64.toString finalSummary.failedTests}, Skipped: {Stdlib.Int64.toString finalSummary.skippedTests}\n{resultLine}"
+  $"Anthropic API Integration Tests\nTotal: {Stdlib.Int.toString finalSummary.totalTests}, Passed: {Stdlib.Int.toString finalSummary.passedTests}, Failed: {Stdlib.Int.toString finalSummary.failedTests}, Skipped: {Stdlib.Int.toString finalSummary.skippedTests}\n{resultLine}"

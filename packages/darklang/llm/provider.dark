@@ -218,7 +218,7 @@ type Request =
     messages: List<Message>
     systemPrompt: Stdlib.Option.Option<String>
     tools: List<ToolSchema>
-    maxTokens: Int64
+    maxTokens: Int
     temperature: Stdlib.Option.Option<Float>
     stopSequences: List<String> }
 
@@ -229,7 +229,7 @@ let createRequest (model: String) : Request =
       messages = []
       systemPrompt = Stdlib.Option.Option.None
       tools = []
-      maxTokens = 4096L
+      maxTokens = 4096I
       temperature = Stdlib.Option.Option.None
       stopSequences = [] }
 
@@ -246,7 +246,7 @@ let withTools (req: Request) (tools: List<ToolSchema>) : Request =
   { req with tools = tools }
 
 /// Set max tokens for a request
-let withMaxTokens (req: Request) (tokens: Int64) : Request =
+let withMaxTokens (req: Request) (tokens: Int) : Request =
   { req with maxTokens = tokens }
 
 /// Set temperature for a request
@@ -289,19 +289,19 @@ module StopReason =
 
 /// Token usage information
 type Usage =
-  { inputTokens: Int64
-    outputTokens: Int64
+  { inputTokens: Int
+    outputTokens: Int
     /// Tokens used to create prompt cache (Anthropic)
-    cacheCreationTokens: Int64
+    cacheCreationTokens: Int
     /// Tokens read from prompt cache (Anthropic)
-    cacheReadTokens: Int64 }
+    cacheReadTokens: Int }
 
 let emptyUsage : Usage =
   Usage
-    { inputTokens = 0L
-      outputTokens = 0L
-      cacheCreationTokens = 0L
-      cacheReadTokens = 0L }
+    { inputTokens = 0I
+      outputTokens = 0I
+      cacheCreationTokens = 0I
+      cacheReadTokens = 0I }
 
 let addUsage (a: Usage) (b: Usage) : Usage =
   Usage
@@ -362,7 +362,7 @@ type Capabilities =
     supportsStreaming: Bool
     supportsSystemPrompt: Bool
     supportsImages: Bool
-    maxContextTokens: Int64 }
+    maxContextTokens: Int }
 
 
 // PROVIDER INTERFACE
@@ -397,15 +397,15 @@ type Provider =
 /// NOTE: Retries happen immediately (no backoff delay).
 /// When a sleep builtin is available, delay fields can be added.
 type RetryConfig =
-  { maxRetries: Int64 }
+  { maxRetries: Int }
 
 /// Default retry configuration (3 retries, no delay)
 let defaultRetryConfig : RetryConfig =
-  RetryConfig { maxRetries = 3L }
+  RetryConfig { maxRetries = 3I }
 
 /// Retry state for tracking attempts
 type RetryState<'a> =
-  { attempt: Int64
+  { attempt: Int
     lastError: Stdlib.Option.Option<ProviderError>
     result: Stdlib.Option.Option<Stdlib.Result.Result<'a, ProviderError>>
     isDone: Bool }
@@ -435,7 +435,7 @@ let doRetryAttempt
     | Error e ->
       if ProviderError.isRetryable e then
         { state with
-            attempt = state.attempt + 1L
+            attempt = state.attempt + 1I
             lastError = Stdlib.Option.Option.Some e }
       else
         { state with
@@ -465,7 +465,7 @@ let retry
   : Stdlib.Result.Result<'a, ProviderError> =
   let initialState =
     RetryState
-      { attempt = 0L
+      { attempt = 0I
         lastError = Stdlib.Option.Option.None
         result = Stdlib.Option.Option.None
         isDone = false }
@@ -492,12 +492,12 @@ type ToolChoice =
 /// Thinking configuration
 type ThinkingConfig =
   | Disabled
-  | Enabled of budgetTokens: Int64
+  | Enabled of budgetTokens: Int
   | Adaptive // Let the model decide (Anthropic Opus 4.6+)
 
 /// Web search configuration
 type WebSearchConfig =
-  { maxUses: Stdlib.Option.Option<Int64>
+  { maxUses: Stdlib.Option.Option<Int>
     allowedDomains: Stdlib.Option.Option<List<String>>
     blockedDomains: Stdlib.Option.Option<List<String>> }
 
@@ -509,7 +509,7 @@ let defaultWebSearch : WebSearchConfig =
 
 /// Web fetch configuration
 type WebFetchConfig =
-  { maxUses: Stdlib.Option.Option<Int64>
+  { maxUses: Stdlib.Option.Option<Int>
     allowedDomains: Stdlib.Option.Option<List<String>>
     blockedDomains: Stdlib.Option.Option<List<String>>
     enableCitations: Bool }
@@ -583,8 +583,8 @@ type Citation =
     url: Stdlib.Option.Option<String>
     title: Stdlib.Option.Option<String>
     citedText: Stdlib.Option.Option<String>
-    startIndex: Stdlib.Option.Option<Int64>
-    endIndex: Stdlib.Option.Option<Int64> }
+    startIndex: Stdlib.Option.Option<Int>
+    endIndex: Stdlib.Option.Option<Int> }
 
 /// Extended response with provider-specific data
 type ResponseExtended =

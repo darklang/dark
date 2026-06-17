@@ -13,7 +13,7 @@ Format: ## Concept → ### Core Idea → ### How It Works → ### Example → ##
 let thinkingAgent =
   (Darklang.LLM.Agent.create ())
   |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
-  |> Darklang.LLM.Agent.withThinking 2000L
+  |> Darklang.LLM.Agent.withThinking 2000I
   |> Darklang.LLM.Agent.withMaxTokens 4000L
 
 

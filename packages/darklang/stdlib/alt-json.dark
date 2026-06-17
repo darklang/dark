@@ -74,28 +74,28 @@ module Helpers =
 
 
   /// Get an integer value from a JSON object's fields (returns 0 if not found)
-  let getInt (key: String) (fields: List<(String * Json)>) : Int64 =
+  let getInt (key: String) (fields: List<(String * Json)>) : Int =
     let found = List.findFirst fields (fun (k, _) -> k == key)
 
     match found with
     | Some pair ->
       match Tuple2.second pair with
-      | Number n -> Int64.fromFloat n
-      | _ -> 0L
-    | None -> 0L
+      | Number n -> Int.fromFloat n
+      | _ -> 0I
+    | None -> 0I
 
 
   /// Get an optional integer value from a JSON object's fields
   let getIntOption
     (key: String)
     (fields: List<(String * Json)>)
-    : Option.Option<Int64> =
+    : Option.Option<Int> =
     let found = List.findFirst fields (fun (k, _) -> k == key)
 
     match found with
     | Some pair ->
       match Tuple2.second pair with
-      | Number n -> Option.Option.Some(Int64.fromFloat n)
+      | Number n -> Option.Option.Some(Int.fromFloat n)
       | _ -> Option.Option.None
     | None -> Option.Option.None
 
@@ -163,8 +163,8 @@ module Builder =
     List.append fields [ (key, Json.Number value) ]
 
   /// Add a required int field (converts to float for JSON)
-  let addInt (fields: Fields) (key: String) (value: Int64) : Fields =
-    List.append fields [ (key, Json.Number (Int64.toFloat value)) ]
+  let addInt (fields: Fields) (key: String) (value: Int) : Fields =
+    List.append fields [ (key, Json.Number (Int.toFloat value)) ]
 
   /// Add a required bool field
   let addBool (fields: Fields) (key: String) (value: Bool) : Fields =
@@ -202,10 +202,10 @@ module Builder =
   let addOptionalInt
     (fields: Fields)
     (key: String)
-    (value: Option.Option<Int64>)
+    (value: Option.Option<Int>)
     : Fields =
     match value with
-    | Some v -> List.append fields [ (key, Json.Number (Int64.toFloat v)) ]
+    | Some v -> List.append fields [ (key, Json.Number (Int.toFloat v)) ]
     | None -> fields
 
   /// Add an optional bool field (only adds if Some)

@@ -78,11 +78,11 @@ module BatchResultType =
 // ---------------------------------------------------------------------------
 
 type BatchRequestCounts =
-  { processing: Int64
-    succeeded: Int64
-    errored: Int64
-    canceled: Int64
-    expired: Int64 }
+  { processing: Int
+    succeeded: Int
+    errored: Int
+    canceled: Int
+    expired: Int }
 
 
 // ---------------------------------------------------------------------------
@@ -297,7 +297,7 @@ let handleBatchResponse
   | Ok r ->
     let bodyStr = Stdlib.String.fromBlobWithReplacement r.body
 
-    if r.statusCode == 200L || r.statusCode == 201L then
+    if r.statusCode == 200I || r.statusCode == 201I then
       match Stdlib.AltJson.parse bodyStr with
       | Ok json ->
         match parseMessageBatch json with
@@ -317,7 +317,7 @@ let handleListResponse
   | Ok r ->
     let bodyStr = Stdlib.String.fromBlobWithReplacement r.body
 
-    if r.statusCode == 200L then
+    if r.statusCode == 200I then
       match Stdlib.AltJson.parse bodyStr with
       | Ok json ->
         match parseBatchListResponse json with
@@ -364,7 +364,7 @@ let retrieveBatch
 /// Returns paginated results; use after_id for pagination
 let listBatches
   (apiKey: String)
-  (limit: Stdlib.Option.Option<Int64>)
+  (limit: Stdlib.Option.Option<Int>)
   (afterId: Stdlib.Option.Option<String>)
   : Stdlib.Result.Result<BatchListResponse, Response.ApiError> =
   let headers = Models.getHeaders apiKey
@@ -374,7 +374,7 @@ let listBatches
     []
     |> (fun params ->
       match limit with
-      | Some l -> Stdlib.List.append params [ ("limit", Stdlib.Int64.toString l) ]
+      | Some l -> Stdlib.List.append params [ ("limit", Stdlib.Int.toString l) ]
       | None -> params)
     |> (fun params ->
       match afterId with
@@ -422,7 +422,7 @@ let getBatchResults
   | Ok r ->
     let bodyStr = Stdlib.String.fromBlobWithReplacement r.body
 
-    if r.statusCode == 200L then
+    if r.statusCode == 200I then
       // Results are in JSONL format (newline-delimited JSON)
       let allLines = Stdlib.String.splitOnNewline bodyStr
       let lines = Stdlib.List.filter allLines (fun line -> Stdlib.Bool.not (Stdlib.String.isEmpty line))
@@ -455,7 +455,7 @@ let getBatchResultsFromUrl
   | Ok r ->
     let bodyStr = Stdlib.String.fromBlobWithReplacement r.body
 
-    if r.statusCode == 200L then
+    if r.statusCode == 200I then
       // Results are in JSONL format (newline-delimited JSON)
       let allLines = Stdlib.String.splitOnNewline bodyStr
       let lines = Stdlib.List.filter allLines (fun line -> Stdlib.Bool.not (Stdlib.String.isEmpty line))
@@ -493,13 +493,13 @@ let isCanceling (batch: MessageBatch) : Bool =
   batch.processing_status == BatchProcessingStatus.Canceling
 
 /// Get the total number of requests in a batch
-let totalRequests (batch: MessageBatch) : Int64 =
+let totalRequests (batch: MessageBatch) : Int =
   let counts = batch.request_counts
   counts.processing
-  |> Stdlib.Int64.add counts.succeeded
-  |> Stdlib.Int64.add counts.errored
-  |> Stdlib.Int64.add counts.canceled
-  |> Stdlib.Int64.add counts.expired
+  + counts.succeeded
+  + counts.errored
+  + counts.canceled
+  + counts.expired
 
 /// Get only the successful results from a batch results list
 let getSuccessfulResults

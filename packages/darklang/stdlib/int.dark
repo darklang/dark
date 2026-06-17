@@ -83,6 +83,10 @@ let sqrt (a: Int) : Float = Builtin.intSqrt a
 let toFloat (a: Int) : Float = Builtin.intToFloat a
 
 
+/// Converts a <type Float> to an <type Int>, truncating toward zero.
+let fromFloat (a: Float) : Int = Builtin.intFromFloat a
+
+
 /// Returns the sum of all the ints in the list
 let sum (lst: List<Int>) : Int =
   Stdlib.List.fold lst 0I (fun acc x -> add acc x)

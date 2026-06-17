@@ -16,7 +16,7 @@ let agent =
   |> Darklang.LLM.Agent.useSonnet
   |> Darklang.LLM.Agent.withWebSearch
   |> Darklang.LLM.Agent.withWebFetchCitations
-  |> Darklang.LLM.Agent.withThinking 4000L
+  |> Darklang.LLM.Agent.withThinking 4000I
   |> Darklang.LLM.Agent.withMaxTokens 8000L
   |> Darklang.LLM.Agent.withMaxTurns 3L
 
