@@ -110,12 +110,12 @@ let fns () : List<BuiltInFn> =
     { name = fn "stringLength" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Returns the length of the string"
       fn =
         (function
         | _, _, _, [ DString s ] ->
-          s |> String.lengthInEgcs |> int64 |> Dval.int64 |> Ply
+          s |> String.lengthInEgcs |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented // CLEANUP: Sqlite has "LENGTH" but that counts characters; if we can get it to count EGCs, great
       previewable = Pure
@@ -268,22 +268,25 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "string" TString ""
-          Param.make "from" TInt64 ""
-          Param.make "to" TInt64 "" ]
+          Param.make "from" TInt ""
+          Param.make "to" TInt "" ]
       returnType = TString
       description =
         "Returns the substring of <param string> between the <param from> and <param to> indices.
          Negative indices start counting from the end of <param string>."
       fn =
         (function
-        | _, _, _, [ DString s; DInt64 first; DInt64 last ] ->
+        | _, _, _, [ DString s; DInt firstD; DInt lastD ] ->
           let getLengthInTextElements s = StringInfo(s).LengthInTextElements
+
+          // slice positions are bounded by string length; narrow Int -> native int
+          let first = int (DarkInt.toBigInt firstD)
+          let last = int (DarkInt.toBigInt lastD)
 
           // Handle negative indexes (which allow counting from the end)
           let first =
-            if first < 0 then getLengthInTextElements (s) + int first else int first
-          let last =
-            if last < 0 then getLengthInTextElements (s) + int last else int last
+            if first < 0 then getLengthInTextElements (s) + first else first
+          let last = if last < 0 then getLengthInTextElements (s) + last else last
 
           if first >= last then
             Ply(DString "")
@@ -451,6 +454,31 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "stringContains" 0
+      typeParams = []
+      parameters =
+        [ Param.make "lookingIn" TString "The string to search within"
+          Param.make "searchingFor" TString "The substring to look for" ]
+      returnType = TBool
+      description =
+        "Returns {{true}} if <param lookingIn> contains <param searchingFor>.
+         SQL-queryable: it only checks found/not-found, which SQLite's INSTR and
+         .NET's Contains agree on (unlike index position, which they count
+         differently for some Unicode text)."
+      fn =
+        (function
+        | _, _, _, [ DString lookingIn; DString searchingFor ] ->
+          Ply(DBool(lookingIn.Contains(searchingFor)))
+        | _ -> incorrectArgs ())
+      // Emits a complete boolean fragment, so no Int value reaches the SqlCompiler.
+      sqlSpec =
+        SqlCallback2(fun lookingIn searchingFor ->
+          $"(INSTR({lookingIn}, {searchingFor}) > 0)")
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "stringIndexOf" 0
       typeParams = []
       parameters =
@@ -459,7 +487,7 @@ let fns () : List<BuiltInFn> =
             "searchFor"
             TString
             "The string to search for within <param str>" ]
-      returnType = TInt64
+      returnType = TInt
       description =
         "Returns the index of the first occurrence of <param searchFor> in <param str>,
          measured in UTF-16 code units (the .NET string representation). Returns -1 if
@@ -479,8 +507,13 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DString str; DString search ] ->
           let index = str.IndexOf(search)
-          Ply(DInt64 index)
+          Ply(Dval.int (bigint index))
         | _ -> incorrectArgs ())
+      // CLEANUP: now returns Int, which the SqlCompiler can't compile, so this
+      // sqlSpec is dormant — String.indexOf isn't usable in DB.query until Int is
+      // queryable. (String.contains has its own queryable Bool builtin, so it's
+      // unaffected.) The INSTR spec is kept so it works again automatically once
+      // Int becomes queryable.
       sqlSpec = SqlCallback2(fun str search -> $"(INSTR({str}, {search}) - 1)")
       previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps
@@ -495,7 +528,7 @@ let fns () : List<BuiltInFn> =
             "searchFor"
             TString
             "The string to search for within <param str>" ]
-      returnType = TInt64
+      returnType = TInt
       description =
         "Returns the index of the first occurrence of <param searchFor> in <param str>,
          measured in extended grapheme clusters (consistent with {{String.length}},
@@ -509,7 +542,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DString str; DString search ] ->
           if search = "" then
-            Ply(DInt64 0L)
+            Ply(Dval.int (bigint 0))
           else
             // EGC start offsets (UTF-16) of str. A valid match must start at one
             // of these AND end at one of these (or at str.Length).
@@ -538,7 +571,7 @@ let fns () : List<BuiltInFn> =
                 ) = 0
               if endIsBoundary && matches then foundAt <- egcIndex
               egcIndex <- egcIndex + 1
-            Ply(DInt64(int64 foundAt))
+            Ply(Dval.int (bigint foundAt))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -554,7 +587,7 @@ let fns () : List<BuiltInFn> =
             "searchFor"
             TString
             "The string to search for within <param str>" ]
-      returnType = TInt64
+      returnType = TInt
       description =
         "Returns the index of the last occurrence of <param searchFor> in <param str>,
          measured in UTF-16 code units. Returns -1 if <param searchFor> does not occur.
@@ -564,7 +597,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DString str; DString search ] ->
           let index = str.LastIndexOf(search)
-          Ply(DInt64 index)
+          Ply(Dval.int (bigint index))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -580,7 +613,7 @@ let fns () : List<BuiltInFn> =
             "searchFor"
             TString
             "The string to search for within <param str>" ]
-      returnType = TInt64
+      returnType = TInt
       description =
         "Returns the index of the last occurrence of <param searchFor> in <param str>,
          measured in extended grapheme clusters (consistent with {{String.length}},
@@ -591,7 +624,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DString str; DString search ] ->
           if search = "" then
-            Ply(DInt64(int64 (StringInfo(str).LengthInTextElements)))
+            Ply(Dval.int (bigint (StringInfo(str).LengthInTextElements)))
           else
             let starts = StringInfo.ParseCombiningCharacters(str)
             let mutable lastFound = -1
@@ -618,7 +651,7 @@ let fns () : List<BuiltInFn> =
                 ) = 0
               if endIsBoundary && matches then lastFound <- egcIndex
               egcIndex <- egcIndex + 1
-            Ply(DInt64(int64 lastFound))
+            Ply(Dval.int (bigint lastFound))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

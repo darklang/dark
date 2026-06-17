@@ -128,7 +128,7 @@ let execute (state: AppState) (args: List<String>): AppState =
     let maxDepth =
       match Stdlib.List.findFirst args (fun arg -> Stdlib.String.startsWith arg "--depth=") with
       | Some depthArg ->
-        let depthStr = Stdlib.String.dropFirst depthArg 8L // Remove "--depth="
+        let depthStr = Stdlib.String.dropFirst depthArg 8I // Remove "--depth="
         match Stdlib.Int64.parse depthStr with
         | Ok depth ->
           if depth > 0L && depth <= 10L then depth else 2L // Limit to reasonable range

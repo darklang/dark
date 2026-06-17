@@ -93,7 +93,7 @@ let parseMPFloat
     let (sign, whole, remainder) =
       let (sign, unsignedFloat) =
         if Stdlib.String.startsWith floatStr "-" then
-          (Sign.Negative, Stdlib.String.dropFirst floatStr 1L)
+          (Sign.Negative, Stdlib.String.dropFirst floatStr 1I)
         else
           (Sign.Positive, floatStr)
 

@@ -24,9 +24,9 @@ let createStatusBar (leftText: String) (rightText: String) (width: Int64) : Core
 let renderStatusBar (component: Core.Types.Component<StatusBarModel>) (context: Core.Types.RenderContext) : List<String> =
   let model = component.model
 
-  let leftLen = Stdlib.String.length model.leftText
-  let rightLen = Stdlib.String.length model.rightText
-  let centerLen = Stdlib.String.length model.centerText
+  let leftLen = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length model.leftText))
+  let rightLen = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length model.rightText))
+  let centerLen = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length model.centerText))
 
   let line =
     if Stdlib.String.isEmpty model.centerText then
@@ -40,7 +40,7 @@ let renderStatusBar (component: Core.Types.Component<StatusBarModel>) (context: 
     else
       let totalContentLen = leftLen + centerLen + rightLen
       if totalContentLen >= model.width then
-        Stdlib.String.slice (model.leftText ++ model.centerText ++ model.rightText) 0L model.width
+        Stdlib.String.slice (model.leftText ++ model.centerText ++ model.rightText) 0I (Stdlib.Int.fromInt64 model.width)
       else
         let leftPadding = Stdlib.Int64.divide (model.width - centerLen) 2L - leftLen
         let rightPadding = model.width - leftLen - centerLen - leftPadding

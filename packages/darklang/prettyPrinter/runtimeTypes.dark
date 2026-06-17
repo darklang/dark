@@ -411,7 +411,7 @@ module Dval =
 
       let short = Stdlib.String.join parts ", "
 
-      if Stdlib.String.length short <= 80L then
+      if Stdlib.String.length short <= 80I then
         $"({short})"
       else
         let long = Stdlib.String.join parts $"{inl}, "
@@ -427,7 +427,7 @@ module Dval =
           Stdlib.List.map l (fun item -> withIndent branchId indent item)
         let short = Stdlib.String.join parts ", "
 
-        if Stdlib.String.length short <= 80L then
+        if Stdlib.String.length short <= 80I then
           $"[{short}]"
         else
           let long = Stdlib.String.join parts $",{inl}"
@@ -447,7 +447,7 @@ module Dval =
 
         let short = Stdlib.String.join strs ", "
 
-        if Stdlib.String.length short <= 80L then
+        if Stdlib.String.length short <= 80I then
           "{ " ++ short ++ " }"
         else
           let long = Stdlib.String.join strs $",{inl}"
@@ -456,7 +456,7 @@ module Dval =
 
     // Don't fetch the bytes for rendering — payloads can be many MB.
     | DBlobPersistent(hash, length) ->
-      let short = Stdlib.String.first hash 8L
+      let short = Stdlib.String.first hash 8I
       $"<Blob: {short}… {Stdlib.Int64.toString length} bytes>"
     | DBlobEphemeral _ -> "<Blob: ephemeral>"
 
@@ -483,7 +483,7 @@ module Dval =
         let typeStr = RuntimeTypes.typeName branchId typeName
         $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
 
-      if Stdlib.String.length short <= 80L then
+      if Stdlib.String.length short <= 80I then
         short
       else
         let fieldStr =
@@ -518,7 +518,7 @@ module Dval =
 
       let short = Stdlib.String.join strs ", "
 
-      if Stdlib.String.length short <= 80L then
+      if Stdlib.String.length short <= 80I then
         typeStr ++ typeArgsPart ++ " { " ++ short ++ " }"
       else
         let long = Stdlib.String.join strs $",{inl}"

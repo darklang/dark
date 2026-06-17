@@ -23,9 +23,9 @@ let createDropdown (placeholder: String) (items: List<DropdownItem>) : Core.Type
     items
     |> Stdlib.List.map (fun item -> Stdlib.String.length item.label)
     |> Stdlib.List.append [Stdlib.String.length placeholder]
-    |> Stdlib.List.fold 20L (fun acc len -> if len > acc then len else acc)
+    |> Stdlib.List.fold 20I (fun acc len -> if len > acc then len else acc)
   let height = if model.isOpen then Stdlib.Int64.min model.maxHeight ((Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length items))) + 2L) else 1L
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxWidth + 4L; height = height } }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = (Builtin.unwrap (Stdlib.Int.toInt64 maxWidth)) + 4L; height = height } }
   Core.Types.Component
     { id = "dropdown"
       model = model
@@ -127,9 +127,9 @@ let createMultiSelect (placeholder: String) (items: List<DropdownItem>) (maxSele
     items
     |> Stdlib.List.map (fun item -> Stdlib.String.length item.label)
     |> Stdlib.List.append [Stdlib.String.length placeholder]
-    |> Stdlib.List.fold 25L (fun acc len -> if len > acc then len else acc)
+    |> Stdlib.List.fold 25I (fun acc len -> if len > acc then len else acc)
   let height = if model.isOpen then Stdlib.Int64.min model.maxHeight ((Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length items))) + 2L) else 1L
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxWidth + 4L; height = height } }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = (Builtin.unwrap (Stdlib.Int.toInt64 maxWidth)) + 4L; height = height } }
   Core.Types.Component
     { id = "multiselect"
       model = model
@@ -218,10 +218,10 @@ let createContextMenu (items: List<DropdownItem>) : Core.Types.Component<Context
   let model = ContextMenuModel { items = items; isVisible = false; position = Core.Types.Position { x = 0L; y = 0L } }
   let maxWidth =
     items
-    |> Stdlib.List.map (fun item -> Stdlib.String.length item.label + 4L)
-    |> Stdlib.List.fold 15L (fun acc len -> if len > acc then len else acc)
+    |> Stdlib.List.map (fun item -> Stdlib.String.length item.label + 4I)
+    |> Stdlib.List.fold 15I (fun acc len -> if len > acc then len else acc)
   let height = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length items))) + 2L
-  let bounds = Core.Types.Bounds { position = model.position; dimensions = Core.Types.Dimensions { width = maxWidth; height = height } }
+  let bounds = Core.Types.Bounds { position = model.position; dimensions = Core.Types.Dimensions { width = Builtin.unwrap (Stdlib.Int.toInt64 maxWidth); height = height } }
   Core.Types.Component
     { id = "contextmenu"
       model = model

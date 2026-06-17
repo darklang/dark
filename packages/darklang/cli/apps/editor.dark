@@ -28,10 +28,10 @@ let selectedApp (state: State) : Stdlib.Option.Option<Model.App> =
 
 // `s` cut to `maxLen` display columns, with a trailing ellipsis when it doesn't fit.
 let private truncate (s: String) (maxLen: Int64) : String =
-  if Stdlib.String.length s <= maxLen then
+  if (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length s))) <= maxLen then
     s
   else
-    (Stdlib.String.slice s 0L (maxLen - 1L)) ++ "…"
+    (Stdlib.String.slice s 0I (Stdlib.Int.fromInt64 (maxLen - 1L))) ++ "…"
 
 
 let private appRow (state: State) (idx: Int64) (app: Model.App) : String =
@@ -64,9 +64,9 @@ let private appRow (state: State) (idx: Int64) (app: Model.App) : String =
     else if isRunning then Colors.colorize Colors.green rawState
     else if isStale then Colors.colorize Colors.yellow rawState
     else Colors.dimText rawState
-  let stateWidth = if rawState == "" then 0L else (Stdlib.String.length rawState) + 3L
+  let stateWidth = if rawState == "" then 0L else (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length rawState))) + 3L
 
-  let name = Stdlib.Result.withDefault (Stdlib.String.padEnd app.name " " 26L) app.name
+  let name = Stdlib.Result.withDefault (Stdlib.String.padEnd app.name " " 26I) app.name
   let w = Darklang.Cli.Terminal.getWidth ()
   let width = if w <= 0L then 80L else w
   // prefix (▸ + install glyph + run glyph + space) = 5 cols, name column = 26, gap before description = 2

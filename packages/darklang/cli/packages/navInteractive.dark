@@ -410,8 +410,8 @@ let handleSearchKeys
 
   | Backspace ->
     let newQuery =
-      if Stdlib.String.length navState.searchQuery > 0L then
-        Stdlib.String.dropLast navState.searchQuery 1L
+      if Stdlib.String.length navState.searchQuery > 0I then
+        Stdlib.String.dropLast navState.searchQuery 1I
       else
         ""
     let newNavState = { navState with searchQuery = newQuery }

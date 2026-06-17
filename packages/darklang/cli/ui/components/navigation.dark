@@ -21,7 +21,7 @@ let createMenu (title: String) (items: List<MenuItem>) : Core.Types.Component<Me
   let model = MenuModel { items = items; selectedIndex = 0L; isOpen = false; title = title }
   let maxWidth =
     items
-    |> Stdlib.List.map (fun item -> Stdlib.String.length item.label + Stdlib.String.length item.shortcut + 4L)
+    |> Stdlib.List.map (fun item -> (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length item.label + Stdlib.String.length item.shortcut))) + 4L)
     |> Stdlib.List.fold 20L (fun acc len -> if len > acc then len else acc)
   let height = if model.isOpen then (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length items))) + 2L else 1L
   let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxWidth; height = height } }
@@ -52,7 +52,7 @@ let renderMenu (component: Core.Types.Component<MenuModel>) (context: Core.Types
             else if isSelected then Core.Types.Color.Primary
             else Core.Types.Color.Default
 
-          let label = Core.Rendering.padText item.label (component.bounds.dimensions.width - 6L - Stdlib.String.length item.shortcut) Core.Types.Alignment.Left
+          let label = Core.Rendering.padText item.label (component.bounds.dimensions.width - 6L - (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length item.shortcut)))) Core.Types.Alignment.Left
           let shortcut = if Stdlib.String.isEmpty item.shortcut then "" else "[" ++ item.shortcut ++ "]"
           let styledItem = Core.Rendering.colorize itemColor (prefix ++ " " ++ label ++ " " ++ shortcut)
           "│" ++ styledItem ++ "│")
@@ -190,8 +190,8 @@ type NavBarModel =
 let createNavBar (title: String) (items: List<MenuItem>) : Core.Types.Component<NavBarModel> =
   let model = NavBarModel { items = items; selectedIndex = 0L; title = title }
   let totalWidth =
-    (Stdlib.String.length title + 4L) +
-    (items |> Stdlib.List.map (fun item -> Stdlib.String.length item.label + 4L) |> Stdlib.List.fold 0L (fun acc len -> acc + len))
+    ((Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length title))) + 4L) +
+    (items |> Stdlib.List.map (fun item -> (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length item.label))) + 4L) |> Stdlib.List.fold 0L (fun acc len -> acc + len))
   let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = totalWidth; height = 1L } }
   Core.Types.Component
     { id = "navbar-" ++ title

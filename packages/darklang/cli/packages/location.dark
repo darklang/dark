@@ -16,7 +16,7 @@ let parseRelativeTo
   let parts =
     if isAbsolute then
       // Remove leading slash and split
-      let withoutSlash = Stdlib.String.dropFirst location 1L
+      let withoutSlash = Stdlib.String.dropFirst location 1I
       Stdlib.String.split withoutSlash "."
     else
       // Relative path - combine current path with relative path

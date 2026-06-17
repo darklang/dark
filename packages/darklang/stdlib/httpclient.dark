@@ -198,13 +198,13 @@ module Sse =
     match Stdlib.String.indexOf line ":" with
     | None -> (line, "")
     | Some idx ->
-      let field = Stdlib.String.slice line 0L idx
+      let field = Stdlib.String.slice line 0I idx
       let afterColon =
-        Stdlib.String.slice line (idx + 1L) (Stdlib.String.length line)
+        Stdlib.String.slice line (idx + 1I) (Stdlib.String.length line)
 
       let value =
         if Stdlib.String.startsWith afterColon " " then
-          Stdlib.String.dropFirst afterColon 1L
+          Stdlib.String.dropFirst afterColon 1I
         else
           afterColon
 

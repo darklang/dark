@@ -15,7 +15,7 @@ let getTextAtRange
   match textLines with
   | Some line ->
     line
-    |> Stdlib.String.slice startColumn endColumn
+    |> Stdlib.String.slice (Stdlib.Int.fromInt64 startColumn) (Stdlib.Int.fromInt64 endColumn)
     |> Stdlib.Option.Option.Some
 
   | None -> Stdlib.Option.Option.None
@@ -59,8 +59,8 @@ let handleHoverRequest
         let pathPart =
           // TODO: remove magic
           params.textDocument.uri
-          |> Stdlib.String.dropFirst 8L // Remove "darkfs:/"
-          |> Stdlib.String.dropLast 5L // Remove ".dark"
+          |> Stdlib.String.dropFirst 8I // Remove "darkfs:/"
+          |> Stdlib.String.dropLast 5I // Remove ".dark"
 
         if Stdlib.String.startsWith pathPart "script/" then
           ("LspHover", "")

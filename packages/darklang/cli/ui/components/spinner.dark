@@ -36,7 +36,7 @@ let createSpinner (message: String) (style: SpinnerStyle) : Core.Types.Component
   let bounds =
     Core.Types.Bounds
       { position = Core.Types.Position { x = 0L; y = 0L }
-        dimensions = Core.Types.Dimensions { width = Stdlib.String.length message + 4L; height = 1L } }
+        dimensions = Core.Types.Dimensions { width = (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length message))) + 4L; height = 1L } }
 
   Core.Types.Component
     { id = "spinner"

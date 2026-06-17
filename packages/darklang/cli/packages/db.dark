@@ -93,7 +93,7 @@ let listDBs (state: Cli.AppState) : Cli.AppState =
 
     // Print table header
     let nameHeader =
-      (Stdlib.String.padEnd "Name" " " 20L) |> Builtin.unwrap
+      (Stdlib.String.padEnd "Name" " " 20I) |> Builtin.unwrap
 
     let typeHeader = "Type"
 
@@ -106,7 +106,7 @@ let listDBs (state: Cli.AppState) : Cli.AppState =
       let (name, typeName) = db
 
       let nameCol =
-        (Stdlib.String.padEnd name " " 20L) |> Builtin.unwrap
+        (Stdlib.String.padEnd name " " 20I) |> Builtin.unwrap
 
       Stdlib.printLine $"{nameCol}{typeName}")
 
@@ -155,12 +155,12 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
 
       // Print header
       let keyHeader =
-        (Stdlib.String.padEnd "Key" " " colWidth) |> Builtin.unwrap
+        (Stdlib.String.padEnd "Key" " " (Stdlib.Int.fromInt64 colWidth)) |> Builtin.unwrap
 
       let fieldHeaders =
         fieldNames
         |> Stdlib.List.map (fun name ->
-          (Stdlib.String.padEnd name " " colWidth) |> Builtin.unwrap)
+          (Stdlib.String.padEnd name " " (Stdlib.Int.fromInt64 colWidth)) |> Builtin.unwrap)
         |> Stdlib.String.join ""
 
       Stdlib.printLine $"{keyHeader}{fieldHeaders}"
@@ -185,7 +185,7 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
           let formatted =
             parts
             |> Stdlib.List.map (fun part ->
-              (Stdlib.String.padEnd part " " colWidth) |> Builtin.unwrap)
+              (Stdlib.String.padEnd part " " (Stdlib.Int.fromInt64 colWidth)) |> Builtin.unwrap)
             |> Stdlib.String.join ""
 
           Stdlib.printLine formatted)

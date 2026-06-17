@@ -43,7 +43,7 @@ let renderListView (component: Core.Types.Component<ListViewModel>) (context: Co
         let globalIndex = model.scrollOffset + (Builtin.unwrap (Stdlib.Int.toInt64 i))
         let marker = if globalIndex == model.selectedIndex then "▶ " else "  "
         let rawText = marker ++ item.text
-        let textLen = Stdlib.String.length rawText
+        let textLen = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length rawText))
         let rightPad = if innerWidth > textLen then Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (innerWidth - textLen)) else ""
 
         // Style after calculating padding

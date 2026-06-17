@@ -110,7 +110,7 @@ module RuntimeError =
           | InlineValue dv ->
             // CLEANUP for strings that are cut off, the closing `"` is missing.
             (dval branchId dv)
-            |> Stdlib.String.ellipsis 10L
+            |> Stdlib.String.ellipsis 10I
             |> Stdlib.String.splitOnNewline
             |> Stdlib.String.join ""
           | FullValue dv -> dval branchId dv

@@ -87,9 +87,9 @@ let thinHr () : String =
   Darklang.Cli.Colors.dimText (Stdlib.String.repeat "╌" (Stdlib.Int.fromInt64 cols))
 
 let padRight (s: String) (width: Int64) : String =
-  let len = Stdlib.String.length s
+  let len = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length s))
   if len >= width then
-    Stdlib.String.slice s 0L width
+    Stdlib.String.slice s 0I (Stdlib.Int.fromInt64 width)
   else
     s ++ (Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (width - len)))
 

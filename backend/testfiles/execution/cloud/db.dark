@@ -855,7 +855,7 @@ module CompiledFunctions =
   // (friends (fun p -> Stdlib.String.reverse p.name == "lehcaR")) = [ "Rachel" ]
 
   // TODO: SQLite's LENGTH counts characters, not EGCs so we made it non queriable for now
-  // (friends (fun p -> Stdlib.String.length p.name > 5L)) = [ " Chandler "
+  // (friends (fun p -> Stdlib.String.length p.name > 5I)) = [ " Chandler "
   //                                                           "GrumpyCat"
   //                                                           "Rachel" ]
   (friends (fun p -> Stdlib.String.contains p.name "ROSS")) = []
@@ -1054,4 +1054,4 @@ module QueryCount =
    Stdlib.DB.queryCount PersonDB (fun p -> p.height > 3L)) = 4I
 
 
-((Stdlib.DB.generateKey ()) |> Stdlib.String.length) = 36L
+((Stdlib.DB.generateKey ()) |> Stdlib.String.length) = 36I

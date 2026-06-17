@@ -54,7 +54,8 @@ let wordUnderCursor
       |> Stdlib.List.getAt (Stdlib.Int.fromInt64 line)
       |> Stdlib.Option.withDefault ""
 
-    let lineToCursor = currentLine |> Stdlib.String.slice 0L character
+    let lineToCursor =
+      currentLine |> Stdlib.String.slice 0I (Stdlib.Int.fromInt64 character)
 
     lineToCursor
     |> Stdlib.String.split " "

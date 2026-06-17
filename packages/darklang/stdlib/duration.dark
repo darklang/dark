@@ -7,12 +7,12 @@ module Darklang.Stdlib.Duration
 /// Bare numbers are rejected — every duration must end with a unit.
 let parse (s: String) : Stdlib.Result.Result<Int, String> =
   let len = Stdlib.String.length s
-  if len < 2L then
+  if len < 2I then
     Stdlib.Result.Result.Error
       $"Duration too short: '{s}'; need a number + unit (s/m/h/d), e.g. 5m"
   else
-    let unit = Stdlib.String.last s 1L
-    let numPart = Stdlib.String.dropLast s 1L
+    let unit = Stdlib.String.last s 1I
+    let numPart = Stdlib.String.dropLast s 1I
     match Stdlib.Int.parse numPart with
     | Error _ ->
       Stdlib.Result.Result.Error

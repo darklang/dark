@@ -89,7 +89,7 @@ let packageNameWithContext
       Stdlib.String.dropFirst fullName (Stdlib.String.length prefix)
     else if owner == "Darklang" then
       // For Darklang packages, drop the "Darklang." prefix for brevity
-      let withoutDarklang = Stdlib.String.dropFirst fullName 9L // "Darklang.".length
+      let withoutDarklang = Stdlib.String.dropFirst fullName 9I // "Darklang.".length
       withoutDarklang
     else
       fullName

@@ -98,7 +98,9 @@ let drawBoxWithStyle (bounds: Types.Bounds) (title: String) (content: List<Strin
       []
     else
       let paddedTitle = " " ++ title ++ " "
-      let titleWidth = Stdlib.String.length paddedTitle
+      // titleWidth meets Int64 terminal-dim arithmetic; bridge to Int64
+      let titleWidth =
+        Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length paddedTitle))
       let leftPadding = Stdlib.Int64.divide (innerWidth - titleWidth) 2L
       let rightPadding = innerWidth - titleWidth - leftPadding
       [vert ++ Stdlib.String.repeat " " (Stdlib.Int.fromInt64 leftPadding) ++ bold paddedTitle ++ Stdlib.String.repeat " " (Stdlib.Int.fromInt64 rightPadding) ++ vert]
@@ -106,7 +108,8 @@ let drawBoxWithStyle (bounds: Types.Bounds) (title: String) (content: List<Strin
   let contentLines =
     content
     |> Stdlib.List.map (fun line ->
-      let lineLength = Stdlib.String.length line
+      let lineLength =
+        Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length line))
       let padding = if lineLength < innerWidth - 1L then Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (innerWidth - 1L - lineLength)) else ""
       vert ++ " " ++ line ++ padding ++ vert)
 
@@ -120,9 +123,10 @@ let drawBox (bounds: Types.Bounds) (title: String) (content: List<String>) : Lis
   drawBoxWithStyle bounds title content BoxStyle.Single
 
 let padText (text: String) (width: Int64) (alignment: Types.Alignment) : String =
-  let textLength = Stdlib.String.length text
+  let textLength =
+    Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length text))
   if textLength >= width then
-    Stdlib.String.slice text 0L width
+    Stdlib.String.slice text 0I (Stdlib.Int.fromInt64 width)
   else
     let padding = width - textLength
     match alignment with
@@ -135,10 +139,10 @@ let padText (text: String) (width: Int64) (alignment: Types.Alignment) : String 
     | Justify -> text ++ Stdlib.String.repeat " " (Stdlib.Int.fromInt64 padding)
 
 let truncateText (text: String) (maxWidth: Int64) : String =
-  if Stdlib.String.length text <= maxWidth then
+  if Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length text)) <= maxWidth then
     text
   else
-    Stdlib.String.slice text 0L (maxWidth - 3L) ++ "..."
+    Stdlib.String.slice text 0I (Stdlib.Int.fromInt64 (maxWidth - 3L)) ++ "..."
 
 // Focus indicators
 let addFocusIndicator (text: String) (hasFocus: Bool) : String =

@@ -8,7 +8,7 @@ module Darklang.PrettyPrinter.Capabilities
 
 let methodLabel (m: String) : String = if m == "*" then "any" else m
 
-let pad (s: String) (goal: Int64) : String =
+let pad (s: String) (goal: Int) : String =
   match Stdlib.String.padEnd s " " goal with
   | Ok r -> r
   | Error _ -> s
@@ -49,7 +49,7 @@ let line (spec: String) : String =
   if det == "" then
     PrettyPrinter.Capabilities.domainOf spec
   else
-    $"{PrettyPrinter.Capabilities.pad (PrettyPrinter.Capabilities.domainOf spec) 14L}{det}"
+    $"{PrettyPrinter.Capabilities.pad (PrettyPrinter.Capabilities.domainOf spec) 14I}{det}"
 
 /// The multi-line view: one aligned line per spec.
 let lines (specs: List<String>) : List<String> =

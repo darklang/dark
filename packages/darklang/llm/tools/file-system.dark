@@ -32,7 +32,7 @@ let resolveSafePath (path: String) : Stdlib.Result.Result<String, String> =
       if path == "." then
         ""
       else if Stdlib.String.startsWith path "./" then
-        Stdlib.String.dropFirst path 2L
+        Stdlib.String.dropFirst path 2I
       else
         path
 

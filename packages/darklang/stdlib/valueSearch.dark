@@ -9,7 +9,7 @@ type FoundValue<'a> =
 
 /// Parse namespace string into parts (non-generic helper)
 let parseNamespace (targetNamespace: String) : List<String> =
-  if (Stdlib.String.length targetNamespace) == 0L then
+  if (Stdlib.String.length targetNamespace) == 0I then
     []
   else
     Stdlib.String.split targetNamespace "."

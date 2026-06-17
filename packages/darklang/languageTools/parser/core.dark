@@ -271,7 +271,7 @@ let extractDocComments (node: ParsedNode) : String =
   |> Stdlib.List.map (fun docComment ->
     // Remove the "///" prefix and any leading space
     docComment.text
-    |> Stdlib.String.dropFirst 3L
+    |> Stdlib.String.dropFirst 3I
     |> Stdlib.String.trimStart)
   |> Stdlib.String.join "\n"
 
@@ -411,7 +411,7 @@ let baseParseDict
                 findAndParseRequired dictPairNode "key" (fun node ->
                   match node.typ with
                   | "double_backtick_identifier" ->
-                    let key = node.text |> Stdlib.String.slice 2L -2L
+                    let key = node.text |> Stdlib.String.slice 2I -2I
                     (node.range, key) |> Stdlib.Result.Result.Ok
                   | _ ->
                     (node.range, nameOrBlank (Parser.getText node))

@@ -184,7 +184,7 @@ module StatusBar =
     let branchPart =
       Colors.colorize (Colors.grayBg ++ Colors.white) branchText
 
-    let leftLen = Stdlib.String.length leftText + Stdlib.String.length branchText
+    let leftLen = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length leftText + Stdlib.String.length branchText))
     let paddingLen = terminalWidth - leftLen
 
     let padding =
@@ -726,7 +726,7 @@ let runInteractiveLoop (state: AppState) : Int64 =
       else
         Registry.getCompletionHint state state.prompt.text
     if state.telemetryEnabled then
-      Telemetry.logWithContext "completionHint" tHint [("inputLen", Stdlib.Int64.toString (Stdlib.String.length state.prompt.text)); ("cached", Stdlib.Bool.toString hintCached)]
+      Telemetry.logWithContext "completionHint" tHint [("inputLen", Stdlib.Int.toString (Stdlib.String.length state.prompt.text)); ("cached", Stdlib.Bool.toString hintCached)]
 
     let promptOutput =
       Prompt.Display.formatPromptWithInput location state.prompt.text hint
@@ -736,7 +736,7 @@ let runInteractiveLoop (state: AppState) : Int64 =
       if w <= 0L then 80L else w
     // Visual length (0-based char count; inputStartColumn is 1-based so subtract 1)
     let visualLength =
-      (inputStartColumn - 1L) + (Stdlib.String.length state.prompt.text) + (Stdlib.String.length hint)
+      (inputStartColumn - 1L) + (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length state.prompt.text))) + (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length hint)))
     let renderedRows =
       if visualLength <= terminalWidth then 1L
       else (Stdlib.Int64.divide (visualLength - 1L) terminalWidth) + 1L

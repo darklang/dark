@@ -32,8 +32,8 @@ let printAt (region: Region) (row: Int64) (col: Int64) (text: String) : Unit =
     let absCol = region.left + col
     let maxLen = Stdlib.Int64.max 0L (region.cols - col)
     let truncated =
-      if (Stdlib.String.length text) > maxLen then
-        Stdlib.String.slice text 0L maxLen
+      if (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length text))) > maxLen then
+        Stdlib.String.slice text 0I (Stdlib.Int.fromInt64 maxLen)
       else
         text
     Stdlib.print (Darklang.Cli.Colors.moveCursorTo absRow absCol)

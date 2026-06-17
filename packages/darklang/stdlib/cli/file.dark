@@ -310,7 +310,7 @@ let glob (basePath: String) (pattern: String) : Result.Result<List<String>, Posi
   |> Stdlib.Result.map (fun allPaths ->
     allPaths
     |> Stdlib.List.filter (fun fullPath ->
-      let rel = Stdlib.String.dropFirst fullPath ((Stdlib.String.length cleanBase) + 1L)
+      let rel = Stdlib.String.dropFirst fullPath ((Stdlib.String.length cleanBase) + 1I)
       let pathSegs = Stdlib.String.split rel "/"
       globMatchSegments patternSegs pathSegs))
 

@@ -373,7 +373,7 @@ let hashToString (hash: Hash) : String =
 /// First 8 hex chars, for human-readable display
 let hashToShort (hash: Hash) : String =
   let h = hashToString hash
-  Stdlib.String.first h 8L
+  Stdlib.String.first h 8I
 
 /// A package entity paired with its location
 type LocatedItem<'entity> =

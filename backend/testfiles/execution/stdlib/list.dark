@@ -345,7 +345,7 @@ module GroupByWithKey =
 
   Stdlib.List.groupByWithKey_v0
     [ "apple"; "banana"; "avocado"; "grape"; "apricot" ]
-    (fun s -> Stdlib.String.first_v0 s 1L) = [ ("a", [ "apple"; "avocado"; "apricot" ])
+    (fun s -> Stdlib.String.first_v0 s 1I) = [ ("a", [ "apple"; "avocado"; "apricot" ])
                                                ("b", [ "banana" ])
                                                ("g", [ "grape" ]) ]
 

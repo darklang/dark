@@ -10,7 +10,7 @@ module Darklang.Tracing.Format
 /// width).
 let padNum (n: Int64) (width: Int64) : String =
   let s = Stdlib.Int64.toString n
-  match Stdlib.String.padStart s " " width with
+  match Stdlib.String.padStart s " " (Stdlib.Int.fromInt64 width) with
   | Ok r -> r
   | Error _ -> s
 

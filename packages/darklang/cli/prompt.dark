@@ -20,20 +20,20 @@ let initState () : State =
 module Editing =
   /// Insert text at cursor position
   let insertAtCursor (state: State) (char: String) : State =
-    let beforeCursor = Stdlib.String.slice state.text 0L state.cursorPosition
-    let afterCursor = Stdlib.String.dropFirst state.text state.cursorPosition
+    let beforeCursor = Stdlib.String.slice state.text 0I (Stdlib.Int.fromInt64 state.cursorPosition)
+    let afterCursor = Stdlib.String.dropFirst state.text (Stdlib.Int.fromInt64 state.cursorPosition)
     let newText = beforeCursor ++ char ++ afterCursor
     { state with
         text = newText
-        cursorPosition = state.cursorPosition + (Stdlib.String.length char)
+        cursorPosition = state.cursorPosition + (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length char)))
         historyIndex = -1L
         savedPrompt = "" }
 
   /// Delete character before cursor (backspace)
   let deleteBeforeCursor (state: State) : State =
     if state.cursorPosition > 0L then
-      let beforeCursor = Stdlib.String.slice state.text 0L (state.cursorPosition - 1L)
-      let afterCursor = Stdlib.String.dropFirst state.text state.cursorPosition
+      let beforeCursor = Stdlib.String.slice state.text 0I (Stdlib.Int.fromInt64 (state.cursorPosition - 1L))
+      let afterCursor = Stdlib.String.dropFirst state.text (Stdlib.Int.fromInt64 state.cursorPosition)
       let newText = beforeCursor ++ afterCursor
       { state with
           text = newText
@@ -44,11 +44,11 @@ module Editing =
 
   /// Delete character at cursor (delete key)
   let deleteAtCursor (state: State) : State =
-    let textLength = Stdlib.String.length state.text
+    let textLength = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length state.text))
 
     if state.cursorPosition < textLength then
-      let beforeCursor = Stdlib.String.slice state.text 0L state.cursorPosition
-      let afterCursor = Stdlib.String.dropFirst state.text (state.cursorPosition + 1L)
+      let beforeCursor = Stdlib.String.slice state.text 0I (Stdlib.Int.fromInt64 state.cursorPosition)
+      let afterCursor = Stdlib.String.dropFirst state.text (Stdlib.Int.fromInt64 (state.cursorPosition + 1L))
       let newText = beforeCursor ++ afterCursor
       { state with text = newText; historyIndex = -1L }
     else
@@ -61,7 +61,7 @@ module Editing =
 
   /// Move cursor right
   let moveCursorRight (state: State) : State =
-    let textLength = Stdlib.String.length state.text
+    let textLength = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length state.text))
     let newCursorPos = Stdlib.Int64.min textLength (state.cursorPosition + 1L)
     { state with cursorPosition = newCursorPos }
 
@@ -71,7 +71,7 @@ module Editing =
 
   /// Move cursor to end of line
   let moveCursorEnd (state: State) : State =
-    let textLength = Stdlib.String.length state.text
+    let textLength = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length state.text))
     { state with cursorPosition = textLength }
 
   /// Clear the prompt text
@@ -83,7 +83,7 @@ module Editing =
 
   /// Set the prompt text and move cursor to end
   let setText (state: State) (text: String) : State =
-    let textLength = Stdlib.String.length text
+    let textLength = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length text))
     { state with text = text; cursorPosition = textLength }
 
 
@@ -113,7 +113,7 @@ module History =
             state.historyIndex  // Stay at oldest command
       match Stdlib.List.getAt state.commandHistory (Stdlib.Int.fromInt64 newIndex) with
       | Some command ->
-        let commandLength = Stdlib.String.length command
+        let commandLength = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length command))
         let newSavedPrompt =
           if state.historyIndex == -1L then
             state.text
@@ -138,7 +138,7 @@ module History =
         else
           -1L  // Go back to empty prompt
       if newIndex == -1L then
-        let restoredPromptLength = Stdlib.String.length state.savedPrompt
+        let restoredPromptLength = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length state.savedPrompt))
         { state with
             text = state.savedPrompt
             cursorPosition = restoredPromptLength
@@ -146,7 +146,7 @@ module History =
       else
         match Stdlib.List.getAt state.commandHistory (Stdlib.Int.fromInt64 newIndex) with
         | Some command ->
-          let commandLength = Stdlib.String.length command
+          let commandLength = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length command))
           { state with
               text = command
               cursorPosition = commandLength
@@ -181,8 +181,8 @@ module Display =
       if Stdlib.String.isEmpty locationStr then
         0L
       else
-        (Stdlib.String.length locationStr) + 1L  // +1 for the space after path
+        (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length locationStr))) + 1L  // +1 for the space after path
 
     locationLength
-    + (Stdlib.String.length "> ")
+    + (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length "> ")))
     + 1L

@@ -46,7 +46,7 @@ module DirectApiTests =
       match Chat.Request.send apiKey req with
       | Ok response ->
         let text = Response.getText response
-        if Stdlib.String.length text > 0L then
+        if Stdlib.String.length text > 0I then
           TestResult.Pass
         else
           TestResult.Fail "Empty response text"
@@ -263,7 +263,7 @@ module ServerToolTests =
           TestResult.Pass
         else
           // Code execution might not always be triggered
-          if Stdlib.String.length text > 0L then
+          if Stdlib.String.length text > 0I then
             TestResult.Pass
           else
             TestResult.Fail "No tool use and no response"
@@ -289,7 +289,7 @@ module ServerToolTests =
       | Ok response ->
         let hasToolUse = Response.hasToolUse response
         let text = Response.getText response
-        if hasToolUse || Stdlib.String.length text > 0L then
+        if hasToolUse || Stdlib.String.length text > 0I then
           TestResult.Pass
         else
           TestResult.Fail "No tool use and no response"
@@ -320,7 +320,7 @@ module ServerToolTests =
       | Ok response ->
         let hasToolUse = Response.hasToolUse response
         let text = Response.getText response
-        if hasToolUse || Stdlib.String.length text > 0L then
+        if hasToolUse || Stdlib.String.length text > 0I then
           TestResult.Pass
         else
           TestResult.Fail "No tool use and no response"
@@ -364,7 +364,7 @@ module WebFetchTests =
         let hasToolUse = Response.hasToolUse response
         let text = Response.getText response
         // Either tool was called or we got a text response
-        if hasToolUse || Stdlib.String.length text > 0L then
+        if hasToolUse || Stdlib.String.length text > 0I then
           TestResult.Pass
         else
           TestResult.Fail "No tool use and no response"
@@ -390,7 +390,7 @@ module WebFetchTests =
       | Ok response ->
         // Verify we get a response
         let hasContent =
-          Stdlib.String.length (Response.getText response) > 0L ||
+          Stdlib.String.length (Response.getText response) > 0I ||
           Response.hasToolUse response
         if hasContent then
           // If citations are present, verify they're typed correctly
@@ -404,7 +404,7 @@ module WebFetchTests =
             match firstCitation with
             | Some c ->
               // Check that cited_text field exists (proves it's a typed Citation)
-              if Stdlib.String.length c.cited_text >= 0L then
+              if Stdlib.String.length c.cited_text >= 0I then
                 TestResult.Pass
               else
                 TestResult.Fail "Citation missing cited_text"
@@ -455,7 +455,7 @@ module VisionTests =
           TestResult.Pass
         else
           // Any response is acceptable for vision test
-          if Stdlib.String.length text > 0L then
+          if Stdlib.String.length text > 0I then
             TestResult.Pass
           else
             TestResult.Fail $"Unexpected response: {text}"
@@ -487,7 +487,7 @@ module VisionTests =
           TestResult.Pass
         else
           // URL might not be accessible, any response is ok
-          if Stdlib.String.length text > 0L then
+          if Stdlib.String.length text > 0I then
             TestResult.Pass
           else
             TestResult.Fail $"No response: {text}"
@@ -523,7 +523,7 @@ module VisionTests =
           TestResult.Pass
         else
           // Any response is acceptable for PDF test
-          if Stdlib.String.length text > 0L then
+          if Stdlib.String.length text > 0I then
             TestResult.Pass
           else
             TestResult.Fail $"Empty response: {text}"
@@ -553,7 +553,7 @@ module VisionTests =
       match Chat.Request.send apiKey req with
       | Ok response ->
         let text = Response.getText response
-        if Stdlib.String.length text > 0L then
+        if Stdlib.String.length text > 0I then
           TestResult.Pass
         else
           TestResult.Fail "Empty response for PDF URL"
@@ -592,7 +592,7 @@ module VisionTests =
       match Chat.Request.send apiKey req with
       | Ok response ->
         let text = Response.getText response
-        if Stdlib.String.length text > 0L then
+        if Stdlib.String.length text > 0I then
           TestResult.Pass
         else
           TestResult.Fail "Empty response"
@@ -643,7 +643,7 @@ module AdaptiveThinkingTests =
           TestResult.Pass
         else
           // Any non-empty response is acceptable
-          if Stdlib.String.length text > 0L then
+          if Stdlib.String.length text > 0I then
             TestResult.Pass
           else
             TestResult.Fail $"Unexpected response: {text}"
@@ -679,7 +679,7 @@ module ServiceTierTests =
 
       match Chat.Request.send apiKey req with
       | Ok response ->
-        if Stdlib.String.length (Response.getText response) > 0L then
+        if Stdlib.String.length (Response.getText response) > 0I then
           TestResult.Pass
         else
           TestResult.Fail "Empty response"
@@ -700,7 +700,7 @@ module ServiceTierTests =
 
       match Chat.Request.send apiKey req with
       | Ok response ->
-        if Stdlib.String.length (Response.getText response) > 0L then
+        if Stdlib.String.length (Response.getText response) > 0I then
           TestResult.Pass
         else
           TestResult.Fail "Empty response"
@@ -732,7 +732,7 @@ module SamplingParameterTests =
 
       match Chat.Request.send apiKey req with
       | Ok response ->
-        if Stdlib.String.length (Response.getText response) > 0L then
+        if Stdlib.String.length (Response.getText response) > 0I then
           TestResult.Pass
         else
           TestResult.Fail "Empty response"
@@ -753,7 +753,7 @@ module SamplingParameterTests =
 
       match Chat.Request.send apiKey req with
       | Ok response ->
-        if Stdlib.String.length (Response.getText response) > 0L then
+        if Stdlib.String.length (Response.getText response) > 0I then
           TestResult.Pass
         else
           TestResult.Fail "Empty response"
@@ -775,7 +775,7 @@ module SamplingParameterTests =
 
       match Chat.Request.send apiKey req with
       | Ok response ->
-        if Stdlib.String.length (Response.getText response) > 0L then
+        if Stdlib.String.length (Response.getText response) > 0I then
           TestResult.Pass
         else
           TestResult.Fail "Empty response"
@@ -808,7 +808,7 @@ module MetadataTests =
 
       match Chat.Request.send apiKey req with
       | Ok response ->
-        if Stdlib.String.length (Response.getText response) > 0L then
+        if Stdlib.String.length (Response.getText response) > 0I then
           TestResult.Pass
         else
           TestResult.Fail "Empty response"
@@ -1048,8 +1048,8 @@ module PromptCachingTests =
             TestResult.Pass
           else
             // Caching might not always work (depends on API), pass if we got responses
-            if Stdlib.String.length (Response.getText response1) > 0L &&
-               Stdlib.String.length (Response.getText response2) > 0L then
+            if Stdlib.String.length (Response.getText response1) > 0I &&
+               Stdlib.String.length (Response.getText response2) > 0I then
               TestResult.Pass
             else
               TestResult.Fail "No cache activity detected and empty responses"

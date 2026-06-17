@@ -189,7 +189,7 @@ let parseUrl (pattern: String) : LanguageTools.Capabilities.UrlScope =
       [ LanguageTools.Capabilities.HostMatch.AnyHost ]
     else if Stdlib.String.startsWith hostStr "*." then
       [ LanguageTools.Capabilities.HostMatch.Subdomain(
-          Stdlib.String.toLowercase (Stdlib.String.dropFirst hostStr 2L)) ]
+          Stdlib.String.toLowercase (Stdlib.String.dropFirst hostStr 2I)) ]
     else
       [ LanguageTools.Capabilities.HostMatch.ExactHost(Stdlib.String.toLowercase hostStr) ]
   let ports =

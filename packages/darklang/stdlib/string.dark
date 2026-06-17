@@ -7,9 +7,9 @@ let newline = "\n"
 
 /// Truncates the string <param s> to the specified <param length> and appends an ellipsis ("...")
 /// to it if the original string exceeds the given length. Otherwise, returns the original string.
-let ellipsis (s: String) (length: Int64) : String =
+let ellipsis (s: String) (length: Int) : String =
   if String.length s > length then
-    (String.slice_v0 s 0L length) ++ "..."
+    (String.slice_v0 s 0I length) ++ "..."
   else
     s
 
@@ -23,10 +23,10 @@ let articleFor (nextWord: String) : String =
   | None -> ""
   | Some c ->
     if
-      String.length nextWord > 1L
+      String.length nextWord > 1I
       && (Bool.not (Char.isASCIILetter c))
     then
-      articleFor (String.dropFirst nextWord 1L)
+      articleFor (String.dropFirst nextWord 1I)
     else if List.``member`` vowels c then
       "an"
     else
@@ -62,7 +62,7 @@ let toLowercase (s: String) : String = Builtin.stringToLowercase s
 
 // TODO: UInt?
 /// Returns the length of the string
-let length (s: String) : Int64 = Builtin.stringLength s
+let length (s: String) : Int = Builtin.stringLength s
 
 
 /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.
@@ -119,9 +119,9 @@ let splitFirst
 let splitN
   (string: String)
   (separator: String)
-  (n: Int64)
+  (n: Int)
   : List<String> =
-  if n <= 1L || separator == "" then
+  if n <= 1I || separator == "" then
     [ string ]
   else
     // indexOfEgc (not indexOf) because first / dropFirst / length are EGC-indexed.
@@ -130,7 +130,7 @@ let splitN
     | Some i ->
       let before = String.first string i
       let rest = String.dropFirst string (i + String.length separator)
-      List.push (String.splitN rest separator (n - 1L)) before
+      List.push (String.splitN rest separator (n - 1I)) before
 
 
 /// Combines a list of strings with the provided separator
@@ -199,8 +199,9 @@ let random (length: Int) : Result.Result<String, String> =
     let randomChar =
       fun _ ->
         (let index =
-          Int64.random 0L ((String.length characters) - 1L)
-         String.slice characters index (index + 1L))
+          Stdlib.Int.fromInt64
+            (Int64.random 0L (Builtin.unwrap (Stdlib.Int.toInt64 ((String.length characters) - 1I))))
+         String.slice characters index (index + 1I))
 
     let result =
       (List.range 0I (length - 1I))
@@ -231,24 +232,23 @@ let htmlEscape (html: String) : String =
 
 /// Checks if <param lookingIn> contains <param searchingFor>.
 //
-// Calls the underlying builtin directly (rather than going through the
-// `indexOf` wrapper) so this fn stays SQL-queryable: the query compiler
-// routes the builtin via SqlCallback2 → INSTR. Wrapping in a
-// match-on-Option breaks queryability and trips `DB.queryAll` callers.
+// Uses the dedicated `stringContains` builtin (returns Bool, compiles to
+// `INSTR(...) > 0`) rather than `indexOf != -1`, so it stays SQL-queryable
+// independent of `indexOf`'s now arbitrary-precision `Int` return.
 let contains (lookingIn: String) (searchingFor: String) : Bool =
-  Builtin.stringIndexOf lookingIn searchingFor != -1L
+  Builtin.stringContains lookingIn searchingFor
 
 
 /// Returns the substring of <param string> between the <param from> and <param to> indices.
 /// Negative indices start counting from the end of <param string>.
-let slice (string: String) (from: Int64) (``to``: Int64) : String =
+let slice (string: String) (from: Int) (``to``: Int) : String =
   let len = String.length string
 
   let normalize =
     (fun i ->
-      (if i < 0L then len + i else i)
-      |> Int64.min len
-      |> Int64.max 0L)
+      (if i < 0I then len + i else i)
+      |> Int.min len
+      |> Int.max 0I)
 
   let f = normalize from
   let l = normalize ``to``
@@ -260,20 +260,20 @@ let slice (string: String) (from: Int64) (``to``: Int64) : String =
 /// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
 /// If <param characterCount> is longer than <param string>, returns <param string>.
 /// If <param characterCount> is negative, returns the empty string."
-let first (string: String) (characterCount: Int64) : String =
-  if characterCount < 0L then
+let first (string: String) (characterCount: Int) : String =
+  if characterCount < 0I then
     ""
   else if characterCount > String.length string then
     string
   else
-    String.slice_v0 string 0L characterCount
+    String.slice_v0 string 0I characterCount
 
 
 /// Returns the last <param characterCount> characters of <param string>, as a Builtin.String.
 /// If <param characterCount> is longer than <param string>, returns <param string>.
 /// If <param characterCount> is negative, returns the empty string.
-let last (string: String) (characterCount: Int64) : String =
-  if characterCount < 0L then
+let last (string: String) (characterCount: Int) : String =
+  if characterCount < 0I then
     ""
   else if characterCount > String.length string then
     string
@@ -287,23 +287,23 @@ let last (string: String) (characterCount: Int64) : String =
 /// Returns all but the last <param characterCount> characters of <param string>, as a Builtin.String.
 /// If <param characterCount> is longer than <param string>, returns the empty string.
 /// If <param characterCount> is negative, returns <param string>.
-let dropLast (string: String) (characterCount: Int64) : String =
-  if characterCount < 0L then
+let dropLast (string: String) (characterCount: Int) : String =
+  if characterCount < 0I then
     string
   else if characterCount > String.length string then
     ""
   else
     String.slice_v0
       string
-      0L
+      0I
       (String.length string - characterCount)
 
 
 /// Returns all but the first <param characterCount> characters of <param string>, as a <type String>.
 /// If <param characterCount> is longer than <param string>, returns the empty string.
 /// If <param characterCount> is negative, returns <param string>.
-let dropFirst (string: String) (characterCount: Int64) : String =
-  if characterCount < 0L then
+let dropFirst (string: String) (characterCount: Int) : String =
+  if characterCount < 0I then
     string
   else if characterCount > String.length string then
     ""
@@ -318,16 +318,16 @@ let dropFirst (string: String) (characterCount: Int64) : String =
 let padStart
   (string: String)
   (padWith: String)
-  (goalLength: Int64)
+  (goalLength: Int)
   : Result.Result<String, String> =
-  if String.length padWith != 1L then
+  if String.length padWith != 1I then
     Result.Result.Error
       $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
   else if String.length string >= goalLength then
     Result.Result.Ok string
   else
     let padCount = goalLength - String.length string
-    let pad = String.repeat padWith (Stdlib.Int.fromInt64 padCount)
+    let pad = String.repeat padWith padCount
     Result.Result.Ok(pad ++ string)
 
 
@@ -338,16 +338,16 @@ let padStart
 let padEnd
   (string: String)
   (padWith: String)
-  (goalLength: Int64)
+  (goalLength: Int)
   : Result.Result<String, String> =
-  if String.length padWith != 1L then
+  if String.length padWith != 1I then
     Result.Result.Error
       $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
   else if String.length string >= goalLength then
     Result.Result.Ok string
   else
     let padCount = goalLength - String.length string
-    let pad = String.repeat padWith (Stdlib.Int.fromInt64 padCount)
+    let pad = String.repeat padWith padCount
     Result.Result.Ok(string ++ pad)
 
 
@@ -410,7 +410,7 @@ let fromBlob (blob: Blob) : Option.Option<String> = Builtin.stringFromBlob blob
 
 /// Checks if <param subject> starts with <param prefix>
 let startsWith (subject: String) (prefix: String) : Bool =
-  String.slice_v0 subject 0L (String.length prefix) == prefix
+  String.slice_v0 subject 0I (String.length prefix) == prefix
 
 
 /// Checks if <param subject> ends with <param suffix>
@@ -426,9 +426,9 @@ let endsWith (subject: String) (suffix: String) : Bool =
 /// measured in UTF-16 code units. Returns {{Nothing}} if <param searchFor> does not occur.
 /// The returned index is **not** suitable for arithmetic with {{first}}, {{dropFirst}},
 /// or {{slice}}, which are all EGC-indexed — for that, use {{indexOfEgc}}.
-let indexOf (str: String) (searchFor: String) : Option.Option<Int64> =
+let indexOf (str: String) (searchFor: String) : Option.Option<Int> =
   let idx = Builtin.stringIndexOf str searchFor
-  if idx == -1L then Option.Option.None else Option.Option.Some idx
+  if idx == -1I then Option.Option.None else Option.Option.Some idx
 
 
 /// Returns {{Just index}} of the first occurrence of <param searchFor> in <param str>,
@@ -436,9 +436,9 @@ let indexOf (str: String) (searchFor: String) : Option.Option<Int64> =
 /// {{first}}, and {{dropFirst}}). Returns {{Nothing}} if <param searchFor> does not occur.
 /// The match must begin and end on EGC boundaries — searching for a partial grapheme
 /// (e.g. a base codepoint inside a ZWJ sequence) will not match.
-let indexOfEgc (str: String) (searchFor: String) : Option.Option<Int64> =
+let indexOfEgc (str: String) (searchFor: String) : Option.Option<Int> =
   let idx = Builtin.stringIndexOfEgc str searchFor
-  if idx == -1L then Option.Option.None else Option.Option.Some idx
+  if idx == -1I then Option.Option.None else Option.Option.Some idx
 
 
 /// Returns {{Just index}} of the last occurrence of <param searchFor> in <param str>,
@@ -447,10 +447,10 @@ let indexOfEgc (str: String) (searchFor: String) : Option.Option<Int64> =
 let lastIndexOf
   (str: String)
   (searchFor: String)
-  : Option.Option<Int64> =
+  : Option.Option<Int> =
   let lastIndex = Builtin.stringLastIndexOf str searchFor
 
-  if lastIndex == -1L then
+  if lastIndex == -1I then
     Option.Option.None
   else
     Option.Option.Some(lastIndex)
@@ -462,10 +462,10 @@ let lastIndexOf
 let lastIndexOfEgc
   (str: String)
   (searchFor: String)
-  : Option.Option<Int64> =
+  : Option.Option<Int> =
   let lastIndex = Builtin.stringLastIndexOfEgc str searchFor
 
-  if lastIndex == -1L then
+  if lastIndex == -1I then
     Option.Option.None
   else
     Option.Option.Some(lastIndex)

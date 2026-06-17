@@ -47,7 +47,7 @@ let renderModal (component: Core.Types.Component<ModalModel>) (context: Core.Typ
 
     let titleLine =
       let closeButton = if model.hasCloseButton then " ✕" else ""
-      let availableWidth = model.width - 4L - Stdlib.String.length closeButton
+      let availableWidth = model.width - 4L - (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length closeButton)))
       let paddedTitle = Core.Rendering.padText model.title availableWidth Core.Types.Alignment.Center
       let titleColor = if hasFocus then Core.Types.Color.Primary else Core.Types.Color.Default
       "║ " ++ Core.Rendering.colorize titleColor (Core.Rendering.bold paddedTitle) ++ closeButton ++ " ║"

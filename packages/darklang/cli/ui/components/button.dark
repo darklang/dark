@@ -9,7 +9,7 @@ type ButtonModel =
 
 let createButton (text: String) (color: Core.Types.Color) (action: Unit -> Unit) : Core.Types.Component<ButtonModel> =
   let model = ButtonModel { text = text; color = color; size = Core.Types.Size.Normal; disabled = false; action = action }
-  let textWidth = Stdlib.String.length text
+  let textWidth = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length text))
   let buttonWidth = textWidth + 4L  // 2 for borders + 2 for padding
   let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = buttonWidth; height = 3L } }
   Core.Types.Component
@@ -26,7 +26,7 @@ let renderButton (component: Core.Types.Component<ButtonModel>) (context: Core.T
 
   // Calculate padding based on raw text length (before ANSI codes)
   let innerWidth = component.bounds.dimensions.width - 2L
-  let textLen = Stdlib.String.length model.text
+  let textLen = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length model.text))
   let totalPadding = innerWidth - textLen
   let leftPad = Stdlib.Int64.divide totalPadding 2L
   let rightPad = totalPadding - leftPad

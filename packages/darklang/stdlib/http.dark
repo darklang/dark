@@ -32,6 +32,78 @@ let parseQueryString (url: String) : Dict<String> =
     |> Stdlib.Dict.fromListOverwritingDuplicates
 
 
+/// Decode one ASCII byte as a hex digit (0-9, A-F, a-f) → 0..15.
+let urlDecodeHexDigit (b: UInt8) : Stdlib.Option.Option<UInt8> =
+  let ge48 = Stdlib.UInt8.greaterThanOrEqualTo b 48uy
+  let le57 = Stdlib.UInt8.lessThanOrEqualTo b 57uy
+  let ge65 = Stdlib.UInt8.greaterThanOrEqualTo b 65uy
+  let le70 = Stdlib.UInt8.lessThanOrEqualTo b 70uy
+  let ge97 = Stdlib.UInt8.greaterThanOrEqualTo b 97uy
+  let le102 = Stdlib.UInt8.lessThanOrEqualTo b 102uy
+  if ge48 && le57 then
+    Stdlib.Option.Option.Some(Stdlib.UInt8.subtract b 48uy)
+  else if ge65 && le70 then
+    Stdlib.Option.Option.Some(Stdlib.UInt8.subtract b 55uy)
+  else if ge97 && le102 then
+    Stdlib.Option.Option.Some(Stdlib.UInt8.subtract b 87uy)
+  else
+    Stdlib.Option.Option.None
+
+
+/// Inner recursion for [[urlDecode]]. `acc` accumulates decoded bytes at
+/// the front (via `List.push`) and is reversed when [bytes] is empty.
+//
+// Walks bytes (not chars) so multi-byte UTF-8 round-trips. Falls back to
+// passing the literal `%` through if a `%` isn't followed by two hex digits,
+// matching browser behaviour.
+let rec urlDecodeGo (bytes: List<UInt8>) (acc: List<UInt8>) : List<UInt8> =
+  match bytes with
+  | [] -> Stdlib.List.reverse acc
+  | 43uy :: tail ->
+    // '+' → ' '
+    urlDecodeGo tail (Stdlib.List.push acc 32uy)
+  | 37uy :: h1 :: h2 :: tail ->
+    // '%XX'
+    match (Stdlib.Http.urlDecodeHexDigit h1, Stdlib.Http.urlDecodeHexDigit h2) with
+    | (Some hi, Some lo) ->
+      let byte = Stdlib.UInt8.add (Stdlib.UInt8.multiply hi 16uy) lo
+      urlDecodeGo tail (Stdlib.List.push acc byte)
+    | _ ->
+      urlDecodeGo
+        (Stdlib.List.push (Stdlib.List.push tail h2) h1)
+        (Stdlib.List.push acc 37uy)
+  | b :: tail -> urlDecodeGo tail (Stdlib.List.push acc b)
+
+
+/// Decode a percent-encoded string (URL or form encoding). `+` becomes a
+/// space; `%XX` sequences are decoded as UTF-8 bytes.
+let urlDecode (s: String) : String =
+  let bytes = Stdlib.Blob.toList (Stdlib.String.toBlob s)
+  Stdlib.String.fromBytesWithReplacement (Stdlib.Http.urlDecodeGo bytes [])
+
+
+/// Parse an `application/x-www-form-urlencoded` body (e.g. from an HTML
+/// `<form method="POST">`) into a Dict. Keys and values are percent-decoded.
+/// Duplicates resolve last-wins.
+let parseFormBody (body: Blob) : Dict<String> =
+  body
+  |> Stdlib.String.fromBlobWithReplacement
+  |> Stdlib.String.split "&"
+  |> Stdlib.List.filterMap (fun param ->
+    if param == "" then
+      Stdlib.Option.Option.None
+    else
+      match Stdlib.String.split param "=" with
+      | [ key ] ->
+        Stdlib.Option.Option.Some((Stdlib.Http.urlDecode key, ""))
+      | key :: rest ->
+        let value = Stdlib.String.join rest "="
+        Stdlib.Option.Option.Some(
+          (Stdlib.Http.urlDecode key, Stdlib.Http.urlDecode value))
+      | [] -> Stdlib.Option.Option.None)
+  |> Stdlib.Dict.fromListOverwritingDuplicates
+
+
 /// Parse a string of HTTP header lines (one `Name: value` per line, CR/LF or
 /// LF separated) into a Dict. Duplicates resolve to the last-wins value.
 /// Header names are kept verbatim — case-insensitive lookup is the caller's

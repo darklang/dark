@@ -325,7 +325,7 @@ let renderTitleBar (title: String) (isEditing: Bool) (region: Darklang.Cli.UI.La
   Darklang.Cli.UI.Layout.printAt region 0L 0L (titleText ++ " " ++ modeIndicator)
 
 let renderHelpBar (helpText: String) (region: Darklang.Cli.UI.Layout.Region) : Unit =
-  let helpLen = Stdlib.String.length helpText
+  let helpLen = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length helpText))
   let helpPadding =
     if region.cols > helpLen then Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (region.cols - helpLen))
     else ""

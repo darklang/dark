@@ -50,9 +50,11 @@ let highlightLine (line: String) (lineTokens: List<LanguageTools.SemanticTokens.
   reversedInsertions
   |> Stdlib.List.fold line (fun currentLine (pos, colorCode) ->
       // validate insertion position is within current line bounds
-      if pos >= 0L && pos <= Stdlib.String.length currentLine then
-        let before = Stdlib.String.slice currentLine 0L pos // everything before the position
-        let after = Stdlib.String.dropFirst currentLine pos // everything after the position
+      // pos comes from Int64 source-position fields; bridge to Int for String fns
+      let posInt = Stdlib.Int.fromInt64 pos
+      if posInt >= 0I && posInt <= Stdlib.String.length currentLine then
+        let before = Stdlib.String.slice currentLine 0I posInt // everything before the position
+        let after = Stdlib.String.dropFirst currentLine posInt // everything after the position
         // insert color code at the position
         before ++ colorCode ++ after
       else

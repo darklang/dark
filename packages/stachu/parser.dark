@@ -134,7 +134,7 @@ let charWhere (predicate: Char -> Bool) (description: String) : Parser<Char> =
           match Stdlib.String.head input with
           | Some c ->
             if predicate c then
-              let remaining = Stdlib.String.dropFirst input 1L
+              let remaining = Stdlib.String.dropFirst input 1I
               ParseResult.Success(c, remaining)
             else
               ParseResult.Failure("Expected: " ++ description)

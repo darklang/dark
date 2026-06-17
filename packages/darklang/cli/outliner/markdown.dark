@@ -22,7 +22,7 @@ let import (markdown: String) : Document =
     match Stdlib.List.head lines with
     | Some first ->
       if Stdlib.String.startsWith first "# " then
-        Stdlib.String.dropFirst first 2L
+        Stdlib.String.dropFirst first 2I
       else
         "Imported"
     | None -> "Imported"
@@ -45,12 +45,12 @@ let import (markdown: String) : Document =
       let trimmed = Stdlib.String.trim line
       let text =
         if Stdlib.String.startsWith trimmed "- " then
-          Stdlib.String.dropFirst trimmed 2L
+          Stdlib.String.dropFirst trimmed 2I
         else
           trimmed
       let indentChars =
         (Stdlib.String.length line) - (Stdlib.String.length (Stdlib.String.trimStart line))
-      let depth = Stdlib.Int64.divide indentChars 2L
+      let depth = Stdlib.Int.divide indentChars 2I
       let id = outline.nextId
       let o1 = addNode outline id text
       let newStack =

@@ -58,7 +58,8 @@ let getDiagnostics (uri: String) (text: String) : String =
 
         let lastLineLength =
           match lines |> Stdlib.List.last with
-          | Some lastLine -> Stdlib.String.length lastLine
+          | Some lastLine ->
+            Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length lastLine))
           | None -> 0L
 
         Position

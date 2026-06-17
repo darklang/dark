@@ -46,7 +46,7 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
   let maxLogoWidth =
     logoLines
     |> Stdlib.List.map Stdlib.String.length
-    |> Stdlib.List.fold 0L (fun acc len -> if len > acc then len else acc)
+    |> Stdlib.List.fold 0I (fun acc len -> if len > acc then len else acc)
 
   // Pad logo lines to same width
   let paddedLogoLines =

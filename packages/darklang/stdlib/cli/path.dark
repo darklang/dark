@@ -3,8 +3,8 @@ module Darklang.Stdlib.Cli.Path
 
 /// Strip trailing slashes from a path (preserving root "/").
 let stripTrailing (path: String) : String =
-  if (Stdlib.String.length path) > 1L && (Stdlib.String.endsWith path "/") then
-    stripTrailing (Stdlib.String.dropLast path 1L)
+  if (Stdlib.String.length path) > 1I && (Stdlib.String.endsWith path "/") then
+    stripTrailing (Stdlib.String.dropLast path 1I)
   else path
 
 
@@ -32,8 +32,8 @@ let parent (path: String) : String =
   let p = stripTrailing path
 
   match Stdlib.String.lastIndexOf p "/" with
-  | Some 0L -> "/"
-  | Some i -> Stdlib.String.slice p 0L i
+  | Some 0I -> "/"
+  | Some i -> Stdlib.String.slice p 0I i
   | None -> "."
 
 
@@ -45,7 +45,7 @@ let basename (path: String) : String =
   let p = stripTrailing path
 
   match Stdlib.String.lastIndexOf p "/" with
-  | Some i -> Stdlib.String.dropFirst p (i + 1L)
+  | Some i -> Stdlib.String.dropFirst p (i + 1I)
   | None -> p
 
 
@@ -58,7 +58,7 @@ let extension (path: String) : Stdlib.Option.Option<String> =
   let name = basename path
 
   match Stdlib.String.lastIndexOf name "." with
-  | Some 0L -> Stdlib.Option.Option.None
+  | Some 0I -> Stdlib.Option.Option.None
   | Some i -> Stdlib.Option.Option.Some(Stdlib.String.dropFirst name i)
   | None -> Stdlib.Option.Option.None
 
@@ -72,8 +72,8 @@ let withExtension (path: String) (ext: String) : String =
 
   let stem =
     match Stdlib.String.lastIndexOf name "." with
-    | Some 0L -> name
-    | Some i -> Stdlib.String.slice name 0L i
+    | Some 0I -> name
+    | Some i -> Stdlib.String.slice name 0I i
     | None -> name
 
   let newName = $"{stem}{ext}"

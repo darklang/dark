@@ -12,7 +12,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [ commitHashStr ] ->
     // Allow partial commit IDs (prefix matching)
     let fullIdStr =
-      if Stdlib.String.length commitHashStr < 64L then
+      if Stdlib.String.length commitHashStr < 64I then
         // Try to find a matching commit (search current branch and ancestors)
         let commits = SCM.PackageOps.getCommitsWithAncestors branchId 100L
 
@@ -37,7 +37,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     if Stdlib.List.isEmpty ops then
       Stdlib.printLine "Commit not found or has no ops."
     else
-      let shortId = Stdlib.String.first fullIdStr 8L
+      let shortId = Stdlib.String.first fullIdStr 8I
       Stdlib.printLine $"Commit {Cli.Colors.cyan}{shortId}{Cli.Colors.reset}:"
       Stdlib.printLine ""
 

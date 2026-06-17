@@ -12,7 +12,7 @@ let createTextBlock (lines: List<String>) (color: Core.Types.Color) (alignment: 
   let model = TextBlockModel { lines = lines; color = color; alignment = alignment; wordWrap = false }
   let maxWidth =
     lines
-    |> Stdlib.List.map Stdlib.String.length
+    |> Stdlib.List.map (fun s -> Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length s)))
     |> Stdlib.List.fold 0L (fun acc len -> if len > acc then len else acc)
   let height = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length lines))
   let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = maxWidth; height = height } }
@@ -35,7 +35,7 @@ let setTextBlockLines (component: Core.Types.Component<TextBlockModel>) (lines: 
   let model = component.model
   let maxWidth =
     lines
-    |> Stdlib.List.map Stdlib.String.length
+    |> Stdlib.List.map (fun s -> Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length s)))
     |> Stdlib.List.fold 0L (fun acc len -> if len > acc then len else acc)
   let height = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length lines))
   let newBounds = Core.Types.Bounds { position = component.bounds.position; dimensions = Core.Types.Dimensions { width = maxWidth; height = height } }

@@ -58,7 +58,7 @@ let renderCard (component: Core.Types.Component<CardModel>) (context: Core.Types
           ""
         else
           // Calculate padding based on raw text, then apply styling
-          let titleLen = Stdlib.String.length model.title
+          let titleLen = Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.String.length model.title))
           let rightPad = if innerWidth > titleLen then Stdlib.String.repeat " " (Stdlib.Int.fromInt64 (innerWidth - titleLen)) else ""
           let styledTitle = Core.Rendering.colorize model.headerColor (Core.Rendering.bold model.title)
           left ++ " " ++ styledTitle ++ rightPad ++ " " ++ right
