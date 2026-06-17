@@ -464,7 +464,7 @@ module WriteFile =
           if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
             SCM.PackageOps.add branchId allOps
           else
-            Stdlib.Result.Result.Ok 0L
+            Stdlib.Result.Result.Ok 0I
 
         match addResult with
         | Error err ->

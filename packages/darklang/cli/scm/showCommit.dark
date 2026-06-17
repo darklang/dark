@@ -14,7 +14,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     let fullIdStr =
       if Stdlib.String.length commitHashStr < 64I then
         // Try to find a matching commit (search current branch and ancestors)
-        let commits = SCM.PackageOps.getCommitsWithAncestors branchId 100L
+        let commits = SCM.PackageOps.getCommitsWithAncestors branchId 100I
 
         let matching =
           commits

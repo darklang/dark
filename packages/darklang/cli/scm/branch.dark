@@ -13,8 +13,8 @@ let branchAnnotation
   let wip = SCM.PackageOps.getWipSummary branch.id
 
   let pendingPart =
-    if wip.total > 0L then
-      let total = Stdlib.Int64.toString wip.total
+    if wip.total > 0I then
+      let total = Stdlib.Int.toString wip.total
       [ Colors.warning $"{total} pending" ]
     else
       []
@@ -23,7 +23,7 @@ let branchAnnotation
     if isMain then
       []
     else
-      let commits = SCM.PackageOps.getCommits branch.id 1000L
+      let commits = SCM.PackageOps.getCommits branch.id 1000I
       let commitCount = Stdlib.List.length commits
 
       if commitCount > 0I then

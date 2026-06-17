@@ -113,7 +113,7 @@ let opsPostHandlerFn (req: HttpRequest) : HttpResponse =
   | Ok ops ->
     match SCM.PackageOps.add serverBranchId ops with
     | Ok insertedCount ->
-      let countStr = Stdlib.Int64.toString insertedCount
+      let countStr = Stdlib.Int.toString insertedCount
       Stdlib.Http.responseWithText $"Successfully received and applied {countStr} ops" 200I
     | Error errorMsg -> Stdlib.Http.serverError errorMsg
   | Error _err ->
@@ -127,7 +127,7 @@ let opsGetHandlerFn (req: HttpRequest) : HttpResponse =
   match HttpRequest.queryParam req "limit" with
   | None -> Stdlib.Http.badRequest "Missing required query parameter: 'limit'"
   | Some limitStr ->
-    match Stdlib.Int64.parse limitStr with
+    match Stdlib.Int.parse limitStr with
     | Error _ -> Stdlib.Http.badRequest "Invalid 'limit' parameter. Expected integer."
     | Ok limit ->
       let ops = SCM.PackageOps.getRecent limit

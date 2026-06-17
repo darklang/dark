@@ -52,14 +52,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       parameters =
         [ Param.make "branchId" TUuid "Branch to add ops to"
           Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
-      returnType = TypeReference.result TInt64 TString
+      returnType = TypeReference.result TInt TString
       description =
         "Add package ops to the database as WIP (uncommitted) on the given branch.
         Returns the number of inserted ops on success (duplicates are skipped), or an error message on failure.
         Use scmCommitWipOpsByIds to commit WIP ops."
       fn =
-        let resultOk = Dval.resultOk KTInt64 KTString
-        let resultError = Dval.resultError KTInt64 KTString
+        let resultOk = Dval.resultOk KTInt KTString
+        let resultError = Dval.resultError KTInt KTString
         (function
         | exeState, _, _, [ DUuid branchId; DList(_vtTODO, ops) ] ->
           uply {
@@ -84,7 +84,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 { values = exeState.values.builtIn; fns = exeState.fns.builtIn }
               let! _ = LibDB.Seed.evaluateAllValues builtins LibDB.PackageManager.rt
 
-              return resultOk (Dval.int64 insertedCount)
+              return resultOk (Dval.int (bigint insertedCount))
             with ex ->
               return resultError (Dval.string ex.Message)
           }
@@ -97,14 +97,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
 
     { name = fn "scmGetRecentOps" 0
       typeParams = []
-      parameters = [ Param.make "limit" TInt64 "" ]
+      parameters = [ Param.make "limit" TInt "" ]
       returnType = TList(TCustomType(NR.ok (packageOpTypeName ()), []))
       description = "Get recent package ops from the database."
       fn =
         function
-        | _, _, _, [ DInt64 limit ] ->
+        | _, _, _, [ DInt limit ] ->
           uply {
-            let! ops = LibDB.Queries.getRecentOps limit
+            let! ops = LibDB.Queries.getRecentOps (int64 (DarkInt.toBigInt limit))
             return Dval.list (packageOpKT ()) (ops |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ()
@@ -117,7 +117,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "scmGetWipSummary" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch ID" ]
-      returnType = TDict TInt64
+      returnType = TDict TInt
       description = "Get summary of WIP ops on a branch (counts by type)."
       fn =
         function
@@ -126,13 +126,13 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
             let! summary = LibDB.Queries.getWipSummary branchId
             return
               Dval.dict
-                KTInt64
-                [ "types", Dval.int64 summary.types
-                  "values", Dval.int64 summary.values
-                  "fns", Dval.int64 summary.fns
-                  "renames", Dval.int64 summary.renames
-                  "deprecations", Dval.int64 summary.deprecations
-                  "total", Dval.int64 summary.total ]
+                KTInt
+                [ "types", Dval.int (bigint summary.types)
+                  "values", Dval.int (bigint summary.values)
+                  "fns", Dval.int (bigint summary.fns)
+                  "renames", Dval.int (bigint summary.renames)
+                  "deprecations", Dval.int (bigint summary.deprecations)
+                  "total", Dval.int (bigint summary.total) ]
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -174,14 +174,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "scmGetWipOpCount" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch ID" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Get count of WIP ops on a branch (fast, no deserialization)."
       fn =
         function
         | _, _, _, [ DUuid branchId ] ->
           uply {
             let! count = LibDB.Queries.getWipOpCount branchId
-            return Dval.int64 count
+            return Dval.int (bigint count)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -193,14 +193,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "scmGetCommitCount" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch ID" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Get count of commits on a branch (fast, no deserialization)."
       fn =
         function
         | _, _, _, [ DUuid branchId ] ->
           uply {
             let! count = LibDB.Queries.getCommitCount branchId
-            return Dval.int64 count
+            return Dval.int (bigint count)
           }
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
@@ -301,19 +301,19 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
     { name = fn "scmDiscard" 0
       typeParams = []
       parameters = [ Param.make "branchId" TUuid "Branch ID" ]
-      returnType = TypeReference.result TInt64 TString
+      returnType = TypeReference.result TInt TString
       description =
         "Discard all WIP ops on a branch.
         Returns the count of discarded ops on success, or an error message on failure."
       fn =
-        let resultOk = Dval.resultOk KTInt64 KTString
-        let resultError = Dval.resultError KTInt64 KTString
+        let resultOk = Dval.resultOk KTInt KTString
+        let resultError = Dval.resultError KTInt KTString
         (function
         | _, _, _, [ DUuid branchId ] ->
           uply {
             let! result = LibDB.Inserts.discardWipOps branchId
             match result with
-            | Ok count -> return resultOk (Dval.int64 count)
+            | Ok count -> return resultOk (Dval.int (bigint count))
             | Error msg -> return resultError (Dval.string msg)
           }
         | _ -> incorrectArgs ())
@@ -327,14 +327,15 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch ID"
-          Param.make "limit" TInt64 "Maximum commits to return" ]
+          Param.make "limit" TInt "Maximum commits to return" ]
       returnType = TList(TCustomType(NR.ok (PT2DT.Commit.typeName ()), []))
       description = "Get commit log for a branch ordered by date descending."
       fn =
         function
-        | _, _, _, [ DUuid branchId; DInt64 limit ] ->
+        | _, _, _, [ DUuid branchId; DInt limit ] ->
           uply {
-            let! commits = LibDB.Queries.getCommits branchId limit
+            let! commits =
+              LibDB.Queries.getCommits branchId (int64 (DarkInt.toBigInt limit))
             return
               Dval.list
                 (PT2DT.Commit.knownType ())
@@ -351,15 +352,18 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "branchId" TUuid "Branch ID"
-          Param.make "limit" TInt64 "Maximum commits to return" ]
+          Param.make "limit" TInt "Maximum commits to return" ]
       returnType = TList(TCustomType(NR.ok (PT2DT.Commit.typeName ()), []))
       description =
         "Get commit log across the entire branch chain (current + ancestors), ordered by date descending."
       fn =
         function
-        | _, _, _, [ DUuid branchId; DInt64 limit ] ->
+        | _, _, _, [ DUuid branchId; DInt limit ] ->
           uply {
-            let! commits = LibDB.Queries.getCommitsForBranchChain branchId limit
+            let! commits =
+              LibDB.Queries.getCommitsForBranchChain
+                branchId
+                (int64 (DarkInt.toBigInt limit))
             return
               Dval.list
                 (PT2DT.Commit.knownType ())

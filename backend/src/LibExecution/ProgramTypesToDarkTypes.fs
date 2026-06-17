@@ -1807,7 +1807,7 @@ module Commit =
       [ "hash", Hash.toDT c.hash
         "message", DString c.message
         "createdAt", DDateTime(DarkDateTime.fromInstant c.createdAt)
-        "opCount", DInt64 c.opCount
+        "opCount", Dval.int c.opCount
         "branchId", DUuid c.branchId
         "branchName", DString c.branchName
         "committerId", DUuid c.committerId

@@ -59,8 +59,8 @@ let loadBranchList () : List<BranchReviewItem> =
     branches
     |> Stdlib.List.filterMap (fun b ->
       // bridge: packageOps counts are Int64 (out of scope); convert to Int at the boundary
-      let wipOpCount = Stdlib.Int.fromInt64 (SCM.PackageOps.getWipOpCount b.id)
-      let committedCount = Stdlib.Int.fromInt64 (SCM.PackageOps.getCommitCount b.id)
+      let wipOpCount = SCM.PackageOps.getWipOpCount b.id
+      let committedCount = SCM.PackageOps.getCommitCount b.id
       if wipOpCount == 0I && committedCount == 0I then
         Stdlib.Option.Option.None
       else
@@ -234,7 +234,7 @@ let buildModuleDiffState (detail: DetailState) (modPath: String) : DiffState =
       returnTo = DiffReturnTo.ReturnToDetail detail }
 
 let buildCommitList (detail: DetailState) : CommitListState =
-  let commits = SCM.PackageOps.getCommits detail.branchId 20L
+  let commits = SCM.PackageOps.getCommits detail.branchId 20I
   let entries =
     Stdlib.List.map commits (fun c ->
       let shortHash = LanguageTools.ProgramTypes.hashToShort c.hash
@@ -245,8 +245,7 @@ let buildCommitList (detail: DetailState) : CommitListState =
           fullHash = fullHash
           message = c.message
           date = date
-          // Commit.opCount is Int64 (SCM model); bridge into the review's Int model.
-          opCount = Stdlib.Int.fromInt64 c.opCount })
+          opCount = c.opCount })
   CommitListState
     { branchName = detail.branchName
       branchId = detail.branchId
@@ -566,8 +565,7 @@ let buildDetailForBranch (branchId: Uuid) : Screen =
     match SCM.Branch.get branchId with
     | Some b -> b.name
     | None -> "unknown"
-  // bridge: getWipOpCount is Int64 (out of scope); convert to Int at the boundary
-  let wipCount = Stdlib.Int.fromInt64 (SCM.PackageOps.getWipOpCount branchId)
+  let wipCount = SCM.PackageOps.getWipOpCount branchId
   let item =
     BranchReviewItem
       { branchId = branchId
@@ -611,7 +609,7 @@ let printWipItems (branchId: Uuid) : Unit =
         Stdlib.List.iter diffLines (fun line -> printDiffLine line))
 
 let printRecentCommits (branchId: Uuid) : Unit =
-  let commits = SCM.PackageOps.getCommits branchId 10L
+  let commits = SCM.PackageOps.getCommits branchId 10I
   if commits != [] then
     Stdlib.printLine ""
     Stdlib.printLine (Darklang.Cli.Colors.boldText "Recent commits:")
@@ -619,7 +617,7 @@ let printRecentCommits (branchId: Uuid) : Unit =
       let shortHash = LanguageTools.ProgramTypes.hashToShort c.hash
       let date = Stdlib.DateTime.toString c.createdAt
       let hashText = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow shortHash
-      let opsText = Darklang.Cli.Colors.dimText $"({Stdlib.Int64.toString c.opCount} ops)"
+      let opsText = Darklang.Cli.Colors.dimText $"({Stdlib.Int.toString c.opCount} ops)"
       let dateText = Darklang.Cli.Colors.dimText date
       Stdlib.printLine $"  {hashText}  {c.message}  {opsText}  {dateText}")
 

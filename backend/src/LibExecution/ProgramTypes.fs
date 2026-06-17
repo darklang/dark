@@ -69,7 +69,7 @@ type Commit =
   { hash : Hash
     message : string
     createdAt : NodaTime.Instant
-    opCount : int64
+    opCount : bigint
     committerId : AccountID
     committerName : string
     branchId : BranchId
