@@ -13,8 +13,8 @@ Format: ## Summary → **Title:** → **Type:** → ### Key Points → ### Detai
 let baseAgent =
   (Agent.create ())
   |> Agent.withSystemPrompt systemPrompt
-  |> Agent.withMaxTokens 1500L
-  |> Agent.withMaxTurns 2L
+  |> Agent.withMaxTokens 1500I
+  |> Agent.withMaxTurns 2I
   |> Agent.withTemperature 0.2
 
 /// URL reader agent

@@ -17,8 +17,8 @@ let agent =
   |> Darklang.LLM.Agent.withWebSearch
   |> Darklang.LLM.Agent.withWebFetchCitations
   |> Darklang.LLM.Agent.withThinking 4000I
-  |> Darklang.LLM.Agent.withMaxTokens 8000L
-  |> Darklang.LLM.Agent.withMaxTurns 3L
+  |> Darklang.LLM.Agent.withMaxTokens 8000I
+  |> Darklang.LLM.Agent.withMaxTurns 3I
 
 
 /// Quick research agent (no thinking, faster)
@@ -27,8 +27,8 @@ let quickAgent =
   |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
   |> Darklang.LLM.Agent.useHaiku
   |> Darklang.LLM.Agent.withWebSearch
-  |> Darklang.LLM.Agent.withMaxTokens 2000L
-  |> Darklang.LLM.Agent.withMaxTurns 2L
+  |> Darklang.LLM.Agent.withMaxTokens 2000I
+  |> Darklang.LLM.Agent.withMaxTurns 2I
 
 
 /// Research a topic thoroughly

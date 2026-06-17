@@ -239,8 +239,8 @@ let currentBranchName (state: Cli.AppState) : String =
 let createAgent (model: Darklang.LLM.Models.Model) (branchName: String) (writeMode: WriteMode) : Darklang.LLM.Agent.Agent =
   (Darklang.LLM.Agent.create ())
   |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
-  |> Darklang.LLM.Agent.withMaxTokens 4000L
-  |> Darklang.LLM.Agent.withMaxTurns 20L
+  |> Darklang.LLM.Agent.withMaxTokens 4000I
+  |> Darklang.LLM.Agent.withMaxTurns 20I
   |> Darklang.LLM.Agent.withTemperature 0.2
   |> Darklang.LLM.Agent.withModel model
   |> Darklang.LLM.Agent.withTool (makeCliTool branchName writeMode)

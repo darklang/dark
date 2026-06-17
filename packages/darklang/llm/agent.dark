@@ -79,8 +79,8 @@ type Agent =
   { model: Model
     systemPrompt: Stdlib.Option.Option<String>
     tools: List<Tool>
-    maxTokens: Int64
-    maxTurns: Int64
+    maxTokens: Int
+    maxTurns: Int
     temperature: Stdlib.Option.Option<Float>
     // Shared provider features
     toolChoice: Stdlib.Option.Option<Darklang.LLM.Provider.ToolChoice>
@@ -107,8 +107,8 @@ let create () : Agent =
     { model = Darklang.LLM.Models.Anthropic.sonnet45
       systemPrompt = Stdlib.Option.Option.None
       tools = []
-      maxTokens = 4096L
-      maxTurns = 10L
+      maxTokens = 4096I
+      maxTurns = 10I
       temperature = Stdlib.Option.Option.None
       toolChoice = Stdlib.Option.Option.None
       disableParallelToolUse = false
@@ -144,12 +144,12 @@ let withTools (agent: Agent) (tools: List<Tool>) : Agent =
   { agent with tools = Stdlib.List.append agent.tools tools }
 
 /// Set max tokens per response
-let withMaxTokens (agent: Agent) (tokens: Int64) : Agent =
+let withMaxTokens (agent: Agent) (tokens: Int) : Agent =
   let validated = Darklang.LLM.Internal.Validation.validateMaxTokens tokens agent.model.outputTokens
   { agent with maxTokens = validated }
 
 /// Set max agentic turns
-let withMaxTurns (agent: Agent) (turns: Int64) : Agent =
+let withMaxTurns (agent: Agent) (turns: Int) : Agent =
   let validated = Darklang.LLM.Internal.Validation.validateMaxTurns turns
   { agent with maxTurns = validated }
 

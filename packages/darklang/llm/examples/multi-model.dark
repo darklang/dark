@@ -20,7 +20,7 @@ let askModel
   let agent =
     (Agent.create ())
     |> Agent.withModel model
-    |> Agent.withMaxTokens 500L
+    |> Agent.withMaxTokens 500I
 
   match Agent.run agent prompt with
   | Ok result ->

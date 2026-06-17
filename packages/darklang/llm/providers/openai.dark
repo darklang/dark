@@ -25,7 +25,7 @@ type Config =
     /// Human-readable name
     providerName: String
     /// Max context tokens
-    maxContextTokens: Int64 }
+    maxContextTokens: Int }
 
 
 /// OpenAI API configuration
@@ -39,7 +39,7 @@ let openaiConfig () : Stdlib.Result.Result<Config, String> =
           baseUrl = "https://api.openai.com/v1/chat/completions"
           providerId = "openai"
           providerName = "OpenAI"
-          maxContextTokens = 128000L })
+          maxContextTokens = 128000I })
   | Error e -> Stdlib.Result.Result.Error e
 
 
@@ -58,12 +58,12 @@ let azureConfig
           baseUrl = endpoint ++ "/openai/deployments/" ++ deploymentName ++ "/chat/completions?api-version=" ++ apiVersion
           providerId = "azure"
           providerName = "Azure OpenAI"
-          maxContextTokens = 128000L })
+          maxContextTokens = 128000I })
   | Error e -> Stdlib.Result.Result.Error e
 
 
 /// Custom OpenAI-compatible endpoint (no API key required)
-let customConfig (baseUrl: String) (name: String) (maxTokens: Int64) : Config =
+let customConfig (baseUrl: String) (name: String) (maxTokens: Int) : Config =
   Config
     { apiKey = Stdlib.Option.Option.None
       baseUrl = baseUrl
@@ -578,7 +578,7 @@ let createWithKey (apiKey: String) : Stdlib.Result.Result<Provider, String> =
   match Internal.ApiKeys.validate apiKey with
   | Ok _ ->
     let config =
-      { (customConfig "https://api.openai.com/v1/chat/completions" "OpenAI" 128000L) with
+      { (customConfig "https://api.openai.com/v1/chat/completions" "OpenAI" 128000I) with
           apiKey = Stdlib.Option.Option.Some apiKey
           providerId = "openai" }
     Stdlib.Result.Result.Ok(buildProvider config true)
@@ -593,7 +593,7 @@ let createWithConfig (config: Config) : Provider =
 
 
 /// Create a custom OpenAI-compatible provider (no API key required)
-let createCustom (baseUrl: String) (name: String) (maxTokens: Int64) : Provider =
+let createCustom (baseUrl: String) (name: String) (maxTokens: Int) : Provider =
   let config = customConfig baseUrl name maxTokens
   buildProvider config false
 
@@ -604,7 +604,7 @@ let createCustomWithKey
   (baseUrl: String)
   (name: String)
   (apiKey: String)
-  (maxTokens: Int64)
+  (maxTokens: Int)
   : Stdlib.Result.Result<Provider, String> =
   match Internal.ApiKeys.validate apiKey with
   | Ok _ ->

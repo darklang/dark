@@ -35,7 +35,7 @@ let askWith (modelName: String) (question: String) : String =
 /// Create an agent with a given model and token limit, then chat
 let chatWithModel
   (model: Models.Model)
-  (maxTokens: Int64)
+  (maxTokens: Int)
   (question: String)
   : String =
   let agent =
@@ -87,7 +87,7 @@ let summarize (text: String) : String =
     (Agent.create ())
     |> Agent.withModel Models.Anthropic.haiku45
     |> Agent.withSystemPrompt "Summarize the following text in 2-3 sentences."
-    |> Agent.withMaxTokens 200L
+    |> Agent.withMaxTokens 200I
     |> Agent.withTemperature 0.3
 
   match Agent.chat agent text with
@@ -100,7 +100,7 @@ let creative (prompt: String) : String =
   let agent =
     (Agent.create ())
     |> Agent.withSystemPrompt "You are a creative writer. Be imaginative and expressive."
-    |> Agent.withMaxTokens 1000L
+    |> Agent.withMaxTokens 1000I
     |> Agent.withTemperature 0.9
 
   match Agent.chat agent prompt with
@@ -113,7 +113,7 @@ let factual (question: String) : String =
   let agent =
     (Agent.create ())
     |> Agent.withSystemPrompt "Provide accurate, factual information. Be concise and precise."
-    |> Agent.withMaxTokens 500L
+    |> Agent.withMaxTokens 500I
     |> Agent.withTemperature 0.1
 
   match Agent.chat agent question with
