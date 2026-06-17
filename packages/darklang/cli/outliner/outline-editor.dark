@@ -20,7 +20,7 @@ let getVisibleNodeAtCursor (state: State) : Stdlib.Option.Option<VisibleNode> =
   let flat = flattenVisible state.outline
   Stdlib.List.getAt flat state.cursor
 
-let findCursorIndex (outline: Outline) (nodeId: Int64) (fallback: Int) : Int =
+let findCursorIndex (outline: Outline) (nodeId: Int) (fallback: Int) : Int =
   let flat = flattenVisible outline
   flat
   |> Stdlib.List.findFirstIndex (fun vn -> vn.id == nodeId)
@@ -45,7 +45,7 @@ let insertAfter (state: State) : State =
   match getVisibleNodeAtCursor state with
   | None ->
     let o1 = addNode outline id ""
-    let o2 = { o1 with rootChildren = [id]; nextId = id + 1L }
+    let o2 = { o1 with rootChildren = [id]; nextId = id + 1I }
     { state with
         outline = o2
         cursor = 0I
@@ -56,7 +56,7 @@ let insertAfter (state: State) : State =
     let siblings = getChildren o1 parentId
     let newSiblings = insertIdAfter siblings vn.id id
     let o2 = setChildren o1 parentId newSiblings
-    let o3 = { o2 with nextId = id + 1L }
+    let o3 = { o2 with nextId = id + 1I }
     let newCursor = findCursorIndex o3 id state.cursor
     { state with
         outline = o3
@@ -112,7 +112,7 @@ let outdentNode (state: State) : State =
   match getVisibleNodeAtCursor state with
   | None -> state
   | Some vn ->
-    if vn.depth == 0L then
+    if vn.depth == 0I then
       state
     else
       let outline = state.outline
@@ -143,8 +143,7 @@ let moveNodeUp (state: State) : State =
       if i == 0I then
         state
       else
-        let i64 = Builtin.unwrap (Stdlib.Int.toInt64 i)
-        let swapped = swapAt siblings (i64 - 1L) i64
+        let swapped = swapAt siblings (i - 1I) i
         let o1 = setChildren outline parentId swapped
         { state with outline = o1; cursor = findCursorIndex o1 vn.id state.cursor }
 
@@ -162,8 +161,7 @@ let moveNodeDown (state: State) : State =
       if i >= ((Stdlib.List.length siblings) - 1I) then
         state
       else
-        let i64 = Builtin.unwrap (Stdlib.Int.toInt64 i)
-        let swapped = swapAt siblings i64 (i64 + 1L)
+        let swapped = swapAt siblings i (i + 1I)
         let o1 = setChildren outline parentId swapped
         { state with outline = o1; cursor = findCursorIndex o1 vn.id state.cursor }
 
@@ -282,7 +280,7 @@ let renderBody (state: State) (region: Darklang.Cli.UI.Layout.Region) : Unit =
     let (relIdx, vn) = pair
     let absoluteIdx = scrollOffset + relIdx
     let isSelected = absoluteIdx == state.cursor
-    let indent = Stdlib.String.repeat "  " (Stdlib.Int.fromInt64 vn.depth)
+    let indent = Stdlib.String.repeat "  " vn.depth
     let bullet =
       if vn.isCollapsed && vn.hasChildren then
         Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow ">"
@@ -297,8 +295,8 @@ let renderBody (state: State) (region: Darklang.Cli.UI.Layout.Region) : Unit =
         else vn.text
       | None -> vn.text
     let collapseHint =
-      if vn.isCollapsed && vn.childCount > 0L then
-        let countStr = Stdlib.Int64.toString vn.childCount
+      if vn.isCollapsed && vn.childCount > 0I then
+        let countStr = Stdlib.Int.toString vn.childCount
         Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim $" ({countStr} hidden)"
       else
         ""

@@ -7,9 +7,9 @@ type TestResult =
 type TestFunction = Unit -> TestResult
 
 type TestSummary =
-  { totalTests: Int64
-    passedTests: Int64
-    failedTests: Int64
+  { totalTests: Int
+    passedTests: Int
+    failedTests: Int
     failedTestNames: List<String> }
 
 
@@ -21,15 +21,15 @@ let makeEditor (outline: Outline) : OutlineEditor.State =
 let makeMainState (outline: Outline) : Main.State =
   let doc =
     Document
-      { id = 1L
+      { id = 1I
         title = "Test Doc"
         outline = outline }
   let docs = [doc]
   let picker = ListPicker.make docs (fun d -> d.title)
   Main.State
     { documents = docs
-      activeDocId = 1L
-      nextDocId = 2L
+      activeDocId = 1I
+      nextDocId = 2I
       screen = Main.Screen.Editor (makeEditor outline) }
 
 let assertEq (label: String) (actual: String) (expected: String) : TestResult =
@@ -38,11 +38,11 @@ let assertEq (label: String) (actual: String) (expected: String) : TestResult =
   else
     TestResult.Fail $"{label}: expected '{expected}', got '{actual}'"
 
-let assertInt (label: String) (actual: Int64) (expected: Int64) : TestResult =
+let assertInt (label: String) (actual: Int) (expected: Int) : TestResult =
   if actual == expected then
     TestResult.Pass
   else
-    TestResult.Fail $"{label}: expected {Stdlib.Int64.toString expected}, got {Stdlib.Int64.toString actual}"
+    TestResult.Fail $"{label}: expected {Stdlib.Int.toString expected}, got {Stdlib.Int.toString actual}"
 
 
 // --- Outline tests ---
@@ -50,36 +50,36 @@ let assertInt (label: String) (actual: Int64) (expected: Int64) : TestResult =
 let testFlattenVisibleCountsAllNodes () : TestResult =
   let outline =
     buildOutline
-      [(1L, "A"); (2L, "B"); (3L, "C"); (4L, "D")]
-      [(1L, [2L; 3L])]
-      [1L; 4L]
-      5L
+      [(1I, "A"); (2I, "B"); (3I, "C"); (4I, "D")]
+      [(1I, [2I; 3I])]
+      [1I; 4I]
+      5I
   let flat = flattenVisible outline
-  assertInt "visible count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length flat))) 4L
+  assertInt "visible count" (Stdlib.List.length flat) 4I
 
 let testFlattenVisibleRespectsCollapse () : TestResult =
   let outline =
     buildOutline
-      [(1L, "A"); (2L, "B"); (3L, "C"); (4L, "D")]
-      [(1L, [2L; 3L])]
-      [1L; 4L]
-      5L
-  let collapsed = setCollapsed outline 1L true
+      [(1I, "A"); (2I, "B"); (3I, "C"); (4I, "D")]
+      [(1I, [2I; 3I])]
+      [1I; 4I]
+      5I
+  let collapsed = setCollapsed outline 1I true
   let flat = flattenVisible collapsed
-  assertInt "visible count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length flat))) 2L
+  assertInt "visible count" (Stdlib.List.length flat) 2I
 
 let testBuildOutline () : TestResult =
   let outline =
     buildOutline
-      [(1L, "A"); (2L, "B"); (3L, "C")]
-      [(1L, [2L; 3L])]
-      [1L]
-      4L
+      [(1I, "A"); (2I, "B"); (3I, "C")]
+      [(1I, [2I; 3I])]
+      [1I]
+      4I
   let flat = flattenVisible outline
   if Stdlib.List.length flat == 3I then
     match Stdlib.List.head flat with
     | Some vn ->
-      if vn.text == "A" && vn.hasChildren && vn.depth == 0L then
+      if vn.text == "A" && vn.hasChildren && vn.depth == 0I then
         TestResult.Pass
       else
         TestResult.Fail "First node should be A with children at depth 0"
@@ -90,20 +90,20 @@ let testBuildOutline () : TestResult =
 let testFindParentId () : TestResult =
   let outline =
     buildOutline
-      [(1L, "Parent"); (2L, "Child"); (3L, "Root2")]
-      [(1L, [2L])]
-      [1L; 3L]
-      4L
-  let childParent = findParentId outline 2L
-  let rootParent = findParentId outline 1L
+      [(1I, "Parent"); (2I, "Child"); (3I, "Root2")]
+      [(1I, [2I])]
+      [1I; 3I]
+      4I
+  let childParent = findParentId outline 2I
+  let rootParent = findParentId outline 1I
   match childParent with
   | Some pid ->
-    if pid == 1L then
+    if pid == 1I then
       match rootParent with
       | None -> TestResult.Pass
       | Some _ -> TestResult.Fail "Root node should have no parent"
     else
-      TestResult.Fail $"Expected parent 1, got {Stdlib.Int64.toString pid}"
+      TestResult.Fail $"Expected parent 1, got {Stdlib.Int.toString pid}"
   | None -> TestResult.Fail "Child should have a parent"
 
 
@@ -112,103 +112,103 @@ let testFindParentId () : TestResult =
 let testInsertAfterAddsNode () : TestResult =
   let outline =
     buildOutline
-      [(1L, "First")]
+      [(1I, "First")]
       []
-      [1L]
-      2L
+      [1I]
+      2I
   let editor = makeEditor outline
   let newEditor = OutlineEditor.insertAfter editor
   let flat = flattenVisible newEditor.outline
-  assertInt "visible count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length flat))) 2L
+  assertInt "visible count" (Stdlib.List.length flat) 2I
 
 let testInsertAfterEmptyTree () : TestResult =
   let outline = emptyOutline ()
   let editor = makeEditor outline
   let newEditor = OutlineEditor.insertAfter editor
-  assertInt "root count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length newEditor.outline.rootChildren))) 1L
+  assertInt "root count" (Stdlib.List.length newEditor.outline.rootChildren) 1I
 
 let testDeleteEmptyNode () : TestResult =
   let outline =
     buildOutline
-      [(1L, ""); (2L, "Keep")]
+      [(1I, ""); (2I, "Keep")]
       []
-      [1L; 2L]
-      3L
+      [1I; 2I]
+      3I
   let editor = makeEditor outline
   let newEditor = OutlineEditor.deleteNode editor
-  assertInt "root count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length newEditor.outline.rootChildren))) 1L
+  assertInt "root count" (Stdlib.List.length newEditor.outline.rootChildren) 1I
 
 let testDeleteNonEmptyNodeDoesNothing () : TestResult =
   let outline =
     buildOutline
-      [(1L, "Has text")]
+      [(1I, "Has text")]
       []
-      [1L]
-      2L
+      [1I]
+      2I
   let editor = makeEditor outline
   let newEditor = OutlineEditor.deleteNode editor
-  assertInt "root count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length newEditor.outline.rootChildren))) 1L
+  assertInt "root count" (Stdlib.List.length newEditor.outline.rootChildren) 1I
 
 let testToggleCollapse () : TestResult =
   let outline =
     buildOutline
-      [(1L, "Parent"); (2L, "Child")]
-      [(1L, [2L])]
-      [1L]
-      3L
+      [(1I, "Parent"); (2I, "Child")]
+      [(1I, [2I])]
+      [1I]
+      3I
   let editor = makeEditor outline
   let newEditor = OutlineEditor.toggleCollapse editor
-  let s = getStructure newEditor.outline 1L
+  let s = getStructure newEditor.outline 1I
   if s.collapsed then TestResult.Pass
   else TestResult.Fail "Expected node to be collapsed"
 
 let testToggleCollapseLeafDoesNothing () : TestResult =
   let outline =
     buildOutline
-      [(1L, "Leaf")]
+      [(1I, "Leaf")]
       []
-      [1L]
-      2L
+      [1I]
+      2I
   let editor = makeEditor outline
   let newEditor = OutlineEditor.toggleCollapse editor
-  let s = getStructure newEditor.outline 1L
+  let s = getStructure newEditor.outline 1I
   if s.collapsed then TestResult.Fail "Leaf should not be collapsible"
   else TestResult.Pass
 
 let testIndentNode () : TestResult =
   let outline =
     buildOutline
-      [(1L, "First"); (2L, "Second")]
+      [(1I, "First"); (2I, "Second")]
       []
-      [1L; 2L]
-      3L
+      [1I; 2I]
+      3I
   let editor = { (makeEditor outline) with cursor = 1I }
   let newEditor = OutlineEditor.indentNode editor
   let rootCount = Stdlib.List.length newEditor.outline.rootChildren
   if rootCount == 1I then
-    let s = getStructure newEditor.outline 1L
-    assertInt "child count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length s.children))) 1L
+    let s = getStructure newEditor.outline 1I
+    assertInt "child count" (Stdlib.List.length s.children) 1I
   else
     TestResult.Fail $"Expected 1 root after indent, got {Stdlib.Int.toString rootCount}"
 
 let testOutdentNode () : TestResult =
   let outline =
     buildOutline
-      [(1L, "Parent"); (2L, "Child")]
-      [(1L, [2L])]
-      [1L]
-      3L
+      [(1I, "Parent"); (2I, "Child")]
+      [(1I, [2I])]
+      [1I]
+      3I
   let editor = { (makeEditor outline) with cursor = 1I }
   let newEditor = OutlineEditor.outdentNode editor
-  assertInt "root count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length newEditor.outline.rootChildren))) 2L
+  assertInt "root count" (Stdlib.List.length newEditor.outline.rootChildren) 2I
 
 let testMoveNodeUp () : TestResult =
   let outline =
     buildOutline
-      [(1L, "First"); (2L, "Second")]
+      [(1I, "First"); (2I, "Second")]
       []
-      [1L; 2L]
-      3L
+      [1I; 2I]
+      3I
   let editor = { (makeEditor outline) with cursor = 1I }
   let newEditor = OutlineEditor.moveNodeUp editor
   match Stdlib.List.head newEditor.outline.rootChildren with
@@ -220,10 +220,10 @@ let testMoveNodeUp () : TestResult =
 let testMoveNodeDown () : TestResult =
   let outline =
     buildOutline
-      [(1L, "First"); (2L, "Second")]
+      [(1I, "First"); (2I, "Second")]
       []
-      [1L; 2L]
-      3L
+      [1I; 2I]
+      3I
   let editor = makeEditor outline
   let newEditor = OutlineEditor.moveNodeDown editor
   match Stdlib.List.head newEditor.outline.rootChildren with
@@ -235,10 +235,10 @@ let testMoveNodeDown () : TestResult =
 let testMoveCursorUpDown () : TestResult =
   let outline =
     buildOutline
-      [(1L, "A"); (2L, "B"); (3L, "C")]
+      [(1I, "A"); (2I, "B"); (3I, "C")]
       []
-      [1L; 2L; 3L]
-      4L
+      [1I; 2I; 3I]
+      4I
   let editor = makeEditor outline
   let down1 = OutlineEditor.moveCursorDown editor
   let down2 = OutlineEditor.moveCursorDown down1
@@ -251,10 +251,10 @@ let testMoveCursorUpDown () : TestResult =
 let testMoveCursorBounds () : TestResult =
   let outline =
     buildOutline
-      [(1L, "Only")]
+      [(1I, "Only")]
       []
-      [1L]
-      2L
+      [1I]
+      2I
   let editor = makeEditor outline
   let upFromZero = OutlineEditor.moveCursorUp editor
   let downFromMax = OutlineEditor.moveCursorDown editor
@@ -268,25 +268,25 @@ let testMoveCursorBounds () : TestResult =
 
 let testTextEditorInsert () : TestResult =
   let te = TextEditor.fromText "Hello"
-  match TextEditor.handleKey te (Stdlib.Cli.Stdin.Key.Key.Other) (Stdlib.Cli.Stdin.Modifiers.Modifiers { shift = false; ctrl = false; alt = false; meta = false }) (Stdlib.Option.Option.Some "!") with
+  match TextEditor.handleKey te (Stdlib.Cli.Stdin.Key.Key.None) (Stdlib.Cli.Stdin.Modifiers.Modifiers { shift = false; ctrl = false; alt = false }) (Stdlib.Option.Option.Some "!") with
   | Editing newTe -> assertEq "after insert" newTe.text "Hello!"
   | _ -> TestResult.Fail "Expected Editing result"
 
 let testTextEditorBackspace () : TestResult =
   let te = TextEditor.fromText "AB"
-  match TextEditor.handleKey te (Stdlib.Cli.Stdin.Key.Key.Backspace) (Stdlib.Cli.Stdin.Modifiers.Modifiers { shift = false; ctrl = false; alt = false; meta = false }) (Stdlib.Option.Option.None) with
+  match TextEditor.handleKey te (Stdlib.Cli.Stdin.Key.Key.Backspace) (Stdlib.Cli.Stdin.Modifiers.Modifiers { shift = false; ctrl = false; alt = false }) (Stdlib.Option.Option.None) with
   | Editing newTe -> assertEq "after backspace" newTe.text "A"
   | _ -> TestResult.Fail "Expected Editing result"
 
 let testTextEditorFinish () : TestResult =
   let te = TextEditor.fromText "Done"
-  match TextEditor.handleKey te (Stdlib.Cli.Stdin.Key.Key.Enter) (Stdlib.Cli.Stdin.Modifiers.Modifiers { shift = false; ctrl = false; alt = false; meta = false }) (Stdlib.Option.Option.None) with
+  match TextEditor.handleKey te (Stdlib.Cli.Stdin.Key.Key.Enter) (Stdlib.Cli.Stdin.Modifiers.Modifiers { shift = false; ctrl = false; alt = false }) (Stdlib.Option.Option.None) with
   | Finished text -> assertEq "finished text" text "Done"
   | _ -> TestResult.Fail "Expected Finished result"
 
 let testTextEditorCancel () : TestResult =
   let te = TextEditor.fromText "Nope"
-  match TextEditor.handleKey te (Stdlib.Cli.Stdin.Key.Key.Escape) (Stdlib.Cli.Stdin.Modifiers.Modifiers { shift = false; ctrl = false; alt = false; meta = false }) (Stdlib.Option.Option.None) with
+  match TextEditor.handleKey te (Stdlib.Cli.Stdin.Key.Key.Escape) (Stdlib.Cli.Stdin.Modifiers.Modifiers { shift = false; ctrl = false; alt = false }) (Stdlib.Option.Option.None) with
   | Cancelled -> TestResult.Pass
   | _ -> TestResult.Fail "Expected Cancelled result"
 
@@ -296,29 +296,29 @@ let testTextEditorCancel () : TestResult =
 let testEditMode () : TestResult =
   let outline =
     buildOutline
-      [(1L, "Hello")]
+      [(1I, "Hello")]
       []
-      [1L]
-      2L
+      [1I]
+      2I
   let editor = makeEditor outline
   let editing = OutlineEditor.enterEditMode editor
   match editing.editing with
   | Some te ->
-    if te.text == "Hello" && te.cursor == 5L then TestResult.Pass
+    if te.text == "Hello" && te.cursor == 5I then TestResult.Pass
     else TestResult.Fail $"Expected 'Hello' at cursor 5"
   | None -> TestResult.Fail "Expected editing state"
 
 let testFinishEditing () : TestResult =
   let outline =
     buildOutline
-      [(1L, "Old")]
+      [(1I, "Old")]
       []
-      [1L]
-      2L
+      [1I]
+      2I
   let editor = makeEditor outline
   let editing = OutlineEditor.enterEditMode editor
   let committed = OutlineEditor.commitEdit editing "New"
-  let text = getNodeText committed.outline 1L
+  let text = getNodeText committed.outline 1I
   assertEq "node text" text "New"
 
 
@@ -326,7 +326,7 @@ let testFinishEditing () : TestResult =
 
 let testDefaultStateHasTwoDocs () : TestResult =
   let state = Main.defaultState ()
-  assertInt "doc count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length state.documents))) 2L
+  assertInt "doc count" (Stdlib.List.length state.documents) 2I
 
 let testActiveDocReturnsCorrectDoc () : TestResult =
   let state = Main.defaultState ()
@@ -348,12 +348,12 @@ let testDeleteDocument () : TestResult =
   let newState = Main.createDocument state "Third"
   let thirdDocId = newState.activeDocId
   let afterDelete = Main.deleteDocument newState thirdDocId
-  assertInt "doc count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length afterDelete.documents))) 2L
+  assertInt "doc count" (Stdlib.List.length afterDelete.documents) 2I
 
 let testDeleteOnlyDocDoesNothing () : TestResult =
-  let state = makeMainState (buildOutline [(1L, "X")] [] [1L] 2L)
-  let afterDelete = Main.deleteDocument state 1L
-  assertInt "doc count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length afterDelete.documents))) 1L
+  let state = makeMainState (buildOutline [(1I, "X")] [] [1I] 2I)
+  let afterDelete = Main.deleteDocument state 1I
+  assertInt "doc count" (Stdlib.List.length afterDelete.documents) 1I
 
 let testRenameDocument () : TestResult =
   let state = Main.defaultState ()
@@ -365,12 +365,12 @@ let testRenameDocument () : TestResult =
 let testExportMarkdown () : TestResult =
   let outline =
     buildOutline
-      [(1L, "Root"); (2L, "Child")]
-      [(1L, [2L])]
-      [1L]
-      3L
+      [(1I, "Root"); (2I, "Child")]
+      [(1I, [2I])]
+      [1I]
+      3I
   let doc =
-    Document { id = 1L; title = "Test"; outline = outline }
+    Document { id = 1I; title = "Test"; outline = outline }
   let md = Export.toMarkdown doc
   if Stdlib.String.contains md "# Test" && Stdlib.String.contains md "- Root" && Stdlib.String.contains md "  - Child" then
     TestResult.Pass
@@ -380,12 +380,12 @@ let testExportMarkdown () : TestResult =
 let testExportOpml () : TestResult =
   let outline =
     buildOutline
-      [(1L, "Root"); (2L, "Child")]
-      [(1L, [2L])]
-      [1L]
-      3L
+      [(1I, "Root"); (2I, "Child")]
+      [(1I, [2I])]
+      [1I]
+      3I
   let doc =
-    Document { id = 1L; title = "Test"; outline = outline }
+    Document { id = 1I; title = "Test"; outline = outline }
   let opml = Export.toOpml doc
   if Stdlib.String.contains opml "<opml" && Stdlib.String.contains opml "<title>Test</title>" && Stdlib.String.contains opml "text=\"Root\"" && Stdlib.String.contains opml "text=\"Child\"" then
     TestResult.Pass
@@ -397,7 +397,7 @@ let testImportMarkdown () : TestResult =
   let doc = Markdown.import md
   if doc.title == "My Doc" then
     let flat = flattenVisible doc.outline
-    assertInt "visible count" (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length flat))) 3L
+    assertInt "visible count" (Stdlib.List.length flat) 3I
   else
     TestResult.Fail $"Expected title 'My Doc', got '{doc.title}'"
 
@@ -438,7 +438,7 @@ let allTests () : List<(String * TestFunction)> =
     ("Import markdown", fun () -> testImportMarkdown ()) ]
 
 
-let runAllTests () : Int64 =
+let runAllTests () : Int =
   let tests = allTests ()
 
   Stdlib.printLine ""
@@ -447,9 +447,9 @@ let runAllTests () : Int64 =
 
   let initialSummary =
     TestSummary
-      { totalTests = 0L
-        passedTests = 0L
-        failedTests = 0L
+      { totalTests = 0I
+        passedTests = 0I
+        failedTests = 0I
         failedTestNames = [] }
 
   let finalSummary =
@@ -457,26 +457,26 @@ let runAllTests () : Int64 =
     |> Stdlib.List.fold initialSummary (fun summary pair ->
       let (name, testFn) = pair
       let newSummary =
-        { summary with totalTests = summary.totalTests + 1L }
+        { summary with totalTests = summary.totalTests + 1I }
 
       match testFn () with
       | Pass ->
         Stdlib.printLine $"  PASS  {name}"
-        { newSummary with passedTests = newSummary.passedTests + 1L }
+        { newSummary with passedTests = newSummary.passedTests + 1I }
       | Fail message ->
         Stdlib.printLine $"  FAIL  {name}: {message}"
         { newSummary with
-            failedTests = newSummary.failedTests + 1L
+            failedTests = newSummary.failedTests + 1I
             failedTestNames = Stdlib.List.append newSummary.failedTestNames [name] })
 
   Stdlib.printLine ""
-  Stdlib.printLine $"Results: {Stdlib.Int64.toString finalSummary.passedTests}/{Stdlib.Int64.toString finalSummary.totalTests} passed"
+  Stdlib.printLine $"Results: {Stdlib.Int.toString finalSummary.passedTests}/{Stdlib.Int.toString finalSummary.totalTests} passed"
 
-  if finalSummary.failedTests == 0L then
+  if finalSummary.failedTests == 0I then
     Stdlib.printLine "All tests passed!"
-    0L
+    0I
   else
     Stdlib.printLine "Failed:"
     finalSummary.failedTestNames
     |> Stdlib.List.iter (fun name -> Stdlib.printLine $"  - {name}")
-    1L
+    1I

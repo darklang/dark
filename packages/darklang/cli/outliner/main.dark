@@ -2,15 +2,15 @@ module Darklang.Cli.Outliner.Main
 
 type Screen =
   | DocPicker of ListPicker.State<Document>
-  | DocRenaming of docId: Int64 * ListPicker.State<Document> * TextEditor.State
+  | DocRenaming of docId: Int * ListPicker.State<Document> * TextEditor.State
   | Editor of OutlineEditor.State
   | ExportPicker of ListPicker.State<(String * String)>
   | ExportPath of ext: String * TextEditor.State
 
 type State =
   { documents: List<Document>
-    activeDocId: Int64
-    nextDocId: Int64
+    activeDocId: Int
+    nextDocId: Int
     screen: Screen }
 
 type KeyResult =
@@ -24,12 +24,12 @@ type KeyResult =
 let activeDoc (state: State) : Document =
   let fallback =
     Document
-      { id = 0L; title = "Untitled"; outline = emptyOutline () }
+      { id = 0I; title = "Untitled"; outline = emptyOutline () }
   state.documents
   |> Stdlib.List.findFirst (fun d -> d.id == state.activeDocId)
   |> Stdlib.Option.withDefault fallback
 
-let updateDoc (state: State) (docId: Int64) (updater: Document -> Document) : State =
+let updateDoc (state: State) (docId: Int) (updater: Document -> Document) : State =
   { state with
       documents =
         Stdlib.List.map state.documents (fun d ->
@@ -46,11 +46,11 @@ let createDocument (state: State) (title: String) : State =
     { state with
         documents = Stdlib.List.append state.documents [newDoc]
         activeDocId = state.nextDocId
-        nextDocId = state.nextDocId + 1L }
+        nextDocId = state.nextDocId + 1I }
   let editor = OutlineEditor.fromOutline newDoc.outline
   { newState with screen = Screen.Editor editor }
 
-let deleteDocument (state: State) (docId: Int64) : State =
+let deleteDocument (state: State) (docId: Int) : State =
   let docCount = Stdlib.List.length state.documents
   if docCount <= 1I then
     state
@@ -69,7 +69,7 @@ let deleteDocument (state: State) (docId: Int64) : State =
           activeDocId = newActiveId }
     { newState with screen = Screen.DocPicker (makeDocPicker newState) }
 
-let renameDocument (state: State) (docId: Int64) (newTitle: String) : State =
+let renameDocument (state: State) (docId: Int) (newTitle: String) : State =
   updateDoc state docId (fun d -> { d with title = newTitle })
 
 
@@ -360,39 +360,39 @@ module Persistence =
 let defaultState () : State =
   let notesOutline =
     buildOutline
-      [ (1L, "Welcome to Outliner")
-        (2L, "Use arrow keys to navigate")
-        (3L, "Press Enter to edit an item")
-        (4L, "Press Tab to indent")
-        (5L, "Features")
-        (6L, "Collapse/expand with Space")
-        (7L, "Add new items with 'o'")
-        (8L, "Move items with Ctrl+Up/Down")
-        (9L, "Press / for document picker") ]
-      [ (1L, [2L; 3L; 4L])
-        (5L, [6L; 7L; 8L]) ]
-      [1L; 5L; 9L]
-      10L
+      [ (1I, "Welcome to Outliner")
+        (2I, "Use arrow keys to navigate")
+        (3I, "Press Enter to edit an item")
+        (4I, "Press Tab to indent")
+        (5I, "Features")
+        (6I, "Collapse/expand with Space")
+        (7I, "Add new items with 'o'")
+        (8I, "Move items with Ctrl+Up/Down")
+        (9I, "Press / for document picker") ]
+      [ (1I, [2I; 3I; 4I])
+        (5I, [6I; 7I; 8I]) ]
+      [1I; 5I; 9I]
+      10I
   let tasksOutline =
     buildOutline
-      [ (1L, "Today")
-        (2L, "Try out the outliner")
-        (3L, "Add your own items")
-        (4L, "Later")
-        (5L, "Organize your thoughts")
-        (6L, "Set up a project outline") ]
-      [ (1L, [2L; 3L])
-        (4L, [5L; 6L]) ]
-      [1L; 4L]
-      7L
+      [ (1I, "Today")
+        (2I, "Try out the outliner")
+        (3I, "Add your own items")
+        (4I, "Later")
+        (5I, "Organize your thoughts")
+        (6I, "Set up a project outline") ]
+      [ (1I, [2I; 3I])
+        (4I, [5I; 6I]) ]
+      [1I; 4I]
+      7I
   let doc1 =
     Document
-      { id = 1L
+      { id = 1I
         title = "My Notes"
         outline = notesOutline }
   let doc2 =
     Document
-      { id = 2L
+      { id = 2I
         title = "Tasks"
         outline = tasksOutline }
   let docs = [doc1; doc2]
@@ -402,6 +402,6 @@ let defaultState () : State =
       $"{doc.title}  ({Stdlib.Int.toString nodeCount} items)")
   State
     { documents = docs
-      activeDocId = 1L
-      nextDocId = 3L
+      activeDocId = 1I
+      nextDocId = 3I
       screen = Screen.DocPicker picker }
