@@ -5,7 +5,7 @@ let content () : String =
 
 ## Basic
   match x with
-  | 0L -> "zero"
+  | 0 -> "zero"
   | n -> $"other: {n}"
 
 ## Enums (no type prefix)

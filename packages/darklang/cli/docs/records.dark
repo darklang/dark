@@ -4,13 +4,13 @@ let content () : String =
   """# Records
 
 ## Define
-  type Person = { name: String; age: Int64 }
+  type Person = { name: String; age: Int }
 
 ## Construct (alignment matters!)
-  Person { name = "Jo"; age = 30L }    # OK
+  Person { name = "Jo"; age = 30 }    # OK
   Person                                # OK
     { name = "Jo"
-      age = 30L }
+      age = 30 }
   Person
   { name = "Jo" }                       # WRONG - { left of type
 
@@ -18,7 +18,7 @@ let content () : String =
   person.name
 
 ## Update
-  { person with age = 31L }
+  { person with age = 31 }
 
 ## No pattern matching
   Records can't be destructured in match. Use a variable and access fields:

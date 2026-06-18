@@ -146,7 +146,7 @@ raises "Pipe: LongIdent". Wrap the left side in parens:
 
 ## Nested functions and recursion
 Dark supports nested function definitions only in the fully annotated form:
-  let helper (x: Int64) : Int64 = ...
+  let helper (x: Int) : Int = ...
 This desugars to a local lambda. It can close over outer bindings and can call
 itself by name, but mutual recursion between nested functions is not supported.
 Forms such as `let helper x = ...` are not supported; use typed, parenthesized

@@ -13,7 +13,7 @@ string handling, JSON, HTTP, and other utilities — all written in Dark.
 
 ## Key modules
   Stdlib.List       Stdlib.String     Stdlib.Option
-  Stdlib.Result     Stdlib.Dict       Stdlib.Int64
+  Stdlib.Result     Stdlib.Dict       Stdlib.Int
   Stdlib.Json       Stdlib.Http       Stdlib.Uuid
 
 ## Shortcut

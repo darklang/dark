@@ -4,8 +4,8 @@ let content () : String =
   """# Syntax
 
 ## Basics
-  let x = 5L
-  let add (a: Int64) (b: Int64) : Int64 = a + b
+  let x = 5
+  let add (a: Int) (b: Int) : Int = a + b
   if cond then a else b
   // comment
 
@@ -15,20 +15,20 @@ let content () : String =
 ## Match
   match x with
   | Some v -> v
-  | None -> 0L
+  | None -> 0
 
 ## Pipe (parens for complex LHS)
   (Stdlib.List.range 0I 10I) |> Stdlib.List.map fn
 
 ## Lists (semicolon separator)
-  [1L; 2L; 3L]
+  [1; 2; 3]
 
 ## Strings
   "hello" ++ " world"    # concat
   $"value: {x}"          # interpolation
 
 ## Lambda
-  fun x -> x + 1L
+  fun x -> x + 1
   fun (a, b) -> a + b
 
 ## Unit

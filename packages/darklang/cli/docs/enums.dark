@@ -4,12 +4,12 @@ let content () : String =
   """# Enums
 
 ## Define
-  type Status = | Pending | Done of Int64
+  type Status = | Pending | Done of Int
 
 ## Construct (need type prefix)
   Status.Pending
-  Status.Done 42L
-  Option.Some 5L
+  Status.Done 42
+  Option.Some 5
   Result.Ok "yes"
 
 ## Match (no type prefix)

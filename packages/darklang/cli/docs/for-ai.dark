@@ -47,14 +47,14 @@ their operation: `search %` -> `mod`, `search ++` -> concat, `search /` ->
   val <name>        # create value
 
 Names need full paths (owner.module.name), e.g.:
-  fn Darklang.Testing.fib (n: Int64): Int64 = ...
+  fn Darklang.Testing.fib (n: Int): Int = ...
 Inside the body, use short names (e.g., `fib` for recursion).
 
 For multi-line bodies, use `-` and pipe via stdin (heredoc form):
   ./scripts/run-cli fn Darklang.Foo.bar - <<'EOF'
-  (n: Int64): Int64 =
-    let x = n + 1L
-    x * 2L
+  (n: Int): Int =
+    let x = n + 1
+    x * 2
   EOF
 
 ## Running/Testing
@@ -138,12 +138,12 @@ Rules:
 ## Critical Syntax
 - Whitespace-sensitive (like Python)
 - Nested function definitions are supported only in the fully annotated form:
-  `let helper (x: Int64) : Int64 = ...`. The parser desugars this to a local
+  `let helper (x: Int) : Int = ...`. The parser desugars this to a local
   lambda, so use it for task-local helpers; mutual recursion is not supported.
 - NO binding modules to variables (`let c = Darklang.Cli.Colors` is invalid —
   modules are not first-class values. Use the full path each time.)
 - Pipe needs parens: (complex expr) |> fn
-- Lists: [1L; 2L; 3L] (semicolons)
+- Lists: [1; 2; 3] (semicolons)
 - String concat: ++ (not @)
 - String interpolation: $"x = {expr}; total = {a ++ b}"
 - Numeric operators (+ - * / % ^ < > <= >= and unary -) are polymorphic over
@@ -151,11 +151,11 @@ Rules:
   division on ints; integer overflow raises a runtime error.
 
 ## Records
-  MyRecord { a = 1L; b = 2L }
+  MyRecord { a = 1; b = 2 }
   # { must not be left of type name
 
 ## Enums
-  Option.Some 5L      # construct: TypeName.Case
+  Option.Some 5      # construct: TypeName.Case
   | Some x -> ...     # match: just Case
 
 ## Troubleshooting
