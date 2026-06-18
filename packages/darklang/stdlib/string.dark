@@ -481,15 +481,15 @@ let repeat (string: String) (count: Int) : String =
 
 
 /// Converts an integer <param n> to its ordinal representation as a string.
-let toOrdinal (n: Int64) : String =
+let toOrdinal (n: Int) : String =
   let suffix =
-    match n % 10L with
-    | 1L -> "st"
-    | 2L -> "nd"
-    | 3L -> "rd"
+    match n % 10I with
+    | 1I -> "st"
+    | 2I -> "nd"
+    | 3I -> "rd"
     | _ -> "th"
 
-  (Int64.toString n) ++ suffix
+  (Int.toString n) ++ suffix
 
 
 /// Splits the given <param str> at each newline character and returns a list of substrings.

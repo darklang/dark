@@ -1033,8 +1033,8 @@ module RuntimeError =
       | ConstructionWrongNumberOfFields of
         typeName : FQTypeName.FQTypeName *
         caseName : string *
-        expectedFieldCount : int64 *
-        actualFieldCount : int64
+        expectedFieldCount : int *
+        actualFieldCount : int
 
       | ConstructionCaseNotFound of
         typeName : FQTypeName.FQTypeName *
@@ -1042,7 +1042,7 @@ module RuntimeError =
 
       | ConstructionFieldOfWrongType of
         caseName : string *
-        fieldIndex : int64 *
+        fieldIndex : int *
         expectedType : ValueType *
         actualType : ValueType *
         actualValue : Dval
@@ -1091,19 +1091,16 @@ module RuntimeError =
       // specific to fns
       | WrongNumberOfTypeArgsForFn of
         fn : FQFnName.FQFnName *
-        expected : int64 *
-        actual : int64
+        expected : int *
+        actual : int
 
       | CannotApplyTypeArgsMoreThanOnce
 
-      | TooManyArgsForFn of
-        fn : FQFnName.FQFnName *
-        expected : int64 *
-        actual : int64
+      | TooManyArgsForFn of fn : FQFnName.FQFnName * expected : int * actual : int
 
       | FnParameterNotExpectedType of
         fnName : FQFnName.FQFnName *
-        paramIndex : int64 *
+        paramIndex : int *
         paramName : string *
         expectedType : ValueType *
         actualType : ValueType *
@@ -1117,7 +1114,7 @@ module RuntimeError =
 
       // specific to lambdas
       | CannotApplyTypeArgsToLambda
-      | TooManyArgsForLambda of lambdaExprId : id * expected : int64 * actual : int64
+      | TooManyArgsForLambda of lambdaExprId : id * expected : int * actual : int
 
   module Statements =
     type Error =
@@ -1185,8 +1182,8 @@ module RuntimeError =
 
     | WrongNumberOfTypeArgsForType of
       fn : FQTypeName.FQTypeName *
-      expected : int64 *
-      actual : int64
+      expected : int *
+      actual : int
 
     | Enum of Enums.Error
     | Record of Records.Error
