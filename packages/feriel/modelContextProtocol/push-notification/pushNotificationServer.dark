@@ -38,7 +38,7 @@ let statusResource () : Darklang.ModelContextProtocol.ServerBuilder.Resource =
       "✓ Pushover - Available\n"
   }
 
-let main () : Int64 =
+let main () : Int =
   let server =
     Darklang.ModelContextProtocol.ServerBuilder.create "push-notifications" [] [] []
   let serverWithAll =
