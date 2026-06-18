@@ -1160,7 +1160,7 @@ let executeClearBefore
     let now = Stdlib.DateTime.now ()
     // cleanup
     let cutoffDt =
-      Stdlib.DateTime.subtractSeconds now (Builtin.unwrap (Stdlib.Int.toInt64 seconds))
+      Stdlib.DateTime.subtractSeconds now seconds
     let cutoff = Stdlib.DateTime.toString cutoffDt
     let count = Builtin.tracesClearBefore cutoff
     match count with

@@ -25,7 +25,7 @@ let updateVersion
   let currentTimestamp =
     (Stdlib.DateTime.now ())
     |> Stdlib.DateTime.toSeconds
-    |> Stdlib.Int64.toString
+    |> Stdlib.Int.toString
 
   let config =
     match read configPath with

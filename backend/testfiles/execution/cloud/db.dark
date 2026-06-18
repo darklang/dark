@@ -933,7 +933,7 @@ module CompiledFunctions =
   (friends (fun p ->
     Stdlib.DateTime.lessThanOrEqualTo
       p.dob
-      (Stdlib.DateTime.addSeconds (Stdlib.DateTime.now ()) 1L))) = [ " Chandler "
+      (Stdlib.DateTime.addSeconds (Stdlib.DateTime.now ()) 1I))) = [ " Chandler "
                                                                      "GrumpyCat"
                                                                      "Rachel"
                                                                      "Ross" ]
@@ -941,7 +941,7 @@ module CompiledFunctions =
   (friends (fun p ->
     Stdlib.DateTime.lessThanOrEqualTo
       p.dob
-      (Stdlib.DateTime.subtractSeconds (Stdlib.DateTime.now ()) 1L))) = [ " Chandler "
+      (Stdlib.DateTime.subtractSeconds (Stdlib.DateTime.now ()) 1I))) = [ " Chandler "
                                                                           "GrumpyCat"
                                                                           "Rachel"
                                                                           "Ross" ]
