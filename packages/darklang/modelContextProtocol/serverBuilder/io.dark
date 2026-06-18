@@ -30,7 +30,7 @@ let sendSuccessResponseWithPath
 let sendErrorResponseWithPath
   (logFilePath: String)
   (requestId: Stdlib.Option.Option<JsonRPC.RequestID>)
-  (code: Int64)
+  (code: Int)
   (message: String)
   : Unit =
   let response = JsonRPC.Response.Error.make requestId code message Stdlib.Option.Option.None

@@ -8,21 +8,21 @@ module Darklang.Cli.Apps.Servers
 // Claim the pidfile, resolve the port (config `apps.<name>.port`, else `defaultPort`), then serve `router`.
 let httpDaemon
   (name: String)
-  (defaultPort: Int64)
+  (defaultPort: Int)
   (label: String)
   (router: Stdlib.Http.Request -> Stdlib.Http.Response)
   : Unit =
   let _claimed = Stdlib.Cli.Daemon.claimPidfile name
   let port = Config.getInt ("apps." ++ name ++ ".port") defaultPort
-  Stdlib.printLine $"{name}: serving {label} on http://localhost:{Stdlib.Int64.toString port}"
+  Stdlib.printLine $"{name}: serving {label} on http://localhost:{Stdlib.Int.toString port}"
   Stdlib.HttpServer.serve (Stdlib.HttpServer.Config.defaults port) router
 
 
 // `dark-packages` — the package API server that powers wip.darklang.com/packages. Defaults to 9090, a
 // port the devcontainer forwards (9090–9099), so it's reachable from the host; override via config.
 let darkPackages (name: String) : Unit =
-  httpDaemon name 9090L "DarkPackages.router" Darklang.Internal.DarkPackages.router
+  httpDaemon name 9090I "DarkPackages.router" Darklang.Internal.DarkPackages.router
 
 // `demo-http` — a tiny demo server (/, /hello, /echo). Defaults to 9091 (a devcontainer-forwarded port).
 let demoHttp (name: String) : Unit =
-  httpDaemon name 9091L "HttpServerTest.router" Darklang.DemoData.HttpServerTest.router
+  httpDaemon name 9091I "HttpServerTest.router" Darklang.DemoData.HttpServerTest.router

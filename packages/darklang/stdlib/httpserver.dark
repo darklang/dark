@@ -189,7 +189,7 @@ let getPathParam (req: Http.Request) (routePattern: String) (paramName: String) 
 
 
 /// Configuration for `serve`. Build defaults with `Config.defaults port`, then override any field with
-/// record-update, e.g. `{ HttpServer.Config.defaults 8080L with logRequests = false }`.
+/// record-update, e.g. `{ HttpServer.Config.defaults 8080I with logRequests = false }`.
 module Config =
   type Config =
     { port: Int

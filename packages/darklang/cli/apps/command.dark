@@ -8,9 +8,7 @@ module Darklang.Cli.Apps.Command
 /// The port a running HTTP daemon bound to, read from its log (`… on http://localhost:<port>`). This is
 /// the *actual* port (default or config override), so it's accurate without the browser knowing defaults.
 /// `None` for daemons that aren't HTTP servers (they never log a port).
-
-// TODO: Log text isn't a reliable source of truth; store structured daemon metadata instead.
-let daemonPort (slug: String) : Stdlib.Option.Option<Int64> =
+let daemonPort (slug: String) : Stdlib.Option.Option<Int> =
   let portLines =
     (Stdlib.Cli.Daemon.tailLog slug 25I)
     |> Stdlib.List.filter (fun l -> Stdlib.String.contains l "localhost:")
@@ -20,7 +18,7 @@ let daemonPort (slug: String) : Stdlib.Option.Option<Int64> =
   | Some line ->
     match Stdlib.List.last (Stdlib.String.split line "localhost:") with
     | None -> Stdlib.Option.Option.None
-    | Some tail -> Stdlib.Result.toOption (Stdlib.Int64.parse (Stdlib.String.trim tail))
+    | Some tail -> Stdlib.Result.toOption (Stdlib.Int.parse (Stdlib.String.trim tail))
 
 /// The live state of a daemon, for listing: "running (pid N) :port" / "stale (pid N)" / "stopped".
 /// HTTP daemons append the port they actually bound to.
@@ -30,7 +28,7 @@ let daemonState (slug: String) : String =
     if Stdlib.Cli.Posix.isProcessRunning pid then
       let portStr =
         match daemonPort slug with
-        | Some p -> $" :{Stdlib.Int64.toString p}"
+        | Some p -> $" :{Stdlib.Int.toString p}"
         | None -> ""
       $"running (pid {Stdlib.Int64.toString pid}){portStr}"
     else
