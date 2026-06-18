@@ -43,7 +43,7 @@ module TreeItemCheckboxState =
 module TreeItemLabel =
   type TreeItemLabel =
     { label: String
-      highlights: Stdlib.Option.Option<List<Int64 * Int64>> }
+      highlights: Stdlib.Option.Option<List<Int * Int>> }
 
   let toJson (l: TreeItemLabel) : Json =
     [ Some(("label", Json.String l.label))
@@ -53,8 +53,8 @@ module TreeItemLabel =
         ("highlights",
           h
           |> Stdlib.List.map (fun (s, e) ->
-            [ s |> Stdlib.Int64.toFloat |> Json.Number
-              e |> Stdlib.Int64.toFloat |> Json.Number ]
+            [ s |> Stdlib.Int.toFloat |> Json.Number
+              e |> Stdlib.Int.toFloat |> Json.Number ]
             |> Json.Array)
           |> Json.Array)) ]
     |> Stdlib.Option.values
