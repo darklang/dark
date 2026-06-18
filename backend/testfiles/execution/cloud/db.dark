@@ -976,10 +976,10 @@ module CompiledFunctions =
   (friends (fun p ->
     Stdlib.Int64.greaterThanOrEqualTo
       p.height
-      Darklang.Test.Values.intValue)) = [ " Chandler "
-                                          "GrumpyCat"
-                                          "Rachel"
-                                          "Ross" ]
+      Darklang.Test.Values.int64Value)) = [ " Chandler "
+                                            "GrumpyCat"
+                                            "Rachel"
+                                            "Ross" ]
 
   // String
   (friends (fun p ->
