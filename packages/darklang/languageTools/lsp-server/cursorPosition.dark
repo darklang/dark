@@ -43,19 +43,19 @@ let wordUnderCursor
   (text: String)
   (cursorPosition: LanguageServerProtocol.Position.Position)
   : String =
-  let lineNum = cursorPosition.line |> Stdlib.Int64.fromUInt64
-  let charPos = cursorPosition.character |> Stdlib.Int64.fromUInt64
+  let lineNum = cursorPosition.line |> Stdlib.Int.fromUInt64
+  let charPos = cursorPosition.character |> Stdlib.Int.fromUInt64
 
   match (lineNum, charPos) with
   | (Some line, Some character) ->
     let currentLine =
       text
       |> Stdlib.String.split "\n"
-      |> Stdlib.List.getAt (Stdlib.Int.fromInt64 line)
+      |> Stdlib.List.getAt line
       |> Stdlib.Option.withDefault ""
 
     let lineToCursor =
-      currentLine |> Stdlib.String.slice 0I (Stdlib.Int.fromInt64 character)
+      currentLine |> Stdlib.String.slice 0I character
 
     lineToCursor
     |> Stdlib.String.split " "
@@ -69,8 +69,8 @@ let checkIfPositionWithinRange
   (position: LanguageServerProtocol.Position.Position)
   (range: WrittenTypes.Range)
   : Stdlib.Option.Option<WrittenTypes.Range> =
-  let line = position.line |> Stdlib.Int64.fromUInt64
-  let character = position.character |> Stdlib.Int64.fromUInt64
+  let line = position.line |> Stdlib.Int.fromUInt64
+  let character = position.character |> Stdlib.Int.fromUInt64
 
   let rangeStartLine = range.start.row
   let rangeEndLine = range.end_.row
@@ -94,7 +94,7 @@ let isLineNumberInRange
   (position: LanguageServerProtocol.Position.Position)
   (range: WrittenTypes.Range)
   : Bool =
-  match position.line |> Stdlib.Int64.fromUInt64 with
+  match position.line |> Stdlib.Int.fromUInt64 with
   | Some line ->
     let rangeStartLine = range.start.row
     let rangeEndLine = range.end_.row

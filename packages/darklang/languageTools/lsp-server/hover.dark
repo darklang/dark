@@ -10,12 +10,12 @@ let getTextAtRange
   let endColumn = range.end_.column
 
   let lines = text |> Stdlib.String.split "\n"
-  let textLines = lines |> Stdlib.List.getAt (Stdlib.Int.fromInt64 startLine)
+  let textLines = lines |> Stdlib.List.getAt startLine
 
   match textLines with
   | Some line ->
     line
-    |> Stdlib.String.slice (Stdlib.Int.fromInt64 startColumn) (Stdlib.Int.fromInt64 endColumn)
+    |> Stdlib.String.slice startColumn endColumn
     |> Stdlib.Option.Option.Some
 
   | None -> Stdlib.Option.Option.None

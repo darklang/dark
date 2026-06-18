@@ -50,6 +50,11 @@ let int64 (dv : Dval) : int64 =
   | DInt64 i -> i
   | _ -> f "int64" dv
 
+let darkInt (dv : Dval) : bigint =
+  match dv with
+  | DInt i -> DarkInt.toBigInt i
+  | _ -> f "int" dv
+
 let uInt64 (dv : Dval) : uint64 =
   match dv with
   | DUInt64 i -> i

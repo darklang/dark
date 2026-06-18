@@ -277,10 +277,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "tracesStatsByHandler" 0
       typeParams = []
       parameters =
-        [ Param.make
-            "traceLimit"
-            TInt
-            "Aggregate over the last N traces (e.g. 100)" ]
+        [ Param.make "traceLimit" TInt "Aggregate over the last N traces (e.g. 100)" ]
       returnType = TList(TTuple(TString, TInt, [ TInt; TInt ]))
       description =
         "Per-handler aggregate over the last N traces: (handler, traceCount, totalMs, maxMs). Total ms sums every fn-call duration in each trace; per-trace latency would need a separate column on `traces`."
@@ -332,10 +329,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "tracesHotspots" 0
       typeParams = []
       parameters =
-        [ Param.make
-            "traceLimit"
-            TInt
-            "Aggregate over the last N traces (e.g. 100)" ]
+        [ Param.make "traceLimit" TInt "Aggregate over the last N traces (e.g. 100)" ]
       returnType = TList(TTuple(TString, TInt, [ TInt; TInt ]))
       description =
         "Aggregate fn-call timing across the last N traces. Returns (fnName, callCount, totalMs, maxMs) tuples sorted by totalMs desc. Lambdas are excluded (no fn_hash to bucket by); builtins included but always have 0ms duration."
@@ -705,8 +699,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "tracesPruneKeep" 0
       typeParams = []
-      parameters =
-        [ Param.make "keepN" TInt "Number of most-recent traces to keep" ]
+      parameters = [ Param.make "keepN" TInt "Number of most-recent traces to keep" ]
       returnType = TInt
       description =
         "Delete all but the N most-recent traces (and their fn_calls). Returns the count deleted. Useful for bounded retention."

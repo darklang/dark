@@ -4,8 +4,8 @@ module Darklang.LanguageTools.Parser.CliScript
 /// Location of an unparseable subtree in the source.
 type Unparseable =
   { text: String
-    line: Int64
-    column: Int64
+    line: Int
+    column: Int
     note: Stdlib.Option.Option<String> }
 
 
@@ -30,7 +30,7 @@ module ParseError =
         match u.note with
         | Some n -> $": {n}"
         | None -> ""
-      $"Parse error at line {Stdlib.Int64.toString u.line}, column {Stdlib.Int64.toString u.column}: unexpected '{u.text}'{noteText}"
+      $"Parse error at line {Stdlib.Int.toString u.line}, column {Stdlib.Int.toString u.column}: unexpected '{u.text}'{noteText}"
     | Other msg -> msg
 
 
@@ -67,7 +67,7 @@ let parseDecls
       let u =
         Unparseable
           { text = first.source.text
-            line = Stdlib.Int64.add first.source.range.start.row 1L
+            line = first.source.range.start.row + 1I
             column = first.source.range.start.column
             note = first.note }
       Stdlib.Result.Result.Error(ParseError.Unparseable u)

@@ -136,7 +136,7 @@ let createFnInline
           | Some note -> note
           | None -> "Make sure your syntax is correct."
         [ Colors.error "Failed to parse function definition"
-          $"  at line {Stdlib.Int64.toString (r.start.row + 1L)}, column {Stdlib.Int64.toString (r.start.column + 1L)}"
+          $"  at line {Stdlib.Int.toString (r.start.row + 1I)}, column {Stdlib.Int.toString (r.start.column + 1I)}"
           detail ]
         |> Stdlib.printLines
         state

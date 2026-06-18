@@ -6,22 +6,22 @@ let convertParserRangeToLspRange
   : LanguageServerProtocol.Range.Range =
   let lineStart =
     range.start.row
-    |> Stdlib.UInt64.fromInt64
+    |> Stdlib.Int.toUInt64
     |> Stdlib.Option.withDefault 0UL
 
   let characterStart =
     range.start.column
-    |> Stdlib.UInt64.fromInt64
+    |> Stdlib.Int.toUInt64
     |> Stdlib.Option.withDefault 0UL
 
   let lineEnd =
     range.end_.row
-    |> Stdlib.UInt64.fromInt64
+    |> Stdlib.Int.toUInt64
     |> Stdlib.Option.withDefault 0UL
 
   let characterEnd =
     range.end_.column
-    |> Stdlib.UInt64.fromInt64
+    |> Stdlib.Int.toUInt64
     |> Stdlib.Option.withDefault 0UL
 
   LanguageServerProtocol.Range.Range

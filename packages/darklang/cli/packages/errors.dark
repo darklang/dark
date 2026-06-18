@@ -31,8 +31,8 @@ let reportUnresolvedNames
 
     notFoundNames
     |> Stdlib.List.iter (fun (range, originalName, _err) ->
-      let lineNum = (range.start.row + 1L) |> Stdlib.Int64.toString
-      let colNum = range.start.column |> Stdlib.Int64.toString
+      let lineNum = (range.start.row + 1I) |> Stdlib.Int.toString
+      let colNum = range.start.column |> Stdlib.Int.toString
       let nameStr = Stdlib.String.join originalName "."
 
       Stdlib.printLine
@@ -46,8 +46,8 @@ let reportUnresolvedNames
 
     invalidNames
     |> Stdlib.List.iter (fun (range, originalName, _err) ->
-      let lineNum = (range.start.row + 1L) |> Stdlib.Int64.toString
-      let colNum = range.start.column |> Stdlib.Int64.toString
+      let lineNum = (range.start.row + 1I) |> Stdlib.Int.toString
+      let colNum = range.start.column |> Stdlib.Int.toString
       let nameStr = Stdlib.String.join originalName "."
 
       Stdlib.printLine

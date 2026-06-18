@@ -31,14 +31,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         ""
         "Examples:"
         "  type Status = | Active | Inactive"
-        "  type User = { name: String; age: Int64 }"
+        "  type User = { name: String; age: Int }"
         "  type Result = | Ok of String | Error of String"
         ""
         "  # Multi-line definition via stdin (run from shell, not the REPL):"
         "  ./scripts/run-cli type User - <<'EOF'"
         "  {"
         "    name: String"
-        "    age: Int64"
+        "    age: Int"
         "    email: String"
         "  }"
         "  EOF"
@@ -139,7 +139,7 @@ let createTypeInline
           | Some note -> note
           | None -> "Make sure your syntax is correct."
         [ Colors.error "Failed to parse type definition"
-          $"  at line {Stdlib.Int64.toString (r.start.row + 1L)}, column {Stdlib.Int64.toString (r.start.column + 1L)}"
+          $"  at line {Stdlib.Int.toString (r.start.row + 1I)}, column {Stdlib.Int.toString (r.start.column + 1I)}"
           detail ]
         |> Stdlib.printLines
         state
@@ -149,7 +149,7 @@ let createTypeInline
         ""
         "Make sure your syntax is correct. Examples:"
         "  type Status = | Active | Inactive"
-        "  type User = { name: String; age: Int64 }"
+        "  type User = { name: String; age: Int }"
         ""
       ] |> Stdlib.printLines
       state
@@ -175,7 +175,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "  type Result = | Ok of String | Error of String"
     ""
     "  # Record type:"
-    "  type User = { name: String; age: Int64 }"
+    "  type User = { name: String; age: Int }"
     ""
     "  # Type alias:"
     "  type UserId = Uuid"
@@ -184,7 +184,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "  ./scripts/run-cli type User - <<'EOF'"
     "  {"
     "    name: String"
-    "    age: Int64"
+    "    age: Int"
     "    email: String"
     "  }"
     "  EOF"
