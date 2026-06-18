@@ -159,13 +159,13 @@ let decodeEscapeNode
 
 // Number of chars in the escape (including the leading `\`), based on the
 // char following `\`. Mirrors the shapes accepted by `decodeSingleEscape`.
-let escapeLength (afterBackslash: Char) : Int64 =
+let escapeLength (afterBackslash: Char) : Int =
   match afterBackslash with
-  | 'x' -> 4L      // \xHH
-  | 'X' -> 6L      // \XHHHH
-  | 'u' -> 6L      // \uHHHH
-  | 'U' -> 10L     // \UHHHHHHHH
-  | _ -> 2L        // \n \t \r \\ \" \' \/ \a \b \f \v
+  | 'x' -> 4I      // \xHH
+  | 'X' -> 6I      // \XHHHH
+  | 'u' -> 6I      // \uHHHH
+  | 'U' -> 10I     // \UHHHHHHHH
+  | _ -> 2I        // \n \t \r \\ \" \' \/ \a \b \f \v
 
 
 let charsToString (chars: List<Char>) : String =
@@ -187,7 +187,7 @@ let decodeChars
   match chars with
   | [] -> Stdlib.Result.Result.Ok acc
   | '\\' :: afterBackslash :: _ ->
-    let len = Stdlib.Int.fromInt64 (escapeLength afterBackslash)
+    let len = escapeLength afterBackslash
     let escapeChars = Stdlib.List.take chars len
     let remaining = Stdlib.List.drop chars len
     if Stdlib.List.length escapeChars < len then
