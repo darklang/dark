@@ -31,15 +31,15 @@ let arch () : Result.Result<String, Posix.Error> =
 
 
 /// Get the number of available CPUs.
-let cpuCount () : Int64 =
+let cpuCount () : Int =
   Builtin.posixCpuCount ()
 
 
 /// Get the current process ID.
-let currentPid () : Int64 =
+let currentPid () : Int =
   Builtin.posixGetpid ()
 
 
 /// Check if the current user is root (uid 0).
 let isRoot () : Bool =
-  (Builtin.posixGetuid ()) == 0L
+  (Builtin.posixGetuid ()) == 0I

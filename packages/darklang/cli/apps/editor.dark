@@ -206,7 +206,7 @@ let toggleDaemon (state: State) (app: Model.App) (entrypoint: String) : State =
     let q = "\""
     let expr = entrypoint ++ " " ++ q ++ app.slug ++ q
     match Stdlib.Cli.Daemon.start app.slug expr with
-    | Ok pid -> { state with message = Colors.success $"started {app.name} (pid {Stdlib.Int64.toString pid})" }
+    | Ok pid -> { state with message = Colors.success $"started {app.name} (pid {Stdlib.Int.toString pid})" }
     | Error e -> { state with message = Colors.error e }
 
 /// enter — the primary action: run a foreground app (hand it the screen) / toggle a daemon.

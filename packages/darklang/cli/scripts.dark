@@ -115,9 +115,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | Some script ->
       let result = Builtin.cliParseAndExecuteScript state.accountID state.currentBranchId $"script:{name}" script.text [] false false
       match result with
-      | Ok 0L -> state
+      | Ok 0I -> state
       | Ok exitCode ->
-        Stdlib.printLine $"Script '{name}' exited with code {Stdlib.Int64.toString exitCode}"
+        Stdlib.printLine $"Script '{name}' exited with code {Stdlib.Int.toString exitCode}"
         state
       | Error execErr ->
         let pretty = ExecutionError.toString state.currentBranchId execErr

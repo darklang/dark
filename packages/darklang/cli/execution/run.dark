@@ -52,10 +52,10 @@ let executeScript
 
     match result with
     | Ok exitCode ->
-      if exitCode == 0L then
+      if exitCode == 0I then
         state
       else
-        Stdlib.printLine $"Script exited with code {Stdlib.Int64.toString exitCode}"
+        Stdlib.printLine $"Script exited with code {Stdlib.Int.toString exitCode}"
         state
     | Error e ->
       let pretty = ExecutionError.toString state.currentBranchId e

@@ -3,7 +3,7 @@ module Darklang.Stdlib.Cli
 
 /// The result of running a command in the CLI, typically with `Cli.execute`
 type ExecutionOutcome =
-  { exitCode: Int64
+  { exitCode: Int
 
     // TODO bytes, not strings -- see internal note in Process.fs
     stdout: String
@@ -22,7 +22,7 @@ let executeWithUnitOrStdErr
   : Stdlib.Result.Result<Unit, String> =
   let result = execute command
 
-  if result.exitCode == 0L then
+  if result.exitCode == 0I then
     Stdlib.Result.Result.Ok()
   else
     Stdlib.Result.Result.Error result.stderr
@@ -36,7 +36,7 @@ let executeWithStdOutOrStdErr
   : Stdlib.Result.Result<String, String> =
   let result = execute command
 
-  if result.exitCode == 0L then
+  if result.exitCode == 0I then
     Stdlib.Result.Result.Ok result.stdout
   else
     Stdlib.Result.Result.Error result.stderr

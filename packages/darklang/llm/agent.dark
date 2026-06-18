@@ -173,12 +173,12 @@ let withShellTool
   let tool =
     makeTool name description [] (fun _input ->
       let result = Stdlib.Cli.execute command
-      if result.exitCode == 0L then
+      if result.exitCode == 0I then
         let output = if result.stdout == "" then "(no output)" else result.stdout
         Stdlib.Result.Result.Ok(ToolOutput.Text output)
       else
         Stdlib.Result.Result.Error
-          $"Command failed (exit {Stdlib.Int64.toString result.exitCode}): {result.stderr}")
+          $"Command failed (exit {Stdlib.Int.toString result.exitCode}): {result.stderr}")
   { agent with tools = Stdlib.List.append agent.tools [ tool ] }
 
 

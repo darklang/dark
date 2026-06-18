@@ -17,12 +17,12 @@ let exists (path: String) : Bool =
 let size (path: String) : Result.Result<Int, Posix.Error> =
   match Posix.stat path with
   // Cleanup?
-  | Ok result -> Stdlib.Result.Result.Ok(Stdlib.Int.fromInt64 result.size)
+  | Ok result -> Stdlib.Result.Result.Ok(result.size)
   | Error e -> Stdlib.Result.Result.Error e
 
 
 /// Get the last modification time as Unix epoch seconds.
-let getModifiedTime (path: String) : Result.Result<Int64, Posix.Error> =
+let getModifiedTime (path: String) : Result.Result<Int, Posix.Error> =
   match Posix.stat path with
   | Ok result -> Stdlib.Result.Result.Ok result.mtimeSec
   | Error e -> Stdlib.Result.Result.Error e
@@ -32,9 +32,9 @@ let getModifiedTime (path: String) : Result.Result<Int64, Posix.Error> =
 let copy (src: String) (dst: String) : Result.Result<Unit, Posix.Error> =
   (Posix.stat src)
   |> Stdlib.Result.andThen (fun srcStat ->
-    let srcMode = Stdlib.Int64.bitwiseAnd srcStat.mode 511L
+    let srcMode = Stdlib.Int.bitwiseAnd srcStat.mode 511I
 
-    match Posix.openFile src (Posix.OpenFlags.rdonly ()) 0L with
+    match Posix.openFile src (Posix.OpenFlags.rdonly ()) 0I with
     | Ok srcFd ->
       let readResult = Posix.fdReadAll srcFd []
       let _ = Builtin.posixFdClose srcFd
@@ -42,8 +42,8 @@ let copy (src: String) (dst: String) : Result.Result<Unit, Posix.Error> =
       match readResult with
       | Ok bytes ->
         let flags =
-          Stdlib.Int64.bitwiseOr
-            (Stdlib.Int64.bitwiseOr
+          Stdlib.Int.bitwiseOr
+            (Stdlib.Int.bitwiseOr
               (Posix.OpenFlags.wronly ())
               (Posix.OpenFlags.creat ()))
             (Posix.OpenFlags.trunc ())
@@ -68,7 +68,7 @@ let move (src: String) (dst: String) : Result.Result<Unit, Posix.Error> =
 
 /// Read the entire contents of a file as a Blob.
 let readBytes (path: String) : Result.Result<Blob, Posix.Error> =
-  match Posix.openFile path (Posix.OpenFlags.rdonly ()) 0L with
+  match Posix.openFile path (Posix.OpenFlags.rdonly ()) 0I with
   | Ok fd ->
     let result = Posix.fdReadAll fd []
 
@@ -79,7 +79,7 @@ let readBytes (path: String) : Result.Result<Blob, Posix.Error> =
 
 /// Read the entire contents of a file as a string.
 let readText (path: String) : Result.Result<String, Posix.Error> =
-  match Posix.openFile path (Posix.OpenFlags.rdonly ()) 0L with
+  match Posix.openFile path (Posix.OpenFlags.rdonly ()) 0I with
   | Ok fd ->
     let result = Posix.fdReadAll fd []
 
@@ -91,7 +91,7 @@ let readText (path: String) : Result.Result<String, Posix.Error> =
       | Ok s -> Stdlib.Result.Result.Ok s
       | Error msg ->
         Stdlib.Result.Result.Error
-          (Posix.Error { errno = -1L; message = $"File contents not valid UTF-8: {msg}" })
+          (Posix.Error { errno = -1I; message = $"File contents not valid UTF-8: {msg}" })
     | Error e -> Stdlib.Result.Result.Error e
   | Error e -> Stdlib.Result.Result.Error e
 
@@ -105,8 +105,8 @@ let readLines (path: String) : Result.Result<List<String>, Posix.Error> =
 /// Write text to a file, creating it if it doesn't exist or overwriting if it does.
 let writeText (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
   let flags =
-    Stdlib.Int64.bitwiseOr
-      (Stdlib.Int64.bitwiseOr
+    Stdlib.Int.bitwiseOr
+      (Stdlib.Int.bitwiseOr
         (Posix.OpenFlags.wronly ())
         (Posix.OpenFlags.creat ()))
       (Posix.OpenFlags.trunc ())
@@ -127,8 +127,8 @@ let writeText (path: String) (content: String) : Result.Result<Unit, Posix.Error
 /// Append text to a file, creating it if it doesn't exist.
 let appendText (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
   let flags =
-    Stdlib.Int64.bitwiseOr
-      (Stdlib.Int64.bitwiseOr
+    Stdlib.Int.bitwiseOr
+      (Stdlib.Int.bitwiseOr
         (Posix.OpenFlags.wronly ())
         (Posix.OpenFlags.creat ()))
       (Posix.OpenFlags.append ())
@@ -152,7 +152,7 @@ let touch (path: String) : Result.Result<Unit, Posix.Error> =
     Posix.utimesNow path
   else
     let flags =
-      Stdlib.Int64.bitwiseOr
+      Stdlib.Int.bitwiseOr
         (Posix.OpenFlags.wronly ())
         (Posix.OpenFlags.creat ())
 
@@ -164,7 +164,7 @@ let touch (path: String) : Result.Result<Unit, Posix.Error> =
 
 
 /// Set file permissions (e.g. 493 for 0755).
-let setPermissions (path: String) (mode: Int64) : Result.Result<Unit, Posix.Error> =
+let setPermissions (path: String) (mode: Int) : Result.Result<Unit, Posix.Error> =
   Posix.chmod path mode
 
 
@@ -252,7 +252,7 @@ let writeAtomic (path: String) (content: String) : Result.Result<Unit, Posix.Err
 /// Run a function while holding an exclusive lock on a file.
 let withLock (path: String) (fn: Unit -> 'a) : Result.Result<'a, Posix.Error> =
   let flags =
-    Stdlib.Int64.bitwiseOr
+    Stdlib.Int.bitwiseOr
       (Posix.OpenFlags.wronly ())
       (Posix.OpenFlags.creat ())
 
@@ -321,7 +321,7 @@ let glob (basePath: String) (pattern: String) : Result.Result<List<String>, Posi
 let watchLoop
   (path: String)
   (intervalMs: Float)
-  (lastMtime: Int64)
+  (lastMtime: Int)
   (shouldStop: Unit -> Bool)
   (fn: Unit -> Unit)
   : Result.Result<Unit, Posix.Error> =

@@ -22,7 +22,7 @@ let runWithCommand (args: List<String>): String =
   let command = $"./scripts/run-cli {argsString}"
   let result = Stdlib.Cli.Unix.executeInDirectoryWithOutput "." command
 
-  if result.exitCode == 0L then
+  if result.exitCode == 0I then
     Stdlib.String.trim result.stdout
   else
     $"ERROR: {result.stderr}"

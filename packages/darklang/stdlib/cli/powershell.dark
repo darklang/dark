@@ -5,7 +5,7 @@ module Darklang.Stdlib.Cli.PowerShell
 let getHomeDirectory () : Result.Result<String, String> =
   let dir = Cli.execute "powershell.exe -Command \"echo $env:USERPROFILE\""
 
-  if dir.exitCode == 0L then
+  if dir.exitCode == 0I then
     let dir = dir.stdout |> String.trim
     Stdlib.Result.Result.Ok dir
   else
@@ -37,7 +37,7 @@ let copyFile (sourcePath: String) (destPath: String) : Result.Result<Unit, Strin
 /// Checks if a file exists
 let fileExists (path: String) : Bool =
   let result = Cli.execute $"powershell.exe -Command \"Test-Path -Path '{path}'\""
-  result.exitCode == 0L && String.trim result.stdout == "True"
+  result.exitCode == 0I && String.trim result.stdout == "True"
 
 
 /// Grants execute permissions to the specified file. (chmod +x <param path>)

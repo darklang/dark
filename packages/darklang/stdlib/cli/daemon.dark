@@ -43,20 +43,20 @@ let claimPidfile (name: String) : Stdlib.Result.Result<Unit, String> =
     match
       File.writeText
         (pidfilePath name)
-        (Stdlib.Int64.toString pid)
+        (Stdlib.Int.toString pid)
     with
     | Error e -> Stdlib.Result.Result.Error e.message
     | Ok _ -> Stdlib.Result.Result.Ok()
 
 
 // The pid recorded for a daemon, if its pidfile exists and parses.
-let recordedPid (name: String) : Stdlib.Option.Option<Int64> =
+let recordedPid (name: String) : Stdlib.Option.Option<Int> =
   let path = pidfilePath name
 
   if File.exists path then
     match File.readText path with
     | Ok content ->
-      Stdlib.Result.toOption (Stdlib.Int64.parse (Stdlib.String.trim content))
+      Stdlib.Result.toOption (Stdlib.Int.parse (Stdlib.String.trim content))
     | Error _ -> Stdlib.Option.Option.None
   else
     Stdlib.Option.Option.None
@@ -75,9 +75,9 @@ let statusLine (name: String) : String =
   match recordedPid name with
   | Some pid ->
     if Posix.isProcessRunning pid then
-      $"{name}: running (pid {Stdlib.Int64.toString pid})"
+      $"{name}: running (pid {Stdlib.Int.toString pid})"
     else
-      $"{name}: stale (pid {Stdlib.Int64.toString pid} not running — `stop` clears it)"
+      $"{name}: stale (pid {Stdlib.Int.toString pid} not running — `stop` clears it)"
   | None -> $"{name}: stopped"
 
 
@@ -97,10 +97,10 @@ let stop (name: String) : Stdlib.Result.Result<String, String> =
     let _removed = File.delete (pidfilePath name)
 
     if wasRunning then
-      Stdlib.Result.Result.Ok $"{name}: stopped (pid {Stdlib.Int64.toString pid})"
+      Stdlib.Result.Result.Ok $"{name}: stopped (pid {Stdlib.Int.toString pid})"
     else
       Stdlib.Result.Result.Ok
-        $"{name}: cleared stale pidfile (pid {Stdlib.Int64.toString pid} was not running)"
+        $"{name}: cleared stale pidfile (pid {Stdlib.Int.toString pid} was not running)"
 
 
 // ── launch ──
@@ -131,9 +131,9 @@ let launchDetached (name: String) (expr: String) : Stdlib.Result.Result<Unit, St
 // pidfile, or an error (with the last log line) if it never comes up.
 let waitUntilRunning
   (name: String)
-  (tries: Int64)
-  : Stdlib.Result.Result<Int64, String> =
-  if tries <= 0L then
+  (tries: Int)
+  : Stdlib.Result.Result<Int, String> =
+  if tries <= 0I then
     let hint =
       match tailLog name 1I with
       | [ line ] -> $" (last log: {line})"
@@ -147,19 +147,19 @@ let waitUntilRunning
         Stdlib.Result.Result.Ok pid
       else
         let _ = Posix.sleep 100.0
-        waitUntilRunning name (tries - 1L)
+        waitUntilRunning name (tries - 1I)
     | None ->
       let _ = Posix.sleep 100.0
-      waitUntilRunning name (tries - 1L)
+      waitUntilRunning name (tries - 1I)
 
 
 // Launch a named daemon detached, running `expr`, then VERIFY it actually came up — returns the live pid
 // or an error if it never claimed its pidfile (instead of falsely reporting success the instant the
 // shell forks). Refuses if it's already running.
-let start (name: String) (expr: String) : Stdlib.Result.Result<Int64, String> =
+let start (name: String) (expr: String) : Stdlib.Result.Result<Int, String> =
   if isRunning name then
     Stdlib.Result.Result.Error $"{name} is already running (see `status`)"
   else
     match launchDetached name expr with
     | Error e -> Stdlib.Result.Result.Error e
-    | Ok _ -> waitUntilRunning name 20L
+    | Ok _ -> waitUntilRunning name 20I

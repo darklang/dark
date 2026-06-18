@@ -308,13 +308,13 @@ let fns () : List<BuiltInFn> =
             "sandbox"
             TBool
             "Run the script body with NO capabilities (a deny-all sandbox for untrusted scripts), instead of the host's configured grant" ]
-      returnType = TypeReference.result TInt64 (ExecutionError.typeRef ())
+      returnType = TypeReference.result TInt (ExecutionError.typeRef ())
       description =
         "Parses Dark code as a script, and and executes it, returning an exit code"
       fn =
         let errType = KTCustomType(ExecutionError.fqTypeName (), [])
-        let resultOk = Dval.resultOk KTInt64 errType
-        let resultError = Dval.resultError KTInt64 errType
+        let resultOk = Dval.resultOk KTInt errType
+        let resultError = Dval.resultError KTInt errType
         (function
         | exeState,
           _,
@@ -371,8 +371,9 @@ let fns () : List<BuiltInFn> =
                     dbs
                     (RunScript(filename, code))
                 with
-                | Ok(DInt64 i) -> return resultOk (DInt64 i)
-                | Ok DUnit -> return resultOk (DInt64 0L)
+                | Ok(DInt i) -> return resultOk (DInt i)
+                | Ok(DInt64 i) -> return resultOk (Dval.int (bigint i))
+                | Ok DUnit -> return resultOk (Dval.int (bigint 0))
                 | Ok result ->
                   let rte =
                     RuntimeError.CLIs.NonIntReturned result |> RuntimeError.CLI

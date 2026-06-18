@@ -197,7 +197,7 @@ let runCliCommand
         let result = Stdlib.Cli.execute fullCmd
 
         match result.exitCode with
-        | 0L ->
+        | 0I ->
           let output = if result.stdout == "" then "(no output)" else result.stdout
           if Stdlib.String.startsWith (Stdlib.String.trim output) "Error:" then
             Stdlib.Result.Result.Error (Stdlib.String.trim output)
@@ -207,7 +207,7 @@ let runCliCommand
             Stdlib.Result.Result.Ok (Darklang.LLM.Agent.ToolOutput.text output)
         | exitCode ->
           let details = if result.stderr != "" then result.stderr else if result.stdout != "" then result.stdout else "no output"
-          let errorMsg = "CLI command failed (exit " ++ (Stdlib.Int64.toString exitCode) ++ "): " ++ (Stdlib.String.trim details)
+          let errorMsg = "CLI command failed (exit " ++ (Stdlib.Int.toString exitCode) ++ "): " ++ (Stdlib.String.trim details)
           Stdlib.printLine (Colors.error ("  -> " ++ errorMsg))
           Stdlib.Result.Result.Error errorMsg
       | None -> Stdlib.Result.Result.Error "Could not find CLI executable"

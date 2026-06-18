@@ -73,13 +73,13 @@ let prepareProcessCommand (command : string) : string * string =
 
 /// Creates an ExecutionOutcome record
 let createExecutionOutcome
-  (exitCode : int64)
+  (exitCode : int)
   (stdout : string)
   (stderr : string)
   : Dval =
   let typeName = executionOutcomeTypeName ()
   let fields =
-    [ "exitCode", DInt64 exitCode
+    [ "exitCode", Dval.int (bigint exitCode)
       "stdout", DString stdout
       "stderr", DString stderr ]
   DRecord(typeName, typeName, [], Map fields)
@@ -223,7 +223,7 @@ let fns () : List<BuiltInFn> =
       description = "Spawns an interactive process and returns a handle ID"
       typeParams = []
       parameters = [ Param.make "command" TString "The command to execute" ]
-      returnType = TInt64
+      returnType = TInt
       fn =
         function
         | _, _, _, [ DString command ] ->
@@ -256,7 +256,7 @@ let fns () : List<BuiltInFn> =
               ErrorBuffer = "" }
 
           processHandles.TryAdd(processId, processInfo) |> ignore<bool>
-          DInt64 processId |> Ply
+          Dval.int (bigint processId) |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
@@ -268,7 +268,7 @@ let fns () : List<BuiltInFn> =
       description = "Send input to process and read available output (non-blocking)"
       typeParams = []
       parameters =
-        [ Param.make "processId" TInt64 "The process handle ID"
+        [ Param.make "processId" TInt "The process handle ID"
           Param.make "input" TString "The input to send (empty string to just read)" ]
       returnType =
         let typeName =
@@ -276,7 +276,8 @@ let fns () : List<BuiltInFn> =
         TCustomType(NR.ok typeName, [])
       fn =
         function
-        | _, _, _, [ DInt64 processId; DString input ] ->
+        | _, _, _, [ DInt processId; DString input ] ->
+          let processId = int64 (DarkInt.toBigInt processId)
           match processHandles.TryGetValue processId with
           | true, processInfo when not processInfo.Process.HasExited ->
             try
@@ -361,9 +362,9 @@ let fns () : List<BuiltInFn> =
               createExecutionOutcome exitCode (stdout.ToString()) (stderr.ToString())
               |> Ply
             with ex ->
-              createExecutionOutcome -1L "" $"Process IO error: {ex.Message}" |> Ply
+              createExecutionOutcome -1 "" $"Process IO error: {ex.Message}" |> Ply
           | _ ->
-            createExecutionOutcome -1L "" "Process not found or has exited" |> Ply
+            createExecutionOutcome -1 "" "Process not found or has exited" |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
@@ -374,14 +375,15 @@ let fns () : List<BuiltInFn> =
     { name = fn "cliTerminateProcess" 0
       description = "Terminates a spawned process and returns final output"
       typeParams = []
-      parameters = [ Param.make "processId" TInt64 "The process handle ID" ]
+      parameters = [ Param.make "processId" TInt "The process handle ID" ]
       returnType =
         let typeName =
           FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.executionOutcome ())
         TCustomType(NR.ok typeName, [])
       fn =
         function
-        | _, _, _, [ DInt64 processId ] ->
+        | _, _, _, [ DInt processId ] ->
+          let processId = int64 (DarkInt.toBigInt processId)
           match processHandles.TryGetValue processId with
           | true, processInfo ->
             try
@@ -412,12 +414,9 @@ let fns () : List<BuiltInFn> =
               createExecutionOutcome exitCode finalStdout finalStderr |> Ply
             with ex ->
               processHandles.TryRemove processId |> ignore<bool * ProcessInfo>
-              createExecutionOutcome
-                -1L
-                ""
-                $"Process termination error: {ex.Message}"
+              createExecutionOutcome -1 "" $"Process termination error: {ex.Message}"
               |> Ply
-          | false, _ -> createExecutionOutcome -1L "" "Process not found" |> Ply
+          | false, _ -> createExecutionOutcome -1 "" "Process not found" |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotQueryable
       previewable = Impure
