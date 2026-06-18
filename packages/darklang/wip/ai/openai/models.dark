@@ -12,7 +12,7 @@ type Json = Stdlib.AltJson.Json
 /// Describes an OpenAI model offering that can be used with the API.
 type Model =
   { id: String        // The model identifier, which can be referenced in the API endpoints
-    created: Int64    // The Unix timestamp (in seconds) when the model was created
+    created: Int    // The Unix timestamp (in seconds) when the model was created
     object_: String   // The object type, which is always "model"
     ownedBy: String } // The organization that owns the model
 

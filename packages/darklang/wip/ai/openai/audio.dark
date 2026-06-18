@@ -977,7 +977,7 @@ module Voices =
     { id: String
       name: String
       description: Stdlib.Option.Option<String>
-      createdAt: Stdlib.Option.Option<Int64>
+      createdAt: Stdlib.Option.Option<Int>
       status: Stdlib.Option.Option<String> }
 
   let createOptions
@@ -1052,7 +1052,7 @@ module VoiceConsents =
   type Consent =
     { id: String
       status: Stdlib.Option.Option<String>
-      createdAt: Stdlib.Option.Option<Int64>
+      createdAt: Stdlib.Option.Option<Int>
       name: Stdlib.Option.Option<String>
       text: Stdlib.Option.Option<String> }
 

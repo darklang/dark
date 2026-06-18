@@ -32,7 +32,7 @@
 ///   Agent.create ()
 ///   |> Agent.withModel Models.OpenAI.gpt4o
 ///   |> Agent.withJsonMode
-///   |> Agent.withSeed 42L
+///   |> Agent.withSeed 42
 ///   |> Agent.run "Extract data as JSON..."
 module Darklang.LLM.Agent
 
@@ -92,7 +92,7 @@ type Agent =
     extendedContext: Bool
     // OpenAI-specific features
     responseFormat: Stdlib.Option.Option<Darklang.LLM.Provider.ResponseFormat>
-    seed: Stdlib.Option.Option<Int64>
+    seed: Stdlib.Option.Option<Int>
     presencePenalty: Stdlib.Option.Option<Float>
     frequencyPenalty: Stdlib.Option.Option<Float>
     topP: Stdlib.Option.Option<Float> }
@@ -308,7 +308,7 @@ let withJsonSchema (agent: Agent) (schema: Json) : Agent =
 
 /// Set a seed for reproducible outputs (OpenAI only)
 /// Using the same seed with the same parameters should give similar results
-let withSeed (agent: Agent) (seed: Int64) : Agent =
+let withSeed (agent: Agent) (seed: Int) : Agent =
   { agent with seed = Stdlib.Option.Option.Some seed }
 
 
@@ -533,7 +533,7 @@ let askJson (question: String) : Stdlib.Result.Result<String, String> =
 
 
 /// One-shot question with reproducible seed (OpenAI)
-let askWithSeed (seed: Int64) (question: String) : Stdlib.Result.Result<String, String> =
+let askWithSeed (seed: Int) (question: String) : Stdlib.Result.Result<String, String> =
   (create ())
   |> withModel Darklang.LLM.Models.OpenAI.gpt4o
   |> withSeed seed

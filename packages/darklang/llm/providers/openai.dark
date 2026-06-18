@@ -422,7 +422,7 @@ let buildExtendedRequest
   // Add seed if present
   let withSeed =
     match ext.seed with
-    | Some s -> Stdlib.List.append withFormat [ ("seed", Json.Number (Stdlib.Int64.toFloat s)) ]
+    | Some s -> Stdlib.List.append withFormat [ ("seed", Json.Number (Stdlib.Int.toFloat s)) ]
     | None -> withFormat
 
   // Add presence penalty if present

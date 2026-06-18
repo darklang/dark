@@ -743,7 +743,7 @@ type Response =
   { id: String
     object_: String
     model: String
-    createdAt: Int64
+    createdAt: Int
     status: Status.ResponseStatus
     output: List<OutputItem.OutputItem>
     usage: Stdlib.Option.Option<Usage>

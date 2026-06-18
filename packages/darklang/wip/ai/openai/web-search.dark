@@ -310,10 +310,10 @@ let getJsonField
 
   Stdlib.Option.map found (fun pair -> Stdlib.Tuple2.second pair)
 
-/// Helper to extract an Int64 from a JSON Number
-let jsonToInt64 (json: Json) : Stdlib.Option.Option<Int64> =
+/// Helper to extract an Int from a JSON Number
+let jsonToInt (json: Json) : Stdlib.Option.Option<Int> =
   match json with
-  | Number n -> Stdlib.Option.Option.Some(Stdlib.Int64.fromFloat n)
+  | Number n -> Stdlib.Option.Option.Some(Stdlib.Int.fromFloat n)
   | _ -> Stdlib.Option.Option.None
 
 /// Helper to extract a String from JSON
@@ -328,13 +328,11 @@ let parseUrlCitation (json: Json) : Stdlib.Option.Option<UrlCitation> =
   | Object fields ->
     let startIndexJson = getJsonField fields "start_index"
     let startIndex =
-      (Stdlib.Option.andThen startIndexJson (fun v -> jsonToInt64 v))
-      |> Stdlib.Option.map (fun n -> Stdlib.Int.fromInt64 n)
+      Stdlib.Option.andThen startIndexJson (fun v -> jsonToInt v)
 
     let endIndexJson = getJsonField fields "end_index"
     let endIndex =
-      (Stdlib.Option.andThen endIndexJson (fun v -> jsonToInt64 v))
-      |> Stdlib.Option.map (fun n -> Stdlib.Int.fromInt64 n)
+      Stdlib.Option.andThen endIndexJson (fun v -> jsonToInt v)
 
     let urlJson = getJsonField fields "url"
     let url = Stdlib.Option.andThen urlJson (fun v -> jsonToString v)

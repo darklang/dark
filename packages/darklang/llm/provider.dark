@@ -544,7 +544,7 @@ type RequestExtensions =
     /// Response format for structured outputs (OpenAI)
     responseFormat: Stdlib.Option.Option<ResponseFormat>
     /// Seed for reproducible outputs (OpenAI)
-    seed: Stdlib.Option.Option<Int64>
+    seed: Stdlib.Option.Option<Int>
     /// Presence penalty -2.0 to 2.0 (OpenAI)
     presencePenalty: Stdlib.Option.Option<Float>
     /// Frequency penalty -2.0 to 2.0 (OpenAI)

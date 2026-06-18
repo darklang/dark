@@ -110,7 +110,7 @@ let audioParamToJson (param: AudioParam) : Json =
 type AudioResponse =
   { id: String          // Unique identifier for the audio
     data: String        // Base64-encoded audio data
-    expiresAt: Int64    // Unix timestamp when audio expires (KEPT Int64: timestamp)
+    expiresAt: Int    // Unix timestamp when audio expires
     transcript: String } // Transcript of the audio
 
 /// Parse audio response from JSON
@@ -444,7 +444,7 @@ type Request =
     serviceTier: Stdlib.Option.Option<ServiceTier.Tier>
     // Generation options
     n: Stdlib.Option.Option<Int>
-    seed: Stdlib.Option.Option<Int64>  // KEPT Int64: opaque reproducibility value, not a count
+    seed: Stdlib.Option.Option<Int>
     user: Stdlib.Option.Option<String>
     // Log probabilities
     logprobs: Stdlib.Option.Option<Bool>
@@ -611,8 +611,8 @@ let withServiceTier (req: Request) (tier: ServiceTier.Tier) : Request =
 let withN (req: Request) (count: Int) : Request =
   { req with n = Stdlib.Option.Option.Some count }
 
-/// Set seed (KEPT Int64: opaque reproducibility value, not a count)
-let withSeed (req: Request) (seed: Int64) : Request =
+/// Set seed
+let withSeed (req: Request) (seed: Int) : Request =
   { req with seed = Stdlib.Option.Option.Some seed }
 
 /// Set user ID
@@ -910,7 +910,7 @@ let buildRequestJson (req: Request) : Json =
   let withSeed_ =
     match req.seed with
     | Some s ->
-      Stdlib.List.append withN_ [ ("seed", Json.Number(Stdlib.Int64.toFloat s)) ]
+      Stdlib.List.append withN_ [ ("seed", Json.Number(Stdlib.Int.toFloat s)) ]
     | None -> withN_
 
   // User
@@ -992,7 +992,7 @@ type Usage =
 type Response =
   { id: String
     object_: String  // "chat.completion"
-    created: Int64  // KEPT Int64: Unix timestamp
+    created: Int  // Unix timestamp
     model: String
     choices: List<Choice>
     usage: Usage
