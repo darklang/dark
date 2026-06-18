@@ -178,6 +178,7 @@ let main (args : string[]) =
 
       1
     | Ok(RT.DInt64 i) -> (int i)
+    | Ok(RT.DInt i) -> (int (RT.DarkInt.toBigInt i))
     | Ok dval ->
       let state = state cliPackageManager
       let output = (Exe.dvalToRepr state dval).Result

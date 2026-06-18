@@ -187,7 +187,7 @@ type TestSummary =
 
 // Sequential test execution - proven to be ~30-50% faster than parallel for CLI tests
 // due to process startup overhead and resource contention
-let runAllTests (): Int64 =
+let runAllTests (): Int =
   let tests = allTests ()
 
   Stdlib.printLine ""
@@ -230,7 +230,7 @@ let runAllTests (): Int64 =
 
   if finalSummary.failedTests == 0I then
     Stdlib.printLine "🎉 All tests passed!"
-    0L
+    0I
   else
     Stdlib.printLine "🚨 Some tests failed!"
     if Stdlib.Bool.not (Stdlib.List.isEmpty finalSummary.failedTestNames) then
@@ -238,4 +238,4 @@ let runAllTests (): Int64 =
       finalSummary.failedTestNames
       |> Stdlib.List.iter (fun testName ->
         Stdlib.printLine $"  ✗ {testName}")
-    1L
+    1I

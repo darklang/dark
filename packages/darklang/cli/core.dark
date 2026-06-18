@@ -700,13 +700,13 @@ module Update =
       updateAppState state msg
 
 
-let runInteractiveLoop (state: AppState) : Int64 =
+let runInteractiveLoop (state: AppState) : Int =
   if state.isExiting then
     // Clear status bar and prompt line before exiting
     StatusBar.clear ()
     // Move to column 1, clear entire line, then newline for clean shell prompt
     Stdlib.print (Colors.moveCursorToColumn 1I ++ "\u001b[2K" ++ "\n")
-    0L
+    0I
   else
     let tLoopStart = if state.telemetryEnabled then Telemetry.now () else 0L
     if state.telemetryEnabled then
@@ -866,7 +866,7 @@ let parseBranchFlag (args: List<String>) : (Stdlib.Option.Option<Uuid> * List<St
         (Stdlib.Option.Option.Some SCM.Branch.mainBranchId, filteredArgs)
 
 
-let executeCliCommand (args: List<String>) : Int64 =
+let executeCliCommand (args: List<String>) : Int =
   let (branchOverride, remainingArgs) = parseBranchFlag args
   let baseState = initState ()
   let initialState =
@@ -901,4 +901,4 @@ let executeCliCommand (args: List<String>) : Int64 =
     | SubApp _ ->
       StatusBar.init ()
       runInteractiveLoop resultState
-    | _ -> 0L
+    | _ -> 0I
