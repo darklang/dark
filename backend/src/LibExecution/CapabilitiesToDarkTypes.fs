@@ -41,7 +41,7 @@ module Scope =
   let strToDT (s : Cap.Scope<string>) : Dval = toDT VT.string DString s
   let strFromDT (d : Dval) : Cap.Scope<string> = fromDT D.string d
   let portToDT (s : Cap.Scope<int64>) : Dval =
-    toDT VT.int (fun n -> DInt(DarkInt.ofBigInt (bigint n))) s
+    toDT VT.int (fun (n : int64) -> DInt(DarkInt.ofBigInt (bigint n))) s
   let portFromDT (d : Dval) : Cap.Scope<int64> =
     fromDT (fun dv -> int64 (D.darkInt dv)) d
 
