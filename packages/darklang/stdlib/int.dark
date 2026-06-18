@@ -205,3 +205,8 @@ let bitwiseNot (a: Int) : Int = Builtin.intBitwiseNot a
 let shiftLeft (a: Int) (b: Int) : Int = Builtin.intShiftLeft a b
 
 let shiftRight (a: Int) (b: Int) : Int = Builtin.intShiftRight a b
+
+
+/// Returns a random integer between <param start> and <param end> (inclusive)
+let random (start: Int) (``end``: Int) : Int =
+  Builtin.intRandom start ``end``

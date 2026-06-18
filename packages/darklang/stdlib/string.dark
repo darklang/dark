@@ -198,9 +198,7 @@ let random (length: Int) : Result.Result<String, String> =
 
     let randomChar =
       fun _ ->
-        (let index =
-          Stdlib.Int.fromInt64
-            (Int64.random 0L (Builtin.unwrap (Stdlib.Int.toInt64 ((String.length characters) - 1I))))
+        (let index = Stdlib.Int.random 0I ((String.length characters) - 1I)
          String.slice characters index (index + 1I))
 
     let result =
