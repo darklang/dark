@@ -14,7 +14,7 @@ type TraceData = Darklang.Tracing.TraceData
 /// nodes but recurses into their children at the SAME indent level so the
 /// surrounding structure stays intact.
 type ViewOptions =
-  { maxDepth: Stdlib.Option.Option<Int64>
+  { maxDepth: Stdlib.Option.Option<Int>
     hideBuiltins: Bool
     hideStdlib: Bool
     filter: Stdlib.Option.Option<String>
@@ -94,9 +94,9 @@ let parseViewOptions
   | [] -> Stdlib.Result.Result.Ok opts
   | "--depth" :: n :: rest
   | "-d" :: n :: rest ->
-    match Stdlib.Int64.parse n with
+    match Stdlib.Int.parse n with
     | Ok depth ->
-      if depth < 0L then
+      if depth < 0I then
         Stdlib.Result.Result.Error $"--depth must be ≥ 0 (got {n})"
       else
         parseViewOptions
@@ -975,7 +975,7 @@ let renderCall
   (branchId: Uuid)
   (childrenMap: Dict<List<FnCall>>)
   (call: FnCall)
-  (depth: Int64)
+  (depth: Int)
   (ancestorMatched: Bool)
   : List<String> =
   let depthExceeded =
@@ -996,14 +996,14 @@ let renderCall
       | None -> []
     // When this call is hidden we keep child indent at our level so the
     // tree doesn't develop ghost gaps where the hidden line would have been.
-    let childDepth = if visible then depth + 1L else depth
+    let childDepth = if visible then depth + 1I else depth
     let childrenRendered =
       children
       |> Stdlib.List.map (fun c ->
         renderCall opts branchId childrenMap c childDepth matchedHere)
       |> Stdlib.List.flatten
     if visible then
-      let indent = Stdlib.String.repeat "  " (Stdlib.Int.fromInt64 (depth + 1L))
+      let indent = Stdlib.String.repeat "  " (depth + 1I)
       let resultRepr = compactDval branchId call.result
       let durationSuffix =
         if call.durationMs > 0L then
@@ -1054,14 +1054,14 @@ let formatFnCalls
     let rendered =
       roots
       |> Stdlib.List.map (fun r ->
-        renderCall opts branchId childrenMap r 0L false)
+        renderCall opts branchId childrenMap r 0I false)
       |> Stdlib.List.flatten
     match rendered with
     | [] ->
       // The empty case can happen for several reasons; help the user
       // figure out which by surfacing the most-likely cause first.
       match opts.maxDepth with
-      | Some 0L -> "  (depth limit 0 — no calls shown)"
+      | Some 0I -> "  (depth limit 0 — no calls shown)"
       | _ -> "  (no calls match the active filters)"
     | _ -> Stdlib.String.join rendered "\n"
 
