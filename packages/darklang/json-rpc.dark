@@ -262,21 +262,21 @@ module Response =
 
   module Error =
     module KnownErrorCodes =
-      let parserError = -32700L
-      let invalidRequest = -32600L
-      let methodNotFound = -32601L
-      let invalidParams = -32602L
-      let internalError = -32603L
+      let parserError = -32700I
+      let invalidRequest = -32600I
+      let methodNotFound = -32601I
+      let invalidParams = -32602I
+      let internalError = -32603I
 
     let make
       (requestId: Stdlib.Option.Option<RequestID>)
-      (errorCode: Int64)
+      (errorCode: Int)
       (errorMessage: String)
       (errorData: Stdlib.Option.Option<Json>)
       : Json =
       let errorDetailFeilds =
         [ Stdlib.Option.Option.Some(
-            ("code", Json.Number(Stdlib.Int64.toFloat errorCode))
+            ("code", Json.Number(Stdlib.Int.toFloat errorCode))
           )
           Stdlib.Option.Option.Some(("message", Json.String errorMessage))
           (errorData |> Stdlib.Option.map (fun data -> ("data", data))) ]
