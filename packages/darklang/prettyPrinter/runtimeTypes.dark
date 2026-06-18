@@ -357,19 +357,19 @@ module Dval =
     | DBlobEphemeral _ -> "Blob"
     | DStreamStub vt -> $"Stream<{valueType branchId vt}>"
 
-  let makeSpaces (len: Int64) : String =
-    match Stdlib.List.repeat (Stdlib.Int.fromInt64 len) " " with
+  let makeSpaces (len: Int) : String =
+    match Stdlib.List.repeat len " " with
     | Ok spaces -> spaces |> Stdlib.String.join ""
     | Error _ -> ""
 
   let withIndent
-        (branchId: Uuid)
-        (indent: Int64)
+    (branchId: Uuid)
+    (indent: Int)
     (dv: LanguageTools.RuntimeTypes.Dval)
     : String =
     let nl = "\n" ++ (makeSpaces indent)
-    let inl = "\n" ++ (makeSpaces (indent + 2L))
-    let indent = indent + 2L
+    let inl = "\n" ++ (makeSpaces (indent + 2I))
+    let indent = indent + 2I
 
     let valueTypeName = valueTypeName branchId dv
 
@@ -457,7 +457,7 @@ module Dval =
     // Don't fetch the bytes for rendering — payloads can be many MB.
     | DBlobPersistent(hash, length) ->
       let short = Stdlib.String.first hash 8I
-      $"<Blob: {short}… {Stdlib.Int64.toString length} bytes>"
+      $"<Blob: {short}… {Stdlib.Int.toString length} bytes>"
     | DBlobEphemeral _ -> "<Blob: ephemeral>"
 
     | DStreamStub _ -> "<stream: stub>"
@@ -549,4 +549,4 @@ let dval
     (branchId: Uuid)
     (dv: LanguageTools.RuntimeTypes.Dval)
   : String =
-  Dval.withIndent branchId 0L dv
+  Dval.withIndent branchId 0I dv

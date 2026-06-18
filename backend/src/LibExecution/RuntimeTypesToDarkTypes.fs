@@ -731,7 +731,7 @@ module Dval =
     // cannot be read.
     | DBlob(Ephemeral eph) -> mk "DBlobEphemeral" [ DUuid eph.id ]
     | DBlob(Persistent(hash, length)) ->
-      mk "DBlobPersistent" [ DString hash; DInt64 length ]
+      mk "DBlobPersistent" [ DString hash; DInt(DarkInt.ofBigInt (bigint length)) ]
 
     // Streams render as a stub tag for LSP/reflection only — they
     // can't round-trip (no live pull fn on the other side).
@@ -815,8 +815,8 @@ module Dval =
       Exception.raiseInternal
         "Cannot rebuild an ephemeral blob from its reflected form; it contains only the blob id, not the bytes. Values that need to round-trip through DT must be promoted to Persistent first."
         []
-    | DEnum(_, _, [], "DBlobPersistent", [ DString hash; DInt64 length ]) ->
-      DBlob(Persistent(hash, length))
+    | DEnum(_, _, [], "DBlobPersistent", [ DString hash; DInt length ]) ->
+      DBlob(Persistent(hash, int64 (DarkInt.toBigInt length)))
 
     | DEnum(_, _, [], "DStreamStub", [ _elemType ]) ->
       Exception.raiseInternal
