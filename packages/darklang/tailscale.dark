@@ -22,9 +22,9 @@ let status () : Stdlib.Result.Result<String, String> =
   run "status"
 
 // Expose this instance's local HTTP server over TLS on the tailnet (`tailscale serve --https=443`).
-let serve (localPort: Int64) : Stdlib.Result.Result<Unit, String> =
+let serve (localPort: Int) : Stdlib.Result.Result<Unit, String> =
   Stdlib.Cli.executeWithUnitOrStdErr
-    ("tailscale serve --https=443 " ++ Stdlib.Int64.toString localPort)
+    ("tailscale serve --https=443 " ++ Stdlib.Int.toString localPort)
 
 // Reachability check to a peer by MagicDNS name (`tailscale ping <peer>`).
 let ping (peer: String) : Stdlib.Result.Result<String, String> =
