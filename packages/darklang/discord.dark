@@ -28,7 +28,7 @@ type Embed =
     /// ISO8601 timestamp string, e.g. from Stdlib.DateTime.toString.
     timestamp: Stdlib.Option.Option<String>
     /// Sidebar color as a decimal RGB integer, e.g. 0xFF0000 = 16711680 = red.
-    color: Stdlib.Option.Option<Int64>
+    color: Stdlib.Option.Option<Int>
     footer: Stdlib.Option.Option<EmbedFooter>
     imageUrl: Stdlib.Option.Option<String>
     thumbnailUrl: Stdlib.Option.Option<String>
