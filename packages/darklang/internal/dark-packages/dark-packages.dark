@@ -142,9 +142,9 @@ let statsHandlerFn (req: HttpRequest) : HttpResponse =
   let stats = Builtin.pmGetStats ()
   let body =
     $"Package stats:
-- types: {stats.types |> Stdlib.Int64.toString}
-- fns: {stats.fns |> Stdlib.Int64.toString}
-- values: {stats.values |> Stdlib.Int64.toString}"
+- types: {stats.types |> Stdlib.Int.toString}
+- fns: {stats.fns |> Stdlib.Int.toString}
+- values: {stats.values |> Stdlib.Int.toString}"
   Stdlib.Http.responseWithText body 200I
 
 let statsHandler: Handler =

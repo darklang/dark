@@ -2,6 +2,6 @@
 module Darklang.DarkPackages
 
 type Stats =
-  { types: Int64
-    values: Int64
-    fns: Int64 }
+  { types: Int
+    values: Int
+    fns: Int }
