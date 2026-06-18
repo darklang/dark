@@ -755,6 +755,101 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intBitwiseAnd" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TInt
+      description = "Bitwise AND on two <type Int> values"
+      fn =
+        (function
+        | _, _, _, [ DInt a; DInt b ] ->
+          Ply(Dval.int (DarkInt.toBigInt a &&& DarkInt.toBigInt b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intBitwiseOr" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TInt
+      description = "Bitwise OR on two <type Int> values"
+      fn =
+        (function
+        | _, _, _, [ DInt a; DInt b ] ->
+          Ply(Dval.int (DarkInt.toBigInt a ||| DarkInt.toBigInt b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intBitwiseXor" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TInt
+      description = "Bitwise XOR on two <type Int> values"
+      fn =
+        (function
+        | _, _, _, [ DInt a; DInt b ] ->
+          Ply(Dval.int (DarkInt.toBigInt a ^^^ DarkInt.toBigInt b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intBitwiseNot" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt "" ]
+      returnType = TInt
+      description = "Bitwise NOT on an <type Int> value"
+      fn =
+        (function
+        | _, _, _, [ DInt a ] -> Ply(Dval.int (-(DarkInt.toBigInt a) - bigint 1))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intShiftLeft" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TInt
+      description = "Bitwise left shift of an <type Int> value"
+      fn =
+        (function
+        | _, _, _, [ DInt a; DInt b ] ->
+          Ply(Dval.int (DarkInt.toBigInt a <<< int (DarkInt.toBigInt b)))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intShiftRight" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TInt
+      description = "Bitwise right shift of an <type Int> value"
+      fn =
+        (function
+        | _, _, _, [ DInt a; DInt b ] ->
+          Ply(Dval.int (DarkInt.toBigInt a >>> int (DarkInt.toBigInt b)))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated } ]
 
 

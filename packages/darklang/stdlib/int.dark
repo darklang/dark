@@ -192,3 +192,16 @@ let toInt128 (a: Int) : Stdlib.Option.Option<Int128> = Builtin.intToInt128 a
 
 /// Converts an <type Int> to a <type UInt128>, returning {{None}} if it doesn't fit
 let toUInt128 (a: Int) : Stdlib.Option.Option<UInt128> = Builtin.intToUInt128 a
+
+
+let bitwiseAnd (a: Int) (b: Int) : Int = Builtin.intBitwiseAnd a b
+
+let bitwiseOr (a: Int) (b: Int) : Int = Builtin.intBitwiseOr a b
+
+let bitwiseXor (a: Int) (b: Int) : Int = Builtin.intBitwiseXor a b
+
+let bitwiseNot (a: Int) : Int = Builtin.intBitwiseNot a
+
+let shiftLeft (a: Int) (b: Int) : Int = Builtin.intShiftLeft a b
+
+let shiftRight (a: Int) (b: Int) : Int = Builtin.intShiftRight a b
