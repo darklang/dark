@@ -13,7 +13,7 @@ module Darklang.LanguageTools.WrittenTypesToProgramTypes
 //     DeferredResolver has nothing to refresh.
 type Context =
   { currentFnName: Stdlib.Option.Option<List<String>>
-    argMap: Dict<Int64>
+    argMap: Dict<Int>
     localBindings: List<String> }
 
 let defaultContext =
@@ -1455,7 +1455,7 @@ module FunctionDeclaration =
       let argMap =
         params
         |> Stdlib.List.indexedMap (fun i param ->
-          (param.name, (Builtin.unwrap (Stdlib.Int.toInt64 i))))
+          (param.name, i))
         |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (name, idx) ->
           Stdlib.Dict.set acc name idx)
       let functionContext =

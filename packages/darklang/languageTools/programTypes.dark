@@ -250,7 +250,7 @@ type Expr =
   | ELet of ID * LetPattern * Expr * Expr
   | ERecordFieldAccess of ID * Expr * String
   | EVariable of ID * String
-  | EArg of ID * Int64
+  | EArg of ID * Int
   | EValue of ID * NameResolution<FQValueName.FQValueName>
 
   // control flow
