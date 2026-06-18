@@ -708,7 +708,7 @@ let runInteractiveLoop (state: AppState) : Int =
     Stdlib.print (Colors.moveCursorToColumn 1I ++ "\u001b[2K" ++ "\n")
     0I
   else
-    let tLoopStart = if state.telemetryEnabled then Telemetry.now () else 0L
+    let tLoopStart = if state.telemetryEnabled then Telemetry.now () else 0I
     if state.telemetryEnabled then
       let _ = Builtin.interpreterStatsReset ()
       ()
@@ -716,7 +716,7 @@ let runInteractiveLoop (state: AppState) : Int =
     // TODO: handle terminal resize and Unicode display width
     let location = locationStr state
 
-    let tHint = if state.telemetryEnabled then Telemetry.now () else 0L
+    let tHint = if state.telemetryEnabled then Telemetry.now () else 0I
     let inputStartColumn =
       Prompt.Display.calculateInputStartColumn location
     let hintCached = state.cachedHintInput == state.prompt.text
@@ -742,7 +742,7 @@ let runInteractiveLoop (state: AppState) : Int =
       else (Stdlib.Int.divide (visualLength - 1I) terminalWidth) + 1I
 
     // Display current page
-    let tRender = if state.telemetryEnabled then Telemetry.now () else 0L
+    let tRender = if state.telemetryEnabled then Telemetry.now () else 0I
 
     match state.currentPage with
     | MainPrompt ->
@@ -803,7 +803,7 @@ let runInteractiveLoop (state: AppState) : Int =
       Telemetry.log "preInput" tLoopStart
 
     // Read keystroke input
-    let tReadKey = if state.telemetryEnabled then Telemetry.now () else 0L
+    let tReadKey = if state.telemetryEnabled then Telemetry.now () else 0I
     let keyInput = Stdlib.Cli.Stdin.readKey ()
 
     // Process the key
@@ -816,7 +816,7 @@ let runInteractiveLoop (state: AppState) : Int =
       Telemetry.logWithContext "update" tUpdate [("char", keyInput.keyChar)]
       let loopWorkMs = (Telemetry.elapsedMs tLoopStart) - (Telemetry.elapsedMs tReadKey)
       let interpStats = Builtin.interpreterStatsGet ()
-      Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.Int64.toString loopWorkMs); ("interp", interpStats)]
+      Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.Int.toString loopWorkMs); ("interp", interpStats)]
 
     runInteractiveLoop { newState with previousRenderedRows = renderedRows; cachedHintInput = state.prompt.text; cachedHintValue = hint; cachedStatusBar = statusBar; cachedStatusBarBranch = state.currentBranchId }
 
