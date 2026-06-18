@@ -15,7 +15,7 @@ type Json = Stdlib.AltJson.Json
 /// It reads incoming messages from stdin, and writes responses to stdout,
 /// following the LSP spec. It also logs all incoming and outgoing messages
 /// to `rundir/logs/lsp-server.log`, for local debugging.
-let runServerCli (u: Unit) : Int64 =
+let runServerCli (u: Unit) : Int =
   // clear `lsp-server.log`, and write a timestamp of the start-up
   let _deleted = Builtin.fileDelete logFilePath
 
@@ -64,7 +64,7 @@ let runServerCli (u: Unit) : Int64 =
 
 
 
-let runServerCliLoop (state: LspState) : Int64 =
+let runServerCliLoop (state: LspState) : Int =
   log "---"
 
   let incomingMessageRaw = readMessageFromClient ()
@@ -186,14 +186,14 @@ let runServerCliLoop (state: LspState) : Int64 =
 
   // shut down if instructed, or listen for the next message
   if updatedState.shouldShutdown then
-    0L
+    0I
   else
     runServerCliLoop updatedState
 
 
 let tryReadHeader
-  (contentLength: Stdlib.Option.Option<Int64>)
-  : Stdlib.Result.Result<Int64, String> =
+  (contentLength: Stdlib.Option.Option<Int>)
+  : Stdlib.Result.Result<Int, String> =
   let line = Builtin.stdinReadLine ()
 
   if line == "" then
@@ -201,7 +201,7 @@ let tryReadHeader
   else if Stdlib.String.startsWith line "Content-Length: " then
     let lengthStr = Stdlib.String.dropFirst line 16I
 
-    match Stdlib.Int64.parse lengthStr with
+    match Stdlib.Int.parse lengthStr with
     | Ok length -> tryReadHeader (Stdlib.Option.Option.Some length)
     | Error _ -> Stdlib.Result.Result.Error "Invalid Content-Length value"
   else

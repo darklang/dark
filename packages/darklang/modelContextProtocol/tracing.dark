@@ -56,13 +56,13 @@ module LogMessageNotification =
   let toJson (params: LogMessageParams) : Json =
     let typeNum =
       match params.type_ with
-      | Error -> 1
-      | Warning -> 2
-      | Info -> 3
-      | Debug -> 4
+      | Error -> 1I
+      | Warning -> 2I
+      | Info -> 3I
+      | Debug -> 4I
 
     Json.Object [
-      ("type", Json.Number (Stdlib.Int64.toFloat typeNum));
+      ("type", Json.Number (Stdlib.Int.toFloat typeNum));
       ("message", Json.String params.message)
     ]
 

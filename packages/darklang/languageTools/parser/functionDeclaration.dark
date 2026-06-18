@@ -67,7 +67,7 @@ let parseParams
 
 /// Parses a package function declaration
 ///
-/// i.e. `let add (x: Int64) (y: Int64): Int64 = x + y`,
+/// i.e. `let add (x: Int) (y: Int): Int = x + y`,
 ///
 /// - `add` is the function name
 /// - `x: Int` and `y: Int` are the parameters

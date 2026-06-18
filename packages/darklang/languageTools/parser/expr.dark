@@ -440,7 +440,7 @@ let parseEnumLiteral
       |> Stdlib.Result.Result.Ok)
 
 
-/// Converts a function-declaration parameter (`(x: Int64)` or `()`) into a
+/// Converts a function-declaration parameter (`(x: Int)` or `()`) into a
 /// LetPattern, dropping the type annotation. Used to desugar a nested function
 /// definition into a lambda.
 let letPatternFromFnParam
@@ -468,7 +468,7 @@ let parseLetExpr
 
   match keywordLetNode, symbolEqualsNode, expr, body with
   | Ok keywordLet, Ok symbolEquals, Ok expr, Ok body ->
-    // a nested function definition (`let f (x: Int64) : Int64 = ...`) carries a
+    // a nested function definition (`let f (x: Int) : Int = ...`) carries a
     // `fn_name` + `params` instead of a `pattern` (the grammar restricts a fn name
     // to a plain variable). Desugar it to a lambda bound by the let; the recursion
     // and type-dropping then match the F# parser + PT2RT path. A plain let carries

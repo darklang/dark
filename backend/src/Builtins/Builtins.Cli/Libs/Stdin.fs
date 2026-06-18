@@ -312,17 +312,18 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "stdinReadExactly" 0
       typeParams = []
-      parameters = [ Param.make "length" TInt64 "The number of characters to read." ]
+      parameters = [ Param.make "length" TInt "The number of characters to read." ]
       returnType = TString
       description = "Reads a specified number of characters from the standard input."
       fn =
         (function
-        | _, _, _, [ DInt64 length ] ->
+        | _, _, _, [ DInt length ] ->
+          let length = int (DarkInt.toBigInt length)
           if length < 0 then
             Exception.raiseInternal "Length must be non-negative" []
           else
-            let buffer = Array.zeroCreate (int length)
-            let bytesRead = System.Console.In.Read(buffer, 0, (int length))
+            let buffer = Array.zeroCreate length
+            let bytesRead = System.Console.In.Read(buffer, 0, length)
             let input = System.String(buffer, 0, bytesRead)
             Ply(DString input)
         | _ -> incorrectArgs ())

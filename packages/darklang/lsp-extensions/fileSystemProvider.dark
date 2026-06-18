@@ -149,11 +149,11 @@ module FileChange =
     | Created
     | Deleted
 
-  let encodeFileChangeType (t: FileChangeType) : Int64 =
+  let encodeFileChangeType (t: FileChangeType) : Int =
     match t with
-    | Changed -> 1L
-    | Created -> 2L
-    | Deleted -> 3L
+    | Changed -> 1I
+    | Created -> 2I
+    | Deleted -> 3I
 
   type FileChangeEvent = { uri: URI; typ: FileChangeType }
 
