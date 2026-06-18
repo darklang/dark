@@ -9,7 +9,7 @@ module Darklang.Internal.DarklangInternalMcpServer
 
 
 /// Main entry point for the Darklang Internal MCP Server
-let main () : Int64 =
+let main () : Int =
   let server =
     ModelContextProtocol.ServerBuilder.create "darklang_internal_server" [] [] []
 

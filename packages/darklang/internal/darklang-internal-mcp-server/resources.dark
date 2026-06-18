@@ -46,7 +46,7 @@ let types () : ModelContextProtocol.ServerBuilder.Resource =
     name = "Type System"
     description = "Documentation for Darklang's type system"
     handler = fun _uri ->
-      "# Darklang Type System\n\n## Basic Types\n- Int64\n- Float\n- Bool\n- String\n- Unit\n\n## Complex Types\n- List<T>\n- Dict<T>\n- Option<T>\n- Result<T, E>\n\n## Custom Types\n- Records\n- Enums\n- Type aliases\n\nThe type system is designed to be expressive yet simple to use."
+      "# Darklang Type System\n\n## Basic Types\n- Int\n- Float\n- Bool\n- String\n- Unit\n\n## Complex Types\n- List<T>\n- Dict<T>\n- Option<T>\n- Result<T, E>\n\n## Custom Types\n- Records\n- Enums\n- Type aliases\n\nThe type system is designed to be expressive yet simple to use."
   }
 
 
@@ -86,7 +86,7 @@ let examples () : ModelContextProtocol.ServerBuilder.Resource =
     name = "Code Examples"
     description = "Common Darklang code patterns and examples"
     handler = fun _uri ->
-      "# Darklang Code Examples\n\n## Basic Function\n```darklang\nlet add (x: Int64) (y: Int64) : Int64 =\n  Stdlib.Int64.add x y\n```\n\n## List Processing\n```darklang\nlet processNumbers (numbers: List<Int64>) : List<Int64> =\n  numbers\n  |> Stdlib.List.filter (fun n -> Stdlib.Int64.greaterThan n 0L)\n  |> Stdlib.List.map (fun n -> Stdlib.Int64.multiply n 2L)\n```\n\n## HTTP Request\n```darklang\nlet fetchData (url: String) : String =\n  match Stdlib.HttpClient.get url with\n  | Ok response -> response.body\n  | Error err -> $\"Error: {err}\"\n```"
+      "# Darklang Code Examples\n\n## Basic Function\n```darklang\nlet add (x: Int) (y: Int) : Int =\n  Stdlib.Int.add x y\n```\n\n## List Processing\n```darklang\nlet processNumbers (numbers: List<Int>) : List<Int> =\n  numbers\n  |> Stdlib.List.filter (fun n -> Stdlib.Int.greaterThan n 0)\n  |> Stdlib.List.map (fun n -> Stdlib.Int.multiply n 2)\n```\n\n## HTTP Request\n```darklang\nlet fetchData (url: String) : String =\n  match Stdlib.HttpClient.get url with\n  | Ok response -> response.body\n  | Error err -> $\"Error: {err}\"\n```"
   }
 
 
@@ -97,5 +97,5 @@ let syntax () : ModelContextProtocol.ServerBuilder.Resource =
     name = "Syntax Reference"
     description = "Complete Darklang syntax reference and grammar"
     handler = fun _uri ->
-      "# Darklang Syntax Reference\n\n## Functions\n```darklang\nlet functionName (param1: Type1) (param2: Type2) : ReturnType =\n  expression\n```\n\n## Pattern Matching\n```darklang\nmatch value with\n| Pattern1 -> result1\n| Pattern2 -> result2\n| _ -> defaultResult\n```\n\n## Pipe Operator\n```darklang\nvalue\n|> function1\n|> function2\n```\n\n## Records\n```darklang\ntype Person = { name: String; age: Int64 }\n\nlet person = Person { name = \"Alice\"; age = 30L }\n```\n\n## Enums\n```darklang\ntype Color =\n  | Red\n  | Green\n  | Blue\n```"
+      "# Darklang Syntax Reference\n\n## Functions\n```darklang\nlet functionName (param1: Type1) (param2: Type2) : ReturnType =\n  expression\n```\n\n## Pattern Matching\n```darklang\nmatch value with\n| Pattern1 -> result1\n| Pattern2 -> result2\n| _ -> defaultResult\n```\n\n## Pipe Operator\n```darklang\nvalue\n|> function1\n|> function2\n```\n\n## Records\n```darklang\ntype Person = { name: String; age: Int }\n\nlet person = Person { name = \"Alice\"; age = 30 }\n```\n\n## Enums\n```darklang\ntype Color =\n  | Red\n  | Green\n  | Blue\n```"
   }

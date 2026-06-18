@@ -28,7 +28,7 @@ let create (name: String) (tools: List<ToolDefinition>) (resources: List<Resourc
 
 
 /// Main server loop to handle ongoing messages
-let runServerCliLoop (state: State.BuilderServerState) : Int64 =
+let runServerCliLoop (state: State.BuilderServerState) : Int =
   logWithPath state.logFilePath "---"
 
   let incomingMessageRaw = readMessageFromClientWithPath state.logFilePath
@@ -37,7 +37,7 @@ let runServerCliLoop (state: State.BuilderServerState) : Int64 =
   // Handle empty messages (client disconnected)
   if incomingMessageRaw == "" then
     logWithPath state.logFilePath "Received empty message, client disconnected"
-    0L
+    0I
   else
     let updatedState =
       // parse a json-rpc message from stdin, and call `handleIncomingMessage` on it when relevant
@@ -194,7 +194,7 @@ let runServerCliLoop (state: State.BuilderServerState) : Int64 =
     // shut down if instructed, or listen for the next message
     if updatedState.shouldShutdown then
       logWithPath updatedState.logFilePath "Server shutting down"
-      0L
+      0I
     else
       runServerCliLoop updatedState
 
@@ -211,7 +211,7 @@ let runServerCliLoop (state: State.BuilderServerState) : Int64 =
 /// - Function search and documentation
 /// - Code review and refactoring assistance
 /// - Testing utilities
-let run (server: McpServerBuilder) : Int64 =
+let run (server: McpServerBuilder) : Int =
   // Get server-specific log file path
   let logFilePath = getLogFilePath server.name
 

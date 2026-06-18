@@ -58,7 +58,6 @@ let loadBranchList () : List<BranchReviewItem> =
   let items =
     branches
     |> Stdlib.List.filterMap (fun b ->
-      // bridge: packageOps counts are Int64 (out of scope); convert to Int at the boundary
       let wipOpCount = SCM.PackageOps.getWipOpCount b.id
       let committedCount = SCM.PackageOps.getCommitCount b.id
       if wipOpCount == 0I && committedCount == 0I then

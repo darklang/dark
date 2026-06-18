@@ -2,7 +2,7 @@ module Darklang.Cli.Apps.Views.AiChats
 
 /// Demo data: an AI coding thread
 type Thread =
-  { id: Int64
+  { id: Int
     status: String
     topic: String
     branch: String
@@ -13,7 +13,7 @@ type Thread =
 
 let demoThreads () : List<Thread> =
   [ Thread
-      { id = 1L
+      { id = 1I
         status = "running"
         topic = "Add binary serialization for sync"
         branch = "ai/sync"
@@ -22,7 +22,7 @@ let demoThreads () : List<Thread> =
         time = "12m"
         detail = "Currently editing packages/darklang/sync/serialize.dark  •  14 files changed" }
     Thread
-      { id = 2L
+      { id = 2I
         status = "review"
         topic = "Refactor HTTP handler error paths"
         branch = "ai/errs"
@@ -31,7 +31,7 @@ let demoThreads () : List<Thread> =
         time = "8m"
         detail = "⚠ Awaiting your review: 3 questions about error propagation strategy" }
     Thread
-      { id = 3L
+      { id = 3I
         status = "running"
         topic = "Write tests for package manager"
         branch = "ai/test"
@@ -40,7 +40,7 @@ let demoThreads () : List<Thread> =
         time = "5m"
         detail = "Running test suite (pass: 12, fail: 2, pending: 6)  •  4 files changed" }
     Thread
-      { id = 4L
+      { id = 4I
         status = "review"
         topic = "Design new DB migration system"
         branch = "ai/db"
@@ -49,7 +49,7 @@ let demoThreads () : List<Thread> =
         time = "22m"
         detail = "⚠ Awaiting your review: proposed 2 migration approaches, needs decision" }
     Thread
-      { id = 5L
+      { id = 5I
         status = "running"
         topic = "Fix canvas rendering perf regression"
         branch = "ai/perf"
@@ -58,7 +58,7 @@ let demoThreads () : List<Thread> =
         time = "3m"
         detail = "Profiling render loop, found bottleneck in tree diff  •  1 file changed" }
     Thread
-      { id = 6L
+      { id = 6I
         status = "done"
         topic = "Update stdlib List docs"
         branch = "ai/docs"
@@ -94,7 +94,7 @@ let padRight (s: String) (width: Int) : String =
     s ++ (Stdlib.String.repeat " " (width - len))
 
 let renderThread (thread: Thread) : Unit =
-  let idStr = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.cyan) ("#" ++ Stdlib.Int64.toString thread.id)
+  let idStr = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.cyan) ("#" ++ Stdlib.Int.toString thread.id)
   let badge = statusBadge thread.status
   let topicStr =
     if thread.status == "done" then

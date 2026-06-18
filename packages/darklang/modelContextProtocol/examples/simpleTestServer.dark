@@ -29,7 +29,7 @@ let welcomePrompt () : ServerBuilder.Prompt =
   }
 
 
-let main () : Int64 =
+let main () : Int =
   let server =
     ServerBuilder.create "simple_echo_server" [] [] []
   let serverWithAll =
