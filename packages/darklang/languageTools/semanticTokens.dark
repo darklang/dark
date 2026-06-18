@@ -60,7 +60,7 @@ module TypeIdentifier =
     [ makeToken t.range TokenType.TypeName ]
 
 module QualifiedTypeIdentifier =
-  // Darklang.Stdlib.Option<Int64>
+  // Darklang.Stdlib.Option<Int>
   let tokenize
     (q: WrittenTypes.QualifiedTypeIdentifier)
     : List<SemanticToken> =
@@ -72,7 +72,7 @@ module QualifiedTypeIdentifier =
       // Option
       TypeIdentifier.tokenize q.typ
 
-      // <Int64>
+      // <Int>
       (q.typeArgs
         |> Stdlib.List.map (fun typeArg -> TypeReference.tokenize typeArg)
         |> Stdlib.List.flatten) ]
@@ -329,7 +329,7 @@ module FnDeclaration =
       : List<SemanticToken> =
       [ makeToken p.range TokenType.Symbol ]
 
-  // `(a: Int64)`
+  // `(a: Int)`
   module NormalParameter =
     let tokenize
       (p: WrittenTypes.FnDeclaration.NormalParameter)
@@ -340,7 +340,7 @@ module FnDeclaration =
         [ makeToken p.name.range TokenType.ParameterName ]
         // `:`
         [ makeToken p.symbolColon TokenType.Symbol ]
-        // `Int64`
+        // `Int`
         TypeReference.tokenize p.typ
         // `)`
         [ makeToken p.symbolRightParen TokenType.Symbol ] ]
@@ -355,7 +355,7 @@ module FnDeclaration =
       | Normal n -> NormalParameter.tokenize n
 
 
-  // `let add (a: Int64) (b: Int64): Int64 = a + b`
+  // `let add (a: Int) (b: Int): Int = a + b`
   let tokenize
     (fn: WrittenTypes.FnDeclaration.FnDeclaration)
     : List<SemanticToken> =
@@ -368,13 +368,13 @@ module FnDeclaration =
         |> Stdlib.List.map (fun (r, typeParam) ->
           [ makeToken r TokenType.TypeParameter ])
         |> Stdlib.List.flatten)
-      // `(a: Int64) (b: Int64)`
+      // `(a: Int) (b: Int)`
       (fn.parameters
         |> Stdlib.List.map (fun p -> Parameter.tokenize p)
         |> Stdlib.List.flatten)
       // `:`
       [ makeToken fn.symbolColon TokenType.Symbol ]
-      // `Int64`
+      // `Int`
       TypeReference.tokenize fn.returnType
       // `=`
       [ makeToken fn.symbolEquals TokenType.Symbol ]
@@ -1005,7 +1005,7 @@ module Expr =
       |> Stdlib.List.flatten
 
     // hacky temp. syntax -- see `grammar.js`
-    // Int64.add (1L) (2L)
+    // Int.add (1) (2)
     | EFnName(_range, fnName) -> QualifiedFnIdentifier.tokenize fnName
 
     // CLEANUP: consider removing typeArgs from EApply, as it should be handled by QualifiedFnIdentifier

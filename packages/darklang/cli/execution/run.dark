@@ -100,5 +100,5 @@ let help (state: AppState) : Unit =
     "  --allow-harmful    - Opt out of Harmful-deprecation halting."
     ""
     "To call a package function, use 'eval' instead:"
-    "  eval Stdlib.Int64.add 5L 3L" ]
+    "  eval Stdlib.Int.add 5 3" ]
   |> Stdlib.printLines
