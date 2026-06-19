@@ -151,6 +151,15 @@ let render (state: State) : Unit =
   else
     ()
 
+  // Explain the app status markers shown in each row.
+  let legend =
+    "  "
+    ++ (Colors.success "✓") ++ (Colors.dimText " installed    ")
+    ++ (Colors.colorize Colors.green "●") ++ (Colors.dimText " running    ")
+    ++ (Colors.colorize Colors.yellow "●") ++ (Colors.dimText " stale    ")
+    ++ (Colors.dimText "○ stopped")
+  Stdlib.printLine legend
+
   Stdlib.printLine
     (Colors.dimText
       "  ↑↓ move · enter run/start · a add · x remove · i detail · esc exit")
