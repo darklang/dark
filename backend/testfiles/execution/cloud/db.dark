@@ -29,6 +29,22 @@ type IntFields = { big: Int; sized: Int64 }
 [<DB>]
 type IntFieldsDB = IntFields
 
+// One field per non-Int64 fixed-width int type, for asserting that querying
+// them rejects loudly (rather than silently returning nothing).
+type SizedInts =
+  { i8: Int8
+    u8: UInt8
+    i16: Int16
+    u16: UInt16
+    i32: Int32
+    u32: UInt32
+    u64: UInt64
+    i128: Int128
+    u128: UInt128 }
+
+[<DB>]
+type SizedIntsDB = SizedInts
+
 // simple data stores of Enums
 // , and Records containing Enums
 
@@ -765,6 +781,19 @@ module FindAll =
   // rejects loudly, while the sized Int64 field compiles fine.
   (Stdlib.DB.query IntFieldsDB (fun p -> p.big > 5I)) = sqlerror="The arbitrary-precision Int type is not yet queryable in DB.query. Use a sized integer type (e.g. Int64) for fields you filter or sort on."
   (Stdlib.DB.query IntFieldsDB (fun p -> p.sized > 5L)) = []
+
+  // non-Int64 fixed-width ints also reject loudly: only Int64 is wired through
+  // as a real SQL number, so the rest would silently match nothing. Fail clearly
+  // instead. (One per type; equality and arithmetic both go through the literal.)
+  (Stdlib.DB.query SizedIntsDB (fun p -> p.i8 == 5y)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  (Stdlib.DB.query SizedIntsDB (fun p -> p.u8 == 5uy)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  (Stdlib.DB.query SizedIntsDB (fun p -> p.i16 == 5s)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  (Stdlib.DB.query SizedIntsDB (fun p -> p.u16 == 5us)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  (Stdlib.DB.query SizedIntsDB (fun p -> p.i32 == 5l)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  (Stdlib.DB.query SizedIntsDB (fun p -> p.u32 + 1ul == 6ul)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  (Stdlib.DB.query SizedIntsDB (fun p -> p.u64 == 5UL)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  (Stdlib.DB.query SizedIntsDB (fun p -> p.i128 == 5Q)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
+  (Stdlib.DB.query SizedIntsDB (fun p -> p.u128 == 5Z)) = sqlerror="Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
 
   // storage is untouched: a >Int64 value round-trips through set/get fine
   // (it's only numeric *querying* that's restricted)

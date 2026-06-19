@@ -58,15 +58,11 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
       returnType = TUInt128
-      description = "Adds two 128-bit unsigned integers together"
+      description =
+        "Adds two 128-bit unsigned integers together, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DUInt128 a; DUInt128 b ] ->
-          try
-            let result = System.UInt128.op_CheckedAddition (a, b)
-            Ply(DUInt128(result))
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DUInt128(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -78,15 +74,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
       returnType = TUInt128
-      description = "Subtracts two 128-bit unsigned integers"
+      description = "Subtracts two 128-bit unsigned integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DUInt128 a; DUInt128 b ] ->
-          try
-            let result = System.UInt128.op_CheckedSubtraction (a, b)
-            Ply(DUInt128(result))
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DUInt128(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -99,15 +90,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt128 ""; Param.make "b" TUInt128 "" ]
       returnType = TUInt128
-      description = "Multiplies two 128-bit unsigned integers"
+      description = "Multiplies two 128-bit unsigned integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DUInt128 a; DUInt128 b ] ->
-          try
-            let result = System.UInt128.op_CheckedMultiply (a, b)
-            Ply(DUInt128(result))
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DUInt128(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -126,14 +112,10 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [ DUInt128 a; DUInt128 b ] ->
-          try
-            let result = System.UInt128.op_Division (a, b)
-            Ply(DUInt128(result))
-          with
-          | :? System.DivideByZeroException ->
+          if b = System.UInt128.Zero then
             RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
-          | :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+          else
+            Ply(DUInt128(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

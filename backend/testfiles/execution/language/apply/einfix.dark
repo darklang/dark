@@ -25,19 +25,19 @@ Stdlib.Int64.add_v0 5L 3L = 8L
 5L + true = error="Cannot perform numeric operation on Int64 and Bool"
 1L + 2.0 = error="Cannot perform numeric operation on Int64 and Float"
 
-// Integer +,-,* overflow raises a runtime error (consistent with /, %, ^)
-127y + 1y = error="Encountered out-of-range value for type of Int"
-0uy - 1uy = error="Encountered out-of-range value for type of Int"
-9223372036854775807L + 1L = error="Encountered out-of-range value for type of Int"
-2L * 9223372036854775807L = error="Encountered out-of-range value for type of Int"
-170141183460469231731687303715884105727Q + 1Q = error="Encountered out-of-range value for type of Int"
-340282366920938463463374607431768211455Z + 1Z = error="Encountered out-of-range value for type of Int"
-// Signed integer division overflow (MinValue / -1) raises rather than crashing
-// or (for narrow widths) silently wrapping
--9223372036854775808L / -1L = error="Encountered out-of-range value for type of Int"
--128y / -1y = error="Encountered out-of-range value for type of Int"
-2L ^ 64L = error="Encountered out-of-range value for type of Int"
-(-9223372036854775808L) ^ 64L = error="Encountered out-of-range value for type of Int"
+// Integer +,-,* overflow wraps around (two's complement)
+127y + 1y = -128y
+0uy - 1uy = 255uy
+9223372036854775807L + 1L = -9223372036854775808L
+2L * 9223372036854775807L = -2L
+170141183460469231731687303715884105727Q + 1Q = -170141183460469231731687303715884105728Q
+340282366920938463463374607431768211455Z + 1Z = 0Z
+// Signed integer division overflow (MinValue / -1) wraps back to MinValue
+-9223372036854775808L / -1L = -9223372036854775808L
+-128y / -1y = -128y
+// Power overflow wraps around (two's complement)
+2L ^ 64L = 0L
+(-9223372036854775808L) ^ 64L = 0L
 // Integer division by zero raises a clean RTE
 10L / 0L = error="Cannot divide by 0"
 // Float overflow follows IEEE (infinity), not an error

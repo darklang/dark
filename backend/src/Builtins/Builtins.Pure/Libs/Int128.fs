@@ -94,15 +94,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TInt128
-      description = "Adds two 128-bit signed integers together"
+      description = "Adds two 128-bit signed integers together, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DInt128 a; DInt128 b ] ->
-          try
-            let result = System.Int128.op_CheckedAddition (a, b)
-            Ply(DInt128(result))
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DInt128(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -114,15 +109,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TInt128
-      description = "Subtracts two 128-bit signed integers"
+      description = "Subtracts two 128-bit signed integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DInt128 a; DInt128 b ] ->
-          try
-            let result = System.Int128.op_CheckedSubtraction (a, b)
-            Ply(DInt128(result))
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DInt128(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -135,15 +125,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt128 ""; Param.make "b" TInt128 "" ]
       returnType = TInt128
-      description = "Multiplies two 128-bit signed integers"
+      description = "Multiplies two 128-bit signed integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DInt128 a; DInt128 b ] ->
-          try
-            let result = System.Int128.op_CheckedMultiply (a, b)
-            Ply(DInt128(result))
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DInt128(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -162,14 +147,13 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [ DInt128 a; DInt128 b ] ->
-          try
-            let result = System.Int128.op_Division (a, b)
-            Ply(DInt128(result))
-          with
-          | :? System.DivideByZeroException ->
+          if b = System.Int128.Zero then
             RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
-          | :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+          elif a = System.Int128.MinValue && b = System.Int128.NegativeOne then
+            // wraps back to MinValue (the division itself would throw)
+            Ply(DInt128 System.Int128.MinValue)
+          else
+            Ply(DInt128(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -184,12 +168,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | _, vm, _, [ DInt128 a ] ->
-          try
-            let result = System.Int128.op_CheckedUnaryNegation a
-            Ply(DInt128(result))
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt128 a ] -> Ply(DInt128(-a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

@@ -11,15 +11,15 @@ type ParseError =
 let ``mod`` (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Mod a b
 
 
-/// Adds 64-bit unsigned integers together
+/// Adds 64-bit unsigned integers together (wraps on overflow)
 let add (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Add a b
 
 
-/// Subtracts 64-bit unsigned integers
+/// Subtracts 64-bit unsigned integers (wraps on overflow)
 let subtract (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Subtract a b
 
 
-/// Multiplies 64-bit unsigned integers
+/// Multiplies 64-bit unsigned integers (wraps on overflow)
 let multiply (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Multiply a b
 
 
@@ -29,7 +29,7 @@ let divide (a: UInt64) (b: UInt64) : UInt64 = Builtin.uint64Divide a b
 
 /// Raise <param base> to the power of <param exponent>.
 /// <param exponent> must to be positive.
-/// Return value wrapped in a {{Result}}
+/// Overflow wraps around.
 let power (``base``: UInt64) (exponent: UInt64) : UInt64 =
   if ``base`` == 0UL && exponent == 0UL then 1UL
   else if ``base`` == 0UL then 0UL

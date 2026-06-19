@@ -13,15 +13,15 @@ type ParseError =
 let ``mod`` (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Mod a b
 
 
-/// Adds two 128-bit unsigned integers together
+/// Adds two 128-bit unsigned integers together (wraps on overflow)
 let add (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Add a b
 
 
-/// Subtracts two 128-bit unsigned integers
+/// Subtracts two 128-bit unsigned integers (wraps on overflow)
 let subtract (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Subtract a b
 
 
-/// Multiplies two 128-bit unsigned integers
+/// Multiplies two 128-bit unsigned integers (wraps on overflow)
 let multiply (a: UInt128) (b: UInt128) : UInt128 = Builtin.uint128Multiply a b
 
 

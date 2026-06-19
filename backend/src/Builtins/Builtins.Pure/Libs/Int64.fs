@@ -137,15 +137,15 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt64 ""; Param.make "b" TInt64 "" ]
       returnType = TInt64
-      description = "Adds two integers together"
+      description = "Adds two integers together, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DInt64 a; DInt64 b ] ->
-          try
-            DInt64(Checked.(+) a b) |> Ply
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a + b))
         | _ -> incorrectArgs ())
+      // CLEANUP: in-process wraps on overflow, but pushed-down SQL (here and in
+      // the sub/mul/div/pow specs below) uses raw SQLite arithmetic, which
+      // overflows to a REAL instead of wrapping. See
+      // int-wrap-sql-divergence-deferred-work.md
       sqlSpec = SqlBinOp "+"
       previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps
@@ -156,14 +156,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt64 ""; Param.make "b" TInt64 "" ]
       returnType = TInt64
-      description = "Subtracts two integers"
+      description = "Subtracts two integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DInt64 a; DInt64 b ] ->
-          try
-            DInt64(Checked.(-) a b) |> Ply
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
@@ -175,14 +171,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt64 ""; Param.make "b" TInt64 "" ]
       returnType = TInt64
-      description = "Multiplies two integers"
+      description = "Multiplies two integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DInt64 a; DInt64 b ] ->
-          try
-            DInt64(Checked.(*) a b) |> Ply
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "*"
       previewable = Pure
@@ -197,32 +189,20 @@ let fns () : List<BuiltInFn> =
       description =
         "Raise <param base> to the power of <param exponent>.
         <param exponent> must to be positive.
-        Return value wrapped in a {{Result}} "
+        Overflow wraps around."
       fn =
         (function
         | _, vm, _, [ DInt64 number; DInt64 exp ] ->
           if exp < 0L then
             RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
-          elif exp > int64 System.Int32.MaxValue then
-            // `bigint ** int` needs an Int32 exponent; an exponent this large
-            // overflows Int64 unless the base is trivial. (Without this guard
-            // `int exp` silently truncates to a bogus — possibly negative —
-            // Int32, and `bigint ** negative` throws an uncaught exception.)
-            match number with
-            | 0L -> Ply(DInt64 0L)
-            | 1L -> Ply(DInt64 1L)
-            | -1L -> Ply(DInt64(if exp % 2L = 0L then 1L else -1L))
-            | _ -> RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
-          elif exp > 63L && (number > 1L || number < -1L) then
-            // Avoid constructing enormous bigints that can never fit in Int64.
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
           else
-            // `int64` narrowing throws OverflowException when the result
-            // exceeds Int64 range.
-            try
-              (bigint number) ** (int exp) |> int64 |> DInt64 |> Ply
-            with :? System.OverflowException ->
-              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+            // wrap on overflow via modular exponentiation, which stays cheap
+            // even for huge exponents (no enormous bigint is built)
+            let m = System.Numerics.BigInteger.Pow(bigint 2, 64)
+            let r = System.Numerics.BigInteger.ModPow(bigint number, bigint exp, m)
+            let r = ((r % m) + m) % m
+            let r = if r >= m / bigint 2 then r - m else r
+            int64 r |> DInt64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "POWER"
       previewable = Pure
@@ -241,7 +221,8 @@ let fns () : List<BuiltInFn> =
           if b = 0L then
             RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
           else if a = System.Int64.MinValue && b = -1L then
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+            // wraps back to MinValue (the division itself would throw)
+            Ply(DInt64 System.Int64.MinValue)
           else
             Ply(DInt64(a / b))
         | _ -> incorrectArgs ())
@@ -258,11 +239,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | _, vm, _, [ DInt64 a ] ->
-          if a = System.Int64.MinValue then
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
-          else
-            Ply(DInt64(-a))
+        | _, _, _, [ DInt64 a ] -> Ply(DInt64(-a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

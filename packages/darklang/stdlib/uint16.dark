@@ -13,21 +13,21 @@ type ParseError =
 let ``mod`` (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Mod a b
 
 
-/// Adds two 16-bit unsigned integers together
+/// Adds two 16-bit unsigned integers together (wraps on overflow)
 let add (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Add a b
 
 
-/// Subtracts two 16-bit unsigned  integers
+/// Subtracts two 16-bit unsigned  integers (wraps on overflow)
 let subtract (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Subtract a b
 
 
-/// Multiplies two 16-bit unsigned  integers
+/// Multiplies two 16-bit unsigned  integers (wraps on overflow)
 let multiply (a: UInt16) (b: UInt16) : UInt16 = Builtin.uint16Multiply a b
 
 
 /// Raise <param base> to the power of <param exponent>.
 /// <param exponent> must to be positive.
-/// Return value wrapped in a {{Result}}
+/// Overflow wraps around.
 let power (``base``: UInt16) (exponent: UInt16) : UInt16 =
   if ``base`` == 0us && exponent == 0us then 1us
   else if ``base`` == 0us then 0us

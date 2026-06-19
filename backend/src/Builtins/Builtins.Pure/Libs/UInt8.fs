@@ -59,14 +59,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TUInt8
-      description = "Adds two 8-bit unsigned integers together"
+      description = "Adds two 8-bit unsigned integers together, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DUInt8 a; DUInt8 b ] ->
-          try
-            DUInt8(Checked.(+) a b) |> Ply
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DUInt8(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -78,14 +74,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TUInt8
-      description = "Subtracts two 8-bit unsigned integers"
+      description = "Subtracts two 8-bit unsigned integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DUInt8 a; DUInt8 b ] ->
-          try
-            DUInt8(Checked.(-) a b) |> Ply
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DUInt8(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -97,14 +89,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt8 ""; Param.make "b" TUInt8 "" ]
       returnType = TUInt8
-      description = "Multiplies two 8-bit unsigned integers"
+      description = "Multiplies two 8-bit unsigned integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DUInt8 a; DUInt8 b ] ->
-          try
-            DUInt8(Checked.(*) a b) |> Ply
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DUInt8(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -119,14 +107,15 @@ let fns () : List<BuiltInFn> =
       description =
         "Raise <param base> to the power of <param exponent>.
         <param exponent> must to be positive.
-        Return value wrapped in a {{Result}} "
+        Overflow wraps around."
       fn =
         (function
-        | _, vm, _, [ DUInt8 number; DUInt8 exp ] ->
-          (try
-            (bigint number) ** (int exp) |> uint8 |> DUInt8 |> Ply
-           with :? System.OverflowException ->
-             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID)
+        | _, _, _, [ DUInt8 number; DUInt8 exp ] ->
+          // wrap on overflow via modular exponentiation
+          let m = System.Numerics.BigInteger.Pow(bigint 2, 8)
+          let r = System.Numerics.BigInteger.ModPow(bigint number, bigint exp, m)
+          let r = ((r % m) + m) % m
+          uint8 r |> DUInt8 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -145,11 +134,7 @@ let fns () : List<BuiltInFn> =
           if b = 0uy then
             RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
           else
-            let result = int a / int b
-            if result < 0 || result > 255 then
-              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
-            else
-              Ply(DUInt8(uint8 result))
+            Ply(DUInt8(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

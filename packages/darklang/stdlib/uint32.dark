@@ -13,21 +13,21 @@ type ParseError =
 let ``mod`` (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32Mod a b
 
 
-/// Adds two 16-bit unsigned integers together
+/// Adds two 32-bit unsigned integers together (wraps on overflow)
 let add (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32Add a b
 
 
-/// Subtracts two 16-bit unsigned  integers
+/// Subtracts two 32-bit unsigned  integers (wraps on overflow)
 let subtract (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32Subtract a b
 
 
-/// Multiplies two 16-bit unsigned  integers
+/// Multiplies two 32-bit unsigned  integers (wraps on overflow)
 let multiply (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32Multiply a b
 
 
 /// Raise <param base> to the power of <param exponent>.
 /// <param exponent> must to be positive.
-/// Return value wrapped in a {{Result}}
+/// Overflow wraps around.
 let power (``base``: UInt32) (exponent: UInt32) : UInt32 =
   if ``base`` == 0ul && exponent == 0ul then 1ul
   else if ``base`` == 0ul then 0ul
@@ -35,7 +35,7 @@ let power (``base``: UInt32) (exponent: UInt32) : UInt32 =
   else Builtin.uint32Power ``base`` exponent
 
 
-/// Divides two 16-bit unsigned integers
+/// Divides two 32-bit unsigned integers
 let divide (a: UInt32) (b: UInt32) : UInt32 = Builtin.uint32Divide a b
 
 
@@ -57,7 +57,7 @@ let lessThanOrEqualTo (a: UInt32) (b: UInt32) : Bool =
   Builtin.uint32LessThanOrEqualTo a b
 
 
-/// Returns a random 16-bit unsigned integer between <param start> and <param end> (inclusive)
+/// Returns a random 32-bit unsigned integer between <param start> and <param end> (inclusive)
 let random (start: UInt32) (``end``: UInt32) : UInt32 =
   Builtin.uint32Random start ``end``
 

@@ -1,6 +1,6 @@
 Stdlib.Int32.absoluteValue_v0 -5l = 5l
 Stdlib.Int32.absoluteValue_v0 5l = 5l
-Stdlib.Int32.absoluteValue_v0 (-2147483648l) = error="Encountered out-of-range value for type of Int"
+Stdlib.Int32.absoluteValue_v0 (-2147483648l) = -2147483648l
 
 Stdlib.Int32.max_v0 5l 6l = 6l
 Stdlib.Int32.max_v0 10l 1l = 10l
@@ -34,7 +34,7 @@ Stdlib.Int32.negate_v0 -5l = 5l
 Stdlib.Int32.negate_v0 5l = -5l
 Stdlib.Int32.negate_v0 0l = 0l
 Stdlib.Int32.negate_v0 -0l = 0l
-Stdlib.Int32.negate_v0 (-2147483648l) = error="Encountered out-of-range value for type of Int"
+Stdlib.Int32.negate_v0 (-2147483648l) = -2147483648l
 
 Stdlib.Int32.remainder_v0 15l 6l = Stdlib.Result.Result.Ok 3l
 Stdlib.Int32.remainder_v0 20l 8l = Stdlib.Result.Result.Ok 4l
@@ -58,8 +58,8 @@ Stdlib.Int32.power_v0 -2l 5l = -32l
 Stdlib.Int32.power_v0 -1l 5l = -1l
 Stdlib.Int32.power_v0 -1l 6l = 1l
 Stdlib.Int32.power_v0 1l 2147483647l = 1l
-Stdlib.Int32.power_v0 2l 31l = error="Encountered out-of-range value for type of Int"
-Stdlib.Int32.power_v0 120l 20l = error="Encountered out-of-range value for type of Int"
+Stdlib.Int32.power_v0 2l 31l = -2147483648l
+Stdlib.Int32.power_v0 120l 20l = 0l
 Stdlib.Int32.power_v0 2l -3l = error="Cannot raise integer to a negative exponent"
 Stdlib.Int32.greaterThan_v0 20l 1l = true
 
@@ -103,9 +103,9 @@ Stdlib.Int32.add_v0 -55l 55l = 0l
 Stdlib.Int32.add_v0 2147483646l 1l = 2147483647l
 
 // Overflow tests
-Stdlib.Int32.add_v0 2147483647l 1l = error="Encountered out-of-range value for type of Int"
-Stdlib.Int32.add_v0 55l 2147483647l = error="Encountered out-of-range value for type of Int"
-Stdlib.Int32.add_v0 -2147483648l -1l = error="Encountered out-of-range value for type of Int"
+Stdlib.Int32.add_v0 2147483647l 1l = -2147483648l
+Stdlib.Int32.add_v0 55l 2147483647l = -2147483594l
+Stdlib.Int32.add_v0 -2147483648l -1l = 2147483647l
 
 
 Stdlib.Int32.subtract_v0 10l 9l = 1l
@@ -123,7 +123,7 @@ Stdlib.Int32.divide_v0 -8l 5l = -1l
 Stdlib.Int32.divide_v0 0l 1l = 0l
 
 Stdlib.Int32.divide_v0 1l 0l = error="Cannot divide by 0"
-Stdlib.Int32.divide_v0 (-2147483648l) -1l = error="Encountered out-of-range value for type of Int"
+Stdlib.Int32.divide_v0 (-2147483648l) -1l = -2147483648l
 (Stdlib.List.range_v0 1L 5L)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.Int32.random 1l 2l)
 |> Stdlib.List.map_v0 (fun x ->

@@ -95,14 +95,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
       returnType = TInt8
-      description = "Adds two 8-bit signed integers together"
+      description = "Adds two 8-bit signed integers together, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DInt8 a; DInt8 b ] ->
-          try
-            DInt8(Checked.(+) a b) |> Ply
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt8 a; DInt8 b ] -> Ply(DInt8(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -114,14 +110,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
       returnType = TInt8
-      description = "Subtracts two 8-bit signed integers"
+      description = "Subtracts two 8-bit signed integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DInt8 a; DInt8 b ] ->
-          try
-            DInt8(Checked.(-) a b) |> Ply
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt8 a; DInt8 b ] -> Ply(DInt8(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -133,14 +125,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
       returnType = TInt8
-      description = "Multiplies two 8-bit signed integers"
+      description = "Multiplies two 8-bit signed integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DInt8 a; DInt8 b ] ->
-          try
-            DInt8(Checked.(*) a b) |> Ply
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt8 a; DInt8 b ] -> Ply(DInt8(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -155,17 +143,19 @@ let fns () : List<BuiltInFn> =
       description =
         "Raise <param base> to the power of <param exponent>.
         <param exponent> must to be positive.
-        Return value wrapped in a {{Result}} "
+        Overflow wraps around."
       fn =
         (function
         | _, vm, _, [ DInt8 number; DInt8 exp ] ->
-          (try
-            if exp < 0y then
-              RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
-            else
-              (bigint number) ** (int exp) |> int8 |> DInt8 |> Ply
-           with :? System.OverflowException ->
-             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID)
+          if exp < 0y then
+            RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
+          else
+            // wrap on overflow via modular exponentiation
+            let m = System.Numerics.BigInteger.Pow(bigint 2, 8)
+            let r = System.Numerics.BigInteger.ModPow(bigint number, bigint exp, m)
+            let r = ((r % m) + m) % m
+            let r = if r >= m / bigint 2 then r - m else r
+            int8 r |> DInt8 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -181,14 +171,11 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [ DInt8 a; DInt8 b ] ->
-          if b = int8 0 then
+          if b = 0y then
             RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
           else
-            let result = int a / int b
-            if result < -128 || result > 127 then
-              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
-            else
-              Ply(DInt8(int8 result))
+            // widen to int32 so -128y / -1y wraps on narrowing instead of throwing
+            Ply(DInt8(int8 (int a / int b)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -203,12 +190,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | _, vm, _, [ DInt8 a ] ->
-          let result = -(int a)
-          if result < -128 || result > 127 then
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
-          else
-            Ply(DInt8(int8 result))
+        | _, _, _, [ DInt8 a ] -> Ply(DInt8(-a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
