@@ -47,7 +47,7 @@ let row (app: Model.App) : String =
 
 /// `apps run <slug>` — run a foreground app attached, dispatching its CLI command in-process.
 let runApp (state: Cli.AppState) (slug: String) : Cli.AppState =
-  match Registry.findBySlug slug with
+  match Registry.findBySlug state.currentBranchId slug with
   | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
   | Some app ->
     match app.target with
@@ -64,7 +64,7 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
     state
   else
 
-  match Registry.findBySlug slug with
+  match Registry.findBySlug state.currentBranchId slug with
   | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
   | Some app ->
     match app.target with
@@ -83,7 +83,7 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
 
 /// `apps inspect <slug>` — label, slug, target, installed?, and (daemons) status + recent logs.
 let inspect (state: Cli.AppState) (slug: String) : Cli.AppState =
-  match Registry.findBySlug slug with
+  match Registry.findBySlug state.currentBranchId slug with
   | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
   | Some app ->
     Stdlib.printLine $"{app.name}  [{Model.kindTag app.target}]"
@@ -112,7 +112,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [] -> Editor.launch state
 
   | [ "list" ] ->
-    let apps = Registry.installed ()
+    let apps = Registry.installed state.currentBranchId
     if Stdlib.List.isEmpty apps then
       Stdlib.printLine
         (Colors.dimText
@@ -137,7 +137,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   | [ "add"; slug ] ->
-    match Registry.findBySlug slug with
+    match Registry.findBySlug state.currentBranchId slug with
     | None ->
       Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
       state
@@ -183,7 +183,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | [ "status" ] ->
     let daemons =
-      (Registry.installed ())
+      (Registry.installed state.currentBranchId)
       |> Stdlib.List.filter (fun a -> Model.isDaemon a.target)
 
     if Stdlib.List.isEmpty daemons then
@@ -213,7 +213,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "inspect"; slug ] -> inspect state slug
 
   | [ "enable"; slug ] ->
-    match Registry.findBySlug slug with
+    match Registry.findBySlug state.currentBranchId slug with
     | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
     | Some app ->
       match Service.enable app with
