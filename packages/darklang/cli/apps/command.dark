@@ -8,6 +8,8 @@ module Darklang.Cli.Apps.Command
 /// The port a running HTTP daemon bound to, read from its log (`… on http://localhost:<port>`). This is
 /// the *actual* port (default or config override), so it's accurate without the browser knowing defaults.
 /// `None` for daemons that aren't HTTP servers (they never log a port).
+
+// TODO: Log text isn't a reliable source of truth; store structured daemon metadata instead.
 let daemonPort (slug: String) : Stdlib.Option.Option<Int64> =
   let portLines =
     (Stdlib.Cli.Daemon.tailLog slug 25L)

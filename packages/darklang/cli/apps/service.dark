@@ -73,7 +73,7 @@ let enable (app: Model.App) : EnableResult =
         | Ok _ -> EnableResult.Enabled $"enabled — {app.name} will start on login (launchd: com.darklang.{app.slug})"
         | Error _ -> EnableResult.WroteOnly $"wrote {path}, but couldn't activate it — run: launchctl load {path}"
 
-/// Delete the unit file that makes `slug` auto-start; missing files are already disabled.
+// Delete the unit file that makes `slug` auto-start; missing files are already disabled.
 let removeUnit (slug: String) : Stdlib.Result.Result<String, String> =
   let path = unitPath slug
   if Stdlib.Cli.File.exists path then
