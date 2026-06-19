@@ -230,23 +230,33 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | _ -> Command.help state
 
 
+// Show the stable app slug as the completion value, with the human name as the hint.
+let slugs (apps: List<Model.App>) : List<Cli.Completion.CompletionItem> =
+  apps |> Stdlib.List.map (fun a -> Cli.Completion.withDescription a.slug a.name)
+
 let complete
-  (_state: Cli.AppState)
-  (_args: List<String>)
+  (state: Cli.AppState)
+  (args: List<String>)
   : List<Cli.Completion.CompletionItem> =
-  [ Cli.Completion.simple "list"
-    Cli.Completion.simple "list-available"
-    Cli.Completion.simple "add"
-    Cli.Completion.simple "remove"
-    Cli.Completion.simple "run"
-    Cli.Completion.simple "start"
-    Cli.Completion.simple "spawn"
-    Cli.Completion.simple "stop"
-    Cli.Completion.simple "status"
-    Cli.Completion.simple "logs"
-    Cli.Completion.simple "inspect"
-    Cli.Completion.simple "enable"
-    Cli.Completion.simple "disable" ]
+  match args with
+  | [] ->
+    [ "list"; "list-available"; "add"; "remove"; "run"; "start"; "spawn"
+      "stop"; "status"; "logs"; "inspect"; "enable"; "disable" ]
+    |> Stdlib.List.map Cli.Completion.simple
+  // Only load the catalog once a verb needs slug completions.
+  | [ verb ] ->
+    let catalog = Registry.catalog state.currentBranchId
+    let daemons = catalog |> Stdlib.List.filter (fun a -> Model.isDaemon a.target)
+
+    match verb with
+    | "add" ->
+      slugs (catalog |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Registry.isInstalled a.slug)))
+    | "remove" -> slugs (Registry.installed state.currentBranchId)
+    | "run" -> slugs (catalog |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Model.isDaemon a.target)))
+    | "start" | "spawn" | "stop" | "status" | "logs" | "enable" | "disable" -> slugs daemons
+    | "inspect" -> slugs catalog
+    | _ -> []
+  | _ -> []
 
 
 // A single help line: "  cmd <args>   description", padded for a clean column.
