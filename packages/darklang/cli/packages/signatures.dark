@@ -294,7 +294,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
     help state
   else if isUnscoped then
-    StdlibOverview.execute state args
+    Darklang.Cli.Docs.StdlibOverview.execute state args
   else
     executeFiltered
       state
