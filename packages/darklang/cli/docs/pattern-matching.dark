@@ -17,6 +17,15 @@ let content () : String =
 ## Tuples
   | (a, b) -> a + b
 
+## Constructor patterns: bare vs parenthesized
+A bare `Ok x` works only as a top-level arm. When a constructor pattern is
+NESTED — inside a tuple, or as another constructor's argument — use the
+immediate-paren form `Ctor(x)` with NO space before the `(`. The bare form
+collides with the surrounding commas/arguments and fails to parse.
+  | (Ok(x), Ok(y)) -> x + y     # tuple of constructors — parenthesize each
+  | (Some(n), None) -> n        # bare/no-arg cases are fine alongside
+  # NOT: | (Ok x, Ok y) ->      # fails to parse
+
 ## Lists
   | [] -> "empty"
   | [x] -> "one"
@@ -30,7 +39,8 @@ let content () : String =
   | _ -> default
 
 ## Nested
-  | Some (Ok v) -> v
+  | Some(Ok(v)) -> v            # no space; parenthesize each constructor
 
-## Gotcha: Some + tuple
-  | Some ((a, b)) -> ...   # double parens"""
+## Constructor wrapping a tuple
+  | Some((a, b)) -> a + b       # Ctor((tuple)) — no space before the paren
+  # NOT: | Some ((a, b)) ->     # the space makes it fail to parse"""
