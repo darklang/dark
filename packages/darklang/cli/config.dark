@@ -64,6 +64,19 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let updatedConfig = Stdlib.Dict.setOverridingDuplicates config key value
     writeConfig updatedConfig
     Stdlib.printLine (Colors.success $"Set {key} = {value}")
+
+    // Show the implied local URL for well-formed app port settings.
+    match Stdlib.String.split key "." with
+    | [ "apps"; _; "port" ] ->
+      match Stdlib.Int64.parse value with
+      | Ok port ->
+        if port >= 1L && port <= 65535L then
+          Stdlib.printLine (Colors.dimText $"  → http://localhost:{value}")
+        else
+          ()
+      | Error _ -> ()
+    | _ -> ()
+
     state
 
   | ["list"] ->
