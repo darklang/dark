@@ -40,7 +40,9 @@ let private launchdPlist (app: Model.App) : String =
 /// Register `app` as an OS service. Writes the unit and tries to activate it; on failure returns the
 /// manual activation command so it still works on real systems.
 let enable (app: Model.App) : Stdlib.Result.Result<String, String> =
-  if Stdlib.Bool.not (Model.isDaemon app.target) then
+  if Stdlib.Bool.not (Model.isValidSlug app.slug) then
+    Stdlib.Result.Result.Error $"invalid app slug '{app.slug}'"
+  else if Stdlib.Bool.not (Model.isDaemon app.target) then
     Stdlib.Result.Result.Error $"'{app.slug}' is a foreground app — only daemons can auto-start"
   else
     match platform () with
@@ -52,32 +54,33 @@ let enable (app: Model.App) : Stdlib.Result.Result<String, String> =
       match Stdlib.Cli.File.writeText path (systemdUnit app) with
       | Error e -> Stdlib.Result.Result.Error e.message
       | Ok _ ->
-        let activate = $"systemctl --user enable --now dark-{app.slug}.service"
-        match Stdlib.Cli.Process.exec "/bin/sh" [ "-c"; activate ] with
+        match Stdlib.Cli.Process.exec "systemctl" [ "--user"; "enable"; "--now"; $"dark-{app.slug}.service" ] with
         | Ok _ -> Stdlib.Result.Result.Ok $"enabled — {app.name} will start on login (systemd: dark-{app.slug})"
         | Error _ ->
-          Stdlib.Result.Result.Ok $"wrote {path} — activate with: {activate}"
+          Stdlib.Result.Result.Ok $"wrote {path} — activate with: systemctl --user enable --now dark-{app.slug}.service"
     | Mac ->
       let path = unitPath app.slug
       let _dir = Stdlib.Cli.Posix.mkdirRecursive ((home ()) ++ "/Library/LaunchAgents")
       match Stdlib.Cli.File.writeText path (launchdPlist app) with
       | Error e -> Stdlib.Result.Result.Error e.message
       | Ok _ ->
-        let activate = $"launchctl load {path}"
-        match Stdlib.Cli.Process.exec "/bin/sh" [ "-c"; activate ] with
+        match Stdlib.Cli.Process.exec "launchctl" [ "load"; path ] with
         | Ok _ -> Stdlib.Result.Result.Ok $"enabled — {app.name} will start on login (launchd: com.darklang.{app.slug})"
-        | Error _ -> Stdlib.Result.Result.Ok $"wrote {path} — activate with: {activate}"
+        | Error _ -> Stdlib.Result.Result.Ok $"wrote {path} — activate with: launchctl load {path}"
 
 /// Remove the OS service for `slug` (deactivate + delete the unit). Idempotent.
 let disable (slug: String) : Stdlib.Result.Result<String, String> =
-  match platform () with
-  | Unsupported ->
-    Stdlib.Result.Result.Error "auto-start isn't supported on this platform (Linux / macOS only)"
-  | Linux ->
-    let _ = Stdlib.Cli.Process.exec "/bin/sh" [ "-c"; $"systemctl --user disable --now dark-{slug}.service" ]
-    let _ = Stdlib.Cli.File.delete (unitPath slug)
-    Stdlib.Result.Result.Ok $"disabled auto-start for '{slug}'"
-  | Mac ->
-    let _ = Stdlib.Cli.Process.exec "/bin/sh" [ "-c"; $"launchctl unload {unitPath slug}" ]
-    let _ = Stdlib.Cli.File.delete (unitPath slug)
-    Stdlib.Result.Result.Ok $"disabled auto-start for '{slug}'"
+  if Stdlib.Bool.not (Model.isValidSlug slug) then
+    Stdlib.Result.Result.Error $"invalid app slug '{slug}'"
+  else
+    match platform () with
+    | Unsupported ->
+      Stdlib.Result.Result.Error "auto-start isn't supported on this platform (Linux / macOS only)"
+    | Linux ->
+      let _ = Stdlib.Cli.Process.exec "systemctl" [ "--user"; "disable"; "--now"; $"dark-{slug}.service" ]
+      let _ = Stdlib.Cli.File.delete (unitPath slug)
+      Stdlib.Result.Result.Ok $"disabled auto-start for '{slug}'"
+    | Mac ->
+      let _ = Stdlib.Cli.Process.exec "launchctl" [ "unload"; unitPath slug ]
+      let _ = Stdlib.Cli.File.delete (unitPath slug)
+      Stdlib.Result.Result.Ok $"disabled auto-start for '{slug}'"
