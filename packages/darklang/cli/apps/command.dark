@@ -217,8 +217,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
     | Some app ->
       match Service.enable app with
-      | Ok msg -> Stdlib.printLine (Colors.success $"✓ {msg}")
-      | Error e -> Stdlib.printLine (Colors.error e)
+      | Enabled msg -> Stdlib.printLine (Colors.success $"✓ {msg}")
+      | WroteOnly msg -> Stdlib.printLine (Colors.colorize Colors.yellow $"⚠ {msg}")
+      | Failed e -> Stdlib.printLine (Colors.error e)
     state
 
   | [ "disable"; slug ] ->

@@ -8,6 +8,12 @@ type Platform =
   | Mac
   | Unsupported
 
+/// Result of writing and activating an auto-start unit.
+type EnableResult =
+  | Enabled of String
+  | WroteOnly of String
+  | Failed of String
+
 let platform () : Platform =
   match Stdlib.Cli.Sys.os () with
   | Ok "Linux" -> Platform.Linux
@@ -37,36 +43,45 @@ let private systemdUnit (app: Model.App) : String =
 let private launchdPlist (app: Model.App) : String =
   $"<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<plist version=\"1.0\"><dict>\n  <key>Label</key><string>com.darklang.{app.slug}</string>\n  <key>ProgramArguments</key><array><string>/bin/sh</string><string>-c</string><string>{daemonCommand app}</string></array>\n  <key>RunAtLoad</key><true/>\n  <key>KeepAlive</key><true/>\n</dict></plist>\n"
 
-/// Register `app` as an OS service. Writes the unit and tries to activate it; on failure returns the
-/// manual activation command so it still works on real systems.
-let enable (app: Model.App) : Stdlib.Result.Result<String, String> =
+/// Register `app` as an OS service by writing its unit, then activating it.
+let enable (app: Model.App) : EnableResult =
   if Stdlib.Bool.not (Model.isValidSlug app.slug) then
-    Stdlib.Result.Result.Error $"invalid app slug '{app.slug}'"
+    EnableResult.Failed $"invalid app slug '{app.slug}'"
   else if Stdlib.Bool.not (Model.isDaemon app.target) then
-    Stdlib.Result.Result.Error $"'{app.slug}' is a foreground app — only daemons can auto-start"
+    EnableResult.Failed $"'{app.slug}' is a foreground app — only daemons can auto-start"
   else
     match platform () with
     | Unsupported ->
-      Stdlib.Result.Result.Error "auto-start isn't supported on this platform (Linux / macOS only)"
+      EnableResult.Failed "auto-start isn't supported on this platform (Linux / macOS only)"
     | Linux ->
       let path = unitPath app.slug
       let _dir = Stdlib.Cli.Posix.mkdirRecursive ((home ()) ++ "/.config/systemd/user")
       match Stdlib.Cli.File.writeText path (systemdUnit app) with
-      | Error e -> Stdlib.Result.Result.Error e.message
+      | Error e -> EnableResult.Failed e.message
       | Ok _ ->
         match Stdlib.Cli.Process.exec "systemctl" [ "--user"; "enable"; "--now"; $"dark-{app.slug}.service" ] with
-        | Ok _ -> Stdlib.Result.Result.Ok $"enabled — {app.name} will start on login (systemd: dark-{app.slug})"
+        | Ok _ -> EnableResult.Enabled $"enabled — {app.name} will start on login (systemd: dark-{app.slug})"
         | Error _ ->
-          Stdlib.Result.Result.Ok $"wrote {path} — activate with: systemctl --user enable --now dark-{app.slug}.service"
+          EnableResult.WroteOnly $"wrote {path}, but couldn't activate it — run: systemctl --user enable --now dark-{app.slug}.service"
     | Mac ->
       let path = unitPath app.slug
       let _dir = Stdlib.Cli.Posix.mkdirRecursive ((home ()) ++ "/Library/LaunchAgents")
       match Stdlib.Cli.File.writeText path (launchdPlist app) with
-      | Error e -> Stdlib.Result.Result.Error e.message
+      | Error e -> EnableResult.Failed e.message
       | Ok _ ->
         match Stdlib.Cli.Process.exec "launchctl" [ "load"; path ] with
-        | Ok _ -> Stdlib.Result.Result.Ok $"enabled — {app.name} will start on login (launchd: com.darklang.{app.slug})"
-        | Error _ -> Stdlib.Result.Result.Ok $"wrote {path} — activate with: launchctl load {path}"
+        | Ok _ -> EnableResult.Enabled $"enabled — {app.name} will start on login (launchd: com.darklang.{app.slug})"
+        | Error _ -> EnableResult.WroteOnly $"wrote {path}, but couldn't activate it — run: launchctl load {path}"
+
+/// Delete the unit file that makes `slug` auto-start; missing files are already disabled.
+let removeUnit (slug: String) : Stdlib.Result.Result<String, String> =
+  let path = unitPath slug
+  if Stdlib.Cli.File.exists path then
+    match Stdlib.Cli.File.delete path with
+    | Ok _ -> Stdlib.Result.Result.Ok $"disabled auto-start for '{slug}'"
+    | Error e -> Stdlib.Result.Result.Error $"couldn't remove the unit file {path}: {e.message}"
+  else
+    Stdlib.Result.Result.Ok $"disabled auto-start for '{slug}'"
 
 /// Remove the OS service for `slug` (deactivate + delete the unit). Idempotent.
 let disable (slug: String) : Stdlib.Result.Result<String, String> =
@@ -78,9 +93,7 @@ let disable (slug: String) : Stdlib.Result.Result<String, String> =
       Stdlib.Result.Result.Error "auto-start isn't supported on this platform (Linux / macOS only)"
     | Linux ->
       let _ = Stdlib.Cli.Process.exec "systemctl" [ "--user"; "disable"; "--now"; $"dark-{slug}.service" ]
-      let _ = Stdlib.Cli.File.delete (unitPath slug)
-      Stdlib.Result.Result.Ok $"disabled auto-start for '{slug}'"
+      removeUnit slug
     | Mac ->
       let _ = Stdlib.Cli.Process.exec "launchctl" [ "unload"; unitPath slug ]
-      let _ = Stdlib.Cli.File.delete (unitPath slug)
-      Stdlib.Result.Result.Ok $"disabled auto-start for '{slug}'"
+      removeUnit slug
