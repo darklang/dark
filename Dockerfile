@@ -19,7 +19,7 @@
 # change.
 
 
-FROM ubuntu:24.04 AS dark-base
+FROM ubuntu:26.04 AS dark-base
 
 ENV FORCE_BUILD=8
 
