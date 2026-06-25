@@ -72,6 +72,7 @@ type TypeReference =
   | TUInt64
   | TInt128
   | TUInt128
+  | TInt
   | TFloat
   | TChar
   | TString
@@ -122,6 +123,7 @@ type MatchPattern =
   | MPUInt64 of ID * UInt64
   | MPInt128 of ID * Int128
   | MPUInt128 of ID * UInt128
+  | MPInt of ID * Int
   | MPFloat of ID * Sign * String * String
   | MPChar of ID * String
   | MPString of ID * String
@@ -210,6 +212,7 @@ type Expr =
   | EUInt64 of ID * UInt64
   | EInt128 of ID * Int128
   | EUInt128 of ID * UInt128
+  | EInt of ID * Int
 
   // Allow the user to have arbitrarily big numbers, even if they don't make sense as
   // floats. The float is split as we want to preserve what the user entered.
@@ -294,6 +297,7 @@ module Expr =
     | EUInt64(id, _)
     | EInt128(id, _)
     | EUInt128(id, _)
+    | EInt(id, _)
     | EFloat(id, _, _, _)
     | EChar(id, _)
     | EString(id, _)

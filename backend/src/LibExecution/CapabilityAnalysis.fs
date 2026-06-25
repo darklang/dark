@@ -35,6 +35,7 @@ let rec fnRefs (expr : PT.Expr) : List<PT.FQFnName.FQFnName> =
   | PT.EUInt64 _
   | PT.EInt128 _
   | PT.EUInt128 _
+  | PT.EInt _
   | PT.EFloat _
   | PT.EChar _
   | PT.EVariable _

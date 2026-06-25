@@ -67,6 +67,7 @@ let rec private mergeKnownTypes
   | KTUInt64, KTUInt64 -> KTUInt64 |> Ok
   | KTInt128, KTInt128 -> KTInt128 |> Ok
   | KTUInt128, KTUInt128 -> KTUInt128 |> Ok
+  | KTInt, KTInt -> KTInt |> Ok
   | KTFloat, KTFloat -> KTFloat |> Ok
   | KTChar, KTChar -> KTChar |> Ok
   | KTString, KTString -> KTString |> Ok

@@ -72,6 +72,7 @@ and writeKnownType (w : BinaryWriter) (kt : KnownType) =
   | KTStream vt ->
     w.Write 24uy
     writeValueType w vt
+  | KTInt -> w.Write 25uy
 
 and writeApplicableImpl (w : BinaryWriter) (app : Applicable) =
   match app with
@@ -199,6 +200,12 @@ and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
     // Streams are not persistable by design — lifetime is bounded by
     // the VM that produced them. Caller should drain to Blob first.
     raiseFormatError "Cannot serialize DStream — drain to a Blob first"
+  // Serialized as the decimal value (via DarkInt), so the wire format doesn't
+  // depend on the Finite/Infinite representation.
+  | DInt value ->
+    w.Write 25uy
+    String.write w (string (DarkInt.toBigInt value))
+
 let rec readDval : BinaryReader -> Dval = fun r -> readDvalImpl r
 
 and readValueType : BinaryReader -> ValueType = fun r -> readValueTypeImpl r
@@ -248,6 +255,7 @@ and readKnownType (r : BinaryReader) : KnownType =
   | 22uy -> KTDict(readValueType r)
   | 23uy -> KTBlob
   | 24uy -> KTStream(readValueType r)
+  | 25uy -> KTInt
   | b -> raiseFormatError $"Invalid KnownType tag: {b}"
 
 and readApplicableImpl (r : BinaryReader) : Applicable =
@@ -334,6 +342,7 @@ and readDvalImpl (r : BinaryReader) : Dval =
     let hash = String.read r
     let length = r.ReadInt64()
     DBlob(Persistent(hash, length))
+  | 25uy -> Dval.int (System.Numerics.BigInteger.Parse(String.read r))
   | b -> raiseFormatError $"Invalid Dval tag: {b}"
 
 

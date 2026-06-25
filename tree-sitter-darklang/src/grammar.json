@@ -1179,6 +1179,15 @@
           "type": "ALIAS",
           "content": {
             "type": "SYMBOL",
+            "name": "bigint_literal"
+          },
+          "named": true,
+          "value": "int"
+        },
+        {
+          "type": "ALIAS",
+          "content": {
+            "type": "SYMBOL",
             "name": "float_literal"
           },
           "named": true,
@@ -1889,6 +1898,10 @@
         },
         {
           "type": "SYMBOL",
+          "name": "bigint_literal"
+        },
+        {
+          "type": "SYMBOL",
           "name": "float_literal"
         },
         {
@@ -2352,6 +2365,14 @@
           }
         }
       ]
+    },
+    "bigint_literal": {
+      "type": "FIELD",
+      "name": "digits",
+      "content": {
+        "type": "SYMBOL",
+        "name": "digits"
+      }
     },
     "float_literal": {
       "type": "PATTERN",
@@ -5783,6 +5804,10 @@
         {
           "type": "PATTERN",
           "value": "UInt128"
+        },
+        {
+          "type": "PATTERN",
+          "value": "Int"
         },
         {
           "type": "PATTERN",

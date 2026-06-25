@@ -18,6 +18,13 @@ let uint64 (i : uint64) = DUInt64 i
 let int128 (i : System.Int128) = DInt128 i
 let uint128 (i : System.UInt128) = DUInt128 i
 
+/// The default `Int`. Normalizes the bigint into `DarkInt` (small values use the
+/// Finite/int64 representation; only overflow uses Infinite/bigint).
+let int (b : bigint) : Dval = RuntimeTypes.Dval.int b
+
+/// The numeric value of an `Int` Dval as a bigint.
+let asBigInt (dv : Dval) : bigint = RuntimeTypes.Dval.asBigInt dv
+
 let string (s : string) = DString s
 
 let uuid (s : System.Guid) = DUuid s
@@ -121,6 +128,7 @@ let rec isPersistable (dv : Dval) : bool =
   | DUInt64 _
   | DInt128 _
   | DUInt128 _
+  | DInt _
   | DFloat _
   | DChar _
   | DString _

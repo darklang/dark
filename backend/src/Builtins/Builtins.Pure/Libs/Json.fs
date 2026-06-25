@@ -103,6 +103,7 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
   | DUInt64 i -> w.WriteNumberValue i
   | DInt128 i -> w.WriteRawValue(i.ToString())
   | DUInt128 i -> w.WriteRawValue(i.ToString())
+  | DInt i -> w.WriteRawValue(string (DarkInt.toBigInt i))
 
   | DFloat f ->
     if System.Double.IsNaN f then
@@ -228,6 +229,55 @@ let raiseCantMatchWithType
   : 'a =
   ParseError.CantMatchWithType(typ, j.GetRawText(), path) |> raiseError
 
+
+let private maxJsonIntDigits = 1_000_000L
+
+
+/// Parses a JSON number literal to an exact `bigint`, without going through a
+/// double (which would round values past 2^53). Accepts integer-valued decimal
+/// and exponent forms — `1.0`, `1.2E2`, `1200E-1`, `9007199254740993.0` — the
+/// same forms the fixed-width int parsers accept, but exactly. Returns None for
+/// genuinely fractional values (`1.5`) or malformed input.
+///
+/// `BigInteger.TryParse` with `NumberStyles.Float` does the exact format parsing
+/// (no double, integral-via-exponent accepted, true fractions rejected); we only
+/// add a size bound up front, since it would otherwise allocate without limit for
+/// a literal like `1e2000000000`.
+let private parseExactJsonInteger (raw : string) : bigint option =
+  let unsigned = raw.TrimStart('-', '+')
+
+  // split the significand from the exponent
+  let mantissa, exp =
+    match unsigned.IndexOfAny [| 'e'; 'E' |] with
+    | -1 -> unsigned, 0L
+    | i ->
+      match System.Int32.TryParse(unsigned.Substring(i + 1)) with
+      | true, e -> unsigned.Substring(0, i), int64 e
+      | false, _ -> unsigned, System.Int64.MaxValue // unparseable/huge exp → reject
+
+  let dotIndex = mantissa.IndexOf '.'
+  // integer-part length, and total significand digit count (excluding the point)
+  let intLen = int64 (if dotIndex = -1 then mantissa.Length else dotIndex)
+  let significandDigits = int64 mantissa.Length - (if dotIndex = -1 then 0L else 1L)
+
+  // Two bounds, each catching a different blow-up, before BigInteger allocates:
+  //  - significandDigits: the input itself (e.g. a 2M-digit fraction that
+  //    TryParse would parse into a transient bigint before rejecting)
+  //  - intLen + max exp 0: the expanded result (e.g. `1e2000000000`)
+  if
+    significandDigits > maxJsonIntDigits || intLen + max exp 0L > maxJsonIntDigits
+  then
+    None
+  else
+    match
+      System.Numerics.BigInteger.TryParse(
+        raw,
+        System.Globalization.NumberStyles.Float,
+        System.Globalization.CultureInfo.InvariantCulture
+      )
+    with
+    | true, v -> Some v
+    | false, _ -> None
 
 
 let parse
@@ -446,6 +496,14 @@ let parse
           raiseCantMatchWithType TUInt128 j pathSoFar |> Ply
       else
         raiseCantMatchWithType TUInt128 j pathSoFar |> Ply
+
+    | TInt, JsonValueKind.Number ->
+      // Accept integer-valued decimal/exponent forms (like the fixed-width
+      // types do), but parse them EXACTLY — never through a double, which would
+      // round values past 2^53 (e.g. `9007199254740993.0`).
+      match parseExactJsonInteger (j.GetRawText()) with
+      | Some i -> Dval.int i |> Ply
+      | None -> raiseCantMatchWithType TInt j pathSoFar |> Ply
 
     | TFloat, JsonValueKind.Number -> j.GetDouble() |> DFloat |> Ply
     | TFloat, JsonValueKind.String ->
@@ -687,10 +745,11 @@ let parse
     | TUInt16, _
     | TInt32, _
     | TUInt32, _
-    | TInt128, _
-    | TUInt128, _
     | TInt64, _
     | TUInt64, _
+    | TInt128, _
+    | TUInt128, _
+    | TInt, _
     | TFloat, _
     | TChar, _
     | TString, _

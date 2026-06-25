@@ -143,6 +143,8 @@ type KnownType =
   | KTUInt64
   | KTInt128
   | KTUInt128
+  // arbitrary-precision integer; the default `Int`
+  | KTInt
   | KTFloat
   | KTChar
   | KTString
@@ -156,7 +158,7 @@ type KnownType =
   | KTStream of ValueType
 
   /// `let empty =    []` // KTList Unknown
-  /// `let intList = [1]` // KTList (ValueType.Known KTInt64)
+  /// `let intList = [1]` // KTList (ValueType.Known KTInt)
   | KTList of ValueType
 
   /// Intuitively, since `Dval`s generate `KnownType`s, you would think that we can
@@ -169,7 +171,7 @@ type KnownType =
   | KTTuple of ValueType * ValueType * List<ValueType>
 
   /// let f = (fun x -> x)        // KTFn([Unknown], Unknown)
-  /// let intF = (fun (x: Int) -> x) // KTFn([Known KTInt64], Unknown)
+  /// let intF = (fun (x: Int) -> x) // KTFn([Known KTInt], Unknown)
   ///
   /// Note that we could theoretically know some return types by analyzing the
   /// code or type signatures of functions. We don't do this yet as it's
@@ -209,6 +211,104 @@ and [<RequireQualifiedAccess>] ValueType =
 
 
 
+/// The payload of the default `Int` (`DInt`).
+/// Int64-range values are `Finite`; larger values are `Infinite`.
+/// Use `DarkInt.ofBigInt` to preserve that invariant.
+///
+/// CLEANUP: because this is a DU, small Ints still carry space for the bigint
+/// case plus a tag, not just the Int64 value. If profiling shows this matters,
+/// revisit the representation or consider caching common small values.
+[<Struct; RequireQualifiedAccess>]
+type DarkInt =
+  | Finite of finite : int64
+  | Infinite of infinite : bigint
+
+module DarkInt =
+  let private int64Min = bigint System.Int64.MinValue
+  let private int64Max = bigint System.Int64.MaxValue
+
+  /// Smart constructor enforcing the invariant: a value fitting Int64 becomes
+  /// `Finite`, only overflow becomes `Infinite`.
+  let ofBigInt (b : bigint) : DarkInt =
+    if b >= int64Min && b <= int64Max then
+      DarkInt.Finite(int64 b)
+    else
+      DarkInt.Infinite b
+
+  let toBigInt (di : DarkInt) : bigint =
+    match di with
+    | DarkInt.Finite i -> bigint i
+    | DarkInt.Infinite b -> b
+
+  let isZero (di : DarkInt) : bool =
+    match di with
+    | DarkInt.Finite i -> i = 0L
+    | DarkInt.Infinite _ -> false // 0 is always Finite, so an Infinite is never zero
+
+  /// Compare by numeric value (NOT by case tag — an Infinite is always outside
+  /// Int64 range, so tag order would be wrong).
+  let compare (a : DarkInt) (b : DarkInt) : int =
+    match a, b with
+    | DarkInt.Finite x, DarkInt.Finite y ->
+      if x < y then -1
+      elif x > y then 1
+      else 0
+    | _ ->
+      let bx, by = toBigInt a, toBigInt b
+      if bx < by then -1
+      elif bx > by then 1
+      else 0
+
+  // Arithmetic: int64 fast path on Finite/Finite, promoting to bigint only on
+  // overflow; bigint otherwise. Results normalize through `ofBigInt`.
+  let add (a : DarkInt) (b : DarkInt) : DarkInt =
+    match a, b with
+    | DarkInt.Finite x, DarkInt.Finite y ->
+      try
+        DarkInt.Finite(Checked.(+) x y)
+      with :? System.OverflowException ->
+        ofBigInt (bigint x + bigint y)
+    | _ -> ofBigInt (toBigInt a + toBigInt b)
+
+  let subtract (a : DarkInt) (b : DarkInt) : DarkInt =
+    match a, b with
+    | DarkInt.Finite x, DarkInt.Finite y ->
+      try
+        DarkInt.Finite(Checked.(-) x y)
+      with :? System.OverflowException ->
+        ofBigInt (bigint x - bigint y)
+    | _ -> ofBigInt (toBigInt a - toBigInt b)
+
+  let multiply (a : DarkInt) (b : DarkInt) : DarkInt =
+    match a, b with
+    | DarkInt.Finite x, DarkInt.Finite y ->
+      try
+        DarkInt.Finite(Checked.(*) x y)
+      with :? System.OverflowException ->
+        ofBigInt (bigint x * bigint y)
+    | _ -> ofBigInt (toBigInt a * toBigInt b)
+
+  /// Integer division; caller must ensure the divisor is non-zero.
+  let divide (a : DarkInt) (b : DarkInt) : DarkInt =
+    match a, b with
+    // Int64 division overflows only on MinValue / -1; promote that case.
+    | DarkInt.Finite x, DarkInt.Finite y ->
+      try
+        DarkInt.Finite(x / y)
+      with :? System.OverflowException ->
+        ofBigInt (bigint x / bigint y)
+    | _ -> ofBigInt (toBigInt a / toBigInt b)
+
+  let negate (a : DarkInt) : DarkInt =
+    match a with
+    | DarkInt.Finite x ->
+      if x = System.Int64.MinValue then
+        ofBigInt (-(bigint x))
+      else
+        DarkInt.Finite(-x)
+    | DarkInt.Infinite b -> ofBigInt (-b)
+
+
 type TypeReference =
   | TUnit
   | TBool
@@ -222,6 +322,8 @@ type TypeReference =
   | TUInt64
   | TInt128
   | TUInt128
+  // arbitrary-precision integer; the default `Int`
+  | TInt
   | TFloat
   | TChar
   | TString
@@ -260,6 +362,7 @@ type TypeReference =
       | TUInt64
       | TInt128
       | TUInt128
+      | TInt
       | TFloat
       | TChar
       | TString
@@ -335,6 +438,7 @@ type MatchPattern =
   | MPUInt64 of uint64
   | MPInt128 of System.Int128
   | MPUInt128 of System.UInt128
+  | MPInt of bigint
   | MPFloat of float
   | MPChar of string
   | MPString of string
@@ -640,6 +744,11 @@ and [<NoComparison>] Dval =
   | DUInt64 of uint64
   | DInt128 of System.Int128
   | DUInt128 of System.UInt128
+  // The default `Int`: arbitrary precision, with the Finite/Infinite split
+  // contained in `DarkInt`.
+  // CLEANUP: small Ints carry the memory overhead of the bigint case plus a tag.
+  // Revisit the representation if profiling shows Int memory or GC pressure.
+  | DInt of DarkInt
 
   | DFloat of double
 
@@ -1200,6 +1309,15 @@ module TypeDeclaration =
 
 // Functions for working with Dark runtime values
 module Dval =
+  /// Constructs an `Int` Dval from a bigint, normalizing through `DarkInt`.
+  let int (b : bigint) : Dval = DInt(DarkInt.ofBigInt b)
+
+  /// The numeric value of an `Int` Dval as a bigint.
+  let asBigInt (dv : Dval) : bigint =
+    match dv with
+    | DInt i -> DarkInt.toBigInt i
+    | _ -> Exception.raiseInternal "asBigInt called on a non-Int Dval" []
+
   let rec toValueType (dv : Dval) : ValueType =
     match dv with
     | DUnit -> ValueType.Known KTUnit
@@ -1216,6 +1334,7 @@ module Dval =
     | DUInt64 _ -> ValueType.Known KTUInt64
     | DInt128 _ -> ValueType.Known KTInt128
     | DUInt128 _ -> ValueType.Known KTUInt128
+    | DInt _ -> ValueType.Known KTInt
     | DFloat _ -> ValueType.Known KTFloat
     | DChar _ -> ValueType.Known KTChar
     | DString _ -> ValueType.Known KTString
@@ -1299,6 +1418,7 @@ module Dval =
           | DUInt64 _
           | DInt128 _
           | DUInt128 _
+          | DInt _
           | DFloat _
           | DChar _
           | DString _
@@ -1980,6 +2100,7 @@ module Types =
     | TUInt64
     | TInt128
     | TUInt128
+    | TInt
     | TFloat
     | TChar
     | TString
@@ -2060,6 +2181,7 @@ module TypeReference =
       | TUInt64 -> return ValueType.Known KTUInt64
       | TInt128 -> return ValueType.Known KTInt128
       | TUInt128 -> return ValueType.Known KTUInt128
+      | TInt -> return ValueType.Known KTInt
       | TFloat -> return ValueType.Known KTFloat
       | TChar -> return ValueType.Known KTChar
       | TString -> return ValueType.Known KTString
@@ -2124,6 +2246,7 @@ module TypeReference =
     | KTUInt64 -> TUInt64
     | KTInt128 -> TInt128
     | KTUInt128 -> TUInt128
+    | KTInt -> TInt
     | KTFloat -> TFloat
     | KTChar -> TChar
     | KTString -> TString
@@ -2161,6 +2284,7 @@ module TypeReference =
     | TUInt64
     | TInt128
     | TUInt128
+    | TInt
     | TFloat
     | TChar
     | TString

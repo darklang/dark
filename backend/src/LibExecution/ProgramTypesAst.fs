@@ -22,6 +22,7 @@ let rec symbolsUsedInExpr (expr : Expr) : Set<string> =
   | EUInt64 _
   | EInt128 _
   | EUInt128 _
+  | EInt _
   | EFloat _
   | EChar _ -> Set.empty
 
@@ -129,6 +130,7 @@ let rec unqualifiedResolvedNamesInExpr (expr : Expr) : Set<string> =
   | EUInt64 _
   | EInt128 _
   | EUInt128 _
+  | EInt _
   | EFloat _
   | EChar _ -> Set.empty
 

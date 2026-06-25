@@ -630,30 +630,30 @@ nested function sugar on a non-variable pattern is invalid
 --------------------------------------------------------------------------------
 
 (source_file
-  (expression
+  (ERROR
+    (symbol)
+    (keyword)
+    (let_pattern
+      (unit))
+    (ERROR
+      (symbol)
+      (symbol)
+      (symbol)
+      (symbol))
+    (symbol)
     (simple_expression
-      (paren_expression
-        (symbol)
-        (ERROR
-          (keyword)
-          (ERROR
-            (let_pattern
-              (unit)))
-          (symbol)
-          (let_pattern
-            (variable_identifier))
-          (symbol)
-          (symbol)
-          (symbol)
-          (symbol)
-          (UNEXPECTED 'x'))
+      (apply
+        (qualified_fn_name
+          (fn_identifier))
+        (indent)
         (expression
           (simple_expression
             (int64_literal
               (digits
                 (positive_digits))
               (symbol))))
-        (symbol)))))
+        (dedent)))
+    (symbol)))
 
 ================================================================================
 nested function definition - explicit type params

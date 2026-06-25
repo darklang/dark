@@ -1,0 +1,185 @@
+module Darklang.Stdlib.Int
+
+// `Int` is the default, arbitrary-precision integer (a bare literal like `1`).
+// The polymorphic operators (`+`, `-`, `<`, ...) work on it directly; this
+// module provides the same operations as named functions, plus parse/stringify
+// and conversions to/from the fixed-width integer types.
+//
+// Note: because this file is parsed by the F# host parser, every `Int` literal
+// below needs the `I` suffix (a bare `1` would be an `Int32` here).
+
+
+/// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
+/// The modulus <param b> must be greater than 0.
+/// Use <fn Int.remainder> if you want the remainder after division, which has
+/// a different behavior for negative numbers.
+let ``mod`` (a: Int) (b: Int) : Int = Builtin.intMod a b
+
+
+/// Returns the integer remainder left over after dividing <param value> by
+/// <param divisor>, as a <type Result>.
+/// For example, {{Int.remainder 15 6 == Ok 3}}. The remainder will be
+/// negative only if {{<var value> < 0}}.
+/// The sign of <param divisor> doesn't influence the outcome.
+/// Returns an {{Error}} if <param divisor> is {{0}}.
+let remainder (value: Int) (divisor: Int) : Stdlib.Result.Result<Int, String> =
+  Builtin.intRemainder value divisor
+
+
+/// Adds two integers together
+let add (a: Int) (b: Int) : Int = Builtin.intAdd a b
+
+
+/// Subtracts two integers
+let subtract (a: Int) (b: Int) : Int = Builtin.intSubtract a b
+
+
+/// Multiplies two integers
+let multiply (a: Int) (b: Int) : Int = Builtin.intMultiply a b
+
+
+/// Divides two integers, rounding towards zero
+let divide (a: Int) (b: Int) : Int = Builtin.intDivide a b
+
+
+/// Raise <param base> to the power of <param exponent>.
+/// <param exponent> must be non-negative.
+let power (``base``: Int) (exponent: Int) : Int =
+  Builtin.intPower ``base`` exponent
+
+
+/// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
+let absoluteValue (a: Int) : Int = if lessThan a 0I then negate a else a
+
+
+/// Returns the negation of <param a>, {{-a}}
+let negate (a: Int) : Int = Builtin.intNegate a
+
+
+/// Returns {{true}} if <param a> is greater than <param b>
+let greaterThan (a: Int) (b: Int) : Bool = Builtin.intGreaterThan a b
+
+
+/// Returns {{true}} if <param a> is greater than or equal to <param b>
+let greaterThanOrEqualTo (a: Int) (b: Int) : Bool =
+  Builtin.intGreaterThanOrEqualTo a b
+
+
+/// Returns {{true}} if <param a> is less than <param b>
+let lessThan (a: Int) (b: Int) : Bool = Builtin.intLessThan a b
+
+
+/// Returns {{true}} if <param a> is less than or equal to <param b>
+let lessThanOrEqualTo (a: Int) (b: Int) : Bool = Builtin.intLessThanOrEqualTo a b
+
+
+/// Get the square root of an <type Int>
+let sqrt (a: Int) : Float = Builtin.intSqrt a
+
+
+/// Converts an <type Int> to a <type Float>
+let toFloat (a: Int) : Float = Builtin.intToFloat a
+
+
+/// Returns the sum of all the ints in the list
+let sum (lst: List<Int>) : Int =
+  Stdlib.List.fold lst 0I (fun acc x -> add acc x)
+
+
+/// Returns the higher of <param a> and <param b>
+let max (a: Int) (b: Int) : Int = if greaterThan a b then a else b
+
+
+/// Returns the lower of <param a> and <param b>
+let min (a: Int) (b: Int) : Int = if lessThan a b then a else b
+
+
+/// If <param value> is within the range given by <param limitA> and <param
+/// limitB>, returns <param value>.
+/// If <param value> is outside the range, returns <param limitA> or <param
+/// limitB>, whichever is closer to <param value>.
+/// <param limitA> and <param limitB> can be provided in any order.
+let clamp (value: Int) (limitA: Int) (limitB: Int) : Int =
+  let min = if lessThan limitA limitB then limitA else limitB
+  let max = if greaterThan limitA limitB then limitA else limitB
+
+  if lessThan value min then min
+  else if greaterThan value max then max
+  else value
+
+
+/// Returns the <type Int> value of a <type String>. Because <type Int> is
+/// arbitrary-precision, the only failure is a badly-formatted string.
+let parse (s: String) : Stdlib.Result.Result<Int, String> = Builtin.intParse s
+
+
+/// Stringify <param int>
+let toString (int: Int) : String = Builtin.intToString int
+
+
+// Conversions from the fixed-width integer types into `Int` (always succeed).
+
+/// Converts an <type Int8> to an arbitrary-precision <type Int>
+let fromInt8 (a: Int8) : Int = Builtin.intFromInt8 a
+
+/// Converts a <type UInt8> to an arbitrary-precision <type Int>
+let fromUInt8 (a: UInt8) : Int = Builtin.intFromUInt8 a
+
+/// Converts an <type Int16> to an arbitrary-precision <type Int>
+let fromInt16 (a: Int16) : Int = Builtin.intFromInt16 a
+
+/// Converts a <type UInt16> to an arbitrary-precision <type Int>
+let fromUInt16 (a: UInt16) : Int = Builtin.intFromUInt16 a
+
+/// Converts an <type Int32> to an arbitrary-precision <type Int>
+let fromInt32 (a: Int32) : Int = Builtin.intFromInt32 a
+
+/// Converts a <type UInt32> to an arbitrary-precision <type Int>
+let fromUInt32 (a: UInt32) : Int = Builtin.intFromUInt32 a
+
+/// Converts an <type Int64> to an arbitrary-precision <type Int>
+let fromInt64 (a: Int64) : Int = Builtin.intFromInt64 a
+
+/// Converts a <type UInt64> to an arbitrary-precision <type Int>
+let fromUInt64 (a: UInt64) : Int = Builtin.intFromUInt64 a
+
+/// Converts an <type Int128> to an arbitrary-precision <type Int>
+let fromInt128 (a: Int128) : Int = Builtin.intFromInt128 a
+
+/// Converts a <type UInt128> to an arbitrary-precision <type Int>
+let fromUInt128 (a: UInt128) : Int = Builtin.intFromUInt128 a
+
+
+// Conversions from `Int` into the fixed-width integer types, returning {{None}}
+// if the value doesn't fit the target range.
+
+/// Converts an <type Int> to an <type Int8>, returning {{None}} if it doesn't fit
+let toInt8 (a: Int) : Stdlib.Option.Option<Int8> = Builtin.intToInt8 a
+
+/// Converts an <type Int> to a <type UInt8>, returning {{None}} if it doesn't fit
+let toUInt8 (a: Int) : Stdlib.Option.Option<UInt8> = Builtin.intToUInt8 a
+
+/// Converts an <type Int> to an <type Int16>, returning {{None}} if it doesn't fit
+let toInt16 (a: Int) : Stdlib.Option.Option<Int16> = Builtin.intToInt16 a
+
+/// Converts an <type Int> to a <type UInt16>, returning {{None}} if it doesn't fit
+let toUInt16 (a: Int) : Stdlib.Option.Option<UInt16> = Builtin.intToUInt16 a
+
+/// Converts an <type Int> to an <type Int32>, returning {{None}} if it doesn't fit
+let toInt32 (a: Int) : Stdlib.Option.Option<Int32> = Builtin.intToInt32 a
+
+/// Converts an <type Int> to a <type UInt32>, returning {{None}} if it doesn't fit
+let toUInt32 (a: Int) : Stdlib.Option.Option<UInt32> = Builtin.intToUInt32 a
+
+/// Converts an <type Int> to an <type Int64>, returning {{None}} if it doesn't
+/// fit the 64-bit range
+let toInt64 (a: Int) : Stdlib.Option.Option<Int64> = Builtin.intToInt64 a
+
+/// Converts an <type Int> to a <type UInt64>, returning {{None}} if it doesn't fit
+let toUInt64 (a: Int) : Stdlib.Option.Option<UInt64> = Builtin.intToUInt64 a
+
+/// Converts an <type Int> to an <type Int128>, returning {{None}} if it doesn't fit
+let toInt128 (a: Int) : Stdlib.Option.Option<Int128> = Builtin.intToInt128 a
+
+/// Converts an <type Int> to a <type UInt128>, returning {{None}} if it doesn't fit
+let toUInt128 (a: Int) : Stdlib.Option.Option<UInt128> = Builtin.intToUInt128 a

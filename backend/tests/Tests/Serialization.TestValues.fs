@@ -53,6 +53,7 @@ module RuntimeTypes =
       RT.TUInt64
       RT.TInt128
       RT.TUInt128
+      RT.TInt
 
       RT.TFloat
 
@@ -93,6 +94,7 @@ module RuntimeTypes =
       known RT.KnownType.KTUInt64
       known RT.KnownType.KTInt128
       known RT.KnownType.KTUInt128
+      known RT.KnownType.KTInt
       known RT.KnownType.KTFloat
       known RT.KnownType.KTChar
       known RT.KnownType.KTString
@@ -191,6 +193,9 @@ module RuntimeTypes =
       RT.DUInt64 18446744073709551615UL
       RT.DInt128 170141183460469231731687303715884105727Q
       RT.DUInt128 340282366920938463463374607431768211455Z
+      // the default Int, both Finite (Int64 range) and Infinite (past Int64)
+      RT.Dval.int (bigint System.Int64.MaxValue)
+      RT.Dval.int (System.Numerics.BigInteger.Parse "123456789012345678901234567890")
       RT.DFloat(3.14159)
       RT.DChar "A"
       RT.DString "Hello, World!"
@@ -232,6 +237,7 @@ module ProgramTypes =
       MPUInt32(id, 4294967295ul)
       MPInt128(id, 170141183460469231731687303715884105727Q)
       MPUInt128(id, 340282366920938463463374607431768211455Z)
+      MPInt(id, System.Numerics.BigInteger.Parse "123456789012345678901234567890")
       MPBool(id, false)
       MPChar(id, "w")
       MPString(id, "testing testing 123")
@@ -263,6 +269,7 @@ module ProgramTypes =
         TUInt32
         TInt128
         TUInt128
+        TInt
         TString
         TList TInt64
         TTuple(TBool, TBool, [ TBool ])
@@ -671,7 +678,12 @@ module ProgramTypes =
         PT.EInt32(id, 4l)
         PT.EUInt32(id, 3ul)
         PT.EInt128(id, -1Q)
-        PT.EUInt128(id, 1Z) ]
+        PT.EUInt128(id, 1Z)
+        PT.EInt(id, 5I)
+        PT.EInt(
+          id,
+          System.Numerics.BigInteger.Parse "123456789012345678901234567890"
+        ) ]
     )
 
 

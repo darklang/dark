@@ -328,6 +328,7 @@ module Expect =
     | DUInt64 _
     | DInt128 _
     | DUInt128 _
+    | DInt _
 
     | DFloat _
 
@@ -612,6 +613,7 @@ module Expect =
       | DUInt64 _, _
       | DInt128 _, _
       | DUInt128 _, _
+      | DInt _, _
       | DFloat _, _
       | DChar _, _
       | DString _, _
@@ -811,6 +813,7 @@ module Expect =
       | EUInt64(_, v), EUInt64(_, v') -> check path v v'
       | EInt128(_, v), EInt128(_, v') -> check path v v'
       | EUInt128(_, v), EUInt128(_, v') -> check path v v'
+      | EInt(_, v), EInt(_, v') -> check path v v'
 
       | EFloat(_, sign, whole, part), EFloat(_, sign', whole', part') ->
         check path sign sign'
@@ -966,6 +969,7 @@ module Expect =
       | EUInt64 _, _
       | EInt128 _, _
       | EUInt128 _, _
+      | EInt _, _
       | EString _, _
       | EChar _, _
       | EVariable _, _
@@ -1055,6 +1059,7 @@ let visitDval (f : Dval -> 'a) (dv : Dval) : List<'a> =
     | DUInt64 _
     | DInt128 _
     | DUInt128 _
+    | DInt _
     | DFloat _
     | DChar _
     | DString _ // TODO: should actually traverse in interpolations
@@ -1381,6 +1386,16 @@ let interestingDvals () : List<string * RT.Dval * RT.TypeReference> =
 let sampleDvals () : List<string * (Dval * TypeReference)> =
   List.concat
     [ List.map (fun (k, v) -> k, DInt64 v, TInt64) interestingInts
+      // the default `Int`, exercising both Finite and Infinite representations
+      [ "int small", Dval.int (bigint 5), TInt
+        "int int64 max", Dval.int (bigint System.Int64.MaxValue), TInt
+        "int int64 min", Dval.int (bigint System.Int64.MinValue), TInt
+        "int big",
+        Dval.int (System.Numerics.BigInteger.Parse "123456789012345678901234567890"),
+        TInt
+        "int big negative",
+        Dval.int (System.Numerics.BigInteger.Parse "-123456789012345678901234567890"),
+        TInt ]
       List.map (fun (k, v) -> k, DFloat v, TFloat) interestingFloats
       List.map (fun (k, v) -> k, DString v, TString) interestingStrings
       List.map (fun (k, v) -> k, DString v, TString) naughtyStrings

@@ -65,6 +65,7 @@ module TypeReference =
     | TUInt64 of Range
     | TInt128 of Range
     | TUInt128 of Range
+    | TInt of Range
     | TFloat of Range
     | TChar of Range
     | TString of Range
@@ -156,6 +157,7 @@ type MatchPattern =
   | MPUInt64 of Range * intPart: (Range * UInt64) * suffixPart: Range
   | MPInt128 of Range * intPart: (Range * Int128) * suffixPart: Range
   | MPUInt128 of Range * intPart: (Range * UInt128) * suffixPart: Range
+  | MPInt of Range * intPart: (Range * Int)
   | MPFloat of Range * Sign * String * String
   | MPChar of
     Range *
@@ -256,6 +258,7 @@ type Expr =
   | EUInt64 of Range * intPart: (Range * UInt64) * suffixPart: Range
   | EInt128 of Range * intPart: (Range * Int128) * suffixPart: Range
   | EUInt128 of Range * intPart: (Range * UInt128) * suffixPart: Range
+  | EInt of Range * intPart: (Range * Int)
   | EFloat of Range * Sign * String * String
   | EString of
     Range *

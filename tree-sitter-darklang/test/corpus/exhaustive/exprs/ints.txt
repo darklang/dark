@@ -1,14 +1,34 @@
 ==================
-unsupported plain integer
+bigint (suffixless) literal
 ==================
 
 0
 
 ---
 
-(source_file
-  (ERROR (positive_digits))
-)
+(source_file (expression (simple_expression (bigint_literal (digits (positive_digits))))))
+
+
+==================
+bigint (suffixless) literal - large
+==================
+
+12345678901234567890
+
+---
+
+(source_file (expression (simple_expression (bigint_literal (digits (positive_digits))))))
+
+
+==================
+bigint (suffixless) literal - negative
+==================
+
+-5
+
+---
+
+(source_file (expression (simple_expression (bigint_literal (digits (negative_digits))))))
 
 
 ==================

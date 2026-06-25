@@ -65,6 +65,7 @@ module TypeReference =
       | WT.TUInt64 -> return PT.TUInt64
       | WT.TInt128 -> return PT.TInt128
       | WT.TUInt128 -> return PT.TUInt128
+      | WT.TInt -> return PT.TInt
       | WT.TFloat -> return PT.TFloat
       | WT.TChar -> return PT.TChar
       | WT.TString -> return PT.TString
@@ -189,6 +190,7 @@ module MatchPattern =
     | WT.MPUInt32(id, i) -> (context, PT.MPUInt32(id, i))
     | WT.MPInt128(id, i) -> (context, PT.MPInt128(id, i))
     | WT.MPUInt128(id, i) -> (context, PT.MPUInt128(id, i))
+    | WT.MPInt(id, i) -> (context, PT.MPInt(id, i))
     | WT.MPBool(id, b) -> (context, PT.MPBool(id, b))
     | WT.MPChar(id, c) -> (context, PT.MPChar(id, c))
     | WT.MPString(id, s) -> (context, PT.MPString(id, s))
@@ -270,6 +272,7 @@ module Expr =
       | WT.EUInt32(id, num) -> return PT.EUInt32(id, num)
       | WT.EInt128(id, num) -> return PT.EInt128(id, num)
       | WT.EUInt128(id, num) -> return PT.EUInt128(id, num)
+      | WT.EInt(id, num) -> return PT.EInt(id, num)
       | WT.EString(id, segments) ->
         let! segments =
           Ply.List.mapSequentially

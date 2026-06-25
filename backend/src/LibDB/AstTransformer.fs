@@ -82,6 +82,7 @@ let rec private transformTypeRef
   | PT.TUInt64
   | PT.TInt128
   | PT.TUInt128
+  | PT.TInt
   | PT.TFloat
   | PT.TChar
   | PT.TString
@@ -187,6 +188,7 @@ and private transformExpr (mapping : HashMapping) (expr : PT.Expr) : PT.Expr =
   | PT.EUInt64 _
   | PT.EInt128 _
   | PT.EUInt128 _
+  | PT.EInt _
   | PT.EFloat _
   | PT.EChar _
   | PT.EVariable _

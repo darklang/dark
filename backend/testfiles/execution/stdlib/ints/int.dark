@@ -1,0 +1,66 @@
+// Arbitrary-precision `Int` — the small/big representation split.
+//
+// `Int` is stored as a small (Int64-backed) value when it fits, and only
+// promotes to a big representation on overflow. Values are NORMALIZED: any
+// result that fits Int64 always uses the small representation. These tests
+// exercise the boundary, promotion, demotion, normalization, and finite/infinite
+// ordering — the properties that break if normalization is wrong. Literals use
+// the F# `I` suffix because these testfiles are parsed by the F# parser.
+
+// --- boundary: largest small value vs first big value ---
+9223372036854775807I + 0I = 9223372036854775807I // Int64.MAX stays small
+9223372036854775807I + 1I = 9223372036854775808I // promotes past Int64.MAX
+-9223372036854775808I - 1I = -9223372036854775809I // promotes past Int64.MIN
+
+// --- demotion: a big-arithmetic result that fits Int64 collapses to small ---
+9223372036854775808I - 1I = 9223372036854775807I
+(2I ^ 100I) - (2I ^ 100I) = 0I
+(2I ^ 100I) / (2I ^ 100I) = 1I
+
+// --- normalization: a promoted-then-demoted result equals the small literal ---
+// (this is the property that fails if a small value is left as the big rep)
+(9223372036854775808I - 9223372036854775808I) == 0I = true
+9223372036854775807I == (9223372036854775806I + 1I) = true
+
+// --- equality and ordering across representations ---
+(2I ^ 64I) == (2I ^ 64I) = true
+9223372036854775808I > 5I = true
+5I < 9223372036854775808I = true
+9223372036854775808I == 5I = false
+
+// --- arithmetic correctness at scale ---
+2I ^ 64I = 18446744073709551616I
+2I ^ 200I
+  = 1606938044258990275541962092341162602522202993782792835301376I
+
+// --- round-trips (stringify / parse / Int64 conversions) ---
+Stdlib.Int.toString 5I = "5"
+Stdlib.Int.toString 9223372036854775808I = "9223372036854775808"
+Stdlib.Int.parse "9223372036854775808" = Stdlib.Result.Result.Ok 9223372036854775808I
+Stdlib.Int.parse "5" = Stdlib.Result.Result.Ok 5I
+Stdlib.Int.fromInt64 5L = 5I
+
+// toInt64 relies on the invariant: a small Int always fits, a big Int never does
+Stdlib.Int.toInt64 5I = Stdlib.Option.Option.Some 5L
+Stdlib.Int.toInt64 9223372036854775808I = Stdlib.Option.Option.None
+
+
+// --- conversions from the fixed-width types (always succeed) ---
+Stdlib.Int.fromInt8 127y = 127I
+Stdlib.Int.fromUInt8 255uy = 255I
+Stdlib.Int.fromInt16 32767s = 32767I
+Stdlib.Int.fromUInt32 4294967295ul = 4294967295I
+// values past Int64 still convert exactly
+Stdlib.Int.fromUInt64 18446744073709551615UL = 18446744073709551615I
+Stdlib.Int.fromUInt128 340282366920938463463374607431768211455Z =
+  340282366920938463463374607431768211455I
+
+// --- conversions into the fixed-width types (Some if it fits, else None) ---
+Stdlib.Int.toInt8 100I = Stdlib.Option.Option.Some 100y
+Stdlib.Int.toInt8 200I = Stdlib.Option.Option.None
+Stdlib.Int.toUInt8 (Stdlib.Int.negate 1I) = Stdlib.Option.Option.None
+Stdlib.Int.toInt32 (2I ^ 40I) = Stdlib.Option.Option.None
+Stdlib.Int.toInt128 (2I ^ 100I) =
+  Stdlib.Option.Option.Some 1267650600228229401496703205376Q
+Stdlib.Int.toInt128 (2I ^ 200I) = Stdlib.Option.Option.None
+Stdlib.Int.toUInt128 (2I ^ 200I) = Stdlib.Option.Option.None

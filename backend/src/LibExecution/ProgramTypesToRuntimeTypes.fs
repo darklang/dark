@@ -85,6 +85,7 @@ module TypeReference =
     | PT.TUInt64 -> RT.TUInt64
     | PT.TInt128 -> RT.TInt128
     | PT.TUInt128 -> RT.TUInt128
+    | PT.TInt -> RT.TInt
 
     | PT.TFloat -> RT.TFloat
 
@@ -130,6 +131,7 @@ module TypeReference =
     | PT.TUInt64 -> RT.ValueType.Known RT.KTUInt64
     | PT.TInt128 -> RT.ValueType.Known RT.KTInt128
     | PT.TUInt128 -> RT.ValueType.Known RT.KTUInt128
+    | PT.TInt -> RT.ValueType.Known RT.KTInt
     | PT.TFloat -> RT.ValueType.Known RT.KTFloat
     | PT.TChar -> RT.ValueType.Known RT.KTChar
     | PT.TString -> RT.ValueType.Known RT.KTString
@@ -247,6 +249,7 @@ module MatchPattern =
     | PT.MPUInt64(_, i) -> RT.MPUInt64 i, symbols, rc
     | PT.MPInt128(_, i) -> RT.MPInt128 i, symbols, rc
     | PT.MPUInt128(_, i) -> RT.MPUInt128 i, symbols, rc
+    | PT.MPInt(_, i) -> RT.MPInt i, symbols, rc
 
     | PT.MPFloat(_, sign, whole, frac) ->
       RT.MPFloat(makeFloat sign whole frac), symbols, rc
@@ -358,6 +361,7 @@ module MatchPattern =
             | RT.MPUInt64 i -> RT.MPUInt64 i
             | RT.MPInt128 i -> RT.MPInt128 i
             | RT.MPUInt128 i -> RT.MPUInt128 i
+            | RT.MPInt i -> RT.MPInt i
             | RT.MPFloat f -> RT.MPFloat f
             | RT.MPChar c -> RT.MPChar c
             | RT.MPString s -> RT.MPString s
@@ -592,6 +596,7 @@ module Expr =
     | PT.EInt32(_id, num) -> justLoadDval (RT.DInt32 num)
     | PT.EInt64(_id, num) -> justLoadDval (RT.DInt64 num)
     | PT.EInt128(_id, num) -> justLoadDval (RT.DInt128 num)
+    | PT.EInt(_id, num) -> justLoadDval (RT.Dval.int num)
     | PT.EUInt8(_id, num) -> justLoadDval (RT.DUInt8 num)
     | PT.EUInt16(_id, num) -> justLoadDval (RT.DUInt16 num)
     | PT.EUInt32(_id, num) -> justLoadDval (RT.DUInt32 num)
@@ -1238,6 +1243,7 @@ module PackageValue =
     | PT.EUInt64(_, i) -> RT.DUInt64 i
     | PT.EInt128(_, i) -> RT.DInt128 i
     | PT.EUInt128(_, i) -> RT.DUInt128 i
+    | PT.EInt(_, i) -> RT.Dval.int i
     | PT.EFloat(_, sign, whole, part) ->
       let str = (if sign = Positive then "" else "-") + whole + "." + part
       match System.Double.TryParse(str) with

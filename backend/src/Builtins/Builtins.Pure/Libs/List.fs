@@ -39,6 +39,8 @@ module DvalComparator =
     | DUInt64 i1, DUInt64 i2 -> order i1 i2
     | DInt128 i1, DInt128 i2 -> order i1 i2
     | DUInt128 i1, DUInt128 i2 -> order i1 i2
+    // to bigint so `order` compares numerically, not by struct case tag
+    | DInt i1, DInt i2 -> order (DarkInt.toBigInt i1) (DarkInt.toBigInt i2)
 
     | DFloat f1, DFloat f2 -> order f1 f2
 
@@ -112,6 +114,7 @@ module DvalComparator =
     | DUInt64 _, _
     | DInt128 _, _
     | DUInt128 _, _
+    | DInt _, _
     | DFloat _, _
     | DChar _, _
     | DString _, _

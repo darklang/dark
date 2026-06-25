@@ -53,6 +53,7 @@ type TypeReference =
   | TUInt64
   | TInt128
   | TUInt128
+  | TInt
   | TFloat
   | TChar
   | TString
@@ -86,6 +87,7 @@ type KnownType =
   | KTUInt64
   | KTInt128
   | KTUInt128
+  | KTInt
   | KTFloat
   | KTChar
   | KTString
@@ -130,6 +132,7 @@ type MatchPattern =
   | MPUInt64 of UInt64
   | MPInt128 of Int128
   | MPUInt128 of UInt128
+  | MPInt of Int
   | MPFloat of Float
   | MPChar of String
   | MPString of String
@@ -177,6 +180,7 @@ type Dval =
   | DUInt64 of UInt64
   | DInt128 of Int128
   | DUInt128 of UInt128
+  | DInt of Int
   | DFloat of Float
   | DChar of String
   | DString of String

@@ -59,6 +59,7 @@ let parseBuiltIn
     | "UInt64" -> (TBuiltin.TUInt64 node.range) |> builtin
     | "Int128" -> (TBuiltin.TInt128 node.range) |> builtin
     | "UInt128" -> (TBuiltin.TUInt128 node.range) |> builtin
+    | "Int" -> (TBuiltin.TInt node.range) |> builtin
     | "Float" -> (TBuiltin.TFloat node.range) |> builtin
     | "Char" -> (TBuiltin.TChar node.range) |> builtin
     | "String" -> (TBuiltin.TString node.range) |> builtin

@@ -48,6 +48,7 @@ let rec private extractFromTypeRef (typeRef : PT.TypeReference) : List<Dependenc
   | PT.TUInt64
   | PT.TInt128
   | PT.TUInt128
+  | PT.TInt
   | PT.TFloat
   | PT.TChar
   | PT.TString
@@ -103,6 +104,7 @@ and private extractFromMatchPattern (pat : PT.MatchPattern) : List<Dependency> =
   | PT.MPUInt64 _
   | PT.MPInt128 _
   | PT.MPUInt128 _
+  | PT.MPInt _
   | PT.MPFloat _
   | PT.MPChar _
   | PT.MPString _
@@ -169,6 +171,7 @@ and extractFromExpr (expr : PT.Expr) : List<Dependency> =
   | PT.EUInt64 _
   | PT.EInt128 _
   | PT.EUInt128 _
+  | PT.EInt _
   | PT.EFloat _
   | PT.EChar _
   | PT.EVariable _
