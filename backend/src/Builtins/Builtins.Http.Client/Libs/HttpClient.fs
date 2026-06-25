@@ -692,6 +692,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                         2,
                         "headers",
                         VT.list (VT.tuple VT.string VT.string []),
+                        [],
                         Dval.toValueType notAPair,
                         notAPair
                       )
@@ -824,6 +825,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
                         2,
                         "headers",
                         VT.list (VT.tuple VT.string VT.string []),
+                        [],
                         Dval.toValueType notAPair,
                         notAPair
                       )

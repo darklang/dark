@@ -146,6 +146,16 @@ module RuntimeError =
     | _ -> ""
 
 
+  /// Renders the "expected type" in a mismatch. Prefers the name as written at
+  /// the declaration site (`expectedTypeName`) when present; otherwise falls
+  /// back to the value type, which for a custom type shows the canonical name
+  /// of any structurally-identical sibling rather than the name written.
+  let expectedSegment (expectedType: ValueType) (expectedTypeName: List<String>) : ES =
+    match expectedTypeName with
+    | [] -> ES.ValueType expectedType
+    | names -> ES.String(Stdlib.String.join names ".")
+
+
   let toSegments
     (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
     : ErrorSegments =
@@ -431,23 +441,23 @@ module RuntimeError =
           ES.Count(expected, ES.String "argument", ES.String "arguments")
           ES.String ", but got "
           ES.Count(actual, ES.String "argument", ES.String "arguments") ]
-      | FnParameterNotExpectedType(fnName, paramIndex, paramName, expectedType, actualType, actualValue) ->
+      | FnParameterNotExpectedType(fnName, paramIndex, paramName, expectedType, expectedTypeName, actualType, actualValue) ->
         [ ES.FunctionName fnName
           ES.String "'s "
           ES.Ordinal(paramIndex + 1L)
           ES.String " parameter "
           ES.ParamName paramName
           ES.String " expects "
-          ES.ValueType expectedType
+          (expectedSegment expectedType expectedTypeName)
           ES.String ", but got "
           ES.ValueType actualType
           ES.String " ("
           ES.FullValue actualValue
           ES.String ")" ]
-      | FnResultNotExpectedType(fnName, expectedType, actualType, actualValue) ->
+      | FnResultNotExpectedType(fnName, expectedType, expectedTypeName, actualType, actualValue) ->
         [ ES.FunctionName fnName
           ES.String "'s return value expects "
-          ES.ValueType expectedType
+          (expectedSegment expectedType expectedTypeName)
           ES.String ", but got "
           ES.ValueType actualType
           ES.String " ("

@@ -997,12 +997,20 @@ module RuntimeError =
         paramIndex : int64 *
         paramName : string *
         expectedType : ValueType *
+        // The expected type's name as written at the parameter's declaration
+        // site, when it is a custom type ([] otherwise). Carried separately
+        // because `expectedType` is reduced to a hash, which renders as the
+        // canonical name of any structurally-identical sibling rather than the
+        // name actually written.
+        expectedTypeName : List<string> *
         actualType : ValueType *
         actualValue : Dval
 
       | FnResultNotExpectedType of
         fnName : FQFnName.FQFnName *
         expectedType : ValueType *
+        // See `expectedTypeName` on `FnParameterNotExpectedType`.
+        expectedTypeName : List<string> *
         actualType : ValueType *
         actualValue : Dval
 
@@ -2037,6 +2045,16 @@ module TypeReference =
         | _ -> return typ
       }
     | _ -> Ply typ
+
+
+  /// The type's name as written at the reference site (the qualifiers), for a
+  /// custom type. Empty for built-in/primitive types, which carry no package
+  /// name. Used to report the as-written name in errors, since reducing to a
+  /// `ValueType` keeps only the hash (and thus the canonical sibling's name).
+  let originalNameOf (typeRef : TypeReference) : List<string> =
+    match typeRef with
+    | TCustomType(nr, _) -> nr.originalName
+    | _ -> []
 
 
   let rec toVT

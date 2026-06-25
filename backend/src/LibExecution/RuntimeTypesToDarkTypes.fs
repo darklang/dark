@@ -1223,6 +1223,7 @@ module RuntimeError =
                                                                paramIndex,
                                                                paramName,
                                                                expectedType,
+                                                               expectedTypeName,
                                                                actualType,
                                                                actualValue) ->
           "FnParameterNotExpectedType",
@@ -1230,15 +1231,18 @@ module RuntimeError =
             DInt64 paramIndex
             DString paramName
             ValueType.toDT expectedType
+            DList(VT.string, List.map DString expectedTypeName)
             ValueType.toDT actualType
             Dval.toDT actualValue ]
         | RuntimeError.Applications.FnResultNotExpectedType(fnName,
                                                             expectedType,
+                                                            expectedTypeName,
                                                             actualType,
                                                             actualValue) ->
           "FnResultNotExpectedType",
           [ FQFnName.toDT fnName
             ValueType.toDT expectedType
+            DList(VT.string, List.map DString expectedTypeName)
             ValueType.toDT actualType
             Dval.toDT actualValue ]
 
@@ -1280,12 +1284,19 @@ module RuntimeError =
               _,
               [],
               "FnParameterNotExpectedType",
-              [ fnName; paramIndex; paramName; expectedType; actualType; actualValue ]) ->
+              [ fnName
+                paramIndex
+                paramName
+                expectedType
+                expectedTypeName
+                actualType
+                actualValue ]) ->
         RuntimeError.Applications.FnParameterNotExpectedType(
           FQFnName.fromDT fnName,
           D.int64 paramIndex,
           D.string paramName,
           ValueType.fromDT expectedType,
+          D.list D.string expectedTypeName,
           ValueType.fromDT actualType,
           Dval.fromDT actualValue
         )
@@ -1293,10 +1304,11 @@ module RuntimeError =
               _,
               [],
               "FnResultNotExpectedType",
-              [ fnName; expectedType; actualType; actualValue ]) ->
+              [ fnName; expectedType; expectedTypeName; actualType; actualValue ]) ->
         RuntimeError.Applications.FnResultNotExpectedType(
           FQFnName.fromDT fnName,
           ValueType.fromDT expectedType,
+          D.list D.string expectedTypeName,
           ValueType.fromDT actualType,
           Dval.fromDT actualValue
         )
