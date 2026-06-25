@@ -61,8 +61,10 @@ let catalog (branchId: Uuid) : List<Model.App> =
   Stdlib.List.append (available ()) extra
 
 
-let findBySlug (slug: String) : Stdlib.Option.Option<Model.App> =
-  Stdlib.List.findFirst (available ()) (fun a -> a.slug == slug)
+/// Look up an app by slug across the full catalog (curated + discovered), so apps a user
+/// declares in their own packages are addable/runnable, not just the hardcoded seed.
+let findBySlug (branchId: Uuid) (slug: String) : Stdlib.Option.Option<Model.App> =
+  Stdlib.List.findFirst (catalog branchId) (fun a -> a.slug == slug)
 
 
 // ── the installed list ── persisted per-instance in cli-config.json (comma-separated slugs under one key)
@@ -93,7 +95,8 @@ let addInstalled (slug: String) : Unit =
 let removeInstalled (slug: String) : Unit =
   saveInstalled ((installedSlugs ()) |> Stdlib.List.filter (fun s -> s != slug))
 
-/// The apps this instance has installed — `available` filtered to the curated list. Empty by default.
-let installed () : List<Model.App> =
+/// The apps this instance has installed — the `catalog` filtered to the curated slugs, so an
+/// installed discovered app still resolves. Empty by default.
+let installed (branchId: Uuid) : List<Model.App> =
   let slugs = installedSlugs ()
-  (available ()) |> Stdlib.List.filter (fun a -> Stdlib.List.member_v0 slugs a.slug)
+  (catalog branchId) |> Stdlib.List.filter (fun a -> Stdlib.List.member_v0 slugs a.slug)

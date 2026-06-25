@@ -22,6 +22,13 @@ type App =
     target: Target }
 
 
+/// True when `slug` matches the app-id allowlist: lowercase letters, digits, and hyphens.
+/// Slugs are used in CLI arguments, process names, and unit-file paths, so keep
+/// this check narrow enough to rule out shell metacharacters and path traversal.
+let isValidSlug (slug: String) : Bool =
+  Stdlib.Regex.isMatch slug "^[a-z0-9][a-z0-9-]*$"
+
+
 let kindTag (target: Target) : String =
   match target with
   | Foreground _ -> "foreground"

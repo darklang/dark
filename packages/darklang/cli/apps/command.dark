@@ -8,6 +8,8 @@ module Darklang.Cli.Apps.Command
 /// The port a running HTTP daemon bound to, read from its log (`… on http://localhost:<port>`). This is
 /// the *actual* port (default or config override), so it's accurate without the browser knowing defaults.
 /// `None` for daemons that aren't HTTP servers (they never log a port).
+
+// TODO: Log text isn't a reliable source of truth; store structured daemon metadata instead.
 let daemonPort (slug: String) : Stdlib.Option.Option<Int64> =
   let portLines =
     (Stdlib.Cli.Daemon.tailLog slug 25L)
@@ -47,7 +49,7 @@ let row (app: Model.App) : String =
 
 /// `apps run <slug>` — run a foreground app attached, dispatching its CLI command in-process.
 let runApp (state: Cli.AppState) (slug: String) : Cli.AppState =
-  match Registry.findBySlug slug with
+  match Registry.findBySlug state.currentBranchId slug with
   | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
   | Some app ->
     match app.target with
@@ -64,7 +66,7 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
     state
   else
 
-  match Registry.findBySlug slug with
+  match Registry.findBySlug state.currentBranchId slug with
   | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
   | Some app ->
     match app.target with
@@ -83,7 +85,7 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
 
 /// `apps inspect <slug>` — label, slug, target, installed?, and (daemons) status + recent logs.
 let inspect (state: Cli.AppState) (slug: String) : Cli.AppState =
-  match Registry.findBySlug slug with
+  match Registry.findBySlug state.currentBranchId slug with
   | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
   | Some app ->
     Stdlib.printLine $"{app.name}  [{Model.kindTag app.target}]"
@@ -112,7 +114,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [] -> Editor.launch state
 
   | [ "list" ] ->
-    let apps = Registry.installed ()
+    let apps = Registry.installed state.currentBranchId
     if Stdlib.List.isEmpty apps then
       Stdlib.printLine
         (Colors.dimText
@@ -137,7 +139,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   | [ "add"; slug ] ->
-    match Registry.findBySlug slug with
+    match Registry.findBySlug state.currentBranchId slug with
     | None ->
       Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
       state
@@ -183,7 +185,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | [ "status" ] ->
     let daemons =
-      (Registry.installed ())
+      (Registry.installed state.currentBranchId)
       |> Stdlib.List.filter (fun a -> Model.isDaemon a.target)
 
     if Stdlib.List.isEmpty daemons then
@@ -213,12 +215,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "inspect"; slug ] -> inspect state slug
 
   | [ "enable"; slug ] ->
-    match Registry.findBySlug slug with
+    match Registry.findBySlug state.currentBranchId slug with
     | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
     | Some app ->
       match Service.enable app with
-      | Ok msg -> Stdlib.printLine (Colors.success $"✓ {msg}")
-      | Error e -> Stdlib.printLine (Colors.error e)
+      | Enabled msg -> Stdlib.printLine (Colors.success $"✓ {msg}")
+      | WroteOnly msg -> Stdlib.printLine (Colors.colorize Colors.yellow $"⚠ {msg}")
+      | Failed e -> Stdlib.printLine (Colors.error e)
     state
 
   | [ "disable"; slug ] ->
@@ -230,23 +233,33 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | _ -> Command.help state
 
 
+// Show the stable app slug as the completion value, with the human name as the hint.
+let slugs (apps: List<Model.App>) : List<Cli.Completion.CompletionItem> =
+  apps |> Stdlib.List.map (fun a -> Cli.Completion.withDescription a.slug a.name)
+
 let complete
-  (_state: Cli.AppState)
-  (_args: List<String>)
+  (state: Cli.AppState)
+  (args: List<String>)
   : List<Cli.Completion.CompletionItem> =
-  [ Cli.Completion.simple "list"
-    Cli.Completion.simple "list-available"
-    Cli.Completion.simple "add"
-    Cli.Completion.simple "remove"
-    Cli.Completion.simple "run"
-    Cli.Completion.simple "start"
-    Cli.Completion.simple "spawn"
-    Cli.Completion.simple "stop"
-    Cli.Completion.simple "status"
-    Cli.Completion.simple "logs"
-    Cli.Completion.simple "inspect"
-    Cli.Completion.simple "enable"
-    Cli.Completion.simple "disable" ]
+  match args with
+  | [] ->
+    [ "list"; "list-available"; "add"; "remove"; "run"; "start"; "spawn"
+      "stop"; "status"; "logs"; "inspect"; "enable"; "disable" ]
+    |> Stdlib.List.map Cli.Completion.simple
+  // Only load the catalog once a verb needs slug completions.
+  | [ verb ] ->
+    let catalog = Registry.catalog state.currentBranchId
+    let daemons = catalog |> Stdlib.List.filter (fun a -> Model.isDaemon a.target)
+
+    match verb with
+    | "add" ->
+      slugs (catalog |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Registry.isInstalled a.slug)))
+    | "remove" -> slugs (Registry.installed state.currentBranchId)
+    | "run" -> slugs (catalog |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Model.isDaemon a.target)))
+    | "start" | "spawn" | "stop" | "status" | "logs" | "enable" | "disable" -> slugs daemons
+    | "inspect" -> slugs catalog
+    | _ -> []
+  | _ -> []
 
 
 // A single help line: "  cmd <args>   description", padded for a clean column.
