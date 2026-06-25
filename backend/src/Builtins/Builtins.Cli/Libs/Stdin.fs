@@ -12,15 +12,49 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 
 open Builtin.Shortcuts
 
-/// Drain any buffered input characters that arrived in a burst
-/// (e.g. mouse wheel scroll generates many escape sequences at once).
-/// Returns the last ConsoleKeyInfo from the burst, or the original if no
-/// extra input was buffered.
-let private drainInputBurst (initial : ConsoleKeyInfo) : ConsoleKeyInfo =
-  let mutable last = initial
-  while Console.KeyAvailable do
-    last <- Console.ReadKey true
-  last
+/// Reads the next keypress, or the whole text of a paste when one is detected.
+///
+/// Two things queue a flood of input: a paste (a run of printable characters)
+/// and a mouse-wheel scroll (a run of arrow-key escapes, in alternate-screen
+/// mode). We keep the paste but collapse the scroll. Printable characters (plus
+/// newlines/tabs) are collected and returned as `Some` text, to be inserted in
+/// one go; if only control keys were queued, we return just the last key so a
+/// scroll renders once instead of flickering.
+let private readKeyOrPaste () : ConsoleKeyInfo * string option =
+  // What a single key contributes to pasted text (newlines/tabs preserved).
+  let pasteText (k : ConsoleKeyInfo) : string option =
+    match k.Key with
+    | ConsoleKey.Enter -> Some "\n"
+    | ConsoleKey.Tab -> Some "\t"
+    | _ ->
+      let c = k.KeyChar
+      if c = '\u0000' || Char.IsControl c then None else Some(string c)
+
+  // An ordinary printable character. A paste reports one of these as its key so
+  // the Dark side inserts it instead of acting on Enter/Tab/etc.
+  let isPrintable (k : ConsoleKeyInfo) =
+    k.KeyChar <> '\u0000' && not (Char.IsControl k.KeyChar)
+
+  let first = Console.ReadKey true
+  if not Console.KeyAvailable then
+    (first, None)
+  else
+    let sb = System.Text.StringBuilder()
+    let append (text : string) : unit =
+      sb.Append text |> ignore<System.Text.StringBuilder>
+    let mutable last = first
+    let mutable printableKey = if isPrintable first then Some first else None
+    pasteText first |> Option.iter append
+    while Console.KeyAvailable do
+      let k = Console.ReadKey true
+      last <- k
+      pasteText k |> Option.iter append
+      if isPrintable k then printableKey <- Some k
+    let pasted = sb.ToString()
+    if pasted = "" then
+      (last, None) // only control keys queued, e.g. a scroll
+    else
+      (Option.defaultValue last printableKey, Some pasted)
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "stdinReadKey" 0
@@ -36,7 +70,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DUnit ] ->
           // Treat Ctrl+C as input so the Dark code can handle it gracefully
           Console.TreatControlCAsInput <- true
-          let readKey = Console.ReadKey true |> drainInputBurst
+          let readKey, pasteText = readKeyOrPaste ()
           Console.TreatControlCAsInput <- false
 
           let altHeld =
@@ -210,14 +244,18 @@ let fns () : List<BuiltInFn> =
               FQTypeName.fqPackage (PackageRefs.Type.Stdlib.Cli.Stdin.key ())
             DEnum(typeName, typeName, [], keyCaseName, [])
 
-          // Get character representation based on keyboard layout
-          // Only include keyChar for printable characters, not control characters
+          // Get character representation based on keyboard layout.
+          // For a paste, report the whole pasted run so it's inserted in one go;
+          // otherwise only include keyChar for printable characters.
           let keyChar =
-            let ch = readKey.KeyChar
-            if System.Char.IsControl(ch) || ch = '\u0000' then
-              DString "" // Empty string for control/special keys
-            else
-              ch |> string |> DString
+            match pasteText with
+            | Some text -> DString text
+            | None ->
+              let ch = readKey.KeyChar
+              if System.Char.IsControl(ch) || ch = '\u0000' then
+                DString "" // Empty string for control/special keys
+              else
+                ch |> string |> DString
 
           let keyRead =
             let typeName =
