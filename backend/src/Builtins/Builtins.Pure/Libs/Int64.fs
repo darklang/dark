@@ -142,10 +142,9 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a + b))
         | _ -> incorrectArgs ())
-      // CLEANUP: in-process wraps on overflow, but pushed-down SQL (here and in
-      // the sub/mul/div/pow specs below) uses raw SQLite arithmetic, which
-      // overflows to a REAL instead of wrapping. See
-      // int-wrap-sql-divergence-deferred-work.md
+      // CLEANUP: SQL pushdown for Int64 arithmetic does not match runtime
+      // overflow semantics. Runtime evaluation wraps, but SQLite promotes
+      // overflowing integer arithmetic to REAL for these add/sub/mul/div/pow specs.
       sqlSpec = SqlBinOp "+"
       previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps

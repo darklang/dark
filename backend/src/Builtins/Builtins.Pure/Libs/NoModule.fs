@@ -275,10 +275,10 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a + b))
         | _, vm, _, [ a; b ] -> numericTypeError vm a b
         | _ -> incorrectArgs ())
-      // CLEANUP: the fixed-width int branches wrap on overflow in-process, but
-      // pushed-down SQL (here and in the sub/mul/div/pow specs below) uses raw
-      // SQLite arithmetic, which overflows to a REAL instead of wrapping. (DInt
-      // is arbitrary-precision and never overflows, so it's exempt.)
+      // CLEANUP: SQL pushdown for fixed-width integer arithmetic does not match
+      // runtime overflow semantics. Runtime evaluation wraps, but SQLite promotes
+      // overflowing integer arithmetic to REAL for these add/sub/mul/div/pow specs.
+      // DInt is arbitrary-precision, so it has no wrap behavior to preserve.
       sqlSpec = SqlBinOp "+"
       previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps

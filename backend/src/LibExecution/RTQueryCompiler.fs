@@ -215,18 +215,17 @@ let rec symbolicToSql
     | RT.DInt64 n -> Ok(string n, state)
     // The arbitrary-precision `Int` is deliberately NOT queryable yet: SQLite has
     // no native bignum, so emitting it as a number would let values past 2^63 be
-    // compared as lossy floats (silently wrong). Reject loudly instead — use a
-    // sized type like `Int64` for indexed numeric fields. (A future order-
-    // preserving encoded projection will make `Int` queryable.)
+    // compared as lossy floats. Return a compile error instead — use a sized
+    // type like `Int64` for indexed numeric fields. (A future order-preserving
+    // encoded projection will make `Int` queryable.)
     | RT.DInt _ ->
       Error
         "The arbitrary-precision Int type is not yet queryable in DB.query. Use a sized integer type (e.g. Int64) for fields you filter or sort on."
-    // Only Int64 is wired through as a real SQL number (above). The other
-    // fixed-width int types fall through to a JSON-string parameter that never
-    // compares equal to the stored numeric value — so a query that should match
-    // silently returns nothing. Reject loudly until they're properly serialized
-    // (see int-wrap-sql-divergence-deferred-work.md). UInt64/Int128/UInt128 also
-    // share Int's past-2^63 lossy-float problem, so they stay rejected longer.
+    // Only Int64 is currently serialized as a SQL number. Other fixed-width ints
+    // would be serialized as JSON-string parameters, which do not compare equal
+    // to the stored numeric values. Return a compile error until those types have
+    // SQL numeric serialization. UInt64/Int128/UInt128 also need a representation
+    // that preserves values past 2^63.
     | RT.DInt8 _
     | RT.DUInt8 _
     | RT.DInt16 _
