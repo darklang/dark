@@ -21,6 +21,16 @@ module ParseError =
     DEnum(typeName, typeName, [], caseName, fields)
 
 
+/// Convert an already-rounded float to an `Int`. NaN/Infinity have no Int
+/// representation; `bigint` would throw a host exception, so surface a Dark
+/// `OutOfRange` error instead.
+let private roundedToInt (vm : VMState) (rounded : float) : Ply<Dval> =
+  if System.Double.IsNaN rounded || System.Double.IsInfinity rounded then
+    RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
+  else
+    rounded |> bigint |> Dval.int |> Ply
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "floatCeiling" 0
       typeParams = []
@@ -29,8 +39,7 @@ let fns () : List<BuiltInFn> =
       description = "Round up to an integer value"
       fn =
         (function
-        | _, _, _, [ DFloat a ] ->
-          a |> System.Math.Ceiling |> bigint |> Dval.int |> Ply
+        | _, vm, _, [ DFloat a ] -> a |> System.Math.Ceiling |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -45,8 +54,7 @@ let fns () : List<BuiltInFn> =
       description = "Round up to an integer value"
       fn =
         (function
-        | _, _, _, [ DFloat a ] ->
-          a |> System.Math.Ceiling |> bigint |> Dval.int |> Ply
+        | _, vm, _, [ DFloat a ] -> a |> System.Math.Ceiling |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -66,8 +74,7 @@ let fns () : List<BuiltInFn> =
         but {{Float.truncate -1.9 == -1.0}}"
       fn =
         (function
-        | _, _, _, [ DFloat a ] ->
-          a |> System.Math.Floor |> bigint |> Dval.int |> Ply
+        | _, vm, _, [ DFloat a ] -> a |> System.Math.Floor |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -88,8 +95,7 @@ let fns () : List<BuiltInFn> =
 
       fn =
         (function
-        | _, _, _, [ DFloat a ] ->
-          a |> System.Math.Floor |> bigint |> Dval.int |> Ply
+        | _, vm, _, [ DFloat a ] -> a |> System.Math.Floor |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -104,8 +110,7 @@ let fns () : List<BuiltInFn> =
       description = "Round to the nearest integer value"
       fn =
         (function
-        | _, _, _, [ DFloat a ] ->
-          a |> System.Math.Round |> bigint |> Dval.int |> Ply
+        | _, vm, _, [ DFloat a ] -> a |> System.Math.Round |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -121,8 +126,7 @@ let fns () : List<BuiltInFn> =
         "Discard the fractional portion of the float, rounding towards zero"
       fn =
         (function
-        | _, _, _, [ DFloat a ] ->
-          a |> System.Math.Truncate |> bigint |> Dval.int |> Ply
+        | _, vm, _, [ DFloat a ] -> a |> System.Math.Truncate |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -288,8 +292,7 @@ let fns () : List<BuiltInFn> =
         "Discard the fractional portion of <type Float> <param a>, rounding towards zero."
       fn =
         (function
-        | _, _, _, [ DFloat a ] ->
-          a |> System.Math.Truncate |> bigint |> Dval.int |> Ply
+        | _, vm, _, [ DFloat a ] -> a |> System.Math.Truncate |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

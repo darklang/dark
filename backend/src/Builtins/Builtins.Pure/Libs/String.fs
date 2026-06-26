@@ -509,12 +509,12 @@ let fns () : List<BuiltInFn> =
           let index = str.IndexOf(search)
           Ply(Dval.int (bigint index))
         | _ -> incorrectArgs ())
-      // CLEANUP: now returns Int, which the SqlCompiler can't compile, so this
-      // sqlSpec is dormant — String.indexOf isn't usable in DB.query until Int is
-      // queryable. (String.contains has its own queryable Bool builtin, so it's
-      // unaffected.) The INSTR spec is kept so it works again automatically once
-      // Int becomes queryable.
-      sqlSpec = SqlCallback2(fun str search -> $"(INSTR({str}, {search}) - 1)")
+      // `Int` isn't queryable in DB.query yet, and the compiler treats any spec as
+      // active — so mark NotQueryable rather than advertise a spec that fails on the
+      // comparison literal. (String.contains has its own queryable Bool builtin, so
+      // it's unaffected.) Restore once Int is queryable:
+      //   SqlCallback2(fun str search -> $"(INSTR({str}, {search}) - 1)")
+      sqlSpec = NotQueryable
       previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }

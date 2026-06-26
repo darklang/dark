@@ -66,6 +66,16 @@ Stdlib.Int.toInt128 (2I ^ 100I) =
 Stdlib.Int.toInt128 (2I ^ 200I) = Stdlib.Option.Option.None
 Stdlib.Int.toUInt128 (2I ^ 200I) = Stdlib.Option.Option.None
 
+// --- fromFloat: truncates toward zero; NaN/Infinity have no Int, so OutOfRange ---
+Stdlib.Int.fromFloat 3.9 = 3I
+Stdlib.Int.fromFloat -3.9 = -3I
+Stdlib.Int.fromFloat (0.0 / 0.0) =
+  error="Encountered out-of-range value for type of Int"
+Stdlib.Int.fromFloat (1.0 / 0.0) =
+  error="Encountered out-of-range value for type of Int"
+Stdlib.Int.fromFloat (-1.0 / 0.0) =
+  error="Encountered out-of-range value for type of Int"
+
 
 // --- remainder: Result<Int>; sign follows the dividend; Error only if divisor is 0 ---
 Stdlib.Int.remainder 15I 6I = Stdlib.Result.Result.Ok 3I

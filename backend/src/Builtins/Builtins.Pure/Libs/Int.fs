@@ -343,7 +343,13 @@ let fns () : List<BuiltInFn> =
          float (no 64-bit clamp)."
       fn =
         (function
-        | _, _, _, [ DFloat f ] -> Ply(Dval.int (bigint f))
+        | _, vm, _, [ DFloat f ] ->
+          // NaN/Infinity have no Int representation; `bigint f` would throw a
+          // host exception, so surface a Dark error instead.
+          if System.Double.IsNaN f || System.Double.IsInfinity f then
+            outOfRange vm
+          else
+            Ply(Dval.int (bigint f))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

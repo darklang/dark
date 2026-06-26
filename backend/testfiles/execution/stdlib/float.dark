@@ -39,6 +39,22 @@ Stdlib.Float.truncate_v0 -000000.9 = 0I
 Stdlib.Float.truncate_v0 0.0 = 0I
 Stdlib.Float.truncate_v0 2147483647.000009 = 2147483647I
 
+// NaN / Infinity have no Int representation -> Dark error, not a host crash
+Stdlib.Float.ceiling_v0 Builtin.testNan_v0 =
+  error="Encountered out-of-range value for type of Int"
+Stdlib.Float.roundUp_v0 Builtin.testInfinity_v0 =
+  error="Encountered out-of-range value for type of Int"
+Stdlib.Float.floor_v0 Builtin.testNegativeInfinity_v0 =
+  error="Encountered out-of-range value for type of Int"
+Stdlib.Float.roundDown_v0 Builtin.testNan_v0 =
+  error="Encountered out-of-range value for type of Int"
+Stdlib.Float.round_v0 Builtin.testInfinity_v0 =
+  error="Encountered out-of-range value for type of Int"
+Stdlib.Float.truncate_v0 Builtin.testNan_v0 =
+  error="Encountered out-of-range value for type of Int"
+Stdlib.Float.roundTowardsZero Builtin.testNegativeInfinity_v0 =
+  error="Encountered out-of-range value for type of Int"
+
 Stdlib.Float.absoluteValue_v0 Builtin.testNegativeInfinity_v0 = Builtin.testInfinity_v0
 Stdlib.Float.absoluteValue_v0 Builtin.testNan_v0 = Builtin.testNan_v0
 Stdlib.Float.absoluteValue_v0 -5.6 = 5.6
