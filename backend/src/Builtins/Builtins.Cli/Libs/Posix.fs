@@ -574,9 +574,9 @@ let fns () : List<BuiltInFn> =
       description = "Creates a directory via libc mkdir()"
       fn =
         (function
-        | state, _, _, [ DString path; DInt mode ] ->
+        | state, vm, _, [ DString path; DInt mode ] ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
-          match Libc.mkdir path (int (DarkInt.toBigInt mode)) with
+          match Libc.mkdir path (intToInt32 vm mode) with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
             Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
@@ -658,9 +658,9 @@ let fns () : List<BuiltInFn> =
       description = "Changes file permissions via libc chmod()"
       fn =
         (function
-        | state, _, _, [ DString path; DInt mode ] ->
+        | state, vm, _, [ DString path; DInt mode ] ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
-          match Libc.chmod path (int (DarkInt.toBigInt mode)) with
+          match Libc.chmod path (intToInt32 vm mode) with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
             Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
@@ -892,7 +892,7 @@ let fns () : List<BuiltInFn> =
         "Spawns a child process with a timeout. Returns (exitCode, stdout, stderr) or Error on timeout."
       fn =
         (function
-        | state, _, _, [ DString program; DList(_, args); DInt timeoutMs ] ->
+        | state, vm, _, [ DString program; DList(_, args); DInt timeoutMs ] ->
           let resultOk =
             Dval.resultOk
               (KTTuple(VT.int, VT.string, [ VT.string ]))
@@ -910,10 +910,7 @@ let fns () : List<BuiltInFn> =
           // precise check: this exact program + args must be covered (gate only checked exec presence).
           LibExecution.CapabilityCheck.requireExec state.grantedCaps program argStrs
           match
-            Libc.spawnAndWaitWithTimeout
-              program
-              argStrs
-              (int (DarkInt.toBigInt timeoutMs))
+            Libc.spawnAndWaitWithTimeout program argStrs (intToInt32 vm timeoutMs)
           with
           | Ok(exitCode, stdout, stderr) ->
             resultOk (
@@ -940,10 +937,8 @@ let fns () : List<BuiltInFn> =
       description = "Sends a signal to a process."
       fn =
         (function
-        | _, _, _, [ DInt pid; DInt signal ] ->
-          match
-            Libc.kill (int (DarkInt.toBigInt pid)) (int (DarkInt.toBigInt signal))
-          with
+        | _, vm, _, [ DInt pid; DInt signal ] ->
+          match Libc.kill (intToInt32 vm pid) (intToInt32 vm signal) with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
             Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
@@ -964,12 +959,10 @@ let fns () : List<BuiltInFn> =
         "Reads up to count bytes from a file descriptor into an ephemeral Blob."
       fn =
         (function
-        | _, _, _, [ DInt fd; DInt count ] ->
+        | _, vm, _, [ DInt fd; DInt count ] ->
           let resultOk = Dval.resultOk KTBlob (posixErrorKT ())
           let resultError = Dval.resultError KTBlob (posixErrorKT ())
-          match
-            Libc.fdRead (int (DarkInt.toBigInt fd)) (int (DarkInt.toBigInt count))
-          with
+          match Libc.fdRead (intToInt32 vm fd) (intToInt32 vm count) with
           | Ok bytes -> resultOk (Blob.newEphemeral bytes) |> Ply
           | Error e -> resultError (dPosixError e) |> Ply
         | _ -> incorrectArgs ())
@@ -988,10 +981,10 @@ let fns () : List<BuiltInFn> =
       description = "Writes bytes to a file descriptor. Returns bytes written."
       fn =
         (function
-        | state, _, _, [ DInt fd; DBlob ref ] ->
+        | state, vm, _, [ DInt fd; DBlob ref ] ->
           uply {
             let! bytes = Blob.readBytes state ref
-            match Libc.fdWrite (int (DarkInt.toBigInt fd)) bytes with
+            match Libc.fdWrite (intToInt32 vm fd) bytes with
             | Ok n ->
               return Dval.resultOk KTInt (posixErrorKT ()) (Dval.int (bigint n))
             | Error e ->
@@ -1011,8 +1004,8 @@ let fns () : List<BuiltInFn> =
       description = "Closes a file descriptor."
       fn =
         (function
-        | _, _, _, [ DInt fd ] ->
-          match Libc.fdClose (int (DarkInt.toBigInt fd)) with
+        | _, vm, _, [ DInt fd ] ->
+          match Libc.fdClose (intToInt32 vm fd) with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
             Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
@@ -1033,14 +1026,9 @@ let fns () : List<BuiltInFn> =
       description = "Opens a file via libc open(). Returns a file descriptor."
       fn =
         (function
-        | state, _, _, [ DString path; DInt flags; DInt mode ] ->
+        | state, vm, _, [ DString path; DInt flags; DInt mode ] ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
-          match
-            Libc.openFile
-              path
-              (int (DarkInt.toBigInt flags))
-              (int (DarkInt.toBigInt mode))
-          with
+          match Libc.openFile path (intToInt32 vm flags) (intToInt32 vm mode) with
           | Ok fd ->
             Dval.resultOk KTInt (posixErrorKT ()) (Dval.int (bigint fd)) |> Ply
           | Error e ->
@@ -1318,9 +1306,9 @@ let fns () : List<BuiltInFn> =
       description = "Locks or unlocks a file via libc flock()"
       fn =
         (function
-        | _, _, _, [ DInt fd; DBool exclusive ] ->
+        | _, vm, _, [ DInt fd; DBool exclusive ] ->
           let op = if exclusive then Libc.LOCK_EX else Libc.LOCK_UN
-          match Libc.flock (int (DarkInt.toBigInt fd)) op with
+          match Libc.flock (intToInt32 vm fd) op with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
             Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply

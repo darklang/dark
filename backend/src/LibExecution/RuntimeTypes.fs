@@ -240,6 +240,23 @@ module DarkInt =
     | DarkInt.Finite i -> bigint i
     | DarkInt.Infinite b -> b
 
+  /// Checked narrowing to Int64: `Some` only when the value fits. An `Infinite`
+  /// is by invariant always outside Int64 range, so it is always `None`.
+  let toInt64 (di : DarkInt) : int64 option =
+    match di with
+    | DarkInt.Finite i -> Some i
+    | DarkInt.Infinite _ -> None
+
+  /// Checked narrowing to a native `int` (Int32): `Some` only when the value
+  /// fits `[Int32.MinValue, Int32.MaxValue]`.
+  let toInt32 (di : DarkInt) : int option =
+    match di with
+    | DarkInt.Finite i when
+      i >= int64 System.Int32.MinValue && i <= int64 System.Int32.MaxValue
+      ->
+      Some(int i)
+    | _ -> None
+
   let isZero (di : DarkInt) : bool =
     match di with
     | DarkInt.Finite i -> i = 0L

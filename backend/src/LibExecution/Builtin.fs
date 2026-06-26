@@ -65,4 +65,20 @@ module Shortcuts =
   let value = FQValueName.builtin
   let incorrectArgs = RuntimeTypes.incorrectArgs
 
+  /// Narrow an arbitrary-precision `Int` to a native `int64`, raising a Dark
+  /// `OutOfRange` error (rather than letting a host overflow escape) when the
+  /// value doesn't fit. Use at builtins that hand the value to int64-typed APIs.
+  let intToInt64 (vm : VMState) (i : DarkInt) : int64 =
+    match DarkInt.toInt64 i with
+    | Some v -> v
+    | None ->
+      RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
+
+  /// Like `intToInt64`, but narrows to a native `int` (Int32).
+  let intToInt32 (vm : VMState) (i : DarkInt) : int =
+    match DarkInt.toInt32 i with
+    | Some v -> v
+    | None ->
+      RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
+
   type Param = BuiltInParam

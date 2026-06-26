@@ -209,6 +209,17 @@ module Conversion =
 
   1095379198I |> Stdlib.DateTime.fromSeconds_v0 |> Stdlib.DateTime.toSeconds_v0 = 1095379198I
 
+  // seconds past Int64 range can't be represented; surface a Dark error
+  (2I ^ 63I) |> Stdlib.DateTime.fromSeconds_v0 =
+    error="Encountered out-of-range value for type of Int"
+
+  // Int64.MaxValue fits int64 but is past NodaTime's instant range; the host
+  // exception is turned into a Dark error rather than escaping
+  9223372036854775807I |> Stdlib.DateTime.fromSeconds_v0 =
+    error="Encountered out-of-range value for type of Int"
+  Stdlib.DateTime.addSeconds_v0 (Stdlib.DateTime.fromSeconds_v0 0I) 9223372036854775807I =
+    error="Encountered out-of-range value for type of Int"
+
   (d "2019-07-28T22:42:36Z")
   |> Stdlib.DateTime.toSeconds_v0
   |> Stdlib.DateTime.fromSeconds_v0

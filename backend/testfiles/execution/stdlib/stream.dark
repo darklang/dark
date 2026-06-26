@@ -66,6 +66,11 @@
  let none = Stdlib.Stream.take s 0I
  Stdlib.Stream.toList none) = []
 
+// a negative n of any magnitude (even past Int64) clamps to 0 -> empty
+(let s = Stdlib.Stream.fromList [ 1L; 2L ]
+ let none = Stdlib.Stream.take s -9223372036854775809I
+ Stdlib.Stream.toList none) = []
+
 // concat drains streams in list order
 (let a = Stdlib.Stream.fromList [ 1L; 2L ]
  let b = Stdlib.Stream.fromList [ 3L; 4L ]

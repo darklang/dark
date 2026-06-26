@@ -276,8 +276,8 @@ let fns () : List<BuiltInFn> =
         TCustomType(NR.ok typeName, [])
       fn =
         function
-        | _, _, _, [ DInt processId; DString input ] ->
-          let processId = int64 (DarkInt.toBigInt processId)
+        | _, vm, _, [ DInt processIdArg; DString input ] ->
+          let processId = intToInt64 vm processIdArg
           match processHandles.TryGetValue processId with
           | true, processInfo when not processInfo.Process.HasExited ->
             try
@@ -382,8 +382,8 @@ let fns () : List<BuiltInFn> =
         TCustomType(NR.ok typeName, [])
       fn =
         function
-        | _, _, _, [ DInt processId ] ->
-          let processId = int64 (DarkInt.toBigInt processId)
+        | _, vm, _, [ DInt processIdArg ] ->
+          let processId = intToInt64 vm processIdArg
           match processHandles.TryGetValue processId with
           | true, processInfo ->
             try

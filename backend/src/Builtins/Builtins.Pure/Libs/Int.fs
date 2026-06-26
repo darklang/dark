@@ -109,11 +109,14 @@ let fns () : List<BuiltInFn> =
          outcome. Returns an {{Error}} if <param divisor> is {{0}}."
       fn =
         let resultOk = Dval.resultOk KTInt KTString
+        let resultError = Dval.resultError KTInt KTString
         (function
-        | _, vm, _, [ DInt value; DInt divisor ] ->
+        | _, _, _, [ DInt value; DInt divisor ] ->
           let d = DarkInt.toBigInt divisor
           if d = bigZero then
-            divideByZero vm
+            // The return type is a `Result`, so surface this as an `Error`
+            // rather than raising a runtime error.
+            DString "Cannot divide by 0" |> resultError |> Ply
           else
             DarkInt.toBigInt value % d |> Dval.int |> resultOk |> Ply
         | _ -> incorrectArgs ())
@@ -828,8 +831,10 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise left shift of an <type Int> value"
       fn =
         (function
-        | _, _, _, [ DInt a; DInt b ] ->
-          Ply(Dval.int (DarkInt.toBigInt a <<< int (DarkInt.toBigInt b)))
+        | _, vm, _, [ DInt a; DInt b ] ->
+          // `<<<` needs a native Int32 shift count; reject anything that
+          // wouldn't fit rather than letting the cast overflow.
+          Ply(Dval.int (DarkInt.toBigInt a <<< intToInt32 vm b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -844,8 +849,10 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise right shift of an <type Int> value"
       fn =
         (function
-        | _, _, _, [ DInt a; DInt b ] ->
-          Ply(Dval.int (DarkInt.toBigInt a >>> int (DarkInt.toBigInt b)))
+        | _, vm, _, [ DInt a; DInt b ] ->
+          // `>>>` needs a native Int32 shift count; reject anything that
+          // wouldn't fit rather than letting the cast overflow.
+          Ply(Dval.int (DarkInt.toBigInt a >>> intToInt32 vm b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

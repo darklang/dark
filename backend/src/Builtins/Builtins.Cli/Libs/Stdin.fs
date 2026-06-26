@@ -317,10 +317,12 @@ let fns () : List<BuiltInFn> =
       description = "Reads a specified number of characters from the standard input."
       fn =
         (function
-        | _, _, _, [ DInt length ] ->
-          let length = int (DarkInt.toBigInt length)
+        | _, vm, _, [ DInt lengthArg ] ->
+          // length must fit a native int and be non-negative; both bounds are
+          // "out of range" for this parameter, surfaced as a Dark error.
+          let length = intToInt32 vm lengthArg
           if length < 0 then
-            Exception.raiseInternal "Length must be non-negative" []
+            RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
           else
             let buffer = Array.zeroCreate length
             let bytesRead = System.Console.In.Read(buffer, 0, length)

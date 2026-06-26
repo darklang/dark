@@ -102,9 +102,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Get recent package ops from the database."
       fn =
         function
-        | _, _, _, [ DInt limit ] ->
+        | _, vm, _, [ DInt limitArg ] ->
           uply {
-            let! ops = LibDB.Queries.getRecentOps (int64 (DarkInt.toBigInt limit))
+            let limit = intToInt64 vm limitArg
+            let! ops = LibDB.Queries.getRecentOps limit
             return Dval.list (packageOpKT ()) (ops |> List.map PT2DT.PackageOp.toDT)
           }
         | _ -> incorrectArgs ()
@@ -332,10 +333,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Get commit log for a branch ordered by date descending."
       fn =
         function
-        | _, _, _, [ DUuid branchId; DInt limit ] ->
+        | _, vm, _, [ DUuid branchId; DInt limit ] ->
           uply {
-            let! commits =
-              LibDB.Queries.getCommits branchId (int64 (DarkInt.toBigInt limit))
+            let! commits = LibDB.Queries.getCommits branchId (intToInt64 vm limit)
             return
               Dval.list
                 (PT2DT.Commit.knownType ())
@@ -358,12 +358,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Get commit log across the entire branch chain (current + ancestors), ordered by date descending."
       fn =
         function
-        | _, _, _, [ DUuid branchId; DInt limit ] ->
+        | _, vm, _, [ DUuid branchId; DInt limit ] ->
           uply {
             let! commits =
-              LibDB.Queries.getCommitsForBranchChain
-                branchId
-                (int64 (DarkInt.toBigInt limit))
+              LibDB.Queries.getCommitsForBranchChain branchId (intToInt64 vm limit)
             return
               Dval.list
                 (PT2DT.Commit.knownType ())

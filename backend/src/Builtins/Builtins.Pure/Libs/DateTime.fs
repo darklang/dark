@@ -30,6 +30,18 @@ let ISO8601DateParser (s : string) : Result<DarkDateTime.T, unit> =
   | _ -> Error()
 
 
+/// NodaTime rejects instants/periods outside its supported range by throwing
+/// host exceptions, even for values that fit int64. Run `f` and turn those into
+/// a Dark `OutOfRange` error rather than letting them escape.
+let private inDateRange (vm : VMState) (f : unit -> Dval) : Ply<Dval> =
+  try
+    f () |> Ply
+  with
+  | :? System.ArgumentOutOfRangeException
+  | :? System.OverflowException ->
+    RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
+
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "dateTimeParse" 0
       typeParams = []
@@ -125,12 +137,12 @@ let fns () : List<BuiltInFn> =
         "Returns a <type DateTime> <param seconds> seconds after <param d>"
       fn =
         (function
-        | _, _, _, [ DDateTime d; DInt s ] ->
-          d + (NodaTime.Period.FromSeconds(int64 (DarkInt.toBigInt s)))
-          |> DDateTime
-          |> Ply
+        | _, vm, _, [ DDateTime d; DInt s ] ->
+          inDateRange vm (fun () ->
+            d + (NodaTime.Period.FromSeconds(intToInt64 vm s)) |> DDateTime)
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "+"
+      // `seconds` is an `Int`, not queryable in DB.query yet; restore SqlBinOp "+" once it is
+      sqlSpec = NotQueryable
       previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
@@ -149,12 +161,12 @@ let fns () : List<BuiltInFn> =
         "Returns a <type DateTime> <param seconds> seconds before <param d>"
       fn =
         (function
-        | _, _, _, [ DDateTime d; DInt s ] ->
-          d - (NodaTime.Period.FromSeconds(int64 (DarkInt.toBigInt s)))
-          |> DDateTime
-          |> Ply
+        | _, vm, _, [ DDateTime d; DInt s ] ->
+          inDateRange vm (fun () ->
+            d - (NodaTime.Period.FromSeconds(intToInt64 vm s)) |> DDateTime)
         | _ -> incorrectArgs ())
-      sqlSpec = SqlBinOp "-"
+      // `seconds` is an `Int`, not queryable in DB.query yet; restore SqlBinOp "-" once it is
+      sqlSpec = NotQueryable
       previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
@@ -245,12 +257,12 @@ let fns () : List<BuiltInFn> =
         "Converts an <type Int> representing seconds since the Unix epoch into a <type DateTime>"
       fn =
         (function
-        | _, _, _, [ DInt s ] ->
-          (int64 (DarkInt.toBigInt s))
-          |> Instant.FromUnixTimeSeconds
-          |> DarkDateTime.fromInstant
-          |> DDateTime
-          |> Ply
+        | _, vm, _, [ DInt s ] ->
+          inDateRange vm (fun () ->
+            intToInt64 vm s
+            |> Instant.FromUnixTimeSeconds
+            |> DarkDateTime.fromInstant
+            |> DDateTime)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -267,7 +279,8 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DDateTime d ] -> d.Year |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'year'" ])
+      // `Int` isn't queryable yet; restore date_part('year') sqlSpec once it is
+      sqlSpec = NotQueryable
       previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
@@ -283,7 +296,8 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DDateTime d ] -> d.Month |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'month'" ])
+      // `Int` isn't queryable yet; restore date_part('month') sqlSpec once it is
+      sqlSpec = NotQueryable
       previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
@@ -298,7 +312,8 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DDateTime d ] -> d.Day |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'day'" ])
+      // `Int` isn't queryable yet; restore date_part('day') sqlSpec once it is
+      sqlSpec = NotQueryable
       previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
@@ -331,7 +346,8 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DDateTime d ] -> Ply(Dval.int (bigint d.Hour))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'hour'" ])
+      // `Int` isn't queryable yet; restore date_part('hour') sqlSpec once it is
+      sqlSpec = NotQueryable
       previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
@@ -346,7 +362,8 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DDateTime d ] -> Ply(Dval.int (bigint d.Minute))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'minute'" ])
+      // `Int` isn't queryable yet; restore date_part('minute') sqlSpec once it is
+      sqlSpec = NotQueryable
       previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
@@ -361,7 +378,8 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [ DDateTime d ] -> Ply(Dval.int (bigint d.Second))
         | _ -> incorrectArgs ())
-      sqlSpec = SqlFunctionWithPrefixArgs("date_part", [ "'second'" ])
+      // `Int` isn't queryable yet; restore date_part('second') sqlSpec once it is
+      sqlSpec = NotQueryable
       previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
@@ -439,12 +457,12 @@ let fns () : List<BuiltInFn> =
         "Converts an <type Int> representing milliseconds since the Unix epoch into a <type DateTime>"
       fn =
         (function
-        | _, _, _, [ DInt ms ] ->
-          (int64 (DarkInt.toBigInt ms))
-          |> Instant.FromUnixTimeMilliseconds
-          |> DarkDateTime.fromInstant
-          |> DDateTime
-          |> Ply
+        | _, vm, _, [ DInt ms ] ->
+          inDateRange vm (fun () ->
+            intToInt64 vm ms
+            |> Instant.FromUnixTimeMilliseconds
+            |> DarkDateTime.fromInstant
+            |> DDateTime)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -460,10 +478,9 @@ let fns () : List<BuiltInFn> =
         "Returns a <type DateTime> <param milliseconds> milliseconds after <param d>"
       fn =
         (function
-        | _, _, _, [ DDateTime d; DInt ms ] ->
-          d + (NodaTime.Period.FromMilliseconds(int64 (DarkInt.toBigInt ms)))
-          |> DDateTime
-          |> Ply
+        | _, vm, _, [ DDateTime d; DInt ms ] ->
+          inDateRange vm (fun () ->
+            d + (NodaTime.Period.FromMilliseconds(intToInt64 vm ms)) |> DDateTime)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -479,10 +496,9 @@ let fns () : List<BuiltInFn> =
         "Returns a <type DateTime> <param milliseconds> milliseconds before <param d>"
       fn =
         (function
-        | _, _, _, [ DDateTime d; DInt ms ] ->
-          d - (NodaTime.Period.FromMilliseconds(int64 (DarkInt.toBigInt ms)))
-          |> DDateTime
-          |> Ply
+        | _, vm, _, [ DDateTime d; DInt ms ] ->
+          inDateRange vm (fun () ->
+            d - (NodaTime.Period.FromMilliseconds(intToInt64 vm ms)) |> DDateTime)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

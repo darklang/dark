@@ -73,7 +73,7 @@ Stdlib.Int.remainder 20I 8I = Stdlib.Result.Result.Ok 4I
 Stdlib.Int.remainder -20I 8I = Stdlib.Result.Result.Ok -4I
 Stdlib.Int.remainder -20I -8I = Stdlib.Result.Result.Ok -4I
 Stdlib.Int.remainder -15I 6I = Stdlib.Result.Result.Ok -3I
-Stdlib.Int.remainder 5I 0I = error="Cannot divide by 0"
+Stdlib.Int.remainder 5I 0I = Stdlib.Result.Result.Error "Cannot divide by 0"
 // arbitrary precision: 2^100 mod 7 == 2, with a dividend well past Int64
 Stdlib.Int.remainder (2I ^ 100I) 7I = Stdlib.Result.Result.Ok 2I
 
@@ -91,3 +91,12 @@ Stdlib.Int.mod_v0 5I -5I = error="Cannot evaluate modulus against a negative num
 15I % 5I = 0I
 5I % 0I = error="Cannot evaluate modulus against 0"
 5I % -5I = error="Cannot evaluate modulus against a negative number"
+
+// --- shiftLeft / shiftRight: count must fit Int32, else OutOfRange ---
+Stdlib.Int.shiftLeft 1I 4I = 16I
+Stdlib.Int.shiftLeft 1I 64I = 18446744073709551616I
+Stdlib.Int.shiftRight 256I 4I = 16I
+Stdlib.Int.shiftLeft 1I (2I ^ 40I) =
+  error="Encountered out-of-range value for type of Int"
+Stdlib.Int.shiftRight 1I (2I ^ 40I) =
+  error="Encountered out-of-range value for type of Int"

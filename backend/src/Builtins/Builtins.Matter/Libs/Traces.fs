@@ -129,8 +129,8 @@ let fns () : List<BuiltInFn> =
       description = "List recent traces"
       fn =
         (function
-        | _, _, _, [ DInt limitArg ] ->
-          let limit = int64 (DarkInt.toBigInt limitArg)
+        | _, vm, _, [ DInt limitArg ] ->
+          let limit = intToInt64 vm limitArg
           uply {
             let typeName = traceSummaryTypeName ()
             let! rows =
@@ -227,8 +227,8 @@ let fns () : List<BuiltInFn> =
       description = "List traces that called a specific function"
       fn =
         (function
-        | _, _, _, [ DString fnName; DInt limitArg ] ->
-          let limit = int64 (DarkInt.toBigInt limitArg)
+        | _, vm, _, [ DString fnName; DInt limitArg ] ->
+          let limit = intToInt64 vm limitArg
           uply {
             // Both builtins and package fns store their display name in
             // fn_hash (resolved at write time), so one LIKE matches either.
@@ -283,8 +283,8 @@ let fns () : List<BuiltInFn> =
         "Per-handler aggregate over the last N traces: (handler, traceCount, totalMs, maxMs). Total ms sums every fn-call duration in each trace; per-trace latency would need a separate column on `traces`."
       fn =
         (function
-        | _, _, _, [ DInt traceLimitArg ] ->
-          let traceLimit = int64 (DarkInt.toBigInt traceLimitArg)
+        | _, vm, _, [ DInt traceLimitArg ] ->
+          let traceLimit = intToInt64 vm traceLimitArg
           uply {
             // Subquery: the last N trace IDs (and their handler_desc).
             // LEFT JOIN so traces with zero fn_calls still get counted.
@@ -335,8 +335,8 @@ let fns () : List<BuiltInFn> =
         "Aggregate fn-call timing across the last N traces. Returns (fnName, callCount, totalMs, maxMs) tuples sorted by totalMs desc. Lambdas are excluded (no fn_hash to bucket by); builtins included but always have 0ms duration."
       fn =
         (function
-        | _, _, _, [ DInt traceLimitArg ] ->
-          let traceLimit = int64 (DarkInt.toBigInt traceLimitArg)
+        | _, vm, _, [ DInt traceLimitArg ] ->
+          let traceLimit = intToInt64 vm traceLimitArg
           uply {
             // Subquery: the last N trace IDs by recency.
             // Outer GROUP BY rolls duration up per fn_hash.
@@ -396,8 +396,8 @@ let fns () : List<BuiltInFn> =
         "List traces whose recorded input or any fn-call args/result contains the substring (case-sensitive). Match is on the developer-repr form of each Dval."
       fn =
         (function
-        | exeState, _, _, [ DString pattern; DInt limitArg ] ->
-          let limit = int64 (DarkInt.toBigInt limitArg)
+        | exeState, vm, _, [ DString pattern; DInt limitArg ] ->
+          let limit = intToInt64 vm limitArg
           uply {
             let typeName = traceSummaryTypeName ()
 
@@ -705,8 +705,8 @@ let fns () : List<BuiltInFn> =
         "Delete all but the N most-recent traces (and their fn_calls). Returns the count deleted. Useful for bounded retention."
       fn =
         (function
-        | _, _, _, [ DInt keepNArg ] ->
-          let keepN = int64 (DarkInt.toBigInt keepNArg)
+        | _, vm, _, [ DInt keepNArg ] ->
+          let keepN = intToInt64 vm keepNArg
           uply {
             // Subquery picks the rowids to keep; outer DELETE removes the rest.
             // Wipe child rows first to avoid dangling fn_calls — there's no

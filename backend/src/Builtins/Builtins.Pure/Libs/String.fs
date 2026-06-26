@@ -276,12 +276,12 @@ let fns () : List<BuiltInFn> =
          Negative indices start counting from the end of <param string>."
       fn =
         (function
-        | _, _, _, [ DString s; DInt firstD; DInt lastD ] ->
+        | _, vm, _, [ DString s; DInt firstD; DInt lastD ] ->
           let getLengthInTextElements s = StringInfo(s).LengthInTextElements
 
           // slice positions are bounded by string length; narrow Int -> native int
-          let first = int (DarkInt.toBigInt firstD)
-          let last = int (DarkInt.toBigInt lastD)
+          let first = intToInt32 vm firstD
+          let last = intToInt32 vm lastD
 
           // Handle negative indexes (which allow counting from the end)
           let first =

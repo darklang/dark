@@ -349,7 +349,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | exeState,
-          _,
+          vm,
           _,
           [ DInt portArg
             DApplicable handler
@@ -358,10 +358,24 @@ let fns () : List<BuiltInFn> =
             DBool canonicalizeFromForwardedProto
             DBool logRequests ] ->
           uply {
-            // port/maxBodyBytes are the arbitrary-precision Int; the listener
-            // plumbing below uses int64.
-            let port = int64 (DarkInt.toBigInt portArg)
-            let maxBodyBytes = int64 (DarkInt.toBigInt maxBodyBytesArg)
+            // maxBodyBytes is a comparison threshold; a negative limit would
+            // reject every request (treated as over-limit), so reject it. 0 is
+            // valid (allow no body).
+            let maxBodyBytes = intToInt64 vm maxBodyBytesArg
+            if maxBodyBytes < 0L then
+              RuntimeError.Ints.OutOfRange
+              |> RuntimeError.Int
+              |> raiseRTE vm.threadID
+            // A TCP port must be in [0, 65535]. intToInt64 alone would let
+            // larger-but-int64-sized values reach HttpListener.Start and throw a
+            // host exception, so validate the real port range up front.
+            let port = intToInt64 vm portArg
+            if
+              port < int64 IPEndPoint.MinPort || port > int64 IPEndPoint.MaxPort
+            then
+              RuntimeError.Ints.OutOfRange
+              |> RuntimeError.Int
+              |> raiseRTE vm.threadID
             use _serveSpan =
               Telemetry.span "httpserver.serve" [ "port", string port ]
 
