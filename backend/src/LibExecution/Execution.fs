@@ -191,6 +191,7 @@ let executeFunction
   let fnInstr, fnReg, rc =
     let namedFn : RT.ApplicableNamedFn =
       { name = name
+        location = None
         typeSymbolTable = Map.empty
         typeArgs = typeArgs
         argsSoFar = [] }

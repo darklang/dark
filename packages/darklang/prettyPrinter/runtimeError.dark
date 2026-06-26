@@ -26,6 +26,10 @@ module RuntimeError =
 
     // -- Functions
     | FunctionName of FQFnName
+    /// Renders a function name using the package location that was actually
+    /// referenced. `None` falls back to normal hash-based rendering.
+    | FunctionNameAt of
+      FQFnName * Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>
     /// Description from StdLib description fields.
     /// Note: may include markers like `<param name>`, to be parsed and displayed differently.
     | Description of String
@@ -93,6 +97,10 @@ module RuntimeError =
             | Some prev -> Stdlib.String.articleFor prev ++ " "
 
           | FunctionName fn -> fnName branchId fn
+          | FunctionNameAt(fn, location) ->
+            match location with
+            | Some loc -> packageName loc.owner loc.modules loc.name
+            | None -> fnName branchId fn
 
           | Description d -> d
           | ParamName p -> $"`{p}`"
@@ -159,6 +167,15 @@ module RuntimeError =
     (expectedTypeLocation: Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>)
     : ES =
     ES.ExpectedType(expectedType, expectedTypeLocation)
+
+  /// Renders a function name in a mismatch, naming the function from its
+  /// resolved `location` when known so a structurally-identical sibling that
+  /// shares its hash isn't shown in its place.
+  let fnNameSegment
+    (fnName: FQFnName)
+    (fnNameLocation: Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>)
+    : ES =
+    ES.FunctionNameAt(fnName, fnNameLocation)
 
 
   let toSegments
@@ -446,8 +463,8 @@ module RuntimeError =
           ES.Count(expected, ES.String "argument", ES.String "arguments")
           ES.String ", but got "
           ES.Count(actual, ES.String "argument", ES.String "arguments") ]
-      | FnParameterNotExpectedType(fnName, paramIndex, paramName, expectedType, expectedTypeLocation, actualType, actualValue) ->
-        [ ES.FunctionName fnName
+      | FnParameterNotExpectedType(fnName, fnNameLocation, paramIndex, paramName, expectedType, expectedTypeLocation, actualType, actualValue) ->
+        [ (fnNameSegment fnName fnNameLocation)
           ES.String "'s "
           ES.Ordinal(paramIndex + 1L)
           ES.String " parameter "
@@ -459,8 +476,8 @@ module RuntimeError =
           ES.String " ("
           ES.FullValue actualValue
           ES.String ")" ]
-      | FnResultNotExpectedType(fnName, expectedType, expectedTypeLocation, actualType, actualValue) ->
-        [ ES.FunctionName fnName
+      | FnResultNotExpectedType(fnName, fnNameLocation, expectedType, expectedTypeLocation, actualType, actualValue) ->
+        [ (fnNameSegment fnName fnNameLocation)
           ES.String "'s return value expects "
           (expectedSegment expectedType expectedTypeLocation)
           ES.String ", but got "

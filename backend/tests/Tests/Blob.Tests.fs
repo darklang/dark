@@ -683,6 +683,7 @@ let private fakeAppNamedFn (argsSoFar : List<RT.Dval>) : RT.Dval =
   RT.DApplicable(
     RT.AppNamedFn
       { name = name
+        location = None
         typeSymbolTable = Map.empty
         typeArgs = []
         argsSoFar = argsSoFar }

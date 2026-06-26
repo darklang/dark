@@ -244,6 +244,7 @@ let rec resolveType
 let checkFnParam
   (types : Types)
   (fnName : FQFnName.FQFnName)
+  (fnNameLocation : Option<PackageLocation>)
   (tst : TypeSymbolTable)
   (paramIndex : int)
   (paramName : string)
@@ -260,6 +261,7 @@ let checkFnParam
       return
         RTE.Applications.FnParameterNotExpectedType(
           fnName,
+          fnNameLocation,
           paramIndex,
           paramName,
           expected,
@@ -275,6 +277,7 @@ let checkFnParam
 let checkFnResult
   (types : Types)
   (fnName : FQFnName.FQFnName)
+  (fnNameLocation : Option<PackageLocation>)
   (tst : TypeSymbolTable)
   (expected : TypeReference)
   (actual : Dval)
@@ -289,6 +292,7 @@ let checkFnResult
       return
         RTE.Applications.FnResultNotExpectedType(
           fnName,
+          fnNameLocation,
           expectedVT,
           expectedLocation,
           Dval.toValueType actual,

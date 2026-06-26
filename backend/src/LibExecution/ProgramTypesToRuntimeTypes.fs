@@ -751,6 +751,7 @@ module Expr =
         // Create a named function reference to the current function
         let namedFn : RT.ApplicableNamedFn =
           { name = FQFnName.toRT fnName
+            location = None
             typeSymbolTable = Map.empty
             typeArgs = []
             argsSoFar = [] }
@@ -878,6 +879,7 @@ module Expr =
           right.registerCount,
           RT.AppNamedFn
             { name = InfixFnName.toFnName infix |> RT.FQFnName.Builtin
+              location = None
               typeSymbolTable = Map.empty
               typeArgs = []
               argsSoFar = [] }
@@ -919,6 +921,7 @@ module Expr =
     | PT.EFnName(_, { resolved = Ok resolved }) ->
       let namedFn : RT.ApplicableNamedFn =
         { name = FQFnName.toRT resolved.name
+          location = resolved.location |> Option.map PackageLocation.toRT
           typeSymbolTable = Map.empty
           typeArgs = []
           argsSoFar = [] }

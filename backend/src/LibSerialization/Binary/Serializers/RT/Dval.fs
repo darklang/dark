@@ -95,6 +95,11 @@ and writeApplicableLambda (w : BinaryWriter) (lambda : ApplicableLambda) =
 
 and writeApplicableNamedFn (w : BinaryWriter) (namedFn : ApplicableNamedFn) =
   FQFnName.write w namedFn.name
+  match namedFn.location with
+  | None -> w.Write 0uy
+  | Some loc ->
+    w.Write 1uy
+    PackageLocation.write w loc
   writeTypeSymbolTable w namedFn.typeSymbolTable
   List.write w TypeReference.write namedFn.typeArgs
   List.write w writeDval namedFn.argsSoFar
@@ -272,10 +277,16 @@ and readApplicableLambda (r : BinaryReader) : ApplicableLambda =
 
 and readApplicableNamedFn (r : BinaryReader) : ApplicableNamedFn =
   let name = FQFnName.read r
+  let location =
+    match r.ReadByte() with
+    | 0uy -> None
+    | 1uy -> Some(PackageLocation.read r)
+    | b -> raiseFormatError $"Invalid ApplicableNamedFn location tag: {b}"
   let typeSymbolTable = readTypeSymbolTable r
   let typeArgs = List.read r TypeReference.read
   let argsSoFar = List.read r readDval
   { name = name
+    location = location
     typeSymbolTable = typeSymbolTable
     typeArgs = typeArgs
     argsSoFar = argsSoFar }

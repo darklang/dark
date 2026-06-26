@@ -589,6 +589,7 @@ module Fns =
         (RT.DApplicable(
           RT.AppNamedFn
             { name = RT.FQFnName.fqBuiltin "int64Add" 0
+              location = None
               typeSymbolTable = Map.empty
               typeArgs = []
               argsSoFar = [] }
@@ -601,6 +602,7 @@ module Fns =
         (RT.DApplicable(
           RT.AppNamedFn
             { name = RT.FQFnName.fqBuiltin "int64Add" 0
+              location = None
               typeSymbolTable = Map.empty
               typeArgs = []
               argsSoFar = [ RT.DInt64 1 ] }
@@ -628,6 +630,7 @@ module Fns =
           (RT.DApplicable(
             RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
+                location = None
                 typeSymbolTable = Map.empty
                 typeArgs = []
                 argsSoFar = [] }
@@ -640,6 +643,7 @@ module Fns =
           (RT.DApplicable(
             RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
+                location = None
                 typeSymbolTable = Map.empty
                 typeArgs = []
                 argsSoFar = [ RT.DInt64 1 ] }
@@ -660,6 +664,7 @@ module Fns =
           (RT.DApplicable(
             RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.Fact.hash
+                location = None
                 typeSymbolTable = Map.empty
                 typeArgs = []
                 argsSoFar = [] }

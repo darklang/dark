@@ -591,14 +591,23 @@ and LambdaImpl =
 
 
 and ApplicableNamedFn =
-  { name : FQFnName.FQFnName
+  {
+    name : FQFnName.FQFnName
+
+    /// The package location the function reference resolved to, when known
+    /// (None for built-ins / re-derived applicables). Carried so error messages
+    /// name the *referenced* function rather than the canonical name of a
+    /// structurally-identical sibling that shares its hash. Excluded from
+    /// equality (see `Builtins.Pure.Libs.NoModule`).
+    location : Option<PackageLocation>
 
     typeSymbolTable : TypeSymbolTable
 
     // CLEANUP maybe this could be List<ValueType>?
     typeArgs : List<TypeReference>
 
-    argsSoFar : List<Dval> }
+    argsSoFar : List<Dval>
+  }
 
 and ApplicableLambda =
   {
@@ -1006,6 +1015,10 @@ module RuntimeError =
 
       | FnParameterNotExpectedType of
         fnName : FQFnName.FQFnName *
+        // The package location the called function resolved to, when known.
+        // Like `expectedTypeLocation`, lets the message name the referenced
+        // function rather than a canonical sibling that shares its hash.
+        fnNameLocation : Option<PackageLocation> *
         paramIndex : int64 *
         paramName : string *
         expectedType : ValueType *
@@ -1018,6 +1031,8 @@ module RuntimeError =
 
       | FnResultNotExpectedType of
         fnName : FQFnName.FQFnName *
+        // See `fnNameLocation` on `FnParameterNotExpectedType`.
+        fnNameLocation : Option<PackageLocation> *
         expectedType : ValueType *
         // See `expectedTypeLocation` on `FnParameterNotExpectedType`.
         expectedTypeLocation : Option<PackageLocation> *
@@ -1662,6 +1677,13 @@ type CallFrame =
     // so we keep only one copy of such, in the root of the VMState
     executionPoint : ExecutionPoint
 
+    /// The package location the called function was referenced by, when known.
+    /// `executionPoint` keeps only the hash, which renders as the canonical name
+    /// of a structurally-identical sibling; this lets a result-type-mismatch
+    /// error name the function as it was actually called. None for the root
+    /// frame, lambdas, and built-ins.
+    fnLocation : Option<PackageLocation>
+
     /// What instruction index we are currently 'at'
     mutable programCounter : int
 
@@ -1777,6 +1799,7 @@ type VMState =
     let rootCallFrame : CallFrame =
       { id = rootCallFrameID
         executionPoint = Source
+        fnLocation = None
         programCounter = 0
         registers = Array.zeroCreate instrs.registerCount
         typeSymbolTable = Map.empty

@@ -600,6 +600,7 @@ module ApplicableNamedFn =
     match d with
     | DRecord(_, _, _, fields) ->
       { name = FQFnName.fromDT (fields |> D.field "name")
+        location = None
         typeSymbolTable = Map.empty // TODO
         typeArgs = fields |> D.field "typeArgs" |> D.list TypeReference.fromDT
         argsSoFar = fields |> D.field "argsSoFar" |> D.list Dval.fromDT }
@@ -1248,6 +1249,7 @@ module RuntimeError =
         | RuntimeError.Applications.TooManyArgsForFn(fn, expected, actual) ->
           "TooManyArgsForFn", [ FQFnName.toDT fn; DInt64 expected; DInt64 actual ]
         | RuntimeError.Applications.FnParameterNotExpectedType(fnName,
+                                                               fnNameLocation,
                                                                paramIndex,
                                                                paramName,
                                                                expectedType,
@@ -1256,6 +1258,10 @@ module RuntimeError =
                                                                actualValue) ->
           "FnParameterNotExpectedType",
           [ FQFnName.toDT fnName
+            C2DT.Option.toDT
+              PackageLocation.toDT
+              (PackageLocation.knownType ())
+              fnNameLocation
             DInt64 paramIndex
             DString paramName
             ValueType.toDT expectedType
@@ -1266,12 +1272,17 @@ module RuntimeError =
             ValueType.toDT actualType
             Dval.toDT actualValue ]
         | RuntimeError.Applications.FnResultNotExpectedType(fnName,
+                                                            fnNameLocation,
                                                             expectedType,
                                                             expectedTypeLocation,
                                                             actualType,
                                                             actualValue) ->
           "FnResultNotExpectedType",
           [ FQFnName.toDT fnName
+            C2DT.Option.toDT
+              PackageLocation.toDT
+              (PackageLocation.knownType ())
+              fnNameLocation
             ValueType.toDT expectedType
             C2DT.Option.toDT
               PackageLocation.toDT
@@ -1319,6 +1330,7 @@ module RuntimeError =
               [],
               "FnParameterNotExpectedType",
               [ fnName
+                fnNameLocation
                 paramIndex
                 paramName
                 expectedType
@@ -1327,6 +1339,7 @@ module RuntimeError =
                 actualValue ]) ->
         RuntimeError.Applications.FnParameterNotExpectedType(
           FQFnName.fromDT fnName,
+          C2DT.Option.fromDT PackageLocation.fromDT fnNameLocation,
           D.int64 paramIndex,
           D.string paramName,
           ValueType.fromDT expectedType,
@@ -1338,9 +1351,15 @@ module RuntimeError =
               _,
               [],
               "FnResultNotExpectedType",
-              [ fnName; expectedType; expectedTypeLocation; actualType; actualValue ]) ->
+              [ fnName
+                fnNameLocation
+                expectedType
+                expectedTypeLocation
+                actualType
+                actualValue ]) ->
         RuntimeError.Applications.FnResultNotExpectedType(
           FQFnName.fromDT fnName,
+          C2DT.Option.fromDT PackageLocation.fromDT fnNameLocation,
           ValueType.fromDT expectedType,
           C2DT.Option.fromDT PackageLocation.fromDT expectedTypeLocation,
           ValueType.fromDT actualType,

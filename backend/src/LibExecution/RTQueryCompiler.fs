@@ -100,6 +100,7 @@ let partialEvaluate
     // Load the function reference
     let appFn : RT.ApplicableNamedFn =
       { name = fnName
+        location = None
         typeSymbolTable = Map.empty
         typeArgs = typeArgs
         argsSoFar = [] }
