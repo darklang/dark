@@ -1134,7 +1134,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 RuntimeError.Applications.FnResultNotExpectedType(
                   fnName,
                   expectedVT,
-                  TypeReference.originalNameOf expectedReturnType,
+                  TypeReference.locationOf expectedReturnType,
                   Dval.toValueType resultOfFrame,
                   resultOfFrame
                 )

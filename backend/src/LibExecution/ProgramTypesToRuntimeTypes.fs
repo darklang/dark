@@ -54,18 +54,24 @@ module NameResolutionError =
     | PT.NameResolutionError.NotFound -> RT.NameResolutionError.NotFound
     | PT.NameResolutionError.InvalidName -> RT.NameResolutionError.InvalidName
 
+module PackageLocation =
+  let toRT (l : PT.PackageLocation) : RT.PackageLocation =
+    { owner = l.owner; modules = l.modules; name = l.name }
+
 module NameResolution =
-  // `location` is package-store metadata — load-bearing for propagation
-  // rewrites (AstTransformer's byLocation substitution), SCC hash
-  // substitution (Canonical writer), dep-edge inserts, and deferred
-  // refresh. The runtime executes against already-resolved hashes and
-  // has no use for any of that, so we drop location at the PT→RT boundary.
+  // PT.NameResolution.location is package-store metadata used by package
+  // rewriting, hashing, dependency tracking, and deferred refresh. RT keeps it
+  // only so runtime errors can render the package name that was referenced.
   let toRT (f : 'a -> 'b) (nr : PT.NameResolution<'a>) : RT.NameResolution<'b> =
     { originalName = nr.originalName
       resolved =
         match nr.resolved with
         | Ok resolved -> Ok(f resolved.name)
-        | Error e -> Error(NameResolutionError.toRT e) }
+        | Error e -> Error(NameResolutionError.toRT e)
+      location =
+        match nr.resolved with
+        | Ok resolved -> resolved.location |> Option.map PackageLocation.toRT
+        | Error _ -> None }
 
 
 module TypeReference =

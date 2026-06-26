@@ -116,12 +116,24 @@ type NameResolutionError =
   | NotFound
   | InvalidName
 
+/// The package location a reference resolved to (owner.modules.name). Carried
+/// from PT so error messages can name the referenced item when multiple names
+/// share the same hash.
+type PackageLocation = { owner : string; modules : List<string>; name : string }
+
 type NameResolution<'a> =
-  { originalName : List<string>; resolved : Result<'a, NameResolutionError> }
+  {
+    originalName : List<string>
+    resolved : Result<'a, NameResolutionError>
+    /// The resolved item's location, when known (only meaningful when
+    /// `resolved` is `Ok`). Preserved from PT to disambiguate the rendered
+    /// name of structurally-identical siblings.
+    location : Option<PackageLocation>
+  }
 
 module NameResolution =
   let ok (value : 'a) : NameResolution<'a> =
-    { originalName = []; resolved = Ok value }
+    { originalName = []; resolved = Ok value; location = None }
 
 
 /// A KnownType represents the type of a dval.
@@ -997,20 +1009,18 @@ module RuntimeError =
         paramIndex : int64 *
         paramName : string *
         expectedType : ValueType *
-        // The expected type's name as written at the parameter's declaration
-        // site, when it is a custom type ([] otherwise). Carried separately
-        // because `expectedType` is reduced to a hash, which renders as the
-        // canonical name of any structurally-identical sibling rather than the
-        // name actually written.
-        expectedTypeName : List<string> *
+        // The package location the expected type resolved to, when it's a
+        // custom type (None otherwise). Used by error rendering to name the
+        // referenced type when multiple names share the same hash.
+        expectedTypeLocation : Option<PackageLocation> *
         actualType : ValueType *
         actualValue : Dval
 
       | FnResultNotExpectedType of
         fnName : FQFnName.FQFnName *
         expectedType : ValueType *
-        // See `expectedTypeName` on `FnParameterNotExpectedType`.
-        expectedTypeName : List<string> *
+        // See `expectedTypeLocation` on `FnParameterNotExpectedType`.
+        expectedTypeLocation : Option<PackageLocation> *
         actualType : ValueType *
         actualValue : Dval
 
@@ -2023,14 +2033,16 @@ module TypeReference =
   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
     TCustomType(
       { originalName = []
-        resolved = Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.result ())) },
+        resolved = Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.result ()))
+        location = None },
       [ t1; t2 ]
     )
 
   let option (t : TypeReference) : TypeReference =
     TCustomType(
       { originalName = []
-        resolved = Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.option ())) },
+        resolved = Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.option ()))
+        location = None },
       [ t ]
     )
 
@@ -2055,6 +2067,13 @@ module TypeReference =
     match typeRef with
     | TCustomType(nr, _) -> nr.originalName
     | _ -> []
+
+  /// The resolved package location of a custom type reference, when known.
+  /// Used by runtime error rendering.
+  let locationOf (typeRef : TypeReference) : Option<PackageLocation> =
+    match typeRef with
+    | TCustomType(nr, _) -> nr.location
+    | _ -> None
 
 
   let rec toVT

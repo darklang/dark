@@ -110,8 +110,8 @@ module Applications =
     | WrongNumberOfTypeArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
     | CannotApplyTypeArgsMoreThanOnce
     | TooManyArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
-    | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int64 * paramName : String * expectedType : ValueType * expectedTypeName : List<String> * actualType : ValueType * actualValue : Dval
-    | FnResultNotExpectedType of fnName : FQFnName.FQFnName * expectedType : ValueType * expectedTypeName : List<String> * actualType : ValueType * actualValue : Dval
+    | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int64 * paramName : String * expectedType : ValueType * expectedTypeLocation : Stdlib.Option.Option<ProgramTypes.PackageLocation> * actualType : ValueType * actualValue : Dval
+    | FnResultNotExpectedType of fnName : FQFnName.FQFnName * expectedType : ValueType * expectedTypeLocation : Stdlib.Option.Option<ProgramTypes.PackageLocation> * actualType : ValueType * actualValue : Dval
 
     | CannotApplyTypeArgsToLambda
     | TooManyArgsForLambda of lambdaExprId: ID * expected: Int64 * actual: Int64

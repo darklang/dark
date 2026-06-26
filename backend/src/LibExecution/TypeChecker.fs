@@ -251,7 +251,7 @@ let checkFnParam
   (actual : Dval)
   : Ply<Result<TypeSymbolTable, RTE.Error>> =
   uply {
-    let expectedName = TypeReference.originalNameOf expected
+    let expectedLocation = TypeReference.locationOf expected
     let! expected = TypeReference.unwrapAlias types expected
     match! unify types tst expected actual with
     | Ok updatedTst -> return Ok updatedTst
@@ -263,7 +263,7 @@ let checkFnParam
           paramIndex,
           paramName,
           expected,
-          expectedName,
+          expectedLocation,
           Dval.toValueType actual,
           actual
         )
@@ -280,7 +280,7 @@ let checkFnResult
   (actual : Dval)
   : Ply<Result<TypeSymbolTable, RTE.Error>> =
   uply {
-    let expectedName = TypeReference.originalNameOf expected
+    let expectedLocation = TypeReference.locationOf expected
     let! expected = TypeReference.unwrapAlias types expected
     let! expectedVT = TypeReference.toVT types tst expected
     match! unify types tst expected actual with
@@ -290,7 +290,7 @@ let checkFnResult
         RTE.Applications.FnResultNotExpectedType(
           fnName,
           expectedVT,
-          expectedName,
+          expectedLocation,
           Dval.toValueType actual,
           actual
         )

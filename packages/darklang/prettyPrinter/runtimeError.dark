@@ -38,6 +38,9 @@ module RuntimeError =
     | TypeReference of TypeReference
     | TypeOfValue of Dval // CLEANUP should these all just be ValueTypes?
     | ValueType of ValueType
+    /// Renders custom expected types using the package name that was actually
+    /// referenced. `None` falls back to normal ValueType rendering.
+    | ExpectedType of ValueType * Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>
     | FieldName of String // records and enums
     | InlineFieldName of String // records and enums
 
@@ -102,6 +105,7 @@ module RuntimeError =
           | TypeReference t -> typeReference branchId t
           | TypeOfValue dv -> Dval.valueTypeName branchId dv
           | ValueType vt -> valueType branchId vt
+          | ExpectedType(vt, location) -> valueTypeAtLocation branchId location vt
           | FieldName f -> $"`{f}`"
           | InlineFieldName f -> f
           | DBName db -> db
@@ -146,14 +150,15 @@ module RuntimeError =
     | _ -> ""
 
 
-  /// Renders the "expected type" in a mismatch. Prefers the name as written at
-  /// the declaration site (`expectedTypeName`) when present; otherwise falls
-  /// back to the value type, which for a custom type shows the canonical name
-  /// of any structurally-identical sibling rather than the name written.
-  let expectedSegment (expectedType: ValueType) (expectedTypeName: List<String>) : ES =
-    match expectedTypeName with
-    | [] -> ES.ValueType expectedType
-    | names -> ES.String(Stdlib.String.join names ".")
+  /// Renders the "expected type" in a mismatch. Renders the value type (keeping
+  /// type arguments), but names the outermost custom type from its resolved
+  /// `location` so a structurally-identical sibling's canonical name isn't
+  /// shown in its place (e.g. the byte-identical `Int*.ParseError` enums).
+  let expectedSegment
+    (expectedType: ValueType)
+    (expectedTypeLocation: Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>)
+    : ES =
+    ES.ExpectedType(expectedType, expectedTypeLocation)
 
 
   let toSegments
@@ -441,23 +446,23 @@ module RuntimeError =
           ES.Count(expected, ES.String "argument", ES.String "arguments")
           ES.String ", but got "
           ES.Count(actual, ES.String "argument", ES.String "arguments") ]
-      | FnParameterNotExpectedType(fnName, paramIndex, paramName, expectedType, expectedTypeName, actualType, actualValue) ->
+      | FnParameterNotExpectedType(fnName, paramIndex, paramName, expectedType, expectedTypeLocation, actualType, actualValue) ->
         [ ES.FunctionName fnName
           ES.String "'s "
           ES.Ordinal(paramIndex + 1L)
           ES.String " parameter "
           ES.ParamName paramName
           ES.String " expects "
-          (expectedSegment expectedType expectedTypeName)
+          (expectedSegment expectedType expectedTypeLocation)
           ES.String ", but got "
           ES.ValueType actualType
           ES.String " ("
           ES.FullValue actualValue
           ES.String ")" ]
-      | FnResultNotExpectedType(fnName, expectedType, expectedTypeName, actualType, actualValue) ->
+      | FnResultNotExpectedType(fnName, expectedType, expectedTypeLocation, actualType, actualValue) ->
         [ ES.FunctionName fnName
           ES.String "'s return value expects "
-          (expectedSegment expectedType expectedTypeName)
+          (expectedSegment expectedType expectedTypeLocation)
           ES.String ", but got "
           ES.ValueType actualType
           ES.String " ("

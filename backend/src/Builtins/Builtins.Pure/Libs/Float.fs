@@ -301,7 +301,8 @@ let fns () : List<BuiltInFn> =
           (TCustomType(
             { originalName = []
               resolved =
-                Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.floatParseError ())) },
+                Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.floatParseError ()))
+              location = None },
             []
           ))
       description =
