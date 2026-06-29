@@ -71,8 +71,8 @@ module ParseError =
     let typeName = unparseableTypeName ()
     let fields =
       [ "text", DString u.text
-        "line", DInt64 u.line
-        "column", DInt64 u.column
+        "line", Dval.int (bigint u.line)
+        "column", Dval.int (bigint u.column)
         "note", C2DT.Option.toDT DString KTString u.note ]
     DRecord(typeName, typeName, [], Map fields)
 
@@ -80,8 +80,8 @@ module ParseError =
     match d with
     | DRecord(_, _, _, fields) ->
       { text = fields |> D.field "text" |> D.string
-        line = fields |> D.field "line" |> D.int64
-        column = fields |> D.field "column" |> D.int64
+        line = fields |> D.field "line" |> D.darkInt |> int64
+        column = fields |> D.field "column" |> D.darkInt |> int64
         note = C2DT.Option.fromDT D.string (fields |> D.field "note") }
     | _ -> Exception.raiseInternal "Invalid Unparseable Dval" [ "dval", d ]
 

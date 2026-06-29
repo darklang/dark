@@ -39,6 +39,11 @@ Stdlib.Int.toString 9223372036854775808I = "9223372036854775808"
 Stdlib.Int.parse "9223372036854775808" = Stdlib.Result.Result.Ok 9223372036854775808I
 Stdlib.Int.parse "5" = Stdlib.Result.Result.Ok 5I
 Stdlib.Int.parse "not a number" = Stdlib.Result.Result.Error Stdlib.Int.ParseError.BadFormat
+Stdlib.Int.parse "" = Stdlib.Result.Result.Error Stdlib.Int.ParseError.BadFormat
+Stdlib.Int.parse "5.0" = Stdlib.Result.Result.Error Stdlib.Int.ParseError.BadFormat
+Stdlib.Int.parse "5_000" = Stdlib.Result.Result.Error Stdlib.Int.ParseError.BadFormat
+// arbitrary precision: a value past Int64.MinValue still parses
+Stdlib.Int.parse "-9223372036854775809" = Stdlib.Result.Result.Ok -9223372036854775809I
 Stdlib.Int.fromInt64 5L = 5I
 
 // toInt64 relies on the invariant: a small Int always fits, a big Int never does

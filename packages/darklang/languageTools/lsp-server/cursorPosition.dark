@@ -43,25 +43,24 @@ let wordUnderCursor
   (text: String)
   (cursorPosition: LanguageServerProtocol.Position.Position)
   : String =
-  let lineNum = cursorPosition.line |> Stdlib.Int.fromUInt64
-  let charPos = cursorPosition.character |> Stdlib.Int.fromUInt64
+  // `fromUInt64` is total now that `Int` is arbitrary-precision, so there's
+  // no `Option` to unwrap.
+  let line = cursorPosition.line |> Stdlib.Int.fromUInt64
+  let character = cursorPosition.character |> Stdlib.Int.fromUInt64
 
-  match (lineNum, charPos) with
-  | (Some line, Some character) ->
-    let currentLine =
-      text
-      |> Stdlib.String.split "\n"
-      |> Stdlib.List.getAt line
-      |> Stdlib.Option.withDefault ""
-
-    let lineToCursor =
-      currentLine |> Stdlib.String.slice 0I character
-
-    lineToCursor
-    |> Stdlib.String.split " "
-    |> Stdlib.List.last
+  let currentLine =
+    text
+    |> Stdlib.String.split "\n"
+    |> Stdlib.List.getAt line
     |> Stdlib.Option.withDefault ""
-  | _ -> ""
+
+  let lineToCursor =
+    currentLine |> Stdlib.String.slice 0I character
+
+  lineToCursor
+  |> Stdlib.String.split " "
+  |> Stdlib.List.last
+  |> Stdlib.Option.withDefault ""
 
 
 /// Check if the position falls within the node's range
@@ -77,26 +76,21 @@ let checkIfPositionWithinRange
   let rangeStartCharacter = range.start.column
   let rangeEndCharacter = range.end_.column
 
-  match line, character with
-  | Some line, Some character ->
-    if
-      line == rangeStartLine
-      && character >= rangeStartCharacter
-      && character <= rangeEndCharacter
-    then
-      Stdlib.Option.Option.Some(range)
-    else
-      Stdlib.Option.Option.None
-  | _, _ -> Stdlib.Option.Option.None
+  if
+    line == rangeStartLine
+    && character >= rangeStartCharacter
+    && character <= rangeEndCharacter
+  then
+    Stdlib.Option.Option.Some(range)
+  else
+    Stdlib.Option.Option.None
 
 
 let isLineNumberInRange
   (position: LanguageServerProtocol.Position.Position)
   (range: WrittenTypes.Range)
   : Bool =
-  match position.line |> Stdlib.Int.fromUInt64 with
-  | Some line ->
-    let rangeStartLine = range.start.row
-    let rangeEndLine = range.end_.row
-    line >= rangeStartLine && line <= rangeEndLine
-  | None -> false
+  let line = position.line |> Stdlib.Int.fromUInt64
+  let rangeStartLine = range.start.row
+  let rangeEndLine = range.end_.row
+  line >= rangeStartLine && line <= rangeEndLine

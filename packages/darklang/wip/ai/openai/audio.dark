@@ -475,7 +475,7 @@ module Transcriptions =
     : Stdlib.Option.Option<TranscriptionDiarizedSegment> =
     match item with
     | Object fields ->
-      match (Stdlib.AltJson.Helpers.getInt "id" fields,
+      match (Stdlib.AltJson.Helpers.getIntOption "id" fields,
              Stdlib.AltJson.Helpers.getNumber "start" fields,
              Stdlib.AltJson.Helpers.getNumber "end" fields,
              Stdlib.AltJson.Helpers.getString "speaker" fields,
@@ -484,7 +484,7 @@ module Transcriptions =
       | (Some id, Some start, Some end_, Some speaker, Some text, Some type_) ->
         Stdlib.Option.Option.Some(
           TranscriptionDiarizedSegment
-            { id = Stdlib.Int.fromInt64 id
+            { id = id
               start = start
               end_ = end_
               speaker = speaker

@@ -84,7 +84,7 @@ let testEvalStringLength (): TestResult =
 
 
 let testEvalListLength (): TestResult =
-  let output = runWithCommand ["eval"; "[1L; 2L; 3L] |> Stdlib.List.length"]
+  let output = runWithCommand ["eval"; "[1; 2; 3] |> Stdlib.List.length"]
   if output == "3" then
     TestResult.Pass
   else

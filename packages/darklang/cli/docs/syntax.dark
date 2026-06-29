@@ -18,7 +18,7 @@ let content () : String =
   | None -> 0
 
 ## Pipe (parens for complex LHS)
-  (Stdlib.List.range 0I 10I) |> Stdlib.List.map fn
+  (Stdlib.List.range 0 10) |> Stdlib.List.map fn
 
 ## Lists (semicolon separator)
   [1; 2; 3]

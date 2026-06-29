@@ -116,9 +116,7 @@ let clamp (value: Int) (limitA: Int) (limitB: Int) : Int =
 
 /// Returns the <type Int> value of a <type String>. Because <type Int> is
 /// arbitrary-precision, the only failure is a badly-formatted string.
-let parse
-  (s: String)
-  : Stdlib.Result.Result<Int, Stdlib.Int.ParseError> =
+let parse (s: String) : Stdlib.Result.Result<Int, ParseError> =
   Builtin.intParse s
 
 

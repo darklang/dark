@@ -315,7 +315,7 @@ type Cookie =
 
 //     let cookie =
 //       [ ("Expires", expires)
-//         ("Max-Age", cookie.maxAge |> Stdlib.Int64.toString)
+//         ("Max-Age", cookie.maxAge |> Stdlib.Int.toString)
 //         ("Domain", cookie.domain)
 //         ("Path", cookie.path)
 //         ("Secure", cookie.secure |> Stdlib.Bool.toString)

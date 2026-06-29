@@ -73,10 +73,23 @@ module Response =
         match headers with
         | Ok headers ->
           let! body = Blob.readBytes state bodyRef
-          return
-            { statusCode = int (RT.DarkInt.toBigInt code)
-              headers = lowercaseHeaderKeys headers
-              body = body }
+          // `statusCode` is an arbitrary-precision `Int`; narrowing a value
+          // outside Int32 range with `int` would throw a host exception, so
+          // reject it as an application error instead.
+          let codeBig = RT.DarkInt.toBigInt code
+          if
+            codeBig < bigint System.Int32.MinValue
+            || codeBig > bigint System.Int32.MaxValue
+          then
+            return
+              { statusCode = 500
+                headers = [ "Content-Type", "text/plain; charset=utf-8" ]
+                body = UTF8.toBytes "Application error: statusCode out of range" }
+          else
+            return
+              { statusCode = int codeBig
+                headers = lowercaseHeaderKeys headers
+                body = body }
         | Error msg ->
           return
             { statusCode = 500

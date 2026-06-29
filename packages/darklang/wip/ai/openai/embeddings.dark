@@ -75,7 +75,7 @@ let parseEmbedding (item: Json) : Stdlib.Option.Option<Embedding> =
   match item with
   | Object itemFields ->
     match (Stdlib.AltJson.Helpers.getValue "embedding" itemFields,
-           Stdlib.AltJson.Helpers.getInt "index" itemFields,
+           Stdlib.AltJson.Helpers.getIntOption "index" itemFields,
            Stdlib.AltJson.Helpers.getString "object" itemFields) with
     | (Some (Array embeddingArray), Some index, Some obj) ->
       let floats =
@@ -84,7 +84,7 @@ let parseEmbedding (item: Json) : Stdlib.Option.Option<Embedding> =
           | Number n -> Stdlib.Option.Option.Some n
           | _ -> Stdlib.Option.Option.None)
       Stdlib.Option.Option.Some(
-        Embedding { embedding = floats; index = Stdlib.Int.fromInt64 index; object_ = obj })
+        Embedding { embedding = floats; index = index; object_ = obj })
     | _ -> Stdlib.Option.Option.None
   | _ -> Stdlib.Option.Option.None
 
@@ -92,13 +92,11 @@ let parseEmbedding (item: Json) : Stdlib.Option.Option<Embedding> =
 let parseUsage (fields: List<(String * Json)>) : Stdlib.Option.Option<Usage> =
   match Stdlib.AltJson.Helpers.getValue "usage" fields with
   | Some (Object usageFields) ->
-    match (Stdlib.AltJson.Helpers.getInt "prompt_tokens" usageFields,
-           Stdlib.AltJson.Helpers.getInt "total_tokens" usageFields) with
+    match (Stdlib.AltJson.Helpers.getIntOption "prompt_tokens" usageFields,
+           Stdlib.AltJson.Helpers.getIntOption "total_tokens" usageFields) with
     | (Some promptTokens, Some totalTokens) ->
       Stdlib.Option.Option.Some(
-        Usage
-          { promptTokens = Stdlib.Int.fromInt64 promptTokens
-            totalTokens = Stdlib.Int.fromInt64 totalTokens })
+        Usage { promptTokens = promptTokens; totalTokens = totalTokens })
     | _ -> Stdlib.Option.Option.None
   | _ -> Stdlib.Option.Option.None
 

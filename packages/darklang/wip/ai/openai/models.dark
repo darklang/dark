@@ -52,7 +52,7 @@ let list
               match item with
               | Object itemFields ->
                 match (Stdlib.AltJson.Helpers.getString "id" itemFields,
-                       Stdlib.AltJson.Helpers.getInt "created" itemFields,
+                       Stdlib.AltJson.Helpers.getIntOption "created" itemFields,
                        Stdlib.AltJson.Helpers.getString "object" itemFields,
                        Stdlib.AltJson.Helpers.getString "owned_by" itemFields) with
                 | (Some id, Some created, Some obj, Some ownedBy) ->
@@ -88,7 +88,7 @@ let get
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
           match (Stdlib.AltJson.Helpers.getString "id" fields,
-                 Stdlib.AltJson.Helpers.getInt "created" fields,
+                 Stdlib.AltJson.Helpers.getIntOption "created" fields,
                  Stdlib.AltJson.Helpers.getString "object" fields,
                  Stdlib.AltJson.Helpers.getString "owned_by" fields) with
           | (Some id, Some created, Some obj, Some ownedBy) ->

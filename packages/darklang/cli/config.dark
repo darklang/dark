@@ -68,9 +68,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // Show the implied local URL for well-formed app port settings.
     match Stdlib.String.split key "." with
     | [ "apps"; _; "port" ] ->
-      match Stdlib.Int64.parse value with
+      match Stdlib.Int.parse value with
       | Ok port ->
-        if port >= 1L && port <= 65535L then
+        if port >= 1I && port <= 65535I then
           Stdlib.printLine (Colors.dimText $"  → http://localhost:{value}")
         else
           ()
