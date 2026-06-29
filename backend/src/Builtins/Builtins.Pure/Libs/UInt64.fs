@@ -278,7 +278,8 @@ let fns () : List<BuiltInFn> =
               resolved =
                 Ok(
                   FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint64ParseError ())
-                ) },
+                )
+              location = None },
             []
           ))
       description = "Returns the <type UInt64> value of a <type String>"

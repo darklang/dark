@@ -280,6 +280,31 @@ let valueType
   | Known kt -> knownType branchId kt
   | Unknown -> "_"
 
+/// Like `valueType`, but when the *outermost* type is a custom type and a
+/// resolved `location` is known, renders the name from that exact location
+/// (the referenced sibling) rather than reverse-resolving the hash to an
+/// arbitrary canonical sibling. Type arguments and nested types render
+/// normally. With no location, or for non-custom types, this is `valueType`.
+let valueTypeAtLocation
+    (branchId: Uuid)
+    (location: Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation>)
+    (vt: LanguageTools.RuntimeTypes.ValueType)
+  : String =
+  match location, vt with
+  | Some loc, Known(KTCustomType(_name, typeArgs)) ->
+    let typeArgsPortion =
+      match typeArgs with
+      | [] -> ""
+      | args ->
+        args
+        |> Stdlib.List.map (fun t -> valueType branchId t)
+        |> Stdlib.String.join ", "
+        |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
+
+    (packageName loc.owner loc.modules loc.name) ++ typeArgsPortion
+
+  | _ -> valueType branchId vt
+
 let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
   match pat with
   | LPVariable _reg ->

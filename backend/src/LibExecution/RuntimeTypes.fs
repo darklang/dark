@@ -116,12 +116,24 @@ type NameResolutionError =
   | NotFound
   | InvalidName
 
+/// The package location a reference resolved to (owner.modules.name). Carried
+/// from PT so error messages can name the referenced item when multiple names
+/// share the same hash.
+type PackageLocation = { owner : string; modules : List<string>; name : string }
+
 type NameResolution<'a> =
-  { originalName : List<string>; resolved : Result<'a, NameResolutionError> }
+  {
+    originalName : List<string>
+    resolved : Result<'a, NameResolutionError>
+    /// The resolved item's location, when known (only meaningful when
+    /// `resolved` is `Ok`). Preserved from PT to disambiguate the rendered
+    /// name of structurally-identical siblings.
+    location : Option<PackageLocation>
+  }
 
 module NameResolution =
   let ok (value : 'a) : NameResolution<'a> =
-    { originalName = []; resolved = Ok value }
+    { originalName = []; resolved = Ok value; location = None }
 
 
 /// A KnownType represents the type of a dval.
@@ -683,14 +695,23 @@ and LambdaImpl =
 
 
 and ApplicableNamedFn =
-  { name : FQFnName.FQFnName
+  {
+    name : FQFnName.FQFnName
+
+    /// The package location the function reference resolved to, when known
+    /// (None for built-ins / re-derived applicables). Carried so error messages
+    /// name the *referenced* function rather than the canonical name of a
+    /// structurally-identical sibling that shares its hash. Excluded from
+    /// equality (see `Builtins.Pure.Libs.NoModule`).
+    location : Option<PackageLocation>
 
     typeSymbolTable : TypeSymbolTable
 
     // CLEANUP maybe this could be List<ValueType>?
     typeArgs : List<TypeReference>
 
-    argsSoFar : List<Dval> }
+    argsSoFar : List<Dval>
+  }
 
 and ApplicableLambda =
   {
@@ -1103,15 +1124,27 @@ module RuntimeError =
 
       | FnParameterNotExpectedType of
         fnName : FQFnName.FQFnName *
+        // The package location the called function resolved to, when known.
+        // Like `expectedTypeLocation`, lets the message name the referenced
+        // function rather than a canonical sibling that shares its hash.
+        fnNameLocation : Option<PackageLocation> *
         paramIndex : int64 *
         paramName : string *
         expectedType : ValueType *
+        // The package location the expected type resolved to, when it's a
+        // custom type (None otherwise). Used by error rendering to name the
+        // referenced type when multiple names share the same hash.
+        expectedTypeLocation : Option<PackageLocation> *
         actualType : ValueType *
         actualValue : Dval
 
       | FnResultNotExpectedType of
         fnName : FQFnName.FQFnName *
+        // See `fnNameLocation` on `FnParameterNotExpectedType`.
+        fnNameLocation : Option<PackageLocation> *
         expectedType : ValueType *
+        // See `expectedTypeLocation` on `FnParameterNotExpectedType`.
+        expectedTypeLocation : Option<PackageLocation> *
         actualType : ValueType *
         actualValue : Dval
 
@@ -1764,6 +1797,13 @@ type CallFrame =
     // so we keep only one copy of such, in the root of the VMState
     executionPoint : ExecutionPoint
 
+    /// The package location the called function was referenced by, when known.
+    /// `executionPoint` keeps only the hash, which renders as the canonical name
+    /// of a structurally-identical sibling; this lets a result-type-mismatch
+    /// error name the function as it was actually called. None for the root
+    /// frame, lambdas, and built-ins.
+    fnLocation : Option<PackageLocation>
+
     /// What instruction index we are currently 'at'
     mutable programCounter : int
 
@@ -1879,6 +1919,7 @@ type VMState =
     let rootCallFrame : CallFrame =
       { id = rootCallFrameID
         executionPoint = Source
+        fnLocation = None
         programCounter = 0
         registers = Array.zeroCreate instrs.registerCount
         typeSymbolTable = Map.empty
@@ -2136,14 +2177,16 @@ module TypeReference =
   let result (t1 : TypeReference) (t2 : TypeReference) : TypeReference =
     TCustomType(
       { originalName = []
-        resolved = Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.result ())) },
+        resolved = Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.result ()))
+        location = None },
       [ t1; t2 ]
     )
 
   let option (t : TypeReference) : TypeReference =
     TCustomType(
       { originalName = []
-        resolved = Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.option ())) },
+        resolved = Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.option ()))
+        location = None },
       [ t ]
     )
 
@@ -2158,6 +2201,23 @@ module TypeReference =
         | _ -> return typ
       }
     | _ -> Ply typ
+
+
+  /// The type's name as written at the reference site (the qualifiers), for a
+  /// custom type. Empty for built-in/primitive types, which carry no package
+  /// name. Used to report the as-written name in errors, since reducing to a
+  /// `ValueType` keeps only the hash (and thus the canonical sibling's name).
+  let originalNameOf (typeRef : TypeReference) : List<string> =
+    match typeRef with
+    | TCustomType(nr, _) -> nr.originalName
+    | _ -> []
+
+  /// The resolved package location of a custom type reference, when known.
+  /// Used by runtime error rendering.
+  let locationOf (typeRef : TypeReference) : Option<PackageLocation> =
+    match typeRef with
+    | TCustomType(nr, _) -> nr.location
+    | _ -> None
 
 
   let rec toVT

@@ -111,7 +111,14 @@ let rec equals (a : Dval) (b : Dval) : bool =
     // equality needs lambda-internal-state work. Today this is
     // "same-source-position lambdas compare equal."
     | AppLambda a, AppLambda b -> a.exprId = b.exprId
-    | AppNamedFn a, AppNamedFn b -> a = b
+    | AppNamedFn a, AppNamedFn b ->
+      // `location` is excluded: it records how the function was named at the
+      // reference site (for error messages), not its identity. Two references
+      // to the same function by different names are the same function.
+      a.name = b.name
+      && a.typeArgs = b.typeArgs
+      && a.argsSoFar = b.argsSoFar
+      && a.typeSymbolTable = b.typeSymbolTable
     | _ -> false
 
   | DDB a, DDB b -> a = b

@@ -26,6 +26,19 @@ module NameResolutionError =
     | b -> raiseFormatError $"Invalid NameResolutionError tag: {b}"
 
 
+module PackageLocation =
+  let write (w : BinaryWriter) (loc : PackageLocation) : unit =
+    String.write w loc.owner
+    List.write w String.write loc.modules
+    String.write w loc.name
+
+  let read (r : BinaryReader) : PackageLocation =
+    let owner = String.read r
+    let modules = List.read r String.read
+    let name = String.read r
+    { owner = owner; modules = modules; name = name }
+
+
 module NameResolution =
   let write
     (writeInner : BinaryWriter -> 'inner -> unit)
@@ -40,6 +53,11 @@ module NameResolution =
     | Error error ->
       w.Write 1uy
       NameResolutionError.write w error
+    match nr.location with
+    | None -> w.Write 0uy
+    | Some loc ->
+      w.Write 1uy
+      PackageLocation.write w loc
 
   let read
     (readInner : BinaryReader -> 'inner)
@@ -53,7 +71,12 @@ module NameResolution =
         let error = NameResolutionError.read r
         Error(error)
       | b -> raiseFormatError $"Invalid NameResolution tag: {b}"
-    { originalName = originalName; resolved = resolved }
+    let location =
+      match r.ReadByte() with
+      | 0uy -> None
+      | 1uy -> Some(PackageLocation.read r)
+      | b -> raiseFormatError $"Invalid NameResolution location tag: {b}"
+    { originalName = originalName; resolved = resolved; location = location }
 
 
 module FQTypeName =

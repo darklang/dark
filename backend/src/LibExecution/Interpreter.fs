@@ -683,7 +683,8 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                       Map.mergeFavoringRight
                         appLambda.typeSymbolTable
                         currentFrame.typeSymbolTable
-                  executionPoint = Lambda(currentFrame.executionPoint, exprId) }
+                  executionPoint = Lambda(currentFrame.executionPoint, exprId)
+                  fnLocation = None }
 
               if vm.stats.enabled then
                 vm.stats.framePushCount <- vm.stats.framePushCount + 1L
@@ -717,7 +718,10 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               |> raiseRTE
 
             let typeCheckParam =
-              TypeChecker.checkFnParam exeState.types applicable.name
+              TypeChecker.checkFnParam
+                exeState.types
+                applicable.name
+                applicable.location
 
             let mutable tst =
               if Map.isEmpty applicable.typeSymbolTable then
@@ -893,6 +897,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                         TypeChecker.checkFnResult
                           exeState.types
                           (FQFnName.Builtin fn.name)
+                          None
                           tst
                           expectedReturnType
                           result
@@ -1062,7 +1067,8 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                         allArgs |> List.iteri (fun i arg -> r[i] <- arg)
                         r
                       typeSymbolTable = frameTst
-                      executionPoint = pkgEp }
+                      executionPoint = pkgEp
+                      fnLocation = applicable.location }
                     |> Some
 
         | RaiseNRE(names, nre) -> raiseRTE (RTE.ParseTimeNameResolution(names, nre))
@@ -1136,7 +1142,9 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               return
                 RuntimeError.Applications.FnResultNotExpectedType(
                   fnName,
+                  currentFrame.fnLocation,
                   expectedVT,
+                  TypeReference.locationOf expectedReturnType,
                   Dval.toValueType resultOfFrame,
                   resultOfFrame
                 )

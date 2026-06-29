@@ -365,6 +365,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "int64Mod" 0
+                   location = None
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
@@ -377,6 +378,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "equals" 0
+                   location = None
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
@@ -517,6 +519,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "equals" 0
+                   location = None
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
@@ -626,6 +629,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "add" 0
+                   location = None
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
@@ -646,6 +650,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   location = None
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
@@ -674,6 +679,7 @@ module Expr =
                          RT.DApplicable(
                            RT.AppNamedFn
                              { name = RT.FQFnName.fqBuiltin "add" 0
+                               location = None
                                typeSymbolTable = Map.empty
                                typeArgs = []
                                argsSoFar = [] }
@@ -706,6 +712,7 @@ module Expr =
                          (RT.DApplicable(
                            RT.AppNamedFn
                              { name = RT.FQFnName.fqBuiltin "add" 0
+                               location = None
                                typeSymbolTable = Map.empty
                                typeArgs = []
                                argsSoFar = [] }
@@ -731,6 +738,7 @@ module Expr =
                          (RT.DApplicable(
                            RT.AppNamedFn
                              { name = RT.FQFnName.fqBuiltin "multiply" 0
+                               location = None
                                typeSymbolTable = Map.empty
                                typeArgs = []
                                argsSoFar = [] }
@@ -747,6 +755,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   location = None
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
@@ -760,6 +769,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "add" 0
+                   location = None
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
@@ -1002,6 +1012,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "add" 0
+                     location = None
                      typeSymbolTable = Map.empty
                      typeArgs = []
                      argsSoFar = [] }
@@ -1089,6 +1100,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 location = None
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1119,6 +1131,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 location = None
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1152,6 +1165,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 location = None
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1190,6 +1204,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 location = None
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1225,6 +1240,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 location = None
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1271,6 +1287,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 location = None
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1282,6 +1299,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 location = None
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1317,6 +1335,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 location = None
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1328,6 +1347,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 location = None
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1366,6 +1386,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     location = None
                      typeSymbolTable = Map.empty
                      typeArgs = []
                      argsSoFar = [] }
@@ -1384,6 +1405,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     location = None
                      typeSymbolTable = Map.empty
                      typeArgs = []
                      argsSoFar = [] }
@@ -1404,6 +1426,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     location = None
                      typeSymbolTable = Map.empty
                      typeArgs = []
                      argsSoFar = [] }
@@ -1424,6 +1447,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     location = None
                      typeSymbolTable = Map.empty
                      typeArgs = []
                      argsSoFar = [] }
@@ -1451,6 +1475,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
+                       location = None
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1469,6 +1494,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
+                       location = None
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1489,6 +1515,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
+                       location = None
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1523,6 +1550,7 @@ module Expr =
                              RT.DApplicable(
                                RT.AppNamedFn
                                  { name = RT.FQFnName.fqBuiltin "add" 0
+                                   location = None
                                    typeSymbolTable = Map.empty
                                    typeArgs = []
                                    argsSoFar = [] }
@@ -1538,6 +1566,7 @@ module Expr =
                      { name =
                          RT.FQFnName.fqPackage
                            E.Fns.Package.MyFnThatTakesALambda.hash
+                       location = None
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1561,6 +1590,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.Outer.hash
+                       location = None
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1599,6 +1629,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "printLine" 0
+                   location = None
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
