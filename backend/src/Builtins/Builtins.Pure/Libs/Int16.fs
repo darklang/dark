@@ -95,15 +95,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt16 ""; Param.make "b" TInt16 "" ]
       returnType = TInt16
-      description = "Adds two 16-bit signed integers together"
+      description = "Adds two 16-bit signed integers together, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DInt16 a; DInt16 b ] ->
-          try
-            let result = Checked.(+) a b
-            Ply(DInt16(result))
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt16 a; DInt16 b ] -> Ply(DInt16(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -115,15 +110,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt16 ""; Param.make "b" TInt16 "" ]
       returnType = TInt16
-      description = "Subtracts two 16-bit signed integers"
+      description = "Subtracts two 16-bit signed integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DInt16 a; DInt16 b ] ->
-          try
-            let result = Checked.(-) a b
-            Ply(DInt16(result))
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt16 a; DInt16 b ] -> Ply(DInt16(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -135,15 +125,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt16 ""; Param.make "b" TInt16 "" ]
       returnType = TInt16
-      description = "multiplies two 16-bit signed integers"
+      description = "Multiplies two 16-bit signed integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DInt16 a; DInt16 b ] ->
-          try
-            let result = Checked.(*) a b
-            Ply(DInt16(result))
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt16 a; DInt16 b ] -> Ply(DInt16(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -158,17 +143,19 @@ let fns () : List<BuiltInFn> =
       description =
         "Raise <param base> to the power of <param exponent>.
         <param exponent> must to be positive.
-        Return value wrapped in a {{Result}} "
+        Overflow wraps around."
       fn =
         (function
         | _, vm, _, [ DInt16 number; DInt16 exp ] ->
-          (try
-            if exp < 0s then
-              RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
-            else
-              (bigint number) ** (int exp) |> int16 |> DInt16 |> Ply
-           with :? System.OverflowException ->
-             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID)
+          if exp < 0s then
+            RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
+          else
+            // wrap on overflow via modular exponentiation
+            let m = System.Numerics.BigInteger.Pow(bigint 2, 16)
+            let r = System.Numerics.BigInteger.ModPow(bigint number, bigint exp, m)
+            let r = ((r % m) + m) % m
+            let r = if r >= m / bigint 2 then r - m else r
+            int16 r |> DInt16 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -186,15 +173,9 @@ let fns () : List<BuiltInFn> =
         | _, vm, _, [ DInt16 a; DInt16 b ] ->
           if b = 0s then
             RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
-          else if a = int16 System.Int16.MinValue && b = -1s then
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
           else
-            let result = a / b
-            if result < System.Int16.MinValue || result > System.Int16.MaxValue then
-              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
-            else
-              Ply(DInt16(int16 result))
-
+            // -32768s / -1s divides in int32 then narrows, wrapping instead of throwing
+            Ply(DInt16(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -209,13 +190,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | _, vm, _, [ DInt16 a ] ->
-          if a = System.Int16.MinValue then
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
-          else
-            let result = -a
-            Ply(DInt16 result)
-
+        | _, _, _, [ DInt16 a ] -> Ply(DInt16(-a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

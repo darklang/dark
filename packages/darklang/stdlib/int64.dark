@@ -26,15 +26,15 @@ let remainder
   Builtin.int64Remainder value divisor
 
 
-/// Adds two integers together
+/// Adds two integers together (wraps on overflow)
 let add (a: Int64) (b: Int64) : Int64 = Builtin.int64Add a b
 
 
-/// Subtracts two integers
+/// Subtracts two integers (wraps on overflow)
 let subtract (a: Int64) (b: Int64) : Int64 = Builtin.int64Subtract a b
 
 
-/// Multiplies two integers
+/// Multiplies two integers (wraps on overflow)
 let multiply (a: Int64) (b: Int64) : Int64 = Builtin.int64Multiply a b
 
 
@@ -44,7 +44,7 @@ let divide (a: Int64) (b: Int64) : Int64 = Builtin.int64Divide a b
 
 /// Raise <param base> to the power of <param exponent>.
 /// <param exponent> must to be positive.
-/// Return value wrapped in a {{Result}}
+/// Overflow wraps around.
 let power (``base``: Int64) (exponent: Int64) : Int64 =
   // Handle some edge cases around 1. We want to make this match
   // OCaml, so we have to support an exponent above int32, but
@@ -58,12 +58,12 @@ let power (``base``: Int64) (exponent: Int64) : Int64 =
   else Builtin.int64Power ``base`` exponent
 
 
-/// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
+/// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
 let absoluteValue (a: Int64) : Int64 =
   if lessThan a 0L then negate a else a
 
 
-/// Returns the negation of <param a>, {{-a}}
+/// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
 let negate (a: Int64) : Int64 = Builtin.int64Negate a
 
 

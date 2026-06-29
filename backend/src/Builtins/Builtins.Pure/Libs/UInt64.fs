@@ -58,14 +58,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt64 ""; Param.make "b" TUInt64 "" ]
       returnType = TUInt64
-      description = "Adds 64-bit unsigned integers together"
+      description = "Adds 64-bit unsigned integers together, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DUInt64 a; DUInt64 b ] ->
-          try
-            DUInt64(Checked.(+) a b) |> Ply
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DUInt64(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -77,14 +73,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt64 ""; Param.make "b" TUInt64 "" ]
       returnType = TUInt64
-      description = "Subtracts 64-bit unsigned integers"
+      description = "Subtracts 64-bit unsigned integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DUInt64 a; DUInt64 b ] ->
-          try
-            DUInt64(Checked.(-) a b) |> Ply
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DUInt64(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -96,14 +88,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TUInt64 ""; Param.make "b" TUInt64 "" ]
       returnType = TUInt64
-      description = "Multiplies 64-bit unsigned integers"
+      description = "Multiplies 64-bit unsigned integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DUInt64 a; DUInt64 b ] ->
-          try
-            DUInt64(Checked.(*) a b) |> Ply
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DUInt64(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -118,29 +106,16 @@ let fns () : List<BuiltInFn> =
       description =
         "Raise <param base> to the power of <param exponent>.
         <param exponent> must to be positive.
-        Return value wrapped in a {{Result}} "
+        Overflow wraps around."
       fn =
         (function
-        | _, vm, _, [ DUInt64 number; DUInt64 exp ] ->
-          if exp > uint64 System.Int32.MaxValue then
-            // `bigint ** int` needs an Int32 exponent; an exponent this large
-            // overflows UInt64 unless the base is trivial. (Without this guard
-            // `int exp` silently truncates to a bogus — possibly negative —
-            // Int32, and `bigint ** negative` throws an uncaught exception.)
-            match number with
-            | 0UL -> Ply(DUInt64 0UL)
-            | 1UL -> Ply(DUInt64 1UL)
-            | _ -> RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
-          elif exp > 63UL && number > 1UL then
-            // Avoid constructing enormous bigints that can never fit in UInt64.
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
-          else
-            // `uint64` narrowing throws OverflowException when the result
-            // exceeds UInt64 range.
-            try
-              (bigint number) ** (int exp) |> uint64 |> DUInt64 |> Ply
-            with :? System.OverflowException ->
-              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DUInt64 number; DUInt64 exp ] ->
+          // wrap on overflow via modular exponentiation, which stays cheap even
+          // for huge exponents (no enormous bigint is built)
+          let m = System.Numerics.BigInteger.Pow(bigint 2, 64)
+          let r = System.Numerics.BigInteger.ModPow(bigint number, bigint exp, m)
+          let r = ((r % m) + m) % m
+          uint64 r |> DUInt64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -159,13 +134,7 @@ let fns () : List<BuiltInFn> =
           if b = 0UL then
             RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
           else
-            let result = a / b
-            if
-              result < System.UInt64.MinValue || result > System.UInt64.MaxValue
-            then
-              RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
-            else
-              Ply(DUInt64(result))
+            Ply(DUInt64(a / b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

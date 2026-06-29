@@ -215,12 +215,28 @@ let rec symbolicToSql
     | RT.DInt64 n -> Ok(string n, state)
     // The arbitrary-precision `Int` is deliberately NOT queryable yet: SQLite has
     // no native bignum, so emitting it as a number would let values past 2^63 be
-    // compared as lossy floats (silently wrong). Reject loudly instead — use a
-    // sized type like `Int64` for indexed numeric fields. (A future order-
-    // preserving encoded projection will make `Int` queryable.)
+    // compared as lossy floats. Return a compile error instead — use a sized
+    // type like `Int64` for indexed numeric fields. (A future order-preserving
+    // encoded projection will make `Int` queryable.)
     | RT.DInt _ ->
       Error
         "The arbitrary-precision Int type is not yet queryable in DB.query. Use a sized integer type (e.g. Int64) for fields you filter or sort on."
+    // Only Int64 is currently serialized as a SQL number. Other fixed-width ints
+    // would be serialized as JSON-string parameters, which do not compare equal
+    // to the stored numeric values. Return a compile error until those types have
+    // SQL numeric serialization. UInt64/Int128/UInt128 also need a representation
+    // that preserves values past 2^63.
+    | RT.DInt8 _
+    | RT.DUInt8 _
+    | RT.DInt16 _
+    | RT.DUInt16 _
+    | RT.DInt32 _
+    | RT.DUInt32 _
+    | RT.DUInt64 _
+    | RT.DInt128 _
+    | RT.DUInt128 _ ->
+      Error
+        "Only Int64 integer fields are queryable in DB.query for now. Use Int64 for fields you filter or sort on."
     | RT.DFloat f -> Ok(string f, state)
     | RT.DString _ ->
       // Use a parameter to prevent SQL injection

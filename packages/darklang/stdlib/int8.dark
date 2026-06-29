@@ -26,21 +26,21 @@ let remainder
   Builtin.int8Remainder value divisor
 
 
-/// Adds two 8-bit signed integers together
+/// Adds two 8-bit signed integers together (wraps on overflow)
 let add (a: Int8) (b: Int8) : Int8 = Builtin.int8Add a b
 
 
-/// Subtracts two 8-bit signed integers
+/// Subtracts two 8-bit signed integers (wraps on overflow)
 let subtract (a: Int8) (b: Int8) : Int8 = Builtin.int8Subtract a b
 
 
-/// Multiplies two 8-bit signed integers
+/// Multiplies two 8-bit signed integers (wraps on overflow)
 let multiply (a: Int8) (b: Int8) : Int8 = Builtin.int8Multiply a b
 
 
 /// Raise <param base> to the power of <param exponent>.
 /// <param exponent> must to be positive.
-/// Return value wrapped in a {{Result}}
+/// Overflow wraps around.
 let power (``base``: Int8) (exponent: Int8) : Int8 =
   // Handle some edge cases around 1. We want to make this match
   // OCaml, so we have to support an exponent below int8
@@ -64,7 +64,7 @@ let power (``base``: Int8) (exponent: Int8) : Int8 =
 let divide (a: Int8) (b: Int8) : Int8 = Builtin.int8Divide a b
 
 
-/// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
+/// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
 let absoluteValue (a: Int8) : Int8 =
   if lessThan a 0y then
     negate a
@@ -72,7 +72,7 @@ let absoluteValue (a: Int8) : Int8 =
     a
 
 
-/// Returns the negation of <param a>, {{-a}}
+/// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
 let negate (a: Int8) : Int8 = Builtin.int8Negate a
 
 

@@ -13,21 +13,21 @@ type ParseError =
 let ``mod`` (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Mod a b
 
 
-/// Adds two 8-bit unsigned integers together
+/// Adds two 8-bit unsigned integers together (wraps on overflow)
 let add (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Add a b
 
 
-/// Subtracts two 8-bit unsigned  integers
+/// Subtracts two 8-bit unsigned  integers (wraps on overflow)
 let subtract (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Subtract a b
 
 
-/// Multiplies two 8-bit unsigned  integers
+/// Multiplies two 8-bit unsigned  integers (wraps on overflow)
 let multiply (a: UInt8) (b: UInt8) : UInt8 = Builtin.uint8Multiply a b
 
 
 /// Raise <param base> to the power of <param exponent>.
 /// <param exponent> must to be positive.
-/// Return value wrapped in a {{Result}}
+/// Overflow wraps around.
 let power (``base``: UInt8) (exponent: UInt8) : UInt8 =
   if ``base`` == 0uy && exponent == 0uy then 1uy
   else if ``base`` == 0uy then 0uy

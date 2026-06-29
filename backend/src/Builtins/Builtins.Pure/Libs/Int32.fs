@@ -95,14 +95,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt32 ""; Param.make "b" TInt32 "" ]
       returnType = TInt32
-      description = "Adds two 32-bit signed integers together"
+      description = "Adds two 32-bit signed integers together, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DInt32 a; DInt32 b ] ->
-          try
-            DInt32(Checked.(+) a b) |> Ply
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -114,14 +110,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt32 ""; Param.make "b" TInt32 "" ]
       returnType = TInt32
-      description = "Subtracts two 32-bit signed integers"
+      description = "Subtracts two 32-bit signed integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DInt32 a; DInt32 b ] ->
-          try
-            DInt32(Checked.(-) a b) |> Ply
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -133,14 +125,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "a" TInt32 ""; Param.make "b" TInt32 "" ]
       returnType = TInt32
-      description = "Multiplies two 32-bit signed integers"
+      description = "Multiplies two 32-bit signed integers, wrapping on overflow"
       fn =
         (function
-        | _, vm, _, [ DInt32 a; DInt32 b ] ->
-          try
-            DInt32(Checked.(*) a b) |> Ply
-          with :? System.OverflowException ->
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -155,17 +143,19 @@ let fns () : List<BuiltInFn> =
       description =
         "Raise <param base> to the power of <param exponent>.
         <param exponent> must to be positive.
-        Return value wrapped in a {{Result}} "
+        Overflow wraps around."
       fn =
         (function
         | _, vm, _, [ DInt32 number; DInt32 exp ] ->
-          (try
-            if exp < 0 then
-              RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
-            else
-              (bigint number) ** (int exp) |> int32 |> DInt32 |> Ply
-           with :? System.OverflowException ->
-             RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID)
+          if exp < 0 then
+            RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
+          else
+            // wrap on overflow via modular exponentiation
+            let m = System.Numerics.BigInteger.Pow(bigint 2, 32)
+            let r = System.Numerics.BigInteger.ModPow(bigint number, bigint exp, m)
+            let r = ((r % m) + m) % m
+            let r = if r >= m / bigint 2 then r - m else r
+            int32 r |> DInt32 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -184,7 +174,8 @@ let fns () : List<BuiltInFn> =
           if b = 0 then
             RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
           else if a = System.Int32.MinValue && b = -1 then
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
+            // wraps back to MinValue (the division itself would throw)
+            Ply(DInt32 System.Int32.MinValue)
           else
             Ply(DInt32(a / b))
         | _ -> incorrectArgs ())
@@ -201,11 +192,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | _, vm, _, [ DInt32 a ] ->
-          if a = System.Int32.MinValue then
-            RTE.Ints.OutOfRange |> RTE.Int |> raiseRTE vm.threadID
-          else
-            Ply(DInt32(-a))
+        | _, _, _, [ DInt32 a ] -> Ply(DInt32(-a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

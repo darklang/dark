@@ -26,15 +26,15 @@ let remainder
   Builtin.int32Remainder value divisor
 
 
-/// Adds two integers together
+/// Adds two integers together (wraps on overflow)
 let add (a: Int32) (b: Int32) : Int32 = Builtin.int32Add a b
 
 
-/// Subtracts two integers
+/// Subtracts two integers (wraps on overflow)
 let subtract (a: Int32) (b: Int32) : Int32 = Builtin.int32Subtract a b
 
 
-/// Multiplies two integers
+/// Multiplies two integers (wraps on overflow)
 let multiply (a: Int32) (b: Int32) : Int32 = Builtin.int32Multiply a b
 
 
@@ -44,7 +44,7 @@ let divide (a: Int32) (b: Int32) : Int32 = Builtin.int32Divide a b
 
 /// Raise <param base> to the power of <param exponent>.
 /// <param exponent> must to be positive.
-/// Return value wrapped in a {{Result}}
+/// Overflow wraps around.
 let power (``base``: Int32) (exponent: Int32) : Int32 =
   // Handle some edge cases around 1. We want to make this match
   // OCaml, so we have to support an exponent below int32
@@ -64,7 +64,7 @@ let power (``base``: Int32) (exponent: Int32) : Int32 =
     Builtin.int32Power ``base`` exponent
 
 
-/// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
+/// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
 let absoluteValue (a: Int32) : Int32 =
   if lessThan a 0l then
     negate a
@@ -72,7 +72,7 @@ let absoluteValue (a: Int32) : Int32 =
     a
 
 
-/// Returns the negation of <param a>, {{-a}}
+/// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
 let negate (a: Int32) : Int32 = Builtin.int32Negate a
 
 

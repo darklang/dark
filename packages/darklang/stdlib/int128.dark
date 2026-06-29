@@ -26,15 +26,15 @@ let remainder
   Builtin.int128Remainder value divisor
 
 
-/// Adds two 128-bit signed integers together
+/// Adds two 128-bit signed integers together (wraps on overflow)
 let add (a: Int128) (b: Int128) : Int128 = Builtin.int128Add a b
 
 
-/// Subtracts two 128-bit signed integers
+/// Subtracts two 128-bit signed integers (wraps on overflow)
 let subtract (a: Int128) (b: Int128) : Int128 = Builtin.int128Subtract a b
 
 
-/// Multiplies two 128-bit signed integers
+/// Multiplies two 128-bit signed integers (wraps on overflow)
 let multiply (a: Int128) (b: Int128) : Int128 = Builtin.int128Multiply a b
 
 
@@ -42,14 +42,14 @@ let multiply (a: Int128) (b: Int128) : Int128 = Builtin.int128Multiply a b
 let divide (a: Int128) (b: Int128) : Int128 = Builtin.int128Divide a b
 
 
-/// Returns the absolute value of <param a> (turning negative inputs into positive outputs)
+/// Returns the absolute value of <param a> (turning negative inputs into positive outputs). The minimum value wraps back to itself (stays negative).
 let absoluteValue (a: Int128) : Int128 =
   if lessThan a 0Q then
     negate a
   else
     a
 
-/// Returns the negation of <param a>, {{-a}}
+/// Returns the negation of <param a>, {{-a}}. Negating the minimum value wraps back to itself.
 let negate (a: Int128) : Int128 = Builtin.int128Negate a
 
 
