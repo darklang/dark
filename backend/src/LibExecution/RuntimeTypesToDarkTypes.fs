@@ -820,8 +820,8 @@ module Dval =
       Exception.raiseInternal
         "Cannot rebuild an ephemeral blob from its reflected form; it contains only the blob id, not the bytes. Values that need to round-trip through DT must be promoted to Persistent first."
         []
-    | DEnum(_, _, [], "DBlobPersistent", [ DString hash; DInt length ]) ->
-      DBlob(Persistent(hash, int64 (DarkInt.toBigInt length)))
+    | DEnum(_, _, [], "DBlobPersistent", [ DString hash; length ]) ->
+      DBlob(Persistent(hash, D.int64FromInt length))
 
     | DEnum(_, _, [], "DStreamStub", [ _elemType ]) ->
       Exception.raiseInternal

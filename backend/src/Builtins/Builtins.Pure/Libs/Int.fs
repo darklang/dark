@@ -343,13 +343,9 @@ let fns () : List<BuiltInFn> =
          float (no 64-bit clamp)."
       fn =
         (function
-        | _, vm, _, [ DFloat f ] ->
-          // NaN/Infinity have no Int representation; `bigint f` would throw a
-          // host exception, so surface a Dark error instead.
-          if System.Double.IsNaN f || System.Double.IsInfinity f then
-            outOfRange vm
-          else
-            Ply(Dval.int (bigint f))
+        // `bigint f` truncates toward zero; `roundedToInt` adds the NaN/Infinity
+        // guard (shared with the Float builtins) so those don't throw a host exn.
+        | _, vm, _, [ DFloat f ] -> roundedToInt vm f
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -839,8 +835,13 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [ DInt a; DInt b ] ->
           // `<<<` needs a native Int32 shift count; reject anything that
-          // wouldn't fit rather than letting the cast overflow.
-          Ply(Dval.int (DarkInt.toBigInt a <<< intToInt32 vm b))
+          // wouldn't fit rather than letting the cast overflow. A negative
+          // count would silently reverse direction in BigInteger, so reject it.
+          let shift = intToInt32 vm b
+          if shift < 0 then
+            outOfRange vm
+          else
+            Ply(Dval.int (DarkInt.toBigInt a <<< shift))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -857,8 +858,13 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [ DInt a; DInt b ] ->
           // `>>>` needs a native Int32 shift count; reject anything that
-          // wouldn't fit rather than letting the cast overflow.
-          Ply(Dval.int (DarkInt.toBigInt a >>> intToInt32 vm b))
+          // wouldn't fit rather than letting the cast overflow. A negative
+          // count would silently reverse direction in BigInteger, so reject it.
+          let shift = intToInt32 vm b
+          if shift < 0 then
+            outOfRange vm
+          else
+            Ply(Dval.int (DarkInt.toBigInt a >>> shift))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -178,7 +178,15 @@ let main (args : string[]) =
 
       1
     | Ok(RT.DInt64 i) -> (int i)
-    | Ok(RT.DInt i) -> (int (RT.DarkInt.toBigInt i))
+    | Ok(RT.DInt i) ->
+      // Exit codes are bounded; narrow safely rather than letting an
+      // out-of-Int32 result throw an uncaught host OverflowException.
+      match RT.DarkInt.toInt32 i with
+      | Some n -> n
+      | None ->
+        logError
+          $"main function returned an Int outside exit-code range: {RT.DarkInt.toBigInt i}"
+        1
     | Ok dval ->
       let state = state cliPackageManager
       let output = (Exe.dvalToRepr state dval).Result

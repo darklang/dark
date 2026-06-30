@@ -24,13 +24,6 @@ module ParseError =
 /// Convert an already-rounded float to an `Int`. NaN/Infinity have no Int
 /// representation; `bigint` would throw a host exception, so surface a Dark
 /// `OutOfRange` error instead.
-let private roundedToInt (vm : VMState) (rounded : float) : Ply<Dval> =
-  if System.Double.IsNaN rounded || System.Double.IsInfinity rounded then
-    RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
-  else
-    rounded |> bigint |> Dval.int |> Ply
-
-
 let fns () : List<BuiltInFn> =
   [ { name = fn "floatCeiling" 0
       typeParams = []

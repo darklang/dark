@@ -42,8 +42,7 @@ module Scope =
   let strFromDT (d : Dval) : Cap.Scope<string> = fromDT D.string d
   let portToDT (s : Cap.Scope<int64>) : Dval =
     toDT VT.int (fun (n : int64) -> Dval.int (bigint n)) s
-  let portFromDT (d : Dval) : Cap.Scope<int64> =
-    fromDT (fun dv -> int64 (D.darkInt dv)) d
+  let portFromDT (d : Dval) : Cap.Scope<int64> = fromDT D.int64FromInt d
 
 
 module HostMatch =

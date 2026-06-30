@@ -1028,8 +1028,8 @@ module Expr =
     | DEnum(_, _, [], "EVariable", [ DInt64 id; DString varName ]) ->
       PT.EVariable(uint64 id, varName)
 
-    | DEnum(_, _, [], "EArg", [ DInt64 id; DInt index ]) ->
-      PT.EArg(uint64 id, int (DarkInt.toBigInt index))
+    | DEnum(_, _, [], "EArg", [ DInt64 id; index ]) ->
+      PT.EArg(uint64 id, D.int index)
 
     // control flow
     | DEnum(_, _, [], "EIf", [ DInt64 id; cond; thenExpr; elseExpr ]) ->

@@ -55,6 +55,18 @@ let darkInt (dv : Dval) : bigint =
   | DInt i -> DarkInt.toBigInt i
   | _ -> f "int" dv
 
+/// Decodes a `DInt`, narrowing to a native `int64`. For values that are
+/// bounded-by-construction to Int64; raises a clear internal error if the
+/// value doesn't fit rather than letting a host `OverflowException` escape.
+let int64FromInt (dv : Dval) : int64 =
+  match dv with
+  | DInt i ->
+    match DarkInt.toInt64 i with
+    | Some v -> v
+    | None ->
+      Exception.raiseInternal "int64FromInt: DInt out of Int64 range" [ "dv", dv ]
+  | _ -> f "int" dv
+
 /// Decodes a `DInt`, narrowing to a native `int` (Int32). For small,
 /// bounded-by-construction values (counts, indices, arities); raises a clear
 /// internal error if the value doesn't fit rather than letting a host

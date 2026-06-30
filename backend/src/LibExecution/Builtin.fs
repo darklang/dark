@@ -81,4 +81,13 @@ module Shortcuts =
     | None ->
       RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
 
+  /// Converts a `float` to a `DInt`, truncating toward zero. NaN/Infinity have
+  /// no Int representation, so `bigint f` would throw a host exception — surface
+  /// a Dark `OutOfRange` error instead. Shared by the Float and Int builtins.
+  let roundedToInt (vm : VMState) (rounded : float) : Ply<Dval> =
+    if System.Double.IsNaN rounded || System.Double.IsInfinity rounded then
+      RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
+    else
+      rounded |> bigint |> Dval.int |> Ply
+
   type Param = BuiltInParam
