@@ -21,9 +21,6 @@ module ParseError =
     DEnum(typeName, typeName, [], caseName, fields)
 
 
-/// Convert an already-rounded float to an `Int`. NaN/Infinity have no Int
-/// representation; `bigint` would throw a host exception, so surface a Dark
-/// `OutOfRange` error instead.
 let fns () : List<BuiltInFn> =
   [ { name = fn "floatCeiling" 0
       typeParams = []

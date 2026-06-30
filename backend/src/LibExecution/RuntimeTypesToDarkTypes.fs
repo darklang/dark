@@ -736,7 +736,7 @@ module Dval =
     // cannot be read.
     | DBlob(Ephemeral eph) -> mk "DBlobEphemeral" [ DUuid eph.id ]
     | DBlob(Persistent(hash, length)) ->
-      mk "DBlobPersistent" [ DString hash; DInt(DarkInt.ofBigInt (bigint length)) ]
+      mk "DBlobPersistent" [ DString hash; RuntimeTypes.Dval.int (bigint length) ]
 
     // Streams render as a stub tag for LSP/reflection only — they
     // can't round-trip (no live pull fn on the other side).

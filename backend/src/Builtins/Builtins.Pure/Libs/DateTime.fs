@@ -413,15 +413,10 @@ let fns () : List<BuiltInFn> =
       description = "Returns the difference of the two dates, in seconds"
       fn =
         (function
-        | _, _, _, [ DDateTime endDate; DDateTime startDate ] ->
+        | _, vm, _, [ DDateTime endDate; DDateTime startDate ] ->
           let diff =
             (DarkDateTime.toInstant endDate) - (DarkDateTime.toInstant startDate)
-          diff.TotalSeconds
-          |> System.Math.Round
-          |> int64
-          |> bigint
-          |> Dval.int
-          |> Ply
+          diff.TotalSeconds |> System.Math.Round |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -529,16 +524,11 @@ let fns () : List<BuiltInFn> =
       description = "Returns the difference of the two dates, in milliseconds"
       fn =
         (function
-        | _, _, _, [ DDateTime endDate; DDateTime startDate ] ->
+        | _, vm, _, [ DDateTime endDate; DDateTime startDate ] ->
           let diff =
             (DarkDateTime.toInstant endDate) - (DarkDateTime.toInstant startDate)
 
-          diff.TotalMilliseconds
-          |> System.Math.Round
-          |> int64
-          |> bigint
-          |> Dval.int
-          |> Ply
+          diff.TotalMilliseconds |> System.Math.Round |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

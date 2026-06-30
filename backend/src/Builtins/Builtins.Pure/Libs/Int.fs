@@ -818,7 +818,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise NOT on an <type Int> value"
       fn =
         (function
-        | _, _, _, [ DInt a ] -> Ply(Dval.int (-(DarkInt.toBigInt a) - bigint 1))
+        | _, _, _, [ DInt a ] -> Ply(Dval.int (-(DarkInt.toBigInt a) - bigOne))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
