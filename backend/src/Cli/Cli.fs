@@ -157,6 +157,16 @@ let main (args : string[]) =
 
     NonBlockingConsole.wait ()
 
+    // Exit codes are bounded; narrow safely rather than letting an out-of-Int32
+    // result throw an uncaught host OverflowException.
+    let intToExitCode (i : RT.DarkInt) : int =
+      match RT.DarkInt.toInt32 i with
+      | Some n -> n
+      | None ->
+        logError
+          $"main function returned an Int outside exit-code range: {RT.DarkInt.toBigInt i}"
+        1
+
     match result with
     | Error(rte, callStack) ->
       let state = state cliPackageManager
@@ -177,16 +187,8 @@ let main (args : string[]) =
           $"Encountered a Runtime Error, tried to stringify it, and then _that_ failed.\nOriginal Error: {rte}\n{errorCallStackStr}\n\nError encountered when trying to stringify:\n{newErr}"
 
       1
-    | Ok(RT.DInt64 i) -> (int i)
-    | Ok(RT.DInt i) ->
-      // Exit codes are bounded; narrow safely rather than letting an
-      // out-of-Int32 result throw an uncaught host OverflowException.
-      match RT.DarkInt.toInt32 i with
-      | Some n -> n
-      | None ->
-        logError
-          $"main function returned an Int outside exit-code range: {RT.DarkInt.toBigInt i}"
-        1
+    | Ok(RT.DInt64 i) -> intToExitCode (RT.DarkInt.Finite i)
+    | Ok(RT.DInt i) -> intToExitCode i
     | Ok dval ->
       let state = state cliPackageManager
       let output = (Exe.dvalToRepr state dval).Result
