@@ -13,15 +13,15 @@ Format: ## Concept → ### Core Idea → ### How It Works → ### Example → ##
 let thinkingAgent =
   (Darklang.LLM.Agent.create ())
   |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
-  |> Darklang.LLM.Agent.withThinking 2000L
-  |> Darklang.LLM.Agent.withMaxTokens 4000L
+  |> Darklang.LLM.Agent.withThinking 2000I
+  |> Darklang.LLM.Agent.withMaxTokens 4000I
 
 
 /// Create a basic explainer without extended thinking (faster)
 let basicAgent =
   (Darklang.LLM.Agent.create ())
   |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
-  |> Darklang.LLM.Agent.withMaxTokens 1500L
+  |> Darklang.LLM.Agent.withMaxTokens 1500I
   |> Darklang.LLM.Agent.withTemperature 0.4
 
 

@@ -241,22 +241,22 @@ type Citation =
   { ``type``: CitationType
     cited_text: String
     // For char_location
-    document_index: Stdlib.Option.Option<Int64>
+    document_index: Stdlib.Option.Option<Int>
     document_title: Stdlib.Option.Option<String>
-    start_char_index: Stdlib.Option.Option<Int64>
-    end_char_index: Stdlib.Option.Option<Int64>
+    start_char_index: Stdlib.Option.Option<Int>
+    end_char_index: Stdlib.Option.Option<Int>
     // For page_location
-    start_page_number: Stdlib.Option.Option<Int64>
-    end_page_number: Stdlib.Option.Option<Int64>
+    start_page_number: Stdlib.Option.Option<Int>
+    end_page_number: Stdlib.Option.Option<Int>
     // For content_block_location and search_result_location
-    start_block_index: Stdlib.Option.Option<Int64>
-    end_block_index: Stdlib.Option.Option<Int64>
+    start_block_index: Stdlib.Option.Option<Int>
+    end_block_index: Stdlib.Option.Option<Int>
     // For web_search_result_location
     encrypted_index: Stdlib.Option.Option<String>
     url: Stdlib.Option.Option<String>
     title: Stdlib.Option.Option<String>
     // For search_result_location
-    search_result_index: Stdlib.Option.Option<Int64>
+    search_result_index: Stdlib.Option.Option<Int>
     source: Stdlib.Option.Option<String>
     // For output citations (response from API)
     file_id: Stdlib.Option.Option<String> }
@@ -305,21 +305,21 @@ type ContentBlock =
     stdout: Stdlib.Option.Option<String>
     stderr: Stdlib.Option.Option<String>
     encrypted_stdout: Stdlib.Option.Option<String>  // For PFC + web_search results
-    return_code: Stdlib.Option.Option<Int64>
+    return_code: Stdlib.Option.Option<Int>
     // Code execution output / container upload
     file_id: Stdlib.Option.Option<String>
     // Web fetch result fields
     retrieved_at: Stdlib.Option.Option<String>  // ISO 8601 timestamp
     // Text editor result fields
     file_type: Stdlib.Option.Option<String>  // "text" | "image" | "pdf"
-    start_line: Stdlib.Option.Option<Int64>
-    num_lines: Stdlib.Option.Option<Int64>
-    total_lines: Stdlib.Option.Option<Int64>
+    start_line: Stdlib.Option.Option<Int>
+    num_lines: Stdlib.Option.Option<Int>
+    total_lines: Stdlib.Option.Option<Int>
     is_file_update: Stdlib.Option.Option<Bool>
-    old_start: Stdlib.Option.Option<Int64>
-    old_lines: Stdlib.Option.Option<Int64>
-    new_start: Stdlib.Option.Option<Int64>
-    new_lines: Stdlib.Option.Option<Int64>
+    old_start: Stdlib.Option.Option<Int>
+    old_lines: Stdlib.Option.Option<Int>
+    new_start: Stdlib.Option.Option<Int>
+    new_lines: Stdlib.Option.Option<Int>
     lines: Stdlib.Option.Option<List<String>>
     // Tool search result fields
     tool_references: Stdlib.Option.Option<List<Json>>
@@ -331,10 +331,10 @@ type ContentBlock =
 
 let citationCharLocation
   (citedText: String)
-  (docIndex: Int64)
+  (docIndex: Int)
   (docTitle: String)
-  (startChar: Int64)
-  (endChar: Int64)
+  (startChar: Int)
+  (endChar: Int)
   : Citation =
   Citation
     { ``type`` = CitationType.CharLocation
@@ -356,10 +356,10 @@ let citationCharLocation
 
 let citationPageLocation
   (citedText: String)
-  (docIndex: Int64)
+  (docIndex: Int)
   (docTitle: String)
-  (startPage: Int64)
-  (endPage: Int64)
+  (startPage: Int)
+  (endPage: Int)
   : Citation =
   Citation
     { ``type`` = CitationType.PageLocation
@@ -405,8 +405,8 @@ let citationWebSearchResult
 
 let citationContentBlockLocation
   (citedText: String)
-  (startBlockIndex: Int64)
-  (endBlockIndex: Int64)
+  (startBlockIndex: Int)
+  (endBlockIndex: Int)
   : Citation =
   Citation
     { ``type`` = CitationType.ContentBlockLocation
@@ -428,7 +428,7 @@ let citationContentBlockLocation
 
 let citationSearchResultLocation
   (citedText: String)
-  (searchResultIndex: Int64)
+  (searchResultIndex: Int)
   (resultSource: String)
   : Citation =
   Citation
@@ -1981,7 +1981,7 @@ let contentBlockToJson (block: ContentBlock) : Json =
 
   let withReturnCode =
     match block.return_code with
-    | Some rc -> Stdlib.List.append withEncryptedStdout [ ("return_code", Json.Number (Stdlib.Int64.toFloat rc)) ]
+    | Some rc -> Stdlib.List.append withEncryptedStdout [ ("return_code", Json.Number (Stdlib.Int.toFloat rc)) ]
     | None -> withEncryptedStdout
 
   let withFileId =
@@ -2001,17 +2001,17 @@ let contentBlockToJson (block: ContentBlock) : Json =
 
   let withStartLine =
     match block.start_line with
-    | Some sl -> Stdlib.List.append withFileType [ ("start_line", Json.Number (Stdlib.Int64.toFloat sl)) ]
+    | Some sl -> Stdlib.List.append withFileType [ ("start_line", Json.Number (Stdlib.Int.toFloat sl)) ]
     | None -> withFileType
 
   let withNumLines =
     match block.num_lines with
-    | Some nl -> Stdlib.List.append withStartLine [ ("num_lines", Json.Number (Stdlib.Int64.toFloat nl)) ]
+    | Some nl -> Stdlib.List.append withStartLine [ ("num_lines", Json.Number (Stdlib.Int.toFloat nl)) ]
     | None -> withStartLine
 
   let withTotalLines =
     match block.total_lines with
-    | Some tl -> Stdlib.List.append withNumLines [ ("total_lines", Json.Number (Stdlib.Int64.toFloat tl)) ]
+    | Some tl -> Stdlib.List.append withNumLines [ ("total_lines", Json.Number (Stdlib.Int.toFloat tl)) ]
     | None -> withNumLines
 
   let withIsFileUpdate =
@@ -2021,22 +2021,22 @@ let contentBlockToJson (block: ContentBlock) : Json =
 
   let withOldStart =
     match block.old_start with
-    | Some os -> Stdlib.List.append withIsFileUpdate [ ("old_start", Json.Number (Stdlib.Int64.toFloat os)) ]
+    | Some os -> Stdlib.List.append withIsFileUpdate [ ("old_start", Json.Number (Stdlib.Int.toFloat os)) ]
     | None -> withIsFileUpdate
 
   let withOldLines =
     match block.old_lines with
-    | Some ol -> Stdlib.List.append withOldStart [ ("old_lines", Json.Number (Stdlib.Int64.toFloat ol)) ]
+    | Some ol -> Stdlib.List.append withOldStart [ ("old_lines", Json.Number (Stdlib.Int.toFloat ol)) ]
     | None -> withOldStart
 
   let withNewStart =
     match block.new_start with
-    | Some ns -> Stdlib.List.append withOldLines [ ("new_start", Json.Number (Stdlib.Int64.toFloat ns)) ]
+    | Some ns -> Stdlib.List.append withOldLines [ ("new_start", Json.Number (Stdlib.Int.toFloat ns)) ]
     | None -> withOldLines
 
   let withNewLines =
     match block.new_lines with
-    | Some nl -> Stdlib.List.append withNewStart [ ("new_lines", Json.Number (Stdlib.Int64.toFloat nl)) ]
+    | Some nl -> Stdlib.List.append withNewStart [ ("new_lines", Json.Number (Stdlib.Int.toFloat nl)) ]
     | None -> withNewStart
 
   let withLines =

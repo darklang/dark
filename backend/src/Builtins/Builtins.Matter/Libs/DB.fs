@@ -507,7 +507,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "dbCount" 0
       typeParams = []
       parameters = [ tableParam "a" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Return the number of items stored in <param table>"
       fn =
         (function
@@ -517,7 +517,7 @@ let fns () : List<BuiltInFn> =
             LibExecution.CapabilityCheck.requireDbRead exeState.grantedCaps dbname
             let db = exeState.program.dbs[dbname]
             let! (count : int) = UserDB.count exeState db
-            return count |> int64 |> DInt64
+            return Dval.int (bigint count)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -659,7 +659,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "dbQueryCount" 0
       typeParams = []
       parameters = [ tableParam "a"; queryFilterParam "a" ]
-      returnType = TInt64
+      returnType = TInt
       description =
         "Return the number of items from <param table> for which filter returns true."
       fn =

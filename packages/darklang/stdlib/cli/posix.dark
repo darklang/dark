@@ -5,47 +5,47 @@ module Darklang.Stdlib.Cli.Posix
 
 /// Structured error from posix operations, carrying the errno code.
 type Error =
-  { errno: Int64
+  { errno: Int
     message: String }
 
 /// Result of a stat() call.
 type StatResult =
-  { mode: Int64
-    size: Int64
-    mtimeSec: Int64 }
+  { mode: Int
+    size: Int
+    mtimeSec: Int }
 
 /// Standard permission modes
 module Modes =
   /// 0755 — owner rwx, group rx, others rx
-  let defaultDir = 493L
+  let defaultDir = 493I
 
   /// 0644 — owner rw, group r, others r
-  let defaultFile = 420L
+  let defaultFile = 420I
 
 
 // -- Open flags ---------------------------------------------------
 module OpenFlags =
-  let rdonly () : Int64 = Builtin.posixFlagRdonly ()
-  let wronly () : Int64 = Builtin.posixFlagWronly ()
-  let rdwr () : Int64 = Builtin.posixFlagRdwr ()
-  let creat () : Int64 = Builtin.posixFlagCreat ()
-  let trunc () : Int64 = Builtin.posixFlagTrunc ()
-  let append () : Int64 = Builtin.posixFlagAppend ()
+  let rdonly () : Int = Builtin.posixFlagRdonly ()
+  let wronly () : Int = Builtin.posixFlagWronly ()
+  let rdwr () : Int = Builtin.posixFlagRdwr ()
+  let creat () : Int = Builtin.posixFlagCreat ()
+  let trunc () : Int = Builtin.posixFlagTrunc ()
+  let append () : Int = Builtin.posixFlagAppend ()
 
 
 /// Open a file. Returns a file descriptor.
-let openFile (path: String) (flags: Int64) (mode: Int64) : Result.Result<Int64, Error> =
+let openFile (path: String) (flags: Int) (mode: Int) : Result.Result<Int, Error> =
   Builtin.posixOpen path flags mode
 
 /// Read all bytes from a file descriptor until EOF.
 /// Accumulates chunks (as Blobs) and concats once at EOF.
 let fdReadAll
-  (fd: Int64)
+  (fd: Int)
   (acc: List<Blob>)
   : Result.Result<Blob, Error> =
-  (Builtin.posixFdRead fd 4096L)
+  (Builtin.posixFdRead fd 4096I)
   |> Stdlib.Result.andThen (fun chunk ->
-    if Stdlib.Blob.length chunk == 0L then
+    if Stdlib.Blob.length chunk == 0I then
       Stdlib.Result.Result.Ok(Stdlib.Blob.concat acc)
     else
       fdReadAll fd (Stdlib.List.append acc [ chunk ]))
@@ -77,7 +77,7 @@ let unsetenv (name: String) : Result.Result<Unit, Error> =
   Builtin.posixUnsetenv name
 
 /// Create a single directory
-let mkdir (path: String) (mode: Int64) : Result.Result<Unit, Error> =
+let mkdir (path: String) (mode: Int) : Result.Result<Unit, Error> =
   Builtin.posixMkdir path mode
 
 /// Remove an empty directory
@@ -93,7 +93,7 @@ let rename (oldpath: String) (newpath: String) : Result.Result<Unit, Error> =
   Builtin.posixRename oldpath newpath
 
 /// Change file permissions
-let chmod (path: String) (mode: Int64) : Result.Result<Unit, Error> =
+let chmod (path: String) (mode: Int) : Result.Result<Unit, Error> =
   Builtin.posixChmod path mode
 
 /// Update atime and mtime to now.
@@ -122,7 +122,7 @@ let isSymlink (path: String) : Result.Result<Bool, Error> =
 
 
 /// Create a unique temporary file. Returns (fd, path).
-let mkstemp (prefix: String) : Result.Result<(Int64 * String), Error> =
+let mkstemp (prefix: String) : Result.Result<(Int * String), Error> =
   Builtin.posixMkstemp prefix
 
 /// Create a unique temporary directory. Returns the path.
@@ -136,7 +136,7 @@ let fnmatch (pattern: String) (str: String) (pathMode: Bool) : Bool =
 
 
 /// Lock a file descriptor (exclusive). Use false to unlock.
-let flock (fd: Int64) (exclusive: Bool) : Result.Result<Unit, Error> =
+let flock (fd: Int) (exclusive: Bool) : Result.Result<Unit, Error> =
   Builtin.posixFlock fd exclusive
 
 /// Get the owner username of a file.
@@ -153,32 +153,32 @@ let getenv (name: String) : Stdlib.Option.Option<String> =
 
 
 /// Send a signal to a process
-let kill (pid: Int64) (signal: Int64) : Result.Result<Unit, Error> =
+let kill (pid: Int) (signal: Int) : Result.Result<Unit, Error> =
   Builtin.posixKill pid signal
 
-let sigterm = 15L
-let sigkill = 9L
-let sigint = 2L
+let sigterm = 15I
+let sigkill = 9I
+let sigint = 2I
 
 /// Common errno values (Linux/macOS)
 module Errno =
   /// Invalid argument
-  let einval = 22L
+  let einval = 22I
 
   /// No such process
-  let esrch = 3L
+  let esrch = 3I
 
   /// Operation not permitted
-  let eperm = 1L
+  let eperm = 1I
 
 
 /// Stat file-type mask and constants
 module StatMode =
   /// S_IFMT — bitmask for the file type fields
-  let ifmt = 61440L
+  let ifmt = 61440I
 
   /// S_IFDIR — directory
-  let ifdir = 16384L
+  let ifdir = 16384I
 
 
 /// Sleep for the given number of milliseconds.
@@ -191,14 +191,14 @@ let sleep (delayMs: Float) : Unit =
 let isDirectory (path: String) : Bool =
   match stat path with
   | Ok result ->
-    (Stdlib.Int64.bitwiseAnd result.mode StatMode.ifmt) == StatMode.ifdir
+    (Stdlib.Int.bitwiseAnd result.mode StatMode.ifmt) == StatMode.ifdir
   | Error _ -> false
 
 
 /// Check if a process is running via kill(pid, 0).
 /// Signal 0 checks process existence without sending a signal.
-let isProcessRunning (pid: Int64) : Bool =
-  match kill pid 0L with
+let isProcessRunning (pid: Int) : Bool =
+  match kill pid 0I with
   | Ok _ -> true
   | Error e ->
     // EPERM means the process exists but we lack permission to signal it

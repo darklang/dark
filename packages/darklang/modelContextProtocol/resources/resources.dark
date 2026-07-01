@@ -213,8 +213,8 @@ module Helpers =
             // Extract the variable name (remove the {})
             let varName =
               templateSeg
-              |> Stdlib.String.dropFirst 1L
-              |> Stdlib.String.dropLast 1L
+              |> Stdlib.String.dropFirst 1I
+              |> Stdlib.String.dropLast 1I
 
             Stdlib.Option.Option.Some (varName, uriSeg)
           else if uriSeg == templateSeg then

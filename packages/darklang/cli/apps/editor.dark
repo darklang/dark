@@ -7,7 +7,7 @@ module Darklang.Cli.Apps.Editor
 type State =
   { /// the full catalog, ordered daemons-first (so selection indices line up with the grouped display)
     apps: List<Model.App>
-    selected: Int64
+    selected: Int
     /// last action feedback, shown near the footer
     message: String
     /// when true, show the selected app's detail (slug + target, and for daemons recent logs) below the list
@@ -27,14 +27,14 @@ let selectedApp (state: State) : Stdlib.Option.Option<Model.App> =
 // ── rendering ──
 
 // `s` cut to `maxLen` display columns, with a trailing ellipsis when it doesn't fit.
-let private truncate (s: String) (maxLen: Int64) : String =
-  if Stdlib.String.length s <= maxLen then
+let private truncate (s: String) (maxLen: Int) : String =
+  if (Stdlib.String.length s) <= maxLen then
     s
   else
-    (Stdlib.String.slice s 0L (maxLen - 1L)) ++ "…"
+    (Stdlib.String.slice s 0I (maxLen - 1I)) ++ "…"
 
 
-let private appRow (state: State) (idx: Int64) (app: Model.App) : String =
+let private appRow (state: State) (idx: Int) (app: Model.App) : String =
   let pointer =
     if idx == state.selected then
       Colors.colorize (Colors.bold ++ Colors.cyan) "▸ "
@@ -64,13 +64,13 @@ let private appRow (state: State) (idx: Int64) (app: Model.App) : String =
     else if isRunning then Colors.colorize Colors.green rawState
     else if isStale then Colors.colorize Colors.yellow rawState
     else Colors.dimText rawState
-  let stateWidth = if rawState == "" then 0L else (Stdlib.String.length rawState) + 3L
+  let stateWidth = if rawState == "" then 0I else (Stdlib.String.length rawState) + 3I
 
-  let name = Stdlib.Result.withDefault (Stdlib.String.padEnd app.name " " 26L) app.name
+  let name = Stdlib.Result.withDefault (Stdlib.String.padEnd app.name " " 26I) app.name
   let w = Darklang.Cli.Terminal.getWidth ()
-  let width = if w <= 0L then 80L else w
+  let width = if w <= 0I then 80I else w
   // prefix (▸ + install glyph + run glyph + space) = 5 cols, name column = 26, gap before description = 2
-  let descBudget = Stdlib.Int64.max (width - 5L - 26L - 2L - stateWidth) 8L
+  let descBudget = Stdlib.Int.max (width - 5I - 26I - 2I - stateWidth) 8I
   let desc = truncate app.description descBudget
 
   let trailing = if stateText == "" then "" else "   " ++ stateText
@@ -79,7 +79,7 @@ let private appRow (state: State) (idx: Int64) (app: Model.App) : String =
 
 // A titled group of rows (nothing if the group is empty). `rows` carries each app's catalog index so the
 // selection highlight stays correct across the split.
-let private printSection (state: State) (title: String) (rows: List<(Int64 * Model.App)>) : Unit =
+let private printSection (state: State) (title: String) (rows: List<(Int * Model.App)>) : Unit =
   if Stdlib.List.isEmpty rows then
     ()
   else
@@ -129,7 +129,7 @@ let render (state: State) : Unit =
 
         match app.target with
         | Daemon _ ->
-          let logs = Stdlib.Cli.Daemon.tailLog app.slug 5L
+          let logs = Stdlib.Cli.Daemon.tailLog app.slug 5I
           if Stdlib.List.isEmpty logs then
             ()
           else
@@ -206,7 +206,7 @@ let toggleDaemon (state: State) (app: Model.App) (entrypoint: String) : State =
     let q = "\""
     let expr = entrypoint ++ " " ++ q ++ app.slug ++ q
     match Stdlib.Cli.Daemon.start app.slug expr with
-    | Ok pid -> { state with message = Colors.success $"started {app.name} (pid {Stdlib.Int64.toString pid})" }
+    | Ok pid -> { state with message = Colors.success $"started {app.name} (pid {Stdlib.Int.toString pid})" }
     | Error e -> { state with message = Colors.error e }
 
 /// enter — the primary action: run a foreground app (hand it the screen) / toggle a daemon.
@@ -229,11 +229,11 @@ let handleKey
   match key with
   | Escape -> Action.Exit state
   | UpArrow ->
-    let s = if state.selected > 0L then state.selected - 1L else 0L
+    let s = if state.selected > 0I then state.selected - 1I else 0I
     Action.Continue ({ state with selected = s })
   | DownArrow ->
-    let maxIdx = count - 1L
-    let s = if state.selected < maxIdx then state.selected + 1L else maxIdx
+    let maxIdx = count - 1I
+    let s = if state.selected < maxIdx then state.selected + 1I else maxIdx
     Action.Continue ({ state with selected = s })
   | Enter -> activate state
   | _ ->
@@ -272,7 +272,7 @@ let launch (cliState: Cli.AppState) : Cli.AppState =
   let state =
     Editor.State
       { apps = ordered
-        selected = 0L
+        selected = 0I
         message = ""
         showDetail = false }
 

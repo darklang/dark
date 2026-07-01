@@ -320,7 +320,7 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "httpServerServe" 0
       typeParams = []
       parameters =
-        [ Param.make "port" TInt64 "TCP port to listen on"
+        [ Param.make "port" TInt "TCP port to listen on"
           Param.makeWithArgs
             "handler"
             // CLEANUP real types
@@ -329,7 +329,7 @@ let fns () : List<BuiltInFn> =
             [ "request" ]
           Param.make
             "maxBodyBytes"
-            TInt64
+            TInt
             "Maximum request body size in bytes (over-limit → 413)"
           Param.make
             "injectStandardHeaders"
@@ -349,15 +349,33 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | exeState,
+          vm,
           _,
-          _,
-          [ DInt64 port
+          [ DInt portArg
             DApplicable handler
-            DInt64 maxBodyBytes
+            DInt maxBodyBytesArg
             DBool injectStandardHeaders
             DBool canonicalizeFromForwardedProto
             DBool logRequests ] ->
           uply {
+            // maxBodyBytes is a comparison threshold; a negative limit would
+            // reject every request (treated as over-limit), so reject it. 0 is
+            // valid (allow no body).
+            let maxBodyBytes = intToInt64 vm maxBodyBytesArg
+            if maxBodyBytes < 0L then
+              RuntimeError.Ints.OutOfRange
+              |> RuntimeError.Int
+              |> raiseRTE vm.threadID
+            // A TCP port must be in [0, 65535]. intToInt64 alone would let
+            // larger-but-int64-sized values reach HttpListener.Start and throw a
+            // host exception, so validate the real port range up front.
+            let port = intToInt64 vm portArg
+            if
+              port < int64 IPEndPoint.MinPort || port > int64 IPEndPoint.MaxPort
+            then
+              RuntimeError.Ints.OutOfRange
+              |> RuntimeError.Int
+              |> raiseRTE vm.threadID
             use _serveSpan =
               Telemetry.span "httpserver.serve" [ "port", string port ]
 

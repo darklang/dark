@@ -17,14 +17,14 @@ module PickContext =
     PickContext { currentModule = [] }
 
 /// Count how many leading segments of two lists match.
-let countMatchingPrefix (a: List<String>) (b: List<String>) : Int64 =
+let countMatchingPrefix (a: List<String>) (b: List<String>) : Int =
   match (a, b) with
   | (aHead :: aTail, bHead :: bTail) ->
     if aHead == bHead then
-      1L + (countMatchingPrefix aTail bTail)
+      1I + (countMatchingPrefix aTail bTail)
     else
-      0L
-  | _ -> 0L
+      0I
+  | _ -> 0I
 
 /// Given a list of locations for a hash, pick the best one using context.
 /// Scoring: most matching prefix segments with currentModule, then shortest path,

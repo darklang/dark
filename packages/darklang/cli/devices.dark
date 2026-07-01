@@ -24,7 +24,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
 
   | [ "serve"; portStr ] ->
-    match Stdlib.Int64.parse portStr with
+    match Stdlib.Int.parse portStr with
     | Ok port ->
       match Darklang.Tailscale.serve port with
       | Ok() ->

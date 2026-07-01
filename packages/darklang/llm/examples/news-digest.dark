@@ -14,8 +14,8 @@ let agent =
   (Darklang.LLM.Agent.create ())
   |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
   |> Darklang.LLM.Agent.withWebSearch
-  |> Darklang.LLM.Agent.withMaxTokens 1000L
-  |> Darklang.LLM.Agent.withMaxTurns 2L
+  |> Darklang.LLM.Agent.withMaxTokens 1000I
+  |> Darklang.LLM.Agent.withMaxTurns 2I
   |> Darklang.LLM.Agent.withTemperature 0.2
 
 

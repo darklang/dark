@@ -270,7 +270,7 @@ let thinkingConfigToJson (config: Provider.ThinkingConfig) : Json =
   | Enabled budgetTokens ->
     Json.Object
       [ ("type", Json.String "enabled")
-        ("budget_tokens", Json.Number(Stdlib.Int64.toFloat budgetTokens)) ]
+        ("budget_tokens", Json.Number(Stdlib.Int.toFloat budgetTokens)) ]
   | Adaptive ->
     Json.Object [ ("type", Json.String "adaptive") ]
 
@@ -279,13 +279,13 @@ let thinkingConfigToJson (config: Provider.ThinkingConfig) : Json =
 /// Shared by web_search and web_fetch config builders
 let buildDomainConstraints
   (baseFields: List<(String * Json)>)
-  (maxUses: Stdlib.Option.Option<Int64>)
+  (maxUses: Stdlib.Option.Option<Int>)
   (allowedDomains: Stdlib.Option.Option<List<String>>)
   (blockedDomains: Stdlib.Option.Option<List<String>>)
   : List<(String * Json)> =
   let withMaxUses =
     match maxUses with
-    | Some n -> Stdlib.List.append baseFields [ ("max_uses", Json.Number(Stdlib.Int64.toFloat n)) ]
+    | Some n -> Stdlib.List.append baseFields [ ("max_uses", Json.Number(Stdlib.Int.toFloat n)) ]
     | None -> baseFields
 
   let withAllowed =
@@ -509,11 +509,11 @@ let extractCitationsFromBlock (fields: List<(String * Json)>) : List<Provider.Ci
             citedText = Stdlib.AltJson.Helpers.getString "cited_text" citFields
             startIndex =
               let idx = Stdlib.AltJson.Helpers.getInt "start_index" citFields
-              if idx == 0L then Stdlib.Option.Option.None
+              if idx == 0I then Stdlib.Option.Option.None
               else Stdlib.Option.Option.Some idx
             endIndex =
               let idx = Stdlib.AltJson.Helpers.getInt "end_index" citFields
-              if idx == 0L then Stdlib.Option.Option.None
+              if idx == 0I then Stdlib.Option.Option.None
               else Stdlib.Option.Option.Some idx })
     | _ -> Stdlib.Option.Option.None)
 
@@ -677,7 +677,7 @@ let buildProvider (config: Config) : Provider =
             supportsStreaming = false
             supportsSystemPrompt = true
             supportsImages = true
-            maxContextTokens = 200000L } }
+            maxContextTokens = 200000I } }
 
 
 /// Create an Anthropic provider with default configuration

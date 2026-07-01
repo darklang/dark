@@ -7,7 +7,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   // fn SomeModule.myFn (param: Type): ReturnType = body
   | location :: definitionParts ->
-    // Strip leading "=" if present (since users naturally type "fn foo (x: Int64): Int64 = ...")
+    // Strip leading "=" if present (since users naturally type "fn foo (x: Int): Int = ...")
     let cleanedParts =
       match definitionParts with
       | "=" :: rest -> rest
@@ -31,14 +31,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         "  fn <location> -    (read body from stdin)"
         ""
         "Examples:"
-        "  fn double (x: Int64): Int64 = Stdlib.Int64.multiply x 2L"
+        "  fn double (x: Int): Int = Stdlib.Int.multiply x 2"
         "  fn greet (name: String): String = \"Hello, \" ++ name"
         ""
         "  # Multi-line body via stdin (run from shell, not the REPL):"
         "  ./scripts/run-cli fn fib - <<'EOF'"
-        "  (n: Int64): Int64 ="
-        "    if n < 2L then n"
-        "    else fib (n - 1L) + fib (n - 2L)"
+        "  (n: Int): Int ="
+        "    if n < 2 then n"
+        "    else fib (n - 1) + fib (n - 2)"
         "  EOF"
         ""
       ] |> Stdlib.printLines
@@ -136,7 +136,7 @@ let createFnInline
           | Some note -> note
           | None -> "Make sure your syntax is correct."
         [ Colors.error "Failed to parse function definition"
-          $"  at line {Stdlib.Int64.toString (r.start.row + 1L)}, column {Stdlib.Int64.toString (r.start.column + 1L)}"
+          $"  at line {Stdlib.Int.toString (r.start.row + 1I)}, column {Stdlib.Int.toString (r.start.column + 1I)}"
           detail ]
         |> Stdlib.printLines
         state
@@ -145,7 +145,7 @@ let createFnInline
         (Colors.error "Failed to parse function definition")
         ""
         "Make sure your syntax is correct. Examples:"
-        "  fn double (x: Int64): Int64 = Stdlib.Int64.multiply x 2L"
+        "  fn double (x: Int): Int = Stdlib.Int.multiply x 2"
         "  fn greet (name: String): String = \"Hello, \" ++ name"
         ""
       ] |> Stdlib.printLines
@@ -166,26 +166,26 @@ let help (state: Cli.AppState) : Cli.AppState =
     ""
     "Examples:"
     "  # Simple function:"
-    "  fn double (x: Int64): Int64 = Stdlib.Int64.multiply x 2L"
+    "  fn double (x: Int): Int = Stdlib.Int.multiply x 2"
     ""
     "  # String function:"
     "  fn greet (name: String): String = \"Hello, \" ++ name"
     ""
     "  # Multiple parameters:"
-    "  fn add (a: Int64) (b: Int64): Int64 = Stdlib.Int64.add a b"
+    "  fn add (a: Int) (b: Int): Int = Stdlib.Int.add a b"
     ""
     "  # Boolean function:"
-    "  fn isPositive (x: Int64): Bool = x > 0L"
+    "  fn isPositive (x: Int): Bool = x > 0"
     ""
     "  # Multi-line body via stdin (run from shell, not the REPL — '-' reads stdin):"
     "  ./scripts/run-cli fn fib - <<'EOF'"
-    "  (n: Int64): Int64 ="
-    "    if n < 2L then n"
-    "    else fib (n - 1L) + fib (n - 2L)"
+    "  (n: Int): Int ="
+    "    if n < 2 then n"
+    "    else fib (n - 1) + fib (n - 2)"
     "  EOF"
     ""
     "Location can be relative or absolute:"
-    "  fn helper (x: Int64): Int64 = ...    # Relative to current location"
+    "  fn helper (x: Int): Int = ...    # Relative to current location"
     "  fn /Darklang.Foo.bar (x: String): String = ...  # Absolute path"
     ""
   ] |> Stdlib.printLines

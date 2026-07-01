@@ -148,11 +148,11 @@ let walk (path: String) : Result.Result<List<String>, Posix.Error> =
 
 
 /// Get the total size of a directory and its contents in bytes.
-let size (path: String) : Result.Result<Int64, Posix.Error> =
+let size (path: String) : Result.Result<Int, Posix.Error> =
   match listRecursive path with
   | Ok files ->
     files
-    |> Stdlib.List.fold (Stdlib.Result.Result.Ok 0L) (fun acc filePath ->
+    |> Stdlib.List.fold (Stdlib.Result.Result.Ok 0I) (fun acc filePath ->
       match acc with
       | Ok total ->
         match Cli.File.size filePath with

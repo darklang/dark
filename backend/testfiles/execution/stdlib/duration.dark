@@ -1,0 +1,23 @@
+// Duration.parse: suffix-based short-duration parsing ("30s"/"5m"/"1h"/"2d")
+// into a number of seconds (arbitrary-precision Int).
+
+// --- units ---
+Stdlib.Duration.parse "30s" = Stdlib.Result.Result.Ok 30I
+Stdlib.Duration.parse "5m" = Stdlib.Result.Result.Ok 300I
+Stdlib.Duration.parse "1h" = Stdlib.Result.Result.Ok 3600I
+Stdlib.Duration.parse "2d" = Stdlib.Result.Result.Ok 172800I
+Stdlib.Duration.parse "0s" = Stdlib.Result.Result.Ok 0I
+
+// --- arbitrary precision: a value past Int64 range now parses (Int64.parse
+// would have rejected it as out-of-range) ---
+Stdlib.Duration.parse "9223372036854775808s" =
+  Stdlib.Result.Result.Ok 9223372036854775808I
+
+// --- errors ---
+// too short (no unit)
+Stdlib.Duration.parse "5" = Stdlib.Result.Result.Error "Duration too short: '5'; need a number + unit (s/m/h/d), e.g. 5m"
+Stdlib.Duration.parse "s" = Stdlib.Result.Result.Error "Duration too short: 's'; need a number + unit (s/m/h/d), e.g. 5m"
+// non-numeric number part
+Stdlib.Duration.parse "xm" = Stdlib.Result.Result.Error "Invalid duration 'xm'; need a number + unit (s/m/h/d), e.g. 5m"
+// unknown unit
+Stdlib.Duration.parse "5x" = Stdlib.Result.Result.Error "Unknown unit 'x' in '5x'; use s, m, h, or d"

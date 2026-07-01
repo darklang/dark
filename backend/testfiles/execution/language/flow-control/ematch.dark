@@ -348,7 +348,7 @@ module List =
 
   (match [ 1L; 2L; 3L ] with
    | var ->
-     let length = (Stdlib.List.length var) |> Stdlib.Int64.toString
+     let length = (Stdlib.List.length var) |> Stdlib.Int.toString
 
      $"pass with length: {length}"
    | [ 1L; 2L; 3L ] -> "fail"
@@ -733,7 +733,7 @@ module GuardClause =
    | _ -> "fail") = "fail"
 
   (match (5L, "hello") with
-   | (x, y) when x > 0L && Stdlib.String.length y == 5L -> "pass"
+   | (x, y) when x > 0L && Stdlib.String.length y == 5I -> "pass"
    | _ -> "fail") = "pass"
 
   (match -5L with

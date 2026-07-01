@@ -101,6 +101,7 @@ module Type =
     let result = p [ "Result" ] "Result"
     let option = p [ "Option" ] "Option"
 
+    let intParseError = p [ "Int" ] "ParseError"
     let int8ParseError = p [ "Int8" ] "ParseError"
     let uint8ParseError = p [ "UInt8" ] "ParseError"
     let int16ParseError = p [ "Int16" ] "ParseError"

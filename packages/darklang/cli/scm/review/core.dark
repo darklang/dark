@@ -4,17 +4,17 @@ type PackageItem =
   { name: String
     kind: String
     modulePath: String
-    propagatedCount: Int64 }
+    propagatedCount: Int }
 
 type BranchReviewItem =
   { branchId: Uuid
     branchName: String
-    wipCount: Int64
-    committedCount: Int64 }
+    wipCount: Int
+    committedCount: Int }
 
 type BranchListState =
   { items: List<BranchReviewItem>
-    selected: Int64 }
+    selected: Int }
 
 type DetailItem =
   | ModuleHeader of String
@@ -24,20 +24,20 @@ type DetailState =
   { branchName: String
     branchId: Uuid
     flatItems: List<DetailItem>
-    selected: Int64 }
+    selected: Int }
 
 type CommitEntry =
   { hash: String
     fullHash: String
     message: String
     date: String
-    opCount: Int64 }
+    opCount: Int }
 
 type CommitListState =
   { branchName: String
     branchId: Uuid
     commits: List<CommitEntry>
-    selected: Int64
+    selected: Int
     returnTo: DetailState }
 
 type DiffReturnTo =
@@ -47,7 +47,7 @@ type DiffReturnTo =
 type DiffState =
   { itemName: String
     diffLines: List<Stdlib.Diff.DiffLine>
-    scrollOffset: Int64
+    scrollOffset: Int
     returnTo: DiffReturnTo }
 
 type Screen =
@@ -67,15 +67,15 @@ type KeyResult =
 
 // ── Navigation helpers ──
 
-let moveUp (selected: Int64) : Int64 =
-  if selected > 0L then selected - 1L else selected
+let moveUp (selected: Int) : Int =
+  if selected > 0I then selected - 1I else selected
 
-let moveDown (selected: Int64) (itemCount: Int64) : Int64 =
-  let maxIdx = itemCount - 1L
-  if selected < maxIdx then selected + 1L else selected
+let moveDown (selected: Int) (itemCount: Int) : Int =
+  let maxIdx = itemCount - 1I
+  if selected < maxIdx then selected + 1I else selected
 
 /// Move up, skipping empty spacer items
-let moveUpSkipping (selected: Int64) (items: List<DetailItem>) : Int64 =
+let moveUpSkipping (selected: Int) (items: List<DetailItem>) : Int =
   let candidate = moveUp selected
   match Stdlib.List.getAt items candidate with
   | Some flatItem ->
@@ -87,7 +87,7 @@ let moveUpSkipping (selected: Int64) (items: List<DetailItem>) : Int64 =
   | None -> candidate
 
 /// Move down, skipping empty spacer items
-let moveDownSkipping (selected: Int64) (items: List<DetailItem>) : Int64 =
+let moveDownSkipping (selected: Int) (items: List<DetailItem>) : Int =
   let itemCount = Stdlib.List.length items
   let candidate = moveDown selected itemCount
   match Stdlib.List.getAt items candidate with
@@ -99,6 +99,6 @@ let moveDownSkipping (selected: Int64) (items: List<DetailItem>) : Int64 =
     | ItemEntry _pkg -> candidate
   | None -> candidate
 
-let computeScrollOffset (selected: Int64) (visibleCount: Int64) : Int64 =
-  if selected >= visibleCount then selected - visibleCount + 1L
-  else 0L
+let computeScrollOffset (selected: Int) (visibleCount: Int) : Int =
+  if selected >= visibleCount then selected - visibleCount + 1I
+  else 0I

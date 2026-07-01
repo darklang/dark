@@ -57,7 +57,7 @@ Workflow: create branch → make changes → commit → rebase → merge
 ## Example Session (interactive)
   branch create feature    # create + switch to feature branch
   fn fib                   # create fibonacci function
-  run fib 10L              # test it
+  run fib 10              # test it
   status                   # see "fib" as uncommitted on feature
   commit "Add fibonacci"   # save it
   rebase                   # pick up any new commits from parent
@@ -66,7 +66,7 @@ Workflow: create branch → make changes → commit → rebase → merge
 ## Example Session (non-interactive / AI agent)
   dark branch create feature
   dark --branch feature fn "Darklang.Math.fib ..."
-  dark --branch feature run fib 10L
+  dark --branch feature run fib 10
   dark --branch feature status
   dark --branch feature commit "Add fibonacci"
   dark --branch feature rebase

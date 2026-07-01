@@ -10,7 +10,21 @@ open LibExecution.Builtin.Shortcuts
 
 module VT = LibExecution.ValueType
 module Dval = LibExecution.Dval
+module PackageRefs = LibExecution.PackageRefs
 module RTE = RuntimeError
+module NR = LibExecution.RuntimeTypes.NameResolution
+
+module ParseError =
+  type ParseError = | BadFormat
+
+  let toDT (e : ParseError) : Dval =
+    let (caseName, fields) =
+      match e with
+      | BadFormat -> "BadFormat", []
+
+    let typeName = FQTypeName.fqPackage (PackageRefs.Type.Stdlib.intParseError ())
+    DEnum(typeName, typeName, [], caseName, fields)
+
 
 let private bigZero = System.Numerics.BigInteger.Zero
 let private bigOne = System.Numerics.BigInteger.One
@@ -100,7 +114,9 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DInt value; DInt divisor ] ->
           let d = DarkInt.toBigInt divisor
           if d = bigZero then
-            DString "`divisor` must be non-zero" |> resultError |> Ply
+            // The return type is a `Result`, so surface this as an `Error`
+            // rather than raising a runtime error.
+            DString "Cannot divide by 0" |> resultError |> Ply
           else
             DarkInt.toBigInt value % d |> Dval.int |> resultOk |> Ply
         | _ -> incorrectArgs ())
@@ -317,21 +333,46 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "intFromFloat" 0
+      typeParams = []
+      parameters = [ Param.make "a" TFloat "" ]
+      returnType = TInt
+      description =
+        "Converts a <type Float> to an <type Int>, truncating toward zero.
+         Unlike going via Int64, this preserves the full integer part of the
+         float (no 64-bit clamp)."
+      fn =
+        (function
+        // `bigint f` truncates toward zero; `roundedToInt` adds the NaN/Infinity
+        // guard (shared with the Float builtins) so those don't throw a host exn.
+        | _, vm, _, [ DFloat f ] -> roundedToInt vm f
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "intParse" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
-      returnType = TypeReference.result TInt TString
+      returnType =
+        let errorType =
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.intParseError ())
+        TypeReference.result TInt (TCustomType(NR.ok errorType, []))
       description =
         "Returns the <type Int> value of a <type String>. Arbitrary precision, so
          the only failure is a badly-formatted string."
       fn =
-        let resultOk = Dval.resultOk KTInt KTString
-        let resultError = Dval.resultError KTInt KTString
+        let typeName =
+          FQTypeName.fqPackage (PackageRefs.Type.Stdlib.intParseError ())
+        let resultOk = Dval.resultOk KTInt (KTCustomType(typeName, []))
+        let resultError = Dval.resultError KTInt (KTCustomType(typeName, []))
         (function
         | _, _, _, [ DString s ] ->
           match System.Numerics.BigInteger.TryParse(s) with
           | true, i -> i |> Dval.int |> resultOk |> Ply
-          | false, _ -> DString "Invalid Int" |> resultError |> Ply
+          | false, _ -> ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -715,6 +756,115 @@ let fns () : List<BuiltInFn> =
             (u128ToBig System.UInt128.MaxValue)
             (fun b -> DUInt128(bigToU128 b))
             v
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intBitwiseAnd" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TInt
+      description = "Bitwise AND on two <type Int> values"
+      fn =
+        (function
+        | _, _, _, [ DInt a; DInt b ] ->
+          Ply(Dval.int (DarkInt.toBigInt a &&& DarkInt.toBigInt b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intBitwiseOr" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TInt
+      description = "Bitwise OR on two <type Int> values"
+      fn =
+        (function
+        | _, _, _, [ DInt a; DInt b ] ->
+          Ply(Dval.int (DarkInt.toBigInt a ||| DarkInt.toBigInt b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intBitwiseXor" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TInt
+      description = "Bitwise XOR on two <type Int> values"
+      fn =
+        (function
+        | _, _, _, [ DInt a; DInt b ] ->
+          Ply(Dval.int (DarkInt.toBigInt a ^^^ DarkInt.toBigInt b))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intBitwiseNot" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt "" ]
+      returnType = TInt
+      description = "Bitwise NOT on an <type Int> value"
+      fn =
+        (function
+        | _, _, _, [ DInt a ] -> Ply(Dval.int (-(DarkInt.toBigInt a) - bigOne))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intShiftLeft" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TInt
+      description = "Bitwise left shift of an <type Int> value"
+      fn =
+        (function
+        | _, vm, _, [ DInt a; DInt b ] ->
+          // `<<<` needs a native Int32 shift count; reject anything that
+          // wouldn't fit rather than letting the cast overflow. A negative
+          // count would silently reverse direction in BigInteger, so reject it.
+          let shift = intToInt32 vm b
+          if shift < 0 then
+            outOfRange vm
+          else
+            Ply(Dval.int (DarkInt.toBigInt a <<< shift))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "intShiftRight" 0
+      typeParams = []
+      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
+      returnType = TInt
+      description = "Bitwise right shift of an <type Int> value"
+      fn =
+        (function
+        | _, vm, _, [ DInt a; DInt b ] ->
+          // `>>>` needs a native Int32 shift count; reject anything that
+          // wouldn't fit rather than letting the cast overflow. A negative
+          // count would silently reverse direction in BigInteger, so reject it.
+          let shift = intToInt32 vm b
+          if shift < 0 then
+            outOfRange vm
+          else
+            Ply(Dval.int (DarkInt.toBigInt a >>> shift))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

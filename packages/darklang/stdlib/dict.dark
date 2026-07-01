@@ -13,7 +13,7 @@ let singleton (key: String) (value: 'a) : Dict<'a> =
   Stdlib.Dict.set (Dict { }) key value
 
 /// Returns the number of entries in <param dict>
-let size (dict: Dict<'a>) : Int64 =
+let size (dict: Dict<'a>) : Int =
   Builtin.dictSize_v0 dict
 
 

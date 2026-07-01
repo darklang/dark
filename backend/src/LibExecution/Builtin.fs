@@ -65,4 +65,29 @@ module Shortcuts =
   let value = FQValueName.builtin
   let incorrectArgs = RuntimeTypes.incorrectArgs
 
+  /// Narrow an arbitrary-precision `Int` to a native `int64`, raising a Dark
+  /// `OutOfRange` error (rather than letting a host overflow escape) when the
+  /// value doesn't fit. Use at builtins that hand the value to int64-typed APIs.
+  let intToInt64 (vm : VMState) (i : DarkInt) : int64 =
+    match DarkInt.toInt64 i with
+    | Some v -> v
+    | None ->
+      RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
+
+  /// Like `intToInt64`, but narrows to a native `int` (Int32).
+  let intToInt32 (vm : VMState) (i : DarkInt) : int =
+    match DarkInt.toInt32 i with
+    | Some v -> v
+    | None ->
+      RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
+
+  /// Converts a `float` to a `DInt`, truncating toward zero. NaN/Infinity have
+  /// no Int representation, so `bigint f` would throw a host exception — surface
+  /// a Dark `OutOfRange` error instead. Shared by the Float and Int builtins.
+  let roundedToInt (vm : VMState) (rounded : float) : Ply<Dval> =
+    if System.Double.IsNaN rounded || System.Double.IsInfinity rounded then
+      RuntimeError.Ints.OutOfRange |> RuntimeError.Int |> raiseRTE vm.threadID
+    else
+      rounded |> bigint |> Dval.int |> Ply
+
   type Param = BuiltInParam

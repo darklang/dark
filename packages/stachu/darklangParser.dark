@@ -189,8 +189,8 @@ let qualifiedName () : P<QualifiedName> =
       let allParts = parts
 
       match Stdlib.List.length allParts with
-      | 0L -> QualifiedName { modules = []; name = "" }
-      | 1L ->
+      | 0I -> QualifiedName { modules = []; name = "" }
+      | 1I ->
         match Stdlib.List.head allParts with
         | Some name -> QualifiedName { modules = []; name = name }
         | None -> QualifiedName { modules = []; name = "" }
@@ -311,7 +311,7 @@ let floatLiteral () : P<Expr> =
 
       let withoutSign =
         if hasSign then
-          Stdlib.String.dropFirst s 1L
+          Stdlib.String.dropFirst s 1I
         else
           s
 
@@ -518,8 +518,8 @@ let enumLiteral (exprParser: P<Expr>) : P<Expr> =
       // Construct the type name from remaining parts
       let typeName =
         match Stdlib.List.length typeParts with
-        | 0L -> QualifiedName { modules = []; name = "" }
-        | 1L ->
+        | 0I -> QualifiedName { modules = []; name = "" }
+        | 1I ->
           let name = Stdlib.Option.withDefault (Stdlib.List.head typeParts) ""
           QualifiedName { modules = []; name = name }
         | _ ->
@@ -702,7 +702,7 @@ let fnApplication (atomParser: P<Expr>) : P<Expr> =
       let (fn, args) = result
 
       match Stdlib.List.length args with
-      | 0L -> fn
+      | 0I -> fn
       | _ -> Expr.EApply(fn, [], args))
     (Parser.andThen atomParser (Parser.many (Parser.keepRight (ws1 ()) atomParser)))
 
@@ -799,7 +799,7 @@ let pipeExpr (exprParser: P<Expr>) (atomParser: P<Expr>) : P<Expr> =
       let (expr, parts) = result
 
       match Stdlib.List.length parts with
-      | 0L -> expr
+      | 0I -> expr
       | _ -> Expr.EPipe(expr, parts))
     (Parser.andThen
       exprParser

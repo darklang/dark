@@ -153,8 +153,8 @@ module Singleton =
 
 
 module Size =
-  Stdlib.Dict.size_v0 (Dict { a = 3L; b = 1L; c = 1L }) = 3L
-  Stdlib.Dict.size_v0 (Dict { }) = 0L
+  Stdlib.Dict.size_v0 (Dict { a = 3L; b = 1L; c = 1L }) = 3I
+  Stdlib.Dict.size_v0 (Dict { }) = 0I
 
 
 module ToList =

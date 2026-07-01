@@ -104,7 +104,7 @@ let addToPath
 /// Gets the home directory of the current user using $HOME environment variable.
 let getHomeDirectory () : Result.Result<String, String> =
   let dir = Cli.execute "echo $HOME"
-  if dir.exitCode == 0L then
+  if dir.exitCode == 0I then
     let dir = dir.stdout |> String.trim
     Result.Result.Ok dir
   else

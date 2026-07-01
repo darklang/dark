@@ -9,20 +9,20 @@ module Darklang.ModelContextProtocol
 
 /// Progress token used to track progress of long-running operations
 type ProgressToken = 
-  | Int of Int64
+  | Int of Int
   | String of String
 
 /// Convert a progress token to JSON
 let progressTokenToJson (token: ProgressToken) : Json =
   match token with
-  | Int i -> Json.Number (Stdlib.Int64.toFloat i)
+  | Int i -> Json.Number (Stdlib.Int.toFloat i)
   | String s -> Json.String s
 
 /// Parse a progress token from JSON
 let progressTokenFromJson (json: Json) : Stdlib.Result.Result<ProgressToken, String> =
   match json with
   | Number n -> 
-      Stdlib.Result.Result.Ok (ProgressToken.Int (Stdlib.Float.toInt64 n))
+      Stdlib.Result.Result.Ok (ProgressToken.Int (Stdlib.Int.fromFloat n))
   | String s -> 
       Stdlib.Result.Result.Ok (ProgressToken.String s)
   | _ -> 
@@ -32,19 +32,19 @@ let progressTokenFromJson (json: Json) : Stdlib.Result.Result<ProgressToken, Str
 module ProgressNotification =
   type ProgressNotificationParams =
     { progressToken: ProgressToken
-      progress: Int64
-      total: Stdlib.Option.Option<Int64> }
+      progress: Int
+      total: Stdlib.Option.Option<Int> }
 
   let toJson (params: ProgressNotificationParams) : Json =
     let fields = [
       ("progressToken", progressTokenToJson params.progressToken);
-      ("progress", Json.Number (Stdlib.Int64.toFloat params.progress))
+      ("progress", Json.Number (Stdlib.Int.toFloat params.progress))
     ]
 
     let fieldsWithTotal =
       match params.total with
       | Some total ->
-          fields @ [("total", Json.Number (Stdlib.Int64.toFloat total))]
+          fields @ [("total", Json.Number (Stdlib.Int.toFloat total))]
       | None ->
           fields
 
@@ -61,7 +61,7 @@ module ProgressNotification =
         let progressResult =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "progress") with
           | Some (_, Number n) -> 
-              Stdlib.Result.Result.Ok (Stdlib.Float.toInt64 n)
+              Stdlib.Result.Result.Ok (Stdlib.Int.fromFloat n)
           | Some (_, _) -> 
               Stdlib.Result.Result.Error "progress must be a number"
           | None -> 
@@ -70,7 +70,7 @@ module ProgressNotification =
         let totalResult =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "total") with
           | Some (_, Number n) -> 
-              Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some (Stdlib.Float.toInt64 n))
+              Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some (Stdlib.Int.fromFloat n))
           | Some (_, _) -> 
               Stdlib.Result.Result.Error "total must be a number"
           | None -> 

@@ -2,8 +2,8 @@ module Darklang.Stdlib.Retry
 
 
 let withBackoffLoop
-  (maxAttempts: Int64)
-  (attempt: Int64)
+  (maxAttempts: Int)
+  (attempt: Int)
   (delayMs: Float)
   (fn: Unit -> Result.Result<'a, String>)
   : Result.Result<'a, String> =
@@ -14,22 +14,22 @@ let withBackoffLoop
       Stdlib.Result.Result.Error e
     else
       let _ = Cli.Posix.sleep delayMs
-      withBackoffLoop maxAttempts (attempt + 1L) (Stdlib.Float.multiply delayMs 2.0) fn
+      withBackoffLoop maxAttempts (attempt + 1I) (Stdlib.Float.multiply delayMs 2.0) fn
 
 
 /// Retry a function up to maxAttempts times with exponential backoff.
 /// Starts with a 100ms delay, doubling each retry.
 /// Returns the first successful result, or the last error.
 let withBackoff
-  (maxAttempts: Int64)
+  (maxAttempts: Int)
   (fn: Unit -> Result.Result<'a, String>)
   : Result.Result<'a, String> =
-  withBackoffLoop maxAttempts 1L 100.0 fn
+  withBackoffLoop maxAttempts 1I 100.0 fn
 
 
 let withFixedDelayLoop
-  (maxAttempts: Int64)
-  (attempt: Int64)
+  (maxAttempts: Int)
+  (attempt: Int)
   (delayMs: Float)
   (fn: Unit -> Result.Result<'a, String>)
   : Result.Result<'a, String> =
@@ -40,13 +40,13 @@ let withFixedDelayLoop
       Stdlib.Result.Result.Error e
     else
       let _ = Cli.Posix.sleep delayMs
-      withFixedDelayLoop maxAttempts (attempt + 1L) delayMs fn
+      withFixedDelayLoop maxAttempts (attempt + 1I) delayMs fn
 
 
 /// Retry with a fixed delay between attempts.
 let withFixedDelay
-  (maxAttempts: Int64)
+  (maxAttempts: Int)
   (delayMs: Float)
   (fn: Unit -> Result.Result<'a, String>)
   : Result.Result<'a, String> =
-  withFixedDelayLoop maxAttempts 1L delayMs fn
+  withFixedDelayLoop maxAttempts 1I delayMs fn

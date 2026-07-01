@@ -11,14 +11,14 @@ type ListItem =
 // ListView Component
 type ListViewModel =
   { items: List<ListItem>
-    selectedIndex: Int64
-    width: Int64
-    height: Int64
-    scrollOffset: Int64 }
+    selectedIndex: Int
+    width: Int
+    height: Int
+    scrollOffset: Int }
 
-let createListView (items: List<ListItem>) (width: Int64) (height: Int64) : Core.Types.Component<ListViewModel> =
-  let model = ListViewModel { items = items; selectedIndex = 0L; width = width; height = height; scrollOffset = 0L }
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
+let createListView (items: List<ListItem>) (width: Int) (height: Int) : Core.Types.Component<ListViewModel> =
+  let model = ListViewModel { items = items; selectedIndex = 0I; width = width; height = height; scrollOffset = 0I }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = width; height = height } }
   Core.Types.Component
     { id = "listview"
       model = model
@@ -30,12 +30,12 @@ let createListView (items: List<ListItem>) (width: Int64) (height: Int64) : Core
 let renderListView (component: Core.Types.Component<ListViewModel>) (context: Core.Types.RenderContext) : List<String> =
   let model = component.model
   let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
-  let innerWidth = model.width - 4L
+  let innerWidth = model.width - 4I
 
   let visibleItems =
     model.items
     |> Stdlib.List.drop model.scrollOffset
-    |> Stdlib.List.take (model.height - 2L)
+    |> Stdlib.List.take (model.height - 2I)
 
   let content =
     visibleItems
@@ -59,8 +59,8 @@ let renderListView (component: Core.Types.Component<ListViewModel>) (context: Co
 
         styledText ++ rightPad)
 
-  let topBorder = "┌" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┐"
-  let bottomBorder = "└" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┘"
+  let topBorder = "┌" ++ Stdlib.String.repeat "─" (model.width - 2I) ++ "┐"
+  let bottomBorder = "└" ++ Stdlib.String.repeat "─" (model.width - 2I) ++ "┘"
   let contentLines =
     content
     |> Stdlib.List.map (fun line -> "│ " ++ line ++ " │")
@@ -69,9 +69,9 @@ let renderListView (component: Core.Types.Component<ListViewModel>) (context: Co
   |> Stdlib.List.append contentLines
   |> Stdlib.List.append [bottomBorder]
 
-let selectItem (component: Core.Types.Component<ListViewModel>) (index: Int64) : Core.Types.Component<ListViewModel> =
+let selectItem (component: Core.Types.Component<ListViewModel>) (index: Int) : Core.Types.Component<ListViewModel> =
   let model = component.model
-  let clampedIndex = Stdlib.Int64.max 0L (Stdlib.Int64.min index (Stdlib.List.length model.items - 1L))
+  let clampedIndex = Stdlib.Int.max 0I (Stdlib.Int.min index ((Stdlib.List.length model.items) - 1I))
   { component with model = { model with selectedIndex = clampedIndex } }
 
 let getSelectedItem (component: Core.Types.Component<ListViewModel>) : ListItem =

@@ -11,15 +11,15 @@ let escapeXml (text: String) : String =
   |> Stdlib.String.replaceAll ">" "&gt;"
   |> Stdlib.String.replaceAll "\"" "&quot;"
 
-let nodesToOpml (nodes: List<Node>) (depth: Int64) : List<String> =
+let nodesToOpml (nodes: List<Node>) (depth: Int) : List<String> =
   nodes
   |> Stdlib.List.fold [] (fun acc node ->
-    let indent = Stdlib.String.repeat "  " (depth + 2L)
+    let indent = Stdlib.String.repeat "  " (depth + 2I)
     let escaped = escapeXml node.text
     if Stdlib.List.isEmpty node.children then
       Stdlib.List.append acc [$"{indent}<outline text=\"{escaped}\"/>"]
     else
-      let childLines = nodesToOpml node.children (depth + 1L)
+      let childLines = nodesToOpml node.children (depth + 1I)
       let open_ = $"{indent}<outline text=\"{escaped}\">"
       let close = $"{indent}</outline>"
       Stdlib.List.append acc (Stdlib.List.append (Stdlib.List.append [open_] childLines) [close]))
@@ -32,7 +32,7 @@ let export (title: String) (nodes: List<Node>) : String =
       $"    <title>{title}</title>"
       "  </head>"
       "  <body>" ]
-  let body = nodesToOpml nodes 0L
+  let body = nodesToOpml nodes 0I
   let footer =
     [ "  </body>"
       "</opml>" ]

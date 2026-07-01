@@ -19,7 +19,7 @@ Date: xxx, xx xxx xxxx xx:xx:xx xxx
  {response with headers = respHeaders}) =
    Darklang.Stdlib.HttpClient.Response
     { body = "Redirect destination reached"
-      statusCode = 200L
+      statusCode = 200
       error = ""
       headers =
         [

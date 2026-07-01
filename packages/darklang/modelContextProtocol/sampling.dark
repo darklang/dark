@@ -43,7 +43,7 @@ module Sampling =
       systemPrompt: Stdlib.Option.Option<String>
       includeContext: Stdlib.Option.Option<IncludeContext>
       temperature: Stdlib.Option.Option<Float>
-      maxTokens: Stdlib.Option.Option<Int64>
+      maxTokens: Stdlib.Option.Option<Int>
       stopSequences: Stdlib.Option.Option<List<String>>
       metadata: Stdlib.Option.Option<Json> }
 
@@ -171,7 +171,7 @@ module Sampling =
     let fieldsWithMaxTokens =
       match params.maxTokens with
       | Some tokens ->
-          fieldsWithTemperature @ [("maxTokens", Json.Number (Stdlib.Int64.toFloat tokens))]
+          fieldsWithTemperature @ [("maxTokens", Json.Number (Stdlib.Int.toFloat tokens))]
       | None -> fieldsWithTemperature
 
     let fieldsWithStopSequences =
@@ -238,7 +238,7 @@ module CreateMessageParamsParser =
 
         let maxTokens =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "maxTokens") with
-          | Some (_, Number tokens) -> Stdlib.Option.Option.Some (Stdlib.Int64.fromFloat tokens)
+          | Some (_, Number tokens) -> Stdlib.Option.Option.Some (Stdlib.Int.fromFloat tokens)
           | _ -> Stdlib.Option.Option.None
 
         match messagesResult with

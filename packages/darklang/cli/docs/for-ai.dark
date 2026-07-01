@@ -47,14 +47,14 @@ their operation: `search %` -> `mod`, `search ++` -> concat, `search /` ->
   val <name>        # create value
 
 Names need full paths (owner.module.name), e.g.:
-  fn Darklang.Testing.fib (n: Int64): Int64 = ...
+  fn Darklang.Testing.fib (n: Int): Int = ...
 Inside the body, use short names (e.g., `fib` for recursion).
 
 For multi-line bodies, use `-` and pipe via stdin (heredoc form):
   ./scripts/run-cli fn Darklang.Foo.bar - <<'EOF'
-  (n: Int64): Int64 =
-    let x = n + 1L
-    x * 2L
+  (n: Int): Int =
+    let x = n + 1
+    x * 2
   EOF
 
 ## Running/Testing
@@ -138,25 +138,37 @@ Rules:
 ## Critical Syntax
 - Whitespace-sensitive (like Python)
 - Nested function definitions are supported only in the fully annotated form:
-  `let helper (x: Int64) : Int64 = ...`. The parser desugars this to a local
+  `let helper (x: Int) : Int = ...`. The parser desugars this to a local
   lambda, so use it for task-local helpers; mutual recursion is not supported.
 - NO binding modules to variables (`let c = Darklang.Cli.Colors` is invalid —
   modules are not first-class values. Use the full path each time.)
-- Pipe needs parens: (complex expr) |> fn
-- Lists: [1L; 2L; 3L] (semicolons)
+- Pipe |> feeds the left value as the FIRST argument of the right fn; any
+  args written after the fn come after it: `[1; 2] |> Stdlib.List.map toString`,
+  `n |> Stdlib.Int.add 1`. Wrap a complex left side in parens: (complex expr) |> fn
+- Lists: [1; 2; 3] (semicolons)
+- Char literals use single quotes: 'a', '\n', '\t', 'A' (a String uses
+  double quotes; "a" is not 'a')
+- Tuples destructure inline in `let` and in lambda params:
+  `let (a, b) = pair`, `fun (name, done) -> ...`
 - String concat: ++ (not @)
-- String interpolation: $"x = {expr}; total = {a ++ b}"
+- String interpolation: $"x = {expr}; total = {a ++ b}" — does NOT auto-coerce
+  non-strings; wrap with Stdlib.Int.toString / Stdlib.Float.toString
 - Numeric operators (+ - * / % ^ < > <= >= and unary -) are polymorphic over
   numeric types; operands must match (`1 + 2`, `1.0 + 2.0`). `/` is integer
-  division on ints; integer overflow raises a runtime error.
+  division on ints; float division on floats. A bare `1` is an arbitrary-
+  precision `Int` and never overflows.
 
 ## Records
-  MyRecord { a = 1L; b = 2L }
+  MyRecord { a = 1; b = 2 }
   # { must not be left of type name
 
 ## Enums
-  Option.Some 5L      # construct: TypeName.Case
-  | Some x -> ...     # match: just Case
+  Option.Some 5      # construct: TypeName.Case
+  | Some x -> ...     # match: just Case (bare form OK at top level of an arm)
+  # NESTED in a tuple or another constructor, parenthesize with NO space:
+  | (Ok(x), Ok(y)) -> ...    # tuple of constructors  (bare `Ok x` fails here)
+  | Some(Ok(v)) -> ...       # constructor of a constructor
+  | Some((a, b)) -> ...      # constructor wrapping a tuple
 
 ## Troubleshooting
 If commands hang or fail silently, check logs:

@@ -163,7 +163,7 @@ let searchModulesByPrefix
     | Some pair ->
       let (idx, _) = pair
       // Return path up to and including the matching segment
-      Stdlib.Option.Option.Some (Stdlib.List.take modulePath (idx + 1L))
+      Stdlib.Option.Option.Some (Stdlib.List.take modulePath (idx + 1I))
     | None -> Stdlib.Option.Option.None)
   |> Stdlib.List.unique
   |> Stdlib.List.map (fun path -> Stdlib.String.join path ".")

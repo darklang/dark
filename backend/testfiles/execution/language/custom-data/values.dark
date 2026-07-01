@@ -4,9 +4,13 @@ module UserDefined =
   "test" = stringValue
   UserDefined.stringValue = "test"
 
-  let intValue = 5L
-  intValue = 5L
-  UserDefined.intValue = 5L
+  let int64Value = 5L
+  int64Value = 5L
+  UserDefined.int64Value = 5L
+
+  let intValue = 5I
+  intValue = 5I
+  UserDefined.intValue = 5I
 
   let uint64Value = 5UL
   uint64Value = 5UL
@@ -79,8 +83,11 @@ module Package =
   Darklang.Test.Values.uint128Value = 5Z
   Darklang.Test.Values.uint128Value = 5Z
 
-  Darklang.Test.Values.intValue = 5L
-  Darklang.Test.Values.intValue = 5L
+  Darklang.Test.Values.int64Value = 5L
+  Darklang.Test.Values.int64Value = 5L
+
+  Darklang.Test.Values.intValue = 5I
+  Darklang.Test.Values.intValue = 5I
 
   Darklang.Test.Values.uint64Value = 5UL
   Darklang.Test.Values.uint64Value = 5UL

@@ -1,8 +1,8 @@
 module Darklang.Cli.Apps.Views.App
 
 type Screen =
-  | ViewList of selected: Int64
-  | ViewDisplay of viewIndex: Int64
+  | ViewList of selected: Int
+  | ViewDisplay of viewIndex: Int
 
 type State =
   { screen: Screen
@@ -11,7 +11,7 @@ type State =
 
 // ── Rendering ──
 
-let renderViewList (state: State) (selected: Int64) : Unit =
+let renderViewList (state: State) (selected: Int) : Unit =
   let termWidth = Darklang.Cli.Terminal.getWidth ()
 
   // Build entire output as a single string to avoid flicker
@@ -20,7 +20,7 @@ let renderViewList (state: State) (selected: Int64) : Unit =
     ++ "  "
     ++ Darklang.Cli.Colors.boldText "Views"
     ++ "  "
-    ++ Darklang.Cli.Colors.dimText ("—  " ++ Stdlib.Int64.toString (Stdlib.List.length state.views) ++ " available")
+    ++ Darklang.Cli.Colors.dimText ("—  " ++ Stdlib.Int.toString (Stdlib.List.length state.views) ++ " available")
     ++ "\n\n"
     ++ Darklang.Cli.Colors.dimText (Stdlib.String.repeat "─" termWidth)
     ++ "\n\n"
@@ -63,7 +63,7 @@ let renderViewList (state: State) (selected: Int64) : Unit =
   Stdlib.print ("\u001b[?25l" ++ Darklang.Cli.Terminal.Display.clearScreen ++ header ++ viewLines ++ footer ++ "\u001b[?25h")
 
 
-let renderViewDisplay (state: State) (viewIndex: Int64) : Unit =
+let renderViewDisplay (state: State) (viewIndex: Int) : Unit =
   // Hide cursor + clear in one shot, then render view
   Stdlib.print ("\u001b[?25l" ++ Darklang.Cli.Terminal.Display.clearScreen)
 
@@ -103,11 +103,11 @@ let handleKey
     match key with
     | Escape -> Action.Exit state
     | UpArrow ->
-      let newIdx = if selected > 0L then selected - 1L else selected
+      let newIdx = if selected > 0I then selected - 1I else selected
       Action.Continue ({ state with screen = Screen.ViewList newIdx })
     | DownArrow ->
-      let maxIdx = viewCount - 1L
-      let newIdx = if selected < maxIdx then selected + 1L else selected
+      let maxIdx = viewCount - 1I
+      let newIdx = if selected < maxIdx then selected + 1I else selected
       Action.Continue ({ state with screen = Screen.ViewList newIdx })
     | Enter ->
       Action.Continue ({ state with screen = Screen.ViewDisplay selected })
@@ -115,7 +115,7 @@ let handleKey
 
   | ViewDisplay _viewIndex ->
     match key with
-    | Escape -> Action.Continue ({ state with screen = Screen.ViewList 0L })
+    | Escape -> Action.Continue ({ state with screen = Screen.ViewList 0I })
     | _ -> Action.Continue state
 
 
@@ -174,7 +174,7 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
       Stdlib.printLine (Darklang.Cli.Colors.dimText "No views available.")
       cliState
     | _ ->
-      let state = State { screen = Screen.ViewList 0L; views = views }
+      let state = State { screen = Screen.ViewList 0I; views = views }
       let app = makeSubApp state
       { cliState with
           currentPage = Darklang.Cli.Page.SubApp app

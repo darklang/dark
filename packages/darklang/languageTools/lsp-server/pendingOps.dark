@@ -7,7 +7,7 @@ let handleGetPendingOpsRequest
   (params: Stdlib.Option.Option<JsonRPC.Request.RequestParams>)
   : LspState =
   // Get last 20 recent ops
-  let ops = SCM.PackageOps.getRecent 20L
+  let ops = SCM.PackageOps.getRecent 20I
 
   let body =
     ops

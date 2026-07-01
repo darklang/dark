@@ -28,7 +28,7 @@ type AppState =
     accountID: Stdlib.Option.Option<Uuid>
     accountName: String
     /// How many terminal rows the prompt used last frame
-    previousRenderedRows: Int64
+    previousRenderedRows: Int
     /// True when invoked from the command line (not the interactive REPL)
     nonInteractive: Bool
     /// Cached completion hint — skip recompute when prompt text unchanged
@@ -104,7 +104,7 @@ let initState () : AppState =
       currentBranchId = branchId
       accountID = accountID
       accountName = accountName
-      previousRenderedRows = 0L
+      previousRenderedRows = 0I
       nonInteractive = false
       cachedHintInput = ""
       cachedHintValue = ""
@@ -170,7 +170,7 @@ module StatusBar =
   let init () : Unit =
     let terminalHeight = Terminal.getHeight ()
     // Set scroll region to all rows except the last one
-    Stdlib.print (Colors.setScrollRegion 1L (terminalHeight - 1L))
+    Stdlib.print (Colors.setScrollRegion 1I (terminalHeight - 1I))
 
   /// Build the status bar string for the given state
   let build (state: AppState) : String =
@@ -188,7 +188,7 @@ module StatusBar =
     let paddingLen = terminalWidth - leftLen
 
     let padding =
-      if paddingLen > 0L then
+      if paddingLen > 0I then
         Colors.colorize Colors.grayBg (Stdlib.String.repeat " " paddingLen)
       else
         ""
@@ -200,7 +200,7 @@ module StatusBar =
     let terminalHeight = Terminal.getHeight ()
     Stdlib.print
       (Colors.saveCursor
-       ++ Colors.moveCursorTo terminalHeight 1L
+       ++ Colors.moveCursorTo terminalHeight 1I
        ++ statusLine
        ++ Colors.restoreCursor)
 
@@ -211,7 +211,7 @@ module StatusBar =
     Stdlib.print
       (Colors.saveCursor
        ++ Colors.resetScrollRegion
-       ++ Colors.moveCursorTo terminalHeight 1L
+       ++ Colors.moveCursorTo terminalHeight 1I
        ++ Colors.clearLine
        ++ Colors.restoreCursor)
 
@@ -571,7 +571,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       // Handle tab completion
       let tTab = Telemetry.now ()
       let completions = Registry.getCompletions state state.prompt.text
-      Telemetry.logWithContext "tabComplete" tTab [("resultCount", Stdlib.Int64.toString (Stdlib.List.length completions)); ("input", state.prompt.text)]
+      Telemetry.logWithContext "tabComplete" tTab [("resultCount", Stdlib.Int.toString (Stdlib.List.length completions)); ("input", state.prompt.text)]
 
       // CLEANUP: When there are multiple completions with a common prefix (e.g. "filter" and "filterMap"),
       // Tab should complete up to the common part ("filter") rather than just showing options
@@ -700,15 +700,15 @@ module Update =
       updateAppState state msg
 
 
-let runInteractiveLoop (state: AppState) : Int64 =
+let runInteractiveLoop (state: AppState) : Int =
   if state.isExiting then
     // Clear status bar and prompt line before exiting
     StatusBar.clear ()
     // Move to column 1, clear entire line, then newline for clean shell prompt
-    Stdlib.print (Colors.moveCursorToColumn 1L ++ "\u001b[2K" ++ "\n")
-    0L
+    Stdlib.print (Colors.moveCursorToColumn 1I ++ "\u001b[2K" ++ "\n")
+    0I
   else
-    let tLoopStart = if state.telemetryEnabled then Telemetry.now () else 0L
+    let tLoopStart = if state.telemetryEnabled then Telemetry.now () else 0I
     if state.telemetryEnabled then
       let _ = Builtin.interpreterStatsReset ()
       ()
@@ -716,7 +716,7 @@ let runInteractiveLoop (state: AppState) : Int64 =
     // TODO: handle terminal resize and Unicode display width
     let location = locationStr state
 
-    let tHint = if state.telemetryEnabled then Telemetry.now () else 0L
+    let tHint = if state.telemetryEnabled then Telemetry.now () else 0I
     let inputStartColumn =
       Prompt.Display.calculateInputStartColumn location
     let hintCached = state.cachedHintInput == state.prompt.text
@@ -726,23 +726,23 @@ let runInteractiveLoop (state: AppState) : Int64 =
       else
         Registry.getCompletionHint state state.prompt.text
     if state.telemetryEnabled then
-      Telemetry.logWithContext "completionHint" tHint [("inputLen", Stdlib.Int64.toString (Stdlib.String.length state.prompt.text)); ("cached", Stdlib.Bool.toString hintCached)]
+      Telemetry.logWithContext "completionHint" tHint [("inputLen", Stdlib.Int.toString (Stdlib.String.length state.prompt.text)); ("cached", Stdlib.Bool.toString hintCached)]
 
     let promptOutput =
       Prompt.Display.formatPromptWithInput location state.prompt.text hint
     // Fall back to 80 if the size query returns 0 (can happen at startup) — never divide by 0 below.
     let terminalWidth =
       let w = Terminal.getWidth ()
-      if w <= 0L then 80L else w
+      if w <= 0I then 80I else w
     // Visual length (0-based char count; inputStartColumn is 1-based so subtract 1)
     let visualLength =
-      (inputStartColumn - 1L) + (Stdlib.String.length state.prompt.text) + (Stdlib.String.length hint)
+      (inputStartColumn - 1I) + (Stdlib.String.length state.prompt.text) + (Stdlib.String.length hint)
     let renderedRows =
-      if visualLength <= terminalWidth then 1L
-      else (Stdlib.Int64.divide (visualLength - 1L) terminalWidth) + 1L
+      if visualLength <= terminalWidth then 1I
+      else (Stdlib.Int.divide (visualLength - 1I) terminalWidth) + 1I
 
     // Display current page
-    let tRender = if state.telemetryEnabled then Telemetry.now () else 0L
+    let tRender = if state.telemetryEnabled then Telemetry.now () else 0I
 
     match state.currentPage with
     | MainPrompt ->
@@ -751,25 +751,25 @@ let runInteractiveLoop (state: AppState) : Int64 =
       // Move up to prompt start if previous render occupied multiple rows
       // Skip on full redraw — cursor is already positioned after command output
       if Stdlib.Bool.not state.needsFullRedraw then
-        if state.previousRenderedRows > 1L then
-          Stdlib.print (Colors.moveCursorUp (state.previousRenderedRows - 1L))
+        if state.previousRenderedRows > 1I then
+          Stdlib.print (Colors.moveCursorUp (state.previousRenderedRows - 1I))
 
       Stdlib.print Colors.carriageReturn
       Stdlib.print promptOutput
       Stdlib.print "\u001b[J" // Clear any leftover rows
 
       // Position cursor at correct location within user input
-      let absoluteCursorPos = (inputStartColumn - 1L) + state.prompt.cursorPosition
-      if renderedRows > 1L then
-        let cursorRow = Stdlib.Int64.divide absoluteCursorPos terminalWidth
-        let cursorCol = (absoluteCursorPos % terminalWidth) + 1L
-        let textEndRow = renderedRows - 1L
+      let absoluteCursorPos = (inputStartColumn - 1I) + state.prompt.cursorPosition
+      if renderedRows > 1I then
+        let cursorRow = Stdlib.Int.divide absoluteCursorPos terminalWidth
+        let cursorCol = (absoluteCursorPos % terminalWidth) + 1I
+        let textEndRow = renderedRows - 1I
         let rowDiff = textEndRow - cursorRow
-        if rowDiff > 0L then
+        if rowDiff > 0I then
           Stdlib.print (Colors.moveCursorUp rowDiff)
         Stdlib.print (Colors.moveCursorToColumn cursorCol)
       else
-        Stdlib.print (Colors.moveCursorToColumn (absoluteCursorPos + 1L))
+        Stdlib.print (Colors.moveCursorToColumn (absoluteCursorPos + 1I))
 
       Stdlib.print "\u001b[?25h" // Show cursor
 
@@ -803,7 +803,7 @@ let runInteractiveLoop (state: AppState) : Int64 =
       Telemetry.log "preInput" tLoopStart
 
     // Read keystroke input
-    let tReadKey = if state.telemetryEnabled then Telemetry.now () else 0L
+    let tReadKey = if state.telemetryEnabled then Telemetry.now () else 0I
     let keyInput = Stdlib.Cli.Stdin.readKey ()
 
     // Process the key
@@ -816,7 +816,7 @@ let runInteractiveLoop (state: AppState) : Int64 =
       Telemetry.logWithContext "update" tUpdate [("char", keyInput.keyChar)]
       let loopWorkMs = (Telemetry.elapsedMs tLoopStart) - (Telemetry.elapsedMs tReadKey)
       let interpStats = Builtin.interpreterStatsGet ()
-      Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.Int64.toString loopWorkMs); ("interp", interpStats)]
+      Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.Int.toString loopWorkMs); ("interp", interpStats)]
 
     runInteractiveLoop { newState with previousRenderedRows = renderedRows; cachedHintInput = state.prompt.text; cachedHintValue = hint; cachedStatusBar = statusBar; cachedStatusBarBranch = state.currentBranchId }
 
@@ -841,7 +841,7 @@ let parseBranchFlag (args: List<String>) : (Stdlib.Option.Option<Uuid> * List<St
     let (idx, _flag) = flagPair
 
     let branchName =
-      match Stdlib.List.getAt args (idx + 1L) with
+      match Stdlib.List.getAt args (idx + 1I) with
       | Some name -> name
       | None -> ""
 
@@ -854,7 +854,7 @@ let parseBranchFlag (args: List<String>) : (Stdlib.Option.Option<Uuid> * List<St
         indexed
         |> Stdlib.List.filter (fun pair ->
           let (i, _a) = pair
-          i != idx && i != (idx + 1L))
+          i != idx && i != (idx + 1I))
         |> Stdlib.List.map (fun pair ->
           let (_i, a) = pair
           a)
@@ -866,7 +866,7 @@ let parseBranchFlag (args: List<String>) : (Stdlib.Option.Option<Uuid> * List<St
         (Stdlib.Option.Option.Some SCM.Branch.mainBranchId, filteredArgs)
 
 
-let executeCliCommand (args: List<String>) : Int64 =
+let executeCliCommand (args: List<String>) : Int =
   let (branchOverride, remainingArgs) = parseBranchFlag args
   let baseState = initState ()
   let initialState =
@@ -901,4 +901,4 @@ let executeCliCommand (args: List<String>) : Int64 =
     | SubApp _ ->
       StatusBar.init ()
       runInteractiveLoop resultState
-    | _ -> 0L
+    | _ -> 0I

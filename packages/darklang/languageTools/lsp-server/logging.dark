@@ -20,7 +20,7 @@ let logAndSendToClient (response: String) : Unit =
     response
     |> Stdlib.String.toBytes_v0
     |> Stdlib.List.length
-    |> Stdlib.Int64.toString
+    |> Stdlib.Int.toString
 
   Builtin.print $"Content-Length: {contentLengthInBytes}\r\n\r\n{response}"
 

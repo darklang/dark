@@ -30,8 +30,8 @@ module ReadFile =
     let nameForLookup =
       // TODO: remove magic
       params.uri
-      |> Stdlib.String.dropFirst 8L  // Drop "darkfs:/"
-      |> Stdlib.String.dropLast 5L   // Drop ".dark"
+      |> Stdlib.String.dropFirst 8I  // Drop "darkfs:/"
+      |> Stdlib.String.dropLast 5I   // Drop ".dark"
 
     let location =
       ProgramTypes.parsePackageLocation nameForLookup
@@ -42,7 +42,7 @@ module ReadFile =
       if Stdlib.String.startsWith nameForLookup "script/" then
         let scriptName =
           nameForLookup
-          |> Stdlib.String.dropFirst 7L  // Drop "script/"
+          |> Stdlib.String.dropFirst 7I  // Drop "script/"
 
         match Builtin.pmScriptsGet scriptName with
         | Some script -> script.text
@@ -240,13 +240,13 @@ module WriteFile =
     let nameForLookup =
       // TODO: remove magic
       params.uri
-      |> Stdlib.String.dropFirst 8L  // Drop "darkfs:/"
-      |> Stdlib.String.dropLast 5L   // Drop ".dark"
+      |> Stdlib.String.dropFirst 8I  // Drop "darkfs:/"
+      |> Stdlib.String.dropLast 5I   // Drop ".dark"
 
     if Stdlib.String.startsWith nameForLookup "script/" then
       let scriptName =
         nameForLookup
-        |> Stdlib.String.dropFirst 7L  // Drop "script/"
+        |> Stdlib.String.dropFirst 7I  // Drop "script/"
 
       // Update the script content
       match Builtin.pmScriptsUpdate scriptName content with
@@ -464,7 +464,7 @@ module WriteFile =
           if (Stdlib.List.isEmpty allOps) |> Stdlib.Bool.not then
             SCM.PackageOps.add branchId allOps
           else
-            Stdlib.Result.Result.Ok 0L
+            Stdlib.Result.Result.Ok 0I
 
         match addResult with
         | Error err ->

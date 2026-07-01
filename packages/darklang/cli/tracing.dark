@@ -14,7 +14,7 @@ type TraceData = Darklang.Tracing.TraceData
 /// nodes but recurses into their children at the SAME indent level so the
 /// surrounding structure stays intact.
 type ViewOptions =
-  { maxDepth: Stdlib.Option.Option<Int64>
+  { maxDepth: Stdlib.Option.Option<Int>
     hideBuiltins: Bool
     hideStdlib: Bool
     filter: Stdlib.Option.Option<String>
@@ -22,7 +22,7 @@ type ViewOptions =
     /// Children still recurse so the surrounding structure stays intact.
     exclude: Stdlib.Option.Option<String>
     /// When Some N, hide calls whose durationMs < N (keeps the slow stuff).
-    slowThresholdMs: Stdlib.Option.Option<Int64> }
+    slowThresholdMs: Stdlib.Option.Option<Int> }
 
 
 let defaultViewOptions: ViewOptions =
@@ -37,14 +37,14 @@ let defaultViewOptions: ViewOptions =
 
 /// English ordinal suffix for a non-negative integer. "1st", "2nd",
 /// "3rd", "4th"… honoring the 11/12/13 exception (always "th").
-let ordinalSuffix (n: Int64) : String =
-  let mod100 = n % 100L
-  if mod100 >= 11L && mod100 <= 13L then "th"
+let ordinalSuffix (n: Int) : String =
+  let mod100 = n % 100I
+  if mod100 >= 11I && mod100 <= 13I then "th"
   else
-    match n % 10L with
-    | 1L -> "st"
-    | 2L -> "nd"
-    | 3L -> "rd"
+    match n % 10I with
+    | 1I -> "st"
+    | 2I -> "nd"
+    | 3I -> "rd"
     | _ -> "th"
 
 
@@ -94,9 +94,9 @@ let parseViewOptions
   | [] -> Stdlib.Result.Result.Ok opts
   | "--depth" :: n :: rest
   | "-d" :: n :: rest ->
-    match Stdlib.Int64.parse n with
+    match Stdlib.Int.parse n with
     | Ok depth ->
-      if depth < 0L then
+      if depth < 0I then
         Stdlib.Result.Result.Error $"--depth must be ≥ 0 (got {n})"
       else
         parseViewOptions
@@ -128,12 +128,12 @@ let parseViewOptions
   | "--slow" :: rest ->
     // Bare `--slow` defaults to 10ms. For a custom threshold, use --slow-ms.
     parseViewOptions
-      { opts with slowThresholdMs = Stdlib.Option.Option.Some 10L }
+      { opts with slowThresholdMs = Stdlib.Option.Option.Some 10I }
       rest
   | "--slow-ms" :: numStr :: rest ->
-    match Stdlib.Int64.parse numStr with
+    match Stdlib.Int.parse numStr with
     | Ok n ->
-      if n < 0L then
+      if n < 0I then
         Stdlib.Result.Result.Error $"--slow-ms must be ≥ 0 (got {numStr})"
       else
         parseViewOptions
@@ -192,7 +192,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   | [ "list" ] ->
-    if wantsJson then executeListJson state 20L else executeList state 20L
+    if wantsJson then executeListJson state 20I else executeList state 20I
   | [ "list"; "--fn" ] ->
     Stdlib.printLine
       (Colors.error "Usage: traces list --fn <name> [limit] [--json]")
@@ -202,24 +202,24 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       (Colors.error "Usage: traces list --route <substring> [limit] [--json]")
     state
   | [ "list"; limitStr ] ->
-    match Stdlib.Int64.parse limitStr with
+    match Stdlib.Int.parse limitStr with
     | Ok limit ->
       if wantsJson then executeListJson state limit else executeList state limit
     | Error _ ->
       Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
       state
   | [ "list"; "--fn"; fnName ] ->
-    executeListByFn state fnName 20L wantsJson
+    executeListByFn state fnName 20I wantsJson
   | [ "list"; "--fn"; fnName; limitStr ] ->
-    match Stdlib.Int64.parse limitStr with
+    match Stdlib.Int.parse limitStr with
     | Ok limit -> executeListByFn state fnName limit wantsJson
     | Error _ ->
       Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
       state
   | [ "list"; "--route"; route ] ->
-    executeListByRoute state route 20L wantsJson
+    executeListByRoute state route 20I wantsJson
   | [ "list"; "--route"; route; limitStr ] ->
-    match Stdlib.Int64.parse limitStr with
+    match Stdlib.Int.parse limitStr with
     | Ok limit -> executeListByRoute state route limit wantsJson
     | Error _ ->
       Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
@@ -231,16 +231,16 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     executeFollow state (Stdlib.Option.Option.Some route) wantsJson
 
   | [ "stats" ] ->
-    if wantsJson then executeStatsJson state 100L else executeStats state 100L
+    if wantsJson then executeStatsJson state 100I else executeStats state 100I
   | [ "stats"; limitStr ] ->
-    match Stdlib.Int64.parse limitStr with
+    match Stdlib.Int.parse limitStr with
     | Ok limit ->
       if wantsJson then executeStatsJson state limit else executeStats state limit
     | Error _ ->
       Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
       state
 
-  | [ "tail" ] -> executeTail state Stdlib.Option.Option.None 1L
+  | [ "tail" ] -> executeTail state Stdlib.Option.Option.None 1I
   // Flag-without-arg case must precede the `[ "tail"; nStr ]` arm
   // (which would otherwise treat "--route" as a malformed N).
   | [ "tail"; "--route" ] ->
@@ -248,16 +248,16 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       (Colors.error "Usage: traces tail [N] --route <substring>")
     state
   | [ "tail"; nStr ] ->
-    match Stdlib.Int64.parse nStr with
+    match Stdlib.Int.parse nStr with
     | Ok n -> executeTail state Stdlib.Option.Option.None n
     | Error _ ->
       Stdlib.printLine (Colors.error (parsePositionalErr nStr "trace number"))
       state
   | [ "tail"; "--route"; route ] ->
-    executeTail state (Stdlib.Option.Option.Some route) 1L
+    executeTail state (Stdlib.Option.Option.Some route) 1I
   | [ "tail"; "--route"; route; nStr ]
   | [ "tail"; nStr; "--route"; route ] ->
-    match Stdlib.Int64.parse nStr with
+    match Stdlib.Int.parse nStr with
     | Ok n -> executeTail state (Stdlib.Option.Option.Some route) n
     | Error _ ->
       Stdlib.printLine (Colors.error (parsePositionalErr nStr "trace number"))
@@ -267,11 +267,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     if wantsFindView then
       executeFindView state pattern
     elif wantsJson then
-      executeFindJson state pattern 20L
+      executeFindJson state pattern 20I
     else
-      executeFind state pattern 20L
+      executeFind state pattern 20I
   | [ "find"; pattern; limitStr ] ->
-    match Stdlib.Int64.parse limitStr with
+    match Stdlib.Int.parse limitStr with
     | Ok limit ->
       if wantsJson then executeFindJson state pattern limit
       else executeFind state pattern limit
@@ -280,10 +280,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
 
   | [ "hotspots" ] ->
-    if wantsJson then executeHotspotsJson state 100L
-    else executeHotspots state 100L
+    if wantsJson then executeHotspotsJson state 100I
+    else executeHotspots state 100I
   | [ "hotspots"; limitStr ] ->
-    match Stdlib.Int64.parse limitStr with
+    match Stdlib.Int.parse limitStr with
     | Ok limit ->
       if wantsJson then executeHotspotsJson state limit
       else executeHotspots state limit
@@ -326,11 +326,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
 
   | [ "delete"; "--keep"; nStr ] ->
-    match Stdlib.Int64.parse nStr with
+    match Stdlib.Int.parse nStr with
     | Ok n ->
       if confirmDestructive
            autoConfirm
-           $"Keep the {Stdlib.Int64.toString n} most-recent traces and drop the rest?" then
+           $"Keep the {Stdlib.Int.toString n} most-recent traces and drop the rest?" then
         executePruneKeep state n
       else
         Stdlib.printLine "Cancelled."
@@ -450,8 +450,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
 
 
-let executeList (state: Cli.AppState) (limit: Int64) : Cli.AppState =
-  if limit < 1L then
+let executeList (state: Cli.AppState) (limit: Int) : Cli.AppState =
+  if limit < 1I then
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
@@ -465,7 +465,7 @@ let executeList (state: Cli.AppState) (limit: Int64) : Cli.AppState =
           "(Traces are recorded by `darklang eval`, `darklang run`, or HTTP handlers under `darklang serve`.)")
       state
     | _ ->
-      Stdlib.printLine $"Recent traces (last {Stdlib.Int64.toString limit}):"
+      Stdlib.printLine $"Recent traces (last {Stdlib.Int.toString limit}):"
       Stdlib.printLine ""
       printTraceRows rows
       Stdlib.printLine ""
@@ -476,8 +476,8 @@ let executeList (state: Cli.AppState) (limit: Int64) : Cli.AppState =
 /// `traces list --json [N]` — same data as `traces list` but emitted as a
 /// JSON array of `{traceId, handler, timestamp}` objects, no headers or
 /// footers. Designed for piping into jq / scripts. Empty store prints `[]`.
-let executeListJson (state: Cli.AppState) (limit: Int64) : Cli.AppState =
-  if limit < 1L then
+let executeListJson (state: Cli.AppState) (limit: Int) : Cli.AppState =
+  if limit < 1I then
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
@@ -489,13 +489,13 @@ let executeListJson (state: Cli.AppState) (limit: Int64) : Cli.AppState =
 let executeListByFn
   (state: Cli.AppState)
   (fnName: String)
-  (limit: Int64)
+  (limit: Int)
   (jsonMode: Bool)
   : Cli.AppState =
   if Stdlib.String.trim fnName == "" then
     Stdlib.printLine (Colors.error "--fn pattern must not be empty")
     state
-  else if limit < 1L then
+  else if limit < 1I then
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
@@ -509,7 +509,7 @@ let executeListByFn
         Stdlib.printLine $"No traces found calling '{fnName}'."
         state
       | _ ->
-        Stdlib.printLine $"Traces calling '{fnName}' (last {Stdlib.Int64.toString limit}):"
+        Stdlib.printLine $"Traces calling '{fnName}' (last {Stdlib.Int.toString limit}):"
         Stdlib.printLine ""
         printTraceRows rows
         Stdlib.printLine ""
@@ -522,9 +522,9 @@ let executeListByFn
 /// descending. The "where is my time going?" view.
 let executeHotspots
   (state: Cli.AppState)
-  (traceLimit: Int64)
+  (traceLimit: Int)
   : Cli.AppState =
-  if traceLimit < 1L then
+  if traceLimit < 1I then
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
@@ -532,21 +532,21 @@ let executeHotspots
 
     match rows with
     | [] ->
-      Stdlib.printLine $"No fn-call data in the last {Stdlib.Int64.toString traceLimit} traces."
+      Stdlib.printLine $"No fn-call data in the last {Stdlib.Int.toString traceLimit} traces."
       state
     | _ ->
       let fnCount = Stdlib.List.length rows
-      let fnWord = if fnCount == 1L then "fn" else "fns"
+      let fnWord = if fnCount == 1I then "fn" else "fns"
       Stdlib.printLine
-        $"Hotspots (last {Stdlib.Int64.toString traceLimit} traces, top {Stdlib.Int64.toString fnCount} {fnWord} by total ms):"
+        $"Hotspots (last {Stdlib.Int.toString traceLimit} traces, top {Stdlib.Int.toString fnCount} {fnWord} by total ms):"
       Stdlib.printLine ""
       Stdlib.printLine "  total ms │   max ms │ count │ fn"
       Stdlib.printLine "  ─────────┼──────────┼───────┼─────────────────────────"
       Stdlib.List.iter rows (fun row ->
         let (name, count, total, max) = row
-        let totalStr = padNum total 9L
-        let maxStr = padNum max 8L
-        let countStr = padNum count 5L
+        let totalStr = padNum total 9I
+        let maxStr = padNum max 8I
+        let countStr = padNum count 5I
         Stdlib.printLine $"  {totalStr} │ {maxStr} │ {countStr} │ {name}")
       state
 
@@ -556,9 +556,9 @@ let executeHotspots
 /// piping. Empty store prints `[]`.
 let executeHotspotsJson
   (state: Cli.AppState)
-  (traceLimit: Int64)
+  (traceLimit: Int)
   : Cli.AppState =
-  if traceLimit < 1L then
+  if traceLimit < 1I then
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
@@ -568,9 +568,9 @@ let executeHotspotsJson
       |> Stdlib.List.map (fun row ->
         let (name, count, total, max) = row
         $"{{\"name\":\"{jsonEscape name}\""
-        ++ $",\"count\":{Stdlib.Int64.toString count}"
-        ++ $",\"totalMs\":{Stdlib.Int64.toString total}"
-        ++ $",\"maxMs\":{Stdlib.Int64.toString max}}}")
+        ++ $",\"count\":{Stdlib.Int.toString count}"
+        ++ $",\"totalMs\":{Stdlib.Int.toString total}"
+        ++ $",\"maxMs\":{Stdlib.Int.toString max}}}")
       |> Stdlib.String.join ","
     Stdlib.printLine $"[{body}]"
     state
@@ -580,7 +580,7 @@ let executeHotspotsJson
 /// Stdlib.padStart returns Result; this helper unwraps with empty-Error
 /// fallback (only fails on bad padWith, which we hardcode here).
 // Formatting helpers moved to `Darklang.Tracing.Format`.
-let padNum (n: Int64) (width: Int64) : String =
+let padNum (n: Int) (width: Int) : String =
   Darklang.Tracing.Format.padNum n width
 
 let jsonEscape (s: String) : String = Darklang.Tracing.Format.jsonEscape s
@@ -593,12 +593,12 @@ let jsonEscape (s: String) : String = Darklang.Tracing.Format.jsonEscape s
 let executeFind
   (state: Cli.AppState)
   (pattern: String)
-  (limit: Int64)
+  (limit: Int)
   : Cli.AppState =
   if pattern == "" then
     Stdlib.printLine (Colors.error "find pattern must not be empty")
     state
-  else if limit < 1L then
+  else if limit < 1I then
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
@@ -610,7 +610,7 @@ let executeFind
       state
     | _ ->
       Stdlib.printLine
-        $"Traces matching '{pattern}' (last {Stdlib.Int64.toString limit}):"
+        $"Traces matching '{pattern}' (last {Stdlib.Int.toString limit}):"
       Stdlib.printLine ""
       printTraceRows rows
       Stdlib.printLine ""
@@ -624,12 +624,12 @@ let executeFind
 let executeFindJson
   (state: Cli.AppState)
   (pattern: String)
-  (limit: Int64)
+  (limit: Int)
   : Cli.AppState =
   if pattern == "" then
     Stdlib.printLine (Colors.error "find pattern must not be empty")
     state
-  else if limit < 1L then
+  else if limit < 1I then
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
@@ -646,7 +646,7 @@ let executeFindView (state: Cli.AppState) (pattern: String) : Cli.AppState =
     Stdlib.printLine (Colors.error "find pattern must not be empty")
     state
   else
-    let rows = Builtin.tracesFind pattern 1L
+    let rows = Builtin.tracesFind pattern 1I
     match rows with
     | [] ->
       Stdlib.printLine $"No traces match '{pattern}'."
@@ -666,13 +666,13 @@ let executeFindView (state: Cli.AppState) (pattern: String) : Cli.AppState =
 let executeTail
   (state: Cli.AppState)
   (routeFilter: Stdlib.Option.Option<String>)
-  (n: Int64)
+  (n: Int)
   : Cli.AppState =
   let routeIsEmpty =
     match routeFilter with
     | Some r -> Stdlib.String.trim r == ""
     | None -> false
-  if n < 1L then
+  if n < 1I then
     Stdlib.printLine (Colors.error "tail N must be ≥ 1")
     state
   else if routeIsEmpty then
@@ -683,7 +683,7 @@ let executeTail
     // unfiltered case picks straight from the first N rows.
     let fetch =
       match routeFilter with
-      | Some _ -> 500L
+      | Some _ -> 500I
       | None -> n
     let allRows = Builtin.tracesList fetch
     let candidates =
@@ -697,7 +697,7 @@ let executeTail
       | None -> allRows
 
     // Drop the first (n-1) — the Nth-most-recent is what's left at head.
-    let after = Stdlib.List.drop candidates (n - 1L)
+    let after = Stdlib.List.drop candidates (n - 1I)
     match after with
     | [] ->
       let suffix =
@@ -707,9 +707,9 @@ let executeTail
       // N=1 reads better as "No traces yet" — for N>1, use proper
       // English ordinals (2nd/3rd/22nd/etc) via ordinalSuffix.
       let msg =
-        if n == 1L then $"No traces yet{suffix}."
+        if n == 1I then $"No traces yet{suffix}."
         else
-          let nStr = Stdlib.Int64.toString n
+          let nStr = Stdlib.Int.toString n
           $"No {nStr}{ordinalSuffix n}-most-recent trace{suffix}."
       Stdlib.printLine msg
       state
@@ -720,8 +720,8 @@ let executeTail
 /// trace count, total ms (sum of every fn-call duration in each trace),
 /// max single-call ms. Pairs with `traces hotspots` (per-fn aggregate)
 /// for "which routes are heavy?" vs "which fns are heavy?".
-let executeStats (state: Cli.AppState) (limit: Int64) : Cli.AppState =
-  if limit < 1L then
+let executeStats (state: Cli.AppState) (limit: Int) : Cli.AppState =
+  if limit < 1I then
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
@@ -733,15 +733,15 @@ let executeStats (state: Cli.AppState) (limit: Int64) : Cli.AppState =
       state
     | _ ->
       Stdlib.printLine
-        $"Per-handler stats (last {Stdlib.Int64.toString limit} traces):"
+        $"Per-handler stats (last {Stdlib.Int.toString limit} traces):"
       Stdlib.printLine ""
       Stdlib.printLine "  total ms │   max ms │ count │ handler"
       Stdlib.printLine "  ─────────┼──────────┼───────┼─────────────────────────"
       Stdlib.List.iter rows (fun row ->
         let (handler, count, total, max) = row
-        let totalStr = padNum total 9L
-        let maxStr = padNum max 8L
-        let countStr = padNum count 5L
+        let totalStr = padNum total 9I
+        let maxStr = padNum max 8I
+        let countStr = padNum count 5I
         Stdlib.printLine $"  {totalStr} │ {maxStr} │ {countStr} │ {handler}")
       Stdlib.printLine ""
       // The route-drill hint only makes sense if there are HTTP
@@ -761,8 +761,8 @@ let executeStats (state: Cli.AppState) (limit: Int64) : Cli.AppState =
 /// `traces stats --json [limit]` — same data as a JSON array of
 /// `{handler, count, totalMs, maxMs}` objects, no headers/footers,
 /// for piping. Empty store prints `[]`.
-let executeStatsJson (state: Cli.AppState) (limit: Int64) : Cli.AppState =
-  if limit < 1L then
+let executeStatsJson (state: Cli.AppState) (limit: Int) : Cli.AppState =
+  if limit < 1I then
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
@@ -772,9 +772,9 @@ let executeStatsJson (state: Cli.AppState) (limit: Int64) : Cli.AppState =
       |> Stdlib.List.map (fun row ->
         let (handler, count, total, max) = row
         $"{{\"handler\":\"{jsonEscape handler}\""
-        ++ $",\"count\":{Stdlib.Int64.toString count}"
-        ++ $",\"totalMs\":{Stdlib.Int64.toString total}"
-        ++ $",\"maxMs\":{Stdlib.Int64.toString max}}}")
+        ++ $",\"count\":{Stdlib.Int.toString count}"
+        ++ $",\"totalMs\":{Stdlib.Int.toString total}"
+        ++ $",\"maxMs\":{Stdlib.Int.toString max}}}")
       |> Stdlib.String.join ","
     Stdlib.printLine $"[{body}]"
     state
@@ -790,7 +790,7 @@ let rec followLoop
   (lastSeen: String)
   (jsonMode: Bool)
   : Unit =
-  let rows = Builtin.tracesList 50L
+  let rows = Builtin.tracesList 50I
 
   let candidates =
     rows |> Stdlib.List.takeWhile (fun row -> row.traceId != lastSeen)
@@ -850,7 +850,7 @@ let executeFollow
     Stdlib.printLine ""
 
   // Anchor: ignore traces that already existed when we started.
-  let initialRows = Builtin.tracesList 1L
+  let initialRows = Builtin.tracesList 1I
   let initialSeen =
     match initialRows with
     | [] -> ""
@@ -866,20 +866,20 @@ let executeFollow
 let executeListByRoute
   (state: Cli.AppState)
   (route: String)
-  (limit: Int64)
+  (limit: Int)
   (jsonMode: Bool)
   : Cli.AppState =
   if Stdlib.String.trim route == "" then
     Stdlib.printLine (Colors.error "--route pattern must not be empty")
     state
-  else if limit < 1L then
+  else if limit < 1I then
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
     // Over-fetch then filter; tracesList returns the most-recent N rows
     // unfiltered, so to find N matching we may need to pull more. Cap at
     // 500 to bound the fetch.
-    let overFetch = if limit < 50L then 500L else limit * 10L
+    let overFetch = if limit < 50I then 500I else limit * 10I
     let allRows = Builtin.tracesList overFetch
     let routeUpper = Stdlib.String.toUppercase route
     let matching =
@@ -898,7 +898,7 @@ let executeListByRoute
         Stdlib.printLine $"No traces found for route filter '{route}'."
         state
       | _ ->
-        Stdlib.printLine $"Traces matching route '{route}' (last {Stdlib.Int64.toString limit}):"
+        Stdlib.printLine $"Traces matching route '{route}' (last {Stdlib.Int.toString limit}):"
         Stdlib.printLine ""
         printTraceRows matching
         Stdlib.printLine ""
@@ -975,7 +975,7 @@ let renderCall
   (branchId: Uuid)
   (childrenMap: Dict<List<FnCall>>)
   (call: FnCall)
-  (depth: Int64)
+  (depth: Int)
   (ancestorMatched: Bool)
   : List<String> =
   let depthExceeded =
@@ -996,18 +996,18 @@ let renderCall
       | None -> []
     // When this call is hidden we keep child indent at our level so the
     // tree doesn't develop ghost gaps where the hidden line would have been.
-    let childDepth = if visible then depth + 1L else depth
+    let childDepth = if visible then depth + 1I else depth
     let childrenRendered =
       children
       |> Stdlib.List.map (fun c ->
         renderCall opts branchId childrenMap c childDepth matchedHere)
       |> Stdlib.List.flatten
     if visible then
-      let indent = Stdlib.String.repeat "  " (depth + 1L)
+      let indent = Stdlib.String.repeat "  " (depth + 1I)
       let resultRepr = compactDval branchId call.result
       let durationSuffix =
-        if call.durationMs > 0L then
-          $"  ({Stdlib.Int64.toString call.durationMs}ms)"
+        if call.durationMs > 0I then
+          $"  ({Stdlib.Int.toString call.durationMs}ms)"
         else
           ""
       let header =
@@ -1054,14 +1054,14 @@ let formatFnCalls
     let rendered =
       roots
       |> Stdlib.List.map (fun r ->
-        renderCall opts branchId childrenMap r 0L false)
+        renderCall opts branchId childrenMap r 0I false)
       |> Stdlib.List.flatten
     match rendered with
     | [] ->
       // The empty case can happen for several reasons; help the user
       // figure out which by surfacing the most-likely cause first.
       match opts.maxDepth with
-      | Some 0L -> "  (depth limit 0 — no calls shown)"
+      | Some 0I -> "  (depth limit 0 — no calls shown)"
       | _ -> "  (no calls match the active filters)"
     | _ -> Stdlib.String.join rendered "\n"
 
@@ -1127,19 +1127,19 @@ let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
 let executeClear (state: Cli.AppState) : Cli.AppState =
   let count = Builtin.tracesClear ()
   match count with
-  | 0L ->
+  | 0I ->
     Stdlib.printLine "No traces to clear."
     state
   | _ ->
-    let traceWord = if count == 1L then "trace" else "traces"
-    Stdlib.printLine $"Cleared {Stdlib.Int64.toString count} {traceWord}."
+    let traceWord = if count == 1I then "trace" else "traces"
+    Stdlib.printLine $"Cleared {Stdlib.Int.toString count} {traceWord}."
     state
 
 
 /// Parse a CLI duration arg. `-`-prefixed inputs are reported as
 /// "Unknown flag" rather than "Invalid duration" — same logic as
 /// `parsePositionalErr`. Otherwise delegates to `Stdlib.Duration.parse`.
-let parseDuration (s: String) : Stdlib.Result.Result<Int64, String> =
+let parseDuration (s: String) : Stdlib.Result.Result<Int, String> =
   if Stdlib.String.startsWith s "-" then
     Stdlib.Result.Result.Error $"Unknown flag: {s}"
   else
@@ -1158,17 +1158,19 @@ let executeClearBefore
     state
   | Ok seconds ->
     let now = Stdlib.DateTime.now ()
-    let cutoffDt = Stdlib.DateTime.subtractSeconds now seconds
+    // cleanup
+    let cutoffDt =
+      Stdlib.DateTime.subtractSeconds now seconds
     let cutoff = Stdlib.DateTime.toString cutoffDt
     let count = Builtin.tracesClearBefore cutoff
     match count with
-    | 0L ->
+    | 0I ->
       Stdlib.printLine $"No traces older than {durationStr}."
       state
     | _ ->
-      let traceWord = if count == 1L then "trace" else "traces"
+      let traceWord = if count == 1I then "trace" else "traces"
       Stdlib.printLine
-        $"Cleared {Stdlib.Int64.toString count} {traceWord} older than {durationStr}."
+        $"Cleared {Stdlib.Int.toString count} {traceWord} older than {durationStr}."
       state
 
 
@@ -1177,7 +1179,7 @@ let executeClearBefore
 let executeDelete (state: Cli.AppState) (traceID: String) : Cli.AppState =
   let deleted = Builtin.tracesDelete traceID
   match deleted with
-  | 0L ->
+  | 0I ->
     Stdlib.printLine (Colors.error $"Trace not found: {traceID}")
     state
   | _ ->
@@ -1188,25 +1190,25 @@ let executeDelete (state: Cli.AppState) (traceID: String) : Cli.AppState =
 /// `traces delete --keep <N>` — keep the N most-recent traces, drop the
 /// rest (with their fn_calls). For bounded retention as the trace store
 /// grows; pair with `traces delete --all` for a full wipe.
-let executePruneKeep (state: Cli.AppState) (keepN: Int64) : Cli.AppState =
-  if keepN < 0L then
+let executePruneKeep (state: Cli.AppState) (keepN: Int) : Cli.AppState =
+  if keepN < 0I then
     Stdlib.printLine (Colors.error "--keep N must be ≥ 0")
     state
   else
     let deleted = Builtin.tracesPruneKeep keepN
     match deleted with
-    | 0L ->
+    | 0I ->
       Stdlib.printLine
-        $"Already at or below {Stdlib.Int64.toString keepN} traces; nothing to prune."
+        $"Already at or below {Stdlib.Int.toString keepN} traces; nothing to prune."
       state
     | _ ->
-      let traceWord = if deleted == 1L then "trace" else "traces"
+      let traceWord = if deleted == 1I then "trace" else "traces"
       let keptPhrase =
-        if keepN == 0L then "none kept"
-        else if keepN == 1L then "kept the most-recent"
-        else $"kept the {Stdlib.Int64.toString keepN} most-recent"
+        if keepN == 0I then "none kept"
+        else if keepN == 1I then "kept the most-recent"
+        else $"kept the {Stdlib.Int.toString keepN} most-recent"
       Stdlib.printLine
-        $"Pruned {Stdlib.Int64.toString deleted} {traceWord}; {keptPhrase}."
+        $"Pruned {Stdlib.Int.toString deleted} {traceWord}; {keptPhrase}."
       state
 
 

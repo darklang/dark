@@ -2,15 +2,15 @@ module Darklang.Cli.Outliner.Main
 
 type Screen =
   | DocPicker of ListPicker.State<Document>
-  | DocRenaming of docId: Int64 * ListPicker.State<Document> * TextEditor.State
+  | DocRenaming of docId: Int * ListPicker.State<Document> * TextEditor.State
   | Editor of OutlineEditor.State
   | ExportPicker of ListPicker.State<(String * String)>
   | ExportPath of ext: String * TextEditor.State
 
 type State =
   { documents: List<Document>
-    activeDocId: Int64
-    nextDocId: Int64
+    activeDocId: Int
+    nextDocId: Int
     screen: Screen }
 
 type KeyResult =
@@ -24,12 +24,12 @@ type KeyResult =
 let activeDoc (state: State) : Document =
   let fallback =
     Document
-      { id = 0L; title = "Untitled"; outline = emptyOutline () }
+      { id = 0I; title = "Untitled"; outline = emptyOutline () }
   state.documents
   |> Stdlib.List.findFirst (fun d -> d.id == state.activeDocId)
   |> Stdlib.Option.withDefault fallback
 
-let updateDoc (state: State) (docId: Int64) (updater: Document -> Document) : State =
+let updateDoc (state: State) (docId: Int) (updater: Document -> Document) : State =
   { state with
       documents =
         Stdlib.List.map state.documents (fun d ->
@@ -46,13 +46,13 @@ let createDocument (state: State) (title: String) : State =
     { state with
         documents = Stdlib.List.append state.documents [newDoc]
         activeDocId = state.nextDocId
-        nextDocId = state.nextDocId + 1L }
+        nextDocId = state.nextDocId + 1I }
   let editor = OutlineEditor.fromOutline newDoc.outline
   { newState with screen = Screen.Editor editor }
 
-let deleteDocument (state: State) (docId: Int64) : State =
+let deleteDocument (state: State) (docId: Int) : State =
   let docCount = Stdlib.List.length state.documents
-  if docCount <= 1L then
+  if docCount <= 1I then
     state
   else
     let remaining = Stdlib.List.filter state.documents (fun d -> d.id != docId)
@@ -69,7 +69,7 @@ let deleteDocument (state: State) (docId: Int64) : State =
           activeDocId = newActiveId }
     { newState with screen = Screen.DocPicker (makeDocPicker newState) }
 
-let renameDocument (state: State) (docId: Int64) (newTitle: String) : State =
+let renameDocument (state: State) (docId: Int) (newTitle: String) : State =
   updateDoc state docId (fun d -> { d with title = newTitle })
 
 
@@ -78,7 +78,7 @@ let renameDocument (state: State) (docId: Int64) (newTitle: String) : State =
 let makeDocPicker (state: State) : ListPicker.State<Document> =
   ListPicker.make state.documents (fun doc ->
     let nodeCount = Stdlib.List.length doc.outline.rootChildren
-    $"{doc.title}  ({Stdlib.Int64.toString nodeCount} items)")
+    $"{doc.title}  ({Stdlib.Int.toString nodeCount} items)")
 
 let exportFormats : List<(String * String)> =
   [ ("Markdown", ".md")
@@ -210,7 +210,7 @@ let handleKey
 let renderTitleBar (titleText: String) (modeText: String) (modeColor: String) (region: Darklang.Cli.UI.Layout.Region) : Unit =
   let title = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) $" {titleText} "
   let modeIndicator = Darklang.Cli.Colors.colorize modeColor modeText
-  Darklang.Cli.UI.Layout.printAt region 0L 0L (title ++ " " ++ modeIndicator)
+  Darklang.Cli.UI.Layout.printAt region 0I 0I (title ++ " " ++ modeIndicator)
 
 let renderHelpBar (helpText: String) (region: Darklang.Cli.UI.Layout.Region) : Unit =
   let helpLen = Stdlib.String.length helpText
@@ -218,7 +218,7 @@ let renderHelpBar (helpText: String) (region: Darklang.Cli.UI.Layout.Region) : U
     if region.cols > helpLen then Stdlib.String.repeat " " (region.cols - helpLen)
     else ""
   let styled = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding)
-  Darklang.Cli.UI.Layout.printAt region 0L 0L styled
+  Darklang.Cli.UI.Layout.printAt region 0I 0I styled
 
 let renderChrome (titleText: String) (modeText: String) (modeColor: String) (helpText: String) (renderBody: Darklang.Cli.UI.Layout.Region -> Unit) : Unit =
   let termHeight = Darklang.Cli.Terminal.getHeight ()
@@ -226,14 +226,14 @@ let renderChrome (titleText: String) (modeText: String) (modeColor: String) (hel
   Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
 
   let screen =
-    Darklang.Cli.UI.Layout.Region { top = 1L; left = 1L; rows = termHeight - 1L; cols = termWidth }
+    Darklang.Cli.UI.Layout.Region { top = 1I; left = 1I; rows = termHeight - 1I; cols = termWidth }
 
   let titleComp =
-    Darklang.Cli.UI.Layout.fixedSize 2L (fun region -> renderTitleBar titleText modeText modeColor region)
+    Darklang.Cli.UI.Layout.fixedSize 2I (fun region -> renderTitleBar titleText modeText modeColor region)
   let bodyComp =
     Darklang.Cli.UI.Layout.greedy renderBody
   let helpComp =
-    Darklang.Cli.UI.Layout.fixedSize 1L (fun region -> renderHelpBar helpText region)
+    Darklang.Cli.UI.Layout.fixedSize 1I (fun region -> renderHelpBar helpText region)
   let components = [titleComp; bodyComp; helpComp]
   Darklang.Cli.UI.Layout.vstack screen components
   Stdlib.print "\u001b[?25h"
@@ -274,7 +274,7 @@ let render (state: State) : Unit =
               Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
             else
               line
-          Darklang.Cli.UI.Layout.printAt region idx 0L styled))
+          Darklang.Cli.UI.Layout.printAt region idx 0I styled))
 
   | Editor editor ->
     let doc = activeDoc state
@@ -300,8 +300,8 @@ let render (state: State) : Unit =
       "Edit path | Enter: export | Esc: cancel"
       (fun region ->
         let label = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  Path: "
-        Darklang.Cli.UI.Layout.printAt region 0L 0L $"  Format: {formatName}"
-        Darklang.Cli.UI.Layout.printAt region 2L 0L (label ++ (TextEditor.renderInline te)))
+        Darklang.Cli.UI.Layout.printAt region 0I 0I $"  Format: {formatName}"
+        Darklang.Cli.UI.Layout.printAt region 2I 0I (label ++ (TextEditor.renderInline te)))
 
 
 // --- Persistence ---
@@ -344,7 +344,7 @@ module Persistence =
           let picker =
             ListPicker.make docs (fun doc ->
               let nodeCount = Stdlib.List.length doc.outline.rootChildren
-              $"{doc.title}  ({Stdlib.Int64.toString nodeCount} items)")
+              $"{doc.title}  ({Stdlib.Int.toString nodeCount} items)")
           State
             { documents = docs
               activeDocId = data.activeDocId
@@ -360,48 +360,48 @@ module Persistence =
 let defaultState () : State =
   let notesOutline =
     buildOutline
-      [ (1L, "Welcome to Outliner")
-        (2L, "Use arrow keys to navigate")
-        (3L, "Press Enter to edit an item")
-        (4L, "Press Tab to indent")
-        (5L, "Features")
-        (6L, "Collapse/expand with Space")
-        (7L, "Add new items with 'o'")
-        (8L, "Move items with Ctrl+Up/Down")
-        (9L, "Press / for document picker") ]
-      [ (1L, [2L; 3L; 4L])
-        (5L, [6L; 7L; 8L]) ]
-      [1L; 5L; 9L]
-      10L
+      [ (1I, "Welcome to Outliner")
+        (2I, "Use arrow keys to navigate")
+        (3I, "Press Enter to edit an item")
+        (4I, "Press Tab to indent")
+        (5I, "Features")
+        (6I, "Collapse/expand with Space")
+        (7I, "Add new items with 'o'")
+        (8I, "Move items with Ctrl+Up/Down")
+        (9I, "Press / for document picker") ]
+      [ (1I, [2I; 3I; 4I])
+        (5I, [6I; 7I; 8I]) ]
+      [1I; 5I; 9I]
+      10I
   let tasksOutline =
     buildOutline
-      [ (1L, "Today")
-        (2L, "Try out the outliner")
-        (3L, "Add your own items")
-        (4L, "Later")
-        (5L, "Organize your thoughts")
-        (6L, "Set up a project outline") ]
-      [ (1L, [2L; 3L])
-        (4L, [5L; 6L]) ]
-      [1L; 4L]
-      7L
+      [ (1I, "Today")
+        (2I, "Try out the outliner")
+        (3I, "Add your own items")
+        (4I, "Later")
+        (5I, "Organize your thoughts")
+        (6I, "Set up a project outline") ]
+      [ (1I, [2I; 3I])
+        (4I, [5I; 6I]) ]
+      [1I; 4I]
+      7I
   let doc1 =
     Document
-      { id = 1L
+      { id = 1I
         title = "My Notes"
         outline = notesOutline }
   let doc2 =
     Document
-      { id = 2L
+      { id = 2I
         title = "Tasks"
         outline = tasksOutline }
   let docs = [doc1; doc2]
   let picker =
     ListPicker.make docs (fun doc ->
       let nodeCount = Stdlib.List.length doc.outline.rootChildren
-      $"{doc.title}  ({Stdlib.Int64.toString nodeCount} items)")
+      $"{doc.title}  ({Stdlib.Int.toString nodeCount} items)")
   State
     { documents = docs
-      activeDocId = 1L
-      nextDocId = 3L
+      activeDocId = 1I
+      nextDocId = 3I
       screen = Screen.DocPicker picker }

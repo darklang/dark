@@ -4,36 +4,36 @@ module Darklang.Stdlib.Float
 type ParseError = | BadFormat
 
 /// Round up to an integer value
-let ceiling (a: Float) : Int64 = Builtin.floatCeiling a
+let ceiling (a: Float) : Int = Builtin.floatCeiling a
 
 
 /// Round up to an integer value
-let roundUp (a: Float) : Int64 = Builtin.floatRoundUp a
+let roundUp (a: Float) : Int = Builtin.floatRoundUp a
 
 /// Round down to an integer value.
 /// Consider <fn Float.truncate> if your goal
 /// is to discard the fractional part of a number: {{Float.floor -1.9 == -2.0}}
 /// but {{Float.truncate -1.9 == -1.0}}
-let floor (a: Float) : Int64 = Builtin.floatFloor a
+let floor (a: Float) : Int = Builtin.floatFloor a
 
 
 /// Round down to an integer value.
 /// Consider <fn Float.truncate> if your goal is to discard the fractional part
 /// of a number: {{Float.floor -1.9 == -2.0}} but {{Float.truncate -1.9 ==
 /// -1.0}}
-let roundDown (a: Float) : Int64 = Builtin.floatRoundDown a
+let roundDown (a: Float) : Int = Builtin.floatRoundDown a
 
 
 /// Round to the nearest integer value
-let round (a: Float) : Int64 = Builtin.floatRound a
+let round (a: Float) : Int = Builtin.floatRound a
 
 
 /// Returns the <type Float> value wrapped in a {{Result}} of the <type String>
-let roundTowardsZero (a: Float) : Int64 = Builtin.floatRoundTowardsZero a
+let roundTowardsZero (a: Float) : Int = Builtin.floatRoundTowardsZero a
 
 
 /// Discard the fractional portion of the float, rounding towards zero
-let truncate (a: Float) : Int64 = Builtin.floatTruncate a
+let truncate (a: Float) : Int = Builtin.floatTruncate a
 
 
 /// Returns the absolute value of <param a> (turning negative inputs into positive outputs)

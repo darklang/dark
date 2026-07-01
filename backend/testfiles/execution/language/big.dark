@@ -29,9 +29,9 @@ module BigTestCase =
    |> (++) "\nhex64Encode: "
    |> (++) hexEncode
    |> (++) "\nstring length: "
-   |> (++) (Stdlib.Int64.toString_v0 sl)
+   |> (++) (Stdlib.Int.toString sl)
    |> (++) "\nbytes length: "
-   |> (++) (Stdlib.Int64.toString_v0 bl)
+   |> (++) (Stdlib.Int.toString bl)
    |> (++) "\nbool: "
    |> (++) (Stdlib.Bool.toString_v0 r)
    |> (++) "\nfloat: "

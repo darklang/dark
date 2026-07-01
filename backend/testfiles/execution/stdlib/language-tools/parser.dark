@@ -3,7 +3,7 @@ type Point = Darklang.LanguageTools.Parser.Point
 type Range = Darklang.LanguageTools.Parser.Range
 type ParsedNode = Darklang.LanguageTools.Parser.ParsedNode
 
-let range (s: Int64 * Int64) (e: Int64 * Int64) : Range =
+let range (s: Int * Int) (e: Int * Int) : Range =
   let (startRow, startColumn) = s
   let (endRow, endColumn) = e
 
@@ -33,58 +33,58 @@ module ParseToSimplifiedTree =
       { typ = "source_file"
         fieldName = Stdlib.Option.Option.None
         text = "type ID = Int64"
-        range = range (0L, 0L) (0L, 15L)
+        range = range (0I, 0I) (0I, 15I)
         children =
           [ ParsedNode
               { fieldName = Stdlib.Option.Option.None
                 typ = "type_decl"
                 text = "type ID = Int64"
-                range = range (0L, 0L) (0L, 15L)
+                range = range (0I, 0I) (0I, 15I)
                 children =
                   [ ParsedNode
                       { fieldName = Stdlib.Option.Option.Some "keyword_type"
                         typ = "keyword"
                         text = "type"
-                        range = range (0L, 0L) (0L, 4L)
+                        range = range (0I, 0I) (0I, 4I)
                         children = [] }
 
                     ParsedNode
                       { fieldName = Stdlib.Option.Option.Some "name"
                         typ = "type_identifier"
                         text = "ID"
-                        range = range (0L, 5L) (0L, 7L)
+                        range = range (0I, 5I) (0I, 7I)
                         children = [] }
 
                     ParsedNode
                       { fieldName = Stdlib.Option.Option.Some "symbol_equals"
                         typ = "symbol"
                         text = "="
-                        range = range (0L, 8L) (0L, 9L)
+                        range = range (0I, 8I) (0I, 9I)
                         children = [] }
 
                     ParsedNode
                       { fieldName = Stdlib.Option.Option.Some "typ"
                         typ = "type_decl_def"
                         text = "Int64"
-                        range = range (0L, 10L) (0L, 15L)
+                        range = range (0I, 10I) (0I, 15I)
                         children =
                           [ ParsedNode
                               { fieldName = Stdlib.Option.Option.None
                                 typ = "type_decl_def_alias"
                                 text = "Int64"
-                                range = range (0L, 10L) (0L, 15L)
+                                range = range (0I, 10I) (0I, 15I)
                                 children =
                                   [ ParsedNode
                                       { fieldName = Stdlib.Option.Option.None
                                         typ = "type_reference"
                                         text = "Int64"
-                                        range = range (0L, 10L) (0L, 15L)
+                                        range = range (0I, 10I) (0I, 15I)
                                         children =
                                           [ ParsedNode
                                               { fieldName = Stdlib.Option.Option.None
                                                 typ = "builtin_type"
                                                 text = "Int64"
-                                                range = range (0L, 10L) (0L, 15L)
+                                                range = range (0I, 10I) (0I, 15I)
                                                 children = [] } ] } ] } ] } ] } ] }
 
 
@@ -93,7 +93,7 @@ module ParseToSimplifiedTree =
       { typ = "source_file"
         fieldName = Stdlib.Option.Option.None
         text = ""
-        range = range (0L, 0L) (0L, 0L)
+        range = range (0I, 0I) (0I, 0I)
         children = [] }
 
 
@@ -109,24 +109,24 @@ module ParseNodeToWrittenTypes =
    |> Builtin.unwrap) =
     Darklang.LanguageTools.WrittenTypes.ParsedFile.SourceFile(
       Darklang.LanguageTools.WrittenTypes.SourceFile.SourceFile
-        { range = range (0L, 0L) (0L, 17L)
+        { range = range (0I, 0I) (0I, 17I)
           declarations =
             [ Darklang.LanguageTools.WrittenTypes.SourceFile.SourceFileDeclaration.Type(
                 Darklang.LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration
-                  { range = range (0L, 0L) (0L, 17L)
+                  { range = range (0I, 0I) (0I, 17I)
                     name =
                       Darklang.LanguageTools.WrittenTypes.TypeIdentifier
-                        { range = range (0L, 5L) (0L, 9L); name = "MyID" }
+                        { range = range (0I, 5I) (0I, 9I); name = "MyID" }
                     typeParams = []
                     definition =
                       Darklang.LanguageTools.WrittenTypes.TypeDeclaration.Definition.Alias(
                         Darklang.LanguageTools.WrittenTypes.TypeReference.TypeReference.Builtin(
-                          Darklang.LanguageTools.WrittenTypes.TypeReference.Builtin.TInt64(range (0L, 12L) (0L, 17L))
+                          Darklang.LanguageTools.WrittenTypes.TypeReference.Builtin.TInt64(range (0I, 12I) (0I, 17I))
                         )
                       )
                     description = ""
-                    keywordType = range (0L, 0L) (0L, 4L)
-                    symbolEquals = range (0L, 10L) (0L, 11L) }
+                    keywordType = range (0I, 0I) (0I, 4I)
+                    symbolEquals = range (0I, 10I) (0I, 11I) }
             ) ]
           unparseableStuff = []
           exprsToEval = [] }

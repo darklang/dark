@@ -1,7 +1,7 @@
 module Darklang.Cli.Packages.Search
 
 // Max results rendered per entity type.
-let displayCap = 20L
+let displayCap = 20I
 
 
 // Operator symbols aren't function names, so a literal search for one finds
@@ -35,14 +35,14 @@ let operatorAlias (query: String) : Stdlib.Option.Option<String> =
 // the canonical operation the camelCase concept is built on. A hit matched only
 // via its doc comment (the query token isn't in the name at all) ranks last, so
 // the name-relevant results aren't pushed under the display cap. Case-insensitive.
-let matchRank (query: String) (name: String) : Int64 =
+let matchRank (query: String) (name: String) : Int =
   let q = Stdlib.String.toLowercase query
   let n = Stdlib.String.toLowercase name
-  if n == q then 0L
-  else if Stdlib.String.startsWith q n then 1L // query elaborates name: parseInt ⊃ parse
-  else if Stdlib.String.startsWith n q then 2L // name elaborates query: parseIntLiteral ⊃ parseInt
-  else if Stdlib.String.contains n q then 3L
-  else 4L
+  if n == q then 0I
+  else if Stdlib.String.startsWith q n then 1I // query elaborates name: parseInt ⊃ parse
+  else if Stdlib.String.startsWith n q then 2I // name elaborates query: parseIntLiteral ⊃ parseInt
+  else if Stdlib.String.contains n q then 3I
+  else 4I
 
 
 let isStdlib (owner: String) (modules: List<String>) : Bool =
@@ -58,7 +58,7 @@ let sortKey
   (modules: List<String>)
   (name: String)
   : String =
-  let mr = Stdlib.Int64.toString (matchRank query name)
+  let mr = Stdlib.Int.toString (matchRank query name)
   let st = if isStdlib owner modules then "0" else "1"
   $"{mr}{st}:{name}"
 
@@ -67,16 +67,16 @@ let sortKey
 let bestItemRank
   (query: String)
   (items: List<LanguageTools.ProgramTypes.LocatedItem<'a>>)
-  : Int64 =
+  : Int =
   items
-  |> Stdlib.List.fold 9L (fun acc item ->
+  |> Stdlib.List.fold 9I (fun acc item ->
     let r = matchRank query item.location.name
     if r < acc then r else acc)
 
 
-let bestModuleRank (query: String) (modules: List<List<String>>) : Int64 =
+let bestModuleRank (query: String) (modules: List<List<String>>) : Int =
   modules
-  |> Stdlib.List.fold 9L (fun acc modulePath ->
+  |> Stdlib.List.fold 9I (fun acc modulePath ->
     let modName = Stdlib.Option.withDefault (Stdlib.List.last modulePath) ""
     let r = matchRank query modName
     if r < acc then r else acc)
@@ -103,12 +103,12 @@ let withOptionalDoc (withDocs: Bool) (headline: String) (desc: String) : String 
   if withDocs then (withDoc headline desc) ++ "\n" else headline
 
 
-let overflowNote (total: Int64) (shown: Int64) : Unit =
+let overflowNote (total: Int) (shown: Int) : Unit =
   let extra = total - shown
-  if extra > 0L then
+  if extra > 0I then
     Stdlib.printLine (
       Colors.hint
-        $"  ... and {Stdlib.Int64.toString extra} more (narrow with --exact or `nav` into a module)")
+        $"  ... and {Stdlib.Int.toString extra} more (narrow with --exact or `nav` into a module)")
   else
     ()
 
@@ -272,7 +272,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           if Stdlib.List.isEmpty parsed.entityTypes then
             Stdlib.List.length results.submodules
           else
-            0L
+            0I
 
         let totalResults =
           (Stdlib.List.length results.types)
@@ -280,7 +280,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           + (Stdlib.List.length results.fns)
           + submodulesCount
 
-        if totalResults == 0L then
+        if totalResults == 0I then
           Stdlib.printLine (Colors.dimText $"No results found for: {queryText}")
           Stdlib.printLine ""
         else
@@ -297,16 +297,16 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             if Stdlib.List.isEmpty parsed.entityTypes then
               bestModuleRank queryText results.submodules
             else
-              9L
+              9I
 
           // Suffix orders sections on a rank tie. Modules are navigation, not the
           // usual discovery target, so they sort last - a wall of namespace
           // matches shouldn't precede an equally-ranked fn/type/value hit.
           let sectionKeys =
-            [ ($"{Stdlib.Int64.toString moduleRank}4", "module")
-              ($"{Stdlib.Int64.toString (bestItemRank queryText results.types)}1", "type")
-              ($"{Stdlib.Int64.toString (bestItemRank queryText results.values)}2", "value")
-              ($"{Stdlib.Int64.toString (bestItemRank queryText results.fns)}3", "function") ]
+            [ ($"{Stdlib.Int.toString moduleRank}4", "module")
+              ($"{Stdlib.Int.toString (bestItemRank queryText results.types)}1", "type")
+              ($"{Stdlib.Int.toString (bestItemRank queryText results.values)}2", "value")
+              ($"{Stdlib.Int.toString (bestItemRank queryText results.fns)}3", "function") ]
 
           let order =
             sectionKeys

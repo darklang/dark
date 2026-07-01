@@ -9,21 +9,21 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   let summary = SCM.PackageOps.getWipSummary branchId
 
-  if summary.total == 0L then
+  if summary.total == 0I then
     Stdlib.printLine "Nothing to discard."
     state
   else
     let header = if autoConfirm then "Discarded:" else "Will discard:"
     Stdlib.printLine header
 
-    if summary.types > 0L then
-      Stdlib.printLine $"  {Stdlib.Int64.toString summary.types} type(s)"
+    if summary.types > 0I then
+      Stdlib.printLine $"  {Stdlib.Int.toString summary.types} type(s)"
 
-    if summary.values > 0L then
-      Stdlib.printLine $"  {Stdlib.Int64.toString summary.values} value(s)"
+    if summary.values > 0I then
+      Stdlib.printLine $"  {Stdlib.Int.toString summary.values} value(s)"
 
-    if summary.fns > 0L then
-      Stdlib.printLine $"  {Stdlib.Int64.toString summary.fns} function(s)"
+    if summary.fns > 0I then
+      Stdlib.printLine $"  {Stdlib.Int.toString summary.fns} function(s)"
 
     Stdlib.printLine ""
 
@@ -38,7 +38,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     if proceed then
       match SCM.PackageOps.discard branchId with
       | Ok count ->
-        Stdlib.printLine (Colors.success $"Discarded {Stdlib.Int64.toString count} ops.")
+        Stdlib.printLine (Colors.success $"Discarded {Stdlib.Int.toString count} ops.")
         state
       | Error e ->
         Stdlib.printLine (Colors.error $"Discard failed: {e}")

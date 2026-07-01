@@ -10,8 +10,8 @@ type ButtonModel =
 let createButton (text: String) (color: Core.Types.Color) (action: Unit -> Unit) : Core.Types.Component<ButtonModel> =
   let model = ButtonModel { text = text; color = color; size = Core.Types.Size.Normal; disabled = false; action = action }
   let textWidth = Stdlib.String.length text
-  let buttonWidth = textWidth + 4L  // 2 for borders + 2 for padding
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = buttonWidth; height = 3L } }
+  let buttonWidth = textWidth + 4I  // 2 for borders + 2 for padding
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = buttonWidth; height = 3I } }
   Core.Types.Component
     { id = "button-" ++ text
       model = model
@@ -25,10 +25,10 @@ let renderButton (component: Core.Types.Component<ButtonModel>) (context: Core.T
   let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
 
   // Calculate padding based on raw text length (before ANSI codes)
-  let innerWidth = component.bounds.dimensions.width - 2L
+  let innerWidth = component.bounds.dimensions.width - 2I
   let textLen = Stdlib.String.length model.text
   let totalPadding = innerWidth - textLen
-  let leftPad = Stdlib.Int64.divide totalPadding 2L
+  let leftPad = Stdlib.Int.divide totalPadding 2I
   let rightPad = totalPadding - leftPad
 
   // Style the text
@@ -44,9 +44,9 @@ let renderButton (component: Core.Types.Component<ButtonModel>) (context: Core.T
   let paddedText = Stdlib.String.repeat " " leftPad ++ styledText ++ Stdlib.String.repeat " " rightPad
   let focusIndicator = if hasFocus then "► " else "  "
 
-  [ focusIndicator ++ "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┐"
+  [ focusIndicator ++ "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2I) ++ "┐"
     focusIndicator ++ "│" ++ paddedText ++ "│"
-    focusIndicator ++ "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘" ]
+    focusIndicator ++ "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2I) ++ "┘" ]
 
 let setButtonText (component: Core.Types.Component<ButtonModel>) (text: String) : Core.Types.Component<ButtonModel> =
   let model = component.model

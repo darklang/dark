@@ -19,10 +19,10 @@ module RuntimeError =
   type ErrorSegment =
     // -- Basic types
     | String of String
-    | Int of Int64
-    | Ordinal of Int64 // 1st, 2nd, etc
+    | Int of Int
+    | Ordinal of Int // 1st, 2nd, etc
     | IndefiniteArticle // "a" or "an" (chosen based on the next segment)
-    | Count of Int64 * singular: ErrorSegment * plural: ErrorSegment // 2 errors, 1 error, etc
+    | Count of Int * singular: ErrorSegment * plural: ErrorSegment // 2 errors, 1 error, etc
 
     // -- Functions
     | FunctionName of FQFnName
@@ -71,12 +71,12 @@ module RuntimeError =
         let newSegment =
           match segment with
           | String s -> s
-          | Int i -> Stdlib.Int64.toString i
+          | Int i -> Stdlib.Int.toString i
           | Ordinal i -> Stdlib.String.toOrdinal i
           | Count(i, singular, plural) ->
-            let count = Stdlib.Int64.toString i
+            let count = Stdlib.Int.toString i
 
-            if i == 1L then
+            if i == 1I then
               let segment = segmentsToString branchId [ singular ]
               $"{count} {segment}"
             else
@@ -110,7 +110,7 @@ module RuntimeError =
           | InlineValue dv ->
             // CLEANUP for strings that are cut off, the closing `"` is missing.
             (dval branchId dv)
-            |> Stdlib.String.ellipsis 10L
+            |> Stdlib.String.ellipsis 10I
             |> Stdlib.String.splitOnNewline
             |> Stdlib.String.join ""
           | FullValue dv -> dval branchId dv
@@ -200,7 +200,7 @@ module RuntimeError =
         ES.String ") to a list of "
         ES.ValueType expectedType
         ES.String ". Failed at index "
-        ES.Int (Stdlib.Int64.fromInt32 index)
+        ES.Int (Stdlib.Int.fromInt32 index)
         ES.String "."]
 
     | Dict err ->
@@ -435,7 +435,7 @@ module RuntimeError =
       | FnParameterNotExpectedType(fnName, paramIndex, paramName, expectedType, actualType, actualValue) ->
         [ ES.FunctionName fnName
           ES.String "'s "
-          ES.Ordinal(paramIndex + 1L)
+          ES.Ordinal(paramIndex + 1I)
           ES.String " parameter "
           ES.ParamName paramName
           ES.String " expects "
@@ -496,7 +496,7 @@ module RuntimeError =
       | NoExpressionsToExecute ->
         [ ES.String "Nothing to evaluate (empty input or no top-level expression)" ]
       | NonIntReturned returnedValue ->
-        [ ES.String "Script must return an Int64 (exit code); got "
+        [ ES.String "Script must return an Int (exit code); got "
           ES.FullValue returnedValue ]
 
     | SqlCompiler errMsg -> [ ES.String errMsg ]

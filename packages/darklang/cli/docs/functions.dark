@@ -4,7 +4,7 @@ let content () : String =
   """# Functions
 
 ## Define (module-level only)
-  let add (a: Int64) (b: Int64) : Int64 = a + b
+  let add (a: Int) (b: Int) : Int = a + b
   let greet (name: String) : String = $"Hi {name}"
 
 ## No params
@@ -12,22 +12,22 @@ let content () : String =
 
 ## NO NESTED FUNCTIONS
   # WRONG:
-  let outer () = let inner () = 5L; inner ()
+  let outer () = let inner () = 5; inner ()
   # RIGHT:
-  let inner () = 5L
+  let inner () = 5
   let outer () = inner ()
 
 ## Call
-  add 1L 2L
+  add 1 2
   Stdlib.String.length "hi"
 
 ## Lambda
-  fun x -> x + 1L
+  fun x -> x + 1
   fun (a, b) -> a + b
 
 ## Partial application
-  let addFive = Stdlib.Int64.add 5L
-  addFive 3L   # 8L
+  let addFive = Stdlib.Int.add 5
+  addFive 3   # 8
 
 ## Unit return
   let log (msg: String) : Unit = Stdlib.printLine msg"""

@@ -6,7 +6,7 @@ module Documentation =
   // shipping empty (the actual count is well over 100; the threshold
   // is intentionally loose so adding/removing one fn doesn't churn this
   // test).
-  ((Builtin.getAllBuiltinFns ()) |> Stdlib.List.length) > 100L = true
+  ((Builtin.getAllBuiltinFns ()) |> Stdlib.List.length) > 100I = true
 
   // Builtin metadata round-trips: the registry exposes `int64Add` with
   // the parameter shape the type-checker uses at call sites.

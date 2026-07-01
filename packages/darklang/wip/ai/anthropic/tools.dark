@@ -265,7 +265,7 @@ type WebSearchUserLocation =
 type WebSearchTool =
   { ``type``: String
     name: String
-    max_uses: Stdlib.Option.Option<Int64>
+    max_uses: Stdlib.Option.Option<Int>
     allowed_domains: Stdlib.Option.Option<List<String>>
     blocked_domains: Stdlib.Option.Option<List<String>>
     user_location: Stdlib.Option.Option<WebSearchUserLocation> }
@@ -279,7 +279,7 @@ let webSearchTool () : WebSearchTool =
       blocked_domains = Stdlib.Option.Option.None
       user_location = Stdlib.Option.Option.None }
 
-let webSearchToolWithLimit (maxUses: Int64) : WebSearchTool =
+let webSearchToolWithLimit (maxUses: Int) : WebSearchTool =
   WebSearchTool
     { ``type`` = "web_search_20250305"
       name = "web_search"
@@ -290,7 +290,7 @@ let webSearchToolWithLimit (maxUses: Int64) : WebSearchTool =
 
 let webSearchToolWithDomains
   (allowed: List<String>)
-  (maxUses: Stdlib.Option.Option<Int64>)
+  (maxUses: Stdlib.Option.Option<Int>)
   : WebSearchTool =
   WebSearchTool
     { ``type`` = "web_search_20250305"
@@ -308,7 +308,7 @@ let webSearchToJson (tool: WebSearchTool) : Json =
   let withMaxUses =
     match tool.max_uses with
     | Some n ->
-      Stdlib.List.append baseFields [ ("max_uses", Json.Number (Stdlib.Int64.toFloat n)) ]
+      Stdlib.List.append baseFields [ ("max_uses", Json.Number (Stdlib.Int.toFloat n)) ]
     | None -> baseFields
 
   let withAllowed =
@@ -368,7 +368,7 @@ let webSearchToJson (tool: WebSearchTool) : Json =
 type TextEditorTool =
   { ``type``: String
     name: String
-    max_characters: Stdlib.Option.Option<Int64> }
+    max_characters: Stdlib.Option.Option<Int> }
 
 /// Latest text editor tool (20250728) - recommended
 let textEditorTool () : TextEditorTool =
@@ -378,7 +378,7 @@ let textEditorTool () : TextEditorTool =
       max_characters = Stdlib.Option.Option.None }
 
 /// Latest text editor with character limit
-let textEditorToolWithLimit (maxChars: Int64) : TextEditorTool =
+let textEditorToolWithLimit (maxChars: Int) : TextEditorTool =
   TextEditorTool
     { ``type`` = "text_editor_20250728"
       name = "str_replace_based_edit_tool"
@@ -406,7 +406,7 @@ let textEditorToJson (tool: TextEditorTool) : Json =
   let withMaxChars =
     match tool.max_characters with
     | Some n ->
-      Stdlib.List.append baseFields [ ("max_characters", Json.Number (Stdlib.Int64.toFloat n)) ]
+      Stdlib.List.append baseFields [ ("max_characters", Json.Number (Stdlib.Int.toFloat n)) ]
     | None -> baseFields
 
   Json.Object withMaxChars
@@ -443,13 +443,13 @@ let bashToJson (tool: BashTool) : Json =
 type ComputerTool =
   { ``type``: String
     name: String
-    display_width_px: Int64
-    display_height_px: Int64
-    display_number: Stdlib.Option.Option<Int64>
+    display_width_px: Int
+    display_height_px: Int
+    display_number: Stdlib.Option.Option<Int>
     enable_zoom: Stdlib.Option.Option<Bool> }
 
 /// Computer tool for most models (20250124)
-let computerTool (width: Int64) (height: Int64) : ComputerTool =
+let computerTool (width: Int) (height: Int) : ComputerTool =
   ComputerTool
     { ``type`` = "computer_20250124"
       name = "computer"
@@ -460,9 +460,9 @@ let computerTool (width: Int64) (height: Int64) : ComputerTool =
 
 /// Computer tool for most models with display number
 let computerToolWithDisplay
-  (width: Int64)
-  (height: Int64)
-  (displayNum: Int64)
+  (width: Int)
+  (height: Int)
+  (displayNum: Int)
   : ComputerTool =
   ComputerTool
     { ``type`` = "computer_20250124"
@@ -473,7 +473,7 @@ let computerToolWithDisplay
       enable_zoom = Stdlib.Option.Option.None }
 
 /// Computer tool for Opus 4.6/4.5 (20251124) - includes zoom capability
-let computerToolOpus (width: Int64) (height: Int64) : ComputerTool =
+let computerToolOpus (width: Int) (height: Int) : ComputerTool =
   ComputerTool
     { ``type`` = "computer_20251124"
       name = "computer"
@@ -483,7 +483,7 @@ let computerToolOpus (width: Int64) (height: Int64) : ComputerTool =
       enable_zoom = Stdlib.Option.Option.None }
 
 /// Computer tool for Opus 4.6/4.5 with zoom enabled
-let computerToolOpusWithZoom (width: Int64) (height: Int64) : ComputerTool =
+let computerToolOpusWithZoom (width: Int) (height: Int) : ComputerTool =
   ComputerTool
     { ``type`` = "computer_20251124"
       name = "computer"
@@ -494,9 +494,9 @@ let computerToolOpusWithZoom (width: Int64) (height: Int64) : ComputerTool =
 
 /// Computer tool for Opus 4.6/4.5 with all options
 let computerToolOpusFull
-  (width: Int64)
-  (height: Int64)
-  (displayNum: Int64)
+  (width: Int)
+  (height: Int)
+  (displayNum: Int)
   (enableZoom: Bool)
   : ComputerTool =
   ComputerTool
@@ -511,13 +511,13 @@ let computerToJson (tool: ComputerTool) : Json =
   let baseFields =
     [ ("type", Json.String tool.``type``)
       ("name", Json.String tool.name)
-      ("display_width_px", Json.Number(Stdlib.Int64.toFloat tool.display_width_px))
-      ("display_height_px", Json.Number(Stdlib.Int64.toFloat tool.display_height_px)) ]
+      ("display_width_px", Json.Number(Stdlib.Int.toFloat tool.display_width_px))
+      ("display_height_px", Json.Number(Stdlib.Int.toFloat tool.display_height_px)) ]
 
   let withDisplay =
     match tool.display_number with
     | Some n ->
-      Stdlib.List.append baseFields [ ("display_number", Json.Number(Stdlib.Int64.toFloat n)) ]
+      Stdlib.List.append baseFields [ ("display_number", Json.Number(Stdlib.Int.toFloat n)) ]
     | None -> baseFields
 
   let withZoom =
@@ -669,11 +669,11 @@ type WebFetchCitations =
 type WebFetchTool =
   { ``type``: String
     name: String
-    max_uses: Stdlib.Option.Option<Int64>
+    max_uses: Stdlib.Option.Option<Int>
     allowed_domains: Stdlib.Option.Option<List<String>>
     blocked_domains: Stdlib.Option.Option<List<String>>
     citations: Stdlib.Option.Option<WebFetchCitations>
-    max_content_tokens: Stdlib.Option.Option<Int64> }
+    max_content_tokens: Stdlib.Option.Option<Int> }
 
 /// Basic web fetch tool with no options
 let webFetchTool () : WebFetchTool =
@@ -687,7 +687,7 @@ let webFetchTool () : WebFetchTool =
       max_content_tokens = Stdlib.Option.Option.None }
 
 /// Web fetch tool with usage limit
-let webFetchToolWithLimit (maxUses: Int64) : WebFetchTool =
+let webFetchToolWithLimit (maxUses: Int) : WebFetchTool =
   WebFetchTool
     { ``type`` = "web_fetch_20250910"
       name = "web_fetch"
@@ -731,7 +731,7 @@ let webFetchToolWithBlockedDomains (domains: List<String>) : WebFetchTool =
       max_content_tokens = Stdlib.Option.Option.None }
 
 /// Web fetch tool with content token limit
-let webFetchToolWithContentLimit (maxTokens: Int64) : WebFetchTool =
+let webFetchToolWithContentLimit (maxTokens: Int) : WebFetchTool =
   WebFetchTool
     { ``type`` = "web_fetch_20250910"
       name = "web_fetch"
@@ -743,11 +743,11 @@ let webFetchToolWithContentLimit (maxTokens: Int64) : WebFetchTool =
 
 /// Fully configurable web fetch tool
 let webFetchToolFull
-  (maxUses: Stdlib.Option.Option<Int64>)
+  (maxUses: Stdlib.Option.Option<Int>)
   (allowedDomains: Stdlib.Option.Option<List<String>>)
   (blockedDomains: Stdlib.Option.Option<List<String>>)
   (enableCitations: Bool)
-  (maxContentTokens: Stdlib.Option.Option<Int64>)
+  (maxContentTokens: Stdlib.Option.Option<Int>)
   : WebFetchTool =
   WebFetchTool
     { ``type`` = "web_fetch_20250910"
@@ -770,7 +770,7 @@ let webFetchToJson (tool: WebFetchTool) : Json =
   let withMaxUses =
     match tool.max_uses with
     | Some n ->
-      Stdlib.List.append baseFields [ ("max_uses", Json.Number (Stdlib.Int64.toFloat n)) ]
+      Stdlib.List.append baseFields [ ("max_uses", Json.Number (Stdlib.Int.toFloat n)) ]
     | None -> baseFields
 
   let withAllowed =
@@ -797,7 +797,7 @@ let webFetchToJson (tool: WebFetchTool) : Json =
   let withMaxContent =
     match tool.max_content_tokens with
     | Some n ->
-      Stdlib.List.append withCitations [ ("max_content_tokens", Json.Number (Stdlib.Int64.toFloat n)) ]
+      Stdlib.List.append withCitations [ ("max_content_tokens", Json.Number (Stdlib.Int.toFloat n)) ]
     | None -> withCitations
 
   Json.Object withMaxContent

@@ -6,22 +6,22 @@ let convertParserRangeToLspRange
   : LanguageServerProtocol.Range.Range =
   let lineStart =
     range.start.row
-    |> Stdlib.UInt64.fromInt64
+    |> Stdlib.Int.toUInt64
     |> Stdlib.Option.withDefault 0UL
 
   let characterStart =
     range.start.column
-    |> Stdlib.UInt64.fromInt64
+    |> Stdlib.Int.toUInt64
     |> Stdlib.Option.withDefault 0UL
 
   let lineEnd =
     range.end_.row
-    |> Stdlib.UInt64.fromInt64
+    |> Stdlib.Int.toUInt64
     |> Stdlib.Option.withDefault 0UL
 
   let characterEnd =
     range.end_.column
-    |> Stdlib.UInt64.fromInt64
+    |> Stdlib.Int.toUInt64
     |> Stdlib.Option.withDefault 0UL
 
   LanguageServerProtocol.Range.Range
@@ -307,10 +307,10 @@ let handleIncomingMessage
           Scm.handleGetWipSummaryRequest state requestId
 
         | ("dark/scm/getCommits", Some requestId, Some(Object [ ("limit", Number n) ])) ->
-          Scm.handleGetCommitsRequest state requestId (Stdlib.Float.truncate n)
+          Scm.handleGetCommitsRequest state requestId (Stdlib.Int.fromFloat n)
 
         | ("dark/scm/getCommits", Some requestId, _) ->
-          Scm.handleGetCommitsRequest state requestId 10L
+          Scm.handleGetCommitsRequest state requestId 10I
 
         | ("dark/scm/getWipOps", Some requestId, _) ->
           Scm.handleGetWipOpsRequest state requestId

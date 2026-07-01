@@ -4,14 +4,14 @@ let content () : String =
   """# Types
 
 ## Primitives
-  Int64    5L, -42L
+  Int    5, -42
   Float    3.14, -0.5
   String   "hello"
   Bool     true, false
   Char     'a'
 
 ## Option
-  Option.Some 5L
+  Option.Some 5
   Option.None
 
 ## Result
@@ -19,13 +19,13 @@ let content () : String =
   Result.Error msg
 
 ## Collections
-  List<T>     [1L; 2L]
+  List<T>     [1; 2]
   Dict<T>     Dict { key = "value" }
   (a, b)      tuple
 
 ## Records
-  type Person = { name: String; age: Int64 }
-  Person { name = "Jo"; age = 30L }
+  type Person = { name: String; age: Int }
+  Person { name = "Jo"; age = 30 }
 
 ## Enums
   type Status = | Active | Inactive of String

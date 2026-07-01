@@ -68,7 +68,7 @@ let toFloat (a: UInt64) : Float = Builtin.uint64ToFloat a
 
 /// Converts a <type Float> to an <type UInt64>
 let fromFloat (a: Float) : Stdlib.Option.Option<UInt64> =
-  a |> Float.round |> fromInt64
+  a |> Float.round |> Stdlib.Int.toUInt64
 
 
 /// Returns the sum of all the ints in the list

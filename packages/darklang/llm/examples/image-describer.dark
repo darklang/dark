@@ -24,7 +24,7 @@ let sendImageRequest
     let request =
       (Darklang.WIP.AI.Anthropic.Chat.Request.create ())
       |> Darklang.WIP.AI.Anthropic.Chat.Request.withModelString Darklang.LLM.Models.Anthropic.sonnet45.id
-      |> Darklang.WIP.AI.Anthropic.Chat.Request.withMaxTokens 500L
+      |> Darklang.WIP.AI.Anthropic.Chat.Request.withMaxTokens 500I
       |> Darklang.WIP.AI.Anthropic.Chat.Request.withBlockMessages [ userMessage ]
 
     let request =

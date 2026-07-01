@@ -49,8 +49,8 @@ let parseAndReportDiagnostics
         let pathPart =
           // TODO: remove magic
           requestUri
-          |> Stdlib.String.dropFirst 8L // Remove "darkfs:/"
-          |> Stdlib.String.dropLast 5L // Remove ".dark"
+          |> Stdlib.String.dropFirst 8I // Remove "darkfs:/"
+          |> Stdlib.String.dropLast 5I // Remove ".dark"
 
         if Stdlib.String.startsWith pathPart "script/" then
           ("LSP", "scriptName")

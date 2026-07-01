@@ -9,9 +9,9 @@ let content () : String =
 ## Router function
   let router (req: Stdlib.HttpServer.Request) : Stdlib.HttpServer.Response =
     match (req.method, req.path) with
-    | ("GET", "/") -> Stdlib.HttpServer.response 200L "Hello"
-    | ("GET", "/api") -> Stdlib.HttpServer.jsonResponse 200L data
-    | _ -> Stdlib.HttpServer.response 404L "Not Found"
+    | ("GET", "/") -> Stdlib.HttpServer.response 200 "Hello"
+    | ("GET", "/api") -> Stdlib.HttpServer.jsonResponse 200 data
+    | _ -> Stdlib.HttpServer.response 404 "Not Found"
 
 ## Request fields
   method path headers query body

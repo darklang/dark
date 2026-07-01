@@ -18,11 +18,11 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "dictSize" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Returns the number of entries in <param dict>"
       fn =
         (function
-        | _, _, _, [ DDict(_vtTODO, o) ] -> Ply(DInt64(int64 (Map.count o)))
+        | _, _, _, [ DDict(_vtTODO, o) ] -> Ply(Dval.int (bigint (Map.count o)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

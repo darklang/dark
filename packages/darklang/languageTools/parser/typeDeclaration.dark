@@ -76,7 +76,7 @@ let parseDefinition
       let recordFields =
         match (findNodeByFieldName child "fields") with
         | Some fieldsNode ->
-          match fieldsNode.children |> Stdlib.List.chunkBySize 2L with
+          match fieldsNode.children |> Stdlib.List.chunkBySize 2I with
           | Ok pairs ->
             pairs |> Stdlib.List.map (fun fieldSeparatorPair ->
               match fieldSeparatorPair with
@@ -178,7 +178,7 @@ let parse
         match findNodeByFieldName typeParamsNode "params" with
         | None -> [] |> Stdlib.Result.Result.Ok
         | Some paramsNode ->
-          match paramsNode.children |> Stdlib.List.chunkBySize 2L with
+          match paramsNode.children |> Stdlib.List.chunkBySize 2I with
           | Ok pairs ->
             pairs
             |> Stdlib.List.map (fun typeParamSeparatorPair ->

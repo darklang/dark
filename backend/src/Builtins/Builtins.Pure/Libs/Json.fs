@@ -72,7 +72,7 @@ module JsonPath =
       let (caseName, fields) =
         match part with
         | Root -> "Root", []
-        | Index i -> "Index", [ DInt64(int64 i) ]
+        | Index i -> "Index", [ Dval.int (bigint i) ]
         | Field s -> "Field", [ DString s ]
       DEnum(typeName, typeName, [], caseName, fields)
 
@@ -198,7 +198,7 @@ module ParseError =
       | EnumMissingField(typ, fieldCount, errorPath) ->
         "EnumMissingField",
         [ RT2DT.TypeReference.toDT typ
-          DInt64(int64 fieldCount)
+          Dval.int (bigint fieldCount)
           JsonPath.toDT errorPath ]
 
       | EnumInvalidCasename(typ, caseName, errorPath) ->

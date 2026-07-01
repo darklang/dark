@@ -14,23 +14,23 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   let summary = SCM.PackageOps.getWipSummary branchId
 
-  if summary.total == 0L then
+  if summary.total == 0I then
     Stdlib.printLine "No uncommitted changes."
   else
     Stdlib.printLine "Uncommitted changes:"
 
-    if summary.types > 0L then
-      Stdlib.printLine $"  {Stdlib.Int64.toString summary.types} type(s)"
+    if summary.types > 0I then
+      Stdlib.printLine $"  {Stdlib.Int.toString summary.types} type(s)"
 
-    if summary.values > 0L then
-      Stdlib.printLine $"  {Stdlib.Int64.toString summary.values} value(s)"
+    if summary.values > 0I then
+      Stdlib.printLine $"  {Stdlib.Int.toString summary.values} value(s)"
 
-    if summary.fns > 0L then
-      Stdlib.printLine $"  {Stdlib.Int64.toString summary.fns} function(s)"
+    if summary.fns > 0I then
+      Stdlib.printLine $"  {Stdlib.Int.toString summary.fns} function(s)"
 
-    if summary.deprecations > 0L then
+    if summary.deprecations > 0I then
       Stdlib.printLine
-        $"  {Stdlib.Int64.toString summary.deprecations} deprecation(s)"
+        $"  {Stdlib.Int.toString summary.deprecations} deprecation(s)"
 
     [ ""
       "Use 'commit \"message\"' to commit these changes."

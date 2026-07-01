@@ -20,8 +20,8 @@ let agent =
   |> Darklang.LLM.Agent.withShellTool "get_staged_files" "Get files staged for commit" "git diff --cached --name-only"
   |> Darklang.LLM.Agent.withShellTool "get_diff" "Get diff of staged changes" "git diff --cached"
   |> Darklang.LLM.Agent.withShellTool "get_recent_commits" "Get last 5 commits for style" "git log --oneline -n 5"
-  |> Darklang.LLM.Agent.withMaxTokens 500L
-  |> Darklang.LLM.Agent.withMaxTurns 5L
+  |> Darklang.LLM.Agent.withMaxTokens 500I
+  |> Darklang.LLM.Agent.withMaxTurns 5I
   |> Darklang.LLM.Agent.withTemperature 0.3
 
 

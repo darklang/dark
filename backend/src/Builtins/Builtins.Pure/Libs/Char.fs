@@ -46,7 +46,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "charToAsciiCode" 0
       typeParams = []
       parameters = [ Param.make "c" TChar "" ]
-      returnType = TypeReference.option TInt64
+      returnType = TypeReference.option TInt
       description =
         "Return {{Some <var code>}} if <param c> is a valid ASCII character, otherwise {{None}}"
       fn =
@@ -54,9 +54,9 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DChar c ] ->
           let charValue = int c[0]
           if charValue >= 0 && charValue < 256 then
-            Dval.optionSome KTInt64 (DInt64 charValue) |> Ply
+            Dval.optionSome KTInt (Dval.int (bigint charValue)) |> Ply
           else
-            Dval.optionNone KTInt64 |> Ply
+            Dval.optionNone KTInt |> Ply
         | _ -> incorrectArgs ()
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -141,7 +141,7 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "charFromCodepoint" 0
       typeParams = []
-      parameters = [ Param.make "codepoint" TInt64 "" ]
+      parameters = [ Param.make "codepoint" TInt "" ]
       returnType = TypeReference.option TChar
       description =
         "Return {{Some <var c>}} for the Unicode codepoint <param codepoint>,
@@ -149,8 +149,13 @@ let fns () : List<BuiltInFn> =
         (i.e. negative, greater than 0x10FFFF, or a surrogate)."
       fn =
         function
-        | _, _, _, [ DInt64 cp ] ->
-          if cp < 0L || cp > 0x10FFFFL || (cp >= 0xD800L && cp <= 0xDFFFL) then
+        | _, _, _, [ DInt cp ] ->
+          let cp = DarkInt.toBigInt cp
+          if
+            cp < bigint 0
+            || cp > bigint 0x10FFFF
+            || (cp >= bigint 0xD800 && cp <= bigint 0xDFFF)
+          then
             Dval.optionNone KTChar |> Ply
           else
             let s = System.Char.ConvertFromUtf32(int cp)

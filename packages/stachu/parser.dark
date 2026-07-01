@@ -134,7 +134,7 @@ let charWhere (predicate: Char -> Bool) (description: String) : Parser<Char> =
           match Stdlib.String.head input with
           | Some c ->
             if predicate c then
-              let remaining = Stdlib.String.dropFirst input 1L
+              let remaining = Stdlib.String.dropFirst input 1I
               ParseResult.Success(c, remaining)
             else
               ParseResult.Failure("Expected: " ++ description)
@@ -183,8 +183,8 @@ let manyStrings (parser: Parser<String>) : Parser<List<String>> =
   Parser
     { run =
         (fun input ->
-          let maxIterations = 100L
-          let indices = Stdlib.List.range 0L maxIterations
+          let maxIterations = 100I
+          let indices = Stdlib.List.range 0I maxIterations
 
           let initialAcc =
             ManyAcc { results = []; remaining = input; done_ = false }
@@ -224,8 +224,8 @@ let many (parser: Parser<'a>) : Parser<List<'a>> =
   Parser
     { run =
         (fun input ->
-          let maxIterations = 100L
-          let indices = Stdlib.List.range 0L maxIterations
+          let maxIterations = 100I
+          let indices = Stdlib.List.range 0I maxIterations
 
           let initialAcc =
             ManyAccGeneric { results = []; remaining = input; done_ = false }

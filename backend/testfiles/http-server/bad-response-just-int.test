@@ -18,12 +18,12 @@ Strict-Transport-Security: max-age=31536000; includeSubDomains; preload
 Content-Length: LENGTH
 
 Application error: expected a HTTP response, got:
-type Int64:
+type Int:
   13
 
 HTTP handlers should return results in the form:
   Darklang.Stdlib.Http.Response {
-    statusCode : Int64
+    statusCode : Int
     headers : List<String*String>
     body : Blob
   }

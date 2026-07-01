@@ -81,7 +81,7 @@ let getMatchedSegmentSuffix (completion: String) (partial: String) : String =
     let rest = Stdlib.String.dropFirst completion afterMatch
     // Find end of current segment (next "." or end of string)
     match Stdlib.String.indexOf rest "." with
-    | Some dotPos -> Stdlib.String.slice rest 0L dotPos
+    | Some dotPos -> Stdlib.String.slice rest 0I dotPos
     | None -> rest
 
 
@@ -126,14 +126,14 @@ let commandNamesCompletion (_state: AppState) (args: List<String>) : List<Comple
 
 
 // Helper functions for finding common prefixes in completions
-let findCommonLength (str1: String) (str2: String) (index: Int64) (maxLen: Int64) : Int64 =
+let findCommonLength (str1: String) (str2: String) (index: Int) (maxLen: Int) : Int =
   if index >= maxLen then
     index
   else
-    let char1 = Stdlib.String.slice str1 index (index + 1L)
-    let char2 = Stdlib.String.slice str2 index (index + 1L)
+    let char1 = Stdlib.String.slice str1 index (index + 1I)
+    let char2 = Stdlib.String.slice str2 index (index + 1I)
     if char1 == char2 then
-      findCommonLength str1 str2 (index + 1L) maxLen
+      findCommonLength str1 str2 (index + 1I) maxLen
     else
       index
 
@@ -143,9 +143,9 @@ let findCommonPrefix (strings: List<String>) : String =
   | [single] -> single
   | first :: rest ->
     Stdlib.List.fold rest first (fun acc next ->
-      let maxLen = Stdlib.Int64.min (Stdlib.String.length acc) (Stdlib.String.length next)
-      let commonLen = findCommonLength acc next 0L maxLen
-      Stdlib.String.slice acc 0L commonLen)
+      let maxLen = Stdlib.Int.min (Stdlib.String.length acc) (Stdlib.String.length next)
+      let commonLen = findCommonLength acc next 0I maxLen
+      Stdlib.String.slice acc 0I commonLen)
 
 
 // Filesystem completion helpers
@@ -171,8 +171,8 @@ let completeFilesystemPath (partialArg: String) : List<String> =
   else if Stdlib.String.contains partialArg "/" then
     match Stdlib.String.lastIndexOf partialArg "/" with
     | Some idx ->
-      let dirPart = Stdlib.String.slice partialArg 0L (idx + 1L)
-      let filePart = Stdlib.String.dropFirst partialArg (idx + 1L)
+      let dirPart = Stdlib.String.slice partialArg 0I (idx + 1I)
+      let filePart = Stdlib.String.dropFirst partialArg (idx + 1I)
 
       let fullPath =
         if Stdlib.String.startsWith dirPart "/" then

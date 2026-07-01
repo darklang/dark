@@ -4,7 +4,7 @@
 module Darklang.LLM.Examples.JsonExtractor
 
 /// Shared config: GPT-4o-mini with JSON mode at temperature 0.0
-let jsonExtractorAgent (systemPrompt: String) (maxTokens: Int64) : Agent.Agent =
+let jsonExtractorAgent (systemPrompt: String) (maxTokens: Int) : Agent.Agent =
   (Agent.create ())
   |> Agent.withSystemPrompt systemPrompt
   |> Agent.useGPT4oMini
@@ -19,7 +19,7 @@ let contactPrompt =
   "Extract contact info as JSON: {name, email, phone, company, title, address}. Use null for missing fields."
 
 
-let contactAgent = jsonExtractorAgent contactPrompt 500L
+let contactAgent = jsonExtractorAgent contactPrompt 500I
 
 
 /// Run an extraction agent with a prompt prefix
@@ -66,7 +66,7 @@ let eventPrompt =
   "Extract event info as JSON: {title, date (YYYY-MM-DD), time (HH:MM), location, description, attendees:[]}."
 
 
-let eventAgent = jsonExtractorAgent eventPrompt 500L
+let eventAgent = jsonExtractorAgent eventPrompt 500I
 
 
 /// Extract event information from text
@@ -81,7 +81,7 @@ let entityPrompt =
   "Extract named entities as JSON: {people:[], organizations:[], locations:[], dates:[], amounts:[]}."
 
 
-let entityAgent = jsonExtractorAgent entityPrompt 1000L
+let entityAgent = jsonExtractorAgent entityPrompt 1000I
 
 
 /// Extract named entities from text
@@ -96,7 +96,7 @@ let sentimentPrompt =
   "Analyze sentiment as JSON: {overall_sentiment, confidence (0-1), emotions:[], key_phrases:[], summary}."
 
 
-let sentimentAgent = jsonExtractorAgent sentimentPrompt 500L
+let sentimentAgent = jsonExtractorAgent sentimentPrompt 500I
 
 
 /// Analyze sentiment of text
@@ -110,6 +110,6 @@ let analyzeSentiment (text: String) : String =
 /// Extract data using a custom schema description (uses GPT-4o for complex schemas)
 let extractWithSchema (schemaDescription: String) (text: String) : String =
   let agent =
-    (jsonExtractorAgent $"Extract data as JSON matching: {schemaDescription}" 2000L)
+    (jsonExtractorAgent $"Extract data as JSON matching: {schemaDescription}" 2000I)
     |> Agent.useGPT4o
   runExtraction agent "Extract from" text

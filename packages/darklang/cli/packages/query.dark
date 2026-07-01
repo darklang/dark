@@ -39,7 +39,7 @@ let hasContent (r: LanguageTools.ProgramTypes.Search.SearchResults) : Bool =
 
 
 /// Extract direct submodule names from the current module path
-let getDirectSubmodules (results: LanguageTools.ProgramTypes.Search.SearchResults) (currentPathLength: Int64) : List<String> =
+let getDirectSubmodules (results: LanguageTools.ProgramTypes.Search.SearchResults) (currentPathLength: Int) : List<String> =
   results.submodules
   |> Stdlib.List.filterMap (fun modulePath ->
     match Stdlib.List.drop modulePath currentPathLength with

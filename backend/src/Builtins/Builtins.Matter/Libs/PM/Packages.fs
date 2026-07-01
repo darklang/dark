@@ -59,9 +59,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                 statsTypeName (),
                 statsTypeName (),
                 [],
-                [ "types", DInt64 stats.types
-                  "values", DInt64 stats.values
-                  "fns", DInt64 stats.fns ]
+                [ "types", Dval.int (bigint stats.types)
+                  "values", Dval.int (bigint stats.values)
+                  "fns", Dval.int (bigint stats.fns) ]
                 |> Map
               )
           }

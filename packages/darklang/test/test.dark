@@ -8,17 +8,17 @@ let fnWithTypeArgAndOneParam<'a> (arg: 'a) : 'a = Stdlib.Json.parse<'a> arg
 let twoStringFn (str1: String) (str2: String) : String =
   str1 ++ " appended " ++ str2
 
-let returnsInt () : Int64 = 5L
+let returnsInt () : Int = 5I
 
 let returnsString () : String = "string"
 
-let returnsOptionSome () : Stdlib.Option.Option<Int64> =
-  Stdlib.Option.Option.Some 5L
+let returnsOptionSome () : Stdlib.Option.Option<Int> =
+  Stdlib.Option.Option.Some 5I
 
 let returnsOptionNone () : Stdlib.Option.Option<'a> = Stdlib.Option.Option.None
 
-let returnsResultOk () : Stdlib.Result.Result<Int64, String> =
-  Stdlib.Result.Result.Ok 5L
+let returnsResultOk () : Stdlib.Result.Result<Int, String> =
+  Stdlib.Result.Result.Ok 5I
 
 let returnsResultError () : Stdlib.Result.Result<Char, Bool> =
   Stdlib.Result.Result.Error false
@@ -30,7 +30,7 @@ let derrorFn (msg: String) : String =
   msg ++ (Builtin.testRuntimeError msg)
 
 type X<'a> =
-  | A of Int64
+  | A of Int
   | B of 'a
 
 let polyFn (a: X<'a>) : X<'a> = a
@@ -41,7 +41,8 @@ module Values =
   let stringValue = "test"
   let int128Value = 5Q
   let uint128Value = 5Z
-  let intValue = 5L
+  let intValue = 5I
+  let int64Value = 5L
   let uint64Value = 5UL
   let int32Value = 5l
   let uint32Value = 5ul

@@ -24,7 +24,7 @@
 ///   // Anthropic-specific features
 ///   Agent.create ()
 ///   |> Agent.withModel Models.Anthropic.opus46
-///   |> Agent.withThinking 8000L
+///   |> Agent.withThinking 8000I
 ///   |> Agent.withWebSearch
 ///   |> Agent.run "Research this topic..."
 ///
@@ -32,7 +32,7 @@
 ///   Agent.create ()
 ///   |> Agent.withModel Models.OpenAI.gpt4o
 ///   |> Agent.withJsonMode
-///   |> Agent.withSeed 42L
+///   |> Agent.withSeed 42
 ///   |> Agent.run "Extract data as JSON..."
 module Darklang.LLM.Agent
 
@@ -79,8 +79,8 @@ type Agent =
   { model: Model
     systemPrompt: Stdlib.Option.Option<String>
     tools: List<Tool>
-    maxTokens: Int64
-    maxTurns: Int64
+    maxTokens: Int
+    maxTurns: Int
     temperature: Stdlib.Option.Option<Float>
     // Shared provider features
     toolChoice: Stdlib.Option.Option<Darklang.LLM.Provider.ToolChoice>
@@ -92,7 +92,7 @@ type Agent =
     extendedContext: Bool
     // OpenAI-specific features
     responseFormat: Stdlib.Option.Option<Darklang.LLM.Provider.ResponseFormat>
-    seed: Stdlib.Option.Option<Int64>
+    seed: Stdlib.Option.Option<Int>
     presencePenalty: Stdlib.Option.Option<Float>
     frequencyPenalty: Stdlib.Option.Option<Float>
     topP: Stdlib.Option.Option<Float> }
@@ -107,8 +107,8 @@ let create () : Agent =
     { model = Darklang.LLM.Models.Anthropic.sonnet45
       systemPrompt = Stdlib.Option.Option.None
       tools = []
-      maxTokens = 4096L
-      maxTurns = 10L
+      maxTokens = 4096I
+      maxTurns = 10I
       temperature = Stdlib.Option.Option.None
       toolChoice = Stdlib.Option.Option.None
       disableParallelToolUse = false
@@ -144,12 +144,12 @@ let withTools (agent: Agent) (tools: List<Tool>) : Agent =
   { agent with tools = Stdlib.List.append agent.tools tools }
 
 /// Set max tokens per response
-let withMaxTokens (agent: Agent) (tokens: Int64) : Agent =
+let withMaxTokens (agent: Agent) (tokens: Int) : Agent =
   let validated = Darklang.LLM.Internal.Validation.validateMaxTokens tokens agent.model.outputTokens
   { agent with maxTokens = validated }
 
 /// Set max agentic turns
-let withMaxTurns (agent: Agent) (turns: Int64) : Agent =
+let withMaxTurns (agent: Agent) (turns: Int) : Agent =
   let validated = Darklang.LLM.Internal.Validation.validateMaxTurns turns
   { agent with maxTurns = validated }
 
@@ -173,12 +173,12 @@ let withShellTool
   let tool =
     makeTool name description [] (fun _input ->
       let result = Stdlib.Cli.execute command
-      if result.exitCode == 0L then
+      if result.exitCode == 0I then
         let output = if result.stdout == "" then "(no output)" else result.stdout
         Stdlib.Result.Result.Ok(ToolOutput.Text output)
       else
         Stdlib.Result.Result.Error
-          $"Command failed (exit {Stdlib.Int64.toString result.exitCode}): {result.stderr}")
+          $"Command failed (exit {Stdlib.Int.toString result.exitCode}): {result.stderr}")
   { agent with tools = Stdlib.List.append agent.tools [ tool ] }
 
 
@@ -215,7 +215,7 @@ let withParallelTools (agent: Agent) : Agent =
 // ANTHROPIC-SPECIFIC: EXTENDED THINKING
 
 /// Enable extended thinking with a token budget (Anthropic only)
-let withThinking (agent: Agent) (budgetTokens: Int64) : Agent =
+let withThinking (agent: Agent) (budgetTokens: Int) : Agent =
   { agent with
       thinking =
         Stdlib.Option.Option.Some(Darklang.LLM.Provider.ThinkingConfig.Enabled budgetTokens) }
@@ -246,7 +246,7 @@ let withWebSearchDomains (agent: Agent) (domains: List<String>) : Agent =
               allowedDomains = Stdlib.Option.Option.Some domains }) }
 
 /// Enable web search with a maximum number of searches (Anthropic only)
-let withWebSearchLimit (agent: Agent) (maxUses: Int64) : Agent =
+let withWebSearchLimit (agent: Agent) (maxUses: Int) : Agent =
   { agent with
       webSearch =
         Stdlib.Option.Option.Some(
@@ -308,7 +308,7 @@ let withJsonSchema (agent: Agent) (schema: Json) : Agent =
 
 /// Set a seed for reproducible outputs (OpenAI only)
 /// Using the same seed with the same parameters should give similar results
-let withSeed (agent: Agent) (seed: Int64) : Agent =
+let withSeed (agent: Agent) (seed: Int) : Agent =
   { agent with seed = Stdlib.Option.Option.Some seed }
 
 
@@ -513,7 +513,7 @@ let askWith (model: Model) (question: String) : Stdlib.Result.Result<String, Str
 
 /// One-shot question with thinking enabled (Anthropic)
 let askWithThinking
-  (budgetTokens: Int64)
+  (budgetTokens: Int)
   (question: String)
   : Stdlib.Result.Result<AgentResult, String> =
   (create ()) |> withThinking budgetTokens |> run question
@@ -533,7 +533,7 @@ let askJson (question: String) : Stdlib.Result.Result<String, String> =
 
 
 /// One-shot question with reproducible seed (OpenAI)
-let askWithSeed (seed: Int64) (question: String) : Stdlib.Result.Result<String, String> =
+let askWithSeed (seed: Int) (question: String) : Stdlib.Result.Result<String, String> =
   (create ())
   |> withModel Darklang.LLM.Models.OpenAI.gpt4o
   |> withSeed seed

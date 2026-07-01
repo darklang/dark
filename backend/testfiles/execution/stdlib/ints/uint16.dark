@@ -91,35 +91,35 @@ Stdlib.UInt16.mod_v0 32768us 53us = 14us
 Stdlib.UInt16.mod_v0 65535us 3us = 0us
 
 Stdlib.UInt16.mod_v0 5us 0us = error="Cannot evaluate modulus against 0"
-(Stdlib.List.range_v0 1L 5L)
+(Stdlib.List.range_v0 1I 5I)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt16.random 1us 2us)
 |> Stdlib.List.map_v0 (fun x ->
   (Stdlib.UInt16.greaterThanOrEqualTo x 1us)
   && (Stdlib.UInt16.lessThanOrEqualTo x 2us)) = [ true; true; true; true; true ]
 
-(Stdlib.List.range_v0 1L 5L)
+(Stdlib.List.range_v0 1I 5I)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt16.random 10us 20us)
 |> Stdlib.List.map_v0 (fun x ->
   (Stdlib.UInt16.greaterThanOrEqualTo x 10us)
   && (Stdlib.UInt16.lessThanOrEqualTo x 20us)) = [ true; true; true; true; true ]
 
-(Stdlib.List.range_v0 1L 5L)
+(Stdlib.List.range_v0 1I 5I)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt16.random 2us 1us)
 |> Stdlib.List.map_v0 (fun x ->
   (Stdlib.UInt16.greaterThanOrEqualTo x 1us)
   && (Stdlib.UInt16.lessThanOrEqualTo x 2us)) = [ true; true; true; true; true ]
 
-(Stdlib.List.range_v0 1L 5L)
+(Stdlib.List.range_v0 1I 5I)
 |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt16.random 20us 10us)
 |> Stdlib.List.map_v0 (fun x ->
   (Stdlib.UInt16.greaterThanOrEqualTo x 10us)
   && (Stdlib.UInt16.lessThanOrEqualTo x 20us)) = [ true; true; true; true; true ]
 
-((Stdlib.List.range_v0 1L 100L)
+((Stdlib.List.range_v0 1I 100I)
  |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt16.random 0us 1us)
  |> Stdlib.List.unique_v0) = [ 0us; 1us ]
 
-((Stdlib.List.range_v0 1L 100L)
+((Stdlib.List.range_v0 1I 100I)
  |> Stdlib.List.map_v0 (fun x -> Stdlib.UInt16.random 0us 2us)
  |> Stdlib.List.unique_v0) = [ 0us; 1us; 2us ]
 

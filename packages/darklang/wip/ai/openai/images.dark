@@ -85,13 +85,13 @@ type Options =
     quality: String
     /// Style: only for DALL-E 3
     style: Stdlib.Option.Option<String>
-    n: Int64
+    n: Int
     /// Output format: only for GPT Image models (png, jpeg, webp)
     outputFormat: Stdlib.Option.Option<OutputFormat>
     /// Background: only for GPT Image models (transparent, opaque, auto)
     background: Stdlib.Option.Option<Background>
     /// Output compression: only for GPT Image models with jpeg/webp (0-100)
-    outputCompression: Stdlib.Option.Option<Int64>
+    outputCompression: Stdlib.Option.Option<Int>
     /// User ID for abuse detection
     user: Stdlib.Option.Option<String> }
 
@@ -103,7 +103,7 @@ let defaultOptions (prompt: String) : Options =
       size = Size.square1024
       quality = Quality.standard
       style = Stdlib.Option.Option.Some Style.vivid
-      n = 1L
+      n = 1I
       outputFormat = Stdlib.Option.Option.None
       background = Stdlib.Option.Option.None
       outputCompression = Stdlib.Option.Option.None
@@ -117,7 +117,7 @@ let gptImageOptions (prompt: String) : Options =
       size = Size.auto
       quality = Quality.medium
       style = Stdlib.Option.Option.None
-      n = 1L
+      n = 1I
       outputFormat = Stdlib.Option.Option.Some OutputFormat.Png
       background = Stdlib.Option.Option.Some Background.Auto
       outputCompression = Stdlib.Option.Option.None
@@ -140,7 +140,7 @@ let withStyle (opts: Options) (style: String) : Options =
   { opts with style = Stdlib.Option.Option.Some style }
 
 /// Set count
-let withN (opts: Options) (count: Int64) : Options =
+let withN (opts: Options) (count: Int) : Options =
   { opts with n = count }
 
 /// Set output format (GPT Image only)
@@ -158,7 +158,7 @@ let withTransparentBackground (opts: Options) : Options =
       outputFormat = Stdlib.Option.Option.Some OutputFormat.Png }
 
 /// Set output compression 0-100 (GPT Image only, jpeg/webp)
-let withOutputCompression (opts: Options) (compression: Int64) : Options =
+let withOutputCompression (opts: Options) (compression: Int) : Options =
   { opts with outputCompression = Stdlib.Option.Option.Some compression }
 
 /// Set user ID
@@ -224,7 +224,7 @@ let generateWithOptions
         ("prompt", Json.String options.prompt)
         ("size", Json.String options.size)
         ("quality", Json.String options.quality)
-        ("n", Json.Number(Stdlib.Int64.toFloat options.n)) ]
+        ("n", Json.Number(Stdlib.Int.toFloat options.n)) ]
 
     // Add style for DALL-E 3
     let withStyle_ =
@@ -261,7 +261,7 @@ let generateWithOptions
       match options.outputCompression with
       | Some c ->
         if isGpt then
-          Stdlib.List.append withBackground_ [ ("output_compression", Json.Number(Stdlib.Int64.toFloat c)) ]
+          Stdlib.List.append withBackground_ [ ("output_compression", Json.Number(Stdlib.Int.toFloat c)) ]
         else
           withBackground_
       | None -> withBackground_
@@ -283,7 +283,7 @@ let generateWithOptions
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
           let dataArray = Stdlib.AltJson.Helpers.getArray "data" fields
@@ -308,8 +308,8 @@ let generateWithOptions
               | _ -> Stdlib.Option.Option.None)
           Stdlib.Result.Result.Ok images
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
       | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
 
 /// Generate an image with default DALL-E 3 settings (returns URL)
@@ -392,7 +392,7 @@ type EditOptions =
     /// Optional mask (base64 encoded PNG, transparent areas indicate where to edit)
     mask: Stdlib.Option.Option<String>
     size: String
-    n: Int64
+    n: Int
     user: Stdlib.Option.Option<String> }
 
 /// Create default edit options
@@ -403,7 +403,7 @@ let defaultEditOptions (prompt: String) (imageBase64: String) : EditOptions =
       image = imageBase64
       mask = Stdlib.Option.Option.None
       size = Size.square1024
-      n = 1L
+      n = 1I
       user = Stdlib.Option.Option.None }
 
 /// Edit options with mask
@@ -425,7 +425,7 @@ let edit
         ("prompt", Json.String options.prompt)
         ("image", Json.String options.image)
         ("size", Json.String options.size)
-        ("n", Json.Number(Stdlib.Int64.toFloat options.n)) ]
+        ("n", Json.Number(Stdlib.Int.toFloat options.n)) ]
 
     let withMask_ =
       match options.mask with
@@ -448,7 +448,7 @@ let edit
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
           let dataArray = Stdlib.AltJson.Helpers.getArray "data" fields
@@ -470,8 +470,8 @@ let edit
               | _ -> Stdlib.Option.Option.None)
           Stdlib.Result.Result.Ok images
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
       | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
 
 // =============================================================================
@@ -485,7 +485,7 @@ type VariationOptions =
     /// Model (only dall-e-2 supported)
     model: String
     size: String
-    n: Int64
+    n: Int
     user: Stdlib.Option.Option<String> }
 
 /// Create default variation options
@@ -494,7 +494,7 @@ let defaultVariationOptions (imageBase64: String) : VariationOptions =
     { image = imageBase64
       model = Models.dalle2
       size = Size.square1024
-      n = 1L
+      n = 1I
       user = Stdlib.Option.Option.None }
 
 /// Create variations of an image (DALL-E 2 only)
@@ -511,7 +511,7 @@ let createVariations
       [ ("image", Json.String options.image)
         ("model", Json.String options.model)
         ("size", Json.String options.size)
-        ("n", Json.Number(Stdlib.Int64.toFloat options.n)) ]
+        ("n", Json.Number(Stdlib.Int.toFloat options.n)) ]
 
     let withUser_ =
       match options.user with
@@ -529,7 +529,7 @@ let createVariations
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
           let dataArray = Stdlib.AltJson.Helpers.getArray "data" fields
@@ -546,6 +546,6 @@ let createVariations
               | _ -> Stdlib.Option.Option.None)
           Stdlib.Result.Result.Ok images
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
       | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)

@@ -150,12 +150,12 @@ type CompletionCapabilities =
 
 /// Error codes for the Model Context Protocol
 module ErrorCodes =
-  let parseError = -32700L
-  let invalidRequest = -32600L
-  let methodNotFound = -32601L
-  let invalidParams = -32602L
-  let internalError = -32603L
-  let resourceNotFound = -32800L
-  let resourceAccessDenied = -32801L
-  let toolExecutionError = -32900L
-  let promptNotFound = -32950L
+  let parseError = -32700I
+  let invalidRequest = -32600I
+  let methodNotFound = -32601I
+  let invalidParams = -32602I
+  let internalError = -32603I
+  let resourceNotFound = -32800I
+  let resourceAccessDenied = -32801I
+  let toolExecutionError = -32900I
+  let promptNotFound = -32950I

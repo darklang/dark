@@ -33,7 +33,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "timeNowMs" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt64
+      returnType = TInt
       description =
         "Returns a monotonic timestamp in milliseconds. Useful for measuring "
         + "elapsed time between two calls (subtract start from end). The absolute "
@@ -43,7 +43,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DUnit ] ->
           let ts = System.Diagnostics.Stopwatch.GetTimestamp()
           let ms = ts * 1000L / System.Diagnostics.Stopwatch.Frequency
-          DInt64 ms |> Ply
+          LibExecution.Dval.int (bigint ms) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Impure

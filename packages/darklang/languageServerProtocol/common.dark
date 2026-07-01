@@ -187,7 +187,7 @@ module TextDocumentItem =
 
       /// The version number of this document
       /// (it will increase after each change, including undo/redo).
-      version: Int64
+      version: Int
 
       /// The content of the opened text document.
       text: String
@@ -196,7 +196,7 @@ module TextDocumentItem =
   let toJson (i: TextDocumentItem) : Json =
     [ ("uri", Json.String i.uri)
       ("languageId", Json.String i.languageId)
-      ("version", Json.Number(Stdlib.Int64.toFloat i.version))
+      ("version", Json.Number(Stdlib.Int.toFloat i.version))
       ("text", Json.String i.text) ]
     |> Json.Object
 
@@ -482,12 +482,12 @@ module CodeDescription =
 
 module DiagnosticCode =
   type DiagnosticCode =
-    | Number of Int64
+    | Number of Int
     | String of String
 
   let toJson (c: DiagnosticCode) : Json =
     match c with
-    | Number n -> (Stdlib.Int64.toFloat n) |> Json.Number
+    | Number n -> (Stdlib.Int.toFloat n) |> Json.Number
     | String s -> Json.String s
 
 module Diagnostic =

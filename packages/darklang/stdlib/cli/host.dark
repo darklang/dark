@@ -23,7 +23,7 @@ module Architecture =
     | Ok Linux ->
       let arch = Stdlib.Cli.execute "uname -m"
 
-      if arch.exitCode == 0L then
+      if arch.exitCode == 0I then
         let arch = arch.stdout |> Stdlib.String.trim
 
         match arch with
@@ -37,7 +37,7 @@ module Architecture =
     | Ok MacOS ->
       let arch = Stdlib.Cli.execute "uname -m"
 
-      if arch.exitCode == 0L then
+      if arch.exitCode == 0I then
         let arch = arch.stdout |> Stdlib.String.trim
 
         match arch with
@@ -53,7 +53,7 @@ module Architecture =
         Stdlib.Cli.execute
           "powershell.exe -Command \"$env:PROCESSOR_ARCHITECTURE\""
 
-      if arch.exitCode == 0L then
+      if arch.exitCode == 0I then
         let arch = arch.stdout |> Stdlib.String.trim
 
         match arch with

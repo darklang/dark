@@ -59,8 +59,8 @@ module Enums =
     | ConstructionWrongNumberOfFields of
       typeName: FQTypeName.FQTypeName *
       caseName: String *
-      expectedFieldCount: Int64 *
-      actualFieldCount: Int64
+      expectedFieldCount: Int *
+      actualFieldCount: Int
 
     | ConstructionCaseNotFound of
       typeName: FQTypeName.FQTypeName *
@@ -68,7 +68,7 @@ module Enums =
 
     | ConstructionFieldOfWrongType of
       caseName: String *
-      fieldIndex: Int64 *
+      fieldIndex: Int *
       expectedType: ValueType *
       actualType: ValueType *
       actualValue: Dval
@@ -107,14 +107,14 @@ module Applications =
   type Error =
     | ExpectedApplicableButNot of actualType: ValueType * actualValue: Dval
 
-    | WrongNumberOfTypeArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
+    | WrongNumberOfTypeArgsForFn of fn: FQFnName.FQFnName * expected: Int * actual: Int
     | CannotApplyTypeArgsMoreThanOnce
-    | TooManyArgsForFn of fn: FQFnName.FQFnName * expected: Int64 * actual: Int64
-    | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int64 * paramName : String * expectedType : ValueType * actualType : ValueType * actualValue : Dval
+    | TooManyArgsForFn of fn: FQFnName.FQFnName * expected: Int * actual: Int
+    | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int * paramName : String * expectedType : ValueType * actualType : ValueType * actualValue : Dval
     | FnResultNotExpectedType of fnName : FQFnName.FQFnName * expectedType : ValueType * actualType : ValueType * actualValue : Dval
 
     | CannotApplyTypeArgsToLambda
-    | TooManyArgsForLambda of lambdaExprId: ID * expected: Int64 * actual: Int64
+    | TooManyArgsForLambda of lambdaExprId: ID * expected: Int * actual: Int
 
 module Statements =
   type Error =
@@ -165,7 +165,7 @@ type Error =
   /// Deprecate op. Override with --allow-harmful on run/eval.
   | DeprecatedItemHalted of target: FQFnName.Package
 
-  | WrongNumberOfTypeArgsForType of fn: FQTypeName.FQTypeName * expected: Int64 * actual: Int64
+  | WrongNumberOfTypeArgsForType of fn: FQTypeName.FQTypeName * expected: Int * actual: Int
 
   | Record of Records.Error
   | Enum of Enums.Error

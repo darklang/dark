@@ -833,7 +833,7 @@ module Expr =
       | PT.EVariable(id, varName) ->
         "EVariable", [ DInt64(int64 id); DString varName ]
 
-      | PT.EArg(id, index) -> "EArg", [ DInt64(int64 id); DInt64(int64 index) ]
+      | PT.EArg(id, index) -> "EArg", [ DInt64(int64 id); Dval.int (bigint index) ]
 
       // control flow
       | PT.EIf(id, cond, thenExpr, elseExpr) ->
@@ -1028,8 +1028,8 @@ module Expr =
     | DEnum(_, _, [], "EVariable", [ DInt64 id; DString varName ]) ->
       PT.EVariable(uint64 id, varName)
 
-    | DEnum(_, _, [], "EArg", [ DInt64 id; DInt64 index ]) ->
-      PT.EArg(uint64 id, int index)
+    | DEnum(_, _, [], "EArg", [ DInt64 id; index ]) ->
+      PT.EArg(uint64 id, D.int index)
 
     // control flow
     | DEnum(_, _, [], "EIf", [ DInt64 id; cond; thenExpr; elseExpr ]) ->
@@ -1807,7 +1807,7 @@ module Commit =
       [ "hash", Hash.toDT c.hash
         "message", DString c.message
         "createdAt", DDateTime(DarkDateTime.fromInstant c.createdAt)
-        "opCount", DInt64 c.opCount
+        "opCount", Dval.int c.opCount
         "branchId", DUuid c.branchId
         "branchName", DString c.branchName
         "committerId", DUuid c.committerId

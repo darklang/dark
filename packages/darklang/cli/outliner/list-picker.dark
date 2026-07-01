@@ -2,7 +2,7 @@ module Darklang.Cli.Outliner.ListPicker
 
 type State<'item> =
   { items: List<'item>
-    selected: Int64
+    selected: Int
     label: 'item -> String }
 
 type Result<'item> =
@@ -11,7 +11,7 @@ type Result<'item> =
   | Cancelled
 
 let make (items: List<'item>) (label: 'item -> String) : State<'item> =
-  State { items = items; selected = 0L; label = label }
+  State { items = items; selected = 0I; label = label }
 
 let handleKey
   (state: State<'item>)
@@ -24,13 +24,13 @@ let handleKey
   | Escape -> Result.Cancelled
   | UpArrow ->
     let newIdx =
-      if state.selected > 0L then state.selected - 1L
+      if state.selected > 0I then state.selected - 1I
       else state.selected
     Result.Browsing ({ state with selected = newIdx })
   | DownArrow ->
-    let maxIdx = itemCount - 1L
+    let maxIdx = itemCount - 1I
     let newIdx =
-      if state.selected < maxIdx then state.selected + 1L
+      if state.selected < maxIdx then state.selected + 1I
       else state.selected
     Result.Browsing ({ state with selected = newIdx })
   | Enter ->
@@ -42,14 +42,15 @@ let handleKey
 /// Render the list into a layout region.
 let renderInRegion (state: State<'item>) (region: Darklang.Cli.UI.Layout.Region) : Unit =
   let itemCount = Stdlib.List.length state.items
+  let selectedIdx = state.selected
   let scrollOffset =
-    if state.selected >= region.rows then
+    if selectedIdx >= region.rows then
       Darklang.Cli.Terminal.clampScrollOffset
-        (state.selected - region.rows + 1L)
+        (selectedIdx - region.rows + 1I)
         itemCount
         region.rows
     else
-      0L
+      0I
   state.items
   |> Stdlib.List.indexedMap (fun idx item -> (idx, item))
   |> Stdlib.List.drop scrollOffset
@@ -57,7 +58,7 @@ let renderInRegion (state: State<'item>) (region: Darklang.Cli.UI.Layout.Region)
   |> Stdlib.List.iter (fun pair ->
     let (idx, item) = pair
     let row = idx - scrollOffset
-    let isSelected = idx == state.selected
+    let isSelected = idx == selectedIdx
     let text = state.label item
     let prefix = if isSelected then ">" else " "
     let line = $"  {prefix} {text}"
@@ -66,4 +67,4 @@ let renderInRegion (state: State<'item>) (region: Darklang.Cli.UI.Layout.Region)
         Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
       else
         line
-    Darklang.Cli.UI.Layout.printAt region row 0L styled)
+    Darklang.Cli.UI.Layout.printAt region row 0I styled)

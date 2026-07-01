@@ -33,7 +33,7 @@ type FnCall =
     args: List<LanguageTools.RuntimeTypes.Dval>
     result: LanguageTools.RuntimeTypes.Dval
     /// Frame-entry-to-exit duration in ms. Builtins always 0 (no entry hook).
-    durationMs: Int64 }
+    durationMs: Int }
 
 
 /// Full trace payload — summary fields plus the input/fn-call lists.

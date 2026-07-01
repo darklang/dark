@@ -237,7 +237,7 @@ module BuiltInTools =
   /// File search tool configuration
   type FileSearchTool =
     { vectorStoreIds: List<String>
-      maxNumResults: Stdlib.Option.Option<Int64>
+      maxNumResults: Stdlib.Option.Option<Int>
       rankingOptions: Stdlib.Option.Option<Json> }
 
   /// Code interpreter tool configuration
@@ -247,8 +247,8 @@ module BuiltInTools =
 
   /// Computer use tool configuration
   type ComputerUseTool =
-    { displayWidth: Int64
-      displayHeight: Int64
+    { displayWidth: Int
+      displayHeight: Int
       environment: Stdlib.Option.Option<String> }
 
   /// Built-in tool types
@@ -272,7 +272,7 @@ module BuiltInTools =
 
       let withMaxResults =
         match opts.maxNumResults with
-        | Some n -> Stdlib.List.append fields [ ("max_num_results", Json.Number(Stdlib.Int64.toFloat n)) ]
+        | Some n -> Stdlib.List.append fields [ ("max_num_results", Json.Number(Stdlib.Int.toFloat n)) ]
         | None -> fields
 
       let withRanking =
@@ -302,8 +302,8 @@ module BuiltInTools =
     | ComputerUse opts ->
       let fields =
         [ ("type", Json.String "computer_use_preview")
-          ("display_width", Json.Number(Stdlib.Int64.toFloat opts.displayWidth))
-          ("display_height", Json.Number(Stdlib.Int64.toFloat opts.displayHeight)) ]
+          ("display_width", Json.Number(Stdlib.Int.toFloat opts.displayWidth))
+          ("display_height", Json.Number(Stdlib.Int.toFloat opts.displayHeight)) ]
 
       let withEnv =
         match opts.environment with
@@ -353,7 +353,7 @@ module BuiltInTools =
           fileIds = fileIds })
 
   /// Create a computer use tool
-  let computerUse (width: Int64) (height: Int64) : BuiltInTool =
+  let computerUse (width: Int) (height: Int) : BuiltInTool =
     BuiltInTool.ComputerUse(
       ComputerUseTool
         { displayWidth = width
@@ -477,7 +477,7 @@ type Request =
     toolChoice: Stdlib.Option.Option<Tools.ToolChoice>
     parallelToolCalls: Stdlib.Option.Option<Bool>
     previousResponseId: Stdlib.Option.Option<String>
-    maxOutputTokens: Stdlib.Option.Option<Int64>
+    maxOutputTokens: Stdlib.Option.Option<Int>
     temperature: Stdlib.Option.Option<Float>
     topP: Stdlib.Option.Option<Float>
     text: Stdlib.Option.Option<TextConfig.TextFormat>
@@ -486,7 +486,7 @@ type Request =
     store: Stdlib.Option.Option<Bool>
     serviceTier: Stdlib.Option.Option<ServiceTier.Tier>
     truncation: Stdlib.Option.Option<String>
-    maxToolCalls: Stdlib.Option.Option<Int64> }
+    maxToolCalls: Stdlib.Option.Option<Int> }
 
 /// Create a new request with defaults
 let createRequest () : Request =
@@ -554,7 +554,7 @@ let withCodeInterpreterFiles (req: Request) (fileIds: List<String>) : Request =
   withTool req (BuiltInTools.codeInterpreterWithFiles fileIds)
 
 /// Add computer use tool
-let withComputerUse (req: Request) (width: Int64) (height: Int64) : Request =
+let withComputerUse (req: Request) (width: Int) (height: Int) : Request =
   withTool req (BuiltInTools.computerUse width height)
 
 /// Add function tools from existing Tools.Tool list
@@ -575,7 +575,7 @@ let withPreviousResponseId (req: Request) (id: String) : Request =
   { req with previousResponseId = Stdlib.Option.Option.Some id }
 
 /// Set max output tokens
-let withMaxOutputTokens (req: Request) (tokens: Int64) : Request =
+let withMaxOutputTokens (req: Request) (tokens: Int) : Request =
   { req with maxOutputTokens = Stdlib.Option.Option.Some tokens }
 
 /// Set temperature
@@ -624,7 +624,7 @@ let withTruncation (req: Request) (strategy: String) : Request =
   { req with truncation = Stdlib.Option.Option.Some strategy }
 
 /// Set max tool calls
-let withMaxToolCalls (req: Request) (max: Int64) : Request =
+let withMaxToolCalls (req: Request) (max: Int) : Request =
   { req with maxToolCalls = Stdlib.Option.Option.Some max }
 
 
@@ -667,7 +667,7 @@ let buildRequestJson (req: Request) : Json =
 
   let withMaxOutputTokens_ =
     match req.maxOutputTokens with
-    | Some t -> Stdlib.List.append withPreviousResponseId_ [ ("max_output_tokens", Json.Number(Stdlib.Int64.toFloat t)) ]
+    | Some t -> Stdlib.List.append withPreviousResponseId_ [ ("max_output_tokens", Json.Number(Stdlib.Int.toFloat t)) ]
     | None -> withPreviousResponseId_
 
   let withTemp_ =
@@ -715,7 +715,7 @@ let buildRequestJson (req: Request) : Json =
 
   let withMaxToolCalls_ =
     match req.maxToolCalls with
-    | Some m -> Stdlib.List.append withTruncation_ [ ("max_tool_calls", Json.Number(Stdlib.Int64.toFloat m)) ]
+    | Some m -> Stdlib.List.append withTruncation_ [ ("max_tool_calls", Json.Number(Stdlib.Int.toFloat m)) ]
     | None -> withTruncation_
 
   Json.Object withMaxToolCalls_
@@ -727,9 +727,9 @@ let buildRequestJson (req: Request) : Json =
 
 /// Usage information
 type Usage =
-  { inputTokens: Int64
-    outputTokens: Int64
-    totalTokens: Int64
+  { inputTokens: Int
+    outputTokens: Int
+    totalTokens: Int
     inputTokensDetails: Stdlib.Option.Option<Json>
     outputTokensDetails: Stdlib.Option.Option<Json> }
 
@@ -743,7 +743,7 @@ type Response =
   { id: String
     object_: String
     model: String
-    createdAt: Int64
+    createdAt: Int
     status: Status.ResponseStatus
     output: List<OutputItem.OutputItem>
     usage: Stdlib.Option.Option<Usage>
@@ -831,13 +831,13 @@ let send
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok json -> parseResponse json
         | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ e)
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
-      | code when code >= 500L -> Stdlib.Result.Result.Error("OpenAI server error: " ++ bodyStr)
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | code when code >= 500I -> Stdlib.Result.Result.Error("OpenAI server error: " ++ bodyStr)
       | _ ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
@@ -866,13 +866,13 @@ let get
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok json -> parseResponse json
         | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ e)
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 404L -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404I -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
       | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
 
 /// Delete a response by ID
@@ -892,11 +892,11 @@ let delete
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         Stdlib.Result.Result.Ok()
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 404L -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404I -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
       | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
 
 /// Input items response
@@ -924,7 +924,7 @@ let listInputItems
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
           let object_ = Stdlib.Option.withDefault (Stdlib.AltJson.Helpers.getString "object" fields) "list"
@@ -941,9 +941,9 @@ let listInputItems
                 lastId = lastId
                 hasMore = hasMore })
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 404L -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404I -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
       | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
 
 

@@ -5,8 +5,8 @@ module Darklang.CLI.UI.Demo
 
 let demoContext : Core.Types.RenderContext =
   Core.Types.RenderContext
-    { availableWidth = 60L
-      availableHeight = 20L
+    { availableWidth = 60I
+      availableHeight = 20I
       hasFocus = true
       theme = "default" }
 
@@ -14,7 +14,7 @@ let printSection (title: String) : Unit =
   Stdlib.printLine ""
   Stdlib.printLine (Core.Rendering.bold ("━━━ " ++ title ++ " ━━━"))
 
-let run (unit: Unit) : Int64 =
+let run (unit: Unit) : Int =
   Stdlib.printLine (Core.Rendering.bold "Darklang CLI UI Component Demo")
   Stdlib.printLine (Core.Rendering.dim "Visual verification of component rendering")
 
@@ -22,8 +22,8 @@ let run (unit: Unit) : Int64 =
   printSection "Box Styles"
   let bounds =
     Core.Types.Bounds
-      { position = Core.Types.Position { x = 0L; y = 0L }
-        dimensions = Core.Types.Dimensions { width = 30L; height = 5L } }
+      { position = Core.Types.Position { x = 0I; y = 0I }
+        dimensions = Core.Types.Dimensions { width = 30I; height = 5I } }
 
   let singleBox = Core.Rendering.drawBoxWithStyle bounds "Single" ["Content"] Core.Rendering.BoxStyle.Single
   singleBox |> Stdlib.List.iter Stdlib.printLine
@@ -36,7 +36,7 @@ let run (unit: Unit) : Int64 =
 
   // Progress
   printSection "Progress Bar"
-  let progress = Components.Progress.createProgressBar 75L 0L 100L Core.Types.Color.Success
+  let progress = Components.Progress.createProgressBar 75I 0I 100I Core.Types.Color.Success
   let progressLines = Components.Progress.renderProgressBar progress demoContext
   progressLines |> Stdlib.List.iter Stdlib.printLine
 
@@ -44,17 +44,17 @@ let run (unit: Unit) : Int64 =
   printSection "Spinner Styles"
   let dotsFrames = Components.Spinner.getFrames Components.Spinner.SpinnerStyle.Dots
   let lineFrames = Components.Spinner.getFrames Components.Spinner.SpinnerStyle.Line
-  Stdlib.printLine ("Dots: " ++ Stdlib.String.join (Stdlib.List.take dotsFrames 6L) " ")
+  Stdlib.printLine ("Dots: " ++ Stdlib.String.join (Stdlib.List.take dotsFrames 6I) " ")
   Stdlib.printLine ("Line: " ++ Stdlib.String.join lineFrames " ")
 
   // Table
   printSection "Table"
-  let col1 = Components.Table.createColumn "Name" 15L
-  let col2 = Components.Table.createColumn "Status" 10L
+  let col1 = Components.Table.createColumn "Name" 15I
+  let col2 = Components.Table.createColumn "Status" 10I
   let cols = [col1; col2]
   let rows = [["Alice"; "Active"]; ["Bob"; "Pending"]; ["Charlie"; "Done"]]
   let table = Components.Table.createTable cols rows
-  let tableWithSelection = Components.Table.selectRow table 1L
+  let tableWithSelection = Components.Table.selectRow table 1I
   let tableLines = Components.Table.renderTable tableWithSelection demoContext
   tableLines |> Stdlib.List.iter Stdlib.printLine
 
@@ -72,7 +72,7 @@ let run (unit: Unit) : Int64 =
 
   // Card
   printSection "Card"
-  let card = Components.Card.createCard "User Profile" ["Name: Alice"; "Role: Admin"; "Status: Active"] 35L 8L
+  let card = Components.Card.createCard "User Profile" ["Name: Alice"; "Role: Admin"; "Status: Active"] 35I 8I
   let cardWithColors = Components.Card.setCardColors card Core.Types.Color.Primary Core.Types.Color.Default
   let cardWithShadow = Components.Card.enableCardShadow cardWithColors
   let cardLines = Components.Card.renderCard cardWithShadow demoContext
@@ -80,9 +80,9 @@ let run (unit: Unit) : Int64 =
 
   // Messages
   printSection "Messages"
-  let successMsg = Components.Message.createMessage "Success" "Operation completed!" Core.Types.Color.Success 40L
-  let warningMsg = Components.Message.createMessage "Warning" "Check your input." Core.Types.Color.Warning 40L
-  let errorMsg = Components.Message.createMessage "Error" "Something went wrong." Core.Types.Color.Error 40L
+  let successMsg = Components.Message.createMessage "Success" "Operation completed!" Core.Types.Color.Success 40I
+  let warningMsg = Components.Message.createMessage "Warning" "Check your input." Core.Types.Color.Warning 40I
+  let errorMsg = Components.Message.createMessage "Error" "Something went wrong." Core.Types.Color.Error 40I
   let successLines = Components.Message.renderMessage successMsg demoContext
   successLines |> Stdlib.List.iter Stdlib.printLine
   let warningLines = Components.Message.renderMessage warningMsg demoContext
@@ -92,7 +92,7 @@ let run (unit: Unit) : Int64 =
 
   // Toast
   printSection "Toast"
-  let toast = Components.Message.createToast "File saved successfully" Core.Types.Color.Success 3000L
+  let toast = Components.Message.createToast "File saved successfully" Core.Types.Color.Success 3000I
   let toastLines = Components.Message.renderToast toast demoContext
   toastLines |> Stdlib.List.iter Stdlib.printLine
 
@@ -104,16 +104,16 @@ let run (unit: Unit) : Int64 =
     Components.ListView.ListItem { text = "Item 3 (disabled)"; enabled = false; data = "3" };
     Components.ListView.ListItem { text = "Item 4"; enabled = true; data = "4" }
   ]
-  let listView = Components.ListView.createListView items 30L 6L
-  let listViewWithSelection = Components.ListView.selectItem listView 1L
+  let listView = Components.ListView.createListView items 30I 6I
+  let listViewWithSelection = Components.ListView.selectItem listView 1I
   let listViewLines = Components.ListView.renderListView listViewWithSelection demoContext
   listViewLines |> Stdlib.List.iter Stdlib.printLine
 
   // Dividers
   printSection "Dividers"
-  let divider1 = Components.Divider.createDivider "─" 40L Core.Types.Color.Default
-  let divider2 = Components.Divider.createDivider "═" 40L Core.Types.Color.Primary
-  let divider3 = Components.Divider.createDivider "·" 40L Core.Types.Color.Secondary
+  let divider1 = Components.Divider.createDivider "─" 40I Core.Types.Color.Default
+  let divider2 = Components.Divider.createDivider "═" 40I Core.Types.Color.Primary
+  let divider3 = Components.Divider.createDivider "·" 40I Core.Types.Color.Secondary
   let divider1Lines = Components.Divider.renderDivider divider1 demoContext
   divider1Lines |> Stdlib.List.iter Stdlib.printLine
   let divider2Lines = Components.Divider.renderDivider divider2 demoContext
@@ -123,15 +123,15 @@ let run (unit: Unit) : Int64 =
 
   // StatusBar
   printSection "StatusBar"
-  let statusBar = Components.StatusBar.createStatusBar "Ready" "Ln 42, Col 8" 50L
+  let statusBar = Components.StatusBar.createStatusBar "Ready" "Ln 42, Col 8" 50I
   let statusBarWithCenter = Components.StatusBar.setCenterText statusBar "main.dark"
   let statusBarLines = Components.StatusBar.renderStatusBar statusBarWithCenter demoContext
   statusBarLines |> Stdlib.List.iter Stdlib.printLine
 
   // Pagination
   printSection "Pagination"
-  let pagination = Components.Pagination.createPagination 100L 10L
-  let paginationPage3 = Components.Pagination.goToPage pagination 3L
+  let pagination = Components.Pagination.createPagination 100I 10I
+  let paginationPage3 = Components.Pagination.goToPage pagination 3I
   let paginationLines = Components.Pagination.renderPagination paginationPage3 demoContext
   paginationLines |> Stdlib.List.iter Stdlib.printLine
 
@@ -140,7 +140,7 @@ let run (unit: Unit) : Int64 =
 
   // TextInput
   Stdlib.printLine "TextInput:"
-  let textInput = Components.Forms.createTextInput "Enter name..." 20L
+  let textInput = Components.Forms.createTextInput "Enter name..." 20I
   let textInputLines = Components.Forms.renderTextInput textInput demoContext
   textInputLines |> Stdlib.List.iter Stdlib.printLine
 
@@ -155,7 +155,7 @@ let run (unit: Unit) : Int64 =
 
   // Radio Group
   Stdlib.printLine "Radio Group:"
-  let radio = Components.Forms.createRadioGroup ["Option A"; "Option B"; "Option C"] 1L
+  let radio = Components.Forms.createRadioGroup ["Option A"; "Option B"; "Option C"] 1I
   let radioLines = Components.Forms.renderRadioGroup radio demoContext
   radioLines |> Stdlib.List.iter Stdlib.printLine
 
@@ -176,4 +176,4 @@ let run (unit: Unit) : Int64 =
 
   Stdlib.printLine ""
   Stdlib.printLine (Core.Rendering.dim "Demo complete.")
-  0L
+  0I

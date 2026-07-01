@@ -8,12 +8,12 @@ type MessageModel =
     messageType: Core.Types.Color
     isDismissible: Bool
     isVisible: Bool
-    width: Int64 }
+    width: Int }
 
-let createMessage (title: String) (content: String) (messageType: Core.Types.Color) (width: Int64) : Core.Types.Component<MessageModel> =
+let createMessage (title: String) (content: String) (messageType: Core.Types.Color) (width: Int) : Core.Types.Component<MessageModel> =
   let model = MessageModel { title = title; content = content; messageType = messageType; isDismissible = true; isVisible = true; width = width }
-  let height = 4L
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
+  let height = 4I
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = width; height = height } }
   Core.Types.Component
     { id = "message-" ++ title
       model = model
@@ -35,8 +35,8 @@ let renderMessage (component: Core.Types.Component<MessageModel>) (context: Core
       | Info -> "ℹ"
       | _ -> "•"
 
-    let topBorder = "┌" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┐"
-    let bottomBorder = "└" ++ Stdlib.String.repeat "─" (model.width - 2L) ++ "┘"
+    let topBorder = "┌" ++ Stdlib.String.repeat "─" (model.width - 2I) ++ "┐"
+    let bottomBorder = "└" ++ Stdlib.String.repeat "─" (model.width - 2I) ++ "┘"
 
     let titleLine =
       let dismissButton = if model.isDismissible then "✕" else ""
@@ -44,16 +44,16 @@ let renderMessage (component: Core.Types.Component<MessageModel>) (context: Core
       // Calculate padding based on raw text (without ANSI codes)
       let rawTitle = typeIcon ++ " " ++ model.title
       let rawTitleLen = Stdlib.String.length rawTitle
-      let innerWidth = model.width - 4L  // borders and padding
+      let innerWidth = model.width - 4I  // borders and padding
       let paddingNeeded = innerWidth - rawTitleLen - dismissLen
-      let rightPad = if paddingNeeded > 0L then Stdlib.String.repeat " " paddingNeeded else ""
+      let rightPad = if paddingNeeded > 0I then Stdlib.String.repeat " " paddingNeeded else ""
 
       // Apply styling after calculating padding
       let styledTitle = Core.Rendering.colorize model.messageType (Core.Rendering.bold rawTitle)
       "│ " ++ styledTitle ++ rightPad ++ dismissButton ++ " │"
 
     let contentLine =
-      let paddedContent = Core.Rendering.padText model.content (model.width - 4L) Core.Types.Alignment.Left
+      let paddedContent = Core.Rendering.padText model.content (model.width - 4I) Core.Types.Alignment.Left
       "│ " ++ paddedContent ++ " │"
 
     [topBorder; titleLine; contentLine; bottomBorder]
@@ -76,15 +76,15 @@ let dismissMessage (component: Core.Types.Component<MessageModel>) : Core.Types.
 type ToastModel =
   { message: String
     toastType: Core.Types.Color
-    duration: Int64
+    duration: Int
     isVisible: Bool
     position: Core.Types.Position }
 
-let createToast (message: String) (toastType: Core.Types.Color) (duration: Int64) : Core.Types.Component<ToastModel> =
-  let model = ToastModel { message = message; toastType = toastType; duration = duration; isVisible = true; position = Core.Types.Position { x = 0L; y = 0L } }
+let createToast (message: String) (toastType: Core.Types.Color) (duration: Int) : Core.Types.Component<ToastModel> =
+  let model = ToastModel { message = message; toastType = toastType; duration = duration; isVisible = true; position = Core.Types.Position { x = 0I; y = 0I } }
   // Width = borders (2) + padding (2) + icon (1) + space (1) + message
-  let width = Stdlib.String.length message + 6L
-  let height = 3L
+  let width = (Stdlib.String.length message) + 6I
+  let height = 3I
   let bounds = Core.Types.Bounds { position = model.position; dimensions = Core.Types.Dimensions { width = width; height = height } }
   Core.Types.Component
     { id = "toast"
@@ -109,16 +109,16 @@ let renderToast (component: Core.Types.Component<ToastModel>) (context: Core.Typ
 
     // Calculate padding based on raw text length (without ANSI codes)
     let rawText = typeIcon ++ " " ++ model.message
-    let innerWidth = component.bounds.dimensions.width - 4L
+    let innerWidth = component.bounds.dimensions.width - 4I
     let textLen = Stdlib.String.length rawText
     let rightPad = if innerWidth > textLen then Stdlib.String.repeat " " (innerWidth - textLen) else ""
 
     // Style the content
     let styledContent = Core.Rendering.colorize model.toastType rawText
 
-    let topBorder = "╭" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "╮"
+    let topBorder = "╭" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2I) ++ "╮"
     let contentLine = "│ " ++ styledContent ++ rightPad ++ " │"
-    let bottomBorder = "╰" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "╯"
+    let bottomBorder = "╰" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2I) ++ "╯"
 
     [topBorder; contentLine; bottomBorder]
 
@@ -135,12 +135,12 @@ type AlertModel =
   { message: String
     alertType: Core.Types.Color
     isVisible: Bool
-    width: Int64 }
+    width: Int }
 
-let createAlert (message: String) (alertType: Core.Types.Color) (width: Int64) : Core.Types.Component<AlertModel> =
+let createAlert (message: String) (alertType: Core.Types.Color) (width: Int) : Core.Types.Component<AlertModel> =
   let model = AlertModel { message = message; alertType = alertType; isVisible = true; width = width }
-  let height = 1L
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
+  let height = 1I
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = width; height = height } }
   Core.Types.Component
     { id = "alert"
       model = model

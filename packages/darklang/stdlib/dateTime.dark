@@ -30,12 +30,12 @@ let today () : DateTime = Builtin.dateTimeToday ()
 
 
 /// Returns a <type DateTime> <param seconds> seconds after <param d>
-let addSeconds (d: DateTime) (seconds: Int64) : DateTime =
+let addSeconds (d: DateTime) (seconds: Int) : DateTime =
   Builtin.dateTimeAddSeconds d seconds
 
 
 /// Returns a <type DateTime> <param seconds> seconds before <param d>
-let subtractSeconds (d: DateTime) (seconds: Int64) : DateTime =
+let subtractSeconds (d: DateTime) (seconds: Int) : DateTime =
   Builtin.dateTimeSubtractSeconds d seconds
 
 
@@ -59,41 +59,41 @@ let lessThanOrEqualTo (d1: DateTime) (d2: DateTime) : Bool =
   Builtin.dateTimeLessThanOrEqualTo d1 d2
 
 
-/// Converts <param date> to an <type Int64> representing seconds since the Unix epoch
-let toSeconds (date: DateTime) : Int64 = Builtin.dateTimeToSeconds date
+/// Converts <param date> to an <type Int> representing seconds since the Unix epoch
+let toSeconds (date: DateTime) : Int = Builtin.dateTimeToSeconds date
 
 
-/// Converts an <type Int64> representing seconds since the Unix epoch into a <type DateTime>
-let fromSeconds (seconds: Int64) : DateTime =
+/// Converts an <type Int> representing seconds since the Unix epoch into a <type DateTime>
+let fromSeconds (seconds: Int) : DateTime =
   Builtin.dateTimeFromSeconds seconds
 
 
-/// Returns the year portion of <param date> as an <type Int64>
-let year (date: DateTime) : Int64 = Builtin.dateTimeYear date
+/// Returns the year portion of <param date> as an <type Int>
+let year (date: DateTime) : Int = Builtin.dateTimeYear date
 
 
-/// Returns the month portion of <param date> as an <type Int64> between {{1}} and {{12}}
-let month (date: DateTime) : Int64 = Builtin.dateTimeMonth date
+/// Returns the month portion of <param date> as an <type Int> between {{1}} and {{12}}
+let month (date: DateTime) : Int = Builtin.dateTimeMonth date
 
 
-/// Returns the day portion of <param date> as an <type Int64>
-let day (date: DateTime) : Int64 = Builtin.dateTimeDay date
+/// Returns the day portion of <param date> as an <type Int>
+let day (date: DateTime) : Int = Builtin.dateTimeDay date
 
 
-/// Returns the weekday of <param date> as an <type Int64>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601
-let weekday (date: DateTime) : Int64 = Builtin.dateTimeWeekday date
+/// Returns the weekday of <param date> as an <type Int>. Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601
+let weekday (date: DateTime) : Int = Builtin.dateTimeWeekday date
 
 
-/// Returns the hour portion of <param date> as an <type Int64>
-let hour (date: DateTime) : Int64 = Builtin.dateTimeHour date
+/// Returns the hour portion of <param date> as an <type Int>
+let hour (date: DateTime) : Int = Builtin.dateTimeHour date
 
 
-/// Returns the minute portion of <param date> as an <type Int64>
-let minute (date: DateTime) : Int64 = Builtin.dateTimeMinute date
+/// Returns the minute portion of <param date> as an <type Int>
+let minute (date: DateTime) : Int = Builtin.dateTimeMinute date
 
 
-/// Returns the second portion of <param date> as an <type Int64>
-let second (date: DateTime) : Int64 = Builtin.dateTimeSecond date
+/// Returns the second portion of <param date> as an <type Int>
+let second (date: DateTime) : Int = Builtin.dateTimeSecond date
 
 
 /// Returns <type date> with the time set to midnight
@@ -102,35 +102,35 @@ let atStartOfDay (date: DateTime) : DateTime =
 
 
 /// Returns the difference of the two dates, in seconds
-let subtract (d1: DateTime) (d2: DateTime) : Int64 =
+let subtract (d1: DateTime) (d2: DateTime) : Int =
   Builtin.dateTimeSubtract d1 d2
 
 
-/// Converts <param date> to an <type Int64> representing milliseconds since the Unix epoch
-let toMilliseconds (date: DateTime) : Int64 =
+/// Converts <param date> to an <type Int> representing milliseconds since the Unix epoch
+let toMilliseconds (date: DateTime) : Int =
   Builtin.dateTimeToMilliseconds date
 
 
-/// Converts an <type Int64> representing milliseconds since the Unix epoch into a <type DateTime>
-let fromMilliseconds (milliseconds: Int64) : DateTime =
+/// Converts an <type Int> representing milliseconds since the Unix epoch into a <type DateTime>
+let fromMilliseconds (milliseconds: Int) : DateTime =
   Builtin.dateTimeFromMilliseconds milliseconds
 
 
 /// Returns a <type DateTime> <param milliseconds> milliseconds after <param d>
-let addMilliseconds (d: DateTime) (milliseconds: Int64) : DateTime =
+let addMilliseconds (d: DateTime) (milliseconds: Int) : DateTime =
   Builtin.dateTimeAddMilliseconds d milliseconds
 
 
 /// Returns a <type DateTime> <param milliseconds> milliseconds before <param d>
-let subtractMilliseconds (d: DateTime) (milliseconds: Int64) : DateTime =
+let subtractMilliseconds (d: DateTime) (milliseconds: Int) : DateTime =
   Builtin.dateTimeSubtractMilliseconds d milliseconds
 
 
-/// Returns the millisecond portion of <param date> as an <type Int64> between {{0}} and {{999}}
-let millisecond (date: DateTime) : Int64 =
+/// Returns the millisecond portion of <param date> as an <type Int> between {{0}} and {{999}}
+let millisecond (date: DateTime) : Int =
   Builtin.dateTimeMillisecond date
 
 
 /// Returns the difference of the two dates, in milliseconds
-let subtractMs (d1: DateTime) (d2: DateTime) : Int64 =
+let subtractMs (d1: DateTime) (d2: DateTime) : Int =
   Builtin.dateTimeSubtractMs d1 d2

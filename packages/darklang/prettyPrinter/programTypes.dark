@@ -46,7 +46,7 @@ type Context =
     currentModule: Stdlib.Option.Option<String>
     /// Used to resolve ESelf and EArg expressions when pretty-printing function bodies.
     /// When Some, contains (functionName, argMap) where argMap maps parameter names to indices.
-    currentFunction: Stdlib.Option.Option<(String * Dict<Int64>)> }
+    currentFunction: Stdlib.Option.Option<(String * Dict<Int>)> }
 
 module Context =
   let forBranch (branchId: Uuid) : Context =
@@ -89,7 +89,7 @@ let packageNameWithContext
       Stdlib.String.dropFirst fullName (Stdlib.String.length prefix)
     else if owner == "Darklang" then
       // For Darklang packages, drop the "Darklang." prefix for brevity
-      let withoutDarklang = Stdlib.String.dropFirst fullName 9L // "Darklang.".length
+      let withoutDarklang = Stdlib.String.dropFirst fullName 9I // "Darklang.".length
       withoutDarklang
     else
       fullName
@@ -680,8 +680,8 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
       |> Stdlib.Dict.toList
       |> Stdlib.List.findFirst (fun (name, idx) -> idx == index)
       |> Stdlib.Option.map (fun (name, _) -> name)
-      |> Stdlib.Option.withDefault $"earg{Stdlib.Int64.toString index}"
-    | None -> $"earg{Stdlib.Int64.toString index}"
+      |> Stdlib.Option.withDefault $"earg{Stdlib.Int.toString index}"
+    | None -> $"earg{Stdlib.Int.toString index}"
 
   // control flow
   | EIf(_id, cond, thenBranch, elseBranch) ->
@@ -1008,7 +1008,8 @@ let packageFn
 
   let argMap =
     p.parameters
-    |> Stdlib.List.indexedMap (fun i param -> (param.name, i))
+    |> Stdlib.List.indexedMap (fun i param ->
+      (param.name, i))
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (name, idx) ->
       Stdlib.Dict.set acc name idx)
 
@@ -1100,9 +1101,9 @@ module PackageOp =
     | Undeprecate _target -> "Undeprecate"
 
     | PropagateUpdate (_propId, _sloc, _fromRefs, _toRef, repoints) ->
-      let count = (Stdlib.List.length repoints) |> Stdlib.Int64.toString
+      let count = (Stdlib.List.length repoints) |> Stdlib.Int.toString
       $"PropagateUpdate ({count} repoint(s))"
 
     | RevertPropagation (_revertId, _propIds, _sloc, _restoredRef, repoints) ->
-      let count = (Stdlib.List.length repoints) |> Stdlib.Int64.toString
+      let count = (Stdlib.List.length repoints) |> Stdlib.Int.toString
       $"RevertPropagation ({count} repoint(s))"

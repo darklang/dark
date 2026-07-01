@@ -4,7 +4,7 @@ module Darklang.LanguageTools.Parser
 
 // TODO: these should be UInts of some size
 // (UInt8 might even be enough - how many lines are over 255chars?)
-type Point = { row: Int64; column: Int64 }
+type Point = { row: Int; column: Int }
 
 type Range = { start: Point; end_: Point }
 
@@ -95,21 +95,21 @@ let createUnparseableErrorMsg
 // is guaranteed to start with `\` and be one of the documented shapes.
 // Anything else means the grammar and decoder have drifted.
 
-let hexDigitValue (c: Char) : Stdlib.Option.Option<Int64> =
+let hexDigitValue (c: Char) : Stdlib.Option.Option<Int> =
   if (Stdlib.Char.isGreaterThanOrEqualTo c '0') && (Stdlib.Char.isLessThanOrEqualTo c '9') then
-    Stdlib.Option.map (Stdlib.Char.toAsciiCode c) (fun code -> code - 48L)
+    Stdlib.Option.map (Stdlib.Char.toAsciiCode c) (fun code -> code - 48I)
   else if (Stdlib.Char.isGreaterThanOrEqualTo c 'a') && (Stdlib.Char.isLessThanOrEqualTo c 'f') then
-    Stdlib.Option.map (Stdlib.Char.toAsciiCode c) (fun code -> code - 87L)
+    Stdlib.Option.map (Stdlib.Char.toAsciiCode c) (fun code -> code - 87I)
   else if (Stdlib.Char.isGreaterThanOrEqualTo c 'A') && (Stdlib.Char.isLessThanOrEqualTo c 'F') then
-    Stdlib.Option.map (Stdlib.Char.toAsciiCode c) (fun code -> code - 55L)
+    Stdlib.Option.map (Stdlib.Char.toAsciiCode c) (fun code -> code - 55I)
   else
     Stdlib.Option.Option.None
 
 
-let hexDigitsValue (digits: List<Char>) : Stdlib.Option.Option<Int64> =
-  Stdlib.List.fold digits (Stdlib.Option.Option.Some 0L) (fun acc d ->
+let hexDigitsValue (digits: List<Char>) : Stdlib.Option.Option<Int> =
+  Stdlib.List.fold digits (Stdlib.Option.Option.Some 0I) (fun acc d ->
     match acc, hexDigitValue d with
-    | Some acc, Some v -> Stdlib.Option.Option.Some ((acc * 16L) + v)
+    | Some acc, Some v -> Stdlib.Option.Option.Some ((acc * 16I) + v)
     | _ -> Stdlib.Option.Option.None)
 
 
@@ -159,13 +159,13 @@ let decodeEscapeNode
 
 // Number of chars in the escape (including the leading `\`), based on the
 // char following `\`. Mirrors the shapes accepted by `decodeSingleEscape`.
-let escapeLength (afterBackslash: Char) : Int64 =
+let escapeLength (afterBackslash: Char) : Int =
   match afterBackslash with
-  | 'x' -> 4L      // \xHH
-  | 'X' -> 6L      // \XHHHH
-  | 'u' -> 6L      // \uHHHH
-  | 'U' -> 10L     // \UHHHHHHHH
-  | _ -> 2L        // \n \t \r \\ \" \' \/ \a \b \f \v
+  | 'x' -> 4I      // \xHH
+  | 'X' -> 6I      // \XHHHH
+  | 'u' -> 6I      // \uHHHH
+  | 'U' -> 10I     // \UHHHHHHHH
+  | _ -> 2I        // \n \t \r \\ \" \' \/ \a \b \f \v
 
 
 let charsToString (chars: List<Char>) : String =
@@ -271,7 +271,7 @@ let extractDocComments (node: ParsedNode) : String =
   |> Stdlib.List.map (fun docComment ->
     // Remove the "///" prefix and any leading space
     docComment.text
-    |> Stdlib.String.dropFirst 3L
+    |> Stdlib.String.dropFirst 3I
     |> Stdlib.String.trimStart)
   |> Stdlib.String.join "\n"
 
@@ -291,7 +291,7 @@ let baseParseList
       contentsNode.children
       |> Stdlib.List.filter (fun c ->
           c.typ != "indent" && c.typ != "dedent")
-      |> Stdlib.List.chunkBySize 2L
+      |> Stdlib.List.chunkBySize 2I
       |> (fun chunkedResult ->
         match chunkedResult with
         | Ok pairs ->
@@ -344,7 +344,7 @@ let baseParseTuple
     (findNodeByFieldName node "rest")
     |> Stdlib.Option.map (fun restNode ->
       restNode.children
-      |> Stdlib.List.chunkBySize 2L
+      |> Stdlib.List.chunkBySize 2I
       |> (fun chunkedResult ->
         match chunkedResult with
         | Ok pairs ->
@@ -398,7 +398,7 @@ let baseParseDict
     |> findNodeByFieldName "content"
     |> Stdlib.Option.map (fun contentsNode ->
       contentsNode.children
-      |> Stdlib.List.chunkBySize 2L
+      |> Stdlib.List.chunkBySize 2I
       |> (fun chunkedResult ->
         match chunkedResult with
         | Ok pairs ->
@@ -411,7 +411,7 @@ let baseParseDict
                 findAndParseRequired dictPairNode "key" (fun node ->
                   match node.typ with
                   | "double_backtick_identifier" ->
-                    let key = node.text |> Stdlib.String.slice 2L -2L
+                    let key = node.text |> Stdlib.String.slice 2I -2I
                     (node.range, key) |> Stdlib.Result.Result.Ok
                   | _ ->
                     (node.range, nameOrBlank (Parser.getText node))
@@ -467,7 +467,7 @@ let baseParseEnum
       enumFieldsNode.children
       |> Stdlib.List.filter (fun c ->
         c.typ != "indent" && c.typ != "dedent")
-      |> Stdlib.List.chunkBySize 2L
+      |> Stdlib.List.chunkBySize 2I
       |> (fun chunkedResult ->
         match chunkedResult with
         | Ok pairs ->

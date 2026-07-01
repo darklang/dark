@@ -222,7 +222,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       "Capability profiles — `caps profile <name>` REPLACES the grant with that posture:"
     Stdlib.List.iter Command.profiles (fun (name, specs) ->
       let label =
-        match Stdlib.String.padEnd name " " 12L with
+        match Stdlib.String.padEnd name " " 12I with
         | Ok r -> r
         | Error _ -> name
       Stdlib.printLine $"  {label}{Colors.dimText (PrettyPrinter.Capabilities.compact specs)}")

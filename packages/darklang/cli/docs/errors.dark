@@ -11,7 +11,7 @@ let content () : String =
   - { left of type name in record
 
 ## Type mismatch
-  - Wrong literal suffix (5L vs 5.0)
+  - Wrong literal suffix (5 vs 5.0)
   - Param order wrong
   - Missing Option.Some wrapper
   - Missing list wrapper [x]

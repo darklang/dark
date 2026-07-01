@@ -13,7 +13,7 @@ type VersionedTextDocumentIdentifier =
     /// (the server has not received an open notification before) the server can send
     /// `null` to indicate that the version is known and the content on disk is the
     /// truth (as speced with document content ownership).
-    version: Int64
+    version: Int
   }
 
 /// An event describing a change to a text document. If range and rangeLength are omitted

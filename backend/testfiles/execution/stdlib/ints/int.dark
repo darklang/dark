@@ -38,6 +38,12 @@ Stdlib.Int.toString 5I = "5"
 Stdlib.Int.toString 9223372036854775808I = "9223372036854775808"
 Stdlib.Int.parse "9223372036854775808" = Stdlib.Result.Result.Ok 9223372036854775808I
 Stdlib.Int.parse "5" = Stdlib.Result.Result.Ok 5I
+Stdlib.Int.parse "not a number" = Stdlib.Result.Result.Error Stdlib.Int.ParseError.BadFormat
+Stdlib.Int.parse "" = Stdlib.Result.Result.Error Stdlib.Int.ParseError.BadFormat
+Stdlib.Int.parse "5.0" = Stdlib.Result.Result.Error Stdlib.Int.ParseError.BadFormat
+Stdlib.Int.parse "5_000" = Stdlib.Result.Result.Error Stdlib.Int.ParseError.BadFormat
+// arbitrary precision: a value past Int64.MinValue still parses
+Stdlib.Int.parse "-9223372036854775809" = Stdlib.Result.Result.Ok -9223372036854775809I
 Stdlib.Int.fromInt64 5L = 5I
 
 // toInt64 relies on the invariant: a small Int always fits, a big Int never does
@@ -64,3 +70,48 @@ Stdlib.Int.toInt128 (2I ^ 100I) =
   Stdlib.Option.Option.Some 1267650600228229401496703205376Q
 Stdlib.Int.toInt128 (2I ^ 200I) = Stdlib.Option.Option.None
 Stdlib.Int.toUInt128 (2I ^ 200I) = Stdlib.Option.Option.None
+
+// --- fromFloat: truncates toward zero; NaN/Infinity have no Int, so OutOfRange ---
+Stdlib.Int.fromFloat 3.9 = 3I
+Stdlib.Int.fromFloat -3.9 = -3I
+Stdlib.Int.fromFloat (0.0 / 0.0) =
+  error="Encountered out-of-range value for type of Int"
+Stdlib.Int.fromFloat (1.0 / 0.0) =
+  error="Encountered out-of-range value for type of Int"
+Stdlib.Int.fromFloat (-1.0 / 0.0) =
+  error="Encountered out-of-range value for type of Int"
+
+
+// --- remainder: Result<Int>; sign follows the dividend; Error only if divisor is 0 ---
+Stdlib.Int.remainder 15I 6I = Stdlib.Result.Result.Ok 3I
+Stdlib.Int.remainder 20I 8I = Stdlib.Result.Result.Ok 4I
+Stdlib.Int.remainder -20I 8I = Stdlib.Result.Result.Ok -4I
+Stdlib.Int.remainder -20I -8I = Stdlib.Result.Result.Ok -4I
+Stdlib.Int.remainder -15I 6I = Stdlib.Result.Result.Ok -3I
+Stdlib.Int.remainder 5I 0I = Stdlib.Result.Result.Error "Cannot divide by 0"
+// arbitrary precision: 2^100 mod 7 == 2, with a dividend well past Int64
+Stdlib.Int.remainder (2I ^ 100I) 7I = Stdlib.Result.Result.Ok 2I
+
+// --- mod: wraps into [0, b); RTE if b <= 0 ---
+Stdlib.Int.mod_v0 15I 5I = 0I
+Stdlib.Int.mod_v0 15I 6I = 3I
+Stdlib.Int.mod_v0 0I 15I = 0I
+Stdlib.Int.mod_v0 -1I 2I = 1I
+Stdlib.Int.mod_v0 -754I 53I = 41I
+Stdlib.Int.mod_v0 (2I ^ 100I) 7I = 2I
+Stdlib.Int.mod_v0 5I 0I = error="Cannot evaluate modulus against 0"
+Stdlib.Int.mod_v0 5I -5I = error="Cannot evaluate modulus against a negative number"
+
+// the % operator dispatches to mod
+15I % 5I = 0I
+5I % 0I = error="Cannot evaluate modulus against 0"
+5I % -5I = error="Cannot evaluate modulus against a negative number"
+
+// --- shiftLeft / shiftRight: count must fit Int32, else OutOfRange ---
+Stdlib.Int.shiftLeft 1I 4I = 16I
+Stdlib.Int.shiftLeft 1I 64I = 18446744073709551616I
+Stdlib.Int.shiftRight 256I 4I = 16I
+Stdlib.Int.shiftLeft 1I (2I ^ 40I) =
+  error="Encountered out-of-range value for type of Int"
+Stdlib.Int.shiftRight 1I (2I ^ 40I) =
+  error="Encountered out-of-range value for type of Int"

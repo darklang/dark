@@ -16,7 +16,7 @@ type DocumentUri = String
 /// A tagging type for string properties that are actually URIs
 type URI = String
 
-type Position = { line: Int64; character: Int64 }
+type Position = { line: Int; character: Int }
 
 type Range = { start: Position; end_: Position }
 
@@ -51,18 +51,20 @@ let getDiagnostics (uri: String) (text: String) : String =
   | Error parseError ->
     // to be used when the range is otherwise unknown
     let rangeOfAll =
-      let start = Position { line = 0L; character = 0L }
+      let start = Position { line = 0I; character = 0I }
 
       let end' =
         let lines = text |> Stdlib.String.split "\n"
 
         let lastLineLength =
           match lines |> Stdlib.List.last with
-          | Some lastLine -> Stdlib.String.length lastLine
-          | None -> 0L
+          | Some lastLine ->
+            Stdlib.String.length lastLine
+          | None -> 0I
 
         Position
-          { line = (Stdlib.List.length lines) - 1L
+          { line =
+              ((Stdlib.List.length lines) - 1I)
             character = lastLineLength }
 
       Range { start = start; end_ = end' }

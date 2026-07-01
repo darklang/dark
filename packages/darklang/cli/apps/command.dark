@@ -8,11 +8,9 @@ module Darklang.Cli.Apps.Command
 /// The port a running HTTP daemon bound to, read from its log (`… on http://localhost:<port>`). This is
 /// the *actual* port (default or config override), so it's accurate without the browser knowing defaults.
 /// `None` for daemons that aren't HTTP servers (they never log a port).
-
-// TODO: Log text isn't a reliable source of truth; store structured daemon metadata instead.
-let daemonPort (slug: String) : Stdlib.Option.Option<Int64> =
+let daemonPort (slug: String) : Stdlib.Option.Option<Int> =
   let portLines =
-    (Stdlib.Cli.Daemon.tailLog slug 25L)
+    (Stdlib.Cli.Daemon.tailLog slug 25I)
     |> Stdlib.List.filter (fun l -> Stdlib.String.contains l "localhost:")
 
   match Stdlib.List.last portLines with
@@ -20,7 +18,7 @@ let daemonPort (slug: String) : Stdlib.Option.Option<Int64> =
   | Some line ->
     match Stdlib.List.last (Stdlib.String.split line "localhost:") with
     | None -> Stdlib.Option.Option.None
-    | Some tail -> Stdlib.Result.toOption (Stdlib.Int64.parse (Stdlib.String.trim tail))
+    | Some tail -> Stdlib.Result.toOption (Stdlib.Int.parse (Stdlib.String.trim tail))
 
 /// The live state of a daemon, for listing: "running (pid N) :port" / "stale (pid N)" / "stopped".
 /// HTTP daemons append the port they actually bound to.
@@ -30,11 +28,11 @@ let daemonState (slug: String) : String =
     if Stdlib.Cli.Posix.isProcessRunning pid then
       let portStr =
         match daemonPort slug with
-        | Some p -> $" :{Stdlib.Int64.toString p}"
+        | Some p -> $" :{Stdlib.Int.toString p}"
         | None -> ""
-      $"running (pid {Stdlib.Int64.toString pid}){portStr}"
+      $"running (pid {Stdlib.Int.toString pid}){portStr}"
     else
-      $"stale (pid {Stdlib.Int64.toString pid})"
+      $"stale (pid {Stdlib.Int.toString pid})"
   | None -> "stopped"
 
 /// One list row: pretty label · (slug) · [kind] · description — daemons append their live state.
@@ -76,7 +74,7 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
 
       match Stdlib.Cli.Daemon.start slug expr with
       | Ok pid ->
-        Stdlib.printLine (Colors.success $"✓ {app.name} started (pid {Stdlib.Int64.toString pid})")
+        Stdlib.printLine (Colors.success $"✓ {app.name} started (pid {Stdlib.Int.toString pid})")
       | Error e -> Stdlib.printLine (Colors.error e)
     | Foreground _ ->
       Stdlib.printLine (Colors.dimText $"'{slug}' is a foreground app — run it with `apps run {slug}`")
@@ -97,7 +95,7 @@ let inspect (state: Cli.AppState) (slug: String) : Cli.AppState =
     match app.target with
     | Daemon _ ->
       Stdlib.printLine $"  status:    {Stdlib.Cli.Daemon.statusLine slug}"
-      let logs = Stdlib.Cli.Daemon.tailLog slug 5L
+      let logs = Stdlib.Cli.Daemon.tailLog slug 5I
       if Stdlib.List.isEmpty logs then
         ()
       else
@@ -203,7 +201,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   | [ "logs"; slug ] ->
-    let lines = Stdlib.Cli.Daemon.tailLog slug 20L
+    let lines = Stdlib.Cli.Daemon.tailLog slug 20I
 
     if Stdlib.List.isEmpty lines then
       Stdlib.printLine (Colors.dimText $"no logs for '{slug}' (has it run?)")
@@ -264,7 +262,7 @@ let complete
 
 // A single help line: "  cmd <args>   description", padded for a clean column.
 let helpLine (usage: String) (desc: String) : String =
-  let pad = Stdlib.Result.withDefault (Stdlib.String.padEnd usage " " 26L) usage
+  let pad = Stdlib.Result.withDefault (Stdlib.String.padEnd usage " " 26I) usage
   "  " ++ pad ++ Colors.dimText desc
 
 let help (state: Cli.AppState) : Cli.AppState =

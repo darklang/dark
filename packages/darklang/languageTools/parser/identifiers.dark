@@ -77,7 +77,7 @@ let extractTypeArgs
     match findNodeByFieldName typeArgs "type_args_items" with
     | None -> [] |> Stdlib.Result.Result.Ok
     | Some typeArgsNode ->
-      match typeArgsNode.children |> Stdlib.List.chunkBySize 2L with
+      match typeArgsNode.children |> Stdlib.List.chunkBySize 2I with
       | Ok pairs ->
         pairs
         |> Stdlib.List.map (fun typeArgSeparatorPair ->

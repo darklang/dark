@@ -16,7 +16,7 @@ module Scope =
   let typeName () =
     FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.Capabilities.scope ())
 
-  /// Generic over the element's value-type + converter, so it serves `Scope<String>` and `Scope<Int64>`.
+  /// Generic over the element's value-type + converter, so it serves `Scope<String>` and `Scope<Int>`.
   let toDT (elemVT : ValueType) (elemToDT : 'a -> Dval) (s : Cap.Scope<'a>) : Dval =
     let typeArgs = [ elemVT ]
     match s with
@@ -40,8 +40,9 @@ module Scope =
   // the two concrete element kinds the model uses
   let strToDT (s : Cap.Scope<string>) : Dval = toDT VT.string DString s
   let strFromDT (d : Dval) : Cap.Scope<string> = fromDT D.string d
-  let portToDT (s : Cap.Scope<int64>) : Dval = toDT VT.int64 (fun n -> DInt64 n) s
-  let portFromDT (d : Dval) : Cap.Scope<int64> = fromDT D.int64 d
+  let portToDT (s : Cap.Scope<int64>) : Dval =
+    toDT VT.int (fun (n : int64) -> Dval.int (bigint n)) s
+  let portFromDT (d : Dval) : Cap.Scope<int64> = fromDT D.int64FromInt d
 
 
 module HostMatch =

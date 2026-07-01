@@ -25,8 +25,8 @@ type Alignment =
   | Justify
 
 // Layout Types
-type Position = { x: Int64; y: Int64 }
-type Dimensions = { width: Int64; height: Int64 }
+type Position = { x: Int; y: Int }
+type Dimensions = { width: Int; height: Int }
 type Bounds = { position: Position; dimensions: Dimensions }
 
 // Event Types
@@ -76,7 +76,7 @@ type Component<'TModel> =
 
 // Rendering Context
 type RenderContext =
-  { availableWidth: Int64
-    availableHeight: Int64
+  { availableWidth: Int
+    availableHeight: Int
     hasFocus: Bool
     theme: String }

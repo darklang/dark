@@ -57,7 +57,7 @@ module Response =
       let body = Map.get "body" fields
 
       match code, headers, body with
-      | Some(RT.DInt64 code), Some(RT.DList(_, headers)), Some(RT.DBlob bodyRef) ->
+      | Some(RT.DInt code), Some(RT.DList(_, headers)), Some(RT.DBlob bodyRef) ->
         let headers =
           headers
           |> List.fold
@@ -73,10 +73,23 @@ module Response =
         match headers with
         | Ok headers ->
           let! body = Blob.readBytes state bodyRef
-          return
-            { statusCode = int code
-              headers = lowercaseHeaderKeys headers
-              body = body }
+          // `statusCode` is an arbitrary-precision `Int`; narrowing a value
+          // outside Int32 range with `int` would throw a host exception, so
+          // reject it as an application error instead.
+          let codeBig = RT.DarkInt.toBigInt code
+          if
+            codeBig < bigint System.Int32.MinValue
+            || codeBig > bigint System.Int32.MaxValue
+          then
+            return
+              { statusCode = 500
+                headers = [ "Content-Type", "text/plain; charset=utf-8" ]
+                body = UTF8.toBytes "Application error: statusCode out of range" }
+          else
+            return
+              { statusCode = int codeBig
+                headers = lowercaseHeaderKeys headers
+                body = body }
         | Error msg ->
           return
             { statusCode = 500
@@ -106,7 +119,7 @@ module Response =
           ""
           "HTTP handlers should return results in the form:"
           "  Darklang.Stdlib.Http.Response {"
-          "    statusCode : Int64"
+          "    statusCode : Int"
           "    headers : List<String*String>"
           "    body : Blob"
           "  }" ]

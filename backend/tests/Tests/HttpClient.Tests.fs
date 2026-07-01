@@ -95,13 +95,13 @@ module Internal =
 
   module Test =
     type PTTest =
-      { name : string; lineNumber : int64; actual : PT.Expr; expected : PT.Expr }
+      { name : string; lineNumber : bigint; actual : PT.Expr; expected : PT.Expr }
 
     let fromDT (d : RT.Dval) : PTTest =
       match d with
       | RT.DRecord(_, _, _, fields) ->
         { name = fields |> D.field "name" |> D.string
-          lineNumber = fields |> D.field "lineNumber" |> D.int64
+          lineNumber = fields |> D.field "lineNumber" |> D.darkInt
           actual = fields |> D.field "actual" |> PT2DT.Expr.fromDT
           expected = fields |> D.field "expected" |> PT2DT.Expr.fromDT }
       | _ -> Exception.raiseInternal "Invalid Test" []

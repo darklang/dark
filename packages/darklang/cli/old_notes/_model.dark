@@ -69,7 +69,7 @@ type Page =
     { /// Current completion suggestions
       suggestions: List<String>
       /// Index of currently selected suggestion (-1 = no selection)
-      selectedIndex: Int64
+      selectedIndex: Int
       /// The original text that was being completed
       originalText: String
       /// The prefix that matched to generate these suggestions
@@ -87,11 +87,11 @@ type Page =
   type EntityDefinition =
     { name: String
       lines: List<String> //  content split into lines for scrolling
-      scrollPosition: Int64 }
+      scrollPosition: Int }
 
   /// Content types
   type ViewContent =
-    | ModuleView of EntityCategory * List<String> * Int64  // category, items, selectedIndex
+    | ModuleView of EntityCategory * List<String> * Int  // category, items, selectedIndex
     | EntityDefinitionView of EntityDefinition
 
   /// Viewing mode state
@@ -99,13 +99,13 @@ type Page =
     { moduleContent: LanguageTools.ProgramTypes.Search.SearchResults
       entityName: String
       selectedCategory: EntityCategory
-      selectedItemIndex: Int64
+      selectedItemIndex: Int
       expandedCategories: List<EntityCategory>
       entityDefinition: Stdlib.Option.Option<EntityDefinition>
       /// Cache for entity definitions to avoid re-computing them
       entityCache: List<(String * EntityDefinition)>
       /// Viewport scroll position for the module view (how many lines scrolled from top)
-      viewportScrollPosition: Int64 }
+      viewportScrollPosition: Int }
 
   type State =
     { /// The current page/view the user is on
@@ -118,13 +118,13 @@ type Page =
       mainPrompt: String
 
       /// Position of the cursor within the prompt
-      cursorPosition: Int64
+      cursorPosition: Int
 
       /// Command history
       commandHistory: List<String>
 
       /// Current position in command history (-1 = typing (not navigating), 0 = most recent, 1 = second most recent, etc.)
-      historyPosition: Int64
+      historyPosition: Int
 
       /// What we were typing before we started navigating history
       draftPrompt: String

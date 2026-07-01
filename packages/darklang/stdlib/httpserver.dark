@@ -31,9 +31,9 @@ let parseRouteSegments (route: String) : List<RouteSegment> =
     if String.isEmpty seg then
       Option.Option.None
     else if String.startsWith seg ":" then
-      Option.Option.Some(RouteSegment.Variable (String.dropFirst seg 1L))
+      Option.Option.Some(RouteSegment.Variable (String.dropFirst seg 1I))
     else if String.startsWith seg "*" then
-      Option.Option.Some(RouteSegment.Wildcard (String.dropFirst seg 1L))
+      Option.Option.Some(RouteSegment.Wildcard (String.dropFirst seg 1I))
     else
       Option.Option.Some(RouteSegment.Literal seg))
 
@@ -66,7 +66,7 @@ let matchRoute (routePattern: String) (requestPath: String) : RouteMatch =
   let routeLen = List.length routeSegs
   let pathLen = List.length pathSegs
 
-  if (routeLen == 0L) && (pathLen == 0L) then
+  if (routeLen == 0I) && (pathLen == 0I) then
     RouteMatch { matched = true; vars = [] }
   else if routeLen != pathLen then
     RouteMatch { matched = false; vars = [] }
@@ -189,12 +189,12 @@ let getPathParam (req: Http.Request) (routePattern: String) (paramName: String) 
 
 
 /// Configuration for `serve`. Build defaults with `Config.defaults port`, then override any field with
-/// record-update, e.g. `{ HttpServer.Config.defaults 8080L with logRequests = false }`.
+/// record-update, e.g. `{ HttpServer.Config.defaults 8080I with logRequests = false }`.
 module Config =
   type Config =
-    { port: Int64
+    { port: Int
       /// Maximum request body size in bytes (over-limit → 413).
-      maxBodyBytes: Int64
+      maxBodyBytes: Int
       /// Auto-add `Server: darklang` + HSTS unless the handler set them.
       injectStandardHeaders: Bool
       /// Rewrite request.url to https:// when X-Forwarded-Proto: https is present.
@@ -203,10 +203,10 @@ module Config =
       logRequests: Bool }
 
   /// Default max request body size: 30 MB.
-  let defaultMaxBodyBytes : Int64 = 31457280L
+  let defaultMaxBodyBytes : Int = 31457280I
 
   /// Sensible serve defaults for `port`: 30 MB max body, standard headers, proto canonicalization, logging.
-  let defaults (port: Int64) : Config =
+  let defaults (port: Int) : Config =
     Config
       { port = port
         maxBodyBytes = defaultMaxBodyBytes

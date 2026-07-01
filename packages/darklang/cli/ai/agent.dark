@@ -100,8 +100,9 @@ let systemPrompt : String =
 
 ## Critical Syntax
 - Whitespace-sensitive (like Python)
-- No nested function definitions
-- Lists use semicolons: [1L; 2L; 3L]
+- Nested function definitions need typed params and a return type:
+  `let helper (x: Int) : Int = ...`; no mutual recursion
+- Lists use semicolons: [1; 2; 3]
 - String concat: ++ (not +)
 - Pipe needs parens for complex LHS: (expr) |> fn
 
@@ -196,17 +197,17 @@ let runCliCommand
         let result = Stdlib.Cli.execute fullCmd
 
         match result.exitCode with
-        | 0L ->
+        | 0I ->
           let output = if result.stdout == "" then "(no output)" else result.stdout
           if Stdlib.String.startsWith (Stdlib.String.trim output) "Error:" then
             Stdlib.Result.Result.Error (Stdlib.String.trim output)
           else
-            let preview = if (Stdlib.String.length output) > 100L then (Stdlib.String.slice output 0L 100L) ++ "..." else output
+            let preview = if (Stdlib.String.length output) > 100I then (Stdlib.String.slice output 0I 100I) ++ "..." else output
             Stdlib.printLine (Colors.dimText ("  -> " ++ preview))
             Stdlib.Result.Result.Ok (Darklang.LLM.Agent.ToolOutput.text output)
         | exitCode ->
           let details = if result.stderr != "" then result.stderr else if result.stdout != "" then result.stdout else "no output"
-          let errorMsg = "CLI command failed (exit " ++ (Stdlib.Int64.toString exitCode) ++ "): " ++ (Stdlib.String.trim details)
+          let errorMsg = "CLI command failed (exit " ++ (Stdlib.Int.toString exitCode) ++ "): " ++ (Stdlib.String.trim details)
           Stdlib.printLine (Colors.error ("  -> " ++ errorMsg))
           Stdlib.Result.Result.Error errorMsg
       | None -> Stdlib.Result.Result.Error "Could not find CLI executable"
@@ -238,8 +239,8 @@ let currentBranchName (state: Cli.AppState) : String =
 let createAgent (model: Darklang.LLM.Models.Model) (branchName: String) (writeMode: WriteMode) : Darklang.LLM.Agent.Agent =
   (Darklang.LLM.Agent.create ())
   |> Darklang.LLM.Agent.withSystemPrompt systemPrompt
-  |> Darklang.LLM.Agent.withMaxTokens 4000L
-  |> Darklang.LLM.Agent.withMaxTurns 20L
+  |> Darklang.LLM.Agent.withMaxTokens 4000I
+  |> Darklang.LLM.Agent.withMaxTurns 20I
   |> Darklang.LLM.Agent.withTemperature 0.2
   |> Darklang.LLM.Agent.withModel model
   |> Darklang.LLM.Agent.withTool (makeCliTool branchName writeMode)
@@ -406,7 +407,7 @@ let help (state: Cli.AppState) : Cli.AppState =
   let lines =
     Stdlib.List.map subcommands (fun s ->
       let padded =
-        match Stdlib.String.padEnd s.usage " " 40L with
+        match Stdlib.String.padEnd s.usage " " 40I with
         | Ok p -> p
         | Error _ -> s.usage
       $"  {padded} - {s.description}")

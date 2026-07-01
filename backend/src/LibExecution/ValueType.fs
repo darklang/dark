@@ -25,6 +25,7 @@ let int64 = known KTInt64
 let uint64 = known KTUInt64
 let int128 = known KTInt128
 let uint128 = known KTUInt128
+let int = known KTInt
 let float = known KTFloat
 let char = known KTChar
 let string = known KTString

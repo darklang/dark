@@ -25,11 +25,11 @@ let fns () : List<BuiltInFn> =
   [ { name = fn "floatCeiling" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Round up to an integer value"
       fn =
         (function
-        | _, _, _, [ DFloat a ] -> a |> System.Math.Ceiling |> int64 |> DInt64 |> Ply
+        | _, vm, _, [ DFloat a ] -> a |> System.Math.Ceiling |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -40,11 +40,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "floatRoundUp" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Round up to an integer value"
       fn =
         (function
-        | _, _, _, [ DFloat a ] -> a |> System.Math.Ceiling |> int64 |> DInt64 |> Ply
+        | _, vm, _, [ DFloat a ] -> a |> System.Math.Ceiling |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -55,7 +55,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "floatFloor" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt64
+      returnType = TInt
       description =
         "Round down to an integer value.
 
@@ -64,7 +64,7 @@ let fns () : List<BuiltInFn> =
         but {{Float.truncate -1.9 == -1.0}}"
       fn =
         (function
-        | _, _, _, [ DFloat a ] -> a |> System.Math.Floor |> int64 |> DInt64 |> Ply
+        | _, vm, _, [ DFloat a ] -> a |> System.Math.Floor |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -75,7 +75,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "floatRoundDown" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt64
+      returnType = TInt
       description =
         "Round down to an integer value.
 
@@ -85,7 +85,7 @@ let fns () : List<BuiltInFn> =
 
       fn =
         (function
-        | _, _, _, [ DFloat a ] -> a |> System.Math.Floor |> int64 |> DInt64 |> Ply
+        | _, vm, _, [ DFloat a ] -> a |> System.Math.Floor |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -96,11 +96,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "floatRound" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Round to the nearest integer value"
       fn =
         (function
-        | _, _, _, [ DFloat a ] -> a |> System.Math.Round |> int64 |> DInt64 |> Ply
+        | _, vm, _, [ DFloat a ] -> a |> System.Math.Round |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -111,13 +111,12 @@ let fns () : List<BuiltInFn> =
     { name = fn "floatTruncate" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt64
+      returnType = TInt
       description =
         "Discard the fractional portion of the float, rounding towards zero"
       fn =
         (function
-        | _, _, _, [ DFloat a ] ->
-          a |> System.Math.Truncate |> int64 |> DInt64 |> Ply
+        | _, vm, _, [ DFloat a ] -> a |> System.Math.Truncate |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -278,13 +277,12 @@ let fns () : List<BuiltInFn> =
     { name = fn "floatRoundTowardsZero" 0
       typeParams = []
       parameters = [ Param.make "a" TFloat "" ]
-      returnType = TInt64
+      returnType = TInt
       description =
         "Discard the fractional portion of <type Float> <param a>, rounding towards zero."
       fn =
         (function
-        | _, _, _, [ DFloat a ] ->
-          a |> System.Math.Truncate |> int64 |> DInt64 |> Ply
+        | _, vm, _, [ DFloat a ] -> a |> System.Math.Truncate |> roundedToInt vm
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

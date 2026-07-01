@@ -17,14 +17,14 @@ let fns () : List<BuiltInFn> =
     { name = fn "blobLength" 0
       typeParams = []
       parameters = [ Param.make "blob" TBlob "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Returns the length of <param blob> in bytes."
       fn =
         (function
         | state, _, _, [ DBlob ref ] ->
           uply {
             let! bs = Blob.readBytes state ref
-            return DInt64(int64 bs.Length)
+            return Dval.int (bigint bs.Length)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -209,21 +209,22 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "blob" TBlob ""
-          Param.make "start" TInt64 "zero-based, inclusive"
-          Param.make "length" TInt64 "0 or more" ]
+          Param.make "start" TInt "zero-based, inclusive"
+          Param.make "length" TInt "0 or more" ]
       returnType = TBlob
       description =
         "Copies <param length> bytes starting at <param start> into a fresh ephemeral Blob. Out-of-range slices are clamped."
       fn =
         (function
-        | state, _, _, [ DBlob ref; DInt64 startL; DInt64 lenL ] ->
+        | state, _, _, [ DBlob ref; DInt startD; DInt lenD ] ->
           uply {
             let! bs = Blob.readBytes state ref
-            let len64 = int64 bs.Length
-            let safeStart = max 0L (min startL len64)
-            let safeLen = max 0L (min lenL (len64 - safeStart))
+            let len = bigint bs.Length
+            let safeStart = max (bigint 0) (min (DarkInt.toBigInt startD) len)
+            let safeLen =
+              max (bigint 0) (min (DarkInt.toBigInt lenD) (len - safeStart))
             let slice = Array.zeroCreate<byte> (int safeLen)
-            if safeLen > 0L then
+            if safeLen > bigint 0 then
               System.Array.Copy(bs, int safeStart, slice, 0, int safeLen)
             return Blob.newEphemeral slice
           }

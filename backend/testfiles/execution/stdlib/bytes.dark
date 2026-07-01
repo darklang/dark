@@ -12,9 +12,9 @@
 
 
 // length
-((Stdlib.Blob.fromString "hi") |> Stdlib.Blob.length) = 2L
-((Stdlib.Blob.fromString "") |> Stdlib.Blob.length) = 0L
-(Stdlib.Blob.empty |> Stdlib.Blob.length) = 0L
+((Stdlib.Blob.fromString "hi") |> Stdlib.Blob.length) = 2I
+((Stdlib.Blob.fromString "") |> Stdlib.Blob.length) = 0I
+(Stdlib.Blob.empty |> Stdlib.Blob.length) = 0I
 
 // fromString / toString roundtrip
 (match (Stdlib.Blob.fromString "hello") |> Stdlib.Blob.toString with
@@ -25,8 +25,8 @@
 // fromHex returns Result<Blob,String>; length of decoded deadbeef = 4 bytes
 (match Stdlib.Blob.fromHex "deadbeef" with
  | Ok b -> Stdlib.Blob.length b
- | Error _ -> -1L)
-  = 4L
+ | Error _ -> -1I)
+  = 4I
 
 // hex roundtrip via wrapper
 (match Stdlib.Blob.fromHex "48656c6c6f" with
@@ -63,7 +63,7 @@
   = "foo-bar"
 
 // slice (middle three bytes of "abcdef" = "cde")
-(match (Stdlib.Blob.slice (Stdlib.Blob.fromString "abcdef") 2L 3L)
+(match (Stdlib.Blob.slice (Stdlib.Blob.fromString "abcdef") 2I 3I)
        |> Stdlib.Blob.toString with
  | Ok s -> s
  | Error _ -> "err")
@@ -71,7 +71,7 @@
 
 // toList/fromList escape hatches
 ((Stdlib.Blob.fromString "abc") |> Stdlib.Blob.toList) = [ 97uy; 98uy; 99uy ]
-((Stdlib.Blob.fromList [ 97uy; 98uy; 99uy ]) |> Stdlib.Blob.length) = 3L
+((Stdlib.Blob.fromList [ 97uy; 98uy; 99uy ]) |> Stdlib.Blob.length) = 3I
 
 // Blob equality is identity-based: same hash (Persistent) or same
 // UUID (Ephemeral). Two freshly-built ephemerals with the same bytes

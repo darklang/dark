@@ -2,12 +2,12 @@ module Darklang.Cli.CompletionPicker
 
 type State =
   { items: List<Completion.CompletionItem>
-    selectedIndex: Int64
-    scrollOffset: Int64
+    selectedIndex: Int
+    scrollOffset: Int
     commandPrefix: String
     hasBeenDisplayed: Bool }
 
-let maxVisibleItems: Int64 = 10L
+let maxVisibleItems: Int = 10I
 
 /// Create picker state from completions
 let create (promptText: String) (items: List<Completion.CompletionItem>) : State =
@@ -21,8 +21,8 @@ let create (promptText: String) (items: List<Completion.CompletionItem>) : State
 
   State
     { items = items
-      selectedIndex = 0L
-      scrollOffset = 0L
+      selectedIndex = 0I
+      scrollOffset = 0I
       commandPrefix = commandPrefix
       hasBeenDisplayed = false }
 
@@ -35,13 +35,13 @@ let getSelectedValue (state: State) : Stdlib.Option.Option<String> =
 /// Display the completion picker UI
 let display (state: State) : Unit =
   let itemCount = Stdlib.List.length state.items
-  let visibleCount = Stdlib.Int64.min maxVisibleItems itemCount
+  let visibleCount = Stdlib.Int.min maxVisibleItems itemCount
   let hasScrollIndicator = itemCount > maxVisibleItems
 
   // Move cursor up to overwrite previous display (only after first render)
   if state.hasBeenDisplayed then
-    let lineCount = visibleCount + (if hasScrollIndicator then 1L else 0L) + 1L
-    Stdlib.print $"\u001b[{Stdlib.Int64.toString lineCount}A\u001b[J"
+    let lineCount = visibleCount + (if hasScrollIndicator then 1I else 0I) + 1I
+    Stdlib.print $"\u001b[{Stdlib.Int.toString lineCount}A\u001b[J"
 
   let visibleItems =
     state.items
@@ -61,17 +61,17 @@ let display (state: State) : Unit =
 
   // Show scroll indicator if needed
   if hasScrollIndicator then
-    let start = Stdlib.Int64.toString (state.scrollOffset + 1L)
-    let endIdx = Stdlib.Int64.toString (state.scrollOffset + visibleCount)
-    let total = Stdlib.Int64.toString itemCount
+    let start = Stdlib.Int.toString (state.scrollOffset + 1I)
+    let endIdx = Stdlib.Int.toString (state.scrollOffset + visibleCount)
+    let total = Stdlib.Int.toString itemCount
     Stdlib.printLine (Colors.dimText $"({start}-{endIdx} of {total})")
 
   Stdlib.printLine (Colors.dimText "↑/↓: navigate  Enter: select  Esc: cancel")
 
 /// Move selection up
 let moveUp (state: State) : State =
-  if state.selectedIndex > 0L then
-    let newIndex = state.selectedIndex - 1L
+  if state.selectedIndex > 0I then
+    let newIndex = state.selectedIndex - 1I
 
     // Adjust scroll if needed
     let newOffset =
@@ -87,13 +87,13 @@ let moveUp (state: State) : State =
 let moveDown (state: State) : State =
   let itemCount = Stdlib.List.length state.items
 
-  if state.selectedIndex < (itemCount - 1L) then
-    let newIndex = state.selectedIndex + 1L
+  if state.selectedIndex < (itemCount - 1I) then
+    let newIndex = state.selectedIndex + 1I
 
     // Adjust scroll if needed
     let newOffset =
       if newIndex >= (state.scrollOffset + maxVisibleItems) then
-        state.scrollOffset + 1L
+        state.scrollOffset + 1I
       else
         state.scrollOffset
 

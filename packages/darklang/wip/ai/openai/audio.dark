@@ -71,9 +71,9 @@ module Transport =
 
   let mapStatusError (response: Stdlib.HttpClient.Response) : Stdlib.Option.Option<String> =
     match response.statusCode with
-    | code when code >= 200L && code < 300L -> Stdlib.Option.Option.None
-    | 401L -> Stdlib.Option.Option.Some "Authentication failed: Invalid API key"
-    | 429L -> Stdlib.Option.Option.Some "Rate limit exceeded"
+    | code when code >= 200I && code < 300I -> Stdlib.Option.Option.None
+    | 401I -> Stdlib.Option.Option.Some "Authentication failed: Invalid API key"
+    | 429I -> Stdlib.Option.Option.Some "Rate limit exceeded"
     | _ ->
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
       Stdlib.Option.Option.Some("API error: " ++ bodyStr)
@@ -268,7 +268,7 @@ module Transcriptions =
       word: String }
 
   type TranscriptionSegment =
-    { id: Stdlib.Option.Option<Int64>
+    { id: Stdlib.Option.Option<Int>
       start: Float
       end_: Float
       text: String
@@ -276,17 +276,17 @@ module Transcriptions =
       compressionRatio: Stdlib.Option.Option<Float>
       noSpeechProb: Stdlib.Option.Option<Float>
       temperature: Stdlib.Option.Option<Float>
-      seek: Stdlib.Option.Option<Int64>
-      tokens: List<Int64> }
+      seek: Stdlib.Option.Option<Int>
+      tokens: List<Int> }
 
   type TranscriptionLogprob =
     { token: String
       logprob: Float
-      bytes: List<Int64> }
+      bytes: List<Int> }
 
   type Usage =
-    { promptTokens: Int64
-      totalTokens: Int64 }
+    { promptTokens: Int
+      totalTokens: Int }
 
   type TranscriptionJson =
     { text: String
@@ -305,7 +305,7 @@ module Transcriptions =
       usage: Stdlib.Option.Option<Usage> }
 
   type TranscriptionDiarizedSegment =
-    { id: Int64
+    { id: Int
       start: Float
       end_: Float
       speaker: String
@@ -396,7 +396,7 @@ module Transcriptions =
             (Stdlib.AltJson.Helpers.getArray "bytes" logprobFields)
             (fun b ->
               match b with
-              | Number n -> Stdlib.Option.Option.Some(Stdlib.Int64.fromFloat n)
+              | Number n -> Stdlib.Option.Option.Some(Stdlib.Int.fromFloat n)
               | _ -> Stdlib.Option.Option.None)
 
         match (Stdlib.AltJson.Helpers.getString "token" logprobFields,
@@ -448,7 +448,7 @@ module Transcriptions =
           (Stdlib.AltJson.Helpers.getArray "tokens" fields)
           (fun t ->
             match t with
-            | Number n -> Stdlib.Option.Option.Some(Stdlib.Int64.fromFloat n)
+            | Number n -> Stdlib.Option.Option.Some(Stdlib.Int.fromFloat n)
             | _ -> Stdlib.Option.Option.None)
 
       match (Stdlib.AltJson.Helpers.getNumber "start" fields,
@@ -475,7 +475,7 @@ module Transcriptions =
     : Stdlib.Option.Option<TranscriptionDiarizedSegment> =
     match item with
     | Object fields ->
-      match (Stdlib.AltJson.Helpers.getInt "id" fields,
+      match (Stdlib.AltJson.Helpers.getIntOption "id" fields,
              Stdlib.AltJson.Helpers.getNumber "start" fields,
              Stdlib.AltJson.Helpers.getNumber "end" fields,
              Stdlib.AltJson.Helpers.getString "speaker" fields,
@@ -977,7 +977,7 @@ module Voices =
     { id: String
       name: String
       description: Stdlib.Option.Option<String>
-      createdAt: Stdlib.Option.Option<Int64>
+      createdAt: Stdlib.Option.Option<Int>
       status: Stdlib.Option.Option<String> }
 
   let createOptions
@@ -1052,7 +1052,7 @@ module VoiceConsents =
   type Consent =
     { id: String
       status: Stdlib.Option.Option<String>
-      createdAt: Stdlib.Option.Option<Int64>
+      createdAt: Stdlib.Option.Option<Int>
       name: Stdlib.Option.Option<String>
       text: Stdlib.Option.Option<String> }
 

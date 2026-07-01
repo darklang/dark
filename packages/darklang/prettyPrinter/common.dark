@@ -14,7 +14,7 @@ let indent (s: String) : String =
     | line -> "  " ++ line)
   |> Stdlib.String.join "\n"
 
-let indentByLevel (level: Int64) (s: String) : String =
+let indentByLevel (level: Int) (s: String) : String =
   let indentStr = Stdlib.String.repeat "  " level
 
   s
@@ -31,8 +31,8 @@ let sign (s: LanguageTools.Sign) : String =
   | Negative -> "-"
 
 // One-hex-digit (0-15) to its source character.
-let hexDigitChar (n: Int64) : String =
-  Stdlib.String.slice "0123456789ABCDEF" n (n + 1L)
+let hexDigitChar (n: Int) : String =
+  Stdlib.String.slice "0123456789ABCDEF" n (n + 1I)
 
 // Encode one Char to its source-form. ASCII control characters and the
 // backslash get an escape; everything else (printable ASCII, non-ASCII
@@ -41,17 +41,17 @@ let encodeChar (c: Char) : String =
   match Stdlib.Char.toAsciiCode c with
   | None -> Stdlib.Char.toString c
   | Some code ->
-    if code == 92L then "\\\\"
-    else if code == 7L then "\\a"
-    else if code == 8L then "\\b"
-    else if code == 9L then "\\t"
-    else if code == 10L then "\\n"
-    else if code == 11L then "\\v"
-    else if code == 12L then "\\f"
-    else if code == 13L then "\\r"
-    else if code < 32L || code == 127L then
-      let hi = Stdlib.Int64.divide code 16L
-      let lo = code % 16L
+    if code == 92I then "\\\\"
+    else if code == 7I then "\\a"
+    else if code == 8I then "\\b"
+    else if code == 9I then "\\t"
+    else if code == 10I then "\\n"
+    else if code == 11I then "\\v"
+    else if code == 12I then "\\f"
+    else if code == 13I then "\\r"
+    else if code < 32I || code == 127I then
+      let hi = Stdlib.Int.divide code 16I
+      let lo = code % 16I
       $"\\x{hexDigitChar hi}{hexDigitChar lo}"
     else
       Stdlib.Char.toString c
@@ -76,6 +76,6 @@ let escapeCharLiteral (s: String) : String =
 let processRemainder (remainder: String) : String =
   match $".{remainder}" |> Stdlib.Float.parse with
   | Ok floatValue ->
-    floatValue |> Stdlib.Float.toString |> Stdlib.String.dropFirst 2L
+    floatValue |> Stdlib.Float.toString |> Stdlib.String.dropFirst 2I
   | Error _ ->
     remainder

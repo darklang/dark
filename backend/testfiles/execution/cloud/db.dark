@@ -145,7 +145,7 @@ module NestedRecordFieldAccess =
    let shouldBeJustJoe =
      Stdlib.DB.query TestNestedRecord (fun p -> p.details.numbers.age == 41L)
 
-   Stdlib.List.length shouldBeJustJoe) = 1L
+   Stdlib.List.length shouldBeJustJoe) = 1I
 
   // same as above, but with aliases
   (Stdlib.DB.set
@@ -161,7 +161,7 @@ module NestedRecordFieldAccess =
    let shouldBeJustJeremy =
      Stdlib.DB.query TestNestedAliasRecord (fun p -> p.details.numbers.age == 38L)
 
-   Stdlib.List.length shouldBeJustJeremy) = 1L
+   Stdlib.List.length shouldBeJustJeremy) = 1I
 
 
 
@@ -573,17 +573,17 @@ module DeleteAll =
 
 module Count =
   // empty
-  Stdlib.DB.count XDB = 0L
+  Stdlib.DB.count XDB = 0I
 
   // one entries
-  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB in Stdlib.DB.count XDB) = 1L
+  (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB in Stdlib.DB.count XDB) = 1I
 
   // multiple entries
   (let _ = Stdlib.DB.set (X { x = "hello" }) "one" XDB
    let _ = Stdlib.DB.set (X { x = "goodbye" }) "two" XDB
    let _ = Stdlib.DB.set (X { x = "howdy" }) "three" XDB
    let _ = Stdlib.DB.set (X { x = "cheers" }) "four" XDB
-   Stdlib.DB.count XDB) = 4L
+   Stdlib.DB.count XDB) = 4I
 
 // ------------
 // SqlCompiler queries
@@ -855,7 +855,7 @@ module CompiledFunctions =
   // (friends (fun p -> Stdlib.String.reverse p.name == "lehcaR")) = [ "Rachel" ]
 
   // TODO: SQLite's LENGTH counts characters, not EGCs so we made it non queriable for now
-  // (friends (fun p -> Stdlib.String.length p.name > 5L)) = [ " Chandler "
+  // (friends (fun p -> Stdlib.String.length p.name > 5I)) = [ " Chandler "
   //                                                           "GrumpyCat"
   //                                                           "Rachel" ]
   (friends (fun p -> Stdlib.String.contains p.name "ROSS")) = []
@@ -933,7 +933,7 @@ module CompiledFunctions =
   (friends (fun p ->
     Stdlib.DateTime.lessThanOrEqualTo
       p.dob
-      (Stdlib.DateTime.addSeconds (Stdlib.DateTime.now ()) 1L))) = [ " Chandler "
+      (Stdlib.DateTime.addSeconds (Stdlib.DateTime.now ()) 1I))) = [ " Chandler "
                                                                      "GrumpyCat"
                                                                      "Rachel"
                                                                      "Ross" ]
@@ -941,7 +941,7 @@ module CompiledFunctions =
   (friends (fun p ->
     Stdlib.DateTime.lessThanOrEqualTo
       p.dob
-      (Stdlib.DateTime.subtractSeconds (Stdlib.DateTime.now ()) 1L))) = [ " Chandler "
+      (Stdlib.DateTime.subtractSeconds (Stdlib.DateTime.now ()) 1I))) = [ " Chandler "
                                                                           "GrumpyCat"
                                                                           "Rachel"
                                                                           "Ross" ]
@@ -976,10 +976,10 @@ module CompiledFunctions =
   (friends (fun p ->
     Stdlib.Int64.greaterThanOrEqualTo
       p.height
-      Darklang.Test.Values.intValue)) = [ " Chandler "
-                                          "GrumpyCat"
-                                          "Rachel"
-                                          "Ross" ]
+      Darklang.Test.Values.int64Value)) = [ " Chandler "
+                                            "GrumpyCat"
+                                            "Rachel"
+                                            "Ross" ]
 
   // String
   (friends (fun p ->
@@ -1010,7 +1010,7 @@ module PartialEvaluation =
 
   (friends (fun p ->
     let x = YL { y = ZL { z = AL { a = [ 1L; 2L; 3L; 4L; 5L ] } } }
-    (Stdlib.List.length x.y.z.a) < p.height)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
+    (Builtin.unwrap (Stdlib.Int.toInt64 (Stdlib.List.length x.y.z.a))) < p.height)) = [ " Chandler "; "GrumpyCat"; "Rachel"; "Ross" ]
 
   // tuple destructuring inside query - requires tuple pattern support
   (friends (fun p ->
@@ -1047,11 +1047,11 @@ module QueryWithKey =
 module QueryCount =
   // none
   (let _ = prepFriends ()
-   Stdlib.DB.queryCount PersonDB (fun p -> p.name == "bob")) = 0L
+   Stdlib.DB.queryCount PersonDB (fun p -> p.name == "bob")) = 0I
 
   // one
   (let _ = prepFriends ()
-   Stdlib.DB.queryCount PersonDB (fun p -> p.height > 3L)) = 4L
+   Stdlib.DB.queryCount PersonDB (fun p -> p.height > 3L)) = 4I
 
 
-((Stdlib.DB.generateKey ()) |> Stdlib.String.length) = 36L
+((Stdlib.DB.generateKey ()) |> Stdlib.String.length) = 36I

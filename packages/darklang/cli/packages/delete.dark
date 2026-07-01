@@ -33,8 +33,8 @@ let parseArgs (args: List<String>) : ParsedArgs =
   let p = FlagParser.parse argSpec args
   let forced = FlagParser.hasFlag p "--force"
   ParsedArgs
-    { itemType = Stdlib.List.getAt p.positionals 0L
-      target = Stdlib.List.getAt p.positionals 1L
+    { itemType = Stdlib.List.getAt p.positionals 0I
+      target = Stdlib.List.getAt p.positionals 1I
       message = FlagParser.getOptionOr p "--message" ""
       autoConfirm = (FlagParser.hasFlag p "--yes") || forced
       ignoreDependents = (FlagParser.hasFlag p "--ignore-dependents") || forced
@@ -49,7 +49,7 @@ let countLiveDependents
   (branchId: Uuid)
   (targetLoc: LanguageTools.ProgramTypes.PackageLocation)
   (targetKind: LanguageTools.ProgramTypes.ItemKind)
-  : Int64 =
+  : Int =
   let deps = Builtin.depsGetDependents branchId [ (targetLoc, targetKind) ]
   let depSets = Query.loadDeprecationSets branchId
   deps
@@ -111,10 +111,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             // Only gate `delete` adds over `deprecate --kind obsolete`: refuse
             // when LIVE dependents exist. Deprecated-only callers don't block.
             let depCount = countLiveDependents branchId targetLoc itemKind
-            if depCount > 0L && Stdlib.Bool.not parsed.ignoreDependents then
+            if depCount > 0I && Stdlib.Bool.not parsed.ignoreDependents then
               Stdlib.printLine
                 (Colors.error
-                  $"{Stdlib.Int64.toString depCount} live dependent(s) still reference this item.")
+                  $"{Stdlib.Int.toString depCount} live dependent(s) still reference this item.")
               Stdlib.printLine
                 "Use `deprecate` to give them time to migrate, or pass `--ignore-dependents` / `--force`."
               state

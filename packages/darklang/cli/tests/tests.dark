@@ -22,7 +22,7 @@ let runWithCommand (args: List<String>): String =
   let command = $"./scripts/run-cli {argsString}"
   let result = Stdlib.Cli.Unix.executeInDirectoryWithOutput "." command
 
-  if result.exitCode == 0L then
+  if result.exitCode == 0I then
     Stdlib.String.trim result.stdout
   else
     $"ERROR: {result.stderr}"
@@ -84,7 +84,7 @@ let testEvalStringLength (): TestResult =
 
 
 let testEvalListLength (): TestResult =
-  let output = runWithCommand ["eval"; "[1L; 2L; 3L] |> Stdlib.List.length"]
+  let output = runWithCommand ["eval"; "[1; 2; 3] |> Stdlib.List.length"]
   if output == "3" then
     TestResult.Pass
   else
@@ -180,14 +180,14 @@ let allTests (): List<String * TestFunction> =
   ]
 
 type TestSummary =
-  { totalTests: Int64
-    passedTests: Int64
-    failedTests: Int64
+  { totalTests: Int
+    passedTests: Int
+    failedTests: Int
     failedTestNames: List<String> }
 
 // Sequential test execution - proven to be ~30-50% faster than parallel for CLI tests
 // due to process startup overhead and resource contention
-let runAllTests (): Int64 =
+let runAllTests (): Int =
   let tests = allTests ()
 
   Stdlib.printLine ""
@@ -196,9 +196,9 @@ let runAllTests (): Int64 =
 
   let initialSummary =
     TestSummary
-      { totalTests = 0L
-        passedTests = 0L
-        failedTests = 0L
+      { totalTests = 0I
+        passedTests = 0I
+        failedTests = 0I
         failedTestNames = [] }
 
   let finalSummary =
@@ -208,29 +208,29 @@ let runAllTests (): Int64 =
       Stdlib.printLine $"Running: {name} ..."
 
       let newSummary =
-        { summary with totalTests = summary.totalTests + 1L }
+        { summary with totalTests = summary.totalTests + 1I }
 
       match testFn () with
       | Pass ->
         Stdlib.printLine $"✓ PASS - {name}"
-        { newSummary with passedTests = newSummary.passedTests + 1L }
+        { newSummary with passedTests = newSummary.passedTests + 1I }
       | Fail message ->
         Stdlib.printLine $"✗ FAIL - {name}"
         Stdlib.printLine $"  Reason: {message}"
         { newSummary with
-            failedTests = newSummary.failedTests + 1L
+            failedTests = newSummary.failedTests + 1I
             failedTestNames = Stdlib.List.push newSummary.failedTestNames name })
 
   Stdlib.printLine ""
   Stdlib.printLine "📊 Test Results Summary"
   Stdlib.printLine "======================"
-  Stdlib.printLine $"Total tests:  {Stdlib.Int64.toString finalSummary.totalTests}"
-  Stdlib.printLine $"Passed:       {Stdlib.Int64.toString finalSummary.passedTests}"
-  Stdlib.printLine $"Failed:       {Stdlib.Int64.toString finalSummary.failedTests}"
+  Stdlib.printLine $"Total tests:  {Stdlib.Int.toString finalSummary.totalTests}"
+  Stdlib.printLine $"Passed:       {Stdlib.Int.toString finalSummary.passedTests}"
+  Stdlib.printLine $"Failed:       {Stdlib.Int.toString finalSummary.failedTests}"
 
-  if finalSummary.failedTests == 0L then
+  if finalSummary.failedTests == 0I then
     Stdlib.printLine "🎉 All tests passed!"
-    0L
+    0I
   else
     Stdlib.printLine "🚨 Some tests failed!"
     if Stdlib.Bool.not (Stdlib.List.isEmpty finalSummary.failedTestNames) then
@@ -238,4 +238,4 @@ let runAllTests (): Int64 =
       finalSummary.failedTestNames
       |> Stdlib.List.iter (fun testName ->
         Stdlib.printLine $"  ✗ {testName}")
-    1L
+    1I

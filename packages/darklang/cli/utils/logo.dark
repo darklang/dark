@@ -46,7 +46,7 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
   let maxLogoWidth =
     logoLines
     |> Stdlib.List.map Stdlib.String.length
-    |> Stdlib.List.fold 0L (fun acc len -> if len > acc then len else acc)
+    |> Stdlib.List.fold 0I (fun acc len -> if len > acc then len else acc)
 
   // Pad logo lines to same width
   let paddedLogoLines =
@@ -73,7 +73,7 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
   let finalLogoLines =
     if logoHeight < targetHeight then // e.g, 3 < 7 = true
       let totalPadding = targetHeight - logoHeight // 7 - 3 = 4 empty lines needed
-      let paddingTop = Stdlib.Int64.divide totalPadding 2L // 4 ÷ 2 = 2 lines above
+      let paddingTop = Stdlib.Int.divide totalPadding 2I // 4 ÷ 2 = 2 lines above
       let paddingBottom = totalPadding - paddingTop // 4 - 2 = 2 lines below
       let emptyLogoLine = Stdlib.String.repeat " " maxLogoWidth // if maxLogoWidth = 6, then emptyLogoLine = "      " (6 spaces)
       match Stdlib.List.repeat paddingTop emptyLogoLine with // Create 2 empty top logo lines
@@ -90,7 +90,7 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
   let finalTextLines =
     if textHeight < targetHeight then
       let totalPadding = targetHeight - textHeight
-      let paddingTop = Stdlib.Int64.divide totalPadding 2L
+      let paddingTop = Stdlib.Int.divide totalPadding 2I
       let paddingBottom = totalPadding - paddingTop
       match Stdlib.List.repeat paddingTop "" with
       | Ok topEmpty ->

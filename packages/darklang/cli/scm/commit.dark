@@ -177,7 +177,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
                 SCM.PackageOps.commitOpIds accountId branchId message opIds
                 with
               | Ok commitHash ->
-                let shortId = Stdlib.String.first commitHash 8L
+                let shortId = Stdlib.String.first commitHash 8I
                 Stdlib.printLine (Colors.success $"Created commit {shortId}")
                 state
               | Error e ->

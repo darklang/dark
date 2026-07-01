@@ -8,6 +8,11 @@ module VT = ValueType
 module D = DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
 
+/// `Dval.int` is shadowed by the local `module Dval` below, so it can't be
+/// called unqualified in this file. This is the unshadowed encoder for the
+/// native-`int` → `Int` conversions (small counts/indices/arities).
+let private dintOfInt (i : int) : Dval = RuntimeTypes.Dval.int (bigint i)
+
 
 
 module Hash =
@@ -731,7 +736,7 @@ module Dval =
     // cannot be read.
     | DBlob(Ephemeral eph) -> mk "DBlobEphemeral" [ DUuid eph.id ]
     | DBlob(Persistent(hash, length)) ->
-      mk "DBlobPersistent" [ DString hash; DInt64 length ]
+      mk "DBlobPersistent" [ DString hash; RuntimeTypes.Dval.int (bigint length) ]
 
     // Streams render as a stub tag for LSP/reflection only — they
     // can't round-trip (no live pull fn on the other side).
@@ -815,8 +820,8 @@ module Dval =
       Exception.raiseInternal
         "Cannot rebuild an ephemeral blob from its reflected form; it contains only the blob id, not the bytes. Values that need to round-trip through DT must be promoted to Persistent first."
         []
-    | DEnum(_, _, [], "DBlobPersistent", [ DString hash; DInt64 length ]) ->
-      DBlob(Persistent(hash, length))
+    | DEnum(_, _, [], "DBlobPersistent", [ DString hash; length ]) ->
+      DBlob(Persistent(hash, D.int64FromInt length))
 
     | DEnum(_, _, [], "DStreamStub", [ _elemType ]) ->
       Exception.raiseInternal
@@ -1160,8 +1165,8 @@ module RuntimeError =
           "ConstructionWrongNumberOfFields",
           [ FQTypeName.toDT typeName
             DString caseName
-            DInt64 expectedFieldCount
-            DInt64 actualFieldCount ]
+            dintOfInt expectedFieldCount
+            dintOfInt actualFieldCount ]
         | RuntimeError.Enums.ConstructionCaseNotFound(typeName, caseName) ->
           "ConstructionCaseNotFound", [ FQTypeName.toDT typeName; DString caseName ]
         | RuntimeError.Enums.ConstructionFieldOfWrongType(caseName,
@@ -1171,7 +1176,7 @@ module RuntimeError =
                                                           actualValue) ->
           "ConstructionFieldOfWrongType",
           [ DString caseName
-            DInt64 fieldIndex
+            dintOfInt fieldIndex
             ValueType.toDT expectedType
             ValueType.toDT actualType
             Dval.toDT actualValue ]
@@ -1188,8 +1193,8 @@ module RuntimeError =
         RuntimeError.Enums.ConstructionWrongNumberOfFields(
           FQTypeName.fromDT typeName,
           D.string caseName,
-          D.int64 expectedFieldCount,
-          D.int64 actualFieldCount
+          D.int expectedFieldCount,
+          D.int actualFieldCount
         )
       | DEnum(_, _, [], "ConstructionCaseNotFound", [ typeName; caseName ]) ->
         RuntimeError.Enums.ConstructionCaseNotFound(
@@ -1203,7 +1208,7 @@ module RuntimeError =
               [ caseName; fieldIndex; expectedType; actualType; actualValue ]) ->
         RuntimeError.Enums.ConstructionFieldOfWrongType(
           D.string caseName,
-          D.int64 fieldIndex,
+          D.int fieldIndex,
           ValueType.fromDT expectedType,
           ValueType.fromDT actualType,
           Dval.fromDT actualValue
@@ -1225,11 +1230,12 @@ module RuntimeError =
 
         | RuntimeError.Applications.WrongNumberOfTypeArgsForFn(fn, expected, actual) ->
           "WrongNumberOfTypeArgsForFn",
-          [ FQFnName.toDT fn; DInt64 expected; DInt64 actual ]
+          [ FQFnName.toDT fn; dintOfInt expected; dintOfInt actual ]
         | RuntimeError.Applications.CannotApplyTypeArgsMoreThanOnce ->
           "CannotApplyTypeArgsMoreThanOnce", []
         | RuntimeError.Applications.TooManyArgsForFn(fn, expected, actual) ->
-          "TooManyArgsForFn", [ FQFnName.toDT fn; DInt64 expected; DInt64 actual ]
+          "TooManyArgsForFn",
+          [ FQFnName.toDT fn; dintOfInt expected; dintOfInt actual ]
         | RuntimeError.Applications.FnParameterNotExpectedType(fnName,
                                                                paramIndex,
                                                                paramName,
@@ -1238,7 +1244,7 @@ module RuntimeError =
                                                                actualValue) ->
           "FnParameterNotExpectedType",
           [ FQFnName.toDT fnName
-            DInt64 paramIndex
+            dintOfInt paramIndex
             DString paramName
             ValueType.toDT expectedType
             ValueType.toDT actualType
@@ -1260,7 +1266,7 @@ module RuntimeError =
                                                          expected,
                                                          actual) ->
           "TooManyArgsForLambda",
-          [ DUInt64 lambdaExprId; DInt64 expected; DInt64 actual ]
+          [ DUInt64 lambdaExprId; dintOfInt expected; dintOfInt actual ]
 
 
       DEnum(typeName, typeName, [], caseName, fields)
@@ -1276,16 +1282,16 @@ module RuntimeError =
       | DEnum(_, _, [], "WrongNumberOfTypeArgsForFn", [ fn; expected; actual ]) ->
         RuntimeError.Applications.WrongNumberOfTypeArgsForFn(
           FQFnName.fromDT fn,
-          D.int64 expected,
-          D.int64 actual
+          D.int expected,
+          D.int actual
         )
       | DEnum(_, _, [], "CannotApplyTypeArgsMoreThanOnce", []) ->
         RuntimeError.Applications.CannotApplyTypeArgsMoreThanOnce
       | DEnum(_, _, [], "TooManyArgsForFn", [ fn; expected; actual ]) ->
         RuntimeError.Applications.TooManyArgsForFn(
           FQFnName.fromDT fn,
-          D.int64 expected,
-          D.int64 actual
+          D.int expected,
+          D.int actual
         )
       | DEnum(_,
               _,
@@ -1294,7 +1300,7 @@ module RuntimeError =
               [ fnName; paramIndex; paramName; expectedType; actualType; actualValue ]) ->
         RuntimeError.Applications.FnParameterNotExpectedType(
           FQFnName.fromDT fnName,
-          D.int64 paramIndex,
+          D.int paramIndex,
           D.string paramName,
           ValueType.fromDT expectedType,
           ValueType.fromDT actualType,
@@ -1318,8 +1324,8 @@ module RuntimeError =
       | DEnum(_, _, [], "TooManyArgsForLambda", [ lambdaExprId; expected; actual ]) ->
         RuntimeError.Applications.TooManyArgsForLambda(
           D.uInt64 lambdaExprId,
-          D.int64 expected,
-          D.int64 actual
+          D.int expected,
+          D.int actual
         )
 
       | _ -> Exception.raiseInternal "Invalid Applications.Error" []
@@ -1473,7 +1479,7 @@ module RuntimeError =
         "DeprecatedItemHalted", [ Hash.toDT target ]
       | RuntimeError.WrongNumberOfTypeArgsForType(fn, expected, actual) ->
         "WrongNumberOfTypeArgsForType",
-        [ FQTypeName.toDT fn; DInt64 expected; DInt64 actual ]
+        [ FQTypeName.toDT fn; dintOfInt expected; dintOfInt actual ]
       | RuntimeError.Record e -> "Record", [ Records.toDT e ]
       | RuntimeError.Enum e -> "Enum", [ Enums.toDT e ]
       | RuntimeError.Apply e -> "Apply", [ Applications.toDT e ]
@@ -1542,8 +1548,8 @@ module RuntimeError =
     | DEnum(_, _, [], "WrongNumberOfTypeArgsForType", [ fn; expected; actual ]) ->
       RuntimeError.WrongNumberOfTypeArgsForType(
         FQTypeName.fromDT fn,
-        D.int64 expected,
-        D.int64 actual
+        D.int expected,
+        D.int actual
       )
     | DEnum(_, _, [], "Record", [ e ]) -> RuntimeError.Record(Records.fromDT e)
     | DEnum(_, _, [], "Enum", [ e ]) -> RuntimeError.Enum(Enums.fromDT e)

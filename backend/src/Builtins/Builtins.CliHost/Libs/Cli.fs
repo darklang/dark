@@ -71,8 +71,8 @@ module ParseError =
     let typeName = unparseableTypeName ()
     let fields =
       [ "text", DString u.text
-        "line", DInt64 u.line
-        "column", DInt64 u.column
+        "line", Dval.int (bigint u.line)
+        "column", Dval.int (bigint u.column)
         "note", C2DT.Option.toDT DString KTString u.note ]
     DRecord(typeName, typeName, [], Map fields)
 
@@ -80,8 +80,8 @@ module ParseError =
     match d with
     | DRecord(_, _, _, fields) ->
       { text = fields |> D.field "text" |> D.string
-        line = fields |> D.field "line" |> D.int64
-        column = fields |> D.field "column" |> D.int64
+        line = fields |> D.field "line" |> D.int64FromInt
+        column = fields |> D.field "column" |> D.int64FromInt
         note = C2DT.Option.fromDT D.string (fields |> D.field "note") }
     | _ -> Exception.raiseInternal "Invalid Unparseable Dval" [ "dval", d ]
 
@@ -308,13 +308,13 @@ let fns () : List<BuiltInFn> =
             "sandbox"
             TBool
             "Run the script body with NO capabilities (a deny-all sandbox for untrusted scripts), instead of the host's configured grant" ]
-      returnType = TypeReference.result TInt64 (ExecutionError.typeRef ())
+      returnType = TypeReference.result TInt (ExecutionError.typeRef ())
       description =
         "Parses Dark code as a script, and and executes it, returning an exit code"
       fn =
         let errType = KTCustomType(ExecutionError.fqTypeName (), [])
-        let resultOk = Dval.resultOk KTInt64 errType
-        let resultError = Dval.resultError KTInt64 errType
+        let resultOk = Dval.resultOk KTInt errType
+        let resultError = Dval.resultError KTInt errType
         (function
         | exeState,
           _,
@@ -371,8 +371,9 @@ let fns () : List<BuiltInFn> =
                     dbs
                     (RunScript(filename, code))
                 with
-                | Ok(DInt64 i) -> return resultOk (DInt64 i)
-                | Ok DUnit -> return resultOk (DInt64 0L)
+                | Ok(DInt i) -> return resultOk (DInt i)
+                | Ok(DInt64 i) -> return resultOk (Dval.int (bigint i))
+                | Ok DUnit -> return resultOk (Dval.int (bigint 0))
                 | Ok result ->
                   let rte =
                     RuntimeError.CLIs.NonIntReturned result |> RuntimeError.CLI

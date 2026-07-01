@@ -16,14 +16,14 @@ module ParseError =
     module Part =
       type Part =
         | Root
-        | Index of Int64
+        | Index of Int
         | Field of String
 
       let toString (part: Part) : String =
         match part with
         | Root -> "root"
         | Field name -> "." ++ name
-        | Index index -> "[" ++ Int64.toString index ++ "]"
+        | Index index -> "[" ++ Int.toString index ++ "]"
 
     type JsonPath = List<Part.Part>
 
@@ -40,7 +40,7 @@ module ParseError =
     | EnumExtraField of rawJson: String * JsonPath.JsonPath
     | EnumMissingField of
       LanguageTools.RuntimeTypes.TypeReference *
-      index: Int64 *
+      index: Int *
       JsonPath.JsonPath
     | EnumInvalidCasename of
       LanguageTools.RuntimeTypes.TypeReference *
@@ -76,10 +76,10 @@ module ParseError =
       ++ JsonPath.toString path
       ++ "`"
 
-    // Can't parse JSON because argument 4 (`Int64`) is missing at path: `root.Enh`
+    // Can't parse JSON because argument 4 (`Int`) is missing at path: `root.Enh`
     | EnumMissingField(typ, index, path) ->
       "Can't parse JSON because argument "
-      ++ Int64.toString index
+      ++ Int.toString index
       ++ " (`"
       ++ PrettyPrinter.RuntimeTypes.typeReference branchId typ
       ++ "`) is missing at path: `"

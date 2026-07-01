@@ -8,6 +8,8 @@ module Darklang.Stdlib.Int
 // Note: because this file is parsed by the F# host parser, every `Int` literal
 // below needs the `I` suffix (a bare `1` would be an `Int32` here).
 
+type ParseError = | BadFormat
+
 
 /// Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
 /// The modulus <param b> must be greater than 0.
@@ -81,6 +83,10 @@ let sqrt (a: Int) : Float = Builtin.intSqrt a
 let toFloat (a: Int) : Float = Builtin.intToFloat a
 
 
+/// Converts a <type Float> to an <type Int>, truncating toward zero.
+let fromFloat (a: Float) : Int = Builtin.intFromFloat a
+
+
 /// Returns the sum of all the ints in the list
 let sum (lst: List<Int>) : Int =
   Stdlib.List.fold lst 0I (fun acc x -> add acc x)
@@ -110,7 +116,8 @@ let clamp (value: Int) (limitA: Int) (limitB: Int) : Int =
 
 /// Returns the <type Int> value of a <type String>. Because <type Int> is
 /// arbitrary-precision, the only failure is a badly-formatted string.
-let parse (s: String) : Stdlib.Result.Result<Int, String> = Builtin.intParse s
+let parse (s: String) : Stdlib.Result.Result<Int, ParseError> =
+  Builtin.intParse s
 
 
 /// Stringify <param int>
@@ -183,3 +190,21 @@ let toInt128 (a: Int) : Stdlib.Option.Option<Int128> = Builtin.intToInt128 a
 
 /// Converts an <type Int> to a <type UInt128>, returning {{None}} if it doesn't fit
 let toUInt128 (a: Int) : Stdlib.Option.Option<UInt128> = Builtin.intToUInt128 a
+
+
+let bitwiseAnd (a: Int) (b: Int) : Int = Builtin.intBitwiseAnd a b
+
+let bitwiseOr (a: Int) (b: Int) : Int = Builtin.intBitwiseOr a b
+
+let bitwiseXor (a: Int) (b: Int) : Int = Builtin.intBitwiseXor a b
+
+let bitwiseNot (a: Int) : Int = Builtin.intBitwiseNot a
+
+let shiftLeft (a: Int) (b: Int) : Int = Builtin.intShiftLeft a b
+
+let shiftRight (a: Int) (b: Int) : Int = Builtin.intShiftRight a b
+
+
+/// Returns a random integer between <param start> and <param end> (inclusive)
+let random (start: Int) (``end``: Int) : Int =
+  Builtin.intRandom start ``end``

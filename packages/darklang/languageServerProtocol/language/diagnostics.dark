@@ -29,7 +29,7 @@ module Messages =
           uri: DocumentUri
 
           /// Optionally, the version number of the document the diagnostics are published for.
-          version: Stdlib.Option.Option<Int64>
+          version: Stdlib.Option.Option<Int>
 
           /// An array of diagnostic information items.
           diagnostics: List<LanguageServerProtocol.Diagnostic.Diagnostic>

@@ -15,17 +15,17 @@ let logFilePath: String =
   (Builtin.cliGetLogDir ()) ++ "/telemetry.jsonl"
 
 /// Returns monotonic millisecond timestamp (only differences are meaningful)
-let now () : Int64 = Builtin.timeNowMs ()
+let now () : Int = Builtin.timeNowMs ()
 
 /// Compute elapsed ms between a start timestamp and now
-let elapsedMs (startMs: Int64) : Int64 =
+let elapsedMs (startMs: Int) : Int =
   (now ()) - startMs
 
 /// Write a single telemetry event line to the log file.
 /// Format: {"event":"<label>","ms":<elapsed>,"wall":"<ISO8601>","ctx":{...}}
 let logWithContext
   (label: String)
-  (startMs: Int64)
+  (startMs: Int)
   (context: List<(String * String)>)
   : Unit =
   let elapsed = elapsedMs startMs
@@ -43,13 +43,13 @@ let logWithContext
     | pairs -> "{" ++ (Stdlib.String.join pairs ",") ++ "}"
 
   let wall = Stdlib.DateTime.toString (Stdlib.DateTime.now ())
-  let line = $"{{\"event\":\"{label}\",\"ms\":{Stdlib.Int64.toString elapsed},\"wall\":\"{wall}\",\"ctx\":{ctxJson}}}"
+  let line = $"{{\"event\":\"{label}\",\"ms\":{Stdlib.Int.toString elapsed},\"wall\":\"{wall}\",\"ctx\":{ctxJson}}}"
 
   let _ = Builtin.fileAppendText logFilePath (line ++ "\n")
   ()
 
 /// Shorthand: log a timing event with no extra context
-let log (label: String) (startMs: Int64) : Unit =
+let log (label: String) (startMs: Int) : Unit =
   logWithContext label startMs []
 
 /// Log a raw message (not a timing span) — useful for one-off markers

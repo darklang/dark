@@ -209,7 +209,7 @@ type Dval =
   // References
   | DDB of String
 
-  | DBlobPersistent of hash: String * length: Int64
+  | DBlobPersistent of hash: String * length: Int
   | DBlobEphemeral of id: Uuid
 
   | DStreamStub of elemType: ValueType

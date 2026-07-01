@@ -2,7 +2,7 @@ module Darklang.Stdlib.Cli.Process
 
 
 /// Process handle for interacting with spawned processes
-type ProcessHandle = Int64
+type ProcessHandle = Int
 
 /// Spawn a new process and return a handle for interaction
 let spawn (command: String) : ProcessHandle =
@@ -22,7 +22,7 @@ let terminate (handle: ProcessHandle) : Stdlib.Cli.ExecutionOutcome =
 
 /// Result of running a process
 type Output =
-  { exitCode: Int64
+  { exitCode: Int
     stdout: String
     stderr: String }
 
@@ -51,25 +51,25 @@ let exec (program: String) (args: List<String>) : Result.Result<String, String> 
   (run program args)
   |> Stdlib.Result.mapError (fun e -> e.message)
   |> Stdlib.Result.andThen (fun output ->
-    if output.exitCode == 0L then
+    if output.exitCode == 0I then
       Stdlib.Result.Result.Ok(Stdlib.String.trimEnd output.stdout)
     else
       let err = Stdlib.String.trimEnd output.stderr
 
       if err == "" then
         Stdlib.Result.Result.Error
-          $"Command failed with exit code {Stdlib.Int64.toString output.exitCode}"
+          $"Command failed with exit code {Stdlib.Int.toString output.exitCode}"
       else
         Stdlib.Result.Result.Error err)
 
 
 /// Kill a process by PID.
-let kill (pid: Int64) : Result.Result<Unit, Posix.Error> =
+let kill (pid: Int) : Result.Result<Unit, Posix.Error> =
   Posix.kill pid Posix.sigterm
 
 
 /// Force-kill a process by PID.
-let forceKill (pid: Int64) : Result.Result<Unit, Posix.Error> =
+let forceKill (pid: Int) : Result.Result<Unit, Posix.Error> =
   Posix.kill pid Posix.sigkill
 
 
@@ -95,7 +95,7 @@ let runIn
 let runSilent
   (program: String)
   (args: List<String>)
-  : Result.Result<Int64, Posix.Error> =
+  : Result.Result<Int, Posix.Error> =
   (run program args)
   |> Stdlib.Result.map (fun output -> output.exitCode)
 
@@ -115,7 +115,7 @@ let runWithEnv
       let (k, _v) = pair
       (Stdlib.String.contains k "=") || (Stdlib.String.contains k " "))
 
-  if (Stdlib.List.length invalid) > 0L then
+  if (Stdlib.List.length invalid) > 0I then
     let badName =
       (Stdlib.List.head invalid)
       |> Builtin.unwrap
@@ -140,11 +140,11 @@ let runWithEnv
 /// Returns Error if the command times out.
 /// Returns String errors because it mixes spawn failures with validation/timeout errors.
 let runWithTimeout
-  (timeoutMs: Int64)
+  (timeoutMs: Int)
   (program: String)
   (args: List<String>)
   : Result.Result<Output, String> =
-  if timeoutMs <= 0L then
+  if timeoutMs <= 0I then
     Stdlib.Result.Result.Error "timeoutMs must be positive"
   else
 
@@ -185,12 +185,12 @@ let shellPipeline (commands: List<String>) : Result.Result<Output, Posix.Error> 
 
 
 /// Check if a process is running.
-let isRunning (pid: Int64) : Bool =
+let isRunning (pid: Int) : Bool =
   Posix.isProcessRunning pid
 
 
 /// Wait for a process to finish by polling.
-let waitFor (pid: Int64) : Unit =
+let waitFor (pid: Int) : Unit =
   if Posix.isProcessRunning pid then
     let _ = Posix.sleep 100.0
     waitFor pid

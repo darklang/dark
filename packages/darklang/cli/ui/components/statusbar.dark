@@ -7,12 +7,12 @@ type StatusBarModel =
   { leftText: String
     rightText: String
     centerText: String
-    width: Int64
+    width: Int
     backgroundColor: Core.Types.Color }
 
-let createStatusBar (leftText: String) (rightText: String) (width: Int64) : Core.Types.Component<StatusBarModel> =
+let createStatusBar (leftText: String) (rightText: String) (width: Int) : Core.Types.Component<StatusBarModel> =
   let model = StatusBarModel { leftText = leftText; rightText = rightText; centerText = ""; width = width; backgroundColor = Core.Types.Color.Dark }
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = 1L } }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = width; height = 1I } }
   Core.Types.Component
     { id = "statusbar"
       model = model
@@ -32,7 +32,7 @@ let renderStatusBar (component: Core.Types.Component<StatusBarModel>) (context: 
     if Stdlib.String.isEmpty model.centerText then
       let paddingSpace = model.width - leftLen - rightLen
       let padding =
-        if paddingSpace > 0L then
+        if paddingSpace > 0I then
           Stdlib.String.repeat " " paddingSpace
         else
           ""
@@ -40,17 +40,17 @@ let renderStatusBar (component: Core.Types.Component<StatusBarModel>) (context: 
     else
       let totalContentLen = leftLen + centerLen + rightLen
       if totalContentLen >= model.width then
-        Stdlib.String.slice (model.leftText ++ model.centerText ++ model.rightText) 0L model.width
+        Stdlib.String.slice (model.leftText ++ model.centerText ++ model.rightText) 0I model.width
       else
-        let leftPadding = Stdlib.Int64.divide (model.width - centerLen) 2L - leftLen
+        let leftPadding = Stdlib.Int.divide (model.width - centerLen) 2I - leftLen
         let rightPadding = model.width - leftLen - centerLen - leftPadding
         let leftPad =
-          if leftPadding > 0L then
+          if leftPadding > 0I then
             Stdlib.String.repeat " " leftPadding
           else
             ""
         let rightPad =
-          if rightPadding > 0L then
+          if rightPadding > 0I then
             Stdlib.String.repeat " " rightPadding
           else
             ""

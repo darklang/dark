@@ -477,7 +477,12 @@ let private posixErrorKT () = KTCustomType(posixErrorTypeName (), [])
 
 let private dPosixError (errno : int, msg : string) : Dval =
   let tn = posixErrorTypeName ()
-  DRecord(tn, tn, [], Map [ "errno", DInt64(int64 errno); "message", DString msg ])
+  DRecord(
+    tn,
+    tn,
+    [],
+    Map [ "errno", Dval.int (bigint errno); "message", DString msg ]
+  )
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "posixGetcwd" 0
@@ -564,14 +569,14 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "path" TString "The directory path to create"
-          Param.make "mode" TInt64 "Permission bits (e.g. 493 for 0755)" ]
+          Param.make "mode" TInt "Permission bits (e.g. 493 for 0755)" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
       description = "Creates a directory via libc mkdir()"
       fn =
         (function
-        | state, _, _, [ DString path; DInt64 mode ] ->
+        | state, vm, _, [ DString path; DInt mode ] ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
-          match Libc.mkdir path (int mode) with
+          match Libc.mkdir path (intToInt32 vm mode) with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
             Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
@@ -648,14 +653,14 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "path" TString "File path"
-          Param.make "mode" TInt64 "Permission bits (e.g. 493 for 0755)" ]
+          Param.make "mode" TInt "Permission bits (e.g. 493 for 0755)" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
       description = "Changes file permissions via libc chmod()"
       fn =
         (function
-        | state, _, _, [ DString path; DInt64 mode ] ->
+        | state, vm, _, [ DString path; DInt mode ] ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
-          match Libc.chmod path (int mode) with
+          match Libc.chmod path (intToInt32 vm mode) with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
             Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
@@ -737,7 +742,7 @@ let fns () : List<BuiltInFn> =
             TString
             "Prefix for the temp file path (e.g. \"/tmp/dark-\")" ]
       returnType =
-        TypeReference.result (TTuple(TInt64, TString, [])) (posixErrorTypeRef ())
+        TypeReference.result (TTuple(TInt, TString, [])) (posixErrorTypeRef ())
       description =
         "Creates a unique temp file via libc mkstemp(). Returns (fd, path)."
       fn =
@@ -745,12 +750,12 @@ let fns () : List<BuiltInFn> =
         | state, _, _, [ DString prefix ] ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps prefix
           let resultOk =
-            Dval.resultOk (KTTuple(VT.int64, VT.string, [])) (posixErrorKT ())
+            Dval.resultOk (KTTuple(VT.int, VT.string, [])) (posixErrorKT ())
           let resultError =
-            Dval.resultError (KTTuple(VT.int64, VT.string, [])) (posixErrorKT ())
+            Dval.resultError (KTTuple(VT.int, VT.string, [])) (posixErrorKT ())
           match Libc.mkstemp prefix with
           | Ok(fd, path) ->
-            resultOk (DTuple(DInt64(int64 fd), DString path, [])) |> Ply
+            resultOk (DTuple(Dval.int (bigint fd), DString path, [])) |> Ply
           | Error e -> resultError (dPosixError e) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -836,7 +841,7 @@ let fns () : List<BuiltInFn> =
           Param.make "args" (TList TString) "Arguments to pass" ]
       returnType =
         TypeReference.result
-          (TTuple(TInt64, TString, [ TString ]))
+          (TTuple(TInt, TString, [ TString ]))
           (posixErrorTypeRef ())
       description =
         "Spawns a child process, waits for it to finish, returns (exitCode, stdout, stderr)."
@@ -845,11 +850,11 @@ let fns () : List<BuiltInFn> =
         | state, _, _, [ DString program; DList(_, args) ] ->
           let resultOk =
             Dval.resultOk
-              (KTTuple(VT.int64, VT.string, [ VT.string ]))
+              (KTTuple(VT.int, VT.string, [ VT.string ]))
               (posixErrorKT ())
           let resultError =
             Dval.resultError
-              (KTTuple(VT.int64, VT.string, [ VT.string ]))
+              (KTTuple(VT.int, VT.string, [ VT.string ]))
               (posixErrorKT ())
           let argStrs =
             args
@@ -862,7 +867,7 @@ let fns () : List<BuiltInFn> =
           match Libc.spawnAndWait program argStrs with
           | Ok(exitCode, stdout, stderr) ->
             resultOk (
-              DTuple(DInt64(int64 exitCode), DString stdout, [ DString stderr ])
+              DTuple(Dval.int (bigint exitCode), DString stdout, [ DString stderr ])
             )
             |> Ply
           | Error e -> resultError (dPosixError e) |> Ply
@@ -878,23 +883,23 @@ let fns () : List<BuiltInFn> =
       parameters =
         [ Param.make "program" TString "Path to the executable"
           Param.make "args" (TList TString) "Arguments to pass"
-          Param.make "timeoutMs" TInt64 "Timeout in milliseconds" ]
+          Param.make "timeoutMs" TInt "Timeout in milliseconds" ]
       returnType =
         TypeReference.result
-          (TTuple(TInt64, TString, [ TString ]))
+          (TTuple(TInt, TString, [ TString ]))
           (posixErrorTypeRef ())
       description =
         "Spawns a child process with a timeout. Returns (exitCode, stdout, stderr) or Error on timeout."
       fn =
         (function
-        | state, _, _, [ DString program; DList(_, args); DInt64 timeoutMs ] ->
+        | state, vm, _, [ DString program; DList(_, args); DInt timeoutMs ] ->
           let resultOk =
             Dval.resultOk
-              (KTTuple(VT.int64, VT.string, [ VT.string ]))
+              (KTTuple(VT.int, VT.string, [ VT.string ]))
               (posixErrorKT ())
           let resultError =
             Dval.resultError
-              (KTTuple(VT.int64, VT.string, [ VT.string ]))
+              (KTTuple(VT.int, VT.string, [ VT.string ]))
               (posixErrorKT ())
           let argStrs =
             args
@@ -904,10 +909,12 @@ let fns () : List<BuiltInFn> =
               | _ -> incorrectArgs ())
           // precise check: this exact program + args must be covered (gate only checked exec presence).
           LibExecution.CapabilityCheck.requireExec state.grantedCaps program argStrs
-          match Libc.spawnAndWaitWithTimeout program argStrs (int timeoutMs) with
+          match
+            Libc.spawnAndWaitWithTimeout program argStrs (intToInt32 vm timeoutMs)
+          with
           | Ok(exitCode, stdout, stderr) ->
             resultOk (
-              DTuple(DInt64(int64 exitCode), DString stdout, [ DString stderr ])
+              DTuple(Dval.int (bigint exitCode), DString stdout, [ DString stderr ])
             )
             |> Ply
           | Error e -> resultError (dPosixError e) |> Ply
@@ -921,17 +928,17 @@ let fns () : List<BuiltInFn> =
     { name = fn "posixKill" 0
       typeParams = []
       parameters =
-        [ Param.make "pid" TInt64 "Process ID"
+        [ Param.make "pid" TInt "Process ID"
           Param.make
             "signal"
-            TInt64
+            TInt
             "Signal number (e.g. 9 for SIGKILL, 15 for SIGTERM)" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
       description = "Sends a signal to a process."
       fn =
         (function
-        | _, _, _, [ DInt64 pid; DInt64 signal ] ->
-          match Libc.kill (int pid) (int signal) with
+        | _, vm, _, [ DInt pid; DInt signal ] ->
+          match Libc.kill (intToInt32 vm pid) (intToInt32 vm signal) with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
             Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
@@ -945,17 +952,17 @@ let fns () : List<BuiltInFn> =
     { name = fn "posixFdRead" 0
       typeParams = []
       parameters =
-        [ Param.make "fd" TInt64 "File descriptor to read from"
-          Param.make "count" TInt64 "Max bytes to read" ]
+        [ Param.make "fd" TInt "File descriptor to read from"
+          Param.make "count" TInt "Max bytes to read" ]
       returnType = TypeReference.result TBlob (posixErrorTypeRef ())
       description =
         "Reads up to count bytes from a file descriptor into an ephemeral Blob."
       fn =
         (function
-        | _, _, _, [ DInt64 fd; DInt64 count ] ->
+        | _, vm, _, [ DInt fd; DInt count ] ->
           let resultOk = Dval.resultOk KTBlob (posixErrorKT ())
           let resultError = Dval.resultError KTBlob (posixErrorKT ())
-          match Libc.fdRead (int fd) (int count) with
+          match Libc.fdRead (intToInt32 vm fd) (intToInt32 vm count) with
           | Ok bytes -> resultOk (Blob.newEphemeral bytes) |> Ply
           | Error e -> resultError (dPosixError e) |> Ply
         | _ -> incorrectArgs ())
@@ -968,20 +975,20 @@ let fns () : List<BuiltInFn> =
     { name = fn "posixFdWrite" 0
       typeParams = []
       parameters =
-        [ Param.make "fd" TInt64 "File descriptor to write to"
+        [ Param.make "fd" TInt "File descriptor to write to"
           Param.make "blob" TBlob "Bytes to write" ]
-      returnType = TypeReference.result TInt64 (posixErrorTypeRef ())
+      returnType = TypeReference.result TInt (posixErrorTypeRef ())
       description = "Writes bytes to a file descriptor. Returns bytes written."
       fn =
         (function
-        | state, _, _, [ DInt64 fd; DBlob ref ] ->
+        | state, vm, _, [ DInt fd; DBlob ref ] ->
           uply {
             let! bytes = Blob.readBytes state ref
-            match Libc.fdWrite (int fd) bytes with
+            match Libc.fdWrite (intToInt32 vm fd) bytes with
             | Ok n ->
-              return Dval.resultOk KTInt64 (posixErrorKT ()) (DInt64(int64 n))
+              return Dval.resultOk KTInt (posixErrorKT ()) (Dval.int (bigint n))
             | Error e ->
-              return Dval.resultError KTInt64 (posixErrorKT ()) (dPosixError e)
+              return Dval.resultError KTInt (posixErrorKT ()) (dPosixError e)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -992,13 +999,13 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "posixFdClose" 0
       typeParams = []
-      parameters = [ Param.make "fd" TInt64 "File descriptor to close" ]
+      parameters = [ Param.make "fd" TInt "File descriptor to close" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
       description = "Closes a file descriptor."
       fn =
         (function
-        | _, _, _, [ DInt64 fd ] ->
-          match Libc.fdClose (int fd) with
+        | _, vm, _, [ DInt fd ] ->
+          match Libc.fdClose (intToInt32 vm fd) with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
             Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply
@@ -1013,22 +1020,19 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "path" TString "File path to open"
-          Param.make "flags" TInt64 "Open flags (e.g. O_RDONLY, O_WRONLY | O_CREAT)"
-          Param.make
-            "mode"
-            TInt64
-            "Permission bits for new files (e.g. 420 for 0644)" ]
-      returnType = TypeReference.result TInt64 (posixErrorTypeRef ())
+          Param.make "flags" TInt "Open flags (e.g. O_RDONLY, O_WRONLY | O_CREAT)"
+          Param.make "mode" TInt "Permission bits for new files (e.g. 420 for 0644)" ]
+      returnType = TypeReference.result TInt (posixErrorTypeRef ())
       description = "Opens a file via libc open(). Returns a file descriptor."
       fn =
         (function
-        | state, _, _, [ DString path; DInt64 flags; DInt64 mode ] ->
+        | state, vm, _, [ DString path; DInt flags; DInt mode ] ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
-          match Libc.openFile path (int flags) (int mode) with
+          match Libc.openFile path (intToInt32 vm flags) (intToInt32 vm mode) with
           | Ok fd ->
-            Dval.resultOk KTInt64 (posixErrorKT ()) (DInt64(int64 fd)) |> Ply
+            Dval.resultOk KTInt (posixErrorKT ()) (Dval.int (bigint fd)) |> Ply
           | Error e ->
-            Dval.resultError KTInt64 (posixErrorKT ()) (dPosixError e) |> Ply
+            Dval.resultError KTInt (posixErrorKT ()) (dPosixError e) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -1039,11 +1043,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "posixFlagRdonly" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Returns the O_RDONLY flag for open()"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> DInt64(int64 Libc.O_RDONLY) |> Ply
+        | _, _, _, [ DUnit ] -> Dval.int (bigint Libc.O_RDONLY) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -1054,11 +1058,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "posixFlagWronly" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Returns the O_WRONLY flag for open()"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> DInt64(int64 Libc.O_WRONLY) |> Ply
+        | _, _, _, [ DUnit ] -> Dval.int (bigint Libc.O_WRONLY) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -1069,11 +1073,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "posixFlagRdwr" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Returns the O_RDWR flag for open()"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> DInt64(int64 Libc.O_RDWR) |> Ply
+        | _, _, _, [ DUnit ] -> Dval.int (bigint Libc.O_RDWR) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -1084,11 +1088,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "posixFlagCreat" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Returns the O_CREAT flag for open() (platform-aware)"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> DInt64(int64 Libc.O_CREAT) |> Ply
+        | _, _, _, [ DUnit ] -> Dval.int (bigint Libc.O_CREAT) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -1099,11 +1103,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "posixFlagTrunc" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Returns the O_TRUNC flag for open() (platform-aware)"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> DInt64(int64 Libc.O_TRUNC) |> Ply
+        | _, _, _, [ DUnit ] -> Dval.int (bigint Libc.O_TRUNC) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -1114,11 +1118,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "posixFlagAppend" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Returns the O_APPEND flag for open() (platform-aware)"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> DInt64(int64 Libc.O_APPEND) |> Ply
+        | _, _, _, [ DUnit ] -> Dval.int (bigint Libc.O_APPEND) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -1130,25 +1134,25 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters = [ Param.make "path" TString "File path to stat" ]
       returnType =
-        TypeReference.result
-          (TTuple(TInt64, TInt64, [ TInt64 ]))
-          (posixErrorTypeRef ())
+        TypeReference.result (TTuple(TInt, TInt, [ TInt ])) (posixErrorTypeRef ())
       description = "Stats a file via libc stat(). Returns (mode, size, mtimeSec)."
       fn =
         (function
         | state, _, _, [ DString path ] ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           let resultOk =
-            Dval.resultOk
-              (KTTuple(VT.int64, VT.int64, [ VT.int64 ]))
-              (posixErrorKT ())
+            Dval.resultOk (KTTuple(VT.int, VT.int, [ VT.int ])) (posixErrorKT ())
           let resultError =
-            Dval.resultError
-              (KTTuple(VT.int64, VT.int64, [ VT.int64 ]))
-              (posixErrorKT ())
+            Dval.resultError (KTTuple(VT.int, VT.int, [ VT.int ])) (posixErrorKT ())
           match Libc.stat path with
           | Ok(mode, size, mtimeSec) ->
-            resultOk (DTuple(DInt64(int64 mode), DInt64 size, [ DInt64 mtimeSec ]))
+            resultOk (
+              DTuple(
+                Dval.int (bigint mode),
+                Dval.int (bigint size),
+                [ Dval.int (bigint mtimeSec) ]
+              )
+            )
             |> Ply
           | Error e -> resultError (dPosixError e) |> Ply
         | _ -> incorrectArgs ())
@@ -1192,11 +1196,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "posixGetpid" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Returns the current process ID via libc getpid()"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> DInt64(int64 (Libc.getpid ())) |> Ply
+        | _, _, _, [ DUnit ] -> Dval.int (bigint (Libc.getpid ())) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -1207,11 +1211,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "posixGetuid" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Returns the current user ID via libc getuid()"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> DInt64(int64 (Libc.getuid ())) |> Ply
+        | _, _, _, [ DUnit ] -> Dval.int (bigint (Libc.getuid ())) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -1242,11 +1246,11 @@ let fns () : List<BuiltInFn> =
     { name = fn "posixCpuCount" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Returns the number of online CPUs via sysconf()"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> DInt64(Libc.cpuCount ()) |> Ply
+        | _, _, _, [ DUnit ] -> Dval.int (bigint (Libc.cpuCount ())) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -1296,15 +1300,15 @@ let fns () : List<BuiltInFn> =
     { name = fn "posixFlock" 0
       typeParams = []
       parameters =
-        [ Param.make "fd" TInt64 "File descriptor"
+        [ Param.make "fd" TInt "File descriptor"
           Param.make "exclusive" TBool "True for exclusive lock, false to unlock" ]
       returnType = TypeReference.result TUnit (posixErrorTypeRef ())
       description = "Locks or unlocks a file via libc flock()"
       fn =
         (function
-        | _, _, _, [ DInt64 fd; DBool exclusive ] ->
+        | _, vm, _, [ DInt fd; DBool exclusive ] ->
           let op = if exclusive then Libc.LOCK_EX else Libc.LOCK_UN
-          match Libc.flock (int fd) op with
+          match Libc.flock (intToInt32 vm fd) op with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
             Dval.resultError KTUnit (posixErrorKT ()) (dPosixError e) |> Ply

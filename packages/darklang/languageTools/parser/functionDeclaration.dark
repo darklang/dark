@@ -67,7 +67,7 @@ let parseParams
 
 /// Parses a package function declaration
 ///
-/// i.e. `let add (x: Int64) (y: Int64): Int64 = x + y`,
+/// i.e. `let add (x: Int) (y: Int): Int = x + y`,
 ///
 /// - `add` is the function name
 /// - `x: Int` and `y: Int` are the parameters
@@ -87,7 +87,7 @@ let parse
         typeParamsNode
         |> findNodeByFieldName "params"
         |> Stdlib.Option.map (fun node ->
-          match node.children |> Stdlib.List.chunkBySize 2L with
+          match node.children |> Stdlib.List.chunkBySize 2I with
           | Ok pairs ->
             pairs |> Stdlib.List.map (fun typeParamSeparatorPair ->
               match typeParamSeparatorPair with

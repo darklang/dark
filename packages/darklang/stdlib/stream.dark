@@ -51,7 +51,7 @@ let filter (stream: Stream<'a>) (pred: 'a -> Bool) : Stream<'a> =
 /// Returns a new Stream yielding at most <param n> elements from the
 /// front of <param stream>. Lazy; the source advances exactly <param n>
 /// times (or fewer, if the source exhausts first).
-let take (stream: Stream<'a>) (n: Int64) : Stream<'a> =
+let take (stream: Stream<'a>) (n: Int) : Stream<'a> =
   Builtin.streamTake<'a> stream n
 
 

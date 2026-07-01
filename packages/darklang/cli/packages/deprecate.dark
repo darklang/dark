@@ -30,8 +30,8 @@ let argSpec: FlagParser.Spec =
 let parseArgs (args: List<String>) : ParsedArgs =
   let p = FlagParser.parse argSpec args
   ParsedArgs
-    { itemType = Stdlib.List.getAt p.positionals 0L
-      target = Stdlib.List.getAt p.positionals 1L
+    { itemType = Stdlib.List.getAt p.positionals 0I
+      target = Stdlib.List.getAt p.positionals 1I
       kind = FlagParser.getOption p "--kind"
       replacement = FlagParser.getOption p "--replacement"
       message = FlagParser.getOptionOr p "--message" ""

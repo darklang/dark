@@ -39,10 +39,10 @@ let get (key: String) : Stdlib.Option.Option<String> =
   let config = readConfig ()
   Stdlib.Dict.get config key
 
-// A single Int64 config value, falling back to `default_` when absent or unparseable.
-let getInt (key: String) (default_: Int64) : Int64 =
+// A single Int config value, falling back to `default_` when absent or unparseable.
+let getInt (key: String) (default_: Int) : Int =
   match get key with
-  | Some s -> Stdlib.Result.withDefault (Stdlib.Int64.parse s) default_
+  | Some s -> Stdlib.Result.withDefault (Stdlib.Int.parse s) default_
   | None -> default_
 
 
@@ -68,9 +68,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     // Show the implied local URL for well-formed app port settings.
     match Stdlib.String.split key "." with
     | [ "apps"; _; "port" ] ->
-      match Stdlib.Int64.parse value with
+      match Stdlib.Int.parse value with
       | Ok port ->
-        if port >= 1L && port <= 65535L then
+        if port >= 1I && port <= 65535I then
           Stdlib.printLine (Colors.dimText $"  → http://localhost:{value}")
         else
           ()

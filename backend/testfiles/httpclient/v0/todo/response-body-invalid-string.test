@@ -19,7 +19,7 @@ RANDOM_BYTES
  {response with headers = respHeaders}) =
    Darklang.Stdlib.HttpClient.Response
     { body = "utf-8 decoding error"
-      statusCode = 200L
+      statusCode = 200
       headers =
         [
           ("content-length", "LENGTH")

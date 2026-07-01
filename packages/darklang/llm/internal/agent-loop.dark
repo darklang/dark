@@ -45,8 +45,8 @@ type AgentConfig =
   { model: Model
     systemPrompt: Stdlib.Option.Option<String>
     tools: List<Tool>
-    maxTokens: Int64
-    maxTurns: Int64
+    maxTokens: Int
+    maxTurns: Int
     temperature: Stdlib.Option.Option<Float> }
 
 
@@ -57,7 +57,7 @@ type AgentConfig =
 type AgentResult =
   { response: String
     toolCalls: List<ToolCall>
-    turns: Int64
+    turns: Int
     usage: Provider.Usage
     // Full message history including tool calls/results (for multi-turn conversations)
     messages: List<Message>
@@ -119,7 +119,7 @@ let processToolCalls
 type LoopState =
   { messages: List<Message>
     toolCalls: List<ToolCall>
-    turn: Int64
+    turn: Int
     totalUsage: Provider.Usage
     isDone: Bool
     // Extended data accumulation
@@ -140,7 +140,7 @@ let initialState
     { messages =
         Stdlib.List.append history [ Provider.userMessage userMessage ]
       toolCalls = []
-      turn = 1L
+      turn = 1I
       totalUsage = Provider.emptyUsage
       isDone = false
       thinking = Stdlib.Option.Option.None
@@ -237,7 +237,7 @@ let runExtendedLoop
         { state with
             messages = updatedMessages
             toolCalls = newToolCalls
-            turn = state.turn + 1L
+            turn = state.turn + 1I
             totalUsage = newUsage
             thinking = accumulatedThinking
             webSearchResults = accumulatedSearches
@@ -246,7 +246,7 @@ let runExtendedLoop
 
       if newState.turn > config.maxTurns then
         Stdlib.Result.Result.Error
-          $"Max turns exceeded ({Stdlib.Int64.toString newState.turn}/{Stdlib.Int64.toString config.maxTurns})"
+          $"Max turns exceeded ({Stdlib.Int.toString newState.turn}/{Stdlib.Int.toString config.maxTurns})"
       else
         runExtendedLoop provider config extensions newState
 

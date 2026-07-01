@@ -531,7 +531,7 @@ let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<PT.Commit>> 
         { hash = Hash(read.string "hash")
           message = read.string "message"
           createdAt = read.instant "created_at"
-          opCount = read.int64 "op_count"
+          opCount = read.int64 "op_count" |> bigint
           branchId = read.uuid "branch_id"
           branchName = read.string "branch_name"
           committerId = read.uuid "account_id"
@@ -576,7 +576,7 @@ let getCommitsForBranchChain
           { hash = Hash(read.string "hash")
             message = read.string "message"
             createdAt = read.instant "created_at"
-            opCount = read.int64 "op_count"
+            opCount = read.int64 "op_count" |> bigint
             branchId = read.uuid "branch_id"
             branchName = read.string "branch_name"
             committerId = read.uuid "account_id"

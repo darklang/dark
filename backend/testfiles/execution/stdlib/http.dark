@@ -20,63 +20,63 @@
 
 Stdlib.Http.badRequest_v0 "Your request resulted in an error" =
   Stdlib.Http.Response
-    { statusCode = 400L
+    { statusCode = 400I
       headers = []
       body = Stdlib.String.toBlob "Your request resulted in an error" }
 
-Stdlib.Http.response (Stdlib.String.toBlob "test") 200L =
+Stdlib.Http.response (Stdlib.String.toBlob "test") 200I =
   Stdlib.Http.Response
-    { statusCode = 200L
+    { statusCode = 200I
       headers = []
       body = Stdlib.String.toBlob "test" }
 
 Stdlib.Http.responseWithHeaders
   (Stdlib.String.toBlob "test")
   [ ("Content-Type", "text/html; charset=utf-8") ]
-  200L =
+  200I =
     Stdlib.Http.Response
-      { statusCode = 200L
+      { statusCode = 200I
         headers = [ ("Content-Type", "text/html; charset=utf-8") ]
         body = Stdlib.String.toBlob "test" }
 
-Stdlib.Http.notFound () = Stdlib.Http.response Stdlib.Blob.empty 404L
+Stdlib.Http.notFound () = Stdlib.Http.response Stdlib.Blob.empty 404I
 
-Stdlib.Http.unauthorized () = Stdlib.Http.response Stdlib.Blob.empty 401L
+Stdlib.Http.unauthorized () = Stdlib.Http.response Stdlib.Blob.empty 401I
 
-Stdlib.Http.forbidden () = Stdlib.Http.response Stdlib.Blob.empty 403L
+Stdlib.Http.forbidden () = Stdlib.Http.response Stdlib.Blob.empty 403I
 
 Stdlib.Http.success (Stdlib.String.toBlob "test") =
-  Stdlib.Http.response (Stdlib.String.toBlob "test") 200L
+  Stdlib.Http.response (Stdlib.String.toBlob "test") 200I
 
-Stdlib.Http.responseWithHtml "test" 200L =
+Stdlib.Http.responseWithHtml "test" 200I =
   Stdlib.Http.responseWithHeaders
     (Stdlib.String.toBlob "test")
     [ ("Content-Type", "text/html; charset=utf-8") ]
-    200L
+    200I
 
-Stdlib.Http.responseWithText "test" 200L =
+Stdlib.Http.responseWithText "test" 200I =
   Stdlib.Http.responseWithHeaders
     (Stdlib.String.toBlob "test")
     [ ("Content-Type", "text/plain; charset=utf-8") ]
-    200L
+    200I
 
-Stdlib.Http.responseWithJson "test" 200L =
+Stdlib.Http.responseWithJson "test" 200I =
   (Stdlib.Http.responseWithHeaders
     (Stdlib.String.toBlob "test")
     [ ("Content-Type", "application/json") ]
-    200L)
+    200I)
 
 (Stdlib.Http.redirectTo "") =
-  Stdlib.Http.responseWithHeaders Stdlib.Blob.empty [ ("Location", "") ] 302L
+  Stdlib.Http.responseWithHeaders Stdlib.Blob.empty [ ("Location", "") ] 302I
 
 (Stdlib.Http.redirectTo "bad url") =
-  Stdlib.Http.responseWithHeaders Stdlib.Blob.empty [ ("Location", "bad url") ] 302L
+  Stdlib.Http.responseWithHeaders Stdlib.Blob.empty [ ("Location", "bad url") ] 302I
 
 (Stdlib.Http.redirectTo_v0 "http://someothersite.com") =
-  Stdlib.Http.responseWithHeaders Stdlib.Blob.empty [ ("Location", "http://someothersite.com") ] 302L
+  Stdlib.Http.responseWithHeaders Stdlib.Blob.empty [ ("Location", "http://someothersite.com") ] 302I
 
 (Stdlib.Http.redirectTo_v0 "/relativeUrl") =
-  Stdlib.Http.responseWithHeaders Stdlib.Blob.empty [ ("Location", "/relativeUrl") ] 302L
+  Stdlib.Http.responseWithHeaders Stdlib.Blob.empty [ ("Location", "/relativeUrl") ] 302I
 
 
 // parseQueryString: ports the old _middleware.dark fixture.

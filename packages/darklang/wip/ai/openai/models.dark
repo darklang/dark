@@ -12,7 +12,7 @@ type Json = Stdlib.AltJson.Json
 /// Describes an OpenAI model offering that can be used with the API.
 type Model =
   { id: String        // The model identifier, which can be referenced in the API endpoints
-    created: Int64    // The Unix timestamp (in seconds) when the model was created
+    created: Int    // The Unix timestamp (in seconds) when the model was created
     object_: String   // The object type, which is always "model"
     ownedBy: String } // The organization that owns the model
 
@@ -43,7 +43,7 @@ let list
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
           let dataArray = Stdlib.AltJson.Helpers.getArray "data" fields
@@ -52,7 +52,7 @@ let list
               match item with
               | Object itemFields ->
                 match (Stdlib.AltJson.Helpers.getString "id" itemFields,
-                       Stdlib.AltJson.Helpers.getInt "created" itemFields,
+                       Stdlib.AltJson.Helpers.getIntOption "created" itemFields,
                        Stdlib.AltJson.Helpers.getString "object" itemFields,
                        Stdlib.AltJson.Helpers.getString "owned_by" itemFields) with
                 | (Some id, Some created, Some obj, Some ownedBy) ->
@@ -62,8 +62,8 @@ let list
               | _ -> Stdlib.Option.Option.None)
           Stdlib.Result.Result.Ok models
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
       | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
 
@@ -84,11 +84,11 @@ let get
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
           match (Stdlib.AltJson.Helpers.getString "id" fields,
-                 Stdlib.AltJson.Helpers.getInt "created" fields,
+                 Stdlib.AltJson.Helpers.getIntOption "created" fields,
                  Stdlib.AltJson.Helpers.getString "object" fields,
                  Stdlib.AltJson.Helpers.getString "owned_by" fields) with
           | (Some id, Some created, Some obj, Some ownedBy) ->
@@ -96,9 +96,9 @@ let get
               Model { id = id; created = created; object_ = obj; ownedBy = ownedBy })
           | _ -> Stdlib.Result.Result.Error "Invalid model response format"
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 404L -> Stdlib.Result.Result.Error("Model not found: " ++ modelId)
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404I -> Stdlib.Result.Result.Error("Model not found: " ++ modelId)
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
       | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
 
@@ -119,7 +119,7 @@ let delete
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 
       match response.statusCode with
-      | code when code >= 200L && code < 300L ->
+      | code when code >= 200I && code < 300I ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok (Object fields) ->
           match (Stdlib.AltJson.Helpers.getString "id" fields,
@@ -130,9 +130,9 @@ let delete
               ModelDeleted { id = id; deleted = deleted; object_ = obj })
           | _ -> Stdlib.Result.Result.Error "Invalid delete response format"
         | _ -> Stdlib.Result.Result.Error "Invalid response format"
-      | 401L -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
-      | 404L -> Stdlib.Result.Result.Error("Model not found: " ++ modelId)
-      | 429L -> Stdlib.Result.Result.Error "Rate limit exceeded"
+      | 401I -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
+      | 404I -> Stdlib.Result.Result.Error("Model not found: " ++ modelId)
+      | 429I -> Stdlib.Result.Result.Error "Rate limit exceeded"
       | _ -> Stdlib.Result.Result.Error("API error: " ++ bodyStr)
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
 

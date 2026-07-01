@@ -43,7 +43,7 @@ let installOrUpdateLatestRelease
 
     let extractedExecutablePath =
       if Stdlib.String.endsWith assetName ".gz" then
-        $"{executableDir}{assetName |> Stdlib.String.dropLast 3L}"
+        $"{executableDir}{assetName |> Stdlib.String.dropLast 3I}"
       else
         // TODO: error here better
         Stdlib.Result.Result.Error "Asset is not a .gz file"
@@ -82,7 +82,7 @@ let installOrUpdateLatestRelease
     // unzip the .gz file
     let extractedExecutablePath =
       if Stdlib.String.endsWith assetName ".gz" then
-        $"{executableDir}{assetName |> Stdlib.String.dropLast 3L}"
+        $"{executableDir}{assetName |> Stdlib.String.dropLast 3I}"
       else
         // TODO: error here better
         Stdlib.Result.Result.Error "Asset is not a .gz file"

@@ -3,19 +3,19 @@
 module Darklang.LLM.Internal.Validation
 
 
-/// Clamp an Int64 value between min and max (inclusive)
-let clamp (value: Int64) (min: Int64) (max: Int64) : Int64 =
+/// Clamp an Int value between min and max (inclusive)
+let clamp (value: Int) (min: Int) (max: Int) : Int =
   if value < min then min
   else if value > max then max
   else value
 
 /// Validate max tokens is within reasonable bounds
-let validateMaxTokens (tokens: Int64) (maxAllowed: Int64) : Int64 =
-  clamp tokens 1L maxAllowed
+let validateMaxTokens (tokens: Int) (maxAllowed: Int) : Int =
+  clamp tokens 1I maxAllowed
 
 /// Validate max turns is reasonable
-let validateMaxTurns (turns: Int64) : Int64 =
-  clamp turns 1L 100L
+let validateMaxTurns (turns: Int) : Int =
+  clamp turns 1I 100I
 
 /// Validate temperature with a custom max (provider-specific)
 let validateTemperature (temp: Float) (maxTemp: Float) : Float =

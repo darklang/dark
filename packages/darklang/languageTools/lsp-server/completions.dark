@@ -39,7 +39,7 @@ let createCompletionItem
 let getCompletionText (name: String) (currentPrefix: String) : String =
   let prefixLength = Stdlib.String.length currentPrefix
   let nameLength = Stdlib.String.length name
-  if prefixLength == 0L then
+  if prefixLength == 0I then
     name
   // if the completion string starts exactly with the prefix typed by the user, we just return the remaining part
   else if Stdlib.String.startsWith name currentPrefix then
@@ -91,10 +91,10 @@ let createCompletions
   let (modulePath, searchText) =
     match wordUnderCursor |> Stdlib.String.lastIndexOf "." with
     | Some i ->
-      let moduleString = Stdlib.String.slice wordUnderCursor 0L i
+      let moduleString = Stdlib.String.slice wordUnderCursor 0I i
       let modules = if moduleString == "" then [] else Stdlib.String.split moduleString "."
       let searchStr =
-        wordUnderCursor |> Stdlib.String.dropFirst (i + 1L)
+        wordUnderCursor |> Stdlib.String.dropFirst (i + 1I)
 
       (modules, searchStr)
 
@@ -119,7 +119,7 @@ let createCompletions
 
   let currentPrefix =
     match wordUnderCursor |> Stdlib.String.lastIndexOf "." with
-    | Some i -> Stdlib.String.slice wordUnderCursor 0L (i + 1L)
+    | Some i -> Stdlib.String.slice wordUnderCursor 0I (i + 1I)
     | None -> ""
 
   let types =

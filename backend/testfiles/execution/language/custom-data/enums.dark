@@ -76,7 +76,7 @@ module MixedCases =
       EnumOfMixedCases.X "testX"
       EnumOfMixedCases.Y(5L)
       EnumOfMixedCases.Z("testZ", 2L) ]
-  match Stdlib.List.getAt values 3L with
+  match Stdlib.List.getAt values 3I with
   | Some z -> Stdlib.Result.Result.Ok z
   | None -> Stdlib.Result.Result.Error "Failure") =
     Darklang.Stdlib.Result.Result.Ok(EnumOfMixedCases.Z("testZ", 2L))

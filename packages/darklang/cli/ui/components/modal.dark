@@ -8,13 +8,13 @@ type ModalModel =
     content: List<String>
     isVisible: Bool
     hasCloseButton: Bool
-    width: Int64
-    height: Int64
+    width: Int
+    height: Int
     backgroundColor: Core.Types.Color }
 
-let createModal (title: String) (content: List<String>) (width: Int64) (height: Int64) : Core.Types.Component<ModalModel> =
+let createModal (title: String) (content: List<String>) (width: Int) (height: Int) : Core.Types.Component<ModalModel> =
   let model = ModalModel { title = title; content = content; isVisible = false; hasCloseButton = true; width = width; height = height; backgroundColor = Core.Types.Color.Light }
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = width; height = height } }
   Core.Types.Component
     { id = "modal-" ++ title
       model = model
@@ -32,39 +32,39 @@ let renderModal (component: Core.Types.Component<ModalModel>) (context: Core.Typ
     let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
 
     // Create backdrop
-    let backdropWidth = 60L
-    let backdropHeight = 20L
+    let backdropWidth = 60I
+    let backdropHeight = 20I
     let backdrop =
       Stdlib.List.repeat backdropHeight (Core.Rendering.dim (Stdlib.String.repeat "░" backdropWidth))
 
     // Calculate modal position (centered)
-    let modalX = Stdlib.Int64.divide (backdropWidth - model.width) 2L
-    let modalY = Stdlib.Int64.divide (backdropHeight - model.height) 2L
+    let modalX = Stdlib.Int.divide (backdropWidth - model.width) 2I
+    let modalY = Stdlib.Int.divide (backdropHeight - model.height) 2I
 
     // Create modal box
-    let topBorder = "╔" ++ Stdlib.String.repeat "═" (model.width - 2L) ++ "╗"
-    let bottomBorder = "╚" ++ Stdlib.String.repeat "═" (model.width - 2L) ++ "╝"
+    let topBorder = "╔" ++ Stdlib.String.repeat "═" (model.width - 2I) ++ "╗"
+    let bottomBorder = "╚" ++ Stdlib.String.repeat "═" (model.width - 2I) ++ "╝"
 
     let titleLine =
       let closeButton = if model.hasCloseButton then " ✕" else ""
-      let availableWidth = model.width - 4L - Stdlib.String.length closeButton
+      let availableWidth = model.width - 4I - (Stdlib.String.length closeButton)
       let paddedTitle = Core.Rendering.padText model.title availableWidth Core.Types.Alignment.Center
       let titleColor = if hasFocus then Core.Types.Color.Primary else Core.Types.Color.Default
       "║ " ++ Core.Rendering.colorize titleColor (Core.Rendering.bold paddedTitle) ++ closeButton ++ " ║"
 
-    let separatorLine = "╠" ++ Stdlib.String.repeat "═" (model.width - 2L) ++ "╣"
+    let separatorLine = "╠" ++ Stdlib.String.repeat "═" (model.width - 2I) ++ "╣"
 
     let contentLines =
       model.content
       |> Stdlib.List.map (fun line ->
-          let paddedLine = Core.Rendering.padText line (model.width - 4L) Core.Types.Alignment.Left
+          let paddedLine = Core.Rendering.padText line (model.width - 4I) Core.Types.Alignment.Left
           "║ " ++ paddedLine ++ " ║")
 
     // Fill remaining space if content is shorter than modal height
-    let remainingHeight = model.height - 4L - Stdlib.List.length contentLines
+    let remainingHeight = (model.height - 4I) - Stdlib.List.length contentLines
     let fillerLines =
-      if remainingHeight > 0L then
-        Stdlib.List.repeat remainingHeight ("║" ++ Stdlib.String.repeat " " (model.width - 2L) ++ "║")
+      if remainingHeight > 0I then
+        Stdlib.List.repeat remainingHeight ("║" ++ Stdlib.String.repeat " " (model.width - 2I) ++ "║")
       else
         []
 
@@ -114,13 +114,13 @@ type ConfirmDialogModel =
     confirmText: String
     cancelText: String
     isVisible: Bool
-    selectedButton: Int64 }
+    selectedButton: Int }
 
 let createConfirmDialog (title: String) (message: String) (confirmText: String) (cancelText: String) : Core.Types.Component<ConfirmDialogModel> =
-  let model = ConfirmDialogModel { title = title; message = message; confirmText = confirmText; cancelText = cancelText; isVisible = false; selectedButton = 0L }
-  let width = 40L
-  let height = 8L
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = width; height = height } }
+  let model = ConfirmDialogModel { title = title; message = message; confirmText = confirmText; cancelText = cancelText; isVisible = false; selectedButton = 0I }
+  let width = 40I
+  let height = 8I
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = width; height = height } }
   Core.Types.Component
     { id = "confirm-dialog"
       model = model
@@ -136,44 +136,44 @@ let renderConfirmDialog (component: Core.Types.Component<ConfirmDialogModel>) (c
   else
     let hasFocus = context.hasFocus && component.state == Core.Types.ComponentState.Focused
 
-    let topBorder = "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┐"
-    let bottomBorder = "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┘"
+    let topBorder = "┌" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2I) ++ "┐"
+    let bottomBorder = "└" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2I) ++ "┘"
 
     let titleLine =
-      let paddedTitle = Core.Rendering.padText model.title (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Center
+      let paddedTitle = Core.Rendering.padText model.title (component.bounds.dimensions.width - 4I) Core.Types.Alignment.Center
       let titleColor = if hasFocus then Core.Types.Color.Warning else Core.Types.Color.Default
       "│ " ++ Core.Rendering.colorize titleColor (Core.Rendering.bold paddedTitle) ++ " │"
 
-    let separatorLine = "├" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2L) ++ "┤"
+    let separatorLine = "├" ++ Stdlib.String.repeat "─" (component.bounds.dimensions.width - 2I) ++ "┤"
 
     let messageLine =
-      let paddedMessage = Core.Rendering.padText model.message (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Center
+      let paddedMessage = Core.Rendering.padText model.message (component.bounds.dimensions.width - 4I) Core.Types.Alignment.Center
       "│ " ++ paddedMessage ++ " │"
 
-    let emptyLine = "│" ++ Stdlib.String.repeat " " (component.bounds.dimensions.width - 2L) ++ "│"
+    let emptyLine = "│" ++ Stdlib.String.repeat " " (component.bounds.dimensions.width - 2I) ++ "│"
 
     let buttonLine =
       let confirmButton =
-        if model.selectedButton == 0L then
+        if model.selectedButton == 0I then
           Core.Rendering.colorize Core.Types.Color.Success ("[ " ++ model.confirmText ++ " ]")
         else
           "[ " ++ model.confirmText ++ " ]"
 
       let cancelButton =
-        if model.selectedButton == 1L then
+        if model.selectedButton == 1I then
           Core.Rendering.colorize Core.Types.Color.Error ("[ " ++ model.cancelText ++ " ]")
         else
           "[ " ++ model.cancelText ++ " ]"
 
       let buttons = confirmButton ++ "  " ++ cancelButton
-      let paddedButtons = Core.Rendering.padText buttons (component.bounds.dimensions.width - 4L) Core.Types.Alignment.Center
+      let paddedButtons = Core.Rendering.padText buttons (component.bounds.dimensions.width - 4I) Core.Types.Alignment.Center
       "│ " ++ paddedButtons ++ " │"
 
     [topBorder; titleLine; separatorLine; messageLine; emptyLine; buttonLine; bottomBorder]
 
-let selectConfirmButton (component: Core.Types.Component<ConfirmDialogModel>) (buttonIndex: Int64) : Core.Types.Component<ConfirmDialogModel> =
+let selectConfirmButton (component: Core.Types.Component<ConfirmDialogModel>) (buttonIndex: Int) : Core.Types.Component<ConfirmDialogModel> =
   let model = component.model
-  if buttonIndex >= 0L && buttonIndex <= 1L then
+  if buttonIndex >= 0I && buttonIndex <= 1I then
     { component with model = { model with selectedButton = buttonIndex } }
   else
     component

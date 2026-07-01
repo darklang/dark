@@ -8,8 +8,8 @@ module Darklang.Tracing.Format
 /// Stdlib.padStart returns Result; this helper unwraps with empty-Error
 /// fallback (impossible in practice — padStart only fails on negative
 /// width).
-let padNum (n: Int64) (width: Int64) : String =
-  let s = Stdlib.Int64.toString n
+let padNum (n: Int) (width: Int) : String =
+  let s = Stdlib.Int.toString n
   match Stdlib.String.padStart s " " width with
   | Ok r -> r
   | Error _ -> s

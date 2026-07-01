@@ -108,7 +108,7 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
                 "lambdaExprId", lambdaExprIdDval
                 "args", Dval.list dvalKT args
                 "result", result
-                "durationMs", DInt64 ev.durationMs ]
+                "durationMs", Dval.int (bigint ev.durationMs) ]
           Some(DRecord(typeName, typeName, [], fields))
         with ex ->
           print $"[tracing] dropping corrupt fn_call row: {ex.Message}"
@@ -124,12 +124,13 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
 let fns () : List<BuiltInFn> =
   [ { name = fn "tracesList" 0
       typeParams = []
-      parameters = [ Param.make "limit" TInt64 "Max number of traces to return" ]
+      parameters = [ Param.make "limit" TInt "Max number of traces to return" ]
       returnType = TList(TVariable "a")
       description = "List recent traces"
       fn =
         (function
-        | _, _, _, [ DInt64 limit ] ->
+        | _, vm, _, [ DInt limitArg ] ->
+          let limit = intToInt64 vm limitArg
           uply {
             let typeName = traceSummaryTypeName ()
             let! rows =
@@ -221,12 +222,13 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "fnName" TString "Function name to search for"
-          Param.make "limit" TInt64 "Max number of traces to return" ]
+          Param.make "limit" TInt "Max number of traces to return" ]
       returnType = TList(TVariable "a")
       description = "List traces that called a specific function"
       fn =
         (function
-        | _, _, _, [ DString fnName; DInt64 limit ] ->
+        | _, vm, _, [ DString fnName; DInt limitArg ] ->
+          let limit = intToInt64 vm limitArg
           uply {
             // Both builtins and package fns store their display name in
             // fn_hash (resolved at write time), so one LIKE matches either.
@@ -275,16 +277,14 @@ let fns () : List<BuiltInFn> =
     { name = fn "tracesStatsByHandler" 0
       typeParams = []
       parameters =
-        [ Param.make
-            "traceLimit"
-            TInt64
-            "Aggregate over the last N traces (e.g. 100)" ]
-      returnType = TList(TTuple(TString, TInt64, [ TInt64; TInt64 ]))
+        [ Param.make "traceLimit" TInt "Aggregate over the last N traces (e.g. 100)" ]
+      returnType = TList(TTuple(TString, TInt, [ TInt; TInt ]))
       description =
         "Per-handler aggregate over the last N traces: (handler, traceCount, totalMs, maxMs). Total ms sums every fn-call duration in each trace; per-trace latency would need a separate column on `traces`."
       fn =
         (function
-        | _, _, _, [ DInt64 traceLimit ] ->
+        | _, vm, _, [ DInt traceLimitArg ] ->
+          let traceLimit = intToInt64 vm traceLimitArg
           uply {
             // Subquery: the last N trace IDs (and their handler_desc).
             // LEFT JOIN so traces with zero fn_calls still get counted.
@@ -314,10 +314,10 @@ let fns () : List<BuiltInFn> =
               |> List.map (fun r ->
                 DTuple(
                   DString r.handler,
-                  DInt64 r.traceCount,
-                  [ DInt64 r.totalMs; DInt64 r.maxMs ]
+                  Dval.int (bigint r.traceCount),
+                  [ Dval.int (bigint r.totalMs); Dval.int (bigint r.maxMs) ]
                 ))
-              |> Dval.list (KTTuple(VT.string, VT.int64, [ VT.int64; VT.int64 ]))
+              |> Dval.list (KTTuple(VT.string, VT.int, [ VT.int; VT.int ]))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -329,16 +329,14 @@ let fns () : List<BuiltInFn> =
     { name = fn "tracesHotspots" 0
       typeParams = []
       parameters =
-        [ Param.make
-            "traceLimit"
-            TInt64
-            "Aggregate over the last N traces (e.g. 100)" ]
-      returnType = TList(TTuple(TString, TInt64, [ TInt64; TInt64 ]))
+        [ Param.make "traceLimit" TInt "Aggregate over the last N traces (e.g. 100)" ]
+      returnType = TList(TTuple(TString, TInt, [ TInt; TInt ]))
       description =
         "Aggregate fn-call timing across the last N traces. Returns (fnName, callCount, totalMs, maxMs) tuples sorted by totalMs desc. Lambdas are excluded (no fn_hash to bucket by); builtins included but always have 0ms duration."
       fn =
         (function
-        | _, _, _, [ DInt64 traceLimit ] ->
+        | _, vm, _, [ DInt traceLimitArg ] ->
+          let traceLimit = intToInt64 vm traceLimitArg
           uply {
             // Subquery: the last N trace IDs by recency.
             // Outer GROUP BY rolls duration up per fn_hash.
@@ -369,10 +367,10 @@ let fns () : List<BuiltInFn> =
               |> List.map (fun r ->
                 DTuple(
                   DString r.name,
-                  DInt64 r.callCount,
-                  [ DInt64 r.totalMs; DInt64 r.maxMs ]
+                  Dval.int (bigint r.callCount),
+                  [ Dval.int (bigint r.totalMs); Dval.int (bigint r.maxMs) ]
                 ))
-              |> Dval.list (KTTuple(VT.string, VT.int64, [ VT.int64; VT.int64 ]))
+              |> Dval.list (KTTuple(VT.string, VT.int, [ VT.int; VT.int ]))
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -392,13 +390,14 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "pattern" TString "Substring to find in inputs/args/results"
-          Param.make "limit" TInt64 "Max number of traces to return" ]
+          Param.make "limit" TInt "Max number of traces to return" ]
       returnType = TList(TVariable "a")
       description =
         "List traces whose recorded input or any fn-call args/result contains the substring (case-sensitive). Match is on the developer-repr form of each Dval."
       fn =
         (function
-        | exeState, _, _, [ DString pattern; DInt64 limit ] ->
+        | exeState, vm, _, [ DString pattern; DInt limitArg ] ->
+          let limit = intToInt64 vm limitArg
           uply {
             let typeName = traceSummaryTypeName ()
 
@@ -597,7 +596,7 @@ let fns () : List<BuiltInFn> =
             "cutoffISO"
             TString
             "ISO 8601 timestamp (e.g. 2026-05-02T01:00:00Z); traces with timestamp < cutoff are deleted." ]
-      returnType = TInt64
+      returnType = TInt
       description =
         "Delete traces older than the given cutoff (and their fn_calls). Returns count deleted. Caller is responsible for computing the cutoff (e.g. `DateTime.now() |> subtractSeconds 3600` for 'last hour')."
       fn =
@@ -628,7 +627,7 @@ let fns () : List<BuiltInFn> =
                     ("DELETE FROM traces WHERE timestamp < @cutoff", p) ]
               ()
 
-            return DInt64 count
+            return Dval.int (bigint count)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -640,7 +639,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "tracesClear" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "Ignored" ]
-      returnType = TInt64
+      returnType = TInt
       description = "Delete all traces, returns count deleted"
       fn =
         (function
@@ -655,7 +654,7 @@ let fns () : List<BuiltInFn> =
               Sql.executeTransactionSync
                 [ ("DELETE FROM trace_fn_calls", [ [] ])
                   ("DELETE FROM traces", [ [] ]) ]
-            return DInt64 count
+            return Dval.int (bigint count)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -667,7 +666,7 @@ let fns () : List<BuiltInFn> =
     { name = fn "tracesDelete" 0
       typeParams = []
       parameters = [ Param.make "traceID" TString "Full trace ID to delete" ]
-      returnType = TInt64
+      returnType = TInt
       description =
         "Delete one trace (and its fn_calls). Returns 1 if a row was deleted, 0 otherwise. Caller is responsible for resolving prefixes via tracesResolveID first."
       fn =
@@ -679,7 +678,7 @@ let fns () : List<BuiltInFn> =
               |> Sql.parameters [ "traceId", Sql.string traceID ]
               |> Sql.executeRowOptionAsync (fun _ -> ())
             match existed with
-            | None -> return DInt64 0L
+            | None -> return Dval.int 0I
             | Some _ ->
               do!
                 Sql.query "DELETE FROM trace_fn_calls WHERE trace_id = @traceId"
@@ -689,7 +688,7 @@ let fns () : List<BuiltInFn> =
                 Sql.query "DELETE FROM traces WHERE id = @traceId"
                 |> Sql.parameters [ "traceId", Sql.string traceID ]
                 |> Sql.executeStatementAsync
-              return DInt64 1L
+              return Dval.int 1I
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -700,14 +699,14 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "tracesPruneKeep" 0
       typeParams = []
-      parameters =
-        [ Param.make "keepN" TInt64 "Number of most-recent traces to keep" ]
-      returnType = TInt64
+      parameters = [ Param.make "keepN" TInt "Number of most-recent traces to keep" ]
+      returnType = TInt
       description =
         "Delete all but the N most-recent traces (and their fn_calls). Returns the count deleted. Useful for bounded retention."
       fn =
         (function
-        | _, _, _, [ DInt64 keepN ] ->
+        | _, vm, _, [ DInt keepNArg ] ->
+          let keepN = intToInt64 vm keepNArg
           uply {
             // Subquery picks the rowids to keep; outer DELETE removes the rest.
             // Wipe child rows first to avoid dangling fn_calls — there's no
@@ -747,7 +746,7 @@ let fns () : List<BuiltInFn> =
                      p) ]
               ()
 
-            return DInt64 count
+            return Dval.int (bigint count)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -10,7 +10,7 @@ let translate (word: String) (language: String) : String =
     (Darklang.LLM.Agent.create ())
     |> Darklang.LLM.Agent.withModel Darklang.LLM.Models.Local.llama3
     |> Darklang.LLM.Agent.withSystemPrompt "You are a translator. Reply with ONLY the translated word, nothing else."
-    |> Darklang.LLM.Agent.withMaxTokens 50L
+    |> Darklang.LLM.Agent.withMaxTokens 50I
 
   match Darklang.LLM.Agent.run agent $"Translate '{word}' to {language}" with
   | Ok result -> result.response

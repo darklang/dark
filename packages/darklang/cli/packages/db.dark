@@ -93,12 +93,12 @@ let listDBs (state: Cli.AppState) : Cli.AppState =
 
     // Print table header
     let nameHeader =
-      (Stdlib.String.padEnd "Name" " " 20L) |> Builtin.unwrap
+      (Stdlib.String.padEnd "Name" " " 20I) |> Builtin.unwrap
 
     let typeHeader = "Type"
 
     Stdlib.printLine $"{nameHeader}{typeHeader}"
-    Stdlib.printLine (Stdlib.String.repeat "─" 60L)
+    Stdlib.printLine (Stdlib.String.repeat "─" 60I)
 
     // Print each DB
     dbs
@@ -106,7 +106,7 @@ let listDBs (state: Cli.AppState) : Cli.AppState =
       let (name, typeName) = db
 
       let nameCol =
-        (Stdlib.String.padEnd name " " 20L) |> Builtin.unwrap
+        (Stdlib.String.padEnd name " " 20I) |> Builtin.unwrap
 
       Stdlib.printLine $"{nameCol}{typeName}")
 
@@ -151,7 +151,7 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
       let result = resultOpt |> Stdlib.Option.withDefault ""
       Stdlib.printLine ""
 
-      let colWidth = 15L
+      let colWidth = 15I
 
       // Print header
       let keyHeader =
@@ -166,8 +166,7 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
       Stdlib.printLine $"{keyHeader}{fieldHeaders}"
 
       let totalWidth =
-        colWidth
-        + (Stdlib.Int64.multiply (Stdlib.List.length fieldNames) colWidth)
+        colWidth + ((Stdlib.List.length fieldNames) * colWidth)
 
       Stdlib.printLine (Stdlib.String.repeat "─" totalWidth)
 
@@ -193,7 +192,7 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
         Stdlib.printLine ""
 
         let rowCount = Stdlib.List.length rows
-        Stdlib.printLine $"{Stdlib.Int64.toString rowCount} row(s)"
+        Stdlib.printLine $"{Stdlib.Int.toString rowCount} row(s)"
 
       Stdlib.printLine ""
       state

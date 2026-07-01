@@ -7,9 +7,9 @@ let newline = "\n"
 
 /// Truncates the string <param s> to the specified <param length> and appends an ellipsis ("...")
 /// to it if the original string exceeds the given length. Otherwise, returns the original string.
-let ellipsis (s: String) (length: Int64) : String =
+let ellipsis (s: String) (length: Int) : String =
   if String.length s > length then
-    (String.slice_v0 s 0L length) ++ "..."
+    (String.slice_v0 s 0I length) ++ "..."
   else
     s
 
@@ -23,10 +23,10 @@ let articleFor (nextWord: String) : String =
   | None -> ""
   | Some c ->
     if
-      String.length nextWord > 1L
+      String.length nextWord > 1I
       && (Bool.not (Char.isASCIILetter c))
     then
-      articleFor (String.dropFirst nextWord 1L)
+      articleFor (String.dropFirst nextWord 1I)
     else if List.``member`` vowels c then
       "an"
     else
@@ -62,7 +62,7 @@ let toLowercase (s: String) : String = Builtin.stringToLowercase s
 
 // TODO: UInt?
 /// Returns the length of the string
-let length (s: String) : Int64 = Builtin.stringLength s
+let length (s: String) : Int = Builtin.stringLength s
 
 
 /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.
@@ -119,9 +119,9 @@ let splitFirst
 let splitN
   (string: String)
   (separator: String)
-  (n: Int64)
+  (n: Int)
   : List<String> =
-  if n <= 1L || separator == "" then
+  if n <= 1I || separator == "" then
     [ string ]
   else
     // indexOfEgc (not indexOf) because first / dropFirst / length are EGC-indexed.
@@ -130,7 +130,7 @@ let splitN
     | Some i ->
       let before = String.first string i
       let rest = String.dropFirst string (i + String.length separator)
-      List.push (String.splitN rest separator (n - 1L)) before
+      List.push (String.splitN rest separator (n - 1I)) before
 
 
 /// Combines a list of strings with the provided separator
@@ -188,22 +188,21 @@ let digest (s: String) : String =
 
 /// Generate a random alphanumeric <type String> of length <param length>.
 /// Charset is {{[A-Za-z0-9]}} (62 chars). Errors if <param length> is negative.
-let random (length: Int64) : Result.Result<String, String> =
-  if length < 0L then
+let random (length: Int) : Result.Result<String, String> =
+  if length < 0I then
     Result.Result.Error
-      $"Expected `length` to be positive, but it was `{length |> Int64.toString}`"
+      $"Expected `length` to be positive, but it was `{length |> Int.toString}`"
   else
     let characters =
       "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 
     let randomChar =
       fun _ ->
-        (let index =
-          Int64.random 0L ((String.length characters) - 1L)
-         String.slice characters index (index + 1L))
+        (let index = Stdlib.Int.random 0I ((String.length characters) - 1I)
+         String.slice characters index (index + 1I))
 
     let result =
-      (List.range 0L (length - 1L))
+      (List.range 0I (length - 1I))
       |> List.map (fun _ -> randomChar ())
       |> String.join ""
 
@@ -231,24 +230,23 @@ let htmlEscape (html: String) : String =
 
 /// Checks if <param lookingIn> contains <param searchingFor>.
 //
-// Calls the underlying builtin directly (rather than going through the
-// `indexOf` wrapper) so this fn stays SQL-queryable: the query compiler
-// routes the builtin via SqlCallback2 → INSTR. Wrapping in a
-// match-on-Option breaks queryability and trips `DB.queryAll` callers.
+// Uses the dedicated `stringContains` builtin (returns Bool, compiles to
+// `INSTR(...) > 0`) rather than `indexOf != -1`, so it stays SQL-queryable
+// independent of `indexOf`'s now arbitrary-precision `Int` return.
 let contains (lookingIn: String) (searchingFor: String) : Bool =
-  Builtin.stringIndexOf lookingIn searchingFor != -1L
+  Builtin.stringContains lookingIn searchingFor
 
 
 /// Returns the substring of <param string> between the <param from> and <param to> indices.
 /// Negative indices start counting from the end of <param string>.
-let slice (string: String) (from: Int64) (``to``: Int64) : String =
+let slice (string: String) (from: Int) (``to``: Int) : String =
   let len = String.length string
 
   let normalize =
     (fun i ->
-      (if i < 0L then len + i else i)
-      |> Int64.min len
-      |> Int64.max 0L)
+      (if i < 0I then len + i else i)
+      |> Int.min len
+      |> Int.max 0I)
 
   let f = normalize from
   let l = normalize ``to``
@@ -260,20 +258,20 @@ let slice (string: String) (from: Int64) (``to``: Int64) : String =
 /// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
 /// If <param characterCount> is longer than <param string>, returns <param string>.
 /// If <param characterCount> is negative, returns the empty string."
-let first (string: String) (characterCount: Int64) : String =
-  if characterCount < 0L then
+let first (string: String) (characterCount: Int) : String =
+  if characterCount < 0I then
     ""
   else if characterCount > String.length string then
     string
   else
-    String.slice_v0 string 0L characterCount
+    String.slice_v0 string 0I characterCount
 
 
 /// Returns the last <param characterCount> characters of <param string>, as a Builtin.String.
 /// If <param characterCount> is longer than <param string>, returns <param string>.
 /// If <param characterCount> is negative, returns the empty string.
-let last (string: String) (characterCount: Int64) : String =
-  if characterCount < 0L then
+let last (string: String) (characterCount: Int) : String =
+  if characterCount < 0I then
     ""
   else if characterCount > String.length string then
     string
@@ -287,23 +285,23 @@ let last (string: String) (characterCount: Int64) : String =
 /// Returns all but the last <param characterCount> characters of <param string>, as a Builtin.String.
 /// If <param characterCount> is longer than <param string>, returns the empty string.
 /// If <param characterCount> is negative, returns <param string>.
-let dropLast (string: String) (characterCount: Int64) : String =
-  if characterCount < 0L then
+let dropLast (string: String) (characterCount: Int) : String =
+  if characterCount < 0I then
     string
   else if characterCount > String.length string then
     ""
   else
     String.slice_v0
       string
-      0L
+      0I
       (String.length string - characterCount)
 
 
 /// Returns all but the first <param characterCount> characters of <param string>, as a <type String>.
 /// If <param characterCount> is longer than <param string>, returns the empty string.
 /// If <param characterCount> is negative, returns <param string>.
-let dropFirst (string: String) (characterCount: Int64) : String =
-  if characterCount < 0L then
+let dropFirst (string: String) (characterCount: Int) : String =
+  if characterCount < 0I then
     string
   else if characterCount > String.length string then
     ""
@@ -318,9 +316,9 @@ let dropFirst (string: String) (characterCount: Int64) : String =
 let padStart
   (string: String)
   (padWith: String)
-  (goalLength: Int64)
+  (goalLength: Int)
   : Result.Result<String, String> =
-  if String.length padWith != 1L then
+  if String.length padWith != 1I then
     Result.Result.Error
       $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
   else if String.length string >= goalLength then
@@ -338,9 +336,9 @@ let padStart
 let padEnd
   (string: String)
   (padWith: String)
-  (goalLength: Int64)
+  (goalLength: Int)
   : Result.Result<String, String> =
-  if String.length padWith != 1L then
+  if String.length padWith != 1I then
     Result.Result.Error
       $"Expected `padWith` to be 1 character long, but it was `\"{padWith}\"`"
   else if String.length string >= goalLength then
@@ -410,7 +408,7 @@ let fromBlob (blob: Blob) : Option.Option<String> = Builtin.stringFromBlob blob
 
 /// Checks if <param subject> starts with <param prefix>
 let startsWith (subject: String) (prefix: String) : Bool =
-  String.slice_v0 subject 0L (String.length prefix) == prefix
+  String.slice_v0 subject 0I (String.length prefix) == prefix
 
 
 /// Checks if <param subject> ends with <param suffix>
@@ -426,9 +424,9 @@ let endsWith (subject: String) (suffix: String) : Bool =
 /// measured in UTF-16 code units. Returns {{Nothing}} if <param searchFor> does not occur.
 /// The returned index is **not** suitable for arithmetic with {{first}}, {{dropFirst}},
 /// or {{slice}}, which are all EGC-indexed — for that, use {{indexOfEgc}}.
-let indexOf (str: String) (searchFor: String) : Option.Option<Int64> =
+let indexOf (str: String) (searchFor: String) : Option.Option<Int> =
   let idx = Builtin.stringIndexOf str searchFor
-  if idx == -1L then Option.Option.None else Option.Option.Some idx
+  if idx == -1I then Option.Option.None else Option.Option.Some idx
 
 
 /// Returns {{Just index}} of the first occurrence of <param searchFor> in <param str>,
@@ -436,9 +434,9 @@ let indexOf (str: String) (searchFor: String) : Option.Option<Int64> =
 /// {{first}}, and {{dropFirst}}). Returns {{Nothing}} if <param searchFor> does not occur.
 /// The match must begin and end on EGC boundaries — searching for a partial grapheme
 /// (e.g. a base codepoint inside a ZWJ sequence) will not match.
-let indexOfEgc (str: String) (searchFor: String) : Option.Option<Int64> =
+let indexOfEgc (str: String) (searchFor: String) : Option.Option<Int> =
   let idx = Builtin.stringIndexOfEgc str searchFor
-  if idx == -1L then Option.Option.None else Option.Option.Some idx
+  if idx == -1I then Option.Option.None else Option.Option.Some idx
 
 
 /// Returns {{Just index}} of the last occurrence of <param searchFor> in <param str>,
@@ -447,10 +445,10 @@ let indexOfEgc (str: String) (searchFor: String) : Option.Option<Int64> =
 let lastIndexOf
   (str: String)
   (searchFor: String)
-  : Option.Option<Int64> =
+  : Option.Option<Int> =
   let lastIndex = Builtin.stringLastIndexOf str searchFor
 
-  if lastIndex == -1L then
+  if lastIndex == -1I then
     Option.Option.None
   else
     Option.Option.Some(lastIndex)
@@ -462,10 +460,10 @@ let lastIndexOf
 let lastIndexOfEgc
   (str: String)
   (searchFor: String)
-  : Option.Option<Int64> =
+  : Option.Option<Int> =
   let lastIndex = Builtin.stringLastIndexOfEgc str searchFor
 
-  if lastIndex == -1L then
+  if lastIndex == -1I then
     Option.Option.None
   else
     Option.Option.Some(lastIndex)
@@ -473,23 +471,23 @@ let lastIndexOfEgc
 
 /// Returns the <param string> repeated for a specified <param count> times.
 /// If <param count> is less than or equal to 0, returns an empty string.
-let repeat (string: String) (count: Int64) : String =
-  if count <= 0L then
+let repeat (string: String) (count: Int) : String =
+  if count <= 0I then
     ""
   else
     String.join ((List.repeat count string) |> Builtin.unwrap) ""
 
 
 /// Converts an integer <param n> to its ordinal representation as a string.
-let toOrdinal (n: Int64) : String =
+let toOrdinal (n: Int) : String =
   let suffix =
-    match n % 10L with
-    | 1L -> "st"
-    | 2L -> "nd"
-    | 3L -> "rd"
+    match n % 10I with
+    | 1I -> "st"
+    | 2I -> "nd"
+    | 3I -> "rd"
     | _ -> "th"
 
-  (Int64.toString n) ++ suffix
+  (Int.toString n) ++ suffix
 
 
 /// Splits the given <param str> at each newline character and returns a list of substrings.
@@ -508,5 +506,5 @@ let head (str: String) : Option.Option<Char> =
 
 /// Returns {{Some c}} for the character at <param index> (0-based, EGC, not
 /// byte), or {{None}} if <param index> is negative or past the end.
-let charAt (str: String) (index: Int64) : Option.Option<Char> =
+let charAt (str: String) (index: Int) : Option.Option<Char> =
   str |> String.toList |> List.getAt index

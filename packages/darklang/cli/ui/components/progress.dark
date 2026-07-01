@@ -1,15 +1,15 @@
 module Darklang.CLI.UI.Components.Progress
 
 type ProgressModel =
-  { value: Int64
-    min: Int64
-    max: Int64
+  { value: Int
+    min: Int
+    max: Int
     color: Core.Types.Color
     showPercentage: Bool }
 
-let createProgressBar (value: Int64) (min: Int64) (max: Int64) (color: Core.Types.Color) : Core.Types.Component<ProgressModel> =
+let createProgressBar (value: Int) (min: Int) (max: Int) (color: Core.Types.Color) : Core.Types.Component<ProgressModel> =
   let model = ProgressModel { value = value; min = min; max = max; color = color; showPercentage = true }
-  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0L; y = 0L }; dimensions = Core.Types.Dimensions { width = 20L; height = 1L } }
+  let bounds = Core.Types.Bounds { position = Core.Types.Position { x = 0I; y = 0I }; dimensions = Core.Types.Dimensions { width = 20I; height = 1I } }
   Core.Types.Component
     { id = "progress"
       model = model
@@ -22,22 +22,22 @@ let renderProgressBar (component: Core.Types.Component<ProgressModel>) (context:
   let model = component.model
   let range = model.max - model.min
   let progress = model.value - model.min
-  let availableWidth = component.bounds.dimensions.width - 2L
-  let filledWidth = if range == 0L then 0L else Stdlib.Int64.divide (progress * availableWidth) range
+  let availableWidth = component.bounds.dimensions.width - 2I
+  let filledWidth = if range == 0I then 0I else Stdlib.Int.divide (progress * availableWidth) range
   let filled = Stdlib.String.repeat "█" filledWidth
-  let empty = Stdlib.String.repeat "░" (component.bounds.dimensions.width - 2L - filledWidth)
+  let empty = Stdlib.String.repeat "░" (component.bounds.dimensions.width - 2I - filledWidth)
 
   let progressText = "[" ++ filled ++ empty ++ "]"
   let coloredProgress = Core.Rendering.colorize model.color progressText
 
   if model.showPercentage then
-    let percentValue = if range == 0L then 0L else Stdlib.Int64.divide (progress * 100L) range
-    let percentText = " " ++ Stdlib.Int64.toString percentValue ++ "%"
+    let percentValue = if range == 0I then 0I else Stdlib.Int.divide (progress * 100I) range
+    let percentText = " " ++ Stdlib.Int.toString percentValue ++ "%"
     [ coloredProgress ++ percentText ]
   else
     [ coloredProgress ]
 
-let updateProgressValue (component: Core.Types.Component<ProgressModel>) (value: Int64) : Core.Types.Component<ProgressModel> =
+let updateProgressValue (component: Core.Types.Component<ProgressModel>) (value: Int) : Core.Types.Component<ProgressModel> =
   let model = component.model
   let clampedValue =
     if value < model.min then model.min
@@ -45,7 +45,7 @@ let updateProgressValue (component: Core.Types.Component<ProgressModel>) (value:
     else value
   { component with model = { model with value = clampedValue } }
 
-let setProgressRange (component: Core.Types.Component<ProgressModel>) (min: Int64) (max: Int64) : Core.Types.Component<ProgressModel> =
+let setProgressRange (component: Core.Types.Component<ProgressModel>) (min: Int) (max: Int) : Core.Types.Component<ProgressModel> =
   let model = component.model
   let clampedValue =
     if model.value < min then min

@@ -8,8 +8,8 @@ module Darklang.LLM.Examples.MultiModel
 type ModelResponse =
   { model: String
     response: String
-    inputTokens: Int64
-    outputTokens: Int64 }
+    inputTokens: Int
+    outputTokens: Int }
 
 
 /// Ask a single model and get response with stats
@@ -20,7 +20,7 @@ let askModel
   let agent =
     (Agent.create ())
     |> Agent.withModel model
-    |> Agent.withMaxTokens 500L
+    |> Agent.withMaxTokens 500I
 
   match Agent.run agent prompt with
   | Ok result ->
@@ -36,7 +36,7 @@ let askModel
 /// Format a model result for display
 let formatResult (name: String) (result: Stdlib.Result.Result<ModelResponse, String>) : String =
   match result with
-  | Ok r -> $"## {name} ({r.model})\n{r.response}\n\n*Tokens: {Stdlib.Int64.toString r.inputTokens} in / {Stdlib.Int64.toString r.outputTokens} out*"
+  | Ok r -> $"## {name} ({r.model})\n{r.response}\n\n*Tokens: {Stdlib.Int.toString r.inputTokens} in / {Stdlib.Int.toString r.outputTokens} out*"
   | Error e -> $"## {name}\nError: {e}"
 
 

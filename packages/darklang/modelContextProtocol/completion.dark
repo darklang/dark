@@ -13,7 +13,7 @@ type CompletionParams =
 /// Completion result
 type CompletionResult = 
   { values: List<String>
-    total: Stdlib.Option.Option<Int64>
+    total: Stdlib.Option.Option<Int>
     hasMore: Stdlib.Option.Option<Bool> }
 
 /// Parse completion params from JSON
@@ -46,7 +46,7 @@ let completionResultToJson (result: CompletionResult) : Json =
   let fieldsWithTotal =
     match result.total with
     | Some total ->
-        fields @ [("total", Json.Number (Stdlib.Int64.toFloat total))]
+        fields @ [("total", Json.Number (Stdlib.Int.toFloat total))]
     | None -> fields
 
   let fieldsWithHasMore =
