@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+# Seed shim: dispatches CLI args to the Python implementation.
+# The implementation should live in main.py (or a module imported from it).
+# Do not modify this file.
+set -e
+exec python3 "$(dirname "$0")/main.py" "$@"

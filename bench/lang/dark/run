@@ -1,0 +1,42 @@
+#!/usr/bin/env bash
+# Seed shim: dispatches CLI args into the Darklang package tree on a
+# bench-specific branch.
+#
+# Required env (the harness sets these):
+#   BENCH_DARK_BRANCH     branch holding the implementation
+#   DARK_REPO             absolute path to the Darklang monorepo
+#
+# Auto-derived:
+#   BENCH_STATE_DIR       <workspace>/dark-state/  (one file per entry)
+#
+# {{namespace}} is substituted by the harness from the task name. Functions
+# live at Bench.{{namespace}}.<subcommand> — one per command in the spec.
+#
+# Do not modify this file.
+set -e
+
+: "${BENCH_DARK_BRANCH:?BENCH_DARK_BRANCH must be set}"
+: "${DARK_REPO:?DARK_REPO must be set}"
+
+CMD="$1"
+shift || true
+FN="Bench.{{namespace}}.${CMD}"
+
+WORKSPACE="$(pwd)"
+export BENCH_STATE_DIR="${WORKSPACE}/dark-state"
+mkdir -p "$BENCH_STATE_DIR"
+
+# Build Dark-literal args. Strings here don't contain " or \, so simple
+# double-quoting suffices. Zero-arg commands need explicit unit.
+DARK_ARGS=()
+if [ $# -eq 0 ]; then
+  DARK_ARGS+=("()")
+else
+  for a in "$@"; do
+    DARK_ARGS+=("\"$a\"")
+  done
+fi
+
+# run-cli requires cwd = repo root.
+cd "$DARK_REPO"
+exec ./scripts/run-cli --branch "$BENCH_DARK_BRANCH" run "@$FN" "${DARK_ARGS[@]}"
