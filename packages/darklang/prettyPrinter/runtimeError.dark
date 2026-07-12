@@ -25,7 +25,7 @@ module RuntimeError =
     | Count of Int * singular: ErrorSegment * plural: ErrorSegment // 2 errors, 1 error, etc
 
     // -- Functions
-    | FunctionName of FQFnName
+    | FunctionName of FQFnName * List<String>
     /// Description from StdLib description fields.
     /// Note: may include markers like `<param name>`, to be parsed and displayed differently.
     | Description of String
@@ -33,7 +33,7 @@ module RuntimeError =
     | InlineParamName of String
 
     // -- Types
-    | TypeName of FQTypeName
+    | TypeName of FQTypeName * List<String>
     | ShortTypeName of FQTypeName
     | TypeReference of TypeReference
     | TypeOfValue of Dval // CLEANUP should these all just be ValueTypes?
@@ -60,6 +60,8 @@ module RuntimeError =
 
 
   type ErrorSegments = List<ErrorSegment>
+
+  let emptyReferenceName : List<String> = []
 
 
   let segmentsToString (branchId: Uuid) (segments: ErrorSegments) : String =
@@ -89,12 +91,15 @@ module RuntimeError =
             | None -> ""
             | Some prev -> Stdlib.String.articleFor prev ++ " "
 
-          | FunctionName fn -> fnName branchId fn
+          | FunctionName(fn, referenceName) ->
+            referencedFnName branchId fn referenceName
+
 
           | Description d -> d
           | ParamName p -> $"`{p}`"
           | InlineParamName p -> p // Inline versions don't have quotes
-          | TypeName t -> typeName branchId t
+          | TypeName(t, referenceName) ->
+            referencedTypeName branchId t referenceName
           | ValueName v -> valueName branchId v
           | ShortTypeName t ->
             // TODO: make it short
@@ -264,15 +269,15 @@ module RuntimeError =
 
     | TypeNotFound name ->
       [ ES.String "Type "
-        ES.TypeName name
+        ES.TypeName(name, emptyReferenceName)
         ES.String " couldn't be found" ]
     | ValNotFound name ->
       [ ES.String "Value "
         ES.ValueName name
         ES.String " couldn't be found" ]
-    | FnNotFound name ->
+    | FnNotFound(name, referenceName) ->
       [ ES.String "Function "
-        ES.FunctionName name
+        ES.FunctionName(name, referenceName)
         ES.String " couldn't be found" ]
 
     | DeprecatedItemHalted _target ->
@@ -282,9 +287,9 @@ module RuntimeError =
     | Record err ->
       match err with
       // -- Creation --
-      | CreationTypeNotRecord name ->
+      | CreationTypeNotRecord(name, typeReferenceName) ->
         [ ES.String "Expected a record, but "
-          ES.TypeName name
+          ES.TypeName(name, typeReferenceName)
           ES.String " is not one" ]
       | CreationEmptyKey -> [ ES.String "Empty key in record creation" ]
       | CreationMissingField fieldName ->
@@ -306,10 +311,11 @@ module RuntimeError =
           // ES.TypeName typeName
           // ES.String " record"
           ]
-      | CreationFieldOfWrongType (fieldName,  expectedType,  actualType, actualValue) ->
+      | CreationFieldOfWrongType (fieldName, expectedTypeRef, actualType, actualValue) ->
         [ ES.String "Failed to create record. "
           ES.String "Expected "
-          ES.ValueType expectedType
+          // Custom type refs keep their diagnostic name.
+          ES.TypeReference expectedTypeRef
           ES.String " for field "
           ES.FieldName fieldName
           ES.String ", but got "
@@ -337,10 +343,10 @@ module RuntimeError =
           // ES.TypeName typeName
           // ES.String " record"
           ]
-      | UpdateFieldOfWrongType(fieldName, expectedType,  actualType, actualValue) ->
+      | UpdateFieldOfWrongType(fieldName, expectedTypeRef, actualType, actualValue) ->
         [ ES.String "Failed to create updated record. "
           ES.String "Expected "
-          ES.ValueType expectedType
+          ES.TypeReference expectedTypeRef
           ES.String " for field "
           ES.FieldName fieldName
           ES.String ", but got "
@@ -369,26 +375,26 @@ module RuntimeError =
 
     | Enum err ->
       match err with
-      | ConstructionWrongNumberOfFields (typeName, caseName, expectedFieldCount, actualFieldCount) ->
+      | ConstructionWrongNumberOfFields (typeName, typeReferenceName, caseName, expectedFieldCount, actualFieldCount) ->
         [ ES.String "Expected "
           ES.Int expectedFieldCount
           ES.String " fields in "
-          ES.TypeName typeName
+          ES.TypeName(typeName, typeReferenceName)
           ES.String "."
           ES.FieldName caseName
           ES.String ", but got "
           ES.Int actualFieldCount ]
 
-      | ConstructionCaseNotFound (typeName, caseName) ->
+      | ConstructionCaseNotFound (typeName, typeReferenceName, caseName) ->
         [ ES.String "There is no case named "
           ES.FieldName caseName
           ES.String " in "
-          ES.TypeName typeName ]
+          ES.TypeName(typeName, typeReferenceName) ]
 
-      | ConstructionFieldOfWrongType (caseName, fieldIndex, expectedType, actualType, actualValue) ->
+      | ConstructionFieldOfWrongType (caseName, fieldIndex, expectedTypeRef, actualType, actualValue) ->
         [ ES.String "Failed to create enum. "
           ES.String "Expected "
-          ES.ValueType expectedType
+          ES.TypeReference expectedTypeRef
           ES.String " for field "
           ES.Int fieldIndex
           ES.String " in "
@@ -418,37 +424,38 @@ module RuntimeError =
           ES.FullValue actualValue
           ES.String ")" ]
 
-      | WrongNumberOfTypeArgsForFn (fn, expected, actual) ->
-        [ ES.FunctionName fn
+      | WrongNumberOfTypeArgsForFn (fn, fnReferenceName, expected, actual) ->
+        [ ES.FunctionName(fn, fnReferenceName)
           ES.String " expects "
           ES.Count(expected, ES.String "type argument", ES.String "type arguments")
           ES.String ", but got "
           ES.Count(actual, ES.String "type argument", ES.String "type arguments") ]
       | CannotApplyTypeArgsMoreThanOnce ->
         [ ES.String "Cannot apply type arguments more than once" ]
-      | TooManyArgsForFn (fn, expected, actual) ->
-        [ ES.FunctionName fn
+      | TooManyArgsForFn (fn, fnReferenceName, expected, actual) ->
+        [ ES.FunctionName(fn, fnReferenceName)
           ES.String " expects "
           ES.Count(expected, ES.String "argument", ES.String "arguments")
           ES.String ", but got "
           ES.Count(actual, ES.String "argument", ES.String "arguments") ]
-      | FnParameterNotExpectedType(fnName, paramIndex, paramName, expectedType, actualType, actualValue) ->
-        [ ES.FunctionName fnName
+      | FnParameterNotExpectedType(fnName, fnReferenceName, paramIndex, paramName, expectedTypeRef, actualType, actualValue) ->
+        [ ES.FunctionName(fnName, fnReferenceName)
           ES.String "'s "
           ES.Ordinal(paramIndex + 1)
           ES.String " parameter "
           ES.ParamName paramName
           ES.String " expects "
-          ES.ValueType expectedType
+          // Custom type refs keep their diagnostic name.
+          ES.TypeReference expectedTypeRef
           ES.String ", but got "
           ES.ValueType actualType
           ES.String " ("
           ES.FullValue actualValue
           ES.String ")" ]
-      | FnResultNotExpectedType(fnName, expectedType, actualType, actualValue) ->
-        [ ES.FunctionName fnName
+      | FnResultNotExpectedType(fnName, fnReferenceName, expectedTypeRef, actualType, actualValue) ->
+        [ ES.FunctionName(fnName, fnReferenceName)
           ES.String "'s return value expects "
-          ES.ValueType expectedType
+          ES.TypeReference expectedTypeRef
           ES.String ", but got "
           ES.ValueType actualType
           ES.String " ("
@@ -483,9 +490,9 @@ module RuntimeError =
         [ ES.String "Unsupported type in JSON: "
           ES.TypeReference typ
           ES.String ". Some types are not supported in Json serialization, and cannot be used as arguments to "
-          ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonParse"; version = 0l }))
+          ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonParse"; version = 0l }), emptyReferenceName)
           ES.String " or "
-          ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonSerialize"; version = 0l })) ]
+          ES.FunctionName (LanguageTools.RuntimeTypes.FQFnName.FQFnName.Builtin(LanguageTools.RuntimeTypes.FQFnName.Builtin { name = "jsonSerialize"; version = 0l }), emptyReferenceName) ]
       | CannotSerializeValue dv ->
         [ ES.String "Cannot serialize "
           ES.FullValue dv

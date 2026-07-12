@@ -597,6 +597,7 @@ type Instruction =
   | CreateRecord of
     createTo : Register *
     typeName : FQTypeName.FQTypeName *
+    typeReferenceName : List<string> *
     typeArgs : List<TypeReference> *
     fields : List<string * Register>
 
@@ -614,6 +615,7 @@ type Instruction =
   | CreateEnum of
     createTo : Register *
     typeName : FQTypeName.FQTypeName *
+    typeReferenceName : List<string> *
     typeArgs : List<TypeReference> *
     caseName : string *
     fields : List<Register>
@@ -700,14 +702,19 @@ and LambdaImpl =
 
 
 and ApplicableNamedFn =
-  { name : FQFnName.FQFnName
+  {
+    name : FQFnName.FQFnName
+
+    /// Used only to render diagnostics; not part of function identity.
+    referenceName : List<string>
 
     typeSymbolTable : TypeSymbolTable
 
     // CLEANUP maybe this could be List<ValueType>?
     typeArgs : List<TypeReference>
 
-    argsSoFar : List<Dval> }
+    argsSoFar : List<Dval>
+  }
 
 and ApplicableLambda =
   {
@@ -1049,18 +1056,22 @@ module RuntimeError =
     type Error =
       | ConstructionWrongNumberOfFields of
         typeName : FQTypeName.FQTypeName *
+        typeReferenceName : List<string> *
         caseName : string *
         expectedFieldCount : int *
         actualFieldCount : int
 
       | ConstructionCaseNotFound of
         typeName : FQTypeName.FQTypeName *
+        typeReferenceName : List<string> *
         caseName : string
 
       | ConstructionFieldOfWrongType of
         caseName : string *
         fieldIndex : int *
-        expectedType : ValueType *
+        // Declaration-shaped expected type for diagnostics. Inferred vars are
+        // resolved; aliases and custom refs keep their names.
+        expectedTypeRef : TypeReference *
         actualType : ValueType *
         actualValue : Dval
 
@@ -1072,14 +1083,17 @@ module RuntimeError =
 
     type Error =
       // -- Creation --
-      | CreationTypeNotRecord of name : FQTypeName.FQTypeName
+      | CreationTypeNotRecord of
+        name : FQTypeName.FQTypeName *
+        typeReferenceName : List<string>
       | CreationEmptyKey // I'm not quite sure how this can be reached(?)
       | CreationMissingField of fieldName : string
       | CreationDuplicateField of fieldName : string
       | CreationFieldNotExpected of fieldName : string
       | CreationFieldOfWrongType of
         fieldName : string *
-        expectedType : ValueType *
+        // Declaration-shaped expected type for diagnostics.
+        expectedTypeRef : TypeReference *
         actualType : ValueType *
         actualValue : Dval
 
@@ -1090,7 +1104,8 @@ module RuntimeError =
       | UpdateFieldNotExpected of fieldName : string
       | UpdateFieldOfWrongType of
         fieldName : string *
-        expectedType : ValueType *
+        // Declaration-shaped expected type for diagnostics.
+        expectedTypeRef : TypeReference *
         actualType : ValueType *
         actualValue : Dval
 
@@ -1108,24 +1123,34 @@ module RuntimeError =
       // specific to fns
       | WrongNumberOfTypeArgsForFn of
         fn : FQFnName.FQFnName *
+        fnReferenceName : List<string> *
         expected : int *
         actual : int
 
       | CannotApplyTypeArgsMoreThanOnce
 
-      | TooManyArgsForFn of fn : FQFnName.FQFnName * expected : int * actual : int
+      | TooManyArgsForFn of
+        fn : FQFnName.FQFnName *
+        fnReferenceName : List<string> *
+        expected : int *
+        actual : int
 
       | FnParameterNotExpectedType of
         fnName : FQFnName.FQFnName *
+        fnReferenceName : List<string> *
         paramIndex : int *
         paramName : string *
-        expectedType : ValueType *
+        // Declaration-shaped expected type for diagnostics. Inferred vars are
+        // resolved; aliases and custom refs keep their names.
+        expectedTypeRef : TypeReference *
         actualType : ValueType *
         actualValue : Dval
 
       | FnResultNotExpectedType of
         fnName : FQFnName.FQFnName *
-        expectedType : ValueType *
+        fnReferenceName : List<string> *
+        // Declaration-shaped expected type for diagnostics.
+        expectedTypeRef : TypeReference *
         actualType : ValueType *
         actualValue : Dval
 
@@ -1189,7 +1214,7 @@ module RuntimeError =
     | ParseTimeNameResolution of originalName : List<string> * NameResolutionError
 
     | TypeNotFound of name : FQTypeName.FQTypeName
-    | FnNotFound of name : FQFnName.FQFnName
+    | FnNotFound of name : FQFnName.FQFnName * referenceName : List<string>
     | ValueNotFound of name : FQValueName.FQValueName
 
     /// Raised when calling a package fn whose hash is currently marked
@@ -1266,6 +1291,14 @@ type ExecutionPoint =
 
   /// Executing some lambda
   | Lambda of parent : ExecutionPoint * lambdaExprId : id
+
+module ExecutionPoint =
+  /// The function whose body is executing, following through lambdas.
+  let rec enclosingFn (ep : ExecutionPoint) : Option<FQFnName.FQFnName> =
+    match ep with
+    | Function fn -> Some fn
+    | Lambda(parent, _) -> enclosingFn parent
+    | Source -> None
 
 
 /// Not: in reverse order
@@ -1778,6 +1811,9 @@ type CallFrame =
     // so we keep only one copy of such, in the root of the VMState
     executionPoint : ExecutionPoint
 
+    /// Calling name used for diagnostics and ESelf.
+    fnReferenceName : List<string>
+
     /// What instruction index we are currently 'at'
     mutable programCounter : int
 
@@ -1893,6 +1929,7 @@ type VMState =
     let rootCallFrame : CallFrame =
       { id = rootCallFrameID
         executionPoint = Source
+        fnReferenceName = []
         programCounter = 0
         registers = Array.zeroCreate instrs.registerCount
         typeSymbolTable = Map.empty
@@ -2276,6 +2313,13 @@ module TypeReference =
       TCustomType(NameResolution.ok typeName, List.map fromVT typeArgs)
     | KTFn(args, ret) -> TFn(NEList.map fromVT args, fromVT ret)
     | KTDB inner -> TDB(fromVT inner)
+
+  /// Convert a ValueType back to a TypeReference, for diagnostics where only
+  /// a runtime-inferred type is available. Unknown becomes `TVariable "_"`.
+  let fromValueType (vt : ValueType) : TypeReference =
+    match vt with
+    | ValueType.Unknown -> TVariable "_"
+    | ValueType.Known kt -> fromKnownType kt
 
 
   /// Resolve type variables in a TypeReference using the TypeSymbolTable.

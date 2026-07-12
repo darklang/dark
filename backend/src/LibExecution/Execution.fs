@@ -180,9 +180,10 @@ let executeApplicable
   }
 
 
-let executeFunction
+let executeReferencedFunction
   (exeState : RT.ExecutionState)
   (name : RT.FQFnName.FQFnName)
+  (referenceName : List<string>)
   (typeArgs : List<RT.TypeReference>)
   (args : NEList<RT.Dval>)
   : Task<RT.ExecutionResult> =
@@ -191,6 +192,7 @@ let executeFunction
   let fnInstr, fnReg, rc =
     let namedFn : RT.ApplicableNamedFn =
       { name = name
+        referenceName = referenceName
         typeSymbolTable = Map.empty
         typeArgs = typeArgs
         argsSoFar = [] }
@@ -212,6 +214,18 @@ let executeFunction
       instructions = [ fnInstr ] @ argInstrs @ [ applyInstr ]
       resultIn = 0 }
   executeExpr exeState instrs
+
+
+/// Execute a function by its resolved/content-addressed name only.
+/// Use `executeReferencedFunction` when the caller has a user-written
+/// reference name to preserve in runtime errors.
+let executeFunction
+  (exeState : RT.ExecutionState)
+  (name : RT.FQFnName.FQFnName)
+  (typeArgs : List<RT.TypeReference>)
+  (args : NEList<RT.Dval>)
+  : Task<RT.ExecutionResult> =
+  executeReferencedFunction exeState name [] typeArgs args
 
 
 let runtimeErrorToString

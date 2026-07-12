@@ -245,6 +245,7 @@ let rec resolveType
 let checkFnParam
   (types : Types)
   (fnName : FQFnName.FQFnName)
+  (fnReferenceName : List<string>)
   (tst : TypeSymbolTable)
   (paramIndex : int)
   (paramName : string)
@@ -252,17 +253,19 @@ let checkFnParam
   (actual : Dval)
   : Ply<Result<TypeSymbolTable, RTE.Error>> =
   uply {
-    let! expected = TypeReference.unwrapAlias types expected
-    match! unify types tst expected actual with
+    let! unwrapped = TypeReference.unwrapAlias types expected
+    match! unify types tst unwrapped actual with
     | Ok updatedTst -> return Ok updatedTst
     | Error _path ->
-      let! expected = TypeReference.toVT types tst expected
+      // Render the declaration type while resolving any inferred type variables.
+      let expectedTypeRef = TypeReference.resolveTypeVariables tst expected
       return
         RTE.Applications.FnParameterNotExpectedType(
           fnName,
+          fnReferenceName,
           paramIndex,
           paramName,
-          expected,
+          expectedTypeRef,
           Dval.toValueType actual,
           actual
         )
@@ -274,20 +277,23 @@ let checkFnParam
 let checkFnResult
   (types : Types)
   (fnName : FQFnName.FQFnName)
+  (fnReferenceName : List<string>)
   (tst : TypeSymbolTable)
   (expected : TypeReference)
   (actual : Dval)
   : Ply<Result<TypeSymbolTable, RTE.Error>> =
   uply {
-    let! expected = TypeReference.unwrapAlias types expected
-    let! expectedVT = TypeReference.toVT types tst expected
-    match! unify types tst expected actual with
+    let! unwrapped = TypeReference.unwrapAlias types expected
+    match! unify types tst unwrapped actual with
     | Ok updatedTst -> return Ok updatedTst
     | Error _path ->
+      // Render the declaration type while resolving any inferred type variables.
+      let expectedTypeRef = TypeReference.resolveTypeVariables tst expected
       return
         RTE.Applications.FnResultNotExpectedType(
           fnName,
-          expectedVT,
+          fnReferenceName,
+          expectedTypeRef,
           Dval.toValueType actual,
           actual
         )
@@ -396,7 +402,13 @@ module DvalCreator =
     match VT.merge expected vt with
     | Ok typ -> DEnum(typeName, typeName, [ typ ], "Some", [ dv ])
     | Error() ->
-      RuntimeError.Enums.ConstructionFieldOfWrongType("Some", 0, expected, vt, dv)
+      RuntimeError.Enums.ConstructionFieldOfWrongType(
+        "Some",
+        0,
+        TypeReference.fromValueType expected,
+        vt,
+        dv
+      )
       |> RuntimeError.Enum
       |> raiseRTE threadID
 
@@ -426,7 +438,7 @@ module DvalCreator =
         RuntimeError.Enums.ConstructionFieldOfWrongType(
           "Ok",
           0,
-          okType,
+          TypeReference.fromValueType okType,
           dvalType,
           dvOk
         )
@@ -447,7 +459,7 @@ module DvalCreator =
         RuntimeError.Enums.ConstructionFieldOfWrongType(
           "Error",
           0,
-          errorType,
+          TypeReference.fromValueType errorType,
           dvalType,
           dvError
         )
@@ -494,6 +506,7 @@ module DvalCreator =
     (threadID : ThreadID)
     (tst : TypeSymbolTable)
     (sourceTypeName : FQTypeName.FQTypeName)
+    (typeReferenceName : List<string>)
     (typeArgs : List<ValueType>)
     (caseName : string)
     (fields : List<Dval>)
@@ -511,7 +524,11 @@ module DvalCreator =
       match foundCaseDef with
       | None ->
         return
-          RTE.Enums.ConstructionCaseNotFound(resolvedTypeName, caseName)
+          RTE.Enums.ConstructionCaseNotFound(
+            resolvedTypeName,
+            typeReferenceName,
+            caseName
+          )
           |> RTE.Error.Enum
           |> raiseRTE threadID
 
@@ -523,6 +540,7 @@ module DvalCreator =
           if expected <> actual then
             RTE.Enums.ConstructionWrongNumberOfFields(
               resolvedTypeName,
+              typeReferenceName,
               caseName,
               expected,
               actual
@@ -537,14 +555,16 @@ module DvalCreator =
           Ply.List.foldSequentiallyWithIndex
             (fun fieldIndex (typeArgs, fieldsInReverse, tst) (fieldDef, actualField) ->
               uply {
-                let! expected = TypeReference.toVT types tst fieldDef
                 match! unify types tst fieldDef actualField with
                 | Error _path ->
+                  // Render the declaration type while resolving any inferred type variables.
+                  let expectedTypeRef =
+                    TypeReference.resolveTypeVariables tst fieldDef
                   return
                     RTE.Enums.ConstructionFieldOfWrongType(
                       caseName,
                       fieldIndex,
-                      expected,
+                      expectedTypeRef,
                       Dval.toValueType actualField,
                       actualField
                     )
@@ -552,7 +572,8 @@ module DvalCreator =
                     |> raiseRTE threadID
 
                 | Ok newTST ->
-                  let! expected = TypeReference.toVT types tst fieldDef
+                  let expectedTypeRef =
+                    TypeReference.resolveTypeVariables newTST fieldDef
                   // Update resultant typeArgs based on what we learned from this field
                   // , by checking the TST.
                   let newTypeArgs =
@@ -571,7 +592,7 @@ module DvalCreator =
                           RTE.Enums.ConstructionFieldOfWrongType(
                             caseName,
                             fieldIndex,
-                            expected,
+                            expectedTypeRef,
                             Dval.toValueType actualField,
                             actualField
                           )
@@ -594,6 +615,7 @@ module DvalCreator =
     (types : Types)
     (threadID : ThreadID)
     (typeName : FQTypeName.FQTypeName)
+    (typeReferenceName : List<string>)
     (typeArgs : List<ValueType>)
     : Ply<FQTypeName.FQTypeName *
       List<string * ValueType> *
@@ -607,7 +629,7 @@ module DvalCreator =
       | TypeDeclaration.Record fields -> return (resolvedName, typeArgs, fields)
       | _ ->
         return
-          RTE.Records.CreationTypeNotRecord typeName
+          RTE.Records.CreationTypeNotRecord(typeName, typeReferenceName)
           |> RTE.Record
           |> raiseRTE threadID
     }
@@ -622,12 +644,13 @@ module DvalCreator =
     (threadID : ThreadID)
     (tst : TypeSymbolTable)
     (sourceTypeName : FQTypeName.FQTypeName)
+    (typeReferenceName : List<string>)
     (typeArgs : List<ValueType>)
     (fields : List<string * Dval>)
     : Ply<Dval> =
     uply {
       let! (resolvedTypeName, resolvedTypeArgs, expectedFields) =
-        resolveRecordType types threadID sourceTypeName typeArgs
+        resolveRecordType types threadID sourceTypeName typeReferenceName typeArgs
 
       let tst =
         resolvedTypeArgs |> List.fold (fun acc (name, vt) -> Map.add name vt acc) tst
@@ -657,13 +680,15 @@ module DvalCreator =
                   |> raiseRTE threadID
 
               | Some fieldDef ->
-                let! expected = TypeReference.toVT types tst fieldDef.typ
                 match! unify types tst fieldDef.typ fieldValue with
                 | Error _path ->
+                  // Render the declaration type while resolving any inferred type variables.
+                  let expectedTypeRef =
+                    TypeReference.resolveTypeVariables tst fieldDef.typ
                   return
                     RTE.Records.CreationFieldOfWrongType(
                       fieldName,
-                      expected,
+                      expectedTypeRef,
                       Dval.toValueType fieldValue,
                       fieldValue
                     )
@@ -671,7 +696,8 @@ module DvalCreator =
                     |> raiseRTE threadID
 
                 | Ok newTST ->
-                  let! expected = TypeReference.toVT types newTST fieldDef.typ
+                  let expectedTypeRef =
+                    TypeReference.resolveTypeVariables newTST fieldDef.typ
                   // Update resultant typeArgs based on what we learned from this field
                   // , by checking the TST.
                   let newTypeArgs =
@@ -689,7 +715,7 @@ module DvalCreator =
                         | Error() ->
                           RTE.Records.CreationFieldOfWrongType(
                             fieldName,
-                            expected,
+                            expectedTypeRef,
                             Dval.toValueType fieldValue,
                             fieldValue
                           )
@@ -739,8 +765,9 @@ module DvalCreator =
     (fieldUpdates : List<string * Dval>)
     : Ply<Dval> =
     uply {
+      // Updates copy an existing value, so no type name was written here.
       let! (_resolvedTypeName, resolvedTypeArgs, expectedFields) =
-        resolveRecordType types threadID sourceTypeName []
+        resolveRecordType types threadID sourceTypeName [] []
 
       let resolvedTypeArgs =
         List.zip typeArgsBeforeUpdate resolvedTypeArgs
@@ -766,21 +793,24 @@ module DvalCreator =
                     |> raiseRTE threadID
 
                 | Some fieldDef ->
-                  let! expected = TypeReference.toVT types tst fieldDef.typ
                   match! unify types tst fieldDef.typ fieldValue with
                   | Error _path ->
                     // CLEANUP involve path, somehow
+                    // Render the declaration type while resolving any inferred type variables.
+                    let expectedTypeRef =
+                      TypeReference.resolveTypeVariables tst fieldDef.typ
                     return
                       RTE.Records.UpdateFieldOfWrongType(
                         fieldName,
-                        expected,
+                        expectedTypeRef,
                         Dval.toValueType fieldValue,
                         fieldValue
                       )
                       |> RTE.Record
                       |> raiseRTE threadID
                   | Ok updatedTst ->
-                    let! expected = TypeReference.toVT types updatedTst fieldDef.typ
+                    let expectedTypeRef =
+                      TypeReference.resolveTypeVariables updatedTst fieldDef.typ
 
                     // Update resultant typeArgs based on what we learned from this field
                     // , by checking the TST.
@@ -799,7 +829,7 @@ module DvalCreator =
                           | Error() ->
                             RTE.Records.UpdateFieldOfWrongType(
                               fieldName,
-                              expected,
+                              expectedTypeRef,
                               Dval.toValueType fieldValue,
                               fieldValue
                             )

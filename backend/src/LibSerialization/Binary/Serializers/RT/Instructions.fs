@@ -265,10 +265,11 @@ module Instruction =
           String.write w key
           w.Write(reg : int))
         entries
-    | CreateRecord(createTo, typeName, typeArgs, fields) ->
+    | CreateRecord(createTo, typeName, typeReferenceName, typeArgs, fields) ->
       w.Write 13uy
       w.Write(createTo : int)
       FQTypeName.write w typeName
+      ReferenceName.write w typeReferenceName
       List.write w TypeReference.write typeArgs
       List.write
         w
@@ -291,10 +292,11 @@ module Instruction =
       w.Write(targetReg : int)
       w.Write(recordReg : int)
       String.write w fieldName
-    | CreateEnum(createTo, typeName, typeArgs, caseName, fields) ->
+    | CreateEnum(createTo, typeName, typeReferenceName, typeArgs, caseName, fields) ->
       w.Write 16uy
       w.Write(createTo : int)
       FQTypeName.write w typeName
+      ReferenceName.write w typeReferenceName
       List.write w TypeReference.write typeArgs
       String.write w caseName
       List.write w (fun w reg -> w.Write(reg : int)) fields
@@ -388,13 +390,14 @@ module Instruction =
     | 13uy ->
       let createTo = r.ReadInt32()
       let typeName = FQTypeName.read r
+      let typeReferenceName = ReferenceName.read r
       let typeArgs = List.read r TypeReference.read
       let fields =
         List.read r (fun r ->
           let field = String.read r
           let reg = r.ReadInt32()
           (field, reg))
-      CreateRecord(createTo, typeName, typeArgs, fields)
+      CreateRecord(createTo, typeName, typeReferenceName, typeArgs, fields)
     | 14uy ->
       let createTo = r.ReadInt32()
       let originalRecordReg = r.ReadInt32()
@@ -412,10 +415,11 @@ module Instruction =
     | 16uy ->
       let createTo = r.ReadInt32()
       let typeName = FQTypeName.read r
+      let typeReferenceName = ReferenceName.read r
       let typeArgs = List.read r TypeReference.read
       let caseName = String.read r
       let fields = List.read r (fun r -> r.ReadInt32())
-      CreateEnum(createTo, typeName, typeArgs, caseName, fields)
+      CreateEnum(createTo, typeName, typeReferenceName, typeArgs, caseName, fields)
     | 17uy ->
       let createTo = r.ReadInt32()
       let valueName = FQValueName.read r

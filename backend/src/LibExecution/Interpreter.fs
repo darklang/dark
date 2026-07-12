@@ -302,7 +302,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
         | Function(FQFnName.Builtin _) ->
           // we should error in some better way (CLEANUP)
           // , but the point is that callstacks shouldn't be created for builtin fn calls
-          raiseRTE (RTE.FnNotFound(FQFnName.fqBuiltin "builtin" 0))
+          raiseRTE (RTE.FnNotFound(FQFnName.fqBuiltin "builtin" 0, []))
 
         | Function(FQFnName.Package fn) ->
           uply {
@@ -317,7 +317,11 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 exeState.packageFnInstrCache[fn.hash] <- instrData
                 return instrData
 
-              | None -> return raiseRTE (RTE.FnNotFound(FQFnName.Package fn))
+              | None ->
+                return
+                  raiseRTE (
+                    RTE.FnNotFound(FQFnName.Package fn, currentFrame.fnReferenceName)
+                  )
           }
 
 
@@ -331,7 +335,22 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
         match inst with
 
         // == Simple register operations ==
-        | LoadVal(reg, value) -> registers[reg] <- value
+        | LoadVal(reg, value) ->
+          // ESelf is compiled without a reference name because hashes can have
+          // multiple names. Attach the current calling name before it escapes.
+          let value =
+            match value with
+            | DApplicable(AppNamedFn fn) when
+              List.isEmpty fn.referenceName
+              && not (List.isEmpty currentFrame.fnReferenceName)
+              && Some fn.name = ExecutionPoint.enclosingFn
+                currentFrame.executionPoint
+              ->
+              DApplicable(
+                AppNamedFn { fn with referenceName = currentFrame.fnReferenceName }
+              )
+            | _ -> value
+          registers[reg] <- value
 
         | CopyVal(copyTo, copyFrom) -> registers[copyTo] <- registers[copyFrom]
 
@@ -473,7 +492,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
 
         // == Working with Custom Data ==
         // -- Records --
-        | CreateRecord(recordReg, sourceTypeName, typeArgs, fields) ->
+        | CreateRecord(recordReg, sourceTypeName, typeReferenceName, typeArgs, fields) ->
           let fields =
             fields |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
 
@@ -489,6 +508,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               vm.threadID
               currentFrame.typeSymbolTable
               sourceTypeName
+              typeReferenceName
               typeArgs
               fields
 
@@ -543,7 +563,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
 
 
         // -- Enums --
-        | CreateEnum(enumReg, typeName, typeArgs, caseName, fields) ->
+        | CreateEnum(enumReg, typeName, typeReferenceName, typeArgs, caseName, fields) ->
           let fields = fields |> List.map (fun valueReg -> registers[valueReg])
 
           let tst = currentFrame.typeSymbolTable
@@ -558,6 +578,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               vm.threadID
               tst
               typeName
+              typeReferenceName
               typeArgs
               caseName
               fields
@@ -683,7 +704,9 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                       Map.mergeFavoringRight
                         appLambda.typeSymbolTable
                         currentFrame.typeSymbolTable
-                  executionPoint = Lambda(currentFrame.executionPoint, exprId) }
+                  executionPoint = Lambda(currentFrame.executionPoint, exprId)
+                  // Preserve the enclosing function's reference name for lambda diagnostics.
+                  fnReferenceName = currentFrame.fnReferenceName }
 
               if vm.stats.enabled then
                 vm.stats.framePushCount <- vm.stats.framePushCount + 1L
@@ -707,17 +730,30 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
             let name = applicable.name
 
             let handleTooManyArgs expected actual =
-              RTE.Applications.TooManyArgsForFn(name, expected, actual)
+              RTE.Applications.TooManyArgsForFn(
+                name,
+                applicable.referenceName,
+                expected,
+                actual
+              )
               |> RTE.Apply
               |> raiseRTE
 
             let handleWrongTypeArgCount expected actual =
-              RTE.Applications.WrongNumberOfTypeArgsForFn(name, expected, actual)
+              RTE.Applications.WrongNumberOfTypeArgsForFn(
+                name,
+                applicable.referenceName,
+                expected,
+                actual
+              )
               |> RTE.Apply
               |> raiseRTE
 
             let typeCheckParam =
-              TypeChecker.checkFnParam exeState.types applicable.name
+              TypeChecker.checkFnParam
+                exeState.types
+                applicable.name
+                applicable.referenceName
 
             let mutable tst =
               if Map.isEmpty applicable.typeSymbolTable then
@@ -753,7 +789,10 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
             match applicable.name with
             | FQFnName.Builtin builtin ->
               match Map.find builtin exeState.fns.builtIn with
-              | None -> return RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE
+              | None ->
+                return
+                  RTE.FnNotFound(FQFnName.Builtin builtin, applicable.referenceName)
+                  |> raiseRTE
               | Some fn ->
                 // Step 1: resolve typeArgs against the OUTER tst so the
                 // wrapper-pass-through pattern works (a wrapper body
@@ -893,6 +932,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                         TypeChecker.checkFnResult
                           exeState.types
                           (FQFnName.Builtin fn.name)
+                          applicable.referenceName
                           tst
                           expectedReturnType
                           result
@@ -924,7 +964,10 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               if isHarmful && not exeState.allowHarmful then
                 return RTE.DeprecatedItemHalted pkg |> raiseRTE
               match! exeState.fns.package pkg with
-              | None -> return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
+              | None ->
+                return
+                  RTE.FnNotFound(FQFnName.Package pkg, applicable.referenceName)
+                  |> raiseRTE
               | Some fn ->
                 // Step 1: resolve any explicit typeArgs against the
                 // OUTER tst — they may reference outer-scope TVariables
@@ -1062,7 +1105,8 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                         allArgs |> List.iteri (fun i arg -> r[i] <- arg)
                         r
                       typeSymbolTable = frameTst
-                      executionPoint = pkgEp }
+                      executionPoint = pkgEp
+                      fnReferenceName = applicable.referenceName }
                     |> Some
 
         | RaiseNRE(names, nre) -> raiseRTE (RTE.ParseTimeNameResolution(names, nre))
@@ -1114,7 +1158,10 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 uply {
                   let! fn = exeState.fns.package id
                   match fn with
-                  | None -> return RTE.FnNotFound fnName |> raiseRTE
+                  | None ->
+                    return
+                      RTE.FnNotFound(fnName, currentFrame.fnReferenceName)
+                      |> raiseRTE
                   | Some fn -> return fn.returnType
                 }
 
@@ -1131,12 +1178,13 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               // CLEANUP is this^ or something like it worthwhile?
               ()
             | Error _path ->
-              let! expectedVT =
-                TypeReference.toVT exeState.types tst expectedReturnType
+              let expectedTypeRef =
+                TypeReference.resolveTypeVariables tst expectedReturnType
               return
                 RuntimeError.Applications.FnResultNotExpectedType(
                   fnName,
-                  expectedVT,
+                  currentFrame.fnReferenceName,
+                  expectedTypeRef,
                   Dval.toValueType resultOfFrame,
                   resultOfFrame
                 )

@@ -689,9 +689,10 @@ let fns (config : Configuration) : List<BuiltInFn> =
                         FQFnName.fqPackage (
                           PackageRefs.Fn.Stdlib.HttpClient.request ()
                         ),
+                        [],
                         2,
                         "headers",
-                        VT.list (VT.tuple VT.string VT.string []),
+                        headersType,
                         Dval.toValueType notAPair,
                         notAPair
                       )
@@ -821,9 +822,10 @@ let fns (config : Configuration) : List<BuiltInFn> =
                         FQFnName.fqPackage (
                           PackageRefs.Fn.Stdlib.HttpClient.stream ()
                         ),
+                        [],
                         2,
                         "headers",
-                        VT.list (VT.tuple VT.string VT.string []),
+                        headersType,
                         Dval.toValueType notAPair,
                         notAPair
                       )

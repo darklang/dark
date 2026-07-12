@@ -3,7 +3,7 @@ module Error =
     (Stdlib.Option.Option.Some 10L)
     "not an option"
     (fun (a, b) -> "1")
-   ) = error="Darklang.Stdlib.Option.map2's 2nd parameter `option2` expects Darklang.Stdlib.Option.Option<_>, but got String (\"not an option\")"
+   ) = error="Darklang.Stdlib.Option.map2's 2nd parameter `option2` expects Darklang.Stdlib.Option.Option<'b>, but got String (\"not an option\")"
 
 
 // Check we get previous errors before later ones

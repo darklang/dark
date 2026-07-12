@@ -32,7 +32,7 @@ let packageName
   | "Tests" -> $"{modulesPart}{name}"
   | _ -> $"{owner}.{modulesPart}{name}"
 
-/// Given PM locations for a hash, resolve to best display name.
+/// Given PM locations for a hash, resolve to best reference name.
 /// Uses pickLocation with context to choose among multiple locations.
 let resolvePackageHash
   (ctx: LanguageTools.PackageManager.PickContext)
@@ -43,7 +43,8 @@ let resolvePackageHash
   | Some l -> packageName l.owner l.modules l.name
   | None -> Darklang.LanguageTools.RuntimeTypes.hashToString hash
 
-/// Like resolvePackageHash but prefers originalName when ambiguous (multiple locations).
+/// Render a package reference for diagnostics. When a hash has multiple
+/// matching package locations, use the name from the reference site.
 let resolvePackageHashWithOriginalName
   (ctx: LanguageTools.PackageManager.PickContext)
   (locations: List<LanguageTools.ProgramTypes.PackageLocation>)
@@ -54,8 +55,15 @@ let resolvePackageHashWithOriginalName
   | [ single ] -> packageName single.owner single.modules single.name
   | _ ->
     match originalName with
-    | _ :: _ -> Stdlib.String.join originalName "."
     | [] -> resolvePackageHash ctx locations hash
+    | segments ->
+      let matched =
+        locations
+        |> Stdlib.List.findFirst (fun l ->
+          (Stdlib.List.append (Stdlib.List.append [ l.owner ] l.modules) [ l.name ]) == segments)
+      match matched with
+      | Some l -> packageName l.owner l.modules l.name
+      | None -> Stdlib.String.join segments "."
 
 
 module FQTypeName =
@@ -72,6 +80,20 @@ let typeName
   : String =
   match t with
   | Package p -> FQTypeName.package branchId p
+
+/// Like `typeName`, but uses the name from the reference site to break hash ties.
+let referencedTypeName
+    (branchId: Uuid)
+    (t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
+    (referenceName: List<String>)
+  : String =
+  match t with
+  | Package p ->
+    resolvePackageHashWithOriginalName
+      LanguageTools.PackageManager.PickContext.empty
+      (Builtin.pmGetLocationsByType branchId p)
+      referenceName
+      p
 
 
 module FQValueName =
@@ -129,6 +151,21 @@ let fnName
   match t with
   | Builtin b -> FQFnName.builtIn b
   | Package p -> FQFnName.package branchId p
+
+/// Like `fnName`, but uses the name from the call site to break hash ties.
+let referencedFnName
+    (branchId: Uuid)
+    (t: LanguageTools.RuntimeTypes.FQFnName.FQFnName)
+    (referenceName: List<String>)
+  : String =
+  match t with
+  | Builtin b -> FQFnName.builtIn b
+  | Package p ->
+    resolvePackageHashWithOriginalName
+      LanguageTools.PackageManager.PickContext.empty
+      (Builtin.pmGetLocationsByFn branchId p)
+      referenceName
+      p
 
 
 
@@ -209,7 +246,9 @@ let typeReference
 
   | TDB inner -> $"DB<{typeReference branchId inner}>"
 
-  | TVariable varName -> "'" ++ varName
+  | TVariable varName ->
+    // "_" marks a runtime-unknown type (ValueType.Unknown), not a named variable.
+    if varName == "_" then "_" else "'" ++ varName
 
 
 let knownType
@@ -526,7 +565,10 @@ module Dval =
 
 
     | DApplicable(AppNamedFn namedFn) ->
-      PrettyPrinter.RuntimeTypes.fnName branchId namedFn.name
+      PrettyPrinter.RuntimeTypes.referencedFnName
+        branchId
+        namedFn.name
+        namedFn.referenceName
 
     | DApplicable(AppLambda _lambda) ->
       // // Note: this use case is safe (RE docs/dblock-serialization.md)

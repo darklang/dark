@@ -237,11 +237,9 @@ let fns () : List<BuiltInFn> =
         TypeReference.result
           TUInt128
           (TCustomType(
-            { originalName = []
-              resolved =
-                Ok(
-                  FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint128ParseError ())
-                ) },
+            NameResolution.ok (
+              FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uint128ParseError ())
+            ),
             []
           ))
       description = "Returns the <type UInt128> value of a <type String>"

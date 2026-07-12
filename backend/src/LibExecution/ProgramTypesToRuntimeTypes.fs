@@ -54,18 +54,29 @@ module NameResolutionError =
     | PT.NameResolutionError.NotFound -> RT.NameResolutionError.NotFound
     | PT.NameResolutionError.InvalidName -> RT.NameResolutionError.InvalidName
 
+// Unqualified package references can be ambiguous when multiple package items
+// share a hash. Use the resolved fully-qualified package name for diagnostics,
+// while preserving qualified references as written.
+let private resolvedOriginalName
+  (originalName : List<string>)
+  (location : Option<PT.PackageLocation>)
+  : List<string> =
+  match originalName, location with
+  | ([] | [ _ ]), Some l -> [ l.owner ] @ l.modules @ [ l.name ]
+  | originalName, _ -> originalName
+
 module NameResolution =
-  // `location` is package-store metadata — load-bearing for propagation
-  // rewrites (AstTransformer's byLocation substitution), SCC hash
-  // substitution (Canonical writer), dep-edge inserts, and deferred
-  // refresh. The runtime executes against already-resolved hashes and
-  // has no use for any of that, so we drop location at the PT→RT boundary.
+  // `location` is PT metadata used for package rewrites, hashing, dependency
+  // tracking, and refresh. RT does not carry it, but PT->RT may use it to derive
+  // diagnostic reference names before dropping it.
   let toRT (f : 'a -> 'b) (nr : PT.NameResolution<'a>) : RT.NameResolution<'b> =
-    { originalName = nr.originalName
-      resolved =
-        match nr.resolved with
-        | Ok resolved -> Ok(f resolved.name)
-        | Error e -> Error(NameResolutionError.toRT e) }
+    match nr.resolved with
+    | Ok resolved ->
+      { originalName = resolvedOriginalName nr.originalName resolved.location
+        resolved = Ok(f resolved.name) }
+    | Error e ->
+      { originalName = nr.originalName
+        resolved = Error(NameResolutionError.toRT e) }
 
 
 module TypeReference =
@@ -750,6 +761,7 @@ module Expr =
         // Create a named function reference to the current function
         let namedFn : RT.ApplicableNamedFn =
           { name = FQFnName.toRT fnName
+            referenceName = []
             typeSymbolTable = Map.empty
             typeArgs = []
             argsSoFar = [] }
@@ -884,6 +896,7 @@ module Expr =
           right.registerCount,
           RT.AppNamedFn
             { name = InfixFnName.toFnName infix |> RT.FQFnName.Builtin
+              referenceName = []
               typeSymbolTable = Map.empty
               typeArgs = []
               argsSoFar = [] }
@@ -922,9 +935,11 @@ module Expr =
 
 
     // functions
-    | PT.EFnName(_, { resolved = Ok resolved }) ->
+    | PT.EFnName(_, ({ resolved = Ok resolved } as nameResolution)) ->
       let namedFn : RT.ApplicableNamedFn =
         { name = FQFnName.toRT resolved.name
+          referenceName =
+            resolvedOriginalName nameResolution.originalName resolved.location
           typeSymbolTable = Map.empty
           typeArgs = []
           argsSoFar = [] }
@@ -1082,7 +1097,10 @@ module Expr =
         instructions = [ RT.RaiseNRE(names, NameResolutionError.toRT nre) ]
         resultIn = returnReg }
 
-    | PT.ERecord(_id, { resolved = Ok { name = typeName } }, typeArgs, fields) ->
+    | PT.ERecord(_id,
+                 ({ resolved = Ok resolved } as nameResolution),
+                 typeArgs,
+                 fields) ->
       let recordReg, rc = rc, rc + 1
 
       // CLEANUP: complain if there are no fields
@@ -1103,7 +1121,8 @@ module Expr =
           instrs
           @ [ RT.CreateRecord(
                 recordReg,
-                FQTypeName.toRT typeName,
+                FQTypeName.toRT resolved.name,
+                resolvedOriginalName nameResolution.originalName resolved.location,
                 List.map TypeReference.toRT typeArgs,
                 fields
               ) ]
@@ -1153,7 +1172,11 @@ module Expr =
         instructions = [ RT.RaiseNRE(names, NameResolutionError.toRT nre) ]
         resultIn = returnReg }
 
-    | PT.EEnum(_id, { resolved = Ok { name = typeName } }, typeArgs, caseName, fields) ->
+    | PT.EEnum(_id,
+               ({ resolved = Ok resolved } as nameResolution),
+               typeArgs,
+               caseName,
+               fields) ->
       let enumReg, rc = rc, rc + 1
 
       let (rcAfterFields, instrs, fields) =
@@ -1171,7 +1194,8 @@ module Expr =
           instrs
           @ [ RT.CreateEnum(
                 enumReg,
-                FQTypeName.toRT typeName,
+                FQTypeName.toRT resolved.name,
+                resolvedOriginalName nameResolution.originalName resolved.location,
                 List.map TypeReference.toRT typeArgs,
                 caseName,
                 fields

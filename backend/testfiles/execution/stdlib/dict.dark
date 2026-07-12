@@ -50,7 +50,7 @@ module FromListOverwritingDuplicates =
   // CLEANUP improve the error message to:
   //   In Dict.fromListOverwritingDuplicates's 1st argument (`entries`), the nested value `entries[1]` should be a (String, 'b). However, an Int64 (2) was passed instead.
   Stdlib.Dict.fromListOverwritingDuplicates [ (1L, 2L) ] = error="Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * Int64)>, but got List<(Int64 * Int64)> ([(1, 2)])"
-  Stdlib.Dict.fromListOverwritingDuplicates [ 1L ] = error="Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * _)>, but got List<Int64> ([1])"
+  Stdlib.Dict.fromListOverwritingDuplicates [ 1L ] = error="Darklang.Stdlib.Dict.fromListOverwritingDuplicates's 1st parameter `entries` expects List<(String * 'a)>, but got List<Int64> ([1])"
 module FromList =
   Stdlib.Dict.fromList [] = Stdlib.Option.Option.Some(Dict { })
 

@@ -574,7 +574,9 @@ let parse
       |> Ply.List.flatten
       |> Ply.map (TypeChecker.DvalCreator.dict threadID VT.unknownTODO)
 
-    | TCustomType({ resolved = Ok typeName }, typeArgs), jsonValueKind ->
+    | TCustomType(({ resolved = Ok typeName } as nr), typeArgs), jsonValueKind ->
+      // The written reference name, so diagnostics don't show a hash-sibling.
+      let typeReferenceName = nr.originalName
       uply {
         let! typeArgsVT =
           typeArgs |> Ply.List.mapSequentially (TypeReference.toVT types tst)
@@ -664,6 +666,7 @@ let parse
                     threadID
                     tst
                     typeName
+                    typeReferenceName
                     typeArgsVT
                     caseName
                     fields
@@ -722,6 +725,7 @@ let parse
                 threadID
                 tst
                 typeName
+                typeReferenceName
                 typeArgsVT
                 fields
             return record

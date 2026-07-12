@@ -331,6 +331,7 @@ let parseJsonV0
                   threadID
                   tst
                   typeName
+                  []
                   VT.typeArgsTODO
                   fields
             else
@@ -370,6 +371,7 @@ let parseJsonV0
                   threadID
                   tst
                   typeName
+                  []
                   []
                   caseName
                   fields

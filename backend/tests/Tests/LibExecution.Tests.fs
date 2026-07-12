@@ -24,6 +24,7 @@ module PackageRefs = LibExecution.PackageRefs
 module Dval = LibExecution.Dval
 module NR = LibParser.NameResolver
 module RTNR = LibExecution.RuntimeTypes.NameResolution
+module RTE = LibExecution.RuntimeTypes.RuntimeError
 module Toplevels = LibCloud.Toplevels
 module Serialize = LibCloud.Serialize
 
@@ -138,6 +139,43 @@ let runtimeErrorMessage
           "Alleged RTE was not an RTE  (failed type-check)"
           [ "reverseTypeCheckPath", reverseTypeCheckPath; "allegedRTE", allegedRTE ]
   }
+
+module RuntimeErrorFormatting =
+  let declaredFnAndTypeNamesArePreserved =
+    testTask "function and type diagnostics preserve declared names" {
+      let! state = executionStateFor LibDB.PackageManager.pt false Map.empty
+      let fnName = RT.FQFnName.fqPackage "diagnostic-rendered-fn-hash"
+      let fnReferenceName = [ "Display"; "fn" ]
+      let typeName = RT.FQTypeName.fqPackage "diagnostic-rendered-type-hash"
+      let declaredType =
+        RT.TCustomType(
+          { originalName = [ "Declared"; "Error" ]; resolved = Ok typeName },
+          []
+        )
+      let actualValue = RT.DString "wrong"
+      let actualType = RT.Dval.toValueType actualValue
+      let rte =
+        RTE.Error.Apply(
+          RTE.Applications.FnParameterNotExpectedType(
+            fnName,
+            fnReferenceName,
+            0,
+            "value",
+            declaredType,
+            actualType,
+            actualValue
+          )
+        )
+      let! msg = Exe.rteToString RT2DT.RuntimeError.toDT state rte |> Ply.toTask
+      Expect.stringContains msg "Display.fn" "uses declared function name"
+      Expect.stringContains msg "Declared.Error" "uses declared type name"
+      Expect.isFalse
+        (msg.Contains "diagnostic-rendered")
+        "does not fall back to package hashes when declared names exist"
+    }
+
+  let tests =
+    testList "RuntimeErrorFormatting" [ declaredFnAndTypeNamesArePreserved ]
 
 
 let t
@@ -372,4 +410,5 @@ let fileTests () : Test =
   |> Array.toList
   |> testList "All"
 
-let tests = lazy (testList "LibExecution" [ fileTests () ])
+let tests =
+  lazy (testList "LibExecution" [ RuntimeErrorFormatting.tests; fileTests () ])

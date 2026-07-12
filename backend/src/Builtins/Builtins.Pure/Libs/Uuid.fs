@@ -28,9 +28,9 @@ let fns () : List<BuiltInFn> =
         TypeReference.result
           TUuid
           (TCustomType(
-            { originalName = []
-              resolved =
-                Ok(FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uuidParseError ())) },
+            NameResolution.ok (
+              FQTypeName.fqPackage (PackageRefs.Type.Stdlib.uuidParseError ())
+            ),
             []
           ))
       description =

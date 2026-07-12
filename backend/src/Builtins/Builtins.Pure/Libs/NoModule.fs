@@ -10,6 +10,48 @@ module ValueType = LibExecution.ValueType
 module RTE = RuntimeError
 
 
+/// Removes diagnostic names from resolved custom type refs before equality.
+/// Unresolved refs keep their name because it is the only identity they have.
+let rec private normalizeTypeRefForEquality (t : TypeReference) : TypeReference =
+  let r = normalizeTypeRefForEquality
+  match t with
+  | TUnit
+  | TBool
+  | TInt8
+  | TUInt8
+  | TInt16
+  | TUInt16
+  | TInt32
+  | TUInt32
+  | TInt64
+  | TUInt64
+  | TInt128
+  | TUInt128
+  | TInt
+  | TFloat
+  | TChar
+  | TString
+  | TUuid
+  | TDateTime
+  | TBlob
+  | TVariable _ -> t
+  | TList inner -> TList(r inner)
+  | TDict inner -> TDict(r inner)
+  | TStream inner -> TStream(r inner)
+  | TDB inner -> TDB(r inner)
+  | TTuple(first, second, theRest) -> TTuple(r first, r second, List.map r theRest)
+  | TFn(args, ret) -> TFn(NEList.map r args, r ret)
+  | TCustomType(nr, typeArgs) ->
+    let nr =
+      match nr.resolved with
+      | Ok _ -> { nr with originalName = [] }
+      | Error _ -> nr
+    TCustomType(nr, List.map r typeArgs)
+
+let private typeReferenceEquals (a : TypeReference) (b : TypeReference) : bool =
+  normalizeTypeRefForEquality a = normalizeTypeRefForEquality b
+
+
 /// Structural equality. Walks two Dvals in parallel and returns
 /// true iff every reachable leaf compares equal. Type errors
 /// (callers passing structurally-incompatible Dvals) return false
@@ -107,11 +149,17 @@ let rec equals (a : Dval) (b : Dval) : bool =
 
   | DApplicable a, DApplicable b ->
     match a, b with
-    // CLEANUP exprId is a partial check — fully checking LambdaImpl
-    // equality needs lambda-internal-state work. Today this is
-    // "same-source-position lambdas compare equal."
+    // CLEANUP: lambda equality only checks source position. Include captures,
+    // applied args, and type bindings if lambda equality semantics are tightened.
     | AppLambda a, AppLambda b -> a.exprId = b.exprId
-    | AppNamedFn a, AppNamedFn b -> a = b
+    | AppNamedFn a, AppNamedFn b ->
+      // Reference names are diagnostic-only, so they do not affect equality.
+      a.name = b.name
+      && List.length a.typeArgs = List.length b.typeArgs
+      && List.forall2 typeReferenceEquals a.typeArgs b.typeArgs
+      && List.length a.argsSoFar = List.length b.argsSoFar
+      && List.forall2 r a.argsSoFar b.argsSoFar
+      && a.typeSymbolTable = b.typeSymbolTable
     | _ -> false
 
   | DDB a, DDB b -> a = b

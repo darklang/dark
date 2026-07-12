@@ -96,6 +96,7 @@ and writeApplicableLambda (w : BinaryWriter) (lambda : ApplicableLambda) =
 
 and writeApplicableNamedFn (w : BinaryWriter) (namedFn : ApplicableNamedFn) =
   FQFnName.write w namedFn.name
+  ReferenceName.write w namedFn.referenceName
   writeTypeSymbolTable w namedFn.typeSymbolTable
   List.write w TypeReference.write namedFn.typeArgs
   List.write w writeDval namedFn.argsSoFar
@@ -280,10 +281,12 @@ and readApplicableLambda (r : BinaryReader) : ApplicableLambda =
 
 and readApplicableNamedFn (r : BinaryReader) : ApplicableNamedFn =
   let name = FQFnName.read r
+  let referenceName = ReferenceName.read r
   let typeSymbolTable = readTypeSymbolTable r
   let typeArgs = List.read r TypeReference.read
   let argsSoFar = List.read r readDval
   { name = name
+    referenceName = referenceName
     typeSymbolTable = typeSymbolTable
     typeArgs = typeArgs
     argsSoFar = argsSoFar }

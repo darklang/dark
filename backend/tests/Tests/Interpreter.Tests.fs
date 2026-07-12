@@ -58,6 +58,95 @@ module Basic =
   let tests = testList "Basic" [ one ]
 
 
+module TypeMismatchDiagnostics =
+  let inferredVariablesStayInDeclaredTypeReference =
+    testTask "mismatch diagnostics resolve variables without losing declared names" {
+      let typeName = RT.FQTypeName.fqPackage "diagnostic-type"
+      let declared =
+        RT.TCustomType(
+          { originalName = [ "Tests"; "Types"; "Declared" ]; resolved = Ok typeName },
+          []
+        )
+      let expected = RT.TTuple(declared, RT.TVariable "a", [])
+      let tst = Map [ "a", VT.int64 ]
+      let! result =
+        LibExecution.TypeChecker.checkFnParam
+          RT.Types.empty
+          (RT.FQFnName.fqBuiltin "diagnostic" 0)
+          []
+          tst
+          0
+          "value"
+          expected
+          (RT.DString "wrong")
+        |> Ply.toTask
+      match result with
+      | Error(RTE.Error.Apply(RTE.Applications.FnParameterNotExpectedType(_,
+                                                                          _,
+                                                                          _,
+                                                                          _,
+                                                                          actualTypeRef,
+                                                                          _,
+                                                                          _))) ->
+        Expect.equal
+          actualTypeRef
+          (RT.TTuple(declared, RT.TInt64, []))
+          "the declared custom name is retained while 'a is resolved"
+      | other -> failtestf "expected parameter mismatch, got %A" other
+    }
+
+  let aliasNamesStayInDeclaredTypeReference =
+    testTask "mismatch diagnostics preserve declared alias names" {
+      let aliasHash = RT.Hash "diagnostic-user-id"
+      let aliasName = RT.FQTypeName.Package aliasHash
+      let aliasRef =
+        RT.TCustomType(
+          { originalName = [ "Tests"; "Types"; "UserId" ]; resolved = Ok aliasName },
+          []
+        )
+      let types : RT.Types =
+        { package =
+            fun requested ->
+              if requested = aliasHash then
+                Ply(
+                  Some
+                    { hash = aliasHash
+                      declaration =
+                        { typeParams = []
+                          definition = RT.TypeDeclaration.Alias RT.TString } }
+                )
+              else
+                Ply None }
+      let! result =
+        LibExecution.TypeChecker.checkFnParam
+          types
+          (RT.FQFnName.fqBuiltin "diagnostic" 0)
+          []
+          Map.empty
+          0
+          "id"
+          aliasRef
+          (RT.DInt64 123L)
+        |> Ply.toTask
+      match result with
+      | Error(RTE.Error.Apply(RTE.Applications.FnParameterNotExpectedType(_,
+                                                                          _,
+                                                                          _,
+                                                                          _,
+                                                                          actualTypeRef,
+                                                                          _,
+                                                                          _))) ->
+        Expect.equal actualTypeRef aliasRef "the declared alias name is retained"
+      | other -> failtestf "expected parameter mismatch, got %A" other
+    }
+
+  let tests =
+    testList
+      "Type mismatch diagnostics"
+      [ inferredVariablesStayInDeclaredTypeReference
+        aliasNamesStayInDeclaredTypeReference ]
+
+
 module List =
   let simple =
     t
@@ -368,7 +457,7 @@ module RecordUpdate =
       "let r = Test.Test { key = true }\nlet r2 = { r | key = 1 }\nr2.key"
       E.RecordUpdate.fieldWithWrongType
       (RTE.Record(
-        RTE.Records.UpdateFieldOfWrongType("key", VT.bool, VT.int64, RT.DInt64 1L)
+        RTE.Records.UpdateFieldOfWrongType("key", RT.TBool, VT.int64, RT.DInt64 1L)
       ))
 
   let tests =
@@ -589,6 +678,7 @@ module Fns =
         (RT.DApplicable(
           RT.AppNamedFn
             { name = RT.FQFnName.fqBuiltin "int64Add" 0
+              referenceName = []
               typeSymbolTable = Map.empty
               typeArgs = []
               argsSoFar = [] }
@@ -601,6 +691,7 @@ module Fns =
         (RT.DApplicable(
           RT.AppNamedFn
             { name = RT.FQFnName.fqBuiltin "int64Add" 0
+              referenceName = []
               typeSymbolTable = Map.empty
               typeArgs = []
               argsSoFar = [ RT.DInt64 1 ] }
@@ -628,6 +719,7 @@ module Fns =
           (RT.DApplicable(
             RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
+                referenceName = []
                 typeSymbolTable = Map.empty
                 typeArgs = []
                 argsSoFar = [] }
@@ -640,6 +732,7 @@ module Fns =
           (RT.DApplicable(
             RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
+                referenceName = []
                 typeSymbolTable = Map.empty
                 typeArgs = []
                 argsSoFar = [ RT.DInt64 1 ] }
@@ -660,6 +753,7 @@ module Fns =
           (RT.DApplicable(
             RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.Fact.hash
+                referenceName = []
                 typeSymbolTable = Map.empty
                 typeArgs = []
                 argsSoFar = [] }
@@ -700,6 +794,95 @@ module Fns =
           (RT.DBool true)
       let tests = testList "Outer" [ applied ]
 
+    module ReferenceName =
+      let private referenceNameFor name : List<string> = [ "Tests"; "Names"; name ]
+
+      let missingFunctionUsesReferencedLocation =
+        testTask "missing package function retains its referenced name" {
+          let! state = executionStateFor TestValues.pm false Map.empty
+          let name = RT.FQFnName.fqPackage "missing-function-for-display-name"
+          let referenceName = referenceNameFor "Missing"
+          let! result =
+            LibExecution.Execution.executeReferencedFunction
+              state
+              name
+              referenceName
+              []
+              (NEList.singleton RT.DUnit)
+          match result with
+          | Error(RTE.Error.FnNotFound(actualName, actualReferenceName), _) ->
+            Expect.equal actualName name "content name"
+            Expect.equal
+              actualReferenceName
+              referenceName
+              "referenced reference name"
+          | other -> failtestf "expected FnNotFound, got %A" other
+        }
+
+      let recursiveSelfUsesCallingLocation =
+        testTask "recursive self mismatch retains the calling name" {
+          let! (baseState : RT.ExecutionState) =
+            executionStateFor TestValues.pm false Map.empty
+          let hash = RT.Hash "recursive-function-for-display-name"
+          let name = RT.FQFnName.fqPackage "recursive-function-for-display-name"
+          let referenceName = referenceNameFor "Recursive"
+          let self : RT.Dval =
+            RT.DApplicable(
+              RT.AppNamedFn
+                { name = name
+                  referenceName = []
+                  typeSymbolTable = Map.empty
+                  typeArgs = []
+                  argsSoFar = [] }
+            )
+          let fn : RT.PackageFn.PackageFn =
+            { hash = hash
+              typeParams = []
+              parameters = NEList.singleton { name = "value"; typ = RT.TInt64 }
+              returnType = RT.TInt64
+              body =
+                { registerCount = 4
+                  instructions =
+                    [ RT.LoadVal(1, self)
+                      RT.LoadVal(2, RT.DString "wrong")
+                      RT.Apply(3, 1, [], NEList.singleton 2) ]
+                  resultIn = 3 } }
+          let package
+            (requested : RT.FQFnName.Package)
+            : Ply<Option<RT.PackageFn.PackageFn>> =
+            if requested = hash then
+              Ply(Some fn)
+            else
+              baseState.fns.package requested
+          let state : RT.ExecutionState =
+            { baseState with fns = { baseState.fns with package = package } }
+
+          let! result =
+            LibExecution.Execution.executeReferencedFunction
+              state
+              name
+              referenceName
+              []
+              (NEList.singleton (RT.DInt64 1L))
+          match result with
+          | Error(RTE.Error.Apply(RTE.Applications.FnParameterNotExpectedType(actualName,
+                                                                              actualReferenceName,
+                                                                              _,
+                                                                              _,
+                                                                              _,
+                                                                              _,
+                                                                              _)),
+                  _) ->
+            Expect.equal actualName name "recursive function name"
+            Expect.equal actualReferenceName referenceName "calling reference name"
+          | other -> failtestf "expected parameter mismatch, got %A" other
+        }
+
+      let tests =
+        testList
+          "Reference names"
+          [ missingFunctionUsesReferencedLocation; recursiveSelfUsesCallingLocation ]
+
     let tests =
       testList
         "Package"
@@ -707,7 +890,8 @@ module Fns =
           Fact.tests
           Recusrsion.tests
           MyFnThatTakesALambda.tests
-          Outer.tests ]
+          Outer.tests
+          ReferenceName.tests ]
 
   let tests = testList "Fns" [ Builtin.tests; Package.tests ]
 
@@ -784,6 +968,7 @@ let tests =
   testList
     "Interpreter"
     [ Basic.tests
+      TypeMismatchDiagnostics.tests
       CapsGate.tests
       List.tests
       Let.tests

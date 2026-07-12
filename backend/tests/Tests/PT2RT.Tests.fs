@@ -365,6 +365,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "int64Mod" 0
+                   referenceName = []
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
@@ -377,6 +378,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "equals" 0
+                   referenceName = []
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
@@ -517,6 +519,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "equals" 0
+                   referenceName = []
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
@@ -546,6 +549,7 @@ module Expr =
              1,
              RT.FQTypeName.fqPackage PM.Types.Enums.resultId,
              [],
+             [],
              "Ok",
              [ 2 ]
            )
@@ -553,6 +557,7 @@ module Expr =
            RT.CreateEnum(
              3,
              RT.FQTypeName.fqPackage PM.Types.Enums.resultId,
+             [],
              [],
              "Error",
              [ 4 ]
@@ -626,6 +631,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "add" 0
+                   referenceName = []
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
@@ -646,6 +652,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   referenceName = []
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
@@ -674,6 +681,7 @@ module Expr =
                          RT.DApplicable(
                            RT.AppNamedFn
                              { name = RT.FQFnName.fqBuiltin "add" 0
+                               referenceName = []
                                typeSymbolTable = Map.empty
                                typeArgs = []
                                argsSoFar = [] }
@@ -706,6 +714,7 @@ module Expr =
                          (RT.DApplicable(
                            RT.AppNamedFn
                              { name = RT.FQFnName.fqBuiltin "add" 0
+                               referenceName = []
                                typeSymbolTable = Map.empty
                                typeArgs = []
                                argsSoFar = [] }
@@ -731,6 +740,7 @@ module Expr =
                          (RT.DApplicable(
                            RT.AppNamedFn
                              { name = RT.FQFnName.fqBuiltin "multiply" 0
+                               referenceName = []
                                typeSymbolTable = Map.empty
                                typeArgs = []
                                argsSoFar = [] }
@@ -747,6 +757,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                   referenceName = []
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
@@ -760,6 +771,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "add" 0
+                   referenceName = []
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
@@ -783,6 +795,7 @@ module Expr =
              0,
              RT.FQTypeName.fqPackage PM.Types.Enums.withoutFields,
              [],
+             [],
              "Blue",
              []
            ) ],
@@ -797,6 +810,7 @@ module Expr =
            RT.CreateEnum(
              0,
              RT.FQTypeName.fqPackage PM.Types.Enums.withFields,
+             [],
              [],
              "Some",
              [ 1 ]
@@ -817,6 +831,7 @@ module Expr =
              0,
              RT.FQTypeName.fqPackage PM.Types.Records.singleField,
              [],
+             [],
              [ ("key", 1) ]
            ) ],
          0)
@@ -833,6 +848,7 @@ module Expr =
              1,
              RT.FQTypeName.fqPackage PM.Types.Records.singleField,
              [],
+             [],
              [ ("key", 2) ]
            )
 
@@ -840,6 +856,7 @@ module Expr =
            RT.CreateRecord(
              0,
              RT.FQTypeName.fqPackage PM.Types.Records.nested,
+             [],
              [],
              [ ("outer", 1) ]
            ) ],
@@ -858,6 +875,7 @@ module Expr =
            RT.CreateRecord(
              0,
              RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             [],
              [],
              [ ("key", 1) ]
            )
@@ -880,6 +898,7 @@ module Expr =
              0,
              RT.FQTypeName.fqPackage PM.Types.Records.singleField,
              [],
+             [],
              [ ("key", 1) ]
            )
            RT.GetRecordField(2, 0, "missing") ],
@@ -895,12 +914,14 @@ module Expr =
              1,
              RT.FQTypeName.fqPackage PM.Types.Records.singleField,
              [],
+             [],
              [ ("key", 2) ]
            )
 
            RT.CreateRecord(
              0,
              RT.FQTypeName.fqPackage PM.Types.Records.nested,
+             [],
              [],
              [ ("outer", 1) ]
            )
@@ -924,6 +945,7 @@ module Expr =
            RT.CreateRecord(
              0,
              RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             [],
              [],
              [ ("key", 1) ]
            )
@@ -949,6 +971,7 @@ module Expr =
              0,
              RT.FQTypeName.fqPackage PM.Types.Records.singleField,
              [],
+             [],
              [ ("key", 1) ]
            )
            RT.LoadVal(2, RT.DBool false)
@@ -963,6 +986,7 @@ module Expr =
            RT.CreateRecord(
              0,
              RT.FQTypeName.fqPackage PM.Types.Records.singleField,
+             [],
              [],
              [ ("key", 1) ]
            )
@@ -1002,6 +1026,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "add" 0
+                     referenceName = []
                      typeSymbolTable = Map.empty
                      typeArgs = []
                      argsSoFar = [] }
@@ -1029,6 +1054,36 @@ module Expr =
            0)
       let tests = testList "Package" [ mySpecialNumber ]
     let tests = testList "Values" [ Package.tests ]
+
+
+  module FnName =
+    let packageOriginalNameBecomesReferenceName =
+      let location : PT.PackageLocation =
+        { owner = "Canonical"; modules = [ "Module" ]; name = "chosen" }
+      let nameResolution : PT.NameResolution<PT.FQFnName.FQFnName> =
+        { originalName = [ "Alias"; "fn" ]
+          resolved =
+            Ok
+              { name = PT.FQFnName.fqPackage "shared-function-hash"
+                location = Some location } }
+      t
+        "package function reference name preserves original name without location"
+        (PT.EFnName(gid (), nameResolution))
+        (1,
+         [ RT.LoadVal(
+             0,
+             RT.DApplicable(
+               RT.AppNamedFn
+                 { name = RT.FQFnName.fqPackage "shared-function-hash"
+                   referenceName = [ "Alias"; "fn" ]
+                   typeSymbolTable = Map.empty
+                   typeArgs = []
+                   argsSoFar = [] }
+             )
+           ) ],
+         0)
+
+    let tests = testList "FnName" [ packageOriginalNameBecomesReferenceName ]
 
 
   module Lambda =
@@ -1089,6 +1144,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 referenceName = []
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1119,6 +1175,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 referenceName = []
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1152,6 +1209,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 referenceName = []
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1190,6 +1248,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 referenceName = []
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1225,6 +1284,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 referenceName = []
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1271,6 +1331,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 referenceName = []
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1282,6 +1343,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 referenceName = []
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1317,6 +1379,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 referenceName = []
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1328,6 +1391,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                                 referenceName = []
                                  typeSymbolTable = Map.empty
                                  typeArgs = []
                                  argsSoFar = [] }
@@ -1366,6 +1430,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     referenceName = []
                      typeSymbolTable = Map.empty
                      typeArgs = []
                      argsSoFar = [] }
@@ -1384,6 +1449,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     referenceName = []
                      typeSymbolTable = Map.empty
                      typeArgs = []
                      argsSoFar = [] }
@@ -1404,6 +1470,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     referenceName = []
                      typeSymbolTable = Map.empty
                      typeArgs = []
                      argsSoFar = [] }
@@ -1424,6 +1491,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
+                     referenceName = []
                      typeSymbolTable = Map.empty
                      typeArgs = []
                      argsSoFar = [] }
@@ -1451,6 +1519,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
+                       referenceName = []
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1469,6 +1538,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
+                       referenceName = []
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1489,6 +1559,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
+                       referenceName = []
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1523,6 +1594,7 @@ module Expr =
                              RT.DApplicable(
                                RT.AppNamedFn
                                  { name = RT.FQFnName.fqBuiltin "add" 0
+                                   referenceName = []
                                    typeSymbolTable = Map.empty
                                    typeArgs = []
                                    argsSoFar = [] }
@@ -1538,6 +1610,7 @@ module Expr =
                      { name =
                          RT.FQFnName.fqPackage
                            E.Fns.Package.MyFnThatTakesALambda.hash
+                       referenceName = []
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1561,6 +1634,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.Outer.hash
+                       referenceName = []
                        typeSymbolTable = Map.empty
                        typeArgs = []
                        argsSoFar = [] }
@@ -1599,6 +1673,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "printLine" 0
+                   referenceName = []
                    typeSymbolTable = Map.empty
                    typeArgs = []
                    argsSoFar = [] }
@@ -1631,6 +1706,7 @@ module Expr =
         Infix.tests
         Lambda.tests
         Fns.tests
+        FnName.tests
         Statement.tests ]
 
 

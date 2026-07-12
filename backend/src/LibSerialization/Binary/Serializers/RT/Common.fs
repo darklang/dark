@@ -26,6 +26,14 @@ module NameResolutionError =
     | b -> raiseFormatError $"Invalid NameResolutionError tag: {b}"
 
 
+// Reference names are diagnostic-only name segments (a plain string list).
+module ReferenceName =
+  let write (w : BinaryWriter) (referenceName : List<string>) : unit =
+    List.write w String.write referenceName
+
+  let read (r : BinaryReader) : List<string> = List.read r String.read
+
+
 module NameResolution =
   let write
     (writeInner : BinaryWriter -> 'inner -> unit)

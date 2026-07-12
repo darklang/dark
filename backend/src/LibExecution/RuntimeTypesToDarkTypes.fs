@@ -178,6 +178,15 @@ module NameResolutionError =
     | _ -> Exception.raiseInternal "Invalid NameResolutionError" []
 
 
+// Reference names are diagnostic-only name segments, represented as a
+// plain List<String> on both sides.
+module ReferenceName =
+  let toDT (referenceName : List<string>) : Dval =
+    DList(VT.string, referenceName |> List.map DString)
+
+  let fromDT (d : Dval) : List<string> = d |> D.list D.string
+
+
 module NameResolution =
   let typeName () =
     FQTypeName.fqPackage (
@@ -569,6 +578,7 @@ module ApplicableNamedFn =
 
     let fields =
       [ "name", FQFnName.toDT namedFn.name
+        "referenceName", ReferenceName.toDT namedFn.referenceName
         "typeArgs",
         DList(
           VT.known (TypeReference.knownType ()),
@@ -583,6 +593,7 @@ module ApplicableNamedFn =
     match d with
     | DRecord(_, _, _, fields) ->
       { name = FQFnName.fromDT (fields |> D.field "name")
+        referenceName = fields |> D.field "referenceName" |> ReferenceName.fromDT
         typeSymbolTable = Map.empty // TODO
         typeArgs = fields |> D.field "typeArgs" |> D.list TypeReference.fromDT
         argsSoFar = fields |> D.field "argsSoFar" |> D.list Dval.fromDT }
@@ -1053,8 +1064,9 @@ module RuntimeError =
 
       let (caseName, fields) =
         match e with
-        | RuntimeError.Records.CreationTypeNotRecord name ->
-          "CreationTypeNotRecord", [ FQTypeName.toDT name ]
+        | RuntimeError.Records.CreationTypeNotRecord(name, typeReferenceName) ->
+          "CreationTypeNotRecord",
+          [ FQTypeName.toDT name; ReferenceName.toDT typeReferenceName ]
         | RuntimeError.Records.CreationEmptyKey -> "CreationEmptyKey", []
         | RuntimeError.Records.CreationMissingField fieldName ->
           "CreationMissingField", [ DString fieldName ]
@@ -1063,12 +1075,12 @@ module RuntimeError =
         | RuntimeError.Records.CreationFieldNotExpected fieldName ->
           "CreationFieldNotExpected", [ DString fieldName ]
         | RuntimeError.Records.CreationFieldOfWrongType(fieldName,
-                                                        expectedType,
+                                                        expectedTypeRef,
                                                         actualType,
                                                         actual) ->
           "CreationFieldOfWrongType",
           [ DString fieldName
-            ValueType.toDT expectedType
+            TypeReference.toDT expectedTypeRef
             ValueType.toDT actualType
             Dval.toDT actual ]
 
@@ -1080,12 +1092,12 @@ module RuntimeError =
         | RuntimeError.Records.UpdateFieldNotExpected fieldName ->
           "UpdateFieldNotExpected", [ DString fieldName ]
         | RuntimeError.Records.UpdateFieldOfWrongType(fieldName,
-                                                      expectedType,
+                                                      expectedTypeRef,
                                                       actualType,
                                                       actual) ->
           "UpdateFieldOfWrongType",
           [ DString fieldName
-            ValueType.toDT expectedType
+            TypeReference.toDT expectedTypeRef
             ValueType.toDT actualType
             Dval.toDT actual ]
 
@@ -1100,8 +1112,11 @@ module RuntimeError =
 
     let fromDT (d : Dval) : RuntimeError.Records.Error =
       match d with
-      | DEnum(_, _, [], "CreationTypeNotRecord", [ name ]) ->
-        RuntimeError.Records.CreationTypeNotRecord(FQTypeName.fromDT name)
+      | DEnum(_, _, [], "CreationTypeNotRecord", [ name; typeReferenceName ]) ->
+        RuntimeError.Records.CreationTypeNotRecord(
+          FQTypeName.fromDT name,
+          ReferenceName.fromDT typeReferenceName
+        )
       | DEnum(_, _, [], "CreationEmptyKey", []) ->
         RuntimeError.Records.CreationEmptyKey
       | DEnum(_, _, [], "CreationMissingField", [ fieldName ]) ->
@@ -1114,10 +1129,10 @@ module RuntimeError =
               _,
               [],
               "CreationFieldOfWrongType",
-              [ fieldName; expectedType; actualType; actual ]) ->
+              [ fieldName; expectedTypeRef; actualType; actual ]) ->
         RuntimeError.Records.CreationFieldOfWrongType(
           D.string fieldName,
-          ValueType.fromDT expectedType,
+          TypeReference.fromDT expectedTypeRef,
           ValueType.fromDT actualType,
           Dval.fromDT actual
         )
@@ -1133,10 +1148,10 @@ module RuntimeError =
               _,
               [],
               "UpdateFieldOfWrongType",
-              [ fieldName; expectedType; actualType; actual ]) ->
+              [ fieldName; expectedTypeRef; actualType; actual ]) ->
         RuntimeError.Records.UpdateFieldOfWrongType(
           D.string fieldName,
-          ValueType.fromDT expectedType,
+          TypeReference.fromDT expectedTypeRef,
           ValueType.fromDT actualType,
           Dval.fromDT actual
         )
@@ -1159,25 +1174,32 @@ module RuntimeError =
       let (caseName, fields) =
         match e with
         | RuntimeError.Enums.ConstructionWrongNumberOfFields(typeName,
+                                                             typeReferenceName,
                                                              caseName,
                                                              expectedFieldCount,
                                                              actualFieldCount) ->
           "ConstructionWrongNumberOfFields",
           [ FQTypeName.toDT typeName
+            ReferenceName.toDT typeReferenceName
             DString caseName
             dintOfInt expectedFieldCount
             dintOfInt actualFieldCount ]
-        | RuntimeError.Enums.ConstructionCaseNotFound(typeName, caseName) ->
-          "ConstructionCaseNotFound", [ FQTypeName.toDT typeName; DString caseName ]
+        | RuntimeError.Enums.ConstructionCaseNotFound(typeName,
+                                                      typeReferenceName,
+                                                      caseName) ->
+          "ConstructionCaseNotFound",
+          [ FQTypeName.toDT typeName
+            ReferenceName.toDT typeReferenceName
+            DString caseName ]
         | RuntimeError.Enums.ConstructionFieldOfWrongType(caseName,
                                                           fieldIndex,
-                                                          expectedType,
+                                                          expectedTypeRef,
                                                           actualType,
                                                           actualValue) ->
           "ConstructionFieldOfWrongType",
           [ DString caseName
             dintOfInt fieldIndex
-            ValueType.toDT expectedType
+            TypeReference.toDT expectedTypeRef
             ValueType.toDT actualType
             Dval.toDT actualValue ]
 
@@ -1189,27 +1211,37 @@ module RuntimeError =
               _,
               [],
               "ConstructionWrongNumberOfFields",
-              [ typeName; caseName; expectedFieldCount; actualFieldCount ]) ->
+              [ typeName
+                typeReferenceName
+                caseName
+                expectedFieldCount
+                actualFieldCount ]) ->
         RuntimeError.Enums.ConstructionWrongNumberOfFields(
           FQTypeName.fromDT typeName,
+          ReferenceName.fromDT typeReferenceName,
           D.string caseName,
           D.int expectedFieldCount,
           D.int actualFieldCount
         )
-      | DEnum(_, _, [], "ConstructionCaseNotFound", [ typeName; caseName ]) ->
+      | DEnum(_,
+              _,
+              [],
+              "ConstructionCaseNotFound",
+              [ typeName; typeReferenceName; caseName ]) ->
         RuntimeError.Enums.ConstructionCaseNotFound(
           FQTypeName.fromDT typeName,
+          ReferenceName.fromDT typeReferenceName,
           D.string caseName
         )
       | DEnum(_,
               _,
               [],
               "ConstructionFieldOfWrongType",
-              [ caseName; fieldIndex; expectedType; actualType; actualValue ]) ->
+              [ caseName; fieldIndex; expectedTypeRef; actualType; actualValue ]) ->
         RuntimeError.Enums.ConstructionFieldOfWrongType(
           D.string caseName,
           D.int fieldIndex,
-          ValueType.fromDT expectedType,
+          TypeReference.fromDT expectedTypeRef,
           ValueType.fromDT actualType,
           Dval.fromDT actualValue
         )
@@ -1228,34 +1260,50 @@ module RuntimeError =
           "ExpectedApplicableButNot",
           [ ValueType.toDT actualTyp; Dval.toDT actualValue ]
 
-        | RuntimeError.Applications.WrongNumberOfTypeArgsForFn(fn, expected, actual) ->
+        | RuntimeError.Applications.WrongNumberOfTypeArgsForFn(fn,
+                                                               fnReferenceName,
+                                                               expected,
+                                                               actual) ->
           "WrongNumberOfTypeArgsForFn",
-          [ FQFnName.toDT fn; dintOfInt expected; dintOfInt actual ]
+          [ FQFnName.toDT fn
+            ReferenceName.toDT fnReferenceName
+            dintOfInt expected
+            dintOfInt actual ]
         | RuntimeError.Applications.CannotApplyTypeArgsMoreThanOnce ->
           "CannotApplyTypeArgsMoreThanOnce", []
-        | RuntimeError.Applications.TooManyArgsForFn(fn, expected, actual) ->
+        | RuntimeError.Applications.TooManyArgsForFn(fn,
+                                                     fnReferenceName,
+                                                     expected,
+                                                     actual) ->
           "TooManyArgsForFn",
-          [ FQFnName.toDT fn; dintOfInt expected; dintOfInt actual ]
+          [ FQFnName.toDT fn
+            ReferenceName.toDT fnReferenceName
+            dintOfInt expected
+            dintOfInt actual ]
         | RuntimeError.Applications.FnParameterNotExpectedType(fnName,
+                                                               fnReferenceName,
                                                                paramIndex,
                                                                paramName,
-                                                               expectedType,
+                                                               expectedTypeRef,
                                                                actualType,
                                                                actualValue) ->
           "FnParameterNotExpectedType",
           [ FQFnName.toDT fnName
+            ReferenceName.toDT fnReferenceName
             dintOfInt paramIndex
             DString paramName
-            ValueType.toDT expectedType
+            TypeReference.toDT expectedTypeRef
             ValueType.toDT actualType
             Dval.toDT actualValue ]
         | RuntimeError.Applications.FnResultNotExpectedType(fnName,
-                                                            expectedType,
+                                                            fnReferenceName,
+                                                            expectedTypeRef,
                                                             actualType,
                                                             actualValue) ->
           "FnResultNotExpectedType",
           [ FQFnName.toDT fnName
-            ValueType.toDT expectedType
+            ReferenceName.toDT fnReferenceName
+            TypeReference.toDT expectedTypeRef
             ValueType.toDT actualType
             Dval.toDT actualValue ]
 
@@ -1279,17 +1327,23 @@ module RuntimeError =
           Dval.fromDT actualValue
         )
 
-      | DEnum(_, _, [], "WrongNumberOfTypeArgsForFn", [ fn; expected; actual ]) ->
+      | DEnum(_,
+              _,
+              [],
+              "WrongNumberOfTypeArgsForFn",
+              [ fn; fnReferenceName; expected; actual ]) ->
         RuntimeError.Applications.WrongNumberOfTypeArgsForFn(
           FQFnName.fromDT fn,
+          ReferenceName.fromDT fnReferenceName,
           D.int expected,
           D.int actual
         )
       | DEnum(_, _, [], "CannotApplyTypeArgsMoreThanOnce", []) ->
         RuntimeError.Applications.CannotApplyTypeArgsMoreThanOnce
-      | DEnum(_, _, [], "TooManyArgsForFn", [ fn; expected; actual ]) ->
+      | DEnum(_, _, [], "TooManyArgsForFn", [ fn; fnReferenceName; expected; actual ]) ->
         RuntimeError.Applications.TooManyArgsForFn(
           FQFnName.fromDT fn,
+          ReferenceName.fromDT fnReferenceName,
           D.int expected,
           D.int actual
         )
@@ -1297,12 +1351,19 @@ module RuntimeError =
               _,
               [],
               "FnParameterNotExpectedType",
-              [ fnName; paramIndex; paramName; expectedType; actualType; actualValue ]) ->
+              [ fnName
+                fnReferenceName
+                paramIndex
+                paramName
+                expectedTypeRef
+                actualType
+                actualValue ]) ->
         RuntimeError.Applications.FnParameterNotExpectedType(
           FQFnName.fromDT fnName,
+          ReferenceName.fromDT fnReferenceName,
           D.int paramIndex,
           D.string paramName,
-          ValueType.fromDT expectedType,
+          TypeReference.fromDT expectedTypeRef,
           ValueType.fromDT actualType,
           Dval.fromDT actualValue
         )
@@ -1310,10 +1371,11 @@ module RuntimeError =
               _,
               [],
               "FnResultNotExpectedType",
-              [ fnName; expectedType; actualType; actualValue ]) ->
+              [ fnName; fnReferenceName; expectedTypeRef; actualType; actualValue ]) ->
         RuntimeError.Applications.FnResultNotExpectedType(
           FQFnName.fromDT fnName,
-          ValueType.fromDT expectedType,
+          ReferenceName.fromDT fnReferenceName,
+          TypeReference.fromDT expectedTypeRef,
           ValueType.fromDT actualType,
           Dval.fromDT actualValue
         )
@@ -1474,7 +1536,8 @@ module RuntimeError =
         [ DList(VT.string, names |> List.map DString); NameResolutionError.toDT e ]
       | RuntimeError.TypeNotFound name -> "TypeNotFound", [ FQTypeName.toDT name ]
       | RuntimeError.ValueNotFound name -> "ValueNotFound", [ FQValueName.toDT name ]
-      | RuntimeError.FnNotFound name -> "FnNotFound", [ FQFnName.toDT name ]
+      | RuntimeError.FnNotFound(name, referenceName) ->
+        "FnNotFound", [ FQFnName.toDT name; ReferenceName.toDT referenceName ]
       | RuntimeError.DeprecatedItemHalted target ->
         "DeprecatedItemHalted", [ Hash.toDT target ]
       | RuntimeError.WrongNumberOfTypeArgsForType(fn, expected, actual) ->
@@ -1541,8 +1604,11 @@ module RuntimeError =
       RuntimeError.TypeNotFound(FQTypeName.fromDT name)
     | DEnum(_, _, [], "ValueNotFound", [ name ]) ->
       RuntimeError.ValueNotFound(FQValueName.fromDT name)
-    | DEnum(_, _, [], "FnNotFound", [ name ]) ->
-      RuntimeError.FnNotFound(FQFnName.fromDT name)
+    | DEnum(_, _, [], "FnNotFound", [ name; referenceName ]) ->
+      RuntimeError.FnNotFound(
+        FQFnName.fromDT name,
+        ReferenceName.fromDT referenceName
+      )
     | DEnum(_, _, [], "DeprecatedItemHalted", [ target ]) ->
       RuntimeError.DeprecatedItemHalted(Hash.fromDT target)
     | DEnum(_, _, [], "WrongNumberOfTypeArgsForType", [ fn; expected; actual ]) ->

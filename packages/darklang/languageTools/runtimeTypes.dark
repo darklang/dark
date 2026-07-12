@@ -153,6 +153,8 @@ type LambdaImpl =
 
 type ApplicableNamedFn =
   { name: FQFnName.FQFnName
+    /// Diagnostic-only name segments from the reference site; not part of identity.
+    referenceName: List<String>
     typeArgs: List<TypeReference>
     argsSoFar: List<Dval> }
 

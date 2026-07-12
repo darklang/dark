@@ -100,6 +100,7 @@ let partialEvaluate
     // Load the function reference
     let appFn : RT.ApplicableNamedFn =
       { name = fnName
+        referenceName = []
         typeSymbolTable = Map.empty
         typeArgs = typeArgs
         argsSoFar = [] }
@@ -483,7 +484,7 @@ and executeInstruction
       let listDval = RT.DList(RT.ValueType.Unknown, items)
       Ok(state.withReg (createTo, Literal listDval))
   | RT.CreateDict _ -> Error "Dict creation not supported in SQL queries"
-  | RT.CreateRecord(createTo, typeName, _typeArgs, fields) ->
+  | RT.CreateRecord(createTo, typeName, _typeReferenceName, _typeArgs, fields) ->
     // Build a record Dval from the field values (must all be literals)
     let rec buildFields acc remaining =
       match remaining with
@@ -501,7 +502,12 @@ and executeInstruction
       let recordDval = RT.DRecord(typeName, typeName, [], fieldMap)
       Ok(state.withReg (createTo, Literal recordDval))
 
-  | RT.CreateEnum(createTo, typeName, _typeArgs, caseName, fieldRegs) ->
+  | RT.CreateEnum(createTo,
+                  typeName,
+                  _typeReferenceName,
+                  _typeArgs,
+                  caseName,
+                  fieldRegs) ->
     // Build an enum Dval from the field values (must all be literals)
     let rec buildFields acc remaining =
       match remaining with

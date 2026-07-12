@@ -112,7 +112,17 @@ module RuntimeTypes =
 
   let dvals () : List<RT.Dval> =
     // TODO: is this exhaustive? I haven't checked.
-    sampleDvals () |> List.map (fun (_, (dv, _)) -> dv)
+    let samples = sampleDvals () |> List.map (fun (_, (dv, _)) -> dv)
+    let applicable =
+      RT.DApplicable(
+        RT.AppNamedFn
+          { name = RT.FQFnName.fqPackage "serialized-callable"
+            referenceName = [ "Tests"; "Serialization"; "callable" ]
+            typeSymbolTable = Map.empty
+            typeArgs = [ RT.TString ]
+            argsSoFar = [ RT.DString "partial" ] }
+      )
+    samples @ [ applicable ]
 
   let dval () : RT.Dval =
     let typeName = RT.FQTypeName.Package hashRT

@@ -126,7 +126,7 @@ module FindFirstIndex =
 module Flatten =
   Stdlib.List.flatten [ [ 1L ]; [ 2L ]; [ 3L ] ] = [ 1L; 2L; 3L ]
 
-  Stdlib.List.flatten [ 1l; 2l; 3l ] = error="Darklang.Stdlib.List.flatten's 1st parameter `list` expects List<List<_>>, but got List<Int32> ([1, 2, 3])"
+  Stdlib.List.flatten [ 1l; 2l; 3l ] = error="Darklang.Stdlib.List.flatten's 1st parameter `list` expects List<List<'a>>, but got List<Int32> ([1, 2, 3])"
   Stdlib.List.flatten [ [ 1L ]; [ [ 2L; 3L ] ] ] = error="Cannot add a List<List<Int64>> ([[2, 3]]) to a list of List<Int64>. Failed at index 1."
   Stdlib.List.flatten [ [ [] ] ] = [ [] ]
   Stdlib.List.flatten [ [] ] = []
