@@ -11,13 +11,15 @@ val viewNames =
 let viewName (i: Int) : String =
   Stdlib.List.getAt viewNames i |> Stdlib.Option.withDefault "Home"
 
-/// Render the tab bar into `region` (one row). `active` is the index of the active view; it renders bright
-/// with a ◆ marker, the rest dim. When `conflictCount` > 0, the SCM tab carries a red count badge so an
-/// attention state is visible from any view. Printed directly (color codes would confuse printAt's width math).
-let renderTabBar (region: UI.Layout.Region) (active: Int) (conflictCount: Int) : Unit =
+/// Render the tab bar into `region` (one row). `visible` is the ordered list of view indices to show (some
+/// views, e.g. Devices, are opt-in and hidden); `active` is the active view index, rendered bright with a ◆
+/// marker, the rest dim. When `conflictCount` > 0, the SCM tab carries a red count badge so an attention state
+/// is visible from any view. Printed directly (color codes would confuse printAt's width math).
+let renderTabBar (region: UI.Layout.Region) (visible: List<Int>) (active: Int) (conflictCount: Int) : Unit =
   let segs =
-    viewNames
-    |> Stdlib.List.indexedMap (fun i name ->
+    visible
+    |> Stdlib.List.map (fun i ->
+      let name = viewName i
       // SCM is index 4 — badge it when there's a conflict to resolve (conflicts live in SCM now).
       let label =
         if i == 4 && conflictCount > 0 then name ++ (Colors.colorize Colors.pink (" ⚠" ++ Stdlib.Int.toString conflictCount))

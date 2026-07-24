@@ -52,6 +52,10 @@ type State =
     scmSection: Int
     /// AI view: which section is active — 0 Agents, 1 Prompts. Tab cycles it.
     aiSection: Int
+    /// Whether the Devices tab is shown. Off by default (most instances are local-only); opt in via config
+    /// (`config set devices.enabled true`) once you have peers / dark cloud / P2P. When off, Devices is
+    /// hidden from the tab bar, the number keys, [ ]/cycle, and the picker.
+    devicesOn: Bool
     /// Scratch view: the eval log, newest last, each entry already rendered (the `> expr` and its result lines).
     scratchLog: List<String>
     /// Matter view: "all" shows the whole tree; "values" filters to values only (the Values lens, `v`).
@@ -94,6 +98,14 @@ val vAI = 6
 val vApps = 7
 val vTraces = 8
 val vDocs = 9
+
+/// The view indices shown in the tab bar, reachable by number keys, and cycled by [ ] / the picker — in
+/// order. Devices is hidden unless opted in via config, so the default is nine tabs, not ten.
+let visibleViews (state: State) : List<Int> =
+  Stdlib.List.flatten
+    [ [ vHome; vMatter; vInspect; vScratch; vSCM ]
+      (if state.devicesOn then [ vDevices ] else [])
+      [ vAI; vApps; vTraces; vDocs ] ]
 
 
 // ── Package listing (the Tree body) ──
@@ -1088,7 +1100,7 @@ let hintsForView (state: State) : String =
   let global = [ ("/", "search"); (":", "cmd"); ("`", "views"); ("?", "help"); ("esc/q", "quit") ]
   let ctx =
     if view == vMatter then
-      [ ("↑↓", "move"); ("→", "in"); ("n/t/v", "new"); ("e", "edit"); ("r", "rename"); ("V", "values"); ("f", "filter") ]
+      [ ("↑↓", "move"); ("→", "in"); ("n/t/v", "new"); ("e", "edit"); ("r", "rename"); ("L", "values"); ("f", "filter") ]
     else if view == vHome then
       [ ("↑↓", "move") ]
     else if view == vInspect then
@@ -1103,7 +1115,8 @@ let hintsForView (state: State) : String =
     else if view == vDevices then
       [ ("a", "add"); ("s", "sync") ]
     else if view == vAI then
-      [ ("↑↓", "move"); ("tab", "section"); ("a", "ask") ]
+      let enterHint = if state.aiSection == 1 then ("⏎", "use") else ("⏎", "open")
+      [ ("↑↓", "move"); enterHint; ("tab", "section"); ("a", "ask") ]
     else if view == vApps then
       [ ("↑↓", "move"); ("⏎", "install"); ("r", "run"); ("s", "stop") ]
     else if view == vTraces then
@@ -1119,7 +1132,7 @@ val helpGroups =
   [ ("Global", ": cmd   / search   ` views   ? help   esc/q quit")
     ("Views", "1-9 jump   [ ] cycle")
     ("Move", "↑↓ or j/k   g/G top/bottom   tab focus/section")
-    ("Matter", "→/l in   ←/h up   ⏎ open   n/t/v new   e edit   r rename   V values   f filter")
+    ("Matter", "→/l in   ←/h up   ⏎ open   n/t/v new   e edit   r rename   L values-lens   f filter")
     ("Inspect", "⏎ walk callers   d deps")
     ("REPL", "⏎ or : eval   f clear")
     ("SCM", "tab section   c commit   x discard   b branch   s switch   m merge   r rebase   o/t/a resolve")
@@ -1131,8 +1144,9 @@ val helpGroups =
 /// The view-picker overlay: a centered, boxed, jumpable list of every view (number + name), the current one
 /// marked. Reaches the views the number keys can't (10th+).
 let renderViewPicker (state: State) (screen: UI.Layout.Region) : Unit =
-  let names = Frame.viewNames
-  let n = Stdlib.List.length names
+  // Only the visible views (Devices hidden unless opted in). pickerSelected is a POSITION into this list.
+  let vis = visibleViews state
+  let n = Stdlib.List.length vis
   let w = 34
   let h = Stdlib.Int.min (n + 2) (screen.rows - 2)
   let top = screen.top + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.rows - h)) 2)
@@ -1140,17 +1154,17 @@ let renderViewPicker (state: State) (screen: UI.Layout.Region) : Unit =
   let region = UI.Layout.Region { top = top; left = left; rows = h; cols = w }
   let _ = UI.Layout.clearRegion region
   UI.Box.panel region "Go to view  ·  ⏎ jump · esc" true (fun inner ->
-    names
-    |> Stdlib.List.indexedMap (fun i nm -> (i, nm))
+    vis
+    |> Stdlib.List.indexedMap (fun p viewIdx -> (p, viewIdx))
     |> Stdlib.List.take (inner.rows)
     |> Stdlib.List.iter (fun pair ->
-      let (i, nm) = pair
-      let num = Stdlib.Int.toString (i + 1)
+      let (p, viewIdx) = pair
+      let num = Stdlib.Int.toString (p + 1)
       let numPad = if Stdlib.String.length num < 2 then " " ++ num else num
-      let mark = if i == state.activeView then " ◆" else ""
-      let line = numPad ++ "  " ++ nm ++ mark
-      let styled = if i == state.pickerSelected then Colors.colorize Colors.cyan ("> " ++ line) else "  " ++ line
-      Stdlib.print ((Colors.moveCursorTo (inner.top + i) (inner.left + 1)) ++ styled)))
+      let mark = if viewIdx == state.activeView then " ◆" else ""
+      let line = numPad ++ "  " ++ (Frame.viewName viewIdx) ++ mark
+      let styled = if p == state.pickerSelected then Colors.colorize Colors.cyan ("> " ++ line) else "  " ++ line
+      Stdlib.print ((Colors.moveCursorTo (inner.top + p) (inner.left + 1)) ++ styled)))
 
 let renderHelpOverlay (screen: UI.Layout.Region) : Unit =
   let w = Stdlib.Int.min (Stdlib.Int.max 40 (screen.cols - 4)) 70
@@ -1219,7 +1233,7 @@ let renderFull (state: State) : Unit =
           ++ (Colors.dimText "    patch: Quick edits ")
           ++ (Colors.colorize Colors.cyan "●")
         Stdlib.print ((Colors.moveCursorTo r.top r.left) ++ line))
-  let tabbar = UI.Layout.fixedSize 1 (fun r -> Frame.renderTabBar r state.activeView conflictCount)
+  let tabbar = UI.Layout.fixedSize 1 (fun r -> Frame.renderTabBar r (visibleViews state) state.activeView conflictCount)
   let crumb = UI.Layout.fixedSize 1 (fun r -> Frame.renderBreadcrumb r path rightColored rightVisibleLen)
   let body = UI.Layout.greedy (fun r -> renderBody state r)
   let hints =
@@ -1359,6 +1373,20 @@ let switchView (state: State) (nv: Int) : Step =
         filter = ""
         detailScroll = 0
         focus = UI.SplitPane.Focus.First }
+
+/// Move to the previous/next visible view (dir -1 / +1), skipping any opted-out views (e.g. Devices).
+let cycleView (state: State) (dir: Int) : Step =
+  let vis = visibleViews state
+  let pos =
+    vis
+    |> Stdlib.List.indexedMap (fun i v -> (i, v))
+    |> Stdlib.List.findFirst (fun pair -> let (_i, v) = pair in v == state.activeView)
+    |> Stdlib.Option.map (fun pair -> let (i, _v) = pair in i)
+    |> Stdlib.Option.withDefault 0
+  let newPos = Stdlib.Int.max 0 (Stdlib.Int.min ((Stdlib.List.length vis) - 1) (pos + dir))
+  match Stdlib.List.getAt vis newPos with
+  | Some v -> switchView state v
+  | None -> Step.Continue state
 
 /// Resolve the selected conflict (Conflicts view): keep ours (local), theirs (incoming), or just acknowledge.
 let resolveConflict (state: State) (which: String) : Step =
@@ -1882,13 +1910,18 @@ let handleKey
   if state.showHelp then
     Step.Continue { state with showHelp = false }
   else if state.viewPicker then
-    // View-picker overlay: ↑↓/j/k move, ⏎ or a digit jumps, esc closes.
-    let nviews = Stdlib.List.length Frame.viewNames
+    // View-picker overlay: ↑↓/j/k move, ⏎ or a digit jumps, esc closes. pickerSelected is a POSITION into the
+    // visible views (Devices hidden unless opted in).
+    let vis = visibleViews state
+    let nviews = Stdlib.List.length vis
     let moveTo (i: Int) = Step.Continue { state with pickerSelected = Stdlib.Int.max 0 (Stdlib.Int.min (nviews - 1) i) }
-    let jump (i: Int) =
-      match switchView { state with viewPicker = false } i with
-      | Continue s -> Step.Continue s
-      | Exit s -> Step.Exit s
+    let jump (pos: Int) =
+      match Stdlib.List.getAt vis pos with
+      | Some v ->
+        match switchView { state with viewPicker = false } v with
+        | Continue s -> Step.Continue s
+        | Exit s -> Step.Exit s
+      | None -> Step.Continue { state with viewPicker = false }
     match key with
     | UpArrow -> moveTo (state.pickerSelected - 1)
     | DownArrow -> moveTo (state.pickerSelected + 1)
@@ -2026,6 +2059,20 @@ let handleKey
       Step.Continue
         { state with
             input = Stdlib.Option.Option.Some (InputState { prompt = "repl> "; text = ""; action = "scratch" }) }
+    else if state.activeView == vAI then
+      // AI: ⏎ is the primary action. Prompts → use the prompt (fill the ask bar); Agents → open the thread.
+      if state.aiSection == 1 then
+        match Stdlib.List.getAt (demoPrompts ()) state.selected with
+        | Some p ->
+          let (_name, desc) = p
+          Step.Continue
+            { state with
+                input = Stdlib.Option.Option.Some (InputState { prompt = "ask the agent: "; text = desc; action = "agent" }) }
+        | None -> Step.Continue state
+      else openReader state (aiThreadDetail state.selected) false
+    else if state.activeView == vTraces then
+      // Traces: ⏎ opens the selected trace's detail.
+      openReader state (traceDetail state) false
     else if (state.activeView == vMatter) || (state.activeView == vInspect) then
       // Matter/Inspect: Enter descends into a module, or opens a leaf's source full-screen.
       match Stdlib.List.getAt state.items state.selected with
@@ -2071,7 +2118,13 @@ let handleKey
     | Some "?" -> Step.Continue { state with showHelp = true }
     | Some "`" ->
       // View picker — a jumpable list of all views (numbers only reach the first nine).
-      Step.Continue { state with viewPicker = true; pickerSelected = state.activeView }
+      let pickPos =
+        visibleViews state
+        |> Stdlib.List.indexedMap (fun i v -> (i, v))
+        |> Stdlib.List.findFirst (fun pair -> let (_i, v) = pair in v == state.activeView)
+        |> Stdlib.Option.map (fun pair -> let (i, _v) = pair in i)
+        |> Stdlib.Option.withDefault 0
+      Step.Continue { state with viewPicker = true; pickerSelected = pickPos }
     | Some ":" ->
       // Command bar — run any old-school command (or eval an expression) from anywhere in the workbench.
       Step.Continue
@@ -2086,10 +2139,8 @@ let handleKey
             input =
               Stdlib.Option.Option.Some
                 (InputState { prompt = "search "; text = ""; action = "search" }) }
-    | Some "]" ->
-      switchView state (Stdlib.Int.min ((Stdlib.List.length Frame.viewNames) - 1) (state.activeView + 1))
-    | Some "[" ->
-      switchView state (Stdlib.Int.max 0 (state.activeView - 1))
+    | Some "]" -> cycleView state 1
+    | Some "[" -> cycleView state (0 - 1)
     | Some "d" ->
       // Matter/Inspect: show the selected leaf's dependencies (what it uses) in the reader.
       if (state.activeView == vMatter) || (state.activeView == vInspect) then openReader state (depsText state) false
@@ -2124,8 +2175,9 @@ let handleKey
       if (state.activeView == vSCM) && (state.scmSection == 2) then resolveConflict state "ours" else Step.Continue state
     | Some "v" ->
       if state.activeView == vMatter then startNew state "value" else Step.Continue state
-    | Some "V" ->
-      // Matter: toggle the Values lens — the whole tree vs. values only.
+    | Some "L" ->
+      // Matter: toggle the values Lens — the whole tree vs. values only. (L, not V, to avoid clashing
+      // with v = new value.)
       if state.activeView == vMatter then
         let nl = if state.matterLens == "values" then "all" else "values"
         Step.Continue
@@ -2209,8 +2261,10 @@ let handleKey
     | Some s ->
       match Stdlib.Int.parse s with
       | Ok n ->
-        if n >= 1 && n <= (Stdlib.List.length Frame.viewNames) then switchView state (n - 1)
-        else Step.Continue state
+        // Number keys index into the *visible* views (so Devices being hidden doesn't leave a gap).
+        match Stdlib.List.getAt (visibleViews state) (n - 1) with
+        | Some v -> switchView state v
+        | None -> Step.Continue state
       | Error _ -> Step.Continue state
     | None -> Step.Continue state
 
@@ -2234,6 +2288,13 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
   Stdlib.print "\u001b[?1049h"
   let branchId = cliState.currentBranchId
   let rootLoc = Packages.PackageLocation.Module []
+  // Devices is opt-in (most instances are local-only). Config-driven, not an env var: toggle it from the CLI
+  // with `config set devices.enabled true` (also on the `:` bar), view it with `config list`. Persists in
+  // cli-config.json.
+  let devicesOn =
+    match Darklang.Cli.Config.get "devices.enabled" with
+    | Some v -> (v == "true") || (v == "on") || (v == "1")
+    | None -> false
   let state =
     State
       { activeView = 0
@@ -2256,6 +2317,7 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
         pickerSelected = 0
         scmSection = 0
         aiSection = 0
+        devicesOn = devicesOn
         scratchLog = []
         matterLens = "all"
         filter = ""
