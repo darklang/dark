@@ -42,29 +42,54 @@ right call; wrapping them in `docker exec -u dark -w /home/dark/app <cid> ...`
 is never needed and just hardcodes container IDs that change across
 rebuilds.
 
-## Multiple clones running? Check the container FIRST
-The caveat to the above: `./scripts/*` auto-enters *a* devcontainer via
+## Concurrent dev environments (multiple clones) — the whole dance
+The single most confusing failure mode. Read this before debugging anything
+that "should just work" when 2+ dark clones are checked out.
+
+1. WRONG CONTAINER. `./scripts/*` auto-enters *a* devcontainer via
 _assert-in-container -> run-in-docker, which picks `docker ps --last 1` by
-label, NOT the clone you're in. With 2+ dark containers up it can silently
-run in ANOTHER clone's container: your edits look ignored, no-args opens the
-wrong UX, `help` lists another branch's commands, `eval` can't find your
-package. Before debugging anything weird, check which container it targets:
+label, NOT the clone you're in. With 2+ dark containers up it silently runs
+in ANOTHER clone's container: edits look ignored, no-args opens the wrong UX,
+`help` lists another branch's commands, `eval` can't find your package. Check:
   docker ps --last 1 --filter label=dark-dev-container --format '{{.Names}}'
+  # which clone is each container? (the reliable mapping)
   docker inspect <name> --format '{{index .Config.Labels "devcontainer.local_folder"}}'
-Deeper trap: stock devcontainer.json mounts ONE shared `dark_build` volume
-for every clone AND fixes ports 9090-9099. Two backend-divergent clones (e.g.
-a substrate/kernel branch that changes hashing) then clobber each other's
-compiled backend -- reload dies with `type hash not found: Stdlib.Int.ParseError`
--- and collide on ports. Do NOT `compile` to "fix" a stale-looking run-cli
-before confirming you're in the right container; a compile in the wrong one
-poisons the shared build for everyone.
-Fix = per-clone isolation, which is exactly what `dark-multi` does
-(~/code/dark-multi: no shared dark_build, per-branch ports). For a hand-made
-container, edit THAT clone's .devcontainer/devcontainer.json: drop the
-`dark_build` volume mount (backend/Build then lives in the clone's own bind
-mount) and remap host ports (e.g. `--publish=9190-9199:9090-9099`), then
-`devcontainer up --workspace-folder .` and rebuild once (isolated Build is
-empty). Leaves other clones' builds untouched.
+To PIN work to a specific clone's container, bypass the picker with an
+explicit exec (inside, IN_DEV_CONTAINER is set so scripts run locally, no
+re-pick):
+  docker exec <name> bash -c 'cd /home/dark/app && scripts/build/reload-packages'
+  docker exec -it <name> bash -c 'cd /home/dark/app && ./scripts/run-cli'   # interactive; run under tmux
+
+2. SHARED BUILD + FIXED PORTS. Stock devcontainer.json mounts ONE shared
+`dark_build` volume for every clone AND fixes ports 9090-9099. Two
+backend-divergent clones (e.g. a substrate/kernel branch that changes hashing)
+clobber each other's compiled backend and collide on ports. Do NOT `compile`
+to "fix" a stale-looking run-cli before confirming the container -- a compile
+in the wrong clone poisons the shared build for everyone (they must rebuild).
+Isolation is what `dark-multi` does (~/code/dark-multi: per-clone build, no
+shared dark_build, per-branch ports). Hand-made fix for one clone: in THAT
+clone's .devcontainer/devcontainer.json drop the `dark_build` volume mount
+(backend/Build then lives in the clone's bind mount) and remap host ports
+(e.g. `--publish=9190-9199:9090-9099`), then
+`docker rm -f <its container>; devcontainer up --workspace-folder .`. Leaves
+other clones untouched.
+
+3. BOOTSTRAP a fresh isolated container (Build starts empty). Order matters:
+  a. FULL BUILD: run the build-server, NOT a bare `scripts/build/compile`
+     (compile delegates to a running build-server and no-ops if none is up):
+       docker exec <name> bash -c 'cd /home/dark/app && nohup scripts/build/_build-server --compile --watch > rundir/logs/bs.log 2>&1 &'
+     It does a full build on empty out/ (~15-20 min). Wait for the binaries:
+       backend/Build/out/Cli/.../Cli  and  .../LocalExec/.../LocalExec
+  b. FRESH DB (do NOT `cp seed.db data.db`): seed.db carries a Release stamp
+     that makes the migrator SKIP newer migrations, so branch_ops ends up
+     missing columns and reload dies `no such column: origin_ts`. Instead:
+       rm -f rundir/data.db && scripts/run-local-exec migrations run
+     (builds branch_ops etc. straight from schema.sql). Verify:
+       sqlite3 rundir/data.db 'PRAGMA table_info(branch_ops)' | grep origin_ts
+  c. HASHES: `> backend/src/LibExecution/package-ref-hashes.txt` then
+     `scripts/build/reload-packages`. Empty hashes = tolerated; non-empty with
+     a stale key = `PackageRefs: type hash not found` crash.
+  d. reload should end "Finished Reload" with no Exception. Then run-cli works.
 
 ## Adding Builtin (F#)
   Pick the right Builtins subproject:
