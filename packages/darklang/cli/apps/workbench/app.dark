@@ -55,10 +55,10 @@ type State =
     scmSection: Int
     /// AI view: which section is active — 0 Agents, 1 Prompts. Tab cycles it.
     aiSection: Int
-    /// Whether the Devices tab is shown. Off by default (most instances are local-only); opt in via config
-    /// (`config set devices.enabled true`) once you have peers / dark cloud / P2P. When off, Devices is
-    /// hidden from the tab bar, the number keys, [ ]/cycle, and the picker.
-    devicesOn: Bool
+    /// The gated views (Devices, Crons, Calendar, ...) enabled for this account, computed once at launch from
+    /// config (see `viewSpecs` / `gateEnabled`). Hidden gated views drop out of the tab bar, number keys,
+    /// [ ]/cycle, and the picker.
+    enabledGatedViews: List<Int>
     /// Scratch view: the eval log, newest last, each entry already rendered (the `> expr` and its result lines).
     scratchLog: List<String>
     /// Matter view: "all" shows the whole tree; "values" filters to values only (the Values lens, `v`).
@@ -88,6 +88,29 @@ type Step =
   | Continue of State
   | Exit of State
 
+/// A composable view — everything the frame needs to show a tab, in one self-contained value. The core
+/// dispatch (visibleViews / itemsForView / previewLines / renderViewBody / hintsForView) is generic over a
+/// list of these, so a new view is one registry entry (see `extensionViews`), not edits scattered across the
+/// file. Modeled on `Cli.Registry.CommandHandler`, which stores its behavior as function-typed fields too.
+/// The built-in views (indices 0-9) still live inline in the core because it owns their custom key handling;
+/// this registry is how the *extensible* surface (opt-in / per-account / greenfield views) composes on top
+/// without the core ever naming them.
+type ViewDef =
+  { /// stable slug (e.g. "errors") — identity independent of tab position
+    id: String
+    /// tab-bar label
+    name: String
+    /// "" = always visible; otherwise a config key resolved by `gateEnabled` (login-aware, no names in source)
+    gateKey: String
+    /// the selectable rows (for the shared cursor + list pane); Unit-in since extension views are self-contained
+    loadItems: Unit -> List<BodyItem>
+    /// draw the whole body into the region
+    render: State -> UI.Layout.Region -> Unit
+    /// preview/detail lines for the selected row
+    detail: State -> List<String>
+    /// context key-hints for the footer
+    hints: State -> List<(String * String)> }
+
 
 // ── View indices (single source of truth — must match Frame.viewNames order) ──
 // Kept as vals so the scattered dispatch reads by name, not magic number, and reordering is one place.
@@ -101,14 +124,78 @@ val vAI = 6
 val vApps = 7
 val vTraces = 8
 val vDocs = 9
+// Indices 10+ belong to *extension* views and aren't named here — they're positions in `extensionViews ()`
+// (index = baseViewCount + position). The core never references them by name; that's the point.
+val baseViewCount = 10
 
-/// The view indices shown in the tab bar, reachable by number keys, and cycled by [ ] / the picker — in
-/// order. Devices is hidden unless opted in via config, so the default is nine tabs, not ten.
+/// The built-in views, in tab order, each with its gate ("" = always visible; else a config key). Devices is
+/// the one gated built-in (most instances are local-only). Extension views (Errors/Crons/Calendar/…) are NOT
+/// here — they compose in via `extensionViews` and get appended after these.
+val baseViewSpecs =
+  [ (vHome, "")
+    (vMatter, "")
+    (vInspect, "")
+    (vScratch, "")
+    (vSCM, "")
+    (vDevices, "devices.enabled")
+    (vAI, "")
+    (vApps, "")
+    (vTraces, "")
+    (vDocs, "") ]
+
+/// A gated view shows when its config value is `true`/`on`/`1` (everyone) OR names the current account
+/// (a comma-list of account names is fine). So `config set calendar.enabled stachu` shows Calendar only when
+/// logged in as stachu — the name is data the user set, not a literal in the code.
+let gateEnabled (key: String) (accountName: String) : Bool =
+  match Darklang.Cli.Config.get key with
+  | None -> false
+  | Some raw ->
+    let parts =
+      Stdlib.String.split (Stdlib.String.toLowercase (Stdlib.String.trim raw)) ","
+      |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
+    let account = Stdlib.String.toLowercase accountName
+    (Stdlib.List.member parts "true")
+    || (Stdlib.List.member parts "on")
+    || (Stdlib.List.member parts "1")
+    || ((account != "") && (Stdlib.List.member parts account))
+
+/// Every view as (absolute index, tab label, gate key) — built-ins then composed extensions. The single place
+/// that unifies the base views and the registry; all navigation/gating/labels derive from this list, so the
+/// core never enumerates views by name.
+let viewSpecs () : List<(Int * String * String)> =
+  let base =
+    baseViewSpecs
+    |> Stdlib.List.map (fun pair ->
+      let (i, g) = pair
+      (i, Frame.viewName i, g))
+  let exts =
+    extensionViews ()
+    |> Stdlib.List.indexedMap (fun i vd -> (baseViewCount + i, vd.name, vd.gateKey))
+  Stdlib.List.append base exts
+
+/// The extension `ViewDef` at an absolute view index (None for a built-in, or out of range).
+let extensionViewAt (idx: Int) : Stdlib.Option.Option<ViewDef> =
+  if idx < baseViewCount then
+    Stdlib.Option.Option.None
+  else
+    Stdlib.List.getAt (extensionViews ()) (idx - baseViewCount)
+
+/// The tab label for any view index — built-in table or extension registry.
+let viewLabel (idx: Int) : String =
+  match extensionViewAt idx with
+  | Some vd -> vd.name
+  | None -> Frame.viewName idx
+
+/// The view indices shown in the tab bar, in `viewSpecs` order. A view shows if it isn't gated, or it's gated
+/// and enabled for this account (computed once at launch into `enabledGatedViews`).
 let visibleViews (state: State) : List<Int> =
-  Stdlib.List.flatten
-    [ [ vHome; vMatter; vInspect; vScratch; vSCM ]
-      (if state.devicesOn then [ vDevices ] else [])
-      [ vAI; vApps; vTraces; vDocs ] ]
+  viewSpecs ()
+  |> Stdlib.List.filter (fun spec ->
+    let (i, _n, g) = spec
+    (g == "") || (Stdlib.List.member state.enabledGatedViews i))
+  |> Stdlib.List.map (fun spec ->
+    let (i, _n, _g) = spec
+    i)
 
 
 // ── Package listing (the Tree body) ──
@@ -437,6 +524,58 @@ let loadDocBodyItems () : List<BodyItem> =
   |> Stdlib.List.map (fun t ->
     BodyItem { name = t.name ++ "  —  " ++ t.description; kind = "doc"; isModule = false })
 
+/// The Errors view — the high-importance issues an operator running software on Dark cares about. Real
+/// conflicts (genuine) first, then a mock set of the other error kinds until those signals are wired.
+let loadErrorItems () : List<BodyItem> =
+  let conflicts =
+    Darklang.Sync.Conflicts.list ()
+    |> Stdlib.List.map (fun c ->
+      BodyItem { name = "⚠ conflict    " ++ c.location ++ "  —  " ++ c.status; kind = "error"; isModule = false })
+  let mock =
+    [ BodyItem { name = "⚠ 500         POST /checkout — 12 in the last hour"; kind = "error"; isModule = false }
+      BodyItem { name = "✗ test        Stachu.Auth.login passes but shouldn't"; kind = "error"; isModule = false }
+      BodyItem { name = "⚠ 500         GET /api/user/:id — 3 in the last hour"; kind = "error"; isModule = false }
+      BodyItem { name = "✗ deprecated  Stdlib.List.oldMap still called by 4 fns"; kind = "error"; isModule = false }
+      BodyItem { name = "⚠ perf        Stachu.report.build — 4.2s p95 (was 0.8s)"; kind = "error"; isModule = false } ]
+  Stdlib.List.append conflicts mock
+
+let errorDetail (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | Some item ->
+    (Colors.boldText item.name)
+    ++ "\n\n"
+    ++ (Colors.dimText "(mock data) — a real Errors view aggregates: test failures + tests that")
+    ++ "\n"
+    ++ (Colors.dimText "pass but shouldn't, HTTP 5xx on tracked endpoints, unresolved conflicts,")
+    ++ "\n"
+    ++ (Colors.dimText "deprecations still in use, and perf regressions.")
+    ++ "\n\n"
+    ++ "⏎ open the source / trace     f filter by kind"
+  | None -> Colors.colorize Colors.green "✓ all clear — no errors"
+
+/// The Crons view — scheduled jobs on this instance (mock until a Darklang.Cron value type + engine exist;
+/// see notes/cli-ux/22-things.md and classic Dark's cron model). Columns: status · name · schedule · last · next.
+let loadCronItems () : List<BodyItem> =
+  [ BodyItem { name = "●  nightly-backup    daily 02:00    14h ago ok    in 9h"; kind = "cron"; isModule = false }
+    BodyItem { name = "⏸  digest-email      weekly Mon     3d ago  ok    paused"; kind = "cron"; isModule = false }
+    BodyItem { name = "⚠  sync-metrics      every 1h       52m ago fail  in 8m"; kind = "cron"; isModule = false }
+    BodyItem { name = "○  cleanup-temp      every 12h      never         in 12h"; kind = "cron"; isModule = false } ]
+
+let cronDetail (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | Some item ->
+    (Colors.boldText item.name)
+    ++ "\n\n"
+    ++ "schedule : daily at 02:00  (EveryDay)\n"
+    ++ "handler  : Stachu.Backups.nightly  @9fa3…\n"
+    ++ "last run : 2026-07-24 02:00  ok  1.2s\n"
+    ++ "next run : 2026-07-25 02:00  (in 9h)\n"
+    ++ "state    : enabled · runs 41 · fails 0 · ● this instance\n\n"
+    ++ (Colors.dimText "(mock data)")
+    ++ "\n\n"
+    ++ "r run-now   p pause/resume   t traces   e edit"
+  | None -> Colors.dimText "no crons yet — declare a Darklang.Cron value"
+
 /// Managed apps — daemons + foreground apps (for the Services view).
 let loadServiceBodyItems () : List<BodyItem> =
   let apps =
@@ -525,7 +664,13 @@ let itemsForView
   else if view == vApps then loadAppItems branchId
   else if view == vTraces then loadRunBodyItems ()
   else if view == vDocs then loadDocBodyItems ()
-  else []
+  else
+    // Extension views compose their own item loader (see `extensionViews`); built-ins fall through to [].
+    match extensionViewAt view with
+    | Some vd ->
+      let load = vd.loadItems
+      load ()
+    | None -> []
 
 
 // ── Rendering ──
@@ -696,7 +841,13 @@ let previewLines (state: State) : List<String> =
   else if state.activeView == vApps then Stdlib.String.split (appDetail state) "\n"
   else if state.activeView == vTraces then Stdlib.String.split (traceDetail state) "\n"
   else if state.activeView == vDocs then Stdlib.String.split (docContent state.selected) "\n"
-  else detailLines state
+  else
+    // Extension views supply their own detail; built-ins fall through to the generic item detail.
+    match extensionViewAt state.activeView with
+    | Some vd ->
+      let d = vd.detail
+      d state
+    | None -> detailLines state
 
 let renderPreview (state: State) (region: UI.Layout.Region) : Unit =
   let plain = previewLines state
@@ -1031,6 +1182,87 @@ let renderAI (state: State) (region: UI.Layout.Region) : Unit =
     else ("Agents  ·  (mock data)", "Thread", Colors.dimText "no agents — press a to ask the agent")
   splitListPreview state bodyRegion leftTitle previewTitle empty
 
+/// The Calendar view (mock) — a month grid over cron fire-times + date-typed values, with today's agenda. A
+/// personal, login-gated view; greenfield, so this is a stand-in for the real system to come.
+let renderCalendar (state: State) (region: UI.Layout.Region) : Unit =
+  let hdr = fun t -> Colors.colorize (Colors.bold ++ Colors.cyan) t
+  let today = Colors.colorize (Colors.bold ++ Colors.cyan) "[24]"
+  boxedLines
+    region
+    "Calendar  ·  July 2026  ·  (mock data)"
+    [ hdr "   Mon   Tue   Wed   Thu   Fri   Sat   Sun"
+      ""
+      "          1     2     3     4     5     6"
+      "    7     8     9    10    11    12    13"
+      "   14    15    16    17    18    19    20"
+      "   21    22    23   " ++ today ++ "•   25•   26    27"
+      "   28    29    30    31"
+      ""
+      hdr "Today · Thu Jul 24"
+      "    02:00   nightly-backup       cron    ok"
+      "    08:00   sync-metrics         cron    next"
+      "    15:00   reMarkable review    event"
+      ""
+      Colors.dimText "   • = scheduled     ←→ day   ↑↓ week   a agenda   ⏎ open" ]
+
+
+// ── Extension views: the composable registry ──
+// Each entry is a self-contained `ViewDef`; the core dispatch delegates to these generically (see the `else`
+// arms of itemsForView / previewLines / renderViewBody / hintsForView). Adding a view = one row in
+// `extensionViews` + its handful of small fns above. No edits to the core, the tab bar, or the gating.
+
+let renderErrors (state: State) (region: UI.Layout.Region) : Unit =
+  splitListPreview state region "Errors" "Detail" (Colors.colorize Colors.green "✓ all clear — no errors")
+
+let renderCrons (state: State) (region: UI.Layout.Region) : Unit =
+  splitListPreview state region "Crons" "Detail" (Colors.dimText "no crons — declare a Darklang.Cron value")
+
+let errorHints (state: State) : List<(String * String)> =
+  [ ("↑↓", "move"); ("⏎", "open"); ("f", "filter") ]
+
+let cronHints (state: State) : List<(String * String)> =
+  [ ("↑↓", "move"); ("r", "run-now"); ("p", "pause"); ("t", "traces") ]
+
+let calendarHints (state: State) : List<(String * String)> =
+  [ ("←→", "day"); ("↑↓", "week"); ("a", "agenda"); ("⏎", "open") ]
+
+// Named wrappers so every ViewDef field is a resolved function reference (inline lambdas leave the tuple's
+// type as `_` and block record coercion — same reason Registry.CommandHandler uses named refs throughout).
+let errorItems () : List<BodyItem> = loadErrorItems ()
+let cronItems () : List<BodyItem> = loadCronItems ()
+let calendarItems () : List<BodyItem> = []
+let errorDetailLines (state: State) : List<String> = Stdlib.String.split (errorDetail state) "\n"
+let cronDetailLines (state: State) : List<String> = Stdlib.String.split (cronDetail state) "\n"
+let calendarDetailLines (state: State) : List<String> = []
+
+/// The composed extension views, appended after the built-ins (their absolute index = baseViewCount + position
+/// here). This is the ONE place the extensible surface is enumerated; the core never names these views.
+let extensionViews () : List<ViewDef> =
+  [ ViewDef
+      { id = "errors"
+        name = "Errors"
+        gateKey = ""
+        loadItems = errorItems
+        render = renderErrors
+        detail = errorDetailLines
+        hints = errorHints }
+    ViewDef
+      { id = "crons"
+        name = "Crons"
+        gateKey = "crons.enabled"
+        loadItems = cronItems
+        render = renderCrons
+        detail = cronDetailLines
+        hints = cronHints }
+    ViewDef
+      { id = "calendar"
+        name = "Calendar"
+        gateKey = "calendar.enabled"
+        loadItems = calendarItems
+        render = renderCalendar
+        detail = calendarDetailLines
+        hints = calendarHints } ]
+
 let renderViewBody (state: State) (region: UI.Layout.Region) : Unit =
   if state.activeView == vHome then
     renderHome state region
@@ -1070,10 +1302,16 @@ let renderViewBody (state: State) (region: UI.Layout.Region) : Unit =
   else if state.activeView == vDocs then
     splitListPreview state region "Docs" "Topic" (Colors.dimText "(no topics)")
   else
-    boxedLines
-      region
-      (Frame.viewName state.activeView)
-      [ Colors.dimText ((Frame.viewName state.activeView) ++ " — coming soon") ]
+    // Extension views render themselves (see `extensionViews`); anything unrecognised shows a stub.
+    match extensionViewAt state.activeView with
+    | Some vd ->
+      let draw = vd.render
+      draw state region
+    | None ->
+      boxedLines
+        region
+        (viewLabel state.activeView)
+        [ Colors.dimText ((viewLabel state.activeView) ++ " — coming soon") ]
 
 /// The multiline editor, framed in a titled box: a spacious authoring surface (not the bottom prompt bar).
 /// The error line (if any) sits just under the title; the buffer renders below with a reverse-video cursor at
@@ -1166,7 +1404,12 @@ let hintsForView (state: State) : String =
     else if view == vDocs then
       Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("⏎", "full") ] ]
     else
-      [ ("↑↓", "move") ]
+      // Extension views compose their own key-hints (see `extensionViews`).
+      match extensionViewAt view with
+      | Some vd ->
+        let h = vd.hints
+        h state
+      | None -> [ ("↑↓", "move") ]
   Frame.formatHints (Stdlib.List.append ctx global)
 
 /// The keymap, grouped, for the `?` overlay — (category, keys).
@@ -1204,7 +1447,7 @@ let renderViewPicker (state: State) (screen: UI.Layout.Region) : Unit =
       let num = Stdlib.Int.toString (p + 1)
       let numPad = if Stdlib.String.length num < 2 then " " ++ num else num
       let mark = if viewIdx == state.activeView then " ◆" else ""
-      let line = numPad ++ "  " ++ (Frame.viewName viewIdx) ++ mark
+      let line = numPad ++ "  " ++ (viewLabel viewIdx) ++ mark
       let styled = if p == state.pickerSelected then Colors.colorize Colors.cyan ("> " ++ line) else "  " ++ line
       Stdlib.print ((Colors.moveCursorTo (inner.top + p) (inner.left + 1)) ++ styled)))
 
@@ -1240,9 +1483,9 @@ let renderFull (state: State) : Unit =
     if (state.activeView == vMatter) || (state.activeView == vInspect) then Packages.formatLocation state.location
     // Views that render their own body/sections (no flat item list) show just their name — "— 0 items" is a lie.
     else if (state.activeView == vHome) || (state.activeView == vScratch) || (state.activeView == vDevices) || (state.activeView == vSCM) then
-      Frame.viewName state.activeView
+      viewLabel state.activeView
     else
-      (Frame.viewName state.activeView)
+      (viewLabel state.activeView)
       ++ "  —  "
       ++ (Stdlib.Int.toString (Stdlib.List.length state.items))
       ++ " items"
@@ -1275,7 +1518,8 @@ let renderFull (state: State) : Unit =
           ++ (Colors.dimText "    branch: ")
           ++ (Colors.dimText branch)
         Stdlib.print ((Colors.moveCursorTo r.top r.left) ++ line))
-  let tabbar = UI.Layout.fixedSize 1 (fun r -> Frame.renderTabBar r (visibleViews state) state.activeView conflictCount)
+  let tabSegs = visibleViews state |> Stdlib.List.map (fun i -> (i, viewLabel i))
+  let tabbar = UI.Layout.fixedSize 1 (fun r -> Frame.renderTabBar r tabSegs state.activeView conflictCount)
   let crumb = UI.Layout.fixedSize 1 (fun r -> Frame.renderBreadcrumb r path rightColored rightVisibleLen)
   let body = UI.Layout.greedy (fun r -> renderBody state r)
   let hints =
@@ -2393,13 +2637,18 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
   Stdlib.print "\u001b[?1049h"
   let branchId = cliState.currentBranchId
   let rootLoc = Packages.PackageLocation.Module []
-  // Devices is opt-in (most instances are local-only). Config-driven, not an env var: toggle it from the CLI
-  // with `config set devices.enabled true` (also on the `:` bar), view it with `config list`. Persists in
-  // cli-config.json.
-  let devicesOn =
-    match Darklang.Cli.Config.get "devices.enabled" with
-    | Some v -> (v == "true") || (v == "on") || (v == "1")
-    | None -> false
+  // Which gated views (Devices, Crons, Calendar, ...) are enabled for this account — computed once from config
+  // so there's no per-frame file I/O. Config-driven, not env vars: `config set devices.enabled true`,
+  // `config set calendar.enabled stachu`, etc. (also on the `:` bar). Derived from `viewSpecs`, so a new
+  // gateable view (base or extension) is picked up here with no edit.
+  let enabledGatedViews =
+    viewSpecs ()
+    |> Stdlib.List.filter (fun spec ->
+      let (_i, _n, g) = spec
+      (g != "") && (gateEnabled g cliState.accountName))
+    |> Stdlib.List.map (fun spec ->
+      let (i, _n, _g) = spec
+      i)
   // Register this instance's UUID on first run (durable in cli-config.json).
   let _ =
     match Darklang.Cli.Config.get "instance.id" with
@@ -2439,7 +2688,7 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
         pickerSelected = 0
         scmSection = 0
         aiSection = 0
-        devicesOn = devicesOn
+        enabledGatedViews = enabledGatedViews
         scratchLog = []
         matterLens = "all"
         filter = ""

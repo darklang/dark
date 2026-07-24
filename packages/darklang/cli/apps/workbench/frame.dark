@@ -2,8 +2,9 @@
 /// SubApp; the bottom status bar is the CLI's existing one. See design main/notes/cli-ux/03A.
 module Darklang.Cli.Apps.Workbench.Frame
 
-/// The views, in tab-bar order. Index into this is the "active view".
-/// Kept in sync with the view-index constants in App (vHome..vDocs).
+/// The built-in views (indices 0-9), in tab-bar order. Kept in sync with the view-index constants in App
+/// (vHome..vDocs). Extension views (index 10+) are named by their `ViewDef` in App's registry, not here — the
+/// tab bar receives already-resolved labels (see `renderTabBar`), so this stays the base-name table only.
 val viewNames =
   [ "Home"; "Matter"; "Inspect"; "REPL"; "SCM"
     "Devices"; "AI"; "Apps"; "Traces"; "Docs" ]
@@ -11,15 +12,16 @@ val viewNames =
 let viewName (i: Int) : String =
   Stdlib.List.getAt viewNames i |> Stdlib.Option.withDefault "Home"
 
-/// Render the tab bar into `region` (one row). `visible` is the ordered list of view indices to show (some
-/// views, e.g. Devices, are opt-in and hidden); `active` is the active view index, rendered bright with a ◆
-/// marker, the rest dim. When `conflictCount` > 0, the SCM tab carries a red count badge so an attention state
-/// is visible from any view. Printed directly (color codes would confuse printAt's width math).
-let renderTabBar (region: UI.Layout.Region) (visible: List<Int>) (active: Int) (conflictCount: Int) : Unit =
+/// Render the tab bar into `region` (one row). `visible` is the ordered list of (view index, label) pairs to
+/// show — labels are resolved by the caller so the frame needn't know about extension views (some views, e.g.
+/// Devices, are opt-in and hidden). `active` is the active view index, rendered bright with a ◆ marker, the
+/// rest dim. When `conflictCount` > 0, the SCM tab carries a red count badge so an attention state is visible
+/// from any view. Printed directly (color codes would confuse printAt's width math).
+let renderTabBar (region: UI.Layout.Region) (visible: List<(Int * String)>) (active: Int) (conflictCount: Int) : Unit =
   let segs =
     visible
-    |> Stdlib.List.map (fun i ->
-      let name = viewName i
+    |> Stdlib.List.map (fun pair ->
+      let (i, name) = pair
       // SCM is index 4 — badge it when there's a conflict to resolve (conflicts live in SCM now).
       let label =
         if i == 4 && conflictCount > 0 then name ++ (Colors.colorize Colors.pink (" ⚠" ++ Stdlib.Int.toString conflictCount))
