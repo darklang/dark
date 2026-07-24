@@ -3,27 +3,28 @@
 module Darklang.Cli.Apps.Workbench.Frame
 
 /// The views, in tab-bar order. Index into this is the "active view".
+/// Kept in sync with the view-index constants in App (vHome..vDocs).
 val viewNames =
-  [ "Home"; "Matter"; "Inspect"; "Edit"; "Changes"; "History"
-    "Conflicts"; "Devices"; "AI"; "Runs"; "Apps"; "Values"; "Docs"; "SCM" ]
+  [ "Home"; "Matter"; "Inspect"; "REPL"; "SCM"
+    "Devices"; "AI"; "Apps"; "Traces"; "Docs" ]
 
 let viewName (i: Int) : String =
   Stdlib.List.getAt viewNames i |> Stdlib.Option.withDefault "Home"
 
 /// Render the tab bar into `region` (one row). `active` is the index of the active view; it renders bright
-/// with a ◆ marker, the rest dim. When `conflictCount` > 0, the Resolve tab carries a red count badge so an
+/// with a ◆ marker, the rest dim. When `conflictCount` > 0, the SCM tab carries a red count badge so an
 /// attention state is visible from any view. Printed directly (color codes would confuse printAt's width math).
 let renderTabBar (region: UI.Layout.Region) (active: Int) (conflictCount: Int) : Unit =
   let segs =
     viewNames
     |> Stdlib.List.indexedMap (fun i name ->
-      // Resolve is index 6 — badge it when there's something to resolve.
+      // SCM is index 4 — badge it when there's a conflict to resolve (conflicts live in SCM now).
       let label =
-        if i == 6 && conflictCount > 0 then name ++ (Colors.colorize Colors.pink (" ⚠" ++ Stdlib.Int.toString conflictCount))
+        if i == 4 && conflictCount > 0 then name ++ (Colors.colorize Colors.pink (" ⚠" ++ Stdlib.Int.toString conflictCount))
         else name
       if i == active then
         Colors.colorize (Colors.bold ++ Colors.cyan) ("◆ " ++ label)
-      else if i == 6 && conflictCount > 0 then
+      else if i == 4 && conflictCount > 0 then
         // Keep the badge visible even when the tab isn't active (name dim, badge already colored).
         (Colors.colorize Colors.dim name) ++ (Colors.colorize Colors.pink (" ⚠" ++ Stdlib.Int.toString conflictCount))
       else

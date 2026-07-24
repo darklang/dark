@@ -48,6 +48,14 @@ type State =
     /// first nine). `pickerSelected` is the cursor into viewNames.
     viewPicker: Bool
     pickerSelected: Int
+    /// SCM view: which section is active — 0 Changes, 1 History, 2 Conflicts. Tab cycles it.
+    scmSection: Int
+    /// Scratch view: the eval log, newest last, each entry already rendered (the `> expr` and its result lines).
+    scratchLog: List<String>
+    /// Matter view: "all" shows the whole tree; "values" filters to values only (the Values lens, `v`).
+    matterLens: String
+    /// In-view find-as-you-type filter (`f`); "" = no filter. Narrows the current list by substring.
+    filter: String
     branchId: Uuid }
 
 /// A single-line text entry. `action` tags what Enter does (e.g. "commit").
@@ -70,6 +78,20 @@ type EditingState =
 type Step =
   | Continue of State
   | Exit of State
+
+
+// ── View indices (single source of truth — must match Frame.viewNames order) ──
+// Kept as vals so the scattered dispatch reads by name, not magic number, and reordering is one place.
+val vHome = 0
+val vMatter = 1
+val vInspect = 2
+val vScratch = 3
+val vSCM = 4
+val vDevices = 5
+val vAI = 6
+val vApps = 7
+val vTraces = 8
+val vDocs = 9
 
 
 // ── Package listing (the Tree body) ──
@@ -380,24 +402,36 @@ let loadMeshBodyItems () : List<BodyItem> =
     |> Stdlib.List.map (fun l -> BodyItem { name = l; kind = "device"; isModule = false })
   | Error _ -> []
 
-/// The body items for a given view: packages for Home/Tree, WIP for Changes, commits for History,
-/// conflicts for Resolve, doc topics for Docs, else [] (unwired).
+/// Installed + available apps (for the Apps view). A filled dot marks installed; a hollow one available.
+let loadAppItems (branchId: Uuid) : List<BodyItem> =
+  let slugs = Darklang.Cli.Apps.Registry.installedSlugs ()
+  Darklang.Cli.Apps.Registry.available ()
+  |> Stdlib.List.map (fun a ->
+    let mark = if Stdlib.List.member slugs a.slug then "● " else "○ "
+    BodyItem { name = mark ++ a.name ++ "  —  " ++ a.description; kind = "app"; isModule = false })
+
+/// The body items for a given view. Home/Matter list packages (Matter with a Values lens); SCM lists its
+/// active section (WIP / commits / conflicts); AI/Apps/Traces/Docs their own; Scratch/Devices render their
+/// own bodies (no list). `scmSection` and `matterLens` come from state.
 let itemsForView
   (view: Int)
   (branchId: Uuid)
   (location: Packages.PackageLocation)
+  (scmSection: Int)
+  (matterLens: String)
   : List<BodyItem> =
-  if view <= 1 then loadItems branchId location
-  else if view == 4 then loadWipBodyItems branchId
-  else if view == 5 then loadCommitBodyItems branchId
-  else if view == 6 then loadConflictBodyItems ()
-  else if view == 7 then loadMeshBodyItems ()
-  else if view == 8 then loadAiThreadItems ()
-  else if view == 9 then loadRunBodyItems ()
-  else if view == 10 then loadServiceBodyItems ()
-  else if view == 11 then loadThingItems branchId
-  else if view == 12 then loadDocBodyItems ()
-  else if view == 13 then loadWipBodyItems branchId
+  if view == vHome then loadItems branchId location
+  else if view == vMatter then
+    if matterLens == "values" then loadThingItems branchId else loadItems branchId location
+  else if view == vInspect then loadItems branchId location
+  else if view == vSCM then
+    if scmSection == 1 then loadCommitBodyItems branchId
+    else if scmSection == 2 then loadConflictBodyItems ()
+    else loadWipBodyItems branchId
+  else if view == vAI then loadAiThreadItems ()
+  else if view == vApps then loadAppItems branchId
+  else if view == vTraces then loadRunBodyItems ()
+  else if view == vDocs then loadDocBodyItems ()
   else []
 
 
@@ -485,18 +519,47 @@ let conflictDetail (selected: Int) : String =
     ++ "resolved by: " ++ c.resolvedBy
   | None -> "(no conflict selected)"
 
-/// The preview content for the selected item in the current view: source for Tree, WIP source for Changes,
-/// ops for a commit in History, the topic for Docs, the divergence detail for Resolve. One function so the
-/// preview pane, its scroll bounds, and the full-screen reader all agree.
+/// The selected app's detail (name/description + lifecycle hints). Placeholder actions for now.
+let appDetail (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | Some item ->
+    item.name
+    ++ "\n\n"
+    ++ "i install    r run    s stop    l logs\n\n"
+    ++ "(lifecycle wired via the classic `apps` command for now)"
+  | None -> "(no app selected)"
+
+/// The selected trace's detail. Placeholder — the walkable trace tree + live values come later.
+let traceDetail (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | Some item -> item.name ++ "\n\n(trace detail — replay, make-test, and value walk: coming)"
+  | None -> "(no trace recorded yet)"
+
+/// The Inspect item page: the selected item's source, then its references (used-by / uses). One surface to
+/// understand a thing before you touch it. Source isn't syntax-highlighted here (the page mixes code + refs).
+let inspectPageLines (state: State) : List<String> =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> [ Colors.dimText "(nothing selected — browse the tree)" ]
+  | Some item ->
+    if item.isModule then
+      [ (iconFor item) ++ " " ++ item.name; ""; Colors.dimText "module — → to enter" ]
+    else
+      let src = detailLines state
+      let refs = Stdlib.String.split (depsText state) "\n"
+      Stdlib.List.flatten [ src; [ ""; Colors.colorize Colors.cyan "── references ──"; "" ]; refs ]
+
+/// The preview content for the selected item in the current view. One function so the preview pane, its
+/// scroll bounds, and the full-screen reader all agree. SCM previews depend on the active section.
 let previewLines (state: State) : List<String> =
-  if state.activeView == 4 then Stdlib.String.split (wipDiffText state) "\n"
-  else if state.activeView == 5 then Stdlib.String.split (commitSummary state.branchId state.selected) "\n"
-  else if state.activeView == 6 then Stdlib.String.split (conflictDetail state.selected) "\n"
-  else if state.activeView == 8 then Stdlib.String.split (aiThreadDetail state.selected) "\n"
-  else if state.activeView == 10 then Stdlib.String.split (serviceDetail state) "\n"
-  else if state.activeView == 11 then Stdlib.String.split (thingDetail state) "\n"
-  else if state.activeView == 13 then Stdlib.String.split (wipDiffText state) "\n"
-  else if state.activeView == 12 then Stdlib.String.split (docContent state.selected) "\n"
+  if state.activeView == vSCM then
+    if state.scmSection == 1 then Stdlib.String.split (commitSummary state.branchId state.selected) "\n"
+    else if state.scmSection == 2 then Stdlib.String.split (conflictDetail state.selected) "\n"
+    else Stdlib.String.split (wipDiffText state) "\n"
+  else if state.activeView == vInspect then inspectPageLines state
+  else if state.activeView == vAI then Stdlib.String.split (aiThreadDetail state.selected) "\n"
+  else if state.activeView == vApps then Stdlib.String.split (appDetail state) "\n"
+  else if state.activeView == vTraces then Stdlib.String.split (traceDetail state) "\n"
+  else if state.activeView == vDocs then Stdlib.String.split (docContent state.selected) "\n"
   else detailLines state
 
 let renderPreview (state: State) (region: UI.Layout.Region) : Unit =
@@ -507,7 +570,7 @@ let renderPreview (state: State) (region: UI.Layout.Region) : Unit =
   // Changes (4) + Matter (13) show a pre-colored +/- diff, not highlighted source, so they're not re-highlighted.
   // Also skip highlighting anything already ANSI-colored (e.g. a tree-native render peek) — it's not plain source.
   let alreadyColored = Stdlib.String.contains (Stdlib.String.join plain "\n") ""
-  let doHighlight = ((state.activeView <= 1) || (state.activeView == 11)) && (Stdlib.Bool.not alreadyColored)
+  let doHighlight = ((state.activeView == vMatter) || (state.activeView == vInspect)) && (Stdlib.Bool.not alreadyColored)
   let highlighted =
     if doHighlight then
       let h =
@@ -706,78 +769,145 @@ let renderMatterHeader (state: State) (region: UI.Layout.Region) : Unit =
   let _ = Stdlib.print ((Colors.moveCursorTo region.top region.left) ++ line1)
   Stdlib.print ((Colors.moveCursorTo (region.top + 1) region.left) ++ line2)
 
-/// The Matter view: the status header over the change set (WIP list + source), with the SCM actions in the
-/// footer. One home for "what's different in Dark Matter, and what will travel."
+/// The SCM view: the status header, a section switcher (Changes / History / Conflicts, cycled by Tab), and
+/// the active section's list + detail. One home for the state of Dark Matter and its version control; conflict
+/// resolution lives here. The ahead/behind glance is in the header (setup + cross-instance health live in Devices).
 let renderMatter (state: State) (region: UI.Layout.Region) : Unit =
-  let headerRows = 3
-  let headerRegion = UI.Layout.Region { top = region.top; left = region.left; rows = headerRows; cols = region.cols }
+  let headerRows = 4
+  let headerRegion = UI.Layout.Region { top = region.top; left = region.left; rows = 2; cols = region.cols }
+  let _ = renderMatterHeader state headerRegion
+  // Section switcher — the active section bright in brackets, the others dim.
+  let sections = [ "Changes"; "History"; "Conflicts" ]
+  let secLine =
+    sections
+    |> Stdlib.List.indexedMap (fun i s ->
+      if i == state.scmSection then Colors.colorize (Colors.bold ++ Colors.cyan) ("[" ++ s ++ "]")
+      else Colors.dimText (" " ++ s ++ " "))
+    |> Stdlib.String.join "  "
+  let _ = Stdlib.print ((Colors.moveCursorTo (region.top + 2) region.left) ++ "  " ++ (Colors.dimText "tab") ++ "  " ++ secLine)
   let bodyRegion =
     UI.Layout.Region
       { top = region.top + headerRows
         left = region.left
         rows = Stdlib.Int.max 1 (region.rows - headerRows)
         cols = region.cols }
-  let _ = renderMatterHeader state headerRegion
-  splitListPreview state bodyRegion "Changes" "Source" (Colors.colorize Colors.green "✓ working tree clean — nothing to commit")
+  let (title, empty) =
+    if state.scmSection == 1 then ("History", Colors.dimText "no commits yet")
+    else if state.scmSection == 2 then ("Conflicts", Colors.colorize Colors.green "✓ nothing to resolve — in sync")
+    else ("Changes", Colors.colorize Colors.green "✓ working tree clean — nothing to commit")
+  splitListPreview state bodyRegion title "Detail" empty
+
+/// The REPL view: a persistent eval log on the left, a live-values sidebar on the right. ⏎ (or `:`) evaluates
+/// and appends to the log. The sidebar is faked for now — it echoes the last result and flags what a
+/// resumable/forking interpreter would surface (intermediate values per sub-expression).
+let renderRepl (state: State) (region: UI.Layout.Region) : Unit =
+  UI.SplitPane.render
+    region
+    UI.SplitPane.Orientation.Horizontal
+    62
+    state.focus
+    "REPL"
+    (fun inner ->
+      let all =
+        if Stdlib.List.isEmpty state.scratchLog then
+          [ Colors.dimText "⏎ or : to eval an expression — results log here" ]
+        else state.scratchLog
+      let shown = all |> Stdlib.List.reverse |> Stdlib.List.take inner.rows |> Stdlib.List.reverse
+      shown
+      |> Stdlib.List.indexedMap (fun i l -> (i, l))
+      |> Stdlib.List.iter (fun p ->
+        let (i, l) = p
+        Stdlib.print ((Colors.moveCursorTo (inner.top + i) (inner.left + 1)) ++ (UI.Layout.truncateVisible l (Stdlib.Int.max 0 (inner.cols - 1))))))
+    "Live values"
+    (fun inner ->
+      let lastResult =
+        state.scratchLog
+        |> Stdlib.List.reverse
+        |> Stdlib.List.findFirst (fun l -> Stdlib.Bool.not (Stdlib.String.contains l "> "))
+        |> Stdlib.Option.withDefault ""
+      let lines =
+        [ Colors.dimText "the value flowing through"
+          Colors.dimText "your last expression:"
+          ""
+          (if (Stdlib.String.trim lastResult) == "" then Colors.dimText "(eval something)"
+           else Colors.colorize Colors.green (Stdlib.String.trim lastResult))
+          ""
+          Colors.dimText "── coming ──"
+          Colors.dimText "intermediate values per"
+          Colors.dimText "sub-expression, from a"
+          Colors.dimText "resumable / forking trace." ]
+      lines
+      |> Stdlib.List.indexedMap (fun i l -> (i, l))
+      |> Stdlib.List.take inner.rows
+      |> Stdlib.List.iter (fun p ->
+        let (i, l) = p
+        Stdlib.print ((Colors.moveCursorTo (inner.top + i) (inner.left + 1)) ++ (UI.Layout.truncateVisible l (Stdlib.Int.max 0 (inner.cols - 1))))))
+
+/// The Devices view: instances and how they sync. Discovery-mechanism-agnostic (no tailscale branding). Setup
+/// + cross-instance sync health live here; conflict resolution links over to SCM. Placeholder feed for now.
+let renderDevices (state: State) (region: UI.Layout.Region) : Unit =
+  let branch =
+    match SCM.Branch.get state.branchId with
+    | Some b -> b.name
+    | None -> "main"
+  boxedLines
+    region
+    "Devices"
+    [ Colors.boldText "This instance: local"
+      ""
+      Colors.dimText ("known instances: 1 (this one)    ·    branch " ++ branch ++ ": in sync")
+      ""
+      Colors.dimText "No other instances connected yet."
+      ""
+      Colors.dimText "Devices is where you set up how instances connect and sync — how they discover"
+      Colors.dimText "each other, what auto-syncs per branch and namespace, and who's ahead or behind."
+      Colors.dimText "Conflict resolution itself lives in SCM."
+      ""
+      Colors.dimText "a add instance   ·   s sync now    (coming)" ]
+
+/// The AI view: agents dark is running (preview data for now) with a thread detail. `a` asks the agent.
+/// Prompts library + real managed-agent state come later.
+let renderAI (state: State) (region: UI.Layout.Region) : Unit =
+  splitListPreview state region "AI · agents (preview data)" "Thread" (Colors.dimText "no agents — press a to ask the agent")
 
 let renderViewBody (state: State) (region: UI.Layout.Region) : Unit =
-  if state.activeView == 0 then
+  if state.activeView == vHome then
     renderHome state region
-  else if state.activeView == 1 then
+  else if state.activeView == vMatter then
+    let treeTitle = if state.matterLens == "values" then "Values" else "Tree"
     UI.SplitPane.render
       region
       UI.SplitPane.Orientation.Horizontal
       45
       state.focus
-      "Tree"
+      treeTitle
       (fun r -> renderTreeList state r)
       "Inspect"
       (fun r -> renderPreview state r)
-  else if state.activeView == 10 then
-    splitListPreview state region "Apps & Views" "Preview" (Colors.dimText "no apps or views registered")
-  else if state.activeView == 9 then
-    boxedList state region "Runs" (Colors.dimText "no runs yet — eval, run a script, or serve to record traces")
-  else if state.activeView == 7 then
-    boxedList state region "Mesh" (Colors.dimText "tailnet unavailable — tailscale not running or not installed")
-  else if state.activeView == 4 then
-    splitListPreview state region "Changes" "Source" (Colors.colorize Colors.green "✓ working tree clean — nothing to commit")
-  else if state.activeView == 5 then
-    splitListPreview state region "History" "Commit" (Colors.dimText "no commits yet")
-  else if state.activeView == 6 then
-    splitListPreview state region "Resolve" "Divergence" (Colors.colorize Colors.green "✓ nothing to resolve — in sync")
-  else if state.activeView == 12 then
-    splitListPreview state region "Docs" "Topic" (Colors.dimText "(no topics)")
-  else if state.activeView == 8 then
-    splitListPreview state region "AI" "Thread" (Colors.dimText "no threads — press a to ask the agent")
-  else if state.activeView == 11 then
-    splitListPreview state region "Values" "Source" (Colors.dimText "no values found")
-  else if state.activeView == 13 then
-    renderMatter state region
-  else if state.activeView == 2 then
-    // Inspect (standalone): an at-a-glance overview of Dark Matter — the package-stats view, captured here.
-    let _ = Builtin.stdoutCaptureStart ()
-    let _ = Darklang.Cli.Apps.Views.PackageStats.render ()
-    let output = Builtin.stdoutCaptureStop ()
-    UI.Box.panel region "Overview" true (fun inner ->
-      Stdlib.String.split output "\n"
-      |> Stdlib.List.indexedMap (fun i l -> (i, l))
-      |> Stdlib.List.take inner.rows
-      |> Stdlib.List.iter (fun pair ->
-        let (i, l) = pair
-        Stdlib.print ((Colors.moveCursorTo (inner.top + i) (inner.left + 1)) ++ (UI.Layout.truncateVisible l (Stdlib.Int.max 0 (inner.cols - 1))))))
-  else if state.activeView == 3 then
-    boxedLines
+  else if state.activeView == vInspect then
+    UI.SplitPane.render
       region
-      "Edit"
-      [ Colors.boldText "Edit anything, apply at once."
-        ""
-        Colors.dimText "  n / ⏎   start a draft — a full editor prefilled with:"
-        Colors.dimText "              module <you>.Drafts"
-        Colors.dimText "              let example (x: Int): Int = x"
-        Colors.dimText "          write the module + declaration, ^s parses it and applies to the tree."
-        ""
-        Colors.dimText "Or from Matter (the tree): n/t/v new · e edit in place · r rename. Change the module"
-        Colors.dimText "line to save anywhere; no navigation needed." ]
+      UI.SplitPane.Orientation.Horizontal
+      40
+      state.focus
+      "Tree"
+      (fun r -> renderTreeList state r)
+      "Item page"
+      (fun r -> renderPreview state r)
+  else if state.activeView == vScratch then
+    renderRepl state region
+  else if state.activeView == vSCM then
+    renderMatter state region
+  else if state.activeView == vDevices then
+    renderDevices state region
+  else if state.activeView == vAI then
+    renderAI state region
+  else if state.activeView == vApps then
+    splitListPreview state region "Apps" "Detail" (Colors.dimText "no apps registered")
+  else if state.activeView == vTraces then
+    splitListPreview state region "Traces" "Detail" (Colors.dimText "no traces yet — eval or run an app to record")
+  else if state.activeView == vDocs then
+    splitListPreview state region "Docs" "Topic" (Colors.dimText "(no topics)")
   else
     boxedLines
       region
@@ -848,24 +978,29 @@ let hintsForView (state: State) : String =
   // Global keys, always the same, anchored at the right end of the footer.
   let global = [ ("/", "search"); (":", "cmd"); ("`", "views"); ("?", "help"); ("esc/q", "quit") ]
   let ctx =
-    if view == 1 then
-      [ ("↑↓", "move"); ("→", "in"); ("⏎", "open"); ("n/t/v", "new"); ("e", "edit"); ("r", "rename"); ("d", "deps") ]
-    else if view == 0 then
+    if view == vMatter then
+      [ ("↑↓", "move"); ("→", "in"); ("n/t/v", "new"); ("e", "edit"); ("r", "rename"); ("V", "values"); ("f", "filter") ]
+    else if view == vHome then
       [ ("↑↓", "move") ]
-    else if view == 4 then
-      Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("⏎", "full"); ("c", "commit"); ("x", "discard") ] ]
-    else if view == 5 then
-      [ ("↑↓", "move"); ("⏎", "full"); ("b", "branch"); ("s", "switch"); ("m", "merge"); ("r", "rebase") ]
-    else if view == 6 then
-      Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("o", "keep ours"); ("t", "keep theirs"); ("a", "ack") ] ]
-    else if view == 12 then
-      Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("⏎", "full") ] ]
-    else if view == 3 then
-      [ ("n/⏎", "draft") ]
-    else if view == 8 then
+    else if view == vInspect then
+      [ ("↑↓", "move"); ("⏎", "walk"); ("d", "deps"); ("f", "filter") ]
+    else if view == vScratch then
+      [ ("⏎/:", "eval"); ("f", "clear") ]
+    else if view == vSCM then
+      let sectionKeys =
+        if state.scmSection == 2 then [ ("o", "ours"); ("t", "theirs"); ("a", "ack") ]
+        else [ ("c", "commit"); ("x", "discard") ]
+      Stdlib.List.flatten [ [ ("↑↓", "move"); ("tab", "section") ]; sectionKeys; [ ("b", "branch"); ("m", "merge"); ("r", "rebase") ] ]
+    else if view == vDevices then
+      [ ("a", "add"); ("s", "sync") ]
+    else if view == vAI then
       Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("a", "ask") ] ]
-    else if view == 13 then
-      [ ("↑↓", "move"); ("c", "commit"); ("x", "discard"); ("b", "branch"); ("s", "switch"); ("m", "merge"); ("r", "rebase") ]
+    else if view == vApps then
+      Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("i", "install"); ("r", "run") ] ]
+    else if view == vTraces then
+      Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("⏎", "open") ] ]
+    else if view == vDocs then
+      Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("⏎", "full") ] ]
     else
       [ ("↑↓", "move") ]
   Frame.formatHints (Stdlib.List.append ctx global)
@@ -874,11 +1009,12 @@ let hintsForView (state: State) : String =
 val helpGroups =
   [ ("Global", ": cmd   / search   ` views   ? help   esc/q quit")
     ("Views", "1-9 jump   [ ] cycle")
-    ("Move", "↑↓ or j/k   g/G top/bottom   tab focus pane")
-    ("Tree", "→/l in   ←/h up   ⏎ open   n/t/v new   e edit   r rename   d deps")
-    ("Changes", "c commit   x discard")
-    ("Conflicts", "o keep ours   t keep theirs   a ack")
-    ("SCM", "c commit   x discard   b branch   s switch   m merge   r rebase")
+    ("Move", "↑↓ or j/k   g/G top/bottom   tab focus/section")
+    ("Matter", "→/l in   ←/h up   ⏎ open   n/t/v new   e edit   r rename   v values   f filter")
+    ("Inspect", "⏎ walk callers   d deps")
+    ("REPL", "⏎ or : eval")
+    ("SCM", "tab section   c commit   x discard   b branch   m merge   r rebase   o/t/a resolve")
+    ("Apps", "i install   r run   s stop")
     ("Search", "↑↓ move   ⏎ jump   esc close") ]
 
 /// A centered, boxed keymap overlay drawn over the frame. The interior is cleared so nothing shows through.
@@ -935,8 +1071,8 @@ let renderFull (state: State) : Unit =
   Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
   let screen = UI.Layout.Region { top = 1; left = 1; rows = h - 1; cols = w }
   let path =
-    if state.activeView == 1 then Packages.formatLocation state.location
-    else if state.activeView == 0 then "Home"
+    if (state.activeView == vMatter) || (state.activeView == vInspect) then Packages.formatLocation state.location
+    else if state.activeView == vHome then "Home"
     else
       (Frame.viewName state.activeView)
       ++ "  —  "
@@ -958,6 +1094,19 @@ let renderFull (state: State) : Unit =
       (Colors.colorize Colors.green "✓ synced", "✓ synced")
   let rightColored = (Colors.dimText branchSeg) ++ syncColored
   let rightVisibleLen = Stdlib.String.length (branchSeg ++ syncPlain)
+  // The context line — the workbench's `pwd`: where edits land. Account, instance, branch, focused patch.
+  let context =
+    UI.Layout.fixedSize
+      1
+      (fun r ->
+        let line =
+          "  "
+          ++ (Colors.boldText state.accountName)
+          ++ (Colors.dimText "    instance: local    branch: ")
+          ++ (Colors.dimText branch)
+          ++ (Colors.dimText "    patch: Quick edits ")
+          ++ (Colors.colorize Colors.cyan "●")
+        Stdlib.print ((Colors.moveCursorTo r.top r.left) ++ line))
   let tabbar = UI.Layout.fixedSize 1 (fun r -> Frame.renderTabBar r state.activeView conflictCount)
   let crumb = UI.Layout.fixedSize 1 (fun r -> Frame.renderBreadcrumb r path rightColored rightVisibleLen)
   let body = UI.Layout.greedy (fun r -> renderBody state r)
@@ -996,7 +1145,7 @@ let renderFull (state: State) : Unit =
                   Frame.formatHints [ ("↑↓", "move"); ("⏎", "jump"); ("esc", "close"); ("q", "quit") ]
                 else hintsForView state
         Frame.renderKeyHints r h)
-  UI.Layout.vstack screen [ tabbar; crumb; body; hints ]
+  UI.Layout.vstack screen [ context; tabbar; crumb; body; hints ]
   let _ = if state.showHelp then renderHelpOverlay screen else ()
   let _ = if state.viewPicker then renderViewPicker state screen else ()
   Stdlib.print "\u001b[?25h"
@@ -1085,14 +1234,17 @@ let openReader (state: State) (content: String) (isCode: Bool) : Step =
         readingIsCode = isCode
         detailScroll = 0 }
 
-/// Switch to view `nv`: reload its items and reset selection/scroll/focus (so you never land in a single-pane
-/// view still "focused" on a preview pane that isn't there).
+/// Switch to view `nv`: reload its items, keep the cursor where it was (clamped to the new list — a partial
+/// shared cursor, so you don't lose your place hopping views), reset scroll/focus/filter.
 let switchView (state: State) (nv: Int) : Step =
+  let newItems = itemsForView nv state.branchId state.location state.scmSection state.matterLens
+  let clamped = Stdlib.Int.max 0 (Stdlib.Int.min state.selected (Stdlib.Int.max 0 ((Stdlib.List.length newItems) - 1)))
   Step.Continue
     { state with
         activeView = nv
-        items = itemsForView nv state.branchId state.location
-        selected = 0
+        items = newItems
+        selected = clamped
+        filter = ""
         detailScroll = 0
         focus = UI.SplitPane.Focus.First }
 
@@ -1108,7 +1260,7 @@ let resolveConflict (state: State) (which: String) : Step =
     let label = if which == "ok" then "acknowledged" else "kept " ++ which
     Step.Continue
       { state with
-          items = itemsForView state.activeView state.branchId state.location
+          items = itemsForView state.activeView state.branchId state.location state.scmSection state.matterLens
           selected = 0
           message = if ok then "resolved: " ++ label else "resolve failed" }
 
@@ -1145,7 +1297,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
         Step.Continue
           { state with
               input = Stdlib.Option.Option.None
-              items = itemsForView state.activeView state.branchId state.location
+              items = itemsForView state.activeView state.branchId state.location state.scmSection state.matterLens
               selected = 0
               message = "committed" }
       | Error e ->
@@ -1165,7 +1317,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
       Step.Continue
         { state with
             input = Stdlib.Option.Option.None
-            items = itemsForView state.activeView state.branchId state.location
+            items = itemsForView state.activeView state.branchId state.location state.scmSection state.matterLens
             selected = 0
             message = "discarded all changes" }
     else
@@ -1207,7 +1359,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
               Step.Continue
                 { state with
                     input = Stdlib.Option.Option.None
-                    items = itemsForView state.activeView state.branchId state.location
+                    items = itemsForView state.activeView state.branchId state.location state.scmSection state.matterLens
                     selected = 0
                     message = "renamed to " ++ inp.text }
             | Error m -> Step.Continue { state with input = Stdlib.Option.Option.None; message = "rename failed: " ++ m }
@@ -1226,7 +1378,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
           { state with
               input = Stdlib.Option.Option.None
               branchId = parentId
-              items = itemsForView state.activeView parentId state.location
+              items = itemsForView state.activeView parentId state.location state.scmSection state.matterLens
               selected = 0
               message = "merged into parent" }
       | Error e ->
@@ -1241,7 +1393,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
         Step.Continue
           { state with
               input = Stdlib.Option.Option.None
-              items = itemsForView state.activeView state.branchId state.location
+              items = itemsForView state.activeView state.branchId state.location state.scmSection state.matterLens
               selected = 0
               message = "rebased onto parent" }
       | Error conflicts ->
@@ -1324,13 +1476,53 @@ let performInputAction (state: State) (inp: InputState) : Step =
             reading = Stdlib.Option.Option.Some ((Colors.dimText ("$ " ++ text)) ++ "\n\n" ++ shown)
             readingIsCode = false
             detailScroll = 0 }
+  else if inp.action == "scratch" then
+    // Scratch: eval the expression (captured) and append `> expr` + its result to the log.
+    let text = Stdlib.String.trim inp.text
+    if text == "" then
+      Step.Continue { state with input = Stdlib.Option.Option.None }
+    else
+      let words = Stdlib.String.split text " " |> Stdlib.List.filter (fun w -> w != "")
+      let appState =
+        { (Darklang.Cli.initState ()) with
+            currentBranchId = state.branchId
+            accountID = state.accountId
+            accountName = state.accountName }
+      let _ = Builtin.stdoutCaptureStart ()
+      let _ = Darklang.Cli.Registry.executeCommand "eval" appState words
+      let output = Builtin.stdoutCaptureStop ()
+      let resultLines =
+        Stdlib.String.split output "\n"
+        |> Stdlib.List.filter (fun l -> (Stdlib.String.trim l) != "")
+        |> Stdlib.List.map (fun l -> "  " ++ l)
+      let entry = Stdlib.List.append [ (Colors.colorize Colors.cyan "> ") ++ text ] resultLines
+      Step.Continue
+        { state with
+            input = Stdlib.Option.Option.None
+            scratchLog = Stdlib.List.append state.scratchLog entry }
+  else if inp.action == "filter" then
+    // In-view filter: narrow the current list to items whose name contains the text (case-insensitive).
+    let f = Stdlib.String.trim inp.text
+    let full = itemsForView state.activeView state.branchId state.location state.scmSection state.matterLens
+    let narrowed =
+      if f == "" then full
+      else
+        full
+        |> Stdlib.List.filter (fun it ->
+          Stdlib.String.contains (Stdlib.String.toLowercase it.name) (Stdlib.String.toLowercase f))
+    Step.Continue
+      { state with
+          input = Stdlib.Option.Option.None
+          filter = f
+          items = narrowed
+          selected = 0 }
   else if inp.action == "branch-create" then
     let b = Darklang.SCM.Branch.create inp.text state.branchId
     Step.Continue
       { state with
           input = Stdlib.Option.Option.None
           branchId = b.id
-          items = itemsForView state.activeView b.id state.location
+          items = itemsForView state.activeView b.id state.location state.scmSection state.matterLens
           selected = 0
           message = "on branch " ++ inp.text }
   else if inp.action == "branch-switch" then
@@ -1340,7 +1532,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
         { state with
             input = Stdlib.Option.Option.None
             branchId = b.id
-            items = itemsForView state.activeView b.id state.location
+            items = itemsForView state.activeView b.id state.location state.scmSection state.matterLens
             selected = 0
             message = "switched to " ++ inp.text }
     | None ->
@@ -1446,7 +1638,7 @@ let saveEditing (state: State) (es: EditingState) : Step =
             Step.Continue
               { state with
                   editing = Stdlib.Option.Option.None
-                  items = itemsForView state.activeView state.branchId state.location
+                  items = itemsForView state.activeView state.branchId state.location state.scmSection state.matterLens
                   selected = 0
                   message = "saved " ++ leaf }
           | Error m -> keepErr ("save failed: " ++ m)
@@ -1683,32 +1875,42 @@ let handleKey
   | DownArrow -> navDown state
   | RightArrow -> descend state
   | Enter ->
-    if state.activeView == 12 then
+    if state.activeView == vDocs then
       // Docs: open the selected topic in the full-body reader (prose, not code).
       let topics = Docs.Command.Topics.allTopics ()
       match Stdlib.List.getAt topics state.selected with
       | Some t -> openReader state (t.content ()) false
       | None -> Step.Continue state
-    else if state.activeView == 5 then
-      // History: open the selected commit's ops in the reader.
-      openReader state (commitOpsText state.branchId state.selected) false
-    else if state.activeView == 4 then
-      // Changes: open the selected WIP item's source (code) in the reader.
-      openReader state (changesSourceText state.branchId state.selected) true
-    else if state.activeView == 1 then
-      // Tree: Enter descends into a module, or opens a leaf's source (code) full-screen.
+    else if state.activeView == vSCM then
+      // SCM: open the section item — commit ops (History), WIP source (Changes); Conflicts has no full view.
+      if state.scmSection == 1 then openReader state (commitOpsText state.branchId state.selected) false
+      else if state.scmSection == 0 then openReader state (changesSourceText state.branchId state.selected) true
+      else Step.Continue state
+    else if state.activeView == vScratch then
+      // Scratch: open the eval prompt; the result appends to the log.
+      Step.Continue
+        { state with
+            input = Stdlib.Option.Option.Some (InputState { prompt = "repl> "; text = ""; action = "scratch" }) }
+    else if (state.activeView == vMatter) || (state.activeView == vInspect) then
+      // Matter/Inspect: Enter descends into a module, or opens a leaf's source full-screen.
       match Stdlib.List.getAt state.items state.selected with
       | Some item ->
         if item.isModule then descend state
         else openReader state (detailLines state |> Stdlib.String.join "\n") true
       | None -> descend state
-    else if state.activeView == 3 then
-      // Edit view: Enter starts a free-form draft.
-      startDraft state
     else
       descend state
   | LeftArrow -> ascend state
-  | Tab -> Step.Continue { state with focus = UI.SplitPane.toggle state.focus }
+  | Tab ->
+    // Tab cycles the SCM section (Changes/History/Conflicts); elsewhere it toggles the split-pane focus.
+    if state.activeView == vSCM then
+      let ns = if state.scmSection >= 2 then 0 else state.scmSection + 1
+      Step.Continue
+        { state with
+            scmSection = ns
+            items = itemsForView vSCM state.branchId state.location ns state.matterLens
+            selected = 0 }
+    else Step.Continue { state with focus = UI.SplitPane.toggle state.focus }
   | Escape ->
     // Escape just leaves. This is the whole experience; there's no classic prompt to fall back to,
     // so leaving the workbench leaves the CLI. Old commands live on the `:` bar, not behind an exit.
@@ -1746,23 +1948,23 @@ let handleKey
     | Some "[" ->
       switchView state (Stdlib.Int.max 0 (state.activeView - 1))
     | Some "d" ->
-      // Tree: show the selected leaf's dependencies (what it uses) in the reader.
-      if state.activeView == 1 then openReader state (depsText state) false
+      // Matter/Inspect: show the selected leaf's dependencies (what it uses) in the reader.
+      if (state.activeView == vMatter) || (state.activeView == vInspect) then openReader state (depsText state) false
       else Step.Continue state
     | Some "a" ->
-      // Conflicts: acknowledge the selected divergence.
-      if state.activeView == 6 then resolveConflict state "ok"
-      // AI: enter a prompt for `agent ask`.
-      else if state.activeView == 8 then
+      // SCM Conflicts: acknowledge. AI: ask the agent. Devices: add an instance (placeholder).
+      if (state.activeView == vSCM) && (state.scmSection == 2) then resolveConflict state "ok"
+      else if state.activeView == vAI then
         Step.Continue
           { state with
               input =
                 Stdlib.Option.Option.Some
                   (InputState { prompt = "ask the agent: "; text = ""; action = "agent" }) }
+      else if state.activeView == vDevices then Step.Continue { state with message = "add instance — coming soon" }
       else Step.Continue state
     | Some "e" ->
-      // Tree: edit the selected fn in place (prefill the editor from its source).
-      if state.activeView == 1 then
+      // Matter: edit the selected fn in place (prefill the editor from its source).
+      if state.activeView == vMatter then
         match Stdlib.List.getAt state.items state.selected with
         | Some item ->
           if item.isModule then Step.Continue state else openEditExisting state item
@@ -1770,79 +1972,85 @@ let handleKey
       else
         Step.Continue state
     | Some "n" ->
-      // Tree: new fn. Edit view: start a free-form draft.
-      if state.activeView == 1 then startNew state "fn"
-      else if state.activeView == 3 then startDraft state
-      else Step.Continue state
+      if state.activeView == vMatter then startNew state "fn" else Step.Continue state
     | Some "t" ->
-      if state.activeView == 1 then startNew state "type"
-      else if state.activeView == 6 then resolveConflict state "theirs"
+      if state.activeView == vMatter then startNew state "type"
+      else if (state.activeView == vSCM) && (state.scmSection == 2) then resolveConflict state "theirs"
       else Step.Continue state
     | Some "o" ->
-      if state.activeView == 6 then resolveConflict state "ours" else Step.Continue state
+      if (state.activeView == vSCM) && (state.scmSection == 2) then resolveConflict state "ours" else Step.Continue state
     | Some "v" ->
-      if state.activeView == 1 then startNew state "value" else Step.Continue state
+      if state.activeView == vMatter then startNew state "value" else Step.Continue state
+    | Some "V" ->
+      // Matter: toggle the Values lens — the whole tree vs. values only.
+      if state.activeView == vMatter then
+        let nl = if state.matterLens == "values" then "all" else "values"
+        Step.Continue
+          { state with
+              matterLens = nl
+              items = itemsForView vMatter state.branchId state.location state.scmSection nl
+              selected = 0 }
+      else Step.Continue state
+    | Some "f" ->
+      // Scratch: clear the log. Elsewhere: open a find-as-you-type filter for the current list.
+      if state.activeView == vScratch then Step.Continue { state with scratchLog = [] }
+      else
+        Step.Continue
+          { state with
+              input =
+                Stdlib.Option.Option.Some (InputState { prompt = "filter: "; text = state.filter; action = "filter" }) }
+    | Some "i" ->
+      if state.activeView == vApps then Step.Continue { state with message = "install: `apps install <slug>` on the : bar for now" }
+      else Step.Continue state
     | Some "c" ->
-      // Changes: commit all WIP with a message.
-      if state.activeView == 4 || state.activeView == 13 then
+      if state.activeView == vSCM then
         Step.Continue
           { state with
               input =
-                Stdlib.Option.Option.Some
-                  (InputState { prompt = "commit message: "; text = ""; action = "commit" }) }
-      else
-        Step.Continue state
+                Stdlib.Option.Option.Some (InputState { prompt = "commit message: "; text = ""; action = "commit" }) }
+      else Step.Continue state
     | Some "x" ->
-      // Changes: discard all WIP (destructive → confirm).
-      if state.activeView == 4 || state.activeView == 13 then
+      if state.activeView == vSCM then
         Step.Continue
           { state with
               input =
                 Stdlib.Option.Option.Some
-                  (InputState
-                    { prompt = "discard ALL uncommitted? type y then enter: "; text = ""; action = "discard" }) }
-      else
-        Step.Continue state
+                  (InputState { prompt = "discard ALL uncommitted? type y then enter: "; text = ""; action = "discard" }) }
+      else Step.Continue state
     | Some "b" ->
-      // History: create a new branch from the current one, and switch to it.
-      if state.activeView == 5 || state.activeView == 13 then
+      if state.activeView == vSCM then
         Step.Continue
           { state with
               input =
-                Stdlib.Option.Option.Some
-                  (InputState { prompt = "new branch name: "; text = ""; action = "branch-create" }) }
-      else
-        Step.Continue state
+                Stdlib.Option.Option.Some (InputState { prompt = "new branch name: "; text = ""; action = "branch-create" }) }
+      else Step.Continue state
     | Some "s" ->
-      // History: switch to an existing branch by name.
-      if state.activeView == 5 || state.activeView == 13 then
+      // SCM: switch branch. Devices: sync now. Apps: stop (placeholders where not yet wired).
+      if state.activeView == vSCM then
         Step.Continue
           { state with
               input =
-                Stdlib.Option.Option.Some
-                  (InputState { prompt = "switch to branch: "; text = ""; action = "branch-switch" }) }
-      else
-        Step.Continue state
+                Stdlib.Option.Option.Some (InputState { prompt = "switch to branch: "; text = ""; action = "branch-switch" }) }
+      else if state.activeView == vDevices then Step.Continue { state with message = "sync now — coming soon" }
+      else if state.activeView == vApps then Step.Continue { state with message = "stop: `apps stop <slug>` on the : bar for now" }
+      else Step.Continue state
     | Some "m" ->
-      // History: merge this branch into its parent (confirm first).
-      if state.activeView == 5 || state.activeView == 13 then
+      if state.activeView == vSCM then
         Step.Continue
           { state with
               input =
-                Stdlib.Option.Option.Some
-                  (InputState { prompt = "merge into parent? type y then enter: "; text = ""; action = "merge" }) }
-      else
-        Step.Continue state
+                Stdlib.Option.Option.Some (InputState { prompt = "merge into parent? type y then enter: "; text = ""; action = "merge" }) }
+      else Step.Continue state
     | Some "r" ->
-      if state.activeView == 5 || state.activeView == 13 then
-        // History: rebase this branch onto its parent (confirm first).
+      // SCM: rebase. Apps: run. Matter: rename the selected leaf.
+      if state.activeView == vSCM then
         Step.Continue
           { state with
               input =
                 Stdlib.Option.Option.Some
                   (InputState { prompt = "rebase onto parent? type y then enter: "; text = ""; action = "rebase" }) }
-      else if state.activeView == 1 then
-        // Tree: rename the selected leaf (prefilled with its current name).
+      else if state.activeView == vApps then Step.Continue { state with message = "run: `apps run <slug>` on the : bar for now" }
+      else if state.activeView == vMatter then
         match Stdlib.List.getAt state.items state.selected with
         | Some item ->
           if item.isModule then Step.Continue state
@@ -1903,6 +2111,10 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
         showHelp = false
         viewPicker = false
         pickerSelected = 0
+        scmSection = 0
+        scratchLog = []
+        matterLens = "all"
+        filter = ""
         branchId = branchId }
   { cliState with
       currentPage = Darklang.Cli.Page.SubApp (makeSubApp state)
