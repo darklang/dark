@@ -1226,6 +1226,42 @@ let cronHints (state: State) : List<(String * String)> =
 let calendarHints (state: State) : List<(String * String)> =
   [ ("←→", "day"); ("↑↓", "week"); ("a", "agenda"); ("⏎", "open") ]
 
+let renderBuiltins (state: State) (region: UI.Layout.Region) : Unit =
+  splitListPreview state region "Builtins" "Signature" (Colors.dimText "(no builtins)")
+
+let builtinHints (state: State) : List<(String * String)> =
+  [ ("↑↓", "move"); ("/", "filter"); ("⏎", "copy name") ]
+
+/// The internal-tier Builtins view — every F# builtin (real data, not mock), for the Darklang-internal
+/// experience. Gated on `internal.enabled` (config), so `config set internal.enabled stachu,feriel` turns the
+/// whole tier on for those two accounts and nobody else. This is the dev-tools surface #4.B asked for.
+let loadBuiltinItems () : List<BodyItem> =
+  Builtin.getAllBuiltinFns ()
+  |> Stdlib.List.map (fun fn -> fn.name.name)
+  |> Stdlib.List.sort
+  |> Stdlib.List.map (fun n -> BodyItem { name = n; kind = "builtin"; isModule = false })
+
+let builtinDetailLines (state: State) : List<String> =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> [ Colors.dimText "(nothing selected)" ]
+  | Some item ->
+    let all = Builtin.getAllBuiltinFns ()
+    match Stdlib.List.findFirst all (fun fn -> fn.name.name == item.name) with
+    | None -> [ Colors.dimText "(builtin not found)" ]
+    | Some fn ->
+      let params =
+        fn.parameters
+        |> Stdlib.List.map (fun p ->
+          let typStr = PrettyPrinter.RuntimeTypes.typeReference state.branchId p.``type``
+          $"{p.name}: {typStr}")
+        |> Stdlib.String.join ", "
+      let ret = PrettyPrinter.RuntimeTypes.typeReference state.branchId fn.returnType
+      [ Colors.boldText ($"{fn.name.name}({params}) -> {ret}")
+        ""
+        Colors.dimText ("builtin  ·  " ++ (Darklang.Cli.Builtins.purityTag fn.purity))
+        ""
+        fn.description ]
+
 // Named wrappers so every ViewDef field is a resolved function reference (inline lambdas leave the tuple's
 // type as `_` and block record coercion — same reason Registry.CommandHandler uses named refs throughout).
 let errorItems () : List<BodyItem> = loadErrorItems ()
@@ -1261,7 +1297,15 @@ let extensionViews () : List<ViewDef> =
         loadItems = calendarItems
         render = renderCalendar
         detail = calendarDetailLines
-        hints = calendarHints } ]
+        hints = calendarHints }
+    ViewDef
+      { id = "builtins"
+        name = "Builtins"
+        gateKey = "internal.enabled"
+        loadItems = loadBuiltinItems
+        render = renderBuiltins
+        detail = builtinDetailLines
+        hints = builtinHints } ]
 
 let renderViewBody (state: State) (region: UI.Layout.Region) : Unit =
   if state.activeView == vHome then
