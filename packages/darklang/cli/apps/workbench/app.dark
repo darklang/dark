@@ -1119,11 +1119,12 @@ val helpGroups =
   [ ("Global", ": cmd   / search   ` views   ? help   esc/q quit")
     ("Views", "1-9 jump   [ ] cycle")
     ("Move", "↑↓ or j/k   g/G top/bottom   tab focus/section")
-    ("Matter", "→/l in   ←/h up   ⏎ open   n/t/v new   e edit   r rename   v values   f filter")
+    ("Matter", "→/l in   ←/h up   ⏎ open   n/t/v new   e edit   r rename   V values   f filter")
     ("Inspect", "⏎ walk callers   d deps")
-    ("REPL", "⏎ or : eval")
-    ("SCM", "tab section   c commit   x discard   b branch   m merge   r rebase   o/t/a resolve")
-    ("Apps", "i install   r run   s stop")
+    ("REPL", "⏎ or : eval   f clear")
+    ("SCM", "tab section   c commit   x discard   b branch   s switch   m merge   r rebase   o/t/a resolve")
+    ("AI", "tab Agents/Prompts   a ask")
+    ("Apps", "i install/uninstall   r run   s stop")
     ("Search", "↑↓ move   ⏎ jump   esc close") ]
 
 /// A centered, boxed keymap overlay drawn over the frame. The interior is cleared so nothing shows through.
