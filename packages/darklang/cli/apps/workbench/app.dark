@@ -594,6 +594,28 @@ let traceDetail (state: State) : String =
 
 /// The Inspect item page: the selected item's source, then its references (used-by / uses). One surface to
 /// understand a thing before you touch it. Source isn't syntax-highlighted here (the page mixes code + refs).
+
+/// A one-line metadata strip for the Inspect item page: kind, short content hash (real, content-addressed),
+/// and a stability marker (placeholder until deprecation metadata is surfaced).
+let itemMeta (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> ""
+  | Some item ->
+    if item.isModule then ""
+    else
+      let modulePath = modulePathOf state.location
+      let results = Packages.Query.searchExactMatch state.branchId modulePath item.name
+      let hashOpt =
+        if item.kind == "fn" then results.fns |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
+        else if item.kind == "type" then results.types |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
+        else results.values |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
+      let short =
+        match hashOpt with
+        | Some h -> LanguageTools.ProgramTypes.hashToShort h
+        | None -> "?"
+      let kindLabel = if item.kind == "fn" then "fn" else if item.kind == "type" then "type" else "value"
+      kindLabel ++ "   ·   hash " ++ short ++ "   ·   current   ·   not deprecated"
+
 let inspectPageLines (state: State) : List<String> =
   match Stdlib.List.getAt state.items state.selected with
   | None -> [ Colors.dimText "(nothing selected — browse the tree)" ]
@@ -603,7 +625,11 @@ let inspectPageLines (state: State) : List<String> =
     else
       let src = detailLines state
       let refs = Stdlib.String.split (depsText state) "\n"
-      Stdlib.List.flatten [ src; [ ""; Colors.colorize Colors.cyan "── references ──"; "" ]; refs ]
+      Stdlib.List.flatten
+        [ src
+          [ ""; Colors.dimText (itemMeta state) ]
+          [ ""; Colors.colorize Colors.cyan "── references ──"; "" ]
+          refs ]
 
 /// The preview content for the selected item in the current view. One function so the preview pane, its
 /// scroll bounds, and the full-screen reader all agree. SCM previews depend on the active section.
@@ -2095,7 +2121,22 @@ let handleKey
               input =
                 Stdlib.Option.Option.Some (InputState { prompt = "filter: "; text = state.filter; action = "filter" }) }
     | Some "i" ->
-      if state.activeView == vApps then Step.Continue { state with message = "install: `apps install <slug>` on the : bar for now" }
+      // Apps: toggle install/uninstall of the selected app (real — updates the installed set + the ●/○ marker).
+      if state.activeView == vApps then
+        match Stdlib.List.getAt (Darklang.Cli.Apps.Registry.available ()) state.selected with
+        | Some app ->
+          let slugs = Darklang.Cli.Apps.Registry.installedSlugs ()
+          let (newSlugs, msg) =
+            if Stdlib.List.member slugs app.slug then
+              (slugs |> Stdlib.List.filter (fun s -> s != app.slug), "uninstalled " ++ app.slug)
+            else
+              (Stdlib.List.append slugs [ app.slug ], "installed " ++ app.slug)
+          let _ = Darklang.Cli.Apps.Registry.saveInstalled newSlugs
+          Step.Continue
+            { state with
+                items = itemsForView vApps state.branchId state.location state.scmSection state.aiSection state.matterLens
+                message = msg }
+        | None -> Step.Continue state
       else Step.Continue state
     | Some "c" ->
       if state.activeView == vSCM then
