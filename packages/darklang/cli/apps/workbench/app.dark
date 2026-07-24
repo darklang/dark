@@ -1133,7 +1133,7 @@ let hintsForView (state: State) : String =
 /// The keymap, grouped, for the `?` overlay — (category, keys).
 val helpGroups =
   [ ("Global", ": cmd   / search   ` views   ? help   esc/q quit")
-    ("Views", "1-9 jump   [ ] cycle")
+    ("Views", "ctrl+←/→ switch   [ ] cycle   ` picker   1-9 jump")
     ("Move", "↑↓ or j/k   g/G top/bottom   tab focus/section")
     ("Matter", "→/l in   ←/h up   ⏎ open   n/t/v new   e edit   r rename   L values-lens   f filter")
     ("Inspect", "⏎ walk callers   d deps")
@@ -2037,6 +2037,11 @@ let handleKey
       | Some "G" -> moveTo (n - 1)
       | Some "q" -> closeSearch
       | _ -> Step.Continue state
+  else if modifiers.ctrl && (key == Stdlib.Cli.Stdin.Key.Key.LeftArrow) then
+    // Ctrl+← / Ctrl+→ move between tabs (a universal switch that scales past the number keys).
+    cycleView state (0 - 1)
+  else if modifiers.ctrl && (key == Stdlib.Cli.Stdin.Key.Key.RightArrow) then
+    cycleView state 1
   else
   match key with
   | UpArrow -> navUp state
