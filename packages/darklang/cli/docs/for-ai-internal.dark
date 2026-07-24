@@ -42,6 +42,30 @@ right call; wrapping them in `docker exec -u dark -w /home/dark/app <cid> ...`
 is never needed and just hardcodes container IDs that change across
 rebuilds.
 
+## Multiple clones running? Check the container FIRST
+The caveat to the above: `./scripts/*` auto-enters *a* devcontainer via
+_assert-in-container -> run-in-docker, which picks `docker ps --last 1` by
+label, NOT the clone you're in. With 2+ dark containers up it can silently
+run in ANOTHER clone's container: your edits look ignored, no-args opens the
+wrong UX, `help` lists another branch's commands, `eval` can't find your
+package. Before debugging anything weird, check which container it targets:
+  docker ps --last 1 --filter label=dark-dev-container --format '{{.Names}}'
+  docker inspect <name> --format '{{index .Config.Labels "devcontainer.local_folder"}}'
+Deeper trap: stock devcontainer.json mounts ONE shared `dark_build` volume
+for every clone AND fixes ports 9090-9099. Two backend-divergent clones (e.g.
+a substrate/kernel branch that changes hashing) then clobber each other's
+compiled backend -- reload dies with `type hash not found: Stdlib.Int.ParseError`
+-- and collide on ports. Do NOT `compile` to "fix" a stale-looking run-cli
+before confirming you're in the right container; a compile in the wrong one
+poisons the shared build for everyone.
+Fix = per-clone isolation, which is exactly what `dark-multi` does
+(~/code/dark-multi: no shared dark_build, per-branch ports). For a hand-made
+container, edit THAT clone's .devcontainer/devcontainer.json: drop the
+`dark_build` volume mount (backend/Build then lives in the clone's own bind
+mount) and remap host ports (e.g. `--publish=9190-9199:9090-9099`), then
+`devcontainer up --workspace-folder .` and rebuild once (isolated Build is
+empty). Leaves other clones' builds untouched.
+
 ## Adding Builtin (F#)
   Pick the right Builtins subproject:
     Builtins.Pure        # pure stdlib (String, List, Json, …)
