@@ -35,6 +35,9 @@ type State =
     editing: Stdlib.Option.Option<EditingState>
     accountId: Stdlib.Option.Option<Uuid>
     accountName: String
+    /// This instance's human name for the context line — config `instance.name` if set, else the machine
+    /// hostname. Each instance also registers a UUID (`instance.id`) in config on first run.
+    instanceName: String
     /// A transient status message (e.g. "committed", "saved foo") shown in the footer after a write action,
     /// then cleared on the next keypress. "" = nothing to show.
     message: String
@@ -351,7 +354,7 @@ let promptDetail (selected: Int) : String =
     ++ "\n\n"
     ++ "⏎ use (fills the ask bar)   ·   e edit   ·   n new"
     ++ "\n\n"
-    ++ (Colors.dimText "preview library")
+    ++ (Colors.dimText "(mock data)")
   | None -> "(no prompt selected)"
 
 /// All package values across the tree (for the Things view) — a flat, searchable browser of the data/consts.
@@ -594,7 +597,7 @@ let traceDetail (state: State) : String =
   | Some item ->
     (Colors.boldText item.name)
     ++ "\n\n"
-    ++ (Colors.dimText "preview — this env records no live traces")
+    ++ (Colors.dimText "(mock data) — no live traces recorded in this env")
     ++ "\n\n"
     ++ "A real trace carries the inputs, the return value, and the value\n"
     ++ "that flowed through every sub-expression. From here you'll:\n\n"
@@ -955,13 +958,13 @@ let renderDevices (state: State) (region: UI.Layout.Region) : Unit =
     region
     "Devices"
     [ hdr "This instance"
-      "   " ++ on ++ "  local (" ++ owner ++ ")      online     sync: auto"
+      "   " ++ on ++ "  " ++ state.instanceName ++ " (" ++ owner ++ ")      online     sync: auto"
       ""
-      hdr "Peers  ·  preview"
+      hdr "Peers  ·  (mock data)"
       "   " ++ on ++ "  matter.cloud       online     auto-pull Darklang"
       "   " ++ off ++ "  laptop-2           offline    last seen 2h ago"
       ""
-      hdr "Branch sync  ·  preview"
+      hdr "Branch sync  ·  (mock data)"
       "   " ++ (Colors.boldText "main") ++ "         " ++ (Colors.colorize Colors.green "in sync")
       "   " ++ (Colors.dimText "ai/sync      ahead 3, behind 1")
       "   " ++ (Colors.dimText "experiments  local only")
@@ -987,8 +990,8 @@ let renderAI (state: State) (region: UI.Layout.Region) : Unit =
         rows = Stdlib.Int.max 1 (region.rows - 2)
         cols = region.cols }
   let (leftTitle, previewTitle, empty) =
-    if state.aiSection == 1 then ("Prompts  ·  preview", "Prompt", Colors.dimText "no prompts")
-    else ("Agents  ·  preview", "Thread", Colors.dimText "no agents — press a to ask the agent")
+    if state.aiSection == 1 then ("Prompts  ·  (mock data)", "Prompt", Colors.dimText "no prompts")
+    else ("Agents  ·  (mock data)", "Thread", Colors.dimText "no agents — press a to ask the agent")
   splitListPreview state bodyRegion leftTitle previewTitle empty
 
 let renderViewBody (state: State) (region: UI.Layout.Region) : Unit =
@@ -1228,10 +1231,10 @@ let renderFull (state: State) : Unit =
         let line =
           "  "
           ++ (Colors.boldText state.accountName)
-          ++ (Colors.dimText "    instance: local    branch: ")
+          ++ (Colors.dimText "    instance: ")
+          ++ (Colors.dimText state.instanceName)
+          ++ (Colors.dimText "    branch: ")
           ++ (Colors.dimText branch)
-          ++ (Colors.dimText "    patch: Quick edits ")
-          ++ (Colors.colorize Colors.cyan "●")
         Stdlib.print ((Colors.moveCursorTo r.top r.left) ++ line))
   let tabbar = UI.Layout.fixedSize 1 (fun r -> Frame.renderTabBar r (visibleViews state) state.activeView conflictCount)
   let crumb = UI.Layout.fixedSize 1 (fun r -> Frame.renderBreadcrumb r path rightColored rightVisibleLen)
@@ -2295,6 +2298,22 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
     match Darklang.Cli.Config.get "devices.enabled" with
     | Some v -> (v == "true") || (v == "on") || (v == "1")
     | None -> false
+  // Register this instance's UUID on first run (durable in cli-config.json).
+  let _ =
+    match Darklang.Cli.Config.get "instance.id" with
+    | Some _ -> ()
+    | None ->
+      let cfg = Darklang.Cli.Config.readConfig ()
+      let cfg2 = Stdlib.Dict.setOverridingDuplicates cfg "instance.id" (Stdlib.Uuid.toString (Stdlib.Uuid.generate ()))
+      Darklang.Cli.Config.writeConfig cfg2
+  // Instance name: config override wins, else the machine hostname, else a safe fallback. Config-adjustable.
+  let instanceName =
+    match Darklang.Cli.Config.get "instance.name" with
+    | Some n -> n
+    | None ->
+      match Stdlib.Cli.Sys.hostname () with
+      | Ok h -> h
+      | Error _ -> "this-machine"
   let state =
     State
       { activeView = 0
@@ -2309,6 +2328,7 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
         editing = Stdlib.Option.Option.None
         accountId = cliState.accountID
         accountName = cliState.accountName
+        instanceName = instanceName
         message = ""
         searchHits = []
         searchSelected = 0
