@@ -1105,7 +1105,7 @@ let hintsForView (state: State) : String =
     else if view == vAI then
       [ ("↑↓", "move"); ("tab", "section"); ("a", "ask") ]
     else if view == vApps then
-      Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("i", "install"); ("r", "run") ] ]
+      [ ("↑↓", "move"); ("⏎", "install"); ("r", "run"); ("s", "stop") ]
     else if view == vTraces then
       Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("⏎", "open") ] ]
     else if view == vDocs then
@@ -1375,6 +1375,24 @@ let resolveConflict (state: State) (which: String) : Step =
           items = itemsForView state.activeView state.branchId state.location state.scmSection state.aiSection state.matterLens
           selected = 0
           message = if ok then "resolved: " ++ label else "resolve failed" }
+
+/// Apps: install/uninstall the selected app (updates the installed set + the ●/○ marker). Bound to both the
+/// primary key (⏎) and the explicit `i`.
+let toggleInstall (state: State) : Step =
+  match Stdlib.List.getAt (Darklang.Cli.Apps.Registry.available ()) state.selected with
+  | Some app ->
+    let slugs = Darklang.Cli.Apps.Registry.installedSlugs ()
+    let (newSlugs, msg) =
+      if Stdlib.List.member slugs app.slug then
+        (slugs |> Stdlib.List.filter (fun s -> s != app.slug), "uninstalled " ++ app.slug)
+      else
+        (Stdlib.List.append slugs [ app.slug ], "installed " ++ app.slug)
+    let _ = Darklang.Cli.Apps.Registry.saveInstalled newSlugs
+    Step.Continue
+      { state with
+          items = itemsForView vApps state.branchId state.location state.scmSection state.aiSection state.matterLens
+          message = msg }
+  | None -> Step.Continue state
 
 /// Jump from a search result to its home in the Tree: open the containing module, select the leaf, close the
 /// results mode.
@@ -1989,7 +2007,10 @@ let handleKey
   | DownArrow -> navDown state
   | RightArrow -> descend state
   | Enter ->
-    if state.activeView == vDocs then
+    if state.activeView == vApps then
+      // Apps: ⏎ is the primary action — install/uninstall the selected app.
+      toggleInstall state
+    else if state.activeView == vDocs then
       // Docs: open the selected topic in the full-body reader (prose, not code).
       let topics = Docs.Command.Topics.allTopics ()
       match Stdlib.List.getAt topics state.selected with
@@ -2122,23 +2143,8 @@ let handleKey
               input =
                 Stdlib.Option.Option.Some (InputState { prompt = "filter: "; text = state.filter; action = "filter" }) }
     | Some "i" ->
-      // Apps: toggle install/uninstall of the selected app (real — updates the installed set + the ●/○ marker).
-      if state.activeView == vApps then
-        match Stdlib.List.getAt (Darklang.Cli.Apps.Registry.available ()) state.selected with
-        | Some app ->
-          let slugs = Darklang.Cli.Apps.Registry.installedSlugs ()
-          let (newSlugs, msg) =
-            if Stdlib.List.member slugs app.slug then
-              (slugs |> Stdlib.List.filter (fun s -> s != app.slug), "uninstalled " ++ app.slug)
-            else
-              (Stdlib.List.append slugs [ app.slug ], "installed " ++ app.slug)
-          let _ = Darklang.Cli.Apps.Registry.saveInstalled newSlugs
-          Step.Continue
-            { state with
-                items = itemsForView vApps state.branchId state.location state.scmSection state.aiSection state.matterLens
-                message = msg }
-        | None -> Step.Continue state
-      else Step.Continue state
+      // Apps: install/uninstall the selected app (also the primary ⏎ action).
+      if state.activeView == vApps then toggleInstall state else Step.Continue state
     | Some "c" ->
       if state.activeView == vSCM then
         Step.Continue
