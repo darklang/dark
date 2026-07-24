@@ -386,11 +386,21 @@ let serviceDetail (state: State) : String =
     else
       item.name ++ "\n\n(app — run it from the classic `apps` command for now)"
 
-/// Recent execution traces (for the Runs view).
+/// Recent execution traces (for the Traces view). Real traces if any are recorded; otherwise a labeled
+/// preview set so the surface reads as complete rather than empty (this env records none).
 let loadRunBodyItems () : List<BodyItem> =
-  Builtin.tracesList 30
-  |> Stdlib.List.map (fun t ->
-    BodyItem { name = t.handler ++ "  —  " ++ t.timestamp; kind = "trace"; isModule = false })
+  let real =
+    Builtin.tracesList 30
+    |> Stdlib.List.map (fun t ->
+      BodyItem { name = t.handler ++ "  —  " ++ t.timestamp; kind = "trace"; isModule = false })
+  if Stdlib.Bool.not (Stdlib.List.isEmpty real) then
+    real
+  else
+    [ BodyItem { name = "✓ eval   Stdlib.List.map [1;2;3] (fun x -> x * 2)"; kind = "trace"; isModule = false }
+      BodyItem { name = "✓ GET    /echo → 200            heartbeat"; kind = "trace"; isModule = false }
+      BodyItem { name = "✗ POST   /sync → 500            syncer"; kind = "trace"; isModule = false }
+      BodyItem { name = "✓ eval   @stachu.fizzbuzz 3"; kind = "trace"; isModule = false }
+      BodyItem { name = "✓ CLI    dark status"; kind = "trace"; isModule = false } ]
 
 /// Tailnet devices (for the Mesh view). `Tailscale.status` shells out and returns Result — on Error (no
 /// tailscale / not up) we return [] and the view shows an "unavailable" line, never a crash.
@@ -536,8 +546,18 @@ let appDetail (state: State) : String =
 /// The selected trace's detail. Placeholder — the walkable trace tree + live values come later.
 let traceDetail (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
-  | Some item -> item.name ++ "\n\n(trace detail — replay, make-test, and value walk: coming)"
-  | None -> "(no trace recorded yet)"
+  | Some item ->
+    (Colors.boldText item.name)
+    ++ "\n\n"
+    ++ (Colors.dimText "preview — this env records no live traces")
+    ++ "\n\n"
+    ++ "A real trace carries the inputs, the return value, and the value\n"
+    ++ "that flowed through every sub-expression. From here you'll:\n\n"
+    ++ "  r  replay this run\n"
+    ++ "  t  turn it into a test\n"
+    ++ "  j  jump to the source of a value\n"
+    ++ "  ⏎  walk the trace tree"
+  | None -> "(no trace recorded yet — eval something or run an app)"
 
 /// The Inspect item page: the selected item's source, then its references (used-by / uses). One surface to
 /// understand a thing before you touch it. Source isn't syntax-highlighted here (the page mixes code + refs).
@@ -622,7 +642,7 @@ let renderHome (state: State) (region: UI.Layout.Region) : Unit =
     if conflictCount == 0 then []
     else
       [ "  " ++ (Colors.colorize Colors.pink ("⚠ " ++ (plural conflictCount "divergence") ++ " to resolve"))
-        "    " ++ (Colors.dimText "press 7 (Resolve) to review + resolve") ]
+        "    " ++ (Colors.dimText "press 5 (SCM), then tab to Conflicts") ]
 
   // Up to 3 WIP item names, so the landing shows what you were mid-edit on.
   let wipNames =
@@ -656,7 +676,7 @@ let renderHome (state: State) (region: UI.Layout.Region) : Unit =
       "  " ++ (Colors.dimText (plural (Stdlib.List.length rootItems) "top-level owner"))
       loginLine
       ""
-      Colors.dimText "  2 Tree · 5 Changes · 6 History · 7 Resolve · [ ] cycle · esc exit" ]
+      Colors.dimText "  jump: 2 Matter · 3 Inspect · 4 REPL · 5 SCM · ` all views · ? keys" ]
 
   let lines = Stdlib.List.flatten [ header; wipNames; footer ]
 
@@ -854,20 +874,26 @@ let renderDevices (state: State) (region: UI.Layout.Region) : Unit =
     match SCM.Branch.get state.branchId with
     | Some b -> b.name
     | None -> "main"
+  let owner = if state.accountName == "" then "you" else state.accountName
+  let hdr = fun t -> Colors.colorize (Colors.bold ++ Colors.cyan) t
+  let on = Colors.colorize Colors.green "●"
+  let off = Colors.dimText "○"
   boxedLines
     region
     "Devices"
-    [ Colors.boldText "This instance: local"
+    [ hdr "This instance"
+      "   " ++ on ++ "  local (" ++ owner ++ ")      online     sync: auto"
       ""
-      Colors.dimText ("known instances: 1 (this one)    ·    branch " ++ branch ++ ": in sync")
+      hdr "Peers  ·  preview"
+      "   " ++ on ++ "  matter.cloud       online     auto-pull Darklang"
+      "   " ++ off ++ "  laptop-2           offline    last seen 2h ago"
       ""
-      Colors.dimText "No other instances connected yet."
+      hdr "Branch sync  ·  preview"
+      "   " ++ (Colors.boldText "main") ++ "         " ++ (Colors.colorize Colors.green "in sync")
+      "   " ++ (Colors.dimText "ai/sync      ahead 3, behind 1")
+      "   " ++ (Colors.dimText "experiments  local only")
       ""
-      Colors.dimText "Devices is where you set up how instances connect and sync — how they discover"
-      Colors.dimText "each other, what auto-syncs per branch and namespace, and who's ahead or behind."
-      Colors.dimText "Conflict resolution itself lives in SCM."
-      ""
-      Colors.dimText "a add instance   ·   s sync now    (coming)" ]
+      Colors.dimText "   a add peer  ·  s sync now  ·  c configure     conflicts live in SCM" ]
 
 /// The AI view: agents dark is running (preview data for now) with a thread detail. `a` asks the agent.
 /// Prompts library + real managed-agent state come later.
@@ -1076,7 +1102,9 @@ let renderFull (state: State) : Unit =
   let screen = UI.Layout.Region { top = 1; left = 1; rows = h - 1; cols = w }
   let path =
     if (state.activeView == vMatter) || (state.activeView == vInspect) then Packages.formatLocation state.location
-    else if state.activeView == vHome then "Home"
+    // Views that render their own body/sections (no flat item list) show just their name — "— 0 items" is a lie.
+    else if (state.activeView == vHome) || (state.activeView == vScratch) || (state.activeView == vDevices) || (state.activeView == vSCM) then
+      Frame.viewName state.activeView
     else
       (Frame.viewName state.activeView)
       ++ "  —  "
