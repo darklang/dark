@@ -397,6 +397,40 @@ let loadConflictBodyItems () : List<BodyItem> =
   |> Stdlib.List.map (fun c ->
     BodyItem { name = c.location ++ "  —  " ++ c.status; kind = "conflict"; isModule = false })
 
+/// Branches on this instance (for the SCM · Branches section). Current branch marked ●, merged ones noted.
+let loadBranchItems (currentBranchId: Uuid) : List<BodyItem> =
+  Darklang.SCM.Branch.list ()
+  |> Stdlib.List.map (fun b ->
+    let marker = if b.id == currentBranchId then "● " else "○ "
+    let tag =
+      match b.mergedAt with
+      | Some _ -> "   (merged)"
+      | None -> ""
+    BodyItem { name = marker ++ b.name ++ tag; kind = "branch"; isModule = false })
+
+/// The selected branch's detail (SCM · Branches preview).
+let branchDetail (state: State) : String =
+  match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+  | Some b ->
+    let parent =
+      match b.parentBranchId with
+      | Some pid ->
+        match Darklang.SCM.Branch.get pid with
+        | Some p -> p.name
+        | None -> "?"
+      | None -> "(root)"
+    let status =
+      match b.mergedAt with
+      | Some _ -> "merged"
+      | None -> if b.id == state.branchId then "active (current)" else "active"
+    (Colors.boldText b.name)
+    ++ "\n\n"
+    ++ "parent:  " ++ parent ++ "\n"
+    ++ "status:  " ++ status ++ "\n\n"
+    ++ "⏎ switch to this branch\n"
+    ++ "r rename   ·   x delete   ·   b new branch"
+  | None -> "(no branch selected)"
+
 /// In-CLI documentation topics (for the Docs view).
 let loadDocBodyItems () : List<BodyItem> =
   Docs.Command.Topics.allTopics ()
@@ -484,6 +518,7 @@ let itemsForView
   else if view == vSCM then
     if scmSection == 1 then loadCommitBodyItems branchId
     else if scmSection == 2 then loadConflictBodyItems ()
+    else if scmSection == 3 then loadBranchItems branchId
     else loadWipBodyItems branchId
   else if view == vAI then
     if aiSection == 1 then loadPromptItems () else loadAiThreadItems ()
@@ -652,6 +687,7 @@ let previewLines (state: State) : List<String> =
   if state.activeView == vSCM then
     if state.scmSection == 1 then Stdlib.String.split (commitSummary state.branchId state.selected) "\n"
     else if state.scmSection == 2 then Stdlib.String.split (conflictDetail state.selected) "\n"
+    else if state.scmSection == 3 then Stdlib.String.split (branchDetail state) "\n"
     else Stdlib.String.split (wipDiffText state) "\n"
   else if state.activeView == vInspect then inspectPageLines state
   else if state.activeView == vAI then
@@ -877,7 +913,7 @@ let renderMatter (state: State) (region: UI.Layout.Region) : Unit =
   let headerRegion = UI.Layout.Region { top = region.top; left = region.left; rows = 2; cols = region.cols }
   let _ = renderMatterHeader state headerRegion
   // Section switcher — the active section bright in brackets, the others dim.
-  let sections = [ "Changes"; "History"; "Conflicts" ]
+  let sections = [ "Changes"; "History"; "Conflicts"; "Branches" ]
   let secLine =
     sections
     |> Stdlib.List.indexedMap (fun i s ->
@@ -894,6 +930,7 @@ let renderMatter (state: State) (region: UI.Layout.Region) : Unit =
   let (title, empty) =
     if state.scmSection == 1 then ("History", Colors.dimText "no commits yet")
     else if state.scmSection == 2 then ("Conflicts", Colors.colorize Colors.green "✓ nothing to resolve — in sync")
+    else if state.scmSection == 3 then ("Branches", Colors.dimText "no branches")
     else ("Changes", Colors.colorize Colors.green "✓ working tree clean — nothing to commit")
   splitListPreview state bodyRegion title "Detail" empty
 
@@ -1111,10 +1148,12 @@ let hintsForView (state: State) : String =
     else if view == vScratch then
       [ ("⏎/:", "eval"); ("f", "clear") ]
     else if view == vSCM then
-      let sectionKeys =
-        if state.scmSection == 2 then [ ("o", "ours"); ("t", "theirs"); ("a", "ack") ]
-        else [ ("c", "commit"); ("x", "discard") ]
-      Stdlib.List.flatten [ [ ("↑↓", "move"); ("tab", "section") ]; sectionKeys; [ ("b", "branch"); ("m", "merge"); ("r", "rebase") ] ]
+      if state.scmSection == 3 then
+        [ ("↑↓", "move"); ("tab", "section"); ("⏎", "switch"); ("r", "rename"); ("x", "delete"); ("b", "new") ]
+      else if state.scmSection == 2 then
+        [ ("↑↓", "move"); ("tab", "section"); ("o", "ours"); ("t", "theirs"); ("a", "ack") ]
+      else
+        [ ("↑↓", "move"); ("tab", "section"); ("c", "commit"); ("x", "discard"); ("b", "branch"); ("s", "switch"); ("m", "merge"); ("r", "rebase") ]
     else if view == vDevices then
       [ ("a", "add"); ("s", "sync") ]
     else if view == vAI then
@@ -1686,6 +1725,37 @@ let performInputAction (state: State) (inp: InputState) : Step =
           items = itemsForView state.activeView b.id state.location state.scmSection state.aiSection state.matterLens
           selected = 0
           message = "on branch " ++ inp.text }
+  else if inp.action == "branch-rename" then
+    let newName = Stdlib.String.trim inp.text
+    match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+    | Some b ->
+      let msg =
+        match Darklang.SCM.Branch.rename b.id newName with
+        | Ok _ -> "renamed to " ++ newName
+        | Error m -> "rename failed: " ++ m
+      Step.Continue
+        { state with
+            input = Stdlib.Option.Option.None
+            items = itemsForView state.activeView state.branchId state.location state.scmSection state.aiSection state.matterLens
+            message = msg }
+    | None -> Step.Continue { state with input = Stdlib.Option.Option.None }
+  else if inp.action == "branch-delete" then
+    if inp.text != "y" then
+      Step.Continue { state with input = Stdlib.Option.Option.None }
+    else
+      match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+      | Some b ->
+        let msg =
+          match Darklang.SCM.Branch.delete b.id with
+          | Ok _ -> "deleted " ++ b.name
+          | Error m -> "delete failed: " ++ m
+        Step.Continue
+          { state with
+              input = Stdlib.Option.Option.None
+              items = itemsForView state.activeView state.branchId state.location state.scmSection state.aiSection state.matterLens
+              selected = 0
+              message = msg }
+      | None -> Step.Continue { state with input = Stdlib.Option.Option.None }
   else if inp.action == "branch-switch" then
     match Darklang.SCM.Branch.getByName inp.text with
     | Some b ->
@@ -2058,9 +2128,18 @@ let handleKey
       | Some t -> openReader state (t.content ()) false
       | None -> Step.Continue state
     else if state.activeView == vSCM then
-      // SCM: open the section item — commit ops (History), WIP source (Changes); Conflicts has no full view.
+      // SCM: open the section item — commit ops (History), WIP source (Changes), switch (Branches).
       if state.scmSection == 1 then openReader state (commitOpsText state.branchId state.selected) false
       else if state.scmSection == 0 then openReader state (changesSourceText state.branchId state.selected) true
+      else if state.scmSection == 3 then
+        match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+        | Some b ->
+          Step.Continue
+            { state with
+                branchId = b.id
+                items = itemsForView vSCM b.id state.location state.scmSection state.aiSection state.matterLens
+                message = "switched to " ++ b.name }
+        | None -> Step.Continue state
       else Step.Continue state
     else if state.activeView == vScratch then
       // Scratch: open the eval prompt; the result appends to the log.
@@ -2095,7 +2174,7 @@ let handleKey
     // Tab cycles sections in SCM (Changes/History/Conflicts) and AI (Agents/Prompts); elsewhere it toggles
     // the split-pane focus.
     if state.activeView == vSCM then
-      let ns = if state.scmSection >= 2 then 0 else state.scmSection + 1
+      let ns = if state.scmSection >= 3 then 0 else state.scmSection + 1
       Step.Continue
         { state with
             scmSection = ns
@@ -2213,7 +2292,17 @@ let handleKey
                 Stdlib.Option.Option.Some (InputState { prompt = "commit message: "; text = ""; action = "commit" }) }
       else Step.Continue state
     | Some "x" ->
-      if state.activeView == vSCM then
+      // SCM Branches section: x deletes the selected branch. Otherwise x discards all WIP.
+      if (state.activeView == vSCM) && (state.scmSection == 3) then
+        match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+        | Some b ->
+          Step.Continue
+            { state with
+                input =
+                  Stdlib.Option.Option.Some
+                    (InputState { prompt = "delete branch " ++ b.name ++ "? type y then enter: "; text = ""; action = "branch-delete" }) }
+        | None -> Step.Continue state
+      else if state.activeView == vSCM then
         Step.Continue
           { state with
               input =
@@ -2245,8 +2334,16 @@ let handleKey
                 Stdlib.Option.Option.Some (InputState { prompt = "merge into parent? type y then enter: "; text = ""; action = "merge" }) }
       else Step.Continue state
     | Some "r" ->
-      // SCM: rebase. Apps: run. Matter: rename the selected leaf.
-      if state.activeView == vSCM then
+      // SCM: rebase (or rename a branch in the Branches section). Apps: run. Matter: rename the selected leaf.
+      if (state.activeView == vSCM) && (state.scmSection == 3) then
+        match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+        | Some b ->
+          Step.Continue
+            { state with
+                input =
+                  Stdlib.Option.Option.Some (InputState { prompt = "rename branch to: "; text = b.name; action = "branch-rename" }) }
+        | None -> Step.Continue state
+      else if state.activeView == vSCM then
         Step.Continue
           { state with
               input =
