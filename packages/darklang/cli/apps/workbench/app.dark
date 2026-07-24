@@ -1701,8 +1701,10 @@ let startNew (state: State) (kind: String) : Step =
     openNewEditor state kind modPath
   else
     let owner = if state.accountName == "" then "Owner" else state.accountName
-    let prefill = owner ++ "." ++ (Stdlib.String.join modPath ".")
-    let prefill = if Stdlib.String.endsWith prefill "." then prefill else prefill ++ "."
+    // modPath (the current location) already starts with the owner, so don't prepend it again — only fall
+    // back to the account owner when at the root with no module path (else you get "Stachu.Stachu.").
+    let base = if Stdlib.List.isEmpty modPath then owner else Stdlib.String.join modPath "."
+    let prefill = base ++ "."
     Step.Continue
       { state with
           input =
