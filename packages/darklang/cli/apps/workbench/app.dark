@@ -461,6 +461,10 @@ let renderTreeList (state: State) (region: UI.Layout.Region) : Unit =
 
 /// The source/detail of the currently-selected item, as lines for the Inspect pane.
 let detailLines (state: State) : List<String> =
+  // Values lens: items carry full paths (owner.mod.name), so look them up by full path, not leaf-in-location.
+  if (state.activeView == vMatter) && (state.matterLens == "values") then
+    Stdlib.String.split (thingDetail state) "\n"
+  else
   match Stdlib.List.getAt state.items state.selected with
   | None -> [ "(nothing selected)" ]
   | Some item ->
