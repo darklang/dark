@@ -61,6 +61,10 @@ type State =
     enabledGatedViews: List<Int>
     /// Scratch view: the eval log, newest last, each entry already rendered (the `> expr` and its result lines).
     scratchLog: List<String>
+    /// REPL live-values steps for the last eval: (stage-label, value) per top-level `|>` stage. Faked by
+    /// re-evaluating each cumulative pipe prefix — no interpreter support — so a pipe chain shows the value
+    /// flowing through each stage. Empty when the last expression wasn't a pipe.
+    replSteps: List<(String * String)>
     /// Matter view: "all" shows the whole tree; "values" filters to values only (the Values lens, `v`).
     matterLens: String
     /// In-view find-as-you-type filter (`f`); "" = no filter. Narrows the current list by substring.
@@ -1155,9 +1159,62 @@ let renderMatter (state: State) (region: UI.Layout.Region) : Unit =
     else ("Changes", Colors.colorize Colors.green "✓ working tree clean — nothing to commit")
   splitListPreview state bodyRegion title "Detail" empty
 
-/// The REPL view: a persistent eval log on the left, a live-values sidebar on the right. ⏎ (or `:`) evaluates
-/// and appends to the log. The sidebar is faked for now — it echoes the last result and flags what a
-/// resumable/forking interpreter would surface (intermediate values per sub-expression).
+/// Evaluate an expression through the classic `eval` command, captured, and return its trimmed result string.
+let evalToString (state: State) (expr: String) : String =
+  let appState =
+    { (Darklang.Cli.initState ()) with
+        currentBranchId = state.branchId
+        accountID = state.accountId
+        accountName = state.accountName }
+  let words = Stdlib.String.split expr " " |> Stdlib.List.filter (fun w -> w != "")
+  let _ = Builtin.stdoutCaptureStart ()
+  let _ = Darklang.Cli.Registry.executeCommand "eval" appState words
+  Stdlib.String.trim (Builtin.stdoutCaptureStop ())
+
+/// Split an expression on its TOP-LEVEL `|>` (depth 0 only, so a `|>` inside a parenthesized lambda stays
+/// put). Returns the stages without the pipes. Char-by-char with a paren/bracket/brace depth counter.
+let splitTopPipes (text: String) : List<String> =
+  let charStrs = Stdlib.String.toList text |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
+  let final =
+    charStrs
+    |> Stdlib.List.fold (0, "", [], false) (fun acc s ->
+      let (depth, buf, segs, prevPipe) = acc
+      if prevPipe then
+        if (s == ">") && (depth == 0) then
+          (depth, "", Stdlib.List.pushBack segs (Stdlib.String.trim buf), false)
+        else
+          (depth, buf ++ "|" ++ s, segs, false)
+      else if (s == "(") || (s == "[") || (s == "{") then
+        (depth + 1, buf ++ s, segs, false)
+      else if (s == ")") || (s == "]") || (s == "}") then
+        (Stdlib.Int.max 0 (depth - 1), buf ++ s, segs, false)
+      else if (s == "|") && (depth == 0) then
+        (depth, buf, segs, true)
+      else
+        (depth, buf ++ s, segs, false))
+  let (_d, lastBuf, segs, lastPipe) = final
+  let tail = if lastPipe then lastBuf ++ "|" else lastBuf
+  Stdlib.List.pushBack segs (Stdlib.String.trim tail)
+
+/// Faked live values: for a pipe chain, evaluate each cumulative prefix and return (stage-label, value) so the
+/// sidebar can show the value flowing through each stage. Empty for a non-pipe (nothing to step through). No
+/// interpreter support — it just re-runs prefixes, which is why it's honest to call it a stand-in.
+let pipeSteps (state: State) (text: String) : List<(String * String)> =
+  let stages = splitTopPipes text
+  if Stdlib.List.length stages < 2 then
+    []
+  else
+    let capped = Stdlib.List.take stages 8
+    capped
+    |> Stdlib.List.indexedMap (fun i stage ->
+      let prefix = Stdlib.List.take capped (i + 1) |> Stdlib.String.join " |> "
+      let value = evalToString state prefix
+      let label = if i == 0 then stage else "|> " ++ stage
+      (label, value))
+
+/// The REPL view: a persistent eval log on the left, a live-values sidebar on the right. ⏎ evaluates and
+/// appends to the log. The sidebar steps through a pipe chain's values (faked — see `pipeSteps`); for a
+/// non-pipe it echoes the single result and names what a real resumable interpreter would add.
 let renderRepl (state: State) (region: UI.Layout.Region) : Unit =
   UI.SplitPane.render
     region
@@ -1187,22 +1244,36 @@ let renderRepl (state: State) (region: UI.Layout.Region) : Unit =
         Stdlib.print ((Colors.moveCursorTo (inner.top + i) (inner.left + 1)) ++ (UI.Layout.truncateVisible l (Stdlib.Int.max 0 (inner.cols - 1))))))
     "Live values"
     (fun inner ->
-      let lastResult =
-        state.scratchLog
-        |> Stdlib.List.reverse
-        |> Stdlib.List.findFirst (fun l -> Stdlib.Bool.not (Stdlib.String.contains l "> "))
-        |> Stdlib.Option.withDefault ""
       let lines =
-        [ Colors.dimText "the value flowing through"
-          Colors.dimText "your last expression:"
-          ""
-          (if (Stdlib.String.trim lastResult) == "" then Colors.dimText "(eval something)"
-           else Colors.colorize Colors.green (Stdlib.String.trim lastResult))
-          ""
-          Colors.dimText "── coming ──"
-          Colors.dimText "intermediate values per"
-          Colors.dimText "sub-expression, from a"
-          Colors.dimText "resumable / forking trace." ]
+        if Stdlib.Bool.not (Stdlib.List.isEmpty state.replSteps) then
+          // Pipe chain: show the value flowing through each stage (faked by re-running prefixes).
+          let stepLines =
+            state.replSteps
+            |> Stdlib.List.map (fun pair ->
+              let (label, value) = pair
+              [ Colors.colorize Colors.cyan label; Colors.colorize Colors.green ("  = " ++ value) ])
+            |> Stdlib.List.flatten
+          Stdlib.List.flatten
+            [ [ Colors.dimText "value at each pipe stage:"; "" ]
+              stepLines
+              [ ""; Colors.dimText "(stepped by re-running each"; Colors.dimText "prefix — a stand-in until the"; Colors.dimText "interpreter hands these back)" ] ]
+        else
+          let lastResult =
+            state.scratchLog
+            |> Stdlib.List.reverse
+            |> Stdlib.List.findFirst (fun l -> Stdlib.Bool.not (Stdlib.String.contains l "> "))
+            |> Stdlib.Option.withDefault ""
+          [ Colors.dimText "the value flowing through"
+            Colors.dimText "your last expression:"
+            ""
+            (if (Stdlib.String.trim lastResult) == "" then Colors.dimText "(eval a pipe to step through it)"
+             else Colors.colorize Colors.green (Stdlib.String.trim lastResult))
+            ""
+            Colors.dimText "── pipe something ──"
+            Colors.dimText "[ 1; 2; 3 ]"
+            Colors.dimText "|> Stdlib.List.map (fun x -> x * 2)"
+            Colors.dimText "|> Stdlib.List.sum"
+            Colors.dimText "and watch each stage's value" ]
       lines
       |> Stdlib.List.indexedMap (fun i l -> (i, l))
       |> Stdlib.List.take inner.rows
@@ -2123,10 +2194,13 @@ let performInputAction (state: State) (inp: InputState) : Step =
         |> Stdlib.List.filter (fun l -> (Stdlib.String.trim l) != "")
         |> Stdlib.List.map (fun l -> "  " ++ l)
       let entry = Stdlib.List.append [ (Colors.colorize Colors.cyan "> ") ++ text ] resultLines
+      // Faked live values: if it's a pipe chain, step through each stage's value in the sidebar.
+      let steps = pipeSteps state text
       Step.Continue
         { state with
             input = Stdlib.Option.Option.None
-            scratchLog = Stdlib.List.append state.scratchLog entry }
+            scratchLog = Stdlib.List.append state.scratchLog entry
+            replSteps = steps }
   else if inp.action == "filter" then
     // In-view filter: narrow the current list to items whose name contains the text (case-insensitive).
     let f = Stdlib.String.trim inp.text
@@ -2717,7 +2791,7 @@ let handleKey
       else Step.Continue state
     | Some "f" ->
       // Scratch: clear the log. Elsewhere: open a find-as-you-type filter for the current list.
-      if state.activeView == vScratch then Step.Continue { state with scratchLog = [] }
+      if state.activeView == vScratch then Step.Continue { state with scratchLog = []; replSteps = [] }
       else
         Step.Continue
           { state with
@@ -2891,6 +2965,7 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
         aiSection = 0
         enabledGatedViews = enabledGatedViews
         scratchLog = []
+        replSteps = []
         matterLens = "all"
         filter = ""
         branchId = branchId }
