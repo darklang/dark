@@ -689,14 +689,30 @@ let renderTreeList (state: State) (region: UI.Layout.Region) : Unit =
   if Stdlib.List.isEmpty state.items then
     UI.Layout.printAt region 1 2 (Colors.dimText "(empty)")
   else
+    // Per-row WIP badge: items edited-but-not-committed on this branch get a pink ●, so the tree shows what
+    // you've touched. Only in the Matter tree (non-values lens), where rows are package items whose full path
+    // is modulePath + leaf; computed once here (one WIP read per render, not per row).
+    let wipNames =
+      if (state.activeView == vMatter) && (state.matterLens != "values") then
+        SCM.PackageOps.getWipItems state.branchId
+        |> Stdlib.List.map (fun d -> Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "")
+      else
+        []
+    let modPath = modulePathOf state.location
     // Build the styled rows (cursor + icon + name, selection in cyan); UI.ListView owns the viewport + scrollbar.
     let lines =
       state.items
       |> Stdlib.List.indexedMap (fun i item ->
         let cursor = if i == state.selected then "> " else "  "
         let display = if item.isModule then item.name ++ "/" else item.name
+        let badge =
+          if Stdlib.List.isEmpty wipNames then
+            ""
+          else
+            let fullName = Stdlib.String.join (Stdlib.List.append modPath [ item.name ]) "."
+            if Stdlib.List.member wipNames fullName then Colors.colorize Colors.pink " ●" else ""
         let line = cursor ++ (iconFor item) ++ " " ++ display
-        if i == state.selected then Colors.colorize Colors.cyan line else line)
+        if i == state.selected then (Colors.colorize Colors.cyan line) ++ badge else line ++ badge)
     UI.ListView.render region lines state.selected
 
 /// The source/detail of the currently-selected item, as lines for the Inspect pane.
