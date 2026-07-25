@@ -1,0 +1,15 @@
+// The workbench REPL's faked live-values stepping splits an expression on its TOP-LEVEL `|>` only, so a `|>`
+// inside a parenthesized lambda stays with its stage, and a `>` comparison is never mistaken for a pipe.
+// splitTopPipes is pure, so it's testable directly.
+
+Darklang.Cli.Apps.Workbench.App.splitTopPipes "a |> b |> c" = ["a"; "b"; "c"]
+
+Darklang.Cli.Apps.Workbench.App.splitTopPipes "1 + 1" = ["1 + 1"]
+
+Darklang.Cli.Apps.Workbench.App.splitTopPipes "" = [""]
+
+// a `|>` inside a parenthesized lambda must NOT split the stage
+Darklang.Cli.Apps.Workbench.App.splitTopPipes "[ 1; 2 ] |> f (fun x -> x |> g)" = ["[ 1; 2 ]"; "f (fun x -> x |> g)"]
+
+// a `>` comparison is not a pipe
+Darklang.Cli.Apps.Workbench.App.splitTopPipes "x |> filter (fun n -> n > 2)" = ["x"; "filter (fun n -> n > 2)"]
