@@ -1,0 +1,80 @@
+/// Promote a runtime value (RT.Dval) back into a ProgramTypes expression — the "turn this result into source" /
+/// promote-a-value primitive that unlocks live values (dream #1). Literals + collections map directly; values
+/// with no literal syntax (functions, DBs, blobs, dates/uuids, and for now records/enums) fail with a reason so
+/// the caller can fall back. IDs are fresh (gid) and don't affect the rendered source.
+module Darklang.LanguageTools.RuntimeTypesToProgramTypes
+
+let gid () : Int64 =
+  Stdlib.Int64.random 0L 922337203685477580L
+
+/// Split a non-negative float's decimal string into (whole, fractional) parts for EFloat.
+let floatParts (f: Float) : (String * String) =
+  let str = Stdlib.Float.toString (Stdlib.Float.absoluteValue f)
+  match Stdlib.String.split str "." with
+  | [ w; fr ] -> (w, fr)
+  | [ w ] -> (w, "0")
+  | _ -> (str, "0")
+
+let dvalToExpr
+  (dval: RuntimeTypes.Dval)
+  : Stdlib.Result.Result<ProgramTypes.Expr, String> =
+  match dval with
+  | DUnit -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EUnit(gid ()))
+  | DBool b -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EBool(gid (), b))
+  | DInt i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt(gid (), i))
+  | DInt8 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt8(gid (), i))
+  | DUInt8 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EUInt8(gid (), i))
+  | DInt16 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt16(gid (), i))
+  | DUInt16 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EUInt16(gid (), i))
+  | DInt32 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt32(gid (), i))
+  | DUInt32 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EUInt32(gid (), i))
+  | DInt64 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt64(gid (), i))
+  | DUInt64 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EUInt64(gid (), i))
+  | DInt128 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt128(gid (), i))
+  | DUInt128 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EUInt128(gid (), i))
+  | DFloat f ->
+    let sign = if f < 0.0 then Sign.Negative else Sign.Positive
+    let (whole, frac) = floatParts f
+    Stdlib.Result.Result.Ok(ProgramTypes.Expr.EFloat(gid (), sign, whole, frac))
+  | DChar c -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EChar(gid (), c))
+  | DString s ->
+    Stdlib.Result.Result.Ok(
+      ProgramTypes.Expr.EString(gid (), [ ProgramTypes.StringSegment.StringText s ]))
+  | DList(_valueType, items) ->
+    match items |> Stdlib.List.map dvalToExpr |> Stdlib.Result.collect with
+    | Ok exprs -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EList(gid (), exprs))
+    | Error e -> Stdlib.Result.Result.Error e
+  | DTuple(first, second, rest) ->
+    match dvalToExpr first with
+    | Error e -> Stdlib.Result.Result.Error e
+    | Ok ef ->
+      match dvalToExpr second with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok es ->
+        match rest |> Stdlib.List.map dvalToExpr |> Stdlib.Result.collect with
+        | Error e -> Stdlib.Result.Result.Error e
+        | Ok erest ->
+          Stdlib.Result.Result.Ok(ProgramTypes.Expr.ETuple(gid (), ef, es, erest))
+  | DDict(_valueType, entries) ->
+    let converted =
+      entries
+      |> Stdlib.Dict.toList
+      |> Stdlib.List.map (fun pair ->
+        let (k, v) = pair
+        match dvalToExpr v with
+        | Ok e -> Stdlib.Result.Result.Ok((k, e))
+        | Error err -> Stdlib.Result.Result.Error err)
+    match Stdlib.Result.collect converted with
+    | Ok kvs -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EDict(gid (), kvs))
+    | Error e -> Stdlib.Result.Result.Error e
+  // Values with no literal syntax — fail for now, with a reason the caller can surface.
+  | DDateTime _ ->
+    Stdlib.Result.Result.Error "DateTime has no literal expression (build one with Stdlib.DateTime)"
+  | DUuid _ ->
+    Stdlib.Result.Result.Error "Uuid has no literal expression (parse one with Stdlib.Uuid.parse)"
+  | DRecord _ -> Stdlib.Result.Result.Error "records are not yet mappable to an expression"
+  | DEnum _ -> Stdlib.Result.Result.Error "enums are not yet mappable to an expression"
+  | DApplicable _ -> Stdlib.Result.Result.Error "a function value has no source expression"
+  | DDB _ -> Stdlib.Result.Result.Error "a database reference has no source expression"
+  | DBlobPersistent _ -> Stdlib.Result.Result.Error "a blob has no literal expression"
+  | DBlobEphemeral _ -> Stdlib.Result.Result.Error "a blob has no literal expression"

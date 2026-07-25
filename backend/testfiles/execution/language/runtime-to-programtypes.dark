@@ -1,0 +1,31 @@
+// Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr — promote a runtime value (RT.Dval) back into
+// a ProgramTypes expression (the "value -> source" primitive behind live values). IDs are freshly generated,
+// so we pattern-match the result structurally instead of comparing whole expressions.
+
+// --- literals ---
+(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.LanguageTools.RuntimeTypes.Dval.DUnit with | Ok (EUnit _) -> true | _ -> false) = true
+
+(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr (Darklang.LanguageTools.RuntimeTypes.Dval.DBool true) with | Ok (EBool(_, b)) -> b | _ -> false) = true
+
+(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 42) with | Ok (EInt(_, i)) -> i | _ -> -1) = 42
+
+(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr (Darklang.LanguageTools.RuntimeTypes.Dval.DInt64 7L) with | Ok (EInt64(_, i)) -> i | _ -> -1L) = 7L
+
+(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat 3.14) with | Ok (EFloat(_, _sign, w, f)) -> w ++ "." ++ f | _ -> "FAIL") = "3.14"
+
+(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr (Darklang.LanguageTools.RuntimeTypes.Dval.DChar "a") with | Ok (EChar(_, c)) -> c | _ -> "FAIL") = "a"
+
+(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr (Darklang.LanguageTools.RuntimeTypes.Dval.DString "hi") with | Ok (EString(_, [ StringText s ])) -> s | _ -> "FAIL") = "hi"
+
+// --- collections ---
+(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr (Darklang.LanguageTools.RuntimeTypes.Dval.DList(Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown, [ Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1; Darklang.LanguageTools.RuntimeTypes.Dval.DInt 2 ])) with | Ok (EList(_, xs)) -> Stdlib.List.length xs | _ -> -1) = 2
+
+(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr (Darklang.LanguageTools.RuntimeTypes.Dval.DTuple(Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1, Darklang.LanguageTools.RuntimeTypes.Dval.DBool true, [ Darklang.LanguageTools.RuntimeTypes.Dval.DString "x" ])) with | Ok (ETuple(_, _, _, rest)) -> Stdlib.List.length rest | _ -> -1) = 1
+
+// nested list preserves inner literals
+(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr (Darklang.LanguageTools.RuntimeTypes.Dval.DList(Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown, [ Darklang.LanguageTools.RuntimeTypes.Dval.DList(Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown, [ Darklang.LanguageTools.RuntimeTypes.Dval.DInt 5 ]) ])) with | Ok (EList(_, [ EList(_, [ EInt(_, i) ]) ])) -> i | _ -> -1) = 5
+
+// --- values with no literal syntax fail (Error), so the caller can fall back ---
+Stdlib.Result.isError (Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr (Darklang.LanguageTools.RuntimeTypes.Dval.DDB "mydb")) = true
+
+Stdlib.Result.isError (Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr (Darklang.LanguageTools.RuntimeTypes.Dval.DUuid (Stdlib.Uuid.generate ()))) = true
