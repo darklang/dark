@@ -1122,7 +1122,16 @@ let renderRepl (state: State) (region: UI.Layout.Region) : Unit =
     (fun inner ->
       let all =
         if Stdlib.List.isEmpty state.scratchLog then
-          [ Colors.dimText "⏎ or : to eval an expression — results log here" ]
+          [ Colors.boldText "A REPL over your whole package space."
+            ""
+            Colors.dimText "Press ⏎, type an expression, run it. Results log here."
+            ""
+            Colors.dimText "try:"
+            (Colors.colorize Colors.cyan "  1 + 1")
+            (Colors.colorize Colors.cyan "  Stdlib.List.map [ 1; 2; 3 ] (fun x -> x * 2)")
+            (Colors.colorize Colors.cyan "  \"dark\" |> Stdlib.String.toUppercase")
+            ""
+            Colors.dimText "f clears the log." ]
         else state.scratchLog
       let shown = all |> Stdlib.List.reverse |> Stdlib.List.take inner.rows |> Stdlib.List.reverse
       shown
