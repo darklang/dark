@@ -975,16 +975,23 @@ let renderHome (state: State) (region: UI.Layout.Region) : Unit =
         UI.Layout.printAt inner (i + 1) 1 (Colors.colorize Colors.cyan ("🗂 " ++ it.name)))
     ()
 
-  let renderJump (inner: UI.Layout.Region) : Unit =
+  // The commands you'll actually reach for, as a landing reference. One cyan span per row (the command),
+  // plain descriptions — keeps each line short enough that printAt (which counts ANSI toward width) doesn't
+  // clip it on narrower terminals. The `:` bar runs any of these with autocomplete (see 6.B).
+  let renderCommands (inner: UI.Layout.Region) : Unit =
+    let cy = fun t -> Colors.colorize Colors.cyan t
     let _ =
-      [ "2  Matter    browse + inspect the tree"
-        "3  REPL      evaluate"
-        "4  SCM       commits & branches"
-        "5  AI        agents & prompts"
-        "`  views     the full picker"
-        "?  keys      everything else" ]
+      [ (cy "fn / type / val") ++ "   create functions, types, values in the tree"
+        (cy "eval <expr>") ++ "       evaluate, or run a fn:  eval MyMod.myFn 1 2"
+        (cy "commit \"msg\"") ++ "      save to SCM   ·   status shows what changed"
+        (cy "search <term>") ++ "     find anything   ·   docs [topic] reads these docs"
+        (cy "sync") ++ "              share changes   ·   conflicts to resolve"
+        (cy "apps") ++ "              run & manage apps   ·   agent <verb> for AI"
+        (cy "1-9 / Ctrl+←→ / `") ++ "  switch views   ·   ? for all keys"
+        ""
+        (Colors.dimText "Type ") ++ (cy ":") ++ (Colors.dimText " to run any command — autocomplete on, Tab accepts.") ]
       |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
-      |> Stdlib.List.indexedMap (fun i j -> UI.Layout.printAt inner i 1 (Colors.dimText j))
+      |> Stdlib.List.indexedMap (fun i l -> UI.Layout.printAt inner i 1 l)
     ()
 
   let leftCol (r: UI.Layout.Region) : Unit =
@@ -993,20 +1000,16 @@ let renderHome (state: State) (region: UI.Layout.Region) : Unit =
       [ UI.Layout.fixedSize 6 (fun rr -> UI.Box.panel rr "Status" false renderStatus)
         UI.Layout.greedy (fun rr -> UI.Box.panel rr "Pick up where you left off" false renderWip) ]
 
-  let rightCol (r: UI.Layout.Region) : Unit =
-    UI.Layout.vstack
-      r
-      [ UI.Layout.fixedSize 9 (fun rr -> UI.Box.panel rr "Your Matter" false renderMatterPanel)
-        UI.Layout.greedy (fun rr -> UI.Box.panel rr "Jump" false renderJump) ]
-
   UI.Layout.vstack
     region
     [ UI.Layout.fixedSize 3 renderHeader
-      UI.Layout.greedy (fun r ->
+      UI.Layout.fixedSize 11 (fun r ->
         UI.Layout.hstack
           r
           [ UI.Layout.greedyWidth leftCol
-            UI.Layout.fixedWidth 40 rightCol ]) ]
+            UI.Layout.fixedWidth 40 (fun rr -> UI.Box.panel rr "Your Matter" false renderMatterPanel) ])
+      UI.Layout.greedy (fun rr ->
+        UI.Box.panel rr "Commands  ·  press : to run" false renderCommands) ]
 
 /// A full-body scrollable reader (Docs topic content, etc.).
 let renderReading (content: String) (isCode: Bool) (scroll: Int) (region: UI.Layout.Region) : Unit =
