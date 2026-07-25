@@ -1688,14 +1688,19 @@ let renderFull (state: State) : Unit =
             match state.input with
             | Some inp ->
               // "You can type here" affordance: a bright prompt glyph, the label, the live text, and a
-              // reverse-video block caret so it's unmistakable the app is capturing keystrokes.
+              // reverse-video block caret so it's unmistakable the app is capturing keystrokes. For the command
+              // bar, trail a dim ghost of the completion (fish-style; tab accepts it).
+              let ghost =
+                if inp.action == "command" then Colors.dimText (commandCompletionHint state inp.text)
+                else ""
               (Colors.colorize Colors.cyan "› ")
               ++ (Colors.boldText inp.prompt)
               ++ inp.text
               ++ (Colors.colorize Colors.reverse " ")
+              ++ ghost
             | None ->
               match state.reading with
-              | Some _ -> Frame.formatHints [ ("↑↓", "scroll"); ("esc", "back") ]
+              | Some _ -> Frame.formatHints [ ("↑↓", "scroll"); (":", "cmd"); ("esc", "back") ]
               | None ->
                 if Stdlib.Bool.not (Stdlib.List.isEmpty state.searchHits) then
                   Frame.formatHints [ ("↑↓", "move"); ("⏎", "jump"); ("esc", "close"); ("q", "quit") ]
@@ -1706,6 +1711,21 @@ let renderFull (state: State) : Unit =
   let _ = if state.viewPicker then renderViewPicker state screen else ()
   Stdlib.print "\u001b[?25h"
 
+
+/// The ghost-completion suffix for the `:` command bar — the chars that would complete the current command or
+/// argument, from the shared CLI completion engine (so the bar has the same typeahead the classic prompt did).
+/// Empty when there's nothing to suggest. Only called while the command bar is open, so the per-frame cost of
+/// building a throwaway AppState is bounded to that.
+let commandCompletionHint (state: State) (text: String) : String =
+  if text == "" then
+    ""
+  else
+    let appState =
+      { (Darklang.Cli.initState ()) with
+          currentBranchId = state.branchId
+          accountID = state.accountId
+          accountName = state.accountName }
+    Darklang.Cli.Registry.getCompletionHint appState text
 
 /// Render the workbench. Below a usable size, show an explicit "too small" hint instead of a garbled frame
 /// (per the TUI rule: degrade with a message, never render garbage). A real 0/tiny size mid-resize still falls
@@ -2444,6 +2464,13 @@ let handleKey
         if Stdlib.String.length t > 0 then Stdlib.String.slice t 0 ((Stdlib.String.length t) - 1)
         else t
       Step.Continue { state with input = Stdlib.Option.Option.Some { inp with text = nt } }
+    | Tab ->
+      // Command bar: accept the ghost completion (same engine as the classic prompt's typeahead).
+      if inp.action == "command" then
+        let hint = commandCompletionHint state inp.text
+        if hint == "" then Step.Continue state
+        else Step.Continue { state with input = Stdlib.Option.Option.Some { inp with text = inp.text ++ hint } }
+      else Step.Continue state
     | _ ->
       match keyChar with
       | Some ch ->
@@ -2472,6 +2499,14 @@ let handleKey
       | Some "G" ->
         let maxScroll = Stdlib.Int.max 0 ((Stdlib.List.length (Stdlib.String.split content "\n")) - 1)
         Step.Continue { state with detailScroll = maxScroll }
+      | Some ":" ->
+        // Keep issuing: `:` from the reader closes it and opens a fresh command bar, so successive commands
+        // don't need an esc between them.
+        Step.Continue
+          { state with
+              reading = Stdlib.Option.Option.None
+              detailScroll = 0
+              input = Stdlib.Option.Option.Some (InputState { prompt = ": "; text = ""; action = "command" }) }
       | _ -> Step.Continue state
   | None ->
   if Stdlib.Bool.not (Stdlib.List.isEmpty state.searchHits) then
