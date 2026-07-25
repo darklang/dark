@@ -885,6 +885,9 @@ let plural (n: Int) (noun: String) : String =
   (Stdlib.Int.toString n) ++ " " ++ noun ++ (if n == 1 then "" else "s")
 
 /// Home: a small dashboard — where you are + what's changed + how deep the tree is.
+/// Home — the landing dashboard. A header band over two columns of boxed panels (Status + Pick-up-where-you-
+/// left-off on the left; Your Matter + Jump on the right), so the screen is used and the things a Dark dev
+/// actually lands wanting (am I in a good state, what was I doing, what's here, where do I go) each get a home.
 let renderHome (state: State) (region: UI.Layout.Region) : Unit =
   let wip = SCM.PackageOps.getWipSummary state.branchId
   let commits = SCM.PackageOps.getCommitCount state.branchId
@@ -893,61 +896,82 @@ let renderHome (state: State) (region: UI.Layout.Region) : Unit =
     match SCM.Branch.get state.branchId with
     | Some b -> b.name
     | None -> "main"
-
-  let wipLine =
-    if wip.total == 0 then Colors.colorize Colors.green "✓ working tree clean"
-    else Colors.colorize Colors.pink ((plural wip.total "uncommitted change"))
-
-  // Sync divergences surfaced on the landing: attention-colored with the key that resolves them, per the
-  // TUI rule that an alert names its fill action. Silent (nothing shown) when in sync.
   let conflictCount = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
-  let conflictLines =
-    if conflictCount == 0 then []
-    else
-      [ "  " ++ (Colors.colorize Colors.pink ("⚠ " ++ (plural conflictCount "divergence") ++ " to resolve"))
-        "    " ++ (Colors.dimText "press 5 (SCM), then tab to Conflicts") ]
-
-  // Up to 3 WIP item names, so the landing shows what you were mid-edit on.
-  let wipNames =
-    if wip.total == 0 then
-      []
-    else
-      (SCM.PackageOps.getWipItems state.branchId)
-      |> Stdlib.List.take 3
-      |> Stdlib.List.map (fun d ->
-        Colors.dimText ("    ◆ " ++ (Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?")))
-
   let lastCommit =
     match Stdlib.List.head (SCM.PackageOps.getCommitsWithAncestors state.branchId 1) with
-    | Some c -> "last commit: " ++ c.message
+    | Some c -> c.message
     | None -> "no commits yet"
+  let owner = if state.accountName == "" then "there" else state.accountName
 
-  let header =
-    Stdlib.List.flatten
-      [ [ Colors.boldText ("Welcome back — you're on " ++ branch); ""; "  " ++ wipLine ]
-        conflictLines ]
+  let renderHeader (r: UI.Layout.Region) : Unit =
+    UI.Layout.printAt r 0 2 (Colors.boldText ($"Welcome back, {owner}"))
+    UI.Layout.printAt r 1 2 (Colors.dimText ($"on {branch}  ·  a workbench over Dark Matter"))
 
-  let loginLine =
-    if state.accountName == "" then
-      "  " ++ (Colors.dimText "not logged in — `login <name>` (or set DARK_ACCOUNT)")
+  let renderStatus (inner: UI.Layout.Region) : Unit =
+    let wipLine =
+      if wip.total == 0 then Colors.colorize Colors.green "✓ working tree clean"
+      else Colors.colorize Colors.pink (plural wip.total "uncommitted change")
+    let syncLine =
+      if conflictCount == 0 then Colors.dimText "✓ in sync"
+      else Colors.colorize Colors.pink ("⚠ " ++ (plural conflictCount "divergence") ++ "  —  5 › Conflicts")
+    UI.Layout.printAt inner 0 1 wipLine
+    UI.Layout.printAt inner 1 1 (Colors.dimText (plural commits "commit" ++ " on this branch"))
+    UI.Layout.printAt inner 2 1 (Colors.dimText ("last: " ++ lastCommit))
+    UI.Layout.printAt inner 3 1 syncLine
+
+  let renderWip (inner: UI.Layout.Region) : Unit =
+    if wip.total == 0 then
+      UI.Layout.printAt inner 0 1 (Colors.dimText "nothing in progress — the tree is yours to edit")
     else
-      "  " ++ (Colors.dimText "logged in as ") ++ (Colors.colorize Colors.cyan state.accountName)
+      let _ =
+        SCM.PackageOps.getWipItems state.branchId
+        |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
+        |> Stdlib.List.indexedMap (fun i d ->
+          let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
+          UI.Layout.printAt inner i 1 (Colors.colorize Colors.cyan ("◆ " ++ name)))
+      ()
 
-  let footer =
-    [ "  " ++ (Colors.dimText ((plural commits "commit") ++ " on this branch"))
-      "  " ++ (Colors.dimText lastCommit)
-      "  " ++ (Colors.dimText (plural (Stdlib.List.length rootItems) "top-level owner"))
-      loginLine
-      ""
-      Colors.dimText "  jump: 2 Matter · 3 Inspect · 4 REPL · 5 SCM · ` all views · ? keys" ]
+  let renderMatterPanel (inner: UI.Layout.Region) : Unit =
+    UI.Layout.printAt inner 0 1 (Colors.dimText (plural (Stdlib.List.length rootItems) "top-level owner"))
+    let _ =
+      rootItems
+      |> Stdlib.List.take (Stdlib.Int.max 1 (inner.rows - 1))
+      |> Stdlib.List.indexedMap (fun i it ->
+        UI.Layout.printAt inner (i + 1) 1 (Colors.colorize Colors.cyan ("🗂 " ++ it.name)))
+    ()
 
-  let lines = Stdlib.List.flatten [ header; wipNames; footer ]
+  let renderJump (inner: UI.Layout.Region) : Unit =
+    let _ =
+      [ "2  Matter    browse the tree"
+        "3  Inspect   an item up close"
+        "4  REPL      evaluate"
+        "5  SCM       commits & branches"
+        "`  views     the full picker"
+        "?  keys      everything else" ]
+      |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
+      |> Stdlib.List.indexedMap (fun i j -> UI.Layout.printAt inner i 1 (Colors.dimText j))
+    ()
 
-  lines
-  |> Stdlib.List.indexedMap (fun i l -> (i, l))
-  |> Stdlib.List.iter (fun pair ->
-    let (i, l) = pair
-    if i < region.rows then UI.Layout.printAt region (i + 1) 2 l)
+  let leftCol (r: UI.Layout.Region) : Unit =
+    UI.Layout.vstack
+      r
+      [ UI.Layout.fixedSize 6 (fun rr -> UI.Box.panel rr "Status" false renderStatus)
+        UI.Layout.greedy (fun rr -> UI.Box.panel rr "Pick up where you left off" false renderWip) ]
+
+  let rightCol (r: UI.Layout.Region) : Unit =
+    UI.Layout.vstack
+      r
+      [ UI.Layout.fixedSize 9 (fun rr -> UI.Box.panel rr "Your Matter" false renderMatterPanel)
+        UI.Layout.greedy (fun rr -> UI.Box.panel rr "Jump" false renderJump) ]
+
+  UI.Layout.vstack
+    region
+    [ UI.Layout.fixedSize 3 renderHeader
+      UI.Layout.greedy (fun r ->
+        UI.Layout.hstack
+          r
+          [ UI.Layout.greedyWidth leftCol
+            UI.Layout.fixedWidth 40 rightCol ]) ]
 
 /// A full-body scrollable reader (Docs topic content, etc.).
 let renderReading (content: String) (isCode: Bool) (scroll: Int) (region: UI.Layout.Region) : Unit =
