@@ -131,10 +131,12 @@ val baseViewCount = 10
 /// The built-in views, in tab order, each with its gate ("" = always visible; else a config key). Devices is
 /// the one gated built-in (most instances are local-only). Extension views (Errors/Crons/Calendar/…) are NOT
 /// here — they compose in via `extensionViews` and get appended after these.
+// Inspect (index 2) was folded into Matter's preview, so it's no longer a tab. The constant + Frame name stay
+// (harmless), but it's absent here, so it drops out of the tab bar / number keys / picker. Indices don't need
+// to be contiguous — SCM stays 4, so the frame's SCM-badge literal is untouched.
 val baseViewSpecs =
   [ (vHome, "")
     (vMatter, "")
-    (vInspect, "")
     (vScratch, "")
     (vSCM, "")
     (vDevices, "devices.enabled")
@@ -811,6 +813,12 @@ let itemMeta (state: State) : String =
       let kindLabel = if item.kind == "fn" then "fn" else if item.kind == "type" then "type" else "value"
       kindLabel ++ "   ·   hash " ++ short ++ "   ·   current   ·   not deprecated"
 
+/// Per-node actions offered on the item page. Only what's wired (`d` deps); try/traces are named in the
+/// hint line but land in later passes, so they read as affordances, not working keys yet.
+let itemActions (item: BodyItem) : String =
+  if item.kind == "fn" then Colors.dimText "d deps   ·   t try, x traces (coming)"
+  else Colors.dimText "d deps"
+
 let inspectPageLines (state: State) : List<String> =
   match Stdlib.List.getAt state.items state.selected with
   | None -> [ Colors.dimText "(nothing selected — browse the tree)" ]
@@ -818,11 +826,18 @@ let inspectPageLines (state: State) : List<String> =
     if item.isModule then
       [ (iconFor item) ++ " " ++ item.name; ""; Colors.dimText "module — → to enter" ]
     else
-      let src = detailLines state
+      // Highlight the source portion here (the page mixes code + colored ref/meta lines, so renderPreview
+      // can't blanket-highlight it). Guard: only swap in the highlighted lines if the count still lines up.
+      let srcPlain = detailLines state
+      let src =
+        let h =
+          SyntaxHighlighting.highlightCode (Stdlib.String.join srcPlain "\n") |> Stdlib.String.split "\n"
+        if Stdlib.List.length h == Stdlib.List.length srcPlain then h else srcPlain
       let refs = Stdlib.String.split (depsText state) "\n"
       Stdlib.List.flatten
         [ src
           [ ""; Colors.dimText (itemMeta state) ]
+          [ ""; itemActions item ]
           [ ""; Colors.colorize Colors.cyan "── references ──"; "" ]
           refs ]
 
@@ -835,6 +850,10 @@ let previewLines (state: State) : List<String> =
     else if state.scmSection == 3 then Stdlib.String.split (branchDetail state) "\n"
     else Stdlib.String.split (wipDiffText state) "\n"
   else if state.activeView == vInspect then inspectPageLines state
+  else if state.activeView == vMatter then
+    // Matter folds in the old Inspect: its preview IS the item page (source + meta + references + actions),
+    // except under the Values lens, where the value's own detail is what you want.
+    if state.matterLens == "values" then detailLines state else inspectPageLines state
   else if state.activeView == vAI then
     if state.aiSection == 1 then Stdlib.String.split (promptDetail state.selected) "\n"
     else Stdlib.String.split (aiThreadDetail state.selected) "\n"
@@ -942,10 +961,10 @@ let renderHome (state: State) (region: UI.Layout.Region) : Unit =
 
   let renderJump (inner: UI.Layout.Region) : Unit =
     let _ =
-      [ "2  Matter    browse the tree"
-        "3  Inspect   an item up close"
-        "4  REPL      evaluate"
-        "5  SCM       commits & branches"
+      [ "2  Matter    browse + inspect the tree"
+        "3  REPL      evaluate"
+        "4  SCM       commits & branches"
+        "5  AI        agents & prompts"
         "`  views     the full picker"
         "?  keys      everything else" ]
       |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
@@ -1466,7 +1485,7 @@ let hintsForView (state: State) : String =
   let global = [ ("/", "search"); (":", "cmd"); ("`", "views"); ("?", "help"); ("esc/q", "quit") ]
   let ctx =
     if view == vMatter then
-      [ ("↑↓", "move"); ("→", "in"); ("n/t/v", "new"); ("e", "edit"); ("r", "rename"); ("L", "values"); ("f", "filter") ]
+      [ ("↑↓", "move"); ("→", "in"); ("d", "deps"); ("n/t/v", "new"); ("e", "edit"); ("r", "rename"); ("L", "values"); ("f", "filter") ]
     else if view == vHome then
       [ ("↑↓", "move") ]
     else if view == vInspect then
