@@ -693,29 +693,44 @@ let renderTreeList (state: State) (region: UI.Layout.Region) : Unit =
   if Stdlib.List.isEmpty state.items then
     UI.Layout.printAt region 1 2 (Colors.dimText "(empty)")
   else
-    // Per-row WIP badge: items edited-but-not-committed on this branch get a pink ●, so the tree shows what
-    // you've touched. Only in the Matter tree (non-values lens), where rows are package items whose full path
-    // is modulePath + leaf; computed once here (one WIP read per render, not per row).
+    // Per-row badges (Matter tree, non-values lens only): a pink ● for items edited-but-not-committed, and a
+    // yellow ⚠ for items deprecated-but-still-shown (deprecated-and-referenced, so they survive the visibility
+    // filter). Both read once here (one WIP read + one deprecation-sets read per render), matched by name.
+    let badgesOn = (state.activeView == vMatter) && (state.matterLens != "values")
+    let modPath = modulePathOf state.location
     let wipNames =
-      if (state.activeView == vMatter) && (state.matterLens != "values") then
+      if badgesOn then
         SCM.PackageOps.getWipItems state.branchId
         |> Stdlib.List.map (fun d -> Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "")
       else
         []
-    let modPath = modulePathOf state.location
+    let deprecatedNames =
+      if badgesOn then
+        let sets = Packages.Query.loadDeprecationSets state.branchId
+        let results = Packages.Query.allDirectDescendants state.branchId modPath
+        let pick = fun items ->
+          items
+          |> Stdlib.List.filter (fun i -> Packages.Query.isDeprecated sets i.entity.hash)
+          |> Stdlib.List.map (fun i -> i.location.name)
+        Stdlib.List.flatten [ pick results.fns; pick results.types; pick results.values ]
+      else
+        []
     // Build the styled rows (cursor + icon + name, selection in cyan); UI.ListView owns the viewport + scrollbar.
     let lines =
       state.items
       |> Stdlib.List.indexedMap (fun i item ->
         let cursor = if i == state.selected then "> " else "  "
         let display = if item.isModule then item.name ++ "/" else item.name
-        let badge =
-          if Stdlib.List.isEmpty wipNames then
-            ""
+        let fullName = Stdlib.String.join (Stdlib.List.append modPath [ item.name ]) "."
+        let wipBadge =
+          if (Stdlib.Bool.not (Stdlib.List.isEmpty wipNames)) && (Stdlib.List.member wipNames fullName) then
+            Colors.colorize Colors.pink " ●"
           else
-            let fullName = Stdlib.String.join (Stdlib.List.append modPath [ item.name ]) "."
-            if Stdlib.List.member wipNames fullName then Colors.colorize Colors.pink " ●" else ""
+            ""
+        let depBadge =
+          if Stdlib.List.member deprecatedNames item.name then Colors.colorize Colors.yellow " ⚠" else ""
         let line = cursor ++ (iconFor item) ++ " " ++ display
+        let badge = wipBadge ++ depBadge
         if i == state.selected then (Colors.colorize Colors.cyan line) ++ badge else line ++ badge)
     UI.ListView.render region lines state.selected
 
@@ -831,7 +846,14 @@ let itemMeta (state: State) : String =
         | Some h -> LanguageTools.ProgramTypes.hashToShort h
         | None -> "?"
       let kindLabel = if item.kind == "fn" then "fn" else if item.kind == "type" then "type" else "value"
-      kindLabel ++ "   ·   hash " ++ short ++ "   ·   current   ·   not deprecated"
+      // Real deprecation status (same read path as the tree badge), not a placeholder.
+      let deprecation =
+        match hashOpt with
+        | Some h ->
+          let sets = Packages.Query.loadDeprecationSets state.branchId
+          if Packages.Query.isDeprecated sets h then Colors.colorize Colors.yellow "deprecated ⚠" else "not deprecated"
+        | None -> "not deprecated"
+      kindLabel ++ "   ·   hash " ++ short ++ "   ·   current   ·   " ++ deprecation
 
 /// Per-node actions offered on the item page. Only what's wired (`d` deps); try/traces are named in the
 /// hint line but land in later passes, so they read as affordances, not working keys yet.
