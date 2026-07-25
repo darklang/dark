@@ -10,12 +10,14 @@ let content () : String =
 ## No params
   let now () : DateTime = Stdlib.DateTime.now ()
 
-## NO NESTED FUNCTIONS
-  # WRONG:
-  let outer () = let inner () = 5; inner ()
-  # RIGHT:
-  let inner () = 5
-  let outer () = inner ()
+## Nested functions (fully-annotated form only)
+  # OK — params and return type annotated:
+  let outer (n: Int) : Int =
+    let double (x: Int) : Int = x * 2
+    double n
+  # NOT supported — unannotated: let double x = x * 2
+  # A nested fn can close over outer bindings and recurse by name; mutual recursion between
+  # nested fns is not supported. When in doubt, define at module level.
 
 ## Call
   add 1 2

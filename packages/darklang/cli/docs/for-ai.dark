@@ -87,8 +87,9 @@ If a capability denial is blocking you and you trust this environment, run `caps
   log                  # history
   discard              # undo uncommitted changes
 
-`commit` requires the `DARK_ACCOUNT` env var to be set (your username).
-For non-interactive use: `DARK_ACCOUNT=alice ./scripts/run-cli commit "msg" -y`
+`commit` records who you are, so log in first: `login <name>` (run `login` with no name to
+list accounts). The account persists across runs. For non-interactive use, log in once, then
+`./scripts/run-cli commit "msg" -y`.
 
 ## Deprecation (mark items as unused / dangerous / obsolete)
   deprecate <fn|type|value> <name> --kind <k> [options]
