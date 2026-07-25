@@ -1037,9 +1037,17 @@ let splitListPreview
   (emptyMsg: String)
   : Unit =
   if Stdlib.List.isEmpty state.items then
-    UI.Box.panel region leftTitle true (fun inner -> UI.Layout.printAt inner 1 1 emptyMsg)
+    let msg =
+      if state.filter == "" then emptyMsg
+      else Colors.dimText ("no matches for filter: " ++ state.filter ++ "   (f to change)")
+    UI.Box.panel region leftTitle true (fun inner -> UI.Layout.printAt inner 1 1 msg)
   else
-    let titled = leftTitle ++ "  ·  " ++ (Stdlib.Int.toString (Stdlib.List.length state.items))
+    // Surface an active filter right in the list title (plain text — the box does width math on it) so a
+    // narrowed list never looks like the whole set.
+    let count = Stdlib.Int.toString (Stdlib.List.length state.items)
+    let titled =
+      if state.filter == "" then leftTitle ++ "  ·  " ++ count
+      else leftTitle ++ "  ·  " ++ count ++ "  ·  filter: " ++ state.filter
     UI.SplitPane.render
       region
       UI.SplitPane.Orientation.Horizontal
@@ -1250,20 +1258,23 @@ let renderErrors (state: State) (region: UI.Layout.Region) : Unit =
 let renderCrons (state: State) (region: UI.Layout.Region) : Unit =
   splitListPreview state region "Crons" "Detail" (Colors.dimText "no crons — declare a Darklang.Cron value")
 
+// Extension views have no custom key handler yet, so their footers advertise only the keys that actually work
+// (move + the global filter). The per-row actions (run-now, pause, traces, agenda, …) are described in each
+// view's detail pane, which is mock-labeled, until those handlers exist.
 let errorHints (state: State) : List<(String * String)> =
-  [ ("↑↓", "move"); ("⏎", "open"); ("f", "filter") ]
+  [ ("↑↓", "move"); ("f", "filter") ]
 
 let cronHints (state: State) : List<(String * String)> =
-  [ ("↑↓", "move"); ("r", "run-now"); ("p", "pause"); ("t", "traces") ]
+  [ ("↑↓", "move"); ("f", "filter") ]
 
 let calendarHints (state: State) : List<(String * String)> =
-  [ ("←→", "day"); ("↑↓", "week"); ("a", "agenda"); ("⏎", "open") ]
+  []
 
 let renderBuiltins (state: State) (region: UI.Layout.Region) : Unit =
   splitListPreview state region "Builtins" "Signature" (Colors.dimText "(no builtins)")
 
 let builtinHints (state: State) : List<(String * String)> =
-  [ ("↑↓", "move"); ("/", "filter"); ("⏎", "copy name") ]
+  [ ("↑↓", "move"); ("f", "filter") ]
 
 /// The internal-tier Builtins view — every F# builtin (real data, not mock), for the Darklang-internal
 /// experience. Gated on `internal.enabled` (config), so `config set internal.enabled stachu,feriel` turns the
@@ -1477,7 +1488,7 @@ let hintsForView (state: State) : String =
     else if view == vApps then
       [ ("↑↓", "move"); ("⏎", "install"); ("r", "run"); ("s", "stop") ]
     else if view == vTraces then
-      Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("⏎", "open") ] ]
+      Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("⏎", "open"); ("f", "filter") ] ]
     else if view == vDocs then
       Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("⏎", "full") ] ]
     else
