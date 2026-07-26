@@ -811,8 +811,8 @@ let appDetail (state: State) : String =
   | Some item ->
     item.name
     ++ "\n\n"
-    ++ "i install    r run    s stop    l logs\n\n"
-    ++ "(lifecycle wired via the classic `apps` command for now)"
+    ++ "⏎ inspect    i install/uninstall    r start    s stop\n\n"
+    ++ "(each runs the matching `apps` subcommand in-frame — output opens in the reader)"
   | None -> "(no app selected)"
 
 /// The selected trace's detail. Placeholder — the walkable trace tree + live values come later.
@@ -1662,7 +1662,7 @@ let hintsForView (state: State) : String =
       let enterHint = if state.aiSection == 1 then ("⏎", "use") else ("⏎", "open")
       [ ("↑↓", "move"); enterHint; ("tab", "section"); ("a", "ask") ]
     else if view == vApps then
-      [ ("↑↓", "move"); ("⏎", "install"); ("r", "run"); ("s", "stop") ]
+      [ ("↑↓", "move"); ("⏎", "inspect"); ("i", "install"); ("r", "start"); ("s", "stop") ]
     else if view == vTraces then
       Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("⏎", "open"); ("f", "filter") ] ]
     else if view == vDocs then
@@ -1991,6 +1991,24 @@ let toggleInstall (state: State) : Step =
           items = itemsForView vApps state.branchId state.location state.scmSection state.aiSection state.matterLens
           message = msg }
   | None -> Step.Continue state
+
+/// Run `apps <sub> <slug>` for the selected app in-frame (captured), refresh the list, and show the output in
+/// the reader — so start/stop/inspect act here instead of forcing a drop to the `:` bar.
+let runAppsSubcommand (state: State) (sub: String) : Step =
+  match Stdlib.List.getAt (Darklang.Cli.Apps.Registry.available ()) state.selected with
+  | None -> Step.Continue state
+  | Some app ->
+    let appState =
+      { (Darklang.Cli.initState ()) with
+          currentBranchId = state.branchId
+          accountID = state.accountId
+          accountName = state.accountName }
+    let out = captureOutput (fun () -> Darklang.Cli.Registry.executeCommand "apps" appState [ sub; app.slug ])
+    let refreshed =
+      itemsForView vApps state.branchId state.location state.scmSection state.aiSection state.matterLens
+    let shown =
+      if (Stdlib.String.trim out) == "" then $"apps {sub} {app.slug}\n\n(done)" else out
+    openReader { state with items = refreshed } shown false
 
 /// Jump from a search result to its home in the Tree: open the containing module, select the leaf, close the
 /// results mode.
@@ -2662,8 +2680,8 @@ let handleKey
   | RightArrow -> descend state
   | Enter ->
     if state.activeView == vApps then
-      // Apps: ⏎ is the primary action — install/uninstall the selected app.
-      toggleInstall state
+      // Apps: ⏎ opens the app — its status, target, and recent logs — in the reader (i toggles install).
+      runAppsSubcommand state "inspect"
     else if state.activeView == vDocs then
       // Docs: open the selected topic in the full-body reader (prose, not code).
       let topics = Docs.Command.Topics.allTopics ()
@@ -2870,7 +2888,7 @@ let handleKey
               input =
                 Stdlib.Option.Option.Some (InputState { prompt = "switch to branch: "; text = ""; action = "branch-switch" }) }
       else if state.activeView == vDevices then Step.Continue { state with message = "sync now — coming soon" }
-      else if state.activeView == vApps then Step.Continue { state with message = "stop: `apps stop <slug>` on the : bar for now" }
+      else if state.activeView == vApps then runAppsSubcommand state "stop"
       else Step.Continue state
     | Some "m" ->
       if state.activeView == vSCM then
@@ -2895,7 +2913,7 @@ let handleKey
               input =
                 Stdlib.Option.Option.Some
                   (InputState { prompt = "rebase onto parent? type y then enter: "; text = ""; action = "rebase" }) }
-      else if state.activeView == vApps then Step.Continue { state with message = "run: `apps run <slug>` on the : bar for now" }
+      else if state.activeView == vApps then runAppsSubcommand state "start"
       else if state.activeView == vMatter then
         match Stdlib.List.getAt state.items state.selected with
         | Some item ->
