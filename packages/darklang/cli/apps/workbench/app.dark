@@ -1030,7 +1030,7 @@ let renderHome (state: State) (region: UI.Layout.Region) : Unit =
         (cy "apps") ++ "              run & manage apps   ·   agent <verb> for AI"
         (cy "1-9 / Ctrl+←→ / `") ++ "  switch views   ·   ? for all keys"
         ""
-        (Colors.dimText "Type ") ++ (cy ":") ++ (Colors.dimText " to run any command — autocomplete on, Tab accepts.") ]
+        (cy ":classic") ++ "  drop to the full classic prompt (typeahead, live commands)" ]
       |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
       |> Stdlib.List.indexedMap (fun i l -> UI.Layout.printAt inner i 1 l)
     ()
