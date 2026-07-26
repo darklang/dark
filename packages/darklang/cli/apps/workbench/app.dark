@@ -2222,18 +2222,24 @@ let performInputAction (state: State) (inp: InputState) : Step =
         match words with
         | first :: rest -> (first, rest)
         | [] -> ("", [])
-      let isKnown = Stdlib.List.member allNames cmd
-      let output =
-        captureOutput (fun () ->
-          if isKnown then Darklang.Cli.Registry.executeCommand cmd appState args
-          else Darklang.Cli.Registry.executeCommand "eval" appState words)
-      let shown = if (Stdlib.String.trim output) == "" then "(no output)" else output
-      Step.Continue
-        { state with
-            input = Stdlib.Option.Option.None
-            reading = Stdlib.Option.Option.Some ((Colors.dimText ("$ " ++ text)) ++ "\n\n" ++ shown)
-            readingIsCode = false
-            detailScroll = 0 }
+      // Commands that take over the terminal (full-screen TUIs). Capturing them just dumps their alt-screen
+      // escape codes into the reader; instead hand off so they own the terminal, returning here on exit.
+      let interactiveCmds = [ "outliner"; "tree-exp"; "text-editor"; "review"; "views" ]
+      if Stdlib.List.member interactiveCmds cmd then
+        Step.Launch({ state with input = Stdlib.Option.Option.None }, cmd)
+      else
+        let isKnown = Stdlib.List.member allNames cmd
+        let output =
+          captureOutput (fun () ->
+            if isKnown then Darklang.Cli.Registry.executeCommand cmd appState args
+            else Darklang.Cli.Registry.executeCommand "eval" appState words)
+        let shown = if (Stdlib.String.trim output) == "" then "(no output)" else output
+        Step.Continue
+          { state with
+              input = Stdlib.Option.Option.None
+              reading = Stdlib.Option.Option.Some ((Colors.dimText ("$ " ++ text)) ++ "\n\n" ++ shown)
+              readingIsCode = false
+              detailScroll = 0 }
   else if inp.action == "scratch" then
     // Scratch: eval the expression (captured) and append `> expr` + its result to the log.
     let text = Stdlib.String.trim inp.text
