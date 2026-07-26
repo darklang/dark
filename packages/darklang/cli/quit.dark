@@ -2,8 +2,15 @@ module Darklang.Cli.Quit
 
 
 let execute (state: AppState) (_args: List<String>) : AppState =
-  Stdlib.printLine "Goodbye!"
-  { state with isExiting = true }
+  match state.pageStack with
+  | returnTo :: rest ->
+    // Launched from another page (e.g. the workbench dropped to this prompt): go back instead of leaving the
+    // CLI. Re-enter the alt-screen the launcher lives in.
+    Stdlib.print "\u001b[?1049h"
+    { state with currentPage = returnTo; pageStack = rest; needsFullRedraw = true }
+  | [] ->
+    Stdlib.printLine "Goodbye!"
+    { state with isExiting = true }
 
 
 let complete (_state: AppState) (_args: List<String>) : List<Completion.CompletionItem> =

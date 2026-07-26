@@ -97,6 +97,8 @@ type Step =
   /// Hand off to a foreground command (e.g. a full-screen app opened from the Apps view). The CLI pushes the
   /// workbench and returns to it when that command's page exits. Carries the workbench State to return to.
   | Launch of State * String
+  /// Drop to the classic prompt (`:classic`), pushing the workbench so `quit` there returns here.
+  | ToPrompt of State
 
 /// A composable view — everything the frame needs to show a tab, in one self-contained value. The core
 /// dispatch (visibleViews / itemsForView / previewLines / renderViewBody / hintsForView) is generic over a
@@ -2282,7 +2284,10 @@ let performInputAction (state: State) (inp: InputState) : Step =
       // Commands that take over the terminal (full-screen TUIs). Capturing them just dumps their alt-screen
       // escape codes into the reader; instead hand off so they own the terminal, returning here on exit.
       let interactiveCmds = [ "outliner"; "tree-exp"; "text-editor"; "review"; "views" ]
-      if Stdlib.List.member interactiveCmds cmd then
+      if (cmd == "classic") || (cmd == "prompt") then
+        // Drop to the full classic prompt (its own typeahead + live commands); `quit` there returns here.
+        Step.ToPrompt { state with input = Stdlib.Option.Option.None }
+      else if Stdlib.List.member interactiveCmds cmd then
         Step.Launch({ state with input = Stdlib.Option.Option.None }, cmd)
       else
         let isKnown = Stdlib.List.member allNames cmd
@@ -2617,6 +2622,7 @@ let handleKey
         | Continue s -> Step.Continue s
         | Exit s -> Step.Exit s
         | Launch(s, cmd) -> Step.Launch(s, cmd)
+        | ToPrompt s -> Step.ToPrompt s
       | None -> Step.Continue { state with viewPicker = false }
     match key with
     | UpArrow -> moveTo (state.pickerSelected - 1)
@@ -3044,6 +3050,7 @@ let makeSubApp (state: State) : Darklang.Cli.SubApp =
           | Exit s -> (Darklang.Cli.SubAppAction.Exit, makeSubApp s)
           // Hand off to a foreground command; the CLI returns to this workbench (state s) when it exits.
           | Launch(s, cmd) -> (Darklang.Cli.SubAppAction.LaunchCommand cmd, makeSubApp s)
+          | ToPrompt s -> (Darklang.Cli.SubAppAction.LaunchPrompt, makeSubApp s)
       onDisplay = fun () -> render state
       onSave = fun () -> () }
 

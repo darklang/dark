@@ -6,6 +6,8 @@ type SubAppAction =
   | Exit
   /// Hand off to another command (e.g. a browser launching a foreground app), replacing this page.
   | LaunchCommand of String
+  /// Drop to the classic prompt, pushing this page so `quit` there returns here instead of leaving the CLI.
+  | LaunchPrompt
 
 type SubApp =
   { onKey: Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> (SubAppAction * SubApp)
@@ -721,6 +723,14 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       let launched =
         Registry.executeCommand cmd { state with pageStack = Stdlib.List.append [ saved ] state.pageStack } []
       { launched with needsFullRedraw = true }
+    | LaunchPrompt ->
+      // Drop to the classic prompt, pushing this page. The prompt scrolls the normal terminal, so leave the
+      // alt-screen; `quit` there pops back to this page (see Quit.execute).
+      Stdlib.print "[?1049l"
+      { state with
+          pageStack = Stdlib.List.append [ Page.SubApp newApp ] state.pageStack
+          currentPage = Page.MainPrompt
+          needsFullRedraw = true }
 
 
 module Update =
