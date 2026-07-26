@@ -24,6 +24,9 @@ type AppState =
     needsFullRedraw: Bool
     packageData: Packages.State
     currentPage: Page
+    /// Pages to return to, innermost first. A SubApp that launches another page (e.g. the workbench opening a
+    /// foreground app) pushes itself here; when the launched page exits, we pop back instead of quitting.
+    pageStack: List<Page>
     currentBranchId: Uuid
     accountID: Stdlib.Option.Option<Uuid>
     accountName: String
@@ -120,6 +123,7 @@ let initState () : AppState =
       needsFullRedraw = true
       packageData = Packages.initState ()
       currentPage = Page.MainPrompt
+      pageStack = []
       currentBranchId = branchId
       accountID = accountID
       accountName = accountName
@@ -699,13 +703,23 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
           needsFullRedraw = true }
     | Exit ->
       newApp.onSave ()
-      Stdlib.print "\u001b[?1049l"
-      // The workbench is the experience — leaving it leaves the CLI, no classic-prompt fallback.
-      // (The classic prompt is only reachable via DARK_CLASSIC=1 at launch.)
-      { state with isExiting = true }
+      match state.pageStack with
+      | returnTo :: rest ->
+        // Launched from another page (e.g. a foreground app opened from the workbench). Return to the
+        // launcher instead of quitting; re-enter the alt-screen since the launched app left it on exit.
+        Stdlib.print "\u001b[?1049h"
+        { state with currentPage = returnTo; pageStack = rest; needsFullRedraw = true }
+      | [] ->
+        Stdlib.print "\u001b[?1049l"
+        // The workbench is the experience: leaving it leaves the CLI, no classic-prompt fallback.
+        // (The classic prompt is only reachable via DARK_CLASSIC=1 at launch.)
+        { state with isExiting = true }
     | LaunchCommand cmd ->
-      // Replace this page by running `cmd` (which sets up its own page, e.g. a foreground app's SubApp).
-      let launched = Registry.executeCommand cmd state []
+      // Push this page so we return to it when the launched command's page exits, then run `cmd` (which sets
+      // up its own page, e.g. a foreground app's SubApp).
+      let saved = Page.SubApp newApp
+      let launched =
+        Registry.executeCommand cmd { state with pageStack = Stdlib.List.append [ saved ] state.pageStack } []
       { launched with needsFullRedraw = true }
 
 
