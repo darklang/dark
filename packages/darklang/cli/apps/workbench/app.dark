@@ -1352,8 +1352,11 @@ let renderDevices (state: State) (region: UI.Layout.Region) : Unit =
     [ hdr "This instance"
       "   " ++ on ++ "  " ++ state.instanceName ++ " (" ++ owner ++ ")      online     sync: auto"
       ""
+      hdr "Dark Matter  ·  matter.darklang.com"
+      "   " ++ (Colors.dimText "the central distribution hub — all public Darklang code, fine-grained")
+      "   " ++ on ++ "  connected     auto-syncing public code     " ++ (Colors.dimText "(mock)")
+      ""
       hdr "Peers  ·  (mock data)"
-      "   " ++ on ++ "  matter.cloud       online     auto-pull Darklang"
       "   " ++ off ++ "  laptop-2           offline    last seen 2h ago"
       ""
       hdr "Branch sync  ·  (mock data)"
