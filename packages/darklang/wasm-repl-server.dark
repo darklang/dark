@@ -1,0 +1,51 @@
+/// Static server for the published WASM REPL — serves
+/// rundir/wasm-repl/wwwroot with the correct `application/wasm`
+/// MIME type (needed for the browser's streaming compilation).
+///
+/// Build first (see backend/src/Wasm/README.md), then from the repo root:
+///   ./scripts/run-cli serve Darklang.WasmReplServer.router --port 8080
+module Darklang.WasmReplServer
+
+let root () : String = "rundir/wasm-repl/wwwroot"
+
+
+let contentType (path: String) : String =
+  let ext =
+    (Stdlib.String.split path ".")
+    |> Stdlib.List.last
+    |> Stdlib.Option.withDefault ""
+
+  let types =
+    [ ("wasm", "application/wasm")
+      ("js", "text/javascript")
+      ("mjs", "text/javascript")
+      ("html", "text/html; charset=utf-8")
+      ("json", "application/json")
+      ("css", "text/css")
+      ("ico", "image/x-icon") ]
+
+  match Stdlib.List.findFirst types (fun (e, _) -> e == ext) with
+  | Some ((_, ct)) -> ct
+  | None -> "application/octet-stream"
+
+
+let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  let path = Stdlib.HttpServer.getPath req
+  let method = Stdlib.HttpServer.getMethod req
+
+  if Stdlib.String.contains path ".." then
+    Stdlib.Http.forbidden ()
+  else if method != "GET" && method != "HEAD" then
+    Stdlib.Http.responseWithText "method not allowed" 405
+  else
+    let file = if path == "/" then "/index.html" else path
+
+    match Builtin.fileRead (root () ++ file) with
+    | Ok blob ->
+      // HEAD gets the same headers/status as GET, minus the body
+      let body = if method == "HEAD" then Stdlib.String.toBlob "" else blob
+      Stdlib.Http.responseWithHeaders
+        body
+        [ ("Content-Type", contentType file) ]
+        200
+    | Error _ -> Stdlib.Http.notFound ()
