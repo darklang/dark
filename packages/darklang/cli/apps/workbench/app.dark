@@ -204,6 +204,15 @@ let visibleViews (state: State) : List<Int> =
     i)
 
 
+/// Run `f` and return everything it printed to stdout. The single place `Builtin.stdoutCapture*` is used, so
+/// the many "run a command, show its output inside the frame" sites go through one wrapper instead of each
+/// touching the builtins directly.
+let captureOutput (f: Unit -> 'a) : String =
+  let _ = Builtin.stdoutCaptureStart ()
+  let _ = f ()
+  Builtin.stdoutCaptureStop ()
+
+
 // ── Package listing (the Tree body) ──
 
 let modulePathOf (location: Packages.PackageLocation) : List<String> =
@@ -378,7 +387,7 @@ let depsText (state: State) : String =
       | None -> "(not found)"
       | Some((hash, loc, kind)) ->
         // Dependencies — what this item uses.
-        let deps = Builtin.depsGetDependencies state.branchId hash
+        let deps = Packages.Query.getDependencies state.branchId hash
         let depLines =
           if Stdlib.List.isEmpty deps then [ Colors.dimText "  (none)" ]
           else
@@ -604,9 +613,7 @@ let serviceDetail (state: State) : String =
     if item.kind == "view" then
       match Stdlib.List.findFirst (Darklang.Cli.Apps.Views.allViews ()) (fun v -> v.name == item.name) with
       | Some v ->
-        let _ = Builtin.stdoutCaptureStart ()
-        let _ = v.render ()
-        Builtin.stdoutCaptureStop ()
+        captureOutput (fun () -> v.render ())
       | None -> "(view not found)"
     else
       item.name ++ "\n\n(app — run it from the classic `apps` command for now)"
@@ -750,9 +757,9 @@ let detailLines (state: State) : List<String> =
       // the rendered frame instead of source. Any view value in the Matter tree previews just by cursoring onto it.
       let modulePath = modulePathOf state.location
       let fullpath = Stdlib.String.join (Stdlib.List.append modulePath [ item.name ]) "."
-      let _ = Builtin.stdoutCaptureStart ()
-      let _ = Builtin.cliEvaluateExpression state.accountId state.branchId (fullpath ++ " ()") false
-      let out = Builtin.stdoutCaptureStop ()
+      let out =
+        captureOutput (fun () ->
+          Builtin.cliEvaluateExpression state.accountId state.branchId (fullpath ++ " ()") false)
       if (Stdlib.String.trim out) == "" then [ Colors.dimText "(view produced no output)" ]
       else Stdlib.String.split out "\n"
     else
@@ -1189,9 +1196,7 @@ let evalToString (state: State) (expr: String) : String =
         accountID = state.accountId
         accountName = state.accountName }
   let words = Stdlib.String.split expr " " |> Stdlib.List.filter (fun w -> w != "")
-  let _ = Builtin.stdoutCaptureStart ()
-  let _ = Darklang.Cli.Registry.executeCommand "eval" appState words
-  Stdlib.String.trim (Builtin.stdoutCaptureStop ())
+  Stdlib.String.trim (captureOutput (fun () -> Darklang.Cli.Registry.executeCommand "eval" appState words))
 
 /// Split an expression on its TOP-LEVEL `|>` (depth 0 only, so a `|>` inside a parenthesized lambda stays
 /// put). Returns the stages without the pipes. Char-by-char with a paren/bracket/brace depth counter.
@@ -2153,9 +2158,9 @@ let performInputAction (state: State) (inp: InputState) : Step =
             currentBranchId = state.branchId
             accountID = state.accountId
             accountName = state.accountName }
-      let _ = Builtin.stdoutCaptureStart ()
-      let _ = Darklang.Cli.Registry.executeCommand "agent" appState (Stdlib.List.append [ "ask" ] words)
-      let output = Builtin.stdoutCaptureStop ()
+      let output =
+        captureOutput (fun () ->
+          Darklang.Cli.Registry.executeCommand "agent" appState (Stdlib.List.append [ "ask" ] words))
       let shown = if (Stdlib.String.trim output) == "" then "(no output)" else output
       Step.Continue
         { state with
@@ -2187,11 +2192,10 @@ let performInputAction (state: State) (inp: InputState) : Step =
         | first :: rest -> (first, rest)
         | [] -> ("", [])
       let isKnown = Stdlib.List.member allNames cmd
-      let _ = Builtin.stdoutCaptureStart ()
-      let _ =
-        if isKnown then Darklang.Cli.Registry.executeCommand cmd appState args
-        else Darklang.Cli.Registry.executeCommand "eval" appState words
-      let output = Builtin.stdoutCaptureStop ()
+      let output =
+        captureOutput (fun () ->
+          if isKnown then Darklang.Cli.Registry.executeCommand cmd appState args
+          else Darklang.Cli.Registry.executeCommand "eval" appState words)
       let shown = if (Stdlib.String.trim output) == "" then "(no output)" else output
       Step.Continue
         { state with
@@ -2211,9 +2215,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
             currentBranchId = state.branchId
             accountID = state.accountId
             accountName = state.accountName }
-      let _ = Builtin.stdoutCaptureStart ()
-      let _ = Darklang.Cli.Registry.executeCommand "eval" appState words
-      let output = Builtin.stdoutCaptureStop ()
+      let output = captureOutput (fun () -> Darklang.Cli.Registry.executeCommand "eval" appState words)
       let resultLines =
         Stdlib.String.split output "\n"
         |> Stdlib.List.filter (fun l -> (Stdlib.String.trim l) != "")

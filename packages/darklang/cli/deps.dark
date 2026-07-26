@@ -137,7 +137,7 @@ let showDependencies
   (sourceHash: LanguageTools.ProgramTypes.Hash)
   (entityName: String)
   : Unit =
-  let dependencies = Builtin.depsGetDependencies branchId sourceHash
+  let dependencies = Darklang.Cli.Packages.Query.getDependencies branchId sourceHash
 
   match dependencies with
   | [] ->

@@ -238,12 +238,16 @@ let builtinAccessInPackageMatter =
       let lines =
         offenders
         |> List.sortBy fst
-        |> List.map (fun (name, count) ->
-          $"  {name}: {count} refs (expected ≤1, or add to multiUseAllowlist)")
+        |> List.map (fun (name, count) -> $"  {name}: {count} refs")
         |> String.concat "\n"
       Expect.isTrue
         false
-        $"Builtins referenced from >1 place must be in the allowlist:\n{lines}"
+        ("Some builtins are referenced from more than one place in packages/:\n"
+         + lines
+         + "\n\nPrefer wrapping the builtin in a single Dark package fn (e.g. a Stdlib/Cli helper) and routing "
+         + "all callers through it, so the builtin is referenced once. Only add to `multiUseAllowlist` as a "
+         + "last resort, when direct builtin access from several places is genuinely required (e.g. the SQL "
+         + "compiler needs the raw builtin). The goal is to shrink that list, not grow it.")
   }
 
 
