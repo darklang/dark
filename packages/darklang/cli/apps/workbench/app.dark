@@ -1832,6 +1832,7 @@ let renderFull (state: State) : Unit =
   UI.Layout.vstack screen [ context; tabbar; crumb; body; hints ]
   let _ = if state.showHelp then renderHelpOverlay screen else ()
   let _ = if state.viewPicker then renderViewPicker state screen else ()
+  let _ = renderCommandCompletions state screen
   Stdlib.print "\u001b[?25h"
 
 
@@ -1849,6 +1850,48 @@ let commandCompletionHint (state: State) (text: String) : String =
           accountID = state.accountId
           accountName = state.accountName }
     Darklang.Cli.Registry.getCompletionHint appState text
+
+/// The full list of completions for the `:` command bar's current text — the same engine the classic prompt's
+/// picker used. Backs the live dropdown so you see the options, not just the ghost of the top one.
+let commandCompletions (state: State) (text: String) : List<Darklang.Cli.Completion.CompletionItem> =
+  if text == "" then
+    []
+  else
+    let appState =
+      { (Darklang.Cli.initState ()) with
+          currentBranchId = state.branchId
+          accountID = state.accountId
+          accountName = state.accountName }
+    Darklang.Cli.Registry.getCompletions appState text
+
+/// A live dropdown of command completions anchored just above the `:` input line — the "pretty typeahead" menu
+/// from the classic prompt. Shown only while the command bar is open and there are matches. Drawn as an overlay
+/// (the full frame redraws each keystroke, so it clears itself when the bar closes).
+let renderCommandCompletions (state: State) (screen: UI.Layout.Region) : Unit =
+  match state.input with
+  | None -> ()
+  | Some inp ->
+    if inp.action != "command" then
+      ()
+    else
+      let items = commandCompletions state inp.text |> Stdlib.List.take 8
+      if Stdlib.List.isEmpty items then
+        ()
+      else
+        let n = Stdlib.List.length items
+        let boxRows = n + 2
+        let footerRow = screen.top + screen.rows - 1
+        let top = Stdlib.Int.max screen.top (footerRow - boxRows)
+        // Full width so it fully covers the body band underneath (no bleed-through of the body's box borders).
+        let region = UI.Layout.Region { top = top; left = screen.left; rows = boxRows; cols = screen.cols }
+        UI.Box.panel region "complete  ·  tab to accept" true (fun inner ->
+          // Clear the interior first — this floats over the body, which would otherwise bleed through.
+          UI.Layout.clearRegion inner
+          let _ =
+            items
+            |> Stdlib.List.indexedMap (fun i item ->
+              UI.Layout.printAt inner i 1 (UI.Layout.truncateVisible item.display (Stdlib.Int.max 0 (inner.cols - 1))))
+          ())
 
 /// Render the workbench. Below a usable size, show an explicit "too small" hint instead of a garbled frame
 /// (per the TUI rule: degrade with a message, never render garbage). A real 0/tiny size mid-resize still falls
