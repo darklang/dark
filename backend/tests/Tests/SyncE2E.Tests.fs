@@ -483,14 +483,20 @@ let private realTests =
                 let seedBlobs =
                   (sqlite (seedDb.Force()) "SELECT COUNT(*) FROM package_blobs")
                     .Trim()
+                // Against the SEED baseline, not zero. Every instance is a copy of the seed, and the seed
+                // is a snapshot of the live store, which carries whatever traces the package reload recorded
+                // (dev sets DARK_CONFIG_TRACE_DETAIL=on). Asserting zero tested the ambient environment
+                // rather than the thing this test is about: that serving adds nothing.
+                let seedTraces =
+                  (sqlite (seedDb.Force()) "SELECT COUNT(*) FROM trace_fn_calls").Trim()
                 let traceRows =
                   (sqlite (dbOf a) "SELECT COUNT(*) FROM trace_fn_calls").Trim()
                 let servedBlobs =
                   (sqlite (dbOf a) "SELECT COUNT(*) FROM package_blobs").Trim()
                 Expect.equal
                   traceRows
-                  "0"
-                  "the serve wrote NO trace rows (trace storage off in the shipped binary)"
+                  seedTraces
+                  "the serve wrote NO NEW trace rows (serving must not accumulate)"
                 Expect.equal
                   servedBlobs
                   seedBlobs
