@@ -31,13 +31,16 @@ let runWithCommand (args: List<String>): String =
 let testHelpCommand (): TestResult =
   let output = runWithCommand ["help"]
 
-  if Stdlib.String.contains output "Available commands:" &&
+  // Help is grouped by category now, so assert on the groups and a command from a few of them rather than
+  // on a heading that no longer exists.
+  if Stdlib.String.contains output "Packages:" &&
+      Stdlib.String.contains output "nav" &&
       Stdlib.String.contains output "help" &&
       Stdlib.String.contains output "version" &&
       Stdlib.String.contains output "status" then
       TestResult.Pass
   else
-    TestResult.Fail "Expected help text with available commands"
+    TestResult.Fail "Expected help text grouped by category, listing nav/help/version/status"
 
 
 let testVersionCommand (): TestResult =
@@ -60,7 +63,8 @@ let testStatusCommand (): TestResult =
 
 
 let testRunBoolAnd (): TestResult =
-  let output = runWithCommand ["run"; "@Stdlib.Bool.and true false"]
+  // `run` is for script files now; calling a package function is `eval`'s job, without the `@`.
+  let output = runWithCommand ["eval"; "Stdlib.Bool.and true false"]
   if output == "false" then
     TestResult.Pass
   else
@@ -68,7 +72,7 @@ let testRunBoolAnd (): TestResult =
 
 
 let testRunInt64Add (): TestResult =
-  let output = runWithCommand ["run"; "@Stdlib.Int64.add 5L 3L"]
+  let output = runWithCommand ["eval"; "Stdlib.Int64.add 5L 3L"]
   if output == "8" then
     TestResult.Pass
   else
@@ -467,8 +471,8 @@ let allTests (): List<String * TestFunction> =
     ("Version", fun () -> testVersionCommand ())
     ("Status", fun () -> testStatusCommand ())
 
-    ("Run Bool.and", fun () -> testRunBoolAnd ())
-    ("Run Int64.add", fun () -> testRunInt64Add ())
+    ("Eval Bool.and", fun () -> testRunBoolAnd ())
+    ("Eval Int64.add", fun () -> testRunInt64Add ())
 
     ("Eval String Length", fun () -> testEvalStringLength ())
     ("Eval List Length", fun () -> testEvalListLength ())
