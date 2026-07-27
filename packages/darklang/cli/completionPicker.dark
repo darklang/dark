@@ -155,7 +155,11 @@ let viewAtSize
 
 
 /// Move selection up, keeping it within a viewport of `capacity` rows.
-let moveUpWithCapacity (capacity: Int) (state: State) : State =
+///
+/// The capacity isn't needed here and isn't used: moving up can only ever pull the offset down, and
+/// `effectiveOffset` re-clamps against the live size at render time anyway. It stays in the signature so the
+/// two movement functions are called the same way from `handleKeyAtSize`.
+let moveUpWithCapacity (_capacity: Int) (state: State) : State =
   if state.selectedIndex > 0 then
     let newIndex = state.selectedIndex - 1
 

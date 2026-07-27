@@ -885,22 +885,6 @@ let handleNavModeKeys
 
   | Escape -> Stdlib.Option.Option.Some (exitToMainPrompt state session)
 
-  | U ->
-    match navState.display with
-    | Source ->
-      let totalItems = (Stdlib.List.length navState.items)
-      if totalItems > 0 then
-        match Stdlib.List.getAt navState.items navState.selectedIndex with
-        | Some selectedItem ->
-          let locationStr = Packages.formatLocation selectedItem.location
-          let exitedState = exitToMainPrompt state session
-          Stdlib.printLine (Colors.info $"Update mode for {locationStr} (coming soon)")
-          Stdlib.Option.Option.Some exitedState
-        | None -> Stdlib.Option.Option.None
-      else
-        Stdlib.Option.Option.None
-    | JustName -> Stdlib.Option.Option.None
-
   | _ ->
     match keyChar with
     | Some "/" ->
