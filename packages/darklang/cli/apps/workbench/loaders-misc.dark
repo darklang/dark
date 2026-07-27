@@ -140,20 +140,28 @@ let loadErrorItems () : List<BodyItem> =
     Darklang.Sync.Conflicts.list ()
     |> Stdlib.List.map (fun c ->
       BodyItem { name = "⚠ conflict    " ++ c.location ++ "  ·  " ++ c.status; kind = "error"; isModule = false })
+  // Invented rows showing the shape of the thing. Tagged apart from the real conflicts above so the
+  // detail pane can say which one you are looking at.
   let mock =
-    [ BodyItem { name = "⚠ 500         POST /checkout - 12 in the last hour"; kind = "error"; isModule = false }
-      BodyItem { name = "✗ test        Stachu.Auth.login passes but shouldn't"; kind = "error"; isModule = false }
-      BodyItem { name = "⚠ 500         GET /api/user/:id - 3 in the last hour"; kind = "error"; isModule = false }
-      BodyItem { name = "✗ deprecated  Stdlib.List.oldMap still called by 4 fns"; kind = "error"; isModule = false }
-      BodyItem { name = "⚠ perf        Stachu.report.build - 4.2s p95 (was 0.8s)"; kind = "error"; isModule = false } ]
+    [ BodyItem { name = "⚠ 500         POST /checkout - 12 in the last hour"; kind = "error-sample"; isModule = false }
+      BodyItem { name = "✗ test        Stachu.Auth.login passes but shouldn't"; kind = "error-sample"; isModule = false }
+      BodyItem { name = "⚠ 500         GET /api/user/:id - 3 in the last hour"; kind = "error-sample"; isModule = false }
+      BodyItem { name = "✗ deprecated  Stdlib.List.oldMap still called by 4 fns"; kind = "error-sample"; isModule = false }
+      BodyItem { name = "⚠ perf        Stachu.report.build - 4.2s p95 (was 0.8s)"; kind = "error-sample"; isModule = false } ]
   Stdlib.List.append conflicts mock
 
 let errorDetail (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
   | Some item ->
+    // The conflict rows are real; only the sample rows are invented.
+    let provenance =
+      if item.kind == "error-sample" then
+        Colors.dimText "(mock data) - a real Errors view aggregates: test failures + tests that"
+      else
+        Colors.dimText "this is a real recorded conflict. The rest of an Errors view aggregates:"
     (Colors.boldText item.name)
     ++ "\n\n"
-    ++ (Colors.dimText "(mock data) - a real Errors view aggregates: test failures + tests that")
+    ++ provenance
     ++ "\n"
     ++ (Colors.dimText "pass but shouldn't, HTTP 5xx on tracked endpoints, unresolved conflicts,")
     ++ "\n"
