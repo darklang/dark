@@ -3,7 +3,7 @@
 /// Part of `Darklang.Cli.Apps.Workbench.App`.
 module Darklang.Cli.Apps.Workbench.App
 
-let renderViewBody (state: State) (region: UI.Layout.Region) : Unit =
+let renderViewBody (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   if state.activeView == vHome then
     renderHome state region
   else if state.activeView == vMatter then
@@ -56,36 +56,34 @@ let renderViewBody (state: State) (region: UI.Layout.Region) : Unit =
 /// The multiline editor, framed in a titled box: a spacious authoring surface (not the bottom prompt bar).
 /// The error line (if any) sits just under the title; the buffer renders below with a reverse-video cursor at
 /// (row, col). One column of left padding inside the border reads as intentional.
-let renderEditing (es: EditingState) (region: UI.Layout.Region) : Unit =
+let renderEditing (es: EditingState) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   UI.Box.panel region es.nameStr true (fun inner ->
-    let _ =
-      if es.err != "" then UI.Layout.printAt inner 0 1 (Colors.error es.err) else ()
+    let errSpans =
+      if es.err != "" then UI.Layout.at inner 0 1 (Colors.error es.err) else []
     let bodyTop = if es.err != "" then 1 else 0
     let visible = Stdlib.Int.max 1 (inner.rows - bodyTop)
     let scroll = Stdlib.Int.max 0 (es.buf.row - visible + 1)
-    es.buf.lines
-    |> Stdlib.List.indexedMap (fun i l -> (i, l))
-    |> Stdlib.List.drop scroll
-    |> Stdlib.List.take visible
-    |> Stdlib.List.iter (fun pair ->
-      let (i, l) = pair
-      let screenRow = bodyTop + (i - scroll)
-      if i == es.buf.row then
-        let llen = Stdlib.String.length l
-        let before = Stdlib.String.slice l 0 es.buf.col
-        let atCursor = if es.buf.col < llen then Stdlib.String.slice l es.buf.col (es.buf.col + 1) else " "
-        let after = if es.buf.col < llen then Stdlib.String.slice l (es.buf.col + 1) llen else ""
-        // Direct print (colored cursor would be truncated by printAt's length check); +1 col padding.
-        Stdlib.print
-          ((UI.Layout.moveCursorTo (inner.top + screenRow) (inner.left + 1))
-           ++ before
-           ++ (Colors.colorize Colors.reverse atCursor)
-           ++ after)
-      else
-        UI.Layout.printAt inner screenRow 1 l))
+    let bodySpans =
+      es.buf.lines
+      |> Stdlib.List.indexedMap (fun i l -> (i, l))
+      |> Stdlib.List.drop scroll
+      |> Stdlib.List.take visible
+      |> Stdlib.List.map (fun pair ->
+        let (i, l) = pair
+        let screenRow = bodyTop + (i - scroll)
+        if i == es.buf.row then
+          let llen = Stdlib.String.length l
+          let before = Stdlib.String.slice l 0 es.buf.col
+          let atCursor = if es.buf.col < llen then Stdlib.String.slice l es.buf.col (es.buf.col + 1) else " "
+          let after = if es.buf.col < llen then Stdlib.String.slice l (es.buf.col + 1) llen else ""
+          UI.Layout.at inner screenRow 1 (before ++ (Colors.colorize Colors.reverse atCursor) ++ after)
+        else
+          UI.Layout.at inner screenRow 1 l)
+      |> Stdlib.List.flatten
+    Stdlib.List.flatten [ errSpans; bodySpans ])
 
 /// The jumpable search-results list, framed in a box. Selection in cyan; ⏎ navigates to the hit.
-let renderSearchResults (state: State) (region: UI.Layout.Region) : Unit =
+let renderSearchResults (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   let title = "Search  ·  " ++ (Stdlib.Int.toString (Stdlib.List.length state.searchHits)) ++ " results"
   UI.Box.panel region title true (fun inner ->
     let lines =
@@ -96,7 +94,7 @@ let renderSearchResults (state: State) (region: UI.Layout.Region) : Unit =
     UI.ListView.render inner lines state.searchSelected)
 
 /// Dispatch the body: the editor, then a reader, then search results, else the active view's body.
-let renderBody (state: State) (region: UI.Layout.Region) : Unit =
+let renderBody (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   match state.editing with
   | Some es -> renderEditing es region
   | None ->
@@ -168,7 +166,7 @@ val helpGroups =
 /// A centered, boxed keymap overlay drawn over the frame. The interior is cleared so nothing shows through.
 /// The view-picker overlay: a centered, boxed, jumpable list of every view (number + name), the current one
 /// marked. Reaches the views the number keys can't (10th+).
-let renderViewPicker (state: State) (screen: UI.Layout.Region) : Unit =
+let renderViewPicker (state: State) (screen: UI.Layout.Region) : List<UI.Layout.Span> =
   // Only the visible views (Devices hidden unless opted in). pickerSelected is a POSITION into this list.
   let vis = visibleViews state
   let n = Stdlib.List.length vis
@@ -177,49 +175,51 @@ let renderViewPicker (state: State) (screen: UI.Layout.Region) : Unit =
   let top = screen.top + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.rows - h)) 2)
   let left = screen.left + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.cols - w)) 2)
   let region = UI.Layout.Region { top = top; left = left; rows = h; cols = w }
-  let _ = UI.Layout.clearRegion region
-  UI.Box.panel region "Go to view  ·  ⏎ jump · esc" true (fun inner ->
-    vis
-    |> Stdlib.List.indexedMap (fun p viewIdx -> (p, viewIdx))
-    |> Stdlib.List.take (inner.rows)
-    |> Stdlib.List.iter (fun pair ->
+  Stdlib.List.flatten
+    [ UI.Layout.clearRegion region
+      UI.Box.panel region "Go to view  ·  ⏎ jump · esc" true (fun inner ->
+        vis
+        |> Stdlib.List.indexedMap (fun p viewIdx -> (p, viewIdx))
+        |> Stdlib.List.take (inner.rows)
+        |> Stdlib.List.map (fun pair ->
       let (p, viewIdx) = pair
       let num = Stdlib.Int.toString (p + 1)
       let numPad = if Stdlib.String.length num < 2 then " " ++ num else num
       let mark = if viewIdx == state.activeView then " ◆" else ""
       let line = numPad ++ "  " ++ (viewLabel viewIdx) ++ mark
-      let styled = if p == state.pickerSelected then Colors.colorize Colors.cyan ("> " ++ line) else "  " ++ line
-      Stdlib.print ((UI.Layout.moveCursorTo (inner.top + p) (inner.left + 1)) ++ styled)))
+          let styled = if p == state.pickerSelected then Colors.colorize Colors.cyan ("> " ++ line) else "  " ++ line
+          UI.Layout.at inner p 1 styled)
+        |> Stdlib.List.flatten) ]
 
-let renderHelpOverlay (screen: UI.Layout.Region) : Unit =
+let renderHelpOverlay (screen: UI.Layout.Region) : List<UI.Layout.Span> =
   let w = Stdlib.Int.min (Stdlib.Int.max 40 (screen.cols - 4)) 70
   let rows = (Stdlib.List.length helpGroups) * 2 + 3
   let h = Stdlib.Int.min (Stdlib.Int.max 8 rows) (screen.rows - 2)
   let top = screen.top + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.rows - h)) 2)
   let left = screen.left + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.cols - w)) 2)
   let region = UI.Layout.Region { top = top; left = left; rows = h; cols = w }
-  let _ = UI.Layout.clearRegion region
-  UI.Box.panel region "Keys  ·  any key closes" true (fun inner ->
-    helpGroups
-    |> Stdlib.List.indexedMap (fun i pair -> (i, pair))
-    |> Stdlib.List.iter (fun ipair ->
-      let (i, pair) = ipair
-      let (label, keys) = pair
-      let row = inner.top + (i * 2) + 1
-      // Printed directly (moveCursorTo) so the colored label + dim keys aren't length-truncated by printAt.
-      let _ =
-        Stdlib.print ((UI.Layout.moveCursorTo row (inner.left + 1)) ++ (Colors.colorize Colors.cyan label))
-      Stdlib.print ((UI.Layout.moveCursorTo row (inner.left + 11)) ++ (Colors.dimText keys))))
+  Stdlib.List.flatten
+    [ UI.Layout.clearRegion region
+      UI.Box.panel region "Keys  ·  any key closes" true (fun inner ->
+        helpGroups
+        |> Stdlib.List.indexedMap (fun i pair -> (i, pair))
+        |> Stdlib.List.map (fun ipair ->
+          let (i, pair) = ipair
+          let (label, keys) = pair
+          let row = (i * 2) + 1
+          Stdlib.List.flatten
+            [ UI.Layout.at inner row 1 (Colors.colorize Colors.cyan label)
+              UI.Layout.at inner row 11 (Colors.dimText keys) ])
+        |> Stdlib.List.flatten) ]
 
-let renderFull (state: State) : Unit =
+let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
   // Clamp to sane minimums - mid-resize the terminal reports 0/tiny sizes; without this the region math
   // goes negative and the whole view crashes back to the prompt. A safe default renders one off frame; the
   // next keypress picks up the real size.
-  let (rawW, rawH) = Terminal.getSize ()
-  let h = if rawH < 8 then 24 else rawH
-  let w = if rawW < 24 then 80 else rawW
-  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
-  let screen = UI.Layout.Region { top = 1; left = 1; rows = h - 1; cols = w }
+  let h = if size.height < 8 then 24 else size.height
+  let w = if size.width < 24 then 80 else size.width
+  // Full height now: the last row used to be reserved for the CLI's status bar, and that's gone.
+  let screen = UI.Layout.Region { top = 1; left = 1; rows = h; cols = w }
   let path =
     if (state.activeView == vMatter) || (state.activeView == vInspect) then Packages.formatLocation state.location
     // Views that render their own body/sections (no flat item list) show just their name - "- 0 items" is a lie.
@@ -258,7 +258,7 @@ let renderFull (state: State) : Unit =
           ++ (Colors.dimText state.instanceName)
           ++ (Colors.dimText "    branch: ")
           ++ (Colors.dimText branch)
-        Stdlib.print ((UI.Layout.moveCursorTo r.top r.left) ++ line))
+        UI.Layout.at r 0 0 line)
   let tabSegs = visibleViews state |> Stdlib.List.map (fun i -> (i, viewLabel i))
   let tabbar = UI.Layout.fixedSize 1 (fun r -> Frame.renderTabBar r tabSegs state.activeView conflictCount)
   let crumb = UI.Layout.fixedSize 1 (fun r -> Frame.renderBreadcrumb r path rightColored rightVisibleLen)
@@ -303,11 +303,11 @@ let renderFull (state: State) : Unit =
                   Frame.formatHints [ ("↑↓", "move"); ("⏎", "jump"); ("esc", "close"); ("q", "quit") ]
                 else hintsForView state
         Frame.renderKeyHints r h)
-  UI.Layout.vstack screen [ context; tabbar; crumb; body; hints ]
-  let _ = if state.showHelp then renderHelpOverlay screen else ()
-  let _ = if state.viewPicker then renderViewPicker state screen else ()
-  let _ = renderCommandCompletions state screen
-  Stdlib.print "\u001b[?25h"
+  Stdlib.List.flatten
+    [ UI.Layout.vstack screen [ context; tabbar; crumb; body; hints ]
+      if state.showHelp then renderHelpOverlay screen else []
+      if state.viewPicker then renderViewPicker state screen else []
+      renderCommandCompletions state screen ]
 
 
 /// The ghost-completion suffix for the `:` command bar - the chars that would complete the current command or
@@ -343,16 +343,16 @@ let applyCompletionValue (text: String) (value: String) : String =
 /// A live dropdown of command completions anchored just above the `:` input line - the "pretty typeahead" menu
 /// from the classic prompt. Shown only while the command bar is open and there are matches. Drawn as an overlay
 /// (the full frame redraws each keystroke, so it clears itself when the bar closes).
-let renderCommandCompletions (state: State) (screen: UI.Layout.Region) : Unit =
+let renderCommandCompletions (state: State) (screen: UI.Layout.Region) : List<UI.Layout.Span> =
   match state.input with
-  | None -> ()
+  | None -> []
   | Some inp ->
     if inp.action != "command" then
-      ()
+      []
     else
       let items = commandCompletions state inp.text |> Stdlib.List.take 8
       if Stdlib.List.isEmpty items then
-        ()
+        []
       else
         let n = Stdlib.List.length items
         let boxRows = n + 2
@@ -361,31 +361,37 @@ let renderCommandCompletions (state: State) (screen: UI.Layout.Region) : Unit =
         // Full width so it fully covers the body band underneath (no bleed-through of the body's box borders).
         let region = UI.Layout.Region { top = top; left = screen.left; rows = boxRows; cols = screen.cols }
         UI.Box.panel region "complete  ·  tab to accept" true (fun inner ->
-          // Clear the interior first - this floats over the body, which would otherwise bleed through.
-          UI.Layout.clearRegion inner
-          let _ =
+          let rows =
             items
             |> Stdlib.List.indexedMap (fun i item ->
               let selected = i == state.completionSel
               let raw = (if selected then "> " else "  ") ++ item.display
               let line = if selected then Colors.colorize Colors.cyan raw else raw
-              UI.Layout.printAt inner i 0 (UI.Layout.truncateVisible line (Stdlib.Int.max 0 inner.cols)))
-          ())
+              UI.Layout.at inner i 0 line)
+            |> Stdlib.List.flatten
+          // Clear the interior first - this floats over the body, which would otherwise bleed through.
+          Stdlib.List.flatten [ UI.Layout.clearRegion inner; rows ])
 
 /// Render the workbench. Below a usable size, show an explicit "too small" hint instead of a garbled frame
 /// (per the TUI rule: degrade with a message, never render garbage). A real 0/tiny size mid-resize still falls
 /// through to renderFull's clamp, which draws one safe frame until the next keypress.
-let render (state: State) : Unit =
-  let (rawW, rawH) = Terminal.getSize ()
-  let tooSmall = (rawW >= 24 && rawW < 56) || (rawH >= 8 && rawH < 12)
-  if tooSmall then
-    Stdlib.print "[?25l[2J[H"
-    let msg = "terminal too small - resize to at least 56x12"
-    let row = Stdlib.Int.max 1 (Stdlib.Int.divide rawH 2)
-    let col = Stdlib.Int.max 1 (Stdlib.Int.divide (rawW - (Stdlib.String.length msg)) 2)
-    Stdlib.print ((UI.Layout.moveCursorTo row col) ++ (Colors.dimText msg))
-  else
-    renderFull state
+let viewAtSize (state: State) (size: Tui.Size) : Tui.View =
+  let tooSmall =
+    (size.width >= 24 && size.width < 56) || (size.height >= 8 && size.height < 12)
+
+  let spans =
+    if tooSmall then
+      let msg = "terminal too small - resize to at least 56x12"
+      let screen =
+        UI.Layout.Region { top = 1; left = 1; rows = size.height; cols = size.width }
+      let row = Stdlib.Int.max 0 (Stdlib.Int.divide size.height 2)
+      let col =
+        Stdlib.Int.max 0 (Stdlib.Int.divide (size.width - (Tui.Text.displayWidth msg)) 2)
+      UI.Layout.at screen row col (Colors.dimText msg)
+    else
+      renderFull state size
+
+  UI.Canvas.toView size spans
 
 
 // ── Key handling ──

@@ -16,8 +16,8 @@ let viewName (i: Int) : String =
 /// show - labels are resolved by the caller so the frame needn't know about extension views (some views, e.g.
 /// Devices, are opt-in and hidden). `active` is the active view index, rendered bright with a ◆ marker, the
 /// rest dim. When `conflictCount` > 0, the SCM tab carries a red count badge so an attention state is visible
-/// from any view. Printed directly (color codes would confuse printAt's width math).
-let renderTabBar (region: UI.Layout.Region) (visible: List<(Int * String)>) (active: Int) (conflictCount: Int) : Unit =
+/// from any view.
+let renderTabBar (region: UI.Layout.Region) (visible: List<(Int * String)>) (active: Int) (conflictCount: Int) : List<UI.Layout.Span> =
   let segs =
     visible
     |> Stdlib.List.map (fun pair ->
@@ -33,8 +33,7 @@ let renderTabBar (region: UI.Layout.Region) (visible: List<(Int * String)>) (act
         (Colors.colorize Colors.dim name) ++ (Colors.colorize Colors.pink (" ⚠" ++ Stdlib.Int.toString conflictCount))
       else
         Colors.colorize Colors.dim name)
-  let bar = "  " ++ (Stdlib.String.join segs "   ")
-  Stdlib.print ((UI.Layout.moveCursorTo region.top region.left) ++ bar)
+  UI.Layout.at region 0 0 ("  " ++ (Stdlib.String.join segs "   "))
 
 /// Render the breadcrumb row: the current package path on the left, and a pre-built right segment (branch +
 /// sync status) right-aligned. `rightColored` is the ANSI-colored text; `rightVisibleLen` is its visible width
@@ -44,11 +43,11 @@ let renderBreadcrumb
   (path: String)
   (rightColored: String)
   (rightVisibleLen: Int)
-  : Unit =
-  let left = "  " ++ (Colors.boldText path)
-  Stdlib.print ((UI.Layout.moveCursorTo region.top region.left) ++ left)
-  let rightCol = Stdlib.Int.max region.left (region.left + region.cols - rightVisibleLen - 2)
-  Stdlib.print ((UI.Layout.moveCursorTo region.top rightCol) ++ rightColored)
+  : List<UI.Layout.Span> =
+  let rightCol = Stdlib.Int.max 0 (region.cols - rightVisibleLen - 2)
+  Stdlib.List.flatten
+    [ UI.Layout.at region 0 0 ("  " ++ (Colors.boldText path))
+      UI.Layout.at region 0 rightCol rightColored ]
 
 /// Format a list of (key, label) hints into a footer string: the key bright (cyan), the label dim, pairs
 /// separated by three dim spaces (kept plain so a footer full of hints doesn't clip on a narrow terminal).
@@ -62,5 +61,5 @@ let formatHints (pairs: List<(String * String)>) : String =
 
 /// Render a one-row, pre-colored key-hint bar at the bottom of the body. The string is already styled
 /// (see `formatHints`), so this just indents + places it.
-let renderKeyHints (region: UI.Layout.Region) (hints: String) : Unit =
-  Stdlib.print ((UI.Layout.moveCursorTo region.top region.left) ++ "  " ++ hints)
+let renderKeyHints (region: UI.Layout.Region) (hints: String) : List<UI.Layout.Span> =
+  UI.Layout.at region 0 0 ("  " ++ hints)

@@ -17,95 +17,55 @@ type Region =
     rows: Int
     cols: Int }
 
+/// Text to place at a zero-based terminal position. `Canvas` paints these onto a grid of rows.
+type Span =
+  { row: Int
+    col: Int
+    text: String }
+
 /// A renderable component that can negotiate its size.
+///
+/// `render` returns spans rather than printing. That's what lets a frame be compared against the previous
+/// one and drawn as a handful of row rewrites instead of a clear plus a few hundred writes.
 type Component =
   { sizeRequest: Unit -> SizeRequest
-    render: Region -> Unit }
+    render: Region -> List<Span> }
 
 
 // --- Rendering primitives ---
 
-/// Truncate a string to `maxVisible` *visible* columns, preserving ANSI SGR escape sequences (which have zero
-/// width) so a syntax-highlighted line can be cut to fit without slicing through a color code. Appends a reset
-/// so color never bleeds past the cut. A string with no escapes is a plain slice.
-let truncateVisible (s: String) (maxVisible: Int) : String =
-  let esc = ""
-  if Stdlib.Bool.not (Stdlib.String.contains s esc) then
-    if Stdlib.String.length s > maxVisible then Stdlib.String.slice s 0 maxVisible else s
-  else
-    // Split on ESC: part 0 is leading plain text; every later part is "[…m<text>" (an SGR code + text).
-    let folded =
-      Stdlib.String.split s esc
-      |> Stdlib.List.indexedMap (fun i p -> (i, p))
-      |> Stdlib.List.fold
-           (maxVisible, "")
-           (fun acc pair ->
-             let (rem, out) = acc
-             let (i, p) = pair
-             if i == 0 then
-               let take = if Stdlib.String.length p > rem then rem else Stdlib.String.length p
-               (rem - take, out ++ (Stdlib.String.slice p 0 take))
-             else
-               match Stdlib.String.indexOf p "m" with
-               | Some idx ->
-                 let seq = esc ++ (Stdlib.String.slice p 0 (idx + 1))
-                 let text = Stdlib.String.slice p (idx + 1) (Stdlib.String.length p)
-                 let take = if Stdlib.String.length text > rem then rem else Stdlib.String.length text
-                 (rem - take, out ++ seq ++ (Stdlib.String.slice text 0 take))
-               | None ->
-                 let take = if Stdlib.String.length p > rem then rem else Stdlib.String.length p
-                 (rem - take, out ++ (Stdlib.String.slice p 0 take)))
-    let (_rem, out) = folded
-    out ++ "[0m"
-
-/// Move the cursor to an absolute (row, col). One-based, as terminals count.
+/// Place text at `(row, col)` within a region, clipped to what the region can hold.
 ///
-/// LEGACY. This used to live in `Colors`, which is now SGR-only: the Tui renderer is the one place allowed to
-/// move the cursor, clear, or switch screens, so that dynamic content can't corrupt the terminal and so frames
-/// can be diffed instead of repainted. This module is the last holdout — it paints by absolute positioning
-/// rather than by returning rows — and it keeps the primitive locally so the rest of the tree stays clean.
-/// It goes away with the rest of this module when the workbench moves to `Tui.View`. Don't reach for it from
-/// new code; build a `List<String>` of rows instead.
-let moveCursorTo (row: Int) (col: Int) : String =
-  $"[{Stdlib.Int.toString row};{Stdlib.Int.toString col}H"
-
-/// Move cursor to a position and print a string, truncated to fit the region.
-let printAt (region: Region) (row: Int) (col: Int) (text: String) : Unit =
-  if row >= 0 && row < region.rows then
-    let absRow = region.top + row
-    let absCol = region.left + col
-    let maxLen = Stdlib.Int.max 0 (region.cols - col)
-    let truncated =
-      if Stdlib.String.length text > maxLen then
-        Stdlib.String.slice text 0 maxLen
-      else
-        text
-    // One write, not two — fewer syscalls per frame (the workbench draws hundreds of these).
-    Stdlib.print ((moveCursorTo absRow absCol) ++ truncated)
+/// Replaces the old `printAt` / `printAtVisible` pair. There's no longer a fast-but-wrong variant: clipping
+/// goes through `Tui.Text`, which counts terminal columns and leaves SGR sequences alone, so a coloured or
+/// wide-glyph row is measured correctly. The old `printAt` used `String.length`, which counts characters, so
+/// any CJK or emoji content pushed the rest of its row sideways.
+let at (region: Region) (row: Int) (col: Int) (text: String) : List<Span> =
+  if row >= 0 && row < region.rows && col >= 0 && col < region.cols then
+    [ Span
+        { row = region.top + row - 1
+          col = region.left + col - 1
+          text =
+            // Clipping is native but not free; most spans already fit, and measuring is one call.
+            let room = Stdlib.Int.max 0 (region.cols - col)
+            if Tui.Text.styledWidth text <= room then text
+            else Tui.Text.clipToWidth text room } ]
   else
-    ()
+    []
 
-/// Like `printAt`, but truncates by VISIBLE width (ANSI-aware) so a pre-colored line isn't clipped through its
-/// escape codes and left with color bleeding past the cut. Slower than `printAt` (it scans for escapes), so use
-/// it only for lines that actually carry color spans, not the hot per-row path.
-let printAtVisible (region: Region) (row: Int) (col: Int) (text: String) : Unit =
-  if row >= 0 && row < region.rows then
-    let absRow = region.top + row
-    let absCol = region.left + col
-    let maxLen = Stdlib.Int.max 0 (region.cols - col)
-    Stdlib.print ((moveCursorTo absRow absCol) ++ (truncateVisible text maxLen))
-  else
-    ()
 
 /// Fill a row with a repeated character, within the region.
-let fillRow (region: Region) (row: Int) (ch: String) : Unit =
-  let line = Stdlib.String.repeat ch region.cols
-  printAt region row 0 line
+let fillRow (region: Region) (row: Int) (ch: String) : List<Span> =
+  at region row 0 (Stdlib.String.repeat ch region.cols)
 
-/// Fill the entire region with spaces (clear it).
-let clearRegion (region: Region) : Unit =
+/// Blank the whole region.
+///
+/// Still emits spaces rather than nothing: a composed frame starts blank, but a region drawn *over* other
+/// content (an overlay) has to actually erase what's under it.
+let clearRegion (region: Region) : List<Span> =
   (Stdlib.List.range 0 (region.rows - 1))
-  |> Stdlib.List.iter (fun row -> fillRow region row " ")
+  |> Stdlib.List.map (fun row -> fillRow region row " ")
+  |> Stdlib.List.flatten
 
 
 // --- Layout negotiation ---
@@ -144,7 +104,7 @@ let distributeRows (totalRows: Int) (requests: List<SizeRequest>) : List<Int> =
 
 /// Stack components vertically within a region.
 /// Negotiates row distribution based on size requests.
-let vstack (region: Region) (components: List<Component>) : Unit =
+let vstack (region: Region) (components: List<Component>) : List<Span> =
   let requests = Stdlib.List.map components (fun c -> c.sizeRequest ())
   let rowAllocs = distributeRows region.rows requests
   // Assign regions and render
@@ -152,9 +112,10 @@ let vstack (region: Region) (components: List<Component>) : Unit =
     (Stdlib.List.map2 components rowAllocs (fun c rows ->
       (c, rows)))
     |> Stdlib.Option.withDefault []
-  let _finalTop =
+  let (_finalTop, spans) =
     pairs
-    |> Stdlib.List.fold region.top (fun currentTop pair ->
+    |> Stdlib.List.fold (region.top, []) (fun acc pair ->
+      let (currentTop, collected) = acc
       let (c, rows) = pair
       let childRegion =
         Region
@@ -162,26 +123,25 @@ let vstack (region: Region) (components: List<Component>) : Unit =
             left = region.left
             rows = rows
             cols = region.cols }
-      c.render childRegion
-      currentTop + rows)
-  ()
+      (currentTop + rows, Stdlib.List.append collected (c.render childRegion)))
+  spans
 
 /// A fixed-height component: always requests exactly N rows.
-let fixedSize (n: Int) (renderFn: Region -> Unit) : Component =
+let fixedSize (n: Int) (renderFn: Region -> List<Span>) : Component =
   Component
     { sizeRequest = fun () ->
         SizeRequest { minRows = n; minCols = 0; preferredRows = n; preferredCols = 0 }
       render = renderFn }
 
 /// A flexible component: needs at least `min` rows, prefers `preferred`.
-let flex (min: Int) (preferred: Int) (renderFn: Region -> Unit) : Component =
+let flex (min: Int) (preferred: Int) (renderFn: Region -> List<Span>) : Component =
   Component
     { sizeRequest = fun () ->
         SizeRequest { minRows = min; minCols = 0; preferredRows = preferred; preferredCols = 0 }
       render = renderFn }
 
 /// A greedy component: wants all available space, min 1 row.
-let greedy (renderFn: Region -> Unit) : Component =
+let greedy (renderFn: Region -> List<Span>) : Component =
   Component
     { sizeRequest = fun () ->
         SizeRequest { minRows = 1; minCols = 0; preferredRows = 999; preferredCols = 0 }
@@ -219,15 +179,16 @@ let distributeCols (totalCols: Int) (requests: List<SizeRequest>) : List<Int> =
 
 /// Place components side by side within a region.
 /// Negotiates column distribution based on size requests.
-let hstack (region: Region) (components: List<Component>) : Unit =
+let hstack (region: Region) (components: List<Component>) : List<Span> =
   let requests = Stdlib.List.map components (fun c -> c.sizeRequest ())
   let colAllocs = distributeCols region.cols requests
   let pairs =
     (Stdlib.List.map2 components colAllocs (fun c cols -> (c, cols)))
     |> Stdlib.Option.withDefault []
-  let _finalLeft =
+  let (_finalLeft, spans) =
     pairs
-    |> Stdlib.List.fold region.left (fun currentLeft pair ->
+    |> Stdlib.List.fold (region.left, []) (fun acc pair ->
+      let (currentLeft, collected) = acc
       let (c, cols) = pair
       let childRegion =
         Region
@@ -235,26 +196,25 @@ let hstack (region: Region) (components: List<Component>) : Unit =
             left = currentLeft
             rows = region.rows
             cols = cols }
-      c.render childRegion
-      currentLeft + cols)
-  ()
+      (currentLeft + cols, Stdlib.List.append collected (c.render childRegion)))
+  spans
 
 /// A fixed-width component: always requests exactly N cols; fills the region's height.
-let fixedWidth (n: Int) (renderFn: Region -> Unit) : Component =
+let fixedWidth (n: Int) (renderFn: Region -> List<Span>) : Component =
   Component
     { sizeRequest = fun () ->
         SizeRequest { minRows = 1; minCols = n; preferredRows = 999; preferredCols = n }
       render = renderFn }
 
 /// A flexible-width component: needs at least `min` cols, prefers `preferred`.
-let flexWidth (min: Int) (preferred: Int) (renderFn: Region -> Unit) : Component =
+let flexWidth (min: Int) (preferred: Int) (renderFn: Region -> List<Span>) : Component =
   Component
     { sizeRequest = fun () ->
         SizeRequest { minRows = 1; minCols = min; preferredRows = 999; preferredCols = preferred }
       render = renderFn }
 
 /// A greedy-width component: wants all available width, min 1 col.
-let greedyWidth (renderFn: Region -> Unit) : Component =
+let greedyWidth (renderFn: Region -> List<Span>) : Component =
   Component
     { sizeRequest = fun () ->
         SizeRequest { minRows = 1; minCols = 1; preferredRows = 999; preferredCols = 999 }

@@ -21,10 +21,10 @@ let render
   (firstPct: Int)
   (focused: Focus)
   (titleFirst: String)
-  (renderFirst: Layout.Region -> Unit)
+  (renderFirst: Layout.Region -> List<Layout.Span>)
   (titleSecond: String)
-  (renderSecond: Layout.Region -> Unit)
-  : Unit =
+  (renderSecond: Layout.Region -> List<Layout.Span>)
+  : List<Layout.Span> =
   let firstFocused = focused == Focus.First
   let minTotal = 46
 
@@ -38,8 +38,7 @@ let render
     let (title, renderFn) =
       if firstFocused then (titleFirst ++ " ‹1/2›", renderFirst)
       else (titleSecond ++ " ‹2/2›", renderSecond)
-    let innerRegion = Box.draw region title true
-    renderFn innerRegion
+    Box.panel region title true renderFn
   else
     match orientation with
     | Horizontal ->
@@ -49,8 +48,9 @@ let render
         Layout.Region { top = region.top; left = region.left; rows = region.rows; cols = firstCols }
       let secondRegion =
         Layout.Region { top = region.top; left = region.left + firstCols; rows = region.rows; cols = secondCols }
-      renderFirst (Box.draw firstRegion titleFirst firstFocused)
-      renderSecond (Box.draw secondRegion titleSecond (Stdlib.Bool.not firstFocused))
+      Stdlib.List.flatten
+        [ Box.panel firstRegion titleFirst firstFocused renderFirst
+          Box.panel secondRegion titleSecond (Stdlib.Bool.not firstFocused) renderSecond ]
     | Vertical ->
       let firstRows = Stdlib.Int.divide (region.rows * firstPct) 100
       let secondRows = region.rows - firstRows
@@ -58,8 +58,9 @@ let render
         Layout.Region { top = region.top; left = region.left; rows = firstRows; cols = region.cols }
       let secondRegion =
         Layout.Region { top = region.top + firstRows; left = region.left; rows = secondRows; cols = region.cols }
-      renderFirst (Box.draw firstRegion titleFirst firstFocused)
-      renderSecond (Box.draw secondRegion titleSecond (Stdlib.Bool.not firstFocused))
+      Stdlib.List.flatten
+        [ Box.panel firstRegion titleFirst firstFocused renderFirst
+          Box.panel secondRegion titleSecond (Stdlib.Bool.not firstFocused) renderSecond ]
 
 
 /// Toggle focus between the two panes (Tab handler helper).

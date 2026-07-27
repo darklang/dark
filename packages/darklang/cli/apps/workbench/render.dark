@@ -11,9 +11,9 @@ let iconFor (item: BodyItem) : String =
     | "type" -> "#"
     | _ -> "•"
 
-let renderTreeList (state: State) (region: UI.Layout.Region) : Unit =
+let renderTreeList (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   if Stdlib.List.isEmpty state.items then
-    UI.Layout.printAt region 1 2 (Colors.dimText "(no items here)")
+    UI.Layout.at region 1 2 (Colors.dimText "(no items here)")
   else
     // Per-row badges (Matter tree, non-values lens only): a pink ● for items edited-but-not-committed, and a
     // yellow ⚠ for items deprecated-but-still-shown (deprecated-and-referenced, so they survive the visibility
@@ -239,7 +239,7 @@ let renderScrollableLines
   (lines: List<String>)
   (display: List<String>)
   (scroll: Int)
-  : Unit =
+  : List<UI.Layout.Span> =
   let len = Stdlib.List.length lines
   let off = Stdlib.Int.min scroll (Stdlib.Int.max 0 (len - 1))
   let maxFit = Stdlib.Int.max 0 (region.cols - 1)
@@ -247,13 +247,14 @@ let renderScrollableLines
   |> Stdlib.List.indexedMap (fun i l -> (i, l))
   |> Stdlib.List.drop off
   |> Stdlib.List.take region.rows
-  |> Stdlib.List.iter (fun pair ->
+  |> Stdlib.List.map (fun pair ->
     let (i, p) = pair
     let row = i - off
     let disp = Stdlib.List.getAt display i |> Stdlib.Option.withDefault p
-    Stdlib.print ((UI.Layout.moveCursorTo (region.top + row) (region.left + colOffset)) ++ (UI.Layout.truncateVisible disp maxFit)))
+    UI.Layout.at region row colOffset (Tui.Text.clipToWidth disp maxFit))
+  |> Stdlib.List.flatten
 
-let renderPreview (state: State) (region: UI.Layout.Region) : Unit =
+let renderPreview (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   let plain = previewLines state
   // Syntax-highlight the code previews (Inspect source, Changes WIP source). Docs/History-summary/Resolve
   // aren't code, so they stay plain. Highlighting emits ANSI; printAt truncates by raw length, so we only
@@ -279,7 +280,7 @@ let plural (n: Int) (noun: String) : String =
 /// Home, the landing dashboard. A header band over two columns of boxed panels (Status + Pick-up-where-you-
 /// left-off on the left; Your Matter + Jump on the right), so the screen is used and the things a Dark dev
 /// actually lands wanting (am I in a good state, what was I doing, what's here, where do I go) each get a home.
-let renderHome (state: State) (region: UI.Layout.Region) : Unit =
+let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   let wip = SCM.PackageOps.getWipSummary state.branchId
   let commits = SCM.PackageOps.getCommitCount state.branchId
   let rootItems = loadItems state.branchId (Packages.PackageLocation.Module [])
@@ -294,50 +295,53 @@ let renderHome (state: State) (region: UI.Layout.Region) : Unit =
     | None -> "no commits yet"
   let owner = if state.accountName == "" then "there" else state.accountName
 
-  let renderHeader (r: UI.Layout.Region) : Unit =
-    UI.Layout.printAt r 0 2 (Colors.boldText ($"Welcome back, {owner}"))
-    UI.Layout.printAt r 1 2 (Colors.dimText ($"on {branch}  ·  a workbench over Dark Matter"))
+  let renderHeader (r: UI.Layout.Region) : List<UI.Layout.Span> =
+    Stdlib.List.flatten
+      [ UI.Layout.at r 0 2 (Colors.boldText ($"Welcome back, {owner}"))
+        UI.Layout.at r 1 2 (Colors.dimText ($"on {branch}  ·  a workbench over Dark Matter")) ]
 
-  let renderStatus (inner: UI.Layout.Region) : Unit =
+  let renderStatus (inner: UI.Layout.Region) : List<UI.Layout.Span> =
     let wipLine =
       if wip.total == 0 then Colors.colorize Colors.green "✓ working tree clean"
       else Colors.colorize Colors.pink (plural wip.total "uncommitted change")
     let syncLine =
       if conflictCount == 0 then Colors.dimText "✓ in sync"
       else Colors.colorize Colors.pink ("⚠ " ++ (plural conflictCount "divergence") ++ "  ·  5 › Conflicts")
-    UI.Layout.printAt inner 0 1 wipLine
-    UI.Layout.printAt inner 1 1 (Colors.dimText (plural commits "commit" ++ " on this branch"))
-    UI.Layout.printAt inner 2 1 (Colors.dimText ("last: " ++ lastCommit))
-    UI.Layout.printAt inner 3 1 syncLine
+    Stdlib.List.flatten
+      [ UI.Layout.at inner 0 1 wipLine
+        UI.Layout.at inner 1 1 (Colors.dimText (plural commits "commit" ++ " on this branch"))
+        UI.Layout.at inner 2 1 (Colors.dimText ("last: " ++ lastCommit))
+        UI.Layout.at inner 3 1 syncLine ]
 
-  let renderWip (inner: UI.Layout.Region) : Unit =
+  let renderWip (inner: UI.Layout.Region) : List<UI.Layout.Span> =
     if wip.total == 0 then
-      UI.Layout.printAt inner 0 1 (Colors.dimText "nothing in progress - the tree is yours to edit")
+      UI.Layout.at inner 0 1 (Colors.dimText "nothing in progress - the tree is yours to edit")
     else
-      let _ =
-        SCM.PackageOps.getWipItems state.branchId
-        |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
-        |> Stdlib.List.indexedMap (fun i d ->
-          let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
-          // Pink ● is the "uncommitted work" marker everywhere (matches the tree WIP badge); keep it consistent.
-          UI.Layout.printAt inner i 1 (Colors.colorize Colors.pink ("● " ++ name)))
-      ()
+      SCM.PackageOps.getWipItems state.branchId
+      |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
+      |> Stdlib.List.indexedMap (fun i d ->
+        let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
+        // Pink ● is the "uncommitted work" marker everywhere (matches the tree WIP badge); keep it consistent.
+        UI.Layout.at inner i 1 (Colors.colorize Colors.pink ("● " ++ name)))
+      |> Stdlib.List.flatten
 
-  let renderMatterPanel (inner: UI.Layout.Region) : Unit =
-    UI.Layout.printAt inner 0 1 (Colors.dimText (plural (Stdlib.List.length rootItems) "top-level owner"))
-    let _ =
+  let renderMatterPanel (inner: UI.Layout.Region) : List<UI.Layout.Span> =
+    let owners =
       rootItems
       |> Stdlib.List.take (Stdlib.Int.max 1 (inner.rows - 1))
       |> Stdlib.List.indexedMap (fun i it ->
-        UI.Layout.printAt inner (i + 1) 1 (Colors.colorize Colors.cyan ("🗂 " ++ it.name)))
-    ()
+        UI.Layout.at inner (i + 1) 1 (Colors.colorize Colors.cyan ("🗂 " ++ it.name)))
+      |> Stdlib.List.flatten
+    Stdlib.List.flatten
+      [ UI.Layout.at inner 0 1 (Colors.dimText (plural (Stdlib.List.length rootItems) "top-level owner"))
+        owners ]
 
   // The commands you'll actually reach for, as a landing reference. One cyan span per row (the command), plain
   // descriptions. Printed via printAtVisible so the cyan spans don't count toward the width and get clipped on
   // narrow terminals. The `:` bar runs any of these with autocomplete (see 6.B).
-  let renderCommands (inner: UI.Layout.Region) : Unit =
+  let renderCommands (inner: UI.Layout.Region) : List<UI.Layout.Span> =
     let cy = fun t -> Colors.colorize Colors.cyan t
-    let _ =
+    let rows =
       [ (cy "fn / type / val") ++ "   create functions, types, values in the tree"
         (cy "eval <expr>") ++ "       evaluate, or run a fn:  eval MyMod.myFn 1 2"
         (cy "commit \"msg\"") ++ "      save to SCM  ·  status shows what changed"
@@ -348,10 +352,11 @@ let renderHome (state: State) (region: UI.Layout.Region) : Unit =
         ""
         (cy ":commands") ++ "  the old command-prompt mode (quit there returns here)" ]
       |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
-      |> Stdlib.List.indexedMap (fun i l -> UI.Layout.printAtVisible inner i 1 l)
-    ()
+      |> Stdlib.List.indexedMap (fun i l -> UI.Layout.at inner i 1 l)
+      |> Stdlib.List.flatten
+    rows
 
-  let leftCol (r: UI.Layout.Region) : Unit =
+  let leftCol (r: UI.Layout.Region) : List<UI.Layout.Span> =
     UI.Layout.vstack
       r
       [ UI.Layout.fixedSize 6 (fun rr -> UI.Box.panel rr "Status" false renderStatus)
@@ -369,7 +374,7 @@ let renderHome (state: State) (region: UI.Layout.Region) : Unit =
         UI.Box.panel rr "Commands  ·  press : to run" false renderCommands) ]
 
 /// A full-body scrollable reader (Docs topic content, etc.).
-let renderReading (content: String) (isCode: Bool) (scroll: Int) (region: UI.Layout.Region) : Unit =
+let renderReading (content: String) (isCode: Bool) (scroll: Int) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   let plain = Stdlib.String.split content "\n"
   // Highlight code readers (Tree-leaf / Changes source); ANSI-aware truncate keeps color even when a line
   // overflows the width. Non-code content stays plain.
@@ -387,14 +392,14 @@ let boxedLines
   (region: UI.Layout.Region)
   (title: String)
   (lines: List<String>)
-  : Unit =
+  : List<UI.Layout.Span> =
   UI.Box.panel region title true (fun inner ->
     lines
     |> Stdlib.List.indexedMap (fun i l -> (i, l))
-    |> Stdlib.List.iter (fun pair ->
+    |> Stdlib.List.map (fun pair ->
       let (i, l) = pair
-      // Lines here are pre-colored (Devices/Calendar/Builtins), so truncate by visible width, not raw length.
-      if i < inner.rows then UI.Layout.printAtVisible inner (i + 1) 1 l))
+      if i < inner.rows then UI.Layout.at inner (i + 1) 1 l else [])
+    |> Stdlib.List.flatten)
 
 /// A list+preview view (the IDE three-panel shape): the list on the dominant left pane, a scrollable preview of
 /// the selected item on the right. Tab toggles focus; the preview scrolls when focused. Falls back to a single
@@ -405,12 +410,12 @@ let splitListPreview
   (leftTitle: String)
   (previewTitle: String)
   (emptyMsg: String)
-  : Unit =
+  : List<UI.Layout.Span> =
   if Stdlib.List.isEmpty state.items then
     let msg =
       if state.filter == "" then emptyMsg
       else Colors.dimText ("no matches for filter: " ++ state.filter ++ "   (f to change)")
-    UI.Box.panel region leftTitle true (fun inner -> UI.Layout.printAt inner 1 1 msg)
+    UI.Box.panel region leftTitle true (fun inner -> UI.Layout.at inner 1 1 msg)
   else
     // Surface an active filter right in the list title (plain text - the box does width math on it) so a
     // narrowed list never looks like the whole set.
@@ -430,17 +435,17 @@ let splitListPreview
 
 /// A "tab  [Active]   Other   Other" section switcher at `row` within the region: the active section bright in
 /// brackets, the rest dim. Shared by the SCM (Changes/History/Conflicts/Branches) and AI (Agents/Prompts) views.
-let renderSectionSwitcher (region: UI.Layout.Region) (row: Int) (sections: List<String>) (active: Int) : Unit =
+let renderSectionSwitcher (region: UI.Layout.Region) (row: Int) (sections: List<String>) (active: Int) : List<UI.Layout.Span> =
   let secLine =
     sections
     |> Stdlib.List.indexedMap (fun i s ->
       if i == active then Colors.colorize (Colors.bold ++ Colors.cyan) ("[" ++ s ++ "]")
       else Colors.dimText (" " ++ s ++ " "))
     |> Stdlib.String.join "  "
-  Stdlib.print ((UI.Layout.moveCursorTo (region.top + row) region.left) ++ "  " ++ (Colors.dimText "tab") ++ "  " ++ secLine)
+  UI.Layout.at region row 0 ("  " ++ (Colors.dimText "tab") ++ "  " ++ secLine)
 
 /// The SCM status header - the always-true summary of Dark Matter's state on this branch.
-let renderScmHeader (state: State) (region: UI.Layout.Region) : Unit =
+let renderScmHeader (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   let branchOpt = SCM.Branch.get state.branchId
   let branch = match branchOpt with | Some b -> b.name | None -> "main"
   let parent =
@@ -466,13 +471,14 @@ let renderScmHeader (state: State) (region: UI.Layout.Region) : Unit =
   let sep = Colors.dimText "     "
   let line2 =
     "  " ++ wipPart ++ sep ++ (Colors.dimText (plural commits "commit")) ++ sep ++ confPart ++ sep ++ syncPart
-  let _ = Stdlib.print ((UI.Layout.moveCursorTo region.top region.left) ++ line1)
-  Stdlib.print ((UI.Layout.moveCursorTo (region.top + 1) region.left) ++ line2)
+  Stdlib.List.flatten
+    [ UI.Layout.at region 0 0 line1
+      UI.Layout.at region 1 0 line2 ]
 
 /// The SCM view: the status header, a section switcher (Changes / History / Conflicts, cycled by Tab), and
 /// the active section's list + detail. One home for the state of Dark Matter and its version control; conflict
 /// resolution lives here. The ahead/behind glance is in the header (setup + cross-instance health live in Devices).
-let renderScm (state: State) (region: UI.Layout.Region) : Unit =
+let renderScm (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   let headerRows = 4
   let headerRegion = UI.Layout.Region { top = region.top; left = region.left; rows = 2; cols = region.cols }
   let _ = renderScmHeader state headerRegion
@@ -541,7 +547,7 @@ let pipeSteps (state: State) (text: String) : List<(String * String)> =
 /// The REPL view: a persistent eval log on the left, a live-values sidebar on the right. ⏎ evaluates and
 /// appends to the log. The sidebar steps through a pipe chain's values (faked - see `pipeSteps`); for a
 /// non-pipe it echoes the single result and names what a real resumable interpreter would add.
-let renderRepl (state: State) (region: UI.Layout.Region) : Unit =
+let renderRepl (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   UI.SplitPane.render
     region
     UI.SplitPane.Orientation.Horizontal
@@ -567,7 +573,8 @@ let renderRepl (state: State) (region: UI.Layout.Region) : Unit =
       |> Stdlib.List.indexedMap (fun i l -> (i, l))
       |> Stdlib.List.iter (fun p ->
         let (i, l) = p
-        Stdlib.print ((UI.Layout.moveCursorTo (inner.top + i) (inner.left + 1)) ++ (UI.Layout.truncateVisible l (Stdlib.Int.max 0 (inner.cols - 1))))))
+        UI.Layout.at inner i 1 l)
+      |> Stdlib.List.flatten)
     "Live values"
     (fun inner ->
       let lines =
@@ -605,7 +612,8 @@ let renderRepl (state: State) (region: UI.Layout.Region) : Unit =
       |> Stdlib.List.take inner.rows
       |> Stdlib.List.iter (fun p ->
         let (i, l) = p
-        Stdlib.print ((UI.Layout.moveCursorTo (inner.top + i) (inner.left + 1)) ++ (UI.Layout.truncateVisible l (Stdlib.Int.max 0 (inner.cols - 1))))))
+        UI.Layout.at inner i 1 l)
+      |> Stdlib.List.flatten)
 
 /// Real config (from cli-config.json) as (key, value) pairs - backs the Devices "Configuration" section and
 /// the `c` reader. This is the actual persisted config, not mock.
@@ -641,7 +649,7 @@ let deviceConfigText () : String =
 /// The Devices view: instances and how they sync. Discovery-mechanism-agnostic (no tailscale branding). Setup
 /// + cross-instance sync health live here; conflict resolution links over to SCM. Instance identity + config
 /// are real (from cli-config.json); the peers/branch-sync feed is mock until the sync backend feeds it.
-let renderDevices (state: State) (region: UI.Layout.Region) : Unit =
+let renderDevices (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   let branch =
     match SCM.Branch.get state.branchId with
     | Some b -> b.name
@@ -677,7 +685,7 @@ let renderDevices (state: State) (region: UI.Layout.Region) : Unit =
 
 /// The AI view: agents dark is running (preview data for now) with a thread detail. `a` asks the agent.
 /// Prompts library + real managed-agent state come later.
-let renderAI (state: State) (region: UI.Layout.Region) : Unit =
+let renderAI (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   // Section switcher (Agents / Prompts), Tab cycles it - same shape as SCM's.
   let _ = renderSectionSwitcher region 0 [ "Agents"; "Prompts" ] state.aiSection
   let bodyRegion =
@@ -693,7 +701,7 @@ let renderAI (state: State) (region: UI.Layout.Region) : Unit =
 
 /// The Calendar view (mock) - a month grid over cron fire-times + date-typed values, with today's agenda. A
 /// personal, login-gated view; greenfield, so this is a stand-in for the real system to come.
-let renderCalendar (state: State) (region: UI.Layout.Region) : Unit =
+let renderCalendar (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   let hdr = fun t -> Colors.colorize (Colors.bold ++ Colors.cyan) t
   let today = Colors.colorize (Colors.bold ++ Colors.cyan) "[24]"
   boxedLines
@@ -720,10 +728,10 @@ let renderCalendar (state: State) (region: UI.Layout.Region) : Unit =
 // arms of itemsForView / previewLines / renderViewBody / hintsForView). Adding a view = one row in
 // `extensionViews` + its handful of small fns above. No edits to the core, the tab bar, or the gating.
 
-let renderErrors (state: State) (region: UI.Layout.Region) : Unit =
+let renderErrors (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   splitListPreview state region "Errors" "Detail" (Colors.colorize Colors.green "✓ all clear - no errors")
 
-let renderCrons (state: State) (region: UI.Layout.Region) : Unit =
+let renderCrons (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   splitListPreview state region "Crons" "Detail" (Colors.dimText "no crons yet - declare a Darklang.Cron value")
 
 // Extension views have no custom key handler yet, so their footers advertise only the keys that actually work
@@ -738,7 +746,7 @@ let cronHints (state: State) : List<(String * String)> =
 let calendarHints (state: State) : List<(String * String)> =
   []
 
-let renderBuiltins (state: State) (region: UI.Layout.Region) : Unit =
+let renderBuiltins (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   splitListPreview state region "Builtins" "Signature" (Colors.dimText "(no builtins)")
 
 let builtinHints (state: State) : List<(String * String)> =

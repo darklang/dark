@@ -21,31 +21,56 @@
 module Darklang.Cli.Apps.Workbench.App
 
 
-let makeSubApp (state: State) : Darklang.Cli.SubApp =
+/// A running workbench and the terminal session presenting it.
+type Session =
+  { state: State
+    terminal: Darklang.Cli.Tui.TerminalSession.State }
+
+
+/// Present the next state, keeping the renderer's history so only changed rows are written.
+let presentState (session: Session) (state: State) : Session =
+  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+  let terminal =
+    Darklang.Cli.Tui.TerminalSession.presentAtSize
+      session.terminal
+      size
+      (viewAtSize state size)
+  Session { state = state; terminal = terminal }
+
+
+let makeSubApp (session: Session) : Darklang.Cli.SubApp =
   Darklang.Cli.SubApp
     { onKey =
         fun key modifiers keyChar ->
-          match handleKey state key modifiers keyChar with
-          | Continue s -> (Darklang.Cli.SubAppAction.Continue, makeSubApp s)
-          | Exit s -> (Darklang.Cli.SubAppAction.Exit, makeSubApp s)
+          match handleKey session.state key modifiers keyChar with
+          | Continue s ->
+            (Darklang.Cli.SubAppAction.Continue, makeSubApp (presentState session s))
+          | Exit s ->
+            (Darklang.Cli.SubAppAction.Exit, makeSubApp (Session { state = s; terminal = session.terminal }))
           // Hand off to a foreground command; the CLI returns to this workbench (state s) when it exits.
-          | Launch(s, cmd) -> (Darklang.Cli.SubAppAction.LaunchCommand cmd, makeSubApp s)
-          | ToPrompt s -> (Darklang.Cli.SubAppAction.LaunchPrompt, makeSubApp s)
-      onDisplay = fun () -> render state
+          | Launch(s, cmd) ->
+            (Darklang.Cli.SubAppAction.LaunchCommand cmd, makeSubApp (Session { state = s; terminal = session.terminal }))
+          | ToPrompt s ->
+            (Darklang.Cli.SubAppAction.LaunchPrompt, makeSubApp (Session { state = s; terminal = session.terminal }))
+      // The session presents on launch and on every state transition, so the returned SubApp carries the
+      // matching renderer history.
+      onDisplay = fun () -> ()
       onSave = fun () -> ()
-      // LEGACY surface management. Every other SubApp now hands its terminal to `Tui.TerminalSession`, which
-      // owns the alternate screen, diffs frames, and arms a restore guard for crashes. The workbench still
-      // paints by absolute positioning (see `UI.Layout`), so it drives the screen itself. These two go away
-      // when `render` becomes a `viewAtSize : State -> Tui.Size -> Tui.View`.
       onTerminate =
         fun () ->
-          // Reset style and show the cursor before leaving, so a Ctrl-C doesn't strand either.
-          Stdlib.print "[0m[?25h[?1049l"
+          let _stopped =
+            Darklang.Cli.Tui.TerminalSession.stop session.terminal
+          ()
       onResume =
         fun () ->
-          Stdlib.print "[?1049h"
-          render state
-          makeSubApp state }
+          // Another page owned the terminal while we were stacked; the retained view is stale. Start fresh so
+          // the next frame is a full repaint rather than a diff against a surface that no longer exists.
+          let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+          match
+            Darklang.Cli.Tui.TerminalSession.startAtSize size (viewAtSize session.state size)
+          with
+          | Ok resumed -> makeSubApp (Session { state = session.state; terminal = resumed })
+          | Error _ -> makeSubApp session }
 
 
 // ── CLI command entry ──
@@ -64,7 +89,6 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
     { cliState with isExiting = true }
   | Available ->
 
-  Stdlib.print "\u001b[?1049h"
   let branchId = cliState.currentBranchId
   let rootLoc = Packages.PackageLocation.Module []
   // Which gated views (Devices, Crons, Calendar, ...) are enabled for this account - computed once from config
@@ -125,8 +149,20 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
         matterLens = "all"
         filter = ""
         branchId = branchId }
-  { cliState with
-      currentPage = Darklang.Cli.Page.SubApp (makeSubApp state) }
+  // Starting the session is what enters the alternate screen and paints the first frame; from here on the
+  // renderer diffs, so a keystroke rewrites the rows that changed rather than clearing and repainting.
+  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+  match
+    Darklang.Cli.Tui.TerminalSession.startAtSize size (viewAtSize state size)
+  with
+  | Ok terminal ->
+    { cliState with
+        currentPage =
+          Darklang.Cli.Page.SubApp
+            (makeSubApp (Session { state = state; terminal = terminal })) }
+  | Error message ->
+    Stdlib.printLine message
+    { cliState with isExiting = true }
 
 let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
   [ "Usage: workbench"

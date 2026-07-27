@@ -115,8 +115,8 @@ type ViewDef =
     gateKey: String
     /// the selectable rows (for the shared cursor + list pane); Unit-in since extension views are self-contained
     loadItems: Unit -> List<BodyItem>
-    /// draw the whole body into the region
-    render: State -> UI.Layout.Region -> Unit
+    /// the body's spans for the region (returned, not printed, so frames can be diffed)
+    render: State -> UI.Layout.Region -> List<UI.Layout.Span>
     /// preview/detail lines for the selected row
     detail: State -> List<String>
     /// context key-hints for the footer

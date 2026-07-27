@@ -3,48 +3,46 @@
 /// lambda-persistence rule is safe here). SplitPane composes two of these; single-list views use one.
 module Darklang.Cli.UI.Box
 
-/// Draw a focus-aware box (bright cyan border + title when focused, dim otherwise) around `region`, and return
-/// the inner region available for content. Prints directly (via moveCursorTo) rather than through
-/// `Layout.printAt`, so ANSI color codes don't throw off the width math. The whole box is built as one string
-/// and written once (fewer syscalls per frame).
-let draw (region: Layout.Region) (title: String) (focused: Bool) : Layout.Region =
-  let color = if focused then Colors.cyan else Colors.brightBlack
-  let paint = fun s -> Colors.colorize color s
-
-  let inner = Stdlib.Int.max 0 (region.cols - 2)
-  let titlePart = if title == "" then "" else "─ " ++ title ++ " "
-  let fillLen = Stdlib.Int.max 0 (inner - (Stdlib.String.length titlePart))
-  let top = "┌" ++ titlePart ++ (Stdlib.String.repeat "─" fillLen) ++ "┐"
-  let bottom = "└" ++ (Stdlib.String.repeat "─" inner) ++ "┘"
-
-  let sides =
-    (Stdlib.List.range 1 (region.rows - 2))
-    |> Stdlib.List.map (fun row ->
-      let r = region.top + row
-      (Layout.moveCursorTo r region.left)
-      ++ (paint "│")
-      ++ (Layout.moveCursorTo r (region.left + region.cols - 1))
-      ++ (paint "│"))
-    |> Stdlib.String.join ""
-  Stdlib.print
-    ((Layout.moveCursorTo region.top region.left)
-     ++ (paint top)
-     ++ sides
-     ++ (Layout.moveCursorTo (region.top + region.rows - 1) region.left)
-     ++ (paint bottom))
-
+/// The content region inside a box's border.
+let inner (region: Layout.Region) : Layout.Region =
   Layout.Region
     { top = region.top + 1
       left = region.left + 1
       rows = Stdlib.Int.max 0 (region.rows - 2)
-      cols = inner }
+      cols = Stdlib.Int.max 0 (region.cols - 2) }
+
+/// Draw a focus-aware box (bright cyan border + title when focused, dim otherwise) around `region`.
+///
+/// Returns spans. Colour codes carry no width now that clipping goes through `Tui.Text`, so the border no
+/// longer has to dodge the layout helpers to avoid being mis-measured.
+let draw (region: Layout.Region) (title: String) (focused: Bool) : List<Layout.Span> =
+  let color = if focused then Colors.cyan else Colors.brightBlack
+  let paint = fun s -> Colors.colorize color s
+
+  let innerCols = Stdlib.Int.max 0 (region.cols - 2)
+  let titlePart = if title == "" then "" else "─ " ++ title ++ " "
+  let fillLen = Stdlib.Int.max 0 (innerCols - (Tui.Text.displayWidth titlePart))
+  let top = "┌" ++ titlePart ++ (Stdlib.String.repeat "─" fillLen) ++ "┐"
+  let bottom = "└" ++ (Stdlib.String.repeat "─" innerCols) ++ "┘"
+
+  let sides =
+    (Stdlib.List.range 1 (region.rows - 2))
+    |> Stdlib.List.map (fun row ->
+      Stdlib.List.flatten
+        [ Layout.at region row 0 (paint "│")
+          Layout.at region row (region.cols - 1) (paint "│") ])
+    |> Stdlib.List.flatten
+
+  Stdlib.List.flatten
+    [ Layout.at region 0 0 (paint top)
+      sides
+      Layout.at region (region.rows - 1) 0 (paint bottom) ]
 
 /// Draw a box and render content into its inner region in one call. `focused` picks the bright/dim border.
 let panel
   (region: Layout.Region)
   (title: String)
   (focused: Bool)
-  (renderInner: Layout.Region -> Unit)
-  : Unit =
-  let innerRegion = draw region title focused
-  renderInner innerRegion
+  (renderInner: Layout.Region -> List<Layout.Span>)
+  : List<Layout.Span> =
+  Stdlib.List.flatten [ draw region title focused; renderInner (inner region) ]
