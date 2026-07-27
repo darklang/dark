@@ -753,7 +753,20 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       // launched page's exit returns here.
       newApp.onTerminate ()
       let saved = Page.SubApp newApp
-      Registry.executeCommand cmd { state with pageStack = Stdlib.List.append [ saved ] state.pageStack } []
+      // Launching from a live page is interactive by definition, even when the CLI itself was started
+      // one-shot (`dark wb` takes the args path, which marks the session non-interactive). Without this, a
+      // command that degrades when non-interactive prints its summary and leaves, instead of taking the
+      // screen: `:review` from a workbench opened with `dark wb` did exactly that, while the same command
+      // from a workbench opened with a bare `dark` worked.
+      //
+      // Safe to clear: LaunchCommand always pushes onto the page stack, so the launched app's exit pops back
+      // here rather than consulting this flag to decide whether to leave the CLI.
+      Registry.executeCommand
+        cmd
+        { state with
+            pageStack = Stdlib.List.append [ saved ] state.pageStack
+            nonInteractive = false }
+        []
     | LaunchPrompt ->
       // Drop to the classic prompt, pushing this page. Stopping the session releases the alternate screen so
       // the inline prompt renders in normal scrollback; `quit` there pops back (see Quit.execute).
