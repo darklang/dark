@@ -245,46 +245,80 @@ let rowText (row: Row) : String =
   | RuleRow spec -> Darklang.PrettyPrinter.Capabilities.line spec
   | AddRuleRow -> "+ Add rule…"
 
-let printOneRow (state: State) (pair: (Int * Row)) : Unit =
+let renderOneRow (state: State) (pair: (Int * Row)) : String =
   let (i, r) = pair
   let selected = i == state.cursor
   let prefix = if selected then "›" else " "
   let line = $"  {prefix} {rowText r}"
-  let styled =
-    if selected then Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
-    else line
-  Stdlib.printLine styled
+  if selected then
+    Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
+  else
+    line
 
 // flag checklist on top, then a labelled "Scoped rules" section (existing rules + the "+ Add rule…"
-// affordance). The cursor index maps into `rows`; the section label is printed between, not selectable.
-let printRows (state: State) : Unit =
+// affordance). The cursor index maps into `rows`; the section label sits between them and is not
+// selectable. The viewport uses its physical row so long grants keep the selection visible.
+let browsingRows (state: State) (height: Int) : List<String> =
   let flagCount = (Stdlib.List.length flagDomains)
   let indexed = Stdlib.List.indexedMap (rows state) (fun i r -> (i, r))
-  indexed
-  |> Stdlib.List.filter (fun pair -> Stdlib.Tuple2.first pair < flagCount)
-  |> Stdlib.List.iter (fun pair -> printOneRow state pair)
-  Stdlib.printLine ""
-  Stdlib.printLine (Darklang.Cli.Colors.dimText "  Scoped rules")
-  indexed
-  |> Stdlib.List.filter (fun pair -> Stdlib.Tuple2.first pair >= flagCount)
-  |> Stdlib.List.iter (fun pair -> printOneRow state pair)
+  let flagRows =
+    indexed
+    |> Stdlib.List.filter (fun pair ->
+      Stdlib.Tuple2.first pair < flagCount)
+    |> Stdlib.List.map (fun pair -> renderOneRow state pair)
+  let ruleRows =
+    indexed
+    |> Stdlib.List.filter (fun pair ->
+      Stdlib.Tuple2.first pair >= flagCount)
+    |> Stdlib.List.map (fun pair -> renderOneRow state pair)
+  let allRows =
+    Stdlib.List.flatten
+      [ flagRows
+        [ ""; Darklang.Cli.Colors.dimText "  Scoped rules" ]
+        ruleRows ]
+  let selectedPhysicalRow =
+    if state.cursor < flagCount then
+      state.cursor
+    else
+      state.cursor + 2
 
-let printMenu (title: String) (items: List<String>) (cursor: Int) : Unit =
-  Stdlib.printLine title
-  Stdlib.printLine ""
+  Darklang.Cli.Tui.Layout.viewport
+    allRows
+    selectedPhysicalRow
+    height
+
+let menuRows
+  (title: String)
+  (items: List<String>)
+  (cursor: Int)
+  (height: Int)
+  : List<String> =
   let indexed = Stdlib.List.indexedMap items (fun i x -> (i, x))
-  Stdlib.List.iter indexed (fun pair ->
-    let (i, x) = pair
-    let selected = i == cursor
-    let prefix = if selected then "›" else " "
-    let line = $"  {prefix} {x}"
-    let styled =
-      if selected then Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
-      else line
-    Stdlib.printLine styled)
+  let itemRows =
+    Stdlib.List.map indexed (fun (i, item) ->
+      let selected = i == cursor
+      let prefix = if selected then "›" else " "
+      let line = $"  {prefix} {item}"
+      if selected then
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
+      else
+        line)
+  let rows = Stdlib.List.append [ title; "" ] itemRows
+  // Account for the title and blank row before the selected menu item.
+  Darklang.Cli.Tui.Layout.viewport rows (cursor + 2) height
 
-let render (state: State) : Unit =
-  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
+/// Construct the complete caps editor view without performing terminal I/O.
+let viewAtSize
+  (state: State)
+  (size: Darklang.Cli.Tui.Size)
+  : Darklang.Cli.Tui.View =
+  let width = Stdlib.Int.max 1 size.width
+  let contentHeight = Stdlib.Int.max 1 size.height
+  let titleHeight = if contentHeight >= 3 then 2 else 1
+  let helpHeight = if contentHeight >= 2 then 1 else 0
+  let bodyHeight =
+    Stdlib.Int.max 0 (contentHeight - titleHeight - helpHeight)
+
   let dirtyTag =
     if state.dirty then Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow "  ● unsaved"
     else ""
@@ -292,32 +326,56 @@ let render (state: State) : Unit =
     Darklang.Cli.Colors.colorize
       (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold)
       " capabilities "
-  Stdlib.printLine $"{title}{dirtyTag}"
-  Stdlib.printLine ""
-  match state.screen with
-  | Browsing ->
-    printRows state
-    Stdlib.printLine ""
-    Stdlib.printLine
-      (Darklang.Cli.Colors.dimText
-        "  ↑↓ move · space toggle · enter edit/add · a add rule · d delete · p profile · w write · esc exit")
-  | AddPickDomain cursor ->
-    printMenu "  Add a rule for which domain?" ruleDomains cursor
-    Stdlib.printLine ""
-    Stdlib.printLine
-      (Darklang.Cli.Colors.dimText "  ↑↓ move · enter choose · esc cancel")
-  | PickProfile cursor ->
-    let names = Stdlib.List.map Command.profiles (fun pair -> Stdlib.Tuple2.first pair)
-    printMenu "  Apply a profile (REPLACES the grant):" names cursor
-    Stdlib.printLine ""
-    Stdlib.printLine
-      (Darklang.Cli.Colors.dimText "  ↑↓ move · enter apply · esc cancel")
-  | EditHttp(_, editor) ->
-    Stdlib.printLines (HttpRuleEditor.render editor)
-  | EditExec(_, editor) ->
-    Stdlib.printLines (ExecRuleEditor.render editor)
-  | EditAccess(_, editor) ->
-    Stdlib.printLines (AccessEditor.render editor)
+
+  let (bodyRows, helpText) =
+    match state.screen with
+    | Browsing ->
+      ( browsingRows state bodyHeight
+      , "  ↑↓ move · space toggle · enter edit/add · a add rule · d delete · p profile · w write · esc exit" )
+    | AddPickDomain cursor ->
+      ( menuRows
+          "  Add a rule for which domain?"
+          ruleDomains
+          cursor
+          bodyHeight
+      , "  ↑↓ move · enter choose · esc cancel" )
+    | PickProfile cursor ->
+      let names =
+        Stdlib.List.map Command.profiles (fun pair ->
+          Stdlib.Tuple2.first pair)
+      ( menuRows
+          "  Apply a profile (REPLACES the grant):"
+          names
+          cursor
+          bodyHeight
+      , "  ↑↓ move · enter apply · esc cancel" )
+    | EditHttp(_, editor) ->
+      (Darklang.Cli.Tui.Layout.fitRows bodyHeight (HttpRuleEditor.render editor), "")
+    | EditExec(_, editor) ->
+      (Darklang.Cli.Tui.Layout.fitRows bodyHeight (ExecRuleEditor.render editor), "")
+    | EditAccess(_, editor) ->
+      (Darklang.Cli.Tui.Layout.fitRows bodyHeight (AccessEditor.render editor), "")
+
+  let titleRows =
+    Darklang.Cli.Tui.Layout.fitRows
+      titleHeight
+      [ $"{title}{dirtyTag}" ]
+  let helpRows =
+    if helpHeight == 0 then
+      []
+    else
+      [ Darklang.Cli.Colors.dimText helpText ]
+  let viewRows =
+    Stdlib.List.flatten [ titleRows; bodyRows; helpRows ]
+    |> Stdlib.List.take contentHeight
+    |> Stdlib.List.map (fun row ->
+      Darklang.Cli.Tui.Text.clipToWidth row width)
+
+  Darklang.Cli.Tui.View {
+    rows = viewRows
+    cursor = Darklang.Cli.Tui.Cursor.Hidden
+    mode = Darklang.Cli.Tui.ViewMode.Fullscreen
+  }
 
 let save (state: State) : Unit =
   let _ = Command.writeSpecs state.specs

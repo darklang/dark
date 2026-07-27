@@ -5,9 +5,14 @@ let execute (state: AppState) (_args: List<String>) : AppState =
   match state.pageStack with
   | returnTo :: rest ->
     // Launched from another page (e.g. the workbench dropped to this prompt): go back instead of leaving the
-    // CLI. Re-enter the alt-screen the launcher lives in.
-    Stdlib.print "\u001b[?1049h"
-    { state with currentPage = returnTo; pageStack = rest; needsFullRedraw = true }
+    // CLI. Release this prompt's inline region first so it doesn't linger in scrollback, then resume the
+    // launcher — that restarts its terminal session and repaints, rather than us poking the alt-screen here.
+    let cleared = clearPromptRegion state
+    let resumed =
+      match returnTo with
+      | SubApp app -> Page.SubApp (app.onResume ())
+      | other -> other
+    { cleared with currentPage = resumed; pageStack = rest }
   | [] ->
     Stdlib.printLine "Goodbye!"
     { state with isExiting = true }

@@ -1,12 +1,5 @@
 module Darklang.Cli.Packages.NavInteractive
 
-// Terminal screen management
-let enterAlternateScreen () : Unit =
-  Stdlib.print "\u001b[?1049h"  // Switch to alternate screen buffer
-
-let exitAlternateScreen () : Unit =
-  Stdlib.print "\u001b[?1049l"  // Switch back to main screen buffer
-
 // Interactive navigation types
 type NavItem =
   { name: String
@@ -31,7 +24,109 @@ type State =
     display: Display
     searchQuery: String
     allItems: List<NavItem>
+    /// Prepared detail rows for the selected item while focus mode is active.
+    /// Package reads happen during state transitions, never in `view`.
+    focusRows: List<String>
+    /// First logical row visible in the independently scrollable preview.
+    focusScrollOffset: Int
     branchId: Uuid }
+
+
+/// A running navigation model and its process-local presentation state.
+type Session =
+  { state: State
+    terminal: Darklang.Cli.Tui.TerminalSession.State }
+
+
+/// Navigation regions derived from one terminal-size sample.
+type Layout =
+  { width: Int
+    contentHeight: Int
+    bodyHeight: Int
+    helpHeight: Int
+    itemViewportHeight: Int
+    focusHeight: Int
+    focusContentHeight: Int
+    sideBySide: Bool
+    listWidth: Int
+    focusWidth: Int }
+
+
+let helpSections (mode: Mode) (display: Display) : List<String> =
+  match mode, display with
+  | Nav, JustName ->
+    [ "↑↓ Select"
+      "← Parent"
+      "→ Open module"
+      "Space View"
+      "/ Search"
+      "Enter Choose"
+      "Esc Close" ]
+  | Nav, Source ->
+    [ "↑↓ Select"
+      "← Parent"
+      "→ Open module"
+      "Space Hide view"
+      "PgUp/PgDn Preview"
+      "Esc Close" ]
+  | Search, JustName ->
+    [ "Type to search"
+      "↑↓ Select"
+      "Space View"
+      "Enter Choose"
+      "Esc Back" ]
+  | Search, Source ->
+    [ "Type to search"
+      "↑↓ Select"
+      "Space Hide view"
+      "PgUp/PgDn Preview"
+      "Esc Back" ]
+
+
+let packHelpRows
+  (width: Int)
+  (sections: List<String>)
+  (current: String)
+  (rows: List<String>)
+  : List<String> =
+  match sections with
+  | [] ->
+    if current == "" then rows
+    else Stdlib.List.pushBack rows current
+  | section :: remaining ->
+    let candidate =
+      if current == "" then section
+      else current ++ " • " ++ section
+
+    if Darklang.Cli.Tui.Text.displayWidth candidate <= width then
+      packHelpRows width remaining candidate rows
+    else if current != "" then
+      packHelpRows
+        width
+        sections
+        ""
+        (Stdlib.List.pushBack rows current)
+    else
+      let wrapped =
+        Darklang.Cli.Tui.Text.wrapStyled section width
+      packHelpRows
+        width
+        remaining
+        ""
+        (Stdlib.List.append rows wrapped)
+
+
+/// Fit navigation help into complete rows without truncating an action.
+let helpRowsAtWidth
+  (mode: Mode)
+  (display: Display)
+  (width: Int)
+  : List<String> =
+  packHelpRows
+    (Stdlib.Int.max 1 width)
+    (helpSections mode display)
+    ""
+    []
 
 
 // Helper functions
@@ -88,10 +183,15 @@ let buildState (branchId: Uuid) (location: PackageLocation) : State =
       display = Display.JustName
       searchQuery = ""
       allItems = allItems
+      focusRows = []
+      focusScrollOffset = 0
       branchId = branchId }
 
-// Truncated view for inline display to avoid flooding screen with large modules
-let viewEntityTruncated (branchId: Uuid) (location: PackageLocation) : Unit =
+// Load truncated focus rows without printing them.
+let loadFocusRows
+  (branchId: Uuid)
+  (location: PackageLocation)
+  : List<String> =
   let maxItemsPerCategory = 3
   let maxTotalLines = 12
 
@@ -99,56 +199,175 @@ let viewEntityTruncated (branchId: Uuid) (location: PackageLocation) : Unit =
   | Module path ->
     let results = Query.allDirectDescendants branchId path
     let locationStr = Packages.formatLocation location
-    Stdlib.printLine locationStr
 
     let currentPathLength = Stdlib.List.length path
     let directSubmodules = Query.getDirectSubmodules results currentPathLength
 
-    let lineCount = 1 // Start with location line
-    let lineCount =
+    let (submoduleRows, lineCount) =
       if Stdlib.Bool.not (Stdlib.List.isEmpty directSubmodules) then
-        Stdlib.printLine (Display.getSectionHeader "submodule")
         let itemsToShow = Stdlib.List.take directSubmodules maxItemsPerCategory
-        itemsToShow |> Stdlib.List.iter (fun name -> Stdlib.printLine $"  {name}/")
 
         let remaining = (Stdlib.List.length directSubmodules) - maxItemsPerCategory
-        if remaining > 0 then
-          Stdlib.printLine $"  ... and {Stdlib.Int.toString remaining} more modules"
 
-        lineCount + 1 + (Stdlib.List.length itemsToShow) + (if remaining > 0 then 1 else 0)
+        let remainingRows =
+          if remaining > 0 then
+            [ $"  ... and {Stdlib.Int.toString remaining} more modules" ]
+          else
+            []
+
+        let rows =
+          Stdlib.List.flatten [
+            [ Display.getSectionHeader "submodule" ]
+            itemsToShow |> Stdlib.List.map (fun name -> $"  {name}/")
+            remainingRows
+          ]
+
+        (rows, 1 + Stdlib.List.length rows)
       else
-        lineCount
+        ([], 1)
 
-    // Only show other categories if we haven't exceeded line limit
-    if lineCount < maxTotalLines then
-      let remainingLines = maxTotalLines - lineCount
-      let itemsPerRemaining = Stdlib.Int.min 2 remainingLines
+    let typeRows =
+      if lineCount < maxTotalLines then
+        let remainingLines = maxTotalLines - lineCount
+        let itemsPerRemaining = Stdlib.Int.min 2 remainingLines
 
-      // Show types (limited)
-      if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) && itemsPerRemaining > 0 then
-        Stdlib.printLine (Display.getSectionHeader "type")
-        let typesToShow = Stdlib.List.take results.types itemsPerRemaining
-        typesToShow |> Stdlib.List.iter (fun t -> Stdlib.printLine $"  {t.location.name}")
+        if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) && itemsPerRemaining > 0 then
+          let typesToShow = Stdlib.List.take results.types itemsPerRemaining
 
-        let remaining = (Stdlib.List.length results.types) - itemsPerRemaining
-        if remaining > 0 then
-          Stdlib.printLine $"  ... and {Stdlib.Int.toString remaining} more types"
+          let remaining = (Stdlib.List.length results.types) - itemsPerRemaining
+          let remainingRows =
+            if remaining > 0 then
+              [ $"  ... and {Stdlib.Int.toString remaining} more types" ]
+            else
+              []
 
+          Stdlib.List.flatten [
+            [ Display.getSectionHeader "type" ]
+            typesToShow |> Stdlib.List.map (fun item -> $"  {item.location.name}")
+            remainingRows
+          ]
+        else
+          []
+      else
+        []
+
+    Stdlib.List.flatten [ [ locationStr ]; submoduleRows; typeRows ]
   | _ ->
-    // For individual entities, show full view since they're typically small
-    View.viewEntity branchId location
+    // Individual entities are typically small enough to show in full.
+    View.entityRows branchId location
 
-// Display the interactive navigation interface
-let display (navState: State) : Unit =
-  // Clear alternate screen and show header (main screen is preserved)
-  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
 
+/// Refresh derived focus content after a state transition.
+let refreshFocusRows (navState: State) : State =
+  match navState.display with
+  | JustName ->
+    { navState with
+        focusRows = []
+        focusScrollOffset = 0 }
+  | Source ->
+    let rows =
+      match Stdlib.List.getAt navState.items navState.selectedIndex with
+      | Some selectedItem ->
+        loadFocusRows navState.branchId selectedItem.location
+      | None -> []
+
+    { navState with
+        focusRows = rows
+        focusScrollOffset = 0 }
+
+
+/// Calculate navigation regions for the complete terminal viewport.
+let layout
+  (navState: State)
+  (size: Darklang.Cli.Tui.Size)
+  : Layout =
+  let width = Stdlib.Int.max 1 size.width
+  let contentHeight = Stdlib.Int.max 1 size.height
+
+  let headerHeight =
+    match navState.mode with
+    | Nav -> 2
+    | Search -> 4
+
+  let helpHeight =
+    helpRowsAtWidth navState.mode navState.display width
+    |> Stdlib.List.length
+
+  let hasFocus =
+    navState.display == Display.Source
+    && Stdlib.Bool.not (Stdlib.List.isEmpty navState.focusRows)
+
+  let availableBodyHeight =
+    Stdlib.Int.max
+      0
+      (contentHeight - headerHeight - helpHeight)
+
+  let sideBySide =
+    hasFocus && width >= 120 && availableBodyHeight >= 5
+
+  let bodyHeight =
+    availableBodyHeight - (if sideBySide then 1 else 0)
+
+  let desiredFocusHeight =
+    if hasFocus then Stdlib.List.length navState.focusRows + 1 else 0
+
+  let maximumStackedFocusHeight =
+    Stdlib.Int.divide (bodyHeight * 60) 100
+
+  let focusHeight =
+    if sideBySide then
+      bodyHeight
+    else
+      Stdlib.Int.min desiredFocusHeight maximumStackedFocusHeight
+
+  let itemViewportHeight =
+    if sideBySide then bodyHeight else bodyHeight - focusHeight
+
+  let listWidth =
+    if sideBySide then
+      Stdlib.Int.max
+        30
+        (Stdlib.Int.divide ((width - 1) * 2) 5)
+    else
+      width
+
+  let focusWidth =
+    if sideBySide then width - listWidth - 1 else width
+
+  Layout {
+    width = width
+    contentHeight = contentHeight
+    bodyHeight = bodyHeight
+    helpHeight = helpHeight
+    itemViewportHeight = itemViewportHeight
+    focusHeight = focusHeight
+    focusContentHeight = Stdlib.Int.max 0 (focusHeight - 1)
+    sideBySide = sideBySide
+    listWidth = listWidth
+    focusWidth = focusWidth
+  }
+
+
+/// Build the complete desired navigation view for one terminal-size sample.
+let viewAtSize
+  (navState: State)
+  (size: Darklang.Cli.Tui.Size)
+  : Darklang.Cli.Tui.View =
+  let regions = layout navState size
+  let clip = fun text -> Darklang.Cli.Tui.Text.clipToWidth text regions.width
+  let itemClip =
+    fun text ->
+      Darklang.Cli.Tui.Text.clipToWidth text regions.listWidth
+  let focusClip =
+    fun text ->
+      Darklang.Cli.Tui.Text.clipToWidth text regions.focusWidth
+  let horizontalRule (line: String) : String =
+    Stdlib.String.repeat line regions.width
   let locationStr = Packages.formatLocation navState.currentLocation
 
-  // Mode-specific header
   let headerPrefix =
     match navState.mode with
-    | Nav -> "📁"
+    | Nav -> "🗂️"
     | Search -> "🔍 Search from"
 
   let displaySuffix =
@@ -156,77 +375,257 @@ let display (navState: State) : Unit =
     | JustName -> ""
     | Source -> " (Focus Mode)"
 
-  match navState.mode with
-  | Nav ->
-    Stdlib.printLine (Colors.boldText $"{headerPrefix} {locationStr}{displaySuffix}")
-    Stdlib.printLine (Stdlib.String.repeat "─" 60)
-  | Search ->
-    Stdlib.printLine (Colors.boldText $"{headerPrefix} {locationStr}{displaySuffix}")
-    Stdlib.printLine (Stdlib.String.repeat "━" 60)
-    Stdlib.printLine $"  {navState.searchQuery}_"
-    Stdlib.printLine (Stdlib.String.repeat "━" 60)
+  let headerRows =
+    match navState.mode with
+    | Nav ->
+      [ Colors.boldText (clip $"{headerPrefix} {locationStr}{displaySuffix}")
+        horizontalRule "─" ]
+    | Search ->
+      [ Colors.boldText (clip $"{headerPrefix} {locationStr}{displaySuffix}")
+        horizontalRule "━"
+        clip $"  {navState.searchQuery}_"
+        horizontalRule "━" ]
 
-  // Calculate viewport
-  let viewportHeight = 12
   let totalItems = (Stdlib.List.length navState.items)
 
-  if totalItems == 0 then
-    Stdlib.printLine "  (empty directory)"
-  else
-    // Calculate visible items
-    let startIndex = navState.scrollOffset
-    let endIndex = Stdlib.Int.min (startIndex + viewportHeight) totalItems
+  let itemRows =
+    if regions.itemViewportHeight <= 0 then
+      []
+    else if totalItems == 0 then
+      [ "  (empty directory)" ]
+    else
+      let maxOffset =
+        Stdlib.Int.max 0 (totalItems - regions.itemViewportHeight)
+      let desiredOffset =
+        if navState.selectedIndex < navState.scrollOffset then
+          navState.selectedIndex
+        else if
+          navState.selectedIndex
+          >= navState.scrollOffset + regions.itemViewportHeight
+        then
+          navState.selectedIndex - regions.itemViewportHeight + 1
+        else
+          navState.scrollOffset
+      let startIndex =
+        Stdlib.Int.min maxOffset (Stdlib.Int.max 0 desiredOffset)
+      let endIndex =
+        Stdlib.Int.min
+          (startIndex + regions.itemViewportHeight)
+          totalItems
 
-    let visibleItems =
       navState.items
       |> Stdlib.List.drop startIndex
       |> Stdlib.List.take (endIndex - startIndex)
+      |> Stdlib.List.indexedMap (fun relativeIndex item ->
+        let absoluteIndex = startIndex + relativeIndex
+        let isSelected = absoluteIndex == navState.selectedIndex
 
-    // Display items
-    visibleItems
-    |> Stdlib.List.indexedMap (fun relativeIndex item ->
-      let absoluteIndex = startIndex + relativeIndex
-      let isSelected = absoluteIndex == navState.selectedIndex
+        let icon = Display.getIcon item.entityType
+        let cursor = if isSelected then "> " else "  "
+        let nameDisplay =
+          match item.entityType with
+          | Module -> item.name ++ "/"
+          | _ -> item.name
 
-      let icon = Display.getIcon item.entityType
-      let cursor = if isSelected then "> " else "  "
-      let nameDisplay =
-        match item.entityType with
-        | Module -> item.name ++ "/"
-        | _ -> item.name
+        let line =
+          match item.entityType with
+          | Module ->
+            if isSelected then
+              Colors.info cursor
+              ++ icon
+              ++ Colors.info (" " ++ nameDisplay)
+            else
+              cursor ++ icon ++ " " ++ nameDisplay
+          | _ ->
+            let line = cursor ++ icon ++ " " ++ nameDisplay
+            if isSelected then Colors.info line else line
 
-      let line = cursor ++ icon ++ " " ++ nameDisplay
+        itemClip line)
 
-      if isSelected then
-        Stdlib.printLine (Colors.info line)
+  let focusRows =
+    if regions.focusHeight <= 0 then
+      []
+    else
+      let totalRows = Stdlib.List.length navState.focusRows
+      let maxOffset =
+        Stdlib.Int.max 0 (totalRows - regions.focusContentHeight)
+      let offset =
+        Stdlib.Int.min
+          maxOffset
+          (Stdlib.Int.max 0 navState.focusScrollOffset)
+      let visibleRows =
+        navState.focusRows
+        |> Stdlib.List.drop offset
+        |> Stdlib.List.take regions.focusContentHeight
+        |> Stdlib.List.map focusClip
+      let startRow = if totalRows == 0 then 0 else offset + 1
+      let endRow =
+        Stdlib.Int.min totalRows (offset + Stdlib.List.length visibleRows)
+      let position =
+        if totalRows > regions.focusContentHeight then
+          let startText = Stdlib.Int.toString startRow
+          let endText = Stdlib.Int.toString endRow
+          let totalText = Stdlib.Int.toString totalRows
+          $"Preview {startText}-{endText} of {totalText} • PgUp/PgDn scroll"
+        else
+          $"Preview • {Stdlib.Int.toString totalRows} rows"
+      let heading =
+        if regions.sideBySide then
+          Colors.hint (focusClip position)
+        else
+          Colors.hint (focusClip ("─ " ++ position))
+      Stdlib.List.push visibleRows heading
+
+  let helpRows =
+    let styledRows =
+      helpRowsAtWidth
+        navState.mode
+        navState.display
+        regions.width
+      |> Stdlib.List.map Colors.hint
+    Darklang.Cli.Tui.Layout.fitRows regions.helpHeight styledRows
+
+  let fittedItemRows =
+    Darklang.Cli.Tui.Layout.fitRows
+      regions.itemViewportHeight
+      itemRows
+
+  let fittedFocusRows =
+    Darklang.Cli.Tui.Layout.fitRows
+      regions.focusHeight
+      focusRows
+
+  let bodyRows =
+    if regions.sideBySide then
+      Stdlib.List.map2shortest
+        fittedItemRows
+        fittedFocusRows
+        (fun itemRow focusRow ->
+          Darklang.Cli.Tui.Text.fitToWidth
+            itemRow
+            regions.listWidth
+          ++ Colors.dimText "│"
+          ++ focusClip (" " ++ focusRow))
+    else
+      Stdlib.List.append fittedItemRows fittedFocusRows
+
+  let footerRuleRows =
+    if regions.sideBySide then [ horizontalRule "─" ] else []
+
+  let rows =
+    let desiredRows =
+      Stdlib.List.flatten [
+        headerRows
+        bodyRows
+        footerRuleRows
+        helpRows
+      ]
+    Darklang.Cli.Tui.Layout.fitRows regions.contentHeight desiredRows
+
+  Darklang.Cli.Tui.View {
+    rows = rows
+    cursor = Darklang.Cli.Tui.Cursor.Hidden
+    mode = Darklang.Cli.Tui.ViewMode.Fullscreen
+  }
+
+
+/// Start navigation and present its first complete frame.
+let start
+  (navState: State)
+  : Stdlib.Result.Result<Session, String> =
+  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+  match
+    Darklang.Cli.Tui.TerminalSession.startAtSize
+      size
+      (viewAtSize navState size)
+  with
+  | Ok terminal ->
+    Session { state = navState; terminal = terminal }
+    |> Stdlib.Result.Result.Ok
+  | Error message ->
+    Stdlib.Result.Result.Error message
+
+
+/// Present the next navigation model using an already sampled terminal size.
+let presentAtSize
+  (session: Session)
+  (size: Darklang.Cli.Tui.Size)
+  (navState: State)
+  : Session =
+  let terminal =
+    Darklang.Cli.Tui.TerminalSession.presentAtSize
+      session.terminal
+      size
+      (viewAtSize navState size)
+
+  Session { state = navState; terminal = terminal }
+
+
+/// Present the next navigation model while retaining renderer history.
+let presentState (session: Session) (navState: State) : Session =
+  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+  presentAtSize session size navState
+
+
+/// Put a presented navigation model back into the CLI application state.
+let show
+  (state: Cli.AppState)
+  (session: Session)
+  (navState: State)
+  : Cli.AppState =
+  { state with
+      currentPage = Page.InteractiveNav (presentState session navState) }
+
+
+/// Put a navigation model presented at an existing size sample into CLI state.
+let showAtSize
+  (state: Cli.AppState)
+  (session: Session)
+  (size: Darklang.Cli.Tui.Size)
+  (navState: State)
+  : Cli.AppState =
+  { state with
+      currentPage =
+        Page.InteractiveNav (presentAtSize session size navState) }
+
+
+let scrollOffsetForSelection
+  (selectedIndex: Int)
+  (scrollOffset: Int)
+  (viewportHeight: Int)
+  (totalItems: Int)
+  : Int =
+  if viewportHeight <= 0 || totalItems <= 0 then
+    0
+  else
+    let offset =
+      if selectedIndex < scrollOffset then
+        selectedIndex
+      else if selectedIndex >= scrollOffset + viewportHeight then
+        selectedIndex - viewportHeight + 1
       else
-        Stdlib.printLine line
-    )
-    |> Stdlib.List.iter (fun _ -> ())
+        scrollOffset
 
-  // Show inline view and actions if displaying source and there are items
-  match navState.display with
-  | Source ->
-    if totalItems > 0 then
-      match Stdlib.List.getAt navState.items navState.selectedIndex with
-      | Some selectedItem ->
-        Stdlib.printLines [ ""; (Stdlib.String.repeat "─" 60) ]
-        viewEntityTruncated navState.branchId selectedItem.location
-        Stdlib.printLines [ ""; (Stdlib.String.repeat "─" 60) ]
-      | None -> ()
-  | JustName -> ()
+    let maxOffset = Stdlib.Int.max 0 (totalItems - viewportHeight)
+    Stdlib.Int.min maxOffset (Stdlib.Int.max 0 offset)
 
-  Stdlib.printLine ""
-  let helpText =
-    match (navState.mode, navState.display) with
-    | (Nav, JustName) -> "↑/↓: Navigate • ←: Up • →: Enter • Enter: Select • Space: Focus • /: Search • Esc: Exit"
-    | (Nav, Source) -> "u: Update • →: Navigate/View • ←: Up • Space: Unfocus • Esc: Back"
-    | (Search, JustName) -> "Type to search • ↑/↓: Navigate • Enter: Select • Space: Focus • Esc: Exit"
-    | (Search, Source) -> "Type to search • u: Update • →: Navigate/View • Space: Unfocus • Esc: Back"
-  Stdlib.printLine (Colors.hint helpText)
+
+let withFocusScrollOffset
+  (navState: State)
+  (focusContentHeight: Int)
+  (offset: Int)
+  : State =
+  let maxOffset =
+    Stdlib.Int.max
+      0
+      (Stdlib.List.length navState.focusRows - focusContentHeight)
+  { navState with
+      focusScrollOffset =
+        Stdlib.Int.min maxOffset (Stdlib.Int.max 0 offset) }
+
 
 // Navigation helper functions
-let moveUp (navState: State) : State =
+let moveUp (navState: State) (viewportHeight: Int) : State =
   let totalItems = (Stdlib.List.length navState.items)
   if totalItems > 0 then
     let newIndex =
@@ -236,18 +635,20 @@ let moveUp (navState: State) : State =
         totalItems - 1
 
     let newScrollOffset =
-      if newIndex < navState.scrollOffset then
+      scrollOffsetForSelection
         newIndex
-      else
         navState.scrollOffset
+        viewportHeight
+        totalItems
 
     { navState with
         selectedIndex = newIndex
         scrollOffset = newScrollOffset }
+    |> refreshFocusRows
   else
     navState
 
-let moveDown (navState: State) : State =
+let moveDown (navState: State) (viewportHeight: Int) : State =
   let totalItems = (Stdlib.List.length navState.items)
   if totalItems > 0 then
     let newIndex =
@@ -256,45 +657,60 @@ let moveDown (navState: State) : State =
       else
         0
 
-    let viewportHeight = 12
     let newScrollOffset =
-      if newIndex >= navState.scrollOffset + viewportHeight then
-        newIndex - viewportHeight + 1
-      else
+      scrollOffsetForSelection
+        newIndex
         navState.scrollOffset
+        viewportHeight
+        totalItems
 
     { navState with
         selectedIndex = newIndex
         scrollOffset = newScrollOffset }
+    |> refreshFocusRows
   else
     navState
 
-let exitToMainPrompt (state: Cli.AppState) : Cli.AppState =
-  exitAlternateScreen ()
+let exitToMainPrompt
+  (state: Cli.AppState)
+  (session: Session)
+  : Cli.AppState =
+  let _stoppedTerminal =
+    Darklang.Cli.Tui.TerminalSession.stop session.terminal
+
   { state with
       currentPage = Page.MainPrompt
-      needsFullRedraw = true
       prompt = Prompt.Editing.clear state.prompt }
 
-let selectAndExit (state: Cli.AppState) (navState: State) : Cli.AppState =
+let selectAndExit
+  (state: Cli.AppState)
+  (session: Session)
+  : Cli.AppState =
+  let navState = session.state
   let totalItems = (Stdlib.List.length navState.items)
+
   if totalItems > 0 then
     match Stdlib.List.getAt navState.items navState.selectedIndex with
     | Some selectedItem ->
-      exitAlternateScreen ()
+      let _stoppedTerminal =
+        Darklang.Cli.Tui.TerminalSession.stop session.terminal
       let newState = Nav.navTo state selectedItem.location
       let locationStr = Packages.formatLocation selectedItem.location
       Stdlib.printLine (Colors.success $"Selected: {locationStr}")
       { newState with
           currentPage = Page.MainPrompt
-          needsFullRedraw = true
           prompt = Prompt.Editing.clear newState.prompt }
-    | None -> exitToMainPrompt state
+    | None -> exitToMainPrompt state session
   else
-    exitToMainPrompt state
+    exitToMainPrompt state session
 
-let navigateIntoModule (state: Cli.AppState) (navState: State) : Cli.AppState =
+let navigateIntoModule
+  (state: Cli.AppState)
+  (session: Session)
+  : Cli.AppState =
+  let navState = session.state
   let totalItems = (Stdlib.List.length navState.items)
+
   if totalItems > 0 then
     match Stdlib.List.getAt navState.items navState.selectedIndex with
     | Some selectedItem ->
@@ -302,18 +718,23 @@ let navigateIntoModule (state: Cli.AppState) (navState: State) : Cli.AppState =
       | Module ->
         let newState = Nav.navTo state selectedItem.location
         let newNavState = buildState navState.branchId selectedItem.location
-        { newState with currentPage = Page.InteractiveNav newNavState }
+        show newState session newNavState
       | _ -> state
     | None -> state
   else
     state
 
-let navigateToParent (state: Cli.AppState) (navState: State) : Cli.AppState =
+let navigateToParent
+  (state: Cli.AppState)
+  (session: Session)
+  : Cli.AppState =
+  let navState = session.state
+
   match Traversal.applySegment navState.branchId navState.currentLocation Traversal.PathSegment.Up with
   | Ok parentLocation ->
     let newState = Nav.navTo state parentLocation
     let newNavState = buildState navState.branchId parentLocation
-    { newState with currentPage = Page.InteractiveNav newNavState }
+    show newState session newNavState
   | Error _ -> state
 
 // Helper for building full paths in search results
@@ -330,6 +751,7 @@ let performSearch (navState: State) : State =
         items = navState.allItems
         selectedIndex = 0
         scrollOffset = 0 }
+    |> refreshFocusRows
   else
     // Search through package system
     let currentModule = modulePathOf navState.currentLocation
@@ -375,12 +797,17 @@ let performSearch (navState: State) : State =
         items = searchItems
         selectedIndex = 0
         scrollOffset = 0 }
+    |> refreshFocusRows
 
 // Common key handlers
-let handleNavKeys (navState: State) (key: Stdlib.Cli.Stdin.Key.Key) : Stdlib.Option.Option<State> =
+let handleNavKeys
+  (navState: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (viewportHeight: Int)
+  : Stdlib.Option.Option<State> =
   match key with
-  | UpArrow -> Stdlib.Option.Option.Some (moveUp navState)
-  | DownArrow -> Stdlib.Option.Option.Some (moveDown navState)
+  | UpArrow -> Stdlib.Option.Option.Some (moveUp navState viewportHeight)
+  | DownArrow -> Stdlib.Option.Option.Some (moveDown navState viewportHeight)
   | _ -> Stdlib.Option.Option.None
 
 let toggleDisplay (navState: State) : State =
@@ -389,14 +816,17 @@ let toggleDisplay (navState: State) : State =
     | JustName -> Display.Source
     | Source -> Display.JustName
   { navState with display = newDisplay }
+  |> refreshFocusRows
 
 // Mode-specific key handlers
 let handleSearchKeys
   (state: Cli.AppState)
   (key: Stdlib.Cli.Stdin.Key.Key)
   (keyChar: Stdlib.Option.Option<String>)
-  (navState: State)
+  (session: Session)
   : Stdlib.Option.Option<Cli.AppState> =
+  let navState = session.state
+
   match key with
   | Escape ->
     let newNavState =
@@ -406,7 +836,8 @@ let handleSearchKeys
           items = navState.allItems
           selectedIndex = 0
           scrollOffset = 0 }
-    Stdlib.Option.Option.Some( { state with currentPage = Page.InteractiveNav newNavState })
+      |> refreshFocusRows
+    Stdlib.Option.Option.Some (show state session newNavState)
 
   | Backspace ->
     let newQuery =
@@ -416,14 +847,14 @@ let handleSearchKeys
         ""
     let newNavState = { navState with searchQuery = newQuery }
     let searchedNavState = performSearch newNavState
-    Stdlib.Option.Option.Some ({ state with currentPage = Page.InteractiveNav searchedNavState })
+    Stdlib.Option.Option.Some (show state session searchedNavState)
 
   | Spacebar ->
     let newNavState = toggleDisplay navState
-    Stdlib.Option.Option.Some ({ state with currentPage = Page.InteractiveNav newNavState })
+    Stdlib.Option.Option.Some (show state session newNavState)
 
   | Enter ->
-    Stdlib.Option.Option.Some (selectAndExit state navState)
+    Stdlib.Option.Option.Some (selectAndExit state session)
 
   | _ ->
     match keyChar with
@@ -431,26 +862,28 @@ let handleSearchKeys
       let newQuery = navState.searchQuery ++ char
       let newNavState = { navState with searchQuery = newQuery }
       let searchedNavState = performSearch newNavState
-      Stdlib.Option.Option.Some ({ state with currentPage = Page.InteractiveNav searchedNavState })
+      Stdlib.Option.Option.Some (show state session searchedNavState)
     | None -> Stdlib.Option.Option.None
 
 let handleNavModeKeys
   (state: Cli.AppState)
   (key: Stdlib.Cli.Stdin.Key.Key)
   (keyChar: Stdlib.Option.Option<String>)
-  (navState: State)
+  (session: Session)
   : Stdlib.Option.Option<Cli.AppState> =
+  let navState = session.state
+
   match key with
   | Spacebar ->
     let newNavState = toggleDisplay navState
-    Stdlib.Option.Option.Some({ state with currentPage = Page.InteractiveNav newNavState })
+    Stdlib.Option.Option.Some (show state session newNavState)
 
-  | RightArrow -> Stdlib.Option.Option.Some (navigateIntoModule state navState)
-  | LeftArrow -> Stdlib.Option.Option.Some (navigateToParent state navState)
+  | RightArrow -> Stdlib.Option.Option.Some (navigateIntoModule state session)
+  | LeftArrow -> Stdlib.Option.Option.Some (navigateToParent state session)
 
-  | Enter -> Stdlib.Option.Option.Some (selectAndExit state navState)
+  | Enter -> Stdlib.Option.Option.Some (selectAndExit state session)
 
-  | Escape -> Stdlib.Option.Option.Some (exitToMainPrompt state)
+  | Escape -> Stdlib.Option.Option.Some (exitToMainPrompt state session)
 
   | U ->
     match navState.display with
@@ -459,10 +892,10 @@ let handleNavModeKeys
       if totalItems > 0 then
         match Stdlib.List.getAt navState.items navState.selectedIndex with
         | Some selectedItem ->
-          exitAlternateScreen ()
           let locationStr = Packages.formatLocation selectedItem.location
+          let exitedState = exitToMainPrompt state session
           Stdlib.printLine (Colors.info $"Update mode for {locationStr} (coming soon)")
-          Stdlib.Option.Option.Some (exitToMainPrompt state)
+          Stdlib.Option.Option.Some exitedState
         | None -> Stdlib.Option.Option.None
       else
         Stdlib.Option.Option.None
@@ -472,23 +905,63 @@ let handleNavModeKeys
     match keyChar with
     | Some "/" ->
       let newNavState = { navState with mode = Mode.Search }
-      Stdlib.Option.Option.Some({ state with currentPage = Page.InteractiveNav newNavState })
+      Stdlib.Option.Option.Some (show state session newNavState)
     | _ -> Stdlib.Option.Option.None
 
-// Handle key input for interactive navigation
-let handleKey (state: Cli.AppState) (key: Stdlib.Cli.Stdin.Key.Key) (keyChar: Stdlib.Option.Option<String>) (navState: State) : Cli.AppState =
-  // Try common navigation keys first
-  match handleNavKeys navState key with
+// Handle key input for interactive navigation.
+let handleKey
+  (state: Cli.AppState)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (keyChar: Stdlib.Option.Option<String>)
+  (session: Session)
+  : Cli.AppState =
+  let navState = session.state
+  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+  let regions = layout navState size
+  let viewportHeight = regions.itemViewportHeight
+  let previewPageSize =
+    Stdlib.Int.max 1 (regions.focusContentHeight - 1)
+
+  let previewResult =
+    match navState.display, key with
+    | Source, PageUp ->
+      Stdlib.Option.Option.Some
+        (withFocusScrollOffset
+          navState
+          regions.focusContentHeight
+          (navState.focusScrollOffset - previewPageSize))
+    | Source, PageDown ->
+      Stdlib.Option.Option.Some
+        (withFocusScrollOffset
+          navState
+          regions.focusContentHeight
+          (navState.focusScrollOffset + previewPageSize))
+    | Source, Home ->
+      Stdlib.Option.Option.Some
+        (withFocusScrollOffset navState regions.focusContentHeight 0)
+    | Source, End ->
+      Stdlib.Option.Option.Some
+        (withFocusScrollOffset
+          navState
+          regions.focusContentHeight
+          (Stdlib.List.length navState.focusRows))
+    | _, _ -> Stdlib.Option.Option.None
+
+  match previewResult with
   | Some newNavState ->
-    { state with currentPage = Page.InteractiveNav newNavState }
+    showAtSize state session size newNavState
   | None ->
-    // Try mode-specific handlers
-    let modeResult =
-      match navState.mode with
-      | Search -> handleSearchKeys state key keyChar navState
-      | Nav -> handleNavModeKeys state key keyChar navState
+    // Try common item-navigation keys next.
+    match handleNavKeys navState key viewportHeight with
+    | Some newNavState ->
+      showAtSize state session size newNavState
+    | None ->
+      // Try mode-specific handlers.
+      let modeResult =
+        match navState.mode with
+        | Search -> handleSearchKeys state key keyChar session
+        | Nav -> handleNavModeKeys state key keyChar session
 
-    match modeResult with
-    | Some newState -> newState
-    | None -> state
-
+      match modeResult with
+      | Some newState -> newState
+      | None -> state

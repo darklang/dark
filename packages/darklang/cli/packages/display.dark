@@ -4,8 +4,8 @@ module Darklang.Cli.Packages.Display
 let getIcon (entityType: EntityType) : String =
   match entityType with
   | Module -> "🗂️"
-  | Function -> "⚡"
-  | Type -> "🏷️"
+  | Function -> "⚡️"
+  | Type -> "🔖"
   | Value -> "💎"
 
 
@@ -13,8 +13,8 @@ let getIcon (entityType: EntityType) : String =
 let getSectionHeader (entityType: String) : String =
   match entityType with
   | "module" -> "🗂️ Modules:"
-  | "function" -> "⚡ Functions:"
-  | "type" -> "🏷️ Types:"
+  | "function" -> "⚡️ Functions:"
+  | "type" -> "🔖 Types:"
   | "value" -> "💎 Values:"
   | "submodule" -> "🗂️ Submodules:"
   | _ -> entityType ++ ":"

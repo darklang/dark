@@ -58,6 +58,17 @@ let truncateVisible (s: String) (maxVisible: Int) : String =
     let (_rem, out) = folded
     out ++ "[0m"
 
+/// Move the cursor to an absolute (row, col). One-based, as terminals count.
+///
+/// LEGACY. This used to live in `Colors`, which is now SGR-only: the Tui renderer is the one place allowed to
+/// move the cursor, clear, or switch screens, so that dynamic content can't corrupt the terminal and so frames
+/// can be diffed instead of repainted. This module is the last holdout — it paints by absolute positioning
+/// rather than by returning rows — and it keeps the primitive locally so the rest of the tree stays clean.
+/// It goes away with the rest of this module when the workbench moves to `Tui.View`. Don't reach for it from
+/// new code; build a `List<String>` of rows instead.
+let moveCursorTo (row: Int) (col: Int) : String =
+  $"[{Stdlib.Int.toString row};{Stdlib.Int.toString col}H"
+
 /// Move cursor to a position and print a string, truncated to fit the region.
 let printAt (region: Region) (row: Int) (col: Int) (text: String) : Unit =
   if row >= 0 && row < region.rows then
@@ -70,7 +81,7 @@ let printAt (region: Region) (row: Int) (col: Int) (text: String) : Unit =
       else
         text
     // One write, not two — fewer syscalls per frame (the workbench draws hundreds of these).
-    Stdlib.print ((Darklang.Cli.Colors.moveCursorTo absRow absCol) ++ truncated)
+    Stdlib.print ((moveCursorTo absRow absCol) ++ truncated)
   else
     ()
 
@@ -82,7 +93,7 @@ let printAtVisible (region: Region) (row: Int) (col: Int) (text: String) : Unit 
     let absRow = region.top + row
     let absCol = region.left + col
     let maxLen = Stdlib.Int.max 0 (region.cols - col)
-    Stdlib.print ((Darklang.Cli.Colors.moveCursorTo absRow absCol) ++ (truncateVisible text maxLen))
+    Stdlib.print ((moveCursorTo absRow absCol) ++ (truncateVisible text maxLen))
   else
     ()
 

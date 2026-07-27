@@ -923,7 +923,7 @@ let renderScrollableLines
     let (i, p) = pair
     let row = i - off
     let disp = Stdlib.List.getAt display i |> Stdlib.Option.withDefault p
-    Stdlib.print ((Colors.moveCursorTo (region.top + row) (region.left + colOffset)) ++ (UI.Layout.truncateVisible disp maxFit)))
+    Stdlib.print ((UI.Layout.moveCursorTo (region.top + row) (region.left + colOffset)) ++ (UI.Layout.truncateVisible disp maxFit)))
 
 let renderPreview (state: State) (region: UI.Layout.Region) : Unit =
   let plain = previewLines state
@@ -1109,7 +1109,7 @@ let renderSectionSwitcher (region: UI.Layout.Region) (row: Int) (sections: List<
       if i == active then Colors.colorize (Colors.bold ++ Colors.cyan) ("[" ++ s ++ "]")
       else Colors.dimText (" " ++ s ++ " "))
     |> Stdlib.String.join "  "
-  Stdlib.print ((Colors.moveCursorTo (region.top + row) region.left) ++ "  " ++ (Colors.dimText "tab") ++ "  " ++ secLine)
+  Stdlib.print ((UI.Layout.moveCursorTo (region.top + row) region.left) ++ "  " ++ (Colors.dimText "tab") ++ "  " ++ secLine)
 
 /// The SCM status header - the always-true summary of Dark Matter's state on this branch.
 let renderScmHeader (state: State) (region: UI.Layout.Region) : Unit =
@@ -1138,8 +1138,8 @@ let renderScmHeader (state: State) (region: UI.Layout.Region) : Unit =
   let sep = Colors.dimText "     "
   let line2 =
     "  " ++ wipPart ++ sep ++ (Colors.dimText (plural commits "commit")) ++ sep ++ confPart ++ sep ++ syncPart
-  let _ = Stdlib.print ((Colors.moveCursorTo region.top region.left) ++ line1)
-  Stdlib.print ((Colors.moveCursorTo (region.top + 1) region.left) ++ line2)
+  let _ = Stdlib.print ((UI.Layout.moveCursorTo region.top region.left) ++ line1)
+  Stdlib.print ((UI.Layout.moveCursorTo (region.top + 1) region.left) ++ line2)
 
 /// The SCM view: the status header, a section switcher (Changes / History / Conflicts, cycled by Tab), and
 /// the active section's list + detail. One home for the state of Dark Matter and its version control; conflict
@@ -1239,7 +1239,7 @@ let renderRepl (state: State) (region: UI.Layout.Region) : Unit =
       |> Stdlib.List.indexedMap (fun i l -> (i, l))
       |> Stdlib.List.iter (fun p ->
         let (i, l) = p
-        Stdlib.print ((Colors.moveCursorTo (inner.top + i) (inner.left + 1)) ++ (UI.Layout.truncateVisible l (Stdlib.Int.max 0 (inner.cols - 1))))))
+        Stdlib.print ((UI.Layout.moveCursorTo (inner.top + i) (inner.left + 1)) ++ (UI.Layout.truncateVisible l (Stdlib.Int.max 0 (inner.cols - 1))))))
     "Live values"
     (fun inner ->
       let lines =
@@ -1277,7 +1277,7 @@ let renderRepl (state: State) (region: UI.Layout.Region) : Unit =
       |> Stdlib.List.take inner.rows
       |> Stdlib.List.iter (fun p ->
         let (i, l) = p
-        Stdlib.print ((Colors.moveCursorTo (inner.top + i) (inner.left + 1)) ++ (UI.Layout.truncateVisible l (Stdlib.Int.max 0 (inner.cols - 1))))))
+        Stdlib.print ((UI.Layout.moveCursorTo (inner.top + i) (inner.left + 1)) ++ (UI.Layout.truncateVisible l (Stdlib.Int.max 0 (inner.cols - 1))))))
 
 /// Real config (from cli-config.json) as (key, value) pairs - backs the Devices "Configuration" section and
 /// the `c` reader. This is the actual persisted config, not mock.
@@ -1565,7 +1565,7 @@ let renderEditing (es: EditingState) (region: UI.Layout.Region) : Unit =
         let after = if es.buf.col < llen then Stdlib.String.slice l (es.buf.col + 1) llen else ""
         // Direct print (colored cursor would be truncated by printAt's length check); +1 col padding.
         Stdlib.print
-          ((Colors.moveCursorTo (inner.top + screenRow) (inner.left + 1))
+          ((UI.Layout.moveCursorTo (inner.top + screenRow) (inner.left + 1))
            ++ before
            ++ (Colors.colorize Colors.reverse atCursor)
            ++ after)
@@ -1677,7 +1677,7 @@ let renderViewPicker (state: State) (screen: UI.Layout.Region) : Unit =
       let mark = if viewIdx == state.activeView then " ◆" else ""
       let line = numPad ++ "  " ++ (viewLabel viewIdx) ++ mark
       let styled = if p == state.pickerSelected then Colors.colorize Colors.cyan ("> " ++ line) else "  " ++ line
-      Stdlib.print ((Colors.moveCursorTo (inner.top + p) (inner.left + 1)) ++ styled)))
+      Stdlib.print ((UI.Layout.moveCursorTo (inner.top + p) (inner.left + 1)) ++ styled)))
 
 let renderHelpOverlay (screen: UI.Layout.Region) : Unit =
   let w = Stdlib.Int.min (Stdlib.Int.max 40 (screen.cols - 4)) 70
@@ -1696,15 +1696,16 @@ let renderHelpOverlay (screen: UI.Layout.Region) : Unit =
       let row = inner.top + (i * 2) + 1
       // Printed directly (moveCursorTo) so the colored label + dim keys aren't length-truncated by printAt.
       let _ =
-        Stdlib.print ((Colors.moveCursorTo row (inner.left + 1)) ++ (Colors.colorize Colors.cyan label))
-      Stdlib.print ((Colors.moveCursorTo row (inner.left + 11)) ++ (Colors.dimText keys))))
+        Stdlib.print ((UI.Layout.moveCursorTo row (inner.left + 1)) ++ (Colors.colorize Colors.cyan label))
+      Stdlib.print ((UI.Layout.moveCursorTo row (inner.left + 11)) ++ (Colors.dimText keys))))
 
 let renderFull (state: State) : Unit =
   // Clamp to sane minimums - mid-resize the terminal reports 0/tiny sizes; without this the region math
   // goes negative and the whole view crashes back to the prompt. A safe default renders one off frame; the
   // next keypress picks up the real size.
-  let h = let hh = Terminal.getHeight () in if hh < 8 then 24 else hh
-  let w = let ww = Terminal.getWidth () in if ww < 24 then 80 else ww
+  let (rawW, rawH) = Terminal.getSize ()
+  let h = if rawH < 8 then 24 else rawH
+  let w = if rawW < 24 then 80 else rawW
   Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
   let screen = UI.Layout.Region { top = 1; left = 1; rows = h - 1; cols = w }
   let path =
@@ -1745,7 +1746,7 @@ let renderFull (state: State) : Unit =
           ++ (Colors.dimText state.instanceName)
           ++ (Colors.dimText "    branch: ")
           ++ (Colors.dimText branch)
-        Stdlib.print ((Colors.moveCursorTo r.top r.left) ++ line))
+        Stdlib.print ((UI.Layout.moveCursorTo r.top r.left) ++ line))
   let tabSegs = visibleViews state |> Stdlib.List.map (fun i -> (i, viewLabel i))
   let tabbar = UI.Layout.fixedSize 1 (fun r -> Frame.renderTabBar r tabSegs state.activeView conflictCount)
   let crumb = UI.Layout.fixedSize 1 (fun r -> Frame.renderBreadcrumb r path rightColored rightVisibleLen)
@@ -1863,15 +1864,14 @@ let renderCommandCompletions (state: State) (screen: UI.Layout.Region) : Unit =
 /// (per the TUI rule: degrade with a message, never render garbage). A real 0/tiny size mid-resize still falls
 /// through to renderFull's clamp, which draws one safe frame until the next keypress.
 let render (state: State) : Unit =
-  let rawW = Terminal.getWidth ()
-  let rawH = Terminal.getHeight ()
+  let (rawW, rawH) = Terminal.getSize ()
   let tooSmall = (rawW >= 24 && rawW < 56) || (rawH >= 8 && rawH < 12)
   if tooSmall then
     Stdlib.print "[?25l[2J[H"
     let msg = "terminal too small - resize to at least 56x12"
     let row = Stdlib.Int.max 1 (Stdlib.Int.divide rawH 2)
     let col = Stdlib.Int.max 1 (Stdlib.Int.divide (rawW - (Stdlib.String.length msg)) 2)
-    Stdlib.print ((Colors.moveCursorTo row col) ++ (Colors.dimText msg))
+    Stdlib.print ((UI.Layout.moveCursorTo row col) ++ (Colors.dimText msg))
   else
     renderFull state
 
@@ -2974,7 +2974,20 @@ let makeSubApp (state: State) : Darklang.Cli.SubApp =
           | Launch(s, cmd) -> (Darklang.Cli.SubAppAction.LaunchCommand cmd, makeSubApp s)
           | ToPrompt s -> (Darklang.Cli.SubAppAction.LaunchPrompt, makeSubApp s)
       onDisplay = fun () -> render state
-      onSave = fun () -> () }
+      onSave = fun () -> ()
+      // LEGACY surface management. Every other SubApp now hands its terminal to `Tui.TerminalSession`, which
+      // owns the alternate screen, diffs frames, and arms a restore guard for crashes. The workbench still
+      // paints by absolute positioning (see `UI.Layout`), so it drives the screen itself. These two go away
+      // when `render` becomes a `viewAtSize : State -> Tui.Size -> Tui.View`.
+      onTerminate =
+        fun () ->
+          // Reset style and show the cursor before leaving, so a Ctrl-C doesn't strand either.
+          Stdlib.print "[0m[?25h[?1049l"
+      onResume =
+        fun () ->
+          Stdlib.print "[?1049h"
+          render state
+          makeSubApp state }
 
 
 // ── CLI command entry ──
@@ -3042,8 +3055,7 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
         filter = ""
         branchId = branchId }
   { cliState with
-      currentPage = Darklang.Cli.Page.SubApp (makeSubApp state)
-      needsFullRedraw = true }
+      currentPage = Darklang.Cli.Page.SubApp (makeSubApp state) }
 
 let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
   [ "Usage: workbench"

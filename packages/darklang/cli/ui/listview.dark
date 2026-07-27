@@ -26,7 +26,7 @@ let render (region: Layout.Region) (displayLines: List<String>) (selected: Int) 
       let thumbRow =
         Stdlib.Int.divide (selected * (region.rows - 1)) (Stdlib.Int.max 1 (total - 1))
       Stdlib.print
-        ((Colors.moveCursorTo (region.top + thumbRow) (region.left + region.cols - 1))
+        ((Layout.moveCursorTo (region.top + thumbRow) (region.left + region.cols - 1))
          ++ (Colors.colorize Colors.cyan "▐"))
     else
       ()

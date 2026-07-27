@@ -35,6 +35,7 @@ let main (args : string array) : int =
         Tests.LibParser.tests
         Tests.WrittenTypesLoweringParity.tests
         Tests.HttpClient.tests
+        Tests.Terminal.tests
 
         // package manager
         Tests.Propagation.tests

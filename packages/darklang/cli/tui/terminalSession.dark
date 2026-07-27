@@ -1,0 +1,395 @@
+/// Manage the state and lifecycle of one terminal UI session.
+module Darklang.Cli.Tui.TerminalSession
+
+
+/// The terminal surface currently owned by the session.
+type Status =
+  | Stopped
+  | RunningInline
+  | RunningFullscreen
+
+
+/// Retained presentation state for one terminal UI session.
+type State =
+  { status: Status
+    previousView: Stdlib.Option.Option<Tui.View>
+    terminalSize: Stdlib.Option.Option<Tui.Size> }
+
+
+/// A state transition and terminal update prepared without writing.
+///
+/// This keeps lifecycle behavior testable without a real terminal.
+type Prepared =
+  { state: State
+    output: String }
+
+
+module Ansi =
+  val enterAlternateScreen = "\u001b[?1049h"
+  val exitAlternateScreen = "\u001b[?1049l"
+  val showCursor = "\u001b[?25h"
+  val resetStyle = "\u001b[0m"
+  val resetScrollRegion = "\u001b[r"
+  val beginSynchronizedOutput = "\u001b[?2026h"
+  val endSynchronizedOutput = "\u001b[?2026l"
+
+  val restoreInlineModes =
+    // Inline sessions do not own an enclosing application's scroll region.
+    // Normal cleanup restores only modes the inline renderer changes.
+    resetStyle ++ showCursor
+
+  val restoreFullscreenModes =
+    resetStyle
+    ++ resetScrollRegion
+    ++ showCursor
+    ++ exitAlternateScreen
+    ++ showCursor
+
+  // Fallback restoration always ends a possibly interrupted synchronized
+  // update before resetting terminal state.
+  // Emergency recovery is deliberately stronger: an interrupted process may
+  // have left an unknown scroll region behind.
+  val restoreInline =
+    endSynchronizedOutput
+    ++ resetStyle
+    ++ resetScrollRegion
+    ++ showCursor
+
+  val restoreFullscreen = endSynchronizedOutput ++ restoreFullscreenModes
+
+  /// Wrap a non-empty update in synchronized-output markers.
+  ///
+  /// Supporting terminals display the update atomically; other terminals ignore
+  /// the markers.
+  let wrapUpdate (output: String) : String =
+    if output == "" then
+      ""
+    else
+      beginSynchronizedOutput ++ output ++ endSynchronizedOutput
+
+
+/// Create a stopped session with no retained view.
+let init () : State =
+  State {
+    status = Status.Stopped
+    previousView = Stdlib.Option.Option.None
+    terminalSize = Stdlib.Option.Option.None
+  }
+
+
+let armRestoreGuard (sequence: String) : Unit =
+  Builtin.cliTerminalRestoreArm sequence
+
+
+let disarmRestoreGuard () : Unit =
+  Builtin.cliTerminalRestoreDisarm ()
+
+
+/// Return the session status for a view mode.
+let statusForMode (mode: Tui.ViewMode) : Status =
+  match mode with
+  | Fullscreen -> Status.RunningFullscreen
+  | Inline -> Status.RunningInline
+
+
+/// Return the fallback restoration sequence for a view mode.
+let restoreForMode (mode: Tui.ViewMode) : String =
+  match mode with
+  | Fullscreen -> Ansi.restoreFullscreen
+  | Inline -> Ansi.restoreInline
+
+
+/// Return whether presenting a mode moves to a different terminal surface.
+let changesSurface (status: Status) (mode: Tui.ViewMode) : Bool =
+  match status, statusForMode mode with
+  | RunningInline, RunningInline
+  | RunningFullscreen, RunningFullscreen -> false
+  | Stopped, RunningInline
+  | Stopped, RunningFullscreen
+  | RunningInline, RunningFullscreen
+  | RunningFullscreen, RunningInline -> true
+  | Stopped, Stopped
+  | RunningInline, Stopped
+  | RunningFullscreen, Stopped -> false
+
+
+/// Build the terminal control prefix needed to present a view mode.
+let transitionOutput (status: Status) (mode: Tui.ViewMode) : String =
+  match status, mode with
+  | Stopped, Fullscreen
+  | RunningInline, Fullscreen -> Ansi.enterAlternateScreen
+  | RunningFullscreen, Inline -> Ansi.restoreFullscreenModes
+  | Stopped, Inline
+  | RunningInline, Inline
+  | RunningFullscreen, Fullscreen -> ""
+
+
+/// Read and normalize the current terminal viewport dimensions.
+let currentSize () : Tui.Size =
+  let (width, height) = Darklang.Cli.Terminal.getSize ()
+  Tui.Size {
+    width = Stdlib.Int.max 1 width
+    height = Stdlib.Int.max 1 height
+  }
+
+
+/// Constrain a logical view to the sampled terminal.
+///
+/// Fullscreen rows are truncated to the physical surface. Inline views retain
+/// a cursor-containing viewport when their content is taller than the
+/// terminal, preserving relative addressing without scrolling beyond it.
+///
+/// Dynamic row content is sanitized and clipped only when a changed row is
+/// emitted. Keeping raw logical rows here makes unchanged frames cheap while
+/// the renderer remains the single terminal-safety boundary.
+let normalizeView
+  (size: Tui.Size)
+  (view: Tui.View)
+  : Tui.View =
+  let width = Stdlib.Int.max 1 size.width
+  let height = Stdlib.Int.max 1 size.height
+
+  match view.mode with
+  | Fullscreen ->
+    let rows =
+      if Stdlib.List.length view.rows <= height then
+        view.rows
+      else
+        Stdlib.List.take view.rows height
+    let cursor =
+      match view.cursor with
+      | Hidden -> Tui.Cursor.Hidden
+      | Visible(row, column) ->
+        Tui.Cursor.Visible(
+          Stdlib.Int.min (height - 1) (Stdlib.Int.max 0 row),
+          Stdlib.Int.min (width - 1) (Stdlib.Int.max 0 column))
+
+    { view with
+        rows = rows
+        cursor = cursor }
+  | Inline ->
+    let rowCount = Stdlib.List.length view.rows
+    let maxOffset = Stdlib.Int.max 0 (rowCount - height)
+    let desiredOffset =
+      match view.cursor with
+      | Hidden -> 0
+      | Visible(row, _) ->
+        if row >= height then row - height + 1 else 0
+    let offset =
+      Stdlib.Int.min maxOffset (Stdlib.Int.max 0 desiredOffset)
+    let visibleRows =
+      view.rows
+      |> Stdlib.List.drop offset
+      |> Stdlib.List.take height
+    let cursor =
+      match view.cursor with
+      | Hidden -> Tui.Cursor.Hidden
+      | Visible(row, column) ->
+        Tui.Cursor.Visible(
+          Stdlib.Int.min
+            (height - 1)
+            (Stdlib.Int.max 0 (row - offset)),
+          Stdlib.Int.min (width - 1) (Stdlib.Int.max 0 column))
+
+    { view with rows = visibleRows; cursor = cursor }
+
+
+/// Prepare a complete view for presentation at a known terminal size.
+///
+/// Moving between terminal surfaces or changing viewport size invalidates the
+/// retained view so the surface receives a complete redraw. Otherwise only
+/// changed rows are emitted.
+let preparePresentAtSize
+  (state: State)
+  (size: Tui.Size)
+  (next: Tui.View)
+  : Prepared =
+  let next = normalizeView size next
+  let surfaceChanged = changesSurface state.status next.mode
+  let sizeChanged =
+    state.terminalSize != Stdlib.Option.Option.Some size
+
+  let frameOutput =
+    match next.mode with
+    | Fullscreen ->
+      if surfaceChanged then
+        Frame.renderAtWidth size.width Stdlib.Option.Option.None next
+      else if sizeChanged then
+        Frame.renderFullAtWidth size.width state.previousView next
+      else
+        Frame.renderAtWidth size.width state.previousView next
+    | Inline ->
+      if surfaceChanged then
+        InlineFrame.renderAtWidth
+          size.width
+          Stdlib.Option.Option.None
+          next
+      else if sizeChanged then
+        InlineFrame.renderFullAtWidth
+          size.width
+          state.previousView
+          next
+      else
+        InlineFrame.renderAtWidth size.width state.previousView next
+
+  let output =
+    Ansi.wrapUpdate
+      (transitionOutput state.status next.mode ++ frameOutput)
+
+  Prepared {
+    state =
+      State {
+        status = statusForMode next.mode
+        previousView = Stdlib.Option.Option.Some next
+        terminalSize = Stdlib.Option.Option.Some size
+      }
+    output = output
+  }
+
+
+/// Present a view at a previously sampled terminal size.
+///
+/// This is useful when a layout needs to use the same size sample that the
+/// session records for resize detection.
+let presentAtSize
+  (state: State)
+  (size: Tui.Size)
+  (next: Tui.View)
+  : State =
+  let prepared = preparePresentAtSize state size next
+  let surfaceChanged = changesSurface state.status next.mode
+
+  // Arm before entering a new surface. When leaving fullscreen, retain its
+  // stronger guard until the queued exit sequence has reached the terminal.
+  if surfaceChanged then
+    match state.status, next.mode with
+    | RunningFullscreen, Inline -> ()
+    | _, mode ->
+      armRestoreGuard (restoreForMode mode)
+
+  if prepared.output == "" then
+    ()
+  else
+    Stdlib.print prepared.output
+
+  // `arm` waits for earlier queued output, so this only weakens the guard after
+  // the fullscreen exit and inline redraw have physically completed.
+  if surfaceChanged then
+    match state.status, next.mode with
+    | RunningFullscreen, Inline ->
+      armRestoreGuard Ansi.restoreInline
+    | _ -> ()
+
+  prepared.state
+
+
+/// Present a complete view using one logical stdout write.
+///
+/// Empty updates are not written. `Stdlib.print` queues each non-empty update
+/// as one complete value for the host's single `Console.Write`.
+let present (state: State) (next: Tui.View) : State =
+  presentAtSize state (currentSize ()) next
+
+
+/// Start a terminal session at a previously sampled size.
+///
+/// Terminal support is checked before writing any terminal control sequences.
+/// Continuing an existing session uses `presentAtSize`.
+let startAtSize
+  (size: Tui.Size)
+  (next: Tui.View)
+  : Stdlib.Result.Result<State, String> =
+  match TerminalSupport.current () with
+  | Available ->
+    presentAtSize (init ()) size next
+    |> Stdlib.Result.Result.Ok
+  | Unavailable reason ->
+    reason
+    |> TerminalSupport.unavailableMessage
+    |> Stdlib.Result.Result.Error
+
+
+/// Start a terminal session using the current terminal size.
+let start (next: Tui.View) : Stdlib.Result.Result<State, String> =
+  match TerminalSupport.current () with
+  | Available ->
+    present (init ()) next
+    |> Stdlib.Result.Result.Ok
+  | Unavailable reason ->
+    reason
+    |> TerminalSupport.unavailableMessage
+    |> Stdlib.Result.Result.Error
+
+
+/// Prepare normal terminal restoration and reset the session.
+///
+/// Calling this on a stopped session is safe and produces no output.
+let prepareStop (state: State) : Prepared =
+  let output =
+    match state.status with
+    | Stopped -> ""
+    | RunningInline -> Ansi.wrapUpdate Ansi.restoreInlineModes
+    | RunningFullscreen -> Ansi.wrapUpdate Ansi.restoreFullscreenModes
+
+  Prepared { state = init (); output = output }
+
+
+/// Stop the session and restore terminal state with one stdout write.
+let stop (state: State) : State =
+  let prepared = prepareStop state
+
+  match state.status with
+  | Stopped -> ()
+  | RunningInline
+  | RunningFullscreen ->
+    Stdlib.print prepared.output
+    // The builtin waits until the queued restoration has reached stdout.
+    disarmRestoreGuard ()
+
+  prepared.state
+
+
+/// Prepare inline cleanup that first replaces the region with a final view.
+///
+/// Interactive prompts use this before printing command output or exiting.
+/// The final view keeps only what belongs in scrollback — presentation-only
+/// rows such as completion hints are dropped, or every row for a discarded
+/// prompt — and the cursor parks on the final view's last row so subsequent
+/// output begins on the following line.
+let prepareStopInlineWithView
+  (state: State)
+  (final: Tui.View)
+  : Prepared =
+  match state.status with
+  | RunningInline ->
+    let (width, final) =
+      match state.terminalSize with
+      | Some size -> (Stdlib.Int.max 1 size.width, normalizeView size final)
+      | None -> (1, final)
+    let parked = { final with cursor = Tui.Cursor.Hidden }
+    let parkOutput =
+      InlineFrame.renderAtWidth width state.previousView parked
+
+    Prepared {
+      state = init ()
+      output =
+        Ansi.wrapUpdate
+          (parkOutput ++ Ansi.restoreInlineModes)
+    }
+  | Stopped
+  | RunningFullscreen ->
+    prepareStop state
+
+
+/// Stop an inline session on a final view with one logical terminal update.
+let stopInlineWithView (state: State) (final: Tui.View) : State =
+  let prepared = prepareStopInlineWithView state final
+
+  match state.status with
+  | Stopped -> ()
+  | RunningInline
+  | RunningFullscreen ->
+    Stdlib.print prepared.output
+    disarmRestoreGuard ()
+
+  prepared.state

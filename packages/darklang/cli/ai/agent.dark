@@ -312,18 +312,16 @@ let runInteractiveLoop
   else if input == "exit" || input == "quit" || input == ":q" then
     ()
   else
-    Stdlib.print (Colors.dimText "[agent] thinking...")
+    Stdlib.printLine (Colors.dimText "[agent] thinking...")
     match Darklang.LLM.Agent.runWithHistory agent history input with
     | Ok response ->
-      Stdlib.print (Colors.carriageReturn ++ Colors.clearLine)
-      Stdlib.printLine ""
       Stdlib.printLine (Colors.info "agent> ")
       Stdlib.printLine response.response
       // Use full message history including tool calls/results for context continuity
       let _ = runInteractiveLoop agent response.messages
       ()
     | Error e ->
-      Stdlib.printLine (Colors.carriageReturn ++ Colors.clearLine ++ Colors.error e)
+      Stdlib.printLine (Colors.error e)
       runInteractiveLoop agent history
 
 let runInteractive (state: Cli.AppState) (provider: String) (requestedProvider: Stdlib.Option.Option<String>) (requestedModel: Stdlib.Option.Option<String>) (writeMode: WriteMode) : Unit =

@@ -34,7 +34,7 @@ let renderTabBar (region: UI.Layout.Region) (visible: List<(Int * String)>) (act
       else
         Colors.colorize Colors.dim name)
   let bar = "  " ++ (Stdlib.String.join segs "   ")
-  Stdlib.print ((Colors.moveCursorTo region.top region.left) ++ bar)
+  Stdlib.print ((UI.Layout.moveCursorTo region.top region.left) ++ bar)
 
 /// Render the breadcrumb row: the current package path on the left, and a pre-built right segment (branch +
 /// sync status) right-aligned. `rightColored` is the ANSI-colored text; `rightVisibleLen` is its visible width
@@ -46,9 +46,9 @@ let renderBreadcrumb
   (rightVisibleLen: Int)
   : Unit =
   let left = "  " ++ (Colors.boldText path)
-  Stdlib.print ((Colors.moveCursorTo region.top region.left) ++ left)
+  Stdlib.print ((UI.Layout.moveCursorTo region.top region.left) ++ left)
   let rightCol = Stdlib.Int.max region.left (region.left + region.cols - rightVisibleLen - 2)
-  Stdlib.print ((Colors.moveCursorTo region.top rightCol) ++ rightColored)
+  Stdlib.print ((UI.Layout.moveCursorTo region.top rightCol) ++ rightColored)
 
 /// Format a list of (key, label) hints into a footer string: the key bright (cyan), the label dim, pairs
 /// separated by three dim spaces (kept plain so a footer full of hints doesn't clip on a narrow terminal).
@@ -63,4 +63,4 @@ let formatHints (pairs: List<(String * String)>) : String =
 /// Render a one-row, pre-colored key-hint bar at the bottom of the body. The string is already styled
 /// (see `formatHints`), so this just indents + places it.
 let renderKeyHints (region: UI.Layout.Region) (hints: String) : Unit =
-  Stdlib.print ((Colors.moveCursorTo region.top region.left) ++ "  " ++ hints)
+  Stdlib.print ((UI.Layout.moveCursorTo region.top region.left) ++ "  " ++ hints)

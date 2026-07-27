@@ -119,6 +119,12 @@ module Libc =
   [<DllImport("libc", EntryPoint = "read", SetLastError = true)>]
   extern int private read_raw(int fd, byte[] buf, int count)
 
+  [<DllImport("libc", EntryPoint = "lseek", SetLastError = true)>]
+  extern int64 private lseek_raw(int fd, int64 offset, int whence)
+
+  [<DllImport("libc", EntryPoint = "ioctl", SetLastError = true)>]
+  extern int private ioctl_raw(int fd, uint64 request, IntPtr argument)
+
   [<DllImport("libc", EntryPoint = "write", SetLastError = true)>]
   extern int private write_raw(int fd, byte[] buf, int count)
 
@@ -150,6 +156,10 @@ module Libc =
   let O_TRUNC = if isMac then 0x400 else 0x200 // Linux
 
   let O_APPEND = if isMac then 0x8 else 0x400 // Linux
+
+  let SEEK_SET = 0
+  let SEEK_CUR = 1
+  let SEEK_END = 2
 
 
   // -- Wrappers -----------------------------------------------------
@@ -361,6 +371,39 @@ module Libc =
       let buf = Array.zeroCreate<byte> count
       let n = read_raw (fd, buf, count)
       if n < 0 then Error(lastError ()) else Ok(buf[0 .. n - 1])
+
+  let fdSeek
+    (fd : int)
+    (offset : int64)
+    (whence : int)
+    : Result<int64, int * string> =
+    let position = lseek_raw (fd, offset, whence)
+    if position < 0L then Error(lastError ()) else Ok position
+
+  /// Read one terminal file descriptor's window size as (columns, rows).
+  let tryTerminalWindowSize (fd : int) : Option<int64 * int64> =
+    if OperatingSystem.IsWindows() then
+      None
+    else
+      let request =
+        if isMac then
+          0x40087468UL // TIOCGWINSZ on Darwin
+        else
+          0x5413UL // TIOCGWINSZ on Linux
+
+      let buffer = Marshal.AllocHGlobal 8
+      try
+        if ioctl_raw (fd, request, buffer) = 0 then
+          let rows = uint16 (Marshal.ReadInt16(buffer, 0))
+          let columns = uint16 (Marshal.ReadInt16(buffer, 2))
+          if rows > 0us && columns > 0us then
+            Some(int64 columns, int64 rows)
+          else
+            None
+        else
+          None
+      finally
+        Marshal.FreeHGlobal buffer
 
   let fdWrite (fd : int) (data : byte[]) : Result<int, int * string> =
     let mutable offset = 0
@@ -964,6 +1007,38 @@ let fns () : List<BuiltInFn> =
           let resultError = Dval.resultError KTBlob (posixErrorKT ())
           match Libc.fdRead (intToInt32 vm fd) (intToInt32 vm count) with
           | Ok bytes -> resultOk (Blob.newEphemeral bytes) |> Ply
+          | Error e -> resultError (dPosixError e) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.fileReadWrite
+      deprecated = NotDeprecated }
+
+
+    { name = fn "posixFdSeek" 0
+      typeParams = []
+      parameters =
+        [ Param.make "fd" TInt "File descriptor to reposition"
+          Param.make "offset" TInt "Byte offset"
+          Param.make
+            "whence"
+            TInt
+            "Seek origin: 0 for start, 1 for current position, 2 for end" ]
+      returnType = TypeReference.result TInt (posixErrorTypeRef ())
+      description =
+        "Seeks to a new position in an open file and returns the resulting byte offset."
+      fn =
+        (function
+        | _, vm, _, [ DInt fd; DInt offset; DInt whence ] ->
+          let resultOk = Dval.resultOk KTInt (posixErrorKT ())
+          let resultError = Dval.resultError KTInt (posixErrorKT ())
+          match
+            Libc.fdSeek
+              (intToInt32 vm fd)
+              (intToInt64 vm offset)
+              (intToInt32 vm whence)
+          with
+          | Ok position -> resultOk (Dval.int (bigint position)) |> Ply
           | Error e -> resultError (dPosixError e) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

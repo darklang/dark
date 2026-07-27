@@ -249,110 +249,45 @@ let handleKey
 
 // --- Rendering ---
 
-/// Render the tree body into a layout region.
-let renderBody (state: State) (region: Darklang.Cli.UI.Layout.Region) : Unit =
+/// Fit the outline into `height` rows while keeping the selected item visible.
+let viewRows (state: State) (height: Int) : List<String> =
   let flat = flattenVisible state.outline
-  let totalItems = Stdlib.List.length flat
   let isEditing =
     match state.editing with
     | Some _ -> true
     | None -> false
 
-  let scrollOffset =
-    if state.cursor < 0 then
-      0
-    else if state.cursor >= region.rows then
-      Darklang.Cli.Terminal.clampScrollOffset
-        (state.cursor - region.rows + 1)
-        totalItems
-        region.rows
-    else
-      0
-
-  let visibleItems =
+  let rows =
     flat
-    |> Stdlib.List.drop scrollOffset
-    |> Stdlib.List.take region.rows
-
-  visibleItems
-  |> Stdlib.List.indexedMap (fun relIdx vn -> (relIdx, vn))
-  |> Stdlib.List.iter (fun pair ->
-    let (relIdx, vn) = pair
-    let absoluteIdx = scrollOffset + relIdx
-    let isSelected = absoluteIdx == state.cursor
-    let indent = Stdlib.String.repeat "  " vn.depth
-    let bullet =
-      if vn.isCollapsed && vn.hasChildren then
-        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow ">"
-      else if vn.hasChildren then
-        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "-"
-      else
-        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "*"
-    let displayText =
-      match state.editing with
-      | Some edState ->
-        if isSelected then TextEditor.renderInline edState
-        else vn.text
-      | None -> vn.text
-    let collapseHint =
-      if vn.isCollapsed && vn.childCount > 0 then
-        let countStr = Stdlib.Int.toString vn.childCount
-        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim $" ({countStr} hidden)"
-      else
-        ""
-    let line = $"{indent}{bullet} {displayText}{collapseHint}"
-    let styled =
+    |> Stdlib.List.indexedMap (fun idx vn ->
+      let isSelected = idx == state.cursor
+      let indent = Stdlib.String.repeat "  " vn.depth
+      let bullet =
+        if vn.isCollapsed && vn.hasChildren then
+          Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow ">"
+        else if vn.hasChildren then
+          Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "-"
+        else
+          Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "*"
+      let displayText =
+        match state.editing with
+        | Some edState ->
+          if isSelected then TextEditor.renderInline edState
+          else vn.text
+        | None -> vn.text
+      let collapseHint =
+        if vn.isCollapsed && vn.childCount > 0 then
+          let countStr = Stdlib.Int.toString vn.childCount
+          Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim $" ({countStr} hidden)"
+        else
+          ""
+      let line = $"{indent}{bullet} {displayText}{collapseHint}"
       if isSelected then
         if isEditing then
           Darklang.Cli.Colors.colorize Darklang.Cli.Colors.green line
         else
           Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
       else
-        line
-    Darklang.Cli.UI.Layout.printAt region relIdx 0 styled)
+        line)
 
-let renderTitleBar (title: String) (isEditing: Bool) (region: Darklang.Cli.UI.Layout.Region) : Unit =
-  let titleText = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) $" {title} "
-  let modeText =
-    if isEditing then " EDIT " else " NAVIGATE "
-  let modeColor =
-    if isEditing then Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black
-    else Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white
-  let modeIndicator = Darklang.Cli.Colors.colorize modeColor modeText
-  Darklang.Cli.UI.Layout.printAt region 0 0 (titleText ++ " " ++ modeIndicator)
-
-let renderHelpBar (helpText: String) (region: Darklang.Cli.UI.Layout.Region) : Unit =
-  let helpLen = Stdlib.String.length helpText
-  let helpPadding =
-    if region.cols > helpLen then Stdlib.String.repeat " " (region.cols - helpLen)
-    else ""
-  let styled = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding)
-  Darklang.Cli.UI.Layout.printAt region 0 0 styled
-
-let render (state: State) (title: String) : Unit =
-  let termHeight = Darklang.Cli.Terminal.getHeight ()
-  let termWidth = Darklang.Cli.Terminal.getWidth ()
-
-  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
-
-  let screen =
-    Darklang.Cli.UI.Layout.Region { top = 1; left = 1; rows = termHeight - 1; cols = termWidth }
-
-  let isEditing =
-    match state.editing with
-    | Some _ -> true
-    | None -> false
-
-  let helpText =
-    if isEditing then "Type to edit | Left/Right: move cursor | Enter/Esc: finish editing"
-    else "Up/Down: move | Enter: edit | o: new | Tab/S-Tab: indent | Space: collapse | C-Up/Down: reorder | Esc: back"
-
-  let titleComp =
-    Darklang.Cli.UI.Layout.fixedSize 2 (fun region -> renderTitleBar title isEditing region)
-  let bodyComp =
-    Darklang.Cli.UI.Layout.greedy (fun region -> renderBody state region)
-  let helpComp =
-    Darklang.Cli.UI.Layout.fixedSize 1 (fun region -> renderHelpBar helpText region)
-  let components = [titleComp; bodyComp; helpComp]
-  Darklang.Cli.UI.Layout.vstack screen components
-  Stdlib.print "\u001b[?25h"
+  Darklang.Cli.Tui.Layout.viewport rows state.cursor height

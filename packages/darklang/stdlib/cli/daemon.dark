@@ -25,10 +25,8 @@ let logPath (name: String) : String =
 
 // The daemon's last `n` log lines (newest at the bottom); empty if it never logged.
 let tailLog (name: String) (n: Int) : List<String> =
-  match File.readLines (logPath name) with
-  | Ok lines ->
-    let total = Stdlib.List.length lines
-    if total <= n then lines else Stdlib.List.drop lines (total - n)
+  match File.readLastLines (logPath name) n with
+  | Ok lines -> lines
   | Error _ -> []
 
 

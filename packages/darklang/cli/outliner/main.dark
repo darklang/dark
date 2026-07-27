@@ -207,101 +207,155 @@ let handleKey
 
 // --- Rendering ---
 
-let renderTitleBar (titleText: String) (modeText: String) (modeColor: String) (region: Darklang.Cli.UI.Layout.Region) : Unit =
-  let title = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) $" {titleText} "
-  let modeIndicator = Darklang.Cli.Colors.colorize modeColor modeText
-  Darklang.Cli.UI.Layout.printAt region 0 0 (title ++ " " ++ modeIndicator)
+let titleRow (titleText: String) (modeIndicator: String) : String =
+  let title =
+    Darklang.Cli.Colors.colorize
+      (Darklang.Cli.Colors.purpleBg
+       ++ Darklang.Cli.Colors.white
+       ++ Darklang.Cli.Colors.bold)
+      $" {titleText} "
+  title ++ " " ++ modeIndicator
 
-let renderHelpBar (helpText: String) (region: Darklang.Cli.UI.Layout.Region) : Unit =
-  let helpLen = Stdlib.String.length helpText
+let helpRow (width: Int) (helpText: String) : String =
+  let clipped =
+    Darklang.Cli.Tui.Text.clipToWidth helpText width
+  let helpWidth =
+    Darklang.Cli.Tui.Text.displayWidth
+      (Darklang.Cli.Tui.Text.stripSgr clipped)
   let helpPadding =
-    if region.cols > helpLen then Stdlib.String.repeat " " (region.cols - helpLen)
+    if width > helpWidth then Stdlib.String.repeat " " (width - helpWidth)
     else ""
-  let styled = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white) (helpText ++ helpPadding)
-  Darklang.Cli.UI.Layout.printAt region 0 0 styled
+  Darklang.Cli.Colors.colorize
+    (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white)
+    (clipped ++ helpPadding)
 
-let renderChrome (titleText: String) (modeText: String) (modeColor: String) (helpText: String) (renderBody: Darklang.Cli.UI.Layout.Region -> Unit) : Unit =
-  let termHeight = Darklang.Cli.Terminal.getHeight ()
-  let termWidth = Darklang.Cli.Terminal.getWidth ()
-  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
+let renameRows
+  (docId: Int)
+  (picker: ListPicker.State<Document>)
+  (editor: TextEditor.State)
+  (height: Int)
+  : List<String> =
+  let rows =
+    picker.items
+    |> Stdlib.List.indexedMap (fun idx item ->
+      let isSelected = idx == picker.selected
+      let displayText =
+        if item.id == docId then
+          TextEditor.renderInline editor
+        else
+          ListPicker.labelAt picker idx
+      let prefix = if isSelected then ">" else " "
+      let line = $"  {prefix} {displayText}"
+      if isSelected then
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
+      else
+        line)
 
-  let screen =
-    Darklang.Cli.UI.Layout.Region { top = 1; left = 1; rows = termHeight - 1; cols = termWidth }
+  Darklang.Cli.Tui.Layout.viewport rows picker.selected height
 
-  let titleComp =
-    Darklang.Cli.UI.Layout.fixedSize 2 (fun region -> renderTitleBar titleText modeText modeColor region)
-  let bodyComp =
-    Darklang.Cli.UI.Layout.greedy renderBody
-  let helpComp =
-    Darklang.Cli.UI.Layout.fixedSize 1 (fun region -> renderHelpBar helpText region)
-  let components = [titleComp; bodyComp; helpComp]
-  Darklang.Cli.UI.Layout.vstack screen components
-  Stdlib.print "\u001b[?25h"
+/// Construct the complete outliner view without performing terminal I/O.
+let viewAtSize
+  (state: State)
+  (size: Darklang.Cli.Tui.Size)
+  : Darklang.Cli.Tui.View =
+  let width = Stdlib.Int.max 1 size.width
+  let contentHeight = Stdlib.Int.max 1 size.height
+  let titleHeight = if contentHeight >= 3 then 2 else 1
+  let helpHeight = if contentHeight >= 2 then 1 else 0
+  let bodyHeight =
+    Stdlib.Int.max 0 (contentHeight - titleHeight - helpHeight)
 
-let render (state: State) : Unit =
-  match state.screen with
-  | DocPicker picker ->
-    renderChrome
-      "Outliner"
+  let documentsMode =
+    Darklang.Cli.Colors.colorize
+      (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white)
       " DOCUMENTS "
+  let exportMode =
+    Darklang.Cli.Colors.colorize
       (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white)
-      "Up/Down: select | Enter: open | n: new | d: delete | r: rename | e: export | Esc: exit"
-      (fun region -> ListPicker.renderInRegion picker region)
-
-  | DocRenaming (_docId, picker, te) ->
-    let renameIndicator = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black) " RENAME "
-    renderChrome
-      "Outliner"
-      (" DOCUMENTS " ++ " " ++ renameIndicator)
-      (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white)
-      "Type to rename | Enter/Esc: finish"
-      (fun region ->
-        picker.items
-        |> Stdlib.List.indexedMap (fun idx item -> (idx, item))
-        |> Stdlib.List.iter (fun pair ->
-          let (idx, item) = pair
-          let isSelected = idx == picker.selected
-          let displayText =
-            match Stdlib.List.getAt picker.items idx with
-            | Some doc ->
-              if doc.id == _docId then TextEditor.renderInline te
-              else picker.label item
-            | None -> picker.label item
-          let prefix = if isSelected then ">" else " "
-          let line = $"  {prefix} {displayText}"
-          let styled =
-            if isSelected then
-              Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
-            else
-              line
-          Darklang.Cli.UI.Layout.printAt region idx 0 styled))
-
-  | Editor editor ->
-    let doc = activeDoc state
-    OutlineEditor.render editor doc.title
-
-  | ExportPicker picker ->
-    let doc = activeDoc state
-    renderChrome
-      $"Export: {doc.title}"
       " EXPORT "
-      (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white)
-      "Up/Down: select | Enter: choose | Esc: cancel"
-      (fun region -> ListPicker.renderInRegion picker region)
 
-  | ExportPath (ext, te) ->
-    let doc = activeDoc state
-    let formatName =
-      if ext == ".opml" then "OPML" else "Markdown"
-    renderChrome
-      $"Export: {doc.title}"
-      " EXPORT "
-      (Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black)
-      "Edit path | Enter: export | Esc: cancel"
-      (fun region ->
-        let label = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  Path: "
-        Darklang.Cli.UI.Layout.printAt region 0 0 $"  Format: {formatName}"
-        Darklang.Cli.UI.Layout.printAt region 2 0 (label ++ (TextEditor.renderInline te)))
+  let (titleText, modeIndicator, helpText, bodyRows) =
+    match state.screen with
+    | DocPicker picker ->
+      ( "Outliner"
+      , documentsMode
+      , "Up/Down: select | Enter: open | n: new | d: delete | r: rename | e: export | Esc: exit"
+      , ListPicker.viewRows picker bodyHeight )
+
+    | DocRenaming (docId, picker, editor) ->
+      let renameMode =
+        Darklang.Cli.Colors.colorize
+          (Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black)
+          " RENAME "
+      ( "Outliner"
+      , documentsMode ++ " " ++ renameMode
+      , "Type to rename | Enter/Esc: finish"
+      , renameRows docId picker editor bodyHeight )
+
+    | Editor editor ->
+      let doc = activeDoc state
+      let isEditing =
+        match editor.editing with
+        | Some _ -> true
+        | None -> false
+      let modeText = if isEditing then " EDIT " else " NAVIGATE "
+      let modeColor =
+        if isEditing then
+          Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black
+        else
+          Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white
+      let editorHelp =
+        if isEditing then
+          "Type to edit | Left/Right: move cursor | Enter/Esc: finish editing"
+        else
+          "Up/Down: move | Enter: edit | o: new | Tab/S-Tab: indent | Space: collapse | C-Up/Down: reorder | Esc: back"
+      ( doc.title
+      , Darklang.Cli.Colors.colorize modeColor modeText
+      , editorHelp
+      , OutlineEditor.viewRows editor bodyHeight )
+
+    | ExportPicker picker ->
+      let doc = activeDoc state
+      ( $"Export: {doc.title}"
+      , exportMode
+      , "Up/Down: select | Enter: choose | Esc: cancel"
+      , ListPicker.viewRows picker bodyHeight )
+
+    | ExportPath (ext, editor) ->
+      let doc = activeDoc state
+      let formatName = if ext == ".opml" then "OPML" else "Markdown"
+      let pathLabel =
+        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  Path: "
+      let greenExportMode =
+        Darklang.Cli.Colors.colorize
+          (Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black)
+          " EXPORT "
+      ( $"Export: {doc.title}"
+      , greenExportMode
+      , "Edit path | Enter: export | Esc: cancel"
+      , Darklang.Cli.Tui.Layout.fitRows
+          bodyHeight
+          [ $"  Format: {formatName}"
+            ""
+            pathLabel ++ TextEditor.renderInline editor ] )
+
+  let titleRows =
+    Darklang.Cli.Tui.Layout.fitRows
+      titleHeight
+      [ titleRow titleText modeIndicator ]
+  let helpRows =
+    if helpHeight == 0 then [] else [ helpRow width helpText ]
+  let rows =
+    Stdlib.List.flatten [ titleRows; bodyRows; helpRows ]
+    |> Stdlib.List.take contentHeight
+    |> Stdlib.List.map (fun row ->
+      Darklang.Cli.Tui.Text.clipToWidth row width)
+
+  Darklang.Cli.Tui.View {
+    rows = rows
+    cursor = Darklang.Cli.Tui.Cursor.Hidden
+    mode = Darklang.Cli.Tui.ViewMode.Fullscreen
+  }
 
 
 // --- Persistence ---

@@ -21,16 +21,16 @@ let draw (region: Layout.Region) (title: String) (focused: Bool) : Layout.Region
     (Stdlib.List.range 1 (region.rows - 2))
     |> Stdlib.List.map (fun row ->
       let r = region.top + row
-      (Colors.moveCursorTo r region.left)
+      (Layout.moveCursorTo r region.left)
       ++ (paint "│")
-      ++ (Colors.moveCursorTo r (region.left + region.cols - 1))
+      ++ (Layout.moveCursorTo r (region.left + region.cols - 1))
       ++ (paint "│"))
     |> Stdlib.String.join ""
   Stdlib.print
-    ((Colors.moveCursorTo region.top region.left)
+    ((Layout.moveCursorTo region.top region.left)
      ++ (paint top)
      ++ sides
-     ++ (Colors.moveCursorTo (region.top + region.rows - 1) region.left)
+     ++ (Layout.moveCursorTo (region.top + region.rows - 1) region.left)
      ++ (paint bottom))
 
   Layout.Region

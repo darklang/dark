@@ -1,34 +1,5 @@
 module Darklang.Cli.Terminal
 
-
-/// Display control constants
-module Display =
-  val clearScreen = "\x1b[2J\x1b[H"
-  val enterAltScreen = "\x1b[?1049h"
-  val exitAltScreen = "\x1b[?1049l"
-
-/// Gets terminal height
-let getHeight () : Int =
-  Builtin.cliGetTerminalHeight ()
-
-/// Gets terminal width
-let getWidth () : Int =
-  Builtin.cliGetTerminalWidth ()
-
-/// Calculates viewport height for scrollable content
-let getViewportHeight (reservedLines: Int) : Int =
-  let terminalHeight = getHeight ()
-  let availableHeight = Stdlib.Int.max 1 (terminalHeight - reservedLines)
-  availableHeight
-
-/// Calculate scroll offset bounds for safe scrolling
-let calculateScrollBounds (totalItems: Int) (viewportHeight: Int) : (Int * Int) =
-  let maxOffset = Stdlib.Int.max 0 (totalItems - viewportHeight)
-  (0, maxOffset)
-
-/// Clamp scroll offset to safe bounds
-let clampScrollOffset (offset: Int) (totalItems: Int) (viewportHeight: Int) : Int =
-  let (minOffset, maxOffset) = calculateScrollBounds totalItems viewportHeight
-  if offset < minOffset then minOffset
-  else if offset > maxOffset then maxOffset
-  else offset
+/// Samples terminal width and height in one native call.
+let getSize () : (Int * Int) =
+  Builtin.cliTerminalSize ()

@@ -761,9 +761,6 @@ module Expr =
     | 33uy ->
       let id = r.ReadUInt64()
       ESelf id
-    | 36uy ->
-      raiseFormatError
-        "ProgramTypes Expr tag 36 is a legacy parse-recovery hole and cannot be loaded"
     | 34uy ->
       let id = r.ReadUInt64()
       let index = r.ReadInt32()

@@ -1,24 +1,42 @@
 module Darklang.Cli.Apps.Views
 
+/// The renderer selected by a gallery entry.
+///
+/// Store a stable value in retained application state rather than a function.
+/// This keeps state portable across package/runtime boundaries and makes every
+/// renderer callable through one pure dispatcher.
+type ViewKind =
+  | AiChats
+  | PackageStats
+  | UiComponents
+
 /// A registered view that can be browsed and rendered from the CLI.
 type ViewEntry =
   { name: String
     description: String
-    render: Unit -> Unit }
+    kind: ViewKind }
 
 /// All available views. Add new views here.
 let allViews () : List<ViewEntry> =
   [ ViewEntry
       { name = "AI Chats"
         description = "Monitor AI coding threads — status, cost, tokens"
-        render = fun () -> AiChats.render () }
+        kind = ViewKind.AiChats }
     ViewEntry
       { name = "Package Stats"
         description = "Package tree statistics — counts by kind and owner"
-        render = fun () -> PackageStats.render () }
+        kind = ViewKind.PackageStats }
     ViewEntry
       { name = "UI Components"
         description = "Visual showcase of CLI UI components"
-        render = fun () ->
-          let _ = Darklang.CLI.UI.Demo.run ()
-          () } ]
+        kind = ViewKind.UiComponents } ]
+
+/// Build one registered dashboard as logical rows without terminal I/O.
+let rowsAtSize
+  (kind: ViewKind)
+  (size: Darklang.Cli.Tui.Size)
+  : List<String> =
+  match kind with
+  | AiChats -> AiChats.rowsAtSize size
+  | PackageStats -> PackageStats.rowsAtSize size
+  | UiComponents -> Darklang.CLI.UI.Demo.rows ()
