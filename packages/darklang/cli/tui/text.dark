@@ -1,0 +1,279 @@
+/// Unicode-aware text measurements for terminal UI layout.
+module Darklang.Cli.Tui.Text
+
+
+/// Measure text and report whether it contains control characters.
+///
+/// The width is valid only when the control-character flag is false.
+let inspect (text: String) : (Int * Bool) =
+  Builtin.cliTerminalInspectText text
+
+
+/// Return the number of terminal columns occupied by plain, single-line text.
+///
+/// Measure text before adding ANSI styling. Terminal control sequences are not
+/// text and must not be passed to this function.
+let displayWidth (text: String) : Int =
+  let (width, _containsControl) = inspect text
+  width
+
+
+/// Consume a CSI sequence after its `ESC [` prefix.
+///
+/// Only numeric SGR parameters are retained. Every other CSI sequence is
+/// consumed and discarded so dynamic content cannot move the cursor, erase
+/// terminal state, or change terminal modes.
+let consumeCsi
+  (chars: List<Char>)
+  (sequence: String)
+  (validSgrParameters: Bool)
+  : (String * List<Char>) =
+  match chars with
+  | [] -> ("", [])
+  | char :: remaining ->
+    let text = Stdlib.Char.toString char
+    let nextSequence = sequence ++ text
+    let ascii = Stdlib.Char.toAsciiCode char
+    let isFinal =
+      match ascii with
+      | Some code -> code >= 64 && code <= 126
+      | None -> false
+
+    if isFinal then
+      if text == "m" && validSgrParameters then
+        (nextSequence, remaining)
+      else
+        ("", remaining)
+    else
+      let validParameter =
+        Stdlib.Char.isDigit char
+        || text == ";"
+        || text == ":"
+      consumeCsi
+        remaining
+        nextSequence
+        (validSgrParameters && validParameter)
+
+
+/// Consume one terminal escape from dynamic row content.
+///
+/// Valid SGR styling is returned. Unsupported or incomplete escapes are
+/// removed. Non-CSI escapes drop only their ESC byte so ordinary following
+/// text remains visible.
+let consumeEscape
+  (chars: List<Char>)
+  : (String * List<Char>) =
+  match chars with
+  | char :: remaining when Stdlib.Char.toString char == "[" ->
+    consumeCsi remaining "\u001b[" true
+  | _ -> ("", chars)
+
+
+let isControl (char: Char) : Bool =
+  match Stdlib.Char.toAsciiCode char with
+  | Some code -> code < 32 || code == 127
+  | None -> false
+
+
+let clipStyledChars
+  (chars: List<Char>)
+  (remainingWidth: Int)
+  (result: String)
+  : String =
+  match chars with
+  | [] -> result
+  | char :: remaining ->
+    let text = Stdlib.Char.toString char
+
+    if text == "\u001b" then
+      let (sequence, afterSequence) = consumeEscape remaining
+      clipStyledChars afterSequence remainingWidth (result ++ sequence)
+    else if isControl char then
+      clipStyledChars remaining remainingWidth result
+    else
+      let width = displayWidth text
+      if width > remainingWidth then
+        result
+      else
+        clipStyledChars remaining (remainingWidth - width) (result ++ text)
+
+
+/// Clip a plain or SGR-styled row to a terminal-column width.
+///
+/// Dark `Char` values are extended grapheme clusters, so clipping cannot split
+/// combining sequences, flags, or joined emoji. SGR sequences are retained and
+/// consume no terminal columns.
+let clipToWidth (text: String) (maxWidth: Int) : String =
+  if maxWidth <= 0 then
+    ""
+  else
+    clipStyledChars (Stdlib.String.toList text) maxWidth ""
+
+
+/// Fast path rows that are already plain and within bounds.
+///
+/// Styled, dynamic-control, and oversized rows go through the strict Dark
+/// parser. Ordinary unchanged content needs only one native metrics call.
+let normalizeToWidth (text: String) (maxWidth: Int) : String =
+  let width = Stdlib.Int.max 0 maxWidth
+  let (measuredWidth, containsControl) = inspect text
+  if Stdlib.Bool.not containsControl && measuredWidth <= width then
+    text
+  else
+    clipToWidth text width
+
+
+let stripSgrChars (chars: List<Char>) (result: String) : String =
+  match chars with
+  | [] -> result
+  | char :: remaining ->
+    let text = Stdlib.Char.toString char
+
+    if text == "\u001b" then
+      let (_sequence, afterSequence) = consumeEscape remaining
+      stripSgrChars afterSequence result
+    else if isControl char then
+      stripSgrChars remaining result
+    else
+      stripSgrChars remaining (result ++ text)
+
+
+/// Remove SGR styling from a logical row.
+let stripSgr (text: String) : String =
+  stripSgrChars (Stdlib.String.toList text) ""
+
+
+/// Pad or clip text to exactly the requested terminal-column width.
+let fitToWidth (text: String) (targetWidth: Int) : String =
+  let clipped = clipToWidth text targetWidth
+  let padding = Stdlib.Int.max 0 (targetWidth - displayWidth (stripSgr clipped))
+  clipped ++ Stdlib.String.repeat " " padding
+
+
+let nextActiveStyle (active: String) (sequence: String) : String =
+  if sequence == "\u001b[0m" then
+    ""
+  else
+    active ++ sequence
+
+
+let wrapStyledChars
+  (chars: List<Char>)
+  (width: Int)
+  (activeStyle: String)
+  (current: String)
+  (currentWidth: Int)
+  (wrapPending: Bool)
+  (completed: List<String>)
+  : List<String> =
+  match chars with
+  | [] ->
+    Stdlib.List.reverse (Stdlib.List.push completed current)
+  | char :: remaining ->
+    let text = Stdlib.Char.toString char
+
+    if text == "\u001b" then
+      let (sequence, afterSequence) = consumeEscape remaining
+      wrapStyledChars
+        afterSequence
+        width
+        (nextActiveStyle activeStyle sequence)
+        (current ++ sequence)
+        currentWidth
+        wrapPending
+        completed
+    else if isControl char then
+      wrapStyledChars
+        remaining
+        width
+        activeStyle
+        current
+        currentWidth
+        wrapPending
+        completed
+    else
+      let charWidth = displayWidth text
+      let shouldWrap =
+        wrapPending
+        || (currentWidth > 0 && currentWidth + charWidth > width)
+      let nextCompleted =
+        if shouldWrap then Stdlib.List.push completed current
+        else completed
+      let row =
+        if shouldWrap then activeStyle ++ text
+        else current ++ text
+      let rowWidth =
+        if shouldWrap then charWidth
+        else currentWidth + charWidth
+
+      wrapStyledChars
+        remaining
+        width
+        activeStyle
+        row
+        rowWidth
+        (rowWidth >= width)
+        nextCompleted
+
+
+/// Wrap plain or SGR-styled text into explicit terminal-width rows.
+///
+/// Styling that spans a wrap is reapplied at the beginning of the next row,
+/// because the frame renderer resets SGR state after writing every row.
+let wrapStyled (text: String) (maxWidth: Int) : List<String> =
+  let width = Stdlib.Int.max 1 maxWidth
+  wrapStyledChars
+    (Stdlib.String.toList text)
+    width
+    ""
+    ""
+    0
+    false
+    []
+
+
+let positionAfterChars
+  (chars: List<Char>)
+  (width: Int)
+  (row: Int)
+  (column: Int)
+  (wrapPending: Bool)
+  : (Int * Int) =
+  match chars with
+  | [] ->
+    if wrapPending then (row + 1, 0)
+    else (row, column)
+  | char :: remaining ->
+    let text = Stdlib.Char.toString char
+    let charWidth = displayWidth text
+    let startRow = if wrapPending then row + 1 else row
+    let startColumn = if wrapPending then 0 else column
+    let shouldWrap =
+      startColumn > 0 && startColumn + charWidth > width
+    let nextRow = if shouldWrap then startRow + 1 else startRow
+    let nextColumn =
+      if shouldWrap then charWidth
+      else startColumn + charWidth
+
+    positionAfterChars
+      remaining
+      width
+      nextRow
+      nextColumn
+      (nextColumn >= width)
+
+
+/// Return the zero-based terminal cursor immediately after plain text.
+///
+/// A cursor exactly after the final column is represented at column zero of
+/// the following row, matching terminal wrap behavior.
+let positionAfter
+  (text: String)
+  (maxWidth: Int)
+  : (Int * Int) =
+  positionAfterChars
+    (Stdlib.String.toList text)
+    (Stdlib.Int.max 1 maxWidth)
+    0
+    0
+    false

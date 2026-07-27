@@ -10,6 +10,7 @@ nuget FSharp.Core = 10.0.100
 nuget System.Text.Json = 10.0.0
 nuget NodaTime = 3.2.2
 nuget System.IO.Hashing 10.0.0
+nuget Wcwidth = 4.0.1
 
 // Sqlite and binary serialization
 nuget Microsoft.Data.Sqlite = 10.0.0

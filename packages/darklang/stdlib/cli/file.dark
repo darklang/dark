@@ -102,6 +102,96 @@ let readLines (path: String) : Result.Result<List<String>, Posix.Error> =
   |> Stdlib.Result.map (fun text -> Stdlib.String.splitOnNewline text)
 
 
+let countNewlines (blob: Blob) : Int =
+  blob
+  |> Stdlib.Blob.toList
+  |> Stdlib.List.fold 0 (fun count byte ->
+    if byte == 10uy then count + 1 else count)
+
+
+let dropThroughFirstNewline (bytes: List<UInt8>) : List<UInt8> =
+  match bytes with
+  | [] -> []
+  | byte :: remaining ->
+    if byte == 10uy then remaining
+    else dropThroughFirstNewline remaining
+
+
+let readTailChunks
+  (fd: Int)
+  (cursor: Int)
+  (requiredNewlines: Int)
+  (foundNewlines: Int)
+  (chunks: List<Blob>)
+  : Result.Result<(Blob * Bool), Posix.Error> =
+  if cursor <= 0 || foundNewlines >= requiredNewlines then
+    Stdlib.Result.Result.Ok(
+      (Stdlib.Blob.concat chunks, cursor <= 0))
+  else
+    let chunkSize = 1024
+    let start = Stdlib.Int.max 0 (cursor - chunkSize)
+    let bytesToRead = cursor - start
+
+    (Posix.fdSeekFromStart fd start)
+    |> Stdlib.Result.andThen (fun _position ->
+      (Posix.fdRead fd bytesToRead)
+      |> Stdlib.Result.andThen (fun chunk ->
+        readTailChunks
+          fd
+          start
+          requiredNewlines
+          (foundNewlines + countNewlines chunk)
+          (Stdlib.List.push chunks chunk)))
+
+
+/// Read the last `count` lines without loading the whole file.
+let readLastLines
+  (path: String)
+  (count: Int)
+  : Result.Result<List<String>, Posix.Error> =
+  if count <= 0 then
+    Stdlib.Result.Result.Ok []
+  else
+    (size path)
+    |> Stdlib.Result.andThen (fun fileSize ->
+      match Posix.openFile path (Posix.OpenFlags.rdonly ()) 0 with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok fd ->
+        let tailResult =
+          readTailChunks fd fileSize count 0 []
+        let _closed = Builtin.posixFdClose fd
+
+        tailResult
+        |> Stdlib.Result.andThen (fun (blob, startedAtBeginning) ->
+          let bytes =
+            if startedAtBeginning then
+              Stdlib.Blob.toList blob
+            else
+              blob
+              |> Stdlib.Blob.toList
+              |> dropThroughFirstNewline
+
+          match
+            bytes
+            |> Stdlib.Blob.fromList
+            |> Stdlib.Blob.toString
+          with
+          | Error message ->
+            Stdlib.Result.Result.Error
+              (Posix.Error {
+                errno = -1
+                message = $"File contents not valid UTF-8: {message}"
+              })
+          | Ok text ->
+            let lines = Stdlib.String.splitOnNewline text
+            let total = Stdlib.List.length lines
+            if total <= count then
+              Stdlib.Result.Result.Ok lines
+            else
+              Stdlib.Result.Result.Ok
+                (Stdlib.List.drop lines (total - count))))
+
+
 /// Write text to a file, creating it if it doesn't exist or overwriting if it does.
 let writeText (path: String) (content: String) : Result.Result<Unit, Posix.Error> =
   let flags =

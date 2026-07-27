@@ -15,9 +15,11 @@ The outliner is composed of reusable components following a nested TEA pattern:
 Each component has its own State and Result types. The compositor holds the
 active child's state in a Screen enum and delegates keys/rendering to it.
 
-Layout negotiation (`Darklang.Cli.UI.Layout`) handles space distribution:
-components declare size requests, the parent distributes rows proportionally
-via `vstack`, and each child renders into its assigned Region.
+Each child returns logical rows. `Darklang.Cli.Tui.Layout.viewport` bounds long
+document and outline lists while keeping their selected row visible; the main
+view composes title, body, and help rows and clips them to Unicode terminal
+width. `Darklang.Cli.Tui.TerminalSession` retains and presents the resulting
+complete view.
 
 See `read-me/outliner-app-architecture.md` for the full design.
 
@@ -64,13 +66,8 @@ See `read-me/outliner-app-architecture.md` for the full design.
 - Headings, notes/annotations, links, tags
 
 
-## Next: Layout System (`Darklang.Cli.UI.Layout`)
+## Next: Layout System
 
 ### HStack
 - Horizontal stacking for side-by-side views (e.g. doc picker + editor)
-- Column distribution analogous to row distribution in vstack
-
-### View Data
-- Components return view data instead of printing directly
-- Enables testing, composition, and split views
-- See architecture doc "Later: multi-view composition" section
+- Add pure column distribution to `Darklang.Cli.Tui.Layout`

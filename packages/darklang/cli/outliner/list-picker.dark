@@ -3,7 +3,9 @@ module Darklang.Cli.Outliner.ListPicker
 type State<'item> =
   { items: List<'item>
     selected: Int
-    label: 'item -> String }
+    /// Prepared display labels retained as data; long-lived CLI state must not
+    /// retain anonymous lambda bodies.
+    labels: List<String> }
 
 type Result<'item> =
   | Browsing of State<'item>
@@ -11,7 +13,15 @@ type Result<'item> =
   | Cancelled
 
 let make (items: List<'item>) (label: 'item -> String) : State<'item> =
-  State { items = items; selected = 0; label = label }
+  State {
+    items = items
+    selected = 0
+    labels = Stdlib.List.map items label
+  }
+
+let labelAt (state: State<'item>) (index: Int) : String =
+  Stdlib.List.getAt state.labels index
+  |> Stdlib.Option.withDefault ""
 
 let handleKey
   (state: State<'item>)
@@ -39,32 +49,19 @@ let handleKey
     | None -> Result.Cancelled
   | _ -> Result.Browsing state
 
-/// Render the list into a layout region.
-let renderInRegion (state: State<'item>) (region: Darklang.Cli.UI.Layout.Region) : Unit =
-  let itemCount = Stdlib.List.length state.items
+/// Build a bounded logical viewport for the picker.
+let viewRows (state: State<'item>) (height: Int) : List<String> =
   let selectedIdx = state.selected
-  let scrollOffset =
-    if selectedIdx >= region.rows then
-      Darklang.Cli.Terminal.clampScrollOffset
-        (selectedIdx - region.rows + 1)
-        itemCount
-        region.rows
-    else
-      0
-  state.items
-  |> Stdlib.List.indexedMap (fun idx item -> (idx, item))
-  |> Stdlib.List.drop scrollOffset
-  |> Stdlib.List.take region.rows
-  |> Stdlib.List.iter (fun pair ->
-    let (idx, item) = pair
-    let row = idx - scrollOffset
-    let isSelected = idx == selectedIdx
-    let text = state.label item
-    let prefix = if isSelected then ">" else " "
-    let line = $"  {prefix} {text}"
-    let styled =
+  let rows =
+    state.items
+    |> Stdlib.List.indexedMap (fun idx _item ->
+      let isSelected = idx == selectedIdx
+      let text = labelAt state idx
+      let prefix = if isSelected then ">" else " "
+      let line = $"  {prefix} {text}"
       if isSelected then
         Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
       else
-        line
-    Darklang.Cli.UI.Layout.printAt region row 0 styled)
+        line)
+
+  Darklang.Cli.Tui.Layout.viewport rows selectedIdx height

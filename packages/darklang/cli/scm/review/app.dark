@@ -405,159 +405,254 @@ let kindLabel (kind: String) : String =
   | "Value" -> Darklang.Cli.Colors.colorize Darklang.Cli.Colors.orange "val"
   | other -> Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim other
 
-let printLine (region: Darklang.Cli.UI.Layout.Region) (row: Int) (text: String) : Unit =
-  Darklang.Cli.UI.Layout.printAt region row 0 (text ++ "\u001b[K")
+/// Repeat a blank logical row without leaking `List.repeat`'s impossible
+/// negative-count error into view construction.
+let blankRows (count: Int) : List<String> =
+  match Stdlib.List.repeat (Stdlib.Int.max 0 count) "" with
+  | Ok rows -> rows
+  | Error _ -> []
 
-let clearRows (region: Darklang.Cli.UI.Layout.Region) (startRow: Int) : Unit =
-  let rows = Stdlib.List.range startRow (region.rows - 1)
-  Stdlib.List.iter rows (fun row -> Darklang.Cli.UI.Layout.printAt region row 0 "\u001b[K")
+/// Fit a row list to an exact logical height.
+let fitRows (height: Int) (rows: List<String>) : List<String> =
+  let target = Stdlib.Int.max 0 height
+  let visible = Stdlib.List.take rows target
+  Stdlib.List.append
+    visible
+    (blankRows (target - Stdlib.List.length visible))
 
-let renderScrollableList
-  (region: Darklang.Cli.UI.Layout.Region)
+/// Select the portion of a fixed-height item list that contains `selected`.
+let visibleItems
   (items: List<'a>)
   (selected: Int)
-  (startRow: Int)
+  (availableRows: Int)
   (rowsPerItem: Int)
-  (renderItem: Darklang.Cli.UI.Layout.Region -> Int -> 'a -> Bool -> Unit)
-  : Unit =
-  let itemCount = Stdlib.List.length items
-  let listRows = region.rows - startRow
-  let visibleCount = Stdlib.Int.divide listRows rowsPerItem
-  let scrollOffset = computeScrollOffset selected visibleCount
-  items
-  |> Stdlib.List.indexedMap (fun idx item -> (idx, item))
-  |> Stdlib.List.drop scrollOffset
-  |> Stdlib.List.take visibleCount
-  |> Stdlib.List.iter (fun pair ->
-    let (idx, item) = pair
-    let itemRow = ((idx - scrollOffset) * rowsPerItem) + startRow
-    let isSelected = idx == selected
-    renderItem region itemRow item isSelected)
-  let renderedRows = ((Stdlib.Int.min itemCount visibleCount) * rowsPerItem) + startRow
-  clearRows region renderedRows
+  : List<(Int * 'a)> =
+  let visibleCount =
+    if rowsPerItem <= 0 then 0
+    else Stdlib.Int.divide (Stdlib.Int.max 0 availableRows) rowsPerItem
 
-let renderTitleBar (region: Darklang.Cli.UI.Layout.Region) (modeText: String) : Unit =
+  if visibleCount <= 0 then
+    []
+  else
+    let scrollOffset = computeScrollOffset selected visibleCount
+    items
+    |> Stdlib.List.indexedMap (fun idx item -> (idx, item))
+    |> Stdlib.List.drop scrollOffset
+    |> Stdlib.List.take visibleCount
+
+let titleRow (modeText: String) : String =
   let title = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.magenta) "Review changes"
   let mode = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim modeText
-  printLine region 0 ($"  {title} {mode}")
+  $"  {title} {mode}"
 
-let renderHelpBar (region: Darklang.Cli.UI.Layout.Region) (helpText: String) : Unit =
-  printLine region 0 (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim helpText)
+let helpRow (helpText: String) : String =
+  Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim helpText
 
-let renderBranchListBody (branchList: BranchListState) (region: Darklang.Cli.UI.Layout.Region) : Unit =
+let branchListRows
+  (branchList: BranchListState)
+  (width: Int)
+  (height: Int)
+  : List<String> =
   let itemCount = Stdlib.List.length branchList.items
-  printLine region 0 $"  {Darklang.Cli.Colors.bold}branches to review{Darklang.Cli.Colors.reset}"
-  if itemCount == 0 then
-    printLine region 2 (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  No branches with changes to review.")
-    clearRows region 3
-  else
-  let dim = Darklang.Cli.Colors.dim ++ Darklang.Cli.Colors.brightBlack
-  let hBar = Stdlib.String.repeat "─" (Stdlib.Int.max 0 (region.cols - 5))
-  renderScrollableList region branchList.items branchList.selected 2 4 (fun r cardRow item isSelected ->
-    let borderColor = if isSelected then Darklang.Cli.Colors.cyan else dim
-    let bar = Darklang.Cli.Colors.colorize borderColor "│"
-    let marker = if isSelected then Darklang.Cli.Colors.colorize Darklang.Cli.Colors.cyan " > " else "   "
-    let nameColor = if isSelected then Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.cyan else Darklang.Cli.Colors.white
-    let nameText = Darklang.Cli.Colors.colorize nameColor item.branchName
-    let textDim = if isSelected then "" else Darklang.Cli.Colors.dim
-    let countText = formatBranchCounts item.wipCount item.committedCount textDim
-    printLine r cardRow (Darklang.Cli.Colors.colorize borderColor ("   ╭" ++ hBar))
-    printLine r (cardRow + 1) $"{marker}{bar} {nameText}  {countText}"
-    printLine r (cardRow + 2) $"   {bar}"
-    printLine r (cardRow + 3) (Darklang.Cli.Colors.colorize borderColor ("   ╰" ++ hBar)))
+  let heading =
+    $"  {Darklang.Cli.Colors.bold}branches to review{Darklang.Cli.Colors.reset}"
 
-let renderDetailBody (detail: DetailState) (region: Darklang.Cli.UI.Layout.Region) : Unit =
-  printLine region 0 $"  {Darklang.Cli.Colors.dim}review >{Darklang.Cli.Colors.reset} {Darklang.Cli.Colors.cyan}{detail.branchName}{Darklang.Cli.Colors.reset}"
-  let itemCount = Stdlib.List.length detail.flatItems
   if itemCount == 0 then
-    printLine region 2 (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  No changes on this branch.")
-    clearRows region 3
+    fitRows height
+      [ heading
+        ""
+        Darklang.Cli.Colors.colorize
+          Darklang.Cli.Colors.dim
+          "  No branches with changes to review." ]
   else
-  renderScrollableList region detail.flatItems detail.selected 2 1 (fun r row item isSelected ->
-    let styled =
-      match item with
-      | ModuleHeader modPath ->
-        let prefix = if isSelected then " > " else "   "
-        $"{prefix}{Darklang.Cli.Colors.bold}{Darklang.Cli.Colors.magenta}{modPath}{Darklang.Cli.Colors.reset}"
-      | ItemEntry pkg ->
-        let prefix = if isSelected then "  > " else "    "
-        let propText =
-          if pkg.propagatedCount > 0 then
-            Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim ($"  ({Stdlib.Int.toString pkg.propagatedCount} propagated)")
+    let dim = Darklang.Cli.Colors.dim ++ Darklang.Cli.Colors.brightBlack
+    let hBar = Stdlib.String.repeat "─" (Stdlib.Int.max 0 (width - 5))
+    let cards =
+      visibleItems branchList.items branchList.selected (height - 2) 4
+      |> Stdlib.List.map (fun (idx, item) ->
+        let isSelected = idx == branchList.selected
+        let borderColor = if isSelected then Darklang.Cli.Colors.cyan else dim
+        let bar = Darklang.Cli.Colors.colorize borderColor "│"
+        let marker =
+          if isSelected then
+            Darklang.Cli.Colors.colorize Darklang.Cli.Colors.cyan " > "
           else
-            ""
-        $"{prefix}{kindLabel pkg.kind} {pkg.name}{propText}"
-    printLine r row styled)
+            "   "
+        let nameColor =
+          if isSelected then
+            Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.cyan
+          else
+            Darklang.Cli.Colors.white
+        let nameText =
+          Darklang.Cli.Colors.colorize nameColor item.branchName
+        let textDim = if isSelected then "" else Darklang.Cli.Colors.dim
+        let countText =
+          formatBranchCounts item.wipCount item.committedCount textDim
+        [ Darklang.Cli.Colors.colorize borderColor ("   ╭" ++ hBar)
+          $"{marker}{bar} {nameText}  {countText}"
+          $"   {bar}"
+          Darklang.Cli.Colors.colorize borderColor ("   ╰" ++ hBar) ])
+      |> Stdlib.List.flatten
 
-let renderDiffBody (diffState: DiffState) (region: Darklang.Cli.UI.Layout.Region) : Unit =
+    fitRows height (Stdlib.List.append [ heading; "" ] cards)
+
+let detailRows (detail: DetailState) (height: Int) : List<String> =
+  let heading =
+    $"  {Darklang.Cli.Colors.dim}review >{Darklang.Cli.Colors.reset} {Darklang.Cli.Colors.cyan}{detail.branchName}{Darklang.Cli.Colors.reset}"
+  let itemCount = Stdlib.List.length detail.flatItems
+
+  if itemCount == 0 then
+    fitRows height
+      [ heading
+        ""
+        Darklang.Cli.Colors.colorize
+          Darklang.Cli.Colors.dim
+          "  No changes on this branch." ]
+  else
+    let items =
+      visibleItems detail.flatItems detail.selected (height - 2) 1
+      |> Stdlib.List.map (fun (idx, item) ->
+        let isSelected = idx == detail.selected
+        match item with
+        | ModuleHeader modPath ->
+          let prefix = if isSelected then " > " else "   "
+          $"{prefix}{Darklang.Cli.Colors.bold}{Darklang.Cli.Colors.magenta}{modPath}{Darklang.Cli.Colors.reset}"
+        | ItemEntry pkg ->
+          let prefix = if isSelected then "  > " else "    "
+          let propText =
+            if pkg.propagatedCount > 0 then
+              Darklang.Cli.Colors.colorize
+                Darklang.Cli.Colors.dim
+                ($"  ({Stdlib.Int.toString pkg.propagatedCount} propagated)")
+            else
+              ""
+          $"{prefix}{kindLabel pkg.kind} {pkg.name}{propText}")
+
+    fitRows height (Stdlib.List.append [ heading; "" ] items)
+
+let diffRows (diffState: DiffState) (height: Int) : List<String> =
   let branchName =
     match diffState.returnTo with
     | ReturnToDetail detail -> detail.branchName
     | ReturnToCommits commitList -> commitList.branchName
-  printLine region 0 $"  {Darklang.Cli.Colors.dim}review > {branchName} >{Darklang.Cli.Colors.reset} {Darklang.Cli.Colors.cyan}{diffState.itemName}{Darklang.Cli.Colors.reset}"
-  let listRows = region.rows - 2
-  let lineCount = Stdlib.List.length diffState.diffLines
-  diffState.diffLines
-  |> Stdlib.List.indexedMap (fun idx line -> (idx, line))
-  |> Stdlib.List.drop diffState.scrollOffset
-  |> Stdlib.List.take listRows
-  |> Stdlib.List.iter (fun pair ->
-    let (idx, diffLine) = pair
-    let row = (idx - diffState.scrollOffset) + 2
-    let styled =
+
+  let heading =
+    $"  {Darklang.Cli.Colors.dim}review > {branchName} >{Darklang.Cli.Colors.reset} {Darklang.Cli.Colors.cyan}{diffState.itemName}{Darklang.Cli.Colors.reset}"
+
+  let lines =
+    diffState.diffLines
+    |> Stdlib.List.drop diffState.scrollOffset
+    |> Stdlib.List.take (height - 2)
+    |> Stdlib.List.map (fun diffLine ->
       match diffLine with
       | Added text -> Darklang.Cli.Colors.colorize Darklang.Cli.Colors.green ("  + " ++ text)
       | Removed text -> Darklang.Cli.Colors.colorize Darklang.Cli.Colors.red ("  - " ++ text)
-      | Same text -> "    " ++ text
-    printLine region row styled)
-  clearRows region ((Stdlib.Int.min lineCount listRows) + 2)
+      | Same text -> "    " ++ text)
 
-let renderCommitListBody (commitList: CommitListState) (region: Darklang.Cli.UI.Layout.Region) : Unit =
-  printLine region 0 $"  {Darklang.Cli.Colors.dim}review > {commitList.branchName} >{Darklang.Cli.Colors.reset} {Darklang.Cli.Colors.bold}commits{Darklang.Cli.Colors.reset}"
+  fitRows height (Stdlib.List.append [ heading; "" ] lines)
+
+let commitListRows
+  (commitList: CommitListState)
+  (height: Int)
+  : List<String> =
+  let heading =
+    $"  {Darklang.Cli.Colors.dim}review > {commitList.branchName} >{Darklang.Cli.Colors.reset} {Darklang.Cli.Colors.bold}commits{Darklang.Cli.Colors.reset}"
   let itemCount = Stdlib.List.length commitList.commits
-  if itemCount == 0 then
-    printLine region 2 (Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  No commits on this branch.")
-    clearRows region 3
-  else
-  renderScrollableList region commitList.commits commitList.selected 2 1 (fun r row entry isSelected ->
-    let prefix = if isSelected then " > " else "   "
-    let hashText = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow entry.hash
-    let opsText = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim ($"{Stdlib.Int.toString entry.opCount} ops")
-    let dateText = Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim entry.date
-    printLine r row $"{prefix}{hashText} {entry.message}  {opsText}  {dateText}")
 
-let render (state: AppModel) : Unit =
-  let termHeight = Darklang.Cli.Terminal.getHeight ()
-  let termWidth = Darklang.Cli.Terminal.getWidth ()
-  Stdlib.print "\u001b[?25l\u001b[2J\u001b[H"
-  let screen =
-    Darklang.Cli.UI.Layout.Region { top = 1; left = 1; rows = termHeight - 1; cols = termWidth }
-  let (mode, bodyFn, helpText) =
+  if itemCount == 0 then
+    fitRows height
+      [ heading
+        ""
+        Darklang.Cli.Colors.colorize
+          Darklang.Cli.Colors.dim
+          "  No commits on this branch." ]
+  else
+    let entries =
+      visibleItems commitList.commits commitList.selected (height - 2) 1
+      |> Stdlib.List.map (fun (idx, entry) ->
+        let prefix = if idx == commitList.selected then " > " else "   "
+        let hashText =
+          Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow entry.hash
+        let opsText =
+          Darklang.Cli.Colors.colorize
+            Darklang.Cli.Colors.dim
+            ($"{Stdlib.Int.toString entry.opCount} ops")
+        let dateText =
+          Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim entry.date
+        $"{prefix}{hashText} {entry.message}  {opsText}  {dateText}")
+
+    fitRows height (Stdlib.List.append [ heading; "" ] entries)
+
+/// Build review's complete desired screen without performing terminal I/O.
+let viewAtSize
+  (state: AppModel)
+  (size: Darklang.Cli.Tui.Size)
+  : Darklang.Cli.Tui.View =
+  let width = Stdlib.Int.max 1 size.width
+  let contentHeight = Stdlib.Int.max 1 size.height
+  let titleHeight = if contentHeight >= 3 then 2 else 1
+  let helpHeight = if contentHeight >= 2 then 1 else 0
+  let bodyHeight =
+    Stdlib.Int.max 0 (contentHeight - titleHeight - helpHeight)
+
+  let (mode, bodyRows, helpText) =
     match state.screen with
     | BranchList branchList ->
-      ("", (fun r -> renderBranchListBody branchList r), "Up/Down: navigate | Right/Enter: open | r: refresh | Left/Esc: exit")
+      ("", branchListRows branchList width bodyHeight, "Up/Down: navigate | Right/Enter: open | r: refresh | Left/Esc: exit")
     | Detail detail ->
-      (" Pending ", (fun r -> renderDetailBody detail r), "Up/Down: navigate | Right/Enter: diff | c: commits | Left/Esc: back")
+      (" Pending ", detailRows detail bodyHeight, "Up/Down: navigate | Right/Enter: diff | c: commits | Left/Esc: back")
     | DiffView diffState ->
-      (" DIFF ", (fun r -> renderDiffBody diffState r), "Up/Down: scroll | Left/Esc: back")
+      (" DIFF ", diffRows diffState bodyHeight, "Up/Down: scroll | Left/Esc: back")
     | CommitList commitList ->
-      (" COMMITS ", (fun r -> renderCommitListBody commitList r), "Up/Down: navigate | Right/Enter: view | Left/Esc: back")
-  let titleComp = Darklang.Cli.UI.Layout.fixedSize 2 (fun r -> renderTitleBar r mode)
-  let bodyComp = Darklang.Cli.UI.Layout.greedy bodyFn
-  let helpComp = Darklang.Cli.UI.Layout.fixedSize 1 (fun r -> renderHelpBar r helpText)
-  Darklang.Cli.UI.Layout.vstack screen [ titleComp; bodyComp; helpComp ]
-  Stdlib.print "\u001b[?25h"
+      (" COMMITS ", commitListRows commitList bodyHeight, "Up/Down: navigate | Right/Enter: view | Left/Esc: back")
+
+  let titleRows = fitRows titleHeight [ titleRow mode ]
+  let helpRows = if helpHeight == 0 then [] else [ helpRow helpText ]
+  let rows =
+    Stdlib.List.flatten [ titleRows; bodyRows; helpRows ]
+    |> Stdlib.List.take contentHeight
+    |> Stdlib.List.map (fun row ->
+      Darklang.Cli.Tui.Text.clipToWidth row width)
+
+  Darklang.Cli.Tui.View {
+    rows = rows
+    cursor = Darklang.Cli.Tui.Cursor.Hidden
+    mode = Darklang.Cli.Tui.ViewMode.Fullscreen
+  }
 
 // ── SubApp wrapper ──
 
-let makeSubApp (state: AppModel) : Darklang.Cli.SubApp =
+type Session =
+  { state: AppModel
+    terminal: Darklang.Cli.Tui.TerminalSession.State }
+
+let makeSubApp (session: Session) : Darklang.Cli.SubApp =
   Darklang.Cli.SubApp
     { onKey = fun key modifiers keyChar ->
-        match handleKey state key modifiers keyChar with
-        | Continue s -> (Darklang.Cli.SubAppAction.Continue, makeSubApp s)
-        | Exit s -> (Darklang.Cli.SubAppAction.Exit, makeSubApp s)
-      onDisplay = fun () -> render state
-      onSave = fun () -> () }
+        match handleKey session.state key modifiers keyChar with
+        | Continue nextState ->
+          let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+          let nextTerminal =
+            Darklang.Cli.Tui.TerminalSession.presentAtSize
+              session.terminal
+              size
+              (viewAtSize nextState size)
+          let nextSession =
+            Session { state = nextState; terminal = nextTerminal }
+          (Darklang.Cli.SubAppAction.Continue, makeSubApp nextSession)
+        | Exit nextState ->
+          let nextSession =
+            Session { state = nextState; terminal = session.terminal }
+          (Darklang.Cli.SubAppAction.Exit, makeSubApp nextSession)
+      // Presentation happens on launch and state transitions so the returned
+      // SubApp retains the corresponding renderer history.
+      onDisplay = fun () -> ()
+      onSave = fun () -> ()
+      onTerminate =
+        fun () ->
+          let _stopped =
+            Darklang.Cli.Tui.TerminalSession.stop session.terminal
+          () }
 
 let buildDetailForBranch (branchId: Uuid) : Screen =
   let branchName =
@@ -650,14 +745,26 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
     else printBranchDetail branchId
     cliState
   else
-    Stdlib.print "\u001b[?1049h"
     let screen =
       if showAll then
         Screen.BranchList (BranchListState { items = loadBranchList (); selected = 0 })
       else
         buildDetailForBranch branchId
-    let app = makeSubApp (AppModel { screen = screen; branchId = branchId; showAll = showAll })
-    { cliState with currentPage = Darklang.Cli.Page.SubApp app; needsFullRedraw = true }
+    let state =
+      AppModel { screen = screen; branchId = branchId; showAll = showAll }
+    let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+    match
+      Darklang.Cli.Tui.TerminalSession.startAtSize
+        size
+        (viewAtSize state size)
+    with
+    | Ok terminal ->
+      let session = Session { state = state; terminal = terminal }
+      { cliState with
+          currentPage = Darklang.Cli.Page.SubApp (makeSubApp session) }
+    | Error message ->
+      Stdlib.printLine message
+      cliState
 
 let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
   [ "Usage: review [--all]"

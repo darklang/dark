@@ -16,20 +16,58 @@ type Component<'s> =
     onKey: 's -> Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> Step<'s> }
 
 
-let toSubApp (c: Component<'s>) (state: 's) : Cli.SubApp =
+/// Convert a component's rendered text into a complete logical terminal view.
+///
+/// Components still return a string while they migrate incrementally. Splitting
+/// that string here keeps terminal effects and lifecycle control out of feature
+/// code without requiring each existing component to understand the renderer.
+let view (c: Component<'s>) (state: 's) : Tui.View =
+  let rendered = c.render state
+
+  let rows =
+    if rendered == "" then
+      []
+    else
+      Stdlib.String.split rendered "\n"
+
+  Tui.View {
+    rows = rows
+    cursor = Tui.Cursor.Hidden
+    mode = Tui.ViewMode.Fullscreen
+  }
+
+
+let toSubApp
+  (c: Component<'s>)
+  (state: 's)
+  (terminal: Tui.TerminalSession.State)
+  : Cli.SubApp =
   Cli.SubApp
     { onKey =
         fun key modifiers keyChar ->
           match c.onKey state key modifiers keyChar with
-          | Stay next -> (Cli.SubAppAction.Continue, toSubApp c next)
-          | Exit -> (Cli.SubAppAction.Exit, toSubApp c state)
-      onDisplay = fun () -> Stdlib.print ("\u001b[2J\u001b[H" ++ c.render state)
-      onSave = fun () -> () }
+          | Stay next ->
+            let nextTerminal =
+              Tui.TerminalSession.present terminal (view c next)
+            (Cli.SubAppAction.Continue, toSubApp c next nextTerminal)
+          | Exit ->
+            (Cli.SubAppAction.Exit, toSubApp c state terminal)
+      // Presentation happens on launch and state transitions so the returned
+      // SubApp retains the corresponding renderer state.
+      onDisplay = fun () -> ()
+      onSave = fun () -> ()
+      onTerminate =
+        fun () ->
+          let _stopped = Tui.TerminalSession.stop terminal
+          () }
 
 
 /// Launch `c` (starting at `init`) as the CLI's current full-screen page.
 let launch (cliState: Cli.AppState) (c: Component<'s>) (init: 's) : Cli.AppState =
-  Stdlib.print "\u001b[?1049h"
-  { cliState with
-      currentPage = Cli.Page.SubApp (toSubApp c init)
-      needsFullRedraw = true }
+  match Tui.TerminalSession.start (view c init) with
+  | Ok terminal ->
+    { cliState with
+        currentPage = Cli.Page.SubApp (toSubApp c init terminal) }
+  | Error message ->
+    Stdlib.printLine message
+    cliState

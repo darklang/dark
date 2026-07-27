@@ -13,8 +13,8 @@
     <Compile Include="Libs/Output.fs" />
     <Compile Include="Libs/Execution.fs" />
     <Compile Include="Libs/Stdin.fs" />
-    <Compile Include="Libs/Terminal.fs" />
     <Compile Include="Libs/Posix.fs" />
+    <Compile Include="Libs/Terminal.fs" />
     <Compile Include="Builtin.fs" />
   </ItemGroup>
   <ItemGroup>

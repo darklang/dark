@@ -1,0 +1,172 @@
+/// Builds terminal updates by comparing complete logical views.
+module Darklang.Cli.Tui.Frame
+
+
+/// One logical row that changed between two views.
+type RowChange =
+  { /// Zero-based row in the logical view.
+    row: Int
+    /// Complete styled content for the row, or an empty string to clear it.
+    content: String }
+
+
+/// Compare both row lists once while accumulating changes in reverse order.
+let changedRowsFrom
+  (row: Int)
+  (previousRows: List<String>)
+  (nextRows: List<String>)
+  (changes: List<RowChange>)
+  : List<RowChange> =
+  match previousRows, nextRows with
+  | [], [] ->
+    Stdlib.List.reverse changes
+  | previous :: previousTail, next :: nextTail ->
+    let changes =
+      if previous == next then
+        changes
+      else
+        Stdlib.List.push changes (RowChange { row = row; content = next })
+
+    changedRowsFrom (row + 1) previousTail nextTail changes
+  | _previous :: previousTail, [] ->
+    changedRowsFrom
+      (row + 1)
+      previousTail
+      []
+      (Stdlib.List.push changes (RowChange { row = row; content = "" }))
+  | [], next :: nextTail ->
+    changedRowsFrom
+      (row + 1)
+      []
+      nextTail
+      (Stdlib.List.push changes (RowChange { row = row; content = next }))
+
+
+/// Return complete rows whose content changed.
+///
+/// Comparing through the longer view ensures rows removed from the next view
+/// are returned with empty content and erased from the terminal.
+let changedRows
+  (previousRows: List<String>)
+  (nextRows: List<String>)
+  : List<RowChange> =
+  changedRowsFrom 0 previousRows nextRows []
+
+
+/// Traverse both lists once while accumulating a complete repaint.
+let fullRedrawRowsFrom
+  (row: Int)
+  (previousRows: List<String>)
+  (nextRows: List<String>)
+  (changes: List<RowChange>)
+  : List<RowChange> =
+  match previousRows, nextRows with
+  | [], [] ->
+    Stdlib.List.reverse changes
+  | _previous :: previousTail, next :: nextTail ->
+    fullRedrawRowsFrom
+      (row + 1)
+      previousTail
+      nextTail
+      (Stdlib.List.push changes (RowChange { row = row; content = next }))
+  | _previous :: previousTail, [] ->
+    fullRedrawRowsFrom
+      (row + 1)
+      previousTail
+      []
+      (Stdlib.List.push changes (RowChange { row = row; content = "" }))
+  | [], next :: nextTail ->
+    fullRedrawRowsFrom
+      (row + 1)
+      []
+      nextTail
+      (Stdlib.List.push changes (RowChange { row = row; content = next }))
+
+
+/// Return every next row plus empty changes for rows that disappeared.
+///
+/// This is used after resize: every retained row is repainted, while content
+/// outside a now-shorter logical view is explicitly erased.
+let fullRedrawRows
+  (previousRows: List<String>)
+  (nextRows: List<String>)
+  : List<RowChange> =
+  fullRedrawRowsFrom 0 previousRows nextRows []
+
+
+/// Render one complete row update.
+///
+/// Terminal coordinates are one-based. The row is erased before its content
+/// is written: erasing afterwards would clear the final cell of a full-width
+/// row, because the terminal parks in deferred-wrap state on that cell. The
+/// style reset precedes the erase so blank cells never inherit styling, and a
+/// final reset contains any style left open by the logical row. Returning to
+/// column one cancels deferred wrap before the next terminal update.
+let renderRowChangeAtWidth
+  (width: Int)
+  (change: RowChange)
+  : String =
+  let terminalRow = Stdlib.Int.toString (change.row + 1)
+  let content = Text.normalizeToWidth change.content width
+  $"\u001b[{terminalRow};1H\u001b[0m\u001b[K{content}\u001b[0m\r"
+
+
+/// Render the desired final cursor state.
+let renderCursor (cursor: Tui.Cursor) : String =
+  match cursor with
+  | Hidden -> ""
+  | Visible(row, column) ->
+    let terminalRow = Stdlib.Int.toString (Stdlib.Int.max 0 row + 1)
+    let terminalColumn = Stdlib.Int.toString (Stdlib.Int.max 0 column + 1)
+    $"\u001b[{terminalRow};{terminalColumn}H\u001b[?25h"
+
+
+/// Produce one buffered terminal update for a complete desired view.
+///
+/// The caller writes this returned string once. Terminal session modes are
+/// deliberately excluded: the terminal session owns those effects.
+let renderAtWidth
+  (width: Int)
+  (previous: Stdlib.Option.Option<Tui.View>)
+  (next: Tui.View)
+  : String =
+  let previousRows =
+    match previous with
+    | None -> []
+    | Some view -> view.rows
+
+  let rowChanges = changedRows previousRows next.rows
+
+  let cursorChanged =
+    match previous with
+    | None -> true
+    | Some view -> view.cursor != next.cursor
+
+  if Stdlib.List.isEmpty rowChanges && Stdlib.Bool.not cursorChanged then
+    ""
+  else
+    let rows =
+      rowChanges
+      |> Stdlib.List.map (renderRowChangeAtWidth width)
+      |> Stdlib.String.join ""
+
+    "\u001b[?25l" ++ rows ++ renderCursor next.cursor
+
+
+/// Produce a complete repaint while clearing rows removed from the prior view.
+let renderFullAtWidth
+  (width: Int)
+  (previous: Stdlib.Option.Option<Tui.View>)
+  (next: Tui.View)
+  : String =
+  let previousRows =
+    match previous with
+    | None -> []
+    | Some view -> view.rows
+
+  let rows =
+    fullRedrawRows previousRows next.rows
+    |> Stdlib.List.map (renderRowChangeAtWidth width)
+    |> Stdlib.String.join ""
+
+  "\u001b[?25l" ++ rows ++ renderCursor next.cursor

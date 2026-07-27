@@ -4,9 +4,16 @@ module Darklang.Cli.Apps.Editor
 // run foreground apps, and start/stop daemons, all on one screen. Enter is the primary action: it runs a
 // foreground app (handing the screen over to it) or toggles a daemon. A SubApp the CLI main loop drives.
 
+type AppPresentation =
+  { installed: Bool
+    daemonState: String
+    recentLogs: List<String> }
+
 type State =
   { /// the full catalog, ordered daemons-first (so selection indices line up with the grouped display)
     apps: List<Model.App>
+    /// Prepared external facts used by the pure view, aligned with `apps`.
+    presentation: List<AppPresentation>
     selected: Int
     /// last action feedback, shown near the footer
     message: String
@@ -23,31 +30,70 @@ type Action =
 let selectedApp (state: State) : Stdlib.Option.Option<Model.App> =
   Stdlib.List.getAt state.apps state.selected
 
+let presentationAt (state: State) (index: Int) : AppPresentation =
+  Stdlib.List.getAt state.presentation index
+  |> Stdlib.Option.withDefault
+      (AppPresentation {
+        installed = false
+        daemonState = ""
+        recentLogs = []
+      })
+
+/// Refresh filesystem/process facts during a state transition, never in view.
+let refreshPresentation (state: State) : State =
+  let installed = Registry.installedSlugs ()
+  let presentation =
+    state.apps
+    |> Stdlib.List.indexedMap (fun idx app ->
+      let daemonState =
+        match app.target with
+        | Daemon _ -> Command.daemonState app.slug
+        | Foreground _ -> ""
+      let recentLogs =
+        if state.showDetail && idx == state.selected then
+          match app.target with
+          | Daemon _ -> Stdlib.Cli.Daemon.tailLog app.slug 5
+          | Foreground _ -> []
+        else
+          []
+      AppPresentation {
+        installed = Stdlib.List.member installed app.slug
+        daemonState = daemonState
+        recentLogs = recentLogs
+      })
+
+  { state with presentation = presentation }
+
 
 // ── rendering ──
 
 // `s` cut to `maxLen` display columns, with a trailing ellipsis when it doesn't fit.
 let truncate (s: String) (maxLen: Int) : String =
-  if (Stdlib.String.length s) <= maxLen then
+  if maxLen <= 0 then
+    ""
+  else if Darklang.Cli.Tui.Text.displayWidth s <= maxLen then
     s
+  else if maxLen == 1 then
+    "…"
   else
-    (Stdlib.String.slice s 0 (maxLen - 1)) ++ "…"
+    Darklang.Cli.Tui.Text.clipToWidth s (maxLen - 1) ++ "…"
 
 
-let appRow (state: State) (idx: Int) (app: Model.App) : String =
+let appRow (state: State) (width: Int) (idx: Int) (app: Model.App) : String =
+  let presentation = presentationAt state idx
   let pointer =
     if idx == state.selected then
       Colors.colorize (Colors.bold ++ Colors.cyan) "▸ "
     else
       "  "
-  let installGlyph = if Registry.isInstalled app.slug then Colors.success "✓" else Colors.dimText "·"
+  let installGlyph =
+    if presentation.installed then Colors.success "✓"
+    else Colors.dimText "·"
 
   // Daemon liveness, shown twice so it reads at a glance: a colored dot right up front (scan the column)
   // and the colored state word at the end. ● green = running, ● yellow = stale, ○ dim = stopped.
   let rawState =
-    match app.target with
-    | Daemon _ -> Command.daemonState app.slug
-    | Foreground _ -> ""
+    presentation.daemonState
   let isRunning = Stdlib.String.startsWith rawState "running"
   let isStale = Stdlib.String.startsWith rawState "stale"
 
@@ -67,8 +113,6 @@ let appRow (state: State) (idx: Int) (app: Model.App) : String =
   let stateWidth = if rawState == "" then 0 else (Stdlib.String.length rawState) + 3
 
   let name = Stdlib.Result.withDefault (Stdlib.String.padEnd app.name " " 26) app.name
-  let w = Darklang.Cli.Terminal.getWidth ()
-  let width = if w <= 0 then 80 else w
   // prefix (▸ + install glyph + run glyph + space) = 5 cols, name column = 26, gap before description = 2
   let descBudget = Stdlib.Int.max (width - 5 - 26 - 2 - stateWidth) 8
   let desc = truncate app.description descBudget
@@ -77,31 +121,43 @@ let appRow (state: State) (idx: Int) (app: Model.App) : String =
   pointer ++ installGlyph ++ runGlyph ++ " " ++ name ++ "  " ++ (Colors.dimText desc) ++ trailing
 
 
-// A titled group of rows (nothing if the group is empty). `rows` carries each app's catalog index so the
-// selection highlight stays correct across the split.
-let printSection (state: State) (title: String) (rows: List<(Int * Model.App)>) : Unit =
+type LogicalRow =
+  { appIndex: Stdlib.Option.Option<Int>
+    content: String }
+
+// A titled group of logical rows. Catalog indices keep selection aligned
+// across the daemon/foreground split.
+let sectionRows
+  (state: State)
+  (width: Int)
+  (title: String)
+  (rows: List<(Int * Model.App)>)
+  : List<LogicalRow> =
   if Stdlib.List.isEmpty rows then
-    ()
+    []
   else
-    Stdlib.printLine (Colors.dimText ("  " ++ title))
+    let heading =
+      LogicalRow {
+        appIndex = Stdlib.Option.Option.None
+        content = Colors.dimText ("  " ++ title)
+      }
+    let appRows =
+      rows
+      |> Stdlib.List.map (fun (index, app) ->
+        LogicalRow {
+          appIndex = Stdlib.Option.Option.Some index
+          content = appRow state width index app
+        })
+    Stdlib.List.append [ heading ] appRows
 
-    rows
-    |> Stdlib.List.map (fun pair ->
-      let (i, a) = pair
-      appRow state i a)
-    |> Stdlib.printLines
-
-
-let render (state: State) : Unit =
-  Stdlib.print "[2J[H"
-  Stdlib.printLine (Colors.boldText " Apps ")
-  Stdlib.printLine ""
-
+let catalogRows (state: State) (width: Int) : List<LogicalRow> =
   if Stdlib.List.isEmpty state.apps then
-    Stdlib.printLine (Colors.dimText "  No apps in the catalog.")
+    [ LogicalRow {
+        appIndex = Stdlib.Option.Option.None
+        content = Colors.dimText "  No apps in the catalog."
+      } ]
   else
     let indexed = state.apps |> Stdlib.List.indexedMap (fun i a -> (i, a))
-
     let daemons =
       indexed
       |> Stdlib.List.filter (fun pair ->
@@ -114,55 +170,124 @@ let render (state: State) : Unit =
         let (_i, a) = pair
         Stdlib.Bool.not (Model.isDaemon a.target))
 
-    printSection state "Daemons" daemons
-    Stdlib.printLine ""
-    printSection state "Foreground apps" foreground
+    let daemonRows = sectionRows state width "Daemons" daemons
+    let foregroundRows =
+      sectionRows state width "Foreground apps" foreground
+    let separator =
+      if Stdlib.List.isEmpty daemonRows
+         || Stdlib.List.isEmpty foregroundRows
+      then
+        []
+      else
+        [ LogicalRow {
+            appIndex = Stdlib.Option.Option.None
+            content = ""
+          } ]
+    Stdlib.List.flatten [ daemonRows; separator; foregroundRows ]
 
-  // optional detail pane for the selected app (`i`)
-  let _detail =
-    if state.showDetail then
-      match selectedApp state with
-      | Some app ->
-        Stdlib.printLine ""
-        Stdlib.printLine
-          (Colors.dimText ("  slug: " ++ app.slug ++ "   target: " ++ Model.reference app.target))
-
-        match app.target with
-        | Daemon _ ->
-          let logs = Stdlib.Cli.Daemon.tailLog app.slug 5
-          if Stdlib.List.isEmpty logs then
-            ()
-          else
-            Stdlib.printLine (Colors.dimText "  recent logs:")
-            logs
-            |> Stdlib.List.map (fun l -> "    " ++ Colors.dimText l)
-            |> Stdlib.printLines
-        // TODO: for foreground apps, surface running copies here (pids of processes running this command),
-        // so `i` is useful for them too — today it only shows slug + target.
-        | Foreground _ -> ()
-      | None -> ()
-    else
-      ()
-
-  Stdlib.printLine ""
-  if state.message != "" then
-    Stdlib.printLine ("  " ++ state.message)
-    Stdlib.printLine ""
+let detailRows (state: State) : List<String> =
+  if state.showDetail then
+    match selectedApp state with
+    | Some app ->
+      let presentation = presentationAt state state.selected
+      let summary =
+        Colors.dimText
+          ("  slug: "
+           ++ app.slug
+           ++ "   target: "
+           ++ Model.reference app.target)
+      let logs =
+        if Stdlib.List.isEmpty presentation.recentLogs then
+          []
+        else
+          Stdlib.List.append
+            [ Colors.dimText "  recent logs:" ]
+            (presentation.recentLogs
+             |> Stdlib.List.map (fun line ->
+               "    " ++ Colors.dimText line))
+      Stdlib.List.flatten [ [ ""; summary ]; logs ]
+    | None -> []
   else
-    ()
+    []
 
-  // Explain the app status markers shown in each row.
+let messageRows (state: State) : List<String> =
+  if state.message == "" then
+    []
+  else
+    [ ""; "  " ++ state.message ]
+
+let legendRow () : String =
   let legend =
     "  "
     ++ (Colors.success "✓") ++ (Colors.dimText " installed    ")
     ++ (Colors.colorize Colors.green "●") ++ (Colors.dimText " running    ")
     ++ (Colors.colorize Colors.yellow "●") ++ (Colors.dimText " stale    ")
     ++ (Colors.dimText "○ stopped")
-  Stdlib.printLine legend
+  legend
 
-  Stdlib.printLine
-    (Colors.dimText
-      "  ↑↓ move · enter run/start · a add · x remove · i detail · esc exit")
+/// Build the complete apps-browser view without terminal I/O.
+let viewAtSize
+  (state: State)
+  (size: Darklang.Cli.Tui.Size)
+  : Darklang.Cli.Tui.View =
+  let width = Stdlib.Int.max 1 size.width
+  let contentHeight = Stdlib.Int.max 1 size.height
+  let titleHeight = if contentHeight >= 3 then 2 else 1
+  let footerHeight =
+    if contentHeight >= 4 then 2
+    else if contentHeight >= 2 then 1
+    else 0
+  let bodyHeight =
+    Stdlib.Int.max 0 (contentHeight - titleHeight - footerHeight)
+
+  let grouped = catalogRows state width
+  let selectedPhysicalRow =
+    grouped
+    |> Stdlib.List.findFirstIndex (fun row ->
+      row.appIndex == Stdlib.Option.Option.Some state.selected)
+    |> Stdlib.Option.withDefault 0
+
+  let supplement =
+    Stdlib.List.append (detailRows state) (messageRows state)
+  let supplementHeight =
+    Stdlib.Int.min
+      (Stdlib.List.length supplement)
+      (Stdlib.Int.max 0 (bodyHeight - 1))
+  let listHeight = Stdlib.Int.max 0 (bodyHeight - supplementHeight)
+  let listRows =
+    grouped
+    |> Stdlib.List.map (fun row -> row.content)
+    |> Darklang.Cli.Tui.Layout.viewport
+        selectedPhysicalRow
+        listHeight
+  let bodyRows =
+    Darklang.Cli.Tui.Layout.fitRows
+      bodyHeight
+      (Stdlib.List.append
+        listRows
+        (Stdlib.List.take supplement supplementHeight))
+
+  let titleRows =
+    Darklang.Cli.Tui.Layout.fitRows
+      titleHeight
+      [ Colors.boldText " Apps " ]
+  let footerRows =
+    let desired =
+      [ legendRow ()
+        Colors.dimText
+          "  ↑↓ move · enter run/start · a add · x remove · i detail · esc exit" ]
+    Darklang.Cli.Tui.Layout.fitRows footerHeight desired
+  let rows =
+    Stdlib.List.flatten [ titleRows; bodyRows; footerRows ]
+    |> Stdlib.List.take contentHeight
+    |> Stdlib.List.map (fun row ->
+      Darklang.Cli.Tui.Text.clipToWidth row width)
+
+  Darklang.Cli.Tui.View {
+    rows = rows
+    cursor = Darklang.Cli.Tui.Cursor.Hidden
+    mode = Darklang.Cli.Tui.ViewMode.Fullscreen
+  }
 
 
 // ── actions ──
@@ -212,11 +337,13 @@ let toggleDaemon (state: State) (app: Model.App) (entrypoint: String) : State =
 /// enter — the primary action: run a foreground app (hand it the screen) / toggle a daemon.
 let activate (state: State) : Action =
   match selectedApp state with
-  | None -> Action.Continue state
+  | None -> Action.Continue (refreshPresentation state)
   | Some app ->
     match app.target with
     | Foreground command -> Action.LaunchFg command
-    | Daemon entrypoint -> Action.Continue (toggleDaemon state app entrypoint)
+    | Daemon entrypoint ->
+      Action.Continue
+        (refreshPresentation (toggleDaemon state app entrypoint))
 
 
 let handleKey
@@ -230,40 +357,68 @@ let handleKey
   | Escape -> Action.Exit state
   | UpArrow ->
     let s = if state.selected > 0 then state.selected - 1 else 0
-    Action.Continue ({ state with selected = s })
+    Action.Continue { state with selected = s }
   | DownArrow ->
-    let maxIdx = count - 1
+    let maxIdx = Stdlib.Int.max 0 (count - 1)
     let s = if state.selected < maxIdx then state.selected + 1 else maxIdx
-    Action.Continue ({ state with selected = s })
+    Action.Continue { state with selected = s }
   | Enter -> activate state
   | _ ->
     match keyChar with
-    | Some "a" -> Action.Continue (install state)
-    | Some "x" -> Action.Continue (uninstall state)
-    | Some "i" -> Action.Continue ({ state with showDetail = Stdlib.Bool.not state.showDetail })
+    | Some "a" ->
+      Action.Continue (refreshPresentation (install state))
+    | Some "x" ->
+      Action.Continue (refreshPresentation (uninstall state))
+    | Some "i" ->
+      Action.Continue
+        (refreshPresentation
+          { state with
+              showDetail = Stdlib.Bool.not state.showDetail })
     | Some "q" -> Action.Exit state
     | _ -> Action.Continue state
 
 
 // ── SubApp adapter + launch ──
 
-let makeSubApp (state: State) : Cli.SubApp =
+type Session =
+  { state: State
+    terminal: Darklang.Cli.Tui.TerminalSession.State }
+
+let presentState (session: Session) (state: State) : Session =
+  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+  let terminal =
+    Darklang.Cli.Tui.TerminalSession.presentAtSize
+      session.terminal
+      size
+      (viewAtSize state size)
+  Session { state = state; terminal = terminal }
+
+let makeSubApp (session: Session) : Cli.SubApp =
   Cli.SubApp
     { onKey =
         fun key modifiers keyChar ->
-          match handleKey state key modifiers keyChar with
-          | Continue s -> (Cli.SubAppAction.Continue, makeSubApp s)
-          | Exit s -> (Cli.SubAppAction.Exit, makeSubApp s)
-          | LaunchFg cmd -> (Cli.SubAppAction.LaunchCommand cmd, makeSubApp state)
-      onDisplay = fun () -> render state
-      onSave = fun () -> () }
+          match handleKey session.state key modifiers keyChar with
+          | Continue state ->
+            let next = presentState session state
+            (Cli.SubAppAction.Continue, makeSubApp next)
+          | Exit state ->
+            let next = Session { state = state; terminal = session.terminal }
+            (Cli.SubAppAction.Exit, makeSubApp next)
+          | LaunchFg cmd ->
+            (Cli.SubAppAction.LaunchCommand cmd, makeSubApp session)
+      // The session presents on launch and state transitions.
+      onDisplay = fun () -> ()
+      onSave = fun () -> ()
+      onTerminate =
+        fun () ->
+          let _stopped =
+            Darklang.Cli.Tui.TerminalSession.stop session.terminal
+          () }
 
 
 /// Launch the interactive browser over the whole catalog (daemons first). Returns a cliState whose current
 /// page is this SubApp (the CLI main loop then drives it until Esc).
 let launch (cliState: Cli.AppState) : Cli.AppState =
-  Stdlib.print "[?1049h"
-
   let all = Registry.catalog cliState.currentBranchId
   let daemons = all |> Stdlib.List.filter (fun a -> Model.isDaemon a.target)
   let foreground = all |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Model.isDaemon a.target))
@@ -272,12 +427,21 @@ let launch (cliState: Cli.AppState) : Cli.AppState =
   let state =
     Editor.State
       { apps = ordered
+        presentation = []
         selected = 0
         message = ""
         showDetail = false }
-
-  let app = makeSubApp state
-
-  { cliState with
-      currentPage = Cli.Page.SubApp app
-      needsFullRedraw = true }
+    |> refreshPresentation
+  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+  match
+    Darklang.Cli.Tui.TerminalSession.startAtSize
+      size
+      (viewAtSize state size)
+  with
+  | Ok terminal ->
+    let session = Session { state = state; terminal = terminal }
+    { cliState with
+        currentPage = Cli.Page.SubApp (makeSubApp session) }
+  | Error message ->
+    Stdlib.printLine message
+    cliState

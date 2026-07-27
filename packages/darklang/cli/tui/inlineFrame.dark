@@ -1,0 +1,135 @@
+/// Build updates for an inline region anchored at the terminal cursor.
+///
+/// Inline rows move with scrollback, so updates address rows relative to the
+/// cursor left by the previous view.
+module Darklang.Cli.Tui.InlineFrame
+
+
+let cursorRow (view: Tui.View) : Int =
+  match view.cursor with
+  | Hidden ->
+    Stdlib.Int.max 0 (Stdlib.List.length view.rows - 1)
+  | Visible(row, _) ->
+    Stdlib.Int.max 0 row
+
+
+let moveRows (fromRow: Int) (toRow: Int) : String =
+  let distance = toRow - fromRow
+  if distance < 0 then
+    $"\u001b[{Stdlib.Int.toString (0 - distance)}A"
+  else if distance > 0 then
+    $"\u001b[{Stdlib.Int.toString distance}B"
+  else
+    ""
+
+
+/// Reset, clear, and rewrite one inline row.
+///
+/// Clearing before writing preserves the final cell of full-width content.
+/// Resets prevent background colors and row styling from leaking.
+let renderContentAtWidth (width: Int) (content: String) : String =
+  let content = Text.normalizeToWidth content width
+  "\r\u001b[0m\u001b[K" ++ content ++ "\u001b[0m"
+
+
+let finishAtCursor
+  (currentRow: Int)
+  (view: Tui.View)
+  : String =
+  match view.cursor with
+  | Hidden ->
+    let bottom =
+      Stdlib.Int.max 0 (Stdlib.List.length view.rows - 1)
+    moveRows currentRow bottom ++ "\r"
+  | Visible(row, column) ->
+    let targetRow = Stdlib.Int.max 0 row
+    let targetColumn = Stdlib.Int.max 0 column + 1
+    moveRows currentRow targetRow
+    ++ $"\u001b[{Stdlib.Int.toString targetColumn}G"
+    ++ "\u001b[?25h"
+
+
+/// Repaint a complete inline region.
+///
+/// Rendering starts from the cursor position left by the previous view and
+/// clears rows that no longer exist.
+let renderFullAtWidth
+  (width: Int)
+  (previous: Stdlib.Option.Option<Tui.View>)
+  (next: Tui.View)
+  : String =
+  let previousHeight =
+    match previous with
+    | None -> 0
+    | Some view -> Stdlib.List.length view.rows
+  let nextHeight = Stdlib.List.length next.rows
+  let repaintHeight = Stdlib.Int.max previousHeight nextHeight
+
+  if repaintHeight == 0 then
+    ""
+  else
+    let startRow =
+      match previous with
+      | None -> 0
+      | Some view -> cursorRow view
+    let toTop = moveRows startRow 0
+    let physicalRows =
+      Stdlib.List.range 0 (repaintHeight - 1)
+    let painted =
+      physicalRows
+      |> Stdlib.List.map (fun row ->
+        let content =
+          Stdlib.List.getAt next.rows row
+          |> Stdlib.Option.withDefault ""
+        let separator =
+          if row < repaintHeight - 1 then "\n" else ""
+        renderContentAtWidth width content ++ separator)
+      |> Stdlib.String.join ""
+    let finalPhysicalRow = repaintHeight - 1
+
+    "\u001b[?25l"
+    ++ toTop
+    ++ painted
+    ++ finishAtCursor finalPhysicalRow next
+
+
+/// Rewrite changed rows relative to the previous cursor, then place the next
+/// cursor.
+let renderAtWidth
+  (width: Int)
+  (previous: Stdlib.Option.Option<Tui.View>)
+  (next: Tui.View)
+  : String =
+  match previous with
+  | None -> renderFullAtWidth width previous next
+  | Some previousView ->
+    if Stdlib.List.length previousView.rows
+       != Stdlib.List.length next.rows
+    then
+      renderFullAtWidth width previous next
+    else
+      let changes =
+        Frame.changedRows previousView.rows next.rows
+      let cursorChanged = previousView.cursor != next.cursor
+
+      if Stdlib.List.isEmpty changes
+         && Stdlib.Bool.not cursorChanged
+      then
+        ""
+      else
+        let startRow = cursorRow previousView
+        let rendered =
+          Stdlib.List.fold
+            changes
+            ("", startRow)
+            (fun state change ->
+              let (output, currentRow) = state
+              ( output
+                ++ moveRows currentRow change.row
+                ++ renderContentAtWidth width change.content
+              , change.row ))
+        let (output, currentRow) = rendered
+
+        "\u001b[?25l"
+        ++ output
+        ++ finishAtCursor currentRow next

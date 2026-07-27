@@ -155,6 +155,81 @@ let testEvalStringExpression (): TestResult =
     TestResult.Fail $"Expected 'helloworld', got '{output}'"
 
 
+let completionPickerState (itemCount: Int) : CompletionPicker.State =
+  let items =
+    Stdlib.List.range 1 itemCount
+    |> Stdlib.List.map (fun index ->
+      Completion.simple $"item-{Stdlib.Int.toString index}")
+  CompletionPicker.create "" items
+
+
+let testCompletionPickerTwoRows (): TestResult =
+  let size = Tui.Size { width = 80; height = 2 }
+  let state = completionPickerState 3
+  let layout = CompletionPicker.layoutAtSize state size
+  let view = CompletionPicker.viewAtSize state size
+
+  match Stdlib.List.last view.rows with
+  | Some helpRow ->
+    if layout.itemCapacity == 1
+       && Stdlib.Bool.not layout.showScrollIndicator
+       && Stdlib.List.length view.rows == 2
+       && Stdlib.String.contains helpRow "Enter"
+    then
+      TestResult.Pass
+    else
+      TestResult.Fail
+        "Two-row picker should show one item and one complete help row"
+  | None ->
+    TestResult.Fail "Two-row picker should include a help row"
+
+
+let testCompletionPickerNarrowHelp (): TestResult =
+  let width = CompletionPicker.minimumWidth
+  let help = CompletionPicker.helpTextAtWidth width
+
+  if CompletionPicker.supportsSize (Tui.Size { width = width; height = 2 })
+     && Stdlib.Bool.not
+          (CompletionPicker.supportsSize
+            (Tui.Size { width = width - 1; height = 2 }))
+     && help == CompletionPicker.minimumHelpText
+     && Tui.Text.displayWidth help <= width
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      "Narrow picker should use an untruncated minimum help row"
+
+
+let testCompletionPickerLongList (): TestResult =
+  let size = Tui.Size { width = 80; height = 3 }
+  let state = completionPickerState 5
+  let layout = CompletionPicker.layoutAtSize state size
+  let view = CompletionPicker.viewAtSize state size
+
+  if layout.itemCapacity == 1
+     && layout.showScrollIndicator
+     && Stdlib.List.length view.rows == 3
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      "Long picker should reserve rows for its indicator and help"
+
+
+let testFullscreenRowCancelsDeferredWrap (): TestResult =
+  let output =
+    Tui.Frame.renderRowChangeAtWidth
+      3
+      (Tui.Frame.RowChange { row = 0; content = "abc" })
+
+  if Stdlib.String.endsWith output "\r" then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      "Fullscreen rows should return to column one after filling the terminal"
+
+
 type TestFunction = Unit -> TestResult
 
 let allTests (): List<String * TestFunction> =
@@ -177,6 +252,11 @@ let allTests (): List<String * TestFunction> =
 
     ("Eval Simple Expression", fun () -> testEvalSimpleExpression ())
     ("Eval String Expression", fun () -> testEvalStringExpression ())
+
+    ("Completion Picker Two Rows", fun () -> testCompletionPickerTwoRows ())
+    ("Completion Picker Narrow Help", fun () -> testCompletionPickerNarrowHelp ())
+    ("Completion Picker Long List", fun () -> testCompletionPickerLongList ())
+    ("Fullscreen Deferred Wrap", fun () -> testFullscreenRowCancelsDeferredWrap ())
   ]
 
 type TestSummary =

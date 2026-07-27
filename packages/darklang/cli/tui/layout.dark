@@ -1,0 +1,49 @@
+/// Small, pure layout helpers shared by terminal views.
+module Darklang.Cli.Tui.Layout
+
+
+/// Repeat blank logical rows.
+let blankRows (count: Int) : List<String> =
+  match Stdlib.List.repeat (Stdlib.Int.max 0 count) "" with
+  | Ok rows -> rows
+  | Error _ -> []
+
+
+/// Truncate or pad a row list to an exact logical height.
+let fitRows (height: Int) (rows: List<String>) : List<String> =
+  let target = Stdlib.Int.max 0 height
+  let visible = Stdlib.List.take rows target
+  Stdlib.List.append
+    visible
+    (blankRows (target - Stdlib.List.length visible))
+
+
+/// Fit rows to `height`, scrolling as needed to keep `selectedRow` visible.
+///
+/// `selectedRow` indexes `rows`, including any headings or separators.
+let viewport
+  (rows: List<String>)
+  (selectedRow: Int)
+  (height: Int)
+  : List<String> =
+  let viewportHeight = Stdlib.Int.max 0 height
+
+  if viewportHeight == 0 then
+    []
+  else
+    let rowCount = Stdlib.List.length rows
+    let maxOffset = Stdlib.Int.max 0 (rowCount - viewportHeight)
+    let desiredOffset =
+      if selectedRow >= viewportHeight then
+        selectedRow - viewportHeight + 1
+      else
+        0
+    let offset =
+      Stdlib.Int.min maxOffset (Stdlib.Int.max 0 desiredOffset)
+
+    let visible =
+      rows
+      |> Stdlib.List.drop offset
+      |> Stdlib.List.take viewportHeight
+
+    fitRows viewportHeight visible

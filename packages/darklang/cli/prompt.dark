@@ -158,31 +158,59 @@ module History =
 
 
 module Display =
+  let plainPrefix (locationStr: String) : String =
+    if Stdlib.String.isEmpty locationStr then
+      "> "
+    else
+      locationStr ++ " > "
+
+  let styledPrefix (locationStr: String) : String =
+    if Stdlib.String.isEmpty locationStr then
+      "> "
+    else
+      Colors.dimText $"{locationStr} " ++ "> "
+
   /// Format the complete prompt with input and optional hint
   let formatPromptWithInput
     (locationStr: String)
     (text: String)
     (hint: String)
     : String =
-    let formattedLocation =
-      if Stdlib.String.isEmpty locationStr then
-        ""
-      else
-        Colors.dimText $"{locationStr} "
-
     if Stdlib.String.isEmpty hint then
-      formattedLocation ++ "> " ++ text
+      styledPrefix locationStr ++ text
     else
-      formattedLocation ++ "> " ++ text ++ (Colors.hint hint)
+      styledPrefix locationStr ++ text ++ (Colors.hint hint)
 
-  /// Calculate the column where user input starts (after location + "> ")
-  let calculateInputStartColumn (locationStr: String) : Int =
-    let locationLength =
-      if Stdlib.String.isEmpty locationStr then
+  /// Build the complete prompt region and Unicode-correct logical cursor.
+  let viewAtSize
+    (state: State)
+    (locationStr: String)
+    (hint: String)
+    (size: Tui.Size)
+    : Tui.View =
+    let width = Stdlib.Int.max 1 size.width
+    let styled =
+      formatPromptWithInput locationStr state.text hint
+    let beforeCursor =
+      Stdlib.String.slice
+        state.text
         0
-      else
-        (Stdlib.String.length locationStr) + 1  // +1 for the space after path
+        state.cursorPosition
+    let cursorText =
+      plainPrefix locationStr ++ beforeCursor
+    let (cursorRow, cursorColumn) =
+      Tui.Text.positionAfter cursorText width
+    let wrapped = Tui.Text.wrapStyled styled width
+    let requiredHeight =
+      Stdlib.Int.max
+        (Stdlib.List.length wrapped)
+        (cursorRow + 1)
+    let rows =
+      Tui.Layout.fitRows requiredHeight wrapped
 
-    locationLength
-    + (Stdlib.String.length "> ")
-    + 1
+    Tui.View {
+      rows = rows
+      cursor =
+        Tui.Cursor.Visible(cursorRow, cursorColumn)
+      mode = Tui.ViewMode.Inline
+    }

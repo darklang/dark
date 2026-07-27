@@ -11,7 +11,6 @@ let navTo (state: AppState) (location: PackageLocation): AppState =
 
     // Update state with new location and history
     { state with
-        needsFullRedraw = true
         prompt = Prompt.Editing.clear state.prompt
         packageData =
           { state.packageData with
@@ -24,13 +23,16 @@ let execute (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] ->
     // Enter interactive navigation mode
-    NavInteractive.enterAlternateScreen ()
     let branchId = state.currentBranchId
     let navState = NavInteractive.buildState branchId state.packageData.currentLocation
-    { state with
-        currentPage = Page.InteractiveNav navState
-        needsFullRedraw = true
-        prompt = Prompt.Editing.clear state.prompt }
+    match NavInteractive.start navState with
+    | Ok session ->
+      { state with
+          currentPage = Page.InteractiveNav session
+          prompt = Prompt.Editing.clear state.prompt }
+    | Error message ->
+      Stdlib.printLine message
+      state
 
   | [pathArg] ->
     // Use traverse to handle the path navigation

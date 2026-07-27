@@ -1,0 +1,39 @@
+/// Shared, side-effect-free view types for interactive CLI applications.
+module Darklang.Cli.Tui
+
+
+/// Current terminal viewport dimensions.
+type Size =
+  { width: Int
+    height: Int }
+
+
+/// Determines how a logical view occupies the terminal.
+type ViewMode =
+  /// Own the complete terminal using its alternate screen.
+  | Fullscreen
+  /// Occupy the view's logical rows while preserving normal terminal scrollback.
+  | Inline
+
+
+/// Cursor placement after rendering a view.
+///
+/// Row and column coordinates are zero-based.
+type Cursor =
+  /// Do not show the terminal cursor.
+  | Hidden
+  /// Show the cursor at a logical row and column in the view.
+  | Visible of row: Int * column: Int
+
+
+/// The complete logical view to render.
+///
+/// Rows may contain supported ANSI text styling, but no cursor movement,
+/// clearing, or terminal mode controls.
+type View =
+  { /// Rows to render, ordered from top to bottom.
+    rows: List<String>
+    /// Cursor state to apply after presenting the frame.
+    cursor: Cursor
+    /// How the frame occupies the terminal.
+    mode: ViewMode }

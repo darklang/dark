@@ -1,0 +1,59 @@
+/// Decide whether a terminal can run an interactive TUI.
+module Darklang.Cli.Tui.TerminalSupport
+
+
+/// Terminal facts reported by the native host.
+type Facts =
+  { inputIsTerminal: Bool
+    outputIsTerminal: Bool
+    terminalName: String }
+
+
+/// Whether an interactive TUI may start.
+type Availability =
+  | Available
+  | Unavailable of reason: String
+
+
+/// Evaluate terminal support from host facts.
+///
+/// Both input and output must be terminals: the UI reads keys from input and
+/// writes terminal control sequences to output.
+let evaluate (facts: Facts) : Availability =
+  let terminalName =
+    facts.terminalName
+    |> Stdlib.String.trim
+    |> Stdlib.String.toLowercase
+
+  if Stdlib.Bool.not facts.inputIsTerminal then
+    Availability.Unavailable "standard input is not a terminal"
+  else if Stdlib.Bool.not facts.outputIsTerminal then
+    Availability.Unavailable "standard output is not a terminal"
+  else if terminalName == "" then
+    Availability.Unavailable "TERM is not set"
+  else if terminalName == "dumb" || terminalName == "unknown" then
+    Availability.Unavailable
+      $"TERM={facts.terminalName} does not support an interactive terminal UI"
+  else
+    Availability.Available
+
+
+/// Read the current terminal facts from the native host.
+let currentFacts () : Facts =
+  let (inputIsTerminal, outputIsTerminal, terminalName) =
+    Builtin.cliTerminalSessionInfo ()
+  Facts {
+    inputIsTerminal = inputIsTerminal
+    outputIsTerminal = outputIsTerminal
+    terminalName = terminalName
+  }
+
+
+/// Check whether an interactive TUI may start in the current terminal.
+let current () : Availability =
+  evaluate (currentFacts ())
+
+
+/// Format an error without terminal control sequences.
+let unavailableMessage (reason: String) : String =
+  $"Interactive terminal UI unavailable: {reason}."

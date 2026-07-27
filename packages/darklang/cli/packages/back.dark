@@ -9,7 +9,6 @@ let execute (state: AppState) (args: List<String>) : AppState =
     Stdlib.printLine (Colors.success ("Back to: " ++ pathStr))
 
     { state with
-        needsFullRedraw = true
         prompt = Prompt.Editing.clear state.prompt
         packageData =
           { state.packageData with

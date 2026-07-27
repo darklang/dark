@@ -37,18 +37,29 @@ module OpenFlags =
 let openFile (path: String) (flags: Int) (mode: Int) : Result.Result<Int, Error> =
   Builtin.posixOpen path flags mode
 
+
+/// Read up to `count` bytes from an open file descriptor.
+let fdRead (fd: Int) (count: Int) : Result.Result<Blob, Error> =
+  Builtin.posixFdRead fd count
+
+
 /// Read all bytes from a file descriptor until EOF.
 /// Accumulates chunks (as Blobs) and concats once at EOF.
 let fdReadAll
   (fd: Int)
   (acc: List<Blob>)
   : Result.Result<Blob, Error> =
-  (Builtin.posixFdRead fd 4096)
+  (fdRead fd 4096)
   |> Stdlib.Result.andThen (fun chunk ->
     if Stdlib.Blob.length chunk == 0 then
       Stdlib.Result.Result.Ok(Stdlib.Blob.concat acc)
     else
       fdReadAll fd (Stdlib.List.append acc [ chunk ]))
+
+
+/// Seek to a byte offset from the start of an open file.
+let fdSeekFromStart (fd: Int) (offset: Int) : Result.Result<Int, Error> =
+  Builtin.posixFdSeek fd offset 0
 
 
 /// Stat a file. Returns mode, size, and modification time.

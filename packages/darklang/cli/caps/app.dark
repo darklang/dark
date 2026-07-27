@@ -3,24 +3,80 @@ module Darklang.Cli.Caps.App
 // The interactive capability editor, wrapped as a CLI SubApp. Composes the http/exec/access rule
 // editors + flag toggles + profile picker over a working copy of the grant, written via `pmCapsSet`.
 
-let makeSubApp (state: Main.State) : Darklang.Cli.SubApp =
+type Session =
+  { state: Main.State
+    terminal: Darklang.Cli.Tui.TerminalSession.State
+    shouldSave: Bool }
+
+let presentState
+  (session: Session)
+  (state: Main.State)
+  (shouldSave: Bool)
+  : Session =
+  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+  let terminal =
+    Darklang.Cli.Tui.TerminalSession.presentAtSize
+      session.terminal
+      size
+      (Main.viewAtSize state size)
+  Session {
+    state = state
+    terminal = terminal
+    shouldSave = shouldSave
+  }
+
+let makeSubApp (session: Session) : Darklang.Cli.SubApp =
   Darklang.Cli.SubApp
     { onKey =
         fun key modifiers keyChar ->
-          match Main.handleKey state key modifiers keyChar with
-          | Continue s -> (Darklang.Cli.SubAppAction.Continue, makeSubApp s)
-          | Save s -> (Darklang.Cli.SubAppAction.Save, makeSubApp s)
-          | Exit s -> (Darklang.Cli.SubAppAction.Exit, makeSubApp s)
-      onDisplay = fun () -> Main.render state
-      onSave = fun () -> Main.save state }
+          match Main.handleKey session.state key modifiers keyChar with
+          | Continue state ->
+            let next = presentState session state false
+            (Darklang.Cli.SubAppAction.Continue, makeSubApp next)
+          | Save state ->
+            let next = presentState session state true
+            (Darklang.Cli.SubAppAction.Save, makeSubApp next)
+          | Exit state ->
+            let next =
+              Session {
+                state = state
+                terminal = session.terminal
+                // Escape/q discard the working copy. The persisted grant is
+                // already `state.saved`, so exiting must not rewrite it.
+                shouldSave = false
+              }
+            (Darklang.Cli.SubAppAction.Exit, makeSubApp next)
+      // The session presents on launch and state transitions.
+      onDisplay = fun () -> ()
+      onSave =
+        fun () ->
+          if session.shouldSave then Main.save session.state else ()
+      onTerminate =
+        fun () ->
+          let _stopped =
+            Darklang.Cli.Tui.TerminalSession.stop session.terminal
+          () }
 
 let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.Cli.AppState =
-  Stdlib.print "\u001b[?1049h"
   let state = Main.load ()
-  let app = makeSubApp state
-  { cliState with
-      currentPage = Darklang.Cli.Page.SubApp app
-      needsFullRedraw = true }
+  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+  match
+    Darklang.Cli.Tui.TerminalSession.startAtSize
+      size
+      (Main.viewAtSize state size)
+  with
+  | Ok terminal ->
+    let session =
+      Session {
+        state = state
+        terminal = terminal
+        shouldSave = false
+      }
+    { cliState with
+        currentPage = Darklang.Cli.Page.SubApp (makeSubApp session) }
+  | Error message ->
+    Stdlib.printLine message
+    cliState
 
 let help (state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
   [ "Usage: caps-edit"

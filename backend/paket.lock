@@ -76,3 +76,4 @@ NUGET
     System.Memory (4.6.3)
     System.Text.Json (10.0)
     System.Threading.Tasks.Extensions (4.6.3)
+    Wcwidth (4.0.1)
