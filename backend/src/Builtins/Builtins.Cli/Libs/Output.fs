@@ -73,14 +73,12 @@ let fns () : List<BuiltInFn> =
     { name = fn "stdoutCaptureStart" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "A unit" ]
-      returnType = TUnit
+      returnType = TBool
       description =
-        "Start capturing standard output into an in-memory buffer instead of printing it. Pair with <fn stdoutCaptureStop>. Used to run a command and show its output in-frame."
+        "Start capturing standard output into an in-memory buffer instead of printing it. Pair with <fn stdoutCaptureStop>. Used to run a command and show its output in-frame. Returns false if a capture was already open, in which case the existing one is left untouched and this call captured nothing."
       fn =
         (function
-        | _, _, _, [ DUnit ] ->
-          NonBlockingConsole.startCapture ()
-          Ply DUnit
+        | _, _, _, [ DUnit ] -> DBool(NonBlockingConsole.startCapture ()) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
