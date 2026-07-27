@@ -1,0 +1,449 @@
+/// Reads: everything that pulls real data (packages, SCM, traces, apps, config) into `BodyItem`s and
+/// detail text. No terminal output lives here.
+///
+/// Part of `Darklang.Cli.Apps.Workbench.App`.
+module Darklang.Cli.Apps.Workbench.App
+
+// ── Package listing (the Tree body) ──
+
+let modulePathOf (location: Packages.PackageLocation) : List<String> =
+  match location with
+  | Module path -> path
+  | Type t -> Stdlib.List.append [ t.owner ] t.modules
+  | Value v -> Stdlib.List.append [ v.owner ] v.modules
+  | Function f -> Stdlib.List.append [ f.owner ] f.modules
+
+let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyItem> =
+  let modulePath = modulePathOf location
+  let results = Packages.Query.allDirectDescendants branchId modulePath
+  let subs = Packages.Query.getDirectSubmodules results (Stdlib.List.length modulePath)
+  let moduleItems =
+    subs |> Stdlib.List.map (fun n -> BodyItem { name = n; kind = "module"; isModule = true })
+  let typeItems =
+    results.types
+    |> Stdlib.List.map (fun t -> BodyItem { name = t.location.name; kind = "type"; isModule = false })
+  let valItems =
+    results.values
+    |> Stdlib.List.map (fun v -> BodyItem { name = v.location.name; kind = "val"; isModule = false })
+  let fnItems =
+    results.fns
+    |> Stdlib.List.map (fun f -> BodyItem { name = f.location.name; kind = "fn"; isModule = false })
+  Stdlib.List.flatten [ moduleItems; typeItems; valItems; fnItems ]
+
+/// The uncommitted (WIP) items on this branch, as body items (for the Changes view).
+let loadWipBodyItems (branchId: Uuid) : List<BodyItem> =
+  SCM.PackageOps.getWipItems branchId
+  |> Stdlib.List.map (fun d ->
+    let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
+    let kind = Stdlib.Dict.get d "kind" |> Stdlib.Option.withDefault "?"
+    BodyItem { name = name; kind = kind; isModule = false })
+
+/// Recent commits (this branch + ancestors) as body items (for the History view).
+let loadCommitBodyItems (branchId: Uuid) : List<BodyItem> =
+  SCM.PackageOps.getCommitsWithAncestors branchId 30
+  |> Stdlib.List.map (fun c ->
+    let short = LanguageTools.ProgramTypes.hashToShort c.hash
+    let ops = Stdlib.Int.toString c.opCount
+    BodyItem
+      { name = short ++ "  " ++ c.message ++ "  (" ++ ops ++ " ops)"
+        kind = "commit"
+        isModule = false })
+
+/// The ops of the selected commit, rendered for the reader. Capped - a seed commit can have 10k+ ops.
+let commitOpsText (branchId: Uuid) (selected: Int) : String =
+  let commits = SCM.PackageOps.getCommitsWithAncestors branchId 30
+  match Stdlib.List.getAt commits selected with
+  | None -> "(no commit selected)"
+  | Some c ->
+    let hashStr = LanguageTools.ProgramTypes.hashToString c.hash
+    let ops = SCM.PackageOps.getCommitOps hashStr
+    let opCount = Stdlib.List.length ops
+    let shown = Stdlib.List.take ops 20
+    let opLines =
+      shown
+      |> Stdlib.List.map (fun op -> "  " ++ (PrettyPrinter.ProgramTypes.PackageOp.packageOp branchId op))
+      |> Stdlib.String.join "\n"
+    let more =
+      if opCount > 20 then
+        "\n\n  … and " ++ (Stdlib.Int.toString (opCount - 20)) ++ " more ops"
+      else
+        ""
+    c.message ++ "  (" ++ (Stdlib.Int.toString opCount) ++ " ops)\n\n" ++ opLines ++ more
+
+/// A cheap commit summary for the History preview - hash, message, op count - WITHOUT fetching every op (the
+/// seed commit has 10k+; fetching them per keystroke would make the list crawl). Full ops are behind Enter.
+let commitSummary (branchId: Uuid) (selected: Int) : String =
+  let commits = SCM.PackageOps.getCommitsWithAncestors branchId 30
+  match Stdlib.List.getAt commits selected with
+  | None -> "(no commit selected)"
+  | Some c ->
+    (LanguageTools.ProgramTypes.hashToString c.hash)
+    ++ "\n\n"
+    ++ c.message
+    ++ "\n\n"
+    ++ (Stdlib.Int.toString c.opCount)
+    ++ " ops  ·  press ⏎ to view them"
+
+/// The current source of the selected WIP item (for the Changes reader).
+/// A real +/- diff of the selected WIP item (old-vs-new), reusing the review app's diff engine. Matched by
+/// name so it lines up with the workbench's own WIP list regardless of ordering.
+let wipDiffText (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> "(no change selected)"
+  | Some item ->
+    let pkgs = SCM.Review.App.loadWipItems state.branchId
+    match Stdlib.List.findFirst pkgs (fun p -> p.name == item.name) with
+    | None -> "(not found)"
+    | Some pkg ->
+      let ops = SCM.PackageOps.getWip state.branchId
+      let parentId = SCM.Review.App.getParentBranchId state.branchId
+      SCM.Review.App.diffForItem ops state.branchId parentId pkg
+      |> Stdlib.List.map (fun dl ->
+        match dl with
+        | Same s -> Colors.dimText ("  " ++ s)
+        | Added s -> Colors.colorize Colors.green ("+ " ++ s)
+        | Removed s -> Colors.colorize Colors.red ("- " ++ s))
+      |> Stdlib.String.join "\n"
+
+let changesSourceText (branchId: Uuid) (selected: Int) : String =
+  let items = SCM.PackageOps.getWipItems branchId
+  match Stdlib.List.getAt items selected with
+  | None -> "(no change selected)"
+  | Some d ->
+    let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
+    let kind = Stdlib.Dict.get d "kind" |> Stdlib.Option.withDefault ""
+    // `name` is the full path (owner.Module.leaf) - split into the module path + leaf for the lookup.
+    let parts = Stdlib.String.split name "."
+    let leaf = Stdlib.List.last parts |> Stdlib.Option.withDefault name
+    let mods = Stdlib.List.take parts (Stdlib.Int.max 0 ((Stdlib.List.length parts) - 1))
+    let results = Packages.Query.searchExactMatch branchId mods leaf
+    let ctx =
+      PrettyPrinter.ProgramTypes.Context
+        { branchId = branchId
+          currentModule = Stdlib.Option.Option.None
+          currentFunction = Stdlib.Option.Option.None }
+    let src =
+      if kind == "Type" then
+        match results.types with
+        | i :: _ -> PrettyPrinter.ProgramTypes.packageType ctx i.entity
+        | [] -> "(not found)"
+      else if kind == "Value" then
+        match results.values with
+        | i :: _ -> PrettyPrinter.ProgramTypes.packageValue ctx i.entity
+        | [] -> "(not found)"
+      else
+        match results.fns with
+        | i :: _ -> PrettyPrinter.ProgramTypes.packageFn ctx i.entity
+        | [] -> "(not found)"
+    name ++ "  (" ++ kind ++ ", WIP)\n\n" ++ src
+
+/// Run a package search across the whole tree and return jumpable hits (each carries its module path + leaf so
+/// Enter can navigate there). The `/` global action opens these in the search-results mode.
+let runSearch (branchId: Uuid) (queryText: String) : List<SearchHit> =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = []
+        text = queryText
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = []
+        exactMatch = false }
+  let r = LanguageTools.PackageManager.Search.search branchId query
+  let hit (tag: String) (item: LanguageTools.ProgramTypes.LocatedItem<'a>) : SearchHit =
+    let modules = Stdlib.List.append [ item.location.owner ] item.location.modules
+    let full = Stdlib.String.join (Stdlib.List.append modules [ item.location.name ]) "."
+    SearchHit { modules = modules; name = item.location.name; kind = tag; display = "  " ++ tag ++ "  " ++ full }
+  Stdlib.List.flatten
+    [ r.types |> Stdlib.List.map (fun i -> hit "type" i)
+      r.values |> Stdlib.List.map (fun i -> hit "val " i)
+      r.fns |> Stdlib.List.map (fun i -> hit "fn  " i) ]
+
+/// Dependencies of the selected Tree leaf (what it uses), formatted for the reader. `d` shows this.
+let depsText (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> "(nothing selected)"
+  | Some item ->
+    if item.isModule then
+      "Modules have no dependencies - select a fn, type, or value."
+    else
+      let modulePath = modulePathOf state.location
+      let results = Packages.Query.searchExactMatch state.branchId modulePath item.name
+      let picked =
+        if item.kind == "fn" then
+          results.fns |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Fn))
+        else if item.kind == "type" then
+          results.types |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Type))
+        else
+          results.values |> Stdlib.List.head |> Stdlib.Option.map (fun i -> (i.entity.hash, i.location, LanguageTools.ProgramTypes.ItemKind.Value))
+      match picked with
+      | None -> "(not found)"
+      | Some((hash, loc, kind)) ->
+        // Dependencies - what this item uses.
+        let deps = Packages.Query.getDependencies state.branchId hash
+        let depLines =
+          if Stdlib.List.isEmpty deps then [ Colors.dimText "  (none)" ]
+          else
+            let namesDict = Darklang.Cli.Deps.resolveNames state.branchId (deps |> Stdlib.List.map (fun p -> let (h, _) = p in h))
+            deps |> Stdlib.List.map (fun p -> let (th, _rt) = p in "  " ++ (Darklang.Cli.Deps.getName namesDict th))
+        // Dependents - what uses this item.
+        let dependents = Builtin.depsGetDependents state.branchId [ (loc, kind) ]
+        let dependentLines =
+          if Stdlib.List.isEmpty dependents then [ Colors.dimText "  (none)" ]
+          else dependents |> Stdlib.List.map (fun t -> let (_h, sLoc, _rt) = t in "  " ++ (PrettyPrinter.ProgramTypes.PackageLocation.packageLocation sLoc))
+        (Colors.boldText item.name)
+        ++ "\n\n"
+        ++ (Colors.dimText ("Dependencies (uses) - " ++ (Stdlib.Int.toString (Stdlib.List.length deps))))
+        ++ "\n"
+        ++ (Stdlib.String.join depLines "\n")
+        ++ "\n\n"
+        ++ (Colors.dimText ("Dependents (used by) - " ++ (Stdlib.Int.toString (Stdlib.List.length dependents))))
+        ++ "\n"
+        ++ (Stdlib.String.join dependentLines "\n")
+
+/// AI threads for the AI view (the thread board - demo data for now, via the shared Views.AiChats source).
+let loadAiThreadItems () : List<BodyItem> =
+  Darklang.Cli.Apps.Views.AiChats.demoThreads ()
+  |> Stdlib.List.map (fun t ->
+    BodyItem
+      { name = "[" ++ (Stdlib.String.toUppercase t.status) ++ "]  " ++ t.topic ++ "   " ++ t.branch
+        kind = t.status
+        isModule = false })
+
+/// The selected AI thread's detail (for the AI preview).
+let aiThreadDetail (selected: Int) : String =
+  match Stdlib.List.getAt (Darklang.Cli.Apps.Views.AiChats.demoThreads ()) selected with
+  | Some t ->
+    "topic:   " ++ t.topic ++ "\n"
+    ++ "status:  " ++ t.status ++ "\n"
+    ++ "branch:  " ++ t.branch ++ "\n"
+    ++ "cost:    " ++ t.cost ++ "   tokens: " ++ t.tokens ++ "   time: " ++ t.time ++ "\n\n"
+    ++ t.detail
+    ++ "\n\n"
+    ++ "(demo data · press a to ask the agent a new prompt)"
+  | None -> "(no thread selected)"
+
+/// A preview library of reusable prompts (the AI · Prompts subsection).
+let demoPrompts () : List<(String * String)> =
+  [ ("review-diff", "Review this diff for correctness, edge cases, and naming.")
+    ("explain-fn", "Explain what the selected function does and who calls it.")
+    ("gen-tests", "Generate tests for the selected function, including edge cases.")
+    ("name-this", "Suggest three clearer names for this item, each with a reason.")
+    ("port-to-dark", "Port this snippet to Darklang, using stdlib idioms.")
+    ("summarize-module", "Summarize this module: purpose, key fns, gotchas.") ]
+
+let loadPromptItems () : List<BodyItem> =
+  demoPrompts ()
+  |> Stdlib.List.map (fun p ->
+    let (name, _desc) = p
+    BodyItem { name = name; kind = "prompt"; isModule = false })
+
+/// The selected prompt's detail (for the AI · Prompts preview).
+let promptDetail (selected: Int) : String =
+  match Stdlib.List.getAt (demoPrompts ()) selected with
+  | Some p ->
+    let (name, desc) = p
+    (Colors.boldText name)
+    ++ "\n\n"
+    ++ desc
+    ++ "\n\n"
+    ++ "⏎ use (fills the ask bar)  ·  e edit  ·  n new"
+    ++ "\n\n"
+    ++ (Colors.dimText "(mock data)")
+  | None -> "(no prompt selected)"
+
+/// All package values across the tree (for the Things view) - a flat, searchable browser of the data/consts.
+let loadThingItems (branchId: Uuid) : List<BodyItem> =
+  let q =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = []
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+        entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Value ]
+        exactMatch = false }
+  (LanguageTools.PackageManager.Search.search branchId q).values
+  |> Stdlib.List.map (fun i ->
+    let full =
+      Stdlib.String.join (Stdlib.List.flatten [ [ i.location.owner ]; i.location.modules; [ i.location.name ] ]) "."
+    BodyItem { name = full; kind = "val"; isModule = false })
+
+/// The source of the selected Thing (value), for the preview - looked up by its full path.
+let thingDetail (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> "(nothing selected)"
+  | Some item ->
+    let parts = Stdlib.String.split item.name "."
+    let leaf = Stdlib.List.last parts |> Stdlib.Option.withDefault item.name
+    let mods = Stdlib.List.take parts (Stdlib.Int.max 0 ((Stdlib.List.length parts) - 1))
+    let results = Packages.Query.searchExactMatch state.branchId mods leaf
+    match results.values with
+    | i :: _ ->
+      let ctx =
+        PrettyPrinter.ProgramTypes.Context
+          { branchId = state.branchId
+            currentModule = Stdlib.Option.Option.None
+            currentFunction = Stdlib.Option.Option.None }
+      PrettyPrinter.ProgramTypes.packageValue ctx i.entity
+    | [] -> "(not found)"
+
+/// Recorded sync divergences (for the Resolve view).
+let loadConflictBodyItems () : List<BodyItem> =
+  Darklang.Sync.Conflicts.list ()
+  |> Stdlib.List.map (fun c ->
+    BodyItem { name = c.location ++ "  ·  " ++ c.status; kind = "conflict"; isModule = false })
+
+/// Branches on this instance (for the SCM · Branches section). Current branch marked ●, merged ones noted.
+let loadBranchItems (currentBranchId: Uuid) : List<BodyItem> =
+  Darklang.SCM.Branch.list ()
+  |> Stdlib.List.map (fun b ->
+    let marker = if b.id == currentBranchId then "● " else "○ "
+    let tag =
+      match b.mergedAt with
+      | Some _ -> "   (merged)"
+      | None -> ""
+    BodyItem { name = marker ++ b.name ++ tag; kind = "branch"; isModule = false })
+
+/// The selected branch's detail (SCM · Branches preview).
+let branchDetail (state: State) : String =
+  match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+  | Some b ->
+    let parent =
+      match b.parentBranchId with
+      | Some pid ->
+        match Darklang.SCM.Branch.get pid with
+        | Some p -> p.name
+        | None -> "?"
+      | None -> "(root)"
+    let status =
+      match b.mergedAt with
+      | Some _ -> "merged"
+      | None -> if b.id == state.branchId then "active (current)" else "active"
+    (Colors.boldText b.name)
+    ++ "\n\n"
+    ++ "parent:  " ++ parent ++ "\n"
+    ++ "status:  " ++ status ++ "\n\n"
+    ++ "⏎ switch to this branch\n"
+    ++ "r rename  ·  x delete  ·  b new branch"
+  | None -> "(no branch selected)"
+
+/// In-CLI documentation topics (for the Docs view).
+let loadDocBodyItems () : List<BodyItem> =
+  Docs.Command.Topics.allTopics ()
+  |> Stdlib.List.map (fun t ->
+    BodyItem { name = t.name ++ "  ·  " ++ t.description; kind = "doc"; isModule = false })
+
+/// The Errors view - the high-importance issues an operator running software on Dark cares about. Real
+/// conflicts (genuine) first, then a mock set of the other error kinds until those signals are wired.
+let loadErrorItems () : List<BodyItem> =
+  let conflicts =
+    Darklang.Sync.Conflicts.list ()
+    |> Stdlib.List.map (fun c ->
+      BodyItem { name = "⚠ conflict    " ++ c.location ++ "  ·  " ++ c.status; kind = "error"; isModule = false })
+  let mock =
+    [ BodyItem { name = "⚠ 500         POST /checkout - 12 in the last hour"; kind = "error"; isModule = false }
+      BodyItem { name = "✗ test        Stachu.Auth.login passes but shouldn't"; kind = "error"; isModule = false }
+      BodyItem { name = "⚠ 500         GET /api/user/:id - 3 in the last hour"; kind = "error"; isModule = false }
+      BodyItem { name = "✗ deprecated  Stdlib.List.oldMap still called by 4 fns"; kind = "error"; isModule = false }
+      BodyItem { name = "⚠ perf        Stachu.report.build - 4.2s p95 (was 0.8s)"; kind = "error"; isModule = false } ]
+  Stdlib.List.append conflicts mock
+
+let errorDetail (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | Some item ->
+    (Colors.boldText item.name)
+    ++ "\n\n"
+    ++ (Colors.dimText "(mock data) - a real Errors view aggregates: test failures + tests that")
+    ++ "\n"
+    ++ (Colors.dimText "pass but shouldn't, HTTP 5xx on tracked endpoints, unresolved conflicts,")
+    ++ "\n"
+    ++ (Colors.dimText "deprecations still in use, and perf regressions.")
+    ++ "\n\n"
+    ++ "⏎ open the source / trace     f filter by kind"
+  | None -> Colors.colorize Colors.green "✓ all clear - no errors"
+
+/// The Crons view - scheduled jobs on this instance (mock until a Darklang.Cron value type + engine exist;
+/// see notes/cli-ux/22-things.md and classic Dark's cron model). Columns: status · name · schedule · last · next.
+let loadCronItems () : List<BodyItem> =
+  [ BodyItem { name = "●  nightly-backup    daily 02:00    14h ago ok    in 9h"; kind = "cron"; isModule = false }
+    BodyItem { name = "⏸  digest-email      weekly Mon     3d ago  ok    paused"; kind = "cron"; isModule = false }
+    BodyItem { name = "⚠  sync-metrics      every 1h       52m ago fail  in 8m"; kind = "cron"; isModule = false }
+    BodyItem { name = "○  cleanup-temp      every 12h      never         in 12h"; kind = "cron"; isModule = false } ]
+
+let cronDetail (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | Some item ->
+    (Colors.boldText item.name)
+    ++ "\n\n"
+    ++ "schedule : daily at 02:00  (EveryDay)\n"
+    ++ "handler  : Stachu.Backups.nightly  @9fa3…\n"
+    ++ "last run : 2026-07-24 02:00  ok  1.2s\n"
+    ++ "next run : 2026-07-25 02:00  (in 9h)\n"
+    ++ "state    : enabled · runs 41 · fails 0 · ● this instance\n\n"
+    ++ (Colors.dimText "(mock data)")
+    ++ "\n\n"
+    ++ "r run-now   p pause/resume   t traces   e edit"
+  | None -> Colors.dimText "no crons yet - declare a Darklang.Cron value"
+
+/// Recent execution traces (for the Traces view). Real traces if any are recorded; otherwise a labeled
+/// preview set so the surface reads as complete rather than empty (this env records none).
+let loadTraceBodyItems () : List<BodyItem> =
+  let real =
+    Builtin.tracesList 30
+    |> Stdlib.List.map (fun t ->
+      BodyItem { name = t.handler ++ "  ·  " ++ t.timestamp; kind = "trace"; isModule = false })
+  if Stdlib.Bool.not (Stdlib.List.isEmpty real) then
+    real
+  else
+    [ BodyItem { name = "✓ eval   Stdlib.List.map [1;2;3] (fun x -> x * 2)"; kind = "trace"; isModule = false }
+      BodyItem { name = "✓ GET    /echo → 200            heartbeat"; kind = "trace"; isModule = false }
+      BodyItem { name = "✗ POST   /sync → 500            syncer"; kind = "trace"; isModule = false }
+      BodyItem { name = "✓ eval   @stachu.fizzbuzz 3"; kind = "trace"; isModule = false }
+      BodyItem { name = "✓ CLI    dark status"; kind = "trace"; isModule = false } ]
+
+/// Installed + available apps (for the Apps view). A filled dot marks installed; a hollow one available.
+let loadAppItems (branchId: Uuid) : List<BodyItem> =
+  let slugs = Darklang.Cli.Apps.Registry.installedSlugs ()
+  Darklang.Cli.Apps.Registry.available ()
+  |> Stdlib.List.map (fun a ->
+    let mark = if Stdlib.List.member slugs a.slug then "● " else "○ "
+    BodyItem { name = mark ++ a.name ++ "  ·  " ++ a.description; kind = "app"; isModule = false })
+
+/// The body items for a given view. Home/Matter list packages (Matter with a Values lens); SCM lists its
+/// active section (WIP / commits / conflicts); AI/Apps/Traces/Docs their own; Scratch/Devices render their
+/// own bodies (no list). `scmSection` and `matterLens` come from state.
+let itemsForView
+  (view: Int)
+  (branchId: Uuid)
+  (location: Packages.PackageLocation)
+  (scmSection: Int)
+  (aiSection: Int)
+  (matterLens: String)
+  : List<BodyItem> =
+  if view == vHome then loadItems branchId location
+  else if view == vMatter then
+    if matterLens == "values" then loadThingItems branchId else loadItems branchId location
+  else if view == vInspect then loadItems branchId location
+  else if view == vSCM then
+    if scmSection == 1 then loadCommitBodyItems branchId
+    else if scmSection == 2 then loadConflictBodyItems ()
+    else if scmSection == 3 then loadBranchItems branchId
+    else loadWipBodyItems branchId
+  else if view == vAI then
+    if aiSection == 1 then loadPromptItems () else loadAiThreadItems ()
+  else if view == vApps then loadAppItems branchId
+  else if view == vTraces then loadTraceBodyItems ()
+  else if view == vDocs then loadDocBodyItems ()
+  else
+    // Extension views compose their own item loader (see `extensionViews`); built-ins fall through to [].
+    match extensionViewAt view with
+    | Some vd ->
+      let load = vd.loadItems
+      load ()
+    | None -> []
+
+/// Reload the CURRENT view's item list, i.e. `itemsForView` fed the live state. This is the "refresh what I'm
+/// looking at" call every mutating action (write / rename / branch op / section switch) makes; naming it once
+/// keeps those call sites to a single line instead of the six-argument spell.
+let reloadItems (state: State) : List<BodyItem> =
+  itemsForView state.activeView state.branchId state.location state.scmSection state.aiSection state.matterLens
+
+
+// ── Rendering ──

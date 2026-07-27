@@ -1,0 +1,775 @@
+/// The body renderers: shared list/preview primitives, then one renderer per view.
+///
+/// Part of `Darklang.Cli.Apps.Workbench.App`.
+module Darklang.Cli.Apps.Workbench.App
+
+let iconFor (item: BodyItem) : String =
+  if item.isModule then "🗂"
+  else
+    match item.kind with
+    | "fn" -> "⚡"
+    | "type" -> "#"
+    | _ -> "•"
+
+let renderTreeList (state: State) (region: UI.Layout.Region) : Unit =
+  if Stdlib.List.isEmpty state.items then
+    UI.Layout.printAt region 1 2 (Colors.dimText "(no items here)")
+  else
+    // Per-row badges (Matter tree, non-values lens only): a pink ● for items edited-but-not-committed, and a
+    // yellow ⚠ for items deprecated-but-still-shown (deprecated-and-referenced, so they survive the visibility
+    // filter). Both read once here (one WIP read + one deprecation-sets read per render), matched by name.
+    let badgesOn = (state.activeView == vMatter) && (state.matterLens != "values")
+    let modPath = modulePathOf state.location
+    let wipNames =
+      if badgesOn then
+        SCM.PackageOps.getWipItems state.branchId
+        |> Stdlib.List.map (fun d -> Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "")
+      else
+        []
+    let deprecatedNames =
+      if badgesOn then
+        let sets = Packages.Query.loadDeprecationSets state.branchId
+        let results = Packages.Query.allDirectDescendants state.branchId modPath
+        let pick = fun items ->
+          items
+          |> Stdlib.List.filter (fun i -> Packages.Query.isDeprecated sets i.entity.hash)
+          |> Stdlib.List.map (fun i -> i.location.name)
+        Stdlib.List.flatten [ pick results.fns; pick results.types; pick results.values ]
+      else
+        []
+    // Build the styled rows (cursor + icon + name, selection in cyan); UI.ListView owns the viewport + scrollbar.
+    let lines =
+      state.items
+      |> Stdlib.List.indexedMap (fun i item ->
+        let cursor = if i == state.selected then "> " else "  "
+        let display = if item.isModule then item.name ++ "/" else item.name
+        let fullName = Stdlib.String.join (Stdlib.List.append modPath [ item.name ]) "."
+        let wipBadge =
+          if (Stdlib.Bool.not (Stdlib.List.isEmpty wipNames)) && (Stdlib.List.member wipNames fullName) then
+            Colors.colorize Colors.pink " ●"
+          else
+            ""
+        let depBadge =
+          if Stdlib.List.member deprecatedNames item.name then Colors.colorize Colors.yellow " ⚠" else ""
+        let line = cursor ++ (iconFor item) ++ " " ++ display
+        let badge = wipBadge ++ depBadge
+        if i == state.selected then (Colors.colorize Colors.cyan line) ++ badge else line ++ badge)
+    UI.ListView.render region lines state.selected
+
+/// The source/detail of the currently-selected item, as lines for the Inspect pane.
+let detailLines (state: State) : List<String> =
+  // Values lens: items carry full paths (owner.mod.name), so look them up by full path, not leaf-in-location.
+  if (state.activeView == vMatter) && (state.matterLens == "values") then
+    Stdlib.String.split (thingDetail state) "\n"
+  else
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> [ "(nothing selected)" ]
+  | Some item ->
+    if item.isModule then
+      [ (iconFor item) ++ " " ++ item.name; ""; "module - → to enter" ]
+    else if item.kind == "fn" && item.name == "render" then
+      // Tree-native view peek: a `render` fn lights up its output right here - evaluate it (captured) and show
+      // the rendered frame instead of source. Any view value in the Matter tree previews just by cursoring onto it.
+      let modulePath = modulePathOf state.location
+      let fullpath = Stdlib.String.join (Stdlib.List.append modulePath [ item.name ]) "."
+      let out =
+        captureOutput (fun () ->
+          Builtin.cliEvaluateExpression state.accountId state.branchId (fullpath ++ " ()") false)
+      if (Stdlib.String.trim out) == "" then [ Colors.dimText "(view produced no output)" ]
+      else Stdlib.String.split out "\n"
+    else
+      let modulePath = modulePathOf state.location
+      let results = Packages.Query.searchExactMatch state.branchId modulePath item.name
+      let ctx =
+        PrettyPrinter.ProgramTypes.Context
+          { branchId = state.branchId
+            currentModule = Stdlib.Option.Option.None
+            currentFunction = Stdlib.Option.Option.None }
+      let src =
+        match item.kind with
+        | "fn" ->
+          match results.fns with
+          | i :: _ -> PrettyPrinter.ProgramTypes.packageFn ctx i.entity
+          | [] -> "(not found)"
+        | "type" ->
+          match results.types with
+          | i :: _ -> PrettyPrinter.ProgramTypes.packageType ctx i.entity
+          | [] -> "(not found)"
+        | _ ->
+          match results.values with
+          | i :: _ -> PrettyPrinter.ProgramTypes.packageValue ctx i.entity
+          | [] -> "(not found)"
+      Stdlib.String.split src "\n"
+
+/// The Docs topic content for the selected row.
+let docContent (selected: Int) : String =
+  match Stdlib.List.getAt (Docs.Command.Topics.allTopics ()) selected with
+  | Some t -> t.content ()
+  | None -> "(no topic selected)"
+
+/// A recorded divergence's detail, for the Resolve preview.
+let conflictDetail (selected: Int) : String =
+  match Stdlib.List.getAt (Darklang.Sync.Conflicts.list ()) selected with
+  | Some c ->
+    "location:    " ++ c.location ++ "\n"
+    ++ "kind:        " ++ c.itemKind ++ "\n"
+    ++ "status:      " ++ c.status ++ "\n\n"
+    ++ "local:       " ++ c.localHash ++ "\n"
+    ++ "incoming:    " ++ c.incomingHash ++ "\n"
+    ++ "chosen:      " ++ c.chosenHash ++ "\n"
+    ++ "resolved by: " ++ c.resolvedBy
+  | None -> "(no conflict selected)"
+
+/// The selected app's detail (name/description + lifecycle hints). Placeholder actions for now.
+let appDetail (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | Some item ->
+    item.name
+    ++ "\n\n"
+    ++ "⏎ inspect    i install/uninstall    r start    s stop\n\n"
+    ++ "(each runs the matching `apps` subcommand in-frame - output opens in the reader)"
+  | None -> "(no app selected)"
+
+/// The selected trace's detail. Placeholder - the walkable trace tree + live values come later.
+let traceDetail (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | Some item ->
+    (Colors.boldText item.name)
+    ++ "\n\n"
+    ++ (Colors.dimText "(mock data) - no live traces recorded in this env")
+    ++ "\n\n"
+    ++ "A real trace carries the inputs, the return value, and the value\n"
+    ++ "that flowed through every sub-expression. From here you'll:\n\n"
+    ++ "  r  replay this run\n"
+    ++ "  t  turn it into a test\n"
+    ++ "  j  jump to the source of a value\n"
+    ++ "  ⏎  walk the trace tree"
+  | None -> "(no trace recorded yet - eval something or run an app)"
+
+/// A one-line metadata strip for the Inspect item page: kind, short content hash (real, content-addressed),
+/// and a stability marker (placeholder until deprecation metadata is surfaced).
+let itemMeta (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> ""
+  | Some item ->
+    if item.isModule then ""
+    else
+      let modulePath = modulePathOf state.location
+      let results = Packages.Query.searchExactMatch state.branchId modulePath item.name
+      let hashOpt =
+        if item.kind == "fn" then results.fns |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
+        else if item.kind == "type" then results.types |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
+        else results.values |> Stdlib.List.head |> Stdlib.Option.map (fun i -> i.entity.hash)
+      let short =
+        match hashOpt with
+        | Some h -> LanguageTools.ProgramTypes.hashToShort h
+        | None -> "?"
+      let kindLabel = if item.kind == "fn" then "fn" else if item.kind == "type" then "type" else "value"
+      // Real deprecation status (same read path as the tree badge), not a placeholder.
+      let deprecation =
+        match hashOpt with
+        | Some h ->
+          let sets = Packages.Query.loadDeprecationSets state.branchId
+          if Packages.Query.isDeprecated sets h then Colors.colorize Colors.yellow "deprecated ⚠" else "not deprecated"
+        | None -> "not deprecated"
+      kindLabel ++ "  ·  hash " ++ short ++ "  ·  current  ·  " ++ deprecation
+
+/// Per-node actions offered on the item page. Only what's wired (`d` deps); try/traces are named in the
+/// hint line but land in later passes, so they read as affordances, not working keys yet.
+let itemActions (item: BodyItem) : String =
+  if item.kind == "fn" then Colors.dimText "d deps  ·  t try, x traces (coming)"
+  else Colors.dimText "d deps"
+
+let inspectPageLines (state: State) : List<String> =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> [ Colors.dimText "(nothing selected - browse the tree)" ]
+  | Some item ->
+    if item.isModule then
+      [ (iconFor item) ++ " " ++ item.name; ""; Colors.dimText "module - → to enter" ]
+    else
+      // Highlight the source portion here (the page mixes code + colored ref/meta lines, so renderPreview
+      // can't blanket-highlight it). Guard: only swap in the highlighted lines if the count still lines up.
+      let srcPlain = detailLines state
+      let src =
+        let h =
+          SyntaxHighlighting.highlightCode (Stdlib.String.join srcPlain "\n") |> Stdlib.String.split "\n"
+        if Stdlib.List.length h == Stdlib.List.length srcPlain then h else srcPlain
+      let refs = Stdlib.String.split (depsText state) "\n"
+      Stdlib.List.flatten
+        [ src
+          [ ""; Colors.dimText (itemMeta state) ]
+          [ ""; itemActions item ]
+          [ ""; Colors.colorize Colors.cyan "── references ──"; "" ]
+          refs ]
+
+/// The preview content for the selected item in the current view. One function so the preview pane, its
+/// scroll bounds, and the full-screen reader all agree. SCM previews depend on the active section.
+let previewLines (state: State) : List<String> =
+  if state.activeView == vSCM then
+    if state.scmSection == 1 then Stdlib.String.split (commitSummary state.branchId state.selected) "\n"
+    else if state.scmSection == 2 then Stdlib.String.split (conflictDetail state.selected) "\n"
+    else if state.scmSection == 3 then Stdlib.String.split (branchDetail state) "\n"
+    else Stdlib.String.split (wipDiffText state) "\n"
+  else if state.activeView == vInspect then inspectPageLines state
+  else if state.activeView == vMatter then
+    // Matter folds in the old Inspect: its preview IS the item page (source + meta + references + actions),
+    // except under the Values lens, where the value's own detail is what you want.
+    if state.matterLens == "values" then detailLines state else inspectPageLines state
+  else if state.activeView == vAI then
+    if state.aiSection == 1 then Stdlib.String.split (promptDetail state.selected) "\n"
+    else Stdlib.String.split (aiThreadDetail state.selected) "\n"
+  else if state.activeView == vApps then Stdlib.String.split (appDetail state) "\n"
+  else if state.activeView == vTraces then Stdlib.String.split (traceDetail state) "\n"
+  else if state.activeView == vDocs then Stdlib.String.split (docContent state.selected) "\n"
+  else
+    // Extension views supply their own detail; built-ins fall through to the generic item detail.
+    match extensionViewAt state.activeView with
+    | Some vd ->
+      let d = vd.detail
+      d state
+    | None -> detailLines state
+
+/// Render `lines` into `region` as a vertically-scrollable block: drop `scroll` rows, take what fits, each cut
+/// ANSI-aware so color survives an overflow. `display` is the styled variant shown per row (pass `lines` itself
+/// when there's no highlighting); `lines` drives the count. `colOffset` insets the text from the region's left
+/// (the split-pane preview insets 1; the full-screen reader doesn't). Backs both renderPreview and renderReading.
+let renderScrollableLines
+  (region: UI.Layout.Region)
+  (colOffset: Int)
+  (lines: List<String>)
+  (display: List<String>)
+  (scroll: Int)
+  : Unit =
+  let len = Stdlib.List.length lines
+  let off = Stdlib.Int.min scroll (Stdlib.Int.max 0 (len - 1))
+  let maxFit = Stdlib.Int.max 0 (region.cols - 1)
+  lines
+  |> Stdlib.List.indexedMap (fun i l -> (i, l))
+  |> Stdlib.List.drop off
+  |> Stdlib.List.take region.rows
+  |> Stdlib.List.iter (fun pair ->
+    let (i, p) = pair
+    let row = i - off
+    let disp = Stdlib.List.getAt display i |> Stdlib.Option.withDefault p
+    Stdlib.print ((UI.Layout.moveCursorTo (region.top + row) (region.left + colOffset)) ++ (UI.Layout.truncateVisible disp maxFit)))
+
+let renderPreview (state: State) (region: UI.Layout.Region) : Unit =
+  let plain = previewLines state
+  // Syntax-highlight the code previews (Inspect source, Changes WIP source). Docs/History-summary/Resolve
+  // aren't code, so they stay plain. Highlighting emits ANSI; printAt truncates by raw length, so we only
+  // print the highlighted line when the PLAIN line fits the pane width, else fall back to plain-truncated.
+  // Changes (4) + Matter (13) show a pre-colored +/- diff, not highlighted source, so they're not re-highlighted.
+  // Also skip highlighting anything already ANSI-colored (e.g. a tree-native render peek) - it's not plain source.
+  let alreadyColored = Stdlib.String.contains (Stdlib.String.join plain "\n") ""
+  let doHighlight = ((state.activeView == vMatter) || (state.activeView == vInspect)) && (Stdlib.Bool.not alreadyColored)
+  let highlighted =
+    if doHighlight then
+      let h =
+        SyntaxHighlighting.highlightCode (Stdlib.String.join plain "\n") |> Stdlib.String.split "\n"
+      if Stdlib.List.length h == Stdlib.List.length plain then h else plain
+    else
+      plain
+  // Split-pane preview: inset 1 column from the pane's left edge.
+  renderScrollableLines region 1 plain highlighted state.detailScroll
+
+/// "1 commit" / "2 commits" - count + correctly-pluralized noun.
+let plural (n: Int) (noun: String) : String =
+  (Stdlib.Int.toString n) ++ " " ++ noun ++ (if n == 1 then "" else "s")
+
+/// Home, the landing dashboard. A header band over two columns of boxed panels (Status + Pick-up-where-you-
+/// left-off on the left; Your Matter + Jump on the right), so the screen is used and the things a Dark dev
+/// actually lands wanting (am I in a good state, what was I doing, what's here, where do I go) each get a home.
+let renderHome (state: State) (region: UI.Layout.Region) : Unit =
+  let wip = SCM.PackageOps.getWipSummary state.branchId
+  let commits = SCM.PackageOps.getCommitCount state.branchId
+  let rootItems = loadItems state.branchId (Packages.PackageLocation.Module [])
+  let branch =
+    match SCM.Branch.get state.branchId with
+    | Some b -> b.name
+    | None -> "main"
+  let conflictCount = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
+  let lastCommit =
+    match Stdlib.List.head (SCM.PackageOps.getCommitsWithAncestors state.branchId 1) with
+    | Some c -> c.message
+    | None -> "no commits yet"
+  let owner = if state.accountName == "" then "there" else state.accountName
+
+  let renderHeader (r: UI.Layout.Region) : Unit =
+    UI.Layout.printAt r 0 2 (Colors.boldText ($"Welcome back, {owner}"))
+    UI.Layout.printAt r 1 2 (Colors.dimText ($"on {branch}  ·  a workbench over Dark Matter"))
+
+  let renderStatus (inner: UI.Layout.Region) : Unit =
+    let wipLine =
+      if wip.total == 0 then Colors.colorize Colors.green "✓ working tree clean"
+      else Colors.colorize Colors.pink (plural wip.total "uncommitted change")
+    let syncLine =
+      if conflictCount == 0 then Colors.dimText "✓ in sync"
+      else Colors.colorize Colors.pink ("⚠ " ++ (plural conflictCount "divergence") ++ "  ·  5 › Conflicts")
+    UI.Layout.printAt inner 0 1 wipLine
+    UI.Layout.printAt inner 1 1 (Colors.dimText (plural commits "commit" ++ " on this branch"))
+    UI.Layout.printAt inner 2 1 (Colors.dimText ("last: " ++ lastCommit))
+    UI.Layout.printAt inner 3 1 syncLine
+
+  let renderWip (inner: UI.Layout.Region) : Unit =
+    if wip.total == 0 then
+      UI.Layout.printAt inner 0 1 (Colors.dimText "nothing in progress - the tree is yours to edit")
+    else
+      let _ =
+        SCM.PackageOps.getWipItems state.branchId
+        |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
+        |> Stdlib.List.indexedMap (fun i d ->
+          let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
+          // Pink ● is the "uncommitted work" marker everywhere (matches the tree WIP badge); keep it consistent.
+          UI.Layout.printAt inner i 1 (Colors.colorize Colors.pink ("● " ++ name)))
+      ()
+
+  let renderMatterPanel (inner: UI.Layout.Region) : Unit =
+    UI.Layout.printAt inner 0 1 (Colors.dimText (plural (Stdlib.List.length rootItems) "top-level owner"))
+    let _ =
+      rootItems
+      |> Stdlib.List.take (Stdlib.Int.max 1 (inner.rows - 1))
+      |> Stdlib.List.indexedMap (fun i it ->
+        UI.Layout.printAt inner (i + 1) 1 (Colors.colorize Colors.cyan ("🗂 " ++ it.name)))
+    ()
+
+  // The commands you'll actually reach for, as a landing reference. One cyan span per row (the command), plain
+  // descriptions. Printed via printAtVisible so the cyan spans don't count toward the width and get clipped on
+  // narrow terminals. The `:` bar runs any of these with autocomplete (see 6.B).
+  let renderCommands (inner: UI.Layout.Region) : Unit =
+    let cy = fun t -> Colors.colorize Colors.cyan t
+    let _ =
+      [ (cy "fn / type / val") ++ "   create functions, types, values in the tree"
+        (cy "eval <expr>") ++ "       evaluate, or run a fn:  eval MyMod.myFn 1 2"
+        (cy "commit \"msg\"") ++ "      save to SCM  ·  status shows what changed"
+        (cy "search <term>") ++ "     find anything  ·  docs [topic] reads these docs"
+        (cy "sync") ++ "              share changes  ·  conflicts to resolve"
+        (cy "apps") ++ "              run & manage apps  ·  agent <verb> for AI"
+        (cy "1-9 / Ctrl+←→ / `") ++ "  switch views  ·  ? for all keys"
+        ""
+        (cy ":commands") ++ "  the old command-prompt mode (quit there returns here)" ]
+      |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
+      |> Stdlib.List.indexedMap (fun i l -> UI.Layout.printAtVisible inner i 1 l)
+    ()
+
+  let leftCol (r: UI.Layout.Region) : Unit =
+    UI.Layout.vstack
+      r
+      [ UI.Layout.fixedSize 6 (fun rr -> UI.Box.panel rr "Status" false renderStatus)
+        UI.Layout.greedy (fun rr -> UI.Box.panel rr "Pick up where you left off" false renderWip) ]
+
+  UI.Layout.vstack
+    region
+    [ UI.Layout.fixedSize 3 renderHeader
+      UI.Layout.fixedSize 11 (fun r ->
+        UI.Layout.hstack
+          r
+          [ UI.Layout.greedyWidth leftCol
+            UI.Layout.fixedWidth 40 (fun rr -> UI.Box.panel rr "Your Matter" false renderMatterPanel) ])
+      UI.Layout.greedy (fun rr ->
+        UI.Box.panel rr "Commands  ·  press : to run" false renderCommands) ]
+
+/// A full-body scrollable reader (Docs topic content, etc.).
+let renderReading (content: String) (isCode: Bool) (scroll: Int) (region: UI.Layout.Region) : Unit =
+  let plain = Stdlib.String.split content "\n"
+  // Highlight code readers (Tree-leaf / Changes source); ANSI-aware truncate keeps color even when a line
+  // overflows the width. Non-code content stays plain.
+  let highlighted =
+    if isCode then
+      let h = SyntaxHighlighting.highlightCode content |> Stdlib.String.split "\n"
+      if Stdlib.List.length h == Stdlib.List.length plain then h else plain
+    else
+      plain
+  // Full-screen reader: no inset.
+  renderScrollableLines region 0 plain highlighted scroll
+
+/// A framed box holding pre-built lines (for the static/instructional views). Lines may be pre-colored.
+let boxedLines
+  (region: UI.Layout.Region)
+  (title: String)
+  (lines: List<String>)
+  : Unit =
+  UI.Box.panel region title true (fun inner ->
+    lines
+    |> Stdlib.List.indexedMap (fun i l -> (i, l))
+    |> Stdlib.List.iter (fun pair ->
+      let (i, l) = pair
+      // Lines here are pre-colored (Devices/Calendar/Builtins), so truncate by visible width, not raw length.
+      if i < inner.rows then UI.Layout.printAtVisible inner (i + 1) 1 l))
+
+/// A list+preview view (the IDE three-panel shape): the list on the dominant left pane, a scrollable preview of
+/// the selected item on the right. Tab toggles focus; the preview scrolls when focused. Falls back to a single
+/// empty box (naming the fill action) when the list is empty.
+let splitListPreview
+  (state: State)
+  (region: UI.Layout.Region)
+  (leftTitle: String)
+  (previewTitle: String)
+  (emptyMsg: String)
+  : Unit =
+  if Stdlib.List.isEmpty state.items then
+    let msg =
+      if state.filter == "" then emptyMsg
+      else Colors.dimText ("no matches for filter: " ++ state.filter ++ "   (f to change)")
+    UI.Box.panel region leftTitle true (fun inner -> UI.Layout.printAt inner 1 1 msg)
+  else
+    // Surface an active filter right in the list title (plain text - the box does width math on it) so a
+    // narrowed list never looks like the whole set.
+    let count = Stdlib.Int.toString (Stdlib.List.length state.items)
+    let titled =
+      if state.filter == "" then leftTitle ++ "  ·  " ++ count
+      else leftTitle ++ "  ·  " ++ count ++ "  ·  filter: " ++ state.filter
+    UI.SplitPane.render
+      region
+      UI.SplitPane.Orientation.Horizontal
+      55
+      state.focus
+      titled
+      (fun r -> renderTreeList state r)
+      previewTitle
+      (fun r -> renderPreview state r)
+
+/// A "tab  [Active]   Other   Other" section switcher at `row` within the region: the active section bright in
+/// brackets, the rest dim. Shared by the SCM (Changes/History/Conflicts/Branches) and AI (Agents/Prompts) views.
+let renderSectionSwitcher (region: UI.Layout.Region) (row: Int) (sections: List<String>) (active: Int) : Unit =
+  let secLine =
+    sections
+    |> Stdlib.List.indexedMap (fun i s ->
+      if i == active then Colors.colorize (Colors.bold ++ Colors.cyan) ("[" ++ s ++ "]")
+      else Colors.dimText (" " ++ s ++ " "))
+    |> Stdlib.String.join "  "
+  Stdlib.print ((UI.Layout.moveCursorTo (region.top + row) region.left) ++ "  " ++ (Colors.dimText "tab") ++ "  " ++ secLine)
+
+/// The SCM status header - the always-true summary of Dark Matter's state on this branch.
+let renderScmHeader (state: State) (region: UI.Layout.Region) : Unit =
+  let branchOpt = SCM.Branch.get state.branchId
+  let branch = match branchOpt with | Some b -> b.name | None -> "main"
+  let parent =
+    match branchOpt with
+    | Some b ->
+      match b.parentBranchId with
+      | Some pid -> (match SCM.Branch.get pid with | Some p -> p.name | None -> "?")
+      | None -> "(root)"
+    | None -> "(root)"
+  let wip = (SCM.PackageOps.getWipSummary state.branchId).total
+  let commits = SCM.PackageOps.getCommitCount state.branchId
+  let conflicts = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
+  let peers = Stdlib.List.length (Darklang.Sync.status ())
+  let line1 =
+    "  " ++ (Colors.boldText ("branch: " ++ branch)) ++ (Colors.dimText ("   →   " ++ parent))
+  let wipPart =
+    if wip == 0 then Colors.colorize Colors.green "✓ clean"
+    else Colors.colorize Colors.pink ("● " ++ (plural wip "change"))
+  let confPart =
+    if conflicts == 0 then Colors.dimText "no conflicts"
+    else Colors.colorize Colors.pink ("⚠ " ++ (plural conflicts "conflict"))
+  let syncPart = if peers == 0 then Colors.dimText "no peers" else Colors.dimText ((Stdlib.Int.toString peers) ++ " peers")
+  let sep = Colors.dimText "     "
+  let line2 =
+    "  " ++ wipPart ++ sep ++ (Colors.dimText (plural commits "commit")) ++ sep ++ confPart ++ sep ++ syncPart
+  let _ = Stdlib.print ((UI.Layout.moveCursorTo region.top region.left) ++ line1)
+  Stdlib.print ((UI.Layout.moveCursorTo (region.top + 1) region.left) ++ line2)
+
+/// The SCM view: the status header, a section switcher (Changes / History / Conflicts, cycled by Tab), and
+/// the active section's list + detail. One home for the state of Dark Matter and its version control; conflict
+/// resolution lives here. The ahead/behind glance is in the header (setup + cross-instance health live in Devices).
+let renderScm (state: State) (region: UI.Layout.Region) : Unit =
+  let headerRows = 4
+  let headerRegion = UI.Layout.Region { top = region.top; left = region.left; rows = 2; cols = region.cols }
+  let _ = renderScmHeader state headerRegion
+  let _ = renderSectionSwitcher region 2 [ "Changes"; "History"; "Conflicts"; "Branches" ] state.scmSection
+  let bodyRegion =
+    UI.Layout.Region
+      { top = region.top + headerRows
+        left = region.left
+        rows = Stdlib.Int.max 1 (region.rows - headerRows)
+        cols = region.cols }
+  let (title, empty) =
+    if state.scmSection == 1 then ("History", Colors.dimText "no commits yet")
+    else if state.scmSection == 2 then ("Conflicts", Colors.colorize Colors.green "✓ nothing to resolve - in sync")
+    else if state.scmSection == 3 then ("Branches", Colors.dimText "no branches")
+    else ("Changes", Colors.colorize Colors.green "✓ working tree clean - nothing to commit")
+  splitListPreview state bodyRegion title "Detail" empty
+
+/// Evaluate an expression through the classic `eval` command, captured, and return its trimmed result string.
+let evalToString (state: State) (expr: String) : String =
+  let appState =
+    classicState state
+  let words = Stdlib.String.split expr " " |> Stdlib.List.filter (fun w -> w != "")
+  Stdlib.String.trim (captureOutput (fun () -> Darklang.Cli.Registry.executeCommand "eval" appState words))
+
+/// Split an expression on its TOP-LEVEL `|>` (depth 0 only, so a `|>` inside a parenthesized lambda stays
+/// put). Returns the stages without the pipes. Char-by-char with a paren/bracket/brace depth counter.
+let splitTopPipes (text: String) : List<String> =
+  let charStrs = Stdlib.String.toList text |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
+  let final =
+    charStrs
+    |> Stdlib.List.fold (0, "", [], false) (fun acc s ->
+      let (depth, buf, segs, prevPipe) = acc
+      if prevPipe then
+        if (s == ">") && (depth == 0) then
+          (depth, "", Stdlib.List.pushBack segs (Stdlib.String.trim buf), false)
+        else
+          (depth, buf ++ "|" ++ s, segs, false)
+      else if (s == "(") || (s == "[") || (s == "{") then
+        (depth + 1, buf ++ s, segs, false)
+      else if (s == ")") || (s == "]") || (s == "}") then
+        (Stdlib.Int.max 0 (depth - 1), buf ++ s, segs, false)
+      else if (s == "|") && (depth == 0) then
+        (depth, buf, segs, true)
+      else
+        (depth, buf ++ s, segs, false))
+  let (_d, lastBuf, segs, lastPipe) = final
+  let tail = if lastPipe then lastBuf ++ "|" else lastBuf
+  Stdlib.List.pushBack segs (Stdlib.String.trim tail)
+
+/// Faked live values: for a pipe chain, evaluate each cumulative prefix and return (stage-label, value) so the
+/// sidebar can show the value flowing through each stage. Empty for a non-pipe (nothing to step through). No
+/// interpreter support - it just re-runs prefixes, which is why it's honest to call it a stand-in.
+let pipeSteps (state: State) (text: String) : List<(String * String)> =
+  let stages = splitTopPipes text
+  if Stdlib.List.length stages < 2 then
+    []
+  else
+    let capped = Stdlib.List.take stages 8
+    capped
+    |> Stdlib.List.indexedMap (fun i stage ->
+      let prefix = Stdlib.List.take capped (i + 1) |> Stdlib.String.join " |> "
+      let value = evalToString state prefix
+      let label = if i == 0 then stage else "|> " ++ stage
+      (label, value))
+
+/// The REPL view: a persistent eval log on the left, a live-values sidebar on the right. ⏎ evaluates and
+/// appends to the log. The sidebar steps through a pipe chain's values (faked - see `pipeSteps`); for a
+/// non-pipe it echoes the single result and names what a real resumable interpreter would add.
+let renderRepl (state: State) (region: UI.Layout.Region) : Unit =
+  UI.SplitPane.render
+    region
+    UI.SplitPane.Orientation.Horizontal
+    62
+    state.focus
+    "REPL"
+    (fun inner ->
+      let all =
+        if Stdlib.List.isEmpty state.scratchLog then
+          [ Colors.boldText "A REPL over your whole package space."
+            ""
+            Colors.dimText "Press ⏎, type an expression, run it. Results log here."
+            ""
+            Colors.dimText "try:"
+            (Colors.colorize Colors.cyan "  1 + 1")
+            (Colors.colorize Colors.cyan "  Stdlib.List.map [ 1; 2; 3 ] (fun x -> x * 2)")
+            (Colors.colorize Colors.cyan "  \"dark\" |> Stdlib.String.toUppercase")
+            ""
+            Colors.dimText "f clears the log." ]
+        else state.scratchLog
+      let shown = all |> Stdlib.List.reverse |> Stdlib.List.take inner.rows |> Stdlib.List.reverse
+      shown
+      |> Stdlib.List.indexedMap (fun i l -> (i, l))
+      |> Stdlib.List.iter (fun p ->
+        let (i, l) = p
+        Stdlib.print ((UI.Layout.moveCursorTo (inner.top + i) (inner.left + 1)) ++ (UI.Layout.truncateVisible l (Stdlib.Int.max 0 (inner.cols - 1))))))
+    "Live values"
+    (fun inner ->
+      let lines =
+        if Stdlib.Bool.not (Stdlib.List.isEmpty state.replSteps) then
+          // Pipe chain: show the value flowing through each stage (faked by re-running prefixes).
+          let stepLines =
+            state.replSteps
+            |> Stdlib.List.map (fun pair ->
+              let (label, value) = pair
+              [ Colors.colorize Colors.cyan label; Colors.colorize Colors.green ("  = " ++ value) ])
+            |> Stdlib.List.flatten
+          Stdlib.List.flatten
+            [ [ Colors.dimText "value at each pipe stage:"; "" ]
+              stepLines
+              [ ""; Colors.dimText "(stepped by re-running each"; Colors.dimText "prefix - a stand-in until the"; Colors.dimText "interpreter hands these back)" ] ]
+        else
+          let lastResult =
+            state.scratchLog
+            |> Stdlib.List.reverse
+            |> Stdlib.List.findFirst (fun l -> Stdlib.Bool.not (Stdlib.String.contains l "> "))
+            |> Stdlib.Option.withDefault ""
+          [ Colors.dimText "the value flowing through"
+            Colors.dimText "your last expression:"
+            ""
+            (if (Stdlib.String.trim lastResult) == "" then Colors.dimText "(eval a pipe to step through it)"
+             else Colors.colorize Colors.green (Stdlib.String.trim lastResult))
+            ""
+            Colors.dimText "── pipe something ──"
+            Colors.dimText "[ 1; 2; 3 ]"
+            Colors.dimText "|> Stdlib.List.map (fun x -> x * 2)"
+            Colors.dimText "|> Stdlib.List.sum"
+            Colors.dimText "and watch each stage's value" ]
+      lines
+      |> Stdlib.List.indexedMap (fun i l -> (i, l))
+      |> Stdlib.List.take inner.rows
+      |> Stdlib.List.iter (fun p ->
+        let (i, l) = p
+        Stdlib.print ((UI.Layout.moveCursorTo (inner.top + i) (inner.left + 1)) ++ (UI.Layout.truncateVisible l (Stdlib.Int.max 0 (inner.cols - 1))))))
+
+/// Real config (from cli-config.json) as (key, value) pairs - backs the Devices "Configuration" section and
+/// the `c` reader. This is the actual persisted config, not mock.
+let configEntries () : List<(String * String)> =
+  Darklang.Cli.Config.readConfig () |> Stdlib.Dict.toList
+
+/// A short form of a config value for the inline summary (uuids etc. get truncated).
+let configValueOr (key: String) (fallback: String) : String =
+  match Darklang.Cli.Config.get key with
+  | Some v -> v
+  | None -> fallback
+
+/// The full config dump for the `c` reader on Devices: every persisted key/value plus how to change them.
+let deviceConfigText () : String =
+  let entries = configEntries ()
+  let rows =
+    if Stdlib.List.isEmpty entries then [ "  (no config set yet)" ]
+    else
+      entries
+      |> Stdlib.List.map (fun pair ->
+        let (k, v) = pair
+        "  " ++ k ++ "  =  " ++ v)
+  Stdlib.List.flatten
+    [ [ "Configuration  (rundir/cli-config.json)"; "" ]
+      rows
+      [ ""
+        "Change a value with the command bar:"
+        "  :config set <key> <value>       e.g.  :config set instance.name major"
+        "  :config set calendar.enabled stachu     (per-account view gating)"
+        "  :config list                    show everything" ] ]
+  |> Stdlib.String.join "\n"
+
+/// The Devices view: instances and how they sync. Discovery-mechanism-agnostic (no tailscale branding). Setup
+/// + cross-instance sync health live here; conflict resolution links over to SCM. Instance identity + config
+/// are real (from cli-config.json); the peers/branch-sync feed is mock until the sync backend feeds it.
+let renderDevices (state: State) (region: UI.Layout.Region) : Unit =
+  let branch =
+    match SCM.Branch.get state.branchId with
+    | Some b -> b.name
+    | None -> "main"
+  let owner = if state.accountName == "" then "you" else state.accountName
+  let hdr = fun t -> Colors.colorize (Colors.bold ++ Colors.cyan) t
+  let on = Colors.colorize Colors.green "●"
+  let off = Colors.dimText "○"
+  boxedLines
+    region
+    "Devices"
+    [ hdr "This instance"
+      "   " ++ on ++ "  " ++ state.instanceName ++ " (" ++ owner ++ ")      online     sync: auto"
+      ""
+      hdr "Dark Matter  ·  matter.darklang.com"
+      "   " ++ (Colors.dimText "the central distribution hub - all public Darklang code, fine-grained")
+      "   " ++ on ++ "  connected     auto-syncing public code     " ++ (Colors.dimText "(mock)")
+      ""
+      hdr "Peers  ·  (mock data)"
+      "   " ++ off ++ "  laptop-2           offline    last seen 2h ago"
+      ""
+      hdr "Branch sync  ·  (mock data)"
+      "   " ++ (Colors.boldText "main") ++ "         " ++ (Colors.colorize Colors.green "in sync")
+      "   " ++ (Colors.dimText "ai/sync      ahead 3, behind 1")
+      "   " ++ (Colors.dimText "experiments  local only")
+      ""
+      hdr "Configuration  ·  real (cli-config.json)"
+      "   " ++ (Colors.dimText "instance.name  ") ++ state.instanceName
+      "   " ++ (Colors.dimText "instance.id    ") ++ (Stdlib.String.slice (configValueOr "instance.id" "(unset)") 0 8) ++ (Colors.dimText "…")
+      "   " ++ (Colors.dimText "sync.mode      ") ++ (configValueOr "sync.mode" "auto (default)")
+      ""
+      Colors.dimText "   a add peer  ·  s sync now  ·  c view/edit config     conflicts live in SCM" ]
+
+/// The AI view: agents dark is running (preview data for now) with a thread detail. `a` asks the agent.
+/// Prompts library + real managed-agent state come later.
+let renderAI (state: State) (region: UI.Layout.Region) : Unit =
+  // Section switcher (Agents / Prompts), Tab cycles it - same shape as SCM's.
+  let _ = renderSectionSwitcher region 0 [ "Agents"; "Prompts" ] state.aiSection
+  let bodyRegion =
+    UI.Layout.Region
+      { top = region.top + 2
+        left = region.left
+        rows = Stdlib.Int.max 1 (region.rows - 2)
+        cols = region.cols }
+  let (leftTitle, previewTitle, empty) =
+    if state.aiSection == 1 then ("Prompts  ·  (mock data)", "Prompt", Colors.dimText "no prompts")
+    else ("Agents  ·  (mock data)", "Thread", Colors.dimText "no agents - press a to ask the agent")
+  splitListPreview state bodyRegion leftTitle previewTitle empty
+
+/// The Calendar view (mock) - a month grid over cron fire-times + date-typed values, with today's agenda. A
+/// personal, login-gated view; greenfield, so this is a stand-in for the real system to come.
+let renderCalendar (state: State) (region: UI.Layout.Region) : Unit =
+  let hdr = fun t -> Colors.colorize (Colors.bold ++ Colors.cyan) t
+  let today = Colors.colorize (Colors.bold ++ Colors.cyan) "[24]"
+  boxedLines
+    region
+    "Calendar  ·  July 2026  ·  (mock data)"
+    [ hdr "   Mon   Tue   Wed   Thu   Fri   Sat   Sun"
+      ""
+      "          1     2     3     4     5     6"
+      "    7     8     9    10    11    12    13"
+      "   14    15    16    17    18    19    20"
+      "   21    22    23   " ++ today ++ "•   25•   26    27"
+      "   28    29    30    31"
+      ""
+      hdr "Today · Thu Jul 24"
+      "    02:00   nightly-backup       cron    ok"
+      "    08:00   sync-metrics         cron    next"
+      "    15:00   reMarkable review    event"
+      ""
+      Colors.dimText "   • = scheduled     ←→ day   ↑↓ week   a agenda   ⏎ open" ]
+
+
+// ── Extension views: the composable registry ──
+// Each entry is a self-contained `ViewDef`; the core dispatch delegates to these generically (see the `else`
+// arms of itemsForView / previewLines / renderViewBody / hintsForView). Adding a view = one row in
+// `extensionViews` + its handful of small fns above. No edits to the core, the tab bar, or the gating.
+
+let renderErrors (state: State) (region: UI.Layout.Region) : Unit =
+  splitListPreview state region "Errors" "Detail" (Colors.colorize Colors.green "✓ all clear - no errors")
+
+let renderCrons (state: State) (region: UI.Layout.Region) : Unit =
+  splitListPreview state region "Crons" "Detail" (Colors.dimText "no crons yet - declare a Darklang.Cron value")
+
+// Extension views have no custom key handler yet, so their footers advertise only the keys that actually work
+// (move + the global filter). The per-row actions (run-now, pause, traces, agenda, …) are described in each
+// view's detail pane, which is mock-labeled, until those handlers exist.
+let errorHints (state: State) : List<(String * String)> =
+  [ ("↑↓", "move"); ("f", "filter") ]
+
+let cronHints (state: State) : List<(String * String)> =
+  [ ("↑↓", "move"); ("f", "filter") ]
+
+let calendarHints (state: State) : List<(String * String)> =
+  []
+
+let renderBuiltins (state: State) (region: UI.Layout.Region) : Unit =
+  splitListPreview state region "Builtins" "Signature" (Colors.dimText "(no builtins)")
+
+let builtinHints (state: State) : List<(String * String)> =
+  [ ("↑↓", "move"); ("f", "filter") ]
+
+/// The internal-tier Builtins view - every F# builtin (real data, not mock), for the Darklang-internal
+/// experience. Gated on `internal.enabled` (config), so `config set internal.enabled stachu,feriel` turns the
+/// whole tier on for those two accounts and nobody else. This is the dev-tools surface #4.B asked for.
+let loadBuiltinItems () : List<BodyItem> =
+  Builtin.getAllBuiltinFns ()
+  |> Stdlib.List.map (fun fn -> fn.name.name)
+  |> Stdlib.List.sort
+  |> Stdlib.List.map (fun n -> BodyItem { name = n; kind = "builtin"; isModule = false })
+
+let builtinDetailLines (state: State) : List<String> =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> [ Colors.dimText "(nothing selected)" ]
+  | Some item ->
+    let all = Builtin.getAllBuiltinFns ()
+    match Stdlib.List.findFirst all (fun fn -> fn.name.name == item.name) with
+    | None -> [ Colors.dimText "(builtin not found)" ]
+    | Some fn ->
+      let params =
+        fn.parameters
+        |> Stdlib.List.map (fun p ->
+          let typStr = PrettyPrinter.RuntimeTypes.typeReference state.branchId p.``type``
+          $"{p.name}: {typStr}")
+        |> Stdlib.String.join ", "
+      let ret = PrettyPrinter.RuntimeTypes.typeReference state.branchId fn.returnType
+      [ Colors.boldText ($"{fn.name.name}({params}) -> {ret}")
+        ""
+        Colors.dimText ("builtin  ·  " ++ (Darklang.Cli.Builtins.purityTag fn.purity))
+        ""
+        fn.description ]

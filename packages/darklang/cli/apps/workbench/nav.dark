@@ -1,0 +1,178 @@
+/// Movement and the actions a keypress can trigger. Each returns a `Step`.
+///
+/// Part of `Darklang.Cli.Apps.Workbench.App`.
+module Darklang.Cli.Apps.Workbench.App
+
+let descend (state: State) : Step =
+  match Stdlib.List.getAt state.items state.selected with
+  | Some item ->
+    if item.isModule then
+      let newPath = Stdlib.List.append (modulePathOf state.location) [ item.name ]
+      let newLoc = Packages.PackageLocation.Module newPath
+      Step.Continue
+        { state with
+            location = newLoc
+            items = loadItems state.branchId newLoc
+            selected = 0
+            detailScroll = 0 }
+    else
+      Step.Continue state
+  | None -> Step.Continue state
+
+let ascend (state: State) : Step =
+  let path = modulePathOf state.location
+  match Stdlib.List.reverse path with
+  | [] -> Step.Continue state
+  | _ :: revParent ->
+    let newPath = Stdlib.List.reverse revParent
+    let newLoc = Packages.PackageLocation.Module newPath
+    Step.Continue
+      { state with
+          location = newLoc
+          items = loadItems state.branchId newLoc
+          selected = 0 }
+
+// ── Movement (shared by arrows + vim keys, so j/k/h/l/g/G mean the same as the arrows) ──
+
+/// Up: scroll the inspector when it's focused, else move the list selection up.
+let navUp (state: State) : Step =
+  match state.focus with
+  | Second -> Step.Continue { state with detailScroll = Stdlib.Int.max 0 (state.detailScroll - 1) }
+  | First -> Step.Continue { state with selected = Stdlib.Int.max 0 (state.selected - 1); detailScroll = 0 }
+
+/// Down: scroll the inspector when it's focused, else move the list selection down.
+let navDown (state: State) : Step =
+  match state.focus with
+  | Second ->
+    let maxScroll = Stdlib.Int.max 0 ((Stdlib.List.length (previewLines state)) - 1)
+    Step.Continue { state with detailScroll = Stdlib.Int.min maxScroll (state.detailScroll + 1) }
+  | First ->
+    let maxIdx = (Stdlib.List.length state.items) - 1
+    Step.Continue { state with selected = Stdlib.Int.min maxIdx (state.selected + 1); detailScroll = 0 }
+
+/// Jump to the top / bottom of the list (vim g / G).
+let navTop (state: State) : Step =
+  Step.Continue { state with selected = 0; detailScroll = 0 }
+
+let navBottom (state: State) : Step =
+  let maxIdx = Stdlib.Int.max 0 ((Stdlib.List.length state.items) - 1)
+  Step.Continue { state with selected = maxIdx; detailScroll = 0 }
+
+/// Open the full-screen reader on `content`. `isCode` toggles syntax highlighting (true for source, false for
+/// docs/help/search/ops). Resets scroll.
+let openReader (state: State) (content: String) (isCode: Bool) : Step =
+  Step.Continue
+    { state with
+        reading = Stdlib.Option.Option.Some content
+        readingIsCode = isCode
+        detailScroll = 0 }
+
+/// Switch to view `nv`: reload its items, keep the cursor where it was (clamped to the new list - a partial
+/// shared cursor, so you don't lose your place hopping views), reset scroll/focus/filter.
+let switchView (state: State) (nv: Int) : Step =
+  let newItems = itemsForView nv state.branchId state.location state.scmSection state.aiSection state.matterLens
+  let clamped = Stdlib.Int.max 0 (Stdlib.Int.min state.selected (Stdlib.Int.max 0 ((Stdlib.List.length newItems) - 1)))
+  Step.Continue
+    { state with
+        activeView = nv
+        items = newItems
+        selected = clamped
+        filter = ""
+        detailScroll = 0
+        focus = UI.SplitPane.Focus.First }
+
+/// Move to the previous/next visible view (dir -1 / +1), skipping any opted-out views (e.g. Devices).
+let cycleView (state: State) (dir: Int) : Step =
+  let vis = visibleViews state
+  let pos =
+    vis
+    |> Stdlib.List.indexedMap (fun i v -> (i, v))
+    |> Stdlib.List.findFirst (fun pair -> let (_i, v) = pair in v == state.activeView)
+    |> Stdlib.Option.map (fun pair -> let (i, _v) = pair in i)
+    |> Stdlib.Option.withDefault 0
+  let newPos = Stdlib.Int.max 0 (Stdlib.Int.min ((Stdlib.List.length vis) - 1) (pos + dir))
+  match Stdlib.List.getAt vis newPos with
+  | Some v -> switchView state v
+  | None -> Step.Continue state
+
+/// Resolve the selected conflict (Conflicts view): keep ours (local), theirs (incoming), or just acknowledge.
+let resolveConflict (state: State) (which: String) : Step =
+  match Stdlib.List.getAt (Darklang.Sync.Conflicts.list ()) state.selected with
+  | None -> Step.Continue { state with message = "no conflict selected" }
+  | Some c ->
+    let ok =
+      if which == "ours" then Darklang.Sync.Conflicts.keep c.location c.localHash
+      else if which == "theirs" then Darklang.Sync.Conflicts.keep c.location c.incomingHash
+      else Darklang.Sync.Conflicts.acknowledge c.location
+    let label = if which == "ok" then "acknowledged" else "kept " ++ which
+    Step.Continue
+      { state with
+          items = reloadItems state
+          selected = 0
+          message = if ok then "resolved: " ++ label else "resolve failed" }
+
+/// Apps: install/uninstall the selected app (updates the installed set + the ●/○ marker). Bound to both the
+/// primary key (⏎) and the explicit `i`.
+let toggleInstall (state: State) : Step =
+  match Stdlib.List.getAt (Darklang.Cli.Apps.Registry.available ()) state.selected with
+  | Some app ->
+    let slugs = Darklang.Cli.Apps.Registry.installedSlugs ()
+    let (newSlugs, msg) =
+      if Stdlib.List.member slugs app.slug then
+        (slugs |> Stdlib.List.filter (fun s -> s != app.slug), "uninstalled " ++ app.slug)
+      else
+        (Stdlib.List.append slugs [ app.slug ], "installed " ++ app.slug)
+    let _ = Darklang.Cli.Apps.Registry.saveInstalled newSlugs
+    Step.Continue
+      { state with
+          items = itemsForView vApps state.branchId state.location state.scmSection state.aiSection state.matterLens
+          message = msg }
+  | None -> Step.Continue state
+
+/// Run `apps <sub> <slug>` for the selected app in-frame (captured), refresh the list, and show the output in
+/// the reader - so start/stop/inspect act here instead of forcing a drop to the `:` bar.
+let runAppsSubcommand (state: State) (sub: String) : Step =
+  match Stdlib.List.getAt (Darklang.Cli.Apps.Registry.available ()) state.selected with
+  | None -> Step.Continue state
+  | Some app ->
+    let appState =
+      classicState state
+    let out = captureOutput (fun () -> Darklang.Cli.Registry.executeCommand "apps" appState [ sub; app.slug ])
+    let refreshed =
+      itemsForView vApps state.branchId state.location state.scmSection state.aiSection state.matterLens
+    let shown =
+      if (Stdlib.String.trim out) == "" then $"apps {sub} {app.slug}\n\n(done)" else out
+    openReader { state with items = refreshed } shown false
+
+/// The `r` action for the selected app: a foreground app hands off to its full-screen command (the CLI returns
+/// to the workbench when it exits); a daemon starts detached, in-frame.
+let launchOrStartApp (state: State) : Step =
+  match Stdlib.List.getAt (Darklang.Cli.Apps.Registry.available ()) state.selected with
+  | None -> Step.Continue state
+  | Some app ->
+    match app.target with
+    | Foreground cmd -> Step.Launch(state, cmd)
+    | Daemon _ -> runAppsSubcommand state "start"
+
+/// Jump from a search result to its home in the Tree: open the containing module, select the leaf, close the
+/// results mode.
+let jumpToHit (state: State) (hit: SearchHit) : Step =
+  let newLoc = Packages.PackageLocation.Module hit.modules
+  let items = loadItems state.branchId newLoc
+  let idx =
+    items
+    |> Stdlib.List.indexedMap (fun i it -> (i, it))
+    |> Stdlib.List.findFirst (fun pair -> let (_i, it) = pair in it.name == hit.name)
+    |> Stdlib.Option.map (fun pair -> let (i, _it) = pair in i)
+    |> Stdlib.Option.withDefault 0
+  Step.Continue
+    { state with
+        activeView = 1
+        location = newLoc
+        items = items
+        selected = idx
+        detailScroll = 0
+        focus = UI.SplitPane.Focus.First
+        searchHits = []
+        searchSelected = 0
+        message = "jumped to " ++ hit.name }
