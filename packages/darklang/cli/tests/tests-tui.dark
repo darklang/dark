@@ -238,3 +238,45 @@ let testSessionStopRestoresOnlyWhenRunning (): TestResult =
     TestResult.Pass
   else
     TestResult.Fail "Expected stop to restore once and then be a no-op"
+
+
+// ── Workbench: every view renders ──
+
+/// A workbench state good enough to render, without touching the terminal.
+let workbenchState () : Darklang.Cli.Apps.Workbench.App.State =
+  Darklang.Cli.Apps.Workbench.App.initialState
+    Darklang.SCM.Branch.mainBranchId
+    Stdlib.Option.Option.None
+    "test"
+    "test-instance"
+    // Every gateable view on, so the gated ones get rendered too.
+    (Stdlib.List.range 0 40)
+
+
+/// Render one view and report whether it produced a plausible frame.
+let rendersView (viewIndex: Int) : Bool =
+  let state = { (workbenchState ()) with activeView = viewIndex }
+  let size = Tui.Size { width = 120; height = 40 }
+  let view = Darklang.Cli.Apps.Workbench.App.viewAtSize state size
+  // A frame is `height` rows, and a view that drew nothing at all is a bug even if it didn't crash.
+  (Stdlib.List.length view.rows == 40)
+  && (view.rows |> Stdlib.List.any (fun r -> (Tui.Text.stripSgr r) != ""))
+
+
+let testWorkbenchEveryViewRenders (): TestResult =
+  // The cheap guard against the failure that actually happened: a renderer that type-checks, loads clean,
+  // and then dies the moment you open that view. Rendering is a pure function of state now, so this needs
+  // no terminal and no key simulation.
+  //
+  // A renderer that throws takes the whole suite down with it rather than failing this test cleanly, since
+  // the harness does not catch runtime errors. Verified by deliberately breaking one: it is caught either
+  // way, just louder than it looks.
+  let broken =
+    Stdlib.List.range 0 12
+    |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (rendersView i))
+
+  if Stdlib.List.isEmpty broken then
+    TestResult.Pass
+  else
+    let names = broken |> Stdlib.List.map Stdlib.Int.toString |> Stdlib.String.join ", "
+    TestResult.Fail $"Views produced no frame: {names}"

@@ -49,6 +49,8 @@ let allTests (): List<String * TestFunction> =
     ("Session Takes Alt Screen", fun () -> testSessionTakesAlternateScreenOnFirstPresent ())
     ("Session Repeat Is Silent", fun () -> testSessionSecondIdenticalPresentIsSilent ())
     ("Session Stop Restores Once", fun () -> testSessionStopRestoresOnlyWhenRunning ())
+
+    ("Workbench Every View Renders", fun () -> testWorkbenchEveryViewRenders ())
   ]
 
 type TestSummary =
