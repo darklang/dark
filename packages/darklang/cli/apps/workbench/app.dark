@@ -51,6 +51,19 @@ let makeSubApp (state: State) : Darklang.Cli.SubApp =
 // ── CLI command entry ──
 
 let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.Cli.AppState =
+  match Darklang.Cli.Tui.TerminalSupport.current () with
+  | Unavailable reason ->
+    // Don't seize the alternate screen when there's nothing there to seize. Piping `dark` used to dump the
+    // whole frame, escape sequences and all, into whatever was reading it.
+    //
+    // Report and stop here rather than falling through to the prompt: falling through works for the no-args
+    // path (the prompt says the same thing) but would leave an explicit `dark wb` silent, and it prints the
+    // message twice when it does fire.
+    Stdlib.printLine
+      (Darklang.Cli.Tui.TerminalSupport.unavailableMessage reason)
+    { cliState with isExiting = true }
+  | Available ->
+
   Stdlib.print "\u001b[?1049h"
   let branchId = cliState.currentBranchId
   let rootLoc = Packages.PackageLocation.Module []

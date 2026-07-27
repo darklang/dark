@@ -794,6 +794,10 @@ let runInteractiveLoop (state: AppState) : Int =
       ()
 
     let location = locationStr state
+    // TODO: repaint on resize, not just on the next keystroke. The session already forces a full redraw when
+    // the size changes, but this is the only place we sample it and the loop blocks on readKey below, so
+    // resizing while idle leaves a stale frame until you press something. Needs SIGWINCH (or a readKey that
+    // can be interrupted); the rendering side is ready for it.
     let size = Tui.TerminalSession.currentSize ()
 
     let tHint = if state.telemetryEnabled then Telemetry.now () else 0
@@ -849,39 +853,46 @@ let runInteractiveLoop (state: AppState) : Int =
         app.onDisplay ()
         state
 
-    if renderedState.telemetryEnabled then
-      let pageName =
-        match renderedState.currentPage with
-        | MainPrompt -> "MainPrompt"
-        | InteractiveNav _ -> "InteractiveNav"
-        | CompletionPicker _ -> "CompletionPicker"
-        | SubApp _ -> "SubApp"
-      Telemetry.logWithContext "render" tRender [("page", pageName)]
-      Telemetry.log "preInput" tLoopStart
+    if renderedState.isExiting then
+      // Nothing rendered because the terminal can't host the UI (not a tty, TERM=dumb, ...). The message is
+      // already printed; blocking on a keystroke we'd immediately discard just makes it look hung. Non-zero
+      // because "I can't run here" isn't a successful run.
+      1
+    else
 
-    // Read keystroke input
-    let tReadKey =
-      if renderedState.telemetryEnabled then Telemetry.now () else 0
-    let keyInput = Stdlib.Cli.Stdin.readKey ()
+      if renderedState.telemetryEnabled then
+        let pageName =
+          match renderedState.currentPage with
+          | MainPrompt -> "MainPrompt"
+          | InteractiveNav _ -> "InteractiveNav"
+          | CompletionPicker _ -> "CompletionPicker"
+          | SubApp _ -> "SubApp"
+        Telemetry.logWithContext "render" tRender [("page", pageName)]
+        Telemetry.log "preInput" tLoopStart
 
-    // Process the key
-    let keyPressedMsg = Msg.KeyPressed (keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some keyInput.keyChar)
-    let newState =
-      Update.updateAppState renderedState keyPressedMsg
+      // Read keystroke input
+      let tReadKey =
+        if renderedState.telemetryEnabled then Telemetry.now () else 0
+      let keyInput = Stdlib.Cli.Stdin.readKey ()
 
-    if renderedState.telemetryEnabled then
-      Telemetry.logWithContext "readKey" tReadKey [("char", keyInput.keyChar)]
-      let tUpdate = Telemetry.now ()
-      Telemetry.logWithContext "update" tUpdate [("char", keyInput.keyChar)]
-      let loopWorkMs = (Telemetry.elapsedMs tLoopStart) - (Telemetry.elapsedMs tReadKey)
-      let interpStats = Builtin.interpreterStatsGet ()
-      Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.Int.toString loopWorkMs); ("interp", interpStats)]
+      // Process the key
+      let keyPressedMsg = Msg.KeyPressed (keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some keyInput.keyChar)
+      let newState =
+        Update.updateAppState renderedState keyPressedMsg
 
-    runInteractiveLoop {
-      newState with
-        cachedHintInput = renderedState.prompt.text
-        cachedHintValue = hint
-    }
+      if renderedState.telemetryEnabled then
+        Telemetry.logWithContext "readKey" tReadKey [("char", keyInput.keyChar)]
+        let tUpdate = Telemetry.now ()
+        Telemetry.logWithContext "update" tUpdate [("char", keyInput.keyChar)]
+        let loopWorkMs = (Telemetry.elapsedMs tLoopStart) - (Telemetry.elapsedMs tReadKey)
+        let interpStats = Builtin.interpreterStatsGet ()
+        Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.Int.toString loopWorkMs); ("interp", interpStats)]
+
+      runInteractiveLoop {
+        newState with
+          cachedHintInput = renderedState.prompt.text
+          cachedHintValue = hint
+      }
 
 
 /// Extract the branch flag from args, returning (Some branchId, remainingArgs) when it's present and
