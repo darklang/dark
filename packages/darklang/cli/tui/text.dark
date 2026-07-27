@@ -75,39 +75,16 @@ let isControl (char: Char) : Bool =
   | None -> false
 
 
-let clipStyledChars
-  (chars: List<Char>)
-  (remainingWidth: Int)
-  (result: String)
-  : String =
-  match chars with
-  | [] -> result
-  | char :: remaining ->
-    let text = Stdlib.Char.toString char
-
-    if text == "\u001b" then
-      let (sequence, afterSequence) = consumeEscape remaining
-      clipStyledChars afterSequence remainingWidth (result ++ sequence)
-    else if isControl char then
-      clipStyledChars remaining remainingWidth result
-    else
-      let width = displayWidth text
-      if width > remainingWidth then
-        result
-      else
-        clipStyledChars remaining (remainingWidth - width) (result ++ text)
-
-
 /// Clip a plain or SGR-styled row to a terminal-column width.
 ///
-/// Dark `Char` values are extended grapheme clusters, so clipping cannot split
-/// combining sequences, flags, or joined emoji. SGR sequences are retained and
-/// consume no terminal columns.
+/// Dark `Char` values are extended grapheme clusters, so clipping cannot split combining sequences, flags,
+/// or joined emoji. SGR sequences are retained and consume no terminal columns; every other escape and
+/// control character is dropped, so dynamic row content can't move the cursor or change terminal modes.
+///
+/// Native, because the Dark implementation needs a width call per character. That's fine for one prompt row
+/// and much too slow for a full-screen frame, where a single view is hundreds of clipped spans.
 let clipToWidth (text: String) (maxWidth: Int) : String =
-  if maxWidth <= 0 then
-    ""
-  else
-    clipStyledChars (Stdlib.String.toList text) maxWidth ""
+  Builtin.cliTerminalClipToWidth text maxWidth
 
 
 /// Fast path rows that are already plain and within bounds.
@@ -141,6 +118,14 @@ let stripSgrChars (chars: List<Char>) (result: String) : String =
 /// Remove SGR styling from a logical row.
 let stripSgr (text: String) : String =
   stripSgrChars (Stdlib.String.toList text) ""
+
+
+/// Terminal columns occupied by a row that may carry SGR styling.
+///
+/// `displayWidth` is only valid for control-free text, and stripping first costs a pass per character. This
+/// does both natively, which matters because every placed span in a frame gets measured.
+let styledWidth (text: String) : Int =
+  Builtin.cliTerminalStyledWidth text
 
 
 /// Pad or clip text to exactly the requested terminal-column width.

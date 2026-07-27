@@ -487,10 +487,7 @@ let lastIndexOfEgc
 /// Returns the <param string> repeated for a specified <param count> times.
 /// If <param count> is less than or equal to 0, returns an empty string.
 let repeat (string: String) (count: Int) : String =
-  if count <= 0 then
-    ""
-  else
-    String.join ((List.repeat count string) |> Builtin.unwrap) ""
+  Builtin.stringRepeat string count
 
 
 /// Converts an integer <param n> to its ordinal representation as a string.
