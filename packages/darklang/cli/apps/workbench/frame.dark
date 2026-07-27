@@ -5,8 +5,10 @@ module Darklang.Cli.Apps.Workbench.Frame
 /// The built-in views (indices 0-9), in tab-bar order. Kept in sync with the view-index constants in App
 /// (vHome..vDocs). Extension views (index 10+) are named by their `ViewDef` in App's registry, not here - the
 /// tab bar receives already-resolved labels (see `renderTabBar`), so this stays the base-name table only.
+/// Index 2 is a placeholder: Inspect was folded into Matter's preview, but the views after it are addressed
+/// by index (number keys, the SCM badge), so the slot stays rather than shifting everything down one.
 val viewNames =
-  [ "Home"; "Matter"; "Inspect"; "REPL"; "SCM"
+  [ "Home"; "Matter"; "(unused)"; "REPL"; "SCM"
     "Devices"; "AI"; "Apps"; "Traces"; "Docs" ]
 
 let viewName (i: Int) : String =

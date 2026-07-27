@@ -196,7 +196,6 @@ let previewLines (state: State) : List<String> =
     else if state.scmSection == 2 then Stdlib.String.split (conflictDetail state.selected) "\n"
     else if state.scmSection == 3 then Stdlib.String.split (branchDetail state) "\n"
     else Stdlib.String.split (wipDiffText state) "\n"
-  else if state.activeView == vInspect then inspectPageLines state
   else if state.activeView == vMatter then
     // Matter folds in the old Inspect: its preview IS the item page (source + meta + references + actions),
     // except under the Values lens, where the value's own detail is what you want.

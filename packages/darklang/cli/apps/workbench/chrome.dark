@@ -18,16 +18,6 @@ let renderViewBody (state: State) (region: UI.Layout.Region) : List<UI.Layout.Sp
       (fun r -> renderTreeList state r)
       "Inspect"
       (fun r -> renderPreview state r)
-  else if state.activeView == vInspect then
-    UI.SplitPane.render
-      region
-      UI.SplitPane.Orientation.Horizontal
-      40
-      state.focus
-      "Tree"
-      (fun r -> renderTreeList state r)
-      "Item page"
-      (fun r -> renderPreview state r)
   else if state.activeView == vScratch then
     renderRepl state region
   else if state.activeView == vSCM then
@@ -120,8 +110,6 @@ let hintsForView (state: State) : String =
       [ ("↑↓", "move"); ("→", "in"); ("d", "deps"); ("n/t/v", "new"); ("e", "edit"); ("r", "rename"); ("L", "values"); ("f", "filter") ]
     else if view == vHome then
       [ ("↑↓", "move") ]
-    else if view == vInspect then
-      [ ("↑↓", "move"); ("⏎", "walk"); ("d", "deps"); ("f", "filter") ]
     else if view == vScratch then
       [ ("⏎/:", "eval"); ("f", "clear") ]
     else if view == vSCM then

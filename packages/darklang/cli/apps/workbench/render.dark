@@ -34,7 +34,7 @@ let renderPreview (state: State) (region: UI.Layout.Region) : List<UI.Layout.Spa
   // Changes (4) + Matter (13) show a pre-colored +/- diff, not highlighted source, so they're not re-highlighted.
   // Also skip highlighting anything already ANSI-colored (e.g. a tree-native render peek) - it's not plain source.
   let alreadyColored = Stdlib.String.contains (Stdlib.String.join plain "\n") ""
-  let doHighlight = ((state.activeView == vMatter) || (state.activeView == vInspect)) && (Stdlib.Bool.not alreadyColored)
+  let doHighlight = (state.activeView == vMatter) && (Stdlib.Bool.not alreadyColored)
   let highlighted =
     if doHighlight then
       let h =

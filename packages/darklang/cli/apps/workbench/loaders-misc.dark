@@ -223,7 +223,6 @@ let itemsForView
   if view == vHome then loadItems branchId location
   else if view == vMatter then
     if matterLens == "values" then loadThingItems branchId else loadItems branchId location
-  else if view == vInspect then loadItems branchId location
   else if view == vSCM then
     if scmSection == 1 then loadCommitBodyItems branchId
     else if scmSection == 2 then loadConflictBodyItems ()

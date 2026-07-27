@@ -56,8 +56,8 @@ let handleViewKey
     else if state.activeView == vTraces then
       // Traces: ⏎ opens the selected trace's detail.
       openReader state (traceDetail state) false
-    else if (state.activeView == vMatter) || (state.activeView == vInspect) then
-      // Matter/Inspect: Enter descends into a module, or opens a leaf's source full-screen.
+    else if state.activeView == vMatter then
+      // Matter: Enter descends into a module, or opens a leaf's source full-screen.
       match Stdlib.List.getAt state.items state.selected with
       | Some item ->
         if item.isModule then descend state
@@ -127,7 +127,7 @@ let handleViewKey
     | Some "[" -> cycleView state (0 - 1)
     | Some "d" ->
       // Matter/Inspect: show the selected leaf's dependencies (what it uses) in the reader.
-      if (state.activeView == vMatter) || (state.activeView == vInspect) then openReader state (depsText state) false
+      if state.activeView == vMatter then openReader state (depsText state) false
       else Step.Continue state
     | Some "a" ->
       // SCM Conflicts: acknowledge. AI: ask the agent. Devices: add an instance (placeholder).

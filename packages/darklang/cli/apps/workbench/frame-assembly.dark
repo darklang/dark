@@ -13,7 +13,7 @@ let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
   // Full height now: the last row used to be reserved for the CLI's status bar, and that's gone.
   let screen = UI.Layout.Region { top = 1; left = 1; rows = h; cols = w }
   let path =
-    if (state.activeView == vMatter) || (state.activeView == vInspect) then Packages.formatLocation state.location
+    if state.activeView == vMatter then Packages.formatLocation state.location
     // Views that render their own body/sections (no flat item list) show just their name - "- 0 items" is a lie.
     else if (state.activeView == vHome) || (state.activeView == vScratch) || (state.activeView == vDevices) || (state.activeView == vSCM) then
       viewLabel state.activeView

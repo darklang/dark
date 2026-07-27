@@ -134,7 +134,6 @@ type ViewDef =
 // Kept as vals so the scattered dispatch reads by name, not magic number, and reordering is one place.
 val vHome = 0
 val vMatter = 1
-val vInspect = 2
 val vScratch = 3
 val vSCM = 4
 val vDevices = 5
