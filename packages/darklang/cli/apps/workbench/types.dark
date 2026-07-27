@@ -61,6 +61,13 @@ type State =
     /// config (see `viewSpecs` / `gateEnabled`). Hidden gated views drop out of the tab bar, number keys,
     /// [ ]/cycle, and the picker.
     enabledGatedViews: List<Int>
+    /// Names of items with uncommitted edits, and of deprecated items in the current module.
+    ///
+    /// Cached rather than read in the renderer. Both are DB reads, the renderer runs on every keypress, and
+    /// rendering has to stay a pure function of state for frame diffing to be sound. Refreshed on transitions
+    /// by `refreshBadges`.
+    wipNames: List<String>
+    deprecatedNames: List<String>
     /// Scratch view: the eval log, newest last, each entry already rendered (the `> expr` and its result lines).
     scratchLog: List<String>
     /// REPL live-values steps for the last eval: (stage-label, value) per top-level `|>` stage. Faked by

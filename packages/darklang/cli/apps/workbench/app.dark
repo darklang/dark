@@ -35,6 +35,9 @@ type Session =
 
 /// Present the next state, keeping the renderer's history so only changed rows are written.
 let presentState (session: Session) (state: State) : Session =
+  // Every Continue funnels through here, which makes it the one place derived reads belong: the renderer
+  // has to be a pure function of state for frame diffing to be sound.
+  let state = refreshBadges session.state state
   let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
   let terminal =
     Darklang.Cli.Tui.TerminalSession.presentAtSize
@@ -143,9 +146,14 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
         replSteps = []
         matterLens = "all"
         filter = ""
+        wipNames = []
+        deprecatedNames = []
         branchId = branchId }
   // Starting the session is what enters the alternate screen and paints the first frame; from here on the
   // renderer diffs, so a keystroke rewrites the rows that changed rather than clearing and repainting.
+  // Seed the badge cache for the first frame; `presentState` keeps it fresh after that.
+  let (wip, deprecated) = readBadges state
+  let state = { state with wipNames = wip; deprecatedNames = deprecated }
   let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
   match
     Darklang.Cli.Tui.TerminalSession.startAtSize size (viewAtSize state size)

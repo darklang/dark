@@ -197,3 +197,40 @@ let depsText (state: State) : String =
         ++ (Stdlib.String.join dependentLines "\n")
 
 /// AI threads for the AI view (the thread board - demo data for now, via the shared Views.AiChats source).
+
+
+/// Read the badge sets for a state: which items have uncommitted edits, and which are deprecated.
+let readBadges (state: State) : (List<String> * List<String>) =
+  // Only the Matter tree shows badges, and the values lens hides them, so everything else skips both reads.
+  if (state.activeView != vMatter) || (state.matterLens == "values") then
+    ([], [])
+  else
+    let wip =
+      SCM.PackageOps.getWipItems state.branchId
+      |> Stdlib.List.map (fun d -> Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "")
+    let sets = Packages.Query.loadDeprecationSets state.branchId
+    let results = Packages.Query.allDirectDescendants state.branchId (modulePathOf state.location)
+    let pick = fun items ->
+      items
+      |> Stdlib.List.filter (fun i -> Packages.Query.isDeprecated sets i.entity.hash)
+      |> Stdlib.List.map (fun i -> i.location.name)
+    (wip, Stdlib.List.flatten [ pick results.fns; pick results.types; pick results.values ])
+
+
+/// Carry the cached badge sets forward, re-reading only when something they depend on moved.
+///
+/// The dependency is the branch, where you are, the lens, the view, and the item list itself (a commit or a
+/// discard changes what's uncommitted without moving you). Comparing those is cheap; the reads are not.
+let refreshBadges (previous: State) (next: State) : State =
+  let unchanged =
+    (previous.branchId == next.branchId)
+    && (previous.location == next.location)
+    && (previous.matterLens == next.matterLens)
+    && (previous.activeView == next.activeView)
+    && (previous.items == next.items)
+
+  if unchanged then
+    next
+  else
+    let (wip, deprecated) = readBadges next
+    { next with wipNames = wip; deprecatedNames = deprecated }

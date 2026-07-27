@@ -18,27 +18,11 @@ let renderTreeList (state: State) (region: UI.Layout.Region) : List<UI.Layout.Sp
     UI.Layout.at region 1 2 (Colors.dimText "(no items here)")
   else
     // Per-row badges (Matter tree, non-values lens only): a pink ● for items edited-but-not-committed, and a
-    // yellow ⚠ for items deprecated-but-still-shown (deprecated-and-referenced, so they survive the visibility
-    // filter). Both read once here (one WIP read + one deprecation-sets read per render), matched by name.
-    let badgesOn = (state.activeView == vMatter) && (state.matterLens != "values")
+    // yellow ⚠ for items deprecated-but-still-shown (deprecated-and-referenced, so they survive the
+    // visibility filter). Both come off the state; they used to be two DB reads per keypress.
     let modPath = modulePathOf state.location
-    let wipNames =
-      if badgesOn then
-        SCM.PackageOps.getWipItems state.branchId
-        |> Stdlib.List.map (fun d -> Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "")
-      else
-        []
-    let deprecatedNames =
-      if badgesOn then
-        let sets = Packages.Query.loadDeprecationSets state.branchId
-        let results = Packages.Query.allDirectDescendants state.branchId modPath
-        let pick = fun items ->
-          items
-          |> Stdlib.List.filter (fun i -> Packages.Query.isDeprecated sets i.entity.hash)
-          |> Stdlib.List.map (fun i -> i.location.name)
-        Stdlib.List.flatten [ pick results.fns; pick results.types; pick results.values ]
-      else
-        []
+    let wipNames = state.wipNames
+    let deprecatedNames = state.deprecatedNames
     // Build the styled rows (cursor + icon + name, selection in cyan); UI.ListView owns the viewport + scrollbar.
     let lines =
       state.items
