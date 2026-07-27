@@ -314,6 +314,152 @@ let testCanvasUntouchedRowsAreEmpty (): TestResult =
   | None -> TestResult.Fail "Expected three composed rows"
 
 
+// -- Tui.Text: the hand-rolled escape parser and the width math on top of it --
+
+let testTextClipsByColumnsNotCharacters (): TestResult =
+  let clipped = Tui.Text.clipToWidth "\u001b[31mabcdef" 3
+
+  // SGR carries no width, so 3 columns means 3 visible characters, styling retained.
+  if Tui.Text.stripSgr clipped == "abc" && Stdlib.String.contains clipped "\u001b[31m" then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected styled clip to 'abc', got '{Tui.Text.stripSgr clipped}'"
+
+
+let testTextNeverSplitsAWideGlyph (): TestResult =
+  // Two double-width glyphs in three columns: the second cannot fit, and half of it must not be emitted.
+  let clipped = Tui.Text.clipToWidth "界界" 3
+
+  if Tui.Text.displayWidth clipped == 2 then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      $"Expected a wide glyph to be dropped whole, got width {Stdlib.Int.toString (Tui.Text.displayWidth clipped)}"
+
+
+let testTextDropsNonSgrEscapes (): TestResult =
+  // A cursor-forward escape in dynamic content must not survive into a row: rows are text, not commands.
+  let normalized = Tui.Text.normalizeToWidth "a\u001b[5Cb" 10
+
+  if normalized == "ab" then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected non-SGR escapes to be stripped, got '{normalized}'"
+
+
+let testTextWrapReappliesStyleAcrossRows (): TestResult =
+  let rows = Tui.Text.wrapStyled "\u001b[31mabcd" 2
+  let first = Stdlib.List.getAt rows 0 |> Stdlib.Option.withDefault ""
+  let second = Stdlib.List.getAt rows 1 |> Stdlib.Option.withDefault ""
+
+  // The renderer resets style after every row, so a style spanning a wrap has to be restated on the next.
+  if Stdlib.List.length rows == 2
+     && Tui.Text.stripSgr first == "ab"
+     && Tui.Text.stripSgr second == "cd"
+     && Stdlib.String.contains second "\u001b[31m"
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail "Expected wrapped rows to carry the active style onto the continuation row"
+
+
+let testTextCursorAfterFullRowWraps (): TestResult =
+  // Text that exactly fills the width leaves the cursor at the start of the following row, matching what
+  // the terminal does. Prompt cursor placement depends on this.
+  let (row, column) = Tui.Text.positionAfter "abcd" 4
+
+  if row == 1 && column == 0 then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      $"Expected (1, 0), got ({Stdlib.Int.toString row}, {Stdlib.Int.toString column})"
+
+
+// -- InlineFrame: relative addressing, the part that can wreck scrollback --
+
+let inlineView (rows: List<String>) : Tui.View =
+  Tui.View { rows = rows; cursor = Tui.Cursor.Hidden; mode = Tui.ViewMode.Inline }
+
+
+let testInlineFrameEmitsNothingWhenUnchanged (): TestResult =
+  let view = inlineView [ "a"; "b" ]
+  let output =
+    Tui.InlineFrame.renderAtWidth 20 (Stdlib.Option.Option.Some view) view
+
+  // An unchanged frame must write literally nothing, or an idle prompt would still churn the terminal.
+  if output == "" then
+    TestResult.Pass
+  else
+    TestResult.Fail "Expected an unchanged inline frame to emit no output"
+
+
+let testInlineFrameMovesRelativeToPreviousCursor (): TestResult =
+  let previous = inlineView [ "a"; "b" ]
+  let next = inlineView [ "a"; "B" ]
+  let output =
+    Tui.InlineFrame.renderAtWidth 20 (Stdlib.Option.Option.Some previous) next
+
+  // Only the changed row is rewritten, and it's addressed by moving from where the last frame left the
+  // cursor rather than by absolute position, because inline rows travel with scrollback.
+  if Stdlib.String.contains output "B"
+     && Stdlib.Bool.not (Stdlib.String.contains output "a")
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected only the changed inline row to be rewritten, got '{output}'"
+
+
+// -- TerminalSession lifecycle, through the `Prepared` seam that exists so this needs no real terminal --
+
+let fullscreenView (rows: List<String>) : Tui.View =
+  Tui.View { rows = rows; cursor = Tui.Cursor.Hidden; mode = Tui.ViewMode.Fullscreen }
+
+
+let testSessionTakesAlternateScreenOnFirstPresent (): TestResult =
+  let prepared =
+    Tui.TerminalSession.preparePresentAtSize
+      (Tui.TerminalSession.init ())
+      (Tui.Size { width = 20; height = 5 })
+      (fullscreenView [ "hello" ])
+
+  if Stdlib.String.contains prepared.output "\u001b[?1049h" then
+    TestResult.Pass
+  else
+    TestResult.Fail "Expected the first fullscreen present to enter the alternate screen"
+
+
+let testSessionSecondIdenticalPresentIsSilent (): TestResult =
+  let size = Tui.Size { width = 20; height = 5 }
+  let view = fullscreenView [ "hello" ]
+  let first =
+    Tui.TerminalSession.preparePresentAtSize (Tui.TerminalSession.init ()) size view
+  let second =
+    Tui.TerminalSession.preparePresentAtSize first.state size view
+
+  // Presenting the same view again is the common case in a render loop; it must cost nothing.
+  if second.output == "" then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected a repeat present to emit nothing, got '{second.output}'"
+
+
+let testSessionStopRestoresOnlyWhenRunning (): TestResult =
+  let size = Tui.Size { width = 20; height = 5 }
+  let started =
+    Tui.TerminalSession.preparePresentAtSize
+      (Tui.TerminalSession.init ())
+      size
+      (fullscreenView [ "hello" ])
+  let stopped = Tui.TerminalSession.prepareStop started.state
+  let stoppedAgain = Tui.TerminalSession.prepareStop stopped.state
+
+  // Stopping a live session leaves the alternate screen; stopping an already-stopped one is a no-op.
+  if Stdlib.String.contains stopped.output "\u001b[?1049l" && stoppedAgain.output == "" then
+    TestResult.Pass
+  else
+    TestResult.Fail "Expected stop to restore once and then be a no-op"
+
+
 type TestFunction = Unit -> TestResult
 
 let allTests (): List<String * TestFunction> =
@@ -347,6 +493,19 @@ let allTests (): List<String * TestFunction> =
     ("Canvas Wide Glyph", fun () -> testCanvasWideGlyphOccupiesTwoColumns ())
     ("Canvas SGR Zero Width", fun () -> testCanvasStylingIsZeroWidth ())
     ("Canvas Empty Rows", fun () -> testCanvasUntouchedRowsAreEmpty ())
+
+    ("Text Clips By Columns", fun () -> testTextClipsByColumnsNotCharacters ())
+    ("Text Wide Glyph Whole", fun () -> testTextNeverSplitsAWideGlyph ())
+    ("Text Drops Non-SGR Escapes", fun () -> testTextDropsNonSgrEscapes ())
+    ("Text Wrap Reapplies Style", fun () -> testTextWrapReappliesStyleAcrossRows ())
+    ("Text Cursor After Full Row", fun () -> testTextCursorAfterFullRowWraps ())
+
+    ("InlineFrame Silent Unchanged", fun () -> testInlineFrameEmitsNothingWhenUnchanged ())
+    ("InlineFrame Relative Move", fun () -> testInlineFrameMovesRelativeToPreviousCursor ())
+
+    ("Session Takes Alt Screen", fun () -> testSessionTakesAlternateScreenOnFirstPresent ())
+    ("Session Repeat Is Silent", fun () -> testSessionSecondIdenticalPresentIsSilent ())
+    ("Session Stop Restores Once", fun () -> testSessionStopRestoresOnlyWhenRunning ())
   ]
 
 type TestSummary =
