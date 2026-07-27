@@ -1,0 +1,317 @@
+/// The plain-view key map (no modal layer above it), and the dispatcher that routes a keypress through
+/// the layers in visual stacking order.
+///
+/// Part of `Darklang.Cli.Apps.Workbench.App`.
+module Darklang.Cli.Apps.Workbench.App
+
+let handleViewKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Step =
+  match key with
+  | UpArrow -> navUp state
+  | DownArrow -> navDown state
+  | RightArrow -> descend state
+  | Enter ->
+    if state.activeView == vApps then
+      // Apps: ⏎ opens the app - its status, target, and recent logs - in the reader (i toggles install).
+      runAppsSubcommand state "inspect"
+    else if state.activeView == vDocs then
+      // Docs: open the selected topic in the full-body reader (prose, not code).
+      let topics = Docs.Command.Topics.allTopics ()
+      match Stdlib.List.getAt topics state.selected with
+      | Some t -> openReader state (t.content ()) false
+      | None -> Step.Continue state
+    else if state.activeView == vSCM then
+      // SCM: open the section item - commit ops (History), WIP source (Changes), switch (Branches).
+      if state.scmSection == 1 then openReader state (commitOpsText state.branchId state.selected) false
+      else if state.scmSection == 0 then openReader state (changesSourceText state.branchId state.selected) true
+      else if state.scmSection == 3 then
+        match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+        | Some b ->
+          Step.Continue
+            { state with
+                branchId = b.id
+                items = itemsForView vSCM b.id state.location state.scmSection state.aiSection state.matterLens
+                message = "switched to " ++ b.name }
+        | None -> Step.Continue state
+      else Step.Continue state
+    else if state.activeView == vScratch then
+      // Scratch: open the eval prompt; the result appends to the log.
+      Step.Continue
+        { state with
+            input = Stdlib.Option.Option.Some (InputState { prompt = "repl> "; text = ""; action = "scratch" }) }
+    else if state.activeView == vAI then
+      // AI: ⏎ is the primary action. Prompts → use the prompt (fill the ask bar); Agents → open the thread.
+      if state.aiSection == 1 then
+        match Stdlib.List.getAt (demoPrompts ()) state.selected with
+        | Some p ->
+          let (_name, desc) = p
+          Step.Continue
+            { state with
+                input = Stdlib.Option.Option.Some (InputState { prompt = "ask the agent: "; text = desc; action = "agent" }) }
+        | None -> Step.Continue state
+      else openReader state (aiThreadDetail state.selected) false
+    else if state.activeView == vTraces then
+      // Traces: ⏎ opens the selected trace's detail.
+      openReader state (traceDetail state) false
+    else if (state.activeView == vMatter) || (state.activeView == vInspect) then
+      // Matter/Inspect: Enter descends into a module, or opens a leaf's source full-screen.
+      match Stdlib.List.getAt state.items state.selected with
+      | Some item ->
+        if item.isModule then descend state
+        else openReader state (detailLines state |> Stdlib.String.join "\n") true
+      | None -> descend state
+    else
+      descend state
+  | LeftArrow -> ascend state
+  | Tab ->
+    // Tab cycles sections in SCM (Changes/History/Conflicts) and AI (Agents/Prompts); elsewhere it toggles
+    // the split-pane focus.
+    if state.activeView == vSCM then
+      let ns = if state.scmSection >= 3 then 0 else state.scmSection + 1
+      Step.Continue
+        { state with
+            scmSection = ns
+            items = itemsForView vSCM state.branchId state.location ns state.aiSection state.matterLens
+            selected = 0 }
+    else if state.activeView == vAI then
+      let ns = if state.aiSection >= 1 then 0 else 1
+      Step.Continue
+        { state with
+            aiSection = ns
+            items = itemsForView vAI state.branchId state.location state.scmSection ns state.matterLens
+            selected = 0 }
+    else Step.Continue { state with focus = UI.SplitPane.toggle state.focus }
+  | Escape ->
+    // Escape just leaves. This is the whole experience; there's no classic prompt to fall back to,
+    // so leaving the workbench leaves the CLI. Old commands live on the `:` bar, not behind an exit.
+    Step.Exit state
+  | _ ->
+    match keyChar with
+    | Some "q" -> Step.Exit state
+    // Vim motion - the same movement as the arrows, so muscle memory works either way.
+    | Some "k" -> navUp state
+    | Some "j" -> navDown state
+    | Some "h" -> ascend state
+    | Some "l" -> descend state
+    | Some "g" -> navTop state
+    | Some "G" -> navBottom state
+    | Some "?" -> Step.Continue { state with showHelp = true }
+    | Some "`" ->
+      // View picker - a jumpable list of all views (numbers only reach the first nine).
+      let pickPos =
+        visibleViews state
+        |> Stdlib.List.indexedMap (fun i v -> (i, v))
+        |> Stdlib.List.findFirst (fun pair -> let (_i, v) = pair in v == state.activeView)
+        |> Stdlib.Option.map (fun pair -> let (i, _v) = pair in i)
+        |> Stdlib.Option.withDefault 0
+      Step.Continue { state with viewPicker = true; pickerSelected = pickPos }
+    | Some ":" ->
+      // Command bar - run any old-school command (or eval an expression) from anywhere in the workbench.
+      Step.Continue
+        { state with
+            completionSel = 0
+            input =
+              Stdlib.Option.Option.Some
+                (InputState { prompt = ": "; text = ""; action = "command" }) }
+    | Some "/" ->
+      // Search prompt - find any package item across the whole tree.
+      Step.Continue
+        { state with
+            input =
+              Stdlib.Option.Option.Some
+                (InputState { prompt = "search "; text = ""; action = "search" }) }
+    | Some "]" -> cycleView state 1
+    | Some "[" -> cycleView state (0 - 1)
+    | Some "d" ->
+      // Matter/Inspect: show the selected leaf's dependencies (what it uses) in the reader.
+      if (state.activeView == vMatter) || (state.activeView == vInspect) then openReader state (depsText state) false
+      else Step.Continue state
+    | Some "a" ->
+      // SCM Conflicts: acknowledge. AI: ask the agent. Devices: add an instance (placeholder).
+      if (state.activeView == vSCM) && (state.scmSection == 2) then resolveConflict state "ok"
+      else if state.activeView == vAI then
+        Step.Continue
+          { state with
+              input =
+                Stdlib.Option.Option.Some
+                  (InputState { prompt = "ask the agent: "; text = ""; action = "agent" }) }
+      else if state.activeView == vDevices then Step.Continue { state with message = "add instance - coming soon" }
+      else Step.Continue state
+    | Some "e" ->
+      // Matter: edit the selected fn in place (prefill the editor from its source).
+      if state.activeView == vMatter then
+        match Stdlib.List.getAt state.items state.selected with
+        | Some item ->
+          if item.isModule then Step.Continue state else openEditExisting state item
+        | None -> Step.Continue state
+      else
+        Step.Continue state
+    | Some "n" ->
+      if state.activeView == vMatter then startNew state "fn" else Step.Continue state
+    | Some "t" ->
+      if state.activeView == vMatter then startNew state "type"
+      else if (state.activeView == vSCM) && (state.scmSection == 2) then resolveConflict state "theirs"
+      else Step.Continue state
+    | Some "o" ->
+      if (state.activeView == vSCM) && (state.scmSection == 2) then resolveConflict state "ours" else Step.Continue state
+    | Some "v" ->
+      if state.activeView == vMatter then startNew state "value" else Step.Continue state
+    | Some "L" ->
+      // Matter: toggle the values Lens - the whole tree vs. values only. (L, not V, to avoid clashing
+      // with v = new value.)
+      if state.activeView == vMatter then
+        let nl = if state.matterLens == "values" then "all" else "values"
+        Step.Continue
+          { state with
+              matterLens = nl
+              items = itemsForView vMatter state.branchId state.location state.scmSection state.aiSection nl
+              selected = 0 }
+      else Step.Continue state
+    | Some "f" ->
+      // Scratch: clear the log. Elsewhere: open a find-as-you-type filter for the current list.
+      if state.activeView == vScratch then Step.Continue { state with scratchLog = []; replSteps = [] }
+      else
+        Step.Continue
+          { state with
+              input =
+                Stdlib.Option.Option.Some (InputState { prompt = "filter: "; text = state.filter; action = "filter" }) }
+    | Some "i" ->
+      // Apps: install/uninstall the selected app (also the primary ⏎ action).
+      if state.activeView == vApps then toggleInstall state else Step.Continue state
+    | Some "c" ->
+      if state.activeView == vSCM then
+        Step.Continue
+          { state with
+              input =
+                Stdlib.Option.Option.Some (InputState { prompt = "commit message: "; text = ""; action = "commit" }) }
+      else if state.activeView == vDevices then
+        // Devices: c opens the real config (cli-config.json) in the reader; edits go through :config set.
+        openReader state (deviceConfigText ()) false
+      else Step.Continue state
+    | Some "x" ->
+      // SCM Branches section: x deletes the selected branch. Otherwise x discards all WIP.
+      if (state.activeView == vSCM) && (state.scmSection == 3) then
+        match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+        | Some b ->
+          Step.Continue
+            { state with
+                input =
+                  Stdlib.Option.Option.Some
+                    (InputState { prompt = "delete branch " ++ b.name ++ "? type y then enter: "; text = ""; action = "branch-delete" }) }
+        | None -> Step.Continue state
+      else if state.activeView == vSCM then
+        Step.Continue
+          { state with
+              input =
+                Stdlib.Option.Option.Some
+                  (InputState { prompt = "discard ALL uncommitted? type y then enter: "; text = ""; action = "discard" }) }
+      else Step.Continue state
+    | Some "b" ->
+      if state.activeView == vSCM then
+        Step.Continue
+          { state with
+              input =
+                Stdlib.Option.Option.Some (InputState { prompt = "new branch name: "; text = ""; action = "branch-create" }) }
+      else Step.Continue state
+    | Some "s" ->
+      // SCM: switch branch. Devices: sync now. Apps: stop (placeholders where not yet wired).
+      if state.activeView == vSCM then
+        Step.Continue
+          { state with
+              input =
+                Stdlib.Option.Option.Some (InputState { prompt = "switch to branch: "; text = ""; action = "branch-switch" }) }
+      else if state.activeView == vDevices then Step.Continue { state with message = "sync now - coming soon" }
+      else if state.activeView == vApps then runAppsSubcommand state "stop"
+      else Step.Continue state
+    | Some "m" ->
+      if state.activeView == vSCM then
+        Step.Continue
+          { state with
+              input =
+                Stdlib.Option.Option.Some (InputState { prompt = "merge into parent? type y then enter: "; text = ""; action = "merge" }) }
+      else Step.Continue state
+    | Some "r" ->
+      // SCM: rebase (or rename a branch in the Branches section). Apps: run. Matter: rename the selected leaf.
+      if (state.activeView == vSCM) && (state.scmSection == 3) then
+        match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+        | Some b ->
+          Step.Continue
+            { state with
+                input =
+                  Stdlib.Option.Option.Some (InputState { prompt = "rename branch to: "; text = b.name; action = "branch-rename" }) }
+        | None -> Step.Continue state
+      else if state.activeView == vSCM then
+        Step.Continue
+          { state with
+              input =
+                Stdlib.Option.Option.Some
+                  (InputState { prompt = "rebase onto parent? type y then enter: "; text = ""; action = "rebase" }) }
+      else if state.activeView == vApps then launchOrStartApp state
+      else if state.activeView == vMatter then
+        match Stdlib.List.getAt state.items state.selected with
+        | Some item ->
+          if item.isModule then Step.Continue state
+          else
+            Step.Continue
+              { state with
+                  input =
+                    Stdlib.Option.Option.Some
+                      (InputState { prompt = "rename to: "; text = item.name; action = "rename" }) }
+        | None -> Step.Continue state
+      else
+        Step.Continue state
+    | Some s ->
+      match Stdlib.Int.parse s with
+      | Ok n ->
+        // Number keys index into the *visible* views (so Devices being hidden doesn't leave a gap).
+        match Stdlib.List.getAt (visibleViews state) (n - 1) with
+        | Some v -> switchView state v
+        | None -> Step.Continue state
+      | Error _ -> Step.Continue state
+    | None -> Step.Continue state
+
+
+// ── SubApp wrapper ──
+
+
+/// Route a keypress through the modal layers, innermost first.
+///
+/// Each layer either owns the key or defers to the next. The order is the visual stacking order: an overlay
+/// beats the editor, the editor beats the command bar, and so on down to the plain view.
+let handleKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Step =
+  // A transient toast lives for exactly one keypress: clear it here, so any key dismisses the last message.
+  let state = if state.message == "" then state else { state with message = "" }
+
+  // The `?` keymap overlay is modal: any key closes it, before anything else acts on the key.
+  if state.showHelp then
+    Step.Continue { state with showHelp = false }
+  else if state.viewPicker then
+    handleViewPickerKey state key keyChar
+  else
+    match state.editing with
+    | Some es -> handleEditorKey state es key modifiers keyChar
+    | None ->
+      match state.input with
+      | Some inp -> handleInputKey state inp key keyChar
+      | None ->
+        match state.reading with
+        | Some content -> handleReaderKey state content key keyChar
+        | None ->
+          if Stdlib.Bool.not (Stdlib.List.isEmpty state.searchHits) then
+            handleSearchResultsKey state key keyChar
+          // Ctrl+← / Ctrl+→ move between tabs (a universal switch that scales past the number keys).
+          // Alt+arrows don't decode reliably through .NET's ReadKey; Ctrl does.
+          else if modifiers.ctrl && (key == Stdlib.Cli.Stdin.Key.Key.LeftArrow) then
+            cycleView state (0 - 1)
+          else if modifiers.ctrl && (key == Stdlib.Cli.Stdin.Key.Key.RightArrow) then
+            cycleView state 1
+          else
+            handleViewKey state key keyChar

@@ -5,19 +5,25 @@
 /// This module is split across files (Dark merges same-named modules; modelContextProtocol does the same).
 /// This file holds only the CLI integration surface: the SubApp wrapper and the command entry points.
 ///
-///   types.dark     State and the other records, the view-index constants, the view registry helpers
-///   loaders.dark   reads - real data in, BodyItems and detail text out. No terminal output
-///   render.dark    the body renderers: shared list/preview primitives, then one per view
-///   viewdefs.dark  the extension-view registry (the seam for adding a view without the core knowing)
-///   chrome.dark    body dispatch, hints, help/picker overlays, the full-frame paint
-///   nav.dark       movement and actions; each returns a Step
-///   input.dark     the `:` bar and the other single-line input modes, plus authoring
-///   keys.dark      the key dispatcher
-///   frame.dark     the shared chrome render helpers (its own module)
+///   types.dark            State and the other records, view indices, the view registry helpers
+///   loaders.dark          reads for the package tree and SCM
+///   loaders-misc.dark     reads for AI, things, conflicts, branches, docs, errors
+///   detail.dark           the item list, and the text behind the detail/preview pane
+///   render.dark           the frame primitives every view mounts into, plus Home and the reader
+///   views-scm-repl.dark   the SCM and REPL bodies
+///   views-misc.dark       Devices, AI, Calendar, Errors, Crons, Builtins
+///   viewdefs.dark         the extension-view registry (add a view without the core knowing)
+///   chrome.dark           body dispatch, the editor pane, hints, overlays
+///   frame-assembly.dark   the chrome around the body, the completion dropdown, viewAtSize
+///   nav.dark              movement and actions; each returns a Step
+///   input.dark            the `:` bar and the other single-line input modes
+///   authoring.dark        opening the editor and saving what you wrote
+///   keys.dark             key handling for the modal layers
+///   keys-view.dark        the plain-view key map, and the dispatcher between layers
+///   frame.dark            the shared chrome render helpers (its own module)
 ///
-/// Rendering here is still the legacy absolute-positioning model (`UI.Layout` Region + printAt), which is
-/// why the screen flashes. Everything else in the CLI now returns a `Tui.View` and lets the renderer diff
-/// frames. Moving `render` to `viewAtSize : State -> Tui.Size -> Tui.View` is the remaining work.
+/// Rendering returns spans (see `UI.Canvas`), which compose into a `Tui.View` that the renderer diffs
+/// against the previous frame. A keypress rewrites the rows that changed rather than clearing the screen.
 module Darklang.Cli.Apps.Workbench.App
 
 
@@ -91,18 +97,7 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
 
   let branchId = cliState.currentBranchId
   let rootLoc = Packages.PackageLocation.Module []
-  // Which gated views (Devices, Crons, Calendar, ...) are enabled for this account - computed once from config
-  // so there's no per-frame file I/O. Config-driven, not env vars: `config set devices.enabled true`,
-  // `config set calendar.enabled stachu`, etc. (also on the `:` bar). Derived from `viewSpecs`, so a new
-  // gateable view (base or extension) is picked up here with no edit.
-  let enabledGatedViews =
-    viewSpecs ()
-    |> Stdlib.List.filter (fun spec ->
-      let (_i, _n, g) = spec
-      (g != "") && (gateEnabled g cliState.accountName))
-    |> Stdlib.List.map (fun spec ->
-      let (i, _n, _g) = spec
-      i)
+  let enabledGatedViews = gatedViewsFor cliState.accountName
   // Register this instance's UUID on first run (durable in cli-config.json).
   let _ =
     match Darklang.Cli.Config.get "instance.id" with

@@ -1,0 +1,169 @@
+/// The remaining view bodies: Devices, AI, Calendar, Errors, Crons, Builtins, and their hint rows.
+///
+/// Part of `Darklang.Cli.Apps.Workbench.App`.
+module Darklang.Cli.Apps.Workbench.App
+
+let configEntries () : List<(String * String)> =
+  Darklang.Cli.Config.readConfig () |> Stdlib.Dict.toList
+
+/// A short form of a config value for the inline summary (uuids etc. get truncated).
+let configValueOr (key: String) (fallback: String) : String =
+  match Darklang.Cli.Config.get key with
+  | Some v -> v
+  | None -> fallback
+
+/// The full config dump for the `c` reader on Devices: every persisted key/value plus how to change them.
+let deviceConfigText () : String =
+  let entries = configEntries ()
+  let rows =
+    if Stdlib.List.isEmpty entries then [ "  (no config set yet)" ]
+    else
+      entries
+      |> Stdlib.List.map (fun pair ->
+        let (k, v) = pair
+        "  " ++ k ++ "  =  " ++ v)
+  Stdlib.List.flatten
+    [ [ "Configuration  (rundir/cli-config.json)"; "" ]
+      rows
+      [ ""
+        "Change a value with the command bar:"
+        "  :config set <key> <value>       e.g.  :config set instance.name major"
+        "  :config set calendar.enabled stachu     (per-account view gating)"
+        "  :config list                    show everything" ] ]
+  |> Stdlib.String.join "\n"
+
+/// The Devices view: instances and how they sync. Discovery-mechanism-agnostic (no tailscale branding). Setup
+/// + cross-instance sync health live here; conflict resolution links over to SCM. Instance identity + config
+/// are real (from cli-config.json); the peers/branch-sync feed is mock until the sync backend feeds it.
+let renderDevices (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  let branch =
+    match SCM.Branch.get state.branchId with
+    | Some b -> b.name
+    | None -> "main"
+  let owner = if state.accountName == "" then "you" else state.accountName
+  let hdr = fun t -> Colors.colorize (Colors.bold ++ Colors.cyan) t
+  let on = Colors.colorize Colors.green "●"
+  let off = Colors.dimText "○"
+  boxedLines
+    region
+    "Devices"
+    [ hdr "This instance"
+      "   " ++ on ++ "  " ++ state.instanceName ++ " (" ++ owner ++ ")      online     sync: auto"
+      ""
+      hdr "Dark Matter  ·  matter.darklang.com"
+      "   " ++ (Colors.dimText "the central distribution hub - all public Darklang code, fine-grained")
+      "   " ++ on ++ "  connected     auto-syncing public code     " ++ (Colors.dimText "(mock)")
+      ""
+      hdr "Peers  ·  (mock data)"
+      "   " ++ off ++ "  laptop-2           offline    last seen 2h ago"
+      ""
+      hdr "Branch sync  ·  (mock data)"
+      "   " ++ (Colors.boldText "main") ++ "         " ++ (Colors.colorize Colors.green "in sync")
+      "   " ++ (Colors.dimText "ai/sync      ahead 3, behind 1")
+      "   " ++ (Colors.dimText "experiments  local only")
+      ""
+      hdr "Configuration  ·  real (cli-config.json)"
+      "   " ++ (Colors.dimText "instance.name  ") ++ state.instanceName
+      "   " ++ (Colors.dimText "instance.id    ") ++ (Stdlib.String.slice (configValueOr "instance.id" "(unset)") 0 8) ++ (Colors.dimText "…")
+      "   " ++ (Colors.dimText "sync.mode      ") ++ (configValueOr "sync.mode" "auto (default)")
+      ""
+      Colors.dimText "   a add peer  ·  s sync now  ·  c view/edit config     conflicts live in SCM" ]
+
+/// The AI view: agents dark is running (preview data for now) with a thread detail. `a` asks the agent.
+/// Prompts library + real managed-agent state come later.
+let renderAI (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  // Section switcher (Agents / Prompts), Tab cycles it - same shape as SCM's.
+  let _ = renderSectionSwitcher region 0 [ "Agents"; "Prompts" ] state.aiSection
+  let bodyRegion =
+    UI.Layout.Region
+      { top = region.top + 2
+        left = region.left
+        rows = Stdlib.Int.max 1 (region.rows - 2)
+        cols = region.cols }
+  let (leftTitle, previewTitle, empty) =
+    if state.aiSection == 1 then ("Prompts  ·  (mock data)", "Prompt", Colors.dimText "no prompts")
+    else ("Agents  ·  (mock data)", "Thread", Colors.dimText "no agents - press a to ask the agent")
+  splitListPreview state bodyRegion leftTitle previewTitle empty
+
+/// The Calendar view (mock) - a month grid over cron fire-times + date-typed values, with today's agenda. A
+/// personal, login-gated view; greenfield, so this is a stand-in for the real system to come.
+let renderCalendar (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  let hdr = fun t -> Colors.colorize (Colors.bold ++ Colors.cyan) t
+  let today = Colors.colorize (Colors.bold ++ Colors.cyan) "[24]"
+  boxedLines
+    region
+    "Calendar  ·  July 2026  ·  (mock data)"
+    [ hdr "   Mon   Tue   Wed   Thu   Fri   Sat   Sun"
+      ""
+      "          1     2     3     4     5     6"
+      "    7     8     9    10    11    12    13"
+      "   14    15    16    17    18    19    20"
+      "   21    22    23   " ++ today ++ "•   25•   26    27"
+      "   28    29    30    31"
+      ""
+      hdr "Today · Thu Jul 24"
+      "    02:00   nightly-backup       cron    ok"
+      "    08:00   sync-metrics         cron    next"
+      "    15:00   reMarkable review    event"
+      ""
+      Colors.dimText "   • = scheduled     ←→ day   ↑↓ week   a agenda   ⏎ open" ]
+
+
+// ── Extension views: the composable registry ──
+// Each entry is a self-contained `ViewDef`; the core dispatch delegates to these generically (see the `else`
+// arms of itemsForView / previewLines / renderViewBody / hintsForView). Adding a view = one row in
+// `extensionViews` + its handful of small fns above. No edits to the core, the tab bar, or the gating.
+
+let renderErrors (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  splitListPreview state region "Errors" "Detail" (Colors.colorize Colors.green "✓ all clear - no errors")
+
+let renderCrons (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  splitListPreview state region "Crons" "Detail" (Colors.dimText "no crons yet - declare a Darklang.Cron value")
+
+// Extension views have no custom key handler yet, so their footers advertise only the keys that actually work
+// (move + the global filter). The per-row actions (run-now, pause, traces, agenda, …) are described in each
+// view's detail pane, which is mock-labeled, until those handlers exist.
+let errorHints (state: State) : List<(String * String)> =
+  [ ("↑↓", "move"); ("f", "filter") ]
+
+let cronHints (state: State) : List<(String * String)> =
+  [ ("↑↓", "move"); ("f", "filter") ]
+
+let calendarHints (state: State) : List<(String * String)> =
+  []
+
+let renderBuiltins (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  splitListPreview state region "Builtins" "Signature" (Colors.dimText "(no builtins)")
+
+let builtinHints (state: State) : List<(String * String)> =
+  [ ("↑↓", "move"); ("f", "filter") ]
+
+/// The internal-tier Builtins view - every F# builtin (real data, not mock), for the Darklang-internal
+/// experience. Gated on `internal.enabled` (config), so `config set internal.enabled stachu,feriel` turns the
+/// whole tier on for those two accounts and nobody else. This is the dev-tools surface #4.B asked for.
+let loadBuiltinItems () : List<BodyItem> =
+  Builtin.getAllBuiltinFns ()
+  |> Stdlib.List.map (fun fn -> fn.name.name)
+  |> Stdlib.List.sort
+  |> Stdlib.List.map (fun n -> BodyItem { name = n; kind = "builtin"; isModule = false })
+
+let builtinDetailLines (state: State) : List<String> =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> [ Colors.dimText "(nothing selected)" ]
+  | Some item ->
+    let all = Builtin.getAllBuiltinFns ()
+    match Stdlib.List.findFirst all (fun fn -> fn.name.name == item.name) with
+    | None -> [ Colors.dimText "(builtin not found)" ]
+    | Some fn ->
+      let params =
+        fn.parameters
+        |> Stdlib.List.map (fun p ->
+          let typStr = PrettyPrinter.RuntimeTypes.typeReference state.branchId p.``type``
+          $"{p.name}: {typStr}")
+        |> Stdlib.String.join ", "
+      let ret = PrettyPrinter.RuntimeTypes.typeReference state.branchId fn.returnType
+      [ Colors.boldText ($"{fn.name.name}({params}) -> {ret}")
+        ""
+        Colors.dimText ("builtin  ·  " ++ (Darklang.Cli.Builtins.purityTag fn.purity))
+        ""
+        fn.description ]

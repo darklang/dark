@@ -1,0 +1,177 @@
+/// The SCM and REPL view bodies, plus the pipe-stepping that fakes live values.
+///
+/// Part of `Darklang.Cli.Apps.Workbench.App`.
+module Darklang.Cli.Apps.Workbench.App
+
+let renderScmHeader (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  let branchOpt = SCM.Branch.get state.branchId
+  let branch = match branchOpt with | Some b -> b.name | None -> "main"
+  let parent =
+    match branchOpt with
+    | Some b ->
+      match b.parentBranchId with
+      | Some pid -> (match SCM.Branch.get pid with | Some p -> p.name | None -> "?")
+      | None -> "(root)"
+    | None -> "(root)"
+  let wip = (SCM.PackageOps.getWipSummary state.branchId).total
+  let commits = SCM.PackageOps.getCommitCount state.branchId
+  let conflicts = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
+  let peers = Stdlib.List.length (Darklang.Sync.status ())
+  let line1 =
+    "  " ++ (Colors.boldText ("branch: " ++ branch)) ++ (Colors.dimText ("   →   " ++ parent))
+  let wipPart =
+    if wip == 0 then Colors.colorize Colors.green "✓ clean"
+    else Colors.colorize Colors.pink ("● " ++ (plural wip "change"))
+  let confPart =
+    if conflicts == 0 then Colors.dimText "no conflicts"
+    else Colors.colorize Colors.pink ("⚠ " ++ (plural conflicts "conflict"))
+  let syncPart = if peers == 0 then Colors.dimText "no peers" else Colors.dimText ((Stdlib.Int.toString peers) ++ " peers")
+  let sep = Colors.dimText "     "
+  let line2 =
+    "  " ++ wipPart ++ sep ++ (Colors.dimText (plural commits "commit")) ++ sep ++ confPart ++ sep ++ syncPart
+  Stdlib.List.flatten
+    [ UI.Layout.at region 0 0 line1
+      UI.Layout.at region 1 0 line2 ]
+
+/// The SCM view: the status header, a section switcher (Changes / History / Conflicts, cycled by Tab), and
+/// the active section's list + detail. One home for the state of Dark Matter and its version control; conflict
+/// resolution lives here. The ahead/behind glance is in the header (setup + cross-instance health live in Devices).
+let renderScm (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  let headerRows = 4
+  let headerRegion = UI.Layout.Region { top = region.top; left = region.left; rows = 2; cols = region.cols }
+  let _ = renderScmHeader state headerRegion
+  let _ = renderSectionSwitcher region 2 [ "Changes"; "History"; "Conflicts"; "Branches" ] state.scmSection
+  let bodyRegion =
+    UI.Layout.Region
+      { top = region.top + headerRows
+        left = region.left
+        rows = Stdlib.Int.max 1 (region.rows - headerRows)
+        cols = region.cols }
+  let (title, empty) =
+    if state.scmSection == 1 then ("History", Colors.dimText "no commits yet")
+    else if state.scmSection == 2 then ("Conflicts", Colors.colorize Colors.green "✓ nothing to resolve - in sync")
+    else if state.scmSection == 3 then ("Branches", Colors.dimText "no branches")
+    else ("Changes", Colors.colorize Colors.green "✓ working tree clean - nothing to commit")
+  splitListPreview state bodyRegion title "Detail" empty
+
+/// Evaluate an expression through the classic `eval` command, captured, and return its trimmed result string.
+let evalToString (state: State) (expr: String) : String =
+  let appState =
+    classicState state
+  let words = Stdlib.String.split expr " " |> Stdlib.List.filter (fun w -> w != "")
+  Stdlib.String.trim (captureOutput (fun () -> Darklang.Cli.Registry.executeCommand "eval" appState words))
+
+/// Split an expression on its TOP-LEVEL `|>` (depth 0 only, so a `|>` inside a parenthesized lambda stays
+/// put). Returns the stages without the pipes. Char-by-char with a paren/bracket/brace depth counter.
+let splitTopPipes (text: String) : List<String> =
+  let charStrs = Stdlib.String.toList text |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
+  let final =
+    charStrs
+    |> Stdlib.List.fold (0, "", [], false) (fun acc s ->
+      let (depth, buf, segs, prevPipe) = acc
+      if prevPipe then
+        if (s == ">") && (depth == 0) then
+          (depth, "", Stdlib.List.pushBack segs (Stdlib.String.trim buf), false)
+        else
+          (depth, buf ++ "|" ++ s, segs, false)
+      else if (s == "(") || (s == "[") || (s == "{") then
+        (depth + 1, buf ++ s, segs, false)
+      else if (s == ")") || (s == "]") || (s == "}") then
+        (Stdlib.Int.max 0 (depth - 1), buf ++ s, segs, false)
+      else if (s == "|") && (depth == 0) then
+        (depth, buf, segs, true)
+      else
+        (depth, buf ++ s, segs, false))
+  let (_d, lastBuf, segs, lastPipe) = final
+  let tail = if lastPipe then lastBuf ++ "|" else lastBuf
+  Stdlib.List.pushBack segs (Stdlib.String.trim tail)
+
+/// Faked live values: for a pipe chain, evaluate each cumulative prefix and return (stage-label, value) so the
+/// sidebar can show the value flowing through each stage. Empty for a non-pipe (nothing to step through). No
+/// interpreter support - it just re-runs prefixes, which is why it's honest to call it a stand-in.
+let pipeSteps (state: State) (text: String) : List<(String * String)> =
+  let stages = splitTopPipes text
+  if Stdlib.List.length stages < 2 then
+    []
+  else
+    let capped = Stdlib.List.take stages 8
+    capped
+    |> Stdlib.List.indexedMap (fun i stage ->
+      let prefix = Stdlib.List.take capped (i + 1) |> Stdlib.String.join " |> "
+      let value = evalToString state prefix
+      let label = if i == 0 then stage else "|> " ++ stage
+      (label, value))
+
+/// The REPL view: a persistent eval log on the left, a live-values sidebar on the right. ⏎ evaluates and
+/// appends to the log. The sidebar steps through a pipe chain's values (faked - see `pipeSteps`); for a
+/// non-pipe it echoes the single result and names what a real resumable interpreter would add.
+let renderRepl (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  UI.SplitPane.render
+    region
+    UI.SplitPane.Orientation.Horizontal
+    62
+    state.focus
+    "REPL"
+    (fun inner ->
+      let all =
+        if Stdlib.List.isEmpty state.scratchLog then
+          [ Colors.boldText "A REPL over your whole package space."
+            ""
+            Colors.dimText "Press ⏎, type an expression, run it. Results log here."
+            ""
+            Colors.dimText "try:"
+            (Colors.colorize Colors.cyan "  1 + 1")
+            (Colors.colorize Colors.cyan "  Stdlib.List.map [ 1; 2; 3 ] (fun x -> x * 2)")
+            (Colors.colorize Colors.cyan "  \"dark\" |> Stdlib.String.toUppercase")
+            ""
+            Colors.dimText "f clears the log." ]
+        else state.scratchLog
+      let shown = all |> Stdlib.List.reverse |> Stdlib.List.take inner.rows |> Stdlib.List.reverse
+      shown
+      |> Stdlib.List.indexedMap (fun i l -> (i, l))
+      |> Stdlib.List.map (fun p ->
+        let (i, l) = p
+        UI.Layout.at inner i 1 l)
+      |> Stdlib.List.flatten)
+    "Live values"
+    (fun inner ->
+      let lines =
+        if Stdlib.Bool.not (Stdlib.List.isEmpty state.replSteps) then
+          // Pipe chain: show the value flowing through each stage (faked by re-running prefixes).
+          let stepLines =
+            state.replSteps
+            |> Stdlib.List.map (fun pair ->
+              let (label, value) = pair
+              [ Colors.colorize Colors.cyan label; Colors.colorize Colors.green ("  = " ++ value) ])
+            |> Stdlib.List.flatten
+          Stdlib.List.flatten
+            [ [ Colors.dimText "value at each pipe stage:"; "" ]
+              stepLines
+              [ ""; Colors.dimText "(stepped by re-running each"; Colors.dimText "prefix - a stand-in until the"; Colors.dimText "interpreter hands these back)" ] ]
+        else
+          let lastResult =
+            state.scratchLog
+            |> Stdlib.List.reverse
+            |> Stdlib.List.findFirst (fun l -> Stdlib.Bool.not (Stdlib.String.contains l "> "))
+            |> Stdlib.Option.withDefault ""
+          [ Colors.dimText "the value flowing through"
+            Colors.dimText "your last expression:"
+            ""
+            (if (Stdlib.String.trim lastResult) == "" then Colors.dimText "(eval a pipe to step through it)"
+             else Colors.colorize Colors.green (Stdlib.String.trim lastResult))
+            ""
+            Colors.dimText "── pipe something ──"
+            Colors.dimText "[ 1; 2; 3 ]"
+            Colors.dimText "|> Stdlib.List.map (fun x -> x * 2)"
+            Colors.dimText "|> Stdlib.List.sum"
+            Colors.dimText "and watch each stage's value" ]
+      lines
+      |> Stdlib.List.indexedMap (fun i l -> (i, l))
+      |> Stdlib.List.take inner.rows
+      |> Stdlib.List.map (fun p ->
+        let (i, l) = p
+        UI.Layout.at inner i 1 l)
+      |> Stdlib.List.flatten)
+
+/// Real config (from cli-config.json) as (key, value) pairs - backs the Devices "Configuration" section and
+/// the `c` reader. This is the actual persisted config, not mock.

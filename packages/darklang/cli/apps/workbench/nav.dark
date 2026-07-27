@@ -90,7 +90,10 @@ let cycleView (state: State) (dir: Int) : Step =
     |> Stdlib.List.findFirst (fun pair -> let (_i, v) = pair in v == state.activeView)
     |> Stdlib.Option.map (fun pair -> let (i, _v) = pair in i)
     |> Stdlib.Option.withDefault 0
-  let newPos = Stdlib.Int.max 0 (Stdlib.Int.min ((Stdlib.List.length vis) - 1) (pos + dir))
+  // Wrap. It's called cycling and the footer sells it as cycling; clamping made the first and last tabs
+  // dead ends, so you'd hit `]` at the end and nothing happened.
+  let count = Stdlib.List.length vis
+  let newPos = if count == 0 then 0 else ((pos + dir) % count + count) % count
   match Stdlib.List.getAt vis newPos with
   | Some v -> switchView state v
   | None -> Step.Continue state

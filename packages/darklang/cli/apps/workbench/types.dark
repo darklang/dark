@@ -200,7 +200,27 @@ let viewLabel (idx: Int) : String =
   | None -> Frame.viewName idx
 
 /// The view indices shown in the tab bar, in `viewSpecs` order. A view shows if it isn't gated, or it's gated
-/// and enabled for this account (computed once at launch into `enabledGatedViews`).
+/// Which gated views (Devices, Crons, Calendar, ...) this account has switched on.
+///
+/// Reads config from disk, so it's computed at launch and refreshed when a config command runs rather than
+/// per frame. Config-driven rather than env vars: `config set devices.enabled true`, or a comma-list of
+/// account names for a per-person gate.
+let gatedViewsFor (accountName: String) : List<Int> =
+  viewSpecs ()
+  |> Stdlib.List.filter (fun spec ->
+    let (_i, _n, g) = spec
+    (g != "") && (gateEnabled g accountName))
+  |> Stdlib.List.map (fun spec ->
+    let (i, _n, _g) = spec
+    i)
+
+
+/// Re-read the gates for a running workbench.
+let recomputeGatedViews (state: State) : List<Int> =
+  gatedViewsFor state.accountName
+
+
+/// and enabled for this account (see `enabledGatedViews`, recomputed on launch and after a config change).
 let visibleViews (state: State) : List<Int> =
   viewSpecs ()
   |> Stdlib.List.filter (fun spec ->

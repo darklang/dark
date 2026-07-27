@@ -1,0 +1,189 @@
+/// Assembling the whole frame: the chrome rows around the body, the command bar's completion dropdown,
+/// and `viewAtSize`, which is what the terminal session actually renders.
+///
+/// Part of `Darklang.Cli.Apps.Workbench.App`.
+module Darklang.Cli.Apps.Workbench.App
+
+let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
+  // Clamp to sane minimums - mid-resize the terminal reports 0/tiny sizes; without this the region math
+  // goes negative and the whole view crashes back to the prompt. A safe default renders one off frame; the
+  // next keypress picks up the real size.
+  let h = if size.height < 8 then 24 else size.height
+  let w = if size.width < 24 then 80 else size.width
+  // Full height now: the last row used to be reserved for the CLI's status bar, and that's gone.
+  let screen = UI.Layout.Region { top = 1; left = 1; rows = h; cols = w }
+  let path =
+    if (state.activeView == vMatter) || (state.activeView == vInspect) then Packages.formatLocation state.location
+    // Views that render their own body/sections (no flat item list) show just their name - "- 0 items" is a lie.
+    else if (state.activeView == vHome) || (state.activeView == vScratch) || (state.activeView == vDevices) || (state.activeView == vSCM) then
+      viewLabel state.activeView
+    else
+      (viewLabel state.activeView)
+      ++ "  ·  "
+      ++ (Stdlib.Int.toString (Stdlib.List.length state.items))
+      ++ " items"
+  let branch =
+    match SCM.Branch.get state.branchId with
+    | Some b -> b.name
+    | None -> "main"
+  // Real sync state, computed per-frame (render runs per-keypress, so it never goes stale). Drives both the
+  // Resolve tab badge and the breadcrumb's right-side status.
+  let conflictCount = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
+  let branchSeg = "branch: " ++ branch ++ "  "
+  let (syncColored, syncPlain) =
+    if conflictCount > 0 then
+      let s = "⚠ " ++ (Stdlib.Int.toString conflictCount) ++ " to resolve"
+      (Colors.colorize Colors.pink s, s)
+    else
+      (Colors.colorize Colors.green "✓ synced", "✓ synced")
+  let rightColored = (Colors.dimText branchSeg) ++ syncColored
+  let rightVisibleLen = Stdlib.String.length (branchSeg ++ syncPlain)
+  // The context line - the workbench's `pwd`: where edits land. Account, instance, branch, focused patch.
+  let context =
+    UI.Layout.fixedSize
+      1
+      (fun r ->
+        let line =
+          "  "
+          ++ (Colors.boldText state.accountName)
+          ++ (Colors.dimText "    instance: ")
+          ++ (Colors.dimText state.instanceName)
+          ++ (Colors.dimText "    branch: ")
+          ++ (Colors.dimText branch)
+        UI.Layout.at r 0 0 line)
+  let tabSegs = visibleViews state |> Stdlib.List.map (fun i -> (i, viewLabel i))
+  let tabbar = UI.Layout.fixedSize 1 (fun r -> Frame.renderTabBar r tabSegs state.activeView conflictCount)
+  let crumb = UI.Layout.fixedSize 1 (fun r -> Frame.renderBreadcrumb r path rightColored rightVisibleLen)
+  let body = UI.Layout.greedy (fun r -> renderBody state r)
+  let hints =
+    UI.Layout.fixedSize
+      1
+      (fun r ->
+        let h =
+          if state.message != "" then
+            // A failure/guidance toast reads pink with ✗; a success reads green with ✓.
+            if (Stdlib.String.contains state.message "fail")
+               || (Stdlib.String.contains state.message "conflict")
+               || (Stdlib.String.contains state.message "descend") then
+              Colors.colorize Colors.pink ("✗ " ++ state.message)
+            else
+              Colors.colorize Colors.green ("✓ " ++ state.message)
+          else
+          match state.editing with
+          | Some _ ->
+            Frame.formatHints
+              [ ("type", "edit"); ("↑↓←→", "move"); ("tab", "indent"); ("^s", "save"); ("esc", "cancel") ]
+          | None ->
+            match state.input with
+            | Some inp ->
+              // "You can type here" affordance: a bright prompt glyph, the label, the live text, and a
+              // reverse-video block caret so it's unmistakable the app is capturing keystrokes. For the command
+              // bar, trail a dim ghost of the completion (fish-style; tab accepts it).
+              let ghost =
+                if inp.action == "command" then Colors.dimText (commandCompletionHint state inp.text)
+                else ""
+              (Colors.colorize Colors.cyan "› ")
+              ++ (Colors.boldText inp.prompt)
+              ++ inp.text
+              ++ (Colors.colorize Colors.reverse " ")
+              ++ ghost
+            | None ->
+              match state.reading with
+              | Some _ -> Frame.formatHints [ ("↑↓", "scroll"); (":", "cmd"); ("esc", "back") ]
+              | None ->
+                if Stdlib.Bool.not (Stdlib.List.isEmpty state.searchHits) then
+                  Frame.formatHints [ ("↑↓", "move"); ("⏎", "jump"); ("esc", "close"); ("q", "quit") ]
+                else hintsForView state
+        Frame.renderKeyHints r h)
+  Stdlib.List.flatten
+    [ UI.Layout.vstack screen [ context; tabbar; crumb; body; hints ]
+      if state.showHelp then renderHelpOverlay screen else []
+      if state.viewPicker then renderViewPicker state screen else []
+      renderCommandCompletions state screen ]
+
+
+/// The ghost-completion suffix for the `:` command bar - the chars that would complete the current command or
+/// argument, from the shared CLI completion engine (so the bar has the same typeahead the classic prompt did).
+/// Empty when there's nothing to suggest. Only called while the command bar is open, so the per-frame cost of
+/// building a throwaway AppState is bounded to that.
+let commandCompletionHint (state: State) (text: String) : String =
+  if text == "" then
+    ""
+  else
+    let appState =
+      classicState state
+    Darklang.Cli.Registry.getCompletionHint appState text
+
+/// The full list of completions for the `:` command bar's current text - the same engine the classic prompt's
+/// picker used. Backs the live dropdown so you see the options, not just the ghost of the top one.
+let commandCompletions (state: State) (text: String) : List<Darklang.Cli.Completion.CompletionItem> =
+  if text == "" then
+    []
+  else
+    let appState =
+      classicState state
+    Darklang.Cli.Registry.getCompletions appState text
+
+/// Replace the last whitespace-delimited word of `text` with `value` - how accepting a dropdown selection
+/// inserts it (the last word is the partial being completed; an empty last word means append a fresh arg).
+let applyCompletionValue (text: String) (value: String) : String =
+  match Stdlib.List.reverse (Stdlib.String.split text " ") with
+  | _last :: revInit ->
+    Stdlib.String.join (Stdlib.List.append (Stdlib.List.reverse revInit) [ value ]) " "
+  | [] -> value
+
+/// A live dropdown of command completions anchored just above the `:` input line - the "pretty typeahead" menu
+/// from the classic prompt. Shown only while the command bar is open and there are matches. Drawn as an overlay
+/// (the full frame redraws each keystroke, so it clears itself when the bar closes).
+let renderCommandCompletions (state: State) (screen: UI.Layout.Region) : List<UI.Layout.Span> =
+  match state.input with
+  | None -> []
+  | Some inp ->
+    if inp.action != "command" then
+      []
+    else
+      let items = commandCompletions state inp.text |> Stdlib.List.take 8
+      if Stdlib.List.isEmpty items then
+        []
+      else
+        let n = Stdlib.List.length items
+        let boxRows = n + 2
+        let footerRow = screen.top + screen.rows - 1
+        let top = Stdlib.Int.max screen.top (footerRow - boxRows)
+        // Full width so it fully covers the body band underneath (no bleed-through of the body's box borders).
+        let region = UI.Layout.Region { top = top; left = screen.left; rows = boxRows; cols = screen.cols }
+        UI.Box.panel region "complete  ·  tab to accept" true (fun inner ->
+          let rows =
+            items
+            |> Stdlib.List.indexedMap (fun i item ->
+              let selected = i == state.completionSel
+              let raw = (if selected then "> " else "  ") ++ item.display
+              let line = if selected then Colors.colorize Colors.cyan raw else raw
+              UI.Layout.at inner i 0 line)
+            |> Stdlib.List.flatten
+          // Clear the interior first - this floats over the body, which would otherwise bleed through.
+          Stdlib.List.flatten [ UI.Layout.clearRegion inner; rows ])
+
+/// Render the workbench. Below a usable size, show an explicit "too small" hint instead of a garbled frame
+/// (per the TUI rule: degrade with a message, never render garbage). A real 0/tiny size mid-resize still falls
+/// through to renderFull's clamp, which draws one safe frame until the next keypress.
+let viewAtSize (state: State) (size: Tui.Size) : Tui.View =
+  let tooSmall =
+    (size.width >= 24 && size.width < 56) || (size.height >= 8 && size.height < 12)
+
+  let spans =
+    if tooSmall then
+      let msg = "terminal too small - resize to at least 56x12"
+      let screen =
+        UI.Layout.Region { top = 1; left = 1; rows = size.height; cols = size.width }
+      let row = Stdlib.Int.max 0 (Stdlib.Int.divide size.height 2)
+      let col =
+        Stdlib.Int.max 0 (Stdlib.Int.divide (size.width - (Tui.Text.displayWidth msg)) 2)
+      UI.Layout.at screen row col (Colors.dimText msg)
+    else
+      renderFull state size
+
+  UI.Canvas.toView size spans
+
+
+// ── Key handling ──

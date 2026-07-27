@@ -1,0 +1,113 @@
+/// The test registry and runner.
+///
+/// Part of `Darklang.Cli.Tests`.
+module Darklang.Cli.Tests
+
+type TestFunction = Unit -> TestResult
+
+let allTests (): List<String * TestFunction> =
+  [ ("Help", fun () -> testHelpCommand ())
+    ("Version", fun () -> testVersionCommand ())
+    ("Status", fun () -> testStatusCommand ())
+
+    ("Eval Bool.and", fun () -> testRunBoolAnd ())
+    ("Eval Int64.add", fun () -> testRunInt64Add ())
+
+    ("Eval String Length", fun () -> testEvalStringLength ())
+    ("Eval List Length", fun () -> testEvalListLength ())
+
+    ("List Functions", fun () -> testListFunctions ())
+    ("View Function", fun () -> testViewFunction ())
+    ("List Types", fun () -> testListTypes ())
+
+    ("Help for Run", fun () -> testHelpForRun ())
+    ("Help for Ls", fun () -> testHelpForLs ())
+
+    ("Eval Simple Expression", fun () -> testEvalSimpleExpression ())
+    ("Eval String Expression", fun () -> testEvalStringExpression ())
+
+    ("Completion Picker Two Rows", fun () -> testCompletionPickerTwoRows ())
+    ("Completion Picker Narrow Help", fun () -> testCompletionPickerNarrowHelp ())
+    ("Completion Picker Long List", fun () -> testCompletionPickerLongList ())
+    ("Fullscreen Deferred Wrap", fun () -> testFullscreenRowCancelsDeferredWrap ())
+
+    ("Canvas Places Spans", fun () -> testCanvasPlacesSpans ())
+    ("Canvas Layers Spans", fun () -> testCanvasLayersLaterSpans ())
+    ("Canvas Wide Glyph", fun () -> testCanvasWideGlyphOccupiesTwoColumns ())
+    ("Canvas SGR Zero Width", fun () -> testCanvasStylingIsZeroWidth ())
+    ("Canvas Empty Rows", fun () -> testCanvasUntouchedRowsAreEmpty ())
+
+    ("Text Clips By Columns", fun () -> testTextClipsByColumnsNotCharacters ())
+    ("Text Wide Glyph Whole", fun () -> testTextNeverSplitsAWideGlyph ())
+    ("Text Drops Non-SGR Escapes", fun () -> testTextDropsNonSgrEscapes ())
+    ("Text Wrap Reapplies Style", fun () -> testTextWrapReappliesStyleAcrossRows ())
+    ("Text Cursor After Full Row", fun () -> testTextCursorAfterFullRowWraps ())
+
+    ("InlineFrame Silent Unchanged", fun () -> testInlineFrameEmitsNothingWhenUnchanged ())
+    ("InlineFrame Relative Move", fun () -> testInlineFrameMovesRelativeToPreviousCursor ())
+
+    ("Session Takes Alt Screen", fun () -> testSessionTakesAlternateScreenOnFirstPresent ())
+    ("Session Repeat Is Silent", fun () -> testSessionSecondIdenticalPresentIsSilent ())
+    ("Session Stop Restores Once", fun () -> testSessionStopRestoresOnlyWhenRunning ())
+  ]
+
+type TestSummary =
+  { totalTests: Int
+    passedTests: Int
+    failedTests: Int
+    failedTestNames: List<String> }
+
+// Sequential test execution - proven to be ~30-50% faster than parallel for CLI tests
+// due to process startup overhead and resource contention
+let runAllTests (): Int =
+  let tests = allTests ()
+
+  Stdlib.printLine ""
+  Stdlib.printLine "Darklang CLI Tests"
+  Stdlib.printLine "=================="
+
+  let initialSummary =
+    TestSummary
+      { totalTests = 0
+        passedTests = 0
+        failedTests = 0
+        failedTestNames = [] }
+
+  let finalSummary =
+    tests
+    |> Stdlib.List.fold initialSummary (fun summary (name, testFn) ->
+      Stdlib.printLine ""
+      Stdlib.printLine $"Running: {name} ..."
+
+      let newSummary =
+        { summary with totalTests = summary.totalTests + 1 }
+
+      match testFn () with
+      | Pass ->
+        Stdlib.printLine $"✓ PASS - {name}"
+        { newSummary with passedTests = newSummary.passedTests + 1 }
+      | Fail message ->
+        Stdlib.printLine $"✗ FAIL - {name}"
+        Stdlib.printLine $"  Reason: {message}"
+        { newSummary with
+            failedTests = newSummary.failedTests + 1
+            failedTestNames = Stdlib.List.push newSummary.failedTestNames name })
+
+  Stdlib.printLine ""
+  Stdlib.printLine "📊 Test Results Summary"
+  Stdlib.printLine "======================"
+  Stdlib.printLine $"Total tests:  {Stdlib.Int.toString finalSummary.totalTests}"
+  Stdlib.printLine $"Passed:       {Stdlib.Int.toString finalSummary.passedTests}"
+  Stdlib.printLine $"Failed:       {Stdlib.Int.toString finalSummary.failedTests}"
+
+  if finalSummary.failedTests == 0 then
+    Stdlib.printLine "🎉 All tests passed!"
+    0
+  else
+    Stdlib.printLine "🚨 Some tests failed!"
+    if Stdlib.Bool.not (Stdlib.List.isEmpty finalSummary.failedTestNames) then
+      Stdlib.printLine "Failed tests:"
+      finalSummary.failedTestNames
+      |> Stdlib.List.iter (fun testName ->
+        Stdlib.printLine $"  ✗ {testName}")
+    1
