@@ -141,13 +141,22 @@ let handleReaderKey
   (key: Stdlib.Cli.Stdin.Key.Key)
   (keyChar: Stdlib.Option.Option<String>)
   : Step =
-  // Reader mode: ↑↓/j/k scroll (g/G to ends), Esc/q closes it.
+  // Reader mode: ↑↓/j/k scroll a line, PgUp/PgDn a screenful, g/G to the ends, Esc/q closes it.
   let scrollUp = Step.Continue { state with detailScroll = Stdlib.Int.max 0 (state.detailScroll - 1) }
   let scrollDown = Step.Continue { state with detailScroll = state.detailScroll + 1 }
   let close = Step.Continue { state with reading = Stdlib.Option.Option.None; detailScroll = 0 }
+  // A page is the terminal height less the chrome, so it lands roughly where your eye already is. Reading a
+  // 200-line doc one line at a time is not reading.
+  let (_w, h) = Terminal.getSize ()
+  let page = Stdlib.Int.max 1 (h - 6)
+  let pageUp =
+    Step.Continue { state with detailScroll = Stdlib.Int.max 0 (state.detailScroll - page) }
+  let pageDown = Step.Continue { state with detailScroll = state.detailScroll + page }
   match key with
   | UpArrow -> scrollUp
   | DownArrow -> scrollDown
+  | PageUp -> pageUp
+  | PageDown -> pageDown
   | Escape -> close
   | _ ->
     match keyChar with

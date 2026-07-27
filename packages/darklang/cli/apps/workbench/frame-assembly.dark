@@ -89,7 +89,7 @@ let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
               ++ ghost
             | None ->
               match state.reading with
-              | Some _ -> Frame.formatHints [ ("↑↓", "scroll"); (":", "cmd"); ("esc", "back") ]
+              | Some _ -> Frame.formatHints [ ("↑↓", "scroll"); ("PgUp/PgDn", "page"); (":", "cmd"); ("esc", "back") ]
               | None ->
                 if Stdlib.Bool.not (Stdlib.List.isEmpty state.searchHits) then
                   Frame.formatHints [ ("↑↓", "move"); ("⏎", "jump"); ("esc", "close"); ("q", "quit") ]
