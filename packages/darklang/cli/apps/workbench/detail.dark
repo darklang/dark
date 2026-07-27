@@ -120,9 +120,16 @@ let appDetail (state: State) : String =
 let traceDetail (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
   | Some item ->
+    // The list is real whenever anything has been recorded (see `loadTraceBodyItems`); only the fallback
+    // rows are invented. Saying "mock data" over a run that genuinely happened undersells what works.
+    let provenance =
+      if item.kind == "trace-sample" then
+        Colors.dimText "(mock data) - nothing recorded in this environment yet"
+      else
+        Colors.dimText "this run is real; what it recorded is not stored yet"
     (Colors.boldText item.name)
     ++ "\n\n"
-    ++ (Colors.dimText "(mock data) - no live traces recorded in this env")
+    ++ provenance
     ++ "\n\n"
     ++ "A real trace carries the inputs, the return value, and the value\n"
     ++ "that flowed through every sub-expression. From here you'll:\n\n"

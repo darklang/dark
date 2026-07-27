@@ -195,11 +195,13 @@ let loadTraceBodyItems () : List<BodyItem> =
   if Stdlib.Bool.not (Stdlib.List.isEmpty real) then
     real
   else
-    [ BodyItem { name = "✓ eval   Stdlib.List.map [1;2;3] (fun x -> x * 2)"; kind = "trace"; isModule = false }
-      BodyItem { name = "✓ GET    /echo → 200            heartbeat"; kind = "trace"; isModule = false }
-      BodyItem { name = "✗ POST   /sync → 500            syncer"; kind = "trace"; isModule = false }
-      BodyItem { name = "✓ eval   @stachu.fizzbuzz 3"; kind = "trace"; isModule = false }
-      BodyItem { name = "✓ CLI    dark status"; kind = "trace"; isModule = false } ]
+    // Nothing recorded here yet, so show a shape-of-the-thing sample. Tagged distinctly so the detail pane
+    // can say which it's looking at, rather than calling every trace mock.
+    [ BodyItem { name = "✓ eval   Stdlib.List.map [1;2;3] (fun x -> x * 2)"; kind = "trace-sample"; isModule = false }
+      BodyItem { name = "✓ GET    /echo → 200            heartbeat"; kind = "trace-sample"; isModule = false }
+      BodyItem { name = "✗ POST   /sync → 500            syncer"; kind = "trace-sample"; isModule = false }
+      BodyItem { name = "✓ eval   @stachu.fizzbuzz 3"; kind = "trace-sample"; isModule = false }
+      BodyItem { name = "✓ CLI    dark status"; kind = "trace-sample"; isModule = false } ]
 
 /// Installed + available apps (for the Apps view). A filled dot marks installed; a hollow one available.
 let loadAppItems (branchId: Uuid) : List<BodyItem> =
