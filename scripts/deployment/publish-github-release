@@ -6,7 +6,6 @@ set -euo pipefail
 TOKEN="${GITHUB_RELEASES_TOKEN}"
 OWNER="darklang"
 REPO="dark"
-TAG="v0.0.1"
 TARGET_COMMITISH="main"
 NAME="cli-pre-release"
 BODY="Pre-release of darklang executable"
@@ -34,26 +33,55 @@ delete_tag() {
     "https://api.github.com/repos/$OWNER/$REPO/git/refs/tags/$tag_name"
 }
 
-# Function to increment the tag number for a new release
-increment_tag() {
-  ## Fetch latest release tag
-  latest_tag=$(curl -s "https://api.github.com/repos/$OWNER/$REPO/releases" | jq -r '.[0].tag_name')
+# Function to list every existing v0.0.x tag ref, one per line
+#
+# Tags rather than releases: a run that dies between creating the release and
+# cleaning it up leaves the tag behind, and that orphan tag is still enough to
+# collide. Every release this script makes creates a tag, so the tags are a
+# superset of what we need to avoid.
+list_version_tag_refs() {
+  local page=1 body count
 
-  ## Check id latest tag is empty or null, if no tags found, start from v0.0.1
-  if [ -z $latest_tag ] || [ $latest_tag = "null" ]; then
-    echo "v0.0.1"
-  else
-    ## Major.Minor.Patch
-    IFS='.' read -r -a version_numbers <<< "$latest_tag"
-    major_number=${version_numbers[0]}
-    minor_number=${version_numbers[1]}
-    patch_number=${version_numbers[2]}
-    patch_number=$((patch_number + 1))
-    echo "${major_number}.${minor_number}.${patch_number}"
-  fi
+  while :; do
+    body=$(curl -sS -L \
+      -H "Accept: application/vnd.github+json" \
+      -H "Authorization: Bearer $TOKEN" \
+      -H "X-GitHub-Api-Version: 2022-11-28" \
+      "https://api.github.com/repos/$OWNER/$REPO/git/matching-refs/tags/v0.0.?per_page=100&page=$page")
+
+    ## Anything but an array means an error payload (rate limit, bad token, ...)
+    if [ "$(echo "$body" | jq -r 'type' 2>/dev/null)" != "array" ]; then
+      echo "Failed to list existing tags: $body" >&2
+      return 1
+    fi
+
+    echo "$body" | jq -r '.[].ref'
+
+    count=$(echo "$body" | jq 'length')
+    [ "$count" -eq 100 ] || break
+    page=$((page + 1))
+  done
 }
 
-TAG=$(increment_tag)
+# Function to pick the next unused tag: highest existing v0.0.N, plus one
+next_tag() {
+  local highest
+
+  highest=$(list_version_tag_refs \
+    | sed -n 's#^refs/tags/v0\.0\.\([0-9][0-9]*\)$#\1#p' \
+    | sort -n \
+    | tail -n 1)
+
+  ## No tags yet, start from v0.0.1
+  if [ -z "$highest" ]; then
+    highest=0
+  fi
+
+  echo "v0.0.$((highest + 1))"
+}
+
+TAG=$(next_tag) || { echo "Could not determine the next release tag"; exit 1; }
+echo "Next release tag: $TAG"
 
 
 # Create a GitHub release
