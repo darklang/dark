@@ -74,6 +74,18 @@ let printAt (region: Region) (row: Int) (col: Int) (text: String) : Unit =
   else
     ()
 
+/// Like `printAt`, but truncates by VISIBLE width (ANSI-aware) so a pre-colored line isn't clipped through its
+/// escape codes and left with color bleeding past the cut. Slower than `printAt` (it scans for escapes), so use
+/// it only for lines that actually carry color spans, not the hot per-row path.
+let printAtVisible (region: Region) (row: Int) (col: Int) (text: String) : Unit =
+  if row >= 0 && row < region.rows then
+    let absRow = region.top + row
+    let absCol = region.left + col
+    let maxLen = Stdlib.Int.max 0 (region.cols - col)
+    Stdlib.print ((Darklang.Cli.Colors.moveCursorTo absRow absCol) ++ (truncateVisible text maxLen))
+  else
+    ()
+
 /// Fill a row with a repeated character, within the region.
 let fillRow (region: Region) (row: Int) (ch: String) : Unit =
   let line = Stdlib.String.repeat ch region.cols

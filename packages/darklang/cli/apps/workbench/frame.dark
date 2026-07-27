@@ -1,9 +1,9 @@
-/// Frame — the always-on workbench chrome (tab bar + breadcrumb). Render helpers used by the workbench
+/// Frame - the always-on workbench chrome (tab bar + breadcrumb). Render helpers used by the workbench
 /// SubApp; the bottom status bar is the CLI's existing one. See design main/notes/cli-ux/03A.
 module Darklang.Cli.Apps.Workbench.Frame
 
 /// The built-in views (indices 0-9), in tab-bar order. Kept in sync with the view-index constants in App
-/// (vHome..vDocs). Extension views (index 10+) are named by their `ViewDef` in App's registry, not here — the
+/// (vHome..vDocs). Extension views (index 10+) are named by their `ViewDef` in App's registry, not here - the
 /// tab bar receives already-resolved labels (see `renderTabBar`), so this stays the base-name table only.
 val viewNames =
   [ "Home"; "Matter"; "Inspect"; "REPL"; "SCM"
@@ -13,7 +13,7 @@ let viewName (i: Int) : String =
   Stdlib.List.getAt viewNames i |> Stdlib.Option.withDefault "Home"
 
 /// Render the tab bar into `region` (one row). `visible` is the ordered list of (view index, label) pairs to
-/// show — labels are resolved by the caller so the frame needn't know about extension views (some views, e.g.
+/// show - labels are resolved by the caller so the frame needn't know about extension views (some views, e.g.
 /// Devices, are opt-in and hidden). `active` is the active view index, rendered bright with a ◆ marker, the
 /// rest dim. When `conflictCount` > 0, the SCM tab carries a red count badge so an attention state is visible
 /// from any view. Printed directly (color codes would confuse printAt's width math).
@@ -22,7 +22,7 @@ let renderTabBar (region: UI.Layout.Region) (visible: List<(Int * String)>) (act
     visible
     |> Stdlib.List.map (fun pair ->
       let (i, name) = pair
-      // SCM is index 4 — badge it when there's a conflict to resolve (conflicts live in SCM now).
+      // SCM is index 4 - badge it when there's a conflict to resolve (conflicts live in SCM now).
       let label =
         if i == 4 && conflictCount > 0 then name ++ (Colors.colorize Colors.pink (" ⚠" ++ Stdlib.Int.toString conflictCount))
         else name
@@ -51,7 +51,8 @@ let renderBreadcrumb
   Stdlib.print ((Colors.moveCursorTo region.top rightCol) ++ rightColored)
 
 /// Format a list of (key, label) hints into a footer string: the key bright (cyan), the label dim, pairs
-/// separated by a dim middot. Per the TUI rule "key emphasized, label muted" so shortcuts actually read.
+/// separated by three dim spaces (kept plain so a footer full of hints doesn't clip on a narrow terminal).
+/// Per the TUI rule "key emphasized, label muted" so shortcuts actually read.
 let formatHints (pairs: List<(String * String)>) : String =
   pairs
   |> Stdlib.List.map (fun pair ->

@@ -209,8 +209,12 @@ module StatusBar =
     let branchPart =
       Colors.colorize (Colors.grayBg ++ Colors.white) branchText
 
+    // When this prompt was reached from the workbench (page stack non-empty), say so and how to get back.
+    let hintText =
+      if Stdlib.List.isEmpty state.pageStack then "" else " old command mode · `quit` returns to the workbench "
+
     let leftLen = Stdlib.String.length leftText + Stdlib.String.length branchText
-    let paddingLen = terminalWidth - leftLen
+    let paddingLen = terminalWidth - leftLen - (Stdlib.String.length hintText)
 
     let padding =
       if paddingLen > 0 then
@@ -218,7 +222,10 @@ module StatusBar =
       else
         ""
 
-    leftPart ++ branchPart ++ padding
+    let hintPart =
+      if hintText == "" then "" else Colors.colorize (Colors.grayBg ++ Colors.white ++ Colors.bold) hintText
+
+    leftPart ++ branchPart ++ padding ++ hintPart
 
   /// Render the status bar at the bottom of the terminal
   let render (statusLine: String) : Unit =
@@ -838,7 +845,7 @@ let runInteractiveLoop (state: AppState) : Int =
 
     // Render status bar — cache and skip when branch unchanged
     let statusBar =
-      if state.cachedStatusBarBranch == state.currentBranchId && state.cachedStatusBar != "" then
+      if state.cachedStatusBarBranch == state.currentBranchId && state.cachedStatusBar != "" && Stdlib.List.isEmpty state.pageStack then
         state.cachedStatusBar
       else
         StatusBar.build state
