@@ -1,0 +1,129 @@
+/// A span buffer: the bridge from "paint at a position" to "here are the rows".
+///
+/// The workbench draws by absolute positioning (`UI.Layout.printAt` into a `Region`), which means every frame
+/// is hundreds of individual writes preceded by a full `2J` clear. That clear is the flash. The rest of the
+/// CLI now builds a `Tui.View` (a list of rows) and lets the renderer diff it against the previous frame, so
+/// an arrow key rewrites two rows instead of the screen.
+///
+/// Rewriting every renderer to return rows directly would mean redoing all the layout math with it. This
+/// module avoids that: a renderer keeps computing `(row, col, text)` exactly as it does now, but *returns*
+/// the spans instead of printing them. `compose` paints them onto a blank grid and hands back rows.
+///
+/// The migration is then mechanical, one renderer at a time:
+///   `UI.Layout.printAt region r c text`   ->  `Canvas.at region r c text`
+///   `a` then `b` (sequenced prints)        ->  `Stdlib.List.flatten [ a; b ]`
+///   `xs |> Stdlib.List.iter (...)`         ->  `xs |> Stdlib.List.map (...) |> Stdlib.List.flatten`
+///   `Region -> Unit`                       ->  `Region -> List<Span>`
+///
+/// Widths are measured with `Tui.Text`, so a span carrying CJK, emoji, or SGR colour lands where it should.
+/// `UI.Layout.printAt` measures with `String.length`, which counts characters, not terminal columns: that's
+/// why a wide glyph currently shoves the rest of its row out of alignment.
+module Darklang.Cli.Apps.Workbench.Canvas
+
+
+/// Text to place at a zero-based terminal position.
+type Span =
+  { row: Int
+    col: Int
+    text: String }
+
+
+/// A span placed relative to a region's origin. Rows outside the region are dropped, matching `printAt`.
+let at (region: UI.Layout.Region) (row: Int) (col: Int) (text: String) : List<Span> =
+  if row >= 0 && row < region.rows && col >= 0 then
+    // Regions carry one-based terminal coordinates; the canvas is zero-based.
+    [ Span
+        { row = region.top + row - 1
+          col = region.left + col - 1
+          text = text } ]
+  else
+    []
+
+
+/// Split styled text into one entry per terminal column.
+///
+/// SGR sequences carry no width, so they're attached to the cell they precede and travel with it when that
+/// cell is overwritten. A double-width glyph occupies its cell plus an empty continuation cell, so a span
+/// landing on the second half of a wide character replaces the whole thing rather than splitting it.
+let cellsFrom (chars: List<Char>) (pending: String) (acc: List<String>) : List<String> =
+  match chars with
+  | [] -> acc
+  | char :: remaining ->
+    let text = Stdlib.Char.toString char
+
+    if text == "" then
+      let (sequence, afterSequence) = Tui.Text.consumeEscape remaining
+      cellsFrom afterSequence (pending ++ sequence) acc
+    else if Tui.Text.isControl char then
+      cellsFrom remaining pending acc
+    else
+      let width = Tui.Text.displayWidth text
+      if width <= 0 then
+        cellsFrom remaining pending acc
+      else
+        let continuation =
+          if width >= 2 then Stdlib.List.repeat (width - 1) "" else Stdlib.Result.Result.Ok []
+        let filler =
+          match continuation with
+          | Ok cells -> cells
+          | Error _ -> []
+        cellsFrom
+          remaining
+          ""
+          (Stdlib.List.flatten [ acc; [ pending ++ text ]; filler ])
+
+
+let cells (text: String) : List<String> =
+  cellsFrom (Stdlib.String.toList text) "" []
+
+
+/// Write `spanCells` into `row` starting at `col`, leaving everything else alone.
+let paintCells (row: List<String>) (col: Int) (spanCells: List<String>) : List<String> =
+  let count = Stdlib.List.length spanCells
+
+  row
+  |> Stdlib.List.indexedMap (fun index cell ->
+    if index >= col && index < col + count then
+      Stdlib.List.getAt spanCells (index - col)
+      |> Stdlib.Option.withDefault cell
+    else
+      cell)
+
+
+/// Paint one row's spans, in order, onto a blank line. Later spans layer over earlier ones.
+let composeRow (width: Int) (rowSpans: List<Span>) : String =
+  let blank =
+    match Stdlib.List.repeat width " " with
+    | Ok cells -> cells
+    | Error _ -> []
+
+  let painted =
+    rowSpans
+    |> Stdlib.List.fold blank (fun acc span -> paintCells acc span.col (cells span.text))
+
+  // A reset at the end so a colour left open by the last span can't bleed into whatever follows.
+  (Stdlib.String.join painted "") ++ "\u001b[0m"
+
+
+/// Paint spans onto a `height` x `width` grid and return the rows.
+let compose (width: Int) (height: Int) (spans: List<Span>) : List<String> =
+  let w = Stdlib.Int.max 1 width
+  let h = Stdlib.Int.max 0 height
+
+  if h == 0 then
+    []
+  else
+    Stdlib.List.range 0 (h - 1)
+    |> Stdlib.List.map (fun row ->
+      let rowSpans = spans |> Stdlib.List.filter (fun s -> s.row == row)
+      // An untouched row is empty rather than `width` spaces: the renderer erases each row it writes, so
+      // blanks cost nothing, and an empty string compares equal frame to frame.
+      if Stdlib.List.isEmpty rowSpans then "" else composeRow w rowSpans)
+
+
+/// Compose spans into a full-screen `Tui.View`.
+let toView (size: Tui.Size) (spans: List<Span>) : Tui.View =
+  Tui.View
+    { rows = compose size.width size.height spans
+      cursor = Tui.Cursor.Hidden
+      mode = Tui.ViewMode.Fullscreen }

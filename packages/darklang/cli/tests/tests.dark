@@ -230,6 +230,90 @@ let testFullscreenRowCancelsDeferredWrap (): TestResult =
       "Fullscreen rows should return to column one after filling the terminal"
 
 
+// ── Workbench canvas (spans -> rows) ──
+
+let canvasRegion () : Darklang.Cli.UI.Layout.Region =
+  Darklang.Cli.UI.Layout.Region { top = 1; left = 1; rows = 4; cols = 10 }
+
+
+let canvasRow (spans: List<Darklang.Cli.Apps.Workbench.Canvas.Span>) : String =
+  Darklang.Cli.Apps.Workbench.Canvas.compose 10 2 spans
+  |> Stdlib.List.head
+  |> Stdlib.Option.withDefault ""
+  |> Darklang.Cli.Tui.Text.stripSgr
+
+
+let testCanvasPlacesSpans (): TestResult =
+  let region = canvasRegion ()
+  let spans = Darklang.Cli.Apps.Workbench.Canvas.at region 0 2 "hi"
+  let row = canvasRow spans
+
+  if row == "  hi      " then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected span at column 2, got '{row}'"
+
+
+let testCanvasLayersLaterSpans (): TestResult =
+  let region = canvasRegion ()
+  let spans =
+    Stdlib.List.flatten
+      [ Darklang.Cli.Apps.Workbench.Canvas.at region 0 0 "aaaaa"
+        Darklang.Cli.Apps.Workbench.Canvas.at region 0 2 "BB" ]
+  let row = canvasRow spans
+
+  // The later span overwrites only the columns it covers; the tail of the first survives.
+  if row == "aaBBa     " then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected later span to layer over earlier, got '{row}'"
+
+
+let testCanvasWideGlyphOccupiesTwoColumns (): TestResult =
+  let region = canvasRegion ()
+  let spans =
+    Stdlib.List.flatten
+      [ Darklang.Cli.Apps.Workbench.Canvas.at region 0 0 "界"
+        Darklang.Cli.Apps.Workbench.Canvas.at region 0 2 "X" ]
+  let row = canvasRow spans
+
+  // A double-width glyph eats two cells, so the next span still lands where it was asked to.
+  if Darklang.Cli.Tui.Text.displayWidth row == 10 && Stdlib.String.contains row "界X" then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected wide glyph to occupy two columns, got '{row}'"
+
+
+let testCanvasStylingIsZeroWidth (): TestResult =
+  let region = canvasRegion ()
+  let spans =
+    Stdlib.List.flatten
+      [ Darklang.Cli.Apps.Workbench.Canvas.at region 0 0 (Colors.info "ab")
+        Darklang.Cli.Apps.Workbench.Canvas.at region 0 2 "cd" ]
+  let row = canvasRow spans
+
+  // Colour codes carry no width, so the second span is not pushed sideways by them.
+  if row == "abcd      " then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected SGR to consume no columns, got '{row}'"
+
+
+let testCanvasUntouchedRowsAreEmpty (): TestResult =
+  let region = canvasRegion ()
+  let spans = Darklang.Cli.Apps.Workbench.Canvas.at region 0 0 "x"
+  let rows = Darklang.Cli.Apps.Workbench.Canvas.compose 10 3 spans
+
+  match Stdlib.List.getAt rows 1 with
+  | Some second ->
+    // Rows nobody painted stay empty so they compare equal frame to frame and cost no redraw.
+    if second == "" && Stdlib.List.length rows == 3 then
+      TestResult.Pass
+    else
+      TestResult.Fail $"Expected untouched rows to be empty, got '{second}'"
+  | None -> TestResult.Fail "Expected three composed rows"
+
+
 type TestFunction = Unit -> TestResult
 
 let allTests (): List<String * TestFunction> =
@@ -257,6 +341,12 @@ let allTests (): List<String * TestFunction> =
     ("Completion Picker Narrow Help", fun () -> testCompletionPickerNarrowHelp ())
     ("Completion Picker Long List", fun () -> testCompletionPickerLongList ())
     ("Fullscreen Deferred Wrap", fun () -> testFullscreenRowCancelsDeferredWrap ())
+
+    ("Canvas Places Spans", fun () -> testCanvasPlacesSpans ())
+    ("Canvas Layers Spans", fun () -> testCanvasLayersLaterSpans ())
+    ("Canvas Wide Glyph", fun () -> testCanvasWideGlyphOccupiesTwoColumns ())
+    ("Canvas SGR Zero Width", fun () -> testCanvasStylingIsZeroWidth ())
+    ("Canvas Empty Rows", fun () -> testCanvasUntouchedRowsAreEmpty ())
   ]
 
 type TestSummary =
