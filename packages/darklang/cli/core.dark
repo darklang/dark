@@ -510,6 +510,29 @@ module Commands =
 ///
 /// The region shrinks to the prompt rows alone, so the submitted command stays
 /// in scrollback while the completion hint does not.
+/// Prepend the "you got here from somewhere, here's the way back" row when this prompt sits on a page stack.
+///
+/// This used to be the right-hand side of the bottom status bar. The status bar is gone: it reserved the last
+/// terminal row with a scroll region, and a scroll region and an inline prompt region fight over the same
+/// rows. A row directly above the prompt is arguably the better home anyway, since it's next to what you're
+/// typing rather than parked at the far edge of the screen.
+///
+/// Presentation only. It's added on the render path and not by `releasePromptRegion`, so it disappears rather
+/// than piling up in scrollback behind every command you run.
+let withModeHint (state: AppState) (view: Tui.View) : Tui.View =
+  if Stdlib.List.isEmpty state.pageStack then
+    view
+  else
+    let hintRow =
+      Colors.dimText "old command mode  ·  `quit` returns to the workbench"
+    let rows = Stdlib.List.push view.rows hintRow
+    // The prompt's cursor is addressed against its own rows, so inserting a row above it moves it down one.
+    match view.cursor with
+    | Visible(row, column) ->
+      { view with rows = rows; cursor = Tui.Cursor.Visible(row + 1, column) }
+    | Hidden -> { view with rows = rows }
+
+
 let releasePromptRegion (state: AppState) : AppState =
   match state.promptTerminal with
   | None -> state
@@ -790,11 +813,9 @@ let runInteractiveLoop (state: AppState) : Int =
       match state.currentPage with
       | MainPrompt ->
         let promptView =
-          Prompt.Display.viewAtSize
-            state.prompt
-            location
-            hint
-            size
+          withModeHint
+            state
+            (Prompt.Display.viewAtSize state.prompt location hint size)
         match state.promptTerminal with
         | Some terminal ->
           let nextTerminal =
