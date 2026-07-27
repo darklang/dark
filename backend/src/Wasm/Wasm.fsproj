@@ -1,0 +1,56 @@
+<!-- Blazor WebAssembly host for the Darklang REPL. Standalone: NOT wired into
+     the main solution/build (it targets browser-wasm and needs the wasm-tools
+     workload). Build/publish it on its own — see README.md. -->
+<Project Sdk="Microsoft.NET.Sdk.BlazorWebAssembly">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <!-- must match the assembly name JS passes to DotNet.invokeMethodAsync in index.html -->
+    <AssemblyName>Darklang.Wasm</AssemblyName>
+    <Nullable>enable</Nullable>
+    <!-- Never let a legacy in-project publish directory become an input to a
+         later publish. Current output lives under repo-root/rundir. -->
+    <DefaultItemExcludes>$(DefaultItemExcludes);publish/**</DefaultItemExcludes>
+    <!-- size levers; AOT is slower to build but shrinks/speeds the result -->
+    <PublishTrimmed>true</PublishTrimmed>
+    <!-- <RunAOTCompilation>true</RunAOTCompilation> -->
+    <!-- SQLite is dragged in via LibParser/LibDB, although the browser only calls
+         LibDB's in-memory package manager;
+         skip native relinking so the P/Invoke table generator (which SDK-crashes on it)
+         doesn't run. (InvariantGlobalization would force native build, so it's left off.) -->
+    <WasmBuildNative>false</WasmBuildNative>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="Output.fs" />
+    <Compile Include="PmLookup.fs" />
+    <Compile Include="Repl.fs" />
+    <Compile Include="Program.fs" />
+  </ItemGroup>
+
+  <!-- The package snapshot (generated from the DB, see README) — force it into
+       the published wwwroot; the static-web-assets pipeline skips it otherwise. -->
+  <ItemGroup Condition="Exists('wwwroot/packages.snapshot')">
+    <Content Update="wwwroot/packages.snapshot" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly" Version="10.*" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.WebAssembly.DevServer"
+                      Version="10.*" PrivateAssets="all" />
+  </ItemGroup>
+
+  <!-- The runtime + parser. LibDB is currently referenced only for createInMemory;
+       the browser never opens SQLite. See the hosted-PM cleanup in Repl.fs. -->
+  <ItemGroup>
+    <ProjectReference Include="../Prelude/Prelude.fsproj" />
+    <ProjectReference Include="../LibExecution/LibExecution.fsproj" />
+    <ProjectReference Include="../LibParser/LibParser.fsproj" />
+    <ProjectReference Include="../LibSerialization/LibSerialization.fsproj" />
+    <ProjectReference Include="../LibDB/LibDB.fsproj" /> <!-- createInMemory (in-memory PM) -->
+    <ProjectReference Include="../Builtins/Builtins.Pure/Builtins.Pure.fsproj" />
+    <!-- .NET HttpClient runs over fetch() in the browser, so this set works in WASM -->
+    <ProjectReference Include="../Builtins/Builtins.Http.Client/Builtins.Http.Client.fsproj" />
+  </ItemGroup>
+
+</Project>
