@@ -117,6 +117,30 @@ let dropThroughFirstNewline (bytes: List<UInt8>) : List<UInt8> =
     else dropThroughFirstNewline remaining
 
 
+/// Read exactly `count` bytes from `fd`, or fewer only at end of file.
+///
+/// `Posix.fdRead` is one `read(2)` and may legally return fewer bytes than asked for. `readTailChunks`
+/// addresses the file by absolute offset, so a short read there would silently drop bytes out of the middle
+/// of the window and hand back lines that never existed. Loop instead. (`fdReadAll` above loops for the same
+/// reason.)
+let readFully
+  (fd: Int)
+  (count: Int)
+  (acc: List<Blob>)
+  : Result.Result<Blob, Posix.Error> =
+  if count <= 0 then
+    Stdlib.Result.Result.Ok(Stdlib.Blob.concat acc)
+  else
+    (Posix.fdRead fd count)
+    |> Stdlib.Result.andThen (fun chunk ->
+      let received = Stdlib.Blob.length chunk
+      if received == 0 then
+        // EOF: the file is shorter than the caller believed (it was truncated under us, say).
+        Stdlib.Result.Result.Ok(Stdlib.Blob.concat acc)
+      else
+        readFully fd (count - received) (Stdlib.List.append acc [ chunk ]))
+
+
 let readTailChunks
   (fd: Int)
   (cursor: Int)
@@ -134,7 +158,7 @@ let readTailChunks
 
     (Posix.fdSeekFromStart fd start)
     |> Stdlib.Result.andThen (fun _position ->
-      (Posix.fdRead fd bytesToRead)
+      (readFully fd bytesToRead [])
       |> Stdlib.Result.andThen (fun chunk ->
         readTailChunks
           fd
@@ -152,6 +176,8 @@ let readLastLines
   if count <= 0 then
     Stdlib.Result.Result.Ok []
   else
+    // Sampled before the open, so a file being appended to concurrently (the daemon log, which is the only
+    // caller) yields a slightly stale tail rather than the newest lines. Fine here; surprising elsewhere.
     (size path)
     |> Stdlib.Result.andThen (fun fileSize ->
       match Posix.openFile path (Posix.OpenFlags.rdonly ()) 0 with
