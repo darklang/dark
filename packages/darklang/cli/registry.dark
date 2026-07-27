@@ -1,0 +1,341 @@
+/// The command table: every CLI command, its aliases, help, and completion.
+///
+/// Part of `Darklang.Cli`.
+module Darklang.Cli
+
+module Registry =
+  type CommandHandler =
+    { name: String
+      description: String
+      aliases: List<String>
+      execute: AppState -> List<String> -> AppState
+      help: AppState -> AppState // CLEANUP we shouldn't need to return an AppState? Like a string would be fine...
+      complete: AppState -> List<String> -> List<Completion.CompletionItem> }
+
+  let allCommands () : List<CommandHandler> =
+    [ ("quit", "Exit the CLI", [ "exit"; "q" ], Quit.execute, Quit.help, Quit.complete)
+      ("help", "Show help for commands", [ "commands"; "?"; "--help"; "-h" ], Help.execute, Help.help, Help.complete)
+      ("config", "Manage CLI configuration", [], Config.execute, Config.help, Config.complete)
+      ("install", "Install CLI globally", [], Installation.Install.execute, Installation.Install.help, Installation.Install.complete)
+      ("update", "Update CLI to latest version", [ "upgrade" ], Installation.Update.execute, Installation.Update.help, Installation.Update.complete)
+      ("uninstall", "Remove CLI installation", [], Installation.Uninstall.execute, Installation.Uninstall.help, Installation.Uninstall.complete)
+      ("install-status", "Show installation status", [], Installation.Status.execute, Installation.Status.help, Installation.Status.complete)
+      ("version", "Display CLI version", [ "--version"; "-v" ], Installation.Version.execute, Installation.Version.help, Installation.Version.complete)
+      ("nav", "Navigate between packages, modules, and entities", [ "cd" ], Packages.Nav.execute, Packages.Nav.help, Packages.Nav.complete)
+      ("ls", "List package contents", [ "dir" ], Packages.Listing.execute, Packages.Listing.help, Packages.Listing.complete)
+      ("back", "Go back to previous location", [], Packages.Back.execute, Packages.Back.help, Packages.Back.complete)
+      ("clear", "Clear the screen", [ "cls" ], Cli.Clear.execute, Cli.Clear.help, Cli.Clear.complete)
+      ("run-script", "Run a Dark script file", [ "run" ], Cli.Run.execute, Cli.Run.help, Cli.Run.complete)
+      ("eval", "Evaluate a Dark expression", [], Cli.Eval.execute, Cli.Eval.help, Cli.Eval.complete)
+      ("scripts", "Store, manage, and run Dark scripts", [], Cli.Scripts.execute, Cli.Scripts.help, Cli.Scripts.complete)
+      ("view", "View details of a module, type, value, or fns", [], Packages.View.execute, Packages.View.help, Packages.View.complete)
+      ("tree", "Display package hierarchy in tree format", [ "packages" ], Packages.Tree.execute, Packages.Tree.help, Packages.Tree.complete)
+      ("search", "Search for packages, types, functions, and values", [], Packages.Search.execute, Packages.Search.help, Packages.Search.complete)
+      ("deps", "Show dependencies and dependents", [ "dependencies" ], Cli.Deps.execute, Cli.Deps.help, Cli.Deps.complete)
+      ("val", "Create a new value", [], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
+      ("let", "Create a new value (alias for val)", [], Packages.Value.execute, Packages.Value.help, Packages.Value.complete)
+      ("fn", "Create a new function", [ "function" ], Packages.Fn.execute, Packages.Fn.help, Packages.Fn.complete)
+      ("type", "Create a new type", [], Packages.Type.execute, Packages.Type.help, Packages.Type.complete)
+      ("hash", "Show hash of a package item", [], Packages.Hash.execute, Packages.Hash.help, Packages.Hash.complete)
+      // SCM commands
+      ("status", "Show uncommitted changes", [ "wip"; "changes" ], SCM.Status.execute, SCM.Status.help, SCM.Status.complete)
+      // `commits` is the name, `log` an alias: it lists commits, and every other noun in this CLI says what
+      // it lists (`ops`, `branch`, `conflicts`, `instances`). `log` only reads as "commits" if you've used git.
+      ("commits", "Show commit history", [ "log"; "history" ], SCM.Log.execute, SCM.Log.help, SCM.Log.complete)
+      ("commit", "Commit uncommitted changes", [], SCM.Commit.execute, SCM.Commit.help, SCM.Commit.complete)
+      ("discard", "Discard uncommitted changes", [ "reset" ], SCM.Discard.execute, SCM.Discard.help, SCM.Discard.complete)
+      ("show", "Show commit details", [], SCM.ShowCommit.execute, SCM.ShowCommit.help, SCM.ShowCommit.complete)
+      ("branch", "Manage branches", [ "br" ], SCM.Branch.execute, SCM.Branch.help, SCM.Branch.complete)
+      ("rebase", "Rebase current branch onto parent", [], SCM.Rebase.execute, SCM.Rebase.help, SCM.Rebase.complete)
+      ("merge", "Merge current branch into parent", [], SCM.Merge.execute, SCM.Merge.help, SCM.Merge.complete)
+      ("builtins", "List all builtin functions", [], Builtins.execute, Builtins.help, Builtins.complete)
+      ("find-values", "Find values of a given type", [], Packages.FindValues.execute, Packages.FindValues.help, Packages.FindValues.complete)
+      ("agent", "AI assistant workflows (ask/code/review/fix/diff)", [ "ai" ], AI.Agent.execute, AI.Agent.help, AI.Agent.complete)
+      ("serve", "Start an HTTP server", [ "http-server" ], Http.Serve.execute, Http.Serve.help, Http.Serve.complete)
+      ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Docs.Command.execute, Docs.Command.help, Docs.Command.complete)
+      ("undo", "Undo WIP changes to a fn/type/value", [], Packages.Undo.execute, Packages.Undo.help, Packages.Undo.complete)
+      ("deprecate", "Mark a fn/type/value as deprecated", [], Packages.Deprecate.execute, Packages.Deprecate.help, Packages.Deprecate.complete)
+      ("delete", "Take a fn/type/value off the shelf (sugar for deprecate --kind obsolete)", [], Packages.Delete.execute, Packages.Delete.help, Packages.Delete.complete)
+      ("db", "Manage databases", [], Packages.DB.execute, Packages.DB.help, Packages.DB.complete)
+      ("outliner", "Interactive tree outliner", [ "tree-exp" ], Outliner.App.execute, Outliner.App.help, Outliner.App.complete)
+      ("export-seed", "Export minimal seed.db from current database", [], ExportSeed.execute, ExportSeed.help, ExportSeed.complete)
+      ("traces", "List and view execution traces", [ "trace" ], Tracing.execute, Tracing.help, Tracing.complete)
+      ("review", "Review branch changesets", [], SCM.Review.App.execute, SCM.Review.App.help, SCM.Review.App.complete)
+      ("conflicts", "Review + resolve sync divergences", [], Conflicts.execute, Conflicts.help, Conflicts.complete)
+      ("views", "Browse and preview CLI views", [], Apps.Views.App.execute, Apps.Views.App.help, Apps.Views.App.complete)
+      ("login", "Log into an account", [], Auth.Login.execute, Auth.Login.help, Auth.Login.complete)
+      ("logout", "Clear the active account", [], Auth.Logout.execute, Auth.Logout.help, Auth.Logout.complete)
+      ("caps", "View + control this instance's capability grant (default NONE)", [ "capabilities" ], Caps.Command.execute, Caps.Command.help, Caps.Command.complete)
+      ("devices", "Your tailnet devices (status / serve / ping), over the `tailscale` CLI", [], Devices.execute, Devices.help, Devices.complete)
+      // CLEANUP(instances-command): `sync` currently mixes the VERB (sync now) with instance MANAGEMENT
+      // (connect / disconnect / status / fetch). Those belong in a dedicated `instances` command with
+      // subcommands — `instances add <url>` / `remove <name|url>` / `list` / `rename <name>` (the `--as`
+      // custom-name idea) — so `dark sync` is just "pull now" and the instance list has one clear home. It
+      // would also fix the connect/disconnect help reading `<url>` while everything else deals in names
+      // (disconnect already resolves a name via `resolvePeer`; connect stays URL-only since the instance is new).
+      ("sync", "Share package changes with other Darklang instances", [], Sync.execute, Sync.help, Sync.complete)
+      ("ops", "Inspect this instance's op log", [], Ops.execute, Ops.help, Ops.complete)
+      ("apps", "List, install, and manage apps (daemons, foreground, UI)", [], Apps.Command.execute, Apps.Command.help, Apps.Command.complete)
+      ("text-editor", "Demo: a tiny text editor (the outliner's widget surfaced as an app)", [], Apps.Examples.TextEdit.execute, Apps.Examples.TextEdit.help, Apps.Examples.TextEdit.complete)
+      ("workbench", "Open the workbench — a framed, navigable package tree (CLI-UX redesign)", [ "wb" ], Apps.Workbench.App.execute, Apps.Workbench.App.help, Apps.Workbench.App.complete) ]
+    |> Stdlib.List.map(
+      // CLEANUP nitpicky: swap help and complete
+      fun (name, desc, aliases, execute, help, complete) ->
+        CommandHandler
+          { name = name
+            description = desc
+            aliases = aliases
+            execute = execute
+            help = help
+            complete = complete }
+      )
+
+
+  let findCommandIn (commands: List<CommandHandler>) (name: String) : CommandHandler =
+
+    let allMatches = // CLEANUP use a Set?
+      let nameMatches =
+        commands
+        |> Stdlib.List.filter  (fun cmd -> cmd.name == name)
+
+      let aliasMatches =
+        commands
+        |> Stdlib.List.filter (fun cmd ->
+          Stdlib.List.any cmd.aliases (fun alias -> alias == name))
+
+      Stdlib.List.append nameMatches aliasMatches
+
+    match allMatches with
+    | [handler] -> handler
+    | handler :: _ -> handler // CLEANUP?
+    | [] ->
+      CommandHandler
+        { name = name
+          description = "Unknown command"
+          aliases = []
+          execute = fun state args ->
+            Stdlib.printLine (View.formatError $"Unknown command: {name}")
+            Stdlib.printLine "Use 'help' to see available commands."
+            state
+          help = fun state ->
+            Stdlib.printLine $"No help available for command: {name}"
+            state
+          complete = fun _state _args -> [] }
+
+  let executeCommand (name: String) (state: AppState) (args: List<String>) : AppState =
+    let handler = findCommandIn state.allCommandsCache name
+
+    let hasHelpFlag =
+      (Stdlib.List.member args "--help") || (Stdlib.List.member args "-h")
+
+    if hasHelpFlag then
+      executeCommandHelp name state
+    else
+      let ex = handler.execute
+      ex state args
+
+  let executeCommandHelp (name: String) (state: AppState) : AppState =
+    let handler = findCommandIn state.allCommandsCache name
+    let help = handler.help
+    let _ = help state
+
+    // Automatically append alias information if aliases exist
+    match handler.aliases with
+    | [] -> state
+    | aliases ->
+      let aliasText = Stdlib.String.join aliases ", "
+      Stdlib.printLine ""
+      Stdlib.printLine $"Aliases: {aliasText}"
+      state
+
+  // Command groups organized by category (shared between compact and detailed views)
+  let commandGroups () : List<(String * List<String>)> =
+    [ ("Packages", [ "nav"; "ls"; "view"; "tree"; "back"; "search"; "deps"; "val"; "let"; "fn"; "type"; "hash"; "db"; "deprecate"; "delete" ])
+      ("SCM",
+       [ "status"; "commits"; "commit"; "discard"; "show"; "ops"; "branch"; "rebase"; "merge"; "review" ])
+      ("Execution", [ "run"; "eval"; "scripts" ])
+      ("Installation", [ "install"; "update"; "uninstall"; "version" ])
+      ("AI", [ "agent" ])
+      ("Security", [ "caps" ])
+      ("Network", [ "devices"; "sync"; "conflicts" ])
+      ("Apps", [ "apps" ])
+      ("Utilities", [ "clear"; "help"; "docs"; "quit"; "builtins"; "export-seed"; "views" ]) ]
+
+  // Helper function to format a group of commands with details
+  let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
+    let formattedCommands =
+      commandNames
+      |> Stdlib.List.filterMap (fun name ->
+        match Stdlib.List.findFirst commands (fun cmd -> cmd.name == name) with
+        | Some cmd ->
+          match cmd.aliases with
+          | [] -> Stdlib.Option.Option.Some $"  {cmd.name} - {cmd.description}"
+          | aliases ->
+            let aliasText = Stdlib.String.join aliases ", "
+            Stdlib.Option.Option.Some $"  {cmd.name} ({aliasText}) - {cmd.description}"
+        | None -> Stdlib.Option.Option.None)
+    let commandLines = Stdlib.String.join formattedCommands "\n"
+    $"{groupName}:\n{commandLines}"
+
+  // Helper function to format a group of commands compactly (just names)
+  let formatCompactGroup (groupName: String) (cmdNames: List<String>) : String =
+    let namesList = Stdlib.String.join cmdNames ", "
+    $"{groupName}: {namesList}"
+
+  // Compact command list for welcome screen (with logo, minimal text)
+  let getCompactCommandList () : String =
+    let groups = commandGroups ()
+
+    let formattedGroups =
+      groups
+      |> Stdlib.List.map (fun (groupName, cmdNames) ->
+        formatCompactGroup groupName cmdNames)
+
+    let welcome = "Welcome to Darklang!"
+    let availableCommands = "Commands:"
+
+    let groupsWithFooter =
+      Stdlib.List.append formattedGroups [ ""; "Type 'help' for detailed command info" ]
+
+    let allLines =
+      Stdlib.List.append [ welcome; ""; availableCommands; "" ] groupsWithFooter
+
+    Logo.combineLogoAndText Logo.logo allLines Colors.logoColor
+
+  // Detailed command list for help command (no logo, full details)
+  let getDetailedCommandList () : String =
+    let commands = allCommands ()
+    let groups = commandGroups ()
+
+    // Format command groups with details
+    let formattedGroups =
+      groups
+      |> Stdlib.List.map (fun (groupName, cmdNames) ->
+        formatCommandGroup groupName cmdNames commands)
+
+    // Find any ungrouped commands
+    let allGroupedCommands =
+      groups
+      |> Stdlib.List.map (fun (_groupName, cmdNames) -> cmdNames)
+      |> Stdlib.List.flatten
+    let ungroupedCommands =
+      commands
+      |> Stdlib.List.filter (fun cmd ->
+        match Stdlib.List.findFirst allGroupedCommands (fun name -> name == cmd.name) with
+        | Some _ -> false
+        | None -> true)
+      |> Stdlib.List.map (fun cmd ->
+        match cmd.aliases with
+        | [] -> $"  {cmd.name} - {cmd.description}"
+        | aliases ->
+          let aliasText = Stdlib.String.join aliases ", "
+          $"  {cmd.name} ({aliasText}) - {cmd.description}")
+
+    let finalGroups =
+      if Stdlib.List.isEmpty ungroupedCommands then
+        formattedGroups
+      else
+        let ungroupedGroup =
+          let ungroupedLines = Stdlib.String.join ungroupedCommands "\n"
+          $"Other:\n{ungroupedLines}"
+        Stdlib.List.append formattedGroups [ungroupedGroup]
+
+    let groupsText = Stdlib.String.join finalGroups "\n\n"
+
+    let footer = "Workflow: fn <name> → run <name> → status → commit\nhelp <command> for details. AI agents: docs for-ai"
+
+    groupsText ++ "\n\n" ++ footer
+
+
+  let getCompletions (state: AppState) (input: String) : List<Completion.CompletionItem> =
+    let parsed = Completion.parseInput input
+
+    if parsed.isCompletingCommand then
+      // Completing command name
+      let partial = Completion.getPartialCompletion parsed
+
+      let options = state.commandOptionsCache
+
+      let filtered =
+        if Stdlib.String.isEmpty partial then
+          options
+        else
+          Stdlib.List.filter options (fun name -> Stdlib.String.startsWith name partial)
+
+      filtered |> Stdlib.List.map Completion.simple
+    else
+      // Completing command arguments
+      let handler = findCommandIn state.allCommandsCache parsed.commandName
+      let completeFunc = handler.complete
+
+      // Split args into completed args and partial (last arg)
+      // parseInput appends "" for trailing space, so this always works:
+      //   "branch switch " → args=["switch",""], completedArgs=["switch"], partial=""
+      //   "branch sw"      → args=["sw"],        completedArgs=[],         partial="sw"
+      //   "branch "        → args=[],             completedArgs=[],         partial=""
+      let (completedArgs, partial) =
+        match Stdlib.List.last parsed.args with
+        | Some lastArg -> (Stdlib.List.dropLast parsed.args, lastArg)
+        | None -> ([], "")
+
+      // Get all completions for the current position
+      let completions = completeFunc state completedArgs
+
+      if Stdlib.String.isEmpty partial then
+        completions
+      else
+        // Filter by what the user has typed so far
+        let filtered =
+          completions
+          |> Stdlib.List.filter (fun item ->
+            Stdlib.String.startsWith item.value partial)
+
+        // If centralized filtering found nothing, try direct call as fallback
+        // (supports commands with smart matching like path traversal)
+        match filtered with
+        | _ :: _ -> filtered
+        | [] -> completeFunc state parsed.args
+
+  let getCompletionHint (state: AppState) (input: String) : String =
+    let completions = getCompletions state input
+    let parsed = Completion.parseInput input
+
+    let partial =
+      if parsed.isCompletingCommand then
+        parsed.commandName
+      else
+        match Stdlib.List.last parsed.args with
+        | Some lastArg -> lastArg
+        | None -> ""
+
+    let completionValues = completions |> Stdlib.List.map (fun item -> item.value)
+    Completion.getHintFromCompletions partial completionValues
+
+
+module Commands =
+  let parseAndExecute (state: AppState) (input: String) : AppState =
+    let trimmed = Stdlib.String.trim input
+    let parts =
+      (Stdlib.String.split trimmed " ")
+      |> Stdlib.List.filter (fun s -> s != "")
+
+    match parts with
+    | [] -> state
+    | commandName :: args ->
+      Registry.executeCommand commandName state args
+
+
+/// Release the retained prompt before appending command output or handing the
+/// terminal to another page.
+///
+/// The region shrinks to the prompt rows alone, so the submitted command stays
+/// in scrollback while the completion hint does not.
+/// Prepend the "you got here from somewhere, here's the way back" row when this prompt sits on a page stack.
+///
+/// This used to be the right-hand side of the bottom status bar. The status bar is gone: it reserved the last
+/// terminal row with a scroll region, and a scroll region and an inline prompt region fight over the same
+/// rows. A row directly above the prompt is arguably the better home anyway, since it's next to what you're
+/// typing rather than parked at the far edge of the screen.
+///
+/// Presentation only. It's added on the render path and not by `releasePromptRegion`, so it disappears rather
+/// than piling up in scrollback behind every command you run.
