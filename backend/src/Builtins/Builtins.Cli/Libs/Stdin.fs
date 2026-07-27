@@ -12,6 +12,45 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 
 open Builtin.Shortcuts
 
+/// Terminal resize, so a full-screen view can repaint without waiting for a keystroke.
+///
+/// The render loop samples the terminal size at the top of each pass, but the pass blocks on a keypress, so
+/// resizing while idle left a stale frame until you pressed something. SIGWINCH sets a flag; `readKeyOrPaste`
+/// polls it and reports a keypress nobody handles, which is enough to send the loop round again and repaint
+/// at the new size.
+module private Resize =
+  let mutable private pending = false
+
+  let private registration =
+    lazy
+      (try
+        Some(
+          System.Runtime.InteropServices.PosixSignalRegistration.Create(
+            System.Runtime.InteropServices.PosixSignal.SIGWINCH,
+            fun ctx ->
+              // Don't cancel: SIGWINCH has no default action worth suppressing, and cancelling it on a
+              // platform that reuses the handler for something else would be rude.
+              pending <- true
+          )
+        )
+       with _ ->
+         // Windows, or a runtime without POSIX signals. Resize just keeps its old behaviour there.
+         None)
+
+  /// Start listening. Idempotent, and safe to call from the read path.
+  let arm () : unit =
+    registration.Force()
+    |> ignore<System.Runtime.InteropServices.PosixSignalRegistration option>
+
+  /// Consume a pending resize, if there is one.
+  let takePending () : bool =
+    if pending then
+      pending <- false
+      true
+    else
+      false
+
+
 /// Reads the next keypress, or the whole text of a paste when one is detected.
 ///
 /// Two things queue a flood of input: a paste (a run of printable characters)
@@ -42,26 +81,39 @@ let private readKeyOrPaste () : ConsoleKeyInfo * string option =
     (ConsoleKeyInfo('\u001b', ConsoleKey.Escape, false, false, false), None)
   else
 
-    let first = Console.ReadKey true
-    if not Console.KeyAvailable then
-      (first, None)
+    Resize.arm ()
+
+    // Poll rather than blocking outright, so a resize can wake the loop. The interval is short enough to feel
+    // instant on a drag-resize and long enough to cost nothing while idle.
+    let mutable resized = false
+    while not Console.KeyAvailable && not resized do
+      if Resize.takePending () then resized <- true else Threading.Thread.Sleep 15
+
+    if resized then
+      // A key no view acts on: the loop goes round, re-samples the terminal, and repaints.
+      (ConsoleKeyInfo('\u0000', ConsoleKey.NoName, false, false, false), None)
     else
-      let sb = System.Text.StringBuilder()
-      let append (text : string) : unit =
-        sb.Append text |> ignore<System.Text.StringBuilder>
-      let mutable last = first
-      let mutable printableKey = if isPrintable first then Some first else None
-      pasteText first |> Option.iter append
-      while Console.KeyAvailable do
-        let k = Console.ReadKey true
-        last <- k
-        pasteText k |> Option.iter append
-        if isPrintable k then printableKey <- Some k
-      let pasted = sb.ToString()
-      if pasted = "" then
-        (last, None) // only control keys queued, e.g. a scroll
+
+      let first = Console.ReadKey true
+      if not Console.KeyAvailable then
+        (first, None)
       else
-        (Option.defaultValue last printableKey, Some pasted)
+        let sb = System.Text.StringBuilder()
+        let append (text : string) : unit =
+          sb.Append text |> ignore<System.Text.StringBuilder>
+        let mutable last = first
+        let mutable printableKey = if isPrintable first then Some first else None
+        pasteText first |> Option.iter append
+        while Console.KeyAvailable do
+          let k = Console.ReadKey true
+          last <- k
+          pasteText k |> Option.iter append
+          if isPrintable k then printableKey <- Some k
+        let pasted = sb.ToString()
+        if pasted = "" then
+          (last, None) // only control keys queued, e.g. a scroll
+        else
+          (Option.defaultValue last printableKey, Some pasted)
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "stdinReadKey" 0

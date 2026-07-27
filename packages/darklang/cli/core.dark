@@ -794,10 +794,8 @@ let runInteractiveLoop (state: AppState) : Int =
       ()
 
     let location = locationStr state
-    // TODO: repaint on resize, not just on the next keystroke. The session already forces a full redraw when
-    // the size changes, but this is the only place we sample it and the loop blocks on readKey below, so
-    // resizing while idle leaves a stale frame until you press something. Needs SIGWINCH (or a readKey that
-    // can be interrupted); the rendering side is ready for it.
+    // Sampled once per pass. A resize while idle still repaints: SIGWINCH wakes the blocking read (see
+    // Stdin.fs) with a keypress nobody handles, which sends us round again and re-samples here.
     let size = Tui.TerminalSession.currentSize ()
 
     let tHint = if state.telemetryEnabled then Telemetry.now () else 0
