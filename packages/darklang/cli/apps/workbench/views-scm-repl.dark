@@ -1,4 +1,4 @@
-/// The SCM and REPL view bodies, plus the pipe-stepping that fakes live values.
+/// The SCM and REPL view bodies, plus the REPL's session-binding machinery.
 ///
 /// Part of `Darklang.Cli.Apps.Workbench.App`.
 module Darklang.Cli.Apps.Workbench.App
@@ -39,8 +39,10 @@ let renderScmHeader (state: State) (region: UI.Layout.Region) : List<UI.Layout.S
 let renderScm (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   let headerRows = 4
   let headerRegion = UI.Layout.Region { top = region.top; left = region.left; rows = 2; cols = region.cols }
-  let _ = renderScmHeader state headerRegion
-  let _ = renderSectionSwitcher region 2 [ "Changes"; "History"; "Conflicts"; "Branches" ] state.scmSection
+  // These return spans; they used to print as a side effect. Discarding the result renders a blank band.
+  let headerSpans = renderScmHeader state headerRegion
+  let switcherSpans =
+    renderSectionSwitcher region 2 [ "Changes"; "History"; "Conflicts"; "Branches" ] state.scmSection
   let bodyRegion =
     UI.Layout.Region
       { top = region.top + headerRows
@@ -52,7 +54,8 @@ let renderScm (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
     else if state.scmSection == 2 then ("Conflicts", Colors.colorize Colors.green "✓ nothing to resolve - in sync")
     else if state.scmSection == 3 then ("Branches", Colors.dimText "no branches")
     else ("Changes", Colors.colorize Colors.green "✓ working tree clean - nothing to commit")
-  splitListPreview state bodyRegion title "Detail" empty
+  Stdlib.List.flatten
+    [ headerSpans; switcherSpans; splitListPreview state bodyRegion title "Detail" empty ]
 
 /// Evaluate `expr` as written, with whatever the evaluator prints on the way captured rather than let loose
 /// on the frame (see `captureOutputAnd` - a runtime error prints a call-stack header, which would scroll the

@@ -72,8 +72,9 @@ let renderDevices (state: State) (region: UI.Layout.Region) : List<UI.Layout.Spa
 /// The AI view: agents dark is running (preview data for now) with a thread detail. `a` asks the agent.
 /// Prompts library + real managed-agent state come later.
 let renderAI (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
-  // Section switcher (Agents / Prompts), Tab cycles it - same shape as SCM's.
-  let _ = renderSectionSwitcher region 0 [ "Agents"; "Prompts" ] state.aiSection
+  // Section switcher (Agents / Prompts), Tab cycles it - same shape as SCM's. Returns spans; discarding
+  // the result renders a blank band.
+  let switcherSpans = renderSectionSwitcher region 0 [ "Agents"; "Prompts" ] state.aiSection
   let bodyRegion =
     UI.Layout.Region
       { top = region.top + 2
@@ -83,7 +84,8 @@ let renderAI (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   let (leftTitle, previewTitle, empty) =
     if state.aiSection == 1 then ("Prompts  ·  (mock data)", "Prompt", Colors.dimText "no prompts")
     else ("Agents  ·  (mock data)", "Thread", Colors.dimText "no agents - press a to ask the agent")
-  splitListPreview state bodyRegion leftTitle previewTitle empty
+  Stdlib.List.flatten
+    [ switcherSpans; splitListPreview state bodyRegion leftTitle previewTitle empty ]
 
 /// The Calendar view (mock) - a month grid over cron fire-times + date-typed values, with today's agenda. A
 /// personal, login-gated view; greenfield, so this is a stand-in for the real system to come.
