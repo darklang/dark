@@ -1,4 +1,13 @@
 /// Unicode-aware text measurements for terminal UI layout.
+///
+/// `displayWidth` counts terminal columns; `styledWidth` does the same while ignoring SGR sequences. Use
+/// these for anything positional. `Stdlib.String.length` counts extended grapheme clusters, which is right
+/// for "how many characters is this" and wrong for "how far does this reach across the screen": `界` is one
+/// grapheme in two columns, and so is a ZWJ emoji. Because a Dark `Char` is a grapheme cluster, clipping
+/// can't split a flag or a family emoji in half.
+///
+/// This module is also the CLI's escape-sanitizing boundary: rows are cleaned on the way out, so a package
+/// name or description can't move the cursor or reset the terminal.
 module Darklang.Cli.Tui.Text
 
 
