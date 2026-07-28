@@ -10,8 +10,8 @@ let allTests (): List<String * TestFunction> =
     ("Version", fun () -> testVersionCommand ())
     ("Status", fun () -> testStatusCommand ())
 
-    ("Eval Bool.and", fun () -> testRunBoolAnd ())
-    ("Eval Int64.add", fun () -> testRunInt64Add ())
+    ("Eval Bool.and", fun () -> testEvalBoolAnd ())
+    ("Eval Int64.add", fun () -> testEvalInt64Add ())
 
     ("Eval String Length", fun () -> testEvalStringLength ())
     ("Eval List Length", fun () -> testEvalListLength ())

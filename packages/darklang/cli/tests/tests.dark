@@ -37,14 +37,19 @@ let testHelpCommand (): TestResult =
 
   // Help is grouped by category now, so assert on the groups and a command from a few of them rather than
   // on a heading that no longer exists.
+  //
+  // Assert the RENDERED ROW, not the bare word. `contains output "nav"` passed on the word "navigable" in
+  // the workbench's description, so it would have stayed green with the `nav` command deleted; "help",
+  // "version" and "status" all appear in other commands' descriptions too. The row shape
+  // (`  name (aliases) - `) is what `formatCommandGroup` emits and is unique per command.
   if Stdlib.String.contains output "Packages:" &&
-      Stdlib.String.contains output "nav" &&
-      Stdlib.String.contains output "help" &&
-      Stdlib.String.contains output "version" &&
-      Stdlib.String.contains output "status" then
+      Stdlib.String.contains output "  nav (cd) -" &&
+      Stdlib.String.contains output "  ls (dir) -" &&
+      Stdlib.String.contains output "  version (--version, -v) -" &&
+      Stdlib.String.contains output "  status (wip, changes) -" then
       TestResult.Pass
   else
-    TestResult.Fail "Expected help text grouped by category, listing nav/help/version/status"
+    TestResult.Fail "Expected help grouped by category, with the nav/ls/version/status rows rendered"
 
 
 let testVersionCommand (): TestResult =
@@ -66,7 +71,7 @@ let testStatusCommand (): TestResult =
     TestResult.Fail "Expected status output with branch and uncommitted change summary"
 
 
-let testRunBoolAnd (): TestResult =
+let testEvalBoolAnd (): TestResult =
   // `run` is for script files now; calling a package function is `eval`'s job, without the `@`.
   let output = runWithCommand ["eval"; "Stdlib.Bool.and true false"]
   if output == "false" then
@@ -75,7 +80,7 @@ let testRunBoolAnd (): TestResult =
     TestResult.Fail $"Expected 'false', got '{output}'"
 
 
-let testRunInt64Add (): TestResult =
+let testEvalInt64Add (): TestResult =
   let output = runWithCommand ["eval"; "Stdlib.Int64.add 5L 3L"]
   if output == "8" then
     TestResult.Pass
@@ -110,7 +115,6 @@ let testListFunctions (): TestResult =
 
 let testViewFunction (): TestResult =
   let output = runWithCommand ["view"; "Stdlib.List.head"]
-  Builtin.debug "output" output
   if Stdlib.String.contains output "head"
     && Stdlib.String.contains output "Option"
     && Stdlib.String.contains output "->"
@@ -131,20 +135,22 @@ let testListTypes (): TestResult =
 
 let testHelpForRun (): TestResult =
   let output = runWithCommand ["help"; "run"]
-  if Stdlib.String.contains output "run" &&
-      (Stdlib.String.contains output "function" || Stdlib.String.contains output "execute") then
-      TestResult.Pass
+  // `contains output "run"` is satisfied by the unknown-command fallback ("No help available for command:
+  // run"), so it can't tell "help worked" from "help failed". The usage line is topic-unique, and it also
+  // proves the `run` alias resolved to `run-script`, which is the rename this branch made.
+  if Stdlib.String.contains output "Usage: run-script" then
+    TestResult.Pass
   else
-    TestResult.Fail "Expected help text for 'run' command"
+    TestResult.Fail "Expected `help run` to resolve the alias and print run-script's usage"
 
 
 let testHelpForLs (): TestResult =
   let output = runWithCommand ["help"; "ls"]
-  if Stdlib.String.contains output "ls" &&
-      (Stdlib.String.contains output "list" || Stdlib.String.contains output "List") then
-      TestResult.Pass
+  // Same reasoning as `help run`: assert something only the real topic prints.
+  if Stdlib.String.contains output "Usage: ls" then
+    TestResult.Pass
   else
-    TestResult.Fail "Expected help text for 'ls' command"
+    TestResult.Fail "Expected `help ls` to print ls's usage"
 
 
 let testEvalSimpleExpression (): TestResult =
