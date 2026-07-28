@@ -97,11 +97,20 @@ let handleInputKey
   (state: State)
   (inp: InputState)
   (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
   (keyChar: Stdlib.Option.Option<String>)
   : Step =
   // Input mode: type into the single-line field; Enter runs the action, Esc cancels.
+  //
+  // ^u clears the field, readline-style. These prompts pre-fill (the filter with the current filter, rename
+  // with the current name), so without it "replace what's here" meant one backspace per character.
+  if modifiers.ctrl && key == Stdlib.Cli.Stdin.Key.Key.U then
+    Step.Continue { state with input = Stdlib.Option.Option.Some { inp with text = "" }; completionSel = 0 }
+  else
   match key with
   | Enter -> performInputAction state inp
+  // Cancel, not clear: Escape closes the prompt and changes nothing, which is what it means in every other
+  // input mode here. An active filter survives it - `f`, `^u`, ⏎ is how you drop one.
   | Escape -> Step.Continue { state with input = Stdlib.Option.Option.None }
   | Backspace ->
     let t = inp.text

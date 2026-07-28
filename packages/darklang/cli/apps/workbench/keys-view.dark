@@ -304,7 +304,7 @@ let handleKey
     | Some es -> handleEditorKey state es key modifiers keyChar
     | None ->
       match state.input with
-      | Some inp -> handleInputKey state inp key keyChar
+      | Some inp -> handleInputKey state inp key modifiers keyChar
       | None ->
         match state.reading with
         | Some content -> handleReaderKey state content key keyChar
