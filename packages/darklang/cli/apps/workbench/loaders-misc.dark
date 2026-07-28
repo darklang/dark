@@ -254,8 +254,29 @@ let itemsForView
 /// Reload the CURRENT view's item list, i.e. `itemsForView` fed the live state. This is the "refresh what I'm
 /// looking at" call every mutating action (write / rename / branch op / section switch) makes; naming it once
 /// keeps those call sites to a single line instead of the six-argument spell.
+/// Narrow a list by the active filter, case-insensitively. "" narrows nothing.
+///
+/// Items first, filter second, so `items |> applyFilter f` reads correctly: Dark's `|>` puts the piped value
+/// in the FIRST parameter, the opposite of F#.
+let applyFilter (items: List<BodyItem>) (filter: String) : List<BodyItem> =
+  if filter == "" then
+    items
+  else
+    let needle = Stdlib.String.toLowercase filter
+    items |> Stdlib.List.filter (fun it -> Stdlib.String.contains (Stdlib.String.toLowercase it.name) needle)
+
+/// Reload the current view's items, keeping any active filter applied.
+///
+/// The filter used to be applied once, where you typed it, and nowhere else - so every later reload of the
+/// same list (commit, discard, rename, save) silently widened it back to everything while the title still
+/// said "filter: foo". Applying it here makes it a property of the state rather than a one-shot, which is the
+/// only way the ~17 reload sites stay correct.
+///
+/// Switching to a DIFFERENT list is the other case, and those sites clear `filter` instead: a filter you
+/// typed for Changes has no business narrowing History.
 let reloadItems (state: State) : List<BodyItem> =
   itemsForView state.activeView state.branchId state.location state.scmSection state.aiSection state.matterLens
+  |> applyFilter state.filter
 
 
 // ── Rendering ──

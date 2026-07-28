@@ -34,6 +34,7 @@ let handleViewKey
             { state with
                 branchId = b.id
                 items = itemsForView vSCM b.id state.location state.scmSection state.aiSection state.matterLens
+                filter = ""
                 message = "switched to " ++ b.name }
         | None -> Step.Continue state
       else Step.Continue state
@@ -75,14 +76,18 @@ let handleViewKey
         { state with
             scmSection = ns
             items = itemsForView vSCM state.branchId state.location ns state.aiSection state.matterLens
-            selected = 0 }
+            selected = 0
+            detailScroll = 0
+            filter = "" }
     else if state.activeView == vAI then
       let ns = if state.aiSection >= 1 then 0 else 1
       Step.Continue
         { state with
             aiSection = ns
             items = itemsForView vAI state.branchId state.location state.scmSection ns state.matterLens
-            selected = 0 }
+            selected = 0
+            detailScroll = 0
+            filter = "" }
     else Step.Continue { state with focus = UI.SplitPane.toggle state.focus }
   | Escape ->
     // Escape just leaves. This is the whole experience; there's no classic prompt to fall back to,
@@ -168,7 +173,9 @@ let handleViewKey
           { state with
               matterLens = nl
               items = itemsForView vMatter state.branchId state.location state.scmSection state.aiSection nl
-              selected = 0 }
+              selected = 0
+              detailScroll = 0
+              filter = "" }
       else Step.Continue state
     | Some "f" ->
       // Scratch: clear the log. Elsewhere: open a find-as-you-type filter for the current list.

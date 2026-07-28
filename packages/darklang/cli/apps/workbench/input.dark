@@ -98,6 +98,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
               branchId = parentId
               items = itemsForView state.activeView parentId state.location state.scmSection state.aiSection state.matterLens
               selected = 0
+              filter = ""
               message = "merged into parent" }
       | Error e ->
         Step.Continue
@@ -218,21 +219,15 @@ let performInputAction (state: State) (inp: InputState) : Step =
         |> Stdlib.List.fold state (fun st stmt -> applyReplStatement st stmt)
       Step.Continue { ran with input = Stdlib.Option.Option.None }
   else if inp.action == "filter" then
-    // In-view filter: narrow the current list to items whose name contains the text (case-insensitive).
-    let f = Stdlib.String.trim inp.text
-    let full = reloadItems state
-    let narrowed =
-      if f == "" then full
-      else
-        full
-        |> Stdlib.List.filter (fun it ->
-          Stdlib.String.contains (Stdlib.String.toLowercase it.name) (Stdlib.String.toLowercase f))
+    // Record the filter, then reload through the ordinary path - `reloadItems` applies it, so this is the
+    // same code every other reload runs and can't drift from it.
+    let filtered = { state with filter = Stdlib.String.trim inp.text }
     Step.Continue
-      { state with
+      { filtered with
           input = Stdlib.Option.Option.None
-          filter = f
-          items = narrowed
-          selected = 0 }
+          items = reloadItems filtered
+          selected = 0
+          detailScroll = 0 }
   else if inp.action == "branch-create" then
     let b = Darklang.SCM.Branch.create inp.text state.branchId
     Step.Continue
@@ -241,6 +236,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
           branchId = b.id
           items = itemsForView state.activeView b.id state.location state.scmSection state.aiSection state.matterLens
           selected = 0
+          filter = ""
           message = "on branch " ++ inp.text }
   else if inp.action == "branch-rename" then
     let newName = Stdlib.String.trim inp.text
@@ -292,6 +288,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
             branchId = b.id
             items = itemsForView state.activeView b.id state.location state.scmSection state.aiSection state.matterLens
             selected = 0
+            filter = ""
             message = "switched to " ++ inp.text }
     | None ->
       Step.Continue
