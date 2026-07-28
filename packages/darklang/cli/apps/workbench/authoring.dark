@@ -94,11 +94,22 @@ let saveEditing (state: State) (es: EditingState) : Step =
         | Ok ops ->
           match SCM.PackageOps.add state.branchId ops with
           | Ok _ ->
+            // Land on what you just saved. Resetting to 0 sent you to the top of the module every time -
+            // after authoring, the new item wasn't selected; after editing an existing one, you lost your
+            // place in a list you were working in.
+            let reloaded = reloadItems state
+            let landed =
+              reloaded
+              |> Stdlib.List.indexedMap (fun i it -> (i, it))
+              |> Stdlib.List.findFirst (fun pair -> let (_i, it) = pair in it.name == leaf)
+              |> Stdlib.Option.map (fun pair -> let (i, _it) = pair in i)
+              |> Stdlib.Option.withDefault 0
             Step.Continue
               { state with
                   editing = Stdlib.Option.Option.None
-                  items = reloadItems state
-                  selected = 0
+                  items = reloaded
+                  selected = landed
+                  detailScroll = 0
                   message = "saved " ++ leaf }
           | Error m -> keepErr ("save failed: " ++ m)
         | Error m -> keepErr m
