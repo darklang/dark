@@ -305,8 +305,9 @@ let testReplParsesLetBinding (): TestResult =
       ("let x =", Stdlib.Option.Option.None)
       ("letter = 3", Stdlib.Option.Option.None)
       ("let 2x = 3", Stdlib.Option.Option.None)
-      // A pasted program, not a binding: everything after `=` would otherwise become one multi-line rhs.
-      ("let a = 21L\na * 2L", Stdlib.Option.Option.None) ]
+      // A wrapped declaration binds, rhs and all - a pasted chain never reaches here, because
+      // `splitStatements` has already separated it into one statement per binding.
+      ("let xs = [ 1L\n  2L ]", Stdlib.Option.Option.Some(("xs", "[ 1L\n  2L ]"))) ]
   let wrong =
     cases
     |> Stdlib.List.filter (fun c ->
@@ -357,6 +358,29 @@ let testReplReadsCapturedValue (): TestResult =
     TestResult.Pass
   else
     TestResult.Fail "readCaptured did not round-trip the ok:/err: tagging"
+
+
+let testReplSplitsPastedStatements (): TestResult =
+  // A paste has to behave exactly like typing the lines one at a time, which means knowing where one
+  // statement ends. Indentation is the signal: an indented line continues the one above, so a wrapped
+  // expression stays whole while a chain separates.
+  let cases =
+    [ ("let a = 21L\na * 2L", [ "let a = 21L"; "a * 2L" ])
+      ("Stdlib.List.map xs\n  (fun x -> x * 2L)", [ "Stdlib.List.map xs\n  (fun x -> x * 2L)" ])
+      // A blank line closes a statement rather than joining across it.
+      ("let a = 1\n\nlet b = 2", [ "let a = 1"; "let b = 2" ])
+      ("one line", [ "one line" ])
+      ("", []) ]
+  let wrong =
+    cases
+    |> Stdlib.List.filter (fun c ->
+      let (input, expected) = c
+      (Darklang.Cli.Repl.splitStatements input) != expected)
+    |> Stdlib.List.map (fun c -> let (input, _e) = c in Builtin.toRepr input)
+  if Stdlib.List.isEmpty wrong then
+    TestResult.Pass
+  else
+    TestResult.Fail $"splitStatements wrong for: {Stdlib.String.join wrong " | "}"
 
 
 let testReplCapturesRealValues (): TestResult =

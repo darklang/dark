@@ -205,51 +205,18 @@ let performInputAction (state: State) (inp: InputState) : Step =
   else if inp.action == "scratch" then
     // REPL: evaluate with the session's bindings in scope, append `> expr` + its result to the log. A
     // `let x = ...` binds for the rest of the session instead of printing a result.
+    //
+    // A paste is run statement by statement, so it does exactly what typing those lines would have done -
+    // `let a = 21L` binds, then `a * 2L` sees it and prints 42. Indented lines continue the one above, so a
+    // wrapped expression is still one statement (see `Repl.splitStatements`).
     let text = Stdlib.String.trim inp.text
     if text == "" then
       Step.Continue { state with input = Stdlib.Option.Option.None }
     else
-      // One log line per input line. A pasted program keeps its shape here; joining it would render
-      // `let a = 21L` + `a * 2L` as `let a = 21La * 2L`, which is not what you ran.
-      let echoLines =
-        match Stdlib.String.split text "\n" with
-        | first :: rest ->
-          Stdlib.List.append
-            [ (Colors.colorize Colors.cyan "> ") ++ first ]
-            (rest |> Stdlib.List.map (fun l -> "  " ++ l))
-        | [] -> [ (Colors.colorize Colors.cyan "> ") ++ text ]
-      match Darklang.Cli.Repl.parseLetBinding text with
-      | Some pair ->
-        let (name, rhs) = pair
-        let (bound, note) = bindSession state name rhs
-        let logged =
-          Stdlib.List.append state.scratchLog (Stdlib.List.append echoLines [ "  " ++ (Colors.dimText note) ])
-        match bound with
-        | Some binding ->
-          Step.Continue
-            { state with
-                input = Stdlib.Option.Option.None
-                replBindings = Darklang.Cli.Repl.upsert state.replBindings binding
-                replLast = binding.source
-                scratchLog = logged }
-        | None ->
-          Step.Continue
-            { state with
-                input = Stdlib.Option.Option.None
-                replLast = note
-                scratchLog = logged }
-      | None ->
-        let output = evalToString state text
-        let resultLines =
-          Stdlib.String.split output "\n"
-          |> Stdlib.List.filter (fun l -> (Stdlib.String.trim l) != "")
-          |> Stdlib.List.map (fun l -> "  " ++ l)
-        Step.Continue
-          { state with
-              input = Stdlib.Option.Option.None
-              replLast = Stdlib.String.trim output
-              scratchLog =
-                Stdlib.List.append state.scratchLog (Stdlib.List.append echoLines resultLines) }
+      let ran =
+        Darklang.Cli.Repl.splitStatements text
+        |> Stdlib.List.fold state (fun st stmt -> applyReplStatement st stmt)
+      Step.Continue { ran with input = Stdlib.Option.Option.None }
   else if inp.action == "filter" then
     // In-view filter: narrow the current list to items whose name contains the text (case-insensitive).
     let f = Stdlib.String.trim inp.text

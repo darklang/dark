@@ -55,6 +55,7 @@ let allTests (): List<String * TestFunction> =
     ("REPL Parses Let Binding", fun () -> testReplParsesLetBinding ())
     ("REPL Injects Binding Chain", fun () -> testReplInjectsBindingChain ())
     ("REPL Rebind Keeps Position", fun () -> testReplRebindKeepsPosition ())
+    ("REPL Splits Pasted Statements", fun () -> testReplSplitsPastedStatements ())
     ("REPL Reads Captured Value", fun () -> testReplReadsCapturedValue ())
     ("REPL Captures Real Values", fun () -> testReplCapturesRealValues ())
     ("Workbench Captures Stray Output", fun () -> testWorkbenchCapturesStrayOutput ())

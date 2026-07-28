@@ -97,6 +97,47 @@ let bindSession (state: State) (name: String) (rhs: String) : (Stdlib.Option.Opt
        $"{name} = {source}")
     | None -> fallback (Stdlib.String.trim (Stdlib.String.dropFirst (Stdlib.String.trim out) 4))
 
+/// Run one REPL statement against the session: bind it if it's a `let <name> = ...`, else evaluate it.
+/// Returns the state with the log, the session and the last result all updated.
+///
+/// Pulled out so a pasted program can be folded through it statement by statement, which is what makes a
+/// paste behave exactly as if you'd typed the lines one at a time.
+let applyReplStatement (state: State) (stmt: String) : State =
+  let text = Stdlib.String.trim stmt
+  if text == "" then
+    state
+  else
+    // One log line per source line, so a wrapped expression keeps its shape in the scrollback.
+    let echoLines =
+      match Stdlib.String.split text "\n" with
+      | first :: rest ->
+        Stdlib.List.append
+          [ (Colors.colorize Colors.cyan "> ") ++ first ]
+          (rest |> Stdlib.List.map (fun l -> "  " ++ l))
+      | [] -> [ (Colors.colorize Colors.cyan "> ") ++ text ]
+    match Darklang.Cli.Repl.parseLetBinding text with
+    | Some pair ->
+      let (name, rhs) = pair
+      let (bound, note) = bindSession state name rhs
+      let logged =
+        Stdlib.List.append state.scratchLog (Stdlib.List.append echoLines [ "  " ++ (Colors.dimText note) ])
+      match bound with
+      | Some binding ->
+        { state with
+            replBindings = Darklang.Cli.Repl.upsert state.replBindings binding
+            replLast = binding.source
+            scratchLog = logged }
+      | None -> { state with replLast = note; scratchLog = logged }
+    | None ->
+      let output = evalToString state text
+      let resultLines =
+        Stdlib.String.split output "\n"
+        |> Stdlib.List.filter (fun l -> (Stdlib.String.trim l) != "")
+        |> Stdlib.List.map (fun l -> "  " ++ l)
+      { state with
+          replLast = Stdlib.String.trim output
+          scratchLog = Stdlib.List.append state.scratchLog (Stdlib.List.append echoLines resultLines) }
+
 /// The REPL view: a persistent eval log on the left, the session on the right. ⏎ evaluates and appends to the
 /// log; `let x = ...` binds for the rest of the session and shows up in the sidebar.
 let renderRepl (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
