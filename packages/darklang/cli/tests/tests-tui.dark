@@ -409,9 +409,12 @@ let testWorkbenchViewsShowTheirChrome (): TestResult =
   // discarded with `let _ =`, left over from when they printed as a side effect - and it's the kind of thing
   // that goes unnoticed until someone opens the view. So: assert on content a band actually contributes.
   let checks =
-    [ (Darklang.Cli.Apps.Workbench.App.vSCM, "branch:", "SCM status header")
-      (Darklang.Cli.Apps.Workbench.App.vSCM, "tab", "SCM section switcher")
-      (Darklang.Cli.Apps.Workbench.App.vAI, "Agents", "AI section switcher")
+    // Markers have to be unique to the band. `branch:` and `tab` both looked right and are useless: the
+    // frame's context line and breadcrumb already say `branch:`, and the footer hint says `tab`, so a
+    // dropped header would still have matched.
+    [ (Darklang.Cli.Apps.Workbench.App.vSCM, "(root)", "SCM status header")
+      (Darklang.Cli.Apps.Workbench.App.vSCM, "[Changes]", "SCM section switcher")
+      (Darklang.Cli.Apps.Workbench.App.vAI, "[Agents]", "AI section switcher")
       (Darklang.Cli.Apps.Workbench.App.vScratch, "Session", "REPL session pane")
       (Darklang.Cli.Apps.Workbench.App.vMatter, "Tree", "Matter tree pane") ]
   let missing =
