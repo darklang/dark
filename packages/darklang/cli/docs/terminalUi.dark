@@ -106,7 +106,7 @@ across the screen": `界` is one grapheme occupying two columns, and so is a ZWJ
   every other CSI, and anything else that looks like an escape loses its ESC byte and renders as
   ordinary text. So a package name or description can't move your cursor or reset your terminal. The
   renderer is the single boundary for this.
-- `Builtin.cliTerminalRestoreArm` registers a restore sequence with the host before entering a
+- `TerminalSession.armRestoreGuard` registers a restore sequence with the host before entering a
   surface, so a hard kill still un-wrecks the terminal.
 - `TerminalSupport.current ()` refuses to emit control sequences when stdin or stdout isn't a tty, or
   `TERM` is unset / dumb / unknown. Piping the CLI prints a clean sentence rather than escape soup.

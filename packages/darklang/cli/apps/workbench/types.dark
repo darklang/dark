@@ -243,10 +243,21 @@ let visibleViews (state: State) : List<Int> =
 /// Run `f` and return everything it printed to stdout. The single place `Builtin.stdoutCapture*` is used, so
 /// the many "run a command, show its output inside the frame" sites go through one wrapper instead of each
 /// touching the builtins directly.
-let captureOutput (f: Unit -> 'a) : String =
+/// Run `f` with anything it writes to stdout captured, and hand back both its value and that output.
+///
+/// Capturing is not optional in here. The workbench owns the whole screen, so a stray `printLine` from
+/// inside a command scrolls the alternate screen, and every frame after it lands that many rows off - which
+/// looks like two overlapping copies of the UI, not like a missing line. `cliEvaluateExpression` prints a
+/// three-line call-stack header on any runtime error, so this is reachable by typing a typo at the REPL.
+let captureOutputAnd (f: Unit -> 'a) : ('a * String) =
   let _ = Builtin.stdoutCaptureStart ()
-  let _ = f ()
-  Builtin.stdoutCaptureStop ()
+  let value = f ()
+  (value, Builtin.stdoutCaptureStop ())
+
+/// `captureOutputAnd` when only the output matters (running a classic command for its printed result).
+let captureOutput (f: Unit -> 'a) : String =
+  let (_value, output) = captureOutputAnd f
+  output
 
 
 /// A throwaway classic-CLI AppState carrying just this workbench's identity (branch + account) for handing to

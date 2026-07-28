@@ -57,6 +57,7 @@ let allTests (): List<String * TestFunction> =
     ("REPL Rebind Keeps Position", fun () -> testReplRebindKeepsPosition ())
     ("REPL Reads Captured Value", fun () -> testReplReadsCapturedValue ())
     ("REPL Captures Real Values", fun () -> testReplCapturesRealValues ())
+    ("Workbench Captures Stray Output", fun () -> testWorkbenchCapturesStrayOutput ())
   ]
 
 type TestSummary =

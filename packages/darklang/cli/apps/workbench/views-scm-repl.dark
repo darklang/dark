@@ -54,12 +54,20 @@ let renderScm (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
     else ("Changes", Colors.colorize Colors.green "✓ working tree clean - nothing to commit")
   splitListPreview state bodyRegion title "Detail" empty
 
-/// Evaluate an expression **with the session's bindings in scope**, and return its result (or the error text).
+/// Evaluate `expr` as written, with whatever the evaluator prints on the way captured rather than let loose
+/// on the frame (see `captureOutputAnd` - a runtime error prints a call-stack header, which would scroll the
+/// alternate screen out from under the renderer).
+///
 /// Goes straight at `Eval.evaluate` rather than the `eval` command because the command joins its args with
 /// spaces, which would flatten the binding chain's newlines.
+let evalRaw (state: State) (expr: String) : Stdlib.Result.Result<Stdlib.Option.Option<String>, String> =
+  let (result, _stray) =
+    captureOutputAnd (fun () -> Darklang.Cli.Eval.evaluate (classicState state) expr false)
+  result
+
+/// Evaluate an expression **with the session's bindings in scope**, and return its result (or the error text).
 let evalToString (state: State) (expr: String) : String =
-  let full = Darklang.Cli.Repl.withBindings state.replBindings expr
-  match Darklang.Cli.Eval.evaluate (classicState state) full false with
+  match evalRaw state (Darklang.Cli.Repl.withBindings state.replBindings expr) with
   | Ok(Some s) -> Stdlib.String.trim s
   | Ok None -> ""
   | Error message -> "Error: " ++ message
@@ -75,12 +83,7 @@ let bindSession (state: State) (name: String) (rhs: String) : (Stdlib.Option.Opt
     (Stdlib.Option.Option.Some(
        Darklang.Cli.Repl.Binding { name = name; source = rhs; captured = false }),
      $"{name} = {rhs}   (re-run each eval: {reason})")
-  match
-    Darklang.Cli.Eval.evaluate
-      (classicState state)
-      (Darklang.Cli.Repl.captureExpr state.replBindings state.branchId name rhs)
-      false
-  with
+  match evalRaw state (Darklang.Cli.Repl.captureExpr state.replBindings state.branchId name rhs) with
   | Error message -> (Stdlib.Option.Option.None, "not bound - " ++ message)
   | Ok None -> fallback "nothing to capture"
   | Ok(Some out) ->

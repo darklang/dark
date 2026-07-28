@@ -376,3 +376,19 @@ let testReplCapturesRealValues (): TestResult =
     TestResult.Pass
   else
     TestResult.Fail $"captureValue: {Stdlib.String.join wrong " | "}"
+
+
+let testWorkbenchCapturesStrayOutput (): TestResult =
+  // The workbench owns the whole screen, so anything a command prints scrolls the alternate screen and
+  // every frame after it lands that many rows off - which reads as two overlapping copies of the UI, not as
+  // a missing line. This is a real bug I hit: `cliEvaluateExpression` prints a three-line call-stack header
+  // on any runtime error, so a typo at the REPL was enough. The fix is that `captureOutputAnd` hands back
+  // the value AND the output, so a caller can use the result without letting the print through.
+  let (value, out) =
+    Darklang.Cli.Apps.Workbench.App.captureOutputAnd (fun () ->
+      Stdlib.printLine "this must not reach the terminal"
+      41 + 1)
+  if (value == 42) && (Stdlib.String.contains out "must not reach") then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected 42 and the captured line, got {Stdlib.Int.toString value} / '{out}'"
