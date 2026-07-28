@@ -1,7 +1,11 @@
 /// Promote a runtime value (RT.Dval) back into a ProgramTypes expression — the "turn this result into source" /
-/// promote-a-value primitive that unlocks live values (dream #1). Literals + collections map directly; values
-/// with no literal syntax (functions, DBs, blobs, dates/uuids, and for now records/enums) fail with a reason so
+/// promote-a-value primitive that unlocks live values (dream #1). Literals, collections, records and enums map
+/// directly; values with no literal syntax (functions, DBs, blobs, streams, dates/uuids) fail with a reason so
 /// the caller can fall back. IDs are fresh (gid) and don't affect the rendered source.
+///
+/// The `branchId` is only for records and enums: a runtime value carries its type as a bare content hash, and
+/// the pretty-printer needs the package *location* behind that hash to render `Stdlib.Option.Option.Some`
+/// rather than 64 hex characters. Locations are per-branch, hence the argument.
 module Darklang.LanguageTools.RuntimeTypesToProgramTypes
 
 let gid () : Int64 =
@@ -15,7 +19,30 @@ let floatParts (f: Float) : (String * String) =
   | [ w ] -> (w, "0")
   | _ -> (str, "0")
 
+/// RT and PT type names are structurally the same (a package hash) but nominally distinct, so records and
+/// enums have to carry theirs across. Always `Ok`-resolved: the value came from a real runtime type, so the
+/// name is by construction resolvable. The location is looked up because without it the pretty-printer has
+/// nothing to print but the hash.
+let typeNameToPT
+  (branchId: Uuid)
+  (typeName: RuntimeTypes.FQTypeName.FQTypeName)
+  : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
+  match typeName with
+  | Package(Hash h) ->
+    let ptHash = ProgramTypes.Hash.Hash h
+    let location =
+      PackageManager.Type.getWithLocation branchId ptHash
+      |> Stdlib.Option.map (fun located -> located.location)
+    ProgramTypes.NameResolution
+      { originalName = []
+        resolved =
+          Stdlib.Result.Result.Ok(
+            ProgramTypes.ResolvedName
+              { name = ProgramTypes.FQTypeName.FQTypeName.Package ptHash
+                location = location }) }
+
 let dvalToExpr
+  (branchId: Uuid)
   (dval: RuntimeTypes.Dval)
   : Stdlib.Result.Result<ProgramTypes.Expr, String> =
   match dval with
@@ -41,17 +68,17 @@ let dvalToExpr
     Stdlib.Result.Result.Ok(
       ProgramTypes.Expr.EString(gid (), [ ProgramTypes.StringSegment.StringText s ]))
   | DList(_valueType, items) ->
-    match items |> Stdlib.List.map dvalToExpr |> Stdlib.Result.collect with
+    match items |> Stdlib.List.map (fun d -> dvalToExpr branchId d) |> Stdlib.Result.collect with
     | Ok exprs -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EList(gid (), exprs))
     | Error e -> Stdlib.Result.Result.Error e
   | DTuple(first, second, rest) ->
-    match dvalToExpr first with
+    match dvalToExpr branchId first with
     | Error e -> Stdlib.Result.Result.Error e
     | Ok ef ->
-      match dvalToExpr second with
+      match dvalToExpr branchId second with
       | Error e -> Stdlib.Result.Result.Error e
       | Ok es ->
-        match rest |> Stdlib.List.map dvalToExpr |> Stdlib.Result.collect with
+        match rest |> Stdlib.List.map (fun d -> dvalToExpr branchId d) |> Stdlib.Result.collect with
         | Error e -> Stdlib.Result.Result.Error e
         | Ok erest ->
           Stdlib.Result.Result.Ok(ProgramTypes.Expr.ETuple(gid (), ef, es, erest))
@@ -61,20 +88,39 @@ let dvalToExpr
       |> Stdlib.Dict.toList
       |> Stdlib.List.map (fun pair ->
         let (k, v) = pair
-        match dvalToExpr v with
+        match dvalToExpr branchId v with
         | Ok e -> Stdlib.Result.Result.Ok((k, e))
         | Error err -> Stdlib.Result.Result.Error err)
     match Stdlib.Result.collect converted with
     | Ok kvs -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EDict(gid (), kvs))
     | Error e -> Stdlib.Result.Result.Error e
-  // Values with no literal syntax — fail for now, with a reason the caller can surface.
+  | DRecord(_runtimeTypeName, sourceTypeName, _typeArgs, fields) ->
+    let converted =
+      fields
+      |> Stdlib.Dict.toList
+      |> Stdlib.List.map (fun pair ->
+        let (k, v) = pair
+        match dvalToExpr branchId v with
+        | Ok e -> Stdlib.Result.Result.Ok((k, e))
+        | Error err -> Stdlib.Result.Result.Error err)
+    match Stdlib.Result.collect converted with
+    | Ok kvs ->
+      Stdlib.Result.Result.Ok(
+        ProgramTypes.Expr.ERecord(gid (), typeNameToPT branchId sourceTypeName, [], kvs))
+    | Error e -> Stdlib.Result.Result.Error e
+  | DEnum(_runtimeTypeName, sourceTypeName, _typeArgs, caseName, fields) ->
+    match fields |> Stdlib.List.map (fun d -> dvalToExpr branchId d) |> Stdlib.Result.collect with
+    | Ok exprs ->
+      Stdlib.Result.Result.Ok(
+        ProgramTypes.Expr.EEnum(gid (), typeNameToPT branchId sourceTypeName, [], caseName, exprs))
+    | Error e -> Stdlib.Result.Result.Error e
+  // Values with no literal syntax — fail, with a reason the caller can surface.
   | DDateTime _ ->
     Stdlib.Result.Result.Error "DateTime has no literal expression (build one with Stdlib.DateTime)"
   | DUuid _ ->
     Stdlib.Result.Result.Error "Uuid has no literal expression (parse one with Stdlib.Uuid.parse)"
-  | DRecord _ -> Stdlib.Result.Result.Error "records are not yet mappable to an expression"
-  | DEnum _ -> Stdlib.Result.Result.Error "enums are not yet mappable to an expression"
   | DApplicable _ -> Stdlib.Result.Result.Error "a function value has no source expression"
   | DDB _ -> Stdlib.Result.Result.Error "a database reference has no source expression"
-  | DBlobPersistent _ -> Stdlib.Result.Result.Error "a blob has no literal expression"
+  | DBlobPersistent(_hash, _length) -> Stdlib.Result.Result.Error "a blob has no literal expression"
   | DBlobEphemeral _ -> Stdlib.Result.Result.Error "a blob has no literal expression"
+  | DStreamStub _ -> Stdlib.Result.Result.Error "a stream has no literal expression"

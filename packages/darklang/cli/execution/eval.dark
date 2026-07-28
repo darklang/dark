@@ -2,6 +2,21 @@
 module Darklang.Cli.Eval
 
 
+/// Evaluate `expr` and hand back what it produced: `Ok (Some printed)` for a value, `Ok None` for something
+/// that printed nothing, `Error message` for a failure. The one place the CLI reaches for
+/// `cliEvaluateExpression` - `execute` prints what this returns, and the workbench REPL keeps it as state.
+/// Takes the whole expression as one string, so a multi-line let-chain survives.
+let evaluate
+  (state: AppState)
+  (expr: String)
+  (allowHarmful: Bool)
+  : Stdlib.Result.Result<Stdlib.Option.Option<String>, String> =
+  match Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr allowHarmful with
+  | Ok result -> Stdlib.Result.Result.Ok result
+  | Error err ->
+    Stdlib.Result.Result.Error(ExecutionError.toString state.currentBranchId err)
+
+
 let execute (state: AppState) (args: List<String>) : AppState =
   let allowHarmful =
     Stdlib.List.member args "--allow-harmful"
@@ -19,19 +34,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
       match args with
       | [ "-" ] -> Builtin.stdinReadAll ()
       | parts -> Stdlib.String.join parts " "
-    match
-      Builtin.cliEvaluateExpression
-        state.accountID
-        state.currentBranchId
-        expr
-        allowHarmful
-    with
+    match evaluate state expr allowHarmful with
     | Ok (Some s) ->
       Stdlib.printLine s
       state
     | Ok None -> state
-    | Error err ->
-      Stdlib.printLine $"Error: {ExecutionError.toString state.currentBranchId err}"
+    | Error message ->
+      Stdlib.printLine $"Error: {message}"
       state
 
 

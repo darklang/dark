@@ -280,3 +280,99 @@ let testWorkbenchEveryViewRenders (): TestResult =
   else
     let names = broken |> Stdlib.List.map Stdlib.Int.toString |> Stdlib.String.join ", "
     TestResult.Fail $"Views produced no frame: {names}"
+
+
+// ── REPL session bindings ──
+
+/// Shorthand for a captured binding (one holding a value rather than an expression).
+let bound (name: String) (source: String) : Darklang.Cli.Repl.Binding =
+  Darklang.Cli.Repl.Binding { name = name; source = source; captured = true }
+
+
+let testReplParsesLetBinding (): TestResult =
+  // What binds, and - more important - what doesn't. A pattern binding, a comparison typo, and a bare
+  // expression all have to fall through to being evaluated rather than silently binding something wrong.
+  let cases =
+    [ ("let x = 1", Stdlib.Option.Option.Some(("x", "1")))
+      ("  let  ys  =  [ 1; 2 ]  ", Stdlib.Option.Option.Some(("ys", "[ 1; 2 ]")))
+      ("let _priv = 3", Stdlib.Option.Option.Some(("_priv", "3")))
+      ("let x2 = x + 1", Stdlib.Option.Option.Some(("x2", "x + 1")))
+      // The right-hand side keeps its own `=`, so a record or a lambda body survives.
+      ("let r = f (a = 1)", Stdlib.Option.Option.Some(("r", "f (a = 1)")))
+      ("1 + 1", Stdlib.Option.Option.None)
+      ("let x == 3", Stdlib.Option.Option.None)
+      ("let (a, b) = t", Stdlib.Option.Option.None)
+      ("let x =", Stdlib.Option.Option.None)
+      ("letter = 3", Stdlib.Option.Option.None)
+      ("let 2x = 3", Stdlib.Option.Option.None) ]
+  let wrong =
+    cases
+    |> Stdlib.List.filter (fun c ->
+      let (input, expected) = c
+      (Darklang.Cli.Repl.parseLetBinding input) != expected)
+    |> Stdlib.List.map (fun c -> let (input, _e) = c in input)
+  if Stdlib.List.isEmpty wrong then
+    TestResult.Pass
+  else
+    TestResult.Fail $"parseLetBinding wrong for: {Stdlib.String.join wrong " | "}"
+
+
+let testReplInjectsBindingChain (): TestResult =
+  // The chain is what makes a binding survive to the next expression; order matters, because a later
+  // binding is allowed to refer to an earlier one.
+  let empty = Darklang.Cli.Repl.withBindings [] "x + 1"
+  let one = Darklang.Cli.Repl.withBindings [ bound "x" "42" ] "x + 1"
+  let two =
+    Darklang.Cli.Repl.withBindings [ bound "x" "42"; bound "y" "x + 1" ] "y * 2"
+  if (empty == "x + 1")
+     && (one == "let x = 42\nx + 1")
+     && (two == "let x = 42\nlet y = x + 1\ny * 2") then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Unexpected binding chain: '{one}' / '{two}'"
+
+
+let testReplRebindKeepsPosition (): TestResult =
+  // Rebinding `x` must not move it after `y`, or `y`'s chain entry would reference an undefined name.
+  let after =
+    Darklang.Cli.Repl.upsert
+      [ bound "x" "1"; bound "y" "x + 1" ]
+      (bound "x" "99")
+  let names = after |> Stdlib.List.map (fun b -> b.name) |> Stdlib.String.join ","
+  let sources = after |> Stdlib.List.map (fun b -> b.source) |> Stdlib.String.join ","
+  if (names == "x,y") && (sources == "99,x + 1") then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected x rebound in place, got {names} = {sources}"
+
+
+let testReplReadsCapturedValue (): TestResult =
+  // `captureValue` reports through a tagged string; anything that isn't an `ok:` means "hold the expression
+  // instead", including an empty result.
+  if (Darklang.Cli.Repl.readCaptured "ok:[1L; 2L]" == Stdlib.Option.Option.Some "[1L; 2L]")
+     && (Darklang.Cli.Repl.readCaptured "err:no literal" == Stdlib.Option.Option.None)
+     && (Darklang.Cli.Repl.readCaptured "" == Stdlib.Option.Option.None) then
+    TestResult.Pass
+  else
+    TestResult.Fail "readCaptured did not round-trip the ok:/err: tagging"
+
+
+let testReplCapturesRealValues (): TestResult =
+  // The end of the round-trip that matters: a value goes out as source you could paste back in. Enums are
+  // in here because they're what a REPL actually produces, and they only render as names because
+  // `dvalToExpr` resolves the type's package location.
+  let branch = Stdlib.Uuid.toString Darklang.SCM.Branch.mainBranchId
+  let cases =
+    [ (Darklang.Cli.Repl.captureValue branch 42, "ok:42")
+      (Darklang.Cli.Repl.captureValue branch [ 1L; 2L ], "ok:[1L; 2L]")
+      (Darklang.Cli.Repl.captureValue branch "hi", "ok:\"hi\"")
+      (Darklang.Cli.Repl.captureValue branch (Stdlib.Option.Option.Some 1),
+       "ok:Stdlib.Option.Option.Some(1)") ]
+  let wrong =
+    cases
+    |> Stdlib.List.filter (fun c -> let (got, want) = c in got != want)
+    |> Stdlib.List.map (fun c -> let (got, want) = c in $"{want} -> {got}")
+  if Stdlib.List.isEmpty wrong then
+    TestResult.Pass
+  else
+    TestResult.Fail $"captureValue: {Stdlib.String.join wrong " | "}"

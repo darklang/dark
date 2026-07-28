@@ -172,7 +172,8 @@ let handleViewKey
       else Step.Continue state
     | Some "f" ->
       // Scratch: clear the log. Elsewhere: open a find-as-you-type filter for the current list.
-      if state.activeView == vScratch then Step.Continue { state with scratchLog = []; replSteps = [] }
+      // The log and the session are separate: clearing the scrollback shouldn't silently unbind your names.
+      if state.activeView == vScratch then Step.Continue { state with scratchLog = []; replLast = "" }
       else
         Step.Continue
           { state with
@@ -192,8 +193,11 @@ let handleViewKey
         openReader state (deviceConfigText ()) false
       else Step.Continue state
     | Some "x" ->
-      // SCM Branches section: x deletes the selected branch. Otherwise x discards all WIP.
-      if (state.activeView == vSCM) && (state.scmSection == 3) then
+      // REPL: x drops the session bindings. SCM Branches section: x deletes the selected branch. Otherwise x
+      // discards all WIP.
+      if state.activeView == vScratch then
+        Step.Continue { state with replBindings = []; message = "session bindings cleared" }
+      else if (state.activeView == vSCM) && (state.scmSection == 3) then
         match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
         | Some b ->
           Step.Continue

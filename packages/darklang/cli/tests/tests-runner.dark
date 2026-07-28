@@ -51,6 +51,12 @@ let allTests (): List<String * TestFunction> =
     ("Session Stop Restores Once", fun () -> testSessionStopRestoresOnlyWhenRunning ())
 
     ("Workbench Every View Renders", fun () -> testWorkbenchEveryViewRenders ())
+
+    ("REPL Parses Let Binding", fun () -> testReplParsesLetBinding ())
+    ("REPL Injects Binding Chain", fun () -> testReplInjectsBindingChain ())
+    ("REPL Rebind Keeps Position", fun () -> testReplRebindKeepsPosition ())
+    ("REPL Reads Captured Value", fun () -> testReplReadsCapturedValue ())
+    ("REPL Captures Real Values", fun () -> testReplCapturesRealValues ())
   ]
 
 type TestSummary =

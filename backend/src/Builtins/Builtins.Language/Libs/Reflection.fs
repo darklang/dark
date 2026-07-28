@@ -26,30 +26,33 @@ let fns () : List<BuiltInFn> =
       capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
-    // { name = fn "reflect" 0
-    //   typeParams = []
-    //   parameters = [ Param.make "dv" (TVariable "a") "" ]
-    //   returnType =
-    //     TCustomType(
-    //       { originalName = []
-    //         resolved =
-    //           Ok(
-    //             FQTypeName.fqPackage (
-    //               LibExecution.PackageRefs.Type.LanguageTools.RuntimeTypes.dval ()
-    //             )
-    //           ) },
-    //       []
-    //     )
-    //   description = "Returns a meta representation of the real underlying dval"
-    //   fn =
-    //     function
-    //     | _, _, _, [ dv ] ->
-    //       dv |> LibExecution.RuntimeTypesToDarkTypes.Dval.toDT |> Ply
-    //     | _ -> incorrectArgs ()
-    //   sqlSpec = NotQueryable
-    //   previewable = Pure
-    //   deprecated = NotDeprecated }
-    ]
+    { name = fn "reflect" 0
+      typeParams = []
+      parameters = [ Param.make "dv" (TVariable "a") "The value to reflect on." ]
+      returnType =
+        TCustomType(
+          { originalName = []
+            resolved =
+              Ok(
+                FQTypeName.fqPackage (
+                  LibExecution.PackageRefs.Type.LanguageTools.RuntimeTypes.dval ()
+                )
+              ) },
+          []
+        )
+      description =
+        "Returns a meta representation of the real underlying dval, as a
+         <type LanguageTools.RuntimeTypes.Dval>. This is what lets a value be
+         turned back into source (see
+         <fn LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr>)."
+      fn =
+        (function
+        | _, _, _, [ dv ] -> dv |> LibExecution.RuntimeTypesToDarkTypes.Dval.toDT |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated } ]
 
 
 let builtins () = LibExecution.Builtin.make [] (fns ())

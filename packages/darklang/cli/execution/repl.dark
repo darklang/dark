@@ -1,0 +1,113 @@
+/// REPL session bindings: the machinery that makes `let x = ...` at the REPL survive to the next expression.
+///
+/// There is no interpreter support for a persistent environment, and this deliberately doesn't add any. A
+/// session holds `name -> source text` and every eval is prefixed with those as a `let` chain, so the binding
+/// is re-established each time. `eval` already accepts a multi-line let-chain, so nothing below the CLI had to
+/// change.
+///
+/// The source text a binding holds is the *value*, not the expression that produced it, whenever the value can
+/// be written as a literal: `captureValue` reflects the result back into source via
+/// `RuntimeTypesToProgramTypes.dvalToExpr`. That matters because the chain is re-run on every eval - without
+/// it, `let t = slowThing ()` would pay for `slowThing` again on every subsequent expression, and an effectful
+/// one would repeat its effect. Values with no literal syntax (records, enums, functions, uuids) can't be
+/// captured; those fall back to holding the expression, which does re-run. The REPL says which you got.
+module Darklang.Cli.Repl
+
+/// A session binding: the name, and the source text it stands for.
+type Binding =
+  { name: String
+    /// Source text - either a captured literal or the original expression (see `captured`).
+    source: String
+    /// True when `source` is the value itself, false when it's the expression that recomputes it.
+    captured: Bool }
+
+/// Is this a legal binding name? Letters, digits and underscore, not starting with a digit. Deliberately
+/// stricter than the language: it's the guard that stops `let (a, b) = ...` and other patterns we can't
+/// re-inject from being treated as a simple binding.
+let isSimpleName (name: String) : Bool =
+  if name == "" then
+    false
+  else
+    let chars = Stdlib.String.toList name
+    let firstOk =
+      match Stdlib.List.head chars with
+      | Some c -> Stdlib.Char.isASCIILetter c || (Stdlib.Char.toString c) == "_"
+      | None -> false
+    let restOk =
+      chars
+      |> Stdlib.List.all (fun c ->
+        Stdlib.Char.isASCIILetter c || Stdlib.Char.isDigit c || (Stdlib.Char.toString c) == "_")
+    firstOk && restOk
+
+/// Recognize a top-level `let <name> = <expr>` typed at the REPL, returning (name, expr). Only a single
+/// simple name binds; anything else (a pattern, a `let` with no `=`, a bare expression) returns None and is
+/// evaluated as an ordinary expression.
+let parseLetBinding (text: String) : Stdlib.Option.Option<(String * String)> =
+  let trimmed = Stdlib.String.trim text
+  if Stdlib.Bool.not (Stdlib.String.startsWith trimmed "let ") then
+    Stdlib.Option.Option.None
+  else
+    let body = Stdlib.String.dropFirst trimmed 4
+    match Stdlib.String.indexOf body "=" with
+    | None -> Stdlib.Option.Option.None
+    | Some i ->
+      let name = Stdlib.String.trim (Stdlib.String.slice body 0 i)
+      let rhs = Stdlib.String.trim (Stdlib.String.dropFirst body (i + 1))
+      // `let x == y` is a comparison typo, not a binding; and an empty right-hand side isn't one either.
+      if (isSimpleName name) && (rhs != "") && (Stdlib.Bool.not (Stdlib.String.startsWith rhs "=")) then
+        Stdlib.Option.Option.Some((name, rhs))
+      else
+        Stdlib.Option.Option.None
+
+/// The `let` chain that re-establishes a session's bindings, in binding order, ready to be prefixed to an
+/// expression. Empty for an empty session, so an unbound REPL evaluates exactly what you typed.
+let bindingChain (bindings: List<Binding>) : String =
+  if Stdlib.List.isEmpty bindings then
+    ""
+  else
+    let lines = bindings |> Stdlib.List.map (fun b -> $"let {b.name} = {b.source}")
+    (Stdlib.String.join lines "\n") ++ "\n"
+
+/// An expression with the session's bindings in scope.
+let withBindings (bindings: List<Binding>) (expr: String) : String =
+  (bindingChain bindings) ++ expr
+
+/// Add or replace a binding, keeping insertion order (a rebind stays where it was, so later bindings that
+/// refer to it still see it defined above them).
+let upsert (bindings: List<Binding>) (b: Binding) : List<Binding> =
+  if bindings |> Stdlib.List.any (fun x -> x.name == b.name) then
+    bindings |> Stdlib.List.map (fun x -> if x.name == b.name then b else x)
+  else
+    Stdlib.List.pushBack bindings b
+
+/// Turn a runtime value back into source text, so a binding can hold the value rather than the expression
+/// that computed it. Returns `ok:<source>` or `err:<reason>` - a tagged string rather than a Result because
+/// the caller reads this back off the REPL's captured stdout, where a printed `Result` would be ambiguous
+/// with a result that is itself a Result.
+/// `branchId` is the branch to resolve type names against, as a string because this is called from an
+/// expression the REPL assembles as text; an unparseable one falls back to main.
+let captureValue (branchId: String) (v: 'a) : String =
+  let branch =
+    match Stdlib.Uuid.parse branchId with
+    | Ok id -> id
+    | Error _ -> SCM.Branch.mainBranchId
+  match LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr branch (Builtin.reflect v) with
+  | Ok e -> "ok:" ++ (PrettyPrinter.ProgramTypes.expr (PrettyPrinter.ProgramTypes.Context.forBranch branch) e)
+  | Error reason -> "err:" ++ reason
+
+/// The expression to evaluate for `let <name> = <rhs>`: bind it, then hand the value to `captureValue` so the
+/// session can hold the value. The binding is in scope for its own capture, which is what makes the captured
+/// source correct for expressions that refer to earlier bindings.
+let captureExpr (bindings: List<Binding>) (branchId: Uuid) (name: String) (rhs: String) : String =
+  let chain = withBindings bindings $"let {name} = {rhs}"
+  let branch = Stdlib.Uuid.toString branchId
+  $"{chain}\nDarklang.Cli.Repl.captureValue \"{branch}\" {name}"
+
+/// Read `captureValue`'s output back. `Some source` when the value round-tripped, `None` when it has no
+/// literal form (the caller then falls back to holding the expression).
+let readCaptured (output: String) : Stdlib.Option.Option<String> =
+  let trimmed = Stdlib.String.trim output
+  if Stdlib.String.startsWith trimmed "ok:" then
+    Stdlib.Option.Option.Some(Stdlib.String.dropFirst trimmed 3)
+  else
+    Stdlib.Option.Option.None

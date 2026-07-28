@@ -200,27 +200,45 @@ let performInputAction (state: State) (inp: InputState) : Step =
               readingIsCode = false
               detailScroll = 0 }
   else if inp.action == "scratch" then
-    // Scratch: eval the expression (captured) and append `> expr` + its result to the log.
+    // REPL: evaluate with the session's bindings in scope, append `> expr` + its result to the log. A
+    // `let x = ...` binds for the rest of the session instead of printing a result.
     let text = Stdlib.String.trim inp.text
     if text == "" then
       Step.Continue { state with input = Stdlib.Option.Option.None }
     else
-      let words = Stdlib.String.split text " " |> Stdlib.List.filter (fun w -> w != "")
-      let appState =
-        classicState state
-      let output = captureOutput (fun () -> Darklang.Cli.Registry.executeCommand "eval" appState words)
-      let resultLines =
-        Stdlib.String.split output "\n"
-        |> Stdlib.List.filter (fun l -> (Stdlib.String.trim l) != "")
-        |> Stdlib.List.map (fun l -> "  " ++ l)
-      let entry = Stdlib.List.append [ (Colors.colorize Colors.cyan "> ") ++ text ] resultLines
-      // Faked live values: if it's a pipe chain, step through each stage's value in the sidebar.
-      let steps = pipeSteps state text
-      Step.Continue
-        { state with
-            input = Stdlib.Option.Option.None
-            scratchLog = Stdlib.List.append state.scratchLog entry
-            replSteps = steps }
+      let echo = (Colors.colorize Colors.cyan "> ") ++ text
+      match Darklang.Cli.Repl.parseLetBinding text with
+      | Some pair ->
+        let (name, rhs) = pair
+        let (bound, note) = bindSession state name rhs
+        let logged =
+          Stdlib.List.append state.scratchLog [ echo; "  " ++ (Colors.dimText note) ]
+        match bound with
+        | Some binding ->
+          Step.Continue
+            { state with
+                input = Stdlib.Option.Option.None
+                replBindings = Darklang.Cli.Repl.upsert state.replBindings binding
+                replLast = binding.source
+                scratchLog = logged }
+        | None ->
+          Step.Continue
+            { state with
+                input = Stdlib.Option.Option.None
+                replLast = note
+                scratchLog = logged }
+      | None ->
+        let output = evalToString state text
+        let resultLines =
+          Stdlib.String.split output "\n"
+          |> Stdlib.List.filter (fun l -> (Stdlib.String.trim l) != "")
+          |> Stdlib.List.map (fun l -> "  " ++ l)
+        Step.Continue
+          { state with
+              input = Stdlib.Option.Option.None
+              replLast = Stdlib.String.trim output
+              scratchLog =
+                Stdlib.List.append state.scratchLog (Stdlib.List.append [ echo ] resultLines) }
   else if inp.action == "filter" then
     // In-view filter: narrow the current list to items whose name contains the text (case-insensitive).
     let f = Stdlib.String.trim inp.text

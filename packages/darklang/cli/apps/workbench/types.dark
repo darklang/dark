@@ -70,10 +70,13 @@ type State =
     deprecatedNames: List<String>
     /// Scratch view: the eval log, newest last, each entry already rendered (the `> expr` and its result lines).
     scratchLog: List<String>
-    /// REPL live-values steps for the last eval: (stage-label, value) per top-level `|>` stage. Faked by
-    /// re-evaluating each cumulative pipe prefix - no interpreter support - so a pipe chain shows the value
-    /// flowing through each stage. Empty when the last expression wasn't a pipe.
-    replSteps: List<(String * String)>
+    /// REPL session bindings, in the order they were first bound. `let x = ...` at the REPL records one, and
+    /// every later expression is evaluated with them in scope (see `Darklang.Cli.Repl`). Session-lived: they
+    /// go away when the CLI exits.
+    replBindings: List<Darklang.Cli.Repl.Binding>
+    /// The result of the last REPL expression, unstyled - what the session pane shows under "last result".
+    /// Held rather than scraped back out of `scratchLog`, which is display text.
+    replLast: String
     /// Matter view: "all" shows the whole tree; "values" filters to values only (the Values lens, `v`).
     matterLens: String
     /// In-view find-as-you-type filter (`f`); "" = no filter. Narrows the current list by substring.

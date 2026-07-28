@@ -111,7 +111,7 @@ let hintsForView (state: State) : String =
     else if view == vHome then
       [ ("↑↓", "move") ]
     else if view == vScratch then
-      [ ("⏎/:", "eval"); ("f", "clear") ]
+      [ ("⏎/:", "eval"); ("f", "clear log"); ("x", "clear session") ]
     else if view == vSCM then
       if state.scmSection == 3 then
         [ ("↑↓", "move"); ("tab", "section"); ("⏎", "switch"); ("r", "rename"); ("x", "delete"); ("b", "new") ]

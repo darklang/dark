@@ -121,7 +121,8 @@ let initialState
         aiSection = 0
         enabledGatedViews = enabledGatedViews
         scratchLog = []
-        replSteps = []
+        replBindings = []
+        replLast = ""
         matterLens = "all"
         filter = ""
         wipNames = []

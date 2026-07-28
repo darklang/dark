@@ -54,57 +54,45 @@ let renderScm (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
     else ("Changes", Colors.colorize Colors.green "✓ working tree clean - nothing to commit")
   splitListPreview state bodyRegion title "Detail" empty
 
-/// Evaluate an expression through the classic `eval` command, captured, and return its trimmed result string.
+/// Evaluate an expression **with the session's bindings in scope**, and return its result (or the error text).
+/// Goes straight at `Eval.evaluate` rather than the `eval` command because the command joins its args with
+/// spaces, which would flatten the binding chain's newlines.
 let evalToString (state: State) (expr: String) : String =
-  let appState =
-    classicState state
-  let words = Stdlib.String.split expr " " |> Stdlib.List.filter (fun w -> w != "")
-  Stdlib.String.trim (captureOutput (fun () -> Darklang.Cli.Registry.executeCommand "eval" appState words))
+  let full = Darklang.Cli.Repl.withBindings state.replBindings expr
+  match Darklang.Cli.Eval.evaluate (classicState state) full false with
+  | Ok(Some s) -> Stdlib.String.trim s
+  | Ok None -> ""
+  | Error message -> "Error: " ++ message
 
-/// Split an expression on its TOP-LEVEL `|>` (depth 0 only, so a `|>` inside a parenthesized lambda stays
-/// put). Returns the stages without the pipes. Char-by-char with a paren/bracket/brace depth counter.
-let splitTopPipes (text: String) : List<String> =
-  let charStrs = Stdlib.String.toList text |> Stdlib.List.map (fun c -> Stdlib.Char.toString c)
-  let final =
-    charStrs
-    |> Stdlib.List.fold (0, "", [], false) (fun acc s ->
-      let (depth, buf, segs, prevPipe) = acc
-      if prevPipe then
-        if (s == ">") && (depth == 0) then
-          (depth, "", Stdlib.List.pushBack segs (Stdlib.String.trim buf), false)
-        else
-          (depth, buf ++ "|" ++ s, segs, false)
-      else if (s == "(") || (s == "[") || (s == "{") then
-        (depth + 1, buf ++ s, segs, false)
-      else if (s == ")") || (s == "]") || (s == "}") then
-        (Stdlib.Int.max 0 (depth - 1), buf ++ s, segs, false)
-      else if (s == "|") && (depth == 0) then
-        (depth, buf, segs, true)
-      else
-        (depth, buf ++ s, segs, false))
-  let (_d, lastBuf, segs, lastPipe) = final
-  let tail = if lastPipe then lastBuf ++ "|" else lastBuf
-  Stdlib.List.pushBack segs (Stdlib.String.trim tail)
+/// Bind `name` to `rhs` for the rest of the session. Evaluates it once now: if the value has a literal form
+/// the binding holds the *value* (so the chain that re-establishes it on every later eval is free, and an
+/// effectful right-hand side runs once); otherwise it holds the expression, which does re-run. Returns the
+/// binding, or None if evaluating it failed, plus the line to show in the log.
+/// Evaluating it once is also what separates "this expression is broken" (the evaluator errors, so nothing
+/// binds) from "this value has no literal form" (it evaluated fine, `dvalToExpr` couldn't promote it).
+let bindSession (state: State) (name: String) (rhs: String) : (Stdlib.Option.Option<Darklang.Cli.Repl.Binding> * String) =
+  let fallback (reason: String) : (Stdlib.Option.Option<Darklang.Cli.Repl.Binding> * String) =
+    (Stdlib.Option.Option.Some(
+       Darklang.Cli.Repl.Binding { name = name; source = rhs; captured = false }),
+     $"{name} = {rhs}   (re-run each eval: {reason})")
+  match
+    Darklang.Cli.Eval.evaluate
+      (classicState state)
+      (Darklang.Cli.Repl.captureExpr state.replBindings state.branchId name rhs)
+      false
+  with
+  | Error message -> (Stdlib.Option.Option.None, "not bound - " ++ message)
+  | Ok None -> fallback "nothing to capture"
+  | Ok(Some out) ->
+    match Darklang.Cli.Repl.readCaptured out with
+    | Some source ->
+      (Stdlib.Option.Option.Some(
+         Darklang.Cli.Repl.Binding { name = name; source = source; captured = true }),
+       $"{name} = {source}")
+    | None -> fallback (Stdlib.String.trim (Stdlib.String.dropFirst (Stdlib.String.trim out) 4))
 
-/// Faked live values: for a pipe chain, evaluate each cumulative prefix and return (stage-label, value) so the
-/// sidebar can show the value flowing through each stage. Empty for a non-pipe (nothing to step through). No
-/// interpreter support - it just re-runs prefixes, which is why it's honest to call it a stand-in.
-let pipeSteps (state: State) (text: String) : List<(String * String)> =
-  let stages = splitTopPipes text
-  if Stdlib.List.length stages < 2 then
-    []
-  else
-    let capped = Stdlib.List.take stages 8
-    capped
-    |> Stdlib.List.indexedMap (fun i stage ->
-      let prefix = Stdlib.List.take capped (i + 1) |> Stdlib.String.join " |> "
-      let value = evalToString state prefix
-      let label = if i == 0 then stage else "|> " ++ stage
-      (label, value))
-
-/// The REPL view: a persistent eval log on the left, a live-values sidebar on the right. ⏎ evaluates and
-/// appends to the log. The sidebar steps through a pipe chain's values (faked - see `pipeSteps`); for a
-/// non-pipe it echoes the single result and names what a real resumable interpreter would add.
+/// The REPL view: a persistent eval log on the left, the session on the right. ⏎ evaluates and appends to the
+/// log; `let x = ...` binds for the rest of the session and shows up in the sidebar.
 let renderRepl (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   UI.SplitPane.render
     region
@@ -121,10 +109,13 @@ let renderRepl (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
             ""
             Colors.dimText "try:"
             (Colors.colorize Colors.cyan "  1 + 1")
-            (Colors.colorize Colors.cyan "  Stdlib.List.map [ 1; 2; 3 ] (fun x -> x * 2)")
-            (Colors.colorize Colors.cyan "  \"dark\" |> Stdlib.String.toUppercase")
+            (Colors.colorize Colors.cyan "  let xs = [ 1; 2; 3 ]")
+            (Colors.colorize Colors.cyan "  Stdlib.List.map xs (fun x -> x * 2)")
             ""
-            Colors.dimText "f clears the log." ]
+            Colors.dimText "`let` binds for the session - the"
+            Colors.dimText "sidebar lists what's bound."
+            ""
+            Colors.dimText "f clears the log, x the session." ]
         else state.scratchLog
       let shown = all |> Stdlib.List.reverse |> Stdlib.List.take inner.rows |> Stdlib.List.reverse
       shown
@@ -133,38 +124,37 @@ let renderRepl (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
         let (i, l) = p
         UI.Layout.at inner i 1 l)
       |> Stdlib.List.flatten)
-    "Live values"
+    "Session"
     (fun inner ->
-      let lines =
-        if Stdlib.Bool.not (Stdlib.List.isEmpty state.replSteps) then
-          // Pipe chain: show the value flowing through each stage (faked by re-running prefixes).
-          let stepLines =
-            state.replSteps
-            |> Stdlib.List.map (fun pair ->
-              let (label, value) = pair
-              [ Colors.colorize Colors.cyan label; Colors.colorize Colors.green ("  = " ++ value) ])
-            |> Stdlib.List.flatten
-          Stdlib.List.flatten
-            [ [ Colors.dimText "value at each pipe stage:"; "" ]
-              stepLines
-              [ ""; Colors.dimText "(stepped by re-running each"; Colors.dimText "prefix - a stand-in until the"; Colors.dimText "interpreter hands these back)" ] ]
+      let bindingLines =
+        if Stdlib.List.isEmpty state.replBindings then
+          [ Colors.dimText "nothing bound yet."
+            ""
+            (Colors.colorize Colors.cyan "let x = 41 + 1")
+            Colors.dimText "binds x for the rest of the"
+            Colors.dimText "session, so the next"
+            Colors.dimText "expression can use it." ]
         else
-          let lastResult =
-            state.scratchLog
-            |> Stdlib.List.reverse
-            |> Stdlib.List.findFirst (fun l -> Stdlib.Bool.not (Stdlib.String.contains l "> "))
-            |> Stdlib.Option.withDefault ""
-          [ Colors.dimText "the value flowing through"
-            Colors.dimText "your last expression:"
-            ""
-            (if (Stdlib.String.trim lastResult) == "" then Colors.dimText "(eval a pipe to step through it)"
-             else Colors.colorize Colors.green (Stdlib.String.trim lastResult))
-            ""
-            Colors.dimText "── pipe something ──"
-            Colors.dimText "[ 1; 2; 3 ]"
-            Colors.dimText "|> Stdlib.List.map (fun x -> x * 2)"
-            Colors.dimText "|> Stdlib.List.sum"
-            Colors.dimText "and watch each stage's value" ]
+          state.replBindings
+          |> Stdlib.List.map (fun b ->
+            // A captured binding holds the value; an uncaptured one holds the expression and re-runs, which
+            // is worth saying on the row rather than in a footnote.
+            let marker = if b.captured then "" else Colors.dimText "  ~"
+            (Colors.colorize Colors.cyan b.name)
+            ++ (Colors.dimText " = ")
+            ++ (Colors.colorize Colors.green b.source)
+            ++ marker)
+      let resultLines =
+        if (Stdlib.String.trim state.replLast) == "" then
+          []
+        else
+          [ ""; Colors.dimText "last result:"; Colors.colorize Colors.green state.replLast ]
+      let count = Stdlib.List.length state.replBindings
+      let heading =
+        if count == 0 then Colors.dimText "session bindings:"
+        else Colors.dimText ("session bindings  ·  " ++ (plural count "name") ++ ":")
+      let lines =
+        Stdlib.List.flatten [ [ heading; "" ]; bindingLines; resultLines ]
       lines
       |> Stdlib.List.indexedMap (fun i l -> (i, l))
       |> Stdlib.List.take inner.rows
