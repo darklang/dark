@@ -33,8 +33,24 @@ module NotDeclarations =
 
   (shape "x = 1") = (0, 2)
 
-  // A test whose expected side is an error message has only the actual side to lift.
+  // A plain string on the right is just an expression, so both sides lift - despite reading like an error.
   (shape "someCall () = \"Error: nope\"") = (0, 2)
+
+  // An expected-ERROR assertion has only the actual side to lift; `error` is the literal keyword that makes
+  // it one (a plain string on the right is just an expression, as above).
+  (shape "someCall () = error \"nope\"") = (0, 1)
+
+module ModuleHeaded =
+  // The path that actually matters, and the one the top-level fix missed. A `module` header wraps the rest of
+  // the file into a DModule, which is the shape of every package file on disk, and the serializer for a
+  // module's declarations raised on the same cases. The authoring editor strips the module line before
+  // parsing, so only the LSP and the highlighter hit this.
+  (shape "module Darklang.Foo\n\nvaloops = 1") = (1, 0)
+
+  (shape "module Darklang.Foo\n\nlet f (x: Int): Int = x") = (1, 0)
+
+  // `[<DB>] type X = ...` is a Test-only declaration that a real file can still contain.
+  (shape "module Darklang.Foo\n\n[<DB>] type Counter = Int") = (1, 0)
 
 module Mixed =
   // A real declaration alongside an assignment-shaped line: the declaration survives, the assertion's two
