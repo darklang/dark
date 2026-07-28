@@ -1,0 +1,42 @@
+// `Builtin.parserParseToWrittenTypes` has to survive anything a person can type, because it runs on every
+// keystroke-adjacent save in the authoring editor and its failure mode is an uncaught internal exception that
+// takes the whole CLI down with it.
+//
+// The Dark-side `SourceFileDeclaration` covers functions, values, types and modules. Three WT.Declaration
+// cases fall outside it and used to raise: DExpr, DTest, and DTypeDB. DTest is the one that bites, because a
+// test assertion is spelled `actual = expected` and is indistinguishable from an assignment until post-parse
+// validation decides whether this is Test source — so an ordinary typo like `valoops = 1` (a missing space
+// after `val`) parses as one.
+
+let shape (source: String) : (Int * Int) =
+  match Builtin.parserParseToWrittenTypes source with
+  | Some(SourceFile sf) ->
+    (Stdlib.List.length sf.declarations, Stdlib.List.length sf.exprsToEval)
+  | None -> ((0 - 1), (0 - 1))
+
+module RealDeclarations =
+  // The ordinary cases are untouched: one declaration, no trailing expressions.
+  (shape "val v = 1") = (1, 0)
+
+  (shape "let f (x: Int): Int = x") = (1, 0)
+
+  (shape "type T = Unit") = (1, 0)
+
+  (shape "module M =\n  val v = 1") = (1, 0)
+
+module NotDeclarations =
+  // A bare expression belongs in exprsToEval, not declarations.
+  (shape "1 + 1") = (0, 1)
+
+  // `actual = expected` parses as a test assertion. Both sides come back as expressions rather than raising.
+  (shape "valoops = 1") = (0, 2)
+
+  (shape "x = 1") = (0, 2)
+
+  // A test whose expected side is an error message has only the actual side to lift.
+  (shape "someCall () = \"Error: nope\"") = (0, 2)
+
+module Mixed =
+  // A real declaration alongside an assignment-shaped line: the declaration survives, the assertion's two
+  // sides join exprsToEval.
+  (shape "val v = 1\noops = 2") = (1, 2)
