@@ -14,6 +14,14 @@ let main (args : string array) : int =
     // trace contents (CliTraces) flip this to Detailed at their entry.
     LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
 
+    // The same policy for the `dark` processes SyncE2E spawns, which read it from the environment. Without
+    // this they inherit the ambient value, and config/dev sets DARK_CONFIG_TRACE_DETAIL=on — so in a
+    // devcontainer a served sync writes tens of thousands of trace rows plus the package_blobs rows that
+    // trace prep promotes along with them (see the bail in LibDB.Tracing.storeTrace). That's correct
+    // behaviour with tracing on, and it made the disk-safety test fail for the environment rather than for
+    // the bug it guards. `setForTesting` above only covers this process.
+    System.Environment.SetEnvironmentVariable("DARK_CONFIG_TRACE_DETAIL", "off")
+
     // Grow the DB from seed if needed. Builtins are deferred (constructed after
     // hashes are generated) because builtin construction triggers hash lookups.
     (LibDB.Seed.growIfNeeded

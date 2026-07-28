@@ -96,6 +96,9 @@ let private startInfo
   psi.WorkingDirectory <- dir
   psi.Environment["DARK_CONFIG_RUNDIR"] <- dir
   psi.Environment["DARK_CONFIG_DB_NAME"] <- "data.db"
+  // Trace detail is deliberately NOT set here. These children inherit it from the harness process, which
+  // sets it in Tests.All.main — setting it on this ProcessStartInfo instead has no effect on the spawned
+  // process, which cost me an hour, so it is worth the sentence.
   psi
 
 /// Run `dark <args>` against instance <dir> to completion; return combined, color-stripped stdout+stderr.
@@ -469,6 +472,13 @@ let private realTests =
               darkIn b.dir [ "login"; "Stachu" ] |> ignore<string>
               author a "SyncTest.Disk.v" "12345"
               commit a "add v"
+              // Baselines read AFTER A's own authoring and commit and BEFORE it starts serving. This test is
+              // about what SERVING accumulates; baselining off the seed snapshot folded in whatever A's own
+              // commands did, which is a different claim.
+              let beforeTraces =
+                (sqlite (dbOf a) "SELECT COUNT(*) FROM trace_fn_calls").Trim()
+              let beforeBlobs =
+                (sqlite (dbOf a) "SELECT COUNT(*) FROM package_blobs").Trim()
               let port = 9340
               let! server = serve a port
               try
@@ -476,30 +486,22 @@ let private realTests =
                 // Several pulls — each hits A's /sync/events + blob channel, the path that used to trace + promote.
                 for _ in 1..6 do
                   darkIn b.dir [ "sync" ] |> ignore<string>
-                // A is the SERVER (it only serves, never pulls), so serving must add NOTHING to its store:
-                // trace_fn_calls stays 0, and package_blobs stays exactly at the seed baseline. Comparing the
-                // COUNT (not just >1MB rows) catches ANY promotion — the bug persisted a fresh blob per request,
-                // small at first, so a size threshold would miss it while the store still grew unbounded.
-                let seedBlobs =
-                  (sqlite (seedDb.Force()) "SELECT COUNT(*) FROM package_blobs")
-                    .Trim()
-                // Against the SEED baseline, not zero. Every instance is a copy of the seed, and the seed
-                // is a snapshot of the live store, which carries whatever traces the package reload recorded
-                // (dev sets DARK_CONFIG_TRACE_DETAIL=on). Asserting zero tested the ambient environment
-                // rather than the thing this test is about: that serving adds nothing.
-                let seedTraces =
-                  (sqlite (seedDb.Force()) "SELECT COUNT(*) FROM trace_fn_calls").Trim()
+                // A is the SERVER (it only serves, never pulls), so with trace storage off serving must add
+                // NOTHING to its store: both counts stay exactly where they were before it started.
+                // Comparing the COUNT (not just >1MB rows) catches ANY promotion — the bug persisted a fresh
+                // blob per request, small at first, so a size threshold would miss it while the store still
+                // grew unbounded.
                 let traceRows =
                   (sqlite (dbOf a) "SELECT COUNT(*) FROM trace_fn_calls").Trim()
                 let servedBlobs =
                   (sqlite (dbOf a) "SELECT COUNT(*) FROM package_blobs").Trim()
                 Expect.equal
                   traceRows
-                  seedTraces
+                  beforeTraces
                   "the serve wrote NO NEW trace rows (serving must not accumulate)"
                 Expect.equal
                   servedBlobs
-                  seedBlobs
+                  beforeBlobs
                   "serving promoted NO new blobs into package_blobs — any growth here is the disk-fill bug"
               finally
                 stop server
