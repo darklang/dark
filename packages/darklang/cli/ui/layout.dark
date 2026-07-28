@@ -38,8 +38,9 @@ type Component =
 ///
 /// Replaces the old `printAt` / `printAtVisible` pair. There's no longer a fast-but-wrong variant: clipping
 /// goes through `Tui.Text`, which counts terminal columns and leaves SGR sequences alone, so a coloured or
-/// wide-glyph row is measured correctly. The old `printAt` used `String.length`, which counts characters, so
-/// any CJK or emoji content pushed the rest of its row sideways.
+/// wide-glyph row is measured correctly. The old `printAt` used `String.length`, which counts grapheme
+/// clusters, not columns: `界` and a ZWJ emoji each count 1 but occupy 2, so CJK or emoji content pushed the
+/// rest of its row sideways.
 let at (region: Region) (row: Int) (col: Int) (text: String) : List<Span> =
   if row >= 0 && row < region.rows && col >= 0 && col < region.cols then
     [ Span

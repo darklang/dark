@@ -16,8 +16,9 @@
 ///   `Region -> Unit`                       ->  `Region -> List<Span>`
 ///
 /// Widths are measured with `Tui.Text`, so a span carrying CJK, emoji, or SGR colour lands where it should.
-/// `Layout.printAt` measures with `String.length`, which counts characters, not terminal columns: that's
-/// why a wide glyph currently shoves the rest of its row out of alignment.
+/// `Layout.printAt` measured with `String.length`, which counts grapheme clusters rather than terminal
+/// columns - right for "how many characters is this", wrong for "how far does this reach across the screen",
+/// since `界` is one grapheme in two columns. That's why a wide glyph used to shove its row out of alignment.
 module Darklang.Cli.UI.Canvas
 
 

@@ -37,7 +37,9 @@ let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
     else
       (Colors.colorize Colors.green "✓ synced", "✓ synced")
   let rightColored = (Colors.dimText branchSeg) ++ syncColored
-  let rightVisibleLen = Stdlib.String.length (branchSeg ++ syncPlain)
+  // Columns, not graphemes: the branch name is user-chosen, and `⚠`/`✓` are already non-ASCII. `String.length`
+  // counts one per grapheme, so a wide glyph here would right-align the status past the edge of the row.
+  let rightVisibleLen = Tui.Text.displayWidth (branchSeg ++ syncPlain)
   // The context line - the workbench's `pwd`: where edits land. Account, instance, branch, focused patch.
   let context =
     UI.Layout.fixedSize
