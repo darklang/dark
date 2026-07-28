@@ -68,7 +68,9 @@ let performInputAction (state: State) (inp: InputState) : Step =
           match Packages.Location.parseRelativeTo state.location inp.text with
           | Error e -> Step.Continue { state with input = Stdlib.Option.Option.None; message = "rename failed: " ++ e }
           | Ok newLoc ->
-            let op = LanguageTools.ProgramTypes.PackageOp.SetName((newLoc, reference))
+            // Two fields, not one tuple: `SetName((a, b))` passes a single tuple and blows up at runtime with
+            // "Expected 2 fields ... but got 1", which took the whole CLI down every time you pressed `r`.
+            let op = LanguageTools.ProgramTypes.PackageOp.SetName(newLoc, reference)
             match SCM.PackageOps.add state.branchId [ op ] with
             | Ok _ ->
               Step.Continue
@@ -76,6 +78,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
                     input = Stdlib.Option.Option.None
                     items = reloadItems state
                     selected = 0
+                    detailScroll = 0
                     message = "renamed to " ++ inp.text }
             | Error m -> Step.Continue { state with input = Stdlib.Option.Option.None; message = "rename failed: " ++ m }
   else if inp.action == "merge" then
