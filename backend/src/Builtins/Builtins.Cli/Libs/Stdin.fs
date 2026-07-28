@@ -51,22 +51,34 @@ module private Resize =
       false
 
 
-/// Reads the next keypress, or the whole text of a paste when one is detected.
+/// How long a gap ends a burst, and how long a burst may run in total.
 ///
-/// Two things queue a flood of input: a paste (a run of printable characters)
-/// and a mouse-wheel scroll (a run of arrow-key escapes, in alternate-screen
-/// mode). We keep the paste but collapse the scroll. Printable characters (plus
-/// newlines/tabs) are collected and returned as `Some` text, to be inserted in
-/// one go; if only control keys were queued, we return just the last key so a
-/// scroll renders once instead of flickering.
-/// How long a burst may keep draining before we hand back what we have, and how long a gap ends it. A wheel
-/// spin sends events a few ms apart; 4ms of quiet is comfortably a pause without waiting on a human. The
-/// budget bounds the worst case so a continuous stream can't starve rendering.
+/// A wheel spin sends events a few ms apart, so 4ms of quiet is comfortably a pause without ever waiting on a
+/// human. The budget is the backstop. These are two clocks on purpose - one restarted per key, one never
+/// restarted: sharing one and restarting it makes the budget unreachable, because a continuous producer keeps
+/// resetting the very clock the budget is measured on.
 let private quietMs = 4.0
 let private burstBudgetMs = 40.0
 
-/// Returns the key, the text of a paste when one is detected, and how many times the key repeated within a
-/// coalesced burst (1 for an ordinary keypress).
+/// A key read during a burst that turned out not to belong to it, held for the next call.
+///
+/// Coalescing counts a run of ONE key. A different key mid-burst ends the run and has to go somewhere:
+/// dropping it loses real keystrokes (`Down Down Enter` would eat the Enter), and returning it instead of the
+/// arrow would report one key's identity with another key's count. One slot is enough, because we stop
+/// draining the moment we stash one.
+let mutable private pushedBack : ConsoleKeyInfo option = None
+
+/// Reads the next keypress, the whole text of a paste when one is detected, and how many times the key
+/// repeated within a coalesced burst (1 for an ordinary keypress).
+///
+/// Two things queue a flood of input: a paste (a run of printable characters) and a wheel scroll or held-down
+/// key (a run of the same control key - in the alternate screen a wheel arrives as arrow escapes). Both drain
+/// in one go so the caller renders once, but they come back differently: a paste as text to insert, a run as
+/// one key plus its count.
+///
+/// Which it was is decided AFTER draining, on whether any insertable text came out - not on the first key.
+/// Deciding up front destroyed any paste beginning with a newline or tab, which is what you get selecting
+/// from the end of a line.
 let private readKeyOrPaste () : ConsoleKeyInfo * string option * int =
   // What a single key contributes to pasted text (newlines/tabs preserved).
   let pasteText (k : ConsoleKeyInfo) : string option =
@@ -91,6 +103,13 @@ let private readKeyOrPaste () : ConsoleKeyInfo * string option * int =
 
     Resize.arm ()
 
+    // A key stashed by the previous call's burst comes first, before we look at the terminal again.
+    match pushedBack with
+    | Some k ->
+      pushedBack <- None
+      (k, None, 1)
+    | None ->
+
     // Poll rather than blocking outright, so a resize can wake the loop. The interval is short enough to feel
     // instant on a drag-resize and long enough to cost nothing while idle.
     let mutable resized = false
@@ -105,51 +124,47 @@ let private readKeyOrPaste () : ConsoleKeyInfo * string option * int =
       let first = Console.ReadKey true
       if not Console.KeyAvailable then
         (first, None, 1)
-      // A burst that starts with a control key is a scroll or a held-down key, not a paste: a wheel in
-      // alternate-screen mode arrives as a run of arrow escapes. Coalesce the run and report how many of it
-      // were the same key, so the caller applies all the movement in ONE frame.
-      //
-      // Draining used to throw the count away and return a single key, which is why a flick of the wheel
-      // moved a list by exactly one row however far you spun it (measured: burst of 1 -> 1 row, burst of
-      // 20 -> 1 row).
-      elif not (isPrintable first) then
-        let sw = Diagnostics.Stopwatch.StartNew()
-        let mutable repeat = 1
-        let mutable last = first
-        let mutable draining = true
-        while draining do
-          if Console.KeyAvailable then
-            let k = Console.ReadKey true
-            last <- k
-            if k.Key = first.Key && k.Modifiers = first.Modifiers then repeat <- repeat + 1
-          // Nothing waiting: give the burst a moment to continue, since a wheel's events arrive with small
-          // gaps. A quiet stretch ends the burst; so does the overall budget, whichever comes first, so a
-          // long spin still renders promptly instead of us sitting here reading.
-          elif sw.Elapsed.TotalMilliseconds < quietMs then
-            Threading.Thread.Sleep 1
-          else
-            draining <- false
-          if sw.Elapsed.TotalMilliseconds >= burstBudgetMs then draining <- false
-          // The quiet window is measured from the last key, not from the start of the burst.
-          if Console.KeyAvailable then sw.Restart()
-        (last, None, repeat)
       else
         let sb = System.Text.StringBuilder()
         let append (text : string) : unit =
           sb.Append text |> ignore<System.Text.StringBuilder>
-        let mutable last = first
-        let mutable printableKey = if isPrintable first then Some first else None
+        let burstStart = Diagnostics.Stopwatch.StartNew()
+        let sinceLastKey = Diagnostics.Stopwatch.StartNew()
+        let sameAsFirst (k : ConsoleKeyInfo) =
+          k.Key = first.Key && k.Modifiers = first.Modifiers
+        let firstIsPrintable = isPrintable first
+        let mutable repeat = 1
+        let mutable printableKey = if firstIsPrintable then Some first else None
         pasteText first |> Option.iter append
-        while Console.KeyAvailable do
-          let k = Console.ReadKey true
-          last <- k
-          pasteText k |> Option.iter append
-          if isPrintable k then printableKey <- Some k
+        let mutable draining = true
+        while draining do
+          if Console.KeyAvailable then
+            let k = Console.ReadKey true
+            if sameAsFirst k then
+              repeat <- repeat + 1
+              pasteText k |> Option.iter append
+              if isPrintable k then printableKey <- Some k
+              sinceLastKey.Restart()
+            elif firstIsPrintable then
+              // Mid-paste: a differing key is just the next character, not the end of a run.
+              pasteText k |> Option.iter append
+              if isPrintable k then printableKey <- Some k
+              sinceLastKey.Restart()
+            else
+              // A different key ends a control-key run. Hold it for the next call rather than dropping it.
+              pushedBack <- Some k
+              draining <- false
+          elif sinceLastKey.Elapsed.TotalMilliseconds < quietMs
+               && burstStart.Elapsed.TotalMilliseconds < burstBudgetMs then
+            Threading.Thread.Sleep 1
+          else
+            draining <- false
         let pasted = sb.ToString()
         if pasted = "" then
-          (last, None, 1)
+          // Nothing insertable came out, so it was a run of control keys: a wheel, or a held-down key.
+          (first, None, repeat)
         else
-          (Option.defaultValue last printableKey, Some pasted, 1)
+          (Option.defaultValue first printableKey, Some pasted, 1)
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "stdinReadKey" 0
