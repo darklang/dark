@@ -10,7 +10,8 @@
 /// `RuntimeTypesToProgramTypes.dvalToExpr`. That matters because the chain is re-run on every eval - without
 /// it, `let t = slowThing ()` would pay for `slowThing` again on every subsequent expression, and an effectful
 /// one would repeat its effect. Values with no literal syntax (records, enums, functions, uuids) can't be
-/// captured; those fall back to holding the expression, which does re-run. The REPL says which you got.
+/// captured (functions, DBs, blobs, streams, datetimes, uuids, and floats with no literal form); those fall
+/// back to holding the expression, which does re-run. The REPL says which you got.
 module Darklang.Cli.Repl
 
 /// A session binding: the name, and the source text it stands for.
@@ -117,8 +118,13 @@ let upsert (bindings: List<Binding>) (b: Binding) : List<Binding> =
 
 /// Turn a runtime value back into source text, so a binding can hold the value rather than the expression
 /// that computed it. Returns `ok:<source>` or `err:<reason>` - a tagged string rather than a Result because
-/// the caller reads this back off the REPL's captured stdout, where a printed `Result` would be ambiguous
+/// the caller reads this back out of the evaluator's printed result, where a `Result` would be ambiguous
 /// with a result that is itself a Result.
+///
+/// That round trip works because `cliEvaluateExpression` returns a `DString` raw and unquoted rather than
+/// through `dvalToRepr`. If that ever changes, `readCaptured` stops matching and every binding quietly falls
+/// back to holding its expression - slower and re-effectful, but not visibly broken, so it would be easy to
+/// miss.
 /// `branchId` is the branch to resolve type names against, as a string because this is called from an
 /// expression the REPL assembles as text; an unparseable one falls back to main.
 let captureValue (branchId: String) (v: 'a) : String =

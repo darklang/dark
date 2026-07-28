@@ -11,13 +11,28 @@ module Darklang.LanguageTools.RuntimeTypesToProgramTypes
 let gid () : Int64 =
   Stdlib.Int64.random 0L 922337203685477580L
 
-/// Split a non-negative float's decimal string into (whole, fractional) parts for EFloat.
-let floatParts (f: Float) : (String * String) =
+/// Split `|f|`'s decimal string into (whole, fractional) parts for EFloat, or None when it has no literal
+/// form.
+///
+/// `Float.toString` doesn't only return plain decimals: NaN and the infinities come back as words, and large
+/// or small magnitudes come back in exponent form. Splitting those on "." produced `NaN.0`, `Infinity.0` and
+/// `1e+30.0`, none of which parse. That mattered beyond looking wrong: the REPL stores a captured value as a
+/// binding's source, so `let x = 1e30` wedged the whole session - every later eval prefixed an unparseable
+/// let-chain, with no way out but clearing the session.
+let floatParts (f: Float) : Stdlib.Option.Option<(String * String)> =
   let str = Stdlib.Float.toString (Stdlib.Float.absoluteValue f)
-  match Stdlib.String.split str "." with
-  | [ w; fr ] -> (w, fr)
-  | [ w ] -> (w, "0")
-  | _ -> (str, "0")
+  let isPlainDecimal =
+    (str != "")
+    && (str
+        |> Stdlib.String.toList
+        |> Stdlib.List.all (fun c -> Stdlib.Char.isDigit c || (Stdlib.Char.toString c) == "."))
+  if Stdlib.Bool.not isPlainDecimal then
+    Stdlib.Option.Option.None
+  else
+    match Stdlib.String.split str "." with
+    | [ w; fr ] -> Stdlib.Option.Option.Some((w, fr))
+    | [ w ] -> Stdlib.Option.Option.Some((w, "0"))
+    | _ -> Stdlib.Option.Option.None
 
 /// RT and PT type names are structurally the same (a package hash) but nominally distinct, so records and
 /// enums have to carry theirs across. Always `Ok`-resolved: the value came from a real runtime type, so the
@@ -60,9 +75,14 @@ let dvalToExpr
   | DInt128 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt128(gid (), i))
   | DUInt128 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EUInt128(gid (), i))
   | DFloat f ->
-    let sign = if f < 0.0 then Sign.Negative else Sign.Positive
-    let (whole, frac) = floatParts f
-    Stdlib.Result.Result.Ok(ProgramTypes.Expr.EFloat(gid (), sign, whole, frac))
+    match floatParts f with
+    | Some parts ->
+      let (whole, frac) = parts
+      let sign = if f < 0.0 then Sign.Negative else Sign.Positive
+      Stdlib.Result.Result.Ok(ProgramTypes.Expr.EFloat(gid (), sign, whole, frac))
+    | None ->
+      Stdlib.Result.Result.Error
+        "this float has no literal form (NaN, an infinity, or exponent notation)"
   | DChar c -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EChar(gid (), c))
   | DString s ->
     Stdlib.Result.Result.Ok(

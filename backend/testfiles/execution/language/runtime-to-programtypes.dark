@@ -1,6 +1,6 @@
-// Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId — promote a runtime value (RT.Dval) back into
-// a ProgramTypes expression (the "value -> source" primitive behind live values). IDs are freshly generated,
-// so we pattern-match the result structurally instead of comparing whole expressions.
+// `RuntimeTypesToProgramTypes.dvalToExpr` promotes a runtime value (RT.Dval) back into a ProgramTypes
+// expression - the "value -> source" primitive behind live values. IDs are freshly generated, so we
+// pattern-match the result structurally instead of comparing whole expressions.
 
 // --- literals ---
 (match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId Darklang.LanguageTools.RuntimeTypes.Dval.DUnit with | Ok (EUnit _) -> true | _ -> false) = true
@@ -16,6 +16,14 @@
 (match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DChar "a") with | Ok (EChar(_, c)) -> c | _ -> "FAIL") = "a"
 
 (match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DString "hi") with | Ok (EString(_, [ StringText s ])) -> s | _ -> "FAIL") = "hi"
+
+// A float with no plain-decimal form has no literal syntax. This matters beyond looking wrong: the REPL
+// stores a captured value as a binding's source, so `NaN.0` / `Infinity.0` / `1e+30.0` would wedge a session.
+Stdlib.Result.isError (Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat (0.0 / 0.0))) = true
+
+Stdlib.Result.isError (Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat (1.0 / 0.0))) = true
+
+Stdlib.Result.isError (Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat 1e30)) = true
 
 // --- collections ---
 (match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DList(Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown, [ Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1; Darklang.LanguageTools.RuntimeTypes.Dval.DInt 2 ])) with | Ok (EList(_, xs)) -> Stdlib.List.length xs | _ -> -1) = 2
