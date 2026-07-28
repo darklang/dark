@@ -8,7 +8,14 @@ let renderViewBody (state: State) (region: UI.Layout.Region) : List<UI.Layout.Sp
   if state.activeView == vHome then
     renderHome state region
   else if state.activeView == vMatter then
-    let treeTitle = if state.matterLens == "values" then "Values" else "Tree"
+    // Same treatment the other views get from `splitListPreview`: the count, and an active filter spelled
+    // out. Matter built its own title and showed neither, so a filtered tree was indistinguishable from the
+    // whole thing - which is the one place that matters most, since this is the view you browse in.
+    let treeTitle =
+      let base_ = if state.matterLens == "values" then "Values" else "Tree"
+      let count = Stdlib.Int.toString (Stdlib.List.length state.items)
+      if state.filter == "" then base_ ++ "  ·  " ++ count
+      else base_ ++ "  ·  " ++ count ++ "  ·  filter: " ++ state.filter
     UI.SplitPane.render
       region
       UI.SplitPane.Orientation.Horizontal

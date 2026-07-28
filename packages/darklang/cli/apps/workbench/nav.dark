@@ -14,7 +14,11 @@ let descend (state: State) : Step =
             location = newLoc
             items = loadItems state.branchId newLoc
             selected = 0
-            detailScroll = 0 }
+            detailScroll = 0
+            // The items we just loaded are unfiltered, so the filter has to go with them. Leaving it set
+            // made the title claim a filter that wasn't applied, and the next reload would then silently
+            // narrow the list under you.
+            filter = "" }
     else
       Step.Continue state
   | None -> Step.Continue state
@@ -30,7 +34,8 @@ let ascend (state: State) : Step =
       { state with
           location = newLoc
           items = loadItems state.branchId newLoc
-          selected = 0 }
+          selected = 0
+          filter = "" }
 
 // ── Movement (shared by arrows + vim keys, so j/k/h/l/g/G mean the same as the arrows) ──
 
@@ -176,6 +181,7 @@ let jumpToHit (state: State) (hit: SearchHit) : Step =
         selected = idx
         detailScroll = 0
         focus = UI.SplitPane.Focus.First
+        filter = ""
         searchHits = []
         searchSelected = 0
         message = "jumped to " ++ hit.name }
