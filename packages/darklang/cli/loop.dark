@@ -370,10 +370,24 @@ let runInteractiveLoop (state: AppState) : Int =
         if renderedState.telemetryEnabled then Telemetry.now () else 0
       let keyInput = Stdlib.Cli.Stdin.readKey ()
 
-      // Process the key
+      // Process the key. A coalesced burst (a mouse wheel, or a held-down key) arrives as one read with a
+      // repeat count; applying it here means every page gets wheel-aware scrolling without knowing about it,
+      // and the whole burst costs one render instead of one per event.
+      //
+      // Only movement repeats. A burst of Enter or Escape is coalesced too, but acting on it twenty times
+      // would turn a stray wheel-click-on-the-wrong-key into twenty actions; movement is the case where
+      // "do it N times" is unambiguously what was meant.
       let keyPressedMsg = Msg.KeyPressed (keyInput.key, keyInput.modifiers, Stdlib.Option.Option.Some keyInput.keyChar)
+      let repeatable =
+        match keyInput.key with
+        | UpArrow | DownArrow | LeftArrow | RightArrow | PageUp | PageDown -> true
+        | _ -> false
+      let times = if repeatable then Stdlib.Int.max 1 keyInput.repeat else 1
       let newState =
-        Update.updateAppState renderedState keyPressedMsg
+        Stdlib.List.range 1 times
+        |> Stdlib.List.fold renderedState (fun st _i ->
+          // Stop early once the app is on its way out - nothing after that should see more of the burst.
+          if st.isExiting then st else Update.updateAppState st keyPressedMsg)
 
       if renderedState.telemetryEnabled then
         Telemetry.logWithContext "readKey" tReadKey [("char", keyInput.keyChar)]

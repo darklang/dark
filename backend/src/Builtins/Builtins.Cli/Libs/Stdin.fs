@@ -59,7 +59,15 @@ module private Resize =
 /// newlines/tabs) are collected and returned as `Some` text, to be inserted in
 /// one go; if only control keys were queued, we return just the last key so a
 /// scroll renders once instead of flickering.
-let private readKeyOrPaste () : ConsoleKeyInfo * string option =
+/// How long a burst may keep draining before we hand back what we have, and how long a gap ends it. A wheel
+/// spin sends events a few ms apart; 4ms of quiet is comfortably a pause without waiting on a human. The
+/// budget bounds the worst case so a continuous stream can't starve rendering.
+let private quietMs = 4.0
+let private burstBudgetMs = 40.0
+
+/// Returns the key, the text of a paste when one is detected, and how many times the key repeated within a
+/// coalesced burst (1 for an ordinary keypress).
+let private readKeyOrPaste () : ConsoleKeyInfo * string option * int =
   // What a single key contributes to pasted text (newlines/tabs preserved).
   let pasteText (k : ConsoleKeyInfo) : string option =
     match k.Key with
@@ -78,7 +86,7 @@ let private readKeyOrPaste () : ConsoleKeyInfo * string option =
   // InvalidOperation_ConsoleReadKeyOnFile mid-loop and crashes a full-screen view with a raw stack trace.
   // Report Escape (every view treats it as "quit") so it exits cleanly instead.
   if Console.IsInputRedirected then
-    (ConsoleKeyInfo('\u001b', ConsoleKey.Escape, false, false, false), None)
+    (ConsoleKeyInfo('\u001b', ConsoleKey.Escape, false, false, false), None, 1)
   else
 
     Resize.arm ()
@@ -91,12 +99,40 @@ let private readKeyOrPaste () : ConsoleKeyInfo * string option =
 
     if resized then
       // A key no view acts on: the loop goes round, re-samples the terminal, and repaints.
-      (ConsoleKeyInfo('\u0000', ConsoleKey.NoName, false, false, false), None)
+      (ConsoleKeyInfo('\u0000', ConsoleKey.NoName, false, false, false), None, 1)
     else
 
       let first = Console.ReadKey true
       if not Console.KeyAvailable then
-        (first, None)
+        (first, None, 1)
+      // A burst that starts with a control key is a scroll or a held-down key, not a paste: a wheel in
+      // alternate-screen mode arrives as a run of arrow escapes. Coalesce the run and report how many of it
+      // were the same key, so the caller applies all the movement in ONE frame.
+      //
+      // Draining used to throw the count away and return a single key, which is why a flick of the wheel
+      // moved a list by exactly one row however far you spun it (measured: burst of 1 -> 1 row, burst of
+      // 20 -> 1 row).
+      elif not (isPrintable first) then
+        let sw = Diagnostics.Stopwatch.StartNew()
+        let mutable repeat = 1
+        let mutable last = first
+        let mutable draining = true
+        while draining do
+          if Console.KeyAvailable then
+            let k = Console.ReadKey true
+            last <- k
+            if k.Key = first.Key && k.Modifiers = first.Modifiers then repeat <- repeat + 1
+          // Nothing waiting: give the burst a moment to continue, since a wheel's events arrive with small
+          // gaps. A quiet stretch ends the burst; so does the overall budget, whichever comes first, so a
+          // long spin still renders promptly instead of us sitting here reading.
+          elif sw.Elapsed.TotalMilliseconds < quietMs then
+            Threading.Thread.Sleep 1
+          else
+            draining <- false
+          if sw.Elapsed.TotalMilliseconds >= burstBudgetMs then draining <- false
+          // The quiet window is measured from the last key, not from the start of the burst.
+          if Console.KeyAvailable then sw.Restart()
+        (last, None, repeat)
       else
         let sb = System.Text.StringBuilder()
         let append (text : string) : unit =
@@ -111,9 +147,9 @@ let private readKeyOrPaste () : ConsoleKeyInfo * string option =
           if isPrintable k then printableKey <- Some k
         let pasted = sb.ToString()
         if pasted = "" then
-          (last, None) // only control keys queued, e.g. a scroll
+          (last, None, 1)
         else
-          (Option.defaultValue last printableKey, Some pasted)
+          (Option.defaultValue last printableKey, Some pasted, 1)
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "stdinReadKey" 0
@@ -129,7 +165,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [ DUnit ] ->
           // Treat Ctrl+C as input so the Dark code can handle it gracefully
           Console.TreatControlCAsInput <- true
-          let readKey, pasteText = readKeyOrPaste ()
+          let readKey, pasteText, repeat = readKeyOrPaste ()
           Console.TreatControlCAsInput <- false
 
           let altHeld =
@@ -323,7 +359,11 @@ let fns () : List<BuiltInFn> =
               typeName,
               typeName,
               [],
-              Map [ "key", key; "modifiers", modifiers; "keyChar", keyChar ]
+              Map
+                [ "key", key
+                  "modifiers", modifiers
+                  "keyChar", keyChar
+                  "repeat", Dval.int (bigint repeat) ]
             )
 
           Ply(keyRead)

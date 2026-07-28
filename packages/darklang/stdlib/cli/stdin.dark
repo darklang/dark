@@ -490,7 +490,15 @@ module KeyRead =
 
       /// Any modifiers held when they key was pressed
       modifiers: Modifiers.Modifiers
-      keyChar: String}
+      keyChar: String
+
+      /// How many times this key arrived in one coalesced burst - 1 for an ordinary keypress.
+      ///
+      /// A mouse wheel (in the alternate screen it arrives as a run of arrow escapes) and a held-down key
+      /// both deliver many events faster than a frame. The reader waits out the burst - until a pause or a
+      /// time limit, whichever comes first - and reports the count, so a caller can apply all of the
+      /// movement and render once. Ignoring it is safe and means "treat a flick as a single step".
+      repeat: Int}
 
   let toString (k: KeyRead): String =
     (Modifiers.toString k.modifiers) ++ (Key.toString k.key)
