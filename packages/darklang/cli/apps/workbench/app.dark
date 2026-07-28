@@ -128,8 +128,6 @@ let initialState
         wipNames = []
         deprecatedNames = []
         branchId = branchId }
-  // Starting the session is what enters the alternate screen and paints the first frame; from here on the
-  // renderer diffs, so a keystroke rewrites the rows that changed rather than clearing and repainting.
 
 
 let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.Cli.AppState =
@@ -169,6 +167,8 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
   let (wip, deprecated) = readBadges state
   let state = { state with wipNames = wip; deprecatedNames = deprecated }
   let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+  // Starting the session is what enters the alternate screen and paints the first frame; from here on the
+  // renderer diffs, so a keystroke rewrites the rows that changed rather than clearing and repainting.
   match
     Darklang.Cli.Tui.TerminalSession.startAtSize size (viewAtSize state size)
   with
@@ -181,13 +181,13 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
     Stdlib.printLine message
     { cliState with isExiting = true }
 
-let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
+let help (state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
   [ "Usage: workbench"
     "Open the workbench - a framed, navigable view of your package tree."
     ""
     "  Up/Down   move    Right/Enter into    Left up    1-9 switch view    Esc/q exit" ]
   |> Stdlib.printLines
-  _state
+  state
 
 let complete
   (_state: Darklang.Cli.AppState)

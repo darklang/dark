@@ -5,10 +5,15 @@
 module Darklang.Cli.Apps.Workbench.App
 
 
+/// The glyph for a row's kind.
+///
+/// Lowercased first because two vocabularies meet here: the tree's loaders use "fn"/"type"/"val", while WIP
+/// rows carry the backend's display kinds ("Fn"/"Type"/"Value", see `getWipItems`). Matching only the
+/// lowercase spelling meant every row in SCM Changes fell through to the bullet.
 let iconFor (item: BodyItem) : String =
   if item.isModule then "🗂"
   else
-    match item.kind with
+    match Stdlib.String.toLowercase item.kind with
     | "fn" -> "⚡"
     | "type" -> "#"
     | _ -> "•"

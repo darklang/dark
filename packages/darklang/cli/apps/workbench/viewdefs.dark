@@ -10,7 +10,7 @@ let cronItems () : List<BodyItem> = loadCronItems ()
 let calendarItems () : List<BodyItem> = []
 let errorDetailLines (state: State) : List<String> = Stdlib.String.split (errorDetail state) "\n"
 let cronDetailLines (state: State) : List<String> = Stdlib.String.split (cronDetail state) "\n"
-let calendarDetailLines (state: State) : List<String> = []
+let calendarDetailLines (_state: State) : List<String> = []
 
 /// The composed extension views, appended after the built-ins (their absolute index = baseViewCount + position
 /// here). This is the ONE place the extensible surface is enumerated; the core never names these views.

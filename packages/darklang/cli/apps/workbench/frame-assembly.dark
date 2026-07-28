@@ -186,6 +186,3 @@ let viewAtSize (state: State) (size: Tui.Size) : Tui.View =
       renderFull state size
 
   UI.Canvas.toView size spans
-
-
-// ── Key handling ──

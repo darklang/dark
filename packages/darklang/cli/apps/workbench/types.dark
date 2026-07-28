@@ -44,7 +44,8 @@ type State =
     /// cursor into it; Enter navigates to the hit's location.
     searchHits: List<SearchHit>
     searchSelected: Int
-    /// When true, the `?` keymap overlay is drawn centered over a dimmed frame. Any key closes it.
+    /// When true, the `?` keymap overlay is drawn centered over the frame, its interior cleared so nothing
+    /// shows through. Any key closes it.
     showHelp: Bool
     /// When true, the ` view-picker overlay is open - a jumpable list of all views (since 1-9 only reach the
     /// first nine). `pickerSelected` is the cursor into viewNames.
@@ -53,7 +54,7 @@ type State =
     /// `:` command bar: which completion in the dropdown is highlighted (↑↓ move, tab accepts it). Reset to 0
     /// whenever the text changes.
     completionSel: Int
-    /// SCM view: which section is active - 0 Changes, 1 History, 2 Conflicts. Tab cycles it.
+    /// SCM view: which section is active - 0 Changes, 1 History, 2 Conflicts, 3 Branches. Tab cycles it.
     scmSection: Int
     /// AI view: which section is active - 0 Agents, 1 Prompts. Tab cycles it.
     aiSection: Int
@@ -208,7 +209,6 @@ let viewLabel (idx: Int) : String =
   | Some vd -> vd.name
   | None -> Frame.viewName idx
 
-/// The view indices shown in the tab bar, in `viewSpecs` order. A view shows if it isn't gated, or it's gated
 /// Which gated views (Devices, Crons, Calendar, ...) this account has switched on.
 ///
 /// Reads config from disk, so it's computed at launch and refreshed when a config command runs rather than
@@ -229,7 +229,9 @@ let recomputeGatedViews (state: State) : List<Int> =
   gatedViewsFor state.accountName
 
 
-/// and enabled for this account (see `enabledGatedViews`, recomputed on launch and after a config change).
+/// The view indices shown in the tab bar, in `viewSpecs` order. A view shows if it isn't gated, or it's
+/// gated and enabled for this account (see `enabledGatedViews`, recomputed on launch and after a config
+/// change).
 let visibleViews (state: State) : List<Int> =
   viewSpecs ()
   |> Stdlib.List.filter (fun spec ->
@@ -240,10 +242,9 @@ let visibleViews (state: State) : List<Int> =
     i)
 
 
-/// Run `f` and return everything it printed to stdout. The single place `Builtin.stdoutCapture*` is used, so
-/// the many "run a command, show its output inside the frame" sites go through one wrapper instead of each
-/// touching the builtins directly.
-/// Run `f` with anything it writes to stdout captured, and hand back both its value and that output.
+/// Run `f` with anything it writes to stdout captured, and hand back both its value and that output. The
+/// single place `Builtin.stdoutCapture*` is used, so the many "run a command, show its output inside the
+/// frame" sites go through one wrapper instead of each touching the builtins directly.
 ///
 /// Capturing is not optional in here. The workbench owns the whole screen, so a stray `printLine` from
 /// inside a command scrolls the alternate screen, and every frame after it lands that many rows off - which

@@ -159,7 +159,6 @@ val helpGroups =
     ("Apps", "i install/uninstall   r run   s stop")
     ("Search", "↑↓ move   ⏎ jump   esc close") ]
 
-/// A centered, boxed keymap overlay drawn over the frame. The interior is cleared so nothing shows through.
 /// The view-picker overlay: a centered, boxed, jumpable list of every view (number + name), the current one
 /// marked. Reaches the views the number keys can't (10th+).
 let renderViewPicker (state: State) (screen: UI.Layout.Region) : List<UI.Layout.Span> =
@@ -187,6 +186,7 @@ let renderViewPicker (state: State) (screen: UI.Layout.Region) : List<UI.Layout.
           UI.Layout.at inner p 1 styled)
         |> Stdlib.List.flatten) ]
 
+/// A centered, boxed keymap overlay drawn over the frame. The interior is cleared so nothing shows through.
 let renderHelpOverlay (screen: UI.Layout.Region) : List<UI.Layout.Span> =
   let w = Stdlib.Int.min (Stdlib.Int.max 40 (screen.cols - 4)) 70
   let rows = (Stdlib.List.length helpGroups) * 2 + 3

@@ -262,16 +262,26 @@ let performInputAction (state: State) (inp: InputState) : Step =
     else
       match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
       | Some b ->
-        let msg =
-          match Darklang.SCM.Branch.delete b.id with
-          | Ok _ -> "deleted " ++ b.name
-          | Error m -> "delete failed: " ++ m
-        Step.Continue
-          { state with
-              input = Stdlib.Option.Option.None
-              items = reloadItems state
-              selected = 0
-              message = msg }
+        match Darklang.SCM.Branch.delete b.id with
+        | Error m ->
+          Step.Continue
+            { state with input = Stdlib.Option.Option.None; message = "delete failed: " ++ m }
+        | Ok _ ->
+          // Deleting the branch you're standing on has to move you off it, or `branchId` keeps pointing at an
+          // archived branch and every later commit lands there. The classic `branch delete` does the same
+          // (see scm/branch.dark) - the backend allows it, so the caller owns the follow-up.
+          let landedOn =
+            if b.id == state.branchId then SCM.Branch.mainBranchId else state.branchId
+          let msg =
+            if b.id == state.branchId then "deleted " ++ b.name ++ " - switched to main"
+            else "deleted " ++ b.name
+          let moved = { state with branchId = landedOn }
+          Step.Continue
+            { moved with
+                input = Stdlib.Option.Option.None
+                items = reloadItems moved
+                selected = 0
+                message = msg }
       | None -> Step.Continue { state with input = Stdlib.Option.Option.None }
   else if inp.action == "branch-switch" then
     match Darklang.SCM.Branch.getByName inp.text with
