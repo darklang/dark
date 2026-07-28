@@ -209,13 +209,21 @@ let performInputAction (state: State) (inp: InputState) : Step =
     if text == "" then
       Step.Continue { state with input = Stdlib.Option.Option.None }
     else
-      let echo = (Colors.colorize Colors.cyan "> ") ++ text
+      // One log line per input line. A pasted program keeps its shape here; joining it would render
+      // `let a = 21L` + `a * 2L` as `let a = 21La * 2L`, which is not what you ran.
+      let echoLines =
+        match Stdlib.String.split text "\n" with
+        | first :: rest ->
+          Stdlib.List.append
+            [ (Colors.colorize Colors.cyan "> ") ++ first ]
+            (rest |> Stdlib.List.map (fun l -> "  " ++ l))
+        | [] -> [ (Colors.colorize Colors.cyan "> ") ++ text ]
       match Darklang.Cli.Repl.parseLetBinding text with
       | Some pair ->
         let (name, rhs) = pair
         let (bound, note) = bindSession state name rhs
         let logged =
-          Stdlib.List.append state.scratchLog [ echo; "  " ++ (Colors.dimText note) ]
+          Stdlib.List.append state.scratchLog (Stdlib.List.append echoLines [ "  " ++ (Colors.dimText note) ])
         match bound with
         | Some binding ->
           Step.Continue
@@ -241,7 +249,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
               input = Stdlib.Option.Option.None
               replLast = Stdlib.String.trim output
               scratchLog =
-                Stdlib.List.append state.scratchLog (Stdlib.List.append [ echo ] resultLines) }
+                Stdlib.List.append state.scratchLog (Stdlib.List.append echoLines resultLines) }
   else if inp.action == "filter" then
     // In-view filter: narrow the current list to items whose name contains the text (case-insensitive).
     let f = Stdlib.String.trim inp.text

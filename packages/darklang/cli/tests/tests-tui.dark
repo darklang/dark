@@ -304,7 +304,9 @@ let testReplParsesLetBinding (): TestResult =
       ("let (a, b) = t", Stdlib.Option.Option.None)
       ("let x =", Stdlib.Option.Option.None)
       ("letter = 3", Stdlib.Option.Option.None)
-      ("let 2x = 3", Stdlib.Option.Option.None) ]
+      ("let 2x = 3", Stdlib.Option.Option.None)
+      // A pasted program, not a binding: everything after `=` would otherwise become one multi-line rhs.
+      ("let a = 21L\na * 2L", Stdlib.Option.Option.None) ]
   let wrong =
     cases
     |> Stdlib.List.filter (fun c ->

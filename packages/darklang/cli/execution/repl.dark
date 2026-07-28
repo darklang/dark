@@ -44,7 +44,13 @@ let isSimpleName (name: String) : Bool =
 /// evaluated as an ordinary expression.
 let parseLetBinding (text: String) : Stdlib.Option.Option<(String * String)> =
   let trimmed = Stdlib.String.trim text
-  if Stdlib.Bool.not (Stdlib.String.startsWith trimmed "let ") then
+  // Multi-line input is a pasted program, not one binding. Treating it as a binding made everything after
+  // the `=` into a single multi-line right-hand side, so pasting `let a = 21L` + `a * 2L` bound `a` to both
+  // lines and failed with a type error instead of printing 42. Hand it to the evaluator whole - `eval`
+  // already takes a let-chain, so the paste does what it looks like it should.
+  if Stdlib.String.contains trimmed "\n" then
+    Stdlib.Option.Option.None
+  else if Stdlib.Bool.not (Stdlib.String.startsWith trimmed "let ") then
     Stdlib.Option.Option.None
   else
     let body = Stdlib.String.dropFirst trimmed 4
