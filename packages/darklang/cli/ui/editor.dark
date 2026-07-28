@@ -77,6 +77,42 @@ let backspace (buf: Buf) : Buf =
   else
     buf
 
+/// Delete the character to the RIGHT of the cursor; at the end of a line, pull the next line up. The mirror
+/// of `backspace`, and the reason it exists: without it, fixing a line means arrowing to its end and
+/// backspacing over everything you wanted to keep.
+let deleteForward (buf: Buf) : Buf =
+  let line = currentLine buf
+  let len = Stdlib.String.length line
+  if buf.col < len then
+    let before = Stdlib.String.slice line 0 buf.col
+    let after = Stdlib.String.slice line (buf.col + 1) len
+    Buf { lines = setLine buf.lines buf.row (before ++ after); row = buf.row; col = buf.col }
+  else if buf.row < (Stdlib.List.length buf.lines) - 1 then
+    let next = Stdlib.List.getAt buf.lines (buf.row + 1) |> Stdlib.Option.withDefault ""
+    let newLines =
+      buf.lines
+      |> Stdlib.List.indexedMap (fun i l -> (i, l))
+      |> Stdlib.List.filter (fun p -> let (i, _l) = p in i != buf.row + 1)
+      |> Stdlib.List.map (fun p ->
+        let (i, l) = p
+        if i == buf.row then (line ++ next) else l)
+    Buf { lines = newLines; row = buf.row; col = buf.col }
+  else
+    buf
+
+/// Jump to the start / end of the current line.
+let moveLineStart (buf: Buf) : Buf = { buf with col = 0 }
+
+let moveLineEnd (buf: Buf) : Buf =
+  { buf with col = Stdlib.String.length (currentLine buf) }
+
+/// Drop everything from the cursor to the end of the line (readline's ^k), so replacing a line is two keys
+/// rather than one per character.
+let killToLineEnd (buf: Buf) : Buf =
+  let line = currentLine buf
+  let kept = Stdlib.String.slice line 0 buf.col
+  Buf { lines = setLine buf.lines buf.row kept; row = buf.row; col = buf.col }
+
 let clampCol (buf: Buf) : Buf =
   let len = Stdlib.String.length (currentLine buf)
   { buf with col = Stdlib.Int.min buf.col len }

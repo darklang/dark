@@ -27,6 +27,14 @@ let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyI
     |> Stdlib.List.map (fun f -> BodyItem { name = f.location.name; kind = "fn"; isModule = false })
   Stdlib.List.flatten [ moduleItems; typeItems; valItems; fnItems ]
 
+/// How many uncommitted *items* there are - the same number the Changes list shows.
+///
+/// Not `getWipSummary.total`, which counts ops: authoring one value emits two of them (AddValue + SetName),
+/// so the SCM header used to read "● 2 changes" directly above a list titled "Changes · 1". Ops are the right
+/// unit for a commit's size (History says "(N ops)"); items are the right unit for "how much have I changed".
+let wipItemCount (branchId: Uuid) : Int =
+  Stdlib.List.length (SCM.PackageOps.getWipItems branchId)
+
 /// The uncommitted (WIP) items on this branch, as body items (for the Changes view).
 let loadWipBodyItems (branchId: Uuid) : List<BodyItem> =
   SCM.PackageOps.getWipItems branchId

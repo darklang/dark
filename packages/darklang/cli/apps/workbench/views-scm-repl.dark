@@ -13,7 +13,7 @@ let renderScmHeader (state: State) (region: UI.Layout.Region) : List<UI.Layout.S
       | Some pid -> (match SCM.Branch.get pid with | Some p -> p.name | None -> "?")
       | None -> "(root)"
     | None -> "(root)"
-  let wip = (SCM.PackageOps.getWipSummary state.branchId).total
+  let wip = wipItemCount state.branchId
   let commits = SCM.PackageOps.getCommitCount state.branchId
   let conflicts = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
   let peers = Stdlib.List.length (Darklang.Sync.status ())

@@ -55,6 +55,8 @@ let handleEditorKey
   // Editor mode. Ctrl+S saves; other Ctrl combos are ignored (so they don't insert control chars).
   if modifiers.ctrl && key == Stdlib.Cli.Stdin.Key.Key.S then
     saveEditing state es
+  else if modifiers.ctrl && key == Stdlib.Cli.Stdin.Key.Key.K then
+    Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.killToLineEnd es.buf } }
   else if modifiers.ctrl then
     Step.Continue state
   else
@@ -72,6 +74,12 @@ let handleEditorKey
       Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.moveLeft es.buf } }
     | RightArrow ->
       Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.moveRight es.buf } }
+    | Delete ->
+      Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.deleteForward es.buf } }
+    | Home ->
+      Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.moveLineStart es.buf } }
+    | End ->
+      Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.moveLineEnd es.buf } }
     | Tab ->
       Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.insertChar es.buf "  " } }
     | _ ->

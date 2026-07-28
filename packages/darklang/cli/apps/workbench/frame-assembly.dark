@@ -74,7 +74,7 @@ let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
           match state.editing with
           | Some _ ->
             Frame.formatHints
-              [ ("type", "edit"); ("↑↓←→", "move"); ("tab", "indent"); ("^s", "save"); ("esc", "cancel") ]
+              [ ("type", "edit"); ("↑↓←→", "move"); ("home/end", "line"); ("^k", "kill"); ("tab", "indent"); ("^s", "save"); ("esc", "cancel") ]
           | None ->
             match state.input with
             | Some inp ->

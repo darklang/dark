@@ -53,7 +53,7 @@ let plural (n: Int) (noun: String) : String =
 /// left-off on the left; Your Matter + Jump on the right), so the screen is used and the things a Dark dev
 /// actually lands wanting (am I in a good state, what was I doing, what's here, where do I go) each get a home.
 let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
-  let wip = SCM.PackageOps.getWipSummary state.branchId
+  let wip = wipItemCount state.branchId
   let commits = SCM.PackageOps.getCommitCount state.branchId
   let rootItems = loadItems state.branchId (Packages.PackageLocation.Module [])
   let branch =
@@ -74,8 +74,8 @@ let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
 
   let renderStatus (inner: UI.Layout.Region) : List<UI.Layout.Span> =
     let wipLine =
-      if wip.total == 0 then Colors.colorize Colors.green "✓ working tree clean"
-      else Colors.colorize Colors.pink (plural wip.total "uncommitted change")
+      if wip == 0 then Colors.colorize Colors.green "✓ working tree clean"
+      else Colors.colorize Colors.pink (plural wip "uncommitted change")
     let syncLine =
       if conflictCount == 0 then Colors.dimText "✓ in sync"
       else Colors.colorize Colors.pink ("⚠ " ++ (plural conflictCount "divergence") ++ "  ·  5 › Conflicts")
@@ -86,7 +86,7 @@ let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
         UI.Layout.at inner 3 1 syncLine ]
 
   let renderWip (inner: UI.Layout.Region) : List<UI.Layout.Span> =
-    if wip.total == 0 then
+    if wip == 0 then
       UI.Layout.at inner 0 1 (Colors.dimText "nothing in progress - the tree is yours to edit")
     else
       SCM.PackageOps.getWipItems state.branchId
