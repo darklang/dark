@@ -78,6 +78,9 @@ type State =
     /// The result of the last REPL expression, unstyled - what the session pane shows under "last result".
     /// Held rather than scraped back out of `scratchLog`, which is display text.
     replLast: String
+    /// Lines of a multi-line REPL statement typed so far, each ended with a `\`. Empty except while one is
+    /// being assembled; the next unbackslashed line completes it and the whole thing runs as one statement.
+    replPending: String
     /// Matter view: "all" shows the whole tree; "values" filters to values only (the Values lens, `v`).
     matterLens: String
     /// In-view find-as-you-type filter (`f`); "" = no filter. Narrows the current list by substring.

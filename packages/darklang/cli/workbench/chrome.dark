@@ -102,6 +102,31 @@ let renderBody (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
     if Stdlib.Bool.not (Stdlib.List.isEmpty state.searchHits) then renderSearchResults state region
     else renderViewBody state region
 
+/// What a tab is for, and how much of it is actually backed by something, as `(blurb, caveat)`. An empty
+/// caveat means the view runs on real data.
+///
+/// Home is the only place that says this, and it's the first question a wall of thirteen tabs raises: a
+/// sample row looks exactly like a real one until you go looking for where it came from. Keeping the answer
+/// on the landing page is cheaper than making every half-built view apologize for itself.
+let viewBlurb (idx: Int) : (String * String) =
+  if idx == vMatter then ("browse and edit the package tree", "")
+  else if idx == vScratch then ("evaluate expressions; `let` binds for the session", "")
+  else if idx == vSCM then ("changes, commits, branches, conflicts", "")
+  else if idx == vDevices then ("this instance's config, and the peers it syncs with", "part sketch")
+  else if idx == vAI then ("agent threads and prompts", "sample data")
+  else if idx == vApps then ("install, run and stop packaged apps", "")
+  else if idx == vTraces then ("what ran recently - samples until something does", "")
+  else if idx == vDocs then ("the CLI's docs, read without leaving", "")
+  else
+    match extensionViewAt idx with
+    | Some vd ->
+      if vd.id == "errors" then ("real conflicts, plus samples for the rest", "part sample")
+      else if vd.id == "crons" then ("scheduled handlers", "sample data")
+      else if vd.id == "calendar" then ("nothing behind it yet", "sketch")
+      else if vd.id == "builtins" then ("every builtin, searchable", "")
+      else ("", "")
+    | None -> ("", "")
+
 /// Honest, context-relevant key hints per view - the 3-6 most useful keys first, then the anchored global
 /// keys (view-switch, help, quit) so the footer's right edge is stable. Keys are emphasized by `formatHints`.
 /// Only advertises what actually works today.
@@ -116,9 +141,11 @@ let hintsForView (state: State) : String =
     if view == vMatter then
       [ ("↑↓", "move"); ("→", "in"); ("d", "deps"); ("n/t/v", "new"); ("e", "edit"); ("r", "rename"); ("L", "values"); ("f", "filter") ]
     else if view == vHome then
-      [ ("↑↓", "move") ]
+      // Home is a dashboard, not a list - nothing here moves, so don't advertise a cursor. The tabs panel
+      // names its own keys.
+      [ ("1-9", "jump to a tab") ]
     else if view == vScratch then
-      [ ("⏎/:", "eval"); ("f", "clear log"); ("x", "clear session") ]
+      [ ("⏎", "run"); ("f", "clear log"); ("x", "clear session") ]
     else if view == vSCM then
       if state.scmSection == 3 then
         [ ("↑↓", "move"); ("tab", "section"); ("⏎", "switch"); ("r", "rename"); ("x", "delete"); ("b", "new") ]
@@ -153,7 +180,7 @@ val helpGroups =
     ("Move", "↑↓ or j/k   g/G top/bottom   tab focus/section")
     ("Matter", "→/l in   ←/h up   ⏎ open   n/t/v new   e edit   r rename   L values-lens   f filter")
     ("Inspect", "⏎ walk callers   d deps")
-    ("REPL", "⏎ or : eval   f clear")
+    ("REPL", "⏎ run (or keep typing)   f clear log   x clear session")
     ("SCM", "tab section   c commit   x discard   b branch   s switch   m merge   r rebase   o/t/a resolve")
     ("AI", "tab Agents/Prompts   a ask")
     ("Apps", "i install/uninstall   r run   s stop")

@@ -27,6 +27,37 @@ Darklang.Cli.Repl.parseLetBinding "letter = 3" = Stdlib.Option.Option.None
 
 Darklang.Cli.Repl.parseLetBinding "let 2x = 3" = Stdlib.Option.Option.None
 
+// --- when ⏎ moves down a line instead of running ---
+Darklang.Cli.Repl.openBracketDepth "Stdlib.List.map xs (fun x -> x" = 1
+Darklang.Cli.Repl.openBracketDepth "Stdlib.List.map xs (fun x -> x)" = 0
+Darklang.Cli.Repl.openBracketDepth "[ 1; [ 2 ]" = 1
+Darklang.Cli.Repl.openBracketDepth "1 + 1" = 0
+
+// Brackets inside a string literal aren't brackets.
+Darklang.Cli.Repl.openBracketDepth "Stdlib.String.contains s \"(\"" = 0
+Darklang.Cli.Repl.openBracketDepth "\"a\\\"(\"" = 0
+
+// An open bracket, or a line that ends in something nothing can follow.
+Darklang.Cli.Repl.wantsAnotherLine "Stdlib.List.map xs (fun x ->" = true
+Darklang.Cli.Repl.wantsAnotherLine "[ 1" = true
+Darklang.Cli.Repl.wantsAnotherLine "let x =" = true
+Darklang.Cli.Repl.wantsAnotherLine "xs |>" = true
+Darklang.Cli.Repl.wantsAnotherLine "if x then" = true
+Darklang.Cli.Repl.wantsAnotherLine "match x with" = true
+
+// A finished statement runs.
+Darklang.Cli.Repl.wantsAnotherLine "1 + 1" = false
+Darklang.Cli.Repl.wantsAnotherLine "let x = 1" = false
+Darklang.Cli.Repl.wantsAnotherLine "Stdlib.List.map xs (fun x -> x * 2L)" = false
+Darklang.Cli.Repl.wantsAnotherLine "" = false
+
+// Judged over the whole statement so far, not just the last line: this closes what the first line opened.
+Darklang.Cli.Repl.wantsAnotherLine "Stdlib.List.map xs\n  (fun x -> x * 2L)" = false
+
+// A keyword only counts as the whole last token, so a name that merely ends in one isn't mistaken for it.
+Darklang.Cli.Repl.wantsAnotherLine "outlet" = false
+Darklang.Cli.Repl.wantsAnotherLine "myIf" = false
+
 // --- the chain that re-establishes a session ---
 // An empty session evaluates exactly what you typed.
 Darklang.Cli.Repl.withBindings [] "x + 1" = "x + 1"

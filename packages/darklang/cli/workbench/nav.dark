@@ -77,6 +77,12 @@ let openReader (state: State) (content: String) (isCode: Bool) : Step =
 let switchView (state: State) (nv: Int) : Step =
   let newItems = itemsForView nv state.branchId state.location state.scmSection state.aiSection state.matterLens
   let clamped = Stdlib.Int.max 0 (Stdlib.Int.min state.selected (Stdlib.Int.max 0 ((Stdlib.List.length newItems) - 1)))
+  // The REPL is somewhere you type, so arriving opens the prompt. Every other view is somewhere you look.
+  let inp =
+    if nv == vScratch then
+      Stdlib.Option.Option.Some(InputState { prompt = "repl> "; text = ""; action = "scratch" })
+    else
+      Stdlib.Option.Option.None
   Step.Continue
     { state with
         activeView = nv
@@ -84,6 +90,7 @@ let switchView (state: State) (nv: Int) : Step =
         selected = clamped
         filter = ""
         detailScroll = 0
+        input = inp
         focus = UI.SplitPane.Focus.First }
 
 /// Move to the previous/next visible view (dir -1 / +1), skipping any opted-out views (e.g. Devices).

@@ -148,19 +148,22 @@ let applyReplStatement (state: State) (stmt: String) : State =
 
 /// The REPL view: a persistent eval log on the left, the session on the right. ⏎ evaluates and appends to the
 /// log; `let x = ...` binds for the rest of the session and shows up in the sidebar.
+///
+/// The view's keys live in the two pane titles rather than the footer, because the footer is the input bar
+/// whenever you're typing - which here is nearly always.
 let renderRepl (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   UI.SplitPane.render
     region
     UI.SplitPane.Orientation.Horizontal
     62
     state.focus
-    "REPL"
+    "REPL  ·  ⏎ run  ·  f clears  ·  esc leaves"
     (fun inner ->
       let all =
         if Stdlib.List.isEmpty state.scratchLog then
           [ Colors.boldText "A REPL over your whole package space."
             ""
-            Colors.dimText "Press ⏎, type an expression, run it. Results log here."
+            Colors.dimText "The prompt below is already open. Type; ⏎ runs; results log here."
             ""
             Colors.dimText "try:"
             (Colors.colorize Colors.cyan "  1 + 1")
@@ -170,16 +173,36 @@ let renderRepl (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
             Colors.dimText "`let` binds for the session - the"
             Colors.dimText "sidebar lists what's bound."
             ""
-            Colors.dimText "f clears the log, x the session." ]
+            Colors.dimText "Multi-line just works: ⏎ after a line that can't"
+            Colors.dimText "have ended - an open bracket, a trailing `=` or"
+            Colors.dimText "`->` - moves down instead of running. ⏎ on the"
+            Colors.dimText "empty line runs it early."
+            ""
+            Colors.dimText "Pasting a block works too - it runs a statement at"
+            Colors.dimText "a time, exactly as if you'd typed the lines." ]
         else state.scratchLog
-      let shown = all |> Stdlib.List.reverse |> Stdlib.List.take inner.rows |> Stdlib.List.reverse
+      // A multi-line statement is still being typed one row at a time in the bar below, so echo what's
+      // accumulated at the foot of the log. Without this the earlier lines just vanish and you're typing
+      // line four of something you can no longer see.
+      let pending =
+        if state.replPending == "" then
+          []
+        else
+          match Stdlib.String.split state.replPending "\n" with
+          | first :: rest ->
+            Stdlib.List.append
+              [ (Colors.colorize Colors.cyan "> ") ++ first ]
+              (rest |> Stdlib.List.map (fun l -> "  " ++ l))
+          | [] -> []
+      let withPending = Stdlib.List.append all pending
+      let shown = withPending |> Stdlib.List.reverse |> Stdlib.List.take inner.rows |> Stdlib.List.reverse
       shown
       |> Stdlib.List.indexedMap (fun i l -> (i, l))
       |> Stdlib.List.map (fun p ->
         let (i, l) = p
         UI.Layout.at inner i 1 l)
       |> Stdlib.List.flatten)
-    "Session"
+    "Session  ·  x clears"
     (fun inner ->
       let bindingLines =
         if Stdlib.List.isEmpty state.replBindings then

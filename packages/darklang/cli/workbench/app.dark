@@ -123,6 +123,7 @@ let initialState
         scratchLog = []
         replBindings = []
         replLast = ""
+        replPending = ""
         matterLens = "all"
         filter = ""
         wipNames = []

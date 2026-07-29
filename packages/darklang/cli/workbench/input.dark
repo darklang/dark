@@ -210,14 +210,38 @@ let performInputAction (state: State) (inp: InputState) : Step =
     // A paste is run statement by statement, so it does exactly what typing those lines would have done -
     // `let a = 21L` binds, then `a * 2L` sees it and prints 42. Indented lines continue the one above, so a
     // wrapped expression is still one statement (see `Repl.splitStatements`).
-    let text = Stdlib.String.trim inp.text
-    if text == "" then
-      Step.Continue { state with input = Stdlib.Option.Option.None }
+    let body = Stdlib.String.trimEnd inp.text
+    // Continuation lines keep the indentation you typed, and get two spaces if you typed none: `splitStatements`
+    // treats an indented line as part of the one above, so this is what makes a typed multi-line statement land
+    // as one statement - the same shape pasting those lines would have had.
+    let addLine (pending: String) (line: String) : String =
+      if pending == "" then Stdlib.String.trim line
+      else if Stdlib.String.startsWith line " " || Stdlib.String.startsWith line "\t" then pending ++ "\n" ++ line
+      else pending ++ "\n  " ++ (Stdlib.String.trim line)
+    // ⏎ on the empty `...` line runs what's accumulated. That's the override for a statement `wantsAnotherLine`
+    // won't let go of, and it's why there's no continuation character to type.
+    let finishing = (state.replPending != "") && ((Stdlib.String.trim body) == "")
+    let soFar = addLine state.replPending body
+    if (Stdlib.Bool.not finishing) && (Darklang.Cli.Repl.wantsAnotherLine soFar) then
+      Step.Continue
+        { state with
+            replPending = soFar
+            input = Stdlib.Option.Option.Some { inp with prompt = "...   "; text = "" } }
     else
-      let ran =
-        Darklang.Cli.Repl.splitStatements text
-        |> Stdlib.List.fold state (fun st stmt -> applyReplStatement st stmt)
-      Step.Continue { ran with input = Stdlib.Option.Option.None }
+      let text = Stdlib.String.trim soFar
+      if text == "" then
+        // An empty line with nothing pending closes the bar - the other way out, alongside esc.
+        Step.Continue { state with replPending = ""; input = Stdlib.Option.Option.None }
+      else
+        let ran =
+          Darklang.Cli.Repl.splitStatements text
+          |> Stdlib.List.fold state (fun st stmt -> applyReplStatement st stmt)
+        // Stay in the bar. A REPL you have to re-open after every ⏎ reads as modal when it isn't; typing the
+        // next expression is overwhelmingly what you want, and esc still leaves.
+        Step.Continue
+          { ran with
+              replPending = ""
+              input = Stdlib.Option.Option.Some { inp with prompt = "repl> "; text = "" } }
   else if inp.action == "filter" then
     // Record the filter, then reload through the ordinary path - `reloadItems` applies it, so this is the
     // same code every other reload runs and can't drift from it.

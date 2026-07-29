@@ -78,6 +78,65 @@ let splitStatements (text: String) : List<String> =
   let all = if current == "" then acc else Stdlib.List.pushBack acc current
   all |> Stdlib.List.filter (fun s -> (Stdlib.String.trim s) != "")
 
+/// How many brackets `text` leaves open: `(`, `[` and `{` minus their closers, ignoring anything inside a
+/// string literal (and a `\"` inside one). Negative if it closes more than it opens.
+let openBracketDepth (text: String) : Int =
+  let (depth, _inString, _escaped) =
+    Stdlib.String.toList text
+    |> Stdlib.List.fold (0, false, false) (fun acc c ->
+      let (depth, inString, escaped) = acc
+      let s = Stdlib.Char.toString c
+      if escaped then (depth, inString, false)
+      // A backslash only escapes inside a string; outside one it's the REPL's own continuation marker.
+      else if s == "\\" then (depth, inString, inString)
+      else if s == "\"" then (depth, Stdlib.Bool.not inString, false)
+      else if inString then (depth, true, false)
+      else if s == "(" || s == "[" || s == "{" then (depth + 1, false, false)
+      else if s == ")" || s == "]" || s == "}" then (depth - 1, false, false)
+      else (depth, false, false))
+  depth
+
+/// Does the statement typed so far want another line? This is what ⏎ at the REPL asks: yes moves you down a
+/// line, no runs it. Takes the whole statement, not the last line, because the bracket count is a property of
+/// the whole thing.
+///
+/// Two rules, both about text that *cannot* be the end of an expression:
+///  1. a bracket is still open;
+///  2. the last line ends in an operator, or in a keyword that governs what comes after it.
+///
+/// There's deliberately no manual override - no `\` to type, no second submit key. ⏎ inserting a newline with
+/// ctrl+⏎ to run would be the obvious design, but most terminals send the identical byte for both, so it
+/// isn't available; and a continuation character you have to remember is a tax on every multi-line expression
+/// to buy an escape from a case these rules already cover.
+///
+/// The rules can still be too eager - a line ending in a `-` you meant as a minus, say. The way out is ⏎ on
+/// the empty `...` line, which runs whatever has accumulated. That, and not a punctuation mark, is the manual
+/// override.
+let wantsAnotherLine (text: String) : Bool =
+  let t = Stdlib.String.trimEnd (Stdlib.String.trim text)
+  if t == "" then
+    false
+  else if (openBracketDepth t) > 0 then
+    true
+  else
+    let lastLine =
+      Stdlib.String.split t "\n"
+      |> Stdlib.List.reverse
+      |> Stdlib.List.head
+      |> Stdlib.Option.withDefault ""
+      |> Stdlib.String.trim
+    // Operators match the raw tail (`x*` needs no space before it); keywords match the last whitespace-
+    // delimited token, so a name that merely ends in "if" or "let" isn't mistaken for one.
+    let operators = [ "="; "|>"; "&&"; "||"; "->"; "+"; "-"; "*"; "/"; "," ]
+    let keywords = [ "then"; "else"; "with"; "fun"; "if"; "match"; "let" ]
+    let lastToken =
+      Stdlib.String.split lastLine " "
+      |> Stdlib.List.reverse
+      |> Stdlib.List.head
+      |> Stdlib.Option.withDefault ""
+    (operators |> Stdlib.List.any (fun s -> Stdlib.String.endsWith lastLine s))
+    || (Stdlib.List.member keywords lastToken)
+
 /// Recognize a top-level `let <name> = <expr>` typed at the REPL, returning (name, expr). Only a single
 /// simple name binds; anything else (a pattern, a `let` with no `=`, a bare expression) returns None and is
 /// evaluated as an ordinary expression.

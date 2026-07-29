@@ -55,9 +55,11 @@ let renderPreview (state: State) (region: UI.Layout.Region) : List<UI.Layout.Spa
 let plural (n: Int) (noun: String) : String =
   (Stdlib.Int.toString n) ++ " " ++ noun ++ (if n == 1 then "" else "s")
 
-/// Home, the landing dashboard. A header band over two columns of boxed panels (Status + Pick-up-where-you-
-/// left-off on the left; Your Matter + Jump on the right), so the screen is used and the things a Dark dev
-/// actually lands wanting (am I in a good state, what was I doing, what's here, where do I go) each get a home.
+/// Home, the landing dashboard: am I in a good state, what was I doing, what's here, and where can I go.
+///
+/// The last of those is the panel that earns its keep. The workbench opens on thirteen tabs with no way to
+/// tell which of them do anything, so the bottom panel names each one, says what it's for, and marks the ones
+/// still running on sample data. It replaced a list of commands you had to already know to look for.
 let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   let wip = wipItemCount state.branchId
   let commits = SCM.PackageOps.getCommitCount state.branchId
@@ -114,25 +116,32 @@ let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
       [ UI.Layout.at inner 0 1 (Colors.dimText (plural (Stdlib.List.length rootItems) "top-level owner"))
         owners ]
 
-  // The commands you'll actually reach for, as a landing reference. One cyan span per row (the command),
-  // plain descriptions. `Layout.at` measures in terminal columns and ignores SGR, so the cyan doesn't count
-  // toward the width and get clipped on narrow terminals. The `:` bar runs any of these with autocomplete.
-  let renderCommands (inner: UI.Layout.Region) : List<UI.Layout.Span> =
-    let cy = fun t -> Colors.colorize Colors.cyan t
-    let rows =
-      [ (cy "fn / type / val") ++ "   create functions, types, values in the tree"
-        (cy "eval <expr>") ++ "       evaluate, or run a fn:  eval MyMod.myFn 1 2"
-        (cy "commit \"msg\"") ++ "      save to SCM  ·  status shows what changed"
-        (cy "search <term>") ++ "     find anything  ·  docs [topic] reads these docs"
-        (cy "sync") ++ "              share changes  ·  conflicts to resolve"
-        (cy "apps") ++ "              run & manage apps  ·  agent <verb> for AI"
-        (cy "1-9 / Ctrl+←→ / `") ++ "  switch views  ·  ? for all keys"
-        ""
-        (cy ":commands") ++ "  the old command-prompt mode (quit there returns here)" ]
-      |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
-      |> Stdlib.List.indexedMap (fun i l -> UI.Layout.at inner i 1 l)
-      |> Stdlib.List.flatten
-    rows
+  // Every tab: its number key, its name, what it's for, and whether it's real. `Layout.at` measures in
+  // terminal columns and ignores SGR, so the colour doesn't count toward the width and get clipped.
+  //
+  // The number key is the row's position in the *full* visible list (Home is 1), which is what the digit keys
+  // index; past nine there's no digit, and the row says so by leaving the column blank.
+  let renderTabs (inner: UI.Layout.Region) : List<UI.Layout.Span> =
+    // Local rather than `String.padEnd`, which returns a Result (it can reject a multi-char pad) and would
+    // need unwrapping at both call sites for a column of spaces.
+    let pad (s: String) (n: Int) : String =
+      s ++ (Stdlib.String.repeat " " (Stdlib.Int.max 0 (n - (Stdlib.String.length s))))
+    visibleViews state
+    |> Stdlib.List.indexedMap (fun i v -> (i, v))
+    |> Stdlib.List.filter (fun pair -> let (_i, v) = pair in v != vHome)
+    |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
+    |> Stdlib.List.indexedMap (fun row pair ->
+      let (i, v) = pair
+      let key = if i < 9 then Stdlib.Int.toString (i + 1) else " "
+      let (blurb, caveat) = viewBlurb v
+      let tag = if caveat == "" then "" else Colors.dimText ("   (" ++ caveat ++ ")")
+      let line =
+        (Colors.colorize Colors.cyan (pad key 2))
+        ++ (pad (viewLabel v) 11)
+        ++ (Colors.dimText blurb)
+        ++ tag
+      UI.Layout.at inner row 1 line)
+    |> Stdlib.List.flatten
 
   let leftCol (r: UI.Layout.Region) : List<UI.Layout.Span> =
     UI.Layout.vstack
@@ -140,16 +149,29 @@ let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
       [ UI.Layout.fixedSize 6 (fun rr -> UI.Box.panel rr "Status" false renderStatus)
         UI.Layout.greedy (fun rr -> UI.Box.panel rr "Pick up where you left off" false renderWip) ]
 
+  // Cap the dashboard's width. Full-width panels on a 300-column terminal strand four short lines in a box
+  // wide enough to read as broken rather than spacious.
+  let dash =
+    UI.Layout.Region
+      { top = region.top
+        left = region.left
+        rows = region.rows
+        cols = Stdlib.Int.min region.cols 118 }
+
+  // The tabs panel is exactly as tall as it needs to be (a row per tab, plus its border), and the panels above
+  // take the rest. The other way round left the dashboard ending in a stack of empty rows inside a box.
+  let tabRows = (Stdlib.List.length (visibleViews state)) + 1
+
   UI.Layout.vstack
-    region
+    dash
     [ UI.Layout.fixedSize 3 renderHeader
-      UI.Layout.fixedSize 11 (fun r ->
+      UI.Layout.greedy (fun r ->
         UI.Layout.hstack
           r
           [ UI.Layout.greedyWidth leftCol
             UI.Layout.fixedWidth 40 (fun rr -> UI.Box.panel rr "Your Matter" false renderMatterPanel) ])
-      UI.Layout.greedy (fun rr ->
-        UI.Box.panel rr "Commands  ·  press : to run" false renderCommands) ]
+      UI.Layout.fixedSize tabRows (fun rr ->
+        UI.Box.panel rr "The tabs  ·  press the number, or ` for the picker" false renderTabs) ]
 
 /// A full-body scrollable reader (Docs topic content, etc.).
 let renderReading (content: String) (isCode: Bool) (scroll: Int) (region: UI.Layout.Region) : List<UI.Layout.Span> =

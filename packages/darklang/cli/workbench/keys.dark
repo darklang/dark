@@ -17,7 +17,15 @@ let handleViewPickerKey
   // visible views (Devices hidden unless opted in).
   let vis = visibleViews state
   let nviews = Stdlib.List.length vis
-  let moveTo (i: Int) = Step.Continue { state with pickerSelected = Stdlib.Int.max 0 (Stdlib.Int.min (nviews - 1) i) }
+  // Wraps: it's a short closed menu, so ↑ from the top means "the bottom one" rather than "nothing happens".
+  // (Scrolling lists clamp instead - there, wrapping loses your place in something long.)
+  let moveTo (i: Int) =
+    let wrapped =
+      if nviews == 0 then 0
+      else if i < 0 then nviews - 1
+      else if i >= nviews then 0
+      else i
+    Step.Continue { state with pickerSelected = wrapped }
   let jump (pos: Int) =
     match Stdlib.List.getAt vis pos with
     | Some v ->
@@ -111,7 +119,9 @@ let handleInputKey
   | Enter -> performInputAction state inp
   // Cancel, not clear: Escape closes the prompt and changes nothing, which is what it means in every other
   // input mode here. An active filter survives it - `f`, `^u`, ⏎ is how you drop one.
-  | Escape -> Step.Continue { state with input = Stdlib.Option.Option.None }
+  // A half-typed multi-line REPL statement goes with the prompt it was being typed into; leaving it behind
+  // would silently prefix whatever you typed next.
+  | Escape -> Step.Continue { state with input = Stdlib.Option.Option.None; replPending = "" }
   | Backspace ->
     let t = inp.text
     let nt =
