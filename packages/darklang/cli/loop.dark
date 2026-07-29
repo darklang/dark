@@ -258,12 +258,33 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       //
       // Safe to clear: LaunchCommand always pushes onto the page stack, so the launched app's exit pops back
       // here rather than consulting this flag to decide whether to leave the CLI.
-      Registry.executeCommand
-        cmd
-        { state with
-            pageStack = Stdlib.List.append [ saved ] state.pageStack
-            nonInteractive = false }
-        []
+      //
+      // `currentPage` is pointed at MainPrompt before handing off, as a marker for "nobody took the screen".
+      // It used to stay on this app, whose session `onTerminate` just stopped - so a command that bailed
+      // before taking the terminal left a page that repaints nothing above a stack entry that never pops.
+      // MainPrompt is the only page that can be recognised afterwards: a SubApp holds nothing but functions,
+      // so two of them can't be compared.
+      let launched =
+        Registry.executeCommand
+          cmd
+          { state with
+              currentPage = Page.MainPrompt
+              pageStack = Stdlib.List.append [ saved ] state.pageStack
+              nonInteractive = false }
+          []
+      match launched.currentPage with
+      | MainPrompt ->
+        // Nothing took the screen. Undo the push and resume this page, rather than stranding the user at a
+        // prompt they didn't ask for. Only pop when the stack is the length we left it: a command that
+        // manipulated the stack itself owns it, and popping blindly would take the wrong entry.
+        let resumed = Page.SubApp(newApp.onResume ())
+        if (Stdlib.List.length launched.pageStack) == ((Stdlib.List.length state.pageStack) + 1) then
+          { launched with
+              currentPage = resumed
+              pageStack = Stdlib.List.drop launched.pageStack 1 }
+        else
+          { launched with currentPage = resumed }
+      | _ -> launched
     | LaunchPrompt ->
       // Drop to the classic prompt, pushing this page. Stopping the session releases the alternate screen so
       // the inline prompt renders in normal scrollback; `quit` there pops back (see Quit.execute).
