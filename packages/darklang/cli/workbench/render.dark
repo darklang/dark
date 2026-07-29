@@ -156,22 +156,43 @@ let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
       { top = region.top
         left = region.left
         rows = region.rows
-        cols = Stdlib.Int.min region.cols 118 }
+        cols = Stdlib.Int.min region.cols 140 }
 
-  // The tabs panel is exactly as tall as it needs to be (a row per tab, plus its border), and the panels above
-  // take the rest. The other way round left the dashboard ending in a stack of empty rows inside a box.
-  let tabRows = (Stdlib.List.length (visibleViews state)) + 1
+  // Every band is fixed, so a tall terminal leaves blank rows under the dashboard rather than inflating it.
+  // `distributeRows` hands out only the minimums when nothing asks for more, which is what makes that work.
+  // Nothing here is a scrolling list, so growth buys almost nothing: the tabs panel wants exactly a row per
+  // tab, and the two above only ever hold a handful of lines. Making either greedy just wraps a box around
+  // twenty empty rows.
+  // What each band wants: the middle is as tall as its taller column (Status (6) over the WIP list, against
+  // the owners list), the tabs want a row per tab plus a border.
+  let wantMid = Stdlib.Int.min 16 (Stdlib.Int.max (6 + (Stdlib.Int.max 1 wip) + 2) ((Stdlib.List.length rootItems) + 3))
+  let wantTabs = (Stdlib.List.length (visibleViews state)) + 1
+
+  // What they get. Fixed bands only, so `distributeRows` hands out the minimums and a tall terminal leaves
+  // blank rows below rather than inflating a box around them - nothing here scrolls, so growth buys nothing.
+  //
+  // But fixed also means nothing shrinks, and on a short terminal the total ran off the bottom and the footer
+  // drew over the last row. So the sizes are bounded here instead: the middle keeps its Status panel and four
+  // rows, and the tabs panel takes what's left (it truncates gracefully - the title already points at the
+  // picker for the rest).
+  let avail = Stdlib.Int.max 1 region.rows
+  let midRows = Stdlib.Int.max 6 (Stdlib.Int.min wantMid (avail - 3 - 4))
+  let tabRows = Stdlib.Int.max 0 (Stdlib.Int.min wantTabs (avail - 3 - midRows))
 
   UI.Layout.vstack
     dash
     [ UI.Layout.fixedSize 3 renderHeader
-      UI.Layout.greedy (fun r ->
+      UI.Layout.fixedSize midRows (fun r ->
         UI.Layout.hstack
           r
           [ UI.Layout.greedyWidth leftCol
             UI.Layout.fixedWidth 40 (fun rr -> UI.Box.panel rr "Your Matter" false renderMatterPanel) ])
-      UI.Layout.fixedSize tabRows (fun rr ->
-        UI.Box.panel rr "The tabs  ·  press the number, or ` for the picker" false renderTabs) ]
+      // Below three rows there's no room for a border and a line, so drop the panel rather than draw a stub.
+      if tabRows < 3 then
+        UI.Layout.fixedSize 0 (fun _r -> [])
+      else
+        UI.Layout.fixedSize tabRows (fun rr ->
+          UI.Box.panel rr "The tabs  ·  press the number, or ` for the picker" false renderTabs) ]
 
 /// A full-body scrollable reader (Docs topic content, etc.).
 let renderReading (content: String) (isCode: Bool) (scroll: Int) (region: UI.Layout.Region) : List<UI.Layout.Span> =
