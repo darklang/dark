@@ -3,6 +3,13 @@
 /// Part of `Darklang.Cli`.
 module Darklang.Cli
 
+/// Extract the branch flag from args, returning (Some branchId, remainingArgs) when it's present and
+/// resolvable. When it's absent, returns (None, args) so the caller falls back to whatever `initState`
+/// restored from cli-config.json (or main).
+///
+/// Both spellings work: `--branch feat` and `--branch=feat`. They're the same flag, and every other CLI in
+/// the world takes either, so accepting only one makes the other look like a bug in your typing rather than
+/// a gap here. The `=` form is one arg to drop, the space form is two.
 let parseBranchFlag (args: List<String>) : (Stdlib.Option.Option<Uuid> * List<String>) =
   let indexed = Stdlib.List.indexedMap args (fun i a -> (i, a))
 

@@ -3,6 +3,15 @@
 /// Part of `Darklang.Cli`.
 module Darklang.Cli
 
+/// Prepend the "you got here from somewhere, here's the way back" row when this prompt sits on a page stack.
+///
+/// This used to be the right-hand side of the bottom status bar. The status bar is gone: it reserved the last
+/// terminal row with a scroll region, and a scroll region and an inline prompt region fight over the same
+/// rows. A row directly above the prompt is arguably the better home anyway, since it's next to what you're
+/// typing rather than parked at the far edge of the screen.
+///
+/// Presentation only. It's added on the render path and not by `releasePromptRegion`, so it disappears rather
+/// than piling up in scrollback behind every command you run.
 let withModeHint (state: AppState) (view: Tui.View) : Tui.View =
   if Stdlib.List.isEmpty state.pageStack then
     view
@@ -17,6 +26,10 @@ let withModeHint (state: AppState) (view: Tui.View) : Tui.View =
     | Hidden -> { view with rows = rows }
 
 
+/// Release the retained prompt before appending command output or handing the terminal to another page.
+///
+/// The region shrinks to the prompt rows alone, so the submitted command stays in scrollback while the
+/// completion hint does not.
 let releasePromptRegion (state: AppState) : AppState =
   match state.promptTerminal with
   | None -> state
@@ -414,12 +427,3 @@ let runInteractiveLoop (state: AppState) : Int =
           cachedHintInput = renderedState.prompt.text
           cachedHintValue = hint
       }
-
-
-/// Extract the branch flag from args, returning (Some branchId, remainingArgs) when it's present and
-/// resolvable. When it's absent, returns (None, args) so the caller falls back to whatever `initState`
-/// restored from cli-config.json (or main).
-///
-/// Both spellings work: `--branch feat` and `--branch=feat`. They're the same flag, and every other CLI in
-/// the world takes either, so accepting only one makes the other look like a bug in your typing rather than
-/// a gap here. The `=` form is one arg to drop, the space form is two.
