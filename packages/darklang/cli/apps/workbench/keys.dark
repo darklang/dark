@@ -222,6 +222,3 @@ let handleSearchResultsKey
     | Some "G" -> moveTo (n - 1)
     | Some "q" -> closeSearch
     | _ -> Step.Continue state
-
-
-/// Keys with no modal layer above them: movement, view switching, and each view's own actions.

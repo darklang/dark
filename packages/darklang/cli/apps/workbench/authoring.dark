@@ -3,6 +3,8 @@
 /// Part of `Darklang.Cli.Apps.Workbench.App`.
 module Darklang.Cli.Apps.Workbench.App
 
+/// Pull the leaf name out of a full declaration's first line: the token right after the `let`/`type`/`val`
+/// keyword, stripped of anything from a `(` or `:` (so `let f(x: Int)` -> `f`). "" if none.
 let leafNameOf (src: String) : String =
   let firstLine =
     Stdlib.String.split src "\n" |> Stdlib.List.head |> Stdlib.Option.withDefault ""

@@ -4,6 +4,7 @@
 /// Part of `Darklang.Cli.Apps.Workbench.App`.
 module Darklang.Cli.Apps.Workbench.App
 
+/// Keys with no modal layer above them: movement, view switching, and each view's own actions.
 let handleViewKey
   (state: State)
   (key: Stdlib.Cli.Stdin.Key.Key)

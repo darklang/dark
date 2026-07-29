@@ -46,8 +46,8 @@ Five independent mechanisms. If you are writing a view, you get all of them for 
 changing the renderer, these are the things not to break.
 
 1. Nothing is cleared wholesale.
-   Clearing with `ESC [ 2J` and repainting is the flash: the terminal genuinely blanks first. There
-   are no `2J` clears outside the tui layer.
+   Clearing with `ESC [ 2J` and repainting is the flash: the terminal genuinely blanks first. The only
+   `2J` in the CLI is the explicit `clear` command; no render path clears the screen.
 
 2. Only changed rows are emitted.
    `Frame.changedRows` walks the previous and next row lists together and emits a change only where
@@ -94,7 +94,8 @@ across the screen": `界` is one grapheme occupying two columns, and so is a ZWJ
 2. View functions are pure. If you need the world, read it during the state transition and stash the
    result on the state. The renderer may call your view function and diff it.
 3. One write per frame. Don't interleave `printLine` with a live session.
-4. Measure with `Tui.Text.displayWidth`, never `Stdlib.String.length`.
+4. Measure with `Tui.Text.displayWidth` for plain text, `styledWidth` once SGR is in the row - never
+   `Stdlib.String.length`. Passing a row containing control sequences to `displayWidth` is not valid.
 5. Release the inline region before printing to scrollback. `releasePromptRegion` /
    `stopInlineWithView` shrink the region to what should persist and hand the terminal back;
    printing over a live inline region corrupts it.
@@ -102,10 +103,10 @@ across the screen": `界` is one grapheme occupying two columns, and so is a ZWJ
 
 ## Safety and degradation
 
-- Dynamic content is sanitized on the way out: `Text.consumeCsi` keeps only numeric SGR and discards
-  every other CSI, and anything else that looks like an escape loses its ESC byte and renders as
-  ordinary text. So a package name or description can't move your cursor or reset your terminal. The
-  renderer is the single boundary for this.
+- Dynamic content is sanitized on the way out: clipping a row (`Text.normalizeToWidth` ->
+  `clipToWidth`, native) keeps only numeric SGR and discards every other CSI, and anything else that
+  looks like an escape loses its ESC byte and renders as ordinary text. So a package name or
+  description can't move your cursor or reset your terminal. The renderer is the single boundary.
 - `TerminalSession.armRestoreGuard` registers a restore sequence with the host before entering a
   surface, so a hard kill still un-wrecks the terminal.
 - `TerminalSupport.current ()` refuses to emit control sequences when stdin or stdout isn't a tty, or
