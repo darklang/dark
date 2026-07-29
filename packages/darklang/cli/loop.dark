@@ -260,6 +260,9 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
           currentPage = Page.MainPrompt }
 
 
+/// The most a single coalesced burst may be applied. See the fold in `runInteractiveLoop`.
+val maxKeyRepeat = 64
+
 module Update =
   let updateAppState (state: AppState) (msg: Msg) : AppState =
     match msg with
@@ -372,7 +375,7 @@ let runInteractiveLoop (state: AppState) : Int =
 
       // Process the key. A coalesced burst (a mouse wheel, or a held-down key) arrives as one read with a
       // repeat count; applying it here means every page gets wheel-aware scrolling without knowing about it,
-      // and the whole burst costs one render instead of one per event.
+      // and the burst costs one loop iteration instead of one per event.
       //
       // Only movement repeats. A burst of Enter or Escape is coalesced too, but acting on it twenty times
       // would turn a stray wheel-click-on-the-wrong-key into twenty actions; movement is the case where
@@ -382,12 +385,21 @@ let runInteractiveLoop (state: AppState) : Int =
         match keyInput.key with
         | UpArrow | DownArrow | LeftArrow | RightArrow | PageUp | PageDown -> true
         | _ -> false
-      let times = if repeatable then Stdlib.Int.max 1 keyInput.repeat else 1
+      // Cap the burst. `repeat` is however many events the terminal had buffered, and while the reader bounds
+      // how long it drains, it doesn't bound how many it counts; a pathological producer shouldn't turn one
+      // keypress into an unbounded interpreter loop.
+      let times =
+        if repeatable then Stdlib.Int.min maxKeyRepeat (Stdlib.Int.max 1 keyInput.repeat) else 1
+      // A page transition ends the burst. Movement can cause one - a SubApp may return Exit or hand off to
+      // another page on an arrow - and the rest of a burst must not be delivered to a page that never saw its
+      // start. `pageStack` depth changes on every push and pop, so it's the cheap signal for "we're somewhere
+      // else now"; `isExiting` covers leaving altogether.
+      let startingDepth = Stdlib.List.length renderedState.pageStack
       let newState =
         Stdlib.List.range 1 times
         |> Stdlib.List.fold renderedState (fun st _i ->
-          // Stop early once the app is on its way out - nothing after that should see more of the burst.
-          if st.isExiting then st else Update.updateAppState st keyPressedMsg)
+          if st.isExiting || (Stdlib.List.length st.pageStack) != startingDepth then st
+          else Update.updateAppState st keyPressedMsg)
 
       if renderedState.telemetryEnabled then
         Telemetry.logWithContext "readKey" tReadKey [("char", keyInput.keyChar)]
