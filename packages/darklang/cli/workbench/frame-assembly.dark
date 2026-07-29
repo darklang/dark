@@ -12,35 +12,32 @@ let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
   let w = if size.width < 24 then 80 else size.width
   // Full height now: the last row used to be reserved for the CLI's status bar, and that's gone.
   let screen = UI.Layout.Region { top = 1; left = 1; rows = h; cols = w }
+  // The breadcrumb only earns its row when it has something the rest of the frame doesn't already say.
+  //
+  // It used to show the view name and item count for every view, which meant "Builtins" appeared three times
+  // on screen - the tab bar's ◆ marker, this row, and the pane's own box title - and the count twice. The tab
+  // bar owns which view you're in and the box title owns what's in the pane, so all this row can add is a
+  // package path. Matter has one; nothing else does, so nothing else gets the row.
   let path =
-    if state.activeView == vMatter then Packages.formatLocation state.location
-    // Views that render their own body/sections (no flat item list) show just their name - "- 0 items" is a lie.
-    else if (state.activeView == vHome) || (state.activeView == vScratch) || (state.activeView == vDevices) || (state.activeView == vSCM) then
-      viewLabel state.activeView
-    else
-      (viewLabel state.activeView)
-      ++ "  ·  "
-      ++ (Stdlib.Int.toString (Stdlib.List.length state.items))
-      ++ " items"
+    if state.activeView == vMatter then Packages.formatLocation state.location else ""
   let branch =
     match SCM.Branch.get state.branchId with
     | Some b -> b.name
     | None -> "main"
   // Real sync state, computed per-frame (render runs per-keypress, so it never goes stale). Drives both the
-  // Resolve tab badge and the breadcrumb's right-side status.
+  // Resolve tab badge and the context line's right-side status.
   let conflictCount = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
-  let branchSeg = "branch: " ++ branch ++ "  "
   let (syncColored, syncPlain) =
     if conflictCount > 0 then
       let s = "⚠ " ++ (Stdlib.Int.toString conflictCount) ++ " to resolve"
       (Colors.colorize Colors.pink s, s)
     else
       (Colors.colorize Colors.green "✓ synced", "✓ synced")
-  let rightColored = (Colors.dimText branchSeg) ++ syncColored
-  // Columns, not graphemes: the branch name is user-chosen, and `⚠`/`✓` are already non-ASCII. `String.length`
-  // counts one per grapheme, so a wide glyph here would right-align the status past the edge of the row.
-  let rightVisibleLen = Tui.Text.displayWidth (branchSeg ++ syncPlain)
-  // The context line - the workbench's `pwd`: where edits land. Account, instance, branch, focused patch.
+  // Columns, not graphemes: `⚠`/`✓` are non-ASCII, and `String.length` counts one per grapheme, so a wide
+  // glyph would right-align this past the edge of the row.
+  let syncVisibleLen = Tui.Text.displayWidth syncPlain
+  // The context line - the workbench's `pwd`: where edits land. Account, instance, branch, and the sync
+  // glance right-aligned. Branch is here and nowhere else; it used to be on this row AND the breadcrumb.
   let context =
     UI.Layout.fixedSize
       1
@@ -52,10 +49,12 @@ let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
           ++ (Colors.dimText state.instanceName)
           ++ (Colors.dimText "    branch: ")
           ++ (Colors.dimText branch)
-        UI.Layout.at r 0 0 line)
+        Stdlib.List.flatten
+          [ UI.Layout.at r 0 0 line
+            UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - syncVisibleLen - 2)) syncColored ])
   let tabSegs = visibleViews state |> Stdlib.List.map (fun i -> (i, viewLabel i))
   let tabbar = UI.Layout.fixedSize 1 (fun r -> Frame.renderTabBar r tabSegs state.activeView conflictCount)
-  let crumb = UI.Layout.fixedSize 1 (fun r -> Frame.renderBreadcrumb r path rightColored rightVisibleLen)
+  let crumb = UI.Layout.fixedSize 1 (fun r -> Frame.renderBreadcrumb r path "" 0)
   let body = UI.Layout.greedy (fun r -> renderBody state r)
   let hints =
     UI.Layout.fixedSize
@@ -98,7 +97,7 @@ let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
                 else hintsForView state
         Frame.renderKeyHints r h)
   Stdlib.List.flatten
-    [ UI.Layout.vstack screen [ context; tabbar; crumb; body; hints ]
+    [ UI.Layout.vstack screen (Stdlib.List.flatten [ [ context; tabbar ]; (if path == "" then [] else [ crumb ]); [ body; hints ] ])
       if state.showHelp then renderHelpOverlay screen else []
       if state.viewPicker then renderViewPicker state screen else []
       renderCommandCompletions state screen ]
