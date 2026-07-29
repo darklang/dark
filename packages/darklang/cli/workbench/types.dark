@@ -69,6 +69,13 @@ type State =
     /// by `refreshBadges`.
     wipNames: List<String>
     deprecatedNames: List<String>
+    /// The tree-native view peek: the captured output of the selected `render` fn, or "" when the selection
+    /// isn't one.
+    ///
+    /// Cached for the same reason as the badges above, and more urgently: this one runs *user code*, and the
+    /// renderer has to stay a pure function of state for frame diffing to be sound. Refreshed on transitions
+    /// by `refreshPeek`.
+    renderPeek: String
     /// Scratch view: the eval log, newest last, each entry already rendered (the `> expr` and its result lines).
     scratchLog: List<String>
     /// REPL session bindings, in the order they were first bound. `let x = ...` at the REPL records one, and

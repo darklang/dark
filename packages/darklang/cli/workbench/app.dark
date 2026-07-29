@@ -37,7 +37,7 @@ type Session =
 let presentState (session: Session) (state: State) : Session =
   // Every Continue funnels through here, which makes it the one place derived reads belong: the renderer
   // has to be a pure function of state for frame diffing to be sound.
-  let state = refreshBadges session.state state
+  let state = refreshPeek session.state (refreshBadges session.state state)
   let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
   let terminal =
     Darklang.Cli.Tui.TerminalSession.presentAtSize
@@ -128,6 +128,7 @@ let initialState
         filter = ""
         wipNames = []
         deprecatedNames = []
+        renderPeek = ""
         branchId = branchId }
 
 
@@ -164,7 +165,8 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
       | Ok h -> h
       | Error _ -> "this-machine"
   let state = initialState branchId cliState.accountID cliState.accountName instanceName enabledGatedViews
-  // Seed the badge cache for the first frame; `presentState` keeps it fresh after that.
+  // Seed the badge cache for the first frame; `presentState` keeps it fresh after that. The view peek needs no
+  // seeding - the first frame is Home, which has no `render` fn to peek at.
   let (wip, deprecated) = readBadges state
   let state = { state with wipNames = wip; deprecatedNames = deprecated }
   let size = Darklang.Cli.Tui.TerminalSession.currentSize ()

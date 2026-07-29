@@ -59,23 +59,14 @@ let detailLines (state: State) : List<String> =
     if item.isModule then
       [ (iconFor item) ++ " " ++ item.name; ""; "module - → to enter" ]
     else if item.kind == "fn" && item.name == "render" then
-      // Tree-native view peek: a `render` fn lights up its output right here - evaluate it (captured) and show
-      // the rendered frame instead of source. Any view value in the Matter tree previews just by cursoring onto it.
+      // Tree-native view peek: a `render` fn lights up its output right here - show the rendered frame instead
+      // of source. Any view value in the Matter tree previews just by cursoring onto it.
       //
-      // CLEANUP: this evaluates user code inside the render path, which everything else here is careful not
-      // to do - rendering is supposed to be a pure function of state so frame diffing is sound. It's also
-      // paid twice per keypress while scrolling the preview, because `nav.dark`'s navDown calls
-      // `previewLines` again just to compute a scroll bound. The fix is the one already used for the tree
-      // badges: cache the peek on State and refresh it in `presentState` (see `refreshBadges`), keyed on the
-      // selection as well as the list. Left as-is because it's a state-shape change and the current cost is
-      // bounded by how fast someone can cursor onto a `render` fn.
-      let modulePath = modulePathOf state.location
-      let fullpath = Stdlib.String.join (Stdlib.List.append modulePath [ item.name ]) "."
-      let out =
-        captureOutput (fun () ->
-          Builtin.cliEvaluateExpression state.accountId state.branchId (fullpath ++ " ()") false)
-      if (Stdlib.String.trim out) == "" then [ Colors.dimText "(view produced no output)" ]
-      else Stdlib.String.split out "\n"
+      // The evaluation itself is `refreshPeek`'s, on the state transition. It used to happen here, which put
+      // user code inside the render path - the one thing everything else in this file is careful not to do,
+      // since frame diffing is only sound if rendering is a pure function of state.
+      if (Stdlib.String.trim state.renderPeek) == "" then [ Colors.dimText "(view produced no output)" ]
+      else Stdlib.String.split state.renderPeek "\n"
     else
       let modulePath = modulePathOf state.location
       let results = Packages.Query.searchExactMatch state.branchId modulePath item.name
