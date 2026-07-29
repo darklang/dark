@@ -59,7 +59,7 @@ type State =
     /// AI view: which section is active - 0 Agents, 1 Prompts. Tab cycles it.
     aiSection: Int
     /// The gated views (Devices, Crons, Calendar, ...) enabled for this account, computed once at launch from
-    /// config (see `viewSpecs` / `gateEnabled`). Hidden gated views drop out of the tab bar, number keys,
+    /// (see `viewSpecs` / `gateEnabled`). Hidden gated views drop out of the tab bar, number keys,
     /// [ ]/cycle, and the picker.
     enabledGatedViews: List<Int>
     /// Names of items with uncommitted edits, and of deprecated items in the current module.
@@ -122,7 +122,7 @@ type ViewDef =
     id: String
     /// tab-bar label
     name: String
-    /// "" = always visible; otherwise a config key resolved by `gateEnabled` (login-aware, no names in source)
+    /// "" = always visible; anything else marks the view gated (shown only to `gatedViewAccounts`)
     gateKey: String
     /// the selectable rows (for the shared cursor + list pane); Unit-in since extension views are self-contained
     loadItems: Unit -> List<BodyItem>
@@ -166,21 +166,17 @@ val baseViewSpecs =
     (vTraces, "")
     (vDocs, "") ]
 
-/// A gated view shows when its config value is `true`/`on`/`1` (everyone) OR names the current account
-/// (a comma-list of account names is fine). So `config set calendar.enabled stachu` shows Calendar only when
-/// logged in as stachu - the name is data the user set, not a literal in the code.
-let gateEnabled (key: String) (accountName: String) : Bool =
-  match Darklang.Cli.Config.get key with
-  | None -> false
-  | Some raw ->
-    let parts =
-      Stdlib.String.split (Stdlib.String.toLowercase (Stdlib.String.trim raw)) ","
-      |> Stdlib.List.map (fun s -> Stdlib.String.trim s)
-    let account = Stdlib.String.toLowercase accountName
-    (Stdlib.List.member parts "true")
-    || (Stdlib.List.member parts "on")
-    || (Stdlib.List.member parts "1")
-    || ((account != "") && (Stdlib.List.member parts account))
+/// The accounts a gated view is for. Half-built surfaces (Devices, Crons, Calendar, the internal Builtins
+/// tier) show for us and nobody else.
+val gatedViewAccounts = [ "stachu"; "feriel" ]
+
+/// Does this account see the gated views?
+///
+/// This was a per-key config lookup, so each gated view could be switched on by name or for everyone. That
+/// was machinery ahead of a need: there is exactly one rule today, which is "is this one of the two people
+/// building it". A config key can come back when someone actually wants a third answer.
+let gateEnabled (accountName: String) : Bool =
+  Stdlib.List.member gatedViewAccounts (Stdlib.String.toLowercase accountName)
 
 /// Every view as (absolute index, tab label, gate key) - built-ins then composed extensions. The single place
 /// that unifies the base views and the registry; all navigation/gating/labels derive from this list, so the
@@ -211,14 +207,12 @@ let viewLabel (idx: Int) : String =
 
 /// Which gated views (Devices, Crons, Calendar, ...) this account has switched on.
 ///
-/// Reads config from disk, so it's computed at launch and refreshed when a config command runs rather than
-/// per frame. Config-driven rather than env vars: `config set devices.enabled true`, or a comma-list of
-/// account names for a per-person gate.
+/// Computed at launch (and again after a login change) rather than per frame.
 let gatedViewsFor (accountName: String) : List<Int> =
   viewSpecs ()
   |> Stdlib.List.filter (fun spec ->
     let (_i, _n, g) = spec
-    (g != "") && (gateEnabled g accountName))
+    (g != "") && (gateEnabled accountName))
   |> Stdlib.List.map (fun spec ->
     let (i, _n, _g) = spec
     i)
