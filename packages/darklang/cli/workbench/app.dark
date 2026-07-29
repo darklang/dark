@@ -37,7 +37,7 @@ type Session =
 let presentState (session: Session) (state: State) : Session =
   // Every Continue funnels through here, which makes it the one place derived reads belong: the renderer
   // has to be a pure function of state for frame diffing to be sound.
-  let state = refreshPeek session.state (refreshBadges session.state state)
+  let state = refreshPeek (refreshBadges session.state state)
   let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
   let terminal =
     Darklang.Cli.Tui.TerminalSession.presentAtSize

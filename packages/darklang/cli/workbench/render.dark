@@ -150,7 +150,9 @@ let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
         UI.Layout.greedy (fun rr -> UI.Box.panel rr "Pick up where you left off" false renderWip) ]
 
   // Home fills the body region, same as every other view. The right column scales with the width rather than
-  // sitting at a fixed 40, so a wide terminal widens both panels instead of stretching one across the screen.
+  // sitting at a fixed 40, so it grows with the terminal instead of staying a sliver beside Status. Status
+  // still takes whatever is left, so on a very wide terminal it is a wide box around four short lines - the
+  // cost of filling the width, and the width is what was asked for.
   let matterCols = Stdlib.Int.max 38 (Stdlib.Int.min 72 (Stdlib.Int.divide region.cols 3))
 
   // What each band needs at minimum: the middle is as tall as its taller column (Status (6) over the WIP

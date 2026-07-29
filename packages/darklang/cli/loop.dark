@@ -273,6 +273,10 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
               nonInteractive = false }
           []
       match launched.currentPage with
+      // A command that asked to end the CLI gets to: resuming would re-enter the alternate screen and then the
+      // loop would return with nobody to tear it down, leaving the terminal in it. Nothing reachable through
+      // LaunchCommand exits today, but `quit` has exactly this shape, so it's one list entry away.
+      | MainPrompt when launched.isExiting -> launched
       | MainPrompt ->
         // Nothing took the screen. Undo the push and resume this page, rather than stranding the user at a
         // prompt they didn't ask for. Only pop when the stack is the length we left it: a command that

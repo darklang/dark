@@ -58,13 +58,16 @@ let detailLines (state: State) : List<String> =
   | Some item ->
     if item.isModule then
       [ (iconFor item) ++ " " ++ item.name; ""; "module - → to enter" ]
-    else if item.kind == "fn" && item.name == "render" then
+    else if (state.activeView == vMatter) && item.kind == "fn" && item.name == "render" then
       // Tree-native view peek: a `render` fn lights up its output right here - show the rendered frame instead
       // of source. Any view value in the Matter tree previews just by cursoring onto it.
       //
       // The evaluation itself is `refreshPeek`'s, on the state transition. It used to happen here, which put
       // user code inside the render path - the one thing everything else in this file is careful not to do,
       // since frame diffing is only sound if rendering is a pure function of state.
+      //
+      // The `vMatter` test has to match the one `refreshPeek` applies, or this branch reads a `renderPeek` that
+      // was never populated and reports "no output" for something that renders fine.
       if (Stdlib.String.trim state.renderPeek) == "" then [ Colors.dimText "(view produced no output)" ]
       else Stdlib.String.split state.renderPeek "\n"
     else

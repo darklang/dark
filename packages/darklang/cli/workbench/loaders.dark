@@ -243,38 +243,39 @@ let refreshBadges (previous: State) (next: State) : State =
     let (wip, deprecated) = readBadges next
     { next with wipNames = wip; deprecatedNames = deprecated }
 
-/// Carry the tree-native view peek forward, re-running the selected `render` fn only when the selection moved.
+/// Run the selected `render` fn and hold its output, for the tree-native view peek.
 ///
-/// Same shape as `refreshBadges` and there for the same reason - it's a read the renderer must not do - but
-/// with more at stake: the read here is *evaluating user code*. It used to happen inside `detailLines`, which
-/// meant twice per keypress while scrolling (`navDown` calls `previewLines` again just for a scroll bound).
+/// Here rather than in `detailLines` because this evaluates *user code*, and the renderer has to stay a pure
+/// function of state for frame diffing to be sound. Doing it on the transition also halves the cost: from
+/// `detailLines` it ran twice per keypress, since `navDown` calls `previewLines` again just for a scroll bound.
 ///
-/// Keyed on the selection as well, which the badges don't need. The values lens is excluded because it takes a
-/// different path through `detailLines` and would never look at the result.
-let refreshPeek (previous: State) (next: State) : State =
-  let unchanged =
-    (previous.branchId == next.branchId)
-    && (previous.location == next.location)
-    && (previous.matterLens == next.matterLens)
-    && (previous.activeView == next.activeView)
-    && (previous.selected == next.selected)
-    && (previous.items == next.items)
-
-  if unchanged then
-    next
-  else
-    let peek =
-      if next.matterLens == "values" then
-        ""
-      else
-        match Stdlib.List.getAt next.items next.selected with
-        | Some item ->
-          if (Stdlib.Bool.not item.isModule) && (item.kind == "fn") && (item.name == "render") then
-            let fullpath =
-              Stdlib.String.join (Stdlib.List.append (modulePathOf next.location) [ item.name ]) "."
-            captureOutput (fun () ->
-              Builtin.cliEvaluateExpression next.accountId next.branchId (fullpath ++ " ()") false)
-          else
-            ""
-        | None -> ""
-    { next with renderPeek = peek }
+/// Deliberately NOT cached across transitions, unlike the badges above. The only key available is where you
+/// are and what's under the cursor, and editing the selected `render` fn changes neither: `saveEditing`
+/// reloads the list and lands you back on the same row, and a `BodyItem` carries name/kind/isModule, so the
+/// list compares equal. A cache on that key can't tell "you edited this" from "nothing happened". Re-running
+/// costs one eval per transition, and only while the cursor is actually sitting on a `render` fn.
+///
+/// Note that re-running still won't show you your own edit within one session: the runtime resolves package
+/// items through an in-process cache, so a `render` edited here keeps rendering its pre-edit output until the
+/// CLI restarts. That's above this function - verified by evaluating the same fn from a second process, which
+/// gives the new output - so the peek isn't the place to fix it, but it is why not caching here buys less than
+/// it looks like it should.
+///
+/// The `vMatter` test matches `detailLines`' - the peek is a Matter-tree affordance, and elsewhere the module
+/// path this builds would have nothing to do with the selected row.
+let refreshPeek (next: State) : State =
+  let peek =
+    if (next.activeView != vMatter) || (next.matterLens == "values") then
+      ""
+    else
+      match Stdlib.List.getAt next.items next.selected with
+      | Some item ->
+        if (Stdlib.Bool.not item.isModule) && (item.kind == "fn") && (item.name == "render") then
+          let fullpath =
+            Stdlib.String.join (Stdlib.List.append (modulePathOf next.location) [ item.name ]) "."
+          captureOutput (fun () ->
+            Builtin.cliEvaluateExpression next.accountId next.branchId (fullpath ++ " ()") false)
+        else
+          ""
+      | None -> ""
+  { next with renderPeek = peek }
