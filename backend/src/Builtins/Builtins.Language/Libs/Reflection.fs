@@ -47,7 +47,8 @@ let fns () : List<BuiltInFn> =
          <fn LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr>)."
       fn =
         (function
-        | _, _, _, [ dv ] -> dv |> LibExecution.RuntimeTypesToDarkTypes.Dval.toDT |> Ply
+        | _, _, _, [ dv ] ->
+          dv |> LibExecution.RuntimeTypesToDarkTypes.Dval.toDT |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

@@ -110,61 +110,63 @@ let private readKeyOrPaste () : ConsoleKeyInfo * string option * int =
       (k, None, 1)
     | None ->
 
-    // Poll rather than blocking outright, so a resize can wake the loop. The interval is short enough to feel
-    // instant on a drag-resize and long enough to cost nothing while idle.
-    let mutable resized = false
-    while not Console.KeyAvailable && not resized do
-      if Resize.takePending () then resized <- true else Threading.Thread.Sleep 15
+      // Poll rather than blocking outright, so a resize can wake the loop. The interval is short enough to feel
+      // instant on a drag-resize and long enough to cost nothing while idle.
+      let mutable resized = false
+      while not Console.KeyAvailable && not resized do
+        if Resize.takePending () then resized <- true else Threading.Thread.Sleep 15
 
-    if resized then
-      // A key no view acts on: the loop goes round, re-samples the terminal, and repaints.
-      (ConsoleKeyInfo('\u0000', ConsoleKey.NoName, false, false, false), None, 1)
-    else
-
-      let first = Console.ReadKey true
-      if not Console.KeyAvailable then
-        (first, None, 1)
+      if resized then
+        // A key no view acts on: the loop goes round, re-samples the terminal, and repaints.
+        (ConsoleKeyInfo('\u0000', ConsoleKey.NoName, false, false, false), None, 1)
       else
-        let sb = System.Text.StringBuilder()
-        let append (text : string) : unit =
-          sb.Append text |> ignore<System.Text.StringBuilder>
-        let burstStart = Diagnostics.Stopwatch.StartNew()
-        let sinceLastKey = Diagnostics.Stopwatch.StartNew()
-        let sameAsFirst (k : ConsoleKeyInfo) =
-          k.Key = first.Key && k.Modifiers = first.Modifiers
-        let firstIsPrintable = isPrintable first
-        let mutable repeat = 1
-        let mutable printableKey = if firstIsPrintable then Some first else None
-        pasteText first |> Option.iter append
-        let mutable draining = true
-        while draining do
-          if Console.KeyAvailable then
-            let k = Console.ReadKey true
-            if sameAsFirst k then
-              repeat <- repeat + 1
-              pasteText k |> Option.iter append
-              if isPrintable k then printableKey <- Some k
-              sinceLastKey.Restart()
-            elif firstIsPrintable then
-              // Mid-paste: a differing key is just the next character, not the end of a run.
-              pasteText k |> Option.iter append
-              if isPrintable k then printableKey <- Some k
-              sinceLastKey.Restart()
-            else
-              // A different key ends a control-key run. Hold it for the next call rather than dropping it.
-              pushedBack <- Some k
-              draining <- false
-          elif sinceLastKey.Elapsed.TotalMilliseconds < quietMs
-               && burstStart.Elapsed.TotalMilliseconds < burstBudgetMs then
-            Threading.Thread.Sleep 1
-          else
-            draining <- false
-        let pasted = sb.ToString()
-        if pasted = "" then
-          // Nothing insertable came out, so it was a run of control keys: a wheel, or a held-down key.
-          (first, None, repeat)
+
+        let first = Console.ReadKey true
+        if not Console.KeyAvailable then
+          (first, None, 1)
         else
-          (Option.defaultValue first printableKey, Some pasted, 1)
+          let sb = System.Text.StringBuilder()
+          let append (text : string) : unit =
+            sb.Append text |> ignore<System.Text.StringBuilder>
+          let burstStart = Diagnostics.Stopwatch.StartNew()
+          let sinceLastKey = Diagnostics.Stopwatch.StartNew()
+          let sameAsFirst (k : ConsoleKeyInfo) =
+            k.Key = first.Key && k.Modifiers = first.Modifiers
+          let firstIsPrintable = isPrintable first
+          let mutable repeat = 1
+          let mutable printableKey = if firstIsPrintable then Some first else None
+          pasteText first |> Option.iter append
+          let mutable draining = true
+          while draining do
+            if Console.KeyAvailable then
+              let k = Console.ReadKey true
+              if sameAsFirst k then
+                repeat <- repeat + 1
+                pasteText k |> Option.iter append
+                if isPrintable k then printableKey <- Some k
+                sinceLastKey.Restart()
+              elif firstIsPrintable then
+                // Mid-paste: a differing key is just the next character, not the end of a run.
+                pasteText k |> Option.iter append
+                if isPrintable k then printableKey <- Some k
+                sinceLastKey.Restart()
+              else
+                // A different key ends a control-key run. Hold it for the next call rather than dropping it.
+                pushedBack <- Some k
+                draining <- false
+            elif
+              sinceLastKey.Elapsed.TotalMilliseconds < quietMs
+              && burstStart.Elapsed.TotalMilliseconds < burstBudgetMs
+            then
+              Threading.Thread.Sleep 1
+            else
+              draining <- false
+          let pasted = sb.ToString()
+          if pasted = "" then
+            // Nothing insertable came out, so it was a run of control keys: a wheel, or a held-down key.
+            (first, None, repeat)
+          else
+            (Option.defaultValue first printableKey, Some pasted, 1)
 
 let fns () : List<BuiltInFn> =
   [ { name = fn "stdinReadKey" 0
