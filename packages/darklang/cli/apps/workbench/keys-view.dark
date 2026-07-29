@@ -68,8 +68,8 @@ let handleViewKey
       descend state
   | LeftArrow -> ascend state
   | Tab ->
-    // Tab cycles sections in SCM (Changes/History/Conflicts) and AI (Agents/Prompts); elsewhere it toggles
-    // the split-pane focus.
+    // Tab cycles sections in SCM (Changes/History/Conflicts/Branches) and AI (Agents/Prompts); elsewhere it
+    // toggles the split-pane focus.
     if state.activeView == vSCM then
       let ns = if state.scmSection >= 3 then 0 else state.scmSection + 1
       Step.Continue

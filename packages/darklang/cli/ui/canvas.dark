@@ -1,9 +1,8 @@
 /// A span buffer: the bridge from "paint at a position" to "here are the rows".
 ///
-/// The workbench draws by absolute positioning (`Layout.printAt` into a `Region`), which means every frame
-/// is hundreds of individual writes preceded by a full `2J` clear. That clear is the flash. The rest of the
-/// CLI now builds a `Tui.View` (a list of rows) and lets the renderer diff it against the previous frame, so
-/// an arrow key rewrites two rows instead of the screen.
+/// Everything in the CLI builds a `Tui.View` (a list of rows) and lets the renderer diff it against the
+/// previous frame, so an arrow key rewrites the rows that changed instead of clearing and repainting. But a
+/// renderer is far easier to write as "put this text at that position" than as "produce these rows".
 ///
 /// Rewriting every renderer to return rows directly would mean redoing all the layout math with it. This
 /// module avoids that: a renderer keeps computing `(row, col, text)` exactly as it does now, but *returns*

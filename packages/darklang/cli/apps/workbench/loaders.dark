@@ -89,7 +89,6 @@ let commitSummary (branchId: Uuid) (selected: Int) : String =
     ++ (Stdlib.Int.toString c.opCount)
     ++ " ops  ·  press ⏎ to view them"
 
-/// The current source of the selected WIP item (for the Changes reader).
 /// A real +/- diff of the selected WIP item (old-vs-new), reusing the review app's diff engine. Matched by
 /// name so it lines up with the workbench's own WIP list regardless of ordering.
 let wipDiffText (state: State) : String =
@@ -110,6 +109,7 @@ let wipDiffText (state: State) : String =
         | Removed s -> Colors.colorize Colors.red ("- " ++ s))
       |> Stdlib.String.join "\n"
 
+/// The current source of the selected WIP item, for the Changes reader.
 let changesSourceText (branchId: Uuid) (selected: Int) : String =
   let items = SCM.PackageOps.getWipItems branchId
   match Stdlib.List.getAt items selected with

@@ -4,7 +4,11 @@
 /// Part of `Darklang.Cli.Apps.Workbench.App`.
 module Darklang.Cli.Apps.Workbench.App
 
-/// (the split-pane preview insets 1; the full-screen reader doesn't). Backs both renderPreview and renderReading.
+/// Render `lines` into `region` as a vertically-scrollable block: drop `scroll` rows, take what fits, each cut
+/// ANSI-aware so colour survives an overflow. `display` is the styled variant shown per row (pass `lines`
+/// itself when there's no highlighting); `lines` drives the count. `colOffset` insets the text from the
+/// region's left (the split-pane preview insets 1; the full-screen reader doesn't). Backs both
+/// `renderPreview` and `renderReading`.
 let renderScrollableLines
   (region: UI.Layout.Region)
   (colOffset: Int)
@@ -28,11 +32,13 @@ let renderScrollableLines
 
 let renderPreview (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   let plain = previewLines state
-  // Syntax-highlight the code previews (Inspect source, Changes WIP source). Docs/History-summary/Resolve
-  // aren't code, so they stay plain. Highlighting emits ANSI; printAt truncates by raw length, so we only
-  // print the highlighted line when the PLAIN line fits the pane width, else fall back to plain-truncated.
-  // Changes (4) + Matter (13) show a pre-colored +/- diff, not highlighted source, so they're not re-highlighted.
-  // Also skip highlighting anything already ANSI-colored (e.g. a tree-native render peek) - it's not plain source.
+  // Syntax-highlight Matter's source preview. Nothing else here is code: Docs, the History summary and the
+  // Conflicts detail are prose, and Changes shows a pre-coloured +/- diff.
+  //
+  // Anything already carrying ANSI is left alone - a pre-coloured diff or a tree-native render peek is not
+  // plain source, and re-highlighting it would mangle the colours it already has. In practice that means
+  // highlighting only fires under the values lens, because Matter's ordinary preview comes from
+  // `inspectPageLines`, which pre-colours.
   let alreadyColored = Stdlib.String.contains (Stdlib.String.join plain "\n") ""
   let doHighlight = (state.activeView == vMatter) && (Stdlib.Bool.not alreadyColored)
   let highlighted =
@@ -108,9 +114,9 @@ let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
       [ UI.Layout.at inner 0 1 (Colors.dimText (plural (Stdlib.List.length rootItems) "top-level owner"))
         owners ]
 
-  // The commands you'll actually reach for, as a landing reference. One cyan span per row (the command), plain
-  // descriptions. Printed via printAtVisible so the cyan spans don't count toward the width and get clipped on
-  // narrow terminals. The `:` bar runs any of these with autocomplete (see 6.B).
+  // The commands you'll actually reach for, as a landing reference. One cyan span per row (the command),
+  // plain descriptions. `Layout.at` measures in terminal columns and ignores SGR, so the cyan doesn't count
+  // toward the width and get clipped on narrow terminals. The `:` bar runs any of these with autocomplete.
   let renderCommands (inner: UI.Layout.Region) : List<UI.Layout.Span> =
     let cy = fun t -> Colors.colorize Colors.cyan t
     let rows =
@@ -216,4 +222,3 @@ let renderSectionSwitcher (region: UI.Layout.Region) (row: Int) (sections: List<
     |> Stdlib.String.join "  "
   UI.Layout.at region row 0 ("  " ++ (Colors.dimText "tab") ++ "  " ++ secLine)
 
-/// The SCM status header - the always-true summary of Dark Matter's state on this branch.

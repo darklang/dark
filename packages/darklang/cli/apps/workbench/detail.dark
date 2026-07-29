@@ -234,6 +234,3 @@ let previewLines (state: State) : List<String> =
       d state
     | None -> detailLines state
 
-/// Render `lines` into `region` as a vertically-scrollable block: drop `scroll` rows, take what fits, each cut
-/// ANSI-aware so color survives an overflow. `display` is the styled variant shown per row (pass `lines` itself
-/// when there's no highlighting); `lines` drives the count. `colOffset` insets the text from the region's left

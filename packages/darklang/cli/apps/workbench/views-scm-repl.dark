@@ -3,6 +3,7 @@
 /// Part of `Darklang.Cli.Apps.Workbench.App`.
 module Darklang.Cli.Apps.Workbench.App
 
+/// The SCM status header - the always-true summary of Dark Matter's state on this branch.
 let renderScmHeader (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   let branchOpt = SCM.Branch.get state.branchId
   let branch = match branchOpt with | Some b -> b.name | None -> "main"
@@ -210,5 +211,3 @@ let renderRepl (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
         UI.Layout.at inner i 1 l)
       |> Stdlib.List.flatten)
 
-/// Real config (from cli-config.json) as (key, value) pairs - backs the Devices "Configuration" section and
-/// the `c` reader. This is the actual persisted config, not mock.

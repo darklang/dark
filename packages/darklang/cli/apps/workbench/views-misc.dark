@@ -3,6 +3,8 @@
 /// Part of `Darklang.Cli.Apps.Workbench.App`.
 module Darklang.Cli.Apps.Workbench.App
 
+/// Real config (from cli-config.json) as (key, value) pairs - backs the Devices "Configuration" section and
+/// the `c` reader. This is the actual persisted config, not mock.
 let configEntries () : List<(String * String)> =
   Darklang.Cli.Config.readConfig () |> Stdlib.Dict.toList
 
