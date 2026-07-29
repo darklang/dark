@@ -251,9 +251,14 @@ let visibleViews (state: State) : List<Int> =
 /// looks like two overlapping copies of the UI, not like a missing line. `cliEvaluateExpression` prints a
 /// three-line call-stack header on any runtime error, so this is reachable by typing a typo at the REPL.
 let captureOutputAnd (f: Unit -> 'a) : ('a * String) =
-  let _ = Builtin.stdoutCaptureStart ()
+  // `stdoutCaptureStart` returns false when a capture is ALREADY open, and deliberately changes nothing in
+  // that case - so we don't own the buffer and must not stop it. Calling stop regardless would hand the
+  // outer capture's collected output to the inner caller and clear the flag, so everything the outer one
+  // was collecting would print straight onto the alternate screen: exactly the corruption capturing exists
+  // to prevent. Nothing nests today, but this is a one-line guard against a hard-to-see failure.
+  let owned = Builtin.stdoutCaptureStart ()
   let value = f ()
-  (value, Builtin.stdoutCaptureStop ())
+  if owned then (value, Builtin.stdoutCaptureStop ()) else (value, "")
 
 /// `captureOutputAnd` when only the output matters (running a classic command for its printed result).
 let captureOutput (f: Unit -> 'a) : String =
