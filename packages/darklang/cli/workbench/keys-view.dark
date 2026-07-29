@@ -312,7 +312,16 @@ let handleKey
     | Some es -> handleEditorKey state es key modifiers keyChar
     | None ->
       match state.input with
-      | Some inp -> handleInputKey state inp key modifiers keyChar
+      | Some inp ->
+        // The REPL's prompt is the view's resting state, not a mode you opened, so ctrl+arrow has to get you
+        // out of it - otherwise digits and ` are text, and esc is the only way off the tab. Every other prompt
+        // IS modal: you opened it deliberately and you'll close it deliberately, so it keeps the key.
+        if (inp.action == "scratch") && modifiers.ctrl && (key == Stdlib.Cli.Stdin.Key.Key.LeftArrow) then
+          cycleView { state with input = Stdlib.Option.Option.None; replPending = "" } (0 - 1)
+        else if (inp.action == "scratch") && modifiers.ctrl && (key == Stdlib.Cli.Stdin.Key.Key.RightArrow) then
+          cycleView { state with input = Stdlib.Option.Option.None; replPending = "" } 1
+        else
+          handleInputKey state inp key modifiers keyChar
       | None ->
         match state.reading with
         | Some content -> handleReaderKey state content key keyChar

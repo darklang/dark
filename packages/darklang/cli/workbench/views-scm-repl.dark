@@ -157,7 +157,7 @@ let renderRepl (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
     UI.SplitPane.Orientation.Horizontal
     62
     state.focus
-    "REPL  ·  ⏎ run  ·  f clears  ·  esc leaves"
+    "REPL  ·  ⏎ run  ·  f clears  ·  esc or ctrl+←→ leaves"
     (fun inner ->
       let all =
         if Stdlib.List.isEmpty state.scratchLog then
