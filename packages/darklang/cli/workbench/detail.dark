@@ -1,8 +1,8 @@
 /// The item list, and the text behind the detail/preview pane: what a selected thing is, what it
 /// depends on, what its source looks like. Strings in, strings out; no regions.
 ///
-/// Part of `Darklang.Cli.Apps.Workbench.App`.
-module Darklang.Cli.Apps.Workbench.App
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
 
 
 /// The glyph for a row's kind.

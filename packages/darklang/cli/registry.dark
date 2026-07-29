@@ -77,7 +77,7 @@ module Registry =
       ("ops", "Inspect this instance's op log", [], Ops.execute, Ops.help, Ops.complete)
       ("apps", "List, install, and manage apps (daemons, foreground, UI)", [], Apps.Command.execute, Apps.Command.help, Apps.Command.complete)
       ("text-editor", "Demo: a tiny text editor (the outliner's widget surfaced as an app)", [], Apps.Examples.TextEdit.execute, Apps.Examples.TextEdit.help, Apps.Examples.TextEdit.complete)
-      ("workbench", "Open the workbench — a framed, navigable package tree (CLI-UX redesign)", [ "wb" ], Apps.Workbench.App.execute, Apps.Workbench.App.help, Apps.Workbench.App.complete) ]
+      ("workbench", "Open the workbench — a framed, navigable package tree (CLI-UX redesign)", [ "wb" ], Workbench.execute, Workbench.help, Workbench.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->

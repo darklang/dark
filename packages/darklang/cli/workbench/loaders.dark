@@ -1,7 +1,7 @@
 /// Reads for the package tree and SCM: items, commits, diffs, search, dependencies.
 ///
-/// Part of `Darklang.Cli.Apps.Workbench.App`.
-module Darklang.Cli.Apps.Workbench.App
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
 
 let modulePathOf (location: Packages.PackageLocation) : List<String> =
   match location with

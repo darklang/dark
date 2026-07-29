@@ -1,7 +1,7 @@
 /// The remaining view bodies: Devices, AI, Calendar, Errors, Crons, Builtins, and their hint rows.
 ///
-/// Part of `Darklang.Cli.Apps.Workbench.App`.
-module Darklang.Cli.Apps.Workbench.App
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
 
 /// Real config (from cli-config.json) as (key, value) pairs - backs the Devices "Configuration" section and
 /// the `c` reader. This is the actual persisted config, not mock.

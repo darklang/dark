@@ -1,8 +1,8 @@
 /// The generic frame primitives every view mounts into (scrollable lines, boxed lines, the list+preview
 /// split, the section switcher), plus the Home dashboard and the full-screen reader.
 ///
-/// Part of `Darklang.Cli.Apps.Workbench.App`.
-module Darklang.Cli.Apps.Workbench.App
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
 
 /// Render `lines` into `region` as a vertically-scrollable block: drop `scroll` rows, take what fits, each cut
 /// ANSI-aware so colour survives an overflow. `display` is the styled variant shown per row (pass `lines`

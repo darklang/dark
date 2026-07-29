@@ -243,8 +243,8 @@ let testSessionStopRestoresOnlyWhenRunning (): TestResult =
 // ── Workbench: every view renders ──
 
 /// A workbench state good enough to render, without touching the terminal.
-let workbenchState () : Darklang.Cli.Apps.Workbench.App.State =
-  Darklang.Cli.Apps.Workbench.App.initialState
+let workbenchState () : Darklang.Cli.Workbench.State =
+  Darklang.Cli.Workbench.initialState
     Darklang.SCM.Branch.mainBranchId
     Stdlib.Option.Option.None
     "test"
@@ -257,7 +257,7 @@ let workbenchState () : Darklang.Cli.Apps.Workbench.App.State =
 let rendersView (viewIndex: Int) : Bool =
   let state = { (workbenchState ()) with activeView = viewIndex }
   let size = Tui.Size { width = 120; height = 40 }
-  let view = Darklang.Cli.Apps.Workbench.App.viewAtSize state size
+  let view = Darklang.Cli.Workbench.viewAtSize state size
   // A frame is `height` rows, and a view that drew nothing at all is a bug even if it didn't crash.
   (Stdlib.List.length view.rows == 40)
   && (view.rows |> Stdlib.List.any (fun r -> (Tui.Text.stripSgr r) != ""))
@@ -426,7 +426,7 @@ let testWorkbenchCapturesStrayOutput (): TestResult =
   // on any runtime error, so a typo at the REPL was enough. The fix is that `captureOutputAnd` hands back
   // the value AND the output, so a caller can use the result without letting the print through.
   let (value, out) =
-    Darklang.Cli.Apps.Workbench.App.captureOutputAnd (fun () ->
+    Darklang.Cli.Workbench.captureOutputAnd (fun () ->
       Stdlib.printLine "this must not reach the terminal"
       41 + 1)
   if (value == 42) && (Stdlib.String.contains out "must not reach") then
@@ -438,7 +438,7 @@ let testWorkbenchCapturesStrayOutput (): TestResult =
 /// Does rendering view `viewIndex` put `marker` on the screen?
 let viewShows (viewIndex: Int) (marker: String) : Bool =
   let state = { (workbenchState ()) with activeView = viewIndex }
-  let view = Darklang.Cli.Apps.Workbench.App.viewAtSize state (Tui.Size { width = 160; height = 40 })
+  let view = Darklang.Cli.Workbench.viewAtSize state (Tui.Size { width = 160; height = 40 })
   view.rows
   |> Stdlib.List.any (fun r -> Stdlib.String.contains (Tui.Text.stripSgr r) marker)
 
@@ -453,11 +453,11 @@ let testWorkbenchViewsShowTheirChrome (): TestResult =
     // Markers have to be unique to the band. `branch:` and `tab` both looked right and are useless: the
     // frame's context line and breadcrumb already say `branch:`, and the footer hint says `tab`, so a
     // dropped header would still have matched.
-    [ (Darklang.Cli.Apps.Workbench.App.vSCM, "(root)", "SCM status header")
-      (Darklang.Cli.Apps.Workbench.App.vSCM, "[Changes]", "SCM section switcher")
-      (Darklang.Cli.Apps.Workbench.App.vAI, "[Agents]", "AI section switcher")
-      (Darklang.Cli.Apps.Workbench.App.vScratch, "Session", "REPL session pane")
-      (Darklang.Cli.Apps.Workbench.App.vMatter, "Tree", "Matter tree pane") ]
+    [ (Darklang.Cli.Workbench.vSCM, "(root)", "SCM status header")
+      (Darklang.Cli.Workbench.vSCM, "[Changes]", "SCM section switcher")
+      (Darklang.Cli.Workbench.vAI, "[Agents]", "AI section switcher")
+      (Darklang.Cli.Workbench.vScratch, "Session", "REPL session pane")
+      (Darklang.Cli.Workbench.vMatter, "Tree", "Matter tree pane") ]
   let missing =
     checks
     |> Stdlib.List.filter (fun c -> let (v, marker, _label) = c in Stdlib.Bool.not (viewShows v marker))

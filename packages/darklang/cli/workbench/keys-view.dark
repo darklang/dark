@@ -1,8 +1,8 @@
 /// The plain-view key map (no modal layer above it), and the dispatcher that routes a keypress through
 /// the layers in visual stacking order.
 ///
-/// Part of `Darklang.Cli.Apps.Workbench.App`.
-module Darklang.Cli.Apps.Workbench.App
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
 
 /// Keys with no modal layer above them: movement, view switching, and each view's own actions.
 let handleViewKey

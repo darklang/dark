@@ -24,7 +24,7 @@
 ///
 /// Rendering returns spans (see `UI.Canvas`), which compose into a `Tui.View` that the renderer diffs
 /// against the previous frame. A keypress rewrites the rows that changed rather than clearing the screen.
-module Darklang.Cli.Apps.Workbench.App
+module Darklang.Cli.Workbench
 
 
 /// A running workbench and the terminal session presenting it.

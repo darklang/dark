@@ -1,7 +1,7 @@
 /// The SCM and REPL view bodies, plus the REPL's session-binding machinery.
 ///
-/// Part of `Darklang.Cli.Apps.Workbench.App`.
-module Darklang.Cli.Apps.Workbench.App
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
 
 /// The SCM status header - the always-true summary of Dark Matter's state on this branch.
 let renderScmHeader (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =

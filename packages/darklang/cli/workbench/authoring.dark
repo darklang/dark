@@ -1,7 +1,7 @@
 /// Authoring: opening the multi-line editor for a new or existing item, and saving what you wrote.
 ///
-/// Part of `Darklang.Cli.Apps.Workbench.App`.
-module Darklang.Cli.Apps.Workbench.App
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
 
 /// Pull the leaf name out of a full declaration's first line: the token right after the `let`/`type`/`val`
 /// keyword, stripped of anything from a `(` or `:` (so `let f(x: Int)` -> `f`). "" if none.

@@ -1,8 +1,8 @@
 /// Assembling the whole frame: the chrome rows around the body, the command bar's completion dropdown,
 /// and `viewAtSize`, which is what the terminal session actually renders.
 ///
-/// Part of `Darklang.Cli.Apps.Workbench.App`.
-module Darklang.Cli.Apps.Workbench.App
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
 
 let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
   // Clamp to sane minimums - mid-resize the terminal reports 0/tiny sizes; without this the region math

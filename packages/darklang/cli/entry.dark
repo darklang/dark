@@ -94,7 +94,7 @@ let executeCliCommand (args: List<String>) : Int =
       Stdlib.printLine (View.formatWelcome ())
       runInteractiveLoop initialState
     else
-      let workbenchState = Apps.Workbench.App.execute initialState []
+      let workbenchState = Workbench.execute initialState []
       runInteractiveLoop workbenchState
   // Otherwise, execute command directly (shell already split args correctly)
   | commandName :: commandArgs ->

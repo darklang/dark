@@ -1,7 +1,7 @@
 /// Workbench state, the view registry's shape, and the small helpers everything else leans on.
 ///
-/// Part of `Darklang.Cli.Apps.Workbench.App`, split across files (see app.dark for the overview).
-module Darklang.Cli.Apps.Workbench.App
+/// Part of `Darklang.Cli.Workbench`, split across files (see app.dark for the overview).
+module Darklang.Cli.Workbench
 
 type BodyItem =
   { name: String

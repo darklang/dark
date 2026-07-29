@@ -1,8 +1,8 @@
 /// Key handling for the modal layers that sit above a view: overlays, the editor, input modes, the
 /// reader, and search results. The dispatcher that routes between them is at the bottom of keys-view.dark.
 ///
-/// Part of `Darklang.Cli.Apps.Workbench.App`.
-module Darklang.Cli.Apps.Workbench.App
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
 
 /// The view-picker overlay (backtick). Arrows or j/k move, Enter or a digit jumps, esc closes.
 ///

@@ -1,7 +1,7 @@
 /// The single-line input modes: the `:` command bar and everything else that reads one line.
 ///
-/// Part of `Darklang.Cli.Apps.Workbench.App`.
-module Darklang.Cli.Apps.Workbench.App
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
 
 let performInputAction (state: State) (inp: InputState) : Step =
   if inp.action == "commit" then

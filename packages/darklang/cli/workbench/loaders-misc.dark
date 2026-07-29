@@ -1,7 +1,7 @@
 /// Reads for the remaining views: AI threads and prompts, things, conflicts, branches, docs, errors.
 ///
-/// Part of `Darklang.Cli.Apps.Workbench.App`.
-module Darklang.Cli.Apps.Workbench.App
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
 
 let loadAiThreadItems () : List<BodyItem> =
   Darklang.Cli.Apps.Views.AiChats.demoThreads ()

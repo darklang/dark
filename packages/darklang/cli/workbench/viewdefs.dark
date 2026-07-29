@@ -1,7 +1,7 @@
 /// The extension-view registry: the seam that lets a view be added without the core naming it.
 ///
-/// Part of `Darklang.Cli.Apps.Workbench.App`.
-module Darklang.Cli.Apps.Workbench.App
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
 
 // Named wrappers so every ViewDef field is a resolved function reference (inline lambdas leave the tuple's
 // type as `_` and block record coercion - same reason Registry.CommandHandler uses named refs throughout).

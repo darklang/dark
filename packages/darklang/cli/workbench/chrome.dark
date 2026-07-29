@@ -1,8 +1,8 @@
 /// Body dispatch and the pieces that sit around it: the editor pane, search results, per-view key hints,
 /// and the two overlays.
 ///
-/// Part of `Darklang.Cli.Apps.Workbench.App`.
-module Darklang.Cli.Apps.Workbench.App
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
 
 let renderViewBody (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   if state.activeView == vHome then

@@ -1,7 +1,7 @@
 /// Movement and the actions a keypress can trigger. Each returns a `Step`.
 ///
-/// Part of `Darklang.Cli.Apps.Workbench.App`.
-module Darklang.Cli.Apps.Workbench.App
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
 
 let descend (state: State) : Step =
   match Stdlib.List.getAt state.items state.selected with
