@@ -138,9 +138,10 @@ Rules:
 
 ## Critical Syntax
 - Whitespace-sensitive (like Python)
-- Nested function definitions are supported only in the fully annotated form:
-  `let helper (x: Int) : Int = ...`. The parser desugars this to a local
-  lambda, so use it for task-local helpers; mutual recursion is not supported.
+- Nested function definitions need PARENTHESIZED params: `let helper (x) = ...`,
+  annotations optional. The parser desugars this to a local lambda, so use it for
+  task-local helpers. A nested fn can call one defined above it; a FORWARD reference
+  to one defined below fails.
 - NO binding modules to variables (`let c = Darklang.Cli.Colors` is invalid —
   modules are not first-class values. Use the full path each time.)
 - Pipe |> feeds the left value as the FIRST argument of the right fn; any

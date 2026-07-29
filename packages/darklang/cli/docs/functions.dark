@@ -3,21 +3,25 @@ module Darklang.Cli.Docs.Functions
 let content () : String =
   """# Functions
 
-## Define (module-level only)
+## Define
   let add (a: Int) (b: Int) : Int = a + b
   let greet (name: String) : String = $"Hi {name}"
 
 ## No params
   let now () : DateTime = Stdlib.DateTime.now ()
 
-## Nested functions (fully-annotated form only)
-  # OK — params and return type annotated:
+## Nested functions
   let outer (n: Int) : Int =
     let double (x: Int) : Int = x * 2
     double n
-  # NOT supported — unannotated: let double x = x * 2
-  # A nested fn can close over outer bindings and recurse by name; mutual recursion between
-  # nested fns is not supported. When in doubt, define at module level.
+
+  # The trigger is PARENTHESIZED params, not the annotations - `let double (x) = x * 2` is
+  # a nested fn too. Types are optional here and discarded either way.
+  # NOT a nested fn: let double x = x * 2   (no parens - parses as a plain binding)
+  #
+  # A nested fn can close over outer bindings, recurse by name, and call a nested fn
+  # defined ABOVE it. What fails is a FORWARD reference: calling one defined further down.
+  # A name that collides with something already in scope is an error, not shadowing.
 
 ## Call
   add 1 2

@@ -108,13 +108,27 @@ let bindingChain (bindings: List<Binding>) : String =
 let withBindings (bindings: List<Binding>) (expr: String) : String =
   (bindingChain bindings) ++ expr
 
-/// Add or replace a binding, keeping insertion order (a rebind stays where it was, so later bindings that
-/// refer to it still see it defined above them).
+/// Add or replace a binding.
+///
+/// A CAPTURED rebind keeps its position: it holds a literal, which references nothing, so leaving it where it
+/// was keeps any later binding that mentions this name defined below it.
+///
+/// An UNCAPTURED rebind moves to the end, because it holds an expression that may reference names bound after
+/// the position it currently occupies. Keeping it in place wedged the session:
+///
+///   let d = Stdlib.DateTime.now ()   (uncapturable, so it holds the expression)
+///   let a = 1                        (captured)
+///   let a = d                        (capture fails; falls back to holding "d")
+///
+/// left the chain as `let a = d` / `let d = ...`, so `d` was undefined when `a` was bound and every
+/// subsequent eval failed with no way out but clearing the session.
 let upsert (bindings: List<Binding>) (b: Binding) : List<Binding> =
-  if bindings |> Stdlib.List.any (fun x -> x.name == b.name) then
+  let withoutIt = bindings |> Stdlib.List.filter (fun x -> x.name != b.name)
+  let alreadyBound = (Stdlib.List.length withoutIt) != (Stdlib.List.length bindings)
+  if alreadyBound && b.captured then
     bindings |> Stdlib.List.map (fun x -> if x.name == b.name then b else x)
   else
-    Stdlib.List.pushBack bindings b
+    Stdlib.List.pushBack withoutIt b
 
 /// Turn a runtime value back into source text, so a binding can hold the value rather than the expression
 /// that computed it. Returns `ok:<source>` or `err:<reason>` - a tagged string rather than a Result because

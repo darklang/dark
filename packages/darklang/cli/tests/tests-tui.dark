@@ -335,6 +335,21 @@ let testReplInjectsBindingChain (): TestResult =
     TestResult.Fail $"Unexpected binding chain: '{one}' / '{two}'"
 
 
+let testReplUncapturedRebindMovesLast (): TestResult =
+  // An uncaptured binding holds an EXPRESSION, so it must sit after anything it references. Rebinding it in
+  // place produced `let a = d` above `let d = ...`, which left `d` undefined and wedged the session.
+  let mk = (fun n s c -> Darklang.Cli.Repl.Binding { name = n; source = s; captured = c })
+  let after =
+    Darklang.Cli.Repl.upsert
+      [ mk "a" "1" true; mk "d" "Stdlib.DateTime.now ()" false ]
+      (mk "a" "d" false)
+  let order = after |> Stdlib.List.map (fun b -> b.name) |> Stdlib.String.join ","
+  if order == "d,a" then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected the uncaptured rebind to move last (d,a), got {order}"
+
+
 let testReplRebindKeepsPosition (): TestResult =
   // Rebinding `x` must not move it after `y`, or `y`'s chain entry would reference an undefined name.
   let after =

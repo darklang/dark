@@ -24,7 +24,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
         { state with
             input =
               Stdlib.Option.Option.Some
-                { inp with prompt = "not logged in (set DARK_ACCOUNT or `login`) - esc"; text = "" } }
+                { inp with prompt = "not logged in - run `login`, then retry - esc"; text = "" } }
   else if inp.action == "discard" then
     // Destructive: only proceed on an explicit "y".
     if inp.text == "y" then
