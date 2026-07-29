@@ -89,20 +89,37 @@ let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
         // A toast sits *beside* the hints, right-aligned, rather than replacing the row. It used to take the
         // whole row, so every message cost you the shortcuts until you pressed a key to clear it - exactly
         // when a new arrival is most likely to be looking for them.
-        let toast =
+        // A failure/guidance toast reads pink with ✗; a success reads green with ✓.
+        let toastPlain =
           if state.message == "" then
-            []
+            ""
           else
-            // A failure/guidance toast reads pink with ✗; a success reads green with ✓.
             let bad =
               (Stdlib.String.contains state.message "fail")
               || (Stdlib.String.contains state.message "conflict")
               || (Stdlib.String.contains state.message "descend")
-            let plain = (if bad then "✗ " else "✓ ") ++ state.message
-            let colored = Colors.colorize (if bad then Colors.pink else Colors.green) plain
-            let col = Stdlib.Int.max 0 (r.cols - (Tui.Text.displayWidth plain) - 2)
-            UI.Layout.at r 0 col colored
-        Stdlib.List.flatten [ Frame.renderKeyHints r h; toast ])
+            (if bad then "✗ " else "✓ ") ++ state.message
+        let toastWidth = Tui.Text.displayWidth toastPlain
+        let toast =
+          if toastPlain == "" then
+            []
+          else
+            let bad = Stdlib.String.startsWith toastPlain "✗"
+            let colored = Colors.colorize (if bad then Colors.pink else Colors.green) toastPlain
+            UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - toastWidth - 2)) colored
+        // Clip the hints to stop short of the toast rather than letting the toast overwrite them. Canvas lets a
+        // later span truncate an earlier one, which worked, but left the two abutting with no gap on a long
+        // hint row - it read as a collision rather than two things sharing a line.
+        let hintRoom =
+          if toastPlain == "" then r.cols else Stdlib.Int.max 0 (r.cols - toastWidth - 8)
+        // An ellipsis where the row was cut, so a hint list that lost its tail reads as truncated rather than
+        // as a key whose name happens to end mid-word.
+        let shownHints =
+          if (Tui.Text.styledWidth h) <= hintRoom then
+            h
+          else
+            (Tui.Text.clipToWidth h (Stdlib.Int.max 0 (hintRoom - 2))) ++ (Colors.dimText "…")
+        Stdlib.List.flatten [ Frame.renderKeyHints r shownHints; toast ])
   Stdlib.List.flatten
     [ UI.Layout.vstack screen (Stdlib.List.flatten [ [ context; tabbar ]; (if path == "" then [] else [ crumb ]); [ body; hints ] ])
       if state.showHelp then renderHelpOverlay screen else []

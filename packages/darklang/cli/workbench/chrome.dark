@@ -215,7 +215,16 @@ let renderViewPicker (state: State) (screen: UI.Layout.Region) : List<UI.Layout.
 
 /// A centered, boxed keymap overlay drawn over the frame. The interior is cleared so nothing shows through.
 let renderHelpOverlay (screen: UI.Layout.Region) : List<UI.Layout.Span> =
-  let w = Stdlib.Int.min (Stdlib.Int.max 40 (screen.cols - 4)) 70
+  // Wide enough for the longest group, not a round number. A fixed 70 clipped the Matter row - the single most
+  // useful line in the keymap - on a terminal with room to spare. 11 is where the keys column starts, plus the
+  // border and a column of padding either side.
+  let widest =
+    helpGroups
+    |> Stdlib.List.map (fun pair ->
+      let (_label, keys) = pair
+      Tui.Text.displayWidth keys)
+    |> Stdlib.List.fold 0 (fun acc n -> Stdlib.Int.max acc n)
+  let w = Stdlib.Int.min (Stdlib.Int.max 40 (widest + 14)) (Stdlib.Int.max 40 (screen.cols - 4))
   let rows = (Stdlib.List.length helpGroups) * 2 + 3
   let h = Stdlib.Int.min (Stdlib.Int.max 8 rows) (screen.rows - 2)
   let top = screen.top + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.rows - h)) 2)

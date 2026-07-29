@@ -112,7 +112,7 @@ let cycleView (state: State) (dir: Int) : Step =
 
 /// Resolve the selected conflict (Conflicts view): keep ours (local), theirs (incoming), or just acknowledge.
 let resolveConflict (state: State) (which: String) : Step =
-  match Stdlib.List.getAt (Darklang.Sync.Conflicts.list ()) state.selected with
+  match selectedConflict state with
   | None -> Step.Continue { state with message = "no conflict selected" }
   | Some c ->
     let ok =

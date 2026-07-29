@@ -254,17 +254,30 @@ let performInputAction (state: State) (inp: InputState) : Step =
           detailScroll = 0 }
   else if inp.action == "branch-create" then
     let b = Darklang.SCM.Branch.create inp.text state.branchId
+    let newItems =
+      itemsForView state.activeView b.id state.location state.scmSection state.aiSection state.matterLens
+    // Land on the branch you just made, the way saving lands on the item you just wrote. Resetting to 0 put
+    // the cursor on `main` while you were standing on the new branch, so the detail pane described the one
+    // you'd just left.
+    let landed =
+      newItems
+      |> Stdlib.List.indexedMap (fun i it -> (i, it))
+      |> Stdlib.List.findFirst (fun pair ->
+        let (_i, it) = pair
+        Stdlib.String.contains it.name inp.text)
+      |> Stdlib.Option.map (fun pair -> let (i, _it) = pair in i)
+      |> Stdlib.Option.withDefault 0
     Step.Continue
       { state with
           input = Stdlib.Option.Option.None
           branchId = b.id
-          items = itemsForView state.activeView b.id state.location state.scmSection state.aiSection state.matterLens
-          selected = 0
+          items = newItems
+          selected = landed
           filter = ""
           message = "on branch " ++ inp.text }
   else if inp.action == "branch-rename" then
     let newName = Stdlib.String.trim inp.text
-    match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+    match selectedBranch state with
     | Some b ->
       let msg =
         match Darklang.SCM.Branch.rename b.id newName with
@@ -280,7 +293,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
     if inp.text != "y" then
       Step.Continue { state with input = Stdlib.Option.Option.None }
     else
-      match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+      match selectedBranch state with
       | Some b ->
         match Darklang.SCM.Branch.delete b.id with
         | Error m ->

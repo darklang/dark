@@ -92,9 +92,20 @@ let bindSession (state: State) (name: String) (rhs: String) : (Stdlib.Option.Opt
       | _ -> rhs
     (Stdlib.Option.Option.Some(
        Darklang.Cli.Repl.Binding { name = name; source = rhs; value = shown; captured = false }),
-     $"{name} = {shown}   (re-runs each eval: {reason})")
+     // Reason on its own line: on one line with the value it ran past the pane edge and got clipped mid-word
+     // ("... DateTime has no "), losing the only part that explains the `~`.
+     $"{name} = {shown}\nre-runs each eval: {reason}")
   match evalRaw state (Darklang.Cli.Repl.captureExpr state.replBindings state.branchId name rhs) with
-  | Error message -> (Stdlib.Option.Option.None, "not bound - " ++ message)
+  | Error message ->
+    // Report against what was typed, not against the capture wrapper. A parse error in the binding surfaced
+    // the generated `Repl.captureValue "<branch uuid>" name` line with a caret under it - source the user
+    // never wrote, and a uuid that makes it look like an internal fault. Re-running the plain binding costs
+    // one eval on the error path and points the caret at their own text.
+    let plainMessage =
+      match evalRaw state (Darklang.Cli.Repl.withBindings state.replBindings $"let {name} = {rhs}\n{name}") with
+      | Error m -> m
+      | Ok _ -> message
+    (Stdlib.Option.Option.None, "not bound - " ++ plainMessage)
   | Ok None -> fallback "nothing to capture"
   | Ok(Some out) ->
     match Darklang.Cli.Repl.readCaptured out with
@@ -127,8 +138,12 @@ let applyReplStatement (state: State) (stmt: String) : State =
     | Some pair ->
       let (name, rhs) = pair
       let (bound, note) = bindSession state name rhs
+      // A note may carry a second line (see `bindSession`'s fallback); one log entry per line keeps each
+      // within the pane rather than clipping the tail of a long one.
+      let noteLines =
+        Stdlib.String.split note "\n" |> Stdlib.List.map (fun l -> "  " ++ (Colors.dimText l))
       let logged =
-        Stdlib.List.append state.scratchLog (Stdlib.List.append echoLines [ "  " ++ (Colors.dimText note) ])
+        Stdlib.List.append state.scratchLog (Stdlib.List.append echoLines noteLines)
       match bound with
       | Some binding ->
         { state with

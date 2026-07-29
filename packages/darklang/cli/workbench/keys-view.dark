@@ -19,9 +19,9 @@ let handleViewKey
       // Apps: ⏎ opens the app - its status, target, and recent logs - in the reader (i toggles install).
       runAppsSubcommand state "inspect"
     else if state.activeView == vDocs then
-      // Docs: open the selected topic in the full-body reader (prose, not code).
-      let topics = Docs.Command.Topics.allTopics ()
-      match Stdlib.List.getAt topics state.selected with
+      // Docs: open the selected topic in the full-body reader (prose, not code). By name, not by index - the
+      // list is filterable, see `selectedDocTopic`.
+      match selectedDocTopic state with
       | Some t -> openReader state (t.content ()) false
       | None -> Step.Continue state
     else if state.activeView == vSCM then
@@ -29,7 +29,7 @@ let handleViewKey
       if state.scmSection == 1 then openReader state (commitOpsText state.branchId state.selected) false
       else if state.scmSection == 0 then openReader state (changesSourceText state.branchId state.selected) true
       else if state.scmSection == 3 then
-        match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+        match selectedBranch state with
         | Some b ->
           Step.Continue
             { state with
@@ -206,7 +206,7 @@ let handleViewKey
       if state.activeView == vScratch then
         Step.Continue { state with replBindings = []; message = "session bindings cleared" }
       else if (state.activeView == vSCM) && (state.scmSection == 3) then
-        match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+        match selectedBranch state with
         | Some b ->
           Step.Continue
             { state with
@@ -248,7 +248,7 @@ let handleViewKey
     | Some "r" ->
       // SCM: rebase (or rename a branch in the Branches section). Apps: run. Matter: rename the selected leaf.
       if (state.activeView == vSCM) && (state.scmSection == 3) then
-        match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+        match selectedBranch state with
         | Some b ->
           Step.Continue
             { state with

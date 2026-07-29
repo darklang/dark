@@ -104,9 +104,37 @@ let loadBranchItems (currentBranchId: Uuid) : List<BodyItem> =
       | None -> ""
     BodyItem { name = marker ++ b.name ++ tag; kind = "branch"; isModule = false })
 
+/// The branch the cursor is on, resolved by name rather than by position.
+///
+/// `state.selected` indexes `state.items`, which the in-view filter (`f`) narrows. Indexing straight into
+/// `SCM.Branch.list ()` therefore targeted whatever branch sat at that position in the FULL list: with the
+/// Branches section filtered to one entry, the cursor was visibly on it while `x` offered to delete `main`.
+/// A destructive action naming the wrong target is the worst version of this bug, so every branch action and
+/// the preview go through here.
+let selectedBranch (state: State) : Stdlib.Option.Option<Darklang.SCM.Branch.Branch> =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> Stdlib.Option.Option.None
+  | Some item ->
+    // Rows read "<marker> <name>[   (merged)]" - see `loadBranchItems`.
+    let name =
+      item.name
+      |> Stdlib.String.dropFirst 2
+      |> fun s -> Stdlib.String.split s "   (merged)" |> Stdlib.List.head |> Stdlib.Option.withDefault s
+      |> Stdlib.String.trim
+    Darklang.SCM.Branch.list () |> Stdlib.List.findFirst (fun b -> b.name == name)
+
+/// The conflict the cursor is on, by location. Same filtered-cursor reasoning as `selectedBranch`.
+let selectedConflict (state: State) : Stdlib.Option.Option<Darklang.Sync.Conflicts.Conflict> =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> Stdlib.Option.Option.None
+  | Some item ->
+    let location =
+      Stdlib.String.split item.name "  ·  " |> Stdlib.List.head |> Stdlib.Option.withDefault item.name
+    Darklang.Sync.Conflicts.list () |> Stdlib.List.findFirst (fun c -> c.location == location)
+
 /// The selected branch's detail (SCM · Branches preview).
 let branchDetail (state: State) : String =
-  match Stdlib.List.getAt (Darklang.SCM.Branch.list ()) state.selected with
+  match selectedBranch state with
   | Some b ->
     let parent =
       match b.parentBranchId with

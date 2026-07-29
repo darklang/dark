@@ -157,10 +157,21 @@ let runSearch (branchId: Uuid) (queryText: String) : List<SearchHit> =
     let modules = Stdlib.List.append [ item.location.owner ] item.location.modules
     let full = Stdlib.String.join (Stdlib.List.append modules [ item.location.name ]) "."
     SearchHit { modules = modules; name = item.location.name; kind = tag; display = "  " ++ tag ++ "  " ++ full }
+  // Rank by how well the LEAF NAME matches, because the search also matches descriptions and those hits
+  // otherwise interleave alphabetically with the real ones: searching `toUppercase` put
+  // `Stdlib.String.toUppercase` sixth, behind `Stdlib.Blob.fromHex`, which matched on its description.
+  let needle = Stdlib.String.toLowercase (Stdlib.String.trim queryText)
+  let rank (h: SearchHit) : Int =
+    let name = Stdlib.String.toLowercase h.name
+    if name == needle then 0
+    else if Stdlib.String.startsWith name needle then 1
+    else if Stdlib.String.contains name needle then 2
+    else 3
   Stdlib.List.flatten
     [ r.types |> Stdlib.List.map (fun i -> hit "type" i)
       r.values |> Stdlib.List.map (fun i -> hit "val " i)
       r.fns |> Stdlib.List.map (fun i -> hit "fn  " i) ]
+  |> Stdlib.List.sortBy rank
 
 /// Dependencies of the selected Tree leaf (what it uses), formatted for the reader. `d` shows this.
 let depsText (state: State) : String =

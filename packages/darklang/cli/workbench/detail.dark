@@ -5,18 +5,23 @@
 module Darklang.Cli.Workbench
 
 
-/// The glyph for a row's kind.
+/// The glyph for a row's kind, padded to two terminal columns.
 ///
 /// Lowercased first because two vocabularies meet here: the tree's loaders use "fn"/"type"/"val", while WIP
 /// rows carry the backend's display kinds ("Fn"/"Type"/"Value", see `getWipItems`). Matching only the
 /// lowercase spelling meant every row in SCM Changes fell through to the bullet.
+///
+/// Padded because the glyphs aren't all the same width: `#` and `•` are one column, so concatenating them raw
+/// left names in a mixed list starting a column apart - a ragged left edge down the tree.
 let iconFor (item: BodyItem) : String =
-  if item.isModule then "🗂"
-  else
-    match Stdlib.String.toLowercase item.kind with
-    | "fn" -> "⚡"
-    | "type" -> "#"
-    | _ -> "•"
+  let glyph =
+    if item.isModule then "🗂"
+    else
+      match Stdlib.String.toLowercase item.kind with
+      | "fn" -> "⚡"
+      | "type" -> "#"
+      | _ -> "•"
+  Tui.Text.fitToWidth glyph 2
 
 let renderTreeList (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
   if Stdlib.List.isEmpty state.items then
@@ -94,9 +99,26 @@ let detailLines (state: State) : List<String> =
           | [] -> "(not found)"
       Stdlib.String.split src "\n"
 
+/// The Docs topic the cursor is on, resolved by name rather than by position.
+///
+/// The row list is filterable (`f`), so `selected` indexes the FILTERED items and not `allTopics`. Indexing
+/// straight into `allTopics` meant a narrowed Docs list previewed and opened whatever topic happened to sit at
+/// that position in the full list: filter to `terminal-ui`, get `for-ai`.
+let selectedDocTopic (state: State) : Stdlib.Option.Option<Docs.Command.Topics.DocTopic> =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> Stdlib.Option.Option.None
+  | Some item ->
+    // Rows read "<name>  ·  <description>"; the name is what identifies the topic.
+    let leaf =
+      Stdlib.String.split item.name "  ·  "
+      |> Stdlib.List.head
+      |> Stdlib.Option.withDefault item.name
+    Docs.Command.Topics.allTopics ()
+    |> Stdlib.List.findFirst (fun t -> t.name == leaf)
+
 /// The Docs topic content for the selected row.
-let docContent (selected: Int) : String =
-  match Stdlib.List.getAt (Docs.Command.Topics.allTopics ()) selected with
+let docContent (state: State) : String =
+  match selectedDocTopic state with
   | Some t -> t.content ()
   | None -> "(no topic selected)"
 
@@ -219,7 +241,7 @@ let previewLines (state: State) : List<String> =
     else Stdlib.String.split (aiThreadDetail state.selected) "\n"
   else if state.activeView == vApps then Stdlib.String.split (appDetail state) "\n"
   else if state.activeView == vTraces then Stdlib.String.split (traceDetail state) "\n"
-  else if state.activeView == vDocs then Stdlib.String.split (docContent state.selected) "\n"
+  else if state.activeView == vDocs then Stdlib.String.split (docContent state) "\n"
   else
     // Extension views supply their own detail; built-ins fall through to the generic item detail.
     match extensionViewAt state.activeView with
