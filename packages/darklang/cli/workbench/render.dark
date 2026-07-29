@@ -149,46 +149,46 @@ let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
       [ UI.Layout.fixedSize 6 (fun rr -> UI.Box.panel rr "Status" false renderStatus)
         UI.Layout.greedy (fun rr -> UI.Box.panel rr "Pick up where you left off" false renderWip) ]
 
-  // Cap the dashboard's width. Full-width panels on a 300-column terminal strand four short lines in a box
-  // wide enough to read as broken rather than spacious.
-  let dash =
-    UI.Layout.Region
-      { top = region.top
-        left = region.left
-        rows = region.rows
-        cols = Stdlib.Int.min region.cols 140 }
+  // Home fills the body region, same as every other view. The right column scales with the width rather than
+  // sitting at a fixed 40, so a wide terminal widens both panels instead of stretching one across the screen.
+  let matterCols = Stdlib.Int.max 38 (Stdlib.Int.min 72 (Stdlib.Int.divide region.cols 3))
 
-  // Every band is fixed, so a tall terminal leaves blank rows under the dashboard rather than inflating it.
-  // `distributeRows` hands out only the minimums when nothing asks for more, which is what makes that work.
-  // Nothing here is a scrolling list, so growth buys almost nothing: the tabs panel wants exactly a row per
-  // tab, and the two above only ever hold a handful of lines. Making either greedy just wraps a box around
-  // twenty empty rows.
-  // What each band wants: the middle is as tall as its taller column (Status (6) over the WIP list, against
-  // the owners list), the tabs want a row per tab plus a border.
-  let wantMid = Stdlib.Int.min 16 (Stdlib.Int.max (6 + (Stdlib.Int.max 1 wip) + 2) ((Stdlib.List.length rootItems) + 3))
-  let wantTabs = (Stdlib.List.length (visibleViews state)) + 1
+  // What each band needs at minimum: the middle is as tall as its taller column (Status (6) over the WIP
+  // list, against the owners list), the tabs want a row per tab plus a border.
+  let minMid = Stdlib.Int.max (6 + (Stdlib.Int.max 1 wip) + 2) ((Stdlib.List.length rootItems) + 3)
+  let minTabs = (Stdlib.List.length (visibleViews state)) + 1
 
-  // What they get. Fixed bands only, so `distributeRows` hands out the minimums and a tall terminal leaves
-  // blank rows below rather than inflating a box around them - nothing here scrolls, so growth buys nothing.
-  //
-  // But fixed also means nothing shrinks, and on a short terminal the total ran off the bottom and the footer
-  // drew over the last row. So the sizes are bounded here instead: the middle keeps its Status panel and four
-  // rows, and the tabs panel takes what's left (it truncates gracefully - the title already points at the
-  // picker for the rest).
+  // Floors first: the bands don't shrink on their own, and on a 24-row terminal the total used to run off the
+  // bottom and the footer drew over the last row. The middle keeps its Status panel and four rows; the tabs
+  // take what's left, truncating gracefully (the title already points at the picker).
   let avail = Stdlib.Int.max 1 region.rows
-  let midRows = Stdlib.Int.max 6 (Stdlib.Int.min wantMid (avail - 3 - 4))
-  let tabRows = Stdlib.Int.max 0 (Stdlib.Int.min wantTabs (avail - 3 - midRows))
+  let midFloor = Stdlib.Int.max 6 (Stdlib.Int.min minMid (avail - 3 - 4))
+  let tabFloor = Stdlib.Int.max 0 (Stdlib.Int.min minTabs (avail - 3 - midFloor))
+
+  // Then the surplus, split evenly rather than handed to either one - all of it to the middle put a 28-row box
+  // around one line of "nothing in progress", and all of it to the tabs left the same hole at the bottom.
+  // Both lists do grow in real use, so the space isn't wasted, just not pooled anywhere it can look broken.
+  //
+  // Shared out here rather than through `flex`, which splits in proportion to (preferred - min) using integer
+  // division and drops the odd row - one blank line above the footer that no band asked for. This assigns the
+  // remainder explicitly, so the three bands always add up to the full height.
+  let slack = Stdlib.Int.max 0 (avail - 3 - midFloor - tabFloor)
+  let midShare = midFloor + (Stdlib.Int.divide slack 2)
+  let tabShare = tabFloor + slack - (Stdlib.Int.divide slack 2)
+  // Under three rows there's no room for a border and a line, so the tabs panel goes rather than draw a stub -
+  // and its rows go to the middle rather than sitting blank above the footer.
+  let (midRows, tabRows) =
+    if tabShare < 3 then (midShare + tabShare, 0) else (midShare, tabShare)
 
   UI.Layout.vstack
-    dash
+    region
     [ UI.Layout.fixedSize 3 renderHeader
       UI.Layout.fixedSize midRows (fun r ->
         UI.Layout.hstack
           r
           [ UI.Layout.greedyWidth leftCol
-            UI.Layout.fixedWidth 40 (fun rr -> UI.Box.panel rr "Your Matter" false renderMatterPanel) ])
-      // Below three rows there's no room for a border and a line, so drop the panel rather than draw a stub.
-      if tabRows < 3 then
+            UI.Layout.fixedWidth matterCols (fun rr -> UI.Box.panel rr "Your Matter" false renderMatterPanel) ])
+      if tabRows == 0 then
         UI.Layout.fixedSize 0 (fun _r -> [])
       else
         UI.Layout.fixedSize tabRows (fun rr ->
