@@ -32,20 +32,20 @@ Darklang.Cli.Repl.parseLetBinding "let 2x = 3" = Stdlib.Option.Option.None
 Darklang.Cli.Repl.withBindings [] "x + 1" = "x + 1"
 
 (Darklang.Cli.Repl.withBindings
-  [ Darklang.Cli.Repl.Binding { name = "x"; source = "42"; captured = true } ]
+  [ Darklang.Cli.Repl.Binding { name = "x"; source = "42"; value = "42"; captured = true } ]
   "x + 1") = "let x = 42\nx + 1"
 
 // Order is load-bearing: a later binding may refer to an earlier one.
 (Darklang.Cli.Repl.withBindings
-  [ Darklang.Cli.Repl.Binding { name = "x"; source = "42"; captured = true }
-    Darklang.Cli.Repl.Binding { name = "y"; source = "x + 1"; captured = false } ]
+  [ Darklang.Cli.Repl.Binding { name = "x"; source = "42"; value = "42"; captured = true }
+    Darklang.Cli.Repl.Binding { name = "y"; source = "x + 1"; value = "x + 1"; captured = false } ]
   "y * 2") = "let x = 42\nlet y = x + 1\ny * 2"
 
 // Which is why a rebind keeps its position rather than moving to the end.
 (Darklang.Cli.Repl.upsert
-  [ Darklang.Cli.Repl.Binding { name = "x"; source = "1"; captured = true }
-    Darklang.Cli.Repl.Binding { name = "y"; source = "x + 1"; captured = false } ]
-  (Darklang.Cli.Repl.Binding { name = "x"; source = "99"; captured = true })
+  [ Darklang.Cli.Repl.Binding { name = "x"; source = "1"; value = "1"; captured = true }
+    Darklang.Cli.Repl.Binding { name = "y"; source = "x + 1"; value = "x + 1"; captured = false } ]
+  (Darklang.Cli.Repl.Binding { name = "x"; source = "99"; value = "99"; captured = true })
  |> Stdlib.List.map (fun b -> b.name ++ "=" ++ b.source)) = [ "x=99"; "y=x + 1" ]
 
 // --- reading `captureValue` back ---

@@ -84,17 +84,24 @@ let evalToString (state: State) (expr: String) : String =
 /// binds) from "this value has no literal form" (it evaluated fine, `dvalToExpr` couldn't promote it).
 let bindSession (state: State) (name: String) (rhs: String) : (Stdlib.Option.Option<Darklang.Cli.Repl.Binding> * String) =
   let fallback (reason: String) : (Stdlib.Option.Option<Darklang.Cli.Repl.Binding> * String) =
+    // The binding holds the expression, but the session pane shows values, so evaluate it once for display.
+    // The chain re-runs this anyway on the next eval; this is the same work one step early.
+    let shown =
+      match evalRaw state (Darklang.Cli.Repl.withBindings state.replBindings rhs) with
+      | Ok(Some v) -> Stdlib.String.trim v
+      | _ -> rhs
     (Stdlib.Option.Option.Some(
-       Darklang.Cli.Repl.Binding { name = name; source = rhs; captured = false }),
-     $"{name} = {rhs}   (re-run each eval: {reason})")
+       Darklang.Cli.Repl.Binding { name = name; source = rhs; value = shown; captured = false }),
+     $"{name} = {shown}   (re-runs each eval: {reason})")
   match evalRaw state (Darklang.Cli.Repl.captureExpr state.replBindings state.branchId name rhs) with
   | Error message -> (Stdlib.Option.Option.None, "not bound - " ++ message)
   | Ok None -> fallback "nothing to capture"
   | Ok(Some out) ->
     match Darklang.Cli.Repl.readCaptured out with
     | Some source ->
+      // Captured: the source IS the value, so both fields are the same literal.
       (Stdlib.Option.Option.Some(
-         Darklang.Cli.Repl.Binding { name = name; source = source; captured = true }),
+         Darklang.Cli.Repl.Binding { name = name; source = source; value = source; captured = true }),
        $"{name} = {source}")
     | None -> fallback (Stdlib.String.trim (Stdlib.String.dropFirst (Stdlib.String.trim out) 4))
 
@@ -126,7 +133,7 @@ let applyReplStatement (state: State) (stmt: String) : State =
       | Some binding ->
         { state with
             replBindings = Darklang.Cli.Repl.upsert state.replBindings binding
-            replLast = binding.source
+            replLast = binding.value
             scratchLog = logged }
       | None -> { state with replLast = note; scratchLog = logged }
     | None ->
@@ -185,12 +192,13 @@ let renderRepl (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
         else
           state.replBindings
           |> Stdlib.List.map (fun b ->
-            // A captured binding holds the value; an uncaptured one holds the expression and re-runs, which
-            // is worth saying on the row rather than in a footnote.
+            // Values, not source. The log on the left already shows what you typed, so repeating the
+            // expression here would say the same thing twice. `~` marks a binding that re-runs rather than
+            // holding a captured literal.
             let marker = if b.captured then "" else Colors.dimText "  ~"
             (Colors.colorize Colors.cyan b.name)
             ++ (Colors.dimText " = ")
-            ++ (Colors.colorize Colors.green b.source)
+            ++ (Colors.colorize Colors.green b.value)
             ++ marker)
       let resultLines =
         if (Stdlib.String.trim state.replLast) == "" then

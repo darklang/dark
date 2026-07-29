@@ -286,7 +286,7 @@ let testWorkbenchEveryViewRenders (): TestResult =
 
 /// Shorthand for a captured binding (one holding a value rather than an expression).
 let bound (name: String) (source: String) : Darklang.Cli.Repl.Binding =
-  Darklang.Cli.Repl.Binding { name = name; source = source; captured = true }
+  Darklang.Cli.Repl.Binding { name = name; source = source; value = source; captured = true }
 
 
 let testReplParsesLetBinding (): TestResult =
@@ -338,7 +338,7 @@ let testReplInjectsBindingChain (): TestResult =
 let testReplUncapturedRebindMovesLast (): TestResult =
   // An uncaptured binding holds an EXPRESSION, so it must sit after anything it references. Rebinding it in
   // place produced `let a = d` above `let d = ...`, which left `d` undefined and wedged the session.
-  let mk = (fun n s c -> Darklang.Cli.Repl.Binding { name = n; source = s; captured = c })
+  let mk = (fun n s c -> Darklang.Cli.Repl.Binding { name = n; source = s; value = s; captured = c })
   let after =
     Darklang.Cli.Repl.upsert
       [ mk "a" "1" true; mk "d" "Stdlib.DateTime.now ()" false ]

@@ -9,16 +9,21 @@
 /// be written as a literal: `captureValue` reflects the result back into source via
 /// `RuntimeTypesToProgramTypes.dvalToExpr`. That matters because the chain is re-run on every eval - without
 /// it, `let t = slowThing ()` would pay for `slowThing` again on every subsequent expression, and an effectful
-/// one would repeat its effect. Values with no literal syntax (records, enums, functions, uuids) can't be
-/// captured (functions, DBs, blobs, streams, datetimes, uuids, and floats with no literal form); those fall
-/// back to holding the expression, which does re-run. The REPL says which you got.
+/// one would repeat its effect. Values with no literal syntax (functions, DBs, blobs, streams, datetimes,
+/// uuids, and floats with no literal form) fall back to holding the expression, which does re-run. The REPL
+/// marks those with a `~`.
 module Darklang.Cli.Repl
 
-/// A session binding: the name, and the source text it stands for.
+/// A session binding: the name, the source it stands for, and what that source last evaluated to.
 type Binding =
   { name: String
-    /// Source text - either a captured literal or the original expression (see `captured`).
+    /// Source text - either a captured literal or the original expression (see `captured`). This is what
+    /// gets re-injected as the `let` chain.
     source: String
+    /// What to show for this binding: its value. For a captured binding that IS the source, since the
+    /// source is a literal. For an uncaptured one the source is an expression, and the pane shows what it
+    /// evaluated to rather than repeating text already visible in the log on the left.
+    value: String
     /// True when `source` is the value itself, false when it's the expression that recomputes it.
     captured: Bool }
 
