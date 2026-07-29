@@ -2283,10 +2283,13 @@ let functionDeclarations =
       []
       false
 
+    // `()` is stored as one parameter named `_` of type Unit. This used to expect it printed back as
+    // `(_: Unit)`, which the parser rejects ("expected a parameter name, found '_'") - so the round-trip test
+    // was asserting output that doesn't round-trip.
     t
       "single unit param"
       "let emptyString () : String = \"\""
-      "let emptyString (_: Unit): String =\n  \"\""
+      "let emptyString (): String =\n  \"\""
       []
       []
       []

@@ -969,7 +969,21 @@ module PackageFn =
     (p: LanguageTools.ProgramTypes.PackageFn.Parameter)
     : String =
     // TODO: /// for description
-    $"({p.name}: {typeReference ctx p.typ})"
+    //
+    // `()` in a declaration parses as one parameter named `_` of type Unit, so print that shape back as `()`.
+    // The general `(name: Type)` form gave `(_: Unit)`, which the parser then rejected with "expected a
+    // parameter name, found '_'" - so every nullary function printed to source that wouldn't parse again.
+    // That broke editing one in the workbench, where the buffer is prefilled from here and saved through the
+    // parser: you had to retype the signature before it would save.
+    let isUnitPlaceholder =
+      match p.typ with
+      | TUnit -> p.name == "_"
+      | _ -> false
+
+    if isUnitPlaceholder then
+      "()"
+    else
+      $"({p.name}: {typeReference ctx p.typ})"
 
 
   let signature
