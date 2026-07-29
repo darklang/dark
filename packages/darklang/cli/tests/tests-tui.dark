@@ -420,11 +420,11 @@ let testReplCapturesRealValues (): TestResult =
 
 
 let testWorkbenchCapturesStrayOutput (): TestResult =
-  // The workbench owns the whole screen, so anything a command prints scrolls the alternate screen and
-  // every frame after it lands that many rows off - which reads as two overlapping copies of the UI, not as
-  // a missing line. This is a real bug I hit: `cliEvaluateExpression` prints a three-line call-stack header
-  // on any runtime error, so a typo at the REPL was enough. The fix is that `captureOutputAnd` hands back
-  // the value AND the output, so a caller can use the result without letting the print through.
+  // The workbench owns the whole screen, so anything a command prints scrolls the alternate screen and every
+  // frame after it lands that many rows off, which reads as two overlapping copies of the UI. It's easy to
+  // hit: `cliEvaluateExpression` prints a three-line call-stack header on any runtime error, so a typo at the
+  // REPL does it. `captureOutputAnd` returns the value AND the output, so a caller gets the result without
+  // letting the print through.
   let (value, out) =
     Darklang.Cli.Workbench.captureOutputAnd (fun () ->
       Stdlib.printLine "this must not reach the terminal"

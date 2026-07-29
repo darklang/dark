@@ -2609,6 +2609,9 @@ and parseParam (state : ParserState) (i : int) : WT.FnParam * int =
     let nameId : WT.Identifier =
       match tok state (i + 1) with
       | TIdent nm -> { range = rng state (i + 1); name = nm }
+      // `_` names a parameter you don't intend to use. It's also what `()` is stored as, so accepting it
+      // here is what makes `(_: Unit)` and `()` both parse to the same thing and either form round-trip.
+      | TUnderscore -> { range = rng state (i + 1); name = "_" }
       | _ ->
         errExpected state (i + 1) "a parameter name"
         { range = rng state (i + 1); name = "_" }

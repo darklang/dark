@@ -96,9 +96,11 @@ let private startInfo
   psi.WorkingDirectory <- dir
   psi.Environment["DARK_CONFIG_RUNDIR"] <- dir
   psi.Environment["DARK_CONFIG_DB_NAME"] <- "data.db"
-  // Trace detail is deliberately NOT set here. These children inherit it from the harness process, which
-  // sets it in Tests.All.main — setting it on this ProcessStartInfo instead has no effect on the spawned
-  // process, which cost me an hour, so it is worth the sentence.
+  // These children read trace detail from their own environment (LibDB.Tracing.TraceDetail.readEnv, once at
+  // startup), and config/dev sets it on. Left inherited, a served sync writes tens of thousands of trace rows
+  // plus the package_blobs rows trace prep promotes with them, and the disk-safety assertion below fails for
+  // the environment rather than for the bug it guards.
+  psi.Environment["DARK_CONFIG_TRACE_DETAIL"] <- "off"
   psi
 
 /// Run `dark <args>` against instance <dir> to completion; return combined, color-stripped stdout+stderr.

@@ -46,14 +46,7 @@ let executeScript
     | NotFound ->
       if looksLikePackageName scriptPath then
         let argsStr = Stdlib.String.join args " "
-        // Strip the leading `@`: it's how you name a package function to `run`, but `eval` takes an
-        // expression and chokes on it, so suggesting it verbatim hands over a command that won't parse.
-        let evalTarget =
-          if Stdlib.String.startsWith scriptPath "@" then
-            Stdlib.String.dropFirst scriptPath 1
-          else
-            scriptPath
-        let evalCmd = Stdlib.String.trim $"dark eval {evalTarget} {argsStr}"
+        let evalCmd = Stdlib.String.trim $"dark eval {scriptPath} {argsStr}"
 
         [ $"{scriptPath} isn't a script file."
           $"  `run` executes a script; that looks like a package function. Try:  {evalCmd}" ]

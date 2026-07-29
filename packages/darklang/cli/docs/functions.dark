@@ -15,13 +15,9 @@ let content () : String =
     let double (x: Int) : Int = x * 2
     double n
 
-  # The trigger is PARENTHESIZED params, not the annotations - `let double (x) = x * 2` is
-  # a nested fn too. Types are optional here and discarded either way.
-  # NOT a nested fn: let double x = x * 2   (no parens - parses as a plain binding)
-  #
-  # A nested fn can close over outer bindings, recurse by name, and call a nested fn
-  # defined ABOVE it. What fails is a FORWARD reference: calling one defined further down.
-  # A name that collides with something already in scope is an error, not shadowing.
+  # Params need parens - `let double x = x * 2` is a parse error.
+  # A nested fn sees the bindings above it, including other nested fns.
+  # Calling one defined further down doesn't work; use a top-level fn for that.
 
 ## Call
   add 1 2

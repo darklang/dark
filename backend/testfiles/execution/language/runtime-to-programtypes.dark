@@ -2,48 +2,108 @@
 // expression - the "value -> source" primitive behind live values. IDs are freshly generated, so we
 // pattern-match the result structurally instead of comparing whole expressions.
 
+// Every case promotes against main, and most of them build a Dval, so both are factored out here - spelled
+// in full these assertions ran to 500 columns.
+let promote
+  (d: Darklang.LanguageTools.RuntimeTypes.Dval)
+  : Stdlib.Result.Result<Darklang.LanguageTools.ProgramTypes.Expr, String> =
+  Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId d
+
+let int (i: Int) : Darklang.LanguageTools.RuntimeTypes.Dval = Darklang.LanguageTools.RuntimeTypes.Dval.DInt i
+
+let unknownType () : Darklang.LanguageTools.RuntimeTypes.ValueType =
+  Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown
+
+// Doesn't name a real type, which is the point: the mapping is structural, and an unresolvable location just
+// means the pretty-printer falls back to printing the hash.
+let fakeType () : Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName =
+  Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package(
+    Darklang.LanguageTools.RuntimeTypes.Hash.Hash "deadbeef")
+
 // --- literals ---
-(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId Darklang.LanguageTools.RuntimeTypes.Dval.DUnit with | Ok (EUnit _) -> true | _ -> false) = true
+(match promote Darklang.LanguageTools.RuntimeTypes.Dval.DUnit with | Ok (EUnit _) -> true | _ -> false) = true
 
-(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DBool true) with | Ok (EBool(_, b)) -> b | _ -> false) = true
+(match promote (Darklang.LanguageTools.RuntimeTypes.Dval.DBool true) with | Ok (EBool(_, b)) -> b | _ -> false) = true
 
-(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DInt 42) with | Ok (EInt(_, i)) -> i | _ -> -1) = 42
+(match promote (int 42) with | Ok (EInt(_, i)) -> i | _ -> -1) = 42
 
-(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DInt64 7L) with | Ok (EInt64(_, i)) -> i | _ -> -1L) = 7L
+(match promote (Darklang.LanguageTools.RuntimeTypes.Dval.DInt64 7L) with | Ok (EInt64(_, i)) -> i | _ -> -1L) = 7L
 
-(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat 3.14) with | Ok (EFloat(_, _sign, w, f)) -> w ++ "." ++ f | _ -> "FAIL") = "3.14"
+(match promote (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat 3.14) with
+ | Ok (EFloat(_, _sign, w, f)) -> w ++ "." ++ f
+ | _ -> "FAIL") = "3.14"
 
-(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DChar "a") with | Ok (EChar(_, c)) -> c | _ -> "FAIL") = "a"
+(match promote (Darklang.LanguageTools.RuntimeTypes.Dval.DChar "a") with | Ok (EChar(_, c)) -> c | _ -> "FAIL") = "a"
 
-(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DString "hi") with | Ok (EString(_, [ StringText s ])) -> s | _ -> "FAIL") = "hi"
+(match promote (Darklang.LanguageTools.RuntimeTypes.Dval.DString "hi") with
+ | Ok (EString(_, [ StringText s ])) -> s
+ | _ -> "FAIL") = "hi"
 
 // A float with no plain-decimal form has no literal syntax. This matters beyond looking wrong: the REPL
 // stores a captured value as a binding's source, so `NaN.0` / `Infinity.0` / `1e+30.0` would wedge a session.
-Stdlib.Result.isError (Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat (0.0 / 0.0))) = true
+Stdlib.Result.isError (promote (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat (0.0 / 0.0))) = true
 
-Stdlib.Result.isError (Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat (1.0 / 0.0))) = true
+Stdlib.Result.isError (promote (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat (1.0 / 0.0))) = true
 
-Stdlib.Result.isError (Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat 1e30)) = true
+Stdlib.Result.isError (promote (Darklang.LanguageTools.RuntimeTypes.Dval.DFloat 1e30)) = true
 
 // --- collections ---
-(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DList(Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown, [ Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1; Darklang.LanguageTools.RuntimeTypes.Dval.DInt 2 ])) with | Ok (EList(_, xs)) -> Stdlib.List.length xs | _ -> -1) = 2
+(match promote (Darklang.LanguageTools.RuntimeTypes.Dval.DList(unknownType (), [ int 1; int 2 ])) with
+ | Ok (EList(_, xs)) -> Stdlib.List.length xs
+ | _ -> -1) = 2
 
-(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DTuple(Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1, Darklang.LanguageTools.RuntimeTypes.Dval.DBool true, [ Darklang.LanguageTools.RuntimeTypes.Dval.DString "x" ])) with | Ok (ETuple(_, _, _, rest)) -> Stdlib.List.length rest | _ -> -1) = 1
+(match
+  promote (
+    Darklang.LanguageTools.RuntimeTypes.Dval.DTuple(
+      int 1,
+      Darklang.LanguageTools.RuntimeTypes.Dval.DBool true,
+      [ Darklang.LanguageTools.RuntimeTypes.Dval.DString "x" ]))
+ with
+ | Ok (ETuple(_, _, _, rest)) -> Stdlib.List.length rest
+ | _ -> -1) = 1
 
 // nested list preserves inner literals
-(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DList(Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown, [ Darklang.LanguageTools.RuntimeTypes.Dval.DList(Darklang.LanguageTools.RuntimeTypes.ValueType.Unknown, [ Darklang.LanguageTools.RuntimeTypes.Dval.DInt 5 ]) ])) with | Ok (EList(_, [ EList(_, [ EInt(_, i) ]) ])) -> i | _ -> -1) = 5
+(match
+  promote (
+    Darklang.LanguageTools.RuntimeTypes.Dval.DList(
+      unknownType (),
+      [ Darklang.LanguageTools.RuntimeTypes.Dval.DList(unknownType (), [ int 5 ]) ]))
+ with
+ | Ok (EList(_, [ EList(_, [ EInt(_, i) ]) ])) -> i
+ | _ -> -1) = 5
 
 // --- records and enums carry their type name across (RT -> PT) ---
-// The hash here doesn't name a real type, which is the point: the mapping is structural, and an unresolvable
-// location just means the pretty-printer falls back to printing the hash.
-(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DEnum(Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package (Darklang.LanguageTools.RuntimeTypes.Hash.Hash "deadbeef"), Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package (Darklang.LanguageTools.RuntimeTypes.Hash.Hash "deadbeef"), [], "Some", [ Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1 ])) with | Ok (EEnum(_, _, _, caseName, fields)) -> caseName ++ "/" ++ (Stdlib.Int.toString (Stdlib.List.length fields)) | _ -> "FAIL") = "Some/1"
+(match
+  promote (
+    Darklang.LanguageTools.RuntimeTypes.Dval.DEnum(fakeType (), fakeType (), [], "Some", [ int 1 ]))
+ with
+ | Ok (EEnum(_, _, _, caseName, fields)) ->
+   caseName ++ "/" ++ (Stdlib.Int.toString (Stdlib.List.length fields))
+ | _ -> "FAIL") = "Some/1"
 
-(match Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DRecord(Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package (Darklang.LanguageTools.RuntimeTypes.Hash.Hash "deadbeef"), Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package (Darklang.LanguageTools.RuntimeTypes.Hash.Hash "deadbeef"), [], Stdlib.Dict.fromListOverwritingDuplicates [ ("a", Darklang.LanguageTools.RuntimeTypes.Dval.DInt 1); ("b", Darklang.LanguageTools.RuntimeTypes.Dval.DBool true) ])) with | Ok (ERecord(_, _, _, fields)) -> Stdlib.List.length fields | _ -> -1) = 2
+(match
+  promote (
+    Darklang.LanguageTools.RuntimeTypes.Dval.DRecord(
+      fakeType (),
+      fakeType (),
+      [],
+      Stdlib.Dict.fromListOverwritingDuplicates
+        [ ("a", int 1); ("b", Darklang.LanguageTools.RuntimeTypes.Dval.DBool true) ]))
+ with
+ | Ok (ERecord(_, _, _, fields)) -> Stdlib.List.length fields
+ | _ -> -1) = 2
 
 // a field that can't be promoted fails the whole enum, rather than dropping it
-Stdlib.Result.isError (Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DEnum(Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package (Darklang.LanguageTools.RuntimeTypes.Hash.Hash "deadbeef"), Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName.Package (Darklang.LanguageTools.RuntimeTypes.Hash.Hash "deadbeef"), [], "Some", [ Darklang.LanguageTools.RuntimeTypes.Dval.DDB "mydb" ]))) = true
+Stdlib.Result.isError (
+  promote (
+    Darklang.LanguageTools.RuntimeTypes.Dval.DEnum(
+      fakeType (),
+      fakeType (),
+      [],
+      "Some",
+      [ Darklang.LanguageTools.RuntimeTypes.Dval.DDB "mydb" ]))) = true
 
 // --- values with no literal syntax fail (Error), so the caller can fall back ---
-Stdlib.Result.isError (Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DDB "mydb")) = true
+Stdlib.Result.isError (promote (Darklang.LanguageTools.RuntimeTypes.Dval.DDB "mydb")) = true
 
-Stdlib.Result.isError (Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId (Darklang.LanguageTools.RuntimeTypes.Dval.DUuid (Stdlib.Uuid.generate ()))) = true
+Stdlib.Result.isError (promote (Darklang.LanguageTools.RuntimeTypes.Dval.DUuid (Stdlib.Uuid.generate ()))) = true

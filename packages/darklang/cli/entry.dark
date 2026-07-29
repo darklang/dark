@@ -3,64 +3,48 @@
 /// Part of `Darklang.Cli`.
 module Darklang.Cli
 
-/// Extract the branch flag from args, returning (Some branchId, remainingArgs) when it's present and
-/// resolvable. When it's absent, returns (None, args) so the caller falls back to whatever `initState`
-/// restored from cli-config.json (or main).
+/// Pull `--<flag> value` or `--<flag>=value` out of `args`, returning the value and the args without it.
+/// First occurrence wins; later ones are left alone as ordinary args.
 ///
-/// Both spellings work: `--branch feat` and `--branch=feat`. They're the same flag, and every other CLI in
-/// the world takes either, so accepting only one makes the other look like a bug in your typing rather than
-/// a gap here. The `=` form is one arg to drop, the space form is two.
-let parseBranchFlag (args: List<String>) : (Stdlib.Option.Option<Uuid> * List<String>) =
-  let indexed = Stdlib.List.indexedMap args (fun i a -> (i, a))
-
-  // (index, branch name, how many args this spelling occupies)
-  let branchEntry =
-    indexed
-    |> Stdlib.List.filterMap (fun pair ->
-      let (i, a) = pair
-
-      if a == "--branch" then
-        let name =
-          match Stdlib.List.getAt args (i + 1) with
-          | Some n -> n
-          | None -> ""
-
-        Stdlib.Option.Option.Some((i, name, 2L))
-      else if Stdlib.String.startsWith a "--branch=" then
-        Stdlib.Option.Option.Some(
-          (i, Stdlib.String.dropFirst a (Stdlib.String.length "--branch="), 1L)
-        )
+/// `Some ""` means the flag was there with nothing after it, which is a caller's error to report rather than
+/// something to silently ignore. Either way the flag is consumed, so it can't fall through and be read as
+/// the command.
+let takeFlagValue (args: List<String>) (flag: String) : (Stdlib.Option.Option<String> * List<String>) =
+  let long = "--" ++ flag
+  let eq = long ++ "="
+  let (found, _takingNext, kept) =
+    args
+    |> Stdlib.List.fold (Stdlib.Option.Option.None, false, []) (fun state arg ->
+      let (found, takingNext, kept) = state
+      if takingNext then
+        (Stdlib.Option.Option.Some arg, false, kept)
       else
-        Stdlib.Option.Option.None)
-    |> Stdlib.List.head
+        match found with
+        | Some _ -> (found, false, Stdlib.List.pushBack kept arg)
+        | None ->
+          if arg == long then
+            (Stdlib.Option.Option.Some "", true, kept)
+          else if Stdlib.String.startsWith arg eq then
+            (Stdlib.Option.Option.Some(Stdlib.String.dropFirst arg (Stdlib.String.length eq)), false, kept)
+          else
+            (found, false, Stdlib.List.pushBack kept arg))
+  (found, kept)
 
-  match branchEntry with
-  | None -> (Stdlib.Option.Option.None, args)
-  | Some entry ->
-    let (idx, branchName, width) = entry
-
-    // Strip the flag whatever happens next. It's consumed either way, and leaving it in on the error paths
-    // meant `dark --branch=` warned about the missing name and THEN reported `Unknown command: --branch=` —
-    // the flag falling through to be read as the command.
-    let filteredArgs =
-      indexed
-      |> Stdlib.List.filter (fun pair ->
-        let (i, _a) = pair
-        // the `=` form occupies just itself; the space form also swallows the name after it
-        if width == 2L then i != idx && i != (idx + 1) else i != idx)
-      |> Stdlib.List.map (fun pair ->
-        let (_i, a) = pair
-        a)
-
-    if Stdlib.String.isEmpty branchName then
-      Stdlib.printLine "Warning: --branch requires a name, using main."
-      (Stdlib.Option.Option.Some SCM.Branch.mainBranchId, filteredArgs)
-    else
-      match SCM.Branch.getByName branchName with
-      | Some b -> (Stdlib.Option.Option.Some b.id, filteredArgs)
-      | None ->
-        Stdlib.printLine $"Warning: branch '{branchName}' not found, using main."
-        (Stdlib.Option.Option.Some SCM.Branch.mainBranchId, filteredArgs)
+/// The branch to start on, from `--branch`. `None` means no flag, so the caller keeps whatever `initState`
+/// restored from cli-config.json. An unusable name warns and falls back to main rather than failing.
+let parseBranchFlag (args: List<String>) : (Stdlib.Option.Option<Uuid> * List<String>) =
+  let (name, rest) = takeFlagValue args "branch"
+  match name with
+  | None -> (Stdlib.Option.Option.None, rest)
+  | Some "" ->
+    Stdlib.printLine "Warning: --branch requires a name, using main."
+    (Stdlib.Option.Option.Some SCM.Branch.mainBranchId, rest)
+  | Some n ->
+    match SCM.Branch.getByName n with
+    | Some b -> (Stdlib.Option.Option.Some b.id, rest)
+    | None ->
+      Stdlib.printLine $"Warning: branch '{n}' not found, using main."
+      (Stdlib.Option.Option.Some SCM.Branch.mainBranchId, rest)
 
 
 let executeCliCommand (args: List<String>) : Int =

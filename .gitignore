@@ -54,6 +54,3 @@ notes/
 
 # Claude Code session lock (per-process, regenerated each session).
 .claude/scheduled_tasks.lock
-# tree-sitter was removed upstream; local builds still drop binaries here
-backend/src/LibTreeSitter/
-tree-sitter-darklang/

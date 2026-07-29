@@ -249,17 +249,9 @@ let makeSubApp (session: Session) : Darklang.Cli.SubApp =
           ()
       onResume =
         fun () ->
-          // Another page owned the terminal while we were stacked; its teardown left our retained view stale.
-          // Start a fresh session so the next frame is a full repaint rather than a diff against nothing.
-          let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
-          match
-            Darklang.Cli.Tui.TerminalSession.startAtSize
-              size
-              (viewAtSize session.state size)
-          with
-          | Ok resumed ->
-            makeSubApp (Session { state = session.state; terminal = resumed })
-          | Error _ -> makeSubApp session }
+          let terminal =
+            Darklang.Cli.Tui.TerminalSession.resumed (fun size -> viewAtSize session.state size)
+          makeSubApp (Session { state = session.state; terminal = terminal }) }
 
 
 // ── CLI command entry points ──

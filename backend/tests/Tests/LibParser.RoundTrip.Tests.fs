@@ -2283,12 +2283,20 @@ let functionDeclarations =
       []
       false
 
-    // `()` is stored as one parameter named `_` of type Unit. This used to expect it printed back as
-    // `(_: Unit)`, which the parser rejects ("expected a parameter name, found '_'") - so the round-trip test
-    // was asserting output that doesn't round-trip.
+    // `()` is stored as one parameter named `_` of type Unit, and prints back as `()`.
     t
       "single unit param"
       "let emptyString () : String = \"\""
+      "let emptyString (): String =\n  \"\""
+      []
+      []
+      []
+      false
+
+    // The long form parses to the same thing and normalizes to `()`, so either spelling round-trips.
+    t
+      "single unit param, written long"
+      "let emptyString (_: Unit) : String = \"\""
       "let emptyString (): String =\n  \"\""
       []
       []

@@ -1,9 +1,9 @@
 /// Builds terminal updates by comparing complete logical views.
 ///
-/// This is mechanism 2 of the five that keep the CLI from flickering (`dark docs terminal-ui` has the
-/// rest): only rows that differ are emitted, and when nothing differs and the cursor hasn't moved the
-/// render returns "" and nothing is written at all. Arrowing down a list rewrites two rows, not a screen.
-/// The screen is never cleared wholesale - there is no `2J` anywhere in this layer.
+/// Only rows that differ are emitted; if nothing differs and the cursor hasn't moved, the render returns ""
+/// and nothing is written. Arrowing down a list rewrites two rows, not a screen. The screen is never cleared
+/// wholesale - there is no `2J` anywhere in this layer. (`dark docs terminal-ui` covers how this fits with
+/// the rest of the no-flicker machinery.)
 module Darklang.Cli.Tui.Frame
 
 

@@ -62,12 +62,8 @@ let toSubApp
           ()
       onResume =
         fun () ->
-          // Start a brand new session rather than reusing `terminal`: whatever ran on top of us tore the
-          // surface down, so the retained view no longer describes what's on screen. A fresh session re-enters
-          // the alternate screen and paints every row.
-          match Tui.TerminalSession.start (view c state) with
-          | Ok resumed -> toSubApp c state resumed
-          | Error _ -> toSubApp c state (Tui.TerminalSession.init ()) }
+          // A Component renders without consulting the size, so the view is the same at any of them.
+          toSubApp c state (Tui.TerminalSession.resumed (fun _size -> view c state)) }
 
 
 /// Launch `c` (starting at `init`) as the CLI's current full-screen page.
