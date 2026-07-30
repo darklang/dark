@@ -1,0 +1,253 @@
+/// Body dispatch and the pieces that sit around it: the editor pane, search results, per-view key hints,
+/// and the two overlays.
+///
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
+
+let renderViewBody (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  if state.activeView == vHome then
+    renderHome state region
+  else if state.activeView == vMatter then
+    // Same treatment the other views get from `splitListPreview`: the count, and an active filter spelled
+    // out. Matter built its own title and showed neither, so a filtered tree was indistinguishable from the
+    // whole thing - which is the one place that matters most, since this is the view you browse in.
+    let treeTitle =
+      let base_ = if state.matterLens == "values" then "Values" else "Tree"
+      let count = Stdlib.Int.toString (Stdlib.List.length state.items)
+      if state.filter == "" then base_ ++ "  ·  " ++ count
+      else base_ ++ "  ·  " ++ count ++ "  ·  filter: " ++ state.filter
+    UI.SplitPane.render
+      region
+      UI.SplitPane.Orientation.Horizontal
+      45
+      state.focus
+      treeTitle
+      (fun r -> renderTreeList state r)
+      "Inspect"
+      (fun r -> renderPreview state r)
+  else if state.activeView == vScratch then
+    renderRepl state region
+  else if state.activeView == vSCM then
+    renderScm state region
+  else if state.activeView == vDevices then
+    renderDevices state region
+  else if state.activeView == vAI then
+    renderAI state region
+  else if state.activeView == vApps then
+    splitListPreview state region "Apps" "Detail" (Colors.dimText "no apps registered")
+  else if state.activeView == vTraces then
+    splitListPreview state region "Traces" "Detail" (Colors.dimText "no traces yet - eval or run an app to record")
+  else if state.activeView == vDocs then
+    splitListPreview state region "Docs" "Topic" (Colors.dimText "(no topics)")
+  else
+    // Extension views render themselves (see `extensionViews`); anything unrecognised shows a stub.
+    match extensionViewAt state.activeView with
+    | Some vd ->
+      let draw = vd.render
+      draw state region
+    | None ->
+      boxedLines
+        region
+        (viewLabel state.activeView)
+        [ Colors.dimText ((viewLabel state.activeView) ++ " - coming soon") ]
+
+/// The multiline editor, framed in a titled box: a spacious authoring surface (not the bottom prompt bar).
+/// The error line (if any) sits just under the title; the buffer renders below with a reverse-video cursor at
+/// (row, col). One column of left padding inside the border reads as intentional.
+let renderEditing (es: EditingState) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  UI.Box.panel region es.nameStr true (fun inner ->
+    let errSpans =
+      if es.err != "" then UI.Layout.at inner 0 1 (Colors.error es.err) else []
+    let bodyTop = if es.err != "" then 1 else 0
+    let visible = Stdlib.Int.max 1 (inner.rows - bodyTop)
+    let scroll = Stdlib.Int.max 0 (es.buf.row - visible + 1)
+    let bodySpans =
+      es.buf.lines
+      |> Stdlib.List.indexedMap (fun i l -> (i, l))
+      |> Stdlib.List.drop scroll
+      |> Stdlib.List.take visible
+      |> Stdlib.List.map (fun pair ->
+        let (i, l) = pair
+        let screenRow = bodyTop + (i - scroll)
+        if i == es.buf.row then
+          let llen = Stdlib.String.length l
+          let before = Stdlib.String.slice l 0 es.buf.col
+          let atCursor = if es.buf.col < llen then Stdlib.String.slice l es.buf.col (es.buf.col + 1) else " "
+          let after = if es.buf.col < llen then Stdlib.String.slice l (es.buf.col + 1) llen else ""
+          UI.Layout.at inner screenRow 1 (before ++ (Colors.colorize Colors.reverse atCursor) ++ after)
+        else
+          UI.Layout.at inner screenRow 1 l)
+      |> Stdlib.List.flatten
+    Stdlib.List.flatten [ errSpans; bodySpans ])
+
+/// The jumpable search-results list, framed in a box. Selection in cyan; ⏎ navigates to the hit.
+let renderSearchResults (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  let title = "Search  ·  " ++ (Stdlib.Int.toString (Stdlib.List.length state.searchHits)) ++ " results"
+  UI.Box.panel region title true (fun inner ->
+    let lines =
+      state.searchHits
+      |> Stdlib.List.indexedMap (fun i h ->
+        if i == state.searchSelected then Colors.colorize Colors.cyan ("> " ++ h.display)
+        else "  " ++ h.display)
+    UI.ListView.render inner lines state.searchSelected)
+
+/// Dispatch the body: the editor, then a reader, then search results, else the active view's body.
+let renderBody (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  match state.editing with
+  | Some es -> renderEditing es region
+  | None ->
+  match state.reading with
+  | Some content -> renderReading content state.readingIsCode state.detailScroll region
+  | None ->
+    if Stdlib.Bool.not (Stdlib.List.isEmpty state.searchHits) then renderSearchResults state region
+    else renderViewBody state region
+
+/// What a tab is for, and how much of it is actually backed by something, as `(blurb, caveat)`. An empty
+/// caveat means the view runs on real data.
+///
+/// Home is the only place that says this, and it's the first question a wall of thirteen tabs raises: a
+/// sample row looks exactly like a real one until you go looking for where it came from. Keeping the answer
+/// on the landing page is cheaper than making every half-built view apologize for itself.
+let viewBlurb (idx: Int) : (String * String) =
+  if idx == vMatter then ("browse and edit the package tree", "")
+  else if idx == vScratch then ("evaluate expressions; `let` binds for the session", "")
+  else if idx == vSCM then ("changes, commits, branches, conflicts", "")
+  else if idx == vDevices then ("this instance's config, and the peers it syncs with", "part sketch")
+  else if idx == vAI then ("agent threads and prompts", "sample data")
+  else if idx == vApps then ("install, run and stop packaged apps", "")
+  else if idx == vTraces then ("what ran recently - samples until something does", "")
+  else if idx == vDocs then ("the CLI's docs, read without leaving", "")
+  else
+    match extensionViewAt idx with
+    | Some vd ->
+      if vd.id == "errors" then ("real conflicts, plus samples for the rest", "part sample")
+      else if vd.id == "crons" then ("scheduled handlers", "sample data")
+      else if vd.id == "calendar" then ("nothing behind it yet", "sketch")
+      else if vd.id == "builtins" then ("every builtin, searchable", "")
+      else ("", "")
+    | None -> ("", "")
+
+/// Honest, context-relevant key hints per view - the 3-6 most useful keys first, then the anchored global
+/// keys (view-switch, help, quit) so the footer's right edge is stable. Keys are emphasized by `formatHints`.
+/// Only advertises what actually works today.
+let hintsForView (state: State) : String =
+  let view = state.activeView
+  // `tab preview` only makes sense when the split view actually has items (and thus a preview pane).
+  let hasPreview = Stdlib.Bool.not (Stdlib.List.isEmpty state.items)
+  let tabHint = if hasPreview then [ ("tab", "preview") ] else []
+  // Global keys, always the same, anchored at the right end of the footer.
+  // `p` earns a slot here: it's the way out to the prompt, and an escape hatch nobody can see isn't one.
+  let global =
+    [ ("/", "search"); (":", "cmd"); ("p", "prompt"); ("`", "views"); ("?", "help"); ("esc/q", "quit") ]
+  let ctx =
+    if view == vMatter then
+      [ ("↑↓", "move"); ("→", "in"); ("d", "deps"); ("n/t/v", "new"); ("e", "edit"); ("r", "rename"); ("L", "values"); ("f", "filter") ]
+    else if view == vHome then
+      // Home is a dashboard, not a list - nothing here moves, so don't advertise a cursor. The tabs panel
+      // names its own keys.
+      [ ("1-9", "jump to a tab") ]
+    else if view == vScratch then
+      [ ("⏎", "run"); ("f", "clear log"); ("x", "clear session") ]
+    else if view == vSCM then
+      if state.scmSection == 3 then
+        [ ("↑↓", "move"); ("tab", "section"); ("⏎", "switch"); ("r", "rename"); ("x", "delete"); ("b", "new") ]
+      else if state.scmSection == 2 then
+        [ ("↑↓", "move"); ("tab", "section"); ("o", "ours"); ("t", "theirs"); ("a", "ack") ]
+      else
+        [ ("↑↓", "move"); ("tab", "section"); ("c", "commit"); ("x", "discard"); ("b", "branch"); ("s", "switch"); ("m", "merge"); ("r", "rebase") ]
+    else if view == vDevices then
+      [ ("c", "config"); ("s", "sync"); ("a", "add") ]
+    else if view == vAI then
+      let enterHint = if state.aiSection == 1 then ("⏎", "use") else ("⏎", "open")
+      [ ("↑↓", "move"); enterHint; ("tab", "section"); ("a", "ask") ]
+    else if view == vApps then
+      [ ("↑↓", "move"); ("⏎", "inspect"); ("i", "install"); ("r", "start"); ("s", "stop") ]
+    else if view == vTraces then
+      Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("⏎", "open"); ("f", "filter") ] ]
+    else if view == vDocs then
+      Stdlib.List.flatten [ [ ("↑↓", "move") ]; tabHint; [ ("⏎", "full") ] ]
+    else
+      // Extension views compose their own key-hints (see `extensionViews`).
+      match extensionViewAt view with
+      | Some vd ->
+        let h = vd.hints
+        h state
+      | None -> [ ("↑↓", "move") ]
+  Frame.formatHints (Stdlib.List.append ctx global)
+
+/// The keymap, grouped, for the `?` overlay - (category, keys).
+val helpGroups =
+  [ ("Global", ": cmd   / search   ` views   ? help   esc/q quit")
+    ("Views", "ctrl+←/→ switch   [ ] cycle   ` picker   1-9 jump")
+    ("Move", "↑↓ or j/k   g/G top/bottom   tab focus/section")
+    ("Matter", "→/l in   ←/h up   ⏎ open   n/t/v new   e edit   r rename   L values-lens   f filter")
+    ("Inspect", "⏎ walk callers   d deps")
+    ("REPL", "⏎ run (or keep typing)   f clear log   x clear session")
+    ("SCM", "tab section   c commit   x discard   b branch   s switch   m merge   r rebase   o/t/a resolve")
+    ("AI", "tab Agents/Prompts   a ask")
+    ("Apps", "i install/uninstall   r run   s stop")
+    ("Search", "↑↓ move   ⏎ jump   esc close")
+    // Last, and spelled out, because it's the way back to the pre-workbench CLI. Anything you could type at
+    // the prompt runs from the `:` bar; `p` hands you the prompt itself.
+    //
+    // "Prompt", not "classic" or "old REPL": it's what the code calls it (`MainPrompt`, `LaunchPrompt`), it's
+    // what it is, and "REPL" is taken by the tab that actually evaluates expressions.
+    ("Prompt", "p drops to the command prompt (quit returns here)   : runs one command without leaving") ]
+
+/// The view-picker overlay: a centered, boxed, jumpable list of every view (number + name), the current one
+/// marked. Reaches the views the number keys can't (10th+).
+let renderViewPicker (state: State) (screen: UI.Layout.Region) : List<UI.Layout.Span> =
+  // Only the visible views (Devices hidden unless opted in). pickerSelected is a POSITION into this list.
+  let vis = visibleViews state
+  let n = Stdlib.List.length vis
+  let w = 34
+  let h = Stdlib.Int.min (n + 2) (screen.rows - 2)
+  let top = screen.top + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.rows - h)) 2)
+  let left = screen.left + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.cols - w)) 2)
+  let region = UI.Layout.Region { top = top; left = left; rows = h; cols = w }
+  Stdlib.List.flatten
+    [ UI.Layout.clearRegion region
+      UI.Box.panel region "Go to view  ·  ⏎ jump · esc" true (fun inner ->
+        vis
+        |> Stdlib.List.indexedMap (fun p viewIdx -> (p, viewIdx))
+        |> Stdlib.List.take (inner.rows)
+        |> Stdlib.List.map (fun pair ->
+      let (p, viewIdx) = pair
+      let num = Stdlib.Int.toString (p + 1)
+      let numPad = if Stdlib.String.length num < 2 then " " ++ num else num
+      let mark = if viewIdx == state.activeView then " ◆" else ""
+      let line = numPad ++ "  " ++ (viewLabel viewIdx) ++ mark
+          let styled = if p == state.pickerSelected then Colors.colorize Colors.cyan ("> " ++ line) else "  " ++ line
+          UI.Layout.at inner p 1 styled)
+        |> Stdlib.List.flatten) ]
+
+/// A centered, boxed keymap overlay drawn over the frame. The interior is cleared so nothing shows through.
+let renderHelpOverlay (screen: UI.Layout.Region) : List<UI.Layout.Span> =
+  // Wide enough for the longest group, not a round number. A fixed 70 clipped the Matter row - the single most
+  // useful line in the keymap - on a terminal with room to spare. 11 is where the keys column starts, plus the
+  // border and a column of padding either side.
+  let widest =
+    helpGroups
+    |> Stdlib.List.map (fun pair ->
+      let (_label, keys) = pair
+      Tui.Text.displayWidth keys)
+    |> Stdlib.List.fold 0 (fun acc n -> Stdlib.Int.max acc n)
+  let w = Stdlib.Int.min (Stdlib.Int.max 40 (widest + 14)) (Stdlib.Int.max 40 (screen.cols - 4))
+  let rows = (Stdlib.List.length helpGroups) * 2 + 3
+  let h = Stdlib.Int.min (Stdlib.Int.max 8 rows) (screen.rows - 2)
+  let top = screen.top + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.rows - h)) 2)
+  let left = screen.left + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.cols - w)) 2)
+  let region = UI.Layout.Region { top = top; left = left; rows = h; cols = w }
+  Stdlib.List.flatten
+    [ UI.Layout.clearRegion region
+      UI.Box.panel region "Keys  ·  any key closes" true (fun inner ->
+        helpGroups
+        |> Stdlib.List.indexedMap (fun i pair -> (i, pair))
+        |> Stdlib.List.map (fun ipair ->
+          let (i, pair) = ipair
+          let (label, keys) = pair
+          let row = (i * 2) + 1
+          Stdlib.List.flatten
+            [ UI.Layout.at inner row 1 (Colors.colorize Colors.cyan label)
+              UI.Layout.at inner row 11 (Colors.dimText keys) ])
+        |> Stdlib.List.flatten) ]

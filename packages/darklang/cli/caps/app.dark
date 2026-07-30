@@ -55,7 +55,12 @@ let makeSubApp (session: Session) : Darklang.Cli.SubApp =
         fun () ->
           let _stopped =
             Darklang.Cli.Tui.TerminalSession.stop session.terminal
-          () }
+          ()
+      onResume =
+        fun () ->
+          let terminal =
+            Darklang.Cli.Tui.TerminalSession.resumed (fun size -> Main.viewAtSize session.state size)
+          makeSubApp (Session { state = session.state; terminal = terminal; shouldSave = session.shouldSave }) }
 
 let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.Cli.AppState =
   let state = Main.load ()

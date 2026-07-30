@@ -137,3 +137,12 @@ let deprecationMarker
   (hash: LanguageTools.ProgramTypes.Hash)
   : String =
   if isDeprecated sets hash then " ⚠" else ""
+
+
+/// Forward dependencies of an item: the hashes it references (each with its kind), scoped to the branch.
+/// Wraps the builtin so callers (the `deps` command, the workbench item page) go through one place.
+let getDependencies
+  (branchId: Uuid)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  : List<(LanguageTools.ProgramTypes.Hash * String)> =
+  Builtin.depsGetDependencies branchId hash

@@ -1120,22 +1120,41 @@ module WrittenTypesToDarkTypes =
           "declarations",
           DList(
             VT.customType (tn WTRefs.moduleDeclarationDeclaration) [],
-            m.declarations |> List.map moduleItemToDT
+            m.declarations |> List.collect moduleItemsToDT
           )
           "keywordModule", rangeToDT m.keywordModule ]
     )
 
-  and private moduleItemToDT (d : WT.Declaration) : Dval =
+  /// One WT declaration becomes zero or more module-declaration Dvals.
+  ///
+  /// `collect` rather than `map` because a test assertion carries two expressions and the Dark type holds one
+  /// declaration per entry, so it expands to two.
+  ///
+  /// This used to raise on DTest and DTypeDB, on the theory that "test-mode declarations never reach the
+  /// highlighter serializer". They do, and this is the path that matters: a `module Darklang.X` header wraps
+  /// the whole rest of the file into a DModule, which is the shape of every package file on disk. And a test
+  /// assertion is spelled `actual = expected`, indistinguishable from an assignment until post-parse
+  /// validation - so any typo of that shape in any real file raised an uncaught internal exception. The
+  /// top-level fix alone missed this because the authoring editor strips the module line before parsing; the
+  /// LSP and the highlighter, which parse whole documents, did not.
+  and private moduleItemsToDT (d : WT.Declaration) : List<Dval> =
     let t = tn WTRefs.moduleDeclarationDeclaration
+    let expr (e : WT.Expr) = DEnum(t, t, [], "Expr", [ exprToDT e ])
     match d with
-    | WT.DFunction f -> DEnum(t, t, [], "Function", [ fnDeclToDT f ])
-    | WT.DValue v -> DEnum(t, t, [], "Value", [ valueDeclToDT v ])
-    | WT.DType td -> DEnum(t, t, [], "Type", [ typeDeclToDT td ])
-    | WT.DModule m -> DEnum(t, t, [], "SubModule", [ moduleDeclToDT m ])
-    | WT.DExpr e -> DEnum(t, t, [], "Expr", [ exprToDT e ])
-    // test-mode-only declarations never reach the highlighter serializer
-    | WT.DTypeDB _
-    | WT.DTest _ -> Exception.raiseInternal "test-mode declaration in serializer" []
+    | WT.DFunction f -> [ DEnum(t, t, [], "Function", [ fnDeclToDT f ]) ]
+    | WT.DValue v -> [ DEnum(t, t, [], "Value", [ valueDeclToDT v ]) ]
+    | WT.DType td -> [ DEnum(t, t, [], "Type", [ typeDeclToDT td ]) ]
+    | WT.DModule m -> [ DEnum(t, t, [], "SubModule", [ moduleDeclToDT m ]) ]
+    | WT.DExpr e -> [ expr e ]
+    // `[<DB>] type X = ...` is a type as far as anything reading this cares; the attribute sits outside the
+    // declaration's range anyway.
+    | WT.DTypeDB td -> [ DEnum(t, t, [], "Type", [ typeDeclToDT td ]) ]
+    // Both sides of the assertion, so the highlighter still colours the whole line.
+    | WT.DTest t ->
+      match t.expected with
+      | WT.TEExpr e -> [ expr t.actual; expr e ]
+      | WT.TEError _
+      | WT.TESqlError _ -> [ expr t.actual ]
 
   let private sourceFileDeclarationToDT (d : WT.Declaration) : Dval =
     let t = tn WTRefs.sourceFileDeclaration
@@ -1144,8 +1163,8 @@ module WrittenTypesToDarkTypes =
     | WT.DValue v -> DEnum(t, t, [], "Value", [ valueDeclToDT v ])
     | WT.DModule m -> DEnum(t, t, [], "Module", [ moduleDeclToDT m ])
     | WT.DType td -> DEnum(t, t, [], "Type", [ typeDeclToDT td ])
-    // file-level trailing exprs are carried in `exprsToEval`, not as declarations;
-    // test-mode declarations never reach the highlighter serializer
+    // DExpr is split out before this point (see parsedFileToDT); test-mode declarations never reach the
+    // highlighter serializer
     | WT.DExpr _
     | WT.DTypeDB _
     | WT.DTest _ -> Exception.raiseInternal "unexpected declaration in serializer" []
@@ -1153,6 +1172,40 @@ module WrittenTypesToDarkTypes =
   let parsedFileToDT (pf : WT.ParsedFile) : Dval =
     match pf with
     | WT.SourceFile sf ->
+      // The Dark-side `SourceFileDeclaration` covers functions, values, types and modules and nothing else.
+      // Three WT.Declaration cases fall outside it, and serializing any of them used to raise — an uncaught
+      // internal exception, which killed the whole CLI when someone hit ^s in the authoring editor.
+      //
+      // The comment that used to sit on that raise said these "never reach the highlighter serializer". They
+      // do. `vanewValue = 1` — a plausible typo while authoring, and the shape you get from mistyping a
+      // `val` — parses as DTest, because a test assertion is spelled `actual = expected` and is
+      // indistinguishable from an assignment until post-parse validation decides whether this is Test
+      // source. So route each to the nearest thing the Dark type can hold rather than throwing:
+      //   DExpr  -> exprsToEval, which is where a file-level expression belongs anyway
+      //   DTest  -> both of its sides as expressions, so the highlighter still colours the line
+      //   DTypeDB -> its type declaration; `[<DB>] type X = …` is a type as far as highlighting cares
+      let asExprs (d : WT.Declaration) : List<WT.Expr> =
+        match d with
+        | WT.DExpr e -> [ e ]
+        | WT.DTest t ->
+          match t.expected with
+          | WT.TEExpr e -> [ t.actual; e ]
+          | WT.TEError _
+          | WT.TESqlError _ -> [ t.actual ]
+        | _ -> []
+      let keptDeclarations =
+        sf.declarations
+        |> List.choose (fun d ->
+          match d with
+          | WT.DExpr _
+          | WT.DTest _ -> None
+          | WT.DTypeDB td -> Some(WT.DType td)
+          | d -> Some d)
+      let liftedExprs = sf.declarations |> List.collect asExprs
+      let sf =
+        { sf with
+            declarations = keptDeclarations
+            exprsToEval = sf.exprsToEval @ liftedExprs }
       let sfRecord =
         DRecord(
           tn WTRefs.sourceFile,

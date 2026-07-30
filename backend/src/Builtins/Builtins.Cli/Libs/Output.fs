@@ -70,6 +70,40 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "stdoutCaptureStart" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "A unit" ]
+      returnType = TBool
+      description =
+        "Start capturing standard output into an in-memory buffer instead of printing it. Pair with <fn stdoutCaptureStop>. Used to run a command and show its output in-frame. Returns false if a capture was already open, in which case the existing one is left untouched and this call captured nothing."
+      fn =
+        (function
+        | _, _, _, [ DUnit ] -> DBool(NonBlockingConsole.startCapture ()) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.stdout
+      deprecated = NotDeprecated }
+
+
+    { name = fn "stdoutCaptureStop" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "A unit" ]
+      returnType = TString
+      description =
+        "Stop capturing standard output and return everything written since <fn stdoutCaptureStart>."
+      fn =
+        (function
+        | _, _, _, [ DUnit ] ->
+          let captured = NonBlockingConsole.stopCapture ()
+          Ply(DString captured)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.stdout
+      deprecated = NotDeprecated }
+
+
     { name = fn "debug" 0
       typeParams = []
       parameters =

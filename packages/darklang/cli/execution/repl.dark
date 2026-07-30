@@ -1,0 +1,232 @@
+/// REPL session bindings: the machinery that makes `let x = ...` at the REPL survive to the next expression.
+///
+/// There is no interpreter support for a persistent environment, and this deliberately doesn't add any. A
+/// session holds `name -> source text` and every eval is prefixed with those as a `let` chain, so the binding
+/// is re-established each time. `eval` already accepts a multi-line let-chain, so nothing below the CLI had to
+/// change.
+///
+/// The source text a binding holds is the *value*, not the expression that produced it, whenever the value can
+/// be written as a literal: `captureValue` reflects the result back into source via
+/// `RuntimeTypesToProgramTypes.dvalToExpr`. That matters because the chain is re-run on every eval - without
+/// it, `let t = slowThing ()` would pay for `slowThing` again on every subsequent expression, and an effectful
+/// one would repeat its effect. Values with no literal syntax (functions, DBs, blobs, streams, datetimes,
+/// uuids, and floats with no literal form) fall back to holding the expression, which does re-run. The REPL
+/// marks those with a `~`.
+module Darklang.Cli.Repl
+
+/// A session binding: the name, the source it stands for, and what that source last evaluated to.
+type Binding =
+  { name: String
+    /// Source text - either a captured literal or the original expression (see `captured`). This is what
+    /// gets re-injected as the `let` chain.
+    source: String
+    /// What to show for this binding: its value. For a captured binding that IS the source, since the
+    /// source is a literal. For an uncaptured one the source is an expression, and the pane shows what it
+    /// evaluated to rather than repeating text already visible in the log on the left.
+    value: String
+    /// True when `source` is the value itself, false when it's the expression that recomputes it.
+    captured: Bool }
+
+/// Is this a legal binding name? Letters, digits and underscore, not starting with a digit. Deliberately
+/// stricter than the language: it's the guard that stops `let (a, b) = ...` and other patterns we can't
+/// re-inject from being treated as a simple binding.
+let isSimpleName (name: String) : Bool =
+  if name == "" then
+    false
+  else
+    let chars = Stdlib.String.toList name
+    let firstOk =
+      match Stdlib.List.head chars with
+      | Some c -> Stdlib.Char.isASCIILetter c || (Stdlib.Char.toString c) == "_"
+      | None -> false
+    let restOk =
+      chars
+      |> Stdlib.List.all (fun c ->
+        Stdlib.Char.isASCIILetter c || Stdlib.Char.isDigit c || (Stdlib.Char.toString c) == "_")
+    firstOk && restOk
+
+/// Split pasted text into the statements a REPL would have received had you typed them one at a time.
+///
+/// A line that starts with whitespace continues the one above it, so a wrapped expression stays whole:
+///
+///   let a = 21L                        -> ["let a = 21L"; "a * 2L"]
+///   a * 2L
+///
+///   Stdlib.List.map xs                 -> ["Stdlib.List.map xs\n  (fun x -> x * 2L)"]
+///     (fun x -> x * 2L)
+///
+/// Indentation is the only signal available without parsing, and it matches how Dark is written. Blank lines
+/// separate statements rather than joining them.
+let splitStatements (text: String) : List<String> =
+  let lines = Stdlib.String.split text "\n"
+  let isContinuation =
+    (fun l ->
+      (Stdlib.String.trim l) != "" && (Stdlib.String.startsWith l " " || Stdlib.String.startsWith l "\t"))
+  let (acc, current) =
+    lines
+    |> Stdlib.List.fold ([], "") (fun state_ line ->
+      let (acc, current) = state_
+      if (Stdlib.String.trim line) == "" then
+        // A blank line closes whatever was open.
+        if current == "" then (acc, "") else (Stdlib.List.pushBack acc current, "")
+      else if (isContinuation line) && (current != "") then
+        (acc, current ++ "\n" ++ line)
+      else if current == "" then
+        (acc, line)
+      else
+        (Stdlib.List.pushBack acc current, line))
+  let all = if current == "" then acc else Stdlib.List.pushBack acc current
+  all |> Stdlib.List.filter (fun s -> (Stdlib.String.trim s) != "")
+
+/// How many brackets `text` leaves open: `(`, `[` and `{` minus their closers, ignoring anything inside a
+/// string literal (and a `\"` inside one). Negative if it closes more than it opens.
+let openBracketDepth (text: String) : Int =
+  let (depth, _inString, _escaped) =
+    Stdlib.String.toList text
+    |> Stdlib.List.fold (0, false, false) (fun acc c ->
+      let (depth, inString, escaped) = acc
+      let s = Stdlib.Char.toString c
+      if escaped then (depth, inString, false)
+      // A backslash only escapes inside a string; outside one it's the REPL's own continuation marker.
+      else if s == "\\" then (depth, inString, inString)
+      else if s == "\"" then (depth, Stdlib.Bool.not inString, false)
+      else if inString then (depth, true, false)
+      else if s == "(" || s == "[" || s == "{" then (depth + 1, false, false)
+      else if s == ")" || s == "]" || s == "}" then (depth - 1, false, false)
+      else (depth, false, false))
+  depth
+
+/// Does the statement typed so far want another line? This is what ⏎ at the REPL asks: yes moves you down a
+/// line, no runs it. Takes the whole statement, not the last line, because the bracket count is a property of
+/// the whole thing.
+///
+/// Two rules, both about text that *cannot* be the end of an expression:
+///  1. a bracket is still open;
+///  2. the last line ends in an operator, or in a keyword that governs what comes after it.
+///
+/// There's deliberately no manual override - no `\` to type, no second submit key. ⏎ inserting a newline with
+/// ctrl+⏎ to run would be the obvious design, but most terminals send the identical byte for both, so it
+/// isn't available; and a continuation character you have to remember is a tax on every multi-line expression
+/// to buy an escape from a case these rules already cover.
+///
+/// The rules can still be too eager - a line ending in a `-` you meant as a minus, say. The way out is ⏎ on
+/// the empty `...` line, which runs whatever has accumulated. That, and not a punctuation mark, is the manual
+/// override.
+let wantsAnotherLine (text: String) : Bool =
+  let t = Stdlib.String.trimEnd (Stdlib.String.trim text)
+  if t == "" then
+    false
+  else if (openBracketDepth t) > 0 then
+    true
+  else
+    let lastLine =
+      Stdlib.String.split t "\n"
+      |> Stdlib.List.reverse
+      |> Stdlib.List.head
+      |> Stdlib.Option.withDefault ""
+      |> Stdlib.String.trim
+    // Operators match the raw tail (`x*` needs no space before it); keywords match the last whitespace-
+    // delimited token, so a name that merely ends in "if" or "let" isn't mistaken for one.
+    let operators = [ "="; "|>"; "&&"; "||"; "->"; "+"; "-"; "*"; "/"; "," ]
+    let keywords = [ "then"; "else"; "with"; "fun"; "if"; "match"; "let" ]
+    let lastToken =
+      Stdlib.String.split lastLine " "
+      |> Stdlib.List.reverse
+      |> Stdlib.List.head
+      |> Stdlib.Option.withDefault ""
+    (operators |> Stdlib.List.any (fun s -> Stdlib.String.endsWith lastLine s))
+    || (Stdlib.List.member keywords lastToken)
+
+/// Recognize a top-level `let <name> = <expr>` typed at the REPL, returning (name, expr). Only a single
+/// simple name binds; anything else (a pattern, a `let` with no `=`, a bare expression) returns None and is
+/// evaluated as an ordinary expression.
+let parseLetBinding (text: String) : Stdlib.Option.Option<(String * String)> =
+  let trimmed = Stdlib.String.trim text
+  // A statement may legitimately span lines - `splitStatements` has already separated a pasted chain, so
+  // anything still multi-line here is one wrapped declaration and its right-hand side wraps with it.
+  if Stdlib.Bool.not (Stdlib.String.startsWith trimmed "let ") then
+    Stdlib.Option.Option.None
+  else
+    let body = Stdlib.String.dropFirst trimmed 4
+    match Stdlib.String.indexOf body "=" with
+    | None -> Stdlib.Option.Option.None
+    | Some i ->
+      let name = Stdlib.String.trim (Stdlib.String.slice body 0 i)
+      let rhs = Stdlib.String.trim (Stdlib.String.dropFirst body (i + 1))
+      // `let x == y` is a comparison typo, not a binding; and an empty right-hand side isn't one either.
+      if (isSimpleName name) && (rhs != "") && (Stdlib.Bool.not (Stdlib.String.startsWith rhs "=")) then
+        Stdlib.Option.Option.Some((name, rhs))
+      else
+        Stdlib.Option.Option.None
+
+/// The `let` chain that re-establishes a session's bindings, in binding order, ready to be prefixed to an
+/// expression. Empty for an empty session, so an unbound REPL evaluates exactly what you typed.
+let bindingChain (bindings: List<Binding>) : String =
+  if Stdlib.List.isEmpty bindings then
+    ""
+  else
+    let lines = bindings |> Stdlib.List.map (fun b -> $"let {b.name} = {b.source}")
+    (Stdlib.String.join lines "\n") ++ "\n"
+
+/// An expression with the session's bindings in scope.
+let withBindings (bindings: List<Binding>) (expr: String) : String =
+  (bindingChain bindings) ++ expr
+
+/// Add or replace a binding.
+///
+/// A CAPTURED rebind keeps its position: it holds a literal, which references nothing, so leaving it where it
+/// was keeps any later binding that mentions this name defined below it.
+///
+/// An UNCAPTURED rebind moves to the end, because it holds an expression that may reference names bound after
+/// the position it currently occupies. Keeping it in place wedged the session:
+///
+///   let d = Stdlib.DateTime.now ()   (uncapturable, so it holds the expression)
+///   let a = 1                        (captured)
+///   let a = d                        (capture fails; falls back to holding "d")
+///
+/// left the chain as `let a = d` / `let d = ...`, so `d` was undefined when `a` was bound and every
+/// subsequent eval failed with no way out but clearing the session.
+let upsert (bindings: List<Binding>) (b: Binding) : List<Binding> =
+  let withoutIt = bindings |> Stdlib.List.filter (fun x -> x.name != b.name)
+  let alreadyBound = (Stdlib.List.length withoutIt) != (Stdlib.List.length bindings)
+  if alreadyBound && b.captured then
+    bindings |> Stdlib.List.map (fun x -> if x.name == b.name then b else x)
+  else
+    Stdlib.List.pushBack withoutIt b
+
+/// Turn a runtime value back into source text, so a binding can hold the value rather than the expression
+/// that computed it. Returns `ok:<source>` or `err:<reason>` - a tagged string rather than a Result because
+/// the caller reads this back out of the evaluator's printed result, where a `Result` would be ambiguous
+/// with a result that is itself a Result.
+///
+/// That round trip works because `cliEvaluateExpression` returns a `DString` raw and unquoted rather than
+/// through `dvalToRepr`. If that ever changes, `readCaptured` stops matching and every binding quietly falls
+/// back to holding its expression - slower and re-effectful, but not visibly broken, so it would be easy to
+/// miss.
+/// `branchId` is the branch to resolve type names against, as a string because this is called from an
+/// expression the REPL assembles as text; an unparseable one falls back to main.
+let captureValue (branchId: String) (v: 'a) : String =
+  let branch =
+    match Stdlib.Uuid.parse branchId with
+    | Ok id -> id
+    | Error _ -> SCM.Branch.mainBranchId
+  match LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr branch (Builtin.reflect v) with
+  | Ok e -> "ok:" ++ (PrettyPrinter.ProgramTypes.expr (PrettyPrinter.ProgramTypes.Context.forBranch branch) e)
+  | Error reason -> "err:" ++ reason
+
+/// The expression to evaluate for `let <name> = <rhs>`: bind it, then hand the value to `captureValue` so the
+/// session can hold the value. The binding is in scope for its own capture, which is what makes the captured
+/// source correct for expressions that refer to earlier bindings.
+let captureExpr (bindings: List<Binding>) (branchId: Uuid) (name: String) (rhs: String) : String =
+  let chain = withBindings bindings $"let {name} = {rhs}"
+  let branch = Stdlib.Uuid.toString branchId
+  $"{chain}\nDarklang.Cli.Repl.captureValue \"{branch}\" {name}"
+
+/// Read `captureValue`'s output back. `Some source` when the value round-tripped, `None` when it has no
+/// literal form (the caller then falls back to holding the expression).
+let readCaptured (output: String) : Stdlib.Option.Option<String> =
+  let trimmed = Stdlib.String.trim output
+  if Stdlib.String.startsWith trimmed "ok:" then
+    Stdlib.Option.Option.Some(Stdlib.String.dropFirst trimmed 3)
+  else
+    Stdlib.Option.Option.None

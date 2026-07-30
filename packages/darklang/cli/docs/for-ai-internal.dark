@@ -42,6 +42,20 @@ right call; wrapping them in `docker exec -u dark -w /home/dark/app <cid> ...`
 is never needed and just hardcodes container IDs that change across
 rebuilds.
 
+## Multiple clones: check which container you're in
+`./scripts/*` auto-enters *a* devcontainer, picked by `docker ps --last 1` by
+label - not the clone you're standing in. With 2+ dark containers up it silently
+runs in another clone's: edits look ignored, `help` lists another branch's
+commands, `eval` can't find your package. Before debugging anything that
+"should just work":
+  docker ps --last 1 --filter label=dark-dev-container --format '{{.Names}}'
+  docker inspect <name> --format '{{index .Config.Labels "devcontainer.local_folder"}}'
+To pin work to one container, exec into it directly (IN_DEV_CONTAINER is set
+inside, so scripts won't re-pick):
+  docker exec <name> bash -c 'cd /home/dark/app && scripts/build/reload-packages'
+Note the stock devcontainer shares one `dark_build` volume across clones, so a
+compile in the wrong container poisons the build for all of them.
+
 ## Adding Builtin (F#)
   Pick the right Builtins subproject:
     Builtins.Pure        # pure stdlib (String, List, Json, …)

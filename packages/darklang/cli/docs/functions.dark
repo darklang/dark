@@ -3,19 +3,21 @@ module Darklang.Cli.Docs.Functions
 let content () : String =
   """# Functions
 
-## Define (module-level only)
+## Define
   let add (a: Int) (b: Int) : Int = a + b
   let greet (name: String) : String = $"Hi {name}"
 
 ## No params
   let now () : DateTime = Stdlib.DateTime.now ()
 
-## NO NESTED FUNCTIONS
-  # WRONG:
-  let outer () = let inner () = 5; inner ()
-  # RIGHT:
-  let inner () = 5
-  let outer () = inner ()
+## Nested functions
+  let outer (n: Int) : Int =
+    let double (x: Int) : Int = x * 2
+    double n
+
+  # Params need parens - `let double x = x * 2` is a parse error.
+  # A nested fn sees the bindings above it, including other nested fns.
+  # Calling one defined further down doesn't work; use a top-level fn for that.
 
 ## Call
   add 1 2

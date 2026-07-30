@@ -1,4 +1,9 @@
 /// Builds terminal updates by comparing complete logical views.
+///
+/// Only rows that differ are emitted; if nothing differs and the cursor hasn't moved, the render returns ""
+/// and nothing is written. Arrowing down a list rewrites two rows, not a screen. The screen is never cleared
+/// wholesale - there is no `2J` anywhere in this layer. (`dark docs terminal-ui` covers how this fits with
+/// the rest of the no-flicker machinery.)
 module Darklang.Cli.Tui.Frame
 
 

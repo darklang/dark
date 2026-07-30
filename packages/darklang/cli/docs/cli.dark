@@ -13,8 +13,8 @@ let content () : String =
   val <name>      # create value (let)
 
 ## Running/Testing
-  run <fn> [args] # run function you created
-  eval <expr>     # test quick expressions (not for creating code)
+  eval <expr>     # evaluate an expression — also how you run a fn: eval MyMod.myFn 1 2
+  run <file>      # run a .dark script file (alias: run-script)
 
 ## Navigation
   nav <path>      # go to module (cd)
@@ -44,7 +44,24 @@ let content () : String =
   (see: docs scm)
 
 ## Server
-  http-server <port> <router>
+  serve <router> [--port N]   # start an HTTP server (alias: http-server; --port defaults to 8080)
+
+## Workbench (the full-screen experience — `dark` with no args opens it)
+  workbench       # open the framed, navigable workbench (alias: wb)
+  views           # browse + preview the individual CLI views
+
+## Account + config
+  login [name]    # log in (no name lists accounts); persists across runs
+  logout          # clear the active account
+  config          # get/set/list CLI config (config set <key> <value>)
+
+## Sync + apps + AI
+  sync            # share package changes with other instances
+  conflicts       # review + resolve sync divergences
+  devices         # your tailnet devices (status/serve/ping)
+  apps            # list, install, manage apps (daemons, foreground, UI)
+  agent <verb>    # AI workflows: ask/code/review/fix/diff (alias: ai)
+  traces          # list + view execution traces
 
 ## Other
   help [cmd]      # help

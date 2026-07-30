@@ -1,0 +1,92 @@
+/// Process entry: the --branch flag, and the split between a one-shot command and the interactive CLI.
+///
+/// Part of `Darklang.Cli`.
+module Darklang.Cli
+
+/// Pull `--<flag> value` or `--<flag>=value` out of `args`, returning the value and the args without it.
+/// First occurrence wins; later ones are left alone as ordinary args.
+///
+/// `Some ""` means the flag was there with nothing after it, which is a caller's error to report rather than
+/// something to silently ignore. Either way the flag is consumed, so it can't fall through and be read as
+/// the command.
+let takeFlagValue (args: List<String>) (flag: String) : (Stdlib.Option.Option<String> * List<String>) =
+  let long = "--" ++ flag
+  let eq = long ++ "="
+  let (found, _takingNext, kept) =
+    args
+    |> Stdlib.List.fold (Stdlib.Option.Option.None, false, []) (fun state arg ->
+      let (found, takingNext, kept) = state
+      if takingNext then
+        (Stdlib.Option.Option.Some arg, false, kept)
+      else
+        match found with
+        | Some _ -> (found, false, Stdlib.List.pushBack kept arg)
+        | None ->
+          if arg == long then
+            (Stdlib.Option.Option.Some "", true, kept)
+          else if Stdlib.String.startsWith arg eq then
+            (Stdlib.Option.Option.Some(Stdlib.String.dropFirst arg (Stdlib.String.length eq)), false, kept)
+          else
+            (found, false, Stdlib.List.pushBack kept arg))
+  (found, kept)
+
+/// The branch to start on, from `--branch`. `None` means no flag, so the caller keeps whatever `initState`
+/// restored from cli-config.json. An unusable name warns and falls back to main rather than failing.
+let parseBranchFlag (args: List<String>) : (Stdlib.Option.Option<Uuid> * List<String>) =
+  let (name, rest) = takeFlagValue args "branch"
+  match name with
+  | None -> (Stdlib.Option.Option.None, rest)
+  | Some "" ->
+    Stdlib.printLine "Warning: --branch requires a name, using main."
+    (Stdlib.Option.Option.Some SCM.Branch.mainBranchId, rest)
+  | Some n ->
+    match SCM.Branch.getByName n with
+    | Some b -> (Stdlib.Option.Option.Some b.id, rest)
+    | None ->
+      Stdlib.printLine $"Warning: branch '{n}' not found, using main."
+      (Stdlib.Option.Option.Some SCM.Branch.mainBranchId, rest)
+
+
+let executeCliCommand (args: List<String>) : Int =
+  let (branchOverride, remainingArgs) = parseBranchFlag args
+  let baseState = initState ()
+  let initialState =
+    match branchOverride with
+    | Some b -> { baseState with currentBranchId = b }
+    | None -> baseState
+
+  match remainingArgs with
+  // If someone runs `dark` without args, start the interactive loop
+  | [] ->
+    if initialState.telemetryEnabled then
+      Telemetry.logSessionStart ()
+      let _ = Builtin.interpreterStatsReset ()
+      ()
+
+    // `dark` with no args opens the workbench — that's the experience now, no chooser. DARK_CLASSIC=1 is the
+    // one hidden escape hatch back to the classic prompt (scripts / muscle memory); everything else lands in
+    // the workbench.
+    //
+    // No screen clear and no scroll region here any more: the prompt is an inline Tui region that keeps
+    // scrollback, and the workbench owns the alternate screen through its own terminal session.
+    let classic =
+      match Builtin.environmentGet "DARK_CLASSIC" with
+      | Some "1" -> true
+      | _ -> false
+
+    if classic then
+      Stdlib.printLine (View.formatWelcome ())
+      runInteractiveLoop initialState
+    else
+      let workbenchState = Workbench.execute initialState []
+      runInteractiveLoop workbenchState
+  // Otherwise, execute command directly (shell already split args correctly)
+  | commandName :: commandArgs ->
+    let nonInteractiveState = { initialState with nonInteractive = true }
+    let resultState = Registry.executeCommand commandName nonInteractiveState commandArgs
+
+    // If the command launched a full-screen SubApp (a TUI like `apps` / `outliner`), hand off to the
+    // interactive loop so it actually runs, instead of exiting the instant the command returns.
+    match resultState.currentPage with
+    | SubApp _ -> runInteractiveLoop resultState
+    | _ -> 0

@@ -1,0 +1,116 @@
+module Darklang.Cli.Docs.TerminalUI
+
+let content () : String =
+  """# Terminal UI
+
+Every full-screen thing in the CLI - the workbench, nav, the editor, the outliner - and the inline
+prompt and completion picker all render through one layer, `Darklang.Cli.Tui`. This is how it works
+and, more usefully, why it doesn't flicker.
+
+## The model
+
+Three layers, and the separation is the whole point:
+
+1. A view is a value.
+   `Tui.View = { rows: List<String>; cursor: Cursor; mode: ViewMode }`. Rows are plain text plus SGR
+   styling only: no cursor movement, no clearing, no mode changes. Zero-based coordinates throughout.
+
+2. A frame is a diff.
+   `Frame` / `InlineFrame` compare the previous view to the next one and produce one string of
+   terminal updates.
+
+3. A session owns the effects.
+   `TerminalSession` holds `{ status; previousView; terminalSize }`, decides full-repaint vs diff,
+   writes exactly once, and knows how to restore the terminal.
+
+  packages/darklang/cli/tui/
+    core.dark             View, Size, Cursor, ViewMode  (types only)
+    text.dark             widths, clipping, wrapping, SGR sanitizing
+    layout.dark           blankRows / fitRows / viewport
+    frame.dark            fullscreen diffing, absolute addressing
+    inlineFrame.dark      inline diffing, cursor-relative addressing
+    terminalSession.dark  lifecycle, alt-screen, restore guards
+    terminalSupport.dark  "can we even run a TUI here"
+
+`ViewMode` is the fork that matters:
+
+  Fullscreen  takes the alternate screen, addresses rows absolutely (ESC [ row;1 H).
+              The workbench, nav, the editor, caps, outliner, review.
+  Inline      occupies N rows where the cursor already is, keeps normal scrollback, and addresses
+              rows relative to where the previous frame left the cursor (ESC [ n A / ESC [ n B).
+              The main prompt and the completion picker.
+
+## Why it doesn't flicker
+
+Five independent mechanisms. If you are writing a view, you get all of them for free; if you are
+changing the renderer, these are the things not to break.
+
+1. Nothing is cleared wholesale.
+   Clearing with `ESC [ 2J` and repainting is the flash: the terminal genuinely blanks first. The only
+   `2J` in the CLI is the explicit `clear` command; no render path clears the screen.
+
+2. Only changed rows are emitted.
+   `Frame.changedRows` walks the previous and next row lists together and emits a change only where
+   they differ. Rows that vanished are emitted as empty so they get erased. If nothing changed and
+   the cursor didn't move, the render returns "" and nothing is written at all. Arrowing down a list
+   rewrites two rows.
+
+3. One buffered write per frame.
+   Every render path builds a single string and hands it to one `Stdlib.print`. No
+   `printLine`-per-row, so there is no window where a half-drawn frame is visible.
+
+4. Synchronized output markers.
+   Each non-empty update is wrapped in `ESC [ ?2026h` ... `ESC [ ?2026l`. Terminals that support DEC
+   mode 2026 present the update atomically; the rest ignore the two sequences.
+
+5. The cursor is hidden across the update.
+   Updates begin with `ESC [ ?25l` and end by either re-showing at the target position or staying
+   hidden, so you never watch the cursor skate around mid-repaint.
+
+The per-row sequence is worth reading carefully, because the ordering is load-bearing:
+
+  fullscreen:  ESC[{row};1H  ESC[0m  ESC[K  {content}  ESC[0m  \r
+  inline:      \r            ESC[0m  ESC[K  {content}  ESC[0m
+
+- Erase BEFORE writing, never after. Erasing after wipes the final cell of a full-width row, because
+  the terminal is parked in deferred-wrap state on that cell.
+- The reset precedes the erase, so blank cells don't inherit a background colour.
+- The trailing reset closes any style the row left open.
+- The trailing \r cancels deferred wrap before the next update.
+
+## Measuring text
+
+`Tui.Text.displayWidth` counts terminal columns; `styledWidth` does the same while ignoring SGR
+sequences. Use them for anything positional.
+
+`Stdlib.String.length` is not the tool for column math. It counts extended grapheme clusters, which
+is the right answer for "how many characters is this" and the wrong one for "how far does this reach
+across the screen": `界` is one grapheme occupying two columns, and so is a ZWJ emoji. Because a Dark
+`Char` is a grapheme cluster, clipping can't split a flag or a family emoji in half.
+
+## Rules for a view
+
+1. Rows contain text and SGR only. Everything else belongs to the renderer.
+2. View functions are pure. If you need the world, read it during the state transition and stash the
+   result on the state. The renderer may call your view function and diff it.
+3. One write per frame. Don't interleave `printLine` with a live session.
+4. Measure with `Tui.Text.displayWidth` for plain text, `styledWidth` once SGR is in the row - never
+   `Stdlib.String.length`. Passing a row containing control sequences to `displayWidth` is not valid.
+5. Release the inline region before printing to scrollback. `releasePromptRegion` /
+   `stopInlineWithView` shrink the region to what should persist and hand the terminal back;
+   printing over a live inline region corrupts it.
+6. Present on transitions, not on every loop pass.
+
+## Safety and degradation
+
+- Dynamic content is sanitized on the way out: clipping a row (`Text.normalizeToWidth` ->
+  `clipToWidth`, native) keeps only numeric SGR and discards every other CSI, and anything else that
+  looks like an escape loses its ESC byte and renders as ordinary text. So a package name or
+  description can't move your cursor or reset your terminal. The renderer is the single boundary.
+- `TerminalSession.armRestoreGuard` registers a restore sequence with the host before entering a
+  surface, so a hard kill still un-wrecks the terminal.
+- `TerminalSupport.current ()` refuses to emit control sequences when stdin or stdout isn't a tty, or
+  `TERM` is unset / dumb / unknown. Piping the CLI prints a clean sentence rather than escape soup.
+- Resize is handled: SIGWINCH sets a flag, the input read polls for it, and a resize reports a key no
+  view handles, which sends the loop round to re-sample the size and repaint.
+"""

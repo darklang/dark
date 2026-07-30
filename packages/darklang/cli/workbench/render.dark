@@ -1,0 +1,283 @@
+/// The generic frame primitives every view mounts into (scrollable lines, boxed lines, the list+preview
+/// split, the section switcher), plus the Home dashboard and the full-screen reader.
+///
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
+
+/// Render `lines` into `region` as a vertically-scrollable block: drop `scroll` rows, take what fits, each cut
+/// ANSI-aware so colour survives an overflow. `display` is the styled variant shown per row (pass `lines`
+/// itself when there's no highlighting); `lines` drives the count. `colOffset` insets the text from the
+/// region's left (the split-pane preview insets 1; the full-screen reader doesn't). Backs both
+/// `renderPreview` and `renderReading`.
+let renderScrollableLines
+  (region: UI.Layout.Region)
+  (colOffset: Int)
+  (lines: List<String>)
+  (display: List<String>)
+  (scroll: Int)
+  : List<UI.Layout.Span> =
+  let len = Stdlib.List.length lines
+  let off = Stdlib.Int.min scroll (Stdlib.Int.max 0 (len - 1))
+  let maxFit = Stdlib.Int.max 0 (region.cols - 1)
+  lines
+  |> Stdlib.List.indexedMap (fun i l -> (i, l))
+  |> Stdlib.List.drop off
+  |> Stdlib.List.take region.rows
+  |> Stdlib.List.map (fun pair ->
+    let (i, p) = pair
+    let row = i - off
+    let disp = Stdlib.List.getAt display i |> Stdlib.Option.withDefault p
+    UI.Layout.at region row colOffset (Tui.Text.clipToWidth disp maxFit))
+  |> Stdlib.List.flatten
+
+let renderPreview (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  let plain = previewLines state
+  // Syntax-highlight Matter's source preview. Nothing else here is code: Docs, the History summary and the
+  // Conflicts detail are prose, and Changes shows a pre-coloured +/- diff.
+  //
+  // Anything already carrying ANSI is left alone - a pre-coloured diff or a tree-native render peek is not
+  // plain source, and re-highlighting it would mangle the colours it already has. In practice that means
+  // highlighting only fires under the values lens, because Matter's ordinary preview comes from
+  // `inspectPageLines`, which pre-colours.
+  let alreadyColored = Stdlib.String.contains (Stdlib.String.join plain "\n") ""
+  let doHighlight = (state.activeView == vMatter) && (Stdlib.Bool.not alreadyColored)
+  let highlighted =
+    if doHighlight then
+      let h =
+        SyntaxHighlighting.highlightCode (Stdlib.String.join plain "\n") |> Stdlib.String.split "\n"
+      if Stdlib.List.length h == Stdlib.List.length plain then h else plain
+    else
+      plain
+  // Split-pane preview: inset 1 column from the pane's left edge.
+  renderScrollableLines region 1 plain highlighted state.detailScroll
+
+/// "1 commit" / "2 commits" - count + correctly-pluralized noun.
+let plural (n: Int) (noun: String) : String =
+  (Stdlib.Int.toString n) ++ " " ++ noun ++ (if n == 1 then "" else "s")
+
+/// Home, the landing dashboard: am I in a good state, what was I doing, what's here, and where can I go.
+///
+/// The last of those is the panel that earns its keep. The workbench opens on thirteen tabs with no way to
+/// tell which of them do anything, so the bottom panel names each one, says what it's for, and marks the ones
+/// still running on sample data. It replaced a list of commands you had to already know to look for.
+let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  let wip = wipItemCount state.branchId
+  let commits = SCM.PackageOps.getCommitCount state.branchId
+  let rootItems = loadItems state.branchId (Packages.PackageLocation.Module [])
+  let branch =
+    match SCM.Branch.get state.branchId with
+    | Some b -> b.name
+    | None -> "main"
+  let conflictCount = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
+  let lastCommit =
+    match Stdlib.List.head (SCM.PackageOps.getCommitsWithAncestors state.branchId 1) with
+    | Some c -> c.message
+    | None -> "no commits yet"
+  let owner = if state.accountName == "" then "there" else state.accountName
+
+  let renderHeader (r: UI.Layout.Region) : List<UI.Layout.Span> =
+    // The third row is the escape hatch, and it's on the landing screen deliberately. Every classic command
+    // still runs from the `:` bar and `:commands` gives you the old prompt outright, but neither is guessable
+    // from an empty full-screen UI - and this replaced the panel that used to say so.
+    Stdlib.List.flatten
+      [ UI.Layout.at r 0 2 (Colors.boldText ($"Welcome back, {owner}"))
+        UI.Layout.at r 1 2 (Colors.dimText ($"on {branch}  ·  a workbench over Dark Matter"))
+        // Short enough to survive an 80-column terminal; `?` carries the detail that `quit` comes back.
+        UI.Layout.at
+          r
+          2
+          2
+          ((Colors.colorize Colors.cyan ":")
+           ++ (Colors.dimText " runs any command  ·  ")
+           ++ (Colors.colorize Colors.cyan "p")
+           ++ (Colors.dimText " drops to the command prompt")) ]
+
+  let renderStatus (inner: UI.Layout.Region) : List<UI.Layout.Span> =
+    let wipLine =
+      if wip == 0 then Colors.colorize Colors.green "✓ working tree clean"
+      else Colors.colorize Colors.pink (plural wip "uncommitted change")
+    let syncLine =
+      if conflictCount == 0 then Colors.dimText "✓ in sync"
+      else Colors.colorize Colors.pink ("⚠ " ++ (plural conflictCount "divergence") ++ "  ·  5 › Conflicts")
+    Stdlib.List.flatten
+      [ UI.Layout.at inner 0 1 wipLine
+        UI.Layout.at inner 1 1 (Colors.dimText (plural commits "commit" ++ " on this branch"))
+        UI.Layout.at inner 2 1 (Colors.dimText ("last: " ++ lastCommit))
+        UI.Layout.at inner 3 1 syncLine ]
+
+  let renderWip (inner: UI.Layout.Region) : List<UI.Layout.Span> =
+    if wip == 0 then
+      UI.Layout.at inner 0 1 (Colors.dimText "nothing in progress - the tree is yours to edit")
+    else
+      SCM.PackageOps.getWipItems state.branchId
+      |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
+      |> Stdlib.List.indexedMap (fun i d ->
+        let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
+        // Pink ● is the "uncommitted work" marker everywhere (matches the tree WIP badge); keep it consistent.
+        UI.Layout.at inner i 1 (Colors.colorize Colors.pink ("● " ++ name)))
+      |> Stdlib.List.flatten
+
+  let renderMatterPanel (inner: UI.Layout.Region) : List<UI.Layout.Span> =
+    let owners =
+      rootItems
+      |> Stdlib.List.take (Stdlib.Int.max 1 (inner.rows - 1))
+      |> Stdlib.List.indexedMap (fun i it ->
+        UI.Layout.at inner (i + 1) 1 (Colors.colorize Colors.cyan ("🗂 " ++ it.name)))
+      |> Stdlib.List.flatten
+    Stdlib.List.flatten
+      [ UI.Layout.at inner 0 1 (Colors.dimText (plural (Stdlib.List.length rootItems) "top-level owner"))
+        owners ]
+
+  // Every tab: its number key, its name, what it's for, and whether it's real. `Layout.at` measures in
+  // terminal columns and ignores SGR, so the colour doesn't count toward the width and get clipped.
+  //
+  // The number key is the row's position in the *full* visible list (Home is 1), which is what the digit keys
+  // index; past nine there's no digit, and the row says so by leaving the column blank.
+  let renderTabs (inner: UI.Layout.Region) : List<UI.Layout.Span> =
+    // Local rather than `String.padEnd`, which returns a Result (it can reject a multi-char pad) and would
+    // need unwrapping at both call sites for a column of spaces.
+    let pad (s: String) (n: Int) : String =
+      s ++ (Stdlib.String.repeat " " (Stdlib.Int.max 0 (n - (Stdlib.String.length s))))
+    visibleViews state
+    |> Stdlib.List.indexedMap (fun i v -> (i, v))
+    |> Stdlib.List.filter (fun pair -> let (_i, v) = pair in v != vHome)
+    |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
+    |> Stdlib.List.indexedMap (fun row pair ->
+      let (i, v) = pair
+      let key = if i < 9 then Stdlib.Int.toString (i + 1) else " "
+      let (blurb, caveat) = viewBlurb v
+      let tag = if caveat == "" then "" else Colors.dimText ("   (" ++ caveat ++ ")")
+      let line =
+        (Colors.colorize Colors.cyan (pad key 2))
+        ++ (pad (viewLabel v) 11)
+        ++ (Colors.dimText blurb)
+        ++ tag
+      UI.Layout.at inner row 1 line)
+    |> Stdlib.List.flatten
+
+  let leftCol (r: UI.Layout.Region) : List<UI.Layout.Span> =
+    UI.Layout.vstack
+      r
+      [ UI.Layout.fixedSize 6 (fun rr -> UI.Box.panel rr "Status" false renderStatus)
+        UI.Layout.greedy (fun rr -> UI.Box.panel rr "Pick up where you left off" false renderWip) ]
+
+  // Home fills the body region, same as every other view. The right column scales with the width rather than
+  // sitting at a fixed 40, so it grows with the terminal instead of staying a sliver beside Status. Status
+  // still takes whatever is left, so on a very wide terminal it is a wide box around four short lines - the
+  // cost of filling the width, and the width is what was asked for.
+  // Floor is low enough that a narrow terminal shrinks this column rather than letting it outgrow Status,
+  // which is the primary panel and was ending up the narrower of the two at around 70 columns.
+  let matterCols = Stdlib.Int.max 24 (Stdlib.Int.min 72 (Stdlib.Int.divide region.cols 3))
+
+  // What each band needs at minimum: the middle is as tall as its taller column (Status (6) over the WIP
+  // list, against the owners list), the tabs want a row per tab plus a border.
+  let minMid = Stdlib.Int.max (6 + (Stdlib.Int.max 1 wip) + 2) ((Stdlib.List.length rootItems) + 3)
+  let minTabs = (Stdlib.List.length (visibleViews state)) + 1
+
+  // Floors first: the bands don't shrink on their own, and on a 24-row terminal the total used to run off the
+  // bottom and the footer drew over the last row. The middle keeps its Status panel and four rows; the tabs
+  // take what's left, truncating gracefully (the title already points at the picker).
+  let avail = Stdlib.Int.max 1 region.rows
+  let midFloor = Stdlib.Int.max 6 (Stdlib.Int.min minMid (avail - 3 - 4))
+  let tabFloor = Stdlib.Int.max 0 (Stdlib.Int.min minTabs (avail - 3 - midFloor))
+
+  // Then the surplus, split evenly rather than handed to either one - all of it to the middle put a 28-row box
+  // around one line of "nothing in progress", and all of it to the tabs left the same hole at the bottom.
+  // Both lists do grow in real use, so the space isn't wasted, just not pooled anywhere it can look broken.
+  //
+  // Shared out here rather than through `flex`, which splits in proportion to (preferred - min) using integer
+  // division and drops the odd row - one blank line above the footer that no band asked for. This assigns the
+  // remainder explicitly, so the three bands always add up to the full height.
+  let slack = Stdlib.Int.max 0 (avail - 3 - midFloor - tabFloor)
+  let midShare = midFloor + (Stdlib.Int.divide slack 2)
+  let tabShare = tabFloor + slack - (Stdlib.Int.divide slack 2)
+  // Under three rows there's no room for a border and a line, so the tabs panel goes rather than draw a stub -
+  // and its rows go to the middle rather than sitting blank above the footer.
+  let (midRows, tabRows) =
+    if tabShare < 3 then (midShare + tabShare, 0) else (midShare, tabShare)
+
+  UI.Layout.vstack
+    region
+    [ UI.Layout.fixedSize 3 renderHeader
+      UI.Layout.fixedSize midRows (fun r ->
+        UI.Layout.hstack
+          r
+          [ UI.Layout.greedyWidth leftCol
+            UI.Layout.fixedWidth matterCols (fun rr -> UI.Box.panel rr "Your Matter" false renderMatterPanel) ])
+      if tabRows == 0 then
+        UI.Layout.fixedSize 0 (fun _r -> [])
+      else
+        UI.Layout.fixedSize tabRows (fun rr ->
+          UI.Box.panel rr "The tabs  ·  press the number, or ` for the picker" false renderTabs) ]
+
+/// A full-body scrollable reader (Docs topic content, etc.).
+let renderReading (content: String) (isCode: Bool) (scroll: Int) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  let plain = Stdlib.String.split content "\n"
+  // Highlight code readers (Tree-leaf / Changes source); ANSI-aware truncate keeps color even when a line
+  // overflows the width. Non-code content stays plain.
+  let highlighted =
+    if isCode then
+      let h = SyntaxHighlighting.highlightCode content |> Stdlib.String.split "\n"
+      if Stdlib.List.length h == Stdlib.List.length plain then h else plain
+    else
+      plain
+  // Full-screen reader: no inset.
+  renderScrollableLines region 0 plain highlighted scroll
+
+/// A framed box holding pre-built lines (for the static/instructional views). Lines may be pre-colored.
+let boxedLines
+  (region: UI.Layout.Region)
+  (title: String)
+  (lines: List<String>)
+  : List<UI.Layout.Span> =
+  UI.Box.panel region title true (fun inner ->
+    lines
+    |> Stdlib.List.indexedMap (fun i l -> (i, l))
+    |> Stdlib.List.map (fun pair ->
+      let (i, l) = pair
+      if i < inner.rows then UI.Layout.at inner (i + 1) 1 l else [])
+    |> Stdlib.List.flatten)
+
+/// A list+preview view (the IDE three-panel shape): the list on the dominant left pane, a scrollable preview of
+/// the selected item on the right. Tab toggles focus; the preview scrolls when focused. Falls back to a single
+/// empty box (naming the fill action) when the list is empty.
+let splitListPreview
+  (state: State)
+  (region: UI.Layout.Region)
+  (leftTitle: String)
+  (previewTitle: String)
+  (emptyMsg: String)
+  : List<UI.Layout.Span> =
+  if Stdlib.List.isEmpty state.items then
+    let msg =
+      if state.filter == "" then emptyMsg
+      else Colors.dimText ("no matches for filter: " ++ state.filter ++ "   (f to change)")
+    UI.Box.panel region leftTitle true (fun inner -> UI.Layout.at inner 1 1 msg)
+  else
+    // Surface an active filter right in the list title (plain text - the box does width math on it) so a
+    // narrowed list never looks like the whole set.
+    let count = Stdlib.Int.toString (Stdlib.List.length state.items)
+    let titled =
+      if state.filter == "" then leftTitle ++ "  ·  " ++ count
+      else leftTitle ++ "  ·  " ++ count ++ "  ·  filter: " ++ state.filter
+    UI.SplitPane.render
+      region
+      UI.SplitPane.Orientation.Horizontal
+      55
+      state.focus
+      titled
+      (fun r -> renderTreeList state r)
+      previewTitle
+      (fun r -> renderPreview state r)
+
+/// A "tab  [Active]   Other   Other" section switcher at `row` within the region: the active section bright in
+/// brackets, the rest dim. Shared by the SCM (Changes/History/Conflicts/Branches) and AI (Agents/Prompts) views.
+let renderSectionSwitcher (region: UI.Layout.Region) (row: Int) (sections: List<String>) (active: Int) : List<UI.Layout.Span> =
+  let secLine =
+    sections
+    |> Stdlib.List.indexedMap (fun i s ->
+      if i == active then Colors.colorize (Colors.bold ++ Colors.cyan) ("[" ++ s ++ "]")
+      else Colors.dimText (" " ++ s ++ " "))
+    |> Stdlib.String.join "  "
+  UI.Layout.at region row 0 ("  " ++ (Colors.dimText "tab") ++ "  " ++ secLine)
+

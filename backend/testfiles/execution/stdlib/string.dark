@@ -930,3 +930,14 @@ module ArticleFor =
   Stdlib.String.articleFor "🍍" = "a"
   Stdlib.String.articleFor "🍊" = "a"
   Stdlib.String.articleFor "" = ""
+
+module Repeat =
+  Stdlib.String.repeat "ab" 3 = "ababab"
+  Stdlib.String.repeat "x" 1 = "x"
+  Stdlib.String.repeat "" 5 = ""
+  Stdlib.String.repeat "ab" 0 = ""
+  Stdlib.String.repeat "ab" (0 - 1) = ""
+  // Grapheme clusters survive: repeat works on the string, not its code units.
+  Stdlib.String.repeat "é" 2 = "éé"
+  Stdlib.String.repeat "👨‍👩‍👧‍👦" 2 = "👨‍👩‍👧‍👦👨‍👩‍👧‍👦"
+  Stdlib.String.length (Stdlib.String.repeat "─" 80) = 80

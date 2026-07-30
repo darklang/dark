@@ -123,6 +123,29 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "stringRepeat" 0
+      typeParams = []
+      parameters =
+        [ Param.make "s" TString "The string to repeat"
+          Param.make "count" TInt "How many times to repeat it" ]
+      returnType = TString
+      description =
+        "Returns <param s> repeated <param count> times. An empty string when <param count> is not positive."
+      fn =
+        (function
+        | _, vm, _, [ DString s; DInt count ] ->
+          let n = intToInt32 vm count
+          if n <= 0 || s = "" then
+            DString "" |> Ply
+          else
+            DString(System.String.Concat(Seq.replicate n s)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "stringAppend" 0
       typeParams = []
       parameters = [ Param.make "s1" TString ""; Param.make "s2" TString "" ]

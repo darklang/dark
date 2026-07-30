@@ -1,4 +1,8 @@
+/// CLI tests: the command surface, driven by shelling out to the real binary.
+///
+/// Split across files; the registry and runner are in tests-runner.dark.
 module Darklang.Cli.Tests
+
 
 
 type TestResult =
@@ -31,13 +35,21 @@ let runWithCommand (args: List<String>): String =
 let testHelpCommand (): TestResult =
   let output = runWithCommand ["help"]
 
-  if Stdlib.String.contains output "Available commands:" &&
-      Stdlib.String.contains output "help" &&
-      Stdlib.String.contains output "version" &&
-      Stdlib.String.contains output "status" then
+  // Help is grouped by category now, so assert on the groups and a command from a few of them rather than
+  // on a heading that no longer exists.
+  //
+  // Assert the RENDERED ROW, not the bare word. `contains output "nav"` passed on the word "navigable" in
+  // the workbench's description, so it would have stayed green with the `nav` command deleted; "help",
+  // "version" and "status" all appear in other commands' descriptions too. The row shape
+  // (`  name (aliases) - `) is what `formatCommandGroup` emits and is unique per command.
+  if Stdlib.String.contains output "Packages:" &&
+      Stdlib.String.contains output "  nav (cd) -" &&
+      Stdlib.String.contains output "  ls (dir) -" &&
+      Stdlib.String.contains output "  version (--version, -v) -" &&
+      Stdlib.String.contains output "  status (wip, changes) -" then
       TestResult.Pass
   else
-    TestResult.Fail "Expected help text with available commands"
+    TestResult.Fail "Expected help grouped by category, with the nav/ls/version/status rows rendered"
 
 
 let testVersionCommand (): TestResult =
@@ -59,16 +71,17 @@ let testStatusCommand (): TestResult =
     TestResult.Fail "Expected status output with branch and uncommitted change summary"
 
 
-let testRunBoolAnd (): TestResult =
-  let output = runWithCommand ["run"; "@Stdlib.Bool.and true false"]
+let testEvalBoolAnd (): TestResult =
+  // `run` is for script files now; calling a package function is `eval`'s job, without the `@`.
+  let output = runWithCommand ["eval"; "Stdlib.Bool.and true false"]
   if output == "false" then
     TestResult.Pass
   else
     TestResult.Fail $"Expected 'false', got '{output}'"
 
 
-let testRunInt64Add (): TestResult =
-  let output = runWithCommand ["run"; "@Stdlib.Int64.add 5L 3L"]
+let testEvalInt64Add (): TestResult =
+  let output = runWithCommand ["eval"; "Stdlib.Int64.add 5L 3L"]
   if output == "8" then
     TestResult.Pass
   else
@@ -102,7 +115,6 @@ let testListFunctions (): TestResult =
 
 let testViewFunction (): TestResult =
   let output = runWithCommand ["view"; "Stdlib.List.head"]
-  Builtin.debug "output" output
   if Stdlib.String.contains output "head"
     && Stdlib.String.contains output "Option"
     && Stdlib.String.contains output "->"
@@ -123,20 +135,22 @@ let testListTypes (): TestResult =
 
 let testHelpForRun (): TestResult =
   let output = runWithCommand ["help"; "run"]
-  if Stdlib.String.contains output "run" &&
-      (Stdlib.String.contains output "function" || Stdlib.String.contains output "execute") then
-      TestResult.Pass
+  // `contains output "run"` is satisfied by the unknown-command fallback ("No help available for command:
+  // run"), so it can't tell "help worked" from "help failed". The usage line is topic-unique, and it also
+  // proves the `run` alias resolved to `run-script`, which is the rename this branch made.
+  if Stdlib.String.contains output "Usage: run-script" then
+    TestResult.Pass
   else
-    TestResult.Fail "Expected help text for 'run' command"
+    TestResult.Fail "Expected `help run` to resolve the alias and print run-script's usage"
 
 
 let testHelpForLs (): TestResult =
   let output = runWithCommand ["help"; "ls"]
-  if Stdlib.String.contains output "ls" &&
-      (Stdlib.String.contains output "list" || Stdlib.String.contains output "List") then
-      TestResult.Pass
+  // Same reasoning as `help run`: assert something only the real topic prints.
+  if Stdlib.String.contains output "Usage: ls" then
+    TestResult.Pass
   else
-    TestResult.Fail "Expected help text for 'ls' command"
+    TestResult.Fail "Expected `help ls` to print ls's usage"
 
 
 let testEvalSimpleExpression (): TestResult =
@@ -153,169 +167,3 @@ let testEvalStringExpression (): TestResult =
     TestResult.Pass
   else
     TestResult.Fail $"Expected 'helloworld', got '{output}'"
-
-
-let completionPickerState (itemCount: Int) : CompletionPicker.State =
-  let items =
-    Stdlib.List.range 1 itemCount
-    |> Stdlib.List.map (fun index ->
-      Completion.simple $"item-{Stdlib.Int.toString index}")
-  CompletionPicker.create "" items
-
-
-let testCompletionPickerTwoRows (): TestResult =
-  let size = Tui.Size { width = 80; height = 2 }
-  let state = completionPickerState 3
-  let layout = CompletionPicker.layoutAtSize state size
-  let view = CompletionPicker.viewAtSize state size
-
-  match Stdlib.List.last view.rows with
-  | Some helpRow ->
-    if layout.itemCapacity == 1
-       && Stdlib.Bool.not layout.showScrollIndicator
-       && Stdlib.List.length view.rows == 2
-       && Stdlib.String.contains helpRow "Enter"
-    then
-      TestResult.Pass
-    else
-      TestResult.Fail
-        "Two-row picker should show one item and one complete help row"
-  | None ->
-    TestResult.Fail "Two-row picker should include a help row"
-
-
-let testCompletionPickerNarrowHelp (): TestResult =
-  let width = CompletionPicker.minimumWidth
-  let help = CompletionPicker.helpTextAtWidth width
-
-  if CompletionPicker.supportsSize (Tui.Size { width = width; height = 2 })
-     && Stdlib.Bool.not
-          (CompletionPicker.supportsSize
-            (Tui.Size { width = width - 1; height = 2 }))
-     && help == CompletionPicker.minimumHelpText
-     && Tui.Text.displayWidth help <= width
-  then
-    TestResult.Pass
-  else
-    TestResult.Fail
-      "Narrow picker should use an untruncated minimum help row"
-
-
-let testCompletionPickerLongList (): TestResult =
-  let size = Tui.Size { width = 80; height = 3 }
-  let state = completionPickerState 5
-  let layout = CompletionPicker.layoutAtSize state size
-  let view = CompletionPicker.viewAtSize state size
-
-  if layout.itemCapacity == 1
-     && layout.showScrollIndicator
-     && Stdlib.List.length view.rows == 3
-  then
-    TestResult.Pass
-  else
-    TestResult.Fail
-      "Long picker should reserve rows for its indicator and help"
-
-
-let testFullscreenRowCancelsDeferredWrap (): TestResult =
-  let output =
-    Tui.Frame.renderRowChangeAtWidth
-      3
-      (Tui.Frame.RowChange { row = 0; content = "abc" })
-
-  if Stdlib.String.endsWith output "\r" then
-    TestResult.Pass
-  else
-    TestResult.Fail
-      "Fullscreen rows should return to column one after filling the terminal"
-
-
-type TestFunction = Unit -> TestResult
-
-let allTests (): List<String * TestFunction> =
-  [ ("Help", fun () -> testHelpCommand ())
-    ("Version", fun () -> testVersionCommand ())
-    ("Status", fun () -> testStatusCommand ())
-
-    ("Run Bool.and", fun () -> testRunBoolAnd ())
-    ("Run Int64.add", fun () -> testRunInt64Add ())
-
-    ("Eval String Length", fun () -> testEvalStringLength ())
-    ("Eval List Length", fun () -> testEvalListLength ())
-
-    ("List Functions", fun () -> testListFunctions ())
-    ("View Function", fun () -> testViewFunction ())
-    ("List Types", fun () -> testListTypes ())
-
-    ("Help for Run", fun () -> testHelpForRun ())
-    ("Help for Ls", fun () -> testHelpForLs ())
-
-    ("Eval Simple Expression", fun () -> testEvalSimpleExpression ())
-    ("Eval String Expression", fun () -> testEvalStringExpression ())
-
-    ("Completion Picker Two Rows", fun () -> testCompletionPickerTwoRows ())
-    ("Completion Picker Narrow Help", fun () -> testCompletionPickerNarrowHelp ())
-    ("Completion Picker Long List", fun () -> testCompletionPickerLongList ())
-    ("Fullscreen Deferred Wrap", fun () -> testFullscreenRowCancelsDeferredWrap ())
-  ]
-
-type TestSummary =
-  { totalTests: Int
-    passedTests: Int
-    failedTests: Int
-    failedTestNames: List<String> }
-
-// Sequential test execution - proven to be ~30-50% faster than parallel for CLI tests
-// due to process startup overhead and resource contention
-let runAllTests (): Int =
-  let tests = allTests ()
-
-  Stdlib.printLine ""
-  Stdlib.printLine "Darklang CLI Tests"
-  Stdlib.printLine "=================="
-
-  let initialSummary =
-    TestSummary
-      { totalTests = 0
-        passedTests = 0
-        failedTests = 0
-        failedTestNames = [] }
-
-  let finalSummary =
-    tests
-    |> Stdlib.List.fold initialSummary (fun summary (name, testFn) ->
-      Stdlib.printLine ""
-      Stdlib.printLine $"Running: {name} ..."
-
-      let newSummary =
-        { summary with totalTests = summary.totalTests + 1 }
-
-      match testFn () with
-      | Pass ->
-        Stdlib.printLine $"✓ PASS - {name}"
-        { newSummary with passedTests = newSummary.passedTests + 1 }
-      | Fail message ->
-        Stdlib.printLine $"✗ FAIL - {name}"
-        Stdlib.printLine $"  Reason: {message}"
-        { newSummary with
-            failedTests = newSummary.failedTests + 1
-            failedTestNames = Stdlib.List.push newSummary.failedTestNames name })
-
-  Stdlib.printLine ""
-  Stdlib.printLine "📊 Test Results Summary"
-  Stdlib.printLine "======================"
-  Stdlib.printLine $"Total tests:  {Stdlib.Int.toString finalSummary.totalTests}"
-  Stdlib.printLine $"Passed:       {Stdlib.Int.toString finalSummary.passedTests}"
-  Stdlib.printLine $"Failed:       {Stdlib.Int.toString finalSummary.failedTests}"
-
-  if finalSummary.failedTests == 0 then
-    Stdlib.printLine "🎉 All tests passed!"
-    0
-  else
-    Stdlib.printLine "🚨 Some tests failed!"
-    if Stdlib.Bool.not (Stdlib.List.isEmpty finalSummary.failedTestNames) then
-      Stdlib.printLine "Failed tests:"
-      finalSummary.failedTestNames
-      |> Stdlib.List.iter (fun testName ->
-        Stdlib.printLine $"  ✗ {testName}")
-    1

@@ -1,0 +1,88 @@
+// The workbench REPL's session bindings: `let x = ...` binds for the rest of the session by being re-injected
+// as a `let` chain around every later expression. The parse and injection halves are pure, so they're testable
+// directly. The value-capture half needs a running evaluator and lives in the CLI suite instead.
+
+// --- what binds ---
+Darklang.Cli.Repl.parseLetBinding "let x = 1" = Stdlib.Option.Option.Some(("x", "1"))
+
+Darklang.Cli.Repl.parseLetBinding "  let  ys  =  [ 1; 2 ]  " = Stdlib.Option.Option.Some(("ys", "[ 1; 2 ]"))
+
+Darklang.Cli.Repl.parseLetBinding "let _priv = 3" = Stdlib.Option.Option.Some(("_priv", "3"))
+
+// the right-hand side keeps its own `=`, so a record literal or a named argument survives
+Darklang.Cli.Repl.parseLetBinding "let r = f (a = 1)" = Stdlib.Option.Option.Some(("r", "f (a = 1)"))
+
+// --- what deliberately doesn't, and falls through to being evaluated ---
+Darklang.Cli.Repl.parseLetBinding "1 + 1" = Stdlib.Option.Option.None
+
+// a comparison typo, not a binding
+Darklang.Cli.Repl.parseLetBinding "let x == 3" = Stdlib.Option.Option.None
+
+// a pattern binding can't be re-injected by name
+Darklang.Cli.Repl.parseLetBinding "let (a, b) = t" = Stdlib.Option.Option.None
+
+Darklang.Cli.Repl.parseLetBinding "let x =" = Stdlib.Option.Option.None
+
+Darklang.Cli.Repl.parseLetBinding "letter = 3" = Stdlib.Option.Option.None
+
+Darklang.Cli.Repl.parseLetBinding "let 2x = 3" = Stdlib.Option.Option.None
+
+// --- when ⏎ moves down a line instead of running ---
+Darklang.Cli.Repl.openBracketDepth "Stdlib.List.map xs (fun x -> x" = 1
+Darklang.Cli.Repl.openBracketDepth "Stdlib.List.map xs (fun x -> x)" = 0
+Darklang.Cli.Repl.openBracketDepth "[ 1; [ 2 ]" = 1
+Darklang.Cli.Repl.openBracketDepth "1 + 1" = 0
+
+// Brackets inside a string literal aren't brackets.
+Darklang.Cli.Repl.openBracketDepth "Stdlib.String.contains s \"(\"" = 0
+Darklang.Cli.Repl.openBracketDepth "\"a\\\"(\"" = 0
+
+// An open bracket, or a line that ends in something nothing can follow.
+Darklang.Cli.Repl.wantsAnotherLine "Stdlib.List.map xs (fun x ->" = true
+Darklang.Cli.Repl.wantsAnotherLine "[ 1" = true
+Darklang.Cli.Repl.wantsAnotherLine "let x =" = true
+Darklang.Cli.Repl.wantsAnotherLine "xs |>" = true
+Darklang.Cli.Repl.wantsAnotherLine "if x then" = true
+Darklang.Cli.Repl.wantsAnotherLine "match x with" = true
+
+// A finished statement runs.
+Darklang.Cli.Repl.wantsAnotherLine "1 + 1" = false
+Darklang.Cli.Repl.wantsAnotherLine "let x = 1" = false
+Darklang.Cli.Repl.wantsAnotherLine "Stdlib.List.map xs (fun x -> x * 2L)" = false
+Darklang.Cli.Repl.wantsAnotherLine "" = false
+
+// Judged over the whole statement so far, not just the last line: this closes what the first line opened.
+Darklang.Cli.Repl.wantsAnotherLine "Stdlib.List.map xs\n  (fun x -> x * 2L)" = false
+
+// A keyword only counts as the whole last token, so a name that merely ends in one isn't mistaken for it.
+Darklang.Cli.Repl.wantsAnotherLine "outlet" = false
+Darklang.Cli.Repl.wantsAnotherLine "myIf" = false
+
+// --- the chain that re-establishes a session ---
+// An empty session evaluates exactly what you typed.
+Darklang.Cli.Repl.withBindings [] "x + 1" = "x + 1"
+
+(Darklang.Cli.Repl.withBindings
+  [ Darklang.Cli.Repl.Binding { name = "x"; source = "42"; value = "42"; captured = true } ]
+  "x + 1") = "let x = 42\nx + 1"
+
+// Order is load-bearing: a later binding may refer to an earlier one.
+(Darklang.Cli.Repl.withBindings
+  [ Darklang.Cli.Repl.Binding { name = "x"; source = "42"; value = "42"; captured = true }
+    Darklang.Cli.Repl.Binding { name = "y"; source = "x + 1"; value = "x + 1"; captured = false } ]
+  "y * 2") = "let x = 42\nlet y = x + 1\ny * 2"
+
+// Which is why a rebind keeps its position rather than moving to the end.
+(Darklang.Cli.Repl.upsert
+  [ Darklang.Cli.Repl.Binding { name = "x"; source = "1"; value = "1"; captured = true }
+    Darklang.Cli.Repl.Binding { name = "y"; source = "x + 1"; value = "x + 1"; captured = false } ]
+  (Darklang.Cli.Repl.Binding { name = "x"; source = "99"; value = "99"; captured = true })
+ |> Stdlib.List.map (fun b -> b.name ++ "=" ++ b.source)) = [ "x=99"; "y=x + 1" ]
+
+// --- reading `captureValue` back ---
+Darklang.Cli.Repl.readCaptured "ok:[1L; 2L]" = Stdlib.Option.Option.Some "[1L; 2L]"
+
+// anything that isn't `ok:` means "hold the expression instead"
+Darklang.Cli.Repl.readCaptured "err:no literal form" = Stdlib.Option.Option.None
+
+Darklang.Cli.Repl.readCaptured "" = Stdlib.Option.Option.None

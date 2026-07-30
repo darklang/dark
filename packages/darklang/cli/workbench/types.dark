@@ -1,0 +1,280 @@
+/// Workbench state, the view registry's shape, and the small helpers everything else leans on.
+///
+/// Part of `Darklang.Cli.Workbench`, split across files (see app.dark for the overview).
+module Darklang.Cli.Workbench
+
+type BodyItem =
+  { name: String
+    kind: String
+    isModule: Bool }
+
+/// A search result the user can jump to: the containing module path (owner + modules), the leaf name, its kind,
+/// and a pre-formatted display line.
+type SearchHit =
+  { modules: List<String>
+    name: String
+    kind: String
+    display: String }
+
+type State =
+  { activeView: Int
+    location: Packages.PackageLocation
+    items: List<BodyItem>
+    selected: Int
+    focus: UI.SplitPane.Focus
+    detailScroll: Int
+    /// When Some, a full-body reader is open (e.g. a Docs topic); its text scrolls via detailScroll.
+    reading: Stdlib.Option.Option<String>
+    /// Whether the open reader's content is Dark code (so it gets syntax-highlighted). False for docs/help/
+    /// search/ops which aren't code.
+    readingIsCode: Bool
+    /// When Some, a single-line text prompt is open (e.g. a commit message).
+    input: Stdlib.Option.Option<InputState>
+    /// When Some, the multiline editor is open (authoring a fn body).
+    editing: Stdlib.Option.Option<EditingState>
+    accountId: Stdlib.Option.Option<Uuid>
+    accountName: String
+    /// This instance's human name for the context line - config `instance.name` if set, else the machine
+    /// hostname. Each instance also registers a UUID (`instance.id`) in config on first run.
+    instanceName: String
+    /// A transient status message (e.g. "committed", "saved foo") shown in the footer after a write action,
+    /// then cleared on the next keypress. "" = nothing to show.
+    message: String
+    /// When non-empty, the search-results mode is open: a jumpable list of matches. `searchSelected` is the
+    /// cursor into it; Enter navigates to the hit's location.
+    searchHits: List<SearchHit>
+    searchSelected: Int
+    /// When true, the `?` keymap overlay is drawn centered over the frame, its interior cleared so nothing
+    /// shows through. Any key closes it.
+    showHelp: Bool
+    /// When true, the ` view-picker overlay is open - a jumpable list of all views (since 1-9 only reach the
+    /// first nine). `pickerSelected` is the cursor into viewNames.
+    viewPicker: Bool
+    pickerSelected: Int
+    /// `:` command bar: which completion in the dropdown is highlighted (↑↓ move, tab accepts it). Reset to 0
+    /// whenever the text changes.
+    completionSel: Int
+    /// SCM view: which section is active - 0 Changes, 1 History, 2 Conflicts, 3 Branches. Tab cycles it.
+    scmSection: Int
+    /// AI view: which section is active - 0 Agents, 1 Prompts. Tab cycles it.
+    aiSection: Int
+    /// The gated views (Devices, Crons, Calendar, ...) enabled for this account, computed once at launch from
+    /// (see `viewSpecs` / `gateEnabled`). Hidden gated views drop out of the tab bar, number keys,
+    /// [ ]/cycle, and the picker.
+    enabledGatedViews: List<Int>
+    /// Names of items with uncommitted edits, and of deprecated items in the current module.
+    ///
+    /// Cached rather than read in the renderer. Both are DB reads, the renderer runs on every keypress, and
+    /// rendering has to stay a pure function of state for frame diffing to be sound. Refreshed on transitions
+    /// by `refreshBadges`.
+    wipNames: List<String>
+    deprecatedNames: List<String>
+    /// The tree-native view peek: the captured output of the selected `render` fn, or "" when the selection
+    /// isn't one.
+    ///
+    /// Cached for the same reason as the badges above, and more urgently: this one runs *user code*, and the
+    /// renderer has to stay a pure function of state for frame diffing to be sound. Refreshed on transitions
+    /// by `refreshPeek`.
+    renderPeek: String
+    /// Scratch view: the eval log, newest last, each entry already rendered (the `> expr` and its result lines).
+    scratchLog: List<String>
+    /// REPL session bindings, in the order they were first bound. `let x = ...` at the REPL records one, and
+    /// every later expression is evaluated with them in scope (see `Darklang.Cli.Repl`). Session-lived: they
+    /// go away when the CLI exits.
+    replBindings: List<Darklang.Cli.Repl.Binding>
+    /// The result of the last REPL expression, unstyled - what the session pane shows under "last result".
+    /// Held rather than scraped back out of `scratchLog`, which is display text.
+    replLast: String
+    /// Lines of a multi-line REPL statement typed so far, each ended with a `\`. Empty except while one is
+    /// being assembled; the next unbackslashed line completes it and the whole thing runs as one statement.
+    replPending: String
+    /// Matter view: "all" shows the whole tree; "values" filters to values only (the Values lens, `v`).
+    matterLens: String
+    /// In-view find-as-you-type filter (`f`); "" = no filter. Narrows the current list by substring.
+    filter: String
+    branchId: Uuid }
+
+/// A single-line text entry. `action` tags what Enter does (e.g. "commit").
+type InputState =
+  { prompt: String
+    text: String
+    action: String }
+
+/// The multiline editor's state: the item kind ("fn"/"type"/"value"), the fully-qualified name being
+/// authored, the text buffer, and a last-error line.
+type EditingState =
+  { kind: String
+    nameStr: String
+    /// The module (owner.Module...) the item saves into - from the tree location, or asked for when you're too
+    /// shallow to have one. Lets you author from anywhere, not just inside a module.
+    targetModule: List<String>
+    buf: UI.Editor.Buf
+    err: String }
+
+type Step =
+  | Continue of State
+  | Exit of State
+  /// Hand off to a foreground command (e.g. a full-screen app opened from the Apps view). The CLI pushes the
+  /// workbench and returns to it when that command's page exits. Carries the workbench State to return to.
+  | Launch of State * String
+  /// Drop to the classic prompt (`:classic`), pushing the workbench so `quit` there returns here.
+  | ToPrompt of State
+
+/// A composable view - everything the frame needs to show a tab, in one self-contained value. The core
+/// dispatch (visibleViews / itemsForView / previewLines / renderViewBody / hintsForView) is generic over a
+/// list of these, so a new view is one registry entry (see `extensionViews`), not edits scattered across the
+/// file. Modeled on `Cli.Registry.CommandHandler`, which stores its behavior as function-typed fields too.
+/// The built-in views (indices 0-9) still live inline in the core because it owns their custom key handling;
+/// this registry is how the *extensible* surface (opt-in / per-account / greenfield views) composes on top
+/// without the core ever naming them.
+type ViewDef =
+  { /// stable slug (e.g. "errors") - identity independent of tab position
+    id: String
+    /// tab-bar label
+    name: String
+    /// "" = always visible; anything else marks the view gated (shown only to `gatedViewAccounts`)
+    gateKey: String
+    /// the selectable rows (for the shared cursor + list pane); Unit-in since extension views are self-contained
+    loadItems: Unit -> List<BodyItem>
+    /// the body's spans for the region (returned, not printed, so frames can be diffed)
+    render: State -> UI.Layout.Region -> List<UI.Layout.Span>
+    /// preview/detail lines for the selected row
+    detail: State -> List<String>
+    /// context key-hints for the footer
+    hints: State -> List<(String * String)> }
+
+
+// ── View indices (single source of truth - must match Frame.viewNames order) ──
+// Kept as vals so the scattered dispatch reads by name, not magic number, and reordering is one place.
+val vHome = 0
+val vMatter = 1
+val vScratch = 3
+val vSCM = 4
+val vDevices = 5
+val vAI = 6
+val vApps = 7
+val vTraces = 8
+val vDocs = 9
+// Indices 10+ belong to *extension* views and aren't named here - they're positions in `extensionViews ()`
+// (index = baseViewCount + position). The core never references them by name; that's the point.
+val baseViewCount = 10
+
+/// The built-in views, in tab order, each with its gate ("" = always visible; else a config key). Devices is
+/// the one gated built-in (most instances are local-only). Extension views (Errors/Crons/Calendar/…) are NOT
+/// here - they compose in via `extensionViews` and get appended after these.
+// Inspect (index 2) was folded into Matter's preview, so it's no longer a tab. The constant + Frame name stay
+// (harmless), but it's absent here, so it drops out of the tab bar / number keys / picker. Indices don't need
+// to be contiguous - SCM stays 4, so the frame's SCM-badge literal is untouched.
+val baseViewSpecs =
+  [ (vHome, "")
+    (vMatter, "")
+    (vScratch, "")
+    (vSCM, "")
+    (vDevices, "devices.enabled")
+    (vAI, "")
+    (vApps, "")
+    (vTraces, "")
+    (vDocs, "") ]
+
+/// The accounts a gated view is for. Half-built surfaces (Devices, Crons, Calendar, the internal Builtins
+/// tier) show for us and nobody else.
+val gatedViewAccounts = [ "stachu"; "feriel" ]
+
+/// Does this account see the gated views?
+///
+/// This was a per-key config lookup, so each gated view could be switched on by name or for everyone. That
+/// was machinery ahead of a need: there is exactly one rule today, which is "is this one of the two people
+/// building it". A config key can come back when someone actually wants a third answer.
+let gateEnabled (accountName: String) : Bool =
+  Stdlib.List.member gatedViewAccounts (Stdlib.String.toLowercase accountName)
+
+/// Every view as (absolute index, tab label, gate key) - built-ins then composed extensions. The single place
+/// that unifies the base views and the registry; all navigation/gating/labels derive from this list, so the
+/// core never enumerates views by name.
+let viewSpecs () : List<(Int * String * String)> =
+  let base =
+    baseViewSpecs
+    |> Stdlib.List.map (fun pair ->
+      let (i, g) = pair
+      (i, Frame.viewName i, g))
+  let exts =
+    extensionViews ()
+    |> Stdlib.List.indexedMap (fun i vd -> (baseViewCount + i, vd.name, vd.gateKey))
+  Stdlib.List.append base exts
+
+/// The extension `ViewDef` at an absolute view index (None for a built-in, or out of range).
+let extensionViewAt (idx: Int) : Stdlib.Option.Option<ViewDef> =
+  if idx < baseViewCount then
+    Stdlib.Option.Option.None
+  else
+    Stdlib.List.getAt (extensionViews ()) (idx - baseViewCount)
+
+/// The tab label for any view index - built-in table or extension registry.
+let viewLabel (idx: Int) : String =
+  match extensionViewAt idx with
+  | Some vd -> vd.name
+  | None -> Frame.viewName idx
+
+/// Which gated views (Devices, Crons, Calendar, ...) this account has switched on.
+///
+/// Computed at launch (and again after a login change) rather than per frame.
+let gatedViewsFor (accountName: String) : List<Int> =
+  viewSpecs ()
+  |> Stdlib.List.filter (fun spec ->
+    let (_i, _n, g) = spec
+    (g != "") && (gateEnabled accountName))
+  |> Stdlib.List.map (fun spec ->
+    let (i, _n, _g) = spec
+    i)
+
+
+/// Re-read the gates for a running workbench.
+let recomputeGatedViews (state: State) : List<Int> =
+  gatedViewsFor state.accountName
+
+
+/// The view indices shown in the tab bar, in `viewSpecs` order. A view shows if it isn't gated, or it's
+/// gated and enabled for this account (see `enabledGatedViews`, recomputed on launch and after a config
+/// change).
+let visibleViews (state: State) : List<Int> =
+  viewSpecs ()
+  |> Stdlib.List.filter (fun spec ->
+    let (i, _n, g) = spec
+    (g == "") || (Stdlib.List.member state.enabledGatedViews i))
+  |> Stdlib.List.map (fun spec ->
+    let (i, _n, _g) = spec
+    i)
+
+
+/// Run `f` with anything it writes to stdout captured, and hand back both its value and that output. The
+/// single place `Builtin.stdoutCapture*` is used, so the many "run a command, show its output inside the
+/// frame" sites go through one wrapper instead of each touching the builtins directly.
+///
+/// Capturing is not optional in here. The workbench owns the whole screen, so a stray `printLine` from
+/// inside a command scrolls the alternate screen, and every frame after it lands that many rows off - which
+/// looks like two overlapping copies of the UI, not like a missing line. `cliEvaluateExpression` prints a
+/// three-line call-stack header on any runtime error, so this is reachable by typing a typo at the REPL.
+let captureOutputAnd (f: Unit -> 'a) : ('a * String) =
+  // `stdoutCaptureStart` returns false when a capture is ALREADY open, and deliberately changes nothing in
+  // that case - so we don't own the buffer and must not stop it. Calling stop regardless would hand the
+  // outer capture's collected output to the inner caller and clear the flag, so everything the outer one
+  // was collecting would print straight onto the alternate screen: exactly the corruption capturing exists
+  // to prevent. Nothing nests today, but this is a one-line guard against a hard-to-see failure.
+  let owned = Builtin.stdoutCaptureStart ()
+  let value = f ()
+  if owned then (value, Builtin.stdoutCaptureStop ()) else (value, "")
+
+/// `captureOutputAnd` when only the output matters (running a classic command for its printed result).
+let captureOutput (f: Unit -> 'a) : String =
+  let (_value, output) = captureOutputAnd f
+  output
+
+
+/// A throwaway classic-CLI AppState carrying just this workbench's identity (branch + account) for handing to
+/// the classic command Registry (executeCommand / getCompletions / getCompletionHint). Everything else is the
+/// init default; the workbench only ever needs those three fields to run a command on the right branch as you.
+let classicState (state: State) : Darklang.Cli.AppState =
+  { (Darklang.Cli.initState ()) with
+      currentBranchId = state.branchId
+      accountID = state.accountId
+      accountName = state.accountName }

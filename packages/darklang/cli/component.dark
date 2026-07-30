@@ -59,7 +59,11 @@ let toSubApp
       onTerminate =
         fun () ->
           let _stopped = Tui.TerminalSession.stop terminal
-          () }
+          ()
+      onResume =
+        fun () ->
+          // A Component renders without consulting the size, so the view is the same at any of them.
+          toSubApp c state (Tui.TerminalSession.resumed (fun _size -> view c state)) }
 
 
 /// Launch `c` (starting at `init`) as the CLI's current full-screen page.

@@ -2283,10 +2283,21 @@ let functionDeclarations =
       []
       false
 
+    // `()` is stored as one parameter named `_` of type Unit, and prints back as `()`.
     t
       "single unit param"
       "let emptyString () : String = \"\""
-      "let emptyString (_: Unit): String =\n  \"\""
+      "let emptyString (): String =\n  \"\""
+      []
+      []
+      []
+      false
+
+    // The long form parses to the same thing and normalizes to `()`, so either spelling round-trips.
+    t
+      "single unit param, written long"
+      "let emptyString (_: Unit) : String = \"\""
+      "let emptyString (): String =\n  \"\""
       []
       []
       []

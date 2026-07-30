@@ -1,0 +1,234 @@
+/// Key handling for the modal layers that sit above a view: overlays, the editor, input modes, the
+/// reader, and search results. The dispatcher that routes between them is at the bottom of keys-view.dark.
+///
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
+
+/// The view-picker overlay (backtick). Arrows or j/k move, Enter or a digit jumps, esc closes.
+///
+/// `pickerSelected` is a position into the *visible* views, not a view index: gated views are hidden, so the
+/// two don't line up.
+let handleViewPickerKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Step =
+  // View-picker overlay: ↑↓/j/k move, ⏎ or a digit jumps, esc closes. pickerSelected is a POSITION into the
+  // visible views (Devices hidden unless opted in).
+  let vis = visibleViews state
+  let nviews = Stdlib.List.length vis
+  // Wraps: it's a short closed menu, so ↑ from the top means "the bottom one" rather than "nothing happens".
+  // (Scrolling lists clamp instead - there, wrapping loses your place in something long.)
+  let moveTo (i: Int) =
+    let wrapped =
+      if nviews == 0 then 0
+      else if i < 0 then nviews - 1
+      else if i >= nviews then 0
+      else i
+    Step.Continue { state with pickerSelected = wrapped }
+  let jump (pos: Int) =
+    match Stdlib.List.getAt vis pos with
+    | Some v ->
+      match switchView { state with viewPicker = false } v with
+      | Continue s -> Step.Continue s
+      | Exit s -> Step.Exit s
+      | Launch(s, cmd) -> Step.Launch(s, cmd)
+      | ToPrompt s -> Step.ToPrompt s
+    | None -> Step.Continue { state with viewPicker = false }
+  match key with
+  | UpArrow -> moveTo (state.pickerSelected - 1)
+  | DownArrow -> moveTo (state.pickerSelected + 1)
+  | Enter -> jump state.pickerSelected
+  | Escape -> Step.Continue { state with viewPicker = false }
+  | _ ->
+    match keyChar with
+    | Some "k" -> moveTo (state.pickerSelected - 1)
+    | Some "j" -> moveTo (state.pickerSelected + 1)
+    | Some "q" -> Step.Continue { state with viewPicker = false }
+    | Some s ->
+      match Stdlib.Int.parse s with
+      | Ok d -> if d >= 1 && d <= nviews then jump (d - 1) else Step.Continue state
+      | Error _ -> Step.Continue state
+    | None -> Step.Continue state
+
+
+/// Editor mode. Ctrl+S saves; other Ctrl combos are swallowed so they can't insert control characters.
+let handleEditorKey
+  (state: State)
+  (es: EditingState)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Step =
+  // Editor mode. Ctrl+S saves; other Ctrl combos are ignored (so they don't insert control chars).
+  if modifiers.ctrl && key == Stdlib.Cli.Stdin.Key.Key.S then
+    saveEditing state es
+  else if modifiers.ctrl && key == Stdlib.Cli.Stdin.Key.Key.K then
+    Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.killToLineEnd es.buf } }
+  else if modifiers.ctrl then
+    Step.Continue state
+  else
+    match key with
+    | Escape -> Step.Continue { state with editing = Stdlib.Option.Option.None }
+    | Enter ->
+      Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.newline es.buf } }
+    | Backspace ->
+      Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.backspace es.buf } }
+    | UpArrow ->
+      Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.moveUp es.buf } }
+    | DownArrow ->
+      Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.moveDown es.buf } }
+    | LeftArrow ->
+      Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.moveLeft es.buf } }
+    | RightArrow ->
+      Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.moveRight es.buf } }
+    | Delete ->
+      Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.deleteForward es.buf } }
+    | Home ->
+      Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.moveLineStart es.buf } }
+    | End ->
+      Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.moveLineEnd es.buf } }
+    | Tab ->
+      Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.insertChar es.buf "  " } }
+    | _ ->
+      match keyChar with
+      | Some ch ->
+        if ch != "" then
+          Step.Continue { state with editing = Stdlib.Option.Option.Some { es with buf = UI.Editor.insertText es.buf ch } }
+        else
+          Step.Continue state
+      | None -> Step.Continue state
+
+
+/// A single-line input mode (the `:` bar, commit messages, filters, ...).
+let handleInputKey
+  (state: State)
+  (inp: InputState)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Step =
+  // Input mode: type into the single-line field; Enter runs the action, Esc cancels.
+  //
+  // ^u clears the field, readline-style. These prompts pre-fill (the filter with the current filter, rename
+  // with the current name), so without it "replace what's here" meant one backspace per character.
+  if modifiers.ctrl && key == Stdlib.Cli.Stdin.Key.Key.U then
+    Step.Continue { state with input = Stdlib.Option.Option.Some { inp with text = "" }; completionSel = 0 }
+  else
+  match key with
+  | Enter -> performInputAction state inp
+  // Cancel, not clear: Escape closes the prompt and changes nothing, which is what it means in every other
+  // input mode here. An active filter survives it - `f`, `^u`, ⏎ is how you drop one.
+  // A half-typed multi-line REPL statement goes with the prompt it was being typed into; leaving it behind
+  // would silently prefix whatever you typed next.
+  | Escape -> Step.Continue { state with input = Stdlib.Option.Option.None; replPending = "" }
+  | Backspace ->
+    let t = inp.text
+    let nt =
+      if Stdlib.String.length t > 0 then Stdlib.String.slice t 0 ((Stdlib.String.length t) - 1)
+      else t
+    Step.Continue { state with input = Stdlib.Option.Option.Some { inp with text = nt }; completionSel = 0 }
+  | UpArrow ->
+    // Command bar: move up in the completion dropdown.
+    if inp.action == "command" then Step.Continue { state with completionSel = Stdlib.Int.max 0 (state.completionSel - 1) }
+    else Step.Continue state
+  | DownArrow ->
+    if inp.action == "command" then
+      let n = Stdlib.List.length (commandCompletions state inp.text)
+      Step.Continue { state with completionSel = Stdlib.Int.min (Stdlib.Int.max 0 (n - 1)) (state.completionSel + 1) }
+    else Step.Continue state
+  | Tab ->
+    // Command bar: accept the highlighted dropdown item (defaults to the top / ghost match).
+    if inp.action == "command" then
+      match Stdlib.List.getAt (commandCompletions state inp.text) state.completionSel with
+      | Some item ->
+        Step.Continue
+          { state with
+              input = Stdlib.Option.Option.Some { inp with text = applyCompletionValue inp.text item.value }
+              completionSel = 0 }
+      | None ->
+        let hint = commandCompletionHint state inp.text
+        if hint == "" then Step.Continue state
+        else Step.Continue { state with input = Stdlib.Option.Option.Some { inp with text = inp.text ++ hint } }
+    else Step.Continue state
+  | _ ->
+    match keyChar with
+    | Some ch ->
+      if ch != "" then
+        Step.Continue { state with input = Stdlib.Option.Option.Some { inp with text = inp.text ++ ch }; completionSel = 0 }
+      else
+        Step.Continue state
+    | None -> Step.Continue state
+
+
+/// The full-screen reader (docs, source, ops, captured command output).
+let handleReaderKey
+  (state: State)
+  (content: String)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Step =
+  // Reader mode: ↑↓/j/k scroll a line, PgUp/PgDn a screenful, g/G to the ends, Esc/q closes it.
+  let scrollUp = Step.Continue { state with detailScroll = Stdlib.Int.max 0 (state.detailScroll - 1) }
+  let scrollDown = Step.Continue { state with detailScroll = state.detailScroll + 1 }
+  let close = Step.Continue { state with reading = Stdlib.Option.Option.None; detailScroll = 0 }
+  // A page is the terminal height less the chrome, so it lands roughly where your eye already is. Reading a
+  // 200-line doc one line at a time is not reading.
+  let (_w, h) = Terminal.getSize ()
+  let page = Stdlib.Int.max 1 (h - 6)
+  let pageUp =
+    Step.Continue { state with detailScroll = Stdlib.Int.max 0 (state.detailScroll - page) }
+  let pageDown = Step.Continue { state with detailScroll = state.detailScroll + page }
+  match key with
+  | UpArrow -> scrollUp
+  | DownArrow -> scrollDown
+  | PageUp -> pageUp
+  | PageDown -> pageDown
+  | Escape -> close
+  | _ ->
+    match keyChar with
+    | Some "q" -> close
+    | Some "k" -> scrollUp
+    | Some "j" -> scrollDown
+    | Some "g" -> Step.Continue { state with detailScroll = 0 }
+    | Some "G" ->
+      let maxScroll = Stdlib.Int.max 0 ((Stdlib.List.length (Stdlib.String.split content "\n")) - 1)
+      Step.Continue { state with detailScroll = maxScroll }
+    | Some ":" ->
+      // Keep issuing: `:` from the reader closes it and opens a fresh command bar, so successive commands
+      // don't need an esc between them.
+      Step.Continue
+        { state with
+            reading = Stdlib.Option.Option.None
+            detailScroll = 0
+            completionSel = 0
+            input = Stdlib.Option.Option.Some (InputState { prompt = ": "; text = ""; action = "command" }) }
+    | _ -> Step.Continue state
+
+
+/// The search-results list, which owns the keyboard until you jump or close it.
+let handleSearchResultsKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Step =
+  // Search-results mode: ↑↓/j/k move, ⏎ jumps to the hit, Esc closes.
+  let n = Stdlib.List.length state.searchHits
+  let moveTo (i: Int) = Step.Continue { state with searchSelected = Stdlib.Int.max 0 (Stdlib.Int.min (n - 1) i) }
+  let closeSearch = Step.Continue { state with searchHits = []; searchSelected = 0 }
+  match key with
+  | UpArrow -> moveTo (state.searchSelected - 1)
+  | DownArrow -> moveTo (state.searchSelected + 1)
+  | Escape -> closeSearch
+  | Enter ->
+    match Stdlib.List.getAt state.searchHits state.searchSelected with
+    | Some hit -> jumpToHit state hit
+    | None -> closeSearch
+  | _ ->
+    match keyChar with
+    | Some "k" -> moveTo (state.searchSelected - 1)
+    | Some "j" -> moveTo (state.searchSelected + 1)
+    | Some "g" -> moveTo 0
+    | Some "G" -> moveTo (n - 1)
+    | Some "q" -> closeSearch
+    | _ -> Step.Continue state

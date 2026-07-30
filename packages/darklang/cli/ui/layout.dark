@@ -1,0 +1,222 @@
+module Darklang.Cli.UI.Layout
+
+
+// --- Types ---
+
+/// What a component wants.
+type SizeRequest =
+  { minRows: Int
+    minCols: Int
+    preferredRows: Int
+    preferredCols: Int }
+
+/// What a component gets.
+type Region =
+  { top: Int
+    left: Int
+    rows: Int
+    cols: Int }
+
+/// Text to place at a zero-based terminal position. `Canvas` paints these onto a grid of rows.
+type Span =
+  { row: Int
+    col: Int
+    text: String }
+
+/// A renderable component that can negotiate its size.
+///
+/// `render` returns spans rather than printing. That's what lets a frame be compared against the previous
+/// one and drawn as a handful of row rewrites instead of a clear plus a few hundred writes.
+type Component =
+  { sizeRequest: Unit -> SizeRequest
+    render: Region -> List<Span> }
+
+
+// --- Rendering primitives ---
+
+/// Place text at `(row, col)` within a region, clipped to what the region can hold.
+///
+/// Replaces the old `printAt` / `printAtVisible` pair. There's no longer a fast-but-wrong variant: clipping
+/// goes through `Tui.Text`, which counts terminal columns and leaves SGR sequences alone, so a coloured or
+/// wide-glyph row is measured correctly. The old `printAt` used `String.length`, which counts grapheme
+/// clusters, not columns: `界` and a ZWJ emoji each count 1 but occupy 2, so CJK or emoji content pushed the
+/// rest of its row sideways.
+let at (region: Region) (row: Int) (col: Int) (text: String) : List<Span> =
+  if row >= 0 && row < region.rows && col >= 0 && col < region.cols then
+    [ Span
+        { row = region.top + row - 1
+          col = region.left + col - 1
+          text =
+            // Clipping is native but not free; most spans already fit, and measuring is one call.
+            let room = Stdlib.Int.max 0 (region.cols - col)
+            if Tui.Text.styledWidth text <= room then text
+            else Tui.Text.clipToWidth text room } ]
+  else
+    []
+
+
+/// Fill a row with a repeated character, within the region.
+let fillRow (region: Region) (row: Int) (ch: String) : List<Span> =
+  at region row 0 (Stdlib.String.repeat ch region.cols)
+
+/// Blank the whole region.
+///
+/// Still emits spaces rather than nothing: a composed frame starts blank, but a region drawn *over* other
+/// content (an overlay) has to actually erase what's under it.
+let clearRegion (region: Region) : List<Span> =
+  (Stdlib.List.range 0 (region.rows - 1))
+  |> Stdlib.List.map (fun row -> fillRow region row " ")
+  |> Stdlib.List.flatten
+
+
+// --- Layout negotiation ---
+
+/// Distribute `totalRows` among components based on their size requests.
+/// Each gets at least min, then remaining space is split toward preferred.
+let distributeRows (totalRows: Int) (requests: List<SizeRequest>) : List<Int> =
+  let count = Stdlib.List.length requests
+  if count == 0 then
+    []
+  else
+    // First pass: give everyone their minimum
+    let mins = Stdlib.List.map requests (fun r -> r.minRows)
+    let totalMin = Stdlib.List.fold mins 0 (fun acc n -> acc + n)
+    let remaining = Stdlib.Int.max 0 (totalRows - totalMin)
+    // Second pass: distribute remaining toward preferred, proportionally
+    let wants =
+      Stdlib.List.map requests (fun r ->
+        Stdlib.Int.max 0 (r.preferredRows - r.minRows))
+    let totalWant = Stdlib.List.fold wants 0 (fun acc n -> acc + n)
+    if totalWant == 0 then
+      mins
+    else
+      // Give each component its min + share of remaining proportional to want
+      (Stdlib.List.map2 mins wants (fun minR want ->
+        let share =
+          if totalWant > 0 then
+            Stdlib.Int.divide (want * remaining) totalWant
+          else
+            0
+        minR + share))
+      |> Stdlib.Option.withDefault mins
+
+
+// --- Layout combinators ---
+
+/// Stack components vertically within a region.
+/// Negotiates row distribution based on size requests.
+let vstack (region: Region) (components: List<Component>) : List<Span> =
+  let requests = Stdlib.List.map components (fun c -> c.sizeRequest ())
+  let rowAllocs = distributeRows region.rows requests
+  // Assign regions and render
+  let pairs =
+    (Stdlib.List.map2 components rowAllocs (fun c rows ->
+      (c, rows)))
+    |> Stdlib.Option.withDefault []
+  let (_finalTop, spans) =
+    pairs
+    |> Stdlib.List.fold (region.top, []) (fun acc pair ->
+      let (currentTop, collected) = acc
+      let (c, rows) = pair
+      let childRegion =
+        Region
+          { top = currentTop
+            left = region.left
+            rows = rows
+            cols = region.cols }
+      (currentTop + rows, Stdlib.List.append collected (c.render childRegion)))
+  spans
+
+/// A fixed-height component: always requests exactly N rows.
+let fixedSize (n: Int) (renderFn: Region -> List<Span>) : Component =
+  Component
+    { sizeRequest = fun () ->
+        SizeRequest { minRows = n; minCols = 0; preferredRows = n; preferredCols = 0 }
+      render = renderFn }
+
+/// A flexible component: needs at least `min` rows, prefers `preferred`.
+let flex (min: Int) (preferred: Int) (renderFn: Region -> List<Span>) : Component =
+  Component
+    { sizeRequest = fun () ->
+        SizeRequest { minRows = min; minCols = 0; preferredRows = preferred; preferredCols = 0 }
+      render = renderFn }
+
+/// A greedy component: wants all available space, min 1 row.
+let greedy (renderFn: Region -> List<Span>) : Component =
+  Component
+    { sizeRequest = fun () ->
+        SizeRequest { minRows = 1; minCols = 0; preferredRows = 999; preferredCols = 0 }
+      render = renderFn }
+
+
+// --- Horizontal layout (mirror of the vertical combinators above) ---
+
+/// Distribute `totalCols` among components based on their size requests.
+/// Each gets at least min, then remaining space is split toward preferred.
+let distributeCols (totalCols: Int) (requests: List<SizeRequest>) : List<Int> =
+  let count = Stdlib.List.length requests
+  if count == 0 then
+    []
+  else
+    let mins = Stdlib.List.map requests (fun r -> r.minCols)
+    let totalMin = Stdlib.List.fold mins 0 (fun acc n -> acc + n)
+    let remaining = Stdlib.Int.max 0 (totalCols - totalMin)
+    let wants =
+      Stdlib.List.map requests (fun r ->
+        Stdlib.Int.max 0 (r.preferredCols - r.minCols))
+    let totalWant = Stdlib.List.fold wants 0 (fun acc n -> acc + n)
+    if totalWant == 0 then
+      mins
+    else
+      (Stdlib.List.map2 mins wants (fun minC want ->
+        let share =
+          if totalWant > 0 then
+            Stdlib.Int.divide (want * remaining) totalWant
+          else
+            0
+        minC + share))
+      |> Stdlib.Option.withDefault mins
+
+
+/// Place components side by side within a region.
+/// Negotiates column distribution based on size requests.
+let hstack (region: Region) (components: List<Component>) : List<Span> =
+  let requests = Stdlib.List.map components (fun c -> c.sizeRequest ())
+  let colAllocs = distributeCols region.cols requests
+  let pairs =
+    (Stdlib.List.map2 components colAllocs (fun c cols -> (c, cols)))
+    |> Stdlib.Option.withDefault []
+  let (_finalLeft, spans) =
+    pairs
+    |> Stdlib.List.fold (region.left, []) (fun acc pair ->
+      let (currentLeft, collected) = acc
+      let (c, cols) = pair
+      let childRegion =
+        Region
+          { top = region.top
+            left = currentLeft
+            rows = region.rows
+            cols = cols }
+      (currentLeft + cols, Stdlib.List.append collected (c.render childRegion)))
+  spans
+
+/// A fixed-width component: always requests exactly N cols; fills the region's height.
+let fixedWidth (n: Int) (renderFn: Region -> List<Span>) : Component =
+  Component
+    { sizeRequest = fun () ->
+        SizeRequest { minRows = 1; minCols = n; preferredRows = 999; preferredCols = n }
+      render = renderFn }
+
+/// A flexible-width component: needs at least `min` cols, prefers `preferred`.
+let flexWidth (min: Int) (preferred: Int) (renderFn: Region -> List<Span>) : Component =
+  Component
+    { sizeRequest = fun () ->
+        SizeRequest { minRows = 1; minCols = min; preferredRows = 999; preferredCols = preferred }
+      render = renderFn }
+
+/// A greedy-width component: wants all available width, min 1 col.
+let greedyWidth (renderFn: Region -> List<Span>) : Component =
+  Component
+    { sizeRequest = fun () ->
+        SizeRequest { minRows = 1; minCols = 1; preferredRows = 999; preferredCols = 999 }
+      render = renderFn }

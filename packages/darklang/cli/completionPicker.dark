@@ -154,8 +154,11 @@ let viewAtSize
   }
 
 
-/// Move selection up, keeping it within a viewport of `capacity` rows.
-let moveUpWithCapacity (capacity: Int) (state: State) : State =
+/// Move selection up, pulling the scroll offset down with it if it would go off the top.
+///
+/// Takes no capacity, unlike `moveDownWithCapacity`: moving up can only ever pull the offset down, and
+/// `effectiveOffset` re-clamps against the live size at render time anyway.
+let moveUp (state: State) : State =
   if state.selectedIndex > 0 then
     let newIndex = state.selectedIndex - 1
 
@@ -207,7 +210,7 @@ let handleKeyAtSize
     match key with
     | UpArrow ->
       KeyResult.Continue
-        (moveUpWithCapacity capacity state)
+        (moveUp state)
     | DownArrow ->
       KeyResult.Continue
         (moveDownWithCapacity capacity state)

@@ -62,38 +62,47 @@ module DisplayWidth =
     value >= 0x1F1E6 && value <= 0x1F1FF
 
   let private clusterWidth (cluster : string) : int =
-    let mutable runes = cluster.EnumerateRunes()
-    let mutable widestScalar = 0
-    let mutable regionalIndicators = 0
-    let mutable hasEmojiVariationSelector = false
-
-    while runes.MoveNext() do
-      let rune = runes.Current
-      let value = rune.Value
-
-      if isRegionalIndicator value then regionalIndicators <- regionalIndicators + 1
-
-      if value = 0xFE0F then hasEmojiVariationSelector <- true
-
-      let scalarWidth =
-        Wcwidth.UnicodeCalculator.GetWidth(
-          rune,
-          System.Nullable Wcwidth.Unicode.Version_17_0_0
-        )
-        |> max 0
-
-      widestScalar <- max widestScalar scalarWidth
-
-    if regionalIndicators >= 2 then
-      // Regional indicators are individually narrow but flag pairs occupy one
-      // wide terminal glyph.
-      2
-    elif hasEmojiVariationSelector && widestScalar = 1 then
-      // VS16 requests emoji presentation for otherwise narrow characters such
-      // as U+2764 HEAVY BLACK HEART.
-      2
+    // Fast path: a lone printable ASCII character is always one column. The Wcwidth table lookup below is
+    // comparatively expensive, and this is the overwhelmingly common case: measuring a full-screen frame the
+    // slow way costs hundreds of milliseconds per frame, which is the difference between a TUI that keeps up
+    // with your keyboard and one that doesn't.
+    if cluster.Length = 1 && cluster[0] >= ' ' && cluster[0] <= '~' then
+      1
     else
-      widestScalar
+
+      let mutable runes = cluster.EnumerateRunes()
+      let mutable widestScalar = 0
+      let mutable regionalIndicators = 0
+      let mutable hasEmojiVariationSelector = false
+
+      while runes.MoveNext() do
+        let rune = runes.Current
+        let value = rune.Value
+
+        if isRegionalIndicator value then
+          regionalIndicators <- regionalIndicators + 1
+
+        if value = 0xFE0F then hasEmojiVariationSelector <- true
+
+        let scalarWidth =
+          Wcwidth.UnicodeCalculator.GetWidth(
+            rune,
+            System.Nullable Wcwidth.Unicode.Version_17_0_0
+          )
+          |> max 0
+
+        widestScalar <- max widestScalar scalarWidth
+
+      if regionalIndicators >= 2 then
+        // Regional indicators are individually narrow but flag pairs occupy one
+        // wide terminal glyph.
+        2
+      elif hasEmojiVariationSelector && widestScalar = 1 then
+        // VS16 requests emoji presentation for otherwise narrow characters such
+        // as U+2764 HEAVY BLACK HEART.
+        2
+      else
+        widestScalar
 
   /// Return the number of terminal columns occupied by plain, single-line text.
   ///
@@ -105,6 +114,86 @@ module DisplayWidth =
   /// Return whether text contains an ASCII/Unicode control character.
   let containsControl (text : string) : bool =
     text |> Seq.exists System.Char.IsControl
+
+  /// Skip one escape sequence or control character starting at `i`, returning the next index.
+  ///
+  /// `keep` receives an SGR sequence that should be preserved. Everything else is dropped: a non-SGR CSI
+  /// whole, and a non-CSI escape just its ESC byte, so ordinary text after it stays visible.
+  let private skipEscape (text : string) (i : int) (keep : string -> unit) : int =
+    let len = text.Length
+    let isFinal (c : char) = c >= '@' && c <= '~'
+
+    if i + 1 < len && text[i + 1] = '[' then
+      let mutable j = i + 2
+      let mutable validParams = true
+      let mutable ended = false
+      while j < len && not ended do
+        let c = text[j]
+        if isFinal c then
+          ended <- true
+        else
+          if not (System.Char.IsDigit c || c = ';' || c = ':') then
+            validParams <- false
+          j <- j + 1
+      if ended && text[j] = 'm' && validParams then
+        keep (text.Substring(i, j - i + 1))
+      if ended then j + 1 else len
+    else
+      i + 1
+
+  /// Terminal columns occupied by text that may carry SGR styling.
+  ///
+  /// `ofString` is only meaningful for control-free text; this skips escapes and control characters and sums
+  /// the rest, so a styled row can be measured in one call.
+  let styledWidth (text : string) : int =
+    let mutable total = 0
+    let mutable i = 0
+
+    while i < text.Length do
+      if text[i] = '\u001b' then
+        i <- skipEscape text i (fun _ -> ())
+      elif System.Char.IsControl text[i] then
+        i <- i + 1
+      else
+        let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
+        total <- total + clusterWidth cluster
+        i <- i + cluster.Length
+
+    total
+
+  /// Clip styled text to `maxWidth` terminal columns, keeping SGR and dropping everything else.
+  ///
+  /// Same contract as the Dark implementation this replaces: numeric SGR is retained and costs no columns,
+  /// every other escape and control character is dropped so dynamic content can't move the cursor or change
+  /// modes, and a double-width cluster is never split in half.
+  ///
+  /// Native because the Dark version needs a width call per character. Fine for one prompt row, far too slow
+  /// for a full-screen frame, which is hundreds of clipped spans.
+  let clipToWidth (text : string) (maxWidth : int) : string =
+    if maxWidth <= 0 then
+      ""
+    else
+      let out = System.Text.StringBuilder()
+      let append (v : string) = out.Append(v) |> ignore<System.Text.StringBuilder>
+      let mutable remaining = maxWidth
+      let mutable i = 0
+
+      while i < text.Length && remaining > 0 do
+        if text[i] = '\u001b' then
+          i <- skipEscape text i append
+        elif System.Char.IsControl text[i] then
+          i <- i + 1
+        else
+          let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
+          let width = clusterWidth cluster
+          if width > remaining then
+            remaining <- 0
+          else
+            append cluster
+            remaining <- remaining - width
+            i <- i + cluster.Length
+
+      out.ToString()
 
 
 /// Report raw terminal facts used by Dark's TUI availability policy.
@@ -225,6 +314,42 @@ let fns () : List<BuiltInFn> =
       sqlSpec = NotQueryable
       previewable = Impure
       capabilities = LibExecution.Capabilities.Needs.stdout
+      deprecated = NotDeprecated }
+
+
+    { name = fn "cliTerminalStyledWidth" 0
+      typeParams = []
+      parameters =
+        [ Param.make "text" TString "One logical row, possibly carrying SGR styling" ]
+      returnType = TInt
+      description = "Terminal columns occupied by text that may carry SGR styling"
+      fn =
+        (function
+        | _, _, _, [ DString text ] ->
+          text |> DisplayWidth.styledWidth |> bigint |> Dval.int |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "cliTerminalClipToWidth" 0
+      typeParams = []
+      parameters =
+        [ Param.make "text" TString "One logical row, possibly carrying SGR styling"
+          Param.make "maxWidth" TInt "Terminal columns to clip to" ]
+      returnType = TString
+      description =
+        "Clip styled text to a column count, keeping SGR and dropping other escapes and control characters"
+      fn =
+        (function
+        | _, vm, _, [ DString text; DInt maxWidth ] ->
+          DString(DisplayWidth.clipToWidth text (intToInt32 vm maxWidth)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
 

@@ -4,29 +4,71 @@ let content () : String =
   """# HTTP Server
 
 ## Start
-  http-server 8080 MyApp.router
+  serve MyApp.router                        # --port defaults to 8080
+  serve MyApp.router --port 9090 --max-body-bytes 1048576
+  # `http-server` is an alias for `serve`. Flags may come in any order.
 
-## Router function
-  let router (req: Stdlib.HttpServer.Request) : Stdlib.HttpServer.Response =
-    match (req.method, req.path) with
-    | ("GET", "/") -> Stdlib.HttpServer.response 200 "Hello"
-    | ("GET", "/api") -> Stdlib.HttpServer.jsonResponse 200 data
-    | _ -> Stdlib.HttpServer.response 404 "Not Found"
+The argument is the fully-qualified name of a function in the package tree, not a
+file. It must be `Stdlib.Http.Request -> Stdlib.Http.Response`.
 
-## Request fields
-  method path headers query body
+## A router
 
-## Response helpers
-  Stdlib.HttpServer.response status body
-  Stdlib.HttpServer.jsonResponse status data
-  Stdlib.HttpServer.responseWithHeaders status headers body
+Handlers are values; `routeRequest` dispatches to them by method and path.
+
+  module MyApp
+
+  let helloFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+    Stdlib.Http.responseWithText "Hello, World!" 200
+
+  val hello =
+    Stdlib.HttpServer.Handler
+      { route = "/hello"
+        method = "GET"
+        handler = helloFn }
+
+  val handlers = [ hello ]
+
+  // This is what you pass to `serve`. It has to be a named function.
+  let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+    Stdlib.HttpServer.routeRequest handlers req
+
+## Request
+
+  type Stdlib.Http.Request = { url: String; headers: List<String * String>; body: Blob }
+
+Method and path are NOT fields - they're derived:
+
+  Stdlib.HttpServer.getMethod req      # "GET" (from the x-http-method header)
+  Stdlib.HttpServer.getPath req        # "/users/42"
+  Stdlib.Http.parseQueryString req.url  # query string -> Dict
+
+`body` is a Blob. For text or JSON, convert first:
+
+  let text = Stdlib.String.fromBlobWithReplacement req.body
+
+## Response
+
+Body first, status second - the reverse of what you might expect.
+
+  Stdlib.Http.responseWithText "Hello" 200
+  Stdlib.Http.responseWithHtml "<h1>Hi</h1>" 200
+  Stdlib.Http.responseWithJson jsonString 200
+  Stdlib.Http.responseWithHeaders body 200 [ ("x-thing", "value") ]
+  Stdlib.Http.response bodyBlob 200          # the raw one; body is a Blob
+  Stdlib.Http.notFound ()
 
 ## Route params
-  match Stdlib.HttpServer.matchRoute "/users/:id" req.path with
-  | Some vars -> Stdlib.Dict.get vars "id"
-  | None -> ...
 
-## JSON body
-  match Stdlib.Json.parse<MyType> req.body with
-  | Ok data -> ...
-  | Error e -> ..."""
+  # given route "/user/:id" and a request for "/user/42"
+  match Stdlib.HttpServer.getPathParam req "/user/:id" "id" with
+  | Some id -> Stdlib.Http.responseWithText $"user {id}" 200
+  | None -> Stdlib.Http.notFound ()
+
+`matchRoute pattern path` is the lower-level form. It returns a record, not an
+Option: `{ matched: Bool; vars: List<String * String> }`.
+
+## A worked example
+
+`Darklang.DemoData.HttpServerTest` is a small server that runs - root, /hello and
+a POST /echo. Read it with `view Darklang.DemoData.HttpServerTest.router`.
+"""

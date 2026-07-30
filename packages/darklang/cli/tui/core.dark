@@ -1,4 +1,11 @@
 /// Shared, side-effect-free view types for interactive CLI applications.
+///
+/// A view is a value: rows of text plus a cursor and a mode, and nothing else. It carries no cursor
+/// movement, no clearing and no mode changes, which is what lets `Frame` diff two of them and write only
+/// what differs. Views must be pure - read the world during the state transition and stash the result on
+/// the state, because the renderer may call a view function and diff its output.
+///
+/// The whole layer, and why it doesn't flicker: `dark docs terminal-ui`.
 module Darklang.Cli.Tui
 
 

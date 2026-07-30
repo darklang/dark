@@ -1,0 +1,197 @@
+/// Authoring: opening the multi-line editor for a new or existing item, and saving what you wrote.
+///
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
+
+/// Pull the leaf name out of a full declaration's first line: the token right after the `let`/`type`/`val`
+/// keyword, stripped of anything from a `(` or `:` (so `let f(x: Int)` -> `f`). "" if none.
+let leafNameOf (src: String) : String =
+  let firstLine =
+    Stdlib.String.split src "\n" |> Stdlib.List.head |> Stdlib.Option.withDefault ""
+  let toks =
+    (Stdlib.String.split (Stdlib.String.trim firstLine) " ")
+    |> Stdlib.List.filter (fun t -> t != "")
+  let raw = Stdlib.List.getAt toks 1 |> Stdlib.Option.withDefault ""
+  let beforeParen = Stdlib.String.split raw "(" |> Stdlib.List.head |> Stdlib.Option.withDefault raw
+  Stdlib.String.split beforeParen ":" |> Stdlib.List.head |> Stdlib.Option.withDefault beforeParen
+
+/// Save the editor's declaration: the buffer holds a full `let`/`type`/`val` declaration. Derive the leaf name
+/// from it, resolve the target location relative to the current tree spot, then parse → WrittenTypes → PT →
+/// Add*+SetName WIP ops. On any failure keep the editor open with an error line (a port of the create-inline
+/// core without the stdout/AppState coupling).
+let saveEditing (state: State) (es: EditingState) : Step =
+  let keepErr (msg: String) : Step =
+    Step.Continue { state with editing = Stdlib.Option.Option.Some { es with err = msg } }
+
+  let rawSource = UI.Editor.toText es.buf
+  // A `module Owner.Mod` first line (the free-form Edit/draft flow) sets where everything lands - parse it off
+  // and treat the rest as the declaration. Otherwise use the editor's target module (the n/t/v flow).
+  let srcLines = Stdlib.String.split rawSource "\n"
+  let (targetMod, fullSource) =
+    match srcLines with
+    | first :: rest ->
+      let firstT = Stdlib.String.trim first
+      if Stdlib.String.startsWith firstT "module " then
+        let modStr = Stdlib.String.trim (Stdlib.String.dropFirst firstT (Stdlib.String.length "module "))
+        let modParts = Stdlib.String.split modStr "." |> Stdlib.List.filter (fun p -> p != "")
+        (modParts, Stdlib.String.trim (Stdlib.String.join rest "\n"))
+      else
+        (es.targetModule, rawSource)
+    | [] -> (es.targetModule, rawSource)
+  let leaf = leafNameOf fullSource
+  if leaf == "" then
+    keepErr "add a name after the keyword, then ^s"
+  else
+  // Resolve the name against the target module (a `module …` line, or the editor's target from where it opened).
+  match Packages.Location.parseRelativeTo (Packages.PackageLocation.Module targetMod) leaf with
+  | Error e -> keepErr ("bad name: " ++ e)
+  | Ok location ->
+    let diags = Builtin.parserParseDiagnostics fullSource
+    if Stdlib.Bool.not (Stdlib.List.isEmpty diags) then
+      keepErr "parse error - fix it, then ^s"
+    else
+      match Builtin.parserParseToWrittenTypes fullSource with
+      | Some(SourceFile sourceFile) ->
+        let pm = LanguageTools.PackageManager.pm ()
+        let ctx =
+          LanguageTools.NameResolver.NRContext
+            { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+              pm = pm
+              branchId = state.branchId
+              owner = location.owner
+              currentModule = location.modules }
+        // Per-kind: find the declaration, convert WrittenTypes → PT, build the Add*+SetName ops.
+        let opsResult =
+          if es.kind == "type" then
+            match sourceFile.declarations |> Stdlib.List.findFirst (fun d -> match d with | Type _ -> true | _ -> false) with
+            | Some(Type wt) ->
+              let (pt, unresolved) = LanguageTools.WrittenTypesToProgramTypes.TypeDeclaration.toPackageTypePT ctx wt
+              if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then Stdlib.Result.Result.Error "unresolved names"
+              else
+                Stdlib.Result.Result.Ok
+                  [ LanguageTools.ProgramTypes.PackageOp.AddType pt
+                    LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageType pt.hash) ]
+            | _ -> Stdlib.Result.Result.Error "not a type definition"
+          else if es.kind == "value" then
+            match sourceFile.declarations |> Stdlib.List.findFirst (fun d -> match d with | Value _ -> true | _ -> false) with
+            | Some(Value wv) ->
+              let (pv, unresolved) = LanguageTools.WrittenTypesToProgramTypes.ValueDeclaration.toPackageValuePT ctx wv
+              if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then Stdlib.Result.Result.Error "unresolved names"
+              else
+                Stdlib.Result.Result.Ok
+                  [ LanguageTools.ProgramTypes.PackageOp.AddValue pv
+                    LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageValue pv.hash) ]
+            | _ -> Stdlib.Result.Result.Error "not a value definition"
+          else
+            match sourceFile.declarations |> Stdlib.List.findFirst (fun d -> match d with | Function _ -> true | _ -> false) with
+            | Some(Function wf) ->
+              let (pf, unresolved) = LanguageTools.WrittenTypesToProgramTypes.FunctionDeclaration.toPackageFnPT ctx wf
+              if Stdlib.Bool.not (Stdlib.List.isEmpty unresolved) then Stdlib.Result.Result.Error "unresolved names"
+              else
+                Stdlib.Result.Result.Ok
+                  [ LanguageTools.ProgramTypes.PackageOp.AddFn pf
+                    LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn pf.hash) ]
+            | _ -> Stdlib.Result.Result.Error "not a function definition"
+        match opsResult with
+        | Ok ops ->
+          match SCM.PackageOps.add state.branchId ops with
+          | Ok _ ->
+            // Land on what you just saved. Resetting to 0 sent you to the top of the module every time -
+            // after authoring, the new item wasn't selected; after editing an existing one, you lost your
+            // place in a list you were working in.
+            let reloaded = reloadItems state
+            let landed =
+              reloaded
+              |> Stdlib.List.indexedMap (fun i it -> (i, it))
+              |> Stdlib.List.findFirst (fun pair -> let (_i, it) = pair in it.name == leaf)
+              |> Stdlib.Option.map (fun pair -> let (i, _it) = pair in i)
+              |> Stdlib.Option.withDefault 0
+            Step.Continue
+              { state with
+                  editing = Stdlib.Option.Option.None
+                  items = reloaded
+                  selected = landed
+                  detailScroll = 0
+                  message = "saved " ++ leaf }
+          | Error m -> keepErr ("save failed: " ++ m)
+        | Error m -> keepErr m
+      | None -> keepErr "could not parse"
+
+/// Drop doc-comment lines (`///`) from a pretty-printed declaration, keeping the full `let`/`type`/`val` form
+/// so it round-trips through saveEditing (which derives the name from the source).
+let stripDocComments (src: String) : String =
+  src
+  |> Stdlib.String.split "\n"
+  |> Stdlib.List.filter (fun l -> Stdlib.Bool.not (Stdlib.String.startsWith (Stdlib.String.trim l) "///"))
+  |> Stdlib.String.join "\n"
+
+/// Open the spacious editor on a new declaration: a full template (keyword + qualified placeholder name +
+/// body), cursor on the name for immediate replacement. No bottom-bar name prompt - the whole thing is
+/// authored in the box. The placeholder name is qualified to the current tree location so it always resolves
+/// to a full owner.Module.name: a bare leaf inside a module, else enough placeholder segments to be valid.
+/// Open the spacious editor to author a new `kind` into `targetModule`.
+let openNewEditor (state: State) (kind: String) (targetModule: List<String>) : Step =
+  let (titleBase, template, nameCol) =
+    if kind == "type" then ("New type", "type NewType =\n  { field: Int }", 5)
+    else if kind == "value" then ("New value", "val newValue = 1", 4)
+    else ("New function", "let newFunction (x: Int): Int =\n  x", 4)
+  let where = "  ·  in " ++ (Stdlib.String.join targetModule ".")
+  let buf = UI.Editor.fromText template
+  Step.Continue
+    { state with
+        editing =
+          Stdlib.Option.Option.Some
+            (EditingState
+              { kind = kind; nameStr = titleBase ++ where; targetModule = targetModule; buf = { buf with col = nameCol }; err = "" }) }
+
+/// Author a new item. The declaration is a BARE name (a qualified `let Owner.Mod.name` is a parse error), so the
+/// target module has to come from somewhere: use the current tree location if it's deep enough (owner.Module),
+/// otherwise ask for it - so you can author from anywhere, not only inside a module.
+let startNew (state: State) (kind: String) : Step =
+  let modPath = modulePathOf state.location
+  if Stdlib.List.length modPath >= 2 then
+    openNewEditor state kind modPath
+  else
+    let owner = if state.accountName == "" then "Owner" else state.accountName
+    // modPath (the current location) already starts with the owner, so don't prepend it again - only fall
+    // back to the account owner when at the root with no module path (else you get "Stachu.Stachu.").
+    let base = if Stdlib.List.isEmpty modPath then owner else Stdlib.String.join modPath "."
+    let prefill = base ++ "."
+    Step.Continue
+      { state with
+          input =
+            Stdlib.Option.Option.Some
+              (InputState { prompt = "save into module (owner.Module): "; text = prefill; action = "author-" ++ kind }) }
+
+/// Open the editor on an existing fn, prefilled with its full current declaration (doc comments dropped).
+let openEditExisting (state: State) (item: BodyItem) : Step =
+  let modules = modulePathOf state.location
+  let fullName = Stdlib.String.join (Stdlib.List.append modules [ item.name ]) "."
+  let results = Packages.Query.searchExactMatch state.branchId modules item.name
+  let ctx =
+    PrettyPrinter.ProgramTypes.Context
+      { branchId = state.branchId
+        currentModule = Stdlib.Option.Option.None
+        currentFunction = Stdlib.Option.Option.None }
+  // Prefill from the item's current source, per kind. `val` items save under the "value" kind (see saveEditing).
+  let kindAndSrc =
+    if item.kind == "type" then
+      match results.types with
+      | i :: _ -> Stdlib.Option.Option.Some(("type", PrettyPrinter.ProgramTypes.packageType ctx i.entity))
+      | [] -> Stdlib.Option.Option.None
+    else if item.kind == "val" then
+      match results.values with
+      | i :: _ -> Stdlib.Option.Option.Some(("value", PrettyPrinter.ProgramTypes.packageValue ctx i.entity))
+      | [] -> Stdlib.Option.Option.None
+    else
+      match results.fns with
+      | i :: _ -> Stdlib.Option.Option.Some(("fn", PrettyPrinter.ProgramTypes.packageFn ctx i.entity))
+      | [] -> Stdlib.Option.Option.None
+  match kindAndSrc with
+  | Some((kind, src)) ->
+    Step.Continue
+      { state with
+          editing =
+            Stdlib.Option.Option.Some
+              (EditingState { kind = kind; nameStr = "Editing " ++ fullName; targetModule = modules; buf = UI.Editor.fromText (stripDocComments src); err = "" }) }
+  | None -> Step.Continue state

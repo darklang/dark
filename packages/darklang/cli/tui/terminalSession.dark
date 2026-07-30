@@ -321,6 +321,21 @@ let start (next: Tui.View) : Stdlib.Result.Result<State, String> =
     |> Stdlib.Result.Result.Error
 
 
+/// The session a page should hold when it's resumed from the page stack, given how it renders itself.
+///
+/// Always a NEW session, never the retained one: whatever ran on top of this page tore the surface down when
+/// it stopped, so the held view no longer describes what's on screen and diffing against it would paint
+/// garbage. A fresh session re-enters the alternate screen and repaints every row.
+///
+/// Falls back to a blank session if the terminal has become unavailable, so a resume can't fail the caller.
+/// Every `SubApp.onResume` is this plus rebuilding the app around the result.
+let resumed (viewFor: Tui.Size -> Tui.View) : State =
+  let size = currentSize ()
+  match startAtSize size (viewFor size) with
+  | Ok session -> session
+  | Error _ -> init ()
+
+
 /// Prepare normal terminal restoration and reset the session.
 ///
 /// Calling this on a stopped session is safe and produces no output.
@@ -365,7 +380,12 @@ let prepareStopInlineWithView
     let (width, final) =
       match state.terminalSize with
       | Some size -> (Stdlib.Int.max 1 size.width, normalizeView size final)
-      | None -> (1, final)
+      | None ->
+        // Unreachable: a running session always recorded a size. Sampling beats the old `1`, which would
+        // have clipped every row to a single column, so the defensive path degrades to "maybe a stale
+        // width" rather than "definitely shredded output".
+        let size = currentSize ()
+        (Stdlib.Int.max 1 size.width, normalizeView size final)
     let parked = { final with cursor = Tui.Cursor.Hidden }
     let parkOutput =
       InlineFrame.renderAtWidth width state.previousView parked

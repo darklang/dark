@@ -1,0 +1,259 @@
+/// The SCM and REPL view bodies, plus the REPL's session-binding machinery.
+///
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
+
+/// The SCM status header - the always-true summary of Dark Matter's state on this branch.
+let renderScmHeader (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  let branchOpt = SCM.Branch.get state.branchId
+  let branch = match branchOpt with | Some b -> b.name | None -> "main"
+  let parent =
+    match branchOpt with
+    | Some b ->
+      match b.parentBranchId with
+      | Some pid -> (match SCM.Branch.get pid with | Some p -> p.name | None -> "?")
+      | None -> "(root)"
+    | None -> "(root)"
+  let wip = wipItemCount state.branchId
+  let commits = SCM.PackageOps.getCommitCount state.branchId
+  let conflicts = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
+  let peers = Stdlib.List.length (Darklang.Sync.status ())
+  let line1 =
+    "  " ++ (Colors.boldText ("branch: " ++ branch)) ++ (Colors.dimText ("   →   " ++ parent))
+  let wipPart =
+    if wip == 0 then Colors.colorize Colors.green "✓ clean"
+    else Colors.colorize Colors.pink ("● " ++ (plural wip "change"))
+  let confPart =
+    if conflicts == 0 then Colors.dimText "no conflicts"
+    else Colors.colorize Colors.pink ("⚠ " ++ (plural conflicts "conflict"))
+  let syncPart = if peers == 0 then Colors.dimText "no peers" else Colors.dimText ((Stdlib.Int.toString peers) ++ " peers")
+  let sep = Colors.dimText "     "
+  let line2 =
+    "  " ++ wipPart ++ sep ++ (Colors.dimText (plural commits "commit")) ++ sep ++ confPart ++ sep ++ syncPart
+  Stdlib.List.flatten
+    [ UI.Layout.at region 0 0 line1
+      UI.Layout.at region 1 0 line2 ]
+
+/// The SCM view: the status header, a section switcher (Changes / History / Conflicts, cycled by Tab), and
+/// the active section's list + detail. One home for the state of Dark Matter and its version control; conflict
+/// resolution lives here. The ahead/behind glance is in the header (setup + cross-instance health live in Devices).
+let renderScm (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  let headerRows = 4
+  let headerRegion = UI.Layout.Region { top = region.top; left = region.left; rows = 2; cols = region.cols }
+  // These return spans; they used to print as a side effect. Discarding the result renders a blank band.
+  let headerSpans = renderScmHeader state headerRegion
+  let switcherSpans =
+    renderSectionSwitcher region 2 [ "Changes"; "History"; "Conflicts"; "Branches" ] state.scmSection
+  let bodyRegion =
+    UI.Layout.Region
+      { top = region.top + headerRows
+        left = region.left
+        rows = Stdlib.Int.max 1 (region.rows - headerRows)
+        cols = region.cols }
+  let (title, empty) =
+    if state.scmSection == 1 then ("History", Colors.dimText "no commits yet")
+    else if state.scmSection == 2 then ("Conflicts", Colors.colorize Colors.green "✓ nothing to resolve - in sync")
+    else if state.scmSection == 3 then ("Branches", Colors.dimText "no branches")
+    else ("Changes", Colors.colorize Colors.green "✓ working tree clean - nothing to commit")
+  Stdlib.List.flatten
+    [ headerSpans; switcherSpans; splitListPreview state bodyRegion title "Detail" empty ]
+
+/// Evaluate `expr` as written, with whatever the evaluator prints on the way captured rather than let loose
+/// on the frame (see `captureOutputAnd` - a runtime error prints a call-stack header, which would scroll the
+/// alternate screen out from under the renderer).
+///
+/// Goes straight at `Eval.evaluate` rather than the `eval` command because the command joins its args with
+/// spaces, which would flatten the binding chain's newlines.
+let evalRaw (state: State) (expr: String) : Stdlib.Result.Result<Stdlib.Option.Option<String>, String> =
+  let (result, _stray) =
+    captureOutputAnd (fun () -> Darklang.Cli.Eval.evaluate (classicState state) expr false)
+  result
+
+/// Evaluate an expression **with the session's bindings in scope**, and return its result (or the error text).
+let evalToString (state: State) (expr: String) : String =
+  match evalRaw state (Darklang.Cli.Repl.withBindings state.replBindings expr) with
+  | Ok(Some s) -> Stdlib.String.trim s
+  | Ok None -> ""
+  | Error message -> "Error: " ++ message
+
+/// Bind `name` to `rhs` for the rest of the session. Evaluates it once now: if the value has a literal form
+/// the binding holds the *value* (so the chain that re-establishes it on every later eval is free, and an
+/// effectful right-hand side runs once); otherwise it holds the expression, which does re-run. Returns the
+/// binding, or None if evaluating it failed, plus the line to show in the log.
+/// Evaluating it once is also what separates "this expression is broken" (the evaluator errors, so nothing
+/// binds) from "this value has no literal form" (it evaluated fine, `dvalToExpr` couldn't promote it).
+let bindSession (state: State) (name: String) (rhs: String) : (Stdlib.Option.Option<Darklang.Cli.Repl.Binding> * String) =
+  let fallback (reason: String) : (Stdlib.Option.Option<Darklang.Cli.Repl.Binding> * String) =
+    // The binding holds the expression, but the session pane shows values, so evaluate it once for display.
+    // The chain re-runs this anyway on the next eval; this is the same work one step early.
+    let shown =
+      match evalRaw state (Darklang.Cli.Repl.withBindings state.replBindings rhs) with
+      | Ok(Some v) -> Stdlib.String.trim v
+      | _ -> rhs
+    (Stdlib.Option.Option.Some(
+       Darklang.Cli.Repl.Binding { name = name; source = rhs; value = shown; captured = false }),
+     // Reason on its own line: on one line with the value it ran past the pane edge and got clipped mid-word
+     // ("... DateTime has no "), losing the only part that explains the `~`.
+     $"{name} = {shown}\nre-runs each eval: {reason}")
+  match evalRaw state (Darklang.Cli.Repl.captureExpr state.replBindings state.branchId name rhs) with
+  | Error message ->
+    // Report against what was typed, not against the capture wrapper. A parse error in the binding surfaced
+    // the generated `Repl.captureValue "<branch uuid>" name` line with a caret under it - source the user
+    // never wrote, and a uuid that makes it look like an internal fault. Re-running the plain binding costs
+    // one eval on the error path and points the caret at their own text.
+    let plainMessage =
+      match evalRaw state (Darklang.Cli.Repl.withBindings state.replBindings $"let {name} = {rhs}\n{name}") with
+      | Error m -> m
+      | Ok _ -> message
+    (Stdlib.Option.Option.None, "not bound - " ++ plainMessage)
+  | Ok None -> fallback "nothing to capture"
+  | Ok(Some out) ->
+    match Darklang.Cli.Repl.readCaptured out with
+    | Some source ->
+      // Captured: the source IS the value, so both fields are the same literal.
+      (Stdlib.Option.Option.Some(
+         Darklang.Cli.Repl.Binding { name = name; source = source; value = source; captured = true }),
+       $"{name} = {source}")
+    | None -> fallback (Stdlib.String.trim (Stdlib.String.dropFirst (Stdlib.String.trim out) 4))
+
+/// Run one REPL statement against the session: bind it if it's a `let <name> = ...`, else evaluate it.
+/// Returns the state with the log, the session and the last result all updated.
+///
+/// Pulled out so a pasted program can be folded through it statement by statement, which is what makes a
+/// paste behave exactly as if you'd typed the lines one at a time.
+let applyReplStatement (state: State) (stmt: String) : State =
+  let text = Stdlib.String.trim stmt
+  if text == "" then
+    state
+  else
+    // One log line per source line, so a wrapped expression keeps its shape in the scrollback.
+    let echoLines =
+      match Stdlib.String.split text "\n" with
+      | first :: rest ->
+        Stdlib.List.append
+          [ (Colors.colorize Colors.cyan "> ") ++ first ]
+          (rest |> Stdlib.List.map (fun l -> "  " ++ l))
+      | [] -> [ (Colors.colorize Colors.cyan "> ") ++ text ]
+    match Darklang.Cli.Repl.parseLetBinding text with
+    | Some pair ->
+      let (name, rhs) = pair
+      let (bound, note) = bindSession state name rhs
+      // A note may carry a second line (see `bindSession`'s fallback); one log entry per line keeps each
+      // within the pane rather than clipping the tail of a long one.
+      let noteLines =
+        Stdlib.String.split note "\n" |> Stdlib.List.map (fun l -> "  " ++ (Colors.dimText l))
+      let logged =
+        Stdlib.List.append state.scratchLog (Stdlib.List.append echoLines noteLines)
+      match bound with
+      | Some binding ->
+        { state with
+            replBindings = Darklang.Cli.Repl.upsert state.replBindings binding
+            replLast = binding.value
+            scratchLog = logged }
+      | None -> { state with replLast = note; scratchLog = logged }
+    | None ->
+      let output = evalToString state text
+      let resultLines =
+        Stdlib.String.split output "\n"
+        |> Stdlib.List.filter (fun l -> (Stdlib.String.trim l) != "")
+        |> Stdlib.List.map (fun l -> "  " ++ l)
+      { state with
+          replLast = Stdlib.String.trim output
+          scratchLog = Stdlib.List.append state.scratchLog (Stdlib.List.append echoLines resultLines) }
+
+/// The REPL view: a persistent eval log on the left, the session on the right. ⏎ evaluates and appends to the
+/// log; `let x = ...` binds for the rest of the session and shows up in the sidebar.
+///
+/// The view's keys live in the two pane titles rather than the footer, because the footer is the input bar
+/// whenever you're typing - which here is nearly always.
+let renderRepl (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+  UI.SplitPane.render
+    region
+    UI.SplitPane.Orientation.Horizontal
+    62
+    state.focus
+    "REPL  ·  ⏎ run  ·  f clears  ·  esc or ctrl+←→ leaves"
+    (fun inner ->
+      let all =
+        if Stdlib.List.isEmpty state.scratchLog then
+          [ Colors.boldText "A REPL over your whole package space."
+            ""
+            Colors.dimText "The prompt below is already open. Type; ⏎ runs; results log here."
+            ""
+            Colors.dimText "try:"
+            (Colors.colorize Colors.cyan "  1 + 1")
+            (Colors.colorize Colors.cyan "  let xs = [ 1; 2; 3 ]")
+            (Colors.colorize Colors.cyan "  Stdlib.List.map xs (fun x -> x * 2)")
+            ""
+            Colors.dimText "`let` binds for the session - the"
+            Colors.dimText "sidebar lists what's bound."
+            ""
+            Colors.dimText "Multi-line just works: ⏎ after a line that can't"
+            Colors.dimText "have ended - an open bracket, a trailing `=` or"
+            Colors.dimText "`->` - moves down instead of running. ⏎ on the"
+            Colors.dimText "empty line runs it early."
+            ""
+            Colors.dimText "Pasting a block works too - it runs a statement at"
+            Colors.dimText "a time, exactly as if you'd typed the lines." ]
+        else state.scratchLog
+      // A multi-line statement is still being typed one row at a time in the bar below, so echo what's
+      // accumulated at the foot of the log. Without this the earlier lines just vanish and you're typing
+      // line four of something you can no longer see.
+      let pending =
+        if state.replPending == "" then
+          []
+        else
+          match Stdlib.String.split state.replPending "\n" with
+          | first :: rest ->
+            Stdlib.List.append
+              [ (Colors.colorize Colors.cyan "> ") ++ first ]
+              (rest |> Stdlib.List.map (fun l -> "  " ++ l))
+          | [] -> []
+      let withPending = Stdlib.List.append all pending
+      let shown = withPending |> Stdlib.List.reverse |> Stdlib.List.take inner.rows |> Stdlib.List.reverse
+      shown
+      |> Stdlib.List.indexedMap (fun i l -> (i, l))
+      |> Stdlib.List.map (fun p ->
+        let (i, l) = p
+        UI.Layout.at inner i 1 l)
+      |> Stdlib.List.flatten)
+    "Session  ·  x clears"
+    (fun inner ->
+      let bindingLines =
+        if Stdlib.List.isEmpty state.replBindings then
+          [ Colors.dimText "nothing bound yet."
+            ""
+            (Colors.colorize Colors.cyan "let x = 41 + 1")
+            Colors.dimText "binds x for the rest of the"
+            Colors.dimText "session, so the next"
+            Colors.dimText "expression can use it." ]
+        else
+          state.replBindings
+          |> Stdlib.List.map (fun b ->
+            // Values, not source. The log on the left already shows what you typed, so repeating the
+            // expression here would say the same thing twice. `~` marks a binding that re-runs rather than
+            // holding a captured literal.
+            let marker = if b.captured then "" else Colors.dimText "  ~"
+            (Colors.colorize Colors.cyan b.name)
+            ++ (Colors.dimText " = ")
+            ++ (Colors.colorize Colors.green b.value)
+            ++ marker)
+      let resultLines =
+        if (Stdlib.String.trim state.replLast) == "" then
+          []
+        else
+          [ ""; Colors.dimText "last result:"; Colors.colorize Colors.green state.replLast ]
+      let count = Stdlib.List.length state.replBindings
+      let heading =
+        if count == 0 then Colors.dimText "session bindings:"
+        else Colors.dimText ("session bindings  ·  " ++ (plural count "name") ++ ":")
+      let lines =
+        Stdlib.List.flatten [ [ heading; "" ]; bindingLines; resultLines ]
+      lines
+      |> Stdlib.List.indexedMap (fun i l -> (i, l))
+      |> Stdlib.List.take inner.rows
+      |> Stdlib.List.map (fun p ->
+        let (i, l) = p
+        UI.Layout.at inner i 1 l)
+      |> Stdlib.List.flatten)
+

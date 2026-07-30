@@ -246,7 +246,12 @@ let makeSubApp (session: Session) : Darklang.Cli.SubApp =
         fun () ->
           let _stopped =
             Darklang.Cli.Tui.TerminalSession.stop session.terminal
-          () }
+          ()
+      onResume =
+        fun () ->
+          let terminal =
+            Darklang.Cli.Tui.TerminalSession.resumed (fun size -> viewAtSize session.state size)
+          makeSubApp (Session { state = session.state; terminal = terminal }) }
 
 
 // ── CLI command entry points ──

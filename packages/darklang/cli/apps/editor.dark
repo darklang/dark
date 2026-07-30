@@ -413,7 +413,12 @@ let makeSubApp (session: Session) : Cli.SubApp =
         fun () ->
           let _stopped =
             Darklang.Cli.Tui.TerminalSession.stop session.terminal
-          () }
+          ()
+      onResume =
+        fun () ->
+          let terminal =
+            Darklang.Cli.Tui.TerminalSession.resumed (fun size -> viewAtSize session.state size)
+          makeSubApp (Session { state = session.state; terminal = terminal }) }
 
 
 /// Launch the interactive browser over the whole catalog (daemons first). Returns a cliState whose current

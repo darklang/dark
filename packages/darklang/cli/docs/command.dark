@@ -117,6 +117,14 @@ module Topics =
           subtopics = [] }
 
       DocTopic
+        { name = "terminal-ui"
+          description = "How the CLI draws: the Tui layer, and why it doesn't flicker"
+          aliases = [ "tui" ]
+          context = "internal"
+          content = Docs.TerminalUI.content
+          subtopics = [] }
+
+      DocTopic
         { name = "errors"
           description = "Common errors and fixes"
           aliases = []

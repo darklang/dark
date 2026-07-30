@@ -1,0 +1,146 @@
+/// Promote a runtime value (RT.Dval) back into a ProgramTypes expression — the "turn this result into source" /
+/// promote-a-value primitive that unlocks live values (dream #1). Literals, collections, records and enums map
+/// directly; values with no literal syntax (functions, DBs, blobs, streams, dates/uuids) fail with a reason so
+/// the caller can fall back. IDs are fresh (gid) and don't affect the rendered source.
+///
+/// The `branchId` is only for records and enums: a runtime value carries its type as a bare content hash, and
+/// the pretty-printer needs the package *location* behind that hash to render `Stdlib.Option.Option.Some`
+/// rather than 64 hex characters. Locations are per-branch, hence the argument.
+module Darklang.LanguageTools.RuntimeTypesToProgramTypes
+
+let gid () : Int64 =
+  Stdlib.Int64.random 0L 922337203685477580L
+
+/// Split `|f|`'s decimal string into (whole, fractional) parts for EFloat, or None when it has no literal
+/// form.
+///
+/// `Float.toString` doesn't only return plain decimals: NaN and the infinities come back as words, and large
+/// or small magnitudes come back in exponent form. Splitting those on "." produced `NaN.0`, `Infinity.0` and
+/// `1e+30.0`, none of which parse. That mattered beyond looking wrong: the REPL stores a captured value as a
+/// binding's source, so `let x = 1e30` wedged the whole session - every later eval prefixed an unparseable
+/// let-chain, with no way out but clearing the session.
+let floatParts (f: Float) : Stdlib.Option.Option<(String * String)> =
+  let str = Stdlib.Float.toString (Stdlib.Float.absoluteValue f)
+  let isPlainDecimal =
+    (str != "")
+    && (str
+        |> Stdlib.String.toList
+        |> Stdlib.List.all (fun c -> Stdlib.Char.isDigit c || (Stdlib.Char.toString c) == "."))
+  if Stdlib.Bool.not isPlainDecimal then
+    Stdlib.Option.Option.None
+  else
+    match Stdlib.String.split str "." with
+    | [ w; fr ] -> Stdlib.Option.Option.Some((w, fr))
+    | [ w ] -> Stdlib.Option.Option.Some((w, "0"))
+    | _ -> Stdlib.Option.Option.None
+
+/// RT and PT type names are structurally the same (a package hash) but nominally distinct, so records and
+/// enums have to carry theirs across. Always `Ok`-resolved: the value came from a real runtime type, so the
+/// name is by construction resolvable. The location is looked up because without it the pretty-printer has
+/// nothing to print but the hash.
+let typeNameToPT
+  (branchId: Uuid)
+  (typeName: RuntimeTypes.FQTypeName.FQTypeName)
+  : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
+  match typeName with
+  | Package(Hash h) ->
+    let ptHash = ProgramTypes.Hash.Hash h
+    let location =
+      PackageManager.Type.getWithLocation branchId ptHash
+      |> Stdlib.Option.map (fun located -> located.location)
+    ProgramTypes.NameResolution
+      { originalName = []
+        resolved =
+          Stdlib.Result.Result.Ok(
+            ProgramTypes.ResolvedName
+              { name = ProgramTypes.FQTypeName.FQTypeName.Package ptHash
+                location = location }) }
+
+let dvalToExpr
+  (branchId: Uuid)
+  (dval: RuntimeTypes.Dval)
+  : Stdlib.Result.Result<ProgramTypes.Expr, String> =
+  match dval with
+  | DUnit -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EUnit(gid ()))
+  | DBool b -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EBool(gid (), b))
+  | DInt i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt(gid (), i))
+  | DInt8 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt8(gid (), i))
+  | DUInt8 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EUInt8(gid (), i))
+  | DInt16 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt16(gid (), i))
+  | DUInt16 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EUInt16(gid (), i))
+  | DInt32 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt32(gid (), i))
+  | DUInt32 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EUInt32(gid (), i))
+  | DInt64 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt64(gid (), i))
+  | DUInt64 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EUInt64(gid (), i))
+  | DInt128 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EInt128(gid (), i))
+  | DUInt128 i -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EUInt128(gid (), i))
+  | DFloat f ->
+    match floatParts f with
+    | Some parts ->
+      let (whole, frac) = parts
+      let sign = if f < 0.0 then Sign.Negative else Sign.Positive
+      Stdlib.Result.Result.Ok(ProgramTypes.Expr.EFloat(gid (), sign, whole, frac))
+    | None ->
+      Stdlib.Result.Result.Error
+        "this float has no literal form (NaN, an infinity, or exponent notation)"
+  | DChar c -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EChar(gid (), c))
+  | DString s ->
+    Stdlib.Result.Result.Ok(
+      ProgramTypes.Expr.EString(gid (), [ ProgramTypes.StringSegment.StringText s ]))
+  | DList(_valueType, items) ->
+    match items |> Stdlib.List.map (fun d -> dvalToExpr branchId d) |> Stdlib.Result.collect with
+    | Ok exprs -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EList(gid (), exprs))
+    | Error e -> Stdlib.Result.Result.Error e
+  | DTuple(first, second, rest) ->
+    match dvalToExpr branchId first with
+    | Error e -> Stdlib.Result.Result.Error e
+    | Ok ef ->
+      match dvalToExpr branchId second with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok es ->
+        match rest |> Stdlib.List.map (fun d -> dvalToExpr branchId d) |> Stdlib.Result.collect with
+        | Error e -> Stdlib.Result.Result.Error e
+        | Ok erest ->
+          Stdlib.Result.Result.Ok(ProgramTypes.Expr.ETuple(gid (), ef, es, erest))
+  | DDict(_valueType, entries) ->
+    let converted =
+      entries
+      |> Stdlib.Dict.toList
+      |> Stdlib.List.map (fun pair ->
+        let (k, v) = pair
+        match dvalToExpr branchId v with
+        | Ok e -> Stdlib.Result.Result.Ok((k, e))
+        | Error err -> Stdlib.Result.Result.Error err)
+    match Stdlib.Result.collect converted with
+    | Ok kvs -> Stdlib.Result.Result.Ok(ProgramTypes.Expr.EDict(gid (), kvs))
+    | Error e -> Stdlib.Result.Result.Error e
+  | DRecord(_runtimeTypeName, sourceTypeName, _typeArgs, fields) ->
+    let converted =
+      fields
+      |> Stdlib.Dict.toList
+      |> Stdlib.List.map (fun pair ->
+        let (k, v) = pair
+        match dvalToExpr branchId v with
+        | Ok e -> Stdlib.Result.Result.Ok((k, e))
+        | Error err -> Stdlib.Result.Result.Error err)
+    match Stdlib.Result.collect converted with
+    | Ok kvs ->
+      Stdlib.Result.Result.Ok(
+        ProgramTypes.Expr.ERecord(gid (), typeNameToPT branchId sourceTypeName, [], kvs))
+    | Error e -> Stdlib.Result.Result.Error e
+  | DEnum(_runtimeTypeName, sourceTypeName, _typeArgs, caseName, fields) ->
+    match fields |> Stdlib.List.map (fun d -> dvalToExpr branchId d) |> Stdlib.Result.collect with
+    | Ok exprs ->
+      Stdlib.Result.Result.Ok(
+        ProgramTypes.Expr.EEnum(gid (), typeNameToPT branchId sourceTypeName, [], caseName, exprs))
+    | Error e -> Stdlib.Result.Result.Error e
+  // Values with no literal syntax — fail, with a reason the caller can surface.
+  | DDateTime _ ->
+    Stdlib.Result.Result.Error "DateTime has no literal expression (build one with Stdlib.DateTime)"
+  | DUuid _ ->
+    Stdlib.Result.Result.Error "Uuid has no literal expression (parse one with Stdlib.Uuid.parse)"
+  | DApplicable _ -> Stdlib.Result.Result.Error "a function value has no source expression"
+  | DDB _ -> Stdlib.Result.Result.Error "a database reference has no source expression"
+  | DBlobPersistent(_hash, _length) -> Stdlib.Result.Result.Error "a blob has no literal expression"
+  | DBlobEphemeral _ -> Stdlib.Result.Result.Error "a blob has no literal expression"
+  | DStreamStub _ -> Stdlib.Result.Result.Error "a stream has no literal expression"
