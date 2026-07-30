@@ -76,9 +76,21 @@ let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
   let owner = if state.accountName == "" then "there" else state.accountName
 
   let renderHeader (r: UI.Layout.Region) : List<UI.Layout.Span> =
+    // The third row is the escape hatch, and it's on the landing screen deliberately. Every classic command
+    // still runs from the `:` bar and `:commands` gives you the old prompt outright, but neither is guessable
+    // from an empty full-screen UI - and this replaced the panel that used to say so.
     Stdlib.List.flatten
       [ UI.Layout.at r 0 2 (Colors.boldText ($"Welcome back, {owner}"))
-        UI.Layout.at r 1 2 (Colors.dimText ($"on {branch}  ·  a workbench over Dark Matter")) ]
+        UI.Layout.at r 1 2 (Colors.dimText ($"on {branch}  ·  a workbench over Dark Matter"))
+        // Short enough to survive an 80-column terminal; `?` carries the detail that `quit` comes back.
+        UI.Layout.at
+          r
+          2
+          2
+          ((Colors.colorize Colors.cyan ":")
+           ++ (Colors.dimText " runs any classic command  ·  ")
+           ++ (Colors.colorize Colors.cyan ":commands")
+           ++ (Colors.dimText " opens the old prompt")) ]
 
   let renderStatus (inner: UI.Layout.Region) : List<UI.Layout.Span> =
     let wipLine =

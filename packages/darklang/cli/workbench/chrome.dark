@@ -184,7 +184,10 @@ val helpGroups =
     ("SCM", "tab section   c commit   x discard   b branch   s switch   m merge   r rebase   o/t/a resolve")
     ("AI", "tab Agents/Prompts   a ask")
     ("Apps", "i install/uninstall   r run   s stop")
-    ("Search", "↑↓ move   ⏎ jump   esc close") ]
+    ("Search", "↑↓ move   ⏎ jump   esc close")
+    // Last, and spelled out, because it's the way back to the pre-workbench CLI. Anything you could type at
+    // the old prompt runs from the `:` bar; `:commands` hands you the prompt itself.
+    ("Classic", ":<any old command>   :commands for the old prompt (quit returns here)") ]
 
 /// The view-picker overlay: a centered, boxed, jumpable list of every view (number + name), the current one
 /// marked. Reaches the views the number keys can't (10th+).
