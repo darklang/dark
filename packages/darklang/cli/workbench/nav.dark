@@ -126,10 +126,27 @@ let resolveConflict (state: State) (which: String) : Step =
           selected = 0
           message = if ok then "resolved: " ++ label else "resolve failed" }
 
+/// The app the cursor is on, resolved by name rather than by position.
+///
+/// Same filtered-cursor reasoning as `selectedBranch`: the Apps list narrows under `f`, so indexing straight
+/// into `Apps.Registry.available ()` would install, start or stop whichever app sat at that position in the
+/// full list.
+let selectedApp (state: State) : Stdlib.Option.Option<Darklang.Cli.Apps.Model.App> =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> Stdlib.Option.Option.None
+  | Some item ->
+    // Rows read "<marker> <name>  ·  <description>" - see `loadAppItems`.
+    let name =
+      item.name
+      |> Stdlib.String.dropFirst 2
+      |> fun rest ->
+        Stdlib.String.split rest "  ·  " |> Stdlib.List.head |> Stdlib.Option.withDefault rest
+    Darklang.Cli.Apps.Registry.available () |> Stdlib.List.findFirst (fun a -> a.name == name)
+
 /// Apps: install/uninstall the selected app (updates the installed set + the ●/○ marker). Bound to both the
 /// primary key (⏎) and the explicit `i`.
 let toggleInstall (state: State) : Step =
-  match Stdlib.List.getAt (Darklang.Cli.Apps.Registry.available ()) state.selected with
+  match selectedApp state with
   | Some app ->
     let slugs = Darklang.Cli.Apps.Registry.installedSlugs ()
     let (newSlugs, msg) =
@@ -147,7 +164,7 @@ let toggleInstall (state: State) : Step =
 /// Run `apps <sub> <slug>` for the selected app in-frame (captured), refresh the list, and show the output in
 /// the reader - so start/stop/inspect act here instead of forcing a drop to the `:` bar.
 let runAppsSubcommand (state: State) (sub: String) : Step =
-  match Stdlib.List.getAt (Darklang.Cli.Apps.Registry.available ()) state.selected with
+  match selectedApp state with
   | None -> Step.Continue state
   | Some app ->
     let appState =
@@ -162,7 +179,7 @@ let runAppsSubcommand (state: State) (sub: String) : Step =
 /// The `r` action for the selected app: a foreground app hands off to its full-screen command (the CLI returns
 /// to the workbench when it exits); a daemon starts detached, in-frame.
 let launchOrStartApp (state: State) : Step =
-  match Stdlib.List.getAt (Darklang.Cli.Apps.Registry.available ()) state.selected with
+  match selectedApp state with
   | None -> Step.Continue state
   | Some app ->
     match app.target with

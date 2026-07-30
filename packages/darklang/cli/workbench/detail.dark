@@ -11,14 +11,19 @@ module Darklang.Cli.Workbench
 /// rows carry the backend's display kinds ("Fn"/"Type"/"Value", see `getWipItems`). Matching only the
 /// lowercase spelling meant every row in SCM Changes fell through to the bullet.
 ///
-/// Padded because the glyphs aren't all the same width: `#` and `•` are one column, so concatenating them raw
-/// left names in a mixed list starting a column apart - a ragged left edge down the tree.
+/// Padded to a fixed two columns, because the glyphs aren't all one column and concatenating them raw left
+/// names in a mixed list starting a column apart - a ragged left edge down the tree.
+///
+/// Every glyph here measures ONE column under `displayWidth`, which is what makes that padding correct. `⚡`
+/// used to be the fn icon and measured two, while terminals draw it as one, so fn rows came out a column short
+/// of everything else and no padding could be right for both. Any replacement needs the same property: check
+/// `Tui.Text.displayWidth` before swapping a glyph in here.
 let iconFor (item: BodyItem) : String =
   let glyph =
     if item.isModule then "🗂"
     else
       match Stdlib.String.toLowercase item.kind with
-      | "fn" -> "⚡"
+      | "fn" -> "ƒ"
       | "type" -> "#"
       | _ -> "•"
   Tui.Text.fitToWidth glyph 2
@@ -122,9 +127,10 @@ let docContent (state: State) : String =
   | Some t -> t.content ()
   | None -> "(no topic selected)"
 
-/// A recorded divergence's detail, for the Resolve preview.
-let conflictDetail (selected: Int) : String =
-  match Stdlib.List.getAt (Darklang.Sync.Conflicts.list ()) selected with
+/// A recorded divergence's detail, for the Resolve preview. By location, not by index - the section is
+/// filterable, same reasoning as `selectedBranch`.
+let conflictDetail (state: State) : String =
+  match selectedConflict state with
   | Some c ->
     "location:    " ++ c.location ++ "\n"
     ++ "kind:        " ++ c.itemKind ++ "\n"
@@ -229,7 +235,7 @@ let inspectPageLines (state: State) : List<String> =
 let previewLines (state: State) : List<String> =
   if state.activeView == vSCM then
     if state.scmSection == 1 then Stdlib.String.split (commitSummary state.branchId state.selected) "\n"
-    else if state.scmSection == 2 then Stdlib.String.split (conflictDetail state.selected) "\n"
+    else if state.scmSection == 2 then Stdlib.String.split (conflictDetail state) "\n"
     else if state.scmSection == 3 then Stdlib.String.split (branchDetail state) "\n"
     else Stdlib.String.split (wipDiffText state) "\n"
   else if state.activeView == vMatter then
