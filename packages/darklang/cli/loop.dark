@@ -17,7 +17,7 @@ let withModeHint (state: AppState) (view: Tui.View) : Tui.View =
     view
   else
     let hintRow =
-      Colors.dimText "old command mode  ·  `quit` returns to the workbench"
+      Colors.dimText "command prompt  ·  `quit` returns to the workbench"
     let rows = Stdlib.List.push view.rows hintRow
     // The prompt's cursor is addressed against its own rows, so inserting a row above it moves it down one.
     match view.cursor with

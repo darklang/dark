@@ -88,9 +88,9 @@ let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
           2
           2
           ((Colors.colorize Colors.cyan ":")
-           ++ (Colors.dimText " runs any classic command  ·  ")
-           ++ (Colors.colorize Colors.cyan ":commands")
-           ++ (Colors.dimText " opens the old prompt")) ]
+           ++ (Colors.dimText " runs any command  ·  ")
+           ++ (Colors.colorize Colors.cyan "p")
+           ++ (Colors.dimText " drops to the command prompt")) ]
 
   let renderStatus (inner: UI.Layout.Region) : List<UI.Layout.Span> =
     let wipLine =

@@ -136,7 +136,9 @@ let hintsForView (state: State) : String =
   let hasPreview = Stdlib.Bool.not (Stdlib.List.isEmpty state.items)
   let tabHint = if hasPreview then [ ("tab", "preview") ] else []
   // Global keys, always the same, anchored at the right end of the footer.
-  let global = [ ("/", "search"); (":", "cmd"); ("`", "views"); ("?", "help"); ("esc/q", "quit") ]
+  // `p` earns a slot here: it's the way out to the prompt, and an escape hatch nobody can see isn't one.
+  let global =
+    [ ("/", "search"); (":", "cmd"); ("p", "prompt"); ("`", "views"); ("?", "help"); ("esc/q", "quit") ]
   let ctx =
     if view == vMatter then
       [ ("↑↓", "move"); ("→", "in"); ("d", "deps"); ("n/t/v", "new"); ("e", "edit"); ("r", "rename"); ("L", "values"); ("f", "filter") ]
@@ -186,8 +188,11 @@ val helpGroups =
     ("Apps", "i install/uninstall   r run   s stop")
     ("Search", "↑↓ move   ⏎ jump   esc close")
     // Last, and spelled out, because it's the way back to the pre-workbench CLI. Anything you could type at
-    // the old prompt runs from the `:` bar; `:commands` hands you the prompt itself.
-    ("Classic", ":<any old command>   :commands for the old prompt (quit returns here)") ]
+    // the prompt runs from the `:` bar; `p` hands you the prompt itself.
+    //
+    // "Prompt", not "classic" or "old REPL": it's what the code calls it (`MainPrompt`, `LaunchPrompt`), it's
+    // what it is, and "REPL" is taken by the tab that actually evaluates expressions.
+    ("Prompt", "p drops to the command prompt (quit returns here)   : runs one command without leaving") ]
 
 /// The view-picker overlay: a centered, boxed, jumpable list of every view (number + name), the current one
 /// marked. Reaches the views the number keys can't (10th+).

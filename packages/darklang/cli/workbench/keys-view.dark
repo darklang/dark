@@ -105,6 +105,9 @@ let handleViewKey
     | Some "g" -> navTop state
     | Some "G" -> navBottom state
     | Some "?" -> Step.Continue { state with showHelp = true }
+    // The way back to the prompt, on one key. It's an escape hatch, and an escape hatch you have to type a
+    // command to reach isn't much of one. `:prompt` still works for anyone who'd rather type it.
+    | Some "p" -> Step.ToPrompt state
     | Some "`" ->
       // View picker - a jumpable list of all views (numbers only reach the first nine).
       let pickPos =
