@@ -1,117 +1,28 @@
 #!/usr/bin/env bash
 
+# Start the dev environment without VS Code, and follow the build.
+#
+# Delegates rather than running its own `docker run`, so there's one container spec
+# (.devcontainer/devcontainer.json) instead of two that drift apart.
+
 set -euo pipefail
 
-# This is used, in concert with scripts/build/_build-server, to run Dark inside
-# the devcontainer. There is a strong connection between these files and
-# .circleci/config.yml, as well as devcontainer.yaml. Generally, if you add
-# something to one of these files, there's an equivalent to be added in both
-# .circleci/config.yml and devcontainer.yaml.
-
 if [[ "${BASH_VERSINFO[0]}" -lt 4 ]]; then
-  # Because we use `-v`
-  echo "We require bash >= 4. Assuming you're on a Mac and have homebrew installed,"
-  echo "upgrade by running \`brew install bash\`."
+  echo "We require bash >= 4. On a Mac with homebrew: brew install bash" >&2
   exit 1
 fi
 
-# Sometimes these dirs leak out of the container, causing confusion and
-# slowness
-rm -Rf backend/src/*/obj
-rm -Rf backend/tests/*/obj
-rm -Rf backend/Build
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 
-# See Dockerfile for an explanation of uid/gid.
-gid="$(id -g)"
-uid="$(id -u)"
-# Below is max($gid, 1000); on OS X, the user's group might be staff, with
-# gid=20, which conflicts with ubuntu group dialout.
-gid=$((gid == 20 ? uid : gid))
-
-# --------------
-# Build image from clean start
-# --------------
-if [[ ! -v NEVER_REBUILD_DOCKER ]]; then
-  echo "Building docker image"
-  # Always build for linux/amd64 (new OSX arm machines have emulation). This is
-  # slow on MacOS but it gets there eventually.
-  # Most of the work is done to enable arm64 builds
-  # LightTODO revisit this
-  docker buildx build -t dark --build-arg uid="$uid" --build-arg gid="$gid" .
-
-  echo "Removing running containers"
-  c=$(docker ps --filter "name=dark-builder" -q)
-  if [[ -n "${c}" ]]; then
-    docker kill "${c}";
-  fi
+# The build server starts with the container, so the old --compile/--watch/--serve/--test
+# flags have nothing left to control.
+if [[ "$#" -gt 0 ]]; then
+  echo "note: $* ignored. The build server starts with the container and watches for" >&2
+  echo "      changes. Run scripts/run-backend-tests for tests." >&2
 fi
 
+"$DIR/scripts/dev/start"
 
-# --------------
-# Mounts
-# --------------
-
-MOUNTS="--mount type=bind,src=$PWD,dst=/home/dark/app"
-
-# Avoid docker syncing everything to the host, slowing compiles down by 5x
-MOUNTS+=" --mount type=volume,src=dark_build,dst=/home/dark/app/backend/Build"
-MOUNTS+=" --mount type=volume,src=dark_nuget,dst=/home/dark/.nuget"
-
-# make sure this exists first, so it doesn't get created as a directory
-touch "$HOME/.dark_bash_history"
-MOUNTS="$MOUNTS --mount type=bind,src=$HOME/.dark_bash_history,dst=/home/dark/.bash_history"
-
-# --------------
-# environment
-# --------------
-
-ENV_FILE="config/dev"
-if [[ -e "config/local" ]]; then
-  ENV_FILE="$ENV_FILE config/local"
-fi
-
-echo "Using env: $ENV_FILE"
-
-# --------------
-# create the network
-# --------------
-./scripts/devcontainer/_create-dark-dev-network
-
-# --------------
-# --------------
-echo "Run the build"
-
-# --init here keeps orphaned processes (`<defunct>`, in ps) from
-# hanging around forever; see https://tech.fpcomplete.com/rust/pid1
-# (above the fold) for a description of the process 1 problem in
-# docker, and
-# https://docs.docker.com/engine/reference/run/#specify-an-init-process
-# for documentation of --init.
-# -cap-add & -security-opt to attach a gdb/strace to .net code
-# --ulimit=nofile=65536:65536 to match CI
-docker run \
-  --init \
-  --rm \
-  -i \
-  --dns 8.8.8.8 \
-  --dns 8.8.4.4 \
-  --name dark-builder \
-  --hostname dark-dev \
-  --env-file "$ENV_FILE" \
-  --env HOST_PWD="$PWD" \
-  --env IN_DEV_CONTAINER=true \
-  -v /var/run/docker.sock:/var/run/docker.sock \
-  -p 10011:10011 \
-  -p 10012:10012 \
-  -p 10030:10030 \
-  -p 11001:11001 \
-  -p 11002:11002 \
-  -p 9090-9099:9090-9099 \
-  -w /home/dark/app \
-  --user "$uid:$gid" \
-  --cap-add=ALL \
-  --security-opt seccomp=unconfined \
-  --ulimit=nofile=1048576:1048576 \
-  $MOUNTS \
-  dark \
-  scripts/build/_build-server "${@}"
+echo
+echo "Following the build. Ctrl+C leaves the container running."
+exec tail -n 200 -F "$DIR/rundir/logs/build-server.log"

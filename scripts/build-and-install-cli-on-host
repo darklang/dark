@@ -66,13 +66,26 @@ detect_host_runtime() {
   esac
 }
 
-# Find the running devcontainer
+# Must be this clone's container: the build below writes into whichever container it
+# picks, and the `docker cp` expects the SHA of the checkout mounted there.
+# shellcheck source=scripts/devcontainer/_container-for-clone
+source "$REPO_ROOT/scripts/devcontainer/_container-for-clone"
+
 find_devcontainer() {
   local container_id
-  container_id=$(docker ps --format '{{.ID}} {{.Image}}' | grep -i 'vsc-main' | head -1 | awk '{print $1}')
+  container_id=$(container_for_clone "$REPO_ROOT")
 
   if [[ -z "$container_id" ]]; then
-    echo "Error: No running devcontainer found. Please start the devcontainer first." >&2
+    {
+      echo "Error: no dev container is running for this clone:"
+      echo "    $REPO_ROOT"
+      echo
+      echo "Dark containers currently running:"
+      describe_dark_containers
+      echo
+      echo "Start this clone's container:"
+      echo "    devcontainer up --workspace-folder $REPO_ROOT"
+    } >&2
     exit 1
   fi
 

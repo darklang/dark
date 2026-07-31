@@ -1,0 +1,41 @@
+#!/usr/bin/env bash
+
+# Which dev container belongs to which clone. Sourced, not run:
+#
+#   source "<repo root>/scripts/devcontainer/_container-for-clone"
+#   id=$(container_for_clone "$REPO_ROOT")
+#
+# The /home/dark/app mount source is the only key that holds. Names vary, the
+# devcontainer.local_folder label is empty on some containers, image names just encode the
+# directory, and `docker ps --last 1` sorts by creation time, which says nothing about
+# which clone you're in.
+
+_dark_mount='{{range .Mounts}}{{if eq .Destination "/home/dark/app"}}'
+_dark_mount+='{{.Source}}{{end}}{{end}}'
+
+# The container serving the clone rooted at $1, or nothing.
+container_for_clone() {
+  local clone="$1" c
+  for c in $(docker ps --filter status=running --quiet); do
+    if [[ "$(docker inspect -f "$_dark_mount" "$c" 2>/dev/null)" == "$clone" ]]; then
+      echo "$c"
+      return
+    fi
+  done
+}
+
+# Every running dark container and the clone it serves, for error messages.
+describe_dark_containers() {
+  local c src name found=0
+  for c in $(docker ps --filter status=running --quiet); do
+    src=$(docker inspect -f "$_dark_mount" "$c" 2>/dev/null)
+    if [[ -n "$src" ]]; then
+      name=$(docker inspect -f '{{.Name}}' "$c" | tr -d '/')
+      printf '    %-28s -> %s\n' "$name" "$src"
+      found=1
+    fi
+  done
+  if [[ "$found" == 0 ]]; then
+    echo "    (none)"
+  fi
+}
