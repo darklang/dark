@@ -48,18 +48,27 @@ Now that the pre-requisites are installed, we should be able to build the
 development container in Docker, which has the exact right versions of all the
 tools we use.
 
-- If you're using VS Code, we run our build scripts in the VS Code devcontainer. See
-  [the VS Code instructions](vscode-setup.md) for instructions.
-- Otherwise, simply run `scripts/builder --compile --watch --test`,
-  and watch the output of the build process.
+Start the container:
+
+```
+scripts/dev/start
+```
+
+Safe to re-run; it does nothing if the container is already up. It also picks this
+clone's host ports and prints them, so several clones can run side by side. Pass
+`--recreate` after changing `.devcontainer/devcontainer.json`, since `devcontainer up`
+otherwise reuses the container that already exists.
+
+This needs the devcontainer CLI on the host: `npm install -g @devcontainers/cli`.
+
+If you'd rather watch the build in your terminal, `scripts/builder` starts the container
+and then follows the build log. In VS Code, opening the folder in the container does the
+same thing, and you can skip both.
 
 ### Ensure all built OK
 
-These steps apply for all builds, in VS Code or if manually running `scripts/builder`:
-
-Wait until the terminal says "Initial compile succeeded" - this means the build
-server is ready. The `builder` script will sit open, waiting for file changes in
-order to recompile.
+Wait until the log says "Initial compile succeeded" - that means the build server is
+ready and watching for changes.
 
 ### In case of error
 
@@ -89,25 +98,20 @@ You probably also want to install a pre-commit hook that runs the formatters for
 you.
 `cp scripts/formatting/pre-commit-hook.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit`
 
-## Other ways to run the dev container
+## Running several clones at once
 
-### Just serve it, not constantly recompiling
+Each clone gets its own container, its own `backend/Build` volume, and its own block of
+host ports: the first clone up takes 9090-9099, the next 9100-9109. `scripts/dev/start`
+picks the block and prints it, and `scripts/dev/host-port` tells you later.
 
-- Run `scripts/builder --compile --serve`
+`./scripts/*` commands enter the container belonging to the clone you're standing in. If
+that clone has no container, they stop and say so rather than running in another one.
 
-Note that if you're using a VS Code devcontainer, this will happen automatically and
-you don't need to run it.
+### Rebuilding the dev container
 
-### (Not) Rebuilding the dev container
-
-If you pull a commit with a Dockerfile update, and then restart your
-`scripts/builder` script -- it will rebuild as much of the container as possible.
-
-If you don't want to rebuild the container, use `NEVER_REBUILD_DOCKER=1 scripts/builder ...`
-to make the the build script use the last built one.
-
-In another shell you can now kick off a `scripts/builder --compile` to rebuild the container
-in parallel with your currently working one.
+Pulling a Dockerfile change and running `scripts/dev/start --recreate` rebuilds as much
+as Docker's cache allows. Without `--recreate` the existing container is reused, which is
+usually what you want.
 
 You can use `export CURRENTLY_REBUILDING_DOCKER=1` to make your run-in-docker
 invocations, use the old+running container as opposed to attempting to use the

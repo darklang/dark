@@ -106,15 +106,35 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           // Announce only once the port is actually bound (via onListening), so a taken port never prints a
           // "Listening" that then turns out to be false. Requests are logged (Config.defaults sets
           // logRequests), but nothing ever said so — leaving you to wonder whether a request arrived at all.
+          // In the dev container the host reaches this port on a per-clone offset, set as
+          // DARK_HOST_PORT_BASE at startup. Unset outside it, so there's nothing to add.
+          let hostLines =
+            match Builtin.environmentGet "DARK_HOST_PORT_BASE" with
+            | None -> []
+            | Some baseStr ->
+              match Stdlib.Int.parse baseStr with
+              | Error _ -> []
+              | Ok hostBase ->
+                let offset = parsed.port - 9090
+                if (offset < 0) || (offset > 9) || (hostBase == 9090) then
+                  []
+                else
+                  let hostStr = Stdlib.Int.toString (hostBase + offset)
+                  [ Colors.hint $"  From the host: http://localhost:{hostStr}" ]
+
           let announce () : Unit =
-            [ $"Using router: {parsed.routerPath}"
-              $"Max body bytes: {maxBytesStr}"
-              ""
-              Colors.success $"Listening on http://localhost:{portStr}"
-              Colors.hint "  Requests print here as they arrive (method, path, status, duration)."
-              "Press Ctrl+C to stop"
-              "" ]
-            |> Stdlib.printLines
+            let head =
+              [ $"Using router: {parsed.routerPath}"
+                $"Max body bytes: {maxBytesStr}"
+                ""
+                Colors.success $"Listening on http://localhost:{portStr}" ]
+
+            let tail =
+              [ Colors.hint "  Requests print here as they arrive (method, path, status, duration)."
+                "Press Ctrl+C to stop"
+                "" ]
+
+            Stdlib.printLines (Stdlib.List.append head (Stdlib.List.append hostLines tail))
 
           match Stdlib.HttpServer.serve config router announce with
           | Ok _ -> ()

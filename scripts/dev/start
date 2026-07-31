@@ -1,0 +1,73 @@
+#!/usr/bin/env bash
+
+# Start this clone's dev container. Safe to re-run.
+#
+#   scripts/dev/start              start it, or report it if it's already up
+#   scripts/dev/start --recreate   throw it away and build a fresh one
+#
+# --recreate is what you want after changing devcontainer.json: `devcontainer up` reuses
+# whatever container already exists here, so config changes are otherwise ignored.
+
+set -euo pipefail
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )"
+
+RECREATE=()
+if [[ "${1:-}" == "--recreate" ]]; then
+  RECREATE=( --remove-existing-container )
+fi
+
+# shellcheck source=scripts/devcontainer/_container-for-clone
+source "$DIR/scripts/devcontainer/_container-for-clone"
+
+# A container that already exists keeps the ports it was created with, so report what it
+# has rather than what we asked for.
+report() {
+  local id="$1"
+  echo "$(docker inspect -f '{{.Name}}' "$id" | tr -d '/'): host $( \
+    docker port "$id" 9090 | head -n 1 | sed 's/.*://')-$( \
+    docker port "$id" 9099 | head -n 1 | sed 's/.*://') -> container 9090-9099"
+}
+
+id=$(container_for_clone "$DIR")
+if [[ -n "$id" && "${#RECREATE[@]}" -eq 0 ]]; then
+  echo "Already up."
+  report "$id"
+  exit 0
+fi
+
+# shellcheck disable=SC2016 # Go template, not shell expansion
+published='{{range $p, $conf := .NetworkSettings.Ports}}{{range $conf}}{{.HostPort}}
+{{end}}{{end}}'
+taken=()
+ids=()
+while IFS= read -r c; do ids+=( "$c" ); done < <(docker ps --quiet)
+if [[ "${#ids[@]}" -gt 0 ]]; then
+  while IFS= read -r p; do
+    [[ -n "$p" ]] && taken+=( "$p" )
+  done < <(docker inspect "${ids[@]}" -f "$published")
+fi
+
+# First free block of 10, counting up from 9090.
+base=9090
+while :; do
+  clash=0
+  for p in "${taken[@]}"; do
+    if [[ "$p" -ge "$base" && "$p" -lt $(( base + 10 )) ]]; then clash=1; break; fi
+  done
+  [[ "$clash" == 0 ]] && break
+  base=$(( base + 10 ))
+done
+
+echo "Starting dev container for $DIR"
+echo "First run pulls and builds; expect a few minutes."
+
+DARK_PORTS="$base-$(( base + 9 ))" \
+DARK_HOST_PORT_BASE="$base" \
+  devcontainer up "${RECREATE[@]+"${RECREATE[@]}"}" --workspace-folder "$DIR"
+
+# After, not before: if a container already existed the block above was never applied.
+id=$(container_for_clone "$DIR")
+if [[ -n "$id" ]]; then
+  report "$id"
+fi

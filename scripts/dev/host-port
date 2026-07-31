@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+
+# Which host port reaches a port inside this clone's container.
+#
+#   scripts/dev/host-port        -> 9100
+#   scripts/dev/host-port 9091   -> 9101
+#   curl "http://localhost:$(scripts/dev/host-port)"
+#
+# Only the number goes to stdout, so it composes.
+
+set -euo pipefail
+
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )"
+PORT="${1:-9090}"
+
+# shellcheck source=scripts/devcontainer/_container-for-clone
+source "$DIR/scripts/devcontainer/_container-for-clone"
+
+id=$(container_for_clone "$DIR")
+if [[ -z "$id" ]]; then
+  {
+    echo "No dev container running for this clone: $DIR"
+    echo "Start it with: scripts/dev/start"
+  } >&2
+  exit 1
+fi
+
+mapping=$(docker port "$id" "$PORT" 2>/dev/null | head -n 1)
+if [[ -z "$mapping" ]]; then
+  echo "Container port $PORT isn't published. Published ports are 9090-9099." >&2
+  exit 1
+fi
+
+echo "${mapping##*:}"

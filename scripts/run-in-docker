@@ -19,19 +19,33 @@ do
   ARGS+=( "$(echo "$arg" | fix_dir_stdin)" )
 done
 
+# shellcheck source=scripts/devcontainer/_container-for-clone
+source "$DIR/scripts/devcontainer/_container-for-clone"
+
 if [[ -v CURRENTLY_REBUILDING_DOCKER ]];
 then
   NAME=$(docker ps --last 2 --filter "name=dark-builder" --filter status=running --quiet | tail -n 1)
+elif [[ -v DARK_CONTAINER ]]; then
+  NAME="$DARK_CONTAINER"
 else
-  NAME=$(docker ps --last 1 --filter "name=dark-builder" --filter status=running --quiet)
-  # If the dev container isn't running, try the vscode container
-  if [[ "${NAME}x" == "x" ]]; then
-    NAME=$(docker ps --last 1 --filter "label=dark-dev-container" --filter status=running --quiet)
-  fi
+  NAME=$(container_for_clone "$DIR")
 fi
 
+# No fallback to "newest container" here: a clone with none of its own would then quietly
+# drive someone else's, which is a fresh clone's normal state.
 if [[ "$NAME" == "" ]]; then
-  echo "No container name. Is the container not running?"
+  {
+    echo "No dev container is running for this clone:"
+    echo "    $DIR"
+    echo
+    echo "Dark containers currently running:"
+    describe_dark_containers
+    echo
+    echo "Start this clone's container:"
+    echo "    devcontainer up --workspace-folder $DIR"
+    echo "Or target one explicitly:"
+    echo "    DARK_CONTAINER=<name> $0 ..."
+  } >&2
   exit 1
 fi
 

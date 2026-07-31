@@ -52,9 +52,12 @@
     "--dns",
     "8.8.4.4",
     "--ulimit=nofile=1048576:1048576",
-    // publish the reserved serve ports so host localhost:9090-9099 reaches in-container daemons
-    // (works outside VS Code's port-forwarding, which only runs when VS Code manages the container)
-    "--publish=9090-9099:9090-9099",
+    // Host side is a per-clone block so two clones don't fight over it; scripts/dev/start
+    // picks a free one. Container side is 9090-9099 everywhere. Published rather than left
+    // to forwardPorts, which only runs when VS Code manages the container.
+    "--publish=${localEnv:DARK_PORTS:9090-9099}:9090-9099",
+    "--env",
+    "DARK_HOST_PORT_BASE=${localEnv:DARK_HOST_PORT_BASE:9090}",
     "--hostname",
     "dark-dev",
     "--env-file",
@@ -85,8 +88,12 @@
     // If using a remote DOCKER_HOST, you need to mount a directory on the remote host instead
     // "type=bind,src=/home/paulbiggar/.dark_bash_history,dst=/home/dark/.bash_history,consistency=cached",
 
-    // Build directories
-    "type=volume,src=dark_build,dst=/home/dark/app/backend/Build",
+    // One checkout's compiled output, so it's keyed per clone: sharing it lets divergent
+    // branches overwrite each other's binaries. A volume rather than the bind mount,
+    // because bind-mounted build dirs sync to the host and make compiles crawl on macOS.
+    "type=volume,src=dark_build_${localWorkspaceFolderBasename},dst=/home/dark/app/backend/Build",
+
+    // Shared on purpose: a package cache, not the state of any one clone.
     "type=volume,src=dark_nuget,dst=/home/dark/.nuget",
 
     // VS Code extensions
