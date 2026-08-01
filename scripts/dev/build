@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Build what's changed, synchronously, and say what it did.
+#
+#   scripts/dev/build                    everything changed since the last build
+#   scripts/dev/build backend/src/...    just these paths
+#   scripts/dev/build --test             ... and run the tests afterwards
+#   scripts/dev/build --force            ... even though the watcher is running
+#
+# Prints its plan before starting, exits nonzero if any step fails, and records the
+# outcome in rundir/build-state.json so everything downstream can stop guessing.
+
+# shellcheck source=scripts/dev/_help
+source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/_help"
+help_if_asked "$@"
+reject_unknown_flags "--test --force --optimize --help" "$@"
+
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+exec python3.12 scripts/build/_dev.py build "$@"

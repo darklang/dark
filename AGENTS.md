@@ -42,33 +42,63 @@ On the host, each clone gets its own block: the first clone up gets 9090-9099, t
 
 ## Builds
 
-Auto-rebuilds on save; don't manually rebuild. A `.dark` change takes about 30 seconds
-(the whole package set reloads, not just your file). A `.fs` change is about 80. Watch:
+Builds are explicit. Edit as many files as you like, then:
 
+    scripts/dev/build            # what's changed since the last good build
+    scripts/dev/build <paths>    # just these
+    scripts/dev/plan             # what that would do, without doing it
+    scripts/dev/status           # did it work, and is the tree ahead of it?
+
+`build` blocks, prints the steps it chose, and exits nonzero if any fails. Measured on
+an idle machine:
+
+    .dark change    ~34s   the whole package set reloads, not just your file
+    .fs change      ~74s   39s compiling, then that same ~34s reload
+    nothing changed  0.2s  compared by content, so a `touch` or a branch switch is free
+
+Note what the second line means: half the cost of any F# change is reloading packages
+that usually didn't need reloading. It's unconditional because a `.fs` change *can*
+alter the serialized package format, and there's no cheap way to ask whether this one
+did. Narrowing it is the biggest remaining win in the loop, and it's entangled with
+`package-ref-hashes.txt`, so coordinate before starting.
+
+The container builds once when it starts. Rebuild-on-save is available but off by
+default, because a five-file change under a watcher pays for five rebuilds, four of them
+on half-finished states that produce real-looking failures:
+
+    scripts/dev/watch            # foreground, Ctrl+C to stop
+    scripts/dev/watch --stop
+
+Don't infer build state from logs. `rundir/build-state.json` records what ran, what
+failed and when, and `scripts/dev/status` reads it. Everything that used to grep
+`packages.log` for "Exception" now asks that file instead, which is why `run-cli` can
+tell you the tree has moved on rather than silently running a stale binary.
+
+    rundir/logs/build.log           # the last explicit build
     rundir/logs/packages.log        # .dark reload
-    rundir/logs/build-server.log    # F# build
+    rundir/logs/watch.log           # a detached watcher
 
 ## Tests
 
-    ./scripts/run-backend-tests
+    ./scripts/run-backend-tests                       all of them, a few minutes
+    ./scripts/run-backend-tests --groups              the tree, with counts
+    ./scripts/run-backend-tests --groups Interpreter  just that part of it
+    ./scripts/run-backend-tests --find mergeFavoring  what matches, and how to run it
+    ./scripts/testing/test-build-planning.py          tests of the build itself
 
-Filtering is Expecto's, and the three flags do different things:
+Find what you want before guessing at a filter: `--groups` and `--find` need no
+database and no package reload, and print the exact command for what they found.
 
-    --filter <path>            slash-separated, matched from the ROOT
-    --filter-test-list <sub>   substring, matches test *lists*
-    --filter-test-case <sub>   substring, matches test *cases*
-    --list-tests               print every test name
+The one trap worth knowing here: a filter that matches nothing used to be reported as
+`0 tests run - Success!` with exit 0. It fails now. `docs/unittests.md` has the rest,
+including what the three filter flags actually do and why they used to disagree with
+their own help text.
 
-`--filter` is the one that surprises people. It matches from the root of the tree, and
-everything lives under `testList "tests"`, so `--filter LibExecution` matches nothing while
-`--filter tests/LibExecution` works. The other two are substring matches, which is why they
-feel more forgiving. When in doubt, `--list-tests` and grep.
+Two runs in the same clone destroy each other, so `run-backend-tests` takes a lock.
+Two runs in different clones are fine; each has its own container, so its own PID
+namespace, network and `rundir`.
 
-Never run two `run-backend-tests` at once, even in different clones: they share
-`test-data.db`, a fixed port, and a `killall -9 Tests`.
-
-A full run takes a few minutes. It logs to `rundir/logs/fsharp-tests.log`; poll that for
-"errored in" to catch failures without waiting for the end.
+Logs go to `rundir/logs/fsharp-tests.log`.
 
 ## Directories
 
@@ -83,16 +113,24 @@ A full run takes a few minutes. It logs to `rundir/logs/fsharp-tests.log`; poll 
       cli/                # CLI code
       scm/                # SCM library (branch, rebase, merge, packageOps)
       stdlib/             # standard library
+    backend/migrations/   # schema.sql, plus incremental/ for additive migrations
     rundir/logs/          # log files
-    scripts/              # build and dev scripts
+    scripts/dev/          # start, build, plan, status, watch, host-port
+    scripts/build/        # the build itself; `_` ones are called by other scripts
+    scripts/              # everything else
 
 ## Logs (rundir/logs/)
 
     cli.log              # CLI runtime issues
     lsp.log              # LSP input/output
     packages.log         # .dark loading from disk
-    build-server.log     # F# build issues
+    build.log            # the last scripts/dev/build
+    watch.log            # a detached scripts/dev/watch
+    post-start.log       # what the container did on startup
     migrations.log       # migrations, if recently changed
+
+Logs are for reading when something went wrong. For "did it work", use
+`scripts/dev/status`.
 
 ## Adding a builtin (F#)
 

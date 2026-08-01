@@ -22,7 +22,6 @@ fi
 
 LOGS="${DARK_CONFIG_RUNDIR}/logs"
 CLI_LOG="$LOGS/cli.log"
-PACKAGES_LOG="$LOGS/packages.log"
 
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE="backend/Build/out/Cli/Release/net10.0/linux-x64/publish/Cli"
@@ -30,35 +29,21 @@ else
   EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
 fi
 
-# if it hasn't been compiled yet, wait for it
+# Is what we're about to run current? This used to be inferred by tailing
+# packages.log for "Exception" and "DEBUG: about to parse", which meant the answer
+# depended on log strings nobody was maintaining. scripts/dev/build records what it
+# did instead; a build in flight or a failed one is fatal, a tree that's merely moved
+# on since the last build is a warning, since editing and then running is normal.
+if [[ "${CI:-}" != "true" ]]; then
+  python3.12 scripts/build/_dev.py check || exit 1
+fi
 
-for ((i=1;i<=1000;i++));
-do
-  if [[ ! -f "${EXE}" ]]; then
-    echo "Waiting for compiled binary"
-    sleep 0.01
-  fi
-done
-
-# Check if packages have loaded successfully
-if [[ -f "${PACKAGES_LOG}" ]]; then
-  # Check if the log ends with an exception/error (indicating failed package loading)
-  if tail -n 10 "${PACKAGES_LOG}" | grep -q "Exception\|Shutting down LibService"; then
-    echo "ERROR: Packages failed to load! Check ${PACKAGES_LOG} for details."
-    echo "You must wait for packages to finish loading successfully before running the CLI."
-    echo "Recent log entries:"
-    tail -n 20 "${PACKAGES_LOG}"
-    exit 1
-  fi
-
-  # Check if packages are still loading
-  if tail -n 5 "${PACKAGES_LOG}" | grep -q "DEBUG: about to parse"; then
-    echo "ERROR: Packages are still loading! Wait for package loading to complete."
-    echo "Check ${PACKAGES_LOG} and wait for 'Starting: reading, parsing packages' to complete successfully."
-    echo "Recent log entries:"
-    tail -n 10 "${PACKAGES_LOG}"
-    exit 1
-  fi
+if [[ ! -f "${EXE}" ]]; then
+  {
+    echo "No CLI binary at ${EXE}"
+    echo "Build it: scripts/dev/build"
+  } >&2
+  exit 1
 fi
 
 GIT_COMMIT=$(git rev-parse --short HEAD)
@@ -68,8 +53,11 @@ export GIT_COMMIT
 # so a --no-log argument is supported to skip logging to the file.
 # also skip the tee when stdout is a tty (interactive): the pipe makes stdout a
 # non-tty, which breaks full-screen TUIs (`dark apps`, `dark outliner`, …).
+#
+# exec, so signals reach the CLI rather than stopping at this wrapper. Without it a
+# terminated `run-cli` leaves the Cli child orphaned; one container accumulated 57.
 if [[ "$NO_LOG" == "true" ]] || [ -t 1 ]; then
-  "${EXE}" "$@"
+  exec "${EXE}" "$@"
 else
   "${EXE}" "$@" 2>&1 | tee "${CLI_LOG}"
 fi

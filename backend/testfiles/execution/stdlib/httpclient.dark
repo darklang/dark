@@ -109,9 +109,22 @@ module Disallowed =
 
   // network error
   (get "http://[0:0:0:0:0:0:0:0]" []) = errNetworkError
-  // Check for sneaky banned urls - blocked via connection callback
-  (get "http://localtest.me" []) = errNetworkError // 127.0.0.1
-  (get "http://c.cx" []) = errNetworkError // 0.0.0.0
+
+  // Sneaky banned urls: a hostname that looks fine but resolves somewhere banned.
+  // Blocked in the connect callback, after resolution, rather than by the URL
+  // validation above. This is the case that actually matters for SSRF.
+  //
+  // These names are in the container's /etc/hosts (scripts/devcontainer/_setup-hosts).
+  // They used to be borrowed third-party domains, localtest.me and c.cx, until c.cx
+  // stopped resolving to 0.0.0.0 and started answering for real.
+  //
+  // Caveat: a name that doesn't resolve at all also gives NetworkError, so without
+  // those /etc/hosts entries these three pass without testing anything. That was
+  // true of the third-party version too. Nothing in the public API distinguishes
+  // "blocked at connect" from "never resolved".
+  (get "http://banned-loopback.dark.test" []) = errNetworkError // 127.0.0.1
+  (get "http://banned-zero.dark.test" []) = errNetworkError // 0.0.0.0
+  (get "http://banned-private.dark.test" []) = errNetworkError // 10.0.0.1
 
   // invalid headers
   // (we just happen to know that google will fail this way if we provide these headers..)
@@ -122,7 +135,14 @@ module Disallowed =
   (get "http://google.com" [ (" x-Google-metaData-Request", " True ") ]) = errInvalidRequest
 
 module BadSSL =
-  (get "http://thenonexistingurlforsure.com" []) = errNetworkError
+  // `.test` is reserved by RFC 6761 and can never be registered, so this can't stop
+  // failing to resolve the way thenonexistingurlforsure.com could have.
+  (get "http://no-such-host.dark.test" []) = errNetworkError
+
+  // Third-party and intermittently flaky: seen erroring in one full run out of
+  // several while the rest of the suite was stable. Testing a self-signed cert
+  // properly needs a local TLS endpoint, which the httpclient test server doesn't
+  // serve yet.
   (get "https://self-signed.badssl.com" []) = errNetworkError
 
 

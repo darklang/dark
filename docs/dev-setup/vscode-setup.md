@@ -19,8 +19,13 @@ plan to automatically install the right extensions to build Dark.
 
 ## Build output
 
-You should see build output in the VS Code terminal, under the heading "Configuring".
-This is also logged to `rundir/logs/build-server.log`
+The container builds once when it starts, under the heading "Configuring". That's
+logged to `rundir/logs/build.log`, and `rundir/logs/post-start.log` has the rest of
+what startup did.
+
+After that, builds are explicit: `scripts/dev/build` when you've finished editing,
+`scripts/dev/status` to see where it stands. If you'd rather it rebuilt on save, that
+still exists, as `scripts/dev/watch`.
 
 ## Extensions
 

@@ -2,10 +2,10 @@ version: 2.1
 
 # Config for CI/CD pipeline
 
-# There is a strong connection between this file and the equivalent files for
-# running Dark in dev, which are scripts/builder and
-# scripts/build/_build-server. Generally, if you add something to this file,
-# there's an equivalent to be added in one of those files.
+# There is a strong connection between this file and the dev build, which lives in
+# scripts/build/compile and scripts/build/_buildplan.py. Generally, if you add
+# something to this file, there's an equivalent to be added there. CI doesn't run
+# compile itself; it drives _dotnet-wrapper directly, so the two can drift.
 
 executors:
   simple-executor:
@@ -83,6 +83,9 @@ jobs:
       # There are currently no yaml files
       # - run: scripts/linting/yamllinter
       - run: scripts/formatting/format check
+      - run:
+          name: Test the build's planning and readiness logic
+          command: scripts/testing/test-build-planning.py
 
   # Build server binaries and run tests
   # Cleanup: consider splitting into (1) build debug (2) prepare .db (3) build release
@@ -136,7 +139,7 @@ jobs:
 
       ## TODO: too many race conditions. Bring back later
       # Test package manager/cli integration works
-      # - run: scripts/run-backend-server --published
+      # - run: scripts/build/run-migrations --published
       # - run: sleep 5 # let migrations run
       # - run: scripts/build/reload-packages --published
       # - run: scripts/run-cli @Darklang.Stdlib.Float.add 1.9 2.0

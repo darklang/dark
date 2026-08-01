@@ -4,4 +4,10 @@
 set -uo pipefail
 
 rm -Rf backend/Build/*
-echo "To build backend/ from scratch, save backend/global.json"
+
+# The build index tracks sources, not outputs, so it would still report the tree as
+# built. scripts/dev/build checks the binaries exist and forces a full build when they
+# don't, but clearing the state as well keeps the two from disagreeing.
+rm -f "${DARK_CONFIG_RUNDIR}/build-state.json" "${DARK_CONFIG_RUNDIR}/build-index.json"
+
+echo "Cleared. Rebuild with: scripts/dev/build"

@@ -8,6 +8,10 @@
 #
 # Only the number goes to stdout, so it composes.
 
+# shellcheck source=scripts/dev/_help
+source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/_help"
+help_if_asked "$@"
+reject_unknown_flags "--help" "$@"
 set -euo pipefail
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )"

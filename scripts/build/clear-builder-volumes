@@ -1,14 +1,26 @@
 #!/usr/bin/env bash
 
+# Remove this clone's docker volumes, or every clone's with --all. Run from the host,
+# containers stopped.
+#
+# It used to remove a volume named `dark_build`, which stopped existing when build
+# output became per-clone as `dark_build_<clone>`, and then aborted on the first name
+# that was already gone.
+
 set -euo pipefail
 
-# Clear all the volumes that we use
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )"
 
-# Must be run from outside (stopped) container
+if [[ "${1:-}" == "--all" ]]; then
+  mapfile -t vols < <(docker volume ls --format '{{.Name}}' | grep '^dark_build' || true)
+  vols+=(dark_nuget darklang-dark-extension-volume
+         darklang-dark-extension-volume-insiders)
+else
+  vols=("dark_build_$(basename "$DIR")")  # matches devcontainer.json
+fi
 
-docker volume rm \
-  dark_build \
-  dark_nuget \
-  darklang-dark-extension-volume \
-  darklang-dark-extension-volume-insiders \
-  vscode
+for v in "${vols[@]}"; do
+  docker volume rm "$v" > /dev/null 2>&1 \
+    && echo "removed $v" \
+    || echo "skipped $v (in use, or not there)"
+done

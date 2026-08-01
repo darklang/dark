@@ -61,26 +61,62 @@ otherwise reuses the container that already exists.
 
 This needs the devcontainer CLI on the host: `npm install -g @devcontainers/cli`.
 
-If you'd rather watch the build in your terminal, `scripts/builder` starts the container
-and then follows the build log. In VS Code, opening the folder in the container does the
-same thing, and you can skip both.
+`scripts/builder` does the same and then prints the build's status. In VS Code, opening
+the folder in the container does the same thing, and you can skip both.
 
-### Ensure all built OK
+Starting the container also builds once, so it's usable when it comes up.
 
-Wait until the log says "Initial compile succeeded" - that means the build server is
-ready and watching for changes.
+### Your first fifteen minutes
+
+It shouldn't take fifteen. Measured on a fresh clone with a fresh container and no
+build cache, these four came to **144 seconds**, of which 92 was the container coming
+up and building and 51 was the test run. That was with the Docker image already
+built; the very first time you'll also pay for that, which is the "few minutes" the
+start script warns you about.
+
+Four commands, ending in one that proves the environment works:
+
+```
+scripts/dev/start            # start the container; prints your host ports
+scripts/dev/status           # "status: ok" and "tree: up to date"
+scripts/run-cli help         # the CLI runs
+scripts/dev/build            # a no-op now, but this is the loop from here on
+```
+
+Then `scripts/run-cli docs for-ai` for the language and the conventions. It's the best
+documentation in the repo and it's easy to miss.
+
+### The loop from then on
+
+Builds are explicit. Edit however many files you like, then build once:
+
+```
+scripts/dev/build            # everything changed since the last good build
+scripts/dev/plan             # what that would do, without doing it
+scripts/dev/status           # did it work, and has the tree moved on since?
+```
+
+`build` blocks, prints the steps it chose, and exits nonzero if any of them fails.
+`status` reads `rundir/build-state.json`, which every build path writes, so nothing has
+to guess by reading logs.
+
+If you'd rather it rebuilt on save, that still exists and is one command:
+
+```
+scripts/dev/watch            # Ctrl+C to stop
+```
+
+It's off by default because a five-file change under a watcher pays for five rebuilds,
+four of them on states you didn't ask for, each producing failures that look real.
 
 ### In case of error
 
-If you see "initial compile failed," there are a few things to try:
+If the build fails:
 
+- `scripts/dev/status` says which step failed; `rundir/logs/build.log` has the output.
 - It may be a memory issue. Ensure you have Docker configured to provide 4GB or
-  more of memory, then try again.
-- Sometimes, simply trying again will work
-  -- rebuild the container or re-run `scripts/builder` manually again.
-- If setting up in VS Code, try navigating to the `global.json` at the root of the
-  repo, and saving it (unchanged).
-- Go to a random `.dark` file in the `packages` directory and save it (unchanged).
+  more of memory, then `scripts/dev/build` again.
+- Sometimes simply trying again will work.
 - If you're still stuck, please ask for help in [Discord](https://darklang.com/discord-invite) or create a [GitHub issue](https://github.com/darklang/dark/issues).
 
 ## Formatting

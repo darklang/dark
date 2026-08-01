@@ -54,3 +54,7 @@ notes/
 
 # Claude Code session lock (per-process, regenerated each session).
 .claude/scheduled_tasks.lock
+
+# Python bytecode, from the build scripts.
+__pycache__/
+*.pyc

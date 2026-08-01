@@ -16,8 +16,14 @@ geared towards dark-classic. If you have any questions, please touch base
 
 ## Try the locally-built CLI
 
-- try running `./scripts/run-cli help`
-  -- if this works, it confirms that at least _most_ things are working.
+- `scripts/dev/status` should say `status: ok` and `tree: up to date`
+- `./scripts/run-cli help` should then print the CLI's help
+- `./scripts/run-cli docs for-ai` is the best documentation in the repo: language
+  syntax, naming, and the conventions we actually follow
+
+If `run-cli` tells you the tree has moved on since the last build, run
+`scripts/dev/build`. Builds are explicit here; nothing rebuilds behind your back
+unless you ask for it with `scripts/dev/watch`.
 
 ## Review the Coding Guide
 
@@ -25,9 +31,10 @@ geared towards dark-classic. If you have any questions, please touch base
 
 ## Run tests
 
-- `scripts/run-backend-tests`
-- [Running unit tests](docs/unittests.md)
-- [Dark unit tests](backend/testfiles/README.md)
+- `scripts/run-backend-tests` runs all of them; `--groups` and `--find` help you run
+  part of them and print the command to do it
+- [Running unit tests](docs/unittests.md), for the filter flags and their traps
+- [Dark unit tests](backend/testfiles/README.md), for the `.dark` test files
 
 ### Using Dark scripts
 
