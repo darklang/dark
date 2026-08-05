@@ -58,6 +58,10 @@
     "--publish=${localEnv:DARK_PORTS:9090-9099}:9090-9099",
     "--env",
     "DARK_HOST_PORT_BASE=${localEnv:DARK_HOST_PORT_BASE:9090}",
+    // `DARK_DEV_WATCH=true scripts/dev/start` gets rebuild-on-save back for the life
+    // of the container, without a diff to a tracked file.
+    "--env",
+    "DARK_DEV_WATCH=${localEnv:DARK_DEV_WATCH:false}",
     "--hostname",
     "dark-dev",
     "--env-file",
@@ -106,12 +110,11 @@
   "containerUser": "dark",
   "updateRemoteUserUID": true,
 
-  // Run one build-server, and keep it running for the life of the
-  // devcontainer. This is in postStart rather than postAttach as postAttach would
-  // add a new build-server each time and we only want one.
-  "postStartCommand": "./scripts/devcontainer/_vscode-post-start-command",
+  // Set the container up and build once, so it's usable on arrival. No file watcher:
+  // rebuilding on save is opt-in now (scripts/dev/watch).
+  "postStartCommand": "./scripts/devcontainer/_post-start",
 
-  // Show the build-server output in a terminal
-  // Use -F as it the build-server might not have output by the time this starts
-  "postAttachCommand": "tail -n 1000 -F rundir/logs/build-server.log"
+  // Where the build stands, then the watcher's live log if you've opted into it.
+  // Never an unconditional `tail -F`: postAttach that doesn't return hangs the attach.
+  "postAttachCommand": "./scripts/dev/_post-attach"
 }

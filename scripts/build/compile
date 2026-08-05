@@ -2,15 +2,21 @@
 
 import sys
 import subprocess
-import fnmatch
 import time
 import os
-import pathspec
-from pathlib import Path
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+import _buildindex
+import _buildplan
+import _buildstate
 
 run_tests = False
 in_ci = os.getenv("CI") == "true"
 optimize = in_ci
+
+# How this build describes itself in build-state.json, and where its output went.
+source = "compile"
+log_path = None
 
 fsharp_things_to_build = ["fsdark.sln"]
 # sometimes it's handy to only build one or more specific projects
@@ -56,22 +62,8 @@ def run_backend(start, bash):
 
 
 def run_test(start, bash):
-  if run_tests:
-    pretty_print(bash, 45)
-    return run(start, bash)
-  else:
-    print("skipping tests")
-    return True
-
-
-def run_other(start, bash):
-  pretty_print(bash, 46)
+  pretty_print(bash, 45)
   return run(start, bash)
-
-
-def is_script(f):
-  filetype = subprocess.check_output(["file", f], encoding="utf-8")
-  return "Bourne-Again" in filetype
 
 
 def shellcheck(f):
@@ -98,7 +90,6 @@ def circleci_validate():
 
 def backend_test():
   start = time.time()
-  ci = "--verbosity detailed" if in_ci else "--verbosity normal"
   if optimize:
     configuration = " --published"
   else:
@@ -116,7 +107,19 @@ def fsharp_tool_restore():
 
 def fsharp_paket_install():
   start = time.time()
-  build = "./scripts/build/_dotnet-wrapper paket install"
+  # Both caches have to go, and the restore after has to be forced.
+  #
+  # `paket install` rewrites paket.lock but leaves its own restore caches keyed on
+  # the previous graph, and NuGet then treats project.assets.json as current. So
+  # changing a pin gave a rewritten lock and a binary built against the old
+  # versions, with nothing anywhere saying so. Found by bumping
+  # SQLitePCLRaw.bundle_e_sqlite3 and watching the advisory for the version I'd
+  # just removed survive two builds.
+  clear = ("rm -f backend/paket-files/paket.restore.cached"
+           " && find backend -name '*.paket.references.cached' -delete")
+  build = (f"{clear}"
+           " && ./scripts/build/_dotnet-wrapper paket install"
+           " && ./scripts/build/_dotnet-wrapper restore --force fsdark.sln")
   return run_backend(start, build)
 
 
@@ -201,23 +204,11 @@ def backend_full_build():
 
 def run_migrations():
   start = time.time()
-
   if optimize:
     configuration = " --published"
   else:
     configuration = ""
-  return run_backend(start, f"scripts/run-local-exec {configuration} migrations run")
-
-
-
-def reload_backend_server():
-  start = time.time()
-  if optimize:
-    configuration = " --published"
-  else:
-    configuration = ""
-  runserver = f"scripts/run-backend-server {configuration}"
-  return run_backend(start, runserver)
+  return run_backend(start, f"scripts/build/run-migrations {configuration}")
 
 
 def reload_all_packages():
@@ -229,199 +220,186 @@ def reload_all_packages():
   return run_backend(start, f"scripts/build/reload-packages {configuration}")
 
 
-class Should:
+class Outcome:
+  """What execute() actually did, for build-state.json.
+
+  Separate from Should, which is what it intended to do. The two differ whenever a
+  step fails, and the difference is the useful part of a failure report.
+  """
+
   def __init__(self):
-    self.fsharp_tool_restore = False
-    self.fsharp_paket_restore = False
-    self.fsharp_paket_install = False
-    self.backend_quick_build = False
-    self.backend_full_build = False
-    self.backend_test = False
-    self.reload_all_packages = False
-    self.circleci_validate = False
-    self.run_migrations = False
-    self.reload_backend_server = False
-    self.shellcheck = []
-    self.yamllint = []
+    self.ran = []
+    self.succeeded = set()
+    self.skipped = []
+    self.failed = None
+
+  def record(self, name, ok):
+    self.ran.append(name)
+    if ok:
+      self.succeeded.add(name)
+    elif self.failed is None:
+      self.failed = name
+    return ok
+
+  def skip(self, name):
+    self.skipped.append(name)
+    print(f"skipping {name}: an earlier step failed")
 
 
-def execute(should):
-  success = True
+def execute(should, outcome):
+  """Run the chosen actions. Returns whether everything that ran succeeded.
 
-  # backend dependencies
+  The backend chain is ordered and each step consumes the last one's output, so a
+  failure stops the rest of it: reloading packages into a binary that didn't build
+  costs half a minute and tells you nothing. The validators at the end don't depend
+  on the build, so they still run.
+  """
+  packages_from_seed = _buildplan.packages_from_seed()
+  chain_ok = True
+
+  def step(name, fn):
+    nonlocal chain_ok
+    if not chain_ok:
+      outcome.skip(name)
+      return False
+    if not outcome.record(name, fn()):
+      chain_ok = False
+      return False
+    return True
+
   if should.fsharp_tool_restore:
-    if not fsharp_tool_restore(): success = False
-    should.fsharp_paket_restore |= success
-    should.backend_full_build |= success
+    if step("fsharp_tool_restore", fsharp_tool_restore):
+      should.fsharp_paket_restore = True
+      should.backend_full_build = True
 
   if should.fsharp_paket_restore:
-    if not fsharp_paket_restore(): success = False
-    should.backend_full_build |= success
+    if step("fsharp_paket_restore", fsharp_paket_restore):
+      should.backend_full_build = True
 
   if should.fsharp_paket_install:
-    if not fsharp_paket_install(): success = False
-    should.backend_full_build |= success
-
-  # backend
-  packages_from_seed = os.getenv("DARK_CONFIG_PACKAGES_SOURCE") == "seed"
+    if step("fsharp_paket_install", fsharp_paket_install):
+      should.backend_full_build = True
 
   if should.backend_full_build:
     should.backend_quick_build = False  # no need to do both
-    if not backend_full_build(): success = False
-    should.backend_test |= success
-    should.reload_backend_server |= success
-    if not packages_from_seed:
-      should.reload_all_packages |= success
-    should.run_migrations |= success
+    if step("backend_full_build", backend_full_build):
+      should.run_migrations = True
+      should.backend_test |= run_tests
 
   if should.backend_quick_build:
-    if not backend_quick_build(): success = False
-    should.backend_test |= success
-    should.reload_backend_server |= success
-    if not packages_from_seed:
-      should.reload_all_packages |= success
-    should.run_migrations |= success
-
-  if should.reload_backend_server:
-    if not reload_backend_server(): success = False
-    should.run_migrations |= success
+    if step("backend_quick_build", backend_quick_build):
+      should.run_migrations = True
+      should.backend_test |= run_tests
 
   if should.run_migrations:
-    if not run_migrations(): success = False
-    if not packages_from_seed:
-      should.reload_all_packages |= success
+    if step("run_migrations", run_migrations):
+      if not packages_from_seed:
+        should.reload_all_packages = True
 
   if should.reload_all_packages:
-    if not reload_all_packages(): success = False
+    step("reload_all_packages", reload_all_packages)
 
-  if should.backend_test:
-    if not backend_test(): success = False
+  # Gated here rather than inside backend_test(), so a build that skipped the tests
+  # doesn't list running them among the things it did.
+  if should.backend_test and run_tests:
+    step("backend_test", backend_test)
 
+  # Independent of the build, so worth running even when it failed.
+  success = chain_ok
 
-  # misc validations and formatting checkers
   if should.circleci_validate:
-    if not circleci_validate(): success = False
+    if not outcome.record("circleci_validate", circleci_validate()): success = False
 
   if should.shellcheck != []:
     all_files = " ".join(should.shellcheck)
-    if not shellcheck(all_files): success = False
+    if not outcome.record("shellcheck", shellcheck(all_files)): success = False
 
   if should.yamllint:
-    if not all([yamllint(f) for f in should.yamllint]):
+    ok = all([yamllint(f) for f in should.yamllint])
+    if not outcome.record("yamllint", ok):
       success = False
 
   return success
 
 
-def mark(should, f):
-  if f == "backend/global.json" or \
-      f == "backend/.config/dotnet-tools.json" or \
-      f == "backend/Directory.Build.props":
-    should.fsharp_tool_restore = True
-
-  elif "backend/paket.dependencies" == f:
-    should.fsharp_paket_install = True
-
-  elif f.startswith("backend/") and f.endswith("paket.references"):
-    should.fsharp_paket_restore = True
-
-  elif f.startswith("backend/") and \
-    (f.endswith(".fsproj") or f.endswith(".sln")):
-    should.backend_full_build = True
-
-  elif f.startswith("backend/") and \
-       (f.endswith(".fs") or f.endswith(".fsi")):
-    if in_ci:
-      should.backend_full_build = True
-    else:
-      should.backend_quick_build = True
-
-  elif f.startswith("backend/tests/"):
-    should.backend_test = True
-
-  elif f.startswith("packages/") and f.endswith(".dark"):
-    if os.getenv("DARK_CONFIG_PACKAGES_SOURCE") == "seed":
-      print("ignoring .dark file (packages come from seed): " + f, end='')
-    else:
-      should.reload_all_packages = True
-      should.reload_backend_server = True
-
-  elif f.startswith("canvases/") and f.endswith(".dark"):
-    should.reload_all_packages = True
-
-  elif f.startswith("backend/migrations/"):
-    should.run_migrations = True
-
-  elif f == "scripts/run-backend-server":
-    should.shellcheck += [f]
-    should.reload_backend_server = True
-
-  elif f == ".circleci/config.yml":
-    should.circleci_validate = True
-
-  elif (f.startswith("scripts/") or f.endswith(".sh")) and is_script(f):
-    should.shellcheck += [f]
-
-  elif f.endswith(".yml") or f.endswith(".yaml"):
-    should.yamllint += [f]
-
-  else:
-    print("non-build file: " + f, end='')
-
-  return should
-
-# Ignore .gitignore and also some custom files
-def get_ignored_files():
-  with open(".gitignore", 'r') as file:
-    gitignores = file.readlines()
-
-  ignores = [
-        ".git/",
-        "scripts/build/compile",
-        "backend/testfiles/serialization-artifacts/",
-        "containers/",
-        "Dockerfile",
-        ".devcontainer/devcontainer.json"
-        "*.tmp*",
-        "*.md",
-        "*.sw",
-        "*/.#"
-        "*~",
-        "backend/src/LibExecution/package-ref-hashes.txt" ]
-
-  all_ignores = gitignores + ignores
-  return pathspec.GitIgnoreSpec.from_lines(all_ignores)
-
-ignored_files = get_ignored_files()
-
 def main():
   files = []
+  global run_tests, optimize, source, log_path
+
   for f in sys.argv[1:]:
     if f == "--test":
-      global run_tests
       run_tests = True
     elif f == "--optimize":
-      global optimize
       optimize = True
+    elif f.startswith("--source="):
+      source = f.split("=", 1)[1]
+    elif f.startswith("--log="):
+      log_path = f.split("=", 1)[1]
     else:
-      f = os.path.relpath(f, "/home/dark/app")
-      if not (ignored_files.match_file(f)):
+      f = _buildplan.relative(f)
+      # Deduped: one save can arrive as several watcher events for the same path.
+      if not _buildplan.spec().match_file(f) and f not in files:
         files.append(f)
 
-  if len(files) > 0:
-    pretty_print("Compiling: " + ", ".join(files), 43)
-
-    should = Should()
-    for f in files:
-      mark(should, f)
-
-    if execute(should):
-      sys.exit(0)
-    else:
-      sys.exit(1)
-  else:
+  if len(files) == 0:
     # Don't print as it can be overwhelming
     sys.exit(1)
+
+  pretty_print("Compiling: " + ", ".join(files), 43)
+
+  should = _buildplan.Should()
+  for f in files:
+    _buildplan.mark(should, f)
+
+  # A change that maps to nothing (a doc, a file mark() doesn't route) is not a
+  # build, and must not be recorded as one: doing so would move the last-success
+  # mark forward and declare a stale tree fresh. It does still need noting as
+  # accounted for, or it stays in the changed set forever and the tree reads as
+  # permanently behind.
+  if should.is_empty():
+    _buildindex.record_covered(should.unrouted)
+    sys.exit(1)
+
+  planned = _buildplan.expand(should, run_tests=run_tests).chosen()
+  _buildstate.begin(planned, files, source, log_path)
+
+  # Taken before the build, so it records what the build actually consumed. A file
+  # saved while it runs won't match, and will correctly show as changed afterwards.
+  previous_index = _buildindex.load()
+  snapshot = _buildindex.snapshot(previous_index)
+
+  outcome = Outcome()
+  try:
+    ok = execute(should, outcome)
+  except BaseException:
+    _buildstate.finish(False, outcome.ran, outcome.failed or "interrupted", 1,
+                       outcome.skipped)
+    raise
+
+  _buildstate.finish(ok, outcome.ran, outcome.failed, 0 if ok else 1,
+                     outcome.skipped)
+
+  # A file counts as built only if everything it needed succeeded. The actions are
+  # whole-tree (a quick build compiles the whole solution, a reload reloads every
+  # package), so one .fs succeeding really does account for all of them; but a build
+  # that only reloaded packages must leave the .fs entries alone.
+  satisfied = _buildplan.satisfied_by(outcome.succeeded)
+
+  # The first build has no baseline to diff against, so every file looks new. If that
+  # build compiled the whole solution and reloaded every package with nothing
+  # skipped, it is a complete account of the tree, including the few files whose
+  # action only ever runs when they themselves change (paket.dependencies wants
+  # `paket install`, which a from-scratch build has no reason to run).
+  whole_tree = ({"backend_quick_build", "reload_all_packages"}.issubset(satisfied)
+                and not outcome.skipped)
+  bootstrap = previous_index is None and whole_tree
+
+  def covered(rel):
+    return bootstrap or _buildplan.actions_for(rel, run_tests).issubset(satisfied)
+
+  _buildindex.save(_buildindex.merge(previous_index, snapshot, covered))
+
+  sys.exit(0 if ok else 1)
 
 
 main()

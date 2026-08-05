@@ -2,8 +2,25 @@
 
 set -euo pipefail
 
-echo 127.0.0.1 dlio.localhost | sudo tee -a /etc/hosts
-echo 127.0.0.1 test.dlio.localhost | sudo tee -a /etc/hosts
-echo 127.0.0.1 dark-editor.dlio.localhost | sudo tee -a /etc/hosts
-echo 127.0.0.1 dark-repl.dlio.localhost | sudo tee -a /etc/hosts
-echo 127.0.0.1 dark-packages.dlio.localhost | sudo tee -a /etc/hosts
+# Names the container resolves for itself. Appended once: this runs on every container
+# start and used to add a duplicate line each time.
+
+add_host() {
+  local ip="$1" name="$2"
+  grep -qE "^${ip}[[:space:]]+${name}\$" /etc/hosts && return 0
+  echo "${ip} ${name}" | sudo tee -a /etc/hosts > /dev/null
+}
+
+add_host 127.0.0.1 dlio.localhost
+add_host 127.0.0.1 test.dlio.localhost
+add_host 127.0.0.1 dark-editor.dlio.localhost
+add_host 127.0.0.1 dark-repl.dlio.localhost
+add_host 127.0.0.1 dark-packages.dlio.localhost
+
+# For the SSRF tests in backend/testfiles/execution/stdlib/httpclient.dark, which
+# check that a hostname resolving to a banned IP is blocked at connect time. They used
+# to borrow third-party domains; c.cx stopped resolving to 0.0.0.0 and became a real
+# host. `.test` is reserved by RFC 6761, so these can't be registered out from under us.
+add_host 0.0.0.0 banned-zero.dark.test
+add_host 127.0.0.1 banned-loopback.dark.test
+add_host 10.0.0.1 banned-private.dark.test

@@ -198,12 +198,22 @@ let private findPackagesDir () : string =
       [ "cwd", Directory.GetCurrentDirectory() ]
 
 
-/// Concatenate every .dark file under packages/ into one string. Cached.
+/// Concatenate every .dark file under packages/ into one string, minus whole-line
+/// comments. Cached.
+///
+/// The comments go because the count below is textual: naming a builtin in a doc
+/// comment, which is a reasonable thing to do next to the one fn that wraps it,
+/// otherwise reads as a second caller and fails this test. Only lines that are
+/// entirely a comment are dropped, so a `//` inside a string literal can't swallow
+/// real code after it on the same line.
 let private packagesText : Lazy<string> =
   lazy
     (let root = findPackagesDir ()
      Directory.EnumerateFiles(root, "*.dark", SearchOption.AllDirectories)
      |> Seq.map File.ReadAllText
+     |> String.concat "\n"
+     |> String.splitOnNewline
+     |> List.filter (fun line -> not ((line.TrimStart()).StartsWith "//"))
      |> String.concat "\n")
 
 

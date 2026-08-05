@@ -40,12 +40,15 @@ Link tags cannot contain code blocks or other tags.
 
 ## Rendering
 
-How the tags will be styled are defined in [the spec](https://www.notion.so/darklang/Rich-Text-Docstrings-1358553ec49d4ba0b52d04995014152c)
+Nothing renders these at the moment. The renderer was `PrettyDocs.convert` in the
+old client, which turned a docstring into DOM elements; that client is gone and
+nothing has replaced it. The styling spec lived in Notion, which is also gone.
 
-To get a string to render as rich text use PrettyDocs.convert, which takes a `docstring`, and returns a list of DOM elements from the transformed string. If the string just plain-text it returns `[Html.text docstring]`.
+The syntax above is still what docstrings in `packages/` are written in, so it's
+worth following. Just don't expect to see it rendered yet.
 
-## New Tag types
+## New tag types
 
-If you really feel the need to add a new tag. It needs to be a single word with only a-z characters, and remember to:
-1. Update client/styles/_docs.scss with the styling for your new tag
-2. In client/src/ViewUtils.md, in the `PrettyDocs` module there's a `validTags` definition list. Add your new tag to that list.
+A tag has to be a single word of a-z characters. Adding one used to mean editing
+`client/styles/_docs.scss` and the `validTags` list in `client/src/ViewUtils.md`;
+with no renderer there is currently nowhere to register it.

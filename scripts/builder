@@ -14,15 +14,16 @@ fi
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 
-# The build server starts with the container, so the old --compile/--watch/--serve/--test
+# The container builds once on start, so the old --compile/--watch/--serve/--test
 # flags have nothing left to control.
 if [[ "$#" -gt 0 ]]; then
-  echo "note: $* ignored. The build server starts with the container and watches for" >&2
-  echo "      changes. Run scripts/run-backend-tests for tests." >&2
+  echo "note: $* ignored. The container builds once when it starts. After that:" >&2
+  echo "      scripts/dev/build    build what's changed" >&2
+  echo "      scripts/dev/watch    rebuild on save" >&2
+  echo "      scripts/run-backend-tests" >&2
 fi
 
 "$DIR/scripts/dev/start"
 
 echo
-echo "Following the build. Ctrl+C leaves the container running."
-exec tail -n 200 -F "$DIR/rundir/logs/build-server.log"
+"$DIR/scripts/dev/status"

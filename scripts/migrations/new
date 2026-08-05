@@ -1,10 +1,35 @@
 #!/usr/bin/env bash
-set -euo pipefail
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
-NAME=$1
+set -euo pipefail
+
+# Start a new incremental migration.
+#
+#   scripts/migrations/new add_thing
+#
+# Writes into backend/migrations/incremental/, which is the directory the runtime
+# reads. This used to write to backend/migrations/ itself, one level up, where
+# nothing would ever have run it.
+#
+# Incremental migrations are for data backfills and additive transforms on populated
+# databases. Structural changes belong in backend/migrations/schema.sql, which is
+# hashed and replayed; backend/migrations/incremental/README.md has the distinction.
+
+case "${1:-}" in
+  -h|--help) sed -n '6,16p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+  # A tag is a name, not a flag. Without this, `new --help` cheerfully created
+  # backend/migrations/incremental/<date>_--help.sql.
+  -*) echo "Not a tag: $1. Try --help" >&2; exit 1 ;;
+  "") echo "usage: $0 <short_tag>" >&2; exit 1 ;;
+esac
+[[ "$#" -eq 1 ]] || { echo "usage: $0 <short_tag>" >&2; exit 1; }
+
+NAME="$1"
 DATE=$(date -u +%Y%m%d_%H%M%S)
 
-FILE=backend/migrations/${DATE}_${NAME}.sql
+FILE="backend/migrations/incremental/${DATE}_${NAME}.sql"
 touch "${FILE}"
 git add "${FILE}"
+
+echo "Created ${FILE}"
+echo "It runs once, on the next scripts/dev/build."

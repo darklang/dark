@@ -151,9 +151,11 @@ let main (args : string[]) : int =
 
 
     | [ "migrations"; "run" ] ->
-      handleCommand
-        "deleting database and running all migrations"
-        (HandleCommand.runMigrations ())
+      // Not "deleting the database", which is what this used to announce on every
+      // build: an unchanged schema hash makes it a no-op, and even a changed one
+      // only drops the regenerable projections. Nothing you authored is at risk,
+      // and the old wording said otherwise several times a day.
+      handleCommand "bringing the schema up to date" (HandleCommand.runMigrations ())
 
     | [ "migrations"; "list" ] ->
       handleCommand "listing available migrations" (HandleCommand.listMigrations ())

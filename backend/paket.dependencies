@@ -15,7 +15,7 @@ nuget Wcwidth = 4.0.1
 // Sqlite and binary serialization
 nuget Microsoft.Data.Sqlite = 10.0.0
 nuget Fumble = 1.0.3
-nuget SQLitePCLRaw.bundle_e_sqlite3 = 2.1.11
+nuget SQLitePCLRaw.bundle_e_sqlite3 = 3.0.2
 
 // Tests
 nuget Expecto = 10.1.0

@@ -121,12 +121,14 @@ should be impossible and is a bug in the runtime.
 `Exception.raiseInternal` cases are all bugs, and so they are things we wish to know
 about.
 
-`Exception.raiseInternal`, in the cloud runtime, creates an exception that we can
-track and get alerts for from Rollbar, including a stacktrace and a set of useful
-metadata for debugging the issue. We should debug and solve these.
+`Exception.raiseInternal` carries a stacktrace and a set of metadata for debugging.
+Nothing collects them at the moment: `Prelude.Exception.sendRollbarError` is a hook
+that was left behind when Rollbar was removed, and nothing ever assigns to it, so it
+is a no-op. Treat an internal exception as something you find out about by hitting
+it, not something anyone gets alerted to.
 
-`Exception.raiseInternal`, in the cli runtime, will hopefully be connected to a wizard
-to allow users to report internal errors semi-automatically for us to debug and solve.
+Connecting the CLI runtime to a reporting flow, so users can send these
+semi-automatically, is still the intention.
 
 ## RuntimeError implementation
 

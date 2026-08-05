@@ -3,19 +3,18 @@
 
 set -euo pipefail
 
-# This script used to run migrations and start BwdServer. BwdServer is
-# gone (replaced by the in-Dark `darklang serve <fn>` flow). The migrations
-# half is still useful for the dev-loop watcher in scripts/build/compile,
-# which calls this whenever a migration file changes.
+# Bring the dev database up to date. A build step, called from
+# scripts/build/compile; you rarely want it by hand.
 #
-# `--restart=no` is accepted for compatibility with run-backend-tests's
-# legacy two-call shape but is now a no-op (nothing to restart).
+# It was scripts/run-backend-server until BwdServer was replaced by the in-Dark
+# `darklang serve <fn>` flow, after which the name described a server it no longer
+# started. Its `--restart=no` flag went at the same time: nothing passed it, and
+# there was nothing left to restart.
 
 PUBLISHED=false
 for i in "$@"; do
   case "${i}" in
     --published) PUBLISHED=true; shift ;;
-    --restart=no) shift ;;
   esac
 done
 
@@ -31,15 +30,16 @@ else
   LOCALEXEC_EXE="backend/Build/out/LocalExec/Debug/net10.0/LocalExec"
 fi
 
-# Wait for any builds that haven't been compiled yet
-echo "Waiting for builds to be ready"
-for ((i=1;i<=1000;i++)); do
-  if [[ -f "${LOCALEXEC_EXE}" ]]; then
-    break
-  fi
-  sleep 0.01
-done
-echo "Done waiting for builds to be ready"
+# This runs as a step inside a build, so it can't ask whether the build finished. A
+# missing binary here means the step before it didn't produce one, which is worth
+# saying plainly rather than waiting ten seconds and failing anyway.
+if [[ ! -f "${LOCALEXEC_EXE}" ]]; then
+  {
+    echo "No LocalExec binary at ${LOCALEXEC_EXE}"
+    echo "Build it: scripts/dev/build"
+  } >&2
+  exit 1
+fi
 
 # In seed mode: if data.db is missing or empty, copy from seed.db
 if [[ "${DARK_CONFIG_PACKAGES_SOURCE:-disk}" == "seed" ]]; then

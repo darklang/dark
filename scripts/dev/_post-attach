@@ -1,0 +1,32 @@
+#!/usr/bin/env bash
+
+# What you see on attaching to the container (devcontainer.json postAttachCommand).
+#
+# A snapshot, and then the live log only if there is one.
+#
+# This used to be an unconditional `tail -n 1000 -F rundir/logs/build-server.log`.
+# `-F` never returns, so every attach hung: VS Code left a terminal spinning, and the
+# devcontainer CLI eventually gave up with "postAttachCommand from devcontainer.json
+# failed" after several minutes. Nothing has written that log since the build server
+# was removed, so it was following a file that would never appear.
+#
+# Rebuilding on save is opt-in now, so most of the time there is no live log and a
+# snapshot is the honest thing to show. When you have opted in, following the watcher
+# is what you actually wanted, and it's your foreground process to Ctrl+C.
+
+set -uo pipefail
+
+cd "$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )" || exit 0
+
+./scripts/dev/status || true
+
+PIDFILE="rundir/build-watch.pid"
+WATCH_LOG="rundir/logs/watch.log"
+
+if [[ -f "$PIDFILE" ]] && kill -0 "$(cat "$PIDFILE" 2>/dev/null)" 2>/dev/null; then
+  echo
+  echo "Following the watcher. Ctrl+C stops watching this log, not the watcher."
+  mkdir -p "$(dirname "$WATCH_LOG")"
+  touch "$WATCH_LOG"
+  exec tail -n 200 -F "$WATCH_LOG"
+fi

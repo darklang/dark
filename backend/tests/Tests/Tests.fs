@@ -76,8 +76,19 @@ let main (args : string array) : int =
 
     // this does async stuff within it, so do not run it from a task/async
     // context or it may hang
+    //
+    // JoinWith Slash because `--filter`'s own help says "a hierarchy that's slash (/)
+    // separated" while Expecto's default separator is a dot. So the filter you write
+    // after reading the help matches nothing, and Expecto reports that as
+    // "0 tests run - Success!". Slashes also make the hierarchy machine-readable,
+    // which dots don't: case names contain dots of their own
+    // (`Map.mergeFavoringRight`), so nesting and naming were indistinguishable.
+    // `--join-with .` gets the old behaviour back.
     let exitCode =
-      runTestsWithCLIArgs [ Allow_Duplicate_Names ] args (testList "tests" tests)
+      runTestsWithCLIArgs
+        [ Allow_Duplicate_Names; JoinWith "/" ]
+        args
+        (testList "tests" tests)
 
     NonBlockingConsole.wait () // flush stdout
     cancelationTokenSource.Cancel()

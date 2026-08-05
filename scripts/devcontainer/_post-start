@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+
+# Runs once when the dev container starts (devcontainer.json postStartCommand).
+#
+# Sets the container up, then builds once so a fresh container is usable straight
+# away. It deliberately does not start a file watcher: rebuilding on every save is
+# opt-in now, via scripts/dev/watch.
+
+set -euo pipefail
+
+mkdir -p rundir/logs
+LOG_FILE="rundir/logs/post-start.log"
+
+# Old logs describe an older container. Nothing should be drawing conclusions from
+# them, but for a while everything did, so leave no chance of it.
+rm -f rundir/logs/*.log
+touch "$LOG_FILE"
+
+log() {
+  echo "$@" | tee -a "$LOG_FILE"
+}
+
+log "=== Container started at $(date) ==="
+
+git config --global --add safe.directory /home/dark/app
+
+scripts/devcontainer/_write-config-file
+scripts/devcontainer/_allow-docker-access
+scripts/devcontainer/_create-app-directories
+scripts/devcontainer/_create-cache-directories
+scripts/devcontainer/_setup-hosts
+
+log "Building. Follow along: tail -F rundir/logs/build.log"
+if scripts/dev/build >> "$LOG_FILE" 2>&1; then
+  log "Build succeeded. scripts/dev/status for details."
+else
+  log "Build FAILED. See rundir/logs/build.log"
+fi
+
+# Opt back into rebuild-on-save, for anyone who prefers that loop:
+#
+#   DARK_DEV_WATCH=true scripts/dev/start
+#
+# devcontainer.json passes the variable through, so it lasts the life of the
+# container without a diff to a tracked file. Off by default because an explicit
+# build is the better default for scripted use, not because watching is wrong.
+if [[ "${DARK_DEV_WATCH:-}" == "true" ]]; then
+  log "DARK_DEV_WATCH=true: starting the file watcher."
+  scripts/dev/watch --background >> "$LOG_FILE" 2>&1
+fi

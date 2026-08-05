@@ -35,10 +35,8 @@
   comment unless extremely obvious. If unsure, add a comment. The comment does not need
   to be long, describing the purpose of the thing is usually enough.
 
-## HTTP API
+## JSON
 
-- Use REST where possible, don't hang on ceremony if it doesn't fit nicely
-  - We haven't been good about doing REST, so migrate to it where possible
 - JSON objects should use camelCase
   - in the past, they used snake_case, so we should switch
 
@@ -87,11 +85,14 @@
 
 ### SQL migrations
 
-- add `set statement_timeout = '1s'` or `set lock_timeout = '1s'` to the first line
-  of your script, so that it fails instead of taking the service down.
-  (CLEANUP: make this happen automatically)
+- structural changes go in `backend/migrations/schema.sql`, which is hashed and
+  replayed. Data backfills and additive transforms go in
+  `backend/migrations/incremental/`, one file each, run once. The distinction and
+  its trap are written up in `backend/migrations/incremental/README.md`
 
-- migrations are run manually before deployment (using `LocalExec migrations run`)
+- `scripts/migrations/new <tag>` creates the file in the right place
+
+- they run as part of `scripts/dev/build`; there's no separate step
 
 ### Initialization
 

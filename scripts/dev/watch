@@ -1,0 +1,84 @@
+#!/usr/bin/env bash
+# Rebuild on save. Opt-in: the container no longer starts this for you.
+#
+#   scripts/dev/watch                in the foreground; Ctrl+C stops it
+#   scripts/dev/watch --background   detached, logging to rundir/logs/watch.log
+#   scripts/dev/watch --stop         stop a detached one
+#   scripts/dev/watch --status       is one running?
+#
+# A pid file is written either way, so scripts/dev/build can refuse to run a second
+# build into the same output directory.
+
+# shellcheck source=scripts/dev/_help
+source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/_help"
+help_if_asked "$@"
+reject_unknown_flags "--background --stop --status --help" "$@"
+
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+set -euo pipefail
+
+PIDFILE="rundir/build-watch.pid"
+LOGFILE="rundir/logs/watch.log"
+
+running_pid() {
+  [[ -f "$PIDFILE" ]] || return 1
+  local pid
+  pid=$(cat "$PIDFILE" 2>/dev/null) || return 1
+  [[ -n "$pid" ]] || return 1
+  kill -0 "$pid" 2>/dev/null || return 1
+  echo "$pid"
+}
+
+MODE=foreground
+for arg in "$@"; do
+  case "$arg" in
+    --background) MODE=background ;;
+    --stop) MODE=stop ;;
+    --status) MODE=status ;;
+  esac
+done
+
+case "$MODE" in
+  status)
+    if pid=$(running_pid); then
+      echo "Watching, pid $pid. Log: $LOGFILE"
+    else
+      echo "Not watching. Start with: scripts/dev/watch"
+    fi
+    exit 0
+    ;;
+
+  stop)
+    if pid=$(running_pid); then
+      kill "$pid"
+      rm -f "$PIDFILE"
+      echo "Stopped the watcher (pid $pid)."
+    else
+      rm -f "$PIDFILE"
+      echo "Nothing was watching."
+    fi
+    exit 0
+    ;;
+esac
+
+if pid=$(running_pid); then
+  echo "Already watching, pid $pid. Stop it first: scripts/dev/watch --stop" >&2
+  exit 1
+fi
+
+mkdir -p rundir/logs
+
+if [[ "$MODE" == "background" ]]; then
+  nohup python3.12 scripts/build/_dev.py watch >> "$LOGFILE" 2>&1 &
+  echo $! > "$PIDFILE"
+  echo "Watching in the background, pid $(cat "$PIDFILE")."
+  echo "Follow it: tail -F $LOGFILE"
+  echo "Stop it:   scripts/dev/watch --stop"
+  exit 0
+fi
+
+# Not exec: the trap has to survive to clean up the pid file on Ctrl+C.
+echo $$ > "$PIDFILE"
+trap 'rm -f "$PIDFILE"' EXIT
+python3.12 scripts/build/_dev.py watch

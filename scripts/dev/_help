@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+
+# Shared `--help` for the scripts/dev commands. Sourced, not run:
+#
+#   source "$(dirname "${BASH_SOURCE[0]}")/_help"
+#   help_if_asked "$@"
+#
+# The help text is the script's own header comment, so there's one copy and it can't
+# drift from what's actually written at the top of the file.
+#
+# Called before the container hop, deliberately: asking what a command does should
+# work when the container is down, which is one of the times you most want to ask.
+
+# Print the leading comment block of $1, minus the shebang and the `# ` prefixes.
+_dev_header() {
+  awk 'NR > 1 && /^#/ { sub(/^# ?/, ""); print; found = 1; next }
+       found && !/^#/ { exit }' "$1"
+}
+
+help_if_asked() {
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      -h|--help)
+        _dev_header "${BASH_SOURCE[1]}"
+        exit 0
+        ;;
+    esac
+  done
+}
+
+# Reject a flag we don't know rather than falling through to the default action.
+# `scripts/dev/watch --help` used to start a watcher, because an unrecognised flag
+# left the mode at its default and nothing looked again.
+reject_unknown_flags() {
+  local known="$1"; shift
+  local arg
+  for arg in "$@"; do
+    case "$arg" in
+      -*)
+        if [[ " $known " != *" $arg "* ]]; then
+          {
+            echo "Unknown flag: $arg"
+            echo "Known flags: $known"
+            echo "Try: $0 --help"
+          } >&2
+          exit 1
+        fi
+        ;;
+    esac
+  done
+}

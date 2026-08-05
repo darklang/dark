@@ -10,6 +10,24 @@ type FnCall = Darklang.Tracing.FnCall
 type TraceData = Darklang.Tracing.TraceData
 
 
+/// The line to print when a trace query comes back with nothing.
+///
+/// "No traces found" reads as "nothing ran", and when recording is off that's the
+/// wrong conclusion: every query returns empty no matter what ran. There was no way
+/// to tell the two apart from in here until the tracesEnabled builtin, so this asks
+/// rather than guessing.
+let emptyStateHint () : String =
+  if Builtin.tracesEnabled () then
+    "(Traces are recorded by `darklang eval`, `darklang run`, or HTTP handlers under `darklang serve`.)"
+  else
+    "(Recording is OFF, so this is empty whatever ran. For one command: DARK_CONFIG_TRACE_DETAIL=on darklang ...)"
+
+
+/// Print the empty-result explanation, dimmed.
+let printEmptyStateHint () : Unit =
+  Stdlib.printLine (Colors.dimText (emptyStateHint ()))
+
+
 /// Filters applied when rendering a trace tree. Each filter hides matching
 /// nodes but recurses into their children at the SAME indent level so the
 /// surrounding structure stays intact.
@@ -460,9 +478,7 @@ let executeList (state: Cli.AppState) (limit: Int) : Cli.AppState =
     match rows with
     | [] ->
       Stdlib.printLine "No traces found."
-      Stdlib.printLine
-        (Colors.dimText
-          "(Traces are recorded by `darklang eval`, `darklang run`, or HTTP handlers under `darklang serve`.)")
+      printEmptyStateHint ()
       state
     | _ ->
       Stdlib.printLine $"Recent traces (last {Stdlib.Int.toString limit}):"
@@ -507,6 +523,7 @@ let executeListByFn
       match rows with
       | [] ->
         Stdlib.printLine $"No traces found calling '{fnName}'."
+        printEmptyStateHint ()
         state
       | _ ->
         Stdlib.printLine $"Traces calling '{fnName}' (last {Stdlib.Int.toString limit}):"
@@ -607,6 +624,7 @@ let executeFind
     match rows with
     | [] ->
       Stdlib.printLine $"No traces match '{pattern}'."
+      printEmptyStateHint ()
       state
     | _ ->
       Stdlib.printLine
@@ -650,6 +668,7 @@ let executeFindView (state: Cli.AppState) (pattern: String) : Cli.AppState =
     match rows with
     | [] ->
       Stdlib.printLine $"No traces match '{pattern}'."
+      printEmptyStateHint ()
       state
     | row :: _ ->
       Stdlib.printLine $"Latest trace matching '{pattern}': {row.traceId}"
@@ -730,6 +749,7 @@ let executeStats (state: Cli.AppState) (limit: Int) : Cli.AppState =
     match rows with
     | [] ->
       Stdlib.printLine "No traces found."
+      printEmptyStateHint ()
       state
     | _ ->
       Stdlib.printLine
@@ -896,6 +916,7 @@ let executeListByRoute
       match matching with
       | [] ->
         Stdlib.printLine $"No traces found for route filter '{route}'."
+        printEmptyStateHint ()
         state
       | _ ->
         Stdlib.printLine $"Traces matching route '{route}' (last {Stdlib.Int.toString limit}):"
@@ -1305,6 +1326,10 @@ let help (_state: Cli.AppState) : Unit =
     ""
     "Traces are recorded when code executes via eval, run, or HTTP handlers."
     "Each trace captures inputs, function calls with arguments, and results."
+    ""
+    "Recording is OFF by default, because traces have no retention yet and a busy"
+    "process can fill a disk with them. Turn it on for the command you want:"
+    "  DARK_CONFIG_TRACE_DETAIL=on darklang <command>"
     ""
     "Examples:"
     "  traces list                          - Show last 20 traces"

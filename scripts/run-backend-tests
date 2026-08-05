@@ -3,15 +3,10 @@
 
 set -euo pipefail
 
-trap ctrl_c INT
-
-function ctrl_c() {
-  killall -9 Tests
-  exit 1
-}
-
 PUBLISHED=false
 PUBLISHED_FLAG=
+FORCE=false
+FILTERED=false
 
 EXPECTO_ARGS=()
 
@@ -22,11 +17,55 @@ do
       PUBLISHED=true
       PUBLISHED_FLAG=$i
       ;;
+    --force) FORCE=true ;;
+    --filter|--filter-test-list|--filter-test-case|--run)
+      FILTERED=true
+      EXPECTO_ARGS+=("${i}")
+      ;;
     *) EXPECTO_ARGS+=("${i}");;
   esac
 done
 
-killall -9 Tests || true
+# Discovery, before anything expensive: no database, no package reload. Working out
+# what to run shouldn't cost as much as running it.
+case "${1:-}" in
+  --groups) exec python3.12 scripts/testing/_test-explorer.py groups "${@:2}" ;;
+  --find)   exec python3.12 scripts/testing/_test-explorer.py find "${@:2}" ;;
+esac
+
+# Two runs in one clone destroy each other: same test-data.db, same httpclient port,
+# and the `killall -9 Tests` below would take out the other one's process.
+#
+# Two runs in *different* clones are fine, and used to not be. Each clone has its own
+# container, so its own PID namespace, its own bridge network and its own bind-mounted
+# rundir; none of those three things is shared. It was only ever true while every
+# clone's scripts re-execed into whichever container was newest, which is fixed.
+LOCK="${DARK_CONFIG_RUNDIR}/test.lock"
+if [[ -f "$LOCK" ]] && kill -0 "$(cat "$LOCK" 2>/dev/null)" 2>/dev/null; then
+  if [[ "$FORCE" != "true" ]]; then
+    {
+      echo "Tests are already running in this clone (pid $(cat "$LOCK"))."
+      echo "Two runs share test-data.db and would destroy each other."
+      echo "Wait for it, or pass --force if you're sure it's dead."
+    } >&2
+    exit 1
+  fi
+  echo "--force given; taking over from pid $(cat "$LOCK")" >&2
+fi
+
+mkdir -p "${DARK_CONFIG_RUNDIR}"
+echo $$ > "$LOCK"
+
+# shellcheck disable=SC2317  # reached via trap
+cleanup() {
+  killall -9 Tests 2>/dev/null || true
+  rm -f "$LOCK"
+}
+trap cleanup EXIT INT
+
+# Anything still running is a leftover from a crashed run: the lock above means no
+# live run of our own.
+killall -9 Tests 2>/dev/null || true
 
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=Build/out/Tests/Release/net10.0/publish/Tests
@@ -101,5 +140,28 @@ true > "${TEST_LOG}" # truncate
 
 cd backend
 echo -e "Logging to: ${grey}${TEST_LOG}${reset}"
+set +e
 DARK_CONFIG_TELEMETRY_EXPORTER=none \
 "${EXE}" ${SPINNER} --colours "${COLOURS}" --junit-summary "${JUNIT_FILE}" "${EXPECTO_ARGS[@]}" 2>&1 | tee "${TEST_LOG}"
+STATUS=${PIPESTATUS[0]}
+set -e
+
+# Expecto reports a filter that matched nothing as "0 tests run - Success!" and exits
+# 0, which is the worst answer available: you believe you ran a suite you didn't.
+if [[ "$STATUS" -eq 0 && "$FILTERED" == "true" ]]; then
+  if ! sed -e 's/\x1b\[[0-9;]*[A-Za-z]//g' -e 's/\r/\n/g' "${TEST_LOG}" \
+       | grep -qE "EXPECTO! [1-9][0-9]* tests run"; then
+    {
+      echo
+      echo "Your filter matched no tests, so nothing ran. Reporting that as a"
+      echo "failure, because Expecto calls it a success."
+      echo
+      echo "Find what to run:"
+      echo "    scripts/run-backend-tests --groups          the tree, with counts"
+      echo "    scripts/run-backend-tests --find <substr>   which tests match"
+    } >&2
+    exit 1
+  fi
+fi
+
+exit "$STATUS"

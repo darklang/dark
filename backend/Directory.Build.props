@@ -22,5 +22,14 @@
     <OtherFlags>$(OtherFlags) --test:GraphBasedChecking --test:ParallelOptimization --test:ParallelIlxGen</OtherFlags>
     <!-- warnings - https://learn.microsoft.com/en-us/dotnet/fsharp/language-reference/compiler-options#opt-in-warnings -->
     <OtherFlags>$(OtherFlags) --warnaserror --warnon:1182,3387,3366</OtherFlags>
+
+    <!-- NU1510: "PackageReference X will not be pruned, consider removing it".
+         net10.0 provides System.Memory and System.Threading.Tasks.Extensions itself,
+         but both arrive transitively (Ply, SimpleBase, SQLitePCLRaw) and paket writes
+         them as explicit references, which is what blocks the pruning. We can't drop
+         what we don't declare, so the advice isn't actionable, and 78 copies of it
+         per build were most of the noise that made the other warnings easy to miss.
+         Revisit if paket learns about PrunePackageReference. -->
+    <NoWarn>$(NoWarn);NU1510</NoWarn>
   </PropertyGroup>
 </Project>

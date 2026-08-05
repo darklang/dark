@@ -1,7 +1,25 @@
 #!/usr/bin/env bash
-set -euo pipefail
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
-NAME=$1
+set -euo pipefail
 
-psql -d "$DARK_CONFIG_DB_DBNAME" -c "DELETE FROM system_migrations_v0 WHERE name LIKE '%$NAME.sql';"
+# Forget that a migration ran, so the next build applies it again.
+#
+#   scripts/migrations/mark-not-run <any unique part of its name>
+#
+# Was still written against Postgres: it called psql, which isn't installed, via a
+# variable we don't set.
+
+[[ "$#" -eq 1 ]] || { echo "usage: $0 <part of a migration name>" >&2; exit 1; }
+
+DB="${DARK_CONFIG_RUNDIR}/${DARK_CONFIG_DB_NAME:-data.db}"
+QUERY="FROM system_migrations_v0 WHERE name LIKE '%$1%'"
+
+matches=$(sqlite3 "$DB" "SELECT name $QUERY;" 2>/dev/null) || {
+  echo "No database at $DB. Run: scripts/dev/build" >&2; exit 1; }
+
+[[ -n "$matches" ]] || { echo "Nothing recorded as run matching '$1'." >&2; exit 1; }
+
+sqlite3 "$DB" "DELETE $QUERY;"
+echo "Marked not-run, will reapply on the next build:"
+echo "$matches" | while IFS= read -r m; do echo "    $m"; done

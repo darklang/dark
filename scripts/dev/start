@@ -7,7 +7,15 @@
 #
 # --recreate is what you want after changing devcontainer.json: `devcontainer up` reuses
 # whatever container already exists here, so config changes are otherwise ignored.
+#
+# The container builds once on start. For rebuild-on-save as well:
+#
+#   DARK_DEV_WATCH=true scripts/dev/start
 
+# shellcheck source=scripts/dev/_help
+source "$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )/_help"
+help_if_asked "$@"
+reject_unknown_flags "--recreate --help" "$@"
 set -euo pipefail
 
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/../.. && pwd )"
@@ -64,6 +72,7 @@ echo "First run pulls and builds; expect a few minutes."
 
 DARK_PORTS="$base-$(( base + 9 ))" \
 DARK_HOST_PORT_BASE="$base" \
+DARK_DEV_WATCH="${DARK_DEV_WATCH:-false}" \
   devcontainer up "${RECREATE[@]+"${RECREATE[@]}"}" --workspace-folder "$DIR"
 
 # After, not before: if a container already existed the block above was never applied.

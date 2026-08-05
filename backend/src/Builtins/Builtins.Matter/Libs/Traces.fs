@@ -122,7 +122,27 @@ let private loadFnCalls (traceId : string) : Ply<Dval> =
 
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "tracesList" 0
+  [ { name = fn "tracesEnabled" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TBool
+      description =
+        "Whether traces are being recorded. False means every trace query will come
+back empty no matter what ran, so callers can say so instead of showing an empty
+list and letting you conclude nothing happened."
+      fn =
+        (function
+        | _, _, _, [ DUnit ] ->
+          LibDB.Tracing.TraceDetail.current <> LibDB.Tracing.TraceDetail.Off
+          |> DBool
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+    { name = fn "tracesList" 0
       typeParams = []
       parameters = [ Param.make "limit" TInt "Max number of traces to return" ]
       returnType = TList(TVariable "a")
