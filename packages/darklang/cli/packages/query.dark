@@ -16,6 +16,61 @@ let allDirectDescendants
   LanguageTools.PackageManager.Search.search branchId query
 
 
+/// Names of everything directly under `modulePath`, grouped by kind:
+/// (direct submodules, types, values, fns). Submodules are already reduced and sorted.
+///
+/// This is what completion wants -- `allDirectDescendants` materializes every matched item's full
+/// definition to hand back names.
+let allDirectDescendantNames
+  (branchId: Uuid)
+  (modulePath: List<String>)
+  : (List<String> * List<String> * List<String> * List<String>) =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = modulePath
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        entityTypes = []
+        exactMatch = false }
+
+  LanguageTools.PackageManager.Search.searchNames branchId query
+
+
+/// Names and hashes of everything directly under `modulePath`:
+/// (direct submodules, types, values, fns). Submodules are already reduced and sorted.
+///
+/// For listings, which need the hash to render the deprecation mark but never the definition.
+let allDirectDescendantNamesAndHashes
+  (branchId: Uuid)
+  (modulePath: List<String>)
+  : (List<String> *
+     List<(String * LanguageTools.ProgramTypes.Hash)> *
+     List<(String * LanguageTools.ProgramTypes.Hash)> *
+     List<(String * LanguageTools.ProgramTypes.Hash)>) =
+  let query =
+    LanguageTools.ProgramTypes.Search.SearchQuery
+      { currentModule = modulePath
+        text = ""
+        searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+        entityTypes = []
+        exactMatch = false }
+
+  LanguageTools.PackageManager.Search.searchNamesAndHashes branchId query
+
+
+/// Drop items that are deprecated-and-hidden, for a (name, hash) listing.
+let filterDeprecatedPairs
+  (items: List<(String * LanguageTools.ProgramTypes.Hash)>)
+  (sets: DeprecationSets)
+  (includeDeprecated: Bool)
+  : List<(String * LanguageTools.ProgramTypes.Hash)> =
+  if includeDeprecated then
+    items
+  else
+    items
+    |> Stdlib.List.filter (fun (_name, hash) -> Stdlib.Bool.not (isHidden sets hash))
+
+
 /// Search for a specific entity by name in a given module path (exact match)
 let searchExactMatch
   (branchId: Uuid)

@@ -144,130 +144,22 @@ let fitToWidth (text: String) (targetWidth: Int) : String =
   clipped ++ Stdlib.String.repeat " " padding
 
 
-let nextActiveStyle (active: String) (sequence: String) : String =
-  if sequence == "\u001b[0m" then
-    ""
-  else
-    active ++ sequence
-
-
-let wrapStyledChars
-  (chars: List<Char>)
-  (width: Int)
-  (activeStyle: String)
-  (current: String)
-  (currentWidth: Int)
-  (wrapPending: Bool)
-  (completed: List<String>)
-  : List<String> =
-  match chars with
-  | [] ->
-    Stdlib.List.reverse (Stdlib.List.push completed current)
-  | char :: remaining ->
-    let text = Stdlib.Char.toString char
-
-    if text == "\u001b" then
-      let (sequence, afterSequence) = consumeEscape remaining
-      wrapStyledChars
-        afterSequence
-        width
-        (nextActiveStyle activeStyle sequence)
-        (current ++ sequence)
-        currentWidth
-        wrapPending
-        completed
-    else if isControl char then
-      wrapStyledChars
-        remaining
-        width
-        activeStyle
-        current
-        currentWidth
-        wrapPending
-        completed
-    else
-      let charWidth = displayWidth text
-      let shouldWrap =
-        wrapPending
-        || (currentWidth > 0 && currentWidth + charWidth > width)
-      let nextCompleted =
-        if shouldWrap then Stdlib.List.push completed current
-        else completed
-      let row =
-        if shouldWrap then activeStyle ++ text
-        else current ++ text
-      let rowWidth =
-        if shouldWrap then charWidth
-        else currentWidth + charWidth
-
-      wrapStyledChars
-        remaining
-        width
-        activeStyle
-        row
-        rowWidth
-        (rowWidth >= width)
-        nextCompleted
-
-
 /// Wrap plain or SGR-styled text into explicit terminal-width rows.
 ///
 /// Styling that spans a wrap is reapplied at the beginning of the next row,
 /// because the frame renderer resets SGR state after writing every row.
+///
+/// Native: the Dark version recursed once per character and called `displayWidth` on each, which measured
+/// 4 ms of a 9 ms prompt view build -- paid on every keystroke.
 let wrapStyled (text: String) (maxWidth: Int) : List<String> =
-  let width = Stdlib.Int.max 1 maxWidth
-  wrapStyledChars
-    (Stdlib.String.toList text)
-    width
-    ""
-    ""
-    0
-    false
-    []
-
-
-let positionAfterChars
-  (chars: List<Char>)
-  (width: Int)
-  (row: Int)
-  (column: Int)
-  (wrapPending: Bool)
-  : (Int * Int) =
-  match chars with
-  | [] ->
-    if wrapPending then (row + 1, 0)
-    else (row, column)
-  | char :: remaining ->
-    let text = Stdlib.Char.toString char
-    let charWidth = displayWidth text
-    let startRow = if wrapPending then row + 1 else row
-    let startColumn = if wrapPending then 0 else column
-    let shouldWrap =
-      startColumn > 0 && startColumn + charWidth > width
-    let nextRow = if shouldWrap then startRow + 1 else startRow
-    let nextColumn =
-      if shouldWrap then charWidth
-      else startColumn + charWidth
-
-    positionAfterChars
-      remaining
-      width
-      nextRow
-      nextColumn
-      (nextColumn >= width)
+  Builtin.cliTerminalWrapStyled text maxWidth
 
 
 /// Return the zero-based terminal cursor immediately after plain text.
 ///
 /// A cursor exactly after the final column is represented at column zero of
 /// the following row, matching terminal wrap behavior.
-let positionAfter
-  (text: String)
-  (maxWidth: Int)
-  : (Int * Int) =
-  positionAfterChars
-    (Stdlib.String.toList text)
-    (Stdlib.Int.max 1 maxWidth)
-    0
-    0
-    false
+///
+/// Native for the same reason as `wrapStyled`: one call per character on the interactive hot path.
+let positionAfter (text: String) (maxWidth: Int) : (Int * Int) =
+  Builtin.cliTerminalPositionAfter text maxWidth

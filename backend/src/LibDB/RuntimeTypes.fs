@@ -11,11 +11,33 @@ module RT = LibExecution.RuntimeTypes
 module BS = LibSerialization.Binary.Serialization
 
 
+/// Bracket a package-item load, splitting "the query" from "turning bytes into a runtime value": different
+/// problems with different fixes, and an aggregate can't tell them apart.
+///
+/// Gated: `Stopwatch.GetTimestamp()` costs ~1.27us on an HPET clocksource, so this is not something to
+/// pay when nobody is measuring.
+module private LoadTiming =
+  let inline enabled () = Telemetry.isEnabled ()
+
+  let inline now (on : bool) =
+    if on then System.Diagnostics.Stopwatch.GetTimestamp() else 0L
+
+  let record (on : bool) (kind : string) (t0 : int64) (t1 : int64) (t2 : int64) =
+    if on then
+      let toUs (a : int64) (b : int64) =
+        (b - a) * 1_000_000L / System.Diagnostics.Stopwatch.Frequency
+      Telemetry.addUs $"pkg.{kind}.sql" (toUs t0 t1)
+      Telemetry.addUs $"pkg.{kind}.deserialize" (toUs t1 t2)
+
+
 module Type =
   let get (hash : Hash) : Ply<Option<RT.PackageType.PackageType>> =
     uply {
+      Telemetry.count "pkg.type.get"
       let (Hash hashStr) = hash
-      return!
+      let on = LoadTiming.enabled ()
+      let t0 = LoadTiming.now on
+      let! bytes =
         Sql.query
           """
           SELECT rt_def
@@ -24,7 +46,11 @@ module Type =
           """
         |> Sql.parameters [ "hash", Sql.string hashStr ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_def")
-        |> Task.map (Option.map (BS.RT.PackageType.deserialize hash))
+      let t1 = LoadTiming.now on
+      let result = bytes |> Option.map (BS.RT.PackageType.deserialize hash)
+      let t2 = LoadTiming.now on
+      LoadTiming.record on "type" t0 t1 t2
+      return result
     }
 
 
@@ -37,8 +63,11 @@ module Value =
   /// not-yet-evaluated value the same as an absent one (grow populates it before it's needed in the happy path).
   let get (hash : Hash) : Ply<Option<RT.PackageValue.PackageValue>> =
     uply {
+      Telemetry.count "pkg.value.get"
       let (Hash hashStr) = hash
-      return!
+      let on = LoadTiming.enabled ()
+      let t0 = LoadTiming.now on
+      let! bytes =
         Sql.query
           """
           SELECT rt_dval
@@ -47,7 +76,11 @@ module Value =
           """
         |> Sql.parameters [ "hash", Sql.string hashStr ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_dval")
-        |> Task.map (Option.map (BS.RT.PackageValue.deserialize hash))
+      let t1 = LoadTiming.now on
+      let result = bytes |> Option.map (BS.RT.PackageValue.deserialize hash)
+      let t2 = LoadTiming.now on
+      LoadTiming.record on "value" t0 t1 t2
+      return result
     }
 
   /// Find all value hashes that have the given ValueType (exact match)
@@ -70,7 +103,14 @@ module Fn =
   let get (hash : Hash) : Ply<Option<RT.PackageFn.PackageFn>> =
     uply {
       let (Hash hashStr) = hash
-      return!
+      // One query and one deserialize PER FUNCTION, demand-driven. Counted because the per-item cost only
+      // matters once you know the item count -- see `Telemetry.count`.
+      Telemetry.count "pkg.fn.get"
+      // Gated: on an HPET clocksource a timestamp costs ~1.27us, so three per load is not something to
+      // pay when nobody is measuring.
+      let on = LoadTiming.enabled ()
+      let t0 = LoadTiming.now on
+      let! bytes =
         Sql.query
           """
           SELECT rt_instrs
@@ -79,7 +119,11 @@ module Fn =
           """
         |> Sql.parameters [ "hash", Sql.string hashStr ]
         |> Sql.executeRowOptionAsync (fun read -> read.bytes "rt_instrs")
-        |> Task.map (Option.map (BS.RT.PackageFn.deserialize hash))
+      let t1 = LoadTiming.now on
+      let result = bytes |> Option.map (BS.RT.PackageFn.deserialize hash)
+      let t2 = LoadTiming.now on
+      LoadTiming.record on "fn" t0 t1 t2
+      return result
     }
 
 
@@ -88,6 +132,7 @@ module Blob =
   /// Look up bytes by hash. Returns [None] when the row doesn't exist.
   let get (hash : string) : Ply<Option<byte[]>> =
     uply {
+      Telemetry.count "pkg.blob.get"
       return!
         Sql.query
           """

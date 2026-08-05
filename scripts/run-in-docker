@@ -16,7 +16,10 @@ DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )"/.. && pwd )"
 ARGS=()
 for arg in "$@"
 do
-  ARGS+=( "$(echo "$arg" | fix_dir_stdin)" )
+  # `printf '%s'`, not `echo`: bash's builtin echo eats an argument that is exactly `-n` (and `-e`/`-E`),
+  # treating it as its own flag and emitting nothing. Any script here taking a `-n` option would silently
+  # receive an empty string in its place and then choke on the value that followed it.
+  ARGS+=( "$(printf '%s' "$arg" | fix_dir_stdin)" )
 done
 
 # shellcheck source=scripts/devcontainer/_container-for-clone

@@ -1331,28 +1331,53 @@ module Dval =
     | DInt i -> DarkInt.toBigInt i
     | _ -> Exception.raiseInternal "asBigInt called on a non-Int Dval" []
 
+
+  // `ValueType.Known KTBool` and friends are constants, but the `Known` wrapper was
+  // allocated fresh on every call. `toValueType` runs at least twice per argument per
+  // function call -- once for inference, once for the parameter type check -- so these were
+  // among the most frequently allocated objects in the interpreter. Nullary DU cases like
+  // `KTBool` are already singletons; only the wrapper was being rebuilt.
+  let private vtUnit : ValueType = ValueType.Known KTUnit
+  let private vtBool : ValueType = ValueType.Known KTBool
+  let private vtInt8 : ValueType = ValueType.Known KTInt8
+  let private vtUInt8 : ValueType = ValueType.Known KTUInt8
+  let private vtInt16 : ValueType = ValueType.Known KTInt16
+  let private vtUInt16 : ValueType = ValueType.Known KTUInt16
+  let private vtInt32 : ValueType = ValueType.Known KTInt32
+  let private vtUInt32 : ValueType = ValueType.Known KTUInt32
+  let private vtInt64 : ValueType = ValueType.Known KTInt64
+  let private vtUInt64 : ValueType = ValueType.Known KTUInt64
+  let private vtInt128 : ValueType = ValueType.Known KTInt128
+  let private vtUInt128 : ValueType = ValueType.Known KTUInt128
+  let private vtInt : ValueType = ValueType.Known KTInt
+  let private vtFloat : ValueType = ValueType.Known KTFloat
+  let private vtChar : ValueType = ValueType.Known KTChar
+  let private vtString : ValueType = ValueType.Known KTString
+  let private vtDateTime : ValueType = ValueType.Known KTDateTime
+  let private vtUuid : ValueType = ValueType.Known KTUuid
+
   let rec toValueType (dv : Dval) : ValueType =
     match dv with
-    | DUnit -> ValueType.Known KTUnit
+    | DUnit -> vtUnit
 
-    | DBool _ -> ValueType.Known KTBool
+    | DBool _ -> vtBool
 
-    | DInt8 _ -> ValueType.Known KTInt8
-    | DUInt8 _ -> ValueType.Known KTUInt8
-    | DInt16 _ -> ValueType.Known KTInt16
-    | DUInt16 _ -> ValueType.Known KTUInt16
-    | DInt32 _ -> ValueType.Known KTInt32
-    | DUInt32 _ -> ValueType.Known KTUInt32
-    | DInt64 _ -> ValueType.Known KTInt64
-    | DUInt64 _ -> ValueType.Known KTUInt64
-    | DInt128 _ -> ValueType.Known KTInt128
-    | DUInt128 _ -> ValueType.Known KTUInt128
-    | DInt _ -> ValueType.Known KTInt
-    | DFloat _ -> ValueType.Known KTFloat
-    | DChar _ -> ValueType.Known KTChar
-    | DString _ -> ValueType.Known KTString
-    | DDateTime _ -> ValueType.Known KTDateTime
-    | DUuid _ -> ValueType.Known KTUuid
+    | DInt8 _ -> vtInt8
+    | DUInt8 _ -> vtUInt8
+    | DInt16 _ -> vtInt16
+    | DUInt16 _ -> vtUInt16
+    | DInt32 _ -> vtInt32
+    | DUInt32 _ -> vtUInt32
+    | DInt64 _ -> vtInt64
+    | DUInt64 _ -> vtUInt64
+    | DInt128 _ -> vtInt128
+    | DUInt128 _ -> vtUInt128
+    | DInt _ -> vtInt
+    | DFloat _ -> vtFloat
+    | DChar _ -> vtChar
+    | DString _ -> vtString
+    | DDateTime _ -> vtDateTime
+    | DUuid _ -> vtUuid
 
     | DList(t, _) -> ValueType.Known(KTList t)
     | DDict(t, _) -> ValueType.Known(KTDict t)
@@ -1594,7 +1619,9 @@ type PackageManager =
     /// Branch-scoped because deprecation state flows through branches; the
     /// other PM lookups are content-addressed and need no branch.
     /// Only fns participate — see DeprecationKind.Harmful for why.
-    isHarmful : BranchId -> FQFnName.Package -> Ply<bool>
+    /// Synchronous: every implementation computes this without I/O (the DB-backed one reads a per-branch
+    /// cache), so returning `Ply<bool>` would cost a computation-expression bind on every package call.
+    isHarmful : BranchId -> FQFnName.Package -> bool
 
     init : Ply<unit>
   }
@@ -1605,7 +1632,7 @@ type PackageManager =
       getValue = (fun _ -> Ply None)
       getBlob = (fun _ -> Ply None)
       persistBlob = (fun _ _ -> uply { return () })
-      isHarmful = (fun _ _ -> Ply false)
+      isHarmful = (fun _ _ -> false)
 
       init = uply { return () } }
 
@@ -1766,17 +1793,40 @@ module Tracing =
 // -- The VM --
 type Registers = Dval array
 
+type InstrData =
+  {
+    instructions : Instruction array
+
+    /// The register that the result of the block will be in
+    resultReg : Register
+  }
+
 type CallFrame =
   {
     id : uuid
 
     /// (Id * where to put result in parent * pc of parent to return to)
-    parent : Option<uuid * Register * int>
+    ///
+    /// A struct option of a struct tuple: the root frame aside, one of these is built for every function
+    /// call in the program, and the reference-typed form was two allocations each time.
+    parent : voption<struct (uuid * Register * int)>
 
-    // The instructions and resultReg are not in the CallFrame itself.
-    // Multiple CFs may be operating on the same fn/lambda/etc.,
-    // so we keep only one copy of such, in the root of the VMState
     executionPoint : ExecutionPoint
+
+    /// The instructions this frame runs, resolved once when the frame is pushed.
+    ///
+    /// A reference to the single shared `InstrData` for the fn or lambda, not a copy: the caches in
+    /// `ExecutionState` and `VMState` still hold one each, and every frame running the same function
+    /// points at it. Holding it here keeps the interpreter loop from binding a cache lookup with `let!`
+    /// on every iteration.
+    instrData : InstrData
+
+    /// The declared return type, for the check that runs when this frame returns.
+    ///
+    /// Resolved at push time for the same reason as `instrData`: otherwise every frame return re-fetches
+    /// the function purely to read one field, and binds it, which costs a continuation closure per return.
+    /// `ValueNone` for the root frame and for lambdas, neither of which declares one.
+    expectedReturnType : TypeReference voption
 
     /// What instruction index we are currently 'at'
     mutable programCounter : int
@@ -1786,13 +1836,135 @@ type CallFrame =
     registers : Registers
   }
 
-type InstrData =
-  {
-    instructions : Instruction array
+/// Synchronous regions of the Apply path that the allocation counters attribute to.
+module ApplyStage =
+  let names : string[] =
+    [| "pkg.tstShadow"
+       "pkg.infer"
+       "pkg.typeCheckArgs"
+       "pkg.frame"
+       "bi.tstShadow"
+       "bi.args"
+       "lambda.frame"
+       "applyArgs"
+       "pkg.typeCheckRun"
+       "bi.typeCheckRun"
+       "bi.checkResult"
+       "frame.returnTypeCheck"
+       "frame.pop"
+       "pkg.fetch"
+       "bi.fnLookup" |]
 
-    /// The register that the result of the block will be in
-    resultReg : Register
-  }
+  [<Literal>]
+  let PkgTstShadow = 0
+  [<Literal>]
+  let PkgInfer = 1
+  [<Literal>]
+  let PkgTypeCheckArgs = 2
+  [<Literal>]
+  let PkgFrame = 3
+  [<Literal>]
+  let BiTstShadow = 4
+  [<Literal>]
+  let BiArgs = 5
+  [<Literal>]
+  let LambdaFrame = 6
+  [<Literal>]
+  let ApplyArgs = 7
+  [<Literal>]
+  let PkgTypeCheckRun = 8
+  [<Literal>]
+  let BiTypeCheckRun = 9
+  [<Literal>]
+  let BiCheckResult = 10
+  [<Literal>]
+  let FrameReturnTypeCheck = 11
+  [<Literal>]
+  let FramePop = 12
+  [<Literal>]
+  let PkgFetch = 13
+  [<Literal>]
+  let BiFnLookup = 14
+
+
+/// Stable index and display name per `Instruction` case, used by the per-opcode allocation counters on
+/// `InterpreterStats`. The DU's compiler-generated `Tag` isn't accessible from here, so the mapping is
+/// written out; `names` and `index` must stay in the same order.
+module Opcode =
+  let names : string[] =
+    [| "LoadVal"
+       "CopyVal"
+       "Or"
+       "And"
+       "CreateString"
+       "CheckLetPatternAndExtractVars"
+       "JumpByIfFalse"
+       "JumpBy"
+       "CheckMatchPatternAndExtractVars"
+       "MatchUnmatched"
+       "CreateTuple"
+       "CreateList"
+       "CreateDict"
+       "CreateRecord"
+       "CloneRecordWithUpdates"
+       "GetRecordField"
+       "CreateEnum"
+       "LoadValue"
+       "CreateLambda"
+       "Apply"
+       "RaiseNRE"
+       "VarNotFound"
+       "CheckIfFirstExprIsUnit" |]
+
+  let index (i : Instruction) : int =
+    match i with
+    | LoadVal _ -> 0
+    | CopyVal _ -> 1
+    | Or _ -> 2
+    | And _ -> 3
+    | CreateString _ -> 4
+    | CheckLetPatternAndExtractVars _ -> 5
+    | JumpByIfFalse _ -> 6
+    | JumpBy _ -> 7
+    | CheckMatchPatternAndExtractVars _ -> 8
+    | MatchUnmatched _ -> 9
+    | CreateTuple _ -> 10
+    | CreateList _ -> 11
+    | CreateDict _ -> 12
+    | CreateRecord _ -> 13
+    | CloneRecordWithUpdates _ -> 14
+    | GetRecordField _ -> 15
+    | CreateEnum _ -> 16
+    | LoadValue _ -> 17
+    | CreateLambda _ -> 18
+    | Apply _ -> 19
+    | RaiseNRE _ -> 20
+    | VarNotFound _ -> 21
+    | CheckIfFirstExprIsUnit _ -> 22
+
+
+/// Every `InterpreterStats` created while telemetry is on, so the process can total them at exit. A VM is
+/// created per `executeFunction` and the stats hang off the VM, so there is otherwise no way to ask "how
+/// many instructions did that command run?": the object is gone by the time anyone could look.
+///
+/// Instrumentation only: the bag stays empty and nothing is enabled when telemetry is off.
+module InterpreterStatsSink =
+  let all = System.Collections.Concurrent.ConcurrentBag<obj>()
+
+  /// Nothing ever removes from the bag, and a VM is created per `executeFunction`, so a long-lived
+  /// process with telemetry on (`serve`, or a long interactive session) would accumulate one entry per
+  /// call forever. A one-shot CLI command creates a handful, so a cap costs nothing there and bounds the
+  /// leak everywhere else. Past the cap we stop recording rather than evicting: the exit dump wants the
+  /// run's first VMs, not its last.
+  let maxRetained = 10_000
+
+  let mutable private retained = 0
+
+  let add (s : obj) : unit =
+    if retained < maxRetained then
+      retained <- retained + 1
+      all.Add s
+
 
 /// Lightweight interpreter performance counters.
 /// Incremented during execution, read/reset via builtins.
@@ -1820,21 +1992,73 @@ type InterpreterStats =
     packageFnCounts : Dictionary<string, int64>
     /// Timestamp when each frame was pushed (for measuring total fn time)
     framePushTimestamps : Dictionary<uuid, int64>
+
+    /// Bytes allocated while executing each opcode, indexed by the `Instruction` DU tag, plus how many of
+    /// each ran. Neither instruction count nor call count predicts wall time well, because the interpreter
+    /// is allocation-bound; this says *which* opcodes produce the garbage.
+    ///
+    /// A `GC.GetAllocatedBytesForCurrentThread()` is ~4 ns against a ~6.7 us instruction, so unlike a
+    /// Stopwatch read (~1.27 us on an HPET host) this is affordable per instruction.
+    allocByOpcode : int64[]
+    countByOpcode : int64[]
+
+    /// Total register slots allocated across every frame pushed. Each frame gets its own
+    /// `Array.zeroCreate registerCount`, so this times 8 bytes is the register-file share of Apply's
+    /// allocation -- the leading suspect for its ~5.6 KB per call.
+    mutable registersAllocated : int64
+
+    /// Bytes allocated inside builtin bodies (`fn.fn`), separated from the interpreter machinery around
+    /// them. The per-opcode counter can't answer this: Apply's arm awaits, so its delta spans nested
+    /// execution and over-counts (it reports more than the process allocates in total).
+    mutable builtinBodyAlloc : int64
+
+    /// Bytes allocated per builtin name. Unlike `builtinTiming` this doesn't need `detailedTiming`: an
+    /// allocation read is ~4 ns where a Stopwatch read is ~1.27 us on an HPET host, so it's affordable
+    /// on every call.
+    builtinAlloc : Dictionary<string, int64>
+
+    /// Bytes allocated in named *synchronous* regions of the Apply path, indexed by `ApplyStage`.
+    ///
+    /// Only synchronous regions: a bracket spanning an `await` measures the nested execution that resumes
+    /// inside it, not the region. That artifact made both the per-opcode Apply counter and the
+    /// builtin-body counter over-report (the former claimed more bytes than the process allocated in
+    /// total; the latter attributed 97% to the root script-runner builtin, which encloses everything).
+    allocByStage : int64[]
+
+    /// Type-symbol-table size at each frame push, summed and maxed. The TST is an immutable F# Map that a
+    /// frame inherits from its parent, so if bindings accumulate down the call stack every merge on it is
+    /// O(k) in a growing k -- which would make Apply's cost superlinear in depth rather than constant.
+    mutable tstSizeSum : int64
+    mutable tstSizeMax : int64
   }
 
   static member create() =
-    { enabled = false
-      instructionCount = 0L
-      builtinCallCount = 0L
-      packageCallCount = 0L
-      framePushCount = 0L
-      packageFnLoadCount = 0L
-      detailedTiming = false
-      builtinTiming = Dictionary()
-      builtinCounts = Dictionary()
-      packageFnTiming = Dictionary()
-      packageFnCounts = Dictionary()
-      framePushTimestamps = Dictionary() }
+    let s =
+      { enabled = Telemetry.isEnabled ()
+        instructionCount = 0L
+        builtinCallCount = 0L
+        packageCallCount = 0L
+        framePushCount = 0L
+        packageFnLoadCount = 0L
+        // Off even when counting is on: per-call timing costs a `Stopwatch.GetTimestamp()`, which is ~1.27us
+        // on an HPET host. Turn it on deliberately, per run, via `Builtin.interpreterStatsEnableDetailedTiming`.
+        detailedTiming = false
+        builtinTiming = Dictionary()
+        builtinCounts = Dictionary()
+        packageFnTiming = Dictionary()
+        packageFnCounts = Dictionary()
+        framePushTimestamps = Dictionary()
+        allocByOpcode = Array.zeroCreate 32
+        countByOpcode = Array.zeroCreate 32
+        registersAllocated = 0L
+        builtinBodyAlloc = 0L
+        builtinAlloc = Dictionary()
+        allocByStage = Array.zeroCreate 32
+        tstSizeSum = 0L
+        tstSizeMax = 0L }
+
+    if s.enabled then InterpreterStatsSink.add (box s)
+    s
 
   member this.reset() =
     this.instructionCount <- 0L
@@ -1847,6 +2071,14 @@ type InterpreterStats =
     this.packageFnTiming.Clear()
     this.packageFnCounts.Clear()
     this.framePushTimestamps.Clear()
+    this.registersAllocated <- 0L
+    this.builtinBodyAlloc <- 0L
+    this.builtinAlloc.Clear()
+    this.tstSizeSum <- 0L
+    this.tstSizeMax <- 0L
+    System.Array.Clear(this.allocByStage, 0, this.allocByStage.Length)
+    System.Array.Clear(this.allocByOpcode, 0, this.allocByOpcode.Length)
+    System.Array.Clear(this.countByOpcode, 0, this.countByOpcode.Length)
 
   member private this.addTiming
     (timingDict : Dictionary<string, int64>)
@@ -1854,10 +2086,13 @@ type InterpreterStats =
     (name : string)
     (elapsedTicks : int64)
     =
-    let usec = elapsedTicks * 1000000L / System.Diagnostics.Stopwatch.Frequency
+    // Raw ticks, not microseconds. The reporting boundary (`interpreterStatsGet`) documents that these
+    // accumulators hold ticks and converts once there; dividing here both contradicted that -- so the
+    // report multiplied ticks-per-ns by a value already in microseconds and under-reported by 1000x on a
+    // 1 GHz clocksource -- and put a division in the hot path that the comment there says it avoids.
     match timingDict.TryGetValue(name) with
-    | true, v -> timingDict[name] <- v + usec
-    | false, _ -> timingDict[name] <- usec
+    | true, v -> timingDict[name] <- v + elapsedTicks
+    | false, _ -> timingDict[name] <- elapsedTicks
     match countDict.TryGetValue(name) with
     | true, v -> countDict[name] <- v + 1L
     | false, _ -> countDict[name] <- 1L
@@ -1883,6 +2118,12 @@ type VMState =
 
     /// Performance counters — incremented during execution
     stats : InterpreterStats
+
+    /// Source of frame ids. Per-VM rather than global because a VM's interpreter loop is single-threaded,
+    /// so this needs no synchronization -- and a process-global counter would need it: tests run VMs in
+    /// parallel, and a non-atomic shared increment hands two frames the same id, which silently drops one
+    /// from `callFrames` and fails the parent lookup on return.
+    mutable frameIdCounter : int64
   }
 
   static member create(instrs : Option<tlid> * Instructions) : VMState =
@@ -1890,13 +2131,19 @@ type VMState =
 
     let rootCallFrameID = System.Guid.NewGuid()
 
+    let rootInstrData : InstrData =
+      { instructions = List.toArray instrs.instructions
+        resultReg = instrs.resultIn }
+
     let rootCallFrame : CallFrame =
       { id = rootCallFrameID
         executionPoint = Source
+        instrData = rootInstrData
+        expectedReturnType = ValueNone
         programCounter = 0
         registers = Array.zeroCreate instrs.registerCount
         typeSymbolTable = Map.empty
-        parent = None }
+        parent = ValueNone }
 
     { threadID = System.Guid.NewGuid()
       currentFrameID = rootCallFrameID
@@ -1904,13 +2151,10 @@ type VMState =
         let d = Dictionary()
         d[rootCallFrameID] <- rootCallFrame
         d
-      rootInstrData =
-        let instrs =
-          { instructions = List.toArray instrs.instructions
-            resultReg = instrs.resultIn }
-        (tlid, instrs)
+      rootInstrData = (tlid, rootInstrData)
       lambdaInstrDataCache = Map.empty
-      stats = InterpreterStats.create () }
+      stats = InterpreterStats.create ()
+      frameIdCounter = 0L }
 
   static member createWithoutTLID(instrs : Instructions) : VMState =
     VMState.create (None, instrs)
@@ -2077,7 +2321,7 @@ and Functions =
     builtIn : Map<FQFnName.Builtin, BuiltInFn>
     package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
     /// `PackageManager.isHarmful` with the state's branchId pre-applied.
-    isHarmful : FQFnName.Package -> Ply<bool>
+    isHarmful : FQFnName.Package -> bool
   }
 
 

@@ -16,6 +16,223 @@ type OverwriteBehaviour =
   | ReplaceValue
   | ThrowIfDuplicate
 
+/// Synchronous answer for the unifications that need no recursion, no type lookup and no await: a
+/// concrete scalar against its own ValueType, or anything against `Unknown`. That is the overwhelming
+/// majority of calls, and type-checking arguments and results is a large share of what the interpreter
+/// allocates, so answering them without entering a computation expression is worth the separate path.
+///
+/// `TVariable` is deliberately excluded rather than folded into the `Unknown` case. The full matcher tries
+/// `TVariable name, _` FIRST, so a type variable meeting `Unknown` binds the variable to `Unknown`; short
+/// -circuiting that here would skip the binding and silently change inference.
+let private unifiesTrivially (expected : TypeReference) (actual : ValueType) : bool =
+  // Matches on `expected` and then on `actual` rather than on the pair. F# allocates the tuple for a
+  // two-value match here rather than eliding it -- the same change to `inferTVarsFromArg` moved total
+  // allocation 3.3% -- and this runs on every unification.
+  //
+  // `TVariable` is deliberately excluded rather than folded into the `Unknown` case: the full matcher
+  // tries `TVariable name, _` FIRST, so a type variable meeting `Unknown` binds the variable to
+  // `Unknown`, and short-circuiting that here would skip the binding and change inference.
+  match expected with
+  | TVariable _ -> false
+  | _ ->
+    match actual with
+    | ValueType.Unknown -> true
+    | ValueType.Known kt ->
+      match expected with
+      | TUnit ->
+        (match kt with
+         | KTUnit -> true
+         | _ -> false)
+      | TBool ->
+        (match kt with
+         | KTBool -> true
+         | _ -> false)
+      | TInt8 ->
+        (match kt with
+         | KTInt8 -> true
+         | _ -> false)
+      | TUInt8 ->
+        (match kt with
+         | KTUInt8 -> true
+         | _ -> false)
+      | TInt16 ->
+        (match kt with
+         | KTInt16 -> true
+         | _ -> false)
+      | TUInt16 ->
+        (match kt with
+         | KTUInt16 -> true
+         | _ -> false)
+      | TInt32 ->
+        (match kt with
+         | KTInt32 -> true
+         | _ -> false)
+      | TUInt32 ->
+        (match kt with
+         | KTUInt32 -> true
+         | _ -> false)
+      | TInt64 ->
+        (match kt with
+         | KTInt64 -> true
+         | _ -> false)
+      | TUInt64 ->
+        (match kt with
+         | KTUInt64 -> true
+         | _ -> false)
+      | TInt128 ->
+        (match kt with
+         | KTInt128 -> true
+         | _ -> false)
+      | TUInt128 ->
+        (match kt with
+         | KTUInt128 -> true
+         | _ -> false)
+      | TInt ->
+        (match kt with
+         | KTInt -> true
+         | _ -> false)
+      | TFloat ->
+        (match kt with
+         | KTFloat -> true
+         | _ -> false)
+      | TChar ->
+        (match kt with
+         | KTChar -> true
+         | _ -> false)
+      | TString ->
+        (match kt with
+         | KTString -> true
+         | _ -> false)
+      | TUuid ->
+        (match kt with
+         | KTUuid -> true
+         | _ -> false)
+      | TDateTime ->
+        (match kt with
+         | KTDateTime -> true
+         | _ -> false)
+      | TBlob ->
+        (match kt with
+         | KTBlob -> true
+         | _ -> false)
+      | _ -> false
+
+
+/// Answer a unification without entering a computation expression, for the cases that need no type lookup
+/// and no recursion into a compound type.
+///
+/// `unifyValueType` already answers these two cases without awaiting, but it returns a `Ply`, so every
+/// caller still binds it and the Ply builder allocates a continuation closure for the bind. Returning the
+/// answer directly is what lets the whole argument-check loop stay out of the CE.
+///
+/// `Undecided` means "this one has to go the async route"; it is never a type error, so callers must
+/// fall back rather than treat it as a failure.
+///
+/// A struct DU rather than `Result<_, _> voption`: this runs per argument per call, and the `Ok` wrapper
+/// alone was one of the more frequently allocated objects in the interpreter.
+[<Struct>]
+type SyncUnification =
+  /// Unified, with the symbol table it produced.
+  | Unified of tst : TypeSymbolTable
+  /// Genuinely doesn't unify, with the path to where it went wrong.
+  | Mismatched of path : ReverseTypeCheckPath
+  /// Needs the async path -- a type lookup, or an error message worth building properly.
+  | Undecided
+
+let rec unifyValueTypeSync
+  (tst : TypeSymbolTable)
+  (pathSoFar : ReverseTypeCheckPath)
+  (expected : TypeReference)
+  (actual : ValueType)
+  : SyncUnification =
+  if unifiesTrivially expected actual then
+    Unified tst
+  else
+    match expected with
+    // Same reasoning as the hoisted case in `unifyValueType`, and deliberately the same logic: most
+    // arguments bind a type variable, and most rebind it to what it already held.
+    | TVariable name ->
+      // `TryGetValue` rather than `Map.get`, which allocates a `Some` for every bound type variable it
+      // finds -- and finding one is the common case here, not the exception.
+      let mutable bound = Unchecked.defaultof<ValueType>
+      if not (tst.TryGetValue(name, &bound)) then
+        Unified(Map.add name actual tst)
+      elif bound = actual then
+        Unified tst
+      else
+        match ValueType.merge bound actual with
+        | Ok merged ->
+          if merged = bound then Unified tst else Unified(Map.add name merged tst)
+        | Error() -> Mismatched pathSoFar
+
+    // Containers recurse but never need a type lookup, so they stay on this path. Without these a
+    // `List<Int>` argument -- which is most of what the standard library passes around -- would fall to
+    // the async route purely for being a container, which is the common case rather than a rare one.
+    | TList innerT ->
+      match actual with
+      | ValueType.Known(KTList innerV) ->
+        unifyValueTypeSync
+          tst
+          (TypeCheckPathPart.ListType :: pathSoFar)
+          innerT
+          innerV
+      | _ -> Undecided
+    | TStream innerT ->
+      match actual with
+      | ValueType.Known(KTStream innerV) ->
+        unifyValueTypeSync
+          tst
+          (TypeCheckPathPart.ListType :: pathSoFar)
+          innerT
+          innerV
+      | _ -> Undecided
+    | TDict innerT ->
+      match actual with
+      | ValueType.Known(KTDict innerV) ->
+        unifyValueTypeSync
+          tst
+          (TypeCheckPathPart.DictValueType :: pathSoFar)
+          innerT
+          innerV
+      | _ -> Undecided
+
+    | TTuple(tFirst, tSecond, tRest) ->
+      match actual with
+      | ValueType.Known(KTTuple(vFirst, vSecond, vRest)) ->
+        if List.length tRest <> List.length vRest then
+          Undecided // length mismatch: let the async path build the error
+        else
+          let rec go i tst (es : List<TypeReference>) (vs : List<ValueType>) =
+            match es with
+            | [] -> Unified tst
+            | e :: eRest ->
+              match vs with
+              | [] -> Unified tst
+              | v :: vRest ->
+                match
+                  unifyValueTypeSync
+                    tst
+                    (TypeCheckPathPart.TupleAtIndex i :: pathSoFar)
+                    e
+                    v
+                with
+                | Unified tst' -> go (i + 1) tst' eRest vRest
+                | other -> other
+          go 0 tst (tFirst :: tSecond :: tRest) (vFirst :: vSecond :: vRest)
+      | _ -> Undecided
+
+    // Everything else, `TCustomType` above all, can need `Types.find`.
+    | _ -> Undecided
+
+
+/// Alias unwrapping without a CE. Only a resolved custom type can be an alias, and only that case needs
+/// `Types.find`, so everything else is already the answer.
+let unwrapAliasSync (typ : TypeReference) : TypeReference voption =
+  match typ with
+  | TCustomType({ resolved = Ok _ }, _) -> ValueNone
+  | _ -> ValueSome typ
+
+
 let rec unifyValueType
   (types : Types)
   (tst : TypeSymbolTable)
@@ -23,146 +240,174 @@ let rec unifyValueType
   (expected : TypeReference)
   (actual : ValueType)
   : Ply<Result<TypeSymbolTable, ReverseTypeCheckPath>> =
-  let r = unifyValueType types
+  if unifiesTrivially expected actual then
+    Ply(Ok tst)
+  else
 
-  uply {
-    match expected, actual with
+    match expected with
+    // Hoisted out of the match below, and out of the computation expression, because it is the hot path
+    // and needs neither. ~88% of calls are into functions whose signature has a type variable, and
+    // `unifiesTrivially` never claims one, so nearly every non-trivial unification lands here. Answering it
+    // outside the CE skips both the state machine and the `(expected, actual)` pair the tuple match
+    // allocates.
+    | TVariable name ->
+      (match Map.get name tst with
+       | None -> Ply(Ok(Map.add name actual tst))
+       | Some t ->
+         // Already bound to exactly this: `Map.add` would rebuild the symbol table's spine to store the
+         // value it already holds. Dark's stdlib is heavily polymorphic, so this is the *common* path --
+         // nearly every argument check binds a type variable, and most rebind it to what it already was.
+         if t = actual then
+           Ply(Ok tst)
+         else
+           match ValueType.merge t actual with
+           | Ok merged ->
+             if merged = t then Ply(Ok tst) else Ply(Ok(Map.add name merged tst))
+           | Error() -> Ply(Error pathSoFar))
 
-    | TVariable name, _ ->
-      match Map.get name tst with
-      | None -> return Ok(Map.add name actual tst)
-      | Some t ->
-        match ValueType.merge t actual with
-        | Ok merged -> return Ok(Map.add name merged tst)
-        | Error() -> return Error pathSoFar
+    | _ ->
 
-    | _, ValueType.Unknown -> return Ok tst
+      // Bound after the fast paths: this is a partial application, so it allocates a closure on every call
+      // that reaches it, and most calls no longer do.
+      let r = unifyValueType types
 
-
-    | TUnit, ValueType.Known KTUnit -> return Ok tst
-    | TBool, ValueType.Known KTBool -> return Ok tst
-
-    | TInt8, ValueType.Known KTInt8 -> return Ok tst
-    | TUInt8, ValueType.Known KTUInt8 -> return Ok tst
-    | TInt16, ValueType.Known KTInt16 -> return Ok tst
-    | TUInt16, ValueType.Known KTUInt16 -> return Ok tst
-    | TInt32, ValueType.Known KTInt32 -> return Ok tst
-    | TUInt32, ValueType.Known KTUInt32 -> return Ok tst
-    | TInt64, ValueType.Known KTInt64 -> return Ok tst
-    | TUInt64, ValueType.Known KTUInt64 -> return Ok tst
-    | TInt128, ValueType.Known KTInt128 -> return Ok tst
-    | TUInt128, ValueType.Known KTUInt128 -> return Ok tst
-    | TInt, ValueType.Known KTInt -> return Ok tst
-
-    | TFloat, ValueType.Known KTFloat -> return Ok tst
-
-    | TChar, ValueType.Known KTChar -> return Ok tst
-    | TString, ValueType.Known KTString -> return Ok tst
-
-    | TUuid, ValueType.Known KTUuid -> return Ok tst
-    | TDateTime, ValueType.Known KTDateTime -> return Ok tst
-
-    | TBlob, ValueType.Known KTBlob -> return Ok tst
-
-    | TStream innerT, ValueType.Known(KTStream innerV) ->
-      return! r tst (TypeCheckPathPart.ListType :: pathSoFar) innerT innerV
-
-    | TList innerT, ValueType.Known(KTList innerV) ->
-      return! r tst (TypeCheckPathPart.ListType :: pathSoFar) innerT innerV
-
-    | TDict innerT, ValueType.Known(KTDict innerV) ->
-      return! r tst (TypeCheckPathPart.DictValueType :: pathSoFar) innerT innerV
-
-    | TTuple(tFirst, tSecond, tRest),
-      ValueType.Known(KTTuple(vFirst, vSecond, vRest)) ->
-      // first, make sure that the tuple lengths match
-      let expectedLen = 2 + List.length tRest
-      let actualLen = 2 + List.length vRest
-      if expectedLen <> actualLen then
-        return
-          Error(TypeCheckPathPart.TupleLength(expectedLen, actualLen) :: pathSoFar)
-      else
-        // then, make sure that the tuple elements match
-        let expected = tFirst :: tSecond :: tRest
-        let actual = vFirst :: vSecond :: vRest
-        return!
-          Ply.List.foldSequentiallyWithIndex
-            (fun i acc (e, a) ->
-              match acc with
-              | Error _ -> Ply acc
-              | Ok tst -> r tst (TypeCheckPathPart.TupleAtIndex i :: pathSoFar) e a)
-            (Ok tst)
-            (List.zip expected actual)
-
-    | TCustomType({ originalName = names; resolved = Error err }, _), _ ->
-      return RTE.ParseTimeNameResolution(names, err) |> raiseUntargetedRTE
-
-    | TCustomType({ resolved = Ok typeNameT }, typeArgsT), actual ->
-      // CLEANUP can't we assume aliases are already unwrapped?
-      // if so, we can tidy this case quite a bit
-      match! Types.find types typeNameT with
-      | None -> return Error pathSoFar
-      | Some expected ->
+      uply {
         match expected, actual with
-        | { definition = TypeDeclaration.Alias aliasType }, _ ->
-          let! expected = TypeReference.unwrapAlias types aliasType
-          return! r tst pathSoFar expected actual
 
-        | _, ValueType.Known(KTCustomType(typeNameV, typeArgsV)) ->
-          if typeNameV <> typeNameT then
-            return Error pathSoFar
-          else if List.length typeArgsT <> List.length typeArgsV then
-            // (this is really unexpected -- interpreter should prevent this)
+        | TVariable _, _ ->
+          // Unreachable: handled above. Kept so the match stays exhaustive over TypeReference.
+          return Ok tst
+
+        | _, ValueType.Unknown -> return Ok tst
+
+
+        | TUnit, ValueType.Known KTUnit -> return Ok tst
+        | TBool, ValueType.Known KTBool -> return Ok tst
+
+        | TInt8, ValueType.Known KTInt8 -> return Ok tst
+        | TUInt8, ValueType.Known KTUInt8 -> return Ok tst
+        | TInt16, ValueType.Known KTInt16 -> return Ok tst
+        | TUInt16, ValueType.Known KTUInt16 -> return Ok tst
+        | TInt32, ValueType.Known KTInt32 -> return Ok tst
+        | TUInt32, ValueType.Known KTUInt32 -> return Ok tst
+        | TInt64, ValueType.Known KTInt64 -> return Ok tst
+        | TUInt64, ValueType.Known KTUInt64 -> return Ok tst
+        | TInt128, ValueType.Known KTInt128 -> return Ok tst
+        | TUInt128, ValueType.Known KTUInt128 -> return Ok tst
+        | TInt, ValueType.Known KTInt -> return Ok tst
+
+        | TFloat, ValueType.Known KTFloat -> return Ok tst
+
+        | TChar, ValueType.Known KTChar -> return Ok tst
+        | TString, ValueType.Known KTString -> return Ok tst
+
+        | TUuid, ValueType.Known KTUuid -> return Ok tst
+        | TDateTime, ValueType.Known KTDateTime -> return Ok tst
+
+        | TBlob, ValueType.Known KTBlob -> return Ok tst
+
+        | TStream innerT, ValueType.Known(KTStream innerV) ->
+          return! r tst (TypeCheckPathPart.ListType :: pathSoFar) innerT innerV
+
+        | TList innerT, ValueType.Known(KTList innerV) ->
+          return! r tst (TypeCheckPathPart.ListType :: pathSoFar) innerT innerV
+
+        | TDict innerT, ValueType.Known(KTDict innerV) ->
+          return! r tst (TypeCheckPathPart.DictValueType :: pathSoFar) innerT innerV
+
+        | TTuple(tFirst, tSecond, tRest),
+          ValueType.Known(KTTuple(vFirst, vSecond, vRest)) ->
+          // first, make sure that the tuple lengths match
+          let expectedLen = 2 + List.length tRest
+          let actualLen = 2 + List.length vRest
+          if expectedLen <> actualLen then
             return
               Error(
-                TypeCheckPathPart.TypeArgLength(
-                  typeNameT,
-                  List.length typeArgsT,
-                  List.length typeArgsV
-                )
-                :: pathSoFar
+                TypeCheckPathPart.TupleLength(expectedLen, actualLen) :: pathSoFar
               )
           else
-            let typeArgCount = List.length typeArgsT
+            // then, make sure that the tuple elements match
+            let expected = tFirst :: tSecond :: tRest
+            let actual = vFirst :: vSecond :: vRest
             return!
-              List.zip typeArgsT typeArgsV
-              |> Ply.List.foldSequentiallyWithIndex
+              Ply.List.foldSequentiallyWithIndex
                 (fun i acc (e, a) ->
                   match acc with
-                  | Error _path -> Ply acc
+                  | Error _ -> Ply acc
                   | Ok tst ->
-                    uply {
-                      let path =
-                        TypeCheckPathPart.TypeArg(typeNameT, i, typeArgCount)
-                        :: pathSoFar
-                      match! r tst path e a with
-                      | Error path -> return Error path
-                      | Ok tst -> return Ok tst
-                    })
+                    r tst (TypeCheckPathPart.TupleAtIndex i :: pathSoFar) e a)
+                (Ok tst)
+                (List.zip expected actual)
+
+        | TCustomType({ originalName = names; resolved = Error err }, _), _ ->
+          return RTE.ParseTimeNameResolution(names, err) |> raiseUntargetedRTE
+
+        | TCustomType({ resolved = Ok typeNameT }, typeArgsT), actual ->
+          // CLEANUP can't we assume aliases are already unwrapped?
+          // if so, we can tidy this case quite a bit
+          match! Types.find types typeNameT with
+          | None -> return Error pathSoFar
+          | Some expected ->
+            match expected, actual with
+            | { definition = TypeDeclaration.Alias aliasType }, _ ->
+              let! expected = TypeReference.unwrapAlias types aliasType
+              return! r tst pathSoFar expected actual
+
+            | _, ValueType.Known(KTCustomType(typeNameV, typeArgsV)) ->
+              if typeNameV <> typeNameT then
+                return Error pathSoFar
+              else if List.length typeArgsT <> List.length typeArgsV then
+                // (this is really unexpected -- interpreter should prevent this)
+                return
+                  Error(
+                    TypeCheckPathPart.TypeArgLength(
+                      typeNameT,
+                      List.length typeArgsT,
+                      List.length typeArgsV
+                    )
+                    :: pathSoFar
+                  )
+              else
+                let typeArgCount = List.length typeArgsT
+                return!
+                  List.zip typeArgsT typeArgsV
+                  |> Ply.List.foldSequentiallyWithIndex
+                    (fun i acc (e, a) ->
+                      match acc with
+                      | Error _path -> Ply acc
+                      | Ok tst ->
+                        uply {
+                          let path =
+                            TypeCheckPathPart.TypeArg(typeNameT, i, typeArgCount)
+                            :: pathSoFar
+                          match! r tst path e a with
+                          | Error path -> return Error path
+                          | Ok tst -> return Ok tst
+                        })
+                    (Ok tst)
+
+            | _, _ -> return Error pathSoFar
+
+        | TFn(argTypes, returnType), ValueType.Known(KTFn(vArgs, vRet)) ->
+          if NEList.length argTypes <> NEList.length vArgs then
+            return Error pathSoFar // CLEANUP include the lengths in the path
+          else
+            return!
+              List.zip
+                (returnType :: (NEList.toList argTypes))
+                (vRet :: (NEList.toList vArgs))
+              |> Ply.List.foldSequentially
+                (fun acc (e, a) ->
+                  match acc with
+                  | Error _path -> Ply acc
+                  | Ok tst -> r tst pathSoFar e a)
                 (Ok tst)
 
+        | TDB innerT, ValueType.Known(KTDB innerV) ->
+          return! r tst pathSoFar innerT innerV
+
         | _, _ -> return Error pathSoFar
-
-    | TFn(argTypes, returnType), ValueType.Known(KTFn(vArgs, vRet)) ->
-      if NEList.length argTypes <> NEList.length vArgs then
-        return Error pathSoFar // CLEANUP include the lengths in the path
-      else
-        return!
-          List.zip
-            (returnType :: (NEList.toList argTypes))
-            (vRet :: (NEList.toList vArgs))
-          |> Ply.List.foldSequentially
-            (fun acc (e, a) ->
-              match acc with
-              | Error _path -> Ply acc
-              | Ok tst -> r tst pathSoFar e a)
-            (Ok tst)
-
-    | TDB innerT, ValueType.Known(KTDB innerV) ->
-      return! r tst pathSoFar innerT innerV
-
-    | _, _ -> return Error pathSoFar
-  }
+      }
 
 
 let unify
@@ -171,12 +416,15 @@ let unify
   (expected : TypeReference)
   (actual : Dval)
   : Ply<Result<TypeSymbolTable, ReverseTypeCheckPath>> =
-  uply {
-    let actualType = Dval.toValueType actual
-    match! unifyValueType types tst [] expected actualType with
-    | Error path -> return path |> Error
-    | Ok updatedTst -> return Ok updatedTst
-  }
+  let actualType = Dval.toValueType actual
+  if unifiesTrivially expected actualType then
+    Ply(Ok tst)
+  else
+    uply {
+      match! unifyValueType types tst [] expected actualType with
+      | Error path -> return path |> Error
+      | Ok updatedTst -> return Ok updatedTst
+    }
 
 // CLEANUP I wonder if this can/should happen in PT2RT instead of during interpretation
 let rec resolveType
@@ -242,6 +490,29 @@ let rec resolveType
 
 
 
+/// The unification behind both the parameter and the result checks, answered without a computation
+/// expression when it needs no type lookup.
+///
+/// Runs on every argument of every call and on every frame return, so the point is that the ordinary case
+/// allocates nothing at all: no Ply, no continuation closure, no state machine.
+///
+/// `ValueNone` means "go the async route". That covers an aliased type, a compound type needing recursion,
+/// and *any* failure: building the error message resolves the expected type, which can hit the package
+/// store. Failures are rare and already the slow path, so they are not worth a sync variant.
+let tryUnifySync
+  (tst : TypeSymbolTable)
+  (expected : TypeReference)
+  (actual : Dval)
+  : TypeSymbolTable voption =
+  match unwrapAliasSync expected with
+  | ValueNone -> ValueNone
+  | ValueSome expected ->
+    match unifyValueTypeSync tst [] expected (Dval.toValueType actual) with
+    | Unified updatedTst -> ValueSome updatedTst
+    | Mismatched _
+    | Undecided -> ValueNone
+
+
 let checkFnParam
   (types : Types)
   (fnName : FQFnName.FQFnName)
@@ -280,10 +551,13 @@ let checkFnResult
   : Ply<Result<TypeSymbolTable, RTE.Error>> =
   uply {
     let! expected = TypeReference.unwrapAlias types expected
-    let! expectedVT = TypeReference.toVT types tst expected
     match! unify types tst expected actual with
     | Ok updatedTst -> return Ok updatedTst
     | Error _path ->
+      // Resolved here rather than before the unify: it exists only to render the error, and computing it
+      // eagerly meant every successful return -- which is nearly all of them -- paid a full type
+      // resolution (`toVT` walks the reference and can hit `Types.find`) to build a message nobody sees.
+      let! expectedVT = TypeReference.toVT types tst expected
       return
         RTE.Applications.FnResultNotExpectedType(
           fnName,

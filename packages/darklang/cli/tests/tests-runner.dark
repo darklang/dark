@@ -16,6 +16,17 @@ let allTests (): List<String * TestFunction> =
     ("Eval String Length", fun () -> testEvalStringLength ())
     ("Eval List Length", fun () -> testEvalListLength ())
 
+    ("View AST", fun () -> testViewAst ())
+    ("View Instructions", fun () -> testViewInstructions ())
+    ("View Instructions Lambdas", fun () -> testViewInstructionsShowsLambdas ())
+    ("View Compiler Views Reject Non-Fns", fun () -> testViewCompilerViewsRejectNonFunctions ())
+    ("View Flag Before Path", fun () -> testViewFlagBeforePath ())
+    ("View Unknown Flag", fun () -> testViewUnknownFlag ())
+
+    ("Native List Edge Cases", fun () -> testNativeListEdgeCases ())
+    ("GetAt None Is Still None", fun () -> testGetAtNoneIsStillNone ())
+    ("Explicit Type Args", fun () -> testExplicitTypeArgs ())
+
     ("List Functions", fun () -> testListFunctions ())
     ("View Function", fun () -> testViewFunction ())
     ("List Types", fun () -> testListTypes ())

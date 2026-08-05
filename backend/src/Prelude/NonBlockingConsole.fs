@@ -40,18 +40,26 @@ type private Private() =
   static do
     let f () =
       while true do
+        let mutable wrote = false
+
         lock mLock (fun () ->
           try
             let mutable v = null
             // Don't block (eg with `Take`) while holding the lock
             if mQueue.TryTake(&v) then
               System.Console.Write(v)
-            else
-              System.Threading.Thread.Sleep 1 // 1ms
+              wrote <- true
           with e ->
             System.Console.WriteLine(
               $"Exception in blocking queue thread: {e.Message}"
             ))
+
+        // Sleep OUTSIDE the lock. Sleeping inside means holding `mLock` for essentially the whole
+        // millisecond of every idle iteration, and `wait()` spins acquiring the same lock; .NET's Monitor
+        // isn't fair, so `wait()` loses that race repeatedly and a two-line command can spend ~100 ms in
+        // it. Taking and writing an item stays inside the lock, so `wait()` still cannot return between a
+        // value leaving the queue and reaching the console, which is the invariant the lock exists for.
+        if not wrote then System.Threading.Thread.Sleep 1
 
 
     // Background threads aren't supported in Blazor

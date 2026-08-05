@@ -398,7 +398,179 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "pmSearchNames" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid "Branch to search on"
+          Param.make
+            "query"
+            (TCustomType(NR.ok (PT2DT.Search.SearchQuery.typeName ()), []))
+            "" ]
+      returnType =
+        TTuple(TList TString, TList TString, [ TList TString; TList TString ])
+      description =
+        "Search, returning only names: (direct submodules, types, values, fns). Submodules are already
+         reduced to the direct children of the query's module and sorted."
+      fn =
+        function
+        | _, _, _, [ DUuid branchId; query as DRecord(_, _, _, _fields) ] ->
+          uply {
+            let searchQuery = PT2DT.Search.SearchQuery.fromDT query
+            let! branchChain = Branches.getBranchChain branchId
+            let! results = PMPT.search branchChain searchQuery
+
+            // Mirrors `Query.getDirectSubmodules`: drop the current path, keep the next segment, dedupe,
+            // sort. Reduced here rather than in Dark because at the root of a large store this is hundreds
+            // of module paths collapsing to a handful of names, and the search already has them all.
+            let depth = List.length searchQuery.currentModule
+            // `List.skip` throws past the end; Dark's `List.drop` yields []. Match Dark.
+            let rec dropN n (xs : List<string>) =
+              if n <= 0 then
+                xs
+              else
+                match xs with
+                | [] -> []
+                | _ :: rest -> dropN (n - 1) rest
+            let submodules =
+              results.submodules
+              |> List.choose (fun modulePath ->
+                match dropN depth modulePath with
+                | next :: _ when next <> "" -> Some next
+                | _ -> None)
+              |> List.distinct
+              |> List.sort
+
+            let names (locations : List<PT.LocatedItem<'a>>) =
+              locations |> List.map (fun i -> i.location.name)
+
+            let toDList (xs : List<string>) =
+              xs |> List.map DString |> Dval.list KTString
+
+            return
+              DTuple(
+                toDList submodules,
+                toDList (names results.types),
+                [ toDList (names results.values); toDList (names results.fns) ]
+              )
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "pmSearchNamesAndHashes" 0
+      typeParams = []
+      parameters =
+        [ Param.make "branchId" TUuid "Branch to search on"
+          Param.make
+            "query"
+            (TCustomType(NR.ok (PT2DT.Search.SearchQuery.typeName ()), []))
+            "" ]
+      returnType =
+        let nameAndHash =
+          TList(TTuple(TString, TCustomType(NR.ok (PT2DT.Hash.typeName ()), []), []))
+        TTuple(TList TString, nameAndHash, [ nameAndHash; nameAndHash ])
+      description =
+        "Search, returning (direct submodules, types, values, fns) as (name, hash) pairs. Like
+         pmSearchNames but keeps each item's hash, which listings need for deprecation marks."
+      fn =
+        function
+        | _, _, _, [ DUuid branchId; query as DRecord(_, _, _, _fields) ] ->
+          uply {
+            let searchQuery = PT2DT.Search.SearchQuery.fromDT query
+            let! branchChain = Branches.getBranchChain branchId
+            let! results = PMPT.search branchChain searchQuery
+
+            let depth = List.length searchQuery.currentModule
+            // `List.skip` throws past the end; Dark's `List.drop` yields []. Match Dark.
+            let rec dropN n (xs : List<string>) =
+              if n <= 0 then
+                xs
+              else
+                match xs with
+                | [] -> []
+                | _ :: rest -> dropN (n - 1) rest
+            let submodules =
+              results.submodules
+              |> List.choose (fun modulePath ->
+                match dropN depth modulePath with
+                | next :: _ when next <> "" -> Some next
+                | _ -> None)
+              |> List.distinct
+              |> List.sort
+
+            let pairKT =
+              KTTuple(VT.string, ValueType.Known(PT2DT.Hash.knownType ()), [])
+
+            let toDList (xs : List<string>) =
+              xs |> List.map DString |> Dval.list KTString
+
+            let pairs
+              (locations : List<PT.LocatedItem<'a>>)
+              (hashOf : 'a -> PT.Hash)
+              =
+              locations
+              |> List.map (fun i ->
+                DTuple(
+                  DString i.location.name,
+                  PT2DT.Hash.toDT (hashOf i.entity),
+                  []
+                ))
+              |> Dval.list pairKT
+
+            return
+              DTuple(
+                toDList submodules,
+                pairs results.types (fun (t : PT.PackageType.PackageType) -> t.hash),
+                [ pairs results.values (fun (v : PT.PackageValue.PackageValue) ->
+                    v.hash)
+                  pairs results.fns (fun (f : PT.PackageFn.PackageFn) -> f.hash) ]
+              )
+          }
+        | _ -> incorrectArgs ()
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     // Location lookups — returns ALL locations for a hash
+    // Hands the compiled instruction stream to Dark so it can be rendered there
+    // (`PrettyPrinter.RuntimeTypes.instructions`). Data only: no formatting happens in F#, because a
+    // disassembly listing is exactly the kind of thing Dark should own. The PT side needs no equivalent
+    // builtin -- `pmGetFn` already returns the tree.
+    { name = fn "pmFnInstructions" 0
+      typeParams = []
+      parameters =
+        [ Param.make "hash" (TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])) "" ]
+      returnType =
+        TypeReference.option (
+          TCustomType(NR.ok (RT2DT.Instructions.typeName ()), [])
+        )
+      description =
+        "Returns the register-machine instructions a package function compiles to, "
+        + "or None if there's no such function."
+      fn =
+        (function
+        | exeState, _, _, [ hashDval ] ->
+          uply {
+            let (PT.Hash hashStr) = PT2DT.Hash.fromDT hashDval
+            match! exeState.fns.package (Hash hashStr) with
+            | None -> return Dval.optionNone (RT2DT.Instructions.knownType ())
+            | Some rtFn ->
+              return
+                RT2DT.Instructions.toDT rtFn.body
+                |> Dval.optionSome (RT2DT.Instructions.knownType ())
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "pmGetLocationsByType" 0
       typeParams = []
       parameters =

@@ -21,6 +21,16 @@ let bind (f : 'a -> Ply<'b>) (v : Ply<'a>) : Ply<'b> =
 
 let toTask (v : Ply<'a>) : Task<'a> = Ply.TplPrimitives.runPlyAsTask v
 
+/// The value of a `Ply` that has already finished, or `ValueNone` if it still has to wait.
+///
+/// Worth the ceremony on hot paths because this builder allocates a continuation closure for every `let!`
+/// it reaches, whether or not the awaited thing had to wait -- and in the interpreter most of them don't:
+/// a cache hit, a pure builtin, a type that resolves without a store lookup. Asking first lets the caller
+/// skip the bind rather than pay for a suspension it never uses. Only pays off where the answer is usually
+/// yes; elsewhere it's just noise around a `let!`.
+let inline trySync (v : Ply<'a>) : 'a voption =
+  if v.IsCompletedSuccessfully then ValueSome v.Result else ValueNone
+
 
 // These functions are sequential versions of List/Map functions like map/iter/etc.
 // They await each list item before they process the next.  This ensures each

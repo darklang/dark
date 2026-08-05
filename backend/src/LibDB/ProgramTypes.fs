@@ -216,6 +216,7 @@ let search
       WHERE l.unlisted_at IS NULL
         AND {submoduleCondition}
         AND {branchFilter}
+      ORDER BY owner, modules
       """
       |> Sql.query
       |> Sql.parameters (sqlParams @ branchParams)
@@ -297,7 +298,11 @@ let search
       + $"  AND l.item_type = '{itemType}'\n"
       + $"  AND ({locationCondition})\n"
       + $"  AND {nameCondition}\n"
-      + $"  AND {branchFilter}"
+      + $"  AND {branchFilter}\n"
+      // Without this the order is whatever SQLite happens to produce, which is rowid order and therefore
+      // shifts whenever the package set changes. That made results reshuffle between runs for no reason
+      // the reader could see, and made any before/after diff of `search` output pure noise.
+      + "  ORDER BY l.owner, l.modules, l.name"
       |> Sql.query
       |> Sql.parameters (
         [ "modules", Sql.string currentModule

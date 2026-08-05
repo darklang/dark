@@ -54,6 +54,15 @@ type AppState =
     /// Cached completion hint — skip recompute when prompt text unchanged
     cachedHintInput: String
     cachedHintValue: String
+    /// Completion results for the current *context* (command + completed args), which is what an expensive
+    /// completion actually depends on. Keyed by `Registry.completionContextKey`, so it survives every
+    /// keystroke of the word being typed rather than being thrown away on each character.
+    cachedCompletionKey: String
+    cachedCompletionItems: List<Completion.CompletionItem>
+    /// The last partial token filtered and what it produced, so the next keystroke can narrow from it
+    /// instead of re-filtering the whole context list. Empty partial means "no usable base".
+    cachedFilterPartial: String
+    cachedFilterItems: List<Completion.CompletionItem>
     /// Cached command list and option strings — built once at startup
     allCommandsCache: List<Registry.CommandHandler>
     commandOptionsCache: List<String>
@@ -63,8 +72,10 @@ type AppState =
 let locationStr (state: AppState) : String =
   Packages.formatLocation state.packageData.currentLocation
 
-let commandOptions () : List<String> =
-  let commands = Registry.allCommands ()
+/// Takes the command list rather than calling `Registry.allCommands ()` itself: `initState` needs both the
+/// list and the options, and building the list is 60 records of 6 fields including 3 fn refs each. Calling it
+/// twice per process start was pure duplicate work, on every invocation including `dark version`.
+let commandOptions (commands: List<Registry.CommandHandler>) : List<String> =
   let allNames = Stdlib.List.map commands (fun cmd -> cmd.name)
   let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
   Stdlib.List.append allNames allAliases
@@ -126,6 +137,7 @@ let resolveStartingBranch () : Uuid =
 let initState () : AppState =
   let (accountID, accountName) = restoreSessionAccount ()
   let branchId = resolveStartingBranch ()
+  let commands = Registry.allCommands ()
   AppState
     { isExiting = false
       prompt = Prompt.initState ()
@@ -139,8 +151,12 @@ let initState () : AppState =
       nonInteractive = false
       cachedHintInput = ""
       cachedHintValue = ""
-      allCommandsCache = Registry.allCommands ()
-      commandOptionsCache = commandOptions ()
+      cachedCompletionKey = ""
+      cachedCompletionItems = []
+      cachedFilterPartial = ""
+      cachedFilterItems = []
+      allCommandsCache = commands
+      commandOptionsCache = commandOptions commands
       telemetryEnabled = (Builtin.environmentGet "DARK_TELEMETRY") == Stdlib.Option.Option.Some "1" }
 
 type Msg =

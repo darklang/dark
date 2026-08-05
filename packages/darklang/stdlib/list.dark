@@ -33,12 +33,12 @@ let append (as_: List<'a>) (bs: List<'a>) : List<'a> =
 
 /// Add element <param value> to front of <type list> <param list>
 let push (list: List<'a>) (value: 'a) : List<'a> =
-  append [ value ] list
+  Builtin.listPush list value
 
 
 /// Add element <param val> to back of <type list> <param list>
 let pushBack (list: List<'a>) (value: 'a) : List<'a> =
-  append list [ value ]
+  Builtin.listPushBack list value
 
 
 /// Returns the last value in <param list>, wrapped in an option (<paramNone> if the list is empty)
@@ -53,12 +53,7 @@ let last (list: List<'a>) : Option.Option<'a> =
 
 /// Returns a reversed copy of <param list>
 let reverse (list: List<'a>) : List<'a> =
-  let reverseHelper (list: List<'a>) (acc: List<'a>) : List<'a> =
-    match list with
-    | [] -> acc
-    | head :: tail -> reverseHelper tail (push acc head)
-
-  reverseHelper list []
+  Builtin.listReverse list
 
 
 /// Returns {{Some firstMatch}} where <var firstMatch> is the first value of the
@@ -134,9 +129,7 @@ let fold (list: List<'a>) (init: 'b) (fn: 'b -> 'a -> 'b) : 'b =
 /// Returns a single list containing the values of every list directly in <paramlist>
 /// (does not recursively flatten nested lists)
 let flatten (list: List<List<'a>>) : List<'a> =
-  match list with
-  | [] -> []
-  | head :: tail -> append head (flatten tail)
+  Builtin.listFlatten list
 
 
 /// Returns a single list containing the values of <param list> separated by <param sep>
@@ -516,16 +509,7 @@ let unzip (pairs: List<('a * 'b)>) : (List<'a> * List<'b>) =
 /// Returns {{Some value}} at <param index> in <param list> if <param index> is
 /// less than the length of the list otherwise returns {{None}}.
 let getAt (list: List<'a>) (index: Int) : Option.Option<'a> =
-  if index < 0 then
-    Option.Option.None
-  else
-    match list with
-    | [] -> Option.Option.None
-    | head :: tail ->
-      if index == 0 then
-        Option.Option.Some head
-      else
-        getAt tail (index - 1)
+  Builtin.listGetAt list index
 
 
 /// Returns {{Just <var randomValue>}}, where <var randomValue> is a randomly

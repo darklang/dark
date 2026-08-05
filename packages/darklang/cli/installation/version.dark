@@ -2,8 +2,9 @@ module Darklang.Cli.Installation.Version
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
-  let versionInfo = Helpers.getVersionInfo ()
-  Stdlib.printLine versionInfo
+  // Checks GitHub for a newer release, which dominates the command. Deliberate: knowing you're out of
+  // date is the point of the command, not a side errand.
+  Stdlib.printLine (Helpers.versionInfoWithUpdateCheck ())
 
   // Store-format coordinate — the on-disk data shape this Dark speaks vs what your local data is stamped at.
   // (This is what the boot-time migrator + sync's wire-version key off; see `dark update`.) It is NOT a product
@@ -41,7 +42,8 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
 let help (_state: AppState) : Unit =
   [
     "Usage: version"
-    "Display CLI version and installation information."
+    "Display CLI version and store-format information."
     ""
-    "Shows current version, installation mode, and location."
+    "Shows the current version, whether a newer release exists, and whether your data"
+    "matches this binary's store format."
   ] |> Stdlib.printLines

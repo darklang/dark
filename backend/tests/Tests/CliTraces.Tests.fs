@@ -712,6 +712,53 @@ let private testTracesRejectsFlagAsTraceId =
 // Re-enable trace recording for this suite — Tests.fs defaults to `Off`
 // so the rest of the test run doesn't waste cycles writing trace rows
 // we never read back.
+/// A trace that hits the event cap must still be a walkable tree.
+///
+/// Events are recorded when a call *completes*, so they arrive innermost-first and the entry point is
+/// last. A cap that simply stops at N therefore keeps the deepest calls and drops every one of their
+/// ancestors, and since the viewer renders by walking down from a root, it ends up with nothing to walk
+/// from: the whole trace renders as the truncation marker and nothing else. That is what this once did.
+///
+/// `addEvent` avoids it by reserving a slot for every frame still on the stack, which are exactly the
+/// ancestors of whatever is completing. The observable consequence, asserted here, is that a truncated
+/// trace still shows its root.
+let private testTracesTruncatedStillShowsRoot =
+  testSequenced
+  <| testTask "a truncated trace still renders its root" {
+    do!
+      withState (fun state ->
+        task {
+          // Set both here rather than relying on the suite's ordering, so the test still means something
+          // when run on its own.
+          LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.On
+          LibDB.Tracing.TraceLimits.useMaxEventsForTesting 20
+          try
+            let! _ = runCli state [ "traces"; "delete"; "--all"; "--yes" ]
+            // Comfortably over the cap of 20: each element costs a lambda call and an add.
+            let! evalOut =
+              runCli
+                state
+                [ "eval"
+                  "Stdlib.List.length (Stdlib.List.map (Stdlib.List.range 1 40) (fun x -> x + 1))" ]
+            Expect.stringContains evalOut "40" "the eval itself succeeded"
+            let! listJson = runCli state [ "traces"; "list"; "1"; "--json" ]
+            let tid = parseTraceID listJson
+            let! view = runCli state [ "traces"; "view"; tid ]
+
+            Expect.stringContains
+              view
+              "trace truncated"
+              "the marker says the trace was capped"
+            Expect.stringContains
+              view
+              "eval"
+              "the root is still there, so the tree can be walked down from it"
+          finally
+            LibDB.Tracing.TraceLimits.resetMaxEventsForTesting ()
+        })
+  }
+
+
 let tests =
   testSequenced
   <| testList
@@ -753,4 +800,5 @@ let tests =
       testTracesArgOrderingsWork
       testTracesArity1Catchalls
       testTracesRouteEmptyRejection
-      testTracesFindEscapesLikeWildcards ]
+      testTracesFindEscapesLikeWildcards
+      testTracesTruncatedStillShowsRoot ]

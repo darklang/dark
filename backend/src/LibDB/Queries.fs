@@ -242,7 +242,9 @@ let private getDependentsByLocationsChunk
             )
             AND l.unlisted_at IS NULL
             AND l.branch_id IN ({branchInClause})
-          ORDER BY l.item_hash
+          -- By name, not by hash. Hash order is stable but arbitrary to a reader, so a dependents list
+          -- looked shuffled; these columns are already selected, so ordering by them is free.
+          ORDER BY l.owner, l.modules, l.name
         """
 
       return!

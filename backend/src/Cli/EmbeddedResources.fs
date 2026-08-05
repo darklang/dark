@@ -216,12 +216,27 @@ let private reconcileExistingStore (dbPath : string) : unit =
     // store.
     reseedAndReport dbPath current label
 
+/// Sub-timings for `extract`, in Stopwatch ticks. Collected rather than logged because `extract` runs
+/// before telemetry has an output path: it's what sets DARK_CONFIG_RUNDIR, which is where the log lives.
+/// `Cli.Main` drains this once telemetry is up.
+///
+/// Worth splitting out because on a shipped single-file binary this phase reads as "startup" when it's
+/// really a manifest-resource enumeration plus a throwaway SQLite connection, which are different
+/// things to fix.
+let timings : ResizeArray<string * int64> = ResizeArray()
+
+let inline private timed (label : string) (f : unit -> 'a) : 'a =
+  let t0 = System.Diagnostics.Stopwatch.GetTimestamp()
+  let r = f ()
+  timings.Add(label, System.Diagnostics.Stopwatch.GetTimestamp() - t0)
+  r
+
 let extract () : unit =
   // The embedded resource is `data.db.gz` (the seed db, gzip-compressed at
   // build time to save ~7 MB on binary size). On first run, decompress to
   // `~/.darklang/data.db`; on subsequent runs the file already exists and
   // grow/init proceeds against the local copy.
-  if hasEmbeddedResource "data.db.gz" then
+  if timed "extract.hasResource" (fun () -> hasEmbeddedResource "data.db.gz") then
     let darklangDir = getDarklangDirectory ()
 
     Environment.SetEnvironmentVariable("DARK_CONFIG_RUNDIR", darklangDir)
@@ -244,4 +259,4 @@ let extract () : unit =
 
       printfn "CLI data directory setup complete"
     else
-      reconcileExistingStore dbPath
+      timed "extract.reconcileStore" (fun () -> reconcileExistingStore dbPath)

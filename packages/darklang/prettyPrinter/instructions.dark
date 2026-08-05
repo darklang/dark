@@ -1,0 +1,245 @@
+/// Disassembly: the register-machine instructions a function actually runs.
+///
+/// Dark compiles to `RuntimeTypes.Instructions`, so what executes is several steps removed from what you
+/// wrote. When the question is "why does mapping five elements cost 33 package calls", the instruction
+/// listing is the only place the answer is legible.
+///
+/// `opcode` and `operands` are separate functions rather than one rendered line, so a caller can align
+/// the columns and colour them independently. `listing` is the plain-text version for anyone who just
+/// wants the text.
+module Darklang.PrettyPrinter.RuntimeTypes.Instructions
+
+let register (r: LanguageTools.RuntimeTypes.Register) : String =
+  "r" ++ (Stdlib.Int32.toString r)
+
+let registers (rs: List<LanguageTools.RuntimeTypes.Register>) : String =
+  (Stdlib.List.map rs (fun r -> register r)) |> Stdlib.String.join ", "
+
+let namedRegisters (prs: List<(String * LanguageTools.RuntimeTypes.Register)>) : String =
+  prs
+  |> Stdlib.List.map (fun pair ->
+    let (name, r) = pair
+    $"{name}: {register r}")
+  |> Stdlib.String.join ", "
+
+
+/// Register-aware pattern rendering. `PrettyPrinter.RuntimeTypes.letPattern` prints `LPVariable` as
+/// "[variable]" because it has no register vocabulary; in a listing the register is the whole point.
+let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
+  match pat with
+  | LPVariable reg -> register reg
+  | LPWildcard -> "_"
+  | LPUnit -> "()"
+  | LPTuple(first, second, theRest) ->
+    let parts =
+      (Stdlib.List.append [ first; second ] theRest)
+      |> Stdlib.List.map (fun p -> letPattern p)
+      |> Stdlib.String.join ", "
+    $"({parts})"
+
+
+let matchPattern (pat: LanguageTools.RuntimeTypes.MatchPattern) : String =
+  match pat with
+  | MPVariable reg -> register reg
+  | MPUnit -> "()"
+  | MPBool b -> Stdlib.Bool.toString b
+  | MPInt8 i -> Stdlib.Int8.toString i
+  | MPUInt8 i -> Stdlib.UInt8.toString i
+  | MPInt16 i -> Stdlib.Int16.toString i
+  | MPUInt16 i -> Stdlib.UInt16.toString i
+  | MPInt32 i -> Stdlib.Int32.toString i
+  | MPUInt32 i -> Stdlib.UInt32.toString i
+  | MPInt64 i -> Stdlib.Int64.toString i
+  | MPUInt64 i -> Stdlib.UInt64.toString i
+  | MPInt128 i -> Stdlib.Int128.toString i
+  | MPUInt128 i -> Stdlib.UInt128.toString i
+  | MPInt i -> Stdlib.Int.toString i
+  | MPFloat f -> Stdlib.Float.toString f
+  | MPChar c -> $"'{c}'"
+  | MPString s -> $"\"{s}\""
+  | MPList items ->
+    let parts =
+      (Stdlib.List.map items (fun p -> matchPattern p)) |> Stdlib.String.join "; "
+    $"[{parts}]"
+  | MPListCons(head, tail) -> $"{matchPattern head} :: {matchPattern tail}"
+  | MPTuple(first, second, theRest) ->
+    let parts =
+      (Stdlib.List.append [ first; second ] theRest)
+      |> Stdlib.List.map (fun p -> matchPattern p)
+      |> Stdlib.String.join ", "
+    $"({parts})"
+  | MPEnum(caseName, fields) ->
+    if Stdlib.List.isEmpty fields then
+      caseName
+    else
+      let parts =
+        (Stdlib.List.map fields (fun p -> matchPattern p)) |> Stdlib.String.join ", "
+      $"{caseName}({parts})"
+  | MPOr pats ->
+    (Stdlib.List.map pats (fun p -> matchPattern p)) |> Stdlib.String.join " | "
+
+
+let segment (branchId: Uuid) (s: LanguageTools.RuntimeTypes.StringSegment) : String =
+  match s with
+  | Text t -> "\"" ++ (Stdlib.String.replaceAll t "\n" "\\n") ++ "\""
+  | Interpolated r -> register r
+
+
+/// Values baked into the instruction stream, rendered short. A listing is for reading, and one 4 KB
+/// docstring pushes everything else off the page, so anything long is summarised by shape instead.
+let inlineDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
+  let clip (s: String) : String =
+    if (Stdlib.String.length s) <= 40 then
+      s
+    else
+      (Stdlib.String.slice s 0 37) ++ "..."
+
+  match dv with
+  | DUnit -> "unit"
+  | DBool b -> Stdlib.Bool.toString b
+  | DString s -> "\"" ++ (clip (Stdlib.String.replaceAll s "\n" "\\n")) ++ "\""
+  | DChar c -> $"'{c}'"
+  | DInt64 i -> Stdlib.Int64.toString i
+  | DInt i -> Stdlib.Int.toString i
+  | DFloat f -> Stdlib.Float.toString f
+  | DList(_, items) -> $"[{Stdlib.Int.toString (Stdlib.List.length items)} items]"
+  | DDict(_, entries) ->
+    let n = Stdlib.List.length (Stdlib.Dict.keys entries)
+    $"{{{Stdlib.Int.toString n} entries}}"
+  | DRecord(_, typeName, _, fields) ->
+    let n = Stdlib.List.length (Stdlib.Dict.keys fields)
+    let t = PrettyPrinter.RuntimeTypes.typeName branchId typeName
+    $"{t} {{{Stdlib.Int.toString n} fields}}"
+  | DEnum(_, typeName, _, caseName, fields) ->
+    let t = PrettyPrinter.RuntimeTypes.typeName branchId typeName
+    if Stdlib.List.isEmpty fields then
+      $"{t}.{caseName}"
+    else
+      let n = Stdlib.Int.toString (Stdlib.List.length fields)
+      $"{t}.{caseName} ({n})"
+  | DApplicable app ->
+    match app with
+    | AppNamedFn fn -> "&" ++ (PrettyPrinter.RuntimeTypes.fnName branchId fn.name)
+    | AppLambda l -> $"&lambda#{Stdlib.UInt64.toString l.exprId}"
+  | other -> PrettyPrinter.RuntimeTypes.dval branchId other
+
+
+/// The opcode name on its own, so callers can colour or align it.
+let opcode (i: LanguageTools.RuntimeTypes.Instruction) : String =
+  match i with
+  | LoadVal(_, _) -> "LoadVal"
+  | CopyVal(_, _) -> "CopyVal"
+  | Or(_, _, _) -> "Or"
+  | And(_, _, _) -> "And"
+  | CreateString(_, _) -> "CreateString"
+  | CheckLetPatternAndExtractVars(_, _) -> "CheckLetPattern"
+  | JumpByIfFalse(_, _) -> "JumpByIfFalse"
+  | JumpBy _ -> "JumpBy"
+  | CheckMatchPatternAndExtractVars(_, _, _) -> "CheckMatchPattern"
+  | MatchUnmatched _ -> "MatchUnmatched"
+  | CreateTuple(_, _, _, _) -> "CreateTuple"
+  | CreateList(_, _) -> "CreateList"
+  | CreateDict(_, _) -> "CreateDict"
+  | CreateRecord(_, _, _, _) -> "CreateRecord"
+  | CloneRecordWithUpdates(_, _, _) -> "CloneRecordWithUpdates"
+  | GetRecordField(_, _, _) -> "GetRecordField"
+  | CreateEnum(_, _, _, _, _) -> "CreateEnum"
+  | LoadValue(_, _) -> "LoadValue"
+  | CreateLambda(_, _) -> "CreateLambda"
+  | Apply(_, _, _, _) -> "Apply"
+  | RaiseNRE(_, _) -> "RaiseNRE"
+  | VarNotFound(_, _) -> "VarNotFound"
+  | CheckIfFirstExprIsUnit _ -> "CheckIfFirstExprIsUnit"
+
+
+/// Everything after the opcode. <param index> is the instruction's own position: jump offsets are stored
+/// relative, and a relative jump is unreadable in a listing, so they're shown both ways.
+let operands (branchId: Uuid) (index: Int) (i: LanguageTools.RuntimeTypes.Instruction) : String =
+  match i with
+  | LoadVal(r, v) -> $"{register r} <- {inlineDval branchId v}"
+  | CopyVal(t, s) -> $"{register t} <- {register s}"
+  | Or(t, l, r) -> $"{register t} <- {register l} || {register r}"
+  | And(t, l, r) -> $"{register t} <- {register l} && {register r}"
+  | CreateString(t, segs) ->
+    let parts =
+      (Stdlib.List.map segs (fun s -> segment branchId s))
+      |> Stdlib.String.join " ++ "
+    $"{register t} <- {parts}"
+  | CheckLetPatternAndExtractVars(v, p) -> $"{letPattern p} <- {register v}"
+  | JumpByIfFalse(n, c) ->
+    let target = Stdlib.Int.toString (index + (Stdlib.Int.fromInt32 n) + 1)
+    $"{register c} -> +{Stdlib.Int32.toString n} -> {target}"
+  | JumpBy n ->
+    let target = Stdlib.Int.toString (index + (Stdlib.Int.fromInt32 n) + 1)
+    $"+{Stdlib.Int32.toString n} -> {target}"
+  | CheckMatchPatternAndExtractVars(v, p, failJump) ->
+    let target = Stdlib.Int.toString (index + (Stdlib.Int.fromInt32 failJump) + 1)
+    $"{register v} ~ {matchPattern p}  else -> {target}"
+  | MatchUnmatched v -> register v
+  | CreateTuple(t, first, second, theRest) ->
+    let all = registers (Stdlib.List.append [ first; second ] theRest)
+    $"{register t} <- ({all})"
+  | CreateList(t, items) -> $"{register t} <- [{registers items}]"
+  | CreateDict(t, entries) -> $"{register t} <- {{{namedRegisters entries}}}"
+  | CreateRecord(t, typeName, _, fields) ->
+    let n = PrettyPrinter.RuntimeTypes.typeName branchId typeName
+    $"{register t} <- {n} {{{namedRegisters fields}}}"
+  | CloneRecordWithUpdates(t, orig, updates) ->
+    $"{register t} <- {{{register orig} with {namedRegisters updates}}}"
+  | GetRecordField(t, r, fieldName) -> $"{register t} <- {register r}.{fieldName}"
+  | CreateEnum(t, typeName, _, caseName, fields) ->
+    let n = PrettyPrinter.RuntimeTypes.typeName branchId typeName
+    $"{register t} <- {n}.{caseName}({registers fields})"
+  | LoadValue(t, v) ->
+    let n = PrettyPrinter.RuntimeTypes.valueName branchId v
+    $"{register t} <- {n}"
+  | CreateLambda(t, l) ->
+    let n = Stdlib.Int.toString (Stdlib.List.length l.patterns)
+    $"{register t} <- lambda#{Stdlib.UInt64.toString l.exprId} ({n} params)"
+  | Apply(t, fnReg, _, args) ->
+    $"{register t} <- {register fnReg}({registers args})"
+  | RaiseNRE(names, _) -> Stdlib.String.join names "."
+  | VarNotFound(t, name) -> $"{register t} <- ${name}"
+  | CheckIfFirstExprIsUnit r -> register r
+
+
+/// Every lambda defined inside these instructions, flattened, so a listing isn't a dead end at
+/// `CreateLambda`. A lambda inside a lambda gets its own entry rather than nesting.
+let lambdas (instrs: LanguageTools.RuntimeTypes.Instructions) : List<LanguageTools.RuntimeTypes.LambdaImpl> =
+  instrs.instructions
+  |> Stdlib.List.filterMap (fun i ->
+    match i with
+    | CreateLambda(_, l) -> Stdlib.Option.Option.Some l
+    | _ -> Stdlib.Option.Option.None)
+  |> Stdlib.List.map (fun l -> Stdlib.List.append [ l ] (lambdas l.instructions))
+  |> Stdlib.List.flatten
+
+
+let header (instrs: LanguageTools.RuntimeTypes.Instructions) : String =
+  let n = Stdlib.Int.toString (Stdlib.List.length instrs.instructions)
+  let regs = Stdlib.Int32.toString instrs.registerCount
+  $"{n} instructions, {regs} registers, result in {register instrs.resultIn}"
+
+
+/// `Stdlib.String.padStart`/`padEnd` return a `Result` (they can reject a multi-character pad), which
+/// is noise for a fixed single-space pad. These just widen.
+let padTo (width: Int) (s: String) : String =
+  let n = width - (Stdlib.String.length s)
+  if n <= 0 then s else s ++ (Stdlib.String.repeat " " n)
+
+let padFrom (width: Int) (s: String) : String =
+  let n = width - (Stdlib.String.length s)
+  if n <= 0 then s else (Stdlib.String.repeat " " n) ++ s
+
+
+/// Plain-text listing, for callers that don't want to lay it out themselves.
+let listing (branchId: Uuid) (instrs: LanguageTools.RuntimeTypes.Instructions) : String =
+  let body =
+    instrs.instructions
+    |> Stdlib.List.indexedMap (fun index i ->
+      let idx = padFrom 4 (Stdlib.Int.toString index)
+      let op = padTo 24 (opcode i)
+      $"{idx}  {op} {operands branchId index i}")
+    |> Stdlib.String.join "\n"
+
+  (header instrs) ++ "\n" ++ body

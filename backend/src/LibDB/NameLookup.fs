@@ -51,6 +51,7 @@ let findFirstPackageMatch
   (genericName : GenericName)
   (findInPM : PT.PackageLocation -> Ply<Option<Hash>>)
   : Ply<Option<Hash * PT.PackageLocation>> =
+  Telemetry.count "pkg.nameLookup"
   Ply.List.foldSequentially
     (fun acc (candidate : GenericName) ->
       match acc with

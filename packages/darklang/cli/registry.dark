@@ -247,6 +247,47 @@ module Registry =
     groupsText ++ "\n\n" ++ footer
 
 
+  /// Identifies what a completion request depends on, *ignoring* the partial token the user is mid-way
+  /// through typing. Typing "Sta" one key at a time produces three different prompt strings but the same
+  /// context: command `nav`, no completed args. That's the point; see `getCompletionsForContext`.
+  /// `loc` is the caller's already-formatted location string. It's part of the key because `nav`/`ls`
+  /// complete against wherever you are, so the same command with the same completed args means something
+  /// different after a `cd`. Taken as a parameter rather than recomputed, because the loop already has it.
+  let completionContextKey (loc: String) (input: String) : String =
+    let parsed = Completion.parseInput input
+    if parsed.isCompletingCommand then
+      // Command-name completion reads `state.commandOptionsCache`, which is already built once at startup,
+      // so there's nothing expensive to key on. One constant bucket.
+      "cmd\u0000" ++ loc
+    else
+      let completedArgs =
+        match Stdlib.List.last parsed.args with
+        | Some _ -> Stdlib.List.dropLast parsed.args
+        | None -> []
+      // \u0000 can't occur in a typed token, so joining is unambiguous.
+      Stdlib.String.join
+        (Stdlib.List.append [ loc; parsed.commandName ] completedArgs)
+        "\u0000"
+
+  /// The half of completion that depends only on the command and its *completed* arguments. For `nav`/`ls`
+  /// that means a package DB query, which is far too expensive to repeat per keystroke -- and a cache keyed
+  /// on the whole prompt text misses on every character of a word. The partial token filters this result
+  /// afterwards, and filtering a list is cheap.
+  let getCompletionsForContext
+    (state: AppState)
+    (input: String)
+    : List<Completion.CompletionItem> =
+    let parsed = Completion.parseInput input
+    if parsed.isCompletingCommand then
+      state.commandOptionsCache |> Stdlib.List.map Completion.simple
+    else
+      let handler = findCommandIn state.allCommandsCache parsed.commandName
+      let completedArgs =
+        match Stdlib.List.last parsed.args with
+        | Some _ -> Stdlib.List.dropLast parsed.args
+        | None -> []
+      handler.complete state completedArgs
+
   let getCompletions (state: AppState) (input: String) : List<Completion.CompletionItem> =
     let parsed = Completion.parseInput input
 
@@ -296,8 +337,10 @@ module Registry =
         | _ :: _ -> filtered
         | [] -> completeFunc state parsed.args
 
-  let getCompletionHint (state: AppState) (input: String) : String =
-    let completions = getCompletions state input
+  let hintFromCompletions
+    (input: String)
+    (completions: List<Completion.CompletionItem>)
+    : String =
     let parsed = Completion.parseInput input
 
     let partial =
@@ -310,6 +353,76 @@ module Registry =
 
     let completionValues = completions |> Stdlib.List.map (fun item -> item.value)
     Completion.getHintFromCompletions partial completionValues
+
+  /// The hint, given an already-computed context result. This is what the interactive loop calls on each
+  /// keystroke, passing its cached context.
+  /// Returns `(hint, partialUsed, filteredItems)`. The caller keeps the last two so the *next* keystroke can
+  /// narrow from them instead of re-filtering the whole context list: typing `c` then `cd` filters the ~8
+  /// survivors rather than all ~120 command names. Prefix filtering is transitive, so narrowing from the
+  /// previous result gives exactly the same answer as filtering the full list.
+  ///
+  /// Parses `input` once and does both halves rather than composing a context lookup with
+  /// `hintFromCompletions`, which each re-parse; this runs on every keystroke.
+  let getCompletionHintFromContext
+    (state: AppState)
+    (input: String)
+    (contextCompletions: List<Completion.CompletionItem>)
+    (prevPartial: String)
+    (prevItems: List<Completion.CompletionItem>)
+    : (String * String * List<Completion.CompletionItem>) =
+    let parsed = Completion.parseInput input
+
+    let (filterPartial, hintPartial) =
+      if parsed.isCompletingCommand then
+        (Completion.getPartialCompletion parsed, parsed.commandName)
+      else
+        let lastArg =
+          match Stdlib.List.last parsed.args with
+          | Some lastArg -> lastArg
+          | None -> ""
+        (lastArg, lastArg)
+
+    let hintOf (items: List<Completion.CompletionItem>) : String =
+      Completion.getHintFromCompletions
+        hintPartial
+        (items |> Stdlib.List.map (fun item -> item.value))
+
+    if Stdlib.String.isEmpty filterPartial then
+      (hintOf contextCompletions, "", contextCompletions)
+    else
+      // Narrow from the previous result only when this partial extends it and it was non-empty. An empty
+      // previous result is unusable as a base, and so is a fallback result (see below), which is why the
+      // fallback reports "" back to the caller.
+      let canNarrow =
+        (Stdlib.Bool.not (Stdlib.String.isEmpty prevPartial))
+        && (Stdlib.String.startsWith filterPartial prevPartial)
+        && (match prevItems with
+            | _ :: _ -> true
+            | [] -> false)
+
+      let narrowBase = if canNarrow then prevItems else contextCompletions
+
+      let filtered =
+        narrowBase
+        |> Stdlib.List.filter (fun item ->
+          Stdlib.String.startsWith item.value filterPartial)
+
+      match filtered with
+      | _ :: _ -> (hintOf filtered, filterPartial, filtered)
+      | [] ->
+        // Centralized filtering found nothing, so re-ask the handler with the full args. This supports
+        // commands with smart matching (path traversal), genuinely depends on the partial, and its result
+        // is not a prefix-filtered subset -- so it must not become a narrowing base.
+        let fallback =
+          if parsed.isCompletingCommand then
+            []
+          else
+            let handler = findCommandIn state.allCommandsCache parsed.commandName
+            handler.complete state parsed.args
+        (hintOf fallback, "", [])
+
+  let getCompletionHint (state: AppState) (input: String) : String =
+    hintFromCompletions input (getCompletions state input)
 
 
 module Commands =

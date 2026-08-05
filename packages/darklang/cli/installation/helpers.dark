@@ -6,7 +6,12 @@ let cliVersion () : String =
   let hash = Builtin.getBuildHash ()
   "alpha-" ++ hash
 
-let getVersionInfo () : String =
+/// The local version plus a check against the latest published release.
+///
+/// Costs a network round trip, which dominates the command. That's deliberate: both callers (`version`
+/// and `install-status`) exist to tell you whether your install is current, so the check is the point
+/// rather than a side errand. Worth knowing it's there before adding a third caller.
+let versionInfoWithUpdateCheck () : String =
   let currentVersion = cliVersion ()
   match GitHub.Releases.getLatestReleaseBuildHash () with
   | Ok latestVersion ->
@@ -16,3 +21,8 @@ let getVersionInfo () : String =
       "Darklang CLI " ++ currentVersion ++ " (latest: " ++ latestVersion ++ " - update available!)"
   | Error _ ->
     "Darklang CLI " ++ currentVersion ++ " (unable to check for updates)"
+
+/// CLEANUP alias for `versionInfoWithUpdateCheck`, kept because `install-status` and the old_notes
+/// command still call it. Fold them over and delete this.
+let getVersionInfo () : String =
+  versionInfoWithUpdateCheck ()
