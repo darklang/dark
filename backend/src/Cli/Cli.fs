@@ -252,11 +252,25 @@ let main (args : string[]) =
           match byBuiltin.TryGetValue kv.Key with
           | true, v -> byBuiltin[kv.Key] <- v + kv.Value
           | false, _ -> byBuiltin[kv.Key] <- kv.Value
+      let callsByBuiltin = System.Collections.Generic.Dictionary<string, int64>()
+      for s in stats do
+        for kv in s.builtinCallsByName do
+          match callsByBuiltin.TryGetValue kv.Key with
+          | true, v -> callsByBuiltin[kv.Key] <- v + kv.Value
+          | false, _ -> callsByBuiltin[kv.Key] <- kv.Value
       byBuiltin
       |> Seq.sortByDescending (fun kv -> kv.Value)
       |> Seq.truncate 20
       |> Seq.iter (fun kv ->
-        Telemetry.event $"builtinAlloc.{kv.Key}" [ "bytes", string kv.Value ])
+        let calls =
+          match callsByBuiltin.TryGetValue kv.Key with
+          | true, c -> c
+          | false, _ -> 0L
+        Telemetry.event
+          $"builtinAlloc.{kv.Key}"
+          [ "bytes", string kv.Value
+            "calls", string calls
+            "bytesPerCall", string (if calls = 0L then 0L else kv.Value / calls) ])
 
       for i in 0 .. min (RT.ApplyStage.names.Length - 1) 31 do
         let total = stats |> List.sumBy (fun s -> s.allocByStage[i])

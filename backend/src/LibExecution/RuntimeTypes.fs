@@ -2026,6 +2026,10 @@ type InterpreterStats =
     /// on every call.
     builtinAlloc : Dictionary<string, int64>
 
+    /// Calls per builtin name, so the allocation above can be read per call rather than in aggregate.
+    /// Like `builtinAlloc` and unlike `builtinCounts`, this doesn't need `detailedTiming`.
+    builtinCallsByName : Dictionary<string, int64>
+
     /// Bytes allocated in named *synchronous* regions of the Apply path, indexed by `ApplyStage`.
     ///
     /// Only synchronous regions: a bracket spanning an `await` measures the nested execution that resumes
@@ -2062,6 +2066,7 @@ type InterpreterStats =
         registersAllocated = 0L
         builtinBodyAlloc = 0L
         builtinAlloc = Dictionary()
+        builtinCallsByName = Dictionary()
         allocByStage = Array.zeroCreate 32
         tstSizeSum = 0L
         tstSizeMax = 0L }
@@ -2083,6 +2088,7 @@ type InterpreterStats =
     this.registersAllocated <- 0L
     this.builtinBodyAlloc <- 0L
     this.builtinAlloc.Clear()
+    this.builtinCallsByName.Clear()
     this.tstSizeSum <- 0L
     this.tstSizeMax <- 0L
     System.Array.Clear(this.allocByStage, 0, this.allocByStage.Length)

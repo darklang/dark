@@ -44,10 +44,14 @@ module private FreeTVars =
       collect acc ret
     | _ -> acc
 
+  // `TryGetValue(key, &out)` rather than `match d.TryGetValue key with | true, v ->`. The tuple form
+  // reads better but allocates a `Tuple<bool, 'v>` on every lookup, hit or miss -- measured at 35 bytes
+  // a call, which on a per-call cache lookup is more than the thing being cached.
   let ofBuiltin (fn : BuiltInFn) : Set<string> =
-    match builtins.TryGetValue fn.name with
-    | true, v -> v
-    | false, _ ->
+    let mutable cached = Unchecked.defaultof<Set<string>>
+    if builtins.TryGetValue(fn.name, &cached) then
+      cached
+    else
       let v =
         fn.parameters
         |> List.fold (fun acc (p : BuiltInParam) -> collect acc p.typ) Set.empty
@@ -61,17 +65,19 @@ module private FreeTVars =
     System.Collections.Concurrent.ConcurrentDictionary<Hash, ExecutionPoint>()
 
   let packageExecutionPoint (hash : Hash) : ExecutionPoint =
-    match packageEntryPoints.TryGetValue hash with
-    | true, v -> v
-    | false, _ ->
+    let mutable cached = Unchecked.defaultof<ExecutionPoint>
+    if packageEntryPoints.TryGetValue(hash, &cached) then
+      cached
+    else
       let v = Function(FQFnName.Package hash)
       packageEntryPoints[hash] <- v
       v
 
   let ofPackage (fn : PackageFn.PackageFn) : Set<string> =
-    match packages.TryGetValue fn.hash with
-    | true, v -> v
-    | false, _ ->
+    let mutable cached = Unchecked.defaultof<Set<string>>
+    if packages.TryGetValue(fn.hash, &cached) then
+      cached
+    else
       let v =
         fn.parameters
         |> NEList.toList
@@ -836,13 +842,16 @@ let private finishBuiltin
   (result : Dval)
   : Ply<Dval> =
   if vm.stats.enabled then
+    let n = fn.name.name
+    let mutable calls = 0L
+    vm.stats.builtinCallsByName.TryGetValue(n, &calls) |> ignore<bool>
+    vm.stats.builtinCallsByName[n] <- calls + 1L
     let d = System.GC.GetAllocatedBytesForCurrentThread() - bodyAllocBefore
     if d > 0L then
       vm.stats.builtinBodyAlloc <- vm.stats.builtinBodyAlloc + d
-      let n = fn.name.name
-      match vm.stats.builtinAlloc.TryGetValue n with
-      | true, v -> vm.stats.builtinAlloc[n] <- v + d
-      | false, _ -> vm.stats.builtinAlloc[n] <- d
+      let mutable prev = 0L
+      vm.stats.builtinAlloc.TryGetValue(n, &prev) |> ignore<bool>
+      vm.stats.builtinAlloc[n] <- prev + d
   // `sw = 0L` means the bracket never opened: timing was off when this call started and the call
   // itself turned it on (`interpreterStatsEnableDetailedTiming` is the case). Subtracting from zero
   // would record the raw tick count as a duration.
@@ -1230,9 +1239,10 @@ let private completePackage
         expectedReturnType = ValueSome fn.returnType
         // We already hold the fn here, so the loop needn't fetch it.
         instrData =
-          match exeState.packageFnInstrCache.TryGetValue fn.hash with
-          | true, cached -> cached
-          | false, _ ->
+          let mutable cached = Unchecked.defaultof<InstrData>
+          if exeState.packageFnInstrCache.TryGetValue(fn.hash, &cached) then
+            cached
+          else
             let d : InstrData =
               { instructions = List.toArray fn.body.instructions
                 resultReg = fn.body.resultIn }
@@ -1577,9 +1587,10 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
             | AppLambda appLambda ->
               let exprId = appLambda.exprId
               let foundLambda =
-                match exeState.lambdaInstrCache.TryGetValue exprId with
-                | true, lambda -> lambda
-                | false, _ ->
+                let mutable cached = Unchecked.defaultof<_>
+                if exeState.lambdaInstrCache.TryGetValue(exprId, &cached) then
+                  cached
+                else
                   Exception.raiseInternal "lambda not found" [ "exprId", exprId ]
 
               let allArgs =
