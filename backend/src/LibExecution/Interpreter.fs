@@ -730,11 +730,18 @@ let rec private bindLambdaParams
     match args with
     | [] -> ()
     | arg :: argRest ->
-      let doesMatch, registersToAssign = checkAndExtractLetPattern pat arg
-      if doesMatch then
-        assignRegisters r registersToAssign
-      else
-        RTE.Let(RTE.Lets.PatternDoesNotMatch(arg, pat)) |> raiseRTE vm.threadID
+      // One name bound to one register is the overwhelmingly common shape, and
+      // `checkAndExtractLetPattern` costs four allocations to express it: the returned tuple, the cons,
+      // the pair inside it, and the pair its own `match pat, dv with` builds. Per parameter, per call.
+      // `CheckLetPattern` already short-circuits the same way.
+      match pat with
+      | LPVariable extractTo -> r[extractTo] <- arg
+      | _ ->
+        let doesMatch, registersToAssign = checkAndExtractLetPattern pat arg
+        if doesMatch then
+          assignRegisters r registersToAssign
+        else
+          RTE.Let(RTE.Lets.PatternDoesNotMatch(arg, pat)) |> raiseRTE vm.threadID
       bindLambdaParams vm r patRest argRest
 
 
