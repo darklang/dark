@@ -38,13 +38,13 @@ let parseBranchFlag (args: List<String>) : (Stdlib.Option.Option<Uuid> * List<St
   | None -> (Stdlib.Option.Option.None, rest)
   | Some "" ->
     Stdlib.printLine "Warning: --branch requires a name, using main."
-    (Stdlib.Option.Option.Some SCM.Branch.mainBranchId, rest)
+    (Stdlib.Option.Option.Some SCM.Ids.mainBranchId, rest)
   | Some n ->
     match SCM.Branch.getByName n with
     | Some b -> (Stdlib.Option.Option.Some b.id, rest)
     | None ->
       Stdlib.printLine $"Warning: branch '{n}' not found, using main."
-      (Stdlib.Option.Option.Some SCM.Branch.mainBranchId, rest)
+      (Stdlib.Option.Option.Some SCM.Ids.mainBranchId, rest)
 
 
 let executeCliCommand (args: List<String>) : Int =

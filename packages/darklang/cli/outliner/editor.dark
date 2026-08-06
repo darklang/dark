@@ -571,9 +571,9 @@ let colouredPrefix (vn: VisibleNode) : String =
 /// Every screen row one line of the outline occupies: its own, plus continuations when the text is wider
 /// than the pane.
 ///
-/// Long lines used to run off the right edge and stop existing. Wrapping is done on the plain text and the
-/// colour applied after, because a selected row has to be coloured in one piece: an inner colour code ends
-/// with a reset, which would cancel the highlight for everything after it.
+/// Wraps long lines, on the plain text, with the colour applied after: a selected row has to be
+/// coloured in one piece, and an inner colour code ends with a reset that would cancel the highlight
+/// for everything after it.
 let rowsForNode (state: State) (vn: VisibleNode) (cols: Int) : List<String> =
   let isCursor = vn.id == state.cursorId
   let prefix = prefixFor vn isCursor

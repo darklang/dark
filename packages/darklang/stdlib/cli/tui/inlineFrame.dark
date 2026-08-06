@@ -5,7 +5,7 @@
 module Darklang.Stdlib.Cli.Tui.InlineFrame
 
 
-let cursorRow (view: Tui.View) : Int =
+let cursorRow (view: Stdlib.Cli.Tui.View) : Int =
   match view.cursor with
   | Hidden ->
     Stdlib.Int.max 0 (Stdlib.List.length view.rows - 1)
@@ -34,7 +34,7 @@ let renderContentAtWidth (width: Int) (content: String) : String =
 
 let finishAtCursor
   (currentRow: Int)
-  (view: Tui.View)
+  (view: Stdlib.Cli.Tui.View)
   : String =
   match view.cursor with
   | Hidden ->
@@ -55,8 +55,8 @@ let finishAtCursor
 /// clears rows that no longer exist.
 let renderFullAtWidth
   (width: Int)
-  (previous: Stdlib.Option.Option<Tui.View>)
-  (next: Tui.View)
+  (previous: Stdlib.Option.Option<Stdlib.Cli.Tui.View>)
+  (next: Stdlib.Cli.Tui.View)
   : String =
   let previousHeight =
     match previous with
@@ -97,8 +97,8 @@ let renderFullAtWidth
 /// cursor.
 let renderAtWidth
   (width: Int)
-  (previous: Stdlib.Option.Option<Tui.View>)
-  (next: Tui.View)
+  (previous: Stdlib.Option.Option<Stdlib.Cli.Tui.View>)
+  (next: Stdlib.Cli.Tui.View)
   : String =
   match previous with
   | None -> renderFullAtWidth width previous next

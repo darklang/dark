@@ -1,0 +1,498 @@
+module Darklang.Cli.Commit
+
+// `dark commit` -- the one human moment in the lifecycle.
+//
+// There is no commit GATE here. Authoring is live-on-write: your edits already run, committed or not. What
+// this does is look at the whole dep-closed change at once, run propagation over the FINAL versions (so
+// five edits to one fn collapse into one repoint), show OUTCOMES rather than a wall of generated ops,
+// surface anything a reconciliation auto-resolved, and commit it.
+//
+// Propagation belongs here rather than per-edit: per-edit is correct but churny, interrupting you with
+// consequences you are about to change again.
+
+let printOk (msg: String) : Unit = Stdlib.printLine (Stdlib.Cli.UI.Colors.success msg)
+let printErr (msg: String) : Unit = Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
+let printHintLine (msg: String) : Unit = Stdlib.printLine (Stdlib.Cli.UI.Colors.hint msg)
+
+/// Parsed `dark commit` arguments: everything non-flag is the message.
+type Args =
+  { message: String
+    autoConfirm: Bool
+    /// `--include=` names, empty when committing the whole draft.
+    include: List<String>
+    /// Commit even though something in the draft references a name that does not resolve.
+    allowUnresolved: Bool }
+
+/// Flags this command actually understands. Everything else is the message.
+let isKnownFlag (a: String) : Bool =
+  (a == "-y")
+  || (a == "--yes")
+  || (Stdlib.String.startsWith a "--json")
+  || (Stdlib.String.startsWith a "--include=")
+  || (a == "--allow-unresolved")
+
+/// Repeated, comma-separated `--include=` flags, flattened. `--include=A,B --include=C` is three names.
+let parseInclude (args: List<String>) : List<String> =
+  args
+  |> Stdlib.List.filter (fun a -> Stdlib.String.startsWith a "--include=")
+  |> Stdlib.List.map (fun a ->
+    Stdlib.String.dropFirst a (Stdlib.String.length "--include="))
+  |> Stdlib.List.map (fun raw -> Stdlib.String.split raw ",")
+  |> Stdlib.List.flatten
+  |> Stdlib.List.map (fun n -> Stdlib.String.trim n)
+  |> Stdlib.List.filter (fun n -> n != "")
+  |> Stdlib.List.unique
+
+/// Anything that LOOKS like a flag and isn't one.
+///
+/// Refused rather than absorbed: non-flag words become the commit message, so a mistyped flag would become
+/// message text while the command quietly commits the whole draft.
+let unknownFlags (args: List<String>) : List<String> =
+  args
+  |> Stdlib.List.filter (fun a ->
+    (Stdlib.String.startsWith a "-") && (Stdlib.Bool.not (isKnownFlag a)))
+
+/// Report unsupported flags and refuse. True when the caller should stop.
+let refuseUnknownFlags (args: List<String>) : Bool =
+  match unknownFlags args with
+  | [] -> false
+  | flags ->
+    flags |> Stdlib.List.iter (fun f -> printErr $"unknown flag \"{f}\".")
+    printHintLine "  `dark commit --help` lists what it takes."
+    true
+
+let parseArgs (args: List<String>) : Args =
+  let autoConfirm =
+    (Stdlib.List.member args "-y") || (Stdlib.List.member args "--yes")
+
+  // Everything that isn't a flag is the message, so the flags have to come out first or they land in it.
+  let words =
+    args
+    |> Stdlib.List.filter (fun a -> Stdlib.Bool.not (Stdlib.String.startsWith a "-"))
+
+  Args
+    { message = Stdlib.String.trim (Stdlib.String.join words " ")
+      autoConfirm = autoConfirm
+      include = parseInclude args
+      allowUnresolved = Stdlib.List.member args "--allow-unresolved" }
+
+let itemKindOf
+  (itemType: String)
+  : LanguageTools.ProgramTypes.ItemKind =
+  match itemType with
+  | "type" -> LanguageTools.ProgramTypes.ItemKind.Type
+  | "value" -> LanguageTools.ProgramTypes.ItemKind.Value
+  | _ -> LanguageTools.ProgramTypes.ItemKind.Fn
+
+let locationOf
+  (b: SCM.Conflicts.Binding)
+  : LanguageTools.ProgramTypes.PackageLocation =
+  let modules = if b.modules == "" then [] else Stdlib.String.split b.modules "."
+
+  LanguageTools.ProgramTypes.PackageLocation
+    { owner = b.owner; modules = modules; name = b.name }
+
+/// The versions of this name that existed BEFORE the draft's current one -- what dependents may still be
+/// pointing at, and so what propagation has to repoint away from.
+///
+/// On a branch this is the UNION of two histories, and it needs both: the branch's own op history (a
+/// branch-only name has no `locations` rows, so that's all there is) and main's (a branch editing a main
+/// name must still repoint the main dependents into branch-local copies).
+let previousHashesOf
+  (branchId: Uuid)
+  (b: SCM.Conflicts.Binding)
+  : List<LanguageTools.ProgramTypes.Hash> =
+  let fromMain =
+    Packages.Propagate.getAllPreviousHashes branchId (locationOf b) (itemKindOf b.itemType)
+    |> Stdlib.List.map LanguageTools.ProgramTypes.hashToString
+
+  let fromBranch =
+    match SCM.PackageOps.currentBranch () with
+    | id when SCM.Ids.isMain id -> []
+    | branch -> SCM.PackageOps.branchHashHistoryFor branch b.owner b.modules b.name
+
+  // NEWEST FIRST, and `dedup` rather than `unique`, because the order is load-bearing: `changeKind` takes
+  // the HEAD as "the version this edit replaced". `unique` sorts, which would make the head an arbitrary
+  // older version. `getAllPreviousHashes` is newest-first already; `branchHashHistoryFor` is oldest-first,
+  // hence the reverse.
+  Stdlib.List.append fromMain (Stdlib.List.reverse fromBranch)
+  |> Stdlib.List.dedup
+  |> Stdlib.List.filter (fun h -> h != b.hash)
+  |> Stdlib.List.map (fun h -> LanguageTools.ProgramTypes.Hash.Hash h)
+
+/// One CHANGED line, from the SAME classification the JSON reports. The mark says what happened to the
+/// name: `+` new, `~` changed, `>` when it merely FOLLOWED your edit rather than being one. The note says
+/// whether a fn's SIGNATURE moved, the part callers can't absorb by a hash swap.
+let changedLine (width: Int) (item: ScmJson.ChangedItem) : String =
+  let mark =
+    if item.followed then ">"
+    else if item.change == "new" then "+"
+    else "~"
+
+  let kind = ScmJson.pad item.kind 5
+  let name = ScmJson.pad item.name width
+  $"    {mark} {kind} {name}  {ScmJson.changeNoteFor item}"
+
+/// Run propagation for one changed name, repointing everything that still references an older version.
+/// Returns how many dependents moved.
+let propagateOne
+  (branchId: Uuid)
+  (b: SCM.Conflicts.Binding)
+  (previous: List<LanguageTools.ProgramTypes.Hash>)
+  : Int =
+  match previous with
+  | [] -> 0 // brand new, nothing can be pointing at an older version of it
+  | _ ->
+    match
+      Packages.Propagate.repointDependents
+        branchId
+        (locationOf b)
+        (itemKindOf b.itemType)
+        previous
+        (LanguageTools.ProgramTypes.Hash.Hash b.hash)
+    with
+    | Ok repoints -> Stdlib.List.length repoints
+    | Error e ->
+      printErr $"  propagation failed for {b.name}: {e}"
+      0
+
+/// Everything the review needs, computed once. Both the pretty view and `--json` read this, so an agent and
+/// a human are never looking at differently-derived versions of the same commit.
+type Review =
+  { changed: List<SCM.Conflicts.Binding>
+    withPrevious: List<(SCM.Conflicts.Binding * List<LanguageTools.ProgramTypes.Hash>)>
+    items: List<ScmJson.ChangedItem>
+    propagates: List<SCM.PackageOps.Repoint>
+    /// Names that reference an old version and WON'T follow, because they're pinned. An outcome, not a
+    /// warning: leaving a reference behind is a thing you decide, and this is where you see you decided it.
+    leftBehind: List<SCM.PackageOps.Repoint>
+    conflicts: List<SCM.Conflicts.Conflict>
+    branch: String }
+
+let review (state: AppState) : Review =
+  let p = SCM.Draft.read ()
+
+  let withPrevious =
+    p.bindings
+    |> Stdlib.List.map (fun b -> (b, previousHashesOf state.currentBranchId b))
+
+  Review
+    { changed = p.bindings
+      withPrevious = withPrevious
+      items =
+        withPrevious
+        |> Stdlib.List.map (fun entry ->
+          let (b, previous) = entry
+          ScmJson.changedItem state.currentBranchId p.propagated b previous)
+      propagates = p.repoints
+      leftBehind = p.leftBehind
+      conflicts = p.conflicts
+      branch =
+        // The NAME, like everywhere else user-facing: what `--json`'s reader can pass to another command.
+        SCM.PackageOps.branchName (SCM.PackageOps.currentBranch ()) }
+
+/// Commit only what `--include=` named, plus what it depends on. Two things differ from a whole-draft
+/// commit, both deliberate:
+///
+///   - The draft is NOT collapsed. Collapsing rewrites the whole draft's namings, which would touch ops
+///     belonging to items you chose to leave behind.
+///   - Propagation still runs over everything, because a repoint is a consequence of the edit and not of the
+///     commit. What changes is only which ops get stamped.
+let commitSelected
+  (state: AppState)
+  (r: Review)
+  (message: String)
+  (names: List<String>)
+  : Stdlib.Result.Result<(String * Int64 * Int), String> =
+  match SCM.PartialCommit.plan names with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok((opIds, pulledIn)) ->
+    if Stdlib.List.isEmpty opIds then
+      Stdlib.Result.Result.Error
+        "that selection has nothing to commit -- `dark status` shows what the draft holds."
+    else
+      let moved =
+        r.withPrevious
+        |> Stdlib.List.map (fun entry ->
+          let (b, previous) = entry
+          propagateOne state.currentBranchId b previous)
+        |> Stdlib.List.fold 0 (fun acc n -> acc + n)
+
+      let author =
+        match SCM.PackageOps.identity () with
+        | "" -> state.accountName
+        | id -> id
+
+      let parent = SCM.PackageOps.parentCommitFor state.currentBranchId
+      let hash = SCM.Commits.create message author (Stdlib.List.sort opIds) parent
+      let committed = SCM.PackageOps.stampDraftOps hash opIds
+
+      // A selection that matched rows and then committed none of them means the ids went stale between
+      // planning and stamping. Say so rather than report a commit that holds nothing.
+      if committed == 0L then
+        let _ = SCM.Commits.delete hash
+
+        Stdlib.Result.Result.Error
+          "nothing was committed -- the draft moved while this ran. Try again."
+      else
+        let _ =
+          if Stdlib.List.isEmpty pulledIn then
+            ()
+          else
+            printOk
+              $"  also committed (needed by what you named): {Stdlib.String.join pulledIn ", "}"
+
+        Stdlib.Result.Result.Ok((hash, committed, moved))
+
+/// Commit the whole draft. Propagate FIRST, so the repoint ops land in this commit rather than dangling as
+/// a fresh draft the moment you finished committing.
+let commit
+  (state: AppState)
+  (r: Review)
+  (message: String)
+  : (String * Int64 * Int) =
+  let moved =
+    r.withPrevious
+    |> Stdlib.List.map (fun entry ->
+      let (b, previous) = entry
+      propagateOne state.currentBranchId b previous)
+    |> Stdlib.List.fold 0 (fun acc n -> acc + n)
+
+  let author =
+    match SCM.PackageOps.identity () with
+    | "" -> state.accountName
+    | id -> id
+
+  // Collapse BEFORE committing. Until now every version in the draft is reachable (`undo` steps through
+  // them), but a commit is what other machines read, and five namings of one function -- four of them
+  // describing a version nobody else ever saw -- are not history.
+  let _ = SCM.PackageOps.collapseDraft ()
+
+  let parent = SCM.PackageOps.parentCommitFor state.currentBranchId
+  let hash = SCM.Commits.create message author (SCM.PackageOps.draftOpIds ()) parent
+  let committed = SCM.PackageOps.stampDraft hash
+  (hash, committed, moved)
+
+let executeJson (state: AppState) (args: List<String>) : AppState =
+  let parsed = parseArgs (ScmJson.stripJson args)
+  let r = review state
+
+  // --json implies non-interactive: there is nobody to prompt. -y is still required to actually commit, so a
+  // plain `dark commit --json` is a safe dry review an agent can look at before deciding.
+  let (didCommit, hash, ops, moved) =
+    if Stdlib.List.isEmpty r.changed then
+      (false, "", 0L, 0)
+    else if parsed.autoConfirm then
+      match
+        (if Stdlib.List.isEmpty parsed.include then
+           Stdlib.Result.Result.Ok(commit state r parsed.message)
+         else
+           commitSelected state r parsed.message parsed.include)
+      with
+      | Ok((h, n, m)) -> (true, h, n, m)
+      | Error _ -> (false, "", 0L, 0)
+    else
+      (false, "", 0L, 0)
+
+  Stdlib.printLine (
+    ScmJson.commitJson (
+      ScmJson.CommitJson
+        { branch = r.branch
+          committed = didCommit
+          commit = hash
+          message = parsed.message
+          opsCommitted = ops
+          dependentsRepointed = moved
+          changed = r.items
+          propagates = r.propagates
+          leftBehind = r.leftBehind
+          conflicts = r.conflicts }
+    )
+  )
+
+  state
+
+/// Refuse a commit that would put an unresolvable reference into history, and say which names.
+///
+/// A draft is allowed to be broken -- you write the caller before the callee. A COMMIT is not, because it
+/// is what other machines pull: an item that never resolves fails when somebody else calls it, with no
+/// sign of where it came from. `--allow-unresolved` is the way past, and has to be TYPED: `-y` does not
+/// wave it through.
+let refuseUnresolved (parsed: Args) : Bool =
+  if parsed.allowUnresolved then
+    false
+  else
+    match SCM.PackageOps.unresolvedInDraft (SCM.PackageOps.currentBranch ()) with
+    | [] -> false
+    | broken ->
+      printErr "cannot commit: these reference names that don't resolve."
+
+      broken
+      |> Stdlib.List.iter (fun (label, names) ->
+        Stdlib.printLine $"  {label}"
+
+        names
+        |> Stdlib.List.iter (fun n -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"    - {n}")))
+
+      printHintLine
+        "  author what's missing, or `dark commit --allow-unresolved` to record it as-is."
+
+      true
+
+let executePretty (state: AppState) (args: List<String>) : AppState =
+  let parsed = parseArgs args
+  let r = review state
+  let changed = r.changed
+
+  if Stdlib.List.isEmpty changed then
+    printOk "nothing to commit -- your draft is empty."
+    state
+  else if refuseUnresolved parsed then
+    state
+  else
+    let withPrevious = r.withPrevious
+
+    printOk $"  CHANGED ({Stdlib.Int.toString (Stdlib.List.length changed)})"
+
+    // Widest name sets the column, so the notes line up instead of stair-stepping.
+    let nameWidth =
+      r.items
+      |> Stdlib.List.map (fun i -> Stdlib.String.length i.name)
+      |> Stdlib.List.fold 0 (fun acc n -> if n > acc then n else acc)
+
+    r.items
+    |> Stdlib.List.iter (fun item -> Stdlib.printLine (changedLine nameWidth item))
+
+    // PROPAGATES TO -- outcomes, not ops. This is a PREVIEW; nothing is authored until you say yes.
+    let repoints = r.propagates
+
+    if Stdlib.List.isEmpty repoints then
+      ()
+    else
+      Stdlib.printLine ""
+      printOk
+        $"  PROPAGATES TO ({Stdlib.Int.toString (Stdlib.List.length repoints)})   (auto, reduced to final versions)"
+
+      let repointWidth =
+        repoints
+        |> Stdlib.List.map (fun r -> Stdlib.String.length r.name)
+        |> Stdlib.List.fold 0 (fun acc n -> if n > acc then n else acc)
+
+      repoints
+      |> Stdlib.List.iter (fun rp ->
+        let name = ScmJson.pad rp.name repointWidth
+        Stdlib.printLine $"    ~ {name}  -> uses {rp.uses}")
+
+    // STAYING BEHIND -- what your pins are holding on an older version. Shown next to what moved, since
+    // the two are the same decision from either side, and a deliberate one should read as deliberate.
+    let behind = r.leftBehind
+
+    if Stdlib.List.isEmpty behind then
+      ()
+    else
+      Stdlib.printLine ""
+
+      printOk
+        $"  STAYING BEHIND ({Stdlib.Int.toString (Stdlib.List.length behind)})   (pinned, so they keep the version they have)"
+
+      let behindWidth =
+        behind
+        |> Stdlib.List.map (fun r -> Stdlib.String.length r.name)
+        |> Stdlib.List.fold 0 (fun acc n -> if n > acc then n else acc)
+
+      behind
+      |> Stdlib.List.iter (fun rp ->
+        let name = ScmJson.pad rp.name behindWidth
+        Stdlib.printLine $"    . {name}  still on the old {rp.uses}")
+
+    // CONFLICTS -- already auto-resolved; this is the "and you should know" line.
+    let conflicts = r.conflicts
+
+    if Stdlib.List.isEmpty conflicts then
+      ()
+    else
+      Stdlib.printLine ""
+      printOk
+        $"  CONFLICTS ({Stdlib.Int.toString (Stdlib.List.length conflicts)})   auto-resolved, needs your ok"
+
+      conflicts
+      |> Stdlib.List.iter (fun c -> Stdlib.printLine (SCM.Conflicts.summaryLine c))
+
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "    -> `dark conflicts` to inspect / override")
+
+    if
+      Stdlib.Bool.not (
+        Cli.Prompt.confirm parsed.autoConfirm (Stdlib.Cli.UI.Colors.warning "\n  Commit this change? [Y/n]: ")
+      )
+    then
+      printOk "  left as a draft."
+      state
+    else
+      let outcome =
+        if Stdlib.List.isEmpty parsed.include then
+          Stdlib.Result.Result.Ok(commit state r parsed.message)
+        else
+          commitSelected state r parsed.message parsed.include
+
+      match outcome with
+      | Error e -> printErr e
+      | Ok((hash, committed, moved)) ->
+        let movedNote =
+          if moved == 0 then
+            ""
+          else
+            $", {Stdlib.Int.toString moved} dependent(s) repointed"
+
+        let heldNote =
+          if Stdlib.List.isEmpty parsed.include then
+            ""
+          else
+            $" -- {Stdlib.Int64.toString (SCM.PackageOps.draftOpCount ())} op(s) still in the draft"
+
+        printOk
+          $"  commit {Stdlib.String.first hash 8} -- {Stdlib.Int64.toString committed} op(s){movedNote}.{heldNote}"
+
+      state
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  // Before anything: a flag we don't understand means we don't know what was asked for, and this command
+  // commits history.
+  if refuseUnknownFlags args then
+    state
+  else if ScmJson.wantsJson args then
+    executeJson state args
+  else
+    executePretty state args
+
+let help (_state: AppState) : String =
+  [ "dark commit - review your draft, propagate, and commit it."
+    ""
+    "Usage: dark commit [message] [--include=names] [-y]"
+    ""
+    "This is not a gate. Your edits are already live; commit is where"
+    "you LOOK at them as one dep-closed change, let propagation run over"
+    "the final versions, and bless the result."
+    ""
+    "  CHANGED           the names you bound (five edits to one fn appear once)"
+    "  PROPAGATES TO     what references an older version, and will be"
+    "                    repointed"
+    "  CONFLICTS         what a merge, rebase or sync auto-resolved,"
+    "                    waiting on your ok"
+    ""
+    "  --include=<names>   commit ONLY these (comma-separated). Anything"
+    "                      they depend on comes along and is named;"
+    "                      everything else stays a draft."
+    "  -y, --yes    commit without the prompt (what an agent or a script wants)"
+    "  --json       the same review, typed. Implies non-interactive:"
+    "               so a plain `dark commit --json` is a safe dry review."
+    ""
+    "Propagation runs on the way through, so the repoint ops land in"
+    "the same commit."
+    "`dark status` is the one-line version of the same thing." ]
+  |> Stdlib.String.join "\n"
+
+let complete
+  (_state: AppState)
+  (_args: List<String>)
+  : List<Completion.CompletionItem> =
+  []

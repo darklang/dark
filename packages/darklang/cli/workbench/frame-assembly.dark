@@ -13,53 +13,100 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
   let w = if size.width < 24 then 80 else size.width
   // Full height now: the last row used to be reserved for the CLI's status bar, and that's gone.
   let screen = Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = h; cols = w }
-  let branch =
-    match SCM.Branch.get state.branchId with
-    | Some b -> b.name
-    | None -> "main"
-  // Real state, computed per-frame (render runs per-keypress, so it never
-  // goes stale). Drives the glance at the right of the context row and the
-  // sidebar's badges.
-  let conflictCount = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
-  let wip = wipItemCount state.branchId
-  // The state segment: green "synced" while nothing needs you, orange "to
-  // resolve" when something does.
+  // The breadcrumb only earns its row when it has something the rest of the frame doesn't already say.
+  //
+  // It used to show the view name and item count for every view, which meant "Builtins" appeared three times
+  // on screen - the sidebar's marker, this row, and the pane's own box title - and the count twice. The
+  // sidebar owns which view you're in and the box title owns what's in the pane, so all this row can add is
+  // a package path. Code (`vMatter`) has one; nothing else does, so nothing else gets the row.
+  let path =
+    if state.activeView == vMatter then Packages.formatLocation state.location else ""
+  let branch = state.scmStatus.branchName
+  // Off the cached SCM status rather than a query here. This runs per keypress, and it drives both the
+  // sidebar's Changes badge and the context line, so it has to agree with what Home and the Changes view
+  // say -- which it can't if each of them counts for itself.
+  let conflictCount = Stdlib.List.length state.scmStatus.conflicts
+  // Conflicts AND standing findings, because they're one question ("is anything waiting on me?") and they
+  // fail the same way when they're separate: the record is correct, and nobody looks. The sidebar's badge
+  // stays conflicts-only, since that's the entry it marks.
+  //
+  // This used to read "✓ synced", which it never was: it counted conflicts and said nothing about sync.
+  let needsYou = state.scmStatus.needsYou
+  // The sidebar's badge, off the same cached read as everything else on this row.
+  let wip = state.scmStatus.changed
   let (syncColored, syncPlain) =
-    if conflictCount > 0 then
-      let s = " ⚠ " ++ (Stdlib.Int.toString conflictCount) ++ " to resolve "
-      (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.orangeBg ++ Stdlib.Cli.UI.Colors.black) s, s)
+    if needsYou > 0 then
+      let s = "⚠ " ++ (Stdlib.Int.toString needsYou) ++ " need you"
+      (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink s, s)
     else
-      (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.greenBg ++ Stdlib.Cli.UI.Colors.black) " ✓ synced ", " ✓ synced ")
-  let (wipColored, wipPlain) =
-    if wip > 0 then
-      let s = "● " ++ (Stdlib.Int.toString wip) ++ " uncommitted"
-      (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink s, s ++ "  ")
-    else
-      ("", "")
-  // Columns, not graphemes: `⚠`/`✓`/`●` are non-ASCII, and `String.length`
-  // counts one per grapheme, so a wide glyph would right-align this past the
-  // edge of the row.
-  let glancePlain = wipPlain ++ syncPlain
-  let glanceColored = if wip > 0 then wipColored ++ "  " ++ syncColored else syncColored
-  let glanceLen = Stdlib.String.displayWidth glancePlain
-  // The status row - the workbench's `pwd`, as segments: who (purple), on
-  // which instance (grey), on which branch; and at the right, the glance:
-  // uncommitted work and sync. This is the only row that says any of it; the
-  // panels don't repeat it.
-  let account = if state.accountName == "" then "guest" else state.accountName
+      (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ nothing waiting", "✓ nothing waiting")
+  // Columns, not graphemes: `⚠`/`✓` are non-ASCII, and `String.length` counts one per grapheme, so a wide
+  // glyph would right-align this past the edge of the row.
+  let syncVisibleLen = Stdlib.String.displayWidth syncPlain
+  // The context line - the workbench's `pwd`: where edits land. Account, instance, branch, and the sync
+  // glance right-aligned. Branch is here and nowhere else; it used to be on this row AND the breadcrumb.
   let context =
     Stdlib.Cli.UI.Layout.fixedSize
       1
       (fun r ->
+        // The draft, split, on the row you always have on screen. This is the highest-value thing in the
+        // SCM work and it deliberately does NOT live in the SCM view: "what moved because of what I just
+        // did" is asked many times an hour, while you're looking at code, and if the only way to answer it
+        // is to switch views then people stop asking and lose track of their own draft.
+        //
+        // The split rather than the total, because "3 changed" right after you edited one thing is either
+        // completely fine or a disaster and the number alone cannot tell you which.
+        let draft = scmStatusLine state.scmStatus
+
+        let draftPart =
+          if draft == "" then "" else (Stdlib.Cli.UI.Colors.dimText ("    " ++ draft))
+
+        // The right-aligned glance is written over this row, so anything the left side spills past its
+        // start is simply lost. It used to spill: at 100 columns the draft summary ran under "nothing
+        // waiting" and the tail went with it -- and the tail is `N behind`, which is the part people forget
+        // they asked for and the least guessable from anywhere else.
+        //
+        // So drop whole segments in priority order instead of letting the row overwrite itself. The draft
+        // split is the most valuable thing here and the branch is the second, so `instance:` goes first and
+        // the account name second. Only if it still does not fit does the draft get clipped.
+        let room = Stdlib.Int.max 0 (r.cols - syncVisibleLen - 4)
+
+        let widthOf (plain: String) : Int = Stdlib.String.displayWidth plain
+
+        let fullPlain =
+          "  " ++ state.accountName ++ "    instance: " ++ state.instanceName
+          ++ "    branch: " ++ branch ++ (if draft == "" then "" else "    " ++ draft)
+
+        let noInstancePlain =
+          "  " ++ state.accountName ++ "    branch: " ++ branch
+          ++ (if draft == "" then "" else "    " ++ draft)
+
+        let noAccountPlain =
+          "  branch: " ++ branch ++ (if draft == "" then "" else "    " ++ draft)
+
         let line =
-          " "
-          ++ (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.purpleBg ++ Stdlib.Cli.UI.Colors.white ++ Stdlib.Cli.UI.Colors.bold) (" " ++ account ++ " "))
-          ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.grayBg (" " ++ state.instanceName ++ " "))
-          ++ (Stdlib.Cli.UI.Colors.dimText "  ⎇ ")
-          ++ (Stdlib.Cli.UI.Colors.boldText branch)
+          if widthOf fullPlain <= room then
+            "  "
+            ++ (Stdlib.Cli.UI.Colors.boldText state.accountName)
+            ++ (Stdlib.Cli.UI.Colors.dimText "    instance: ")
+            ++ (Stdlib.Cli.UI.Colors.dimText state.instanceName)
+            ++ (Stdlib.Cli.UI.Colors.dimText "    branch: ")
+            ++ (Stdlib.Cli.UI.Colors.dimText branch)
+            ++ draftPart
+          else if widthOf noInstancePlain <= room then
+            "  "
+            ++ (Stdlib.Cli.UI.Colors.boldText state.accountName)
+            ++ (Stdlib.Cli.UI.Colors.dimText "    branch: ")
+            ++ (Stdlib.Cli.UI.Colors.dimText branch)
+            ++ draftPart
+          else if widthOf noAccountPlain <= room then
+            "  " ++ (Stdlib.Cli.UI.Colors.dimText "branch: ") ++ (Stdlib.Cli.UI.Colors.dimText branch) ++ draftPart
+          else
+            Stdlib.Cli.UI.Colors.dimText (Stdlib.Cli.Tui.Text.clipToWidth ("  branch: " ++ branch ++ "  " ++ draft) room)
+
         Stdlib.List.flatten
           [ Stdlib.Cli.UI.Layout.at r 0 0 line
-            Stdlib.Cli.UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - glanceLen - 1)) glanceColored ])
+            Stdlib.Cli.UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - syncVisibleLen - 1)) syncColored ])
   // The body: the sidebar column beside the view when there's room, else the
   // view alone (the sidebar becomes an overlay, see below).
   let sidebarColumn = sidebarIsColumn w
@@ -88,10 +135,13 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
               // reverse-video block caret so it's unmistakable the app is capturing keystrokes. For the command
               // bar, trail a dim ghost of the completion (fish-style; tab accepts it).
               let ghost =
-                if inp.action == "command" then Stdlib.Cli.UI.Colors.dimText (commandCompletionHint state inp.field.text)
-                else ""
-              // The caret comes from the field now, and sits wherever the cursor is rather than always at
-              // the end - which is the visible half of being able to move it at all.
+                if inp.action == "command" then
+                  Stdlib.Cli.UI.Colors.dimText (commandCompletionHint state inp.field.text)
+                else
+                  ""
+
+              // The caret comes from the field, and sits wherever the cursor is rather than always at the
+              // end -- which is the visible half of being able to move it at all.
               let room =
                 Stdlib.Int.max 8 (size.width - 6 - (Stdlib.String.displayWidth inp.prompt))
 
@@ -105,7 +155,7 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
               | None ->
                 if Stdlib.Bool.not (Stdlib.List.isEmpty state.search.hits) then
                   Frame.formatHints [ ("↑↓", "move"); ("⏎", "jump"); ("esc", "close"); ("q", "quit") ]
-                else hintsForView state
+                else hintsForView state r.cols
         // A toast sits *beside* the hints, right-aligned, rather than
         // replacing the row. It used to take the whole row, so every message
         // cost you the shortcuts until you pressed a key to clear it -
@@ -229,13 +279,22 @@ let viewAtSize (state: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View 
 
   let spans =
     if tooSmall then
-      let msg = "terminal too small - resize to at least 56x12"
+      // Two lines, because one was 44 columns wide and the guard fires from 24. The canvas clips at the
+      // width, so the single-line version lost its tail -- and the tail was the size you needed, which is
+      // the only thing the message is for. Both lines fit in 24.
       let screen =
         Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = size.height; cols = size.width }
+
+      let centred (text: String) (row: Int) : List<Stdlib.Cli.UI.Layout.Span> =
+        let col =
+          Stdlib.Int.max 0 (Stdlib.Int.divide (size.width - (Stdlib.String.displayWidth text)) 2)
+        Stdlib.Cli.UI.Layout.at screen row col (Stdlib.Cli.UI.Colors.dimText text)
+
       let row = Stdlib.Int.max 0 (Stdlib.Int.divide size.height 2)
-      let col =
-        Stdlib.Int.max 0 (Stdlib.Int.divide (size.width - (Stdlib.String.displayWidth msg)) 2)
-      Stdlib.Cli.UI.Layout.at screen row col (Stdlib.Cli.UI.Colors.dimText msg)
+
+      Stdlib.List.flatten
+        [ centred "terminal too small" (Stdlib.Int.max 0 (row - 1))
+          centred "resize to at least 56x12" row ]
     else
       renderFull state size
 

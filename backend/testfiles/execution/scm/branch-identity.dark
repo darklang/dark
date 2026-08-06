@@ -1,0 +1,32 @@
+// Main is a branch id like any other, and every dispatch in the SCM layer decides "am I on main?" by
+// comparing against it. When the constant and the value a process actually reports disagree, nothing
+// errors: each `match` simply takes its branch arm on main. `discard` and `collapse` then no-op silently,
+// name lookups route through an empty overlay and still answer correctly, and the suite stays green.
+//
+// That happened, twice, at two different spellings. These assertions are the cheap version of catching it.
+
+// The constant IS what a process on main reports.
+Darklang.SCM.PackageOps.currentBranch () = Darklang.SCM.Ids.mainBranchId
+
+// An ID is not a NAME. This is the property the whole type carries: main's id used to be the string
+// "main", so an id and a name were interchangeable and passing one where the other belonged was correct
+// by accident. Anything that prints the id where it means the name now reads as a raw uuid, visibly.
+(Stdlib.Uuid.toString Darklang.SCM.Ids.mainBranchId == Darklang.SCM.Ids.mainBranchName) = false
+
+// ...and it is a Uuid, which is a different TYPE from a name, not merely a differently-shaped string.
+Stdlib.String.length (Stdlib.Uuid.toString Darklang.SCM.Ids.mainBranchId) = 36
+
+// Main is not a row in `branches`: it needs no registration, so `get` finds nothing for it.
+Darklang.SCM.Branch.get Darklang.SCM.Ids.mainBranchId = Stdlib.Option.Option.None
+
+// A branch id that isn't main has no overlay ops on main, and asking about main yields none either.
+Darklang.SCM.PackageOps.visibleParams Darklang.SCM.Ids.mainBranchId = []
+
+// Main still DISPLAYS as "main". It has no `branches` row, so the name lookup has to know about it
+// specially or it falls back to showing the id.
+Darklang.SCM.PackageOps.branchName Darklang.SCM.Ids.mainBranchId = "main"
+
+// And it resolves by name, from both boundaries, since neither the `branches` table nor an id-prefix
+// search can find a branch that has no row.
+Darklang.Cli.Branch.lookupRef "main" = Stdlib.Option.Option.Some Darklang.SCM.Ids.mainBranchId
+Darklang.Cli.Branch.lookupRef (Stdlib.Uuid.toString Darklang.SCM.Ids.mainBranchId) = Stdlib.Option.Option.Some Darklang.SCM.Ids.mainBranchId

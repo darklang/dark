@@ -9,6 +9,8 @@ let allTests (): List<String * TestFunction> =
   [ ("Help", fun () -> testHelpCommand ())
     ("Version", fun () -> testVersionCommand ())
     ("Status", fun () -> testStatusCommand ())
+    ("Merge Round Trip", fun () -> testMergeRoundTrip ())
+    ("Conflict Walkthrough", fun () -> testConflictWalkthrough ())
 
     ("Eval Bool.and", fun () -> testEvalBoolAnd ())
     ("Eval Int64.add", fun () -> testEvalInt64Add ())
@@ -34,6 +36,7 @@ let allTests (): List<String * TestFunction> =
 
     ("List Functions", fun () -> testListFunctions ())
     ("View Function", fun () -> testViewFunction ())
+    ("Harmful Gate", fun () -> testHarmfulGate ())
     ( "Search Module and CamelCase Name",
       fun () -> testSearchMatchesModuleAndCamelCaseName () )
     ( "Search Module and Operation Name",
@@ -84,6 +87,10 @@ let allTests (): List<String * TestFunction> =
       testWorkbenchDiffLinesRenderThroughPipe ())
     ("Workbench Module Inspect Previews Children", fun () ->
       testWorkbenchModuleInspectPreviewsChildren ())
+
+    ("Workbench Sections Render", fun () -> testWorkbenchSectionsRender ())
+    ("Workbench Previews Render", fun () -> testWorkbenchPreviewsRender ())
+    ("Workbench Item Page Renders", fun () -> testWorkbenchItemPageRenders ())
 
     ("REPL Parses Let Binding", fun () -> testReplParsesLetBinding ())
     ("REPL Injects Binding Chain", fun () -> testReplInjectsBindingChain ())

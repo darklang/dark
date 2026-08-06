@@ -38,7 +38,7 @@ let packages () : ModelContextProtocol.ServerBuilder.Resource =
             entityTypes = []
             exactMatch = false }
       let results =
-        LanguageTools.PackageManager.Search.search SCM.Branch.mainBranchId query
+        LanguageTools.PackageManager.Search.search SCM.Ids.mainBranchId query
       let formattedPackages =
         results.submodules
         |> Stdlib.List.map (fun path -> "## " ++ (Stdlib.String.join path "."))

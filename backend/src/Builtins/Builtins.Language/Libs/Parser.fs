@@ -1131,13 +1131,12 @@ module WrittenTypesToDarkTypes =
   /// `collect` rather than `map` because a test assertion carries two expressions and the Dark type holds one
   /// declaration per entry, so it expands to two.
   ///
-  /// This used to raise on DTest and DTypeDB, on the theory that "test-mode declarations never reach the
-  /// highlighter serializer". They do, and this is the path that matters: a `module Darklang.X` header wraps
-  /// the whole rest of the file into a DModule, which is the shape of every package file on disk. And a test
-  /// assertion is spelled `actual = expected`, indistinguishable from an assignment until post-parse
-  /// validation - so any typo of that shape in any real file raised an uncaught internal exception. The
-  /// top-level fix alone missed this because the authoring editor strips the module line before parsing; the
-  /// LSP and the highlighter, which parse whole documents, did not.
+  /// Every case is handled, including the test-mode ones. They are not test-only in practice: a
+  /// `module Darklang.X` header wraps the rest of the file into a DModule, which is the shape of every
+  /// package file on disk, and a test assertion is spelled `actual = expected`, indistinguishable from
+  /// an assignment until post-parse validation. So a typo of that shape in an ordinary file reaches
+  /// here. Whole-document callers (the LSP, the highlighter) hit both; the authoring editor does not,
+  /// because it strips the module line first.
   and private moduleItemsToDT (d : WT.Declaration) : List<Dval> =
     let t = tn WTRefs.moduleDeclarationDeclaration
     let expr (e : WT.Expr) = DEnum(t, t, [], "Expr", [ exprToDT e ])
@@ -1157,18 +1156,24 @@ module WrittenTypesToDarkTypes =
       | WT.TEError _
       | WT.TESqlError _ -> [ expr t.actual ]
 
-  let private sourceFileDeclarationToDT (d : WT.Declaration) : Dval =
+  /// A declaration the `SourceFileDeclaration` DT has a case for, or None.
+  ///
+  /// `DExpr` / `DTypeDB` / `DTest` have no case, and returning None DROPS them rather than raising.
+  /// This serializer feeds the syntax highlighter and the LSP, both of which are documented
+  /// best-effort over whatever tokenized: they exist to colour text, so the worst acceptable outcome
+  /// is a span that doesn't get highlighted. Raising here turns "this line isn't coloured" into an
+  /// internal exception that takes down the command that asked -- and the callers are `dark view` and
+  /// an editor, neither of which can do anything about it.
+  let private sourceFileDeclarationToDT (d : WT.Declaration) : Option<Dval> =
     let t = tn WTRefs.sourceFileDeclaration
     match d with
-    | WT.DFunction f -> DEnum(t, t, [], "Function", [ fnDeclToDT f ])
-    | WT.DValue v -> DEnum(t, t, [], "Value", [ valueDeclToDT v ])
-    | WT.DModule m -> DEnum(t, t, [], "Module", [ moduleDeclToDT m ])
-    | WT.DType td -> DEnum(t, t, [], "Type", [ typeDeclToDT td ])
-    // DExpr is split out before this point (see parsedFileToDT); test-mode declarations never reach the
-    // highlighter serializer
+    | WT.DFunction f -> Some(DEnum(t, t, [], "Function", [ fnDeclToDT f ]))
+    | WT.DValue v -> Some(DEnum(t, t, [], "Value", [ valueDeclToDT v ]))
+    | WT.DModule m -> Some(DEnum(t, t, [], "Module", [ moduleDeclToDT m ]))
+    | WT.DType td -> Some(DEnum(t, t, [], "Type", [ typeDeclToDT td ]))
     | WT.DExpr _
     | WT.DTypeDB _
-    | WT.DTest _ -> Exception.raiseInternal "unexpected declaration in serializer" []
+    | WT.DTest _ -> None
 
   let parsedFileToDT (pf : WT.ParsedFile) : Dval =
     match pf with
@@ -1217,7 +1222,7 @@ module WrittenTypesToDarkTypes =
               "declarations",
               DList(
                 VT.customType (tn WTRefs.sourceFileDeclaration) [],
-                List.map sourceFileDeclarationToDT sf.declarations
+                List.choose sourceFileDeclarationToDT sf.declarations
               )
               "exprsToEval",
               DList(

@@ -149,8 +149,7 @@ let private testDeclarationsAreNameableAfterLowering =
     match m.types with
     | [ celsius ] ->
       let! locations =
-        LibDB.PackageManager.pt.getTypeLocations PT.mainBranchId celsius.hash
-        |> Ply.toTask
+        LibDB.PackageManager.pt.getTypeLocations celsius.hash |> Ply.toTask
       let names = locations |> List.map (fun (l : PT.PackageLocation) -> l.name)
       Expect.contains names "Celsius" "the script's type is reachable by hash"
     | _ -> failtest "expected exactly one script type"
@@ -171,8 +170,7 @@ let private testRegistryDoesNotDisplaceStoredNames =
     match m.types with
     | [ myErr ] ->
       let! locations =
-        LibDB.PackageManager.pt.getTypeLocations PT.mainBranchId myErr.hash
-        |> Ply.toTask
+        LibDB.PackageManager.pt.getTypeLocations myErr.hash |> Ply.toTask
       let names = locations |> List.map (fun (l : PT.PackageLocation) -> l.name)
       // Same shape as the stdlib `ParseError`s, so the store names this hash.
       Expect.contains names "ParseError" "the stored name is still there"
@@ -199,8 +197,8 @@ let private testMiddleStatementErrorStopsTheScript =
     let! mod' = parse code
     let! state = executionStateFor pmPT false Map.empty
     let! result =
-      Cli.execute state PT.mainBranchId mod' [] Map.empty (Cli.RunScript("t", code))
-      |> Ply.toTask
+      // `execute` takes no branch here: the execution state already carries it.
+      Cli.execute state mod' [] Map.empty (Cli.RunScript("t", code)) |> Ply.toTask
 
     match result with
     | Ok dval -> failtest $"expected the failure to surface, got %A{dval}"

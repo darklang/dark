@@ -137,29 +137,59 @@ let execute (state: AppState) (args: List<String>): AppState =
 
     // Determine starting location
     let branchId = state.currentBranchId
-    let startLocation =
-      let pathArgs =
-        args
-        |> Stdlib.List.filter (fun arg -> Stdlib.Bool.not (Stdlib.String.startsWith arg "--"))
 
+    let pathArgs =
+      args
+      |> Stdlib.List.filter (fun arg -> Stdlib.Bool.not (Stdlib.String.startsWith arg "--"))
+
+    // Unknown `--flags` are silently dropped by that filter, so `dark tree --zzbogus` looked like `dark
+    // tree` and printed the WHOLE root tree -- thousands of lines answering a question nobody asked. Same
+    // class as the bad-path case below: a wrong answer rather than a refusal. Only the four documented flags
+    // are accepted.
+    let knownFlag (a: String) : Bool =
+      (a == "--toc")
+      || (a == "--include-deprecated")
+      || (Stdlib.String.startsWith a "--depth=")
+
+    let unknownFlags =
+      args
+      |> Stdlib.List.filter (fun a ->
+        (Stdlib.String.startsWith a "--") && (Stdlib.Bool.not (knownFlag a)))
+
+    // A path that doesn't resolve used to fall through to the CURRENT location, so `dark tree Zz.Nope`
+    // printed the whole root tree under a header saying "from / (root)". That's a wrong answer rather than a
+    // bad message: you asked about a subtree and got everything, with nothing saying the path was ignored.
+    if Stdlib.Bool.not (Stdlib.List.isEmpty unknownFlags) then
+      let f = unknownFlags |> Stdlib.String.join " "
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"tree doesn't understand {f}.")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "  flags: --depth=N, --toc, --include-deprecated")
+      state
+    else
+
+    let resolved =
       match pathArgs with
-      | [] -> state.packageData.currentLocation
+      | [] -> Stdlib.Result.Result.Ok state.packageData.currentLocation
       | [ pathStr ] ->
-        match Traversal.traverse branchId state.packageData.currentLocation pathStr with
-        | Ok location -> location
-        | Error _ -> state.packageData.currentLocation
-      | _ -> state.packageData.currentLocation
+        Traversal.traverse branchId state.packageData.currentLocation pathStr
+      | _ -> Stdlib.Result.Result.Ok state.packageData.currentLocation
 
-    // Load deprecation sets once for the whole tree render.
-    let depSets = Query.loadDeprecationSets branchId
+    match resolved with
+    | Error _ ->
+      let asked = pathArgs |> Stdlib.String.join " "
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"no such module: {asked}")
+      state
+    | Ok startLocation ->
 
-    // Display tree
-    let locationStr = Packages.formatLocation startLocation
-    Stdlib.printLine $"Package tree from {locationStr}:"
-    Stdlib.printLine ""
-    displayTree branchId startLocation maxDepth 0 "" depSets includeDeprecated
+      // Load deprecation sets once for the whole tree render.
+      let depSets = Query.loadDeprecationSets branchId
 
-    state
+      // Display tree
+      let locationStr = Packages.formatLocation startLocation
+      Stdlib.printLine $"Package tree from {locationStr}:"
+      Stdlib.printLine ""
+      displayTree branchId startLocation maxDepth 0 "" depSets includeDeprecated
+
+      state
 
 
 // Display tree recursively from a given location.

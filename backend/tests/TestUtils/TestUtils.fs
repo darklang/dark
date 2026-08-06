@@ -146,14 +146,7 @@ let executionStateFor
       if allowLocalHttpAccess then localBuiltIns pmPT else cloudBuiltIns pmPT
     let state =
       let pmRT = PT2RT.PackageManager.toRT builtins.values pmPT
-      Exe.createState
-        builtins
-        pmRT
-        Exe.noTracing
-        exceptionReporter
-        notifier
-        PT.mainBranchId
-        program
+      Exe.createState builtins pmRT Exe.noTracing exceptionReporter notifier program
     let state = { state with test = testContext }
     return state
   }
@@ -1508,7 +1501,7 @@ let unwrapExecutionResult
           state
           errorMessageFn
           []
-          (NEList.ofList (RT.DUuid PT.mainBranchId) [ rteDval ])
+          (NEList.ofList (RT.DUuid PT.BranchId.Main.Guid) [ rteDval ])
 
       let! cs = LibExecution.Execution.callStackString state callStack
 

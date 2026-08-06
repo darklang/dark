@@ -1,0 +1,122 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# The relay's HTTP surface, given input a person would not send.
+#
+# This is the one network-facing thing in the repo, and nothing exercised it with bad input:
+# `matter-render-diff` renders eight routes with sensible parameters and compares the HTML, which says
+# nothing about what a missing parameter, a malformed body, or an unknown name does.
+#
+# Two things are asserted. Nothing may leak an interpreter error to a caller -- a stack trace in an HTTP
+# response is both an information leak and a crash by another name. And a page that says "not found" must
+# ANSWER 404: these used to say it in the body and return 200, which reads correctly to a person and lies
+# to every link checker, monitor and script.
+#
+# `/nope` is deliberately not asserted: the relay composes the DarkPackages API onto the same server, and
+# that API has a `/:location` catch-all which legitimately answers "no such location" with an empty
+# result. That is its semantics, not matter's.
+
+set -euo pipefail
+
+CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+WORK=rundir/relay-routes-test
+PORT=${PORT:-9095}
+
+rm -rf "$WORK"
+mkdir -p "$WORK"
+cp rundir/data.db "$WORK/data.db"
+
+# The secret deliberately CONTAINS "Bearer " and a space. Both used to break authentication: the header
+# parser stripped every occurrence of "Bearer " anywhere in the value, and split the credential on space.
+SECRET='relay-test-Bearer secret'
+
+DARK_CONFIG_RUNDIR="$PWD/$WORK" DARK_MATTER_WRITE_SECRET="$SECRET" \
+  "$PWD/$CLI" serve Darklang.Matter.router --port "$PORT" \
+  > "$WORK/serve.log" 2>&1 &
+SRV=$!
+trap 'kill $SRV 2>/dev/null' EXIT
+
+for _ in $(seq 1 40); do
+  [[ "$(curl -s --max-time 2 "http://localhost:$PORT/ping" 2>/dev/null)" == "pong" ]] && break
+  sleep 1
+done
+
+U="http://localhost:$PORT"
+failures=0
+BODY=$(mktemp)
+
+# Asserts the status, and that the body carries no interpreter error whatever the status.
+check() {
+  local want="$1" what="$2"; shift 2
+  local got
+  got=$(curl -s -o "$BODY" -w '%{http_code}' --max-time 15 "$@" 2>/dev/null || echo 000)
+
+  if grep -qE "Encountered a Runtime Error|No matching case found|but got [A-Za-z]+|Call stack" "$BODY"; then
+    echo "  LEAKED an interpreter error: $what"
+    failures=$((failures + 1))
+    return
+  fi
+
+  if [[ "$want" != "any" && "$got" != "$want" ]]; then
+    echo "  $what: wanted $want, got $got"
+    failures=$((failures + 1))
+    return
+  fi
+  echo "  ok   $got  $what"
+}
+
+# Pages that exist.
+check 200 "the landing page"        "$U/"
+check 200 "/owners"                 "$U/owners"
+check 200 "/stats"                  "$U/stats"
+check 200 "a real module"           "$U/m?name=Darklang.Stdlib.List"
+check 200 "a real item"             "$U/p?name=Darklang.Stdlib.List.map"
+check 200 "a search with hits"      "$U/search?q=map"
+
+# Pages that do not. The body has always said so; the status has not.
+check 404 "an item that is not there"   "$U/p?name=No.Such.Thing"
+check 404 "a module that is not there"  "$U/m?name=Nope"
+
+# Missing and hostile parameters. The status is not the point here -- not crashing is.
+check any "/p with no name"         "$U/p"
+check any "/m with no name"         "$U/m"
+check any "/search with no q"       "$U/search"
+check any "a script tag in q"       --get --data-urlencode 'q=<script>alert(1)</script>' "$U/search"
+check any "an attribute break in q" --get --data-urlencode 'q=" onmouseover="x' "$U/search"
+
+# The sync protocol. Reads are open; writes need the secret, so these are 401 rather than parsed.
+check 200 "/sync/head"                  "$U/sync/head"
+check any "/sync/pull with no params"   "$U/sync/pull"
+# 400, not "any": read as zero, a bad cursor answered 200 with the WHOLE log and a cursor of 0, so a
+# client whose stored cursor had gone bad re-pulled everything and was told it had synced incrementally.
+check 400 "/sync/pull sinceSeq=abc"     "$U/sync/pull?sinceSeq=abc"
+check any "/sync/pull sinceSeq=-1"      "$U/sync/pull?sinceSeq=-1"
+check any "/sync/pull sinceSeq enormous" "$U/sync/pull?sinceSeq=99999999999999999999"
+check 401 "/sync/push unauthenticated"  -X POST --data '{"nope":1}' "$U/sync/push"
+check 401 "/branch/push unauthenticated" -X POST --data 'zzz' "$U/branch/push"
+check 401 "/branch/list unauthenticated" "$U/branch/list"
+
+# Authentication, by header SHAPE. 400 here means the secret was accepted and only the body was rejected,
+# which is the whole point: these all carry the right secret and must not come back 401.
+check 400 "Bearer, exact casing"     -X POST --data 'zzz' -H "Authorization: Bearer $SECRET" "$U/sync/push"
+check 400 "bearer, lowercase scheme" -X POST --data 'zzz' -H "authorization: bearer $SECRET" "$U/sync/push"
+check 400 "BEARER, upper scheme"     -X POST --data 'zzz' -H "AUTHORIZATION: BEARER $SECRET" "$U/sync/push"
+check 400 "no scheme, bare secret"   -X POST --data 'zzz' -H "Authorization: $SECRET" "$U/sync/push"
+check 200 "/branch/list with the secret" -H "Authorization: Bearer $SECRET" "$U/branch/list?owner=x"
+
+# ...and the shapes that must STILL be refused.
+check 401 "a wrong secret"           -X POST --data 'zzz' -H "Authorization: Bearer nope" "$U/sync/push"
+check 401 "Bearer with no credential" -X POST --data 'zzz' -H "Authorization: Bearer" "$U/sync/push"
+
+# XSS: the two shapes that matter, checked in the response rather than assumed from the code.
+curl -s --max-time 15 --get --data-urlencode 'q=<script>alert(1)</script>' "$U/search" > "$BODY"
+grep -q '&lt;script&gt;' "$BODY" || { echo "  a script tag was not escaped in /search"; failures=$((failures + 1)); }
+grep -q '<script>alert(1)</script>' "$BODY" && { echo "  a script tag came back RAW in /search"; failures=$((failures + 1)); }
+
+rm -f "$BODY"
+
+if [[ "$failures" -gt 0 ]]; then
+  echo "$failures relay route check(s) failed."
+  exit 1
+fi
+echo "relay routes: real pages 200, missing pages 404, bad input answered without leaking an error."

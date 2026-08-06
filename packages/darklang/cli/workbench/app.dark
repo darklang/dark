@@ -34,7 +34,11 @@ module Darklang.Cli.Workbench
 /// while drawing. Home's cursor is kept off its section headers here too,
 /// since any transition can reload the list under it.
 let refresh (previous: State) (next: State) : State =
-  fixHomeSelection (refreshCommitDetail (refreshPeek (refreshBadges previous next)))
+  // SCM status FIRST: the tree's wip badges read it rather than doing their own draft query, so
+  // refreshing them against last frame's status would draw a dot one keypress behind the truth.
+  fixHomeSelection (
+    refreshCommitDetail (refreshPeek (refreshBadges previous (refreshScmStatus previous next)))
+  )
 
 let onKey
   (state: State)
@@ -101,6 +105,7 @@ let initialState
         filter = ""
         wipNames = []
         deprecatedNames = []
+        scmStatus = emptyScmStatus ()
         renderPeek = ""
         commitDetail = ("", [])
         branchId = branchId }
@@ -117,6 +122,12 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
     // message twice when it does fire.
     Stdlib.printLine
       (Darklang.Stdlib.Cli.Tui.TerminalSupport.unavailableMessage reason)
+    // Say where to go next. Without a terminal this is a dead end otherwise, and the callers that land
+    // here most often are scripts and agents, which have no way to guess that everything the workbench
+    // does is also a command.
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.hint
+        "  Everything it shows is a command too: `dark help`, or `dark docs for-ai`.")
     { cliState with isExiting = true }
   | Available ->
 
@@ -143,6 +154,11 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
   // seeding - the first frame is Home, which has no `render` fn to peek at.
   let (wip, deprecated) = readBadges state
   let state = refreshCommitDetail { state with wipNames = wip; deprecatedNames = deprecated }
+  // Seed the SCM status too, for the same reason and for one more: Home decides between "Welcome to
+  // Darklang" and "Welcome back" on `commits == 0 && wip == 0 && no relay`, and an unseeded status reads
+  // as all three. So a returning user's FIRST frame greeted them as a new one, and the next frame
+  // corrected it -- a flash on the one screen that is meant to say "you are where you left off".
+  let state = refreshScmStatus state state
   // Launching is what enters the alternate screen and paints the first frame; from here on the renderer
   // diffs, so a keystroke rewrites the rows that changed rather than clearing and repainting.
   Darklang.Cli.Component.launchOrExit cliState component state

@@ -218,7 +218,11 @@ type Instructions =
 
 
 type LambdaImpl =
-  { exprId: ID
+  { /// `UInt64`, not `ID`. `ID` is `Int64` and correct for ProgramTypes, whose converter narrows with
+    /// `DInt64(int64 id)`. RuntimeTypes does not: it hands the raw `DUInt64` across. Declaring this `ID`
+    /// made every reader call `Int64.toString` on a `UInt64`, which is why `view --instructions` died on
+    /// any function containing a lambda.
+    exprId: UInt64
     patterns: List<LetPattern>
     registersToCloseOver: List<(Register * Register)>
     selfRegister: Option<Register>
@@ -230,7 +234,8 @@ type ApplicableNamedFn =
     argsSoFar: List<Dval> }
 
 type ApplicableLambda =
-  { exprId: ID
+  { /// See `LambdaImpl.exprId`: RuntimeTypes carries these as `UInt64`.
+    exprId: UInt64
     closedRegisters: List<(Register * Dval)>
     typeSymbolTable: TypeSymbolTable
     argsSoFar: List<Dval> }

@@ -6,6 +6,7 @@ open FSharp.Control.Tasks
 open Prelude
 
 module RT = RuntimeTypes
+module PT = ProgramTypes
 module RTE = RT.RuntimeError
 module RT2DT = RuntimeTypesToDarkTypes
 module Dval = LibExecution.Dval
@@ -30,7 +31,6 @@ let createState
   (tracing : RT.Tracing.Tracing)
   (reportException : RT.ExceptionReporter)
   (notify : RT.Notifier)
-  (branchId : RT.BranchId)
   (program : RT.Program)
   : RT.ExecutionState =
   { tracing = tracing
@@ -41,7 +41,6 @@ let createState
     lambdaInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
     packageFnInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
 
-    branchId = branchId
     program = program
 
     builtins = builtins
@@ -51,16 +50,22 @@ let createState
     fns =
       { builtIn = builtins.fns
         package = pm.getFn
-        isHarmful = fun pkg -> pm.isHarmful branchId pkg }
+        isHarmful = fun pkg -> pm.isHarmful pkg }
 
     allowHarmful = false
 
-    // The base default is permissive — `createState` is RT-level and can't read the on-disk grant, so
-    // the gate is a no-op here. The CLI host narrows it per entry point (`eval`/host → the configured
-    // grant; `dark run` → NONE) before executing user code; tests run permissive.
+    // The base default is permissive -- `createState` is RT-level and can't read the
+    // on-disk grant, so the gate is a no-op here. The CLI host narrows it per entry
+    // point (`eval`/host → the configured grant; `dark run` → NONE) before executing
+    // user code; tests run permissive.
     grantedCaps = LibExecution.Capabilities.allCaps
 
-    accountID = None }
+    accountID = None
+
+    // Main unless a caller says otherwise. `createState` is RT-level and has no way
+    // to read which branch the process picked; the CLI host sets this per entry
+    // point, like `grantedCaps` and `accountID`.
+    branchId = Branching.BranchId.Main }
 
 
 let rec callStackForFrame
@@ -94,8 +99,8 @@ let execute
     let vm = RT.VMState.create instrs
     try
       try
-        // TODO: handle secrets and DBs by explicit references instead of relying on symbol table
-        // vm.symbolTable <- Interpreter.withGlobals state inputVars
+        // TODO: handle secrets and DBs by explicit references instead of relying on
+        // symbol table vm.symbolTable <- Interpreter.withGlobals state inputVars
 
         let! result = Interpreter.execute exeState vm
         return Ok result
@@ -421,7 +426,7 @@ let runtimeErrorToString
         PackageRefs.Fn.PrettyPrinter.RuntimeTypes.RuntimeError.toString ()
       )
     let args =
-      NEList.ofList (RT.DUuid state.branchId) [ RT2DT.RuntimeError.toDT rte ]
+      NEList.ofList (RT.DUuid state.branchId.Guid) [ RT2DT.RuntimeError.toDT rte ]
     return! executeFunction state fnName [] args
   }
 
@@ -444,7 +449,8 @@ let fnNameToString
   task {
     let fnName =
       RT.FQFnName.fqPackage (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.fnName ())
-    let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.FQFnName.toDT name ]
+    let args =
+      NEList.ofList (RT.DUuid state.branchId.Guid) [ RT2DT.FQFnName.toDT name ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
     | result -> return prettyPrintFallback "fnName" name result
@@ -455,7 +461,7 @@ let dvalToRepr (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
   task {
     let fnName =
       RT.FQFnName.fqPackage (PackageRefs.Fn.PrettyPrinter.RuntimeTypes.dval ())
-    let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.Dval.toDT dval ]
+    let args = NEList.ofList (RT.DUuid state.branchId.Guid) [ RT2DT.Dval.toDT dval ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
     | result -> return prettyPrintFallback "dval" dval result
@@ -482,7 +488,7 @@ let dvalToReprForTerminal
     let currentModule = currentModule |> List.map RT.DString |> Dval.list RT.KTString
     let args =
       NEList.ofList
-        (RT.DUuid state.branchId)
+        (RT.DUuid state.branchId.Guid)
         [ Dval.int (bigint width)
           RT.DBool color
           currentModule
@@ -503,7 +509,9 @@ let typeRefToString
         PackageRefs.Fn.PrettyPrinter.RuntimeTypes.typeReference ()
       )
     let args =
-      NEList.ofList (RT.DUuid state.branchId) [ RT2DT.TypeReference.toDT typeRef ]
+      NEList.ofList
+        (RT.DUuid state.branchId.Guid)
+        [ RT2DT.TypeReference.toDT typeRef ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
     | result -> return prettyPrintFallback "typeRef" typeRef result
@@ -515,7 +523,7 @@ let dvalToTypeName (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
       RT.FQFnName.fqPackage (
         PackageRefs.Fn.PrettyPrinter.RuntimeTypes.Dval.valueTypeName ()
       )
-    let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.Dval.toDT dval ]
+    let args = NEList.ofList (RT.DUuid state.branchId.Guid) [ RT2DT.Dval.toDT dval ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
     | result -> return prettyPrintFallback "typeName" dval result
@@ -616,7 +624,7 @@ let rec rteToString
         state
         errorMessageFn
         []
-        (NEList.ofList (RT.DUuid state.branchId) [ rteDval ])
+        (NEList.ofList (RT.DUuid state.branchId.Guid) [ rteDval ])
 
     match rteMessage with
     | Ok(RT.DString msg) -> return msg

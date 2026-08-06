@@ -40,7 +40,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     match Traversal.traverse branchId state.packageData.currentLocation pathArg with
     | Error errorMsg ->
       // Navigation failed - show error and don't change location
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Navigation failed: {errorMsg}")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Navigation to {pathArg} failed: {errorMsg}")
       state
     | Ok newLocation ->
       // Navigation succeeded - update state using navTo

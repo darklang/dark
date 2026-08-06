@@ -102,7 +102,7 @@ let show (state: Cli.AppState) : Cli.AppState =
   let specs = currentSpecs ()
   Stdlib.printLine "Capabilities (this instance grants):"
   if Stdlib.List.isEmpty specs then
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText "  (none — NONE is the default)")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText "  (none -- NONE is the default)")
   else
     Stdlib.printLines
       ((PrettyPrinter.Capabilities.lines specs) |> Stdlib.List.map (fun l -> "  " ++ l))
@@ -124,7 +124,7 @@ let showFnNeeds (state: Cli.AppState) (fnName: String) : Unit =
       let specs =
         effectiveCapsForHash (LanguageTools.ProgramTypes.hashToString hash)
       if Stdlib.List.isEmpty specs then
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"{fnName}  ✓ pure — needs no capabilities")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"{fnName}  ✓ pure -- needs no capabilities")
       else
         Stdlib.printLine $"{fnName} needs:"
         Stdlib.printLines
@@ -144,7 +144,7 @@ let grantForFn (state: Cli.AppState) (fnName: String) : Cli.AppState =
     | Some((hash, Fn)) ->
       let specs = effectiveCapsForHash (LanguageTools.ProgramTypes.hashToString hash)
       if Stdlib.List.isEmpty specs then
-        Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"{fnName} needs no capabilities (pure) — nothing to grant")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"{fnName} needs no capabilities (pure) -- nothing to grant")
       else
         Stdlib.List.iter specs (fun spec ->
           match Command.grantSpec spec with
@@ -165,11 +165,21 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // `caps grant <spec…>` — e.g. `grant http-client GET`, `grant file write ~/x`, `grant random`
   | "grant" :: specWords ->
     let spec = Stdlib.String.join specWords " "
+    if (Stdlib.String.trim spec) == "" then
+      // An empty spec parses as a no-op and used to report "✓ granted" with nothing after it. On a
+      // capability surface a false success is worse than an error: it reads as though a grant happened.
+      // `caps set` already refuses its empty form for the mirror-image reason.
+      Stdlib.printLine
+        (Stdlib.Cli.UI.Colors.error
+          "usage: caps grant <spec> -- e.g. `caps grant http-client GET`. `caps help` has the grammar.")
+      state
+    else
+
     match Command.grantSpec spec with
     | Ok() -> Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ granted  {spec}")
     | Error bad ->
       Stdlib.printLine
-        (Stdlib.Cli.UI.Colors.error $"couldn't parse '{bad}' — see `caps help` for the grammar")
+        (Stdlib.Cli.UI.Colors.error $"couldn't parse '{bad}' -- see `caps help` for the grammar")
     state
 
   // `caps set <spec>[; <spec>…]` — REPLACE the whole grant with exactly these specs (direct control).
@@ -181,7 +191,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       |> Stdlib.List.filter (fun s -> s != "")
     if Stdlib.List.isEmpty specs then
       // an empty set would silently wipe the grant — make the user say `caps clear` for that
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error "usage: caps set <spec>; <spec>… — to revoke everything use `caps clear`")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error "usage: caps set <spec>; <spec>… -- to revoke everything use `caps clear`")
       state
     else
       match writeSpecs specs with
@@ -190,13 +200,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Command.show state
       | Some badSpec ->
         Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.error $"couldn't parse '{badSpec}' — nothing changed. See `caps help` for the grammar.")
+          (Stdlib.Cli.UI.Colors.error $"couldn't parse '{badSpec}' -- nothing changed. See `caps help` for the grammar.")
         state
 
   // `caps clear` — REPLACE the grant with NONE (revoke everything).
   | [ "clear" ] | [ "none" ] ->
     let _ = writeSpecs []
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.success "✓ cleared — all capabilities revoked (NONE)")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.success "✓ cleared -- all capabilities revoked (NONE)")
     state
 
   // `caps grant-all` — REPLACE the grant with everything (unrestricted). The one-command "let it all
@@ -205,7 +215,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // `LanguageTools.Capabilities.all`. It's a convenience, not a security control.
   | [ "grant-all" ] | [ "allow-all" ] ->
     Command.writeCaps (LanguageTools.Capabilities.all ())
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.success "✓ granted ALL capabilities — this instance is now unrestricted")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.success "✓ granted ALL capabilities -- this instance is now unrestricted")
     Command.show state
 
   | [ "revoke"; domain ] ->
@@ -219,7 +229,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   | [ "profile" ] ->
     Stdlib.printLine
-      "Capability profiles — `caps profile <name>` REPLACES the grant with that posture:"
+      "Capability profiles -- `caps profile <name>` REPLACES the grant with that posture:"
     Stdlib.List.iter Command.profiles (fun (name, specs) ->
       let label = Stdlib.String.padEndToWidth name 12
       Stdlib.printLine $"  {label}{Stdlib.Cli.UI.Colors.dimText (PrettyPrinter.Capabilities.compact specs)}")
@@ -231,7 +241,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ "profile"; name ] ->
     match Stdlib.List.findFirst Command.profiles (fun (n, _) -> n == name) with
     | None ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"no profile '{name}' — see `caps profile`")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"no profile '{name}' -- see `caps profile`")
       state
     | Some((_, specs)) ->
       match writeSpecs specs with
@@ -240,7 +250,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Command.show state
       | Some badSpec ->
         Stdlib.printLine
-          (Stdlib.Cli.UI.Colors.error $"profile '{name}' has a spec that didn't parse ('{badSpec}') — nothing changed")
+          (Stdlib.Cli.UI.Colors.error $"profile '{name}' has a spec that didn't parse ('{badSpec}') -- nothing changed")
         state
 
   // `caps needed-for <fn>` — the capabilities a function (transitively) needs.
@@ -286,9 +296,9 @@ let help (_state: Cli.AppState) : String =
     ""
     "  Replace the whole grant (direct control):"
     "    set <spec>; <spec>; …    Set caps to EXACTLY these specs (semicolon-separated)"
-    "    clear                    Set NONE — revoke everything"
-    "    grant-all                Set ALL — unrestricted (convenience; not a security boundary)"
-    "    profile [name]           List, or apply, a preset posture — applying REPLACES the grant"
+    "    clear                    Set NONE -- revoke everything"
+    "    grant-all                Set ALL -- unrestricted (convenience; not a security boundary)"
+    "    profile [name]           List, or apply, a preset posture -- applying REPLACES the grant"
     "                               (read-only · local-dev · trusted; layer extras with `grant` after)"
     "    (`caps edit` opens an interactive editor; the file itself is a binary blob)"
     ""

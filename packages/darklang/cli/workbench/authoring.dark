@@ -70,7 +70,7 @@ let saveEditing (state: State) (es: EditingState) : Step =
               else
                 Stdlib.Result.Result.Ok
                   [ LanguageTools.ProgramTypes.PackageOp.AddType pt
-                    LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageType pt.hash) ]
+                    LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageType pt.hash, Stdlib.Option.Option.None) ]
             | _ -> Stdlib.Result.Result.Error "not a type definition"
           else if es.kind == "value" then
             match sourceFile.declarations |> Stdlib.List.findFirst (fun d -> match d with | Value _ -> true | _ -> false) with
@@ -80,7 +80,7 @@ let saveEditing (state: State) (es: EditingState) : Step =
               else
                 Stdlib.Result.Result.Ok
                   [ LanguageTools.ProgramTypes.PackageOp.AddValue pv
-                    LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageValue pv.hash) ]
+                    LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageValue pv.hash, Stdlib.Option.Option.None) ]
             | _ -> Stdlib.Result.Result.Error "not a value definition"
           else
             match sourceFile.declarations |> Stdlib.List.findFirst (fun d -> match d with | Function _ -> true | _ -> false) with
@@ -90,7 +90,7 @@ let saveEditing (state: State) (es: EditingState) : Step =
               else
                 Stdlib.Result.Result.Ok
                   [ LanguageTools.ProgramTypes.PackageOp.AddFn pf
-                    LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn pf.hash) ]
+                    LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn pf.hash, Stdlib.Option.Option.None) ]
             | _ -> Stdlib.Result.Result.Error "not a function definition"
         match opsResult with
         | Ok ops ->

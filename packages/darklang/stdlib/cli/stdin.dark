@@ -12,6 +12,14 @@ let readAll () : String =
   Builtin.stdinReadAll ()
 
 
+/// Read one line WITHOUT echoing it, for a secret typed at a prompt.
+///
+/// Taking a secret this way rather than as an argument keeps it out of the terminal scrollback and out of
+/// shell history. Redirected input reads as a plain line, since a piped secret was never on screen.
+let readSecret () : String =
+  Builtin.stdinReadSecret ()
+
+
 module Key =
   type Key =
     | None

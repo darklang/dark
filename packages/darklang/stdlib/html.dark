@@ -139,7 +139,7 @@ let htmlTagNode
 /// Converts a Node to its HTML string representation.
 ///
 /// Handles both text nodes and HTML tags, properly rendering:
-/// - Attributes with values as `name="value"`
+/// - Attributes with values as `name="value"`, with the value escaped
 /// - Boolean attributes (None value) as just `name`
 /// - Void elements without closing tags
 /// - Regular elements with proper opening and closing tags
@@ -152,7 +152,10 @@ let nodeToString (node: Node) : String =
       tag.attrs
       |> List.map (fun (key, valueOpt) ->
         match valueOpt with
-        | Some value -> $"{key}=\"{value}\""
+        // Escaped like text is. An attribute value is the easier injection: a `"` in an unescaped one
+        // closes the attribute and everything after it is markup. Callers therefore pass raw values --
+        // a url, a name, a class -- and do not pre-escape.
+        | Some value -> $"{key}=\"{escapeHtml value}\""
         | None -> key)
       |> String.join " "
 

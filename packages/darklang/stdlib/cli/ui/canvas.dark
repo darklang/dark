@@ -1,6 +1,6 @@
 /// A span buffer: the bridge from "paint at a position" to "here are the rows".
 ///
-/// Everything in the CLI builds a `Tui.View` (a list of rows) and lets the renderer diff it against the
+/// Everything in the CLI builds a `Stdlib.Cli.Tui.View` (a list of rows) and lets the renderer diff it against the
 /// previous frame, so an arrow key rewrites the rows that changed instead of clearing and repainting. But a
 /// renderer is far easier to write as "put this text at that position" than as "produce these rows".
 ///
@@ -14,7 +14,7 @@
 ///   `xs |> Stdlib.List.iter (...)`         ->  `xs |> Stdlib.List.map (...) |> Stdlib.List.flatten`
 ///   `Region -> Unit`                       ->  `Region -> List<Span>`
 ///
-/// Widths are measured with `Tui.Text`, so a span carrying CJK, emoji, or SGR colour lands where it should.
+/// Widths are measured with `Stdlib.Cli.Tui.Text`, so a span carrying CJK, emoji, or SGR colour lands where it should.
 /// `Layout.printAt` measured with `String.length`, which counts grapheme clusters rather than terminal
 /// columns - right for "how many characters is this", wrong for "how far does this reach across the screen",
 /// since `界` is one grapheme in two columns. That's why a wide glyph used to shove its row out of alignment.
@@ -187,9 +187,9 @@ let compose (width: Int) (height: Int) (spans: List<Layout.Span>) : List<String>
       | Some rowSpans -> composeRow w rowSpans)
 
 
-/// Compose spans into a full-screen `Tui.View`.
-let toView (size: Tui.Size) (spans: List<Layout.Span>) : Tui.View =
-  Tui.View
+/// Compose spans into a full-screen `Stdlib.Cli.Tui.View`.
+let toView (size: Stdlib.Cli.Tui.Size) (spans: List<Layout.Span>) : Stdlib.Cli.Tui.View =
+  Stdlib.Cli.Tui.View
     { rows = compose size.width size.height spans
-      cursor = Tui.Cursor.Hidden
-      mode = Tui.ViewMode.Fullscreen }
+      cursor = Stdlib.Cli.Tui.Cursor.Hidden
+      mode = Stdlib.Cli.Tui.ViewMode.Fullscreen }

@@ -1,0 +1,39 @@
+module Darklang.SCM.Ids
+
+// Branch IDENTITY, on its own, below everything that has an opinion about branches.
+//
+// It lives here rather than in `SCM.Branch` because `SCM.Branch` is built on `SCM.PackageOps`, and
+// `SCM.PackageOps` needs to know which id is main's. A shared constant in the module they both sit under
+// is the only spelling of that which isn't a cycle.
+//
+// The rule this module exists to enforce: an id is compared against `mainBranchId`, never against a
+// literal. Two spellings of the same idea drift, and this one drifted twice -- once when main's id was
+// "" and once when it was "main" -- each time leaving call sites that all read as correct.
+
+/// Main's branch id.
+///
+/// Well-known rather than minted, because main is the one branch that exists before anything creates it,
+/// and it has no `branches` row to mint an id into. Comes from the same F# constant the runtime compares
+/// against (`ProgramTypes.BranchId.Main`), so the two cannot disagree.
+val mainBranchId = Builtin.scmMainBranchId
+
+/// Main's branch NAME. What a person types and reads; resolved to an id at the edge. It is not an id,
+/// which is the whole point of ids being `Uuid` and names being `String`.
+val mainBranchName = "main"
+
+/// Whether <param branchId> is main.
+let isMain (branchId: Uuid) : Bool = branchId == mainBranchId
+
+
+/// A branch id read out of a TEXT column.
+///
+/// The columns are TEXT, so this is the one direction that can fail. An absent or unreadable value is
+/// main: `parent_id` is NULL for a top-level branch, and a row nothing wrote an id into is not a branch
+/// anyone can stand on.
+let fromTextField (text: Stdlib.Option.Option<String>) : Uuid =
+  match text with
+  | Some s ->
+    match Stdlib.Uuid.parse s with
+    | Ok id -> id
+    | Error _ -> mainBranchId
+  | None -> mainBranchId

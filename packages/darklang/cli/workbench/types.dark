@@ -60,6 +60,9 @@ type AiState =
 type Lens =
   | WholeTree
   | ValuesOnly
+  /// Just what the draft has touched. Like `ValuesOnly` its items are FULL paths rather than leaves,
+  /// because what changed is not confined to where you are standing.
+  | Changed
 
 type MatterState =
   { lens: Lens }
@@ -98,10 +101,12 @@ let aiSectionAt (index: Int) : AiSection =
 let emptyMatter () : MatterState =
   MatterState { lens = Lens.WholeTree }
 
+/// The next lens the toggle key moves to. Three of them now, so it cycles rather than flipping.
 let otherLens (lens: Lens) : Lens =
   match lens with
   | WholeTree -> Lens.ValuesOnly
-  | ValuesOnly -> Lens.WholeTree
+  | ValuesOnly -> Lens.Changed
+  | Changed -> Lens.WholeTree
 
 
 /// The search-results mode: a jumpable list of matches, and the cursor into it. Enter navigates to the
@@ -200,6 +205,13 @@ type State =
     /// by `refreshBadges`.
     wipNames: List<String>
     deprecatedNames: List<String>
+    /// The whole SCM picture, read once per transition rather than per surface.
+    ///
+    /// Home, the tree's badges, the SCM view and the frame's conflict badge all describe these same facts
+    /// and each used to read them separately, which is how they could disagree between redraws. Refreshed
+    /// by `refreshScmStatus`, whose invalidation rule is deliberately wider than the badges' -- committing,
+    /// discarding and pinning all change this without moving you or the item list.
+    scmStatus: ScmStatus
     /// The tree-native view peek: the captured output of the selected `render` fn, or "" when the selection
     /// isn't one.
     ///
@@ -222,7 +234,7 @@ type State =
 /// A single-line text entry. `action` tags what Enter does (e.g. "commit").
 type InputState =
   { prompt: String
-    /// The text being typed, as a `UI.TextField`: a cursor you can move, rather than a string you could
+    /// The text being typed, as a `Stdlib.Cli.UI.TextField`: a cursor you can move, rather than a string you could
     /// only append to and backspace off the end of.
     field: Stdlib.Cli.UI.TextField.State
     action: String }

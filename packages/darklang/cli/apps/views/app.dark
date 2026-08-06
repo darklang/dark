@@ -13,8 +13,8 @@ type State =
 // -- Screens --
 //
 // Two: a list of the gallery's views, and one of them filling the screen. Both are `Stdlib.Cli.UI` widgets
-// in a `Chrome` frame, where they used to be hand-built rows with their own title bar, their own rule
-// lines, their own footer and their own viewport arithmetic.
+// in a `Chrome` frame, rather than each hand-building its own title bar, rule lines, footer and
+// viewport arithmetic.
 
 /// The picker labels: a view's name, and its description in dim text after it.
 let listLabels (state: State) : List<String> =

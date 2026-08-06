@@ -91,9 +91,13 @@ let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
 
 /// The source/detail of the currently-selected item, as lines for the Inspect pane.
 let detailLines (state: State) : List<String> =
-  // Values lens: items carry full paths (owner.mod.name), so look them up by full path, not leaf-in-location.
+  // The flat lenses carry FULL paths (owner.mod.name), so they look up by full path rather than
+  // leaf-in-location the way the tree does. Values renders one kind; Changed renders whichever kind the
+  // draft touched, which is why they don't share a function.
   if (state.activeView == vMatter) && (state.matter.lens == Lens.ValuesOnly) then
     Stdlib.String.split (thingDetail state) "\n"
+  else if (state.activeView == vMatter) && (state.matter.lens == Lens.Changed) then
+    Stdlib.String.split (changesSourceText state.branchId state.selected) "\n"
   else
   match Stdlib.List.getAt state.items state.selected with
   | None -> [ "(nothing selected)" ]
@@ -168,13 +172,29 @@ let docContent (state: State) : String =
 let conflictDetail (state: State) : String =
   match selectedConflict state with
   | Some c ->
-    "location:    " ++ c.location ++ "\n"
-    ++ "kind:        " ++ c.itemKind ++ "\n"
-    ++ "status:      " ++ c.status ++ "\n\n"
-    ++ "local:       " ++ c.localHash ++ "\n"
-    ++ "incoming:    " ++ c.incomingHash ++ "\n"
-    ++ "chosen:      " ++ c.chosenHash ++ "\n"
-    ++ "resolved by: " ++ c.resolvedBy
+    // A conflict holds its competing versions in `candidates`, with the fold's pick named separately by
+    // hash. The pre-SCM shape had flat `localHash`/`incomingHash`/`chosenHash` fields, and this pane was
+    // still reading those: opening Conflicts with an actual conflict in the store took the workbench
+    // down with "Tried to access field `location`".
+    let dotted = SCM.Conflicts.fqn c.owner c.modules c.name
+
+    let sides =
+      c.candidates
+      |> Stdlib.List.map (fun cand ->
+        let mark = if cand.hash == c.autoResolvedTo then "kept" else "other"
+        let who = if cand.author == "" then cand.side else cand.author
+        $"  {mark}   {who}  {SCM.Conflicts.shortHash cand.hash}  {cand.originTs}")
+      |> Stdlib.String.join "\n"
+
+    let why = if c.reason == "" then "" else $"\nwhy:        {c.reason}"
+
+    let by =
+      if c.resolvedBy == "" then
+        ""
+      else
+        $"\nresolved by: {c.resolvedBy}"
+
+    $"name:       {dotted}\nkind:       {c.itemType}\nstatus:     {c.status}{why}{by}\n\nversions:\n{sides}"
   | None -> "(no conflict selected)"
 
 /// The selected app's detail (name/description + lifecycle hints). Placeholder actions for now.
@@ -312,14 +332,22 @@ let inspectPageLines (state: State) : List<String> =
 let previewLines (state: State) : List<String> =
   if state.activeView == vHome then homeDetail state
   else if state.activeView == vSCM then
-    if state.scm.section == ScmSection.History then Stdlib.String.split (commitSummary state.branchId state.selected) "\n"
-    else if state.scm.section == ScmSection.Conflicts then Stdlib.String.split (conflictDetail state) "\n"
-    else if state.scm.section == ScmSection.Branches then Stdlib.String.split (branchDetail state) "\n"
-    else Stdlib.String.split (wipDiffText state) "\n"
+    if state.scm.section == ScmSection.History then
+      Stdlib.String.split (commitSummary state.selected) "\n"
+    else if state.scm.section == ScmSection.Conflicts then
+      Stdlib.String.split (conflictDetail state) "\n"
+    else if state.scm.section == ScmSection.Branches then
+      Stdlib.String.split (branchDetail state) "\n"
+    else
+      Stdlib.String.split (wipDiffText state) "\n"
   else if state.activeView == vMatter then
-    // Matter folds in the old Inspect: its preview IS the item page (source + meta + references + actions),
-    // except under the Values lens, where the value's own detail is what you want.
-    if state.matter.lens == Lens.ValuesOnly then detailLines state else inspectPageLines state
+    // Matter folds in the old Inspect: its preview IS the item page (source + meta + references + actions).
+    // The flat lenses are the exception: their items are full paths, and the item page resolves a leaf
+    // against where you're standing, so it would report every one of them as missing.
+    if (state.matter.lens == Lens.ValuesOnly) || (state.matter.lens == Lens.Changed) then
+      detailLines state
+    else
+      inspectPageLines state
   else if state.activeView == vAI then
     if state.ai.section == AiSection.Prompts then Stdlib.String.split (promptDetail state.selected) "\n"
     else Stdlib.String.split (aiThreadDetail state.selected) "\n"

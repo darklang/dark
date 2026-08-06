@@ -109,7 +109,8 @@ let renderBody (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
 /// A view's purpose and data caveat. An empty caveat means real data.
 let viewBlurb (idx: Int) : (String * String) =
   if idx == vMatter then ("browse and edit the package tree", "")
-  else if idx == vScratch then ("evaluate expressions; `let` binds for the session", "")
+  else if idx == vScratch then
+    ("evaluate expressions -- ⏎ to start typing, esc to stop; `let` binds for the session", "")
   else if idx == vSCM then ("changes, commits, branches, conflicts", "")
   else if idx == vDevices then ("this instance's config, and the peers it syncs with", "part sketch")
   else if idx == vAI then ("agent threads and prompts", "sample data")
@@ -127,15 +128,21 @@ let viewBlurb (idx: Int) : (String * String) =
     | None -> ("", "")
 
 /// Key hints for the focused pane, followed by global shortcuts.
-let hintsForView (state: State) : String =
+///
+/// Fitted to `width` rather than concatenated and clipped: clipping one long string loses the hints at the
+/// END, which are `?` (the keymap) and `esc/q` (the way out) -- the two a person needs most when lost. The
+/// row drops whole hints cheapest-first instead: secondary globals, then the view's own actions, and
+/// `?`/`esc/q` never.
+let hintsForView (state: State) (width: Int) : String =
   let view = state.activeView
   // Pane movement only applies when a preview exists.
   let hasPreview = Stdlib.Bool.not (Stdlib.List.isEmpty state.items)
   let paneHint = if hasPreview then [ ("←→", "pane") ] else []
-  // Global keys, always the same, anchored at the right end of the footer.
-  // Short enough that a view's own keys still fit beside them at 120 columns;
-  // ` and the rest of the long tail live in `?`.
-  let global = [ ("/", "find"); (":", "cmd"); ("?", "help"); ("esc", "back"); ("q", "quit") ]
+  // `p` earns a slot here: it's the way out to the prompt, and an escape hatch nobody can see isn't one.
+  // Split by what a person cannot do without: `?` opens the keymap and `esc/q` leaves; everything else on
+  // this row is discoverable THROUGH `?`, so everything else can give way on a narrow terminal.
+  let essential = [ ("?", "help"); ("esc/q", "quit") ]
+  let secondaryGlobal = [ ("/", "search"); (":", "cmd"); ("p", "prompt"); ("`", "views") ]
   let ctx =
     if sidebarFocused state then
       // Home exposes the shortcut back to the command prompt.
@@ -164,12 +171,13 @@ let hintsForView (state: State) : String =
         [ ("↑↓", "move"); ("o", "ours"); ("t", "theirs"); ("a", "ack") ]
       else
         // merge/rebase are in `?` - eight verbs plus the globals didn't fit a
-        // 120-column footer.
+        // 120-column footer. `u/d` stay, because sync used to be the one part of SCM this view could only
+        // WATCH, and a key nobody can see is a key nobody uses.
         Stdlib.List.flatten
-          [ [ ("↑↓", "move"); ("⏎", "open"); ("c", "commit"); ("x", "discard"); ("b", "branch"); ("s", "switch") ]
+          [ [ ("↑↓", "move"); ("⏎", "open"); ("c", "commit"); ("x", "discard"); ("b", "branch"); ("s", "switch"); ("u/d", "push/pull") ]
             paneHint ]
     else if view == vDevices then
-      [ ("c", "config"); ("s", "sync"); ("a", "add") ]
+      [ ("c", "config"); ("s", "sync now"); ("a", "set up") ]
     else if view == vAI then
       let enterHint = if state.ai.section == AiSection.Prompts then ("⏎", "use") else ("⏎", "open")
       Stdlib.List.flatten [ [ ("↑↓", "move"); enterHint; ("a", "ask") ]; paneHint ]
@@ -187,7 +195,9 @@ let hintsForView (state: State) : String =
         let h = vd.hints
         h state
       | None -> [ ("↑↓", "move") ]
-  Frame.formatHints (Stdlib.List.append ctx global)
+  // Fitted rather than concatenated. The droppable run is ordered cheapest-last, so this view's own actions
+  // outlive the secondary global keys, and `?`/`esc/q` outlive everything.
+  Frame.formatHintsFitted (Stdlib.List.append ctx secondaryGlobal) essential width
 
 /// The keymap, grouped, for the `?` overlay - (category, keys).
 val helpGroups =

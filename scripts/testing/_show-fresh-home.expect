@@ -1,0 +1,13 @@
+#!/usr/bin/expect -f
+# Show the workbench landing screen for a FRESH instance (no relay, no commits, no changes), so the
+# first-run copy can be looked at rather than guessed about. Takes the binary and a rundir.
+set timeout 40
+set exe [lindex $argv 0]
+set rundir [lindex $argv 1]
+
+set env(DARK_CONFIG_RUNDIR) $rundir
+spawn $exe
+sleep 12
+send "q"
+sleep 2
+expect eof

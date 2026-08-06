@@ -108,7 +108,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           // In the dev container the host reaches this port on a per-clone offset, set as
           // DARK_HOST_PORT_BASE at startup. Unset outside it, so there's nothing to add.
           let hostLines =
-            match Stdlib.Env.get "DARK_HOST_PORT_BASE" with
+            match Builtin.environmentGet "DARK_HOST_PORT_BASE" with
             | None -> []
             | Some baseStr ->
               match Stdlib.Int.parse baseStr with
@@ -126,10 +126,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               [ $"Using router: {parsed.routerPath}"
                 $"Max body bytes: {maxBytesStr}"
                 ""
-                Stdlib.Cli.UI.Colors.success $"Listening on http://localhost:{portStr}" ]
+                Stdlib.Cli.UI.Colors.success $"Listening on port {portStr}, on every interface" ]
 
+            // It binds `http://*:port`, and saying "localhost" hid that. Anyone standing up a relay for
+            // another machine to sync against read that line as "this is local only" and went looking for
+            // a flag to change it. There isn't one, because there doesn't need to be.
             let tail =
-              [ Stdlib.Cli.UI.Colors.hint "  Requests print here as they arrive (method, path, status, duration)."
+              [ Stdlib.Cli.UI.Colors.hint $"  http://localhost:{portStr} here, or this machine's address from anywhere else."
+                Stdlib.Cli.UI.Colors.hint "  Requests print here as they arrive (method, path, status, duration)."
                 "Press Ctrl+C to stop"
                 "" ]
 
@@ -141,7 +145,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           state
         | Error msg ->
           Stdlib.printLine (
-            Stdlib.Cli.UI.Colors.error $"{msg} — is it defined and committed on this branch?")
+            Stdlib.Cli.UI.Colors.error $"{msg} -- is it defined and committed on this branch?")
 
           state
 

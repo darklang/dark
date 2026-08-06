@@ -52,8 +52,8 @@ let private candidateItems
       | PT.PackageOp.SetName _
       | PT.PackageOp.Deprecate _
       | PT.PackageOp.Undeprecate _
-      | PT.PackageOp.PropagateUpdate _
-      | PT.PackageOp.RevertPropagation _ -> items, closure)
+      | PT.PackageOp.Decision _
+      | PT.PackageOp.BranchEvent _ -> items, closure)
     ([], emptyClosure)
   |> fun (items, closure) -> List.rev items, closure
 
@@ -252,7 +252,9 @@ let checkPackageOps
 let checkBranch
   (pm : PT.PackageManager)
   (builtins : Builtins)
-  (branchId : PT.BranchId)
+  // The PM already carries its branch on this branch's overlay model, so the search below needs no
+  // branch argument. Kept in the signature so callers (and the builtin) read the same as on main.
+  (_branchId : PT.BranchId)
   : Ply<CheckReport> =
   uply {
     let query : PT.Search.SearchQuery =
@@ -261,7 +263,7 @@ let checkBranch
         searchDepth = PT.Search.AllDescendants
         entityTypes = []
         exactMatch = false }
-    let! results = pm.search (branchId, query)
+    let! results = pm.search query
     let ops =
       List.concat
         [ results.types |> List.map (fun item -> PT.PackageOp.AddType item.entity)
@@ -650,7 +652,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         | exeState, _, _, [| DUuid branchId |] ->
           uply {
             try
-              let! report = checkBranch pm exeState.builtins branchId
+              let! report =
+                checkBranch pm exeState.builtins (PT.BranchId.Id branchId)
               return DarkTypes.reportToDT report
             with ex ->
               return

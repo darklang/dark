@@ -27,6 +27,7 @@ done
 
 if [[ "$PUBLISHED" == "true" ]]; then
   EXE=$(release_exe)
+  [[ -x "$EXE" ]] && { assert_release_exe_fresh "$EXE" perf/gate || exit 2; }
 else
   EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
 fi
@@ -99,7 +100,7 @@ if measured > ceiling:
     print("If the regression is intended, raise the budget in the same commit and say why.")
     sys.exit(1)
 
-if measured < limit * 0.97:
+if measured < limit * (1 - tolerance):
     under = (1 - measured / limit) * 100
     print(f"{under:.1f}% under budget -- lower it with `scripts/perf/gate --update`.")
 PY

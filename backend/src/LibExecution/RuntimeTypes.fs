@@ -16,7 +16,6 @@ type HashSet<'a> = System.Collections.Generic.HashSet<'a>
 type Stack<'a> = System.Collections.Generic.Stack<'a>
 
 
-type BranchId = uuid
 
 /// Structural hash of a package item's content (shape, not name/location).
 type Hash =
@@ -1963,13 +1962,17 @@ type PackageManager =
     /// invariant), so a second insert is a cheap no-op.
     persistBlob : string -> byte[] -> Ply<unit>
 
-    /// Is this package fn hash marked Harmful on the given branch chain?
-    /// Branch-scoped because deprecation state flows through branches; the
-    /// other PM lookups are content-addressed and need no branch.
+    /// Is this package fn hash marked Harmful?
+    /// Content-addressed like the other PM lookups: a deprecation is keyed on
+    /// the hash, so there is no branch to take -- deprecation state does not flow through branches.
     /// Only fns participate — see DeprecationKind.Harmful for why.
-    /// Synchronous: every implementation computes this without I/O (the DB-backed one reads a per-branch
-    /// cache), so returning `Ply<bool>` would cost a computation-expression bind on every package call.
-    isHarmful : BranchId -> FQFnName.Package -> bool
+    /// Synchronous: every implementation computes this without I/O (the DB-backed one reads a cache), so
+    /// returning `Ply<bool>` would cost a computation-expression bind on every package call.
+    ///
+    /// No branch either: a deprecation is keyed on the content hash, and content is the same thing on
+    /// every branch. Both halves of that are worth keeping -- upstream made it synchronous, this branch
+    /// dropped the branch id, and they are independent wins.
+    isHarmful : FQFnName.Package -> bool
 
     init : Ply<unit>
   }
@@ -1980,7 +1983,7 @@ type PackageManager =
       getValue = (fun _ -> Ply None)
       getBlob = (fun _ -> Ply None)
       persistBlob = (fun _ _ -> uply { return () })
-      isHarmful = (fun _ _ -> false)
+      isHarmful = (fun _ -> false)
 
       init = uply { return () } }
 
@@ -2381,12 +2384,6 @@ module InterpreterStatsSink =
     if retained < maxRetained then
       retained <- retained + 1
       all.Add s
-
-
-/// Lightweight interpreter performance counters.
-/// Incremented during execution, read/reset via builtins.
-/// Per-builtin timing uses a dictionary keyed by name; overhead is ~1 Stopwatch
-/// call per builtin invocation, only when detailedTiming is true.
 type InterpreterStats =
   {
     /// When false, all counting is skipped (zero overhead in hot loop)
@@ -2870,7 +2867,6 @@ and ExecutionState =
     notify : Notifier
 
     // -- Set per-execution --
-    branchId : BranchId
     program : Program
 
     /// The complete builtin set used to create this state; `fns.builtIn` and
@@ -2916,6 +2912,15 @@ and ExecutionState =
     /// builtin invocations all leave this empty. The trace insert
     /// reads it; commit ops carry the same id separately.
     accountID : Option<System.Guid>
+
+    /// The branch this run resolves names against. An ID, not a name.
+    ///
+    /// It rides on the state rather than being read from process globals down in the stack, so that a
+    /// run against a branch you aren't sitting on is expressible, and so the pretty printers -- which
+    /// turn hashes back into names -- can answer for the branch that produced the value instead of
+    /// always answering for main. A branch-authored type printed against main has no name and renders
+    /// as its hash.
+    branchId : Branching.BranchId
   }
 
 

@@ -36,11 +36,11 @@ let duplicateDeclarations (ops : List<PT.PackageOp>) : List<string> =
   |> List.pairwise
   |> List.choose (fun (previous, op) ->
     match previous, op with
-    | PT.PackageOp.AddType _, PT.PackageOp.SetName(loc, PT.PackageType _) ->
+    | PT.PackageOp.AddType _, PT.PackageOp.SetName(loc, PT.PackageType _, _) ->
       Some("type", PackageLocation.toFQN loc)
-    | PT.PackageOp.AddFn _, PT.PackageOp.SetName(loc, PT.PackageFn _) ->
+    | PT.PackageOp.AddFn _, PT.PackageOp.SetName(loc, PT.PackageFn _, _) ->
       Some("fn", PackageLocation.toFQN loc)
-    | PT.PackageOp.AddValue _, PT.PackageOp.SetName(loc, PT.PackageValue _) ->
+    | PT.PackageOp.AddValue _, PT.PackageOp.SetName(loc, PT.PackageValue _, _) ->
       Some("value", PackageLocation.toFQN loc)
     | _ -> None)
   |> List.countBy (fun declaration -> declaration)
@@ -69,8 +69,8 @@ let hashClashes (ops : List<PT.PackageOp>) : List<string> =
     | PT.PackageOp.SetName _
     | PT.PackageOp.Deprecate _
     | PT.PackageOp.Undeprecate _
-    | PT.PackageOp.PropagateUpdate _
-    | PT.PackageOp.RevertPropagation _ -> None
+    | PT.PackageOp.Decision _
+    | PT.PackageOp.BranchEvent _ -> None
 
   ops
   |> List.choose claim
@@ -95,8 +95,12 @@ let hashClashes (ops : List<PT.PackageOp>) : List<string> =
 /// absorb silently. Local authoring can ask the human to be explicit (delete it first); the SYNC fold cannot -
 /// it has no one to ask and must converge, so it replaces by last-writer-wins. That asymmetry is deliberate:
 /// this guard is UX, not an invariant. Anything that reaches the fold is still handled.
+/// NOTE (kernel-substrate): reads `locations` directly, so it answers about MAIN. A branch is an overlay
+/// with no `locations` rows of its own, so a fn-over-value clash is refused on main and accepted silently
+/// on a branch. That limitation predates this branch and is tracked in open-items; the fold still handles
+/// anything that gets past this guard, which is why it is UX rather than an invariant.
 let kindClashes
-  (branchId : PT.BranchId)
+  (_branchId : PT.BranchId)
   (ops : List<PT.PackageOp>)
   : Task<List<string>> =
   task {
@@ -104,7 +108,7 @@ let kindClashes
       ops
       |> List.choose (fun op ->
         match op with
-        | PT.PackageOp.SetName(loc, target) -> Some(loc, target.kind)
+        | PT.PackageOp.SetName(loc, target, _) -> Some(loc, target.kind)
         | _ -> None)
 
     let mutable clashes = []
@@ -120,19 +124,17 @@ let kindClashes
           """
           SELECT l.item_type FROM locations l
           WHERE l.owner = @owner AND l.modules = @modules AND l.name = @name
-            AND l.branch_id = @branch_id AND l.unlisted_at IS NULL
+            AND l.unlisted_at IS NULL
             AND NOT EXISTS (
               SELECT 1 FROM deprecations d
               WHERE d.item_hash = l.item_hash
                 AND d.item_kind = l.item_type
-                AND d.branch_id = l.branch_id
                 AND d.unlisted_at IS NULL
                 AND d.state = 'deprecated'
                 AND d.created_at = (
                   SELECT MAX(d2.created_at) FROM deprecations d2
                   WHERE d2.item_hash = d.item_hash
                     AND d2.item_kind = d.item_kind
-                    AND d2.branch_id = d.branch_id
                     AND d2.unlisted_at IS NULL
                 )
             )
@@ -141,8 +143,7 @@ let kindClashes
         |> Sql.parameters
           [ "owner", Sql.string loc.owner
             "modules", Sql.string (String.concat "." loc.modules)
-            "name", Sql.string loc.name
-            "branch_id", Sql.uuid branchId ]
+            "name", Sql.string loc.name ]
         |> Sql.executeRowOptionAsync (fun read -> read.string "item_type")
 
       let incoming = kind.toString ()

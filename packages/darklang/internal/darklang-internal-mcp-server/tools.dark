@@ -8,11 +8,14 @@ let executeDarklang () : ModelContextProtocol.ServerBuilder.Tool =
     description = "Execute Darklang code and return the result"
     handler =
       fun code ->
-        match Cli.Eval.evaluateRaw (Stdlib.Option.Option.None) SCM.Branch.mainBranchId code [] false with
+        // Upstream's wrapper, this branch's constant: `SCM.Ids.mainBranchId` moved to `SCM.Ids`.
+        match
+          Cli.Eval.evaluateRaw (Stdlib.Option.Option.None) SCM.Ids.mainBranchId code [] false
+        with
         | Ok (Some result) -> $"Result: {result}"
         | Ok None -> "Result: ()"
         | Error err ->
-            $"Error: {Cli.ExecutionError.toString SCM.Branch.mainBranchId err}"
+            $"Error: {Cli.ExecutionError.toString SCM.Ids.mainBranchId err}"
   }
 
 
@@ -31,7 +34,7 @@ let searchFunctions () : ModelContextProtocol.ServerBuilder.Tool =
               entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Fn ]
               exactMatch = false }
         let results =
-          LanguageTools.PackageManager.Search.search SCM.Branch.mainBranchId searchQuery
+          LanguageTools.PackageManager.Search.search SCM.Ids.mainBranchId searchQuery
         let resultCount = (Stdlib.List.length results.fns) |> Stdlib.Int.toString
         let formattedResults =
           results.fns
@@ -56,7 +59,7 @@ let typecheck () : ModelContextProtocol.ServerBuilder.Tool =
     name = "typecheck"
     description = "Check Darklang code for syntax errors without executing it"
     handler = fun code ->
-      match LanguageTools.Parser.Parse.diagnostics code with
+      match Builtin.parserParseDiagnostics code with
       | [] -> "Parse check passed: no syntax errors found"
       | diagnostics ->
           let errorList =
@@ -82,7 +85,7 @@ let listPackages () : ModelContextProtocol.ServerBuilder.Tool =
             entityTypes = []
             exactMatch = false }
       let results =
-        LanguageTools.PackageManager.Search.search SCM.Branch.mainBranchId query
+        LanguageTools.PackageManager.Search.search SCM.Ids.mainBranchId query
       let packageCount = (Stdlib.List.length results.submodules) |> Stdlib.Int.toString
       let formattedPackages =
         results.submodules

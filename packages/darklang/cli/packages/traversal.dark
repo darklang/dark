@@ -117,7 +117,12 @@ let resolveEntity
       | [] ->
         match entityResults.values with
         | item :: _ -> Stdlib.Result.Result.Ok (PackageLocation.Value item.location)
-        | [] -> Stdlib.Result.Result.Error "Not found"
+        | [] ->
+          // Name what wasn't found. A bare "Not found" is the same sentence for a typo, a name you haven't
+          // authored yet, and a path resolved from somewhere you didn't expect to be standing -- and the
+          // only one of those you can act on is the one it doesn't tell you.
+          let path = Stdlib.String.join (Stdlib.List.append basePath [ name ]) "."
+          Stdlib.Result.Result.Error $"Not found: {path}"
 
 
 let applyPath

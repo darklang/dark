@@ -172,6 +172,18 @@ let uniqueBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
 let unique (list: List<'a>) : List<'a> = Builtin.listUnique list
 
 
+/// Returns the passed list with duplicates removed, KEEPING THE ORDER: the first occurrence of each value
+/// stays where it was.
+///
+/// <fn unique> sorts and <fn uniqueBy> does not maintain order, so neither can be used where the order
+/// carries meaning. A sequence in hash order looks exactly like one in authoring order, so getting that
+/// wrong surfaces much later as a caller reading the wrong element.
+let dedup (list: List<'a>) : List<'a> =
+  list
+  |> fold [] (fun acc value ->
+    if member acc value then acc else pushBack acc value)
+
+
 /// Returns true if <param list> has no values
 let isEmpty (list: List<'a>) : Bool = Builtin.listIsEmpty list
 

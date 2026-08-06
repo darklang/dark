@@ -3,6 +3,6 @@
   "steady": {
     "debug": 7200232,
     "published": 6848648,
-    "note": "scripts/perf/workloads/steady.dark, trace detail off. Lower these whenever a change earns it."
+    "note": "steady.dark, trace detail off. Main's numbers, kept through the 2026-08-28 rebase; RE-MEASURE for this branch. Method and history: docs/perf/history.md."
   }
 }

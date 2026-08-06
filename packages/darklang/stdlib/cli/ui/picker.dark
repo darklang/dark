@@ -1,6 +1,6 @@
 /// A list you move through and choose from: documents, export formats, branches, views.
 ///
-/// A `UI.Widget` over *display lines*, not over items. The parent keeps its own list and gets back an
+/// A `Stdlib.Cli.UI.Widget` over *display lines*, not over items. The parent keeps its own list and gets back an
 /// index, which is what lets this be one widget rather than one per element type. (The outliner's private
 /// picker was generic over the item and carried a parallel list of labels, because the labelling function
 /// couldn't be stored in retained state. Holding the strings only is simpler and has the same effect.)
@@ -95,7 +95,7 @@ let onKey (state: State) (kp: Widget.KeyPress) : Widget.Outcome<State, Msg> =
 let rowFor (label: String) (isSelected: Bool) : String =
   let line = (if isSelected then "> " else "  ") ++ label
 
-  if isSelected then Colors.colorize Colors.selection line else line
+  if isSelected then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.selection line else line
 
 let view (state: State) (region: Layout.Region) : List<Layout.Span> =
   let windowed = scrolled state region.rows
@@ -117,7 +117,7 @@ let view (state: State) (region: Layout.Region) : List<Layout.Span> =
           (state.selected * (region.rows - 1))
           (Stdlib.Int.max 1 ((count state) - 1))
 
-      Layout.at region position (region.cols - 1) (Colors.colorize Colors.cyan "|")
+      Layout.at region position (region.cols - 1) (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "|")
     else
       []
 

@@ -89,19 +89,17 @@ let thingDetail (state: State) : String =
 
 /// Recorded sync divergences for Changes › Conflicts.
 let loadConflictBodyItems () : List<BodyItem> =
-  Darklang.Sync.Conflicts.list ()
+  SCM.Conflicts.pending ()
   |> Stdlib.List.map (fun c ->
-    BodyItem { name = c.location; kind = "conflict"; isModule = false; desc = c.status })
+    let location = SCM.Conflicts.fqn c.owner c.modules c.name
+    BodyItem { name = location; kind = "conflict"; isModule = false; desc = c.status })
 
 /// Branches on this instance (for the SCM · Branches section). Current branch marked ●, merged ones noted.
 let loadBranchItems (currentBranchId: Uuid) : List<BodyItem> =
   Darklang.SCM.Branch.list ()
   |> Stdlib.List.map (fun b ->
     let marker = if b.id == currentBranchId then "● " else "○ "
-    let tag =
-      match b.mergedAt with
-      | Some _ -> "   (merged)"
-      | None -> ""
+    let tag = if b.merged then "   (merged)" else ""
     BodyItem { name = marker ++ b.name ++ tag; kind = "branch"; isModule = false; desc = "" })
 
 /// The branch the cursor is on, resolved by name rather than by position.
@@ -136,13 +134,16 @@ let branchForAction (state: State) : Stdlib.Option.Option<Darklang.SCM.Branch.Br
   if onBranchRow then selectedBranch state else Darklang.SCM.Branch.get state.branchId
 
 /// The conflict the cursor is on, by location. Same filtered-cursor reasoning as `selectedBranch`.
-let selectedConflict (state: State) : Stdlib.Option.Option<Darklang.Sync.Conflicts.Conflict> =
+let selectedConflict (state: State) : Stdlib.Option.Option<SCM.Conflicts.Conflict> =
   match Stdlib.List.getAt state.items state.selected with
   | None -> Stdlib.Option.Option.None
   | Some item ->
     let location =
       Stdlib.String.split item.name "  ·  " |> Stdlib.List.head |> Stdlib.Option.withDefault item.name
-    Darklang.Sync.Conflicts.list () |> Stdlib.List.findFirst (fun c -> c.location == location)
+
+    SCM.Conflicts.pending ()
+    |> Stdlib.List.findFirst (fun c ->
+      (SCM.Conflicts.fqn c.owner c.modules c.name) == location)
 
 /// The selected branch's detail (SCM · Branches preview).
 let branchDetail (state: State) : String =
@@ -156,9 +157,9 @@ let branchDetail (state: State) : String =
         | None -> "?"
       | None -> "(root)"
     let status =
-      match b.mergedAt with
-      | Some _ -> "merged"
-      | None -> if b.id == state.branchId then "active (current)" else "active"
+      if b.merged then "merged"
+      else if b.id == state.branchId then "active (current)"
+      else "active"
     (Stdlib.Cli.UI.Colors.boldText b.name)
     ++ "\n\n"
     ++ "parent:  " ++ parent ++ "\n"
@@ -177,9 +178,14 @@ let loadDocBodyItems () : List<BodyItem> =
 /// conflicts (genuine) first, then a mock set of the other error kinds until those signals are wired.
 let loadErrorItems () : List<BodyItem> =
   let conflicts =
-    Darklang.Sync.Conflicts.list ()
+    SCM.Conflicts.pending ()
     |> Stdlib.List.map (fun c ->
-      BodyItem { name = "⚠ conflict    " ++ c.location ++ "  ·  " ++ c.status; kind = "error"; isModule = false; desc = "" })
+      let location = SCM.Conflicts.fqn c.owner c.modules c.name
+      BodyItem
+        { name = "⚠ conflict    " ++ location ++ "  ·  " ++ c.status
+          kind = "error"
+          isModule = false
+          desc = "" })
   // Invented rows showing the shape of the thing. Tagged apart from the real conflicts above so the
   // detail pane can say which one you are looking at.
   let mock =
@@ -274,12 +280,14 @@ let itemsForView
   : List<BodyItem> =
   if view == vHome then loadHomeItems branchId
   else if view == vMatter then
-    if matterLens == Lens.ValuesOnly then loadThingItems branchId else loadItems branchId location
+    if matterLens == Lens.ValuesOnly then loadThingItems branchId
+    else if matterLens == Lens.Changed then loadChangedItems branchId
+    else loadItems branchId location
   else if view == vSCM then
-    if scmSection == ScmSection.History then loadCommitBodyItems branchId
+    if scmSection == ScmSection.History then loadCommitBodyItems ()
     else if scmSection == ScmSection.Conflicts then loadConflictBodyItems ()
     else if scmSection == ScmSection.Branches then loadBranchItems branchId
-    else loadWipBodyItems branchId
+    else loadChangedItems branchId
   else if view == vAI then
     if aiSection == AiSection.Prompts then loadPromptItems () else loadAiThreadItems ()
   else if view == vApps then loadAppItems branchId

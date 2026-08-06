@@ -70,7 +70,151 @@ items, `--failed` or `--incomplete` lists only that verdict.
 Effectful code may need `caps grant-for-fn <fn>` or `caps grant-all`. Pass a
 non-main branch on every call: `dark --branch feature ...`.
 
+## Changing something that already exists
+
+Do NOT retype a definition to change one line of it. Read it, transform it, write it back:
+
+    dark view Some.fn --raw > /tmp/f.dark     # the declaration alone, no trailer, no colour
+    ...edit /tmp/f.dark...
+    dark edit Some.fn /tmp/f.dark             # applies it, no editor, no terminal needed
+
+`--raw` prints exactly what `edit` and `module` accept, so this is a pipe rather than a screen-scrape.
+`dark view` without it is for a person to read and has a capabilities line you would have to strip.
+
+`dark edit <name>` with no file opens $EDITOR instead, which is the human shape. Use the file form.
+
+## SCM (version control)
+
+Your edits are LIVE the moment you author them. `commit` doesn't make them
+real -- it reviews them and records them. Before that they're your draft: running,
+changeable, not yet anyone else's.
+
+Editing an item repoints everything that uses it, immediately. That's
+PROPAGATION, and it's the one behaviour to know about, because it means a
+`status` after one edit can show two changed items.
+
 ## Targeted help
+
+  status [--json]      what changed, what FOLLOWED, what's waiting
+  commit <msg> [-y]    review + commit; -y skips the prompt
+  commit --json        a dry review -- exactly what committing would do
+  discard [-y]         drop the whole draft
+  undo <name>          step ONE item back one version
+  deps <name> --json   what it uses and what uses it, each flagged `behind`
+  propagate pin <name> stop something following, and undo the repoint it got
+  ack --all            leave every constraint finding for now
+
+Every question-answering command takes `--json`, and it's the same data the
+human view renders. `status --json` flags each changed item `followed` or not,
+which is how you tell what you did from what propagation did.
+  (see: docs scm -- the full model, branches, merge, conflicts, sync)
+
+## Deprecation (mark items as unused / dangerous / obsolete)
+  deprecate <fn|type|value> <name> --kind <k> [options]
+    kinds: superseded-by (requires --replacement), harmful, obsolete
+  delete <fn|type|value> <name> [options]     # sugar for --kind obsolete
+    options: --ignore-dependents; --force = --ignore-dependents + --yes
+  undo <fn|type|value> <name>                 # reverse a WIP deprecate
+  eval --allow-harmful <fn>                   # opt out of harmful halt
+  (see: docs deprecation)
+
+## Branches
+
+A branch is an overlay on the same op log, invisible to main until it merges.
+Several agents on several branches is the case this is built for: one process
+each, and they never see each other's work until someone merges.
+
+  dark switch feature              # persists; the next `dark` starts here
+  dark --branch feature <cmd>      # ONE command, without switching
+  dark branches [--json]           # what exists
+  dark diff feature                # what it changes vs its parent
+  dark rebase feature              # take the parent's current state
+  dark merge feature               # fold it in
+
+Conflicts never block. Both sides converge on the same winner, the loser is
+kept, and `dark conflicts` is where you review it after.
+  (see: docs scm)
+
+## Sync
+
+One relay, remembered, and explicit verbs. Nothing runs in the background.
+
+  dark sync setup                  # name this instance, point it at a relay, push once
+  dark sync                        # push then pull
+  dark push / dark pull            # one direction only
+  dark commits                     # THIS branch's commits, newest first
+  dark review pull [queue]         # stage a peer's ops instead of applying them
+
+Ops are content-addressed, so pushing the same work twice changes nothing.
+Pulled code is ordinary package code: it does not run until you run it, and
+the unguarded HTTP transport it could reach is limited to the relay you
+configured, not whatever it asks for.
+  (see: docs scm)
+
+## Name Resolution
+Names resolve relative to the current module, searching from
+most-specific to least-specific.
+
+In `module Darklang.Stdlib.List`, writing `Option.Option` tries:
+  1. Darklang.Stdlib.List.Option.Option
+  2. Darklang.Stdlib.Option.Option   <-- found here
+  3. Darklang.Option.Option
+  4. Option.Option
+
+Rules:
+  - Same module: no qualifier needed
+    (in Darklang.Stdlib.List, `map` finds Darklang.Stdlib.List.map)
+  - Parent/sibling modules: use relative name
+    (in Darklang.Stdlib.List, `Option.Option` finds
+     Darklang.Stdlib.Option.Option)
+  - `Stdlib.X` shortcut: always expands to `Darklang.Stdlib.X`
+    (works from any module, even outside Darklang)
+  - `Builtin.X`: resolves to F# builtins (fns/values only, not types)
+  - Cross-owner: must use full path
+    (from Tests.*, write `Darklang.SCM.PackageOps.currentBranch`)
+
+## Critical Syntax
+- Whitespace-sensitive (like Python)
+- Nested function definitions need PARENTHESIZED params: `let helper (x) = ...`,
+  annotations optional. The parser desugars this to a local lambda, so use it for
+  task-local helpers. A nested fn can call one defined above it; a FORWARD reference
+  to one defined below fails.
+- NO binding modules to variables (`let c = Darklang.Cli.Colors` is invalid --
+  modules are not first-class values. Use the full path each time.)
+- Pipe |> feeds the left value as the FIRST argument of the right fn; any
+  args written after the fn come after it: `[1; 2] |> Stdlib.List.map toString`,
+  `n |> Stdlib.Int.add 1`. Wrap a complex left side in parens: (complex expr) |> fn
+- Lists: [1; 2; 3] (semicolons)
+- Char literals use single quotes: 'a', '\n', '\t', 'A' (a String uses
+  double quotes; "a" is not 'a')
+- Tuples destructure inline in `let` and in lambda params:
+  `let (a, b) = pair`, `fun (name, done) -> ...`
+- String concat: ++ (not @)
+- String interpolation: $"x = {expr}; total = {a ++ b}" -- does NOT auto-coerce
+  non-strings; wrap with Stdlib.Int.toString / Stdlib.Float.toString
+- Numeric operators (+ - * / % ^ < > <= >= and unary -) are polymorphic over
+  numeric types; operands must match (`1 + 2`, `1.0 + 2.0`). `/` is integer
+  division on ints; float division on floats. A bare `1` is an arbitrary-
+  precision `Int` and never overflows.
+
+## Records
+  MyRecord { a = 1; b = 2 }
+  # { must not be left of type name
+
+## Enums
+  Option.Some 5      # construct: TypeName.Case
+  | Some x -> ...     # match: just Case (bare form OK at top level of an arm)
+  # NESTED in a tuple or another constructor, parenthesize with NO space:
+  | (Ok(x), Ok(y)) -> ...    # tuple of constructors  (bare `Ok x` fails here)
+  | Some(Ok(v)) -> ...       # constructor of a constructor
+  | Some((a, b)) -> ...      # constructor wrapping a tuple
+
+## Troubleshooting
+If commands hang or fail silently, check logs:
+  rundir/logs/cli.log    # main CLI log
+  rundir/logs/           # other logs
+
+## More: docs syntax|types|operators|stdlib|errors|cli|scm
 
   docs syntax | types | operators | errors | packages
   docs stdlib | cli | scm | deprecation

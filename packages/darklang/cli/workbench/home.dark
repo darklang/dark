@@ -19,33 +19,53 @@ let isHomeHeader (item: BodyItem) : Bool = item.kind == "home-sec"
 let homeHeader (label: String) : BodyItem =
   BodyItem { name = label; kind = "home-sec"; isModule = false; desc = "" }
 
+/// The same, for a stamp stored as text. A commit's `origin_ts` is a portable authoring stamp rather than
+/// a clock reading, so it arrives as a string; showing it raw put an ISO timestamp in the middle of a
+/// sentence on the landing screen.
+let agoText (ts: String) : String =
+  match Stdlib.DateTime.parse ts with
+  | Ok d -> ago d
+  | Error _ -> ts
+
+
 /// The rows of Home, in order: needs you · uncommitted · recent commits ·
 /// branches. Each section is a dim header row then its items; a section with
 /// nothing in it isn't there at all.
 let loadHomeItems (branchId: Uuid) : List<BodyItem> =
   let conflicts =
-    Darklang.Sync.Conflicts.list ()
+    SCM.Conflicts.pending ()
     |> Stdlib.List.map (fun c ->
-      BodyItem { name = c.location; kind = "home-conflict"; isModule = false; desc = c.status })
+      // A conflict is filed against owner/modules/name here rather than one `location` string, so the
+      // display name is assembled the same way every other surface assembles it.
+      BodyItem
+        { name = SCM.Conflicts.fqn c.owner c.modules c.name
+          kind = "home-conflict"
+          isModule = false
+          desc = c.status })
   let wip =
-    SCM.PackageOps.getWipItems branchId
-    |> Stdlib.List.map (fun d ->
-      let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
-      let kind = Stdlib.Dict.get d "kind" |> Stdlib.Option.withDefault ""
-      BodyItem { name = name; kind = "home-wip"; isModule = false; desc = Stdlib.String.toLowercase kind })
+    (SCM.Draft.read ()).bindings
+    |> Stdlib.List.map (fun b ->
+      BodyItem
+        { name = SCM.Conflicts.fqn b.owner b.modules b.name
+          kind = "home-wip"
+          isModule = false
+          desc = Stdlib.String.toLowercase b.itemType })
   let commits =
-    SCM.PackageOps.getCommitsWithAncestors branchId 5
+    SCM.PackageOps.commitsOnBranch branchId 5L
     |> Stdlib.List.map (fun c ->
-      let ops = Stdlib.Int.toString c.opCount
+      let ops = Stdlib.Int64.toString (SCM.PackageOps.opCountIn c.hash)
       BodyItem
         { name = c.message
           kind = "home-commit"
           isModule = false
-          desc = c.committerName ++ " · " ++ (ago c.createdAt) ++ " · " ++ ops ++ " ops" })
+          // No author in the row. On one machine it is the same value on every line, and it is an instance
+          // id rather than a name unless you set one, which eats the width the time and size need. The
+          // detail pane says who.
+          desc = (agoText c.originTs) ++ " · " ++ ops ++ " ops" })
   let allBranches = SCM.Branch.list ()
   let open_ =
     allBranches
-    |> Stdlib.List.filter (fun b -> b.mergedAt == Stdlib.Option.Option.None)
+    |> Stdlib.List.filter (fun b -> Stdlib.Bool.not b.merged)
     |> Stdlib.List.map (fun b ->
       let marker = if b.id == branchId then "● " else "○ "
       let desc =
@@ -56,18 +76,20 @@ let loadHomeItems (branchId: Uuid) : List<BodyItem> =
             match b.parentBranchId with
             | Some pid -> (match SCM.Branch.get pid with | Some p -> "from " ++ p.name | None -> "")
             | None -> ""
-          let ownCommits = SCM.PackageOps.getCommits b.id 50
+          let ownCommits = SCM.PackageOps.commitsOnBranch b.id 50L
           let own = Stdlib.List.length ownCommits
           let ahead = if own == 0 then "no commits yet" else (Stdlib.Int.toString own) ++ " ahead"
-          let behind = if (b.parentBranchId != Stdlib.Option.Option.None) && (SCM.Rebase.needed b.id) then " · behind" else ""
+          // No "behind" marker: answering it means diffing the branch against its parent, and Home draws
+          // on every keypress. `dark rebase --dry-run` answers it properly when you ask.
+          let behind = ""
           let last =
             match Stdlib.List.head ownCommits with
-            | Some c -> " · last " ++ (ago c.createdAt)
+            | Some c -> " · last " ++ (agoText c.originTs)
             | None -> ""
           (if parent == "" then "" else parent ++ " · ") ++ ahead ++ behind ++ last
       BodyItem { name = marker ++ b.name; kind = "home-branch"; isModule = false; desc = desc })
   let mergedCount =
-    allBranches |> Stdlib.List.filter (fun b -> b.mergedAt != Stdlib.Option.Option.None) |> Stdlib.List.length
+    allBranches |> Stdlib.List.filter (fun b -> b.merged) |> Stdlib.List.length
   let merged =
     if mergedCount == 0 then []
     else [ BodyItem { name = "+ " ++ (plural mergedCount "merged branch"); kind = "home-merged"; isModule = false; desc = "" } ]
@@ -77,11 +99,29 @@ let loadHomeItems (branchId: Uuid) : List<BodyItem> =
   let section (label: String) (rows: List<BodyItem>) : List<BodyItem> =
     if Stdlib.List.isEmpty rows then [] else Stdlib.List.append [ homeHeader ""; homeHeader label ] rows
   let openCount = Stdlib.Int.toString (Stdlib.List.length open_)
+  let branchCap = 8
+  let hiddenBranches = (Stdlib.List.length open_) - branchCap
+
+  let moreRow =
+    if hiddenBranches <= 0 then
+      []
+    else
+      [ BodyItem
+          { name = "+ " ++ (Stdlib.Int.toString hiddenBranches) ++ " more"
+            kind = "home-more"
+            isModule = false
+            desc = "`dark branches` lists them all" } ]
+
+  let shownBranches =
+    Stdlib.List.flatten [ Stdlib.List.take open_ branchCap; moreRow; merged ]
   Stdlib.List.flatten
     [ section ("needs you · " ++ (Stdlib.Int.toString (Stdlib.List.length conflicts))) conflicts
       section ("uncommitted · " ++ (Stdlib.Int.toString (Stdlib.List.length wip))) wip
       section "recent commits" commits
-      section ("branches · " ++ openCount ++ " open") (Stdlib.List.append open_ merged) ]
+      // Capped, and the count still tells the truth. Home is a summary: a machine that has been running
+      // agents for a week has hundreds of open branches, and listing them all buries the three sections
+      // above that actually need you. The rest are one row, and `dark branches` is the full list.
+      section ("branches · " ++ openCount ++ " open") shownBranches ]
   |> Stdlib.List.drop 1
 
 /// The selected row's position among the rows of its own kind - the index the
@@ -160,20 +200,22 @@ let field (label: String) (value: String) : String =
   (Stdlib.Cli.UI.Colors.dimText (Stdlib.Cli.Tui.Text.fitToWidth label 9)) ++ value
 
 /// Summarize a commit's named changes and deprecations up to `cap` lines.
-let commitChangeLines (c: SCM.PackageOps.Commit) (cap: Int) : List<String> =
+let commitChangeLines (c: SCM.Commits.Commit) (cap: Int) : List<String> =
+  // Capped: the init commit holds tens of thousands of ops, and rendering a twelve-line
+  // summary through the uncapped path took over a second. `namedCount` below is the total.
   let (ops, namedCount) =
     SCM.PackageOps.getCommitNamedOps (LanguageTools.ProgramTypes.hashToString c.hash) cap
   let named =
     ops
     |> Stdlib.List.filterMap (fun op ->
       match op with
-      | SetName(loc, target) ->
+      | SetName(loc, target, _previous) ->
         let kind =
           match target with
           | PackageFn _ -> "fn"
           | PackageType _ -> "type"
           | PackageValue _ -> "value"
-        Stdlib.Option.Option.Some ((Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "+ ") ++ (SCM.PackageOps.locationToFqn loc) ++ (Stdlib.Cli.UI.Colors.dimText ("  " ++ kind)))
+        Stdlib.Option.Option.Some ((Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "+ ") ++ (SCM.Constraints.fqnOf loc) ++ (Stdlib.Cli.UI.Colors.dimText ("  " ++ kind)))
       | Deprecate(_target, _kind, message) ->
         Stdlib.Option.Option.Some ((Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow "⚠ ") ++ (Stdlib.Cli.UI.Colors.dimText ("deprecated: " ++ message)))
       | _ -> Stdlib.Option.Option.None)
@@ -184,11 +226,11 @@ let commitChangeLines (c: SCM.PackageOps.Commit) (cap: Int) : List<String> =
 
 /// The commit under Home's cursor, if the cursor is on one. The commit list
 /// itself is cheap to read.
-let homeSelectedCommit (state: State) : Stdlib.Option.Option<SCM.PackageOps.Commit> =
+let homeSelectedCommit (state: State) : Stdlib.Option.Option<SCM.Commits.Commit> =
   match Stdlib.List.getAt state.items state.selected with
   | Some item ->
     if item.kind == "home-commit" then
-      Stdlib.List.getAt (SCM.PackageOps.getCommitsWithAncestors state.branchId 5) (homeKindIndex state)
+      Stdlib.List.getAt (SCM.PackageOps.commitsOnBranch state.branchId 5L) (homeKindIndex state)
     else Stdlib.Option.Option.None
   | None -> Stdlib.Option.Option.None
 
@@ -201,7 +243,9 @@ let refreshCommitDetail (next: State) : State =
     match homeSelectedCommit next with
     | None -> next
     | Some c ->
-      let hash = LanguageTools.ProgramTypes.hashToString c.hash
+      // A commit hash is already text here (`Commits.Commit.hash` is a String), so there is nothing to
+      // convert; converting it is a runtime type error that only fires once a commit exists to select.
+      let hash = c.hash
       let (cachedHash, _lines) = next.commitDetail
       if cachedHash == hash then next
       else { next with commitDetail = (hash, commitChangeLines c 12) }
@@ -212,7 +256,7 @@ let homeCommitDetail (state: State) : List<String> =
   match homeSelectedCommit state with
   | None -> [ Stdlib.Cli.UI.Colors.dimText "(no commit selected)" ]
   | Some c ->
-    let hash = LanguageTools.ProgramTypes.hashToString c.hash
+    let hash = c.hash
     let (cachedHash, cachedLines) = state.commitDetail
     // The cache is filled on the transition; the fallback only runs if
     // something rendered before `refresh`.
@@ -220,10 +264,11 @@ let homeCommitDetail (state: State) : List<String> =
     Stdlib.List.flatten
       [ [ Stdlib.Cli.UI.Colors.boldText c.message
           ""
-          field "by" (c.committerName ++ (Stdlib.Cli.UI.Colors.dimText ("  ·  " ++ (ago c.createdAt) ++ "  ·  " ++ (Stdlib.DateTime.toString c.createdAt))))
-          field "on" c.branchName
-          field "hash" (LanguageTools.ProgramTypes.hashToShort c.hash)
-          field "changed" (plural c.opCount "op")
+          field "by" (c.author ++ (Stdlib.Cli.UI.Colors.dimText ("  ·  " ++ (agoText c.originTs) ++ "  ·  " ++ c.originTs)))
+          // A commit is not ON a branch here -- its ops are -- so what it FOLLOWS is the honest coordinate.
+          field "follows" (if c.parent == "" then "(first commit)" else Stdlib.String.slice c.parent 0 16)
+          field "hash" (Stdlib.String.slice c.hash 0 16)
+          field "changed" (plural (Stdlib.Int.fromInt64 (SCM.PackageOps.opCountIn c.hash)) "op")
           "" ]
         changed ]
 
@@ -239,20 +284,22 @@ let homeBranchDetail (state: State) : List<String> =
       | Some pid -> (match SCM.Branch.get pid with | Some p -> p.name | None -> "?")
       | None -> "(root)"
     let isCurrent = b.id == state.branchId
-    let own = SCM.PackageOps.getCommits b.id 5
-    let ownCount = Stdlib.List.length (SCM.PackageOps.getCommits b.id 200)
-    let behind = (b.parentBranchId != Stdlib.Option.Option.None) && (SCM.Rebase.needed b.id)
+    let own = SCM.PackageOps.commitsOnBranch b.id 5L
+    let ownCount = Stdlib.List.length (SCM.PackageOps.commitsOnBranch b.id 200L)
+    // Same reason as above: "is this branch behind its parent" is a diff, and this pane redraws on every
+    // keypress. `dark rebase --dry-run` is where that question gets answered honestly.
+    let behind = false
     let standing =
-      match b.mergedAt with
-      | Some at -> "merged " ++ (ago at)
-      | None ->
+      if b.merged then
+        "merged"
+      else
         (if ownCount == 0 then "no commits of its own"
          else if b.parentBranchId == Stdlib.Option.Option.None then plural ownCount "commit"
          else (plural ownCount "commit") ++ " ahead of " ++ parent)
         ++ (if behind then (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.orange "  ·  behind " ++ parent ++ " - a rebase would move it") else "")
     let wipHere =
       if isCurrent then wipItemCount state.branchId
-      else Stdlib.List.length (SCM.PackageOps.getWipItems b.id)
+      else Stdlib.List.length (SCM.PackageOps.draftBindingsFor b.id)
     let commitLines =
       if Stdlib.List.isEmpty own then []
       else
@@ -360,8 +407,17 @@ let renderHome (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
     | None -> "main"
   let wip = state.items |> Stdlib.List.filter (fun it -> it.kind == "home-wip") |> Stdlib.List.length
   let conflicts = state.items |> Stdlib.List.filter (fun it -> it.kind == "home-conflict") |> Stdlib.List.length
-  let commits = SCM.PackageOps.getCommitCount state.branchId
-  let sync = if conflicts == 0 then "✓ synced" else "⚠ " ++ (Stdlib.Int.toString conflicts) ++ " to resolve"
+  // The cached status, not a fresh count: this draws per keypress, and Home saying a different number
+  // from the Changes view is exactly the disagreement `state.scmStatus` exists to prevent.
+  let commits = state.scmStatus.commits
+  // Not "synced": this counts conflicts and says nothing about sync, which is the same wording the
+  // context row stopped using for the same reason. The two rows are read together, so they say the
+  // same thing in the same words.
+  let sync =
+    if conflicts == 0 then
+      "✓ nothing waiting"
+    else
+      "⚠ " ++ (Stdlib.Int.toString conflicts) ++ " need you"
   let tree = if wip == 0 then "✓ clean" else "● " ++ (Stdlib.Int.toString wip) ++ " uncommitted"
   let title = branch ++ "  ·  " ++ sync ++ " · " ++ tree ++ " · " ++ (plural commits "commit")
   Stdlib.Cli.UI.SplitPane.render

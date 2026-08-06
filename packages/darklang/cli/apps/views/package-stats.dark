@@ -107,7 +107,7 @@ let rowsAtSize
       ++ Darklang.Stdlib.Cli.UI.Colors.boldText "Package Statistics"
       ++ "  "
       ++ Darklang.Stdlib.Cli.UI.Colors.dimText
-          ("—  "
+          ("--  "
            ++ Stdlib.Int.toString (Stdlib.List.length stats)
            ++ " top-level modules")
       ""

@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# No gate may disturb the shared dev store.
+#
+# The gates here all build their own store and point the CLI at it. One of them did not, and the way that
+# went wrong is why this exists: the container sets `DARK_CONFIG_RUNDIR` for every process, and it BEATS
+# the `<home>/.darklang` path a published binary computes for itself. `test-first-day` set only `HOME`,
+# so it ran its whole "first day" against `rundir/data.db` -- passing, while asserting a fresh-store
+# workflow against a store with 17k ops in it -- and wrote its fixtures back into the shared store.
+#
+# Three OTHER gates then went red: the render golden (an owner appeared on `/owners`), the workbench SCM
+# gate (it copies the dev store, and the stray conflict shifted what the view listed), and first-day
+# itself on its next run. One cause, three symptoms, and two of them looked like unrelated flakes.
+#
+# So: fingerprint the store, run each gate, and require the fingerprint to be identical afterwards.
+#
+# This is a META-gate and it is SLOW -- it runs every other gate end to end. Run it when you add or change
+# one, not on every loop.
+
+set -uo pipefail
+
+FINGERPRINT="
+  SELECT 'ops='       || (SELECT COUNT(*) FROM package_ops)
+      || ' locs='     || (SELECT COUNT(*) FROM locations WHERE unlisted_at IS NULL)
+      || ' owners='   || (SELECT COUNT(DISTINCT owner) FROM locations WHERE unlisted_at IS NULL)
+      || ' branches=' || (SELECT COUNT(*) FROM branches)
+      || ' conflicts='|| (SELECT COUNT(*) FROM conflicts)
+      || ' commits='  || (SELECT COUNT(*) FROM commits)
+      || ' config='   || (SELECT COUNT(*) FROM config_v0);
+"
+
+# The capability GRANT is part of "the shared state a gate must not disturb", and it is not in the store:
+# it lives at `$HOME/.darklang/capabilities.bin`, keyed on HOME rather than on DARK_CONFIG_RUNDIR. Every
+# gate sets the rundir and none of them set HOME, so a gate that runs `dark caps ...` writes the real one.
+# Its ABSENCE is what makes the host permissive, so creating it narrows every later process: doing that by
+# hand turned ten suite tests red with "capability denied: `sqliteQuery` needs file (read)".
+grant_state() {
+  local f="$HOME/.darklang/capabilities.bin"
+  if [[ -f "$f" ]]; then echo "grant=$(md5sum "$f" | cut -d' ' -f1)"; else echo "grant=absent"; fi
+}
+
+fingerprint() { echo "$(sqlite3 rundir/data.db "$FINGERPRINT" 2>/dev/null) $(grant_state)"; }
+
+GATES=(
+  test-setup
+  test-lsp-branches
+  test-workbench-scm
+  test-workbench-views
+  test-relay-routes
+  test-sync-hostile-relay
+  test-sync-multi-instance
+  test-first-day
+)
+
+for g in "${GATES[@]}"; do
+  [[ -x "./scripts/testing/$g" ]] || {
+    echo "test-gates-are-clean: no such gate ./scripts/testing/$g" >&2; exit 2; }
+done
+
+before=$(fingerprint)
+[[ -n "$before" ]] || { echo "test-gates-are-clean: could not read rundir/data.db" >&2; exit 2; }
+echo "  store before: $before"
+
+failures=0
+for g in "${GATES[@]}"; do
+  "./scripts/testing/$g" > /dev/null 2>&1
+  rc=$?
+  after=$(fingerprint)
+
+  if [[ "$before" != "$after" ]]; then
+    echo "  DIRTY  $g changed the shared dev store"
+    echo "         before: $before"
+    echo "         after:  $after"
+    failures=$((failures + 1))
+    before="$after"   # so the next gate is judged against reality, not the original
+  else
+    # A gate that FAILS is a separate problem and not this test's business, but say so rather than
+    # letting a red gate look clean.
+    if [[ "$rc" -ne 0 ]]; then
+      echo "  clean  $g (but it FAILED, exit $rc -- run it directly)"
+    else
+      echo "  clean  $g"
+    fi
+  fi
+done
+
+if [[ "$failures" -gt 0 ]]; then
+  echo "$failures gate(s) wrote to shared state. A gate needs its own DARK_CONFIG_RUNDIR, and its own HOME"
+  echo "too if it touches \`dark caps\` -- the capability grant is keyed on HOME."
+  exit 1
+fi
+echo "every gate left the shared dev store exactly as it found it."

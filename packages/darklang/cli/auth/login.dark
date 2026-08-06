@@ -56,7 +56,7 @@ let help (_state: AppState) : String =
     "  login              List available accounts"
     "  login <name>       Log in as that account"
     ""
-    "Logging in unblocks `commit` and other authoring actions — it records"
+    "Logging in unblocks `commit` and other authoring actions -- it records"
     "who authors each change (serving needs no login). `logout` clears it." ]
   |> Stdlib.String.join "\n"
 

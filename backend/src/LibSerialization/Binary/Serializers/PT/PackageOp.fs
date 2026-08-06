@@ -52,6 +52,58 @@ module DeprecationKind =
     | b -> raiseFormatError $"Invalid DeprecationKind tag: {b}"
 
 
+// -- BranchEventKind --
+
+module BranchEventKind =
+  let write (w : BinaryWriter) (k : BranchEventKind) : unit =
+    match k with
+    | Merged -> w.Write(0uy)
+    | Archived -> w.Write(1uy)
+
+  let read (r : BinaryReader) : BranchEventKind =
+    match r.ReadByte() with
+    | 0uy -> Merged
+    | 1uy -> Archived
+    | b -> raiseFormatError $"Invalid BranchEventKind tag: {b}"
+
+
+// -- DecisionKind --
+
+module PropagationPolicy =
+  let write (w : BinaryWriter) (p : PropagationPolicy) : unit =
+    match p with
+    | Pin -> w.Write(0uy)
+    | Follow -> w.Write(1uy)
+    | Unset -> w.Write(2uy)
+
+  let read (r : BinaryReader) : PropagationPolicy =
+    match r.ReadByte() with
+    | 0uy -> Pin
+    | 1uy -> Follow
+    | 2uy -> Unset
+    | b -> raiseFormatError $"Invalid PropagationPolicy tag: {b}"
+
+module DecisionKind =
+  let write (w : BinaryWriter) (k : DecisionKind) : unit =
+    match k with
+    | Override target ->
+      w.Write(0uy)
+      Reference.write w target
+    | Ack findingId ->
+      w.Write(1uy)
+      String.write w findingId
+    | Propagation policy ->
+      w.Write(2uy)
+      PropagationPolicy.write w policy
+
+  let read (r : BinaryReader) : DecisionKind =
+    match r.ReadByte() with
+    | 0uy -> Override(Reference.read r)
+    | 1uy -> Ack(String.read r)
+    | 2uy -> Propagation(PropagationPolicy.read r)
+    | b -> raiseFormatError $"Invalid DecisionKind tag: {b}"
+
+
 // -- PropagateRepoint --
 
 module PropagateRepoint =
@@ -79,10 +131,17 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
   | PackageOp.AddFn fn ->
     w.Write(2uy)
     LibSerialization.Binary.Serializers.PT.PackageFn.write w fn
-  | PackageOp.SetName(location, target) ->
+  | PackageOp.SetName(location, target, previous) ->
     w.Write(3uy)
     PackageLocation.write w location
     Reference.write w target
+    // A presence byte, not a sentinel hash: "no predecessor known" and "replaced the empty hash" are
+    // different facts and only one of them is representable as a string.
+    match previous with
+    | None -> w.Write(0uy)
+    | Some(Hash h) ->
+      w.Write(1uy)
+      String.write w h
   | PackageOp.Deprecate(target, kind, message) ->
     w.Write(4uy)
     Reference.write w target
@@ -91,29 +150,21 @@ let write (w : BinaryWriter) (op : PackageOp) : unit =
   | PackageOp.Undeprecate target ->
     w.Write(5uy)
     Reference.write w target
-  | PackageOp.PropagateUpdate(propagationId,
-                              sourceLocation,
-                              fromRefs,
-                              toRef,
-                              repoints) ->
-    w.Write(6uy)
-    Guid.write w propagationId
-    PackageLocation.write w sourceLocation
-    List.write w Reference.write fromRefs
-    Reference.write w toRef
-    List.write w PropagateRepoint.write repoints
-  | PackageOp.RevertPropagation(revertId,
-                                revertedPropagationIds,
-                                sourceLocation,
-                                restoredSourceRef,
-                                revertedRepoints) ->
-    w.Write(7uy)
-    Guid.write w revertId
-    List.write w Guid.write revertedPropagationIds
-    PackageLocation.write w sourceLocation
-    Reference.write w restoredSourceRef
-    List.write w PropagateRepoint.write revertedRepoints
-
+  // 11, not the freed 6/7/8/9. Recycling a tag makes an old blob decode as a DIFFERENT
+  // op rather than failing, and silently decoding as something else is the worst thing
+  // a format can do. Cheap to avoid: tags are arbitrary and there is no shortage of
+  // them.
+  | PackageOp.Decision(id, location, reason, kind) ->
+    w.Write(11uy)
+    String.write w id
+    PackageLocation.write w location
+    String.write w reason
+    DecisionKind.write w kind
+  | PackageOp.BranchEvent(branchId, event, at) ->
+    w.Write(10uy)
+    Guid.write w branchId.Guid
+    BranchEventKind.write w event
+    String.write w at
 
 let read (r : BinaryReader) : PackageOp =
   match r.ReadByte() with
@@ -129,7 +180,12 @@ let read (r : BinaryReader) : PackageOp =
   | 3uy ->
     let location = PackageLocation.read r
     let target = Reference.read r
-    PackageOp.SetName(location, target)
+    let previous =
+      match r.ReadByte() with
+      | 0uy -> None
+      | 1uy -> Some(Hash(String.read r))
+      | b -> raiseFormatError $"Invalid SetName previous tag: {b}"
+    PackageOp.SetName(location, target, previous)
   | 4uy ->
     let target = Reference.read r
     let kind = DeprecationKind.read r
@@ -138,32 +194,17 @@ let read (r : BinaryReader) : PackageOp =
   | 5uy ->
     let target = Reference.read r
     PackageOp.Undeprecate target
-  | 6uy ->
-    let propagationId = Guid.read r
-    let sourceLocation = PackageLocation.read r
-    let fromRefs = List.read r Reference.read
-    let toRef = Reference.read r
-    let repoints = List.read r PropagateRepoint.read
-    PackageOp.PropagateUpdate(
-      propagationId,
-      sourceLocation,
-      fromRefs,
-      toRef,
-      repoints
-    )
-  | 7uy ->
-    let revertId = Guid.read r
-    let revertedPropagationIds = List.read r Guid.read
-    let sourceLocation = PackageLocation.read r
-    let restoredSourceRef = Reference.read r
-    let revertedRepoints = List.read r PropagateRepoint.read
-    PackageOp.RevertPropagation(
-      revertId,
-      revertedPropagationIds,
-      sourceLocation,
-      restoredSourceRef,
-      revertedRepoints
-    )
+  | 10uy ->
+    let branchId = LibExecution.Branching.BranchId.Id(Guid.read r)
+    let event = BranchEventKind.read r
+    let at = String.read r
+    PackageOp.BranchEvent(branchId, event, at)
+  | 11uy ->
+    let id = String.read r
+    let location = PackageLocation.read r
+    let reason = String.read r
+    let kind = DecisionKind.read r
+    PackageOp.Decision(id, location, reason, kind)
   | b -> raiseFormatError $"Invalid PackageOp tag: {b}"
 
 

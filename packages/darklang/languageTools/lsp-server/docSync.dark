@@ -146,7 +146,7 @@ let handleTextDocumentDidOpen
     | Ok parsedFile ->
       // Do not publish a recovered tree with `EError` holes as clean.
       if Stdlib.List.isEmpty (Parser.Parse.diagnostics request.textDocument.text) then
-        (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
+        (WrittenTypesToProgramTypes.parsedFileAsSourceFile state.currentBranchId parsedFile)
         |> Stdlib.Tuple3.first
         |> Stdlib.Option.Option.Some
       else
@@ -232,7 +232,7 @@ let handleTextDocumentDidSave
       | Ok parsedFile ->
         // Same guard as didOpen: never lower a tree with parse-error holes.
         if Stdlib.List.isEmpty (Parser.Parse.diagnostics text) then
-          (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
+          (WrittenTypesToProgramTypes.parsedFileAsSourceFile state.currentBranchId parsedFile)
           |> Stdlib.Tuple3.first
           |> Stdlib.Option.Option.Some
         else

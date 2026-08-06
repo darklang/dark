@@ -75,7 +75,7 @@ fnWithTypedReturn<Int64> () = 5L
 polyFn (X.A 5L) = X.A 5L
 polyFn (X.B "str") = X.B "str"
 
-strFn (X.A 5L) = strFn (X.A 5L)
+strFn (X.A 5L) = X.A 5L
 strFn (X.B "str") = X.B "str"
 
 // TODO you shouldn't have to supply type arguments to definedPolyFn
@@ -121,7 +121,9 @@ module GenericTypeArgsAreOK =
     [ (Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String "a")
       (Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.ErrorSegment.String "b") ]
 
-  Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.segmentsToString Darklang.SCM.Branch.mainBranchId segments
+  Darklang.PrettyPrinter.RuntimeTypes.RuntimeError.segmentsToString
+    Darklang.SCM.Ids.mainBranchId
+    segments
   ) = "ab"
 
 

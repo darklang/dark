@@ -408,6 +408,48 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "stdinReadSecret" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TString
+      description =
+        "Reads a line from standard input WITHOUT echoing it, for a secret typed at a prompt."
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          // Nothing is echoed, so nothing reaches the scrollback, and taking it at a prompt keeps it
+          // out of shell history too -- which an argument cannot manage.
+          //
+          // Redirected input has no key to intercept, so fall back to a plain read: a secret piped in
+          // was never on screen to begin with.
+          if Console.IsInputRedirected then
+            let input = System.Console.ReadLine()
+            if input = null then Ply(DString "") else Ply(DString input)
+          else
+            let rec read (acc : System.Text.StringBuilder) : string =
+              let key = System.Console.ReadKey(true)
+              match key.Key with
+              | ConsoleKey.Enter ->
+                System.Console.WriteLine()
+                acc.ToString()
+              | ConsoleKey.Backspace ->
+                if acc.Length > 0 then acc.Length <- acc.Length - 1
+                read acc
+              | _ ->
+                // Control characters are not secret material; dropping them keeps a stray arrow key
+                // from becoming part of the value.
+                if not (System.Char.IsControl key.KeyChar) then
+                  acc.Append key.KeyChar |> ignore<System.Text.StringBuilder>
+                read acc
+
+            Ply(DString(read (System.Text.StringBuilder())))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.stdin
+      deprecated = NotDeprecated }
+
+
     { name = fn "stdinIsInteractive" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]

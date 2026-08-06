@@ -13,9 +13,22 @@ checked.** Everything below is a way of not doing that.
 
 ## 1. Measure allocation, not time
 
-Allocation for a fixed workload repeats **to the byte** and doesn't care how loaded the machine is.
+Allocation for a fixed workload is far steadier than time, and doesn't care how loaded the machine is.
 Time on this box drifts about 12 ms, enough to hide or invent most individual wins; eleven runs
 cannot reliably resolve a 10 ms difference.
+
+It is not, however, byte-identical, and this file used to say it was. Measured on `steady.dark` in
+debug, ten runs back to back:
+
+    mean    8,235,969 bytes
+    stdev      20,680
+    spread     57,408   = 0.70%
+
+So treat ~0.7% as the noise floor for a single run of this workload, and do not believe a win smaller
+than that from one measurement each side. Two things that look like they would fix it do not, both
+checked rather than assumed: `GC.GetTotalAllocatedBytes(precise: true)` is slightly WORSE (0.96%), and
+min-of-N barely moves the standard deviation, because the spread is roughly symmetric rather than noise
+sitting above a floor. The source is still unfound.
 
 Decide with allocation, report time, never gate on time. A change that looks flat in allocation and
 good in time is flat.

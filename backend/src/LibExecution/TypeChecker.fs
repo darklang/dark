@@ -1547,9 +1547,9 @@ module DvalCreator =
             if List.isEmpty currentTypeArgs then
               ValueSome(struct (currentTypeArgs, newTST))
             else
-              // Parameterised types used to fail this gate outright and take the builder. The
-              // type-argument walk is synchronous apart from building an error message, so it runs
-              // here and only a genuine merge failure falls through.
+              // Parameterised types stay on the fast path: the type-argument walk is synchronous
+              // apart from building an error message, so it runs here and only a genuine merge
+              // failure falls through to the builder.
               match updateTypeArgsSync newTST [] currentTypeArgs with
               | ValueSome updated -> ValueSome(struct (updated, newTST))
               | ValueNone -> ValueNone

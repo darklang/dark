@@ -112,7 +112,125 @@ let private multiUseAllowlist : Set<string> =
       // for both Option and Result -- but it costs a package call at every
       // unwrap and puts itself at the bottom of every unwrap failure's call
       // stack, one frame below the code that actually had the None.
-      "unwrap" ]
+      "unwrap"
+
+      // `Stdlib.String.contains` and `Stdlib.String.indexOf` both call the
+      // builtin directly. `contains` stays direct because the SQL compiler
+      // maps the builtin to SQLite INSTR; the Option-returning wrapper is
+      // not queryable.
+      "stringIndexOf"
+
+      // Structured parse diagnostics used by CLI package creation,
+      // CLI-script parsing, and LSP diagnostics.
+      "parserParseDiagnostics"
+
+      // CLI / IO surface called by many CLI commands.
+      "debug"
+      // This instance's local store path -- called directly by several local CLI commands
+      // (config/ops/doctor/deprecate). Its old single wrapper lived in the
+      // now-deleted sync layer.
+      "localDbPath"
+      // Local key-value config get/set, called directly by many CLI commands (config, branch
+      // switch/current-branch, doctor, connect). Like localDbPath, no single wrapper
+      // -- a local primitive.
+      "configGet"
+      "configSet"
+      // Build hash (this binary's version) -- shown by CLI version output and stamped
+      // into the sync wire bundle. Read from a couple of places directly.
+      "getBuildHash"
+      // Stage ops on a branch (effective=0 + tag + per-name bases): used by
+      // branch-bundle import (branch-transfer) AND by review-import/review-pull
+      // (op-level approval stages incoming ops on a review branch). Both
+      // legitimately land ops on a branch for later merge.
+      "scmImportBranchOps"
+      "directoryCurrent"
+      "directoryList"
+      "environmentGet"
+      "fileAppendText"
+      "fileDelete"
+      "fileExists"
+      "fileIsDirectory"
+      "fileRead"
+      "fileWrite"
+      "getCurrentExecutablePath"
+      "print"
+      "printLine"
+      "stdinReadAll"
+      "stdinReadLine"
+      "timeSleep"
+      "toRepr"
+      "unwrap"
+
+      // Posix wrappers (file descriptor primitives).
+      "posixFdClose"
+      "posixFdWrite"
+      "posixReadlink"
+      "posixUname"
+
+      // Package manager browsing used by CLI, LSP, and agent code.
+      "dbListAll"
+      "depsGetDependents"
+      "getAllBuiltinFns"
+      "pmFindFn"
+      "pmFindType"
+      "pmFindValue"
+      "pmGetFn"
+      "pmGetLocationsByFn"
+      "pmGetLocationsByType"
+      "pmGetLocationsByValue"
+      "pmGetType"
+      "pmGetValue"
+      "pmScriptsGet"
+      "pmScriptsList"
+      "pmScriptsUpdate"
+      "pmSearch"
+
+      // HTTP server entry called by the `dark serve` wrapper.
+      "httpServerServe"
+
+      // Streams (CLI / agent / scripts use them directly).
+      "streamClose"
+      "streamFilter"
+      "streamMap"
+      "streamNext"
+      "streamToBlob"
+      "streamToList"
+      "streamUnfold"
+
+      // Trace surface read by CLI commands and LSP.
+      "tracesFind"
+      "tracesHotspots"
+      "tracesList"
+      "tracesStatsByHandler"
+
+      // Parser entry point used by CLI syntax highlighting, package display,
+      // LSP, and CLI-script parsing.
+      "parserParseToWrittenTypes"
+
+      // Sync conflict-review surface: the recorded-divergence log, read by the
+      // `dark conflicts` review UI and by the `dark sync` pull nudge (which
+      // counts unreviewed conflicts so last-writer-wins is never silent).
+      "conflictsList"
+
+      // Script/expression evaluation, reached from the CLI's own runners, the workbench REPL and the
+      // agent tools. Each is a genuine entry point rather than a wrapper someone forgot to route through.
+      "cliEvaluateExpression"
+      "cliParseAndExecuteScript"
+
+      // The rest of the trace surface, read by the `dark traces` commands and by the workbench's traces
+      // view. Same reason as `tracesFind` and friends above.
+      "tracesClear"
+      "tracesClearBefore"
+      "tracesDelete"
+      "tracesEnabled"
+      "tracesGetInput"
+      "tracesListByFn"
+      "tracesPruneKeep"
+      "tracesResolveID"
+      "tracesView"
+
+      // Misc.
+      "interpreterStatsReset" ]
 
 
 /// Find the repo root by walking up from CWD until we hit one with
@@ -166,6 +284,43 @@ let private packagesText : Lazy<string> =
 /// `packagesText`: it also covers test files, perf workloads and sample
 /// scripts, which is the difference between "shipped once" and "dead".
 let private repoDarkText : Lazy<string> = lazy (darkTextUnder (findRepoRoot ()))
+
+
+/// Every `.dark` line under packages/ that isn't a comment. Cached.
+///
+/// Comments have to go before looking for calls, or a docstring explaining that a
+/// builtin was DELETED reads as a call to it.
+let private packageCodeLines : Lazy<List<string>> =
+  lazy
+    (let root = Path.Combine(findRepoRoot (), "packages")
+     Directory.EnumerateFiles(root, "*.dark", SearchOption.AllDirectories)
+     |> Seq.collect File.ReadAllLines
+     |> Seq.filter (fun line -> not ((line.TrimStart()).StartsWith "//"))
+     |> List.ofSeq)
+
+
+/// `Builtin.<name>` references that are NOT a builtin call.
+///
+/// Dark has its own `Builtin` cases and modules, so the text `Builtin.foo` is ambiguous. The
+/// `FQValueName.Builtin.` ones are excluded by the lookbehind in the regex; these
+/// three are bare and can only be told apart by knowing the file.
+let private notActuallyBuiltins : Set<string> =
+  Set.ofList
+    [ "tokenize" // semanticTokens.dark has its own `Builtin` module
+      "toPT" // same, in writtenTypesToProgramTypes.dark
+      "fullForReference" // FQValueName.Builtin
+      "Json" // `Builtin.Json.*`: a module under the builtin namespace, not a builtin
+      "X" ] // `Builtin.X` as prose, inside the for-ai docs
+
+
+/// Builtins that package code calls and that do not exist.
+///
+/// Empty, and worth keeping empty: a name here is a feature that throws the moment anyone uses it, so
+/// prefer fixing the caller over adding one.
+///
+/// `testRaiseException` and `testRuntimeError` are deliberately NOT here. They come from `LibTest`, which
+/// the test harness loads and the CLI does not, so the one file calling them only runs where they exist.
+let private knownMissingOnMainToo : Set<string> = Set.empty
 
 
 /// Count textual references to `Builtin.<name>` (or `Builtin.<name>_v<n>`)
@@ -291,6 +446,144 @@ let descriptionsAreJoined =
             "the line break should have become a single space"
       } ]
 
+/// Every builtin that package code calls actually exists.
+///
+/// This is the counterpart to the test above, and it exists because we shipped the
+/// bug it catches. A missing builtin resolves LAZILY: `reload-packages` prints Done,
+/// the whole suite passes, and the error arrives only when a person calls the
+/// function. This branch deleted four builtins that had live callers and broke the
+/// workbench's item pane and the LSP's file provider, with a green build the whole
+/// time.
+///
+/// Textual rather than resolved, because there is no resolution step to hook: the
+/// point is that nothing resolves these until they run.
+let everyBuiltinPackagesCallExists =
+  testTask "every builtin that package code calls exists" {
+    // The test builtin set does NOT include CliHost, so the CLI's own builtins would
+    // read as missing. Adding it here rather than allowlisting them: they exist, and
+    // a test that calls a real builtin an exception is a test that will one day hide
+    // a real one.
+    let names (b : RT.Builtins) =
+      Set.union
+        (b.fns.Values |> Seq.map (fun fn -> fn.name.name) |> Set.ofSeq)
+        (b.values.Values |> Seq.map (fun v -> v.name.name) |> Set.ofSeq)
+
+    let defined =
+      Set.union
+        (names (localBuiltIns PT.PackageManager.empty))
+        (names (Builtins.CliHost.Builtin.builtins ()))
+
+    // Lookbehind drops `FQValueName.Builtin.foo` and friends, where `Builtin` is a
+    // Dark module rather than the builtin namespace.
+    let regex =
+      Regex(
+        @"(?<![a-zA-Z0-9_.])Builtin\.([a-zA-Z][a-zA-Z0-9_]*)",
+        RegexOptions.Compiled
+      )
+
+    let referenced =
+      packageCodeLines.Value
+      |> List.collect (fun line ->
+        regex.Matches(line) |> Seq.map (fun m -> m.Groups[1].Value) |> List.ofSeq)
+      |> Set.ofList
+
+    let missing =
+      referenced
+      |> Set.filter (fun name ->
+        not (Set.contains name defined)
+        && not (Set.contains name notActuallyBuiltins)
+        && not (Set.contains name knownMissingOnMainToo))
+
+    if not (Set.isEmpty missing) then
+      let names = missing |> Set.toList |> List.sort |> String.concat ", "
+      Expect.isTrue
+        false
+        ($"package code calls builtins that don't exist: {names}\n\n"
+         + "A missing builtin resolves lazily, so nothing else in this suite will tell you. Either the "
+         + "builtin was deleted and its callers need repointing at the Dark replacement, or it was renamed. "
+         + "If it is genuinely missing on main too, add it to `knownMissingOnMainToo` with the reason.")
+  }
+
+
+/// Every CLI command's `help` returns the help TEXT, not an AppState.
+///
+/// `Registry.CommandHandler.help` is declared `AppState -> String`, and `executeCommandHelp` appends the
+/// alias line to whatever it returns. Ten commands printed internally and returned `state` instead, so
+/// `dark <cmd> --help` died in `Builtin.stringAppend` for 17 commands, the SCM ones among them. Nothing
+/// caught it: a Dark record field is not checked against the function stored in it, and the failure is a
+/// runtime type error in a command nobody runs in a test.
+///
+/// Textual, because there is no resolution step to hook -- the same reason the two builtin tests above
+/// are textual.
+let everyCliHelpReturnsText =
+  testTask "every CLI command's `help` returns String" {
+    let root = System.IO.Path.Combine("..", "packages", "darklang", "cli")
+
+    let offenders =
+      System.IO.Directory.GetFiles(
+        root,
+        "*.dark",
+        System.IO.SearchOption.AllDirectories
+      )
+      |> Array.collect (fun path ->
+        System.IO.File.ReadAllLines path
+        |> Array.mapi (fun i line -> (i + 1, line))
+        |> Array.filter (fun (_, line) ->
+          let t = line.Trim()
+          // `help`, and also `helpShow`/`helpReview`: the registry takes any of them for the
+          // `help` slot, so the contract is the same for all of them. Keyed on the AppState
+          // parameter, which is what makes it a registry help rather than a local helper that
+          // happens to start with the same word.
+          t.StartsWith "let help"
+          && t.Contains "AppState)"
+          && not (t.EndsWith ": String ="))
+        |> Array.map (fun (n, line) ->
+          $"  {path.Replace('\\', '/')}:{n}  {line.Trim()}"))
+      |> List.ofArray
+
+    // The other half of the same contract: a caller that RETURNS `help state` was fine when help
+    // returned an AppState and is a type error now. I broke six of these converting the first half,
+    // and the sweep that caught it was luck rather than design.
+    let badCallers =
+      System.IO.Directory.GetFiles(
+        root,
+        "*.dark",
+        System.IO.SearchOption.AllDirectories
+      )
+      |> Array.collect (fun path ->
+        System.IO.File.ReadAllLines path
+        |> Array.mapi (fun i line -> (i + 1, line))
+        |> Array.filter (fun (_, line) ->
+          let t = line.Trim()
+          let isBareHelpCall =
+            System.Text.RegularExpressions.Regex.IsMatch(
+              t,
+              @"^(\| .*-> )?help[A-Za-z]* _?state$"
+            )
+          isBareHelpCall && not (t.Contains "printLine"))
+        |> Array.map (fun (n, line) ->
+          $"  {path.Replace('\\', '/')}:{n}  {line.Trim()}"))
+      |> List.ofArray
+
+    if not (List.isEmpty badCallers) then
+      Expect.isTrue
+        false
+        ("These call sites return a `help` result where an AppState is expected:\n"
+         + String.concat "\n" (List.sort badCallers)
+         + "\n\n`help` returns the TEXT. A caller that wants to show it and carry on writes "
+         + "`Stdlib.printLine (help state)` and then `state`.")
+
+    if not (List.isEmpty offenders) then
+      Expect.isTrue
+        false
+        ("These `help` functions do not return the help text:\n"
+         + String.concat "\n" (List.sort offenders)
+         + "\n\n`Registry.CommandHandler.help` is `AppState -> String`. Returning `state` and printing "
+         + "inside makes `dark <cmd> --help` throw in `Builtin.stringAppend`, because the registry "
+         + "appends the alias line to the result. Build the lines and "
+         + "`|> Stdlib.String.join \"\\n\"`.")
+  }
+
 
 let tests =
   testList
@@ -298,4 +591,6 @@ let tests =
     [ oldFunctionsAreDeprecated
       builtinAccessInPackageMatter
       everyBuiltinIsReferenced
-      descriptionsAreJoined ]
+      descriptionsAreJoined
+      everyBuiltinPackagesCallExists
+      everyCliHelpReturnsText ]

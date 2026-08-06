@@ -51,18 +51,18 @@ let withError (f: Frame) (message: String) : Frame =
 
 let toneStyle (tone: Tone) : String =
   match tone with
-  | Neutral -> Colors.grayBg ++ Colors.white
-  | Active -> Colors.greenBg ++ Colors.black
-  | Danger -> Colors.bgRed ++ Colors.brightWhite
+  | Neutral -> Stdlib.Cli.UI.Colors.grayBg ++ Stdlib.Cli.UI.Colors.white
+  | Active -> Stdlib.Cli.UI.Colors.greenBg ++ Stdlib.Cli.UI.Colors.black
+  | Danger -> Stdlib.Cli.UI.Colors.bgRed ++ Stdlib.Cli.UI.Colors.brightWhite
 
 /// A full-width bar, padded so the background colour reaches the right edge.
 let bar (width: Int) (style: String) (text: String) : String =
-  let clipped = Tui.Text.clipToWidth text width
-  let used = Tui.Text.styledWidth clipped
+  let clipped = Stdlib.Cli.Tui.Text.clipToWidth text width
+  let used = Stdlib.Cli.Tui.Text.styledWidth clipped
   let padding =
     if width > used then Stdlib.String.repeat " " (width - used) else ""
 
-  Colors.colorize style (clipped ++ padding)
+  Stdlib.Cli.UI.Colors.colorize style (clipped ++ padding)
 
 
 // --- Layout ---
@@ -78,7 +78,7 @@ let helpRows (height: Int) : Int =
   if height >= 3 then 1 else 0
 
 /// The region the body gets, in a terminal of this size.
-let bodyRegion (size: Tui.Size) : Layout.Region =
+let bodyRegion (size: Stdlib.Cli.Tui.Size) : Layout.Region =
   let height = Stdlib.Int.max 1 size.height
   let top = titleRows height
 
@@ -93,21 +93,21 @@ let bodyRegion (size: Tui.Size) : Layout.Region =
 
 let titleBar (f: Frame) (width: Int) : String =
   let title =
-    Colors.colorize
-      (Colors.purpleBg ++ Colors.white ++ Colors.bold)
+    Stdlib.Cli.UI.Colors.colorize
+      (Stdlib.Cli.UI.Colors.purpleBg ++ Stdlib.Cli.UI.Colors.white ++ Stdlib.Cli.UI.Colors.bold)
       $" {f.title} "
 
   let badge =
     if f.badge == "" then
       ""
     else
-      " " ++ (Colors.colorize (toneStyle f.badgeTone) $" {f.badge} ")
+      " " ++ (Stdlib.Cli.UI.Colors.colorize (toneStyle f.badgeTone) $" {f.badge} ")
 
-  Tui.Text.clipToWidth (title ++ badge) width
+  Stdlib.Cli.Tui.Text.clipToWidth (title ++ badge) width
 
 let footBar (f: Frame) (width: Int) : String =
   if f.message == "" then
-    bar width (Colors.grayBg ++ Colors.white) f.help
+    bar width (Stdlib.Cli.UI.Colors.grayBg ++ Stdlib.Cli.UI.Colors.white) f.help
   else
     bar width (toneStyle f.messageTone) f.message
 
@@ -115,9 +115,9 @@ let footBar (f: Frame) (width: Int) : String =
 /// passing a lambda here is fine.
 let view
   (f: Frame)
-  (size: Tui.Size)
+  (size: Stdlib.Cli.Tui.Size)
   (body: Layout.Region -> List<Layout.Span>)
-  : Tui.View =
+  : Stdlib.Cli.Tui.View =
   let width = Stdlib.Int.max 1 size.width
   let height = Stdlib.Int.max 1 size.height
   let screen = Layout.Region { top = 1; left = 1; rows = height; cols = width }

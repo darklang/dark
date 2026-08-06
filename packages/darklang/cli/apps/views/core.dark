@@ -20,11 +20,11 @@ type ViewEntry =
 let allViews () : List<ViewEntry> =
   [ ViewEntry
       { name = "AI Chats"
-        description = "Monitor AI coding threads — status, cost, tokens"
+        description = "Monitor AI coding threads -- status, cost, tokens"
         kind = ViewKind.AiChats }
     ViewEntry
       { name = "Package Stats"
-        description = "Package tree statistics — counts by kind and owner"
+        description = "Package tree statistics -- counts by kind and owner"
         kind = ViewKind.PackageStats }
     ViewEntry
       { name = "UI Components"

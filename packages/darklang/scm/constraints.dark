@@ -1,0 +1,256 @@
+module Darklang.SCM.Constraints
+
+// Standing findings about the store: which live items still call a version that is no longer the name's
+// current one.
+//
+// Un-propagated usages are the NORMAL STEADY STATE, not a failure. A caller written on another machine
+// cannot be known about when the callee is upgraded here, and must not silently repoint when the two sync;
+// an explicit `pin` is a second, deliberate source of the same thing. So this is a check you RUN, not a
+// warning at commit, which for a permanent condition just teaches you to stop reading it.
+//
+// Detection needs no storage, being derivable from the projections at any moment. Only a human's ANSWER is
+// durable, for the same reason `Resolve` is an op: an ack that lives only locally re-reports forever, and
+// differently on each machine.
+
+let localDb () : String = Builtin.localDbPath ()
+
+/// What kind of thing a Constraint noticed.
+///
+/// One kind exists today. The type is here so the next one is a case rather than a new command: an item left
+/// with no inbound references after a propagation, and a newly-bound fn shadowing an existing one with an
+/// identical signature, are both sketched at ProgramTypes.fs:628 and both want this same detect / record /
+/// ack lifecycle.
+type Kind =
+  | StaleUsage
+  /// The name moved to a different KIND of item, and this usage is still on the old one.
+  ///
+  /// Its own kind rather than a flavour of StaleUsage because the two want opposite advice: a stale usage
+  /// is a version behind and repointing fixes it, while a kind change cannot be repointed at all -- swapping
+  /// a value reference's hash to a fn's produces code that claims one thing and points at another. Nothing
+  /// breaks meanwhile: references resolve by hash, and the old item is still there.
+  | KindChanged
+
+let kindToString (k: Kind) : String =
+  match k with
+  | StaleUsage -> "stale-usage"
+  | KindChanged -> "kind-changed"
+
+/// The other direction, for reading a kind back out of storage or a CLI argument.
+let kindFromString (s: String) : Stdlib.Option.Option<Kind> =
+  match s with
+  | "stale-usage" -> Stdlib.Option.Option.Some(Kind.StaleUsage)
+  | "kind-changed" -> Stdlib.Option.Option.Some(Kind.KindChanged)
+  | _ -> Stdlib.Option.Option.None
+
+/// The ways a finding of this kind can be RESOLVED, named, most-obvious first.
+///
+/// Acking is uniform across kinds -- "leave it, I've seen it" is the same answer whatever the finding is --
+/// so it can be a bulk verb. Resolving is not: it means something different per kind, so `dark constraints
+/// resolve` checks this list before doing anything.
+let resolutionsFor (k: Kind) : List<String> =
+  match k with
+  | StaleUsage -> [ "repoint" ]
+  // Nothing automatic. Following this one means rewriting the usage to call a function where it used to
+  // read a value, which is a change to what the code MEANS, not to which version it points at. Ack it, or
+  // edit the usage yourself.
+  | KindChanged -> []
+
+/// Is <param choice> a resolution this kind offers?
+let offersResolution (k: Kind) (choice: String) : Bool =
+  Stdlib.List.member (resolutionsFor k) choice
+
+
+/// Does a `pin` on the usage already answer a finding of this kind?
+///
+/// Per kind, not uniform, because a pin says one specific thing: "this REFERENCE is deliberate, I am on
+/// this version on purpose". That IS the answer to a stale usage. It is not an answer to a kind change,
+/// which is not about which version you are on at all -- the name became a different sort of item, and
+/// staying put deliberately does not address that. Suppressing it there hides a finding its own doc says
+/// "wants opposite advice" behind a decision about something else.
+let pinSuppresses (k: Kind) : Bool =
+  match k with
+  | StaleUsage -> true
+  | KindChanged -> false
+
+
+/// One finding, of whichever kind: the usage, the dependency it references, and the two versions.
+type Finding =
+  { kind: Kind
+    /// stable across re-detection, so an ack sticks
+    id: String
+    usage: LanguageTools.ProgramTypes.PackageLocation
+    usageKind: LanguageTools.ProgramTypes.ItemKind
+    dependency: LanguageTools.ProgramTypes.PackageLocation
+    dependencyKind: LanguageTools.ProgramTypes.ItemKind
+    /// the version the usage still references
+    using: LanguageTools.ProgramTypes.Hash
+    /// the version that name means now
+    current: LanguageTools.ProgramTypes.Hash }
+
+
+let fqnOf (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
+  let mods = Stdlib.String.join loc.modules "."
+  if mods == "" then $"{loc.owner}.{loc.name}" else $"{loc.owner}.{mods}.{loc.name}"
+
+
+/// The identity of a finding, and the semantics of an ack, are the same decision.
+///
+/// Keyed on the version the usage is ON, not just the pair of names: "leave it, it's fine" survives the
+/// dependency getting further versions, but not the usage itself moving. It is the "not now" answer;
+/// "forever" is a `pin`.
+let findingId
+  (usage: LanguageTools.ProgramTypes.PackageLocation)
+  (dependency: LanguageTools.ProgramTypes.PackageLocation)
+  (using: LanguageTools.ProgramTypes.Hash)
+  : String =
+  let raw =
+    $"{fqnOf usage}|{fqnOf dependency}|{LanguageTools.ProgramTypes.hashToString using}"
+
+  let digest = Stdlib.Blob.toHex (Stdlib.Crypto.sha256 (Stdlib.String.toBlob raw))
+  Stdlib.String.toLowercase (Stdlib.String.first digest 8)
+
+
+/// Every live item whose recorded dependency edge points at a version that is no longer current.
+///
+/// Two findings come out of the one query, split on whether the KIND moved as well as the hash.
+///
+/// One query. The edge carries the NAME it was resolved by, so a dependency that has moved on is still
+/// findable -- resolving its old hash through `locations` would find nothing, which is precisely the case
+/// that matters here.
+let detectOutdatedUsages () : List<Finding> =
+  match
+    Stdlib.Sqlite.query
+      (localDb ())
+      "SELECT l.owner, l.modules, l.name, l.item_type,
+              pd.depends_on_owner AS d_owner, pd.depends_on_modules AS d_modules,
+              pd.depends_on_name AS d_name, pd.depends_on_item_type AS d_type,
+              pd.depends_on_hash AS using_hash, cur.item_hash AS current_hash,
+              cur.item_type AS current_type
+       FROM locations l
+       JOIN package_dependencies pd ON pd.item_hash = l.item_hash
+       JOIN locations cur
+         ON cur.owner = pd.depends_on_owner
+        AND cur.modules = pd.depends_on_modules
+        AND cur.name = pd.depends_on_name
+        AND cur.unlisted_at IS NULL
+       WHERE l.unlisted_at IS NULL
+         AND cur.item_hash <> pd.depends_on_hash
+       ORDER BY l.owner, l.modules, l.name"
+  with
+  | Ok rows ->
+    rows
+    |> Stdlib.List.filterMap (fun row ->
+      let txt (col: String) : String =
+        Stdlib.Sqlite.textField row col |> Stdlib.Option.withDefault ""
+
+      let usage = Deps.locationOf (txt "owner") (txt "modules") (txt "name")
+
+      let dependency =
+        Deps.locationOf (txt "d_owner") (txt "d_modules") (txt "d_name")
+
+      let using = LanguageTools.ProgramTypes.Hash.Hash(txt "using_hash")
+
+      // Same query answers both: a name whose current binding differs from the one this usage recorded.
+      // WHICH finding it is depends on whether the kind moved too.
+      let kind =
+        if (txt "current_type") == (txt "d_type") then
+          Kind.StaleUsage
+        else
+          Kind.KindChanged
+
+      Stdlib.Option.Option.Some(
+        Finding
+          { kind = kind
+            id = findingId usage dependency using
+            usage = usage
+            usageKind = Deps.kindOf (txt "item_type")
+            dependency = dependency
+            dependencyKind = Deps.kindOf (txt "d_type")
+            using = using
+            current = LanguageTools.ProgramTypes.Hash.Hash(txt "current_hash") }
+      ))
+  | Error _ -> []
+
+
+/// Ack ids, read from the shared conflicts record.
+///
+/// Shares that record because a Constraint finding and a conflict have the same lifecycle -- detect,
+/// record, ack or override -- and both acks must be durable and syncable. An unanswered finding is not
+/// stored at all; only answers are rows.
+///
+/// Selected by "not a conflict" rather than by listing Constraint kinds, so a new kind's acks are read
+/// without touching this: conflicts are the closed set, Constraints the open one.
+///
+/// Deliberately NOT scoped to a branch: a constraint is a property of the STORE, so a branch filter would
+/// make an ack given on main stop counting the moment you switched.
+let ackedIds () : List<String> =
+  Stdlib.Sqlite.column
+    (localDb ())
+    "SELECT id FROM conflicts
+     WHERE status = 'acked' AND kind <> 'same-name-different-hash'"
+    "id"
+
+
+
+
+let detectAll () : List<Finding> =
+  // The ack lifecycle, the ids, the CLI and the `dark status` count are all kind-agnostic, so a kind
+  // appends here and needs nothing else. The one thing that is NOT kind-agnostic is pin-suppression, in
+  // `pending` below.
+  detectOutdatedUsages ()
+
+
+/// The findings a human still has to look at: detection minus the two ways of having already answered.
+///
+/// A `pin` suppresses, and is not a shortcut: a pin IS the durable, syncable ack, a row saying "this
+/// reference is deliberate" with the author's reason attached.
+///
+/// `dark status` calls this on every invocation, so it reads each table ONCE rather than per finding --
+/// `shouldFollow` re-queries `propagation_policy` every time it is asked.
+let pending () : List<Finding> =
+  let ackedSet =
+    ackedIds ()
+    |> Stdlib.List.map (fun a -> (a, true))
+    |> Stdlib.Dict.fromListOverwritingDuplicates
+
+  let choices = Propagation.allChoices ()
+
+  detectAll ()
+  |> Stdlib.List.filter (fun s ->
+    let isAcked =
+      match Stdlib.Dict.get ackedSet s.id with
+      | Some _ -> true
+      | None -> false
+
+    let isPinned =
+      pinSuppresses s.kind
+      && (Propagation.shouldFollowIn choices s.usage |> Stdlib.Bool.not)
+
+    (isAcked || isPinned) |> Stdlib.Bool.not)
+
+
+/// Record "I've seen this one, leave it" -- as an OP, so the ack travels. An ack that lives only on the
+/// machine you typed it on re-reports forever everywhere else, and differently on each of them.
+///
+/// The fold writes the `conflicts` row, so that table is derived rather than a second source of truth.
+let ack
+  (branchId: Uuid)
+  (s: Finding)
+  (note: String)
+  : Stdlib.Result.Result<Unit, String> =
+  let reason =
+    if note != "" then note else $"stale use of {fqnOf s.dependency}"
+
+  let op =
+    LanguageTools.ProgramTypes.PackageOp.Decision(
+      // The finding id, so acking the same finding twice is one decision stated twice. There is no
+      // un-ack, so nothing needs a later ack of the same finding to be a distinct op.
+      $"ack:{s.id}",
+      s.usage,
+      reason,
+      LanguageTools.ProgramTypes.DecisionKind.Ack s.id
+    )
+
+  match SCM.PackageOps.add branchId [ op ] with
+  | Ok _ -> Stdlib.Result.Result.Ok(())
+  | Error e -> Stdlib.Result.Result.Error e

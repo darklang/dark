@@ -45,7 +45,6 @@ let private freshState () : RT.ExecutionState =
     Exe.noTracing
     (fun _ _ _ _ -> uply { return () })
     (fun _ _ _ _ -> uply { return () })
-    PT.mainBranchId
     { dbs = Map.empty }
 
 let private dblobRef (dv : RT.Dval) : RT.BlobRef =
@@ -558,8 +557,9 @@ let equalsEphemeralPersistentSameBytesIsFalse =
 
 let equalsPersistentPersistentSameHash =
   test "blob equality: two Persistent refs with the same hash are equal" {
-    let dv = RT.DBlob(RT.Persistent("cafebabe", 4L))
-    Expect.isTrue (Equals.equals dv dv) "same hash + length = equal"
+    let a = RT.DBlob(RT.Persistent("cafebabe", 4L))
+    let b = RT.DBlob(RT.Persistent("cafebabe", 4L))
+    Expect.isTrue (Equals.equals a b) "same hash + length = equal"
   }
 
 let equalsPersistentPersistentDifferentHashes =

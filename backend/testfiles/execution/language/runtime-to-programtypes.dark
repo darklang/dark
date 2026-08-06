@@ -7,7 +7,7 @@
 let promote
   (d: Darklang.LanguageTools.RuntimeTypes.Dval)
   : Stdlib.Result.Result<Darklang.LanguageTools.ProgramTypes.Expr, String> =
-  Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Branch.mainBranchId d
+  Darklang.LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr Darklang.SCM.Ids.mainBranchId d
 
 let int (i: Int) : Darklang.LanguageTools.RuntimeTypes.Dval = Darklang.LanguageTools.RuntimeTypes.Dval.DInt i
 

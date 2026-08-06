@@ -18,22 +18,28 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 let private locationsFn
   (getPM : unit -> PT.PackageManager)
   (name : string)
-  (lookup :
-    PT.PackageManager -> PT.BranchId -> PT.Hash -> Ply<List<PT.PackageLocation>>)
+  (lookup : PT.PackageManager -> PT.Hash -> Ply<List<PT.PackageLocation>>)
   : BuiltInFn =
   { name = fn name 0
     typeParams = []
     parameters =
-      [ Param.make "branchId" TUuid ""
+      [ Param.make
+          "branchId"
+          TUuid
+          "accepted to match the CLI contract; the browser has no branches, so it is not consulted"
         Param.make "hash" (TCustomType(NR.ok (PT2DT.Hash.typeName ()), [])) "" ]
     returnType = TList(TCustomType(NR.ok (PT2DT.PackageLocation.typeName ()), []))
     description = "Returns all locations of a package item by its hash"
     fn =
       (function
-      | _, _, _, [| DUuid branchId; hashDval |] ->
+      // The branch is IGNORED here, and this is the one place that's honest rather
+      // than a bug: the browser runs against an in-memory PM with no op log, no
+      // `op_branches` and no way to be on a branch. The parameter exists so the same
+      // Dark pretty-printer code links against both hosts.
+      | _, _, _, [| DUuid _branchId; hashDval |] ->
         uply {
           let hash = PT2DT.Hash.fromDT hashDval
-          let! result = lookup (getPM ()) branchId hash
+          let! result = lookup (getPM ()) hash
           return
             result
             |> List.map PT2DT.PackageLocation.toDT
@@ -48,8 +54,6 @@ let private locationsFn
 let builtins (getPM : unit -> PT.PackageManager) : Builtins =
   Builtin.make
     []
-    [ locationsFn getPM "pmGetLocationsByType" (fun pm b h ->
-        pm.getTypeLocations b h)
-      locationsFn getPM "pmGetLocationsByValue" (fun pm b h ->
-        pm.getValueLocations b h)
-      locationsFn getPM "pmGetLocationsByFn" (fun pm b h -> pm.getFnLocations b h) ]
+    [ locationsFn getPM "pmGetLocationsByType" (fun pm h -> pm.getTypeLocations h)
+      locationsFn getPM "pmGetLocationsByValue" (fun pm h -> pm.getValueLocations h)
+      locationsFn getPM "pmGetLocationsByFn" (fun pm h -> pm.getFnLocations h) ]

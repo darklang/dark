@@ -144,7 +144,6 @@ let private declarationsToModule
           builtins
           pm
           onMissing
-          state.branchId
           (WT2PT.PackageFn.Name.toModules fn.name)
           fn)
     let lowerTypes pm =
@@ -153,7 +152,6 @@ let private declarationsToModule
         WT2PT.PackageType.toPT
           pm
           onMissing
-          state.branchId
           (WT2PT.PackageType.Name.toModules t.name)
           t)
     let lowerValues pm =
@@ -163,7 +161,6 @@ let private declarationsToModule
           builtins
           pm
           onMissing
-          state.branchId
           (WT2PT.PackageValue.Name.toModules v.name)
           v)
 
@@ -181,9 +178,12 @@ let private declarationsToModule
       { v with hash = PackageLocation.placeholderHash loc }
 
     // Pass 1: lower against the base pm (intra-script refs unresolved, allowed).
-    // The resolver looks up packages on `state.branchId` (threaded through WT2PT),
-    // so WIP on this branch resolves without wrapping the pm.
-    let pm0 = LibDB.PackageManager.pt
+    //
+    // `ptForBranch` = main's bindings plus that branch's delta ops overlaid (empty on main, so this is
+    // exactly `pt` for the common case). The branch has to be applied HERE, by wrapping the pm, because
+    // a location lookup no longer takes a branch to resolve against: `locations` has no branch column,
+    // so a branch is an overlay of ops rather than an argument a query can carry.
+    let pm0 = LibDB.PackageManager.ptForBranch state.branchId
     let! fns1 =
       lowerFns pm0 |> Ply.map (fun fns -> List.map2 stampFn fns fnLocations)
     let! types1 =
@@ -302,14 +302,7 @@ let private declarationsToModule
       wtExprs
       |> List.ofSeq
       |> Ply.List.mapSequentially (fun (modules, e) ->
-        WT2PT.Expr.toPT
-          builtins
-          pm2
-          onMissing
-          state.branchId
-          (owner :: modules)
-          emptyContext
-          e)
+        WT2PT.Expr.toPT builtins pm2 onMissing (owner :: modules) emptyContext e)
 
     let emptyDefs : Utils.CliScript.Definitions =
       { types = []; values = []; fns = [] }
@@ -409,25 +402,22 @@ let childState
   (parentState : RT.ExecutionState)
   (pm : RT.PackageManager)
   (tracing : RT.Tracing.Tracing)
-  (branchId : System.Guid)
   (program : Program)
   : RT.ExecutionState =
   { parentState with
       tracing = tracing
-      branchId = branchId
       program = program
       types = { package = pm.getType }
       values = { parentState.values with package = pm.getValue }
       fns =
         { parentState.fns with
             package = pm.getFn
-            isHarmful = fun pkg -> pm.isHarmful branchId pkg }
+            isHarmful = fun pkg -> pm.isHarmful pkg }
       blobs = { get = pm.getBlob; persist = pm.persistBlob } }
 
 
 let execute
   (parentState : RT.ExecutionState)
-  (branchId : System.Guid)
   (mod' : Utils.CliScript.PTCliScriptModule)
   (_args : List<Dval>) // CLEANUP update to List<String>, and extract in builtin
   (dbs : Map<string, RT.DB.T>)
@@ -453,15 +443,42 @@ let execute
         [ mod'.fns |> List.map PT2RT.PackageFn.toRT
           mod'.submodules.fns |> List.map PT2RT.PackageFn.toRT ]
 
+    // Graft the delta defs (compiled to RT) of the branch THIS RUN is on, alongside
+    // the script's own, so a branch fn CALLED in the expr executes. Empty for main.
+    //
+    // From `parentState.branchId`, the same branch the parse resolved names against.
+    // Reading process state here instead would let the two disagree -- names
+    // resolved to hashes on one branch, executed against another branch's graft --
+    // whenever a caller ran against a branch it wasn't sitting on.
+    let branchOps = LibDB.PackageManager.opsForBranch parentState.branchId
+    let branchTypes =
+      branchOps
+      |> List.choose (function
+        | PT.PackageOp.AddType t -> Some(PT2RT.PackageType.toRT t)
+        | _ -> None)
+    // Branch VALUES are deliberately NOT grafted here: the author path folds their
+    // content into package_values + evaluates them (rt_dval), so getValue reads the
+    // interpreter-computed Dval. The graft's PT2RT.PackageValue.toRT uses
+    // evalConstantExpr (constants only) and would SHADOW that with an empty Dval for
+    // a fn-call body. Name resolution stays branch-isolated via the SetName overlay.
+    // scm-spec 11.
+    let branchFns =
+      branchOps
+      |> List.choose (function
+        | PT.PackageOp.AddFn f -> Some(PT2RT.PackageFn.toRT f)
+        | _ -> None)
+
     // TODO we should probably use LibPM's in-memory grafting thing instead of this
     // (no need for RT.PM.withExtras to exist, I think)
-    let pm = pmRT |> PackageManager.withExtras types values fns
+    let pm =
+      pmRT
+      |> PackageManager.withExtras (branchTypes @ types) values (branchFns @ fns)
 
     let (traceDesc, inputName, inputValue) = CliTraceSource.toTraceParams traceSource
     let traceID = AT.TraceID.create ()
     let tracer = Tracing.createCliTracer traceID traceDesc inputName inputValue
 
-    let state = childState parentState pm tracer.executionTracing branchId program
+    let state = childState parentState pm tracer.executionTracing program
 
     match mod'.exprs with
     | [] ->
@@ -494,13 +511,9 @@ let execute
 /// `allowHarmful` is passed in rather than inherited from `parentState` so
 /// callers can turn on the escape hatch per-invocation (e.g. when Dark-side
 /// `run --allow-harmful` reaches `cliParseAndExecuteScript`).
-let createBranchState
-  (parentState : RT.ExecutionState)
-  (branchId : System.Guid)
-  (allowHarmful : bool)
-  =
+let createBranchState (parentState : RT.ExecutionState) (allowHarmful : bool) =
   let program : Program = { dbs = Map.empty }
-  let state = childState parentState pmRT Exe.noTracing branchId program
+  let state = childState parentState pmRT Exe.noTracing program
   { state with allowHarmful = allowHarmful }
 
 
@@ -509,7 +522,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "accountID" (TypeReference.option TUuid) ""
-          Param.make "branchId" TUuid ""
+          Param.make
+            "branchId"
+            TUuid
+            "the branch to resolve names against; \"\" is main. A parameter rather than ambient state so a caller can parse against a branch it isn't sitting on"
           Param.make "filename" TString ""
           Param.make "code" TString ""
           Param.make "args" (TList TString) ""
@@ -533,7 +549,7 @@ let fns () : List<BuiltInFn> =
           _,
           [],
           [| accountIDDval
-             DUuid branchId
+             DUuid branchIdGuid
              DString filename
              DString code
              DList(_vtTODO, scriptArgs)
@@ -544,12 +560,21 @@ let fns () : List<BuiltInFn> =
             // insert can stamp `traces.account_id`. None passes through
             // (anonymous runs, tests).
             let accountID = C2DT.Option.fromDT D.uuid accountIDDval
-            let exeState = { exeState with accountID = accountID }
+            // `allowHarmful` belongs on the state the BODY runs under, not only on the parse state below:
+            // the Harmful gate fires in the interpreter, so setting it on a state that never executes
+            // leaves `--allow-harmful` parsed, threaded, and inert.
+            let branchId = PT.BranchId.Id branchIdGuid
+
+            let exeState =
+              { exeState with
+                  accountID = accountID
+                  branchId = branchId
+                  allowHarmful = allowHarmful }
             // Use branch-specific state for parsing so name resolution uses the right branch.
             // Parsing keeps the host's caps — name resolution / package loading needs
             // cli-host effects to boot (the noCaps-breaks-bootstrap case). Only the script
             // *body* is sandboxed below (`runCaps` on `exeState`).
-            let branchState = createBranchState exeState branchId allowHarmful
+            let branchState = createBranchState exeState allowHarmful
 
             try
               // A parse failure surfaces a precise diagnostic as a `ParseError`
@@ -573,13 +598,15 @@ let fns () : List<BuiltInFn> =
 
               match parsedScript with
               | Ok mod' ->
-                // `dark run` RESPECTS the host's configured grant by default (`hostCaps`: allCaps until
-                // an instance grant is configured, then that grant) — the same posture as `eval`, so the
-                // grant you set is the grant scripts obey. `--sandbox` drops to NO capabilities for
+                // `dark run` RESPECTS the host's configured grant by default
+                // (`hostCaps`: allCaps until an instance grant is configured, then
+                // that grant) -- the same posture as `eval`, so the grant you set is
+                // the grant scripts obey. `--sandbox` drops to NO capabilities for
                 // running untrusted scripts (any effectful builtin then raises).
-                // TODO product decision, revisit: this favors "run my own script" over "run an untrusted
-                // script" (sandbox is opt-IN). If `dark run <url>` / piping untrusted code becomes common,
-                // a deny-all default + `--trust`/`--apply-host-caps` opt-in may be safer. See also the
+                // TODO product decision, revisit: this favors "run my own script"
+                // over "run an untrusted script" (sandbox is opt-IN). If `dark run
+                // <url>` / piping untrusted code becomes common, a deny-all default
+                // + `--trust`/`--apply-host-caps` opt-in may be safer. See also the
                 // trust-boundary TODO in `LanguageTools.Capabilities.all`.
                 let runCaps =
                   if sandbox then
@@ -588,13 +615,7 @@ let fns () : List<BuiltInFn> =
                     LibDB.CapabilityGrants.hostCaps ()
                 let exeState = { exeState with grantedCaps = runCaps }
                 match!
-                  execute
-                    exeState
-                    branchId
-                    mod'
-                    scriptArgs
-                    dbs
-                    (RunScript(filename, code))
+                  execute exeState mod' scriptArgs dbs (RunScript(filename, code))
                 with
                 | Ok(DInt i) -> return resultOk (DInt i)
                 | Ok(DInt64 i) -> return resultOk (Dval.int (bigint i))
@@ -637,7 +658,10 @@ let fns () : List<BuiltInFn> =
       typeParams = []
       parameters =
         [ Param.make "accountID" (TypeReference.option TUuid) ""
-          Param.make "branchId" TUuid ""
+          Param.make
+            "branchId"
+            TUuid
+            "the branch to resolve names against; \"\" is main. A parameter rather than ambient state so a caller can parse against a branch it isn't sitting on"
           Param.make "expression" TString ""
           Param.make
             "currentModule"
@@ -668,7 +692,7 @@ let fns () : List<BuiltInFn> =
           vm,
           [],
           [| accountIDDval
-             DUuid branchId
+             DUuid branchIdGuid
              DString expression
              DList(_, currentModule)
              DInt width
@@ -678,14 +702,20 @@ let fns () : List<BuiltInFn> =
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`.
             let accountID = C2DT.Option.fromDT D.uuid accountIDDval
-            // `eval` runs the expression under the HOST's capabilities — `allCaps` until an instance
-            // grant is configured, then whatever that grant allows (the gate denies uncovered builtins).
+            // `eval` runs the expression under the HOST's capabilities -- `allCaps`
+            // until an instance grant is configured, then whatever that grant allows
+            // (the gate denies uncovered builtins).
+            let branchId = PT.BranchId.Id branchIdGuid
+
             let exeState =
               { exeState with
                   accountID = accountID
+                  branchId = branchId
+                  // See the note in `cliParseAndExecuteScript`: the gate fires where the expression runs.
+                  allowHarmful = allowHarmful
                   grantedCaps = LibDB.CapabilityGrants.hostCaps () }
             // Use branch-specific state for parsing so name resolution uses the right branch
-            let branchState = createBranchState exeState branchId allowHarmful
+            let branchState = createBranchState exeState allowHarmful
 
             try
               // Parsing can raise (e.g. deep VM failures); keep it inside the try
@@ -706,9 +736,7 @@ let fns () : List<BuiltInFn> =
 
               match parsedScript with
               | Ok mod' ->
-                match!
-                  execute exeState branchId mod' [] dbs (EvalExpression expression)
-                with
+                match! execute exeState mod' [] dbs (EvalExpression expression) with
                 | Ok result ->
                   match result with
                   | DUnit -> return okNone ()

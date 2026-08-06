@@ -18,7 +18,7 @@ let inner (region: Layout.Region) : Layout.Region =
 /// `Tree · 5` is a pill saying Tree and a dim `· 5`, and a plain title is
 /// just the pill.
 ///
-/// Returns spans. Colour codes carry no width now that clipping goes through `Tui.Text`, so the border no
+/// Returns spans. Colour codes carry no width now that clipping goes through `Stdlib.Cli.Tui.Text`, so the border no
 /// longer has to dodge the layout helpers to avoid being mis-measured.
 let draw (region: Layout.Region) (title: String) (focused: Bool) : List<Layout.Span> =
   let color = if focused then Colors.purple else Colors.brightBlack

@@ -32,10 +32,3 @@ let darkPackages (name: String) : Unit =
 // `demo-http` — a tiny demo server (/, /hello, /echo). Defaults to 9091 (a devcontainer-forwarded port).
 let demoHttp (name: String) : Unit =
   httpDaemon name 9091 "HttpServerTest.router" Darklang.DemoData.HttpServerTest.router
-
-/// `sync-serve`:
-/// serve your ops over HTTP so peers can pull from you
-/// (the serving side of `dark sync`, the boot-persistent twin of `dark sync serve`).
-/// Defaults to 9000 (matches `dark sync serve`); override via config `apps.sync-serve.port`.
-let syncServer (name: String) : Unit =
-  httpDaemon name 9000 "Sync.Server.router" Darklang.Sync.Server.router

@@ -45,6 +45,63 @@ let runWithCommand (args: List<String>): String =
     $"ERROR: {result.stderr}"
 
 
+/// The same, but with <param input> on stdin. For the commands that ASK: `conflicts walk` reads a line
+/// per conflict, and nothing else in this suite can drive it.
+let runWithStdinAndCommand (input: String) (args: List<String>): String =
+  let argsString = Stdlib.String.join args " "
+  let command = $"printf '{input}' | {cliUnderTest ()} {argsString}"
+  let result = Stdlib.Cli.Unix.executeInDirectoryWithOutput "." command
+
+  if result.exitCode == 0 then
+    Stdlib.String.trim result.stdout
+  else
+    $"ERROR: {result.stderr}"
+
+
+/// `dark conflicts walk`, on a conflict this test makes for itself.
+///
+/// The walkthrough reads a line per conflict, so no sweep and no other case here reaches it; it was
+/// written and then never driven. A conflict does NOT need two instances -- a branch merge where both
+/// sides moved one name records one -- so this stays a single-instance test.
+///
+/// Everything happens between a throwaway parent and its child, so main gains nothing.
+let testConflictWalkthrough (): TestResult =
+  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let parent = "cli-walk-parent-" ++ suffix
+  let child = "cli-walk-child-" ++ suffix
+  let fnName = "Tests.CliWalk.f" ++ suffix
+
+  let _ = runWithCommand [ "branch"; "create"; parent ]
+  // A shared base for the name: both sides have to move it from something.
+  let _ = runWithCommand [ "--branch"; parent; "fn"; "/" ++ fnName; "() : Int64 = 1L" ]
+  let _ = runWithCommand [ "--branch"; parent; "branch"; "create"; child ]
+  let _ = runWithCommand [ "--branch"; child; "fn"; "/" ++ fnName; "() : Int64 = 222L" ]
+  let _ = runWithCommand [ "--branch"; parent; "fn"; "/" ++ fnName; "() : Int64 = 111L" ]
+
+  let merged = runWithCommand [ "--branch"; child; "merge"; child ]
+  let beforeJson = runWithCommand [ "--branch"; parent; "conflicts"; "--json" ]
+  // `b` takes the other side, which is the answer that has to WRITE something.
+  let walked = runWithStdinAndCommand "b\n" [ "--branch"; parent; "conflicts"; "walk" ]
+  let afterJson = runWithCommand [ "--branch"; parent; "conflicts"; "--json" ]
+  let onMain = runWithCommand [ "--branch"; "main"; "eval"; fnName ++ " ()" ]
+
+  if Stdlib.Bool.not (Stdlib.String.contains merged "conflict") then
+    TestResult.Fail $"Expected the merge to record a conflict; got: {merged}"
+  else if Stdlib.Bool.not (Stdlib.String.contains beforeJson "\"pending\":1") then
+    TestResult.Fail $"Expected one pending conflict before the walk; got: {beforeJson}"
+  else if Stdlib.String.contains walked "ERROR:" then
+    TestResult.Fail $"`conflicts walk` failed: {walked}"
+  else if Stdlib.Bool.not (Stdlib.String.contains walked "took theirs") then
+    TestResult.Fail $"Expected the walk to take the other side on `b`; got: {walked}"
+  else if Stdlib.Bool.not (Stdlib.String.contains afterJson "\"pending\":0") then
+    TestResult.Fail $"Expected nothing pending after the walk; got: {afterJson}"
+  else if Stdlib.Bool.not (Stdlib.String.contains onMain "not found") then
+    TestResult.Fail
+      $"A conflict resolved between two branches reached MAIN. Got: {onMain}"
+  else
+    TestResult.Pass
+
+
 let testHelpCommand (): TestResult =
   let output = runWithCommand ["help"]
 
@@ -75,13 +132,16 @@ let testVersionCommand (): TestResult =
 
 
 let testStatusCommand (): TestResult =
+  // Two things, because `status` is the one signal you get while editing: WHERE you are, and WHAT you have.
+  // The branch line matters most when several branches are in play, which is the normal case now.
   let output = runWithCommand ["status"]
   if Stdlib.String.contains output "On branch" &&
-      (Stdlib.String.contains output "No uncommitted changes." ||
-       Stdlib.String.contains output "Uncommitted changes:") then
+      (Stdlib.String.contains output "clean:" ||
+       Stdlib.String.contains output "draft:") then
     TestResult.Pass
   else
-    TestResult.Fail "Expected status output with branch and uncommitted change summary"
+    TestResult.Fail
+      $"Expected `status` to name the branch and summarise the draft; got: {output}"
 
 
 let testEvalBoolAnd (): TestResult =
@@ -261,6 +321,50 @@ let testModuleRejectsDuplicateNames (): TestResult =
        ++ $"module={moduleOutput}; search={searchOutput}")
 
 
+/// Merging a branch, end to end, through the CLI.
+///
+/// The mechanism has F# tests and the conflict detector has its own, but nothing joined them: the Dark
+/// side of merge went through `branchPreview`, and a caller there handing `detect` a branch ID where it
+/// wants a label made `merge`, `rebase` and `conflicts branch` all throw at runtime. Every one of those
+/// tests stayed green, because each covered one half.
+///
+/// So this drives the real binary. It merges a child into a THROWAWAY PARENT rather than into main, so a
+/// run leaves no fn behind on main.
+let testMergeRoundTrip (): TestResult =
+  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let parent = "cli-merge-parent-" ++ suffix
+  let child = "cli-merge-child-" ++ suffix
+  let fnName = "Tests.CliMerge.landed" ++ suffix
+
+  let _ = runWithCommand [ "branch"; "create"; parent ]
+  let _ = runWithCommand [ "--branch"; parent; "branch"; "create"; child ]
+  let _ =
+    runWithCommand
+      [ "--branch"; child; "fn"; "/" ++ fnName; "() : Int64 = 7L" ]
+
+  // --dry-run records nothing, so it has to answer the same question the merge does without doing it.
+  let dryRun = runWithCommand [ "--branch"; child; "merge"; child; "--dry-run" ]
+  let merged = runWithCommand [ "--branch"; child; "merge"; child ]
+  let onParent = runWithCommand [ "--branch"; parent; "eval"; fnName ++ " ()" ]
+  let onMain = runWithCommand [ "--branch"; "main"; "eval"; fnName ++ " ()" ]
+
+  if Stdlib.String.contains dryRun "ERROR:" then
+    TestResult.Fail $"`merge --dry-run` failed: {dryRun}"
+  else if Stdlib.Bool.not (Stdlib.String.contains dryRun parent) then
+    TestResult.Fail $"Expected `merge --dry-run` to name the parent it would merge into; got: {dryRun}"
+  else if Stdlib.Bool.not (Stdlib.String.contains dryRun fnName) then
+    TestResult.Fail $"Expected `merge --dry-run` to list the name that would land; got: {dryRun}"
+  else if Stdlib.Bool.not (Stdlib.String.contains merged "Merged") then
+    TestResult.Fail $"Expected `merge` to report what it merged; got: {merged}"
+  else if onParent != "7" then
+    TestResult.Fail $"Expected the merged fn to resolve on the parent as 7; got: {onParent}"
+  else if onMain == "7" then
+    TestResult.Fail
+      $"A merge into \"{parent}\" reached MAIN -- the branch overlay leaked. Got: {onMain}"
+  else
+    TestResult.Pass
+
+
 let testFnAcceptsCompleteDeclaration (): TestResult =
   let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
   let branchName = "cli-authoring-test-" ++ suffix
@@ -352,6 +456,35 @@ let testViewFunction (): TestResult =
       TestResult.Pass
   else
     TestResult.Fail "Expected function signature for List.head"
+
+
+/// The harmful gate, end to end, through a real CLI process.
+///
+/// This guard existed only in `CliTraces.Tests.fs`, which is commented out of the suite, so it guarded
+/// nothing. It also could not have worked there: that harness builds an RT-level state, and the RT default
+/// is permissive by design ("tests run permissive" in `Execution.createState`) -- the CLI HOST is what
+/// narrows it per entry point. So the gate has to be tested where it lives, which is a real invocation.
+let testHarmfulGate (): TestResult =
+  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let fnName = $"Tests.HarmGate.g{suffix}"
+
+  let _ = runWithCommand [ "fn"; fnName; "(x: Int64) : Int64 = Stdlib.Int64.add x 31L" ]
+
+  let _ =
+    runWithCommand
+      [ "deprecate"; "fn"; fnName; "--kind"; "harmful"; "-m"; "test"; "--yes" ]
+
+  let halted = runWithCommand [ "eval"; $"{fnName} 0L" ]
+  let allowed = runWithCommand [ "eval"; $"{fnName} 0L"; "--allow-harmful" ]
+
+  if Stdlib.Bool.not (Stdlib.String.contains halted "Harmful") then
+    TestResult.Fail
+      $"a fn marked harmful should refuse to run without the flag, got: {halted}"
+  else if Stdlib.Bool.not (Stdlib.String.contains allowed "31") then
+    // The halt message names `--allow-harmful`, so the flag has to do what the message promises.
+    TestResult.Fail $"--allow-harmful should run it anyway, got: {allowed}"
+  else
+    TestResult.Pass
 
 
 let testSearchMatchesModuleAndCamelCaseName (): TestResult =

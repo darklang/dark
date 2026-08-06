@@ -205,11 +205,11 @@ let upsert (bindings: List<Binding>) (b: Binding) : List<Binding> =
 /// miss.
 /// `branchId` is the branch to resolve type names against, as a string because this is called from an
 /// expression the REPL assembles as text; an unparseable one falls back to main.
-let captureValue (branchId: String) (v: 'a) : String =
-  let branch =
-    match Stdlib.Uuid.parse branchId with
-    | Ok id -> id
-    | Error _ -> SCM.Branch.mainBranchId
+let captureValue (branchId: Uuid) (v: 'a) : String =
+  // A branch id IS a string now, so there is nothing to parse. It used to be a uuid, and an unparseable one
+  // fell back to main; "" already means main, so the fallback has nothing left to do.
+  let branch = branchId
+
   match LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr branch (Builtin.reflect v) with
   | Ok e -> "ok:" ++ (PrettyPrinter.ProgramTypes.expr (PrettyPrinter.ProgramTypes.Context.forBranch branch) e)
   | Error reason -> "err:" ++ reason
@@ -219,8 +219,7 @@ let captureValue (branchId: String) (v: 'a) : String =
 /// source correct for expressions that refer to earlier bindings.
 let captureExpr (bindings: List<Binding>) (branchId: Uuid) (name: String) (rhs: String) : String =
   let chain = withBindings bindings $"let {name} = {rhs}"
-  let branch = Stdlib.Uuid.toString branchId
-  $"{chain}\nDarklang.Cli.Repl.captureValue \"{branch}\" {name}"
+  $"{chain}\nDarklang.Cli.Repl.captureValue \"{branchId}\" {name}"
 
 /// Read `captureValue`'s output back. `Some source` when the value round-tripped, `None` when it has no
 /// literal form (the caller then falls back to holding the expression).

@@ -37,7 +37,7 @@ type Component =
 /// Place text at `(row, col)` within a region, clipped to what the region can hold.
 ///
 /// Replaces the old `printAt` / `printAtVisible` pair. There's no longer a fast-but-wrong variant: clipping
-/// goes through `Tui.Text`, which counts terminal columns and leaves SGR sequences alone, so a coloured or
+/// goes through `Stdlib.Cli.Tui.Text`, which counts terminal columns and leaves SGR sequences alone, so a coloured or
 /// wide-glyph row is measured correctly. The old `printAt` used `String.length`, which counts grapheme
 /// clusters, not columns: `界` and a ZWJ emoji each count 1 but occupy 2, so CJK or emoji content pushed the
 /// rest of its row sideways.
@@ -49,8 +49,8 @@ let at (region: Region) (row: Int) (col: Int) (text: String) : List<Span> =
           text =
             // Clipping is native but not free; most spans already fit, and measuring is one call.
             let room = Stdlib.Int.max 0 (region.cols - col)
-            if Tui.Text.styledWidth text <= room then text
-            else Tui.Text.clipToWidth text room } ]
+            if Stdlib.Cli.Tui.Text.styledWidth text <= room then text
+            else Stdlib.Cli.Tui.Text.clipToWidth text room } ]
   else
     []
 

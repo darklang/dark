@@ -52,7 +52,7 @@ let parseSingleTestFromFile
         LanguageTools.NameResolver.NRContext
           { onMissing = LanguageTools.NameResolver.OnMissing.ThrowError
             pm = pm
-            branchId = Darklang.SCM.Branch.mainBranchId
+            branchId = Darklang.SCM.Ids.mainBranchId
             owner = ""
             currentModule = [] }
 

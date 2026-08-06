@@ -1,0 +1,170 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Sync, with more than two parties and more than one shape of work.
+#
+# The other sync gates cover one client against a relay that behaves (`test-setup`) or misbehaves
+# (`test-sync-hostile-relay`). Neither says anything about what this substrate is FOR: several instances,
+# several branches, several agents working at once, and work moving between them.
+#
+# Every scenario here is isolated -- its own relay, its own port, its own stores -- because the first
+# version of this shared one store across scenarios and spent two rounds blaming the product for state
+# an earlier scenario had left behind. Isolation is the point, not an implementation detail.
+#
+# What it covers, in order: a round trip; two instances authoring at once; idempotence; the write secret
+# never reaching an op; a divergent edit recorded as a conflict on both sides with the same resolution;
+# a branch pushed from one instance, pulled by another, merged, and reaching a third; a review queue
+# staging work inert until approved; and four agents on four branches merged into one main.
+
+set -uo pipefail
+
+CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+ROOT=rundir/sync-multi
+SECRET=$(head -c 32 /dev/urandom | od -An -tx1 | tr -d ' \n')
+# Our own port, and nothing else on it. A relay left over from an earlier run answers on the port you
+# expected with a secret you have forgotten, and every push comes back 401 as if the product were broken.
+PORT=$(( 9200 + RANDOM % 300 ))
+pass=0; fail=0
+
+pkill -9 -f "Matter.router" 2>/dev/null
+for _ in 1 2 3 4 5; do pgrep -f "[M]atter.router" > /dev/null || break; sleep 1; done
+pgrep -f "[M]atter.router" > /dev/null && { echo "a relay is still running and will not die"; exit 2; }
+
+rm -rf "$ROOT"; mkdir -p "$ROOT"
+ok()   { pass=$((pass+1)); printf '  ok   %s\n' "$1"; }
+bad()  { fail=$((fail+1)); printf '  FAIL %s\n       got: %s\n' "$1" "$(head -c 150 <<<"$2" | tr '\n' ' ')"; }
+want() { if grep -qiE "$2" <<<"$3"; then ok "$1"; else bad "$1" "$3"; fi; }
+wantnot() { if grep -qiE "$2" <<<"$3"; then bad "$1" "$3"; else ok "$1"; fi; }
+
+# An instance is a STORE plus a HOME: the capability grant is keyed on HOME, so sharing one would let
+# these tread on the developer's own grant.
+mk() { local n=$1; mkdir -p "$ROOT/$n/home"; cp rundir/data.db "$ROOT/$n/data.db"
+       sqlite3 "$ROOT/$n/data.db" 'DELETE FROM config_v0;'; rm -f "$ROOT/$n/cli-config.json"; }
+x()  { local n=$1; shift; DARK_CONFIG_RUNDIR="$PWD/$ROOT/$n" HOME="$PWD/$ROOT/$n/home" "$PWD/$CLI" "$@" 2>&1 | sed 's/\x1b\[[0-9;]*m//g'; }
+
+mk relay; mk A; mk B; mk C; mk D
+DARK_CONFIG_RUNDIR="$PWD/$ROOT/relay" HOME="$PWD/$ROOT/relay/home" DARK_MATTER_WRITE_SECRET="$SECRET" \
+  "$PWD/$CLI" serve Darklang.Matter.router --port "$PORT" > "$ROOT/relay/log" 2>&1 &
+RPID=$!
+trap 'kill $RPID 2>/dev/null' EXIT
+sleep 8
+kill -0 $RPID 2>/dev/null || { echo "the relay we started is not running"; exit 2; }
+want "the relay answers" "200" "$(curl -s -o /dev/null -w '%{http_code}' "http://localhost:$PORT/ping")"
+for i in A B C D; do x $i connect "http://localhost:$PORT" --secret "$SECRET" > /dev/null; done
+x B pull > /dev/null; x C pull > /dev/null
+
+echo "== a round trip"
+x A fn /SM.T.one '() : Int64 = 41L' > /dev/null; x A commit "A's work" -y > /dev/null
+want "A pushes" "Pushed" "$(x A push)"
+want "B pulls" "Pulled" "$(x B pull)"
+want "B runs it" "^41$" "$(x B eval 'SM.T.one ()' | tail -1)"
+
+echo "== two instances authoring at the same time"
+( x A fn /SM.T.a '() : Int64 = 1L' > /dev/null; x A commit "A" -y > /dev/null; x A push > "$ROOT/a.log" 2>&1 ) & PA=$!
+( x B fn /SM.T.b '() : Int64 = 2L' > /dev/null; x B commit "B" -y > /dev/null; x B push > "$ROOT/b.log" 2>&1 ) & PB=$!
+wait $PA $PB   # named: the relay is a background job too, and it never exits
+want "A's push landed" "Pushed" "$(cat "$ROOT/a.log")"
+want "B's push landed" "Pushed" "$(cat "$ROOT/b.log")"
+x C pull > /dev/null
+want "C sees A's" "^1$" "$(x C eval 'SM.T.a ()' | tail -1)"
+want "C sees B's" "^2$" "$(x C eval 'SM.T.b ()' | tail -1)"
+
+echo "== idempotence, and the secret"
+want "re-push is a no-op" "0 new|Already|up to date|Pushed 0" "$(x A push)"
+want "re-pull is a no-op" "Nothing new|0 new|up to date" "$(x C pull)"
+HEX=$(echo -n "$SECRET" | od -An -tx1 | tr -d ' \n' | tr 'a-f' 'A-F')
+want "no op carries the write secret" "^0$" "$(sqlite3 "$ROOT/relay/data.db" "SELECT count(*) FROM package_ops WHERE hex(op_blob) LIKE '%$HEX%';")"
+
+echo "== a divergent edit, each side pulling before it pushes"
+x A fn /SM.T.same '() : Int64 = 100L' > /dev/null; x A commit "A version" -y > /dev/null; x A push > /dev/null
+x B fn /SM.T.same '() : Int64 = 200L' > /dev/null; x B commit "B version" -y > /dev/null
+want "B's pull records the divergence" "conflict" "$(x B pull)"
+x B push > /dev/null
+want "A's pull applies it" "Pulled" "$(x A pull)"
+# Only B diverged: it held work it had not pushed when A's version arrived. A had already pushed, so
+# from A's side one party moved since the agreed base, which is an update rather than a conflict. That
+# asymmetry is the model, not a gap -- but it means "both push before either pulls" resolves by recency
+# with nothing filed anywhere, which is worth knowing before you rely on the record.
+bconf=$(x B conflicts --json)
+# The JSON files a conflict as owner / modules / name, not as one dotted string, so this looks for the
+# fields rather than the name a person would type.
+want "B filed it against the name" '"name": ?"same"' "$bconf"
+bres=$(sed -n 's/.*"autoResolvedTo":"\([0-9a-f]*\)".*/\1/p' <<<"$bconf" | head -1)
+if [[ -n "$bres" ]]; then ok "and recorded which version won"; else bad "recorded which version won" "$bconf"; fi
+av=$(x A eval 'SM.T.same ()' | tail -1); bv=$(x B eval 'SM.T.same ()' | tail -1)
+if [[ "$av" == "$bv" ]]; then ok "and they agree what the name means ($av)"; else bad "they agree" "A=$av B=$bv"; fi
+want "an override is non-interactive" "took|kept|override|resolved" "$(x B conflicts override SM.T.same A)"
+
+echo "== a branch, pushed from one instance and merged on another"
+x A branch create feat > /dev/null
+x A --branch feat fn /SM.T.onFeat '() : Int64 = 77L' > /dev/null
+x A --branch feat commit "feat work" -y > /dev/null
+want "A pushes the branch" "pushed|stored" "$(x A branch push feat)"
+AID=$(x A whoami | sed 's/.*: //' | tr -d ' ')
+want "B pulls A's branches" "branch|imported|pulled" "$(x B branch pull --from "$AID")"
+want "B has it" "feat" "$(x B branches)"
+wantnot "and B's main does not" "^77$" "$(x B eval 'SM.T.onFeat ()' | tail -1)"
+want "B runs it on the branch" "^77$" "$(x B --branch feat eval 'SM.T.onFeat ()' | tail -1)"
+want "B merges it" "merged|now on" "$(x B --branch feat merge feat)"
+x B push > /dev/null; x C pull > /dev/null
+want "C gets it on main" "^77$" "$(x C eval 'SM.T.onFeat ()' | tail -1)"
+
+echo "== a review queue stages work inert until it is approved"
+# D, which has never pulled: `pull` and `review pull` share ONE cursor per relay, so an instance that has
+# already applied these ops can never stage them afterwards.
+
+# FIRST, from a COLD cursor, which is a coworker's day one. An op pushed now sits past the first PAGE of
+# a cursor at zero, because the shipped baseline alone is seven pages. `review pull` used to ask for one
+# page and stop, so it staged nothing and answered "Nothing new to stage" -- indistinguishable from being
+# up to date, while a plain `dark pull` would then apply the same ops without review.
+#
+# This block used to be ordered the other way round, with `x D pull` first, which drained every page and
+# left the next op on page 1. That hid the bug: the gate was passing because it had worked around it.
+x A switch main > /dev/null
+x A fn /SM.T.coldstaged '() : Int64 = 66L' > /dev/null
+x A commit "cold review" -y > /dev/null
+x A push > /dev/null
+want "a cold instance stages what sits past page 1" "Staged [1-9]" "$(x D review pull)"
+wantnot "and it stays inert on main" "^66$" "$(x D eval 'SM.T.coldstaged ()' | tail -1)"
+want "approving the cold queue lands it" "Approved" "$(x D review approve)"
+want "and then main has it" "^66$" "$(x D eval 'SM.T.coldstaged ()' | tail -1)"
+
+# Now the warm case: D is caught up, and the next push lands on the first page it asks for.
+x D pull > /dev/null
+x A switch main > /dev/null
+x A fn /SM.T.staged '() : Int64 = 55L' > /dev/null; x A commit "for review" -y > /dev/null; x A push > /dev/null
+echo "     [D cursor=$(sqlite3 "$ROOT/D/data.db" "SELECT value FROM config_v0 WHERE key LIKE 'sync.cursor%';") relay ops=$(sqlite3 "$ROOT/relay/data.db" 'SELECT count(*) FROM package_ops;') D ops=$(sqlite3 "$ROOT/D/data.db" 'SELECT count(*) FROM package_ops;')]"
+want "D stages rather than applies" "Staged [1-9]" "$(x D review pull)"
+wantnot "it does not resolve on main" "^55$" "$(x D eval 'SM.T.staged ()' | tail -1)"
+want "it does resolve on the queue's branch" "^55$" "$(x D --branch review eval 'SM.T.staged ()' | tail -1)"
+want "D approves" "Approved" "$(x D review approve)"
+want "and now main has it" "^55$" "$(x D eval 'SM.T.staged ()' | tail -1)"
+
+echo "== four agents at once, each on its own branch"
+AG=()
+for n in 1 2 3 4; do
+  ( x A branch create agent-$n > /dev/null 2>&1
+    x A --branch agent-$n fn "/SM.Agents.a$n" "() : Int64 = ${n}0L" > /dev/null 2>&1
+    x A --branch agent-$n commit "agent $n" -y > /dev/null 2>&1 ) &
+  AG+=($!)
+done
+wait "${AG[@]}"
+allok=true
+for n in 1 2 3 4; do [[ "$(x A --branch agent-$n eval "SM.Agents.a$n ()" | tail -1)" == "${n}0" ]] || allok=false; done
+if $allok; then ok "each agent's work is on its own branch"; else bad "each agent's work is on its own branch" "see above"; fi
+for n in 1 2 3 4; do x A --branch agent-$n merge agent-$n > /dev/null 2>&1; done
+x A switch main > /dev/null
+allok=true
+for n in 1 2 3 4; do [[ "$(x A eval "SM.Agents.a$n ()" | tail -1)" == "${n}0" ]] || allok=false; done
+if $allok; then ok "all four merged into main intact"; else bad "all four merged into main intact" "see above"; fi
+x A switch main > /dev/null
+echo "     [A push: $(x A push | tail -1)]"
+echo "     [C pull: $(x C pull | tail -1)]"
+echo "     [A ops=$(sqlite3 "$ROOT/A/data.db" 'SELECT count(*) FROM package_ops;') relay=$(sqlite3 "$ROOT/relay/data.db" 'SELECT count(*) FROM package_ops;') C=$(sqlite3 "$ROOT/C/data.db" 'SELECT count(*) FROM package_ops;')]"
+allok=true
+for n in 1 2 3 4; do [[ "$(x C eval "SM.Agents.a$n ()" | tail -1)" == "${n}0" ]] || allok=false; done
+if $allok; then ok "and another instance received all four"; else bad "another instance received all four" "see above"; fi
+
+echo
+echo "passed: $pass   failed: $fail"
+[[ "$fail" -eq 0 ]]

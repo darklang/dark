@@ -1,0 +1,126 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# A new user's first day, on a PUBLISHED binary and a store that does not exist yet.
+#
+# Every other gate here copies `rundir/data.db`, which already holds ~12k ops. That is a developer's
+# store, not a new install, and it skips the whole bootstrap path -- the embedded seed, the package-DB
+# grow, the first commit against an empty history. That path has broken before, twice, and both times the
+# symptom was a binary that worked perfectly inside the source tree and died outside it.
+#
+# `validate-cli-artifact` covers first run for `status`, `version`, `help`, `eval` and `ls`. It does not
+# touch SCM, which is what this branch IS. So: author, commit, branch, merge, diverge, resolve, discard,
+# on a binary a user would actually download, starting from nothing.
+#
+# Deliberately no relay: this is one machine's first day. Sync has its own gates.
+
+set -euo pipefail
+
+ARTIFACT=${1:-}
+if [[ -z "$ARTIFACT" ]]; then
+  # shellcheck disable=SC2012  # need mtime order; no filename here has a space
+  ARTIFACT=$(ls -t clis/darklang-alpha-*-linux-x64 2>/dev/null | head -1 || true)
+  AUTO_PICKED=1
+fi
+[[ -x "$ARTIFACT" ]] || { echo "test-first-day: no published CLI (pass one, or build with scripts/build/build-release-cli-exes.sh)" >&2; exit 2; }
+
+if [[ -n "${AUTO_PICKED:-}" ]]; then
+  # An artifact older than the packages it is supposed to contain tests the LAST build, and says nothing
+  # about the tree. Worse, it does not fail like a stale binary: it fails like a broken product, with
+  # "Function <hash> couldn't be found" on every command, because the refs the binary was pinned to are not
+  # in the seed it shipped. That cost an hour once. Only checked when we picked the artifact ourselves --
+  # an explicitly passed one is the caller's business, and CI passes the one it just built.
+  newest_source=$(find packages backend/src -newer "$ARTIFACT" -type f \( -name '*.dark' -o -name '*.fs' \) -print -quit 2>/dev/null || true)
+  if [[ -n "$newest_source" ]]; then
+    echo "test-first-day: $(basename "$ARTIFACT") is older than $newest_source" >&2
+    echo "  Rebuild it, or this gate reports on a binary that predates your change:" >&2
+    echo "    scripts/build/build-release-cli-exes.sh" >&2
+    exit 2
+  fi
+fi
+
+# Absolute BEFORE the cd below: `$PWD` inside the subshell is the temp home, not the repo.
+ARTIFACT=$(readlink -f "$ARTIFACT")
+
+HOMEDIR=$(mktemp -d)
+trap 'rm -rf "$HOMEDIR"' EXIT
+
+failures=0
+
+# DARK_CONFIG_RUNDIR, not just HOME. The container sets that variable for every process, and it WINS over
+# the `<home>/.darklang` default a published binary would otherwise compute -- so setting HOME alone left
+# this running against the shared dev store. It passed, which was the worst part: it was asserting a first
+# day against a store with 12k ops and someone else's branches in it, and it wrote its own fixtures back
+# into that store on the way through.
+dark() { ( cd "$HOMEDIR" && HOME="$HOMEDIR" DARK_CONFIG_RUNDIR="$HOMEDIR/rundir" "$ARTIFACT" "$@" 2>&1 ); }
+clean() { sed 's/\x1b\[[0-9;]*m//g'; }
+
+want() {  # want <name> <pattern> <command...>
+  local name="$1" pat="$2"; shift 2
+  local out
+  out=$(dark "$@" | clean) || true
+  if grep -qE "$pat" <<<"$out"; then
+    echo "  ok   $name"
+  else
+    echo "  FAIL $name: wanted /$pat/, got:"
+    while IFS= read -r line; do printf '         %s\n' "$line"; done <<<"$out" | head -4
+    failures=$((failures + 1))
+  fi
+}
+
+echo "First day on $(basename "$ARTIFACT"), from an empty home:"
+
+# 1. First run at all. This is where the seed is unpacked and the package DB grown from ops.
+want "first run reports a clean tree" "clean|draft" status
+
+# 2. Author something and run it. The thing the language is for.
+want "authoring a fn"    "FirstDay|added|Hello" fn /FirstDay.Hello.greet '(name: String) : String = "hi " ++ name'
+want "and running it"    "hi world"        eval 'FirstDay.Hello.greet "world"'
+want "status sees it"    "draft|1 item"    status
+
+# 3. Commit it, and read the commit back.
+want "committing"        "commit"          commit "first day" -y
+want "commits lists it"  "first day"       commits
+want "tree is clean"     "clean"           status
+
+# 4. A branch, isolated from main.
+want "starting a branch" "branch|switched" branch create firstday
+want "authoring on it"   "FirstDay|added|Hello" --branch firstday fn /FirstDay.Hello.only '() : Int64 = 1L'
+want "main cannot see it" "not found"      --branch main eval 'FirstDay.Hello.only ()'
+
+# 5. Merge it, and main can.
+want "merge --dry-run"   "would merge"     --branch firstday merge firstday --dry-run
+want "merging"           "Merged"          --branch firstday merge firstday
+want "main sees it now"  "^1$"             --branch main eval 'FirstDay.Hello.only ()'
+
+# 6. A real divergence: both sides move one name, merge records a conflict.
+dark branch create clash >/dev/null 2>&1 || true
+dark --branch clash fn /FirstDay.Hello.greet '(name: String) : String = "yo " ++ name' >/dev/null 2>&1 || true
+dark --branch main fn /FirstDay.Hello.greet '(name: String) : String = "hey " ++ name' >/dev/null 2>&1 || true
+want "merge records a conflict" "conflict" --branch clash merge clash
+want "conflicts --json lists it" '"pending":[1-9]' --branch main conflicts --json
+
+# 7. And you can walk away from a draft.
+dark fn /FirstDay.Hello.scratch '() : Int64 = 5L' >/dev/null 2>&1 || true
+want "discard drops the draft" "discarded"  discard -y
+want "and it is gone"          "not found"  eval 'FirstDay.Hello.scratch ()'
+
+# 8. A pin BEFORE committing un-stages the repoint rather than authoring one back.
+#
+# The one step of `two-box-sync-runbook.md` that no gate covered, and the runbook calls it the newest
+# behaviour. Single-instance, so it belongs here rather than in the multi-instance gate.
+dark fn /FirstDay.Chain.p1 '(x: Int64): Int64 = x + 1L' >/dev/null 2>&1 || true
+dark fn /FirstDay.Chain.p2 '(x: Int64): Int64 = (FirstDay.Chain.p1 x) + 1L' >/dev/null 2>&1 || true
+dark commit "chain" -y >/dev/null 2>&1 || true
+dark fn /FirstDay.Chain.p1 '(x: Int64): Int64 = x + 50L' >/dev/null 2>&1 || true
+want "the dependent followed"   "followed"            status
+want "pin drops the repoint"    "dropped the staged"  propagate pin FirstDay.Chain.p2
+want "and nothing followed now" "1 item changed"      status
+# The point of the whole step: p2 is back on the OLD p1, so 0 -> 2, not 0 -> 51.
+want "the pin actually holds"   "^2$"                 eval 'FirstDay.Chain.p2 0L'
+
+if [[ "$failures" -gt 0 ]]; then
+  echo "$failures first-day step(s) failed."
+  exit 1
+fi
+echo "first day: author, run, commit, branch, merge, conflict, discard and pinning all work from an empty home."

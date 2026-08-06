@@ -224,7 +224,7 @@ module WriteFile =
           kind = LanguageTools.ProgramTypes.ItemKind.Type
           ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
-              LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageType packageType.hash) ]
+              LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageType packageType.hash, Stdlib.Option.Option.None) ]
           unresolvedNames = unresolvedNames }
     | Function fnDecl ->
       let location = locationOf fnDecl.name.name
@@ -238,7 +238,7 @@ module WriteFile =
           kind = LanguageTools.ProgramTypes.ItemKind.Fn
           ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
-              LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageFn packageFn.hash) ]
+              LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageFn packageFn.hash, Stdlib.Option.Option.None) ]
           unresolvedNames = unresolvedNames }
     | Value valDecl ->
       let location = locationOf valDecl.name.name
@@ -252,7 +252,7 @@ module WriteFile =
           kind = LanguageTools.ProgramTypes.ItemKind.Value
           ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
-              LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageValue packageValue.hash) ]
+              LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageValue packageValue.hash, Stdlib.Option.Option.None) ]
           unresolvedNames = unresolvedNames }
     // `collectDecls` flattens submodules and never saves expressions.
     | SubModule _

@@ -22,6 +22,19 @@ type InternalException(message : string, metadata : Metadata, inner : exn) =
   new(msg : string, inner : exn) = InternalException(msg, [], inner)
 
 
+/// A condition of the MACHINE rather than of the program: the store is read-only, the disk is full, the
+/// store belongs to another user. Distinguished from `InternalException` because the response is opposite
+/// -- there is nothing to fix in the code, nothing to report, and the person running the command can
+/// resolve it themselves once told which of those it is. Carries a sentence written for them, so a caller
+/// that catches this can print it and nothing else.
+type StoreConditionException(message : string, metadata : Metadata, inner : exn) =
+  inherit System.Exception(message, inner)
+  member _.metadata = metadata
+  new(msg : string) = StoreConditionException(msg, [], null)
+  new(msg : string, metadata : Metadata) =
+    StoreConditionException(msg, metadata, null)
+
+
 // A pageable exception will cause the pager to go off! This is something that should
 // never happen and is an indicator that the service is broken in some way.  The
 // pager goes off because a pageable exception sets the `{ is_pageable: true }`
@@ -81,6 +94,10 @@ let raiseInternal (msg : string) (tags : Metadata) =
   let e = InternalException(msg, tags)
   callExceptionCallback e
   raise e
+
+/// See `StoreConditionException`. Not reported anywhere: this is the machine's state, not a defect.
+let raiseStoreCondition (msg : string) (tags : Metadata) =
+  raise (StoreConditionException(msg, tags))
 
 let unwrapOptionInternal (msg : string) (tags : Metadata) (o : Option<'a>) : 'a =
   match o with

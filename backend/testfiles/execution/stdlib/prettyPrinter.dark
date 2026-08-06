@@ -10,7 +10,7 @@
 // --- helpers ---
 let pp (v: 'a) : String =
   Darklang.PrettyPrinter.RuntimeTypes.dval
-    Darklang.SCM.Branch.mainBranchId
+    Darklang.SCM.Ids.mainBranchId
     (Builtin.reflect v)
 
 let emptyInts () : List<Int> = []
@@ -171,7 +171,7 @@ module Shortening =
 module Options =
   let at (width: Int) (v: 'a) : String =
     Darklang.PrettyPrinter.RuntimeTypes.dvalWith
-      Darklang.SCM.Branch.mainBranchId
+      Darklang.SCM.Ids.mainBranchId
       (Darklang.PrettyPrinter.DisplayOptions.atWidth width)
       (Builtin.reflect v)
 
@@ -201,7 +201,7 @@ module Options =
   // The same record at a width that fits it: one line, so the break above is the width deciding, not a
   // record always breaking.
   Darklang.PrettyPrinter.RuntimeTypes.dvalWith
-    Darklang.SCM.Branch.mainBranchId
+    Darklang.SCM.Ids.mainBranchId
     (Darklang.PrettyPrinter.DisplayOptions.atWidth 200)
     (Builtin.reflect (loc "Darklang" [ "Stdlib" ] "map")) =
     "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner: \"Darklang\", modules: [\"Stdlib\"], name: \"map\" }"

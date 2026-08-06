@@ -4,15 +4,22 @@
 /// e.g. in order to return an `Option` from a Builtin, we need to know the hash of
 /// the `Option` package type when constructing the `DEnum` value.
 ///
-/// Hashes are loaded lazily from `package-ref-hashes.txt` on first access.
-/// The file lives in the source tree alongside this file and is auto-updated by
-/// `reload-packages`. It is NOT tracked in git — an MSBuild target creates an
-/// empty file if missing (fresh clone / CI before reload-packages).
+/// Hashes are loaded lazily from `package-ref-hashes.txt` on first access. The file lives in
+/// the source tree alongside this file, and in a release binary as an embedded resource.
 ///
-/// All bindings are `unit -> string` functions (via partial application of `p`)
-/// so that module initialization does not trigger file loading. This allows code
-/// that depends on this module (e.g. migrations) to load without the hash file
-/// being populated yet. Call sites use `PackageRefs.Type.Stdlib.option ()`.
+/// NOT tracked in git: an MSBuild target creates an empty one if missing (fresh clone,
+/// or CI before reload-packages), and `reload-packages` fills it. Two branches that both
+/// touch packages produce conflicting hashes, and a rebase on GitHub cannot regenerate
+/// the file, so tracking it means a manual pull-reload-commit on every such branch.
+///
+/// The consequence to know: `kernelHash` fingerprints what THIS build reloaded. Two
+/// machines on the same commit agree, because the hashes derive from the package sources
+/// in that commit. A store that has drifted does not, and nothing here detects that.
+///
+/// All bindings are `unit -> string` functions (via partial application of `p`) so
+/// that module initialization does not trigger file loading. This allows code that
+/// depends on this module (e.g. migrations) to load without the hash file being
+/// populated yet. Call sites use `PackageRefs.Type.Stdlib.option ()`.
 module LibExecution.PackageRefs
 
 open Prelude
@@ -29,6 +36,18 @@ let private parseLines (lines : string seq) =
       | _ -> None)
   |> Map.ofSeq
 
+/// A read failure is REPORTED, not swallowed into an empty map.
+///
+/// An empty map is not a benign default: every kernel package lookup then fails much
+/// later with a bare `Function <64 hex> couldn't be found`, which reads like a build
+/// problem and sends you looking in the wrong place. Say what went wrong, where it
+/// went wrong.
+let private warnOnce =
+  System.Collections.Concurrent.ConcurrentDictionary<string, bool>()
+
+let private warn (msg : string) : unit =
+  if warnOnce.TryAdd(msg, true) then System.Console.Error.WriteLine msg
+
 let private loadHashes () : Map<string, string> =
   let sourceTreePath =
     System.IO.Path.Combine(__SOURCE_DIRECTORY__, "package-ref-hashes.txt")
@@ -36,7 +55,13 @@ let private loadHashes () : Map<string, string> =
   try
     if System.IO.File.Exists(sourceTreePath) then
       let content = System.IO.File.ReadAllLines(sourceTreePath)
-      if content.Length = 0 then Map.empty else content |> parseLines
+      if content.Length = 0 then
+        warn
+          $"package-ref-hashes.txt is empty ({sourceTreePath}). \
+            Kernel package lookups will fail; run `scripts/build/reload-packages` to regenerate it."
+        Map.empty
+      else
+        content |> parseLines
     else
       // Release binary: source tree not available, use embedded resource
       use stream =
@@ -47,10 +72,35 @@ let private loadHashes () : Map<string, string> =
         use reader = new System.IO.StreamReader(stream)
         reader.ReadToEnd().Split('\n') |> parseLines
       else
+        warn
+          "package-ref-hashes.txt not found in the source tree or as an embedded resource. \
+           Kernel package lookups will fail."
         Map.empty
   with
   | :? Exception.InternalException -> reraise ()
-  | _ -> Map.empty
+  | e ->
+    warn
+      $"package-ref-hashes.txt could not be read ({e.Message}). Kernel package lookups will fail."
+    Map.empty
+
+/// The pins that are NOT allowed to move quietly.
+///
+/// Ordinary pins move all the time: something below them changes, `reload-packages` rewrites the line, the
+/// diff is the review. These are different in kind -- they are depended on by essentially every package, so
+/// their identity moving means something changed underneath the whole tree, or hashing itself is wrong.
+/// The regenerator refuses to rewrite one without `DARK_REPIN_HARDENED=1`.
+///
+/// Keep this list SHORT: a pin is hardened because moving it is alarming, not because it is important.
+/// Harden too many and the override flag becomes routine.
+let hardened : Set<string> =
+  Set.ofList
+    [ "type/Stdlib.Option.Option"
+      "type/Stdlib.Result.Result"
+      "type/LanguageTools.ProgramTypes.PackageOp"
+      "type/LanguageTools.ProgramTypes.PackageLocation" ]
+
+// Deliberately NOT hardened: `fn/Cli.executeCliCommand`. It moves whenever the CLI changes, and hardening
+// a pin that moves routinely just teaches everyone the override flag.
 
 /// Mutable hash cache. Loaded on first access, can be reloaded after
 /// the hash file is regenerated (e.g. during reload-packages in CI).
@@ -127,23 +177,6 @@ module Type =
             Exception.raiseInternal
               "PackageRefs: type hash not found. The hash file is stale; regenerate it with `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`"
               [ "fqn", fqn ]
-
-  // Darklang.Sync.* — internal sync machinery (op-log wire types)
-  module Sync =
-    let private p addl = p ("Sync" :: addl)
-
-    module EventLog =
-      let private p addl = p ("EventLog" :: addl)
-      let event = p [] "Event"
-      let commit = p [] "Commit"
-      let change = p [] "Change"
-      let appendResult = p [] "AppendResult"
-      let branchOpEvent = p [] "BranchOpEvent"
-      let resolutionEvent = p [] "ResolutionEvent"
-
-    module Conflicts =
-      let private p addl = p ("Conflicts" :: addl)
-      let conflict = p [] "Conflict"
 
   module Stdlib =
     let private p addl = p ("Stdlib" :: addl)
@@ -222,7 +255,8 @@ module Type =
     let builtinFn = p [] "BuiltinFunction"
     let builtinFnPurity = p [] "BuiltinFunctionPurity"
 
-    /// The structured capability model — the F#/Dark wire form (see `CapabilitiesToDarkTypes`).
+    /// The structured capability model -- the F#/Dark wire form (see
+    /// `CapabilitiesToDarkTypes`).
     module Capabilities =
       let private p addl = p ("Capabilities" :: addl)
       let scope = p [] "Scope"
@@ -421,6 +455,9 @@ module Type =
       let itemKind = p [] "ItemKind"
       let reference = p [] "Reference"
       let deprecationKind = p [] "DeprecationKind"
+      let branchEventKind = p [] "BranchEventKind"
+      let decisionKind = p [] "DecisionKind"
+      let propagationPolicy = p [] "PropagationPolicy"
       let propagateRepoint = p [] "PropagateRepoint"
       let db = p [] "DB"
 
@@ -460,21 +497,6 @@ module Type =
 
   module DarkPackages =
     let stats = p [ "DarkPackages" ] "Stats"
-
-  module SCM =
-    let private p addl = p ("SCM" :: addl)
-
-    module Branch =
-      let private p addl = p ("Branch" :: addl)
-      let branch = p [] "Branch"
-
-    module Merge =
-      let private p addl = p ("Merge" :: addl)
-      let mergeError = p [] "MergeError"
-
-    module PackageOps =
-      let private p addl = p ("PackageOps" :: addl)
-      let commit = p [] "Commit"
 
 
 module Fn =
@@ -562,3 +584,29 @@ module Fn =
     module Test =
       let private p addl = p ("Test" :: addl)
       let parseSingleTestFromFile = p [] "parseSingleTestFromFile"
+
+
+/// A single fingerprint for the pinned ABI: the sorted (name, hash) pairs, hashed.
+///
+/// `darkBuild` (a git sha) says which COMMIT wrote something. It doesn't say what
+/// the PT shapes and the hashing actually were, which is the thing that decides
+/// whether another build can read it -- two commits can share an ABI, and a one-line
+/// change to a kernel type can break it. Someone holding nothing but a bundle and
+/// sqlite should be able to tell.
+///
+/// Sorted before hashing so it's stable regardless of file order, and short enough
+/// to eyeball.
+let kernelHash () : string =
+  let material =
+    getHashes ()
+    |> Map.toList
+    |> List.sortBy fst
+    |> List.map (fun (fqn, hash) -> $"{fqn}|{hash}")
+    |> String.concat "\n"
+
+  use sha = System.Security.Cryptography.SHA256.Create()
+  material
+  |> System.Text.Encoding.UTF8.GetBytes
+  |> sha.ComputeHash
+  |> System.Convert.ToHexString
+  |> fun s -> s.ToLowerInvariant().Substring(0, 16)

@@ -31,17 +31,38 @@ let fns () : List<BuiltInFn> =
       capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
-    // The Release (store format/version coordinate: language + op-format + schema + hashing) this Dark
-    // binary speaks. Compared against the store's stamped Release for the upgrade/`dark version` surface.
-    { name = fn "currentRelease" 0
+    // Local, per-install mutable config (config_v0): the entry-point pointer + per-user settings. NOT
+    // content-addressed, NOT synced -- deliberately separate from the op log. "" means unset.
+    { name = fn "configGet" 0
       typeParams = []
-      parameters = [ Param.make "unit" TUnit "" ]
-      returnType = TInt
-      description = "The Release (store format/version) this Dark binary speaks."
+      parameters = [ Param.make "key" TString "" ]
+      returnType = TString
+      description = "Get a local config value (config_v0), or \"\" if unset."
       fn =
         (function
-        | _, _, _, [| DUnit |] ->
-          uply { return Dval.int (bigint LibDB.Releases.currentRelease) }
+        | _, _, _, [| DString key |] ->
+          uply {
+            let! v = LibDB.Config.get key
+            return DString(Option.defaultValue "" v)
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+    { name = fn "configSet" 0
+      typeParams = []
+      parameters = [ Param.make "key" TString ""; Param.make "value" TString "" ]
+      returnType = TUnit
+      description = "Set a local config value (config_v0). Local + unsynced."
+      fn =
+        (function
+        | _, _, _, [| DString key; DString value |] ->
+          uply {
+            do! LibDB.Config.set key value
+            return DUnit
+          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

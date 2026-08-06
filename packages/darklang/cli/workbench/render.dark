@@ -56,7 +56,9 @@ let renderScrollableLines
     let (i, l) = pair
     let row = i - off
     // Belt and braces: a single grapheme wider than the pane can't be wrapped, only cut.
-    Stdlib.Cli.UI.Layout.at region row colOffset (Stdlib.Cli.Tui.Text.clipToWidth l maxFit))
+    // `rows` already carries the DISPLAY text (the `display` lookup happens when they are built and
+    // wrapped), so there is nothing to look up again here -- and `i` indexes wrapped rows, not lines.
+    Stdlib.Cli.UI.Layout.at region row colOffset (Stdlib.Cli.Tui.Text.clipMarked l maxFit))
   |> Stdlib.List.flatten
 
 

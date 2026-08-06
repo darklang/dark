@@ -1,0 +1,60 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Every workbench view, with work in the store.
+#
+# `test-workbench.expect` walks a few views on an EMPTY store, which asserts that a view renders and
+# nothing about whether it can render anything. That distinction cost a crash: the Conflicts
+# pane was reading the pre-SCM conflict shape, and took the whole workbench down the moment a conflict
+# existed to draw (open item 34). A field access resolves at RUNTIME in Dark, so a pane reading a shape
+# that moved underneath it is invisible until there is data.
+#
+# So this fills the store first -- draft, commits, a branch, a recorded conflict, traces, a sync
+# identity -- and then visits every view. A view that throws takes the process down, so an EOF where
+# content was expected is the failure that matters; each step also names something only that view draws.
+#
+# Scope, stated plainly: this opens each view on its DEFAULT section. It would not have caught the
+# conflict-pane crash, which needs the Conflicts section selected -- that is `test-workbench-scm`, and the
+# two are complementary rather than one subsuming the other. The sections moved into the sidebar upstream,
+# so reaching them is navigation now rather than a Tab press.
+
+set -euo pipefail
+
+CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+WORK=rundir/workbench-views-test
+
+rm -rf "$WORK"
+mkdir -p "$WORK"
+# ALL the config, not just `current_branch`: a copy of the dev store inherits `sync.relay` and the write
+# secret, so one sync-shaped command in here would reach the REAL relay. Note this makes the store look
+# like a first run to the SETUP check, so no wizard blocks startup. The greeting is a separate question:
+# it follows commits/changes/relay, so a store with work in it still greets "Welcome back".
+cp rundir/data.db "$WORK/data.db"
+sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+
+export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+run() { "$PWD/$CLI" "$@" >/dev/null 2>&1 || true; }
+
+# commits, for History and Home's "last commit"
+run fn /WbV.T.base '() : Int64 = 1L'
+run commit "workbench views fixture" -y
+
+# a branch that diverges on one name, merged so a conflict is RECORDED
+run branch create wbv
+run --branch wbv fn /WbV.T.base '() : Int64 = 222L'
+run --branch main fn /WbV.T.base '() : Int64 = 111L'
+run --branch wbv merge wbv
+run switch main
+
+# an uncommitted draft, for Changes and the Home status box
+run fn /WbV.T.draft '() : Int64 = 9L'
+
+# a sync identity, so anything reading one has something to read. Note this does NOT unhide Devices:
+# that view is gated on the ACCOUNT, not the identity, and only for the two people building it.
+run identity workbench-views-test
+
+# traces: something has to have RUN for the Traces view to hold anything
+run eval 'WbV.T.draft ()'
+run eval 'Stdlib.List.length [ 1L; 2L; 3L ]'
+
+exec expect "$PWD/scripts/testing/_workbench-views.expect" "$PWD/$CLI" "$PWD/$WORK"

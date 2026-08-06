@@ -1,9 +1,8 @@
 // The outliner's pure core: the tree operations, the widgets it's built from, and the import/export
 // round trips.
 //
-// These used to live in `packages/darklang/cli/outliner/tests.dark` as 482 lines with a hand-rolled
-// TestResult/TestSummary and a printing runner, referenced by nothing: not the registry, not the backend
-// suite, not a testfile. The only way to find out whether they passed was to call `runAllTests` by hand.
+// They live here, as a testfile, so the backend suite runs them. A hand-rolled runner inside
+// `packages/` is reachable only by calling it by hand, which means nobody finds out when it goes red.
 //
 // Names are fully qualified: testfiles parse with owner "Tests", so `Darklang.` prefixes are required.
 

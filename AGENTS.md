@@ -85,6 +85,15 @@ tell you the tree has moved on rather than silently running a stale binary.
     ./scripts/run-backend-tests --groups Interpreter  just that part of it
     ./scripts/run-backend-tests --find mergeFavoring  what matches, and how to run it
     ./scripts/testing/test-build-planning.py          tests of the build itself
+    ./scripts/testing/test-setup                      `dark sync setup`, end to end, own rundir
+    ./scripts/testing/test-lsp-branches                the `dark/*` branch surface, as an editor drives it
+    ./scripts/testing/test-workbench-scm               the workbench SCM view with real work in the store
+    ./scripts/testing/test-workbench-views             every workbench view, ditto, one session each
+    ./scripts/testing/test-relay-routes                the relay's HTTP surface, given bad input
+    ./scripts/testing/test-sync-hostile-relay          the sync/branch CLIENTS, given a relay that lies
+    ./scripts/testing/test-sync-multi-instance         four instances, branches, review queues, agents
+    ./scripts/testing/test-first-day                   a published binary, empty home, whole SCM workflow
+    ./scripts/testing/test-gates-are-clean             that none of the above touch the shared dev store (slow)
     ./scripts/perf/gate                               reference workload, allocation vs budget
     ./scripts/perf/suite                              six workloads, allocation per iteration
     ./scripts/perf/checks                             by-hand interpreter and error-message checks
@@ -92,10 +101,33 @@ tell you the tree has moved on rather than silently running a stale binary.
 Find what you want before guessing at a filter: `--groups` and `--find` need no
 database and no package reload, and print the exact command for what they found.
 
-The one trap worth knowing here: a filter that matches nothing used to be reported as
+`run-backend-tests` does NOT compile. It reloads packages and runs the test binary that is
+already there, so an `.fs` change you have not built yet is simply not in the run. It looks
+exactly like a passing test, and a red test you "fixed" stays red with its old message,
+which is the tell. Build first:
+
+    scripts/dev/build && ./scripts/run-backend-tests
+
+The other trap: a filter that matches nothing used to be reported as
 `0 tests run - Success!` with exit 0. It fails now. `docs/unittests.md` has the rest,
 including what the three filter flags actually do and why they used to disagree with
 their own help text.
+
+### Sweeping the CLI after a conversion
+
+A Dark call site is not type-checked until it executes, so a rename or a type change across `packages/`
+leaves holes a green suite cannot see. Every serious bug on the kernel-substrate branch was found by
+running commands, not by reading them, and always the same four ways:
+
+1. every command BARE
+2. every command with `--help`
+3. every command with valid arguments, on main AND on a branch
+4. every command with arguments a person would get wrong (missing, misspelled, wrong type)
+
+Grep the output for `Encountered a Runtime Error`, `expects .* but got`, `No matching case found`,
+`couldn't be found`. Shape 4 is the one people skip and it found the most: a fall-through arm answers
+plausibly instead of refusing, so `dark branch rename` created a branch called "rename".
+`everyCommandSurvivesABogusArgument` in `CliTraces.Tests.fs` is shape 4, automated.
 
 ### Performance
 
@@ -116,11 +148,26 @@ Everything perf lives in `scripts/perf/` (tools) and `docs/perf/` (writing):
 The playbook is the one to read cold. Its recurring lesson: nearly all wasted effort came from
 trusting a measurement nobody had checked.
 
-Decide with allocation, not time. Allocation for a fixed workload repeats to a tenth of a percent
-and doesn't care how loaded the box is; time drifts by more than most individual wins are worth. So
-`gate` asserts allocation and only allocation, against `scripts/perf/budget.json`, and CI runs it
-after the backend tests. When a change earns a lower number, lower the budget in the same commit
-with `scripts/perf/gate --update`, or it stops being a gate and becomes a ceiling to drift up to.
+Decide with allocation, not time. Allocation doesn't care how loaded the box is; time drifts by more
+than most individual wins are worth. So `gate` asserts allocation and only allocation, against
+`scripts/perf/budget.json`, and CI runs it after the backend tests. When a change earns a lower
+number, lower the budget in the same commit with `scripts/perf/gate --update`, or it stops being a
+gate and becomes a ceiling to drift up to.
+
+It repeats to a tenth of a percent only WITHIN A MODE, which this file used to state without the
+qualifier. Measured on `steady.dark` in debug, same tree, same box, runs back to back: readings fall
+into tight clusters that agree to 0.0003%-0.03%, and the clusters sit 0.3%-1.0% apart. One 8-sample
+set spanned 1.05% end to end. So the repeatability is real and better than a tenth of a percent, and
+it tells you which MODE you landed in rather than what the code allocates.
+
+What picks the mode is unknown. It is NOT the shared dev store: an isolated copy of `data.db` shows
+the same clustering (0.73% across 8 runs) as the shared one (0.31%), so don't spend time isolating
+the store again. It is not obviously warmup either -- the modes interleave rather than settling.
+
+Practical rule: one reading is not a measurement. Take 5+ of each side and compare the minimum or
+the modal cluster, and treat any difference under ~0.7% as unproven until it survives that. Do not
+`--update` off a single sample: it bakes in whichever mode you hit. The gate's 3% tolerance sits
+above the whole band, so the gate itself is still meaningful.
 
 `suite` is the wider view and asserts nothing -- it is for seeing whether a change that helped one
 shape of program hurt another. The six differ by more than an order of magnitude per iteration, so
@@ -142,7 +189,7 @@ Logs go to `rundir/logs/fsharp-tests.log`.
       Builtins/           # Cli, CliHost, Http.Client, Http.Server, Language,
                           # Matter, Pure, Random, Time
     packages/darklang/    # .dark files
-      cli/                # the CLI app: registry, loop, workbench, outliner, review
+      cli/                # the CLI app: registry, loop, workbench, outliner
       scm/                # SCM library (branch, rebase, merge, packageOps)
       stdlib/             # standard library
         cli/stdin.dark    #   reads keys
@@ -199,16 +246,46 @@ written next to it.
 
 ## SCM / branches
 
-    LibDB/Branches.fs         # branch CRUD, getBranchChain
-    LibDB/Rebase.fs           # conflict detection, rebase
-    LibDB/Merge.fs            # merge into parent
-    LibDB/Inserts.fs          # ops take branchId
-    LibDB/Queries.fs          # branch-aware SQL
-    LibDB/PackageManager.fs   # pt(branchId) constructs PM
-    Builtins/Builtins.Matter/Libs/PM/{Branches,Rebase,Merge}.fs
+`package_ops` is canonical and append-only; an op's id IS its content hash. Everything else -- `locations`,
+`package_functions`, `package_dependencies`, `propagation_policy` -- is a projection you can drop and
+re-fold from the log. That is why a schema change to a projection costs nothing and a change to a canonical
+table needs `LibDB/Releases.fs`.
 
-`PackageManager.pt` takes a branchId and pre-computes the branch chain for name resolution.
-Items are global (content-addressed); locations (name bindings) are branch-scoped.
+The decisions live in Dark; F# does what only F# can do (parse, hash, serialize, execute, store bytes).
+
+    packages/darklang/scm/     # the silos, each owning the SQL for its own tables
+      packageOps.dark          #   package_ops: the log, and branches as overlays
+      branches.dark            #   branches, op_branches, branch_name_bases; canMerge lives here
+      commits.dark             #   commits
+      conflicts.dark           #   conflicts, sync_bases; the base-agnostic detector
+      constraints.dark         #   standing findings (outdated usages)
+      propagation.dark         #   propagation_policy: pin and follow
+      draft.dark               #   one answer to "what have I changed"
+      storeHealth.dark         #   what can be wrong with the STORE
+
+    LibDB/Lww.fs               # THE last-writer-wins rule. One place, on purpose; see below
+    LibDB/PackageOpPlayback.fs # THE FOLD: ops -> projections. Read this first.
+    LibDB/Inserts.fs           # author: mint the op id, insert, fold
+    LibDB/Draft.fs             # discard / un-stage; the only code that edits `locations` outside the fold
+    LibDB/Branches.fs          # branch tables + the merge MECHANISM (the gate is in Dark)
+    LibDB/Propagation.fs       # the cascade: who depends on what moved
+    LibDB/Releases.fs          # shape changes to canonical tables on existing stores
+
+**Last-writer-wins lives in `LibDB/Lww.fs`, and asking it twice is the bug.** Two different things need
+the rule: the fold decides which binding survives, and conflict recording decides which side to NAME as
+the winner (`SCM.Conflicts.incomingWins`, in Dark, because the recording is in Dark). If those disagree, a
+recorded conflict names a winner the fold did not pick and two instances converge on different content
+with nothing to say so. The F# side has exactly one copy and the fold calls it. The Dark side is held to
+it by matching tables in `Tests/Lww.Tests.fs` and `testfiles/execution/scm/lww.dark`: change one, change
+both, and both test tables. Inverting either tie-break turns those red, which is checked.
+
+**A branch is an overlay, not a copy.** Its ops live in the same table, stored `effective = 0` and tagged in
+`op_branches`. A branch's package manager is main's with those ops layered on top.
+
+**This is the trap.** `locations` has NO `branch_id`. A branch has no rows there at all, so any read that
+goes straight to `locations` answers about MAIN while you are standing on a branch -- and it answers
+plausibly, which is why it is hard to spot. Go through the overlay helpers in `SCM.PackageOps`, or read the
+op log directly. Three call sites had already drifted this way.
 
 ## Gotchas
 
@@ -221,6 +298,15 @@ hash not found". After adding a ref:
 `Darklang.*` names need full qualification or the `Stdlib.` shortcut. `Stdlib.Json.ParseError.toString`
 and `Darklang.SCM.Branch.mainBranchId` resolve; `SCM.Branch.mainBranchId` doesn't. Impl:
 `backend/src/LibParser/NameResolver.fs` and `packages/darklang/languageTools/nameResolver.dark`.
+
+**A published artifact older than your tree fails like a broken product.** Every command dies with
+"Function <hash> couldn't be found", because reloading packages regenerates the pinned ref hashes but does
+NOT re-export `rundir/seed.db`, and a binary built on that seed can't produce the refs it was pinned to. It
+only fails outside the source tree, since inside it the working store answers.
+`scripts/build/check-seed-carries-refs` names it in one run; fix with
+`scripts/run-local-exec export-seed rundir/seed.db` and rebuild. `test-first-day` and
+`scripts/perf/gate --published` now refuse an artifact older than the tree rather than
+reporting on it.
 
 **No `PACKAGE.` source prefix.** `PACKAGE.` is internal runtime/debug notation, not a
 Dark namespace. Write `Stdlib.List.map` or `Darklang.Stdlib.List.map`, never
@@ -256,6 +342,13 @@ so `shouldCap` is false and nothing caps -- on exactly the path that produces th
 output. For a status report from an authoring command, cap unconditionally and point the
 footer at the command that prints everything.
 
+**A `val` holding a custom type can go stale.** `val forMain = forBranch ""` stores a *value*,
+and that value carries the type identity it was built against. Reload packages and a caller can
+be handed a `Context` the callee no longer recognises: `FnParameterNotExpectedType` on a
+parameter whose type you never touched. Confusingly it reproduces only where the package set is
+rebuilt (the LibExecution testfile harness) and not under `eval`. Call the function instead of
+reaching for the `val` when the result is a custom type.
+
 **Record update takes no type tag.** `{ state with field = v }` is right.
 `MyType { state with field = v }` looks like F# but parses as function application.
 
@@ -271,13 +364,81 @@ not a constant; `val` is evaluated once. If the body doesn't depend on anything,
 which fails with "Value annotations are not supported". Function bindings do take them, and
 nested functions require them.
 
+## Scratch stores carry the real relay
+
+A copy of `rundir/data.db` inherits its config: `sync.relay`, the write secret, the push cursors. So a
+throwaway store is pointed at the PRODUCTION relay until you say otherwise, and one sync-shaped command
+reaches it. `dark review pull` with no url does exactly that, quietly, because the url is a stored default.
+
+    sqlite3 "$scratch/data.db" 'DELETE FROM config_v0;'   # all of it, not just current_branch
+
+There are THREE config stores, and that line only clears one: `config_v0` in sqlite, `cli-config.json`
+beside the db (instance id and name), and `$HOME/.darklang/capabilities.bin`.
+
+That third one is keyed on **HOME**, not `DARK_CONFIG_RUNDIR`, so an isolated store does NOT isolate it. A
+`dark caps grant ...` in a throwaway store writes the real grant for the whole container. Worse, the file's
+ABSENCE is what makes the host permissive (`hostCaps` returns allCaps only while there is no file), so
+creating one narrows every process under that HOME. Running `caps grant random` in a sweep turned ten suite
+tests red with "capability denied: `sqliteQuery` needs file (read)", and the fix is to delete the file
+rather than to grant more. Set `HOME` as well as `DARK_CONFIG_RUNDIR` when a test touches `caps`.
+
+Clearing only `current_branch%` is the trap: it looks like isolation and leaves the relay wired up. It has
+happened twice here from ad-hoc scripts, both reads, both avoidable.
+
+One consequence worth knowing: an isolated store usually looks like a FIRST RUN, and Home shows its welcome
+PANEL instead of a row's detail, so a test waiting for anything a populated Home draws waits forever. Do not
+anchor a workbench test on the greeting either way: "Welcome, <name>" is on every Home, and the panel is the
+part that distinguishes a new instance. The context row (`instance:`) is the stable "it started" marker.
+
+## Standing up a relay in a test
+
+Two traps, both of which read as product bugs and are not:
+
+**A stray relay answers on the port you expected.** One left over from an earlier run holds the port with
+a secret you have forgotten, your new relay never binds, and every push comes back `HTTP 401: that write
+secret isn't the one this relay expects`. It looks exactly like broken auth. Kill first, wait for the
+kill, pick a port of your own, and check the process you started is the one alive:
+
+    pkill -9 -f "Matter.router"; for _ in 1 2 3 4 5; do pgrep -f "[M]atter.router" >/dev/null || break; sleep 1; done
+    PORT=$(( 9200 + RANDOM % 300 ))
+    ... start it ... ; kill -0 $RPID || { echo "not ours"; exit 2; }
+
+**A bare `wait` also waits on the relay.** The relay is a background job of the same shell, and it never
+exits, so `wait` after a couple of parallel pushes hangs forever with no output and no CPU. Name the pids:
+`wait $PA $PB`. This cost two debugging rounds in one session, twice, because a hung script with an empty
+log looks like a hung PRODUCT.
+
+`scripts/testing/test-sync-multi-instance` does both correctly and is the place to copy from.
+
 ## Interactive CLI testing
+
+**A key pressed while a frame is painting is lost.** In an `expect` script, wait a beat after the text you
+matched before sending the next key, or the key lands mid-render and is dropped. The symptom is not "that
+key did nothing", it's the NEXT assertion timing out, which reads as a broken view. `_workbench-scm.expect`
+has a `press` helper for this.
+
 
 The interactive CLI (`run-cli` with no args) needs a real TTY. Use `expect`:
 
     ./scripts/run-in-docker expect scripts/testing/test-interactive.expect
 
 Telemetry lands in `rundir/logs/telemetry.jsonl`. Full guide: `docs interactive-testing`.
+
+For a command that just asks QUESTIONS (`dark sync setup`, `dark conflicts walk`), reach for `script`
+before `expect`. It gives a pty and takes the answers on stdin, so there is no pattern matching
+to get wrong:
+
+    printf 'name\nhttp://localhost:9099\n<secret>\n' \
+      | script -qec "$CLI sync setup" /dev/null
+
+`expect` is worth it only when you must react to what comes back. Used for a plain question list it
+is easy to get subtly wrong, and the failure looks like the program hanging: an `expect` block with
+no `eof` branch returns IMMEDIATELY when the spawned process ends, matching nothing and printing
+nothing, so a script that exits 0 in silence means the process died, not that it hung. Give every
+block an `eof` branch, and don't call `wait` after one has already fired.
+
+A command that reads a line still reads a line under a pty: `Stdlib.Cli.Stdin.readLine` returns ""
+on a bare Enter. If Enter appears not to advance a prompt, suspect the harness first.
 
 ## Debugging
 
@@ -287,7 +448,12 @@ Telemetry lands in `rundir/logs/telemetry.jsonl`. Full guide: `docs interactive-
 ## Style
 
 `///` for doc comments on types, DU cases and fns, in both F# and Dark. `//` for inline
-notes. 85 columns.
+notes. 85 columns, for both languages.
+
+`scripts/formatting/format` holds the F# side to it; run it before you commit. It reports
+`.dark` as `ignored`, so Dark is on you. Aim for 85 there anyway. Some existing Dark files
+don't: `scm/packageOps.dark` and `matter/relay.dark` are written wider, and are not worth
+reflowing just to close the gap.
 
 ## Measuring text, and what may go native
 

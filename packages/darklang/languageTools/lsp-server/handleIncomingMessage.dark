@@ -279,70 +279,62 @@ let handleIncomingMessage
           Some(Object [ ("nodeId", String nodeId) ])) ->
           TreeView.handleGetChildNodesRequest state requestId nodeId
 
+        | ("dark/getPendingOps", Some requestId, params) ->
+          PendingOps.handleGetPendingOpsRequest state requestId params
+
+        // branches
+        // A branch id is a UUID; its NAME is the readable string (`feat`, `review`), and the two are not
+        // the same thing. (This comment used to say the opposite, from when the name WAS the id.) The
+        // editor echoes back whatever `dark/getBranches` gave it, so it never has to know which is which.
         | ("dark/getBranches", Some requestId, _) ->
           Branches.handleGetBranchesRequest state requestId
+
+        | ("dark/getCurrentBranch", Some requestId, _) ->
+          Branches.handleGetCurrentBranchRequest state requestId
 
         | ("dark/createBranch",
           Some requestId,
           Some(Object [ ("name", String branchName) ])) ->
           Branches.handleCreateBranchRequest state requestId branchName
 
-        | ("dark/getPendingOps", Some requestId, params) ->
-          PendingOps.handleGetPendingOpsRequest state requestId params
-
         | ("dark/switchBranch",
           Some requestId,
           Some(Object [ ("branchId", String branchIdStr) ])) ->
-          SwitchBranch.handleSwitchBranchRequest state requestId branchIdStr
+          Branches.handleSwitchBranchRequest state requestId branchIdStr
 
         | ("dark/deleteBranch",
           Some requestId,
           Some(Object [ ("branchId", String branchIdStr) ])) ->
           Branches.handleDeleteBranchRequest state requestId branchIdStr
 
-        | ("dark/getCurrentBranch", Some requestId, _) ->
-          Branches.handleGetCurrentBranchRequest state requestId
+        | ("dark/canMerge", Some requestId, Some(Object [ ("branchId", String b) ])) ->
+          Branches.handleCanMergeRequest state requestId b
 
-        | ("dark/renameBranch",
-          Some requestId,
-          Some(Object [ ("branchId", String branchIdStr); ("newName", String newName) ])) ->
-          Branches.handleRenameBranchRequest state requestId branchIdStr newName
+        | ("dark/merge", Some requestId, Some(Object [ ("branchId", String b) ])) ->
+          Branches.handleMergeRequest state requestId b
 
-        | ("dark/rebase", Some requestId, _) ->
-          Branches.handleRebaseRequest state requestId
+        | ("dark/rebase", Some requestId, Some(Object [ ("branchId", String b) ])) ->
+          Branches.handleRebaseRequest state requestId b
 
-        | ("dark/rebaseStatus", Some requestId, _) ->
-          Branches.handleRebaseStatusRequest state requestId
-
-        | ("dark/merge", Some requestId, _) ->
-          Branches.handleMergeRequest state requestId
-
-        | ("dark/canMerge", Some requestId, _) ->
-          Branches.handleCanMergeRequest state requestId
-
-        | ("dark/listInstances", Some requestId, _) ->
-          Sync.handleListInstancesRequest state requestId
+        | ("dark/rebaseStatus", Some requestId, Some(Object [ ("branchId", String b) ])) ->
+          Branches.handleRebaseStatusRequest state requestId b
 
         | ("dark/scm/getWipSummary", Some requestId, _) ->
-          Scm.handleGetWipSummaryRequest state requestId
+          Branches.handleGetWipSummaryRequest state requestId
 
-        | ("dark/scm/getCommits", Some requestId, Some(Object [ ("limit", Number n) ])) ->
-          Scm.handleGetCommitsRequest state requestId (Stdlib.Int.fromFloat n)
+        // These two answer explicitly rather than falling through to "we don't yet support this
+        // method". Their CONCEPTS left with the op-log migration, and a specific reason is worth more
+        // to whoever picks this up than a timeout: see `Branches.respondUnsupported`.
+        | ("dark/renameBranch",
+          Some requestId,
+          Some(Object [ ("branchId", String b); ("name", String newName) ])) ->
+          Branches.handleRenameBranchRequest state requestId b newName
 
-        | ("dark/scm/getCommits", Some requestId, _) ->
-          Scm.handleGetCommitsRequest state requestId 10
+        | ("dark/renameBranch", Some requestId, _) ->
+          Branches.handleRenameBranchUnsupported state requestId
 
-        | ("dark/scm/getWipOps", Some requestId, _) ->
-          Scm.handleGetWipOpsRequest state requestId
-
-        | ("dark/scm/commit", Some requestId, Some(Object [ ("message", String message) ])) ->
-          Scm.handleCommitRequest state requestId message
-
-        | ("dark/scm/discard", Some requestId, _) ->
-          Scm.handleDiscardRequest state requestId
-
-        | ("dark/scm/getCommitOps", Some requestId, Some(Object [ ("commitHash", String commitHashStr) ])) ->
-          Scm.handleGetCommitOpsRequest state requestId commitHashStr
+        | ("dark/listInstances", Some requestId, _) ->
+          Branches.handleListInstancesRequest state requestId
 
         | ("dark/docs/getTopics", Some requestId, _) ->
           Docs.handleGetTopicsRequest state requestId

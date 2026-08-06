@@ -22,8 +22,8 @@ type TreeStructure =
     collapsed: Bool
     /// The node this hangs under, or None at the root.
     ///
-    /// Held rather than searched for. Finding a parent used to mean scanning every node's children and
-    /// parsing its key, on every indent, outdent, move and insert.
+    /// Held rather than searched for: the alternative is scanning every node's children and parsing
+    /// its key, on every indent, outdent, move and insert.
     parent: Stdlib.Option.Option<Int> }
 
 type Outline =
@@ -230,9 +230,9 @@ let subtreeSize (outline: Outline) (id: Int) : Int =
 
 /// The visible lines, in order, at their depths.
 ///
-/// Accumulates with `push` and reverses once. Building this with `List.append` inside a fold, as it used to,
-/// costs a copy of everything accumulated so far per node: 500 nodes took ~0.11s and 2000 took ~0.59s, and
-/// it runs at least twice per keystroke.
+/// Accumulates with `push` and reverses once. `List.append` inside the fold instead costs a copy of
+/// everything accumulated so far per node -- 500 nodes ~0.11s, 2000 ~0.59s -- and this runs at least
+/// twice per keystroke.
 let flattenInto
   (outline: Outline)
   (ids: List<Int>)

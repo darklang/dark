@@ -155,7 +155,9 @@ module RoundTripExpect =
         Some $"content {canon (fun w -> Canonical.writeValue Canonical.Normal w v)}"
       | PT.PackageOp.AddFn f ->
         Some $"content {canon (fun w -> Canonical.writeFn Canonical.Normal w f)}"
-      | PT.PackageOp.SetName(loc, target) ->
+      // `previous` (the hash this binding replaced) is what makes a rebind distinguishable from a
+      // fresh one; the round trip does not care which it was.
+      | PT.PackageOp.SetName(loc, target, _previous) ->
         let kind =
           match target with
           | PT.Reference.PackageType _ -> "type"
@@ -278,7 +280,8 @@ let t
       : Task<RT.Dval * List<PT.PackageOp> * string> =
       task {
         let! parseExeState = executionStateFor basePM false Map.empty
-        let args = NEList.singleton (RT.DString src)
+        // branch: main, named rather than inherited from the process
+        let args = NEList.ofList (RT.DUuid PT.BranchId.Main.Guid) [ RT.DString src ]
         let! parseResult =
           LibExecution.Execution.executeFunction parseExeState parseFnName [] args
         let! parseDval =
@@ -298,9 +301,10 @@ let t
           let enhancedPM = LibDB.PackageManager.withExtraOps basePM packageOps
           let! ppExeState = executionStateFor enhancedPM false Map.empty
 
+          // main's width argument, and this branch's typed branch id.
           let ppArgs =
             NEList.ofList
-              (RT.DUuid PT.mainBranchId)
+              (RT.DUuid PT.BranchId.Main.Guid)
               [ Dval.int (bigint width); sourceFile ]
           let! ppResult =
             LibExecution.Execution.executeFunction
@@ -430,7 +434,7 @@ let tEvalSourceFileFn
   testTask name {
     let! parseExeState = executionStateFor pmPT false Map.empty
 
-    let args = NEList.singleton (RT.DString input)
+    let args = NEList.ofList (RT.DUuid PT.BranchId.Main.Guid) [ RT.DString input ]
     let! parseResult =
       LibExecution.Execution.executeFunction parseExeState parseFnName [] args
     let! parseDval = unwrapExecutionResult parseExeState parseResult |> Ply.toTask
@@ -490,7 +494,8 @@ let parseForCliDval (input : string) =
     let! parseExeState = executionStateFor pmPT false Map.empty
     let args =
       NEList.ofList
-        (RT.DUuid PT.mainBranchId)
+        // The branch to resolve names against. "" meant main two spellings ago; main has a real id now.
+        (RT.DUuid PT.BranchId.Main.Guid)
         [ RT.DString "Tests"
           RT.DString "test"
           RT.DString "test"

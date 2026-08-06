@@ -36,22 +36,20 @@ module HandleCommand =
       print "Purging ..."
       do! LibDB.Purge.purge ()
 
-      // Record CreateBranch op for main (the migration creates the row,
-      // but we need the BranchOp so the DB can be rebuilt from ops alone)
-      do!
-        LibDB.BranchOpPlayback.insertAndApply (
-          PT.BranchOp.CreateBranch(PT.mainBranchId, "main", None, None)
-        )
+      // There is no CreateBranch op and no `branches` row for main, so a store with an empty
+      // `branches` table is a store
+      // on main. Re-folding `package_ops` is the whole rebuild.
 
       print "Filling ..."
-      // Create an "init" commit with all packages from disk
+      // Load all packages from disk as live ops (commit-free authoring: no init commit).
       // Note: values are stored with NULL rt_dval at this point
-      let! commitHash =
-        LibDB.Inserts.insertAndApplyOpsWithCommit
-          LibCloud.Account.IDs.darklang
-          LibExecution.ProgramTypes.mainBranchId
-          "Init: packages loaded from disk"
-          ops
+      let! _ = LibDB.Inserts.insertAndApplyOpsAsWip ops
+
+      // The .dark files are the shipped baseline, not your draft. Commit them, or
+      // every `dark status` would open on the whole package tree as uncommitted
+      // work.
+      let! _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"
+
 
       // Generate hash file BEFORE evaluating values, so that PackageRefs
       // lookups resolve correctly during value evaluation.
@@ -66,13 +64,16 @@ module HandleCommand =
           print $"  Value evaluation error: {e}"
         return Error "Some values failed to evaluate"
       | Ok() ->
-        // Get stats after ops are inserted/applied
-        let! stats = LibDB.Stats.get ()
+        // Counted here rather than through the package layer, because this runs before there is one.
+        // DISTINCT hash: total unique content, not a branch's view.
+        let countDistinct table =
+          Sql.query $"SELECT COUNT(DISTINCT hash) as count FROM {table}"
+          |> Sql.executeRowAsync (fun read -> read.int64 "count")
+        let! types = countDistinct "package_types"
+        let! values = countDistinct "package_values"
+        let! fns = countDistinct "package_functions"
         print "Loaded packages from disk "
-        print $"{stats.types} types, {stats.values} values, and {stats.fns} fns"
-        let (Hash commitHashStr) = commitHash
-        let shortHash = commitHashStr[..6]
-        print $"Created init commit {shortHash}"
+        print $"{types} types, {values} values, and {fns} fns"
 
         return Ok()
     }
@@ -151,10 +152,9 @@ let main (args : string[]) : int =
 
 
     | [ "migrations"; "run" ] ->
-      // Not "deleting the database", which is what this used to announce on every
-      // build: an unchanged schema hash makes it a no-op, and even a changed one
-      // only drops the regenerable projections. Nothing you authored is at risk,
-      // and the old wording said otherwise several times a day.
+      // Not "deleting the database": an unchanged schema hash makes this a no-op, and even a
+      // changed one only drops the regenerable projections. Nothing you authored is at risk, and
+      // this runs on every build, so the wording has to stop being alarming.
       handleCommand "bringing the schema up to date" (HandleCommand.runMigrations ())
 
     | [ "migrations"; "list" ] ->

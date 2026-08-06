@@ -1,0 +1,91 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# The sync and branch clients, against a relay that answers badly.
+#
+# `test-relay-routes` checks the relay when the CLIENT misbehaves. This is the mirror, and it is the half
+# that was wrong: a relay answering 200 with a body the client could not read got "Pushed N ops (0 new)",
+# after which the push was RECORDED as done. Point the client at a working relay afterwards and it says
+# "Already up to date" while your work is not there, and never asks again. Open item 45.
+#
+# What is asserted, in order of how much it would cost to get wrong:
+#
+#   1. An unreadable reply must not be reported as a completed push, and must not record one. This is the
+#      data-loss case: everything else here is a message being wrong.
+#   2. Nothing crashes, hangs, or leaks an interpreter error, whatever the relay does.
+#   3. What the relay LISTS is not trusted: branch ids that are not uuids never reach a URL (item 47).
+#
+# The relay is `fixtures/hostile-relay.py`, one failure mode per port.
+
+set -euo pipefail
+
+CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+WORK=rundir/hostile-relay-test
+FIXTURE=scripts/testing/fixtures/hostile-relay.py
+
+fail() { echo "FAIL: $1" >&2; exit 1; }
+
+rm -rf "$WORK"; mkdir -p "$WORK"
+
+MODES=(9081 9082 9084 9085)
+for m in "${MODES[@]}"; do
+  python3 "$FIXTURE" "$m" >/dev/null 2>&1 &
+done
+trap 'pkill -f "$FIXTURE" 2>/dev/null || true' EXIT
+sleep 2
+
+client() {  # client <name> -> echoes its rundir
+  local name="$1"
+  local dir="$PWD/$WORK/$name"
+  rm -rf "$dir"; mkdir -p "$dir"
+  cp rundir/data.db "$dir/data.db"
+  sqlite3 "$dir/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+  DARK_CONFIG_RUNDIR="$dir" "$PWD/$CLI" identity "$name" >/dev/null 2>&1
+  echo "$dir"
+}
+
+clean_output() { sed 's/\x1b\[[0-9;]*m//g'; }
+
+for m in "${MODES[@]}"; do
+  dir=$(client "c$m")
+  DARK_CONFIG_RUNDIR="$dir" "$PWD/$CLI" fn "/Hostile.T.f$m" '() : Int64 = 1L' >/dev/null 2>&1
+
+  out=$(timeout 60 env DARK_CONFIG_RUNDIR="$dir" "$PWD/$CLI" sync "http://localhost:$m" 2>&1 | clean_output || true)
+
+  grep -qE "Encountered a Runtime Error|No matching case found|but got [A-Za-z]+|Call stack" <<<"$out" \
+    && fail "sync against relay mode $m crashed"
+
+  # 1. The data-loss case. A push may only be recorded when the relay confirmed it.
+  if grep -qE '^sync\.pushed\.' <<<"$(sqlite3 "$dir/data.db" 'SELECT key FROM config_v0;' 2>/dev/null)"; then
+    fail "relay mode $m did not confirm the push, but the client recorded one (work would be lost)"
+  fi
+  echo "  ok   mode $m: no crash, and no push recorded without a confirmation"
+done
+
+# 3. A relay that lists junk instead of branch ids: the junk must not reach a URL or the terminal.
+dir=$(client "cbranch")
+out=$(timeout 60 env DARK_CONFIG_RUNDIR="$dir" "$PWD/$CLI" branch pull "http://localhost:9081" 2>&1 | clean_output || true)
+grep -q "are not branch ids" <<<"$out" || fail "a junk branch list was not rejected"
+grep -q "count" <<<"$out" && fail "the relay's junk was echoed back into the output"
+echo "  ok   a junk branch list is rejected without echoing it"
+
+# 2. A relay that never answers: the client must give up rather than wedge.
+#
+#    `sync status` rather than `sync`, deliberately. A full sync makes four requests in sequence and the
+#    per-request timeout is 30s, so it reports correctly after about two minutes -- I measured 123s and
+#    briefly read that as a hang, which it is not. One request proves the timeout works and costs a
+#    quarter as much, and a gate that takes two minutes to say something it could say in thirty seconds
+#    is a gate people start skipping.
+python3 "$FIXTURE" 9086 >/dev/null 2>&1 &
+sleep 1
+dir=$(client "chang")
+start=$(date +%s)
+out=$(timeout 120 env DARK_CONFIG_RUNDIR="$dir" "$PWD/$CLI" sync status "http://localhost:9086" 2>&1 | clean_output || true)
+elapsed=$(( $(date +%s) - start ))
+
+[[ "$elapsed" -ge 115 ]] && fail "a relay that never answers wedged the client (still going after ${elapsed}s)"
+grep -qE "timeout|timed out|failed" <<<"$out" \
+  || fail "a relay that never answers did not produce a failure message; got: $out"
+echo "  ok   a relay that never answers: gave up after ${elapsed}s and said so"
+
+echo "sync + branch clients: a relay that answers badly cannot make them claim, or record, a push."

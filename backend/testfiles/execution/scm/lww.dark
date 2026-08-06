@@ -1,0 +1,53 @@
+// The last-writer-wins rule, pinned on the DARK side.
+//
+// `SCM.Conflicts.incomingWins` decides which side a recorded conflict names as the winner. The op-fold
+// decides the same question in F# (`LibDB.Lww`, called from `PackageOpPlayback`). If the two disagree, a
+// conflict names a winner the fold did not pick, and two instances converge on different content with
+// nothing to say so.
+//
+// The rows below are the SAME rows as `backend/tests/Tests/Lww.Tests.fs`, case for case.
+// Change one, change both.
+
+module Wins =
+  let b (ts: String) (h: String) : Darklang.SCM.Conflicts.Binding =
+    Darklang.SCM.Conflicts.Binding
+      { owner = "Zz"
+        modules = "Lww"
+        name = "n"
+        itemType = "fn"
+        hash = h
+        originTs = ts
+        author = ""
+        previous = Stdlib.Option.Option.None }
+
+  // A later stamp wins, whatever the hashes are.
+  (Darklang.SCM.Conflicts.incomingWins
+    (b "2026-01-02T00:00:00.000Z" "aaaa")
+    (b "2026-01-01T00:00:00.000Z" "ffff")) = true
+
+  (Darklang.SCM.Conflicts.incomingWins
+    (b "2026-01-01T00:00:00.000Z" "ffff")
+    (b "2026-01-02T00:00:00.000Z" "aaaa")) = false
+
+  // An exact tie goes to the HIGHER hash. Portable, so every instance picks the same side.
+  (Darklang.SCM.Conflicts.incomingWins
+    (b "2026-01-01T00:00:00.000Z" "ffff")
+    (b "2026-01-01T00:00:00.000Z" "aaaa")) = true
+
+  (Darklang.SCM.Conflicts.incomingWins
+    (b "2026-01-01T00:00:00.000Z" "aaaa")
+    (b "2026-01-01T00:00:00.000Z" "ffff")) = false
+
+  // A live binding with no stamp cannot defend itself.
+  (Darklang.SCM.Conflicts.incomingWins
+    (b "2026-01-01T00:00:00.000Z" "aaaa")
+    (b "" "ffff")) = true
+
+  // Stamps are `yyyy-MM-ddTHH:mm:ss.fffZ`, so lexical comparison is already chronological.
+  (Darklang.SCM.Conflicts.incomingWins
+    (b "2026-01-01T00:00:00.002Z" "aaaa")
+    (b "2026-01-01T00:00:00.001Z" "ffff")) = true
+
+  (Darklang.SCM.Conflicts.incomingWins
+    (b "2026-01-01T00:00:59.999Z" "aaaa")
+    (b "2026-01-01T00:01:00.000Z" "aaaa")) = false

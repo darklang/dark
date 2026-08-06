@@ -75,7 +75,7 @@ let statusLine (name: String) : String =
     if Posix.isProcessRunning pid then
       $"{name}: running (pid {Stdlib.Int.toString pid})"
     else
-      $"{name}: stale (pid {Stdlib.Int.toString pid} not running — `stop` clears it)"
+      $"{name}: stale (pid {Stdlib.Int.toString pid} not running -- `stop` clears it)"
   | None -> $"{name}: stopped"
 
 

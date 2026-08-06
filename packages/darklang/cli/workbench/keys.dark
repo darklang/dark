@@ -56,7 +56,7 @@ let handleEditorKey
 
 /// A single-line input mode (the `:` bar, commit messages, filters, ...).
 ///
-/// The field itself is a `UI.TextField`, so the text edits (typing, backspace, delete, the cursor,
+/// The field itself is a `Stdlib.Cli.UI.TextField`, so the text edits (typing, backspace, delete, the cursor,
 /// Home/End, and a paste arriving as one chunk) come from the widget. What's left here is what's specific
 /// to this bar: Enter runs the action, Escape closes it, and Tab and the vertical arrows drive the command
 /// completion dropdown.

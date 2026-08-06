@@ -40,8 +40,11 @@ let main (args : string array) : int =
 
         // package manager
         Tests.Propagation.tests
+        Tests.Draft.tests
+        Tests.Purge.tests
+        Tests.SyncTransport.tests
         Tests.Hashing.tests
-        Tests.BranchOps.tests
+        Tests.Config.tests
 
         // serialization
         Tests.BinarySerialization.tests
@@ -49,16 +52,19 @@ let main (args : string array) : int =
 
         // http server
         Tests.HttpServer.tests
-        // CliTraces is excluded: it hangs CI, and why is not yet known. The cases
-        // are sequenced (`Console.SetOut` capture forces it) so Expecto prints
-        // nothing until the summary, and `testVersionCommand` runs `dark version`,
-        // which fetches from api.github.com. Request and connect timeouts are
-        // already 30s and 10s, so the fetch alone cannot explain a ten-minute
-        // stall. Re-enabling needs a repro on a runner without egress, not a guess.
+        // CliTraces runs again. It was excluded for a suspected CI hang nobody had reproduced, on top
+        // of 16 stale cases; both reasons are gone. The cases were never "stale assertions" -- this
+        // branch's own conversions had simply never been applied to the file (the pre-uuid main sentinel
+        // `initialState ""`, a moved module `Darklang.Cli.Tui.*` -> `Darklang.Stdlib.Cli.Tui.*`, the
+        // workbench's flat `scmSection`/`aiSection`/`matterLens` becoming records, `InputState.text`
+        // becoming a `TextField`, and `Conflicts.record` taking a Uuid), and fixing them found a product
+        // bug nothing else covered: `dark review import` threw on every invocation.
         //
-        // Uncomment the line below to run them; no filter reaches them while it is commented out,
-        // so nothing currently exercises the tracer end to end.
-        // Tests.CliTraces.tests
+        // The hang suspect was `dark version` making a live GitHub round trip. Measured rather than
+        // argued: against an address that DROPS, which is the shape of a runner with no egress, the
+        // request gives up after ~11s and the command prints "unable to check for updates". Slow, not a
+        // stall. The suspect is gone anyway -- `version --local` skips the check and the test uses it.
+        Tests.CliTraces.tests
         Tests.CliScriptLowering.tests
         Tests.Toplevels.tests
 
@@ -66,11 +72,12 @@ let main (args : string array) : int =
         Tests.LibExecution.tests.Force()
 
         Tests.Blob.tests
+        Tests.OpTransport.tests
+        Tests.Lww.tests
+        Tests.PTConformance.tests
+        Tests.BranchOverlay.tests
         Tests.OpsProjections.tests
-        Tests.SyncScenarios.tests
         Tests.MultiInstance.tests
-        Tests.SyncE2E.tests
-        Tests.Releases.tests
         Tests.Stream.tests
         Tests.Capabilities.tests ]
 

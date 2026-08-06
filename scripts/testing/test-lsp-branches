@@ -1,0 +1,117 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# The `dark/*` branch surface, driven as an editor drives it.
+#
+# Nothing else reaches this code. The CLI sweeps drive commands; the F# suite tests the store; the LSP
+# sits between them and is only exercised by a real editor. So when branch ids became uuids, every
+# handler here kept a `(branchId: Uuid)` parameter while the dispatcher went on handing it the STRING it
+# parsed out of JSON, and every branch request killed the server with a type error. Nothing failed.
+#
+# The client legitimately sends either form -- a name a person typed, or an id it got back from
+# `dark/getBranches` -- so both are tested.
+
+set -euo pipefail
+
+CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+WORK=rundir/lsp-branch-test
+
+fail() { echo "FAIL: $1" >&2; exit 1; }
+
+rm -rf "$WORK"
+mkdir -p "$WORK"
+# ALL the config, not just `current_branch`: a copy of the dev store inherits `sync.relay` and the write
+# secret, so one sync-shaped command in here would reach the REAL relay. Note this makes the store look
+# like a first run to the SETUP check, so no wizard blocks startup. The greeting is a separate question:
+# it follows commits/changes/relay, so a store with work in it still greets "Welcome back".
+cp rundir/data.db "$WORK/data.db"
+sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+
+export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+"$PWD/$CLI" branch create lsp-gate >/dev/null 2>&1
+"$PWD/$CLI" --branch lsp-gate fn LspGate.T.f '() : Int64 = 5L' >/dev/null 2>&1
+
+# A branch with an ACTIVE CHILD, which the merge gate refuses. The editor used to be told it could
+# merge this, because `canMerge` here answered "has it changed any names" instead of asking the gate.
+"$PWD/$CLI" branch create lsp-parent >/dev/null 2>&1
+"$PWD/$CLI" --branch lsp-parent fn LspGate.P.f '() : Int64 = 1L' >/dev/null 2>&1
+"$PWD/$CLI" --branch lsp-parent branch create lsp-child >/dev/null 2>&1
+"$PWD/$CLI" --branch lsp-child fn LspGate.C.f '() : Int64 = 2L' >/dev/null 2>&1
+
+"$PWD/$CLI" switch main >/dev/null 2>&1
+
+# A draft on main where propagation moved something behind you: `caller` follows `base`. The wip
+# summary has to tell the two apart, because an entry propagation wrote looks exactly like one you
+# authored, and that split is what the draft view is for.
+"$PWD/$CLI" fn /LspGate.W.base '() : Int64 = 1L' >/dev/null 2>&1
+"$PWD/$CLI" fn /LspGate.W.caller '() : Int64 = LspGate.W.base ()' >/dev/null 2>&1
+"$PWD/$CLI" commit "lsp gate base" -y >/dev/null 2>&1
+"$PWD/$CLI" fn /LspGate.W.base '() : Int64 = 2L' >/dev/null 2>&1
+
+BRANCH_ID=$(sqlite3 "$WORK/data.db" "SELECT id FROM branches WHERE name = 'lsp-gate' LIMIT 1;")
+[[ -n "$BRANCH_ID" ]] || fail "could not find the test branch's id"
+
+req() { local body="$1"; printf 'Content-Length: %d\r\n\r\n%s' "${#body}" "$body"; }
+
+OUT="$WORK/out.txt"
+{
+  req '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+  req '{"jsonrpc":"2.0","id":2,"method":"dark/getBranches"}'
+  req '{"jsonrpc":"2.0","id":3,"method":"dark/getCurrentBranch"}'
+  # by NAME
+  req '{"jsonrpc":"2.0","id":4,"method":"dark/switchBranch","params":{"branchId":"lsp-gate"}}'
+  # and by ID
+  req "{\"jsonrpc\":\"2.0\",\"id\":5,\"method\":\"dark/switchBranch\",\"params\":{\"branchId\":\"$BRANCH_ID\"}}"
+  req '{"jsonrpc":"2.0","id":6,"method":"dark/canMerge","params":{"branchId":"lsp-gate"}}'
+  req '{"jsonrpc":"2.0","id":7,"method":"dark/rebaseStatus","params":{"branchId":"lsp-gate"}}'
+  req '{"jsonrpc":"2.0","id":8,"method":"dark/deleteBranch","params":{"branchId":"no-such-branch"}}'
+  # rename: the real thing, the collision, and main
+  req '{"jsonrpc":"2.0","id":9,"method":"dark/renameBranch","params":{"branchId":"lsp-gate","name":"lsp-gate-renamed"}}'
+  req '{"jsonrpc":"2.0","id":10,"method":"dark/renameBranch","params":{"branchId":"main","name":"nope"}}'
+  # by ID PREFIX, which only works because the resolver is shared with the CLI
+  req "{\"jsonrpc\":\"2.0\",\"id\":11,\"method\":\"dark/switchBranch\",\"params\":{\"branchId\":\"${BRANCH_ID:0:8}\"}}"
+  req '{"jsonrpc":"2.0","id":12,"method":"dark/canMerge","params":{"branchId":"lsp-parent"}}'
+  # Back to main first: the switches above moved this session, and the summary describes wherever it
+  # is standing. Asking without this reported lsp-gate's empty draft and read as a wrong answer.
+  req '{"jsonrpc":"2.0","id":13,"method":"dark/switchBranch","params":{"branchId":"main"}}'
+  req '{"jsonrpc":"2.0","id":14,"method":"dark/scm/getWipSummary"}'
+  sleep 3
+} | timeout 120 "$PWD/$CLI" eval 'Darklang.LanguageTools.LspServer.runServerCli ()' > "$OUT" 2>&1 || true
+
+# A type error here does not just fail one request: it takes the server's loop down with it, which is
+# what made this invisible -- the editor sees a dead process, not a bad response.
+! grep -q 'but got' "$OUT" || {
+  grep -o "[A-Za-z.]*'s [a-z0-9]* parameter .* but got [A-Za-z]*" "$OUT" | head -3
+  fail "a handler was called with the wrong type"
+}
+
+grep -q '"name":"main"' "$OUT" || fail "getCurrentBranch did not report main by name"
+grep -q "\"id\":\"$BRANCH_ID\",\"name\":\"lsp-gate\"" "$OUT" \
+  || fail "switchBranch did not resolve the branch to its id and name"
+grep -q '"canMerge":' "$OUT" || fail "canMerge did not answer"
+grep -q '"rebaseNeeded":' "$OUT" || fail "rebaseStatus did not answer"
+grep -q 'no branch' "$OUT" || fail "a bad branch ref did not produce a friendly error"
+
+# Ids on the wire are uuids, never the bare `main` string or an empty id.
+grep -q '"id":"00000000-0000-0000-0000-000000000001"' "$OUT" \
+  || fail "main was not reported with its well-known uuid"
+
+grep -q '"name":"lsp-gate-renamed"' "$OUT" || fail "renameBranch did not rename"
+grep -q 'trunk; it has no name to change' "$OUT" \
+  || fail "renaming main was not refused with the trunk message"
+grep -q "\"id\":\"$BRANCH_ID\",\"name\":\"lsp-gate-renamed\"" "$OUT" \
+  || fail "an id PREFIX did not resolve (the resolver shared with the CLI)"
+
+# canMerge must be the GATE's answer, in the gate's words, or the editor offers a merge that the very
+# next request refuses.
+grep -q '"canMerge":false,"reason":"branch has active children' "$OUT" \
+  || fail "canMerge did not refuse a branch with an active child, the way the merge gate does"
+
+# The wip summary reads the same draft `dark status` does, so it must make the same split.
+grep -q '"authored":1' "$OUT" || fail "wip summary did not report 1 authored change"
+grep -q '"followed":1' "$OUT" || fail "wip summary did not report 1 followed change"
+grep -q '"name":"LspGate.W.caller","itemType":"fn","hash":"[0-9a-f]*","followed":true' "$OUT" \
+  || fail "wip summary did not mark the propagated entry as followed"
+
+rm -rf "$WORK"
+echo "dark/* branch surface: answers by name and by id, and reports main as a uuid plus a name."

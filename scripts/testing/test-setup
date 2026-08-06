@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# `dark sync setup`, driven end to end.
+#
+# Setup asks questions, so no other test reaches it: the CLI test suite shells out without a tty, and
+# the sweeps only drive commands that answer and exit. It also writes GLOBAL config -- identity, relay,
+# write secret -- which is why this runs against its own rundir rather than living in the CLI suite
+# where it would overwrite whoever is running it.
+#
+# `script` rather than `expect`: for a command that just asks a list of questions there is nothing to
+# react to, and expect is easy to get subtly wrong (see AGENTS.md).
+#
+# The relay here is deliberately unreachable. A real one would make this depend on a running server;
+# what matters is that setup stores what it was told and reports a failed push instead of losing it.
+
+set -euo pipefail
+
+CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+WORK=rundir/setup-test
+SECRET=setup-test-secret-not-a-real-one
+
+fail() { echo "FAIL: $1" >&2; exit 1; }
+
+rm -rf "$WORK"
+mkdir -p "$WORK"
+cp rundir/data.db "$WORK/data.db"
+sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+
+# Answers all at once. Fine when none of them is secret.
+run_setup() {
+  printf '%b' "$1" \
+    | DARK_CONFIG_RUNDIR="$PWD/$WORK" timeout 120 script -qec "$PWD/$CLI sync setup" /dev/null 2>&1 \
+    | sed 's/\x1b\[[0-9;]*m//g'
+}
+
+# One answer at a time, paced so each arrives at its OWN prompt.
+#
+# This matters for the no-echo check and is not fussiness: pipe all three at once and the tty echoes
+# the whole buffer back while echo is still on for the earlier reads, so the secret appears in the
+# output having never been echoed BY the secret prompt. That reads as a leak and is not one. A person
+# types the secret after the prompt, by which point `readSecret` has turned echo off.
+run_setup_typed() {
+  { echo "$1"; sleep 2; echo "$2"; sleep 2; echo "$3"; sleep 2; } \
+    | DARK_CONFIG_RUNDIR="$PWD/$WORK" timeout 120 script -qec "$PWD/$CLI sync setup" /dev/null 2>&1 \
+    | sed 's/\x1b\[[0-9;]*m//g'
+}
+
+# 1. A fresh instance: name, relay, secret.
+first=$(run_setup_typed "first-run" "http://localhost:1" "$SECRET")
+
+grep -q 'identity: first-run' <<<"$first" || fail "setup did not store the name it was given"
+grep -q 'relay:    http://localhost:1' <<<"$first" || fail "setup did not store the relay"
+grep -q 'write secret stored' <<<"$first" || fail "setup did not store the secret"
+grep -q 'Set up\.' <<<"$first" || fail "setup did not finish"
+
+# The point of asking rather than taking it as an argument: it must never reach the screen.
+grep -q "$SECRET" <<<"$first" && fail "the write secret was ECHOED to the terminal"
+
+# An unreachable relay is reported and the configuration is kept, rather than the whole thing failing.
+grep -q 'failed' <<<"$first" || fail "setup did not report the failed push"
+
+# 2. Re-run, pressing Enter at every prompt. This is the path that could silently wipe a stored secret.
+again=$(run_setup "\n\n\n")
+
+grep -q 'identity: first-run' <<<"$again" || fail "re-run lost the identity on Enter"
+grep -q 'relay:    http://localhost:1' <<<"$again" || fail "re-run lost the relay on Enter"
+grep -q 'keeping the stored write secret' <<<"$again" || fail "re-run did not keep the stored secret"
+
+# 3. A secret too short to survive the leak guard is refused, and the old one is left alone.
+short=$(run_setup_typed "" "" "short")
+grep -q 'too short' <<<"$short" || fail "a short secret was accepted"
+grep -q 'keeping the stored write secret' <<<"$(run_setup "\n\n\n")" \
+  || fail "the refused short secret replaced the stored one"
+
+rm -rf "$WORK"
+echo "dark sync setup: asks, stores, never echoes the secret, and keeps it on Enter."

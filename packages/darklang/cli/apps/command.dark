@@ -55,14 +55,14 @@ let runApp (state: Cli.AppState) (slug: String) : Cli.AppState =
     match app.target with
     | Foreground command -> Cli.Registry.executeCommand command state []
     | Daemon _ ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{slug}' is a daemon — start it with `apps start {slug}`")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{slug}' is a daemon -- start it with `apps start {slug}`")
       state
 
 /// `apps start <slug>` — launch a daemon detached (verified) and report its pid.
 let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
   if Service.platform () == Service.Platform.Unsupported then
     Stdlib.printLine
-      (Stdlib.Cli.UI.Colors.error "Background daemons need Linux or macOS — they're not supported on this platform yet.")
+      (Stdlib.Cli.UI.Colors.error "Background daemons need Linux or macOS -- they're not supported on this platform yet.")
     state
   else
 
@@ -80,7 +80,7 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
         Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {app.name} started (pid {Stdlib.Int.toString pid})")
       | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
     | Foreground _ ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{slug}' is a foreground app — run it with `apps run {slug}`")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"'{slug}' is a foreground app -- run it with `apps run {slug}`")
 
   state
 
@@ -91,7 +91,7 @@ let inspect (state: Cli.AppState) (slug: String) : Cli.AppState =
     Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"no app '{slug}' (see `apps list-available`)")
   | Some app ->
     Stdlib.printLine $"{app.name}  [{Model.kindTag app.target}]"
-    Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  {app.slug} — {app.description}")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  {app.slug} -- {app.description}")
     Stdlib.printLine $"  target:    {Model.reference app.target}"
     let installedStr = if Registry.isInstalled slug then "yes" else "no"
     Stdlib.printLine $"  installed: {installedStr}"
@@ -157,9 +157,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         | Foreground _ ->
           match Install.writeAlias app with
           | Ok path ->
-            Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  installed shim {path} — run `{slug}` from the shell (or `apps run {slug}`)")
+            Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  installed shim {path} -- run `{slug}` from the shell (or `apps run {slug}`)")
           | Error e ->
-            Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  (couldn't write shell shim: {e}) — run it with `apps run {slug}`")
+            Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  (couldn't write shell shim: {e}) -- run it with `apps run {slug}`")
         | Daemon _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  start it with `apps start {slug}`")
         state
 

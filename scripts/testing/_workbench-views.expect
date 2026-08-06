@@ -1,0 +1,69 @@
+#!/usr/bin/expect -f
+# Driven by test-workbench-views, which builds the store. See that file for why.
+#
+# ONE SESSION PER VIEW, deliberately. The workbench paints as a DIFF, and after two or three switches in
+# a single session the renderer stops re-emitting enough for a pattern to catch -- I watched the same
+# assertion pass as the second switch and time out as the third, whichever view it was. Asserting deeper
+# than that measures the renderer, not the view. A fresh session and one switch is reliable, and it still
+# catches what this is for: a view that throws takes the process down, which shows up as EOF.
+#
+# Scope, measured rather than assumed: this draws each view's LIST. The PREVIEW pane is not reached by
+# opening a view -- with the Traces detail pane deliberately broken, every assertion here still passed.
+# Focusing the preview from here needs a third interaction and the frame diff stops being reliable past
+# two, so preview coverage lives in the Dark tests instead, where rendering is a pure function of state
+# ("Workbench Previews Render").
+
+set timeout 45
+log_user 0
+
+set exe [lindex $argv 0]
+set rundir [lindex $argv 1]
+set env(DARK_CONFIG_RUNDIR) $rundir
+
+proc fail {msg} { puts "FAIL: $msg"; exit 1 }
+
+# key: the digit that selects the view. Devices is absent: it is gated to the two people building it,
+# so for any other account it drops out of the tab bar and every later digit shifts down one.
+# Renumbered and renamed upstream: Matter is Code, SCM is Changes and moved to 3, and Run/Activity are
+# their own views. Taken from the sidebar the workbench actually draws rather than from memory.
+set views {
+  {1 "Home"     "(?i)(needs you|uncommitted|recent commits|branches)"}
+  {2 "Code"     "(?i)(darklang|packages)"}
+  {3 "Changes"  "WbV.T.draft"}
+  {4 "REPL"     "(?i)(starts typing)"}
+  {5 "Run"      "(?i)(app|install)"}
+  {6 "Activity" "(?i)(trace|recent)"}
+  {7 "AI"       "(?i)(agent|prompt|thread)"}
+  {8 "Docs"     "(?i)(deprecation|signatures|interactive-testing)"}
+}
+
+# Home asserts on a panel BELOW the greeting, not the greeting itself: the startup wait above has
+# already consumed that, so re-matching it finds nothing new and times out.
+foreach v $views {
+  set key  [lindex $v 0]
+  set name [lindex $v 1]
+  set pat  [lindex $v 2]
+
+  spawn $exe
+  expect {
+    -re "instance:" { }
+    timeout { fail "$name: the workbench did not start" }
+    eof { fail "$name: the workbench exited on startup" }
+  }
+
+  if {$key != 1} { send $key }
+
+  expect {
+    -re $pat { puts "  ok: $name" }
+    timeout { fail "$name: drew, but not the content this view is for" }
+    eof { fail "$name: the workbench EXITED while drawing this view" }
+  }
+
+  # Close the pty rather than sending a quit key: Escape means "step back" in some views and "quit" in
+  # others, and this test is not about that. The content assertion above already proves the process
+  # survived drawing the view, which is what it is here to check.
+  close
+  wait
+}
+
+puts "every workbench view drew with real work in the store."

@@ -1,0 +1,164 @@
+module Darklang.Cli.Setup
+
+// `dark sync setup`: the one command that gets a fresh instance syncing.
+//
+// The pieces were all here already -- `identity`, `connect`, `--secret`, `push` -- but they had to be run
+// in the right order, and the secret had to be typed as a command argument, which puts it in shell
+// history and on screen. This asks for each in turn, takes the secret without echoing it, and reports
+// what it actually managed rather than what it attempted.
+
+let printOk (msg: String) : Unit = Stdlib.printLine (Stdlib.Cli.UI.Colors.success msg)
+let printErr (msg: String) : Unit = Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
+let printHint (msg: String) : Unit = Stdlib.printLine (Stdlib.Cli.UI.Colors.hint msg)
+
+/// Ask, and hand back what was typed with the surrounding space removed. An empty answer means "keep
+/// what's there", which is what makes re-running this safe.
+let ask (question: String) : String =
+  // `print`, not `printLine`: a prompt that ends its own line puts the answer underneath it.
+  Stdlib.print (Stdlib.Cli.UI.Colors.hint question)
+  Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
+
+/// A url this instance can name a relay by. Empty keeps the stored one.
+let askRelay (current: String) : String =
+  let shown =
+    if current == "" then
+      "none yet"
+    else
+      current
+
+  match ask $"  Relay url [{shown}]: " with
+  | "" -> current
+  | typed -> typed
+
+/// This instance's sync identity: the name a colleague sees your ops arrive under.
+let askIdentity (current: String) : String =
+  let shown =
+    if current == "" then
+      "none yet"
+    else
+      current
+
+  match ask $"  This instance's name [{shown}]: " with
+  | "" -> current
+  | typed -> typed
+
+/// `dark sync setup`
+let execute (state: AppState) (_args: List<String>) : AppState =
+  if Stdlib.Bool.not (Cli.Prompt.interactive ()) then
+    printErr "dark sync setup asks questions, so it needs a terminal."
+    printHint "  non-interactive: dark identity <name> && dark connect <url> --secret <secret>"
+    state
+  else
+
+  Stdlib.printLine ""
+  printOk "Setting up sync."
+
+  printHint
+    "  A relay is where your ops go so your other machines can have them. Enter to keep a value."
+
+  Stdlib.printLine ""
+
+  let identity = askIdentity (SCM.PackageOps.identity ())
+
+  if identity == "" then
+    printErr "an instance needs a name before it can sync."
+    state
+  else
+
+  let relay = askRelay (SCM.PackageOps.relay ())
+
+  if relay == "" then
+    printErr "a relay url is needed to sync."
+    state
+  else
+
+  // Asked for, never echoed, and only stored when one is given: a relay you only READ from needs none,
+  // and re-running setup on a configured instance should not wipe the stored one by pressing Enter.
+  let stored = Cli.Sync.relaySecret relay
+
+  let secretPrompt =
+    if stored == "" then
+      "  Write secret (not shown; Enter to skip -- reading needs none): "
+    else
+      "  Write secret (not shown; Enter to keep the stored one): "
+
+  Stdlib.print (Stdlib.Cli.UI.Colors.hint secretPrompt)
+  let typedSecret = Stdlib.String.trim (Stdlib.Cli.Stdin.readSecret ())
+
+  let secretOutcome =
+    if typedSecret == "" then
+      if stored == "" then
+        Stdlib.Result.Result.Ok "no write secret stored -- this instance can read, not push."
+      else
+        Stdlib.Result.Result.Ok "keeping the stored write secret."
+    else if Stdlib.String.length typedSecret < 12 then
+      // Mirrors `dark connect`: short secrets defeat the leak guard rather than tripping it, because a
+      // few characters of hex turn up inside ops by chance and every push is then refused.
+      Stdlib.Result.Result.Error
+        "that secret is too short to use safely (needs 12+ characters)."
+    else
+      Cli.Sync.setRelaySecret relay typedSecret
+      Stdlib.Result.Result.Ok "write secret stored (local config only; it never syncs)."
+
+  match secretOutcome with
+  | Error why ->
+    printErr why
+
+    printHint
+      "  Short secrets turn up inside ops by chance, and the guard that stops you publishing one"
+
+    printHint "  cannot tell a real leak from a coincidence, so every push would be refused."
+
+    state
+  | Ok secretNote ->
+    let _ = SCM.PackageOps.setIdentity identity
+    let _ = SCM.PackageOps.setRelay relay
+
+    Stdlib.printLine ""
+    printOk $"  identity: {identity}"
+    printOk $"  relay:    {relay}"
+    printOk $"  {secretNote}"
+    Stdlib.printLine ""
+
+    // Push once, so setup ends with the instance actually synced rather than merely configured. A
+    // failure here is reported and kept: connecting while offline is legitimate, and `dark push` retries.
+    printHint "  Pushing your ops..."
+    let after = Cli.Sync.executePush state relay
+
+    Stdlib.printLine ""
+    printOk "Set up. `dark sync` from now on; `dark sync setup` again to change any of it."
+    after
+
+
+let help (_state: AppState) : String =
+  [ ""
+    "  dark sync setup   get this instance syncing: name it, point it at a relay,"
+    "                    take the write secret without echoing it, and push once."
+    ""
+    "  Everything it asks can be set on its own:"
+    "    dark identity <name>              name this instance"
+    "    dark connect <url> [--secret <s>] remember a relay and push"
+    "    dark whoami                       what this instance is called"
+    "" ]
+  |> Stdlib.String.join "\n"
+
+
+let complete
+  (_state: AppState)
+  (_args: List<String>)
+  : List<Completion.CompletionItem> =
+  []
+
+
+/// `dark sync ...`, with `setup` peeled off the front.
+///
+/// This lives here rather than in `sync.dark` because the dependency only runs one way: setup calls
+/// `Cli.Sync.executePush` and `relaySecret`, so sync cannot call back into setup without a cycle.
+///
+/// `setup` is a sync subcommand and not a top-level one on purpose. It configures the relay, the instance
+/// name and the write secret, which is all sync; a bare `dark setup` implies you must configure something
+/// before Dark works, and you do not.
+let executeSyncCmd (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [ "setup" ] -> execute state []
+  | _ -> Cli.Sync.execute state args

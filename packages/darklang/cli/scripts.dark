@@ -7,29 +7,76 @@ type Script = {
 }
 
 
-// The stored-script surface. The wrappers live here, next to the type the
-// builtins return; the LSP's script filesystem provider calls them too.
+// the `scripts_v0` data-access silo
+// Plain CRUD over one table. It was five F# builtins, which bought nothing: no compiler, no codec, no
+// hashing, no fold (SPEC section 9). The SQL lives here and the command below only formats.
 
-/// Every stored script.
+let scriptsDb () : String = Builtin.localDbPath ()
+
+let scriptFromRow (row: Dict<Stdlib.Sqlite.Value>) : Stdlib.Option.Option<Script> =
+  match
+    (Stdlib.Sqlite.textField row "id",
+     Stdlib.Sqlite.textField row "name",
+     Stdlib.Sqlite.textField row "text")
+  with
+  | (Some id, Some name, Some text) ->
+    (Script { id = id; name = name; text = text }) |> Stdlib.Option.Option.Some
+  | _ -> Stdlib.Option.Option.None
+
 let list () : List<Script> =
-  Builtin.pmScriptsList ()
+  match
+    Stdlib.Sqlite.query (scriptsDb ()) "SELECT id, name, text FROM scripts_v0 ORDER BY name"
+  with
+  | Ok rows -> rows |> Stdlib.List.filterMap scriptFromRow
+  | Error _ -> []
 
-/// The stored script named <param name>, if there is one.
 let get (name: String) : Stdlib.Option.Option<Script> =
-  Builtin.pmScriptsGet name
+  match
+    Stdlib.Sqlite.queryOneP
+      (scriptsDb ())
+      "SELECT id, name, text FROM scripts_v0 WHERE name = @p0"
+      [ name ]
+  with
+  | Some row -> scriptFromRow row
+  | None -> Stdlib.Option.Option.None
 
-/// Store a new script. Errors if the name is taken.
-let add (name: String) (text: String) : Stdlib.Result.Result<Script, String> =
-  Builtin.pmScriptsAdd name text
+/// Add a script. Fails if the name is taken -- `scripts edit` is the way to change one, so a silent
+/// overwrite here would lose someone's script to a typo.
+let add (name: String) (text: String) : Stdlib.Result.Result<Unit, String> =
+  match get name with
+  | Some _ -> Stdlib.Result.Result.Error $"a script named \"{name}\" already exists"
+  | None ->
+    match
+      Stdlib.Sqlite.execP
+        (scriptsDb ())
+        "INSERT INTO scripts_v0 (id, name, text) VALUES (@p0, @p1, @p2)"
+        [ Stdlib.Uuid.toString (Stdlib.Uuid.generate ()); name; text ]
+    with
+    | Ok _ -> Stdlib.Result.Result.Ok()
+    | Error e -> Stdlib.Result.Result.Error e
 
-/// Replace an existing script's text. Errors if there's no such script.
 let update (name: String) (text: String) : Stdlib.Result.Result<Unit, String> =
-  Builtin.pmScriptsUpdate name text
+  match get name with
+  | None -> Stdlib.Result.Result.Error $"no script named \"{name}\""
+  | Some _ ->
+    match
+      Stdlib.Sqlite.execP
+        (scriptsDb ())
+        "UPDATE scripts_v0 SET text = @p1 WHERE name = @p0"
+        [ name; text ]
+    with
+    | Ok _ -> Stdlib.Result.Result.Ok()
+    | Error e -> Stdlib.Result.Result.Error e
 
-/// Delete a stored script. Errors if there's no such script.
 let delete (name: String) : Stdlib.Result.Result<Unit, String> =
-  Builtin.pmScriptsDelete name
-
+  match get name with
+  | None -> Stdlib.Result.Result.Error $"no script named \"{name}\""
+  | Some _ ->
+    match
+      Stdlib.Sqlite.execP (scriptsDb ()) "DELETE FROM scripts_v0 WHERE name = @p0" [ name ]
+    with
+    | Ok _ -> Stdlib.Result.Result.Ok()
+    | Error e -> Stdlib.Result.Result.Error e
 
 // Scripts command - manage and run stored Dark scripts
 // TODO rename to just execute
@@ -92,9 +139,11 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | "add" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
     let text = Stdlib.String.join textParts " "
     match add name text with
-    | Ok script ->
-      let message = $"Script '{script.name}' added successfully"
-      Stdlib.printLine message
+    // `Ok ()`, not `Ok script`. The builtin this replaced returned the stored Script, so the old caller read
+    // `script.name` off it; the Dark version returns Unit, and the mismatch made `scripts add` die with
+    // "field access of a Unit" instead of adding anything. The name is already in scope here.
+    | Ok () ->
+      Stdlib.printLine $"Script '{name}' added successfully"
       state
     | Error err ->
       Stdlib.printLine $"Error: {err}"
@@ -138,15 +187,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | ["run"; name] ->
     match get name with
     | Some script ->
-      let result =
-        Run.parseAndExecute
-          state.accountID
-          state.currentBranchId
-          $"script:{name}"
-          script.text
-          []
-          false
-          false
+      let result = Builtin.cliParseAndExecuteScript state.accountID state.currentBranchId $"script:{name}" script.text [] false false
       match result with
       | Ok 0 -> state
       | Ok exitCode ->

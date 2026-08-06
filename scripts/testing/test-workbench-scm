@@ -1,0 +1,46 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# The workbench's SCM surfaces, with actual work in the store.
+#
+# The PR says these replace the deleted `review` TUI, which did four things: list branches, show a branch's
+# changed items, show the commit list, and show conflicts. All four are here -- Home summarises them and the
+# Changes view lists the draft -- but `test-workbench.expect` only ever opens the workbench on an EMPTY
+# store, where every section says some version of "nothing here". That asserts the view renders, not that
+# it can show anything.
+#
+# So: build a store that has a draft, a commit, a branch and a recorded conflict, and check each one
+# reaches the screen. Every row this asserts on comes from an SCM API this branch rewrote, so it is the
+# data path under test as much as the drawing.
+
+set -euo pipefail
+
+CLI=${CLI:-backend/Build/out/Cli/Debug/net10.0/Cli}
+WORK=rundir/workbench-scm-test
+
+rm -rf "$WORK"
+mkdir -p "$WORK"
+# ALL the config, not just `current_branch`: a copy of the dev store inherits `sync.relay` and the write
+# secret, so one sync-shaped command in here would reach the REAL relay. Note this makes the store look
+# like a first run to the SETUP check, so no wizard blocks startup. The greeting is a separate question:
+# it follows commits/changes/relay, so a store with work in it still greets "Welcome back".
+cp rundir/data.db "$WORK/data.db"
+sqlite3 "$WORK/data.db" 'DELETE FROM config_v0;' 2>/dev/null || true
+
+export DARK_CONFIG_RUNDIR="$PWD/$WORK"
+
+# a commit, for History
+"$PWD/$CLI" fn /WbScm.T.base '() : Int64 = 1L' >/dev/null 2>&1
+"$PWD/$CLI" commit "workbench scm fixture" -y >/dev/null 2>&1
+
+# a branch that diverges from main on one name, so merging it RECORDS a conflict
+"$PWD/$CLI" branch create wb-scm >/dev/null 2>&1
+"$PWD/$CLI" --branch wb-scm fn /WbScm.T.base '() : Int64 = 222L' >/dev/null 2>&1
+"$PWD/$CLI" --branch main fn /WbScm.T.base '() : Int64 = 111L' >/dev/null 2>&1
+"$PWD/$CLI" --branch wb-scm merge wb-scm >/dev/null 2>&1
+
+# and an uncommitted draft on main, for Changes
+"$PWD/$CLI" switch main >/dev/null 2>&1
+"$PWD/$CLI" fn /WbScm.T.draft '() : Int64 = 9L' >/dev/null 2>&1
+
+exec expect "$PWD/scripts/testing/_workbench-scm.expect" "$PWD/$CLI" "$PWD/$WORK"

@@ -98,6 +98,45 @@ module ParseQueryString =
   Stdlib.Http.parseQueryString "https://x?token=a=b" =
     Stdlib.Dict.fromListOverwritingDuplicates [ ("token", "a=b") ]
 
+  // Values are DECODED, key and value alike.
+  Stdlib.Http.parseQueryString "https://x?q=List+map&n=A%2FB" =
+    Stdlib.Dict.fromListOverwritingDuplicates [ ("q", "List map"); ("n", "A/B") ]
+
+
+module UrlDecode =
+  // What an HTML form sends for a space in a GET.
+  Stdlib.Http.urlDecode "List+map" = "List map"
+
+  Stdlib.Http.urlDecode "A%2FB" = "A/B"
+  Stdlib.Http.urlDecode "a%3Db" = "a=b"
+
+  // Byte-level, so a multi-byte character survives. Decoded per character this is two of them.
+  Stdlib.Http.urlDecode "caf%C3%A9" = "café"
+
+  // Double-encoded: the user typed a percent sign, the form encoded it.
+  Stdlib.Http.urlDecode "%2541" = "%41"
+
+  // A `%` that starts no escape is itself. The trailing one is the case that used to vanish,
+  // because decoding an empty hex string succeeds and contributes no bytes.
+  Stdlib.Http.urlDecode "100%" = "100%"
+  Stdlib.Http.urlDecode "%" = "%"
+  Stdlib.Http.urlDecode "a%2" = "a%2"
+  Stdlib.Http.urlDecode "50%zz" = "50%zz"
+
+  Stdlib.Http.urlDecode "" = ""
+
+
+module QueryParams =
+  (Stdlib.Http.Request.queryParams (
+    Stdlib.Http.Request
+      { url = "/s?q=List+map&n=A%2FB"; headers = []; body = Stdlib.Blob.empty })) =
+    [ ("q", "List map"); ("n", "A/B") ]
+
+  // A value holding an `=` used to drop the whole field, so `q` read as never sent.
+  (Stdlib.Http.Request.queryParam
+    (Stdlib.Http.Request { url = "/s?q=a=b"; headers = []; body = Stdlib.Blob.empty })
+    "q") = Stdlib.Option.Option.Some "a=b"
+
 
 module ParseHeaders =
   Stdlib.Http.parseHeaders "x: y" = Stdlib.Dict.fromListOverwritingDuplicates [ ("x", "y") ]

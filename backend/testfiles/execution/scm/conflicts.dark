@@ -1,0 +1,315 @@
+// The conflict DETECTOR, as tests rather than as a shell script grepping for English.
+//
+// `Darklang.SCM.Conflicts.detect` is a pure function of (local, incoming, bases), which is exactly the
+// shape that wants a table of cases. The four REJECTIONS matter more than the acceptance: each is a
+// false alarm the detector must not raise, and a detector that flags everything is worse than none.
+
+
+module Helpers =
+  let binding (name: String) (hash: String) (ts: String) : Darklang.SCM.Conflicts.Binding =
+    Darklang.SCM.Conflicts.Binding
+      { owner = "Zz"
+        modules = "W"
+        name = name
+        itemType = "fn"
+        hash = hash
+        originTs = ts
+        author = ""
+        previous = Stdlib.Option.Option.None }
+
+  /// The same, but recording what this binding REPLACED -- an edit rather than a creation.
+  let editOf
+    (name: String)
+    (hash: String)
+    (ts: String)
+    (replaced: String)
+    : Darklang.SCM.Conflicts.Binding =
+    Darklang.SCM.Conflicts.Binding
+      { owner = "Zz"
+        modules = "W"
+        name = name
+        itemType = "fn"
+        hash = hash
+        originTs = ts
+        author = ""
+        previous = Stdlib.Option.Option.Some replaced }
+
+  let base' (name: String) (hash: String) : Darklang.SCM.Conflicts.NameBase =
+    Darklang.SCM.Conflicts.NameBase
+      { owner = "Zz"; modules = "W"; name = name; baseHash = hash }
+
+  let detectCount
+    (local: List<Darklang.SCM.Conflicts.Binding>)
+    (incoming: List<Darklang.SCM.Conflicts.Binding>)
+    (bases: List<Darklang.SCM.Conflicts.NameBase>)
+    : Int =
+    Stdlib.List.length (Darklang.SCM.Conflicts.detect "yours" "theirs" local incoming bases)
+
+
+module Detect =
+  // BOTH sides moved a name since a recorded base -- the one case that IS a conflict.
+  (Helpers.detectCount
+    [ Helpers.binding "f" "aaa" "2026-01-02T00:00:00.000Z" ]
+    [ Helpers.binding "f" "bbb" "2026-01-03T00:00:00.000Z" ]
+    [ Helpers.base' "f" "ooo" ]) = 1
+
+  // Same hash on both sides: not a divergence at all. A re-pull, or two machines that independently
+  // authored identical bytes.
+  (Helpers.detectCount
+    [ Helpers.binding "f" "aaa" "2026-01-02T00:00:00.000Z" ]
+    [ Helpers.binding "f" "aaa" "2026-01-03T00:00:00.000Z" ]
+    [ Helpers.base' "f" "ooo" ]) = 0
+
+  // Only LOCAL moved: our own update, and the peer is simply behind.
+  (Helpers.detectCount
+    [ Helpers.binding "f" "aaa" "2026-01-02T00:00:00.000Z" ]
+    [ Helpers.binding "f" "ooo" "2026-01-03T00:00:00.000Z" ]
+    [ Helpers.base' "f" "ooo" ]) = 0
+
+  // Only INCOMING moved: an ordinary peer update of a name we never touched. Take it, quietly.
+  (Helpers.detectCount
+    [ Helpers.binding "f" "ooo" "2026-01-02T00:00:00.000Z" ]
+    [ Helpers.binding "f" "bbb" "2026-01-03T00:00:00.000Z" ]
+    [ Helpers.base' "f" "ooo" ]) = 0
+
+  // NO recorded base, and NEITHER side replaced anything: we each invented this name. That is a real
+  // conflict, and it used to be invisible -- whoever lost simply stopped being what the name meant, with
+  // nothing recorded and nobody told.
+  //
+  // It could not be reported before a binding said what it replaced, because this case and the one below
+  // reach the detector as the same three inputs. Guessing between them is what would false-alarm on every
+  // ordinary peer update.
+  (Helpers.detectCount
+    [ Helpers.binding "f" "aaa" "2026-01-02T00:00:00.000Z" ]
+    [ Helpers.binding "f" "bbb" "2026-01-03T00:00:00.000Z" ]
+    []) = 1
+
+  // The other side of that coin: no base either, but the incoming binding NAMES ours as what it replaced.
+  // Their version descends from ours, so taking it is collaborating, not a conflict.
+  (Helpers.detectCount
+    [ Helpers.binding "f" "aaa" "2026-01-02T00:00:00.000Z" ]
+    [ Helpers.editOf "f" "bbb" "2026-01-03T00:00:00.000Z" "aaa" ]
+    []) = 0
+
+  // And when OURS is the edit: still no conflict. Only both-created-from-nothing qualifies.
+  (Helpers.detectCount
+    [ Helpers.editOf "f" "aaa" "2026-01-02T00:00:00.000Z" "ooo" ]
+    [ Helpers.binding "f" "bbb" "2026-01-03T00:00:00.000Z" ]
+    []) = 0
+
+  // A base for a DIFFERENT name says nothing about this one, so this falls to the same
+  // both-created-from-nothing rule as above rather than to the base comparison.
+  (Helpers.detectCount
+    [ Helpers.binding "f" "aaa" "2026-01-02T00:00:00.000Z" ]
+    [ Helpers.binding "f" "bbb" "2026-01-03T00:00:00.000Z" ]
+    [ Helpers.base' "g" "ooo" ]) = 1
+
+  // An incoming name we hold nothing for is a creation, not a collision.
+  (Helpers.detectCount
+    []
+    [ Helpers.binding "f" "bbb" "2026-01-03T00:00:00.000Z" ]
+    [ Helpers.base' "f" "ooo" ]) = 0
+
+  // Two diverged names, two conflicts. (Detection is per name, not per batch.)
+  (Helpers.detectCount
+    [ Helpers.binding "f" "aaa" "2026-01-02T00:00:00.000Z"
+      Helpers.binding "g" "ccc" "2026-01-02T00:00:00.000Z" ]
+    [ Helpers.binding "f" "bbb" "2026-01-03T00:00:00.000Z"
+      Helpers.binding "g" "ddd" "2026-01-03T00:00:00.000Z" ]
+    [ Helpers.base' "f" "ooo"; Helpers.base' "g" "ooo" ]) = 2
+
+
+module BothMovedTheSameParent =
+  // Two bindings that REPLACED the same hash have diverged, whatever the recorded base says. Both ops
+  // carry what they replaced, so this needs no base at all.
+  //
+  // The case it exists for: an instance that pushed but never pulled has no bases with that source
+  // (`dark connect` pushes without pulling), so its first pull records bases from what it is holding
+  // right now -- its own edit included -- and its own version then reads as the base. Only the incoming
+  // side looks like it moved, and it is never told it diverged while the other side is.
+
+  // No base at all: both replaced `parent`, so both moved.
+  (Helpers.detectCount
+    [ Helpers.editOf "f" "mine" "2026-01-02T00:00:00.000Z" "parent" ]
+    [ Helpers.editOf "f" "theirs" "2026-01-03T00:00:00.000Z" "parent" ]
+    []) = 1
+
+  // A base that says only ONE side moved. Without the parent test this reads as an ordinary update,
+  // which is exactly how the notification went missing.
+  (Helpers.detectCount
+    [ Helpers.editOf "f" "mine" "2026-01-02T00:00:00.000Z" "parent" ]
+    [ Helpers.editOf "f" "theirs" "2026-01-03T00:00:00.000Z" "parent" ]
+    [ Helpers.base' "f" "mine" ]) = 1
+
+  // AN ORDINARY UPDATE IS STILL SILENT. They edited the version you are holding, so their `previous` is
+  // your CURRENT hash while yours is whatever came before it. The two cannot match, and this is the case
+  // that would have made the whole rule too noisy to want.
+  (Helpers.detectCount
+    [ Helpers.editOf "f" "mine" "2026-01-02T00:00:00.000Z" "grandparent" ]
+    [ Helpers.editOf "f" "theirs" "2026-01-03T00:00:00.000Z" "mine" ]
+    [ Helpers.base' "f" "mine" ]) = 0
+
+  // Same predecessor AND same hash is not a divergence, it is the same edit arriving twice.
+  (Helpers.detectCount
+    [ Helpers.editOf "f" "same" "2026-01-02T00:00:00.000Z" "parent" ]
+    [ Helpers.editOf "f" "same" "2026-01-03T00:00:00.000Z" "parent" ]
+    []) = 0
+
+  // `None` on both sides is NOT treated as a shared parent. It also means "no predecessor recorded", so
+  // firing on it would manufacture conflicts between unrelated items. The independent-creation rule below
+  // still covers the genuine case, and only where there is no base.
+  (Helpers.detectCount
+    [ Helpers.binding "f" "mine" "2026-01-02T00:00:00.000Z" ]
+    [ Helpers.binding "f" "theirs" "2026-01-03T00:00:00.000Z" ]
+    [ Helpers.base' "f" "older" ]) = 1
+
+  // One side records a predecessor and the other does not: no shared parent to have moved from.
+  (Helpers.detectCount
+    [ Helpers.binding "f" "mine" "2026-01-02T00:00:00.000Z" ]
+    [ Helpers.editOf "f" "theirs" "2026-01-03T00:00:00.000Z" "parent" ]
+    []) = 0
+
+
+module AutoResolution =
+  // The recorded winner must be the one the FOLD picks, or a recorded conflict names a winner that
+  // isn't live. Later origin_ts wins.
+  ((Darklang.SCM.Conflicts.detect
+      "yours"
+      "theirs"
+      [ Helpers.binding "f" "aaa" "2026-01-02T00:00:00.000Z" ]
+      [ Helpers.binding "f" "bbb" "2026-01-03T00:00:00.000Z" ]
+      [ Helpers.base' "f" "ooo" ])
+   |> Stdlib.List.head
+   |> Stdlib.Option.map (fun c -> c.autoResolvedTo)) = Stdlib.Option.Option.Some "bbb"
+
+  // ... and the older incoming loses to the newer local.
+  ((Darklang.SCM.Conflicts.detect
+      "yours"
+      "theirs"
+      [ Helpers.binding "f" "aaa" "2026-01-04T00:00:00.000Z" ]
+      [ Helpers.binding "f" "bbb" "2026-01-03T00:00:00.000Z" ]
+      [ Helpers.base' "f" "ooo" ])
+   |> Stdlib.List.head
+   |> Stdlib.Option.map (fun c -> c.autoResolvedTo)) = Stdlib.Option.Option.Some "aaa"
+
+  // An exact stamp tie breaks by the HIGHER hash, so every instance converges on the same winner.
+  ((Darklang.SCM.Conflicts.detect
+      "yours"
+      "theirs"
+      [ Helpers.binding "f" "aaa" "2026-01-03T00:00:00.000Z" ]
+      [ Helpers.binding "f" "bbb" "2026-01-03T00:00:00.000Z" ]
+      [ Helpers.base' "f" "ooo" ])
+   |> Stdlib.List.head
+   |> Stdlib.Option.map (fun c -> c.reason)) = Stdlib.Option.Option.Some "tie-break-by-hash"
+
+
+module IncomingWins =
+  // Mirrors `PackageOpPlayback.isStale`. If these two ever disagree, one machine records a conflict the
+  // other doesn't -- or worse, they converge on different winners.
+  Darklang.SCM.Conflicts.incomingWins
+    (Helpers.binding "f" "bbb" "2026-01-03T00:00:00.000Z")
+    (Helpers.binding "f" "aaa" "2026-01-02T00:00:00.000Z") = true
+
+  Darklang.SCM.Conflicts.incomingWins
+    (Helpers.binding "f" "bbb" "2026-01-01T00:00:00.000Z")
+    (Helpers.binding "f" "aaa" "2026-01-02T00:00:00.000Z") = false
+
+  // Equal stamps: higher hash wins.
+  Darklang.SCM.Conflicts.incomingWins
+    (Helpers.binding "f" "bbb" "2026-01-02T00:00:00.000Z")
+    (Helpers.binding "f" "aaa" "2026-01-02T00:00:00.000Z") = true
+
+  Darklang.SCM.Conflicts.incomingWins
+    (Helpers.binding "f" "aaa" "2026-01-02T00:00:00.000Z")
+    (Helpers.binding "f" "bbb" "2026-01-02T00:00:00.000Z") = false
+
+  // A local binding with no stamp never defends itself, matching the fold's unknown-stamp fallthrough.
+  Darklang.SCM.Conflicts.incomingWins
+    (Helpers.binding "f" "aaa" "2026-01-02T00:00:00.000Z")
+    (Helpers.binding "f" "zzz" "") = true
+
+  // An INCOMING binding with no stamp loses to a local one that has a stamp, and that is deliberate.
+  //
+  // It is the one place the two rules are not mirror images. `isStale` has a third answer this cannot
+  // express: when the op is absent from `package_ops` its stamp reads as UNKNOWN rather than empty, and
+  // the fold falls through to last-writer, applying it. A `Binding` carries a String, so "absent" and
+  // "empty" are the same value here.
+  //
+  // Unreachable rather than latent: the detector's incoming side is built from wire records, whose `ts`
+  // is a required field read out of a NOT NULL column, and an export drops any row lacking it. An empty
+  // stamp that DID arrive is stored as an empty stamp, and then both sides agree it loses on the lexical
+  // compare. Worth a case so the asymmetry is recorded rather than rediscovered.
+  Darklang.SCM.Conflicts.incomingWins
+    (Helpers.binding "f" "zzz" "")
+    (Helpers.binding "f" "aaa" "2026-01-02T00:00:00.000Z") = false
+
+
+module ConflictId =
+  // SORTED before hashing, so the id doesn't depend on which side happened to be local. Without this,
+  // the same divergence gets two ids on two machines and neither can ack the other's.
+  (Darklang.SCM.Conflicts.conflictId "Zz" "W" "f" [ "aaa"; "bbb" ]) =
+    (Darklang.SCM.Conflicts.conflictId "Zz" "W" "f" [ "bbb"; "aaa" ])
+
+  // Different location, different id.
+  ((Darklang.SCM.Conflicts.conflictId "Zz" "W" "f" [ "aaa"; "bbb" ]) ==
+   (Darklang.SCM.Conflicts.conflictId "Zz" "W" "g" [ "aaa"; "bbb" ])) = false
+
+  // Short enough to type, long enough to not collide in practice.
+  (Stdlib.String.length (Darklang.SCM.Conflicts.conflictId "Zz" "W" "f" [ "aaa"; "bbb" ])) = 8
+
+
+module StringOrdering =
+  Darklang.SCM.Conflicts.stringGt "b" "a" = true
+  Darklang.SCM.Conflicts.stringGt "a" "b" = false
+  Darklang.SCM.Conflicts.stringGt "a" "a" = false
+  // ISO stamps compare lexically, which is the whole reason the fold can order by them as strings.
+  Darklang.SCM.Conflicts.stringGt "2026-01-03T00:00:00.000Z" "2026-01-02T23:59:59.999Z" = true
+
+
+module Chunking =
+  // Nothing on the detection path may build an unbounded IN-list: an over-cap statement ERRORS, and
+  // every caller turns an error into [], which reads downstream as "no conflict".
+  (Stdlib.List.length (Darklang.SCM.Conflicts.inChunks [])) = 0
+  (Stdlib.List.length (Darklang.SCM.Conflicts.inChunks [ "a"; "b"; "c" ])) = 1
+
+  // A list longer than the chunk size splits, and splits losslessly.
+  (Stdlib.List.length
+    (Stdlib.List.flatten
+      (Darklang.SCM.Conflicts.inChunks
+        (Stdlib.List.map (Stdlib.List.range 1 2500) (fun i -> Stdlib.Int.toString i))))) = 2500
+
+  ((Stdlib.List.length
+      (Darklang.SCM.Conflicts.inChunks
+        (Stdlib.List.map (Stdlib.List.range 1 2500) (fun i -> Stdlib.Int.toString i)))) > 1) = true
+
+
+module Placeholders =
+  Darklang.SCM.Conflicts.inPlaceholders [] = ""
+  Darklang.SCM.Conflicts.inPlaceholders [ "x" ] = "@p0"
+  Darklang.SCM.Conflicts.inPlaceholders [ "x"; "y"; "z" ] = "@p0, @p1, @p2"
+
+
+module Fqn =
+  Darklang.SCM.Conflicts.fqn "Zz" "W" "f" = "Zz.W.f"
+  // A top-level item has no module segment, and joining an empty one would give "Zz..f".
+  Darklang.SCM.Conflicts.fqn "Zz" "" "f" = "Zz.f"
+  Darklang.SCM.Conflicts.bindingKey "Zz" "W" "f" = "Zz/W/f"
+
+
+module OrderPreservingDedup =
+  // `Stdlib.List.unique` and `uniqueBy` both SORT (their own docs say the order is not maintained), so
+  // neither can dedup a sequence whose order is the point. `PackageOps.branchHashHistoryFor` returns a
+  // name's versions oldest-first and is what `dark undo` steps through; sorting it there swaps the
+  // sequence for lexicographic hash order, which looks plausible and sends undo to the wrong version.
+  //
+  // Pinning the stdlib behaviour, so the day either of these starts preserving order the call sites that
+  // worked around it get revisited rather than silently double-correcting.
+  (Stdlib.List.unique [ "c"; "a"; "b" ]) = [ "a"; "b"; "c" ]
+  (Stdlib.List.uniqueBy [ "c"; "a"; "b" ] (fun x -> x)) = [ "a"; "b"; "c" ]
+
+  // The order-preserving shape, which is what an authoring sequence needs.
+  (Stdlib.List.fold
+    [ "c"; "a"; "b"; "a" ]
+    []
+    (fun acc h -> if Stdlib.List.member acc h then acc else Stdlib.List.pushBack acc h)) =
+    [ "c"; "a"; "b" ]

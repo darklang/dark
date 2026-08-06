@@ -64,7 +64,7 @@ module TextEdit =
     Component.launch cliState component Stdlib.Cli.UI.TextField.empty
 
   let help (_state: Cli.AppState) : String =
-    "A tiny text editor (demo) — type, Enter or Esc to exit."
+    "A tiny text editor (demo) -- type, Enter or Esc to exit."
 
   let complete
     (_state: Cli.AppState)

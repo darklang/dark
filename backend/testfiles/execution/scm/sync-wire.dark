@@ -1,0 +1,106 @@
+// The sync WIRE codec: what an op bundle says about itself, and what a reader does with a version it
+// doesn't know.
+//
+// Exactly ONE version is readable. Older bundles are not carried, deliberately: nothing predates this
+// build that is worth reading, and a decoder per retired shape is cost with no payer. What the rules still
+// have to do is distinguish "this is from the future, upgrade" from "this file is damaged" -- only one of
+// those is fixed by upgrading, so collapsing them into one error sends people looking in the wrong place.
+
+module Helpers =
+  let decode (json: String) : Stdlib.Result.Result<Darklang.SCM.Wire.SyncBundle, String> =
+    Darklang.SCM.Wire.wireDecode (Stdlib.String.toBlob json)
+
+  let isError (r: Stdlib.Result.Result<Darklang.SCM.Wire.SyncBundle, String>) : Bool =
+    match r with
+    | Ok _ -> false
+    | Error _ -> true
+
+  let errorText (r: Stdlib.Result.Result<Darklang.SCM.Wire.SyncBundle, String>) : String =
+    match r with
+    | Ok _ -> ""
+    | Error e -> e
+
+  /// A current-shape bundle carrying no ops. Takes the version so a wrong one can be exercised.
+  let v5 (version: String) : String =
+    $"""{{"formatVersion":{version},"darkBuild":"abc123","kernelHash":"deadbeef","owner":"inst-1","cursor":0,"ops":[]}}"""
+
+  let firstAuthor (r: Stdlib.Result.Result<Darklang.SCM.Wire.SyncBundle, String>) : String =
+    match r with
+    | Ok b ->
+      (match Stdlib.List.head b.ops with
+       | Some op -> op.author
+       | None -> "<no ops>")
+    | Error e -> $"<error {e}>"
+
+
+module CurrentVersion =
+  // The version this build speaks. Bumping it is a deliberate act, so it's worth asserting rather than
+  // letting a stray edit move it.
+  Darklang.SCM.Wire.currentWireVersion = 1L
+
+
+module RoundTrip =
+  // What we write, we read.
+  (Helpers.decode (Darklang.SCM.Wire.wireEncode [])
+   |> Stdlib.Result.map (fun b -> b.formatVersion)) = Stdlib.Result.Result.Ok 1L
+
+  // Every bundle self-identifies with the ABI that produced it, so someone holding nothing but the file
+  // and sqlite can tell whether their build can read it.
+  ((Helpers.decode (Darklang.SCM.Wire.wireEncode [])
+    |> Stdlib.Result.map (fun b -> b.kernelHash == ""))
+   |> Stdlib.Result.withDefault true) = false
+
+  // The server's position round-trips, which is what makes a paged pull resumable.
+  (Helpers.decode (Darklang.SCM.Wire.wireEncodeAt 4200L [])
+   |> Stdlib.Result.map (fun b -> b.cursor)) = Stdlib.Result.Result.Ok 4200L
+
+
+module RejectsWhatItCannotRead =
+  // A bundle from a NEWER build is an error, and the error says to upgrade rather than half-read it.
+  (Helpers.isError (Helpers.decode (Helpers.v5 "99"))) = true
+
+  (Stdlib.String.contains (Helpers.errorText (Helpers.decode (Helpers.v5 "99"))) "v99") = true
+
+  (Stdlib.String.contains
+    (Helpers.errorText (Helpers.decode (Helpers.v5 "99")))
+    "not understood by this build") = true
+
+  // An OLDER version is refused the same way, which is the point of dropping the legacy decoders: no
+  // silent half-read of a shape this build no longer understands.
+  (Helpers.isError (Helpers.decode (Helpers.v5 "0"))) = true
+
+  // Dispatch is on the version the bundle CLAIMS, never on whichever shape happens to parse. This fixture
+  // is structurally identical to a readable bundle and differs only in its version, so it can only be
+  // caught by reading the version first.
+  (Helpers.isError (Helpers.decode (Helpers.v5 "2"))) = true
+
+
+module RejectsDamage =
+  // Not JSON at all.
+  (Helpers.isError (Helpers.decode "this is not a bundle")) = true
+
+  // JSON, but not a bundle. Distinct from the version error above: this one means the file is damaged,
+  // that one means you're behind, and only one of them is fixed by upgrading.
+  (Helpers.isError (Helpers.decode """{"hello":"world"}""")) = true
+
+  (Stdlib.String.contains
+    (Helpers.errorText (Helpers.decode """{"hello":"world"}"""))
+    "unparseable") = true
+
+  // Empty body.
+  (Helpers.isError (Helpers.decode "")) = true
+
+
+module HeadCodec =
+  // The cheap "are we in sync?" check. Count plus cursor, no op transfer.
+  (Darklang.SCM.Wire.headDecode
+    (Stdlib.String.toBlob (Darklang.SCM.Wire.headEncode (Darklang.SCM.Wire.SyncHead { count = 7L; maxTs = "2026-01-02T00:00:00.000Z" })))
+   |> Stdlib.Result.map (fun h -> h.count)) = Stdlib.Result.Result.Ok 7L
+
+  (Darklang.SCM.Wire.headDecode (Stdlib.String.toBlob "not json")) =
+    Stdlib.Result.Result.Error "unparseable head"
+
+  // The stamp is what gets remembered between pulls, so "nothing moved" is a string compare rather than
+  // a transfer.
+  (Darklang.SCM.Wire.headStamp (Darklang.SCM.Wire.SyncHead { count = 7L; maxTs = "2026-01-02T00:00:00.000Z" })) =
+    "7@2026-01-02T00:00:00.000Z"

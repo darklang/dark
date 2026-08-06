@@ -1,0 +1,37 @@
+// What an app is allowed to put into a generated OS service file.
+//
+// `Registry.catalog` is the curated set PLUS apps DISCOVERED from packages, and packages sync. So an
+// `App` record reaching `Service.enable` was not necessarily written on this machine, and its fields
+// are interpolated into a systemd unit and a launchd plist (the latter as an argument to `/bin/sh -c`).
+// The slug was already checked; these two were not.
+
+module Entrypoint =
+  // Goes inside `<launcher> eval '<entrypoint> "<slug>"'`. A quote closes the eval string and
+  // everything after it is a fresh command.
+  (Darklang.Cli.Apps.Model.isValidEntrypoint
+    "Darklang.Cli.Apps.Examples.heartbeat") = true
+
+  (Darklang.Cli.Apps.Model.isValidEntrypoint "x'; touch /tmp/pwned; echo '") = false
+
+  (Darklang.Cli.Apps.Model.isValidEntrypoint "x\"; id; \"") = false
+
+  (Darklang.Cli.Apps.Model.isValidEntrypoint "") = false
+
+
+module AppName =
+  // Goes into a systemd `Description=`, which is newline-delimited.
+  (Darklang.Cli.Apps.Model.isValidAppName "Dark Packages HTTP Server") = true
+
+  (Darklang.Cli.Apps.Model.isValidAppName
+    "evil\nExecStartPre=/bin/sh -c id") = false
+
+  (Darklang.Cli.Apps.Model.isValidAppName "") = false
+
+
+module Targets =
+  // A foreground app writes no unit file, so it has no entrypoint to constrain.
+  (Darklang.Cli.Apps.Model.isValidEntrypointOf
+    (Darklang.Cli.Apps.Model.Target.Foreground "anything at all")) = true
+
+  (Darklang.Cli.Apps.Model.isValidEntrypointOf
+    (Darklang.Cli.Apps.Model.Target.Daemon "x'; id; '")) = false

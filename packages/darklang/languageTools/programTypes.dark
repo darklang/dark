@@ -361,6 +361,12 @@ let parsePackageLocation (nameToParse: String): PackageLocation =
     // Empty name (shouldn't happen, but handle it)
     PackageLocation { owner = ""; modules = []; name = "" }
 
+/// A branch's stable id. Main's is well-known rather than minted (`SCM.Ids.mainBranchId`), because main
+/// exists before anything creates it.
+///
+/// NOT the branch's name. The name is what a person types and can rename or reuse; this is what op tags,
+/// per-name bases, bundles and parent links point at. The CLI turns one into the other at its edge, and
+/// they are different TYPES so that the edge is the only place they can be confused.
 type BranchID = Uuid
 
 /// Content-addressed hash for package items (hex-encoded SHA-256)
@@ -466,6 +472,9 @@ module Reference =
     | PackageValue _ -> ItemKind.Value
     | PackageFn _ -> ItemKind.Fn
 
+  /// Construction must NAME the type (`Reference.PackageFn`), not just the case: a bare `PackageFn h` only
+  /// resolves in a match arm, where the matched value supplies the type. Unqualified here, this raised
+  /// "PackageFn is not a valid name" at runtime for every caller.
   let fromHashAndKind (h: Hash) (k: ItemKind) : Reference =
     match k with
     | Type -> Reference.PackageType h
@@ -482,37 +491,71 @@ type DeprecationKind =
   /// Don't use this anymore (catch-all).
   | Obsolete
 
-/// A single repoint operation within a PropagateUpdate
+/// A single repoint: what propagation moved. Reported back to the caller; NOT an op
 type PropagateRepoint =
   { location: PackageLocation
     fromRef: Reference
     toRef: Reference }
 
 
+/// What happened to a branch. A closed set, so a type rather than a string. Both cases are monotonic:
+/// applying one twice, or out of order, lands in the same place. Rename is absent because it is
+/// last-writer-wins and `branches` records no stamp to arbitrate with.
+type BranchEventKind =
+  | Merged
+  | Archived
+
+/// What a `Decision` DID. The shared part of a decision (who, where, why) lives on the op; this is the
+/// part that varies, so a decision that binds a name and one that only closes a finding can't be
+/// confused for each other.
+type DecisionKind =
+  /// Bind this name to THIS version, the one the fold didn't pick. Its own case rather than another
+  /// SetName because ops are content-addressed: re-authoring the losing SetName produces the op that
+  /// already exists and folds nothing. Binds with source='resolution' and closes the conflict as
+  /// `overridden`.
+  | Override of target: Reference
+  /// A standing finding has been seen and accepted. Closes it as `acked`, and binds nothing.
+  | Ack of findingId: String
+  /// Whether this name follows its dependencies when they move, or stays where it is.
+  | Propagation of policy: PropagationPolicy
+
+/// Pin and follow are the two standing answers; `Unset` is the absence of one, which the fold deletes
+/// rather than stores, so "no policy" has a single spelling.
+type PropagationPolicy =
+  | Pin
+  | Follow
+  | Unset
+
 type PackageOp =
   | AddType of PackageType.PackageType
   | AddValue of PackageValue.PackageValue
   | AddFn of PackageFn.PackageFn
   // Bind a name (location) to a piece of content (target).
-  | SetName of location: PackageLocation * target: Reference
+  /// `previous` is the hash this binding REPLACED, or None when the location was empty (or when whoever
+  /// authored it had no store to ask, which is true of the parsers). Two SetNames for one location that
+  /// BOTH name no predecessor are two independent creations, which is a conflict; one that names the
+  /// other's hash is an ordinary edit, which is not.
+  | SetName of
+      location: PackageLocation *
+      target: Reference *
+      previous: Stdlib.Option.Option<Hash>
   // Author-initiated deprecation annotation on a specific hash.
   | Deprecate of target: Reference * kind: DeprecationKind * message: String
   // Clear any prior deprecation on a target.
   | Undeprecate of target: Reference
-  // Propagation: when a definition is updated, propagate the change to all dependents
-  | PropagateUpdate of
-      propagationId: Uuid *
-      sourceLocation: PackageLocation *
-      fromRefs: List<Reference> *
-      toRef: Reference *
-      repoints: List<PropagateRepoint>
-  // Revert a propagation: restore previous versions atomically
-  | RevertPropagation of
-      revertId: Uuid *
-      revertedPropagationIds: List<Uuid> *
-      sourceLocation: PackageLocation *
-      restoredSourceRef: Reference *
-      revertedRepoints: List<PropagateRepoint>
+  /// A human's judgment about a NAME, recorded so that it travels. Overriding a binding and acking a
+  /// finding are one class of act -- someone decided something about a location, and it has to hold on
+  /// every machine -- so they are one op differing by `kind`. `id` is what makes each decision distinct,
+  /// and idempotence is the caller's choice of what to put in it. `reason` is carried, never interpreted.
+  | Decision of
+      id: String *
+      location: PackageLocation *
+      reason: String *
+      kind: DecisionKind
+  /// Something that happened to a BRANCH rather than to a name. Merged ops already travel, since they
+  /// become main ops; the FACT of the merge did not, so a colleague's copy of a branch still listed as
+  /// live work after you landed it.
+  | BranchEvent of branchId: Uuid * event: BranchEventKind * at: String
 
 
 module Search =
@@ -654,21 +697,21 @@ module PackageManager =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetName (loc, PackageType hash) -> Stdlib.Option.Option.Some((loc, hash))
+        | SetName (loc, PackageType hash, _) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let valueLocationMap =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetName (loc, PackageValue hash) -> Stdlib.Option.Option.Some((loc, hash))
+        | SetName (loc, PackageValue hash, _) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let fnLocationMap =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetName (loc, PackageFn hash) -> Stdlib.Option.Option.Some((loc, hash))
+        | SetName (loc, PackageFn hash, _) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     // Create PackageManager that looks up in ops first, then falls back to basePM

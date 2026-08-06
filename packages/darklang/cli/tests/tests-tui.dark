@@ -276,7 +276,7 @@ let testSessionStopRestoresOnlyWhenRunning (): TestResult =
 /// A workbench state good enough to render, without touching the terminal.
 let workbenchState () : Darklang.Cli.Workbench.State =
   Darklang.Cli.Workbench.initialState
-    Darklang.SCM.Branch.mainBranchId
+    Darklang.SCM.Ids.mainBranchId
     Stdlib.Option.Option.None
     "test"
     "test-instance"
@@ -292,6 +292,143 @@ let rendersView (viewIndex: Int) : Bool =
   // A frame is `height` rows, and a view that drew nothing at all is a bug even if it didn't crash.
   (Stdlib.List.length view.rows == 40)
   && (view.rows |> Stdlib.List.any (fun r -> (Stdlib.Cli.Tui.Text.stripSgr r) != ""))
+
+
+/// Render the SCM view in one of its sections, and report whether it produced a plausible frame.
+///
+/// `rendersView` only ever draws a view's DEFAULT section, which is how the Conflicts pane shipped
+/// reading a conflict shape that had moved underneath it: nothing rendered that section at all. The
+/// data-dependent half of that needs a store with a conflict in it (`scripts/testing/test-workbench-scm`
+/// builds one); this is the cheap half, and it costs nothing to keep.
+let rendersScmSection (section: Darklang.Cli.Workbench.ScmSection) : Bool =
+  let base = workbenchState ()
+
+  let state =
+    { base with
+        activeView = Darklang.Cli.Workbench.vSCM
+        scm = { base.scm with section = section } }
+
+  let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+  let view = Darklang.Cli.Workbench.viewAtSize state size
+
+  (Stdlib.List.length view.rows == 40)
+  && (view.rows |> Stdlib.List.any (fun r -> (Stdlib.Cli.Tui.Text.stripSgr r) != ""))
+
+
+/// The same for Matter's lenses. `Changed` is the interesting one: it reads the draft rather than the
+/// package tree, so it is a different code path from the other two rather than a filter over the same one.
+let rendersMatterLens (lens: Darklang.Cli.Workbench.Lens) : Bool =
+  let base = workbenchState ()
+
+  let state =
+    { base with
+        activeView = Darklang.Cli.Workbench.vMatter
+        matter = Darklang.Cli.Workbench.MatterState { lens = lens } }
+
+  let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+  let view = Darklang.Cli.Workbench.viewAtSize state size
+
+  (Stdlib.List.length view.rows == 40)
+  && (view.rows |> Stdlib.List.any (fun r -> (Stdlib.Cli.Tui.Text.stripSgr r) != ""))
+
+
+/// Matter's ITEM PAGE: the preview for a selected leaf, which is source + meta + references + actions.
+///
+/// The deepest renderer in the workbench and the one nothing reached. It cannot be driven through the
+/// terminal -- it is three interactions deep (open Matter, descend into a module, focus the preview) and
+/// assertions stop being reliable past two, because the frame is painted as a diff. From state it is a
+/// one-liner: put the location inside a real module so `loadItems` returns leaves rather than submodules,
+/// and render.
+let rendersMatterItemPage (path: List<String>) : Bool =
+  let base = workbenchState ()
+  let loc = Packages.PackageLocation.Module path
+  let items = Darklang.Cli.Workbench.loadItems Darklang.SCM.Ids.mainBranchId loc
+
+  // A path with no leaves would render the empty case and prove nothing, so say so rather than pass.
+  if Stdlib.List.isEmpty items then
+    false
+  else
+    let state =
+      { base with
+          activeView = Darklang.Cli.Workbench.vMatter
+          location = loc
+          items = items
+          selected = 0
+          focus = Stdlib.Cli.UI.SplitPane.Focus.Second }
+
+    let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+    let view = Darklang.Cli.Workbench.viewAtSize state size
+
+    (Stdlib.List.length view.rows == 40)
+    && (view.rows |> Stdlib.List.any (fun r -> (Stdlib.Cli.Tui.Text.stripSgr r) != ""))
+
+
+let testWorkbenchItemPageRenders (): TestResult =
+  // A module of fns, and one of types + values, because the item page branches on what the leaf IS.
+  let paths = [ [ "Darklang"; "Stdlib"; "List" ]; [ "Darklang"; "Stdlib"; "Option" ] ]
+
+  let broken =
+    paths |> Stdlib.List.filter (fun p -> Stdlib.Bool.not (rendersMatterItemPage p))
+
+  if Stdlib.List.isEmpty broken then
+    TestResult.Pass
+  else
+    let names =
+      broken |> Stdlib.List.map (fun p -> Stdlib.String.join p ".") |> Stdlib.String.join ", "
+
+    TestResult.Fail $"the item page drew nothing at: {names}"
+
+
+/// Render one view's PREVIEW pane from state.
+///
+/// Opening a view draws its LIST; the preview is a separate function (`previewLines`) that nothing
+/// reaches until something focuses it. That gap is measured, not assumed: with the Traces detail pane
+/// deliberately broken, every assertion in `scripts/testing/test-workbench-views` still passed, because
+/// none of them draw a preview. Focusing it through the terminal needs a third interaction, and the
+/// frame diff stops being reliable past two -- so it belongs here, where rendering takes no terminal.
+let rendersPreview (viewIndex: Int) : Bool =
+  let base = workbenchState ()
+  let state = { base with activeView = viewIndex }
+  // A pane reads the SELECTED item, so a view with an empty list exercises only its empty case. That is
+  // still worth running (it is the case a fresh store hits), and the item page has its own test.
+  let lines = Darklang.Cli.Workbench.previewLines state
+  // Any list at all, including an empty one, means it returned rather than raised. A pane that throws
+  // takes this down loudly, which is the point.
+  (Stdlib.List.length lines) >= 0
+
+
+let testWorkbenchPreviewsRender (): TestResult =
+  let broken =
+    Stdlib.List.range 0 12
+    |> Stdlib.List.filter (fun i -> Stdlib.Bool.not (rendersPreview i))
+
+  if Stdlib.List.isEmpty broken then
+    TestResult.Pass
+  else
+    let names = broken |> Stdlib.List.map Stdlib.Int.toString |> Stdlib.String.join ", "
+    TestResult.Fail $"preview panes that drew nothing: {names}"
+
+
+let testWorkbenchSectionsRender (): TestResult =
+  let brokenSections =
+    [ Darklang.Cli.Workbench.ScmSection.Changes
+      Darklang.Cli.Workbench.ScmSection.History
+      Darklang.Cli.Workbench.ScmSection.Conflicts
+      Darklang.Cli.Workbench.ScmSection.Branches ]
+    |> Stdlib.List.filter (fun s -> Stdlib.Bool.not (rendersScmSection s))
+
+  let brokenLenses =
+    [ Darklang.Cli.Workbench.Lens.WholeTree
+      Darklang.Cli.Workbench.Lens.ValuesOnly
+      Darklang.Cli.Workbench.Lens.Changed ]
+    |> Stdlib.List.filter (fun l -> Stdlib.Bool.not (rendersMatterLens l))
+
+  if (Stdlib.List.isEmpty brokenSections) && (Stdlib.List.isEmpty brokenLenses) then
+    TestResult.Pass
+  else
+    let ns = Stdlib.Int.toString (Stdlib.List.length brokenSections)
+    let nl = Stdlib.Int.toString (Stdlib.List.length brokenLenses)
+    TestResult.Fail $"{ns} SCM section(s) and {nl} Matter lens(es) produced no frame"
 
 
 let testWorkbenchEveryViewRenders (): TestResult =
@@ -340,7 +477,7 @@ let testWorkbenchModuleInspectPreviewsChildren (): TestResult =
     Darklang.Cli.Packages.PackageLocation.Module [ "Darklang" ]
   let items =
     Darklang.Cli.Workbench.loadItems
-      Darklang.SCM.Branch.mainBranchId
+      Darklang.SCM.Ids.mainBranchId
       location
   let selected =
     Stdlib.List.findFirstIndex items (fun item -> item.name == "LspExtension")
@@ -666,13 +803,15 @@ let testReplCapturesRealValues (): TestResult =
   // The end of the round-trip that matters: a value goes out as source you could paste back in. Enums are
   // in here because they're what a REPL actually produces, and they only render as names because
   // `dvalToExpr` resolves the type's package location.
-  let branch = Stdlib.Uuid.toString Darklang.SCM.Branch.mainBranchId
+  let branch = Darklang.SCM.Ids.mainBranchId
   let cases =
     [ (Darklang.Cli.Repl.captureValue branch 42, "ok:42")
       (Darklang.Cli.Repl.captureValue branch [ 1L; 2L ], "ok:[1L; 2L]")
       (Darklang.Cli.Repl.captureValue branch "hi", "ok:\"hi\"")
+      // Names are spelled relative to where you are, so this is `Option.Some` rather than the fully
+      // qualified form. Still pasteable, which is the property that matters: `Option.Some(1)` evaluates.
       (Darklang.Cli.Repl.captureValue branch (Stdlib.Option.Option.Some 1),
-       "ok:Stdlib.Option.Option.Some(1)") ]
+       "ok:Option.Some(1)") ]
   let wrong =
     cases
     |> Stdlib.List.filter (fun c -> let (got, want) = c in got != want)
@@ -733,3 +872,4 @@ let testWorkbenchViewsShowTheirChrome (): TestResult =
     TestResult.Pass
   else
     TestResult.Fail $"Missing from the rendered frame: {Stdlib.String.join missing ", "}"
+

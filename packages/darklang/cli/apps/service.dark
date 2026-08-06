@@ -47,8 +47,15 @@ let launchdPlist (app: Model.App) : String =
 let enable (app: Model.App) : EnableResult =
   if Stdlib.Bool.not (Model.isValidSlug app.slug) then
     EnableResult.Failed $"invalid app slug '{app.slug}'"
+  // Checked HERE rather than at authoring: a discovered app comes from a package, and packages sync,
+  // so the value this writes into a unit file was not necessarily written on this machine.
+  else if Stdlib.Bool.not (Model.isValidAppName app.name) then
+    EnableResult.Failed
+      $"'{app.slug}' has a name that can't go in a unit file (control characters)"
+  else if Stdlib.Bool.not (Model.isValidEntrypointOf app.target) then
+    EnableResult.Failed $"'{app.slug}' has an entrypoint that isn't a plain function name"
   else if Stdlib.Bool.not (Model.isDaemon app.target) then
-    EnableResult.Failed $"'{app.slug}' is a foreground app — only daemons can auto-start"
+    EnableResult.Failed $"'{app.slug}' is a foreground app -- only daemons can auto-start"
   else
     match platform () with
     | Unsupported ->
@@ -60,9 +67,9 @@ let enable (app: Model.App) : EnableResult =
       | Error e -> EnableResult.Failed e.message
       | Ok _ ->
         match Stdlib.Cli.Process.exec "systemctl" [ "--user"; "enable"; "--now"; $"dark-{app.slug}.service" ] with
-        | Ok _ -> EnableResult.Enabled $"enabled — {app.name} will start on login (systemd: dark-{app.slug})"
+        | Ok _ -> EnableResult.Enabled $"enabled -- {app.name} will start on login (systemd: dark-{app.slug})"
         | Error _ ->
-          EnableResult.WroteOnly $"wrote {path}, but couldn't activate it — run: systemctl --user enable --now dark-{app.slug}.service"
+          EnableResult.WroteOnly $"wrote {path}, but couldn't activate it -- run: systemctl --user enable --now dark-{app.slug}.service"
     | Mac ->
       let path = unitPath app.slug
       let _dir = Stdlib.Cli.Posix.mkdirRecursive ((home ()) ++ "/Library/LaunchAgents")
@@ -70,8 +77,8 @@ let enable (app: Model.App) : EnableResult =
       | Error e -> EnableResult.Failed e.message
       | Ok _ ->
         match Stdlib.Cli.Process.exec "launchctl" [ "load"; path ] with
-        | Ok _ -> EnableResult.Enabled $"enabled — {app.name} will start on login (launchd: com.darklang.{app.slug})"
-        | Error _ -> EnableResult.WroteOnly $"wrote {path}, but couldn't activate it — run: launchctl load {path}"
+        | Ok _ -> EnableResult.Enabled $"enabled -- {app.name} will start on login (launchd: com.darklang.{app.slug})"
+        | Error _ -> EnableResult.WroteOnly $"wrote {path}, but couldn't activate it -- run: launchctl load {path}"
 
 // Delete the unit file that makes `slug` auto-start; missing files are already disabled.
 let removeUnit (slug: String) : Stdlib.Result.Result<String, String> =

@@ -21,14 +21,15 @@ let parseQueryString (url: String) : Dict<String> =
       if param == "" then
         Stdlib.Option.Option.None
       else
+        // Decoded, like `Request.queryParams`: a caller reading `?q=List+map`
+        // wants the two words, not the plus sign that carried the space.
         match Stdlib.String.split param "=" with
-        | [ key; value ] -> Stdlib.Option.Option.Some((key, value))
-        | [ key ] -> Stdlib.Option.Option.Some((key, ""))
+        | [] -> Stdlib.Option.Option.None
         | key :: rest ->
-          // `?a=b=c` → key="a", value="b=c"
-          let value = Stdlib.String.join rest "="
-          Stdlib.Option.Option.Some((key, value))
-        | [] -> Stdlib.Option.Option.None)
+          // `?a=b=c` gives key="a", value="b=c"
+          Stdlib.Option.Option.Some(
+            (Stdlib.Http.urlDecode key,
+             Stdlib.Http.urlDecode (Stdlib.String.join rest "="))))
     |> Stdlib.Dict.fromListOverwritingDuplicates
 
 
@@ -54,17 +55,82 @@ let parseHeaders (s: String) : Dict<String> =
   |> Stdlib.Dict.fromListOverwritingDuplicates
 
 
+/// Percent-decoding for one query-string field.
+///
+/// Decodes at the BYTE level and only reads the result back as text at the end,
+/// because an escape is a BYTE and a non-ASCII character is several of them:
+/// `%C3%A9` is one `e-acute`, not two characters. Decoding per character produces
+/// mojibake for every name that is not plain ASCII.
+///
+/// `+` is a space. That is not decoration: an HTML form doing a GET encodes a
+/// space that way, so a two-word search from a form field arrives as `a+b`.
+///
+/// A `%` that does not start two hex digits is passed through as itself rather
+/// than dropped. A search box is allowed to contain a percent sign.
+let urlDecode (s: String) : String =
+  match Stdlib.String.split (Stdlib.String.replaceAll s "+" " ") "%" with
+  | [] -> ""
+  | first :: rest ->
+    rest
+    |> Stdlib.List.fold (Stdlib.String.toBytes first) (fun acc piece ->
+      let hex = Stdlib.String.slice piece 0 2
+
+      // The length check is not redundant: `Blob.fromHex ""` succeeds, so a `%`
+      // at the very end of the string decodes to no bytes at all and vanishes.
+      match
+        (if (Stdlib.String.length hex) == 2 then
+           Stdlib.Blob.fromHex hex
+         else
+           Stdlib.Result.Result.Error "not an escape")
+      with
+      | Ok b ->
+        Stdlib.List.append
+          (Stdlib.List.append acc (Stdlib.Blob.toList b))
+          (Stdlib.String.toBytes (Stdlib.String.dropFirst piece 2))
+      | Error _ -> Stdlib.List.append acc (Stdlib.String.toBytes ("%" ++ piece)))
+    |> Stdlib.String.fromBytesWithReplacement
+
+
 module Request =
+  /// The query string, decoded.
+  ///
+  /// Splits each field at its FIRST `=` only. A value is allowed to contain one
+  /// (base64 padding and any nested query string do), and requiring exactly two
+  /// pieces dropped the whole field on the floor: `?q=a=b` read as though `q`
+  /// had never been sent.
   let queryParams (req: Stdlib.Http.Request) : List<String * String> =
     match req.url |> Stdlib.String.split "?" with
     | [] -> []
     | _ :: queryParts ->
-      (Stdlib.String.join queryParts "")
+      (Stdlib.String.join queryParts "?")
       |> Stdlib.String.split "&"
       |> Stdlib.List.map (fun param ->
         match Stdlib.String.split param "=" with
-        | [ key; value ] -> (key, value)
-        | _ -> (param, ""))
+        | [] -> ("", "")
+        | key :: valueParts ->
+          (Stdlib.Http.urlDecode key,
+           Stdlib.Http.urlDecode (Stdlib.String.join valueParts "=")))
+
+  /// The value of <param key>, matched case-INSENSITIVELY, as HTTP requires: a
+  /// client may send `Authorization`, `authorization` or `AUTHORIZATION` and all
+  /// three mean the same header. A case-sensitive lookup here reads as "the client
+  /// didn't send it", which for an auth check refuses a request that was perfectly
+  /// well formed.
+  let header
+    (req: Stdlib.Http.Request)
+    (key: String)
+    : Stdlib.Option.Option<String> =
+    let wanted = Stdlib.String.toLowercase key
+
+    req.headers
+    |> Stdlib.List.filterMap (fun pair ->
+      let (k, v) = pair
+
+      if (Stdlib.String.toLowercase k) == wanted then
+        Stdlib.Option.Option.Some v
+      else
+        Stdlib.Option.Option.None)
+    |> Stdlib.List.head
 
   let queryParam
     (req: Stdlib.Http.Request)

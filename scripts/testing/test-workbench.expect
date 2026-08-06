@@ -1,0 +1,93 @@
+#!/usr/bin/expect -f
+#
+# The workbench under a real TTY.
+#
+# `dark` with no arguments opens the workbench, so this is the default experience, and none of it is
+# reachable from the test suite: the views can be rendered directly (and are, in the Dark tests), but
+# keyboard handling, the alternate screen and resize need a terminal.
+#
+# Every step asserts. The harness this replaces sent keys and ended with a bare `expect eof`, which
+# passes just as happily when the process has crashed.
+#
+# Two things about asserting against this program, both learned the hard way:
+#
+#   1. The screen is redrawn as a DIFF, so text already on screen is not sent again. Asserting on a tab
+#      label matches the first paint and then never again. Every assertion below names something only
+#      the view being switched to draws into its panel.
+#   2. Views are switched by their POSITION in the visible list, not by their view index. Gated views
+#      are hidden, so the digits shift. Every switch here goes back through Home first, which keeps the
+#      test honest about what it is asserting and gives the diff something to redraw.
+
+set timeout 45
+log_user 0
+
+proc fail {msg} {
+  puts "FAIL: $msg"
+  exit 1
+}
+
+proc want {pattern what} {
+  expect {
+    -re $pattern { puts "  ok: $what" }
+    timeout { fail "timed out waiting for $what" }
+    eof { fail "process exited while waiting for $what" }
+  }
+}
+
+spawn ./backend/Build/out/Cli/Debug/net10.0/Cli
+
+# 1. it opens on the workbench rather than the classic prompt
+# The context row, not a greeting: upstream's Home shows the welcome panel only on a genuine first run.
+want "instance:" "the workbench on startup"
+want "(?i)(needs you|uncommitted|branches)" "the Home sections"
+
+# Every switch below goes to a view not yet visited. Returning to a view you have already been on does
+# not reliably emit anything under a TTY, which is either the diff renderer believing a row is unchanged
+# when it is not, or an artefact of driving it this way. Unresolved either way, so this test does not
+# depend on it. See notes/fresh-arch/TONIGHT.md.
+
+# 2. switching views actually draws the view, not just a moved tab marker
+send "2"
+want "(?i)(darklang|packages)" "the Code view"
+
+# 3, not 4: upstream renumbered the views when Home gained its sections.
+send "3"
+want "(?i)(changes|conflict)" "the Changes view"
+
+# 3. a resize must redraw rather than throw. SIGWINCH is the interesting case on its own: the terminal
+#    changes size underneath a frame that is already drawn.
+stty rows 30 columns 100 < $spawn_out(slave,name)
+exec kill -WINCH [exp_pid]
+send "6"
+want "(?i)(trace)" "the Activity view after a resize"
+
+# 4. below a usable size the workbench degrades to a message rather than a garbled frame, and the
+#    message has to carry the size you need. The single-line version was 44 columns wide and the guard
+#    fires from 24, so the canvas clipped exactly the part that told you what to resize to.
+stty rows 24 columns 40 < $spawn_out(slave,name)
+exec kill -WINCH [exp_pid]
+want "terminal too small" "the too-small guard"
+want "56x12" "the size you need, not clipped off the end of it"
+
+# 5. and it comes back: growing the terminal repaints the whole frame, status line included
+stty rows 30 columns 100 < $spawn_out(slave,name)
+exec kill -WINCH [exp_pid]
+want "instance:" "a full repaint once the terminal is big enough again"
+
+# 6. Escape leaves from wherever you are, and leaving exits the CLI: there is no classic prompt behind
+#    the workbench to fall back to. A non-zero status would mean the alternate screen was left on a throw.
+# `q`: Escape steps back inside a view now rather than leaving.
+send "q"
+expect {
+  eof { }
+  timeout { fail "q did not exit the workbench" }
+}
+
+set waitval [wait]
+set exitcode [lindex $waitval 3]
+if {$exitcode != 0} {
+  fail "exited $exitcode, not 0"
+}
+
+puts "workbench TTY session OK"
+exit 0

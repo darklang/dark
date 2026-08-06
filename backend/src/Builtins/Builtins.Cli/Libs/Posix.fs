@@ -514,6 +514,32 @@ module Libc =
     with e ->
       Error(-1, e.Message)
 
+  /// Run a child process on THIS terminal: stdin, stdout and stderr are inherited rather than
+  /// redirected, and only the exit code comes back.
+  ///
+  /// That is the whole point. `spawnAndWait` captures the streams, which is right for a tool whose
+  /// output you want, and useless for one that draws: an editor with a redirected stdout paints into a
+  /// pipe and reads keys from nowhere. Nothing to capture, nothing to deadlock on.
+  let spawnInheritingStdio
+    (program : string)
+    (args : List<string>)
+    : Result<int, int * string> =
+    try
+      let psi = System.Diagnostics.ProcessStartInfo()
+      psi.FileName <- program
+      for arg in args do
+        psi.ArgumentList.Add(arg)
+      psi.UseShellExecute <- false
+      psi.RedirectStandardOutput <- false
+      psi.RedirectStandardError <- false
+      psi.RedirectStandardInput <- false
+
+      use p = System.Diagnostics.Process.Start(psi)
+      p.WaitForExit()
+      Ok p.ExitCode
+    with e ->
+      Error(-1, e.Message)
+
   /// Like spawnAndWait but kills the process if it exceeds timeoutMs.
   let spawnAndWaitWithTimeout
     (program : string)
@@ -978,6 +1004,36 @@ let fns () : List<BuiltInFn> =
               DTuple(Dval.int (bigint exitCode), DString stdout, [ DString stderr ])
             )
             |> Ply
+          | Error e -> resultError (dPosixError e) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.exec
+      deprecated = NotDeprecated }
+
+
+    { name = fn "posixSpawnInteractive" 0
+      typeParams = []
+      parameters =
+        [ Param.make "program" TString "Path to the executable"
+          Param.make "args" (TList TString) "Arguments to pass" ]
+      returnType = TypeReference.result TInt (posixErrorTypeRef ())
+      description =
+        "Runs a child process on this terminal, inheriting stdin/stdout/stderr, and returns its exit code. For programs that DRAW, like an editor: capturing their output would leave them painting into a pipe."
+      fn =
+        (function
+        | state, _, _, [| DString program; DList(_, args) |] ->
+          let resultOk = Dval.resultOk KTInt (posixErrorKT ())
+          let resultError = Dval.resultError KTInt (posixErrorKT ())
+          let argStrs =
+            args
+            |> List.map (fun d ->
+              match d with
+              | DString s -> s
+              | _ -> incorrectArgs ())
+          LibExecution.CapabilityCheck.requireExec state.grantedCaps program argStrs
+          match Libc.spawnInheritingStdio program argStrs with
+          | Ok exitCode -> resultOk (Dval.int (bigint exitCode)) |> Ply
           | Error e -> resultError (dPosixError e) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

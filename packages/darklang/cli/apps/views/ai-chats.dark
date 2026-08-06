@@ -185,7 +185,7 @@ let rowsAtSize
       ++ Darklang.Stdlib.Cli.UI.Colors.boldText "dark ai chats"
       ++ "  "
       ++ Darklang.Stdlib.Cli.UI.Colors.dimText
-          ("—  "
+          ("--  "
            ++ Stdlib.Int.toString threadCount
            ++ " threads  •  "
            ++ Stdlib.Int.toString runningCount

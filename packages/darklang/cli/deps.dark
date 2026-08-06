@@ -1,8 +1,7 @@
 module Darklang.Cli.Deps
 
-/// A package item as the dependency queries name it: where it's bound, and what kind of
-/// thing is bound there. Spelled out, this pair is wider than a line, and every
-/// signature in here is made of it.
+/// A package item as the dependency queries name it: where it's bound, and what kind of thing is bound
+/// there. Spelled out, this pair is wider than a line, and every signature in here is made of it.
 type Item =
   LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind
 
@@ -13,13 +12,10 @@ type HashedItem =
   LanguageTools.ProgramTypes.ItemKind
 
 
-/// What depends on each of <param targets>: (hash, location, kind) per
-/// dependent. Approved items plus the caller's own pending ones.
-let getDependents (branchId: Uuid) (targets: List<Item>) : List<HashedItem> =
-  Builtin.depsGetDependents branchId targets
-
-
-/// Resolve hashes to display names. Returns a Dict mapping hash string to name.
+/// Resolve item hashes to display names, as a hash-string -> name dict.
+///
+/// For the workbench's dependency panes, which resolve a batch of hashes once and then look each up while
+/// rendering.
 let resolveNames
   (branchId: Uuid)
   (itemHashes: List<LanguageTools.ProgramTypes.Hash>)
@@ -37,27 +33,28 @@ let resolveNamesIn
   (currentModule: List<String>)
   (itemHashes: List<LanguageTools.ProgramTypes.Hash>)
   : Dict<String> =
-  (Builtin.depsResolveLocations branchId itemHashes)
+  // The resolver is Dark now (`SCM.Deps`), so the branch is the process's rather than a parameter --
+  // same source authoring uses, which is what stops the two disagreeing about where they are.
+  (SCM.Deps.resolveLocations itemHashes)
   |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (itemHash, location) ->
     let h = Darklang.LanguageTools.ProgramTypes.hashToString itemHash
     let displayName =
       PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn currentModule location
     Stdlib.Dict.set acc h displayName)
 
-
-/// Get displayable name for an item, using precomputed names dict or falling back to hash
+/// A displayable name for an item, from a dict `resolveNames` built, falling back to the hash.
 let getName
   (namesDict: Dict<String>)
   (hash: LanguageTools.ProgramTypes.Hash)
   : String =
   let h = Darklang.LanguageTools.ProgramTypes.hashToString hash
+
   match Stdlib.Dict.get namesDict h with
   | Some name -> name
   | None -> h
 
 
-/// Display dependents (what uses this entity)
-/// Shows approved items + caller's own pending items.
+/// Display dependents: what uses this entity.
 let showDependents
   (branchId: Uuid)
   (targetLoc: LanguageTools.ProgramTypes.PackageLocation)
@@ -65,7 +62,7 @@ let showDependents
   (entityName: String)
   (cap: Bool)
   : Unit =
-  let dependents = getDependents branchId [ (targetLoc, targetKind) ]
+  let dependents = SCM.Deps.dependentsOf [ (targetLoc, targetKind) ]
 
   match dependents with
   | [] ->
@@ -85,10 +82,8 @@ let showDependents
     |> Stdlib.printLines
 
 
-/// Helper for transitive traversal — collects dependents via batched
-/// FQN-keyed queries. Each level's results carry their own location, so
-/// the next level feeds straight back into the batch query without a
-/// hash → location round-trip.
+/// Transitive traversal, collecting dependents via batched FQN-keyed queries. Each level's results carry
+/// their own location, so the next level feeds straight back in without a hash -> location round-trip.
 let collectTransitiveDependents
   (branchId: Uuid)
   (processed: List<String>)
@@ -108,7 +103,7 @@ let collectTransitiveDependents
     match toProcess with
     | [] -> accumulated
     | targets ->
-      let batchResults = getDependents branchId targets
+      let batchResults = SCM.Deps.dependentsOf targets
 
       // Each result already carries its own location, so this level's dependents are
       // next level's targets with no hash -> location round-trip in between.
@@ -172,29 +167,48 @@ let showTransitiveDependents
     |> Stdlib.printLines
 
 
-/// Display dependencies (what this entity uses)
+/// Display dependencies (what this entity uses).
+///
+/// Read off the EDGE, not looked up from the hash. The edge records the name the reference was resolved
+/// by; a hash lookup answers "what is called this hash", which differs whenever two names share content --
+/// and has no answer once the dependency has moved on, which is precisely when you're asking.
 let showDependencies
   (branchId: Uuid)
   (sourceHash: LanguageTools.ProgramTypes.Hash)
   (entityName: String)
   (cap: Bool)
   : Unit =
-  let dependencies = Darklang.Cli.Packages.Query.getDependencies branchId sourceHash
-
-  match dependencies with
-  | [] ->
-    Stdlib.printLine $"No dependencies found for {entityName}"
+  match SCM.Deps.dependencyEdges sourceHash with
+  | [] -> Stdlib.printLine $"No dependencies found for {entityName}"
   | deps ->
     let count = Stdlib.List.length deps
     Stdlib.printLine $"Found {Stdlib.Int.toString count} dependencies of {entityName}:"
     Stdlib.printLine ""
 
-    let hashes = deps |> Stdlib.List.map (fun (hash, _) -> hash)
-    let namesDict = resolveNames branchId hashes
-
     deps
-    |> Stdlib.List.map (fun (targetHash, refType) ->
-      $"{Glyphs.forKind refType} {getName namesDict targetHash}")
+    |> Stdlib.List.map (fun edge ->
+      let (targetHash, refKind, loc) = edge
+      let kind = Darklang.Cli.Packages.Propagate.itemKindToString refKind
+      let mods = Stdlib.String.join loc.modules "."
+
+      let name =
+        if mods == "" then $"{loc.owner}.{loc.name}" else $"{loc.owner}.{mods}.{loc.name}"
+
+      // Say when the reference is to a version that is no longer what the name means. It's the reason to
+      // look at this list at all, and it's what `dark constraints` will report about you later.
+      let behind =
+        match SCM.Propagation.currentHash loc with
+        | Some now ->
+          if now == targetHash then
+            ""
+          else
+            let h =
+              LanguageTools.ProgramTypes.hashToString targetHash |> Stdlib.String.slice 0 8
+
+            $"  (on {h}, no longer current)"
+        | None -> ""
+
+      $"  [{kind}] {name}{behind}")
     |> fun rows -> Listing.capped rows Listing.defaultLimit cap "dependencies"
     |> Stdlib.printLines
 
@@ -214,33 +228,98 @@ let resolvePath
     | Module _ ->
       Stdlib.Result.Result.Error "Cannot show dependencies for a module, only for functions, types, or values"
     | Function fnLoc ->
-      match LanguageTools.PackageManager.Function.find branchId fnLoc with
+      match Builtin.pmFindFn branchId fnLoc with
       | Some hash ->
         let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation fnLoc
         Stdlib.Result.Result.Ok((hash, fnLoc, name, LanguageTools.ProgramTypes.ItemKind.Fn))
       | None -> Stdlib.Result.Result.Error $"Function not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation fnLoc}"
     | Type typeLoc ->
-      match LanguageTools.PackageManager.Type.find branchId typeLoc with
+      match Builtin.pmFindType branchId typeLoc with
       | Some hash ->
         let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLoc
         Stdlib.Result.Result.Ok((hash, typeLoc, name, LanguageTools.ProgramTypes.ItemKind.Type))
       | None -> Stdlib.Result.Result.Error $"Type not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLoc}"
     | Value valueLoc ->
-      match LanguageTools.PackageManager.Value.find branchId valueLoc with
+      match Builtin.pmFindValue branchId valueLoc with
       | Some hash ->
         let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation valueLoc
         Stdlib.Result.Result.Ok((hash, valueLoc, name, LanguageTools.ProgramTypes.ItemKind.Value))
       | None -> Stdlib.Result.Result.Error $"Value not found: {PrettyPrinter.ProgramTypes.PackageLocation.packageLocation valueLoc}"
 
 
+/// One dependency edge as the machine-readable shape, read off the EDGE (see `showDependencies`).
+let edgeJson
+  (edge: (LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.ItemKind * LanguageTools.ProgramTypes.PackageLocation))
+  : ScmJson.DependencyJson =
+  let (targetHash, refKind, loc) = edge
+  let mods = Stdlib.String.join loc.modules "."
+
+  let name =
+    if mods == "" then $"{loc.owner}.{loc.name}" else $"{loc.owner}.{mods}.{loc.name}"
+
+  let behind =
+    match SCM.Propagation.currentHash loc with
+    | Some now -> now != targetHash
+    | None -> false
+
+  ScmJson.DependencyJson
+    { name = name
+      kind = Darklang.Cli.Packages.Propagate.itemKindToString refKind
+      hash = LanguageTools.ProgramTypes.hashToString targetHash
+      behind = behind }
+
+/// `dark deps <path> --json`: what it uses and what uses it, in one object.
+///
+/// Both directions at once, plus which references are already behind -- what "what breaks if I change
+/// this" actually needs.
+let executeJson
+  (state: AppState)
+  (sourceHash: LanguageTools.ProgramTypes.Hash)
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  (entityName: String)
+  : AppState =
+  let dependencies = SCM.Deps.dependencyEdges sourceHash |> Stdlib.List.map edgeJson
+
+  let dependents =
+    SCM.Deps.dependentsOf [ (loc, kind) ]
+    |> Stdlib.List.map (fun d ->
+      let (h, dLoc, dKind) = d
+      edgeJson ((h, dKind, dLoc)))
+
+  Stdlib.printLine (
+    ScmJson.depsJson (
+      ScmJson.DepsJson
+        { item = entityName
+          dependencies = dependencies
+          dependents = dependents }
+    )
+  )
+
+  state
+
 let execute (state: AppState) (args: List<String>) : AppState =
-  // Flags: --deep (transitive), --all (don't cap the listing)
+  // Flags: --deep (transitive), --all (don't cap the listing), --json
+  let wantsJson = ScmJson.wantsJson args
+  let args = ScmJson.stripJson args
   let deep = Stdlib.List.member args "--deep"
   let all = Stdlib.List.member args Listing.allFlag
   let cap = Listing.shouldCap all
   let filteredArgs =
     args |> Stdlib.List.filter (fun arg -> arg != "--deep" && arg != Listing.allFlag)
   let branchId = state.currentBranchId
+
+  // Any OTHER `--flag` is a mistake, not a path. Unrefused it reaches the lookup as though it were a
+  // package name and answers "Not found", which reads as "no such package" about a flag.
+  let unknownFlags =
+    filteredArgs |> Stdlib.List.filter (fun a -> Stdlib.String.startsWith a "--")
+
+  if Stdlib.Bool.not (Stdlib.List.isEmpty unknownFlags) then
+    let f = Stdlib.String.join unknownFlags " "
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error $"deps doesn't understand {f}. The flags are --deep and --json.")
+    state
+  else
 
   match filteredArgs with
   | [] ->
@@ -259,20 +338,34 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | ["uses"; pathArg] ->
     match resolvePath branchId state.packageData.currentLocation pathArg with
     | Error errMsg ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error errMsg)
+      // Name what you ASKED for, not just where the path stopped resolving: "Not found: Zzz" is true and
+      // unhelpful when you typed `Zzz.Nope.nope`, and both together tell a typo from a missing name.
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot show deps for {pathArg}: {errMsg}")
       state
     | Ok result ->
-      let (hash, _loc, name, _entityType) = result
+      let (hash, loc, name, entityType) = result
+
+      // Honoured on EVERY arm, not just the bare one: an agent that asked for JSON must not get a table.
+      if wantsJson then
+        executeJson state hash loc entityType name
+      else
+
       showDependencies branchId hash name cap
       state
 
   | ["usedby"; pathArg] ->
     match resolvePath branchId state.packageData.currentLocation pathArg with
     | Error errMsg ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error errMsg)
+      // Name what you ASKED for as well as where it stopped resolving; see the `uses` arm.
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot show deps for {pathArg}: {errMsg}")
       state
     | Ok result ->
-      let (_hash, loc, name, entityType) = result
+      let (hash, loc, name, entityType) = result
+
+      // Same as the `uses` arm.
+      if wantsJson then
+        executeJson state hash loc entityType name
+      else
 
       if deep then
         showTransitiveDependents branchId loc entityType name cap
@@ -285,10 +378,16 @@ let execute (state: AppState) (args: List<String>) : AppState =
     // Default to showing both uses and usedby
     match resolvePath branchId state.packageData.currentLocation pathArg with
     | Error errMsg ->
-      Stdlib.printLine (Stdlib.Cli.UI.Colors.error errMsg)
+      // Name what you ASKED for as well as where it stopped resolving; see the `uses` arm.
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot show deps for {pathArg}: {errMsg}")
       state
     | Ok result ->
       let (hash, loc, name, entityType) = result
+
+      if wantsJson then
+        executeJson state hash loc entityType name
+      else
+
       showDependencies branchId hash name cap
       Stdlib.printLine ""
 

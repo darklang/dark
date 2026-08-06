@@ -151,7 +151,12 @@ let handleViewKey
               input =
                 Stdlib.Option.Option.Some
                   (InputState { prompt = "ask the agent: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "agent" }) }
-      else if state.activeView == vDevices then Step.Continue { state with message = "add instance - coming soon" }
+      else if state.activeView == vDevices then
+        // `setup` asks questions, and the workbench owns the keyboard, so it cannot run in-frame. Say
+        // where it lives rather than pretending a key can do it.
+        Step.Continue
+          { state with
+              message = "run `dark sync setup` from a shell to point this instance at a relay" }
       else Step.Continue state
     | Some "e" ->
       // Matter: edit the selected fn in place (prefill the editor from its source).
@@ -174,16 +179,34 @@ let handleViewKey
     | Some "v" ->
       if state.activeView == vMatter then startNew state "value" else Step.Continue state
     | Some "L" ->
-      // Matter: toggle the values-only lens - the whole tree vs. every value
-      // across the branch, flat. A filter on the tree, not a place, so it
-      // lives here rather than in the sidebar. (L, not V, to avoid clashing
-      // with v = new value.)
+      // Matter: cycle the Lens - the whole tree, values only, then what you've changed. (L, not V, to
+      // avoid clashing with v = new value.)
       if state.activeView == vMatter then
         let nl = otherLens state.matter.lens
         Step.Continue
           { state with
               matter = { state.matter with lens = nl }
               items = itemsForView vMatter state.branchId state.location state.scm.section state.ai.section nl
+              selected = 0
+              detailScroll = 0
+              filter = "" }
+      else Step.Continue state
+    | Some "C" ->
+      // Matter: straight to the Changed lens, because it's the one you reach for constantly. "What moved
+      // because of what I just did" is asked many times an hour, and making it two presses of a cycle is
+      // how people stop asking.
+      if state.activeView == vMatter then
+        Step.Continue
+          { state with
+              matter = MatterState { lens = Lens.Changed }
+              items =
+                itemsForView
+                  vMatter
+                  state.branchId
+                  state.location
+                  state.scm.section
+                  state.ai.section
+                  Lens.Changed
               selected = 0
               detailScroll = 0
               filter = "" }
@@ -201,6 +224,11 @@ let handleViewKey
     | Some "i" ->
       // Apps: install/uninstall the selected app (also the primary ⏎ action).
       if state.activeView == vApps then toggleInstall state else Step.Continue state
+    | Some "u" ->
+      // SCM: push to the relay. `u` for up, `d` for down, since `p` is the command prompt everywhere.
+      if state.activeView == vSCM then syncInFrame state "push" else Step.Continue state
+    | Some "d" ->
+      if state.activeView == vSCM then syncInFrame state "pull" else Step.Continue state
     | Some "c" ->
       if (state.activeView == vSCM) || (state.activeView == vHome) then
         Step.Continue
@@ -255,7 +283,7 @@ let handleViewKey
           { state with
               input =
                 Stdlib.Option.Option.Some (InputState { prompt = "switch to branch: "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "branch-switch" }) }
-      else if state.activeView == vDevices then Step.Continue { state with message = "sync now - coming soon" }
+      else if state.activeView == vDevices then runCommandInFrame state "sync" []
       else if state.activeView == vApps then runAppsSubcommand state "stop"
       else Step.Continue state
     | Some "m" ->

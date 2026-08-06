@@ -1,6 +1,6 @@
 /// A one-line text field: the thing you type a name, a path, or an outline item into.
 ///
-/// A `UI.Widget`, so it draws into whatever region its parent gives it and hands the parent a message when
+/// A `Stdlib.Cli.UI.Widget`, so it draws into whatever region its parent gives it and hands the parent a message when
 /// the user is done. Everything about it is pure; the caller owns the state.
 ///
 /// It replaces the outliner's private `TextEditor`, which had two bugs this doesn't:
@@ -13,7 +13,7 @@
 ///
 /// Indices are grapheme clusters, which is what `Stdlib.String` counts, so a flag or a family emoji is one
 /// step of the cursor and can't be cut in half. Column width (where `界` counts two) is the renderer's
-/// business, and `Tui.Text` handles it on the way out.
+/// business, and `Stdlib.Cli.Tui.Text` handles it on the way out.
 module Darklang.Stdlib.Cli.UI.TextField
 
 type State =
@@ -169,7 +169,7 @@ let renderInline (state: State) (width: Int) : String =
     else
       ""
 
-  before ++ (Colors.colorize Colors.reverse cursorChar) ++ after
+  before ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.reverse cursorChar) ++ after
 
 /// Render a field that may not have focus, with a placeholder for when it's empty and unfocused.
 ///
@@ -181,8 +181,8 @@ let renderMaybeFocused
   (width: Int)
   : String =
   if focused then renderInline state width
-  else if state.text == "" then Colors.dimText placeholder
-  else Tui.Text.clipToWidth state.text width
+  else if state.text == "" then Stdlib.Cli.UI.Colors.dimText placeholder
+  else Stdlib.Cli.Tui.Text.clipToWidth state.text width
 
 /// The text edits only: `Some` for a key the field consumed, `None` for everything else.
 ///

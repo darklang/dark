@@ -117,7 +117,7 @@ let renderRowChangeAtWidth
 
 
 /// Render the desired final cursor state.
-let renderCursor (cursor: Tui.Cursor) : String =
+let renderCursor (cursor: Stdlib.Cli.Tui.Cursor) : String =
   match cursor with
   | Hidden -> ""
   | Visible(row, column) ->
@@ -132,8 +132,8 @@ let renderCursor (cursor: Tui.Cursor) : String =
 /// deliberately excluded: the terminal session owns those effects.
 let renderAtWidth
   (width: Int)
-  (previous: Stdlib.Option.Option<Tui.View>)
-  (next: Tui.View)
+  (previous: Stdlib.Option.Option<Stdlib.Cli.Tui.View>)
+  (next: Stdlib.Cli.Tui.View)
   : String =
   let previousRows =
     match previous with
@@ -161,8 +161,8 @@ let renderAtWidth
 /// Produce a complete repaint while clearing rows removed from the prior view.
 let renderFullAtWidth
   (width: Int)
-  (previous: Stdlib.Option.Option<Tui.View>)
-  (next: Tui.View)
+  (previous: Stdlib.Option.Option<Stdlib.Cli.Tui.View>)
+  (next: Stdlib.Cli.Tui.View)
   : String =
   let previousRows =
     match previous with

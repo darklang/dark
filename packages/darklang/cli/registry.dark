@@ -39,31 +39,47 @@ module Registry =
       ("fn", "Create a new function", [ "function" ], Packages.Fn.execute, Packages.Fn.help, Packages.Fn.complete)
       ("type", "Create a new type", [], Packages.Type.execute, Packages.Type.help, Packages.Type.complete)
       ("module", "Define multiple package declarations", [], Packages.ModuleCommand.execute, Packages.ModuleCommand.help, Packages.ModuleCommand.complete)
+      ("edit", "Change an existing fn, type or value without retyping it", [], Packages.Edit.execute, Packages.Edit.help, Packages.Edit.complete)
       ("hash", "Show hash of a package item", [], Packages.Hash.execute, Packages.Hash.help, Packages.Hash.complete)
       // SCM commands
-      ("status", "Show uncommitted changes", [ "wip"; "changes" ], SCM.Status.execute, SCM.Status.help, SCM.Status.complete)
+      ("status", "What's in your draft, in one line", [ "wip"; "changes" ], Cli.Status.execute, Cli.Status.help, Cli.Status.complete)
       // `commits` is the name, `log` an alias: it lists commits, and every other noun in this CLI says what
       // it lists (`ops`, `branch`, `conflicts`, `instances`). `log` only reads as "commits" if you've used git.
-      ("commits", "Show commit history", [ "log"; "history" ], SCM.Log.execute, SCM.Log.help, SCM.Log.complete)
-      ("commit", "Commit uncommitted changes", [], SCM.Commit.execute, SCM.Commit.help, SCM.Commit.complete)
-      ("discard", "Discard uncommitted changes", [ "reset" ], SCM.Discard.execute, SCM.Discard.help, SCM.Discard.complete)
-      ("show", "Show commit details", [], SCM.ShowCommit.execute, SCM.ShowCommit.help, SCM.ShowCommit.complete)
-      ("branch", "Manage branches", [ "br" ], SCM.Branch.execute, SCM.Branch.help, SCM.Branch.complete)
-      ("rebase", "Rebase current branch onto parent", [], SCM.Rebase.execute, SCM.Rebase.help, SCM.Rebase.complete)
-      ("merge", "Merge current branch into parent", [], SCM.Merge.execute, SCM.Merge.help, SCM.Merge.complete)
+      ("commits", "Your commits, newest first", [ "history" ], Cli.Commits.execute, Cli.Commits.help, Cli.Commits.complete)
+      ("commit", "Review your draft, propagate, and commit it", [], Cli.Commit.execute, Cli.Commit.help, Cli.Commit.complete)
+      ("discard", "Drop your draft: everything authored since the last commit", [ "reset" ], Cli.Discard.execute, Cli.Discard.help, Cli.Discard.complete)
+      ("show", "Show what a commit contains, or what one op does", [], Cli.Commits.executeShow, Cli.Commits.helpShow, Cli.Commits.complete)
+      ("branch", "Work on an isolated line of work (create / switch / inspect)", [ "br" ], Cli.Branch.execute, Cli.Branch.help, Cli.Branch.complete)
+      ("rebase", "Accept the parent's changes into a branch", [], Cli.Branch.executeRebaseCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("merge", "Merge a branch into its parent", [], Cli.Branch.executeMergeCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("branches", "List your branches", [], Cli.Branch.executeBranchesCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("switch", "Move onto a branch (`switch main` returns)", [ "checkout" ], Cli.Branch.executeSwitchCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("diff", "What a branch changes vs its parent", [], Cli.Branch.executeDiffCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("log", "History: commits on main, a branch's ops on a branch", [], Cli.Branch.executeLogCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("resolve", "Settle one conflicted name on a branch", [], Cli.Branch.executeResolveCmd, Cli.Branch.help, Cli.Branch.complete)
+      ("propagate", "Choose what follows what when a dependency changes", [], Cli.PropagateCmd.execute, Cli.PropagateCmd.help, Cli.PropagateCmd.complete)
+      ("constraints", "Standing checks over the store (stale usages, and more to come)", [], Cli.ConstraintsCmd.execute, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
+      ("ack", "Leave a constraint finding for now (`dark ack --all`)", [], Cli.ConstraintsCmd.executeAckCmd, Cli.ConstraintsCmd.help, Cli.ConstraintsCmd.complete)
+      ("undeprecate", "Put a deprecated fn/type/value back on the shelf", [ "restore" ], Packages.Deprecate.executeUndeprecate, Packages.Deprecate.help, Packages.Deprecate.complete)
+      ("push", "Push your ops to the relay", [], Cli.Sync.executePushCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("pull", "Pull ops from the relay (they take effect)", [], Cli.Sync.executePullCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("backups", "Copies of the store: what exists, take one, prune", [], Cli.Backups.execute, Cli.Backups.help, Cli.Backups.complete)
+      ("connect", "Remember a relay and push to it (the onboarding step)", [], Cli.Sync.executeConnectCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("whoami", "Show this instance's sync identity", [], Cli.Sync.executeWhoamiCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("identity", "Name this instance (an id is minted automatically otherwise)", [], Cli.Sync.executeIdentityCmd, Cli.Sync.help, Cli.Sync.complete)
       ("builtins", "List all builtin functions", [], Builtins.execute, Builtins.help, Builtins.complete)
       ("find-values", "Find values of a given type", [], Packages.FindValues.execute, Packages.FindValues.help, Packages.FindValues.complete)
       ("agent", "AI assistant workflows (ask/code/review/fix/diff)", [ "ai" ], AI.Agent.execute, AI.Agent.help, AI.Agent.complete)
       ("serve", "Start an HTTP server", [ "http-server" ], Http.Serve.execute, Http.Serve.help, Http.Serve.complete)
       ("docs", "Browse in-CLI documentation", [ "doc"; "man" ], Docs.Command.execute, Docs.Command.help, Docs.Command.complete)
-      ("undo", "Undo WIP changes to a fn/type/value", [], Packages.Undo.execute, Packages.Undo.help, Packages.Undo.complete)
+      ("undo", "Step an item back to its previous version", [], Cli.Undo.execute, Cli.Undo.help, Cli.Undo.complete)
       ("deprecate", "Mark a fn/type/value as deprecated", [], Packages.Deprecate.execute, Packages.Deprecate.help, Packages.Deprecate.complete)
       ("delete", "Take a fn/type/value off the shelf (sugar for deprecate --kind obsolete)", [], Packages.Delete.execute, Packages.Delete.help, Packages.Delete.complete)
       ("db", "Manage databases", [], Packages.DB.execute, Packages.DB.help, Packages.DB.complete)
       ("outliner", "Interactive tree outliner", [ "tree-exp" ], Outliner.App.execute, Outliner.App.help, Outliner.App.complete)
       ("export-seed", "Export minimal seed.db from current database", [], ExportSeed.execute, ExportSeed.help, ExportSeed.complete)
       ("traces", "List and view execution traces", [ "trace" ], Tracing.execute, Tracing.help, Tracing.complete)
-      ("review", "Review branch changesets", [], SCM.Review.App.execute, SCM.Review.App.help, SCM.Review.App.complete)
+      ("review", "Stage someone else's ops for op-level approval", [], Cli.Sync.executeReviewCmd, Cli.Sync.helpReview, Cli.Sync.complete)
       ("conflicts", "Review + resolve sync divergences", [], Conflicts.execute, Conflicts.help, Conflicts.complete)
       ("views", "Browse and preview CLI views", [], Apps.Views.App.execute, Apps.Views.App.help, Apps.Views.App.complete)
       ("login", "Log into an account", [], Auth.Login.execute, Auth.Login.help, Auth.Login.complete)
@@ -76,11 +92,11 @@ module Registry =
       // custom-name idea) — so `dark sync` is just "pull now" and the instance list has one clear home. It
       // would also fix the connect/disconnect help reading `<url>` while everything else deals in names
       // (disconnect already resolves a name via `resolvePeer`; connect stays URL-only since the instance is new).
-      ("sync", "Share package changes with other Darklang instances", [], Sync.execute, Sync.help, Sync.complete)
-      ("ops", "Inspect this instance's op log", [], Ops.execute, Ops.help, Ops.complete)
+      ("sync", "Push then pull against a relay (`sync setup` to get started)", [], Cli.Setup.executeSyncCmd, Cli.Sync.help, Cli.Sync.complete)
+      ("ops", "Read this instance's op log", [], Ops.execute, Ops.help, Ops.complete)
       ("apps", "List, install, and manage apps (daemons, foreground, UI)", [], Apps.Command.execute, Apps.Command.help, Apps.Command.complete)
       ("text-editor", "Demo: a tiny text editor (the outliner's widget surfaced as an app)", [], Apps.Examples.TextEdit.execute, Apps.Examples.TextEdit.help, Apps.Examples.TextEdit.complete)
-      ("workbench", "Open the workbench — a framed, navigable package tree (CLI-UX redesign)", [ "wb" ], Workbench.execute, Workbench.help, Workbench.complete) ]
+      ("workbench", "Open the workbench -- a framed, navigable package tree (CLI-UX redesign)", [ "wb" ], Workbench.execute, Workbench.help, Workbench.complete) ]
     |> Stdlib.List.map(
       // CLEANUP nitpicky: swap help and complete
       fun (name, desc, aliases, execute, help, complete) ->
@@ -126,10 +142,23 @@ module Registry =
   let executeCommand (name: String) (state: AppState) (args: List<String>) : AppState =
     let handler = findCommandIn state.allCommandsCache name
 
-    let hasHelpFlag =
-      (Stdlib.List.member args "--help") || (Stdlib.List.member args "-h")
+    // A bare `help` as the FIRST argument means the same thing as `--help`, and is handled here rather than
+    // left to each command. Leaving it to them is how a dozen commands ended up answering a request for help
+    // by saying you'd used them wrong: `dark fn help` -> "Function body required", `dark delete help` ->
+    // "'help' is not a valid item kind", `dark docs help` -> "Unknown topic: help". Each one read `help` as
+    // the argument it was expecting and complained about it, which is right in isolation and useless as a
+    // surface. FIRST argument only, so `dark search help` still searches for the word.
+    let firstIsHelp =
+      match Stdlib.List.head args with
+      | Some "help" -> true
+      | _ -> false
 
-    if hasHelpFlag then
+    let asksForHelp =
+      (Stdlib.List.member args "--help")
+      || (Stdlib.List.member args "-h")
+      || firstIsHelp
+
+    if asksForHelp then
       executeCommandHelp name state
     else
       let ex = handler.execute
@@ -147,16 +176,18 @@ module Registry =
 
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =
-    [ ("Packages", [ "nav"; "ls"; "view"; "tree"; "back"; "search"; "typecheck"; "deps"; "val"; "let"; "fn"; "type"; "module"; "hash"; "db"; "deprecate"; "delete" ])
-      ("SCM",
-       [ "status"; "commits"; "commit"; "discard"; "show"; "ops"; "branch"; "rebase"; "merge"; "review" ])
-      ("Execution", [ "run"; "eval"; "scripts" ])
+    [ ("Packages", [ "nav"; "ls"; "view"; "tree"; "back"; "search"; "typecheck"; "deps"; "val"; "let"; "fn"; "type"; "module"; "edit"; "hash"; "db"; "deprecate"; "delete"; "undeprecate" ])
+      ("Changes",
+       [ "status"; "commit"; "commits"; "show"; "discard"; "undo"; "propagate"; "conflicts"; "constraints"; "ack"; "ops" ])
+      ("Branches", [ "branch"; "branches"; "switch"; "merge"; "rebase"; "diff"; "log"; "resolve" ])
+      ("Sync", [ "sync"; "push"; "pull"; "connect"; "review"; "whoami"; "identity"; "backups" ])
+      ("Execution", [ "run-script"; "eval"; "scripts" ])
       ("Installation", [ "install"; "update"; "uninstall"; "version" ])
       ("AI", [ "agent" ])
       ("Security", [ "caps" ])
-      ("Network", [ "devices"; "sync"; "conflicts" ])
+      ("Network", [ "devices" ])
       ("Apps", [ "apps" ])
-      ("Utilities", [ "clear"; "help"; "docs"; "quit"; "builtins"; "export-seed"; "views" ]) ]
+      ("Utilities", [ "clear"; "help"; "docs"; "quit"; "builtins"; "export-seed"; "views"; "workbench" ]) ]
 
   // Helper function to format a group of commands with details
   let formatCommandGroup (groupName: String) (commandNames: List<String>) (commands: List<CommandHandler>) : String =
@@ -239,9 +270,13 @@ module Registry =
 
     let groupsText = Stdlib.String.join finalGroups "\n\n"
 
-    let footer = "Workflow: fn <name> → run <name> → status → commit\nhelp <command> for details. AI agents: docs for-ai"
+    // At the TOP, not the bottom. This list is ~100 lines, so a footer is the last thing a new reader
+    // gets to and the first thing they needed: what the loop is, and where an agent should go instead of
+    // reading a hundred command names.
+    let header =
+      "Workflow: fn <name> → run <name> → status → commit\nhelp <command> for details. AI agents: docs for-ai"
 
-    groupsText ++ "\n\n" ++ footer
+    header ++ "\n\n" ++ groupsText
 
 
   /// Identifies what a completion request depends on, *ignoring* the partial token the user is mid-way
