@@ -1397,13 +1397,13 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
       // each time -- once per awaiting instruction executed, so tens of thousands per script.
       let instrData = currentFrame.instrData
 
-      let mutable frameToPush = None
+      vm.frameToPush <- None
 
       // The program counter lives on the frame rather than in a local. A local here would be
       // captured by every continuation the builder makes, which turns it into a heap ref cell
       // allocated once per frame activation. The field was already there and already mutable.
       while currentFrame.programCounter < instrData.instructions.Length
-            && frameToPush = None do
+            && vm.frameToPush = None do
         // Drain every instruction that doesn't need to await, outside the computation expression.
         currentFrame.programCounter <-
           runSyncInstructions
@@ -1416,7 +1416,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
 
         if
           currentFrame.programCounter < instrData.instructions.Length
-          && frameToPush = None
+          && vm.frameToPush = None
         then
           if vm.stats.enabled then
             vm.stats.instructionCount <- vm.stats.instructionCount + 1L
@@ -1638,7 +1638,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                     newFrame.id
                     newFrame.executionPoint
                     allArgs
-                frameToPush <- Some newFrame
+                vm.frameToPush <- Some newFrame
 
               else if argCount > paramCount then
                 RTE.Applications.TooManyArgsForLambda(exprId, paramCount, argCount)
@@ -1734,12 +1734,12 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 // at 4.4 MB for this one. Duplicating two lines is cheaper than the cell.
                 match Ply.trySync call with
                 | ValueSome(PartiallyApplied dv) -> registers[putResultIn] <- dv
-                | ValueSome(PushFrame frame) -> frameToPush <- Some frame
+                | ValueSome(PushFrame frame) -> vm.frameToPush <- Some frame
                 | ValueNone ->
                   let! o = call
                   match o with
                   | PartiallyApplied dv -> registers[putResultIn] <- dv
-                  | PushFrame frame -> frameToPush <- Some frame
+                  | PushFrame frame -> vm.frameToPush <- Some frame
 
           // Handled by `runSyncInstructions`; the match must still be exhaustive.
           | _ -> ()
@@ -1760,7 +1760,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
 
       // exited loop -- either pushed a frame or finished the current frame
 
-      match frameToPush with
+      match vm.frameToPush with
       | Some newFrame ->
         // Something in this eval just pushed a frame -- don't do the "normal" processing
         vm.callFrames[newFrame.id] <- newFrame

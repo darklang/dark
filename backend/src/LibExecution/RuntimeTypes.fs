@@ -2128,6 +2128,11 @@ type VMState =
     /// Performance counters — incremented during execution
     stats : InterpreterStats
 
+    /// Set by the instruction that wants to push a frame, read by the loop that pushes it. Lives here
+    /// rather than as a local in `executeInner` because a mutable local the Ply builder's continuations
+    /// capture becomes a heap ref cell, allocated once per frame activation.
+    mutable frameToPush : CallFrame option
+
     /// Source of frame ids. Per-VM rather than global because a VM's interpreter loop is single-threaded,
     /// so this needs no synchronization -- and a process-global counter would need it: tests run VMs in
     /// parallel, and a non-atomic shared increment hands two frames the same id, which silently drops one
@@ -2163,6 +2168,7 @@ type VMState =
       rootInstrData = (tlid, rootInstrData)
       lambdaInstrDataCache = Map.empty
       stats = InterpreterStats.create ()
+      frameToPush = None
       frameIdCounter = 0L }
 
   static member createWithoutTLID(instrs : Instructions) : VMState =
