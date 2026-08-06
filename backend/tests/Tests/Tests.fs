@@ -48,12 +48,18 @@ let main (args : string array) : int =
 
         // http server
         Tests.HttpServer.tests
-        // CliTraces — WIP, but the 37 sequenced cases (forced
-        // sequential by `Console.SetOut` capture) cost too much
-        // wall-clock to include in the default suite. Re-enable
-        // once the capture moves to per-call buffers and
-        // sequencing can come off.
-        Tests.CliTraces.tests
+        // CliTraces — not in the default suite. Two reasons. The cases are
+        // sequenced (forced by `Console.SetOut` capture), and more importantly
+        // `testVersionCommand` runs `dark version`, which fetches the latest
+        // release from api.github.com with no timeout. On a runner without
+        // egress that blocks, and since Expecto prints nothing between
+        // "Starting sequenced tests" and the summary, CI sees no output and
+        // kills the job. Re-enable once `version`'s network check is stubbed
+        // and the capture moves to per-call buffers.
+        //
+        // Run them on demand:
+        //   scripts/run-backend-tests --filter-test-list CliTraces
+        // Tests.CliTraces.tests
         Tests.Toplevels.tests
 
         // cross-cutting

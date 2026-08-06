@@ -755,6 +755,9 @@ let private testTracesTruncatedStillShowsRoot =
               "the root is still there, so the tree can be walked down from it"
           finally
             LibDB.Tracing.TraceLimits.resetMaxEventsForTesting ()
+            // Leaving detail on would hand full tracing to every sequenced
+            // suite that runs after this one.
+            LibDB.Tracing.TraceDetail.setForTesting LibDB.Tracing.TraceDetail.Off
         })
   }
 
