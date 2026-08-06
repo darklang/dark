@@ -1540,51 +1540,65 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
 
               if argCount = paramCount then
                 let lambdaFrameAlloc = allocNow vm
+                // Hoisted out of the record expression so each piece can be bracketed separately;
+                // `lambda.frame` was the largest Apply stage and most of it was unaccounted for.
+                let lambdaRegsAlloc = allocNow vm
+                let lambdaRegisters =
+                  if vm.stats.enabled then
+                    vm.stats.registersAllocated <-
+                      vm.stats.registersAllocated
+                      + int64 foundLambda.instructions.registerCount
+                  let r = Array.zeroCreate foundLambda.instructions.registerCount
+
+                  // extract and copy over the args
+                  bindLambdaParams
+                    vm
+                    r
+                    (foundLambda.patterns.head :: foundLambda.patterns.tail)
+                    allArgs
+
+                  // copy over closed registers
+                  assignRegisters r appLambda.closedRegisters
+
+                  // Put the lambda itself in the self register so the body can
+                  // call itself. If it already has no applied args, reuse it
+                  // as-is.
+                  match foundLambda.selfRegister with
+                  | Some selfReg ->
+                    r[selfReg] <-
+                      if List.isEmpty appLambda.argsSoFar then
+                        DApplicable(AppLambda appLambda)
+                      else
+                        DApplicable(AppLambda { appLambda with argsSoFar = [] })
+                  | None -> ()
+
+                  r
+                recordStage vm ApplyStage.LambdaRegisters lambdaRegsAlloc
+
+                let lambdaTstAlloc = allocNow vm
+                let lambdaTst =
+                  if Map.isEmpty appLambda.typeSymbolTable then
+                    currentFrame.typeSymbolTable
+                  else if Map.isEmpty currentFrame.typeSymbolTable then
+                    appLambda.typeSymbolTable
+                  else
+                    Map.mergeFavoringRight
+                      appLambda.typeSymbolTable
+                      currentFrame.typeSymbolTable
+                recordStage vm ApplyStage.LambdaTst lambdaTstAlloc
+
+                let lambdaEpAlloc = allocNow vm
+                let lambdaEp = Lambda(currentFrame.executionPoint, exprId)
+                recordStage vm ApplyStage.LambdaExecPoint lambdaEpAlloc
+
                 let newFrame =
                   { id = nextFrameId vm
                     parent =
                       ValueSome(struct (vm.currentFrameID, putResultIn, counter + 1))
                     programCounter = 0
-                    registers =
-                      if vm.stats.enabled then
-                        vm.stats.registersAllocated <-
-                          vm.stats.registersAllocated
-                          + int64 foundLambda.instructions.registerCount
-                      let r = Array.zeroCreate foundLambda.instructions.registerCount
-
-                      // extract and copy over the args
-                      bindLambdaParams
-                        vm
-                        r
-                        (foundLambda.patterns.head :: foundLambda.patterns.tail)
-                        allArgs
-
-                      // copy over closed registers
-                      assignRegisters r appLambda.closedRegisters
-
-                      // Put the lambda itself in the self register so the body can
-                      // call itself. If it already has no applied args, reuse it
-                      // as-is.
-                      match foundLambda.selfRegister with
-                      | Some selfReg ->
-                        r[selfReg] <-
-                          if List.isEmpty appLambda.argsSoFar then
-                            DApplicable(AppLambda appLambda)
-                          else
-                            DApplicable(AppLambda { appLambda with argsSoFar = [] })
-                      | None -> ()
-
-                      r
-                    typeSymbolTable =
-                      if Map.isEmpty appLambda.typeSymbolTable then
-                        currentFrame.typeSymbolTable
-                      else if Map.isEmpty currentFrame.typeSymbolTable then
-                        appLambda.typeSymbolTable
-                      else
-                        Map.mergeFavoringRight
-                          appLambda.typeSymbolTable
-                          currentFrame.typeSymbolTable
-                    executionPoint = Lambda(currentFrame.executionPoint, exprId)
+                    registers = lambdaRegisters
+                    typeSymbolTable = lambdaTst
+                    executionPoint = lambdaEp
                     expectedReturnType = ValueNone
                     // Resolved here so the loop never has to look it up. Same shared InstrData the
                     // per-VM cache holds; this is a reference to it, not a copy.
