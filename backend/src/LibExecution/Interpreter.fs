@@ -1389,7 +1389,6 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
     while vm.callFrames.ContainsKey vm.currentFrameID do
       let currentFrame = vm.callFrames[vm.currentFrameID]
 
-      let mutable counter = currentFrame.programCounter
       let registers = currentFrame.registers
 
 
@@ -1400,16 +1399,29 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
 
       let mutable frameToPush = None
 
-      while counter < instrData.instructions.Length && frameToPush = None do
+      // The program counter lives on the frame rather than in a local. A local here would be
+      // captured by every continuation the builder makes, which turns it into a heap ref cell
+      // allocated once per frame activation. The field was already there and already mutable.
+      while currentFrame.programCounter < instrData.instructions.Length
+            && frameToPush = None do
         // Drain every instruction that doesn't need to await, outside the computation expression.
-        counter <-
-          runSyncInstructions exeState vm currentFrame registers instrData counter
+        currentFrame.programCounter <-
+          runSyncInstructions
+            exeState
+            vm
+            currentFrame
+            registers
+            instrData
+            currentFrame.programCounter
 
-        if counter < instrData.instructions.Length && frameToPush = None then
+        if
+          currentFrame.programCounter < instrData.instructions.Length
+          && frameToPush = None
+        then
           if vm.stats.enabled then
             vm.stats.instructionCount <- vm.stats.instructionCount + 1L
 
-          let inst = instrData.instructions[counter]
+          let inst = instrData.instructions[currentFrame.programCounter]
           let allocBefore =
             if vm.stats.enabled then
               System.GC.GetAllocatedBytesForCurrentThread()
@@ -1594,7 +1606,11 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 let newFrame =
                   { id = nextFrameId vm
                     parent =
-                      ValueSome(struct (vm.currentFrameID, putResultIn, counter + 1))
+                      ValueSome(
+                        struct (vm.currentFrameID,
+                                putResultIn,
+                                currentFrame.programCounter + 1)
+                      )
                     programCounter = 0
                     registers = lambdaRegisters
                     typeSymbolTable = lambdaTst
@@ -1661,7 +1677,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                   args = newArgDvals
                   tst = tst
                   putResultIn = putResultIn
-                  returnPc = counter + 1 }
+                  returnPc = currentFrame.programCounter + 1 }
 
               // CLEANUP the two branches below are near-identical in shape, and so are `callBuiltin`
               // and `callPackage` behind them: same five steps, different parameter and outcome types.
@@ -1738,7 +1754,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 vm.stats.allocByOpcode[tag] <- vm.stats.allocByOpcode[tag] + delta
               vm.stats.countByOpcode[tag] <- vm.stats.countByOpcode[tag] + 1L
 
-          counter <- counter + 1
+          currentFrame.programCounter <- currentFrame.programCounter + 1
 
 
 
