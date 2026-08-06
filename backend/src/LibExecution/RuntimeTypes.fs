@@ -264,57 +264,80 @@ module DarkInt =
 
   /// Compare by numeric value (NOT by case tag — an Infinite is always outside
   /// Int64 range, so tag order would be wrong).
+  /// Both operands out of Int64 range, or one of each. Split out so the Finite/Finite path below
+  /// doesn't have a local function or a tuple in it, either of which is an allocation per call.
+  let private compareViaBigInt (a : DarkInt) (b : DarkInt) : int =
+    let bx = toBigInt a
+    let by = toBigInt b
+    if bx < by then -1
+    elif bx > by then 1
+    else 0
+
   let compare (a : DarkInt) (b : DarkInt) : int =
-    match a, b with
-    | DarkInt.Finite x, DarkInt.Finite y ->
-      if x < y then -1
-      elif x > y then 1
-      else 0
-    | _ ->
-      let bx, by = toBigInt a, toBigInt b
-      if bx < by then -1
-      elif bx > by then 1
-      else 0
+    // Nested matches rather than `match a, b with`. The tuple form reads better and allocates the
+    // pair: `DarkInt` is a struct carrying a bigint's worth of space, so the pair is about 64 bytes,
+    // on a function that runs once per comparison in a script.
+    match a with
+    | DarkInt.Finite x ->
+      match b with
+      | DarkInt.Finite y ->
+        if x < y then -1
+        elif x > y then 1
+        else 0
+      | DarkInt.Infinite _ -> compareViaBigInt a b
+    | DarkInt.Infinite _ -> compareViaBigInt a b
 
   // Arithmetic: int64 fast path on Finite/Finite, promoting to bigint only on
   // overflow; bigint otherwise. Results normalize through `ofBigInt`.
   let add (a : DarkInt) (b : DarkInt) : DarkInt =
-    match a, b with
-    | DarkInt.Finite x, DarkInt.Finite y ->
-      try
-        DarkInt.Finite(Checked.(+) x y)
-      with :? System.OverflowException ->
-        ofBigInt (bigint x + bigint y)
-    | _ -> ofBigInt (toBigInt a + toBigInt b)
+    match a with
+    | DarkInt.Finite x ->
+      match b with
+      | DarkInt.Finite y ->
+        try
+          DarkInt.Finite(Checked.(+) x y)
+        with :? System.OverflowException ->
+          ofBigInt (bigint x + bigint y)
+      | DarkInt.Infinite _ -> ofBigInt (toBigInt a + toBigInt b)
+    | DarkInt.Infinite _ -> ofBigInt (toBigInt a + toBigInt b)
 
   let subtract (a : DarkInt) (b : DarkInt) : DarkInt =
-    match a, b with
-    | DarkInt.Finite x, DarkInt.Finite y ->
-      try
-        DarkInt.Finite(Checked.(-) x y)
-      with :? System.OverflowException ->
-        ofBigInt (bigint x - bigint y)
-    | _ -> ofBigInt (toBigInt a - toBigInt b)
+    match a with
+    | DarkInt.Finite x ->
+      match b with
+      | DarkInt.Finite y ->
+        try
+          DarkInt.Finite(Checked.(-) x y)
+        with :? System.OverflowException ->
+          ofBigInt (bigint x - bigint y)
+      | DarkInt.Infinite _ -> ofBigInt (toBigInt a - toBigInt b)
+    | DarkInt.Infinite _ -> ofBigInt (toBigInt a - toBigInt b)
 
   let multiply (a : DarkInt) (b : DarkInt) : DarkInt =
-    match a, b with
-    | DarkInt.Finite x, DarkInt.Finite y ->
-      try
-        DarkInt.Finite(Checked.(*) x y)
-      with :? System.OverflowException ->
-        ofBigInt (bigint x * bigint y)
-    | _ -> ofBigInt (toBigInt a * toBigInt b)
+    match a with
+    | DarkInt.Finite x ->
+      match b with
+      | DarkInt.Finite y ->
+        try
+          DarkInt.Finite(Checked.(*) x y)
+        with :? System.OverflowException ->
+          ofBigInt (bigint x * bigint y)
+      | DarkInt.Infinite _ -> ofBigInt (toBigInt a * toBigInt b)
+    | DarkInt.Infinite _ -> ofBigInt (toBigInt a * toBigInt b)
 
   /// Integer division; caller must ensure the divisor is non-zero.
   let divide (a : DarkInt) (b : DarkInt) : DarkInt =
-    match a, b with
+    match a with
     // Int64 division overflows only on MinValue / -1; promote that case.
-    | DarkInt.Finite x, DarkInt.Finite y ->
-      try
-        DarkInt.Finite(x / y)
-      with :? System.OverflowException ->
-        ofBigInt (bigint x / bigint y)
-    | _ -> ofBigInt (toBigInt a / toBigInt b)
+    | DarkInt.Finite x ->
+      match b with
+      | DarkInt.Finite y ->
+        try
+          DarkInt.Finite(x / y)
+        with :? System.OverflowException ->
+          ofBigInt (bigint x / bigint y)
+      | DarkInt.Infinite _ -> ofBigInt (toBigInt a / toBigInt b)
+    | DarkInt.Infinite _ -> ofBigInt (toBigInt a / toBigInt b)
 
   let negate (a : DarkInt) : DarkInt =
     match a with
