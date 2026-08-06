@@ -1690,29 +1690,38 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                   return RTE.DeprecatedItemHalted pkg |> raiseRTE
                 let pkgFetchAlloc = allocNow vm
                 // Warm cache after the first call, which for a script means all but a handful of these.
+                //
+                // The `let!` for the cold path used to sit here, in the loop's computation expression,
+                // and cost a continuation closure on every call whether or not it was reached -- the
+                // same thing that made the two call paths expensive before they were extracted. Now the
+                // miss builds its own `uply` and the hit never touches the builder.
                 let fetch = exeState.fns.package pkg
-                let mutable fetched = None
-                match Ply.trySync fetch with
-                | ValueSome f -> fetched <- f
-                | ValueNone ->
-                  let! f = fetch
-                  fetched <- f
-                match fetched with
-                | None -> return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
-                | Some fn ->
-                  recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
-                  let call =
+                let call =
+                  match Ply.trySync fetch with
+                  | ValueSome(Some fn) ->
                     callPackage exeState vm currentFrame pendingCallArgs ctx fn
-                  // Overwritten on the next line either way; F# needs something to start from.
-                  let mutable outcome = PartiallyApplied DUnit
-                  match Ply.trySync call with
-                  | ValueSome o -> outcome <- o
+                  | ValueSome None ->
+                    RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
                   | ValueNone ->
-                    let! o = call
-                    outcome <- o
-                  match outcome with
-                  | PartiallyApplied dv -> registers[putResultIn] <- dv
-                  | PushFrame frame -> frameToPush <- Some frame
+                    uply {
+                      match! fetch with
+                      | Some fn ->
+                        return!
+                          callPackage exeState vm currentFrame pendingCallArgs ctx fn
+                      | None ->
+                        return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
+                    }
+                recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
+                // Overwritten on the next line either way; F# needs something to start from.
+                let mutable outcome = PartiallyApplied DUnit
+                match Ply.trySync call with
+                | ValueSome o -> outcome <- o
+                | ValueNone ->
+                  let! o = call
+                  outcome <- o
+                match outcome with
+                | PartiallyApplied dv -> registers[putResultIn] <- dv
+                | PushFrame frame -> frameToPush <- Some frame
 
           // Handled by `runSyncInstructions`; the match must still be exhaustive.
           | _ -> ()
