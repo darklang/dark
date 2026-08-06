@@ -1,0 +1,29 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Allocation profile by type name, from GC allocation-tick events.
+#
+# The runtime fires an AllocationTick roughly every 100 KB allocated and names the type that tripped it, so
+# the histogram is a sample of allocation volume rather than of object count. Usage:
+#   scripts/testing/alloc-profile [script.dark] [out-name]
+set -euo pipefail
+cd /home/dark/app
+export PATH="$PATH:/home/dark/.dotnet/tools"
+
+SCRIPT=${1:-rundir/perf-workloads/steady.dark}
+OUT=rundir/perf-scratch/${2:-alloc-now}
+mkdir -p rundir/perf-scratch
+
+rm -f "$OUT.nettrace"
+# `--rundown false` is load-bearing, not tidiness. Without it dotnet-trace appends a JIT rundown naming
+# every method it compiled, and the parser below (which scans the trace for type-name strings) counts
+# those as allocation samples. On this workload the rundown is ~80% of the file and it makes the profile
+# look flat when it isn't. This cost the campaign days.
+dotnet-trace collect \
+  --rundown false \
+  --output "$OUT.nettrace" \
+  --providers Microsoft-Windows-DotNETRuntime:0x1:5 \
+  -- backend/Build/out/Cli/Debug/net10.0/Cli run "$SCRIPT" \
+  2>&1 | tail -4
+
+python3 scripts/testing/alloc_names.py "$OUT.nettrace"
