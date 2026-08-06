@@ -1,0 +1,95 @@
+module Darklang.SCM.StoreHealth
+
+// Things that can be wrong with the STORE itself, as opposed to with your code. Each is a condition this
+// design can produce and nothing else reports:
+//
+//   - the fold QUARANTINES an op it can't parse: marks it applied, skips it, one line to stderr, and never
+//     mentions it again.
+//   - an interrupted import leaves `op_branches` tags pointing at an op or a branch that isn't there, so a
+//     branch is quietly missing part of its own frontier.
+//   - a live name bound to a hash with no content: the name resolves, and fetching it finds nothing.
+//
+// NOT a command -- a health check you have to think of is one nobody runs, so `dark status` reports these
+// when non-zero. Read-only: this reports, it never repairs.
+
+let localDb () : String = Builtin.localDbPath ()
+
+/// A count from one diagnostic query, 0 when it can't be answered.
+let scalar (sql: String) : Int64 =
+  Stdlib.Sqlite.scalarInt (localDb ()) sql "n" |> Stdlib.Option.withDefault 0L
+
+/// One thing wrong with the store, and whether re-folding is the way out.
+///
+/// The two kinds have opposite remedies: a PROJECTION can be thrown away and rebuilt from the log, so
+/// "reload" genuinely fixes it, while a CANONICAL row can't -- the log is what's wrong, and re-folding
+/// reproduces it faithfully.
+type Problem =
+  { text: String
+    /// true when the damage is in a projection, so a reload rebuilds past it
+    refoldable: Bool }
+
+let countedProblem (n: Int64) (refoldable: Bool) (what: String) : List<Problem> =
+  if n > 0L then
+    [ Problem
+        { text = $"{Stdlib.Int64.toString n} {what}"
+          refoldable = refoldable } ]
+  else
+    []
+
+/// Everything wrong with the store right now. Empty when it's healthy.
+let problems () : List<Problem> =
+  let orphanTags =
+    scalar
+      "SELECT count(*) AS n FROM op_branches ob
+       LEFT JOIN package_ops p ON p.id = ob.op_id
+       WHERE p.id IS NULL"
+
+  let taggedToNothing =
+    scalar
+      "SELECT count(*) AS n FROM op_branches ob
+       LEFT JOIN branches b ON b.id = ob.branch_id
+       WHERE b.id IS NULL"
+
+  let unfolded =
+    scalar "SELECT count(*) AS n FROM package_ops WHERE applied = 0 AND effective = 1"
+
+  let danglingBindings =
+    scalar
+      "SELECT count(*) AS n FROM locations l
+       WHERE l.unlisted_at IS NULL
+         AND NOT EXISTS (SELECT 1 FROM package_functions f WHERE f.hash = l.item_hash)
+         AND NOT EXISTS (SELECT 1 FROM package_types t WHERE t.hash = l.item_hash)
+         AND NOT EXISTS (SELECT 1 FROM package_values v WHERE v.hash = l.item_hash)"
+
+  // A stamp well ahead of now means some instance's clock is wrong. Ordering still works -- the authoring
+  // clock advances past anything it receives, so your later edits win -- but the stamps stop meaning
+  // "when", and a day is far outside any plausible skew.
+  let futureStamped =
+    scalar
+      "SELECT count(*) AS n FROM package_ops
+       WHERE origin_ts > strftime('%Y-%m-%dT%H:%M:%fZ','now','+1 day')"
+
+  Stdlib.List.flatten
+    [ // `package_ops` and `op_branches` are the log itself. Re-folding replays them exactly as they are.
+      countedProblem
+        futureStamped
+        false
+        "op(s) stamped over a day in the future (a peer's clock is wrong)"
+      countedProblem
+        orphanTags
+        false
+        "op tag(s) pointing at an op that isn't in the log (a branch is missing part of its own history)"
+      countedProblem
+        taggedToNothing
+        false
+        "op tag(s) pointing at a branch that isn't registered (the ops are held by nothing that lists them)"
+
+      // These two are what a fold produces, so a fold can produce them again correctly.
+      countedProblem
+        unfolded
+        true
+        "op(s) that never folded (the fold stopped partway, or they don't parse)"
+      countedProblem
+        danglingBindings
+        true
+        "live name(s) bound to a hash with no content" ]

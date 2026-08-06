@@ -60,7 +60,7 @@ let pickLocation
 
 module Type =
   let find
-    (branchId: Uuid)
+    (branchId: String)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.FQTypeName.Package> =
     Builtin.pmFindType branchId location
@@ -71,7 +71,7 @@ module Type =
     Builtin.pmGetType hash
 
   let getWithLocation
-    (branchId: Uuid)
+    (branchId: String)
     (hash: ProgramTypes.FQTypeName.Package)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageType.PackageType>> =
@@ -88,7 +88,7 @@ module Type =
 
 module Value =
   let find
-    (branchId: Uuid)
+    (branchId: String)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.FQValueName.Package> =
     Builtin.pmFindValue branchId location
@@ -99,7 +99,7 @@ module Value =
     Builtin.pmGetValue hash
 
   let getWithLocation
-    (branchId: Uuid)
+    (branchId: String)
     (hash: ProgramTypes.FQValueName.Package)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageValue.PackageValue>> =
@@ -116,7 +116,7 @@ module Value =
 
 module Function =
   let find
-    (branchId: Uuid)
+    (branchId: String)
     (location: ProgramTypes.PackageLocation)
     : Stdlib.Option.Option<ProgramTypes.FQFnName.Package> =
     Builtin.pmFindFn branchId location
@@ -127,7 +127,7 @@ module Function =
     Builtin.pmGetFn hash
 
   let getWithLocation
-    (branchId: Uuid)
+    (branchId: String)
     (hash: ProgramTypes.FQFnName.Package)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageFn.PackageFn>> =
@@ -145,7 +145,7 @@ module Function =
 /// Find any item (type, fn, or value) at a location.
 /// Returns the hash and what kind of item it is.
 let findAny
-  (branchId: Uuid)
+  (branchId: String)
   (location: ProgramTypes.PackageLocation)
   : Stdlib.Option.Option<(ProgramTypes.Hash * ProgramTypes.ItemKind)> =
   match Builtin.pmFindType branchId location with
@@ -164,7 +164,7 @@ let findAny
 
 module Search =
   let search
-    (branchId: Uuid)
+    (branchId: String)
     (query: ProgramTypes.Search.SearchQuery)
     : ProgramTypes.Search.SearchResults =
     let searchResults = Builtin.pmSearch branchId query
@@ -183,7 +183,7 @@ module Search =
   /// per item. Submodules come back already reduced to the direct children of the query's module, because
   /// doing that reduction in Dark means walking every module path under the store root.
   let searchNames
-    (branchId: Uuid)
+    (branchId: String)
     (query: ProgramTypes.Search.SearchQuery)
     : (List<String> * List<String> * List<String> * List<String>) =
     Builtin.pmSearchNames branchId query
@@ -192,7 +192,7 @@ module Search =
   /// Like `searchNames`, but keeps each item's hash. Listings need it for the deprecation mark; completion
   /// doesn't, and pays nothing for it.
   let searchNamesAndHashes
-    (branchId: Uuid)
+    (branchId: String)
     (query: ProgramTypes.Search.SearchQuery)
     : (List<String> *
        List<(String * ProgramTypes.Hash)> *

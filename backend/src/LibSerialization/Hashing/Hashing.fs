@@ -3,10 +3,11 @@
 /// Computes SHA-256 hashes of canonical serialized forms, with SCC-aware
 /// batch hashing for mutually-recursive definitions (Tarjan's algorithm).
 ///
-/// The hash is **meaning-stable**: bound-variable names don't affect it. A parameter use is positional
-/// (`EArg index`) and `Canonical.writeParameter` doesn't hash the parameter name; let/lambda/match binders
-/// are alpha-normalized before hashing (below). So two functions identical up to a rename
-/// share one content hash.
+/// The hash is MEANING-STABLE: bound-variable names don't affect it, so two functions identical up to a
+/// rename share one content hash. A parameter use is positional (`EArg index`) and
+/// `Canonical.writeParameter` doesn't hash the parameter name; let/lambda/match binders are renamed to a
+/// canonical `$0`,`$1`,... in a fixed structural traversal before hashing. Free variables, ids, types and
+/// qualified refs are left untouched.
 namespace LibSerialization.Hashing
 
 open System.IO
@@ -41,15 +42,12 @@ module Hashing =
     let bytes = ms.ToArray()
     SHA256.HashData(bytes) |> fromSHA256Bytes
 
-  // ── alpha-normalization: this IS how a fn/value hashes ──────────────────────────────────────────────
-  // Bound-variable names (let/lambda/match binders) are incidental — two items identical up to a rename are
-  // the same item and must hash the same. So computeFnHash/computeValueHash rename every binder to a
-  // canonical `$0`,`$1`,… (in a fixed structural traversal) before serializing. Parameters are already
-  // positional (`EArg index`) and not hashed by name (see Canonical.writeParameter), so only these binders
-  // need handling. Free variables, ids, types, and qualified refs are left untouched.
+  // ---------------------
+  // Alpha-normalization: this IS how a fn/value hashes (see the module doc).
+  // ---------------------
 
-  // ── the variables a pattern BINDS, left-to-right (deduped within an or-pattern, whose alternatives
-  //    bind the same names) ──
+  // The variables a pattern BINDS, left-to-right (deduped within an or-pattern, whose alternatives bind
+  // the same names).
 
   let rec private letPatternVars (p : PT.LetPattern) : List<string> =
     match p with
@@ -69,13 +67,13 @@ module Hashing =
       @ List.collect matchPatternVars rest
     | PT.MPList(_, pats) -> List.collect matchPatternVars pats
     | PT.MPListCons(_, head, tail) -> matchPatternVars head @ matchPatternVars tail
-    // an or-pattern's alternatives bind the SAME variables — collect them once (first occurrence order)
+    // an or-pattern's alternatives bind the SAME variables: collect them once (first occurrence order)
     | PT.MPOr(_, pats) ->
       pats |> NEList.toList |> List.collect matchPatternVars |> List.distinct
     | _ -> [] // literal patterns bind nothing
 
 
-  // ── rewrite a pattern's bound-variable names per a name→canonical map ──
+  // Rewrite a pattern's bound-variable names per a name -> canonical map.
 
   let rec private renameLetPattern
     (m : Map<string, string>)
@@ -117,7 +115,7 @@ module Hashing =
     | _ -> p // literal patterns have no names
 
 
-  // ── the core: rewrite an expr so every bound variable is a canonical `$n` name ──
+  // The core: rewrite an expr so every bound variable is a canonical `$n` name.
 
   // The counter is threaded as a `ref` mutated in a FIXED structural traversal order, so two
   // alpha-equivalent trees (identical structure, different names) get identical `$n` assignments.
@@ -138,7 +136,7 @@ module Hashing =
     |> Map.ofList
 
   let private lookup (env : Map<string, string>) (name : string) : string =
-    // a bound variable → its canonical name; a free variable (not locally bound) → unchanged
+    // a bound variable -> its canonical name; a free variable (not locally bound) -> unchanged
     Map.tryFind name env |> Option.defaultValue name
 
   let rec private norm
@@ -148,7 +146,7 @@ module Hashing =
     : PT.Expr =
     let r = norm c env // recurse with the same scope (non-binding children)
     match e with
-    // uses of variables — the whole point
+    // uses of variables: the whole point
     | PT.EVariable(id, name) -> PT.EVariable(id, lookup env name)
 
     // binders
@@ -177,7 +175,7 @@ module Hashing =
           normalized)
       PT.EMatch(id, scrutinee, cases)
 
-    // structural recursion (no new bindings) — every child that is an Expr is normalized
+    // structural recursion (no new bindings): every child that is an Expr is normalized
     | PT.EString(id, segments) ->
       PT.EString(id, List.map (normStringSegment c env) segments)
     | PT.EIf(id, cond, thenExpr, elseExpr) ->
@@ -201,7 +199,7 @@ module Hashing =
     | PT.EPipe(id, expr, pipes) ->
       PT.EPipe(id, r expr, List.map (normPipe c env) pipes)
 
-    // leaves / no Expr children / no bound names — unchanged
+    // leaves / no Expr children / no bound names: unchanged
     | PT.EInt _
     | PT.EInt64 _
     | PT.EUInt64 _
@@ -237,7 +235,7 @@ module Hashing =
     (p : PT.PipeExpr)
     : PT.PipeExpr =
     match p with
-    // a pipe into a variable is a USE — normalize the name like EVariable
+    // a pipe into a variable is a USE: normalize the name like EVariable
     | PT.EPipeVariable(id, name, args) ->
       PT.EPipeVariable(id, lookup env name, List.map (norm c env) args)
     | PT.EPipeLambda(id, pats, body) ->
@@ -254,7 +252,7 @@ module Hashing =
       PT.EPipeEnum(id, typeName, caseName, List.map (norm c env) fields)
 
 
-  // ── the entry points computeFnHash/computeValueHash use (public so the normalization is directly testable) ──
+  // The entry points computeFnHash/computeValueHash use. Public so the normalization is testable.
 
   /// Alpha-normalize a standalone expression: its `let`/lambda/match binders become canonical.
   let normalizeExpr (e : PT.Expr) : PT.Expr = norm (ref 0) Map.empty e
@@ -265,9 +263,8 @@ module Hashing =
     : PT.PackageValue.PackageValue =
     { v with body = normalizeExpr v.body }
 
-  /// Alpha-normalize a function: normalize the body's binders. Parameters need no handling here — a
-  /// parameter reference in the body is already positional (`EArg index`), and the parameter name isn't
-  /// part of the hash (see `Canonical.writeParameter`), so a parameter rename can't affect the result.
+  /// Alpha-normalize a function: normalize the body's binders. Parameters need no handling -- a
+  /// parameter reference is already positional and the name isn't hashed.
   let normalizeFn (f : PT.PackageFn.PackageFn) : PT.PackageFn.PackageFn =
     { f with body = normalizeExpr f.body }
 
@@ -282,9 +279,8 @@ module Hashing =
     hashWithWriter (fun w -> Canonical.writeType mode w t)
 
 
-  /// Hash a PackageFn (skip id, description, deprecated, param descriptions).
-  /// MEANING-STABLE: alpha-normalize first, so bound-variable names (parameters, let/lambda/match
-  /// binders) don't affect the hash — `fn add x y = x + y` and `fn add a b = a + b` hash identically.
+  /// Hash a PackageFn (skip id, description, deprecated, param descriptions). Alpha-normalized first,
+  /// so `fn add x y = x + y` and `fn add a b = a + b` hash identically.
   let computeFnHash (mode : HashRefMode) (fn : PT.PackageFn.PackageFn) : Hash =
     hashWithWriter (fun w -> Canonical.writeFn mode w (normalizeFn fn))
 
@@ -294,35 +290,26 @@ module Hashing =
     (mode : HashRefMode)
     (v : PT.PackageValue.PackageValue)
     : Hash =
-    // meaning-stable: alpha-normalize the body's binders first (see computeFnHash)
     hashWithWriter (fun w -> Canonical.writeValue mode w (normalizeValue v))
 
 
-  /// Hash a PackageOp (reuse existing PackageOp.write — ops have no metadata to skip)
+  /// Hash a PackageOp (reuses PackageOp.write; ops have no metadata to skip)
   let computeOpHash (op : PT.PackageOp) : Hash =
     hashWithWriter (fun w ->
       LibSerialization.Binary.Serializers.PT.PackageOp.write w op)
 
 
-  /// Hash a BranchOp (reuse existing BranchOp.write — ops have no metadata to skip)
-  let computeBranchOpHash (op : PT.BranchOp) : Hash =
-    hashWithWriter (fun w ->
-      LibSerialization.Binary.Serializers.PT.BranchOp.write w op)
-
-
-  /// Hash a commit: hash(accountId + branchId + parentHash + sorted(opHashes))
-  let computeCommitHash
-    (accountId : System.Guid)
-    (branchId : System.Guid)
-    (parentHash : Hash option)
-    (opHashes : List<Hash>)
-    : Hash =
-    hashWithWriter (fun w ->
-      Common.Guid.write w accountId
-      Common.Guid.write w branchId
-      Common.Option.write w PTC.Hash.write parentHash
-      let sorted = opHashes |> List.map Hash.toHexString |> List.sort
-      Common.List.write w Common.String.write sorted)
+  /// An op's row id in `package_ops`: its content hash, truncated to the 16 bytes a uuid column holds.
+  ///
+  /// The ONE definition: every path that mints or looks up an op id -- authoring, the fold, branch
+  /// tagging -- must compute it identically, or the same op ends up with two ids.
+  ///
+  /// The truncation is what makes the id fit a uuid column, and the only place a collision could be
+  /// introduced. Removing it is bigger than it looks, because the op blob embeds the id and the
+  /// deserializer verifies it; see notes/fresh-arch/OP-ID-WIDENING.md.
+  let computeOpRowId (op : PT.PackageOp) : System.Guid =
+    let (Hash h) = computeOpHash op
+    System.Guid(System.Convert.FromHexString(h)[0..15])
 
 
   // =====================
@@ -437,8 +424,8 @@ module Hashing =
     : byte array =
     use ms = new MemoryStream()
     use w = new BinaryWriter(ms)
-    // meaning-stable: alpha-normalize fns/values so the batch (SCC) hash, like the single-item hash,
-    // ignores bound-variable names. Types have no binders, so they pass through unchanged.
+    // Alpha-normalize fns/values so the batch (SCC) hash, like the single-item hash, ignores
+    // bound-variable names. Types have no binders, so they pass through unchanged.
     match item with
     | TypeItem(t, _, _, _) -> Canonical.writeType mode w t
     | FnItem(fn, _, _, _) -> Canonical.writeFn mode w (normalizeFn fn)
@@ -446,19 +433,16 @@ module Hashing =
     ms.ToArray()
 
 
-  /// Given a set of package items (keyed by FQN) and their dependencies, compute
-  /// hashes handling SCCs via batch hashing with name-ref substitution.
-  /// Maps are keyed by FQN (string) to avoid collisions when multiple items share
-  /// the same Hash (e.g. type aliases with unresolved refs on first parse).
-  /// Each item tuple is `(item, oldHash, location)` — location may be
-  /// `None` for items without one (test fixtures); production callers
-  /// (HashStabilization) always pass `Some`.
+  /// Given a set of package items (keyed by FQN) and their dependencies, compute hashes, handling SCCs
+  /// via batch hashing with name-ref substitution.
   ///
-  /// `seed` injects out-of-batch substitutions — e.g. propagation
-  /// passes `(sourceLocation → newSourceHash)` and
-  /// `(oldSourceHash → newSourceHash)`. As each in-batch item is
-  /// hashed, the seed grows with its substitution so subsequent SCCs
-  /// see it via either lookup path.
+  /// Keyed by FQN rather than Hash, because several items can share one Hash (e.g. type aliases with
+  /// unresolved refs on first parse). Each item tuple is `(item, oldHash, location)`; location is `None`
+  /// only for test fixtures, production callers (HashStabilization) always pass `Some`.
+  ///
+  /// `seed` injects out-of-batch substitutions, e.g. propagation passes
+  /// `(sourceLocation -> newSourceHash)` and `(oldSourceHash -> newSourceHash)`. As each in-batch item is
+  /// hashed the seed grows with its substitution, so subsequent SCCs see it via either lookup path.
   let computeHashesWithSCCs
     (seed : Canonical.Substitution)
     (types :
@@ -488,7 +472,7 @@ module Hashing =
     // Detect SCCs (operating on FQN strings as node IDs)
     let sccs = findSCCs allIds getDeps
 
-    // FQN → finalHash result map
+    // FQN -> finalHash result map
     let mutable hashMap = Map.empty<string, Hash>
     // Seed grows as we hash each SCC; later SCCs see all prior new hashes.
     let mutable subst = seed
@@ -507,7 +491,7 @@ module Hashing =
     for scc in sccs do
       let sccIds = scc.head :: scc.tail
 
-      // A size-1 SCC without a self-loop is a true singleton — hash normally.
+      // A size-1 SCC without a self-loop is a true singleton: hash normally.
       // A size-1 SCC WITH a self-loop (e.g. recursive type Expr referencing itself)
       // must use SccNameRef mode, otherwise the hash depends on the previous
       // iteration's hash and never converges.

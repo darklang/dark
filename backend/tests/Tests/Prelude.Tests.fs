@@ -94,5 +94,61 @@ let assertions =
       test "assert_" { assert_ "_" [] true } ]
 
 
+/// Every `Ply.List` sequential helper, over a list far longer than anything a fold-based version survived.
+///
+/// `flatten` and `foldSequentially` were the ones that actually went down: a fold there builds one nested
+/// continuation per element and unwinds only at the end, and a .NET stack overflow cannot be caught, so the
+/// process disappears. That is how the relay died decoding ~10,800 ops.
+///
+/// Worth being precise about what this pins and what it does not. It asserts these helpers are CORRECT and
+/// order-preserving at 100k. It does NOT reproduce the crash: reverting `iterSequentially` to its fold form
+/// still passes here, because awaiting an already-completed Ply does not deepen the stack the way building
+/// a result chain does. The uniform iterative shape is the invariant; the crash is only reachable by some
+/// of them.
+let deepRecursion =
+  let big = List.init 100_000 (fun i -> i)
+
+  testList
+    "Ply.List handles lists too deep for a fold"
+    [ testTask "mapSequentially" {
+        let! r = Ply.List.mapSequentially (fun i -> Ply(i + 1)) big |> Ply.toTask
+        Expect.equal (List.length r) 100_000 "mapped every element"
+      }
+      testTask "filterSequentially" {
+        let! r = Ply.List.filterSequentially (fun i -> Ply(i % 2 = 0)) big |> Ply.toTask
+        Expect.equal (List.length r) 50_000 "kept the evens, in order"
+        Expect.equal (Seq.head r) 0 "order preserved"
+      }
+      testTask "filterMapSequentially" {
+        let! r =
+          Ply.List.filterMapSequentially
+            (fun i -> Ply(if i % 10 = 0 then Some i else None))
+            big
+          |> Ply.toTask
+        Expect.equal (List.length r) 10_000 "kept every tenth, in order"
+        Expect.equal (Seq.head r) 0 "order preserved"
+      }
+      testTask "iterSequentially" {
+        let mutable n = 0
+        do! Ply.List.iterSequentially (fun _ -> uply { n <- n + 1 }) big |> Ply.toTask
+        Expect.equal n 100_000 "visited every element"
+      }
+      testTask "findSequentially" {
+        let! r = Ply.List.findSequentially (fun i -> Ply((i = 99_999))) big |> Ply.toTask
+        Expect.equal r (Some 99_999) "found the last element"
+      }
+      testTask "flatten" {
+        let! r = Ply.List.flatten (big |> List.map Ply) |> Ply.toTask
+        Expect.equal (List.length r) 100_000 "flattened every element"
+      }
+      testTask "foldSequentially" {
+        let! r =
+          Ply.List.foldSequentially (fun acc i -> Ply(acc + int64 i)) 0L big |> Ply.toTask
+        Expect.equal r 4_999_950_000L "summed every element"
+      } ]
+
+
 let tests =
-  testList "prelude" [ asyncTests; mapTests; floatTests; dateTests; assertions ]
+  testList
+    "prelude"
+    [ asyncTests; mapTests; floatTests; dateTests; assertions; deepRecursion ]

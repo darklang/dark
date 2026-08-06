@@ -37,7 +37,10 @@ type Session =
 let presentState (session: Session) (state: State) : Session =
   // Every Continue funnels through here, which makes it the one place derived reads belong: the renderer
   // has to be a pure function of state for frame diffing to be sound.
-  let state = refreshPeek (refreshBadges session.state state)
+  // SCM status FIRST: the tree's wip badges now read it rather than doing their own draft query, so
+  // refreshing them against last frame's status would draw a dot one keypress behind the truth.
+  let state =
+    refreshPeek (refreshBadges session.state (refreshScmStatus session.state state))
   let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
   let terminal =
     Darklang.Cli.Tui.TerminalSession.presentAtSize
@@ -84,7 +87,7 @@ let makeSubApp (session: Session) : Darklang.Cli.SubApp =
 /// Separate from `execute` so a state can be constructed without taking over the terminal, which is what
 /// lets the render smoke test exist at all.
 let initialState
-  (branchId: Uuid)
+  (branchId: String)
   (accountId: Stdlib.Option.Option<Uuid>)
   (accountName: String)
   (instanceName: String)
@@ -123,6 +126,7 @@ let initialState
         filter = ""
         wipNames = []
         deprecatedNames = []
+        scmStatus = emptyScmStatus ()
         renderPeek = ""
         branchId = branchId }
 

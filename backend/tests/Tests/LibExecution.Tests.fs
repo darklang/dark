@@ -114,7 +114,7 @@ let runtimeErrorMessage
           state
           errorMessageFn
           []
-          (NEList.ofList (RT.DUuid PT.mainBranchId) [ actual ])
+          (NEList.ofList (RT.DString "") [ actual ])
 
       match result with
       | Ok(RT.DEnum(_, _, [], "ErrorString", [ RT.DString msg ])) -> return msg

@@ -1,7 +1,7 @@
 module Darklang.PrettyPrinter.ProgramTypes
 
 let sourceFile
-  (branchId: Uuid)
+  (branchId: String)
   (source: LanguageTools.ProgramTypes.SourceFile.SourceFile)
   : String =
   let ctx =

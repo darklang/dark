@@ -1,0 +1,204 @@
+module Darklang.Cli.ScmJson
+
+// The AI-facing shapes for `dark status` / `dark commit` / `dark conflicts`.
+//
+// Same data as the pretty view, typed, so an agent consumes it without scraping. That's the requirement, and
+// the way to actually meet it is to compute ONCE here and have both renderers read the same record -- a JSON
+// path assembled separately from the human path drifts, and then the agent and the human are looking at
+// different things while both believing they aren't.
+//
+// These shapes are meant to be stable. Add fields; don't rename or repurpose them.
+
+/// One name the draft changed. `change` is "new" | "updated" | "signature-changed" -- the last one called out
+/// separately because propagation does a blind hash swap, so a moved signature is the one thing a caller
+/// can't absorb silently.
+type ChangedItem =
+  { kind: String
+    name: String
+    hash: String
+    change: String
+    /// True when PROPAGATION moved this, not you. Without it, an entry that followed your edit is
+    /// indistinguishable from one you made -- which is the thing automatic propagation most needs to be
+    /// able to say about itself.
+    followed: Bool }
+
+/// What `dark status` knows. `propagates` is what WOULD repoint if you committed now.
+type StatusJson =
+  { branch: String
+    draftOps: Int64
+    changed: List<ChangedItem>
+    propagates: List<SCM.PackageOps.Repoint>
+    /// What a pin is holding on an older version. An outcome, not a warning.
+    leftBehind: List<SCM.PackageOps.Repoint>
+    conflicts: List<SCM.Conflicts.Conflict>
+    /// Outstanding Constraint findings. A COUNT here rather than the list, because they're a standing
+    /// property of the STORE, not of this draft -- `dark constraints --json` is where the list lives, and
+    /// duplicating it would make two things that can disagree.
+    constraints: Int }
+
+/// What `dark commit` did. Everything StatusJson has, plus the outcome. `commit` is the commit's id;
+/// `committed` is false when the review ran but you declined, so an agent can tell "nothing to do" from
+/// "you said no".
+type CommitJson =
+  { branch: String
+    committed: Bool
+    commit: String
+    message: String
+    opsCommitted: Int64
+    dependentsRepointed: Int
+    changed: List<ChangedItem>
+    propagates: List<SCM.PackageOps.Repoint>
+    /// What a pin is holding on an older version. An outcome, not a warning.
+    leftBehind: List<SCM.PackageOps.Repoint>
+    conflicts: List<SCM.Conflicts.Conflict> }
+
+/// What `dark conflicts` returns for a list or a preview.
+type ConflictListJson =
+  { pending: Int
+    conflicts: List<SCM.Conflicts.Conflict> }
+
+/// The result of acting on one conflict (ack / override).
+type ConflictActionJson =
+  { id: String
+    ok: Bool
+    status: String
+    resolvedTo: String
+    error: String }
+
+/// One dependency edge, as `dark deps --json` reports it: the name it was referenced BY, the version it
+/// references, and whether that version is still what the name means.
+type DependencyJson =
+  { name: String
+    kind: String
+    hash: String
+    /// True when the reference is to a version that is no longer current -- the reason to look at all.
+    behind: Bool }
+
+/// What `dark deps --json` returns.
+type DepsJson =
+  { item: String
+    dependencies: List<DependencyJson>
+    dependents: List<DependencyJson> }
+
+/// One commit, as `dark commits --json` reports it.
+type CommitRowJson =
+  { hash: String
+    message: String
+    author: String
+    ops: Int64 }
+
+/// One branch, as `dark branches --json` reports it.
+type BranchJson =
+  { id: String
+    /// What a person types and reads. Present because an agent that only got the id had no way to display a
+    /// branch or to pass one to another command -- every other surface takes a name.
+    name: String
+    parent: String
+    /// The parent's NAME, for the same reason. "" when the parent is main.
+    parentName: String
+    ops: Int64
+    current: Bool
+    /// Merged branches stay listed and stay readable, but stop being switch targets, so a caller has to be
+    /// able to tell them apart.
+    merged: Bool }
+
+let depsJson (d: DepsJson) : String = Stdlib.Json.serialize<DepsJson> d
+let commitsJson (cs: List<CommitRowJson>) : String =
+  Stdlib.Json.serialize<List<CommitRowJson>> cs
+let branchesJson (bs: List<BranchJson>) : String =
+  Stdlib.Json.serialize<List<BranchJson>> bs
+
+/// One op on a branch, as `dark log <branch> --json` reports it. `seq` is its position, oldest first.
+///
+/// `op` is the RENDERED op, the same text the human view prints. Exposing the op's full structure would
+/// mean committing to a JSON shape for every expression form, which is a large promise to keep stable for
+/// a surface whose question is "what did I do, in order".
+type BranchOpJson =
+  { seq: Int
+    op: String }
+
+let branchOpsJson (os: List<BranchOpJson>) : String =
+  Stdlib.Json.serialize<List<BranchOpJson>> os
+
+/// `dark diff <branch> --json`. The SCM record is serialized directly rather than copied into a shape of
+/// its own: there is nothing to add here, and a second shape would be a second thing to keep in step.
+let branchDiffJson (es: List<SCM.PackageOps.BranchDiffEntry>) : String =
+  Stdlib.Json.serialize<List<SCM.PackageOps.BranchDiffEntry>> es
+
+
+/// Classify what an update did to a name. Shared by the pretty CHANGED line and the JSON, so they can't
+/// disagree about whether a signature moved.
+let changeKind
+  (branchId: String)
+  (b: SCM.Conflicts.Binding)
+  (previous: List<LanguageTools.ProgramTypes.Hash>)
+  : String =
+  match previous with
+  | [] -> "new"
+  | prev :: _ ->
+    if b.itemType != "fn" then
+      "updated"
+    else
+      let oldFn = LanguageTools.PackageManager.Function.get prev
+
+      let newFn =
+        LanguageTools.PackageManager.Function.get
+          (LanguageTools.ProgramTypes.Hash.Hash b.hash)
+
+      match (oldFn, newFn) with
+      | (Some o, Some n) ->
+        if Packages.Propagate.fnSignatureEqual branchId o n then
+          "updated"
+        else
+          "signature-changed"
+      | _ -> "updated"
+
+let changedItem
+  (branchId: String)
+  (propagated: List<String>)
+  (b: SCM.Conflicts.Binding)
+  (previous: List<LanguageTools.ProgramTypes.Hash>)
+  : ChangedItem =
+  let name = SCM.Conflicts.fqn b.owner b.modules b.name
+
+  ChangedItem
+    { kind = b.itemType
+      name = name
+      hash = b.hash
+      change = changeKind branchId b previous
+      followed = Stdlib.List.member propagated name }
+
+/// Right-pad to <param width> so a column of names lines up under each other.
+let pad (s: String) (width: Int) : String =
+  let n = Stdlib.String.length s
+  if n >= width then s else s ++ (Stdlib.String.repeat " " (width - n))
+
+/// The human words for a `change` value, so the pretty view reads as prose while the JSON stays a token.
+let changeNote (change: String) : String =
+  match change with
+  | "new" -> "new"
+  | "signature-changed" -> "SIGNATURE CHANGED"
+  | _ -> "updated"
+
+/// The same, plus who did it. "followed" is the word for a change you didn't make.
+let changeNoteFor (item: ChangedItem) : String =
+  if item.followed then
+    $"{changeNote item.change}, followed"
+  else
+    changeNote item.change
+
+let statusJson (s: StatusJson) : String = Stdlib.Json.serialize<StatusJson> s
+let commitJson (c: CommitJson) : String = Stdlib.Json.serialize<CommitJson> c
+let conflictListJson (c: ConflictListJson) : String =
+  Stdlib.Json.serialize<ConflictListJson> c
+let conflictJson (c: SCM.Conflicts.Conflict) : String =
+  Stdlib.Json.serialize<SCM.Conflicts.Conflict> c
+let conflictActionJson (a: ConflictActionJson) : String =
+  Stdlib.Json.serialize<ConflictActionJson> a
+
+/// `--json` present?
+let wantsJson (args: List<String>) : Bool = Stdlib.List.member args "--json"
+
+/// Strip the flag so the rest of the parsing doesn't have to know about it.
+let stripJson (args: List<String>) : List<String> =
+  args |> Stdlib.List.filter (fun a -> a != "--json")

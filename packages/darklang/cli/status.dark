@@ -1,0 +1,195 @@
+module Darklang.Cli.Status
+
+// `dark status` -- the ONE signal you get while editing.
+//
+// Editing is silent by design: no propagation prompts, no walls of generated ops, nothing nagging you when
+// you change a fn five times in a row. The cost of that quiet is that you need somewhere to look, and this
+// is it: one line saying what's in your draft, what committing it would repoint, and whether anything is
+// waiting on you. If it can't be said in a line or two, it belongs in `dark commit`, not here.
+
+let printOk (msg: String) : Unit = Stdlib.printLine (Colors.success msg)
+
+/// A pluralised "N thing(s)".
+let plural (n: Int) (word: String) : String =
+  let count = Stdlib.Int.toString n
+  if n == 1 then $"{count} {word}" else $"{count} {word}s"
+
+/// What the draft is, as numbers: names changed, names that would repoint, conflicts waiting.
+type Summary =
+  { changed: Int
+    /// Of `changed`, how many FOLLOWED something rather than being edited by you. `changed` counts both,
+    /// since both get committed, but they are not the same fact and one number for both hides propagation.
+    followed: Int
+    repoints: Int
+    conflicts: Int64
+    /// A COUNT, never a list. A list in status is a thing you learn to scroll past; a count is a pointer to
+    /// a command. Constraints are a standing property of the STORE rather than of your draft, so this shows
+    /// even on a clean tree -- which is the point of finding them at rest.
+    constraints: Int
+    ops: Int64 }
+
+let summarise (unit: Unit) : Summary =
+  let c = SCM.Draft.counts ()
+
+  Summary
+    { changed = c.changed
+      followed = c.followed
+      repoints = c.repoints
+      conflicts = c.conflicts
+      constraints = c.constraints
+      ops = c.ops }
+
+/// The full structured view. `dark status` prints a line of it; `--json` hands over all of it.
+let statusJson (state: AppState) : ScmJson.StatusJson =
+  let p = SCM.Draft.read ()
+
+  let items =
+    p.bindings
+    |> Stdlib.List.map (fun b ->
+      ScmJson.changedItem
+        state.currentBranchId
+        p.propagated
+        b
+        (Commit.previousHashesOf state.currentBranchId b))
+
+  ScmJson.StatusJson
+    { branch =
+        // The NAME, like everywhere else user-facing: what `--json`'s reader can pass to another command.
+        SCM.PackageOps.branchName (SCM.PackageOps.currentBranch ())
+      draftOps = p.ops
+      changed = items
+      propagates = p.repoints
+      leftBehind = p.leftBehind
+      conflicts = p.conflicts
+      // A COUNT, never a list; see `Summary.constraints`.
+      constraints = p.constraints }
+
+/// Where you are, always, before what you have: a draft summary that doesn't name its branch reads the
+/// same on main as on a branch.
+let branchLine (state: AppState) : Unit =
+  match state.currentBranchId with
+  | "main" -> Stdlib.printLine (Colors.hint "On branch main")
+  | id ->
+    // Fall back to the id: a branch first registered by authoring rather than by `switch` has no name, and
+    // "On branch " with nothing after it is worse than an id you can act on.
+    let handle =
+      match SCM.Branch.get id with
+      | Some b -> if b.name == "" then id else b.name
+      | None -> id
+
+    Stdlib.printLine (Colors.hint $"On branch {handle}")
+
+let executePretty (state: AppState) : AppState =
+  let s = summarise ()
+  branchLine state
+
+  if (s.changed == 0) && (s.conflicts == 0L) then
+    printOk "clean: nothing changed since your last commit."
+
+    if s.constraints > 0 then
+      Stdlib.printLine
+        (Colors.hint
+          $"""  {plural s.constraints "constraint"} outstanding -> `dark constraints`""")
+  else
+    let parts =
+      Stdlib.List.append
+        (if s.changed == 0 then
+           []
+         else if s.followed == 0 then
+           [ $"{plural s.changed "item"} changed" ]
+         else
+           // What you did and what followed, separately; see `Summary.followed`.
+           [ $"{plural (s.changed - s.followed) "item"} changed, {Stdlib.Int.toString s.followed} followed" ])
+        (Stdlib.List.append
+          (if s.repoints == 0 then
+             []
+           else
+             [ $"{plural s.repoints "dependent"} will repoint" ])
+          (if s.conflicts == 0L then
+             []
+           else
+             [ $"{plural (Stdlib.Int.fromInt64 s.conflicts) "conflict"} to review" ]))
+
+    printOk $"""draft: {Stdlib.String.join parts ", "}"""
+
+    if s.conflicts > 0L then
+      Stdlib.printLine (Colors.hint "  -> `dark conflicts` to review them")
+
+    if s.constraints > 0 then
+      Stdlib.printLine
+        (Colors.hint
+          $"""  {plural s.constraints "constraint"} outstanding -> `dark constraints`""")
+
+    if s.changed > 0 then
+      Stdlib.printLine (Colors.hint "  -> `dark commit` to review + commit")
+
+  // Store health, reported here rather than behind a verb: a check you have to remember to run is a check
+  // nobody runs. Silent when the store is fine, which is almost always.
+  match SCM.StoreHealth.problems () with
+  | [] -> ()
+  | problems ->
+    Stdlib.printLine (Colors.error "store problems:")
+
+    problems
+    |> Stdlib.List.iter (fun p -> Stdlib.printLine (Colors.error $"  {p.text}"))
+
+    // Two different remedies, and offering the wrong one is worse than offering none: a reload is a full
+    // rebuild, and someone who runs it against a damaged LOG spends it to watch the same line come back.
+    let anyRefoldable = problems |> Stdlib.List.any (fun p -> p.refoldable)
+
+    let anyCanonical =
+      problems |> Stdlib.List.any (fun p -> p.refoldable |> Stdlib.Bool.not)
+
+    if anyRefoldable then
+      Stdlib.printLine
+        (Colors.dimText
+          "  `dark --safe <cmd>` boots the shipped CLI; a reload rebuilds the projections.")
+
+    if anyCanonical then
+      // "the rest" only when there IS a rest to be the rest of.
+      let lead = if anyRefoldable then "the rest are" else "these are"
+
+      // Only what the canonical problems have in COMMON. What each one costs differs, so that belongs in
+      // the problem's own line, not in a shared footer.
+      Stdlib.printLine
+        (Colors.dimText
+          $"  {lead} in the op log itself, so a reload replays them unchanged.")
+
+  state
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  if ScmJson.wantsJson args then
+    Stdlib.printLine (ScmJson.statusJson (statusJson state))
+    state
+  else
+    executePretty state
+
+let help (state: AppState) : AppState =
+  [ "dark status - what's in your draft, in one line."
+    ""
+    "Editing is live and silent: an edit takes effect immediately, and"
+    "nothing prompts you mid-flow."
+    "This is the only signal you get until you ask for more."
+    ""
+    "  draft: 3 items changed, 2 dependents will repoint, 1 conflict to review"
+    ""
+    "  items changed        names you bound since your last commit"
+    "                       (five edits to one fn count once)"
+    "  dependents repoint   what still references an older version, and"
+    "                       would be repointed on commit"
+    "  conflicts            recorded by a merge, rebase or sync, already"
+    "                       auto-resolved, waiting on your ok"
+    ""
+    "  dark commit      review the above and commit it"
+    "  dark conflicts   review what was auto-resolved"
+    ""
+    "  --json           the same data, typed, for an agent" ]
+  |> Stdlib.printLines
+
+  state
+
+let complete
+  (_state: AppState)
+  (_args: List<String>)
+  : List<Completion.CompletionItem> =
+  []

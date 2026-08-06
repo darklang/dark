@@ -16,40 +16,38 @@
     <ProjectReference Include="../LibConfig/LibConfig.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="OriginTs.fs" />
     <Compile Include="Sqlite.fs" />
-    <Compile Include="Lww.fs" />
+    <Compile Include="Config.fs" />
     <Compile Include="PackageLocation.fs" />
     <Compile Include="Caching.fs" />
     <Compile Include="Purge.fs" />
     <Compile Include="PackageItem.fs" />
     <Compile Include="DependencyExtractor.fs" />
-    <Compile Include="BranchOpPlayback.fs" />
     <Compile Include="Branches.fs" />
     <Compile Include="AstTransformer.fs" />
     <Compile Include="HashStabilization.fs" />
+    <Compile Include="Lineage.fs" />
     <Compile Include="NameLookup.fs" />
     <Compile Include="DeferredResolver.fs" />
+    <Compile Include="UnresolvedCheck.fs" />
+    <Compile Include="TypeSurface.fs" />
     <Compile Include="PackageOpPlayback.fs" />
     <Compile Include="Inserts.fs" />
     <Compile Include="Queries.fs" />
-    <Compile Include="Rebase.fs" />
-    <Compile Include="Merge.fs" />
-    <Compile Include="Stats.fs" />
+    <Compile Include="Draft.fs" />
     <Compile Include="ProgramTypes.fs" />
     <Compile Include="WipRefresh.fs" />
     <Compile Include="Propagation.fs" />
     <Compile Include="RuntimeTypes.fs" />
     <Compile Include="PackageManager.fs" />
-    <Compile Include="Scripts.fs" />
     <Compile Include="PackageRefsGenerator.fs" />
-    <Compile Include="Conflicts.fs" />
-    <Compile Include="ChangeSummary.fs" />
-    <Compile Include="Resolutions.fs" />
+    <Compile Include="UpgradeKeep.fs" />
+    <Compile Include="Releases.fs" />
     <Compile Include="Seed.fs" />
     <Compile Include="CapabilityGrants.fs" />
     <Compile Include="PackageCaps.fs" />
 
-    <Compile Include="Releases.fs" />
 
     <!-- ex-LibCloud SQLite-bound modules /-->
     <Compile Include="Tracing.fs" />

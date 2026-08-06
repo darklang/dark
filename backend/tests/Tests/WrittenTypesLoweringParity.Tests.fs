@@ -181,13 +181,29 @@ let private parseSingleExpr (snippet : string) : Option<WT.Expr> =
   | _ -> None
 
 let tests =
-  testList
+  // SEQUENCED, and not because these tests touch the store: they don't, they only
+  // read it. It's that resolving a name is a read of `locations`, and other tests in
+  // the parallel phase rewrite the op log and re-fold that projection out from under
+  // them. During such a window a lookup for something as ordinary as
+  // `Stdlib.printLine` misses, whichever side happened to ask, and the differential
+  // reports a lowering divergence that isn't one. That failure moves around with
+  // test timing and with which snippets the sample happens to land on, so it reads
+  // as a mysterious intermittent parser bug.
+  testSequenced
+  <| testList
     "WrittenTypesLoweringParity"
     [ testTask "F# and Dark lowerings agree on corpus expressions (modulo node ids)" {
         let root =
-          [ "../packages/darklang"
+          [ // Escape hatch for bisecting this test: the sample is `corpus/400` spread across the whole
+            // tree, so ANY edit to the corpus moves which snippets get checked, and
+            // a pre-existing divergence can appear or vanish for reasons unrelated
+            // to the change under test. Point this at a pristine checkout to compare
+            // the same snippets across two versions of the lowering.
+            System.Environment.GetEnvironmentVariable "DARK_PARITY_CORPUS"
+            "../packages/darklang"
             "packages/darklang"
             "/home/dark/app/packages/darklang" ]
+          |> List.filter (fun p -> not (isNull p))
           |> List.tryFind System.IO.Directory.Exists
         match root with
         | None -> () // not a full checkout — nothing to gate
@@ -233,14 +249,7 @@ let tests =
           let mutable darkSideErrors = 0
           for (f, snip, wtExpr) in sample do
             let! (fsPT : PT.Expr) =
-              WT2PT.Expr.toPT
-                fsBuiltins
-                pmPT
-                NR.OnMissing.Allow
-                PT.mainBranchId
-                []
-                ctx
-                wtExpr
+              WT2PT.Expr.toPT fsBuiltins pmPT NR.OnMissing.Allow [] ctx wtExpr
               |> Ply.toTask
             let! darkResult =
               LibExecution.Execution.executeFunction
@@ -334,20 +343,17 @@ let tests =
           match (P.parse snip).parsed with
           | Some(WT.SourceFile { exprsToEval = [ e ] }) ->
             let! (fsPT : PT.Expr) =
-              WT2PT.Expr.toPT
-                fsBuiltins
-                pmPT
-                NR.OnMissing.Allow
-                PT.mainBranchId
-                cmod
-                ctx
-                e
+              WT2PT.Expr.toPT fsBuiltins pmPT NR.OnMissing.Allow cmod ctx e
               |> Ply.toTask
             let strList xs = xs |> List.map RT.DString |> Dval.list RT.KTString
             let args =
               NEList.ofList
-                (RT.DString "Tests")
-                [ strList cmod; strList cfn; strList prms; RT.DString snip ]
+                (RT.DString "") // branch: main, explicitly, so a concurrently-switched process can't move it
+                [ RT.DString "Tests"
+                  strList cmod
+                  strList cfn
+                  strList prms
+                  RT.DString snip ]
             let! darkResult =
               LibExecution.Execution.executeFunction exeState inCtxFn [] args
             let! darkDval = unwrapExecutionResult exeState darkResult |> Ply.toTask

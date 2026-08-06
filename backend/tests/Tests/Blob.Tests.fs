@@ -45,7 +45,6 @@ let private freshState () : RT.ExecutionState =
     Exe.noTracing
     (fun _ _ _ _ -> uply { return () })
     (fun _ _ _ _ -> uply { return () })
-    PT.mainBranchId
     { dbs = Map.empty }
 
 let private dblobRef (dv : RT.Dval) : RT.BlobRef =

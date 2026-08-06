@@ -46,11 +46,11 @@ let parseArgs (args: List<String>) : ParsedArgs =
 /// would be triggered by `delete`. Uses FQN-keyed lookup so a content
 /// collision at another FQN doesn't falsely block deletion.
 let countLiveDependents
-  (branchId: Uuid)
+  (branchId: String)
   (targetLoc: LanguageTools.ProgramTypes.PackageLocation)
   (targetKind: LanguageTools.ProgramTypes.ItemKind)
   : Int =
-  let deps = Builtin.depsGetDependents branchId [ (targetLoc, targetKind) ]
+  let deps = SCM.Deps.dependentsOf [ (targetLoc, targetKind) ]
   let depSets = Query.loadDeprecationSets branchId
   deps
   |> Stdlib.List.filter (fun entry ->

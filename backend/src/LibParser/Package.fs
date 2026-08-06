@@ -36,7 +36,6 @@ let private wtModuleToOps
           builtins
           pm
           onMissing
-          PT.mainBranchId
           (WT2PT.PackageFn.Name.toModules fn.name)
           fn)
 
@@ -46,7 +45,6 @@ let private wtModuleToOps
         WT2PT.PackageType.toPT
           pm
           onMissing
-          PT.mainBranchId
           (WT2PT.PackageType.Name.toModules typ.name)
           typ)
 
@@ -57,7 +55,6 @@ let private wtModuleToOps
           builtins
           pm
           onMissing
-          PT.mainBranchId
           (WT2PT.PackageValue.Name.toModules value.name)
           value)
 
@@ -77,17 +74,17 @@ let private wtModuleToOps
       [ for (wtType, ptType) in List.zip modul.types types do
           yield PT.PackageOp.AddType ptType
           let loc = WT2PT.PackageType.Name.toLocation wtType.name
-          yield PT.PackageOp.SetName(loc, PT.PackageType(nameBasedHash loc))
+          yield PT.PackageOp.SetName(loc, PT.PackageType(nameBasedHash loc), None)
 
         for (wtValue, ptValue) in List.zip modul.values values do
           yield PT.PackageOp.AddValue ptValue
           let loc = WT2PT.PackageValue.Name.toLocation wtValue.name
-          yield PT.PackageOp.SetName(loc, PT.PackageValue(nameBasedHash loc))
+          yield PT.PackageOp.SetName(loc, PT.PackageValue(nameBasedHash loc), None)
 
         for (wtFn, ptFn) in List.zip modul.fns fns do
           yield PT.PackageOp.AddFn ptFn
           let loc = WT2PT.PackageFn.Name.toLocation wtFn.name
-          yield PT.PackageOp.SetName(loc, PT.PackageFn(nameBasedHash loc)) ]
+          yield PT.PackageOp.SetName(loc, PT.PackageFn(nameBasedHash loc), None) ]
 
     return ops
   }

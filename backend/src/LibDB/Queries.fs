@@ -13,48 +13,12 @@ module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization
 
 
-/// Get recent package ops from the database
-let getRecentOps (limit : int64) : Task<List<PT.PackageOp>> =
-  task {
-    return!
-      Sql.query
-        """
-        SELECT id, op_blob
-        FROM package_ops
-        ORDER BY created_at DESC
-        LIMIT @limit
-        """
-      |> Sql.parameters [ "limit", Sql.int64 limit ]
-      |> Sql.executeAsync (fun read ->
-        let opId = read.uuid "id"
-        let opBlob = read.bytes "op_blob"
-        BS.PT.PackageOp.deserialize opId opBlob)
-  }
-
-
-/// Get all package ops created since the specified datetime
-let getAllOpsSince
-  (since : LibExecution.DarkDateTime.T)
-  : Task<List<PT.PackageOp * bool>> =
-  task {
-    let sinceStr = LibExecution.DarkDateTime.toIsoString since
-
-    return!
-      Sql.query
-        """
-        SELECT id, op_blob, commit_hash
-        FROM package_ops
-        WHERE datetime(created_at) > datetime(@since)
-        ORDER BY created_at ASC
-        """
-      |> Sql.parameters [ "since", Sql.string sinceStr ]
-      |> Sql.executeAsync (fun read ->
-        let opId = read.uuid "id"
-        let opBlob = read.bytes "op_blob"
-        let isWip = (read.uuidOrNone "commit_hash").IsNone
-        let op = BS.PT.PackageOp.deserialize opId opBlob
-        (op, isWip))
-  }
+/// Deserialize an op_blob (as stored in package_ops) into a PackageOp. The one F# primitive
+/// Dark needs to read STRUCTURED ops -- the binary format isn't Dark-decodable. The query
+/// that selects the blobs lives in Dark (Stdlib.Sqlite); this is just the decode, so it
+/// serves any op read. `id` is used only for error context, not the decode.
+let deserializeOp (id : System.Guid) (opBlob : byte[]) : PT.PackageOp =
+  BS.PT.PackageOp.deserialize id opBlob
 
 
 /// A dependency relationship between package items.
@@ -63,56 +27,38 @@ let getAllOpsSince
 type PackageDep = { itemHash : Hash; itemKind : PT.ItemKind }
 
 
-/// Get Hashes that the given item depends on (forward dependencies / "what does this use?" / uses)
-let getDependencies
-  (branchChain : List<PT.BranchId>)
-  (itemHash : Hash)
-  : Task<List<PackageDep>> =
+/// Get Hashes that the given item depends on (forward dependencies / "what does this
+/// use?" / uses)
+let getDependencies (itemHash : Hash) : Task<List<PackageDep>> =
   task {
-    if List.isEmpty branchChain then
-      return []
-    else
-      let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
+    let (Hash itemHashStr) = itemHash
 
-      let branchInClause =
-        branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
-
-      let (Hash itemHashStr) = itemHash
-
-      return!
-        Sql.query
-          $"""
-          SELECT DISTINCT pd.depends_on_hash, l.item_type
-          FROM package_dependencies pd
-          INNER JOIN locations l ON pd.depends_on_hash = l.item_hash
-          WHERE pd.item_hash = @item_hash
-            AND pd.depends_on_item_type = l.item_type
-            AND l.unlisted_at IS NULL
-            AND l.branch_id IN ({branchInClause})
-          ORDER BY pd.depends_on_hash
-          """
-        |> Sql.parameters ([ "item_hash", Sql.string itemHashStr ] @ branchParams)
-        |> Sql.executeAsync (fun read ->
-          { itemHash = Hash(read.string "depends_on_hash")
-            itemKind = read.string "item_type" |> PT.ItemKind.fromString })
+    return!
+      Sql.query
+        """
+        SELECT DISTINCT pd.depends_on_hash, l.item_type
+        FROM package_dependencies pd
+        INNER JOIN locations l ON pd.depends_on_hash = l.item_hash
+        WHERE pd.item_hash = @item_hash
+          AND pd.depends_on_item_type = l.item_type
+          AND l.unlisted_at IS NULL
+        ORDER BY pd.depends_on_hash
+        """
+      |> Sql.parameters [ "item_hash", Sql.string itemHashStr ]
+      |> Sql.executeAsync (fun read ->
+        { itemHash = Hash(read.string "depends_on_hash")
+          itemKind = read.string "item_type" |> PT.ItemKind.fromString })
   }
 
 
 let getUnlistedLocationsForRefs
-  (branchChain : List<PT.BranchId>)
   (itemKind : PT.ItemKind)
   (hashes : List<Hash>)
   : Task<List<PT.PackageLocation>> =
   task {
-    if List.isEmpty branchChain || List.isEmpty hashes then
+    if List.isEmpty hashes then
       return []
     else
-      let branchParams =
-        branchChain |> List.mapi (fun i id -> $"loc_ref_branch_{i}", Sql.uuid id)
-      let branchInClause =
-        branchParams
-        |> List.mapi (fun i _ -> $"@loc_ref_branch_{i}")
-        |> String.concat ", "
       let hashParams =
         hashes
         |> List.distinct
@@ -129,13 +75,10 @@ let getUnlistedLocationsForRefs
           FROM locations
           WHERE item_hash IN ({hashInClause})
             AND item_type = @item_type
-            AND branch_id IN ({branchInClause})
             AND unlisted_at IS NOT NULL
           """
         |> Sql.parameters (
-          [ "item_type", Sql.string (itemKind.toString ()) ]
-          @ hashParams
-          @ branchParams
+          [ "item_type", Sql.string (itemKind.toString ()) ] @ hashParams
         )
         |> Sql.executeAsync (fun read ->
           let modulesStr = read.string "modules"
@@ -145,9 +88,8 @@ let getUnlistedLocationsForRefs
   }
 
 
-/// A dependent found via location-keyed lookup, paired with its own
-/// active location so propagation can drive the next cascade level
-/// directly without an extra hash → location lookup.
+/// A dependent found via location-keyed lookup, paired with its own active location, so
+/// propagation can drive the next cascade level without an extra hash -> location lookup.
 type LocationDependent =
   { itemHash : Hash; itemKind : PT.ItemKind; itemLocation : PT.PackageLocation }
 
@@ -157,24 +99,17 @@ type LocationTarget =
 
 /// Find items whose dep edges point at any of the given target package items.
 ///
-/// Primary match: dep edge's target kind + location equal one of the targets.
-/// This prevents same-hash and same-location cross-kind cascades.
+/// Primary match: the edge's target kind + location equals one of the targets, which is what
+/// keeps same-hash and same-location cross-kind cascades apart.
 ///
-/// Fallback match: dep edges with NULL `depends_on_owner` (legacy data,
-/// or edges constructed without going through the resolver) match by
-/// `(item kind, depends_on_hash)`. Propagation passes prior hashes here
-/// because null-location refs cannot be matched by FQN after a source update.
-/// This keeps the original hash-keyed behavior for those edges only —
-/// for NULL-location edges there's no FQN to filter by, so a hash
-/// collision can still produce a false positive there. In practice the
-/// resolver populates location for every package reference, so this
-/// fallback is exercised mainly by tests that construct NRs directly.
+/// Fallback match: edges with NULL `depends_on_owner` match by `(item kind,
+/// depends_on_hash)` instead -- there is no FQN to filter by, so a hash collision can still
+/// produce a false positive there. Propagation passes prior hashes for this reason.
 let private getDependentsByLocationsChunk
-  (branchChain : List<PT.BranchId>)
   (targets : List<LocationTarget>)
-  : Task<List<LocationDependent>> =
+  : Task<List<string>> =
   task {
-    if List.isEmpty targets || List.isEmpty branchChain then
+    if List.isEmpty targets then
       return []
     else
       let locParams =
@@ -193,9 +128,6 @@ let private getDependentsByLocationsChunk
           $"(@loc_kind_{i}, @loc_owner_{i}, @loc_modules_{i}, @loc_name_{i})")
         |> String.concat ", "
 
-      let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
-      let branchInClause =
-        branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
       let hashParams =
         targets
         |> List.collect (fun target ->
@@ -213,7 +145,6 @@ let private getDependentsByLocationsChunk
           pd.depends_on_hash IN (
             SELECT tl.item_hash FROM locations tl
             WHERE (tl.item_type, tl.owner, tl.modules, tl.name) IN ({locTuples})
-              AND tl.branch_id IN ({branchInClause})
               AND tl.unlisted_at IS NULL
           )
           """
@@ -227,11 +158,14 @@ let private getDependentsByLocationsChunk
             |> String.concat ", "
           $"(pd.depends_on_item_type, pd.depends_on_hash) IN ({hashInClause})"
 
+      // Return the dependent HASHES only. Resolving each to a location is the caller's
+      // job: a branch's items deliberately have no rows in `locations` (that's the name
+      // isolation), so joining here would make every branch-authored dependent invisible
+      // to propagation. The caller merges the branch overlay over main and decides.
       let sql =
         $"""
-          SELECT DISTINCT l.item_hash, l.item_type, l.owner, l.modules, l.name
+          SELECT DISTINCT pd.item_hash
           FROM package_dependencies pd
-          INNER JOIN locations l ON pd.item_hash = l.item_hash
           WHERE (
               (pd.depends_on_item_type, pd.depends_on_owner, pd.depends_on_modules, pd.depends_on_name)
                 IN ({locTuples})
@@ -240,72 +174,99 @@ let private getDependentsByLocationsChunk
                 AND {hashFallbackClause}
               )
             )
-            AND l.unlisted_at IS NULL
-            AND l.branch_id IN ({branchInClause})
-          -- By name, not by hash. Hash order is stable but arbitrary to a reader, so a dependents list
-          -- looked shuffled; these columns are already selected, so ordering by them is free.
-          ORDER BY l.owner, l.modules, l.name
+          -- By hash, not by name: this query deliberately does NOT join `locations` (see above), so there
+          -- are no name columns to order by. Upstream orders the OTHER dependency query by name for
+          -- readability, and that one does join.
+          ORDER BY pd.item_hash
         """
 
       return!
         Sql.query sql
-        |> Sql.parameters (locParams @ branchParams @ hashParams)
+        |> Sql.parameters (locParams @ hashParams)
+        |> Sql.executeAsync (fun read -> read.string "item_hash")
+  }
+
+
+/// Group (key, value) pairs into a list-valued map, preserving order within each key.
+let private groupToMap
+  (pairs : List<'k * 'v>)
+  : Map<'k, List<'v>> when 'k : comparison =
+  pairs
+  |> List.fold
+    (fun (m : Map<'k, List<'v>>) (k, v) ->
+      let existing = Map.tryFind k m |> Option.defaultValue []
+      Map.add k (existing @ [ v ]) m)
+    Map.empty
+
+/// Where each of <param hashes> lives in MAIN's projection, for the hashes still live there.
+///
+/// LIST-valued on purpose: content-addressing means one hash can be live at SEVERAL names
+/// (every `(x: Int64): Int64 = x + 1L` in the store is literally the same item). Collapsing
+/// to one location drops the other dependents from a propagation.
+let getLiveLocationsForHashes
+  (hashes : List<string>)
+  : Task<Map<string, List<PT.ItemKind * PT.PackageLocation>>> =
+  task {
+    if List.isEmpty hashes then
+      return Map.empty
+    else
+      let ps = hashes |> List.mapi (fun i h -> ($"h_{i}", Sql.string h))
+      let inClause = hashes |> List.mapi (fun i _ -> $"@h_{i}") |> String.concat ", "
+
+      let! rows =
+        Sql.query
+          $"""
+          SELECT item_hash, item_type, owner, modules, name
+          FROM locations
+          WHERE item_hash IN ({inClause}) AND unlisted_at IS NULL
+          """
+        |> Sql.parameters ps
         |> Sql.executeAsync (fun read ->
           let modulesStr = read.string "modules"
-          { itemHash = Hash(read.string "item_hash")
-            itemKind = read.string "item_type" |> PT.ItemKind.fromString
-            itemLocation =
-              { owner = read.string "owner"
-                modules = modulesStr.Split('.') |> Array.toList
-                name = read.string "name" } })
+          read.string "item_hash",
+          (read.string "item_type" |> PT.ItemKind.fromString,
+           { owner = read.string "owner"
+             modules = modulesStr.Split('.') |> Array.toList
+             name = read.string "name" }))
+
+      return groupToMap rows
   }
 
 
 /// Location-keyed batch lookup of dependents. Chunks the input list to
 /// stay under SQLite's expression-tree depth limit.
-let getDependentsByTargets
-  (branchChain : List<PT.BranchId>)
+let getDependentHashesByTargets
   (targets : List<LocationTarget>)
-  : Task<List<LocationDependent>> =
+  : Task<List<string>> =
   task {
     if List.isEmpty targets then
       return []
     else
       let chunks = targets |> List.chunkBySize 100
-      let! results =
-        chunks
-        |> List.map (getDependentsByLocationsChunk branchChain)
-        |> Task.flatten
-      return results |> List.concat
+      let! results = chunks |> List.map getDependentsByLocationsChunk |> Task.flatten
+      return results |> List.concat |> List.distinct
   }
 
 
-let getDependentsByKindedLocations
-  (branchChain : List<PT.BranchId>)
-  (targets : List<PT.ItemKind * PT.PackageLocation>)
-  : Task<List<LocationDependent>> =
-  targets
-  |> List.map (fun (itemKind, location) ->
-    { itemKind = itemKind; location = location; hashes = [] })
-  |> getDependentsByTargets branchChain
-
-
-// ===========================================
-// SCM Queries (branch-scoped)
-// ===========================================
-
-/// Get all WIP ops on a branch (commit_hash IS NULL)
-let getWipOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
+/// Every op NOT tagged to a branch, committed or not. Branch ops are branch-pending rather
+/// than main WIP.
+///
+/// "WIP" does NOT mean "uncommitted": there is a `commit_hash` column and this deliberately
+/// ignores it. `Draft.rebuild` re-inserts what this returns, so filtering to the draft here
+/// would delete all of history and put back only the uncommitted part.
+let getWipOps () : Task<List<PT.PackageOp>> =
   task {
     return!
       Sql.query
         """
         SELECT id, op_blob
         FROM package_ops
-        WHERE branch_id = @branch_id AND commit_hash IS NULL
+        -- Branch (op_branches-tagged) ops are effective=0 branch-pending state, NOT main WIP.
+        -- Excluding them keeps main authoring's WIP-refresh from sweeping a branch's ops into
+        -- main (re-inserting them effective=1 + folding). Branch isolation.
+        WHERE id NOT IN (SELECT op_id FROM op_branches)
         ORDER BY created_at ASC
         """
-      |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
       |> Sql.executeAsync (fun read ->
         let opId = read.uuid "id"
         let opBlob = read.bytes "op_blob"
@@ -313,296 +274,41 @@ let getWipOps (branchId : PT.BranchId) : Task<List<PT.PackageOp>> =
   }
 
 
-/// Get all WIP ops on a branch with their DB row id and propagation_id.
-/// Used by callers that need to operate on individual ops (e.g. partial
-/// commit / partial discard).
-let getWipOpsWithIds
-  (branchId : PT.BranchId)
-  : Task<List<uuid * PT.PackageOp * Option<uuid>>> =
+/// The COMMIT each main op was committed into, for ops that have one.
+///
+/// WipRefresh deletes and re-inserts the whole main log when a hash changes, so without
+/// carrying this forward a refresh would un-commit the entire history.
+let getWipOpCommits () : Task<Map<System.Guid, string>> =
   task {
-    return!
+    let! rows =
       Sql.query
         """
-        SELECT id, op_blob, propagation_id
+        SELECT id, commit_hash
         FROM package_ops
-        WHERE branch_id = @branch_id AND commit_hash IS NULL
-        ORDER BY created_at ASC
+        WHERE id NOT IN (SELECT op_id FROM op_branches)
+          AND commit_hash IS NOT NULL
         """
-      |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-      |> Sql.executeAsync (fun read ->
-        let opId = read.uuid "id"
-        let opBlob = read.bytes "op_blob"
-        let propId = read.uuidOrNone "propagation_id"
-        let op = BS.PT.PackageOp.deserialize opId opBlob
-        (opId, op, propId))
+      |> Sql.executeAsync (fun read -> (read.uuid "id", read.string "commit_hash"))
+    return Map.ofList rows
   }
 
 
-/// Summary of WIP changes
-type WipSummary =
-  { types : int64
-    values : int64
-    fns : int64
-    renames : int64
-    deprecations : int64
-    total : int64 }
-
-
-/// Get summary of WIP ops by type on a branch
-let getWipSummary (branchId : PT.BranchId) : Task<WipSummary> =
+/// Map of WIP op id -> its current origin_ts, so WipRefresh can PRESERVE authoring stamps
+/// across a discard+reinsert: an op that survives re-stabilization unchanged keeps its
+/// original stamp. Without it a whole-store reinsert pushes `lastOriginTs` into the future
+/// (the clock advances ~1ms per op), which makes the next genuine update look stale to LWW.
+let getWipOpOriginTs () : Task<Map<System.Guid, string>> =
   task {
-    let! ops = getWipOps branchId
-
-    let types =
-      ops
-      |> List.filter (function
-        | PT.PackageOp.AddType _ -> true
-        | _ -> false)
-      |> List.length
-      |> int64
-
-    let values =
-      ops
-      |> List.filter (function
-        | PT.PackageOp.AddValue _ -> true
-        | _ -> false)
-      |> List.length
-      |> int64
-
-    let fns =
-      ops
-      |> List.filter (function
-        | PT.PackageOp.AddFn _ -> true
-        | _ -> false)
-      |> List.length
-      |> int64
-
-    let renames =
-      ops
-      |> List.filter (function
-        | PT.PackageOp.SetName _ -> true
-        | _ -> false)
-      |> List.length
-      |> int64
-
-    // Deprecate and Undeprecate both count here — they're author intent changes.
-    let deprecations =
-      ops
-      |> List.filter (function
-        | PT.PackageOp.Deprecate _
-        | PT.PackageOp.Undeprecate _ -> true
-        | _ -> false)
-      |> List.length
-      |> int64
-
-    let total = ops |> List.length |> int64
-
-    return
-      { types = types
-        values = values
-        fns = fns
-        renames = renames
-        deprecations = deprecations
-        total = total }
-  }
-
-
-// CLEANUP: getWipItems, getWipOpCount, and getCommitCount exist as F# builtins
-// purely for performance — they avoid sending large op lists to the Dark runtime.
-// When Dark execution is fast enough, replace these with Dark implementations that
-// use the existing scmGetWipOpsWithIds/scmGetCommits builtins directly.
-
-/// A WIP item on a branch (excludes auto-propagated ops)
-type WipItem =
-  { name : string; kind : string; modulePath : string; propagatedCount : int64 }
-
-let private locationToModulePath (loc : PT.PackageLocation) : string =
-  match loc.modules with
-  | [] -> loc.owner
-  | modules ->
-    let modStr = String.concat "." modules
-    $"{loc.owner}.{modStr}"
-
-/// Get direct (non-propagated) WIP items on a branch.
-/// Performs deserialization in F# and returns only the filtered results.
-let getWipItems (branchId : PT.BranchId) : Task<List<WipItem>> =
-  task {
-    let! ops = getWipOps branchId
-
-    // Collect propagated names from PropagateUpdate/RevertPropagation repoints
-    let propagatedNames =
-      ops
-      |> List.collect (function
-        | PT.PackageOp.PropagateUpdate(_, _, _, _, repoints) ->
-          repoints |> List.map (fun rp -> PackageLocation.toFQN rp.location)
-        | PT.PackageOp.RevertPropagation(_, _, _, _, repoints) ->
-          repoints |> List.map (fun rp -> PackageLocation.toFQN rp.location)
-        | _ -> [])
-      |> Set.ofList
-
-    // Count propagated repoints per source
-    let propCounts : Map<string, int64> =
-      ops
-      |> List.choose (function
-        | PT.PackageOp.PropagateUpdate(_, sloc, _, _, repoints) ->
-          let name = PackageLocation.toFQN sloc
-          let count = int64 repoints.Length
-          Some(name, count)
-        | _ -> None)
-      |> List.fold
-        (fun (acc : Map<string, int64>) (name, count) ->
-          let existing = Map.tryFind name acc |> Option.defaultValue 0L
-          Map.add name (existing + count) acc)
-        Map.empty
-
-    // Extract SetName ops, filter out propagated, deduplicate
-    let kindDisplayName (k : PT.ItemKind) : string =
-      match k with
-      | PT.ItemKind.Type -> "Type"
-      | PT.ItemKind.Fn -> "Fn"
-      | PT.ItemKind.Value -> "Value"
-
-    let items =
-      ops
-      |> List.choose (function
-        | PT.PackageOp.SetName(loc, target) -> Some(kindDisplayName target.kind, loc)
-        | _ -> None)
-      |> List.map (fun (kind, loc) ->
-        let name = PackageLocation.toFQN loc
-        let modPath = locationToModulePath loc
-        let pCount = Map.tryFind name propCounts |> Option.defaultValue 0L
-        { name = name; kind = kind; modulePath = modPath; propagatedCount = pCount })
-      |> List.filter (fun item -> not (Set.contains item.name propagatedNames))
-      |> List.distinctBy (fun item -> item.name)
-
-    return items
-  }
-
-
-/// Fast count of WIP ops on a branch (no deserialization)
-let getWipOpCount (branchId : PT.BranchId) : Task<int64> =
-  task {
-    return!
+    let! rows =
       Sql.query
         """
-        SELECT COUNT(*)
+        SELECT id, origin_ts
         FROM package_ops
-        WHERE branch_id = @branch_id AND commit_hash IS NULL
+        WHERE id NOT IN (SELECT op_id FROM op_branches)
+          AND origin_ts IS NOT NULL
         """
-      |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-      |> Sql.executeRowAsync (fun read -> read.int64 0)
-  }
-
-
-/// Fast count of commits on a branch (no deserialization)
-let getCommitCount (branchId : PT.BranchId) : Task<int64> =
-  task {
-    return!
-      Sql.query
-        """
-        SELECT COUNT(*)
-        FROM commits
-        WHERE branch_id = @branch_id
-        """
-      |> Sql.parameters [ "branch_id", Sql.uuid branchId ]
-      |> Sql.executeRowAsync (fun read -> read.int64 0)
-  }
-
-
-/// Get commits on a branch ordered by date descending
-let getCommits (branchId : PT.BranchId) (limit : int64) : Task<List<PT.Commit>> =
-  task {
-    return!
-      Sql.query
-        """
-        SELECT c.hash, c.message, c.created_at,
-               (SELECT COUNT(*) FROM package_ops WHERE commit_hash = c.hash) as op_count,
-               c.branch_id,
-               b.name as branch_name,
-               c.account_id,
-               COALESCE(a.name, '(unknown)') as account_name
-        FROM commits c
-        JOIN branches b ON c.branch_id = b.id
-        LEFT JOIN accounts_v0 a ON c.account_id = a.id
-        WHERE c.branch_id = @branch_id
-        ORDER BY c.created_at DESC
-        LIMIT @limit
-        """
-      |> Sql.parameters [ "branch_id", Sql.uuid branchId; "limit", Sql.int64 limit ]
-      |> Sql.executeAsync (fun read ->
-        { hash = Hash(read.string "hash")
-          message = read.string "message"
-          createdAt = read.instant "created_at"
-          opCount = read.int64 "op_count" |> bigint
-          branchId = read.uuid "branch_id"
-          branchName = read.string "branch_name"
-          committerId = read.uuid "account_id"
-          committerName = read.string "account_name" })
-  }
-
-
-/// Get commits across the entire branch chain (current + ancestors), ordered by date descending.
-let getCommitsForBranchChain
-  (branchId : PT.BranchId)
-  (limit : int64)
-  : Task<List<PT.Commit>> =
-  task {
-    let! chain = Branches.getBranchChain branchId
-
-    if List.isEmpty chain then
-      return []
-    else
-      // Build parameterized IN clause for branch IDs
-      let branchParams = chain |> List.mapi (fun i id -> $"bid_{i}", Sql.uuid id)
-      let inClause =
-        chain |> List.mapi (fun i _ -> $"@bid_{i}") |> String.concat ", "
-
-      return!
-        Sql.query
-          $"""
-          SELECT c.hash, c.message, c.created_at,
-                 (SELECT COUNT(*) FROM package_ops WHERE commit_hash = c.hash) as op_count,
-                 c.branch_id,
-                 b.name as branch_name,
-                 c.account_id,
-                 COALESCE(a.name, '(unknown)') as account_name
-          FROM commits c
-          JOIN branches b ON c.branch_id = b.id
-          LEFT JOIN accounts_v0 a ON c.account_id = a.id
-          WHERE c.branch_id IN ({inClause})
-          ORDER BY c.created_at DESC
-          LIMIT @limit
-          """
-        |> Sql.parameters (branchParams @ [ "limit", Sql.int64 limit ])
-        |> Sql.executeAsync (fun read ->
-          { hash = Hash(read.string "hash")
-            message = read.string "message"
-            createdAt = read.instant "created_at"
-            opCount = read.int64 "op_count" |> bigint
-            branchId = read.uuid "branch_id"
-            branchName = read.string "branch_name"
-            committerId = read.uuid "account_id"
-            committerName = read.string "account_name" })
-  }
-
-
-/// Get ops for a specific commit
-let getCommitOps (commitHash : Hash) : Task<List<PT.PackageOp>> =
-  task {
-    let (Hash commitHashStr) = commitHash
-    return!
-      Sql.query
-        """
-        SELECT id, op_blob
-        FROM package_ops
-        WHERE commit_hash = @commit_hash
-        ORDER BY created_at ASC
-        """
-      |> Sql.parameters [ "commit_hash", Sql.string commitHashStr ]
-      |> Sql.executeAsync (fun read ->
-        let opId = read.uuid "id"
-        let opBlob = read.bytes "op_blob"
-        BS.PT.PackageOp.deserialize opId opBlob)
+      |> Sql.executeAsync (fun read -> (read.uuid "id", read.string "origin_ts"))
+    return Map.ofList rows
   }
 
 
@@ -610,235 +316,229 @@ let getCommitOps (commitHash : Hash) : Task<List<PT.PackageOp>> =
 // Propagation Queries
 // ===========================================
 
-/// Gets all Hashes that have ever been at a location across the branch chain.
+/// Gets all Hashes that have ever been at a location.
 /// Returns all distinct item_hashs (active or deprecated) at this location.
 /// Callers should filter out the "current" hash to get only previous versions.
-///
-/// This is chain-aware so that the first update on a branch correctly finds the
-/// parent's active version as a "previous" hash (enabling propagation).
 let getAllPreviousHashes
-  (branchChain : List<PT.BranchId>)
   (owner : string)
   (modules : string)
   (name : string)
   (itemType : string)
   : Task<List<Hash>> =
   task {
-    if List.isEmpty branchChain then
-      return []
-    else
-      let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
-
-      let branchInClause =
-        branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
-
-      return!
-        Sql.query
-          $"""
-          SELECT item_hash
-          FROM locations
-          WHERE owner = @owner
-            AND modules = @modules
-            AND name = @name
-            AND item_type = @item_type
-            AND branch_id IN ({branchInClause})
-          GROUP BY item_hash
-          ORDER BY MAX(CASE WHEN unlisted_at IS NULL THEN '9999-12-31' ELSE unlisted_at END) DESC
-          """
-        |> Sql.parameters (
-          [ "owner", Sql.string owner
-            "modules", Sql.string modules
-            "name", Sql.string name
-            "item_type", Sql.string itemType ]
-          @ branchParams
-        )
-        |> Sql.executeAsync (fun read -> Hash(read.string "item_hash"))
+    return!
+      Sql.query
+        """
+        SELECT item_hash
+        FROM locations
+        WHERE owner = @owner
+          AND modules = @modules
+          AND name = @name
+          AND item_type = @item_type
+        GROUP BY item_hash
+        ORDER BY MAX(CASE WHEN unlisted_at IS NULL THEN '9999-12-31' ELSE unlisted_at END) DESC
+        """
+      |> Sql.parameters
+        [ "owner", Sql.string owner
+          "modules", Sql.string modules
+          "name", Sql.string name
+          "item_type", Sql.string itemType ]
+      |> Sql.executeAsync (fun read -> Hash(read.string "item_hash"))
   }
 
 
-/// Current deprecation state for a single item on a branch chain.
-/// None → not deprecated on this chain (or explicitly undeprecated by child).
-/// Some (kind, message) → annotation from the latest non-superseded row.
+/// Current deprecation state for a single item.
+/// None -> not deprecated.
+/// Some (kind, message) -> annotation from the latest non-superseded row.
 let getCurrentDeprecation
-  (branchChain : List<PT.BranchId>)
   (itemHash : Hash)
   (itemKind : PT.ItemKind)
   : Task<Option<PT.DeprecationKind * string>> =
   task {
-    if List.isEmpty branchChain then
-      return None
-    else
-      let (Hash itemHashStr) = itemHash
-      let itemKindStr = itemKind.toString ()
-      let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
-      let branchInClause =
-        branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
+    let (Hash itemHashStr) = itemHash
+    let itemKindStr = itemKind.toString ()
 
-      let! row =
-        Sql.query
-          $"""
-          SELECT state, annotation_blob
-          FROM deprecations
-          WHERE item_hash = @item_hash
-            AND item_kind = @item_kind
-            AND unlisted_at IS NULL
-            AND branch_id IN ({branchInClause})
-          ORDER BY created_at DESC
-          LIMIT 1
-          """
-        |> Sql.parameters (
-          [ "item_hash", Sql.string itemHashStr
-            "item_kind", Sql.string itemKindStr ]
-          @ branchParams
-        )
-        |> Sql.executeRowOptionAsync (fun read ->
-          (read.string "state", read.bytesOrNone "annotation_blob"))
+    let! row =
+      Sql.query
+        """
+        SELECT state, annotation_blob
+        FROM deprecations
+        WHERE item_hash = @item_hash
+          AND item_kind = @item_kind
+          AND unlisted_at IS NULL
+        ORDER BY created_at DESC
+        LIMIT 1
+        """
+      |> Sql.parameters
+        [ "item_hash", Sql.string itemHashStr; "item_kind", Sql.string itemKindStr ]
+      |> Sql.executeRowOptionAsync (fun read ->
+        (read.string "state", read.bytesOrNone "annotation_blob"))
 
-      match row with
-      | Some("deprecated", Some blob) ->
-        try
-          use ms = new System.IO.MemoryStream(blob)
-          use r = new System.IO.BinaryReader(ms)
-          let kind =
-            LibSerialization.Binary.Serializers.PT.PackageOp.DeprecationKind.read r
-          let message = LibSerialization.Binary.Serializers.Common.String.read r
-          return Some(kind, message)
-        with _ ->
-          return None
-      | _ -> return None
+    match row with
+    | Some("deprecated", Some blob) ->
+      try
+        use ms = new System.IO.MemoryStream(blob)
+        use r = new System.IO.BinaryReader(ms)
+        let kind =
+          LibSerialization.Binary.Serializers.PT.PackageOp.DeprecationKind.read r
+        let message = LibSerialization.Binary.Serializers.Common.String.read r
+        return Some(kind, message)
+      with _ ->
+        return None
+    | _ -> return None
   }
 
 
-/// Deprecation info for `ls`/`tree`/`search`: the full deprecated-hash set
-/// plus the subset that should be hidden by default (deprecated AND has no
-/// live direct caller — "live" = not itself deprecated).
+/// Deprecation info for `ls`/`tree`/`search`: the full deprecated-hash set plus the subset
+/// hidden by default (deprecated AND with no live direct caller; "live" = not itself
+/// deprecated).
 ///
-/// Direct only: we don't walk the dep graph transitively; if A is live and
-/// calls B (deprecated) which calls C (deprecated), C is hidden (its only
-/// caller is deprecated B), B is shown (A is live).
-///
-/// Returns both in a single DB round-trip pair so callers don't issue the
-/// deprecated-hash query twice.
+/// Direct only, no transitive walk: if live A calls deprecated B which calls deprecated C,
+/// C is hidden and B is shown.
 type DeprecationSets = { allDeprecated : Set<Hash>; hidden : Set<Hash> }
 
-let getDeprecationSets (branchChain : List<PT.BranchId>) : Task<DeprecationSets> =
+let getDeprecationSets () : Task<DeprecationSets> =
   task {
-    if List.isEmpty branchChain then
+    let! rows =
+      Sql.query
+        """
+        SELECT DISTINCT item_hash
+        FROM deprecations
+        WHERE unlisted_at IS NULL
+          AND state = 'deprecated'
+        """
+      |> Sql.executeAsync (fun read -> read.string "item_hash")
+
+    let deprecatedStrs = Set.ofList rows
+    if Set.isEmpty deprecatedStrs then
       return { allDeprecated = Set.empty; hidden = Set.empty }
     else
-      let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
-      let branchInClause =
-        branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
+      let hashList = Set.toList deprecatedStrs
+      let hashParams = hashList |> List.mapi (fun i h -> $"h_{i}", Sql.string h)
+      let hashInClause =
+        hashList |> List.mapi (fun i _ -> $"@h_{i}") |> String.concat ", "
 
-      let! rows =
+      // (target, caller) pairs -- "target" is deprecated by construction.
+      // Caller is live iff it's not itself in deprecatedStrs.
+      let! edges =
         Sql.query
           $"""
-          SELECT DISTINCT item_hash
-          FROM deprecations
-          WHERE unlisted_at IS NULL
-            AND state = 'deprecated'
-            AND branch_id IN ({branchInClause})
+          SELECT depends_on_hash AS target, item_hash AS caller
+          FROM package_dependencies
+          WHERE depends_on_hash IN ({hashInClause})
           """
-        |> Sql.parameters branchParams
-        |> Sql.executeAsync (fun read -> read.string "item_hash")
+        |> Sql.parameters hashParams
+        |> Sql.executeAsync (fun read ->
+          (read.string "target", read.string "caller"))
 
-      let deprecatedStrs = Set.ofList rows
-      if Set.isEmpty deprecatedStrs then
-        return { allDeprecated = Set.empty; hidden = Set.empty }
-      else
-        let hashList = Set.toList deprecatedStrs
-        let hashParams = hashList |> List.mapi (fun i h -> $"h_{i}", Sql.string h)
-        let hashInClause =
-          hashList |> List.mapi (fun i _ -> $"@h_{i}") |> String.concat ", "
+      let hasLiveCaller =
+        edges
+        |> List.filter (fun (_, caller) -> not (Set.contains caller deprecatedStrs))
+        |> List.map fst
+        |> Set.ofList
 
-        // (target, caller) pairs — "target" is deprecated by construction.
-        // Caller is live iff it's not itself in deprecatedStrs.
-        // `package_dependencies` is global (hash-keyed, not branch-scoped),
-        // so the reverse-dep walk isn't branch-scoped — only deprecation is.
-        let! edges =
-          Sql.query
-            $"""
-            SELECT depends_on_hash AS target, item_hash AS caller
-            FROM package_dependencies
-            WHERE depends_on_hash IN ({hashInClause})
-            """
-          |> Sql.parameters hashParams
-          |> Sql.executeAsync (fun read ->
-            (read.string "target", read.string "caller"))
-
-        let hasLiveCaller =
-          edges
-          |> List.filter (fun (_, caller) ->
-            not (Set.contains caller deprecatedStrs))
-          |> List.map fst
-          |> Set.ofList
-
-        let allDeprecated = deprecatedStrs |> Set.map Hash
-        let hidden =
-          deprecatedStrs
-          |> Set.filter (fun h -> not (Set.contains h hasLiveCaller))
-          |> Set.map Hash
-        return { allDeprecated = allDeprecated; hidden = hidden }
+      let allDeprecated = deprecatedStrs |> Set.map Hash
+      let hidden =
+        deprecatedStrs
+        |> Set.filter (fun h -> not (Set.contains h hasLiveCaller))
+        |> Set.map Hash
+      return { allDeprecated = allDeprecated; hidden = hidden }
   }
 
 
-/// Load the set of package fn hashes currently marked `Harmful` on a
-/// branch chain. Backs `PackageManager.isHarmful` via a per-branch cache,
-/// which the interpreter consults before each package-fn call.
+/// Load the set of package fn hashes currently marked `Harmful`. Backs
+/// `PackageManager.isHarmful` via a cache, which the interpreter consults before each
+/// package-fn call.
 ///
-/// Logic mirrors `getAllPreviousHashes`:
-/// - scope to branch chain
 /// - latest non-superseded row wins (`unlisted_at IS NULL`)
 /// - state = 'deprecated' with a Harmful annotation
-let getHarmfulFnHashes (branchChain : List<PT.BranchId>) : Task<Set<Hash>> =
+let getHarmfulFnHashes () : Task<Set<Hash>> =
   task {
-    if List.isEmpty branchChain then
-      return Set.empty
-    else
-      let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
+    // F# decides whether the annotation is Harmful, which keeps the SQL schema simple.
+    let! rows =
+      Sql.query
+        """
+        SELECT item_hash, state, annotation_blob
+        FROM deprecations
+        WHERE item_kind = 'fn'
+          AND unlisted_at IS NULL
+        """
+      |> Sql.executeAsync (fun read ->
+        (read.string "item_hash",
+         read.string "state",
+         read.bytesOrNone "annotation_blob"))
 
-      let branchInClause =
-        branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
+    let isHarmful (blob : byte array) : bool =
+      try
+        use ms = new System.IO.MemoryStream(blob)
+        use r = new System.IO.BinaryReader(ms)
+        let kind =
+          LibSerialization.Binary.Serializers.PT.PackageOp.DeprecationKind.read r
+        match kind with
+        | PT.Harmful -> true
+        | PT.SupersededBy _
+        | PT.Obsolete -> false
+      with _ ->
+        // A blob we cannot read means we cannot tell whether it says Harmful, and this answers "not
+        // harmful", so the fn RUNS. That is failing open on a safety marking: chosen so one corrupt row
+        // cannot brick a function, but it is a choice, and the opposite is defensible.
+        false
 
-      // Read latest non-superseded deprecation per (item_hash, item_kind)
-      // filtered to fns. We read the annotation_blob and let F# decide if
-      // it's Harmful; keeps the SQL schema simple.
-      let! rows =
-        Sql.query
-          $"""
-          SELECT item_hash, state, annotation_blob
-          FROM deprecations
-          WHERE item_kind = 'fn'
-            AND unlisted_at IS NULL
-            AND branch_id IN ({branchInClause})
-          """
-        |> Sql.parameters branchParams
-        |> Sql.executeAsync (fun read ->
-          (read.string "item_hash",
-           read.string "state",
-           read.bytesOrNone "annotation_blob"))
+    let harmfulHashes =
+      rows
+      |> List.choose (fun (hashStr, state, blobOpt) ->
+        match state, blobOpt with
+        | "deprecated", Some blob when isHarmful blob -> Some(Hash hashStr)
+        | _ -> None)
 
-      let isHarmful (blob : byte array) : bool =
-        try
-          use ms = new System.IO.MemoryStream(blob)
-          use r = new System.IO.BinaryReader(ms)
-          let kind =
-            LibSerialization.Binary.Serializers.PT.PackageOp.DeprecationKind.read r
-          match kind with
-          | PT.Harmful -> true
-          | PT.SupersededBy _
-          | PT.Obsolete -> false
-        with _ ->
-          // Malformed blob: fail closed (don't halt). Logging the issue
-          // is left to the caller if they care.
-          false
-
-      let harmfulHashes =
-        rows
-        |> List.choose (fun (hashStr, state, blobOpt) ->
-          match state, blobOpt with
-          | "deprecated", Some blob when isHarmful blob -> Some(Hash hashStr)
-          | _ -> None)
-
-      return Set.ofList harmfulHashes
+    return Set.ofList harmfulHashes
   }
+
+
+/// The explicit propagation choices of one kind that apply on <param branchId>: the
+/// branch's own rows plus main's. A choice is (owner, modules, name) -> policy, where
+/// `name = ""` covers a whole MODULE rather than one item.
+///
+/// MIRRORS `Darklang.SCM.Propagation`, which owns the same table and resolves it the same
+/// most-specific-first way for display. Change both or neither, or `dark propagate` shows
+/// one thing and the cascade does another.
+///
+/// Scoping matters in BOTH directions: without the filter main's cascade would honour a pin
+/// made on an unrelated branch, and including main's rows is the inheritance half.
+let private getPropagationPolicy
+  (branchId : string)
+  (policy : string)
+  : Task<Set<string * string * string>> =
+  task {
+    // A main row is inherited ONLY where the branch has no row of its OWN for that key,
+    // whatever policy that row names. Inheriting unconditionally puts the same key in both
+    // the pin set and the follow set, and `isPinned` consults pins first, so main's `pin`
+    // would beat the branch's explicit `follow`.
+    let! rows =
+      Sql.query
+        "SELECT owner, modules, name FROM propagation_policy
+         WHERE policy = @policy
+           AND (branch_id = @branch
+                OR (branch_id = ''
+                    AND @branch <> ''
+                    AND NOT EXISTS (
+                      SELECT 1 FROM propagation_policy b
+                      WHERE b.branch_id = @branch
+                        AND b.owner = propagation_policy.owner
+                        AND b.modules = propagation_policy.modules
+                        AND b.name = propagation_policy.name)))"
+      |> Sql.parameters
+        [ "policy", Sql.string policy; "branch", Sql.string branchId ]
+      |> Sql.executeAsync (fun read ->
+        (read.string "owner", read.string "modules", read.string "name"))
+    return Set.ofList rows
+  }
+
+let getPropagationPins (branchId : string) : Task<Set<string * string * string>> =
+  getPropagationPolicy branchId "pin"
+
+/// Explicit `follow` rows. They matter only as OVERRIDES: an item marked follow
+/// inside a module marked pin still follows. Without them the most-specific-first
+/// walk would have nothing to stop at.
+let getPropagationFollows (branchId : string) : Task<Set<string * string * string>> =
+  getPropagationPolicy branchId "follow"

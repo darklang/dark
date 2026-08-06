@@ -1,0 +1,613 @@
+module Darklang.Cli.PropagateCmd
+
+// `dark propagate` -- choose what follows what.
+//
+// Propagation runs on every edit: change `base` and everything above it is repointed to your new version,
+// immediately, in the draft. That default is right far more often than it's wrong, but it IS a decision, and
+// the machine should not be the one making it. This command is where a person overrules it.
+//
+// The two verbs are deliberately RETROACTIVE. `pin` doesn't just mean "don't repoint this in future" -- by
+// the time you type it the repoint has already happened, so it also undoes that. `follow` catches the item
+// up to the versions it missed while pinned. Anything less leaves you holding a policy describing a state
+// you aren't in.
+//
+// Nothing here destroys anything: every version stays in the store and every op stays in the log, so a pin
+// is undone by a follow and vice versa. That's why neither asks you to confirm.
+//
+// All policy SQL is siloed in `SCM.Propagation`; this file writes NO SQL, it only formats.
+
+let printOk (msg: String) : Unit = Stdlib.printLine (Colors.success msg)
+let printErr (msg: String) : Unit = Stdlib.printLine (Colors.error msg)
+let printHint (msg: String) : Unit = Stdlib.printLine (Colors.hint msg)
+
+let dotted (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
+  let mods = SCM.Propagation.modulesOf loc
+  if mods == "" then $"{loc.owner}.{loc.name}" else $"{loc.owner}.{mods}.{loc.name}"
+
+let shortHash (h: LanguageTools.ProgramTypes.Hash) : String =
+  LanguageTools.ProgramTypes.hashToString h |> Stdlib.String.slice 0 8
+
+
+/// Turn what a human typed into a location, resolved relative to where they are.
+let resolve
+  (state: AppState)
+  (arg: String)
+  : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageLocation, String> =
+  Packages.Location.parseRelativeTo state.packageData.currentLocation arg
+
+
+/// Run the cascade from <param loc> moving <param fromHash> -> <param toHash>, and make each repoint it
+/// computes actually STICK.
+///
+/// The sticking is why this exists. Propagation emits SetName ops, and on a pin/follow round trip those are
+/// byte-identical to ops the log already holds, so content-addressed dedup folds them to nothing and the
+/// cascade silently does not happen. Every repoint is therefore followed by an explicit override carrying
+/// a fresh stamp, skipped when the binding already landed, so the normal case emits nothing extra.
+let cascadeAndForceQuiet
+  (branchId: String)
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  (fromHash: LanguageTools.ProgramTypes.Hash)
+  (toHash: LanguageTools.ProgramTypes.Hash)
+  : Unit =
+  match
+    Packages.Propagate.repointDependents branchId loc kind [ fromHash ] toHash
+  with
+  | Error _ -> ()
+  | Ok repoints ->
+    repoints
+    |> Stdlib.List.iter (fun r ->
+      let t = LanguageTools.ProgramTypes.Reference.hash r.toRef
+      let k = LanguageTools.ProgramTypes.Reference.kind r.toRef
+
+      match SCM.Propagation.currentHash r.location with
+      | Some now ->
+        if now == t then
+          ()
+        else
+          match SCM.Propagation.rebind r.location k t with
+          | Ok _ -> ()
+          | Error _ -> ()
+      | None -> ())
+
+
+let cascadeAndForce
+  (state: AppState)
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  (fromHash: LanguageTools.ProgramTypes.Hash)
+  (toHash: LanguageTools.ProgramTypes.Hash)
+  : Unit =
+  match
+    Packages.Propagate.repointDependents
+      state.currentBranchId
+      loc
+      kind
+      [ fromHash ]
+      toHash
+  with
+  | Error e -> printErr $"  cascade failed: {e}"
+  | Ok repoints ->
+    repoints
+    |> Stdlib.List.iter (fun r ->
+      let target = LanguageTools.ProgramTypes.Reference.hash r.toRef
+      let refKind = LanguageTools.ProgramTypes.Reference.kind r.toRef
+
+      match SCM.Propagation.currentHash r.location with
+      | Some now ->
+        if now == target then
+          ()
+        else
+          match SCM.Propagation.rebind r.location refKind target with
+          | Ok _ -> ()
+          | Error e -> printErr $"  couldn't rebind {dotted r.location}: {e}"
+      | None -> ())
+
+
+/// A choice can name an ITEM or a MODULE, and a human types them the same way. So: if something is live at
+/// that name it's an item; otherwise read it as a module path. Returns (owner, modules, name) with an empty
+/// name for the module case, which is how the table stores it.
+///
+/// Parsing it separately rather than reusing `resolve` is deliberate -- `resolve` insists on owner + module
+/// + name, which a two-segment module path doesn't have and shouldn't need.
+let target
+  (state: AppState)
+  (arg: String)
+  : Stdlib.Result.Result<(String * String * String), String> =
+  match resolve state arg with
+  | Ok loc ->
+    match SCM.Propagation.kindAt loc with
+    | Some _ ->
+      Stdlib.Result.Result.Ok((loc.owner, SCM.Propagation.modulesOf loc, loc.name))
+    | None ->
+      // Parses as an item path, but nothing is there -- so it's a module whose last segment happens to
+      // look like a name.
+      let mods =
+        Stdlib.List.append loc.modules [ loc.name ] |> (fun ms -> Stdlib.String.join ms ".")
+
+      Stdlib.Result.Result.Ok((loc.owner, mods, ""))
+  | Error _ ->
+    // Too few segments for an item path, so it can only be a module.
+    let cleaned =
+      if Stdlib.String.startsWith arg "/" then
+        Stdlib.String.dropFirst arg 1
+      else
+        arg
+
+    match Stdlib.String.split cleaned "." with
+    | [] -> Stdlib.Result.Result.Error $"can't read \"{arg}\" as a name"
+    | [ _ ] -> Stdlib.Result.Result.Error $"\"{arg}\" needs at least an owner and a module"
+    | owner :: rest ->
+      Stdlib.Result.Result.Ok((owner, Stdlib.String.join rest ".", ""))
+
+
+let describeTarget (owner: String) (modules: String) (name: String) : String =
+  if name == "" then
+    $"everything in {owner}.{modules}"
+  else if modules == "" then
+    $"{owner}.{name}"
+  else
+    $"{owner}.{modules}.{name}"
+
+
+/// Pin an ITEM and roll back the repoint it already got. Returns a one-line summary rather than printing,
+/// so the command and the interactive screen share ONE implementation of what pinning means.
+let applyPin
+  (branchId: String)
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  (note: String)
+  : String =
+  match
+    SCM.Propagation.setPolicy
+      branchId
+      loc.owner
+      (SCM.Propagation.modulesOf loc)
+      loc.name
+      SCM.Propagation.Policy.Pin
+      note
+  with
+  | Error e -> $"couldn't record the pin: {e}"
+  | Ok _ ->
+    let wasAt =
+      SCM.Propagation.currentHash loc
+      |> Stdlib.Option.withDefault (LanguageTools.ProgramTypes.Hash.Hash "")
+
+    // BEFORE COMMIT, undo the repoint by un-staging it: the draft is rewritable, so the honest way to say
+    // "this shouldn't have followed" is that it never did. AFTER COMMIT, history is immutable, so the only
+    // way to say it is to author a rebinding. Two paths, one verb, chosen by whether anything is staged.
+    match SCM.Propagation.unstageRepoint loc with
+    | Ok n when n > 0 ->
+      let at =
+        match SCM.Propagation.currentHash loc with
+        | Some h -> $" -- back on {shortHash h}"
+        | None -> ""
+
+      $"pinned {dotted loc}, dropped the staged repoint{at}"
+    | _ ->
+
+    match SCM.Propagation.previousHash loc with
+    | None -> $"pinned {dotted loc}"
+    | Some prev ->
+      match SCM.Propagation.rebind loc kind prev with
+      | Error e -> $"pinned {dotted loc}, but couldn't roll it back: {e}"
+      | Ok _ ->
+        cascadeAndForceQuiet branchId loc kind wasAt prev
+        $"pinned {dotted loc}, rolled back to {shortHash prev}"
+
+
+/// Clear the pin on an ITEM and catch it up on what it missed. Returns a summary; see `applyPin`.
+let applyFollow
+  (branchId: String)
+  (loc: LanguageTools.ProgramTypes.PackageLocation)
+  : String =
+  match
+    SCM.Propagation.setPolicy
+      branchId
+      loc.owner
+      (SCM.Propagation.modulesOf loc)
+      loc.name
+      SCM.Propagation.Policy.Follow
+      ""
+  with
+  | Error e -> $"couldn't record the choice: {e}"
+  | Ok _ ->
+    match SCM.Propagation.staleDependencies loc with
+    | [] -> $"{dotted loc} follows (already current)"
+    | stale ->
+      stale
+      |> Stdlib.List.iter (fun s ->
+        let (depLoc, depKind, have, live) = s
+        cascadeAndForceQuiet branchId depLoc depKind have live)
+
+      $"{dotted loc} follows, caught up"
+
+
+/// Every explicit choice, with the ones that are choices ABOUT MODULES marked as such.
+let executeList (state: AppState) : AppState =
+  match SCM.Propagation.allChoices () with
+  | [] ->
+    printOk "no propagation choices -- everything follows what it uses."
+    printHint "  dark propagate pin <name>   stop it following, and undo the repoint you just got"
+    state
+  | cs ->
+    printOk (Cli.Status.plural (Stdlib.List.length cs) "propagation choice")
+
+    cs
+    |> Stdlib.List.iter (fun c ->
+      let target =
+        if c.name == "" then
+          let m = if c.modules == "" then "(everything)" else c.modules
+          $"{c.owner}.{m}.*"
+        else if c.modules == "" then
+          $"{c.owner}.{c.name}"
+        else
+          $"{c.owner}.{c.modules}.{c.name}"
+
+      let p = SCM.Propagation.policyToString c.policy
+      let why = if c.note == "" then "" else $"  -- {c.note}"
+      Stdlib.printLine $"  {p}  {target}{why}")
+
+    state
+
+
+/// What governs one item, and what that currently means for it.
+let executeShow (state: AppState) (arg: String) : AppState =
+  match resolve state arg with
+  | Error e ->
+    printErr e
+    state
+  | Ok loc when
+    Stdlib.Bool.not
+      (SCM.Propagation.targetExists loc.owner (SCM.Propagation.modulesOf loc) loc.name)
+    ->
+    // Same guard the verbs got: an unresolvable path is re-read as a module, so without this `show` answers
+    // "follows (nothing set)" about a name nobody has, which reads as confirmation that it exists.
+    printErr $"nothing at {dotted loc}."
+    printHint "  `dark ls <module>` lists what's there; a name only on another branch needs `dark switch` first."
+    state
+  | Ok loc ->
+    match SCM.Propagation.explicitPolicyFor loc with
+    | Some c ->
+      let p = SCM.Propagation.policyToString c.policy
+
+      let scope =
+        if c.name == "" then
+          let m = if c.modules == "" then "everything you own" else c.modules
+          $"the choice on {m}"
+        else
+          "a choice on this item"
+
+      let why = if c.note == "" then "" else $" ({c.note})"
+      printOk $"{dotted loc}: {p}, from {scope}{why}"
+    | None ->
+      printOk $"{dotted loc}: follows (nothing set -- that's the default)"
+
+    match SCM.Propagation.staleDependencies loc with
+    | [] -> printHint "  it's on the current version of everything it uses."
+    | stale ->
+      let n = Stdlib.Int.toString (Stdlib.List.length stale)
+      printHint $"  behind on {n} of its dependencies:"
+
+      stale
+      |> Stdlib.List.iter (fun s ->
+        let (depLoc, _, have, live) = s
+
+        Stdlib.printLine
+          (Colors.hint
+            $"    {dotted depLoc}: using {shortHash have}, current is {shortHash live}"))
+
+    state
+
+
+/// `--why <text>`; everything after it, so an unquoted reason still works.
+let whyFrom (args: List<String>) : String =
+  match Stdlib.List.findFirstIndex args (fun a -> a == "--why") with
+  | Some i ->
+    args |> Stdlib.List.drop (i + 1) |> (fun rest -> Stdlib.String.join rest " ")
+  | None -> ""
+
+
+/// PIN: stop it following, and undo the repoint that already happened.
+///
+/// The undo is what makes this useful WHILE you work rather than only next time. It rebinds the name to
+/// the version it had before the last change, an ordinary SetName op, so it syncs and audits like any
+/// other authoring and the cascade above it comes back down with it.
+let executePin (state: AppState) (arg: String) (note: String) : AppState =
+  match target state arg with
+  | Error e ->
+    printErr e
+    state
+  | Ok parts ->
+    let (owner, modules, name) = parts
+
+    if Stdlib.Bool.not (SCM.Propagation.targetExists owner modules name) then
+      let path =
+        if name == "" then $"{owner}.{modules}"
+        else if modules == "" then $"{owner}.{name}"
+        else $"{owner}.{modules}.{name}"
+
+      printErr $"nothing at {path}."
+      printHint "  `dark ls <module>` lists what's there; a name only on another branch needs `dark switch` first."
+      state
+    else
+
+    // A MODULE-level pin is forward-looking only. Rolling back everything under a module would be a
+    // sweeping edit fired by a one-word command, and the items beneath it don't share a history to roll
+    // back TO. Pin them individually if that's what you meant.
+    if name == "" then
+      match
+        SCM.Propagation.setPolicy state.currentBranchId owner modules name SCM.Propagation.Policy.Pin note
+      with
+      | Error e ->
+        printErr $"couldn't record the pin: {e}"
+        state
+      | Ok _ ->
+        printOk
+          $"pinned {describeTarget owner modules name} -- it won't follow its dependencies."
+
+        printHint "  already-repointed items under it keep their current version; pin them individually to roll those back."
+        state
+    else
+
+    let loc =
+      LanguageTools.ProgramTypes.PackageLocation
+        { owner = owner
+          modules = if modules == "" then [] else Stdlib.String.split modules "."
+          name = name }
+
+    match SCM.Propagation.kindAt loc with
+    | None ->
+      printErr $"nothing at {describeTarget owner modules name}."
+      printHint "  `dark ls <module>` lists what's there; a name only on another branch needs `dark switch` first."
+      state
+    | Some kind ->
+      // ONE implementation of what pinning means, shared with the interactive screen; see `applyPin`.
+      printOk (applyPin state.currentBranchId loc kind note)
+      state
+
+
+/// FOLLOW: clear the pin, and catch it up to what it missed.
+let executeFollow (state: AppState) (arg: String) (note: String) : AppState =
+  match target state arg with
+  | Error e ->
+    printErr e
+    state
+  | Ok parts ->
+    let (owner, modules, name) = parts
+
+    if Stdlib.Bool.not (SCM.Propagation.targetExists owner modules name) then
+      let path =
+        if name == "" then $"{owner}.{modules}"
+        else if modules == "" then $"{owner}.{name}"
+        else $"{owner}.{modules}.{name}"
+
+      printErr $"nothing at {path}."
+      printHint "  `dark ls <module>` lists what's there; a name only on another branch needs `dark switch` first."
+      state
+    else
+
+    match
+      SCM.Propagation.setPolicy state.currentBranchId owner modules name SCM.Propagation.Policy.Follow note
+    with
+    | Error e ->
+      printErr $"couldn't record the choice: {e}"
+      state
+    | Ok _ ->
+      printOk
+        $"{describeTarget owner modules name} follows its dependencies again."
+
+      if name == "" then
+        printHint "  items under it follow from their next change; follow them individually to catch them up now."
+        state
+      else
+        let loc =
+          LanguageTools.ProgramTypes.PackageLocation
+            { owner = owner
+              modules = if modules == "" then [] else Stdlib.String.split modules "."
+              name = name }
+
+        // Catch up: for each dependency whose name has moved on without it, run the cascade from THAT
+        // dependency. It reaches this item (now unpinned) and everything above it, along the same path a
+        // normal edit takes -- there's no second, special repoint mechanism to keep in sync with the first.
+        match SCM.Propagation.staleDependencies loc with
+        | [] ->
+          printHint "  already on the current version of everything it uses."
+          state
+        | stale ->
+          stale
+          |> Stdlib.List.iter (fun s ->
+            let (depLoc, depKind, have, live) = s
+            printHint $"  catching up on {dotted depLoc} -> {shortHash live}"
+            cascadeAndForce state depLoc depKind have live)
+
+          state
+
+
+/// UNSET: forget the choice, so whatever covers it more broadly applies again.
+let executeUnset (state: AppState) (arg: String) : AppState =
+  match target state arg with
+  | Error e ->
+    printErr e
+    state
+  | Ok parts ->
+    let (owner, modules, name) = parts
+
+    if Stdlib.Bool.not (SCM.Propagation.targetExists owner modules name) then
+      let path =
+        if name == "" then $"{owner}.{modules}"
+        else if modules == "" then $"{owner}.{name}"
+        else $"{owner}.{modules}.{name}"
+
+      printErr $"nothing at {path}."
+      printHint "  `dark ls <module>` lists what's there; a name only on another branch needs `dark switch` first."
+      state
+    else
+
+    match SCM.Propagation.clearPolicy state.currentBranchId owner modules name with
+    | Error e ->
+      printErr $"couldn't clear it: {e}"
+      state
+    | Ok _ ->
+      printOk $"cleared the choice on {describeTarget owner modules name}."
+      printHint "  whatever covers it more broadly (or the default, follow) applies now."
+      state
+
+
+let help (state: AppState) : AppState =
+  Stdlib.printLine "dark propagate -- choose what follows what"
+  Stdlib.printLine ""
+  Stdlib.printLine "  Editing an item repoints everything above it, immediately, in"
+  Stdlib.printLine "  your draft. These are the exceptions to that."
+  Stdlib.printLine ""
+  Stdlib.printLine "  dark propagate                    the impact screen"
+  Stdlib.printLine "  dark propagate show <name>        what governs it"
+  Stdlib.printLine "  dark propagate pin <name>... [why]"
+  Stdlib.printLine "                       stop following, and undo the repoint"
+  Stdlib.printLine "  dark propagate follow <name>... [why]"
+  Stdlib.printLine "                       follow again, and catch up"
+  Stdlib.printLine "  dark propagate --json             every choice, for agents"
+  Stdlib.printLine "  dark propagate unset <name>       forget the choice"
+  Stdlib.printLine ""
+  Stdlib.printLine "  A name may be a MODULE; the choice then covers everything"
+  Stdlib.printLine "  beneath it."
+  Stdlib.printLine "  The most specific choice wins, so an item can follow inside"
+  Stdlib.printLine "  a pinned module."
+  Stdlib.printLine ""
+  Stdlib.printLine "  Nothing here deletes anything: a pin is undone by a follow."
+  state
+
+
+/// Every explicit choice, as JSON. The agent path: same data the list renders.
+let executeJson (state: AppState) : AppState =
+  let esc (x: String) : String =
+    x
+    |> Stdlib.String.replaceAll "\\" "\\\\"
+    |> Stdlib.String.replaceAll "\"" "\\\""
+
+  let body =
+    SCM.Propagation.allChoices ()
+    |> Stdlib.List.map (fun c ->
+      let p = SCM.Propagation.policyToString c.policy
+      let scope = if c.name == "" then "module" else "item"
+
+      $"{{\"owner\":\"{esc c.owner}\",\"modules\":\"{esc c.modules}\",\"name\":\"{esc c.name}\",\"scope\":\"{scope}\",\"policy\":\"{p}\",\"why\":\"{esc c.note}\"}}")
+    |> (fun ls -> Stdlib.String.join ls ",")
+
+  Stdlib.printLine $"{{\"choices\":[{body}]}}"
+  state
+
+
+/// `propagate show <name> --json`. Same question as `executeShow`, answered in the shape `executeJson` uses
+/// for the whole store, so an agent parses one format either way. `"policy":"follow"` with an empty `"from"`
+/// is the default -- nothing was set -- which is exactly what the prose version says in words.
+let executeJsonFor (state: AppState) (arg: String) : AppState =
+  let esc (x: String) : String =
+    x
+    |> Stdlib.String.replaceAll "\\" "\\\\"
+    |> Stdlib.String.replaceAll "\"" "\\\""
+
+  match resolve state arg with
+  | Error e ->
+    Stdlib.printLine $"{{\"error\":\"{esc e}\"}}"
+    state
+  | Ok loc when
+    Stdlib.Bool.not
+      (SCM.Propagation.targetExists loc.owner (SCM.Propagation.modulesOf loc) loc.name)
+    ->
+    Stdlib.printLine $"{{\"error\":\"nothing at {esc (dotted loc)}\"}}"
+    state
+  | Ok loc ->
+    match SCM.Propagation.explicitPolicyFor loc with
+    | Some c ->
+      let p = SCM.Propagation.policyToString c.policy
+      let scope = if c.name == "" then "module" else "item"
+
+      Stdlib.printLine
+        $"{{\"name\":\"{esc (dotted loc)}\",\"policy\":\"{p}\",\"from\":\"{scope}\",\"why\":\"{esc c.note}\"}}"
+
+      state
+    | None ->
+      Stdlib.printLine
+        $"{{\"name\":\"{esc (dotted loc)}\",\"policy\":\"follow\",\"from\":\"\",\"why\":\"\"}}"
+
+      state
+
+
+/// Apply a verb to SEVERAL names in one call, reporting per target and never aborting the batch.
+///
+/// An agent that has to bisect a failed batch to find the one bad name is worse off than one that made N
+/// calls in the first place, so a name that doesn't resolve is reported and skipped.
+let executeMany
+  (state: AppState)
+  (verb: String)
+  (rest: List<String>)
+  : AppState =
+  // Names are the LEADING args that look like locations (a dot, or a leading slash); the rest is the
+  // reason. That keeps `pin A.b.c because it is deliberate` and `pin A.b.c D.e.f --why "..."` both working,
+  // without a positional reason being mistaken for another name.
+  let looksLikeName (a: String) : Bool =
+    (Stdlib.String.startsWith a "/") || (Stdlib.String.contains a ".")
+
+  let names = rest |> Stdlib.List.takeWhile looksLikeName
+
+  let tail = rest |> Stdlib.List.drop (Stdlib.List.length names)
+
+  let why =
+    match tail with
+    | "--why" :: reason -> Stdlib.String.join reason " "
+    | reason -> Stdlib.String.join reason " "
+
+  match names with
+  | [] ->
+    printErr $"{verb} needs at least one name."
+    state
+  | _ ->
+    names
+    |> Stdlib.List.iter (fun n ->
+      let single =
+        if verb == "pin" then
+          executePin state n why
+        else
+          executeFollow state n why
+
+      ())
+
+    state
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  // Strip `--json` before dispatch, the way `dark conflicts` does, so the flag works in any position
+  // rather than only where an arm happens to match it.
+  let wantsJson = ScmJson.wantsJson args
+  let args = ScmJson.stripJson args
+
+  match args with
+  | [] ->
+    if wantsJson then
+      executeJson state
+    // A person gets the screen; a script or an agent gets the list, unchanged. Launching a full-screen app
+    // at something reading stdout would be worse than useless.
+    else if state.nonInteractive then
+      executeList state
+    else
+      PropagateApp.launch state
+  | [ "help" ] -> help state
+  | [ "list" ] ->
+    if wantsJson then executeJson state else executeList state
+  | [ "show"; name ] ->
+    // `show` is what an agent polls, so it most needs to answer in JSON.
+    if wantsJson then executeJsonFor state name else executeShow state name
+  | [ "unset"; name ] -> executeUnset state name
+  | "pin" :: rest -> executeMany state "pin" rest
+  | "follow" :: rest -> executeMany state "follow" rest
+  | _ ->
+    printErr "unrecognized -- `dark propagate help`."
+    state
+
+
+let complete
+  (_state: AppState)
+  (_args: List<String>)
+  : List<Completion.CompletionItem> =
+  []

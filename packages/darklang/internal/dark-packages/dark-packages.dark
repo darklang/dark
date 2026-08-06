@@ -95,7 +95,7 @@ let parseExactMatch (s: String) : Stdlib.Result.Result<Bool, String> =
 
 /// Branch the package server reads/writes against. Single-tenant install →
 /// always main.
-val serverBranchId = SCM.Branch.mainBranchId
+val serverBranchId = "main"
 
 
 // ────────────────────────── handlers ──────────────────────────
@@ -138,8 +138,24 @@ val opsGetHandler =
   Handler { route = "/ops"; method = "GET"; handler = opsGetHandlerFn }
 
 
+/// How many distinct content items the store holds. Counts CONTENT (distinct hashes), not names -- two
+/// names sharing a hash are one item, which is the whole point of content-addressing.
+///
+/// Three COUNTs; it was an F# builtin for no reason the SPEC section 9 rule recognises.
+let packageStats () : Darklang.DarkPackages.Stats =
+  let db = Builtin.localDbPath ()
+
+  let countOf (table: String) : Int64 =
+    Stdlib.Sqlite.scalarInt db $"SELECT COUNT(DISTINCT hash) AS n FROM {table}" "n"
+    |> Stdlib.Option.withDefault 0L
+
+  Darklang.DarkPackages.Stats
+    { types = Stdlib.Int.fromInt64 (countOf "package_types")
+      values = Stdlib.Int.fromInt64 (countOf "package_values")
+      fns = Stdlib.Int.fromInt64 (countOf "package_functions") }
+
 let statsHandlerFn (req: HttpRequest) : HttpResponse =
-  let stats = Builtin.pmGetStats ()
+  let stats = packageStats ()
   let body =
     $"Package stats:
 - types: {stats.types |> Stdlib.Int.toString}

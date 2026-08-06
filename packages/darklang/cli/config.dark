@@ -5,7 +5,7 @@ module Darklang.Cli.Config
 // "rundir/cli-config.json", was CWD-relative: `login` silently no-op'd — printed "Logged in" but persisted
 // nothing — whenever the CLI ran from a directory without a `rundir/` subdir, e.g. a released exe run from $HOME.)
 let configFilePath () : String =
-  let dbPath = Darklang.Sync.localDbPath ()
+  let dbPath = Builtin.localDbPath ()
   let dir = Stdlib.String.join (Stdlib.List.dropLast (Stdlib.String.split dbPath "/")) "/"
   $"{dir}/cli-config.json"
 
@@ -90,6 +90,32 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       "Use 'config get <key>' to read a value"
       "Use 'config set <key> <value>' to set a value" ]
     |> Stdlib.printLines
+    state
+
+  // The CLI entry point: a per-user pointer stored in the db (config_v0, NOT synced), read by the F# boot.
+  // Malleable -- set your own CLI and it runs next launch. (Distinct from the json config above, which is
+  // being unified into the db later.)
+  // One `printLine` over an `if`, rather than a match whose arms each print: a trailing `state` after an
+  // inner match parses as part of that match's last arm, so the arm's value is an AppState where Unit is
+  // wanted, and the branch blows up at runtime the moment it's taken.
+  | ["entry"] ->
+    let current = Builtin.configGet "entry_point"
+    let line =
+      if current == "" then
+        "entry point: (default - the shipped CLI)"
+      else
+        $"entry point: {current}"
+    Stdlib.printLine line
+    state
+
+  | ["set-entry"; fnName] ->
+    let _ = Builtin.configSet "entry_point" fnName
+    let msg =
+      if Stdlib.String.isEmpty fnName then
+        "Reverted the entry point to the shipped CLI."
+      else
+        $"Set entry point to {fnName}. It runs on next launch (`dark config set-entry \"\"` reverts)."
+    Stdlib.printLine (Colors.success msg)
     state
 
   | _ ->

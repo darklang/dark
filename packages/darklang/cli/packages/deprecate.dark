@@ -46,7 +46,7 @@ let parseArgs (args: List<String>) : ParsedArgs =
 ///       `deprecate fn ab12cd34`); not implemented yet. Add when the first
 ///       caller needs it.
 let resolveTarget
-  (branchId: Uuid)
+  (branchId: String)
   (currentLocation: Packages.PackageLocation)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
   (target: String)
@@ -89,7 +89,15 @@ let parseKind
     | None ->
       Stdlib.Result.Result.Error
         "--kind superseded-by requires --replacement <location-or-hash>"
-  | "harmful" -> Stdlib.Result.Result.Ok LanguageTools.ProgramTypes.DeprecationKind.Harmful
+  // Harmful is a promise the runtime can only keep for fns: the gate is a call-site check
+  // (`ExecutionState.fns.isHarmful`), so there is nowhere for a marked type or value to halt. Accepting it
+  // would report success for a safety marking that can never fire, which is worse than refusing.
+  | "harmful" ->
+    match itemKind with
+    | Fn -> Stdlib.Result.Result.Ok LanguageTools.ProgramTypes.DeprecationKind.Harmful
+    | _ ->
+      Stdlib.Result.Result.Error
+        "--kind harmful only applies to fns: the runtime halts at a CALL, so a type or value has no point to halt at. Use --kind obsolete to take it off the shelf."
   | "obsolete" -> Stdlib.Result.Result.Ok LanguageTools.ProgramTypes.DeprecationKind.Obsolete
   | other ->
     Stdlib.Result.Result.Error
@@ -102,25 +110,8 @@ let parseKind
 /// full set before the confirm so the collateral is never a surprise. A normal fn/type has a near-unique
 /// hash, so this is a single name and no heads-up fires. (The real per-name fix is a canonical op change and
 /// is Stachu's call; this is only the guard.)
-let namesAtContent
-  (branchId: Uuid)
-  (hashStr: String)
-  (itemType: String)
-  : List<String> =
-  let db = Darklang.Sync.localDbPath ()
-  let sql =
-    "SELECT owner, modules, name FROM locations "
-    ++ "WHERE item_hash = @p0 AND item_type = @p1 AND branch_id = @p2 AND unlisted_at IS NULL"
-  match Stdlib.Sqlite.queryP db sql [ hashStr; itemType; Stdlib.Uuid.toString branchId ] with
-  | Ok rows ->
-    rows
-    |> Stdlib.List.map (fun row ->
-      let owner = Stdlib.Sqlite.textField row "owner" |> Stdlib.Option.withDefault ""
-      let modules = Stdlib.Sqlite.textField row "modules" |> Stdlib.Option.withDefault ""
-      let name = Stdlib.Sqlite.textField row "name" |> Stdlib.Option.withDefault ""
-      $"{owner}.{modules}.{name}")
-    |> Stdlib.List.unique
-  | Error _ -> []
+let namesAtContent (branchId: String) (hashStr: String) (itemType: String) : List<String> =
+  SCM.PackageOps.namesAtContent branchId hashStr itemType
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
@@ -253,6 +244,60 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               state
 
 
+/// `dark undeprecate <name>` -- put something back on the shelf.
+///
+/// `Undeprecate` has been an op case with a fold behind it the whole time, and nothing could author one.
+/// So `deprecate` and `delete` were ONE-WAY: a `delete` typed at the wrong name could be recovered only by
+/// re-authoring the item, and the docs said `undo` reversed it, which it hasn't for a while. A verb that
+/// takes something off the shelf needs a verb that puts it back.
+///
+/// The kind is inferred rather than asked for. You know the name; making you also name its kind to un-do
+/// something is the kind of question a tool asks because it's easy to implement.
+let executeUndeprecate (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  let branchId = state.currentBranchId
+  let positional = args |> Stdlib.List.filter (fun a -> Stdlib.String.startsWith a "--" |> Stdlib.Bool.not)
+
+  match positional with
+  | []
+  | [ "help" ] ->
+    Stdlib.printLine (Colors.error "usage: dark undeprecate <name>")
+    Stdlib.printLine
+      (Colors.hint
+        "  puts a deprecated fn, type or value back on the shelf. `dark ls --include-deprecated` finds them.")
+    state
+  | [ target ] ->
+    let currentLoc = state.packageData.currentLocation
+
+    // Try each kind rather than making the caller say which. A name holds ONE item, so at most one of
+    // these resolves.
+    let resolved =
+      [ LanguageTools.ProgramTypes.ItemKind.Fn
+        LanguageTools.ProgramTypes.ItemKind.Type
+        LanguageTools.ProgramTypes.ItemKind.Value ]
+      |> Stdlib.List.filterMap (fun k -> resolveTarget branchId currentLoc k target)
+
+    match resolved with
+    | [] ->
+      Stdlib.printLine (Colors.error $"Could not resolve {target}")
+      Stdlib.printLine
+        (Colors.hint "  deprecated items are hidden; `dark ls --include-deprecated` shows them.")
+
+      state
+    | targetRef :: _ ->
+      let op = LanguageTools.ProgramTypes.PackageOp.Undeprecate targetRef
+
+      match SCM.PackageOps.add branchId [ op ] with
+      | Ok _ ->
+        Stdlib.printLine (Colors.success $"Undeprecated {target}")
+        state
+      | Error e ->
+        Stdlib.printLine (Colors.error $"Undeprecate failed: {e}")
+        state
+  | _ ->
+    Stdlib.printLine (Colors.error "usage: dark undeprecate <name>")
+    state
+
+
 let help (_state: Cli.AppState) : String =
   [ "Mark a function, type, or value as deprecated."
     ""
@@ -260,7 +305,7 @@ let help (_state: Cli.AppState) : String =
     ""
     "Kinds:"
     "  superseded-by   new item exists — use that instead (requires --replacement)"
-    "  harmful         actively dangerous — runtime halts unless --allow-harmful"
+    "  harmful         actively dangerous -- runtime halts unless --allow-harmful (fns only)"
     "  obsolete        don't use this anymore (catch-all)"
     ""
     "Options:"

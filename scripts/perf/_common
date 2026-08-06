@@ -18,13 +18,12 @@ release_exe() {
   ls -t "${RELEASE_EXE_PATHS[@]}" 2>/dev/null | head -1 || true
 }
 
-# Where a given binary writes its telemetry. A published binary resolves its log directory relative
-# to its own location rather than to DARK_CONFIG_RUNDIR, so the two build modes disagree.
+# Where a given binary writes its telemetry. An explicit DARK_CONFIG_RUNDIR wins in EVERY build mode, so
+# both modes agree and this needs no per-mode case. `<exe dir>/.darklang` is only the default a published
+# binary computes when the variable is unset, which never happens here: every perf script re-execs into the
+# container, which sets it.
 telemetry_for() {
-  case "$1" in
-  backend/Build/out/Cli/Debug/*) echo "${DARK_CONFIG_RUNDIR}/logs/telemetry.jsonl" ;;
-  *) echo "$(dirname "$1")/.darklang/logs/telemetry.jsonl" ;;
-  esac
+  echo "${DARK_CONFIG_RUNDIR}/logs/telemetry.jsonl"
 }
 
 # `$1` is the tool's name. Prints where a published CLI was looked for, since an empty path in a

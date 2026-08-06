@@ -105,6 +105,23 @@ let private multiUseAllowlist : Set<string> =
 
       // CLI / IO surface called by many CLI commands.
       "debug"
+      // This instance's local store path -- called directly by several local CLI commands
+      // (config/ops/doctor/deprecate). Its old single wrapper lived in the
+      // now-deleted sync layer.
+      "localDbPath"
+      // Local key-value config get/set, called directly by many CLI commands (config, branch
+      // switch/current-branch, doctor, connect). Like localDbPath, no single wrapper
+      // -- a local primitive.
+      "configGet"
+      "configSet"
+      // Build hash (this binary's version) -- shown by CLI version output and stamped
+      // into the sync wire bundle. Read from a couple of places directly.
+      "getBuildHash"
+      // Stage ops on a branch (effective=0 + tag + per-name bases): used by
+      // branch-bundle import (branch-transfer) AND by review-import/review-pull
+      // (op-level approval stages incoming ops on a review branch). Both
+      // legitimately land ops on a branch for later merge.
+      "scmImportBranchOps"
       "directoryCurrent"
       "directoryList"
       "environmentGet"
@@ -217,6 +234,43 @@ let private packagesText : Lazy<string> =
      |> String.concat "\n")
 
 
+/// Every `.dark` line under packages/ that isn't a comment. Cached.
+///
+/// Comments have to go before looking for calls, or a docstring explaining that a
+/// builtin was DELETED reads as a call to it.
+let private packageCodeLines : Lazy<List<string>> =
+  lazy
+    (let root = findPackagesDir ()
+     Directory.EnumerateFiles(root, "*.dark", SearchOption.AllDirectories)
+     |> Seq.collect File.ReadAllLines
+     |> Seq.filter (fun line -> not ((line.TrimStart()).StartsWith "//"))
+     |> List.ofSeq)
+
+
+/// `Builtin.<name>` references that are NOT a builtin call.
+///
+/// Dark has its own `Builtin` cases and modules, so the text `Builtin.foo` is ambiguous. The
+/// `FQValueName.Builtin.` ones are excluded by the lookbehind in the regex; these
+/// three are bare and can only be told apart by knowing the file.
+let private notActuallyBuiltins : Set<string> =
+  Set.ofList
+    [ "tokenize" // semanticTokens.dark has its own `Builtin` module
+      "toPT" // same, in writtenTypesToProgramTypes.dark
+      "fullForReference" // FQValueName.Builtin
+      "Json" // `Builtin.Json.*`: a module under the builtin namespace, not a builtin
+      "X" ] // `Builtin.X` as prose, inside the for-ai docs
+
+
+/// Builtins that package code calls and that do not exist.
+///
+/// Empty, and worth keeping empty: a name here is a feature that throws the moment anyone uses it, so
+/// prefer fixing the caller over adding one.
+///
+/// `testRaiseException` and `testRuntimeError` are deliberately NOT here. They come from `LibTest`, which
+/// the test harness loads and the CLI does not, so the one file calling them only runs where they exist.
+let private knownMissingOnMainToo : Set<string> = Set.empty
+
+
 /// Count textual references to `Builtin.<name>` (or `Builtin.<name>_v<n>`)
 /// across packages/. The `(?![a-zA-Z0-9_])` lookahead prevents matching
 /// `Builtin.dictGet` against the prefix of `Builtin.dictGetItem`.
@@ -261,5 +315,68 @@ let builtinAccessInPackageMatter =
   }
 
 
+/// Every builtin that package code calls actually exists.
+///
+/// This is the counterpart to the test above, and it exists because we shipped the
+/// bug it catches. A missing builtin resolves LAZILY: `reload-packages` prints Done,
+/// the whole suite passes, and the error arrives only when a person calls the
+/// function. This branch deleted four builtins that had live callers and broke the
+/// workbench's item pane and the LSP's file provider, with a green build the whole
+/// time.
+///
+/// Textual rather than resolved, because there is no resolution step to hook: the
+/// point is that nothing resolves these until they run.
+let everyBuiltinPackagesCallExists =
+  testTask "every builtin that package code calls exists" {
+    // The test builtin set does NOT include CliHost, so the CLI's own builtins would
+    // read as missing. Adding it here rather than allowlisting them: they exist, and
+    // a test that calls a real builtin an exception is a test that will one day hide
+    // a real one.
+    let names (b : RT.Builtins) =
+      Set.union
+        (b.fns.Values |> Seq.map (fun fn -> fn.name.name) |> Set.ofSeq)
+        (b.values.Values |> Seq.map (fun v -> v.name.name) |> Set.ofSeq)
+
+    let defined =
+      Set.union
+        (names (localBuiltIns PT.PackageManager.empty))
+        (names (Builtins.CliHost.Builtin.builtins ()))
+
+    // Lookbehind drops `FQValueName.Builtin.foo` and friends, where `Builtin` is a
+    // Dark module rather than the builtin namespace.
+    let regex =
+      Regex(
+        @"(?<![a-zA-Z0-9_.])Builtin\.([a-zA-Z][a-zA-Z0-9_]*)",
+        RegexOptions.Compiled
+      )
+
+    let referenced =
+      packageCodeLines.Value
+      |> List.collect (fun line ->
+        regex.Matches(line) |> Seq.map (fun m -> m.Groups[1].Value) |> List.ofSeq)
+      |> Set.ofList
+
+    let missing =
+      referenced
+      |> Set.filter (fun name ->
+        not (Set.contains name defined)
+        && not (Set.contains name notActuallyBuiltins)
+        && not (Set.contains name knownMissingOnMainToo))
+
+    if not (Set.isEmpty missing) then
+      let names = missing |> Set.toList |> List.sort |> String.concat ", "
+      Expect.isTrue
+        false
+        ($"package code calls builtins that don't exist: {names}\n\n"
+         + "A missing builtin resolves lazily, so nothing else in this suite will tell you. Either the "
+         + "builtin was deleted and its callers need repointing at the Dark replacement, or it was renamed. "
+         + "If it is genuinely missing on main too, add it to `knownMissingOnMainToo` with the reason.")
+  }
+
+
 let tests =
-  testList "builtin" [ oldFunctionsAreDeprecated; builtinAccessInPackageMatter ]
+  testList
+    "builtin"
+    [ oldFunctionsAreDeprecated
+      builtinAccessInPackageMatter
+      everyBuiltinPackagesCallExists ]

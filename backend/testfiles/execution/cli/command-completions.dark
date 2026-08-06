@@ -1,0 +1,50 @@
+// Every command's `complete` is called on a real AppState, because the failure mode here is a function that
+// parses and loads fine and only throws at the moment somebody presses Tab. That is how a help-text bug
+// shipped once already: bad code behind a branch nothing exercised.
+//
+// The assertion is deliberately "none of them threw" rather than a completion count. Counts move whenever a
+// command gains an option, and a test that has to be edited every time is a test people edit without reading.
+
+module CompletionSweep =
+  // forcing the length is what makes the lazy list actually run
+  let forced (c: Darklang.Cli.Registry.CommandHandler) (args: List<String>) : Bool =
+    let state = Darklang.Cli.initState ()
+    ((c.complete state args) |> Stdlib.List.length) >= 0
+
+  let sweep (args: List<String>) : Bool =
+    Darklang.Cli.Registry.allCommands ()
+    |> Stdlib.List.all (fun c -> forced c args)
+
+// no argument yet: the command was typed, then Tab
+CompletionSweep.sweep [] = true
+
+// a partial first argument
+CompletionSweep.sweep [ "" ] = true
+CompletionSweep.sweep [ "fea" ] = true
+
+// a subcommand, then Tab for its argument -- the arm that reads the store
+CompletionSweep.sweep [ "show"; "" ] = true
+CompletionSweep.sweep [ "push"; "fea" ] = true
+
+// more arguments than any command takes; nothing should throw reaching for a word that isn't there
+CompletionSweep.sweep [ "a"; "b"; "c"; "d" ] = true
+
+
+// --- the SCM commands specifically offer branch names, since those are the ones typed daily ---
+
+module BranchCompletion =
+  let values (args: List<String>) : List<String> =
+    let state = Darklang.Cli.initState ()
+
+    (Darklang.Cli.Branch.complete state args)
+    |> Stdlib.List.map (fun i -> i.value)
+
+// a name that exists in no store: the filter runs and matches nothing, rather than the whole list coming back
+BranchCompletion.values [ "zzz-no-such-branch" ] = []
+BranchCompletion.values [ "switch"; "zzz-no-such-branch" ] = []
+
+// `main` is always a legitimate target for the branch-taking subcommands
+(BranchCompletion.values [ "switch"; "mai" ]) |> Stdlib.List.member "main" = true
+
+// a subcommand that takes no branch gets no branch names
+BranchCompletion.values [ "list"; "" ] = []

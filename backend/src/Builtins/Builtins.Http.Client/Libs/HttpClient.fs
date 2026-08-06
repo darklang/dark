@@ -179,10 +179,11 @@ module BaseClient =
     // As of .NET 6 it seems we no longer need to worry about either socket
     // exhaustion or DNS issues. It appears that we can use either multiple HTTP
     // clients or just one, we use just one for efficiency.
-    // See https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-7.0#alternatives-to-ihttpclientfactory
+    // See
+    // https://docs.microsoft.com/en-us/aspnet/core/fundamentals/http-requests?view=aspnetcore-7.0#alternatives-to-ihttpclientfactory
     //
-    // Note that the number of sockets was verified manually, with:
-    // `sudo netstat -apn | grep _WAIT`
+    // Note that the number of sockets was verified manually, with: `sudo netstat
+    // -apn | grep _WAIT`
     let handler (config : Configuration) : HttpMessageHandler =
       let connectionFilter
         (context : SocketsHttpConnectionContext)
@@ -202,22 +203,58 @@ module BaseClient =
               // Use this to hide more specific errors when looking at loopback
               Exception.raiseInternal "Could not connect" []
 
-            // Create the socket with the resolved IP's address family (v4 vs v6).
-            // The 2-arg ctor defaults to IPv6, which only reaches an IPv4 literal
-            // (e.g. 127.0.0.1) when the host has IPv6 dual-mode
-            // — absent in some containers, giving a NetworkError.
-            // Matching the family connects either way.
-            let socket =
-              new System.Net.Sockets.Socket(
-                ips[0].AddressFamily,
-                System.Net.Sockets.SocketType.Stream,
-                System.Net.Sockets.ProtocolType.Tcp
-              )
-            socket.NoDelay <- true
+            // TRY EVERY resolved address, not just the first. A name routinely
+            // resolves to more than one (`localhost` is ::1 AND 127.0.0.1), only
+            // some of which have anything listening, and the order is the resolver's
+            // to choose. Connecting to ips[0] alone made `http://localhost:<port>`
+            // fail against a server bound to IPv4 -- which is every server this repo
+            // starts -- and report it as a flat "network error", so the most natural
+            // address anyone types was the one that didn't work.
+            //
+            // Every address was already checked against the allow-list above, so
+            // trying the rest widens nothing: the DNS-rebinding guard is that we
+            // connect to a resolved ADDRESS rather than let the OS re-resolve the
+            // name, and that still holds for each one.
+            //
+            // The socket's address family has to match the address it dials. The
+            // 2-arg ctor defaults to IPv6, which only reaches an IPv4 literal when
+            // the host has dual-mode, and containers often don't.
+            let mutable stream : Stream = null
+            let mutable lastError : exn = null
+            let mutable i = 0
 
-            let endpoint = System.Net.IPEndPoint(ips[0], context.DnsEndPoint.Port)
-            do! socket.ConnectAsync(endpoint, cancellationToken)
-            return new System.Net.Sockets.NetworkStream(socket, true)
+            while isNull stream && i < ips.Length do
+              let ip = ips[i]
+              i <- i + 1
+
+              let socket =
+                new System.Net.Sockets.Socket(
+                  ip.AddressFamily,
+                  System.Net.Sockets.SocketType.Stream,
+                  System.Net.Sockets.ProtocolType.Tcp
+                )
+              socket.NoDelay <- true
+
+              try
+                let endpoint = System.Net.IPEndPoint(ip, context.DnsEndPoint.Port)
+                do! socket.ConnectAsync(endpoint, cancellationToken)
+                stream <- new System.Net.Sockets.NetworkStream(socket, true)
+              with e ->
+                socket.Dispose()
+                lastError <- e
+                // A cancelled request is the caller giving up, not this address
+                // being wrong. Trying the next one would ignore the timeout and dial
+                // again on a token that's already done.
+                if cancellationToken.IsCancellationRequested then i <- ips.Length
+
+            match stream with
+            | null ->
+              return
+                Exception.raiseInternal
+                  "Could not connect"
+                  [ "reason",
+                    (if isNull lastError then "no address" else lastError.Message) ]
+            | s -> return s
           with :? System.ArgumentException ->
             return Exception.raiseInternal "Could not connect" []
         }
@@ -253,7 +290,8 @@ module BaseClient =
   module WasmHandler =
     let handler (_config : Configuration) : HttpMessageHandler =
       new HttpClientHandler(
-        // These settings are also enabled in SocketBasedHandler - see comments above for discussion
+        // These settings are also enabled in SocketBasedHandler - see comments above
+        // for discussion
         AllowAutoRedirect = false
       // These can't be set in WASM, even though they exist (PlatformNotSupportedException)
       // UseCookies = false,
@@ -345,10 +383,11 @@ module LocalAccess =
     else
       true // not ipv4 or ipv6, so banned
 
-  /// The subset of banned ranges that stay banned even for a trusted tailnet SYNC pull: 169.254.0.0/16
-  /// (link-local + cloud-metadata), GCP private endpoints, and 0.0.0.0. Loopback, RFC-1918, and the
-  /// Tailscale CGN range (100.64/10) are deliberately ALLOWED here — reaching a tailnet/LAN peer is the
-  /// whole point — but the cloud-metadata SSRF target is never reachable, even by an unsafe pull.
+  /// The subset of banned ranges that stay banned even for a trusted tailnet SYNC
+  /// pull: 169.254.0.0/16 (link-local + cloud-metadata), GCP private endpoints, and
+  /// 0.0.0.0. Loopback, RFC-1918, and the Tailscale CGN range (100.64/10) are
+  /// deliberately ALLOWED here -- reaching a tailnet/LAN peer is the whole point --
+  /// but the cloud-metadata SSRF target is never reachable, even by an unsafe pull.
   let private metadataOrLinkLocalV4 (ip : System.Net.IPAddress) : bool =
     oneSixNine.Contains ip
     || oneNineNineFour.Contains ip
@@ -404,10 +443,11 @@ let defaultConfig : Configuration =
       allowedHeaders =
         fun headers -> not (LocalAccess.hasInstanceMetadataHeader headers) }
 
-/// Config for trusted tailnet SYNC pulls (`httpGetUnsafeBytes`). Unlike `defaultConfig` it reaches
-/// loopback / RFC-1918 / the Tailscale range so a peer's server is reachable — but unlike `looseConfig` it
-/// still blocks cloud-metadata + link-local, so even a sync pull can't be aimed at 169.254.169.254. Also
-/// drops the metadata request-header (defence-in-depth; sync sends no headers anyway).
+/// Config for trusted tailnet SYNC pulls (`httpGetUnsafeBytes`). Unlike
+/// `defaultConfig` it reaches loopback / RFC-1918 / the Tailscale range so a peer's
+/// server is reachable -- but unlike `looseConfig` it still blocks cloud-metadata +
+/// link-local, so even a sync pull can't be aimed at 169.254.169.254. Also drops the
+/// metadata request-header (defence-in-depth; sync sends no headers anyway).
 let syncConfig : Configuration =
   { looseConfig with
       allowedIP = fun ip -> not (LocalAccess.metadataOrLinkLocal ip)
@@ -469,8 +509,8 @@ let private buildHttpRequestMessage
     Content = new ByteArrayContent(body),
     // Support both Http 2.0 and 3.0
     // https://learn.microsoft.com/en-us/dotnet/api/system.net.http.httpversionpolicy?view=net-7.0
-    // TODO: test this (against requestbin or something that allows us
-    // to control the HTTP protocol version)
+    // TODO: test this (against requestbin or something that allows us to control the
+    // HTTP protocol version)
     Version = System.Net.HttpVersion.Version30,
     VersionPolicy = HttpVersionPolicy.RequestVersionOrLower
   )
@@ -705,7 +745,8 @@ let fns (config : Configuration) : List<BuiltInFn> =
           _,
           [| DString method; DString uri; DList(_, reqHeaders); DBlob bodyRef |] ->
           uply {
-            // precise check: this exact method+URL must be covered (the gate only checked http presence).
+            // precise check: this exact method+URL must be covered (the gate only
+            // checked http presence).
             LibExecution.CapabilityCheck.requireHttp state.grantedCaps method uri
             let! reqBodyBytes = Blob.readBytes state bodyRef
             let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
@@ -816,12 +857,11 @@ let fns (config : Configuration) : List<BuiltInFn> =
     // runs the same disposer chain when the DStream becomes
     // unreachable.
     // ——————————————————————————————————————————————————————————
-    // GET with SSRF guards OFF, returning raw BYTES — for pulling a peer's op wire over the tailnet.
-    // (The safe `httpClientRequest` bans loopback/RFC-1918/tailnet, which a peer's sync server sits behind;
-    // the Blob variant hands the body back as bytes for the caller to decode — `Stdlib.Blob.toString` for the
-    // JSON wire.) TRUSTED-CLI use: the caller IS the code author; used by `Sync.pull` / `dark sync fetch <url>`.
-    // TODO(sync-ssrf): this is registered in the general builtin set, so it's reachable from any CLI-run Dark
-    // (incl. packages pulled from a peer). Gate it to the sync surface (its own library or a sync capability).
+    // GET with SSRF guards OFF: a peer's sync server sits behind loopback/RFC-1918/tailnet, which the
+    // safe path bans. TRUSTED-CLI use, where the caller IS the code author.
+    //
+    // TODO(sync-ssrf): registered in the general builtin set, so any CLI-run Dark can reach it, including
+    // packages pulled from a peer. Gate it to the sync surface.
     { name = fn "httpGetUnsafeBytes" 0
       typeParams = []
       parameters =
@@ -846,7 +886,26 @@ let fns (config : Configuration) : List<BuiltInFn> =
             let! response = makeRequest syncConfig syncClient request
 
             match response with
-            | Ok r -> return Dval.resultOk KTBlob KTString (Blob.newEphemeral r.body)
+            // A non-2xx is a FAILURE, not a body. These returned Ok for any
+            // completed exchange, so a relay answering 400 or 404 reached the caller
+            // as a successful fetch whose payload happened to be an error page --
+            // and `dark branch push` printed "pushed branch ..." for a 400 it never
+            // noticed. Callers here only ever want the body of a request that
+            // worked.
+            | Ok r when r.statusCode >= 200 && r.statusCode < 300 ->
+              return Dval.resultOk KTBlob KTString (Blob.newEphemeral r.body)
+            | Ok r ->
+              let snippet =
+                try
+                  let t = System.Text.Encoding.UTF8.GetString(r.body)
+                  if t.Length > 200 then t.Substring(0, 200) + "..." else t
+                with _ ->
+                  ""
+              return
+                Dval.resultError
+                  KTBlob
+                  KTString
+                  (DString $"HTTP {r.statusCode}: {snippet}")
             | Error err ->
               let reason =
                 match err with
@@ -857,6 +916,156 @@ let fns (config : Configuration) : List<BuiltInFn> =
                 | RequestError.BadMethod -> "bad method"
               return
                 Dval.resultError KTBlob KTString (DString $"fetch failed: {reason}")
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.http
+      deprecated = NotDeprecated }
+
+    // The read twin of `httpPostUnsafeBytes`. Separate from `httpGetUnsafeBytes` because that one's arity
+    // is part of its contract. Exists so a read can carry an Authorization header: a relay's branch
+    // endpoints hand back unmerged work, and a secret belongs in a header, not a logged query string.
+    { name = fn "httpGetUnsafeBytesWithHeaders" 0
+      typeParams = []
+      parameters =
+        [ Param.make "uri" TString "URL to GET with SSRF guards OFF"
+          Param.make "headers" (TList(TTuple(TString, TString, []))) "request headers" ]
+      returnType = TypeReference.result TBlob TString
+      description =
+        "GET <param uri> with NO SSRF guards and the given <param headers>, returning the raw "
+        + "response body as Bytes (Ok) or an error message (Error)."
+      fn =
+        let syncClient = BaseClient.create syncConfig
+
+        (function
+        | _, _, _, [| DString uri; DList(_, headerList) |] ->
+          uply {
+            let headers =
+              headerList
+              |> List.collect (fun h ->
+                match h with
+                | DTuple(DString k, DString v, []) -> [ (k, v) ]
+                | _ -> [])
+
+            let request : Request =
+              { url = uri; method = HttpMethod "GET"; headers = headers; body = [||] }
+
+            let! response = makeRequest syncConfig syncClient request
+
+            match response with
+            | Ok r when r.statusCode >= 200 && r.statusCode < 300 ->
+              return Dval.resultOk KTBlob KTString (Blob.newEphemeral r.body)
+            | Ok r ->
+              let snippet =
+                try
+                  let t = System.Text.Encoding.UTF8.GetString(r.body)
+                  if t.Length > 200 then t.Substring(0, 200) + "..." else t
+                with _ ->
+                  ""
+              return
+                Dval.resultError
+                  KTBlob
+                  KTString
+                  (DString $"HTTP {r.statusCode}: {snippet}")
+            | Error err ->
+              let reason =
+                match err with
+                | RequestError.BadUrl _ -> "bad url"
+                | RequestError.Timeout -> "timeout"
+                | RequestError.BadHeader _ -> "bad header"
+                | RequestError.NetworkError -> "network error"
+                | RequestError.BadMethod -> "bad method"
+              return
+                Dval.resultError KTBlob KTString (DString $"fetch failed: {reason}")
+          }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.Needs.http
+      deprecated = NotDeprecated }
+
+    // POST with SSRF guards OFF (syncConfig), returning raw BYTES -- the push half of the sync
+    // transport, mirror of httpGetUnsafeBytes. A relay/peer sits behind
+    // loopback/RFC-1918/tailnet, which the safe client bans; syncConfig reaches
+    // those but still blocks cloud-metadata. Body is sent as application/json (the
+    // wire codec). TRUSTED-CLI use: `dark push`/`connect`. TODO(sync-ssrf):
+    // registered in the general set like the GET twin -- gate both to a sync surface.
+    { name = fn "httpPostUnsafeBytes" 0
+      typeParams = []
+      parameters =
+        [ Param.make
+            "uri"
+            TString
+            "URL to POST with SSRF guards OFF (loopback/RFC-1918/tailnet reachable)"
+          Param.make "body" TBlob "request body, sent as application/json"
+          Param.make
+            "headers"
+            (TList(TTuple(TString, TString, [])))
+            "extra request headers, e.g. an Authorization for a relay that requires one" ]
+      returnType = TypeReference.result TBlob TString
+      description =
+        "POST <param body> to <param uri> with NO SSRF guards, returning the raw "
+        + "response body as Bytes (Ok) or an error message (Error). For pushing to a "
+        + "peer's store over the tailnet."
+      fn =
+        let syncClient = BaseClient.create syncConfig
+
+        (function
+        | exeState, _, _, [| DString uri; DBlob bodyRef; DList(_, headers) |] ->
+          uply {
+            let! body = Blob.readBytes exeState bodyRef
+
+            // Caller headers go AFTER the content type so a caller cannot
+            // accidentally unset it, and are taken as-is otherwise. A relay write
+            // secret arrives this way rather than in the query string, which would
+            // put it in every access log and proxy trace between here and there.
+            let extra =
+              headers
+              |> List.choose (fun h ->
+                match h with
+                | DTuple(DString k, DString v, []) -> Some(k, v)
+                | _ -> None)
+
+            let request : Request =
+              { url = uri
+                method = HttpMethod "POST"
+                headers = ("Content-Type", "application/json") :: extra
+                body = body }
+
+            let! response = makeRequest syncConfig syncClient request
+
+            match response with
+            // A non-2xx is a FAILURE, not a body. These returned Ok for any
+            // completed exchange, so a relay answering 400 or 404 reached the caller
+            // as a successful fetch whose payload happened to be an error page --
+            // and `dark branch push` printed "pushed branch ..." for a 400 it never
+            // noticed. Callers here only ever want the body of a request that
+            // worked.
+            | Ok r when r.statusCode >= 200 && r.statusCode < 300 ->
+              return Dval.resultOk KTBlob KTString (Blob.newEphemeral r.body)
+            | Ok r ->
+              let snippet =
+                try
+                  let t = System.Text.Encoding.UTF8.GetString(r.body)
+                  if t.Length > 200 then t.Substring(0, 200) + "..." else t
+                with _ ->
+                  ""
+              return
+                Dval.resultError
+                  KTBlob
+                  KTString
+                  (DString $"HTTP {r.statusCode}: {snippet}")
+            | Error err ->
+              let reason =
+                match err with
+                | RequestError.BadUrl _ -> "bad url"
+                | RequestError.Timeout -> "timeout"
+                | RequestError.BadHeader _ -> "bad header"
+                | RequestError.NetworkError -> "network error"
+                | RequestError.BadMethod -> "bad method"
+              return
+                Dval.resultError KTBlob KTString (DString $"push failed: {reason}")
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -888,7 +1097,8 @@ let fns (config : Configuration) : List<BuiltInFn> =
         (function
         | state, vm, _, [| DString method; DString uri; DList(_, reqHeaders) |] ->
           uply {
-            // precise check: this exact method+URL must be covered (the gate only checked http presence).
+            // precise check: this exact method+URL must be covered (the gate only
+            // checked http presence).
             LibExecution.CapabilityCheck.requireHttp state.grantedCaps method uri
             let! (reqHeaders : Result<List<string * string>, BadHeader.BadHeader>) =
               reqHeaders

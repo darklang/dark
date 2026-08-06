@@ -38,66 +38,6 @@ module Hash =
   let empty : Hash = Hash ""
   let toHexString (Hash h) : string = h
 
-type BranchId = uuid
-
-/// Well-known main branch UUID
-let mainBranchId : BranchId =
-  System.Guid.Parse "89282547-e4e6-4986-bcb6-db74bc6a8c0f"
-
-/// An SCM branch
-type Branch =
-  { id : BranchId
-    name : string
-    parentBranchId : Option<BranchId>
-    baseCommitHash : Option<Hash>
-    createdAt : NodaTime.Instant
-    mergedAt : Option<NodaTime.Instant> }
-
-
-/// Error types for merge operations
-type MergeError =
-  | NotRebased
-  | HasWip
-  | HasChildren
-  | NothingToMerge
-  | NotFound
-  | IsMainBranch
-
-
-/// A commit on a branch
-type Commit =
-  { hash : Hash
-    message : string
-    createdAt : NodaTime.Instant
-    opCount : bigint
-    committerId : AccountID
-    committerName : string
-    branchId : BranchId
-    branchName : string }
-
-
-/// Operations on branches/commits, logged as immutable ops for sync
-type BranchOp =
-  | CreateBranch of
-    branchId : BranchId *
-    name : string *
-    parentBranchId : BranchId option *
-    baseCommitHash : Hash option
-
-  | CreateCommit of
-    commitHash : Hash *
-    message : string *
-    accountId : AccountID *
-    branchId : BranchId *
-    opHashes : List<Hash>
-
-  | RebaseBranch of branchId : BranchId * newBaseCommitHash : Hash
-
-  | MergeBranch of branchId : BranchId * intoBranchId : BranchId
-
-  | ArchiveBranch of branchId : BranchId
-
-
 /// Fully-Qualified Type Name
 ///
 /// Used to reference a type defined in a Package or by a User
@@ -665,7 +605,17 @@ module PackageFn =
       description : string }
 
 
-/// Operations on packages
+/// What happened to a branch. A CLOSED set, so a type rather than a string. Both cases are MONOTONIC:
+/// applying one twice, or out of order, lands in the same place, so they need no stamp to arbitrate and
+/// can travel between machines with nothing to compare against. A rename would be last-writer-wins and
+/// there is no stamp on `branches` to arbitrate it, so there is no case for one.
+type BranchEventKind =
+  /// Its work is in its parent.
+  | Merged
+  /// Put away, not deleted.
+  | Archived
+
+/// Operations on packages: the canonical, append-only unit of change.
 type PackageOp =
   // Content operations - add definitions
   | AddType of typ : PackageType.PackageType
@@ -675,30 +625,23 @@ type PackageOp =
   // Location operations - bind a name to a piece of content.
   // Content is identified by a Reference (hash + kind); the location is a
   // branch-scoped FQ path.
-  | SetName of location : PackageLocation * target : Reference
+  /// `previous` is the hash this binding REPLACED at that location, or None when the location was empty.
+  ///
+  /// It lets two machines tell an ordinary edit from an independent creation, which otherwise look
+  /// identical: one local binding, one incoming, no shared base. A SetName naming the other side's hash
+  /// descends from it, so taking it is collaborating; NEITHER side naming anything means both invented the
+  /// name, which is a real conflict.
+  ///
+  /// Filled in where the store is known -- authoring, propagation, a rename -- and None from the parsers,
+  /// which read source files and have no store to ask. So None means "no predecessor known", and the
+  /// detector only concludes anything from BOTH sides being None.
+  | SetName of
+    location : PackageLocation *
+    target : Reference *
+    previous : Option<Hash>
 
-  // Deprecation: author-initiated annotation on a specific content hash.
-  //
-  // Future: implicit deprecations as Constraints.
-  //
-  // Some SCM events raise an implicit deprecation signal — e.g. a
-  // propagation leaves an item with no inbound refs, or a newly-bound fn
-  // shadows an existing one with an identical signature. Surface these as
-  // Constraints alongside merge and propagation conflicts, routed through
-  // the same `status` / `review` / LSP flow the other conflict types use.
-  //
-  // Auto-resolution defaults to "ignore": the item stays live, no op is
-  // emitted, the signal is informational. The Constraint stays visible to
-  // the author, who can then pick from:
-  //   (a) commit the auto-ignore ("reviewed, intentional") — records the
-  //       acknowledgement so the signal doesn't re-fire on every future op,
-  //   (b) emit an explicit resolution: a Deprecate op (usually Obsolete
-  //       with a message, or SupersededBy pointing at the new item), a
-  //       SetName rebinding, or an Unbind.
-  //
-  // The point is a prompt-for-committed-resolution loop that parallels
-  // merge-conflict resolution — system surfaces what it noticed, author
-  // commits their intent, op log carries both.
+  // Deprecation: author-initiated annotation on a specific content hash. Always explicit; implicit
+  // deprecation signals raised as Constraints are a later design, not this.
   | Deprecate of target : Reference * kind : DeprecationKind * message : string
 
   // Clear any prior deprecation on a target.
@@ -706,22 +649,67 @@ type PackageOp =
   //   shouldn't silently un-Harmful on merge).
   | Undeprecate of target : Reference
 
-  // Propagation: when a definition is updated, propagate the change to all dependents.
-  // Item kind lives on the Reference; fromRefs and toRef always share a kind.
-  | PropagateUpdate of
-    propagationId : uuid *
-    sourceLocation : PackageLocation *
-    fromRefs : List<Reference> *
-    toRef : Reference *
-    repoints : List<PropagateRepoint>
+  // A human OVERRIDING an automatic binding: bind this name to THIS version, the one
+  // the machine did not pick. Two things use it, and they are the same act:
+  //   - resolving a conflict: take the version the deterministic fold rejected.
+  //     decisionId = conflict id
+  //   - pinning: put this back on the version it had before propagation moved it.
+  //     decisionId = the pin
+  //
+  // Its own op rather than another SetName, structurally: ops are content-addressed, so re-authoring
+  // `SetName(name -> that hash)` produces the op that ALREADY exists -- the one being reinstated -- which
+  // INSERT-OR-IGNOREs and folds nothing. `decisionId` is what makes it distinct, and records WHY the
+  // binding was forced.
+  //
+  // Idempotence is the CALLER's choice, via what it puts in `decisionId`: a conflict resolution uses the
+  // conflict id, so re-resolving #7 the same way is one decision stated twice; a pin stamps the id with a
+  // time, because pin -> follow -> pin is three decisions.
+  //
+  // The fold binds it with source='resolution' so `discard` will not wipe it, and gives it a fresh stamp
+  // so re-folding the ops that caused the situation cannot quietly undo it. A genuinely later edit still
+  // wins. The fold IGNORES `decisionId`: it is provenance and uniqueness, never a lookup key.
+  | Resolve of decisionId : string * location : PackageLocation * target : Reference
 
-  // Revert a propagation: restore previous versions atomically.
-  | RevertPropagation of
-    revertId : uuid *
-    revertedPropagationIds : List<uuid> *
-    sourceLocation : PackageLocation *
-    restoredSourceRef : Reference *
-    revertedRepoints : List<PropagateRepoint>
+  // A person's standing DECISION about a name, as opposed to a binding of one.
+  //
+  // Two things use it today and they're the same act -- someone deciding something
+  // about a location, and needing that decision to hold on every machine rather than
+  // only the one they typed it on:
+  //   - propagation policy: `kind = "propagation"`, `value` = "pin" | "follow"
+  //   - a Constraint ack:   `kind = "constraint-ack"`, `value` = the finding id
+  //
+  // An OP rather than a row because a decision that does not travel is half a decision: an ack held only
+  // locally re-reports forever, and differently on each machine.
+  //
+  // The fold writes it to whichever projection owns that kind (`propagation_policy`, `conflicts`), keeping
+  // those tables derived rather than a second source of truth. Last-write-wins on
+  // (kind, location, value-key) by origin_ts. `reason` is the author's words, carried and never
+  // interpreted.
+  //
+  // `decidedAt` is what makes each decision a DISTINCT op. Without it, pin -> unset -> pin produces a third
+  // op byte-identical to the first, which dedups to the first op's origin_ts and so loses to the unset
+  // under LWW -- the second pin silently does nothing.
+  | Decide of
+    kind : string *
+    location : PackageLocation *
+    value : string *
+    reason : string *
+    decidedAt : string
+
+  /// Something that happened to a BRANCH, as opposed to something that happened to a name.
+  ///
+  /// Merging is otherwise local: the merged ops travel (they are main ops now) and
+  /// the two mains converge on identical hashes, but the FACT of the merge does not,
+  /// so a colleague's branch still lists as live work and they can keep authoring on
+  /// something that already landed.
+  ///
+  /// An event for a branch this store has never heard of folds to nothing. That is
+  /// not a failure: branch ids travel with a bundle, so the ones you share match,
+  /// and the ones you do not share are none of your business.
+  | BranchEvent of branchId : string * event : BranchEventKind * at : string
+
+// Deliberately no PropagateUpdate / RevertPropagation op. "These changes belong
+// together" is the COMMIT, and "this version lost" is a recorded conflict.
 
 //   | MoveItem of item: uuid * from : Location * to_: Location
 //   // we can punt this for now, I think
@@ -753,7 +741,8 @@ and ItemKind =
 
   /// Convert to database string representation
   /// CLEANUP might be appropriate to either migrate these fns to LibSerialization,
-  // or replace them w/ _binary_ serializer equivs (but, then DB is less queryable by humans directly)
+  // or replace them w/ _binary_ serializer equivs (but, then DB is less queryable by
+  // humans directly)
   member this.toString() : string =
     match this with
     | Fn -> "fn"
@@ -810,7 +799,8 @@ and DeprecationKind =
   | Obsolete
 
 
-// A single repoint operation within a PropagateUpdate.
+// A single repoint: what propagation moved, reported back to the caller so it can say so.
+// NOT an op -- the actual state change is the accompanying SetName.
 // `fromRef`/`toRef` carry both the hash and the item kind.
 and PropagateRepoint =
   { location : PackageLocation; fromRef : Reference; toRef : Reference }
@@ -863,11 +853,11 @@ module Search =
 /// but there's a chance of Local <-> Cloud not being fully in sync,
 /// for whatever reasons.
 type PackageManager =
-  { findType : (BranchId * PackageLocation) -> Ply<Option<FQTypeName.Package>>
-    findValue : (BranchId * PackageLocation) -> Ply<Option<FQValueName.Package>>
-    findFn : (BranchId * PackageLocation) -> Ply<Option<FQFnName.Package>>
+  { findType : PackageLocation -> Ply<Option<FQTypeName.Package>>
+    findValue : PackageLocation -> Ply<Option<FQValueName.Package>>
+    findFn : PackageLocation -> Ply<Option<FQFnName.Package>>
 
-    search : (BranchId * Search.SearchQuery) -> Ply<Search.SearchResults>
+    search : Search.SearchQuery -> Ply<Search.SearchResults>
 
     // CLEANUP why does the PT one even need these?
     getType : FQTypeName.Package -> Ply<Option<PackageType.PackageType>>
@@ -875,28 +865,27 @@ type PackageManager =
     getFn : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
 
     // Reverse lookups — returns ALL locations for a hash
-    getTypeLocations : BranchId -> FQTypeName.Package -> Ply<List<PackageLocation>>
-    getValueLocations : BranchId -> FQValueName.Package -> Ply<List<PackageLocation>>
-    getFnLocations : BranchId -> FQFnName.Package -> Ply<List<PackageLocation>>
+    getTypeLocations : FQTypeName.Package -> Ply<List<PackageLocation>>
+    getValueLocations : FQValueName.Package -> Ply<List<PackageLocation>>
+    getFnLocations : FQFnName.Package -> Ply<List<PackageLocation>>
 
     init : Ply<unit> }
 
 
   static member empty =
-    { findType = fun (_, _) -> Ply None
-      findFn = fun (_, _) -> Ply None
-      findValue = fun (_, _) -> Ply None
+    { findType = fun _ -> Ply None
+      findFn = fun _ -> Ply None
+      findValue = fun _ -> Ply None
 
-      search =
-        fun (_, _) -> Ply { submodules = []; types = []; values = []; fns = [] }
+      search = fun _ -> Ply { submodules = []; types = []; values = []; fns = [] }
 
       getType = fun _ -> Ply None
       getFn = fun _ -> Ply None
       getValue = fun _ -> Ply None
 
-      getTypeLocations = fun _ _ -> Ply []
-      getValueLocations = fun _ _ -> Ply []
-      getFnLocations = fun _ _ -> Ply []
+      getTypeLocations = fun _ -> Ply []
+      getValueLocations = fun _ -> Ply []
+      getFnLocations = fun _ -> Ply []
 
       init = uply { return () } }
 
@@ -944,24 +933,24 @@ type PackageManager =
     let fnHashToFn = fns |> List.map (fun (f, _) -> f.hash, f) |> Map.ofList
 
     { findType =
-        fun (branchId, location) ->
+        fun location ->
           match Map.tryFind location typeLocationToHash with
           | Some hash -> Ply(Some hash)
-          | None -> pm.findType (branchId, location)
+          | None -> pm.findType location
 
       findValue =
-        fun (branchId, location) ->
+        fun location ->
           match Map.tryFind location valueLocationToHash with
           | Some hash -> Ply(Some hash)
-          | None -> pm.findValue (branchId, location)
+          | None -> pm.findValue location
 
       findFn =
-        fun (branchId, location) ->
+        fun location ->
           match Map.tryFind location fnLocationToHash with
           | Some hash -> Ply(Some hash)
-          | None -> pm.findFn (branchId, location)
+          | None -> pm.findFn location
 
-      search = fun (branchId, query) -> pm.search (branchId, query)
+      search = fun query -> pm.search query
 
       getType =
         fun hash ->
@@ -982,28 +971,28 @@ type PackageManager =
           | None -> pm.getFn hash
 
       getTypeLocations =
-        fun branchId hash ->
+        fun hash ->
           uply {
             let local =
               Map.tryFind hash typeHashToLocations |> Option.defaultValue []
-            let! fallback = pm.getTypeLocations branchId hash
+            let! fallback = pm.getTypeLocations hash
             return local @ fallback
           }
 
       getValueLocations =
-        fun branchId hash ->
+        fun hash ->
           uply {
             let local =
               Map.tryFind hash valueHashToLocations |> Option.defaultValue []
-            let! fallback = pm.getValueLocations branchId hash
+            let! fallback = pm.getValueLocations hash
             return local @ fallback
           }
 
       getFnLocations =
-        fun branchId hash ->
+        fun hash ->
           uply {
             let local = Map.tryFind hash fnHashToLocations |> Option.defaultValue []
-            let! fallback = pm.getFnLocations branchId hash
+            let! fallback = pm.getFnLocations hash
             return local @ fallback
           }
 

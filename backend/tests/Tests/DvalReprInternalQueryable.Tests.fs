@@ -25,7 +25,6 @@ let toRepr (dval : RT.Dval) : string =
       Exe.noTracing
       (fun _ _ _ _ -> uply { return () })
       (fun _ _ _ _ -> uply { return () })
-      PT.mainBranchId
       { dbs = Map.empty }
   (Exe.dvalToRepr state dval).Result
 let bogusThreadID = guuid ()

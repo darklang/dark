@@ -68,7 +68,7 @@ module ModuleDeclaration =
         Stdlib.List.append otherModules [ updatedModule ]
 
   let withType
-    (branchId: Uuid)
+    (branchId: String)
     (ms: List<Module>)
     (t: LanguageTools.ProgramTypes.PackageType.PackageType)
     : List<Module> =
@@ -145,7 +145,7 @@ module ModuleDeclaration =
         Stdlib.List.append otherModules [ updatedModule ]
 
   let withFn
-    (branchId: Uuid)
+    (branchId: String)
     (ms: List<Module>)
     (f: LanguageTools.ProgramTypes.PackageFn.PackageFn)
     : List<Module> =
@@ -221,7 +221,7 @@ module ModuleDeclaration =
         Stdlib.List.append otherModules [ updatedModule ]
 
   let withValue
-    (branchId: Uuid)
+    (branchId: String)
     (ms: List<Module>)
     (v: LanguageTools.ProgramTypes.PackageValue.PackageValue)
     : List<Module> =
@@ -301,7 +301,7 @@ module ModuleDeclaration =
 
 
   let toModules
-    (branchId: Uuid)
+    (branchId: String)
     (p: LanguageTools.ProgramTypes.Definitions)
     : List<Module> =
     let empty = []

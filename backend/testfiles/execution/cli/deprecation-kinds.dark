@@ -1,0 +1,44 @@
+// `--kind harmful` is a promise about the RUNTIME, and the runtime can only keep it for fns: the gate is a
+// call-site check, so a marked type or value has no point at which to halt. Accepting the combination
+// reports success for a safety marking that can never fire, which is the failure worth a test -- nothing
+// errors, and you believe something dangerous is fenced off when it isn't.
+//
+// `parseKind` is where that belongs, because it is the one place all three kinds meet the item kind.
+
+module Kinds =
+  let parse
+    (item: Darklang.LanguageTools.ProgramTypes.ItemKind)
+    (kind: String)
+    : Stdlib.Result.Result<Darklang.LanguageTools.ProgramTypes.DeprecationKind, String> =
+    Darklang.Cli.Packages.Deprecate.parseKind item kind Stdlib.Option.Option.None
+
+  let refused
+    (item: Darklang.LanguageTools.ProgramTypes.ItemKind)
+    (kind: String)
+    : Bool =
+    match Kinds.parse item kind with
+    | Error _ -> true
+    | Ok _ -> false
+
+// Harmful is fn-only.
+Kinds.parse Darklang.LanguageTools.ProgramTypes.ItemKind.Fn "harmful" =
+  Stdlib.Result.Result.Ok Darklang.LanguageTools.ProgramTypes.DeprecationKind.Harmful
+
+Kinds.refused Darklang.LanguageTools.ProgramTypes.ItemKind.Value "harmful" = true
+Kinds.refused Darklang.LanguageTools.ProgramTypes.ItemKind.Type "harmful" = true
+
+// Obsolete is the kind that DOES apply to all three, and is what the refusal points at.
+Kinds.parse Darklang.LanguageTools.ProgramTypes.ItemKind.Fn "obsolete" =
+  Stdlib.Result.Result.Ok Darklang.LanguageTools.ProgramTypes.DeprecationKind.Obsolete
+
+Kinds.parse Darklang.LanguageTools.ProgramTypes.ItemKind.Value "obsolete" =
+  Stdlib.Result.Result.Ok Darklang.LanguageTools.ProgramTypes.DeprecationKind.Obsolete
+
+Kinds.parse Darklang.LanguageTools.ProgramTypes.ItemKind.Type "obsolete" =
+  Stdlib.Result.Result.Ok Darklang.LanguageTools.ProgramTypes.DeprecationKind.Obsolete
+
+// superseded-by needs a replacement, whatever the item kind.
+Kinds.refused Darklang.LanguageTools.ProgramTypes.ItemKind.Fn "superseded-by" = true
+
+// An unknown kind is still an unknown kind, not a harmful-shaped refusal.
+Kinds.refused Darklang.LanguageTools.ProgramTypes.ItemKind.Fn "not-a-kind" = true

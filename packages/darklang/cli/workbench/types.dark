@@ -69,6 +69,13 @@ type State =
     /// by `refreshBadges`.
     wipNames: List<String>
     deprecatedNames: List<String>
+    /// The whole SCM picture, read once per transition rather than per surface.
+    ///
+    /// Home, the tree's badges, the SCM view and the frame's conflict badge all describe these same facts
+    /// and each used to read them separately, which is how they could disagree between redraws. Refreshed
+    /// by `refreshScmStatus`, whose invalidation rule is deliberately wider than the badges' -- committing,
+    /// discarding and pinning all change this without moving you or the item list.
+    scmStatus: ScmStatus
     /// The tree-native view peek: the captured output of the selected `render` fn, or "" when the selection
     /// isn't one.
     ///
@@ -92,7 +99,7 @@ type State =
     matterLens: String
     /// In-view find-as-you-type filter (`f`); "" = no filter. Narrows the current list by substring.
     filter: String
-    branchId: Uuid }
+    branchId: String }
 
 /// A single-line text entry. `action` tags what Enter does (e.g. "commit").
 type InputState =

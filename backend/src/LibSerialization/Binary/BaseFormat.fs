@@ -9,7 +9,10 @@ let CurrentVersion = 1u
 /// Binary file header structure (8 bytes)
 type BinaryHeader =
   {
-    // TODO: this seems useless? at least until we start shipping non-alpha versions.
+    // The blob's format version. Passed to version-dispatched readers
+    // (makeDeserializerV) so a new binary can decode an OLD layout by branching on
+    // it -- the migrator's keystone (SPEC section 10). Bump CurrentVersion on any
+    // wire-layout change and add the matching readVN.
     Version : uint32 // 4 bytes - format version
     DataLength : uint32 } // 4 bytes - payload size
 

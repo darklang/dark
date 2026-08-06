@@ -34,42 +34,72 @@ let deviceConfigText () : String =
         "  :config list                    show everything" ] ]
   |> Stdlib.String.join "\n"
 
-/// The Devices view: instances and how they sync. Discovery-mechanism-agnostic (no tailscale branding). Setup
-/// + cross-instance sync health live here; conflict resolution links over to SCM. Instance identity + config
-/// are real (from cli-config.json); the peers/branch-sync feed is mock until the sync backend feeds it.
+/// The Devices view: this instance, the relay it talks to, and what it has.
+///
+/// Everything on it is read from the store. It used to invent a peer called `laptop-2` that was offline two
+/// hours ago and three branches with made-up ahead/behind counts, which is worse than an empty screen: a
+/// made-up number is indistinguishable from a real one, and the first time it matters you believe it.
+///
+/// Conflict resolution deliberately isn't here. This screen is the machinery -- where your code lives and
+/// how it travels. What arrived and what needs a decision is SCM's, and splitting them that way is why
+/// neither has to guess about the other.
 let renderDevices (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
-  let branch =
-    match SCM.Branch.get state.branchId with
-    | Some b -> b.name
-    | None -> "main"
   let owner = if state.accountName == "" then "you" else state.accountName
   let hdr = fun t -> Colors.colorize (Colors.bold ++ Colors.cyan) t
   let on = Colors.colorize Colors.green "●"
   let off = Colors.dimText "○"
+
+  let relay = SCM.PackageOps.relay ()
+  let identity = SCM.PackageOps.identity ()
+  let ops = SCM.PackageOps.count ()
+
+  let relayLines =
+    if relay == "" then
+      [ "   " ++ off ++ "  " ++ (Colors.dimText "no relay. `dark connect <url>` to set one up.") ]
+    else
+      let cursor = SCM.PackageOps.pullCursor relay
+      let pulled =
+        if cursor == 0L then
+          Colors.dimText "nothing pulled from it yet"
+        else
+          Colors.dimText ("caught up to op " ++ (Stdlib.Int64.toString cursor))
+      [ "   " ++ on ++ "  " ++ relay
+        "   " ++ (Colors.dimText "as ") ++ identity ++ "     " ++ pulled ]
+
+  // Branches with their frontier sizes. Real, and the honest version of what the mock "branch sync" block
+  // was gesturing at: how much work is sitting on each line of work.
+  let branches = SCM.Branch.list () |> Stdlib.List.filter (fun b -> Stdlib.Bool.not b.merged)
+
+  let branchLines =
+    if Stdlib.List.isEmpty branches then
+      [ "   " ++ (Colors.dimText "no branches. everything is on main.") ]
+    else
+      branches
+      |> Stdlib.List.take 6
+      |> Stdlib.List.map (fun b ->
+        let marker = if b.id == state.branchId then Colors.boldText b.name else Colors.dimText b.name
+        "   " ++ marker ++ "     " ++ (Colors.dimText ((Stdlib.Int64.toString b.ops) ++ " ops")))
+
   boxedLines
     region
     "Devices"
-    [ hdr "This instance"
-      "   " ++ on ++ "  " ++ state.instanceName ++ " (" ++ owner ++ ")      online     sync: auto"
-      ""
-      hdr "Dark Matter  ·  matter.darklang.com"
-      "   " ++ (Colors.dimText "the central distribution hub - all public Darklang code, fine-grained")
-      "   " ++ on ++ "  connected     auto-syncing public code     " ++ (Colors.dimText "(mock)")
-      ""
-      hdr "Peers  ·  (mock data)"
-      "   " ++ off ++ "  laptop-2           offline    last seen 2h ago"
-      ""
-      hdr "Branch sync  ·  (mock data)"
-      "   " ++ (Colors.boldText "main") ++ "         " ++ (Colors.colorize Colors.green "in sync")
-      "   " ++ (Colors.dimText "ai/sync      ahead 3, behind 1")
-      "   " ++ (Colors.dimText "experiments  local only")
-      ""
-      hdr "Configuration  ·  real (cli-config.json)"
-      "   " ++ (Colors.dimText "instance.name  ") ++ state.instanceName
-      "   " ++ (Colors.dimText "instance.id    ") ++ (Stdlib.String.slice (configValueOr "instance.id" "(unset)") 0 8) ++ (Colors.dimText "…")
-      "   " ++ (Colors.dimText "sync.mode      ") ++ (configValueOr "sync.mode" "auto (default)")
-      ""
-      Colors.dimText "   a add peer  ·  s sync now  ·  c view/edit config     conflicts live in SCM" ]
+    (Stdlib.List.flatten
+      [ [ hdr "This instance"
+          "   " ++ on ++ "  " ++ state.instanceName ++ " (" ++ owner ++ ")"
+          "   " ++ (Colors.dimText ((Stdlib.Int64.toString ops) ++ " ops in the log"))
+          ""
+          hdr "Relay" ]
+        relayLines
+        [ ""
+          hdr "Branches" ]
+        branchLines
+        [ ""
+          hdr "Configuration  ·  cli-config.json"
+          "   " ++ (Colors.dimText "instance.name  ") ++ state.instanceName
+          "   " ++ (Colors.dimText "instance.id    ") ++ (Stdlib.String.slice (configValueOr "instance.id" "(unset)") 0 8) ++ (Colors.dimText "...")
+          ""
+          Colors.dimText "   s sync  ·  c view/edit config     what arrived, and conflicts, live in SCM" ] ])
+
 
 /// The AI view: agents dark is running (preview data for now) with a thread detail. `a` asks the agent.
 /// Prompts library + real managed-agent state come later.

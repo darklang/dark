@@ -242,14 +242,16 @@ if [[ -n "$SEED_PATH" ]]; then
   fi
   echo "Using pre-exported seed: $SEED_PATH"
   mkdir -p rundir
-  cp "$SEED_PATH" rundir/data.db
+  cp "$SEED_PATH" rundir/seed.db
 else
   echo "Exporting seed for embedding..."
   sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || true
   scripts/run-local-exec export-seed rundir/seed.db
-  cp rundir/seed.db rundir/data.db
 fi
-echo "Embedded data.db is the seed ($(du -h rundir/data.db | cut -f1))"
+# The project embeds `rundir/seed.db`, not `rundir/data.db`. Writing the seed over data.db would build the
+# exe correctly and take the developer's working store with it -- branches, config and all -- as a side
+# effect of a build.
+echo "Embedded seed ready ($(du -h rundir/seed.db | cut -f1))"
 
 # AOT-published CLIs statically link libe_sqlite3 (DirectPInvoke binding in
 # Cli.fsproj), so the per-RID archives must exist before `dotnet publish`.

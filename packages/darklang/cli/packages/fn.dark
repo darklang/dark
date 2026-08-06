@@ -21,7 +21,20 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let inlineDefinition =
       match cleanedParts with
       | [ "-" ] -> Builtin.stdinReadAll ()
-      | parts -> Stdlib.String.join parts " "
+      | parts ->
+        // Same as `type` and `val`: strip a leading "=" from the JOINED string, not only when it arrived as
+        // its own argument. `fn Foo = "(x: Int64): Int64 = x"` already worked because the shell split the
+        // separator off; quoting it into the definition produced "Internal error: unexpected declaration",
+        // which is both a failure and an unhelpful way to report one.
+        //
+        // Only a LEADING "=" goes. The one inside `(x: Int64): Int64 = x` is the function body separator and
+        // must survive, which is why this strips exactly one character off the front rather than splitting.
+        let joined = Stdlib.String.join parts " " |> Stdlib.String.trim
+
+        if Stdlib.String.startsWith joined "=" then
+          Stdlib.String.dropFirst joined 1 |> Stdlib.String.trim
+        else
+          joined
 
     if Stdlib.String.isEmpty inlineDefinition then
       // No body provided - show error
@@ -130,7 +143,7 @@ let createFnInline
           // Create ops: AddFn and SetName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
-              LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn packageFn.hash) ]
+              LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn packageFn.hash, Stdlib.Option.Option.None) ]
 
           // Add ops as WIP (use 'scm commit' to commit)
           match SCM.PackageOps.add state.currentBranchId ops with
@@ -142,9 +155,10 @@ let createFnInline
             Stdlib.printLine ""
             Stdlib.printLine (Colors.success $"✓ {action} function: {fullPath}")
 
-            // Auto-propagate if this is an update
+            // Repoint dependents NOW, into the draft, so you can run them against this change before
+            // deciding whether to commit. Nothing is committed; `dark commit` is still the blessing.
             if isUpdate then
-              Propagate.autoPropagateAfterUpdate state.currentBranchId location packageFn.hash LanguageTools.ProgramTypes.ItemKind.Fn
+              Propagate.repointNow state.currentBranchId location previousHashes packageFn.hash LanguageTools.ProgramTypes.ItemKind.Fn
 
             Stdlib.printLine ""
             state

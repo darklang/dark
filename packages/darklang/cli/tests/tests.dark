@@ -75,13 +75,16 @@ let testVersionCommand (): TestResult =
 
 
 let testStatusCommand (): TestResult =
+  // Two things, because `status` is the one signal you get while editing: WHERE you are, and WHAT you have.
+  // The branch line matters most when several branches are in play, which is the normal case now.
   let output = runWithCommand ["status"]
   if Stdlib.String.contains output "On branch" &&
-      (Stdlib.String.contains output "No uncommitted changes." ||
-       Stdlib.String.contains output "Uncommitted changes:") then
+      (Stdlib.String.contains output "clean:" ||
+       Stdlib.String.contains output "draft:") then
     TestResult.Pass
   else
-    TestResult.Fail "Expected status output with branch and uncommitted change summary"
+    TestResult.Fail
+      $"Expected `status` to name the branch and summarise the draft; got: {output}"
 
 
 let testEvalBoolAnd (): TestResult =

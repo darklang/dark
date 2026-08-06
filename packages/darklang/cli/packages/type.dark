@@ -21,7 +21,19 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let inlineDefinition =
       match cleanedParts with
       | [ "-" ] -> Builtin.stdinReadAll ()
-      | parts -> Stdlib.String.join parts " "
+      | parts ->
+        // Strip a leading "=" from the JOINED string too, not just when it arrived as its own argument.
+        // `type Foo = <def>` unquoted splits into a separate "=" token and was already handled; `type Foo
+        // "= <def>"` quotes it into the definition, where it used to reach the parser and fail. The help
+        // example is written in the unquoted form, so anyone quoting -- which is what you do from a script,
+        // or when the definition contains shell metacharacters like `|` -- hit a parse error on the
+        // documented syntax.
+        let joined = Stdlib.String.join parts " " |> Stdlib.String.trim
+
+        if Stdlib.String.startsWith joined "=" then
+          Stdlib.String.dropFirst joined 1 |> Stdlib.String.trim
+        else
+          joined
 
     if Stdlib.String.isEmpty inlineDefinition then
       // No inline definition provided - show error
@@ -114,7 +126,7 @@ let createTypeInline
           // Create ops: AddType and SetName
           let ops =
             [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
-              LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageType packageType.hash) ]
+              LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageType packageType.hash, Stdlib.Option.Option.None) ]
 
           // Add ops as WIP (use 'scm commit' to commit)
           match SCM.PackageOps.add state.currentBranchId ops with
@@ -126,9 +138,10 @@ let createTypeInline
             Stdlib.printLine ""
             Stdlib.printLine (Colors.success $"✓ {action} type: {fullPath}")
 
-            // Auto-propagate if this is an update
+            // Repoint dependents NOW, into the draft, so you can run them against this change before
+            // deciding whether to commit. Nothing is committed; `dark commit` is still the blessing.
             if isUpdate then
-              Propagate.autoPropagateAfterUpdate state.currentBranchId location packageType.hash LanguageTools.ProgramTypes.ItemKind.Type
+              Propagate.repointNow state.currentBranchId location previousHashes packageType.hash LanguageTools.ProgramTypes.ItemKind.Type
 
             Stdlib.printLine ""
             state

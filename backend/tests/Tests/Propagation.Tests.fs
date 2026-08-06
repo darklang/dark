@@ -1,2268 +1,575 @@
+/// Propagation: when an item changes, what follows it up, and what doesn't.
+///
+/// Editing an item gives it a new content hash, so everything referring to it now
+/// refers to a version that is no longer what the name means. The cascade closes
+/// that gap: it re-authors each dependent against the new hash, recursively, and
+/// overridable per item.
+///
+/// These drive `LibDB.Propagation.propagate` against a real store, the same call the authoring path makes.
 module Tests.Propagation
+
+open Expecto
 
 open System.Threading.Tasks
 open FSharp.Control.Tasks
 
-open Expecto
 open Prelude
 
-open TestUtils.TestUtils
-open TestUtils.PTShortcuts
+open Fumble
+open LibDB.Sqlite
 
 module PT = LibExecution.ProgramTypes
-module Branches = LibDB.Branches
+module RT = LibExecution.RuntimeTypes
+module PM = LibDB.PackageManager
+module HS = LibDB.HashStabilization
+module Package = LibParser.Package
+module NR = LibParser.NameResolver
 module Inserts = LibDB.Inserts
-module Queries = LibDB.Queries
+module WipRefresh = LibDB.WipRefresh
 module Propagation = LibDB.Propagation
 
+open TestUtils.TestUtils
 
-// ── Helpers ──────────────────────────────────────────────────────────────
+let private pmPT = PM.pt
 
-let private loc (name : string) : PT.PackageLocation =
-  { owner = "Test"; modules = [ "Prop" ]; name = name }
-
-let private hashStr (PT.Hash h) = h
-
-let private makeFn (body : PT.Expr) : PT.PackageFn.PackageFn =
-  testPackageFn [] (NEList.singleton "x") PT.TInt64 body
-
-let private callFn (fnId : PT.Hash) : PT.Expr =
-  eApply (ePackageFn (hashStr fnId)) [] [ eVar "x" ]
-
-let private addFnAt
-  (branchId : PT.BranchId)
-  (location : PT.PackageLocation)
-  (fn : PT.PackageFn.PackageFn)
-  : Task<unit> =
+/// Author source into MAIN the way the CLI does: parse, stabilize SCC-aware hashes,
+/// insert + fold.
+let private author (source : string) : Task<List<PT.PackageOp>> =
   task {
-    let! _ =
-      Inserts.insertAndApplyOpsAsWip
-        branchId
-        [ PT.PackageOp.AddFn fn
-          PT.PackageOp.SetName(location, PT.PackageFn fn.hash) ]
-    ()
+    let builtins = localBuiltIns pmPT
+    let! parsed =
+      Package.parse builtins pmPT NR.OnMissing.ThrowError source |> Ply.toTask
+    match parsed with
+    | Ok ops ->
+      let stabilized = HS.computeRealHashes ops
+      let! _ = Inserts.insertAndApplyOpsAsWip stabilized
+      // The same second step the authoring builtin does: re-resolve names and
+      // recompute SCC-aware hashes now that the new items exist. Skipping it leaves
+      // forward references unresolved, so the dependency edges the cascade reads are
+      // never written.
+      let! _ = WipRefresh.refresh pmPT
+      return stabilized
+    | Error errs ->
+      return Exception.raiseInternal "propagation test parse failed" [ "errs", errs ]
   }
 
-let private setupBranch (name : string) : Task<PT.BranchId> =
-  task {
-    let! branch = Branches.create name PT.mainBranchId
-    return branch.id
-  }
+let private loc (m : string) (name : string) : PT.PackageLocation =
+  { owner = "Darklang"; modules = [ m ]; name = name }
 
-let private discardAndDeleteBranch (branchId : PT.BranchId) : Task<unit> =
-  task {
-    let! _ = Inserts.discardWipOps branchId
-    let! _ = Branches.delete branchId
-    ()
-  }
+/// What `locations` currently binds a name to.
+let private liveHash (l : PT.PackageLocation) : Task<Option<string>> =
+  Sql.query
+    "SELECT item_hash FROM locations
+     WHERE owner = @o AND modules = @m AND name = @n AND unlisted_at IS NULL LIMIT 1"
+  |> Sql.parameters
+    [ "o", Sql.string l.owner
+      "m", Sql.string (String.concat "." l.modules)
+      "n", Sql.string l.name ]
+  |> Sql.executeRowOptionAsync (fun read -> read.string "item_hash")
 
-let private propagateOrFail
-  (branchId : PT.BranchId)
-  (location : PT.PackageLocation)
-  (fromHashes : List<PT.Hash>)
+/// The hash a set of authored ops BOUND to a name. Read off the SetName, not the
+/// AddFn: an AddFn carries content and no name at all -- naming is a separate op,
+/// which is the whole point of the model.
+let private hashOfFn (ops : List<PT.PackageOp>) (name : string) : PT.Hash =
+  ops
+  |> List.tryPick (fun op ->
+    match op with
+    | PT.PackageOp.SetName(l, target, _) when l.name = name -> Some target.hash
+    | _ -> None)
+  |> Option.defaultWith (fun () ->
+    Exception.raiseInternal "no SetName for name" [ "name", name ])
+
+let private hashStr (h : PT.Hash) : string =
+  let (PT.Hash s) = h
+  s
+
+/// Run the cascade for a source item that moved from <fromHash> to <toHash>,
+/// applying the ops it produces -- i.e. exactly what the authoring path does after
+/// an edit.
+let private cascade
+  (l : PT.PackageLocation)
+  (fromHash : PT.Hash)
   (toHash : PT.Hash)
-  : Task<Propagation.PropagationResult * List<PT.PackageOp>> =
+  : Task<List<string>> =
   task {
-    let! result =
-      Propagation.propagate branchId location PT.ItemKind.Fn fromHashes toHash
-    match result with
-    | Ok(Some(r, ops)) -> return (r, ops)
-    | Ok None -> return failtest "expected dependents, got None"
-    | Error e -> return failtest $"propagate failed: {e}"
+    match! Propagation.propagate None l PT.ItemKind.Fn [ fromHash ] toHash with
+    | Ok(Some(result, ops)) ->
+      let! _ = Inserts.insertAndApplyPropagatedOps ops
+      return result.repoints |> List.map (fun r -> r.location.name)
+    | Ok None -> return []
+    | Error e -> return Exception.raiseInternal "propagate errored" [ "e", e ]
   }
 
-
-// ── Tests ────────────────────────────────────────────────────────────────
-
-let testPropagateOps =
-  testTask "propagate: produces AddFn + SetFnName + PropagateUpdate" {
-    let! branchId = setupBranch "test-prop-ops"
-
-    // let base (x: Int64) : Int64 = x
-    let baseFnV1 = makeFn (eVar "x")
-    do! addFnAt branchId (loc "base") baseFnV1
-
-    // let caller (x: Int64) : Int64 = base x
-    let callerFn = makeFn (callFn baseFnV1.hash)
-    do! addFnAt branchId (loc "caller") callerFn
-
-    // let base (x: Int64) : Int64 = x + 1
-    let baseFnV2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
-    do! addFnAt branchId (loc "base") baseFnV2
-
-    let! (_propResult, propOps) =
-      propagateOrFail branchId (loc "base") [ baseFnV1.hash ] baseFnV2.hash
-
-    match propOps with
-    | [ PT.PackageOp.AddFn newCallerFn
-        PT.PackageOp.SetName(nameLoc, PT.PackageFn nameId)
-        PT.PackageOp.PropagateUpdate(_propId, srcLoc, fromRefs, toRef, reps) ] ->
-
-      Expect.notEqual baseFnV2.hash baseFnV1.hash "base v2 gets a fresh hash"
-      Expect.equal
-        srcLoc
-        (loc "base")
-        "the propagation was triggered by a change to base"
-      Expect.equal
-        (fromRefs |> List.map _.hash)
-        [ baseFnV1.hash ]
-        "the old versions list contains base v1"
-      Expect.equal toRef.hash baseFnV2.hash "the new version is base v2"
-
-      Expect.notEqual newCallerFn.hash callerFn.hash "new caller gets a fresh hash"
-      Expect.equal nameId newCallerFn.hash "the name is assigned to the new caller"
-      Expect.equal
-        nameLoc
-        (loc "caller")
-        "the new caller has the same location as the old caller"
-
-      let repoint : PT.PropagateRepoint = List.head reps |> Option.get
-      Expect.equal
-        repoint.location
-        (loc "caller")
-        "the repoint targets the caller location"
-      Expect.equal repoint.fromRef.hash callerFn.hash "the old caller was replaced"
-      Expect.equal
-        repoint.toRef.hash
-        newCallerFn.hash
-        "the new caller took its place"
-
-    | _ -> failtest $"unexpected ops: {propOps}"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testTransitiveOps =
-  testTask "transitive: A→B→C, propagating A repoints B and C" {
-    let! branchId = setupBranch "test-transitive-ops"
-
-    // let chainA (x: Int64) : Int64 = x
-    let fnA = makeFn (eVar "x")
-    do! addFnAt branchId (loc "chainA") fnA
-
-    // let chainB (x: Int64) : Int64 = chainA x
-    let fnB = makeFn (callFn fnA.hash)
-    do! addFnAt branchId (loc "chainB") fnB
-
-    // let chainC (x: Int64) : Int64 = chainB x
-    let fnC = makeFn (callFn fnB.hash)
-    do! addFnAt branchId (loc "chainC") fnC
-
-    // let chainA (x: Int64) : Int64 = x + 1
-    let fnA2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
-    do! addFnAt branchId (loc "chainA") fnA2
-
-    let! (_propResult, propOps) =
-      propagateOrFail branchId (loc "chainA") [ fnA.hash ] fnA2.hash
-
-    // 5 ops: AddFn(B') + SetFnName(B') + AddFn(C') + SetFnName(C') + PropagateUpdate
-    Expect.hasLength propOps 5 "5 ops"
-
-    match propOps |> List.last |> Option.get with
-    | PT.PackageOp.PropagateUpdate(_, _, _, _, reps) ->
-      let fromHashes =
-        reps
-        |> List.map (fun (r : PT.PropagateRepoint) -> r.fromRef.hash)
-        |> Set.ofList
-      Expect.contains fromHashes fnB.hash "B repointed"
-      Expect.contains fromHashes fnC.hash "C repointed"
-    | op -> failtest $"expected PropagateUpdate, got {op}"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testNoDependents =
-  testTask "no dependents: propagate returns None" {
-    let! branchId = setupBranch "test-no-deps"
-
-    // let lonely (x: Int64) : Int64 = x
-    let v1 = makeFn (eVar "x")
-    do! addFnAt branchId (loc "lonely") v1
-
-    // let lonely (x: Int64) : Int64 = x + 1
-    let v2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
-    do! addFnAt branchId (loc "lonely") v2
-
-    let! result =
-      Propagation.propagate
-        branchId
-        (loc "lonely")
-        PT.ItemKind.Fn
-        [ v1.hash ]
-        v2.hash
-
-    match result with
-    | Ok None -> ()
-    | _ -> failtest "expected Ok None"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testCallersOnDifferentVersions =
-  testTask "callers on different versions all get repointed" {
-    let! branchId = setupBranch "test-multi-ver"
-
-    // mvBase v1, with caller1 referencing it
-    // let mvBase (x: Int64) : Int64 = x
-    let baseV1 = makeFn (eVar "x")
-    do! addFnAt branchId (loc "mvBase") baseV1
-
-    // let mvC1 (x: Int64) : Int64 = mvBase x
-    let caller1 = makeFn (callFn baseV1.hash)
-    do! addFnAt branchId (loc "mvC1") caller1
-
-    // mvBase v2, with caller2 referencing it
-    // let mvBase (x: Int64) : Int64 = x + 1
-    let baseV2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
-    do! addFnAt branchId (loc "mvBase") baseV2
-
-    // let mvC2 (x: Int64) : Int64 = mvBase x
-    let caller2 = makeFn (callFn baseV2.hash)
-    do! addFnAt branchId (loc "mvC2") caller2
-
-    // mvBase v3 — propagation should rewrite both caller1 and caller2
-    // let mvBase (x: Int64) : Int64 = x + 2
-    let baseV3 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 2L))
-    do! addFnAt branchId (loc "mvBase") baseV3
-
-    let! branchChain = Branches.getBranchChain branchId
-    let! allHashes =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "mvBase" "fn"
-    let prevHashes = allHashes |> List.filter (fun id -> id <> baseV3.hash)
-
-    let! (_propResult, propOps) =
-      propagateOrFail branchId (loc "mvBase") prevHashes baseV3.hash
-
-    // both callers get repointed, even though they referenced different versions
-    match propOps |> List.last |> Option.get with
-    | PT.PackageOp.PropagateUpdate(_, _, fromRefs, _, reps) ->
-      // Verify fromSourceHashes stores ALL previous hashes
-      let fromSourceSet = fromRefs |> List.map _.hash |> Set.ofList
-      Expect.contains fromSourceSet baseV1.hash "fromRefs should contain v1"
-      Expect.contains fromSourceSet baseV2.hash "fromRefs should contain v2"
-      Expect.hasLength fromRefs 2 "exactly two previous hashes stored"
-
-      let repointFromHashes =
-        reps
-        |> List.map (fun (r : PT.PropagateRepoint) -> r.fromRef.hash)
-        |> Set.ofList
-      Expect.contains
-        repointFromHashes
-        caller1.hash
-        "caller1 (referencing v1) was repointed"
-      Expect.contains
-        repointFromHashes
-        caller2.hash
-        "caller2 (referencing v2) was repointed"
-    | op -> failtest $"expected PropagateUpdate, got {op}"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-/// Generate a unique 64-hex-char hash (matching SHA-256 format).
-let private uniqueHash () : PT.Hash =
-  let bytes = System.Security.Cryptography.RandomNumberGenerator.GetBytes(32)
-  PT.Hash(System.BitConverter.ToString(bytes).Replace("-", "").ToLowerInvariant())
-
-let private makeType
-  (definition : PT.TypeDeclaration.Definition)
-  : PT.PackageType.PackageType =
-  { hash = uniqueHash ()
-    declaration = { typeParams = []; definition = definition }
-    description = "" }
-
-let private makeValue (body : PT.Expr) : PT.PackageValue.PackageValue =
-  { hash = uniqueHash (); body = body; description = "" }
-
-let private addTypeAt
-  (branchId : PT.BranchId)
-  (location : PT.PackageLocation)
-  (typ : PT.PackageType.PackageType)
-  : Task<unit> =
+/// Remove a test module's rows so a re-run starts clean. The op log is append-only and
+/// content-addressed, so every test also varies its bodies by a unique suffix.
+let private cleanupFor (owner : string) (m : string) : Task<unit> =
   task {
+    do!
+      Sql.query "DELETE FROM locations WHERE owner = @o AND modules = @m"
+      |> Sql.parameters [ "o", Sql.string owner; "m", Sql.string m ]
+      |> Sql.executeStatementAsync
+    do!
+      Sql.query "DELETE FROM propagation_policy WHERE owner = @o AND modules = @m"
+      |> Sql.parameters [ "o", Sql.string owner; "m", Sql.string m ]
+      |> Sql.executeStatementAsync
+  }
+
+let private cleanup (m : string) : Task<unit> = cleanupFor "Darklang" m
+
+
+let singleHop =
+  testTask "a dependent repoints when its dependency moves" {
+    let m = "PropTestHop"
+    do! cleanup m
+
+    let! v1 =
+      author
+        $"""module Darklang.{m}
+
+let base' (x: Int64) : Int64 = Stdlib.Int64.add x 1L"""
+
     let! _ =
-      Inserts.insertAndApplyOpsAsWip
-        branchId
-        [ PT.PackageOp.AddType typ
-          PT.PackageOp.SetName(location, PT.PackageType typ.hash) ]
-    ()
+      author
+        $"""module Darklang.{m}
+
+let dep (x: Int64) : Int64 = Stdlib.Int64.add ({m}.base' x) 10L"""
+
+    let! depBefore = liveHash (loc m "dep")
+    Expect.isSome depBefore "dep is bound after authoring"
+
+    let baseV1 = hashOfFn v1 "base'"
+
+    let! v2 =
+      author
+        $"""module Darklang.{m}
+
+let base' (x: Int64) : Int64 = Stdlib.Int64.add x 1000L"""
+
+    let baseV2 = hashOfFn v2 "base'"
+    Expect.notEqual baseV1 baseV2 "editing the body moves the content hash"
+
+    let! repointed = cascade (loc m "base'") baseV1 baseV2
+    Expect.contains repointed "dep" "the cascade reports repointing dep"
+
+    let! depAfter = liveHash (loc m "dep")
+    Expect.notEqual depAfter depBefore "dep is now bound to a NEW version of itself"
+
+    do! cleanup m
   }
 
-let private addValueAt
-  (branchId : PT.BranchId)
-  (location : PT.PackageLocation)
-  (value : PT.PackageValue.PackageValue)
-  : Task<unit> =
-  task {
-    let! _ =
-      Inserts.insertAndApplyOpsAsWip
-        branchId
-        [ PT.PackageOp.AddValue value
-          PT.PackageOp.SetName(location, PT.PackageValue value.hash) ]
-    ()
-  }
-
-
-let private findFn (branchId : PT.BranchId) (location : PT.PackageLocation) =
-  task {
-    let! chain = Branches.getBranchChain branchId
-    let! result = LibDB.ProgramTypes.Fn.find chain location
-    return result
-  }
-
-let private findType (branchId : PT.BranchId) (location : PT.PackageLocation) =
-  task {
-    let! chain = Branches.getBranchChain branchId
-    let! result = LibDB.ProgramTypes.Type.find chain location
-    return result
-  }
-
-let private findValue (branchId : PT.BranchId) (location : PT.PackageLocation) =
-  task {
-    let! chain = Branches.getBranchChain branchId
-    let! result = LibDB.ProgramTypes.Value.find chain location
-    return result
-  }
-
-let private commitAll (branchId : PT.BranchId) (msg : string) =
-  task {
-    let! result = Inserts.commitWipOps LibCloud.Account.IDs.darklang branchId msg
-    match result with
-    | Ok commitHash -> return commitHash
-    | Error e -> return failtest $"commit failed: {e}"
-  }
-
-
-
-
-let testMutualRecursion =
-  testTask "mutual recursion: A↔B, updating A creates new versions of both" {
-    let! branchId = setupBranch "test-mutual-rec"
-
-    // A calls B
-    // B calls A
-    // We'll set them up step by step.
-
-    // First create A with a simple body (we'll update it after B exists)
-    let fnA1 = makeFn (eVar "x")
-    do! addFnAt branchId (loc "mrA") fnA1
-
-    // Create B that calls A
-    let fnB1 = makeFn (callFn fnA1.hash)
-    do! addFnAt branchId (loc "mrB") fnB1
-
-    // Now update A to call B (creating the mutual recursion)
-    let fnA2 = makeFn (callFn fnB1.hash)
-    do! addFnAt branchId (loc "mrA") fnA2
-
-    // Now update A again — propagation should detect that:
-    // 1. B depends on old A (fnA2 or fnA1)
-    // 2. The new A (fnA3) depends on B (which is being replaced)
-    // 3. So A also needs a new hash (mutual recursion handling)
-    let fnA3 =
-      makeFn (
-        eInfix
-          (PT.InfixFnCall PT.ArithmeticPlus)
-          (eApply (ePackageFn (hashStr fnB1.hash)) [] [ eVar "x" ])
-          (eInt64 1L)
-      )
-    do! addFnAt branchId (loc "mrA") fnA3
-
-    let! branchChain = Branches.getBranchChain branchId
-    let! allHashes =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "mrA" "fn"
-    let prevHashes = allHashes |> List.filter (fun id -> id <> fnA3.hash)
-
-    let! result =
-      Propagation.propagate branchId (loc "mrA") PT.ItemKind.Fn prevHashes fnA3.hash
-
-    match result with
-    | Ok(Some((propResult : Propagation.PropagationResult), propOps)) ->
-      // Should have repoints for both A (source, due to mutual recursion) and B
-      let repointLocations =
-        propResult.repoints
-        |> List.map (fun (r : PT.PropagateRepoint) -> r.location)
-        |> Set.ofList
-
-      Expect.contains repointLocations (loc "mrB") "B should be repointed"
-      Expect.contains
-        repointLocations
-        (loc "mrA")
-        "A should be repointed (mutual recursion)"
-
-      // The final source hash should be different from fnA3 (new version created)
-      let sourceRepoint =
-        propResult.repoints
-        |> List.find (fun (r : PT.PropagateRepoint) -> r.location = loc "mrA")
-        |> Option.get
-      Expect.notEqual
-        sourceRepoint.toRef.hash
-        fnA3.hash
-        "source gets a new hash for mutual recursion"
-
-      // The ops should include AddFn + SetFnName for both B' and A'
-      let addFnCount =
-        propOps
-        |> List.filter (fun op ->
-          match op with
-          | PT.PackageOp.AddFn _ -> true
-          | _ -> false)
-        |> List.length
-      Expect.equal addFnCount 2 "two AddFn ops (B' and A')"
-    | Ok None -> failtest "expected dependents for mutual recursion"
-    | Error e -> failtest $"propagation failed: {e}"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testBranchIsolation =
-  testTask "branch isolation: propagation on branch A doesn't affect branch B" {
-    let! branchA = setupBranch "test-iso-a"
-    let! branchB = setupBranch "test-iso-b"
-
-    // Create fnBase on branch A
-    let fnBase = makeFn (eVar "x")
-    do! addFnAt branchA (loc "isoBase") fnBase
-
-    // Create callerA on branch A (depends on fnBase)
-    let callerA = makeFn (callFn fnBase.hash)
-    do! addFnAt branchA (loc "isoCallerA") callerA
-
-    // Create callerB on branch B that also references fnBase.hash
-    // This simulates a cross-branch reference — callerB's location is on branchB
-    let callerB = makeFn (callFn fnBase.hash)
-    do! addFnAt branchB (loc "isoCallerB") callerB
-
-    // Update fnBase on branch A
-    let fnBase2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
-    do! addFnAt branchA (loc "isoBase") fnBase2
-
-    // Propagate on branch A — should only find callerA, not callerB
-    let! result =
-      Propagation.propagate
-        branchA
-        (loc "isoBase")
-        PT.ItemKind.Fn
-        [ fnBase.hash ]
-        fnBase2.hash
-
-    match result with
-    | Ok(Some((propResult : Propagation.PropagationResult), _propOps)) ->
-      let repointLocs =
-        propResult.repoints
-        |> List.map (fun (r : PT.PropagateRepoint) -> r.location)
-        |> Set.ofList
-
-      Expect.contains repointLocs (loc "isoCallerA") "callerA should be repointed"
-      Expect.isFalse
-        (Set.contains (loc "isoCallerB") repointLocs)
-        "callerB on branch B should NOT be repointed"
-    | Ok None -> failtest "expected dependents on branch A"
-    | Error e -> failtest $"propagation failed: {e}"
-
-    // Verify callerB on branch B still points to the original function
-    let! callerBAfter = findFn branchB (loc "isoCallerB")
-    Expect.equal
-      callerBAfter
-      (Some callerB.hash)
-      "callerB should be unaffected by branch A propagation"
-
-    do! discardAndDeleteBranch branchA
-    do! discardAndDeleteBranch branchB
-  }
-
-
-let testRevertPropagationOp =
-  testTask "RevertPropagation op: atomically reverts repoints and restores source" {
-    let! branchId = setupBranch "test-revert-prop-op"
-
-    // Create base and caller, then commit
-    let fnBase = makeFn (eVar "x")
-    do! addFnAt branchId (loc "rpBase") fnBase
-
-    let callerV1 = makeFn (callFn fnBase.hash)
-    do! addFnAt branchId (loc "rpCaller") callerV1
-
-    let! _ = commitAll branchId "initial base + caller"
-
-    // Record committed caller hash
-    let! committedCaller = findFn branchId (loc "rpCaller")
-    let committedCallerId = committedCaller |> Option.get
-
-    // Update base → propagate → caller gets repointed
-    let fnBase2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
-    do! addFnAt branchId (loc "rpBase") fnBase2
-
-    let! ((propResult : Propagation.PropagationResult), propOps) =
-      propagateOrFail branchId (loc "rpBase") [ fnBase.hash ] fnBase2.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps
-
-    // Verify caller was repointed away from committed version
-    let! callerAfterProp = findFn branchId (loc "rpCaller")
-    let callerV2Id = callerAfterProp |> Option.get
-    Expect.notEqual callerV2Id committedCallerId "caller should be repointed to v2"
-
-    // Now create and apply a RevertPropagation op
-    let revertId = System.Guid.NewGuid()
-
-    let revertOp =
-      PT.PackageOp.RevertPropagation(
-        revertId,
-        [ propResult.propagationId ],
-        loc "rpBase",
-        PT.PackageFn fnBase.hash, // restore to committed base v1
-        propResult.repoints // revert all repoints
-      )
-
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp ]
-
-    // Verify caller is restored to committed version
-    let! callerAfterRevert = findFn branchId (loc "rpCaller")
-    Expect.equal
-      callerAfterRevert
-      (Some committedCallerId)
-      "caller should be restored to committed v1"
-
-    // Verify base is restored to committed version
-    let! baseAfterRevert = findFn branchId (loc "rpBase")
-    Expect.equal
-      baseAfterRevert
-      (Some fnBase.hash)
-      "base should be restored to committed v1"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testRevertPropagationMultipleUpdates =
-  testTask
-    "RevertPropagation: multiple updates produce single active location per path" {
-    let! branchId = setupBranch "test-revert-multi-update"
-
-    // Create base and caller, then commit
-    let fnBase = makeFn (eVar "x")
-    do! addFnAt branchId (loc "rmBase") fnBase
-
-    let callerV1 = makeFn (callFn fnBase.hash)
-    do! addFnAt branchId (loc "rmCaller") callerV1
-
-    let! _ = commitAll branchId "initial base + caller"
-
-    let! committedCaller = findFn branchId (loc "rmCaller")
-    let committedCallerId = committedCaller |> Option.get
-
-    // Update base twice, propagating each time → caller goes b1→b2→b3
-    let fnBase2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
-    do! addFnAt branchId (loc "rmBase") fnBase2
-
-    let! branchChain = Branches.getBranchChain branchId
-    let! allHashes1 =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "rmBase" "fn"
-    let prevHashes1 = allHashes1 |> List.filter (fun id -> id <> fnBase2.hash)
-    let! ((propResult1 : Propagation.PropagationResult), propOps1) =
-      propagateOrFail branchId (loc "rmBase") prevHashes1 fnBase2.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps1
-
-    let! callerAfterProp1 = findFn branchId (loc "rmCaller")
-    let _callerV2Id = callerAfterProp1 |> Option.get
-
-    let fnBase3 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 2L))
-    do! addFnAt branchId (loc "rmBase") fnBase3
-
-    let! allHashes2 =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "rmBase" "fn"
-    let prevHashes2 = allHashes2 |> List.filter (fun id -> id <> fnBase3.hash)
-    let! ((propResult2 : Propagation.PropagationResult), propOps2) =
-      propagateOrFail branchId (loc "rmBase") prevHashes2 fnBase3.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps2
-
-    let! callerAfterProp2 = findFn branchId (loc "rmCaller")
-    let callerV3Id = callerAfterProp2 |> Option.get
-    Expect.notEqual
-      callerV3Id
-      committedCallerId
-      "caller should be at v3 after two propagations"
-
-    // Collect all repoints from both propagations for the caller location
-    let allRepoints = propResult1.repoints @ propResult2.repoints
-    let callerRepoints =
-      allRepoints
-      |> List.filter (fun (r : PT.PropagateRepoint) -> r.location = loc "rmCaller")
-
-    // Consolidate: chain [{b1→b2}, {b2→b3}] → [{b1→b3}]
-    let consolidated =
-      match callerRepoints with
-      | [] -> []
-      | _ ->
-        let first = List.head callerRepoints |> Option.get
-        let last = List.last callerRepoints |> Option.get
-        [ { first with PT.PropagateRepoint.toRef = last.toRef } ]
-
-    // Create RevertPropagation with consolidated repoints
-    let revertId = System.Guid.NewGuid()
-    let revertOp =
-      PT.PackageOp.RevertPropagation(
-        revertId,
-        [ propResult1.propagationId; propResult2.propagationId ],
-        loc "rmBase",
-        PT.PackageFn fnBase.hash,
-        consolidated
-      )
-
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp ]
-
-    // Verify caller is restored to committed version (exactly one active location)
-    let! callerAfterRevert = findFn branchId (loc "rmCaller")
-    Expect.equal
-      callerAfterRevert
-      (Some committedCallerId)
-      "caller should be restored to committed v1 (single active location)"
-
-    // Verify base is restored to committed version
-    let! baseAfterRevert = findFn branchId (loc "rmBase")
-    Expect.equal
-      baseAfterRevert
-      (Some fnBase.hash)
-      "base should be restored to committed v1"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testIncrementalUndoRestoresWipLocation =
-  testTask
-    "incremental undo: RevertPropagation can restore a WIP (non-committed) location" {
-    let! branchId = setupBranch "test-incr-wip-restore"
-
-    // Create base and caller, commit
-    let fnBase = makeFn (eVar "x")
-    do! addFnAt branchId (loc "iwBase") fnBase
-
-    let callerV1 = makeFn (callFn fnBase.hash)
-    do! addFnAt branchId (loc "iwCaller") callerV1
-
-    let! _ = commitAll branchId "initial"
-
-    // Update base to v2 → propagate → caller becomes callerV2
-    let fnBaseV2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
-    do! addFnAt branchId (loc "iwBase") fnBaseV2
-
-    let! branchChain = Branches.getBranchChain branchId
-    let! allHashes1 =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "iwBase" "fn"
-    let prevHashes1 = allHashes1 |> List.filter (fun id -> id <> fnBaseV2.hash)
-    let! ((_propResult1 : Propagation.PropagationResult), propOps1) =
-      propagateOrFail branchId (loc "iwBase") prevHashes1 fnBaseV2.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps1
-
-    let! callerAfterV2 = findFn branchId (loc "iwCaller")
-    let callerV2Id = callerAfterV2 |> Option.get
-
-    // Update base to v3 → propagate → caller becomes callerV3
-    let fnBaseV3 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 2L))
-    do! addFnAt branchId (loc "iwBase") fnBaseV3
-
-    let! allHashes2 =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "iwBase" "fn"
-    let prevHashes2 = allHashes2 |> List.filter (fun id -> id <> fnBaseV3.hash)
-    let! ((propResult2 : Propagation.PropagationResult), propOps2) =
-      propagateOrFail branchId (loc "iwBase") prevHashes2 fnBaseV3.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps2
-
-    // Now undo v3 → v2 (restoring a WIP location, not committed)
-    let callerRepoint2 =
-      propResult2.repoints
-      |> List.find (fun (r : PT.PropagateRepoint) -> r.location = loc "iwCaller")
-      |> Option.get
-
-    let revertOp =
-      PT.PackageOp.RevertPropagation(
-        System.Guid.NewGuid(),
-        [ propResult2.propagationId ],
-        loc "iwBase",
-        PT.PackageFn fnBaseV2.hash, // restore to WIP v2, not committed
-        [ callerRepoint2 ]
-      )
-
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp ]
-
-    // Base should be restored to v2
-    let! baseAfterRevert = findFn branchId (loc "iwBase")
-    Expect.equal
-      baseAfterRevert
-      (Some fnBaseV2.hash)
-      "base should be restored to WIP v2"
-
-    // Caller should be restored to callerV2
-    let! callerAfterRevert = findFn branchId (loc "iwCaller")
-    Expect.equal
-      callerAfterRevert
-      (Some callerV2Id)
-      "caller should be restored to WIP callerV2"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testIncrementalUndoFullWalkthrough =
-  testTask "incremental undo: two updates, two undos step back through each version" {
-    let! branchId = setupBranch "test-incr-full"
-
-    // Create base and caller, commit
-    let fnBase = makeFn (eVar "x")
-    do! addFnAt branchId (loc "ifBase") fnBase
-
-    let callerV1 = makeFn (callFn fnBase.hash)
-    do! addFnAt branchId (loc "ifCaller") callerV1
-
-    let! _ = commitAll branchId "initial"
-
-    let! committedCaller = findFn branchId (loc "ifCaller")
-    let committedCallerId = committedCaller |> Option.get
-
-    // Update base to v2 → propagate
-    let fnBaseV2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
-    do! addFnAt branchId (loc "ifBase") fnBaseV2
-
-    let! branchChain = Branches.getBranchChain branchId
-    let! allHashes1 =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "ifBase" "fn"
-    let prevHashes1 = allHashes1 |> List.filter (fun id -> id <> fnBaseV2.hash)
-    let! ((propResult1 : Propagation.PropagationResult), propOps1) =
-      propagateOrFail branchId (loc "ifBase") prevHashes1 fnBaseV2.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps1
-
-    let! callerAfterV2 = findFn branchId (loc "ifCaller")
-    let callerV2Id = callerAfterV2 |> Option.get
-
-    // Update base to v3 → propagate
-    let fnBaseV3 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 2L))
-    do! addFnAt branchId (loc "ifBase") fnBaseV3
-
-    let! allHashes2 =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "ifBase" "fn"
-    let prevHashes2 = allHashes2 |> List.filter (fun id -> id <> fnBaseV3.hash)
-    let! ((propResult2 : Propagation.PropagationResult), propOps2) =
-      propagateOrFail branchId (loc "ifBase") prevHashes2 fnBaseV3.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps2
-
-    // --- First undo: v3 → v2 ---
-    let callerRepoint2 =
-      propResult2.repoints
-      |> List.find (fun (r : PT.PropagateRepoint) -> r.location = loc "ifCaller")
-      |> Option.get
-
-    let revertOp1 =
-      PT.PackageOp.RevertPropagation(
-        System.Guid.NewGuid(),
-        [ propResult2.propagationId ],
-        loc "ifBase",
-        PT.PackageFn fnBaseV2.hash,
-        [ callerRepoint2 ]
-      )
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp1 ]
-
-    let! baseAfterUndo1 = findFn branchId (loc "ifBase")
-    Expect.equal baseAfterUndo1 (Some fnBaseV2.hash) "after first undo: base at v2"
-
-    let! callerAfterUndo1 = findFn branchId (loc "ifCaller")
-    Expect.equal
-      callerAfterUndo1
-      (Some callerV2Id)
-      "after first undo: caller at callerV2"
-
-    // --- Second undo: v2 → committed ---
-    let callerRepoint1 =
-      propResult1.repoints
-      |> List.find (fun (r : PT.PropagateRepoint) -> r.location = loc "ifCaller")
-      |> Option.get
-
-    let revertOp2 =
-      PT.PackageOp.RevertPropagation(
-        System.Guid.NewGuid(),
-        [ propResult1.propagationId ],
-        loc "ifBase",
-        PT.PackageFn fnBase.hash, // committed hash
-        [ callerRepoint1 ]
-      )
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp2 ]
-
-    let! baseAfterUndo2 = findFn branchId (loc "ifBase")
-    Expect.equal
-      baseAfterUndo2
-      (Some fnBase.hash)
-      "after second undo: base at committed"
-
-    let! callerAfterUndo2 = findFn branchId (loc "ifCaller")
-    Expect.equal
-      callerAfterUndo2
-      (Some committedCallerId)
-      "after second undo: caller at committed"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testUndoThenRedo =
-  testTask "undo-then-redo: v2→v3→undo→v4→undo goes to v2, skipping v3" {
-    let! branchId = setupBranch "test-undo-redo"
-
-    // Create base, commit
-    let fnBase = makeFn (eVar "x")
-    do! addFnAt branchId (loc "urBase") fnBase
-
-    let! _ = commitAll branchId "initial"
-
-    // Update to v2
-    let fnBaseV2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 2L))
-    do! addFnAt branchId (loc "urBase") fnBaseV2
-
-    // Update to v3
-    let fnBaseV3 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 3L))
-    do! addFnAt branchId (loc "urBase") fnBaseV3
-
-    // Undo v3 → v2
-    let revertOp1 =
-      PT.PackageOp.RevertPropagation(
-        System.Guid.NewGuid(),
-        [],
-        loc "urBase",
-        PT.PackageFn fnBaseV2.hash,
-        []
-      )
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp1 ]
-
-    let! baseAfterUndo1 = findFn branchId (loc "urBase")
-    Expect.equal baseAfterUndo1 (Some fnBaseV2.hash) "after undo v3: base at v2"
-
-    // Update to v4
-    let fnBaseV4 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 4L))
-    do! addFnAt branchId (loc "urBase") fnBaseV4
-
-    let! baseAtV4 = findFn branchId (loc "urBase")
-    Expect.equal baseAtV4 (Some fnBaseV4.hash) "after update: base at v4"
-
-    // Undo v4 → v2 (should skip v3 because we already reverted past it)
-    let revertOp2 =
-      PT.PackageOp.RevertPropagation(
-        System.Guid.NewGuid(),
-        [],
-        loc "urBase",
-        PT.PackageFn fnBaseV2.hash,
-        []
-      )
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp2 ]
-
-    let! baseAfterUndo2 = findFn branchId (loc "urBase")
-    Expect.equal
-      baseAfterUndo2
-      (Some fnBaseV2.hash)
-      "after undo v4: base at v2 (not v3)"
-
-    // Undo v2 → committed
-    let revertOp3 =
-      PT.PackageOp.RevertPropagation(
-        System.Guid.NewGuid(),
-        [],
-        loc "urBase",
-        PT.PackageFn fnBase.hash,
-        []
-      )
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp3 ]
-
-    let! baseAfterUndo3 = findFn branchId (loc "urBase")
-    Expect.equal baseAfterUndo3 (Some fnBase.hash) "after undo v2: base at committed"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testMultiCycleUndoRedo =
-  testTask
-    "multi-cycle: undo→update→undo→update→undo exercises complex version stacks" {
-    let! branchId = setupBranch "test-multi-cycle"
-
-    // Create base and caller, commit
-    let fnBase = makeFn (eVar "x")
-    do! addFnAt branchId (loc "mcBase") fnBase
-
-    let callerV1 = makeFn (callFn fnBase.hash)
-    do! addFnAt branchId (loc "mcCaller") callerV1
-
-    let! _ = commitAll branchId "initial"
-
-    let! committedCaller = findFn branchId (loc "mcCaller")
-    let committedCallerId = committedCaller |> Option.get
-
-    let! branchChain = Branches.getBranchChain branchId
-
-    // --- Update base to v2 → propagate ---
-    let fnBaseV2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 2L))
-    do! addFnAt branchId (loc "mcBase") fnBaseV2
-
-    let! allHashes1 =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "mcBase" "fn"
-    let prevHashes1 = allHashes1 |> List.filter (fun id -> id <> fnBaseV2.hash)
-    let! ((propResult1 : Propagation.PropagationResult), propOps1) =
-      propagateOrFail branchId (loc "mcBase") prevHashes1 fnBaseV2.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps1
-
-    let! callerAfterV2 = findFn branchId (loc "mcCaller")
-    let _callerV2Id = callerAfterV2 |> Option.get
-
-    // --- Undo v2 → committed ---
-    let callerRepoint1 =
-      propResult1.repoints
-      |> List.find (fun (r : PT.PropagateRepoint) -> r.location = loc "mcCaller")
-      |> Option.get
-
-    let revertOp1 =
-      PT.PackageOp.RevertPropagation(
-        System.Guid.NewGuid(),
-        [ propResult1.propagationId ],
-        loc "mcBase",
-        PT.PackageFn fnBase.hash,
-        [ callerRepoint1 ]
-      )
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp1 ]
-
-    let! baseAfterUndo1 = findFn branchId (loc "mcBase")
-    Expect.equal baseAfterUndo1 (Some fnBase.hash) "cycle 1 undo: base at committed"
-    let! callerAfterUndo1 = findFn branchId (loc "mcCaller")
-    Expect.equal
-      callerAfterUndo1
-      (Some committedCallerId)
-      "cycle 1 undo: caller at committed"
-
-    // --- Update base to v3 → propagate ---
-    let fnBaseV3 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 3L))
-    do! addFnAt branchId (loc "mcBase") fnBaseV3
-
-    let! allHashes2 =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "mcBase" "fn"
-    let prevHashes2 = allHashes2 |> List.filter (fun id -> id <> fnBaseV3.hash)
-    let! ((propResult2 : Propagation.PropagationResult), propOps2) =
-      propagateOrFail branchId (loc "mcBase") prevHashes2 fnBaseV3.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps2
-
-    let! callerAfterV3 = findFn branchId (loc "mcCaller")
-    let callerV3Id = callerAfterV3 |> Option.get
-    Expect.notEqual callerV3Id committedCallerId "cycle 2 update: caller repointed"
-
-    // --- Undo v3 → committed ---
-    let callerRepoint2 =
-      propResult2.repoints
-      |> List.find (fun (r : PT.PropagateRepoint) -> r.location = loc "mcCaller")
-      |> Option.get
-
-    let revertOp2 =
-      PT.PackageOp.RevertPropagation(
-        System.Guid.NewGuid(),
-        [ propResult2.propagationId ],
-        loc "mcBase",
-        PT.PackageFn fnBase.hash,
-        [ callerRepoint2 ]
-      )
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp2 ]
-
-    let! baseAfterUndo2 = findFn branchId (loc "mcBase")
-    Expect.equal baseAfterUndo2 (Some fnBase.hash) "cycle 2 undo: base at committed"
-    let! callerAfterUndo2 = findFn branchId (loc "mcCaller")
-    Expect.equal
-      callerAfterUndo2
-      (Some committedCallerId)
-      "cycle 2 undo: caller at committed"
-
-    // --- Update base to v4 → propagate ---
-    let fnBaseV4 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 4L))
-    do! addFnAt branchId (loc "mcBase") fnBaseV4
-
-    let! allHashes3 =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "mcBase" "fn"
-    let prevHashes3 = allHashes3 |> List.filter (fun id -> id <> fnBaseV4.hash)
-    let! ((_propResult3 : Propagation.PropagationResult), propOps3) =
-      propagateOrFail branchId (loc "mcBase") prevHashes3 fnBaseV4.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps3
-
-    let! baseAfterV4 = findFn branchId (loc "mcBase")
-    Expect.equal baseAfterV4 (Some fnBaseV4.hash) "cycle 3 update: base at v4"
-    let! callerAfterV4 = findFn branchId (loc "mcCaller")
-    Expect.notEqual
-      (callerAfterV4 |> Option.get)
-      committedCallerId
-      "cycle 3 update: caller repointed again"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testUndoThenRedoWithDependents =
-  testTask
-    "undo-then-redo with dependents: v2→v3→undo→v4→undo restores callers correctly" {
-    let! branchId = setupBranch "test-undo-redo-deps"
-
-    // Create base and caller, commit
-    let fnBase = makeFn (eVar "x")
-    do! addFnAt branchId (loc "urdBase") fnBase
-
-    let callerV1 = makeFn (callFn fnBase.hash)
-    do! addFnAt branchId (loc "urdCaller") callerV1
-
-    let! _ = commitAll branchId "initial"
-
-    let! committedCaller = findFn branchId (loc "urdCaller")
-    let committedCallerId = committedCaller |> Option.get
-
-    let! branchChain = Branches.getBranchChain branchId
-
-    // --- Update base to v2 → propagate ---
-    let fnBaseV2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 2L))
-    do! addFnAt branchId (loc "urdBase") fnBaseV2
-
-    let! allHashes1 =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "urdBase" "fn"
-    let prevHashes1 = allHashes1 |> List.filter (fun id -> id <> fnBaseV2.hash)
-    let! ((propResult1 : Propagation.PropagationResult), propOps1) =
-      propagateOrFail branchId (loc "urdBase") prevHashes1 fnBaseV2.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps1
-
-    let! callerAfterV2 = findFn branchId (loc "urdCaller")
-    let callerV2Id = callerAfterV2 |> Option.get
-
-    // --- Update base to v3 → propagate ---
-    let fnBaseV3 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 3L))
-    do! addFnAt branchId (loc "urdBase") fnBaseV3
-
-    let! allHashes2 =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "urdBase" "fn"
-    let prevHashes2 = allHashes2 |> List.filter (fun id -> id <> fnBaseV3.hash)
-    let! ((propResult2 : Propagation.PropagationResult), propOps2) =
-      propagateOrFail branchId (loc "urdBase") prevHashes2 fnBaseV3.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps2
-
-    // --- Undo v3 → v2 ---
-    let callerRepoint2 =
-      propResult2.repoints
-      |> List.find (fun (r : PT.PropagateRepoint) -> r.location = loc "urdCaller")
-      |> Option.get
-
-    let revertOp1 =
-      PT.PackageOp.RevertPropagation(
-        System.Guid.NewGuid(),
-        [ propResult2.propagationId ],
-        loc "urdBase",
-        PT.PackageFn fnBaseV2.hash,
-        [ callerRepoint2 ]
-      )
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp1 ]
-
-    let! baseAfterUndo1 = findFn branchId (loc "urdBase")
-    Expect.equal baseAfterUndo1 (Some fnBaseV2.hash) "after undo v3: base at v2"
-    let! callerAfterUndo1 = findFn branchId (loc "urdCaller")
-    Expect.equal
-      callerAfterUndo1
-      (Some callerV2Id)
-      "after undo v3: caller at callerV2"
-
-    // --- Update base to v4 → propagate ---
-    let fnBaseV4 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 4L))
-    do! addFnAt branchId (loc "urdBase") fnBaseV4
-
-    let! allHashes3 =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "urdBase" "fn"
-    let prevHashes3 = allHashes3 |> List.filter (fun id -> id <> fnBaseV4.hash)
-    let! ((propResult3 : Propagation.PropagationResult), propOps3) =
-      propagateOrFail branchId (loc "urdBase") prevHashes3 fnBaseV4.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps3
-
-    let! callerAfterV4 = findFn branchId (loc "urdCaller")
-    let callerV4Id = callerAfterV4 |> Option.get
-    Expect.notEqual callerV4Id callerV2Id "after update v4: caller repointed"
-
-    // --- Undo v4 → v2 (skipping v3) ---
-    let callerRepoint3 =
-      propResult3.repoints
-      |> List.find (fun (r : PT.PropagateRepoint) -> r.location = loc "urdCaller")
-      |> Option.get
-
-    let revertOp2 =
-      PT.PackageOp.RevertPropagation(
-        System.Guid.NewGuid(),
-        [ propResult3.propagationId ],
-        loc "urdBase",
-        PT.PackageFn fnBaseV2.hash, // restore to v2, not v3
-        [ callerRepoint3 ]
-      )
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp2 ]
-
-    let! baseAfterUndo2 = findFn branchId (loc "urdBase")
-    Expect.equal
-      baseAfterUndo2
-      (Some fnBaseV2.hash)
-      "after undo v4: base at v2 (not v3)"
-    let! callerAfterUndo2 = findFn branchId (loc "urdCaller")
-    Expect.equal
-      callerAfterUndo2
-      (Some callerV2Id)
-      "after undo v4: caller at callerV2 (not v3)"
-
-    // --- Undo v2 → committed ---
-    let callerRepoint1 =
-      propResult1.repoints
-      |> List.find (fun (r : PT.PropagateRepoint) -> r.location = loc "urdCaller")
-      |> Option.get
-
-    let revertOp3 =
-      PT.PackageOp.RevertPropagation(
-        System.Guid.NewGuid(),
-        [ propResult1.propagationId ],
-        loc "urdBase",
-        PT.PackageFn fnBase.hash,
-        [ callerRepoint1 ]
-      )
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp3 ]
-
-    let! baseAfterUndo3 = findFn branchId (loc "urdBase")
-    Expect.equal baseAfterUndo3 (Some fnBase.hash) "after undo v2: base at committed"
-    let! callerAfterUndo3 = findFn branchId (loc "urdCaller")
-    Expect.equal
-      callerAfterUndo3
-      (Some committedCallerId)
-      "after undo v2: caller at committed"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testTypePropagation =
-  testTask "type propagation: updating a type repoints dependent functions" {
-    let! branchId = setupBranch "test-type-prop"
-
-    // Create an enum type: | Active | Inactive
-    let typeV1 =
-      makeType (
-        PT.TypeDeclaration.Enum(
-          NEList.ofList
-            { name = "Active"; fields = []; description = "" }
-            [ { name = "Inactive"; fields = []; description = "" } ]
-        )
-      )
-    do! addTypeAt branchId (loc "myStatus") typeV1
-
-    // Create a fn that references the type via EEnum
-    let fnBody = eEnum (typeNamePkg (hashStr typeV1.hash)) [] "Active" []
-    let callerFn = makeFn fnBody
-    do! addFnAt branchId (loc "makeStatus") callerFn
-
-    // Update the type: | Active | Inactive | Pending
-    let typeV2 =
-      makeType (
-        PT.TypeDeclaration.Enum(
-          NEList.ofList
-            { name = "Active"; fields = []; description = "" }
-            [ { name = "Inactive"; fields = []; description = "" }
-              { name = "Pending"; fields = []; description = "" } ]
-        )
-      )
-    do! addTypeAt branchId (loc "myStatus") typeV2
-
-    // Propagate — callerFn should be repointed
-    let! result =
-      Propagation.propagate
-        branchId
-        (loc "myStatus")
-        PT.ItemKind.Type
-        [ typeV1.hash ]
-        typeV2.hash
-
-    match result with
-    | Ok(Some((propResult : Propagation.PropagationResult), propOps)) ->
-      let repointLocs =
-        propResult.repoints
-        |> List.map (fun (r : PT.PropagateRepoint) -> r.location)
-        |> Set.ofList
-      Expect.contains repointLocs (loc "makeStatus") "callerFn should be repointed"
-
-      // Verify the ops contain AddFn + SetFnName for the new caller
-      let addFnCount =
-        propOps
-        |> List.filter (fun op ->
-          match op with
-          | PT.PackageOp.AddFn _ -> true
-          | _ -> false)
-        |> List.length
-      Expect.isGreaterThanOrEqual addFnCount 1 "at least one AddFn op"
-    | Ok None -> failtest "expected dependents for type propagation"
-    | Error e -> failtest $"propagation failed: {e}"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testValuePropagation =
-  testTask "value propagation: updating a value repoints dependent functions" {
-    let! branchId = setupBranch "test-value-prop"
-
-    // Create a value: 42L
-    let valueV1 = makeValue (eInt64 42L)
-    do! addValueAt branchId (loc "myConst") valueV1
-
-    // Create a fn that uses the value
-    let callerFn = makeFn (ePackageValue (hashStr valueV1.hash))
-    do! addFnAt branchId (loc "useConst") callerFn
-
-    // Update value: 99L
-    let valueV2 = makeValue (eInt64 99L)
-    do! addValueAt branchId (loc "myConst") valueV2
-
-    // Propagate — callerFn should be repointed
-    let! result =
-      Propagation.propagate
-        branchId
-        (loc "myConst")
-        PT.ItemKind.Value
-        [ valueV1.hash ]
-        valueV2.hash
-
-    match result with
-    | Ok(Some((propResult : Propagation.PropagationResult), _propOps)) ->
-      let repointLocs =
-        propResult.repoints
-        |> List.map (fun (r : PT.PropagateRepoint) -> r.location)
-        |> Set.ofList
-      Expect.contains repointLocs (loc "useConst") "callerFn should be repointed"
-    | Ok None -> failtest "expected dependents for value propagation"
-    | Error e -> failtest $"propagation failed: {e}"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testDiamondUndoPropagation =
-  testTask "diamond undo: A→B, A→C, D=B+C, update A, propagate, undo restores all" {
-    let! branchId = setupBranch "test-diamond-undo"
-
-    // Create A (base)
-    let fnA = makeFn (eVar "x")
-    do! addFnAt branchId (loc "diaA") fnA
-
-    // Create B (depends on A)
-    let fnB = makeFn (callFn fnA.hash)
-    do! addFnAt branchId (loc "diaB") fnB
-
-    // Create C (depends on A)
-    let fnC = makeFn (callFn fnA.hash)
-    do! addFnAt branchId (loc "diaC") fnC
-
-    // Create D (depends on B and C)
-    let fnD =
-      makeFn (
-        eInfix
-          (PT.InfixFnCall PT.ArithmeticPlus)
-          (eApply (ePackageFn (hashStr fnB.hash)) [] [ eVar "x" ])
-          (eApply (ePackageFn (hashStr fnC.hash)) [] [ eVar "x" ])
-      )
-    do! addFnAt branchId (loc "diaD") fnD
-
-    // Commit
-    let! _ = commitAll branchId "initial diamond"
-
-    let! committedB = findFn branchId (loc "diaB")
-    let committedBId = committedB |> Option.get
-    let! committedC = findFn branchId (loc "diaC")
-    let committedCId = committedC |> Option.get
-    let! committedD = findFn branchId (loc "diaD")
-    let committedDId = committedD |> Option.get
-
-    // Update A
-    let fnA2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
-    do! addFnAt branchId (loc "diaA") fnA2
-
-    // Propagate — should repoint B, C, and D
-    let! ((propResult : Propagation.PropagationResult), propOps) =
-      propagateOrFail branchId (loc "diaA") [ fnA.hash ] fnA2.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps
-
-    // Verify all changed
-    let! wipB = findFn branchId (loc "diaB")
-    Expect.notEqual wipB (Some committedBId) "B should have WIP version"
-    let! wipC = findFn branchId (loc "diaC")
-    Expect.notEqual wipC (Some committedCId) "C should have WIP version"
-    let! wipD = findFn branchId (loc "diaD")
-    Expect.notEqual wipD (Some committedDId) "D should have WIP version"
-
-    // Undo: revert all repoints and restore source
-    let revertId = System.Guid.NewGuid()
-    let revertOp =
-      PT.PackageOp.RevertPropagation(
-        revertId,
-        [ propResult.propagationId ],
-        loc "diaA",
-        PT.PackageFn fnA.hash,
-        propResult.repoints
-      )
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp ]
-
-    // Verify all restored to committed versions
-    let! restoredA = findFn branchId (loc "diaA")
-    Expect.equal restoredA (Some fnA.hash) "A should be at committed"
-    let! restoredB = findFn branchId (loc "diaB")
-    Expect.equal restoredB (Some committedBId) "B should be at committed"
-    let! restoredC = findFn branchId (loc "diaC")
-    Expect.equal restoredC (Some committedCId) "C should be at committed"
-    let! restoredD = findFn branchId (loc "diaD")
-    Expect.equal restoredD (Some committedDId) "D should be at committed"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testDeepTransitiveChain =
-  testTask "deep transitive: A→B→C→D→E, update A repoints all 4 dependents" {
-    let! branchId = setupBranch "test-deep-chain"
-
-    // Build a 5-deep chain: A → B → C → D → E
-    let fnA = makeFn (eVar "x")
-    do! addFnAt branchId (loc "deepA") fnA
-
-    let fnB = makeFn (callFn fnA.hash)
-    do! addFnAt branchId (loc "deepB") fnB
-
-    let fnC = makeFn (callFn fnB.hash)
-    do! addFnAt branchId (loc "deepC") fnC
-
-    let fnD = makeFn (callFn fnC.hash)
-    do! addFnAt branchId (loc "deepD") fnD
-
-    let fnE = makeFn (callFn fnD.hash)
-    do! addFnAt branchId (loc "deepE") fnE
-
-    // Update A
-    let fnA2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
-    do! addFnAt branchId (loc "deepA") fnA2
-
-    let! (_propResult, propOps) =
-      propagateOrFail branchId (loc "deepA") [ fnA.hash ] fnA2.hash
-
-    // Should have 8 ops: 4x (AddFn + SetFnName) + 1 PropagateUpdate = 9
-    // Actually: AddFn(B') + SetFnName(B') + AddFn(C') + SetFnName(C') + ... + PropagateUpdate
-    Expect.hasLength
-      propOps
-      9
-      "9 ops: 4 pairs of (AddFn+SetFnName) + PropagateUpdate"
-
-    match propOps |> List.last |> Option.get with
-    | PT.PackageOp.PropagateUpdate(_, _, _, _, reps) ->
-      Expect.hasLength reps 4 "4 repoints (B, C, D, E)"
-      let fromHashes =
-        reps
-        |> List.map (fun (r : PT.PropagateRepoint) -> r.fromRef.hash)
-        |> Set.ofList
-      Expect.contains fromHashes fnB.hash "B repointed"
-      Expect.contains fromHashes fnC.hash "C repointed"
-      Expect.contains fromHashes fnD.hash "D repointed"
-      Expect.contains fromHashes fnE.hash "E repointed"
-    | op -> failtest $"expected PropagateUpdate, got {op}"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testDiscardAfterPropagate =
-  testTask "discard after propagate: restores committed versions" {
-    let! branchId = setupBranch "test-discard-prop"
-
-    // Create base and caller, commit
-    let fnBase = makeFn (eVar "x")
-    do! addFnAt branchId (loc "discBase") fnBase
-
-    let callerV1 = makeFn (callFn fnBase.hash)
-    do! addFnAt branchId (loc "discCaller") callerV1
-
-    let! _ = commitAll branchId "initial"
-
-    let! committedBase = findFn branchId (loc "discBase")
-    let committedBaseId = committedBase |> Option.get
-    let! committedCaller = findFn branchId (loc "discCaller")
-    let committedCallerId = committedCaller |> Option.get
-
-    // Update base → propagate → caller gets repointed
-    let fnBase2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
-    do! addFnAt branchId (loc "discBase") fnBase2
-
-    let! (_propResult, propOps) =
-      propagateOrFail branchId (loc "discBase") [ fnBase.hash ] fnBase2.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps
-
-    // Verify both changed
-    let! wipBase = findFn branchId (loc "discBase")
-    Expect.notEqual wipBase (Some committedBaseId) "base should have WIP version"
-    let! wipCaller = findFn branchId (loc "discCaller")
-    Expect.notEqual
-      wipCaller
-      (Some committedCallerId)
-      "caller should have WIP version"
-
-    // Discard all WIP
-    let! discardResult = Inserts.discardWipOps branchId
-    Expect.isOk discardResult "discard should succeed"
-
-    // Verify both restored to committed versions
-    let! restoredBase = findFn branchId (loc "discBase")
-    Expect.equal
-      restoredBase
-      (Some committedBaseId)
-      "base should be at committed after discard"
-    let! restoredCaller = findFn branchId (loc "discCaller")
-    Expect.equal
-      restoredCaller
-      (Some committedCallerId)
-      "caller should be at committed after discard"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testRenameFn =
-  testTask "rename fn: standalone SetFnName moves location" {
-    let! branchId = setupBranch "test-rename-fn"
-
-    let fn = makeFn (eVar "x")
-    do! addFnAt branchId (loc "rnFnOld") fn
-
-    // Standalone rename — no AddFn, just SetFnName
-    let! _ =
-      Inserts.insertAndApplyOpsAsWip
-        branchId
-        [ PT.PackageOp.SetName(loc "rnFnNew", PT.PackageFn fn.hash) ]
-
-    let! atNew = findFn branchId (loc "rnFnNew")
-    Expect.equal atNew (Some fn.hash) "fn should be at new location"
-
-    let! atOld = findFn branchId (loc "rnFnOld")
-    Expect.equal atOld None "fn should not be at old location"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testRenameType =
-  testTask "rename type: standalone SetTypeName moves location" {
-    let! branchId = setupBranch "test-rename-type"
-
-    let typ =
-      makeType (
-        PT.TypeDeclaration.Enum(
-          NEList.ofList
-            { name = "A"; fields = []; description = "" }
-            [ { name = "B"; fields = []; description = "" } ]
-        )
-      )
-    do! addTypeAt branchId (loc "rnTypeOld") typ
-
-    // Standalone rename
-    let! _ =
-      Inserts.insertAndApplyOpsAsWip
-        branchId
-        [ PT.PackageOp.SetName(loc "rnTypeNew", PT.PackageType typ.hash) ]
-
-    let! atNew = findType branchId (loc "rnTypeNew")
-    Expect.equal atNew (Some typ.hash) "type should be at new location"
-
-    let! atOld = findType branchId (loc "rnTypeOld")
-    Expect.equal atOld None "type should not be at old location"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testRenameValue =
-  testTask "rename value: standalone SetValueName moves location" {
-    let! branchId = setupBranch "test-rename-value"
-
-    let value = makeValue (eInt64 42L)
-    do! addValueAt branchId (loc "rnValOld") value
-
-    // Standalone rename
-    let! _ =
-      Inserts.insertAndApplyOpsAsWip
-        branchId
-        [ PT.PackageOp.SetName(loc "rnValNew", PT.PackageValue value.hash) ]
-
-    let! atNew = findValue branchId (loc "rnValNew")
-    Expect.equal atNew (Some value.hash) "value should be at new location"
-
-    let! atOld = findValue branchId (loc "rnValOld")
-    Expect.equal atOld None "value should not be at old location"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testRenameFnWithDependent =
-  testTask "rename fn with dependent: dependents survive rename (hash unchanged)" {
-    let! branchId = setupBranch "test-rename-fn-dep"
-
-    // Create fn A at renBase
-    let fnA = makeFn (eVar "x")
-    do! addFnAt branchId (loc "renBase") fnA
-
-    // Create fn B that calls A
-    let fnB = makeFn (callFn fnA.hash)
-    do! addFnAt branchId (loc "renCaller") fnB
-
-    // Rename A to renBase2 via standalone SetFnName
-    let! _ =
-      Inserts.insertAndApplyOpsAsWip
-        branchId
-        [ PT.PackageOp.SetName(loc "renBase2", PT.PackageFn fnA.hash) ]
-
-    // A is at new location
-    let! atNew = findFn branchId (loc "renBase2")
-    Expect.equal atNew (Some fnA.hash) "A should be at renBase2"
-
-    let! atOld = findFn branchId (loc "renBase")
-    Expect.equal atOld None "A should not be at renBase"
-
-    // B is still at renCaller with same hash (references by hash, not name)
-    let! callerResult = findFn branchId (loc "renCaller")
-    Expect.equal
-      callerResult
-      (Some fnB.hash)
-      "B should still be at renCaller with same hash"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testRenameThenUpdateWithPropagation =
-  testTask "rename then propagate: propagation works after rename" {
-    let! branchId = setupBranch "test-rename-then-prop"
-
-    // Create fn A and fn B (B calls A). Commit.
-    let fnA = makeFn (eVar "x")
-    do! addFnAt branchId (loc "rtpBase") fnA
-
-    let locationTaggedBaseRef : PT.NameResolution<PT.FQFnName.FQFnName> =
-      { originalName = [ "rtpBase" ]
-        resolved =
-          Ok { name = PT.FQFnName.Package fnA.hash; location = Some(loc "rtpBase") } }
-    let fnB =
-      makeFn (eApply (PT.EFnName(gid (), locationTaggedBaseRef)) [] [ eVar "x" ])
-    do! addFnAt branchId (loc "rtpCaller") fnB
-
-    let! _ = commitAll branchId "initial"
-
-    // Rename A to rtpBase2
-    let! _ =
-      Inserts.insertAndApplyOpsAsWip
-        branchId
-        [ PT.PackageOp.SetName(loc "rtpBase2", PT.PackageFn fnA.hash) ]
-
-    // Update A at new location (new hash A2)
-    let fnA2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
-    do! addFnAt branchId (loc "rtpBase2") fnA2
-
-    // Propagate from old A.hash to new A2.hash
-    let! (_propResult, propOps) =
-      propagateOrFail branchId (loc "rtpBase2") [ fnA.hash ] fnA2.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps
-
-    // B should be repointed (new hash)
-    let! callerResult = findFn branchId (loc "rtpCaller")
-    let callerNewId = callerResult |> Option.get
-    Expect.notEqual callerNewId fnB.hash "B should be repointed after propagation"
-
-    let! (callerAfter : Option<PT.PackageFn.PackageFn>) =
-      LibDB.ProgramTypes.Fn.get callerNewId |> Ply.toTask
-    match callerAfter with
-    | Some caller ->
-      match caller.body with
-      | PT.EApply(_, PT.EFnName(_, nr), _, _) ->
-        let location =
-          match nr.resolved with
-          | Ok r -> r.location
-          | Error _ -> None
-        Expect.equal
-          location
-          (Some(loc "rtpBase2"))
-          "location-tagged ref is rewritten to the new source location"
-      | other -> failtest $"unexpected caller body: {other}"
-    | None -> failtest "expected rewritten caller to exist"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testRenameToOccupiedLocation =
-  testTask "rename to occupied location: displaces existing item" {
-    let! branchId = setupBranch "test-rename-displace"
-
-    // Create fn A at rdSlot1 and fn B at rdSlot2
-    let fnA = makeFn (eVar "x")
-    do! addFnAt branchId (loc "rdSlot1") fnA
-
-    let fnB =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
-    do! addFnAt branchId (loc "rdSlot2") fnB
-
-    // Rename A to rdSlot2 (displacing B)
-    let! _ =
-      Inserts.insertAndApplyOpsAsWip
-        branchId
-        [ PT.PackageOp.SetName(loc "rdSlot2", PT.PackageFn fnA.hash) ]
-
-    // A should be at rdSlot2
-    let! atSlot2 = findFn branchId (loc "rdSlot2")
-    Expect.equal atSlot2 (Some fnA.hash) "A should be at rdSlot2"
-
-    // rdSlot1 should be empty (A moved away)
-    let! atSlot1 = findFn branchId (loc "rdSlot1")
-    Expect.equal atSlot1 None "rdSlot1 should be empty"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testSelfRecursionPropagation =
-  testTask "self-recursion: update recursive fn repoints caller, no infinite loop" {
-    let! branchId = setupBranch "test-self-rec"
-
-    // Create F1 (simple body)
-    let fnF1 = makeFn (eVar "x")
-    do! addFnAt branchId (loc "selfRec") fnF1
-
-    // Create caller C1 that calls F1
-    let fnC1 = makeFn (callFn fnF1.hash)
-    do! addFnAt branchId (loc "selfRecCaller") fnC1
-
-    // Create F2 that calls F1 (simulates self-reference — at parse time,
-    // "selfRec" resolves to F1.hash, the current hash at that location)
-    let fnF2 = makeFn (callFn fnF1.hash)
-    do! addFnAt branchId (loc "selfRec") fnF2
-
-    // Propagate — should repoint C1 only, no infinite loop
-    let! result =
-      Propagation.propagate
-        branchId
-        (loc "selfRec")
-        PT.ItemKind.Fn
-        [ fnF1.hash ]
-        fnF2.hash
-
-    match result with
-    | Ok(Some((propResult : Propagation.PropagationResult), _propOps)) ->
-      let repointLocs =
-        propResult.repoints
-        |> List.map (fun (r : PT.PropagateRepoint) -> r.location)
-        |> Set.ofList
-
-      Expect.contains repointLocs (loc "selfRecCaller") "caller should be repointed"
-      Expect.isFalse
-        (Set.contains (loc "selfRec") repointLocs)
-        "source should NOT be repointed (self-ref is not mutual recursion)"
-    | Ok None -> failtest "expected dependents"
-    | Error e -> failtest $"propagation failed: {e}"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testSelfRecursionUndo =
-  testTask "self-recursion undo: undo after propagating recursive fn" {
-    let! branchId = setupBranch "test-self-rec-undo"
-
-    // Create F1 and caller, commit
-    let fnF1 = makeFn (eVar "x")
-    do! addFnAt branchId (loc "srBase") fnF1
-
-    let callerV1 = makeFn (callFn fnF1.hash)
-    do! addFnAt branchId (loc "srCaller") callerV1
-
-    let! _ = commitAll branchId "initial"
-
-    let! committedCaller = findFn branchId (loc "srCaller")
-    let committedCallerId = committedCaller |> Option.get
-
-    // Update F1 to F2 (self-referencing) → propagate
-    let fnF2 = makeFn (callFn fnF1.hash)
-    do! addFnAt branchId (loc "srBase") fnF2
-
-    let! ((propResult : Propagation.PropagationResult), propOps) =
-      propagateOrFail branchId (loc "srBase") [ fnF1.hash ] fnF2.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps
-
-    // Verify caller was repointed
-    let! callerAfterProp = findFn branchId (loc "srCaller")
-    Expect.notEqual
-      callerAfterProp
-      (Some committedCallerId)
-      "caller should be repointed"
-
-    // Undo via RevertPropagation
-    let revertOp =
-      PT.PackageOp.RevertPropagation(
-        System.Guid.NewGuid(),
-        [ propResult.propagationId ],
-        loc "srBase",
-        PT.PackageFn fnF1.hash,
-        propResult.repoints
-      )
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp ]
-
-    // Verify caller restored
-    let! callerAfterUndo = findFn branchId (loc "srCaller")
-    Expect.equal callerAfterUndo (Some committedCallerId) "caller should be restored"
-
-    // Verify source restored
-    let! baseAfterUndo = findFn branchId (loc "srBase")
-    Expect.equal baseAfterUndo (Some fnF1.hash) "base should be restored"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testMutualRecursionUndo =
-  testTask "mutual recursion undo: undo after propagating A↔B restores both" {
-    let! branchId = setupBranch "test-mutual-rec-undo"
-
-    // Create A1 (simple), B1 (calls A1)
-    let fnA1 = makeFn (eVar "x")
-    do! addFnAt branchId (loc "muA") fnA1
-
-    let fnB1 = makeFn (callFn fnA1.hash)
-    do! addFnAt branchId (loc "muB") fnB1
-
-    // Update A to call B (creating mutual recursion A↔B)
-    let fnA2 = makeFn (callFn fnB1.hash)
-    do! addFnAt branchId (loc "muA") fnA2
-
-    // Commit
-    let! _ = commitAll branchId "mutual recursion setup"
-
-    let! committedB = findFn branchId (loc "muB")
-    let committedBId = committedB |> Option.get
-    let! committedA = findFn branchId (loc "muA")
-    let committedAId = committedA |> Option.get
-
-    // Update A to A3
-    let fnA3 =
-      makeFn (
-        eInfix
-          (PT.InfixFnCall PT.ArithmeticPlus)
-          (eApply (ePackageFn (hashStr fnB1.hash)) [] [ eVar "x" ])
-          (eInt64 1L)
-      )
-    do! addFnAt branchId (loc "muA") fnA3
-
-    let! branchChain = Branches.getBranchChain branchId
-    let! allHashes =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "muA" "fn"
-    let prevHashes = allHashes |> List.filter (fun id -> id <> fnA3.hash)
-
-    let! ((propResult : Propagation.PropagationResult), propOps) =
-      propagateOrFail branchId (loc "muA") prevHashes fnA3.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId propOps
-
-    // Verify both A and B changed (mutual recursion → both repointed)
-    let! aAfterProp = findFn branchId (loc "muA")
-    Expect.notEqual aAfterProp (Some committedAId) "A should have new hash"
-    let! bAfterProp = findFn branchId (loc "muB")
-    Expect.notEqual bAfterProp (Some committedBId) "B should have new hash"
-
-    // Undo via RevertPropagation
-    let revertOp =
-      PT.PackageOp.RevertPropagation(
-        System.Guid.NewGuid(),
-        [ propResult.propagationId ],
-        loc "muA",
-        PT.PackageFn committedAId,
-        propResult.repoints
-      )
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId [ revertOp ]
-
-    // Verify both restored to committed versions
-    let! aAfterUndo = findFn branchId (loc "muA")
-    Expect.equal aAfterUndo (Some committedAId) "A should be restored to committed"
-
-    let! bAfterUndo = findFn branchId (loc "muB")
-    Expect.equal bAfterUndo (Some committedBId) "B should be restored to committed"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testCycleWithExtraDependent =
-  testTask "cycle + outside dep: A↔B mutual rec, C calls A → all three repointed" {
-    let! branchId = setupBranch "test-cycle-plus"
-
-    // A1 simple
-    let fnA1 = makeFn (eVar "x")
-    do! addFnAt branchId (loc "cpA") fnA1
-
-    // B calls A
-    let fnB = makeFn (callFn fnA1.hash)
-    do! addFnAt branchId (loc "cpB") fnB
-
-    // Update A to call B (creates the A↔B cycle)
-    let fnA2 = makeFn (callFn fnB.hash)
-    do! addFnAt branchId (loc "cpA") fnA2
-
-    // C calls A — outside-cycle dependent
-    let fnC = makeFn (callFn fnA2.hash)
-    do! addFnAt branchId (loc "cpC") fnC
-
-    // Update A again, still calling B (cycle preserved)
-    let fnA3 =
-      makeFn (
-        eInfix
-          (PT.InfixFnCall PT.ArithmeticPlus)
-          (eApply (ePackageFn (hashStr fnB.hash)) [] [ eVar "x" ])
-          (eInt64 1L)
-      )
-    do! addFnAt branchId (loc "cpA") fnA3
-
-    let! branchChain = Branches.getBranchChain branchId
-    let! allHashes =
-      Queries.getAllPreviousHashes branchChain "Test" "Prop" "cpA" "fn"
-    let prevHashes = allHashes |> List.filter (fun id -> id <> fnA3.hash)
-
-    let! ((propResult : Propagation.PropagationResult), _propOps) =
-      propagateOrFail branchId (loc "cpA") prevHashes fnA3.hash
-
-    let repointLocs =
-      propResult.repoints
-      |> List.map (fun (r : PT.PropagateRepoint) -> r.location)
-      |> Set.ofList
-
-    Expect.contains repointLocs (loc "cpA") "A repointed (in cycle)"
-    Expect.contains repointLocs (loc "cpB") "B repointed (in cycle)"
-    Expect.contains repointLocs (loc "cpC") "C repointed (outside cycle)"
-    Expect.equal (Set.count repointLocs) 3 "exactly three repoints"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testTransitiveTypePropagation =
-  testTask "transitive type: T → fn A (uses T) → fn B (calls A) repoints both" {
-    let! branchId = setupBranch "test-trans-type"
-
-    // Type T1
-    let typeV1 =
-      makeType (
-        PT.TypeDeclaration.Enum(
-          NEList.singleton { name = "Active"; fields = []; description = "" }
-        )
-      )
-    do! addTypeAt branchId (loc "ttStatus") typeV1
-
-    // Fn A uses T (via EEnum)
-    let fnA = makeFn (eEnum (typeNamePkg (hashStr typeV1.hash)) [] "Active" [])
-    do! addFnAt branchId (loc "ttFnA") fnA
-
-    // Fn B calls A — transitive dep on T
-    let fnB = makeFn (callFn fnA.hash)
-    do! addFnAt branchId (loc "ttFnB") fnB
-
-    // Update T
-    let typeV2 =
-      makeType (
-        PT.TypeDeclaration.Enum(
-          NEList.ofList
-            { name = "Active"; fields = []; description = "" }
-            [ { name = "Inactive"; fields = []; description = "" } ]
-        )
-      )
-    do! addTypeAt branchId (loc "ttStatus") typeV2
-
-    let! result =
-      Propagation.propagate
-        branchId
-        (loc "ttStatus")
-        PT.ItemKind.Type
-        [ typeV1.hash ]
-        typeV2.hash
-
-    match result with
-    | Ok(Some((propResult : Propagation.PropagationResult), _propOps)) ->
-      let repointLocs =
-        propResult.repoints
-        |> List.map (fun (r : PT.PropagateRepoint) -> r.location)
-        |> Set.ofList
-      Expect.contains repointLocs (loc "ttFnA") "A (direct dep on T) repointed"
-      Expect.contains repointLocs (loc "ttFnB") "B (transitive dep via A) repointed"
-    | Ok None -> failtest "expected dependents"
-    | Error e -> failtest $"propagation failed: {e}"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-let testMultiSourcePropagation =
-  testTask "multi-source: two independent updates each propagate to their dependents" {
-    let! branchId = setupBranch "test-multi-source"
-
-    // A ← B
-    let fnA1 = makeFn (eVar "x")
-    do! addFnAt branchId (loc "msA") fnA1
-    let fnB = makeFn (callFn fnA1.hash)
-    do! addFnAt branchId (loc "msB") fnB
-
-    // C ← D
-    let fnC1 = makeFn (eVar "x")
-    do! addFnAt branchId (loc "msC") fnC1
-    let fnD = makeFn (callFn fnC1.hash)
-    do! addFnAt branchId (loc "msD") fnD
-
-    // Update A → propagate (B repoints)
-    let fnA2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 1L))
-    do! addFnAt branchId (loc "msA") fnA2
-    let! (_, opsA) = propagateOrFail branchId (loc "msA") [ fnA1.hash ] fnA2.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId opsA
-
-    // Update C → propagate (D repoints, independent of A's cascade)
-    let fnC2 =
-      makeFn (eInfix (PT.InfixFnCall PT.ArithmeticPlus) (eVar "x") (eInt64 2L))
-    do! addFnAt branchId (loc "msC") fnC2
-    let! (_, opsC) = propagateOrFail branchId (loc "msC") [ fnC1.hash ] fnC2.hash
-    let! _ = Inserts.insertAndApplyOpsAsWip branchId opsC
-
-    // Both downstream dependents should now point at fresh hashes
-    let! bAfter = findFn branchId (loc "msB")
-    let! dAfter = findFn branchId (loc "msD")
-    Expect.notEqual bAfter (Some fnB.hash) "B repointed by A's propagation"
-    Expect.notEqual dAfter (Some fnD.hash) "D repointed by C's propagation"
-
-    // And A and C themselves are at their new hashes
-    let! aAfter = findFn branchId (loc "msA")
-    let! cAfter = findFn branchId (loc "msC")
-    Expect.equal aAfter (Some fnA2.hash) "A is at v2"
-    Expect.equal cAfter (Some fnC2.hash) "C is at v2"
-
-    do! discardAndDeleteBranch branchId
-  }
-
-
-/// Pin the schema-level fix from the Phase 2 migration: when a dependent
-/// body holds two refs that share a content hash but live at different
-/// FQNs, BOTH dep edges must be queryable. Without the migration, the
-/// (item_hash, depends_on_hash) PRIMARY KEY collapses them and only the
-/// first-inserted location survives — propagating the second FQN finds
-/// zero dependents and the cascade silently misses an item that
-/// references it.
-///
-/// We assert from both directions (propagate collA → finds dep, propagate
-/// collX → finds dep) so the test isn't accidentally satisfied by
-/// insertion order.
-let testDependencyEdgeCollisionStorage =
-  testTask
-    "dep-edge storage: distinct-location edges sharing a hash both survive INSERT OR IGNORE" {
-    let! branchId = setupBranch "test-edge-storage"
-
-    let sharedValue = makeValue (eInt64 7L)
-    do! addValueAt branchId (loc "esA") sharedValue
-    do! addValueAt branchId (loc "esX") sharedValue
-
-    let refAt (location : PT.PackageLocation) : PT.Expr =
-      PT.EValue(
-        gid (),
-        { originalName = []
-          resolved =
-            Ok
-              { name = PT.FQValueName.Package sharedValue.hash
-                location = Some location } }
-      )
-
-    let dependentFn = makeFn (eStatement (refAt (loc "esA")) (refAt (loc "esX")))
-    do! addFnAt branchId (loc "esDep") dependentFn
-
-    let! branchChain = Branches.getBranchChain branchId
-
-    // Query both directions — each should find the dependent.
-    let target location : Queries.LocationTarget =
-      { itemKind = PT.ItemKind.Value
-        location = location
-        hashes = [ sharedValue.hash ] }
-
-    let! viaA = Queries.getDependentsByTargets branchChain [ target (loc "esA") ]
-    let! viaX = Queries.getDependentsByTargets branchChain [ target (loc "esX") ]
-
-    let depFqns (results : List<Queries.LocationDependent>) =
-      results
-      |> List.map (fun d ->
-        let m = String.concat "." d.itemLocation.modules
-        $"{d.itemLocation.owner}.{m}.{d.itemLocation.name}")
-      |> Set.ofList
-
+let transitive =
+  testTask "the cascade is transitive: a repoint moves its own dependents too" {
+    let m = "PropTestChain"
+    do! cleanup m
+
+    let! v1 =
+      author
+        $"""module Darklang.{m}
+
+let a (x: Int64) : Int64 = Stdlib.Int64.add x 1L
+let b (x: Int64) : Int64 = Stdlib.Int64.add ({m}.a x) 10L
+let c (x: Int64) : Int64 = Stdlib.Int64.add ({m}.b x) 100L"""
+
+    let! cBefore = liveHash (loc m "c")
+    let aV1 = hashOfFn v1 "a"
+
+    let! v2 =
+      author
+        $"""module Darklang.{m}
+
+let a (x: Int64) : Int64 = Stdlib.Int64.add x 2000L"""
+
+    let! repointed = cascade (loc m "a") aV1 (hashOfFn v2 "a")
+
+    // b has to move because a did; c has to move because b did. Stopping at b would
+    // leave c calling a version of b that nothing points at -- which is a real state
+    // (that's what `dark constraints` is for), but it is not what the cascade is
+    // supposed to leave behind.
+    Expect.contains repointed "b" "b repoints because a moved"
     Expect.contains
-      (depFqns viaA)
-      "Test.Prop.esDep"
-      "esA-keyed query finds the dependent (first-inserted edge survived — would pass even pre-fix)"
-    Expect.contains
-      (depFqns viaX)
-      "Test.Prop.esDep"
-      "esX-keyed query finds the dependent (second-inserted edge survived — REGRESSION CHECK for PK collapsing)"
+      repointed
+      "c"
+      "c repoints because b moved -- the cascade recurses"
 
-    do! discardAndDeleteBranch branchId
+    let! cAfter = liveHash (loc m "c")
+    Expect.notEqual cAfter cBefore "c really moved, not just reported"
+
+    do! cleanup m
   }
 
+let multipleDependents =
+  testTask "every dependent moves, not just the first one found" {
+    let m = "PropTestFan"
+    do! cleanup m
 
-let testDependencyLocationIncludesTargetKind =
+    let! v1 =
+      author
+        $"""module Darklang.{m}
+
+let shared (x: Int64) : Int64 = Stdlib.Int64.add x 1L
+let one (x: Int64) : Int64 = Stdlib.Int64.add ({m}.shared x) 10L
+let two (x: Int64) : Int64 = Stdlib.Int64.add ({m}.shared x) 20L
+let three (x: Int64) : Int64 = Stdlib.Int64.add ({m}.shared x) 30L"""
+
+    let sharedV1 = hashOfFn v1 "shared"
+
+    let! v2 =
+      author
+        $"""module Darklang.{m}
+
+let shared (x: Int64) : Int64 = Stdlib.Int64.add x 3000L"""
+
+    let! repointed = cascade (loc m "shared") sharedV1 (hashOfFn v2 "shared")
+
+    Expect.contains repointed "one" "first dependent repoints"
+    Expect.contains repointed "two" "second dependent repoints"
+    Expect.contains repointed "three" "third dependent repoints"
+
+    do! cleanup m
+  }
+
+let pinStopsIt =
+  testTask "an explicit pin holds a dependent where it is" {
+    let m = "PropTestPin"
+    do! cleanup m
+
+    let! v1 =
+      author
+        $"""module Darklang.{m}
+
+let base' (x: Int64) : Int64 = Stdlib.Int64.add x 1L
+let held (x: Int64) : Int64 = Stdlib.Int64.add ({m}.base' x) 10L
+let free (x: Int64) : Int64 = Stdlib.Int64.add ({m}.base' x) 20L"""
+
+    let! heldBefore = liveHash (loc m "held")
+    let baseV1 = hashOfFn v1 "base'"
+
+    // A pin on main. This is what a `Decide("propagation", ...)` op folds to, and it
+    // is the whole point of the policy table: the cascade is a rule the machine
+    // applies TO you until you can overrule it.
+    do!
+      Sql.query
+        "INSERT INTO propagation_policy (branch_id, owner, modules, name, policy, note, origin_ts)
+         VALUES ('', 'Darklang', @m, 'held', 'pin', 'test', '2026-01-02T00:00:00.000Z')"
+      |> Sql.parameters [ "m", Sql.string m ]
+      |> Sql.executeStatementAsync
+
+    let! v2 =
+      author
+        $"""module Darklang.{m}
+
+let base' (x: Int64) : Int64 = Stdlib.Int64.add x 4000L"""
+
+    let! repointed = cascade (loc m "base'") baseV1 (hashOfFn v2 "base'")
+
+    Expect.contains repointed "free" "the unpinned dependent follows"
+    Expect.isFalse (List.contains "held" repointed) "the pinned one does not"
+
+    let! heldAfter = liveHash (loc m "held")
+    Expect.equal heldAfter heldBefore "and it really didn't move"
+
+    do! cleanup m
+  }
+
+let crossesOwners =
   testTask
-    "dep-edge lookup: same location across target kinds does not cross-propagate" {
-    let! branchId = setupBranch "test-edge-kind-location"
-    let sharedLoc = loc "kindShared"
+    "the cascade crosses owners, because that is a person's call and not a rule" {
+    let m = "PropTestOwner"
+    do! cleanup m
+    do! cleanupFor "Zz" m
 
-    let typeV1 =
-      makeType (
-        PT.TypeDeclaration.Enum(
-          NEList.ofList { name = "Red"; fields = []; description = "" } []
-        )
-      )
-    do! addTypeAt branchId sharedLoc typeV1
+    let! v1 =
+      author
+        $"""module Darklang.{m}
 
-    let valueV1 = makeValue (eInt64 41L)
-    do! addValueAt branchId sharedLoc valueV1
+let base' (x: Int64) : Int64 = Stdlib.Int64.add x 1L
+let mine (x: Int64) : Int64 = Stdlib.Int64.add ({m}.base' x) 10L"""
 
-    let typeRef : PT.NameResolution<PT.FQTypeName.FQTypeName> =
-      { originalName = []
-        resolved =
-          Ok { name = PT.FQTypeName.Package typeV1.hash; location = Some sharedLoc } }
-    let typeDependent = makeFn (PT.EEnum(gid (), typeRef, [], "Red", []))
-    do! addFnAt branchId (loc "kindTypeDep") typeDependent
+    let baseV1 = hashOfFn v1 "base'"
 
-    let valueRef : PT.NameResolution<PT.FQValueName.FQValueName> =
-      { originalName = []
-        resolved =
-          Ok
-            { name = PT.FQValueName.Package valueV1.hash; location = Some sharedLoc } }
-    let valueDependent = makeFn (PT.EValue(gid (), valueRef))
-    do! addFnAt branchId (loc "kindValueDep") valueDependent
+    // A dependent owned by someone else entirely. The first module segment is the
+    // owner, so this is a genuinely foreign caller rather than another module under
+    // ours.
+    let! _ =
+      author
+        $"""module Zz.{m}
 
-    let! branchChain = Branches.getBranchChain branchId
-    let! typeLookup =
-      Queries.getDependentsByKindedLocations
-        branchChain
-        [ (PT.ItemKind.Type, sharedLoc) ]
-    let! valueLookup =
-      Queries.getDependentsByKindedLocations
-        branchChain
-        [ (PT.ItemKind.Value, sharedLoc) ]
+let theirs (x: Int64) : Int64 = Stdlib.Int64.add (Darklang.{m}.base' x) 20L"""
 
-    let lookupLocs results =
-      results
-      |> List.map (fun (d : Queries.LocationDependent) -> d.itemLocation)
-      |> Set.ofList
+    let! v2 =
+      author
+        $"""module Darklang.{m}
 
+let base' (x: Int64) : Int64 = Stdlib.Int64.add x 5000L"""
+
+    let! repointed = cascade (loc m "base'") baseV1 (hashOfFn v2 "base'")
+
+    Expect.contains repointed "mine" "same-owner dependents follow"
+
+    // The claim under test. `Propagation.propagate` reports the FULL candidate set
+    // and infers nothing from ownership: which of them actually move is chosen at
+    // commit time. Ownership is a fine default and a bad rule, so refusing here
+    // would be automating a decision that belongs to a person.
     Expect.contains
-      (lookupLocs typeLookup)
-      (loc "kindTypeDep")
-      "type-target lookup finds the type dependent"
+      repointed
+      "theirs"
+      "a dependent owned by someone else is a candidate like any other"
+
+    do! cleanupFor "Zz" m
+    do! cleanup m
+  }
+
+let noChangeNoCascade =
+  testTask "a source that didn't actually move produces no repoints" {
+    let m = "PropTestNoop"
+    do! cleanup m
+
+    let! v1 =
+      author
+        $"""module Darklang.{m}
+
+let base' (x: Int64) : Int64 = Stdlib.Int64.add x 1L"""
+
+    let! _ =
+      author
+        $"""module Darklang.{m}
+
+let dep (x: Int64) : Int64 = Stdlib.Int64.add ({m}.base' x) 10L"""
+
+    let! depBefore = liveHash (loc m "dep")
+    let baseV1 = hashOfFn v1 "base'"
+
+    // from == to: nothing changed. A cascade here would author a new version of
+    // every dependent for no reason, and each of those is four ops that live in the
+    // log forever.
+    let! repointed = cascade (loc m "base'") baseV1 baseV1
+    Expect.isEmpty repointed "no repoints when the hash didn't move"
+
+    let! depAfter = liveHash (loc m "dep")
+    Expect.equal depAfter depBefore "and the dependent is untouched"
+
+    do! cleanup m
+  }
+
+let mutualRecursion =
+  testTask "a mutually recursive pair authors and evaluates" {
+    let m = "PropTestMutual"
+    do! cleanup m
+
+    // A references B and B references A, so whichever is parsed first has a forward
+    // reference. If resolution or SCC-aware hashing gets this wrong the authoring
+    // fails outright, and if the hashes don't converge the pair never stops
+    // re-hashing each other.
+    let! _ =
+      author
+        $"""module Darklang.{m}
+
+let a (x: Int64) : Int64 =
+  if x <= 0L then 0L else Stdlib.Int64.add ({m}.b (Stdlib.Int64.subtract x 1L)) 1L
+let b (x: Int64) : Int64 =
+  if x <= 0L then 0L else Stdlib.Int64.add ({m}.a (Stdlib.Int64.subtract x 1L)) 1L"""
+
+    let! aBound = liveHash (loc m "a")
+    let! bBound = liveHash (loc m "b")
+    Expect.isSome aBound "a is bound"
+    Expect.isSome bBound "b is bound"
+    Expect.notEqual aBound bBound "the two sides of the cycle are distinct items"
+
+    do! cleanup m
+  }
+
+let finalVersionWins =
+  testTask
+    "after several edits the dependent lands on the FINAL version, never an intermediate" {
+    let m = "PropTestFinal"
+    do! cleanup m
+
+    let! v1 =
+      author
+        $"""module Darklang.{m}
+
+let r (x: Int64) : Int64 = Stdlib.Int64.add x 1L"""
+    let! _ =
+      author
+        $"""module Darklang.{m}
+
+let rd (x: Int64) : Int64 = Stdlib.Int64.add ({m}.r x) 0L"""
+
+    // Three edits with no commit in between. Each one cascades, so `rd` is
+    // re-authored three times; what must hold is that it ends on the LAST version of
+    // `r`, not on whichever intermediate it saw first.
+    let mutable prev = hashOfFn v1 "r"
+    for n in [ 10; 20; 30 ] do
+      let! v =
+        author
+          $"""module Darklang.{m}
+
+let r (x: Int64) : Int64 = Stdlib.Int64.add x {n}L"""
+      let next = hashOfFn v "r"
+      let! _ = cascade (loc m "r") prev next
+      prev <- next
+
+    let! rLive = liveHash (loc m "r")
+    Expect.equal rLive (Some(hashStr prev)) "r is on its last version"
+
+    // And the dependent points at THAT r, not at an earlier one.
+    let! edges =
+      Sql.query
+        "SELECT DISTINCT pd.depends_on_hash AS h FROM package_dependencies pd
+         JOIN locations l ON l.item_hash = pd.item_hash AND l.unlisted_at IS NULL
+         WHERE l.owner = 'Darklang' AND l.modules = @m AND l.name = 'rd'
+           AND pd.depends_on_name = 'r'"
+      |> Sql.parameters [ "m", Sql.string m ]
+      |> Sql.executeAsync (fun read -> read.string "h")
+    Expect.equal edges [ hashStr prev ] "rd references only the final r"
+
+    do! cleanup m
+  }
+
+let sharedHashesAllRepoint =
+  testTask
+    "identical content is ONE item at several names, and every dependent of it repoints" {
+    let m = "PropTestShared"
+    do! cleanup m
+
+    // `sh1` and `sh2` have the same body, so they are the same item under two names.
+    // Resolving that hash to a single location would silently drop one of the two
+    // dependents from the cascade, which is a wrong answer rather than an incomplete
+    // one.
+    let! v1 =
+      author
+        $"""module Darklang.{m}
+
+let sh1 (x: Int64) : Int64 = Stdlib.Int64.add x 77L"""
+    let! _ =
+      author
+        $"""module Darklang.{m}
+
+let sh2 (x: Int64) : Int64 = Stdlib.Int64.add x 77L"""
+
+    let! h1 = liveHash (loc m "sh1")
+    let! h2 = liveHash (loc m "sh2")
+    Expect.equal h1 h2 "same body, same hash: one item at two names"
+
+    let! _ =
+      author
+        $"""module Darklang.{m}
+
+let d1 (x: Int64) : Int64 = Stdlib.Int64.add ({m}.sh1 x) 3L"""
+    let! _ =
+      author
+        $"""module Darklang.{m}
+
+let d2 (x: Int64) : Int64 = Stdlib.Int64.add ({m}.sh2 x) 4L"""
+
+    let! d1Before = liveHash (loc m "d1")
+    let! d2Before = liveHash (loc m "d2")
+
+    let! v2 =
+      author
+        $"""module Darklang.{m}
+
+let sh1 (x: Int64) : Int64 = Stdlib.Int64.add x 88L"""
+
+    let! repointed = cascade (loc m "sh1") (hashOfFn v1 "sh1") (hashOfFn v2 "sh1")
+    Expect.contains repointed "d1" "the dependent of the name we edited repoints"
+
+    let! d1After = liveHash (loc m "d1")
+    Expect.notEqual d1After d1Before "d1 really moved"
+
+    // `d2` reached the same CONTENT, but through the name `sh2`, and `sh2` still
+    // means what it meant. So it must NOT move. This is the direction that's easy to
+    // get wrong: a cascade driven by hash rather than by name would drag `d2` along,
+    // silently rewriting code whose dependency nobody touched.
     Expect.isFalse
-      (Set.contains (loc "kindValueDep") (lookupLocs typeLookup))
-      "type-target lookup does not include the value dependent"
-    Expect.contains
-      (lookupLocs valueLookup)
-      (loc "kindValueDep")
-      "value-target lookup finds the value dependent"
-    Expect.isFalse
-      (Set.contains (loc "kindTypeDep") (lookupLocs valueLookup))
-      "value-target lookup does not include the type dependent"
+      (List.contains "d2" repointed)
+      "the other name's dependent does NOT repoint"
+    let! d2After = liveHash (loc m "d2")
+    Expect.equal d2After d2Before "d2 is untouched"
+    let! sh2After = liveHash (loc m "sh2")
+    Expect.equal sh2After h2 "and sh2 still means what it meant"
 
-    let typeV2 =
-      makeType (
-        PT.TypeDeclaration.Enum(
-          NEList.ofList
-            { name = "Red"; fields = []; description = "" }
-            [ { name = "Blue"; fields = []; description = "" } ]
-        )
-      )
-    do! addTypeAt branchId sharedLoc typeV2
-
-    let! result =
-      Propagation.propagate
-        branchId
-        sharedLoc
-        PT.ItemKind.Type
-        [ typeV1.hash ]
-        typeV2.hash
-
-    match result with
-    | Ok(Some((propResult : Propagation.PropagationResult), _propOps)) ->
-      let repointLocs =
-        propResult.repoints
-        |> List.map (fun (r : PT.PropagateRepoint) -> r.location)
-        |> Set.ofList
-
-      Expect.contains
-        repointLocs
-        (loc "kindTypeDep")
-        "the type dependent is repointed"
-      Expect.isFalse
-        (Set.contains (loc "kindValueDep") repointLocs)
-        "the value dependent at the same target location is not repointed"
-    | Ok None -> failtest "expected the type dependent to be found"
-    | Error e -> failtest $"propagation failed: {e}"
-
-    do! discardAndDeleteBranch branchId
+    do! cleanup m
   }
 
+/// What `locations` says PUT a binding there: 'op' (you authored it), 'propagation'
+/// (it followed), or 'resolution' (a forced rebind).
+let private bindingSource (l : PT.PackageLocation) : Task<Option<string>> =
+  Sql.query
+    "SELECT source FROM locations
+     WHERE owner = @o AND modules = @m AND name = @n AND unlisted_at IS NULL LIMIT 1"
+  |> Sql.parameters
+    [ "o", Sql.string l.owner
+      "m", Sql.string (String.concat "." l.modules)
+      "n", Sql.string l.name ]
+  |> Sql.executeRowOptionAsync (fun read -> read.string "source")
 
-/// Pin the location-aware AT substitution: when a dependent body holds
-/// two references that happen to share a content hash but live at
-/// different FQNs, propagating one of the FQNs must rewrite ONLY the
-/// reference that names that FQN. The other reference — same hash, but
-/// its captured `ResolvedName.location` points elsewhere — must stay put.
-///
-/// Without the location-keyed lookup in `AstTransformer`, the hash-keyed
-/// substitution map would rewrite both references blindly and silently
-/// repoint the unrelated one. That's exactly the cross-namespace
-/// conflation this branch's whole architecture targets, just at the
-/// body-rewrite layer instead of the dep-edge layer.
-let testCrossNamespaceCollisionRewrite =
-  testTask
-    "collision: dependent with two same-hash refs at different FQNs only repoints the targeted one" {
-    let! branchId = setupBranch "test-collision-rewrite"
 
-    // One value at two locations — locations table now has two rows
-    // pointing at the same content hash by construction.
-    let sharedValue = makeValue (eInt64 42L)
-    do! addValueAt branchId (loc "collA") sharedValue
-    do! addValueAt branchId (loc "collX") sharedValue
+let repointIsMarkedAsFollowed =
+  testTask "a repointed binding records that it followed, not that you authored it" {
+    let m = "PropTestProv"
+    do! cleanup m
 
-    // Dependent body: { collA-ref ; collX-ref }. Both EValue NRs resolve
-    // to `sharedValue.hash`; the only thing distinguishing them is the
-    // `location` captured inside their `ResolvedName`. Built by hand
-    // because the standard shortcut (`ePackageValue`) leaves location unset.
-    let refAt (location : PT.PackageLocation) : PT.Expr =
-      PT.EValue(
-        gid (),
-        { originalName = []
-          resolved =
-            Ok
-              { name = PT.FQValueName.Package sharedValue.hash
-                location = Some location } }
-      )
-    let dependentFn = makeFn (eStatement (refAt (loc "collA")) (refAt (loc "collX")))
-    do! addFnAt branchId (loc "collDep") dependentFn
+    let! v1 =
+      author
+        $"""module Darklang.{m}
 
-    // Move collA to a new hash; collX is left alone.
-    let newValue = makeValue (eInt64 999L)
-    do! addValueAt branchId (loc "collA") newValue
+let base' (x: Int64) : Int64 = Stdlib.Int64.add x 71L"""
 
-    let! result =
-      Propagation.propagate
-        branchId
-        (loc "collA")
-        PT.ItemKind.Value
-        [ sharedValue.hash ]
-        newValue.hash
+    let! _ =
+      author
+        $"""module Darklang.{m}
 
-    match result with
-    | Ok(Some(_propResult, propOps)) ->
-      let rewrittenDep =
-        propOps
-        |> List.tryPick (function
-          | PT.PackageOp.AddFn fn -> Some fn
-          | _ -> None)
+let dependent (x: Int64) : Int64 = Darklang.{m}.base' x"""
 
-      match rewrittenDep with
-      | None -> failtest "expected an AddFn op for the dependent"
-      | Some fn ->
-        match fn.body with
-        | PT.EStatement(_, PT.EValue(_, nrA), PT.EValue(_, nrX)) ->
-          let resolvedHash (nr : PT.NameResolution<PT.FQValueName.FQValueName>) =
-            match nr.resolved with
-            | Ok { name = PT.FQValueName.Package h } -> h
-            | _ -> failtest "expected a resolved package value reference"
-          // Targeted ref: location says "collA", and collA is being
-          // moved → rewrite to the new hash.
-          Expect.equal
-            (resolvedHash nrA)
-            newValue.hash
-            "collA-keyed reference repointed to newValue"
-          // Collision-victim ref: location says "collX", which isn't in
-          // the propagation batch. The hash matches the substitution
-          // input but the location guard refuses to rewrite. This
-          // assertion is the regression check.
-          Expect.equal
-            (resolvedHash nrX)
-            sharedValue.hash
-            "collX-keyed reference is unchanged (location guarded against false rewrite)"
-        | other -> failtest $"unexpected dependent body shape: {other}"
-    | Ok None -> failtest "expected dependents from propagation"
-    | Error e -> failtest $"propagation failed: {e}"
+    let! authoredSource = bindingSource (loc m "dependent")
+    Expect.equal authoredSource (Some "op") "authoring records itself as authoring"
 
-    do! discardAndDeleteBranch branchId
+    let! v2 =
+      author
+        $"""module Darklang.{m}
+
+let base' (x: Int64) : Int64 = Stdlib.Int64.add x 72L"""
+
+    let! repointed =
+      cascade (loc m "base'") (hashOfFn v1 "base'") (hashOfFn v2 "base'")
+    Expect.contains repointed "dependent" "the dependent followed"
+
+    // The whole point: a repoint changes only the item's resolved references, so the
+    // binding it writes is otherwise identical in shape to one you typed. Without
+    // this column, `dark commit` cannot tell you which entries you edited and which
+    // followed.
+    let! followedSource = bindingSource (loc m "dependent")
+    Expect.equal
+      followedSource
+      (Some "propagation")
+      "the repoint records that it followed"
+
+    // The item you actually edited is NOT marked as having followed.
+    let! editedSource = bindingSource (loc m "base'")
+    Expect.equal editedSource (Some "op") "the edited item is still yours"
+
+    do! cleanup m
   }
 
 
 let tests =
-  testList
+  // These author into the shared main store and assert on `locations`, and other
+  // tests re-fold that projection. A reader caught mid-rewrite sees a name that
+  // plainly exists as missing. testSequenced, NOT testSequencedGroup. The group form
+  // only stops the tests INSIDE it from running alongside each other; the group
+  // still runs in the parallel phase next to everything else, which is where the
+  // actual hazard is. testSequenced is what moves them to the phase that runs alone.
+  testSequenced
+  <| testList
     "Propagation"
-    [ testPropagateOps
-      testTransitiveOps
-      testNoDependents
-      testCallersOnDifferentVersions
-      testMutualRecursion
-      testBranchIsolation
-      testRevertPropagationOp
-      testRevertPropagationMultipleUpdates
-      testIncrementalUndoRestoresWipLocation
-      testIncrementalUndoFullWalkthrough
-      testUndoThenRedo
-      testMultiCycleUndoRedo
-      testUndoThenRedoWithDependents
-      testTypePropagation
-      testValuePropagation
-      testDiamondUndoPropagation
-      testDeepTransitiveChain
-      testDiscardAfterPropagate
-      testRenameFn
-      testRenameType
-      testRenameValue
-      testRenameFnWithDependent
-      testRenameThenUpdateWithPropagation
-      testRenameToOccupiedLocation
-      testSelfRecursionPropagation
-      testSelfRecursionUndo
-      testMutualRecursionUndo
-      testCycleWithExtraDependent
-      testTransitiveTypePropagation
-      testMultiSourcePropagation
-      testCrossNamespaceCollisionRewrite
-      testDependencyLocationIncludesTargetKind
-      testDependencyEdgeCollisionStorage ]
+    [ singleHop
+      transitive
+      multipleDependents
+      pinStopsIt
+      crossesOwners
+      noChangeNoCascade
+      mutualRecursion
+      finalVersionWins
+      sharedHashesAllRepoint
+      repointIsMarkedAsFollowed ]

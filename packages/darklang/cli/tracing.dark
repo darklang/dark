@@ -182,14 +182,7 @@ let parseViewOptions
 /// fail on EOF. Only an interactive user without `--yes` sees the
 /// prompt — matching the `rm -i` shape.
 let confirmDestructive (autoConfirm: Bool) (action: String) : Bool =
-  if autoConfirm then
-    true
-  else if Stdlib.Bool.not (Builtin.stdinIsInteractive ()) then
-    true
-  else
-    Stdlib.printLine $"{action} (y/n): "
-    let response = Builtin.stdinReadLine ()
-    (response == "y") || (response == "Y")
+  Cli.Prompt.confirm autoConfirm $"{action} (y/n): "
 
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
@@ -936,7 +929,7 @@ let printTraceRows (rows: List<TraceSummary>) : Unit =
     Stdlib.printLine $"  {row.timestamp}  {row.traceId}  {row.handler}")
 
 
-let formatInputs (branchId: Uuid) (inputs: List<InputVar>) : String =
+let formatInputs (branchId: String) (inputs: List<InputVar>) : String =
   match inputs with
   | [] -> "  (none)"
   | _ ->
@@ -954,7 +947,7 @@ let formatInputs (branchId: Uuid) (inputs: List<InputVar>) : String =
 /// normalize comma spacing because that would corrupt commas inside
 /// string contents.
 // `compactDval` moved to `Darklang.Tracing.Format`.
-let compactDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
+let compactDval (branchId: String) (dv: LanguageTools.RuntimeTypes.Dval) : String =
   Darklang.Tracing.Format.compactDval branchId dv
 
 
@@ -995,7 +988,7 @@ let isVisible (opts: ViewOptions) (call: FnCall) (ancestorMatched: Bool) : Bool 
 /// formatFnCalls because Darklang doesn't allow nested let-recs.
 let renderCall
   (opts: ViewOptions)
-  (branchId: Uuid)
+  (branchId: String)
   (childrenMap: Dict<List<FnCall>>)
   (call: FnCall)
   (depth: Int)
@@ -1049,7 +1042,7 @@ let renderCall
 
 let formatFnCalls
   (opts: ViewOptions)
-  (branchId: Uuid)
+  (branchId: String)
   (fnCalls: List<FnCall>)
   : String =
   match fnCalls with

@@ -13,7 +13,7 @@ open Fumble
 open LibDB.Sqlite
 
 module Seed = LibDB.Seed
-module Releases = LibDB.Releases
+module PT = LibExecution.ProgramTypes
 
 let private countRows (table : string) : Task<int64> =
   Sql.query $"SELECT COUNT(*) as n FROM {table}"
@@ -66,6 +66,81 @@ let rebuildIsDeterministic =
       "package_blobs (canonical content) preserved, not dropped"
   }
 
+/// A fixed op hashes to a fixed value.
+///
+/// The companion to `opIdIsItsContentHash`, covering the one thing that test cannot: if the hash function
+/// itself changed, the store would be rebuilt under the new definition and both would agree on a different
+/// answer.
+///
+/// This pins the function to a literal, and is meant to fail when someone changes how ops are hashed. That
+/// failure is the point: the id is an op's identity, so changing it means every existing store's ids stop
+/// matching their content, peers disagree about which ops they hold, and `INSERT OR IGNORE` stops deduping.
+/// If you meant it, update the literal and plan a migration.
+///
+/// A `SetName` rather than an `AddFn`, deliberately: it carries no expression tree, so this pins op hashing
+/// and not the whole AST serializer.
+let opHashingIsStable =
+  test "a fixed op hashes to a fixed value" {
+    let op =
+      PT.PackageOp.SetName(
+        { owner = "GoldenTest"; modules = [ "Hashing" ]; name = "pinned" },
+        PT.Reference.PackageFn(
+          PT.Hash "1111111111111111111111111111111111111111111111111111111111111111"
+        ),
+        None
+      )
+
+    let (PT.Hash actual) = LibSerialization.Hashing.Hashing.computeOpHash op
+
+    Expect.equal
+      actual
+      "ac860bb0f035c6c6bb6be16723661060f552811840ae1374f7de28640b8dfcb5"
+      "op hashing changed. See this test's comment before updating the literal."
+  }
+
+/// The claim everything else rests on: an op's id IS its content.
+///
+/// Every argument in this design leans on it. `INSERT OR IGNORE` dedups a re-add because the id collides.
+/// Two machines authoring identical bytes produce one row rather than two. A projection can be dropped and
+/// re-folded because the log is addressed by content rather than by insertion order.
+///
+/// Checks every row rather than a sample, because the interesting failure is one op, not a trend.
+///
+/// Derives the expected id from `Hashing.computeOpHash` and the documented truncation, NOT by calling
+/// `Inserts.computeOpHash`. That distinction is the whole test: the store is re-folded before every run, so
+/// every id in it was minted by `Inserts.computeOpHash` moments earlier, and a test that recomputes with
+/// that same function compares it against itself. Breaking the truncation deliberately left the
+/// self-comparing version passing.
+///
+/// It cannot catch a change to `Hashing.computeOpHash` itself, since the store would be rebuilt under the
+/// new definition. `opHashingIsStable` pins that against a literal.
+let opIdIsItsContentHash =
+  testTask "every op's stored id is the first 16 bytes of its content hash" {
+    let! rows =
+      Sql.query "SELECT id, op_blob FROM package_ops"
+      |> Sql.executeAsync (fun read -> (read.uuid "id", read.bytes "op_blob"))
+
+    Expect.isGreaterThan (List.length rows) 0 "there are ops to check"
+
+    let mismatched =
+      rows
+      |> List.choose (fun (id, blob) ->
+        let op = LibDB.Queries.deserializeOp id blob
+        let (LibExecution.ProgramTypes.Hash h) =
+          LibSerialization.Hashing.Hashing.computeOpHash op
+        let bytes : byte[] = System.Convert.FromHexString(h : string)
+        let recomputed = System.Guid(bytes[0..15])
+        if recomputed = id then None else Some(id, recomputed))
+
+    match mismatched with
+    | [] -> ()
+    | (stored, recomputed) :: _ ->
+      Expect.equal
+        (List.length mismatched)
+        0
+        $"{List.length mismatched} op(s) are stored under an id that isn't their content hash; first is {stored}, whose blob hashes to {recomputed}"
+  }
+
 let refoldReproducesContent =
   // Stronger than the count check above: the exact CONTENT of the projections (the set of projected item
   // hashes) is reproduced across a re-fold — the fold is a deterministic function of the op log, not merely
@@ -98,14 +173,17 @@ let originTsStrictlyIncreasing =
   }
 
 let durableReleaseCarriesForward =
-  // THE POINT, end to end: migrate a store from one Release to the next WITHOUT losing authored work. A
-  // durable Release step carries the op log forward (a schema copy-swap + an optional op-format re-serialize);
-  // the projections are then dropped and RE-FOLDED from that same log in the new format. The op log is
-  // canonical — you migrate the LOG, never the derived tables; and meaning-stable hashing keeps each op's
-  // identity across a re-serialize. (Contrast the shipped Release 3, a clean-BREAK; this proves the DURABLE
-  // path a real future release will use.)
+  // THE POINT, end to end: change the schema under a store WITHOUT losing authored work. The op log is
+  // canonical, so you migrate the LOG and never the derived tables -- drop the projections, re-fold them from
+  // that same log, and every item comes back with the same hash.
+  //
+  // This used to drive `Releases.applyRelease`, which went with the release model. It lost nothing real: the
+  // `reserialize` hook it exercised took `byte[] -> byte[]` without the op id, so a genuine
+  // deserialize-and-re-encode could never be driven through it, and the test passed an identity function.
+  // It exercised the path, not the transform, and said so. What's left here is the part that was always
+  // load-bearing, driven directly: schema change, then re-fold.
   testTask
-    "release migration (durable): authored op log carried forward + projections re-folded, nothing lost" {
+    "a schema change keeps your work: the op log is carried forward and the projections re-fold identically" {
     let! opsBefore = countRows "package_ops"
     let! blobsBefore = countRows "package_blobs"
     Expect.isTrue
@@ -113,17 +191,11 @@ let durableReleaseCarriesForward =
       "there is authored work to migrate (not a vacuous test)"
     let! fpBefore = itemHashes ()
 
-    // A durable forward Release step (n = code+1): a real schema change that runs the reserialize branch of
-    // applyRelease (NOT clearForRebuild) — so the authored op log is preserved, carried forward, re-folded.
-    // CLEANUP(reserialize-test): the remap is identity because `reserialize : byte[] -> byte[]` doesn't get the
-    // op id, so a genuine deserialize→re-encode can't be driven here — this exercises the path, not the transform.
-    Releases.applyRelease
-      { n = Releases.currentRelease + 1
-        sql =
-          "CREATE INDEX IF NOT EXISTS idx_release_migration_demo ON package_ops(origin_ts)"
-        reserialize = Some(fun blob -> blob)
-        clearForRebuild = false }
-    // the step marked the log unapplied; startup re-folds the projections from the (carried-forward) log
+    do!
+      Sql.query
+        "CREATE INDEX IF NOT EXISTS idx_release_migration_demo ON package_ops(origin_ts)"
+      |> Sql.executeStatementAsync
+
     let! _ = Seed.rebuildProjections ()
 
     let! opsAfter = countRows "package_ops"
@@ -152,7 +224,10 @@ let durableReleaseCarriesForward =
   }
 
 let registryCoversProjections =
-  test "the projection registry covers exactly the 6 regenerable projections" {
+  // The COUNT is in the name on purpose: adding a projection without adding it here is exactly the drift
+  // this catches. It caught it, too -- `propagation_policy` was added to the registry on the kernel-substrate
+  // branch while this test sat disabled, and re-enabling the file surfaced it immediately.
+  test "the projection registry covers exactly the 7 regenerable projections" {
     Expect.equal
       (List.sort Seed.projectionTables)
       (List.sort
@@ -161,7 +236,8 @@ let registryCoversProjections =
           "package_values"
           "locations"
           "package_dependencies"
-          "deprecations" ])
+          "deprecations"
+          "propagation_policy" ])
       "the registry's tables are exactly Seed.export's stripped projections (incl. deprecations)"
   }
 
@@ -219,7 +295,9 @@ let tests =
   testSequenced
   <| testList
     "OpsProjections"
-    [ rebuildIsDeterministic
+    [ opHashingIsStable
+      opIdIsItsContentHash
+      rebuildIsDeterministic
       refoldReproducesContent
       originTsStrictlyIncreasing
       durableReleaseCarriesForward

@@ -39,7 +39,7 @@ let floatParts (f: Float) : Stdlib.Option.Option<(String * String)> =
 /// name is by construction resolvable. The location is looked up because without it the pretty-printer has
 /// nothing to print but the hash.
 let typeNameToPT
-  (branchId: Uuid)
+  (branchId: String)
   (typeName: RuntimeTypes.FQTypeName.FQTypeName)
   : ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> =
   match typeName with
@@ -57,7 +57,7 @@ let typeNameToPT
                 location = location }) }
 
 let dvalToExpr
-  (branchId: Uuid)
+  (branchId: String)
   (dval: RuntimeTypes.Dval)
   : Stdlib.Result.Result<ProgramTypes.Expr, String> =
   match dval with

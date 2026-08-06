@@ -231,10 +231,8 @@ let makeCliTool (branchName: String) (writeMode: WriteMode) : Darklang.LLM.Agent
 
 
 // AGENT SETUP
-let currentBranchName (state: Cli.AppState) : String =
-  match SCM.Branch.get state.currentBranchId with
-  | Some b -> b.name
-  | None -> "main"
+let currentBranchName (_state: Cli.AppState) : String =
+  "main" // single-scope kernel: always main
 
 let createAgent (model: Darklang.LLM.Models.Model) (branchName: String) (writeMode: WriteMode) : Darklang.LLM.Agent.Agent =
   (Darklang.LLM.Agent.create ())
@@ -432,7 +430,7 @@ let help (_state: Cli.AppState) : String =
       "  agent code add validation            - Prompts before each write"
       "  agent code add validation --yes      - Allow all writes"
       "  agent review Darklang.Cli.Core.execute"
-      "  agent fix Darklang.Cli.SCM.Status.render --yes" ]
+      "  agent fix Darklang.Cli.Status.execute --yes" ]
 
   let all = Stdlib.List.append (Stdlib.List.append header lines) footer
   Stdlib.String.join all "\n"
