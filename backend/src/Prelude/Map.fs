@@ -2,8 +2,26 @@ module Map
 
 // Folding key-value pairs from `toAdd` into `base` with Map.add overwriting on
 // key collision means `toAdd`'s value wins on conflict.
+//
+// Skips the add when the key already maps to an equal value. `Map.add` rebuilds every node along the
+// search path whether or not anything changes, so a merge that produces the same map as it started with
+// -- which the interpreter does constantly, re-merging a symbol table into one that already holds those
+// bindings -- was paying a full rebuild to produce identical contents.
 let mergeFavoringRight (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
-  Map.fold (fun acc k v -> Map.add k v acc) m1 m2
+  if Map.isEmpty m2 then
+    m1
+  elif Map.isEmpty m1 then
+    m2
+  else
+    Map.fold
+      (fun acc k v ->
+        let mutable existing = Unchecked.defaultof<'v>
+        if acc.TryGetValue(k, &existing) && Unchecked.equals existing v then
+          acc
+        else
+          Map.add k v acc)
+      m1
+      m2
 
 let mergeFavoringLeft (m1 : Map<'k, 'v>) (m2 : Map<'k, 'v>) : Map<'k, 'v> =
   Map.fold (fun acc k v -> Map.add k v acc) m2 m1
