@@ -199,9 +199,10 @@ let private branchChainCache =
   System.Collections.Concurrent.ConcurrentDictionary<PT.BranchId, List<PT.BranchId>>()
 
 let getBranchChain (id : PT.BranchId) : Task<List<PT.BranchId>> =
-  match branchChainCache.TryGetValue id with
-  | true, cached -> System.Threading.Tasks.Task.FromResult cached
-  | false, _ ->
+  let mutable cached = Unchecked.defaultof<List<PT.BranchId>>
+  if branchChainCache.TryGetValue(id, &cached) then
+    System.Threading.Tasks.Task.FromResult cached
+  else
     task {
       let! chain =
         Sql.query

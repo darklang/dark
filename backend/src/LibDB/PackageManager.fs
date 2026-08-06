@@ -25,9 +25,12 @@ let private harmfulCache =
   System.Collections.Concurrent.ConcurrentDictionary<PT.BranchId, Set<string>>()
 
 let private loadHarmfulForBranch (branchId : PT.BranchId) : Set<string> =
-  match harmfulCache.TryGetValue branchId with
-  | true, cached -> cached
-  | false, _ ->
+  // Reached from `isHarmful` on every package call, so `TryGetValue(k, &out)` rather than the tuple
+  // form, which allocates a `Tuple<bool, 'v>` per lookup.
+  let mutable cached = Unchecked.defaultof<Set<string>>
+  if harmfulCache.TryGetValue(branchId, &cached) then
+    cached
+  else
     let branchChain =
       Branches.getBranchChain branchId |> Async.AwaitTask |> Async.RunSynchronously
     let harmful =
