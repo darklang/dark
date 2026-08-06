@@ -134,14 +134,16 @@ let private unifiesTrivially (expected : TypeReference) (actual : ValueType) : b
 type SyncUnification =
   /// Unified, with the symbol table it produced.
   | Unified of tst : TypeSymbolTable
-  /// Genuinely doesn't unify, with the path to where it went wrong.
-  | Mismatched of path : ReverseTypeCheckPath
+  /// Genuinely doesn't unify. Carries no path to where: `tryUnifySync`, the only way in, answers any
+  /// failure by re-running the whole check on the async route, which builds its own path for the error
+  /// message. Threading one through here meant a cons per container level per argument per call, for a
+  /// value that was discarded on failure and never read on success.
+  | Mismatched
   /// Needs the async path -- a type lookup, or an error message worth building properly.
   | Undecided
 
 let rec unifyValueTypeSync
   (tst : TypeSymbolTable)
-  (pathSoFar : ReverseTypeCheckPath)
   (expected : TypeReference)
   (actual : ValueType)
   : SyncUnification =
@@ -163,37 +165,22 @@ let rec unifyValueTypeSync
         match ValueType.merge bound actual with
         | Ok merged ->
           if merged = bound then Unified tst else Unified(Map.add name merged tst)
-        | Error() -> Mismatched pathSoFar
+        | Error() -> Mismatched
 
     // Containers recurse but never need a type lookup, so they stay on this path. Without these a
     // `List<Int>` argument -- which is most of what the standard library passes around -- would fall to
     // the async route purely for being a container, which is the common case rather than a rare one.
     | TList innerT ->
       match actual with
-      | ValueType.Known(KTList innerV) ->
-        unifyValueTypeSync
-          tst
-          (TypeCheckPathPart.ListType :: pathSoFar)
-          innerT
-          innerV
+      | ValueType.Known(KTList innerV) -> unifyValueTypeSync tst innerT innerV
       | _ -> Undecided
     | TStream innerT ->
       match actual with
-      | ValueType.Known(KTStream innerV) ->
-        unifyValueTypeSync
-          tst
-          (TypeCheckPathPart.ListType :: pathSoFar)
-          innerT
-          innerV
+      | ValueType.Known(KTStream innerV) -> unifyValueTypeSync tst innerT innerV
       | _ -> Undecided
     | TDict innerT ->
       match actual with
-      | ValueType.Known(KTDict innerV) ->
-        unifyValueTypeSync
-          tst
-          (TypeCheckPathPart.DictValueType :: pathSoFar)
-          innerT
-          innerV
+      | ValueType.Known(KTDict innerV) -> unifyValueTypeSync tst innerT innerV
       | _ -> Undecided
 
     | TTuple(tFirst, tSecond, tRest) ->
@@ -209,13 +196,7 @@ let rec unifyValueTypeSync
               match vs with
               | [] -> Unified tst
               | v :: vRest ->
-                match
-                  unifyValueTypeSync
-                    tst
-                    (TypeCheckPathPart.TupleAtIndex i :: pathSoFar)
-                    e
-                    v
-                with
+                match unifyValueTypeSync tst e v with
                 | Unified tst' -> go (i + 1) tst' eRest vRest
                 | other -> other
           go 0 tst (tFirst :: tSecond :: tRest) (vFirst :: vSecond :: vRest)
@@ -502,7 +483,6 @@ let rec resolveType
 /// type variable (which genuinely needs a ValueType to bind), falls through to the original path.
 let private unifyDvalSync
   (tst : TypeSymbolTable)
-  (pathSoFar : ReverseTypeCheckPath)
   (expected : TypeReference)
   (actual : Dval)
   : SyncUnification =
@@ -510,19 +490,13 @@ let private unifyDvalSync
   match expected with
   | TList innerT ->
     match actual with
-    | DList(innerV, _) ->
-      unifyValueTypeSync tst (TypeCheckPathPart.ListType :: pathSoFar) innerT innerV
-    | _ -> unifyValueTypeSync tst pathSoFar expected (Dval.toValueType actual)
+    | DList(innerV, _) -> unifyValueTypeSync tst innerT innerV
+    | _ -> unifyValueTypeSync tst expected (Dval.toValueType actual)
   | TDict innerT ->
     match actual with
-    | DDict(innerV, _) ->
-      unifyValueTypeSync
-        tst
-        (TypeCheckPathPart.DictValueType :: pathSoFar)
-        innerT
-        innerV
-    | _ -> unifyValueTypeSync tst pathSoFar expected (Dval.toValueType actual)
-  | _ -> unifyValueTypeSync tst pathSoFar expected (Dval.toValueType actual)
+    | DDict(innerV, _) -> unifyValueTypeSync tst innerT innerV
+    | _ -> unifyValueTypeSync tst expected (Dval.toValueType actual)
+  | _ -> unifyValueTypeSync tst expected (Dval.toValueType actual)
 
 
 /// The unification behind both the parameter and the result checks, answered without a computation
@@ -542,9 +516,9 @@ let tryUnifySync
   match unwrapAliasSync expected with
   | ValueNone -> ValueNone
   | ValueSome expected ->
-    match unifyDvalSync tst [] expected actual with
+    match unifyDvalSync tst expected actual with
     | Unified updatedTst -> ValueSome updatedTst
-    | Mismatched _
+    | Mismatched
     | Undecided -> ValueNone
 
 
