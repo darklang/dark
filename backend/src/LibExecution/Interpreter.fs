@@ -814,7 +814,8 @@ let private invokeBuiltin
   (typeArgs : List<TypeReference>)
   (allArgs : List<Dval>)
   : Ply<Dval> =
-  let raiseRTE rte = raiseRTE vm.threadID rte
+  // No local `raiseRTE` alias: the cold-path `uply` below would capture it, and a local a
+  // closure captures is an allocation on every call, not just the ones that need it.
   // Resolve type variables in typeArgs before passing to builtin.
   // When a package function like Stdlib.Json.parse<Int64> calls
   // Builtin.jsonParse<'a>, the 'a needs to resolve to Int64.
@@ -842,12 +843,12 @@ let private invokeBuiltin
   if not (System.Object.ReferenceEquals(fn.capabilities, Capabilities.noCaps)) then
     match Capabilities.coversStructurally exeState.grantedCaps fn.capabilities with
     | Capabilities.Denied what ->
-      raiseRTE (
-        RTE.UncaughtException(
+      raiseRTE
+        vm.threadID
+        (RTE.UncaughtException(
           $"capability denied: `{fn.name.name}` needs {what}, which this instance doesn't grant. Grant it with `dark caps`.",
           []
-        )
-      )
+        ))
     | Capabilities.Allowed -> ()
 
   let bodyAllocBefore =
@@ -900,7 +901,7 @@ let private invokeBuiltin
             result
         with
         | Ok _ -> ()
-        | Error rte -> raiseRTE rte
+        | Error rte -> raiseRTE vm.threadID rte
         recordStage vm ApplyStage.BiCheckResult biResAlloc
         return trace result
       }
@@ -969,7 +970,8 @@ let private callBuiltinResolved
   (fn : BuiltInFn)
   (resolvedTypeArgsVT : List<ValueType>)
   : Ply<Dval> =
-  let raiseRTE rte = raiseRTE vm.threadID rte
+  // No local `raiseRTE` alias: the cold-path `uply` below would capture it, and a local a
+  // closure captures is an allocation on every call, not just the ones that need it.
   let applicable = ctx.applicable
   let newArgDvals = ctx.args
 
@@ -1056,7 +1058,7 @@ let private callBuiltinResolved
               | Ok updatedTst ->
                 tstRest <- updatedTst
                 return! checkRest (i + 1) pRest aRest
-              | Error rte -> return raiseRTE rte
+              | Error rte -> return raiseRTE vm.threadID rte
         }
       do! checkRest biNextI biRestPs biRestArgs
       return!
@@ -1082,7 +1084,8 @@ let private callBuiltin
   (ctx : ApplyContext)
   (fn : BuiltInFn)
   : Ply<Dval> =
-  let run resolved = callBuiltinResolved exeState vm currentFrame ctx fn resolved
+  // Spelled out in both arms rather than shared as a local `run`, for the same reason as in
+  // `callPackage`: the async arm would capture it, so the closure would be built on every call.
   match
     resolveTypeArgsSync
       exeState
@@ -1091,11 +1094,12 @@ let private callBuiltin
       (List.length fn.typeParams)
       ctx
   with
-  | ValueSome resolved -> run resolved
+  | ValueSome resolved ->
+    callBuiltinResolved exeState vm currentFrame ctx fn resolved
   | ValueNone ->
     uply {
       let! resolved = resolveTypeArgsAsync exeState ctx
-      return! run resolved
+      return! callBuiltinResolved exeState vm currentFrame ctx fn resolved
     }
 
 
@@ -1213,7 +1217,8 @@ let private callPackageResolved
   (fn : PackageFn.PackageFn)
   (resolvedExplicitTypeArgsVT : List<ValueType>)
   : Ply<PackageOutcome> =
-  let raiseRTE rte = raiseRTE vm.threadID rte
+  // No local `raiseRTE` alias: the cold-path `uply` below would capture it, and a local a
+  // closure captures is an allocation on every call, not just the ones that need it.
   let applicable = ctx.applicable
   let newArgDvals = ctx.args
   let mutable tst = ctx.tst
@@ -1329,7 +1334,7 @@ let private callPackageResolved
               | Ok updatedTst ->
                 tstRest <- updatedTst
                 return! checkRest (i + 1) pRest aRest
-              | Error rte -> return raiseRTE rte
+              | Error rte -> return raiseRTE vm.threadID rte
         }
       do! checkRest pkgNextI pkgRestPs pkgRestArgs
       return
@@ -1359,8 +1364,9 @@ let private callPackage
   (ctx : ApplyContext)
   (fn : PackageFn.PackageFn)
   : Ply<PackageOutcome> =
-  let run resolved =
-    callPackageResolved exeState vm currentFrame pendingCallArgs ctx fn resolved
+  // Both arms spell out the call rather than sharing a local `run`. The async arm would capture that
+  // local into its closure, and a local a closure captures can't be lambda-lifted away, so the six
+  // values it closes over are an allocation on every package call whether or not the async arm runs.
   match
     resolveTypeArgsSync
       exeState
@@ -1369,11 +1375,13 @@ let private callPackage
       (List.length fn.typeParams)
       ctx
   with
-  | ValueSome resolved -> run resolved
+  | ValueSome resolved ->
+    callPackageResolved exeState vm currentFrame pendingCallArgs ctx fn resolved
   | ValueNone ->
     uply {
       let! resolved = resolveTypeArgsAsync exeState ctx
-      return! run resolved
+      return!
+        callPackageResolved exeState vm currentFrame pendingCallArgs ctx fn resolved
     }
 
 
