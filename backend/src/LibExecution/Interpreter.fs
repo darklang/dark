@@ -272,101 +272,160 @@ let rec checkAndExtractLetPattern
   | _ -> false, []
 
 
-let rec checkAndExtractMatchPattern
-  (pat : MatchPattern)
-  (dv : Dval)
-  : bool * List<Register * Dval> =
-  let r = checkAndExtractMatchPattern
+/// What trying a match pattern against a value produced: either it didn't match, or it did and these
+/// registers should be assigned.
+///
+/// A struct DU rather than `bool * List<Register * Dval>`. The tuple form allocated a pair on every
+/// pattern tried, matched or not, and the failure case allocated one to say "no, and here is an empty
+/// list of bindings". Both `NoMatch` and `Matched []` now cost nothing.
+[<Struct>]
+type MatchOutcome =
+  | NoMatch
+  | Matched of bindings : List<Register * Dval>
 
-  let rec rList pats items =
-    match pats, items with
-    | [], [] -> true, []
-    | [], _ -> false, []
-    | _, [] -> false, []
-    | pat :: otherPats, item :: items ->
-      let matches, vars = r pat item
-      if matches then
-        let matchesOtherPats, varsFromOtherPats = rList otherPats items
-        if matchesOtherPats then true, vars @ varsFromOtherPats else false, []
-      else
-        false, []
-
-  match pat, dv with
-  | MPVariable reg, dv -> true, [ (reg, dv) ]
-
-  | MPUnit, DUnit -> true, []
-  | MPBool l, DBool r -> l = r, []
-  | MPInt8 l, DInt8 r -> l = r, []
-  | MPUInt8 l, DUInt8 r -> l = r, []
-  | MPInt16 l, DInt16 r -> l = r, []
-  | MPUInt16 l, DUInt16 r -> l = r, []
-  | MPInt32 l, DInt32 r -> l = r, []
-  | MPUInt32 l, DUInt32 r -> l = r, []
-  | MPInt64 l, DInt64 r -> l = r, []
-  | MPUInt64 l, DUInt64 r -> l = r, []
-  | MPInt128 l, DInt128 r -> l = r, []
-  | MPUInt128 l, DUInt128 r -> l = r, []
-  | MPInt l, DInt r -> l = DarkInt.toBigInt r, []
-  | MPFloat l, DFloat r -> l = r, []
-  | MPChar l, DChar r -> l = r, []
-  | MPString l, DString r -> l = r, []
-
-  | MPList pats, DList(_, items) -> rList pats items
-
-  | MPListCons(head, tail), DList(vt, items) ->
+/// Try each pattern against the corresponding item, and concatenate the bindings. Lengths must agree.
+///
+/// Top-level and mutually recursive with the pattern check rather than a local `let rec` inside it: as a
+/// local it closed over the recursive alias, which is an allocation on every pattern tried.
+let rec private checkMatchPatternList
+  (pats : List<MatchPattern>)
+  (items : List<Dval>)
+  : MatchOutcome =
+  match pats with
+  | [] ->
     match items with
-    | [] -> false, []
-    | headItem :: tailItems ->
-      let matchesHead, varsHead = r head headItem
-      if matchesHead then
-        let matchesTail, varsTail = r tail (DList(vt, tailItems))
-        if matchesTail then true, varsHead @ varsTail else false, []
-      else
-        false, []
+    | [] -> Matched []
+    | _ -> NoMatch
+  | pat :: otherPats ->
+    match items with
+    | [] -> NoMatch
+    | item :: otherItems ->
+      match checkAndExtractMatchPattern pat item with
+      | NoMatch -> NoMatch
+      | Matched vars ->
+        match checkMatchPatternList otherPats otherItems with
+        | NoMatch -> NoMatch
+        | Matched rest -> Matched(if List.isEmpty rest then vars else vars @ rest)
 
-  | MPTuple(first, second, theRest), DTuple(firstVal, secondVal, theRestVal) ->
-    match r first firstVal, r second secondVal with
-    | (true, varsFirst), (true, varsSecond) ->
-      match rList theRest theRestVal with
-      | true, varsRest -> true, varsFirst @ varsSecond @ varsRest
-      | false, _ -> false, []
-    | _ -> false, []
+/// Nested matches throughout, not `match pat, dv with`. The tuple form reads better and allocates the
+/// pair on every pattern tried; this runs once per arm of every `match` a script evaluates.
+and checkAndExtractMatchPattern (pat : MatchPattern) (dv : Dval) : MatchOutcome =
+  match pat with
+  | MPVariable reg -> Matched [ (reg, dv) ]
 
-  | MPEnum(caseName, fields), DEnum(_, _, _, caseNameActual, fieldsActual) ->
-    if caseName = caseNameActual then rList fields fieldsActual else false, []
+  | MPUnit ->
+    match dv with
+    | DUnit -> Matched []
+    | _ -> NoMatch
+  | MPBool l ->
+    match dv with
+    | DBool r when l = r -> Matched []
+    | _ -> NoMatch
+  | MPInt8 l ->
+    match dv with
+    | DInt8 r when l = r -> Matched []
+    | _ -> NoMatch
+  | MPUInt8 l ->
+    match dv with
+    | DUInt8 r when l = r -> Matched []
+    | _ -> NoMatch
+  | MPInt16 l ->
+    match dv with
+    | DInt16 r when l = r -> Matched []
+    | _ -> NoMatch
+  | MPUInt16 l ->
+    match dv with
+    | DUInt16 r when l = r -> Matched []
+    | _ -> NoMatch
+  | MPInt32 l ->
+    match dv with
+    | DInt32 r when l = r -> Matched []
+    | _ -> NoMatch
+  | MPUInt32 l ->
+    match dv with
+    | DUInt32 r when l = r -> Matched []
+    | _ -> NoMatch
+  | MPInt64 l ->
+    match dv with
+    | DInt64 r when l = r -> Matched []
+    | _ -> NoMatch
+  | MPUInt64 l ->
+    match dv with
+    | DUInt64 r when l = r -> Matched []
+    | _ -> NoMatch
+  | MPInt128 l ->
+    match dv with
+    | DInt128 r when l = r -> Matched []
+    | _ -> NoMatch
+  | MPUInt128 l ->
+    match dv with
+    | DUInt128 r when l = r -> Matched []
+    | _ -> NoMatch
+  | MPInt l ->
+    match dv with
+    | DInt r when l = DarkInt.toBigInt r -> Matched []
+    | _ -> NoMatch
+  | MPFloat l ->
+    match dv with
+    | DFloat r when l = r -> Matched []
+    | _ -> NoMatch
+  | MPChar l ->
+    match dv with
+    | DChar r when l = r -> Matched []
+    | _ -> NoMatch
+  | MPString l ->
+    match dv with
+    | DString r when l = r -> Matched []
+    | _ -> NoMatch
 
-  | MPOr patterns, dv ->
-    patterns
-    |> NEList.toList
-    |> List.map (fun p -> r p dv)
-    |> List.tryFind (fun (matches, _) -> matches)
-    |> Option.defaultValue (false, [])
+  | MPList pats ->
+    match dv with
+    | DList(_, items) -> checkMatchPatternList pats items
+    | _ -> NoMatch
 
-  // Dval didn't match the pattern even in a basic sense
-  | MPVariable _, _
-  | MPUnit, _
-  | MPBool _, _
-  | MPInt8 _, _
-  | MPUInt8 _, _
-  | MPInt16 _, _
-  | MPUInt16 _, _
-  | MPInt32 _, _
-  | MPUInt32 _, _
-  | MPInt64 _, _
-  | MPUInt64 _, _
-  | MPInt128 _, _
-  | MPUInt128 _, _
-  | MPInt _, _
-  | MPFloat _, _
-  | MPChar _, _
-  | MPString _, _
-  | MPTuple _, _
-  | MPListCons _, _
-  | MPList _, _
-  | MPEnum _, _
-  | MPOr _, _ -> false, []
+  | MPListCons(head, tail) ->
+    match dv with
+    | DList(vt, headItem :: tailItems) ->
+      match checkAndExtractMatchPattern head headItem with
+      | NoMatch -> NoMatch
+      | Matched varsHead ->
+        match checkAndExtractMatchPattern tail (DList(vt, tailItems)) with
+        | NoMatch -> NoMatch
+        | Matched varsTail ->
+          Matched(if List.isEmpty varsTail then varsHead else varsHead @ varsTail)
+    | _ -> NoMatch
 
+  | MPTuple(first, second, theRest) ->
+    match dv with
+    | DTuple(firstVal, secondVal, theRestVal) ->
+      match checkAndExtractMatchPattern first firstVal with
+      | NoMatch -> NoMatch
+      | Matched varsFirst ->
+        match checkAndExtractMatchPattern second secondVal with
+        | NoMatch -> NoMatch
+        | Matched varsSecond ->
+          match checkMatchPatternList theRest theRestVal with
+          | NoMatch -> NoMatch
+          | Matched varsRest -> Matched(varsFirst @ varsSecond @ varsRest)
+    | _ -> NoMatch
 
+  | MPEnum(caseName, fields) ->
+    match dv with
+    | DEnum(_, _, _, caseNameActual, fieldsActual) when caseName = caseNameActual ->
+      checkMatchPatternList fields fieldsActual
+    | _ -> NoMatch
+
+  | MPOr patterns ->
+    // A walk rather than `List.map |> List.tryFind |> Option.defaultValue`, which built a list of
+    // outcomes, a closure for each stage and an option, to answer a question the first hit settles.
+    let rec firstMatch (ps : List<MatchPattern>) =
+      match ps with
+      | [] -> NoMatch
+      | p :: rest ->
+        match checkAndExtractMatchPattern p dv with
+        | Matched vars -> Matched vars
+        | NoMatch -> firstMatch rest
+    firstMatch (NEList.toList patterns)
 
 
 /// Record bytes allocated in a synchronous region of the Apply path. `before` must come from a
@@ -604,13 +663,18 @@ let private runSyncInstructions
         match pat with
         | MPVariable reg -> registers[reg] <- registers[valueReg]
         | _ ->
-          let doesMatch, registersToAssign =
-            checkAndExtractMatchPattern pat registers[valueReg]
-          if doesMatch then
-            registersToAssign
-            |> List.iter (fun (reg, value) -> registers[reg] <- value)
-          else
-            counter <- counter + failJump
+          match checkAndExtractMatchPattern pat registers[valueReg] with
+          | Matched bindings ->
+            // A walk rather than `List.iter (fun ...)`, whose closure over `registers` is an
+            // allocation on a path that runs once per arm tried.
+            let rec assign (bs : List<Register * Dval>) =
+              match bs with
+              | [] -> ()
+              | (reg, value) :: rest ->
+                registers[reg] <- value
+                assign rest
+            assign bindings
+          | NoMatch -> counter <- counter + failJump
       | MatchUnmatched(valueReg) ->
         let unmatchedValue = registers[valueReg]
         raiseRTE (RTE.Match(RTE.Matches.MatchUnmatched unmatchedValue))
