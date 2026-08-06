@@ -15,15 +15,22 @@ let initialParse
 let parsePTExpr
   (code: String)
   : Stdlib.Result.Result<ProgramTypes.Expr, String> =
-  // context-free lowering is just the in-context lowering with an empty context
-  parsePTExprInContext "" [] [] [] code
+  // context-free lowering is just the in-context lowering with an empty context, against main
+  parsePTExprInContext "" "" [] [] [] code
 
 
 // Like `parsePTExpr`, but lowers under a real module / fn-name / parameter context.
 // The LoweringDifferential uses this so it can catch resolution-context-dependent
 // divergences (pipe callee resolves fn-first, self-recursion → ESelf, a match
 // pattern shadowing a parameter) that a context-free lowering can't surface.
+/// Lower an expression against <param branchId> ("" = main).
+///
+/// The branch is a PARAMETER, not the process's. Reading process state here would mean the same source
+/// lowered to different names depending on which branch the process happened to be on at that moment,
+/// which is wrong for a long-lived process serving more than one branch (the LSP) and unreproducible for
+/// anything that lowers concurrently.
 let parsePTExprInContext
+  (branchId: String)
   (owner: String)
   (currentModule: List<String>)
   // empty = no self-context (None); non-empty = Some (the fully-qualified fn name)
@@ -41,7 +48,7 @@ let parsePTExprInContext
       NameResolver.NRContext
         { onMissing = NameResolver.OnMissing.Allow
           pm = PackageManager.pm ()
-          branchId = Builtin.scmMainBranchId
+          branchId = branchId
           owner = owner
           currentModule = currentModule }
 
@@ -72,6 +79,7 @@ let parsePTExprInContext
 
 
 let parsePTSourceFileWithOps
+  (branchId: String)
   (code: String)
   : Stdlib.Result.Result<
     (ProgramTypes.SourceFile.SourceFile * List<ProgramTypes.PackageOp>),
@@ -80,7 +88,7 @@ let parsePTSourceFileWithOps
   match code |> initialParse with
   | Ok parsedFile ->
     let (sourceFile, ops, _unresolvedNames) =
-      parsedFile |> WrittenTypesToProgramTypes.parsedFileAsSourceFile
+      WrittenTypesToProgramTypes.parsedFileAsSourceFile branchId parsedFile
 
     (sourceFile, ops) |> Stdlib.Result.Result.Ok
   | Error e -> Stdlib.Result.Result.Error e

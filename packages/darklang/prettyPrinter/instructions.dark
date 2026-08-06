@@ -79,7 +79,7 @@ let matchPattern (pat: LanguageTools.RuntimeTypes.MatchPattern) : String =
     (Stdlib.List.map pats (fun p -> matchPattern p)) |> Stdlib.String.join " | "
 
 
-let segment (branchId: Uuid) (s: LanguageTools.RuntimeTypes.StringSegment) : String =
+let segment (branchId: String) (s: LanguageTools.RuntimeTypes.StringSegment) : String =
   match s with
   | Text t -> "\"" ++ (Stdlib.String.replaceAll t "\n" "\\n") ++ "\""
   | Interpolated r -> register r
@@ -87,7 +87,7 @@ let segment (branchId: Uuid) (s: LanguageTools.RuntimeTypes.StringSegment) : Str
 
 /// Values baked into the instruction stream, rendered short. A listing is for reading, and one 4 KB
 /// docstring pushes everything else off the page, so anything long is summarised by shape instead.
-let inlineDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
+let inlineDval (branchId: String) (dv: LanguageTools.RuntimeTypes.Dval) : String =
   let clip (s: String) : String =
     if (Stdlib.String.length s) <= 40 then
       s
@@ -154,7 +154,7 @@ let opcode (i: LanguageTools.RuntimeTypes.Instruction) : String =
 
 /// Everything after the opcode. <param index> is the instruction's own position: jump offsets are stored
 /// relative, and a relative jump is unreadable in a listing, so they're shown both ways.
-let operands (branchId: Uuid) (index: Int) (i: LanguageTools.RuntimeTypes.Instruction) : String =
+let operands (branchId: String) (index: Int) (i: LanguageTools.RuntimeTypes.Instruction) : String =
   match i with
   | LoadVal(r, v) -> $"{register r} <- {inlineDval branchId v}"
   | CopyVal(t, s) -> $"{register t} <- {register s}"
@@ -233,7 +233,7 @@ let padFrom (width: Int) (s: String) : String =
 
 
 /// Plain-text listing, for callers that don't want to lay it out themselves.
-let listing (branchId: Uuid) (instrs: LanguageTools.RuntimeTypes.Instructions) : String =
+let listing (branchId: String) (instrs: LanguageTools.RuntimeTypes.Instructions) : String =
   let body =
     instrs.instructions
     |> Stdlib.List.indexedMap (fun index i ->

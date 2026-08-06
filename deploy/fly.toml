@@ -1,0 +1,43 @@
+# matter.darklang.com, as one machine with one disk.
+#
+# SQLite wants exactly one writer on a real filesystem, which decides most of this file: one machine, no
+# autoscaling, and a volume rather than ephemeral storage. Anything that would start a second instance
+# would give two processes the same database file.
+
+# No `app` here on purpose: a Fly app's default hostname is <app>.fly.dev, so naming it in a public repo
+# publishes the address of a relay whose read endpoints are unauthenticated. Pass it at deploy time:
+#   fly deploy --config deploy/fly.toml -a <app>
+primary_region = "iad"
+
+[build]
+  dockerfile = "Dockerfile.matter"
+
+[env]
+  # The relay serves on 9090 inside the container; Fly terminates TLS and forwards to it.
+  DARK_CONFIG_RUNDIR = "/data"
+
+# The hosted op log. Losing it is survivable -- every client holds the whole log and re-pushes -- but it
+# is the difference between a server people leave things on and a cache.
+[[mounts]]
+  source = "matter_data"
+  destination = "/data"
+
+[http_service]
+  internal_port = 9090
+  force_https = true
+  auto_stop_machines = false
+  auto_start_machines = true
+  # ONE. Two machines would mean two writers against one SQLite file.
+  min_machines_running = 1
+  max_machines_running = 1
+
+  [[http_service.checks]]
+    grace_period = "30s"
+    interval = "15s"
+    method = "GET"
+    timeout = "5s"
+    path = "/ping"
+
+[[vm]]
+  size = "shared-cpu-1x"
+  memory = "1gb"

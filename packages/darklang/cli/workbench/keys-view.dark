@@ -169,14 +169,31 @@ let handleViewKey
     | Some "v" ->
       if state.activeView == vMatter then startNew state "value" else Step.Continue state
     | Some "L" ->
-      // Matter: toggle the values Lens - the whole tree vs. values only. (L, not V, to avoid clashing
-      // with v = new value.)
+      // Matter: cycle the Lens - the whole tree, values only, then what you've changed. (L, not V, to
+      // avoid clashing with v = new value.)
       if state.activeView == vMatter then
-        let nl = if state.matterLens == "values" then "all" else "values"
+        let nl =
+          match state.matterLens with
+          | "all" -> "values"
+          | "values" -> "changed"
+          | _ -> "all"
         Step.Continue
           { state with
               matterLens = nl
               items = itemsForView vMatter state.branchId state.location state.scmSection state.aiSection nl
+              selected = 0
+              detailScroll = 0
+              filter = "" }
+      else Step.Continue state
+    | Some "C" ->
+      // Matter: straight to the Changed lens, because it's the one you reach for constantly. "What moved
+      // because of what I just did" is asked many times an hour, and making it two presses of a cycle is
+      // how people stop asking.
+      if state.activeView == vMatter then
+        Step.Continue
+          { state with
+              matterLens = "changed"
+              items = itemsForView vMatter state.branchId state.location state.scmSection state.aiSection "changed"
               selected = 0
               detailScroll = 0
               filter = "" }

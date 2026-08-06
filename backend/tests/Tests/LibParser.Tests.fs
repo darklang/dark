@@ -621,14 +621,7 @@ let private toPT (e : WT.Expr) : PT.Expr =
   let emptyBuiltins : RTT.Builtins = { values = Map.empty; fns = Map.empty }
   let ctx : WT2PT.Context =
     { currentFnName = None; argMap = Map.empty; localBindings = Set.empty }
-  (WT2PT.Expr.toPT
-    emptyBuiltins
-    PT.PackageManager.empty
-    NR.OnMissing.Allow
-    PT.mainBranchId
-    []
-    ctx
-    e
+  (WT2PT.Expr.toPT emptyBuiltins PT.PackageManager.empty NR.OnMissing.Allow [] ctx e
    |> Ply.toTask)
     .Result
 
@@ -639,14 +632,7 @@ let private toPTWithInModule
   (e : WT.Expr)
   : PT.Expr =
   let emptyBuiltins : RTT.Builtins = { values = Map.empty; fns = Map.empty }
-  (WT2PT.Expr.toPT
-    emptyBuiltins
-    pm
-    NR.OnMissing.Allow
-    PT.mainBranchId
-    currentModule
-    context
-    e
+  (WT2PT.Expr.toPT emptyBuiltins pm NR.OnMissing.Allow currentModule context e
    |> Ply.toTask)
     .Result
 
@@ -712,8 +698,7 @@ let private loweringRegressionTests =
   let globalMapPM : PT.PackageManager =
     { PT.PackageManager.empty with
         findFn =
-          fun (_, _) ->
-            Prelude.uply { return Some(PT.FQFnName.package "global-map") } }
+          fun _ -> Prelude.uply { return Some(PT.FQFnName.package "global-map") } }
   let context args locals : WT2PT.Context =
     { currentFnName = Some [ "Darklang"; "Test"; "outer" ]
       argMap = args
@@ -1696,7 +1681,6 @@ let private primTypeDriftTests =
             (WT2PT.TypeReference.toPT
               PT.PackageManager.empty
               NR.OnMissing.Allow
-              PT.mainBranchId
               []
               t
              |> Ply.toTask)

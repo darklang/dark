@@ -51,7 +51,7 @@ let parseSingleTestFromFile
         LanguageTools.NameResolver.NRContext
           { onMissing = LanguageTools.NameResolver.OnMissing.ThrowError
             pm = pm
-            branchId = Builtin.scmMainBranchId
+            branchId = ""
             owner = ""
             currentModule = [] }
 

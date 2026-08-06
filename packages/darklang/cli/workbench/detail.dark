@@ -59,9 +59,13 @@ let renderTreeList (state: State) (region: UI.Layout.Region) : List<UI.Layout.Sp
 
 /// The source/detail of the currently-selected item, as lines for the Inspect pane.
 let detailLines (state: State) : List<String> =
-  // Values lens: items carry full paths (owner.mod.name), so look them up by full path, not leaf-in-location.
+  // The flat lenses carry FULL paths (owner.mod.name), so they look up by full path rather than
+  // leaf-in-location the way the tree does. Values renders one kind; Changed renders whichever kind the
+  // draft touched, which is why they don't share a function.
   if (state.activeView == vMatter) && (state.matterLens == "values") then
     Stdlib.String.split (thingDetail state) "\n"
+  else if (state.activeView == vMatter) && (state.matterLens == "changed") then
+    Stdlib.String.split (changesSourceText state.branchId state.selected) "\n"
   else
   match Stdlib.List.getAt state.items state.selected with
   | None -> [ "(nothing selected)" ]
@@ -234,14 +238,18 @@ let inspectPageLines (state: State) : List<String> =
 /// scroll bounds, and the full-screen reader all agree. SCM previews depend on the active section.
 let previewLines (state: State) : List<String> =
   if state.activeView == vSCM then
-    if state.scmSection == 1 then Stdlib.String.split (commitSummary state.branchId state.selected) "\n"
+    if state.scmSection == 1 then Stdlib.String.split (commitSummary state.selected) "\n"
     else if state.scmSection == 2 then Stdlib.String.split (conflictDetail state) "\n"
     else if state.scmSection == 3 then Stdlib.String.split (branchDetail state) "\n"
     else Stdlib.String.split (wipDiffText state) "\n"
   else if state.activeView == vMatter then
-    // Matter folds in the old Inspect: its preview IS the item page (source + meta + references + actions),
-    // except under the Values lens, where the value's own detail is what you want.
-    if state.matterLens == "values" then detailLines state else inspectPageLines state
+    // Matter folds in the old Inspect: its preview IS the item page (source + meta + references + actions).
+    // The flat lenses are the exception: their items are full paths, and the item page resolves a leaf
+    // against where you're standing, so it would report every one of them as missing.
+    if (state.matterLens == "values") || (state.matterLens == "changed") then
+      detailLines state
+    else
+      inspectPageLines state
   else if state.activeView == vAI then
     if state.aiSection == 1 then Stdlib.String.split (promptDetail state.selected) "\n"
     else Stdlib.String.split (aiThreadDetail state.selected) "\n"

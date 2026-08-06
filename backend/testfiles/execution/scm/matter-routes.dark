@@ -1,0 +1,127 @@
+// The relay's HTTP handlers, called directly rather than over a socket.
+//
+// Every one of these is a `HttpRequest -> HttpResponse` that reads the local store, and Dark checks
+// none of that until the handler actually runs. The item page shipped broken for exactly that reason:
+// it passed a Uuid where the pretty-printer wanted a String, which is invisible until someone clicks
+// a function. Serving a page is the only way to find out that it serves.
+//
+// So these assert the shape a browser cares about -- a 200 with the thing in it -- for the routes that
+// read packages. The sync and branch routes have their own coverage in `sync-wire.dark`; what is here
+// is the half that renders.
+
+module Helpers =
+  let req (url: String) : Darklang.Matter.HttpRequest =
+    Stdlib.Http.Request
+      { url = url
+        headers = []
+        body = Stdlib.String.toBlob "" }
+
+  let status (url: String) (h: Darklang.Matter.HttpRequest -> Darklang.Matter.HttpResponse) : Int =
+    (h (req url)).statusCode
+
+  let body (url: String) (h: Darklang.Matter.HttpRequest -> Darklang.Matter.HttpResponse) : String =
+    Stdlib.String.fromBlobWithReplacement (h (req url)).body
+
+  let bodyHas (url: String) (h: Darklang.Matter.HttpRequest -> Darklang.Matter.HttpResponse) (needle: String) : Bool =
+    Stdlib.String.contains (body url h) needle
+
+
+module Ping =
+  (Helpers.status "/ping" Darklang.Matter.pingHandlerFn) = 200
+  (Helpers.body "/ping" Darklang.Matter.pingHandlerFn) = "pong"
+
+
+module Landing =
+  (Helpers.status "/" Darklang.Matter.landingHandlerFn) = 200
+
+  // The landing page lists the routes it serves, so it is also the closest thing to API docs.
+  (Helpers.bodyHas "/" Darklang.Matter.landingHandlerFn "/sync/pull") = true
+
+
+module ModulePage =
+  (Helpers.status "/m?name=Darklang.Stdlib.List" Darklang.Matter.moduleHandlerFn) = 200
+
+  // A module page is a list of links into the item page, which is what makes the item page reachable
+  // at all. If this stops naming members, browsing is over even though the page still renders.
+  (Helpers.bodyHas "/m?name=Darklang.Stdlib.List" Darklang.Matter.moduleHandlerFn "List.map") = true
+
+  // A module nobody has: a page saying so, not a failure.
+  (Helpers.status "/m?name=Nope.Not.Here" Darklang.Matter.moduleHandlerFn) = 200
+
+
+module ItemPage =
+  // The regression. This handler raised rather than responded, and every function page on the deployed
+  // relay was a 500, because nothing here had ever called it.
+  (Helpers.status "/p?name=Darklang.Stdlib.List.map" Darklang.Matter.itemHandlerFn) = 200
+
+  // Rendering the source is the entire point of the page; a 200 holding "not found here" would pass a
+  // status check and still be broken.
+  (Helpers.bodyHas "/p?name=Darklang.Stdlib.List.map" Darklang.Matter.itemHandlerFn "let map") = true
+
+  // Types render through a different arm of the same match.
+  (Helpers.status "/p?name=Darklang.Stdlib.Option.Option" Darklang.Matter.itemHandlerFn) = 200
+
+  (Helpers.status "/p?name=Nope.Not.Here" Darklang.Matter.itemHandlerFn) = 200
+
+
+module WriteAuth =
+  // The test environment sets no `DARK_MATTER_WRITE_SECRET`, which is the same position a relay is in
+  // before anyone configures it. Fail CLOSED: a relay that accepts writes because nobody told it not to
+  // is a relay anyone on the internet can write to.
+  (Helpers.status "/sync/push" Darklang.Matter.pushHandlerFn) = 401
+
+  (Stdlib.String.contains
+    (Helpers.body "/sync/push" Darklang.Matter.pushHandlerFn)
+    "accepts no writes") = true
+
+  // Branch push is the other write, and it is easy to guard one and forget the other.
+  (Helpers.status "/branch/push" Darklang.Matter.branchPushHandlerFn) = 401
+
+
+module Search =
+  (Helpers.status "/search?q=map" Darklang.Matter.searchHandlerFn) = 200
+
+  (Helpers.bodyHas "/search?q=map" Darklang.Matter.searchHandlerFn "List.map") = true
+
+  // An empty query is a page, not an error and not a scan of everything.
+  (Helpers.status "/search?q=" Darklang.Matter.searchHandlerFn) = 200
+
+  // Nothing matches: still a page.
+  (Helpers.status "/search?q=zzzznotathing" Darklang.Matter.searchHandlerFn) = 200
+
+  // The one place on a read-only site where a visitor chooses what goes on the page. If this ever stops
+  // escaping, the search box becomes a way to put script on matter.darklang.com.
+  (Stdlib.String.contains
+    (Helpers.body "/search?q=<script>alert(1)</script>" Darklang.Matter.searchHandlerFn)
+    "<script>alert(1)</script>") = false
+
+  (Stdlib.String.contains
+    (Helpers.body "/search?q=<script>alert(1)</script>" Darklang.Matter.searchHandlerFn)
+    "&lt;script&gt;") = true
+
+
+module Publishers =
+  (Helpers.status "/owners" Darklang.Matter.ownersHandlerFn) = 200
+  (Helpers.bodyHas "/owners" Darklang.Matter.ownersHandlerFn "Darklang") = true
+
+
+module Stats =
+  (Helpers.status "/stats" Darklang.Matter.statsHandlerFn) = 200
+
+  // Aggregates only. If this page ever names an instance, it is telling visitors who pushed what.
+  (Helpers.bodyHas "/stats" Darklang.Matter.statsHandlerFn "ops") = true
+
+
+module ItemDetail =
+  // A function page earns its place by showing what calls it -- the direction you cannot get by reading
+  // the code in front of you.
+  (Helpers.bodyHas "/p?name=Darklang.Stdlib.List.map" Darklang.Matter.itemHandlerFn "Used by") = true
+
+  // Doc comments carry `{{code}}` and `<param x>` markup. Raw, they reach the page as literal braces.
+  (Stdlib.String.contains
+    (Helpers.body "/p?name=Darklang.Stdlib.List.map" Darklang.Matter.itemHandlerFn)
+    "{{") = false
+
+  // Breadcrumbs: a deep page arrived at from search has to lead back up.
+  (Helpers.bodyHas "/p?name=Darklang.Stdlib.List.map" Darklang.Matter.itemHandlerFn
+    "/m?name=Darklang.Stdlib") = true

@@ -31,7 +31,7 @@ let hardcodedServerCapabilities
     )
 
 let parseAndReportDiagnostics
-  (branchId: Uuid)
+  (branchId: String)
   (requestUri: String)
   (requestText: String)
   : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
@@ -123,7 +123,7 @@ let handleTextDocumentDidOpen
   let parsedToPT =
     match parsed with
     | Ok parsedFile ->
-      (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
+      (WrittenTypesToProgramTypes.parsedFileAsSourceFile state.currentBranchId parsedFile)
       |> Stdlib.Tuple3.first
       |> Stdlib.Option.Option.Some
 
@@ -189,7 +189,7 @@ let handleTextDocumentDidSave
     let parsedToPT =
       match parsed with
       | Ok parsedFile ->
-        (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
+        (WrittenTypesToProgramTypes.parsedFileAsSourceFile state.currentBranchId parsedFile)
         |> Stdlib.Tuple3.first
         |> Stdlib.Option.Option.Some
 

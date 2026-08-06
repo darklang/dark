@@ -1,558 +1,860 @@
 module Darklang.Cli.Sync
 
-// `dark sync` — keep your packages in step with your other instances, over HTTP. Local-first: sync is opt-in,
-// and once you connect a peer, `dark sync daemon start` keeps things current in the background.
-// Peers are URLs (running instances), never files — sync exchanges ops, not databases.
+// Moving ops between instances: over a relay (`push` / `pull` / `sync`) or through a file
+// (`sync export` / `sync import`), plus the review queues that let you approve someone else's ops
+// instead of applying them.
+//
+// The ops ARE your packages, so this is how a second machine gets your work. All op-log SQL is siloed in
+// `SCM.PackageOps`; this file writes NO SQL, it only formats the typed values that silo returns and moves
+// them over the wire codec.
 
-// How to describe the instances a sync actually got through to. When some peer DIDN'T answer, this says
-// "1 of 2 instances" — because the alternative reads as a contradiction: a "Couldn't reach <peer>" line
-// directly above a bare "Pulled from 1 instance" looks like one instance that both failed and worked, when
-// it's two instances, one of each. Naming the reached peer instead would be honest too, but they're raw IPs
-// until instances get names.
-let reachedPhrase (reached: Int) (tried: Int) : String =
-  if reached == tried then
-    Text.plural reached "instance"
-  else
-    $"{Stdlib.Int.toString reached} of {Text.plural tried "instance"}"
+let printOk (msg: String) : Unit = Stdlib.printLine (Colors.success msg)
+let printErr (msg: String) : Unit = Stdlib.printLine (Colors.error msg)
+let printHint (msg: String) : Unit = Stdlib.printLine (Colors.hint msg)
 
-// Say what a pull actually DID, in human terms — ONE LINE PER NAME. A raw op count is a lie by omission:
-// authoring one value emits both a content op and its name-binding, so "5 changes" for one edit is nonsense.
-// And a conflicting pull can re-assert the same name, so the same (action, kind, name) can arrive more than
-// once — dedupe or it prints twice. A handful: one line each, because that's what you want to know. Many:
-// counts grouped by action + kind ("10 new fns"), because a wall of names is worse than a summary.
-let changeLines (changes: List<Darklang.Sync.EventLog.Change>) : List<String> =
-  let named =
-    changes
-    |> Stdlib.List.map (fun c -> $"{c.action} {c.itemKind} {c.location}")
-    |> Stdlib.List.unique
+// Relay transport. A relay/peer sits behind loopback / LAN / tailnet, which the safe HttpClient bans;
+// these use the sync transport (SSRF guards relaxed for local nets, cloud-metadata still blocked). Both
+// return the raw response body as Bytes. These two lines are the whole network surface of sync.
+let relayGet (url: String) : Stdlib.Result.Result<Blob, String> =
+  Builtin.httpGetUnsafeBytes url
 
-  if Stdlib.List.length named <= 6 then
-    named
-  else
-    changes
-    |> Stdlib.List.uniqueBy (fun c -> $"{c.action} {c.itemKind} {c.location}")
-    |> Stdlib.List.groupByWithKey (fun c -> (c.action, c.itemKind))
-    |> Stdlib.List.map (fun group ->
-      let (key, cs) = group
-      let (action, kind) = key
-      let n = Stdlib.List.length cs
-      let kindWord = if n == 1 then kind else Stdlib.String.pluralize kind
-      $"{Stdlib.Int.toString n} {action} {kindWord}")
+/// The write secret for a relay, or "" if none is configured for it.
+///
+/// Per relay, and in LOCAL CONFIG, which is the only place it can safely live. `config_v0` never syncs and
+/// is stripped from an exported seed, so unlike anything you author it cannot travel. That matters more than
+/// usual here: a relay serves its own package store as public HTML at `/m` and `/p`, so a secret that ever
+/// became an op would be readable by anyone who can load a web page.
+let relaySecret (url: String) : String =
+  Builtin.configGet $"sync.secret.{url}"
 
-// Print "Pulled from {who}: …" — inline for a single name (a tight one-liner), one indented line each for a
-// few, grouped counts for many. `changeLines` already deduped and chose the form.
-let printPull (who: String) (changes: List<Darklang.Sync.EventLog.Change>) : Unit =
-  match changeLines changes with
-  | [ one ] -> Stdlib.printLine (Colors.success $"Pulled from {who}: {one}")
-  | many ->
-    Stdlib.printLine (Colors.success $"Pulled from {who}:")
-
-    many
-    |> Stdlib.List.iter (fun l -> Stdlib.printLine (Colors.success $"  {l}"))
-
-// After a pull, mention any name where an incoming change overwrote a different local one — so last-writer-wins
-// is never SILENT, without crying "conflict". Most of the time this is just a peer that was ahead of you (a
-// plain catch-up, nothing to resolve); occasionally it's a genuine two-sided edit. Either way LWW already
-// picked, so this is a quiet FYI you can review, not an alarm. (Telling the two apart needs op lineage we don't
-// track yet — see the known-issue note; until then we don't call a catch-up a conflict.)
-let conflictNudge () : Unit =
-  let unreviewed =
-    Darklang.Sync.Conflicts.list ()
-    |> Stdlib.List.filter (fun c -> c.status == "auto-resolved")
-    |> Stdlib.List.length
-
-  if unreviewed > 0 then
-    Stdlib.printLine (
-      Colors.dimText
-        $"  {Text.plural unreviewed "name"} updated by a peer (last-writer-wins) — `dark conflicts` to review")
-  else
-    ()
-
-// Serve the sync endpoint so peers can pull from you. Blocks until Ctrl+C (foreground); for boot, use
-// `dark sync daemon start`. Same router `dark serve Darklang.Sync.Server.router` would run — just less
-// to type, and it prints the address peers actually need.
-let serveOn (port: Int) (state: AppState) : AppState =
-  let portStr = Stdlib.Int.toString port
-
-  let announce () : Unit =
-    [ Colors.success $"Serving sync on http://localhost:{portStr} — peers can pull from you here."
-      Colors.hint $"  Remote peers use your tailnet address, e.g. http://you.tailnet:{portStr}"
-      Colors.hint "  Each peer's request prints here as it arrives."
-      Colors.hint "  Keep it running (serve on boot):  dark sync daemon start"
-      "  Press Ctrl+C to stop." ]
-    |> Stdlib.printLines
-
-  match
-    Stdlib.HttpServer.serve
-      (Stdlib.HttpServer.Config.defaults port)
-      Darklang.Sync.Server.router
-      announce
-  with
-  | Ok _ -> ()
-  | Error msg -> Stdlib.printLine (Colors.error msg)
-
-  state
-
-// ── `dark sync daemon` — automatic sync: ONE toggle over both the pull daemon (`sync-pull`) and the serve
-// daemon (`sync-serve`). Settings live in cli-config (mode / interval / port / on-boot), adjustable via
-// `dark sync daemon config`. Replaces `dark apps enable sync` as the blessed surface.
-
-let daemonMode () : String =
-  match Darklang.Cli.Config.get "sync.daemon.mode" with
-  | Some m -> m
-  | None -> "pull+serve"
-
-let daemonSlugs (mode: String) : List<String> =
-  match mode with
-  | "pull-only" -> [ "sync-pull" ]
-  | "serve-only" -> [ "sync-serve" ]
-  | _ -> [ "sync-pull"; "sync-serve" ]
-
-// The default comes from the daemon itself, not a copy: this is what `dark sync status` REPORTS, and a
-// second hardcoded number here would eventually disagree with the one the daemon actually sleeps on.
-let intervalSec () : Int =
-  (Darklang.Cli.Config.getInt
-    "apps.sync-pull.intervalMs"
-    Darklang.Sync.defaultPollIntervalMs)
-  / 1000
-
-let servePort () : Int =
-  Darklang.Cli.Config.getInt "apps.sync-serve.port" 9000
-
-let onBoot () : Bool =
-  match Darklang.Cli.Config.get "sync.daemon.onBoot" with
-  | Some "no" -> false
-  | _ -> true
-
-let settingsLine () : String =
-  let boot = if onBoot () then "on boot" else "not on boot"
-
-  $"mode: {daemonMode ()}, every {Stdlib.Int.toString (intervalSec ())}s, port {Stdlib.Int.toString (servePort ())}, {boot}"
-
-let setConfig (key: String) (value: String) : Unit =
-  let updated =
-    Stdlib.Dict.setOverridingDuplicates (Darklang.Cli.Config.readConfig ()) key value
-
-  let _ = Darklang.Cli.Config.writeConfig updated
+let setRelaySecret (url: String) (secret: String) : Unit =
+  let _ = Builtin.configSet $"sync.secret.{url}" secret
   ()
 
-// The first-run dialog: explain the defaults, offer to adjust them inline. In a non-interactive context
-// (piped/no TTY) the "Adjust?" prompt reads EOF → No, so it falls through to defaults without blocking.
-let firstRunDialog () : Unit =
-  Stdlib.printLine "Setting up automatic sync. Defaults:"
+/// Headers for a write to <param url>: an Authorization when we hold a secret for it, nothing otherwise.
+///
+/// A header rather than a query parameter on purpose. A query string ends up in access logs, proxy traces
+/// and anything that records a URL, which is a poor place for the one string that grants write access.
+let writeHeaders (url: String) : List<(String * String)> =
+  match relaySecret url with
+  | "" -> []
+  | secret -> [ ("Authorization", $"Bearer {secret}") ]
 
-  Stdlib.printLine (
-    Colors.hint
-      $"  - pull from peers + serve to them, every {Stdlib.Int.toString (intervalSec ())}s")
+/// Ops whose bytes contain <param secret>, as short hashes. Empty when none do, which is the normal case.
+///
+/// THE LAST GATE before a secret becomes public. A relay publishes its package store as HTML, so an op
+/// carrying the write secret is a page anyone can read, and from there they can write. Nothing else would
+/// notice: the op is valid, it folds, it syncs, and it looks like ordinary code.
+///
+/// Works on the wire bytes rather than the source, because that is what is leaving. Whatever route the
+/// string took in, its bytes are in the blob, and hex-searching for hex(secret) finds it without
+/// deserializing anything.
+let opsLeaking (secret: String) (ops: List<SCM.PackageOps.SyncOp>) : List<String> =
+  if secret == "" then
+    []
+  else
+    let needle =
+      Stdlib.String.toLowercase (Stdlib.Blob.toHex (Stdlib.String.toBlob secret))
 
-  Stdlib.printLine (
-    Colors.hint
-      $"  - serve on port {Stdlib.Int.toString (servePort ())} — all branches, open to anyone who can reach you")
-
-  Stdlib.printLine (Colors.hint "  - start automatically on boot")
-
-  let _ =
-    if Stdlib.Cli.UI.Prompt.confirm "Adjust these settings?" then
-      let intervalIn =
-        Stdlib.Cli.UI.Prompt.ask
-          $"  interval seconds [{Stdlib.Int.toString (intervalSec ())}]:"
-
-      // Validate through daemonConfigValue (the same range checks `dark sync daemon config` enforces) so the
-      // first-run dialog can't store an out-of-range interval/port that only fails later at daemon start.
-      let _ =
-        match daemonConfigValue "interval" intervalIn with
-        | Some((k, v)) -> setConfig k v
-        | None -> ()
-
-      let portIn =
-        Stdlib.Cli.UI.Prompt.ask $"  port [{Stdlib.Int.toString (servePort ())}]:"
-
-      let _ =
-        match daemonConfigValue "port" portIn with
-        | Some((k, v)) -> setConfig k v
-        | None -> ()
-
-      let modeIn =
-        Stdlib.Cli.UI.Prompt.select
-          "  mode:"
-          [ "pull+serve"; "pull-only"; "serve-only" ]
-
-      let _ = setConfig "sync.daemon.mode" modeIn
-      let boot = Stdlib.Cli.UI.Prompt.confirm "  start on boot?"
-      setConfig "sync.daemon.onBoot" (if boot then "yes" else "no")
-    else
-      ()
-
-  setConfig "sync.daemon.configured" "yes"
-  // Separate the dialog from the "Sync started" lines the caller prints next — otherwise a non-interactive
-  // run (prompt auto-answered "no") runs the "Adjust these settings?" line straight into "✓ Sync started".
-  Stdlib.printLine ""
-
-let daemonStart (state: AppState) : AppState =
-  let firstRun =
-    match Darklang.Cli.Config.get "sync.daemon.configured" with
-    | Some "yes" -> false
-    | _ -> true
-
-  let _ =
-    if firstRun then
-      firstRunDialog ()
-    else
-      Stdlib.printLine (
-        Colors.success $"Automatic sync started — {settingsLine ()}.")
-
-  let started =
-    Stdlib.List.fold (daemonSlugs (daemonMode ())) state (fun s slug ->
-      Darklang.Cli.Apps.Command.startDaemon s slug)
-
-  // A daemon has no terminal, so everything it says — pulls, served requests, and any startup error — goes to
-  // its log instead of to you. Without this you'd have no reason to think a log existed, and the daemon's the
-  // case where you most need one: it's the mode where nothing is printed at you.
-  let _ =
-    daemonSlugs (daemonMode ())
-    |> Stdlib.List.map (fun slug -> Colors.hint $"  Watch it:  dark apps logs {slug}")
-    |> Stdlib.printLines
-
-  started
-
-let daemonStop (state: AppState) : AppState =
-  let _ =
-    Stdlib.List.map [ "sync-pull"; "sync-serve" ] (fun slug ->
-      match Stdlib.Cli.Daemon.stop slug with
-      | Ok _ -> Stdlib.printLine (Colors.success $"Stopped {slug}.")
-      | Error _ -> ())
-
-  Stdlib.printLine (
-    Colors.hint
-      "Automatic sync off. One-off: dark sync (pull), or dark sync serve (be reachable).")
-
-  state
-
-let daemonStatusCmd (state: AppState) : AppState =
-  Stdlib.printLine "Automatic sync:"
-  Stdlib.printLine $"  {Stdlib.Cli.Daemon.statusLine "sync-pull"}"
-  Stdlib.printLine $"  {Stdlib.Cli.Daemon.statusLine "sync-serve"}"
-  Stdlib.printLine (Colors.hint $"  {settingsLine ()}    (change: dark sync daemon config)")
-  state
-
-let daemonConfigShow (state: AppState) : AppState =
-  Stdlib.printLine "Automatic sync settings:"
-  Stdlib.printLine $"  mode      {daemonMode ()}   (pull+serve | pull-only | serve-only)"
-  Stdlib.printLine $"  interval  {Stdlib.Int.toString (intervalSec ())}s"
-  Stdlib.printLine $"  port      {Stdlib.Int.toString (servePort ())}"
-  Stdlib.printLine $"  on-boot   {if onBoot () then "yes" else "no"}"
-
-  Stdlib.printLine (
-    Colors.hint
-      "  change: dark sync daemon config <mode|interval|port|on-boot> <value>")
-
-  state
-
-/// Validate a daemon config `(key, value)` and map it to its stored `(config-key, store-value)`, or None if
-/// the value is invalid. Pure + exported so the validation is directly testable. An invalid value → None → the
-/// caller reports an error instead of storing junk that silently reverts to a default (a `port abc` or
-/// `on-boot false` that looks like it took but doesn't).
-let daemonConfigValue
-  (key: String)
-  (value: String)
-  : Stdlib.Option.Option<(String * String)> =
-  match key with
-  | "mode" ->
-    if Stdlib.List.member_v0 [ "pull+serve"; "pull-only"; "serve-only" ] value then
-      Stdlib.Option.Option.Some(("sync.daemon.mode", value))
-    else
-      Stdlib.Option.Option.None
-  | "port" ->
-    match Stdlib.Int.parse value with
-    | Ok p ->
-      if p > 0 && p <= 65535 then
-        Stdlib.Option.Option.Some(("apps.sync-serve.port", value))
+    ops
+    |> Stdlib.List.filterMap (fun op ->
+      if Stdlib.String.contains (Stdlib.String.toLowercase op.blobHex) needle then
+        Stdlib.Option.Option.Some(Stdlib.String.first op.id 8)
       else
-        Stdlib.Option.Option.None
-    | Error _ -> Stdlib.Option.Option.None
-  | "on-boot" ->
-    if Stdlib.List.member_v0 [ "yes"; "no" ] value then
-      Stdlib.Option.Option.Some(("sync.daemon.onBoot", value))
-    else
-      Stdlib.Option.Option.None
-  | "interval" ->
-    match Stdlib.Int.parse value with
-    | Ok secs ->
-      // reject non-positive — a 0/negative interval would make the daemon busy-loop (see nextPollMs clamp).
-      if secs > 0 then
-        Stdlib.Option.Option.Some(
-          ("apps.sync-pull.intervalMs", Stdlib.Int.toString (secs * 1000))
-        )
-      else
-        Stdlib.Option.Option.None
-    | Error _ -> Stdlib.Option.Option.None
-  | _ -> Stdlib.Option.Option.None
+        Stdlib.Option.Option.None)
 
-let daemonConfigSet
+
+/// POST to <param path> on the relay at <param baseUrl>.
+///
+/// The base is passed separately rather than parsed back out of the full URL, because the secret is keyed
+/// on the base and a lookup that silently missed would send an unauthenticated push and report the relay's
+/// 401 as if the relay were broken.
+let relayPostTo
+  (baseUrl: String)
+  (path: String)
+  (body: Blob)
+  : Stdlib.Result.Result<Blob, String> =
+  Builtin.httpPostUnsafeBytes $"{baseUrl}{path}" body (writeHeaders baseUrl)
+
+/// How many ops the relay says it actually stored, from its "stored N new op(s) for ..." reply. 0 when the
+/// reply doesn't look like that -- an older relay, or a shape change -- which reads as "nothing new" and is
+/// the safe way to be wrong here, since the sent count is still reported either way.
+let storedCountOf (reply: String) : Int =
+  match Stdlib.String.split reply " " with
+  | "stored" :: n :: _ -> Stdlib.Int.parse n |> Stdlib.Result.withDefault 0
+  | _ -> 0
+
+/// Say when a sync-import DIDN'T look for conflicts, so "no conflicts" never quietly means "didn't check".
+let reportDetection (bulk: Bool) (detected: Bool) : Unit =
+  match (bulk, detected) with
+  | (true, _) ->
+    printOk
+      "First sync with this source: adopted it wholesale and recorded a base, so conflicts are detected from the next sync on."
+  | (_, false) -> printOk "Conflict detection did not run for this import."
+  | _ -> ()
+
+/// Report what a reconciliation auto-resolved. ONE line, never a wall: the point is that nothing was lost
+/// silently, not to dump the divergence here.
+let reportConflicts (conflicts: List<SCM.Conflicts.Conflict>) : Unit =
+  match conflicts with
+  | [] -> ()
+  | cs ->
+    let n = Stdlib.Int.toString (Stdlib.List.length cs)
+
+    printOk
+      $"{n} conflict(s) auto-resolved by recency and recorded -- the losing version is kept, not dropped."
+
+/// Override this instance's id with a name you chose.
+///
+/// Not a login: nothing is authenticated, and an instance already has an id without this. It exists so a
+/// human-readable name can replace the generated one where that's nicer to read in provenance -- and once
+/// set, it survives the store being copied, because a name someone chose is theirs.
+let setIdentity (state: AppState) (name: String) : AppState =
+  SCM.PackageOps.setIdentity name
+  printOk $"this instance is now \"{name}\" -- push/pull/sync identify it that way."
+  state
+
+/// Show this instance's sync identity.
+let executeWhoami (state: AppState) : AppState =
+  match SCM.PackageOps.identity () with
+  | "" -> printOk "no instance id yet (one is minted on first sync)."
+  | id -> printOk $"sync identity: {id}"
+
+  state
+
+/// Export the whole op log to a portable file (JSON of hex-encoded wire records). Because
+/// the op log IS the program, this doubles as a backup / upgrade / migration transfer path,
+/// not only sync. Same wire codec the network push/pull uses.
+let executeExport (state: AppState) (path: String) : AppState =
+  let ops = SCM.PackageOps.exportOps ()
+
+  match Stdlib.Cli.File.writeText path (SCM.PackageOps.wireEncode ops) with
+  | Ok _ -> printOk $"Exported {Stdlib.Int.toString (Stdlib.List.length ops)} ops to {path}"
+  | Error _ -> printErr $"Couldn't write {path}"
+
+  state
+
+/// Import ops from a file into the log; they take effect.
+let executeImport (state: AppState) (path: String) : AppState =
+  match Stdlib.Cli.File.readText path with
+  | Ok json ->
+    match SCM.PackageOps.wireDecode (Stdlib.String.toBlob json) with
+    | Ok bundle ->
+      let ops = bundle.ops
+      // Key the conflict base on WHO SENT IT, not the path: every export writes a new filename, so keying
+      // on the path would make each import look like a brand-new peer and reconcile against nothing.
+      //
+      // Instances self-provision an id now (`SCM.PackageOps.identity`), so the old shared "file" bucket is
+      // only reachable from a bundle written by a build that predates that. Keeping the fallback rather than
+      // failing, because an old bundle should still import -- it just can't tell you who it came from.
+      let source =
+        match bundle.owner with
+        | "" -> "file:unidentified-sender"
+        | sender -> $"peer:{sender}"
+
+      match SCM.PackageOps.importFrom source ops with
+      | Ok outcome ->
+        printOk
+          $"Imported {Stdlib.Int.toString outcome.imported} new op(s), of {Stdlib.Int.toString (Stdlib.List.length ops)} in file."
+
+        reportDetection outcome.bulk outcome.detected
+        reportConflicts outcome.conflicts
+      | Error e -> printErr $"Import failed: {e}"
+
+      state
+    // Print the decoder's reason, not a generic one. It distinguishes "written by a newer build than this
+    // one" from "corrupt", and that distinction is the entire point of putting a formatVersion in the header
+    // -- swallowing it made a bundle from the future indistinguishable from a truncated file.
+    | Error e ->
+      printErr $"Couldn't read the sync file: {e}"
+      state
+  | Error _ ->
+    printErr $"Couldn't read {path}"
+    state
+
+/// Stage an op bundle on a review branch (pending, inert) instead of applying it, so you can inspect it
+/// and approve it deliberately. `dark review approve <queue>` applies it, `dark review reject <queue>`
+/// drops it.
+let executeReviewImport (state: AppState) (path: String) (queue: String) : AppState =
+  match Stdlib.Cli.File.readText path with
+  | Ok json ->
+    match SCM.PackageOps.wireDecode (Stdlib.String.toBlob json) with
+    | Ok bundle ->
+      match SCM.PackageOps.reviewImportTo queue bundle.ops with
+      | Ok n ->
+        printOk
+          $"Staged {Stdlib.Int.toString n} op(s) on branch \"{queue}\" (pending). Inspect: `dark diff {queue}` / `dark log {queue}` / `dark conflicts branch {queue}`. Then `dark review approve {queue}`, or `dark review reject {queue}`."
+      | Error e -> printErr $"Review import failed: {e}"
+
+      state
+    | Error e ->
+      printErr $"Couldn't read the sync file: {e}"
+      state
+  | Error _ ->
+    printErr $"Couldn't read {path}"
+    state
+
+/// Fetch your ops from a relay but STAGE them on a review branch (pending) for op-level approval, instead
+/// of auto-applying like `pull`. The queue defaults to "review"; pass a name to keep separate peers or
+/// agents in separate review branches.
+let executeReviewPullFrom
   (state: AppState)
-  (key: String)
-  (value: String)
+  (url: String)
+  (queue: String)
+  (owner: String)
   : AppState =
-  let stored = daemonConfigValue key value
+  if url == "" then
+    printErr "no relay -- `dark connect <url>` first, or pass a url."
+  else
+    match owner with
+    | id ->
+      let since = SCM.PackageOps.pullCursor url
 
-  let _ =
-    match stored with
-    | Some((configKey, storeValue)) ->
-      let updated =
-        Stdlib.Dict.setOverridingDuplicates
-          (Darklang.Cli.Config.readConfig ())
-          configKey
-          storeValue
+      // No `owner=` unless one was asked for, which is what `pull` has always done. This used to filter to
+      // your OWN identity, so a review queue could only ever stage ops you wrote yourself -- and the whole
+      // point of the command, per its own help, is staging what a peer sent so you can look before applying.
+      // Reviewing your own ops is a real case (your other machine) and it is what `--from you` is for.
+      let ownerParam = if id == "" then "" else $"owner={id}&"
 
-      let _ = Darklang.Cli.Config.writeConfig updated
-
-      Stdlib.printLine (
-        Colors.success
-          $"Set {key} = {value}. Apply: dark sync daemon stop, then dark sync daemon start.")
-    | None ->
-      Stdlib.printLine (
-        Colors.error
-          $"Can't set '{key}' to '{value}'. Keys: mode | interval (seconds) | port | on-boot (yes/no).")
+      match
+        relayGet $"{url}/sync/pull?{ownerParam}sinceSeq={Stdlib.Int64.toString since}"
+      with
+      | Ok respBody ->
+        match SCM.PackageOps.wireDecode respBody with
+        | Ok bundle ->
+          match SCM.PackageOps.reviewImportTo queue bundle.ops with
+          | Ok n ->
+            printOk
+              $"Staged {Stdlib.Int.toString n} op(s) from {url} on branch \"{queue}\" (pending). `dark diff {queue}` then `dark review approve {queue}`."
+          | Error e -> printErr $"Review pull import failed: {e}"
+        | Error _ -> printErr "Relay returned an unparseable body."
+      | Error e -> printErr $"Review pull from {url} failed: {e}"
 
   state
+
+/// Stage whatever is new on a review queue, whoever wrote it.
+let executeReviewPull (state: AppState) (url: String) (queue: String) : AppState =
+  executeReviewPullFrom state url queue ""
+
+/// APPROVE a review queue (op-level approval): fold its staged ops into main. Same gate as `merge` --
+/// rebase or resolve any conflicts first.
+let executeApprove (state: AppState) (queue: String) : AppState =
+  // A queue is a branch, and you name it the way you name any branch. `reviewImportTo` stages under a
+  // minted id, so taking the typed name as an id here found nothing and refused every approval.
+  match Cli.Branch.resolveRef queue with
+  | None -> state
+  | Some queueId ->
+
+  match SCM.PackageOps.mergeBranch queueId with
+  | Ok outcome ->
+    printOk $"Approved {Stdlib.Int.toString outcome.merged} op(s) from \"{queue}\" into main."
+    reportConflicts outcome.conflicts
+  | Error e ->
+    // An empty queue isn't a failure -- it means everything was already approved, rejected, or
+    // resolved-to-theirs. Report it plainly so agents don't read it as an error.
+    if Stdlib.String.contains e "nothing to merge" then
+      printOk
+        $"Nothing to approve in \"{queue}\" -- no pending changes (all reviewed ops were approved, rejected, or reconciled to the local version)."
+    else
+      printErr $"Approve failed: {e}"
+
+  state
+
+/// REJECT a review queue: discard its staged (unapproved) ops.
+let executeReject (state: AppState) (queue: String) : AppState =
+  match Cli.Branch.resolveRef queue with
+  | None -> state
+  | Some queueId ->
+    match SCM.PackageOps.archiveBranch queueId with
+    | Ok _ -> printOk $"Rejected \"{queue}\" -- its staged ops were discarded."
+    | Error e -> printErr $"Reject failed: {e}"
+
+    state
+
+/// Push this instance's op log to a relay UNDER YOUR IDENTITY, so you can pull it back from
+/// any machine. The relay stores + forwards; it never runs the ops. Content-addressed re-push
+/// is a no-op.
+let executePush (state: AppState) (url: String) : AppState =
+  if url == "" then
+    printErr "no relay -- `dark connect <url>` first, or pass a url."
+  else
+    match SCM.PackageOps.identity () with
+    | id ->
+      // main-only: a branch's ops are effective=0 and must NOT sync into another machine's main
+      // (that would leak them out of the branch). `dark branch push` is the branch path.
+      // Nothing changed since everything here was accepted means nothing to send. Answering that from a
+      // cursor is ~1.1s against ~6.4s for discovering it by sending 12,000 ops.
+      //
+      // Compared against OUR OWN head, not the relay's: if our store has not moved since a push that fully
+      // succeeded, the relay has what we have. The relay's count includes everyone else's ops and so
+      // answers a different question.
+      let head = SCM.PackageOps.localHead ()
+
+      let alreadyPushed =
+        (SCM.PackageOps.lastPushedHead url) == (SCM.PackageOps.headStamp head)
+
+      if alreadyPushed then
+        printOk $"Already up to date with {url} -- nothing new to push."
+      else
+
+      // Only what this relay has not seen from us. The cursor is a local rowid, the same mechanism pull has
+      // always used, and it turns "I authored one function" from a 22,000-op upload into a handful.
+      //
+      // A rowid only means anything against the store that minted it. Re-growing a store from the embedded
+      // seed restarts them, and the saved cursor is then PAST THE END: every push finds nothing after it and
+      // says "nothing new to push" while the relay never receives another op. Silent, and it survives
+      // restarts. A cursor beyond our own log cannot be a position in it, so treat it as no cursor at all.
+      let saved = SCM.PackageOps.lastPushedRowid url
+
+      let since =
+        if saved > (SCM.PackageOps.localMaxRowid ()) then 0L else saved
+      let (ops, newSeq) = SCM.PackageOps.exportMainOpsSince since
+
+      // Refuse before the network, not after. Once these bytes reach a relay they are on a public web page,
+      // and there is no taking them back -- the op is content-addressed and everyone who pulled it has it.
+      let leaking = opsLeaking (relaySecret url) ops
+
+      // CHUNKED. A whole log in one body stopped fitting: the relay caps a request at 30MB and started
+      // answering 413, which the client reported as a plain failure. Ops are content-addressed so the relay
+      // dedups anything it already holds, which makes re-sending a chunk free and makes a partial push safe
+      // to just run again.
+      //
+      // 2000 is chosen to sit well under the cap for realistic op sizes rather than to be optimal; if it
+      // ever doesn't, the fix is a smaller number, not a bigger cap.
+      let chunks =
+        Stdlib.List.chunkBySize ops 2000 |> Stdlib.Result.withDefault [ ops ]
+
+      // Track what the RELAY says it stored, not just what we sent. The relay answers "stored N new op(s)"
+      // and a client that discards it prints the same total every time, a number that can never tell you
+      // whether anything landed.
+      let outcome =
+        if leaking != [] then
+          // Name a handful, count the rest. Listing every id put hundreds of hashes on one line and buried
+          // the sentence telling you what to do about them, which is the part that matters.
+          let n = Stdlib.List.length leaking
+          let shown = leaking |> Stdlib.List.take 5 |> Stdlib.String.join ", "
+
+          let ids =
+            if n > 5 then
+              $"{shown}, and {Stdlib.Int.toString (n - 5)} more"
+            else
+              shown
+
+          Stdlib.Result.Result.Error
+            $"refusing to push: {Stdlib.Int.toString n} op(s) contain this relay's write secret ({ids}). A relay serves its store as public HTML, so pushing these would publish the secret. Rewrite those items, or rotate the secret if it has already gone out."
+        else
+
+        chunks
+        // `Ok((0, 0))`, not `Ok(0, 0)` -- the latter is Ok with TWO fields, which fails at runtime with
+        // "Expected 1 fields in Ok, but got 2" rather than at reload.
+        |> Stdlib.List.fold (Stdlib.Result.Result.Ok((0, 0))) (fun acc chunk ->
+          match acc with
+          | Error e -> Stdlib.Result.Result.Error e
+          | Ok counts ->
+            let (sentSoFar, newSoFar) = counts
+            let body = Stdlib.String.toBlob (SCM.PackageOps.wireEncode chunk)
+
+            match relayPostTo url $"/sync/push?owner={id}" body with
+            | Ok reply ->
+              let stored = storedCountOf (Stdlib.String.fromBlobWithReplacement reply)
+
+              Stdlib.Result.Result.Ok(
+                (sentSoFar + (Stdlib.List.length chunk), newSoFar + stored)
+              )
+            | Error e -> Stdlib.Result.Result.Error e)
+
+      match outcome with
+      | Ok counts ->
+        let (sent, stored) = counts
+        let c = Stdlib.Int.toString (Stdlib.List.length chunks)
+
+        let newPart =
+          if stored == sent then
+            ""
+          else
+            $" ({Stdlib.Int.toString stored} new)"
+
+        // Only after a push that fully succeeded. A partial or failed one leaves the marker alone, so the
+        // next attempt sends again.
+        SCM.PackageOps.rememberPushedHead url head
+        SCM.PackageOps.rememberPushedRowid url newSeq
+
+        // Our own push moved the relay's head, so without this the next `sync status` reports "ops to
+        // receive" and sends you to pull back the ops you just sent. One small request to say we have
+        // already seen what we ourselves put there. A failure to read it is not a failure to push:
+        // the head is only a cursor, and the next pull re-reads it anyway.
+        match relayGet $"{url}/sync/head" with
+        | Ok body ->
+          (match SCM.PackageOps.headDecode body with
+           | Ok h -> SCM.PackageOps.rememberHead url h
+           | Error _ -> ())
+        | Error _ -> ()
+
+        // "Pushed 0 ops (in 0 chunk(s))" is what you get for authoring on a branch: the log grew, so the
+        // already-pushed check does not fire, and then there is correctly nothing on MAIN to send. Saying
+        // it that way reads like a failed attempt rather than a no-op.
+        if sent == 0 then
+          printOk $"Nothing new to push to {url}."
+        else
+          printOk
+            $"Pushed {Stdlib.Int.toString sent} ops{newPart} to {url} as \"{id}\" (in {c} chunk(s))."
+
+        // Push is MAIN-only, deliberately: a branch's ops are effective=0 and sending them would leak them
+        // out of the branch on the far side. But nothing said so, and the success line looks identical
+        // whether or not the work you have been doing all day is in it. Someone can sit on a branch, sync
+        // every hour, watch it succeed, and have a colleague who never receives a line of it.
+        match SCM.PackageOps.currentBranch () with
+        | "" -> ()
+        | branchId ->
+          // `current_branch_name` is kept beside the id purely for display, which is what this is.
+          let named = Builtin.configGet "current_branch_name"
+          let shown = if named == "" then branchId else named
+
+          printHint
+            $"  that was main. You're on \"{shown}\" -- `dark branch push {shown}` sends the branch."
+      | Error e ->
+        printErr $"Push to {url} failed: {e}"
+
+        // Say the thing a person actually wants to know. "network error" on its own reads as "something
+        // went wrong with your data", when nothing has: a push sends a copy, the store is untouched by a
+        // failed one, and running it again is the whole recovery. Not said for an auth failure, where
+        // retrying unchanged is exactly the wrong advice.
+        if Stdlib.String.contains e "network error" || Stdlib.String.contains e "timeout" then
+          printHint
+            "  nothing was lost -- your work is in your own store. `dark push` again when the relay is back."
+        else
+          ()
+
+  state
+
+/// Drain the remaining pages after the first one, returning how many ops they imported between them.
+/// Recursive rather than a fold because each page's cursor decides whether there IS a next page, which a
+/// fold can't express.
+///
+/// RETURNS the count rather than printing it, because a pull's headline has to be the total: the relay
+/// serves in its own arrival order, so page 1 can import zero while a later page imports everything.
+///
+/// A page that imports something still says so as it goes, since a full first sync is several pages and a
+/// silent minute reads as a hang.
+let executePullPages (state: AppState) (url: String) (page: Int64) : Int =
+  let since = SCM.PackageOps.pullCursor url
+
+  match relayGet $"{url}/sync/pull?sinceSeq={Stdlib.Int64.toString since}" with
+  // -1 means a page FAILED, which has to be distinguishable from 0 meaning "nothing left": the caller
+  // memoizes the relay's head on success, and doing that after a failure makes every later pull answer
+  // "Nothing new" while the un-pulled ops stay missing.
+  | Error e ->
+    printErr $"  page {Stdlib.Int64.toString (page + 1L)} failed: {e}"
+    -1
+  | Ok body ->
+    match SCM.PackageOps.wireDecode body with
+    | Error _ ->
+      printErr "  a later page was unparseable -- stopping; re-run to resume."
+      -1
+    | Ok bundle ->
+      match bundle.ops with
+      | [] -> 0
+      | ops ->
+        match SCM.PackageOps.importFrom url ops with
+        | Error e ->
+          printErr $"  page import failed: {e}"
+          -1
+        | Ok outcome ->
+          SCM.PackageOps.setPullCursor url bundle.cursor
+
+          let _ =
+            if outcome.imported > 0 then
+              printOk
+                $"  +{Stdlib.Int.toString outcome.imported} op(s) (page {Stdlib.Int64.toString (page + 1L)})"
+            else
+              ()
+
+          let rest = executePullPages state url (page + 1L)
+          if rest < 0 then -1 else outcome.imported + rest
+
+
+/// Pull ops from a relay; they take effect. Incremental: asks only for ops past the cursor this relay
+/// last gave us, so repeat pulls are cheap.
+let executePull (state: AppState) (url: String) : AppState =
+  if url == "" then
+    printErr "no relay -- `dark connect <url>` first, or pass a url."
+  else
+    // No identity GATE and no owner FILTER: pull everything the relay holds. Sync isn't an ownership
+    // boundary -- reaching the relay is the trust boundary for now. An `?owner={id}` filter means two
+    // machines can share a relay and never see each other's work, the opposite of what a relay is for.
+    match SCM.PackageOps.identity () with
+    | id ->
+      // Resume from where THIS relay last left off, in the relay's own arrival order. A cursor of our own
+      // max(origin_ts) silently skips any peer op stamped before our latest local edit.
+      let since = SCM.PackageOps.pullCursor url
+
+      // Ask what the relay HOLDS before asking for it: `/sync/head` is a count and a stamp, 138ms and no
+      // transfer, against ~3.2s for a pull with nothing in it. "Nothing new" is what every routine sync
+      // does, so it is the case people feel.
+      //
+      // Only skips when the relay looks EXACTLY as it did last pull. Anything else, including a relay we
+      // have never asked, falls through to the real pull.
+      // Captured BEFORE the import, so the guard below can tell "everything local was already pushed" from
+      // "there is local work still waiting to go".
+      let prePullMax = SCM.PackageOps.localMaxRowid ()
+      let preRowid = SCM.PackageOps.lastPushedRowid url
+
+      let relayHead =
+        match relayGet $"{url}/sync/head" with
+        | Ok body ->
+          (match SCM.PackageOps.headDecode body with
+           | Ok h -> Stdlib.Option.Option.Some h
+           | Error _ -> Stdlib.Option.Option.None)
+        | Error _ -> Stdlib.Option.Option.None
+
+      let unchanged =
+        match relayHead with
+        | Some h ->
+          (SCM.PackageOps.lastSeenHead url) == (SCM.PackageOps.headStamp h)
+        | None -> false
+
+      // No `state` here: this whole `if` sits in statement position -- the function ends with a trailing
+      // `state` -- so returning AppState from one branch makes the next expression illegal.
+      if unchanged then
+        printOk $"Nothing new at {url}."
+      else
+
+      match
+        relayGet $"{url}/sync/pull?sinceSeq={Stdlib.Int64.toString since}"
+      with
+      | Ok respBody ->
+        match SCM.PackageOps.wireDecode respBody with
+        | Ok firstBundle ->
+          // A relay names itself in what it sends. If it isn't the one we last talked to at this address,
+          // our cursor is a position in somebody else's store: it points past everything and every pull
+          // returns nothing while looking like a success. Rewind and take the whole log -- free, because
+          // ops are content-addressed and everything we already hold dedups on arrival.
+          let seen = SCM.PackageOps.lastRelayInstance url
+
+          // Rewind when the cursor can't be attributed to THIS relay -- either it names a different one, or
+          // it names nobody at all. The second case is the one that bites: a cursor with no provenance is
+          // just a number, and trusting it means skipping everything the relay holds while cheerfully
+          // reporting "Pulled 0 new op(s)". Rewinding costs a re-pull and nothing else.
+          let unattributed = (seen == "") && (since > 0L)
+
+          let bundle =
+            if unattributed
+               || ((seen != "") && (firstBundle.owner != "") && (seen != firstBundle.owner)) then
+              printOk
+                $"Cursor for {url} can't be attributed to this relay -- re-pulling from the start."
+
+              match relayGet $"{url}/sync/pull?sinceSeq=0" with
+              | Ok again ->
+                (match SCM.PackageOps.wireDecode again with
+                 | Ok b -> b
+                 | Error _ -> firstBundle)
+              | Error _ -> firstBundle
+            else
+              firstBundle
+
+          let ops = bundle.ops
+          // The relay url is the source identity: a pull IS a merge against the state you and that relay
+          // last agreed on, so conflicts get the same treatment a branch merge gets.
+          match SCM.PackageOps.importFrom url ops with
+          | Ok outcome ->
+            // Only advance the cursor once the ops are actually in. A crash mid-import re-pulls them,
+            // which is free (content-addressed dedup) and a lot better than skipping them.
+            //
+            // Remember WHICH relay this position belongs to. The cursor is a rowid in that relay's store,
+            // so it's meaningless if the relay is rebuilt or replaced at the same address -- and a stale one
+            // makes every later pull return nothing while reporting success.
+            SCM.PackageOps.setPullCursor url bundle.cursor
+            SCM.PackageOps.rememberRelayInstance url bundle.owner
+
+            // The relay pages. Keep asking until a page comes back empty, advancing the cursor each time --
+            // so an interrupted pull resumes from the last completed page instead of starting over, and no
+            // single response has to be held in memory or parsed whole.
+            //
+            // Per-page counts rather than one total, and they're worth reading: a page can import ZERO while
+            // later pages import plenty, because the relay serves in ITS arrival order and the ops you're
+            // missing may sit anywhere in it.
+            let laterPages =
+              if (Stdlib.List.isEmpty ops) |> Stdlib.Bool.not then
+                executePullPages state url 1L
+              else
+                0
+
+            // Remember what the relay looked like ONLY if we drained every page. The memo is what lets the
+            // next pull skip on a cheap head check, so recording it after a page FAILED turns "re-run to
+            // resume" into "Nothing new at <url>" forever, with the un-pulled ops still missing.
+            let _ =
+              if laterPages < 0 then
+                printErr
+                  "  a page didn't land -- not recording the relay's position, so the next pull retries."
+              else
+                match relayHead with
+                | Some h ->
+                  SCM.PackageOps.rememberHead url h
+
+                  // Ops that arrived FROM this relay need not go back to it, so the push cursor moves past
+                  // them -- but only if it was already at the log's end BEFORE this pull. Advancing
+                  // unconditionally steps over local work authored-but-not-pushed at a lower rowid, and
+                  // that work never reaches the relay.
+                  //
+                  // The STAMP moves with the cursor. It is what `push` skips on and `status` reports, and a
+                  // pull raises our op count, so leaving it behind means "ops to send" after every pull.
+                  if preRowid == prePullMax then
+                    SCM.PackageOps.rememberPushedRowid url (SCM.PackageOps.localMaxRowid ())
+                    SCM.PackageOps.rememberPushedHead url (SCM.PackageOps.localHead ())
+                  else
+                    ()
+                | None -> ()
+
+            let total = outcome.imported + (Stdlib.Int.max 0 laterPages)
+
+            printOk
+              $"Pulled {Stdlib.Int.toString total} new op(s) from {url} as \"{id}\"."
+
+            reportDetection outcome.bulk outcome.detected
+            reportConflicts outcome.conflicts
+          | Error e -> printErr $"Pull import failed: {e}"
+        | Error _ -> printErr "Relay returned an unparseable body."
+      | Error e -> printErr $"Pull from {url} failed: {e}"
+
+  state
+
+/// Sync with a relay: push my ops up, then pull theirs down. (Push is full -- the relay
+/// dedups by content id; pull is incremental. One command for the common two-box workflow.)
+let executeSync (state: AppState) (url: String) : AppState =
+  if url == "" then
+    printErr "no relay -- `dark connect <url>` first, or pass a url."
+    state
+  else
+    executePull (executePush state url) url
+
+/// "Am I in sync with a relay?" -- answered from the SAME two cursors `sync` itself skips on, so the two
+/// can never disagree. No full transfer.
+///
+/// Comparing the two heads directly looks equivalent and is not. An op id is a content hash, so the same
+/// code written on two machines lands the SAME id carrying each machine's own origin_ts. Both stores then
+/// hold exactly the same ops while reporting a different max, and this said "out of sync" forever about a
+/// pair that had nothing to exchange -- immediately contradicted by `sync` answering "nothing new".
+let executeStatus (state: AppState) (url: String) : AppState =
+  if url == "" then
+    printErr "no relay -- `dark connect <url>` first, or pass a url."
+  else
+    let mine = SCM.PackageOps.localHead ()
+
+    match relayGet $"{url}/sync/head" with
+    | Ok respBody ->
+      match SCM.PackageOps.headDecode respBody with
+      | Ok theirs ->
+        printOk $"local: {Stdlib.Int64.toString mine.count} ops"
+        printOk $"relay: {Stdlib.Int64.toString theirs.count} ops"
+
+        // Ours has moved since the last push that fully succeeded.
+        let toSend =
+          (SCM.PackageOps.lastPushedHead url) != (SCM.PackageOps.headStamp mine)
+
+        // Theirs has moved since we last pulled from it.
+        let toReceive =
+          (SCM.PackageOps.lastSeenHead url) != (SCM.PackageOps.headStamp theirs)
+
+        match (toSend, toReceive) with
+        | (false, false) -> printOk "in sync."
+        | (true, false) -> printOk $"ops to send -- `dark push {url}`."
+        | (false, true) -> printOk $"ops to receive -- `dark pull {url}`."
+        | (true, true) -> printOk $"out of sync both ways -- `dark sync {url}`."
+      | Error _ -> printErr "Relay returned an unparseable head."
+    | Error e -> printErr $"Status from {url} failed: {e}"
+
+  state
+
+/// Connect to a relay: remember it as the default, then push your stuff up. After this,
+/// `dark sync` / `pull` / `push` need no url.
+let executeConnect (state: AppState) (url: String) : AppState =
+  SCM.PackageOps.setRelay url
+  printOk $"relay remembered: {url}. Uploading your ops..."
+  let after = executePush state url
+
+  // The url is kept even when the push fails, because connecting while the relay is down or you're offline
+  // is a legitimate thing to do -- `dark push` later is then the retry. But a TYPO looks exactly like a
+  // relay that's down, and the difference matters: one is fixed by waiting, the other never is. So say what
+  // is now stored and how to change it, rather than leaving "network error" as the last word.
+  let reachable =
+    match relayGet $"{url}/ping" with
+    | Ok _ -> true
+    | Error _ -> false
+
+  if reachable then
+    after
+  else
+    printHint
+      $"  {url} is still your relay -- `dark push` retries, `dark connect <url>` changes it."
+
+    after
+
 
 let help (state: AppState) : AppState =
-  [ "dark sync — keep your packages in step with your other instances, over HTTP."
-    "Sync is opt-in, and only between the machines you want. Once you connect a peer it stays current."
-    ""
-    "  dark sync                    sync now from every instance you're connected to"
-    "  dark sync connect <url>      remember an instance, and sync with it from now on"
-    "  dark sync disconnect <url>   forget an instance, and stop syncing with it"
-    "  dark sync serve              let peers pull from you (add --port N; default 9000)"
-    "  dark sync status             who you're syncing with, and how current each is"
-    "  dark sync fetch <name|url>   sync once from one instance (by its name or URL)"
-    "  dark sync --from <name>      same, by the name shown in `dark sync status`"
-    ""
-    "`connect` only records an instance on this machine — it sends nothing and changes nothing on theirs."
-    "After that, `dark sync` reads from every instance you've recorded; `fetch` reads from just the one."
-    ""
-    "All your branches sync wholesale — a branch is the same on every instance you connect."
-    ""
-    "Automatic (background, and across reboots):"
-    "  dark sync daemon start       pull from + serve to your peers on an interval"
-    "  dark sync daemon status      whether it's running, and with what settings"
-    "  dark sync daemon config      view/adjust interval, port, mode, on-boot"
-    "  dark sync daemon stop        turn automatic sync off"
-    ""
-    "When two instances edit the same name, sync auto-resolves (latest wins) but records it:"
-    "  dark conflicts               review + override sync divergences" ]
-  |> Stdlib.printLines
+  Stdlib.List.iter
+    [ "dark sync - move your ops between instances, over a relay or through a file."
+      ""
+      "  dark sync [url]         push then pull. url optional after connect."
+      "  dark sync status [url]  compare with the relay (in sync? no full transfer)"
+      "  dark sync export <f>    write the log to a file (backup, offline)"
+      "  dark sync import <f>    read ops from a file (they take effect)"
+      ""
+      "  Also at the root:"
+      "  dark push [url]         push your ops to the relay"
+      "  dark pull [url]         pull ops (incremental; they take effect)"
+      "  dark connect <url>      remember a relay and push (start here)"
+      "  dark whoami             show this instance's sync identity"
+      "  dark identity <name>    name this instance (an id is minted if not)"
+      "  dark review             stage someone else's ops for op-level approval"
+      "  dark branch push/pull   the same, for a branch instead of your main"
+      ""
+      "Op-log SQL is siloed in SCM.PackageOps; this command just formats + moves it." ]
+    (fun line -> Stdlib.printLine line)
 
   state
 
+let helpReview (state: AppState) : AppState =
+  Stdlib.List.iter
+    [ "dark review - stage incoming ops on a review branch and approve them deliberately."
+      ""
+      "  dark review pull [url] [queue]   stage on a review branch instead"
+      "                                   of applying"
+      "  dark review pull [queue] --from <who>   just that person's ops"
+      "  dark review import <f> [queue]   stage a file's ops on a queue"
+      "  dark review approve <queue>      fold a queue's ops into main"
+      "  dark review reject <queue>       discard a queue's staged ops"
+      "  dark review <queue>              show what a queue would change (same as `dark diff <queue>`)"
+      ""
+      "  The queue defaults to \"review\". Separate peers or agents get separate queues by name."
+      "  A queue IS a branch, so `dark branches`, `dark log <queue>` and"
+      "  `dark conflicts branch <queue>` all work on it." ]
+    (fun line -> Stdlib.printLine line)
 
+  state
+
+/// `dark sync ...`
+///
+/// An unknown flag is REFUSED rather than read as a url. `dark sync status --json` took `--json` as the
+/// relay address and reported "bad url" -- an answer about the wrong thing, in a command whose whole job is
+/// telling you whether you can reach a server.
 let execute (state: AppState) (args: List<String>) : AppState =
+  let flags = args |> Stdlib.List.filter (fun a -> Stdlib.String.startsWith a "--")
+
+  if Stdlib.Bool.not (Stdlib.List.isEmpty flags) then
+    let f = Stdlib.String.join flags " "
+    printErr $"sync takes no flags, and doesn't understand {f}."
+    printHint "  `dark sync help` lists what it does take."
+    state
+  else
+
   match args with
-  | [] ->
-    // bare `dark sync` = pull now from every connected instance (the daemon automates this).
-    match Darklang.Sync.peers () with
-    | [] ->
-      Stdlib.printLine "You're not syncing with anyone yet."
-
-      Stdlib.printLine (
-        Colors.hint "  dark sync connect <url>   sync with one of your instances")
-
-      state
-    | ps ->
-      let results = Stdlib.List.map ps (fun p -> Darklang.Sync.pull p)
-
-      let pulled =
-        Stdlib.List.fold results 0 (fun acc r ->
-          match r with
-          | Ok result -> acc + result.applied
-          | Error _ -> acc)
-
-      let allChanges =
-        Stdlib.List.fold results [] (fun acc r ->
-          match r with
-          | Ok result -> Stdlib.List.append acc result.changes
-          | Error _ -> acc)
-
-      // Each pull error is already peer-prefixed and self-describing — a genuine
-      // "Couldn't reach {peer}" reads differently from a "{peer}: a database error
-      // applying ops …". Surface the real message instead of bucketing every
-      // failure as "unreachable" (which hides apply/DB errors behind a network lie).
-      let errors =
-        Stdlib.List.filterMap results (fun r ->
-          match r with
-          | Ok _ -> Stdlib.Option.Option.None
-          | Error e -> Stdlib.Option.Option.Some e)
-
-      let reached = (Stdlib.List.length ps) - (Stdlib.List.length errors)
-
-      let _ =
-        errors
-        |> Stdlib.List.map (fun e -> Colors.error e)
-        |> Stdlib.printLines
-
-      if Stdlib.List.length allChanges > 0 then
-        printPull (reachedPhrase reached (Stdlib.List.length ps)) allChanges
-      else if pulled > 0 then
-        // Ops applied, but nothing a human would call a change — branch structure, or content whose
-        // name-binding came in an earlier batch. Say that honestly rather than invent a count.
-        Stdlib.printLine (
-          Colors.success
-            $"Synced with {reachedPhrase reached (Stdlib.List.length ps)} — no new names")
-      else if reached > 0 then
-        Stdlib.printLine (
-          Colors.success
-            $"Already up to date with {reachedPhrase reached (Stdlib.List.length ps)}")
-      else
-        ()
-
-      let _ = conflictNudge ()
-      state
-
-  | [ "status" ] ->
-    match Darklang.Sync.status () with
-    | [] ->
-      Stdlib.printLine "You're not syncing with anyone yet."
-
-      Stdlib.printLine (
-        Colors.hint "  dark sync connect <url>   sync with one of your instances")
-
-      state
-    | sts ->
-      // Frame the relationship as two-way: sync is pull-based, so you pull from them AND they pull your
-      // commits from you (that's how your work reaches them — there's no push).
-      let header =
-        $"Syncing with {Text.plural (Stdlib.List.length sts) "instance"} (you pull with `dark sync`; they pull your commits from you):"
-
-      // Width across the derived NAMES (what leads each row), not the URLs — so columns align on the handle
-      // you actually use.
-      let width =
-        Stdlib.List.fold sts 0 (fun acc pc ->
-          let len =
-            Stdlib.String.length (Darklang.Sync.instanceName (Stdlib.Tuple2.first pc))
-
-          if len > acc then len else acc)
-
-      let lines =
-        Stdlib.List.map sts (fun pc ->
-          let peer = Stdlib.Tuple2.first pc
-          let cursor = Stdlib.Tuple2.second pc
-          let name = Darklang.Sync.instanceName peer
-
-          let padded =
-            match Stdlib.String.padEnd name " " width with
-            | Ok s -> s
-            | Error _ -> name
-
-          // Name leads (you sync with `feriel`, not a URL); the URL trails, dimmed, for when you need it.
-          // Cursor is the PEER's rowid — meaningless to show; what's honest is whether we've pulled it yet.
-          let mark = if cursor == 0L then "not pulled yet" else "pulled"
-          $"  {padded}   {Colors.dim}{peer}{Colors.reset}   ({mark})")
-
-      // Every branch syncs wholesale — the same branches exist on every instance you connect.
-      let branchNames =
-        Stdlib.List.map (Darklang.SCM.Branch.list ()) (fun b -> b.name)
-
-      let branchLine =
-        match branchNames with
-        | [] -> []
-        | names ->
-          [ Colors.hint
-              $"  {Text.plural (Stdlib.List.length names) "branch"} syncing: {Stdlib.String.join names ", "}" ]
-
-      Stdlib.printLines (
-        Stdlib.List.append (Stdlib.List.append [ header ] lines) branchLine)
-
-      state
-
-  | [ "connect"; peer ] ->
-    match Darklang.Sync.connect peer with
-    | Ok _ ->
-      // Probe the peer now, so a wrong URL/port shows up here (when you can fix it) instead of on a later
-      // silent `dark sync`. The peer is added either way — an offline instance will just sync once it's up.
-      match Darklang.Sync.reachable peer with
-      | Ok n ->
-        Stdlib.printLine (
-          Colors.success $"Now syncing with {peer} — reachable ({Stdlib.Int64.toString n} ops)")
-        Stdlib.printLine (
-          Colors.hint "  dark sync — sync now.  dark sync daemon start — keep current on boot.")
-      | Error _ ->
-        Stdlib.printLine (Colors.success $"Added {peer}")
-        Stdlib.printLine (
-          Colors.hint
-            "  can't reach it yet — check the URL and that the instance is running `dark sync serve`; it'll sync once it's up")
-    | Error e -> Stdlib.printLine (Colors.error e)
-
-    state
-
-  | [ "fetch"; peerRef ]
-  | [ "--from"; peerRef ] ->
-    // A name (feriel) or a full URL. A bare name you're not syncing with is the common typo, so say so
-    // rather than trying to pull from a non-URL.
-    match Darklang.Sync.resolvePeer peerRef with
-    | None ->
-      Stdlib.printLine (
-        Colors.error
-          $"Not syncing with an instance named '{peerRef}'. Use its URL, or `dark sync status` to see the names you have.")
-
-      state
-    | Some peer ->
-      let _ =
-        match Darklang.Sync.pull peer with
-        | Ok result ->
-          let who = Darklang.Sync.instanceName peer
-          if Stdlib.List.length result.changes > 0 then
-            printPull who result.changes
-          else if result.applied > 0 then
-            Stdlib.printLine (Colors.success $"Synced with {who} — no new names")
-          else
-            Stdlib.printLine (Colors.success $"Already up to date with {who}")
-        | Error e -> Stdlib.printLine (Colors.error e)
-
-      let _ = conflictNudge ()
-      state
-
-  | [ "disconnect"; peerRef ] ->
-    // Disconnect by the name you see in `status`, or by URL. Resolve first so `disconnect feriel` works.
-    let peer =
-      match Darklang.Sync.resolvePeer peerRef with
-      | Some u -> u
-      | None -> peerRef
-
-    if Darklang.Sync.disconnect peer then
-      Stdlib.printLine (Colors.success $"Stopped syncing with {Darklang.Sync.instanceName peer}")
-    else
-      Stdlib.printLine (Colors.hint $"You weren't syncing with {peerRef}")
-
-    state
-
-  | [ "daemon" ]
-  | [ "daemon"; "status" ] -> daemonStatusCmd state
-  | [ "daemon"; "start" ] -> daemonStart state
-  | [ "daemon"; "stop" ] -> daemonStop state
-  | [ "daemon"; "config" ] -> daemonConfigShow state
-  | [ "daemon"; "config"; key; value ] -> daemonConfigSet state key value
-
-  | [ "serve" ] -> serveOn 9000 state
-  | [ "serve"; "--port"; portStr ] ->
-    match Stdlib.Int.parse portStr with
-    | Ok p -> serveOn p state
-    | Error _ ->
-      Stdlib.printLine (Colors.error $"Invalid --port: {portStr}")
-      state
-
+  | [] -> executeSync state (SCM.PackageOps.relay ())
+  | [ "status" ] -> executeStatus state (SCM.PackageOps.relay ())
+  | [ "status"; url ] -> executeStatus state url
+  | [ "export"; path ] -> executeExport state path
+  | [ "import"; path ] -> executeImport state path
   | [ "help" ] -> help state
-  | _ ->
-    Stdlib.printLine (Colors.error $"Unknown: dark sync {Stdlib.String.join args " "}")
-    Stdlib.printLine ""
-    help state
+  | [ url ] -> executeSync state url
+  | _ -> help state
 
+/// `dark push [url]`
+let executePushCmd (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] -> executePush state (SCM.PackageOps.relay ())
+  | [ url ] -> executePush state url
+  | _ ->
+    printErr "usage: dark push [url]"
+    state
+
+/// `dark pull [url]`
+let executePullCmd (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] -> executePull state (SCM.PackageOps.relay ())
+  | [ url ] -> executePull state url
+  | _ ->
+    printErr "usage: dark pull [url]"
+    state
+
+/// `dark connect <url>`
+let executeConnectCmd (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [ url ] -> executeConnect state url
+  // The secret is stored per relay in local config, which never syncs and is stripped from an exported
+  // seed. Typing it here does put it in your shell history, which is worth knowing and is still better
+  // than the alternatives available today.
+  | [ url; "--secret"; secret ] ->
+    // A short secret defeats the leak guard rather than triggering it. The guard looks for the secret's
+    // bytes inside every op it is about to push, and a few characters of hex turn up by chance in a store
+    // of any size: a three-character secret matched 580 of 12,000 ops, none of which contained it. The
+    // result is a push that can never succeed and a wall of hashes explaining why. Twelve characters is
+    // not a security threshold, it is the length at which a chance match stops happening -- and a shared
+    // write secret ought to be longer than that anyway.
+    if Stdlib.String.length secret < 12 then
+      printErr "that secret is too short to use safely (needs 12+ characters)."
+
+      printHint
+        "  Short secrets turn up inside ops by chance, and the guard that stops you publishing"
+
+      printHint
+        "  the secret cannot tell a real leak from a coincidence, so every push would be refused."
+
+      state
+    else
+      setRelaySecret url secret
+      printOk $"write secret stored for {url} (local config only; it never syncs)."
+      executeConnect state url
+  | _ ->
+    printErr "usage: dark connect <url> [--secret <secret>]"
+    printHint "  the url of a relay, e.g. https://matter.darklang.com"
+    printHint "  --secret is needed to WRITE; reading a relay never needs one"
+    state
+
+/// `dark whoami`
+let executeWhoamiCmd (state: AppState) (args: List<String>) : AppState =
+  executeWhoami state
+
+/// `dark identity [<name>]`. With no name it reports rather than clears, because clearing an identity by
+/// typing one word less is not something anyone means to do.
+let executeIdentityCmd (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] -> executeWhoami state
+  | [ name ] -> setIdentity state name
+  | _ ->
+    printErr "usage: dark identity <name>"
+    state
+
+/// `dark review ...`
+let executeReviewCmd (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [] -> helpReview state
+  | [ "help" ] -> helpReview state
+  // The `--from` forms come FIRST. Match arms are ordered, and `[ "pull"; url; queue ]` is the same
+  // shape as `[ "pull"; "--from"; who ]` -- so with the general arm above, `dark review pull --from bob`
+  // bound url="--from" and failed with "bad url", blaming a URL nobody typed. Scoping a queue to one
+  // person, for when you want theirs and not everyone's.
+  | [ "pull"; "--from"; who ] ->
+    executeReviewPullFrom state (SCM.PackageOps.relay ()) "review" who
+  | [ "pull"; queue; "--from"; who ] ->
+    executeReviewPullFrom state (SCM.PackageOps.relay ()) queue who
+  | [ "pull"; url; queue; "--from"; who ] ->
+    executeReviewPullFrom state url queue who
+  | [ "pull" ] -> executeReviewPull state (SCM.PackageOps.relay ()) "review"
+  | [ "pull"; url ] -> executeReviewPull state url "review"
+  | [ "pull"; url; queue ] -> executeReviewPull state url queue
+  | [ "import"; path ] -> executeReviewImport state path "review"
+  | [ "import"; path; queue ] -> executeReviewImport state path queue
+  | [ "approve"; queue ] -> executeApprove state queue
+  | [ "reject"; queue ] -> executeReject state queue
+  | [ queue ] ->
+    match Cli.Branch.resolveRef queue with
+    | Some queueId -> printOk (SCM.PackageOps.branchDiff queueId)
+    | None -> ()
+
+    state
+  | _ -> helpReview state
 
 let complete
   (state: AppState)
   (args: List<String>)
   : List<Completion.CompletionItem> =
-  match args with
-  | [] ->
-    [ "status"; "connect"; "disconnect"; "serve"; "fetch"; "daemon" ]
-    |> Stdlib.List.map Completion.simple
-  | _ -> []
+  []

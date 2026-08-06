@@ -38,49 +38,56 @@ let inline trySync (v : Ply<'a>) : 'a voption =
 // making sure that, for example, a HttpClient call will finish before the next one
 // starts. Will allow other requests to run which waiting.
 module List =
+  // All three of these are ITERATIVE on purpose, and the obvious `List.fold` version
+  // of each is a stack-overflow waiting for a big enough list.
+  //
+  // The trap: folding with `uply { let! acc = acc; ... }` doesn't sequence the work,
+  // it BUILDS a chain of N nested continuations that only unwind when the last one
+  // completes. Depth grows with the list, so it works fine on the small lists
+  // everything is tested with and dies on a real one. A .NET stack overflow can't be
+  // caught, so the process just disappears.
+  //
+  // Found when the sync relay died decoding a bundle of ~10,800 ops: `Json.parse`
+  // reaches `flatten` for the ops list, the stack blew, the server vanished
+  // mid-request, and every client reported "network error". A `for` loop inside
+  // `uply` compiles to a flat state machine and has no such ceiling.
+
   let flatten (list : List<Ply<'a>>) : Ply<List<'a>> =
-    let rec loop (acc : Ply<List<'a>>) (xs : List<Ply<'a>>) =
-      uply {
-        let! acc = acc
-
-        match xs with
-        | [] -> return List.rev acc
-        | x :: xs ->
-          let! x = x
-          return! loop (uply { return (x :: acc) }) xs
-      }
-
-    loop (uply { return [] }) list
+    uply {
+      let acc = ResizeArray<'a>(List.length list)
+      for item in list do
+        let! v = item
+        acc.Add v
+      return List.ofSeq acc
+    }
 
   let foldSequentially
     (f : 'state -> 'a -> Ply<'state>)
     (initial : 'state)
     (list : List<'a>)
     : Ply<'state> =
-    List.fold
-      (fun (accum : Ply<'state>) (arg : 'a) ->
-        uply {
-          let! accum = accum
-          return! f accum arg
-        })
-      (Ply initial)
-      list
+    uply {
+      let mutable state = initial
+      for item in list do
+        let! next = f state item
+        state <- next
+      return state
+    }
 
   let foldSequentiallyWithIndex
     (f : int -> 'state -> 'a -> Ply<'state>)
     (initial : 'state)
     (list : List<'a>)
     : Ply<'state> =
-    List.fold
-      (fun (accum : (Ply<int * 'state>)) (arg : 'a) ->
-        uply {
-          let! (i, state) = accum
-          let! result = f i state arg
-          return (i + 1, result)
-        })
-      (Ply((0, initial)))
-      list
-    |> map Tuple2.second
+    uply {
+      let mutable state = initial
+      let mutable i = 0
+      for item in list do
+        let! next = f i state item
+        state <- next
+        i <- i + 1
+      return state
+    }
 
 
   let mapSequentially (f : 'a -> Ply<'b>) (list : List<'a>) : Ply<List<'b>> =

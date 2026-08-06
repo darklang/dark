@@ -1,0 +1,182 @@
+module Darklang.Cli.PropagateApp
+
+// The impact screen: `dark propagate` with no arguments.
+//
+// The thing it fixes: deciding that three of five dependents shouldn't have followed costs three commands,
+// each printing a bit of text you then reassemble into a picture. The picture IS the decision. Choosing is
+// comparing, comparing means seeing them together, and a command per item makes you hold the comparison in
+// your head instead of on the screen.
+//
+// TOGGLING APPLIES IMMEDIATELY, and the footer says so. This is the one real design decision here and the
+// alternative is worse: staging choices and applying on Enter would show you a preview that isn't the state
+// you're in, which is the same lie late binding would have told (see propagation-policy.md). Propagation has
+// ALREADY run by the time this opens, and a pin's rollback is one op, so live is both the honest option and
+// the cheap one.
+//
+// There is therefore NO CANCEL, deliberately. A cancel that can't actually undo is worse than none. What
+// makes that fine is that nothing is destroyed: toggling back is a complete undo, every version is still in
+// the store, and every op is still in the log.
+//
+// The scriptable verbs (`pin`, `follow`, `show`, `unset`, `--json`) are unchanged and are the path for
+// agents and scripts. This is the path for a person. Neither is the real one.
+
+type State =
+  { branchId: String
+    rows: List<SCM.Propagation.ImpactRow>
+    selected: Int
+    /// shown under the list: the result of the last action, or a hint
+    message: String }
+
+
+let load (branchId: String) (message: String) : State =
+  State
+    { branchId = branchId
+      rows = SCM.Propagation.draftImpact ()
+      selected = 0
+      message = message }
+
+
+let shortHash (h: LanguageTools.ProgramTypes.Hash) : String =
+  LanguageTools.ProgramTypes.hashToString h |> Stdlib.String.slice 0 8
+
+
+let fqn (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
+  let mods = SCM.Propagation.modulesOf loc
+  if mods == "" then $"{loc.owner}.{loc.name}" else $"{loc.owner}.{mods}.{loc.name}"
+
+
+let padTo (s: String) (n: Int) : String =
+  let len = Stdlib.String.length s
+  if len >= n then s else s ++ (Stdlib.String.repeat " " (n - len))
+
+
+let renderRow (idx: Int) (selected: Int) (r: SCM.Propagation.ImpactRow) : String =
+  let cursor = if idx == selected then ">" else " "
+  let policy = if r.following then "follow" else "pinned"
+  let name = padTo (fqn r.item) 40
+  let because = fqn r.because
+  $"  {cursor} {policy}  {name}  {shortHash r.at}   <- {because}"
+
+
+let render (state: State) : String =
+  let header =
+    match state.rows with
+    | [] -> "  nothing in your draft followed anything else.\n"
+    | rows ->
+      let n = Stdlib.Int.toString (Stdlib.List.length rows)
+      $"  {n} item(s) moved because something they use moved\n"
+
+  let body =
+    state.rows
+    |> Stdlib.List.indexedMap (fun i r -> renderRow i state.selected r)
+    |> (fun ls -> Stdlib.String.join ls "\n")
+
+  let footer =
+    "\n\n  space toggle   a all follow   n all pinned   v view   q done"
+    ++ "\n  changes apply as you toggle -- toggling back is a complete undo"
+
+  let msg = if state.message == "" then "" else $"\n\n  {state.message}"
+
+  "\n  dark propagate -- what followed your change\n\n"
+  ++ header
+  ++ "\n"
+  ++ body
+  ++ msg
+  ++ footer
+
+
+/// Toggle the selected row, applying the change for real, then reload so the screen shows the new truth.
+///
+/// Reloading rather than patching the row in place: a pin rolls back the cascade ABOVE the item too, so more
+/// than one row can change from one keystroke. Patching would show a screen that's right about the row you
+/// touched and wrong about the others.
+let toggle (state: State) : State =
+  match Stdlib.List.getAt state.rows state.selected with
+  | None -> state
+  | Some r ->
+    let result =
+      if r.following then
+        PropagateCmd.applyPin state.branchId r.item r.kind ""
+      else
+        PropagateCmd.applyFollow state.branchId r.item
+
+    let next = load state.branchId result
+    { next with selected = state.selected }
+
+
+let setAll (state: State) (following: Bool) : State =
+  state.rows
+  |> Stdlib.List.iter (fun r ->
+    if r.following == following then
+      ()
+    else if following then
+      let _ = PropagateCmd.applyFollow state.branchId r.item
+      ()
+    else
+      let _ = PropagateCmd.applyPin state.branchId r.item r.kind ""
+      ())
+
+  let msg = if following then "everything follows" else "everything pinned"
+  let next = load state.branchId msg
+  { next with selected = state.selected }
+
+
+/// View the selected item's source. The comparison people actually want is the CODE, and a value column
+/// can't work here -- most of these are functions and running one needs arguments this screen doesn't have.
+let viewSelected (state: State) : State =
+  match Stdlib.List.getAt state.rows state.selected with
+  | None -> state
+  | Some r ->
+    let ctx = PrettyPrinter.ProgramTypes.Context.forBranch state.branchId
+
+    let src =
+      match r.kind with
+      | Fn ->
+        match LanguageTools.PackageManager.Function.get r.at with
+        | Some f -> PrettyPrinter.ProgramTypes.packageFn ctx f
+        | None -> "(not stored locally)"
+      | Type ->
+        match LanguageTools.PackageManager.Type.get r.at with
+        | Some t -> PrettyPrinter.ProgramTypes.packageType ctx t
+        | None -> "(not stored locally)"
+      | Value ->
+        match LanguageTools.PackageManager.Value.get r.at with
+        | Some v -> PrettyPrinter.ProgramTypes.packageValue ctx v
+        | None -> "(not stored locally)"
+
+    { state with message = src }
+
+
+let onKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (_modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Component.Step<State> =
+  let count = Stdlib.List.length state.rows
+
+  match key with
+  | Escape -> Component.Step.Exit
+  | UpArrow ->
+    let i = if state.selected > 0 then state.selected - 1 else state.selected
+    Component.Step.Stay({ state with selected = i })
+  | DownArrow ->
+    let i =
+      if state.selected < (count - 1) then state.selected + 1 else state.selected
+
+    Component.Step.Stay({ state with selected = i })
+  | _ ->
+    match keyChar with
+    | Some " " -> Component.Step.Stay(toggle state)
+    | Some "a" -> Component.Step.Stay(setAll state true)
+    | Some "n" -> Component.Step.Stay(setAll state false)
+    | Some "v" -> Component.Step.Stay(viewSelected state)
+    | Some "q" -> Component.Step.Exit
+    | _ -> Component.Step.Stay state
+
+
+val component = Component.Component { render = render; onKey = onKey }
+
+
+let launch (cliState: AppState) : AppState =
+  Component.launch cliState component (load cliState.currentBranchId "")

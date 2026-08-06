@@ -10,7 +10,7 @@ let modulePathOf (location: Packages.PackageLocation) : List<String> =
   | Value v -> Stdlib.List.append [ v.owner ] v.modules
   | Function f -> Stdlib.List.append [ f.owner ] f.modules
 
-let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyItem> =
+let loadItems (branchId: String) (location: Packages.PackageLocation) : List<BodyItem> =
   let modulePath = modulePathOf location
   let results = Packages.Query.allDirectDescendants branchId modulePath
   let subs = Packages.Query.getDirectSubmodules results (Stdlib.List.length modulePath)
@@ -27,43 +27,47 @@ let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyI
     |> Stdlib.List.map (fun f -> BodyItem { name = f.location.name; kind = "fn"; isModule = false })
   Stdlib.List.flatten [ moduleItems; typeItems; valItems; fnItems ]
 
-/// How many uncommitted *items* there are - the same number the Changes list shows.
+/// The names your draft touches, as body items.
 ///
-/// Not `getWipSummary.total`, which counts ops: authoring one value emits two of them (AddValue + SetName),
-/// so the SCM header used to read "● 2 changes" directly above a list titled "Changes · 1". Ops are the right
-/// unit for a commit's size (History says "(N ops)"); items are the right unit for "how much have I changed".
-let wipItemCount (branchId: Uuid) : Int =
-  Stdlib.List.length (SCM.PackageOps.getWipItems branchId)
-
-/// The uncommitted (WIP) items on this branch, as body items (for the Changes view).
-let loadWipBodyItems (branchId: Uuid) : List<BodyItem> =
-  SCM.PackageOps.getWipItems branchId
-  |> Stdlib.List.map (fun d ->
-    let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
-    let kind = Stdlib.Dict.get d "kind" |> Stdlib.Option.withDefault "?"
-    BodyItem { name = name; kind = kind; isModule = false })
+/// Feeds two surfaces that are the same list seen from two angles: the SCM view's changes list, and
+/// Matter's Changed lens. The lens is the interesting one -- it makes the draft a view of YOUR CODE
+/// filtered to what moved, rather than a separate screen listing names, so it comes with the real tree
+/// renderer, the real item page and edit-in-place for nothing.
+///
+/// Flat and fully qualified, like the Values lens, because a draft is scattered across modules and
+/// filtering a tree to five leaves in five places is worse than a list.
+let loadChangedItems (branchId: String) : List<BodyItem> =
+  SCM.Draft.read ()
+  |> fun p -> p.bindings
+  |> Stdlib.List.map (fun b ->
+    BodyItem
+      { name = SCM.Conflicts.fqn b.owner b.modules b.name
+        kind = b.itemType
+        isModule = false })
 
 /// Recent commits (this branch + ancestors) as body items (for the History view).
-let loadCommitBodyItems (branchId: Uuid) : List<BodyItem> =
-  SCM.PackageOps.getCommitsWithAncestors branchId 30
+let loadCommitBodyItems () : List<BodyItem> =
+  Cli.Commits.commitRows 30L
   |> Stdlib.List.map (fun c ->
-    let short = LanguageTools.ProgramTypes.hashToShort c.hash
-    let ops = Stdlib.Int.toString c.opCount
+    // `c.hash` is already the hex string, not a `Hash`. `hashToShort` takes the wrapper.
+    let short = Stdlib.String.first c.hash 8
+    let ops = Stdlib.Int64.toString c.ops
     BodyItem
       { name = short ++ "  " ++ c.message ++ "  (" ++ ops ++ " ops)"
         kind = "commit"
         isModule = false })
 
 /// The ops of the selected commit, rendered for the reader. Capped - a seed commit can have 10k+ ops.
-let commitOpsText (branchId: Uuid) (selected: Int) : String =
-  let commits = SCM.PackageOps.getCommitsWithAncestors branchId 30
+let commitOpsText (branchId: String) (selected: Int) : String =
+  let commits = Cli.Commits.commitRows 30L
   match Stdlib.List.getAt commits selected with
   | None -> "(no commit selected)"
   | Some c ->
-    let hashStr = LanguageTools.ProgramTypes.hashToString c.hash
-    let ops = SCM.PackageOps.getCommitOps hashStr
-    let opCount = Stdlib.List.length ops
-    let shown = Stdlib.List.take ops 20
+    let hashStr = c.hash
+    // Fetch the 20 we show, not all of them. The seed commit has ~17k ops, and deserializing every blob to
+    // display twenty of them froze this pane for as long as it took.
+    let opCount = Stdlib.Int.fromInt64 (SCM.PackageOps.opCountIn hashStr)
+    let shown = SCM.PackageOps.opsInCommitLimited hashStr 20L
     let opLines =
       shown
       |> Stdlib.List.map (fun op -> "  " ++ (PrettyPrinter.ProgramTypes.PackageOp.packageOp branchId op))
@@ -77,46 +81,75 @@ let commitOpsText (branchId: Uuid) (selected: Int) : String =
 
 /// A cheap commit summary for the History preview - hash, message, op count - WITHOUT fetching every op (the
 /// seed commit has 10k+; fetching them per keystroke would make the list crawl). Full ops are behind Enter.
-let commitSummary (branchId: Uuid) (selected: Int) : String =
-  let commits = SCM.PackageOps.getCommitsWithAncestors branchId 30
+let commitSummary (selected: Int) : String =
+  let commits = Cli.Commits.commitRows 30L
   match Stdlib.List.getAt commits selected with
   | None -> "(no commit selected)"
   | Some c ->
-    (LanguageTools.ProgramTypes.hashToString c.hash)
+    c.hash
     ++ "\n\n"
     ++ c.message
     ++ "\n\n"
-    ++ (Stdlib.Int.toString c.opCount)
+    ++ (Stdlib.Int64.toString c.ops)
     ++ " ops  ·  press ⏎ to view them"
 
 /// A real +/- diff of the selected WIP item (old-vs-new), reusing the review app's diff engine. Matched by
 /// name so it lines up with the workbench's own WIP list regardless of ordering.
+/// A real old-vs-new SOURCE diff for one draft item.
+///
+/// This pane used to show the draft OPS that touched the name, which is true but is not what a diff pane is
+/// for: you want to see what the code says now against what it said before, not that a `SetName` happened.
+/// Everything it needs already existed -- `Cli.Conflicts.renderItem` pretty-prints an item by hash,
+/// `Cli.Commit.previousHashesOf` finds the version the name held before, and `Stdlib.Diff.lines` diffs two
+/// texts -- so this is those three joined up rather than anything new.
+///
+/// A NEW item has no previous version, so it diffs against empty and comes out as all-added, which is
+/// exactly right.
+let sourceDiffFor (branchId: String) (fqn: String) : List<Stdlib.Diff.DiffLine> =
+  let binding =
+    SCM.PackageOps.draftBindingsFor branchId
+    |> Stdlib.List.findFirst (fun b ->
+      (SCM.Conflicts.fqn b.owner b.modules b.name) == fqn)
+
+  match binding with
+  | None -> [ Stdlib.Diff.DiffLine.Same "(nothing in the draft touches this name)" ]
+  | Some b ->
+    // `b.name` on both sides: the PREVIOUS version of a name is bound to nothing live, so the printer
+    // cannot name it and would render `let <hash:...>` on the left of every diff.
+    let newText = Cli.Conflicts.renderItem branchId b.itemType b.hash b.name
+
+    let oldText =
+      match Cli.Commit.previousHashesOf branchId b with
+      | [] -> ""
+      | prev :: _ ->
+        Cli.Conflicts.renderItem
+          branchId
+          b.itemType
+          (LanguageTools.ProgramTypes.hashToString prev)
+          b.name
+
+    Stdlib.Diff.lines oldText newText
+
 let wipDiffText (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
   | None -> "(no change selected)"
   | Some item ->
-    let pkgs = SCM.Review.App.loadWipItems state.branchId
-    match Stdlib.List.findFirst pkgs (fun p -> p.name == item.name) with
-    | None -> "(not found)"
-    | Some pkg ->
-      let ops = SCM.PackageOps.getWip state.branchId
-      let parentId = SCM.Review.App.getParentBranchId state.branchId
-      SCM.Review.App.diffForItem ops state.branchId parentId pkg
-      |> Stdlib.List.map (fun dl ->
-        match dl with
-        | Same s -> Colors.dimText ("  " ++ s)
-        | Added s -> Colors.colorize Colors.green ("+ " ++ s)
-        | Removed s -> Colors.colorize Colors.red ("- " ++ s))
-      |> Stdlib.String.join "\n"
+    sourceDiffFor state.branchId item.name
+    |> Stdlib.List.map (fun dl ->
+      match dl with
+      | Same s -> Colors.dimText ("  " ++ s)
+      | Added s -> Colors.colorize Colors.green ("+ " ++ s)
+      | Removed s -> Colors.colorize Colors.red ("- " ++ s))
+    |> Stdlib.String.join "\n"
 
 /// The current source of the selected WIP item, for the Changes reader.
-let changesSourceText (branchId: Uuid) (selected: Int) : String =
-  let items = SCM.PackageOps.getWipItems branchId
+let changesSourceText (branchId: String) (selected: Int) : String =
+  let items = loadChangedItems branchId
   match Stdlib.List.getAt items selected with
   | None -> "(no change selected)"
   | Some d ->
-    let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
-    let kind = Stdlib.Dict.get d "kind" |> Stdlib.Option.withDefault ""
+    let name = d.name
+    let kind = d.kind
     // `name` is the full path (owner.Module.leaf) - split into the module path + leaf for the lookup.
     let parts = Stdlib.String.split name "."
     let leaf = Stdlib.List.last parts |> Stdlib.Option.withDefault name
@@ -128,11 +161,11 @@ let changesSourceText (branchId: Uuid) (selected: Int) : String =
           currentModule = Stdlib.Option.Option.None
           currentFunction = Stdlib.Option.Option.None }
     let src =
-      if kind == "Type" then
+      if kind == "type" then
         match results.types with
         | i :: _ -> PrettyPrinter.ProgramTypes.packageType ctx i.entity
         | [] -> "(not found)"
-      else if kind == "Value" then
+      else if kind == "value" then
         match results.values with
         | i :: _ -> PrettyPrinter.ProgramTypes.packageValue ctx i.entity
         | [] -> "(not found)"
@@ -140,11 +173,11 @@ let changesSourceText (branchId: Uuid) (selected: Int) : String =
         match results.fns with
         | i :: _ -> PrettyPrinter.ProgramTypes.packageFn ctx i.entity
         | [] -> "(not found)"
-    name ++ "  (" ++ kind ++ ", WIP)\n\n" ++ src
+    name ++ "  (" ++ kind ++ ", uncommitted)\n\n" ++ src
 
 /// Run a package search across the whole tree and return jumpable hits (each carries its module path + leaf so
 /// Enter can navigate there). The `/` global action opens these in the search-results mode.
-let runSearch (branchId: Uuid) (queryText: String) : List<SearchHit> =
+let runSearch (branchId: String) (queryText: String) : List<SearchHit> =
   let query =
     LanguageTools.ProgramTypes.Search.SearchQuery
       { currentModule = []
@@ -201,7 +234,10 @@ let depsText (state: State) : String =
             let namesDict = Darklang.Cli.Deps.resolveNames state.branchId (deps |> Stdlib.List.map (fun p -> let (h, _) = p in h))
             deps |> Stdlib.List.map (fun p -> let (th, _rt) = p in "  " ++ (Darklang.Cli.Deps.getName namesDict th))
         // Dependents - what uses this item.
-        let dependents = Builtin.depsGetDependents state.branchId [ (loc, kind) ]
+        // `Builtin.depsGetDependents` went with the other per-query builtins; `SCM.Deps.dependentsOf` is
+        // the Dark-side replacement, and it's what `dark deps` has been using all along. A missing builtin
+        // only throws when called, so this pane errored while the build stayed green.
+        let dependents = SCM.Deps.dependentsOf [ (loc, kind) ]
         let dependentLines =
           if Stdlib.List.isEmpty dependents then [ Colors.dimText "  (none)" ]
           else dependents |> Stdlib.List.map (fun t -> let (_h, sLoc, _rt) = t in "  " ++ (PrettyPrinter.ProgramTypes.PackageLocation.packageLocation sLoc))
@@ -224,9 +260,9 @@ let readBadges (state: State) : (List<String> * List<String>) =
   if (state.activeView != vMatter) || (state.matterLens == "values") then
     ([], [])
   else
-    let wip =
-      SCM.PackageOps.getWipItems state.branchId
-      |> Stdlib.List.map (fun d -> Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "")
+    // The draft names come off the cached SCM status rather than a read of their own: the tree's pink dot
+    // and Home's "N changed" are the same fact, and they used to be two reads that could disagree.
+    let wip = state.scmStatus.wipNames
     let sets = Packages.Query.loadDeprecationSets state.branchId
     let results = Packages.Query.allDirectDescendants state.branchId (modulePathOf state.location)
     let pick = fun items ->
@@ -253,6 +289,24 @@ let refreshBadges (previous: State) (next: State) : State =
   else
     let (wip, deprecated) = readBadges next
     { next with wipNames = wip; deprecatedNames = deprecated }
+
+/// Re-read the SCM picture when anything that could have moved it did.
+///
+/// A WIDER rule than `refreshBadges` uses, and deliberately so. The badges depend on where you are; the SCM
+/// status depends on what you've DONE. Committing, discarding, pinning and settling a conflict all change it
+/// without moving the branch, the location or the item list, so the badges' comparison would carry a stale
+/// answer forward. The extra input is the draft's op count, which is one indexed count and is the cheapest
+/// question the op log can answer.
+let refreshScmStatus (previous: State) (next: State) : State =
+  let unchanged =
+    next.scmStatus.loaded
+    && (previous.branchId == next.branchId)
+    && ((SCM.PackageOps.draftOpCountFor next.branchId) == next.scmStatus.ops)
+
+  if unchanged then
+    next
+  else
+    { next with scmStatus = readScmStatus next.branchId }
 
 /// Run the selected `render` fn and hold its output, for the tree-native view peek.
 ///

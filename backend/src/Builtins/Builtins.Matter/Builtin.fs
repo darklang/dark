@@ -16,19 +16,13 @@ let builtins (pm : PT.PackageManager) : Builtins =
       Libs.DB.builtins ()
       Libs.Sqlite.builtins ()
 
-      // Sync (the op-log wire, the blob channel, the conflict review log)
-      Libs.Sync.OpLog.builtins ()
-      Libs.Sync.Blobs.builtins ()
-      Libs.Conflicts.builtins ()
+      // (carve: F# sync builtins removed — op-log wire, blob channel, conflict
+      // review log. Sync is being rebuilt in Dark on the op substrate, cloud-first.)
 
       // PM (package manager — packages, branches, ops, merge, …)
       Libs.PM.Packages.builtins pm
       Libs.PM.PackageOps.builtins pm
-      Libs.PM.Branches.builtins ()
-      Libs.PM.Rebase.builtins ()
-      Libs.PM.Merge.builtins ()
-      Libs.PM.Scripts.builtins ()
-      Libs.PM.Dependencies.builtins ()
+      // (carve: merge/rebase builtins removed -- single-scope MVP, SCM rebuilt in Dark)
       Libs.PM.Seed.builtins
       Libs.PM.Caps.builtins
       Libs.PM.Store.builtins ()

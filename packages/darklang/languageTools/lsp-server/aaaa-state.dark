@@ -19,8 +19,8 @@ type LspState =
     /// The account name of the current user
     accountName: String
 
-    /// Which branch we're working on
-    currentBranchId: Uuid
+    /// Which branch we're working on: its ID, not its name ("" = main)
+    currentBranchId: String
 
     /// Documents that are currently open in the editor
     /// (i.e. have been `textDocument/didOpen`ed, and not yet `textDocument/didClose`d)

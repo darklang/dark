@@ -42,20 +42,20 @@ module NameResolutionError =
 // Context for relative name resolution - when we know what module we're currently in,
 // we can shorten names that share the same prefix
 type Context =
-  { branchId: Uuid
+  { branchId: String
     currentModule: Stdlib.Option.Option<String>
     /// Used to resolve ESelf and EArg expressions when pretty-printing function bodies.
     /// When Some, contains (functionName, argMap) where argMap maps parameter names to indices.
     currentFunction: Stdlib.Option.Option<(String * Dict<Int>)> }
 
 module Context =
-  let forBranch (branchId: Uuid) : Context =
+  let forBranch (branchId: String) : Context =
     Context
       { branchId = branchId
         currentModule = Stdlib.Option.Option.None
         currentFunction = Stdlib.Option.Option.None }
 
-  val forMain = forBranch SCM.Branch.mainBranchId
+  val forMain = forBranch ""
 
   let toPickContext (ctx: Context) : LanguageTools.PackageManager.PickContext =
     LanguageTools.PackageManager.PickContext
@@ -1045,7 +1045,7 @@ let packageFn
 
 
 module BuiltinFn =
-  let signature (branchId: Uuid) (f: LanguageTools.BuiltinFunction) : String =
+  let signature (branchId: String) (f: LanguageTools.BuiltinFunction) : String =
     // CLEANUP: it's odd that we have to call the runtime pretty-printer here.
     // Potential solution: update RuntimeTypes (.fs) such that BuiltInFn's returnType and parameters use PT TypeReferences.
     // Main blocker: "RT comes before PT" in LibExecution, and it'd take some wrangling to get it all compiling again if we did that.
@@ -1062,7 +1062,7 @@ module BuiltinFn =
 
 module PackageOp =
   let packageOp
-    (branchId: Uuid)
+    (branchId: String)
     (op: LanguageTools.ProgramTypes.PackageOp)
     : String =
     let ctx = Context.forBranch branchId
@@ -1118,7 +1118,7 @@ module PackageOp =
       // actually is — content added here, name bound to it there — rather than a list of unrelated lines.
       $"AddValue {name} = {source}  [{LanguageTools.ProgramTypes.hashToShort value.hash}]"
 
-    | SetName(loc, target) ->
+    | SetName(loc, target, _) ->
       let path = PackageLocation.packageLocation loc
       let kind =
         match target with
@@ -1144,10 +1144,13 @@ module PackageOp =
       let hash = LanguageTools.ProgramTypes.Reference.hash target
       $"Undeprecate [{LanguageTools.ProgramTypes.hashToShort hash}]"
 
-    | PropagateUpdate (_propId, _sloc, _fromRefs, _toRef, repoints) ->
-      let count = (Stdlib.List.length repoints) |> Stdlib.Int.toString
-      $"PropagateUpdate ({count} repoint(s))"
+    | Resolve(decisionId, location, target) ->
+      let hash = LanguageTools.ProgramTypes.Reference.hash target
+      let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
 
-    | RevertPropagation (_revertId, _propIds, _sloc, _restoredRef, repoints) ->
-      let count = (Stdlib.List.length repoints) |> Stdlib.Int.toString
-      $"RevertPropagation ({count} repoint(s))"
+      $"Resolve #{decisionId} {name} -> [{LanguageTools.ProgramTypes.hashToShort hash}]"
+    | Decide(kind, location, value, reason, _) ->
+      let name = PackageLocation.packageLocation location
+      let why = if reason == "" then "" else $" ({reason})"
+      $"Decide {kind} {name} -> {value}{why}"
+

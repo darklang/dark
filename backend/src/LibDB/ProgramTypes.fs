@@ -13,52 +13,15 @@ module PT = LibExecution.ProgramTypes
 module BS = LibSerialization.Binary.Serialization
 
 
-/// Build a branch-aware SQL WHERE clause and ORDER BY for name resolution.
-/// branchChain = [current; parent; grandparent; ...; main]
-/// Current branch sees WIP + committed, ancestors see committed only.
-let private buildBranchFilter (branchChain : List<PT.BranchId>) =
-  match branchChain with
-  | [] -> ("1 = 0", []) // shouldn't happen
-  | [ single ] ->
-    // Only one branch (main with no chain) - see everything
-    let filter = "(branch_id = @branch_0)"
-    let parms = [ "branch_0", Sql.uuid single ]
-    (filter, parms)
-  | _current :: ancestors ->
-    // Current branch: WIP + committed; ancestors: committed only
-    let branchParams =
-      branchChain |> List.mapi (fun i id -> $"branch_{i}", Sql.uuid id)
-
-    let currentParam = "@branch_0"
-
-    let ancestorParams =
-      ancestors |> List.mapi (fun i _ -> $"@branch_{i + 1}") |> String.concat ", "
-
-    let filter =
-      $"(branch_id = {currentParam} OR (branch_id IN ({ancestorParams}) AND commit_hash IS NOT NULL))"
-
-    // Note: ORDER BY is appended by the caller via buildBranchOrderBy
-    (filter, branchParams)
-
-
-let private buildBranchOrderBy (branchChain : List<PT.BranchId>) : string =
-  let caseClauses =
-    branchChain
-    |> List.mapi (fun i _ -> $"WHEN @branch_{i} THEN {i}")
-    |> String.concat " "
-
-  $"CASE branch_id {caseClauses} END, CASE WHEN commit_hash IS NULL THEN 0 ELSE 1 END, created_at DESC"
-
+// Single-scope "main": every row is on the main branch, so name resolution needs
+// no branch filter. The latest SetName at a location wins -> ORDER BY created_at DESC.
 
 let private findItem
   (itemType : string)
-  (branchChain : List<PT.BranchId>)
   (location : PT.PackageLocation)
   : Ply<Option<Hash>> =
   uply {
     let modulesStr = String.concat "." location.modules
-    let (branchFilter, branchParams) = buildBranchFilter branchChain
-    let orderBy = buildBranchOrderBy branchChain
 
     return!
       Sql.query
@@ -70,16 +33,15 @@ let private findItem
           AND name = @name
           AND item_type = '{itemType}'
           AND unlisted_at IS NULL
-          AND {branchFilter}
-        ORDER BY {orderBy}
+        -- `rowid DESC` breaks the tie: `created_at` is second-resolution, so same-second rows order
+        -- arbitrarily, and the caller here takes the head.
+        ORDER BY created_at DESC, rowid DESC
         LIMIT 1
         """
-      |> Sql.parameters (
+      |> Sql.parameters
         [ "owner", Sql.string location.owner
           "modules", Sql.string modulesStr
           "name", Sql.string location.name ]
-        @ branchParams
-      )
       |> Sql.executeRowOptionAsync (fun read -> Hash(read.string "item_hash"))
   }
 
@@ -105,13 +67,10 @@ let private getItem<'a>
 
 let private getItemLocations
   (itemType : string)
-  (branchChain : List<PT.BranchId>)
   (hash : Hash)
   : Ply<List<PT.PackageLocation>> =
   uply {
     let (Hash hashStr) = hash
-    let (branchFilter, branchParams) = buildBranchFilter branchChain
-    let orderBy = buildBranchOrderBy branchChain
 
     return!
       Sql.query
@@ -121,10 +80,46 @@ let private getItemLocations
         WHERE item_hash = @item_hash
           AND item_type = '{itemType}'
           AND unlisted_at IS NULL
-          AND {branchFilter}
-        ORDER BY {orderBy}
+        -- `rowid DESC` breaks the tie: `created_at` is second-resolution, so same-second rows order
+        -- arbitrarily, and the caller here takes the head.
+        ORDER BY created_at DESC, rowid DESC
         """
-      |> Sql.parameters ([ "item_hash", Sql.string hashStr ] @ branchParams)
+      |> Sql.parameters [ "item_hash", Sql.string hashStr ]
+      |> Sql.executeAsync (fun read ->
+        let modulesStr = read.string "modules"
+        { owner = read.string "owner"
+          modules = modulesStr.Split('.') |> Array.toList
+          name = read.string "name" })
+  }
+
+/// Every name this hash has EVER had, live ones first.
+///
+/// Separate from `getItemLocations` because the two answer different questions and
+/// only one of them is safe for logic. "What is bound here now" must be live-only: a
+/// cascade that repointed a superseded name would undo someone's rename. "What do I
+/// call this thing on screen" is the other question, and there a name the item used
+/// to have beats a bare 64-character hash every time.
+///
+/// The case is ordinary: viewing an OLD version of an item. Its name moved on to the
+/// newer version, so it has no live row, and rendering it as `<hash:d6f972b3>` tells
+/// you nothing about what you're looking at.
+let private getItemLocationsEverNamed
+  (itemType : string)
+  (hash : Hash)
+  : Ply<List<PT.PackageLocation>> =
+  uply {
+    let (Hash hashStr) = hash
+
+    return!
+      Sql.query
+        $"""
+        SELECT owner, modules, name
+        FROM locations
+        WHERE item_hash = @item_hash
+          AND item_type = '{itemType}'
+        ORDER BY (unlisted_at IS NULL) DESC, created_at DESC
+        """
+      |> Sql.parameters [ "item_hash", Sql.string hashStr ]
       |> Sql.executeAsync (fun read ->
         let modulesStr = read.string "modules"
         { owner = read.string "owner"
@@ -137,16 +132,19 @@ module Type =
   let find = findItem "type"
   let get = getItem "package_types" "hash" BS.PT.PackageType.deserialize
   let getLocations = getItemLocations "type"
+  let getLocationsEverNamed = getItemLocationsEverNamed "type"
 
 module Value =
   let find = findItem "value"
   let get = getItem "package_values" "hash" BS.PT.PackageValue.deserialize
   let getLocations = getItemLocations "value"
+  let getLocationsEverNamed = getItemLocationsEverNamed "value"
 
 module Fn =
   let find = findItem "fn"
   let get = getItem "package_functions" "hash" BS.PT.PackageFn.deserialize
   let getLocations = getItemLocations "fn"
+  let getLocationsEverNamed = getItemLocationsEverNamed "fn"
 
 
 /// Split a search query into lowercase tokens for name/doc matching.
@@ -159,13 +157,9 @@ let private tokenizeQuery (s : string) : List<string> =
   |> List.filter (fun t -> t <> "")
 
 
-let search
-  (branchChain : List<PT.BranchId>)
-  (query : PT.Search.SearchQuery)
-  : Ply<PT.Search.SearchResults> =
+let search (query : PT.Search.SearchQuery) : Ply<PT.Search.SearchResults> =
   uply {
     let currentModule = String.concat "." query.currentModule
-    let (branchFilter, branchParams) = buildBranchFilter branchChain
 
     let! submodules =
       let (submoduleCondition, sqlParams) =
@@ -215,11 +209,10 @@ let search
       FROM locations l
       WHERE l.unlisted_at IS NULL
         AND {submoduleCondition}
-        AND {branchFilter}
       ORDER BY owner, modules
       """
       |> Sql.query
-      |> Sql.parameters (sqlParams @ branchParams)
+      |> Sql.parameters sqlParams
       |> Sql.executeAsync (fun read ->
         let owner = read.string "owner"
         let modulesStr = read.string "modules"
@@ -298,10 +291,12 @@ let search
       + $"  AND l.item_type = '{itemType}'\n"
       + $"  AND ({locationCondition})\n"
       + $"  AND {nameCondition}\n"
-      + $"  AND {branchFilter}\n"
       // Without this the order is whatever SQLite happens to produce, which is rowid order and therefore
       // shifts whenever the package set changes. That made results reshuffle between runs for no reason
       // the reader could see, and made any before/after diff of `search` output pure noise.
+      //
+      // No branch filter: `locations` has no branch_id on this branch. A branch is an overlay, and a
+      // branch-scoped read goes through the overlay helpers rather than through this SQL.
       + "  ORDER BY l.owner, l.modules, l.name"
       |> Sql.query
       |> Sql.parameters (
@@ -309,7 +304,6 @@ let search
           "fqname", Sql.string currentModule
           "searchText", Sql.string query.text ]
         @ tokenParams
-        @ branchParams
       )
       |> Sql.executeAsync (fun read ->
         let hash = Hash(read.string "lookup_id")

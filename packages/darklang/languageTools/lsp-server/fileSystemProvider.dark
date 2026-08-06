@@ -44,7 +44,10 @@ module ReadFile =
           nameForLookup
           |> Stdlib.String.dropFirst 7  // Drop "script/"
 
-        match Builtin.pmScriptsGet scriptName with
+        // `Builtin.pmScriptsGet` went with the rest of the scripts CRUD builtins; `Cli.Scripts.scriptsGet`
+        // is the Dark-side replacement and returns the same shape. A missing builtin only throws when
+        // it's called, so this sat here resolving fine and failing on use.
+        match Darklang.Cli.Scripts.scriptsGet scriptName with
         | Some script -> script.text
         | None -> $"Script not found: {scriptName}"
       else
@@ -239,7 +242,7 @@ module WriteFile =
         |> Stdlib.String.dropFirst 7  // Drop "script/"
 
       // Update the script content
-      match Builtin.pmScriptsUpdate scriptName content with
+      match Darklang.Cli.Scripts.scriptsUpdate scriptName content with
       | Ok () -> sendSuccessResponse state requestId [] Stdlib.Option.Option.None
       | Error err -> sendErrorResponse state requestId [ err ]
     else
@@ -362,7 +365,7 @@ module WriteFile =
                     typeDecl
 
                 [ LanguageTools.ProgramTypes.PackageOp.AddType packageType
-                  LanguageTools.ProgramTypes.PackageOp.SetName (typeLocation, ProgramTypes.Reference.PackageType packageType.id) ]
+                  LanguageTools.ProgramTypes.PackageOp.SetName (typeLocation, ProgramTypes.Reference.PackageType packageType.id, Stdlib.Option.Option.None) ]
             | Error _ -> [])
           |> Stdlib.List.flatten
 
@@ -403,7 +406,7 @@ module WriteFile =
                     fnDecl
 
                 [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
-                  LanguageTools.ProgramTypes.PackageOp.SetName (fnLocation, ProgramTypes.Reference.PackageFn packageFn.id) ]
+                  LanguageTools.ProgramTypes.PackageOp.SetName (fnLocation, ProgramTypes.Reference.PackageFn packageFn.id, Stdlib.Option.Option.None) ]
             | Error _ -> [])
           |> Stdlib.List.flatten
 
@@ -444,7 +447,7 @@ module WriteFile =
                     valDecl
 
                 [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
-                  LanguageTools.ProgramTypes.PackageOp.SetName (valLocation, ProgramTypes.Reference.PackageValue packageValue.id) ]
+                  LanguageTools.ProgramTypes.PackageOp.SetName (valLocation, ProgramTypes.Reference.PackageValue packageValue.id, Stdlib.Option.Option.None) ]
             | Error _ -> [])
           |> Stdlib.List.flatten
 

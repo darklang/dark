@@ -36,22 +36,27 @@ module HandleCommand =
       print "Purging ..."
       do! LibDB.Purge.purge ()
 
-      // Record CreateBranch op for main (the migration creates the row,
-      // but we need the BranchOp so the DB can be rebuilt from ops alone)
-      do!
-        LibDB.BranchOpPlayback.insertAndApply (
-          PT.BranchOp.CreateBranch(PT.mainBranchId, "main", None, None)
-        )
+      // There is no CreateBranch op and no "main" row to seed: main is the ABSENCE of a branch
+      // (`mainBranchId = ""`), so a store with an empty `branches` table is a store
+      // on main. Re-folding `package_ops` is the whole rebuild.
 
       print "Filling ..."
-      // Create an "init" commit with all packages from disk
+      // Load all packages from disk as live ops (commit-free authoring: no init commit).
       // Note: values are stored with NULL rt_dval at this point
-      let! commitHash =
-        LibDB.Inserts.insertAndApplyOpsWithCommit
-          LibCloud.Account.IDs.darklang
-          LibExecution.ProgramTypes.mainBranchId
-          "Init: packages loaded from disk"
-          ops
+      let! _ = LibDB.Inserts.insertAndApplyOpsAsWip ops
+
+      // The .dark files are the shipped baseline, not your draft. Commit them, or
+      // every `dark status` would open on the whole package tree as uncommitted
+      // work.
+      let! _ = LibDB.Inserts.commitAllAsBaseline "package reload (baseline)"
+
+      // Type-check the tree now, while it is being rebuilt anyway. Doing it here
+      // rather than lazily is what keeps `dark status` cheap: it asks for
+      // constraints on every invocation, and a cold cache made that a walk of every
+      // function in the store.
+      let! typeIssues = LibDB.TypeSurface.Cache.warm PM.pt.getFn
+      if typeIssues > 0 then
+        print $"  {typeIssues} type mismatch(es) -- `dark constraints` to see them"
 
       // Generate hash file BEFORE evaluating values, so that PackageRefs
       // lookups resolve correctly during value evaluation.
@@ -70,9 +75,6 @@ module HandleCommand =
         let! stats = LibDB.Stats.get ()
         print "Loaded packages from disk "
         print $"{stats.types} types, {stats.values} values, and {stats.fns} fns"
-        let (Hash commitHashStr) = commitHash
-        let shortHash = commitHashStr[..6]
-        print $"Created init commit {shortHash}"
 
         return Ok()
     }

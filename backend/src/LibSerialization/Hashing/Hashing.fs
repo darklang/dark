@@ -304,25 +304,20 @@ module Hashing =
       LibSerialization.Binary.Serializers.PT.PackageOp.write w op)
 
 
-  /// Hash a BranchOp (reuse existing BranchOp.write — ops have no metadata to skip)
-  let computeBranchOpHash (op : PT.BranchOp) : Hash =
-    hashWithWriter (fun w ->
-      LibSerialization.Binary.Serializers.PT.BranchOp.write w op)
-
-
-  /// Hash a commit: hash(accountId + branchId + parentHash + sorted(opHashes))
-  let computeCommitHash
-    (accountId : System.Guid)
-    (branchId : System.Guid)
-    (parentHash : Hash option)
-    (opHashes : List<Hash>)
-    : Hash =
-    hashWithWriter (fun w ->
-      Common.Guid.write w accountId
-      Common.Guid.write w branchId
-      Common.Option.write w PTC.Hash.write parentHash
-      let sorted = opHashes |> List.map Hash.toHexString |> List.sort
-      Common.List.write w Common.String.write sorted)
+  /// An op's row id in `package_ops`: its content hash, truncated to the 16 bytes a uuid column holds.
+  ///
+  /// Defined here, beside the hash it truncates, because an op's id has to be computed identically by
+  /// every path that mints or looks one up — authoring, the fold, branch tagging. Each of those used to
+  /// carry its own copy of the two lines below, and a copy that drifts is a store where the same op has two
+  /// ids.
+  ///
+  /// The truncation is the part to be careful with: it is what makes the id fit a uuid column, and it is
+  /// also the only place a collision could be introduced. Removing it is a bigger change than it looks,
+  /// because the op blob embeds the id and the deserializer verifies it; see
+  /// notes/fresh-arch/OP-ID-WIDENING.md.
+  let computeOpRowId (op : PT.PackageOp) : System.Guid =
+    let (Hash h) = computeOpHash op
+    System.Guid(System.Convert.FromHexString(h)[0..15])
 
 
   // =====================

@@ -93,11 +93,10 @@ module TypeReference =
   let rec toPT
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
-    (branchId : PT.BranchId)
     (currentModule : List<string>)
     (t : WT.TypeReference)
     : Ply<PT.TypeReference> =
-    let toPT = toPT pm onMissing branchId currentModule
+    let toPT = toPT pm onMissing currentModule
     uply {
       match t with
       | WT.TUnit _ -> return PT.TUnit
@@ -146,12 +145,7 @@ module TypeReference =
         | [], "DB", [ inner ] -> return! toPT inner |> Ply.map PT.TDB
         | _ ->
           let! resolved =
-            NR.resolveTypeName
-              pm
-              onMissing
-              branchId
-              currentModule
-              (qualifiedTypeName q)
+            NR.resolveTypeName pm onMissing currentModule (qualifiedTypeName q)
           let! typeArgs = Ply.List.mapSequentially toPT q.typeArgs
           return PT.TCustomType(resolved, typeArgs)
     }
@@ -255,7 +249,6 @@ module Expr =
   let resolveTypeName
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
-    (branchId : PT.BranchId)
     (currentModule : List<string>)
     (names : List<string>)
     (caseName : string) // used for errors
@@ -264,18 +257,17 @@ module Expr =
     | [] -> Ply({ originalName = [ caseName ]; resolved = Error NRE.InvalidName })
     | head :: tail ->
       let name = NEList.ofList head tail |> WT.Unresolved
-      NR.resolveTypeName pm onMissing branchId currentModule name
+      NR.resolveTypeName pm onMissing currentModule name
 
   let rec toPT
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
-    (branchId : PT.BranchId)
     (currentModule : List<string>)
     (context : Context)
     (e : WT.Expr)
     : Ply<PT.Expr> =
-    let toPT ctx = toPT builtins pm onMissing branchId currentModule ctx
+    let toPT ctx = toPT builtins pm onMissing currentModule ctx
     uply {
       match e with
       | WT.EChar(_, contents, _, _) ->
@@ -301,7 +293,7 @@ module Expr =
       | WT.EString(_, _, segments, _, _) ->
         let! segments =
           Ply.List.mapSequentially
-            (stringSegmentToPT builtins pm onMissing branchId currentModule context)
+            (stringSegmentToPT builtins pm onMissing currentModule context)
             segments
         return PT.EString(gid (), segments)
       | WT.EFloat(_, neg, whole, fraction) ->
@@ -323,7 +315,6 @@ module Expr =
               (builtins.values |> Map.keys |> Set)
               pm
               NR.OnMissing.Allow
-              branchId
               currentModule
               (WT.Unresolved(NEList.singleton var))
           match value.resolved with
@@ -334,7 +325,6 @@ module Expr =
                 (builtins.fns |> Map.keys |> Set)
                 pm
                 NR.OnMissing.Allow
-                branchId
                 currentModule
                 (WT.Unresolved(NEList.singleton var))
             match fnResult.resolved with
@@ -371,7 +361,6 @@ module Expr =
                 (builtins.values |> Map.keys |> Set)
                 pm
                 NR.OnMissing.Allow
-                branchId
                 currentModule
                 (WT.Unresolved fullPath)
             match valueResult.resolved with
@@ -382,7 +371,6 @@ module Expr =
                   (builtins.fns |> Map.keys |> Set)
                   pm
                   NR.OnMissing.Allow
-                  branchId
                   currentModule
                   (WT.Unresolved fullPath)
               match fnResult.resolved with
@@ -398,7 +386,7 @@ module Expr =
         let name = qualifiedFnName q
         let! processedTypeArgs =
           Ply.List.mapSequentially
-            (TypeReference.toPT pm onMissing branchId currentModule)
+            (TypeReference.toPT pm onMissing currentModule)
             typeArgs
         // Every Darklang fn has at least one parameter, so a call always has at
         // least one arg. A type-args-only `f<T>` is really `f<T> ()`: seed the
@@ -442,7 +430,6 @@ module Expr =
                   (builtins.fns |> Map.keys |> Set)
                   pm
                   NR.OnMissing.Allow
-                  branchId
                   currentModule
                   name
               match fnName.resolved with
@@ -460,7 +447,6 @@ module Expr =
                     (builtins.values |> Map.keys |> Set)
                     pm
                     NR.OnMissing.Allow
-                    branchId
                     currentModule
                     name
                 let callee =
@@ -478,7 +464,6 @@ module Expr =
               (builtins.fns |> Map.keys |> Set)
               pm
               NR.OnMissing.Allow
-              branchId
               currentModule
               name
           let! expr =
@@ -491,7 +476,7 @@ module Expr =
         let! name = toPT context lhs
         let! typeArgs =
           Ply.List.mapSequentially
-            (TypeReference.toPT pm onMissing branchId currentModule)
+            (TypeReference.toPT pm onMissing currentModule)
             typeArgs
         let! args =
           match args with
@@ -515,7 +500,6 @@ module Expr =
                   (builtins.values |> Map.keys |> Set)
                   pm
                   NR.OnMissing.Allow
-                  branchId
                   currentModule
                   name
               return Some v
@@ -534,7 +518,6 @@ module Expr =
               (builtins.fns |> Map.keys |> Set)
               pm
               NR.OnMissing.Allow
-              branchId
               currentModule
               name
           match fnName.resolved, valueResolved with
@@ -625,12 +608,7 @@ module Expr =
         let id = gid ()
         let entries = fields |> List.map (fun (_, (_, name), v) -> (name, v))
         let! typeName =
-          NR.resolveTypeName
-            pm
-            onMissing
-            branchId
-            currentModule
-            (qualifiedTypeName tn)
+          NR.resolveTypeName pm onMissing currentModule (qualifiedTypeName tn)
         let! flds =
           entries
           |> Ply.List.mapSequentially (fun (fieldName, fieldExpr) ->
@@ -640,7 +618,7 @@ module Expr =
             })
         let! typeArgs =
           Ply.List.mapSequentially
-            (TypeReference.toPT pm onMissing branchId currentModule)
+            (TypeReference.toPT pm onMissing currentModule)
             tn.typeArgs
         return PT.ERecord(id, typeName, typeArgs, flds)
       | WT.ERecordUpdate(_, record, updates, _, _, _) ->
@@ -666,7 +644,7 @@ module Expr =
           pipeExprs
           |> List.map snd
           |> Ply.List.mapSequentially (
-            pipeExprToPT builtins pm onMissing branchId currentModule context
+            pipeExprToPT builtins pm onMissing currentModule context
           )
         return PT.EPipe(id, expr, rest)
       // An unqualified uppercase name (`Red`, `XDB`) parses as a zero-field enum,
@@ -681,17 +659,11 @@ module Expr =
       | WT.EEnum(_, tn, (_, caseName), fields, _) ->
         let id = gid ()
         let! typeName =
-          resolveTypeName
-            pm
-            onMissing
-            branchId
-            currentModule
-            (enumTypeName tn)
-            caseName
+          resolveTypeName pm onMissing currentModule (enumTypeName tn) caseName
         let! exprs = Ply.List.mapSequentially (toPT context) fields
         let! typeArgs =
           Ply.List.mapSequentially
-            (TypeReference.toPT pm onMissing branchId currentModule)
+            (TypeReference.toPT pm onMissing currentModule)
             tn.typeArgs
         return PT.EEnum(id, typeName, typeArgs, caseName, exprs)
       | WT.EMatch(_, mexpr, cases, _, _) ->
@@ -738,7 +710,6 @@ module Expr =
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
-    (branchId : PT.BranchId)
     (currentModule : List<string>)
     (context : Context)
     (segment : WT.StringSegment)
@@ -747,19 +718,18 @@ module Expr =
     // Normalize literal text to match string tokenization.
     | WT.StringText(_, text) -> Ply(PT.StringText(String.normalize text))
     | WT.StringInterpolation(_, expr, _, _) ->
-      toPT builtins pm onMissing branchId currentModule context expr
+      toPT builtins pm onMissing currentModule context expr
       |> Ply.map (fun interpolated -> PT.StringInterpolation interpolated)
 
   and pipeExprToPT
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
-    (branchId : PT.BranchId)
     (currentModule : List<string>)
     (context : Context)
     (pipeExpr : WT.PipeExpr)
     : Ply<PT.PipeExpr> =
-    let toPT ctx = toPT builtins pm onMissing branchId currentModule ctx
+    let toPT ctx = toPT builtins pm onMissing currentModule ctx
 
     uply {
       match pipeExpr with
@@ -778,7 +748,6 @@ module Expr =
               (builtins.fns |> Map.keys |> Set)
               pm
               NR.OnMissing.Allow
-              branchId
               currentModule
               (WT.Name.Unresolved(NEList.singleton name))
           return
@@ -831,7 +800,6 @@ module Expr =
                 (builtins.fns |> Map.keys |> Set)
                 pm
                 NR.OnMissing.Allow
-                branchId
                 currentModule
                 name
             match fnName.resolved with
@@ -845,12 +813,11 @@ module Expr =
               (builtins.fns |> Map.keys |> Set)
               pm
               NR.OnMissing.Allow
-              branchId
               currentModule
               name
           let! typeArgs =
             Ply.List.mapSequentially
-              (TypeReference.toPT pm onMissing branchId currentModule)
+              (TypeReference.toPT pm onMissing currentModule)
               typeArgs
           let! args = Ply.List.mapSequentially (toPT context) args
           return PT.EPipeFnCall(id, fnName, typeArgs, args)
@@ -858,13 +825,7 @@ module Expr =
       | WT.EPipeEnum(_, tn, (_, caseName), fields, _) ->
         let id = gid ()
         let! typeName =
-          resolveTypeName
-            pm
-            onMissing
-            branchId
-            currentModule
-            (enumTypeName tn)
-            caseName
+          resolveTypeName pm onMissing currentModule (enumTypeName tn) caseName
         let! fields = Ply.List.mapSequentially (toPT context) fields
         return PT.EPipeEnum(id, typeName, caseName, fields)
     }
@@ -875,12 +836,11 @@ module TypeDeclaration =
     let toPT
       (pm : PT.PackageManager)
       (onMissing : NR.OnMissing)
-      (branchId : PT.BranchId)
       (currentModule : List<string>)
       (f : WT.TypeDeclaration.RecordField)
       : Ply<PT.TypeDeclaration.RecordField> =
       uply {
-        let! typ = TypeReference.toPT pm onMissing branchId currentModule f.typ
+        let! typ = TypeReference.toPT pm onMissing currentModule f.typ
         return { name = f.name; typ = typ; description = f.description }
       }
 
@@ -888,12 +848,11 @@ module TypeDeclaration =
     let toPT
       (pm : PT.PackageManager)
       (onMissing : NR.OnMissing)
-      (branchId : PT.BranchId)
       (currentModule : List<string>)
       (f : WT.TypeDeclaration.EnumField)
       : Ply<PT.TypeDeclaration.EnumField> =
       uply {
-        let! typ = TypeReference.toPT pm onMissing branchId currentModule f.typ
+        let! typ = TypeReference.toPT pm onMissing currentModule f.typ
         return { typ = typ; label = f.label; description = f.description }
       }
 
@@ -901,14 +860,13 @@ module TypeDeclaration =
     let toPT
       (pm : PT.PackageManager)
       (onMissing : NR.OnMissing)
-      (branchId : PT.BranchId)
       (currentModule : List<string>)
       (c : WT.TypeDeclaration.EnumCase)
       : Ply<PT.TypeDeclaration.EnumCase> =
       uply {
         let! fields =
           Ply.List.mapSequentially
-            (EnumField.toPT pm onMissing branchId currentModule)
+            (EnumField.toPT pm onMissing currentModule)
             c.fields
         return { name = c.name; fields = fields; description = c.description }
       }
@@ -917,27 +875,26 @@ module TypeDeclaration =
     let toPT
       (pm : PT.PackageManager)
       (onMissing : NR.OnMissing)
-      (branchId : PT.BranchId)
       (currentModule : List<string>)
       (d : WT.TypeDeclaration.Definition)
       : Ply<PT.TypeDeclaration.Definition> =
       uply {
         match d with
         | WT.TypeDeclaration.Alias typ ->
-          let! typ = TypeReference.toPT pm onMissing branchId currentModule typ
+          let! typ = TypeReference.toPT pm onMissing currentModule typ
           return PT.TypeDeclaration.Alias typ
 
         | WT.TypeDeclaration.Record fields ->
           let! fields =
             Ply.NEList.mapSequentially
-              (RecordField.toPT pm onMissing branchId currentModule)
+              (RecordField.toPT pm onMissing currentModule)
               fields
           return PT.TypeDeclaration.Record fields
 
         | WT.TypeDeclaration.Enum cases ->
           let! cases =
             Ply.NEList.mapSequentially
-              (EnumCase.toPT pm onMissing branchId currentModule)
+              (EnumCase.toPT pm onMissing currentModule)
               cases
           return PT.TypeDeclaration.Enum cases
       }
@@ -946,12 +903,11 @@ module TypeDeclaration =
   let toPT
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
-    (branchId : PT.BranchId)
     (currentModule : List<string>)
     (d : WT.TypeDeclaration.T)
     : Ply<PT.TypeDeclaration.T> =
     uply {
-      let! def = Definition.toPT pm onMissing branchId currentModule d.definition
+      let! def = Definition.toPT pm onMissing currentModule d.definition
       return { typeParams = d.typeParams; definition = def }
     }
 
@@ -976,13 +932,12 @@ module PackageType =
   let toPT
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
-    (branchId : PT.BranchId)
     (currentModule : List<string>)
     (pt : WT.PackageType.PackageType)
     : Ply<PT.PackageType.PackageType> =
     uply {
       let! declaration =
-        TypeDeclaration.toPT pm onMissing branchId currentModule pt.declaration
+        TypeDeclaration.toPT pm onMissing currentModule pt.declaration
       return
         { hash = Hash ""; description = pt.description; declaration = declaration }
     }
@@ -999,15 +954,13 @@ module PackageValue =
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
-    (branchId : PT.BranchId)
     (currentModule : List<string>)
     (c : WT.PackageValue.PackageValue)
     : Ply<PT.PackageValue.PackageValue> =
     uply {
       let context =
         { currentFnName = None; argMap = Map.empty; localBindings = Set.empty }
-      let! body =
-        Expr.toPT builtins pm onMissing branchId currentModule context c.body
+      let! body = Expr.toPT builtins pm onMissing currentModule context c.body
       return { hash = Hash ""; description = c.description; body = body }
     }
 
@@ -1024,12 +977,11 @@ module PackageFn =
     let toPT
       (pm : PT.PackageManager)
       (onMissing : NR.OnMissing)
-      (branchId : PT.BranchId)
       (currentModule : List<string>)
       (p : WT.PackageFn.Parameter)
       : Ply<PT.PackageFn.Parameter> =
       uply {
-        let! typ = TypeReference.toPT pm onMissing branchId currentModule p.typ
+        let! typ = TypeReference.toPT pm onMissing currentModule p.typ
         return { name = p.name; typ = typ; description = p.description }
       }
 
@@ -1063,17 +1015,15 @@ module PackageFn =
     (builtins : RT.Builtins)
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
-    (branchId : PT.BranchId)
     (currentModule : List<string>)
     (fn : WT.PackageFn.PackageFn)
     : Ply<PT.PackageFn.PackageFn> =
     uply {
       let! parameters =
         Ply.NEList.mapSequentially
-          (Parameter.toPT pm onMissing branchId currentModule)
+          (Parameter.toPT pm onMissing currentModule)
           fn.parameters
-      let! returnType =
-        TypeReference.toPT pm onMissing branchId currentModule fn.returnType
+      let! returnType = TypeReference.toPT pm onMissing currentModule fn.returnType
       let argMap =
         fn.parameters
         |> NEList.toList
@@ -1083,8 +1033,7 @@ module PackageFn =
         { currentFnName = Some(currentModule @ [ fn.name.name ])
           argMap = argMap
           localBindings = Set.empty }
-      let! body =
-        Expr.toPT builtins pm onMissing branchId currentModule context fn.body
+      let! body = Expr.toPT builtins pm onMissing currentModule context fn.body
 
       // Explicit typeParams stay first because callers pass positional type
       // args in that order. Discovered names append in first-seen order.
@@ -1114,12 +1063,11 @@ module DB =
   let toPT
     (pm : PT.PackageManager)
     (onMissing : NR.OnMissing)
-    (branchId : PT.BranchId)
     (currentModule : List<string>)
     (db : WT.DB.T)
     : Ply<PT.DB.T> =
     uply {
-      let! typ = TypeReference.toPT pm onMissing branchId currentModule db.typ
+      let! typ = TypeReference.toPT pm onMissing currentModule db.typ
       return { tlid = gid (); name = db.name; version = db.version; typ = typ }
     }
 

@@ -106,7 +106,7 @@ let load (builtins : RT.Builtins) : Ply<List<PT.PackageOp>> =
         let itemLocs =
           newOps
           |> List.choose (function
-            | PT.PackageOp.SetName(loc, target) ->
+            | PT.PackageOp.SetName(loc, target, _) ->
               Some(target.hash, target.kind.toString (), PackageLocation.toFQN loc)
             | _ -> None)
         let changes =

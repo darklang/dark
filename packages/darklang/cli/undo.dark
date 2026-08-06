@@ -1,0 +1,113 @@
+module Darklang.Cli.Undo
+
+// `dark undo <name>` -- step an item back through the versions you authored, one at a time. Repeatedly:
+// undo three times from v4 and you are on v1, then it says there is nothing further.
+//
+// The question to ask is "where am I in the sequence things were WRITTEN in", never "what changed last".
+// `locations` keeps a row per binding and marks rebinds (undo, a pin rollback, a conflict override) as
+// `source = 'resolution'` against `'op'` for ordinary authoring. Filter to 'op', order by rowid, and that
+// IS the authoring sequence -- a rebind appends a row, it never reorders existing ones. Locate the live
+// hash and step to its predecessor. Asking "what was most recently unlisted" instead oscillates, since
+// after an undo that is the version just stepped off.
+//
+// On a branch, two things have to line up:
+//
+//   - the SEQUENCE is the branch's `SetName` ops in authoring order, from `branchHashHistoryFor`, which
+//     reads the ops directly and must NOT be deduped with `Stdlib.List.unique`/`uniqueBy` (both sort).
+//   - `currentHash` must count a `Resolve` as a binding, since a rebind is one. If the sequence and the
+//     current position disagree about what is live, the walk oscillates rather than stepping back.
+//
+// The rebind is an ordinary authoring op and routes to whichever branch you are on, so undoing on a branch
+// never touches main.
+
+let printOk (msg: String) : Unit = Stdlib.printLine (Colors.success msg)
+let printErr (msg: String) : Unit = Stdlib.printLine (Colors.error msg)
+let printHint (msg: String) : Unit = Stdlib.printLine (Colors.hint msg)
+
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  // A `--flag` is not a name. `dark undo --json` used to reach the location parser and answer "Location must
+  // have at least owner, module, and name", which reads as "your name is malformed" rather than "this
+  // command has no such flag". `undo` takes no flags at all, so any of them is a mistake worth naming --
+  // especially for an agent, which will try `--json` on everything the PR advertises it for.
+  let flags = args |> Stdlib.List.filter (fun a -> Stdlib.String.startsWith a "--")
+
+  if Stdlib.Bool.not (Stdlib.List.isEmpty flags) then
+    let f = Stdlib.String.join flags " "
+    printErr $"undo takes no flags, and doesn't understand {f}."
+    printHint "  usage: dark undo <name>"
+    state
+  else
+
+  match args with
+  | [ "help" ] ->
+    printHint "dark undo <name> -- step an item back to the version it had before your last change"
+    state
+  | [ arg ] ->
+    match Packages.Location.parseRelativeTo state.packageData.currentLocation arg with
+    | Error e ->
+      printErr e
+      state
+    | Ok loc ->
+      match SCM.Propagation.kindAt loc with
+      | None ->
+        printErr $"nothing named {PropagateCmd.dotted loc}."
+        printHint "  `dark ls <module>` lists what's there; `dark log` shows what you've changed."
+        state
+      | Some kind ->
+        // Captured BEFORE the rebind: what anything above is pointed at, and so what the cascade back
+        // down has to move them from.
+        let wasAt =
+          SCM.Propagation.currentHash loc
+          |> Stdlib.Option.withDefault (LanguageTools.ProgramTypes.Hash.Hash "")
+
+        (
+          match SCM.Propagation.previousAuthored loc with
+          | None ->
+            printOk
+              $"{PropagateCmd.dotted loc} is at its first version -- nothing further to undo."
+
+            state
+          | Some prev ->
+            match SCM.Propagation.rebind loc kind prev with
+            | Error e ->
+              printErr $"couldn't undo: {e}"
+              state
+            | Ok _ ->
+              printOk
+                $"{PropagateCmd.dotted loc} is back on {PropagateCmd.shortHash prev}."
+
+              // Anything above it followed the version we just stepped off, so it comes back down too --
+              // otherwise the undo fixes one item and leaves its callers on something you just undid.
+              PropagateCmd.cascadeAndForce state loc kind wasAt prev
+
+              printHint
+                "  nothing is lost: every version stays in the store, and `dark undo` again steps back further."
+
+              state)
+
+  | _ ->
+    printErr "usage: dark undo <name>"
+    printHint "  steps that item back to the version it had before your last change."
+    state
+
+
+let help (state: AppState) : AppState =
+  Stdlib.printLine "dark undo <name> -- step one item back a version"
+  Stdlib.printLine ""
+  Stdlib.printLine "  Rebinds the name to the version it had before your last change, and brings anything"
+  Stdlib.printLine "  that followed that change back down with it."
+  Stdlib.printLine ""
+  Stdlib.printLine "  Run it repeatedly to step further back. It walks the order versions were WRITTEN in, so"
+  Stdlib.printLine "  it never bounces between two, and stops at the first, saying so."
+  Stdlib.printLine ""
+  Stdlib.printLine "  Nothing is destroyed -- every version stays in the store, so re-authoring the version"
+  Stdlib.printLine "  you stepped off gets you back."
+  state
+
+
+let complete
+  (_state: AppState)
+  (_args: List<String>)
+  : List<Completion.CompletionItem> =
+  []

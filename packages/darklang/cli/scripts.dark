@@ -6,6 +6,78 @@ type Script = {
   text: String
 }
 
+
+// the `scripts_v0` data-access silo
+// Plain CRUD over one table. It was five F# builtins, which bought nothing: no compiler, no codec, no
+// hashing, no fold (SPEC section 9). The SQL lives here and the command below only formats.
+
+let scriptsDb () : String = Builtin.localDbPath ()
+
+let scriptFromRow (row: Dict<Stdlib.Sqlite.Value>) : Stdlib.Option.Option<Script> =
+  match
+    (Stdlib.Sqlite.textField row "id",
+     Stdlib.Sqlite.textField row "name",
+     Stdlib.Sqlite.textField row "text")
+  with
+  | (Some id, Some name, Some text) ->
+    (Script { id = id; name = name; text = text }) |> Stdlib.Option.Option.Some
+  | _ -> Stdlib.Option.Option.None
+
+let scriptsList () : List<Script> =
+  match
+    Stdlib.Sqlite.query (scriptsDb ()) "SELECT id, name, text FROM scripts_v0 ORDER BY name"
+  with
+  | Ok rows -> rows |> Stdlib.List.filterMap scriptFromRow
+  | Error _ -> []
+
+let scriptsGet (name: String) : Stdlib.Option.Option<Script> =
+  match
+    Stdlib.Sqlite.queryOneP
+      (scriptsDb ())
+      "SELECT id, name, text FROM scripts_v0 WHERE name = @p0"
+      [ name ]
+  with
+  | Some row -> scriptFromRow row
+  | None -> Stdlib.Option.Option.None
+
+/// Add a script. Fails if the name is taken -- `scripts edit` is the way to change one, so a silent
+/// overwrite here would lose someone's script to a typo.
+let scriptsAdd (name: String) (text: String) : Stdlib.Result.Result<Unit, String> =
+  match scriptsGet name with
+  | Some _ -> Stdlib.Result.Result.Error $"a script named \"{name}\" already exists"
+  | None ->
+    match
+      Stdlib.Sqlite.execP
+        (scriptsDb ())
+        "INSERT INTO scripts_v0 (id, name, text) VALUES (@p0, @p1, @p2)"
+        [ Stdlib.Uuid.toString (Stdlib.Uuid.generate ()); name; text ]
+    with
+    | Ok _ -> Stdlib.Result.Result.Ok()
+    | Error e -> Stdlib.Result.Result.Error e
+
+let scriptsUpdate (name: String) (text: String) : Stdlib.Result.Result<Unit, String> =
+  match scriptsGet name with
+  | None -> Stdlib.Result.Result.Error $"no script named \"{name}\""
+  | Some _ ->
+    match
+      Stdlib.Sqlite.execP
+        (scriptsDb ())
+        "UPDATE scripts_v0 SET text = @p1 WHERE name = @p0"
+        [ name; text ]
+    with
+    | Ok _ -> Stdlib.Result.Result.Ok()
+    | Error e -> Stdlib.Result.Result.Error e
+
+let scriptsDelete (name: String) : Stdlib.Result.Result<Unit, String> =
+  match scriptsGet name with
+  | None -> Stdlib.Result.Result.Error $"no script named \"{name}\""
+  | Some _ ->
+    match
+      Stdlib.Sqlite.execP (scriptsDb ()) "DELETE FROM scripts_v0 WHERE name = @p0" [ name ]
+    with
+    | Ok _ -> Stdlib.Result.Result.Ok()
+    | Error e -> Stdlib.Result.Result.Error e
+
 // Scripts command - manage and run stored Dark scripts
 // TODO rename to just execute
 let execute (state: AppState) (args: List<String>) : AppState =
@@ -25,7 +97,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
 
   | ["list"] ->
-    let scripts = Builtin.pmScriptsList ()
+    let scripts = scriptsList ()
     if Stdlib.List.isEmpty scripts then
       Stdlib.printLine "No scripts found"
       state
@@ -38,7 +110,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | ["view"; name] ->
-    match Builtin.pmScriptsGet name with
+    match scriptsGet name with
     | Some script ->
       let output = $"Script: {script.name}\n\n{script.text}"
       Stdlib.printLine output
@@ -66,17 +138,19 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   | "add" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
     let text = Stdlib.String.join textParts " "
-    match Builtin.pmScriptsAdd name text with
-    | Ok script ->
-      let message = $"Script '{script.name}' added successfully"
-      Stdlib.printLine message
+    match scriptsAdd name text with
+    // `Ok ()`, not `Ok script`. The builtin this replaced returned the stored Script, so the old caller read
+    // `script.name` off it; the Dark version returns Unit, and the mismatch made `scripts add` die with
+    // "field access of a Unit" instead of adding anything. The name is already in scope here.
+    | Ok () ->
+      Stdlib.printLine $"Script '{name}' added successfully"
       state
     | Error err ->
       Stdlib.printLine $"Error: {err}"
       state
 
   | ["edit"; name] ->
-    match Builtin.pmScriptsGet name with
+    match scriptsGet name with
     | Some script ->
       [
         $"Current content of script '{name}':\n{script.text}"
@@ -91,7 +165,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   | "edit" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
     let text = Stdlib.String.join textParts " "
-    match Builtin.pmScriptsUpdate name text with
+    match scriptsUpdate name text with
     | Ok () ->
       let message = $"Script '{name}' updated successfully"
       Stdlib.printLine message
@@ -101,7 +175,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | ["delete"; name] ->
-    match Builtin.pmScriptsDelete name with
+    match scriptsDelete name with
     | Ok () ->
       let message = $"Script '{name}' deleted successfully"
       Stdlib.printLine message
@@ -111,7 +185,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | ["run"; name] ->
-    match Builtin.pmScriptsGet name with
+    match scriptsGet name with
     | Some script ->
       let result = Builtin.cliParseAndExecuteScript state.accountID state.currentBranchId $"script:{name}" script.text [] false false
       match result with
@@ -141,7 +215,7 @@ let complete (_state: AppState) (args: List<String>) : List<Completion.Completio
     |> Stdlib.List.map Completion.simple
   // Referencing a specific script - recommend names
   | ["view"] | ["edit"] | ["delete"] | ["run"] ->
-    let scripts = Builtin.pmScriptsList ()
+    let scripts = scriptsList ()
     scripts
     |> Stdlib.List.map (fun s -> s.name)
     |> Stdlib.List.map Completion.simple

@@ -1156,18 +1156,24 @@ module WrittenTypesToDarkTypes =
       | WT.TEError _
       | WT.TESqlError _ -> [ expr t.actual ]
 
-  let private sourceFileDeclarationToDT (d : WT.Declaration) : Dval =
+  /// A declaration the `SourceFileDeclaration` DT has a case for, or None.
+  ///
+  /// `DExpr` / `DTypeDB` / `DTest` have no case, and returning None DROPS them rather than raising.
+  /// This serializer feeds the syntax highlighter and the LSP, both of which are documented
+  /// best-effort over whatever tokenized: they exist to colour text, so the worst acceptable outcome
+  /// is a span that doesn't get highlighted. Raising here turns "this line isn't coloured" into an
+  /// internal exception that takes down the command that asked -- and the callers are `dark view` and
+  /// an editor, neither of which can do anything about it.
+  let private sourceFileDeclarationToDT (d : WT.Declaration) : Option<Dval> =
     let t = tn WTRefs.sourceFileDeclaration
     match d with
-    | WT.DFunction f -> DEnum(t, t, [], "Function", [ fnDeclToDT f ])
-    | WT.DValue v -> DEnum(t, t, [], "Value", [ valueDeclToDT v ])
-    | WT.DModule m -> DEnum(t, t, [], "Module", [ moduleDeclToDT m ])
-    | WT.DType td -> DEnum(t, t, [], "Type", [ typeDeclToDT td ])
-    // DExpr is split out before this point (see parsedFileToDT); test-mode declarations never reach the
-    // highlighter serializer
+    | WT.DFunction f -> Some(DEnum(t, t, [], "Function", [ fnDeclToDT f ]))
+    | WT.DValue v -> Some(DEnum(t, t, [], "Value", [ valueDeclToDT v ]))
+    | WT.DModule m -> Some(DEnum(t, t, [], "Module", [ moduleDeclToDT m ]))
+    | WT.DType td -> Some(DEnum(t, t, [], "Type", [ typeDeclToDT td ]))
     | WT.DExpr _
     | WT.DTypeDB _
-    | WT.DTest _ -> Exception.raiseInternal "unexpected declaration in serializer" []
+    | WT.DTest _ -> None
 
   let parsedFileToDT (pf : WT.ParsedFile) : Dval =
     match pf with
@@ -1216,7 +1222,7 @@ module WrittenTypesToDarkTypes =
               "declarations",
               DList(
                 VT.customType (tn WTRefs.sourceFileDeclaration) [],
-                List.map sourceFileDeclarationToDT sf.declarations
+                List.choose sourceFileDeclarationToDT sf.declarations
               )
               "exprsToEval",
               DList(

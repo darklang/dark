@@ -1,0 +1,112 @@
+/// The workbench's ONE reading of SCM state, held in `State` and refreshed on transitions.
+///
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
+
+// Home, the Matter tree's badges, the SCM view and the frame's conflict badge all describe the same facts.
+// Each used to read them for itself, through a translation shim written against the pre-op-log model:
+// `getWipItems` had four call sites, `conflicts ()` four, `getCommitsWithAncestors` four. Four independent
+// reads of one thing is four chances to disagree, and between redraws they could.
+//
+// So: one read, on transition, cached in `State`. That's the same treatment (and the same reason) the tree's
+// wip/deprecated badges already get -- the renderer runs on every keypress and has to stay a pure function
+// of state for frame diffing to be sound, so a DB read cannot live inside it.
+//
+// The counts come from `SCM.Draft`, which is also what `dark status` and `dark commit` read. That's the
+// point: one owner, many mentions. If the workbench and the CLI ever disagree about your draft again, it
+// will be because something stopped going through here.
+
+/// What every workbench surface needs to know about SCM, read once.
+type ScmStatus =
+  { /// The NAME, never the uuid. Every surface here is something a person reads.
+    branchName: String
+    /// Names in the draft, fully qualified -- the Matter tree's badge set.
+    wipNames: List<String>
+    /// The three-way split. `changed` counts both halves, because both are in the draft and both get
+    /// committed, but a bare total is nearly useless: "3 changed" after you edited one thing is either fine or
+    /// a disaster, and the number can't say which.
+    changed: Int
+    authored: Int
+    followed: Int
+    /// References a pin is holding on an older version. On screen because it's the thing people forget they
+    /// asked for.
+    behind: Int
+    /// Conflicts plus standing findings: everything waiting on a person.
+    needsYou: Int
+    conflicts: List<SCM.Conflicts.Conflict>
+    commits: Int
+    lastCommit: String
+    /// The draft's op count. Carried so `refreshScmStatus` has a cheap thing to compare against: it's one
+    /// indexed count, and it moves whenever anything in here could have.
+    ops: Int64
+    /// Has this ever been read, as opposed to being the placeholder a fresh state starts with?
+    ///
+    /// Needed because the placeholder's `ops` is 0, which is ALSO the honest answer on a clean tree -- so
+    /// without this the comparison says "nothing changed" on the very first frame and the workbench opens
+    /// showing zeroes for everything. It did exactly that until a render smoke test caught it.
+    loaded: Bool }
+
+let emptyScmStatus () : ScmStatus =
+  ScmStatus
+    { branchName = "main"
+      wipNames = []
+      changed = 0
+      authored = 0
+      followed = 0
+      behind = 0
+      needsYou = 0
+      conflicts = []
+      commits = 0
+      lastCommit = ""
+      ops = 0L
+      loaded = false }
+
+/// Read the whole SCM picture for <param branchId>.
+let readScmStatus (branchId: String) : ScmStatus =
+  let p = SCM.Draft.read ()
+  let recent = SCM.Commits.recent 1000L
+
+  ScmStatus
+    { branchName = SCM.PackageOps.branchName branchId
+      wipNames =
+        p.bindings
+        |> Stdlib.List.map (fun b -> SCM.Conflicts.fqn b.owner b.modules b.name)
+      changed = Stdlib.List.length p.bindings
+      authored = SCM.Draft.authoredCount p
+      followed = SCM.Draft.followedCount p
+      behind = SCM.Draft.behindCount p
+      needsYou = SCM.Draft.needsYouCount p
+      conflicts = p.conflicts
+      commits = Stdlib.List.length recent
+      lastCommit =
+        match Stdlib.List.head recent with
+        | Some c -> c.message
+        | None -> ""
+      ops = p.ops
+      loaded = true }
+
+/// The status line's summary of the draft, or "" when there's nothing to say.
+///
+/// The split, never the bare total (see `changed` above). `behind` appears only when non-zero, because a
+/// zero there is noise and a non-zero is a decision you made and may have forgotten.
+let scmStatusLine (s: ScmStatus) : String =
+  if s.changed == 0 then
+    ""
+  else
+    let parts =
+      Stdlib.List.flatten
+        [ (if s.authored > 0 then
+             [ $"{Stdlib.Int.toString s.authored} mine" ]
+           else
+             [])
+          (if s.followed > 0 then
+             [ $"{Stdlib.Int.toString s.followed} followed" ]
+           else
+             [])
+          (if s.behind > 0 then
+             [ $"{Stdlib.Int.toString s.behind} behind" ]
+           else
+             []) ]
+
+    let split = Stdlib.String.join parts ", "
+    $"{Stdlib.Int.toString s.changed} changed: {split}"

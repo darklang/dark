@@ -39,8 +39,12 @@ let main (args : string array) : int =
 
         // package manager
         Tests.Propagation.tests
+        Tests.Draft.tests
+        Tests.Purge.tests
+        Tests.TypeSurface.tests
+        Tests.SyncTransport.tests
         Tests.Hashing.tests
-        Tests.BranchOps.tests
+        Tests.Config.tests
 
         // serialization
         Tests.BinarySerialization.tests
@@ -66,11 +70,12 @@ let main (args : string array) : int =
         Tests.LibExecution.tests.Force()
 
         Tests.Blob.tests
+        Tests.OpTransport.tests
+        Tests.PTConformance.tests
+        Tests.BranchOverlay.tests
         Tests.OpsProjections.tests
-        Tests.SyncScenarios.tests
         Tests.MultiInstance.tests
-        Tests.SyncE2E.tests
-        Tests.Releases.tests
+        // Tests.Releases.tests // REMOVED(kernel-substrate)
         Tests.Stream.tests
         Tests.Capabilities.tests ]
 

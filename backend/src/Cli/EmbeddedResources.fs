@@ -25,7 +25,8 @@ let private isInstalledMode () : bool =
   dir.EndsWith("/.darklang/bin") || dir.EndsWith("\\.darklang\\bin")
 
 /// Gets the appropriate .darklang directory path
-let private getDarklangDirectory () : string =
+/// The built-in choice, when nothing says otherwise.
+let private getDefaultDarklangDirectory () : string =
   if isInstalledMode () then
     // Installed mode: use the central ~/.darklang directory
     let home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
@@ -33,6 +34,22 @@ let private getDarklangDirectory () : string =
   else
     // Portable mode: use adjacent .darklang directory
     Path.Combine(exeDirectory (), ".darklang")
+
+/// Where this instance keeps its store, logs and local config.
+///
+/// An explicit `DARK_CONFIG_RUNDIR` WINS. It used to be overwritten unconditionally a few lines below, which
+/// meant the shipped CLI silently ignored it and every process on a machine shared one store. That made two
+/// instances on one box impossible -- a relay running next to your own client, say, which is the obvious
+/// thing for a small team to do -- and it made the store-mismatch error elsewhere in the CLI recommend
+/// exactly the variable that did nothing.
+///
+/// Pointing it at an empty directory gives you a fresh instance: the embedded seed extracts there like it
+/// would on a new machine.
+let private getDarklangDirectory () : string =
+  match Environment.GetEnvironmentVariable "DARK_CONFIG_RUNDIR" with
+  | null -> getDefaultDarklangDirectory ()
+  | "" -> getDefaultDarklangDirectory ()
+  | explicit -> explicit
 
 let private extractResource (resourceName : string) (targetPath : string) : unit =
   let assembly = Assembly.GetExecutingAssembly()
@@ -80,141 +97,117 @@ let private hasEmbeddedResource (resourceName : string) : bool =
   assembly.GetManifestResourceNames() |> Array.contains resourceName
 
 
-// ── Release reconciliation on an EXISTING store ──────────────────────────────────────────────────────
-// The CLI seeds a fresh store from the embedded db, but a store left over from a PREVIOUS CLI release is
-// not otherwise migrated: the schema/op-format/hashing can differ, and the shipped CLI doesn't run the
-// LocalExec migrator. So on startup we reconcile the store's Release stamp with this binary's
-// `LibDB.Releases.currentRelease` before any LibDB connection is opened.
 
-/// Read the store's Release stamp via a throwaway, NON-POOLED read-only connection, so LibDB's own (pooled)
-/// shared connection is never opened here — a reseed moves the db file aside, and a pooled handle would keep
-/// pointing at the moved inode. `Some r` = stamped; `None` = opened fine but no stamp (treated as a stale
-/// store to re-seed). If the db can't be opened/read at all, hard-fail — a lock or corruption must not be
-/// mistaken for "stale" and trigger a data-destroying reseed.
-let private readStoredRelease (dbPath : string) : int option =
+/// Top up an existing store with this binary's embedded package ops.
+///
+/// The seed is a SQLite database, so this attaches it and copies rows across rather than deserializing
+/// anything: the op blobs are opaque here, and the fold that runs afterwards is what gives them meaning.
+///
+/// `INSERT OR IGNORE` is doing the real work. An op's id IS its content hash, so every definition this
+/// build shares with the store collides and is skipped, and what lands is exactly what changed. The ops
+/// go in unapplied, which is the signal `Seed.growIfNeeded` already looks for.
+///
+/// Failure here is not fatal on purpose. A store that could not be topped up is no worse off than before
+/// this existed, and taking the CLI down over it would turn a recoverable upgrade into a brick.
+/// Copy the store aside before an upgrade touches it.
+///
+/// Topping a store up is additive and does not delete, but it is still the moment a working store meets
+/// code that has never seen it. A copy costs a few seconds and a few hundred MB, and it is the difference
+/// between "the upgrade went strangely" being an inconvenience and being your work.
+///
+/// Kept next to the store rather than in a temp directory, because the point is that you can find it
+/// without being told where to look. One per calendar day: upgrading three times in an afternoon should
+/// not leave three copies, and the useful thing to roll back to is the state before today's changes.
+///
+/// Best-effort. If the copy fails the upgrade still proceeds, because refusing to start a CLI over a
+/// failed BACKUP would be a worse outcome than the risk it is insuring against.
+let private backupBeforeUpgrade (dbPath : string) : unit =
   try
-    use conn =
-      new Microsoft.Data.Sqlite.SqliteConnection(
-        $"Data Source={dbPath};Mode=ReadOnly;Pooling=false"
-      )
-    conn.Open()
-    use tableCmd = conn.CreateCommand()
-    tableCmd.CommandText <-
-      "SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'release_state_v0'"
-    match tableCmd.ExecuteScalar() with
-    | null -> None
-    | _ ->
-      use cmd = conn.CreateCommand()
-      cmd.CommandText <- "SELECT \"release\" FROM release_state_v0 WHERE id = 0"
-      match cmd.ExecuteScalar() with
-      | null -> None
-      | v -> Some(Convert.ToInt32 v)
-  with ex ->
-    eprintfn $"Cannot open the Darklang data store at {dbPath}: {ex.Message}"
-    eprintfn
-      "Close any other Darklang processes and retry, or move that file aside to start fresh."
-    exit 1
+    if File.Exists dbPath then
+      let dir = Path.Combine(Path.GetDirectoryName(dbPath), "backups")
+      Directory.CreateDirectory(dir) |> ignore<DirectoryInfo>
 
-/// The peer URLs configured in a store, or [] if the table is absent / unreadable. Peers are sync CONFIG
-/// (owned by `sync_peers_v0` in packages/darklang/sync.dark), not disposable package content.
-let private readPeerUrls (path : string) : List<string> =
+      let stamp = System.DateTime.UtcNow.ToString("yyyy-MM-dd")
+      let target = Path.Combine(dir, $"data.db.before-upgrade-{stamp}")
+
+      if not (File.Exists target) then
+        File.Copy(dbPath, target)
+        printfn $"Backed up your store to {target} before upgrading it."
+  with e ->
+    System.Console.Error.WriteLine($"could not back up the store: {e.Message}")
+
+
+let private reseedFromEmbedded (dbPath : string) : unit =
+  let temp =
+    Path.Combine(Path.GetTempPath(), $"dark-seed-{System.Guid.NewGuid()}.db")
+
   try
-    use conn =
-      new Microsoft.Data.Sqlite.SqliteConnection(
-        $"Data Source={path};Mode=ReadOnly;Pooling=false"
-      )
-    conn.Open()
-    use cmd = conn.CreateCommand()
-    cmd.CommandText <- "SELECT url FROM sync_peers_v0"
-    use reader = cmd.ExecuteReader()
-    [ while reader.Read() do
-        yield reader.GetString 0 ]
-  with _ ->
-    []
-
-/// Best-effort: carry the peer URLs from the backed-up store into the fresh one, so a clean-break upgrade
-/// doesn't make you re-add your peers. Cursors are deliberately NOT carried — a clean break means the fresh
-/// store must re-pull from scratch, so a stale cursor would skip ops. Returns how many peers were carried.
-let private carryForwardPeers (backupPath : string) (dbPath : string) : int =
-  let urls = readPeerUrls backupPath
-  if List.isEmpty urls then
-    0
-  else
     try
-      use conn =
-        new Microsoft.Data.Sqlite.SqliteConnection(
-          $"Data Source={dbPath};Pooling=false"
-        )
-      conn.Open()
-      use create = conn.CreateCommand()
-      create.CommandText <-
-        "CREATE TABLE IF NOT EXISTS sync_peers_v0 (url TEXT PRIMARY KEY)"
-      create.ExecuteNonQuery() |> ignore
-      for url in urls do
-        use ins = conn.CreateCommand()
-        ins.CommandText <- "INSERT OR IGNORE INTO sync_peers_v0 (url) VALUES ($u)"
-        ins.Parameters.AddWithValue("$u", url) |> ignore
-        ins.ExecuteNonQuery() |> ignore
-      List.length urls
+      extractGzippedResource "data.db.gz" temp
+
+      if File.Exists temp then
+        use conn =
+          new Microsoft.Data.Sqlite.SqliteConnection($"Data Source={dbPath}")
+        conn.Open()
+
+        // Whether this seed has anything for this store, asked BEFORE touching it -- so the backup below
+        // is taken only when the store is actually about to change. Copying the whole store on the way
+        // past cost a fresh install an ~80MB copy on its first run, to protect it from an upgrade that
+        // had nothing to do, under a message announcing an upgrade that was not happening.
+        use probe = conn.CreateCommand()
+        probe.CommandText <-
+          "ATTACH DATABASE $seed AS seed;
+           SELECT (SELECT COUNT(*) FROM seed.package_ops s
+                     WHERE NOT EXISTS (SELECT 1 FROM package_ops o WHERE o.id = s.id))
+                + (SELECT COUNT(*) FROM package_ops o
+                     WHERE o.effective = 0 AND o.id IN (SELECT id FROM seed.package_ops));"
+        probe.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
+        let pending = probe.ExecuteScalar() |> string |> int
+        use detach = conn.CreateCommand()
+        detach.CommandText <- "DETACH DATABASE seed;"
+        detach.ExecuteNonQuery() |> ignore<int>
+
+        if pending > 0 then
+          backupBeforeUpgrade dbPath
+
+        use cmd = conn.CreateCommand()
+        // The seed's ops arrive COMMITTED, under its baseline commit, and they have to stay that way.
+        // Dropping `commit_hash` leaves them in the draft, so the first `dark status` after an upgrade
+        // reports several thousand items changed -- which is both alarming and false, since nobody
+        // changed anything. The commit rows come across first so the reference has something to point at.
+        cmd.CommandText <-
+          "ATTACH DATABASE $seed AS seed;
+           INSERT OR IGNORE INTO commits (hash, message, author, origin_ts)
+             SELECT hash, message, author, origin_ts FROM seed.commits;
+           INSERT OR IGNORE INTO package_ops (id, op_blob, applied, effective, origin_ts, commit_hash)
+             SELECT id, op_blob, 0, 1, origin_ts, commit_hash FROM seed.package_ops;
+           -- An op already PRESENT but INERT has to be woken up, and `INSERT OR IGNORE` cannot do it.
+           --
+           -- A relay stores what its clients push at `effective = 0`: hosted data, never folded into its
+           -- own projections. Ops are content-addressed, so a client pushing its package tree lands the
+           -- SAME ids this seed carries. The insert above then skips them as already-present, the rows
+           -- stay inert, and the fold never applies them -- so a name binds to a hash whose content was
+           -- never folded, and the binary dies with `FnNotFound` on its own router.
+           --
+           -- Found by taking a real relay down. Only ops the seed actually contains are touched, and only
+           -- ones that are inert, so a client op the seed knows nothing about stays hosted data.
+           UPDATE package_ops
+             SET effective = 1, applied = 0
+             WHERE effective = 0
+               AND id IN (SELECT id FROM seed.package_ops);
+           DETACH DATABASE seed;"
+        cmd.Parameters.AddWithValue("$seed", temp) |> ignore<obj>
+        cmd.ExecuteNonQuery() |> ignore<int>
+    with e ->
+      System.Console.Error.WriteLine(
+        $"could not top up the package store: {e.Message}"
+      )
+  finally
+    try
+      if File.Exists temp then File.Delete temp
     with _ ->
-      0
+      ()
 
-/// Move the stale store (and its WAL/SHM sidecars, so a leftover WAL can't attach to the new db) aside to a
-/// timestamped backup, then re-extract the embedded current-Release seed and carry the peer list forward.
-/// Returns (backup path, number of peers carried).
-let private reseedStore (dbPath : string) (storedLabel : string) : string * int =
-  let stamp = DateTime.UtcNow.ToString("yyyyMMddHHmmss")
-  let backup = $"{dbPath}.{storedLabel}-{stamp}.bak"
-  File.Move(dbPath, backup)
-  for suffix in [ "-wal"; "-shm" ] do
-    let side = dbPath + suffix
-    if File.Exists side then File.Move(side, backup + suffix)
-  extractGzippedResource "data.db.gz" dbPath
-  let peers = carryForwardPeers backup dbPath
-  (backup, peers)
-
-let private reseedAndReport
-  (dbPath : string)
-  (current : int)
-  (storedLabel : string)
-  : unit =
-  let (backup, peers) = reseedStore dbPath storedLabel
-  eprintfn
-    $"Upgraded this data directory to Release {current} (was {storedLabel}); previous store backed up to {backup}."
-  if peers > 0 then
-    eprintfn
-      $"Kept your {peers} peer connection(s) — run `dark sync` to re-pull and repopulate."
-  else
-    eprintfn "Re-connect and pull from your peers, or re-author, to repopulate it."
-
-/// Reconcile an existing store's Release with this binary's. Called only when data.db already exists.
-let private reconcileExistingStore (dbPath : string) : unit =
-  let current = LibDB.Releases.currentRelease
-  let stored = readStoredRelease dbPath
-  let label =
-    match stored with
-    | Some r -> $"release{r}"
-    | None -> "an untracked store"
-  match LibDB.Releases.planCliUpgrade LibDB.Releases.releases stored current with
-  | LibDB.Releases.CliUpgrade.Proceed -> () // up to date
-  | LibDB.Releases.CliUpgrade.RefuseNewer r ->
-    // A newer store must not be opened by older code (it could corrupt the newer format). Refuse.
-    eprintfn
-      $"This Darklang data directory is from a newer release (Release {r}); this binary is Release {current}."
-    eprintfn
-      $"Upgrade the CLI, or move {dbPath} aside to start fresh — refusing to open it with older code."
-    exit 1
-  | LibDB.Releases.CliUpgrade.MigrateInPlace ->
-    // Every pending step is durable — migrate the store forward in place, PRESERVING the data (schema
-    // copy-swap + op-format re-serialize + refold). No source needed, so the CLI can run it directly.
-    LibDB.Releases.applyPending current
-    eprintfn
-      $"Upgraded this data directory from {label} to Release {current} (data preserved)."
-  | LibDB.Releases.CliUpgrade.Reseed ->
-    // A clean-break Release (content hashing changed) or an untracked store of unknown format: the old
-    // package data can't be reused in place, so back it up and re-seed from the embedded current-Release
-    // store.
-    reseedAndReport dbPath current label
 
 /// Sub-timings for `extract`, in Stopwatch ticks. Collected rather than logged because `extract` runs
 /// before telemetry has an output path: it's what sets DARK_CONFIG_RUNDIR, which is where the log lives.
@@ -258,5 +251,22 @@ let extract () : unit =
       Directory.CreateDirectory(logsDir) |> ignore
 
       printfn "CLI data directory setup complete"
+    // An existing store gets this binary's OWN package code topped up, then `growIfNeeded` folds it.
+    //
+    // Without this, upgrading the binary meant wiping the store: the new build pins package refs by hash,
+    // the old store holds the previous build's hashes, and nothing reconciles them. Survivable on a laptop
+    // (re-grow and carry on) and not survivable on a relay, which is a place people leave things -- and
+    // under CI, where every deploy is an upgrade, it would wipe on every push.
+    //
+    // Topping up is additive and cheap to be wrong about: ops are content-addressed, so everything this
+    // build shares with the store already dedups, and only genuinely-new ops are inserted. It does not
+    // delete, it does not rebind by itself, and a store that is already current does no work.
+    //
+    // Upstream reconciles by RELEASE NUMBER here (`planCliUpgrade`: migrate in place, refuse a newer
+    // store, or clean-break). That footing is gone on this branch: `package_ops` is canonical and every
+    // projection re-folds, so an op-format change needs no numbered migration -- the ops are
+    // content-addressed and the binary tops its own store up. Keeping upstream's `timed` wrapper, because
+    // this runs before telemetry has an output path and its cost is worth seeing.
     else
-      timed "extract.reconcileStore" (fun () -> reconcileExistingStore dbPath)
+      // The backup happens inside the top-up, once it knows there is something to top up.
+      timed "extract.topUpStore" (fun () -> reseedFromEmbedded dbPath)

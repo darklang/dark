@@ -5,33 +5,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
   // Checks GitHub for a newer release, which dominates the command. Deliberate: knowing you're out of
   // date is the point of the command, not a side errand.
   Stdlib.printLine (Helpers.versionInfoWithUpdateCheck ())
-
-  // Store-format coordinate — the on-disk data shape this Dark speaks vs what your local data is stamped at.
-  // (This is what the boot-time migrator + sync's wire-version key off; see `dark update`.) It is NOT a product
-  // version — Dark is alpha; this is just internal data-format bookkeeping, shown as "store format vN".
-  let exeRel = Stdlib.Int.toString (Darklang.Sync.currentRelease ())
-
-  let storeRel =
-    match
-      Stdlib.Sqlite.query
-        (Darklang.Sync.localDbPath ())
-        "SELECT release FROM release_state_v0 WHERE id = 0"
-    with
-    | Ok [ row ] ->
-      match Stdlib.Dict.get row "release" with
-      | Some c ->
-        match Stdlib.Sqlite.asInt c with
-        | Some i -> Stdlib.Int64.toString i
-        | None -> "?"
-      | None -> "?"
-    | _ -> "?"
-
-  if exeRel == storeRel then
-    Stdlib.printLine $"alpha — store format v{exeRel}, your data is up to date"
-  else
-    Stdlib.printLine
-      $"alpha — store format v{exeRel}, your data is v{storeRel} (run `dark update`)"
-
+  // The store-format line is gone with the Release footing: there is no release_state_v0 to read, and
+  // `Darklang.Sync` is `Darklang.SCM` now. An op log needs no format coordinate -- ops are
+  // content-addressed and a binary tops its own store up.
   state
 
 

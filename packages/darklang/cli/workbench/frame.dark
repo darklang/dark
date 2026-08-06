@@ -61,6 +61,51 @@ let formatHints (pairs: List<(String * String)>) : String =
     (Colors.colorize Colors.cyan k) ++ " " ++ (Colors.dimText l))
   |> Stdlib.String.join (Colors.dimText "   ")
 
+/// Fit key hints to a row: <param keep> always survives, <param droppable> gives way from its END.
+///
+/// The row used to be one long string clipped from the right, so the things at the end went first -- and
+/// the things at the end were `?` (the keymap) and `esc/q` (the way out). Those are the two a person needs
+/// most when the window is small and they are lost, which is exactly when they disappeared. A hint cut
+/// mid-word ("p promp") teaches nothing either.
+///
+/// Callers order <param droppable> cheapest-last: a view's own actions come first and the secondary global
+/// keys after them, so `c commit` outlives `` ` views``. Anything dropped is still reachable through `?`,
+/// which is precisely why `?` is the thing that must not drop.
+///
+/// Dropping stops at the first hint that does not fit, so the order a person learns them in stays put.
+let formatHintsFitted
+  (droppable: List<(String * String)>)
+  (keep: List<(String * String)>)
+  (width: Int)
+  : String =
+  let plainOf (pairs: List<(String * String)>) : String =
+    pairs
+    |> Stdlib.List.map (fun p ->
+      let (k, l) = p
+      k ++ " " ++ l)
+    |> Stdlib.String.join "   "
+
+  // 2 for the indent, 3 for the join between the droppable run and the kept keys.
+  let room =
+    Stdlib.Int.max 0 (width - (Tui.Text.displayWidth (plainOf keep)) - 5)
+
+  let (fitted, _stopped) =
+    droppable
+    |> Stdlib.List.fold ([], false) (fun acc p ->
+      let (sofar, stopped) = acc
+
+      if stopped then
+        (sofar, true)
+      else
+        let candidate = Stdlib.List.append sofar [ p ]
+
+        if (Tui.Text.displayWidth (plainOf candidate)) <= room then
+          (candidate, false)
+        else
+          (sofar, true))
+
+  formatHints (Stdlib.List.append fitted keep)
+
 /// Render a one-row, pre-colored key-hint bar at the bottom of the body. The string is already styled
 /// (see `formatHints`), so this just indents + places it.
 let renderKeyHints (region: UI.Layout.Region) (hints: String) : List<UI.Layout.Span> =

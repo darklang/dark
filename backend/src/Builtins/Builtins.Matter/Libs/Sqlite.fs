@@ -104,18 +104,22 @@ let private queryImpl
       use reader = readerObj
       let rows = System.Collections.Generic.List<Dval>()
 
-      let rec loop () : Ply<unit> =
-        uply {
-          let! hasRow = reader.ReadAsync()
-          if hasRow then
-            let cells =
-              [ for i in 0 .. reader.FieldCount - 1 ->
-                  (reader.GetName i, Value.toDT (reader.GetValue i)) ]
-            rows.Add(Dval.dict Value.knownType cells)
-            return! loop ()
-        }
+      // ITERATIVE, and it must stay that way. Ply does not turn a recursive read loop into a tail call,
+      // so each row costs about three stack frames and a query over the op log (10k rows and growing)
+      // overflows the stack. Dark reads SQLite through this one builtin, so it has to be O(1) in stack
+      // depth regardless of row count.
+      let mutable reading = true
 
-      do! loop ()
+      while reading do
+        let! hasRow = reader.ReadAsync()
+
+        if hasRow then
+          let cells =
+            [ for i in 0 .. reader.FieldCount - 1 ->
+                (reader.GetName i, Value.toDT (reader.GetValue i)) ]
+          rows.Add(Dval.dict Value.knownType cells)
+        else
+          reading <- false
       let listDval =
         Dval.list (KTDict(ValueType.Known Value.knownType)) (List.ofSeq rows)
       return Dval.resultOk rowsKT KTString listDval

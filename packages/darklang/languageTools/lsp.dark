@@ -41,50 +41,24 @@ type Diagnostic =
 
 type ComputeDiagnosticsOutput = { diagnostics: List<Diagnostic> }
 
+/// Syntax diagnostics for one document, as the LSP wants them.
+///
+/// `Builtin.parserParseDiagnostics` returns (range, message) pairs and an empty list on a clean parse,
+/// which is exactly this shape. `docSync` already reports diagnostics this way, so the two agree about
+/// what an error looks like instead of each having its own idea.
 let getDiagnostics (uri: String) (text: String) : String =
-  // CLEANUP: languageToolsParseCliScript doesn't exist
-  match Builtin.languageToolsParseCliScript text with
-  | Ok() ->
-    (ComputeDiagnosticsOutput { diagnostics = [] })
-    |> Stdlib.Json.serialize<ComputeDiagnosticsOutput>
+  let diagnostics =
+    Builtin.parserParseDiagnostics text
+    |> Stdlib.List.map (fun pair ->
+      let (range, message) = pair
 
-  | Error parseError ->
-    // to be used when the range is otherwise unknown
-    let rangeOfAll =
-      let start = Position { line = 0; character = 0 }
+      Diagnostic
+        { severity = "Error"
+          range = range
+          message = $"Can't parse -- {message}" })
 
-      let end' =
-        let lines = text |> Stdlib.String.split "\n"
-
-        let lastLineLength =
-          match lines |> Stdlib.List.last with
-          | Some lastLine ->
-            Stdlib.String.length lastLine
-          | None -> 0
-
-        Position
-          { line =
-              ((Stdlib.List.length lines) - 1)
-            character = lastLineLength }
-
-      Range { start = start; end_ = end' }
-
-    let diagnostics =
-      match parseError with
-      | FailedToParse(msg, range) ->
-        [ Diagnostic
-            { severity = "Error"
-              range = Stdlib.Option.withDefault range rangeOfAll
-              message = $"Can't parse -- {msg}" } ]
-
-      | Other msg ->
-        [ Diagnostic
-            { severity = "Error"
-              range = rangeOfAll
-              message = $"Can't parse -- {msg}" } ]
-
-    (ComputeDiagnosticsOutput { diagnostics = diagnostics })
-    |> Stdlib.Json.serialize<ComputeDiagnosticsOutput>
+  (ComputeDiagnosticsOutput { diagnostics = diagnostics })
+  |> Stdlib.Json.serialize<ComputeDiagnosticsOutput>
 
 
 // </Diagnostics>

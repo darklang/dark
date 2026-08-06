@@ -47,7 +47,8 @@ let t
     let roundOnce (src : string) : Task<string> =
       task {
         let! parseExeState = executionStateFor basePM false Map.empty
-        let args = NEList.singleton (RT.DString src)
+        // branch: main, named rather than inherited from the process
+        let args = NEList.ofList (RT.DString "") [ RT.DString src ]
         let! parseResult =
           LibExecution.Execution.executeFunction parseExeState parseFnName [] args
         let! parseDval =
@@ -67,7 +68,7 @@ let t
           let enhancedPM = LibDB.PackageManager.withExtraOps basePM packageOps
           let! ppExeState = executionStateFor enhancedPM false Map.empty
 
-          let ppArgs = NEList.ofList (RT.DUuid PT.mainBranchId) [ sourceFile ]
+          let ppArgs = NEList.ofList (RT.DString "") [ sourceFile ]
           let! ppResult =
             LibExecution.Execution.executeFunction
               ppExeState
@@ -149,7 +150,7 @@ let tEvalSourceFileFn
   testTask name {
     let! parseExeState = executionStateFor pmPT false Map.empty
 
-    let args = NEList.singleton (RT.DString input)
+    let args = NEList.ofList (RT.DString "") [ RT.DString input ]
     let! parseResult =
       LibExecution.Execution.executeFunction parseExeState parseFnName [] args
     let! parseDval = unwrapExecutionResult parseExeState parseResult |> Ply.toTask
@@ -209,7 +210,7 @@ let parseForCliDval (input : string) =
     let! parseExeState = executionStateFor pmPT false Map.empty
     let args =
       NEList.ofList
-        (RT.DUuid PT.mainBranchId)
+        (RT.DString "")
         [ RT.DString "Tests"
           RT.DString "test"
           RT.DString "test"

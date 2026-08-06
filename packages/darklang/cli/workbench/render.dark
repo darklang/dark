@@ -27,7 +27,7 @@ let renderScrollableLines
     let (i, p) = pair
     let row = i - off
     let disp = Stdlib.List.getAt display i |> Stdlib.Option.withDefault p
-    UI.Layout.at region row colOffset (Tui.Text.clipToWidth disp maxFit))
+    UI.Layout.at region row colOffset (Tui.Text.clipMarked disp maxFit))
   |> Stdlib.List.flatten
 
 let renderPreview (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
@@ -61,18 +61,16 @@ let plural (n: Int) (noun: String) : String =
 /// tell which of them do anything, so the bottom panel names each one, says what it's for, and marks the ones
 /// still running on sample data. It replaced a list of commands you had to already know to look for.
 let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
-  let wip = wipItemCount state.branchId
-  let commits = SCM.PackageOps.getCommitCount state.branchId
+  // Five separate DB reads once lived here, and the renderer runs on every keypress. They're one cached
+  // read now (`state.scmStatus`), which is also what the tree's badges and the SCM view use, so the
+  // dashboard and the thing it's summarising can no longer disagree.
+  let scm = state.scmStatus
+  let wip = scm.changed
+  let commits = scm.commits
   let rootItems = loadItems state.branchId (Packages.PackageLocation.Module [])
-  let branch =
-    match SCM.Branch.get state.branchId with
-    | Some b -> b.name
-    | None -> "main"
-  let conflictCount = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
-  let lastCommit =
-    match Stdlib.List.head (SCM.PackageOps.getCommitsWithAncestors state.branchId 1) with
-    | Some c -> c.message
-    | None -> "no commits yet"
+  let branch = scm.branchName
+  let conflictCount = Stdlib.List.length scm.conflicts
+  let lastCommit = if scm.lastCommit == "" then "no commits yet" else scm.lastCommit
   let owner = if state.accountName == "" then "there" else state.accountName
 
   let renderHeader (r: UI.Layout.Region) : List<UI.Layout.Span> =
@@ -109,10 +107,9 @@ let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
     if wip == 0 then
       UI.Layout.at inner 0 1 (Colors.dimText "nothing in progress - the tree is yours to edit")
     else
-      SCM.PackageOps.getWipItems state.branchId
+      scm.wipNames
       |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
-      |> Stdlib.List.indexedMap (fun i d ->
-        let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
+      |> Stdlib.List.indexedMap (fun i name ->
         // Pink ● is the "uncommitted work" marker everywhere (matches the tree WIP badge); keep it consistent.
         UI.Layout.at inner i 1 (Colors.colorize Colors.pink ("● " ++ name)))
       |> Stdlib.List.flatten

@@ -1,0 +1,129 @@
+// Propagation POLICY resolution: which explicit choice covers a given item.
+//
+// The rule is most-specific-first (the item, then its module, then each parent module outward, then
+// owner-wide), deliberately the same shape name resolution already has -- a new concept that resolves
+// like an old one costs a reader almost nothing. That ordering is the whole behaviour, and it's pure, so
+// it belongs here rather than in a shell script that pins an item and greps the output.
+//
+// The half that needs a real store -- a pin travelling as an op, and surviving a projection rebuild -- is
+// covered by `Tests.BranchOverlay`.
+
+module Helpers =
+  let loc (modules: List<String>) (name: String) : Darklang.LanguageTools.ProgramTypes.PackageLocation =
+    Darklang.LanguageTools.ProgramTypes.PackageLocation
+      { owner = "Zz"; modules = modules; name = name }
+
+  let choice
+    (modules: String)
+    (name: String)
+    (policy: Darklang.SCM.Propagation.Policy)
+    : Darklang.SCM.Propagation.Choice =
+    Darklang.SCM.Propagation.Choice
+      { owner = "Zz"
+        modules = modules
+        name = name
+        policy = policy
+        note = ""
+        originTs = "2026-01-02T00:00:00.000Z" }
+
+  let follows
+    (choices: List<Darklang.SCM.Propagation.Choice>)
+    (modules: List<String>)
+    (name: String)
+    : Bool =
+    Darklang.SCM.Propagation.shouldFollowIn choices (Helpers.loc modules name)
+
+
+module CandidateOrder =
+  // The item itself first, then the module chain from innermost outward, then owner-wide ("", "").
+  // Getting this order wrong doesn't error, it just quietly applies the wrong person's decision.
+  (Darklang.SCM.Propagation.candidateKeys (Helpers.loc [ "A"; "B"; "C" ] "f")) =
+    [ ("A.B.C", "f"); ("A.B.C", ""); ("A.B", ""); ("A", ""); ("", "") ]
+
+  (Darklang.SCM.Propagation.candidateKeys (Helpers.loc [ "A" ] "f")) =
+    [ ("A", "f"); ("A", ""); ("", "") ]
+
+  // A top-level item still gets the owner-wide fallback, and nothing else.
+  (Darklang.SCM.Propagation.candidateKeys (Helpers.loc [] "f")) = [ ("", "f"); ("", "") ]
+
+
+module Defaults =
+  // Nobody has said anything: the default is follow. `None` from the resolver is NOT "follow" -- the
+  // CALLER decides the default, and this caller's is follow.
+  (Helpers.follows [] [ "A" ] "f") = true
+
+  (Darklang.SCM.Propagation.explicitPolicyIn [] (Helpers.loc [ "A" ] "f")) =
+    Stdlib.Option.Option.None
+
+
+module MostSpecificWins =
+  // An item-level pin beats a module-level follow.
+  (Helpers.follows
+    [ Helpers.choice "A" "f" Darklang.SCM.Propagation.Policy.Pin
+      Helpers.choice "A" "" Darklang.SCM.Propagation.Policy.Follow ]
+    [ "A" ]
+    "f") = false
+
+  // ... and an item-level follow beats a module-level pin. Both directions, because a rule that only
+  // works one way isn't an override, it's a coincidence.
+  (Helpers.follows
+    [ Helpers.choice "A" "f" Darklang.SCM.Propagation.Policy.Follow
+      Helpers.choice "A" "" Darklang.SCM.Propagation.Policy.Pin ]
+    [ "A" ]
+    "f") = true
+
+  // An INNER module beats an outer one.
+  (Helpers.follows
+    [ Helpers.choice "A.B" "" Darklang.SCM.Propagation.Policy.Pin
+      Helpers.choice "A" "" Darklang.SCM.Propagation.Policy.Follow ]
+    [ "A"; "B" ]
+    "f") = false
+
+  // An owner-wide choice covers anything with no closer rule.
+  (Helpers.follows
+    [ Helpers.choice "" "" Darklang.SCM.Propagation.Policy.Pin ]
+    [ "A"; "B" ]
+    "f") = false
+
+  // A module-level pin covers items BENEATH it, not just at it.
+  (Helpers.follows
+    [ Helpers.choice "A" "" Darklang.SCM.Propagation.Policy.Pin ]
+    [ "A"; "B" ]
+    "f") = false
+
+
+module Scoping =
+  // A choice about a SIBLING item says nothing about this one.
+  (Helpers.follows
+    [ Helpers.choice "A" "g" Darklang.SCM.Propagation.Policy.Pin ]
+    [ "A" ]
+    "f") = true
+
+  // A choice under a different owner doesn't apply. Decisions are per owner; borrowing someone else's
+  // would be the machine overruling a person who never spoke.
+  (Darklang.SCM.Propagation.shouldFollowIn
+    [ Darklang.SCM.Propagation.Choice
+        { owner = "Other"
+          modules = "A"
+          name = "f"
+          policy = Darklang.SCM.Propagation.Policy.Pin
+          note = ""
+          originTs = "" } ]
+    (Helpers.loc [ "A" ] "f")) = true
+
+
+module PolicyCodec =
+  // Round-trips through the string the op and the table both carry.
+  (Darklang.SCM.Propagation.policyToString Darklang.SCM.Propagation.Policy.Pin) = "pin"
+  (Darklang.SCM.Propagation.policyToString Darklang.SCM.Propagation.Policy.Follow) = "follow"
+
+  (Darklang.SCM.Propagation.policyFromString "pin") =
+    Stdlib.Option.Option.Some Darklang.SCM.Propagation.Policy.Pin
+
+  (Darklang.SCM.Propagation.policyFromString "follow") =
+    Stdlib.Option.Option.Some Darklang.SCM.Propagation.Policy.Follow
+
+  // `unset` is a decision, but it is not a POLICY: it removes the row rather than being one, so the
+  // codec must not quietly accept it as a third state.
+  (Darklang.SCM.Propagation.policyFromString "unset") = Stdlib.Option.Option.None
+  (Darklang.SCM.Propagation.policyFromString "") = Stdlib.Option.Option.None

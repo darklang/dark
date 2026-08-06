@@ -20,7 +20,7 @@ a replacement is.
 
   deprecate <fn|type|value> <name-or-hash> --kind <k> [options]
   delete    <fn|type|value> <name-or-hash> [options]
-  undo      <fn|type|value> <name>           # reverses a WIP deprecate
+  undeprecate <name>                         # put it back on the shelf
 
 `delete` is sugar for `deprecate --kind obsolete`, but it requires
 --ignore-dependents when the target has live dependents. Prefer
@@ -61,8 +61,21 @@ Tests, sandboxes, and security research can opt out:
   # Take off the shelf (catch-all)
   delete fn Darklang.Legacy.oldThing -m "no longer maintained" --yes
 
-  # Revert a WIP deprecate
-  undo fn Darklang.Stdlib.List.oldMap --yes
+  # Put it back
+  undeprecate Darklang.Stdlib.List.oldMap
+
+## Undeprecating
+
+  undeprecate <name>      # or `restore`
+
+No `--kind` and no item type: you know the name, and making you also name the
+kind to UN-do something is a question asked because it's easy to implement.
+It clears any kind, including `harmful`, so the fn runs again without
+`--allow-harmful`.
+
+Deprecation keys on CONTENT, not on the name -- so if two names hold the same
+bytes, deprecating one deprecates both, and `deprecate` warns you when that's
+the case. Undeprecating works the same way, for the same reason.
 
 ## Visibility in package tree
 

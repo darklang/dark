@@ -127,7 +127,8 @@ let fns () : List<BuiltInFn> =
         | exeState, _, _, [ DString dbName; typeHashDval ] ->
           let typeHash = PT2DT.Hash.fromDT typeHashDval
           uply {
-            // precise check: creating this datastore must be covered (gate checked db presence).
+            // precise check: creating this datastore must be covered (gate checked
+            // db presence).
             LibExecution.CapabilityCheck.requireDbWrite exeState.grantedCaps dbName
             let! existing =
               Sql.query
@@ -172,15 +173,26 @@ let fns () : List<BuiltInFn> =
 
     { name = fn "dbListAll" 0
       typeParams = []
-      parameters = [ Param.make "branchId" TUuid "Branch for resolving type names" ]
+      parameters =
+        [ Param.make
+            "branchId"
+            TString
+            "the branch to resolve DB type names against; \"\" is main" ]
       returnType = TList(TTuple(TString, TString, []))
       description = "Returns a list of (name, typeName) tuples for all DBs"
       fn =
         (function
-        | _, _, _, [ DUuid branchId ] ->
+        | _, _, _, [ DString branchId ] ->
           uply {
             let! app = Toplevels.loadAllDBs ()
-            let pm = LibDB.PackageManager.pt
+            // Through the branch overlay: a DB's type can be one authored on the
+            // branch, and main's PM has no name for it. Display-only, but "unknown
+            // type" for a type you just wrote reads as breakage rather than as a
+            // listing.
+            let pm =
+              LibDB.PackageManager.ptForBranch (
+                if branchId = "" then None else Some branchId
+              )
             let! dbs =
               app.dbs
               |> Map.values
@@ -191,7 +203,7 @@ let fns () : List<BuiltInFn> =
                     | PT.TypeReference.TCustomType({ resolved = Ok { name = PT.FQTypeName.Package typeID } },
                                                    _) ->
                       uply {
-                        let! locs = pm.getTypeLocations branchId typeID
+                        let! locs = pm.getTypeLocations typeID
                         match locs with
                         | location :: _ -> return PackageLocation.toFQN location
                         | [] -> return typeID.ToString()
@@ -217,7 +229,8 @@ let fns () : List<BuiltInFn> =
         (function
         | exeState, _, _, [ DString dbName ] ->
           uply {
-            // precise check: dropping this datastore must be covered (gate checked db presence).
+            // precise check: dropping this datastore must be covered (gate checked
+            // db presence).
             LibExecution.CapabilityCheck.requireDbWrite exeState.grantedCaps dbName
             let! matchingTlids =
               Sql.query

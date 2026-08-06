@@ -31,5 +31,28 @@ let parseRelativeTo
     let name = (Stdlib.List.last rest) |> Builtin.unwrap
     let modules = Stdlib.List.dropLast rest
 
-    Stdlib.Result.Result.Ok
-      (LanguageTools.ProgramTypes.PackageLocation { owner = owner; modules = modules; name = name })
+    // Module segments MUST be capitalised, and this has to be refused here rather than discovered later.
+    //
+    // The parser reads a dotted name by taking capitalised segments as modules and the first lowercase one
+    // as the NAME, treating anything after it as field access. So `Zz.low.f` parses as the name `Zz.low`
+    // with `.f` applied to it. Authoring it anyway used to SUCCEED -- the item stored fine and `dark view`
+    // rendered it -- and then every reference to it failed with "Zz.low not found", which reads as a
+    // resolution bug and sends you looking a long way from the cause. Creating something the language
+    // cannot refer to is the actual defect.
+    //
+    // The owner segment is exempt: lowercase owners resolve fine (`zz.Mod.k` works).
+    let badModule =
+      modules
+      |> Stdlib.List.findFirst (fun m ->
+        match Stdlib.String.toList m with
+        | [] -> true
+        | first :: _ -> (Stdlib.Char.isUppercase first) |> Stdlib.Bool.not)
+
+    match badModule with
+    | Some bad ->
+      Stdlib.Result.Result.Error
+        $"module names must start with a capital: \"{bad}\" doesn't. A lowercase segment is read as the item NAME, so nothing could refer to what you'd be creating."
+    | None ->
+      Stdlib.Result.Result.Ok
+        (LanguageTools.ProgramTypes.PackageLocation
+          { owner = owner; modules = modules; name = name })

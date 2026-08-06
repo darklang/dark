@@ -36,4 +36,8 @@ let dbName =
   | Some s -> s
   | None -> "data.db"
 
-let dbPath = $"{runDir}/{dbName}"
+// `runDir` already ends in a separator (see `absoluteDirOrCurrent`, and `logDir`
+// above), so no slash here. SQLite doesn't mind the doubled one, but this path is
+// PRINTED -- `dark doctor` names the store it checked -- and a path nobody would
+// type is a path people wonder about.
+let dbPath = $"{runDir}{dbName}"

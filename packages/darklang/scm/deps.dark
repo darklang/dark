@@ -1,0 +1,189 @@
+module Darklang.SCM.Deps
+
+//  the `package_dependencies` data-access silo
+//
+// Who references whom. Three builtins' worth of plain SQL over one table joined to `locations` -- no
+// compiler, no codec, no hashing, no fold, so it belongs in the language (SPEC section 9).
+//
+// The edges are recorded per item hash with the user-typed FQN alongside, which is what lets two distinct
+// names that happen to share a hash stay distinct here. That distinction is load-bearing: identical content
+// IS one item, so a hash routinely lives at several names, and collapsing them loses dependents.
+
+let localDb () : String = Builtin.localDbPath ()
+
+let kindOf (s: String) : LanguageTools.ProgramTypes.ItemKind =
+  match s with
+  | "type" -> LanguageTools.ProgramTypes.ItemKind.Type
+  | "value" -> LanguageTools.ProgramTypes.ItemKind.Value
+  | _ -> LanguageTools.ProgramTypes.ItemKind.Fn
+
+let kindString (k: LanguageTools.ProgramTypes.ItemKind) : String =
+  match k with
+  | Type -> "type"
+  | Value -> "value"
+  | Fn -> "fn"
+
+let locationOf
+  (owner: String)
+  (modules: String)
+  (name: String)
+  : LanguageTools.ProgramTypes.PackageLocation =
+  let mods = if modules == "" then [] else Stdlib.String.split modules "."
+
+  LanguageTools.ProgramTypes.PackageLocation
+    { owner = owner; modules = mods; name = name }
+
+/// Everything <param source> references (forward dependencies), as (hash, kind).
+let dependenciesOf
+  (source: LanguageTools.ProgramTypes.Hash)
+  : List<(LanguageTools.ProgramTypes.Hash * String)> =
+  let h = LanguageTools.ProgramTypes.hashToString source
+
+  match
+    Stdlib.Sqlite.queryP
+      (localDb ())
+      "SELECT DISTINCT depends_on_hash, depends_on_item_type
+       FROM package_dependencies WHERE item_hash = @p0"
+      [ h ]
+  with
+  | Ok rows ->
+    rows
+    |> Stdlib.List.filterMap (fun row ->
+      match
+        (Stdlib.Sqlite.textField row "depends_on_hash",
+         Stdlib.Sqlite.textField row "depends_on_item_type")
+      with
+      | (Some dh, Some dk) ->
+        Stdlib.Option.Option.Some((LanguageTools.ProgramTypes.Hash.Hash dh, dk))
+      | _ -> Stdlib.Option.Option.None)
+  | Error _ -> []
+
+/// Items that reference any of <param targets> (reverse dependencies), as (hash, location, kind).
+/// Matches on the target's NAME rather than its hash, so a dependent pointing at an older version of the
+/// name is still found -- which is the case propagation cares about.
+let dependentsOf
+  (targets: List<(LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)>)
+  : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind)> =
+  targets
+  |> Stdlib.List.map (fun target ->
+    let (loc, kind) = target
+    let modules = Stdlib.String.join loc.modules "."
+
+    match
+      Stdlib.Sqlite.queryP
+        (localDb ())
+        "SELECT DISTINCT l.item_hash, l.item_type, l.owner, l.modules, l.name
+         FROM package_dependencies pd
+         JOIN locations l ON l.item_hash = pd.item_hash AND l.unlisted_at IS NULL
+         WHERE pd.depends_on_item_type = @p0
+           AND pd.depends_on_owner = @p1
+           AND pd.depends_on_modules = @p2
+           AND pd.depends_on_name = @p3
+         ORDER BY l.item_hash"
+        [ kindString kind; loc.owner; modules; loc.name ]
+    with
+    | Ok rows ->
+      rows
+      |> Stdlib.List.filterMap (fun row ->
+        match
+          (Stdlib.Sqlite.textField row "item_hash",
+           Stdlib.Sqlite.textField row "item_type",
+           Stdlib.Sqlite.textField row "owner",
+           Stdlib.Sqlite.textField row "modules",
+           Stdlib.Sqlite.textField row "name")
+        with
+        | (Some h, Some k, Some o, Some m, Some n) ->
+          Stdlib.Option.Option.Some(
+            (LanguageTools.ProgramTypes.Hash.Hash h, locationOf o m n, kindOf k)
+          )
+        | _ -> Stdlib.Option.Option.None)
+    | Error _ -> [])
+  |> Stdlib.List.flatten
+
+/// The name `locations` gives this hash, if any.
+let mainLocationOf
+  (h: String)
+  : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
+  match
+    Stdlib.Sqlite.queryOneP
+      (localDb ())
+      "SELECT owner, modules, name FROM locations
+       WHERE item_hash = @p0 AND unlisted_at IS NULL LIMIT 1"
+      [ h ]
+  with
+  | Some row ->
+    (match
+      (Stdlib.Sqlite.textField row "owner",
+       Stdlib.Sqlite.textField row "modules",
+       Stdlib.Sqlite.textField row "name")
+     with
+     | (Some o, Some m, Some n) -> Stdlib.Option.Option.Some(locationOf o m n)
+     | _ -> Stdlib.Option.Option.None)
+  | None -> Stdlib.Option.Option.None
+
+/// Resolve hashes to a location, for display. A hash can be live at several names; this takes one, since
+/// the callers are rendering a label rather than driving a cascade.
+///
+/// Main answers first, and the branch overlay only fills what main can't. `locations` holds main's
+/// bindings only -- a branch's SetNames deliberately never fold into it -- so without the overlay every
+/// branch-authored item renders as a bare 64-character hash. But the overlay must not go FIRST: identical
+/// content is one item, so a hash is routinely live at several names, and preferring the branch's would
+/// relabel a main item whose body you happened to duplicate on a branch. Right content, wrong label, which
+/// is worse than the gap.
+let resolveLocations
+  (hashes: List<LanguageTools.ProgramTypes.Hash>)
+  : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.PackageLocation)> =
+  let overlay =
+    match SCM.PackageOps.currentBranch () with
+    | "" -> []
+    | branch ->
+      SCM.PackageOps.chainBindings branch
+      |> Stdlib.List.map (fun b -> (b.hash, locationOf b.owner b.modules b.name))
+
+  hashes
+  |> Stdlib.List.filterMap (fun hash ->
+    let h = LanguageTools.ProgramTypes.hashToString hash
+
+    match mainLocationOf h with
+    | Some loc -> Stdlib.Option.Option.Some((hash, loc))
+    | None ->
+      match overlay |> Stdlib.List.findFirst (fun pair -> Stdlib.Tuple2.first pair == h) with
+      | Some pair -> Stdlib.Option.Option.Some((hash, Stdlib.Tuple2.second pair))
+      | None -> Stdlib.Option.Option.None)
+
+
+/// Everything <param source> references, WITH the name it referenced them by: (hash, kind, location).
+///
+/// Distinct from `dependenciesOf` because the name is recorded on the EDGE, not looked up from the hash.
+/// That matters exactly when the dependency has moved on: its old hash is unlisted, so resolving it through
+/// `locations` finds nothing and the edge silently disappears -- which is the one case a caller asking
+/// "what am I behind on" actually cares about.
+let dependencyEdges
+  (source: LanguageTools.ProgramTypes.Hash)
+  : List<(LanguageTools.ProgramTypes.Hash * LanguageTools.ProgramTypes.ItemKind * LanguageTools.ProgramTypes.PackageLocation)> =
+  let h = LanguageTools.ProgramTypes.hashToString source
+
+  match
+    Stdlib.Sqlite.queryP
+      (localDb ())
+      "SELECT DISTINCT depends_on_hash, depends_on_item_type,
+              depends_on_owner, depends_on_modules, depends_on_name
+       FROM package_dependencies WHERE item_hash = @p0"
+      [ h ]
+  with
+  | Ok rows ->
+    rows
+    |> Stdlib.List.filterMap (fun row ->
+      match
+        (Stdlib.Sqlite.textField row "depends_on_hash",
+         Stdlib.Sqlite.textField row "depends_on_item_type",
+         Stdlib.Sqlite.textField row "depends_on_owner",
+         Stdlib.Sqlite.textField row "depends_on_modules",
+         Stdlib.Sqlite.textField row "depends_on_name")
+      with
+      | (Some dh, Some dk, Some o, Some m, Some n) ->
+        Stdlib.Option.Option.Some(
+          (LanguageTools.ProgramTypes.Hash.Hash dh, kindOf dk, locationOf o m n)
+        )
+      | _ -> Stdlib.Option.Option.None)
+  | Error _ -> []

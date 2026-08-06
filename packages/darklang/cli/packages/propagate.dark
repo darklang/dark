@@ -1,10 +1,11 @@
 module Darklang.Cli.Packages.Propagate
 
-// Auto-propagation helpers for fn/type/val commands
+// Propagation helpers.
 //
-// Note: the signature comparison helpers below exist because propagation does a blind
-// hash swap with no type-checking. Dependents get type-checked
-// against the new definition directly.
+// Propagation itself runs at `dark commit`, not on edit. What lives here is the one call into it
+// (`repointDependents`) plus the structural comparison helpers `dark commit` uses to say whether an
+// update changed a SIGNATURE -- which matters because propagation does a blind hash swap with no
+// type-checking, so a signature change is the one thing callers can't absorb silently.
 
 /// Convert an ItemKind to its display string
 let itemKindToString (kind: LanguageTools.ProgramTypes.ItemKind) : String =
@@ -25,17 +26,17 @@ let itemKindFromString (s: String) : Stdlib.Option.Option<LanguageTools.ProgramT
 /// Returns empty list if no entries exist (i.e., this is a brand new item).
 /// Callers should filter out the current hash to get only previous versions.
 let getAllPreviousHashes
-  (branchId: Uuid)
+  (branchId: String)
   (location: LanguageTools.ProgramTypes.PackageLocation)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
   : List<LanguageTools.ProgramTypes.Hash> =
-  Builtin.pmGetAllPreviousHashes branchId location itemKind
+  Builtin.pmGetAllPreviousHashes location itemKind
 
 
 /// Resolve a type hash to its location name for comparison purposes.
 /// Two hashes that point to the same named location are considered equal.
 let resolveTypeName
-  (branchId: Uuid)
+  (branchId: String)
   (hash: LanguageTools.ProgramTypes.FQTypeName.Package)
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
   Darklang.LanguageTools.PackageManager.pickLocation
@@ -54,7 +55,7 @@ let listsEqual (xs: List<'a>) (ys: List<'a>) (eq: 'a -> 'a -> Bool) : Bool =
 /// Structurally compare two TypeReferences, resolving hashes to names.
 /// Returns true if they are semantically equal (same structure, same named types).
 let typeReferenceEqual
-  (branchId: Uuid)
+  (branchId: String)
   (a: LanguageTools.ProgramTypes.TypeReference)
   (b: LanguageTools.ProgramTypes.TypeReference)
   : Bool =
@@ -121,7 +122,7 @@ let typeReferenceEqual
 
 /// Compare two function signatures structurally (type params, parameter names/types, return type).
 let fnSignatureEqual
-  (branchId: Uuid)
+  (branchId: String)
   (oldF: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   (newF: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : Bool =
@@ -136,153 +137,46 @@ let fnSignatureEqual
   typeParamsEqual && paramsEqual && returnEqual
 
 
-/// Compare two type declarations structurally (type params and definition).
-let typeDeclarationEqual
-  (branchId: Uuid)
-  (oldD: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
-  (newD: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
-  : Bool =
-  let typeParamsEqual = oldD.typeParams == newD.typeParams
-
-  let defEqual =
-    match (oldD.definition, newD.definition) with
-    | (Alias oldT, Alias newT) ->
-      typeReferenceEqual branchId oldT newT
-
-    | (Record oldFields, Record newFields) ->
-      listsEqual oldFields newFields (fun oldF newF ->
-        oldF.name == newF.name && typeReferenceEqual branchId oldF.typ newF.typ)
-
-    | (Enum oldCases, Enum newCases) ->
-      listsEqual oldCases newCases (fun oldC newC ->
-        oldC.name == newC.name
-        && listsEqual oldC.fields newC.fields (fun oldF newF ->
-          oldF.label == newF.label
-          && typeReferenceEqual branchId oldF.typ newF.typ))
-
-    | _ -> false // different definition kinds (e.g. Record vs Enum)
-
-  typeParamsEqual && defEqual
-
-
-/// Check if the signature of an item changed between old and new versions.
-/// If so, print a warning since callers were updated via blind hash swap
-/// and may not compile with the new signature.
+/// Repoint this item's dependents NOW, into the draft, and say so in one line.
 ///
-/// Uses structural comparison that resolves type hashes to names, so changes
-/// that only differ in hashes pointing to the same name are not flagged.
-/// Pretty-printer is only used for displaying the warning message.
-let warnIfSignatureChanged
-  (branchId: Uuid)
-  (itemKind: LanguageTools.ProgramTypes.ItemKind)
-  (previousHash: LanguageTools.ProgramTypes.Hash)
-  (currentHash: LanguageTools.ProgramTypes.Hash)
-  : Bool =
-  let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
-
-  match itemKind with
-  | Fn ->
-    let oldFn = Builtin.pmGetFn previousHash
-    let newFn = Builtin.pmGetFn currentHash
-
-    match (oldFn, newFn) with
-    | (Some oldF, Some newF) ->
-      if Stdlib.Bool.not (fnSignatureEqual branchId oldF newF) then
-        let oldSig = PrettyPrinter.ProgramTypes.PackageFn.signature ctx oldF
-        let newSig = PrettyPrinter.ProgramTypes.PackageFn.signature ctx newF
-        Stdlib.printLine (Colors.warning "  Warning: function signature changed")
-        Stdlib.printLine (Colors.warning $"    was: {oldSig}")
-        Stdlib.printLine (Colors.warning $"    now: {newSig}")
-        true
-      else
-        false
-    | _ -> false
-
-  | Type ->
-    let oldType = Builtin.pmGetType previousHash
-    let newType = Builtin.pmGetType currentHash
-
-    match (oldType, newType) with
-    | (Some oldT, Some newT) ->
-      if Stdlib.Bool.not (typeDeclarationEqual branchId oldT.declaration newT.declaration) then
-        let oldDef = PrettyPrinter.ProgramTypes.customType ctx oldT.declaration
-        let newDef = PrettyPrinter.ProgramTypes.customType ctx newT.declaration
-        Stdlib.printLine (Colors.warning "  Warning: type definition changed")
-        Stdlib.printLine (Colors.warning $"    was: {oldDef}")
-        Stdlib.printLine (Colors.warning $"    now: {newDef}")
-        true
-      else
-        false
-    | _ -> false
-
-  | Value -> false // values don't have signatures
-
-
-/// Run a propagation given an explicit list of previous hashes for the
-/// source location. Most callers use `autoPropagateAfterUpdate` below
-/// which discovers prior hashes via `getAllPreviousHashes`.
-let propagateFromHashes
-  (branchId: Uuid)
+/// Propagation happens on EDIT again, not only at commit. The reason is the whole point of doing it at all:
+/// you change `base` in order to find out what it does to the things above it, and you cannot find that out
+/// if `dep` is still pinned to the old version until you commit. Seeing the impact is how you decide whether
+/// to commit, so it has to happen first.
+///
+/// Nothing is committed by this. The repoints land in the DRAFT like any other edit, `dark status` counts them,
+/// and `dark commit` is still the moment you bless the whole thing. The checkpoint model is intact; what
+/// moved is when the repoint becomes visible, not when it becomes permanent.
+///
+/// Quiet by design: one line, or nothing when nothing moved. The wall of per-edit consequences is the churn
+/// this design exists to remove.
+let repointNow
+  (branchId: String)
   (location: LanguageTools.ProgramTypes.PackageLocation)
   (previousHashes: List<LanguageTools.ProgramTypes.Hash>)
   (currentHash: LanguageTools.ProgramTypes.Hash)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
   : Unit =
   match previousHashes with
-  | [] -> ()  // New item, nothing to propagate
+  | [] -> () // brand new: nothing can be pointing at an older version of it
   | _ ->
-    let signatureChanged =
-      match Stdlib.List.head previousHashes with
-      | Some prevHash -> warnIfSignatureChanged branchId itemKind prevHash currentHash
-      | None -> false
-
-    match Builtin.pmPropagate branchId location itemKind previousHashes currentHash with
-    | Ok resultTuple ->
-      let (propagationId, repoints) = resultTuple
-
-      match repoints with
-      | [] -> ()
-      | _ ->
-        let count = Stdlib.List.length repoints
-        Stdlib.printLine $"  Propagated to {Stdlib.Int.toString count} dependents:"
-
-        let ids = repoints |> Stdlib.List.map (fun r -> LanguageTools.ProgramTypes.Reference.hash r.toRef) |> Stdlib.List.unique
-        let namesDict = Deps.resolveNames branchId ids
-
-        repoints
-        |> Stdlib.List.iter (fun repoint ->
-          let name = Deps.getName namesDict (LanguageTools.ProgramTypes.Reference.hash repoint.toRef)
-          let kindStr = itemKindToString (LanguageTools.ProgramTypes.Reference.kind repoint.toRef)
-          Stdlib.printLine $"    [{kindStr}] {name}")
-
-        if signatureChanged then
-          Stdlib.printLine ""
-          Stdlib.printLine
-            (Colors.warning "  These callers may need manual updates. To review:")
-
-          repoints
-          |> Stdlib.List.iter (fun repoint ->
-            let name = Deps.getName namesDict (LanguageTools.ProgramTypes.Reference.hash repoint.toRef)
-            let kindStr = itemKindToString (LanguageTools.ProgramTypes.Reference.kind repoint.toRef)
-            Stdlib.printLine (Colors.hint $"    view {kindStr} {name}"))
-
-    | Error errMsg ->
-      Stdlib.printLine (Colors.error $"  Auto-propagation failed: {errMsg}")
+    match repointDependents branchId location itemKind previousHashes currentHash with
+    | Ok [] -> ()
+    | Ok repoints ->
+      let n = Stdlib.Int.toString (Stdlib.List.length repoints)
+      Stdlib.printLine (Colors.hint $"  {n} dependent(s) repointed")
+    | Error e -> Stdlib.printLine (Colors.error $"  propagation failed: {e}")
 
 
-/// Auto-propagate after creating/updating a definition.
-/// Falls back to `getAllPreviousHashes` to discover prior hashes.
-/// Used by `undo` and other callers that don't already know the
-/// pre-update hash.
-let autoPropagateAfterUpdate
-  (branchId: Uuid)
+/// THE call into propagation. Repoint everything that still references an older version of
+/// <param location> at <param currentHash>, transitively, and hand back the repoints so the caller can
+/// report them however it likes. One wrapper so the eager path and `dark commit` can't drift apart on what
+/// "propagate" means.
+let repointDependents
+  (branchId: String)
   (location: LanguageTools.ProgramTypes.PackageLocation)
-  (currentHash: LanguageTools.ProgramTypes.Hash)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
-  : Unit =
-  let previousHashes =
-    (getAllPreviousHashes branchId location itemKind)
-    |> Stdlib.List.filter (fun id -> id != currentHash)
-  propagateFromHashes branchId location previousHashes currentHash itemKind
-
-
+  (previousHashes: List<LanguageTools.ProgramTypes.Hash>)
+  (currentHash: LanguageTools.ProgramTypes.Hash)
+  : Stdlib.Result.Result<List<LanguageTools.ProgramTypes.PropagateRepoint>, String> =
+  Builtin.pmPropagate branchId location itemKind previousHashes currentHash

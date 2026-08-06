@@ -1,60 +1,102 @@
 module Darklang.SCM.Branch
 
-/// A branch in the SCM system
+// The BRANCH surface the interactive views use: a branch as a thing with an identity, a name, and a parent.
+//
+// The command-line surface talks in names and resolves them at its edge (`Cli.Branch.lookupRef`). A view
+// can't do that: it holds a selection across redraws, so it needs a stable handle, and it displays a label,
+// so it needs a name. This module is where those two travel together.
+//
+// Everything here is derived from the same tables `SCM.Branches` owns; nothing is stored twice. What this
+// adds is the record shape and the lifecycle verbs a UI needs -- including `rename`, which is one UPDATE
+// now that a name is an alias nothing references. It could not be implemented at all when the name WAS the
+// id, and the LSP still refuses it for that reason.
+
+/// A branch as a view holds it. `id` is the uuid everything internal points at; `name` is what a person
+/// reads and can change.
 type Branch =
-  { id: Uuid
+  { id: String
     name: String
-    parentBranchId: Stdlib.Option.Option<Uuid>
-    baseCommitHash: Stdlib.Option.Option<LanguageTools.ProgramTypes.Hash>
-    createdAt: DateTime
-    mergedAt: Stdlib.Option.Option<DateTime> }
+    /// The parent's id, or None for a branch off main. Main itself is not a Branch -- it's the absence of
+    /// one -- so a top-level branch has no parent to point at.
+    parentBranchId: Stdlib.Option.Option<String>
+    /// How many ops sit on this branch's frontier.
+    ops: Int64
+    merged: Bool }
 
+/// Main is the ABSENCE of a branch, spelled "". Kept as a name so callers reading a branch id from state
+/// have something to compare against rather than an empty literal.
+val mainBranchId = ""
 
-/// The well-known main branch UUID
-val mainBranchId =
-  Builtin.scmMainBranchId
+let toBranch (row: SCM.Branches.BranchRow) : Branch =
+  Branch
+    { id = row.id
+      name = if row.name == "" then row.id else row.name
+      parentBranchId =
+        if row.parent == "main" || row.parent == "" then
+          Stdlib.Option.Option.None
+        else
+          Stdlib.Option.Option.Some row.parent
+      ops = row.ops
+      merged = row.merged }
 
-
-/// Create a new branch from the given parent branch
-let create (name: String) (parentBranchId: Uuid) : Branch =
-  Builtin.scmBranchCreate name parentBranchId
-
-
-/// List all active (non-merged, non-archived) branches
+/// Every branch a view should offer, oldest first. Excludes archived ones, includes merged: a merged branch
+/// is still readable, which is the whole point of keeping it listed.
 let list () : List<Branch> =
-  Builtin.scmBranchList ()
+  SCM.Branches.list () |> Stdlib.List.map toBranch
 
+/// One branch by id. None for main, and for an id nothing is registered under.
+let get (branchId: String) : Stdlib.Option.Option<Branch> =
+  if branchId == mainBranchId then
+    Stdlib.Option.Option.None
+  else
+    list () |> Stdlib.List.findFirst (fun b -> b.id == branchId)
 
-/// List all branches including archived and merged
-let listAll () : List<Branch> =
-  Builtin.scmBranchListAll ()
-
-
-/// Get a branch by ID
-let get (id: Uuid) : Stdlib.Option.Option<Branch> =
-  Builtin.scmBranchGet id
-
-
-/// Get a branch by name
+/// One branch by the name a person typed. Live branches only -- the same rule `switch` follows, since this
+/// is what a view's "go to branch" affordance lands on.
 let getByName (name: String) : Stdlib.Option.Option<Branch> =
-  Builtin.scmBranchGetByName name
+  match SCM.PackageOps.branchIdForName name with
+  | Some id -> get id
+  | None -> Stdlib.Option.Option.None
 
+/// Start a branch off <param parentId> ("" = main) and return it. Idempotent on the name: asking twice gets
+/// you the branch you already have, which is what `switch` does too.
+let create (name: String) (parentId: String) : Stdlib.Option.Option<Branch> =
+  let (id, _created) = SCM.PackageOps.ensureBranch name parentId
+  get id
 
-/// Rename a branch
-let rename (id: Uuid) (newName: String) : Stdlib.Result.Result<Unit, String> =
-  Builtin.scmBranchRename id newName
+/// Rename a branch. One UPDATE, because the name is an alias and nothing points at it -- op tags, per-name
+/// bases, relay bundles and parent links all reference the id.
+///
+/// Refuses to take a name a LIVE branch already holds, so `switch <name>` stays unambiguous. Merged and
+/// archived branches don't block: their names are free again by design.
+let rename (branchId: String) (newName: String) : Stdlib.Result.Result<Branch, String> =
+  let trimmed = Stdlib.String.trim newName
 
+  if trimmed == "" then
+    Stdlib.Result.Result.Error "a branch needs a name"
+  else if trimmed == "main" then
+    Stdlib.Result.Result.Error "\"main\" is not a branch, so it can't be one's name"
+  else
+    let taken =
+      match SCM.PackageOps.branchIdForName trimmed with
+      | Some existing -> existing != branchId
+      | None -> false
 
-/// Archive a branch (soft delete)
-let archive (id: Uuid) : Stdlib.Result.Result<Unit, String> =
-  Builtin.scmBranchArchive id
+    if taken then
+      Stdlib.Result.Result.Error $"\"{trimmed}\" is already a live branch"
+    else
+      let _ = SCM.Branches.setName branchId trimmed
 
+      match get branchId with
+      | Some b -> Stdlib.Result.Result.Ok b
+      | None -> Stdlib.Result.Result.Error "no such branch"
 
-/// Unarchive a branch
-let unarchive (id: Uuid) : Stdlib.Result.Result<Unit, String> =
-  Builtin.scmBranchUnarchive id
-
-
-/// Delete a branch (archives it)
-let delete (id: Uuid) : Stdlib.Result.Result<Unit, String> =
-  Builtin.scmBranchDelete id
+/// Archive a branch: its unmerged ops are discarded and it leaves the listings. Nothing that reached its
+/// parent is touched.
+let delete (branchId: String) : Stdlib.Result.Result<Unit, String> =
+  match get branchId with
+  | None -> Stdlib.Result.Result.Error "no such branch"
+  | Some _ ->
+    match SCM.PackageOps.archiveBranch branchId with
+    | Ok _ -> Stdlib.Result.Result.Ok()
+    | Error e -> Stdlib.Result.Result.Error e

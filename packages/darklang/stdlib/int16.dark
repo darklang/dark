@@ -98,10 +98,6 @@ let random (start: Int16) (``end``: Int16) : Int16 =
   Builtin.int16Random start ``end``
 
 
-/// Get the square root of an <type Int16>
-let sqrt (a: Int16) : Float = Builtin.int16Sqrt a
-
-
 /// Converts an <type Int16> to a <type Float>
 let toFloat (a: Int16) : Float = Builtin.int16ToFloat a
 

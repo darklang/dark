@@ -1,0 +1,46 @@
+// The two constraint kinds, and the thing that separates them: what you can be offered to do about one.
+//
+// A stale usage is a version behind, and repointing fixes it. A kind change cannot be repointed at all --
+// the usage references a value, and swapping that reference's hash to a function's produces code that
+// claims one thing and points at another. Offering "repoint" there would hand someone a fix that breaks
+// their code, so the kind has to carry that difference rather than the caller remembering it.
+//
+// The DETECTION half (a name whose current binding differs from the one a usage recorded, split on whether
+// the kind moved too) needs a real store, so it lives with the F# tests. What is pure, and what actually
+// gets asked at the point of doing something irreversible, is this.
+
+module Resolutions =
+  // A stale usage has an automatic answer.
+  (Darklang.SCM.Constraints.resolutionsFor
+    Darklang.SCM.Constraints.Kind.StaleUsage) = [ "repoint" ]
+
+  // A kind change has none. Following it means rewriting the usage to call a function where it read a
+  // value, which is a change to what the code MEANS, not to which version it points at.
+  (Darklang.SCM.Constraints.resolutionsFor
+    Darklang.SCM.Constraints.Kind.KindChanged) = []
+
+  // So `resolve --as repoint` must refuse a kind change rather than doing it.
+  (Darklang.SCM.Constraints.offersResolution
+    Darklang.SCM.Constraints.Kind.KindChanged
+    "repoint") = false
+
+  (Darklang.SCM.Constraints.offersResolution
+    Darklang.SCM.Constraints.Kind.StaleUsage
+    "repoint") = true
+
+
+module Naming =
+  // The wire name round-trips both ways. Acks are stored by kind string, so a kind that serialises to
+  // something `kindFromString` can't read back would lose every ack given against it.
+  (Darklang.SCM.Constraints.kindToString
+    Darklang.SCM.Constraints.Kind.KindChanged) = "kind-changed"
+
+  (Darklang.SCM.Constraints.kindFromString "kind-changed") = Stdlib.Option.Option.Some(
+    Darklang.SCM.Constraints.Kind.KindChanged
+  )
+
+  (Darklang.SCM.Constraints.kindFromString "stale-usage") = Stdlib.Option.Option.Some(
+    Darklang.SCM.Constraints.Kind.StaleUsage
+  )
+
+  (Darklang.SCM.Constraints.kindFromString "not-a-kind") = Stdlib.Option.Option.None

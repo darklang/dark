@@ -1,0 +1,81 @@
+module Darklang.Cli.Discard
+
+// `dark discard` -- decide against your draft.
+//
+// The draft is everything you've authored since the last `dark commit`. Authoring is live-on-write, so a
+// draft is not pending work: it is already running, and discarding it takes those versions back out. What
+// is already committed is never touched, which is what makes this safe to reach for.
+
+let printOk (msg: String) : Unit = Stdlib.printLine (Colors.success msg)
+let printErr (msg: String) : Unit = Stdlib.printLine (Colors.error msg)
+let printHint (msg: String) : Unit = Stdlib.printLine (Colors.hint msg)
+
+let help (state: AppState) : AppState =
+  Stdlib.List.iter
+    [ "dark discard - drop your draft: everything authored since the last commit."
+      ""
+      "  dark discard          review what would go, then confirm"
+      "  dark discard -y       skip the confirmation"
+      ""
+      "  Committed work is never touched. On a branch this drops that branch's uncommitted ops;"
+      "  on main it drops main's and re-folds from the commits that remain."
+      "  To step ONE item back instead, that's `dark undo <name>`." ]
+    (fun line -> Stdlib.printLine line)
+
+  state
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [ "help" ] -> help state
+  | _ ->
+
+  let autoConfirm =
+    (Stdlib.List.member args "-y") || (Stdlib.List.member args "--yes")
+
+  let scope =
+    match SCM.PackageOps.currentBranch () with
+    | "" -> "main"
+    | id -> $"branch \"{SCM.PackageOps.branchName id}\""
+
+  let changed = SCM.PackageOps.draftBindings ()
+  let ops = SCM.PackageOps.draftOpCount ()
+
+  if Stdlib.List.isEmpty changed then
+    printOk $"nothing to discard -- your draft on {scope} is empty."
+    state
+  else
+
+  printOk
+    $"  DISCARDING ({Stdlib.Int.toString (Stdlib.List.length changed)}) on {scope}, {Stdlib.Int64.toString ops} op(s)"
+
+  changed
+  |> Stdlib.List.iter (fun b ->
+    let name = if b.modules == "" then b.name else $"{b.modules}.{b.name}"
+    Stdlib.printLine $"    - {name}")
+
+  // An explicit yes, not the usual default-yes: this is the one command here that destroys work, so a
+  // stray Return or a piped stdin must not answer for you.
+  if
+    Stdlib.Bool.not (
+      Cli.Prompt.confirmExplicit
+        autoConfirm
+        (Colors.warning "\n  Drop these? [y/N]: ")
+    )
+  then
+    printOk "  kept. (`dark discard -y` if you mean it -- a piped stdin can't answer this.)"
+    state
+  else
+
+  match SCM.PackageOps.discardDraft () with
+  | Ok n ->
+    printOk $"discarded {Stdlib.Int.toString n} op(s) -- {scope} is back to its last commit."
+    state
+  | Error e ->
+    printErr $"Discard failed: {e}"
+    state
+
+let complete
+  (state: AppState)
+  (args: List<String>)
+  : List<Completion.CompletionItem> =
+  []

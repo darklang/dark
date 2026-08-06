@@ -12,6 +12,11 @@ open LibDB.Sqlite
 
 type Stats = { types : int64; values : int64; fns : int64 }
 
+// The `pmGetStats` BUILTIN is gone: Dark counts these itself now (three COUNTs -- no
+// reason to cross the boundary for that). This module stays because LocalExec prints
+// the same numbers right after a package reload, which happens before there's a
+// package layer to ask.
+
 // Stats count total unique content items, not branch-specific views
 let get () : Ply<Stats> =
   uply {

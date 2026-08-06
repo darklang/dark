@@ -1,0 +1,102 @@
+module Darklang.SCM.Draft
+
+// The DRAFT, read once, for everyone who describes it.
+//
+// `dark status`, `dark status --json`, `dark commit`'s review and the workbench all describe the same five
+// reads -- `draftBindings`, `propagatedNames`, `draftRepoints`, `draftLeftBehind`, `Conflicts.pending`.
+// Computed separately, that is four chances to disagree about what your draft contains.
+//
+// This module owns the picture. Callers add presentation on top (the CLI adds previous-hash lookups and
+// JSON DTOs; a view adds selection and marks), but nobody reads these five again.
+//
+// Deliberately NOT branch-parameterised. Every read resolves the branch through
+// `SCM.PackageOps.currentBranch ()`, the process overlay. A `branchId` parameter would invite callers to
+// pass `AppState.currentBranchId`, which is a DIFFERENT value. A caller needing some other branch wants a
+// different function, not an extra argument.
+
+/// The current draft, as anything describing it needs to see it.
+type Picture =
+  { /// Every name the draft touches, in authoring order.
+    bindings: List<SCM.Conflicts.Binding>
+    /// Of those, the fully-qualified names whose CURRENT binding propagation wrote rather than a person.
+    /// Held as the raw name list because that's the shape the membership test wants.
+    propagated: List<String>
+    /// What would repoint if you committed right now.
+    repoints: List<SCM.PackageOps.Repoint>
+    /// What a pin is holding on an older version. An outcome, not a warning.
+    leftBehind: List<SCM.PackageOps.Repoint>
+    conflicts: List<SCM.Conflicts.Conflict>
+    /// A COUNT, never a list. Constraints are a standing property of the STORE rather than of this draft,
+    /// so a list here is something you learn to scroll past while a count points at a command.
+    constraints: Int
+    ops: Int64 }
+
+/// Read the whole picture. One call, five reads, and the only place they happen.
+let read (unit: Unit) : Picture =
+  let bindings = SCM.PackageOps.draftBindings ()
+
+  Picture
+    { bindings = bindings
+      propagated = SCM.PackageOps.propagatedNames ()
+      repoints = SCM.PackageOps.draftRepoints bindings
+      leftBehind = SCM.PackageOps.draftLeftBehind bindings
+      conflicts = SCM.Conflicts.pending ()
+      constraints = Stdlib.List.length (SCM.Constraints.pending ())
+      ops = SCM.PackageOps.draftOpCount () }
+
+/// Just the counts, for the hot path.
+///
+/// `dark status` runs on every invocation and prints a line, so it deliberately does NOT build a `Picture`:
+/// it asks for a count where a count will do, and skips `leftBehind` entirely. Same module, because there
+/// should still be one place that knows how a draft is read. Different function, because "what is in my
+/// draft" and "how much is in my draft" have genuinely different costs and pretending otherwise would make
+/// the most-run command in the CLI slower to save a few lines here.
+type Counts =
+  { changed: Int
+    followed: Int
+    repoints: Int
+    conflicts: Int64
+    constraints: Int
+    ops: Int64 }
+
+let counts (unit: Unit) : Counts =
+  let bindings = SCM.PackageOps.draftBindings ()
+  let propagated = SCM.PackageOps.propagatedNames ()
+
+  Counts
+    { changed = Stdlib.List.length bindings
+      followed =
+        bindings
+        |> Stdlib.List.filter (fun b ->
+          Stdlib.List.member propagated (SCM.Conflicts.fqn b.owner b.modules b.name))
+        |> Stdlib.List.length
+      repoints = Stdlib.List.length (SCM.PackageOps.draftRepoints bindings)
+      conflicts = SCM.Conflicts.pendingCount ()
+      constraints = Stdlib.List.length (SCM.Constraints.pending ())
+      ops = SCM.PackageOps.draftOpCount () }
+
+/// Did PROPAGATION write this name's current binding, rather than a person?
+///
+/// The split the whole draft view turns on: an entry that followed your edit is otherwise indistinguishable
+/// from one you made, and "2 items changed" when you touched one of them is the summary quietly taking
+/// credit for propagation's work.
+let followed (p: Picture) (b: SCM.Conflicts.Binding) : Bool =
+  Stdlib.List.member p.propagated (SCM.Conflicts.fqn b.owner b.modules b.name)
+
+/// How many of the changed names followed something rather than being edited by you.
+let followedCount (p: Picture) : Int =
+  p.bindings |> Stdlib.List.filter (fun b -> followed p b) |> Stdlib.List.length
+
+/// How many you actually authored.
+let authoredCount (p: Picture) : Int =
+  (Stdlib.List.length p.bindings) - (followedCount p)
+
+/// How many references a pin is holding on an older version.
+let behindCount (p: Picture) : Int = Stdlib.List.length p.leftBehind
+
+/// Everything waiting on a person right now: divergences the fold settled and standing findings.
+///
+/// One number because they're one question ("is anything waiting on me?"), and because they fail the same
+/// way when they're separate: the record is correct, and nobody looks.
+let needsYouCount (p: Picture) : Int =
+  (Stdlib.List.length p.conflicts) + p.constraints

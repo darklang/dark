@@ -12,31 +12,33 @@ module PMPT = ProgramTypes
 module PMRT = RuntimeTypes
 
 
-// Per-branch cache of Harmful fn hashes (as underlying hex strings —
-// PT.Hash and RT.Hash are distinct CLR types; storing strings avoids
-// threading either wrapper through the cache layer).
+// Cache of Harmful fn hashes (as underlying hex strings — PT.Hash and RT.Hash are distinct
+// CLR types; storing strings avoids threading either wrapper through the cache layer).
 //
-// First call per branch loads the Set from the `deprecations` table;
-// subsequent calls are O(1) lookups. Long-lived processes that mutate
-// deprecation state on a branch (LSP, cloud) should invalidate by
-// evicting the branch's entry — not implemented yet; short-lived CLIs
-// rebuild the PM per invocation so they don't care.
-let private harmfulCache =
-  System.Collections.Concurrent.ConcurrentDictionary<PT.BranchId, Set<string>>()
+// `deprecations` is no longer branch-scoped, so neither is this: the first call loads the
+// Set and subsequent calls are O(1) lookups. `invalidateHarmful` exists for a long-lived
+// process that mutates deprecation state and must not keep answering from a stale Set;
+// short-lived CLIs rebuild the PM per invocation and never need it.
+let mutable private harmfulCache : Option<Set<string>> = None
 
-let private loadHarmfulForBranch (branchId : PT.BranchId) : Set<string> =
-  match harmfulCache.TryGetValue branchId with
-  | true, cached -> cached
-  | false, _ ->
-    let branchChain =
-      Branches.getBranchChain branchId |> Async.AwaitTask |> Async.RunSynchronously
+let private loadHarmful () : Set<string> =
+  match harmfulCache with
+  | Some cached -> cached
+  | None ->
     let harmful =
-      Queries.getHarmfulFnHashes branchChain
+      Queries.getHarmfulFnHashes ()
       |> Async.AwaitTask
       |> Async.RunSynchronously
       |> Set.map (fun (PT.Hash h) -> h)
-    harmfulCache[branchId] <- harmful
+    harmfulCache <- Some harmful
     harmful
+
+/// Drop the Harmful set so the next lookup re-reads `deprecations`.
+let invalidateHarmful () : unit = harmfulCache <- None
+
+// Registered so a fold drops it along with everything else. Unregistered, `deprecate --kind harmful` in a
+// REPL session halts nothing until the process restarts, and `undeprecate` keeps halting just as long.
+Caching.register invalidateHarmful
 
 
 // TODO: bring back eager loading
@@ -47,8 +49,9 @@ let rt : RT.PackageManager =
     getBlob = PMRT.Blob.get
     persistBlob = PMRT.Blob.insert
 
-    isHarmful =
-      fun branchId (RT.Hash h) -> Set.contains h (loadHarmfulForBranch branchId)
+    // Synchronous like upstream made it, keyed on content like this branch made it: a deprecation is a
+    // fact about a hash, and a hash means the same thing on every branch.
+    isHarmful = fun (RT.Hash h) -> Set.contains h (loadHarmful ())
 
     init =
       uply {
@@ -57,27 +60,17 @@ let rt : RT.PackageManager =
       } }
 
 
-/// Create a PT PackageManager.
-/// Branch is passed per-lookup, not at construction time.
+/// The PT PackageManager for MAIN: name resolution against `locations`, which by design
+/// holds only main's bindings. A branch is this plus its delta ops -- see `ptForBranch`,
+/// which is what branch-aware callers should use.
 let pt : PT.PackageManager =
-  let getBranchChain branchId =
-    Branches.getBranchChain branchId |> Async.AwaitTask |> Async.RunSynchronously
-
-  // `withCache` allocates a fresh `ConcurrentDictionary` each time
-  // it's invoked, so binding it inside the per-call lambdas
-  // (`fun (branchId, location) -> ... withCache ...`) means every
-  // lookup starts from an empty cache and re-hits the DB. Hoist the
-  // cache out so the same dict is reused across calls. Keying by
-  // `(branchId, location)` covers the branch-chain dependency.
-  let findTypeCached =
-    withCache (fun (branchId, location) ->
-      PMPT.Type.find (getBranchChain branchId) location)
-  let findValueCached =
-    withCache (fun (branchId, location) ->
-      PMPT.Value.find (getBranchChain branchId) location)
-  let findFnCached =
-    withCache (fun (branchId, location) ->
-      PMPT.Fn.find (getBranchChain branchId) location)
+  // `withCache` allocates a fresh `ConcurrentDictionary` each time it's invoked, so hoist
+  // the cached lambdas out here to reuse one dict across calls. Caching by location is safe
+  // precisely because this PM only ever answers about main; a branch's answers come from the
+  // overlay in front of it, which is built per branch id and never shares this dict.
+  let findTypeCached = withCache (fun location -> PMPT.Type.find location)
+  let findValueCached = withCache (fun location -> PMPT.Value.find location)
+  let findFnCached = withCache (fun location -> PMPT.Fn.find location)
 
   { findType = findTypeCached
     findValue = findValueCached
@@ -87,23 +80,11 @@ let pt : PT.PackageManager =
     getFn = withCache PMPT.Fn.get
     getValue = withCache PMPT.Value.get
 
-    getTypeLocations =
-      fun branchId id ->
-        let chain = getBranchChain branchId
-        PMPT.Type.getLocations chain id
-    getValueLocations =
-      fun branchId id ->
-        let chain = getBranchChain branchId
-        PMPT.Value.getLocations chain id
-    getFnLocations =
-      fun branchId id ->
-        let chain = getBranchChain branchId
-        PMPT.Fn.getLocations chain id
+    getTypeLocations = fun id -> PMPT.Type.getLocations id
+    getValueLocations = fun id -> PMPT.Value.getLocations id
+    getFnLocations = fun id -> PMPT.Fn.getLocations id
 
-    search =
-      fun (branchId, query) ->
-        let chain = getBranchChain branchId
-        PMPT.search chain query
+    search = fun query -> PMPT.search query
 
     init = uply { return () } }
 
@@ -119,7 +100,7 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
 
   for op in ops do
     match op with
-    | PT.PackageOp.SetName(loc, target) ->
+    | PT.PackageOp.SetName(loc, target, _) ->
       match target with
       | PT.PackageType h -> typeLocations.Add(loc, h)
       | PT.PackageValue h -> valueLocations.Add(loc, h)
@@ -128,37 +109,22 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     | PT.PackageOp.AddValue _
     | PT.PackageOp.AddFn _ -> ()
 
-    // Deprecations don't affect in-memory location maps.
+    // Deprecations don't affect in-memory location maps. Neither does a Decide -- it
+    // records what a person decided ABOUT a name, never what the name points at, so
+    // an overlay that only cares about bindings has nothing to do with it.
     | PT.PackageOp.Deprecate _
-    | PT.PackageOp.Undeprecate _ -> ()
+    | PT.PackageOp.Undeprecate _
+    | PT.PackageOp.Decide _
+    // A branch event is about the branch, never about what a name points at, so an
+    // overlay that only cares about bindings has nothing to do with it.
+    | PT.PackageOp.BranchEvent _ -> ()
 
-    // After propagation, dependents have new hashes.
-    // For each repoint, update the location to point to toRef (the new version)
-    | PT.PackageOp.PropagateUpdate(_, _, _, _, repoints) ->
-      for repoint in repoints do
-        match repoint.toRef with
-        | PT.PackageType h -> typeLocations.Add(repoint.location, h)
-        | PT.PackageValue h -> valueLocations.Add(repoint.location, h)
-        | PT.PackageFn h -> fnLocations.Add(repoint.location, h)
-
-    // For each repoint, point the location back to fromRef (the old version).
-    // Then also restore the source item's location to its pre-propagation hash
-    | PT.PackageOp.RevertPropagation(_,
-                                     _,
-                                     sourceLocation,
-                                     restoredSourceRef,
-                                     revertedRepoints) ->
-      // Reverse the repoints: locations go back to fromRef
-      for repoint in revertedRepoints do
-        match repoint.fromRef with
-        | PT.PackageType h -> typeLocations.Add(repoint.location, h)
-        | PT.PackageValue h -> valueLocations.Add(repoint.location, h)
-        | PT.PackageFn h -> fnLocations.Add(repoint.location, h)
-      // Restore source location to committed hash
-      match restoredSourceRef with
-      | PT.PackageType h -> typeLocations.Add(sourceLocation, h)
-      | PT.PackageValue h -> valueLocations.Add(sourceLocation, h)
-      | PT.PackageFn h -> fnLocations.Add(sourceLocation, h)
+    // A resolution binds a name like a SetName does; the overlay only cares about the binding.
+    | PT.PackageOp.Resolve(_, loc, target) ->
+      match target with
+      | PT.PackageType h -> typeLocations.Add(loc, h)
+      | PT.PackageValue h -> valueLocations.Add(loc, h)
+      | PT.PackageFn h -> fnLocations.Add(loc, h)
 
   // Convert to immutable maps for efficient lookup.
   // All items (types, fns, values) are keyed by their hash.
@@ -170,7 +136,7 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     for op in ops do
       match op with
       | PT.PackageOp.AddType t -> pendingType <- Some t
-      | PT.PackageOp.SetName(_, PT.PackageType hash) ->
+      | PT.PackageOp.SetName(_, PT.PackageType hash, _) ->
         match pendingType with
         | Some t ->
           map <- Map.add hash { t with hash = hash } map
@@ -185,7 +151,7 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     for op in ops do
       match op with
       | PT.PackageOp.AddFn f -> pendingFn <- Some f
-      | PT.PackageOp.SetName(_, PT.PackageFn hash) ->
+      | PT.PackageOp.SetName(_, PT.PackageFn hash, _) ->
         match pendingFn with
         | Some f ->
           map <- Map.add hash { f with hash = hash } map
@@ -200,7 +166,7 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
     for op in ops do
       match op with
       | PT.PackageOp.AddValue v -> pendingValue <- Some v
-      | PT.PackageOp.SetName(_, PT.PackageValue hash) ->
+      | PT.PackageOp.SetName(_, PT.PackageValue hash, _) ->
         match pendingValue with
         | Some v ->
           map <- Map.add hash { v with hash = hash } map
@@ -236,26 +202,52 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
         Map.add id (loc :: existing) acc)
       Map.empty
 
-  { findType = fun (_, loc) -> Ply(Map.tryFind loc typeLocMap)
-    findValue = fun (_, loc) -> Ply(Map.tryFind loc valueLocMap)
-    findFn = fun (_, loc) -> Ply(Map.tryFind loc fnLocMap)
+  { findType = fun loc -> Ply(Map.tryFind loc typeLocMap)
+    findValue = fun loc -> Ply(Map.tryFind loc valueLocMap)
+    findFn = fun loc -> Ply(Map.tryFind loc fnLocMap)
 
     getType = fun id -> Ply(Map.tryFind id typeMap)
     getValue = fun id -> Ply(Map.tryFind id valueMap)
     getFn = fun id -> Ply(Map.tryFind id fnMap)
 
     getTypeLocations =
-      fun _branchId id -> Ply(Map.tryFind id typeIdToLocs |> Option.defaultValue [])
+      fun id -> Ply(Map.tryFind id typeIdToLocs |> Option.defaultValue [])
     getValueLocations =
-      fun _branchId id -> Ply(Map.tryFind id valueIdToLocs |> Option.defaultValue [])
+      fun id -> Ply(Map.tryFind id valueIdToLocs |> Option.defaultValue [])
     getFnLocations =
-      fun _branchId id -> Ply(Map.tryFind id fnIdToLocs |> Option.defaultValue [])
+      fun id -> Ply(Map.tryFind id fnIdToLocs |> Option.defaultValue [])
 
     // no need to support this for in-memory.
     search =
-      fun (_, _query) ->
-        // Simple in-memory search - just return all items with their locations
-        // Could implement proper filtering if needed
+      fun query ->
+        // Query-aware in-memory search so a BRANCH overlay's items show up in
+        // ls/view/tree/search (not just eval). The overlay's locations come from
+        // SetName ops' PackageLocation, which is cleanly structured (owner separate,
+        // modules a proper list) -- unlike the `locations` table's owner-in-modules
+        // ambiguity -- so this filter is straightforward. `combine` appends these to
+        // main's (SQL-correct) results, so we only need to contribute the overlay's
+        // matching items.
+        let cm = query.currentModule
+        let text = query.text
+        let rec isPrefix (p : List<string>) (l : List<string>) =
+          match p, l with
+          | [], _ -> true
+          | ph :: pt, lh :: lt when ph = lh -> isPrefix pt lt
+          | _ -> false
+        let fullModule (loc : PT.PackageLocation) = loc.owner :: loc.modules
+        let moduleMatches (loc : PT.PackageLocation) =
+          let fm = fullModule loc
+          match cm, query.searchDepth with
+          | [], PT.Search.SearchDepth.AllDescendants -> true
+          | [], PT.Search.SearchDepth.OnlyDirectDescendants -> List.length fm = 1
+          | _, PT.Search.SearchDepth.OnlyDirectDescendants -> fm = cm
+          | _, PT.Search.SearchDepth.AllDescendants -> fm = cm || isPrefix cm fm
+        let nameMatches (name : string) =
+          if text = "" then true
+          elif query.exactMatch then name = text
+          else name.ToLowerInvariant().Contains(text.ToLowerInvariant())
+        let itemMatches (loc : PT.PackageLocation) =
+          moduleMatches loc && nameMatches loc.name
         let typesWithLocs =
           typeMap
           |> Map.toList
@@ -283,11 +275,32 @@ let createInMemory (ops : List<PT.PackageOp>) : PT.PackageManager =
               Option.Some({ entity = f; location = loc } : PT.LocatedItem<_>)
             | [] -> Option.None)
 
+        // Submodules = the direct child module (cm ++ next segment) of any overlay
+        // item strictly below cm. Only surfaced when browsing (empty text); a text
+        // search returns items, not folders (main's SQL search still contributes its
+        // own submodules via the fallback).
+        let allLocs =
+          (typesWithLocs |> List.map (fun i -> i.location))
+          @ (valuesWithLocs |> List.map (fun i -> i.location))
+          @ (fnsWithLocs |> List.map (fun i -> i.location))
+        let submodules =
+          if text <> "" then
+            []
+          else
+            allLocs
+            |> List.choose (fun loc ->
+              let fm = fullModule loc
+              if isPrefix cm fm && List.length fm > List.length cm then
+                Some(List.truncate (List.length cm + 1) fm)
+              else
+                None)
+            |> List.distinct
+
         Ply
-          { PT.Search.SearchResults.submodules = []
-            types = typesWithLocs
-            values = valuesWithLocs
-            fns = fnsWithLocs }
+          { PT.Search.SearchResults.submodules = submodules
+            types = typesWithLocs |> List.filter (fun i -> itemMatches i.location)
+            values = valuesWithLocs |> List.filter (fun i -> itemMatches i.location)
+            fns = fnsWithLocs |> List.filter (fun i -> itemMatches i.location) }
 
     init = uply { return () } }
 
@@ -299,27 +312,27 @@ let combine
   (fallback : PT.PackageManager)
   : PT.PackageManager =
   { findType =
-      fun (branchId, loc) ->
+      fun loc ->
         uply {
-          match! overlay.findType (branchId, loc) with
+          match! overlay.findType loc with
           | Some id -> return Some id
-          | None -> return! fallback.findType (branchId, loc)
+          | None -> return! fallback.findType loc
         }
 
     findValue =
-      fun (branchId, loc) ->
+      fun loc ->
         uply {
-          match! overlay.findValue (branchId, loc) with
+          match! overlay.findValue loc with
           | Some id -> return Some id
-          | None -> return! fallback.findValue (branchId, loc)
+          | None -> return! fallback.findValue loc
         }
 
     findFn =
-      fun (branchId, loc) ->
+      fun loc ->
         uply {
-          match! overlay.findFn (branchId, loc) with
+          match! overlay.findFn loc with
           | Some id -> return Some id
-          | None -> return! fallback.findFn (branchId, loc)
+          | None -> return! fallback.findFn loc
         }
 
     getType =
@@ -347,42 +360,49 @@ let combine
         }
 
     getTypeLocations =
-      fun branchId id ->
+      fun id ->
         uply {
-          let! overlayLocs = overlay.getTypeLocations branchId id
-          let! fallbackLocs = fallback.getTypeLocations branchId id
+          let! overlayLocs = overlay.getTypeLocations id
+          let! fallbackLocs = fallback.getTypeLocations id
           return overlayLocs @ fallbackLocs
         }
 
     getValueLocations =
-      fun branchId id ->
+      fun id ->
         uply {
-          let! overlayLocs = overlay.getValueLocations branchId id
-          let! fallbackLocs = fallback.getValueLocations branchId id
+          let! overlayLocs = overlay.getValueLocations id
+          let! fallbackLocs = fallback.getValueLocations id
           return overlayLocs @ fallbackLocs
         }
 
     getFnLocations =
-      fun branchId id ->
+      fun id ->
         uply {
-          let! overlayLocs = overlay.getFnLocations branchId id
-          let! fallbackLocs = fallback.getFnLocations branchId id
+          let! overlayLocs = overlay.getFnLocations id
+          let! fallbackLocs = fallback.getFnLocations id
           return overlayLocs @ fallbackLocs
         }
 
     search =
-      fun (branchId, query) ->
+      fun query ->
         uply {
-          // Combine search results from both
-          let! overlayResults = overlay.search (branchId, query)
-          let! fallbackResults = fallback.search (branchId, query)
-
+          // Combine search results from both, OVERLAY WINS: a name the overlay rebinds (branch
+          // override of a main item) must appear ONCE (the branch's version), not
+          // duplicated. Overlay results come first, so distinctBy-location keeps
+          // them over the fallback's stale entry.
+          let! overlayResults = overlay.search query
+          let! fallbackResults = fallback.search query
+          let locKey (i : PT.LocatedItem<'a>) =
+            (i.location.owner, i.location.modules, i.location.name)
+          let dedup items = items |> List.distinctBy locKey
           return
             { PT.Search.SearchResults.submodules =
                 List.append overlayResults.submodules fallbackResults.submodules
-              types = List.append overlayResults.types fallbackResults.types
-              values = List.append overlayResults.values fallbackResults.values
-              fns = List.append overlayResults.fns fallbackResults.fns }
+                |> List.distinct
+              types = dedup (List.append overlayResults.types fallbackResults.types)
+              values =
+                dedup (List.append overlayResults.values fallbackResults.values)
+              fns = dedup (List.append overlayResults.fns fallbackResults.fns) }
         }
 
     init =
@@ -400,3 +420,133 @@ let withExtraOps
   : PT.PackageManager =
   let opsPM = createInMemory ops
   combine opsPM basePM
+
+
+// BRANCH OVERLAYS.
+//
+// A branch is not a copy: it is delta ops (stored `effective = 0`, tagged in `op_branches`) overlaid on
+// core, so a branch's PM is `withExtraOps pt ops`. That derivation needs nothing but the branch id, so it
+// works for ANY branch on demand -- `opsForBranch` / `ptForBranch` are the interface to reach for.
+//
+// The process also has "the branch I am on", resolved once at the CLI entry point from `--branch` /
+// `DARK_BRANCH` / `current_branch`. That is a DEFAULT, not the mechanism: the entry point hands it to
+// `ExecutionState.branchId` and it is passed from there. Nothing deep in the stack reads it ambiently,
+// which lets a long-lived process answer about a branch it is not sitting on, and lets `switch` change
+// branch without restarting.
+
+let mutable private branchOverlayOps : List<PT.PackageOp> = []
+
+/// The active branch's ID (for authoring routing), or None = author to main.
+let mutable private currentBranchIdOpt : Option<string> = None
+
+/// Delta ops for branches OTHER than the active one, loaded on demand. Bounded by how many
+/// branches a process actually asks about, which for a CLI is one or two.
+let private otherBranchOps =
+  System.Collections.Concurrent.ConcurrentDictionary<string, List<PT.PackageOp>>()
+
+// Dropped on every fold, like the rest. DEFENSIVE rather than a fix for a
+// reproducible bug: the user-visible readers of another branch (`diff`, `conflicts
+// branch`) query SQLite directly and don't come through here, so the memo isn't
+// currently observable. But it's DB-derived state held for the life of the process
+// with no other way to expire, which is exactly the shape of the two staleness bugs
+// above it, and clearing a dictionary costs nothing.
+Caching.register (fun () -> otherBranchOps.Clear())
+
+/// Select the active branch's delta ops for this process (empty = main/core only).
+/// Prefer `selectBranch`, which loads them; this is for callers holding an explicit op list
+/// (tests, and the post-authoring refresh that already has the ops in hand).
+let setBranchOverlay (ops : List<PT.PackageOp>) : unit = branchOverlayOps <- ops
+
+/// Drop the memoized op list for <branchId>, so the next read of it goes back to the store.
+///
+/// `opsForBranch` memoizes every branch that isn't the current one, and that memo is
+/// otherwise only cleared by a fold. Authoring to a branch you aren't sitting on is
+/// a supported path now, and a branch write with no content ops folds nothing -- so
+/// without this a process that had read that branch once would keep serving the
+/// pre-write list for the rest of its life.
+let forgetBranch (branchId : string) : unit =
+  otherBranchOps.TryRemove branchId |> ignore<bool * List<PT.PackageOp>>
+
+/// The active branch ID, if a branch is selected.
+let currentBranchId () : Option<string> = currentBranchIdOpt
+
+/// Delta ops for ANY branch, walking its parent chain. The active branch answers from the
+/// process overlay (already loaded); any other is loaded once and memoized.
+let opsForBranch (branchId : Option<string>) : List<PT.PackageOp> =
+  match branchId with
+  | None -> []
+  | Some id when currentBranchIdOpt = Some id -> branchOverlayOps
+  | Some id ->
+    otherBranchOps.GetOrAdd(id, (fun id -> (Branches.loadDeltaOps id).Result))
+
+/// The PT PM for <branchId>: core with that branch's overlay, or plain core for None.
+/// Used at parse/lowering time so a branch fn resolves name->hash.
+let ptForBranch (branchId : Option<string>) : PT.PackageManager =
+  match opsForBranch branchId with
+  | [] -> pt
+  | ops -> withExtraOps pt ops
+
+/// Where a branch binds <param hash>, for hash-to-NAME lookups.
+///
+/// `locations` holds main's bindings only; a branch's SetNames deliberately never
+/// fold into it, which is the isolation guarantee. The consequence is that anything
+/// resolving a hash back to a name has to ask the overlay too, or a branch-authored
+/// item has no name at all and renders as `<hash:d6f972b3>` -- which is what `dark
+/// view` on a branch did.
+///
+/// Latest binding wins within the overlay (ops arrive oldest-first), and a name the
+/// branch REBOUND to something else no longer counts as a location for the old hash,
+/// same as main.
+let branchLocationsFor
+  (branchId : Option<string>)
+  (kind : PT.ItemKind)
+  (hash : Hash)
+  : List<PT.PackageLocation> =
+  opsForBranch branchId
+  |> List.fold
+    (fun (acc : Map<string, PT.PackageLocation * Hash>) op ->
+      match op with
+      | PT.PackageOp.SetName(loc, target, _)
+      | PT.PackageOp.Resolve(_, loc, target) when target.kind = kind ->
+        let modules = String.concat "." loc.modules
+        let key = $"{loc.owner}/{modules}/{loc.name}"
+        Map.add key (loc, target.hash) acc
+      | _ -> acc)
+    Map.empty
+  |> Map.toList
+  |> List.choose (fun (_, (loc, h)) -> if h = hash then Some loc else None)
+
+/// Locations for <param hash>: main's, then any the branch adds.
+///
+/// Main FIRST, deliberately. Callers here render a label and take the head, and
+/// identical content is one item, so a hash is routinely live at several names. If
+/// the branch went first, viewing a MAIN item whose body happens to match something
+/// you wrote on a branch would render it under the branch's name -- the right
+/// content under the wrong label, which is worse than the gap this closes.
+///
+/// So this is purely additive: the branch supplies names for hashes main cannot name
+/// at all, which is exactly the branch-authored case, and changes nothing main could
+/// already answer.
+let locationsFor
+  (branchId : Option<string>)
+  (kind : PT.ItemKind)
+  (hash : Hash)
+  (fromMain : List<PT.PackageLocation>)
+  : List<PT.PackageLocation> =
+  match branchLocationsFor branchId kind hash with
+  | [] -> fromMain
+  | branchLocs ->
+    fromMain @ (branchLocs |> List.filter (fun l -> not (List.contains l fromMain)))
+
+/// Make <branchId> the branch this process is on: load its delta ops and set both globals.
+/// Used at boot and by `ops switch`, so a long-lived process changes branch without a restart.
+/// Drops the on-demand memo, since a re-select is also the moment a stale overlay would show.
+let selectBranch (branchId : Option<string>) : unit =
+  otherBranchOps.Clear()
+  match branchId with
+  | None ->
+    branchOverlayOps <- []
+    currentBranchIdOpt <- None
+  | Some id ->
+    branchOverlayOps <- (Branches.loadDeltaOps id).Result
+    currentBranchIdOpt <- Some id

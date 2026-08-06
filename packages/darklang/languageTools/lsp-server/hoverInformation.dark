@@ -13,7 +13,7 @@ type Info =
 
 /// Context for hover information collection - wraps common parameters
 type Context =
-  { branchId: Uuid
+  { branchId: String
     pm: ProgramTypes.PackageManager.PackageManager
     owner: String
     currentModules: List<String> }
