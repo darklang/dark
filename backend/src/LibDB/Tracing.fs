@@ -164,18 +164,31 @@ module FnNameCache =
             $"{owner}.{modules}{name}")
           |> Async.AwaitTask
           |> Async.RunSynchronously
+          |> Ok
         with ex ->
           print $"[tracing] FnNameCache failed to resolve {hash}: {ex.Message}"
           Telemetry.event
             "trace.fnNameCacheResolveFailed"
             [ "hash", hash; "message", ex.Message ]
-          None
+          Error()
 
+      // Cache the miss too, as the raw hash. Caching only hits means a hash with no row in `locations`
+      // re-queries SQLite on every reference. A miss is as stable an answer as a hit, and the contract is
+      // already that a trace records the name as of execution time.
+      //
+      // A *failure* is not a miss, though, and must not be cached: the store being briefly unreadable
+      // (locked mid-reload, say) would otherwise degrade every later reference in the process to a raw
+      // hash, permanently, for a transient reason. Fall back to the hash for this one lookup and retry
+      // next time.
       match result with
-      | Some name ->
-        cache <- Map.add hash name cache
-        name
-      | None -> hash
+      | Error() -> hash
+      | Ok found ->
+        let resolved =
+          match found with
+          | Some name -> name
+          | None -> hash
+        cache <- Map.add hash resolved cache
+        resolved
 
 
 /// Display name written into the fn_hash column. Resolved at write time
@@ -217,16 +230,80 @@ type PartialEvent =
   }
 
 
+/// Cap on how many call events a single trace retains.
+///
+/// A trace is a debugging aid a human reads; past a few thousand calls it stops being one. Meanwhile every
+/// retained event pins its arguments and result alive, gets walked by `prepareTraceForStorage`, and gets
+/// binary-serialized twice (args and result) at store time. Uncapped, a list-heavy script spends most of
+/// its run and most of its allocation writing the trace rather than executing the program.
+///
+/// Override with `DARK_CONFIG_TRACE_MAX_EVENTS`; 0 means unlimited, for when you genuinely need the whole
+/// thing and are willing to pay for it.
+module TraceLimits =
+  let private fromEnv () : int =
+    match
+      System.Environment.GetEnvironmentVariable "DARK_CONFIG_TRACE_MAX_EVENTS"
+    with
+    | null
+    | "" -> 10_000
+    | s ->
+      match System.Int32.TryParse s with
+      | true, n when n >= 0 -> n
+      | _ -> 10_000
+
+  let mutable maxEvents : int = fromEnv ()
+
+  /// TEST-ONLY: run with a small cap, so a test can cross it without generating (and rendering) ten
+  /// thousand events. Call `resetMaxEventsForTesting` when done. NOT parallel-safe: it mutates
+  /// process-global state, so callers must be `testSequenced`.
+  let useMaxEventsForTesting (n : int) : unit = maxEvents <- n
+
+  /// TEST-ONLY: restore the configured cap after `useMaxEventsForTesting`.
+  let resetMaxEventsForTesting () : unit = maxEvents <- fromEnv ()
+
+
 /// Mutable per-trace tracer state. Captures every event in execution order
 /// and tracks the open call stack so children can find their parent.
 type TracerState =
-  { events : System.Collections.Generic.List<CompletedEvent>
-    stack : System.Collections.Generic.Stack<PartialEvent> }
+  {
+    events : System.Collections.Generic.List<CompletedEvent>
+    stack : System.Collections.Generic.Stack<PartialEvent>
+    /// Events past `TraceLimits.maxEvents`, counted so the trace can say it was truncated rather than
+    /// quietly looking complete.
+    mutable dropped : int
+  }
 
 
 let private newState () : TracerState =
   { events = System.Collections.Generic.List<CompletedEvent>()
-    stack = System.Collections.Generic.Stack<PartialEvent>() }
+    stack = System.Collections.Generic.Stack<PartialEvent>()
+    dropped = 0 }
+
+
+/// Retain an event unless we're at the cap, **reserving a slot for every frame still on the stack**.
+///
+/// That reservation is the whole trick, and without it the cap is worse than useless. Events are appended
+/// on *completion*, so they arrive in post-order: leaves first, the entry frame last. A naive "keep the
+/// first N" therefore keeps only the deepest calls and drops every one of their ancestors, including the
+/// single root. `formatFnCalls` renders by walking down from roots, so the result is a trace where every
+/// retained event is an orphan nothing walks to, and the viewer shows the truncation marker and nothing
+/// else.
+///
+/// Reserving `stack.Count` fixes it, because the frames on the stack are exactly the ancestors of whatever
+/// is completing now. Each pop both frees a reservation and consumes it, so `events.Count + stack.Count`
+/// never exceeds the cap and every ancestor of a retained event is itself retained. What gets dropped is
+/// deep siblings, which is what you want: the tree stays walkable and loses breadth, not its spine.
+///
+/// The *stack* is deliberately not capped: it's bounded by call depth rather than call count, and
+/// pushes/pops have to stay balanced or parent linkage breaks for the events we do keep.
+let private addEvent (state : TracerState) (ev : CompletedEvent) : unit =
+  if
+    TraceLimits.maxEvents = 0
+    || state.events.Count + state.stack.Count < TraceLimits.maxEvents
+  then
+    state.events.Add ev
+  else
+    state.dropped <- state.dropped + 1
 
 
 let private currentParentCallId (state : TracerState) : string option =
@@ -274,7 +351,8 @@ let private makeStoreFnResult (state : TracerState) : RT.Tracing.StoreFnResult =
   fun (_, name) args result ->
     match name with
     | RT.FQFnName.Builtin _ ->
-      state.events.Add(
+      addEvent
+        state
         { callId = newCallId ()
           parentCallId = currentParentCallId state
           kind = "builtin"
@@ -284,12 +362,12 @@ let private makeStoreFnResult (state : TracerState) : RT.Tracing.StoreFnResult =
           result = result
           // No frame-entry counterpart for builtins, so no real duration.
           durationMs = 0L }
-      )
     | RT.FQFnName.Package _ ->
       if state.stack.Count > 0 then
         let partial = state.stack.Pop()
         let endedAt = System.Diagnostics.Stopwatch.GetTimestamp()
-        state.events.Add(
+        addEvent
+          state
           { callId = partial.callId
             parentCallId = partial.parentCallId
             kind = "function"
@@ -298,7 +376,6 @@ let private makeStoreFnResult (state : TracerState) : RT.Tracing.StoreFnResult =
             args = partial.args
             result = result
             durationMs = ticksToMs (endedAt - partial.startedAtTicks) }
-        )
 
 
 /// Fired when a Lambda frame returns. Pop the matching entry and finalize.
@@ -309,7 +386,8 @@ let private makeStoreLambdaResult
     if state.stack.Count > 0 then
       let partial = state.stack.Pop()
       let endedAt = System.Diagnostics.Stopwatch.GetTimestamp()
-      state.events.Add(
+      addEvent
+        state
         { callId = partial.callId
           parentCallId = partial.parentCallId
           kind = "lambda"
@@ -318,7 +396,6 @@ let private makeStoreLambdaResult
           args = partial.args
           result = result
           durationMs = ticksToMs (endedAt - partial.startedAtTicks) }
-      )
 
 
 /// Store trace data to SQLite.
@@ -490,6 +567,10 @@ let private storeTrace
 
       let traceIdStr = string traceID
       use _span = Telemetry.span "trace.store" [ "traceId", traceIdStr ]
+      if state.dropped > 0 then
+        Telemetry.event
+          "trace.truncated"
+          [ "kept", string state.events.Count; "dropped", string state.dropped ]
       try
         let! preparedInput = prepareTraceForStorage exeState inputDval state
         TraceStorage.store
@@ -498,7 +579,23 @@ let private storeTrace
           handlerDesc
           inputVarName
           preparedInput
-          (Seq.toList state.events)
+          // A truncated trace carries a final marker row rather than just ending. Without it the trace
+          // reads as complete, and "the call I'm looking for isn't here" is indistinguishable from "it
+          // never happened" -- which is the one thing a debugging aid must never be ambiguous about.
+          (if state.dropped > 0 then
+             (Seq.toList state.events)
+             @ [ { callId = newCallId ()
+                   parentCallId = None
+                   kind = "truncated"
+                   fnHash =
+                     Some
+                       $"trace truncated: {state.dropped} further calls not recorded (cap {TraceLimits.maxEvents}, raise with DARK_CONFIG_TRACE_MAX_EVENTS)"
+                   lambdaExprId = None
+                   args = []
+                   result = RT.DUnit
+                   durationMs = 0L } ]
+           else
+             Seq.toList state.events)
           exeState.accountID
       with ex ->
         System.Console.Error.WriteLine
@@ -552,18 +649,32 @@ let createCliTracer
   : T =
   let results = TraceResults.empty ()
   let state = newState ()
-  { enabled = true
-    results = results
-    executionTracing =
-      { Exe.noTracing with
-          storeFrameEntry = makeStoreFrameEntry state
-          storeFnResult = makeStoreFnResult state
-          storeLambdaResult = makeStoreLambdaResult state
-          skipTracing = false }
-    storeTraceInput = fun _ _ _ -> ()
-    storeTraceResults =
-      fun exeState ->
-        storeTrace 0UL traceID description inputVarName inputDval state exeState }
+
+  // With detail off, collect nothing. `storeTrace` refuses to write in that case, so installing the
+  // hooks anyway means building an event per frame and holding every argument and result alive for the
+  // whole run, to discard all of it at the end.
+  //
+  // `Exe.noTracing` sets `skipTracing = true`, which also lets the interpreter skip its own per-frame
+  // bookkeeping (`pendingCallArgs`) rather than just calling no-op hooks.
+  if TraceDetail.current = TraceDetail.Off then
+    { enabled = false
+      results = results
+      executionTracing = Exe.noTracing
+      storeTraceInput = fun _ _ _ -> ()
+      storeTraceResults = fun _ -> uply { return () } }
+  else
+    { enabled = true
+      results = results
+      executionTracing =
+        { Exe.noTracing with
+            storeFrameEntry = makeStoreFrameEntry state
+            storeFnResult = makeStoreFnResult state
+            storeLambdaResult = makeStoreLambdaResult state
+            skipTracing = false }
+      storeTraceInput = fun _ _ _ -> ()
+      storeTraceResults =
+        fun exeState ->
+          storeTrace 0UL traceID description inputVarName inputDval state exeState }
 
 
 let createNonTracer (_traceID : AT.TraceID.T) : T =

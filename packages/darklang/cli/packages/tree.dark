@@ -185,21 +185,15 @@ let displayTree
       | Value v -> Stdlib.List.append [v.owner] v.modules
       | Function f -> Stdlib.List.append [f.owner] f.modules
 
-    // Get all entities, then apply deprecation visibility.
-    let rawResults = Query.allDirectDescendants branchId modulePath
-    let results = Query.filterDeprecated rawResults depSets includeDeprecated
-
-    // Get submodules
-    let currentPathLength = Stdlib.List.length modulePath
-    let submoduleNames = Query.getDirectSubmodules results currentPathLength
+    // Names and hashes only. This runs once per module *per level* of the walk, so materializing every
+    // item's full definition to read its name compounded: `tree Darklang.Stdlib` was 547 ms.
+    let (submoduleNames, rawTypes, rawValues, rawFns) =
+      Query.allDirectDescendantNamesAndHashes branchId modulePath
 
     // Entity names paired with their hash, so we can mark deprecated rows.
-    let fnEntries =
-      results.fns |> Stdlib.List.map (fun f -> (f.location.name, f.entity.hash))
-    let typeEntries =
-      results.types |> Stdlib.List.map (fun t -> (t.location.name, t.entity.hash))
-    let valueEntries =
-      results.values |> Stdlib.List.map (fun v -> (v.location.name, v.entity.hash))
+    let fnEntries = Query.filterDeprecatedPairs rawFns depSets includeDeprecated
+    let typeEntries = Query.filterDeprecatedPairs rawTypes depSets includeDeprecated
+    let valueEntries = Query.filterDeprecatedPairs rawValues depSets includeDeprecated
 
     // Combine all entities with their types in proper order: modules, types, values, functions.
     // Modules have no hash, use an empty-string placeholder.

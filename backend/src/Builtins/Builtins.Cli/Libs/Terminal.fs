@@ -7,6 +7,8 @@ open Prelude
 open LibExecution.RuntimeTypes
 open LibExecution.Builtin.Shortcuts
 
+module VT = LibExecution.ValueType
+
 
 /// Restores terminal state if the process exits before Dark can clean up.
 ///
@@ -161,14 +163,14 @@ module DisplayWidth =
 
     total
 
-  /// Clip styled text to `maxWidth` terminal columns, keeping SGR and dropping everything else.
+  /// Clip styled text to `maxWidth` terminal columns, keeping ANSI styling and dropping everything else.
   ///
-  /// Same contract as the Dark implementation this replaces: numeric SGR is retained and costs no columns,
-  /// every other escape and control character is dropped so dynamic content can't move the cursor or change
-  /// modes, and a double-width cluster is never split in half.
+  /// Colour/style escapes (`ESC[...m`) are retained and cost no columns. Every other escape and control
+  /// character is dropped, so dynamic content can't move the cursor or change modes, and a double-width
+  /// cluster is never split in half.
   ///
-  /// Native because the Dark version needs a width call per character. Fine for one prompt row, far too slow
-  /// for a full-screen frame, which is hundreds of clipped spans.
+  /// Native because this needs a display-width lookup per character, and a full-screen frame is hundreds
+  /// of clipped spans.
   let clipToWidth (text : string) (maxWidth : int) : string =
     if maxWidth <= 0 then
       ""
@@ -194,6 +196,81 @@ module DisplayWidth =
             i <- i + cluster.Length
 
       out.ToString()
+
+
+  /// Wrap text into explicit terminal-width rows, preserving any ANSI styling it carries.
+  ///
+  /// "SGR" is the ANSI escape that sets colour and style (`ESC[1;31m` and friends). Those are kept and
+  /// cost zero columns; every other escape and control character is dropped. A grapheme cluster is never
+  /// split, styling active at a wrap is reapplied at the start of the next row (the frame renderer resets
+  /// styling after each row), and an empty input yields one empty row.
+  ///
+  /// Native rather than Dark because it runs on the interactive prompt on *every keystroke*, once per
+  /// character, and each character needs a display-width lookup.
+  let wrapStyled (text : string) (maxWidth : int) : string list =
+    let width = max 1 maxWidth
+    let completed = ResizeArray<string>()
+    let current = System.Text.StringBuilder()
+    let mutable activeStyle = ""
+    let mutable currentWidth = 0
+    let mutable wrapPending = false
+    let mutable i = 0
+
+    while i < text.Length do
+      if text[i] = '\u001b' then
+        let mutable kept = ""
+        let next = skipEscape text i (fun s -> kept <- s)
+        // Mirrors Dark's `nextActiveStyle`: a full reset clears accumulated styling, any other retained
+        // SGR appends to it, and a dropped (non-SGR) escape leaves it alone.
+        if kept = "\u001b[0m" then activeStyle <- ""
+        elif kept <> "" then activeStyle <- activeStyle + kept
+        current.Append(kept) |> ignore<System.Text.StringBuilder>
+        i <- next
+      elif System.Char.IsControl text[i] then
+        i <- i + 1
+      else
+        let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
+        let charWidth = clusterWidth cluster
+        let shouldWrap =
+          wrapPending || (currentWidth > 0 && currentWidth + charWidth > width)
+
+        if shouldWrap then
+          completed.Add(current.ToString())
+          current.Clear() |> ignore<System.Text.StringBuilder>
+          current.Append(activeStyle) |> ignore<System.Text.StringBuilder>
+
+        current.Append(cluster) |> ignore<System.Text.StringBuilder>
+        currentWidth <- if shouldWrap then charWidth else currentWidth + charWidth
+        wrapPending <- currentWidth >= width
+        i <- i + cluster.Length
+
+    completed.Add(current.ToString())
+    List.ofSeq completed
+
+  /// Zero-based cursor position immediately after plain text.
+  ///
+  /// A cursor exactly after the final column is reported at column zero of the following row, matching
+  /// terminal wrap behaviour. Plain text only: callers pass an already-stripped prompt prefix, so there
+  /// is no escape handling here.
+  let positionAfter (text : string) (maxWidth : int) : int * int =
+    let width = max 1 maxWidth
+    let mutable row = 0
+    let mutable column = 0
+    let mutable wrapPending = false
+    let mutable i = 0
+
+    while i < text.Length do
+      let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
+      let charWidth = clusterWidth cluster
+      let startRow = if wrapPending then row + 1 else row
+      let startColumn = if wrapPending then 0 else column
+      let shouldWrap = startColumn > 0 && startColumn + charWidth > width
+      row <- if shouldWrap then startRow + 1 else startRow
+      column <- if shouldWrap then charWidth else startColumn + charWidth
+      wrapPending <- column >= width
+      i <- i + cluster.Length
+
+    if wrapPending then (row + 1, 0) else (row, column)
 
 
 /// Report raw terminal facts used by Dark's TUI availability policy.
@@ -346,6 +423,49 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [ DString text; DInt maxWidth ] ->
           DString(DisplayWidth.clipToWidth text (intToInt32 vm maxWidth)) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "cliTerminalWrapStyled" 0
+      typeParams = []
+      parameters =
+        [ Param.make "text" TString "One logical row, possibly carrying SGR styling"
+          Param.make "maxWidth" TInt "Terminal columns to wrap at" ]
+      returnType = TList TString
+      description =
+        "Wrap plain or SGR-styled text into terminal-width rows, reapplying active styling after a wrap"
+      fn =
+        (function
+        | _, vm, _, [ DString text; DInt maxWidth ] ->
+          DisplayWidth.wrapStyled text (intToInt32 vm maxWidth)
+          |> List.map DString
+          |> fun rows -> DList(VT.string, rows)
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "cliTerminalPositionAfter" 0
+      typeParams = []
+      parameters =
+        [ Param.make "text" TString "Plain, control-free text"
+          Param.make "maxWidth" TInt "Terminal columns per row" ]
+      returnType = TTuple(TInt, TInt, [])
+      description =
+        "Zero-based (row, column) cursor position immediately after plain text at a given width"
+      fn =
+        (function
+        | _, vm, _, [ DString text; DInt maxWidth ] ->
+          let (row, column) =
+            DisplayWidth.positionAfter text (intToInt32 vm maxWidth)
+          DTuple(row |> bigint |> Dval.int, column |> bigint |> Dval.int, []) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

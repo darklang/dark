@@ -780,6 +780,115 @@ module CapsGate =
   let tests = testList "CapsGate" [ denied; allowed ]
 
 
+/// The synchronous unifier must never disagree with the computation-expression one.
+///
+/// `TypeChecker.tryUnifySync` exists purely to answer the ordinary cases without allocating a
+/// continuation, so the only acceptable behaviours are "same answer as the slow path" or "declined, go
+/// ask the slow path". A `ValueSome` that disagrees would silently change what type-checks, which is the
+/// one way this optimisation could be dangerous rather than merely ineffective.
+module SyncUnify =
+  /// Every shape worth crossing: scalars against themselves and each other, containers at one and two
+  /// levels, tuples of matching and differing arity, `Unknown`, and type variables both unbound and
+  /// already bound.
+  let private expectations : List<RT.TypeReference> =
+    [ RT.TUnit
+      RT.TBool
+      RT.TInt64
+      RT.TInt
+      RT.TFloat
+      RT.TChar
+      RT.TString
+      RT.TUuid
+      RT.TVariable "a"
+      RT.TVariable "b"
+      RT.TList RT.TInt64
+      RT.TList RT.TString
+      RT.TList(RT.TVariable "a")
+      RT.TList(RT.TList RT.TInt64)
+      RT.TDict RT.TInt64
+      RT.TDict(RT.TVariable "a")
+      RT.TStream RT.TInt64
+      RT.TTuple(RT.TInt64, RT.TString, [])
+      RT.TTuple(RT.TInt64, RT.TString, [ RT.TBool ])
+      RT.TTuple(RT.TVariable "a", RT.TVariable "b", []) ]
+
+  let private actuals : List<RT.Dval> =
+    [ RT.DUnit
+      RT.DBool true
+      RT.DInt64 1L
+      LibExecution.Dval.int 1I
+      RT.DFloat 1.0
+      RT.DChar "c"
+      RT.DString "s"
+      RT.DUuid(System.Guid.NewGuid())
+      RT.DList(RT.ValueType.Known RT.KTInt64, [ RT.DInt64 1L ])
+      RT.DList(RT.ValueType.Known RT.KTString, [ RT.DString "s" ])
+      RT.DList(RT.ValueType.Unknown, [])
+      RT.DList(RT.ValueType.Known(RT.KTList(RT.ValueType.Known RT.KTInt64)), [])
+      RT.DDict(RT.ValueType.Known RT.KTInt64, Map.empty)
+      RT.DTuple(RT.DInt64 1L, RT.DString "s", [])
+      RT.DTuple(RT.DInt64 1L, RT.DString "s", [ RT.DBool true ]) ]
+
+  let private symbolTables : List<RT.TypeSymbolTable> =
+    [ Map.empty
+      Map.ofList [ "a", RT.ValueType.Known RT.KTInt64 ]
+      Map.ofList [ "a", RT.ValueType.Unknown ]
+      Map.ofList
+        [ "a", RT.ValueType.Known RT.KTString; "b", RT.ValueType.Known RT.KTInt64 ] ]
+
+  let agreesWithAsyncPath =
+    testTask "sync unifier agrees with the async one, or declines" {
+      let! (exeState : RT.ExecutionState) =
+        executionStateFor TestValues.pm false Map.empty
+      let mutable asyncAccepted = 0
+      let mutable answeredWhenAccepted = 0
+
+      for tst in symbolTables do
+        for expected in expectations do
+          for actual in actuals do
+            let sync = LibExecution.TypeChecker.tryUnifySync tst expected actual
+            let! async' =
+              LibExecution.TypeChecker.checkFnParam
+                exeState.types
+                (RT.FQFnName.fqBuiltin "test" 0)
+                tst
+                0
+                "p"
+                expected
+                actual
+              |> Ply.toTask
+
+            match async' with
+            | Ok asyncTst ->
+              asyncAccepted <- asyncAccepted + 1
+              match sync with
+              | ValueNone -> () // declining is always allowed; the caller falls back
+              | ValueSome syncTst ->
+                answeredWhenAccepted <- answeredWhenAccepted + 1
+                Expect.equal
+                  syncTst
+                  asyncTst
+                  $"same symbol table for {expected} vs {actual} under {tst}"
+            | Error _ ->
+              match sync with
+              | ValueNone -> () // correct: failures go to the slow path for error rendering
+              | ValueSome _ ->
+                Exception.raiseInternal
+                  "sync unifier accepted what the async path rejected"
+                  [ "expected", expected; "actual", actual; "tst", tst ]
+
+      // Most of the matrix is deliberately mismatched pairs, which decline correctly. The ratio that
+      // matters is how much of what the slow path *accepts* the fast path also answers: if that fell to
+      // nothing the optimisation would be silently inert and this test would still pass on agreement.
+      Expect.isGreaterThan
+        (answeredWhenAccepted * 10)
+        (asyncAccepted * 8)
+        $"fast path should answer most accepted unifications ({answeredWhenAccepted} of {asyncAccepted})"
+    }
+
+  let tests = testList "SyncUnify" [ agreesWithAsyncPath ]
+
+
 let tests =
   testList
     "Interpreter"
@@ -801,4 +910,5 @@ let tests =
       Infix.tests
       Lambdas.tests
       Fns.tests
-      Statement.tests ]
+      Statement.tests
+      SyncUnify.tests ]

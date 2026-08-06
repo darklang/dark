@@ -375,6 +375,131 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "listPush" 0
+      typeParams = []
+      parameters = [ Param.make "list" (TList varA) ""; Param.make "value" varA "" ]
+      returnType = TList varA
+      description = "Adds <param value> to the front of <param list>."
+      fn =
+        (function
+        | _, vm, _, [ DList(vt, l); value ] ->
+          // Native because every list built by a fold goes through here, once per element, and the
+          // Dark version had to build a one-element list to append.
+          match VT.merge vt (Dval.toValueType value) with
+          | Ok merged -> Ply(DList(merged, value :: l))
+          | Error() -> Ply(TypeChecker.DvalCreator.list vm.threadID vt (value :: l))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listPushBack" 0
+      typeParams = []
+      parameters = [ Param.make "list" (TList varA) ""; Param.make "value" varA "" ]
+      returnType = TList varA
+      description = "Adds <param value> to the back of <param list>."
+      fn =
+        (function
+        | _, vm, _, [ DList(vt, l); value ] ->
+          // Still O(n): a cons list has to be copied to append. Native for the same reason as `push`.
+          match VT.merge vt (Dval.toValueType value) with
+          | Ok merged -> Ply(DList(merged, l @ [ value ]))
+          | Error() ->
+            Ply(TypeChecker.DvalCreator.list vm.threadID vt (l @ [ value ]))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listFlatten" 0
+      typeParams = []
+      parameters = [ Param.make "list" (TList(TList varA)) "" ]
+      returnType = TList varA
+      description =
+        "Returns a single list containing the values of every list directly in <param list>
+         (does not recursively flatten nested lists)."
+      fn =
+        (function
+        | _, vm, _, [ DList(_, sublists) ] ->
+          // One concat, rather than an append per sublist, which re-copies the accumulator each step.
+          let inner =
+            sublists
+            |> List.fold
+              (fun acc sub ->
+                match acc, sub with
+                | Ok accVt, DList(vt, _) ->
+                  match VT.merge accVt vt with
+                  | Ok merged -> Ok merged
+                  | Error() -> Error()
+                | _ -> Error())
+              (Ok VT.unknown)
+          let items =
+            sublists
+            |> List.collect (fun sub ->
+              match sub with
+              | DList(_, items) -> items
+              | other -> [ other ])
+          match inner with
+          | Ok vt -> Ply(DList(vt, items))
+          | Error() -> Ply(TypeChecker.DvalCreator.list vm.threadID VT.unknown items)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listGetAt" 0
+      typeParams = []
+      parameters = [ Param.make "list" (TList varA) ""; Param.make "index" TInt "" ]
+      returnType = TypeReference.option varA
+      description =
+        "Returns {{Some value}} at <param index> in <param list>, or {{None}} if out of bounds."
+      fn =
+        (function
+        | _, vm, _, [ DList(vt, l); DInt index ] ->
+          // Still a walk, since that's what a cons list costs, but one walk rather than an interpreted
+          // call per position. Deliberately not `List.length` then `List.item`: that is O(n) even for
+          // index 0, and callers ask for low indices of long lists.
+          let rec walk (remaining : int64) (rest : List<Dval>) : Option<Dval> =
+            match rest with
+            | [] -> None
+            | head :: tail ->
+              if remaining = 0L then Some head else walk (remaining - 1L) tail
+          let item =
+            match DarkInt.toInt64 index with
+            | Some i when i >= 0L -> walk i l
+            | _ -> None
+          Ply(TypeChecker.DvalCreator.option vm.threadID vt item)
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listReverse" 0
+      typeParams = []
+      parameters = [ Param.make "list" (TList varA) "" ]
+      returnType = TList varA
+      description = "Returns a reversed copy of <param list>."
+      fn =
+        (function
+        | _, _, _, [ DList(vt, l) ] ->
+          // Reordering can't change the element type and every element was checked on the way in, so no
+          // type check is needed. Native because `map` and `filter` both end in a reverse.
+          Ply(DList(vt, List.rev l))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     ]
 
 

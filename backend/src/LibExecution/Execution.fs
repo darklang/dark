@@ -74,8 +74,8 @@ let rec callStackForFrame
       [ "frameID", string frameID ]
   | true, frame ->
     match frame.parent with
-    | None -> soFar
-    | Some(parentFrameID, _, _) ->
+    | ValueNone -> soFar
+    | ValueSome(parentFrameID, _, _) ->
       callStackForFrame vm parentFrameID (frame.executionPoint :: soFar)
 
 

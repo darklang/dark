@@ -338,13 +338,39 @@ let runInteractiveLoop (state: AppState) : Int =
 
     let tHint = if state.telemetryEnabled then Telemetry.now () else 0
     let hintCached = state.cachedHintInput == state.prompt.text
-    let hint =
-      if hintCached then
-        state.cachedHintValue
+    // Two tiers. The exact-text tier serves repaints (a resize, a redraw with no typing). The context tier
+    // serves *typing*: "Sta" typed one key at a time is three different prompt strings but one completion
+    // context, so the DB-hitting half runs once for the word instead of once per character.
+    let contextKey = Registry.completionContextKey location state.prompt.text
+    let contextCached = state.cachedCompletionKey == contextKey
+    let contextItems =
+      if contextCached then
+        state.cachedCompletionItems
       else
-        Registry.getCompletionHint state state.prompt.text
+        Registry.getCompletionsForContext state state.prompt.text
+    // The narrowing base is only meaningful within one context; a context change invalidates it.
+    let (prevPartial, prevItems) =
+      if contextCached then
+        (state.cachedFilterPartial, state.cachedFilterItems)
+      else
+        ("", [])
+    let (hint, filterPartial, filterItems) =
+      if hintCached then
+        // `prevPartial`/`prevItems`, not the raw cached fields: a context change has to invalidate the
+        // narrowing base here too, or a cache hit on the prompt text would carry the previous context's
+        // items forward. Unreachable today (changing location goes through a command, which also changes
+        // the prompt text), but it's one edit away from being live and the failure would be wrong
+        // completions rather than slow ones.
+        (state.cachedHintValue, prevPartial, prevItems)
+      else
+        Registry.getCompletionHintFromContext
+          state
+          state.prompt.text
+          contextItems
+          prevPartial
+          prevItems
     if state.telemetryEnabled then
-      Telemetry.logWithContext "completionHint" tHint [("inputLen", Stdlib.Int.toString (Stdlib.String.length state.prompt.text)); ("cached", Stdlib.Bool.toString hintCached)]
+      Telemetry.logWithContext "completionHint" tHint [("inputLen", Stdlib.Int.toString (Stdlib.String.length state.prompt.text)); ("cached", Stdlib.Bool.toString hintCached); ("contextCached", Stdlib.Bool.toString contextCached)]
 
     // Display current page
     let tRender = if state.telemetryEnabled then Telemetry.now () else 0
@@ -352,17 +378,23 @@ let runInteractiveLoop (state: AppState) : Int =
     let renderedState =
       match state.currentPage with
       | MainPrompt ->
+        let tView = if state.telemetryEnabled then Telemetry.now () else 0
         let promptView =
           withModeHint
             state
             (Prompt.Display.viewAtSize state.prompt location hint size)
+        if state.telemetryEnabled then
+          Telemetry.log "render.buildView" tView
         match state.promptTerminal with
         | Some terminal ->
+          let tPresent = if state.telemetryEnabled then Telemetry.now () else 0
           let nextTerminal =
             Tui.TerminalSession.presentAtSize
               terminal
               size
               promptView
+          if state.telemetryEnabled then
+            Telemetry.log "render.present" tPresent
           { state with
               promptTerminal =
                 Stdlib.Option.Option.Some nextTerminal }
@@ -433,6 +465,9 @@ let runInteractiveLoop (state: AppState) : Int =
       // start. `pageStack` depth changes on every push and pop, so it's the cheap signal for "we're somewhere
       // else now"; `isExiting` covers leaving altogether.
       let startingDepth = Stdlib.List.length renderedState.pageStack
+      // Sampled BEFORE the fold, which is the work being measured. Sampling after it and passing that as
+      // the start instead times the preceding log call, and reports ~0 ms no matter how slow the fold is.
+      let tUpdate = if renderedState.telemetryEnabled then Telemetry.now () else 0
       let newState =
         Stdlib.List.range 1 times
         |> Stdlib.List.fold renderedState (fun st _i ->
@@ -441,8 +476,7 @@ let runInteractiveLoop (state: AppState) : Int =
 
       if renderedState.telemetryEnabled then
         Telemetry.logWithContext "readKey" tReadKey [("char", keyInput.keyChar)]
-        let tUpdate = Telemetry.now ()
-        Telemetry.logWithContext "update" tUpdate [("char", keyInput.keyChar)]
+        Telemetry.logWithContext "update" tUpdate [("char", keyInput.keyChar); ("repeats", Stdlib.Int.toString times)]
         let loopWorkMs = (Telemetry.elapsedMs tLoopStart) - (Telemetry.elapsedMs tReadKey)
         let interpStats = Builtin.interpreterStatsGet ()
         Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.Int.toString loopWorkMs); ("interp", interpStats)]
@@ -451,4 +485,8 @@ let runInteractiveLoop (state: AppState) : Int =
         newState with
           cachedHintInput = renderedState.prompt.text
           cachedHintValue = hint
+          cachedCompletionKey = contextKey
+          cachedCompletionItems = contextItems
+          cachedFilterPartial = filterPartial
+          cachedFilterItems = filterItems
       }

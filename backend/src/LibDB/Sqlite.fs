@@ -38,6 +38,17 @@ module Sql =
   // never rebinds it — it stays the default `connString` store for the process's life.
   let mutable connect = Sql.connect connString |> initializeConnection
 
+  /// Force this module's initialization, and with it the first connection open and the PRAGMA round trip.
+  ///
+  /// Exists so the cost is attributable. It happens on whatever query runs first, which made it look like
+  /// part of `growIfNeeded`'s op check -- a check that is index-covered and takes 0.0 ms against this
+  /// store. Calling this first moves the cost into a span of its own rather than removing it.
+  let warm () : unit =
+    connect
+    |> Sql.query "SELECT 1"
+    |> Sql.executeNonQuery
+    |> ignore<Result<int, exn>>
+
   /// TEST-ONLY: repoint LibDB at the store file at `path` (created if missing), so a test can run true
   /// multi-instance scenarios — each "instance" is its own store, and you switch the active one by
   /// calling this. Every subsequent LibDB operation hits `path`. Call `resetStoreForTesting` to restore
@@ -53,14 +64,55 @@ module Sql =
     connString <- defaultConnString
     connect <- Sql.connect connString |> initializeConnection
 
+  /// Count and time every SQL statement this process runs.
+  ///
+  /// Instrumenting only package-item loads leaves everything Dark code issues through `Stdlib.Sqlite`,
+  /// `pmSearch` and the SCM builtins invisible, which is most of it, and makes SQL time easy to mistake
+  /// for interpreter cost.
+  ///
+  /// Gated, and per-statement rather than per-row: a timestamp costs ~1.27 us on an HPET clocksource.
+  let inline private timedTask (name : string) (f : unit -> Task<'a>) : Task<'a> =
+    if not (Telemetry.isEnabled ()) then
+      f ()
+    else
+      task {
+        Telemetry.count $"sql.{name}"
+        let t0 = System.Diagnostics.Stopwatch.GetTimestamp()
+        let! r = f ()
+        let t1 = System.Diagnostics.Stopwatch.GetTimestamp()
+        Telemetry.addUs
+          "sql.total"
+          ((t1 - t0) * 1_000_000L / System.Diagnostics.Stopwatch.Frequency)
+        return r
+      }
+
+  let inline private timedSync (name : string) (f : unit -> 'a) : 'a =
+    if not (Telemetry.isEnabled ()) then
+      f ()
+    else
+      Telemetry.count $"sql.{name}"
+      let t0 = System.Diagnostics.Stopwatch.GetTimestamp()
+      let r = f ()
+      let t1 = System.Diagnostics.Stopwatch.GetTimestamp()
+      Telemetry.addUs
+        "sql.total"
+        ((t1 - t0) * 1_000_000L / System.Diagnostics.Stopwatch.Frequency)
+      r
+
   let query (sql : string) : Sql.SqlProps = connect |> Sql.query sql
 
   let executeNonQueryAsync props =
-    Sql.executeNonQueryAsync props |> Async.StartAsTask |> Task.map Result.unwrap
+    timedTask "nonQuery" (fun () ->
+      Sql.executeNonQueryAsync props
+      |> Async.StartImmediateAsTask
+      |> Task.map Result.unwrap)
 
   let executeRowAsync (reader : RowReader -> 't) (props : Sql.SqlProps) : Task<'t> =
     task {
-      match! Sql.executeAsync reader props with
+      match!
+        timedTask "row" (fun () ->
+          Sql.executeAsync reader props |> Async.StartImmediateAsTask)
+      with
       | Ok [ a ] -> return a
       | Ok [] -> return Exception.raiseInternal $"No results; expected 1" []
       | Ok list ->
@@ -78,7 +130,10 @@ module Sql =
     (props : Sql.SqlProps)
     : Task<Option<'t>> =
     task {
-      match! Sql.executeAsync reader props with
+      match!
+        timedTask "rowOption" (fun () ->
+          Sql.executeAsync reader props |> Async.StartImmediateAsTask)
+      with
       | Ok [ a ] -> return Some a
       | Ok [] -> return None
       | Ok list ->
@@ -95,7 +150,7 @@ module Sql =
 
   let executeAsync rr props =
     Sql.executeAsync rr props
-    |> Async.StartAsTask
+    |> Async.StartImmediateAsTask
     |> Task.map (fun r ->
       match r with
       | Ok v -> v
@@ -103,7 +158,9 @@ module Sql =
         Exception.raiseInternal $"SQL query failed: {err}" [ "error", err ])
 
   let executeExistsSync (props : Sql.SqlProps) : bool =
-    match Sql.execute (fun read -> read.bool 0) props with
+    match
+      timedSync "existsSync" (fun () -> Sql.execute (fun read -> read.bool 0) props)
+    with
     | Ok [ true ] -> true
     | Ok [] -> false
     | Ok result ->
@@ -115,7 +172,10 @@ module Sql =
 
   let executeStatementAsync (props : Sql.SqlProps) : Task<unit> =
     task {
-      match! Sql.executeNonQueryAsync props with
+      match!
+        timedTask "statement" (fun () ->
+          Sql.executeNonQueryAsync props |> Async.StartImmediateAsTask)
+      with
       | Error err ->
         Exception.raiseInternal
           $"Database statement failed in executeStatementAsync: {err}"
@@ -124,7 +184,7 @@ module Sql =
     }
 
   let executeStatementSync (props : Sql.SqlProps) : unit =
-    match Sql.executeNonQuery props with
+    match timedSync "statementSync" (fun () -> Sql.executeNonQuery props) with
     | Ok _count -> ()
     | Error err ->
       Exception.raiseInternal

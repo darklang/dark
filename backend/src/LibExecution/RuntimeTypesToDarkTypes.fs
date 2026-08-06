@@ -834,6 +834,139 @@ module Dval =
 
 
 // TODO: make sure we've tested all of these RTEs
+// One-way: nothing constructs instructions Dark-side yet.
+module StringSegment =
+  let typeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.RuntimeTypes.stringSegment ()
+    )
+  let knownType () = KTCustomType(typeName (), [])
+
+  let toDT (s : StringSegment) : Dval =
+    let (caseName, fields) =
+      match s with
+      | Text t -> "Text", [ DString t ]
+      | Interpolated r -> "Interpolated", [ DInt32 r ]
+    DEnum(typeName (), typeName (), [], caseName, fields)
+
+
+module Instruction =
+  let typeName () =
+    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.RuntimeTypes.instruction ())
+  let knownType () = KTCustomType(typeName (), [])
+
+  let private reg (r : Register) : Dval = DInt32 r
+  let private regs (rs : List<Register>) : Dval = Dval.list KTInt32 (List.map reg rs)
+
+  let private namedRegs (prs : List<string * Register>) : Dval =
+    prs
+    |> List.map (fun (n, r) -> DTuple(DString n, reg r, []))
+    |> Dval.list (KTTuple(VT.string, VT.int32, []))
+
+  let private typeArgs (ts : List<TypeReference>) : Dval =
+    ts |> List.map TypeReference.toDT |> Dval.list (TypeReference.knownType ())
+
+  let instructionsTypeName () =
+    FQTypeName.fqPackage (
+      PackageRefs.Type.LanguageTools.RuntimeTypes.instructions ()
+    )
+
+  let lambdaImplTypeName () =
+    FQTypeName.fqPackage (PackageRefs.Type.LanguageTools.RuntimeTypes.lambdaImpl ())
+
+  // Mutually recursive: an instruction can create a lambda, whose body is more instructions.
+  let rec toDT (i : Instruction) : Dval =
+    let (caseName, fields) =
+      match i with
+      | LoadVal(r, v) -> "LoadVal", [ reg r; Dval.toDT v ]
+      | CopyVal(t, s) -> "CopyVal", [ reg t; reg s ]
+      | Or(t, l, r) -> "Or", [ reg t; reg l; reg r ]
+      | And(t, l, r) -> "And", [ reg t; reg l; reg r ]
+      | CreateString(t, segs) ->
+        "CreateString",
+        [ reg t
+          segs
+          |> List.map StringSegment.toDT
+          |> Dval.list (StringSegment.knownType ()) ]
+      | CheckLetPatternAndExtractVars(v, p) ->
+        "CheckLetPatternAndExtractVars", [ reg v; LetPattern.toDT p ]
+      | JumpByIfFalse(n, c) -> "JumpByIfFalse", [ DInt32 n; reg c ]
+      | JumpBy n -> "JumpBy", [ DInt32 n ]
+      | CheckMatchPatternAndExtractVars(v, p, fail) ->
+        "CheckMatchPatternAndExtractVars",
+        [ reg v; MatchPattern.toDT p; DInt32 fail ]
+      | MatchUnmatched v -> "MatchUnmatched", [ reg v ]
+      | CreateTuple(t, a, b, rest) ->
+        "CreateTuple", [ reg t; reg a; reg b; regs rest ]
+      | CreateList(t, items) -> "CreateList", [ reg t; regs items ]
+      | CreateDict(t, entries) -> "CreateDict", [ reg t; namedRegs entries ]
+      | CreateRecord(t, name, targs, fields) ->
+        "CreateRecord",
+        [ reg t; FQTypeName.toDT name; typeArgs targs; namedRegs fields ]
+      | CloneRecordWithUpdates(t, orig, updates) ->
+        "CloneRecordWithUpdates", [ reg t; reg orig; namedRegs updates ]
+      | GetRecordField(t, r, name) ->
+        "GetRecordField", [ reg t; reg r; DString name ]
+      | CreateEnum(t, name, targs, case, fields) ->
+        "CreateEnum",
+        [ reg t; FQTypeName.toDT name; typeArgs targs; DString case; regs fields ]
+      | LoadValue(t, name) -> "LoadValue", [ reg t; FQValueName.toDT name ]
+      | CreateLambda(t, l) -> "CreateLambda", [ reg t; lambdaImplToDT l ]
+      | Apply(t, fnReg, targs, args) ->
+        "Apply", [ reg t; reg fnReg; typeArgs targs; regs (NEList.toList args) ]
+      | RaiseNRE(names, err) ->
+        "RaiseNRE",
+        [ names |> List.map DString |> Dval.list KTString
+          NameResolutionError.toDT err ]
+      | VarNotFound(t, name) -> "VarNotFound", [ reg t; DString name ]
+      | CheckIfFirstExprIsUnit r -> "CheckIfFirstExprIsUnit", [ reg r ]
+    DEnum(typeName (), typeName (), [], caseName, fields)
+
+  and instructionsToDT (i : Instructions) : Dval =
+    DRecord(
+      instructionsTypeName (),
+      instructionsTypeName (),
+      [],
+      Map
+        [ "registerCount", DInt32 i.registerCount
+          "instructions", i.instructions |> List.map toDT |> Dval.list (knownType ())
+          "resultIn", DInt32 i.resultIn ]
+    )
+
+  and lambdaImplToDT (l : LambdaImpl) : Dval =
+    DRecord(
+      lambdaImplTypeName (),
+      lambdaImplTypeName (),
+      [],
+      Map
+        [ "exprId", DUInt64 l.exprId
+          "patterns",
+          l.patterns
+          |> NEList.toList
+          |> List.map LetPattern.toDT
+          |> Dval.list (LetPattern.knownType ())
+          "registersToCloseOver",
+          l.registersToCloseOver
+          |> List.map (fun (a, b) -> DTuple(DInt32 a, DInt32 b, []))
+          |> Dval.list (KTTuple(VT.int32, VT.int32, []))
+          "selfRegister", l.selfRegister |> Option.map DInt32 |> Dval.option KTInt32
+          "instructions", instructionsToDT l.instructions ]
+    )
+
+
+/// Thin aliases so callers say `Instructions.toDT`. The functions live on `Instruction` because the
+/// three types are mutually recursive and F# modules can't be.
+module Instructions =
+  let typeName () = Instruction.instructionsTypeName ()
+  let knownType () = KTCustomType(typeName (), [])
+  let toDT (i : Instructions) : Dval = Instruction.instructionsToDT i
+
+module LambdaImpl =
+  let typeName () = Instruction.lambdaImplTypeName ()
+  let knownType () = KTCustomType(typeName (), [])
+  let toDT (l : LambdaImpl) : Dval = Instruction.lambdaImplToDT l
+
+
 module RuntimeError =
   module Bools =
     let toDT (e : RuntimeError.Bools.Error) : Dval =

@@ -1396,7 +1396,7 @@ module PackageManager =
 
       // PT PackageManager doesn't surface deprecation state; transient
       // wrappers (tests, in-memory flows) have no branch chain anyway.
-      isHarmful = fun _ _ -> Ply false
+      isHarmful = fun _ _ -> false
 
       init = pm.init }
 

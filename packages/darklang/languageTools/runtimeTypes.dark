@@ -147,9 +147,82 @@ type Register = Int32
 
 type DvalMap = Dict<Dval>
 
+type StringSegment =
+  | Text of String
+  | Interpolated of Register
+
+
+/// The register-machine instruction set the interpreter actually runs.
+///
+/// Mirrors `LibExecution.RuntimeTypes.Instruction`. Dark code compiles to this, so it's what a
+/// disassembly view shows; see `PrettyPrinter.RuntimeTypes.instructions`.
+///
+/// Jump offsets are relative to the jumping instruction, so a listing has to add the index back to make
+/// them readable.
+type Instruction =
+  | LoadVal of loadTo: Register * value: Dval
+  | CopyVal of copyTo: Register * copyFrom: Register
+  | Or of createTo: Register * lhs: Register * rhs: Register
+  | And of createTo: Register * lhs: Register * rhs: Register
+  | CreateString of createTo: Register * segments: List<StringSegment>
+  | CheckLetPatternAndExtractVars of valueReg: Register * pat: LetPattern
+  | JumpByIfFalse of instrsToJump: Int32 * conditionReg: Register
+  | JumpBy of instrsToJump: Int32
+  | CheckMatchPatternAndExtractVars of
+    valueReg: Register *
+    pat: MatchPattern *
+    failJump: Int32
+  | MatchUnmatched of valueReg: Register
+  | CreateTuple of
+    createTo: Register *
+    first: Register *
+    second: Register *
+    theRest: List<Register>
+  | CreateList of createTo: Register * itemsToAdd: List<Register>
+  | CreateDict of createTo: Register * entries: List<(String * Register)>
+  | CreateRecord of
+    createTo: Register *
+    typeName: FQTypeName.FQTypeName *
+    typeArgs: List<TypeReference> *
+    fields: List<(String * Register)>
+  | CloneRecordWithUpdates of
+    createTo: Register *
+    originalRecordReg: Register *
+    updates: List<(String * Register)>
+  | GetRecordField of
+    targetReg: Register *
+    recordReg: Register *
+    fieldName: String
+  | CreateEnum of
+    createTo: Register *
+    typeName: FQTypeName.FQTypeName *
+    typeArgs: List<TypeReference> *
+    caseName: String *
+    fields: List<Register>
+  | LoadValue of createTo: Register * value: FQValueName.FQValueName
+  | CreateLambda of createTo: Register * lambda: LambdaImpl
+  | Apply of
+    createTo: Register *
+    thingToApply: Register *
+    typeArgs: List<TypeReference> *
+    args: List<Register>
+  | RaiseNRE of names: List<String> * error: NameResolutionError
+  | VarNotFound of targetRegIfDB: Register * name: String
+  | CheckIfFirstExprIsUnit of reg: Register
+
+
+type Instructions =
+  { registerCount: Int32
+    instructions: List<Instruction>
+    resultIn: Register }
+
+
 type LambdaImpl =
-  // TODO: fill in more?
-  { patterns: List<LetPattern> }
+  { exprId: ID
+    patterns: List<LetPattern>
+    registersToCloseOver: List<(Register * Register)>
+    selfRegister: Option<Register>
+    instructions: Instructions }
 
 type ApplicableNamedFn =
   { name: FQFnName.FQFnName

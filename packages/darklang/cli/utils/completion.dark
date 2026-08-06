@@ -103,23 +103,19 @@ let getHintFromCompletions (partial: String) (completions: List<String>) : Strin
 
 // Standard completion for commands that complete with other command names
 // (right now, just `help`)
-let commandNamesCompletion (_state: AppState) (args: List<String>) : List<CompletionItem> =
+// Uses `state.commandOptionsCache` rather than rebuilding from `Registry.allCommands ()`. This runs on the
+// completion path, so the old version rebuilt all 60 command records and re-folded their aliases while the
+// user was mid-keystroke; the cache is the same list, built once at startup.
+let commandNamesCompletion (state: AppState) (args: List<String>) : List<CompletionItem> =
   match args with
   | [] ->
     // Suggest all command names and aliases
-    let commands = Registry.allCommands ()
-    let commandNames = Stdlib.List.map commands (fun cmd -> cmd.name)
-    let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
-    let allOptions = Stdlib.List.append commandNames allAliases
-    allOptions |> Stdlib.List.map simple
+    state.commandOptionsCache |> Stdlib.List.map simple
   | [partialArg] ->
     // Filter by partial match
-    let commands = Registry.allCommands ()
-    let commandNames = Stdlib.List.map commands (fun cmd -> cmd.name)
-    let allAliases = Stdlib.List.fold commands [] (fun acc cmd -> Stdlib.List.append acc cmd.aliases)
-    let allOptions = Stdlib.List.append commandNames allAliases
-    let filtered = Stdlib.List.filter allOptions (fun name -> Stdlib.String.startsWith name partialArg)
-    filtered |> Stdlib.List.map simple
+    state.commandOptionsCache
+    |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partialArg)
+    |> Stdlib.List.map simple
   | _ ->
     // Only complete first argument
     []

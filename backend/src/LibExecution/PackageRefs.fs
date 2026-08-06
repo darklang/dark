@@ -93,7 +93,13 @@ module Type =
         if Map.isEmpty h then
           "" // Hash file not yet populated (CI before reload-packages)
         else
-          Exception.raiseInternal "PackageRefs: type hash not found" [ "fqn", fqn ]
+          // Non-empty hash file that doesn't know this ref means the file is stale, which happens
+          // whenever a ref is added (or an older binary regenerates the file in-place -- `growIfNeeded`
+          // rewrites it, so running a previous release inside the source tree is enough). The fix is
+          // always the same, so say it rather than making the next person find it in AGENTS.md.
+          Exception.raiseInternal
+            "PackageRefs: type hash not found. The hash file is stale; regenerate it with `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`"
+            [ "fqn", fqn ]
 
   // Darklang.Sync.* — internal sync machinery (op-log wire types)
   module Sync =
@@ -277,6 +283,10 @@ module Type =
       let dval = p [] "Dval"
       let knownType = p [] "KnownType"
       let valueType = p [] "ValueType"
+      let stringSegment = p [] "StringSegment"
+      let instruction = p [] "Instruction"
+      let instructions = p [] "Instructions"
+      let lambdaImpl = p [] "LambdaImpl"
       let applicableNamedFn = p [] "ApplicableNamedFn"
       let applicableLambda = p [] "ApplicableLambda"
       let applicable = p [] "Applicable"
@@ -445,7 +455,9 @@ module Fn =
         if Map.isEmpty h then
           "" // Hash file not yet populated (CI before reload-packages)
         else
-          Exception.raiseInternal "PackageRefs: fn hash not found" [ "fqn", fqn ]
+          Exception.raiseInternal
+            "PackageRefs: fn hash not found. The hash file is stale; regenerate it with `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`"
+            [ "fqn", fqn ]
 
   module Stdlib =
     let private p addl = p ("Stdlib" :: addl)

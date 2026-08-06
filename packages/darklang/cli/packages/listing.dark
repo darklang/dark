@@ -14,53 +14,39 @@ let listModule
     | Value v -> Stdlib.List.append [v.owner] v.modules
     | Function f -> Stdlib.List.append [f.owner] f.modules
 
-  // Search for contents at this location, then apply deprecation visibility.
-  let rawResults = Query.allDirectDescendants branchId modulePath
+  // Names and hashes only: a listing shows a name and a deprecation mark, and materializing each item's
+  // full definition to read those was most of the command's cost once startup got cheap.
+  let (allSubmodules, rawTypes, rawValues, rawFns) =
+    Query.allDirectDescendantNamesAndHashes branchId modulePath
   let depSets = Query.loadDeprecationSets branchId
-  let results = Query.filterDeprecated rawResults depSets includeDeprecated
+  let types = Query.filterDeprecatedPairs rawTypes depSets includeDeprecated
+  let values = Query.filterDeprecatedPairs rawValues depSets includeDeprecated
+  let fns = Query.filterDeprecatedPairs rawFns depSets includeDeprecated
 
   // Display module path
   let locationStr = Packages.formatLocation location
   Stdlib.printLine $"Contents of {locationStr}:"
   Stdlib.printLine ""
 
-  // Display submodules
-  let currentPathLength = Stdlib.List.length modulePath
-  let directSubmodules = Query.getDirectSubmodules results currentPathLength
-
   // Display in order: modules, types, values, functions
-  if Stdlib.Bool.not (Stdlib.List.isEmpty directSubmodules) then
+  if Stdlib.Bool.not (Stdlib.List.isEmpty allSubmodules) then
     Stdlib.printLine (Display.getSectionHeader "module")
-    directSubmodules
+    allSubmodules
     |> Stdlib.List.iter (fun name -> Stdlib.printLine $"  {name}/")
     Stdlib.printLine ""
 
-  // Display types
-  if Stdlib.Bool.not (Stdlib.List.isEmpty results.types) then
-    Stdlib.printLine (Display.getSectionHeader "type")
-    results.types
-    |> Stdlib.List.iter (fun t ->
-      let mark = Query.deprecationMarker depSets t.entity.hash
-      Stdlib.printLine $"  {t.location.name}{mark}")
-    Stdlib.printLine ""
+  let printSection (header: String) (items: List<(String * LanguageTools.ProgramTypes.Hash)>) : Unit =
+    if Stdlib.Bool.not (Stdlib.List.isEmpty items) then
+      Stdlib.printLine (Display.getSectionHeader header)
+      items
+      |> Stdlib.List.iter (fun (name, hash) ->
+        let mark = Query.deprecationMarker depSets hash
+        Stdlib.printLine $"  {name}{mark}")
+      Stdlib.printLine ""
 
-  // Display values
-  if Stdlib.Bool.not (Stdlib.List.isEmpty results.values) then
-    Stdlib.printLine (Display.getSectionHeader "value")
-    results.values
-    |> Stdlib.List.iter (fun v ->
-      let mark = Query.deprecationMarker depSets v.entity.hash
-      Stdlib.printLine $"  {v.location.name}{mark}")
-    Stdlib.printLine ""
-
-  // Display functions
-  if Stdlib.Bool.not (Stdlib.List.isEmpty results.fns) then
-    Stdlib.printLine (Display.getSectionHeader "function")
-    results.fns
-    |> Stdlib.List.iter (fun fn ->
-      let mark = Query.deprecationMarker depSets fn.entity.hash
-      Stdlib.printLine $"  {fn.location.name}{mark}")
-    Stdlib.printLine ""
+  printSection "type" types
+  printSection "value" values
+  printSection "function" fns
 
 
 let execute (state: AppState) (args: List<String>) : AppState =

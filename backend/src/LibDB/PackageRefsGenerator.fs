@@ -26,6 +26,26 @@ let private sourceTreePath =
   |> System.IO.Path.GetFullPath
 
 
+/// The `fqn -> hash` pairs already on disk, or empty if the file is missing or unreadable.
+let private readExistingFile () : Map<string, string> =
+  try
+    if System.IO.File.Exists(sourceTreePath) then
+      System.IO.File.ReadAllLines(sourceTreePath)
+      |> Array.choose (fun line ->
+        let line = line.Trim()
+        if line = "" then
+          None
+        else
+          match line.Split('|') with
+          | [| fqn; hash |] -> Some(fqn, hash)
+          | _ -> None)
+      |> Map.ofArray
+    else
+      Map.empty
+  with _ ->
+    Map.empty
+
+
 /// Query the DB for all current Darklang-owned locations and write
 /// `package-ref-hashes.txt` in the source tree.
 let generate () : Ply<unit> =
@@ -45,7 +65,21 @@ let generate () : Ply<unit> =
         buildKey "fn" (String.concat "." modules) name)
       |> Set.ofList
 
-    let allRefKeys = Set.union typeRefKeys fnRefKeys
+    // Union in whatever the existing file already knew about.
+    //
+    // `_lookup` is only populated as each `PackageRefs` nested module initializes, which happens when
+    // something touches it. A process that regenerates before touching them all -- or an older binary that
+    // predates a ref entirely -- would otherwise silently write a *shorter* file, dropping refs. That is
+    // not a theoretical concern: `growIfNeeded` regenerates on any startup that applies ops, so running a
+    // previous release inside the source tree was enough to truncate the file, after which the next build
+    // produced a binary that raised "PackageRefs: hash not found" on startup.
+    //
+    // Keys that no longer resolve are dropped below by the `List.choose` against the DB, so this
+    // accumulates known refs without letting deleted ones linger.
+    let existingKeys =
+      readExistingFile () |> Map.toList |> List.map fst |> Set.ofList
+
+    let allRefKeys = Set.unionMany [ typeRefKeys; fnRefKeys; existingKeys ]
 
     // Query all Darklang-owned locations from DB
     let! dbRows =
@@ -65,25 +99,9 @@ let generate () : Ply<unit> =
 
     let dbMap = dbRows |> Map.ofList
 
-    // Read the existing file to preserve entries not found in DB
-    // (e.g. RT types that share hashes with PT types and aren't in locations)
-    let existingMap =
-      try
-        if System.IO.File.Exists(sourceTreePath) then
-          System.IO.File.ReadAllLines(sourceTreePath)
-          |> Array.choose (fun line ->
-            let line = line.Trim()
-            if line = "" then
-              None
-            else
-              match line.Split('|') with
-              | [| fqn; hash |] -> Some(fqn, hash)
-              | _ -> None)
-          |> Map.ofArray
-        else
-          Map.empty
-      with _ ->
-        Map.empty
+    // Preserves entries not found in the DB (e.g. RT types that share hashes with PT types and aren't in
+    // locations), and, via `existingKeys` above, refs this process never registered.
+    let existingMap = readExistingFile ()
 
     // Merge: DB values win, existing file fills gaps for referenced items
     let merged =

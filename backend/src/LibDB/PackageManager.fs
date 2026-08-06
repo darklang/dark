@@ -48,7 +48,7 @@ let rt : RT.PackageManager =
     persistBlob = PMRT.Blob.insert
 
     isHarmful =
-      fun branchId (RT.Hash h) -> Ply(Set.contains h (loadHarmfulForBranch branchId))
+      fun branchId (RT.Hash h) -> Set.contains h (loadHarmfulForBranch branchId)
 
     init =
       uply {

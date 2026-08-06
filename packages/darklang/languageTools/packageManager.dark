@@ -175,6 +175,31 @@ module Search =
         values = searchResults.values
         fns = searchResults.fns }
 
+
+  /// Search returning only names: (direct submodules, types, values, fns).
+  ///
+  /// `search` converts every matched item's full definition, parameters and body AST included, into Dark
+  /// values. Completion reads `.location.name` and throws the rest away, which is most of a millisecond
+  /// per item. Submodules come back already reduced to the direct children of the query's module, because
+  /// doing that reduction in Dark means walking every module path under the store root.
+  let searchNames
+    (branchId: Uuid)
+    (query: ProgramTypes.Search.SearchQuery)
+    : (List<String> * List<String> * List<String> * List<String>) =
+    Builtin.pmSearchNames branchId query
+
+
+  /// Like `searchNames`, but keeps each item's hash. Listings need it for the deprecation mark; completion
+  /// doesn't, and pays nothing for it.
+  let searchNamesAndHashes
+    (branchId: Uuid)
+    (query: ProgramTypes.Search.SearchQuery)
+    : (List<String> *
+       List<(String * ProgramTypes.Hash)> *
+       List<(String * ProgramTypes.Hash)> *
+       List<(String * ProgramTypes.Hash)>) =
+    Builtin.pmSearchNamesAndHashes branchId query
+
 /// Create a PackageManager
 let pm () : ProgramTypes.PackageManager.PackageManager =
   ProgramTypes.PackageManager.PackageManager

@@ -167,3 +167,160 @@ let testEvalStringExpression (): TestResult =
     TestResult.Pass
   else
     TestResult.Fail $"Expected 'helloworld', got '{output}'"
+
+
+// ---------------------------------------------------------------- compiler views
+// `view --ast` and `view --instructions`. These assert on structure rather than exact text, because
+// register numbers and instruction counts change whenever the compiler does, and a test that pins them
+// fails on every unrelated codegen improvement.
+
+let testViewAst (): TestResult =
+  let output = runWithCommand ["view"; "Stdlib.List.last"; "--ast"]
+
+  // A signature line, then the body tree with its node kinds. `Match`/`Arg` are what `last` is made of.
+  // Label and detail are coloured separately, so a row's text isn't contiguous in the output. Match on
+  // the pieces rather than on a whole rendered line.
+  if Stdlib.String.contains output "last<'a> (list: List<'a>) ->"
+    && Stdlib.String.contains output "Match"
+    && Stdlib.String.contains output "on Arg #0, 2 cases"
+    && Stdlib.String.contains output "head :: tail"
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected an AST tree with signature rows and node kinds, got: {output}"
+
+
+let testViewInstructions (): TestResult =
+  let output = runWithCommand ["view"; "Stdlib.List.push"; "--instructions"]
+
+  // `push` is a thin wrapper over a builtin, so it must load the builtin and apply it.
+  if Stdlib.String.contains output "instructions"
+    && Stdlib.String.contains output "registers"
+    && Stdlib.String.contains output "LoadVal"
+    && Stdlib.String.contains output "Apply"
+    && Stdlib.String.contains output "listPush"
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected an instruction listing for List.push, got: {output}"
+
+
+let testViewInstructionsShowsLambdas (): TestResult =
+  // `filter` is `fold` plus a lambda, and a listing that stopped at `CreateLambda` would be a dead end.
+  let output = runWithCommand ["view"; "Stdlib.List.filter"; "--instructions"]
+
+  if Stdlib.String.contains output "CreateLambda"
+    && Stdlib.String.contains output "lambda#"
+    && Stdlib.String.contains output "JumpByIfFalse"
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected the lambda's own listing under filter's, got: {output}"
+
+
+let testViewCompilerViewsRejectNonFunctions (): TestResult =
+  // Both views are function-only, and saying which kind of thing you pointed at beats "not found".
+  let typeOutput = runWithCommand ["view"; "Stdlib.Option.Option"; "--ast"]
+  let moduleOutput = runWithCommand ["view"; "Stdlib.List"; "--instructions"]
+
+  if Stdlib.String.contains typeOutput "type"
+    && Stdlib.String.contains moduleOutput "module"
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      $"Expected kind-specific refusals, got type: {typeOutput}, module: {moduleOutput}"
+
+
+let testViewFlagBeforePath (): TestResult =
+  // Flags are position-independent; this is the ordering people actually type.
+  let output = runWithCommand ["view"; "--ast"; "Stdlib.List.push"]
+
+  if Stdlib.String.contains output "push" && Stdlib.String.contains output "->" then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected --ast to work before the path, got: {output}"
+
+
+let testViewUnknownFlag (): TestResult =
+  let output = runWithCommand ["view"; "Stdlib.List.push"; "--nope"]
+
+  if Stdlib.String.contains output "--nope" && Stdlib.String.contains output "Usage" then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected an unknown-option error naming the flag plus usage, got: {output}"
+
+
+// ---------------------------------------------------------------- native list rewrites
+// These five moved from Dark to builtins for speed. The edge cases are the point: an out-of-bounds or
+// negative index, an empty list, and nested empties are exactly where a reimplementation drifts.
+
+let testNativeListEdgeCases (): TestResult =
+  let cases =
+    [ ("Stdlib.List.getAt [1;2;3] 0", "1")
+      ("Stdlib.List.getAt [1;2;3] 2", "3")
+      ("Stdlib.List.getAt [1;2;3] 3", "None")
+      ("Stdlib.List.getAt [1;2;3] (-1)", "None")
+      ("Stdlib.List.getAt [] 0", "None")
+      ("Stdlib.List.reverse [1;2;3]", "[3, 2, 1]")
+      ("Stdlib.List.reverse []", "[]")
+      ("Stdlib.List.push [2;3] 1", "[1, 2, 3]")
+      ("Stdlib.List.push [] 1", "[1]")
+      ("Stdlib.List.pushBack [1;2] 3", "[1, 2, 3]")
+      ("Stdlib.List.pushBack [] 1", "[1]")
+      ("Stdlib.List.flatten [[1;2];[3]]", "[1, 2, 3]")
+      ("Stdlib.List.flatten []", "[]")
+      ("Stdlib.List.flatten [[];[1];[]]", "[1]") ]
+
+  let failures =
+    cases
+    |> Stdlib.List.filterMap (fun pair ->
+      let (expr, expected) = pair
+      let output = runWithCommand ["eval"; expr]
+
+      if Stdlib.String.contains output expected then
+        Stdlib.Option.Option.None
+      else
+        Stdlib.Option.Option.Some $"`{expr}` expected `{expected}`, got `{output}`")
+
+  match failures with
+  | [] -> TestResult.Pass
+  | _ -> TestResult.Fail (Stdlib.String.join failures "; ")
+
+
+/// A `None` from `getAt` must still compare and match as a plain `None`. The native version threads the
+/// list's element type through, so the repr gained a type argument; this pins that the change is
+/// display-only.
+/// Calls carrying an EXPLICIT type argument take a different path through Apply than the usual inferred
+/// case: resolving the type argument is the one step that can need the package store before anything has
+/// run, so it hands off to `callBuiltinAsync`/`callPackageAsync` instead of staying synchronous.
+///
+/// Nothing else in either suite exercises that, and it has already been wrong once: an earlier version
+/// awaited and then retried the synchronous path, which never terminates for a type argument that isn't
+/// in the store, because cache misses aren't cached. A scalar type arg, a container one and a custom one
+/// each resolve differently, so all three are here.
+let testExplicitTypeArgs (): TestResult =
+  let scalar = runWithCommand ["eval"; "Stdlib.Json.parse<Int64> \"3\""]
+  let container = runWithCommand ["eval"; "Stdlib.Json.parse<List<Int64>> \"[1,2]\""]
+  let custom = runWithCommand ["eval"; "Stdlib.Json.parse<Stdlib.Uuid.ParseError> \"{}\""]
+
+  if
+    Stdlib.String.contains scalar "Ok" && Stdlib.String.contains scalar "3"
+      && Stdlib.String.contains container "Ok"
+      && Stdlib.String.contains container "[1, 2]"
+      && Stdlib.String.contains custom "ParseError"
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      $"Expected explicit type args to resolve; got scalar: {scalar}, container: {container}, custom: {custom}"
+
+
+let testGetAtNoneIsStillNone (): TestResult =
+  let eq = runWithCommand ["eval"; "(Stdlib.List.getAt [1;2;3] 99) == Stdlib.Option.Option.None"]
+  let dflt = runWithCommand ["eval"; "Stdlib.Option.withDefault (Stdlib.List.getAt [1;2;3] 99) 0"]
+
+  if Stdlib.String.contains eq "true" && Stdlib.String.contains dflt "0" then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected out-of-bounds None to behave as None, got eq: {eq}, default: {dflt}"

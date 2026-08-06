@@ -73,11 +73,13 @@ let sourceRows (source: String) : List<String> =
 let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
   match location with
   | Module path ->
-    let results = Query.allDirectDescendants branchId path
+    // Names only. This listing prints each item's name and nothing else, so materializing every matched
+    // item's full definition to read `.location.name` is work thrown away. Submodules come back already
+    // reduced to the direct children of `path`.
+    let (directSubmodules, typeNames, valueNames, fnNames) =
+      Query.allDirectDescendantNames branchId path
 
     let locationStr = Packages.formatLocation location
-    let currentPathLength = Stdlib.List.length path
-    let directSubmodules = Query.getDirectSubmodules results currentPathLength
 
     let submoduleRows =
       if Stdlib.List.isEmpty directSubmodules then
@@ -91,35 +93,32 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
         ]
 
     let typeRows =
-      if Stdlib.List.isEmpty results.types then
+      if Stdlib.List.isEmpty typeNames then
         []
       else
         Stdlib.List.flatten [
           [ Display.getSectionHeader "type" ]
-          results.types
-          |> Stdlib.List.map (fun item -> $"  {item.location.name}")
+          typeNames |> Stdlib.List.map (fun name -> $"  {name}")
           [ "" ]
         ]
 
     let valueRows =
-      if Stdlib.List.isEmpty results.values then
+      if Stdlib.List.isEmpty valueNames then
         []
       else
         Stdlib.List.flatten [
           [ Display.getSectionHeader "value" ]
-          results.values
-          |> Stdlib.List.map (fun item -> $"  {item.location.name}")
+          valueNames |> Stdlib.List.map (fun name -> $"  {name}")
           [ "" ]
         ]
 
     let functionRows =
-      if Stdlib.List.isEmpty results.fns then
+      if Stdlib.List.isEmpty fnNames then
         []
       else
         Stdlib.List.flatten [
           [ Display.getSectionHeader "function" ]
-          results.fns
-          |> Stdlib.List.map (fun item -> $"  {item.location.name}")
+          fnNames |> Stdlib.List.map (fun name -> $"  {name}")
           [ "" ]
         ]
 
@@ -217,48 +216,240 @@ let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
   entityRows branchId location |> Stdlib.printLines
 
 
-// VIEW command - view modules, functions, types, or constants
+/// What `view` shows. Source is the default and the only one that works for every kind of item; the
+/// other two are compiler views of a function.
+type ViewMode =
+  | Source
+  /// The ProgramTypes tree the parser built, before compilation.
+  | Ast
+  /// The register-machine instructions the function actually runs.
+  | Instructions
+
+
+let modeName (mode: ViewMode) : String =
+  match mode with
+  | Source -> "source"
+  | Ast -> "--ast"
+  | Instructions -> "--instructions"
+
+
+/// Flags are accepted in any position, so `view --ast List.last` and `view List.last --ast` both work.
+/// Returns the path (if given) and the mode, or an error naming the bad flag.
+let parseArgs
+  (args: List<String>)
+  : Stdlib.Result.Result<(Stdlib.Option.Option<String> * ViewMode), String> =
+  let isFlag (a: String) : Bool = Stdlib.String.startsWith a "-"
+  let flags = Stdlib.List.filter args (fun a -> isFlag a)
+  let paths = Stdlib.List.filter args (fun a -> Stdlib.Bool.not (isFlag a))
+
+  let modeResult =
+    Stdlib.List.fold flags (Stdlib.Result.Result.Ok ViewMode.Source) (fun acc flag ->
+      match acc with
+      | Error e -> Stdlib.Result.Result.Error e
+      | Ok _ ->
+        match flag with
+        | "--ast" -> Stdlib.Result.Result.Ok ViewMode.Ast
+        | "--instructions" -> Stdlib.Result.Result.Ok ViewMode.Instructions
+        | "--instrs" -> Stdlib.Result.Result.Ok ViewMode.Instructions
+        | other -> Stdlib.Result.Result.Error $"unknown option `{other}`")
+
+  match modeResult with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok mode ->
+    match paths with
+    | [] -> Stdlib.Result.Result.Ok((Stdlib.Option.Option.None, mode))
+    | [ p ] -> Stdlib.Result.Result.Ok((Stdlib.Option.Option.Some p, mode))
+    | _ -> Stdlib.Result.Result.Error "expected at most one path"
+
+
+/// The function at a location, if the location names one. `--ast` and `--instructions` are function-only
+/// views, and saying which kind of thing you actually pointed at beats a bare "not found".
+let fnAt
+  (branchId: Uuid)
+  (location: PackageLocation)
+  : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageFn.PackageFn, String> =
+  match location with
+  | Function name ->
+    let modulePath = Stdlib.List.append [ name.owner ] name.modules
+    let results = Query.searchExactMatch branchId modulePath name.name
+
+    match results.fns with
+    | item :: _ -> Stdlib.Result.Result.Ok item.entity
+    | [] ->
+      let loc = Packages.formatLocation location
+      Stdlib.Result.Result.Error $"Function '{loc}' not found."
+  | Module _ ->
+    Stdlib.Result.Result.Error "that's a module; this view is for functions"
+  | Type _ -> Stdlib.Result.Result.Error "that's a type; this view is for functions"
+  | Value _ ->
+    Stdlib.Result.Result.Error "that's a value; this view is for functions"
+
+
+/// The ProgramTypes tree, indented by depth. Node kinds are coloured and payloads dimmed, so the shape
+/// reads at a glance and the detail is there when you look for it.
+let astRows
+  (branchId: Uuid)
+  (name: String)
+  (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
+  : List<String> =
+  let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
+
+  PrettyPrinter.ProgramTypes.Ast.packageFn ctx name fn
+  |> Stdlib.List.map (fun l ->
+    // The signature is depth 0 and the body starts at depth 0 too, so the tree reads as a block under
+    // the signature rather than being pushed a level in by scaffolding that isn't there any more.
+    let indent = Stdlib.String.repeat "  " l.depth
+    let label = Colors.keyword l.label
+
+    if l.detail == "" then
+      $"{indent}{label}"
+    else
+      $"{indent}{label} {Colors.dimText l.detail}")
+
+
+/// The disassembly, plus any lambdas defined inside it. Lambdas get their own section rather than being
+/// inlined, because `CreateLambda` is otherwise a dead end in the listing.
+let instructionRows
+  (branchId: Uuid)
+  (instrs: LanguageTools.RuntimeTypes.Instructions)
+  : List<String> =
+  let renderBody (is: LanguageTools.RuntimeTypes.Instructions) : List<String> =
+    let opcodeWidth =
+      is.instructions
+      |> Stdlib.List.map (fun i ->
+        Stdlib.String.length (PrettyPrinter.RuntimeTypes.Instructions.opcode i))
+      |> Stdlib.List.fold 0 (fun acc n -> if n > acc then n else acc)
+
+    is.instructions
+      |> Stdlib.List.indexedMap (fun index i ->
+        let idx =
+          Colors.dimText
+            (PrettyPrinter.RuntimeTypes.Instructions.padFrom 4 (Stdlib.Int.toString index))
+        // Width of the widest opcode actually in this body, not a fixed 22. Most functions use short
+        // opcodes, and a fixed column leaves a corridor of blanks between them and their operands.
+        let op =
+          Colors.command
+            (PrettyPrinter.RuntimeTypes.Instructions.padTo
+              opcodeWidth
+              (PrettyPrinter.RuntimeTypes.Instructions.opcode i))
+        let ops = PrettyPrinter.RuntimeTypes.Instructions.operands branchId index i
+        $"  {idx}  {op} {ops}")
+
+  let lambdaSections =
+    PrettyPrinter.RuntimeTypes.Instructions.lambdas instrs
+    |> Stdlib.List.map (fun l ->
+      let header =
+        PrettyPrinter.RuntimeTypes.Instructions.header l.instructions
+      Stdlib.List.flatten
+        [ [ ""
+            Colors.hint $"lambda#{Stdlib.UInt64.toString l.exprId}"
+            Colors.dimText $"  {header}"
+            "" ]
+          renderBody l.instructions ])
+    |> Stdlib.List.flatten
+
+  Stdlib.List.flatten
+    [ [ Colors.dimText
+          $"  {PrettyPrinter.RuntimeTypes.Instructions.header instrs}"
+        "" ]
+      renderBody instrs
+      lambdaSections ]
+
+
+/// Render one of the compiler views of the function at <param location>.
+let viewCompiled
+  (branchId: Uuid)
+  (location: PackageLocation)
+  (mode: ViewMode)
+  : Unit =
+  match fnAt branchId location with
+  | Error e -> Stdlib.printLine (Colors.error $"Cannot {modeName mode}: {e}")
+  | Ok fn ->
+    let title = Colors.boldText (Packages.formatLocation location)
+    Stdlib.printLine title
+    Stdlib.printLine ""
+
+    match mode with
+    | Ast ->
+      let shortName =
+        match location with
+        | Function name -> name.name
+        | _ -> ""
+      astRows branchId shortName fn |> Stdlib.printLines
+    | Instructions ->
+      match Builtin.pmFnInstructions fn.hash with
+      | Some instrs -> instructionRows branchId instrs |> Stdlib.printLines
+      | None ->
+        Stdlib.printLine
+          (Colors.error "No compiled instructions stored for this function.")
+    | Source -> viewEntity branchId location
+
+
+// VIEW command - view modules, functions, types, or constants, as source, AST, or instructions
 let execute (state: AppState) (args: List<String>) : AppState =
   let branchId = state.currentBranchId
-  match args with
-  | [] ->
-    // No args - view current location
-    viewEntity branchId state.packageData.currentLocation
+
+  match parseArgs args with
+  | Error e ->
+    Stdlib.printLine (Colors.error $"Cannot view: {e}")
+    help state
     state
-  | [pathArg] ->
-    // Navigate to the path and view
-    match Traversal.traverse branchId state.packageData.currentLocation pathArg with
+  | Ok parsed ->
+    let (pathArg, mode) = parsed
+
+    let locationResult =
+      match pathArg with
+      | None -> Stdlib.Result.Result.Ok state.packageData.currentLocation
+      | Some p -> Traversal.traverse branchId state.packageData.currentLocation p
+
+    match locationResult with
     | Error errorMsg ->
       Stdlib.printLine (Colors.error $"Cannot view: {errorMsg}")
       state
-    | Ok newLocation ->
-      viewEntity branchId newLocation
+    | Ok location ->
+      match mode with
+      | Source -> viewEntity branchId location
+      | _ -> viewCompiled branchId location mode
+
       state
-  | _ ->
-    help state
-    state
 
 let complete (state: AppState) (args: List<String>) : List<Completion.CompletionItem> =
   let branchId = state.currentBranchId
-  match args with
-  | [] ->
+  // Complete the path as before, and offer the view flags once something is typed. Flags are filtered
+  // out of the path completion so `view List.last --a` completes the flag, not a package path.
+  let flagCompletions (partial: String) : List<Completion.CompletionItem> =
+    [ "--ast"; "--instructions" ]
+    |> Stdlib.List.filter (fun name -> Stdlib.String.startsWith name partial)
+    |> Stdlib.List.map (fun name -> Completion.simple name)
+
+  match Stdlib.List.last args with
+  | Some lastArg ->
+    if Stdlib.String.startsWith lastArg "-" then
+      flagCompletions lastArg
+    else
+      Traversal.completePartialPath branchId state.packageData.currentLocation lastArg
+  | None ->
     Traversal.completePartialPath branchId state.packageData.currentLocation ""
-  | [partialPath] ->
-    Traversal.completePartialPath branchId state.packageData.currentLocation partialPath
-  | _ -> []
 
 
 let help (_state: AppState) : Unit =
   [
-    "Usage: view [path]"
+    "Usage: view [path] [--ast | --instructions]"
     "View detailed information about functions, types, values, or modules."
     ""
     "With path: View the specified entity with syntax highlighting."
     "Without path: View current location."
     ""
+    "Options (functions only):"
+    "  --ast             The ProgramTypes tree the parser built, before compilation."
+    "  --instructions    The register-machine instructions the function actually runs."
+    "                    Aliased as --instrs."
+    ""
     "Examples:"
-    "  view                    - View current location"
-    "  view List.head          - View the List.head function"
-    "  view Option             - View the Option type"
-    "  view Stdlib.List        - View contents of Stdlib.List module"
+    "  view                            - View current location"
+    "  view List.head                  - View the List.head function"
+    "  view Option                     - View the Option type"
+    "  view Stdlib.List                - View contents of Stdlib.List module"
+    "  view List.last --ast            - View List.last as a syntax tree"
+    "  view List.map --instructions    - Disassemble List.map"
   ] |> Stdlib.printLines

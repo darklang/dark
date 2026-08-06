@@ -3,6 +3,15 @@
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <IsTrimmable>true</IsTrimmable>
+
+    <!-- Tiered PGO instruments tier-0 code to build a profile that tier-1 then optimizes against. A CLI
+         command lives a second or two and exits, so it pays the instrumentation and never collects on the
+         profile: measured ~20% of release throughput on a call-heavy script, and ~9% in Debug.
+
+         Scoped to this project rather than set globally because `darklang serve` is long-lived and is
+         exactly the shape PGO is designed for. If serve ever moves into its own entry point, it should
+         keep the default. -->
+    <TieredPGO>false</TieredPGO>
     <!-- Publishing configuration -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <!-- Assembly linking - trim framework assemblies too -->

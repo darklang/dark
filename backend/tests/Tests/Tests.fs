@@ -53,7 +53,7 @@ let main (args : string array) : int =
         // wall-clock to include in the default suite. Re-enable
         // once the capture moves to per-call buffers and
         // sequencing can come off.
-        // Tests.CliTraces.tests
+        Tests.CliTraces.tests
         Tests.Toplevels.tests
 
         // cross-cutting

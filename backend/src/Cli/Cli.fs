@@ -107,7 +107,10 @@ let execute
   (args : List<string>)
   : Task<RT.ExecutionResult> =
   task {
-    let state = state packageManager
+    // Split out because `cli.execute` turned out to be nearly identical for `status` and `help` despite help
+    // running 5x the instructions, which means most of it is a FIXED cost, not the Dark code running.
+    // `state` builds the builtins map and the execution state; this says how much of the fixed cost is that.
+    let state = Telemetry.time "cli.buildState" [] (fun () -> state packageManager)
     let fnName = RT.FQFnName.fqPackage (PackageRefs.Fn.Cli.executeCliCommand ())
     let args =
       args |> List.map RT.DString |> Dval.list RT.KTString |> NEList.singleton
@@ -120,23 +123,70 @@ let initSerializers () = ()
 [<EntryPoint>]
 let main (args : string[]) =
   try
+    // How long the process took to reach here. `cli.total` starts after resource extraction and can't
+    // see runtime init, assembly loading or JIT of the startup path, which is a large share of a short
+    // command. Wall clock rather than Stopwatch, because the only fixed point is when the OS started us.
+    // Read the switch before doing any measuring: `Process.GetCurrentProcess()` reads /proc and
+    // initialises the Process machinery, which is not free on a command this short, and the only thing
+    // it feeds is a telemetry event.
+    let telemetryEnabled =
+      match System.Environment.GetEnvironmentVariable "DARK_TELEMETRY" with
+      | "1" -> true
+      | _ -> false
+
+    let preMainMs =
+      if telemetryEnabled then
+        let processStart =
+          System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime()
+        int64 (System.DateTime.UtcNow - processStart).TotalMilliseconds
+      else
+        0L
+
     // Extract embedded resources FIRST — this sets DARK_CONFIG_RUNDIR
     // which LibConfig.Config needs to resolve paths correctly.
+    let extractStart = System.Diagnostics.Stopwatch.GetTimestamp()
     EmbeddedResources.extract ()
+    let extractTicks = System.Diagnostics.Stopwatch.GetTimestamp() - extractStart
     initSerializers ()
 
-    // Now safe to access LibConfig paths
-    let telemetryPath =
-      System.IO.Path.Combine(LibConfig.Config.logDir, "telemetry.jsonl")
-    Telemetry.init telemetryPath
+    // Now safe to access LibConfig paths.
+    //
+    // Gated on DARK_TELEMETRY (read above), the same switch the Dark side reads (see `initState` in
+    // cli/core.dark), so both halves of the instrument turn on together. Unconditional init would append
+    // to telemetry.jsonl on every invocation, and, since `InterpreterStats.create()` keys off this, would
+    // also leave per-instruction counting on in the hot loop for every run.
+    if telemetryEnabled then
+      Telemetry.init (
+        System.IO.Path.Combine(LibConfig.Config.logDir, "telemetry.jsonl")
+      )
+    // Emitted now rather than at the top, because telemetry has no output path until `init` above.
+    Telemetry.event "cli.preMain" [ "ms", string preMainMs ]
+    let ticksToMs (t : int64) = t * 1000L / System.Diagnostics.Stopwatch.Frequency
+    Telemetry.event "cli.extractResources" [ "ms", string (ticksToMs extractTicks) ]
+    // Drained here rather than logged in place: `extract` runs before telemetry has an output path.
+    for (label, ticks) in EmbeddedResources.timings do
+      Telemetry.event $"cli.{label}" [ "ms", string (ticksToMs ticks) ]
+
     use _totalSpan = Telemetry.span "cli.total" []
 
-    // If data.db is missing but seed.db exists, copy seed as data.db
-    let dbPath = LibConfig.Config.dbPath
-    let seedPath = System.IO.Path.Combine(LibConfig.Config.runDir, "seed.db")
-    if not (System.IO.File.Exists dbPath) && System.IO.File.Exists seedPath then
-      System.Console.Error.WriteLine "Copying seed.db as data.db"
-      System.IO.File.Copy(seedPath, dbPath)
+    // Named so the phases inside `cli.total` sum to it. Without this most of the total lands in "the
+    // rest", which is not a useful place for time to live.
+    Telemetry.time "cli.seedCheck" [] (fun () ->
+      // If data.db is missing but seed.db exists, copy seed as data.db
+      let dbPath = LibConfig.Config.dbPath
+      let seedPath = System.IO.Path.Combine(LibConfig.Config.runDir, "seed.db")
+      if not (System.IO.File.Exists dbPath) && System.IO.File.Exists seedPath then
+        System.Console.Error.WriteLine "Copying seed.db as data.db"
+        System.IO.File.Copy(seedPath, dbPath))
+
+    // Force the module-level `builtins` binding here, so its cost is attributed to a span of its own
+    // rather than to whichever phase happens to touch it first.
+    Telemetry.time "cli.builtinsInit" [] (fun () ->
+      builtins.fns |> Map.count |> ignore<int>)
+
+    // Separated from `growIfNeeded` so the first connection open and its PRAGMA round trip are attributable
+    // to themselves rather than to whichever query happened to run first.
+    Telemetry.time "cli.dbConnect" [] LibDB.Sqlite.Sql.warm
 
     // Grow the database: apply any unapplied ops and evaluate values.
     let cliPackageManager =
@@ -155,7 +205,95 @@ let main (args : string[]) =
         let result = execute cliPackageManager (Array.toList args)
         result.Result)
 
-    NonBlockingConsole.wait ()
+    Telemetry.time "cli.consoleWait" [] NonBlockingConsole.wait
+
+    // Startup instrumentation. All of it is inert when telemetry is off; read it with
+    // `scripts/testing/view-telemetry.py`.
+
+    // How many package items this run actually decoded. Emitted alongside the spans because per-item
+    // cost and item count are useless separately.
+    Telemetry.counterSnapshot ()
+    |> List.iter (fun (name, n) -> Telemetry.event name [ "count", string n ])
+
+    // Total the interpreter counters across every VM this run created. A VM is per-`executeFunction`
+    // and the stats hang off it, so without the sink the object is gone before anything could ask.
+    if Telemetry.isEnabled () then
+      let stats =
+        RT.InterpreterStatsSink.all
+        |> Seq.choose (fun o ->
+          match o with
+          | :? RT.InterpreterStats as s -> Some s
+          | _ -> None)
+        |> Seq.toList
+
+      // Per-opcode allocation, summed across every VM. Names come from reflection over the Instruction DU
+      // so tag order can't drift out of sync with a hand-written list.
+      let opcodeNames = RT.Opcode.names
+      let totalAlloc = Array.zeroCreate 32
+      let totalCount = Array.zeroCreate 32
+      for s in stats do
+        for i in 0..31 do
+          totalAlloc[i] <- totalAlloc[i] + s.allocByOpcode[i]
+          totalCount[i] <- totalCount[i] + s.countByOpcode[i]
+      for i in 0..31 do
+        if totalCount[i] > 0L then
+          let name = if i < opcodeNames.Length then opcodeNames[i] else string i
+          Telemetry.event
+            $"opcode.{name}"
+            [ "count", string totalCount[i]
+              "allocBytes", string totalAlloc[i]
+              "bytesPerOp", string (totalAlloc[i] / totalCount[i]) ]
+
+      // Per-builtin allocation, summed across VMs. This is what named the cost: ~99% of everything the
+      // process allocates happens inside builtin bodies, not the interpreter around them.
+      let byBuiltin = System.Collections.Generic.Dictionary<string, int64>()
+      for s in stats do
+        for kv in s.builtinAlloc do
+          match byBuiltin.TryGetValue kv.Key with
+          | true, v -> byBuiltin[kv.Key] <- v + kv.Value
+          | false, _ -> byBuiltin[kv.Key] <- kv.Value
+      byBuiltin
+      |> Seq.sortByDescending (fun kv -> kv.Value)
+      |> Seq.truncate 20
+      |> Seq.iter (fun kv ->
+        Telemetry.event $"builtinAlloc.{kv.Key}" [ "bytes", string kv.Value ])
+
+      for i in 0 .. min (RT.ApplyStage.names.Length - 1) 31 do
+        let total = stats |> List.sumBy (fun s -> s.allocByStage[i])
+        if total > 0L then
+          Telemetry.event
+            $"applyStage.{RT.ApplyStage.names[i]}"
+            [ "bytes", string total ]
+
+      Telemetry.event
+        "vm.stats"
+        [ "vms", string (List.length stats)
+          "instructions", string (stats |> List.sumBy (fun s -> s.instructionCount))
+          "builtinCalls", string (stats |> List.sumBy (fun s -> s.builtinCallCount))
+          "packageCalls", string (stats |> List.sumBy (fun s -> s.packageCallCount))
+          "framePushes", string (stats |> List.sumBy (fun s -> s.framePushCount))
+          "registersAllocated",
+          string (stats |> List.sumBy (fun s -> s.registersAllocated))
+          "builtinBodyAlloc",
+          string (stats |> List.sumBy (fun s -> s.builtinBodyAlloc))
+          "tstSizeSum", string (stats |> List.sumBy (fun s -> s.tstSizeSum))
+          "tstSizeMax",
+          string (stats |> List.map (fun s -> s.tstSizeMax) |> List.fold max 0L) ]
+
+    // Allocation per instruction, to separate "we allocate a Dval per operation" from "the async state
+    // machine costs per operation". Process-total, so it costs one call at exit rather than anything per
+    // instruction. GC counts come along because collection pauses would show up as neither.
+    if Telemetry.isEnabled () then
+      Telemetry.event
+        "gc.stats"
+        [ "totalAllocatedBytes", string (System.GC.GetTotalAllocatedBytes(false))
+          "gen0", string (System.GC.CollectionCount 0)
+          "gen1", string (System.GC.CollectionCount 1)
+          "gen2", string (System.GC.CollectionCount 2) ]
+
+    Telemetry.timerSnapshot ()
+    |> List.iter (fun (name, us) ->
+      Telemetry.event name [ "us", string us; "ms", string (us / 1000L) ])
 
     // Exit codes are bounded; narrow safely rather than letting an out-of-Int32
     // result throw an uncaught host OverflowException.

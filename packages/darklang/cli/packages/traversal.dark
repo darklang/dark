@@ -175,26 +175,26 @@ let getAvailableItems
   (prefixText: String)
   : List<Cli.Completion.CompletionItem> =
   let currentPath = getCurrentModulePath location
-  // Get all available entities in this module
-  let allResults = Query.allDirectDescendants branchId currentPath
-
-  let currentPathLength = Stdlib.List.length currentPath
+  // Names only: completion shows a name and an icon, and materializing each item's full definition to
+  // read `.location.name` was the single worst hitch while typing (115 ms at the store root).
+  let (submoduleNames, typeNames, valueNames, fnNames) =
+    Query.allDirectDescendantNames branchId currentPath
 
   let moduleItems =
-    (Query.getDirectSubmodules allResults currentPathLength)
+    submoduleNames
     |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Module name)
 
   let typeItems =
-    allResults.types
-    |> Stdlib.List.map (fun item -> Cli.Completion.withIcon EntityType.Type item.location.name)
+    typeNames
+    |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Type name)
 
   let fnItems =
-    allResults.fns
-    |> Stdlib.List.map (fun item -> Cli.Completion.withIcon EntityType.Function item.location.name)
+    fnNames
+    |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Function name)
 
   let valueItems =
-    allResults.values
-    |> Stdlib.List.map (fun item -> Cli.Completion.withIcon EntityType.Value item.location.name)
+    valueNames
+    |> Stdlib.List.map (fun name -> Cli.Completion.withIcon EntityType.Value name)
 
   let flatItems = Stdlib.List.flatten [moduleItems; typeItems; fnItems; valueItems]
   let allItems = flatItems |> Stdlib.List.sortBy (fun item -> item.value)
