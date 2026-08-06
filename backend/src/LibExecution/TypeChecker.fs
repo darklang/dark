@@ -490,6 +490,41 @@ let rec resolveType
 
 
 
+/// `unifyValueTypeSync` against a `Dval`, without building the dval's ValueType when the shape can be
+/// compared directly.
+///
+/// `Dval.toValueType` on a container returns `Known(KTList t)` -- two allocations -- and the unifier's
+/// very next move is to take it apart again. Scalars are cached singletons and cost nothing, but a
+/// container argument is the common case in this standard library, and this runs per argument per call
+/// and on every frame return.
+///
+/// Only the shapes that carry their element type are special-cased. Everything else, including binding a
+/// type variable (which genuinely needs a ValueType to bind), falls through to the original path.
+let private unifyDvalSync
+  (tst : TypeSymbolTable)
+  (pathSoFar : ReverseTypeCheckPath)
+  (expected : TypeReference)
+  (actual : Dval)
+  : SyncUnification =
+  // Nested matches, not `match expected, actual with`: the tuple form allocates the pair.
+  match expected with
+  | TList innerT ->
+    match actual with
+    | DList(innerV, _) ->
+      unifyValueTypeSync tst (TypeCheckPathPart.ListType :: pathSoFar) innerT innerV
+    | _ -> unifyValueTypeSync tst pathSoFar expected (Dval.toValueType actual)
+  | TDict innerT ->
+    match actual with
+    | DDict(innerV, _) ->
+      unifyValueTypeSync
+        tst
+        (TypeCheckPathPart.DictValueType :: pathSoFar)
+        innerT
+        innerV
+    | _ -> unifyValueTypeSync tst pathSoFar expected (Dval.toValueType actual)
+  | _ -> unifyValueTypeSync tst pathSoFar expected (Dval.toValueType actual)
+
+
 /// The unification behind both the parameter and the result checks, answered without a computation
 /// expression when it needs no type lookup.
 ///
@@ -507,7 +542,7 @@ let tryUnifySync
   match unwrapAliasSync expected with
   | ValueNone -> ValueNone
   | ValueSome expected ->
-    match unifyValueTypeSync tst [] expected (Dval.toValueType actual) with
+    match unifyDvalSync tst [] expected actual with
     | Unified updatedTst -> ValueSome updatedTst
     | Mismatched _
     | Undecided -> ValueNone
