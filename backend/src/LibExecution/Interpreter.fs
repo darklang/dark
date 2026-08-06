@@ -1713,15 +1713,17 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                     }
                 recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
                 // Overwritten on the next line either way; F# needs something to start from.
-                let mutable outcome = PartiallyApplied DUnit
+                // No `let mutable` spanning the bind. A mutable a continuation captures becomes a
+                // heap ref cell, allocated whether or not the branch that needs it is taken; measured
+                // at 4.4 MB for this one. Duplicating two lines is cheaper than the cell.
                 match Ply.trySync call with
-                | ValueSome o -> outcome <- o
+                | ValueSome(PartiallyApplied dv) -> registers[putResultIn] <- dv
+                | ValueSome(PushFrame frame) -> frameToPush <- Some frame
                 | ValueNone ->
                   let! o = call
-                  outcome <- o
-                match outcome with
-                | PartiallyApplied dv -> registers[putResultIn] <- dv
-                | PushFrame frame -> frameToPush <- Some frame
+                  match o with
+                  | PartiallyApplied dv -> registers[putResultIn] <- dv
+                  | PushFrame frame -> frameToPush <- Some frame
 
           // Handled by `runSyncInstructions`; the match must still be exhaustive.
           | _ -> ()
