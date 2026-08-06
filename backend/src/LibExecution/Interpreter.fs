@@ -801,6 +801,77 @@ let private resolveTypeArgsAsync
 
 
 
+/// Record a builtin's result in the trace, and hand it back.
+///
+/// Top-level for the same reason as `finishBuiltin` below it: as a local it was captured by that
+/// function's cold-path `uply`, so it was built on every builtin call.
+let private traceBuiltinResult
+  (exeState : ExecutionState)
+  (currentFrame : CallFrame)
+  (fn : BuiltInFn)
+  (allArgs : List<Dval>)
+  (result : Dval)
+  : Dval =
+  if not exeState.tracing.skipTracing then
+    let source : Tracing.Source = (currentFrame.executionPoint, None)
+    let fnRecord : Tracing.FunctionRecord = (source, FQFnName.Builtin fn.name)
+    exeState.tracing.storeFnResult
+      fnRecord
+      (NEList.ofListUnsafe "" [] allArgs)
+      result
+  result
+
+
+/// Stats, the result type-check and the trace, once a builtin's body has produced a value. Runs
+/// whether or not the body had to wait.
+let private finishBuiltin
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (fn : BuiltInFn)
+  (tst : TypeSymbolTable)
+  (allArgs : List<Dval>)
+  (sw : int64)
+  (bodyAllocBefore : int64)
+  (result : Dval)
+  : Ply<Dval> =
+  if vm.stats.enabled then
+    let d = System.GC.GetAllocatedBytesForCurrentThread() - bodyAllocBefore
+    if d > 0L then
+      vm.stats.builtinBodyAlloc <- vm.stats.builtinBodyAlloc + d
+      let n = fn.name.name
+      match vm.stats.builtinAlloc.TryGetValue n with
+      | true, v -> vm.stats.builtinAlloc[n] <- v + d
+      | false, _ -> vm.stats.builtinAlloc[n] <- d
+  // `sw = 0L` means the bracket never opened: timing was off when this call started and the call
+  // itself turned it on (`interpreterStatsEnableDetailedTiming` is the case). Subtracting from zero
+  // would record the raw tick count as a duration.
+  if vm.stats.enabled && vm.stats.detailedTiming && sw <> 0L then
+    let elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - sw
+    vm.stats.recordBuiltin (fn.name.name, elapsed)
+
+  let biResAlloc = allocNow vm
+  match TypeChecker.tryUnifySync tst fn.returnType result with
+  | ValueSome _ ->
+    recordStage vm ApplyStage.BiCheckResult biResAlloc
+    Ply(traceBuiltinResult exeState currentFrame fn allArgs result)
+  | ValueNone ->
+    uply {
+      match!
+        TypeChecker.checkFnResult
+          exeState.types
+          (FQFnName.Builtin fn.name)
+          tst
+          fn.returnType
+          result
+      with
+      | Ok _ -> ()
+      | Error rte -> raiseRTE vm.threadID rte
+      recordStage vm ApplyStage.BiCheckResult biResAlloc
+      return traceBuiltinResult exeState currentFrame fn allArgs result
+    }
+
+
 /// Everything from "we have the arguments and a checked symbol table" to "we have a checked result".
 ///
 /// Shared by the synchronous path and the fallback below it, so there is one copy of the capability gate,
@@ -814,8 +885,6 @@ let private invokeBuiltin
   (typeArgs : List<TypeReference>)
   (allArgs : List<Dval>)
   : Ply<Dval> =
-  // No local `raiseRTE` alias: the cold-path `uply` below would capture it, and a local a
-  // closure captures is an allocation on every call, not just the ones that need it.
   // Resolve type variables in typeArgs before passing to builtin.
   // When a package function like Stdlib.Json.parse<Int64> calls
   // Builtin.jsonParse<'a>, the 'a needs to resolve to Int64.
@@ -858,60 +927,26 @@ let private invokeBuiltin
   // anything touching disk. Most aren't: `Int64.add` computes and returns.
   let body = fn.fn (exeState, vm, resolvedTypeArgs, allArgs)
 
-  /// Stats, the result type-check and the trace. Runs whether or not the body had to wait.
-  let finish (result : Dval) : Ply<Dval> =
-    if vm.stats.enabled then
-      let d = System.GC.GetAllocatedBytesForCurrentThread() - bodyAllocBefore
-      if d > 0L then
-        vm.stats.builtinBodyAlloc <- vm.stats.builtinBodyAlloc + d
-        let n = fn.name.name
-        match vm.stats.builtinAlloc.TryGetValue n with
-        | true, v -> vm.stats.builtinAlloc[n] <- v + d
-        | false, _ -> vm.stats.builtinAlloc[n] <- d
-    // `sw = 0L` means the bracket never opened: timing was off when this call started and the call
-    // itself turned it on (`interpreterStatsEnableDetailedTiming` is the case). Subtracting from zero
-    // would record the raw tick count as a duration.
-    if vm.stats.enabled && vm.stats.detailedTiming && sw <> 0L then
-      let elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - sw
-      vm.stats.recordBuiltin (fn.name.name, elapsed)
-
-    let trace (result : Dval) =
-      if not exeState.tracing.skipTracing then
-        let source : Tracing.Source = (currentFrame.executionPoint, None)
-        let fnRecord : Tracing.FunctionRecord = (source, FQFnName.Builtin fn.name)
-        exeState.tracing.storeFnResult
-          fnRecord
-          (NEList.ofListUnsafe "" [] allArgs)
-          result
-      result
-
-    let biResAlloc = allocNow vm
-    match TypeChecker.tryUnifySync tst fn.returnType result with
-    | ValueSome _ ->
-      recordStage vm ApplyStage.BiCheckResult biResAlloc
-      Ply(trace result)
-    | ValueNone ->
-      uply {
-        match!
-          TypeChecker.checkFnResult
-            exeState.types
-            (FQFnName.Builtin fn.name)
-            tst
-            fn.returnType
-            result
-        with
-        | Ok _ -> ()
-        | Error rte -> raiseRTE vm.threadID rte
-        recordStage vm ApplyStage.BiCheckResult biResAlloc
-        return trace result
-      }
-
+  // `finishBuiltin` is top-level rather than a local closing over the eight values it needs, for the
+  // same reason `completeBuiltin` is: the fallback arm below is a `uply`, so a local would be captured
+  // and built on every call.
   match Ply.trySync body with
-  | ValueSome result -> finish result
+  | ValueSome result ->
+    finishBuiltin exeState vm currentFrame fn tst allArgs sw bodyAllocBefore result
   | ValueNone ->
     uply {
       let! result = body
-      return! finish result
+      return!
+        finishBuiltin
+          exeState
+          vm
+          currentFrame
+          fn
+          tst
+          allArgs
+          sw
+          bodyAllocBefore
+          result
     }
 
 
