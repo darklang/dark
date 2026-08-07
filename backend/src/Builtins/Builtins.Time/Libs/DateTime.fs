@@ -19,7 +19,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the current datetime"
       fn =
         (function
-        | struct (_, _, _, [ DUnit ]) ->
+        | struct (_, _, _, [| DUnit |]) ->
           Instant.now () |> DarkDateTime.fromInstant |> DDateTime |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -35,7 +35,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the <type DateTime> with the time set to midnight"
       fn =
         (function
-        | struct (_, _, _, [ DUnit ]) ->
+        | struct (_, _, _, [| DUnit |]) ->
           let now = DarkDateTime.fromInstant (Instant.now ())
           Ply(DDateTime(DarkDateTime.T(now.Year, now.Month, now.Day, 0, 0, 0)))
         | _ -> incorrectArgs ())

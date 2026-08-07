@@ -41,7 +41,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTUuid (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTUuid (KTCustomType(typeName, []))
         (function
-        | struct (_, _, _, [ DString s ]) ->
+        | struct (_, _, _, [| DString s |]) ->
           match System.Guid.TryParse s with
           | true, x -> x |> DUuid |> resultOk |> Ply
           | _ -> ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
@@ -60,7 +60,7 @@ let fns () : List<BuiltInFn> =
         "Stringify <param uuid> to the format XXXXXXXX-XXXX-XXXX-XXXX-XXXXXXXXXXXX"
       fn =
         (function
-        | struct (_, _, _, [ DUuid uuid ]) -> Ply(DString(string uuid))
+        | struct (_, _, _, [| DUuid uuid |]) -> Ply(DString(string uuid))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

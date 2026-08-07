@@ -196,6 +196,22 @@ module private ArgSeq =
     | [] -> fromRegs
     | prior -> prior @ fromRegs
 
+  /// The arguments as an array, which is what a builtin takes. One allocation rather than a cons
+  /// per argument; `count` is already known, so it's filled in place with no intermediate.
+  let toArray (a : ArgSeq) : Dval[] =
+    let n = count a
+    let arr = Array.zeroCreate n
+    let mutable i = 0
+    let mutable rest = a
+    while i < n do
+      match uncons rest with
+      | ValueSome(struct (dv, tail)) ->
+        arr[i] <- dv
+        rest <- tail
+        i <- i + 1
+      | ValueNone -> i <- n
+    arr
+
   /// Copy positionally into a callee's register file, starting at 0.
   let rec private fillFrom (dest : Registers) (i : int) (a : ArgSeq) : unit =
     match uncons a with
@@ -639,6 +655,28 @@ let inline private removeIfPresent
   TST.removeIfPresent name m
 
 
+/// Infer type-variable bindings from a builtin's arguments, walking parameters and arguments in
+/// lockstep.
+///
+/// Top-level and taking the arguments as a parameter, not a local closing over them. As a local it
+/// captured the argument array, which F# can't lambda-lift, so it allocated a closure on every
+/// builtin call -- 57% of the recursion workload's profile, and it appeared the moment this stopped
+/// taking the arguments as an argument.
+let rec private inferBiParams
+  (acc : TypeSymbolTable)
+  (ps : List<BuiltInParam>)
+  (args : Dval[])
+  (idx : int)
+  : TypeSymbolTable =
+  match ps with
+  | [] -> acc
+  | p :: pRest ->
+    if idx >= args.Length then
+      acc
+    else
+      inferBiParams (inferTVarsFromDval acc p.typ args[idx]) pRest args (idx + 1)
+
+
 /// Check as many arguments as can be answered without awaiting, returning where it stopped.
 ///
 /// `TypeChecker.tryUnifySync` answers the ordinary cases outright, so this walks the parameter and
@@ -648,18 +686,20 @@ let inline private removeIfPresent
 let rec private checkBiParamsSync
   (i : int)
   (ps : List<BuiltInParam>)
-  (args : List<Dval>)
+  (args : Dval[])
+  (argIdx : int)
   (tst : TypeSymbolTable)
-  : struct (int * List<BuiltInParam> * List<Dval> * TypeSymbolTable) =
+  : struct (int * List<BuiltInParam> * int * TypeSymbolTable) =
   match ps with
-  | [] -> struct (i, ps, args, tst)
+  | [] -> struct (i, ps, argIdx, tst)
   | p :: pRest ->
-    match args with
-    | [] -> struct (i, ps, args, tst)
-    | a :: aRest ->
-      match TypeChecker.tryUnifySync tst p.typ a with
-      | ValueSome updatedTst -> checkBiParamsSync (i + 1) pRest aRest updatedTst
-      | ValueNone -> struct (i, ps, args, tst)
+    if argIdx >= args.Length then
+      struct (i, ps, argIdx, tst)
+    else
+      match TypeChecker.tryUnifySync tst p.typ args[argIdx] with
+      | ValueSome updatedTst ->
+        checkBiParamsSync (i + 1) pRest args (argIdx + 1) updatedTst
+      | ValueNone -> struct (i, ps, argIdx, tst)
 
 /// As [checkBiParamsSync], for package fns.
 let rec private checkPkgParamsSync
@@ -808,7 +848,7 @@ let private traceBuiltinResult
   (exeState : ExecutionState)
   (currentFrame : CallFrame)
   (fn : BuiltInFn)
-  (allArgs : List<Dval>)
+  (allArgs : Dval[])
   (result : Dval)
   : Dval =
   if not exeState.tracing.skipTracing then
@@ -816,7 +856,7 @@ let private traceBuiltinResult
     let fnRecord : Tracing.FunctionRecord = (source, FQFnName.Builtin fn.name)
     exeState.tracing.storeFnResult
       fnRecord
-      (NEList.ofListUnsafe "" [] allArgs)
+      (NEList.ofListUnsafe "" [] (List.ofArray allArgs))
       result
   result
 
@@ -829,7 +869,7 @@ let private finishBuiltin
   (currentFrame : CallFrame)
   (fn : BuiltInFn)
   (tst : TypeSymbolTable)
-  (allArgs : List<Dval>)
+  (allArgs : Dval[])
   (sw : int64)
   (bodyAllocBefore : int64)
   (result : Dval)
@@ -888,7 +928,7 @@ let private invokeBuiltin
   (fn : BuiltInFn)
   (tst : TypeSymbolTable)
   (typeArgs : List<TypeReference>)
-  (allArgs : List<Dval>)
+  (allArgs : Dval[])
   : Ply<Dval> =
   // Resolve type variables in typeArgs before passing to builtin.
   // When a package function like Stdlib.Json.parse<Int64> calls
@@ -976,7 +1016,7 @@ let private completeBuiltin
   (currentFrame : CallFrame)
   (ctx : ApplyContext)
   (fn : BuiltInFn)
-  (allArgs : List<Dval>)
+  (allArgs : Dval[])
   (argCount : int)
   (paramCount : int)
   (tst : TypeSymbolTable)
@@ -990,7 +1030,9 @@ let private completeBuiltin
     { ctx.applicable with
         typeSymbolTable = tst
         typeArgs = ctx.typeArgs
-        argsSoFar = allArgs }
+        // `Applicable.argsSoFar` is a list because lambdas share it. Converting back costs a cons
+        // per argument, but only on a partial application, which is rare and already not free.
+        argsSoFar = List.ofArray allArgs }
     |> AppNamedFn
     |> DApplicable
     |> Ply
@@ -1015,7 +1057,7 @@ let private callBuiltinResolved
   let applicable = ctx.applicable
   // Builtins take a `List<Dval>`, so this is the one path that still materialises one.
   let biArgListAlloc = allocNow vm
-  let newArgDvals = ArgSeq.toList ctx.args
+  let newArgDvals = ArgSeq.toArray ctx.args
   recordStage vm ApplyStage.BiArgList biArgListAlloc
 
   let mutable tst = ctx.tst
@@ -1045,11 +1087,11 @@ let private callBuiltinResolved
   let allArgs =
     match applicable.argsSoFar with
     | [] -> newArgDvals
-    | prev -> prev @ newArgDvals
+    | prev -> Array.append (List.toArray prev) newArgDvals
   recordStage vm ApplyStage.BiArgs biArgsAlloc
 
   let paramCount = List.length fn.parameters
-  let argCount = List.length allArgs
+  let argCount = Array.length allArgs
 
   // Step 4: infer type-variable bindings from arg ValueTypes for any TVariables in the param types not
   // bound by explicit type args. Same rule as the package-fn path. Nothing to infer for a fn with no
@@ -1057,14 +1099,7 @@ let private callBuiltinResolved
   if argCount > 0 && not (Set.isEmpty fnFreeTVars) then
     // Lockstep: projecting the param types into their own list and zipping it against the args
     // allocates two lists and a pair per argument.
-    let rec inferBi acc (ps : List<BuiltInParam>) (args : List<Dval>) =
-      match ps with
-      | [] -> acc
-      | p :: pRest ->
-        match args with
-        | [] -> acc
-        | a :: aRest -> inferBi (inferTVarsFromDval acc p.typ a) pRest aRest
-    let inferredBound = inferBi explicitlyBound fn.parameters allArgs
+    let inferredBound = inferBiParams explicitlyBound fn.parameters allArgs 0
     if not (TST.isEmpty inferredBound) then
       tst <- TST.mergeFavoringRight tst inferredBound
 
@@ -1073,14 +1108,14 @@ let private callBuiltinResolved
   // already applied, so the first parameter checked keeps its original index.
   let biTcRunAlloc = allocNow vm
   let already = List.length applicable.argsSoFar
-  let struct (biNextI, biRestPs, biRestArgs, biTst) =
-    checkBiParamsSync already (List.skip already fn.parameters) newArgDvals tst
+  let struct (biNextI, biRestPs, biRestArgIdx, biTst) =
+    checkBiParamsSync already (List.skip already fn.parameters) newArgDvals 0 tst
   tst <- biTst
   recordStage vm ApplyStage.BiTypeCheckRun biTcRunAlloc
 
   // `if` rather than `match biRestPs, biRestArgs with`: the tuple form allocates the pair, once per
   // call, to ask a question two `isEmpty` checks answer.
-  if List.isEmpty biRestPs || List.isEmpty biRestArgs then
+  if List.isEmpty biRestPs || biRestArgIdx >= newArgDvals.Length then
     completeBuiltin exeState vm currentFrame ctx fn allArgs argCount paramCount tst
   else
     // Something in the remaining parameters needs the type store. Finish the check in a computation
@@ -1093,21 +1128,21 @@ let private callBuiltinResolved
     let tstAtCheck = tst
     uply {
       let mutable tstRest = tstAtCheck
-      let rec checkRest i (ps : List<BuiltInParam>) (args : List<Dval>) =
+      let rec checkRest i (ps : List<BuiltInParam>) (idx : int) =
         uply {
           match ps with
           | [] -> return ()
           | p :: pRest ->
-            match args with
-            | [] -> return ()
-            | a :: aRest ->
-              match! typeCheckParam tstRest i p.name p.typ a with
+            if idx >= newArgDvals.Length then
+              return ()
+            else
+              match! typeCheckParam tstRest i p.name p.typ newArgDvals[idx] with
               | Ok updatedTst ->
                 tstRest <- updatedTst
-                return! checkRest (i + 1) pRest aRest
+                return! checkRest (i + 1) pRest (idx + 1)
               | Error rte -> return raiseRTE vm.threadID rte
         }
-      do! checkRest biNextI biRestPs biRestArgs
+      do! checkRest biNextI biRestPs biRestArgIdx
       return!
         completeBuiltin
           exeState

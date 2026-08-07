@@ -40,7 +40,7 @@ let fns () : List<BuiltInFn> =
         a different behavior for negative numbers."
       fn =
         (function
-        | struct (_, vm, _, [ DInt8 v; DInt8 m ]) ->
+        | struct (_, vm, _, [| DInt8 v; DInt8 m |]) ->
           if m = 0y then
             RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
           else if m < 0y then
@@ -73,7 +73,7 @@ let fns () : List<BuiltInFn> =
       fn =
         let resultOk r = Dval.resultOk KTInt8 KTString r |> Ply
         (function
-        | struct (_, vm, _, [ DInt8 v; DInt8 d ]) ->
+        | struct (_, vm, _, [| DInt8 v; DInt8 d |]) ->
           (try
             v % d |> DInt8 |> resultOk
            with e ->
@@ -98,7 +98,7 @@ let fns () : List<BuiltInFn> =
       description = "Adds two 8-bit signed integers together, wrapping on overflow"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DInt8(a + b))
+        | struct (_, _, _, [| DInt8 a; DInt8 b |]) -> Ply(DInt8(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -113,7 +113,7 @@ let fns () : List<BuiltInFn> =
       description = "Subtracts two 8-bit signed integers, wrapping on overflow"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DInt8(a - b))
+        | struct (_, _, _, [| DInt8 a; DInt8 b |]) -> Ply(DInt8(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -128,7 +128,7 @@ let fns () : List<BuiltInFn> =
       description = "Multiplies two 8-bit signed integers, wrapping on overflow"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DInt8(a * b))
+        | struct (_, _, _, [| DInt8 a; DInt8 b |]) -> Ply(DInt8(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -146,7 +146,7 @@ let fns () : List<BuiltInFn> =
         Overflow wraps around."
       fn =
         (function
-        | struct (_, vm, _, [ DInt8 number; DInt8 exp ]) ->
+        | struct (_, vm, _, [| DInt8 number; DInt8 exp |]) ->
           if exp < 0y then
             RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
           else
@@ -170,7 +170,7 @@ let fns () : List<BuiltInFn> =
       description = "Divides two 8-bit signed integers"
       fn =
         (function
-        | struct (_, vm, _, [ DInt8 a; DInt8 b ]) ->
+        | struct (_, vm, _, [| DInt8 a; DInt8 b |]) ->
           if b = 0y then
             RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
           else
@@ -190,7 +190,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a ]) -> Ply(DInt8(-a))
+        | struct (_, _, _, [| DInt8 a |]) -> Ply(DInt8(-a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -205,7 +205,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DBool(a > b))
+        | struct (_, _, _, [| DInt8 a; DInt8 b |]) -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -221,7 +221,7 @@ let fns () : List<BuiltInFn> =
         "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DBool(a >= b))
+        | struct (_, _, _, [| DInt8 a; DInt8 b |]) -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -236,7 +236,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DBool(a < b))
+        | struct (_, _, _, [| DInt8 a; DInt8 b |]) -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -252,7 +252,7 @@ let fns () : List<BuiltInFn> =
         "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DBool(a <= b))
+        | struct (_, _, _, [| DInt8 a; DInt8 b |]) -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -267,7 +267,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an <type Int8> to a <type String>"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a ]) -> Ply(DString(string a))
+        | struct (_, _, _, [| DInt8 a |]) -> Ply(DString(string a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -282,7 +282,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an <type Int8> to a <type Float>"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a ]) -> Ply(DFloat(float a))
+        | struct (_, _, _, [| DInt8 a |]) -> Ply(DFloat(float a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -299,7 +299,7 @@ let fns () : List<BuiltInFn> =
       description = "Get the square root of an <type Int8>"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a ]) -> Ply(DFloat(sqrt (float a)))
+        | struct (_, _, _, [| DInt8 a |]) -> Ply(DFloat(sqrt (float a)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -321,7 +321,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt8 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTInt8 (KTCustomType(typeName, []))
         (function
-        | struct (_, _, _, [ DString s ]) ->
+        | struct (_, _, _, [| DString s |]) ->
           try
             s |> System.SByte.Parse |> DInt8 |> resultOk |> Ply
           with
@@ -344,7 +344,7 @@ let fns () : List<BuiltInFn> =
         "Converts a UInt8 to an 8-bit signed integer. Returns {{None}} if the value is greater than 127."
       fn =
         (function
-        | struct (_, _, _, [ DUInt8 a ]) ->
+        | struct (_, _, _, [| DUInt8 a |]) ->
           if a > 127uy then
             Dval.optionNone KTInt8 |> Ply
           else
@@ -364,7 +364,7 @@ let fns () : List<BuiltInFn> =
         "Converts an Int16 to an 8-bit signed integer. Returns {{None}} if the value is less than -128 or greater than 127."
       fn =
         (function
-        | struct (_, _, _, [ DInt16 a ]) ->
+        | struct (_, _, _, [| DInt16 a |]) ->
           if a < -128s || a > 127s then
             Dval.optionNone KTInt8 |> Ply
           else
@@ -384,7 +384,7 @@ let fns () : List<BuiltInFn> =
         "Converts a UInt16 to an 8-bit signed integer. Returns {{None}} if the value is greater than 127."
       fn =
         (function
-        | struct (_, _, _, [ DUInt16 a ]) ->
+        | struct (_, _, _, [| DUInt16 a |]) ->
           if a > 127us then
             Dval.optionNone KTInt8 |> Ply
           else
@@ -404,7 +404,7 @@ let fns () : List<BuiltInFn> =
         "Converts an Int32 to an 8-bit signed integer. Returns {{None}} if the value is less than -128 or greater than 127."
       fn =
         (function
-        | struct (_, _, _, [ DInt32 a ]) ->
+        | struct (_, _, _, [| DInt32 a |]) ->
           if a < -128l || a > 127l then
             Dval.optionNone KTInt8 |> Ply
           else
@@ -424,7 +424,7 @@ let fns () : List<BuiltInFn> =
         "Converts a UInt32 to an 8-bit signed integer. Returns {{None}} if the value is greater than 127."
       fn =
         (function
-        | struct (_, _, _, [ DUInt32 a ]) ->
+        | struct (_, _, _, [| DUInt32 a |]) ->
           if a > 127ul then
             Dval.optionNone KTInt8 |> Ply
           else
@@ -444,7 +444,7 @@ let fns () : List<BuiltInFn> =
         "Converts an Int64 to an 8-bit signed integer. Returns {{None}} if the value is less than -128 or greater than 127."
       fn =
         (function
-        | struct (_, _, _, [ DInt64 a ]) ->
+        | struct (_, _, _, [| DInt64 a |]) ->
           if a < -128L || a > 127L then
             Dval.optionNone KTInt8 |> Ply
           else
@@ -464,7 +464,7 @@ let fns () : List<BuiltInFn> =
         "Converts a UInt64 to an 8-bit signed integer. Returns {{None}} if the value is greater than 127."
       fn =
         (function
-        | struct (_, _, _, [ DUInt64 a ]) ->
+        | struct (_, _, _, [| DUInt64 a |]) ->
           if a > 127UL then
             Dval.optionNone KTInt8 |> Ply
           else
@@ -484,7 +484,7 @@ let fns () : List<BuiltInFn> =
         "Converts an Int128 to an 8-bit signed integer. Returns {{None}} if the value is less than -128 or greater than 127."
       fn =
         (function
-        | struct (_, _, _, [ DInt128 a ]) ->
+        | struct (_, _, _, [| DInt128 a |]) ->
           if a < -128Q || a > 127Q then
             Dval.optionNone KTInt8 |> Ply
           else
@@ -504,7 +504,7 @@ let fns () : List<BuiltInFn> =
         "Converts a UInt128 to an 8-bit signed integer. Returns {{None}} if the value is greater than 127."
       fn =
         (function
-        | struct (_, _, _, [ DUInt128 a ]) ->
+        | struct (_, _, _, [| DUInt128 a |]) ->
           if a > 127Z then
             Dval.optionNone KTInt8 |> Ply
           else
@@ -523,7 +523,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise AND on two <type Int8> values"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DInt8(a &&& b))
+        | struct (_, _, _, [| DInt8 a; DInt8 b |]) -> Ply(DInt8(a &&& b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -538,7 +538,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise OR on two <type Int8> values"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DInt8(a ||| b))
+        | struct (_, _, _, [| DInt8 a; DInt8 b |]) -> Ply(DInt8(a ||| b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -553,7 +553,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise XOR on two <type Int8> values"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DInt8(a ^^^ b))
+        | struct (_, _, _, [| DInt8 a; DInt8 b |]) -> Ply(DInt8(a ^^^ b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -568,7 +568,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise NOT on an <type Int8> value"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a ]) -> Ply(DInt8(~~~a))
+        | struct (_, _, _, [| DInt8 a |]) -> Ply(DInt8(~~~a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -583,7 +583,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise left shift of an <type Int8> value"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DInt8(a <<< int b))
+        | struct (_, _, _, [| DInt8 a; DInt8 b |]) -> Ply(DInt8(a <<< int b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -598,7 +598,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise right shift of an <type Int8> value"
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DInt8(a >>> int b))
+        | struct (_, _, _, [| DInt8 a; DInt8 b |]) -> Ply(DInt8(a >>> int b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

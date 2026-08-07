@@ -22,7 +22,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the number of entries in <param dict>"
       fn =
         (function
-        | struct (_, _, _, [ DDict(_vtTODO, o) ]) ->
+        | struct (_, _, _, [| DDict(_vtTODO, o) |]) ->
           Ply(Dval.int (bigint (Map.count o)))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -39,7 +39,7 @@ let fns () : List<BuiltInFn> =
         "Returns <param dict>'s keys in a <type List>, in an arbitrary order"
       fn =
         (function
-        | struct (_, _, _, [ DDict(_, o) ]) ->
+        | struct (_, _, _, [| DDict(_, o) |]) ->
           // CLEANUP follow up here if/when `key` type is dynamic (not just String)
           o |> Map.keys |> Seq.map DString |> Seq.toList |> Dval.list KTString |> Ply
         | _ -> incorrectArgs ())
@@ -57,7 +57,7 @@ let fns () : List<BuiltInFn> =
         "Returns <param dict>'s values in a <type List>, in an arbitrary order"
       fn =
         (function
-        | struct (_, _, _, [ DDict(valueType, o) ]) ->
+        | struct (_, _, _, [| DDict(valueType, o) |]) ->
           o |> Map.values |> Seq.toList |> (fun vs -> DList(valueType, vs) |> Ply)
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -75,7 +75,7 @@ let fns () : List<BuiltInFn> =
         This function is the opposite of <fn Dict.fromList>"
       fn =
         (function
-        | struct (_, _, _, [ DDict(valueType, o) ]) ->
+        | struct (_, _, _, [| DDict(valueType, o) |]) ->
           let f k v acc = DTuple(DString k, v, []) :: acc
           Map.foldBack f o []
           |> fun pairs -> DList(VT.tuple VT.string valueType [], pairs)
@@ -102,10 +102,10 @@ let fns () : List<BuiltInFn> =
           This function is the opposite of <fn Dict.toList>."
       fn =
         (function
-        | struct (_, _, _, [ DList(_, []) ]) -> DDict(VT.unknown, Map.empty) |> Ply
+        | struct (_, _, _, [| DList(_, []) |]) -> DDict(VT.unknown, Map.empty) |> Ply
 
         | struct (_, vm, _,
-                  [ DList(ValueType.Known(KTTuple(_keyType, valueType, [])), l) ]) ->
+                  [| DList(ValueType.Known(KTTuple(_keyType, valueType, [])), l) |]) ->
           let f (accType, accMap) dv =
             match dv with
             | DTuple(DString k, value, []) ->
@@ -146,7 +146,7 @@ let fns () : List<BuiltInFn> =
         let dictType = VT.unknownTODO
         let optType = VT.dict dictType
         (function
-        | struct (_, vmState, _, [ DList(_vtTODO, l) ]) ->
+        | struct (_, vmState, _, [| DList(_vtTODO, l) |]) ->
           let f acc dv =
             match acc, dv with
             | None, _ -> None
@@ -180,7 +180,7 @@ let fns () : List<BuiltInFn> =
          wrapped in an <type Option>: {{Some value}}. Otherwise, returns {{None}}."
       fn =
         (function
-        | struct (_, vm, _, [ DDict(_vtTODO, o); DString s ]) ->
+        | struct (_, vm, _, [| DDict(_vtTODO, o); DString s |]) ->
           Map.find s o
           |> TypeChecker.DvalCreator.option vm.threadID VT.unknownTODO
           |> Ply
@@ -200,7 +200,7 @@ let fns () : List<BuiltInFn> =
          {{false}} otherwise"
       fn =
         (function
-        | struct (_, _, _, [ DDict(_, o); DString s ]) ->
+        | struct (_, _, _, [| DDict(_, o); DString s |]) ->
           Ply(DBool(Map.containsKey s o))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -220,7 +220,7 @@ let fns () : List<BuiltInFn> =
           it will have the value from <param right>."
       fn =
         (function
-        | struct (_, _vm, _, [ DDict(vt1, intoMap); DDict(vt2, fromMap) ]) ->
+        | struct (_, _vm, _, [| DDict(vt1, intoMap); DDict(vt2, fromMap) |]) ->
           match VT.merge vt1 vt2 with
           | Ok mergedType ->
             let f accMap k v = Map.add k v accMap
@@ -249,7 +249,7 @@ let fns () : List<BuiltInFn> =
         If the key already exists in the Dict, an exception is raised."
       fn =
         (function
-        | struct (_, vm, _, [ DDict(vt, o); DString k; v ]) ->
+        | struct (_, vm, _, [| DDict(vt, o); DString k; v |]) ->
           let (typ, map) =
             TypeChecker.DvalCreator.dictAddEntry
               vm.threadID
@@ -277,7 +277,7 @@ let fns () : List<BuiltInFn> =
         If the key already exists in the Dict, the previous value is overwritten."
       fn =
         (function
-        | struct (_, vm, _, [ DDict(vt, o); DString k; v ]) ->
+        | struct (_, vm, _, [| DDict(vt, o); DString k; v |]) ->
           let (typ, map) =
             TypeChecker.DvalCreator.dictAddEntry
               vm.threadID
@@ -301,7 +301,7 @@ let fns () : List<BuiltInFn> =
         "If the <param dict> contains <param key>, returns a copy of <param dict> with <param key> and its associated value removed. Otherwise, returns <param dict> unchanged."
       fn =
         (function
-        | struct (_, _, _, [ DDict(vt, o); DString k ]) ->
+        | struct (_, _, _, [| DDict(vt, o); DString k |]) ->
           DDict(vt, Map.remove k o) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented

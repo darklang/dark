@@ -132,7 +132,7 @@ back empty no matter what ran, so callers can say so instead of showing an empty
 list and letting you conclude nothing happened."
       fn =
         (function
-        | struct (_, _, _, [ DUnit ]) ->
+        | struct (_, _, _, [| DUnit |]) ->
           LibDB.Tracing.TraceDetail.current <> LibDB.Tracing.TraceDetail.Off
           |> DBool
           |> Ply
@@ -149,7 +149,7 @@ list and letting you conclude nothing happened."
       description = "List recent traces"
       fn =
         (function
-        | struct (_, vm, _, [ DInt limitArg ]) ->
+        | struct (_, vm, _, [| DInt limitArg |]) ->
           let limit = intToInt64 vm limitArg
           uply {
             let typeName = traceSummaryTypeName ()
@@ -191,7 +191,7 @@ list and letting you conclude nothing happened."
         "View trace details by trace ID. Returns a TraceData record with structured inputs and function calls."
       fn =
         (function
-        | struct (_, _, _, [ DString traceID ]) ->
+        | struct (_, _, _, [| DString traceID |]) ->
           uply {
             // One SELECT covers metadata + input — both live on the trace row.
             let! row =
@@ -247,7 +247,7 @@ list and letting you conclude nothing happened."
       description = "List traces that called a specific function"
       fn =
         (function
-        | struct (_, vm, _, [ DString fnName; DInt limitArg ]) ->
+        | struct (_, vm, _, [| DString fnName; DInt limitArg |]) ->
           let limit = intToInt64 vm limitArg
           uply {
             // Both builtins and package fns store their display name in
@@ -303,7 +303,7 @@ list and letting you conclude nothing happened."
         "Per-handler aggregate over the last N traces: (handler, traceCount, totalMs, maxMs). Total ms sums every fn-call duration in each trace; per-trace latency would need a separate column on `traces`."
       fn =
         (function
-        | struct (_, vm, _, [ DInt traceLimitArg ]) ->
+        | struct (_, vm, _, [| DInt traceLimitArg |]) ->
           let traceLimit = intToInt64 vm traceLimitArg
           uply {
             // Subquery: the last N trace IDs (and their handler_desc).
@@ -355,7 +355,7 @@ list and letting you conclude nothing happened."
         "Aggregate fn-call timing across the last N traces. Returns (fnName, callCount, totalMs, maxMs) tuples sorted by totalMs desc. Lambdas are excluded (no fn_hash to bucket by); builtins included but always have 0ms duration."
       fn =
         (function
-        | struct (_, vm, _, [ DInt traceLimitArg ]) ->
+        | struct (_, vm, _, [| DInt traceLimitArg |]) ->
           let traceLimit = intToInt64 vm traceLimitArg
           uply {
             // Subquery: the last N trace IDs by recency.
@@ -416,7 +416,7 @@ list and letting you conclude nothing happened."
         "List traces whose recorded input or any fn-call args/result contains the substring (case-sensitive). Match is on the developer-repr form of each Dval."
       fn =
         (function
-        | struct (exeState, vm, _, [ DString pattern; DInt limitArg ]) ->
+        | struct (exeState, vm, _, [| DString pattern; DInt limitArg |]) ->
           let limit = intToInt64 vm limitArg
           uply {
             let typeName = traceSummaryTypeName ()
@@ -527,7 +527,7 @@ list and letting you conclude nothing happened."
         let resultOk = Dval.resultOk KTString KTString
         let resultError = Dval.resultError KTString KTString
         (function
-        | struct (_, _, _, [ DString input ]) ->
+        | struct (_, _, _, [| DString input |]) ->
           uply {
             // Up to 6 so we can distinguish "1 match" / "many matches"
             // without fetching everything. The user-facing error caps the
@@ -582,7 +582,7 @@ list and letting you conclude nothing happened."
         "Get the stored input code for a trace (eval / run only — HTTP traces, whose input is a Request record, return None)."
       fn =
         (function
-        | struct (_, _, _, [ DString traceID ]) ->
+        | struct (_, _, _, [| DString traceID |]) ->
           uply {
             let! row =
               Sql.query "SELECT input_value FROM traces WHERE id = @traceId"
@@ -621,7 +621,7 @@ list and letting you conclude nothing happened."
         "Delete traces older than the given cutoff (and their fn_calls). Returns count deleted. Caller is responsible for computing the cutoff (e.g. `DateTime.now() |> subtractSeconds 3600` for 'last hour')."
       fn =
         (function
-        | struct (_, _, _, [ DString cutoffISO ]) ->
+        | struct (_, _, _, [| DString cutoffISO |]) ->
           uply {
             // Timestamp column is ISO 8601 ("2026-05-02T02:03:53Z") which
             // sorts lexicographically — string compare works as date compare.
@@ -663,7 +663,7 @@ list and letting you conclude nothing happened."
       description = "Delete all traces, returns count deleted"
       fn =
         (function
-        | struct (_, _, _, [ DUnit ]) ->
+        | struct (_, _, _, [| DUnit |]) ->
           uply {
             let! count =
               Sql.query "SELECT COUNT(*) as c FROM traces"
@@ -691,7 +691,7 @@ list and letting you conclude nothing happened."
         "Delete one trace (and its fn_calls). Returns 1 if a row was deleted, 0 otherwise. Caller is responsible for resolving prefixes via tracesResolveID first."
       fn =
         (function
-        | struct (_, _, _, [ DString traceID ]) ->
+        | struct (_, _, _, [| DString traceID |]) ->
           uply {
             let! existed =
               Sql.query "SELECT 1 AS x FROM traces WHERE id = @traceId LIMIT 1"
@@ -725,7 +725,7 @@ list and letting you conclude nothing happened."
         "Delete all but the N most-recent traces (and their fn_calls). Returns the count deleted. Useful for bounded retention."
       fn =
         (function
-        | struct (_, vm, _, [ DInt keepNArg ]) ->
+        | struct (_, vm, _, [| DInt keepNArg |]) ->
           let keepN = intToInt64 vm keepNArg
           uply {
             // Subquery picks the rowids to keep; outer DELETE removes the rest.

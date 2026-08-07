@@ -219,7 +219,7 @@ let fns () : List<BuiltInFn> =
         + "op-log seam."
       fn =
         (function
-        | struct (_, _, _, [ DInt64 cursor; DInt64 limit ]) ->
+        | struct (_, _, _, [| DInt64 cursor; DInt64 limit |]) ->
           uply {
             let! (commits, events, newCursor) = LibDB.Seed.eventsSince cursor limit
 
@@ -275,7 +275,7 @@ let fns () : List<BuiltInFn> =
         + "= what those ops mean to a human, classified against the pre-fold bindings."
       fn =
         (function
-        | struct (_, _, _, [ DList(_, commits); DList(_, events) ]) ->
+        | struct (_, _, _, [| DList(_, commits); DList(_, events) |]) ->
           uply {
             // Receive must be TOTAL against a malformed/hostile peer: skip any event/commit that won't parse
             // (bad guid/hex), and catch a batch-level DB error (e.g. an FK to a row not in this batch) so the
@@ -348,7 +348,7 @@ let fns () : List<BuiltInFn> =
         + "BranchOpEvent records + the resume cursor. Built natively."
       fn =
         (function
-        | struct (_, _, _, [ DInt64 cursor; DInt64 limit ]) ->
+        | struct (_, _, _, [| DInt64 cursor; DInt64 limit |]) ->
           uply {
             let! (events, newCursor) = LibDB.Seed.branchOpsSince cursor limit
 
@@ -391,7 +391,7 @@ let fns () : List<BuiltInFn> =
         + "branches/commits). Returns the count processed. Idempotent."
       fn =
         (function
-        | struct (_, _, _, [ DList(_, events) ]) ->
+        | struct (_, _, _, [| DList(_, events) |]) ->
           uply {
             // Total against a bad peer (see packageOpsAppendNative): skip unparseable events, catch batch errors.
             let parsed =
@@ -447,7 +447,7 @@ let fns () : List<BuiltInFn> =
         + "ResolutionEvent records + the resume cursor. Built natively."
       fn =
         (function
-        | struct (_, _, _, [ DInt64 cursor; DInt64 limit ]) ->
+        | struct (_, _, _, [| DInt64 cursor; DInt64 limit |]) ->
           uply {
             let! (events, newCursor) =
               LibDB.Resolutions.resolutionsSince cursor limit
@@ -492,7 +492,7 @@ let fns () : List<BuiltInFn> =
         + "Returns the count processed. Idempotent."
       fn =
         (function
-        | struct (_, _, _, [ DList(_, events) ]) ->
+        | struct (_, _, _, [| DList(_, events) |]) ->
           uply {
             let parsed =
               events

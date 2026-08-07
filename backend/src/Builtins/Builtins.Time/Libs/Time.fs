@@ -18,7 +18,7 @@ let fns () : List<BuiltInFn> =
       description = "Sleeps for the given <param delayInMs> milliseconds."
       fn =
         (function
-        | struct (_, _, _, [ DFloat delay ]) ->
+        | struct (_, _, _, [| DFloat delay |]) ->
           uply {
             let delay = System.TimeSpan.FromMilliseconds delay
             do! Task.Delay(delay)
@@ -40,7 +40,7 @@ let fns () : List<BuiltInFn> =
         + "value has no defined epoch — only differences are meaningful."
       fn =
         (function
-        | struct (_, _, _, [ DUnit ]) ->
+        | struct (_, _, _, [| DUnit |]) ->
           let ts = System.Diagnostics.Stopwatch.GetTimestamp()
           // Divide the ticks, don't scale them: `ts * 1000L` overflows int64 once the tick count passes
           // ~9.2e15, which on a 1 GHz-tick clocksource is ~106 days of uptime, after which the wrap makes
@@ -66,7 +66,7 @@ let fns () : List<BuiltInFn> =
       description = "Resets interpreter performance counters to zero."
       fn =
         (function
-        | struct (_, vm, _, [ DUnit ]) ->
+        | struct (_, vm, _, [| DUnit |]) ->
           vm.stats.reset ()
           vm.stats.enabled <- true
           DUnit |> Ply
@@ -88,7 +88,7 @@ let fns () : List<BuiltInFn> =
         + "never for a run whose wall time you intend to quote."
       fn =
         (function
-        | struct (_, vm, _, [ DBool enabled ]) ->
+        | struct (_, vm, _, [| DBool enabled |]) ->
           // Counting has to be on for timing to record anything; asking for timing implies it.
           if enabled then vm.stats.enabled <- true
           vm.stats.detailedTiming <- enabled
@@ -110,7 +110,7 @@ let fns () : List<BuiltInFn> =
         + "two versions of the same code."
       fn =
         (function
-        | struct (_, _, _, [ DUnit ]) ->
+        | struct (_, _, _, [| DUnit |]) ->
           // `precise: true` walks every thread's allocation context. Slower, but the imprecise
           // version rounds to allocation-context refills, which is coarse enough to hide a whole
           // request's worth of work.
@@ -133,7 +133,7 @@ let fns () : List<BuiltInFn> =
         + "cumulative nanoseconds and call counts."
       fn =
         (function
-        | struct (_, vm, _, [ DUnit ]) ->
+        | struct (_, vm, _, [| DUnit |]) ->
           let s = vm.stats
           // The accumulators hold raw Stopwatch ticks, so that the hot path has no division in it.
           // Convert once, here. Reporting ticks as microseconds would be wrong by `Frequency / 1e6`,

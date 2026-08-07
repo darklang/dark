@@ -24,7 +24,7 @@ let fns () : List<BuiltInFn> =
       description = "The file path of this instance's own package store (data.db)."
       fn =
         (function
-        | struct (_, _, _, [ DUnit ]) ->
+        | struct (_, _, _, [| DUnit |]) ->
           uply { return DString LibConfig.Config.dbPath }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -41,7 +41,7 @@ let fns () : List<BuiltInFn> =
       description = "The Release (store format/version) this Dark binary speaks."
       fn =
         (function
-        | struct (_, _, _, [ DUnit ]) ->
+        | struct (_, _, _, [| DUnit |]) ->
           uply { return Dval.int (bigint LibDB.Releases.currentRelease) }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

@@ -384,13 +384,13 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | struct (exeState, vm, _,
-                  [ DInt portArg
-                    DApplicable handler
-                    DInt maxBodyBytesArg
-                    DBool injectStandardHeaders
-                    DBool canonicalizeFromForwardedProto
-                    DBool logRequests
-                    DApplicable onListening ]) ->
+                  [| DInt portArg
+                     DApplicable handler
+                     DInt maxBodyBytesArg
+                     DBool injectStandardHeaders
+                     DBool canonicalizeFromForwardedProto
+                     DBool logRequests
+                     DApplicable onListening |]) ->
           uply {
             // maxBodyBytes is a comparison threshold; a negative limit would
             // reject every request (treated as over-limit), so reject it. 0 is

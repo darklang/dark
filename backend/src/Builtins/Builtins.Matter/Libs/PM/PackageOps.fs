@@ -31,7 +31,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Compute real content-addressed hashes for package ops (SCC-aware)."
       fn =
         (function
-        | struct (_, _, _, [ DList(_vt, ops) ]) ->
+        | struct (_, _, _, [| DList(_vt, ops) |]) ->
           uply {
             let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
             let stabilized = LibDB.HashStabilization.computeRealHashes ptOps
@@ -61,7 +61,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt KTString
         let resultError = Dval.resultError KTInt KTString
         (function
-        | struct (exeState, _, _, [ DUuid branchId; DList(_vtTODO, ops) ]) ->
+        | struct (exeState, _, _, [| DUuid branchId; DList(_vtTODO, ops) |]) ->
           uply {
             try
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
@@ -112,7 +112,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Get recent package ops from the database."
       fn =
         function
-        | _, vm, _, [ DInt limitArg ] ->
+        | _, vm, _, [| DInt limitArg |] ->
           uply {
             let limit = intToInt64 vm limitArg
             let! ops = LibDB.Queries.getRecentOps limit
@@ -132,7 +132,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Get summary of WIP ops on a branch (counts by type)."
       fn =
         function
-        | _, _, _, [ DUuid branchId ] ->
+        | _, _, _, [| DUuid branchId |] ->
           uply {
             let! summary = LibDB.Queries.getWipSummary branchId
             return
@@ -161,7 +161,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Get WIP items on a branch (excludes auto-propagated ops). Returns list of dicts with name, kind, modulePath, propagatedCount."
       fn =
         function
-        | _, _, _, [ DUuid branchId ] ->
+        | _, _, _, [| DUuid branchId |] ->
           uply {
             let! items = LibDB.Queries.getWipItems branchId
             return
@@ -189,7 +189,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Get count of WIP ops on a branch (fast, no deserialization)."
       fn =
         function
-        | _, _, _, [ DUuid branchId ] ->
+        | _, _, _, [| DUuid branchId |] ->
           uply {
             let! count = LibDB.Queries.getWipOpCount branchId
             return Dval.int (bigint count)
@@ -208,7 +208,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Get count of commits on a branch (fast, no deserialization)."
       fn =
         function
-        | _, _, _, [ DUuid branchId ] ->
+        | _, _, _, [| DUuid branchId |] ->
           uply {
             let! count = LibDB.Queries.getCommitCount branchId
             return Dval.int (bigint count)
@@ -237,7 +237,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         need to operate on individual ops (e.g. partial commit / discard)."
       fn =
         function
-        | _, vm, _, [ DUuid branchId ] ->
+        | _, vm, _, [| DUuid branchId |] ->
           uply {
             let! entries = LibDB.Queries.getWipOpsWithIds branchId
             let optionUuidDval =
@@ -282,7 +282,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         let resultError = Dval.resultError KTString KTString
         (function
         | struct (_, _, _,
-                  [ DUuid accountId; DUuid branchId; DString message; DList(_, opIds) ]) ->
+                  [| DUuid accountId
+                     DUuid branchId
+                     DString message
+                     DList(_, opIds) |]) ->
           uply {
             try
               let ids =
@@ -318,7 +321,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt KTString
         let resultError = Dval.resultError KTInt KTString
         (function
-        | struct (_, _, _, [ DUuid branchId ]) ->
+        | struct (_, _, _, [| DUuid branchId |]) ->
           uply {
             let! result = LibDB.Inserts.discardWipOps branchId
             match result with
@@ -341,7 +344,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Get commit log for a branch ordered by date descending."
       fn =
         function
-        | _, vm, _, [ DUuid branchId; DInt limit ] ->
+        | _, vm, _, [| DUuid branchId; DInt limit |] ->
           uply {
             let! commits = LibDB.Queries.getCommits branchId (intToInt64 vm limit)
             return
@@ -366,7 +369,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Get commit log across the entire branch chain (current + ancestors), ordered by date descending."
       fn =
         function
-        | _, vm, _, [ DUuid branchId; DInt limit ] ->
+        | _, vm, _, [| DUuid branchId; DInt limit |] ->
           uply {
             let! commits =
               LibDB.Queries.getCommitsForBranchChain branchId (intToInt64 vm limit)
@@ -389,7 +392,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Get ops for a specific commit."
       fn =
         function
-        | _, _, _, [ DString commitHash ] ->
+        | _, _, _, [| DString commitHash |] ->
           uply {
             let! ops = LibDB.Queries.getCommitOps (PT.Hash commitHash)
             return Dval.list (packageOpKT ()) (ops |> List.map PT2DT.PackageOp.toDT)
@@ -423,7 +426,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         selected item references uncommitted items not in the selection."
       fn =
         (function
-        | struct (_, _, _, [ DUuid branchId; hashDval ]) ->
+        | struct (_, _, _, [| DUuid branchId; hashDval |]) ->
           uply {
             let itemHash = PT2DT.Hash.fromDT hashDval
             let! chain = LibDB.Branches.getBranchChain branchId

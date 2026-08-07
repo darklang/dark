@@ -36,7 +36,7 @@ let fns : List<BuiltInFn> =
          composes adjustments over it."
       fn =
         (function
-        | struct (_, _, _, [ DUnit ]) ->
+        | struct (_, _, _, [| DUnit |]) ->
           uply {
             return LibDB.CapabilityGrants.getGrant () |> C2DT.Capabilities.toDT
           }
@@ -57,7 +57,7 @@ let fns : List<BuiltInFn> =
          grant/revoke/clear/profile on top of get+set."
       fn =
         (function
-        | struct (_, _, _, [ caps ]) ->
+        | struct (_, _, _, [| caps |]) ->
           uply {
             C2DT.Capabilities.fromDT caps |> LibDB.CapabilityGrants.setGrant
             return DUnit
@@ -78,7 +78,7 @@ let fns : List<BuiltInFn> =
          (behind `dark caps needed-for <fn>`). See `LibDB.PackageCaps`."
       fn =
         (function
-        | struct (exeState, _, _, [ DString hashStr ]) ->
+        | struct (exeState, _, _, [| DString hashStr |]) ->
           uply {
             // a builtin's declared caps, by flat name — built from the runtime's builtin map (no name
             // magic; the need lives on each `BuiltInFn`).

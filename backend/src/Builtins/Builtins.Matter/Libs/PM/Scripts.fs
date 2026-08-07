@@ -32,7 +32,7 @@ let fns () : List<BuiltInFn> =
       description = "List all stored scripts"
       fn =
         function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [| DUnit |] ->
           uply {
             let! scripts = Scripts.list ()
             return
@@ -54,7 +54,7 @@ let fns () : List<BuiltInFn> =
       description = "Get a script by name"
       fn =
         function
-        | _, _, _, [ DString name ] ->
+        | _, _, _, [| DString name |] ->
           uply {
             let! scriptOpt = Scripts.get name
             return
@@ -76,7 +76,7 @@ let fns () : List<BuiltInFn> =
       description = "Add a new script"
       fn =
         function
-        | _, _, _, [ DString name; DString text ] ->
+        | _, _, _, [| DString name; DString text |] ->
           uply {
             let! result = Scripts.add name text
             return
@@ -99,7 +99,7 @@ let fns () : List<BuiltInFn> =
       description = "Update an existing script's text"
       fn =
         function
-        | _, _, _, [ DString name; DString text ] ->
+        | _, _, _, [| DString name; DString text |] ->
           uply {
             let! result = Scripts.update name text
             return
@@ -122,7 +122,7 @@ let fns () : List<BuiltInFn> =
       description = "Delete a script by name"
       fn =
         function
-        | _, _, _, [ DString name ] ->
+        | _, _, _, [| DString name |] ->
           uply {
             let! result = Scripts.delete name
             return

@@ -158,7 +158,7 @@ let fns () : List<BuiltInFn> =
       returnType = TCustomType(NR.ok (executionOutcomeTypeName ()), [])
       fn =
         function
-        | _, _, _, [ DString command ] ->
+        | _, _, _, [| DString command |] ->
           let cmdName, cmdArgs = prepareProcessCommand command
 
           let psi =
@@ -197,7 +197,7 @@ let fns () : List<BuiltInFn> =
         TypeReference.result (TCustomType(NR.ok (OS.osTypeName ()), [])) TString
       fn =
         function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [| DUnit |] ->
           let osTypeRef = KTCustomType(OS.osTypeName (), [])
           let resultOk = Dval.resultOk osTypeRef KTString
           let resultError = Dval.resultError osTypeRef KTString
@@ -226,7 +226,7 @@ let fns () : List<BuiltInFn> =
       returnType = TInt
       fn =
         function
-        | _, _, _, [ DString command ] ->
+        | _, _, _, [| DString command |] ->
           let cmdName, cmdArgs = prepareProcessCommand command
 
           let psi =
@@ -276,7 +276,7 @@ let fns () : List<BuiltInFn> =
         TCustomType(NR.ok typeName, [])
       fn =
         function
-        | _, vm, _, [ DInt processIdArg; DString input ] ->
+        | _, vm, _, [| DInt processIdArg; DString input |] ->
           let processId = intToInt64 vm processIdArg
           match processHandles.TryGetValue processId with
           | true, processInfo when not processInfo.Process.HasExited ->
@@ -382,7 +382,7 @@ let fns () : List<BuiltInFn> =
         TCustomType(NR.ok typeName, [])
       fn =
         function
-        | _, vm, _, [ DInt processIdArg ] ->
+        | _, vm, _, [| DInt processIdArg |] ->
           let processId = intToInt64 vm processIdArg
           match processHandles.TryGetValue processId with
           | true, processInfo ->

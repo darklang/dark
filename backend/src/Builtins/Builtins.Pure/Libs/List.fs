@@ -293,7 +293,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the number of values in <param list>"
       fn =
         (function
-        | struct (_, _, _, [ DList(_, l) ]) -> Ply(Dval.int (bigint l.Length))
+        | struct (_, _, _, [| DList(_, l) |]) -> Ply(Dval.int (bigint l.Length))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -311,7 +311,7 @@ let fns () : List<BuiltInFn> =
          order will not be maintained."
       fn =
         (function
-        | struct (_, _, _, [ DList(vt, l) ]) ->
+        | struct (_, _, _, [| DList(vt, l) |]) ->
           List.distinct l
           |> List.sortWith DvalComparator.compareDvalInt
           |> fun l -> DList(vt, l)
@@ -336,7 +336,7 @@ let fns () : List<BuiltInFn> =
          control over the sorting process."
       fn =
         (function
-        | struct (_, _, _, [ DList(vt, list) ]) ->
+        | struct (_, _, _, [| DList(vt, list) |]) ->
           list
           |> List.sortWith DvalComparator.compareDvalInt
           |> (fun l -> DList(vt, l))
@@ -358,7 +358,7 @@ let fns () : List<BuiltInFn> =
          preserving the order."
       fn =
         (function
-        | struct (_, vm, _, [ DList(vt1, l1); DList(vt2, l2) ]) ->
+        | struct (_, vm, _, [| DList(vt1, l1); DList(vt2, l2) |]) ->
           // Both inputs are already-validated DLists, so their concatenation is valid iff their element
           // types merge (O(1)) — no need to re-typecheck every element. This keeps `push` (= `append
           // [x] list`), and therefore `map`/`filter`/`reverse`/every fold-built list op, O(n) instead of
@@ -382,7 +382,7 @@ let fns () : List<BuiltInFn> =
       description = "Adds <param value> to the front of <param list>."
       fn =
         (function
-        | struct (_, vm, _, [ DList(vt, l); value ]) ->
+        | struct (_, vm, _, [| DList(vt, l); value |]) ->
           // Native because every list built by a fold goes through here, once per element, and the
           // Dark version had to build a one-element list to append.
           match VT.merge vt (Dval.toValueType value) with
@@ -402,7 +402,7 @@ let fns () : List<BuiltInFn> =
       description = "Adds <param value> to the back of <param list>."
       fn =
         (function
-        | struct (_, vm, _, [ DList(vt, l); value ]) ->
+        | struct (_, vm, _, [| DList(vt, l); value |]) ->
           // Still O(n): a cons list has to be copied to append. Native for the same reason as `push`.
           match VT.merge vt (Dval.toValueType value) with
           | Ok merged -> Ply(DList(merged, l @ [ value ]))
@@ -424,7 +424,7 @@ let fns () : List<BuiltInFn> =
          (does not recursively flatten nested lists)."
       fn =
         (function
-        | struct (_, vm, _, [ DList(_, sublists) ]) ->
+        | struct (_, vm, _, [| DList(_, sublists) |]) ->
           // One concat, rather than an append per sublist, which re-copies the accumulator each step.
           let inner =
             sublists
@@ -461,7 +461,7 @@ let fns () : List<BuiltInFn> =
         "Returns {{Some value}} at <param index> in <param list>, or {{None}} if out of bounds."
       fn =
         (function
-        | struct (_, vm, _, [ DList(vt, l); DInt index ]) ->
+        | struct (_, vm, _, [| DList(vt, l); DInt index |]) ->
           // Still a walk, since that's what a cons list costs, but one walk rather than an interpreted
           // call per position. Deliberately not `List.length` then `List.item`: that is O(n) even for
           // index 0, and callers ask for low indices of long lists.
@@ -489,7 +489,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns a reversed copy of <param list>."
       fn =
         (function
-        | struct (_, _, _, [ DList(vt, l) ]) ->
+        | struct (_, _, _, [| DList(vt, l) |]) ->
           // Reordering can't change the element type and every element was checked on the way in, so no
           // type check is needed. Native because `map` and `filter` both end in a reverse.
           Ply(DList(vt, List.rev l))

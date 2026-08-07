@@ -82,7 +82,7 @@ let fns () : List<BuiltInFn> =
          has a different behavior for negative numbers."
       fn =
         (function
-        | struct (_, vm, _, [ DInt a; DInt b ]) ->
+        | struct (_, vm, _, [| DInt a; DInt b |]) ->
           let m = DarkInt.toBigInt b
           if m = bigZero then
             zeroModulus vm
@@ -111,7 +111,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt KTString
         let resultError = Dval.resultError KTInt KTString
         (function
-        | struct (_, _, _, [ DInt value; DInt divisor ]) ->
+        | struct (_, _, _, [| DInt value; DInt divisor |]) ->
           let d = DarkInt.toBigInt divisor
           if d = bigZero then
             // The return type is a `Result`, so surface this as an `Error`
@@ -133,7 +133,7 @@ let fns () : List<BuiltInFn> =
       description = "Adds two arbitrary-precision integers"
       fn =
         (function
-        | struct (_, _, _, [ DInt a; DInt b ]) -> Ply(Dval.dint (DarkInt.add a b))
+        | struct (_, _, _, [| DInt a; DInt b |]) -> Ply(Dval.dint (DarkInt.add a b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -148,7 +148,7 @@ let fns () : List<BuiltInFn> =
       description = "Subtracts two arbitrary-precision integers"
       fn =
         (function
-        | struct (_, _, _, [ DInt a; DInt b ]) ->
+        | struct (_, _, _, [| DInt a; DInt b |]) ->
           Ply(Dval.dint (DarkInt.subtract a b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -164,7 +164,7 @@ let fns () : List<BuiltInFn> =
       description = "Multiplies two arbitrary-precision integers"
       fn =
         (function
-        | struct (_, _, _, [ DInt a; DInt b ]) ->
+        | struct (_, _, _, [| DInt a; DInt b |]) ->
           Ply(Dval.dint (DarkInt.multiply a b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -182,7 +182,7 @@ let fns () : List<BuiltInFn> =
          must be non-negative. The arbitrary-precision result grows as needed."
       fn =
         (function
-        | struct (_, vm, _, [ DInt b; DInt exp ]) ->
+        | struct (_, vm, _, [| DInt b; DInt exp |]) ->
           let number = DarkInt.toBigInt b
           let exp = DarkInt.toBigInt exp
           if exp < bigZero then
@@ -215,7 +215,7 @@ let fns () : List<BuiltInFn> =
       description = "Divides two arbitrary-precision integers, rounding towards zero"
       fn =
         (function
-        | struct (_, vm, _, [ DInt a; DInt b ]) ->
+        | struct (_, vm, _, [| DInt a; DInt b |]) ->
           if DarkInt.isZero b then
             divideByZero vm
           else
@@ -234,7 +234,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | struct (_, _, _, [ DInt a ]) -> Ply(Dval.dint (DarkInt.negate a))
+        | struct (_, _, _, [| DInt a |]) -> Ply(Dval.dint (DarkInt.negate a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -249,7 +249,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
-        | struct (_, _, _, [ DInt a; DInt b ]) ->
+        | struct (_, _, _, [| DInt a; DInt b |]) ->
           Ply(Dval.bool (DarkInt.compare a b > 0))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -266,7 +266,7 @@ let fns () : List<BuiltInFn> =
         "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
         (function
-        | struct (_, _, _, [ DInt a; DInt b ]) ->
+        | struct (_, _, _, [| DInt a; DInt b |]) ->
           Ply(Dval.bool (DarkInt.compare a b >= 0))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -282,7 +282,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
-        | struct (_, _, _, [ DInt a; DInt b ]) ->
+        | struct (_, _, _, [| DInt a; DInt b |]) ->
           Ply(Dval.bool (DarkInt.compare a b < 0))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -299,7 +299,7 @@ let fns () : List<BuiltInFn> =
         "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
         (function
-        | struct (_, _, _, [ DInt a; DInt b ]) ->
+        | struct (_, _, _, [| DInt a; DInt b |]) ->
           Ply(Dval.bool (DarkInt.compare a b <= 0))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -317,7 +317,7 @@ let fns () : List<BuiltInFn> =
          large values lose precision when converted to a float."
       fn =
         (function
-        | struct (_, _, _, [ (DInt _) as v ]) ->
+        | struct (_, _, _, [| (DInt _) as v |]) ->
           Ply(DFloat(sqrt (float (Dval.asBigInt v))))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -335,7 +335,8 @@ let fns () : List<BuiltInFn> =
          precision."
       fn =
         (function
-        | struct (_, _, _, [ (DInt _) as v ]) -> Ply(DFloat(float (Dval.asBigInt v)))
+        | struct (_, _, _, [| (DInt _) as v |]) ->
+          Ply(DFloat(float (Dval.asBigInt v)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -355,7 +356,7 @@ let fns () : List<BuiltInFn> =
         (function
         // `bigint f` truncates toward zero; `roundedToInt` adds the NaN/Infinity
         // guard (shared with the Float builtins) so those don't throw a host exn.
-        | struct (_, vm, _, [ DFloat f ]) -> roundedToInt vm f
+        | struct (_, vm, _, [| DFloat f |]) -> roundedToInt vm f
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -379,7 +380,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTInt (KTCustomType(typeName, []))
         (function
-        | struct (_, _, _, [ DString s ]) ->
+        | struct (_, _, _, [| DString s |]) ->
           match System.Numerics.BigInteger.TryParse(s) with
           | true, i -> i |> Dval.int |> resultOk |> Ply
           | false, _ -> ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
@@ -397,7 +398,7 @@ let fns () : List<BuiltInFn> =
       description = "Stringify <param int>"
       fn =
         (function
-        | struct (_, _, _, [ (DInt _) as v ]) ->
+        | struct (_, _, _, [| (DInt _) as v |]) ->
           Ply(DString(string (Dval.asBigInt v)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -416,7 +417,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int8 to an arbitrary-precision Int."
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a ]) -> Dval.int (bigint a) |> Ply
+        | struct (_, _, _, [| DInt8 a |]) -> Dval.int (bigint a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -431,7 +432,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt8 to an arbitrary-precision Int."
       fn =
         (function
-        | struct (_, _, _, [ DUInt8 a ]) -> Dval.int (bigint a) |> Ply
+        | struct (_, _, _, [| DUInt8 a |]) -> Dval.int (bigint a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -446,7 +447,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int16 to an arbitrary-precision Int."
       fn =
         (function
-        | struct (_, _, _, [ DInt16 a ]) -> Dval.int (bigint a) |> Ply
+        | struct (_, _, _, [| DInt16 a |]) -> Dval.int (bigint a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -461,7 +462,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt16 to an arbitrary-precision Int."
       fn =
         (function
-        | struct (_, _, _, [ DUInt16 a ]) -> Dval.int (bigint a) |> Ply
+        | struct (_, _, _, [| DUInt16 a |]) -> Dval.int (bigint a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -476,7 +477,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int32 to an arbitrary-precision Int."
       fn =
         (function
-        | struct (_, _, _, [ DInt32 a ]) -> Dval.int (bigint a) |> Ply
+        | struct (_, _, _, [| DInt32 a |]) -> Dval.int (bigint a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -491,7 +492,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt32 to an arbitrary-precision Int."
       fn =
         (function
-        | struct (_, _, _, [ DUInt32 a ]) -> Dval.int (bigint a) |> Ply
+        | struct (_, _, _, [| DUInt32 a |]) -> Dval.int (bigint a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -507,7 +508,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         // An Int64 is always in `DarkInt.Finite` range.
-        | struct (_, _, _, [ DInt64 a ]) -> Dval.dint (DarkInt.Finite a) |> Ply
+        | struct (_, _, _, [| DInt64 a |]) -> Dval.dint (DarkInt.Finite a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -522,7 +523,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt64 to an arbitrary-precision Int."
       fn =
         (function
-        | struct (_, _, _, [ DUInt64 a ]) -> Dval.int (bigint a) |> Ply
+        | struct (_, _, _, [| DUInt64 a |]) -> Dval.int (bigint a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -537,7 +538,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int128 to an arbitrary-precision Int."
       fn =
         (function
-        | struct (_, _, _, [ DInt128 a ]) -> Dval.int (i128ToBig a) |> Ply
+        | struct (_, _, _, [| DInt128 a |]) -> Dval.int (i128ToBig a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -552,7 +553,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt128 to an arbitrary-precision Int."
       fn =
         (function
-        | struct (_, _, _, [ DUInt128 a ]) -> Dval.int (u128ToBig a) |> Ply
+        | struct (_, _, _, [| DUInt128 a |]) -> Dval.int (u128ToBig a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -570,7 +571,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int to an Int8, returning None if it doesn't fit."
       fn =
         (function
-        | struct (_, _, _, [ (DInt _) as v ]) ->
+        | struct (_, _, _, [| (DInt _) as v |]) ->
           toFixed
             KTInt8
             (bigint System.SByte.MinValue)
@@ -591,7 +592,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int to a UInt8, returning None if it doesn't fit."
       fn =
         (function
-        | struct (_, _, _, [ (DInt _) as v ]) ->
+        | struct (_, _, _, [| (DInt _) as v |]) ->
           toFixed
             KTUInt8
             (bigint System.Byte.MinValue)
@@ -612,7 +613,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int to an Int16, returning None if it doesn't fit."
       fn =
         (function
-        | struct (_, _, _, [ (DInt _) as v ]) ->
+        | struct (_, _, _, [| (DInt _) as v |]) ->
           toFixed
             KTInt16
             (bigint System.Int16.MinValue)
@@ -633,7 +634,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int to a UInt16, returning None if it doesn't fit."
       fn =
         (function
-        | struct (_, _, _, [ (DInt _) as v ]) ->
+        | struct (_, _, _, [| (DInt _) as v |]) ->
           toFixed
             KTUInt16
             (bigint System.UInt16.MinValue)
@@ -654,7 +655,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int to an Int32, returning None if it doesn't fit."
       fn =
         (function
-        | struct (_, _, _, [ (DInt _) as v ]) ->
+        | struct (_, _, _, [| (DInt _) as v |]) ->
           toFixed
             KTInt32
             (bigint System.Int32.MinValue)
@@ -675,7 +676,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int to a UInt32, returning None if it doesn't fit."
       fn =
         (function
-        | struct (_, _, _, [ (DInt _) as v ]) ->
+        | struct (_, _, _, [| (DInt _) as v |]) ->
           toFixed
             KTUInt32
             (bigint System.UInt32.MinValue)
@@ -701,9 +702,9 @@ let fns () : List<BuiltInFn> =
         (function
         // By the invariant, a `Finite` always fits Int64 and an `Infinite` never
         // does.
-        | struct (_, _, _, [ DInt(DarkInt.Finite a) ]) ->
+        | struct (_, _, _, [| DInt(DarkInt.Finite a) |]) ->
           Dval.optionSome someType (DInt64 a) |> Ply
-        | struct (_, _, _, [ DInt(DarkInt.Infinite _) ]) ->
+        | struct (_, _, _, [| DInt(DarkInt.Infinite _) |]) ->
           Dval.optionNone someType |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -719,7 +720,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int to a UInt64, returning None if it doesn't fit."
       fn =
         (function
-        | struct (_, _, _, [ (DInt _) as v ]) ->
+        | struct (_, _, _, [| (DInt _) as v |]) ->
           toFixed
             KTUInt64
             (bigint System.UInt64.MinValue)
@@ -740,7 +741,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int to an Int128, returning None if it doesn't fit."
       fn =
         (function
-        | struct (_, _, _, [ (DInt _) as v ]) ->
+        | struct (_, _, _, [| (DInt _) as v |]) ->
           toFixed
             KTInt128
             (i128ToBig System.Int128.MinValue)
@@ -761,7 +762,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int to a UInt128, returning None if it doesn't fit."
       fn =
         (function
-        | struct (_, _, _, [ (DInt _) as v ]) ->
+        | struct (_, _, _, [| (DInt _) as v |]) ->
           toFixed
             KTUInt128
             (u128ToBig System.UInt128.MinValue)
@@ -782,7 +783,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise AND on two <type Int> values"
       fn =
         (function
-        | struct (_, _, _, [ DInt a; DInt b ]) ->
+        | struct (_, _, _, [| DInt a; DInt b |]) ->
           Ply(Dval.int (DarkInt.toBigInt a &&& DarkInt.toBigInt b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -798,7 +799,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise OR on two <type Int> values"
       fn =
         (function
-        | struct (_, _, _, [ DInt a; DInt b ]) ->
+        | struct (_, _, _, [| DInt a; DInt b |]) ->
           Ply(Dval.int (DarkInt.toBigInt a ||| DarkInt.toBigInt b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -814,7 +815,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise XOR on two <type Int> values"
       fn =
         (function
-        | struct (_, _, _, [ DInt a; DInt b ]) ->
+        | struct (_, _, _, [| DInt a; DInt b |]) ->
           Ply(Dval.int (DarkInt.toBigInt a ^^^ DarkInt.toBigInt b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -830,7 +831,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise NOT on an <type Int> value"
       fn =
         (function
-        | struct (_, _, _, [ DInt a ]) ->
+        | struct (_, _, _, [| DInt a |]) ->
           Ply(Dval.int (-(DarkInt.toBigInt a) - bigOne))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -846,7 +847,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise left shift of an <type Int> value"
       fn =
         (function
-        | struct (_, vm, _, [ DInt a; DInt b ]) ->
+        | struct (_, vm, _, [| DInt a; DInt b |]) ->
           // `<<<` needs a native Int32 shift count; reject anything that
           // wouldn't fit rather than letting the cast overflow. A negative
           // count would silently reverse direction in BigInteger, so reject it.
@@ -869,7 +870,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise right shift of an <type Int> value"
       fn =
         (function
-        | struct (_, vm, _, [ DInt a; DInt b ]) ->
+        | struct (_, vm, _, [| DInt a; DInt b |]) ->
           // `>>>` needs a native Int32 shift count; reject anything that
           // wouldn't fit rather than letting the cast overflow. A negative
           // count would silently reverse direction in BigInteger, so reject it.

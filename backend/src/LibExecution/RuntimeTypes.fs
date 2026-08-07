@@ -2607,10 +2607,15 @@ type BuiltInFn =
 and BuiltInFnSig =
   // (exeState * vmState * typeArgs * fnArgs) -> result
   //
+  // Arguments arrive as an *array*. As an `FSharpList` the caller paid a cons per argument to build
+  // one: 63 bytes on every builtin call, which measured at 77% of the recursion workload's
+  // allocation and 27% of the list workload's. An array is a single allocation, and it leaves room
+  // to hand over a reused buffer later, which a list can never do.
+  //
   // A *struct* tuple. As a reference tuple this was built on the heap on every builtin call, and at
   // 9.5% of the interpreter's allocation profile it was the last fixed cost of making one. The price
   // is that every implementation's pattern has to say `struct (...)`.
-  (struct (ExecutionState * VMState * List<TypeReference> * List<Dval>)) -> DvalTask
+  (struct (ExecutionState * VMState * List<TypeReference> * Dval[])) -> DvalTask
 
 
 /// Functionally written in F# and shipped with the executable
