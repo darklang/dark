@@ -73,6 +73,20 @@ module private FreeTVars =
       packageEntryPoints[hash] <- v
       v
 
+  /// The parameter list, as a list. `NEList.toList` conses the head onto the tail on every call, and
+  /// a package fn's parameters can't change under a running process: it's content-addressed.
+  let private packageParams =
+    System.Collections.Concurrent.ConcurrentDictionary<Hash, List<PackageFn.Parameter>>()
+
+  let paramsOfPackage (fn : PackageFn.PackageFn) : List<PackageFn.Parameter> =
+    let mutable cached = Unchecked.defaultof<List<PackageFn.Parameter>>
+    if packageParams.TryGetValue(fn.hash, &cached) then
+      cached
+    else
+      let v = NEList.toList fn.parameters
+      packageParams[fn.hash] <- v
+      v
+
   let ofPackage (fn : PackageFn.PackageFn) : Set<string> =
     let mutable cached = Unchecked.defaultof<Set<string>>
     if packages.TryGetValue(fn.hash, &cached) then
@@ -1476,7 +1490,7 @@ let private callPackageResolved
           match args with
           | [] -> acc
           | a :: aRest -> inferPkg (inferTVarsFromDval acc p.typ a) pRest aRest
-      inferPkg explicitlyBound (NEList.toList fn.parameters) allArgs
+      inferPkg explicitlyBound (FreeTVars.paramsOfPackage fn) allArgs
   if not (Map.isEmpty newlyBound) then
     tst <- Map.mergeFavoringRight tst newlyBound
   recordStage vm ApplyStage.PkgInfer pkgInferAlloc
@@ -1486,7 +1500,7 @@ let private callPackageResolved
   // no zip.
   let pkgTcAlloc = allocNow vm
   let alreadyApplied = List.length applicable.argsSoFar
-  let pkgParams = fn.parameters |> NEList.toList |> List.skip alreadyApplied
+  let pkgParams = FreeTVars.paramsOfPackage fn |> List.skip alreadyApplied
   recordStage vm ApplyStage.PkgTypeCheckArgs pkgTcAlloc
 
   let pkgTcRunAlloc = allocNow vm
