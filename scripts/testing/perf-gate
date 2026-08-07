@@ -1,0 +1,102 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Fails if the reference workload allocates more than its budget.
+#
+# Allocation, not time. Allocation for a fixed workload repeats to within about a tenth of a percent
+# between runs and doesn't care how loaded the machine is, which makes it the only number of the two
+# that can be asserted on in CI. Time is measured and printed, but never fails the build.
+#
+#   scripts/testing/perf-gate                  against the debug build
+#   scripts/testing/perf-gate --published      against the published one, as CI does
+#   scripts/testing/perf-gate --update         rewrite this mode's budget to what it measures
+#
+# Debug and published are budgeted separately: they don't allocate the same amount, and a budget
+# carried across from the other mode would be wrong in a way that looks right.
+#
+# The budget lives in scripts/testing/perf-budget.json. When a change makes things better, lower it in
+# the same commit -- a budget nobody tightens stops being a gate and becomes a ceiling to drift up to.
+
+set -euo pipefail
+
+PUBLISHED=false
+UPDATE=false
+for arg in "$@"; do
+  case "$arg" in
+    --published) PUBLISHED=true ;;
+    --update) UPDATE=true ;;
+    *) echo "unknown argument: $arg" >&2; exit 2 ;;
+  esac
+done
+
+if [[ "$PUBLISHED" == "true" ]]; then
+  EXE="backend/Build/out/Cli/Release/net10.0/linux-x64/publish/Cli"
+else
+  EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
+fi
+
+if [[ ! -x "$EXE" ]]; then
+  echo "perf-gate: no CLI at $EXE" >&2
+  exit 2
+fi
+
+BUDGET_FILE="scripts/testing/perf-budget.json"
+WORKLOAD="scripts/testing/perf-workloads/steady.dark"
+TELEMETRY="${DARK_CONFIG_RUNDIR}/logs/telemetry.jsonl"
+
+rm -f "$TELEMETRY"
+
+# Trace detail off: a dev shell sets it on, a user's run has it off, and with it on the interpreter
+# holds every argument and result alive for the whole run. Pinned here so the number means one thing.
+OUTPUT=$(DARK_TELEMETRY=1 DARK_CONFIG_TRACE_DETAIL=off "$EXE" run "$WORKLOAD")
+echo "$OUTPUT" | head -c 200
+echo
+
+MODE=$([[ "$PUBLISHED" == "true" ]] && echo published || echo debug)
+python3 - "$BUDGET_FILE" "$TELEMETRY" "$UPDATE" "$MODE" <<'PY'
+import json, sys
+
+budget_file, telemetry, update = sys.argv[1], sys.argv[2], sys.argv[3] == "true"
+
+allocs = [int(json.loads(l)["ctx"]["totalAllocatedBytes"])
+          for l in open(telemetry) if '"gc.stats"' in l]
+if not allocs:
+    print("perf-gate: no gc.stats event in telemetry -- did the workload run?")
+    sys.exit(2)
+measured = allocs[0]
+
+budget = json.load(open(budget_file))
+mode = sys.argv[4]
+limit = budget["steady"][mode]
+tolerance = budget["tolerance"]
+mb = lambda b: f"{b/1e6:.1f} MB"
+
+if update:
+    budget["steady"][mode] = measured
+    with open(budget_file, "w") as f:
+        json.dump(budget, f, indent=2)
+        f.write("\n")
+    print(f"{mode} budget updated to {mb(measured)}")
+    sys.exit(0)
+
+# A budget nobody has recorded yet reports and passes. Better than a number carried over from the
+# other build mode, which would be wrong in a way that looks right.
+if limit is None:
+    print(f"steady.dark ({mode}) allocated {mb(measured)}; no budget recorded yet.")
+    flag = " --published" if mode == "published" else ""
+    print(f"Pin it with `scripts/testing/perf-gate{flag} --update`.")
+    sys.exit(0)
+
+ceiling = int(limit * (1 + tolerance))
+print(f"steady.dark ({mode}) allocated {mb(measured)}; budget {mb(limit)}, ceiling {mb(ceiling)}")
+
+if measured > ceiling:
+    over = (measured / limit - 1) * 100
+    print(f"FAIL: {over:.1f}% over budget.")
+    print("If the regression is intended, raise the budget in the same commit and say why.")
+    sys.exit(1)
+
+if measured < limit * 0.97:
+    under = (1 - measured / limit) * 100
+    print(f"{under:.1f}% under budget -- lower it with `scripts/testing/perf-gate --update`.")
+PY

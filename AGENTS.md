@@ -85,6 +85,7 @@ tell you the tree has moved on rather than silently running a stale binary.
     ./scripts/run-backend-tests --groups Interpreter  just that part of it
     ./scripts/run-backend-tests --find mergeFavoring  what matches, and how to run it
     ./scripts/testing/test-build-planning.py          tests of the build itself
+    ./scripts/testing/perf-gate                       reference workload, allocation vs budget
 
 Find what you want before guessing at a filter: `--groups` and `--find` need no
 database and no package reload, and print the exact command for what they found.
@@ -93,6 +94,13 @@ The one trap worth knowing here: a filter that matches nothing used to be report
 `0 tests run - Success!` with exit 0. It fails now. `docs/unittests.md` has the rest,
 including what the three filter flags actually do and why they used to disagree with
 their own help text.
+
+`perf-gate` runs one Dark script and asserts how many bytes it allocated, against
+`scripts/testing/perf-budget.json`. Allocation for a fixed workload repeats to a tenth of a
+percent and doesn't care how loaded the box is; timing does, so timing is printed and never
+fails. CI runs it after the backend tests. When a change earns a lower number, lower the budget
+in the same commit with `perf-gate --update`, or it stops being a gate and becomes a ceiling to
+drift up to.
 
 Two runs in the same clone destroy each other, so `run-backend-tests` takes a lock.
 Two runs in different clones are fine; each has its own container, so its own PID
