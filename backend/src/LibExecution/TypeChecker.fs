@@ -970,6 +970,28 @@ module DvalCreator =
 
 
 
+  /// The declared field with this name, or nothing.
+  ///
+  /// A loop rather than `NEList.find (fun f -> f.name = name)`: that lambda captures the name, so
+  /// it's a closure allocated for every field of every record built.
+  let rec private findFieldIn
+    (fields : List<TypeDeclaration.RecordField>)
+    (name : string)
+    : TypeDeclaration.RecordField voption =
+    match fields with
+    | [] -> ValueNone
+    | f :: rest -> if f.name = name then ValueSome f else findFieldIn rest name
+
+  let private findExpectedField
+    (fields : NEList<TypeDeclaration.RecordField>)
+    (name : string)
+    : TypeDeclaration.RecordField voption =
+    if fields.head.name = name then
+      ValueSome fields.head
+    else
+      findFieldIn fields.tail name
+
+
   /// One field of a record being constructed: validate it, unify it against the declared field
   /// type, and fold what that taught us back into the type arguments and the symbol table.
   ///
@@ -989,83 +1011,100 @@ module DvalCreator =
     match remaining with
     | [] -> Ply((fieldsSoFar, currentTypeArgs, tst))
     | (fieldName, fieldValue) :: rest ->
-      uply {
-        if fieldName = "" then
-          return RTE.Records.CreationEmptyKey |> RTE.Record |> raiseRTE threadID
+      // The validations and the lookup are synchronous, so they happen before the builder rather
+      // than inside it.
+      if fieldName = "" then
+        RTE.Records.CreationEmptyKey |> RTE.Record |> raiseRTE threadID
 
-        if Map.containsKey fieldName fieldsSoFar then
-          return
-            RTE.Records.CreationDuplicateField fieldName
-            |> RTE.Record
-            |> raiseRTE threadID
+      if Map.containsKey fieldName fieldsSoFar then
+        RTE.Records.CreationDuplicateField fieldName
+        |> RTE.Record
+        |> raiseRTE threadID
 
-        match expectedFields |> NEList.find (fun f -> f.name = fieldName) with
-        | None ->
-          return
-            RTE.Records.CreationFieldNotExpected fieldName
-            |> RTE.Record
-            |> raiseRTE threadID
+      match findExpectedField expectedFields fieldName with
+      | ValueNone ->
+        RTE.Records.CreationFieldNotExpected fieldName
+        |> RTE.Record
+        |> raiseRTE threadID
 
-        | Some fieldDef ->
-          match! unify types tst fieldDef.typ fieldValue with
-          | Error _path ->
-            // The declared type is only needed to describe the failure, so it's resolved here
-            // rather than before the check that almost always passes.
-            let! expected = TypeReference.toVT types tst fieldDef.typ
-            return
-              RTE.Records.CreationFieldOfWrongType(
-                fieldName,
-                expected,
-                Dval.toValueType fieldValue,
-                fieldValue
-              )
-              |> RTE.Record
-              |> raiseRTE threadID
+      | ValueSome fieldDef ->
+        // The overwhelming majority of fields unify without needing the type store, and a type with
+        // no parameters has nothing to learn from them. When both hold, the whole field is handled
+        // without entering the Ply builder at all -- and Ply's builder is not resumable code, so it
+        // allocates a continuation in Release just as much as in Debug. This was 9% of the profile
+        // of an HTTP server returning a constant string.
+        match tryUnifySync tst fieldDef.typ fieldValue with
+        | ValueSome newTST when List.isEmpty currentTypeArgs ->
+          checkRecordFields
+            types
+            threadID
+            expectedFields
+            rest
+            (Map.add fieldName fieldValue fieldsSoFar)
+            currentTypeArgs
+            newTST
+        | _ ->
 
-          | Ok newTST ->
-            // Update the type args with anything this field pinned down. See the note in
-            // `checkEnumFields`: no type parameters means nothing to learn, and no walk.
-            let! newTypeArgs =
-              if List.isEmpty currentTypeArgs then
-                Ply currentTypeArgs
-              else
-                Ply.List.mapSequentially
-                  (fun (paramName, vt) ->
-                    match vt with
-                    | ValueType.Unknown ->
-                      match TST.tryFind paramName newTST with
-                      | ValueSome known -> Ply((paramName, known))
-                      | ValueNone -> Ply((paramName, vt))
+          uply {
+            match! unify types tst fieldDef.typ fieldValue with
+            | Error _path ->
+              // The declared type is only needed to describe the failure, so it's resolved here
+              // rather than before the check that almost always passes.
+              let! expected = TypeReference.toVT types tst fieldDef.typ
+              return
+                RTE.Records.CreationFieldOfWrongType(
+                  fieldName,
+                  expected,
+                  Dval.toValueType fieldValue,
+                  fieldValue
+                )
+                |> RTE.Record
+                |> raiseRTE threadID
 
-                    | known ->
-                      match ValueType.merge known vt with
-                      | Ok merged -> Ply((paramName, merged))
-                      | Error() ->
-                        uply {
-                          let! expected =
-                            TypeReference.toVT types newTST fieldDef.typ
-                          return
-                            RTE.Records.CreationFieldOfWrongType(
-                              fieldName,
-                              expected,
-                              Dval.toValueType fieldValue,
-                              fieldValue
-                            )
-                            |> RTE.Record
-                            |> raiseRTE threadID
-                        })
-                  currentTypeArgs
+            | Ok newTST ->
+              // Update the type args with anything this field pinned down. See the note in
+              // `checkEnumFields`: no type parameters means nothing to learn, and no walk.
+              let! newTypeArgs =
+                if List.isEmpty currentTypeArgs then
+                  Ply currentTypeArgs
+                else
+                  Ply.List.mapSequentially
+                    (fun (paramName, vt) ->
+                      match vt with
+                      | ValueType.Unknown ->
+                        match TST.tryFind paramName newTST with
+                        | ValueSome known -> Ply((paramName, known))
+                        | ValueNone -> Ply((paramName, vt))
 
-            return!
-              checkRecordFields
-                types
-                threadID
-                expectedFields
-                rest
-                (Map.add fieldName fieldValue fieldsSoFar)
-                newTypeArgs
-                newTST
-      }
+                      | known ->
+                        match ValueType.merge known vt with
+                        | Ok merged -> Ply((paramName, merged))
+                        | Error() ->
+                          uply {
+                            let! expected =
+                              TypeReference.toVT types newTST fieldDef.typ
+                            return
+                              RTE.Records.CreationFieldOfWrongType(
+                                fieldName,
+                                expected,
+                                Dval.toValueType fieldValue,
+                                fieldValue
+                              )
+                              |> RTE.Record
+                              |> raiseRTE threadID
+                          })
+                    currentTypeArgs
+
+              return!
+                checkRecordFields
+                  types
+                  threadID
+                  expectedFields
+                  rest
+                  (Map.add fieldName fieldValue fieldsSoFar)
+                  newTypeArgs
+                  newTST
+          }
 
 
   /// Constructs a Dval.DRecord, ensuring that the fields match the expected shape
