@@ -1,0 +1,67 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Append a perf-suite run to the tracked benchmark history.
+#
+# `benchmarks/results/history.jsonl` is the long-term record: append-only, committed, and rendered
+# into `benchmarks/results.md` by `./scripts/run-local-exec bench-render`. It had eight snapshots
+# and none since April, and it only covered the Blob/Stream scenarios -- nothing about the
+# interpreter, which is what two performance campaigns actually moved.
+#
+# This records the six interpreter workloads in the same schema, so the trend survives after the
+# PR descriptions that currently hold these numbers have aged out.
+#
+#   scripts/testing/perf-suite-record            record a Debug run
+#   scripts/testing/perf-suite-record --release  record a Release run (what ships; prefer this)
+#
+# The schema is the existing one, reused rather than invented:
+#   scenario    the workload name, prefixed `interp.` so it groups apart from the Blob rows
+#   inputBytes  iterations, which is this workload's notion of input size
+#   allocBytes  bytes allocated PER ITERATION, startup differenced out
+#   elapsedMs   milliseconds for the whole run
+#   dvalNodes   -1, not meaningful here
+set -euo pipefail
+cd /home/dark/app
+
+MODE_FLAG=""
+MODE="debug"
+if [[ "${1:-}" == "--release" ]]; then
+  MODE_FLAG="--release"
+  MODE="release"
+fi
+
+HISTORY="benchmarks/results/history.jsonl"
+TMP=$(mktemp)
+trap 'rm -f "$TMP"' EXIT
+
+scripts/testing/perf-suite $MODE_FLAG --json "$TMP" > /dev/null
+
+COMMIT=$(git rev-parse HEAD 2>/dev/null || echo unknown)
+STAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
+
+python3 - "$TMP" "$HISTORY" "$COMMIT" "$STAMP" "$MODE" <<'PY'
+import json, sys
+
+src, history, commit, stamp, mode = sys.argv[1:6]
+rows = json.load(open(src))
+
+results = [
+    {
+        "scenario": f"interp.{r['workload']}.{mode}",
+        "inputBytes": r["iters"],
+        "allocBytes": r["bytesPerIter"],
+        "elapsedMs": r["ms"] if r["ms"] is not None else -1,
+        "dvalNodes": -1,
+        "note": "alloc is per iteration, startup differenced out",
+    }
+    for r in rows
+]
+
+snapshot = {"timestamp": stamp, "commit": commit, "results": results}
+with open(history, "a") as f:
+    f.write(json.dumps(snapshot) + "\n")
+
+print(f"appended {len(results)} rows ({mode}) at {stamp}")
+for r in results:
+    print(f"  {r['scenario']:28s} {r['allocBytes']:>9,} B/iter  {r['elapsedMs']:>5} ms")
+PY

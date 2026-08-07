@@ -96,6 +96,17 @@ The one trap worth knowing here: a filter that matches nothing used to be report
 including what the three filter flags actually do and why they used to disagree with
 their own help text.
 
+### Performance
+
+Three living documents, kept up to date in place rather than replaced:
+
+    docs/perf-playbook.md    how to do perf work here, and the traps. Read before starting.
+    docs/perf-roadmap.md     what's worth doing next, ranked, with measured vs estimated marked
+    docs/perf-history.md     the numbers round by round, and facts not worth re-deriving
+
+The playbook is the one to read cold: the recurring lesson across three campaigns is that almost all
+wasted effort came from trusting a measurement nobody had checked.
+
 `perf-suite` is the wider view: lists, records, strings, dicts, JSON and deep recursion, each run
 at 0 and N iterations so startup differences out and what's left is the work. It asserts nothing --
 it's for seeing whether a change that helped one shape of program hurt another. The campaign spent
