@@ -1,0 +1,25 @@
+// Deep self-recursion, no containers. Isolates the frame push and pop path: how much does a call
+// cost when the call is all there is?
+let iters () : Int =
+  match Builtin.environmentGet "PERF_ITERS" with
+  | Some s ->
+    match Stdlib.Int.parse s with
+    | Ok n -> n
+    | Error _ -> 0
+  | None -> 0
+
+let depth (n: Int) : Int = if n <= 0 then 0 else 1 + (depth (n - 1))
+
+let fib (n: Int) : Int = if n < 2 then n else (fib (n - 1)) + (fib (n - 2))
+
+let work (n: Int) : Int = (depth 200) + (fib 12) + n
+
+let repeat (times: Int) (acc: Int) : Int =
+  if times <= 0 then acc else repeat (times - 1) (acc + (work times))
+
+let _warm = repeat 5 0
+let _reset = Builtin.interpreterStatsReset ()
+let t0 = Builtin.timeNowMs ()
+let result = repeat (iters ()) 0
+let t1 = Builtin.timeNowMs ()
+Stdlib.printLine ("elapsed_ms=" ++ (Stdlib.Int.toString (t1 - t0)) ++ " result=" ++ (Stdlib.Int.toString result))

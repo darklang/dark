@@ -1,0 +1,28 @@
+// JSON round trips. Polymorphic serialization walks the type declaration alongside the value, so it
+// exercises the package-type lookup and the type-symbol-table paths harder than anything else here.
+let iters () : Int =
+  match Builtin.environmentGet "PERF_ITERS" with
+  | Some s ->
+    match Stdlib.Int.parse s with
+    | Ok n -> n
+    | Error _ -> 0
+  | None -> 0
+
+type Item = { id: Int; name: String; tags: List<String>; active: Bool }
+
+let work (n: Int) : Int =
+  let item = Item { id = n; name = "item"; tags = ["a"; "b"; "c"]; active = true }
+  let s = Stdlib.Json.serialize<Item> item
+  match Stdlib.Json.parse<Item> s with
+  | Ok back -> (Stdlib.String.length s) + back.id
+  | Error _ -> 0
+
+let repeat (times: Int) (acc: Int) : Int =
+  if times <= 0 then acc else repeat (times - 1) (acc + (work times))
+
+let _warm = repeat 5 0
+let _reset = Builtin.interpreterStatsReset ()
+let t0 = Builtin.timeNowMs ()
+let result = repeat (iters ()) 0
+let t1 = Builtin.timeNowMs ()
+Stdlib.printLine ("elapsed_ms=" ++ (Stdlib.Int.toString (t1 - t0)) ++ " result=" ++ (Stdlib.Int.toString result))

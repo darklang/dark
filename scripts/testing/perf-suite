@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Allocation and time for every workload in scripts/testing/perf-workloads/suite/.
+#
+# The campaign spent weeks tuned against one workload -- lists, lambdas and self-recursion -- and got
+# very good at it. That is a narrow target: records, strings, dicts and JSON go through different
+# parts of the runtime, and a change that helps one can quietly cost another.
+#
+# Each workload is run twice, at 0 iterations and at N, and the difference is reported. Startup,
+# parsing the script and loading packages appear in both and cancel; on the original workload that
+# fixed cost was 7.6 MB of a 13.4 MB total, so not differencing it out means measuring mostly
+# startup. `perf-gate` deliberately does *not* do this -- it wants the whole process number, since a
+# regression in startup is still a regression.
+#
+# Usage:
+#   scripts/testing/perf-suite                 all workloads
+#   scripts/testing/perf-suite lists json      just these
+#   scripts/testing/perf-suite --iters 500     override the iteration count
+#   scripts/testing/perf-suite --json out.json also write machine-readable results
+#
+# Allocation repeats to the byte and is the number to trust. Time is printed but is noisy on a
+# loaded box; it never fails anything.
+set -euo pipefail
+cd /home/dark/app
+
+EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
+SUITE="scripts/testing/perf-workloads/suite"
+TELEMETRY="${DARK_CONFIG_RUNDIR}/logs/telemetry.jsonl"
+ITERS=200
+JSON_OUT=""
+NAMES=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --iters) ITERS="$2"; shift 2 ;;
+    --json) JSON_OUT="$2"; shift 2 ;;
+    -*) echo "unknown flag: $1" >&2; exit 2 ;;
+    *) NAMES+=("$1"); shift ;;
+  esac
+done
+
+if [[ ! -x "$EXE" ]]; then
+  echo "perf-suite: no CLI at $EXE -- run scripts/dev/build" >&2
+  exit 2
+fi
+
+if [[ ${#NAMES[@]} -eq 0 ]]; then
+  for f in "$SUITE"/*.dark; do NAMES+=("$(basename "$f" .dark)"); done
+fi
+
+# Bytes allocated by the process, from the last gc.stats line telemetry wrote.
+read_alloc() {
+  python3 -c '
+import json, sys
+last = None
+for line in open(sys.argv[1]):
+    r = json.loads(line)
+    if r.get("event") == "gc.stats":
+        last = r["ctx"]
+if last is None:
+    sys.exit("no gc.stats in telemetry")
+print(last["totalAllocatedBytes"])
+' "$TELEMETRY"
+}
+
+# Trace detail off for the same reason perf-gate pins it: with it on, the interpreter holds every
+# argument and result alive for the whole run, which is not what a user's invocation does.
+run_once() {
+  local script="$1" iters="$2"
+  rm -f "$TELEMETRY"
+  PERF_ITERS="$iters" DARK_TELEMETRY=1 DARK_CONFIG_TRACE_DETAIL=off "$EXE" run "$script"
+}
+
+printf '%-12s %12s %12s %10s\n' workload "alloc/iter" "total alloc" "ms"
+printf '%-12s %12s %12s %10s\n' ------------ ------------ ------------ ----------
+
+results=""
+for name in "${NAMES[@]}"; do
+  script="$SUITE/$name.dark"
+  if [[ ! -f "$script" ]]; then
+    echo "perf-suite: no such workload: $name" >&2
+    exit 2
+  fi
+
+  run_once "$script" 0 > /dev/null
+  base=$(read_alloc)
+
+  out=$(run_once "$script" "$ITERS")
+  full=$(read_alloc)
+  ms=$(sed -n 's/.*elapsed_ms=\([0-9]*\).*/\1/p' <<< "$out")
+
+  body=$((full - base))
+  per=$((body / ITERS))
+  printf '%-12s %12s %12s %10s\n' \
+    "$name" \
+    "$(python3 -c "print(f'{$per/1024:.2f} KB')")" \
+    "$(python3 -c "print(f'{$body/1e6:.3f} MB')")" \
+    "${ms:-?}"
+  results="$results{\"workload\":\"$name\",\"iters\":$ITERS,\"bytesPerIter\":$per,\"bodyBytes\":$body,\"ms\":${ms:-null}},"
+done
+
+if [[ -n "$JSON_OUT" ]]; then
+  echo "[${results%,}]" > "$JSON_OUT"
+  echo
+  echo "wrote $JSON_OUT"
+fi

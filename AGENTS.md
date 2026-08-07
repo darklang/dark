@@ -86,6 +86,7 @@ tell you the tree has moved on rather than silently running a stale binary.
     ./scripts/run-backend-tests --find mergeFavoring  what matches, and how to run it
     ./scripts/testing/test-build-planning.py          tests of the build itself
     ./scripts/testing/perf-gate                       reference workload, allocation vs budget
+    ./scripts/testing/perf-suite                      six workloads, allocation per iteration
 
 Find what you want before guessing at a filter: `--groups` and `--find` need no
 database and no package reload, and print the exact command for what they found.
@@ -94,6 +95,11 @@ The one trap worth knowing here: a filter that matches nothing used to be report
 `0 tests run - Success!` with exit 0. It fails now. `docs/unittests.md` has the rest,
 including what the three filter flags actually do and why they used to disagree with
 their own help text.
+
+`perf-suite` is the wider view: lists, records, strings, dicts, JSON and deep recursion, each run
+at 0 and N iterations so startup differences out and what's left is the work. It asserts nothing --
+it's for seeing whether a change that helped one shape of program hurt another. The campaign spent
+weeks tuned against the list workload alone, and recursion turned out to cost 5x per iteration.
 
 `perf-gate` runs one Dark script and asserts how many bytes it allocated, against
 `scripts/testing/perf-budget.json`. Allocation for a fixed workload repeats to a tenth of a
