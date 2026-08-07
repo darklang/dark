@@ -407,6 +407,37 @@ let unify
       | Ok updatedTst -> return Ok updatedTst
     }
 
+/// Resolved declarations for types with no type arguments, which is nearly all of them.
+///
+/// Type-checking a record or enum argument resolves its declaration, and that goes to the package
+/// manager every time. It shows up as soon as you look at anything that passes records around: an
+/// HTTP request costs 258 KB, and the type checker is most of the profile.
+///
+/// Keyed on the `Types` instance as well as the name. Keying on the name alone looks safe -- an
+/// `FQTypeName` is a content hash, so the same name should be the same declaration -- and it is not:
+/// 713 tests errored, because tests mint their own package managers and reuse names across different
+/// declarations. Scoping per `Types` keeps essentially all of the win anyway, since a server has one
+/// for the life of the process.
+///
+/// Only the non-alias branch is cached: resolving an alias depends on the caller's type symbol
+/// table, so its answer isn't a function of the name.
+let private resolvedTypeCache =
+  System.Runtime.CompilerServices.ConditionalWeakTable<Types, System.Collections.Concurrent.ConcurrentDictionary<FQTypeName.FQTypeName, FQTypeName.FQTypeName *
+  List<string * ValueType> *
+  TypeDeclaration.Definition>>()
+
+let private cacheFor (types : Types) =
+  let mutable d = Unchecked.defaultof<_>
+  if resolvedTypeCache.TryGetValue(types, &d) then
+    d
+  else
+    let fresh =
+      System.Collections.Concurrent.ConcurrentDictionary<FQTypeName.FQTypeName, FQTypeName.FQTypeName *
+      List<string * ValueType> *
+      TypeDeclaration.Definition>()
+    resolvedTypeCache.AddOrUpdate(types, fresh)
+    fresh
+
 // CLEANUP I wonder if this can/should happen in PT2RT instead of during interpretation
 let rec resolveType
   (types : Types)
@@ -416,58 +447,67 @@ let rec resolveType
   (typeArgs : List<ValueType>)
   // : (typeName * typeArgs * def)
   : Ply<FQTypeName.FQTypeName * List<string * ValueType> * TypeDeclaration.Definition> =
-  uply {
-    match! Types.find types typeName with
-    | None -> return RTE.TypeNotFound typeName |> raiseRTE threadID
-    | Some decl ->
-      match decl.definition with
-      | TypeDeclaration.Alias aliasedType ->
-        let! resolvedType = TypeReference.unwrapAlias types aliasedType
-        match resolvedType with
-        | TCustomType({ resolved = Ok innerTypeName }, innerTypeArgs) ->
-          match! Types.find types innerTypeName with
-          | None -> return RTE.TypeNotFound innerTypeName |> raiseRTE threadID
-          | Some targetDecl ->
-            // Create mapping from original type params to provided args/unknowns
-            let typeArgsMap =
-              if List.isEmpty typeArgs && not (List.isEmpty decl.typeParams) then
-                decl.typeParams
-                |> List.map (fun p -> p, ValueType.Unknown)
-                |> Map.ofList
-              else
-                List.zip decl.typeParams typeArgs |> Map.ofList
+  let mutable cached = Unchecked.defaultof<_>
+  if List.isEmpty typeArgs && (cacheFor types).TryGetValue(typeName, &cached) then
+    // Outside the computation expression: once warm this is where nearly every call lands, and
+    // entering the builder to hand back a value already in hand costs more than the lookup.
+    Ply cached
+  else
 
-            // Map inner type args using target type's param names
-            let! mappedInnerArgsVT =
-              List.zip targetDecl.typeParams innerTypeArgs
-              |> Ply.List.mapSequentially (fun (targetParam, typeRef) ->
-                uply {
-                  let! vt = TypeReference.toVT types tst typeRef
-                  return
-                    match typeRef with
-                    | TVariable name ->
-                      match Map.tryFind name typeArgsMap with
-                      | Some vt -> (targetParam, vt)
-                      | None -> (targetParam, vt)
-                    | _ -> (targetParam, vt)
-                })
+    uply {
+      match! Types.find types typeName with
+      | None -> return RTE.TypeNotFound typeName |> raiseRTE threadID
+      | Some decl ->
+        match decl.definition with
+        | TypeDeclaration.Alias aliasedType ->
+          let! resolvedType = TypeReference.unwrapAlias types aliasedType
+          match resolvedType with
+          | TCustomType({ resolved = Ok innerTypeName }, innerTypeArgs) ->
+            match! Types.find types innerTypeName with
+            | None -> return RTE.TypeNotFound innerTypeName |> raiseRTE threadID
+            | Some targetDecl ->
+              // Create mapping from original type params to provided args/unknowns
+              let typeArgsMap =
+                if List.isEmpty typeArgs && not (List.isEmpty decl.typeParams) then
+                  decl.typeParams
+                  |> List.map (fun p -> p, ValueType.Unknown)
+                  |> Map.ofList
+                else
+                  List.zip decl.typeParams typeArgs |> Map.ofList
 
-            return!
-              resolveType types threadID tst innerTypeName []
-              |> Ply.map (fun (resolvedName, _, def) ->
-                (resolvedName, mappedInnerArgsVT, def))
+              // Map inner type args using target type's param names
+              let! mappedInnerArgsVT =
+                List.zip targetDecl.typeParams innerTypeArgs
+                |> Ply.List.mapSequentially (fun (targetParam, typeRef) ->
+                  uply {
+                    let! vt = TypeReference.toVT types tst typeRef
+                    return
+                      match typeRef with
+                      | TVariable name ->
+                        match Map.tryFind name typeArgsMap with
+                        | Some vt -> (targetParam, vt)
+                        | None -> (targetParam, vt)
+                      | _ -> (targetParam, vt)
+                  })
 
-        | _ -> return RTE.TypeNotFound typeName |> raiseRTE threadID
+              return!
+                resolveType types threadID tst innerTypeName []
+                |> Ply.map (fun (resolvedName, _, def) ->
+                  (resolvedName, mappedInnerArgsVT, def))
 
-      | definition ->
-        let typeArgsVT =
-          if List.isEmpty typeArgs && not (List.isEmpty decl.typeParams) then
-            decl.typeParams |> List.map (fun p -> (p, ValueType.Unknown))
-          else
-            List.zip decl.typeParams typeArgs
+          | _ -> return RTE.TypeNotFound typeName |> raiseRTE threadID
 
-        return (typeName, typeArgsVT, definition)
-  }
+        | definition ->
+          let typeArgsVT =
+            if List.isEmpty typeArgs && not (List.isEmpty decl.typeParams) then
+              decl.typeParams |> List.map (fun p -> (p, ValueType.Unknown))
+            else
+              List.zip decl.typeParams typeArgs
+
+          let result = (typeName, typeArgsVT, definition)
+          if List.isEmpty typeArgs then (cacheFor types)[typeName] <- result
+          return result
+    }
 
 
 
