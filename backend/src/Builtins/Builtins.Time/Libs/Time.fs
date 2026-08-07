@@ -99,6 +99,29 @@ let fns () : List<BuiltInFn> =
       capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
+    { name = fn "gcAllocatedBytes" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TInt64
+      description =
+        "Total bytes this process has allocated since it started, including memory since freed. "
+        + "For measuring what a piece of work costs: read it before and after, and subtract. "
+        + "Unlike wall-clock time this repeats exactly, so it's the number to trust when comparing "
+        + "two versions of the same code."
+      fn =
+        (function
+        | struct (_, _, _, [ DUnit ]) ->
+          // `precise: true` walks every thread's allocation context. Slower, but the imprecise
+          // version rounds to allocation-context refills, which is coarse enough to hide a whole
+          // request's worth of work.
+          Dval.dint64 (System.GC.GetTotalAllocatedBytes true) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "interpreterStatsGet" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]
