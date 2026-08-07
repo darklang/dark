@@ -15,7 +15,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns a string representation of the given <param value>"
       fn =
         (function
-        | exeState, _, _, [ value ] ->
+        | struct (exeState, _, _, [ value ]) ->
           uply {
             let! repr = Exe.dvalToRepr exeState value
             return DString repr
@@ -47,7 +47,7 @@ let fns () : List<BuiltInFn> =
          <fn LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr>)."
       fn =
         (function
-        | _, _, _, [ dv ] ->
+        | struct (_, _, _, [ dv ]) ->
           dv |> LibExecution.RuntimeTypesToDarkTypes.Dval.toDT |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

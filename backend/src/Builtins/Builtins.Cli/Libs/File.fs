@@ -48,7 +48,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTBlob errType
         let resultError = Dval.resultError KTBlob errType
         (function
-        | state, _, _, [ DString path ] ->
+        | struct (state, _, _, [ DString path ]) ->
           uply {
             // precise check: this exact path must be covered (gate checked file presence).
             LibExecution.CapabilityCheck.requireFileRead state.grantedCaps path
@@ -81,7 +81,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTUnit KTString
         let resultError = Dval.resultError KTUnit KTString
         (function
-        | state, _, _, [ DBlob ref; DString path ] ->
+        | struct (state, _, _, [ DBlob ref; DString path ]) ->
           uply {
             // precise check: this exact path must be covered (gate checked file presence).
             LibExecution.CapabilityCheck.requireFileWrite state.grantedCaps path
@@ -112,7 +112,7 @@ let fns () : List<BuiltInFn> =
       description = "Deletes the file specified by <param path>"
       fn =
         (function
-        | state, _, _, [ DString path ] ->
+        | struct (state, _, _, [ DString path ]) ->
           uply {
             // precise check: this exact path must be covered (gate checked file presence).
             LibExecution.CapabilityCheck.requireFileWrite state.grantedCaps path
@@ -143,7 +143,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTUnit KTString
         let resultError = Dval.resultError KTUnit KTString
         (function
-        | state, _, _, [ DString path; DString content ] ->
+        | struct (state, _, _, [ DString path; DString content ]) ->
           uply {
             // precise check: this exact path must be covered (gate checked file presence).
             LibExecution.CapabilityCheck.requireFileWrite state.grantedCaps path
@@ -168,7 +168,7 @@ let fns () : List<BuiltInFn> =
         "Returns true if the file specified by <param path> is a directory, or false if it is a file or does not exist"
       fn =
         (function
-        | state, _, _, [ DString path ] ->
+        | struct (state, _, _, [ DString path ]) ->
           uply {
             // precise check: this exact path must be covered (gate checked file presence).
             LibExecution.CapabilityCheck.requireFileRead state.grantedCaps path
@@ -194,7 +194,7 @@ let fns () : List<BuiltInFn> =
         "Returns true if a file or directory exists at the specified <param path>, or false otherwise"
       fn =
         (function
-        | state, _, _, [ DString path ] ->
+        | struct (state, _, _, [ DString path ]) ->
           uply {
             // precise check: this exact path must be covered (gate checked file presence).
             LibExecution.CapabilityCheck.requireFileRead state.grantedCaps path

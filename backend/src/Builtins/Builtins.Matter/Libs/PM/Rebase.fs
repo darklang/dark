@@ -25,7 +25,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTString (KTList VT.string)
         let resultError = Dval.resultError KTString (KTList VT.string)
         (function
-        | _, _, _, [ DUuid branchId ] ->
+        | struct (_, _, _, [ DUuid branchId ]) ->
           uply {
             let! result = LibDB.Rebase.rebase branchId
             match result with

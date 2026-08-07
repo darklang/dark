@@ -15,7 +15,7 @@ let fns () : List<BuiltInFn> =
       description = "Generate a new <type Uuid> v4 according to RFC 4122"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> Ply(DUuid(System.Guid.NewGuid()))
+        | struct (_, _, _, [ DUnit ]) -> Ply(DUuid(System.Guid.NewGuid()))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable =

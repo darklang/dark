@@ -1250,7 +1250,7 @@ let fns () : List<BuiltInFn> =
         + "None only when the source cannot be tokenized at all."
       fn =
         (function
-        | _, _, _, [ DString sourceCode ] ->
+        | struct (_, _, _, [ DString sourceCode ]) ->
           let pfKT = KTCustomType(FQTypeName.fqPackage (WTRefs.parsedFile ()), [])
           let r = P.parse sourceCode
           // best-effort: return the parse tree whenever the tokenizer succeeded, even
@@ -1285,7 +1285,7 @@ let fns () : List<BuiltInFn> =
         + "LSP error reporting. Empty list on a clean parse."
       fn =
         (function
-        | _, _, _, [ DString sourceCode ] ->
+        | struct (_, _, _, [ DString sourceCode ]) ->
           Ply(
             WrittenTypesToDarkTypes.diagnosticsToDT (P.parse sourceCode).diagnostics
           )

@@ -21,7 +21,7 @@ let fns () : List<BuiltInFn> =
         "Tests if <param input> matches the regex <param pattern>. Returns {{true}} if a match is found, {{false}} otherwise."
       fn =
         (function
-        | _, _, _, [ DString input; DString pattern ] ->
+        | struct (_, _, _, [ DString input; DString pattern ]) ->
           try
             let isMatch = Regex.IsMatch(input, pattern)
             Ply(DBool isMatch)
@@ -46,7 +46,7 @@ let fns () : List<BuiltInFn> =
         "Finds the first match of the regex <param pattern> in <param input>. Returns {{Some match}} if found, {{None}} otherwise."
       fn =
         (function
-        | _, _, _, [ DString input; DString pattern ] ->
+        | struct (_, _, _, [ DString input; DString pattern ]) ->
           try
             let m = Regex.Match(input, pattern)
             if m.Success then
@@ -74,7 +74,7 @@ let fns () : List<BuiltInFn> =
         "Finds all matches of the regex <param pattern> in <param input>. Returns a list of matched strings."
       fn =
         (function
-        | _, _, _, [ DString input; DString pattern ] ->
+        | struct (_, _, _, [ DString input; DString pattern ]) ->
           try
             let matches = Regex.Matches(input, pattern)
             let results =
@@ -105,7 +105,7 @@ let fns () : List<BuiltInFn> =
         "Replaces the first match of the regex <param pattern> in <param input> with <param replacement>."
       fn =
         (function
-        | _, _, _, [ DString input; DString pattern; DString replacement ] ->
+        | struct (_, _, _, [ DString input; DString pattern; DString replacement ]) ->
           try
             // Only replace first occurrence
             let m = Regex.Match(input, pattern)
@@ -142,7 +142,7 @@ let fns () : List<BuiltInFn> =
         "Replaces all matches of the regex <param pattern> in <param input> with <param replacement>."
       fn =
         (function
-        | _, _, _, [ DString input; DString pattern; DString replacement ] ->
+        | struct (_, _, _, [ DString input; DString pattern; DString replacement ]) ->
           try
             let result =
               Regex.Replace(
@@ -177,7 +177,7 @@ let fns () : List<BuiltInFn> =
         "Splits <param input> by the regex <param pattern>, returning a list of strings."
       fn =
         (function
-        | _, _, _, [ DString input; DString pattern ] ->
+        | struct (_, _, _, [ DString input; DString pattern ]) ->
           try
             let parts = Regex.Split(input, pattern)
             let results = parts |> Array.map DString |> Array.toList

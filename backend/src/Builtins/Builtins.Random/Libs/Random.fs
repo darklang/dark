@@ -19,7 +19,7 @@ let fns () : List<BuiltInFn> =
         "Returns a random 8-bit signed integer between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, _, [ DInt8 a; DInt8 b ] ->
+        | struct (_, _, _, [ DInt8 a; DInt8 b ]) ->
           let lower, upper = if a > b then (b, a) else (a, b)
           let lowerBound = max lower -128y
           let upperBound = min upper 127y
@@ -42,7 +42,7 @@ let fns () : List<BuiltInFn> =
         "Returns a random 8-bit unsigned integer (uint8) between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, _, [ DUInt8 a; DUInt8 b ] ->
+        | struct (_, _, _, [ DUInt8 a; DUInt8 b ]) ->
           let lower, upper = if a > b then (b, a) else (a, b)
           let lowerBound = max lower 0uy
           let upperBound = min upper 255uy
@@ -65,7 +65,7 @@ let fns () : List<BuiltInFn> =
         "Returns a random integer16 between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, _, [ DInt16 a; DInt16 b ] ->
+        | struct (_, _, _, [ DInt16 a; DInt16 b ]) ->
           let lower, upper = if a > b then (b, a) else (a, b)
           let correctRange = 1
           int lower + randomSeeded().Next(int upper - int lower + correctRange)
@@ -87,7 +87,7 @@ let fns () : List<BuiltInFn> =
         "Returns a random integer16 between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, _, [ DUInt16 a; DUInt16 b ] ->
+        | struct (_, _, _, [ DUInt16 a; DUInt16 b ]) ->
           let lower, upper = if a > b then (b, a) else (a, b)
           let lowerBound = max lower 0us
           let upperBound = min upper 65535us
@@ -111,7 +111,7 @@ let fns () : List<BuiltInFn> =
         "Returns a random integer32 between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, _, [ DInt32 a; DInt32 b ] ->
+        | struct (_, _, _, [ DInt32 a; DInt32 b ]) ->
           let lower, upper = if a > b then (b, a) else (a, b)
           let correction : int32 = 1
           lower + randomSeeded().Next(upper - lower + correction) |> DInt32 |> Ply
@@ -130,7 +130,7 @@ let fns () : List<BuiltInFn> =
         "Returns a random integer32 between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, _, [ DUInt32 a; DUInt32 b ] ->
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) ->
           let lower, upper = if a > b then (b, a) else (a, b)
           let lowerBound = max lower 0ul
           let upperBound = min upper 4294967295ul
@@ -154,7 +154,7 @@ let fns () : List<BuiltInFn> =
         "Returns a random integer between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, _, [ DInt64 a; DInt64 b ] ->
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) ->
           let lower, upper = if a > b then (b, a) else (a, b)
           // .NET's "nextInt64" is exclusive, but we want inclusive.
           let correction : int64 = 1
@@ -176,7 +176,7 @@ let fns () : List<BuiltInFn> =
         "Returns a random integer between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, _, [ DInt a; DInt b ] ->
+        | struct (_, _, _, [ DInt a; DInt b ]) ->
           let a = DarkInt.toBigInt a
           let b = DarkInt.toBigInt b
           let lower, upper = if a > b then (b, a) else (a, b)
@@ -205,7 +205,7 @@ let fns () : List<BuiltInFn> =
         "Returns a random integer between <param start> and <param end> (inclusive)"
       fn =
         (function
-        | _, _, _, [ DUInt64 a; DUInt64 b ] ->
+        | struct (_, _, _, [ DUInt64 a; DUInt64 b ]) ->
           let lower, upper = if a > b then (b, a) else (a, b)
           let correction : int = 1
           let lowerBound = max lower 0UL
@@ -232,9 +232,9 @@ let fns () : List<BuiltInFn> =
       fn =
         let optType = VT.unknownTODO
         (function
-        | _, _, _, [ DList(_, []) ] ->
+        | struct (_, _, _, [ DList(_, []) ]) ->
           TypeChecker.DvalCreator.optionNone optType |> Ply
-        | _, vm, _, [ DList(_, l) ] ->
+        | struct (_, vm, _, [ DList(_, l) ]) ->
           // Will return <= (length - 1).
           // Maximum value is Int64.MaxValue (half of UInt64.MaxValue),
           // not a real concern at expected list sizes.

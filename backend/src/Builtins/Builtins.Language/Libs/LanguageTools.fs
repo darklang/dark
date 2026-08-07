@@ -39,7 +39,7 @@ let fns () : List<BuiltInFn> =
         "Returns a list of the Builtin values (usually not to be accessed directly)."
       fn =
         (function
-        | exeState, _, _, [ DUnit ] ->
+        | struct (exeState, _, _, [ DUnit ]) ->
           let vals =
             exeState.values.builtIn
             |> Map.toList
@@ -67,7 +67,7 @@ let fns () : List<BuiltInFn> =
         "Returns a list of the Builtin functions (usually not to be accessed directly)."
       fn =
         (function
-        | exeState, _, _, [ DUnit ] ->
+        | struct (exeState, _, _, [ DUnit ]) ->
           let fns =
             exeState.fns.builtIn
             |> Map.toList

@@ -40,7 +40,10 @@ let private resolveElemVT
   (state : ExecutionState)
   (t : TypeReference)
   : Ply<ValueType> =
-  LibExecution.RuntimeTypes.TypeReference.toVT state.types Map.empty t
+  LibExecution.RuntimeTypes.TypeReference.toVT
+    state.types
+    LibExecution.RuntimeTypes.TST.empty
+    t
 
 
 /// Fallback-aware KnownType helper for callsites that need a
@@ -67,7 +70,7 @@ let fns () : List<BuiltInFn> =
         "Constructs a stream that yields the given list's items in order, then Done."
       fn =
         (function
-        | state, _, [ elemType ], [ DList(elemVT, items) ] ->
+        | struct (state, _, [ elemType ], [ DList(elemVT, items) ]) ->
           uply {
             let remaining = ref items
             let nextFn () : Ply<Option<Dval>> =
@@ -117,7 +120,7 @@ let fns () : List<BuiltInFn> =
          protocol parsers like SSE, etc."
       fn =
         (function
-        | state, vm, [ _; outputType ], [ initialState; DApplicable app ] ->
+        | struct (state, vm, [ _; outputType ], [ initialState; DApplicable app ]) ->
           uply {
             let! elemType = resolveElemVT state outputType
             let currentState = ref initialState
@@ -157,7 +160,7 @@ let fns () : List<BuiltInFn> =
         "Pulls the next element from <param stream>. Returns None when the stream is exhausted. Mutates the stream — subsequent calls after exhaustion keep returning None."
       fn =
         (function
-        | state, _, [ elemType ], [ s ] ->
+        | struct (state, _, [ elemType ], [ s ]) ->
           uply {
             let! nextResult = Stream.readNext s
             let! elemKT = resolveElemKT state elemType
@@ -177,7 +180,7 @@ let fns () : List<BuiltInFn> =
       description = "Drains <param stream> into a List, consuming it entirely."
       fn =
         (function
-        | state, _, [ elemType ], [ s ] ->
+        | struct (state, _, [ elemType ], [ s ]) ->
           uply {
             let collected = ResizeArray<Dval>()
             let mutable keepGoing = true
@@ -212,7 +215,7 @@ let fns () : List<BuiltInFn> =
         "Drains a byte stream into a single ephemeral Blob, consuming <param stream>."
       fn =
         (function
-        | _, _, _, [ s ] ->
+        | struct (_, _, _, [ s ]) ->
           uply {
             // Drain via `readStreamChunk` so IO-backed byte streams
             // (HttpClient.stream) hand back a whole buffer per pull
@@ -247,7 +250,7 @@ let fns () : List<BuiltInFn> =
          an IO source promptly."
       fn =
         (function
-        | _, _, _, [ DStream(impl, disposed, _lockObj) ] ->
+        | struct (_, _, _, [ DStream(impl, disposed, _lockObj) ]) ->
           // Flip disposed and run the disposer chain on the first
           // close so IO sources (HTTP response, file handle, ...) are
           // released promptly. No Monitor: the Dark VM is single-
@@ -288,7 +291,8 @@ let fns () : List<BuiltInFn> =
          returned stream is drained."
       fn =
         (function
-        | state, vm, [ _; outputType ], [ DStream(src, _, _); DApplicable app ] ->
+        | struct (state, vm, [ _; outputType ],
+                  [ DStream(src, _, _); DApplicable app ]) ->
           uply {
             let! elemType = resolveElemVT state outputType
             let apply (dv : Dval) : Ply<Dval> =
@@ -323,7 +327,7 @@ let fns () : List<BuiltInFn> =
          result is drained, skipping rejected elements without buffering."
       fn =
         (function
-        | state, vm, _, [ DStream(src, _, _); DApplicable app ] ->
+        | struct (state, vm, _, [ DStream(src, _, _); DApplicable app ]) ->
           let pred (dv : Dval) : Ply<bool> =
             uply {
               let! result = Exe.executeApplicable state app (NEList.singleton dv)
@@ -356,7 +360,7 @@ let fns () : List<BuiltInFn> =
          Terminates early without pulling the source past the limit."
       fn =
         (function
-        | _, _, _, [ DStream(src, _, _); DInt n ] ->
+        | struct (_, _, _, [ DStream(src, _, _); DInt n ]) ->
           // Clamp on the arbitrary-precision value before narrowing: a negative n
           // (however large) becomes an empty stream, and an n past Int64 just
           // takes everything. pullStreamImpl treats remaining<=0 as done.
@@ -383,7 +387,7 @@ let fns () : List<BuiltInFn> =
          advancing to the next sub-stream when the current one is exhausted."
       fn =
         (function
-        | _, _, _, [ DList(_, items) ] ->
+        | struct (_, _, _, [ DList(_, items) ]) ->
           let impls =
             items
             |> List.map (fun dv ->

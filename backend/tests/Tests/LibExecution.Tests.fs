@@ -105,7 +105,7 @@ let runtimeErrorMessage
           ),
           []
         )
-      LibExecution.TypeChecker.unify state.types Map.empty expected actual
+      LibExecution.TypeChecker.unify state.types RT.TST.empty expected actual
 
     match typeChecked with
     | Ok _ ->

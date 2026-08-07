@@ -71,7 +71,7 @@ let rec set
 
 
     // TODO: should we be passing in a TST?
-    match! LibExecution.TypeChecker.unify types Map.empty db.typ dv with
+    match! LibExecution.TypeChecker.unify types RT.TST.empty db.typ dv with
     | Error _errPath ->
       // TODO: include path
       return Error(RT.RuntimeError.DBSetOfWrongType(db.typ, RT.Dval.toValueType dv))
@@ -133,7 +133,7 @@ and getOption
     match result with
     | None -> return None
     | Some dval ->
-      let tst = Map.empty // OK?
+      let tst = RT.TST.empty // OK?
       return! dbToDval types threadID tst db dval |> Ply.map Some
   }
 
@@ -447,7 +447,7 @@ let executeCompiledQuery
   uply {
     let types = exeState.types
     let threadID = vm.threadID
-    let tst = Map.empty // TODO: proper type symbol table
+    let tst = RT.TST.empty // TODO: proper type symbol table
 
     // Build parameter bindings for the SQL query
     // The compiled SQL uses @p1, @p2, etc.

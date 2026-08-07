@@ -88,7 +88,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Tries to find a package type, by location, and returns the ID if it exists"
       fn =
         (function
-        | _, _, _, [ DUuid branchId; location ] ->
+        | struct (_, _, _, [ DUuid branchId; location ]) ->
           uply {
             let location = PT2DT.PackageLocation.fromDT location
             // Do a fresh lookup using the branchId to get the current branch chain.
@@ -117,7 +117,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       fn =
         let optType = KTCustomType((PT2DT.PackageType.typeName ()), [])
         (function
-        | _, _, _, [ hashDval ] ->
+        | struct (_, _, _, [ hashDval ]) ->
           uply {
             let hash = PT2DT.Hash.fromDT hashDval
             let! result = pm.getType hash
@@ -145,7 +145,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Tries to find a package value, by location, and returns the ID if it exists"
       fn =
         (function
-        | _, _, _, [ DUuid branchId; location ] ->
+        | struct (_, _, _, [ DUuid branchId; location ]) ->
           uply {
             let location = PT2DT.PackageLocation.fromDT location
             let! branchChain = Branches.getBranchChain branchId
@@ -173,7 +173,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Returns a package value, by hash, if it exists"
       fn =
         (function
-        | _, _, _, [ hashDval ] ->
+        | struct (_, _, _, [ hashDval ]) ->
           uply {
             let hash = PT2DT.Hash.fromDT hashDval
             let! result = pm.getValue hash
@@ -203,7 +203,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "Uses exact match on the serialized type for efficient lookup."
       fn =
         (function
-        | _, _, _, [ valueTypeDval ] ->
+        | struct (_, _, _, [ valueTypeDval ]) ->
           uply {
             let vt = RT2DT.ValueType.fromDT valueTypeDval
             let! valueIds = RTPM.Value.findByValueType vt
@@ -234,7 +234,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "Returns None if the value doesn't exist or fails to evaluate."
       fn =
         (function
-        | exeState, _, _, [ hashDval ] ->
+        | struct (exeState, _, _, [ hashDval ]) ->
           uply {
             let (PT.Hash hash) = PT2DT.Hash.fromDT hashDval
             let valueName = FQValueName.Package(Hash hash)
@@ -273,7 +273,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Tries to find a package function, by location, and returns the ID if it exists"
       fn =
         (function
-        | _, _, _, [ DUuid branchId; location ] ->
+        | struct (_, _, _, [ DUuid branchId; location ]) ->
           uply {
             let location = PT2DT.PackageLocation.fromDT location
             let! branchChain = Branches.getBranchChain branchId
@@ -299,7 +299,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Returns a package function, by hash, if it exists"
       fn =
         (function
-        | _, _, _, [ hashDval ] ->
+        | struct (_, _, _, [ hashDval ]) ->
           uply {
             let hash = PT2DT.Hash.fromDT hashDval
             let! result = pm.getFn hash
@@ -340,7 +340,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "crashing."
       fn =
         (function
-        | _, _, _, [ DUuid branchId; DString name ] ->
+        | struct (_, _, _, [ DUuid branchId; DString name ]) ->
           uply {
             let okKT = KTFn(NEList.singleton ValueType.Unknown, ValueType.Unknown)
             let err (msg : string) = Dval.resultError okKT KTString (DString msg)
@@ -356,7 +356,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
                   let rtName = FQFnName.Package(PT2RT.FQFnName.Package.toRT fqPkg)
                   let namedFn : ApplicableNamedFn =
                     { name = rtName
-                      typeSymbolTable = Map.empty
+                      typeSymbolTable = TST.empty
                       typeArgs = []
                       argsSoFar = [] }
                   return
@@ -554,7 +554,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "or None if there's no such function."
       fn =
         (function
-        | exeState, _, _, [ hashDval ] ->
+        | struct (exeState, _, _, [ hashDval ]) ->
           uply {
             let (PT.Hash hashStr) = PT2DT.Hash.fromDT hashDval
             match! exeState.fns.package (Hash hashStr) with
@@ -580,7 +580,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Returns all locations of a package type by its hash"
       fn =
         (function
-        | _, _, _, [ DUuid branchId; hashDval ] ->
+        | struct (_, _, _, [ DUuid branchId; hashDval ]) ->
           uply {
             let hash = PT2DT.Hash.fromDT hashDval
             let! result = pm.getTypeLocations branchId hash
@@ -605,7 +605,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Returns all locations of a package value by its hash"
       fn =
         (function
-        | _, _, _, [ DUuid branchId; hashDval ] ->
+        | struct (_, _, _, [ DUuid branchId; hashDval ]) ->
           uply {
             let hash = PT2DT.Hash.fromDT hashDval
             let! result = pm.getValueLocations branchId hash
@@ -630,7 +630,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       description = "Returns all locations of a package function by its hash"
       fn =
         (function
-        | _, _, _, [ DUuid branchId; hashDval ] ->
+        | struct (_, _, _, [ DUuid branchId; hashDval ]) ->
           uply {
             let hash = PT2DT.Hash.fromDT hashDval
             let! result = pm.getFnLocations branchId hash
@@ -664,7 +664,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Returns all hashes that have ever been at a location across the branch chain"
       fn =
         (function
-        | _, _, _, [ DUuid branchId; location; itemKindDval ] ->
+        | struct (_, _, _, [ DUuid branchId; location; itemKindDval ]) ->
           uply {
             let location = PT2DT.PackageLocation.fromDT location
             let itemKind = PT2DT.ItemKind.fromDT itemKindDval
@@ -722,14 +722,12 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Propagates an update to all dependents, creating new versions with updated references. Returns (propagationId, repoints)."
       fn =
         (function
-        | _,
-          _,
-          _,
-          [ DUuid branchId
-            sourceLocation
-            sourceItemKindDval
-            DList(_, fromSourceHashDvals)
-            toSourceHashDval ] ->
+        | struct (_, _, _,
+                  [ DUuid branchId
+                    sourceLocation
+                    sourceItemKindDval
+                    DList(_, fromSourceHashDvals)
+                    toSourceHashDval ]) ->
           uply {
             let sourceLocation = PT2DT.PackageLocation.fromDT sourceLocation
             let sourceItemKind = PT2DT.ItemKind.fromDT sourceItemKindDval
@@ -813,15 +811,13 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "Returns (revertId, restoredHash) on success."
       fn =
         (function
-        | _,
-          _,
-          _,
-          [ DUuid branchId
-            DList(_, repoints)
-            sourceLocation
-            sourceItemKindDval
-            DList(_, propagationIds)
-            targetHashDval ] ->
+        | struct (_, _, _,
+                  [ DUuid branchId
+                    DList(_, repoints)
+                    sourceLocation
+                    sourceItemKindDval
+                    DList(_, propagationIds)
+                    targetHashDval ]) ->
           uply {
             let repoints = repoints |> List.map PT2DT.PropagateRepoint.fromDT
             let sourceLocation = PT2DT.PackageLocation.fromDT sourceLocation
@@ -906,7 +902,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "hidden ⊆ allDeprecated — deprecated items with no live direct caller."
       fn =
         (function
-        | _, _, _, [ DUuid branchId ] ->
+        | struct (_, _, _, [ DUuid branchId ]) ->
           uply {
             let! branchChain = Branches.getBranchChain branchId
             let! sets = LibDB.Queries.getDeprecationSets branchChain
@@ -951,7 +947,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         + "None = not deprecated. Some ((kind, message)) otherwise."
       fn =
         (function
-        | _, _, _, [ DUuid branchId; hashDval; itemKindDval ] ->
+        | struct (_, _, _, [ DUuid branchId; hashDval; itemKindDval ]) ->
           uply {
             let hash = PT2DT.Hash.fromDT hashDval
             let itemKind = PT2DT.ItemKind.fromDT itemKindDval

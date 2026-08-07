@@ -26,7 +26,7 @@ let fns () : List<BuiltInFn> =
         let resultOk r = Dval.resultOk KTBlob KTString r |> Ply
         let resultError r = Dval.resultError KTBlob KTString r |> Ply
         (function
-        | _, _, _, [ DString s ] ->
+        | struct (_, _, _, [ DString s ]) ->
           let base64FromUrlEncoded (str : string) : string =
             let initial = str.Replace('-', '+').Replace('_', '/')
             let length = initial.Length
@@ -64,7 +64,7 @@ let fns () : List<BuiltInFn> =
          section [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4)."
       fn =
         (function
-        | state, _, _, [ DBlob ref ] ->
+        | struct (state, _, _, [ DBlob ref ]) ->
           uply {
             let! bytes = Blob.readBytes state ref
             return DString(System.Convert.ToBase64String(bytes))
@@ -86,7 +86,7 @@ let fns () : List<BuiltInFn> =
          section [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
         (function
-        | state, _, _, [ DBlob ref ] ->
+        | struct (state, _, _, [ DBlob ref ]) ->
           uply {
             let! bytes = Blob.readBytes state ref
             // Differs from Base64.encodeToUrlSafe as this version has padding

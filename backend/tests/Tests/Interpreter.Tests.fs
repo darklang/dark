@@ -440,7 +440,7 @@ module Lambdas =
             { exprId = E.Lambdas.Identity.id
               closedRegisters = []
               argsSoFar = []
-              typeSymbolTable = Map.empty }
+              typeSymbolTable = RT.TST.empty }
         ))
         (fun exeState _vm ->
           Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
@@ -459,7 +459,7 @@ module Lambdas =
             { exprId = E.Lambdas.Add.id
               closedRegisters = []
               argsSoFar = []
-              typeSymbolTable = Map.empty }
+              typeSymbolTable = RT.TST.empty }
         ))
         (fun exeState _vm ->
           Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
@@ -473,7 +473,7 @@ module Lambdas =
             { exprId = E.Lambdas.Add.id
               closedRegisters = []
               argsSoFar = [ RT.DInt64 1L ]
-              typeSymbolTable = Map.empty }
+              typeSymbolTable = RT.TST.empty }
         ))
 
     let fullyApplied =
@@ -492,7 +492,7 @@ module Lambdas =
             { exprId = E.Lambdas.AddTuple.id
               closedRegisters = []
               argsSoFar = []
-              typeSymbolTable = Map.empty }
+              typeSymbolTable = RT.TST.empty }
         ))
         (fun exeState _vm ->
           Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
@@ -514,7 +514,7 @@ module Lambdas =
             { exprId = E.Lambdas.AddToClosedVars.id
               closedRegisters = [ (1, RT.DInt64 5); (2, RT.DInt64 10) ]
               argsSoFar = []
-              typeSymbolTable = Map.empty }
+              typeSymbolTable = RT.TST.empty }
         ))
         (fun exeState _vm ->
           Expect.isFalse exeState.lambdaInstrCache.IsEmpty "no lambdas registered")
@@ -589,7 +589,7 @@ module Fns =
         (RT.DApplicable(
           RT.AppNamedFn
             { name = RT.FQFnName.fqBuiltin "int64Add" 0
-              typeSymbolTable = Map.empty
+              typeSymbolTable = RT.TST.empty
               typeArgs = []
               argsSoFar = [] }
         ))
@@ -601,7 +601,7 @@ module Fns =
         (RT.DApplicable(
           RT.AppNamedFn
             { name = RT.FQFnName.fqBuiltin "int64Add" 0
-              typeSymbolTable = Map.empty
+              typeSymbolTable = RT.TST.empty
               typeArgs = []
               argsSoFar = [ RT.DInt64 1 ] }
         ))
@@ -628,7 +628,7 @@ module Fns =
           (RT.DApplicable(
             RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
-                typeSymbolTable = Map.empty
+                typeSymbolTable = RT.TST.empty
                 typeArgs = []
                 argsSoFar = [] }
           ))
@@ -640,7 +640,7 @@ module Fns =
           (RT.DApplicable(
             RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
-                typeSymbolTable = Map.empty
+                typeSymbolTable = RT.TST.empty
                 typeArgs = []
                 argsSoFar = [ RT.DInt64 1 ] }
           ))
@@ -660,7 +660,7 @@ module Fns =
           (RT.DApplicable(
             RT.AppNamedFn
               { name = RT.FQFnName.fqPackage E.Fns.Package.Fact.hash
-                typeSymbolTable = Map.empty
+                typeSymbolTable = RT.TST.empty
                 typeArgs = []
                 argsSoFar = [] }
           ))
@@ -830,10 +830,10 @@ module SyncUnify =
       RT.DTuple(RT.DInt64 1L, RT.DString "s", [ RT.DBool true ]) ]
 
   let private symbolTables : List<RT.TypeSymbolTable> =
-    [ Map.empty
-      Map.ofList [ "a", RT.ValueType.Known RT.KTInt64 ]
-      Map.ofList [ "a", RT.ValueType.Unknown ]
-      Map.ofList
+    [ RT.TST.empty
+      RT.TST.ofList [ "a", RT.ValueType.Known RT.KTInt64 ]
+      RT.TST.ofList [ "a", RT.ValueType.Unknown ]
+      RT.TST.ofList
         [ "a", RT.ValueType.Known RT.KTString; "b", RT.ValueType.Known RT.KTInt64 ] ]
 
   let agreesWithAsyncPath =

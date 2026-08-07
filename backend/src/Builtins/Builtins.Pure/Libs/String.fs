@@ -22,7 +22,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the list of Characters (EGC, not byte) in the string"
       fn =
         (function
-        | _, _, _, [ DString s ] ->
+        | struct (_, _, _, [ DString s ]) ->
           s
           |> String.toEgcSeq
           |> Seq.map DChar
@@ -48,7 +48,7 @@ let fns () : List<BuiltInFn> =
          replaceWith>"
       fn =
         (function
-        | _, _, _, [ DString s; DString search; DString replace ] ->
+        | struct (_, _, _, [ DString s; DString search; DString replace ]) ->
           if search = "" then
             if s = "" then
               Ply(DString replace)
@@ -84,7 +84,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the string, uppercased"
       fn =
         (function
-        | _, _, _, [ DString s ] -> Ply(DString(String.toUppercase s))
+        | struct (_, _, _, [ DString s ]) -> Ply(DString(String.toUppercase s))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "upper"
       previewable = Pure
@@ -99,7 +99,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the string, lowercased"
       fn =
         (function
-        | _, _, _, [ DString s ] -> Ply(DString(String.toLowercase s))
+        | struct (_, _, _, [ DString s ]) -> Ply(DString(String.toLowercase s))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "lower"
       previewable = Pure
@@ -114,7 +114,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the length of the string"
       fn =
         (function
-        | _, _, _, [ DString s ] ->
+        | struct (_, _, _, [ DString s ]) ->
           s |> String.lengthInEgcs |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented // CLEANUP: Sqlite has "LENGTH" but that counts characters; if we can get it to count EGCs, great
@@ -133,7 +133,7 @@ let fns () : List<BuiltInFn> =
         "Returns <param s> repeated <param count> times. An empty string when <param count> is not positive."
       fn =
         (function
-        | _, vm, _, [ DString s; DInt count ] ->
+        | struct (_, vm, _, [ DString s; DInt count ]) ->
           let n = intToInt32 vm count
           if n <= 0 || s = "" then
             DString "" |> Ply
@@ -156,7 +156,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         // TODO add fuzzer to ensure all strings are normalized no matter what we do to them.
-        | _, _, _, [ DString s1; DString s2 ] ->
+        | struct (_, _, _, [ DString s1; DString s2 ]) ->
           (s1 + s2) |> String.normalize |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -176,7 +176,7 @@ let fns () : List<BuiltInFn> =
          alphanumeric characters, joined by hyphens"
       fn =
         (function
-        | _, _, _, [ DString s ] ->
+        | struct (_, _, _, [ DString s ]) ->
           // Should work the same as https://blog.tersmitten.nl/slugify/
           // explicitly limit to (roman) alphanumeric for pretty urls
           let toRemove = "([^a-z0-9\\s_-]|\x0b)+"
@@ -206,7 +206,7 @@ let fns () : List<BuiltInFn> =
       description = "Reverses <param string>"
       fn =
         (function
-        | _, _, _, [ DString s ] ->
+        | struct (_, _, _, [ DString s ]) ->
           String.toEgcSeq s |> Seq.rev |> String.concat "" |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "reverse"
@@ -224,7 +224,7 @@ let fns () : List<BuiltInFn> =
         If the separator is not present, returns a list containing only the initial string."
       fn =
         (function
-        | _, _, _, [ DString s; DString sep ] ->
+        | struct (_, _, _, [ DString s; DString sep ]) ->
           let ecgStringSplit str sep =
             let startsWithSeparator str = sep = (str |> List.truncate sep.Length)
 
@@ -268,7 +268,7 @@ let fns () : List<BuiltInFn> =
       description = "Combines a list of strings with the provided separator"
       fn =
         (function
-        | _, _, _, [ DList(_, l); DString sep ] ->
+        | struct (_, _, _, [ DList(_, l); DString sep ]) ->
           l
           |> List.map (fun s ->
             match s with
@@ -299,7 +299,7 @@ let fns () : List<BuiltInFn> =
          Negative indices start counting from the end of <param string>."
       fn =
         (function
-        | _, vm, _, [ DString s; DInt firstD; DInt lastD ] ->
+        | struct (_, vm, _, [ DString s; DInt firstD; DInt lastD ]) ->
           let getLengthInTextElements s = StringInfo(s).LengthInTextElements
 
           // slice positions are bounded by string length; narrow Int -> native int
@@ -350,7 +350,7 @@ let fns () : List<BuiltInFn> =
          {{\"\\n\"}}"
       fn =
         (function
-        | _, _, _, [ DString toTrim ] -> toTrim.Trim() |> DString |> Ply
+        | struct (_, _, _, [ DString toTrim ]) -> toTrim.Trim() |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "trim"
       previewable = Pure
@@ -368,7 +368,7 @@ let fns () : List<BuiltInFn> =
          includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}"
       fn =
         (function
-        | _, _, _, [ DString toTrim ] -> Ply(DString(toTrim.TrimStart()))
+        | struct (_, _, _, [ DString toTrim ]) -> Ply(DString(toTrim.TrimStart()))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "ltrim"
       previewable = Pure
@@ -386,7 +386,7 @@ let fns () : List<BuiltInFn> =
          property, which includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}."
       fn =
         (function
-        | _, _, _, [ DString toTrim ] -> Ply(DString(toTrim.TrimEnd()))
+        | struct (_, _, _, [ DString toTrim ]) -> Ply(DString(toTrim.TrimEnd()))
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "rtrim"
       previewable = Pure
@@ -401,7 +401,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts the given unicode string to a UTF8-encoded Blob."
       fn =
         (function
-        | _, _, _, [ DString str ] ->
+        | struct (_, _, _, [ DString str ]) ->
           let theBytes = System.Text.Encoding.UTF8.GetBytes str
           Blob.newEphemeral theBytes |> Ply
         | _ -> incorrectArgs ())
@@ -419,7 +419,7 @@ let fns () : List<BuiltInFn> =
         "Converts the UTF8-encoded <param blob> into a string. Invalid sequences are replaced."
       fn =
         (function
-        | state, _, _, [ DBlob ref ] ->
+        | struct (state, _, _, [ DBlob ref ]) ->
           uply {
             let! bytes = Blob.readBytes state ref
             return DString(System.Text.Encoding.UTF8.GetString bytes)
@@ -439,7 +439,7 @@ let fns () : List<BuiltInFn> =
         "Converts the UTF8-encoded byte sequence into a string. Returns None if the bytes aren't valid UTF-8."
       fn =
         (function
-        | _, _, _, [ DList(_vt, bytes) ] ->
+        | struct (_, _, _, [ DList(_vt, bytes) ]) ->
           try
             let bytes = Dval.dlistToByteArray bytes
             let str = UTF8Encoding(false, true).GetString bytes
@@ -461,7 +461,7 @@ let fns () : List<BuiltInFn> =
         "Converts the UTF8-encoded <param blob> into a string. Returns None if the bytes aren't valid UTF-8."
       fn =
         (function
-        | state, _, _, [ DBlob ref ] ->
+        | struct (state, _, _, [ DBlob ref ]) ->
           uply {
             let! bytes = Blob.readBytes state ref
             try
@@ -490,7 +490,7 @@ let fns () : List<BuiltInFn> =
          differently for some Unicode text)."
       fn =
         (function
-        | _, _, _, [ DString lookingIn; DString searchingFor ] ->
+        | struct (_, _, _, [ DString lookingIn; DString searchingFor ]) ->
           Ply(DBool(lookingIn.Contains(searchingFor)))
         | _ -> incorrectArgs ())
       // Emits a complete boolean fragment, so no Int value reaches the SqlCompiler.
@@ -528,7 +528,7 @@ let fns () : List<BuiltInFn> =
          numeric indexes outside simple ASCII text."
       fn =
         (function
-        | _, _, _, [ DString str; DString search ] ->
+        | struct (_, _, _, [ DString str; DString search ]) ->
           let index = str.IndexOf(search)
           Ply(Dval.int (bigint index))
         | _ -> incorrectArgs ())
@@ -563,7 +563,7 @@ let fns () : List<BuiltInFn> =
          query lambdas."
       fn =
         (function
-        | _, _, _, [ DString str; DString search ] ->
+        | struct (_, _, _, [ DString str; DString search ]) ->
           if search = "" then
             Ply(Dval.int (bigint 0))
           else
@@ -618,7 +618,7 @@ let fns () : List<BuiltInFn> =
          use {{stringLastIndexOfEgc}}."
       fn =
         (function
-        | _, _, _, [ DString str; DString search ] ->
+        | struct (_, _, _, [ DString str; DString search ]) ->
           let index = str.LastIndexOf(search)
           Ply(Dval.int (bigint index))
         | _ -> incorrectArgs ())
@@ -645,7 +645,7 @@ let fns () : List<BuiltInFn> =
          boundaries — partial-grapheme matches are not reported."
       fn =
         (function
-        | _, _, _, [ DString str; DString search ] ->
+        | struct (_, _, _, [ DString str; DString search ]) ->
           if search = "" then
             Ply(Dval.int (bigint (StringInfo(str).LengthInTextElements)))
           else

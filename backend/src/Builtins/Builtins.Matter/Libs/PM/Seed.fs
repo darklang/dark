@@ -19,7 +19,7 @@ let fns : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTUnit KTString
         let resultError = Dval.resultError KTUnit KTString
         (function
-        | _, _, _, [ DString outputPath ] ->
+        | struct (_, _, _, [ DString outputPath ]) ->
           uply {
             try
               do! LibDB.Seed.export outputPath

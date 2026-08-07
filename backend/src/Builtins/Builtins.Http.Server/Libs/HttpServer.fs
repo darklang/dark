@@ -383,16 +383,14 @@ let fns () : List<BuiltInFn> =
         + "returns Error with a plain message if the port can't be bound. Blocks until SIGINT."
       fn =
         (function
-        | exeState,
-          vm,
-          _,
-          [ DInt portArg
-            DApplicable handler
-            DInt maxBodyBytesArg
-            DBool injectStandardHeaders
-            DBool canonicalizeFromForwardedProto
-            DBool logRequests
-            DApplicable onListening ] ->
+        | struct (exeState, vm, _,
+                  [ DInt portArg
+                    DApplicable handler
+                    DInt maxBodyBytesArg
+                    DBool injectStandardHeaders
+                    DBool canonicalizeFromForwardedProto
+                    DBool logRequests
+                    DApplicable onListening ]) ->
           uply {
             // maxBodyBytes is a comparison threshold; a negative limit would
             // reject every request (treated as over-limit), so reject it. 0 is

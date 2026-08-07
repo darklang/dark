@@ -193,14 +193,14 @@ let rec private isFullyKnown (vt : ValueType) : bool =
 /// interpreter's allocation-tick profile, and this function is where they came from: it runs per argument
 /// per call and recurses through the type structure.
 let rec private inferTVarsFromArg
-  (acc : Map<string, ValueType>)
+  (acc : TypeSymbolTable)
   (tr : TypeReference)
   (vt : ValueType)
-  : Map<string, ValueType> =
+  : TypeSymbolTable =
   match tr with
   | TVariable name ->
-    if isFullyKnown vt && not (Map.containsKey name acc) then
-      Map.add name vt acc
+    if isFullyKnown vt && not (TST.containsKey name acc) then
+      TST.add name vt acc
     else
       acc
 
@@ -236,10 +236,10 @@ let rec private inferTVarsFromArg
 /// Lockstep over matched-arity type argument lists. Arity mismatch returns `acc` untouched, as the
 /// zip-based version did -- `typeCheckParams` reports the real error.
 and private inferTVarsFromArgs
-  (acc : Map<string, ValueType>)
+  (acc : TypeSymbolTable)
   (trs : List<TypeReference>)
   (vts : List<ValueType>)
-  : Map<string, ValueType> =
+  : TypeSymbolTable =
   if List.length trs <> List.length vts then
     acc
   else
@@ -262,10 +262,10 @@ and private inferTVarsFromArgs
 ///
 /// Same trick as `TypeChecker.unifyDvalSync`, on the other walk over the same arguments.
 let private inferTVarsFromDval
-  (acc : Map<string, ValueType>)
+  (acc : TypeSymbolTable)
   (tr : TypeReference)
   (dv : Dval)
-  : Map<string, ValueType> =
+  : TypeSymbolTable =
   match tr with
   | TList tr' ->
     match dv with
@@ -530,7 +530,7 @@ let inline private takeFrame
 let inline private returnFrame (vm : VMState) (frame : CallFrame) : unit =
   let count = frame.registers.Length
   if count > 0 then System.Array.Clear(frame.registers, 0, count)
-  frame.typeSymbolTable <- Map.empty
+  frame.typeSymbolTable <- TST.empty
   let mutable free = Unchecked.defaultof<Stack<CallFrame>>
   if not (vm.framePool.TryGetValue(count, &free)) then
     free <- Stack()
@@ -563,7 +563,7 @@ let inline private removeIfPresent
   (name : string)
   (m : TypeSymbolTable)
   : TypeSymbolTable =
-  if Map.containsKey name m then Map.remove name m else m
+  TST.removeIfPresent name m
 
 
 /// Check as many arguments as can be answered without awaiting, returning where it stopped.
@@ -614,6 +614,23 @@ let inline private allocNow (vm : VMState) : int64 =
 ///
 /// Top-level and fully parameterised so nothing is captured: the `List.iter` this replaces allocated a
 /// closure over the register array, on a path that runs once per lambda parameter per lambda call.
+/// Copy a call's arguments into the callee's register file, positionally.
+///
+/// Top-level and taking the array, rather than a local `let rec` that closes over it: F# can't lift a
+/// recursive local that captures, so that was a closure allocated on every package call. `fill@1157`
+/// was 4.7% of the allocation profile.
+let rec private fillRegisters
+  (registers : Dval array)
+  (i : int)
+  (args : List<Dval>)
+  : unit =
+  match args with
+  | [] -> ()
+  | a :: rest ->
+    registers[i] <- a
+    fillRegisters registers (i + 1) rest
+
+
 let rec private assignRegisters
   (r : Dval array)
   (assignments : List<Register * Dval>)
@@ -840,7 +857,7 @@ let private invokeBuiltin
 
   // Every builtin's signature is async because some of them have to be -- HTTP, the package store,
   // anything touching disk. Most aren't: `Int64.add` computes and returns.
-  let body = fn.fn (exeState, vm, resolvedTypeArgs, allArgs)
+  let body = fn.fn (struct (exeState, vm, resolvedTypeArgs, allArgs))
 
   // `finishBuiltin` is top-level rather than a local closing over the eight values it needs, for the
   // same reason `completeBuiltin` is: the fallback arm below is a `uply`, so a local would be captured
@@ -935,17 +952,17 @@ let private callBuiltinResolved
   // Only used to strip names from `tst`, so with nothing in `tst` there's nothing to strip and not even
   // the memo lookup is worth doing.
   let implicitTypeParams : Set<string> =
-    if Map.isEmpty tst then Set.empty else fnFreeTVars
+    if TST.isEmpty tst then Set.empty else fnFreeTVars
   tst <- implicitTypeParams |> Set.fold (fun m name -> removeIfPresent name m) tst
 
   // Step 3: bind the (already-resolved) explicit type args. If the caller omitted type args, leave the
   // typeParams unbound for inference to fill in.
   let explicitlyBound =
     if List.isEmpty resolvedTypeArgsVT then
-      Map.empty
+      TST.empty
     else
-      List.zip fn.typeParams resolvedTypeArgsVT |> Map
-  tst <- Map.mergeFavoringRight tst explicitlyBound
+      List.zip fn.typeParams resolvedTypeArgsVT |> TST.ofList
+  tst <- TST.mergeFavoringRight tst explicitlyBound
   recordStage vm ApplyStage.BiTstShadow biShadowAlloc
 
   let biArgsAlloc = allocNow vm
@@ -972,8 +989,8 @@ let private callBuiltinResolved
         | [] -> acc
         | a :: aRest -> inferBi (inferTVarsFromDval acc p.typ a) pRest aRest
     let inferredBound = inferBi explicitlyBound fn.parameters allArgs
-    if not (Map.isEmpty inferredBound) then
-      tst <- Map.mergeFavoringRight tst inferredBound
+    if not (TST.isEmpty inferredBound) then
+      tst <- TST.mergeFavoringRight tst inferredBound
 
   // Step 5: type-check the new arguments against the corresponding parameters. Walk them in lockstep
   // rather than building an indexed triple list and zipping it against the args. `already` is the count
@@ -1107,11 +1124,11 @@ let private completePackage
         |> Set.fold
           (fun m name -> removeIfPresent name m)
           currentFrame.typeSymbolTable
-      Map.mergeFavoringRight stripped newlyBound
+      TST.mergeFavoringRight stripped newlyBound
     recordStage vm ApplyStage.PkgFrameTst frameTstAlloc
     let pkgFrameAlloc = allocNow vm
     if vm.stats.enabled then
-      let n = int64 (Map.count frameTst)
+      let n = int64 (TST.count frameTst)
       vm.stats.tstSizeSum <- vm.stats.tstSizeSum + n
       if n > vm.stats.tstSizeMax then vm.stats.tstSizeMax <- n
     let newFrameId = nextFrameId vm
@@ -1150,16 +1167,7 @@ let private completePackage
         instrData
         (ValueSome fn.returnType)
         frameTst
-    // A manual walk rather than `List.iteri`, whose closure over the register file is an allocation
-    // on a path that runs once per call.
-    let registers = frame.registers
-    let rec fill i (args : List<Dval>) =
-      match args with
-      | [] -> ()
-      | a :: rest ->
-        registers[i] <- a
-        fill (i + 1) rest
-    fill 0 allArgs
+    fillRegisters frame.registers 0 allArgs
     recordStage vm ApplyStage.PkgFrame pkgFrameAlloc
     PushFrame frame
 
@@ -1187,7 +1195,7 @@ let private callPackageResolved
   // Both empty means both strips are no-ops, so don't compute it.
   let fnFreeTVars = FreeTVars.ofPackage fn
   let implicitTypeParams : Set<string> =
-    if Map.isEmpty tst && Map.isEmpty currentFrame.typeSymbolTable then
+    if TST.isEmpty tst && TST.isEmpty currentFrame.typeSymbolTable then
       Set.empty
     else
       fnFreeTVars
@@ -1198,11 +1206,11 @@ let private callPackageResolved
   // unbound for inference.
   let explicitlyBound =
     if List.isEmpty resolvedExplicitTypeArgsVT then
-      Map.empty
+      TST.empty
     else
-      List.zip fn.typeParams resolvedExplicitTypeArgsVT |> Map
-  if not (Map.isEmpty explicitlyBound) then
-    tst <- Map.mergeFavoringRight tst explicitlyBound
+      List.zip fn.typeParams resolvedExplicitTypeArgsVT |> TST.ofList
+  if not (TST.isEmpty explicitlyBound) then
+    tst <- TST.mergeFavoringRight tst explicitlyBound
   recordStage vm ApplyStage.PkgTstShadow pkgShadowAlloc
 
   // Pre-compute allArgs so inference runs BEFORE typeCheckParams. Otherwise the type check runs against
@@ -1235,8 +1243,8 @@ let private callPackageResolved
           | [] -> acc
           | a :: aRest -> inferPkg (inferTVarsFromDval acc p.typ a) pRest aRest
       inferPkg explicitlyBound (FreeTVars.paramsOfPackage fn) allArgs
-  if not (Map.isEmpty newlyBound) then
-    tst <- Map.mergeFavoringRight tst newlyBound
+  if not (TST.isEmpty newlyBound) then
+    tst <- TST.mergeFavoringRight tst newlyBound
   recordStage vm ApplyStage.PkgInfer pkgInferAlloc
 
 
@@ -1428,12 +1436,12 @@ let private applyInstruction
       // `lambda.frame` was the largest Apply stage and most of it was unaccounted for.
       let lambdaTstAlloc = allocNow vm
       let lambdaTst =
-        if Map.isEmpty appLambda.typeSymbolTable then
+        if TST.isEmpty appLambda.typeSymbolTable then
           currentFrame.typeSymbolTable
-        else if Map.isEmpty currentFrame.typeSymbolTable then
+        else if TST.isEmpty currentFrame.typeSymbolTable then
           appLambda.typeSymbolTable
         else
-          Map.mergeFavoringRight
+          TST.mergeFavoringRight
             appLambda.typeSymbolTable
             currentFrame.typeSymbolTable
       recordStage vm ApplyStage.LambdaTst lambdaTstAlloc
@@ -1516,12 +1524,12 @@ let private applyInstruction
     // here and do the rest -- shadowing, inference, checking, invocation -- outside this
     // computation expression, which is where all of it used to live.
     let tst =
-      if Map.isEmpty applicable.typeSymbolTable then
+      if TST.isEmpty applicable.typeSymbolTable then
         currentFrame.typeSymbolTable
-      else if Map.isEmpty currentFrame.typeSymbolTable then
+      else if TST.isEmpty currentFrame.typeSymbolTable then
         applicable.typeSymbolTable
       else
-        Map.mergeFavoringRight
+        TST.mergeFavoringRight
           currentFrame.typeSymbolTable
           applicable.typeSymbolTable
 
@@ -1982,8 +1990,17 @@ let inline private pushFrame (vm : VMState) (frame : CallFrame) : unit =
   vm.currentFrameID <- frame.id
 
 
-let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
-  uply {
+/// EXPERIMENT: this loop's computation expression is F#'s built-in `task`, not Ply's `uply`.
+///
+/// Ply is continuation-based and predates F# 6's resumable code. A micro-benchmark says a `uply`
+/// loop allocates per iteration in proportion to the size of its body -- 32 bytes an iteration for a
+/// ten-statement body, with or without a bind in it -- while the same loop under `task` allocates
+/// nothing. This body is far bigger than ten statements and runs about 122,000 times.
+let rec private executeInnerTask
+  (exeState : ExecutionState)
+  (vm : VMState)
+  : System.Threading.Tasks.Task<Dval> =
+  task {
     // No local `raiseRTE` alias: every continuation the builder makes for the loop body would
     // capture it, so it's a field in each of them.
 
@@ -2010,11 +2027,11 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
       | FrameBlockEnded
       | FrameRareOpcode -> ()
       | FrameAwaitBuiltin(call, reg) ->
-        let! dv = call
+        let! dv = Ply.toTask call
         registers[reg] <- dv
         currentFrame.programCounter <- currentFrame.programCounter + 1
       | FrameAwaitPackage(call, reg) ->
-        let! o = call
+        let! o = Ply.toTask call
         currentFrame.programCounter <- currentFrame.programCounter + 1
         match o with
         | PartiallyApplied dv -> registers[reg] <- dv
@@ -2039,19 +2056,23 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
             fields |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
 
           let! typeArgs =
-            typeArgs
-            |> Ply.List.mapSequentially (
-              TypeReference.toVT exeState.types currentFrame.typeSymbolTable
+            Ply.toTask (
+              typeArgs
+              |> Ply.List.mapSequentially (
+                TypeReference.toVT exeState.types currentFrame.typeSymbolTable
+              )
             )
 
           let! record =
-            TypeChecker.DvalCreator.record
-              exeState.types
-              vm.threadID
-              currentFrame.typeSymbolTable
-              sourceTypeName
-              typeArgs
-              fields
+            Ply.toTask (
+              TypeChecker.DvalCreator.record
+                exeState.types
+                vm.threadID
+                currentFrame.typeSymbolTable
+                sourceTypeName
+                typeArgs
+                fields
+            )
 
           registers[recordReg] <- record
         | CloneRecordWithUpdates(targetReg, originalRecordReg, fieldUpdates) ->
@@ -2064,15 +2085,17 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
 
             let! updatedRecord =
-              TypeChecker.DvalCreator.recordUpdate
-                exeState.types
-                vm.threadID
-                currentFrame.typeSymbolTable
-                sourceTypeName
-                resolvedTypeName
-                typeArgs
-                originalFields
-                fieldUpdates
+              Ply.toTask (
+                TypeChecker.DvalCreator.recordUpdate
+                  exeState.types
+                  vm.threadID
+                  currentFrame.typeSymbolTable
+                  sourceTypeName
+                  resolvedTypeName
+                  typeArgs
+                  originalFields
+                  fieldUpdates
+              )
 
             registers[targetReg] <- updatedRecord
 
@@ -2087,18 +2110,22 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
           let tst = currentFrame.typeSymbolTable
 
           let! typeArgs =
-            typeArgs
-            |> Ply.List.mapSequentially (TypeReference.toVT exeState.types tst)
+            Ply.toTask (
+              typeArgs
+              |> Ply.List.mapSequentially (TypeReference.toVT exeState.types tst)
+            )
 
           let! newEnum =
-            TypeChecker.DvalCreator.enum
-              exeState.types
-              vm.threadID
-              tst
-              typeName
-              typeArgs
-              caseName
-              fields
+            Ply.toTask (
+              TypeChecker.DvalCreator.enum
+                exeState.types
+                vm.threadID
+                tst
+                typeName
+                typeArgs
+                caseName
+                fields
+            )
 
           registers[enumReg] <- newEnum
         | LoadValue(createTo, name) ->
@@ -2109,7 +2136,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
             | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
 
           | FQValueName.Package pkg ->
-            match! exeState.values.package pkg with
+            match! Ply.toTask (exeState.values.package pkg) with
             | Some v ->
               // The Dval is already stored in the package value
               registers[createTo] <- v.body
@@ -2194,11 +2221,13 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 // this bracket measuring resumed execution; the region is really about 0.7.
                 recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
                 match!
-                  TypeChecker.unify
-                    exeState.types
-                    tst
-                    expectedReturnType
-                    resultOfFrame
+                  Ply.toTask (
+                    TypeChecker.unify
+                      exeState.types
+                      tst
+                      expectedReturnType
+                      resultOfFrame
+                  )
                 with
                 | Ok _updatedTst ->
                   //currentFrame.typeSymbolTable <- updatedTst
@@ -2206,16 +2235,17 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                   ()
                 | Error _path ->
                   let! expectedVT =
-                    TypeReference.toVT exeState.types tst expectedReturnType
-                  return
-                    RuntimeError.Applications.FnResultNotExpectedType(
-                      fnName,
-                      expectedVT,
-                      Dval.toValueType resultOfFrame,
-                      resultOfFrame
+                    Ply.toTask (
+                      TypeReference.toVT exeState.types tst expectedReturnType
                     )
-                    |> RuntimeError.Apply
-                    |> raiseRTE vm.threadID
+                  RuntimeError.Applications.FnResultNotExpectedType(
+                    fnName,
+                    expectedVT,
+                    Dval.toValueType resultOfFrame,
+                    resultOfFrame
+                  )
+                  |> RuntimeError.Apply
+                  |> raiseRTE vm.threadID
 
 
             // Record per-package-fn timing on frame return
@@ -2274,6 +2304,9 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
     | ValueSome dv -> return dv
     | ValueNone -> return Exception.raiseInternal "No finalResult found" []
   }
+
+and private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
+  uply { return! executeInnerTask exeState vm }
 
 and execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
   executeInner exeState vm

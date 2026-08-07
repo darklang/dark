@@ -535,7 +535,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the current working directory via libc getcwd()"
       fn =
         (function
-        | _, _, _, [ DUnit ] ->
+        | struct (_, _, _, [ DUnit ]) ->
           match Libc.getcwd () with
           | Ok cwd -> Dval.resultOk KTString (posixErrorKT ()) (DString cwd) |> Ply
           | Error e ->
@@ -554,7 +554,7 @@ let fns () : List<BuiltInFn> =
       description = "Changes the current working directory via libc chdir()"
       fn =
         (function
-        | _, _, _, [ DString path ] ->
+        | struct (_, _, _, [ DString path ]) ->
           match Libc.chdir path with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
@@ -575,7 +575,7 @@ let fns () : List<BuiltInFn> =
       description = "Sets an environment variable via libc setenv()"
       fn =
         (function
-        | state, _, _, [ DString name; DString value ] ->
+        | struct (state, _, _, [ DString name; DString value ]) ->
           LibExecution.CapabilityCheck.requireEnvWrite state.grantedCaps name
           match Libc.setenv name value with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
@@ -595,7 +595,7 @@ let fns () : List<BuiltInFn> =
       description = "Removes an environment variable via libc unsetenv()"
       fn =
         (function
-        | state, _, _, [ DString name ] ->
+        | struct (state, _, _, [ DString name ]) ->
           LibExecution.CapabilityCheck.requireEnvWrite state.grantedCaps name
           match Libc.unsetenv name with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
@@ -617,7 +617,7 @@ let fns () : List<BuiltInFn> =
       description = "Creates a directory via libc mkdir()"
       fn =
         (function
-        | state, vm, _, [ DString path; DInt mode ] ->
+        | struct (state, vm, _, [ DString path; DInt mode ]) ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           match Libc.mkdir path (intToInt32 vm mode) with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
@@ -637,7 +637,7 @@ let fns () : List<BuiltInFn> =
       description = "Removes an empty directory via libc rmdir()"
       fn =
         (function
-        | state, _, _, [ DString path ] ->
+        | struct (state, _, _, [ DString path ]) ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           match Libc.rmdir path with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
@@ -657,7 +657,7 @@ let fns () : List<BuiltInFn> =
       description = "Removes a file via libc unlink()"
       fn =
         (function
-        | state, _, _, [ DString path ] ->
+        | struct (state, _, _, [ DString path ]) ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           match Libc.unlink path with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
@@ -679,7 +679,7 @@ let fns () : List<BuiltInFn> =
       description = "Renames/moves a file or directory via libc rename()"
       fn =
         (function
-        | state, _, _, [ DString oldpath; DString newpath ] ->
+        | struct (state, _, _, [ DString oldpath; DString newpath ]) ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps oldpath
           match Libc.rename oldpath newpath with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
@@ -701,7 +701,7 @@ let fns () : List<BuiltInFn> =
       description = "Changes file permissions via libc chmod()"
       fn =
         (function
-        | state, vm, _, [ DString path; DInt mode ] ->
+        | struct (state, vm, _, [ DString path; DInt mode ]) ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           match Libc.chmod path (intToInt32 vm mode) with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
@@ -721,7 +721,7 @@ let fns () : List<BuiltInFn> =
       description = "Updates atime and mtime to now via libc utimes(path, NULL)"
       fn =
         (function
-        | state, _, _, [ DString path ] ->
+        | struct (state, _, _, [ DString path ]) ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           match Libc.utimesNow path with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
@@ -743,7 +743,7 @@ let fns () : List<BuiltInFn> =
       description = "Creates a symbolic link via libc symlink()"
       fn =
         (function
-        | state, _, _, [ DString target; DString linkpath ] ->
+        | struct (state, _, _, [ DString target; DString linkpath ]) ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps target
           match Libc.symlink target linkpath with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
@@ -763,7 +763,7 @@ let fns () : List<BuiltInFn> =
       description = "Reads the target of a symbolic link via libc readlink()"
       fn =
         (function
-        | state, _, _, [ DString path ] ->
+        | struct (state, _, _, [ DString path ]) ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           match Libc.readlink path with
           | Ok target ->
@@ -790,7 +790,7 @@ let fns () : List<BuiltInFn> =
         "Creates a unique temp file via libc mkstemp(). Returns (fd, path)."
       fn =
         (function
-        | state, _, _, [ DString prefix ] ->
+        | struct (state, _, _, [ DString prefix ]) ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps prefix
           let resultOk =
             Dval.resultOk (KTTuple(VT.int, VT.string, [])) (posixErrorKT ())
@@ -819,7 +819,7 @@ let fns () : List<BuiltInFn> =
         "Creates a unique temp directory via libc mkdtemp(). Returns the path."
       fn =
         (function
-        | state, _, _, [ DString prefix ] ->
+        | struct (state, _, _, [ DString prefix ]) ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps prefix
           match Libc.mkdtemp prefix with
           | Ok path -> Dval.resultOk KTString (posixErrorKT ()) (DString path) |> Ply
@@ -840,7 +840,7 @@ let fns () : List<BuiltInFn> =
         "Lists entries in a directory via libc opendir/readdir/closedir. Excludes '.' and '..'."
       fn =
         (function
-        | state, _, _, [ DString path ] ->
+        | struct (state, _, _, [ DString path ]) ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           let resultOk =
             Dval.resultOk (KTList(ValueType.Known KTString)) (posixErrorKT ())
@@ -865,7 +865,7 @@ let fns () : List<BuiltInFn> =
       description = "Gets an environment variable via libc getenv()"
       fn =
         (function
-        | state, _, _, [ DString name ] ->
+        | struct (state, _, _, [ DString name ]) ->
           LibExecution.CapabilityCheck.requireEnvRead state.grantedCaps name
           match Libc.getenv name with
           | Some v -> Dval.optionSome KTString (DString v) |> Ply
@@ -890,7 +890,7 @@ let fns () : List<BuiltInFn> =
         "Spawns a child process, waits for it to finish, returns (exitCode, stdout, stderr)."
       fn =
         (function
-        | state, _, _, [ DString program; DList(_, args) ] ->
+        | struct (state, _, _, [ DString program; DList(_, args) ]) ->
           let resultOk =
             Dval.resultOk
               (KTTuple(VT.int, VT.string, [ VT.string ]))
@@ -935,7 +935,7 @@ let fns () : List<BuiltInFn> =
         "Spawns a child process with a timeout. Returns (exitCode, stdout, stderr) or Error on timeout."
       fn =
         (function
-        | state, vm, _, [ DString program; DList(_, args); DInt timeoutMs ] ->
+        | struct (state, vm, _, [ DString program; DList(_, args); DInt timeoutMs ]) ->
           let resultOk =
             Dval.resultOk
               (KTTuple(VT.int, VT.string, [ VT.string ]))
@@ -980,7 +980,7 @@ let fns () : List<BuiltInFn> =
       description = "Sends a signal to a process."
       fn =
         (function
-        | _, vm, _, [ DInt pid; DInt signal ] ->
+        | struct (_, vm, _, [ DInt pid; DInt signal ]) ->
           match Libc.kill (intToInt32 vm pid) (intToInt32 vm signal) with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
@@ -1002,7 +1002,7 @@ let fns () : List<BuiltInFn> =
         "Reads up to count bytes from a file descriptor into an ephemeral Blob."
       fn =
         (function
-        | _, vm, _, [ DInt fd; DInt count ] ->
+        | struct (_, vm, _, [ DInt fd; DInt count ]) ->
           let resultOk = Dval.resultOk KTBlob (posixErrorKT ())
           let resultError = Dval.resultError KTBlob (posixErrorKT ())
           match Libc.fdRead (intToInt32 vm fd) (intToInt32 vm count) with
@@ -1029,7 +1029,7 @@ let fns () : List<BuiltInFn> =
         "Seeks to a new position in an open file and returns the resulting byte offset."
       fn =
         (function
-        | _, vm, _, [ DInt fd; DInt offset; DInt whence ] ->
+        | struct (_, vm, _, [ DInt fd; DInt offset; DInt whence ]) ->
           let resultOk = Dval.resultOk KTInt (posixErrorKT ())
           let resultError = Dval.resultError KTInt (posixErrorKT ())
           match
@@ -1056,7 +1056,7 @@ let fns () : List<BuiltInFn> =
       description = "Writes bytes to a file descriptor. Returns bytes written."
       fn =
         (function
-        | state, vm, _, [ DInt fd; DBlob ref ] ->
+        | struct (state, vm, _, [ DInt fd; DBlob ref ]) ->
           uply {
             let! bytes = Blob.readBytes state ref
             match Libc.fdWrite (intToInt32 vm fd) bytes with
@@ -1079,7 +1079,7 @@ let fns () : List<BuiltInFn> =
       description = "Closes a file descriptor."
       fn =
         (function
-        | _, vm, _, [ DInt fd ] ->
+        | struct (_, vm, _, [ DInt fd ]) ->
           match Libc.fdClose (intToInt32 vm fd) with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
           | Error e ->
@@ -1101,7 +1101,7 @@ let fns () : List<BuiltInFn> =
       description = "Opens a file via libc open(). Returns a file descriptor."
       fn =
         (function
-        | state, vm, _, [ DString path; DInt flags; DInt mode ] ->
+        | struct (state, vm, _, [ DString path; DInt flags; DInt mode ]) ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           match Libc.openFile path (intToInt32 vm flags) (intToInt32 vm mode) with
           | Ok fd ->
@@ -1122,7 +1122,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the O_RDONLY flag for open()"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> Dval.int (bigint Libc.O_RDONLY) |> Ply
+        | struct (_, _, _, [ DUnit ]) -> Dval.int (bigint Libc.O_RDONLY) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -1137,7 +1137,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the O_WRONLY flag for open()"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> Dval.int (bigint Libc.O_WRONLY) |> Ply
+        | struct (_, _, _, [ DUnit ]) -> Dval.int (bigint Libc.O_WRONLY) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -1152,7 +1152,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the O_RDWR flag for open()"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> Dval.int (bigint Libc.O_RDWR) |> Ply
+        | struct (_, _, _, [ DUnit ]) -> Dval.int (bigint Libc.O_RDWR) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -1167,7 +1167,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the O_CREAT flag for open() (platform-aware)"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> Dval.int (bigint Libc.O_CREAT) |> Ply
+        | struct (_, _, _, [ DUnit ]) -> Dval.int (bigint Libc.O_CREAT) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -1182,7 +1182,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the O_TRUNC flag for open() (platform-aware)"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> Dval.int (bigint Libc.O_TRUNC) |> Ply
+        | struct (_, _, _, [ DUnit ]) -> Dval.int (bigint Libc.O_TRUNC) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -1197,7 +1197,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the O_APPEND flag for open() (platform-aware)"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> Dval.int (bigint Libc.O_APPEND) |> Ply
+        | struct (_, _, _, [ DUnit ]) -> Dval.int (bigint Libc.O_APPEND) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -1213,7 +1213,7 @@ let fns () : List<BuiltInFn> =
       description = "Stats a file via libc stat(). Returns (mode, size, mtimeSec)."
       fn =
         (function
-        | state, _, _, [ DString path ] ->
+        | struct (state, _, _, [ DString path ]) ->
           LibExecution.CapabilityCheck.requireFileReadWrite state.grantedCaps path
           let resultOk =
             Dval.resultOk (KTTuple(VT.int, VT.int, [ VT.int ])) (posixErrorKT ())
@@ -1247,7 +1247,7 @@ let fns () : List<BuiltInFn> =
       description = "Calls uname(). Returns (sysname, nodename, machine)."
       fn =
         (function
-        | _, _, _, [ DUnit ] ->
+        | struct (_, _, _, [ DUnit ]) ->
           let resultOk =
             Dval.resultOk
               (KTTuple(VT.string, VT.string, [ VT.string ]))
@@ -1275,7 +1275,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the current process ID via libc getpid()"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> Dval.int (bigint (Libc.getpid ())) |> Ply
+        | struct (_, _, _, [ DUnit ]) -> Dval.int (bigint (Libc.getpid ())) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -1290,7 +1290,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the current user ID via libc getuid()"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> Dval.int (bigint (Libc.getuid ())) |> Ply
+        | struct (_, _, _, [ DUnit ]) -> Dval.int (bigint (Libc.getuid ())) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -1306,7 +1306,7 @@ let fns () : List<BuiltInFn> =
         "Returns the login name of the current user via getuid() + getpwuid()"
       fn =
         (function
-        | _, _, _, [ DUnit ] ->
+        | struct (_, _, _, [ DUnit ]) ->
           let uid = Libc.getuid ()
           match Libc.getUserName (uint32 uid) with
           | Some name -> Dval.optionSome KTString (DString name) |> Ply
@@ -1325,7 +1325,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the number of online CPUs via sysconf()"
       fn =
         (function
-        | _, _, _, [ DUnit ] -> Dval.int (bigint (Libc.cpuCount ())) |> Ply
+        | struct (_, _, _, [ DUnit ]) -> Dval.int (bigint (Libc.cpuCount ())) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -1341,7 +1341,7 @@ let fns () : List<BuiltInFn> =
         "Returns the home directory of the current user via getpwuid(getuid())"
       fn =
         (function
-        | _, _, _, [ DUnit ] ->
+        | struct (_, _, _, [ DUnit ]) ->
           match Libc.getHomeDir () with
           | Some dir -> Dval.optionSome KTString (DString dir) |> Ply
           | None -> Dval.optionNone KTString |> Ply
@@ -1362,7 +1362,7 @@ let fns () : List<BuiltInFn> =
       description = "Matches a string against a glob pattern via libc fnmatch()"
       fn =
         (function
-        | _, _, _, [ DString pattern; DString str; DBool pathMode ] ->
+        | struct (_, _, _, [ DString pattern; DString str; DBool pathMode ]) ->
           let flags = if pathMode then Libc.FNM_PATHNAME else 0
           DBool(Libc.fnmatch pattern str flags) |> Ply
         | _ -> incorrectArgs ())
@@ -1381,7 +1381,7 @@ let fns () : List<BuiltInFn> =
       description = "Locks or unlocks a file via libc flock()"
       fn =
         (function
-        | _, vm, _, [ DInt fd; DBool exclusive ] ->
+        | struct (_, vm, _, [ DInt fd; DBool exclusive ]) ->
           let op = if exclusive then Libc.LOCK_EX else Libc.LOCK_UN
           match Libc.flock (intToInt32 vm fd) op with
           | Ok() -> Dval.resultOk KTUnit (posixErrorKT ()) DUnit |> Ply
@@ -1401,7 +1401,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the owner username of a file via stat() + getpwuid()"
       fn =
         (function
-        | _, _, _, [ DString path ] ->
+        | struct (_, _, _, [ DString path ]) ->
           match Libc.fileOwner path with
           | Ok name -> Dval.resultOk KTString (posixErrorKT ()) (DString name) |> Ply
           | Error e ->

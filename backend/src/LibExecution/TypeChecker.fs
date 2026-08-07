@@ -154,18 +154,18 @@ let rec unifyValueTypeSync
     // Same reasoning as the hoisted case in `unifyValueType`, and deliberately the same logic: most
     // arguments bind a type variable, and most rebind it to what it already held.
     | TVariable name ->
-      // `TryGetValue` rather than `Map.get`, which allocates a `Some` for every bound type variable it
-      // finds -- and finding one is the common case here, not the exception.
-      let mutable bound = Unchecked.defaultof<ValueType>
-      if not (tst.TryGetValue(name, &bound)) then
-        Unified(Map.add name actual tst)
-      elif bound = actual then
-        Unified tst
-      else
-        match ValueType.merge bound actual with
-        | Ok merged ->
-          if merged = bound then Unified tst else Unified(Map.add name merged tst)
-        | Error() -> Mismatched
+      // A `voption` lookup, so finding a bound type variable -- the common case here, not the
+      // exception -- costs no `Some`.
+      match tst.TryFind name with
+      | ValueNone -> Unified(TST.add name actual tst)
+      | ValueSome bound ->
+        if bound = actual then
+          Unified tst
+        else
+          match ValueType.merge bound actual with
+          | Ok merged ->
+            if merged = bound then Unified tst else Unified(TST.add name merged tst)
+          | Error() -> Mismatched
 
     // Containers recurse but never need a type lookup, so they stay on this path. Without these a
     // `List<Int>` argument -- which is most of what the standard library passes around -- would fall to
@@ -232,8 +232,8 @@ let rec unifyValueType
     // outside the CE skips both the state machine and the `(expected, actual)` pair the tuple match
     // allocates.
     | TVariable name ->
-      (match Map.get name tst with
-       | None -> Ply(Ok(Map.add name actual tst))
+      (match TST.tryFind name tst |> ValueOption.toOption with
+       | None -> Ply(Ok(TST.add name actual tst))
        | Some t ->
          // Already bound to exactly this: `Map.add` would rebuild the symbol table's spine to store the
          // value it already holds. Dark's stdlib is heavily polymorphic, so this is the *common* path --
@@ -243,7 +243,7 @@ let rec unifyValueType
          else
            match ValueType.merge t actual with
            | Ok merged ->
-             if merged = t then Ply(Ok tst) else Ply(Ok(Map.add name merged tst))
+             if merged = t then Ply(Ok tst) else Ply(Ok(TST.add name merged tst))
            | Error() -> Ply(Error pathSoFar))
 
     | _ ->
@@ -759,7 +759,7 @@ module DvalCreator =
     =
     uply {
       let! (resolvedName, typeArgs, definition) =
-        resolveType types threadID Map.empty typeName typeArgs
+        resolveType types threadID TST.empty typeName typeArgs
 
       match definition with
       | TypeDeclaration.Enum cases -> return (resolvedName, typeArgs, cases)
@@ -786,7 +786,7 @@ module DvalCreator =
       let! (resolvedTypeName, typeArgs, caseDefs) =
         resolveEnumType types threadID sourceTypeName typeArgs
 
-      let tst = typeArgs |> List.fold (fun acc (name, vt) -> Map.add name vt acc) tst
+      let tst = typeArgs |> List.fold (fun acc (name, vt) -> TST.add name vt acc) tst
 
       // Find the case definition
       let foundCaseDef = caseDefs |> NEList.find (fun c -> c.name = caseName)
@@ -843,7 +843,9 @@ module DvalCreator =
                     |> List.map (fun (paramName, vt) ->
                       match vt with
                       | ValueType.Unknown ->
-                        match Map.tryFind paramName newTST with
+                        match
+                          TST.tryFind paramName newTST |> ValueOption.toOption
+                        with
                         | Some known -> (paramName, known)
                         | None -> (paramName, vt)
 
@@ -884,7 +886,7 @@ module DvalCreator =
     =
     uply {
       let! (resolvedName, typeArgs, definition) =
-        resolveType types threadID Map.empty typeName typeArgs
+        resolveType types threadID TST.empty typeName typeArgs
 
       match definition with
       | TypeDeclaration.Record fields -> return (resolvedName, typeArgs, fields)
@@ -913,7 +915,7 @@ module DvalCreator =
         resolveRecordType types threadID sourceTypeName typeArgs
 
       let tst =
-        resolvedTypeArgs |> List.fold (fun acc (name, vt) -> Map.add name vt acc) tst
+        resolvedTypeArgs |> List.fold (fun acc (name, vt) -> TST.add name vt acc) tst
 
       // Process each provided field
       let! (processedFields, finalTypeArgs, _updatedTST) =
@@ -962,7 +964,9 @@ module DvalCreator =
                     |> List.map (fun (paramName, vt) ->
                       match vt with
                       | ValueType.Unknown ->
-                        match Map.tryFind paramName newTST with
+                        match
+                          TST.tryFind paramName newTST |> ValueOption.toOption
+                        with
                         | Some known -> (paramName, known)
                         | None -> (paramName, vt)
 
@@ -1072,7 +1076,10 @@ module DvalCreator =
                       |> List.map (fun (paramName, vt) ->
                         match vt with
                         | ValueType.Unknown ->
-                          match Map.tryFind paramName updatedTst with
+                          match
+                            TST.tryFind paramName updatedTst
+                            |> ValueOption.toOption
+                          with
                           | Some known -> (paramName, known)
                           | None -> (paramName, vt)
 

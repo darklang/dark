@@ -227,7 +227,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns true if the two value are equal"
       fn =
         (function
-        | _, vm, _, [ a; b ] -> equalsBuiltinImpl vm a b |> DBool |> Ply
+        | struct (_, vm, _, [ a; b ]) -> equalsBuiltinImpl vm a b |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "="
       previewable = Pure
@@ -242,7 +242,8 @@ let fns () : List<BuiltInFn> =
       description = "Returns true if the two value are not equal"
       fn =
         (function
-        | _, vm, _, [ a; b ] -> equalsBuiltinImpl vm a b |> not |> DBool |> Ply
+        | struct (_, vm, _, [ a; b ]) ->
+          equalsBuiltinImpl vm a b |> not |> DBool |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<>"
       previewable = Pure
@@ -261,19 +262,19 @@ let fns () : List<BuiltInFn> =
          infinity)."
       fn =
         (function
-        | _, _, _, [ DInt8 a; DInt8 b ] -> Ply(DInt8(a + b))
-        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DUInt8(a + b))
-        | _, _, _, [ DInt16 a; DInt16 b ] -> Ply(DInt16(a + b))
-        | _, _, _, [ DUInt16 a; DUInt16 b ] -> Ply(DUInt16(a + b))
-        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a + b))
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DUInt32(a + b))
-        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a + b))
-        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DUInt64(a + b))
-        | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DInt128(a + b))
-        | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DUInt128(a + b))
-        | _, _, _, [ DInt a; DInt b ] -> Ply(DInt(DarkInt.add a b))
-        | _, _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a + b))
-        | _, vm, _, [ a; b ] -> numericTypeError vm a b
+        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DInt8(a + b))
+        | struct (_, _, _, [ DUInt8 a; DUInt8 b ]) -> Ply(DUInt8(a + b))
+        | struct (_, _, _, [ DInt16 a; DInt16 b ]) -> Ply(DInt16(a + b))
+        | struct (_, _, _, [ DUInt16 a; DUInt16 b ]) -> Ply(DUInt16(a + b))
+        | struct (_, _, _, [ DInt32 a; DInt32 b ]) -> Ply(DInt32(a + b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DUInt32(a + b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DInt64(a + b))
+        | struct (_, _, _, [ DUInt64 a; DUInt64 b ]) -> Ply(DUInt64(a + b))
+        | struct (_, _, _, [ DInt128 a; DInt128 b ]) -> Ply(DInt128(a + b))
+        | struct (_, _, _, [ DUInt128 a; DUInt128 b ]) -> Ply(DUInt128(a + b))
+        | struct (_, _, _, [ DInt a; DInt b ]) -> Ply(DInt(DarkInt.add a b))
+        | struct (_, _, _, [ DFloat a; DFloat b ]) -> Ply(DFloat(a + b))
+        | struct (_, vm, _, [ a; b ]) -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       // CLEANUP: SQL pushdown for fixed-width integer arithmetic does not match
       // runtime overflow semantics. Runtime evaluation wraps, but SQLite promotes
@@ -296,19 +297,19 @@ let fns () : List<BuiltInFn> =
          to infinity)."
       fn =
         (function
-        | _, _, _, [ DInt8 a; DInt8 b ] -> Ply(DInt8(a - b))
-        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DUInt8(a - b))
-        | _, _, _, [ DInt16 a; DInt16 b ] -> Ply(DInt16(a - b))
-        | _, _, _, [ DUInt16 a; DUInt16 b ] -> Ply(DUInt16(a - b))
-        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a - b))
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DUInt32(a - b))
-        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a - b))
-        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DUInt64(a - b))
-        | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DInt128(a - b))
-        | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DUInt128(a - b))
-        | _, _, _, [ DInt a; DInt b ] -> Ply(DInt(DarkInt.subtract a b))
-        | _, _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a - b))
-        | _, vm, _, [ a; b ] -> numericTypeError vm a b
+        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DInt8(a - b))
+        | struct (_, _, _, [ DUInt8 a; DUInt8 b ]) -> Ply(DUInt8(a - b))
+        | struct (_, _, _, [ DInt16 a; DInt16 b ]) -> Ply(DInt16(a - b))
+        | struct (_, _, _, [ DUInt16 a; DUInt16 b ]) -> Ply(DUInt16(a - b))
+        | struct (_, _, _, [ DInt32 a; DInt32 b ]) -> Ply(DInt32(a - b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DUInt32(a - b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DInt64(a - b))
+        | struct (_, _, _, [ DUInt64 a; DUInt64 b ]) -> Ply(DUInt64(a - b))
+        | struct (_, _, _, [ DInt128 a; DInt128 b ]) -> Ply(DInt128(a - b))
+        | struct (_, _, _, [ DUInt128 a; DUInt128 b ]) -> Ply(DUInt128(a - b))
+        | struct (_, _, _, [ DInt a; DInt b ]) -> Ply(DInt(DarkInt.subtract a b))
+        | struct (_, _, _, [ DFloat a; DFloat b ]) -> Ply(DFloat(a - b))
+        | struct (_, vm, _, [ a; b ]) -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
@@ -327,19 +328,19 @@ let fns () : List<BuiltInFn> =
          to infinity)."
       fn =
         (function
-        | _, _, _, [ DInt8 a; DInt8 b ] -> Ply(DInt8(a * b))
-        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DUInt8(a * b))
-        | _, _, _, [ DInt16 a; DInt16 b ] -> Ply(DInt16(a * b))
-        | _, _, _, [ DUInt16 a; DUInt16 b ] -> Ply(DUInt16(a * b))
-        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DInt32(a * b))
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DUInt32(a * b))
-        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DInt64(a * b))
-        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DUInt64(a * b))
-        | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DInt128(a * b))
-        | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DUInt128(a * b))
-        | _, _, _, [ DInt a; DInt b ] -> Ply(DInt(DarkInt.multiply a b))
-        | _, _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a * b))
-        | _, vm, _, [ a; b ] -> numericTypeError vm a b
+        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DInt8(a * b))
+        | struct (_, _, _, [ DUInt8 a; DUInt8 b ]) -> Ply(DUInt8(a * b))
+        | struct (_, _, _, [ DInt16 a; DInt16 b ]) -> Ply(DInt16(a * b))
+        | struct (_, _, _, [ DUInt16 a; DUInt16 b ]) -> Ply(DUInt16(a * b))
+        | struct (_, _, _, [ DInt32 a; DInt32 b ]) -> Ply(DInt32(a * b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DUInt32(a * b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DInt64(a * b))
+        | struct (_, _, _, [ DUInt64 a; DUInt64 b ]) -> Ply(DUInt64(a * b))
+        | struct (_, _, _, [ DInt128 a; DInt128 b ]) -> Ply(DInt128(a * b))
+        | struct (_, _, _, [ DUInt128 a; DUInt128 b ]) -> Ply(DUInt128(a * b))
+        | struct (_, _, _, [ DInt a; DInt b ]) -> Ply(DInt(DarkInt.multiply a b))
+        | struct (_, _, _, [ DFloat a; DFloat b ]) -> Ply(DFloat(a * b))
+        | struct (_, vm, _, [ a; b ]) -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "*"
       previewable = Pure
@@ -363,42 +364,42 @@ let fns () : List<BuiltInFn> =
         // back, wrapping naturally; for Int32/Int64/Int128 the hardware/runtime
         // would throw, so we return `MinValue` explicitly.
         (function
-        | _, vm, _, [ DInt8 a; DInt8 b ] ->
+        | struct (_, vm, _, [ DInt8 a; DInt8 b ]) ->
           if b = 0y then divideByZero vm else Ply(DInt8(a / b))
-        | _, vm, _, [ DUInt8 a; DUInt8 b ] ->
+        | struct (_, vm, _, [ DUInt8 a; DUInt8 b ]) ->
           if b = 0uy then divideByZero vm else Ply(DUInt8(a / b))
-        | _, vm, _, [ DInt16 a; DInt16 b ] ->
+        | struct (_, vm, _, [ DInt16 a; DInt16 b ]) ->
           if b = 0s then divideByZero vm else Ply(DInt16(a / b))
-        | _, vm, _, [ DUInt16 a; DUInt16 b ] ->
+        | struct (_, vm, _, [ DUInt16 a; DUInt16 b ]) ->
           if b = 0us then divideByZero vm else Ply(DUInt16(a / b))
-        | _, vm, _, [ DInt32 a; DInt32 b ] ->
+        | struct (_, vm, _, [ DInt32 a; DInt32 b ]) ->
           if b = 0l then
             divideByZero vm
           elif a = System.Int32.MinValue && b = -1l then
             Ply(DInt32 System.Int32.MinValue)
           else
             Ply(DInt32(a / b))
-        | _, vm, _, [ DUInt32 a; DUInt32 b ] ->
+        | struct (_, vm, _, [ DUInt32 a; DUInt32 b ]) ->
           if b = 0ul then divideByZero vm else Ply(DUInt32(a / b))
-        | _, vm, _, [ DInt64 a; DInt64 b ] ->
+        | struct (_, vm, _, [ DInt64 a; DInt64 b ]) ->
           if b = 0L then
             divideByZero vm
           elif a = System.Int64.MinValue && b = -1L then
             Ply(DInt64 System.Int64.MinValue)
           else
             Ply(DInt64(a / b))
-        | _, vm, _, [ DUInt64 a; DUInt64 b ] ->
+        | struct (_, vm, _, [ DUInt64 a; DUInt64 b ]) ->
           if b = 0UL then divideByZero vm else Ply(DUInt64(a / b))
-        | _, vm, _, [ DInt128 a; DInt128 b ] ->
+        | struct (_, vm, _, [ DInt128 a; DInt128 b ]) ->
           if b = System.Int128.Zero then
             divideByZero vm
           elif a = System.Int128.MinValue && b = System.Int128.NegativeOne then
             Ply(DInt128 System.Int128.MinValue)
           else
             Ply(DInt128(a / b))
-        | _, vm, _, [ DUInt128 a; DUInt128 b ] ->
+        | struct (_, vm, _, [ DUInt128 a; DUInt128 b ]) ->
           if b = System.UInt128.Zero then divideByZero vm else Ply(DUInt128(a / b))
-        | _, vm, _, [ DInt a; DInt b ] ->
+        | struct (_, vm, _, [ DInt a; DInt b ]) ->
           if DarkInt.isZero b then divideByZero vm else Ply(DInt(DarkInt.divide a b))
         // Float division by zero follows IEEE semantics (Infinity/NaN), as before
         | _, _, _, [ DFloat a; DFloat b ] -> Ply(DFloat(a / b))
@@ -419,7 +420,7 @@ let fns () : List<BuiltInFn> =
          same numeric type. The modulus <param b> must be greater than 0."
       fn =
         (function
-        | _, vm, _, [ DInt8 v; DInt8 m ] ->
+        | struct (_, vm, _, [ DInt8 v; DInt8 m ]) ->
           if m = 0y then
             zeroModulus vm
           elif m < 0y then
@@ -427,9 +428,9 @@ let fns () : List<BuiltInFn> =
           else
             let r = v % m
             Ply(DInt8(if r < 0y then m + r else r))
-        | _, vm, _, [ DUInt8 v; DUInt8 m ] ->
+        | struct (_, vm, _, [ DUInt8 v; DUInt8 m ]) ->
           if m = 0uy then zeroModulus vm else Ply(DUInt8(v % m))
-        | _, vm, _, [ DInt16 v; DInt16 m ] ->
+        | struct (_, vm, _, [ DInt16 v; DInt16 m ]) ->
           if m = 0s then
             zeroModulus vm
           elif m < 0s then
@@ -437,9 +438,9 @@ let fns () : List<BuiltInFn> =
           else
             let r = v % m
             Ply(DInt16(if r < 0s then m + r else r))
-        | _, vm, _, [ DUInt16 v; DUInt16 m ] ->
+        | struct (_, vm, _, [ DUInt16 v; DUInt16 m ]) ->
           if m = 0us then zeroModulus vm else Ply(DUInt16(v % m))
-        | _, vm, _, [ DInt32 v; DInt32 m ] ->
+        | struct (_, vm, _, [ DInt32 v; DInt32 m ]) ->
           if m = 0l then
             zeroModulus vm
           elif m < 0l then
@@ -447,9 +448,9 @@ let fns () : List<BuiltInFn> =
           else
             let r = v % m
             Ply(DInt32(if r < 0l then m + r else r))
-        | _, vm, _, [ DUInt32 v; DUInt32 m ] ->
+        | struct (_, vm, _, [ DUInt32 v; DUInt32 m ]) ->
           if m = 0ul then zeroModulus vm else Ply(DUInt32(v % m))
-        | _, vm, _, [ DInt64 v; DInt64 m ] ->
+        | struct (_, vm, _, [ DInt64 v; DInt64 m ]) ->
           if m = 0L then
             zeroModulus vm
           elif m < 0L then
@@ -457,9 +458,9 @@ let fns () : List<BuiltInFn> =
           else
             let r = v % m
             Ply(DInt64(if r < 0L then m + r else r))
-        | _, vm, _, [ DUInt64 v; DUInt64 m ] ->
+        | struct (_, vm, _, [ DUInt64 v; DUInt64 m ]) ->
           if m = 0UL then zeroModulus vm else Ply(DUInt64(v % m))
-        | _, vm, _, [ DInt128 v; DInt128 m ] ->
+        | struct (_, vm, _, [ DInt128 v; DInt128 m ]) ->
           if m = System.Int128.Zero then
             zeroModulus vm
           elif m < System.Int128.Zero then
@@ -467,9 +468,9 @@ let fns () : List<BuiltInFn> =
           else
             let r = v % m
             Ply(DInt128(if r < System.Int128.Zero then m + r else r))
-        | _, vm, _, [ DUInt128 v; DUInt128 m ] ->
+        | struct (_, vm, _, [ DUInt128 v; DUInt128 m ]) ->
           if m = System.UInt128.Zero then zeroModulus vm else Ply(DUInt128(v % m))
-        | _, vm, _, [ DInt v; DInt m ] ->
+        | struct (_, vm, _, [ DInt v; DInt m ]) ->
           let m = DarkInt.toBigInt m
           if m = System.Numerics.BigInteger.Zero then
             zeroModulus vm
@@ -478,7 +479,7 @@ let fns () : List<BuiltInFn> =
           else
             let r = DarkInt.toBigInt v % m
             Ply(Dval.int (if r < System.Numerics.BigInteger.Zero then m + r else r))
-        | _, vm, _, [ DFloat v; DFloat m ] ->
+        | struct (_, vm, _, [ DFloat v; DFloat m ]) ->
           if m = 0.0 then
             zeroModulus vm
           elif m < 0.0 then
@@ -486,7 +487,7 @@ let fns () : List<BuiltInFn> =
           else
             let r = v % m
             Ply(DFloat(if r < 0.0 then m + r else r))
-        | _, vm, _, [ a; b ] -> numericTypeError vm a b
+        | struct (_, vm, _, [ a; b ]) -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "%"
       previewable = Pure
@@ -509,35 +510,35 @@ let fns () : List<BuiltInFn> =
         // (`powSigned`/`powUnsigned`) — this stays cheap even for huge
         // exponents instead of building an enormous bigint.
         (function
-        | _, vm, _, [ DInt8 number; DInt8 exp ] ->
+        | struct (_, vm, _, [ DInt8 number; DInt8 exp ]) ->
           if exp < 0y then
             negativeExponent vm
           else
             Ply(DInt8(int8 (powSigned 8 (bigint number) (bigint exp))))
-        | _, _, _, [ DUInt8 number; DUInt8 exp ] ->
+        | struct (_, _, _, [ DUInt8 number; DUInt8 exp ]) ->
           Ply(DUInt8(uint8 (powUnsigned 8 (bigint number) (bigint exp))))
-        | _, vm, _, [ DInt16 number; DInt16 exp ] ->
+        | struct (_, vm, _, [ DInt16 number; DInt16 exp ]) ->
           if exp < 0s then
             negativeExponent vm
           else
             Ply(DInt16(int16 (powSigned 16 (bigint number) (bigint exp))))
-        | _, _, _, [ DUInt16 number; DUInt16 exp ] ->
+        | struct (_, _, _, [ DUInt16 number; DUInt16 exp ]) ->
           Ply(DUInt16(uint16 (powUnsigned 16 (bigint number) (bigint exp))))
-        | _, vm, _, [ DInt32 number; DInt32 exp ] ->
+        | struct (_, vm, _, [ DInt32 number; DInt32 exp ]) ->
           if exp < 0l then
             negativeExponent vm
           else
             Ply(DInt32(int32 (powSigned 32 (bigint number) (bigint exp))))
-        | _, _, _, [ DUInt32 number; DUInt32 exp ] ->
+        | struct (_, _, _, [ DUInt32 number; DUInt32 exp ]) ->
           Ply(DUInt32(uint32 (powUnsigned 32 (bigint number) (bigint exp))))
-        | _, _, _, [ DUInt64 number; DUInt64 exp ] ->
+        | struct (_, _, _, [ DUInt64 number; DUInt64 exp ]) ->
           Ply(DUInt64(uint64 (powUnsigned 64 (bigint number) (bigint exp))))
-        | _, vm, _, [ DInt64 number; DInt64 exp ] ->
+        | struct (_, vm, _, [ DInt64 number; DInt64 exp ]) ->
           if exp < 0L then
             negativeExponent vm
           else
             Ply(DInt64(int64 (powSigned 64 (bigint number) (bigint exp))))
-        | _, vm, _, [ DInt number; DInt exp ] ->
+        | struct (_, vm, _, [ DInt number; DInt exp ]) ->
           let number = DarkInt.toBigInt number
           let exp = DarkInt.toBigInt exp
           if exp < System.Numerics.BigInteger.Zero then
@@ -561,8 +562,9 @@ let fns () : List<BuiltInFn> =
               outOfRange vm
           else
             Ply(Dval.int (number ** (int exp)))
-        | _, _, _, [ DFloat number; DFloat exp ] -> Ply(DFloat(number ** exp))
-        | _, vm, _, [ a; b ] -> numericTypeError vm a b
+        | struct (_, _, _, [ DFloat number; DFloat exp ]) ->
+          Ply(DFloat(number ** exp))
+        | struct (_, vm, _, [ a; b ]) -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "POWER"
       previewable = Pure
@@ -579,14 +581,14 @@ let fns () : List<BuiltInFn> =
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | _, _, _, [ DInt8 a ] -> Ply(DInt8(-a))
-        | _, _, _, [ DInt16 a ] -> Ply(DInt16(-a))
-        | _, _, _, [ DInt32 a ] -> Ply(DInt32(-a))
-        | _, _, _, [ DInt64 a ] -> Ply(DInt64(-a))
-        | _, _, _, [ DInt128 a ] -> Ply(DInt128(-a))
-        | _, _, _, [ DInt a ] -> Ply(DInt(DarkInt.negate a))
-        | _, _, _, [ DFloat a ] -> Ply(DFloat(-a))
-        | _, vm, _, [ a ] -> numericTypeError vm a a
+        | struct (_, _, _, [ DInt8 a ]) -> Ply(DInt8(-a))
+        | struct (_, _, _, [ DInt16 a ]) -> Ply(DInt16(-a))
+        | struct (_, _, _, [ DInt32 a ]) -> Ply(DInt32(-a))
+        | struct (_, _, _, [ DInt64 a ]) -> Ply(DInt64(-a))
+        | struct (_, _, _, [ DInt128 a ]) -> Ply(DInt128(-a))
+        | struct (_, _, _, [ DInt a ]) -> Ply(DInt(DarkInt.negate a))
+        | struct (_, _, _, [ DFloat a ]) -> Ply(DFloat(-a))
+        | struct (_, vm, _, [ a ]) -> numericTypeError vm a a
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -601,19 +603,19 @@ let fns () : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
-        | _, _, _, [ DInt8 a; DInt8 b ] -> Ply(DBool(a > b))
-        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a > b))
-        | _, _, _, [ DInt16 a; DInt16 b ] -> Ply(DBool(a > b))
-        | _, _, _, [ DUInt16 a; DUInt16 b ] -> Ply(DBool(a > b))
-        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DBool(a > b))
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a > b))
-        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DBool(a > b))
-        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a > b))
-        | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DBool(a > b))
-        | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DBool(a > b))
-        | _, _, _, [ DInt a; DInt b ] -> Ply(DBool(DarkInt.compare a b > 0))
-        | _, _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a > b))
-        | _, vm, _, [ a; b ] -> numericTypeError vm a b
+        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DBool(a > b))
+        | struct (_, _, _, [ DUInt8 a; DUInt8 b ]) -> Ply(DBool(a > b))
+        | struct (_, _, _, [ DInt16 a; DInt16 b ]) -> Ply(DBool(a > b))
+        | struct (_, _, _, [ DUInt16 a; DUInt16 b ]) -> Ply(DBool(a > b))
+        | struct (_, _, _, [ DInt32 a; DInt32 b ]) -> Ply(DBool(a > b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DBool(a > b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DBool(a > b))
+        | struct (_, _, _, [ DUInt64 a; DUInt64 b ]) -> Ply(DBool(a > b))
+        | struct (_, _, _, [ DInt128 a; DInt128 b ]) -> Ply(DBool(a > b))
+        | struct (_, _, _, [ DUInt128 a; DUInt128 b ]) -> Ply(DBool(a > b))
+        | struct (_, _, _, [ DInt a; DInt b ]) -> Ply(DBool(DarkInt.compare a b > 0))
+        | struct (_, _, _, [ DFloat a; DFloat b ]) -> Ply(DBool(a > b))
+        | struct (_, vm, _, [ a; b ]) -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">"
       previewable = Pure
@@ -629,19 +631,20 @@ let fns () : List<BuiltInFn> =
         "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
         (function
-        | _, _, _, [ DInt8 a; DInt8 b ] -> Ply(DBool(a >= b))
-        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a >= b))
-        | _, _, _, [ DInt16 a; DInt16 b ] -> Ply(DBool(a >= b))
-        | _, _, _, [ DUInt16 a; DUInt16 b ] -> Ply(DBool(a >= b))
-        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DBool(a >= b))
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a >= b))
-        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DBool(a >= b))
-        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a >= b))
-        | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DBool(a >= b))
-        | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DBool(a >= b))
-        | _, _, _, [ DInt a; DInt b ] -> Ply(DBool(DarkInt.compare a b >= 0))
-        | _, _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a >= b))
-        | _, vm, _, [ a; b ] -> numericTypeError vm a b
+        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DBool(a >= b))
+        | struct (_, _, _, [ DUInt8 a; DUInt8 b ]) -> Ply(DBool(a >= b))
+        | struct (_, _, _, [ DInt16 a; DInt16 b ]) -> Ply(DBool(a >= b))
+        | struct (_, _, _, [ DUInt16 a; DUInt16 b ]) -> Ply(DBool(a >= b))
+        | struct (_, _, _, [ DInt32 a; DInt32 b ]) -> Ply(DBool(a >= b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DBool(a >= b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DBool(a >= b))
+        | struct (_, _, _, [ DUInt64 a; DUInt64 b ]) -> Ply(DBool(a >= b))
+        | struct (_, _, _, [ DInt128 a; DInt128 b ]) -> Ply(DBool(a >= b))
+        | struct (_, _, _, [ DUInt128 a; DUInt128 b ]) -> Ply(DBool(a >= b))
+        | struct (_, _, _, [ DInt a; DInt b ]) ->
+          Ply(DBool(DarkInt.compare a b >= 0))
+        | struct (_, _, _, [ DFloat a; DFloat b ]) -> Ply(DBool(a >= b))
+        | struct (_, vm, _, [ a; b ]) -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">="
       previewable = Pure
@@ -656,19 +659,19 @@ let fns () : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
-        | _, _, _, [ DInt8 a; DInt8 b ] -> Ply(DBool(a < b))
-        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a < b))
-        | _, _, _, [ DInt16 a; DInt16 b ] -> Ply(DBool(a < b))
-        | _, _, _, [ DUInt16 a; DUInt16 b ] -> Ply(DBool(a < b))
-        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DBool(a < b))
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a < b))
-        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DBool(a < b))
-        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a < b))
-        | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DBool(a < b))
-        | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DBool(a < b))
-        | _, _, _, [ DInt a; DInt b ] -> Ply(DBool(DarkInt.compare a b < 0))
-        | _, _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a < b))
-        | _, vm, _, [ a; b ] -> numericTypeError vm a b
+        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DBool(a < b))
+        | struct (_, _, _, [ DUInt8 a; DUInt8 b ]) -> Ply(DBool(a < b))
+        | struct (_, _, _, [ DInt16 a; DInt16 b ]) -> Ply(DBool(a < b))
+        | struct (_, _, _, [ DUInt16 a; DUInt16 b ]) -> Ply(DBool(a < b))
+        | struct (_, _, _, [ DInt32 a; DInt32 b ]) -> Ply(DBool(a < b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DBool(a < b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DBool(a < b))
+        | struct (_, _, _, [ DUInt64 a; DUInt64 b ]) -> Ply(DBool(a < b))
+        | struct (_, _, _, [ DInt128 a; DInt128 b ]) -> Ply(DBool(a < b))
+        | struct (_, _, _, [ DUInt128 a; DUInt128 b ]) -> Ply(DBool(a < b))
+        | struct (_, _, _, [ DInt a; DInt b ]) -> Ply(DBool(DarkInt.compare a b < 0))
+        | struct (_, _, _, [ DFloat a; DFloat b ]) -> Ply(DBool(a < b))
+        | struct (_, vm, _, [ a; b ]) -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<"
       previewable = Pure
@@ -684,19 +687,20 @@ let fns () : List<BuiltInFn> =
         "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
         (function
-        | _, _, _, [ DInt8 a; DInt8 b ] -> Ply(DBool(a <= b))
-        | _, _, _, [ DUInt8 a; DUInt8 b ] -> Ply(DBool(a <= b))
-        | _, _, _, [ DInt16 a; DInt16 b ] -> Ply(DBool(a <= b))
-        | _, _, _, [ DUInt16 a; DUInt16 b ] -> Ply(DBool(a <= b))
-        | _, _, _, [ DInt32 a; DInt32 b ] -> Ply(DBool(a <= b))
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a <= b))
-        | _, _, _, [ DInt64 a; DInt64 b ] -> Ply(DBool(a <= b))
-        | _, _, _, [ DUInt64 a; DUInt64 b ] -> Ply(DBool(a <= b))
-        | _, _, _, [ DInt128 a; DInt128 b ] -> Ply(DBool(a <= b))
-        | _, _, _, [ DUInt128 a; DUInt128 b ] -> Ply(DBool(a <= b))
-        | _, _, _, [ DInt a; DInt b ] -> Ply(DBool(DarkInt.compare a b <= 0))
-        | _, _, _, [ DFloat a; DFloat b ] -> Ply(DBool(a <= b))
-        | _, vm, _, [ a; b ] -> numericTypeError vm a b
+        | struct (_, _, _, [ DInt8 a; DInt8 b ]) -> Ply(DBool(a <= b))
+        | struct (_, _, _, [ DUInt8 a; DUInt8 b ]) -> Ply(DBool(a <= b))
+        | struct (_, _, _, [ DInt16 a; DInt16 b ]) -> Ply(DBool(a <= b))
+        | struct (_, _, _, [ DUInt16 a; DUInt16 b ]) -> Ply(DBool(a <= b))
+        | struct (_, _, _, [ DInt32 a; DInt32 b ]) -> Ply(DBool(a <= b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DBool(a <= b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DBool(a <= b))
+        | struct (_, _, _, [ DUInt64 a; DUInt64 b ]) -> Ply(DBool(a <= b))
+        | struct (_, _, _, [ DInt128 a; DInt128 b ]) -> Ply(DBool(a <= b))
+        | struct (_, _, _, [ DUInt128 a; DUInt128 b ]) -> Ply(DBool(a <= b))
+        | struct (_, _, _, [ DInt a; DInt b ]) ->
+          Ply(DBool(DarkInt.compare a b <= 0))
+        | struct (_, _, _, [ DFloat a; DFloat b ]) -> Ply(DBool(a <= b))
+        | struct (_, vm, _, [ a; b ]) -> numericTypeError vm a b
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<="
       previewable = Pure
@@ -712,8 +716,8 @@ let fns () : List<BuiltInFn> =
         "Unwrap an Option or Result, returning the value or raising a RuntimeError if None"
       fn =
         (function
-        | _, _, _, [] -> incorrectArgs ()
-        | _, vm, _, [ dval ] ->
+        | struct (_, _, _, []) -> incorrectArgs ()
+        | struct (_, vm, _, [ dval ]) ->
           match dval with
 
           // Success: extract `Some` out of an Option

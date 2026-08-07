@@ -100,7 +100,7 @@ let partialEvaluate
     // Load the function reference
     let appFn : RT.ApplicableNamedFn =
       { name = fnName
-        typeSymbolTable = Map.empty
+        typeSymbolTable = RT.TST.empty
         typeArgs = typeArgs
         argsSoFar = [] }
     instructions.Add(RT.LoadVal(fnReg, RT.DApplicable(RT.AppNamedFn appFn)))

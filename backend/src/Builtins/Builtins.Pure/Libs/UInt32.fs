@@ -41,7 +41,7 @@ let fns () : List<BuiltInFn> =
         a different behavior for negative numbers."
       fn =
         (function
-        | _, vm, _, [ DUInt32 v; DUInt32 m ] ->
+        | struct (_, vm, _, [ DUInt32 v; DUInt32 m ]) ->
           if m = 0ul then
             RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
           else
@@ -63,7 +63,7 @@ let fns () : List<BuiltInFn> =
         "Adds two 32-bit unsigned integers together, wrapping on overflow"
       fn =
         (function
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DUInt32(a + b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DUInt32(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -78,7 +78,7 @@ let fns () : List<BuiltInFn> =
       description = "Subtracts two 32-bit unsigned integers, wrapping on overflow"
       fn =
         (function
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DUInt32(a - b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DUInt32(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -93,7 +93,7 @@ let fns () : List<BuiltInFn> =
       description = "Multiplies two 32-bit unsigned integers, wrapping on overflow"
       fn =
         (function
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DUInt32(a * b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DUInt32(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -111,7 +111,7 @@ let fns () : List<BuiltInFn> =
         Overflow wraps around."
       fn =
         (function
-        | _, _, _, [ DUInt32 number; DUInt32 exp ] ->
+        | struct (_, _, _, [ DUInt32 number; DUInt32 exp ]) ->
           // wrap on overflow via modular exponentiation
           let m = System.Numerics.BigInteger.Pow(bigint 2, 32)
           let r = System.Numerics.BigInteger.ModPow(bigint number, bigint exp, m)
@@ -131,7 +131,7 @@ let fns () : List<BuiltInFn> =
       description = "Divides two 32-bit unsigned integers"
       fn =
         (function
-        | _, vm, _, [ DUInt32 a; DUInt32 b ] ->
+        | struct (_, vm, _, [ DUInt32 a; DUInt32 b ]) ->
           if b = 0ul then
             RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
           else
@@ -150,7 +150,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a > b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -166,7 +166,7 @@ let fns () : List<BuiltInFn> =
         "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
         (function
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a >= b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -181,7 +181,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a < b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -197,7 +197,7 @@ let fns () : List<BuiltInFn> =
         "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
         (function
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DBool(a <= b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -212,7 +212,7 @@ let fns () : List<BuiltInFn> =
       description = "Stringify <param uint32>"
       fn =
         (function
-        | _, _, _, [ DUInt32 a ] -> Ply(DString(string a))
+        | struct (_, _, _, [ DUInt32 a ]) -> Ply(DString(string a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -227,7 +227,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an <type UInt32> to a <type Float>"
       fn =
         (function
-        | _, _, _, [ DUInt32 a ] -> Ply(DFloat(float a))
+        | struct (_, _, _, [ DUInt32 a ]) -> Ply(DFloat(float a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -242,7 +242,7 @@ let fns () : List<BuiltInFn> =
       description = "Get the square root of an <type UInt32>"
       fn =
         (function
-        | _, _, _, [ DUInt32 a ] -> Ply(DFloat(sqrt (float a)))
+        | struct (_, _, _, [ DUInt32 a ]) -> Ply(DFloat(sqrt (float a)))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -264,7 +264,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTUInt32 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTUInt32 (KTCustomType(typeName, []))
         (function
-        | _, _, _, [ DString s ] ->
+        | struct (_, _, _, [ DString s ]) ->
           try
             s |> System.Convert.ToUInt32 |> DUInt32 |> resultOk |> Ply
           with
@@ -290,7 +290,7 @@ let fns () : List<BuiltInFn> =
         Returns {{None}} if the value is less than 0."
       fn =
         (function
-        | _, _, _, [ DInt8 a ] ->
+        | struct (_, _, _, [ DInt8 a ]) ->
           if (a < 0y) then
             Dval.optionNone KTUInt32 |> Ply
           else
@@ -309,7 +309,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt8 to a 32-bit unsigned integer."
       fn =
         (function
-        | _, _, _, [ DUInt8 a ] -> DUInt32(uint32 a) |> Ply
+        | struct (_, _, _, [ DUInt8 a ]) -> DUInt32(uint32 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -326,7 +326,7 @@ let fns () : List<BuiltInFn> =
         Returns {{None}} if the value is less than 0."
       fn =
         (function
-        | _, _, _, [ DInt16 a ] ->
+        | struct (_, _, _, [ DInt16 a ]) ->
           if (a < 0s) then
             Dval.optionNone KTUInt32 |> Ply
           else
@@ -345,7 +345,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt16 to a 32-bit unsigned integer."
       fn =
         (function
-        | _, _, _, [ DUInt16 a ] -> DUInt32(uint32 a) |> Ply
+        | struct (_, _, _, [ DUInt16 a ]) -> DUInt32(uint32 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -362,7 +362,7 @@ let fns () : List<BuiltInFn> =
         Returns {{None}} if the value is less than 0"
       fn =
         (function
-        | _, _, _, [ DInt32 a ] ->
+        | struct (_, _, _, [ DInt32 a ]) ->
           if (a < 0l) then
             Dval.optionNone KTUInt32 |> Ply
           else
@@ -383,7 +383,7 @@ let fns () : List<BuiltInFn> =
         Returns {{None}} if the value is less than 0 or greater than 4294967295."
       fn =
         (function
-        | _, _, _, [ DInt64 a ] ->
+        | struct (_, _, _, [ DInt64 a ]) ->
           if
             (a < int64 System.UInt32.MinValue) || (a > int64 System.UInt32.MaxValue)
           then
@@ -406,7 +406,7 @@ let fns () : List<BuiltInFn> =
         Returns {{None}} if the value is greater than 4294967295."
       fn =
         (function
-        | _, _, _, [ DUInt64 a ] ->
+        | struct (_, _, _, [ DUInt64 a ]) ->
           if (a > uint64 System.UInt32.MaxValue) then
             Dval.optionNone KTUInt32 |> Ply
           else
@@ -426,7 +426,7 @@ let fns () : List<BuiltInFn> =
         "Converts an Int128 to a 32-bit unsigned integer. Returns {{None}} if the value is less than 0 or greater than 4294967295."
       fn =
         (function
-        | _, _, _, [ DInt128 a ] ->
+        | struct (_, _, _, [ DInt128 a ]) ->
           if
             (a < System.Int128.op_Implicit System.UInt32.MinValue)
             || (a > System.Int128.op_Implicit System.UInt32.MaxValue)
@@ -450,7 +450,7 @@ let fns () : List<BuiltInFn> =
         Returns {{None}} if the value is greater than 4294967295."
       fn =
         (function
-        | _, _, _, [ DUInt128 a ] ->
+        | struct (_, _, _, [ DUInt128 a ]) ->
           if (a > System.UInt128.op_Implicit System.UInt32.MaxValue) then
             Dval.optionNone KTUInt32 |> Ply
           else
@@ -469,7 +469,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise AND on two <type UInt32> values"
       fn =
         (function
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DUInt32(a &&& b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DUInt32(a &&& b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -484,7 +484,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise OR on two <type UInt32> values"
       fn =
         (function
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DUInt32(a ||| b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DUInt32(a ||| b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -499,7 +499,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise XOR on two <type UInt32> values"
       fn =
         (function
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DUInt32(a ^^^ b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DUInt32(a ^^^ b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -514,7 +514,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise NOT on a <type UInt32> value"
       fn =
         (function
-        | _, _, _, [ DUInt32 a ] -> Ply(DUInt32(~~~a))
+        | struct (_, _, _, [ DUInt32 a ]) -> Ply(DUInt32(~~~a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -529,7 +529,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise left shift of a <type UInt32> value"
       fn =
         (function
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DUInt32(a <<< int b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DUInt32(a <<< int b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -544,7 +544,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise right shift of a <type UInt32> value"
       fn =
         (function
-        | _, _, _, [ DUInt32 a; DUInt32 b ] -> Ply(DUInt32(a >>> int b))
+        | struct (_, _, _, [ DUInt32 a; DUInt32 b ]) -> Ply(DUInt32(a >>> int b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

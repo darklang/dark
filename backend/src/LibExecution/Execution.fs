@@ -191,7 +191,7 @@ let executeFunction
   let fnInstr, fnReg, rc =
     let namedFn : RT.ApplicableNamedFn =
       { name = name
-        typeSymbolTable = Map.empty
+        typeSymbolTable = RT.TST.empty
         typeArgs = typeArgs
         argsSoFar = [] }
     let applicable = RT.DApplicable(RT.AppNamedFn namedFn)

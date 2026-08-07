@@ -365,7 +365,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "int64Mod" 0
-                   typeSymbolTable = Map.empty
+                   typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    argsSoFar = [] }
              )
@@ -377,7 +377,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "equals" 0
-                   typeSymbolTable = Map.empty
+                   typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    argsSoFar = [] }
              )
@@ -517,7 +517,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "equals" 0
-                   typeSymbolTable = Map.empty
+                   typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    argsSoFar = [] }
              )
@@ -626,7 +626,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "add" 0
-                   typeSymbolTable = Map.empty
+                   typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    argsSoFar = [] }
              )
@@ -646,7 +646,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                   typeSymbolTable = Map.empty
+                   typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    argsSoFar = [] }
              )
@@ -674,7 +674,7 @@ module Expr =
                          RT.DApplicable(
                            RT.AppNamedFn
                              { name = RT.FQFnName.fqBuiltin "add" 0
-                               typeSymbolTable = Map.empty
+                               typeSymbolTable = RT.TST.empty
                                typeArgs = []
                                argsSoFar = [] }
                          )
@@ -706,7 +706,7 @@ module Expr =
                          (RT.DApplicable(
                            RT.AppNamedFn
                              { name = RT.FQFnName.fqBuiltin "add" 0
-                               typeSymbolTable = Map.empty
+                               typeSymbolTable = RT.TST.empty
                                typeArgs = []
                                argsSoFar = [] }
                          ))
@@ -731,7 +731,7 @@ module Expr =
                          (RT.DApplicable(
                            RT.AppNamedFn
                              { name = RT.FQFnName.fqBuiltin "multiply" 0
-                               typeSymbolTable = Map.empty
+                               typeSymbolTable = RT.TST.empty
                                typeArgs = []
                                argsSoFar = [] }
                          ))
@@ -747,7 +747,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                   typeSymbolTable = Map.empty
+                   typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    argsSoFar = [] }
              )
@@ -760,7 +760,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "add" 0
-                   typeSymbolTable = Map.empty
+                   typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    argsSoFar = [] }
              )
@@ -1002,7 +1002,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "add" 0
-                     typeSymbolTable = Map.empty
+                     typeSymbolTable = RT.TST.empty
                      typeArgs = []
                      argsSoFar = [] }
                )
@@ -1089,7 +1089,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                                 typeSymbolTable = Map.empty
+                                 typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
@@ -1119,7 +1119,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                                 typeSymbolTable = Map.empty
+                                 typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
@@ -1152,7 +1152,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                                 typeSymbolTable = Map.empty
+                                 typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
@@ -1190,7 +1190,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                                 typeSymbolTable = Map.empty
+                                 typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
@@ -1225,7 +1225,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                                 typeSymbolTable = Map.empty
+                                 typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
@@ -1271,7 +1271,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                                 typeSymbolTable = Map.empty
+                                 typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
@@ -1282,7 +1282,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                                 typeSymbolTable = Map.empty
+                                 typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
@@ -1317,7 +1317,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                                 typeSymbolTable = Map.empty
+                                 typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
@@ -1328,7 +1328,7 @@ module Expr =
                            RT.DApplicable(
                              RT.AppNamedFn
                                { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                                 typeSymbolTable = Map.empty
+                                 typeSymbolTable = RT.TST.empty
                                  typeArgs = []
                                  argsSoFar = [] }
                            )
@@ -1366,7 +1366,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                     typeSymbolTable = Map.empty
+                     typeSymbolTable = RT.TST.empty
                      typeArgs = []
                      argsSoFar = [] }
                )
@@ -1384,7 +1384,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                     typeSymbolTable = Map.empty
+                     typeSymbolTable = RT.TST.empty
                      typeArgs = []
                      argsSoFar = [] }
                )
@@ -1404,7 +1404,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                     typeSymbolTable = Map.empty
+                     typeSymbolTable = RT.TST.empty
                      typeArgs = []
                      argsSoFar = [] }
                )
@@ -1424,7 +1424,7 @@ module Expr =
                RT.DApplicable(
                  RT.AppNamedFn
                    { name = RT.FQFnName.fqBuiltin "int64Add" 0
-                     typeSymbolTable = Map.empty
+                     typeSymbolTable = RT.TST.empty
                      typeArgs = []
                      argsSoFar = [] }
                )
@@ -1451,7 +1451,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
-                       typeSymbolTable = Map.empty
+                       typeSymbolTable = RT.TST.empty
                        typeArgs = []
                        argsSoFar = [] }
                  )
@@ -1469,7 +1469,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
-                       typeSymbolTable = Map.empty
+                       typeSymbolTable = RT.TST.empty
                        typeArgs = []
                        argsSoFar = [] }
                  )
@@ -1489,7 +1489,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.MyAdd.hash
-                       typeSymbolTable = Map.empty
+                       typeSymbolTable = RT.TST.empty
                        typeArgs = []
                        argsSoFar = [] }
                  )
@@ -1523,7 +1523,7 @@ module Expr =
                              RT.DApplicable(
                                RT.AppNamedFn
                                  { name = RT.FQFnName.fqBuiltin "add" 0
-                                   typeSymbolTable = Map.empty
+                                   typeSymbolTable = RT.TST.empty
                                    typeArgs = []
                                    argsSoFar = [] }
                              )
@@ -1538,7 +1538,7 @@ module Expr =
                      { name =
                          RT.FQFnName.fqPackage
                            E.Fns.Package.MyFnThatTakesALambda.hash
-                       typeSymbolTable = Map.empty
+                       typeSymbolTable = RT.TST.empty
                        typeArgs = []
                        argsSoFar = [] }
                  )
@@ -1561,7 +1561,7 @@ module Expr =
                  RT.DApplicable(
                    RT.AppNamedFn
                      { name = RT.FQFnName.fqPackage E.Fns.Package.Outer.hash
-                       typeSymbolTable = Map.empty
+                       typeSymbolTable = RT.TST.empty
                        typeArgs = []
                        argsSoFar = [] }
                  )
@@ -1599,7 +1599,7 @@ module Expr =
              RT.DApplicable(
                RT.AppNamedFn
                  { name = RT.FQFnName.fqBuiltin "printLine" 0
-                   typeSymbolTable = Map.empty
+                   typeSymbolTable = RT.TST.empty
                    typeArgs = []
                    argsSoFar = [] }
              )

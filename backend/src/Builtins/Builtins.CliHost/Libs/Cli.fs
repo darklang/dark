@@ -462,16 +462,14 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt errType
         let resultError = Dval.resultError KTInt errType
         (function
-        | exeState,
-          _,
-          [],
-          [ accountIDDval
-            DUuid branchId
-            DString filename
-            DString code
-            DList(_vtTODO, scriptArgs)
-            DBool allowHarmful
-            DBool sandbox ] ->
+        | struct (exeState, _, [],
+                  [ accountIDDval
+                    DUuid branchId
+                    DString filename
+                    DString code
+                    DList(_vtTODO, scriptArgs)
+                    DBool allowHarmful
+                    DBool sandbox ]) ->
           uply {
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`. None passes through
@@ -586,10 +584,11 @@ let fns () : List<BuiltInFn> =
         let okSome (s : string) = resultOk (Dval.optionSome KTString (DString s))
         let okNone () = resultOk (Dval.optionNone KTString)
         (function
-        | exeState,
-          _,
-          [],
-          [ accountIDDval; DUuid branchId; DString expression; DBool allowHarmful ] ->
+        | struct (exeState, _, [],
+                  [ accountIDDval
+                    DUuid branchId
+                    DString expression
+                    DBool allowHarmful ]) ->
           uply {
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`.
