@@ -239,6 +239,31 @@ and private inferTVarsFromArgs
     go acc trs vts
 
 
+/// As `inferTVarsFromArg`, against the argument itself rather than its ValueType.
+///
+/// `Dval.toValueType` on a container builds `Known(KTList t)` -- two allocations -- and inference's next
+/// move is to take it apart again to get at `t`. Scalars are cached singletons and cost nothing, so only
+/// the shapes that already carry their element type are worth special-casing. Binding a type variable
+/// needs the whole ValueType, so that still falls through.
+///
+/// Same trick as `TypeChecker.unifyDvalSync`, on the other walk over the same arguments.
+let private inferTVarsFromDval
+  (acc : Map<string, ValueType>)
+  (tr : TypeReference)
+  (dv : Dval)
+  : Map<string, ValueType> =
+  match tr with
+  | TList tr' ->
+    match dv with
+    | DList(vt', _) -> inferTVarsFromArg acc tr' vt'
+    | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
+  | TDict tr' ->
+    match dv with
+    | DDict(vt', _) -> inferTVarsFromArg acc tr' vt'
+    | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
+  | _ -> inferTVarsFromArg acc tr (Dval.toValueType dv)
+
+
 let rec checkAndExtractLetPattern
   (pat : LetPattern)
   (dv : Dval)
@@ -1128,8 +1153,7 @@ let private callBuiltinResolved
       | p :: pRest ->
         match args with
         | [] -> acc
-        | a :: aRest ->
-          inferBi (inferTVarsFromArg acc p.typ (Dval.toValueType a)) pRest aRest
+        | a :: aRest -> inferBi (inferTVarsFromDval acc p.typ a) pRest aRest
     let inferredBound = inferBi explicitlyBound fn.parameters allArgs
     if not (Map.isEmpty inferredBound) then
       tst <- Map.mergeFavoringRight tst inferredBound
@@ -1386,8 +1410,7 @@ let private callPackageResolved
         | p :: pRest ->
           match args with
           | [] -> acc
-          | a :: aRest ->
-            inferPkg (inferTVarsFromArg acc p.typ (Dval.toValueType a)) pRest aRest
+          | a :: aRest -> inferPkg (inferTVarsFromDval acc p.typ a) pRest aRest
       inferPkg explicitlyBound (NEList.toList fn.parameters) allArgs
   if not (Map.isEmpty newlyBound) then
     tst <- Map.mergeFavoringRight tst newlyBound
