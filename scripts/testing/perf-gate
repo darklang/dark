@@ -42,13 +42,24 @@ fi
 
 BUDGET_FILE="scripts/testing/perf-budget.json"
 WORKLOAD="scripts/testing/perf-workloads/steady.dark"
-TELEMETRY="${DARK_CONFIG_RUNDIR}/logs/telemetry.jsonl"
 
-rm -f "$TELEMETRY"
+# A published binary resolves its data and log directories relative to its own location, not to
+# DARK_CONFIG_RUNDIR, so the two modes read their telemetry from different places.
+if [[ "$PUBLISHED" == "true" ]]; then
+  TELEMETRY="$(dirname "$EXE")/.darklang/logs/telemetry.jsonl"
+else
+  TELEMETRY="${DARK_CONFIG_RUNDIR}/logs/telemetry.jsonl"
+fi
 
 # Trace detail off: a dev shell sets it on, a user's run has it off, and with it on the interpreter
 # holds every argument and result alive for the whole run. Pinned here so the number means one thing.
-OUTPUT=$(DARK_TELEMETRY=1 DARK_CONFIG_TRACE_DETAIL=off "$EXE" run "$WORKLOAD")
+run_workload() { DARK_TELEMETRY=1 DARK_CONFIG_TRACE_DETAIL=off "$EXE" run "$WORKLOAD"; }
+
+# One throwaway run first. Against an empty store the first invocation seeds it -- on the published
+# binary that's an extra ~470 MB of one-time work, which would be recorded as the budget.
+run_workload > /dev/null
+rm -f "$TELEMETRY"
+OUTPUT=$(run_workload)
 echo "$OUTPUT" | head -c 200
 echo
 
