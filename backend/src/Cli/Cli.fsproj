@@ -125,6 +125,14 @@
   <ItemGroup Condition="'$(PublishAot)' == 'true'">
     <DirectPInvoke Include="e_sqlite3" />
   </ItemGroup>
+
+  <!-- Escape hatch for linking additional native archives into an AOT publish,
+       for targets that need a compatibility shim the shipped set doesn't.
+       Semicolon-separated paths. No shipped build sets this, so it's inert
+       unless a caller passes /p:DarkExtraNativeLibs=... explicitly. -->
+  <ItemGroup Condition="'$(PublishAot)' == 'true' And '$(DarkExtraNativeLibs)' != ''">
+    <NativeLibrary Include="$(DarkExtraNativeLibs)" />
+  </ItemGroup>
   <ItemGroup Condition="'$(PublishAot)' == 'true' And '$(RuntimeIdentifier)' == 'linux-x64'">
     <NativeLibrary Include="lib/libe_sqlite3-linux-x64.a" />
   </ItemGroup>
