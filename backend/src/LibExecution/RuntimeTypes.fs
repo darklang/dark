@@ -2174,6 +2174,11 @@ type VMState =
     /// from `callFrames` and fails the parent lookup on return.
     mutable frameIdCounter : int64
 
+    /// The value the root frame returned, set when it pops. On the VM rather than a local of the
+    /// interpreter loop for the same reason as `pendingCallArgs`: a local is a field in every
+    /// continuation the builder makes for the loop body.
+    mutable finalResult : Dval voption
+
     /// Arguments of calls whose frames are still running, keyed by frame id, so the tracer can pair
     /// them with the result when the frame returns. Empty and untouched when tracing is off.
     ///
@@ -2219,6 +2224,7 @@ type VMState =
       stats = InterpreterStats.create ()
       frameToPush = None
       frameIdCounter = 0L
+      finalResult = ValueNone
       pendingCallArgs = Dictionary()
       framePool = Dictionary() }
 

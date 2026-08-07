@@ -1572,9 +1572,8 @@ let private callPackage
 
 let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
   uply {
-    let raiseRTE rte = raiseRTE vm.threadID rte
-
-    let mutable finalResult : Dval option = None
+    // No local `raiseRTE` alias: every continuation the builder makes for the loop body would
+    // capture it, so it's a field in each of them.
 
     while vm.callFrames.ContainsKey vm.currentFrameID do
       let currentFrame = vm.callFrames[vm.currentFrameID]
@@ -1666,7 +1665,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               Dval.toValueType dv
               |> RTE.Records.UpdateNotRecord
               |> RTE.Record
-              |> raiseRTE
+              |> raiseRTE vm.threadID
           | CreateEnum(enumReg, typeName, typeArgs, caseName, fields) ->
             let fields = fields |> List.map (fun valueReg -> registers[valueReg])
 
@@ -1692,14 +1691,14 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
             | FQValueName.Builtin builtin ->
               match Map.find builtin exeState.values.builtIn with
               | Some v -> registers[createTo] <- v.body
-              | None -> raiseRTE (RTE.ValueNotFound name)
+              | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
 
             | FQValueName.Package pkg ->
               match! exeState.values.package pkg with
               | Some v ->
                 // The Dval is already stored in the package value
                 registers[createTo] <- v.body
-              | None -> raiseRTE (RTE.ValueNotFound name)
+              | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
           | Apply(putResultIn, thingToCallReg, typeArgs, newArgRegs) ->
             // CLEANUP
             // only the first apply of an applicable should be allowed to provide type args
@@ -1714,7 +1713,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                   thingToCall
                 )
                 |> RTE.Apply
-                |> raiseRTE
+                |> raiseRTE vm.threadID
 
             let applyArgsAlloc = allocNow vm
             let newArgDvals = readRegsNE registers newArgRegs
@@ -1739,7 +1738,9 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               let paramCount = NEList.length foundLambda.patterns
 
               if typeArgs <> [] then
-                RTE.Applications.CannotApplyTypeArgsToLambda |> RTE.Apply |> raiseRTE
+                RTE.Applications.CannotApplyTypeArgsToLambda
+                |> RTE.Apply
+                |> raiseRTE vm.threadID
 
               if argCount = paramCount then
                 let lambdaFrameAlloc = allocNow vm
@@ -1833,7 +1834,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               else if argCount > paramCount then
                 RTE.Applications.TooManyArgsForLambda(exprId, paramCount, argCount)
                 |> RTE.Apply
-                |> raiseRTE
+                |> raiseRTE vm.threadID
               else
                 registers[putResultIn] <-
                   { appLambda with argsSoFar = allArgs } |> AppLambda |> DApplicable
@@ -1861,7 +1862,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                   | _ ->
                     RTE.Applications.CannotApplyTypeArgsMoreThanOnce
                     |> RTE.Apply
-                    |> raiseRTE
+                    |> raiseRTE vm.threadID
 
               let ctx : ApplyContext =
                 { applicable = applicable
@@ -1878,7 +1879,9 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               | FQFnName.Builtin builtin ->
                 let biLookupAlloc = allocNow vm
                 match Map.find builtin exeState.fns.builtIn with
-                | None -> return RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE
+                | None ->
+                  return
+                    RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE vm.threadID
                 | Some fn ->
                   recordStage vm ApplyStage.BiFnLookup biLookupAlloc
                   let call = callBuiltin exeState vm currentFrame ctx fn
@@ -1895,7 +1898,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 // whether or not the fn definition is still available.
                 let isHarmful = exeState.fns.isHarmful pkg
                 if isHarmful && not exeState.allowHarmful then
-                  return RTE.DeprecatedItemHalted pkg |> raiseRTE
+                  return RTE.DeprecatedItemHalted pkg |> raiseRTE vm.threadID
                 let pkgFetchAlloc = allocNow vm
                 // Warm cache after the first call, which for a script means all but a handful of these.
                 //
@@ -1911,14 +1914,16 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                   match fetched with
                   | ValueSome(Some fn) -> callPackage exeState vm currentFrame ctx fn
                   | ValueSome None ->
-                    RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
+                    RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
                   | ValueNone ->
                     uply {
                       match! fetch with
                       | Some fn ->
                         return! callPackage exeState vm currentFrame ctx fn
                       | None ->
-                        return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
+                        return
+                          RTE.FnNotFound(FQFnName.Package pkg)
+                          |> raiseRTE vm.threadID
                     }
                 recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
                 // Overwritten on the next line either way; F# needs something to start from.
@@ -1986,7 +1991,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 match fnName with
                 | FQFnName.Builtin builtin ->
                   (Map.findUnsafe builtin exeState.fns.builtIn).returnType
-                | FQFnName.Package _ -> RTE.FnNotFound fnName |> raiseRTE
+                | FQFnName.Package _ -> RTE.FnNotFound fnName |> raiseRTE vm.threadID
 
             let tst = currentFrame.typeSymbolTable
             // Every frame return checks its result, so the same sync-first treatment as the argument
@@ -2016,7 +2021,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                     resultOfFrame
                   )
                   |> RuntimeError.Apply
-                  |> raiseRTE
+                  |> raiseRTE vm.threadID
 
 
           // Record per-package-fn timing on frame return
@@ -2066,13 +2071,13 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
 
         | ValueNone ->
           vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
-          finalResult <- Some resultOfFrame
+          vm.finalResult <- ValueSome resultOfFrame
 
 
     // If we've reached the end of the instructions, return the result
-    match finalResult with
-    | Some dv -> return dv
-    | None -> return Exception.raiseInternal "No finalResult found" []
+    match vm.finalResult with
+    | ValueSome dv -> return dv
+    | ValueNone -> return Exception.raiseInternal "No finalResult found" []
   }
 
 and execute (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
