@@ -1,0 +1,23 @@
+// The four ways building a record can fail.
+//
+// Worth checking by hand whenever the record checker is touched. These messages are built on paths
+// the happy case never takes -- the declared type is only resolved once a field has already failed
+// to unify -- so a change can keep every test green and still garble them.
+//
+// Swap which line is uncommented and run it four times. Expected output, in order:
+//   Failed to create record. Expected String for field `y`, but got 2 (an Int)
+//   Missing field `y`
+//   No field named `z`
+//   Duplicate field `x`
+
+type Point = { x: Int; y: String }
+
+let main () : Int64 =
+  let bad = Point { x = 1; y = 2 }
+  // let bad = Point { x = 1 }
+  // let bad = Point { x = 1; y = "a"; z = 3 }
+  // let bad = Point { x = 1; x = 2; y = "a" }
+  Builtin.debug "should not get here" bad
+  0L
+
+main ()
