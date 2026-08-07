@@ -2349,6 +2349,15 @@ type VMState =
     /// outside the computation expression can reach it.
     pendingCallArgs : Dictionary<uuid, Dval list>
 
+    /// Scratch space for the bindings a match pattern produces, reused across every `match` the VM
+    /// evaluates. As a returned `List<Register * Dval>` this was a tuple and a cons per bound
+    /// variable per pattern *tried*, which came to 11.6% of allocation.
+    ///
+    /// A buffer rather than writing straight into the registers, because a pattern can fail halfway:
+    /// the caller applies these only once the whole pattern has matched, and an or-pattern's failed
+    /// alternative truncates back to where it started.
+    matchBindings : ResizeArray<struct (Register * Dval)>
+
     /// Popped frames, with their register files still attached, bucketed by register count and handed
     /// back out to the next push of that size. A frame and its registers are what pushing a call costs,
     /// and nothing holds either past the pop: a lambda copies the values it closes over, a partial
@@ -2388,6 +2397,7 @@ type VMState =
       frameToPush = ValueNone
       frameIdCounter = 0L
       finalResult = ValueNone
+      matchBindings = ResizeArray()
       pendingCallArgs = Dictionary()
       framePool = Dictionary() }
 

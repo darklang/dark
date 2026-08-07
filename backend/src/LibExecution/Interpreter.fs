@@ -311,159 +311,147 @@ let rec checkAndExtractLetPattern
   | _ -> false, []
 
 
-/// What trying a match pattern against a value produced: either it didn't match, or it did and these
-/// registers should be assigned.
+/// Try a match pattern against a value, appending any bindings it makes to `buf`.
 ///
-/// A struct DU rather than `bool * List<Register * Dval>`. The tuple form allocated a pair on every
-/// pattern tried, matched or not, and the failure case allocated one to say "no, and here is an empty
-/// list of bindings". Both `NoMatch` and `Matched []` now cost nothing.
-[<Struct>]
-type MatchOutcome =
-  | NoMatch
-  | Matched of bindings : List<Register * Dval>
-
-/// Try each pattern against the corresponding item, and concatenate the bindings. Lengths must agree.
+/// Returns whether it matched. The bindings go in a caller-supplied buffer rather than a returned
+/// list because a returned `List<Register * Dval>` cost a tuple and a cons per bound variable, on
+/// every pattern *tried* rather than every pattern that matched: 11.6% of the interpreter's
+/// allocation. The buffer is reused for the life of the VM.
 ///
-/// Top-level and mutually recursive with the pattern check rather than a local `let rec` inside it: as a
-/// local it closed over the recursive alias, which is an allocation on every pattern tried.
+/// The caller writes the registers only once the whole pattern has matched, so a pattern that fails
+/// partway leaves the frame untouched. An or-pattern's failed alternative truncates the buffer back
+/// to where that alternative started.
 let rec private checkMatchPatternList
+  (buf : ResizeArray<struct (Register * Dval)>)
   (pats : List<MatchPattern>)
   (items : List<Dval>)
-  : MatchOutcome =
+  : bool =
   match pats with
-  | [] ->
-    match items with
-    | [] -> Matched []
-    | _ -> NoMatch
+  | [] -> List.isEmpty items
   | pat :: otherPats ->
     match items with
-    | [] -> NoMatch
+    | [] -> false
     | item :: otherItems ->
-      match checkAndExtractMatchPattern pat item with
-      | NoMatch -> NoMatch
-      | Matched vars ->
-        match checkMatchPatternList otherPats otherItems with
-        | NoMatch -> NoMatch
-        | Matched rest -> Matched(if List.isEmpty rest then vars else vars @ rest)
+      checkAndExtractMatchPattern buf pat item
+      && checkMatchPatternList buf otherPats otherItems
 
 /// Nested matches throughout, not `match pat, dv with`. The tuple form reads better and allocates the
 /// pair on every pattern tried; this runs once per arm of every `match` a script evaluates.
-and checkAndExtractMatchPattern (pat : MatchPattern) (dv : Dval) : MatchOutcome =
+and checkAndExtractMatchPattern
+  (buf : ResizeArray<struct (Register * Dval)>)
+  (pat : MatchPattern)
+  (dv : Dval)
+  : bool =
   match pat with
-  | MPVariable reg -> Matched [ (reg, dv) ]
+  | MPVariable reg ->
+    buf.Add(struct (reg, dv))
+    true
 
   | MPUnit ->
     match dv with
-    | DUnit -> Matched []
-    | _ -> NoMatch
+    | DUnit -> true
+    | _ -> false
   | MPBool l ->
     match dv with
-    | DBool r when l = r -> Matched []
-    | _ -> NoMatch
+    | DBool r -> l = r
+    | _ -> false
   | MPInt8 l ->
     match dv with
-    | DInt8 r when l = r -> Matched []
-    | _ -> NoMatch
+    | DInt8 r -> l = r
+    | _ -> false
   | MPUInt8 l ->
     match dv with
-    | DUInt8 r when l = r -> Matched []
-    | _ -> NoMatch
+    | DUInt8 r -> l = r
+    | _ -> false
   | MPInt16 l ->
     match dv with
-    | DInt16 r when l = r -> Matched []
-    | _ -> NoMatch
+    | DInt16 r -> l = r
+    | _ -> false
   | MPUInt16 l ->
     match dv with
-    | DUInt16 r when l = r -> Matched []
-    | _ -> NoMatch
+    | DUInt16 r -> l = r
+    | _ -> false
   | MPInt32 l ->
     match dv with
-    | DInt32 r when l = r -> Matched []
-    | _ -> NoMatch
+    | DInt32 r -> l = r
+    | _ -> false
   | MPUInt32 l ->
     match dv with
-    | DUInt32 r when l = r -> Matched []
-    | _ -> NoMatch
+    | DUInt32 r -> l = r
+    | _ -> false
   | MPInt64 l ->
     match dv with
-    | DInt64 r when l = r -> Matched []
-    | _ -> NoMatch
+    | DInt64 r -> l = r
+    | _ -> false
   | MPUInt64 l ->
     match dv with
-    | DUInt64 r when l = r -> Matched []
-    | _ -> NoMatch
+    | DUInt64 r -> l = r
+    | _ -> false
   | MPInt128 l ->
     match dv with
-    | DInt128 r when l = r -> Matched []
-    | _ -> NoMatch
+    | DInt128 r -> l = r
+    | _ -> false
   | MPUInt128 l ->
     match dv with
-    | DUInt128 r when l = r -> Matched []
-    | _ -> NoMatch
+    | DUInt128 r -> l = r
+    | _ -> false
   | MPInt l ->
     match dv with
-    | DInt r when l = DarkInt.toBigInt r -> Matched []
-    | _ -> NoMatch
+    | DInt r -> l = DarkInt.toBigInt r
+    | _ -> false
   | MPFloat l ->
     match dv with
-    | DFloat r when l = r -> Matched []
-    | _ -> NoMatch
+    | DFloat r -> l = r
+    | _ -> false
   | MPChar l ->
     match dv with
-    | DChar r when l = r -> Matched []
-    | _ -> NoMatch
+    | DChar r -> l = r
+    | _ -> false
   | MPString l ->
     match dv with
-    | DString r when l = r -> Matched []
-    | _ -> NoMatch
+    | DString r -> l = r
+    | _ -> false
 
   | MPList pats ->
     match dv with
-    | DList(_, items) -> checkMatchPatternList pats items
-    | _ -> NoMatch
+    | DList(_, items) -> checkMatchPatternList buf pats items
+    | _ -> false
 
   | MPListCons(head, tail) ->
     match dv with
     | DList(vt, headItem :: tailItems) ->
-      match checkAndExtractMatchPattern head headItem with
-      | NoMatch -> NoMatch
-      | Matched varsHead ->
-        match checkAndExtractMatchPattern tail (DList(vt, tailItems)) with
-        | NoMatch -> NoMatch
-        | Matched varsTail ->
-          Matched(if List.isEmpty varsTail then varsHead else varsHead @ varsTail)
-    | _ -> NoMatch
+      checkAndExtractMatchPattern buf head headItem
+      && checkAndExtractMatchPattern buf tail (DList(vt, tailItems))
+    | _ -> false
 
   | MPTuple(first, second, theRest) ->
     match dv with
     | DTuple(firstVal, secondVal, theRestVal) ->
-      match checkAndExtractMatchPattern first firstVal with
-      | NoMatch -> NoMatch
-      | Matched varsFirst ->
-        match checkAndExtractMatchPattern second secondVal with
-        | NoMatch -> NoMatch
-        | Matched varsSecond ->
-          match checkMatchPatternList theRest theRestVal with
-          | NoMatch -> NoMatch
-          | Matched varsRest -> Matched(varsFirst @ varsSecond @ varsRest)
-    | _ -> NoMatch
+      checkAndExtractMatchPattern buf first firstVal
+      && checkAndExtractMatchPattern buf second secondVal
+      && checkMatchPatternList buf theRest theRestVal
+    | _ -> false
 
   | MPEnum(caseName, fields) ->
     match dv with
     | DEnum(_, _, _, caseNameActual, fieldsActual) when caseName = caseNameActual ->
-      checkMatchPatternList fields fieldsActual
-    | _ -> NoMatch
+      checkMatchPatternList buf fields fieldsActual
+    | _ -> false
 
   | MPOr patterns ->
     // A walk rather than `List.map |> List.tryFind |> Option.defaultValue`, which built a list of
     // outcomes, a closure for each stage and an option, to answer a question the first hit settles.
+    // Each failed alternative rolls the buffer back to where it started.
     let rec firstMatch (ps : List<MatchPattern>) =
       match ps with
-      | [] -> NoMatch
+      | [] -> false
       | p :: rest ->
-        match checkAndExtractMatchPattern p dv with
-        | Matched vars -> Matched vars
-        | NoMatch -> firstMatch rest
+        let mark = buf.Count
+        if checkAndExtractMatchPattern buf p dv then
+          true
+        else
+          buf.RemoveRange(mark, buf.Count - mark)
+          firstMatch rest
     firstMatch (NEList.toList patterns)
 
 
@@ -1806,18 +1794,17 @@ let private runSyncInstructions
         match pat with
         | MPVariable reg -> registers[reg] <- registers[valueReg]
         | _ ->
-          match checkAndExtractMatchPattern pat registers[valueReg] with
-          | Matched bindings ->
-            // A walk rather than `List.iter (fun ...)`, whose closure over `registers` is an
-            // allocation on a path that runs once per arm tried.
-            let rec assign (bs : List<Register * Dval>) =
-              match bs with
-              | [] -> ()
-              | (reg, value) :: rest ->
-                registers[reg] <- value
-                assign rest
-            assign bindings
-          | NoMatch -> counter <- counter + failJump
+          let buf = vm.matchBindings
+          buf.Clear()
+          if checkAndExtractMatchPattern buf pat registers[valueReg] then
+            // Written only now that the whole pattern has matched, so a pattern that failed partway
+            // leaves the frame untouched. An index loop, not `for x in buf`, which boxes the
+            // enumerator.
+            for i in 0 .. buf.Count - 1 do
+              let struct (reg, value) = buf[i]
+              registers[reg] <- value
+          else
+            counter <- counter + failJump
       | MatchUnmatched(valueReg) ->
         let unmatchedValue = registers[valueReg]
         raiseRTE vm.threadID (RTE.Match(RTE.Matches.MatchUnmatched unmatchedValue))
