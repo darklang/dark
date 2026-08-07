@@ -30,7 +30,9 @@ for arg in "$@"; do
 done
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  EXE="backend/Build/out/Cli/Release/net10.0/linux-x64/publish/Cli"
+  # `build-release-cli-exes.sh` moves the published binary into clis/, so the publish directory is
+  # empty by the time it finishes. Take the newest one it left.
+  EXE=$(ls -t clis/darklang-alpha-*-linux-x64 2>/dev/null | head -1)
 else
   EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
 fi

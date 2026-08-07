@@ -33,6 +33,9 @@ while [[ $# -gt 0 ]]; do
     -n) N="$2"; shift 2 ;;
     -c) C="$2"; shift 2 ;;
     --port) PORT="$2"; shift 2 ;;
+    # A flag, not an environment variable: these scripts re-enter the container, and the environment
+    # does not survive that. See perf-suite for the same reason the binary lives in clis/.
+    --release) EXE=$(ls -t clis/darklang-alpha-*-linux-x64 2>/dev/null | head -1); shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done

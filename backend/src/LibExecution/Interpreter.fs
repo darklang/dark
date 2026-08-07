@@ -198,9 +198,17 @@ module private ArgSeq =
 
   /// The arguments as an array, which is what a builtin takes. One allocation rather than a cons
   /// per argument; `count` is already known, so it's filled in place with no intermediate.
-  let toArray (a : ArgSeq) : Dval[] =
+  /// The arguments as an array, reusing the calling frame's scratch buffer when the arity matches.
+  /// See the note on `CallFrame.argBuf` for why a per-frame buffer needs no rent/return discipline.
+  let toArrayFor (frame : CallFrame) (a : ArgSeq) : Dval[] =
     let n = count a
-    let arr = Array.zeroCreate n
+    let arr =
+      if frame.argBuf.Length = n then
+        frame.argBuf
+      else
+        let fresh = Array.zeroCreate n
+        frame.argBuf <- fresh
+        fresh
     let mutable i = 0
     let mutable rest = a
     while i < n do
@@ -612,7 +620,8 @@ let inline private takeFrame
       expectedReturnType = expectedReturnType
       programCounter = 0
       typeSymbolTable = typeSymbolTable
-      registers = Array.zeroCreate registerCount }
+      registers = Array.zeroCreate registerCount
+      argBuf = Array.empty }
 
 /// Hand a popped frame back. Registers are cleared here rather than at reuse, so a pooled frame that
 /// never gets reused isn't holding a call's worth of Dvals alive.
@@ -1057,7 +1066,7 @@ let private callBuiltinResolved
   let applicable = ctx.applicable
   // Builtins take a `List<Dval>`, so this is the one path that still materialises one.
   let biArgListAlloc = allocNow vm
-  let newArgDvals = ArgSeq.toArray ctx.args
+  let newArgDvals = ArgSeq.toArrayFor currentFrame ctx.args
   recordStage vm ApplyStage.BiArgList biArgListAlloc
 
   let mutable tst = ctx.tst

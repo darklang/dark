@@ -2143,6 +2143,26 @@ type CallFrame =
     /// on every iteration.
     mutable instrData : InstrData
 
+    /// Scratch space for the arguments of a builtin called from this frame.
+    ///
+    /// Builtins take a `Dval[]`, and building a fresh one was the largest remaining allocation in
+    /// the runtime: 39 bytes on every builtin call, which is most of what a call-heavy program
+    /// spends. This is that array, reused.
+    ///
+    /// Per *frame* rather than per VM, which is what makes it safe without any rent/return
+    /// bookkeeping. A builtin that runs Dark code does so in a new frame -- a package call pushes
+    /// one, and the builtins that invoke a lambda directly build a whole new VM -- so a nested call
+    /// can never be handed the same array. And a frame runs one instruction at a time, so two
+    /// builtin calls from the same frame are never live at once, including when the first suspends.
+    ///
+    /// Reused only when the arity matches exactly, since a builtin's pattern match tests the array's
+    /// length. Frames overwhelmingly call builtins of one arity, so it nearly always hits.
+    ///
+    /// The array must stay intact until after `traceBuiltinResult`, which reads the arguments once
+    /// the body has returned. It does, for the same reason: nothing else in this frame runs in
+    /// between.
+    mutable argBuf : Dval[]
+
     /// The declared return type, for the check that runs when this frame returns.
     ///
     /// Resolved at push time for the same reason as `instrData`: otherwise every frame return re-fetches
@@ -2547,6 +2567,7 @@ type VMState =
         expectedReturnType = ValueNone
         programCounter = 0
         registers = Array.zeroCreate instrs.registerCount
+        argBuf = Array.empty
         typeSymbolTable = TST.empty
         parent = ValueNone }
 

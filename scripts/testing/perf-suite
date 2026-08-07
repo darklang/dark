@@ -24,24 +24,41 @@
 set -euo pipefail
 cd /home/dark/app
 
-EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
 SUITE="scripts/testing/perf-workloads/suite"
-TELEMETRY="${DARK_CONFIG_RUNDIR}/logs/telemetry.jsonl"
 ITERS=200
 JSON_OUT=""
+RELEASE=false
 NAMES=()
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --iters) ITERS="$2"; shift 2 ;;
     --json) JSON_OUT="$2"; shift 2 ;;
+    --release) RELEASE=true; shift ;;
     -*) echo "unknown flag: $1" >&2; exit 2 ;;
     *) NAMES+=("$1"); shift ;;
   esac
 done
 
+# A published binary resolves its data and log directories relative to its own location, not to
+# DARK_CONFIG_RUNDIR, so the two modes read their telemetry from different places. Same trap as
+# perf-gate's --published.
+if [[ "$RELEASE" == "true" ]]; then
+  # `build-release-cli-exes.sh` *moves* the published binary into clis/, so the publish directory it
+  # names in its own log is empty by the time it finishes. Take the newest one it left behind.
+  EXE=$(ls -t clis/darklang-alpha-*-linux-x64 2>/dev/null | head -1)
+  if [[ -z "$EXE" ]]; then
+    echo "perf-suite: no release CLI in clis/ -- run scripts/build/build-release-cli-exes.sh" >&2
+    exit 2
+  fi
+  TELEMETRY="$(dirname "$EXE")/.darklang/logs/telemetry.jsonl"
+else
+  EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
+  TELEMETRY="${DARK_CONFIG_RUNDIR}/logs/telemetry.jsonl"
+fi
+
 if [[ ! -x "$EXE" ]]; then
-  echo "perf-suite: no CLI at $EXE -- run scripts/dev/build" >&2
+  echo "perf-suite: no CLI at $EXE -- run scripts/dev/build (or scripts/build/build-release-cli-exes.sh)" >&2
   exit 2
 fi
 
@@ -71,6 +88,12 @@ run_once() {
   rm -f "$TELEMETRY"
   PERF_ITERS="$iters" DARK_TELEMETRY=1 DARK_CONFIG_TRACE_DETAIL=off "$EXE" run "$script"
 }
+
+# One throwaway run before anything is measured. Against a cold store the first invocation seeds it,
+# which is hundreds of megabytes, and whichever workload happens to run first would otherwise absorb
+# all of it -- into its *baseline*, which makes its reported per-iteration figure negative. Exactly
+# the trap perf-gate already guards against.
+run_once "$SUITE/${NAMES[0]}.dark" 0 > /dev/null 2>&1 || true
 
 printf '%-12s %12s %12s %10s\n' workload "alloc/iter" "total alloc" "ms"
 printf '%-12s %12s %12s %10s\n' ------------ ------------ ------------ ----------
