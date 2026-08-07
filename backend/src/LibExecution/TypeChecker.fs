@@ -846,33 +846,38 @@ module DvalCreator =
             |> raiseRTE threadID
 
         | Ok newTST ->
+          // A type with no parameters has nothing to learn from its fields, and that's the common
+          // case. Skipping the walk skips a rebuilt list of pairs and a builder entry per field.
           let! newTypeArgs =
-            Ply.List.mapSequentially
-              (fun (paramName, vt) ->
-                match vt with
-                | ValueType.Unknown ->
-                  match TST.tryFind paramName newTST with
-                  | ValueSome known -> Ply((paramName, known))
-                  | ValueNone -> Ply((paramName, vt))
+            if List.isEmpty typeArgs then
+              Ply typeArgs
+            else
+              Ply.List.mapSequentially
+                (fun (paramName, vt) ->
+                  match vt with
+                  | ValueType.Unknown ->
+                    match TST.tryFind paramName newTST with
+                    | ValueSome known -> Ply((paramName, known))
+                    | ValueNone -> Ply((paramName, vt))
 
-                | known ->
-                  match ValueType.merge known vt with
-                  | Ok merged -> Ply((paramName, merged))
-                  | Error() ->
-                    uply {
-                      let! expected = TypeReference.toVT types tst fieldDef
-                      return
-                        RTE.Enums.ConstructionFieldOfWrongType(
-                          caseName,
-                          fieldIndex,
-                          expected,
-                          Dval.toValueType actualField,
-                          actualField
-                        )
-                        |> RTE.Enum
-                        |> raiseRTE threadID
-                    })
-              typeArgs
+                  | known ->
+                    match ValueType.merge known vt with
+                    | Ok merged -> Ply((paramName, merged))
+                    | Error() ->
+                      uply {
+                        let! expected = TypeReference.toVT types tst fieldDef
+                        return
+                          RTE.Enums.ConstructionFieldOfWrongType(
+                            caseName,
+                            fieldIndex,
+                            expected,
+                            Dval.toValueType actualField,
+                            actualField
+                          )
+                          |> RTE.Enum
+                          |> raiseRTE threadID
+                      })
+                typeArgs
 
           return!
             checkEnumFields
@@ -1018,33 +1023,38 @@ module DvalCreator =
               |> raiseRTE threadID
 
           | Ok newTST ->
-            // Update the type args with anything this field pinned down.
+            // Update the type args with anything this field pinned down. See the note in
+            // `checkEnumFields`: no type parameters means nothing to learn, and no walk.
             let! newTypeArgs =
-              Ply.List.mapSequentially
-                (fun (paramName, vt) ->
-                  match vt with
-                  | ValueType.Unknown ->
-                    match TST.tryFind paramName newTST with
-                    | ValueSome known -> Ply((paramName, known))
-                    | ValueNone -> Ply((paramName, vt))
+              if List.isEmpty currentTypeArgs then
+                Ply currentTypeArgs
+              else
+                Ply.List.mapSequentially
+                  (fun (paramName, vt) ->
+                    match vt with
+                    | ValueType.Unknown ->
+                      match TST.tryFind paramName newTST with
+                      | ValueSome known -> Ply((paramName, known))
+                      | ValueNone -> Ply((paramName, vt))
 
-                  | known ->
-                    match ValueType.merge known vt with
-                    | Ok merged -> Ply((paramName, merged))
-                    | Error() ->
-                      uply {
-                        let! expected = TypeReference.toVT types newTST fieldDef.typ
-                        return
-                          RTE.Records.CreationFieldOfWrongType(
-                            fieldName,
-                            expected,
-                            Dval.toValueType fieldValue,
-                            fieldValue
-                          )
-                          |> RTE.Record
-                          |> raiseRTE threadID
-                      })
-                currentTypeArgs
+                    | known ->
+                      match ValueType.merge known vt with
+                      | Ok merged -> Ply((paramName, merged))
+                      | Error() ->
+                        uply {
+                          let! expected =
+                            TypeReference.toVT types newTST fieldDef.typ
+                          return
+                            RTE.Records.CreationFieldOfWrongType(
+                              fieldName,
+                              expected,
+                              Dval.toValueType fieldValue,
+                              fieldValue
+                            )
+                            |> RTE.Record
+                            |> raiseRTE threadID
+                        })
+                  currentTypeArgs
 
             return!
               checkRecordFields
