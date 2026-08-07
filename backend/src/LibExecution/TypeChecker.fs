@@ -202,8 +202,39 @@ let rec unifyValueTypeSync
           go 0 tst (tFirst :: tSecond :: tRest) (vFirst :: vSecond :: vRest)
       | _ -> Undecided
 
-    // Everything else, `TCustomType` above all, can need `Types.find`.
+    // A custom type of exactly the declared name. `Types.find` would only be needed to ask whether
+    // the declared type is an alias, and it can't be: an alias's name is the alias, but a value
+    // built through one carries the underlying type's name, so equal names mean it resolved to
+    // itself. Same argument as the `Dval` version in `tryUnifySync`.
+    //
+    // This case is what makes a *nested* custom type stay on the synchronous path. Without it,
+    // `Result<'a, ParseError>` fell to the async unifier over the `ParseError`, which is to say
+    // every function in the language that can fail.
+    | TCustomType({ resolved = Ok declared }, declaredArgs) ->
+      match actual with
+      | ValueType.Known(KTCustomType(actualName, actualArgs)) when
+        actualName = declared
+        ->
+        unifyTypeArgsSyncVT tst declaredArgs actualArgs
+      | _ -> Undecided
+
+    // Everything else can need `Types.find`.
     | _ -> Undecided
+
+/// Type arguments unified pairwise, synchronously. Top-level and mutually recursive with
+/// `unifyValueTypeSync` so neither captures anything.
+and private unifyTypeArgsSyncVT
+  (tst : TypeSymbolTable)
+  (declared : List<TypeReference>)
+  (actual : List<ValueType>)
+  : SyncUnification =
+  match declared, actual with
+  | [], [] -> Unified tst
+  | d :: dRest, a :: aRest ->
+    match unifyValueTypeSync tst d a with
+    | Unified tst -> unifyTypeArgsSyncVT tst dRest aRest
+    | other -> other
+  | _ -> Undecided
 
 
 /// Alias unwrapping without a CE. Only a resolved custom type can be an alias, and only that case needs
@@ -567,14 +598,10 @@ let rec private unifyTypeArgsSync
   (declared : List<TypeReference>)
   (actual : List<ValueType>)
   : TypeSymbolTable voption =
-  match declared, actual with
-  | [], [] -> ValueSome tst
-  | d :: dRest, a :: aRest ->
-    match unifyValueTypeSync tst d a with
-    | Unified tst -> unifyTypeArgsSync tst dRest aRest
-    | Mismatched
-    | Undecided -> ValueNone
-  | _ -> ValueNone
+  match unifyTypeArgsSyncVT tst declared actual with
+  | Unified tst -> ValueSome tst
+  | Mismatched
+  | Undecided -> ValueNone
 
 
 let tryUnifySync
