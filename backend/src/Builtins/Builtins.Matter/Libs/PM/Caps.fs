@@ -84,7 +84,7 @@ let fns : List<BuiltInFn> =
             // magic; the need lives on each `BuiltInFn`).
             let capsByName =
               exeState.fns.builtIn
-              |> Map.toList
+              |> Dictionary.toSortedList
               |> List.map (fun (k, b) -> k.name, b.capabilities)
               |> Map.ofList
             let capsFor (name : string) : LibExecution.Capabilities.Capabilities =

@@ -182,7 +182,7 @@ let main (args : string[]) =
     // Force the module-level `builtins` binding here, so its cost is attributed to a span of its own
     // rather than to whichever phase happens to touch it first.
     Telemetry.time "cli.builtinsInit" [] (fun () ->
-      builtins.fns |> Map.count |> ignore<int>)
+      builtins.fns.Count |> ignore<int>)
 
     // Separated from `growIfNeeded` so the first connection open and its PRAGMA round trip are attributable
     // to themselves rather than to whichever query happened to run first.

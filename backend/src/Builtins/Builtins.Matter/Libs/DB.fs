@@ -63,7 +63,7 @@ let resolveLoadValues
           match valueName with
           | FQValueName.Builtin builtinName ->
             // Builtin values - look up in builtIn values
-            match Map.tryFind builtinName exeState.values.builtIn with
+            match Dictionary.get builtinName exeState.values.builtIn with
             | Some v -> return Some(valueName, v.body)
             | None -> return None
           | FQValueName.Package pkgId ->

@@ -2448,9 +2448,14 @@ and BuiltInFnSig =
 
 
 /// Functionally written in F# and shipped with the executable
+/// Both are `Dictionary` rather than `Map`. There are ~800 builtins, the set is fixed once the
+/// process starts, and it is looked up on every builtin call. An F# `Map` charged for that twice: a
+/// tree node per entry per rebuild (and `combine` rebuilds at every nesting level, so each builtin
+/// was inserted into a balanced tree three times), and an O(log n) walk of generic structural
+/// comparisons on every lookup.
 and Builtins =
-  { values : Map<FQValueName.Builtin, BuiltInValue>
-    fns : Map<FQFnName.Builtin, BuiltInFn> }
+  { values : Dictionary<FQValueName.Builtin, BuiltInValue>
+    fns : Dictionary<FQFnName.Builtin, BuiltInFn> }
 
 
 
@@ -2554,7 +2559,7 @@ and ExecutionState =
 and Types = { package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>> }
 
 and Values =
-  { builtIn : Map<FQValueName.Builtin, BuiltInValue>
+  { builtIn : Dictionary<FQValueName.Builtin, BuiltInValue>
     package : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>> }
 
 /// Blob-byte access wired onto the ExecutionState. `get` resolves a
@@ -2567,7 +2572,7 @@ and Blobs =
 
 and Functions =
   {
-    builtIn : Map<FQFnName.Builtin, BuiltInFn>
+    builtIn : Dictionary<FQFnName.Builtin, BuiltInFn>
     package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
     /// `PackageManager.isHarmful` with the state's branchId pre-applied.
     isHarmful : FQFnName.Package -> bool

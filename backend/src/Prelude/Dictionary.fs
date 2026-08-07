@@ -27,6 +27,12 @@ let toList (d : T<'k, 'v>) : List<'k * 'v> =
   }
   |> Seq.toList
 
+/// Entries in key order. A `Dictionary` doesn't promise an enumeration order, so anything whose
+/// output a person or a test reads -- the builtin reflection functions, mostly -- sorts first rather
+/// than depending on insertion order holding.
+let toSortedList (d : T<'k, 'v>) : List<'k * 'v> when 'k : comparison =
+  d |> toList |> List.sortBy fst
+
 let fromList (l : List<'k * 'v>) : T<'k, 'v> =
   let result = empty ()
   List.iter (fun (k, v) -> result[k] <- v) l

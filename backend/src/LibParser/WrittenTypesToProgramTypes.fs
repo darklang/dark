@@ -36,10 +36,10 @@ module private BuiltinNames =
     System.Runtime.CompilerServices.ConditionalWeakTable<RT.Builtins, Set<RT.FQValueName.Builtin>>()
 
   let fns (builtins : RT.Builtins) : Set<RT.FQFnName.Builtin> =
-    fnCache.GetValue(builtins, (fun b -> b.fns |> Map.keys |> Set))
+    fnCache.GetValue(builtins, (fun b -> b.fns.Keys |> Set.ofSeq))
 
   let values (builtins : RT.Builtins) : Set<RT.FQValueName.Builtin> =
-    valueCache.GetValue(builtins, (fun b -> b.values |> Map.keys |> Set))
+    valueCache.GetValue(builtins, (fun b -> b.values.Keys |> Set.ofSeq))
 
 
 let private bindLocalName (context : Context) (name : string) : Context =

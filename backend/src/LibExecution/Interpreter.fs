@@ -2143,8 +2143,7 @@ let private checkFrameReturnType
       | ValueSome t -> t
       | ValueNone ->
         match fnName with
-        | FQFnName.Builtin builtin ->
-          (Map.findUnsafe builtin exeState.fns.builtIn).returnType
+        | FQFnName.Builtin builtin -> exeState.fns.builtIn[builtin].returnType
         | FQFnName.Package _ -> RTE.FnNotFound fnName |> raiseRTE vm.threadID
 
     let tst = currentFrame.typeSymbolTable
@@ -2260,9 +2259,9 @@ let private runRareOpcode
     | LoadValue(createTo, name) ->
       match name with
       | FQValueName.Builtin builtin ->
-        match Map.find builtin exeState.values.builtIn with
-        | Some v -> registers[createTo] <- v.body
-        | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
+        match exeState.values.builtIn.TryGetValue builtin with
+        | true, v -> registers[createTo] <- v.body
+        | false, _ -> raiseRTE vm.threadID (RTE.ValueNotFound name)
 
       | FQValueName.Package pkg ->
         match! Ply.toTask (exeState.values.package pkg) with
