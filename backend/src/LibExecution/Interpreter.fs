@@ -720,14 +720,14 @@ let rec private bindLambdaParams
   (vm : VMState)
   (r : Dval array)
   (pats : List<LetPattern>)
-  (args : List<Dval>)
+  (args : ArgSeq)
   : unit =
   match pats with
   | [] -> ()
   | pat :: patRest ->
-    match args with
-    | [] -> ()
-    | arg :: argRest ->
+    match ArgSeq.uncons args with
+    | ValueNone -> ()
+    | ValueSome(struct (arg, argRest)) ->
       // One name bound to one register is the overwhelmingly common shape, and
       // `checkAndExtractLetPattern` costs four allocations to express it: the returned tuple, the cons,
       // the pair inside it, and the pair its own `match pat, dv with` builds. Per parameter, per call.
@@ -1483,7 +1483,6 @@ let private applyInstruction
 
   match applicable with
   | AppLambda appLambda ->
-    let newArgDvals = readRegsNE registers newArgRegs
     let exprId = appLambda.exprId
     let foundLambda =
       let mutable cached = Unchecked.defaultof<_>
@@ -1493,11 +1492,9 @@ let private applyInstruction
         Exception.raiseInternal "lambda not found" [ "exprId", exprId ]
 
     let allArgs =
-      match appLambda.argsSoFar with
-      | [] -> newArgDvals
-      | prev -> prev @ newArgDvals
+      ArgSeq.withPrior appLambda.argsSoFar (ArgSeq.ofNE registers newArgRegs)
 
-    let argCount = List.length allArgs
+    let argCount = ArgSeq.count allArgs
     let paramCount = NEList.length foundLambda.patterns
 
     if typeArgs <> [] then
@@ -1585,7 +1582,10 @@ let private applyInstruction
       if vm.stats.enabled then
         vm.stats.framePushCount <- vm.stats.framePushCount + 1L
       if not exeState.tracing.skipTracing then
-        exeState.tracing.storeFrameEntry newFrame.id newFrame.executionPoint allArgs
+        exeState.tracing.storeFrameEntry
+          newFrame.id
+          newFrame.executionPoint
+          (ArgSeq.toList allArgs)
       vm.frameToPush <- ValueSome newFrame
 
     else if argCount > paramCount then
@@ -1594,7 +1594,10 @@ let private applyInstruction
       |> raiseRTE vm.threadID
     else
       registers[putResultIn] <-
-        { appLambda with argsSoFar = allArgs } |> AppLambda |> DApplicable
+        // Materialised only here: a partial application has to retain its arguments.
+        { appLambda with argsSoFar = ArgSeq.toList allArgs }
+        |> AppLambda
+        |> DApplicable
 
   | AppNamedFn applicable ->
     // The symbol table the call starts from. `callBuiltin` and `callPackage` take it from
