@@ -1230,8 +1230,13 @@ let private callBuiltinResolved
     // Something in the remaining parameters needs the type store. Finish the check in a computation
     // expression and carry on from there -- still the one implementation, just resumed asynchronously.
     let typeCheckParam = TypeChecker.checkFnParam exeState.types applicable.name
+    // An immutable snapshot, so the `uply` below captures this instead of the mutable `tst`. A
+    // mutable a closure captures becomes a heap ref cell, allocated on every call to serve a branch
+    // that after the first call is never taken; `FSharpRef<FSharpMap<string, ValueType>>` was 1.1%
+    // of the profile and this is both of the places it came from.
+    let tstAtCheck = tst
     uply {
-      let mutable tstRest = tst
+      let mutable tstRest = tstAtCheck
       let rec checkRest i (ps : List<BuiltInParam>) (args : List<Dval>) =
         uply {
           match ps with
@@ -1506,8 +1511,13 @@ let private callPackageResolved
     // Something in the remaining parameters needs the type store. Finish the check in a computation
     // expression and carry on from there -- still one implementation, just resumed asynchronously.
     let typeCheckParam = TypeChecker.checkFnParam exeState.types applicable.name
+    // An immutable snapshot, so the `uply` below captures this instead of the mutable `tst`. A
+    // mutable a closure captures becomes a heap ref cell, allocated on every call to serve a branch
+    // that after the first call is never taken; `FSharpRef<FSharpMap<string, ValueType>>` was 1.1%
+    // of the profile and this is both of the places it came from.
+    let tstAtCheck = tst
     uply {
-      let mutable tstRest = tst
+      let mutable tstRest = tstAtCheck
       let rec checkRest i (ps : List<PackageFn.Parameter>) (args : List<Dval>) =
         uply {
           match ps with
@@ -1878,11 +1888,15 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
               match applicable.name with
               | FQFnName.Builtin builtin ->
                 let biLookupAlloc = allocNow vm
-                match Map.find builtin exeState.fns.builtIn with
-                | None ->
+                // `TryGetValue` rather than `Map.find`, which allocates a `Some` on every hit --
+                // `FSharpOption<BuiltInFn>` was 0.9% of the profile, and this is where it came from.
+                // F#'s Map implements IDictionary, so the byref overload is available here too.
+                let mutable found = Unchecked.defaultof<BuiltInFn>
+                if not (exeState.fns.builtIn.TryGetValue(builtin, &found)) then
                   return
                     RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE vm.threadID
-                | Some fn ->
+                else
+                  let fn = found
                   recordStage vm ApplyStage.BiFnLookup biLookupAlloc
                   let call = callBuiltin exeState vm currentFrame ctx fn
                   // Usually already finished, in which case there's no bind to pay for.
