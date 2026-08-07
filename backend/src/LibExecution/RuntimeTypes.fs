@@ -2173,6 +2173,12 @@ type VMState =
     /// parallel, and a non-atomic shared increment hands two frames the same id, which silently drops one
     /// from `callFrames` and fails the parent lookup on return.
     mutable frameIdCounter : int64
+
+    /// Register files, handed back on frame pop and handed out again on the next push needing that
+    /// size. The array is the larger half of what a frame costs to build, and nothing holds one past
+    /// the pop: a lambda copies the values it closes over, a partial application copies its args, and
+    /// the tracer is handed lists. Per-VM, so single-threaded and needing no synchronization.
+    registerPool : Dictionary<int, Stack<Dval[]>>
   }
 
   static member create(instrs : Option<tlid> * Instructions) : VMState =
@@ -2204,7 +2210,8 @@ type VMState =
       lambdaInstrDataCache = Map.empty
       stats = InterpreterStats.create ()
       frameToPush = None
-      frameIdCounter = 0L }
+      frameIdCounter = 0L
+      registerPool = Dictionary() }
 
   static member createWithoutTLID(instrs : Instructions) : VMState =
     VMState.create (None, instrs)

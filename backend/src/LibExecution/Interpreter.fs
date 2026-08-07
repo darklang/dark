@@ -472,6 +472,29 @@ let inline private recordStage (vm : VMState) (stage : int) (before : int64) : u
 /// parallel, and a non-atomic shared increment handed two frames the same id, dropping one from
 /// `callFrames` and failing the parent lookup on return. Caught by
 /// `Interpreter.Fns.Package.Recursion.addUpTo 30000`.
+/// A register file of exactly this size, reused from the pool if one is free.
+///
+/// The array is the larger half of what a frame costs to build. Nothing holds one past the frame's
+/// pop -- a lambda copies the values it closes over, a partial application copies its args, and the
+/// tracer is handed lists -- so they can be handed straight back out.
+let inline private takeRegisters (vm : VMState) (count : int) : Dval[] =
+  let mutable free = Unchecked.defaultof<Stack<Dval[]>>
+  if vm.registerPool.TryGetValue(count, &free) && free.Count > 0 then
+    free.Pop()
+  else
+    Array.zeroCreate count
+
+/// Hand a popped frame's register file back. Cleared on the way in rather than on the way out, so a
+/// pooled array that never gets reused isn't holding a frame's worth of Dvals alive.
+let inline private returnRegisters (vm : VMState) (registers : Dval[]) : unit =
+  if registers.Length > 0 then
+    System.Array.Clear(registers, 0, registers.Length)
+    let mutable free = Unchecked.defaultof<Stack<Dval[]>>
+    if not (vm.registerPool.TryGetValue(registers.Length, &free)) then
+      free <- Stack()
+      vm.registerPool[registers.Length] <- free
+    free.Push registers
+
 let inline private nextFrameId (vm : VMState) : uuid =
   vm.frameIdCounter <- vm.frameIdCounter + 1L
   let n = vm.frameIdCounter
@@ -1316,7 +1339,7 @@ let private completePackage
           if vm.stats.enabled then
             vm.stats.registersAllocated <-
               vm.stats.registersAllocated + int64 fn.body.registerCount
-          let r = Array.zeroCreate fn.body.registerCount
+          let r = takeRegisters vm fn.body.registerCount
           // A manual walk rather than `List.iteri`, whose closure over `r` is an allocation on a path
           // that runs once per call.
           let rec fill i (args : List<Dval>) =
@@ -1705,7 +1728,7 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                     vm.stats.registersAllocated <-
                       vm.stats.registersAllocated
                       + int64 foundLambda.instructions.registerCount
-                  let r = Array.zeroCreate foundLambda.instructions.registerCount
+                  let r = takeRegisters vm foundLambda.instructions.registerCount
 
                   // extract and copy over the args
                   bindLambdaParams
@@ -1949,7 +1972,8 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
             // Every frame return checks its result, so the same sync-first treatment as the argument
             // checks applies: skip the bind when the answer needs no type lookup.
             match TypeChecker.tryUnifySync tst expectedReturnType resultOfFrame with
-            | ValueSome _ -> recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
+            | ValueSome _ ->
+              recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
             | ValueNone ->
               // Closed before the bind, for the reason in `finishBuiltin`. Reading 6.7 MB here was
               // this bracket measuring resumed execution; the region is really about 0.7.
@@ -1989,6 +2013,8 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
 
           let framePopAlloc = allocNow vm
           vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
+          // `resultOfFrame` was read out above, so the file is dead from here.
+          returnRegisters vm registers
 
           vm.currentFrameID <- parentID
 
