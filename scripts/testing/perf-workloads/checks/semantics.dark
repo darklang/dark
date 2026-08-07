@@ -1,0 +1,44 @@
+type Shape =
+  | Circle of Float
+  | Rect of Float * Float
+  | Named of name: String * inner: Shape
+
+type Acct = { id: Int64; name: String; tags: List<String> }
+
+let area (s: Shape) : Float =
+  match s with
+  | Circle r -> 3.14159 * r * r
+  | Rect (w, h) -> w * h
+  | Named (_, inner) -> area inner
+
+let fib (n: Int64) : Int64 =
+  if n < 2L then n else (fib (n - 1L)) + (fib (n - 2L))
+
+let main () : Int64 =
+  let shapes = [Shape.Circle 2.0; Shape.Rect (3.0, 4.0); Shape.Named ("boxed", Shape.Rect (1.5, 2.0))]
+  let areas = shapes |> Stdlib.List.map (fun s -> area s)
+  let total = areas |> Stdlib.List.fold 0.0 (fun acc a -> acc + a)
+  Builtin.debug "areas" areas
+  Builtin.debug "total" total
+
+  let bigs = areas |> Stdlib.List.filter (fun a -> a > 5.0)
+  Builtin.debug "bigs" bigs
+
+  Builtin.debug "fib 18" (fib 18L)
+
+  let acct = Acct { id = 7L; name = "ada"; tags = ["x"; "y"] }
+  let json = Stdlib.Json.serialize<Acct> acct
+  Builtin.debug "json" json
+  match Stdlib.Json.parse<Acct> json with
+  | Ok back -> Builtin.debug "roundtrip ok" (back.name == acct.name && back.tags == acct.tags)
+  | Error e -> Builtin.debug "roundtrip FAILED" e
+
+  let nested = Stdlib.Json.serialize<List<Shape>> shapes
+  Builtin.debug "shapes json" nested
+  match Stdlib.Json.parse<List<Shape>> nested with
+  | Ok back -> Builtin.debug "shape roundtrip" (Stdlib.List.length back)
+  | Error e -> Builtin.debug "shape roundtrip FAILED" e
+
+  0L
+
+main ()

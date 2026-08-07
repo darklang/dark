@@ -1,0 +1,5 @@
+let takesInt (n: Int64) : Int64 = n + 1L
+let main () : Int64 =
+  Builtin.debug "bad" (takesInt "not an int")
+  0L
+main ()
