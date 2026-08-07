@@ -1957,25 +1957,34 @@ type PackageManager =
     (fns : List<PackageFn.PackageFn>)
     (pm : PackageManager)
     : PackageManager =
-    let typeMap = types |> List.map (fun t -> t.hash, t) |> Map.ofList
-    let valueMap = values |> List.map (fun v -> v.hash, v) |> Map.ofList
-    let fnMap = fns |> List.map (fun f -> f.hash, f) |> Map.ofList
+    // These are the items a script defines itself, so for a script this is the lookup for every call
+    // it makes to its own functions -- `depth`, `fib`, whatever it declared.
+    //
+    // It used to be `match Map.tryFind id fnMap with | Some f -> Some f |> Ply`, which allocates a
+    // `Some` in `tryFind` and then a *second* one to return, 48 bytes a call, on top of walking a
+    // balanced tree with the generic comparer. Holding the `Option` in a `Dictionary` means a hit
+    // returns the same object and allocates nothing.
+    let optionMap (items : List<'v>) (hashOf : 'v -> Hash) =
+      let d = Dictionary<Hash, Option<'v>>()
+      items |> List.iter (fun item -> d[hashOf item] <- Some item)
+      d
+
+    let typeMap = optionMap types _.hash
+    let valueMap = optionMap values _.hash
+    let fnMap = optionMap fns _.hash
 
     { getType =
         fun id ->
-          match Map.tryFind id typeMap with
-          | Some t -> Some t |> Ply
-          | None -> pm.getType id
+          let mutable hit = Unchecked.defaultof<Option<PackageType.PackageType>>
+          if typeMap.TryGetValue(id, &hit) then Ply hit else pm.getType id
       getValue =
         fun id ->
-          match Map.tryFind id valueMap with
-          | Some v -> Some v |> Ply
-          | None -> pm.getValue id
+          let mutable hit = Unchecked.defaultof<Option<PackageValue.PackageValue>>
+          if valueMap.TryGetValue(id, &hit) then Ply hit else pm.getValue id
       getFn =
         fun id ->
-          match Map.tryFind id fnMap with
-          | Some f -> Some f |> Ply
-          | None -> pm.getFn id
+          let mutable hit = Unchecked.defaultof<Option<PackageFn.PackageFn>>
+          if fnMap.TryGetValue(id, &hit) then Ply hit else pm.getFn id
       getBlob = pm.getBlob
       persistBlob = pm.persistBlob
       isHarmful = pm.isHarmful
