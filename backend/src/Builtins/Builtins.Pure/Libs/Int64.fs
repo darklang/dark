@@ -117,7 +117,7 @@ let fns () : List<BuiltInFn> =
         (function
         | struct (_, vm, _, [ DInt64 v; DInt64 d ]) ->
           (try
-            v % d |> DInt64 |> resultOk
+            v % d |> Dval.dint64 |> resultOk
            with e ->
              if d = 0L then
                RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
@@ -140,7 +140,7 @@ let fns () : List<BuiltInFn> =
       description = "Adds two integers together, wrapping on overflow"
       fn =
         (function
-        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DInt64(a + b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(Dval.dint64 (a + b))
         | _ -> incorrectArgs ())
       // CLEANUP: SQL pushdown for Int64 arithmetic does not match runtime
       // overflow semantics. Runtime evaluation wraps, but SQLite promotes
@@ -158,7 +158,7 @@ let fns () : List<BuiltInFn> =
       description = "Subtracts two integers, wrapping on overflow"
       fn =
         (function
-        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DInt64(a - b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(Dval.dint64 (a - b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "-"
       previewable = Pure
@@ -173,7 +173,7 @@ let fns () : List<BuiltInFn> =
       description = "Multiplies two integers, wrapping on overflow"
       fn =
         (function
-        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DInt64(a * b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(Dval.dint64 (a * b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "*"
       previewable = Pure
@@ -201,7 +201,7 @@ let fns () : List<BuiltInFn> =
             let r = System.Numerics.BigInteger.ModPow(bigint number, bigint exp, m)
             let r = ((r % m) + m) % m
             let r = if r >= m / bigint 2 then r - m else r
-            int64 r |> DInt64 |> Ply
+            int64 r |> Dval.dint64 |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = SqlFunction "POWER"
       previewable = Pure
@@ -223,7 +223,7 @@ let fns () : List<BuiltInFn> =
             // wraps back to MinValue (the division itself would throw)
             Ply(DInt64 System.Int64.MinValue)
           else
-            Ply(DInt64(a / b))
+            Ply(Dval.dint64 (a / b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "/"
       previewable = Pure
@@ -238,7 +238,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | struct (_, _, _, [ DInt64 a ]) -> Ply(DInt64(-a))
+        | struct (_, _, _, [ DInt64 a ]) -> Ply(Dval.dint64 (-a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -253,7 +253,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
-        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DBool(a > b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(Dval.bool (a > b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">"
       previewable = Pure
@@ -269,7 +269,7 @@ let fns () : List<BuiltInFn> =
         "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
         (function
-        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DBool(a >= b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(Dval.bool (a >= b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp ">="
       previewable = Pure
@@ -284,7 +284,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
-        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DBool(a < b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(Dval.bool (a < b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<"
       previewable = Pure
@@ -300,7 +300,7 @@ let fns () : List<BuiltInFn> =
         "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
         (function
-        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DBool(a <= b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(Dval.bool (a <= b))
         | _ -> incorrectArgs ())
       sqlSpec = SqlBinOp "<="
       previewable = Pure
@@ -354,7 +354,7 @@ let fns () : List<BuiltInFn> =
         (function
         | struct (_, _, _, [ DString s ]) ->
           try
-            s |> System.Convert.ToInt64 |> DInt64 |> resultOk |> Ply
+            s |> System.Convert.ToInt64 |> Dval.dint64 |> resultOk |> Ply
           with
           | :? System.FormatException ->
             ParseError.BadFormat |> ParseError.toDT |> resultError |> Ply
@@ -389,7 +389,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int8 to a 64-bit signed integer."
       fn =
         (function
-        | struct (_, _, _, [ DInt8 a ]) -> DInt64(int64 a) |> Ply
+        | struct (_, _, _, [ DInt8 a ]) -> Dval.dint64 (int64 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -404,7 +404,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt8 to a 64-bit signed integer."
       fn =
         (function
-        | struct (_, _, _, [ DUInt8 a ]) -> DInt64(int64 a) |> Ply
+        | struct (_, _, _, [ DUInt8 a ]) -> Dval.dint64 (int64 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -419,7 +419,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int16 to a 64-bit signed integer."
       fn =
         (function
-        | struct (_, _, _, [ DInt16 a ]) -> DInt64(int64 a) |> Ply
+        | struct (_, _, _, [ DInt16 a ]) -> Dval.dint64 (int64 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -434,7 +434,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt16 to a 64-bit signed integer."
       fn =
         (function
-        | struct (_, _, _, [ DUInt16 a ]) -> DInt64(int64 a) |> Ply
+        | struct (_, _, _, [ DUInt16 a ]) -> Dval.dint64 (int64 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -449,7 +449,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int32 to a 64-bit signed integer."
       fn =
         (function
-        | struct (_, _, _, [ DInt32 a ]) -> DInt64(int64 a) |> Ply
+        | struct (_, _, _, [ DInt32 a ]) -> Dval.dint64 (int64 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -464,7 +464,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt32 to a 64-bit signed integer."
       fn =
         (function
-        | struct (_, _, _, [ DUInt32 a ]) -> DInt64(int64 a) |> Ply
+        | struct (_, _, _, [ DUInt32 a ]) -> Dval.dint64 (int64 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -542,7 +542,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise AND on two <type Int64> values"
       fn =
         (function
-        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DInt64(a &&& b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(Dval.dint64 (a &&& b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -557,7 +557,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise OR on two <type Int64> values"
       fn =
         (function
-        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DInt64(a ||| b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(Dval.dint64 (a ||| b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -572,7 +572,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise XOR on two <type Int64> values"
       fn =
         (function
-        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DInt64(a ^^^ b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(Dval.dint64 (a ^^^ b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -587,7 +587,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise NOT on an <type Int64> value"
       fn =
         (function
-        | struct (_, _, _, [ DInt64 a ]) -> Ply(DInt64(~~~a))
+        | struct (_, _, _, [ DInt64 a ]) -> Ply(Dval.dint64 (~~~a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -602,7 +602,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise left shift of an <type Int64> value"
       fn =
         (function
-        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DInt64(a <<< int b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(Dval.dint64 (a <<< int b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -617,7 +617,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise right shift of an <type Int64> value"
       fn =
         (function
-        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(DInt64(a >>> int b))
+        | struct (_, _, _, [ DInt64 a; DInt64 b ]) -> Ply(Dval.dint64 (a >>> int b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

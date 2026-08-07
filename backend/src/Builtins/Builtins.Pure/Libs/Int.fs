@@ -133,7 +133,7 @@ let fns () : List<BuiltInFn> =
       description = "Adds two arbitrary-precision integers"
       fn =
         (function
-        | struct (_, _, _, [ DInt a; DInt b ]) -> Ply(DInt(DarkInt.add a b))
+        | struct (_, _, _, [ DInt a; DInt b ]) -> Ply(Dval.dint (DarkInt.add a b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -148,7 +148,8 @@ let fns () : List<BuiltInFn> =
       description = "Subtracts two arbitrary-precision integers"
       fn =
         (function
-        | struct (_, _, _, [ DInt a; DInt b ]) -> Ply(DInt(DarkInt.subtract a b))
+        | struct (_, _, _, [ DInt a; DInt b ]) ->
+          Ply(Dval.dint (DarkInt.subtract a b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -163,7 +164,8 @@ let fns () : List<BuiltInFn> =
       description = "Multiplies two arbitrary-precision integers"
       fn =
         (function
-        | struct (_, _, _, [ DInt a; DInt b ]) -> Ply(DInt(DarkInt.multiply a b))
+        | struct (_, _, _, [ DInt a; DInt b ]) ->
+          Ply(Dval.dint (DarkInt.multiply a b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -214,7 +216,10 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | struct (_, vm, _, [ DInt a; DInt b ]) ->
-          if DarkInt.isZero b then divideByZero vm else Ply(DInt(DarkInt.divide a b))
+          if DarkInt.isZero b then
+            divideByZero vm
+          else
+            Ply(Dval.dint (DarkInt.divide a b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -229,7 +234,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | struct (_, _, _, [ DInt a ]) -> Ply(DInt(DarkInt.negate a))
+        | struct (_, _, _, [ DInt a ]) -> Ply(Dval.dint (DarkInt.negate a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -244,7 +249,8 @@ let fns () : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
-        | struct (_, _, _, [ DInt a; DInt b ]) -> Ply(DBool(DarkInt.compare a b > 0))
+        | struct (_, _, _, [ DInt a; DInt b ]) ->
+          Ply(Dval.bool (DarkInt.compare a b > 0))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -261,7 +267,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | struct (_, _, _, [ DInt a; DInt b ]) ->
-          Ply(DBool(DarkInt.compare a b >= 0))
+          Ply(Dval.bool (DarkInt.compare a b >= 0))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -276,7 +282,8 @@ let fns () : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
-        | struct (_, _, _, [ DInt a; DInt b ]) -> Ply(DBool(DarkInt.compare a b < 0))
+        | struct (_, _, _, [ DInt a; DInt b ]) ->
+          Ply(Dval.bool (DarkInt.compare a b < 0))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -293,7 +300,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | struct (_, _, _, [ DInt a; DInt b ]) ->
-          Ply(DBool(DarkInt.compare a b <= 0))
+          Ply(Dval.bool (DarkInt.compare a b <= 0))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -500,7 +507,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         // An Int64 is always in `DarkInt.Finite` range.
-        | struct (_, _, _, [ DInt64 a ]) -> DInt(DarkInt.Finite a) |> Ply
+        | struct (_, _, _, [ DInt64 a ]) -> Dval.dint (DarkInt.Finite a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

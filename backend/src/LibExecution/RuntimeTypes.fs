@@ -1508,8 +1508,49 @@ module TypeDeclaration =
 
 // Functions for working with Dark runtime values
 module Dval =
+  // Interned scalars. A Dval is immutable and compared structurally, so nothing can tell a shared
+  // instance from a fresh one, and the values a program actually computes cluster hard at the small
+  // end: loop counters, indices, lengths, flags.
+  //
+  // `DInt` is the expensive one. `DarkInt` is a struct DU whose `Infinite` case carries a `bigint`,
+  // so a `DInt` object is 56 bytes whether the number needs them or not -- adding two small integers
+  // was the second-largest builtin in the profile at 1.1 MB. `DBool` is only 24 bytes but there are
+  // just two of them in the universe, so caching them is free.
+  //
+  // The tables cost about 90 KB at startup, once.
+  let dTrue : Dval = DBool true
+  let dFalse : Dval = DBool false
+  let inline bool (b : bool) : Dval = if b then dTrue else dFalse
+
+  [<Literal>]
+  let private smallLo = -128L
+
+  [<Literal>]
+  let private smallHi = 1023L
+
+  let private smallInts : Dval[] =
+    Array.init (int (smallHi - smallLo) + 1) (fun i ->
+      DInt(DarkInt.Finite(int64 i + smallLo)))
+
+  let private smallInt64s : Dval[] =
+    Array.init (int (smallHi - smallLo) + 1) (fun i -> DInt64(int64 i + smallLo))
+
+  /// `DInt`, sharing one instance for the small values.
+  let dint (di : DarkInt) : Dval =
+    match di with
+    | DarkInt.Finite i when i >= smallLo && i <= smallHi ->
+      smallInts[int (i - smallLo)]
+    | _ -> DInt di
+
+  /// `DInt64`, sharing one instance for the small values.
+  let dint64 (i : int64) : Dval =
+    if i >= smallLo && i <= smallHi then
+      smallInt64s[int (i - smallLo)]
+    else
+      DInt64 i
+
   /// Constructs an `Int` Dval from a bigint, normalizing through `DarkInt`.
-  let int (b : bigint) : Dval = DInt(DarkInt.ofBigInt b)
+  let int (b : bigint) : Dval = dint (DarkInt.ofBigInt b)
 
   /// The numeric value of an `Int` Dval as a bigint.
   let asBigInt (dv : Dval) : bigint =
