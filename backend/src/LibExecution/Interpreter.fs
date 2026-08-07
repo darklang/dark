@@ -78,6 +78,20 @@ module private FreeTVars =
   let private packageParams =
     System.Collections.Concurrent.ConcurrentDictionary<Hash, List<PackageFn.Parameter>>()
 
+  /// A lambda's parameter patterns, as a list. `head :: tail` conses on every lambda call, and a
+  /// lambda's patterns can't change: the instruction that created it is fixed.
+  let private lambdaPatterns =
+    System.Collections.Concurrent.ConcurrentDictionary<id, List<LetPattern>>()
+
+  let patternsOfLambda (exprId : id) (pats : NEList<LetPattern>) : List<LetPattern> =
+    let mutable cached = Unchecked.defaultof<List<LetPattern>>
+    if lambdaPatterns.TryGetValue(exprId, &cached) then
+      cached
+    else
+      let v = NEList.toList pats
+      lambdaPatterns[exprId] <- v
+      v
+
   let paramsOfPackage (fn : PackageFn.PackageFn) : List<PackageFn.Parameter> =
     let mutable cached = Unchecked.defaultof<List<PackageFn.Parameter>>
     if packageParams.TryGetValue(fn.hash, &cached) then
@@ -1441,9 +1455,11 @@ let private applyInstruction
       // Resolved here so the loop never has to look it up. Same shared InstrData the
       // per-VM cache holds; this is a reference to it, not a copy.
       let lambdaInstrData =
-        match Map.tryFind exprId vm.lambdaInstrDataCache with
-        | Some cached -> cached
-        | None ->
+        // `TryGetValue` rather than `Map.tryFind`, which allocates a `Some` on every hit.
+        let mutable hit = Unchecked.defaultof<InstrData>
+        if vm.lambdaInstrDataCache.TryGetValue(exprId, &hit) then
+          hit
+        else
           let d : InstrData =
             { instructions = List.toArray foundLambda.instructions.instructions
               resultReg = foundLambda.instructions.resultIn }
@@ -1473,7 +1489,7 @@ let private applyInstruction
       bindLambdaParams
         vm
         r
-        (foundLambda.patterns.head :: foundLambda.patterns.tail)
+        (FreeTVars.patternsOfLambda exprId foundLambda.patterns)
         allArgs
 
       // copy over closed registers
