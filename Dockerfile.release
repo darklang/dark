@@ -1,0 +1,86 @@
+# Build image for the NativeAOT release matrix. Not a dev container: it has no
+# Dark tooling, no database, no packages. It exists to run
+# scripts/build/build-sqlite.sh and scripts/build/build-release-cli-exes.sh
+# and nothing else.
+#
+# Two jobs, both of which the normal dark-base image cannot do:
+#
+# 1. Set the glibc floor. dark-base is ubuntu:24.04 (glibc 2.39), and an AOT
+#    binary built there requires GLIBC_2.38, which does not exist on Ubuntu
+#    22.04, Debian 12, RHEL 9 or Amazon Linux 2023. The R2R binary we ship
+#    today needs only GLIBC_2.27, so building AOT on 24.04 would be a silent
+#    compatibility regression. 20.04 gives glibc 2.31, which covers RHEL 9 and
+#    Amazon Linux 2023.
+#
+# 2. Cross-compile. NativeAOT drives the final link through a C compiler. The
+#    default is gcc, which cannot cross-target: ilc passes `--target=<triple>`
+#    and gcc rejects it outright (measured, 2026-08-06). clang takes --target,
+#    so with clang plus a sysroot per architecture one x64 runner produces all
+#    four linux artifacts. Without this, linux-arm64/linux-arm would each need
+#    their own native runner, and dark-base is published amd64-only.
+#
+# macOS artifacts still need a Mac. That part is not fixable here: ilc emits
+# Mach-O through the platform linker.
+FROM ubuntu:20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# tzdata and libicu are not optional. Without them the .NET SDK installs fine
+# and then dies in TimeZoneInfo..cctor() on the first command, which reads as
+# "20.04 is unsupported" when it is really a missing dependency.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates curl unzip xz-utils git \
+    tzdata libicu66 \
+    clang lld \
+    gcc-aarch64-linux-gnu libc6-dev-arm64-cross \
+    gcc-arm-linux-gnueabihf libc6-dev-armhf-cross \
+    zlib1g-dev \
+    binutils \
+    # qemu-user lets the cross-built arm64 artifact actually be run here.
+    # Without it those artifacts ship having never executed anywhere, and a
+    # binary that links is not a binary that works: an armv7 build during this
+    # work compiled, linked and started before dying on a struct layout
+    # mismatch. Emulated validation catches that class of thing.
+    qemu-user-static \
+  && rm -rf /var/lib/apt/lists/*
+
+# arm64 runtime libraries, so the emulated smoke test can get past the point
+# where .NET dlopens OpenSSL. Ubuntu's arm64 packages live on ports.ubuntu.com
+# rather than the main archive, so the existing sources have to be pinned to
+# amd64 first or apt tries (and fails) to fetch arm64 from archive.ubuntu.com.
+RUN sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list \
+  && dpkg --add-architecture arm64 \
+  && echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports focal main universe" \
+       > /etc/apt/sources.list.d/arm64.list \
+  && echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports focal-updates main universe" \
+       >> /etc/apt/sources.list.d/arm64.list \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends libssl1.1:arm64 libicu66:arm64 \
+  && rm -rf /var/lib/apt/lists/*
+
+# .NET SDK, pinned to the exact version in backend/global.json, which sets
+# "rollForward": "disable". A channel install gets whatever's current and the
+# build then refuses to run at all. Bump both together.
+ARG DOTNET_SDK_VERSION=10.0.102
+RUN curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
+  && bash /tmp/dotnet-install.sh --version "${DOTNET_SDK_VERSION}" --install-dir /usr/share/dotnet \
+  && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet \
+  && rm /tmp/dotnet-install.sh
+
+# zig, for the SQLite static archives. Same version the dev container uses;
+# keep them in step, since the archives are what gets linked either way.
+ARG ZIG_VERSION=0.13.0
+RUN curl -sSL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-x86_64-${ZIG_VERSION}.tar.xz" -o /tmp/zig.tar.xz \
+  && mkdir -p /root/zig \
+  && tar -xf /tmp/zig.tar.xz -C /root/zig --strip-components=1 \
+  && rm /tmp/zig.tar.xz
+ENV PATH="/root/zig:${PATH}"
+
+# The build scripts run without re-entering a container: CI is already inside
+# this image. Same mechanism the in-container executor uses.
+ENV IN_DEV_CONTAINER=true
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
+ENV DOTNET_NOLOGO=1
+
+WORKDIR /root/app
