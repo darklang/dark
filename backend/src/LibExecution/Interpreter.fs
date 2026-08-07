@@ -1910,6 +1910,78 @@ let private runSyncInstructions
 
 
 
+/// Why the synchronous run of a frame's instructions stopped.
+[<Struct>]
+type private FrameStep =
+  /// The block ended, or an `Apply` pushed a frame. Either way the caller looks at `vm.frameToPush`.
+  | FrameBlockEnded
+  /// A builtin that had to wait. Its result goes in this register.
+  | FrameAwaitBuiltin of fbCall : Ply<Dval> * fbReg : Register
+  /// A package call that had to wait.
+  | FrameAwaitPackage of fpCall : Ply<PackageOutcome> * fpReg : Register
+  /// The counter is sitting on one of the four opcodes the caller still runs itself.
+  | FrameRareOpcode
+
+  member this.IsBlockEnded =
+    match this with
+    | FrameBlockEnded -> true
+    | _ -> false
+
+
+/// Run a frame's instructions until something needs the caller: an await, one of the four rare
+/// opcodes, a pushed frame, or the end of the block.
+///
+/// This is the loop that used to live inside the computation expression, where Ply built a
+/// continuation for its body on every iteration -- once per frame activation, about 122,000 times in
+/// the reference workload. Here it's an ordinary `while`, and the caller enters the builder only for
+/// the cases above, which are rare.
+let private runFrame
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (registers : Dval array)
+  (instrData : InstrData)
+  : FrameStep =
+  let mutable step = FrameBlockEnded
+  let mutable running = true
+
+  while running
+        && currentFrame.programCounter < instrData.instructions.Length
+        && vm.frameToPush.IsNone do
+    let struct (drainedTo, pendingApply) =
+      runSyncInstructions
+        exeState
+        vm
+        currentFrame
+        registers
+        instrData
+        currentFrame.programCounter
+    currentFrame.programCounter <- drainedTo
+
+    match pendingApply with
+    | AwaitBuiltin(call, reg) ->
+      step <- FrameAwaitBuiltin(call, reg)
+      running <- false
+    | AwaitPackage(call, reg) ->
+      step <- FrameAwaitPackage(call, reg)
+      running <- false
+    | ApplyDone ->
+      if
+        currentFrame.programCounter < instrData.instructions.Length
+        && vm.frameToPush.IsNone
+      then
+        step <- FrameRareOpcode
+        running <- false
+
+  step
+
+
+/// Make a freshly built frame the current one.
+let inline private pushFrame (vm : VMState) (frame : CallFrame) : unit =
+  vm.callFrames[frame.id] <- frame
+  vm.currentFrameID <- frame.id
+
+
 let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
   uply {
     // No local `raiseRTE` alias: every continuation the builder makes for the loop body would
@@ -1928,291 +2000,273 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
 
       vm.frameToPush <- ValueNone
 
-      // The program counter lives on the frame rather than in a local. A local here would be
-      // captured by every continuation the builder makes, which turns it into a heap ref cell
-      // allocated once per frame activation. The field was already there and already mutable.
-      while currentFrame.programCounter < instrData.instructions.Length
-            && vm.frameToPush.IsNone do
-        // Drain every instruction that doesn't need to await, outside the computation expression.
-        // That now includes `Apply`, so this loop body -- and the continuation the builder makes for
-        // it -- is reached only when something genuinely has to wait, or for one of the four rare
-        // opcodes below.
-        let struct (drainedTo, pendingApply) =
-          runSyncInstructions
-            exeState
-            vm
-            currentFrame
-            registers
-            instrData
-            currentFrame.programCounter
-        currentFrame.programCounter <- drainedTo
+      // The whole of a frame's instruction stream runs in `runFrame`, outside this computation
+      // expression. It comes back only for an await, one of the four rare opcodes, a pushed frame or
+      // the end of the block, and this loop then comes round again for the rest -- so the builder
+      // makes a continuation per *interruption* rather than per iteration.
+      let step = runFrame exeState vm currentFrame registers instrData
 
-        match pendingApply with
-        | ApplyDone -> ()
-        | AwaitBuiltin(call, reg) ->
-          let! dv = call
-          registers[reg] <- dv
-          currentFrame.programCounter <- currentFrame.programCounter + 1
-        | AwaitPackage(call, reg) ->
-          let! o = call
-          match o with
-          | PartiallyApplied dv -> registers[reg] <- dv
-          | PushFrame frame -> vm.frameToPush <- ValueSome frame
-          currentFrame.programCounter <- currentFrame.programCounter + 1
+      match step with
+      | FrameBlockEnded
+      | FrameRareOpcode -> ()
+      | FrameAwaitBuiltin(call, reg) ->
+        let! dv = call
+        registers[reg] <- dv
+        currentFrame.programCounter <- currentFrame.programCounter + 1
+      | FrameAwaitPackage(call, reg) ->
+        let! o = call
+        currentFrame.programCounter <- currentFrame.programCounter + 1
+        match o with
+        | PartiallyApplied dv -> registers[reg] <- dv
+        // Pushed here rather than left in `vm.frameToPush`, which the next turn of this loop clears.
+        | PushFrame frame -> pushFrame vm frame
 
-        if
-          pendingApply.IsDone
-          && currentFrame.programCounter < instrData.instructions.Length
-          && vm.frameToPush.IsNone
-        then
+      match step with
+      | FrameRareOpcode ->
+        if vm.stats.enabled then
+          vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+
+        let inst = instrData.instructions[currentFrame.programCounter]
+        let allocBefore =
           if vm.stats.enabled then
-            vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+            System.GC.GetAllocatedBytesForCurrentThread()
+          else
+            0L
 
-          let inst = instrData.instructions[currentFrame.programCounter]
-          let allocBefore =
-            if vm.stats.enabled then
-              System.GC.GetAllocatedBytesForCurrentThread()
-            else
-              0L
+        match inst with
+        | CreateRecord(recordReg, sourceTypeName, typeArgs, fields) ->
+          let fields =
+            fields |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
 
-          match inst with
-          | CreateRecord(recordReg, sourceTypeName, typeArgs, fields) ->
-            let fields =
+          let! typeArgs =
+            typeArgs
+            |> Ply.List.mapSequentially (
+              TypeReference.toVT exeState.types currentFrame.typeSymbolTable
+            )
+
+          let! record =
+            TypeChecker.DvalCreator.record
+              exeState.types
+              vm.threadID
+              currentFrame.typeSymbolTable
+              sourceTypeName
+              typeArgs
               fields
+
+          registers[recordReg] <- record
+        | CloneRecordWithUpdates(targetReg, originalRecordReg, fieldUpdates) ->
+          let originalRecord = registers[originalRecordReg]
+
+          match originalRecord with
+          | DRecord(sourceTypeName, resolvedTypeName, typeArgs, originalFields) ->
+            let fieldUpdates =
+              fieldUpdates
               |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
 
-            let! typeArgs =
-              typeArgs
-              |> Ply.List.mapSequentially (
-                TypeReference.toVT exeState.types currentFrame.typeSymbolTable
-              )
-
-            let! record =
-              TypeChecker.DvalCreator.record
+            let! updatedRecord =
+              TypeChecker.DvalCreator.recordUpdate
                 exeState.types
                 vm.threadID
                 currentFrame.typeSymbolTable
                 sourceTypeName
+                resolvedTypeName
                 typeArgs
-                fields
-
-            registers[recordReg] <- record
-          | CloneRecordWithUpdates(targetReg, originalRecordReg, fieldUpdates) ->
-            let originalRecord = registers[originalRecordReg]
-
-            match originalRecord with
-            | DRecord(sourceTypeName, resolvedTypeName, typeArgs, originalFields) ->
-              let fieldUpdates =
+                originalFields
                 fieldUpdates
-                |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
 
-              let! updatedRecord =
-                TypeChecker.DvalCreator.recordUpdate
-                  exeState.types
-                  vm.threadID
-                  currentFrame.typeSymbolTable
-                  sourceTypeName
-                  resolvedTypeName
-                  typeArgs
-                  originalFields
-                  fieldUpdates
+            registers[targetReg] <- updatedRecord
 
-              registers[targetReg] <- updatedRecord
+          | dv ->
+            Dval.toValueType dv
+            |> RTE.Records.UpdateNotRecord
+            |> RTE.Record
+            |> raiseRTE vm.threadID
+        | CreateEnum(enumReg, typeName, typeArgs, caseName, fields) ->
+          let fields = fields |> List.map (fun valueReg -> registers[valueReg])
 
-            | dv ->
-              Dval.toValueType dv
-              |> RTE.Records.UpdateNotRecord
-              |> RTE.Record
-              |> raiseRTE vm.threadID
-          | CreateEnum(enumReg, typeName, typeArgs, caseName, fields) ->
-            let fields = fields |> List.map (fun valueReg -> registers[valueReg])
+          let tst = currentFrame.typeSymbolTable
 
-            let tst = currentFrame.typeSymbolTable
+          let! typeArgs =
+            typeArgs
+            |> Ply.List.mapSequentially (TypeReference.toVT exeState.types tst)
 
-            let! typeArgs =
+          let! newEnum =
+            TypeChecker.DvalCreator.enum
+              exeState.types
+              vm.threadID
+              tst
+              typeName
               typeArgs
-              |> Ply.List.mapSequentially (TypeReference.toVT exeState.types tst)
+              caseName
+              fields
 
-            let! newEnum =
-              TypeChecker.DvalCreator.enum
-                exeState.types
-                vm.threadID
-                tst
-                typeName
-                typeArgs
-                caseName
-                fields
+          registers[enumReg] <- newEnum
+        | LoadValue(createTo, name) ->
+          match name with
+          | FQValueName.Builtin builtin ->
+            match Map.find builtin exeState.values.builtIn with
+            | Some v -> registers[createTo] <- v.body
+            | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
 
-            registers[enumReg] <- newEnum
-          | LoadValue(createTo, name) ->
-            match name with
-            | FQValueName.Builtin builtin ->
-              match Map.find builtin exeState.values.builtIn with
-              | Some v -> registers[createTo] <- v.body
-              | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
+          | FQValueName.Package pkg ->
+            match! exeState.values.package pkg with
+            | Some v ->
+              // The Dval is already stored in the package value
+              registers[createTo] <- v.body
+            | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
+        // `Apply` never arrives here: `runSyncInstructions` runs it, and `runFrame` only reports
+        // `FrameRareOpcode` for the four above. Loud rather than silent if that ever stops holding.
+        | Apply _ ->
+          Exception.raiseInternal
+            "Apply reached the interpreter's async instruction path"
+            []
 
-            | FQValueName.Package pkg ->
-              match! exeState.values.package pkg with
-              | Some v ->
-                // The Dval is already stored in the package value
-                registers[createTo] <- v.body
-              | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
-          | Apply(putResultIn, thingToCallReg, typeArgs, newArgRegs) ->
-            match
-              applyInstruction
-                exeState
-                vm
-                currentFrame
-                registers
-                putResultIn
-                thingToCallReg
-                typeArgs
-                newArgRegs
-            with
-            | ApplyDone -> ()
-            | AwaitBuiltin(call, reg) ->
-              let! dv = call
-              registers[reg] <- dv
-            | AwaitPackage(call, reg) ->
-              let! o = call
-              match o with
-              | PartiallyApplied dv -> registers[reg] <- dv
-              | PushFrame frame -> vm.frameToPush <- ValueSome frame
+        // Handled by `runSyncInstructions`; the match must still be exhaustive.
+        | _ -> ()
 
+        if vm.stats.enabled then
+          let tag = Opcode.index inst
+          if tag >= 0 && tag < vm.stats.allocByOpcode.Length then
+            // Clamped at zero: these arms await, and this counter is per-thread, so a resume on another
+            // thread makes the odd delta meaningless rather than merely noisy.
+            let delta = System.GC.GetAllocatedBytesForCurrentThread() - allocBefore
+            if delta > 0L then
+              vm.stats.allocByOpcode[tag] <- vm.stats.allocByOpcode[tag] + delta
+            vm.stats.countByOpcode[tag] <- vm.stats.countByOpcode[tag] + 1L
 
-          // Handled by `runSyncInstructions`; the match must still be exhaustive.
-          | _ -> ()
+        currentFrame.programCounter <- currentFrame.programCounter + 1
 
-          if vm.stats.enabled then
-            let tag = Opcode.index inst
-            if tag >= 0 && tag < vm.stats.allocByOpcode.Length then
-              // Clamped at zero: these arms await, and this counter is per-thread, so a resume on another
-              // thread makes the odd delta meaningless rather than merely noisy.
-              let delta = System.GC.GetAllocatedBytesForCurrentThread() - allocBefore
-              if delta > 0L then
-                vm.stats.allocByOpcode[tag] <- vm.stats.allocByOpcode[tag] + delta
-              vm.stats.countByOpcode[tag] <- vm.stats.countByOpcode[tag] + 1L
+      | FrameBlockEnded
+      | FrameAwaitBuiltin _
+      | FrameAwaitPackage _ -> ()
 
-          currentFrame.programCounter <- currentFrame.programCounter + 1
-
-
-
-      // exited loop -- either pushed a frame or finished the current frame
-
-      match vm.frameToPush with
-      | ValueSome newFrame ->
-        // Something in this eval just pushed a frame -- don't do the "normal" processing
-        vm.callFrames[newFrame.id] <- newFrame
-        vm.currentFrameID <- newFrame.id
-
-      | ValueNone ->
-        // We are at the end of the instructions of the current frame
-        // Either we're done with the whole eval, or we need to return a value to the parent frame
-        let resultOfFrame = registers[instrData.resultReg]
-
-        match currentFrame.parent with
-        | ValueSome(parentID, regOfParentToPutResultInto, pcOfParent) ->
-          // We just finished processing a frame, and we need to return a value to the parent frame
-
-          // TODO this might be where the type-checking of a fn result needs to happen.
-          // But when here, it's not always a fn call - could also be for a lambda.
-
-          // Type-check results of fns
-          let retTcAlloc = allocNow vm
-          match currentFrame.executionPoint with
-          | Source -> ()
-          | Lambda _ -> ()
-          | Function fnName ->
-            // Recorded when the frame was pushed. Builtins never get a frame, so a Function frame always
-            // carries one; the fallback keeps the match total rather than asserting.
-            let expectedReturnType =
-              match currentFrame.expectedReturnType with
-              | ValueSome t -> t
-              | ValueNone ->
-                match fnName with
-                | FQFnName.Builtin builtin ->
-                  (Map.findUnsafe builtin exeState.fns.builtIn).returnType
-                | FQFnName.Package _ -> RTE.FnNotFound fnName |> raiseRTE vm.threadID
-
-            let tst = currentFrame.typeSymbolTable
-            // Every frame return checks its result, so the same sync-first treatment as the argument
-            // checks applies: skip the bind when the answer needs no type lookup.
-            match TypeChecker.tryUnifySync tst expectedReturnType resultOfFrame with
-            | ValueSome _ ->
-              recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
-            | ValueNone ->
-              // Closed before the bind, for the reason in `finishBuiltin`. Reading 6.7 MB here was
-              // this bracket measuring resumed execution; the region is really about 0.7.
-              recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
-              match!
-                TypeChecker.unify exeState.types tst expectedReturnType resultOfFrame
-              with
-              | Ok _updatedTst ->
-                //currentFrame.typeSymbolTable <- updatedTst
-                // CLEANUP is this^ or something like it worthwhile?
-                ()
-              | Error _path ->
-                let! expectedVT =
-                  TypeReference.toVT exeState.types tst expectedReturnType
-                return
-                  RuntimeError.Applications.FnResultNotExpectedType(
-                    fnName,
-                    expectedVT,
-                    Dval.toValueType resultOfFrame,
-                    resultOfFrame
-                  )
-                  |> RuntimeError.Apply
-                  |> raiseRTE vm.threadID
-
-
-          // Record per-package-fn timing on frame return
-          if vm.stats.enabled && vm.stats.detailedTiming then
-            match vm.stats.framePushTimestamps.TryGetValue(vm.currentFrameID) with
-            | true, pushTs ->
-              let elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - pushTs
-              match currentFrame.executionPoint with
-              | Function(FQFnName.Package(Hash h)) ->
-                vm.stats.recordPackageFn (h, elapsed)
-              | _ -> ()
-              vm.stats.framePushTimestamps.Remove(vm.currentFrameID) |> ignore<bool>
-            | false, _ -> ()
-
-          let framePopAlloc = allocNow vm
-          vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
-
-          vm.currentFrameID <- parentID
-
-          let parentFrame = vm.callFrames[parentID]
-
-          // Trace package function call at frame return.
-          // Lambda frames fire storeLambdaResult instead.
-          if not exeState.tracing.skipTracing then
-            match currentFrame.executionPoint with
-            | Function fnName ->
-              match vm.pendingCallArgs.TryGetValue(currentFrame.id) with
-              | true, args ->
-                vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
-                let source : Tracing.Source = (parentFrame.executionPoint, None)
-                let fnRecord : Tracing.FunctionRecord = (source, fnName)
-                exeState.tracing.storeFnResult
-                  fnRecord
-                  (NEList.ofListUnsafe "" [] args)
-                  resultOfFrame
-              | _ -> ()
-            | Lambda _ ->
-              vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
-              exeState.tracing.storeLambdaResult currentFrame.id resultOfFrame
-            | Source -> vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
-          parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
-          parentFrame.programCounter <- pcOfParent
-          // Last, after everything above that still reads the popped frame. `resultOfFrame` came out
-          // of its registers before the pop and is now in the parent's.
-          returnFrame vm currentFrame
-          recordStage vm ApplyStage.FramePop framePopAlloc
+      // Either a frame was pushed, or this one finished. An await or a rare opcode just comes round
+      // again, since the frame it was running is still the current one.
+      // Only when the frame's block actually ended. An await or a rare opcode leaves the frame
+      // part-run, and the next turn of this loop picks it up where it left off.
+      if step.IsBlockEnded then
+        match vm.frameToPush with
+        | ValueSome newFrame ->
+          // Something in this eval just pushed a frame -- don't do the "normal" processing
+          vm.callFrames[newFrame.id] <- newFrame
+          vm.currentFrameID <- newFrame.id
 
         | ValueNone ->
-          vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
-          vm.finalResult <- ValueSome resultOfFrame
+          // We are at the end of the instructions of the current frame
+          // Either we're done with the whole eval, or we need to return a value to the parent frame
+          let resultOfFrame = registers[instrData.resultReg]
+
+          match currentFrame.parent with
+          | ValueSome(parentID, regOfParentToPutResultInto, pcOfParent) ->
+            // We just finished processing a frame, and we need to return a value to the parent frame
+
+            // TODO this might be where the type-checking of a fn result needs to happen.
+            // But when here, it's not always a fn call - could also be for a lambda.
+
+            // Type-check results of fns
+            let retTcAlloc = allocNow vm
+            match currentFrame.executionPoint with
+            | Source -> ()
+            | Lambda _ -> ()
+            | Function fnName ->
+              // Recorded when the frame was pushed. Builtins never get a frame, so a Function frame always
+              // carries one; the fallback keeps the match total rather than asserting.
+              let expectedReturnType =
+                match currentFrame.expectedReturnType with
+                | ValueSome t -> t
+                | ValueNone ->
+                  match fnName with
+                  | FQFnName.Builtin builtin ->
+                    (Map.findUnsafe builtin exeState.fns.builtIn).returnType
+                  | FQFnName.Package _ ->
+                    RTE.FnNotFound fnName |> raiseRTE vm.threadID
+
+              let tst = currentFrame.typeSymbolTable
+              // Every frame return checks its result, so the same sync-first treatment as the argument
+              // checks applies: skip the bind when the answer needs no type lookup.
+              match
+                TypeChecker.tryUnifySync tst expectedReturnType resultOfFrame
+              with
+              | ValueSome _ ->
+                recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
+              | ValueNone ->
+                // Closed before the bind, for the reason in `finishBuiltin`. Reading 6.7 MB here was
+                // this bracket measuring resumed execution; the region is really about 0.7.
+                recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
+                match!
+                  TypeChecker.unify
+                    exeState.types
+                    tst
+                    expectedReturnType
+                    resultOfFrame
+                with
+                | Ok _updatedTst ->
+                  //currentFrame.typeSymbolTable <- updatedTst
+                  // CLEANUP is this^ or something like it worthwhile?
+                  ()
+                | Error _path ->
+                  let! expectedVT =
+                    TypeReference.toVT exeState.types tst expectedReturnType
+                  return
+                    RuntimeError.Applications.FnResultNotExpectedType(
+                      fnName,
+                      expectedVT,
+                      Dval.toValueType resultOfFrame,
+                      resultOfFrame
+                    )
+                    |> RuntimeError.Apply
+                    |> raiseRTE vm.threadID
+
+
+            // Record per-package-fn timing on frame return
+            if vm.stats.enabled && vm.stats.detailedTiming then
+              match vm.stats.framePushTimestamps.TryGetValue(vm.currentFrameID) with
+              | true, pushTs ->
+                let elapsed = System.Diagnostics.Stopwatch.GetTimestamp() - pushTs
+                match currentFrame.executionPoint with
+                | Function(FQFnName.Package(Hash h)) ->
+                  vm.stats.recordPackageFn (h, elapsed)
+                | _ -> ()
+                vm.stats.framePushTimestamps.Remove(vm.currentFrameID)
+                |> ignore<bool>
+              | false, _ -> ()
+
+            let framePopAlloc = allocNow vm
+            vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
+
+            vm.currentFrameID <- parentID
+
+            let parentFrame = vm.callFrames[parentID]
+
+            // Trace package function call at frame return.
+            // Lambda frames fire storeLambdaResult instead.
+            if not exeState.tracing.skipTracing then
+              match currentFrame.executionPoint with
+              | Function fnName ->
+                match vm.pendingCallArgs.TryGetValue(currentFrame.id) with
+                | true, args ->
+                  vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+                  let source : Tracing.Source = (parentFrame.executionPoint, None)
+                  let fnRecord : Tracing.FunctionRecord = (source, fnName)
+                  exeState.tracing.storeFnResult
+                    fnRecord
+                    (NEList.ofListUnsafe "" [] args)
+                    resultOfFrame
+                | _ -> ()
+              | Lambda _ ->
+                vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+                exeState.tracing.storeLambdaResult currentFrame.id resultOfFrame
+              | Source -> vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+            parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
+            parentFrame.programCounter <- pcOfParent
+            // Last, after everything above that still reads the popped frame. `resultOfFrame` came out
+            // of its registers before the pop and is now in the parent's.
+            returnFrame vm currentFrame
+            recordStage vm ApplyStage.FramePop framePopAlloc
+
+          | ValueNone ->
+            vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
+            vm.finalResult <- ValueSome resultOfFrame
 
 
     // If we've reached the end of the instructions, return the result
