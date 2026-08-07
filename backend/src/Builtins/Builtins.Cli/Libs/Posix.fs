@@ -1,6 +1,6 @@
 /// Posix libc bridge via P/Invoke — thin wrappers around OS functions.
 /// Dark code builds on top of these instead of shelling out to bash.
-/// Linux (x86_64, aarch64) and macOS only. Will not work on Windows.
+/// Linux (x86_64, aarch64, armv7) and macOS only. Will not work on Windows.
 module Builtins.Cli.Libs.Posix
 
 open System
@@ -38,6 +38,20 @@ module Libc =
 
   [<DllImport("libc", EntryPoint = "stat", SetLastError = true)>]
   extern int private stat_raw(string path, IntPtr buf)
+
+  // glibc only began exporting `stat` and `lstat` as ordinary symbols in
+  // 2.33. Before that they were header inlines over `__xstat`/`__lxstat`,
+  // which take a leading struct-version argument. A P/Invoke to "stat" throws
+  // EntryPointNotFoundException on any older system, so we need both and pick
+  // at runtime.
+  //
+  // This matters more than it looks: it's not an exotic-platform problem. The
+  // release build targets glibc 2.29 precisely so it runs on older distros,
+  // and those are exactly the ones without `stat`. Verified failing on Ubuntu
+  // 20.04 (glibc 2.31) with the AOT binary; the R2R build has the same bug.
+  // It goes unnoticed because dev machines and CI runners are all 2.33+.
+  [<DllImport("libc", EntryPoint = "__xstat", SetLastError = true)>]
+  extern int private xstat_raw(int version, string path, IntPtr buf)
 
   [<DllImport("libc", EntryPoint = "rename", SetLastError = true)>]
   extern int private rename_raw(string oldpath, string newpath)
@@ -136,13 +150,17 @@ module Libc =
   let private isMac = RuntimeInformation.IsOSPlatform OSPlatform.OSX
   let private isArm64 = RuntimeInformation.ProcessArchitecture = Architecture.Arm64
   let private isX64 = RuntimeInformation.ProcessArchitecture = Architecture.X64
+  /// 32-bit ARM (armv7). Distinct from Arm64 in more than pointer width: off_t
+  /// and time_t are 32 bits here, so struct stat's size and mtime fields are
+  /// half the width they are everywhere else.
+  let private isArm32 = RuntimeInformation.ProcessArchitecture = Architecture.Arm
 
   do
-    if not isMac && not isArm64 && not isX64 then
+    if not isMac && not isArm64 && not isX64 && not isArm32 then
       raise (
         System.PlatformNotSupportedException(
           $"Posix builtins: unsupported architecture {RuntimeInformation.ProcessArchitecture} on Linux. "
-          + "Struct offsets are only known for x86_64 and aarch64."
+          + "Struct offsets are only known for x86_64, aarch64 and armv7."
         )
       )
 
@@ -249,29 +267,72 @@ module Libc =
     let fd = open_raw (path, flags, mode)
     if fd < 0 then Error(lastError ()) else Ok fd
 
+  /// The struct-version argument __xstat expects, per architecture. Measured
+  /// from _STAT_VER in each target's glibc headers rather than guessed:
+  /// x86_64 is 1, aarch64 is 0, armv7 is 3. macOS never uses this path.
+  let private statVer =
+    if isX64 then 1
+    elif isArm64 then 0
+    else 3 // armv7
+
+  /// Whether libc exports `stat` directly (glibc 2.33+), or we have to go
+  /// through `__xstat`. Resolved once, on first use: the check itself is a
+  /// P/Invoke that throws when the symbol is absent.
+  let private useXstat =
+    lazy
+      (if isMac then
+         false
+       else
+         // Probe with a real buffer and a real path. Passing NULL would work
+         // only for as long as the path stays nonexistent, and libc writing
+         // to NULL is a segfault rather than an error return. We only care
+         // whether the *symbol* resolves, so the result is discarded.
+         let buf = Marshal.AllocHGlobal(256)
+
+         try
+           try
+             stat_raw ("/", buf) |> ignore<int>
+             false
+           with :? EntryPointNotFoundException ->
+             true
+         finally
+           Marshal.FreeHGlobal buf)
+
+  /// stat(2), routed through whichever entry point this libc actually has.
+  let private stat_compat (path : string) (buf : IntPtr) : int =
+    if useXstat.Force() then xstat_raw (statVer, path, buf) else stat_raw (path, buf)
+
   /// Calls stat() and extracts (mode, size, mtimeSec) from the struct.
   /// Offsets are platform-specific (Linux vs macOS struct layouts differ).
   let stat (path : string) : Result<int * int64 * int64, int * string> =
     let buf = Marshal.AllocHGlobal(256)
     try
-      if stat_raw (path, buf) < 0 then
+      if stat_compat path buf < 0 then
         Error(lastError ())
       else
         // struct stat field offsets differ across OS and architecture:
         //   macOS (all):   st_mode at 4 (int16), st_size at 96, st_mtime at 48
         //   Linux x86_64:  st_mode at 24, st_size at 48, st_mtime at 88
         //   Linux aarch64: st_mode at 16, st_size at 48, st_mtime at 88
+        //   Linux armv7:   st_mode at 16, st_size at 44, st_mtime at 64
+        // armv7 is the odd one: off_t and time_t are 32 bits, so size and
+        // mtime are Int32 reads. Reading them as Int64 there gets garbage from
+        // the adjacent field. Offsets measured against glibc 2.31 armhf.
         let mode =
           if isMac then
             int (Marshal.ReadInt16(buf, 4)) &&& 0xFFFF
-          elif isArm64 then
+          elif isArm64 || isArm32 then
             Marshal.ReadInt32(buf, 16)
           else // x86_64 Linux (guarded by startup check)
             Marshal.ReadInt32(buf, 24)
         let size =
-          if isMac then Marshal.ReadInt64(buf, 96) else Marshal.ReadInt64(buf, 48)
+          if isMac then Marshal.ReadInt64(buf, 96)
+          elif isArm32 then int64 (Marshal.ReadInt32(buf, 44))
+          else Marshal.ReadInt64(buf, 48)
         let mtimeSec =
-          if isMac then Marshal.ReadInt64(buf, 48) else Marshal.ReadInt64(buf, 88)
+          if isMac then Marshal.ReadInt64(buf, 48)
+          elif isArm32 then int64 (Marshal.ReadInt32(buf, 64))
+          else Marshal.ReadInt64(buf, 88)
         Ok(mode, size, mtimeSec)
     finally
       Marshal.FreeHGlobal buf
@@ -339,15 +400,15 @@ module Libc =
   let fileOwner (path : string) : Result<string, int * string> =
     let buf = Marshal.AllocHGlobal(256)
     try
-      if stat_raw (path, buf) < 0 then
+      if stat_compat path buf < 0 then
         Error(lastError ())
       else
         // struct stat st_uid offset:
-        //   macOS: 16, Linux x86_64: 28, Linux aarch64: 24
+        //   macOS: 16, Linux x86_64: 28, Linux aarch64: 24, Linux armv7: 24
         let uid =
           if isMac then
             uint32 (Marshal.ReadInt32(buf, 16))
-          elif isArm64 then
+          elif isArm64 || isArm32 then
             uint32 (Marshal.ReadInt32(buf, 24))
           else // x86_64 Linux (guarded by startup check)
             uint32 (Marshal.ReadInt32(buf, 28))
