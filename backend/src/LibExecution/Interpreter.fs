@@ -1306,7 +1306,6 @@ let private completePackage
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
-  (pendingCallArgs : System.Collections.Generic.Dictionary<uuid, Dval list>)
   (ctx : ApplyContext)
   (fn : PackageFn.PackageFn)
   (implicitTypeParams : Set<string>)
@@ -1349,7 +1348,8 @@ let private completePackage
       vm.stats.tstSizeSum <- vm.stats.tstSizeSum + n
       if n > vm.stats.tstSizeMax then vm.stats.tstSizeMax <- n
     let newFrameId = nextFrameId vm
-    if not exeState.tracing.skipTracing then pendingCallArgs[newFrameId] <- allArgs
+    if not exeState.tracing.skipTracing then
+      vm.pendingCallArgs[newFrameId] <- allArgs
     if vm.stats.enabled then
       vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
       vm.stats.framePushCount <- vm.stats.framePushCount + 1L
@@ -1402,7 +1402,6 @@ let private callPackageResolved
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
-  (pendingCallArgs : System.Collections.Generic.Dictionary<uuid, Dval list>)
   (ctx : ApplyContext)
   (fn : PackageFn.PackageFn)
   (resolvedExplicitTypeArgsVT : List<ValueType>)
@@ -1494,7 +1493,6 @@ let private callPackageResolved
         exeState
         vm
         currentFrame
-        pendingCallArgs
         ctx
         fn
         implicitTypeParams
@@ -1530,7 +1528,6 @@ let private callPackageResolved
           exeState
           vm
           currentFrame
-          pendingCallArgs
           ctx
           fn
           implicitTypeParams
@@ -1548,7 +1545,6 @@ let private callPackage
   (exeState : ExecutionState)
   (vm : VMState)
   (currentFrame : CallFrame)
-  (pendingCallArgs : System.Collections.Generic.Dictionary<uuid, Dval list>)
   (ctx : ApplyContext)
   (fn : PackageFn.PackageFn)
   : Ply<PackageOutcome> =
@@ -1564,12 +1560,11 @@ let private callPackage
       ctx
   with
   | ValueSome resolved ->
-    callPackageResolved exeState vm currentFrame pendingCallArgs ctx fn resolved
+    callPackageResolved exeState vm currentFrame ctx fn resolved
   | ValueNone ->
     uply {
       let! resolved = resolveTypeArgsAsync exeState ctx
-      return!
-        callPackageResolved exeState vm currentFrame pendingCallArgs ctx fn resolved
+      return! callPackageResolved exeState vm currentFrame ctx fn resolved
     }
 
 
@@ -1578,7 +1573,6 @@ let private callPackage
 let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
   uply {
     let raiseRTE rte = raiseRTE vm.threadID rte
-    let pendingCallArgs = System.Collections.Generic.Dictionary<uuid, Dval list>()
 
     let mutable finalResult : Dval option = None
 
@@ -1915,16 +1909,14 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 recordStage vm ApplyStage.PkgFetchOnly fetchOnlyAlloc
                 let call =
                   match fetched with
-                  | ValueSome(Some fn) ->
-                    callPackage exeState vm currentFrame pendingCallArgs ctx fn
+                  | ValueSome(Some fn) -> callPackage exeState vm currentFrame ctx fn
                   | ValueSome None ->
                     RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
                   | ValueNone ->
                     uply {
                       match! fetch with
                       | Some fn ->
-                        return!
-                          callPackage exeState vm currentFrame pendingCallArgs ctx fn
+                        return! callPackage exeState vm currentFrame ctx fn
                       | None ->
                         return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE
                     }
@@ -2051,9 +2043,9 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
           if not exeState.tracing.skipTracing then
             match currentFrame.executionPoint with
             | Function fnName ->
-              match pendingCallArgs.TryGetValue(currentFrame.id) with
+              match vm.pendingCallArgs.TryGetValue(currentFrame.id) with
               | true, args ->
-                pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+                vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
                 let source : Tracing.Source = (parentFrame.executionPoint, None)
                 let fnRecord : Tracing.FunctionRecord = (source, fnName)
                 exeState.tracing.storeFnResult
@@ -2062,9 +2054,9 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                   resultOfFrame
               | _ -> ()
             | Lambda _ ->
-              pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+              vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
               exeState.tracing.storeLambdaResult currentFrame.id resultOfFrame
-            | Source -> pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
+            | Source -> vm.pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
           parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
           parentFrame.programCounter <- pcOfParent
           // Last, after everything above that still reads the popped frame. `resultOfFrame` came out

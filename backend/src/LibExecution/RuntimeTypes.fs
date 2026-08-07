@@ -2174,6 +2174,13 @@ type VMState =
     /// from `callFrames` and fails the parent lookup on return.
     mutable frameIdCounter : int64
 
+    /// Arguments of calls whose frames are still running, keyed by frame id, so the tracer can pair
+    /// them with the result when the frame returns. Empty and untouched when tracing is off.
+    ///
+    /// On the VM rather than a local of the interpreter loop so that the parts of the loop that run
+    /// outside the computation expression can reach it.
+    pendingCallArgs : Dictionary<uuid, Dval list>
+
     /// Popped frames, with their register files still attached, bucketed by register count and handed
     /// back out to the next push of that size. A frame and its registers are what pushing a call costs,
     /// and nothing holds either past the pop: a lambda copies the values it closes over, a partial
@@ -2212,6 +2219,7 @@ type VMState =
       stats = InterpreterStats.create ()
       frameToPush = None
       frameIdCounter = 0L
+      pendingCallArgs = Dictionary()
       framePool = Dictionary() }
 
   static member createWithoutTLID(instrs : Instructions) : VMState =
