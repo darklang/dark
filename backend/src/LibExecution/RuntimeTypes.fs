@@ -2183,7 +2183,8 @@ module ApplyStage =
        "pkg.frameTst"
        "z.applyTotal"
        "z.lambdaTotal"
-       "z.biTotal" |]
+       "z.biTotal"
+       "bi.argList" |]
 
   [<Literal>]
   let PkgTstShadow = 0
@@ -2233,6 +2234,8 @@ module ApplyStage =
   let LambdaTotal = 21
   [<Literal>]
   let BiTotal = 22
+  [<Literal>]
+  let BiArgList = 23
 
 
 /// Stable index and display name per `Instruction` case, used by the per-opcode allocation counters on

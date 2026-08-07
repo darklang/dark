@@ -1014,7 +1014,9 @@ let private callBuiltinResolved
   // closure captures is an allocation on every call, not just the ones that need it.
   let applicable = ctx.applicable
   // Builtins take a `List<Dval>`, so this is the one path that still materialises one.
+  let biArgListAlloc = allocNow vm
   let newArgDvals = ArgSeq.toList ctx.args
+  recordStage vm ApplyStage.BiArgList biArgListAlloc
 
   let mutable tst = ctx.tst
 
