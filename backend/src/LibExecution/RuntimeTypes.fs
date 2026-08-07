@@ -2737,13 +2737,53 @@ and Functions =
 module Types =
   let empty = { package = (fun _ -> Ply None) }
 
+  /// Declarations already looked up, per `Types` instance.
+  ///
+  /// `find` was `types.package pkg |> Ply.map (Option.map _.declaration)`, which is a computation
+  /// expression *and* a fresh `Some` on every lookup, even though the package manager behind it is
+  /// already a cache hit. It was 5% of the allocation profile for an HTTP request, reached mostly
+  /// through `unwrapAlias`.
+  ///
+  /// Keyed on the `Types` instance as well as the name. Keying on the name alone looks safe, since a
+  /// type name is a content hash, and it isn't: tests mint their own package managers and reuse
+  /// names across different declarations. Caching the whole `Option` means a hit allocates nothing.
+  let private declCache =
+    System.Runtime.CompilerServices.ConditionalWeakTable<Types, Dictionary<FQTypeName.FQTypeName, Option<TypeDeclaration.T>>>()
+
   let find
     (types : Types)
     (name : FQTypeName.FQTypeName)
     : Ply<Option<TypeDeclaration.T>> =
-    match name with
-    | FQTypeName.Package pkg ->
-      types.package pkg |> Ply.map (Option.map _.declaration)
+    let cache =
+      let mutable d = Unchecked.defaultof<_>
+      if declCache.TryGetValue(types, &d) then
+        d
+      else
+        let fresh = Dictionary<FQTypeName.FQTypeName, Option<TypeDeclaration.T>>()
+        declCache.AddOrUpdate(types, fresh)
+        fresh
+
+    let mutable hit = Unchecked.defaultof<Option<TypeDeclaration.T>>
+    if cache.TryGetValue(name, &hit) then
+      Ply hit
+    else
+      match name with
+      | FQTypeName.Package pkg ->
+        let fetch = types.package pkg
+        match Ply.trySync fetch with
+        | ValueSome found ->
+          let decl = found |> Option.map _.declaration
+          // A miss isn't cached: a type absent now could be present later, and this cache has no
+          // way to hear about it. Same rule as the package manager's own cache.
+          if Option.isSome decl then cache[name] <- decl
+          Ply decl
+        | ValueNone ->
+          uply {
+            let! found = fetch
+            let decl = found |> Option.map _.declaration
+            if Option.isSome decl then cache[name] <- decl
+            return decl
+          }
 
   /// Swap concrete types for type parameters
   /// CLEANUP consider accepting a pre-zipped list instead
