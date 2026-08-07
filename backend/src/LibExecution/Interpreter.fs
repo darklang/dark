@@ -611,7 +611,8 @@ let private runSyncInstructions
   (instrData : InstrData)
   (startCounter : int)
   : int =
-  let raiseRTE rte = raiseRTE vm.threadID rte
+  // No local `raiseRTE` alias: F# doesn't lift it out of the loop below, so it's a closure over
+  // the VM allocated on every call. `raiseRTE@614` was 2.9% of the profile.
   let mutable counter = startCounter
   let mutable running = true
 
@@ -647,12 +648,12 @@ let private runSyncInstructions
           | r ->
             RTE.Bools.OrOnlySupportsBooleans(VT.bool, Dval.toValueType r)
             |> RTE.Bool
-            |> raiseRTE
+            |> raiseRTE vm.threadID
         | l ->
           let r = registers[right]
           RTE.Bools.OrOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
           |> RTE.Bool
-          |> raiseRTE
+          |> raiseRTE vm.threadID
       | And(createTo, left, right) ->
         match registers[left] with
         | DBool false -> registers[createTo] <- DBool false
@@ -663,12 +664,12 @@ let private runSyncInstructions
           | r ->
             RTE.Bools.AndOnlySupportsBooleans(VT.bool, Dval.toValueType r)
             |> RTE.Bool
-            |> raiseRTE
+            |> raiseRTE vm.threadID
         | l ->
           let r = registers[right]
           RTE.Bools.AndOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
           |> RTE.Bool
-          |> raiseRTE
+          |> raiseRTE vm.threadID
 
 
       // == Working with Variables ==
@@ -680,14 +681,15 @@ let private runSyncInstructions
         | LPUnit ->
           match dv with
           | DUnit -> ()
-          | _ -> raiseRTE (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
+          | _ ->
+            raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
         | _ ->
           let doesMatch, registersToAssign = checkAndExtractLetPattern pat dv
           if doesMatch then
             registersToAssign
             |> List.iter (fun (reg, value) -> registers[reg] <- value)
           else
-            raiseRTE (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
+            raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
 
 
       // TODO References to DBs should be resolved at parse-time, not
@@ -697,7 +699,7 @@ let private runSyncInstructions
       | VarNotFound(targetRegIfDB, varName) ->
         match exeState.program.dbs |> Map.get varName with
         | Some _foundDB -> registers[targetRegIfDB] <- DDB varName
-        | None -> raiseRTE (RTE.VariableNotFound varName)
+        | None -> raiseRTE vm.threadID (RTE.VariableNotFound varName)
 
 
 
@@ -714,9 +716,9 @@ let private runSyncInstructions
             | DString s -> sb.Append s |> ignore<System.Text.StringBuilder>
             | dv ->
               let vt = Dval.toValueType dv
-              raiseRTE (
-                RTE.String(RTE.Strings.Error.NonStringInInterpolation(vt, dv))
-              ))
+              raiseRTE
+                vm.threadID
+                (RTE.String(RTE.Strings.Error.NonStringInInterpolation(vt, dv))))
 
         registers[targetReg] <- DString(sb.ToString())
 
@@ -729,9 +731,9 @@ let private runSyncInstructions
         | DBool false -> counter <- counter + jumpBy
         | DBool true -> ()
         | dv ->
-          raiseRTE (
-            RTE.Bool(RTE.Bools.ConditionRequiresBool(Dval.toValueType dv, dv))
-          )
+          raiseRTE
+            vm.threadID
+            (RTE.Bool(RTE.Bools.ConditionRequiresBool(Dval.toValueType dv, dv)))
 
       // -- Match --
       | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
@@ -753,7 +755,7 @@ let private runSyncInstructions
           | NoMatch -> counter <- counter + failJump
       | MatchUnmatched(valueReg) ->
         let unmatchedValue = registers[valueReg]
-        raiseRTE (RTE.Match(RTE.Matches.MatchUnmatched unmatchedValue))
+        raiseRTE vm.threadID (RTE.Match(RTE.Matches.MatchUnmatched unmatchedValue))
 
 
       // == Working with Collections ==
@@ -779,18 +781,20 @@ let private runSyncInstructions
         match registers[recordReg] with
         | DRecord(_, _, _, fields) ->
           if fieldName = "" then
-            RTE.Records.FieldAccessEmptyFieldName |> RTE.Record |> raiseRTE
+            RTE.Records.FieldAccessEmptyFieldName
+            |> RTE.Record
+            |> raiseRTE vm.threadID
           else
             match Map.find fieldName fields with
             | Some value -> registers[targetReg] <- value
             | None ->
               RTE.Records.FieldAccessFieldNotFound fieldName
               |> RTE.Record
-              |> raiseRTE
+              |> raiseRTE vm.threadID
         | dv ->
           RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
           |> RTE.Record
-          |> raiseRTE
+          |> raiseRTE vm.threadID
 
 
       // -- Enums --
@@ -812,7 +816,8 @@ let private runSyncInstructions
 
       // == Working with things that Apply (fns, lambdas) ==
       // `add (increment 1L) (3L)` and store results in `putResultIn`
-      | RaiseNRE(names, nre) -> raiseRTE (RTE.ParseTimeNameResolution(names, nre))
+      | RaiseNRE(names, nre) ->
+        raiseRTE vm.threadID (RTE.ParseTimeNameResolution(names, nre))
 
       // CLEANUP: consider renaming this to something like "RequireExprToReturnUnit"
       | CheckIfFirstExprIsUnit reg ->
@@ -825,7 +830,7 @@ let private runSyncInstructions
             dval
           )
           |> RuntimeError.Statement
-          |> raiseRTE
+          |> raiseRTE vm.threadID
       // Unreachable: these five were filtered out above, but the match must be exhaustive.
       | CreateRecord _
       | CloneRecordWithUpdates _
@@ -1320,13 +1325,12 @@ let private completePackage
   (paramCount : int)
   (tst : TypeSymbolTable)
   : PackageOutcome =
-  let raiseRTE rte = raiseRTE vm.threadID rte
   let applicable = ctx.applicable
   let typeArgs = ctx.typeArgs
   if argCount > paramCount then
     RTE.Applications.TooManyArgsForFn(applicable.name, paramCount, argCount)
     |> RTE.Apply
-    |> raiseRTE
+    |> raiseRTE vm.threadID
   elif argCount < paramCount then
     { applicable with
         typeArgs = typeArgs
