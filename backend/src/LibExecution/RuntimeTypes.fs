@@ -2339,6 +2339,14 @@ type InterpreterStats =
     /// total; the latter attributed 97% to the root script-runner builtin, which encloses everything).
     allocByStage : int64[]
 
+    /// How many times each stage's bracket ran, alongside the bytes.
+    ///
+    /// Without this, the only denominator available is the total call count, and dividing by it
+    /// silently assumes the cost is spread evenly. It isn't: `pkg.fetchOnly` looked like 20 bytes on
+    /// each of 41,402 package calls and was really ~15 KB on each of 52 cold ones, with the other
+    /// 41,350 free. Two separate pieces of work got aimed at the wrong thing before that turned up.
+    countByStage : int64[]
+
     /// Type-symbol-table size at each frame push, summed and maxed. The TST is an immutable F# Map that a
     /// frame inherits from its parent, so if bindings accumulate down the call stack every merge on it is
     /// O(k) in a growing k -- which would make Apply's cost superlinear in depth rather than constant.
@@ -2369,6 +2377,7 @@ type InterpreterStats =
         builtinAlloc = Dictionary()
         builtinCallsByName = Dictionary()
         allocByStage = Array.zeroCreate 32
+        countByStage = Array.zeroCreate 32
         tstSizeSum = 0L
         tstSizeMax = 0L }
 
@@ -2393,6 +2402,7 @@ type InterpreterStats =
     this.tstSizeSum <- 0L
     this.tstSizeMax <- 0L
     System.Array.Clear(this.allocByStage, 0, this.allocByStage.Length)
+    System.Array.Clear(this.countByStage, 0, this.countByStage.Length)
     System.Array.Clear(this.allocByOpcode, 0, this.allocByOpcode.Length)
     System.Array.Clear(this.countByOpcode, 0, this.countByOpcode.Length)
 

@@ -545,6 +545,7 @@ and checkAndExtractMatchPattern
 let inline private recordStage (vm : VMState) (stage : int) (before : int64) : unit =
   if vm.stats.enabled then
     let d = System.GC.GetAllocatedBytesForCurrentThread() - before
+    vm.stats.countByStage[stage] <- vm.stats.countByStage[stage] + 1L
     if d > 0L then vm.stats.allocByStage[stage] <- vm.stats.allocByStage[stage] + d
 
 /// Frame identity is internal to a VM: `callFrames`, `pendingCallArgs` and `framePushTimestamps` key on it,

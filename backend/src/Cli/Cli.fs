@@ -274,10 +274,13 @@ let main (args : string[]) =
 
       for i in 0 .. min (RT.ApplyStage.names.Length - 1) 31 do
         let total = stats |> List.sumBy (fun s -> s.allocByStage[i])
+        let runs = stats |> List.sumBy (fun s -> s.countByStage[i])
         if total > 0L then
           Telemetry.event
             $"applyStage.{RT.ApplyStage.names[i]}"
-            [ "bytes", string total ]
+            [ "bytes", string total
+              "runs", string runs
+              "bytesPerRun", string (if runs = 0L then 0L else total / runs) ]
 
       Telemetry.event
         "vm.stats"
