@@ -610,262 +610,6 @@ let inline private allocNow (vm : VMState) : int64 =
   if vm.stats.enabled then System.GC.GetAllocatedBytesForCurrentThread() else 0L
 
 
-/// Run consecutive instructions that need no `await`, without entering the interpreter's computation
-/// expression at all. Returns the counter where it stopped: past the end of the block, or at one of the
-/// five opcodes that must be handled on the async path.
-///
-/// Those five -- CreateRecord, CloneRecordWithUpdates, CreateEnum, LoadValue, Apply -- are the only ones
-/// that await. The other eighteen are register moves, jumps, comparisons, match tests and container
-/// construction, and they are the overwhelming majority of instructions executed.
-let private runSyncInstructions
-  (exeState : ExecutionState)
-  (vm : VMState)
-  (currentFrame : CallFrame)
-  (registers : Dval array)
-  (instrData : InstrData)
-  (startCounter : int)
-  : int =
-  // No local `raiseRTE` alias: F# doesn't lift it out of the loop below, so it's a closure over
-  // the VM allocated on every call. `raiseRTE@614` was 2.9% of the profile.
-  let mutable counter = startCounter
-  let mutable running = true
-
-  while running && counter < instrData.instructions.Length do
-    let inst = instrData.instructions[counter]
-
-    match inst with
-    | CreateRecord _
-    | CloneRecordWithUpdates _
-    | CreateEnum _
-    | LoadValue _
-    | Apply _ -> running <- false
-    | _ ->
-      if vm.stats.enabled then
-        vm.stats.instructionCount <- vm.stats.instructionCount + 1L
-
-      let allocBefore =
-        if vm.stats.enabled then
-          System.GC.GetAllocatedBytesForCurrentThread()
-        else
-          0L
-
-      match inst with
-      | LoadVal(reg, value) -> registers[reg] <- value
-      | CopyVal(copyTo, copyFrom) -> registers[copyTo] <- registers[copyFrom]
-      | Or(createTo, left, right) ->
-        match registers[left] with
-        | DBool true -> registers[createTo] <- DBool true
-        | DBool false ->
-          match registers[right] with
-          | DBool true -> registers[createTo] <- DBool true
-          | DBool false -> registers[createTo] <- DBool false
-          | r ->
-            RTE.Bools.OrOnlySupportsBooleans(VT.bool, Dval.toValueType r)
-            |> RTE.Bool
-            |> raiseRTE vm.threadID
-        | l ->
-          let r = registers[right]
-          RTE.Bools.OrOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
-          |> RTE.Bool
-          |> raiseRTE vm.threadID
-      | And(createTo, left, right) ->
-        match registers[left] with
-        | DBool false -> registers[createTo] <- DBool false
-        | DBool true ->
-          match registers[right] with
-          | DBool true -> registers[createTo] <- DBool true
-          | DBool false -> registers[createTo] <- DBool false
-          | r ->
-            RTE.Bools.AndOnlySupportsBooleans(VT.bool, Dval.toValueType r)
-            |> RTE.Bool
-            |> raiseRTE vm.threadID
-        | l ->
-          let r = registers[right]
-          RTE.Bools.AndOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
-          |> RTE.Bool
-          |> raiseRTE vm.threadID
-
-
-      // == Working with Variables ==
-      | CheckLetPatternAndExtractVars(valueReg, pat) ->
-        let dv = registers[valueReg]
-        // Fast path for the common single-variable let binding
-        match pat with
-        | LPVariable extractTo -> registers[extractTo] <- dv
-        | LPUnit ->
-          match dv with
-          | DUnit -> ()
-          | _ ->
-            raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
-        | _ ->
-          let doesMatch, registersToAssign = checkAndExtractLetPattern pat dv
-          if doesMatch then
-            registersToAssign
-            |> List.iter (fun (reg, value) -> registers[reg] <- value)
-          else
-            raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
-
-
-      // TODO References to DBs should be resolved at parse-time, not
-      // runtime. For consistency, safety, etc. We should have a specific
-      // EReferenceDB construct that we respect throughout WT, NR, PT, RT,
-      // PT2RT, etc. I don't think this would be that hard.
-      | VarNotFound(targetRegIfDB, varName) ->
-        match exeState.program.dbs |> Map.get varName with
-        | Some _foundDB -> registers[targetRegIfDB] <- DDB varName
-        | None -> raiseRTE vm.threadID (RTE.VariableNotFound varName)
-
-
-
-      // == Working with Basic Types ==
-      | CreateString(targetReg, segments) ->
-        let sb = new System.Text.StringBuilder()
-
-        segments
-        |> List.iter (fun seg ->
-          match seg with
-          | Text s -> sb.Append s |> ignore<System.Text.StringBuilder>
-          | Interpolated reg ->
-            match registers[reg] with
-            | DString s -> sb.Append s |> ignore<System.Text.StringBuilder>
-            | dv ->
-              let vt = Dval.toValueType dv
-              raiseRTE
-                vm.threadID
-                (RTE.String(RTE.Strings.Error.NonStringInInterpolation(vt, dv))))
-
-        registers[targetReg] <- DString(sb.ToString())
-
-
-      // == Flow Control ==
-      // -- Jumps --
-      | JumpBy jumpBy -> counter <- counter + jumpBy
-      | JumpByIfFalse(jumpBy, condReg) ->
-        match registers[condReg] with
-        | DBool false -> counter <- counter + jumpBy
-        | DBool true -> ()
-        | dv ->
-          raiseRTE
-            vm.threadID
-            (RTE.Bool(RTE.Bools.ConditionRequiresBool(Dval.toValueType dv, dv)))
-
-      // -- Match --
-      | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
-        // Fast path for common single-variable match
-        match pat with
-        | MPVariable reg -> registers[reg] <- registers[valueReg]
-        | _ ->
-          match checkAndExtractMatchPattern pat registers[valueReg] with
-          | Matched bindings ->
-            // A walk rather than `List.iter (fun ...)`, whose closure over `registers` is an
-            // allocation on a path that runs once per arm tried.
-            let rec assign (bs : List<Register * Dval>) =
-              match bs with
-              | [] -> ()
-              | (reg, value) :: rest ->
-                registers[reg] <- value
-                assign rest
-            assign bindings
-          | NoMatch -> counter <- counter + failJump
-      | MatchUnmatched(valueReg) ->
-        let unmatchedValue = registers[valueReg]
-        raiseRTE vm.threadID (RTE.Match(RTE.Matches.MatchUnmatched unmatchedValue))
-
-
-      // == Working with Collections ==
-      | CreateList(listReg, itemsToAddRegs) ->
-        let itemsToAdd = readRegs registers itemsToAddRegs
-        registers[listReg] <-
-          TypeChecker.DvalCreator.list vm.threadID VT.unknown itemsToAdd
-      | CreateDict(dictReg, entries) ->
-        let entries =
-          entries |> List.map (fun (key, valueReg) -> (key, registers[valueReg]))
-        registers[dictReg] <-
-          TypeChecker.DvalCreator.dict vm.threadID VT.unknown entries
-      | CreateTuple(tupleReg, firstReg, secondReg, theRestRegs) ->
-        let first = registers[firstReg]
-        let second = registers[secondReg]
-        let theRest = readRegs registers theRestRegs
-        registers[tupleReg] <- DTuple(first, second, theRest)
-
-
-      // == Working with Custom Data ==
-      // -- Records --
-      | GetRecordField(targetReg, recordReg, fieldName) ->
-        match registers[recordReg] with
-        | DRecord(_, _, _, fields) ->
-          if fieldName = "" then
-            RTE.Records.FieldAccessEmptyFieldName
-            |> RTE.Record
-            |> raiseRTE vm.threadID
-          else
-            match Map.find fieldName fields with
-            | Some value -> registers[targetReg] <- value
-            | None ->
-              RTE.Records.FieldAccessFieldNotFound fieldName
-              |> RTE.Record
-              |> raiseRTE vm.threadID
-        | dv ->
-          RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
-          |> RTE.Record
-          |> raiseRTE vm.threadID
-
-
-      // -- Enums --
-      | CreateLambda(lambdaReg, impl) ->
-        exeState.lambdaInstrCache[impl.exprId] <- impl
-
-        registers[lambdaReg] <-
-          { exprId = impl.exprId
-            closedRegisters =
-              impl.registersToCloseOver
-              |> List.map (fun (parentReg, childReg) ->
-                childReg, registers[parentReg])
-            typeSymbolTable = currentFrame.typeSymbolTable
-            argsSoFar = [] }
-          |> AppLambda
-          |> DApplicable
-
-
-
-      // == Working with things that Apply (fns, lambdas) ==
-      // `add (increment 1L) (3L)` and store results in `putResultIn`
-      | RaiseNRE(names, nre) ->
-        raiseRTE vm.threadID (RTE.ParseTimeNameResolution(names, nre))
-
-      // CLEANUP: consider renaming this to something like "RequireExprToReturnUnit"
-      | CheckIfFirstExprIsUnit reg ->
-        match registers[reg] with
-        | DUnit -> ()
-        | dval ->
-          RTE.Statements.FirstExpressionMustBeUnit(
-            ValueType.Known KTUnit,
-            Dval.toValueType dval,
-            dval
-          )
-          |> RuntimeError.Statement
-          |> raiseRTE vm.threadID
-      // Unreachable: these five were filtered out above, but the match must be exhaustive.
-      | CreateRecord _
-      | CloneRecordWithUpdates _
-      | CreateEnum _
-      | LoadValue _
-      | Apply _ -> ()
-
-      if vm.stats.enabled then
-        let tag = Opcode.index inst
-        if tag >= 0 && tag < vm.stats.allocByOpcode.Length then
-          let delta = System.GC.GetAllocatedBytesForCurrentThread() - allocBefore
-          if delta > 0L then
-            vm.stats.allocByOpcode[tag] <- vm.stats.allocByOpcode[tag] + delta
-          vm.stats.countByOpcode[tag] <- vm.stats.countByOpcode[tag] + 1L
-
-      counter <- counter + 1
-
-  counter
-
-
-
 /// Write a pattern-match's register assignments into a frame's registers.
 ///
 /// Top-level and fully parameterised so nothing is captured: the `List.iter` this replaces allocated a
@@ -1608,6 +1352,12 @@ type private ApplyOutcome =
   /// A package call that had to wait. Its outcome is a value for this register, or a frame to push.
   | AwaitPackage of pCall : Ply<PackageOutcome> * pReg : Register
 
+  /// Spelled out rather than compared with `=`: a `Ply` doesn't support equality, so neither does this.
+  member this.IsDone =
+    match this with
+    | ApplyDone -> true
+    | _ -> false
+
 
 /// One `Apply` instruction, run without entering the interpreter's computation expression.
 ///
@@ -1857,6 +1607,309 @@ let private applyInstruction
   outcome
 
 
+/// Run consecutive instructions that need no `await`, without entering the interpreter's computation
+/// expression at all. Returns the counter where it stopped: past the end of the block, or at one of the
+/// five opcodes that must be handled on the async path.
+///
+/// Those five -- CreateRecord, CloneRecordWithUpdates, CreateEnum, LoadValue, Apply -- are the only ones
+/// that await. The other eighteen are register moves, jumps, comparisons, match tests and container
+/// construction, and they are the overwhelming majority of instructions executed.
+let private runSyncInstructions
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (registers : Dval array)
+  (instrData : InstrData)
+  (startCounter : int)
+  : struct (int * ApplyOutcome) =
+  // No local `raiseRTE` alias: F# doesn't lift it out of the loop below, so it's a closure over
+  // the VM allocated on every call. `raiseRTE@614` was 2.9% of the profile.
+  let mutable counter = startCounter
+  let mutable running = true
+  // Set only if an `Apply` below has to wait for something. A struct, so carrying it costs nothing.
+  let mutable pending = ApplyDone
+
+  while running && counter < instrData.instructions.Length do
+    let inst = instrData.instructions[counter]
+
+    match inst with
+    | CreateRecord _
+    | CloneRecordWithUpdates _
+    | CreateEnum _
+    | LoadValue _ -> running <- false
+
+    // `Apply` is 114,202 of the 114,274 instructions that used to stop this drain and hand control
+    // to the computation expression, which builds a continuation per iteration. It almost never has
+    // to wait, so it runs here, and only a genuine await stops the drain.
+    | Apply(putResultIn, thingToCallReg, typeArgs, newArgRegs) ->
+      if vm.stats.enabled then
+        vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+      let allocBefore =
+        if vm.stats.enabled then
+          System.GC.GetAllocatedBytesForCurrentThread()
+        else
+          0L
+
+      // The frame this pushes records `currentFrame.programCounter + 1` as where to resume the
+      // caller, and this loop tracks the counter in a local, so the field has to be caught up first
+      // or the callee returns to the wrong instruction.
+      currentFrame.programCounter <- counter
+
+      pending <-
+        applyInstruction
+          exeState
+          vm
+          currentFrame
+          registers
+          putResultIn
+          thingToCallReg
+          typeArgs
+          newArgRegs
+
+      if vm.stats.enabled then
+        let tag = Opcode.index inst
+        if tag >= 0 && tag < vm.stats.allocByOpcode.Length then
+          let delta = System.GC.GetAllocatedBytesForCurrentThread() - allocBefore
+          if delta > 0L then
+            vm.stats.allocByOpcode[tag] <- vm.stats.allocByOpcode[tag] + delta
+          vm.stats.countByOpcode[tag] <- vm.stats.countByOpcode[tag] + 1L
+
+      match pending with
+      // Nothing to wait for. Step past it, and stop only if it pushed a frame for the outer loop.
+      | ApplyDone ->
+        counter <- counter + 1
+        if vm.frameToPush.IsSome then running <- false
+      // Hand the wait back to the caller, with the counter still on this instruction. The caller
+      // steps past it once the result is in its register.
+      | _ -> running <- false
+    | _ ->
+      if vm.stats.enabled then
+        vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+
+      let allocBefore =
+        if vm.stats.enabled then
+          System.GC.GetAllocatedBytesForCurrentThread()
+        else
+          0L
+
+      match inst with
+      | LoadVal(reg, value) -> registers[reg] <- value
+      | CopyVal(copyTo, copyFrom) -> registers[copyTo] <- registers[copyFrom]
+      | Or(createTo, left, right) ->
+        match registers[left] with
+        | DBool true -> registers[createTo] <- DBool true
+        | DBool false ->
+          match registers[right] with
+          | DBool true -> registers[createTo] <- DBool true
+          | DBool false -> registers[createTo] <- DBool false
+          | r ->
+            RTE.Bools.OrOnlySupportsBooleans(VT.bool, Dval.toValueType r)
+            |> RTE.Bool
+            |> raiseRTE vm.threadID
+        | l ->
+          let r = registers[right]
+          RTE.Bools.OrOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
+          |> RTE.Bool
+          |> raiseRTE vm.threadID
+      | And(createTo, left, right) ->
+        match registers[left] with
+        | DBool false -> registers[createTo] <- DBool false
+        | DBool true ->
+          match registers[right] with
+          | DBool true -> registers[createTo] <- DBool true
+          | DBool false -> registers[createTo] <- DBool false
+          | r ->
+            RTE.Bools.AndOnlySupportsBooleans(VT.bool, Dval.toValueType r)
+            |> RTE.Bool
+            |> raiseRTE vm.threadID
+        | l ->
+          let r = registers[right]
+          RTE.Bools.AndOnlySupportsBooleans(Dval.toValueType l, Dval.toValueType r)
+          |> RTE.Bool
+          |> raiseRTE vm.threadID
+
+
+      // == Working with Variables ==
+      | CheckLetPatternAndExtractVars(valueReg, pat) ->
+        let dv = registers[valueReg]
+        // Fast path for the common single-variable let binding
+        match pat with
+        | LPVariable extractTo -> registers[extractTo] <- dv
+        | LPUnit ->
+          match dv with
+          | DUnit -> ()
+          | _ ->
+            raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
+        | _ ->
+          let doesMatch, registersToAssign = checkAndExtractLetPattern pat dv
+          if doesMatch then
+            registersToAssign
+            |> List.iter (fun (reg, value) -> registers[reg] <- value)
+          else
+            raiseRTE vm.threadID (RTE.Let(RTE.Lets.PatternDoesNotMatch(dv, pat)))
+
+
+      // TODO References to DBs should be resolved at parse-time, not
+      // runtime. For consistency, safety, etc. We should have a specific
+      // EReferenceDB construct that we respect throughout WT, NR, PT, RT,
+      // PT2RT, etc. I don't think this would be that hard.
+      | VarNotFound(targetRegIfDB, varName) ->
+        match exeState.program.dbs |> Map.get varName with
+        | Some _foundDB -> registers[targetRegIfDB] <- DDB varName
+        | None -> raiseRTE vm.threadID (RTE.VariableNotFound varName)
+
+
+
+      // == Working with Basic Types ==
+      | CreateString(targetReg, segments) ->
+        let sb = new System.Text.StringBuilder()
+
+        segments
+        |> List.iter (fun seg ->
+          match seg with
+          | Text s -> sb.Append s |> ignore<System.Text.StringBuilder>
+          | Interpolated reg ->
+            match registers[reg] with
+            | DString s -> sb.Append s |> ignore<System.Text.StringBuilder>
+            | dv ->
+              let vt = Dval.toValueType dv
+              raiseRTE
+                vm.threadID
+                (RTE.String(RTE.Strings.Error.NonStringInInterpolation(vt, dv))))
+
+        registers[targetReg] <- DString(sb.ToString())
+
+
+      // == Flow Control ==
+      // -- Jumps --
+      | JumpBy jumpBy -> counter <- counter + jumpBy
+      | JumpByIfFalse(jumpBy, condReg) ->
+        match registers[condReg] with
+        | DBool false -> counter <- counter + jumpBy
+        | DBool true -> ()
+        | dv ->
+          raiseRTE
+            vm.threadID
+            (RTE.Bool(RTE.Bools.ConditionRequiresBool(Dval.toValueType dv, dv)))
+
+      // -- Match --
+      | CheckMatchPatternAndExtractVars(valueReg, pat, failJump) ->
+        // Fast path for common single-variable match
+        match pat with
+        | MPVariable reg -> registers[reg] <- registers[valueReg]
+        | _ ->
+          match checkAndExtractMatchPattern pat registers[valueReg] with
+          | Matched bindings ->
+            // A walk rather than `List.iter (fun ...)`, whose closure over `registers` is an
+            // allocation on a path that runs once per arm tried.
+            let rec assign (bs : List<Register * Dval>) =
+              match bs with
+              | [] -> ()
+              | (reg, value) :: rest ->
+                registers[reg] <- value
+                assign rest
+            assign bindings
+          | NoMatch -> counter <- counter + failJump
+      | MatchUnmatched(valueReg) ->
+        let unmatchedValue = registers[valueReg]
+        raiseRTE vm.threadID (RTE.Match(RTE.Matches.MatchUnmatched unmatchedValue))
+
+
+      // == Working with Collections ==
+      | CreateList(listReg, itemsToAddRegs) ->
+        let itemsToAdd = readRegs registers itemsToAddRegs
+        registers[listReg] <-
+          TypeChecker.DvalCreator.list vm.threadID VT.unknown itemsToAdd
+      | CreateDict(dictReg, entries) ->
+        let entries =
+          entries |> List.map (fun (key, valueReg) -> (key, registers[valueReg]))
+        registers[dictReg] <-
+          TypeChecker.DvalCreator.dict vm.threadID VT.unknown entries
+      | CreateTuple(tupleReg, firstReg, secondReg, theRestRegs) ->
+        let first = registers[firstReg]
+        let second = registers[secondReg]
+        let theRest = readRegs registers theRestRegs
+        registers[tupleReg] <- DTuple(first, second, theRest)
+
+
+      // == Working with Custom Data ==
+      // -- Records --
+      | GetRecordField(targetReg, recordReg, fieldName) ->
+        match registers[recordReg] with
+        | DRecord(_, _, _, fields) ->
+          if fieldName = "" then
+            RTE.Records.FieldAccessEmptyFieldName
+            |> RTE.Record
+            |> raiseRTE vm.threadID
+          else
+            match Map.find fieldName fields with
+            | Some value -> registers[targetReg] <- value
+            | None ->
+              RTE.Records.FieldAccessFieldNotFound fieldName
+              |> RTE.Record
+              |> raiseRTE vm.threadID
+        | dv ->
+          RTE.Records.FieldAccessNotRecord(Dval.toValueType dv)
+          |> RTE.Record
+          |> raiseRTE vm.threadID
+
+
+      // -- Enums --
+      | CreateLambda(lambdaReg, impl) ->
+        exeState.lambdaInstrCache[impl.exprId] <- impl
+
+        registers[lambdaReg] <-
+          { exprId = impl.exprId
+            closedRegisters =
+              impl.registersToCloseOver
+              |> List.map (fun (parentReg, childReg) ->
+                childReg, registers[parentReg])
+            typeSymbolTable = currentFrame.typeSymbolTable
+            argsSoFar = [] }
+          |> AppLambda
+          |> DApplicable
+
+
+
+      // == Working with things that Apply (fns, lambdas) ==
+      // `add (increment 1L) (3L)` and store results in `putResultIn`
+      | RaiseNRE(names, nre) ->
+        raiseRTE vm.threadID (RTE.ParseTimeNameResolution(names, nre))
+
+      // CLEANUP: consider renaming this to something like "RequireExprToReturnUnit"
+      | CheckIfFirstExprIsUnit reg ->
+        match registers[reg] with
+        | DUnit -> ()
+        | dval ->
+          RTE.Statements.FirstExpressionMustBeUnit(
+            ValueType.Known KTUnit,
+            Dval.toValueType dval,
+            dval
+          )
+          |> RuntimeError.Statement
+          |> raiseRTE vm.threadID
+      // Unreachable: these five were filtered out above, but the match must be exhaustive.
+      | CreateRecord _
+      | CloneRecordWithUpdates _
+      | CreateEnum _
+      | LoadValue _
+      | Apply _ -> ()
+
+      if vm.stats.enabled then
+        let tag = Opcode.index inst
+        if tag >= 0 && tag < vm.stats.allocByOpcode.Length then
+          let delta = System.GC.GetAllocatedBytesForCurrentThread() - allocBefore
+          if delta > 0L then
+            vm.stats.allocByOpcode[tag] <- vm.stats.allocByOpcode[tag] + delta
+          vm.stats.countByOpcode[tag] <- vm.stats.countByOpcode[tag] + 1L
+
+      counter <- counter + 1
+
+  struct (counter, pending)
+
+
+
+
 let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
   uply {
     // No local `raiseRTE` alias: every continuation the builder makes for the loop body would
@@ -1881,7 +1934,10 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
       while currentFrame.programCounter < instrData.instructions.Length
             && vm.frameToPush.IsNone do
         // Drain every instruction that doesn't need to await, outside the computation expression.
-        currentFrame.programCounter <-
+        // That now includes `Apply`, so this loop body -- and the continuation the builder makes for
+        // it -- is reached only when something genuinely has to wait, or for one of the four rare
+        // opcodes below.
+        let struct (drainedTo, pendingApply) =
           runSyncInstructions
             exeState
             vm
@@ -1889,9 +1945,24 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
             registers
             instrData
             currentFrame.programCounter
+        currentFrame.programCounter <- drainedTo
+
+        match pendingApply with
+        | ApplyDone -> ()
+        | AwaitBuiltin(call, reg) ->
+          let! dv = call
+          registers[reg] <- dv
+          currentFrame.programCounter <- currentFrame.programCounter + 1
+        | AwaitPackage(call, reg) ->
+          let! o = call
+          match o with
+          | PartiallyApplied dv -> registers[reg] <- dv
+          | PushFrame frame -> vm.frameToPush <- ValueSome frame
+          currentFrame.programCounter <- currentFrame.programCounter + 1
 
         if
-          currentFrame.programCounter < instrData.instructions.Length
+          pendingApply.IsDone
+          && currentFrame.programCounter < instrData.instructions.Length
           && vm.frameToPush.IsNone
         then
           if vm.stats.enabled then
