@@ -1826,15 +1826,15 @@ type InstrData =
 
 type CallFrame =
   {
-    id : uuid
+    mutable id : uuid
 
     /// (Id * where to put result in parent * pc of parent to return to)
     ///
     /// A struct option of a struct tuple: the root frame aside, one of these is built for every function
     /// call in the program, and the reference-typed form was two allocations each time.
-    parent : voption<struct (uuid * Register * int)>
+    mutable parent : voption<struct (uuid * Register * int)>
 
-    executionPoint : ExecutionPoint
+    mutable executionPoint : ExecutionPoint
 
     /// The instructions this frame runs, resolved once when the frame is pushed.
     ///
@@ -1842,21 +1842,21 @@ type CallFrame =
     /// `ExecutionState` and `VMState` still hold one each, and every frame running the same function
     /// points at it. Holding it here keeps the interpreter loop from binding a cache lookup with `let!`
     /// on every iteration.
-    instrData : InstrData
+    mutable instrData : InstrData
 
     /// The declared return type, for the check that runs when this frame returns.
     ///
     /// Resolved at push time for the same reason as `instrData`: otherwise every frame return re-fetches
     /// the function purely to read one field, and binds it, which costs a continuation closure per return.
     /// `ValueNone` for the root frame and for lambdas, neither of which declares one.
-    expectedReturnType : TypeReference voption
+    mutable expectedReturnType : TypeReference voption
 
     /// What instruction index we are currently 'at'
     mutable programCounter : int
 
     mutable typeSymbolTable : TypeSymbolTable
 
-    registers : Registers
+    mutable registers : Registers
   }
 
 /// Synchronous regions of the Apply path that the allocation counters attribute to.
@@ -2174,11 +2174,12 @@ type VMState =
     /// from `callFrames` and fails the parent lookup on return.
     mutable frameIdCounter : int64
 
-    /// Register files, handed back on frame pop and handed out again on the next push needing that
-    /// size. The array is the larger half of what a frame costs to build, and nothing holds one past
-    /// the pop: a lambda copies the values it closes over, a partial application copies its args, and
-    /// the tracer is handed lists. Per-VM, so single-threaded and needing no synchronization.
-    registerPool : Dictionary<int, Stack<Dval[]>>
+    /// Popped frames, with their register files still attached, bucketed by register count and handed
+    /// back out to the next push of that size. A frame and its registers are what pushing a call costs,
+    /// and nothing holds either past the pop: a lambda copies the values it closes over, a partial
+    /// application copies its args, the tracer is handed lists, and the parent link carries a frame id
+    /// rather than a reference. Per-VM, so single-threaded and needing no synchronization.
+    framePool : Dictionary<int, Stack<CallFrame>>
   }
 
   static member create(instrs : Option<tlid> * Instructions) : VMState =
@@ -2211,7 +2212,7 @@ type VMState =
       stats = InterpreterStats.create ()
       frameToPush = None
       frameIdCounter = 0L
-      registerPool = Dictionary() }
+      framePool = Dictionary() }
 
   static member createWithoutTLID(instrs : Instructions) : VMState =
     VMState.create (None, instrs)

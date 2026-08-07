@@ -472,28 +472,56 @@ let inline private recordStage (vm : VMState) (stage : int) (before : int64) : u
 /// parallel, and a non-atomic shared increment handed two frames the same id, dropping one from
 /// `callFrames` and failing the parent lookup on return. Caught by
 /// `Interpreter.Fns.Package.Recursion.addUpTo 30000`.
-/// A register file of exactly this size, reused from the pool if one is free.
+/// A frame with a register file of exactly this size, reused from the pool if one is free.
 ///
-/// The array is the larger half of what a frame costs to build. Nothing holds one past the frame's
-/// pop -- a lambda copies the values it closes over, a partial application copies its args, and the
-/// tracer is handed lists -- so they can be handed straight back out.
-let inline private takeRegisters (vm : VMState) (count : int) : Dval[] =
-  let mutable free = Unchecked.defaultof<Stack<Dval[]>>
-  if vm.registerPool.TryGetValue(count, &free) && free.Count > 0 then
-    free.Pop()
+/// A frame and its registers are what pushing a call costs. Nothing holds either past the pop -- a
+/// lambda copies the values it closes over, a partial application copies its args, the tracer is
+/// handed lists, and the parent link carries a frame id rather than a reference -- so a popped frame
+/// can be handed straight back out with every field overwritten.
+///
+/// The registers of a pooled frame are already cleared; `returnFrame` does it on the way in.
+let inline private takeFrame
+  (vm : VMState)
+  (registerCount : int)
+  (id : uuid)
+  (parent : voption<struct (uuid * Register * int)>)
+  (executionPoint : ExecutionPoint)
+  (instrData : InstrData)
+  (expectedReturnType : TypeReference voption)
+  (typeSymbolTable : TypeSymbolTable)
+  : CallFrame =
+  let mutable free = Unchecked.defaultof<Stack<CallFrame>>
+  if vm.framePool.TryGetValue(registerCount, &free) && free.Count > 0 then
+    let f = free.Pop()
+    f.id <- id
+    f.parent <- parent
+    f.executionPoint <- executionPoint
+    f.instrData <- instrData
+    f.expectedReturnType <- expectedReturnType
+    f.programCounter <- 0
+    f.typeSymbolTable <- typeSymbolTable
+    f
   else
-    Array.zeroCreate count
+    { id = id
+      parent = parent
+      executionPoint = executionPoint
+      instrData = instrData
+      expectedReturnType = expectedReturnType
+      programCounter = 0
+      typeSymbolTable = typeSymbolTable
+      registers = Array.zeroCreate registerCount }
 
-/// Hand a popped frame's register file back. Cleared on the way in rather than on the way out, so a
-/// pooled array that never gets reused isn't holding a frame's worth of Dvals alive.
-let inline private returnRegisters (vm : VMState) (registers : Dval[]) : unit =
-  if registers.Length > 0 then
-    System.Array.Clear(registers, 0, registers.Length)
-    let mutable free = Unchecked.defaultof<Stack<Dval[]>>
-    if not (vm.registerPool.TryGetValue(registers.Length, &free)) then
-      free <- Stack()
-      vm.registerPool[registers.Length] <- free
-    free.Push registers
+/// Hand a popped frame back. Registers are cleared here rather than at reuse, so a pooled frame that
+/// never gets reused isn't holding a call's worth of Dvals alive.
+let inline private returnFrame (vm : VMState) (frame : CallFrame) : unit =
+  let count = frame.registers.Length
+  if count > 0 then System.Array.Clear(frame.registers, 0, count)
+  frame.typeSymbolTable <- Map.empty
+  let mutable free = Unchecked.defaultof<Stack<CallFrame>>
+  if not (vm.framePool.TryGetValue(count, &free)) then
+    free <- Stack()
+    vm.framePool[count] <- free
+  free.Push frame
 
 let inline private nextFrameId (vm : VMState) : uuid =
   vm.frameIdCounter <- vm.frameIdCounter + 1L
@@ -1331,39 +1359,40 @@ let private completePackage
     let pkgEp = FreeTVars.packageExecutionPoint fn.hash
     if not exeState.tracing.skipTracing then
       exeState.tracing.storeFrameEntry newFrameId pkgEp allArgs
+    // We already hold the fn here, so the loop needn't fetch it.
+    let instrData =
+      let mutable cached = Unchecked.defaultof<InstrData>
+      if exeState.packageFnInstrCache.TryGetValue(fn.hash, &cached) then
+        cached
+      else
+        let d : InstrData =
+          { instructions = List.toArray fn.body.instructions
+            resultReg = fn.body.resultIn }
+        exeState.packageFnInstrCache[fn.hash] <- d
+        d
+    if vm.stats.enabled then
+      vm.stats.registersAllocated <-
+        vm.stats.registersAllocated + int64 fn.body.registerCount
     let frame =
-      { id = newFrameId
-        parent = ValueSome(struct (vm.currentFrameID, ctx.putResultIn, ctx.returnPc))
-        programCounter = 0
-        registers =
-          if vm.stats.enabled then
-            vm.stats.registersAllocated <-
-              vm.stats.registersAllocated + int64 fn.body.registerCount
-          let r = takeRegisters vm fn.body.registerCount
-          // A manual walk rather than `List.iteri`, whose closure over `r` is an allocation on a path
-          // that runs once per call.
-          let rec fill i (args : List<Dval>) =
-            match args with
-            | [] -> ()
-            | a :: rest ->
-              r[i] <- a
-              fill (i + 1) rest
-          fill 0 allArgs
-          r
-        typeSymbolTable = frameTst
-        executionPoint = pkgEp
-        expectedReturnType = ValueSome fn.returnType
-        // We already hold the fn here, so the loop needn't fetch it.
-        instrData =
-          let mutable cached = Unchecked.defaultof<InstrData>
-          if exeState.packageFnInstrCache.TryGetValue(fn.hash, &cached) then
-            cached
-          else
-            let d : InstrData =
-              { instructions = List.toArray fn.body.instructions
-                resultReg = fn.body.resultIn }
-            exeState.packageFnInstrCache[fn.hash] <- d
-            d }
+      takeFrame
+        vm
+        fn.body.registerCount
+        newFrameId
+        (ValueSome(struct (vm.currentFrameID, ctx.putResultIn, ctx.returnPc)))
+        pkgEp
+        instrData
+        (ValueSome fn.returnType)
+        frameTst
+    // A manual walk rather than `List.iteri`, whose closure over the register file is an allocation
+    // on a path that runs once per call.
+    let registers = frame.registers
+    let rec fill i (args : List<Dval>) =
+      match args with
+      | [] -> ()
+      | a :: rest ->
+        registers[i] <- a
+        fill (i + 1) rest
+    fill 0 allArgs
     recordStage vm ApplyStage.PkgFrame pkgFrameAlloc
     PushFrame frame
 
@@ -1722,39 +1751,6 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 let lambdaFrameAlloc = allocNow vm
                 // Hoisted out of the record expression so each piece can be bracketed separately;
                 // `lambda.frame` was the largest Apply stage and most of it was unaccounted for.
-                let lambdaRegsAlloc = allocNow vm
-                let lambdaRegisters =
-                  if vm.stats.enabled then
-                    vm.stats.registersAllocated <-
-                      vm.stats.registersAllocated
-                      + int64 foundLambda.instructions.registerCount
-                  let r = takeRegisters vm foundLambda.instructions.registerCount
-
-                  // extract and copy over the args
-                  bindLambdaParams
-                    vm
-                    r
-                    (foundLambda.patterns.head :: foundLambda.patterns.tail)
-                    allArgs
-
-                  // copy over closed registers
-                  assignRegisters r appLambda.closedRegisters
-
-                  // Put the lambda itself in the self register so the body can
-                  // call itself. If it already has no applied args, reuse it
-                  // as-is.
-                  match foundLambda.selfRegister with
-                  | Some selfReg ->
-                    r[selfReg] <-
-                      if List.isEmpty appLambda.argsSoFar then
-                        DApplicable(AppLambda appLambda)
-                      else
-                        DApplicable(AppLambda { appLambda with argsSoFar = [] })
-                  | None -> ()
-
-                  r
-                recordStage vm ApplyStage.LambdaRegisters lambdaRegsAlloc
-
                 let lambdaTstAlloc = allocNow vm
                 let lambdaTst =
                   if Map.isEmpty appLambda.typeSymbolTable then
@@ -1771,32 +1767,64 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 let lambdaEp = Lambda(currentFrame.executionPoint, exprId)
                 recordStage vm ApplyStage.LambdaExecPoint lambdaEpAlloc
 
+                // Resolved here so the loop never has to look it up. Same shared InstrData the
+                // per-VM cache holds; this is a reference to it, not a copy.
+                let lambdaInstrData =
+                  match Map.tryFind exprId vm.lambdaInstrDataCache with
+                  | Some cached -> cached
+                  | None ->
+                    let d : InstrData =
+                      { instructions =
+                          List.toArray foundLambda.instructions.instructions
+                        resultReg = foundLambda.instructions.resultIn }
+                    vm.lambdaInstrDataCache <-
+                      Map.add exprId d vm.lambdaInstrDataCache
+                    d
+
                 let newFrame =
-                  { id = nextFrameId vm
-                    parent =
-                      ValueSome(
-                        struct (vm.currentFrameID,
-                                putResultIn,
-                                currentFrame.programCounter + 1)
-                      )
-                    programCounter = 0
-                    registers = lambdaRegisters
-                    typeSymbolTable = lambdaTst
-                    executionPoint = lambdaEp
-                    expectedReturnType = ValueNone
-                    // Resolved here so the loop never has to look it up. Same shared InstrData the
-                    // per-VM cache holds; this is a reference to it, not a copy.
-                    instrData =
-                      match Map.tryFind exprId vm.lambdaInstrDataCache with
-                      | Some cached -> cached
-                      | None ->
-                        let d : InstrData =
-                          { instructions =
-                              List.toArray foundLambda.instructions.instructions
-                            resultReg = foundLambda.instructions.resultIn }
-                        vm.lambdaInstrDataCache <-
-                          Map.add exprId d vm.lambdaInstrDataCache
-                        d }
+                  takeFrame
+                    vm
+                    foundLambda.instructions.registerCount
+                    (nextFrameId vm)
+                    (ValueSome(
+                      struct (vm.currentFrameID,
+                              putResultIn,
+                              currentFrame.programCounter + 1)
+                    ))
+                    lambdaEp
+                    lambdaInstrData
+                    ValueNone
+                    lambdaTst
+
+                let lambdaRegsAlloc = allocNow vm
+                if vm.stats.enabled then
+                  vm.stats.registersAllocated <-
+                    vm.stats.registersAllocated
+                    + int64 foundLambda.instructions.registerCount
+                let r = newFrame.registers
+
+                // extract and copy over the args
+                bindLambdaParams
+                  vm
+                  r
+                  (foundLambda.patterns.head :: foundLambda.patterns.tail)
+                  allArgs
+
+                // copy over closed registers
+                assignRegisters r appLambda.closedRegisters
+
+                // Put the lambda itself in the self register so the body can
+                // call itself. If it already has no applied args, reuse it
+                // as-is.
+                match foundLambda.selfRegister with
+                | Some selfReg ->
+                  r[selfReg] <-
+                    if List.isEmpty appLambda.argsSoFar then
+                      DApplicable(AppLambda appLambda)
+                    else
+                      DApplicable(AppLambda { appLambda with argsSoFar = [] })
+                | None -> ()
+                recordStage vm ApplyStage.LambdaRegisters lambdaRegsAlloc
 
                 recordStage vm ApplyStage.LambdaFrame lambdaFrameAlloc
                 if vm.stats.enabled then
@@ -2013,8 +2041,6 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
 
           let framePopAlloc = allocNow vm
           vm.callFrames.Remove(vm.currentFrameID) |> ignore<bool>
-          // `resultOfFrame` was read out above, so the file is dead from here.
-          returnRegisters vm registers
 
           vm.currentFrameID <- parentID
 
@@ -2041,6 +2067,9 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
             | Source -> pendingCallArgs.Remove(currentFrame.id) |> ignore<bool>
           parentFrame.registers[regOfParentToPutResultInto] <- resultOfFrame
           parentFrame.programCounter <- pcOfParent
+          // Last, after everything above that still reads the popped frame. `resultOfFrame` came out
+          // of its registers before the pop and is now in the parent's.
+          returnFrame vm currentFrame
           recordStage vm ApplyStage.FramePop framePopAlloc
 
         | ValueNone ->
