@@ -1461,6 +1461,7 @@ let private applyInstruction
   (newArgRegs : NEList<Register>)
   : ApplyOutcome =
   let mutable outcome = ApplyDone
+  let applyTotalAlloc = allocNow vm
   // CLEANUP
   // only the first apply of an applicable should be allowed to provide type args
 
@@ -1483,6 +1484,7 @@ let private applyInstruction
 
   match applicable with
   | AppLambda appLambda ->
+    let lambdaTotalAlloc = allocNow vm
     let exprId = appLambda.exprId
     let foundLambda =
       let mutable cached = Unchecked.defaultof<_>
@@ -1519,7 +1521,30 @@ let private applyInstruction
       recordStage vm ApplyStage.LambdaTst lambdaTstAlloc
 
       let lambdaEpAlloc = allocNow vm
-      let lambdaEp = Lambda(currentFrame.executionPoint, exprId)
+      let parentEp = currentFrame.executionPoint
+      // The `ExecutionPoint` a lambda body runs under is a pure function of (calling frame's
+      // execution point, lambda's expression id), and both repeat: a lambda in a loop is called
+      // from the same function over and over. So it's memoized rather than rebuilt per call, which
+      // was 88% of everything a lambda application allocated.
+      //
+      // Keyed on the expression id, holding the parent it was derived from. A single last-value
+      // slot is not enough -- `List.map` alternates between its own recursion and the caller's
+      // lambda, so two expression ids interleave and a one-entry cache misses every time. This
+      // cost an hour to find; the counter barely moved and the reason was thrashing, not a bug.
+      let lambdaEp =
+        let mutable hit =
+          Unchecked.defaultof<struct (ExecutionPoint * ExecutionPoint)>
+        if
+          vm.lambdaEpCache.TryGetValue(exprId, &hit)
+          && (let struct (cachedParent, _) = hit
+              System.Object.ReferenceEquals(cachedParent, parentEp))
+        then
+          let struct (_, ep) = hit
+          ep
+        else
+          let ep = Lambda(parentEp, exprId)
+          vm.lambdaEpCache[exprId] <- struct (parentEp, ep)
+          ep
       recordStage vm ApplyStage.LambdaExecPoint lambdaEpAlloc
 
       // Resolved here so the loop never has to look it up. Same shared InstrData the
@@ -1533,7 +1558,7 @@ let private applyInstruction
           let d : InstrData =
             { instructions = List.toArray foundLambda.instructions.instructions
               resultReg = foundLambda.instructions.resultIn }
-          vm.lambdaInstrDataCache <- Map.add exprId d vm.lambdaInstrDataCache
+          vm.lambdaInstrDataCache[exprId] <- d
           d
 
       let newFrame =
@@ -1599,6 +1624,8 @@ let private applyInstruction
         |> AppLambda
         |> DApplicable
 
+    recordStage vm ApplyStage.LambdaTotal lambdaTotalAlloc
+
   | AppNamedFn applicable ->
     // The symbol table the call starts from. `callBuiltin` and `callPackage` take it from
     // here and do the rest -- shadowing, inference, checking, invocation -- outside this
@@ -1637,6 +1664,7 @@ let private applyInstruction
     // Unifying them needs `BuiltInParam` and `PackageFn.Parameter` to share an interface.
     match applicable.name with
     | FQFnName.Builtin builtin ->
+      let biTotalAlloc = allocNow vm
       let biLookupAlloc = allocNow vm
       // `TryGetValue` rather than `Map.find`, which allocates a `Some` on every hit --
       // `FSharpOption<BuiltInFn>` was 0.9% of the profile, and this is where it came from.
@@ -1652,6 +1680,7 @@ let private applyInstruction
         match Ply.trySync call with
         | ValueSome dv -> registers[putResultIn] <- dv
         | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
+        recordStage vm ApplyStage.BiTotal biTotalAlloc
 
     | FQFnName.Package pkg ->
       // Harmful-deprecation runtime halt.
@@ -1692,6 +1721,8 @@ let private applyInstruction
       | ValueSome(PartiallyApplied dv) -> registers[putResultIn] <- dv
       | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
       | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
+
+  recordStage vm ApplyStage.ApplyTotal applyTotalAlloc
   outcome
 
 

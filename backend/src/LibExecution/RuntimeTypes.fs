@@ -2085,7 +2085,10 @@ module ApplyStage =
        "lambda.tst"
        "lambda.execPoint"
        "pkg.fetchOnly"
-       "pkg.frameTst" |]
+       "pkg.frameTst"
+       "z.applyTotal"
+       "z.lambdaTotal"
+       "z.biTotal" |]
 
   [<Literal>]
   let PkgTstShadow = 0
@@ -2127,6 +2130,14 @@ module ApplyStage =
   let PkgFetchOnly = 18
   [<Literal>]
   let PkgFrameTst = 19
+  // Coarse brackets, used to find allocation the fine-grained stages don't cover. `z.` so they sort
+  // last and read as scaffolding rather than as findings.
+  [<Literal>]
+  let ApplyTotal = 20
+  [<Literal>]
+  let LambdaTotal = 21
+  [<Literal>]
+  let BiTotal = 22
 
 
 /// Stable index and display name per `Instruction` case, used by the per-opcode allocation counters on
@@ -2362,7 +2373,12 @@ type VMState =
     // it doesn't have to be copied into each CallFrame.
     rootInstrData : Option<tlid> * InstrData
     /// Per-VM memoization of InstrData derived from `exeState.lambdaInstrCache`.
-    mutable lambdaInstrDataCache : Map<id, InstrData>
+    mutable lambdaInstrDataCache : Dictionary<id, InstrData>
+
+    /// Memoized `ExecutionPoint`s for lambda frames, keyed on the lambda's expression id and
+    /// holding the calling frame's execution point it was derived from. See the note at the use
+    /// site in `applyInstruction`.
+    lambdaEpCache : Dictionary<id, struct (ExecutionPoint * ExecutionPoint)>
 
     /// Performance counters — incremented during execution
     stats : InterpreterStats
@@ -2433,7 +2449,8 @@ type VMState =
         d[rootCallFrameID] <- rootCallFrame
         d
       rootInstrData = (tlid, rootInstrData)
-      lambdaInstrDataCache = Map.empty
+      lambdaInstrDataCache = Dictionary()
+      lambdaEpCache = Dictionary()
       stats = InterpreterStats.create ()
       frameToPush = ValueNone
       frameIdCounter = 0L
