@@ -25,13 +25,15 @@ runtime, so the method is written next to each.
   (`range`, `map`) are still freed and go uncounted, worth a few hundred bytes an iteration.
 
 ```
-  Dark        28.04 KB     ( 1,201 KB at the start of the second campaign, 90.8 KB a week ago )
+  Dark        21.95 KB     ( 1,201 KB at the start of the second campaign, 90.8 KB a week ago )
   node         1.70 KB
   python       0.47 KB
 ```
 
-**Dark is 16.5x node and 60x python.** It was 700x and 2,600x at the start of the second campaign,
-and 53x and 193x a week ago. The goal is ~10x node, so there is about another 1.7x to find.
+**Dark is 12.9x node and 47x python.** It was 700x and 2,600x at the start of the second campaign,
+and 53x and 193x a week ago. The goal is ~10x node, so there is about another 1.3x to find -- and
+it is already measured: pooling the builtin argument buffers takes this workload to 11.9 KB, which
+is 7x node. See task #68.
 
 ## Where that came from
 
@@ -41,7 +43,8 @@ symbol table from an `FSharpMap` to a struct; the ValueType of a container memoi
 rebuilt three times per call; the builtins from an `FSharpMap` to a `Dictionary`; the builtin
 calling convention from a reference tuple to a struct one; frames and register files pooled; small
 integers and booleans interned; record and enum field checking rewritten to stop allocating a
-closure, a state machine and a tuple per field.
+closure, a state machine and a tuple per field; builtin arguments passed as an array rather than a
+list; package lookups holding the `Option` they hand back rather than rebuilding it.
 
 Roughly as much was learned from the changes that measured flat and were reverted. Those are in the
 `win-*.md` notes; the recurring lesson is to probe before building, by stubbing the suspect region
@@ -67,19 +70,20 @@ Everything above is one shape of program: lists, lambdas and self-recursion. `sc
 runs six, and the reference workload turns out to be nearly the *cheapest*:
 
 ```
-  recursion   141.85 KB per iteration      json         31.58 KB
-  records      37.38 KB                    dicts        28.88 KB
-  strings      23.24 KB                    lists        28.04 KB
+  recursion    69.27 KB per iteration      json         31.43 KB
+  records      36.50 KB                    dicts        25.76 KB
+  strings      21.77 KB                    lists        21.95 KB
 ```
 
-A plain function call with no containers costs five times a list iteration. And
-`scripts/testing/perf-http` says an HTTP request that returns a constant string costs **199 KB**,
-about seven times a list iteration, with the type checker dominating its profile because requests
-and responses are records.
+A plain function call with no containers still costs three times a list iteration, though it was
+five times before the argument-array change. And `scripts/testing/perf-http` says an HTTP request
+that returns a constant string costs **197 KB**, nine times a list iteration, with the type checker
+dominating its profile because requests and responses are records.
 
-So the 16.5x above is the best case, not the typical one. The honest summary is that Dark is within
-about 17x of node on the shape of program it has been tuned for, and considerably further away on
-the shapes it hasn't.
+So the 12.9x above is the best case, not the typical one. The honest summary is that Dark is within
+about 13x of node on the shape of program it has been tuned for, and considerably further away on
+the shapes it hasn't -- though the gap between shapes is closing, because the last few wins came
+from paths every program uses rather than from the list path.
 
 ## What's left, and what won't change
 
