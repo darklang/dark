@@ -80,8 +80,19 @@ next_tag() {
   echo "v0.0.$((highest + 1))"
 }
 
-TAG=$(next_tag) || { echo "Could not determine the next release tag"; exit 1; }
-echo "Next release tag: $TAG"
+# On a tag build the tag already exists and is the input, so take it rather
+# than inventing the next one. The rolling main release has no CIRCLE_TAG and
+# keeps scanning for the next free v0.0.N.
+#
+# Creating a release with an existing tag_name attaches to that tag rather
+# than making a new one, so the two paths converge below.
+if [ -n "${CIRCLE_TAG:-}" ]; then
+  TAG="$CIRCLE_TAG"
+  echo "Publishing for pushed tag: $TAG"
+else
+  TAG=$(next_tag) || { echo "Could not determine the next release tag"; exit 1; }
+  echo "Next release tag: $TAG"
+fi
 
 
 # Create a GitHub release
@@ -136,8 +147,14 @@ if [ "$FILES_FOUND" = false ] || [ "$(echo "$upload_response" | jq -r '.state')"
     echo "Not all executables uploaded successfully."
     echo "Deleting the newly created release..."
     delete_release "$new_release_id"
-    echo "Deleting the tag..."
-    delete_tag "$TAG"
+    # Only clean up tags we made. A pushed tag is the user's, and deleting it
+    # out from under a failed CI run would be a surprising thing to do.
+    if [ -z "${CIRCLE_TAG:-}" ]; then
+      echo "Deleting the tag..."
+      delete_tag "$TAG"
+    else
+      echo "Leaving the pushed tag $TAG in place."
+    fi
     echo "Deleted"
     exit 1
 else
