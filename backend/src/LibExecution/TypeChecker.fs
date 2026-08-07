@@ -554,6 +554,29 @@ let private unifyDvalSync
 /// `ValueNone` means "go the async route". That covers an aliased type, a compound type needing recursion,
 /// and *any* failure: building the error message resolves the expected type, which can hit the package
 /// store. Failures are rare and already the slow path, so they are not worth a sync variant.
+/// The type arguments of a custom type, unified pairwise without awaiting.
+///
+/// Parameterised types are not a corner case: `Option` and `Result` are the two most common types in
+/// the language, and until this existed, returning one cost about 4 KB against 1.3 KB for a plain
+/// record, entirely because the type arguments sent the check down the asynchronous route.
+///
+/// `ValueNone` on anything unresolved *or* mismatched, so the async path still produces the error
+/// message and the path that describes where the mismatch was.
+let rec private unifyTypeArgsSync
+  (tst : TypeSymbolTable)
+  (declared : List<TypeReference>)
+  (actual : List<ValueType>)
+  : TypeSymbolTable voption =
+  match declared, actual with
+  | [], [] -> ValueSome tst
+  | d :: dRest, a :: aRest ->
+    match unifyValueTypeSync tst d a with
+    | Unified tst -> unifyTypeArgsSync tst dRest aRest
+    | Mismatched
+    | Undecided -> ValueNone
+  | _ -> ValueNone
+
+
 let tryUnifySync
   (tst : TypeSymbolTable)
   (expected : TypeReference)
@@ -570,10 +593,12 @@ let tryUnifySync
   //
   // Type arguments are excluded rather than compared: with them the answer depends on unifying each
   // one, which is what the async path is for.
-  | TCustomType({ resolved = Ok declared }, []) ->
+  | TCustomType({ resolved = Ok declared }, declaredArgs) ->
     match actual with
-    | DRecord(_, actualName, [], _) when actualName = declared -> ValueSome tst
-    | DEnum(_, actualName, [], _, _) when actualName = declared -> ValueSome tst
+    | DRecord(_, actualName, actualArgs, _) when actualName = declared ->
+      unifyTypeArgsSync tst declaredArgs actualArgs
+    | DEnum(_, actualName, actualArgs, _, _) when actualName = declared ->
+      unifyTypeArgsSync tst declaredArgs actualArgs
     | _ -> ValueNone
 
   | _ ->
