@@ -137,6 +137,76 @@ let private readRegsNE
   registers[regs.head] :: readRegs registers regs.tail
 
 
+/// A call's arguments, without materialising them into a list.
+///
+/// `FSharpList<Dval>` is the largest single entry in the allocation profile: one cons per argument
+/// per call, for a list whose uses on the package path are two lockstep walks and a copy into the
+/// callee's registers, all of which can read the caller's register file directly.
+///
+/// The head is held separately from the tail rather than as one list, because the `Apply` instruction
+/// carries its argument registers as an `NEList` and `head :: tail` would itself be the allocation
+/// this is trying to remove. A first attempt did exactly that and measured worse.
+///
+/// `Prior` covers partial application without a second code path: the walks consume already-applied
+/// arguments first, then the registers. Tracing, partial application and the builtin ABI still want a
+/// real list, and `toList` builds one for them.
+[<Struct>]
+type private ArgSeq =
+  {
+    /// Arguments from earlier partial applications. Almost always empty.
+    Prior : List<Dval>
+    Regs : Registers
+    /// The `NEList` head, until it has been consumed.
+    Head : Register voption
+    Tail : List<Register>
+  }
+
+module private ArgSeq =
+  let inline ofNE (registers : Registers) (regs : NEList<Register>) : ArgSeq =
+    { Prior = []; Regs = registers; Head = ValueSome regs.head; Tail = regs.tail }
+
+  let inline withPrior (prior : List<Dval>) (a : ArgSeq) : ArgSeq =
+    { a with Prior = prior }
+
+  let inline count (a : ArgSeq) : int =
+    List.length a.Prior + (if a.Head.IsSome then 1 else 0) + List.length a.Tail
+
+  let inline isEmpty (a : ArgSeq) : bool =
+    List.isEmpty a.Prior && a.Head.IsNone && List.isEmpty a.Tail
+
+  /// The next argument and the rest. Allocation-free: structs all the way down.
+  let inline uncons (a : ArgSeq) : struct (Dval * ArgSeq) voption =
+    match a.Prior with
+    | x :: rest -> ValueSome(struct (x, { a with Prior = rest }))
+    | [] ->
+      match a.Head with
+      | ValueSome r -> ValueSome(struct (a.Regs[r], { a with Head = ValueNone }))
+      | ValueNone ->
+        match a.Tail with
+        | r :: rest -> ValueSome(struct (a.Regs[r], { a with Tail = rest }))
+        | [] -> ValueNone
+
+  /// Only for the paths that genuinely need a list: tracing, partial application, and builtins.
+  let toList (a : ArgSeq) : List<Dval> =
+    let fromRegs =
+      match a.Head with
+      | ValueSome r -> a.Regs[r] :: readRegs a.Regs a.Tail
+      | ValueNone -> readRegs a.Regs a.Tail
+    match a.Prior with
+    | [] -> fromRegs
+    | prior -> prior @ fromRegs
+
+  /// Copy positionally into a callee's register file, starting at 0.
+  let rec private fillFrom (dest : Registers) (i : int) (a : ArgSeq) : unit =
+    match uncons a with
+    | ValueNone -> ()
+    | ValueSome(struct (v, rest)) ->
+      dest[i] <- v
+      fillFrom dest (i + 1) rest
+
+  let fill (dest : Registers) (a : ArgSeq) : unit = fillFrom dest 0 a
+
+
 /// True iff the ValueType has no Unknown anywhere in its tree.
 /// Empty-literal lists like `[]` are typed `Known (KTList Unknown)`;
 /// binding a TVariable to that kind of half-Unknown shape would lock
@@ -594,15 +664,15 @@ let rec private checkBiParamsSync
 let rec private checkPkgParamsSync
   (i : int)
   (ps : List<PackageFn.Parameter>)
-  (args : List<Dval>)
+  (args : ArgSeq)
   (tst : TypeSymbolTable)
-  : struct (int * List<PackageFn.Parameter> * List<Dval> * TypeSymbolTable) =
+  : struct (int * List<PackageFn.Parameter> * ArgSeq * TypeSymbolTable) =
   match ps with
   | [] -> struct (i, ps, args, tst)
   | p :: pRest ->
-    match args with
-    | [] -> struct (i, ps, args, tst)
-    | a :: aRest ->
+    match ArgSeq.uncons args with
+    | ValueNone -> struct (i, ps, args, tst)
+    | ValueSome(struct (a, aRest)) ->
       match TypeChecker.tryUnifySync tst p.typ a with
       | ValueSome updatedTst -> checkPkgParamsSync (i + 1) pRest aRest updatedTst
       | ValueNone -> struct (i, ps, args, tst)
@@ -683,7 +753,7 @@ type private ApplyContext =
   {
     applicable : ApplicableNamedFn
     typeArgs : List<TypeReference>
-    args : List<Dval>
+    args : ArgSeq
     tst : TypeSymbolTable
     /// Register in the calling frame that the result goes in.
     putResultIn : Register
@@ -942,7 +1012,8 @@ let private callBuiltinResolved
   // No local `raiseRTE` alias: the cold-path `uply` below would capture it, and a local a
   // closure captures is an allocation on every call, not just the ones that need it.
   let applicable = ctx.applicable
-  let newArgDvals = ctx.args
+  // Builtins take a `List<Dval>`, so this is the one path that still materialises one.
+  let newArgDvals = ArgSeq.toList ctx.args
 
   let mutable tst = ctx.tst
 
@@ -1097,7 +1168,7 @@ let private completePackage
   (fn : PackageFn.PackageFn)
   (implicitTypeParams : Set<string>)
   (newlyBound : TypeSymbolTable)
-  (allArgs : List<Dval>)
+  (allArgs : ArgSeq)
   (argCount : int)
   (paramCount : int)
   (tst : TypeSymbolTable)
@@ -1111,7 +1182,8 @@ let private completePackage
   elif argCount < paramCount then
     { applicable with
         typeArgs = typeArgs
-        argsSoFar = allArgs
+        // Materialised only here: a partial application has to retain its arguments.
+        argsSoFar = ArgSeq.toList allArgs
         typeSymbolTable = tst }
     |> AppNamedFn
     |> DApplicable
@@ -1135,7 +1207,7 @@ let private completePackage
       if n > vm.stats.tstSizeMax then vm.stats.tstSizeMax <- n
     let newFrameId = nextFrameId vm
     if not exeState.tracing.skipTracing then
-      vm.pendingCallArgs[newFrameId] <- allArgs
+      vm.pendingCallArgs[newFrameId] <- ArgSeq.toList allArgs
     if vm.stats.enabled then
       vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
       vm.stats.framePushCount <- vm.stats.framePushCount + 1L
@@ -1144,7 +1216,7 @@ let private completePackage
           System.Diagnostics.Stopwatch.GetTimestamp()
     let pkgEp = FreeTVars.packageExecutionPoint fn.hash
     if not exeState.tracing.skipTracing then
-      exeState.tracing.storeFrameEntry newFrameId pkgEp allArgs
+      exeState.tracing.storeFrameEntry newFrameId pkgEp (ArgSeq.toList allArgs)
     // We already hold the fn here, so the loop needn't fetch it.
     let instrData =
       let mutable cached = Unchecked.defaultof<InstrData>
@@ -1169,7 +1241,7 @@ let private completePackage
         instrData
         (ValueSome fn.returnType)
         frameTst
-    fillRegisters frame.registers 0 allArgs
+    ArgSeq.fill frame.registers allArgs
     recordStage vm ApplyStage.PkgFrame pkgFrameAlloc
     PushFrame frame
 
@@ -1217,13 +1289,10 @@ let private callPackageResolved
 
   // Pre-compute allArgs so inference runs BEFORE typeCheckParams. Otherwise the type check runs against
   // a TST that doesn't yet know `'a := whatever`.
-  let allArgs =
-    match applicable.argsSoFar with
-    | [] -> newArgDvals
-    | prev -> prev @ newArgDvals
+  let allArgs = ArgSeq.withPrior applicable.argsSoFar newArgDvals
 
   let paramCount = NEList.length fn.parameters
-  let argCount = List.length allArgs
+  let argCount = ArgSeq.count allArgs
 
   // Step 4: infer type-variable bindings from arg ValueTypes for any TVariables in the param types not
   // bound by explicit type args. Lets wrappers of the shape
@@ -1237,13 +1306,14 @@ let private callPackageResolved
       explicitlyBound
     else
       // Lockstep walk, no projected list and no zip pairs.
-      let rec inferPkg acc (ps : List<PackageFn.Parameter>) (args : List<Dval>) =
+      let rec inferPkg acc (ps : List<PackageFn.Parameter>) (args : ArgSeq) =
         match ps with
         | [] -> acc
         | p :: pRest ->
-          match args with
-          | [] -> acc
-          | a :: aRest -> inferPkg (inferTVarsFromDval acc p.typ a) pRest aRest
+          match ArgSeq.uncons args with
+          | ValueNone -> acc
+          | ValueSome(struct (a, aRest)) ->
+            inferPkg (inferTVarsFromDval acc p.typ a) pRest aRest
       inferPkg explicitlyBound (FreeTVars.paramsOfPackage fn) allArgs
   if not (TST.isEmpty newlyBound) then
     tst <- TST.mergeFavoringRight tst newlyBound
@@ -1264,7 +1334,7 @@ let private callPackageResolved
   recordStage vm ApplyStage.PkgTypeCheckRun pkgTcRunAlloc
 
   // Same as in `callBuiltinResolved`: two `isEmpty` checks, no pair.
-  if List.isEmpty pkgRestPs || List.isEmpty pkgRestArgs then
+  if List.isEmpty pkgRestPs || ArgSeq.isEmpty pkgRestArgs then
     Ply(
       completePackage
         exeState
@@ -1304,7 +1374,8 @@ let private callPackageResolved
                 return! checkRest (i + 1) pRest aRest
               | Error rte -> return raiseRTE vm.threadID rte
         }
-      do! checkRest pkgNextI pkgRestPs pkgRestArgs
+      // The cold path materialises: it already awaits per parameter, so a list is not the cost.
+      do! checkRest pkgNextI pkgRestPs (ArgSeq.toList pkgRestArgs)
       return
         completePackage
           exeState
@@ -1405,12 +1476,14 @@ let private applyInstruction
       |> RTE.Apply
       |> raiseRTE vm.threadID
 
+  // Deliberately not read into a list here. The package path walks the caller's registers directly,
+  // and only the lambda and builtin paths below materialise one.
   let applyArgsAlloc = allocNow vm
-  let newArgDvals = readRegsNE registers newArgRegs
   recordStage vm ApplyStage.ApplyArgs applyArgsAlloc
 
   match applicable with
   | AppLambda appLambda ->
+    let newArgDvals = readRegsNE registers newArgRegs
     let exprId = appLambda.exprId
     let foundLambda =
       let mutable cached = Unchecked.defaultof<_>
@@ -1551,7 +1624,7 @@ let private applyInstruction
     let ctx : ApplyContext =
       { applicable = applicable
         typeArgs = typeArgs
-        args = newArgDvals
+        args = ArgSeq.ofNE registers newArgRegs
         tst = tst
         putResultIn = putResultIn
         returnPc = currentFrame.programCounter + 1 }
