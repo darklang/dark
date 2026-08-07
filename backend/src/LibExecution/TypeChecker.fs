@@ -853,68 +853,84 @@ module DvalCreator =
     match remaining with
     | [] -> Ply((typeArgs, fieldsInReverse, tst))
     | (fieldDef, actualField) :: rest ->
-      uply {
-        match! unify types tst fieldDef actualField with
-        | Error _path ->
-          // Resolved here rather than before the check that almost always passes: it only exists
-          // to describe the failure.
-          let! expected = TypeReference.toVT types tst fieldDef
-          return
-            RTE.Enums.ConstructionFieldOfWrongType(
-              caseName,
-              fieldIndex,
-              expected,
-              Dval.toValueType actualField,
-              actualField
-            )
-            |> RTE.Error.Enum
-            |> raiseRTE threadID
+      // Same fast path as `checkRecordFields`: most fields unify without needing the type store, a
+      // case with no type parameters has nothing to learn from them, and Ply's builder is not
+      // resumable code, so entering it costs a continuation in Release as much as in Debug.
+      match tryUnifySync tst fieldDef actualField with
+      | ValueSome newTST when List.isEmpty typeArgs ->
+        checkEnumFields
+          types
+          threadID
+          caseName
+          (fieldIndex + 1)
+          rest
+          typeArgs
+          (actualField :: fieldsInReverse)
+          newTST
+      | _ ->
 
-        | Ok newTST ->
-          // A type with no parameters has nothing to learn from its fields, and that's the common
-          // case. Skipping the walk skips a rebuilt list of pairs and a builder entry per field.
-          let! newTypeArgs =
-            if List.isEmpty typeArgs then
-              Ply typeArgs
-            else
-              Ply.List.mapSequentially
-                (fun (paramName, vt) ->
-                  match vt with
-                  | ValueType.Unknown ->
-                    match TST.tryFind paramName newTST with
-                    | ValueSome known -> Ply((paramName, known))
-                    | ValueNone -> Ply((paramName, vt))
+        uply {
+          match! unify types tst fieldDef actualField with
+          | Error _path ->
+            // Resolved here rather than before the check that almost always passes: it only exists
+            // to describe the failure.
+            let! expected = TypeReference.toVT types tst fieldDef
+            return
+              RTE.Enums.ConstructionFieldOfWrongType(
+                caseName,
+                fieldIndex,
+                expected,
+                Dval.toValueType actualField,
+                actualField
+              )
+              |> RTE.Error.Enum
+              |> raiseRTE threadID
 
-                  | known ->
-                    match ValueType.merge known vt with
-                    | Ok merged -> Ply((paramName, merged))
-                    | Error() ->
-                      uply {
-                        let! expected = TypeReference.toVT types tst fieldDef
-                        return
-                          RTE.Enums.ConstructionFieldOfWrongType(
-                            caseName,
-                            fieldIndex,
-                            expected,
-                            Dval.toValueType actualField,
-                            actualField
-                          )
-                          |> RTE.Enum
-                          |> raiseRTE threadID
-                      })
-                typeArgs
+          | Ok newTST ->
+            // A type with no parameters has nothing to learn from its fields, and that's the common
+            // case. Skipping the walk skips a rebuilt list of pairs and a builder entry per field.
+            let! newTypeArgs =
+              if List.isEmpty typeArgs then
+                Ply typeArgs
+              else
+                Ply.List.mapSequentially
+                  (fun (paramName, vt) ->
+                    match vt with
+                    | ValueType.Unknown ->
+                      match TST.tryFind paramName newTST with
+                      | ValueSome known -> Ply((paramName, known))
+                      | ValueNone -> Ply((paramName, vt))
 
-          return!
-            checkEnumFields
-              types
-              threadID
-              caseName
-              (fieldIndex + 1)
-              rest
-              newTypeArgs
-              (actualField :: fieldsInReverse)
-              newTST
-      }
+                    | known ->
+                      match ValueType.merge known vt with
+                      | Ok merged -> Ply((paramName, merged))
+                      | Error() ->
+                        uply {
+                          let! expected = TypeReference.toVT types tst fieldDef
+                          return
+                            RTE.Enums.ConstructionFieldOfWrongType(
+                              caseName,
+                              fieldIndex,
+                              expected,
+                              Dval.toValueType actualField,
+                              actualField
+                            )
+                            |> RTE.Enum
+                            |> raiseRTE threadID
+                        })
+                  typeArgs
+
+            return!
+              checkEnumFields
+                types
+                threadID
+                caseName
+                (fieldIndex + 1)
+                rest
+                newTypeArgs
+                (actualField :: fieldsInReverse)
+                newTST
+        }
 
 
   let enum

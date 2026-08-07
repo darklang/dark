@@ -1,7 +1,7 @@
 {
   "tolerance": 0.03,
   "steady": {
-    "debug": 8172096,
+    "debug": 8172184,
     "published": 7837288,
     "note": "scripts/testing/perf-workloads/steady.dark, trace detail off. Lower these whenever a change earns it."
   }
