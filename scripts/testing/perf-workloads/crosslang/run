@@ -1,0 +1,15 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# The same workload in node and python, for the allocation-per-iteration comparison.
+#
+# The flags are load-bearing and easy to lose:
+#   --expose-gc            so the script can collect before measuring
+#   --max-semi-space-size  512 MB of young generation, so no collection happens *during* the
+#                          measured section and heapUsed growth equals everything allocated
+# python needs neither: it frees by refcount as it goes, so each iteration's result is retained
+# and `tracemalloc`'s traced total is what the work allocated.
+set -euo pipefail
+cd /home/dark/app/scripts/testing/perf-workloads/crosslang
+node --expose-gc --max-semi-space-size=512 alloc.js
+python3 alloc.py
