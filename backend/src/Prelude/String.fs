@@ -11,6 +11,24 @@ let toEgcSeq (s : string) : seq<string> =
       yield tee.GetTextElement()
   }
 
+/// True when the string's extended grapheme clusters are exactly its chars, so EGC-wise operations
+/// and ordinary char-wise ones give the same answer.
+///
+/// ASCII qualifies, with one exception: CR followed by LF is a single cluster, so a string
+/// containing CR is rejected outright rather than looked ahead through. That costs nothing real and
+/// keeps the rule to one comparison per char.
+///
+/// This exists because the EGC-correct implementations build one string per cluster, and the
+/// overwhelming majority of strings a program splits or measures are paths, keys and identifiers.
+let isCharwise (s : string) : bool =
+  let mutable i = 0
+  let mutable ok = true
+  while ok && i < s.Length do
+    let c = s[i]
+    if c >= '\u0080' || c = '\r' then ok <- false
+    i <- i + 1
+  ok
+
 /// Return Some(c) if the string is a single EGC character, otherwise None
 let toEgcChar (str : string) : Option<string> =
   let egcs = str |> toEgcSeq
@@ -27,7 +45,10 @@ let splitOnNewline (str : string) : List<string> =
     str.Split([| "\n"; "\r\n" |], System.StringSplitOptions.None) |> Array.toList
 
 let lengthInEgcs (s : string) : int =
-  System.Globalization.StringInfo(s).LengthInTextElements
+  if isCharwise s then
+    s.Length
+  else
+    System.Globalization.StringInfo(s).LengthInTextElements
 
 let normalize (s : string) : string = s.Normalize()
 

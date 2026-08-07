@@ -247,6 +247,11 @@ let fns () : List<BuiltInFn> =
           let parts =
             if sep = "" then
               s |> String.toEgcSeq |> Seq.toList
+            // When both sides are charwise, splitting by cluster and splitting by char give the
+            // same answer, and the framework's split does it without building a string per
+            // character of the input. Paths, keys and identifiers all take this route.
+            elif String.isCharwise s && String.isCharwise sep then
+              s.Split([| sep |], System.StringSplitOptions.None) |> Array.toList
             else
               ecgStringSplit
                 (s |> String.toEgcSeq |> Seq.toList)

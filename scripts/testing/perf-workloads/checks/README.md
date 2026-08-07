@@ -9,6 +9,8 @@ output.
     ./scripts/run-cli run scripts/testing/perf-workloads/checks/lambda-callstack.dark
     ./scripts/run-cli run scripts/testing/perf-workloads/checks/record-errors.dark
     ./scripts/run-cli run scripts/testing/perf-workloads/checks/type-identity.dark
+    ./scripts/run-cli run scripts/testing/perf-workloads/checks/string-egc.dark \
+      | grep '^DEBUG' | diff - scripts/testing/perf-workloads/checks/string-egc.expected
 
 - `semantics.dark` covers self-recursion, enums (including a recursive case), records, lambdas,
   matches, map/filter/fold, and a polymorphic `Json.serialize`/`parse` round trip in both
@@ -22,6 +24,11 @@ output.
   answers same-type-no-type-args without consulting the store, so this is the one that would catch
   it accepting anything. It also documents why two structurally identical records are the *same*
   type in Dark, which makes the obvious version of this test useless.
+- `string-egc.dark` is the only check with a recorded expected output, because it's a
+  behaviour-preservation test rather than a readable one: `String.split` and `String.length` have a
+  fast path for strings whose grapheme clusters are exactly their chars, and this pins the cases
+  where that path must decline (non-ASCII, an empty separator, and CRLF -- which is a single
+  cluster, so `"a\r\nb"` split on `"\n"` is one part, not two).
 - `lambda-callstack.dark` raises inside a lambda nested two deep. The call stack must show the
   package functions and then both `Lambda` frames -- worth checking whenever frames start sharing
   `ExecutionPoint`s.

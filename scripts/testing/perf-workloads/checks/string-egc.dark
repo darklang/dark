@@ -1,0 +1,35 @@
+// `String.split` and `String.length` work in extended grapheme clusters, and have a fast path for
+// the strings whose clusters are exactly their chars. This checks the two agree.
+//
+// The cases that matter are the ones the fast path must *decline*:
+//   j, l, m  non-ASCII, where a cluster can span several chars
+//   k        "a\r\nb" split on "\n" -- CRLF is ONE cluster, so the EGC answer is a single part,
+//            where an ordinary split would give two. This is why the fast path rejects any CR.
+//   i        an empty separator, which means "explode into clusters"
+//
+// Expected output is in checks/string-egc.expected; diff against it.
+
+let show (label: String) (parts: List<String>) : Unit =
+  Builtin.debug label (Stdlib.String.join (Stdlib.List.map parts (fun p -> "[" ++ p ++ "]")) "|")
+
+let main () : Int64 =
+  show "a" (Stdlib.String.split "/hello/world" "/")
+  show "b" (Stdlib.String.split "" ",")
+  show "c" (Stdlib.String.split "," ",")
+  show "d" (Stdlib.String.split "a,,b" ",")
+  show "e" (Stdlib.String.split ",a," ",")
+  show "f" (Stdlib.String.split "abc" ",")
+  show "g" (Stdlib.String.split "a,b,c" ",")
+  show "h" (Stdlib.String.split "aXXbXXc" "XX")
+  show "i" (Stdlib.String.split "hello" "")
+  show "j" (Stdlib.String.split "héllo" "l")
+  show "k" (Stdlib.String.split "a\r\nb" "\n")
+  show "l" (Stdlib.String.split "🎉a🎉" "a")
+  show "m" (Stdlib.String.split "éx" "x")
+  Builtin.debug "len-ascii" (Stdlib.String.length "hello")
+  Builtin.debug "len-emoji" (Stdlib.String.length "🎉a")
+  Builtin.debug "len-combining" (Stdlib.String.length "é")
+  Builtin.debug "len-crlf" (Stdlib.String.length "a\r\nb")
+  Builtin.debug "len-empty" (Stdlib.String.length "")
+  0L
+main ()
