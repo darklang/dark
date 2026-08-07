@@ -812,6 +812,81 @@ module DvalCreator =
 
 
 
+  /// One field of an enum case being constructed. Same shape as `checkRecordFields`, and the same
+  /// reason for existing: as a lambda over a three-element accumulator it cost a closure, a state
+  /// machine and a tuple per field of every enum ever built.
+  let rec private checkEnumFields
+    (types : Types)
+    (threadID : ThreadID)
+    (caseName : string)
+    (fieldIndex : int)
+    (remaining : List<TypeReference * Dval>)
+    (typeArgs : List<string * ValueType>)
+    (fieldsInReverse : List<Dval>)
+    (tst : TypeSymbolTable)
+    : Ply<List<string * ValueType> * List<Dval> * TypeSymbolTable> =
+    match remaining with
+    | [] -> Ply((typeArgs, fieldsInReverse, tst))
+    | (fieldDef, actualField) :: rest ->
+      uply {
+        match! unify types tst fieldDef actualField with
+        | Error _path ->
+          // Resolved here rather than before the check that almost always passes: it only exists
+          // to describe the failure.
+          let! expected = TypeReference.toVT types tst fieldDef
+          return
+            RTE.Enums.ConstructionFieldOfWrongType(
+              caseName,
+              fieldIndex,
+              expected,
+              Dval.toValueType actualField,
+              actualField
+            )
+            |> RTE.Error.Enum
+            |> raiseRTE threadID
+
+        | Ok newTST ->
+          let! newTypeArgs =
+            Ply.List.mapSequentially
+              (fun (paramName, vt) ->
+                match vt with
+                | ValueType.Unknown ->
+                  match TST.tryFind paramName newTST with
+                  | ValueSome known -> Ply((paramName, known))
+                  | ValueNone -> Ply((paramName, vt))
+
+                | known ->
+                  match ValueType.merge known vt with
+                  | Ok merged -> Ply((paramName, merged))
+                  | Error() ->
+                    uply {
+                      let! expected = TypeReference.toVT types tst fieldDef
+                      return
+                        RTE.Enums.ConstructionFieldOfWrongType(
+                          caseName,
+                          fieldIndex,
+                          expected,
+                          Dval.toValueType actualField,
+                          actualField
+                        )
+                        |> RTE.Enum
+                        |> raiseRTE threadID
+                    })
+              typeArgs
+
+          return!
+            checkEnumFields
+              types
+              threadID
+              caseName
+              (fieldIndex + 1)
+              rest
+              newTypeArgs
+              (actualField :: fieldsInReverse)
+              newTST
+      }
+
+
   let enum
     (types : Types)
     (threadID : ThreadID)
@@ -857,56 +932,7 @@ module DvalCreator =
 
         // Process each field, updating type args as we learn more
         let! (typeArgs, fieldsInReverse, _updatedTst) =
-          Ply.List.foldSequentiallyWithIndex
-            (fun fieldIndex (typeArgs, fieldsInReverse, tst) (fieldDef, actualField) ->
-              uply {
-                let! expected = TypeReference.toVT types tst fieldDef
-                match! unify types tst fieldDef actualField with
-                | Error _path ->
-                  return
-                    RTE.Enums.ConstructionFieldOfWrongType(
-                      caseName,
-                      fieldIndex,
-                      expected,
-                      Dval.toValueType actualField,
-                      actualField
-                    )
-                    |> RTE.Error.Enum
-                    |> raiseRTE threadID
-
-                | Ok newTST ->
-                  let! expected = TypeReference.toVT types tst fieldDef
-                  // Update resultant typeArgs based on what we learned from this field
-                  // , by checking the TST.
-                  let newTypeArgs =
-                    typeArgs
-                    |> List.map (fun (paramName, vt) ->
-                      match vt with
-                      | ValueType.Unknown ->
-                        match
-                          TST.tryFind paramName newTST |> ValueOption.toOption
-                        with
-                        | Some known -> (paramName, known)
-                        | None -> (paramName, vt)
-
-                      | known ->
-                        match ValueType.merge known vt with
-                        | Ok merged -> (paramName, merged)
-                        | Error() ->
-                          RTE.Enums.ConstructionFieldOfWrongType(
-                            caseName,
-                            fieldIndex,
-                            expected,
-                            Dval.toValueType actualField,
-                            actualField
-                          )
-                          |> RTE.Enum
-                          |> raiseRTE threadID)
-
-                  return (newTypeArgs, actualField :: fieldsInReverse, newTST)
-              })
-            (typeArgs, [], tst)
-            fieldsZipped
+          checkEnumFields types threadID caseName 0 fieldsZipped typeArgs [] tst
 
         let typeArgs = typeArgs |> List.map Tuple2.second
         let fields = List.rev fieldsInReverse
