@@ -1598,6 +1598,265 @@ let private callPackage
 
 
 
+/// What an `Apply` still needs, after everything that could be done synchronously has been.
+[<Struct>]
+type private ApplyOutcome =
+  /// Finished. Nothing to await.
+  | ApplyDone
+  /// A builtin that had to wait. Its result goes in this register.
+  | AwaitBuiltin of bCall : Ply<Dval> * bReg : Register
+  /// A package call that had to wait. Its outcome is a value for this register, or a frame to push.
+  | AwaitPackage of pCall : Ply<PackageOutcome> * pReg : Register
+
+
+/// One `Apply` instruction, run without entering the interpreter's computation expression.
+///
+/// Returns what, if anything, still has to be awaited. Almost nothing does: resolving a type arg is a
+/// cache hit, checking an argument needs no store lookup in the ordinary case, and a pure builtin hands
+/// back a `Ply` that is already finished. Those cases finish here and the caller never touches the
+/// builder.
+///
+/// `outcome` is a plain mutable local, not a captured one: there is no computation expression in this
+/// function, so it lives in a slot rather than a ref cell. Keeping it meant every existing branch could
+/// stay unit-typed, which made this a move rather than a rewrite.
+let private applyInstruction
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (registers : Dval array)
+  (putResultIn : Register)
+  (thingToCallReg : Register)
+  (typeArgs : List<TypeReference>)
+  (newArgRegs : NEList<Register>)
+  : ApplyOutcome =
+  let mutable outcome = ApplyDone
+  // CLEANUP
+  // only the first apply of an applicable should be allowed to provide type args
+
+  let applicable =
+    let thingToCall = registers[thingToCallReg]
+    match thingToCall with
+    | DApplicable applicable -> applicable
+    | _ ->
+      RTE.Applications.ExpectedApplicableButNot(
+        Dval.toValueType thingToCall,
+        thingToCall
+      )
+      |> RTE.Apply
+      |> raiseRTE vm.threadID
+
+  let applyArgsAlloc = allocNow vm
+  let newArgDvals = readRegsNE registers newArgRegs
+  recordStage vm ApplyStage.ApplyArgs applyArgsAlloc
+
+  match applicable with
+  | AppLambda appLambda ->
+    let exprId = appLambda.exprId
+    let foundLambda =
+      let mutable cached = Unchecked.defaultof<_>
+      if exeState.lambdaInstrCache.TryGetValue(exprId, &cached) then
+        cached
+      else
+        Exception.raiseInternal "lambda not found" [ "exprId", exprId ]
+
+    let allArgs =
+      match appLambda.argsSoFar with
+      | [] -> newArgDvals
+      | prev -> prev @ newArgDvals
+
+    let argCount = List.length allArgs
+    let paramCount = NEList.length foundLambda.patterns
+
+    if typeArgs <> [] then
+      RTE.Applications.CannotApplyTypeArgsToLambda
+      |> RTE.Apply
+      |> raiseRTE vm.threadID
+
+    if argCount = paramCount then
+      let lambdaFrameAlloc = allocNow vm
+      // Hoisted out of the record expression so each piece can be bracketed separately;
+      // `lambda.frame` was the largest Apply stage and most of it was unaccounted for.
+      let lambdaTstAlloc = allocNow vm
+      let lambdaTst =
+        if Map.isEmpty appLambda.typeSymbolTable then
+          currentFrame.typeSymbolTable
+        else if Map.isEmpty currentFrame.typeSymbolTable then
+          appLambda.typeSymbolTable
+        else
+          Map.mergeFavoringRight
+            appLambda.typeSymbolTable
+            currentFrame.typeSymbolTable
+      recordStage vm ApplyStage.LambdaTst lambdaTstAlloc
+
+      let lambdaEpAlloc = allocNow vm
+      let lambdaEp = Lambda(currentFrame.executionPoint, exprId)
+      recordStage vm ApplyStage.LambdaExecPoint lambdaEpAlloc
+
+      // Resolved here so the loop never has to look it up. Same shared InstrData the
+      // per-VM cache holds; this is a reference to it, not a copy.
+      let lambdaInstrData =
+        match Map.tryFind exprId vm.lambdaInstrDataCache with
+        | Some cached -> cached
+        | None ->
+          let d : InstrData =
+            { instructions = List.toArray foundLambda.instructions.instructions
+              resultReg = foundLambda.instructions.resultIn }
+          vm.lambdaInstrDataCache <- Map.add exprId d vm.lambdaInstrDataCache
+          d
+
+      let newFrame =
+        takeFrame
+          vm
+          foundLambda.instructions.registerCount
+          (nextFrameId vm)
+          (ValueSome(
+            struct (vm.currentFrameID, putResultIn, currentFrame.programCounter + 1)
+          ))
+          lambdaEp
+          lambdaInstrData
+          ValueNone
+          lambdaTst
+
+      let lambdaRegsAlloc = allocNow vm
+      if vm.stats.enabled then
+        vm.stats.registersAllocated <-
+          vm.stats.registersAllocated + int64 foundLambda.instructions.registerCount
+      let r = newFrame.registers
+
+      // extract and copy over the args
+      bindLambdaParams
+        vm
+        r
+        (foundLambda.patterns.head :: foundLambda.patterns.tail)
+        allArgs
+
+      // copy over closed registers
+      assignRegisters r appLambda.closedRegisters
+
+      // Put the lambda itself in the self register so the body can
+      // call itself. If it already has no applied args, reuse it
+      // as-is.
+      match foundLambda.selfRegister with
+      | Some selfReg ->
+        r[selfReg] <-
+          if List.isEmpty appLambda.argsSoFar then
+            DApplicable(AppLambda appLambda)
+          else
+            DApplicable(AppLambda { appLambda with argsSoFar = [] })
+      | None -> ()
+      recordStage vm ApplyStage.LambdaRegisters lambdaRegsAlloc
+
+      recordStage vm ApplyStage.LambdaFrame lambdaFrameAlloc
+      if vm.stats.enabled then
+        vm.stats.framePushCount <- vm.stats.framePushCount + 1L
+      if not exeState.tracing.skipTracing then
+        exeState.tracing.storeFrameEntry newFrame.id newFrame.executionPoint allArgs
+      vm.frameToPush <- ValueSome newFrame
+
+    else if argCount > paramCount then
+      RTE.Applications.TooManyArgsForLambda(exprId, paramCount, argCount)
+      |> RTE.Apply
+      |> raiseRTE vm.threadID
+    else
+      registers[putResultIn] <-
+        { appLambda with argsSoFar = allArgs } |> AppLambda |> DApplicable
+
+  | AppNamedFn applicable ->
+    // The symbol table the call starts from. `callBuiltin` and `callPackage` take it from
+    // here and do the rest -- shadowing, inference, checking, invocation -- outside this
+    // computation expression, which is where all of it used to live.
+    let tst =
+      if Map.isEmpty applicable.typeSymbolTable then
+        currentFrame.typeSymbolTable
+      else if Map.isEmpty currentFrame.typeSymbolTable then
+        applicable.typeSymbolTable
+      else
+        Map.mergeFavoringRight
+          currentFrame.typeSymbolTable
+          applicable.typeSymbolTable
+
+    let typeArgs =
+      match applicable.typeArgs with
+      | [] -> typeArgs
+      | oldTypeArgs ->
+        match typeArgs with
+        | [] -> oldTypeArgs
+        | _ ->
+          RTE.Applications.CannotApplyTypeArgsMoreThanOnce
+          |> RTE.Apply
+          |> raiseRTE vm.threadID
+
+    let ctx : ApplyContext =
+      { applicable = applicable
+        typeArgs = typeArgs
+        args = newArgDvals
+        tst = tst
+        putResultIn = putResultIn
+        returnPc = currentFrame.programCounter + 1 }
+
+    // CLEANUP the two branches below are near-identical in shape, and so are `callBuiltin`
+    // and `callPackage` behind them: same five steps, different parameter and outcome types.
+    // Unifying them needs `BuiltInParam` and `PackageFn.Parameter` to share an interface.
+    match applicable.name with
+    | FQFnName.Builtin builtin ->
+      let biLookupAlloc = allocNow vm
+      // `TryGetValue` rather than `Map.find`, which allocates a `Some` on every hit --
+      // `FSharpOption<BuiltInFn>` was 0.9% of the profile, and this is where it came from.
+      // F#'s Map implements IDictionary, so the byref overload is available here too.
+      let mutable found = Unchecked.defaultof<BuiltInFn>
+      if not (exeState.fns.builtIn.TryGetValue(builtin, &found)) then
+        RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE vm.threadID
+      else
+        let fn = found
+        recordStage vm ApplyStage.BiFnLookup biLookupAlloc
+        let call = callBuiltin exeState vm currentFrame ctx fn
+        // Usually already finished, in which case there's no bind to pay for.
+        match Ply.trySync call with
+        | ValueSome dv -> registers[putResultIn] <- dv
+        | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
+
+    | FQFnName.Package pkg ->
+      // Harmful-deprecation runtime halt.
+      // Checked before even fetching the fn so the error is surfaced
+      // whether or not the fn definition is still available.
+      let isHarmful = exeState.fns.isHarmful pkg
+      if isHarmful && not exeState.allowHarmful then
+        RTE.DeprecatedItemHalted pkg |> raiseRTE vm.threadID
+      let pkgFetchAlloc = allocNow vm
+      // Warm cache after the first call, which for a script means all but a handful of these.
+      //
+      // The `let!` for the cold path used to sit here, in the loop's computation expression,
+      // and cost a continuation closure on every call whether or not it was reached -- the
+      // same thing that made the two call paths expensive before they were extracted. Now the
+      // miss builds its own `uply` and the hit never touches the builder.
+      let fetchOnlyAlloc = allocNow vm
+      let fetch = exeState.fns.package pkg
+      let fetched = Ply.trySync fetch
+      recordStage vm ApplyStage.PkgFetchOnly fetchOnlyAlloc
+      let call =
+        match fetched with
+        | ValueSome(Some fn) -> callPackage exeState vm currentFrame ctx fn
+        | ValueSome None ->
+          RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
+        | ValueNone ->
+          uply {
+            match! fetch with
+            | Some fn -> return! callPackage exeState vm currentFrame ctx fn
+            | None ->
+              return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
+          }
+      recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
+      // Overwritten on the next line either way; F# needs something to start from.
+      // No `let mutable` spanning the bind. A mutable a continuation captures becomes a
+      // heap ref cell, allocated whether or not the branch that needs it is taken; measured
+      // at 4.4 MB for this one. Duplicating two lines is cheaper than the cell.
+      match Ply.trySync call with
+      | ValueSome(PartiallyApplied dv) -> registers[putResultIn] <- dv
+      | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
+      | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
+  outcome
+
+
 let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dval> =
   uply {
     // No local `raiseRTE` alias: every continuation the builder makes for the loop body would
@@ -1728,248 +1987,27 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 registers[createTo] <- v.body
               | None -> raiseRTE vm.threadID (RTE.ValueNotFound name)
           | Apply(putResultIn, thingToCallReg, typeArgs, newArgRegs) ->
-            // CLEANUP
-            // only the first apply of an applicable should be allowed to provide type args
+            match
+              applyInstruction
+                exeState
+                vm
+                currentFrame
+                registers
+                putResultIn
+                thingToCallReg
+                typeArgs
+                newArgRegs
+            with
+            | ApplyDone -> ()
+            | AwaitBuiltin(call, reg) ->
+              let! dv = call
+              registers[reg] <- dv
+            | AwaitPackage(call, reg) ->
+              let! o = call
+              match o with
+              | PartiallyApplied dv -> registers[reg] <- dv
+              | PushFrame frame -> vm.frameToPush <- ValueSome frame
 
-            let applicable =
-              let thingToCall = registers[thingToCallReg]
-              match thingToCall with
-              | DApplicable applicable -> applicable
-              | _ ->
-                RTE.Applications.ExpectedApplicableButNot(
-                  Dval.toValueType thingToCall,
-                  thingToCall
-                )
-                |> RTE.Apply
-                |> raiseRTE vm.threadID
-
-            let applyArgsAlloc = allocNow vm
-            let newArgDvals = readRegsNE registers newArgRegs
-            recordStage vm ApplyStage.ApplyArgs applyArgsAlloc
-
-            match applicable with
-            | AppLambda appLambda ->
-              let exprId = appLambda.exprId
-              let foundLambda =
-                let mutable cached = Unchecked.defaultof<_>
-                if exeState.lambdaInstrCache.TryGetValue(exprId, &cached) then
-                  cached
-                else
-                  Exception.raiseInternal "lambda not found" [ "exprId", exprId ]
-
-              let allArgs =
-                match appLambda.argsSoFar with
-                | [] -> newArgDvals
-                | prev -> prev @ newArgDvals
-
-              let argCount = List.length allArgs
-              let paramCount = NEList.length foundLambda.patterns
-
-              if typeArgs <> [] then
-                RTE.Applications.CannotApplyTypeArgsToLambda
-                |> RTE.Apply
-                |> raiseRTE vm.threadID
-
-              if argCount = paramCount then
-                let lambdaFrameAlloc = allocNow vm
-                // Hoisted out of the record expression so each piece can be bracketed separately;
-                // `lambda.frame` was the largest Apply stage and most of it was unaccounted for.
-                let lambdaTstAlloc = allocNow vm
-                let lambdaTst =
-                  if Map.isEmpty appLambda.typeSymbolTable then
-                    currentFrame.typeSymbolTable
-                  else if Map.isEmpty currentFrame.typeSymbolTable then
-                    appLambda.typeSymbolTable
-                  else
-                    Map.mergeFavoringRight
-                      appLambda.typeSymbolTable
-                      currentFrame.typeSymbolTable
-                recordStage vm ApplyStage.LambdaTst lambdaTstAlloc
-
-                let lambdaEpAlloc = allocNow vm
-                let lambdaEp = Lambda(currentFrame.executionPoint, exprId)
-                recordStage vm ApplyStage.LambdaExecPoint lambdaEpAlloc
-
-                // Resolved here so the loop never has to look it up. Same shared InstrData the
-                // per-VM cache holds; this is a reference to it, not a copy.
-                let lambdaInstrData =
-                  match Map.tryFind exprId vm.lambdaInstrDataCache with
-                  | Some cached -> cached
-                  | None ->
-                    let d : InstrData =
-                      { instructions =
-                          List.toArray foundLambda.instructions.instructions
-                        resultReg = foundLambda.instructions.resultIn }
-                    vm.lambdaInstrDataCache <-
-                      Map.add exprId d vm.lambdaInstrDataCache
-                    d
-
-                let newFrame =
-                  takeFrame
-                    vm
-                    foundLambda.instructions.registerCount
-                    (nextFrameId vm)
-                    (ValueSome(
-                      struct (vm.currentFrameID,
-                              putResultIn,
-                              currentFrame.programCounter + 1)
-                    ))
-                    lambdaEp
-                    lambdaInstrData
-                    ValueNone
-                    lambdaTst
-
-                let lambdaRegsAlloc = allocNow vm
-                if vm.stats.enabled then
-                  vm.stats.registersAllocated <-
-                    vm.stats.registersAllocated
-                    + int64 foundLambda.instructions.registerCount
-                let r = newFrame.registers
-
-                // extract and copy over the args
-                bindLambdaParams
-                  vm
-                  r
-                  (foundLambda.patterns.head :: foundLambda.patterns.tail)
-                  allArgs
-
-                // copy over closed registers
-                assignRegisters r appLambda.closedRegisters
-
-                // Put the lambda itself in the self register so the body can
-                // call itself. If it already has no applied args, reuse it
-                // as-is.
-                match foundLambda.selfRegister with
-                | Some selfReg ->
-                  r[selfReg] <-
-                    if List.isEmpty appLambda.argsSoFar then
-                      DApplicable(AppLambda appLambda)
-                    else
-                      DApplicable(AppLambda { appLambda with argsSoFar = [] })
-                | None -> ()
-                recordStage vm ApplyStage.LambdaRegisters lambdaRegsAlloc
-
-                recordStage vm ApplyStage.LambdaFrame lambdaFrameAlloc
-                if vm.stats.enabled then
-                  vm.stats.framePushCount <- vm.stats.framePushCount + 1L
-                if not exeState.tracing.skipTracing then
-                  exeState.tracing.storeFrameEntry
-                    newFrame.id
-                    newFrame.executionPoint
-                    allArgs
-                vm.frameToPush <- ValueSome newFrame
-
-              else if argCount > paramCount then
-                RTE.Applications.TooManyArgsForLambda(exprId, paramCount, argCount)
-                |> RTE.Apply
-                |> raiseRTE vm.threadID
-              else
-                registers[putResultIn] <-
-                  { appLambda with argsSoFar = allArgs } |> AppLambda |> DApplicable
-
-            | AppNamedFn applicable ->
-              // The symbol table the call starts from. `callBuiltin` and `callPackage` take it from
-              // here and do the rest -- shadowing, inference, checking, invocation -- outside this
-              // computation expression, which is where all of it used to live.
-              let tst =
-                if Map.isEmpty applicable.typeSymbolTable then
-                  currentFrame.typeSymbolTable
-                else if Map.isEmpty currentFrame.typeSymbolTable then
-                  applicable.typeSymbolTable
-                else
-                  Map.mergeFavoringRight
-                    currentFrame.typeSymbolTable
-                    applicable.typeSymbolTable
-
-              let typeArgs =
-                match applicable.typeArgs with
-                | [] -> typeArgs
-                | oldTypeArgs ->
-                  match typeArgs with
-                  | [] -> oldTypeArgs
-                  | _ ->
-                    RTE.Applications.CannotApplyTypeArgsMoreThanOnce
-                    |> RTE.Apply
-                    |> raiseRTE vm.threadID
-
-              let ctx : ApplyContext =
-                { applicable = applicable
-                  typeArgs = typeArgs
-                  args = newArgDvals
-                  tst = tst
-                  putResultIn = putResultIn
-                  returnPc = currentFrame.programCounter + 1 }
-
-              // CLEANUP the two branches below are near-identical in shape, and so are `callBuiltin`
-              // and `callPackage` behind them: same five steps, different parameter and outcome types.
-              // Unifying them needs `BuiltInParam` and `PackageFn.Parameter` to share an interface.
-              match applicable.name with
-              | FQFnName.Builtin builtin ->
-                let biLookupAlloc = allocNow vm
-                // `TryGetValue` rather than `Map.find`, which allocates a `Some` on every hit --
-                // `FSharpOption<BuiltInFn>` was 0.9% of the profile, and this is where it came from.
-                // F#'s Map implements IDictionary, so the byref overload is available here too.
-                let mutable found = Unchecked.defaultof<BuiltInFn>
-                if not (exeState.fns.builtIn.TryGetValue(builtin, &found)) then
-                  return
-                    RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE vm.threadID
-                else
-                  let fn = found
-                  recordStage vm ApplyStage.BiFnLookup biLookupAlloc
-                  let call = callBuiltin exeState vm currentFrame ctx fn
-                  // Usually already finished, in which case there's no bind to pay for.
-                  match Ply.trySync call with
-                  | ValueSome dv -> registers[putResultIn] <- dv
-                  | ValueNone ->
-                    let! dv = call
-                    registers[putResultIn] <- dv
-
-              | FQFnName.Package pkg ->
-                // Harmful-deprecation runtime halt.
-                // Checked before even fetching the fn so the error is surfaced
-                // whether or not the fn definition is still available.
-                let isHarmful = exeState.fns.isHarmful pkg
-                if isHarmful && not exeState.allowHarmful then
-                  return RTE.DeprecatedItemHalted pkg |> raiseRTE vm.threadID
-                let pkgFetchAlloc = allocNow vm
-                // Warm cache after the first call, which for a script means all but a handful of these.
-                //
-                // The `let!` for the cold path used to sit here, in the loop's computation expression,
-                // and cost a continuation closure on every call whether or not it was reached -- the
-                // same thing that made the two call paths expensive before they were extracted. Now the
-                // miss builds its own `uply` and the hit never touches the builder.
-                let fetchOnlyAlloc = allocNow vm
-                let fetch = exeState.fns.package pkg
-                let fetched = Ply.trySync fetch
-                recordStage vm ApplyStage.PkgFetchOnly fetchOnlyAlloc
-                let call =
-                  match fetched with
-                  | ValueSome(Some fn) -> callPackage exeState vm currentFrame ctx fn
-                  | ValueSome None ->
-                    RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
-                  | ValueNone ->
-                    uply {
-                      match! fetch with
-                      | Some fn ->
-                        return! callPackage exeState vm currentFrame ctx fn
-                      | None ->
-                        return
-                          RTE.FnNotFound(FQFnName.Package pkg)
-                          |> raiseRTE vm.threadID
-                    }
-                recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
-                // Overwritten on the next line either way; F# needs something to start from.
-                // No `let mutable` spanning the bind. A mutable a continuation captures becomes a
-                // heap ref cell, allocated whether or not the branch that needs it is taken; measured
-                // at 4.4 MB for this one. Duplicating two lines is cheaper than the cell.
-                match Ply.trySync call with
-                | ValueSome(PartiallyApplied dv) -> registers[putResultIn] <- dv
-                | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
-                | ValueNone ->
-                  let! o = call
-                  match o with
-                  | PartiallyApplied dv -> registers[putResultIn] <- dv
-                  | PushFrame frame -> vm.frameToPush <- ValueSome frame
 
           // Handled by `runSyncInstructions`; the match must still be exhaustive.
           | _ -> ()
