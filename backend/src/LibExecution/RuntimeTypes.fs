@@ -1506,6 +1506,35 @@ module TypeDeclaration =
 
 
 
+/// One shared `ValueType.Known` wrapper per scalar type.
+///
+/// The `KT*` cases are nullary, so F# already shares those; it was the `Known` around them that got
+/// rebuilt. Two places convert to a ValueType on every call -- `Dval.toValueType` from a value, and
+/// `TypeReference.toVT` from a declaration -- and between them they run several times per argument
+/// per function call. They now hand back the same objects, which also means the identity check at
+/// the top of `ValueType.merge` fires between a value's type and its declared type.
+module KnownVT =
+  let unit : ValueType = ValueType.Known KTUnit
+  let bool : ValueType = ValueType.Known KTBool
+  let int8 : ValueType = ValueType.Known KTInt8
+  let uint8 : ValueType = ValueType.Known KTUInt8
+  let int16 : ValueType = ValueType.Known KTInt16
+  let uint16 : ValueType = ValueType.Known KTUInt16
+  let int32 : ValueType = ValueType.Known KTInt32
+  let uint32 : ValueType = ValueType.Known KTUInt32
+  let int64 : ValueType = ValueType.Known KTInt64
+  let uint64 : ValueType = ValueType.Known KTUInt64
+  let int128 : ValueType = ValueType.Known KTInt128
+  let uint128 : ValueType = ValueType.Known KTUInt128
+  let int : ValueType = ValueType.Known KTInt
+  let float : ValueType = ValueType.Known KTFloat
+  let char : ValueType = ValueType.Known KTChar
+  let string : ValueType = ValueType.Known KTString
+  let dateTime : ValueType = ValueType.Known KTDateTime
+  let uuid : ValueType = ValueType.Known KTUuid
+  let blob : ValueType = ValueType.Known KTBlob
+
+
 // Functions for working with Dark runtime values
 module Dval =
   // Interned scalars. A Dval is immutable and compared structurally, so nothing can tell a shared
@@ -1564,24 +1593,24 @@ module Dval =
   // function call -- once for inference, once for the parameter type check -- so these were
   // among the most frequently allocated objects in the interpreter. Nullary DU cases like
   // `KTBool` are already singletons; only the wrapper was being rebuilt.
-  let private vtUnit : ValueType = ValueType.Known KTUnit
-  let private vtBool : ValueType = ValueType.Known KTBool
-  let private vtInt8 : ValueType = ValueType.Known KTInt8
-  let private vtUInt8 : ValueType = ValueType.Known KTUInt8
-  let private vtInt16 : ValueType = ValueType.Known KTInt16
-  let private vtUInt16 : ValueType = ValueType.Known KTUInt16
-  let private vtInt32 : ValueType = ValueType.Known KTInt32
-  let private vtUInt32 : ValueType = ValueType.Known KTUInt32
-  let private vtInt64 : ValueType = ValueType.Known KTInt64
-  let private vtUInt64 : ValueType = ValueType.Known KTUInt64
-  let private vtInt128 : ValueType = ValueType.Known KTInt128
-  let private vtUInt128 : ValueType = ValueType.Known KTUInt128
-  let private vtInt : ValueType = ValueType.Known KTInt
-  let private vtFloat : ValueType = ValueType.Known KTFloat
-  let private vtChar : ValueType = ValueType.Known KTChar
-  let private vtString : ValueType = ValueType.Known KTString
-  let private vtDateTime : ValueType = ValueType.Known KTDateTime
-  let private vtUuid : ValueType = ValueType.Known KTUuid
+  let private vtUnit = KnownVT.unit
+  let private vtBool = KnownVT.bool
+  let private vtInt8 = KnownVT.int8
+  let private vtUInt8 = KnownVT.uint8
+  let private vtInt16 = KnownVT.int16
+  let private vtUInt16 = KnownVT.uint16
+  let private vtInt32 = KnownVT.int32
+  let private vtUInt32 = KnownVT.uint32
+  let private vtInt64 = KnownVT.int64
+  let private vtUInt64 = KnownVT.uint64
+  let private vtInt128 = KnownVT.int128
+  let private vtUInt128 = KnownVT.uint128
+  let private vtInt = KnownVT.int
+  let private vtFloat = KnownVT.float
+  let private vtChar = KnownVT.char
+  let private vtString = KnownVT.string
+  let private vtDateTime = KnownVT.dateTime
+  let private vtUuid = KnownVT.uuid
 
   // The scalar cases above hand back a shared wrapper. The container cases could not, because their
   // ValueType depends on the element type -- so `Known(KTList t)` was two objects, built fresh, on
@@ -2797,73 +2826,106 @@ module TypeReference =
     | _ -> Ply typ
 
 
+  /// A declared `TypeReference` as a `ValueType`.
+  ///
+  /// Three things were wrong with this, and together they were the top of the allocation profile for
+  /// an HTTP request at about 18%.
+  ///
+  /// The `let r = toVT types tst` alias was a closure over both arguments, built on entry to every
+  /// call including the scalar ones that never used it. Each recursion now passes them explicitly.
+  ///
+  /// The whole body was one `uply`, so `TString` -- which cannot be an alias and cannot await --
+  /// still entered the builder. Only the cases that can genuinely need the store do now.
+  ///
+  /// And every scalar case built a fresh `Known` wrapper. They come from `KnownVT` instead, which is
+  /// the same object `Dval.toValueType` returns, so comparing a value's type against its declared
+  /// type can settle on reference equality.
   let rec toVT
     (types : Types)
     (tst : TypeSymbolTable)
     (typeRef : TypeReference)
     : Ply<ValueType> =
-    let r = toVT types tst
+    match typeRef with
+    | TUnit -> Ply KnownVT.unit
+    | TBool -> Ply KnownVT.bool
+    | TInt8 -> Ply KnownVT.int8
+    | TUInt8 -> Ply KnownVT.uint8
+    | TInt16 -> Ply KnownVT.int16
+    | TUInt16 -> Ply KnownVT.uint16
+    | TInt32 -> Ply KnownVT.int32
+    | TUInt32 -> Ply KnownVT.uint32
+    | TInt64 -> Ply KnownVT.int64
+    | TUInt64 -> Ply KnownVT.uint64
+    | TInt128 -> Ply KnownVT.int128
+    | TUInt128 -> Ply KnownVT.uint128
+    | TInt -> Ply KnownVT.int
+    | TFloat -> Ply KnownVT.float
+    | TChar -> Ply KnownVT.char
+    | TString -> Ply KnownVT.string
+    | TUuid -> Ply KnownVT.uuid
+    | TDateTime -> Ply KnownVT.dateTime
+    | TBlob -> Ply KnownVT.blob
 
-    uply {
-      match! unwrapAlias types typeRef with
-      | TUnit -> return ValueType.Known KTUnit
-      | TBool -> return ValueType.Known KTBool
-      | TInt8 -> return ValueType.Known KTInt8
-      | TUInt8 -> return ValueType.Known KTUInt8
-      | TInt16 -> return ValueType.Known KTInt16
-      | TUInt16 -> return ValueType.Known KTUInt16
-      | TInt32 -> return ValueType.Known KTInt32
-      | TUInt32 -> return ValueType.Known KTUInt32
-      | TInt64 -> return ValueType.Known KTInt64
-      | TUInt64 -> return ValueType.Known KTUInt64
-      | TInt128 -> return ValueType.Known KTInt128
-      | TUInt128 -> return ValueType.Known KTUInt128
-      | TInt -> return ValueType.Known KTInt
-      | TFloat -> return ValueType.Known KTFloat
-      | TChar -> return ValueType.Known KTChar
-      | TString -> return ValueType.Known KTString
-      | TUuid -> return ValueType.Known KTUuid
-      | TDateTime -> return ValueType.Known KTDateTime
-      | TBlob -> return ValueType.Known KTBlob
+    | TVariable name ->
+      Ply(
+        match TST.tryFind name tst with
+        | ValueSome vt -> vt
+        | ValueNone -> ValueType.Unknown
+      )
 
-      | TStream inner ->
-        let! inner = r inner
-        return ValueType.Known(KTStream inner)
+    | TCustomType({ originalName = names; resolved = Error nre }, _) ->
+      raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
 
-      | TTuple(first, second, theRest) ->
-        let! first = r first
-        let! second = r second
-        let! theRest = theRest |> Ply.List.mapSequentially r
-        return KTTuple(first, second, theRest) |> ValueType.Known
-      | TList inner ->
-        let! inner = r inner
-        return ValueType.Known(KTList inner)
-      | TDict inner ->
-        let! inner = r inner
-        return ValueType.Known(KTDict inner)
+    // Only these can be an alias, or hold something that has to be resolved, so only these pay for
+    // the builder. `unwrapAlias` is a no-op for everything above.
+    | TStream _
+    | TTuple _
+    | TList _
+    | TDict _
+    | TCustomType _
+    | TFn _
+    | TDB _ ->
+      uply {
+        match! unwrapAlias types typeRef with
+        | TStream inner ->
+          let! inner = toVT types tst inner
+          return ValueType.Known(KTStream inner)
 
-      | TCustomType({ resolved = Ok typeName }, typeArgs) ->
-        let! typeArgs = typeArgs |> Ply.List.mapSequentially r
-        return KTCustomType(typeName, typeArgs) |> ValueType.Known
+        | TTuple(first, second, theRest) ->
+          let! first = toVT types tst first
+          let! second = toVT types tst second
+          let! theRest = theRest |> Ply.List.mapSequentially (toVT types tst)
+          return KTTuple(first, second, theRest) |> ValueType.Known
 
-      | TCustomType({ originalName = names; resolved = Error nre }, _) ->
-        return raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
+        | TList inner ->
+          let! inner = toVT types tst inner
+          return ValueType.Known(KTList inner)
 
-      | TVariable name ->
-        return
-          match TST.tryFind name tst with
-          | ValueSome vt -> vt
-          | ValueNone -> ValueType.Unknown
+        | TDict inner ->
+          let! inner = toVT types tst inner
+          return ValueType.Known(KTDict inner)
 
-      | TFn(args, result) ->
-        let! args = args |> Ply.NEList.mapSequentially r
-        let! result = r result
-        return KTFn(args, result) |> ValueType.Known
+        | TCustomType({ resolved = Ok typeName }, typeArgs) ->
+          let! typeArgs = typeArgs |> Ply.List.mapSequentially (toVT types tst)
+          return KTCustomType(typeName, typeArgs) |> ValueType.Known
 
-      | TDB inner ->
-        let! inner = r inner
-        return ValueType.Known(KTDB inner)
-    }
+        | TCustomType({ originalName = names; resolved = Error nre }, _) ->
+          return
+            raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
+
+        | TFn(args, result) ->
+          let! args = args |> Ply.NEList.mapSequentially (toVT types tst)
+          let! result = toVT types tst result
+          return KTFn(args, result) |> ValueType.Known
+
+        | TDB inner ->
+          let! inner = toVT types tst inner
+          return ValueType.Known(KTDB inner)
+
+        // An alias can unwrap to any of the cases handled without the builder above; those are
+        // cheap, so recursing back into `toVT` costs nothing and keeps one copy of each rule.
+        | unwrapped -> return! toVT types tst unwrapped
+      }
 
 
   /// Convert a KnownType back to a TypeReference

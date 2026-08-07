@@ -21,13 +21,20 @@ let echoFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
 let allocFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   Stdlib.Http.responseWithText (Stdlib.Int64.toString (Builtin.gcAllocatedBytes ())) 200
 
+// Interpreter counters for the VM that ran this request. Each request gets its own VM, so this is
+// per-request work: how many instructions, builtin calls and package calls a request costs.
+let statsFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText (Builtin.interpreterStatsGet ()) 200
+
+let handlers () : List<Stdlib.HttpServer.Handler> =
+  [ Stdlib.HttpServer.Handler { route = "/hello"; method = "GET"; handler = helloFn }
+    Stdlib.HttpServer.Handler { route = "/json"; method = "GET"; handler = jsonFn }
+    Stdlib.HttpServer.Handler { route = "/echo"; method = "POST"; handler = echoFn }
+    Stdlib.HttpServer.Handler { route = "/alloc"; method = "GET"; handler = allocFn }
+    Stdlib.HttpServer.Handler { route = "/stats"; method = "GET"; handler = statsFn } ]
+
 let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-  Stdlib.HttpServer.routeRequest
-    [ Stdlib.HttpServer.Handler { route = "/hello"; method = "GET"; handler = helloFn }
-      Stdlib.HttpServer.Handler { route = "/json"; method = "GET"; handler = jsonFn }
-      Stdlib.HttpServer.Handler { route = "/echo"; method = "POST"; handler = echoFn }
-      Stdlib.HttpServer.Handler { route = "/alloc"; method = "GET"; handler = allocFn } ]
-    req
+  Stdlib.HttpServer.routeRequest (handlers ()) req
 
 let port () : Int =
   match Builtin.environmentGet "PERF_HTTP_PORT" with
