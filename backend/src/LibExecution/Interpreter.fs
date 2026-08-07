@@ -954,6 +954,10 @@ let private finishBuiltin
     recordStage vm ApplyStage.BiCheckResult biResAlloc
     Ply(traceBuiltinResult exeState currentFrame fn allArgs result)
   | ValueNone ->
+    // Closed here rather than after the await: a bracket spanning a bind measures whatever nested
+    // execution resumes inside it, not this region. The async answer isn't counted, which is the
+    // right call -- it's rare, and counting it wrong is worse than not counting it.
+    recordStage vm ApplyStage.BiCheckResult biResAlloc
     uply {
       match!
         TypeChecker.checkFnResult
@@ -965,7 +969,6 @@ let private finishBuiltin
       with
       | Ok _ -> ()
       | Error rte -> raiseRTE vm.threadID rte
-      recordStage vm ApplyStage.BiCheckResult biResAlloc
       return traceBuiltinResult exeState currentFrame fn allArgs result
     }
 
@@ -1280,6 +1283,7 @@ let private completePackage
   else
     // Inherit the outer frame's TST but shadow this fn's own free type-vars first, so the inner fn's
     // `'a` is local to this call and not the outer's.
+    let frameTstAlloc = allocNow vm
     let frameTst =
       let stripped =
         implicitTypeParams
@@ -1287,6 +1291,7 @@ let private completePackage
           (fun m name -> removeIfPresent name m)
           currentFrame.typeSymbolTable
       Map.mergeFavoringRight stripped newlyBound
+    recordStage vm ApplyStage.PkgFrameTst frameTstAlloc
     let pkgFrameAlloc = allocNow vm
     if vm.stats.enabled then
       let n = int64 (Map.count frameTst)
@@ -1853,9 +1858,12 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                 // and cost a continuation closure on every call whether or not it was reached -- the
                 // same thing that made the two call paths expensive before they were extracted. Now the
                 // miss builds its own `uply` and the hit never touches the builder.
+                let fetchOnlyAlloc = allocNow vm
                 let fetch = exeState.fns.package pkg
+                let fetched = Ply.trySync fetch
+                recordStage vm ApplyStage.PkgFetchOnly fetchOnlyAlloc
                 let call =
-                  match Ply.trySync fetch with
+                  match fetched with
                   | ValueSome(Some fn) ->
                     callPackage exeState vm currentFrame pendingCallArgs ctx fn
                   | ValueSome None ->
@@ -1941,8 +1949,11 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
             // Every frame return checks its result, so the same sync-first treatment as the argument
             // checks applies: skip the bind when the answer needs no type lookup.
             match TypeChecker.tryUnifySync tst expectedReturnType resultOfFrame with
-            | ValueSome _ -> ()
+            | ValueSome _ -> recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
             | ValueNone ->
+              // Closed before the bind, for the reason in `finishBuiltin`. Reading 6.7 MB here was
+              // this bracket measuring resumed execution; the region is really about 0.7.
+              recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
               match!
                 TypeChecker.unify exeState.types tst expectedReturnType resultOfFrame
               with
@@ -1963,7 +1974,6 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                   |> RuntimeError.Apply
                   |> raiseRTE
 
-          recordStage vm ApplyStage.FrameReturnTypeCheck retTcAlloc
 
           // Record per-package-fn timing on frame return
           if vm.stats.enabled && vm.stats.detailedTiming then

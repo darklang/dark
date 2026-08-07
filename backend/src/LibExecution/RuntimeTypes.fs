@@ -1879,7 +1879,9 @@ module ApplyStage =
        "bi.fnLookup"
        "lambda.registers"
        "lambda.tst"
-       "lambda.execPoint" |]
+       "lambda.execPoint"
+       "pkg.fetchOnly"
+       "pkg.frameTst" |]
 
   [<Literal>]
   let PkgTstShadow = 0
@@ -1917,6 +1919,10 @@ module ApplyStage =
   let LambdaTst = 16
   [<Literal>]
   let LambdaExecPoint = 17
+  [<Literal>]
+  let PkgFetchOnly = 18
+  [<Literal>]
+  let PkgFrameTst = 19
 
 
 /// Stable index and display name per `Instruction` case, used by the per-opcode allocation counters on
