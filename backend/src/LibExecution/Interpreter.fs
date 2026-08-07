@@ -1144,11 +1144,11 @@ let private callBuiltinResolved
   tst <- biTst
   recordStage vm ApplyStage.BiTypeCheckRun biTcRunAlloc
 
-  match biRestPs, biRestArgs with
-  | [], _
-  | _, [] ->
+  // `if` rather than `match biRestPs, biRestArgs with`: the tuple form allocates the pair, once per
+  // call, to ask a question two `isEmpty` checks answer.
+  if List.isEmpty biRestPs || List.isEmpty biRestArgs then
     completeBuiltin exeState vm currentFrame ctx fn allArgs argCount paramCount tst
-  | _ ->
+  else
     // Something in the remaining parameters needs the type store. Finish the check in a computation
     // expression and carry on from there -- still the one implementation, just resumed asynchronously.
     let typeCheckParam = TypeChecker.checkFnParam exeState.types applicable.name
@@ -1407,9 +1407,8 @@ let private callPackageResolved
   tst <- pkgTst
   recordStage vm ApplyStage.PkgTypeCheckRun pkgTcRunAlloc
 
-  match pkgRestPs, pkgRestArgs with
-  | [], _
-  | _, [] ->
+  // Same as in `callBuiltinResolved`: two `isEmpty` checks, no pair.
+  if List.isEmpty pkgRestPs || List.isEmpty pkgRestArgs then
     Ply(
       completePackage
         exeState
@@ -1425,7 +1424,7 @@ let private callPackageResolved
         paramCount
         tst
     )
-  | _ ->
+  else
     // Something in the remaining parameters needs the type store. Finish the check in a computation
     // expression and carry on from there -- still one implementation, just resumed asynchronously.
     let typeCheckParam = TypeChecker.checkFnParam exeState.types applicable.name
@@ -1781,13 +1780,15 @@ let rec private executeInner (exeState : ExecutionState) (vm : VMState) : Ply<Dv
                     applicable.typeSymbolTable
 
               let typeArgs =
-                match applicable.typeArgs, typeArgs with
-                | [], newTypeArgs -> newTypeArgs
-                | oldTypeArgs, [] -> oldTypeArgs
-                | _, _ ->
-                  RTE.Applications.CannotApplyTypeArgsMoreThanOnce
-                  |> RTE.Apply
-                  |> raiseRTE
+                match applicable.typeArgs with
+                | [] -> typeArgs
+                | oldTypeArgs ->
+                  match typeArgs with
+                  | [] -> oldTypeArgs
+                  | _ ->
+                    RTE.Applications.CannotApplyTypeArgsMoreThanOnce
+                    |> RTE.Apply
+                    |> raiseRTE
 
               let ctx : ApplyContext =
                 { applicable = applicable
