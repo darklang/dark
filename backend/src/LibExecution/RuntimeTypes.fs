@@ -1583,6 +1583,28 @@ module Dval =
   let private vtDateTime : ValueType = ValueType.Known KTDateTime
   let private vtUuid : ValueType = ValueType.Known KTUuid
 
+  // The scalar cases above hand back a shared wrapper. The container cases could not, because their
+  // ValueType depends on the element type -- so `Known(KTList t)` was two objects, built fresh, on
+  // every call. `toValueType` runs at least three times per package call (argument inference, the
+  // parameter check, the return check), and those three stages together were 1.79 MB on the reference
+  // workload; with the container cases stubbed out to a constant they measured 0.03 MB. So this is
+  // essentially all of it.
+  //
+  // Memoized on the element type's *identity*, not its structure. That's what makes the lookup cheap,
+  // and it's enough: a list carries one `ValueType` object for its whole life, and the scalar element
+  // types are the shared wrappers above, so the same instance comes back round every time.
+  //
+  // `ConditionalWeakTable` rather than a dictionary so a ValueType built from user data doesn't pin
+  // itself for the life of the process, and because it's thread-safe -- tests run VMs in parallel.
+  let private listVTs =
+    System.Runtime.CompilerServices.ConditionalWeakTable<ValueType, ValueType>()
+
+  let private dictVTs =
+    System.Runtime.CompilerServices.ConditionalWeakTable<ValueType, ValueType>()
+
+  let private customVTs =
+    System.Runtime.CompilerServices.ConditionalWeakTable<FQTypeName.FQTypeName, ValueType>()
+
   let rec toValueType (dv : Dval) : ValueType =
     match dv with
     | DUnit -> vtUnit
@@ -1606,18 +1628,53 @@ module Dval =
     | DDateTime _ -> vtDateTime
     | DUuid _ -> vtUuid
 
-    | DList(t, _) -> ValueType.Known(KTList t)
-    | DDict(t, _) -> ValueType.Known(KTDict t)
+    | DList(t, _) ->
+      let mutable hit = Unchecked.defaultof<ValueType>
+      if listVTs.TryGetValue(t, &hit) then
+        hit
+      else
+        let vt = ValueType.Known(KTList t)
+        listVTs.AddOrUpdate(t, vt)
+        vt
+
+    | DDict(t, _) ->
+      let mutable hit = Unchecked.defaultof<ValueType>
+      if dictVTs.TryGetValue(t, &hit) then
+        hit
+      else
+        let vt = ValueType.Known(KTDict t)
+        dictVTs.AddOrUpdate(t, vt)
+        vt
     | DTuple(first, second, theRest) ->
       ValueType.Known(
         KTTuple(toValueType first, toValueType second, List.map toValueType theRest)
       )
 
+    // Only the un-parameterised case is memoized: with type args the key would have to be the whole
+    // (name, args) shape, and structural hashing of that costs more than the two objects it saves.
     | DRecord(_, typeName, typeArgs, _) ->
-      KTCustomType(typeName, typeArgs) |> ValueType.Known
+      if List.isEmpty typeArgs then
+        let mutable hit = Unchecked.defaultof<ValueType>
+        if customVTs.TryGetValue(typeName, &hit) then
+          hit
+        else
+          let vt = KTCustomType(typeName, []) |> ValueType.Known
+          customVTs.AddOrUpdate(typeName, vt)
+          vt
+      else
+        KTCustomType(typeName, typeArgs) |> ValueType.Known
 
     | DEnum(_, typeName, typeArgs, _, _) ->
-      KTCustomType(typeName, typeArgs) |> ValueType.Known
+      if List.isEmpty typeArgs then
+        let mutable hit = Unchecked.defaultof<ValueType>
+        if customVTs.TryGetValue(typeName, &hit) then
+          hit
+        else
+          let vt = KTCustomType(typeName, []) |> ValueType.Known
+          customVTs.AddOrUpdate(typeName, vt)
+          vt
+      else
+        KTCustomType(typeName, typeArgs) |> ValueType.Known
 
     | DApplicable applicable ->
       match applicable with
