@@ -348,6 +348,12 @@ let rec unifyValueType
                     )
                     :: pathSoFar
                   )
+              elif List.isEmpty typeArgsT then
+                // No type arguments to walk, which is nearly every record and enum. Worth saying
+                // outright rather than folding over an empty list: `foldSequentiallyWithIndex`
+                // builds its `(0, state)` tuple and its lambda's closure before it discovers there
+                // is nothing to iterate, and none of that is free.
+                return Ok tst
               else
                 let typeArgCount = List.length typeArgsT
                 return!
@@ -553,13 +559,32 @@ let tryUnifySync
   (expected : TypeReference)
   (actual : Dval)
   : TypeSymbolTable voption =
-  match unwrapAliasSync expected with
-  | ValueNone -> ValueNone
-  | ValueSome expected ->
-    match unifyDvalSync tst expected actual with
-    | Unified updatedTst -> ValueSome updatedTst
-    | Mismatched
-    | Undecided -> ValueNone
+  match expected with
+  // A record or enum of exactly the declared type, with no type arguments. This is what a program
+  // that models anything passes around all day, and until now every one of them fell through to the
+  // async unifier purely to ask `Types.find` whether the declared type was an alias.
+  //
+  // It can't be. An alias's *name* is the alias, but a value built through it carries the underlying
+  // type's name, so if the two names are equal the declared type resolved to itself -- and names are
+  // content hashes, so that means it is the type, not an alias to something else.
+  //
+  // Type arguments are excluded rather than compared: with them the answer depends on unifying each
+  // one, which is what the async path is for.
+  | TCustomType({ resolved = Ok declared }, []) ->
+    match actual with
+    | DRecord(_, actualName, [], _) when actualName = declared -> ValueSome tst
+    | DEnum(_, actualName, [], _, _) when actualName = declared -> ValueSome tst
+    | _ -> ValueNone
+
+  | _ ->
+
+    match unwrapAliasSync expected with
+    | ValueNone -> ValueNone
+    | ValueSome expected ->
+      match unifyDvalSync tst expected actual with
+      | Unified updatedTst -> ValueSome updatedTst
+      | Mismatched
+      | Undecided -> ValueNone
 
 
 let checkFnParam

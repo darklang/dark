@@ -1,0 +1,23 @@
+// A record or an enum of the wrong type must still be rejected.
+//
+// Worth checking by hand because the fast path in `tryUnifySync` answers "same declared type, no
+// type arguments" without consulting the type store at all, on the argument that a value built
+// through an alias carries the *underlying* type's name, so equal names cannot mean an alias.
+//
+// Note that `type A = { x: Int }` and `type B = { x: Int }` are the SAME type in Dark -- names are
+// content hashes -- so a test of this has to make the two genuinely different, as below. My first
+// attempt at this test passed a `B` where an `A` was wanted and was surprised when it worked.
+//
+// Expected: the first debug prints 1, then a type error naming both hashes.
+
+type A = { x: Int }
+type B = { y: String }
+
+let takesA (a: A) : Int = a.x
+
+let main () : Int64 =
+  Builtin.debug "takesA a" (takesA (A { x = 1 }))
+  Builtin.debug "takesA b" (takesA (B { y = "no" }))
+  0L
+
+main ()
