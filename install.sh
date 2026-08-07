@@ -7,7 +7,7 @@
 # Afterwards, the CLI manages itself (`dark update`, `dark uninstall`).
 #
 # To pin a release (tags at https://github.com/darklang/dark/releases):
-#   curl -fsSL https://darklang.com/install | DARKLANG_VERSION=v0.0.26 sh
+#   curl -fsSL https://darklang.com/install | DARKLANG_VERSION=vX.Y.Z sh
 
 set -eu
 
@@ -17,7 +17,7 @@ fail() {
   exit 1
 }
 
-# Append $2 to file $1 unless already present.
+# Append the given line to the given file unless that exact line already exists.
 # Must stay byte-identical to what `dark update` writes, so neither tool
 # duplicates the other's line.
 append_line_once() {
