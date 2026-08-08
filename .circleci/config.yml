@@ -29,7 +29,7 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:be6dd7c
+      - image: darklang/dark-base:f7f57dd
 
   # Builds the linux release artifacts. Deliberately not dark-base:
   #
