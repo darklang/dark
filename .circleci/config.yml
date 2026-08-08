@@ -72,14 +72,12 @@ executors:
     environment:
       IN_DEV_CONTAINER: true
     macos:
-      xcode: "15.4.0"
-    # The class and the image version have to be a pair CircleCI supports
-    # together, and the plan has to include macOS at all. m1.medium.gen1 is
-    # end-of-life (Feb 2026); m4pro.medium was rejected for this project. This
-    # pair is the one CircleCI documents most widely. If it's rejected too, the
-    # error names the plan as the cause and macOS needs enabling under
-    # Plan -> Usage Controls.
-    resource_class: macos.m2pro.medium
+      xcode: "16.4.0"
+    # No `macos.` prefix. The supported classes are `m4pro.medium` and
+    # `m4pro.large`, spelled exactly like that; prefixing them is rejected as
+    # "not a valid resource class", and the same message then mentions pricing
+    # plans, which is boilerplate rather than a diagnosis.
+    resource_class: m4pro.medium
 
 commands:
   show-large-files-and-directories:
