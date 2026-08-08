@@ -147,8 +147,8 @@ claiming credit for.
 
 ## 10. Working with the tooling here
 
-- `rundir/perf-workloads/measure` in the **foreground**, with `< /dev/null`. Backgrounded shell
-  commands are throttled here by ~50x.
+- Run `perf-suite`, `perf-gate` and the rest in the **foreground**, with `< /dev/null`. Backgrounded
+  shell commands are throttled here by ~50x, which reads as a regression.
 - Pass `< /dev/null` to everything going through `scripts/run-in-docker`, or it hangs after
   finishing and every later command in the clone crawls. Never `pkill -f run-in-docker` -- it
   matches other clones and your own command line. Filter on `/proc/<pid>/cwd`.
