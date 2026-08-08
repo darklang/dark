@@ -15,16 +15,30 @@ The reference workload is `scripts/testing/perf-workloads/steady.dark`: 200 iter
 
 | point | allocation | body time |
 |---|---|---|
-| before round 1 | ~868 MB | 2,571 ms |
+| before round 1 | not instrumented | 2,571 ms |
 | after round 1 (#5696) | 273.1 MB | 391 ms |
 | after round 2 | **8.0 MB** | 342 ms |
 
-Release, measured like-for-like on today's harness: **211.99 MB -> 7.84 MB**, and 256 ms -> 177 ms.
+Release: **211.99 MB -> 7.6 MB**, and 256 ms -> 177 ms.
+
+Per iteration, Release, all three points rebuilt and measured on today's harness. The pre-round-1
+figures needed the commit rebuilt with the allocation reading added and *nothing else*, since the
+telemetry that reports it was added by round 1:
+
+| workload | before round 1 | after round 1 | after round 2 | total |
+|---|---|---|---|---|
+| `recursion` | 13,436 KB | 2,470.6 KB | **0.48 KB** | 27,993x |
+| `lists` | 3,345 KB | 865.3 KB | **12.0 KB** | 279x |
+| `dicts` | 1,055 KB | 369.2 KB | **15.7 KB** | 67x |
+| `strings` | 684 KB | 191.5 KB | **6.6 KB** | 104x |
+| `records` | 202 KB | 62.6 KB | **8.3 KB** | 24x |
+| `json` | 76 KB | 33.4 KB | **13.0 KB** | 5.8x |
 
 Careful with older documents: round 1's own notes quote the reference workload at 107.1 MB at its
-end. That was a *different, lighter* workload, replaced during round 2 when the old one stopped
-being representative. Rebuilt and re-measured at the round-1 merge point, today's workload reads
-273.1 MB. Only compare numbers produced by the same harness.
+end, and ~868 MB before it. Those were a *different, lighter* workload, replaced during round 2 when
+the old one stopped being representative. Rebuilt and re-measured at the round-1 merge point,
+today's workload reads 273.1 MB. Only compare numbers produced by the same harness -- which is why
+the table above was re-measured rather than assembled from notes.
 
 Per iteration, against the same program in other runtimes: python 0.47 KB, node 1.70 KB, Dark
 **12.0 KB** -- 7.1x node, from ~700x at the start of round 2.
