@@ -1,5 +1,5 @@
-// Lists and lambdas: build, map, filter, fold, reverse. The original reference workload, and the
-// one the campaign has been tuned against, so it stays here as the control.
+// Lists and lambdas: build, map, filter, fold, reverse. The reference workload, and the shape most
+// optimisation work has targeted, so it stays here as the control.
 let iters () : Int =
   match Builtin.environmentGet "PERF_ITERS" with
   | Some s ->

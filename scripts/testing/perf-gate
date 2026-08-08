@@ -25,9 +25,9 @@ for arg in "$@"; do
 done
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  # Two places, because CI's `dotnet publish` leaves the binary in the publish directory while
-  # `build-release-cli-exes.sh` *moves* it to clis/ and empties that one. Checking only one passes
-  # locally and fails in CI, which is how this comment came to be written.
+  # Two places: CI's `dotnet publish` leaves the binary in the publish directory, while
+  # `build-release-cli-exes.sh` *moves* it to clis/ and empties that one. Check both, or this passes
+  # locally and fails in CI.
   EXE=$(ls -t clis/darklang-alpha-*-linux-x64 \
                 backend/Build/out/Cli/Release/net10.0/linux-x64/publish/Cli \
           2>/dev/null | head -1 || true)

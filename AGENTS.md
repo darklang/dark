@@ -110,8 +110,8 @@ wasted effort came from trusting a measurement nobody had checked.
 
 `perf-suite` is the wider view: lists, records, strings, dicts, JSON and deep recursion, each run
 at 0 and N iterations so startup differences out and what's left is the work. It asserts nothing --
-it's for seeing whether a change that helped one shape of program hurt another. The campaign spent
-weeks tuned against the list workload alone, and recursion turned out to cost 5x per iteration.
+it's for seeing whether a change that helped one shape of program hurt another. They differ by more
+than an order of magnitude per iteration, so tuning against one of them proves little.
 
 `perf-gate` runs one Dark script and asserts how many bytes it allocated, against
 `scripts/testing/perf-budget.json`. Allocation for a fixed workload repeats to a tenth of a

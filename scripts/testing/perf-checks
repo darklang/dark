@@ -1,14 +1,13 @@
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
-# By-hand checks for changes that touch execution.
+# By-hand checks for changes to the interpreter, the type checker or error construction.
 #
-# The backend suite has twice passed while the interpreter returned a quietly wrong answer, so
-# anything touching the interpreter, the type checker or error construction gets run past these as
-# well. They are not assertions -- read the output against the "expect" line printed above each.
+# Not assertions: read each result against the "expect" line printed above it. They exist because
+# the backend suite can pass while the interpreter returns a quietly wrong answer.
 #
-# Error paths get most of the attention here on purpose: they only run once something has already
-# gone wrong, so a change can garble every message with every test green.
+# Error paths get most of the attention. They only run once something has already gone wrong, so a
+# change can garble every message with every test green.
 set -euo pipefail
 cd /home/dark/app
 
@@ -24,8 +23,8 @@ run() { # run <title> <expect> <script>
   "$EXE" run "$3" 2>&1 || true
 }
 
-# A case whose whole point is the error message it dies with. Written out rather than kept as a file
-# each, because there are seven of them and they are three lines apiece.
+# Writes a case to scratch and returns its path. Inline rather than one committed file per case:
+# most are three lines whose whole content is the error they die with.
 case_file() { local name="$1"; shift; local f="$SCRATCH/check-$name.dark"; cat > "$f"; echo "$f"; }
 
 # --- happy paths -------------------------------------------------------------------------------
@@ -48,12 +47,11 @@ DARK
 )"
 
 # `tryUnifySync` answers "same declared type, no type arguments" without consulting the type store,
-# on the argument that a value built through an alias carries the *underlying* type's name, so equal
-# names cannot mean an alias. This is the check that would catch it accepting anything.
+# since a value built through an alias carries the *underlying* type's name and so equal names
+# cannot mean an alias. This is what catches that path accepting anything.
 #
-# Note `type A = { x: Int }` and `type B = { x: Int }` are the SAME type in Dark -- names are content
-# hashes -- so the two records have to be genuinely different, as below. The obvious version of this
-# test passes a `B` where an `A` is wanted and is surprised when it works.
+# The two records must be genuinely different: names are content hashes, so `type A = { x: Int }`
+# and `type B = { x: Int }` are the SAME type and passing one for the other tests nothing.
 run "record of the wrong type" \
     "1, then a type error naming both hashes" \
     "$(case_file type-identity <<'DARK'
@@ -70,8 +68,8 @@ DARK
 
 # --- record construction failures --------------------------------------------------------------
 #
-# The declared type is only resolved once a field has already failed to unify, so these four
-# messages are built on paths the happy case never takes.
+# The declared type is resolved only once a field has already failed to unify, so these four
+# messages come from paths the happy case never takes.
 
 record_case() { # record_case <name> <expect> <literal>
   run "record: $1" "$2" "$(case_file "rec-$1" <<DARK
@@ -92,13 +90,15 @@ record_case duplicate-field  "Duplicate field \`x\`"                            
 
 # --- call stacks -------------------------------------------------------------------------------
 
-# Worth checking whenever frames start sharing ExecutionPoints.
+# Worth checking whenever frames start sharing ExecutionPoints. Not `Builtin.testRuntimeError`:
+# that exists only in the test harness, so in the CLI it fails name resolution instead of raising.
 run "error raised inside nested lambdas" \
-    "a call stack showing the package functions and then both Lambda frames" \
+    "two map/fold levels, four Lambda frames, then 'Cannot divide by 0'" \
     "$(case_file lambda-callstack <<'DARK'
 let main () : Int64 =
-  let xs = [1L; 2L; 3L]
-  let ys = xs |> Stdlib.List.map (fun x -> if x == 2L then Builtin.testRuntimeError "boom" else x)
+  let grid = [[1L; 2L]; [3L; 4L]]
+  let ys = grid |> Stdlib.List.map (fun row ->
+    row |> Stdlib.List.map (fun x -> if x == 3L then x / 0L else x))
   Builtin.debug "ys" ys
   0L
 main ()
@@ -107,10 +107,10 @@ DARK
 
 # --- behaviour preservation ----------------------------------------------------------------------
 #
-# The only check with a recorded expected output, because it pins behaviour rather than reading
-# well: String.split and String.length have a fast path for strings whose grapheme clusters are
-# exactly their chars, and this fixes the cases where that path must decline -- non-ASCII, an empty
-# separator, and CRLF, which is a single cluster, so "a\r\nb" split on "\n" is one part, not two.
+# The only check with a recorded expected output, since it pins behaviour rather than reading well.
+# String.split and String.length take a fast path for strings whose grapheme clusters are exactly
+# their chars; these are the cases where it must decline -- non-ASCII, an empty separator, and CRLF,
+# which is one cluster, so "a\r\nb" split on "\n" is one part, not two.
 printf '\n=== string grapheme-cluster fast path\n    expect: no diff\n'
 if "$EXE" run "$CHECKS/string-egc.dark" 2>&1 | grep '^DEBUG' | diff - "$CHECKS/string-egc.expected"; then
   echo "    ok, 18 cases byte-identical"

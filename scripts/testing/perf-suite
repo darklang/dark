@@ -7,9 +7,9 @@
 # JSON go through different parts of the runtime than lists and recursion do.
 #
 # Each workload reads its iteration count from PERF_ITERS and is run twice, at 0 and at N; the
-# difference is the body. Startup, parsing and package loading appear in both and cancel -- which
-# matters, since on the original workload that fixed cost was 7.6 MB of a 13.4 MB total. `perf-gate`
-# deliberately does not difference, because a regression in startup is still a regression.
+# difference is the body. Startup, parsing and package loading appear in both and cancel, which is
+# most of the total on a short run. `perf-gate` deliberately does not difference: a regression in
+# startup is still a regression.
 #
 #   scripts/testing/perf-suite                  all workloads
 #   scripts/testing/perf-suite lists json       just these
@@ -129,10 +129,9 @@ if [[ -n "$JSON_OUT" ]]; then
 fi
 
 # benchmarks/results/history.jsonl is the long-term record: append-only, committed, and rendered
-# into benchmarks/results.md by `./scripts/run-local-exec bench-render`. It existed but had covered
-# only the Blob/Stream scenarios, and nothing since April. Prefer --record --release: that's what
-# ships. Schema is the existing one -- inputBytes is iterations, allocBytes is PER ITERATION with
-# startup differenced out, dvalNodes is -1 because it isn't meaningful here.
+# into benchmarks/results.md by `./scripts/run-local-exec bench-render`. Prefer --record --release,
+# since that is what ships. Schema is the shared one: inputBytes is iterations, allocBytes is PER
+# ITERATION with startup differenced out, dvalNodes is -1 because it means nothing here.
 if [[ "$RECORD" == "true" ]]; then
   echo
   python3 - "$results" benchmarks/results/history.jsonl \

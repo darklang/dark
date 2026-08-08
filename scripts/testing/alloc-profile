@@ -4,8 +4,8 @@
 # Allocation profile by type name, from GC allocation-tick events.
 #
 # The runtime fires an AllocationTick roughly every 100 KB allocated and names the type that tripped
-# it, so the histogram samples allocation volume rather than object count. Once nothing is above 5%,
-# stop profiling and build a comparison instead -- see docs/perf/playbook.md.
+# it, so this samples allocation volume rather than object count. Once nothing is above 5%, stop
+# profiling and build a comparison instead -- see docs/perf/playbook.md.
 #
 #   scripts/testing/alloc-profile [script.dark] [out-name]
 set -euo pipefail
@@ -19,7 +19,7 @@ mkdir -p rundir/perf-scratch
 rm -f "$OUT.nettrace"
 # `--rundown false` is load-bearing. Without it dotnet-trace appends a JIT rundown naming every
 # method it compiled, the parser below counts those as samples, and the profile looks flat when it
-# isn't. On this workload the rundown is ~80% of the file. This cost the campaign days.
+# isn't -- the rundown can be 80% of the file.
 dotnet-trace collect \
   --rundown false \
   --output "$OUT.nettrace" \
@@ -28,10 +28,9 @@ dotnet-trace collect \
   2>&1 | tail -4
 
 # There is no public parser for the nettrace container, so this scans the raw file for the UTF-16
-# type-name strings the AllocationTick payload carries. The detail that cost the most: F#
-# compiler-generated closures and async state machines all have an `@` in their name
-# (`executeInner@653-6`). An earlier filter excluded `@` and so silently dropped every one of them --
-# which turned out to be the single largest category.
+# type-name strings the AllocationTick payload carries. Keep `@` in the character class: F#
+# compiler-generated closures and state machines are all named that way (`executeInner@653-6`), they
+# are usually the largest category, and a filter that excludes `@` drops every one of them.
 python3 - "$OUT.nettrace" <<'PY'
 import re, sys, collections
 
@@ -61,8 +60,8 @@ print("\n=== grouped ===")
 for g, n in groups.most_common():
     print(f"{100*n/total:6.2f}%  {n:5}  {g}")
 
-# Which enclosing method the closures came from, since executeInner@653-6 and executeInner@712-9 are
-# the same problem in two places.
+# Which enclosing method the closures came from: executeInner@653-6 and executeInner@712-9 are the
+# same problem in two places.
 owners = collections.Counter()
 for name, n in counts.items():
     if "@" in name:
