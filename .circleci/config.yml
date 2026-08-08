@@ -78,6 +78,28 @@ executors:
     resource_class: m4pro.medium
 
 commands:
+  # Every release build job finishes the same way, so it lives here once.
+  #
+  # The `rm` matters and is not tidying: the validator runs the binary out of
+  # clis/, and the CLI keeps its store next to the executable rather than under
+  # HOME, so each job leaves a clis/.darklang behind. With four jobs persisting
+  # clis/, applying the workspace layers then fails with "Concurrent upstream
+  # jobs persisted the same file(s)" on clis/.darklang/data.db. Only the
+  # artifacts should travel.
+  package-clis:
+    description: Gzip the built CLIs and hand them to the publish job
+    steps:
+      - run:
+          name: Gzip artifacts
+          command: |
+            rm -rf clis/.darklang
+            gzip -f clis/darklang-*
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - clis
+      - store_artifacts: { path: clis }
+
   show-large-files-and-directories:
     steps:
       - run:
@@ -408,14 +430,7 @@ jobs:
             "$X64" eval 'Builtin.posixStat "/etc/hostname"' | tee /tmp/stat.out
             grep -q "Ok(" /tmp/stat.out
             "$X64" eval 'Builtin.posixGetcwd ()' > /dev/null
-      - run:
-          name: Gzip artifacts
-          command: gzip -f clis/darklang-*
-      - persist_to_workspace:
-          root: "."
-          paths:
-            - clis
-      - store_artifacts: { path: clis }
+      - package-clis
 
   # The runtimes NativeAOT can't produce, built as ReadyToRun so that a tag
   # still yields a complete set. Windows needs a Windows runner for AOT, and
@@ -436,14 +451,7 @@ jobs:
               --mode=r2r \
               --seed=rundir/seed.db \
               --runtimes=win-x64,win-arm64,linux-arm
-      - run:
-          name: Gzip artifacts
-          command: gzip -f clis/darklang-*
-      - persist_to_workspace:
-          root: "."
-          paths:
-            - clis
-      - store_artifacts: { path: clis }
+      - package-clis
 
   build-cli-linux-musl:
     executor: release-musl
@@ -489,14 +497,7 @@ jobs:
           command: |
             ./scripts/testing/validate-cli-artifact \
               "$(ls clis/darklang-*-linux-musl-x64)"
-      - run:
-          name: Gzip artifacts
-          command: gzip -f clis/darklang-*
-      - persist_to_workspace:
-          root: "."
-          paths:
-            - clis
-      - store_artifacts: { path: clis }
+      - package-clis
 
   build-cli-macos:
     executor: macos-builder
@@ -567,14 +568,7 @@ jobs:
           command: |
             ./scripts/testing/validate-cli-artifact \
               "$(ls clis/darklang-*-osx-arm64)"
-      - run:
-          name: Gzip artifacts
-          command: gzip -f clis/darklang-*
-      - persist_to_workspace:
-          root: "."
-          paths:
-            - clis
-      - store_artifacts: { path: clis }
+      - package-clis
 
   publish-release-clis:
     executor: in-container
