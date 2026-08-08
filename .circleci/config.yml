@@ -251,13 +251,11 @@ jobs:
           command: scripts/build/reload-packages
 
       - assert-clean-worktree
-      - run:
-          command: |
-            if [ "${CIRCLE_BRANCH}" = "main" ]; then
-              ./scripts/build/build-release-cli-exes.sh --cross-compile
-            else
-              ./scripts/build/build-release-cli-exes.sh
-            fi
+      # Just the host build, on main as much as anywhere else. This is a
+      # compile check now: release artifacts come from the tag-driven
+      # `release-clis` workflow, so cross-compiling all eight here was work
+      # nothing consumed.
+      - run: ./scripts/build/build-release-cli-exes.sh
       - persist_to_workspace:
           root: "."
           paths:
@@ -410,6 +408,34 @@ jobs:
             "$X64" eval 'Builtin.posixStat "/etc/hostname"' | tee /tmp/stat.out
             grep -q "Ok(" /tmp/stat.out
             "$X64" eval 'Builtin.posixGetcwd ()' > /dev/null
+      - run:
+          name: Gzip artifacts
+          command: gzip -f clis/darklang-*
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - clis
+      - store_artifacts: { path: clis }
+
+  # The runtimes NativeAOT can't produce, built as ReadyToRun so that a tag
+  # still yields a complete set. Windows needs a Windows runner for AOT, and
+  # armv7's AOT runtime wants glibc symbols from well above our floor. Neither
+  # is a flag away, so both stay R2R and are built here rather than on main.
+  build-cli-r2r-extras:
+    executor: release-linux
+    resource_class: xlarge
+    steps:
+      - checkout
+      - attach_workspace: { at: "." }
+      - run: ./scripts/build/_dotnet-wrapper tool restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run:
+          name: R2R-publish the runtimes that can't do AOT
+          command: |
+            ./scripts/build/build-release-cli-exes.sh \
+              --mode=r2r \
+              --seed=rundir/seed.db \
+              --runtimes=win-x64,win-arm64,linux-arm
       - run:
           name: Gzip artifacts
           command: gzip -f clis/darklang-*
@@ -613,11 +639,6 @@ workflows:
               only: main
           requires: [ok-to-deploy]
 
-      - publish-github-release:
-          filters:
-            branches:
-              only: main
-          requires: [ok-to-deploy]
 
   # The NativeAOT release matrix. Normally tag-only; see the
   # release-matrix-on-every-push parameter at the top of this file.
@@ -656,6 +677,10 @@ workflows:
           filters: *release-filters
           requires: [seed-db]
 
+      - build-cli-r2r-extras:
+          filters: *release-filters
+          requires: [seed-db]
+
       # Publishing is tags-only regardless of the parameter above. The build
       # jobs run on this branch while the matrix is being debugged, and they
       # should: the artifacts are the point. Publishing on a branch push is
@@ -672,3 +697,4 @@ workflows:
             - build-cli-linux-glibc
             - build-cli-linux-musl
             - build-cli-macos
+            - build-cli-r2r-extras
