@@ -21,6 +21,10 @@ The reference workload is `scripts/perf/workloads/steady.dark`: 200 iterations o
 
 Release: **211.99 MB -> 7.6 MB**, and 256 ms -> 177 ms.
 
+Round 3 (NativeAOT) is a separate axis: it doesn't change allocation, it deletes JIT compilation.
+One-shot commands land 4.6-8x faster on top of the above, and the six steady-state workloads come
+out 1.3-2.3x faster as well. Details below.
+
 Per iteration, Release, all three points rebuilt and measured on today's harness. The pre-round-1
 figures needed the commit rebuilt with the allocation reading added and *nothing else*, since the
 telemetry that reports it was added by round 1:
@@ -34,16 +38,21 @@ telemetry that reports it was added by round 1:
 | `records` | 202 KB | 62.6 KB (3.2x) | **8.3 KB** (7.5x) | **24x** |
 | `json` | 76 KB | 33.4 KB (2.3x) | **13.0 KB** (2.6x) | **5.8x** |
 
-Time, Release, 200 iterations each:
+Time, Release, 200 iterations each. The AOT column is round 3, measured on a published NativeAOT
+binary from the same commit as the R2R one; re-measuring R2R at that commit reproduced the round-2
+column within a few percent, which is what makes the two comparable:
 
-| workload | before round 1 | after round 1 | after round 2 | total |
-|---|---|---|---|---|
-| `recursion` | 53,389 ms | 616 ms (87x) | **501 ms** (1.2x) | **107x** |
-| `records` | 823 ms | 25 ms (33x) | **16 ms** (1.6x) | **51x** |
-| `strings` | 905 ms | 73 ms (12.4x) | **48 ms** (1.5x) | **18.9x** |
-| `json` | 242 ms | 17 ms (14.2x) | **13 ms** (1.3x) | **18.6x** |
-| `lists` | 2,127 ms | 244 ms (8.7x) | **190 ms** (1.3x) | **11.2x** |
-| `dicts` | 1,073 ms | 143 ms (7.5x) | **103 ms** (1.4x) | **10.4x** |
+| workload | before round 1 | after round 1 | after round 2 | after AOT | total |
+|---|---|---|---|---|---|
+| `recursion` | 53,389 ms | 616 ms (87x) | 501 ms (1.2x) | **385 ms** (1.3x) | **139x** |
+| `records` | 823 ms | 25 ms (33x) | 16 ms (1.6x) | **9 ms** (1.8x) | **91x** |
+| `strings` | 905 ms | 73 ms (12.4x) | 48 ms (1.5x) | **27 ms** (1.8x) | **34x** |
+| `json` | 242 ms | 17 ms (14.2x) | 13 ms (1.3x) | **6 ms** (2.3x) | **40x** |
+| `lists` | 2,127 ms | 244 ms (8.7x) | 190 ms (1.3x) | **110 ms** (1.8x) | **19x** |
+| `dicts` | 1,073 ms | 143 ms (7.5x) | 103 ms (1.4x) | **72 ms** (1.4x) | **15x** |
+
+Allocation per iteration is unchanged by round 3, within 4% and in both directions: AOT changes
+when code is compiled, not what the interpreter allocates. The allocation table above still stands.
 
 Round 1 took most of the time; round 2 took most of the allocation.
 
@@ -101,6 +110,91 @@ The correction was the important part. Every number in both campaigns had come f
 six workloads finally existed, **that script turned out to be the second-cheapest of them** -- a
 plain function call cost five times a list iteration, an HTTP request nine times one, and the HTTP
 profile was dominated by type-checker paths the list workload never touched.
+
+## Round 3: NativeAOT
+
+Measured 2026-08-08, against the round-2 merge point. Both binaries built from the same commit, so
+this isolates the publish mode and nothing else. Startup timings are paired A/B through
+`scripts/perf/bench`, interleaved, 9 pairs, and AOT won 9 of 9 on every scenario.
+
+Round 2 shrank the work; this round deletes the JIT that was compiling it. They compose.
+
+### One-shot command latency, Release
+
+| scenario | R2R (ships today) | AOT | reduction |
+|---|---|---|---|
+| `status` | 187 ms | **24 ms** | -86% |
+| `eval-trivial` | 200 ms | **26 ms** | -86% |
+| `help` | 199 ms | **32 ms** | -84% |
+| `eval-map1000` | 253 ms | **40 ms** | -83% |
+| `eval-listheavy` | 286 ms | **62 ms** | -78% |
+
+The gradient is the point: AOT deletes a fixed cost, so the win shrinks as real interpreter work
+grows. 8x on a command that mostly starts up, 4.6x on one that mostly computes.
+
+### Steady-state throughput, Release, per the round-2 workloads
+
+The roadmap flagged this as the thing to measure rather than assume, since AOT compiles ahead of
+time and can't re-optimise hot loops. On these six it does not regress. It is faster on all of them:
+
+| workload | R2R ms | AOT ms | | R2R alloc/iter | AOT alloc/iter |
+|---|---|---|---|---|---|
+| `json` | 14 | **6** | 2.3x | 12.44 KB | 12.73 KB |
+| `lists` | 198 | **110** | 1.8x | 11.76 KB | 11.89 KB |
+| `records` | 16 | **9** | 1.8x | 8.09 KB | 8.42 KB |
+| `strings` | 48 | **27** | 1.8x | 6.74 KB | 6.46 KB |
+| `dicts` | 101 | **72** | 1.4x | 15.91 KB | 15.60 KB |
+| `recursion` | 490 | **385** | 1.27x | 0.32 KB | 0.32 KB |
+
+But 200-iteration bodies are short enough that a JIT never reaches its best steady state, so this
+alone doesn't answer the roadmap's question. The server does.
+
+### The long-running case, where the roadmap's fear is real (a bit)
+
+`scripts/perf/http`, 20,000 requests at concurrency 32, about 11 seconds of sustained load. Three
+paired runs, alternating:
+
+| run | R2R | AOT |
+|---|---|---|
+| 1 | 1,783 req/s | 1,684 req/s |
+| 2 | 1,724 req/s | 1,719 req/s |
+| 3 | 1,833 req/s | 1,776 req/s |
+
+R2R is ahead in 3 of 3, by 0.3% to 5.6%. The spread within each mode is about 6%, so the gap sits
+inside the noise band, but the sign is consistent. Latency moves the same way: p50 16.8 ms against
+17.8 ms, p95 27.9 against 29.6. Allocation per request is identical, 99.79 KB against 99.84 KB.
+
+A shorter run (2,000 requests at concurrency 16) shows a dead heat, 1,637 against 1,651. The cost
+only appears once the load lasts long enough for the JIT to finish tiering, which is exactly the
+mechanism the roadmap named.
+
+So the trade is real and it is small: **give up a few percent of sustained server throughput, get
+4.6-8x on one-shot commands.** For a CLI that is obviously the right side of the trade. If `serve`
+ever becomes the main way Dark runs, it is worth re-measuring rather than inheriting this decision.
+
+Allocation per iteration is unchanged, within 4% and in both directions. AOT changes when code is
+compiled, not what the interpreter allocates.
+
+### Whole-process allocation is 6% higher, and that is startup
+
+| build | `steady.dark`, whole process |
+|---|---|
+| R2R | 7.7 MB (7.7 / 7.7 / 7.7) |
+| AOT | 8.2 MB (8.2 / 8.2 / 8.3) |
+
+Same instruction count both ways (298,236), so it is not extra work. `suite` differences startup out
+and shows body allocation identical; `gate` deliberately does not difference, so the gap lands
+there. It is startup allocation, and the reason `gate --published` fails against an AOT binary.
+
+**The budget was deliberately not re-pinned.** The roadmap says to re-pin when AOT lands, but CI's
+gate runs against the plain Release publish from `build-backend`, which this work does not change.
+Re-pin when the published build actually becomes AOT, using 8.2 MB as the starting point, not before.
+
+### The other thing that turned up
+
+`dark version` costs 0.34-0.57 s wall clock, and 0.03-0.05 s with the network unshared. It is
+dominated by an HTTPS round trip to check for a newer release. Any timing of `version` measures
+GitHub, not us, which is worth knowing before someone quotes it as a startup number.
 
 ## Things established that shouldn't be re-derived
 

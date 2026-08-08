@@ -43,18 +43,22 @@ Decided 2026-08-08. It's the right call and it outranks everything below: one-sh
 is dominated by `cli.preMain` -- runtime init and JIT -- which is exactly what AOT deletes, and no
 amount of interpreter work touches that. It's also already built, on its own branch.
 
-**The one thing to measure rather than assume.** AOT trades steady-state throughput for startup: it
-compiles ahead of time, so the JIT can't use runtime profile information or re-optimise hot loops.
-Long-running work can come out *slower*. This repo already has a hint in that direction -- round 1
-landed `TieredPGO=0` because tiered PGO was hurting throughput here.
+**Measured 2026-08-08. Both checks done; numbers in `history.md`, round 3.**
 
-So when AOT lands, run `perf-suite --release` and `perf-http --release` before and after, not just a
-startup timing. The six workloads are all steady-state loops and are precisely the shape that could
-regress. If they do, that's a real tradeoff to make deliberately, not a surprise to find later.
+The throughput worry was half right. The six suite workloads did not regress, they came out
+1.3-2.3x faster. But `perf/http` under sustained load (20k requests, ~11s) has R2R ahead in 3 of 3
+paired runs by 0.3-5.6%, with latency moving the same way. A short 2k-request run shows a dead
+heat, so the cost only appears once the JIT has time to finish tiering, which is the mechanism
+predicted here. The trade is a few percent of sustained server throughput for 4.6-8x on one-shot
+commands. Right side of the trade for a CLI; worth re-measuring if `serve` ever becomes the main
+way Dark runs.
 
-**And re-pin the gate.** `scripts/perf/budget.json` holds a published budget measured against
-an R2R build. An AOT binary will not allocate identically, so the gate needs
-`perf-gate --published --update` in the same commit, with the new number stated.
+**The gate was deliberately not re-pinned.** An AOT binary does allocate differently, as predicted:
+8.2 MB against R2R's 7.7 MB on the reference workload, reproducible, and `gate --published` fails
+against it. But that gap is startup, not the body (`suite` differences startup out and shows
+allocation unchanged), and CI's gate runs against the plain Release publish from `build-backend`,
+which the AOT work doesn't change. Re-pin to 8.2 MB when the published build actually becomes AOT,
+not before.
 
 Everything below is the queue after that.
 
