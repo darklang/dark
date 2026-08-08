@@ -85,6 +85,9 @@ tell you the tree has moved on rather than silently running a stale binary.
     ./scripts/run-backend-tests --groups Interpreter  just that part of it
     ./scripts/run-backend-tests --find mergeFavoring  what matches, and how to run it
     ./scripts/testing/test-build-planning.py          tests of the build itself
+    ./scripts/perf/gate                               reference workload, allocation vs budget
+    ./scripts/perf/suite                              six workloads, allocation per iteration
+    ./scripts/perf/checks                             by-hand interpreter and error-message checks
 
 Find what you want before guessing at a filter: `--groups` and `--find` need no
 database and no package reload, and print the exact command for what they found.
@@ -93,6 +96,35 @@ The one trap worth knowing here: a filter that matches nothing used to be report
 `0 tests run - Success!` with exit 0. It fails now. `docs/unittests.md` has the rest,
 including what the three filter flags actually do and why they used to disagree with
 their own help text.
+
+### Performance
+
+Everything perf lives in `scripts/perf/` (tools) and `docs/perf/` (writing):
+
+    docs/perf/playbook.md    how to do perf work here, and the traps. Read before starting.
+    docs/perf/roadmap.md     what's worth doing next, ranked, with measured vs estimated marked
+    docs/perf/history.md     the numbers round by round, and facts not worth re-deriving
+
+    scripts/perf/gate        the CI assertion: one workload, allocation against a checked-in budget
+    scripts/perf/suite       six workloads, allocation and time per iteration
+    scripts/perf/checks      by-hand interpreter and error-message checks
+    scripts/perf/http        a real server under concurrent load
+    scripts/perf/bench       repeatable CLI timing, with an A/B mode
+    scripts/perf/alloc-profile   allocation by type name
+    scripts/perf/crosslang   the reference workload in node and python
+
+The playbook is the one to read cold. Its recurring lesson: nearly all wasted effort came from
+trusting a measurement nobody had checked.
+
+Decide with allocation, not time. Allocation for a fixed workload repeats to a tenth of a percent
+and doesn't care how loaded the box is; time drifts by more than most individual wins are worth. So
+`gate` asserts allocation and only allocation, against `scripts/perf/budget.json`, and CI runs it
+after the backend tests. When a change earns a lower number, lower the budget in the same commit
+with `scripts/perf/gate --update`, or it stops being a gate and becomes a ceiling to drift up to.
+
+`suite` is the wider view and asserts nothing -- it is for seeing whether a change that helped one
+shape of program hurt another. The six differ by more than an order of magnitude per iteration, so
+tuning against any one of them proves little.
 
 Two runs in the same clone destroy each other, so `run-backend-tests` takes a lock.
 Two runs in different clones are fine; each has its own container, so its own PID
@@ -117,6 +149,8 @@ Logs go to `rundir/logs/fsharp-tests.log`.
     rundir/logs/          # log files
     scripts/dev/          # start, build, plan, status, watch, host-port
     scripts/build/        # the build itself; `_` ones are called by other scripts
+    scripts/perf/         # perf tools, and workloads/ for the scripts they run
+    benchmarks/           # the committed benchmark record, rendered to results.md
     scripts/              # everything else
 
 ## Logs (rundir/logs/)

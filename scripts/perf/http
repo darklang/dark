@@ -1,0 +1,124 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Allocation and latency per HTTP request, under concurrency.
+#
+# Every other perf tool here runs one process, one script, start to finish, which misses the async
+# half of the runtime entirely: the accept loop, per-request state, contention. This starts the Dark
+# server, warms it, reads its allocation over its own /alloc route, fires N requests at concurrency
+# C, and reads again.
+#
+#   scripts/perf/http                 /json, 2000 requests, concurrency 16
+#   scripts/perf/http --route /hello  a route that does almost nothing
+#   scripts/perf/http -n 5000 -c 64   more load
+#   scripts/perf/http --release       against the shipped build
+set -euo pipefail
+cd /home/dark/app
+. ./scripts/perf/_common
+
+EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
+SERVER="scripts/perf/workloads/http-server.dark"
+PORT="${PERF_HTTP_PORT:-9097}"
+ROUTE="/json"
+N=2000
+C=16
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --route) ROUTE="$2"; shift 2 ;;
+    -n) N="$2"; shift 2 ;;
+    -c) C="$2"; shift 2 ;;
+    --port) PORT="$2"; shift 2 ;;
+    # A flag, not an environment variable: these scripts re-enter the container and the environment
+    # does not survive that.
+    --release) EXE=$(release_exe); shift ;;
+    *) echo "unknown argument: $1" >&2; exit 2 ;;
+  esac
+done
+
+if [[ ! -x "$EXE" ]]; then
+  echo "perf/http: no CLI at $EXE -- run scripts/dev/build" >&2
+  exit 2
+fi
+
+LOGDIR="${DARK_CONFIG_RUNDIR}/logs"
+SERVER_LOG="$LOGDIR/perf-http-server.log"
+TELEMETRY="$LOGDIR/telemetry.jsonl"
+rm -f "$TELEMETRY" "$SERVER_LOG"
+
+# The server serves until it's killed, so it has to be stopped on every exit path, including a
+# failed wait-for-listening. Killing the process group gets the dotnet child too.
+SERVER_PID=""
+cleanup() {
+  if [[ -n "$SERVER_PID" ]] && kill -0 "$SERVER_PID" 2>/dev/null; then
+    kill -TERM "$SERVER_PID" 2>/dev/null || true
+    wait "$SERVER_PID" 2>/dev/null || true
+  fi
+}
+trap cleanup EXIT
+
+PERF_HTTP_PORT="$PORT" DARK_TELEMETRY="${PERF_TELEMETRY:-1}" DARK_CONFIG_TRACE_DETAIL=off \
+  "$EXE" run "$SERVER" > "$SERVER_LOG" 2>&1 &
+SERVER_PID=$!
+
+for _ in $(seq 1 120); do
+  if grep -q LISTENING "$SERVER_LOG" 2>/dev/null; then break; fi
+  if ! kill -0 "$SERVER_PID" 2>/dev/null; then
+    echo "perf/http: server exited before listening:" >&2
+    cat "$SERVER_LOG" >&2
+    exit 1
+  fi
+  sleep 0.5
+done
+
+if ! grep -q LISTENING "$SERVER_LOG" 2>/dev/null; then
+  echo "perf/http: server never reported LISTENING" >&2
+  cat "$SERVER_LOG" >&2
+  exit 1
+fi
+
+python3 - "$PORT" "$ROUTE" "$N" "$C" <<'PY'
+import http.client, json, statistics, sys, threading, time, urllib.request
+from concurrent.futures import ThreadPoolExecutor
+
+port, route, n, c = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
+url = f"http://localhost:{port}{route}"
+
+def hit():
+    t = time.perf_counter()
+    with urllib.request.urlopen(url, timeout=30) as r:
+        r.read()
+    return (time.perf_counter() - t) * 1000
+
+def alloc():
+    # A server never exits, so there is no end-of-process reading to take. Asking costs one
+    # request's worth of work, which is why the readings are taken outside the measured window.
+    with urllib.request.urlopen(f"http://localhost:{port}/alloc", timeout=30) as r:
+        return int(r.read())
+
+# Warm up: the first request through a route pays to load and convert every package function the
+# handler touches, which is thousands of times a steady-state request.
+for _ in range(200):
+    hit()
+
+before = alloc()
+t0 = time.perf_counter()
+with ThreadPoolExecutor(max_workers=c) as pool:
+    lats = list(pool.map(lambda _: hit(), range(n)))
+wall = time.perf_counter() - t0
+after = alloc()
+
+lats.sort()
+print(f"  route            {route}")
+print(f"  requests         {n} at concurrency {c}")
+print(f"  throughput       {n/wall:,.0f} req/s  ({wall:.2f}s wall)")
+print(f"  latency p50      {statistics.median(lats):.2f} ms")
+print(f"  latency p95      {lats[int(len(lats)*0.95)]:.2f} ms")
+print(f"  latency p99      {lats[int(len(lats)*0.99)]:.2f} ms")
+print(f"  latency max      {lats[-1]:.2f} ms")
+print(f"  alloc/request    {(after - before)/n/1024:.2f} KB")
+print(f"  alloc measured   {(after - before)/1e6:.1f} MB over {n} requests")
+PY
+
+cleanup
+SERVER_PID=""

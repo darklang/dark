@@ -39,7 +39,7 @@ let fns () : List<BuiltInFn> =
         + "instance holds, newline-joined."
       fn =
         (function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [| DUnit |] ->
           uply {
             let! hashes = LibDB.RuntimeTypes.Blob.allHashes ()
             return DString(String.concat "\n" hashes)
@@ -60,7 +60,7 @@ let fns () : List<BuiltInFn> =
         + "body), or empty if this instance lacks it."
       fn =
         (function
-        | _, _, _, [ DString hash ] ->
+        | _, _, _, [| DString hash |] ->
           uply {
             match! LibDB.RuntimeTypes.Blob.get hash with
             | Some bytes -> return DString(System.Convert.ToBase64String bytes)
@@ -86,7 +86,7 @@ let fns () : List<BuiltInFn> =
         + "content-addressed set-difference (no cursor)."
       fn =
         (function
-        | _, _, _, [ DList(_, hashDvals) ] ->
+        | _, _, _, [| DList(_, hashDvals) |] ->
           uply {
             let hashes =
               hashDvals
@@ -119,7 +119,7 @@ let fns () : List<BuiltInFn> =
         + "peer's body was empty."
       fn =
         (function
-        | _, _, _, [ DString hash; DString b64 ] ->
+        | _, _, _, [| DString hash; DString b64 |] ->
           uply {
             // The integrity check (bytes must hash to the claimed hash) lives with the store in
             // LibDB.Blob.insertVerified — the builtin just bridges Dval -> call -> Dval.

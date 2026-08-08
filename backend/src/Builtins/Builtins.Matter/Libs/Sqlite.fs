@@ -145,7 +145,7 @@ let fns () : List<BuiltInFn> =
         + "none). Ok = rows affected; Error = the SQLite message. Never throws."
       fn =
         (function
-        | _, _, _, [ DString path; DString sql; DList(_, ps) ] ->
+        | _, _, _, [| DString path; DString sql; DList(_, ps) |] ->
           execImpl path sql (paramStrings ps)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -171,7 +171,7 @@ let fns () : List<BuiltInFn> =
         + "value; Error = the SQLite message. Never throws."
       fn =
         (function
-        | _, _, _, [ DString path; DString sql; DList(_, ps) ] ->
+        | _, _, _, [| DString path; DString sql; DList(_, ps) |] ->
           queryImpl path sql (paramStrings ps)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

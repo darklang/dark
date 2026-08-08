@@ -1,0 +1,65 @@
+// A server for measuring the async path: accept, parse, run a Dark handler, serialize, respond.
+//
+// Deliberately small handlers. The point is what a request costs *around* the handler -- the parts
+// the single-process workloads never touch -- so the handler itself should not dominate. `/json`
+// does a little real work so the number isn't purely framing overhead.
+
+type Item = { id: Int; name: String; tags: List<String> }
+
+let helloFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText "hello" 200
+
+let jsonFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  let item = Item { id = 1; name = "item"; tags = ["a"; "b"; "c"] }
+  Stdlib.Http.responseWithText (Stdlib.Json.serialize<Item> item) 200
+
+let echoFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText (Stdlib.String.fromBlobWithReplacement req.body) 200
+
+// How much this process has allocated so far. The load driver reads it before and after the
+// measured run, which is the only way to get a per-request number out of a server that never exits.
+let allocFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText (Stdlib.Int64.toString (Builtin.gcAllocatedBytes ())) 200
+
+// Interpreter counters for the VM that ran this request. Each request gets its own VM, so this is
+// per-request work: how many instructions, builtin calls and package calls a request costs.
+let statsFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.Http.responseWithText (Builtin.interpreterStatsGet ()) 200
+
+let handlers () : List<Stdlib.HttpServer.Handler> =
+  [ Stdlib.HttpServer.Handler { route = "/hello"; method = "GET"; handler = helloFn }
+    Stdlib.HttpServer.Handler { route = "/json"; method = "GET"; handler = jsonFn }
+    Stdlib.HttpServer.Handler { route = "/echo"; method = "POST"; handler = echoFn }
+    Stdlib.HttpServer.Handler { route = "/alloc"; method = "GET"; handler = allocFn }
+    Stdlib.HttpServer.Handler { route = "/stats"; method = "GET"; handler = statsFn } ]
+
+let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
+  Stdlib.HttpServer.routeRequest (handlers ()) req
+
+let port () : Int =
+  match Builtin.environmentGet "PERF_HTTP_PORT" with
+  | Some s ->
+    match Stdlib.Int.parse s with
+    | Ok n -> n
+    | Error _ -> 9095
+  | None -> 9095
+
+let main () : Int64 =
+  match
+    Stdlib.HttpServer.serve
+      (Stdlib.HttpServer.Config.Config
+        { port = port ()
+          maxBodyBytes = 1048576
+          injectStandardHeaders = true
+          canonicalizeFromForwardedProto = false
+          // Off: a stdout line per request would be most of what we're measuring.
+          logRequests = false })
+      router
+      (fun () -> Stdlib.printLine "LISTENING")
+  with
+  | Ok _ -> 0L
+  | Error e ->
+    Stdlib.printLine ("serve failed: " ++ e)
+    1L
+
+main ()

@@ -65,7 +65,11 @@ let queryableRoundtripsSuccessfullyInRecord
       record
       |> DvalReprInternalQueryable.toJsonStringV0 types bogusThreadID
       |> Ply.bind (
-        DvalReprInternalQueryable.parseJsonV0 types bogusThreadID Map.empty typeRef
+        DvalReprInternalQueryable.parseJsonV0
+          types
+          bogusThreadID
+          RT.TST.empty
+          typeRef
       )
 
     return Expect.RT.dvalEquality record roundtripped
@@ -83,7 +87,7 @@ let queryableRoundtripsSuccessfully
       DvalReprInternalQueryable.parseJsonV0
         (defaultTypes ())
         bogusThreadID
-        Map.empty
+        RT.TST.empty
         typ
         serialized
     return Expect.RT.dvalEquality dv roundtripped

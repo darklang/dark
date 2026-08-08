@@ -19,6 +19,28 @@ type Context =
     // Local bindings from lets and patterns, used before global name resolution.
     localBindings : Set<string> }
 
+/// The builtin name sets that name resolution checks against.
+///
+/// It is the same set every time, and building `builtins.fns |> Map.keys |> Set` inline at each
+/// resolution site rebuilds the whole builtin name set for every name in every expression of every
+/// package fn loaded.
+///
+/// Keyed on the `Builtins` instance rather than held in a mutable, so tests building their own
+/// builtin sets in parallel don't see each other's.
+module private BuiltinNames =
+  let private fnCache =
+    System.Runtime.CompilerServices.ConditionalWeakTable<RT.Builtins, Set<RT.FQFnName.Builtin>>()
+
+  let private valueCache =
+    System.Runtime.CompilerServices.ConditionalWeakTable<RT.Builtins, Set<RT.FQValueName.Builtin>>()
+
+  let fns (builtins : RT.Builtins) : Set<RT.FQFnName.Builtin> =
+    fnCache.GetValue(builtins, (fun b -> b.fns.Keys |> Set.ofSeq))
+
+  let values (builtins : RT.Builtins) : Set<RT.FQValueName.Builtin> =
+    valueCache.GetValue(builtins, (fun b -> b.values.Keys |> Set.ofSeq))
+
+
 let private bindLocalName (context : Context) (name : string) : Context =
   let currentFnName =
     match context.currentFnName with
@@ -320,7 +342,7 @@ module Expr =
           // Bare names resolve value-first, then function, then local variable.
           let! value =
             NR.resolveValueName
-              (builtins.values |> Map.keys |> Set)
+              (BuiltinNames.values builtins)
               pm
               NR.OnMissing.Allow
               branchId
@@ -331,7 +353,7 @@ module Expr =
           | Error _ ->
             let! fnResult =
               NR.resolveFnName
-                (builtins.fns |> Map.keys |> Set)
+                (BuiltinNames.fns builtins)
                 pm
                 NR.OnMissing.Allow
                 branchId
@@ -368,7 +390,7 @@ module Expr =
             // Qualified bare names resolve value-first, then function.
             let! valueResult =
               NR.resolveValueName
-                (builtins.values |> Map.keys |> Set)
+                (BuiltinNames.values builtins)
                 pm
                 NR.OnMissing.Allow
                 branchId
@@ -379,7 +401,7 @@ module Expr =
             | Error _ ->
               let! fnResult =
                 NR.resolveFnName
-                  (builtins.fns |> Map.keys |> Set)
+                  (BuiltinNames.fns builtins)
                   pm
                   NR.OnMissing.Allow
                   branchId
@@ -439,7 +461,7 @@ module Expr =
               // bindings and self-recursion have had a chance to shadow them.
               let! fnName =
                 NR.resolveFnName
-                  (builtins.fns |> Map.keys |> Set)
+                  (BuiltinNames.fns builtins)
                   pm
                   NR.OnMissing.Allow
                   branchId
@@ -457,7 +479,7 @@ module Expr =
               | Error _ ->
                 let! valueName =
                   NR.resolveValueName
-                    (builtins.values |> Map.keys |> Set)
+                    (BuiltinNames.values builtins)
                     pm
                     NR.OnMissing.Allow
                     branchId
@@ -475,7 +497,7 @@ module Expr =
           // same-named value exists.
           let! fnNameResolved =
             NR.resolveFnName
-              (builtins.fns |> Map.keys |> Set)
+              (BuiltinNames.fns builtins)
               pm
               NR.OnMissing.Allow
               branchId
@@ -512,7 +534,7 @@ module Expr =
             uply {
               let! v =
                 NR.resolveValueName
-                  (builtins.values |> Map.keys |> Set)
+                  (BuiltinNames.values builtins)
                   pm
                   NR.OnMissing.Allow
                   branchId
@@ -531,7 +553,7 @@ module Expr =
         | _ ->
           let! fnName =
             NR.resolveFnName
-              (builtins.fns |> Map.keys |> Set)
+              (BuiltinNames.fns builtins)
               pm
               NR.OnMissing.Allow
               branchId
@@ -775,7 +797,7 @@ module Expr =
         else
           let! resolved =
             NR.resolveFnName
-              (builtins.fns |> Map.keys |> Set)
+              (BuiltinNames.fns builtins)
               pm
               NR.OnMissing.Allow
               branchId
@@ -828,7 +850,7 @@ module Expr =
           else
             let! fnName =
               NR.resolveFnName
-                (builtins.fns |> Map.keys |> Set)
+                (BuiltinNames.fns builtins)
                 pm
                 NR.OnMissing.Allow
                 branchId
@@ -842,7 +864,7 @@ module Expr =
           // loading can continue and unresolved names are handled later.
           let! fnName =
             NR.resolveFnName
-              (builtins.fns |> Map.keys |> Set)
+              (BuiltinNames.fns builtins)
               pm
               NR.OnMissing.Allow
               branchId

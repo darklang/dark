@@ -137,6 +137,12 @@ jobs:
 
       - run: scripts/run-backend-tests --published
 
+      # Allocation for a fixed workload repeats to a tenth of a percent and doesn't care how loaded
+      # the box is, so it's the one performance number that can be asserted on here. Time isn't.
+      - run:
+          name: Check the reference workload is within its allocation budget
+          command: scripts/perf/gate --published
+
       ## TODO: too many race conditions. Bring back later
       # Test package manager/cli integration works
       # - run: scripts/build/run-migrations --published

@@ -35,10 +35,28 @@ let private readRequestBodyWithLimit
   (req : HttpListenerRequest)
   (maxBytes : int64)
   : Task<Result<byte[], unit>> =
-  task {
-    if req.ContentLength64 > maxBytes then
-      return Error()
-    else
+  if req.ContentLength64 > maxBytes then
+    Task.FromResult(Error())
+  // A GET has no body. Without this arm, discovering that costs a read buffer, a `MemoryStream` and
+  // its internal buffer, on every request.
+  elif req.ContentLength64 = 0L then
+    Task.FromResult(Ok [||])
+  // A declared length means the size is known, so read straight into an array of exactly that size:
+  // no MemoryStream, no copy out of it, no scratch buffer.
+  elif req.ContentLength64 > 0L then
+    task {
+      let body = Array.zeroCreate (int req.ContentLength64)
+      let mutable read = 0
+      let mutable eof = false
+      while read < body.Length && not eof do
+        let! n = req.InputStream.ReadAsync(body, read, body.Length - read)
+        if n = 0 then eof <- true else read <- read + n
+      // A client that declared more than it sent gets what arrived, same as before.
+      return Ok(if read = body.Length then body else Array.sub body 0 read)
+    }
+  else
+    // Chunked, so the length is unknown (`ContentLength64` is -1) and it has to be accumulated.
+    task {
       use ms = new MemoryStream()
       let buffer = Array.zeroCreate 8192
       let mutable totalRead = 0L
@@ -55,7 +73,7 @@ let private readRequestBodyWithLimit
           else
             do! ms.WriteAsync(buffer, 0, n)
       if overLimit then return Error() else return Ok(ms.ToArray())
-  }
+    }
 
 
 /// Flatten HttpListener's NameValueCollection into the (key, value) list
@@ -386,13 +404,13 @@ let fns () : List<BuiltInFn> =
         | exeState,
           vm,
           _,
-          [ DInt portArg
-            DApplicable handler
-            DInt maxBodyBytesArg
-            DBool injectStandardHeaders
-            DBool canonicalizeFromForwardedProto
-            DBool logRequests
-            DApplicable onListening ] ->
+          [| DInt portArg
+             DApplicable handler
+             DInt maxBodyBytesArg
+             DBool injectStandardHeaders
+             DBool canonicalizeFromForwardedProto
+             DBool logRequests
+             DApplicable onListening |] ->
           uply {
             // maxBodyBytes is a comparison threshold; a negative limit would
             // reject every request (treated as over-limit), so reject it. 0 is

@@ -54,67 +54,77 @@ let rec private mergeKnownTypes
   (left : KnownType)
   (right : KnownType)
   : Result<KnownType, unit> =
-  let r = merge
-  match left, right with
-  | KTUnit, KTUnit -> KTUnit |> Ok
-  | KTBool, KTBool -> KTBool |> Ok
-  | KTInt8, KTInt8 -> KTInt8 |> Ok
-  | KTUInt8, KTUInt8 -> KTUInt8 |> Ok
-  | KTInt16, KTInt16 -> KTInt16 |> Ok
-  | KTUInt16, KTUInt16 -> KTUInt16 |> Ok
-  | KTInt32, KTInt32 -> KTInt32 |> Ok
-  | KTUInt32, KTUInt32 -> KTUInt32 |> Ok
-  | KTInt64, KTInt64 -> KTInt64 |> Ok
-  | KTUInt64, KTUInt64 -> KTUInt64 |> Ok
-  | KTInt128, KTInt128 -> KTInt128 |> Ok
-  | KTUInt128, KTUInt128 -> KTUInt128 |> Ok
-  | KTInt, KTInt -> KTInt |> Ok
-  | KTFloat, KTFloat -> KTFloat |> Ok
-  | KTChar, KTChar -> KTChar |> Ok
-  | KTString, KTString -> KTString |> Ok
-  | KTUuid, KTUuid -> KTUuid |> Ok
-  | KTDateTime, KTDateTime -> KTDateTime |> Ok
-  | KTBlob, KTBlob -> KTBlob |> Ok
-  | KTStream left, KTStream right -> r left right |> Result.map KTStream
+  // Two references to the same type merge to themselves. Worth checking first because F# builds a
+  // pair on the heap to evaluate the match below, and the scalar cases are nullary DU cases, which
+  // are singletons -- so the overwhelmingly common "already the same type" case never builds one.
+  if System.Object.ReferenceEquals(left, right) then
+    Ok left
+  else
 
-  | KTList left, KTList right -> r left right |> Result.map KTList
-  | KTDict left, KTDict right -> r left right |> Result.map KTDict
-  | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
-    let firstMerged = r l1 r1
-    let secondMerged = r l2 r2
-    if List.length ls <> List.length rs then
-      Error()
-    else
-      let restMerged = List.map2 r ls rs |> Result.collect
+    match left, right with
+    | KTUnit, KTUnit -> KTUnit |> Ok
+    | KTBool, KTBool -> KTBool |> Ok
+    | KTInt8, KTInt8 -> KTInt8 |> Ok
+    | KTUInt8, KTUInt8 -> KTUInt8 |> Ok
+    | KTInt16, KTInt16 -> KTInt16 |> Ok
+    | KTUInt16, KTUInt16 -> KTUInt16 |> Ok
+    | KTInt32, KTInt32 -> KTInt32 |> Ok
+    | KTUInt32, KTUInt32 -> KTUInt32 |> Ok
+    | KTInt64, KTInt64 -> KTInt64 |> Ok
+    | KTUInt64, KTUInt64 -> KTUInt64 |> Ok
+    | KTInt128, KTInt128 -> KTInt128 |> Ok
+    | KTUInt128, KTUInt128 -> KTUInt128 |> Ok
+    | KTInt, KTInt -> KTInt |> Ok
+    | KTFloat, KTFloat -> KTFloat |> Ok
+    | KTChar, KTChar -> KTChar |> Ok
+    | KTString, KTString -> KTString |> Ok
+    | KTUuid, KTUuid -> KTUuid |> Ok
+    | KTDateTime, KTDateTime -> KTDateTime |> Ok
+    | KTBlob, KTBlob -> KTBlob |> Ok
+    | KTStream left, KTStream right -> merge left right |> Result.map KTStream
 
-      match firstMerged, secondMerged, restMerged with
-      | Ok first, Ok second, Ok rest -> Ok(KTTuple(first, second, rest))
+    | KTList left, KTList right -> merge left right |> Result.map KTList
+    | KTDict left, KTDict right -> merge left right |> Result.map KTDict
+    | KTTuple(l1, l2, ls), KTTuple(r1, r2, rs) ->
+      let firstMerged = merge l1 r1
+      let secondMerged = merge l2 r2
+      if List.length ls <> List.length rs then
+        Error()
+      else
+        let restMerged = List.map2 merge ls rs |> Result.collect
+
+        match firstMerged, secondMerged, restMerged with
+        | Ok first, Ok second, Ok rest -> Ok(KTTuple(first, second, rest))
+        | _ -> Error()
+
+    | KTCustomType(lName, lArgs), KTCustomType(rName, rArgs) ->
+      if lName <> rName then
+        Error()
+      else if List.length lArgs <> List.length rArgs then
+        Error()
+      else
+        List.map2 merge lArgs rArgs
+        |> Result.collect
+        |> Result.map (fun args -> KTCustomType(lName, args))
+
+    | KTFn(lArgs, lRet), KTFn(rArgs, rRet) ->
+      let argsMerged = NEList.map2 merge lArgs rArgs |> Result.collectNE
+      let retMerged = merge lRet rRet
+
+      match argsMerged, retMerged with
+      | Ok args, Ok ret -> Ok(KTFn(args, ret))
       | _ -> Error()
 
-  | KTCustomType(lName, lArgs), KTCustomType(rName, rArgs) ->
-    if lName <> rName then
-      Error()
-    else if List.length lArgs <> List.length rArgs then
-      Error()
-    else
-      List.map2 r lArgs rArgs
-      |> Result.collect
-      |> Result.map (fun args -> KTCustomType(lName, args))
-
-  | KTFn(lArgs, lRet), KTFn(rArgs, rRet) ->
-    let argsMerged = NEList.map2 r lArgs rArgs |> Result.collectNE
-    let retMerged = r lRet rRet
-
-    match argsMerged, retMerged with
-    | Ok args, Ok ret -> Ok(KTFn(args, ret))
     | _ -> Error()
 
-  | _ -> Error()
-
 and merge (left : ValueType) (right : ValueType) : Result<ValueType, unit> =
-  match left, right with
-  | ValueType.Unknown, v
-  | v, ValueType.Unknown -> Ok v
+  if System.Object.ReferenceEquals(left, right) then
+    Ok left
+  else
 
-  | ValueType.Known left, ValueType.Known right ->
-    mergeKnownTypes left right |> Result.map ValueType.Known
+    match left, right with
+    | ValueType.Unknown, v
+    | v, ValueType.Unknown -> Ok v
+
+    | ValueType.Known left, ValueType.Known right ->
+      mergeKnownTypes left right |> Result.map ValueType.Known

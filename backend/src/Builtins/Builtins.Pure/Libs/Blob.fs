@@ -21,7 +21,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the length of <param blob> in bytes."
       fn =
         (function
-        | state, _, _, [ DBlob ref ] ->
+        | state, _, _, [| DBlob ref |] ->
           uply {
             let! bs = Blob.readBytes state ref
             return Dval.int (bigint bs.Length)
@@ -40,7 +40,7 @@ let fns () : List<BuiltInFn> =
       description = "Encodes <param s> as UTF-8 bytes in a fresh ephemeral Blob."
       fn =
         (function
-        | _, _, _, [ DString s ] ->
+        | _, _, _, [| DString s |] ->
           let bs = System.Text.Encoding.UTF8.GetBytes(s)
           Blob.newEphemeral bs |> Ply
         | _ -> incorrectArgs ())
@@ -60,7 +60,7 @@ let fns () : List<BuiltInFn> =
         let ok r = Dval.resultOk KTString KTString r
         let err r = Dval.resultError KTString KTString r
         (function
-        | state, _, _, [ DBlob ref ] ->
+        | state, _, _, [| DBlob ref |] ->
           uply {
             let! bs = Blob.readBytes state ref
             try
@@ -85,7 +85,7 @@ let fns () : List<BuiltInFn> =
          with [RFC 4648 section 8](https://www.rfc-editor.org/rfc/rfc4648.html#section-8)."
       fn =
         (function
-        | state, _, _, [ DBlob ref ] ->
+        | state, _, _, [| DBlob ref |] ->
           uply {
             let! bs = Blob.readBytes state ref
             return DString(System.Convert.ToHexString(bs))
@@ -107,7 +107,7 @@ let fns () : List<BuiltInFn> =
         let ok b = Dval.resultOk KTBlob KTString b
         let err s = Dval.resultError KTBlob KTString (DString s)
         (function
-        | _, _, _, [ DString s ] ->
+        | _, _, _, [| DString s |] ->
           try
             let bs = System.Convert.FromHexString(s)
             ok (Blob.newEphemeral bs) |> Ply
@@ -128,7 +128,7 @@ let fns () : List<BuiltInFn> =
         "Base64 encodes <param blob> using the standard alphabet (RFC 4648 section 4) with {{=}} padding."
       fn =
         (function
-        | state, _, _, [ DBlob ref ] ->
+        | state, _, _, [| DBlob ref |] ->
           uply {
             let! bs = Blob.readBytes state ref
             return DString(System.Convert.ToBase64String(bs))
@@ -150,7 +150,7 @@ let fns () : List<BuiltInFn> =
         let ok b = Dval.resultOk KTBlob KTString b
         let err s = Dval.resultError KTBlob KTString (DString s)
         (function
-        | _, _, _, [ DString s ] ->
+        | _, _, _, [| DString s |] ->
           let normalized =
             // Accept URL-safe alphabet + optional padding — matches
             // the old base64Decode behaviour.
@@ -179,7 +179,7 @@ let fns () : List<BuiltInFn> =
         "Concatenates a list of Blobs into a single fresh ephemeral Blob."
       fn =
         (function
-        | state, _, _, [ DList(_, items) ] ->
+        | state, _, _, [| DList(_, items) |] ->
           uply {
             use collected = new System.IO.MemoryStream()
             for item in items do
@@ -216,7 +216,7 @@ let fns () : List<BuiltInFn> =
         "Copies <param length> bytes starting at <param start> into a fresh ephemeral Blob. Out-of-range slices are clamped."
       fn =
         (function
-        | state, _, _, [ DBlob ref; DInt startD; DInt lenD ] ->
+        | state, _, _, [| DBlob ref; DInt startD; DInt lenD |] ->
           uply {
             let! bs = Blob.readBytes state ref
             let len = bigint bs.Length
@@ -243,7 +243,7 @@ let fns () : List<BuiltInFn> =
         "Expands <param blob> to a List<UInt8>. Escape hatch for code that hasn't migrated yet — prefer the Blob module for new code."
       fn =
         (function
-        | state, _, _, [ DBlob ref ] ->
+        | state, _, _, [| DBlob ref |] ->
           uply {
             let! bs = Blob.readBytes state ref
             return Dval.byteArrayToDvalList bs
@@ -263,7 +263,7 @@ let fns () : List<BuiltInFn> =
         "Collects a List<UInt8> into a fresh ephemeral Blob. Escape hatch for bridging old and new code."
       fn =
         (function
-        | _, _, _, [ DList(_, items) ] ->
+        | _, _, _, [| DList(_, items) |] ->
           let bs = Dval.dlistToByteArray items
           Blob.newEphemeral bs |> Ply
         | _ -> incorrectArgs ())

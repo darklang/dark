@@ -370,7 +370,8 @@ let queryableJsonRoundtrip =
       "\"hash\":\"e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855\""
       "has the content hash"
     let! restored =
-      QueryableJson.parseJsonV0 types threadID Map.empty RT.TBlob json |> Ply.toTask
+      QueryableJson.parseJsonV0 types threadID RT.TST.empty RT.TBlob json
+      |> Ply.toTask
     Expect.equal restored original "persistent blob survives queryable JSON"
   }
 
@@ -674,7 +675,7 @@ let private fakeAppLambda
     RT.AppLambda
       { exprId = 0UL
         closedRegisters = closedRegisters
-        typeSymbolTable = Map.empty
+        typeSymbolTable = RT.TST.empty
         argsSoFar = argsSoFar }
   )
 
@@ -683,7 +684,7 @@ let private fakeAppNamedFn (argsSoFar : List<RT.Dval>) : RT.Dval =
   RT.DApplicable(
     RT.AppNamedFn
       { name = name
-        typeSymbolTable = Map.empty
+        typeSymbolTable = RT.TST.empty
         typeArgs = []
         argsSoFar = argsSoFar }
   )

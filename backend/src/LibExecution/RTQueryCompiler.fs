@@ -66,7 +66,9 @@ let getSqlSpec
   : Option<RT.SqlSpec> =
   match fnName with
   | RT.FQFnName.Builtin builtinName ->
-    Map.tryFind builtinName exeState.fns.builtIn |> Option.map _.sqlSpec
+    (match exeState.fns.builtIn.TryGetValue builtinName with
+     | true, fn -> Some fn.sqlSpec
+     | false, _ -> None)
   | RT.FQFnName.Package _ ->
     // Package functions don't have SqlSpec - they delegate to builtins
     None
@@ -100,7 +102,7 @@ let partialEvaluate
     // Load the function reference
     let appFn : RT.ApplicableNamedFn =
       { name = fnName
-        typeSymbolTable = Map.empty
+        typeSymbolTable = RT.TST.empty
         typeArgs = typeArgs
         argsSoFar = [] }
     instructions.Add(RT.LoadVal(fnReg, RT.DApplicable(RT.AppNamedFn appFn)))

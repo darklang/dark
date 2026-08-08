@@ -101,7 +101,9 @@ and writeApplicableNamedFn (w : BinaryWriter) (namedFn : ApplicableNamedFn) =
   List.write w writeDval namedFn.argsSoFar
 
 and writeTypeSymbolTable (w : BinaryWriter) (tst : TypeSymbolTable) =
-  Map.write String.write writeValueType w tst
+  // Via a Map so the wire format is unchanged by the table's in-memory representation. This runs when
+  // a package item is written, not per call, so the conversion is free where it matters.
+  Map.write String.write writeValueType w (TST.toList tst |> Map.ofList)
 
 and writeDvalImpl (w : BinaryWriter) (dval : Dval) =
   match dval with
@@ -289,7 +291,7 @@ and readApplicableNamedFn (r : BinaryReader) : ApplicableNamedFn =
     argsSoFar = argsSoFar }
 
 and readTypeSymbolTable (r : BinaryReader) : TypeSymbolTable =
-  Map.read String.read readValueType r
+  Map.read String.read readValueType r |> Map.toList |> TST.ofList
 
 and readDvalImpl (r : BinaryReader) : Dval =
   match r.ReadByte() with

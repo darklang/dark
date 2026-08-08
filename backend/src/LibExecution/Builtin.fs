@@ -18,26 +18,31 @@ let renameFunctions
   (renames : FnRenames)
   (existing : List<BuiltInFn>)
   : List<BuiltInFn> =
-  let existingMap = existing |> Map.fromListBy _.name
-  let newFns =
-    renames
-    |> List.fold
-      (fun renamedFns (oldName, newName) ->
-        let newFn =
-          Map.find newName (Map.mergeFavoringLeft renamedFns existingMap)
-          |> Exception.unwrapOptionInternal
+  // A rename can name a function that is itself the target of an earlier rename, so look in what
+  // this fold has produced before falling back to the real ones. Merging the two maps to ask would
+  // rebuild the whole table once per rename.
+  let existingByName = Dictionary<FQFnName.Builtin, BuiltInFn>()
+  existing |> List.iter (fun fn -> existingByName[fn.name] <- fn)
+
+  let renamed = Dictionary<FQFnName.Builtin, BuiltInFn>()
+  renames
+  |> List.iter (fun (oldName, newName) ->
+    let newFn =
+      match renamed.TryGetValue newName with
+      | true, fn -> fn
+      | false, _ ->
+        match existingByName.TryGetValue newName with
+        | true, fn -> fn
+        | false, _ ->
+          Exception.raiseInternal
             $"all fns should exist {oldName} -> {newName}"
             [ "oldName", oldName; "newName", newName ]
+    renamed[oldName] <-
+      { newFn with
+          name = oldName
+          deprecated = RenamedTo(FQFnName.Builtin newName) })
 
-        Map.add
-          oldName
-          { newFn with
-              name = oldName
-              deprecated = RenamedTo(FQFnName.Builtin newName) }
-          renamedFns)
-      Map.empty
-    |> Map.values
-  existing @ newFns
+  existing @ (renamed.Values |> List.ofSeq)
 
 
 let checkFn (fn : BuiltInFn) : unit =
@@ -45,19 +50,27 @@ let checkFn (fn : BuiltInFn) : unit =
     Exception.raiseInternal $"function {fn.name} has no parameters" [ "fn", fn.name ]
 
 
+let private byName (items : List<'a>) (name : 'a -> 'k) : Dictionary<'k, 'a> =
+  let d = Dictionary<'k, 'a>()
+  items |> List.iter (fun item -> d[name item] <- item)
+  d
+
+
 /// Provided a list of library contents, combine them (handling renames)
 let combine (libs : List<Builtins>) (fnRenames : FnRenames) : Builtins =
-  let fns = libs |> List.map _.fns |> List.collect Map.values
+  let fns = libs |> List.collect (fun lib -> lib.fns.Values |> List.ofSeq)
 
   fns |> List.iter checkFn
 
   { values =
-      libs |> List.map _.values |> List.collect Map.values |> Map.fromListBy _.name
-    fns = fns |> renameFunctions fnRenames |> Map.fromListBy _.name }
+      byName
+        (libs |> List.collect (fun lib -> lib.values.Values |> List.ofSeq))
+        _.name
+    fns = byName (fns |> renameFunctions fnRenames) _.name }
 
 
 let make (values : List<BuiltInValue>) (fns : List<BuiltInFn>) : Builtins =
-  { values = values |> Map.fromListBy _.name; fns = fns |> Map.fromListBy _.name }
+  { values = byName values _.name; fns = byName fns _.name }
 
 
 module Shortcuts =

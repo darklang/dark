@@ -583,7 +583,7 @@ module ApplicableNamedFn =
     match d with
     | DRecord(_, _, _, fields) ->
       { name = FQFnName.fromDT (fields |> D.field "name")
-        typeSymbolTable = Map.empty // TODO
+        typeSymbolTable = TST.empty // TODO
         typeArgs = fields |> D.field "typeArgs" |> D.list TypeReference.fromDT
         argsSoFar = fields |> D.field "argsSoFar" |> D.list Dval.fromDT }
     | _ -> Exception.raiseInternal "Invalid ApplicableNamedFn" []
@@ -607,7 +607,7 @@ module ApplicableLambda =
         ("typeSymbolTable",
          DDict(
            VT.known (ValueType.knownType ()),
-           Map.map ValueType.toDT lambda.typeSymbolTable
+           TST.map ValueType.toDT lambda.typeSymbolTable
          ))
         ("argsSoFar",
          DList(VT.known (Dval.knownType ()), List.map Dval.toDT lambda.argsSoFar)) ]
@@ -624,7 +624,11 @@ module ApplicableLambda =
           |> D.field "closedRegisters"
           |> D.list (D.tuple2 D.int32 Dval.fromDT)
         typeSymbolTable =
-          fields |> D.field "typeSymbolTable" |> D.dict ValueType.fromDT
+          fields
+          |> D.field "typeSymbolTable"
+          |> D.dict ValueType.fromDT
+          |> Map.toList
+          |> TST.ofList
         argsSoFar = fields |> D.field "argsSoFar" |> D.list Dval.fromDT }
     | _ -> Exception.raiseInternal "Invalid ApplicableLambda" []
 

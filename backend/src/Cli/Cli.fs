@@ -182,7 +182,7 @@ let main (args : string[]) =
     // Force the module-level `builtins` binding here, so its cost is attributed to a span of its own
     // rather than to whichever phase happens to touch it first.
     Telemetry.time "cli.builtinsInit" [] (fun () ->
-      builtins.fns |> Map.count |> ignore<int>)
+      builtins.fns.Count |> ignore<int>)
 
     // Separated from `growIfNeeded` so the first connection open and its PRAGMA round trip are attributable
     // to themselves rather than to whichever query happened to run first.
@@ -208,7 +208,7 @@ let main (args : string[]) =
     Telemetry.time "cli.consoleWait" [] NonBlockingConsole.wait
 
     // Startup instrumentation. All of it is inert when telemetry is off; read it with
-    // `scripts/testing/view-telemetry.py`.
+    // `scripts/perf/view-telemetry.py`.
 
     // How many package items this run actually decoded. Emitted alongside the spans because per-item
     // cost and item count are useless separately.
@@ -252,18 +252,35 @@ let main (args : string[]) =
           match byBuiltin.TryGetValue kv.Key with
           | true, v -> byBuiltin[kv.Key] <- v + kv.Value
           | false, _ -> byBuiltin[kv.Key] <- kv.Value
+      let callsByBuiltin = System.Collections.Generic.Dictionary<string, int64>()
+      for s in stats do
+        for kv in s.builtinCallsByName do
+          match callsByBuiltin.TryGetValue kv.Key with
+          | true, v -> callsByBuiltin[kv.Key] <- v + kv.Value
+          | false, _ -> callsByBuiltin[kv.Key] <- kv.Value
       byBuiltin
       |> Seq.sortByDescending (fun kv -> kv.Value)
       |> Seq.truncate 20
       |> Seq.iter (fun kv ->
-        Telemetry.event $"builtinAlloc.{kv.Key}" [ "bytes", string kv.Value ])
+        let calls =
+          match callsByBuiltin.TryGetValue kv.Key with
+          | true, c -> c
+          | false, _ -> 0L
+        Telemetry.event
+          $"builtinAlloc.{kv.Key}"
+          [ "bytes", string kv.Value
+            "calls", string calls
+            "bytesPerCall", string (if calls = 0L then 0L else kv.Value / calls) ])
 
       for i in 0 .. min (RT.ApplyStage.names.Length - 1) 31 do
         let total = stats |> List.sumBy (fun s -> s.allocByStage[i])
+        let runs = stats |> List.sumBy (fun s -> s.countByStage[i])
         if total > 0L then
           Telemetry.event
             $"applyStage.{RT.ApplyStage.names[i]}"
-            [ "bytes", string total ]
+            [ "bytes", string total
+              "runs", string runs
+              "bytesPerRun", string (if runs = 0L then 0L else total / runs) ]
 
       Telemetry.event
         "vm.stats"

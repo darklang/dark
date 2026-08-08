@@ -24,7 +24,7 @@ let fns () : List<BuiltInFn> =
       description = "Create a new branch from the given parent branch."
       fn =
         function
-        | _, _, _, [ DString name; DUuid parentBranchId ] ->
+        | _, _, _, [| DString name; DUuid parentBranchId |] ->
           uply {
             let! branch = LibDB.Branches.create name parentBranchId
             return PT2DT.Branch.toDT branch
@@ -43,7 +43,7 @@ let fns () : List<BuiltInFn> =
       description = "List all active (non-merged, non-archived) branches."
       fn =
         function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [| DUnit |] ->
           uply {
             let! branches = LibDB.Branches.list ()
             return
@@ -65,7 +65,7 @@ let fns () : List<BuiltInFn> =
       description = "List all branches including archived and merged."
       fn =
         function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [| DUnit |] ->
           uply {
             let! branches = LibDB.Branches.listAll ()
             return
@@ -87,7 +87,7 @@ let fns () : List<BuiltInFn> =
       description = "Get a branch by ID."
       fn =
         function
-        | _, _, _, [ DUuid id ] ->
+        | _, _, _, [| DUuid id |] ->
           uply {
             let! branchOpt = LibDB.Branches.get id
             return
@@ -109,7 +109,7 @@ let fns () : List<BuiltInFn> =
       description = "Get a branch by name."
       fn =
         function
-        | _, _, _, [ DString name ] ->
+        | _, _, _, [| DString name |] ->
           uply {
             let! branchOpt = LibDB.Branches.getByName name
             return
@@ -133,7 +133,7 @@ let fns () : List<BuiltInFn> =
       description = "Rename a branch."
       fn =
         function
-        | _, _, _, [ DUuid id; DString newName ] ->
+        | _, _, _, [| DUuid id; DString newName |] ->
           uply {
             let! result = LibDB.Branches.rename id newName
             return
@@ -156,7 +156,7 @@ let fns () : List<BuiltInFn> =
       description = "Archive a branch (soft delete)."
       fn =
         function
-        | _, _, _, [ DUuid id ] ->
+        | _, _, _, [| DUuid id |] ->
           uply {
             let! result = LibDB.Branches.archive id
             return
@@ -179,7 +179,7 @@ let fns () : List<BuiltInFn> =
       description = "Archive a branch (soft delete)."
       fn =
         function
-        | _, _, _, [ DUuid id ] ->
+        | _, _, _, [| DUuid id |] ->
           uply {
             let! result = LibDB.Branches.archive id
             return
@@ -202,7 +202,7 @@ let fns () : List<BuiltInFn> =
       description = "Unarchive a branch."
       fn =
         function
-        | _, _, _, [ DUuid id ] ->
+        | _, _, _, [| DUuid id |] ->
           uply {
             let! result = LibDB.Branches.unarchive id
             return

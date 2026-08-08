@@ -264,57 +264,80 @@ module DarkInt =
 
   /// Compare by numeric value (NOT by case tag — an Infinite is always outside
   /// Int64 range, so tag order would be wrong).
+  /// Both operands out of Int64 range, or one of each. Split out so the Finite/Finite path below
+  /// doesn't have a local function or a tuple in it, either of which is an allocation per call.
+  let private compareViaBigInt (a : DarkInt) (b : DarkInt) : int =
+    let bx = toBigInt a
+    let by = toBigInt b
+    if bx < by then -1
+    elif bx > by then 1
+    else 0
+
   let compare (a : DarkInt) (b : DarkInt) : int =
-    match a, b with
-    | DarkInt.Finite x, DarkInt.Finite y ->
-      if x < y then -1
-      elif x > y then 1
-      else 0
-    | _ ->
-      let bx, by = toBigInt a, toBigInt b
-      if bx < by then -1
-      elif bx > by then 1
-      else 0
+    // Nested matches rather than `match a, b with`. The tuple form reads better and allocates the
+    // pair: `DarkInt` is a struct carrying a bigint's worth of space, so the pair is about 64 bytes,
+    // on a function that runs once per comparison in a script.
+    match a with
+    | DarkInt.Finite x ->
+      match b with
+      | DarkInt.Finite y ->
+        if x < y then -1
+        elif x > y then 1
+        else 0
+      | DarkInt.Infinite _ -> compareViaBigInt a b
+    | DarkInt.Infinite _ -> compareViaBigInt a b
 
   // Arithmetic: int64 fast path on Finite/Finite, promoting to bigint only on
   // overflow; bigint otherwise. Results normalize through `ofBigInt`.
   let add (a : DarkInt) (b : DarkInt) : DarkInt =
-    match a, b with
-    | DarkInt.Finite x, DarkInt.Finite y ->
-      try
-        DarkInt.Finite(Checked.(+) x y)
-      with :? System.OverflowException ->
-        ofBigInt (bigint x + bigint y)
-    | _ -> ofBigInt (toBigInt a + toBigInt b)
+    match a with
+    | DarkInt.Finite x ->
+      match b with
+      | DarkInt.Finite y ->
+        try
+          DarkInt.Finite(Checked.(+) x y)
+        with :? System.OverflowException ->
+          ofBigInt (bigint x + bigint y)
+      | DarkInt.Infinite _ -> ofBigInt (toBigInt a + toBigInt b)
+    | DarkInt.Infinite _ -> ofBigInt (toBigInt a + toBigInt b)
 
   let subtract (a : DarkInt) (b : DarkInt) : DarkInt =
-    match a, b with
-    | DarkInt.Finite x, DarkInt.Finite y ->
-      try
-        DarkInt.Finite(Checked.(-) x y)
-      with :? System.OverflowException ->
-        ofBigInt (bigint x - bigint y)
-    | _ -> ofBigInt (toBigInt a - toBigInt b)
+    match a with
+    | DarkInt.Finite x ->
+      match b with
+      | DarkInt.Finite y ->
+        try
+          DarkInt.Finite(Checked.(-) x y)
+        with :? System.OverflowException ->
+          ofBigInt (bigint x - bigint y)
+      | DarkInt.Infinite _ -> ofBigInt (toBigInt a - toBigInt b)
+    | DarkInt.Infinite _ -> ofBigInt (toBigInt a - toBigInt b)
 
   let multiply (a : DarkInt) (b : DarkInt) : DarkInt =
-    match a, b with
-    | DarkInt.Finite x, DarkInt.Finite y ->
-      try
-        DarkInt.Finite(Checked.(*) x y)
-      with :? System.OverflowException ->
-        ofBigInt (bigint x * bigint y)
-    | _ -> ofBigInt (toBigInt a * toBigInt b)
+    match a with
+    | DarkInt.Finite x ->
+      match b with
+      | DarkInt.Finite y ->
+        try
+          DarkInt.Finite(Checked.(*) x y)
+        with :? System.OverflowException ->
+          ofBigInt (bigint x * bigint y)
+      | DarkInt.Infinite _ -> ofBigInt (toBigInt a * toBigInt b)
+    | DarkInt.Infinite _ -> ofBigInt (toBigInt a * toBigInt b)
 
   /// Integer division; caller must ensure the divisor is non-zero.
   let divide (a : DarkInt) (b : DarkInt) : DarkInt =
-    match a, b with
+    match a with
     // Int64 division overflows only on MinValue / -1; promote that case.
-    | DarkInt.Finite x, DarkInt.Finite y ->
-      try
-        DarkInt.Finite(x / y)
-      with :? System.OverflowException ->
-        ofBigInt (bigint x / bigint y)
-    | _ -> ofBigInt (toBigInt a / toBigInt b)
+    | DarkInt.Finite x ->
+      match b with
+      | DarkInt.Finite y ->
+        try
+          DarkInt.Finite(x / y)
+        with :? System.OverflowException ->
+          ofBigInt (bigint x / bigint y)
+      | DarkInt.Infinite _ -> ofBigInt (toBigInt a / toBigInt b)
+    | DarkInt.Infinite _ -> ofBigInt (toBigInt a / toBigInt b)
 
   let negate (a : DarkInt) : DarkInt =
     match a with
@@ -405,15 +428,186 @@ type TypeReference =
     isConcrete this
 
 
-/// Our record/tracking of any type arguments in scope
+/// The type arguments in scope: a mapping from type-variable name to the concrete type bound to it.
 ///
-/// i.e. within the execution of
-///   `let serialize<'a> (x : 'a) : string = ...`,
-/// called with inputs
-///   `serialize<int> 1`,
-/// we would have a TypeSymbolTable of
-///  { "a" => TInt64 }
-type TypeSymbolTable = Map<string, ValueType>
+/// Within the execution of `let serialize<'a> (x : 'a) : string = ...` called as `serialize<int> 1`,
+/// this holds `{ "a" => TInt64 }`.
+///
+/// Represented as two inline slots plus an overflow map, because it is nearly always one or two
+/// entries and an `FSharpMap` charges three heap objects for a single-entry map -- enough, at this
+/// call frequency, to dominate the interpreter's allocation.
+///
+/// Invariants, which every operation below depends on:
+/// - `Count` is the *total* number of entries, inline and overflow together.
+/// - Inline slots fill from 0 and stay packed: slot 0 is live when `Count >= 1`, slot 1 when
+///   `Count >= 2`. `remove` slides entries down to preserve this.
+/// - `Overflow` holds only entries past the first two, and is `Map.empty` (a singleton, so free)
+///   whenever `Count <= 2`. In practice it has never been observed non-empty.
+/// - A name appears in at most one place across the slots and the overflow.
+/// - Order is not part of the value. `ToList` returns slots first, but equality and hashing are
+///   order-independent, so callers must not depend on it.
+///
+/// Equality is by content rather than field-by-field, since two tables with the same pairs can be
+/// built different ways, and a `Dval` can carry one inside `DApplicable`.
+[<Struct; NoComparison; CustomEquality>]
+type TypeSymbolTable =
+  {
+    /// Total entries, inline and overflow together
+    Count : int
+    Var0 : string
+    Bound0 : ValueType
+    Var1 : string
+    Bound1 : ValueType
+    Overflow : Map<string, ValueType>
+  }
+
+  member this.TryFind(name : string) : ValueType voption =
+    if this.Count > 0 && this.Var0 = name then
+      ValueSome this.Bound0
+    elif this.Count > 1 && this.Var1 = name then
+      ValueSome this.Bound1
+    elif this.Count > 2 then
+      let mutable found = Unchecked.defaultof<ValueType>
+      if this.Overflow.TryGetValue(name, &found) then ValueSome found else ValueNone
+    else
+      ValueNone
+
+  member this.ToList() : List<string * ValueType> =
+    match this.Count with
+    | 0 -> []
+    | 1 -> [ (this.Var0, this.Bound0) ]
+    | 2 -> [ (this.Var0, this.Bound0); (this.Var1, this.Bound1) ]
+    | _ ->
+      (this.Var0, this.Bound0)
+      :: (this.Var1, this.Bound1)
+      :: Map.toList this.Overflow
+
+  override this.Equals(o : obj) : bool =
+    match o with
+    | :? TypeSymbolTable as other ->
+      if this.Count <> other.Count then
+        false
+      else
+        this.ToList()
+        |> List.forall (fun (k, v) ->
+          match other.TryFind k with
+          | ValueSome v' -> v = v'
+          | ValueNone -> false)
+    | _ -> false
+
+  override this.GetHashCode() : int =
+    // Order-independent, so two tables with the same pairs hash alike however they were built.
+    this.ToList() |> List.fold (fun acc (k, v) -> acc ^^^ (hash k * 31 + hash v)) 0
+
+
+/// Operations on `TypeSymbolTable`. All of these are allocation-free at two entries or fewer.
+module TST =
+  let empty : TypeSymbolTable =
+    { Count = 0
+      Var0 = Unchecked.defaultof<string>
+      Bound0 = Unchecked.defaultof<ValueType>
+      Var1 = Unchecked.defaultof<string>
+      Bound1 = Unchecked.defaultof<ValueType>
+      Overflow = Map.empty }
+
+  let inline isEmpty (t : TypeSymbolTable) : bool = t.Count = 0
+  let inline count (t : TypeSymbolTable) : int = t.Count
+  let inline tryFind (name : string) (t : TypeSymbolTable) : ValueType voption =
+    t.TryFind name
+  let inline containsKey (name : string) (t : TypeSymbolTable) : bool =
+    (t.TryFind name).IsSome
+  let inline toList (t : TypeSymbolTable) : List<string * ValueType> = t.ToList()
+
+  let add (name : string) (vt : ValueType) (t : TypeSymbolTable) : TypeSymbolTable =
+    if t.Count > 0 && t.Var0 = name then
+      { t with Bound0 = vt }
+    elif t.Count > 1 && t.Var1 = name then
+      { t with Bound1 = vt }
+    elif t.Count > 2 && Map.containsKey name t.Overflow then
+      { t with Overflow = Map.add name vt t.Overflow }
+    elif t.Count = 0 then
+      { t with Count = 1; Var0 = name; Bound0 = vt }
+    elif t.Count = 1 then
+      { t with Count = 2; Var1 = name; Bound1 = vt }
+    else
+      { t with Count = t.Count + 1; Overflow = Map.add name vt t.Overflow }
+
+  let remove (name : string) (t : TypeSymbolTable) : TypeSymbolTable =
+    if t.Count > 0 && t.Var0 = name then
+      // Slide the second entry down so the invariant "slots fill from 0" holds.
+      if t.Count = 1 then
+        empty
+      elif t.Count = 2 then
+        { t with Count = 1; Var0 = t.Var1; Bound0 = t.Bound1 }
+      else
+        match Map.toList t.Overflow with
+        | (k, v) :: _ ->
+          { t with
+              Var0 = t.Var1
+              Bound0 = t.Bound1
+              Var1 = k
+              Bound1 = v
+              Overflow = Map.remove k t.Overflow
+              Count = t.Count - 1 }
+        | [] -> { t with Count = 1; Var0 = t.Var1; Bound0 = t.Bound1 }
+    elif t.Count > 1 && t.Var1 = name then
+      if t.Count = 2 then
+        { t with Count = 1; Var1 = Unchecked.defaultof<string> }
+      else
+        match Map.toList t.Overflow with
+        | (k, v) :: _ ->
+          { t with
+              Var1 = k
+              Bound1 = v
+              Overflow = Map.remove k t.Overflow
+              Count = t.Count - 1 }
+        | [] -> { t with Count = 1; Var1 = Unchecked.defaultof<string> }
+    elif t.Count > 2 && Map.containsKey name t.Overflow then
+      { t with Overflow = Map.remove name t.Overflow; Count = t.Count - 1 }
+    else
+      t
+
+  /// `Map.remove` rebuilds the search path even when the key isn't there, and the names stripped from
+  /// a table are a function's own type variables, which the caller usually hasn't bound. Checking
+  /// first allocates nothing.
+  let removeIfPresent (name : string) (t : TypeSymbolTable) : TypeSymbolTable =
+    if containsKey name t then remove name t else t
+
+  let ofList (pairs : List<string * ValueType>) : TypeSymbolTable =
+    pairs |> List.fold (fun acc (k, v) -> add k v acc) empty
+
+  let fold
+    (f : 'st -> string -> ValueType -> 'st)
+    (state : 'st)
+    (t : TypeSymbolTable)
+    : 'st =
+    let mutable acc = state
+    if t.Count > 0 then acc <- f acc t.Var0 t.Bound0
+    if t.Count > 1 then acc <- f acc t.Var1 t.Bound1
+    if t.Count > 2 then acc <- Map.fold f acc t.Overflow
+    acc
+
+  let map (f : ValueType -> 'a) (t : TypeSymbolTable) : Map<string, 'a> =
+    t.ToList() |> List.map (fun (k, v) -> (k, f v)) |> Map.ofList
+
+  /// Right wins on conflict, and an entry that's already there with an equal value is left alone, so
+  /// a merge that changes nothing returns the left table untouched.
+  let mergeFavoringRight
+    (l : TypeSymbolTable)
+    (r : TypeSymbolTable)
+    : TypeSymbolTable =
+    if r.Count = 0 then
+      l
+    elif l.Count = 0 then
+      r
+    else
+      fold
+        (fun acc k v ->
+          match acc.TryFind k with
+          | ValueSome existing when existing = v -> acc
+          | _ -> add k v acc)
+        l
+        r
 
 
 
@@ -1320,10 +1514,79 @@ module TypeDeclaration =
 
 
 
+/// One shared `ValueType.Known` wrapper per scalar type.
+///
+/// The `KT*` cases are nullary, so F# already shares those; it is the `Known` around them that would
+/// otherwise be rebuilt. Two places convert to a ValueType on every call -- `Dval.toValueType` from a value, and
+/// `TypeReference.toVT` from a declaration -- and between them they run several times per argument
+/// per function call. They now hand back the same objects, which also means the identity check at
+/// the top of `ValueType.merge` fires between a value's type and its declared type.
+module KnownVT =
+  let unit : ValueType = ValueType.Known KTUnit
+  let bool : ValueType = ValueType.Known KTBool
+  let int8 : ValueType = ValueType.Known KTInt8
+  let uint8 : ValueType = ValueType.Known KTUInt8
+  let int16 : ValueType = ValueType.Known KTInt16
+  let uint16 : ValueType = ValueType.Known KTUInt16
+  let int32 : ValueType = ValueType.Known KTInt32
+  let uint32 : ValueType = ValueType.Known KTUInt32
+  let int64 : ValueType = ValueType.Known KTInt64
+  let uint64 : ValueType = ValueType.Known KTUInt64
+  let int128 : ValueType = ValueType.Known KTInt128
+  let uint128 : ValueType = ValueType.Known KTUInt128
+  let int : ValueType = ValueType.Known KTInt
+  let float : ValueType = ValueType.Known KTFloat
+  let char : ValueType = ValueType.Known KTChar
+  let string : ValueType = ValueType.Known KTString
+  let dateTime : ValueType = ValueType.Known KTDateTime
+  let uuid : ValueType = ValueType.Known KTUuid
+  let blob : ValueType = ValueType.Known KTBlob
+
+
 // Functions for working with Dark runtime values
 module Dval =
+  // Interned scalars. A Dval is immutable and compared structurally, so nothing can tell a shared
+  // instance from a fresh one, and the values a program actually computes cluster hard at the small
+  // end: loop counters, indices, lengths, flags.
+  //
+  // `DInt` is the expensive one: `DarkInt` is a struct DU whose `Infinite` case carries a `bigint`,
+  // so a `DInt` object is 56 bytes whether the number needs them or not. `DBool` is only 24 bytes,
+  // but there are exactly two in the universe, so caching them is free.
+  //
+  // The tables are built once at startup and never written after.
+  let dTrue : Dval = DBool true
+  let dFalse : Dval = DBool false
+  let inline bool (b : bool) : Dval = if b then dTrue else dFalse
+
+  [<Literal>]
+  let private smallLo = -128L
+
+  [<Literal>]
+  let private smallHi = 1023L
+
+  let private smallInts : Dval[] =
+    Array.init (int (smallHi - smallLo) + 1) (fun i ->
+      DInt(DarkInt.Finite(int64 i + smallLo)))
+
+  let private smallInt64s : Dval[] =
+    Array.init (int (smallHi - smallLo) + 1) (fun i -> DInt64(int64 i + smallLo))
+
+  /// `DInt`, sharing one instance for the small values.
+  let dint (di : DarkInt) : Dval =
+    match di with
+    | DarkInt.Finite i when i >= smallLo && i <= smallHi ->
+      smallInts[int (i - smallLo)]
+    | _ -> DInt di
+
+  /// `DInt64`, sharing one instance for the small values.
+  let dint64 (i : int64) : Dval =
+    if i >= smallLo && i <= smallHi then
+      smallInt64s[int (i - smallLo)]
+    else
+      DInt64 i
+
   /// Constructs an `Int` Dval from a bigint, normalizing through `DarkInt`.
-  let int (b : bigint) : Dval = DInt(DarkInt.ofBigInt b)
+  let int (b : bigint) : Dval = dint (DarkInt.ofBigInt b)
 
   /// The numeric value of an `Int` Dval as a bigint.
   let asBigInt (dv : Dval) : bigint =
@@ -1337,24 +1600,44 @@ module Dval =
   // function call -- once for inference, once for the parameter type check -- so these were
   // among the most frequently allocated objects in the interpreter. Nullary DU cases like
   // `KTBool` are already singletons; only the wrapper was being rebuilt.
-  let private vtUnit : ValueType = ValueType.Known KTUnit
-  let private vtBool : ValueType = ValueType.Known KTBool
-  let private vtInt8 : ValueType = ValueType.Known KTInt8
-  let private vtUInt8 : ValueType = ValueType.Known KTUInt8
-  let private vtInt16 : ValueType = ValueType.Known KTInt16
-  let private vtUInt16 : ValueType = ValueType.Known KTUInt16
-  let private vtInt32 : ValueType = ValueType.Known KTInt32
-  let private vtUInt32 : ValueType = ValueType.Known KTUInt32
-  let private vtInt64 : ValueType = ValueType.Known KTInt64
-  let private vtUInt64 : ValueType = ValueType.Known KTUInt64
-  let private vtInt128 : ValueType = ValueType.Known KTInt128
-  let private vtUInt128 : ValueType = ValueType.Known KTUInt128
-  let private vtInt : ValueType = ValueType.Known KTInt
-  let private vtFloat : ValueType = ValueType.Known KTFloat
-  let private vtChar : ValueType = ValueType.Known KTChar
-  let private vtString : ValueType = ValueType.Known KTString
-  let private vtDateTime : ValueType = ValueType.Known KTDateTime
-  let private vtUuid : ValueType = ValueType.Known KTUuid
+  let private vtUnit = KnownVT.unit
+  let private vtBool = KnownVT.bool
+  let private vtInt8 = KnownVT.int8
+  let private vtUInt8 = KnownVT.uint8
+  let private vtInt16 = KnownVT.int16
+  let private vtUInt16 = KnownVT.uint16
+  let private vtInt32 = KnownVT.int32
+  let private vtUInt32 = KnownVT.uint32
+  let private vtInt64 = KnownVT.int64
+  let private vtUInt64 = KnownVT.uint64
+  let private vtInt128 = KnownVT.int128
+  let private vtUInt128 = KnownVT.uint128
+  let private vtInt = KnownVT.int
+  let private vtFloat = KnownVT.float
+  let private vtChar = KnownVT.char
+  let private vtString = KnownVT.string
+  let private vtDateTime = KnownVT.dateTime
+  let private vtUuid = KnownVT.uuid
+
+  // The scalar cases above hand back a shared wrapper. The container cases cannot, because their
+  // ValueType depends on the element type: `Known(KTList t)` is two objects, and `toValueType` runs
+  // at least three times per package call (argument inference, the parameter check, the return
+  // check).
+  //
+  // Memoized on the element type's *identity*, not its structure. That's what makes the lookup cheap,
+  // and it's enough: a list carries one `ValueType` object for its whole life, and the scalar element
+  // types are the shared wrappers above, so the same instance comes back round every time.
+  //
+  // `ConditionalWeakTable` rather than a dictionary so a ValueType built from user data doesn't pin
+  // itself for the life of the process, and because it's thread-safe -- tests run VMs in parallel.
+  let private listVTs =
+    System.Runtime.CompilerServices.ConditionalWeakTable<ValueType, ValueType>()
+
+  let private dictVTs =
+    System.Runtime.CompilerServices.ConditionalWeakTable<ValueType, ValueType>()
+
+  let private customVTs =
+    System.Runtime.CompilerServices.ConditionalWeakTable<FQTypeName.FQTypeName, ValueType>()
 
   let rec toValueType (dv : Dval) : ValueType =
     match dv with
@@ -1379,18 +1662,53 @@ module Dval =
     | DDateTime _ -> vtDateTime
     | DUuid _ -> vtUuid
 
-    | DList(t, _) -> ValueType.Known(KTList t)
-    | DDict(t, _) -> ValueType.Known(KTDict t)
+    | DList(t, _) ->
+      let mutable hit = Unchecked.defaultof<ValueType>
+      if listVTs.TryGetValue(t, &hit) then
+        hit
+      else
+        let vt = ValueType.Known(KTList t)
+        listVTs.AddOrUpdate(t, vt)
+        vt
+
+    | DDict(t, _) ->
+      let mutable hit = Unchecked.defaultof<ValueType>
+      if dictVTs.TryGetValue(t, &hit) then
+        hit
+      else
+        let vt = ValueType.Known(KTDict t)
+        dictVTs.AddOrUpdate(t, vt)
+        vt
     | DTuple(first, second, theRest) ->
       ValueType.Known(
         KTTuple(toValueType first, toValueType second, List.map toValueType theRest)
       )
 
+    // Only the un-parameterised case is memoized: with type args the key would have to be the whole
+    // (name, args) shape, and structural hashing of that costs more than the two objects it saves.
     | DRecord(_, typeName, typeArgs, _) ->
-      KTCustomType(typeName, typeArgs) |> ValueType.Known
+      if List.isEmpty typeArgs then
+        let mutable hit = Unchecked.defaultof<ValueType>
+        if customVTs.TryGetValue(typeName, &hit) then
+          hit
+        else
+          let vt = KTCustomType(typeName, []) |> ValueType.Known
+          customVTs.AddOrUpdate(typeName, vt)
+          vt
+      else
+        KTCustomType(typeName, typeArgs) |> ValueType.Known
 
     | DEnum(_, typeName, typeArgs, _, _) ->
-      KTCustomType(typeName, typeArgs) |> ValueType.Known
+      if List.isEmpty typeArgs then
+        let mutable hit = Unchecked.defaultof<ValueType>
+        if customVTs.TryGetValue(typeName, &hit) then
+          hit
+        else
+          let vt = KTCustomType(typeName, []) |> ValueType.Known
+          customVTs.AddOrUpdate(typeName, vt)
+          vt
+      else
+        KTCustomType(typeName, typeArgs) |> ValueType.Known
 
     | DApplicable applicable ->
       match applicable with
@@ -1644,25 +1962,33 @@ type PackageManager =
     (fns : List<PackageFn.PackageFn>)
     (pm : PackageManager)
     : PackageManager =
-    let typeMap = types |> List.map (fun t -> t.hash, t) |> Map.ofList
-    let valueMap = values |> List.map (fun v -> v.hash, v) |> Map.ofList
-    let fnMap = fns |> List.map (fun f -> f.hash, f) |> Map.ofList
+    // These are the items a script defines itself, so for a script this is the lookup for every call
+    // it makes to its own functions -- `depth`, `fib`, whatever it declared.
+    //
+    // Holding the `Option` in a `Dictionary` means a hit returns the same object and allocates
+    // nothing. `Map.tryFind` would allocate a `Some` and then a second one to return it, on top of
+    // walking a balanced tree with the generic comparer.
+    let optionMap (items : List<'v>) (hashOf : 'v -> Hash) =
+      let d = Dictionary<Hash, Option<'v>>()
+      items |> List.iter (fun item -> d[hashOf item] <- Some item)
+      d
+
+    let typeMap = optionMap types _.hash
+    let valueMap = optionMap values _.hash
+    let fnMap = optionMap fns _.hash
 
     { getType =
         fun id ->
-          match Map.tryFind id typeMap with
-          | Some t -> Some t |> Ply
-          | None -> pm.getType id
+          let mutable hit = Unchecked.defaultof<Option<PackageType.PackageType>>
+          if typeMap.TryGetValue(id, &hit) then Ply hit else pm.getType id
       getValue =
         fun id ->
-          match Map.tryFind id valueMap with
-          | Some v -> Some v |> Ply
-          | None -> pm.getValue id
+          let mutable hit = Unchecked.defaultof<Option<PackageValue.PackageValue>>
+          if valueMap.TryGetValue(id, &hit) then Ply hit else pm.getValue id
       getFn =
         fun id ->
-          match Map.tryFind id fnMap with
-          | Some f -> Some f |> Ply
-          | None -> pm.getFn id
+          let mutable hit = Unchecked.defaultof<Option<PackageFn.PackageFn>>
+          if fnMap.TryGetValue(id, &hit) then Ply hit else pm.getFn id
       getBlob = pm.getBlob
       persistBlob = pm.persistBlob
       isHarmful = pm.isHarmful
@@ -1801,17 +2127,24 @@ type InstrData =
     resultReg : Register
   }
 
+/// One activation of a function, lambda or the root script.
+///
+/// Every field is mutable because frames are pooled: a popped frame goes back into
+/// `VMState.framePool` with its register array attached and is reinitialised, field by field, by
+/// the next push of the same register count. Nothing outside the VM ever holds a `CallFrame` (the
+/// parent link is an id, not a reference), and a VM runs on one thread, so no field here is ever
+/// written while another reader could see it.
 type CallFrame =
   {
-    id : uuid
+    mutable id : uuid
 
     /// (Id * where to put result in parent * pc of parent to return to)
     ///
     /// A struct option of a struct tuple: the root frame aside, one of these is built for every function
     /// call in the program, and the reference-typed form was two allocations each time.
-    parent : voption<struct (uuid * Register * int)>
+    mutable parent : voption<struct (uuid * Register * int)>
 
-    executionPoint : ExecutionPoint
+    mutable executionPoint : ExecutionPoint
 
     /// The instructions this frame runs, resolved once when the frame is pushed.
     ///
@@ -1819,21 +2152,40 @@ type CallFrame =
     /// `ExecutionState` and `VMState` still hold one each, and every frame running the same function
     /// points at it. Holding it here keeps the interpreter loop from binding a cache lookup with `let!`
     /// on every iteration.
-    instrData : InstrData
+    mutable instrData : InstrData
+
+    /// Scratch space for the arguments of a builtin called from this frame.
+    ///
+    /// Builtins take a `Dval[]`, and a fresh one per call is the largest allocation a call-heavy
+    /// program makes. This is that array, reused.
+    ///
+    /// Per *frame* rather than per VM, which is what makes it safe without any rent/return
+    /// bookkeeping. A builtin that runs Dark code does so in a new frame -- a package call pushes
+    /// one, and the builtins that invoke a lambda directly build a whole new VM -- so a nested call
+    /// can never be handed the same array. And a frame runs one instruction at a time, so two
+    /// builtin calls from the same frame are never live at once, including when the first suspends.
+    ///
+    /// Reused only when the arity matches exactly, since a builtin's pattern match tests the array's
+    /// length. Frames overwhelmingly call builtins of one arity, so it nearly always hits.
+    ///
+    /// The array must stay intact until after `traceBuiltinResult`, which reads the arguments once
+    /// the body has returned. It does, for the same reason: nothing else in this frame runs in
+    /// between.
+    mutable argBuf : Dval[]
 
     /// The declared return type, for the check that runs when this frame returns.
     ///
     /// Resolved at push time for the same reason as `instrData`: otherwise every frame return re-fetches
     /// the function purely to read one field, and binds it, which costs a continuation closure per return.
     /// `ValueNone` for the root frame and for lambdas, neither of which declares one.
-    expectedReturnType : TypeReference voption
+    mutable expectedReturnType : TypeReference voption
 
     /// What instruction index we are currently 'at'
     mutable programCounter : int
 
     mutable typeSymbolTable : TypeSymbolTable
 
-    registers : Registers
+    mutable registers : Registers
   }
 
 /// Synchronous regions of the Apply path that the allocation counters attribute to.
@@ -1853,7 +2205,16 @@ module ApplyStage =
        "frame.returnTypeCheck"
        "frame.pop"
        "pkg.fetch"
-       "bi.fnLookup" |]
+       "bi.fnLookup"
+       "lambda.registers"
+       "lambda.tst"
+       "lambda.execPoint"
+       "pkg.fetchOnly"
+       "pkg.frameTst"
+       "apply.total"
+       "lambda.total"
+       "bi.total"
+       "bi.argList" |]
 
   [<Literal>]
   let PkgTstShadow = 0
@@ -1885,6 +2246,30 @@ module ApplyStage =
   let PkgFetch = 13
   [<Literal>]
   let BiFnLookup = 14
+  [<Literal>]
+  let LambdaRegisters = 15
+  [<Literal>]
+  let LambdaTst = 16
+  [<Literal>]
+  let LambdaExecPoint = 17
+  [<Literal>]
+  let PkgFetchOnly = 18
+  [<Literal>]
+  let PkgFrameTst = 19
+  // Coarse brackets around a whole Apply, a whole lambda application and a whole builtin call.
+  //
+  // These NEST, into each other and into the fine-grained stages: a builtin that runs Dark code
+  // contains the applies that code makes. So they cannot be summed, and cannot be compared against
+  // the process total. They answer one question -- "is anything large hiding between the
+  // fine-grained stages" -- and nothing else.
+  [<Literal>]
+  let ApplyTotal = 20
+  [<Literal>]
+  let LambdaTotal = 21
+  [<Literal>]
+  let BiTotal = 22
+  [<Literal>]
+  let BiArgList = 23
 
 
 /// Stable index and display name per `Instruction` case, used by the per-opcode allocation counters on
@@ -2017,6 +2402,10 @@ type InterpreterStats =
     /// on every call.
     builtinAlloc : Dictionary<string, int64>
 
+    /// Calls per builtin name, so the allocation above can be read per call rather than in aggregate.
+    /// Like `builtinAlloc` and unlike `builtinCounts`, this doesn't need `detailedTiming`.
+    builtinCallsByName : Dictionary<string, int64>
+
     /// Bytes allocated in named *synchronous* regions of the Apply path, indexed by `ApplyStage`.
     ///
     /// Only synchronous regions: a bracket spanning an `await` measures the nested execution that resumes
@@ -2024,6 +2413,14 @@ type InterpreterStats =
     /// builtin-body counter over-report (the former claimed more bytes than the process allocated in
     /// total; the latter attributed 97% to the root script-runner builtin, which encloses everything).
     allocByStage : int64[]
+
+    /// How many times each stage's bracket ran, alongside the bytes.
+    ///
+    /// Without this the only denominator is the total call count, and dividing by it assumes the
+    /// cost is spread evenly. Cold-path stages break that badly: a stage that costs kilobytes on a
+    /// few dozen cold calls and nothing on tens of thousands of warm ones reads as a small
+    /// per-call cost, and work aimed at it measures flat.
+    countByStage : int64[]
 
     /// Type-symbol-table size at each frame push, summed and maxed. The TST is an immutable F# Map that a
     /// frame inherits from its parent, so if bindings accumulate down the call stack every merge on it is
@@ -2053,7 +2450,9 @@ type InterpreterStats =
         registersAllocated = 0L
         builtinBodyAlloc = 0L
         builtinAlloc = Dictionary()
+        builtinCallsByName = Dictionary()
         allocByStage = Array.zeroCreate 32
+        countByStage = Array.zeroCreate 32
         tstSizeSum = 0L
         tstSizeMax = 0L }
 
@@ -2074,9 +2473,11 @@ type InterpreterStats =
     this.registersAllocated <- 0L
     this.builtinBodyAlloc <- 0L
     this.builtinAlloc.Clear()
+    this.builtinCallsByName.Clear()
     this.tstSizeSum <- 0L
     this.tstSizeMax <- 0L
     System.Array.Clear(this.allocByStage, 0, this.allocByStage.Length)
+    System.Array.Clear(this.countByStage, 0, this.countByStage.Length)
     System.Array.Clear(this.allocByOpcode, 0, this.allocByOpcode.Length)
     System.Array.Clear(this.countByOpcode, 0, this.countByOpcode.Length)
 
@@ -2103,6 +2504,11 @@ type InterpreterStats =
   member this.recordPackageFn(hash : string, elapsedTicks : int64) =
     this.addTiming this.packageFnTiming this.packageFnCounts hash elapsedTicks
 
+/// The mutable state of one execution.
+///
+/// One VM belongs to one execution on one thread, which is what makes the mutable fields and the
+/// scratch buffers below safe without synchronisation. Anything shared across executions lives in
+/// `ExecutionState` instead, and is either immutable or a `ConditionalWeakTable`.
 type VMState =
   {
     mutable threadID : uuid
@@ -2114,16 +2520,54 @@ type VMState =
     // it doesn't have to be copied into each CallFrame.
     rootInstrData : Option<tlid> * InstrData
     /// Per-VM memoization of InstrData derived from `exeState.lambdaInstrCache`.
-    mutable lambdaInstrDataCache : Map<id, InstrData>
+    mutable lambdaInstrDataCache : Dictionary<id, InstrData>
+
+    /// Memoized `ExecutionPoint`s for lambda frames, keyed on the lambda's expression id and holding
+    /// the calling frame's execution point they derive from. See the note at the use site in
+    /// `applyInstruction`.
+    lambdaEpCache : Dictionary<id, struct (ExecutionPoint * ExecutionPoint)>
 
     /// Performance counters — incremented during execution
     stats : InterpreterStats
+
+    /// Set by the instruction that wants to push a frame, read by the loop that pushes it. Lives here
+    /// rather than as a local in `executeInner` because a mutable local the Ply builder's continuations
+    /// capture becomes a heap ref cell, allocated once per frame activation.
+    mutable frameToPush : CallFrame voption
 
     /// Source of frame ids. Per-VM rather than global because a VM's interpreter loop is single-threaded,
     /// so this needs no synchronization -- and a process-global counter would need it: tests run VMs in
     /// parallel, and a non-atomic shared increment hands two frames the same id, which silently drops one
     /// from `callFrames` and fails the parent lookup on return.
     mutable frameIdCounter : int64
+
+    /// The value the root frame returned, set when it pops. On the VM rather than a local of the
+    /// interpreter loop for the same reason as `pendingCallArgs`: a local is a field in every
+    /// continuation the builder makes for the loop body.
+    mutable finalResult : Dval voption
+
+    /// Arguments of calls whose frames are still running, keyed by frame id, so the tracer can pair
+    /// them with the result when the frame returns. Empty and untouched when tracing is off.
+    ///
+    /// On the VM rather than a local of the interpreter loop so that the parts of the loop that run
+    /// outside the computation expression can reach it.
+    pendingCallArgs : Dictionary<uuid, Dval list>
+
+    /// Scratch space for the bindings a match pattern produces, reused across every `match` the VM
+    /// evaluates. Returning a `List<Register * Dval>` instead costs a tuple and a cons per bound
+    /// variable on every pattern *tried*, including every one that fails.
+    ///
+    /// A buffer rather than writing straight into the registers, because a pattern can fail halfway:
+    /// the caller applies these only once the whole pattern has matched, and an or-pattern's failed
+    /// alternative truncates back to where it started.
+    matchBindings : ResizeArray<struct (Register * Dval)>
+
+    /// Popped frames, with their register files still attached, bucketed by register count and handed
+    /// back out to the next push of that size. A frame and its registers are what pushing a call costs,
+    /// and nothing holds either past the pop: a lambda copies the values it closes over, a partial
+    /// application copies its args, the tracer is handed lists, and the parent link carries a frame id
+    /// rather than a reference. Per-VM, so single-threaded and needing no synchronization.
+    framePool : Dictionary<int, Stack<CallFrame>>
   }
 
   static member create(instrs : Option<tlid> * Instructions) : VMState =
@@ -2142,7 +2586,8 @@ type VMState =
         expectedReturnType = ValueNone
         programCounter = 0
         registers = Array.zeroCreate instrs.registerCount
-        typeSymbolTable = Map.empty
+        argBuf = Array.empty
+        typeSymbolTable = TST.empty
         parent = ValueNone }
 
     { threadID = System.Guid.NewGuid()
@@ -2152,9 +2597,15 @@ type VMState =
         d[rootCallFrameID] <- rootCallFrame
         d
       rootInstrData = (tlid, rootInstrData)
-      lambdaInstrDataCache = Map.empty
+      lambdaInstrDataCache = Dictionary()
+      lambdaEpCache = Dictionary()
       stats = InterpreterStats.create ()
-      frameIdCounter = 0L }
+      frameToPush = ValueNone
+      frameIdCounter = 0L
+      finalResult = ValueNone
+      matchBindings = ResizeArray()
+      pendingCallArgs = Dictionary()
+      framePool = Dictionary() }
 
   static member createWithoutTLID(instrs : Instructions) : VMState =
     VMState.create (None, instrs)
@@ -2195,13 +2646,24 @@ type BuiltInFn =
 
 and BuiltInFnSig =
   // (exeState * vmState * typeArgs * fnArgs) -> result
-  (ExecutionState * VMState * List<TypeReference> * List<Dval>) -> DvalTask
+  //
+  // Arguments arrive as an *array*. An `FSharpList` costs a cons per argument on every builtin call,
+  // which in call-heavy code is the single largest source of allocation; an array is one allocation,
+  // and unlike a list it can be a reused buffer -- which is what `CallFrame.argBuf` hands over.
+  //
+  // A *struct* tuple, because a reference tuple is another heap object per call. The price is that
+  // every implementation's pattern has to say `struct (...)`.
+  (struct (ExecutionState * VMState * List<TypeReference> * Dval[])) -> DvalTask
 
 
 /// Functionally written in F# and shipped with the executable
+/// Both are `Dictionary` rather than `Map`. The set is fixed once the process starts and is looked up
+/// on every builtin call, and an F# `Map` charges twice for that: a tree node per entry per rebuild
+/// (and `combine` rebuilds at every nesting level, so each builtin lands in a balanced tree several
+/// times), plus an O(log n) walk of generic structural comparisons on every lookup.
 and Builtins =
-  { values : Map<FQValueName.Builtin, BuiltInValue>
-    fns : Map<FQFnName.Builtin, BuiltInFn> }
+  { values : Dictionary<FQValueName.Builtin, BuiltInValue>
+    fns : Dictionary<FQFnName.Builtin, BuiltInFn> }
 
 
 
@@ -2305,7 +2767,7 @@ and ExecutionState =
 and Types = { package : FQTypeName.Package -> Ply<Option<PackageType.PackageType>> }
 
 and Values =
-  { builtIn : Map<FQValueName.Builtin, BuiltInValue>
+  { builtIn : Dictionary<FQValueName.Builtin, BuiltInValue>
     package : FQValueName.Package -> Ply<Option<PackageValue.PackageValue>> }
 
 /// Blob-byte access wired onto the ExecutionState. `get` resolves a
@@ -2318,7 +2780,7 @@ and Blobs =
 
 and Functions =
   {
-    builtIn : Map<FQFnName.Builtin, BuiltInFn>
+    builtIn : Dictionary<FQFnName.Builtin, BuiltInFn>
     package : FQFnName.Package -> Ply<Option<PackageFn.PackageFn>>
     /// `PackageManager.isHarmful` with the state's branchId pre-applied.
     isHarmful : FQFnName.Package -> bool
@@ -2329,13 +2791,52 @@ and Functions =
 module Types =
   let empty = { package = (fun _ -> Ply None) }
 
+  /// Declarations already looked up, per `Types` instance.
+  ///
+  /// `find` was `types.package pkg |> Ply.map (Option.map _.declaration)`: a computation expression
+  /// *and* a fresh `Some` on every lookup, even though the package manager behind it is already a
+  /// cache hit. `unwrapAlias` reaches it constantly.
+  ///
+  /// Keyed on the `Types` instance as well as the name. Keying on the name alone looks safe, since a
+  /// type name is a content hash, and it isn't: tests mint their own package managers and reuse
+  /// names across different declarations. Caching the whole `Option` means a hit allocates nothing.
+  let private declCache =
+    System.Runtime.CompilerServices.ConditionalWeakTable<Types, Dictionary<FQTypeName.FQTypeName, Option<TypeDeclaration.T>>>()
+
   let find
     (types : Types)
     (name : FQTypeName.FQTypeName)
     : Ply<Option<TypeDeclaration.T>> =
-    match name with
-    | FQTypeName.Package pkg ->
-      types.package pkg |> Ply.map (Option.map _.declaration)
+    let cache =
+      let mutable d = Unchecked.defaultof<_>
+      if declCache.TryGetValue(types, &d) then
+        d
+      else
+        let fresh = Dictionary<FQTypeName.FQTypeName, Option<TypeDeclaration.T>>()
+        declCache.AddOrUpdate(types, fresh)
+        fresh
+
+    let mutable hit = Unchecked.defaultof<Option<TypeDeclaration.T>>
+    if cache.TryGetValue(name, &hit) then
+      Ply hit
+    else
+      match name with
+      | FQTypeName.Package pkg ->
+        let fetch = types.package pkg
+        match Ply.trySync fetch with
+        | ValueSome found ->
+          let decl = found |> Option.map _.declaration
+          // A miss isn't cached: a type absent now could be present later, and this cache has no
+          // way to hear about it. Same rule as the package manager's own cache.
+          if Option.isSome decl then cache[name] <- decl
+          Ply decl
+        | ValueNone ->
+          uply {
+            let! found = fetch
+            let decl = found |> Option.map _.declaration
+            if Option.isSome decl then cache[name] <- decl
+            return decl
+          }
 
   /// Swap concrete types for type parameters
   /// CLEANUP consider accepting a pre-zipped list instead
@@ -2418,70 +2919,106 @@ module TypeReference =
     | _ -> Ply typ
 
 
+  /// A declared `TypeReference` as a `ValueType`.
+  ///
+  /// Three things here matter enough to be worth stating, since together they put this at the top of
+  /// the allocation profile for an HTTP request when any of them is undone.
+  ///
+  /// Each recursion passes `types` and `tst` explicitly. A `let r = toVT types tst` alias is a
+  /// closure over both, built on entry to every call including the scalar ones that never use it.
+  ///
+  /// Only the cases that can genuinely need the store enter the `uply`. With one builder around the
+  /// whole body, `TString` -- which cannot be an alias and cannot await -- pays for it too.
+  ///
+  /// And every scalar case built a fresh `Known` wrapper. They come from `KnownVT` instead, which is
+  /// the same object `Dval.toValueType` returns, so comparing a value's type against its declared
+  /// type can settle on reference equality.
   let rec toVT
     (types : Types)
     (tst : TypeSymbolTable)
     (typeRef : TypeReference)
     : Ply<ValueType> =
-    let r = toVT types tst
+    match typeRef with
+    | TUnit -> Ply KnownVT.unit
+    | TBool -> Ply KnownVT.bool
+    | TInt8 -> Ply KnownVT.int8
+    | TUInt8 -> Ply KnownVT.uint8
+    | TInt16 -> Ply KnownVT.int16
+    | TUInt16 -> Ply KnownVT.uint16
+    | TInt32 -> Ply KnownVT.int32
+    | TUInt32 -> Ply KnownVT.uint32
+    | TInt64 -> Ply KnownVT.int64
+    | TUInt64 -> Ply KnownVT.uint64
+    | TInt128 -> Ply KnownVT.int128
+    | TUInt128 -> Ply KnownVT.uint128
+    | TInt -> Ply KnownVT.int
+    | TFloat -> Ply KnownVT.float
+    | TChar -> Ply KnownVT.char
+    | TString -> Ply KnownVT.string
+    | TUuid -> Ply KnownVT.uuid
+    | TDateTime -> Ply KnownVT.dateTime
+    | TBlob -> Ply KnownVT.blob
 
-    uply {
-      match! unwrapAlias types typeRef with
-      | TUnit -> return ValueType.Known KTUnit
-      | TBool -> return ValueType.Known KTBool
-      | TInt8 -> return ValueType.Known KTInt8
-      | TUInt8 -> return ValueType.Known KTUInt8
-      | TInt16 -> return ValueType.Known KTInt16
-      | TUInt16 -> return ValueType.Known KTUInt16
-      | TInt32 -> return ValueType.Known KTInt32
-      | TUInt32 -> return ValueType.Known KTUInt32
-      | TInt64 -> return ValueType.Known KTInt64
-      | TUInt64 -> return ValueType.Known KTUInt64
-      | TInt128 -> return ValueType.Known KTInt128
-      | TUInt128 -> return ValueType.Known KTUInt128
-      | TInt -> return ValueType.Known KTInt
-      | TFloat -> return ValueType.Known KTFloat
-      | TChar -> return ValueType.Known KTChar
-      | TString -> return ValueType.Known KTString
-      | TUuid -> return ValueType.Known KTUuid
-      | TDateTime -> return ValueType.Known KTDateTime
-      | TBlob -> return ValueType.Known KTBlob
+    | TVariable name ->
+      Ply(
+        match TST.tryFind name tst with
+        | ValueSome vt -> vt
+        | ValueNone -> ValueType.Unknown
+      )
 
-      | TStream inner ->
-        let! inner = r inner
-        return ValueType.Known(KTStream inner)
+    | TCustomType({ originalName = names; resolved = Error nre }, _) ->
+      raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
 
-      | TTuple(first, second, theRest) ->
-        let! first = r first
-        let! second = r second
-        let! theRest = theRest |> Ply.List.mapSequentially r
-        return KTTuple(first, second, theRest) |> ValueType.Known
-      | TList inner ->
-        let! inner = r inner
-        return ValueType.Known(KTList inner)
-      | TDict inner ->
-        let! inner = r inner
-        return ValueType.Known(KTDict inner)
+    // Only these can be an alias, or hold something that has to be resolved, so only these pay for
+    // the builder. `unwrapAlias` is a no-op for everything above.
+    | TStream _
+    | TTuple _
+    | TList _
+    | TDict _
+    | TCustomType _
+    | TFn _
+    | TDB _ ->
+      uply {
+        match! unwrapAlias types typeRef with
+        | TStream inner ->
+          let! inner = toVT types tst inner
+          return ValueType.Known(KTStream inner)
 
-      | TCustomType({ resolved = Ok typeName }, typeArgs) ->
-        let! typeArgs = typeArgs |> Ply.List.mapSequentially r
-        return KTCustomType(typeName, typeArgs) |> ValueType.Known
+        | TTuple(first, second, theRest) ->
+          let! first = toVT types tst first
+          let! second = toVT types tst second
+          let! theRest = theRest |> Ply.List.mapSequentially (toVT types tst)
+          return KTTuple(first, second, theRest) |> ValueType.Known
 
-      | TCustomType({ originalName = names; resolved = Error nre }, _) ->
-        return raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
+        | TList inner ->
+          let! inner = toVT types tst inner
+          return ValueType.Known(KTList inner)
 
-      | TVariable name ->
-        return tst |> Map.get name |> Option.defaultValue ValueType.Unknown
+        | TDict inner ->
+          let! inner = toVT types tst inner
+          return ValueType.Known(KTDict inner)
 
-      | TFn(args, result) ->
-        let! args = args |> Ply.NEList.mapSequentially r
-        let! result = r result
-        return KTFn(args, result) |> ValueType.Known
+        | TCustomType({ resolved = Ok typeName }, typeArgs) ->
+          let! typeArgs = typeArgs |> Ply.List.mapSequentially (toVT types tst)
+          return KTCustomType(typeName, typeArgs) |> ValueType.Known
 
-      | TDB inner ->
-        let! inner = r inner
-        return ValueType.Known(KTDB inner)
-    }
+        | TCustomType({ originalName = names; resolved = Error nre }, _) ->
+          return
+            raiseUntargetedRTE (RuntimeError.ParseTimeNameResolution(names, nre))
+
+        | TFn(args, result) ->
+          let! args = args |> Ply.NEList.mapSequentially (toVT types tst)
+          let! result = toVT types tst result
+          return KTFn(args, result) |> ValueType.Known
+
+        | TDB inner ->
+          let! inner = toVT types tst inner
+          return ValueType.Known(KTDB inner)
+
+        // An alias can unwrap to any of the cases handled without the builder above; those are
+        // cheap, so recursing back into `toVT` costs nothing and keeps one copy of each rule.
+        | unwrapped -> return! toVT types tst unwrapped
+      }
 
 
   /// Convert a KnownType back to a TypeReference
@@ -2551,7 +3088,7 @@ module TypeReference =
     | TBlob -> typ
 
     | TVariable name ->
-      match Map.get name tst with
+      match TST.tryFind name tst |> ValueOption.toOption with
       | Some(ValueType.Known kt) -> fromKnownType kt
       | Some ValueType.Unknown
       | None -> typ // Keep as TVariable if not resolved

@@ -134,14 +134,16 @@ let private unifiesTrivially (expected : TypeReference) (actual : ValueType) : b
 type SyncUnification =
   /// Unified, with the symbol table it produced.
   | Unified of tst : TypeSymbolTable
-  /// Genuinely doesn't unify, with the path to where it went wrong.
-  | Mismatched of path : ReverseTypeCheckPath
+  /// Genuinely doesn't unify. Carries no path to where: `tryUnifySync`, the only way in, answers any
+  /// failure by re-running the whole check on the async route, which builds its own path for the error
+  /// message. Threading one through here meant a cons per container level per argument per call, for a
+  /// value that was discarded on failure and never read on success.
+  | Mismatched
   /// Needs the async path -- a type lookup, or an error message worth building properly.
   | Undecided
 
 let rec unifyValueTypeSync
   (tst : TypeSymbolTable)
-  (pathSoFar : ReverseTypeCheckPath)
   (expected : TypeReference)
   (actual : ValueType)
   : SyncUnification =
@@ -152,48 +154,33 @@ let rec unifyValueTypeSync
     // Same reasoning as the hoisted case in `unifyValueType`, and deliberately the same logic: most
     // arguments bind a type variable, and most rebind it to what it already held.
     | TVariable name ->
-      // `TryGetValue` rather than `Map.get`, which allocates a `Some` for every bound type variable it
-      // finds -- and finding one is the common case here, not the exception.
-      let mutable bound = Unchecked.defaultof<ValueType>
-      if not (tst.TryGetValue(name, &bound)) then
-        Unified(Map.add name actual tst)
-      elif bound = actual then
-        Unified tst
-      else
-        match ValueType.merge bound actual with
-        | Ok merged ->
-          if merged = bound then Unified tst else Unified(Map.add name merged tst)
-        | Error() -> Mismatched pathSoFar
+      // A `voption` lookup, so finding a bound type variable -- the common case here, not the
+      // exception -- costs no `Some`.
+      match tst.TryFind name with
+      | ValueNone -> Unified(TST.add name actual tst)
+      | ValueSome bound ->
+        if bound = actual then
+          Unified tst
+        else
+          match ValueType.merge bound actual with
+          | Ok merged ->
+            if merged = bound then Unified tst else Unified(TST.add name merged tst)
+          | Error() -> Mismatched
 
     // Containers recurse but never need a type lookup, so they stay on this path. Without these a
     // `List<Int>` argument -- which is most of what the standard library passes around -- would fall to
     // the async route purely for being a container, which is the common case rather than a rare one.
     | TList innerT ->
       match actual with
-      | ValueType.Known(KTList innerV) ->
-        unifyValueTypeSync
-          tst
-          (TypeCheckPathPart.ListType :: pathSoFar)
-          innerT
-          innerV
+      | ValueType.Known(KTList innerV) -> unifyValueTypeSync tst innerT innerV
       | _ -> Undecided
     | TStream innerT ->
       match actual with
-      | ValueType.Known(KTStream innerV) ->
-        unifyValueTypeSync
-          tst
-          (TypeCheckPathPart.ListType :: pathSoFar)
-          innerT
-          innerV
+      | ValueType.Known(KTStream innerV) -> unifyValueTypeSync tst innerT innerV
       | _ -> Undecided
     | TDict innerT ->
       match actual with
-      | ValueType.Known(KTDict innerV) ->
-        unifyValueTypeSync
-          tst
-          (TypeCheckPathPart.DictValueType :: pathSoFar)
-          innerT
-          innerV
+      | ValueType.Known(KTDict innerV) -> unifyValueTypeSync tst innerT innerV
       | _ -> Undecided
 
     | TTuple(tFirst, tSecond, tRest) ->
@@ -209,20 +196,45 @@ let rec unifyValueTypeSync
               match vs with
               | [] -> Unified tst
               | v :: vRest ->
-                match
-                  unifyValueTypeSync
-                    tst
-                    (TypeCheckPathPart.TupleAtIndex i :: pathSoFar)
-                    e
-                    v
-                with
+                match unifyValueTypeSync tst e v with
                 | Unified tst' -> go (i + 1) tst' eRest vRest
                 | other -> other
           go 0 tst (tFirst :: tSecond :: tRest) (vFirst :: vSecond :: vRest)
       | _ -> Undecided
 
-    // Everything else, `TCustomType` above all, can need `Types.find`.
+    // A custom type of exactly the declared name. `Types.find` would only be needed to ask whether
+    // the declared type is an alias, and it can't be: an alias's name is the alias, but a value
+    // built through one carries the underlying type's name, so equal names mean it resolved to
+    // itself. Same argument as the `Dval` version in `tryUnifySync`.
+    //
+    // This case is what makes a *nested* custom type stay on the synchronous path. Without it,
+    // `Result<'a, ParseError>` fell to the async unifier over the `ParseError`, which is to say
+    // every function in the language that can fail.
+    | TCustomType({ resolved = Ok declared }, declaredArgs) ->
+      match actual with
+      | ValueType.Known(KTCustomType(actualName, actualArgs)) when
+        actualName = declared
+        ->
+        unifyTypeArgsSyncVT tst declaredArgs actualArgs
+      | _ -> Undecided
+
+    // Everything else can need `Types.find`.
     | _ -> Undecided
+
+/// Type arguments unified pairwise, synchronously. Top-level and mutually recursive with
+/// `unifyValueTypeSync` so neither captures anything.
+and private unifyTypeArgsSyncVT
+  (tst : TypeSymbolTable)
+  (declared : List<TypeReference>)
+  (actual : List<ValueType>)
+  : SyncUnification =
+  match declared, actual with
+  | [], [] -> Unified tst
+  | d :: dRest, a :: aRest ->
+    match unifyValueTypeSync tst d a with
+    | Unified tst -> unifyTypeArgsSyncVT tst dRest aRest
+    | other -> other
+  | _ -> Undecided
 
 
 /// Alias unwrapping without a CE. Only a resolved custom type can be an alias, and only that case needs
@@ -251,8 +263,8 @@ let rec unifyValueType
     // outside the CE skips both the state machine and the `(expected, actual)` pair the tuple match
     // allocates.
     | TVariable name ->
-      (match Map.get name tst with
-       | None -> Ply(Ok(Map.add name actual tst))
+      (match TST.tryFind name tst |> ValueOption.toOption with
+       | None -> Ply(Ok(TST.add name actual tst))
        | Some t ->
          // Already bound to exactly this: `Map.add` would rebuild the symbol table's spine to store the
          // value it already holds. Dark's stdlib is heavily polymorphic, so this is the *common* path --
@@ -262,7 +274,7 @@ let rec unifyValueType
          else
            match ValueType.merge t actual with
            | Ok merged ->
-             if merged = t then Ply(Ok tst) else Ply(Ok(Map.add name merged tst))
+             if merged = t then Ply(Ok tst) else Ply(Ok(TST.add name merged tst))
            | Error() -> Ply(Error pathSoFar))
 
     | _ ->
@@ -367,6 +379,12 @@ let rec unifyValueType
                     )
                     :: pathSoFar
                   )
+              elif List.isEmpty typeArgsT then
+                // No type arguments to walk, which is nearly every record and enum. Worth saying
+                // outright rather than folding over an empty list: `foldSequentiallyWithIndex`
+                // builds its `(0, state)` tuple and its lambda's closure before it discovers there
+                // is nothing to iterate, and none of that is free.
+                return Ok tst
               else
                 let typeArgCount = List.length typeArgsT
                 return!
@@ -426,6 +444,36 @@ let unify
       | Ok updatedTst -> return Ok updatedTst
     }
 
+/// Resolved declarations for types with no type arguments, which is nearly all of them.
+///
+/// Type-checking a record or enum argument resolves its declaration, which otherwise goes to the
+/// package manager on every call. Anything that passes records around pays it constantly.
+///
+/// Keyed on the `Types` instance as well as the name. Keying on the name alone looks safe -- an
+/// `FQTypeName` is a content hash, so the same name should mean the same declaration -- but it is
+/// not: tests mint their own package managers and reuse names across different declarations.
+/// Scoping per `Types` costs nothing in practice, since a server has one for the life of the
+/// process.
+///
+/// Only the non-alias branch is cached: resolving an alias depends on the caller's type symbol
+/// table, so its answer isn't a function of the name.
+let private resolvedTypeCache =
+  System.Runtime.CompilerServices.ConditionalWeakTable<Types, System.Collections.Concurrent.ConcurrentDictionary<FQTypeName.FQTypeName, FQTypeName.FQTypeName *
+  List<string * ValueType> *
+  TypeDeclaration.Definition>>()
+
+let private cacheFor (types : Types) =
+  let mutable d = Unchecked.defaultof<_>
+  if resolvedTypeCache.TryGetValue(types, &d) then
+    d
+  else
+    let fresh =
+      System.Collections.Concurrent.ConcurrentDictionary<FQTypeName.FQTypeName, FQTypeName.FQTypeName *
+      List<string * ValueType> *
+      TypeDeclaration.Definition>()
+    resolvedTypeCache.AddOrUpdate(types, fresh)
+    fresh
+
 // CLEANUP I wonder if this can/should happen in PT2RT instead of during interpretation
 let rec resolveType
   (types : Types)
@@ -435,59 +483,96 @@ let rec resolveType
   (typeArgs : List<ValueType>)
   // : (typeName * typeArgs * def)
   : Ply<FQTypeName.FQTypeName * List<string * ValueType> * TypeDeclaration.Definition> =
-  uply {
-    match! Types.find types typeName with
-    | None -> return RTE.TypeNotFound typeName |> raiseRTE threadID
-    | Some decl ->
-      match decl.definition with
-      | TypeDeclaration.Alias aliasedType ->
-        let! resolvedType = TypeReference.unwrapAlias types aliasedType
-        match resolvedType with
-        | TCustomType({ resolved = Ok innerTypeName }, innerTypeArgs) ->
-          match! Types.find types innerTypeName with
-          | None -> return RTE.TypeNotFound innerTypeName |> raiseRTE threadID
-          | Some targetDecl ->
-            // Create mapping from original type params to provided args/unknowns
-            let typeArgsMap =
-              if List.isEmpty typeArgs && not (List.isEmpty decl.typeParams) then
-                decl.typeParams
-                |> List.map (fun p -> p, ValueType.Unknown)
-                |> Map.ofList
-              else
-                List.zip decl.typeParams typeArgs |> Map.ofList
+  let mutable cached = Unchecked.defaultof<_>
+  if List.isEmpty typeArgs && (cacheFor types).TryGetValue(typeName, &cached) then
+    // Outside the computation expression: once warm this is where nearly every call lands, and
+    // entering the builder to hand back a value already in hand costs more than the lookup.
+    Ply cached
+  else
 
-            // Map inner type args using target type's param names
-            let! mappedInnerArgsVT =
-              List.zip targetDecl.typeParams innerTypeArgs
-              |> Ply.List.mapSequentially (fun (targetParam, typeRef) ->
-                uply {
-                  let! vt = TypeReference.toVT types tst typeRef
-                  return
-                    match typeRef with
-                    | TVariable name ->
-                      match Map.tryFind name typeArgsMap with
-                      | Some vt -> (targetParam, vt)
-                      | None -> (targetParam, vt)
-                    | _ -> (targetParam, vt)
-                })
+    uply {
+      match! Types.find types typeName with
+      | None -> return RTE.TypeNotFound typeName |> raiseRTE threadID
+      | Some decl ->
+        match decl.definition with
+        | TypeDeclaration.Alias aliasedType ->
+          let! resolvedType = TypeReference.unwrapAlias types aliasedType
+          match resolvedType with
+          | TCustomType({ resolved = Ok innerTypeName }, innerTypeArgs) ->
+            match! Types.find types innerTypeName with
+            | None -> return RTE.TypeNotFound innerTypeName |> raiseRTE threadID
+            | Some targetDecl ->
+              // Create mapping from original type params to provided args/unknowns
+              let typeArgsMap =
+                if List.isEmpty typeArgs && not (List.isEmpty decl.typeParams) then
+                  decl.typeParams
+                  |> List.map (fun p -> p, ValueType.Unknown)
+                  |> Map.ofList
+                else
+                  List.zip decl.typeParams typeArgs |> Map.ofList
 
-            return!
-              resolveType types threadID tst innerTypeName []
-              |> Ply.map (fun (resolvedName, _, def) ->
-                (resolvedName, mappedInnerArgsVT, def))
+              // Map inner type args using target type's param names
+              let! mappedInnerArgsVT =
+                List.zip targetDecl.typeParams innerTypeArgs
+                |> Ply.List.mapSequentially (fun (targetParam, typeRef) ->
+                  uply {
+                    let! vt = TypeReference.toVT types tst typeRef
+                    return
+                      match typeRef with
+                      | TVariable name ->
+                        match Map.tryFind name typeArgsMap with
+                        | Some vt -> (targetParam, vt)
+                        | None -> (targetParam, vt)
+                      | _ -> (targetParam, vt)
+                  })
 
-        | _ -> return RTE.TypeNotFound typeName |> raiseRTE threadID
+              return!
+                resolveType types threadID tst innerTypeName []
+                |> Ply.map (fun (resolvedName, _, def) ->
+                  (resolvedName, mappedInnerArgsVT, def))
 
-      | definition ->
-        let typeArgsVT =
-          if List.isEmpty typeArgs && not (List.isEmpty decl.typeParams) then
-            decl.typeParams |> List.map (fun p -> (p, ValueType.Unknown))
-          else
-            List.zip decl.typeParams typeArgs
+          | _ -> return RTE.TypeNotFound typeName |> raiseRTE threadID
 
-        return (typeName, typeArgsVT, definition)
-  }
+        | definition ->
+          let typeArgsVT =
+            if List.isEmpty typeArgs && not (List.isEmpty decl.typeParams) then
+              decl.typeParams |> List.map (fun p -> (p, ValueType.Unknown))
+            else
+              List.zip decl.typeParams typeArgs
 
+          let result = (typeName, typeArgsVT, definition)
+          if List.isEmpty typeArgs then (cacheFor types)[typeName] <- result
+          return result
+    }
+
+
+
+/// `unifyValueTypeSync` against a `Dval`, without building the dval's ValueType when the shape can be
+/// compared directly.
+///
+/// `Dval.toValueType` on a container returns `Known(KTList t)` -- two allocations -- and the unifier's
+/// very next move is to take it apart again. Scalars are cached singletons and cost nothing, but a
+/// container argument is the common case in this standard library, and this runs per argument per call
+/// and on every frame return.
+///
+/// Only the shapes that carry their element type are special-cased. Everything else, including binding a
+/// type variable (which genuinely needs a ValueType to bind), falls through to the original path.
+let private unifyDvalSync
+  (tst : TypeSymbolTable)
+  (expected : TypeReference)
+  (actual : Dval)
+  : SyncUnification =
+  // Nested matches, not `match expected, actual with`: the tuple form allocates the pair.
+  match expected with
+  | TList innerT ->
+    match actual with
+    | DList(innerV, _) -> unifyValueTypeSync tst innerT innerV
+    | _ -> unifyValueTypeSync tst expected (Dval.toValueType actual)
+  | TDict innerT ->
+    match actual with
+    | DDict(innerV, _) -> unifyValueTypeSync tst innerT innerV
+    | _ -> unifyValueTypeSync tst expected (Dval.toValueType actual)
+  | _ -> unifyValueTypeSync tst expected (Dval.toValueType actual)
 
 
 /// The unification behind both the parameter and the result checks, answered without a computation
@@ -499,18 +584,58 @@ let rec resolveType
 /// `ValueNone` means "go the async route". That covers an aliased type, a compound type needing recursion,
 /// and *any* failure: building the error message resolves the expected type, which can hit the package
 /// store. Failures are rare and already the slow path, so they are not worth a sync variant.
+/// The type arguments of a custom type, unified pairwise without awaiting.
+///
+/// Parameterised types are not a corner case: `Option` and `Result` are the two most common types in
+/// the language. Without this, their type arguments send the check down the asynchronous route, and
+/// returning either costs several times a plain record.
+///
+/// `ValueNone` on anything unresolved *or* mismatched, so the async path still produces the error
+/// message and the path that describes where the mismatch was.
+let rec private unifyTypeArgsSync
+  (tst : TypeSymbolTable)
+  (declared : List<TypeReference>)
+  (actual : List<ValueType>)
+  : TypeSymbolTable voption =
+  match unifyTypeArgsSyncVT tst declared actual with
+  | Unified tst -> ValueSome tst
+  | Mismatched
+  | Undecided -> ValueNone
+
+
 let tryUnifySync
   (tst : TypeSymbolTable)
   (expected : TypeReference)
   (actual : Dval)
   : TypeSymbolTable voption =
-  match unwrapAliasSync expected with
-  | ValueNone -> ValueNone
-  | ValueSome expected ->
-    match unifyValueTypeSync tst [] expected (Dval.toValueType actual) with
-    | Unified updatedTst -> ValueSome updatedTst
-    | Mismatched _
-    | Undecided -> ValueNone
+  match expected with
+  // A record or enum of exactly the declared type, with no type arguments. This is what a program
+  // that models anything passes around all day, and until now every one of them fell through to the
+  // async unifier purely to ask `Types.find` whether the declared type was an alias.
+  //
+  // It can't be. An alias's *name* is the alias, but a value built through it carries the underlying
+  // type's name, so if the two names are equal the declared type resolved to itself -- and names are
+  // content hashes, so that means it is the type, not an alias to something else.
+  //
+  // Type arguments are excluded rather than compared: with them the answer depends on unifying each
+  // one, which is what the async path is for.
+  | TCustomType({ resolved = Ok declared }, declaredArgs) ->
+    match actual with
+    | DRecord(_, actualName, actualArgs, _) when actualName = declared ->
+      unifyTypeArgsSync tst declaredArgs actualArgs
+    | DEnum(_, actualName, actualArgs, _, _) when actualName = declared ->
+      unifyTypeArgsSync tst declaredArgs actualArgs
+    | _ -> ValueNone
+
+  | _ ->
+
+    match unwrapAliasSync expected with
+    | ValueNone -> ValueNone
+    | ValueSome expected ->
+      match unifyDvalSync tst expected actual with
+      | Unified updatedTst -> ValueSome updatedTst
+      | Mismatched
+      | Undecided -> ValueNone
 
 
 let checkFnParam
@@ -750,7 +875,7 @@ module DvalCreator =
     =
     uply {
       let! (resolvedName, typeArgs, definition) =
-        resolveType types threadID Map.empty typeName typeArgs
+        resolveType types threadID TST.empty typeName typeArgs
 
       match definition with
       | TypeDeclaration.Enum cases -> return (resolvedName, typeArgs, cases)
@@ -761,6 +886,102 @@ module DvalCreator =
             [ "typeName", typeName ]
     }
 
+
+
+  /// One field of an enum case being constructed. Same shape as `checkRecordFields`, and the same
+  /// reason for existing: as a lambda over a three-element accumulator this costs a closure, a state
+  /// machine and a tuple per field of every enum built.
+  let rec private checkEnumFields
+    (types : Types)
+    (threadID : ThreadID)
+    (caseName : string)
+    (fieldIndex : int)
+    (remaining : List<TypeReference * Dval>)
+    (typeArgs : List<string * ValueType>)
+    (fieldsInReverse : List<Dval>)
+    (tst : TypeSymbolTable)
+    : Ply<List<string * ValueType> * List<Dval> * TypeSymbolTable> =
+    match remaining with
+    | [] -> Ply((typeArgs, fieldsInReverse, tst))
+    | (fieldDef, actualField) :: rest ->
+      // Same fast path as `checkRecordFields`: most fields unify without needing the type store, a
+      // case with no type parameters has nothing to learn from them, and Ply's builder is not
+      // resumable code, so entering it costs a continuation in Release as much as in Debug.
+      match tryUnifySync tst fieldDef actualField with
+      | ValueSome newTST when List.isEmpty typeArgs ->
+        checkEnumFields
+          types
+          threadID
+          caseName
+          (fieldIndex + 1)
+          rest
+          typeArgs
+          (actualField :: fieldsInReverse)
+          newTST
+      | _ ->
+
+        uply {
+          match! unify types tst fieldDef actualField with
+          | Error _path ->
+            // Resolved here rather than before the check that almost always passes: it only exists
+            // to describe the failure.
+            let! expected = TypeReference.toVT types tst fieldDef
+            return
+              RTE.Enums.ConstructionFieldOfWrongType(
+                caseName,
+                fieldIndex,
+                expected,
+                Dval.toValueType actualField,
+                actualField
+              )
+              |> RTE.Error.Enum
+              |> raiseRTE threadID
+
+          | Ok newTST ->
+            // A type with no parameters has nothing to learn from its fields, and that's the common
+            // case. Skipping the walk skips a rebuilt list of pairs and a builder entry per field.
+            let! newTypeArgs =
+              if List.isEmpty typeArgs then
+                Ply typeArgs
+              else
+                Ply.List.mapSequentially
+                  (fun (paramName, vt) ->
+                    match vt with
+                    | ValueType.Unknown ->
+                      match TST.tryFind paramName newTST with
+                      | ValueSome known -> Ply((paramName, known))
+                      | ValueNone -> Ply((paramName, vt))
+
+                    | known ->
+                      match ValueType.merge known vt with
+                      | Ok merged -> Ply((paramName, merged))
+                      | Error() ->
+                        uply {
+                          let! expected = TypeReference.toVT types tst fieldDef
+                          return
+                            RTE.Enums.ConstructionFieldOfWrongType(
+                              caseName,
+                              fieldIndex,
+                              expected,
+                              Dval.toValueType actualField,
+                              actualField
+                            )
+                            |> RTE.Enum
+                            |> raiseRTE threadID
+                        })
+                  typeArgs
+
+            return!
+              checkEnumFields
+                types
+                threadID
+                caseName
+                (fieldIndex + 1)
+                rest
+                newTypeArgs
+                (actualField :: fieldsInReverse)
+                newTST
+        }
 
 
   let enum
@@ -777,7 +998,7 @@ module DvalCreator =
       let! (resolvedTypeName, typeArgs, caseDefs) =
         resolveEnumType types threadID sourceTypeName typeArgs
 
-      let tst = typeArgs |> List.fold (fun acc (name, vt) -> Map.add name vt acc) tst
+      let tst = typeArgs |> List.fold (fun acc (name, vt) -> TST.add name vt acc) tst
 
       // Find the case definition
       let foundCaseDef = caseDefs |> NEList.find (fun c -> c.name = caseName)
@@ -808,54 +1029,7 @@ module DvalCreator =
 
         // Process each field, updating type args as we learn more
         let! (typeArgs, fieldsInReverse, _updatedTst) =
-          Ply.List.foldSequentiallyWithIndex
-            (fun fieldIndex (typeArgs, fieldsInReverse, tst) (fieldDef, actualField) ->
-              uply {
-                let! expected = TypeReference.toVT types tst fieldDef
-                match! unify types tst fieldDef actualField with
-                | Error _path ->
-                  return
-                    RTE.Enums.ConstructionFieldOfWrongType(
-                      caseName,
-                      fieldIndex,
-                      expected,
-                      Dval.toValueType actualField,
-                      actualField
-                    )
-                    |> RTE.Error.Enum
-                    |> raiseRTE threadID
-
-                | Ok newTST ->
-                  let! expected = TypeReference.toVT types tst fieldDef
-                  // Update resultant typeArgs based on what we learned from this field
-                  // , by checking the TST.
-                  let newTypeArgs =
-                    typeArgs
-                    |> List.map (fun (paramName, vt) ->
-                      match vt with
-                      | ValueType.Unknown ->
-                        match Map.tryFind paramName newTST with
-                        | Some known -> (paramName, known)
-                        | None -> (paramName, vt)
-
-                      | known ->
-                        match ValueType.merge known vt with
-                        | Ok merged -> (paramName, merged)
-                        | Error() ->
-                          RTE.Enums.ConstructionFieldOfWrongType(
-                            caseName,
-                            fieldIndex,
-                            expected,
-                            Dval.toValueType actualField,
-                            actualField
-                          )
-                          |> RTE.Enum
-                          |> raiseRTE threadID)
-
-                  return (newTypeArgs, actualField :: fieldsInReverse, newTST)
-              })
-            (typeArgs, [], tst)
-            fieldsZipped
+          checkEnumFields types threadID caseName 0 fieldsZipped typeArgs [] tst
 
         let typeArgs = typeArgs |> List.map Tuple2.second
         let fields = List.rev fieldsInReverse
@@ -875,7 +1049,7 @@ module DvalCreator =
     =
     uply {
       let! (resolvedName, typeArgs, definition) =
-        resolveType types threadID Map.empty typeName typeArgs
+        resolveType types threadID TST.empty typeName typeArgs
 
       match definition with
       | TypeDeclaration.Record fields -> return (resolvedName, typeArgs, fields)
@@ -886,6 +1060,141 @@ module DvalCreator =
           |> raiseRTE threadID
     }
 
+
+
+  /// The declared field with this name, or nothing.
+  ///
+  /// A loop rather than `NEList.find (fun f -> f.name = name)`: that lambda captures the name, so
+  /// it's a closure allocated for every field of every record built.
+  let rec private findFieldIn
+    (fields : List<TypeDeclaration.RecordField>)
+    (name : string)
+    : TypeDeclaration.RecordField voption =
+    match fields with
+    | [] -> ValueNone
+    | f :: rest -> if f.name = name then ValueSome f else findFieldIn rest name
+
+  let private findExpectedField
+    (fields : NEList<TypeDeclaration.RecordField>)
+    (name : string)
+    : TypeDeclaration.RecordField voption =
+    if fields.head.name = name then
+      ValueSome fields.head
+    else
+      findFieldIn fields.tail name
+
+
+  /// One field of a record being constructed: validate it, unify it against the declared field
+  /// type, and fold what that taught us back into the type arguments and the symbol table.
+  ///
+  /// Top-level and fully parameterised, threading its accumulators as arguments rather than as a
+  /// tuple. As a lambda passed to `Ply.List.foldSequentially` it allocated a closure, a state
+  /// machine and a three-element accumulator tuple *per field of every record ever built*.
+  let rec private checkRecordFields
+    (types : Types)
+    (threadID : ThreadID)
+    (expectedFields : NEList<TypeDeclaration.RecordField>)
+    (remaining : List<string * Dval>)
+    (fieldsSoFar : Map<string, Dval>)
+    (currentTypeArgs : List<string * ValueType>)
+    (tst : TypeSymbolTable)
+    : Ply<Map<string, Dval> * List<string * ValueType> * TypeSymbolTable> =
+    match remaining with
+    | [] -> Ply((fieldsSoFar, currentTypeArgs, tst))
+    | (fieldName, fieldValue) :: rest ->
+      // The validations and the lookup are synchronous, so they happen before the builder rather
+      // than inside it.
+      if fieldName = "" then
+        RTE.Records.CreationEmptyKey |> RTE.Record |> raiseRTE threadID
+
+      if Map.containsKey fieldName fieldsSoFar then
+        RTE.Records.CreationDuplicateField fieldName
+        |> RTE.Record
+        |> raiseRTE threadID
+
+      match findExpectedField expectedFields fieldName with
+      | ValueNone ->
+        RTE.Records.CreationFieldNotExpected fieldName
+        |> RTE.Record
+        |> raiseRTE threadID
+
+      | ValueSome fieldDef ->
+        // The overwhelming majority of fields unify without needing the type store, and a type with
+        // no parameters has nothing to learn from them. When both hold, the whole field is handled
+        // without entering the Ply builder at all -- which matters because Ply's builder is not
+        // resumable code, so it allocates a continuation in Release just as much as in Debug.
+        match tryUnifySync tst fieldDef.typ fieldValue with
+        | ValueSome newTST when List.isEmpty currentTypeArgs ->
+          checkRecordFields
+            types
+            threadID
+            expectedFields
+            rest
+            (Map.add fieldName fieldValue fieldsSoFar)
+            currentTypeArgs
+            newTST
+        | _ ->
+
+          uply {
+            match! unify types tst fieldDef.typ fieldValue with
+            | Error _path ->
+              // The declared type is only needed to describe the failure, so it's resolved here
+              // rather than before the check that almost always passes.
+              let! expected = TypeReference.toVT types tst fieldDef.typ
+              return
+                RTE.Records.CreationFieldOfWrongType(
+                  fieldName,
+                  expected,
+                  Dval.toValueType fieldValue,
+                  fieldValue
+                )
+                |> RTE.Record
+                |> raiseRTE threadID
+
+            | Ok newTST ->
+              // Update the type args with anything this field pinned down. See the note in
+              // `checkEnumFields`: no type parameters means nothing to learn, and no walk.
+              let! newTypeArgs =
+                if List.isEmpty currentTypeArgs then
+                  Ply currentTypeArgs
+                else
+                  Ply.List.mapSequentially
+                    (fun (paramName, vt) ->
+                      match vt with
+                      | ValueType.Unknown ->
+                        match TST.tryFind paramName newTST with
+                        | ValueSome known -> Ply((paramName, known))
+                        | ValueNone -> Ply((paramName, vt))
+
+                      | known ->
+                        match ValueType.merge known vt with
+                        | Ok merged -> Ply((paramName, merged))
+                        | Error() ->
+                          uply {
+                            let! expected =
+                              TypeReference.toVT types newTST fieldDef.typ
+                            return
+                              RTE.Records.CreationFieldOfWrongType(
+                                fieldName,
+                                expected,
+                                Dval.toValueType fieldValue,
+                                fieldValue
+                              )
+                              |> RTE.Record
+                              |> raiseRTE threadID
+                          })
+                    currentTypeArgs
+
+              return!
+                checkRecordFields
+                  types
+                  threadID
+                  expectedFields
+                  rest
+                  (Map.add fieldName fieldValue fieldsSoFar)
+                  newTypeArgs
+                  newTST
+          }
 
 
   /// Constructs a Dval.DRecord, ensuring that the fields match the expected shape
@@ -904,78 +1213,17 @@ module DvalCreator =
         resolveRecordType types threadID sourceTypeName typeArgs
 
       let tst =
-        resolvedTypeArgs |> List.fold (fun acc (name, vt) -> Map.add name vt acc) tst
+        resolvedTypeArgs |> List.fold (fun acc (name, vt) -> TST.add name vt acc) tst
 
-      // Process each provided field
       let! (processedFields, finalTypeArgs, _updatedTST) =
-        Ply.List.foldSequentially
-          (fun (fieldsSoFar, currentTypeArgs, tst) (fieldName, fieldValue) ->
-            uply {
-              // Basic validation
-              if fieldName = "" then
-                return
-                  RTE.Records.CreationEmptyKey |> RTE.Record |> raiseRTE threadID
-
-              if Map.containsKey fieldName fieldsSoFar then
-                return
-                  RTE.Records.CreationDuplicateField fieldName
-                  |> RTE.Record
-                  |> raiseRTE threadID
-
-              // Find and validate field
-              match expectedFields |> NEList.find (fun f -> f.name = fieldName) with
-              | None ->
-                return
-                  RTE.Records.CreationFieldNotExpected fieldName
-                  |> RTE.Record
-                  |> raiseRTE threadID
-
-              | Some fieldDef ->
-                let! expected = TypeReference.toVT types tst fieldDef.typ
-                match! unify types tst fieldDef.typ fieldValue with
-                | Error _path ->
-                  return
-                    RTE.Records.CreationFieldOfWrongType(
-                      fieldName,
-                      expected,
-                      Dval.toValueType fieldValue,
-                      fieldValue
-                    )
-                    |> RTE.Record
-                    |> raiseRTE threadID
-
-                | Ok newTST ->
-                  let! expected = TypeReference.toVT types newTST fieldDef.typ
-                  // Update resultant typeArgs based on what we learned from this field
-                  // , by checking the TST.
-                  let newTypeArgs =
-                    currentTypeArgs
-                    |> List.map (fun (paramName, vt) ->
-                      match vt with
-                      | ValueType.Unknown ->
-                        match Map.tryFind paramName newTST with
-                        | Some known -> (paramName, known)
-                        | None -> (paramName, vt)
-
-                      | known ->
-                        match ValueType.merge known vt with
-                        | Ok merged -> (paramName, merged)
-                        | Error() ->
-                          RTE.Records.CreationFieldOfWrongType(
-                            fieldName,
-                            expected,
-                            Dval.toValueType fieldValue,
-                            fieldValue
-                          )
-                          |> RTE.Record
-                          |> raiseRTE threadID)
-
-                  let fields = Map.add fieldName fieldValue fieldsSoFar
-
-                  return (fields, newTypeArgs, newTST)
-            })
-          (Map.empty, resolvedTypeArgs, tst)
+        checkRecordFields
+          types
+          threadID
+          expectedFields
           fields
+          Map.empty
+          resolvedTypeArgs
+          tst
 
       // Check for missing fields
       match
@@ -1063,7 +1311,10 @@ module DvalCreator =
                       |> List.map (fun (paramName, vt) ->
                         match vt with
                         | ValueType.Unknown ->
-                          match Map.tryFind paramName updatedTst with
+                          match
+                            TST.tryFind paramName updatedTst
+                            |> ValueOption.toOption
+                          with
                           | Some known -> (paramName, known)
                           | None -> (paramName, vt)
 

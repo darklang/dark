@@ -750,7 +750,7 @@ module Expr =
         // Create a named function reference to the current function
         let namedFn : RT.ApplicableNamedFn =
           { name = FQFnName.toRT fnName
-            typeSymbolTable = Map.empty
+            typeSymbolTable = RT.TST.empty
             typeArgs = []
             argsSoFar = [] }
 
@@ -876,7 +876,7 @@ module Expr =
           right.registerCount,
           RT.AppNamedFn
             { name = InfixFnName.toFnName infix |> RT.FQFnName.Builtin
-              typeSymbolTable = Map.empty
+              typeSymbolTable = RT.TST.empty
               typeArgs = []
               argsSoFar = [] }
           |> RT.DApplicable
@@ -917,7 +917,7 @@ module Expr =
     | PT.EFnName(_, { resolved = Ok resolved }) ->
       let namedFn : RT.ApplicableNamedFn =
         { name = FQFnName.toRT resolved.name
-          typeSymbolTable = Map.empty
+          typeSymbolTable = RT.TST.empty
           typeArgs = []
           argsSoFar = [] }
 
@@ -1229,7 +1229,7 @@ module PackageValue =
   //   ./scripts/run-cli eval $'val answer = 1L + 2L\nanswer == ()'
   // This currently prints `true`; `answer` should evaluate to `3L`.
   let rec evalConstantExpr
-    (builtinValues : Map<RT.FQValueName.Builtin, RT.BuiltInValue>)
+    (builtinValues : RT.Dictionary<RT.FQValueName.Builtin, RT.BuiltInValue>)
     (expr : PT.Expr)
     : RT.Dval =
     let recurse = evalConstantExpr builtinValues
@@ -1335,9 +1335,9 @@ module PackageValue =
       RT.DRecord(resolvedTypeName, resolvedTypeName, convertedTypeArgs, fieldValues)
     | PT.EValue(_, { resolved = Ok { name = PT.FQValueName.Builtin builtin } }) ->
       let rtBuiltin = FQValueName.Builtin.toRT builtin
-      match Map.find rtBuiltin builtinValues with
-      | Some v -> v.body
-      | None ->
+      match builtinValues.TryGetValue rtBuiltin with
+      | true, v -> v.body
+      | false, _ ->
         Exception.raiseInternal
           "Builtin value not found in package constant"
           [ "builtin", rtBuiltin ]
@@ -1346,7 +1346,7 @@ module PackageValue =
       RT.DUnit
 
   let toRT
-    (builtinValues : Map<RT.FQValueName.Builtin, RT.BuiltInValue>)
+    (builtinValues : RT.Dictionary<RT.FQValueName.Builtin, RT.BuiltInValue>)
     (c : PT.PackageValue.PackageValue)
     : RT.PackageValue.PackageValue =
     let body = evalConstantExpr builtinValues c.body
@@ -1376,7 +1376,7 @@ module PackageFn =
 
 module PackageManager =
   let toRT
-    (builtinValues : Map<RT.FQValueName.Builtin, RT.BuiltInValue>)
+    (builtinValues : RT.Dictionary<RT.FQValueName.Builtin, RT.BuiltInValue>)
     (pm : PT.PackageManager)
     : RT.PackageManager =
     let toPT (RT.Hash h) : PT.Hash = PT.Hash h

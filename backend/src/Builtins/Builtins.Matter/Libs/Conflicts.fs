@@ -46,7 +46,7 @@ let fns () : List<BuiltInFn> =
         + "`Darklang.Sync.Conflicts.Conflict`. Local-only review log."
       fn =
         (function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [| DUnit |] ->
           uply {
             let! conflicts = LibDB.Conflicts.list ()
             let kt = KTCustomType(conflictType (), [])
@@ -71,7 +71,7 @@ let fns () : List<BuiltInFn> =
         + "(last-writer-wins) choice stands. Returns whether one was found."
       fn =
         (function
-        | _, _, _, [ DString location ] ->
+        | _, _, _, [| DString location |] ->
           uply {
             let! conflicts = LibDB.Conflicts.list ()
 
@@ -110,7 +110,7 @@ let fns () : List<BuiltInFn> =
         + "one was found."
       fn =
         (function
-        | _, _, _, [ DString location; DString chosenHash ] ->
+        | _, _, _, [| DString location; DString chosenHash |] ->
           uply {
             let! conflicts = LibDB.Conflicts.list ()
 

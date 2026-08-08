@@ -25,7 +25,7 @@ let oldFunctionsAreDeprecated =
   testTask "old functions are deprecated" {
     let mutable counts = Map.empty
 
-    let fns = (localBuiltIns PT.PackageManager.empty).fns |> Map.values
+    let fns = (localBuiltIns PT.PackageManager.empty).fns.Values |> List.ofSeq
 
     fns
     |> List.iter (fun fn ->
@@ -229,7 +229,7 @@ let private countReferences (builtinName : string) : int =
 
 let builtinAccessInPackageMatter =
   testTask "builtin access in package matter" {
-    let fns = (localBuiltIns PT.PackageManager.empty).fns |> Map.values
+    let fns = (localBuiltIns PT.PackageManager.empty).fns.Values |> List.ofSeq
 
     let offenders =
       fns

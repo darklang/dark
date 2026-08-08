@@ -27,6 +27,9 @@ let toList (d : T<'k, 'v>) : List<'k * 'v> =
   }
   |> Seq.toList
 
+let toSortedList (d : T<'k, 'v>) : List<'k * 'v> when 'k : comparison =
+  d |> toList |> List.sortBy fst
+
 let fromList (l : List<'k * 'v>) : T<'k, 'v> =
   let result = empty ()
   List.iter (fun (k, v) -> result[k] <- v) l

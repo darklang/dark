@@ -25,7 +25,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTString (KTList VT.string)
         let resultError = Dval.resultError KTString (KTList VT.string)
         (function
-        | _, _, _, [ DUuid branchId ] ->
+        | _, _, _, [| DUuid branchId |] ->
           uply {
             let! result = LibDB.Rebase.rebase branchId
             match result with
@@ -55,7 +55,7 @@ let fns () : List<BuiltInFn> =
         + "no conflicts."
       fn =
         function
-        | _, _, _, [ DUuid branchId ] ->
+        | _, _, _, [| DUuid branchId |] ->
           uply {
             let! needed = LibDB.Rebase.needsRebase branchId
             return DBool needed
@@ -74,7 +74,7 @@ let fns () : List<BuiltInFn> =
       description = "Get list of conflicting location paths for rebase."
       fn =
         function
-        | _, _, _, [ DUuid branchId ] ->
+        | _, _, _, [| DUuid branchId |] ->
           uply {
             let! conflicts = LibDB.Rebase.getConflicts branchId
             let conflictStrs =

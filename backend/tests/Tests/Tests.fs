@@ -48,17 +48,15 @@ let main (args : string array) : int =
 
         // http server
         Tests.HttpServer.tests
-        // CliTraces — not in the default suite. Two reasons. The cases are
-        // sequenced (forced by `Console.SetOut` capture), and more importantly
-        // `testVersionCommand` runs `dark version`, which fetches the latest
-        // release from api.github.com with no timeout. On a runner without
-        // egress that blocks, and since Expecto prints nothing between
-        // "Starting sequenced tests" and the summary, CI sees no output and
-        // kills the job. Re-enable once `version`'s network check is stubbed
-        // and the capture moves to per-call buffers.
+        // CliTraces is excluded: it hangs CI, and why is not yet known. The cases
+        // are sequenced (`Console.SetOut` capture forces it) so Expecto prints
+        // nothing until the summary, and `testVersionCommand` runs `dark version`,
+        // which fetches from api.github.com. Request and connect timeouts are
+        // already 30s and 10s, so the fetch alone cannot explain a ten-minute
+        // stall. Re-enabling needs a repro on a runner without egress, not a guess.
         //
-        // Run them on demand:
-        //   scripts/run-backend-tests --filter-test-list CliTraces
+        // Uncomment the line below to run them; no filter reaches them while it is commented out,
+        // so nothing currently exercises the tracer end to end.
         // Tests.CliTraces.tests
         Tests.Toplevels.tests
 

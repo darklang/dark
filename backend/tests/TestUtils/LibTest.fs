@@ -51,7 +51,7 @@ let fns () : List<BuiltInFn> =
       description = "Return a value representing a type error"
       fn =
         (function
-        | _, _, _, [ DString errorString ] ->
+        | _, _, _, [| DString errorString |] ->
           raiseUntargetedRTE (RuntimeError.UncaughtException(errorString, []))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -66,7 +66,7 @@ let fns () : List<BuiltInFn> =
       description = "Turns a string of length 1 into a character"
       fn =
         (function
-        | _, _, _, [ DString s ] ->
+        | _, _, _, [| DString s |] ->
           let chars = String.toEgcSeq s
 
           if Seq.length chars = 1 then
@@ -94,7 +94,7 @@ let fns () : List<BuiltInFn> =
         "Increases the side effect counter by one, to test real-world side-effects. Returns its argument."
       fn =
         (function
-        | state, _, _, [ arg ] ->
+        | state, _, _, [| arg |] ->
           state.test.sideEffectCount <- state.test.sideEffectCount + 1
           Ply(arg)
         | _ -> incorrectArgs ())
@@ -111,7 +111,7 @@ let fns () : List<BuiltInFn> =
       description = "Return the value of the side-effect counter"
       fn =
         (function
-        | state, _, _, [ DUnit ] -> Ply(Dval.int64 state.test.sideEffectCount)
+        | state, _, _, [| DUnit |] -> Ply(Dval.int64 state.test.sideEffectCount)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -126,7 +126,7 @@ let fns () : List<BuiltInFn> =
       description = "Prints the value into stdout"
       fn =
         (function
-        | _, _, _, [ v; DString msg ] ->
+        | _, _, _, [| v; DString msg |] ->
           print $"{msg}: {v}"
           Ply v
         | _ -> incorrectArgs ())
@@ -143,7 +143,7 @@ let fns () : List<BuiltInFn> =
       description = "Delete a user (test only)"
       fn =
         (function
-        | _, _, _, [ DString username ] ->
+        | _, _, _, [| DString username |] ->
           uply {
             do!
               // This is unsafe. A user has canvases, and canvases have traces. It
@@ -167,7 +167,7 @@ let fns () : List<BuiltInFn> =
       description = "A function that raises an F# exception"
       fn =
         (function
-        | _, _, _, [ DString message ] -> raise (System.Exception message)
+        | _, _, _, [| DString message |] -> raise (System.Exception message)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -182,7 +182,7 @@ let fns () : List<BuiltInFn> =
       description = "Set the expected exception count for the current test"
       fn =
         (function
-        | state, _, _, [ DInt64 count ] ->
+        | state, _, _, [| DInt64 count |] ->
           uply {
             state.test.expectedExceptionCount <- int count
             return DUnit

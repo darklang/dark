@@ -1,0 +1,8 @@
+{
+  "tolerance": 0.03,
+  "steady": {
+    "debug": 8025008,
+    "published": 7641184,
+    "note": "scripts/perf/workloads/steady.dark, trace detail off. Lower these whenever a change earns it."
+  }
+}

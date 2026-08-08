@@ -1,0 +1,120 @@
+// What each basic operation costs, in bytes allocated, measured against each other.
+//
+// This exists because the type profiler goes flat long before the runtime is fast. A flat profile
+// says "no single thing dominates", which is true and useless. Putting comparable operations side
+// by side says "returning an Option costs six times returning an Int", which is actionable, and
+// that is exactly how the type-checker work of the last few rounds got found.
+//
+//   ./scripts/run-cli run scripts/perf/workloads/costs.dark
+//
+// Read it as a cost model, not as a benchmark: the baseline row is the harness itself (a fold, a
+// lambda application and an Int add per iteration) and every other row includes it. Compare rows to
+// each other, not to zero.
+
+type Rec = { a: Int; b: String }
+
+type Enum =
+  | One of Int
+  | Two of String * Int
+
+let plainFn (i: Int) : Int = i + 1
+let twoArgFn (i: Int) (j: Int) : Int = i + j
+let recFn (i: Int) : Rec = Rec { a = i; b = "x" }
+let optFn (i: Int) : Stdlib.Option.Option<Int> = Stdlib.Option.Option.Some i
+let resFn (i: Int) : Stdlib.Result.Result<Int, String> = Stdlib.Result.Result.Ok i
+let listFn (i: Int) : List<Int> = [ i ]
+let enumFn (i: Int) : Enum = Enum.One i
+
+/// Runs `f` 2000 times and reports bytes allocated per call. Warms up first, because the first call
+/// through a function loads and converts it.
+///
+/// The accumulator is deliberately never added to. Summing the results made every row's number
+/// depend on how large its own accumulator grew: small integers are interned, so a row whose sum
+/// stayed under a thousand looked cheaper than one whose sum did not, and the harness was measuring
+/// the arithmetic rather than the operation. Comparing against an impossible value forces `f` to be
+/// evaluated -- Dark is strict -- while leaving `acc` at zero for every row.
+let measure (label: String) (f: Int -> Int) : Unit =
+  let run (n: Int) : Int =
+    Stdlib.List.fold (Stdlib.List.range 1 n) 0 (fun acc i ->
+      if (f i) == -987654321 then acc + 1 else acc)
+  let _warm = run 50
+  let before = Builtin.gcAllocatedBytes ()
+  let _r = run 2000
+  let after = Builtin.gcAllocatedBytes ()
+  Builtin.debug label ((after - before) / 2000L)
+
+let main () : Int64 =
+  Builtin.debug "--- harness" 0L
+  measure "baseline (fold + lambda + add)" (fun i -> i)
+
+  Builtin.debug "--- calls" 0L
+  measure "call a 1-arg fn" (fun i -> plainFn i)
+  measure "call a 2-arg fn" (fun i -> twoArgFn i 1)
+  measure "apply a lambda" (fun i -> (fun x -> x + 1) i)
+
+  Builtin.debug "--- return types" 0L
+  measure "return Int" (fun i -> plainFn i)
+  measure "return List<Int>" (fun i -> Stdlib.List.length (listFn i))
+  measure "return a record" (fun i -> (recFn i).a)
+  measure "return an enum" (fun i ->
+    match enumFn i with
+    | One v -> v
+    | Two(_, v) -> v)
+  measure "return Option<Int>" (fun i ->
+    match optFn i with
+    | Some v -> v
+    | None -> 0)
+  measure "return Result<Int,String>" (fun i ->
+    match resFn i with
+    | Ok v -> v
+    | Error _ -> 0)
+
+  Builtin.debug "--- values" 0L
+  measure "build a 2-field record" (fun i -> (Rec { a = i; b = "x" }).a)
+  measure "update a record field" (fun i ->
+    let r = Rec { a = i; b = "x" }
+    ({ r with a = i + 1 }).a)
+  measure "build a 1-field enum" (fun i ->
+    match Enum.One i with
+    | One v -> v
+    | Two(_, v) -> v)
+  measure "build a tuple" (fun i ->
+    let (a, b) = (i, i + 1)
+    a + b)
+
+  Builtin.debug "--- lists" 0L
+  measure "cons onto a 3-list" (fun i -> Stdlib.List.length (Stdlib.List.push [ 1; 2; 3 ] i))
+  measure "range 1..5" (fun i -> Stdlib.List.length (Stdlib.List.range 1 5))
+  measure "map over 5" (fun i ->
+    Stdlib.List.length (Stdlib.List.map [ 1; 2; 3; 4; 5 ] (fun x -> x + i)))
+  measure "fold over 5" (fun i ->
+    Stdlib.List.fold [ 1; 2; 3; 4; 5 ] 0 (fun acc x -> acc + x))
+
+  Builtin.debug "--- dicts" 0L
+  measure "dict set 1 key" (fun i ->
+    Stdlib.List.length (Stdlib.Dict.keys (Stdlib.Dict.set Stdlib.Dict.empty "k" i)))
+  measure "dict get, present" (fun i ->
+    let d = Stdlib.Dict.set Stdlib.Dict.empty "k" i
+    match Stdlib.Dict.get d "k" with
+    | Some v -> v
+    | None -> 0)
+
+  Builtin.debug "--- strings" 0L
+  measure "concat two strings" (fun i -> Stdlib.String.length ("ab" ++ "cd"))
+  measure "length of a 5-char string" (fun i -> Stdlib.String.length "hello")
+  measure "split a path" (fun i -> Stdlib.List.length (Stdlib.String.split "/a/b/c" "/"))
+  measure "Int to String" (fun i -> Stdlib.String.length (Stdlib.Int.toString i))
+
+  // Repeated last as well as first: the first row of the table absorbs one-time costs (loading the
+  // functions the harness itself uses), so the honest floor is this one.
+  measure "baseline again, at the end" (fun i -> i)
+
+  Builtin.debug "--- control flow" 0L
+  measure "if/else" (fun i -> if i > 1000 then 1 else 0)
+  measure "match on an Int" (fun i ->
+    match i with
+    | 1 -> 1
+    | _ -> 0)
+  0L
+
+main ()

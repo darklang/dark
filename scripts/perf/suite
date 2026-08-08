@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Allocation and time for every workload in scripts/perf/workloads/suite/.
+#
+# Six shapes, because a change that helps one can quietly cost another: records, strings, dicts and
+# JSON go through different parts of the runtime than lists and recursion do.
+#
+# Each workload reads its iteration count from PERF_ITERS and is run twice, at 0 and at N; the
+# difference is the body. Startup, parsing and package loading appear in both and cancel, which is
+# most of the total on a short run. `scripts/perf/gate` deliberately does not difference: a regression in
+# startup is still a regression.
+#
+#   scripts/perf/suite                  all workloads
+#   scripts/perf/suite lists json       just these
+#   scripts/perf/suite --iters 500      override the iteration count
+#   scripts/perf/suite --release        against the shipped build
+#   scripts/perf/suite --json out.json  also write machine-readable results
+#   scripts/perf/suite --record         append to benchmarks/results/history.jsonl
+#
+# Allocation repeats to the byte and is the number to trust; time is printed but never fails
+# anything. Method and traps: docs/perf/playbook.md.
+set -euo pipefail
+cd /home/dark/app
+. ./scripts/perf/_common
+
+SUITE="scripts/perf/workloads/suite"
+ITERS=200
+JSON_OUT=""
+RECORD=false
+RELEASE=false
+NAMES=()
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --iters) ITERS="$2"; shift 2 ;;
+    --json) JSON_OUT="$2"; shift 2 ;;
+    --record) RECORD=true; shift ;;
+    --release) RELEASE=true; shift ;;
+    -*) echo "unknown flag: $1" >&2; exit 2 ;;
+    *) NAMES+=("$1"); shift ;;
+  esac
+done
+
+if [[ "$RELEASE" == "true" ]]; then
+  EXE=$(release_exe)
+  MODE=release
+else
+  EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
+  MODE=debug
+fi
+TELEMETRY=$(telemetry_for "${EXE:-.}")
+
+if [[ ! -x "$EXE" ]]; then
+  if [[ "$RELEASE" == "true" ]]; then no_release_exe perf/suite
+  else echo "perf/suite: no CLI at $EXE -- run scripts/dev/build" >&2
+  fi
+  exit 2
+fi
+
+if [[ ${#NAMES[@]} -eq 0 ]]; then
+  for f in "$SUITE"/*.dark; do NAMES+=("$(basename "$f" .dark)"); done
+fi
+
+# Bytes allocated by the process, from the last gc.stats line telemetry wrote.
+read_alloc() {
+  python3 -c '
+import json, sys
+last = None
+for line in open(sys.argv[1]):
+    r = json.loads(line)
+    if r.get("event") == "gc.stats":
+        last = r["ctx"]
+if last is None:
+    sys.exit("no gc.stats in telemetry")
+print(last["totalAllocatedBytes"])
+' "$TELEMETRY"
+}
+
+# Trace detail off: with it on the interpreter holds every argument and result alive for the whole
+# run, which is not what a user's invocation does.
+run_once() {
+  rm -f "$TELEMETRY"
+  PERF_ITERS="$2" DARK_TELEMETRY=1 DARK_CONFIG_TRACE_DETAIL=off "$EXE" run "$1"
+}
+
+# One throwaway run before anything is measured: against a cold store the first invocation seeds it,
+# and whichever workload ran first would absorb that into its *baseline*, reporting a negative
+# per-iteration figure.
+run_once "$SUITE/${NAMES[0]}.dark" 0 > /dev/null 2>&1 || true
+
+printf '%-12s %12s %12s %10s\n' workload "alloc/iter" "total alloc" "ms"
+printf '%-12s %12s %12s %10s\n' ------------ ------------ ------------ ----------
+
+results=""
+for name in "${NAMES[@]}"; do
+  script="$SUITE/$name.dark"
+  if [[ ! -f "$script" ]]; then
+    echo "perf/suite: no such workload: $name" >&2
+    exit 2
+  fi
+
+  run_once "$script" 0 > /dev/null
+  base=$(read_alloc)
+
+  out=$(run_once "$script" "$ITERS")
+  full=$(read_alloc)
+  ms=$(sed -n 's/.*elapsed_ms=\([0-9]*\).*/\1/p' <<< "$out")
+
+  body=$((full - base))
+  per=$((body / ITERS))
+  printf '%-12s %12s %12s %10s\n' \
+    "$name" \
+    "$(python3 -c "print(f'{$per/1024:.2f} KB')")" \
+    "$(python3 -c "print(f'{$body/1e6:.3f} MB')")" \
+    "${ms:-?}"
+  results="$results{\"workload\":\"$name\",\"iters\":$ITERS,\"bytesPerIter\":$per,\"bodyBytes\":$body,\"ms\":${ms:-null}},"
+done
+
+results="[${results%,}]"
+
+if [[ -n "$JSON_OUT" ]]; then
+  echo "$results" > "$JSON_OUT"
+  echo
+  echo "wrote $JSON_OUT"
+fi
+
+# benchmarks/results/history.jsonl is the long-term record: append-only, committed, and rendered
+# into benchmarks/results.md by `./scripts/run-local-exec bench-render`. Prefer --record --release,
+# since that is what ships. Schema is the shared one: inputBytes is iterations, allocBytes is PER
+# ITERATION with startup differenced out, dvalNodes is -1 because it means nothing here.
+if [[ "$RECORD" == "true" ]]; then
+  echo
+  python3 - "$results" benchmarks/results/history.jsonl \
+           "$(git rev-parse HEAD 2>/dev/null || echo unknown)" \
+           "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$MODE" <<'PY'
+import json, sys
+rows, history, commit, stamp, mode = json.loads(sys.argv[1]), *sys.argv[2:6]
+results = [{"scenario": f"interp.{r['workload']}.{mode}",
+            "inputBytes": r["iters"],
+            "allocBytes": r["bytesPerIter"],
+            "elapsedMs": r["ms"] if r["ms"] is not None else -1,
+            "dvalNodes": -1,
+            "note": "alloc is per iteration, startup differenced out"} for r in rows]
+with open(history, "a") as f:
+    f.write(json.dumps({"timestamp": stamp, "commit": commit, "results": results}) + "\n")
+print(f"appended {len(results)} rows ({mode}) at {stamp}")
+PY
+fi

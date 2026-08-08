@@ -1,0 +1,72 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Allocation profile by type name, from GC allocation-tick events.
+#
+# The runtime fires an AllocationTick roughly every 100 KB allocated and names the type that tripped
+# it, so this samples allocation volume rather than object count. Once nothing is above 5%, stop
+# profiling and build a comparison instead -- see docs/perf/playbook.md.
+#
+#   scripts/perf/alloc-profile [script.dark] [out-name]
+set -euo pipefail
+cd /home/dark/app
+export PATH="$PATH:/home/dark/.dotnet/tools"
+
+SCRIPT=${1:-scripts/perf/workloads/steady.dark}
+OUT=rundir/perf-scratch/${2:-alloc-now}
+mkdir -p rundir/perf-scratch
+
+rm -f "$OUT.nettrace"
+# `--rundown false` is load-bearing. Without it dotnet-trace appends a JIT rundown naming every
+# method it compiled, the parser below counts those as samples, and the profile looks flat when it
+# isn't -- the rundown can be 80% of the file.
+dotnet-trace collect \
+  --rundown false \
+  --output "$OUT.nettrace" \
+  --providers Microsoft-Windows-DotNETRuntime:0x1:5 \
+  -- backend/Build/out/Cli/Debug/net10.0/Cli run "$SCRIPT" \
+  2>&1 | tail -4
+
+# There is no public parser for the nettrace container, so this scans the raw file for the UTF-16
+# type-name strings the AllocationTick payload carries. Keep `@` in the character class: F#
+# compiler-generated closures and state machines are all named that way (`executeInner@653-6`), they
+# are usually the largest category, and a filter that excludes `@` drops every one of them.
+python3 - "$OUT.nettrace" <<'PY'
+import re, sys, collections
+
+raw = open(sys.argv[1], "rb").read()
+pat = re.compile((r"(?:[A-Za-z0-9_.`+\[\],@<>\-$]\x00){6,}").encode("latin-1"))
+
+counts = collections.Counter()
+for m in pat.finditer(raw):
+    name = m.group().decode("utf-16-le")
+    if "." in name or "@" in name or "+" in name:
+        counts[name] += 1
+
+total = sum(counts.values())
+if not total:
+    sys.exit("no type names found -- was the trace collected with Microsoft-Windows-DotNETRuntime:0x1:5?")
+
+print(f"{total} allocation ticks\n")
+print("=== by type ===")
+for name, n in counts.most_common(28):
+    print(f"{100*n/total:6.2f}%  {n:5}  {name}")
+
+groups = collections.Counter()
+for name, n in counts.items():
+    closure = "@" in name or "StateMachine" in name or "Ply.TplPrimitives" in name
+    groups["closures + async state machines" if closure else "other"] += n
+print("\n=== grouped ===")
+for g, n in groups.most_common():
+    print(f"{100*n/total:6.2f}%  {n:5}  {g}")
+
+# Which enclosing method the closures came from: executeInner@653-6 and executeInner@712-9 are the
+# same problem in two places.
+owners = collections.Counter()
+for name, n in counts.items():
+    if "@" in name:
+        owners[name.split("@")[0].split("+")[-1]] += n
+print("\n=== closures by enclosing method ===")
+for o, n in owners.most_common(15):
+    print(f"{100*n/total:6.2f}%  {n:5}  {o}")
+PY

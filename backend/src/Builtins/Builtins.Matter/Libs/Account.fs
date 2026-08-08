@@ -22,7 +22,7 @@ let fns () : List<BuiltInFn> =
         "Look up an account ID by name. Returns None if no account with that name exists."
       fn =
         (function
-        | _, vm, _, [ DString name ] ->
+        | _, vm, _, [| DString name |] ->
           uply {
             let! result =
               Sql.query "SELECT id FROM accounts_v0 WHERE name = @name"
@@ -48,7 +48,7 @@ let fns () : List<BuiltInFn> =
         "Look up an account name by ID. Returns None if no account with that ID exists."
       fn =
         (function
-        | _, vm, _, [ DUuid id ] ->
+        | _, vm, _, [| DUuid id |] ->
           uply {
             let! result =
               Sql.query "SELECT name FROM accounts_v0 WHERE id = @id"
@@ -74,7 +74,7 @@ let fns () : List<BuiltInFn> =
         "Returns every (id, name) pair in the accounts table, ordered by name."
       fn =
         (function
-        | _, _, _, [ DUnit ] ->
+        | _, _, _, [| DUnit |] ->
           uply {
             let! rows =
               Sql.query "SELECT id, name FROM accounts_v0 ORDER BY name"

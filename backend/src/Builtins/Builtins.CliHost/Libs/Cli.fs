@@ -465,13 +465,13 @@ let fns () : List<BuiltInFn> =
         | exeState,
           _,
           [],
-          [ accountIDDval
-            DUuid branchId
-            DString filename
-            DString code
-            DList(_vtTODO, scriptArgs)
-            DBool allowHarmful
-            DBool sandbox ] ->
+          [| accountIDDval
+             DUuid branchId
+             DString filename
+             DString code
+             DList(_vtTODO, scriptArgs)
+             DBool allowHarmful
+             DBool sandbox |] ->
           uply {
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`. None passes through
@@ -589,7 +589,7 @@ let fns () : List<BuiltInFn> =
         | exeState,
           _,
           [],
-          [ accountIDDval; DUuid branchId; DString expression; DBool allowHarmful ] ->
+          [| accountIDDval; DUuid branchId; DString expression; DBool allowHarmful |] ->
           uply {
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`.
