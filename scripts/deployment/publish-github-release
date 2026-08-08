@@ -33,14 +33,6 @@ delete_tag() {
     "https://api.github.com/repos/$OWNER/$REPO/git/refs/tags/$tag_name"
 }
 
-# Function to list every existing v0.0.x tag ref, one per line
-#
-# Tags rather than releases: a run that dies between creating the release and
-# cleaning it up leaves the tag behind, and that orphan tag is still enough to
-# collide. Every release this script makes creates a tag, so the tags are a
-# superset of what we need to avoid.
-l
-
 # A release comes from a pushed tag and nothing else. This used to also run on
 # every merge to main, scanning for the next free v0.0.N, which meant "release"
 # just meant "someone merged". Releases are now deliberate.
