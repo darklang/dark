@@ -16,6 +16,8 @@ import os
 import shutil
 import sys
 import tempfile
+import json
+import re
 import unittest
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -417,6 +419,39 @@ class TestState(unittest.TestCase):
       self.assertFalse(ready)
       self.assertTrue(fatal)
       self.assertIn("didn't finish", " ".join(lines))
+
+
+class TestReleaseImage(unittest.TestCase):
+  """The release image pins the .NET SDK, and so does global.json.
+
+  They have to agree. global.json sets rollForward: disable, so a mismatch
+  isn't a soft warning: the release build refuses to run at all, with an error
+  that names an SDK version rather than the Dockerfile. Cheap to catch here.
+  """
+
+  def _repo_root(self):
+    # scripts/testing/<this file> -> three levels up is the repo root.
+    here = os.path.abspath(__file__)
+    return os.path.dirname(os.path.dirname(os.path.dirname(here)))
+
+  def test_release_dockerfile_sdk_matches_global_json(self):
+    root = self._repo_root()
+    dockerfile = os.path.join(root, "Dockerfile.build-base")
+    globaljson = os.path.join(root, "backend", "global.json")
+    if not os.path.exists(dockerfile):
+      self.skipTest("no Dockerfile.build-base")
+
+    with open(globaljson) as f:
+      pinned = json.load(f)["sdk"]["version"]
+
+    with open(dockerfile) as f:
+      contents = f.read()
+    match = re.search(r"ARG DOTNET_SDK_VERSION=([0-9][^\s]*)", contents)
+    self.assertIsNotNone(
+      match, "Dockerfile.build-base should pin the SDK via ARG DOTNET_SDK_VERSION")
+    self.assertEqual(
+      match.group(1), pinned,
+      "Dockerfile.build-base SDK version must match backend/global.json")
 
 
 if __name__ == "__main__":

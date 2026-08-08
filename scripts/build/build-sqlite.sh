@@ -62,13 +62,13 @@ output_base_dir="app/backend/src/Cli/lib"
 # the supported AOT target set.
 get_zig_target() {
   case "$1" in
-    linux-x64)      echo "x86_64-linux-gnu" ;;
-    linux-musl-x64) echo "x86_64-linux-musl" ;;
-    linux-arm64)    echo "aarch64-linux-gnu" ;;
-    linux-arm)      echo "arm-linux-gnueabihf" ;;
-    osx-x64)        echo "x86_64-macos-none" ;;
-    osx-arm64)      echo "aarch64-macos-none" ;;
-    *)              echo "" ;;
+    linux-x64)        echo "x86_64-linux-gnu" ;;
+    linux-musl-x64)   echo "x86_64-linux-musl" ;;
+    linux-arm64)      echo "aarch64-linux-gnu" ;;
+    linux-arm)        echo "arm-linux-gnueabihf" ;;
+    osx-x64)          echo "x86_64-macos-none" ;;
+    osx-arm64)        echo "aarch64-macos-none" ;;
+    *)                echo "" ;;
   esac
 }
 

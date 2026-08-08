@@ -7,6 +7,18 @@ version: 2.1
 # something to this file, there's an equivalent to be added there. CI doesn't run
 # compile itself; it drives _dotnet-wrapper directly, so the two can drift.
 
+parameters:
+  # The release matrix (NativeAOT, every OS) normally runs only on a pushed
+  # tag. While it's being built out it runs on every push to the branch too,
+  # because a fan-out across three runner types is not something you get right
+  # without iterating on it.
+  #
+  # FLIP TO false BEFORE MERGE. The other half of the flip is the
+  # `release-filters` anchor further down.
+  release-matrix-on-every-push:
+    type: boolean
+    default: true
+
 executors:
   simple-executor:
     docker:
@@ -17,7 +29,57 @@ executors:
       IN_DEV_CONTAINER: true
     docker:
       # DOCKERFILE_REPO: see Dockerfile note about how this is built.
-      - image: darklang/dark-base:be6dd7c
+      - image: darklang/dark-base:f7f57dd
+
+  # Builds the linux release artifacts. Deliberately not dark-base:
+  #
+  #   - dark-base is ubuntu:24.04, and an AOT binary built there requires
+  #     GLIBC_2.38. Today's R2R binary requires only GLIBC_2.27, so that would
+  #     be a silent compatibility regression. This image is 20.04 (glibc 2.31).
+  #   - NativeAOT links through a C compiler, and the default gcc cannot
+  #     cross-target (it rejects ilc's `--target=<triple>` outright). This
+  #     image carries clang and cross sysroots, so one x64 runner produces all
+  #     four linux artifacts.
+  #
+  # Built from Dockerfile.build-base. There is no arm runner in this workflow on
+  # purpose: dark-base is published amd64-only, so an arm resource class has
+  # no image to run.
+  release-linux:
+    working_directory: ~/app
+    environment:
+      IN_DEV_CONTAINER: true
+    docker:
+      - image: darklang/dark-build-base:f7f57dd
+
+  # musl has to be built ON musl: cross-compiling to it from glibc is the part
+  # that fights you, and this way clang, the loader and the libc all agree.
+  # Stock Microsoft image plus a few apk packages, so no custom image needed.
+  release-musl:
+    working_directory: ~/app
+    environment:
+      IN_DEV_CONTAINER: true
+    docker:
+      - image: mcr.microsoft.com/dotnet/sdk:10.0-alpine
+
+  # CircleCI's macOS executors are bare VMs with no Docker, so there's no
+  # container for the scripts to enter. IN_DEV_CONTAINER is what tells
+  # _assert-in-container not to re-enter and just run, which is exactly how
+  # the in-container executor above uses it: CI is already inside its image.
+  # The job installs .NET and zig itself and takes the seed database over the
+  # workspace rather than building one.
+  macos-builder:
+    working_directory: ~/app
+    environment:
+      IN_DEV_CONTAINER: true
+    macos:
+      xcode: "15.4.0"
+    # The class and the image version have to be a pair CircleCI supports
+    # together, and the plan has to include macOS at all. m1.medium.gen1 is
+    # end-of-life (Feb 2026); m4pro.medium was rejected for this project. This
+    # pair is the one CircleCI documents most widely. If it's rejected too, the
+    # error names the plan as the cause and macOS needs enabling under
+    # Plan -> Usage Controls.
+    resource_class: macos.m2pro.medium
 
 commands:
   show-large-files-and-directories:
@@ -214,6 +276,295 @@ jobs:
       - store_artifacts: { path: clis }
       - store_test_results: { path: rundir/test_results }
 
+  ##########################
+  # Release matrix (NativeAOT, fanned out by OS)
+  #
+  # NativeAOT runs ilc and then the *platform* linker, so a build host only
+  # produces binaries for its own OS family. That's the whole reason this is a
+  # fan-out rather than the single cross-compiling container that `build-cli`
+  # uses for R2R.
+  #
+  # Windows is not in this matrix. It keeps whatever `build-cli` gives it;
+  # `--mode=auto` falls back to R2R for win-* without the matrix knowing why.
+  ##########################
+
+  # Export the seed database once, and hand the same bytes to every build job.
+  #
+  # Two reasons this is its own job rather than something each builder does.
+  # The seed export needs LocalExec, migrations and a full package load, which
+  # a bare macOS VM has no cheap way to do. And the export is not safe against
+  # concurrent use of the store: a build run while the store was live once
+  # embedded a corrupt seed into every artifact it produced.
+  seed-db:
+    executor: in-container
+    resource_class: xlarge
+    steps:
+      - darkcheckout
+      - setup-app
+      - run: shasum backend/paket.lock backend/global.json <(date +"%U%Y") > ../checksum
+      - restore_cache:
+          keys:
+            - v5-cli-{{ checksum "../checksum" }}
+      - run: ./scripts/build/_dotnet-wrapper tool restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run:
+          name: Build LocalExec for migrations (debug mode fine)
+          command: ./scripts/build/_dotnet-wrapper build src/LocalExec/LocalExec.fsproj
+      - run:
+          name: Run migrations to create database
+          command: scripts/run-local-exec migrations run
+      - run:
+          name: Load packages into database
+          command: scripts/build/reload-packages
+      - run:
+          name: Export the seed
+          command: |
+            sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || true
+            scripts/run-local-exec export-seed rundir/seed.db
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - rundir/seed.db
+
+  # All four linux artifacts from one x64 runner. The cross-compiles work
+  # because the release image supplies clang and cross sysroots; the stock
+  # gcc in dark-base rejects ilc's `--target=<triple>` and the link fails.
+  build-cli-linux-glibc:
+    executor: release-linux
+    resource_class: xlarge
+    steps:
+      - checkout
+      - attach_workspace: { at: "." }
+      - run: ./scripts/build/_dotnet-wrapper tool restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore
+
+      # SQLite static archives for the AOT link, built by zig cc from the
+      # amalgamation. Keyed on the build script's content, which contains the
+      # SQLite version pin, so a version bump always invalidates.
+      - run:
+          name: Hash build-sqlite.sh for cache key
+          command: shasum scripts/build/build-sqlite.sh > ../sqlite-checksum
+      - restore_cache:
+          keys:
+            - v1-sqlite-archives-linux-{{ checksum "../sqlite-checksum" }}
+      - run:
+          name: Build SQLite static archives (skips on cache hit)
+          command: |
+            ./scripts/build/build-sqlite.sh \
+              --runtimes=linux-x64,linux-arm64
+      - save_cache:
+          paths:
+            - backend/src/Cli/lib
+          key: v1-sqlite-archives-linux-{{ checksum "../sqlite-checksum" }}
+
+      # Two linux runtimes are deliberately absent, for different reasons.
+      #
+      # linux-musl-x64: no cross sysroot in the release image, and it's the
+      # target that failed the last time this was attempted.
+      #
+      # linux-arm (armv7): .NET 10's 32-bit ARM NativeAOT runtime needs glibc
+      # symbols that only appeared in ~2.34, which puts its AOT floor well
+      # above the one we target. Not something cross-compile flags can fix.
+      #
+      # Both keep getting the R2R build from `build-cli`.
+      - run:
+          name: AOT-publish the linux runtimes
+          command: |
+            ./scripts/build/build-release-cli-exes.sh \
+              --mode=aot \
+              --seed=rundir/seed.db \
+              --runtimes=linux-x64,linux-arm64
+      - run:
+          name: Validate the linux-x64 artifact
+          command: |
+            ./scripts/testing/validate-cli-artifact \
+              "$(ls clis/darklang-*-linux-x64)"
+      # arm64 can't run natively here, but it can run emulated, and it should.
+      # A binary that links is not a binary that works: during this work an
+      # armv7 build compiled, linked and started before dying on a struct
+      # layout mismatch. Shipping an artifact that has never executed anywhere
+      # is how that reaches a user instead of CI.
+      #
+      # A smoke run under qemu, not the full suite: emulation is slow and the
+      # suite shells out per case. This catches "doesn't start" and "dies
+      # immediately", which is the failure mode cross-compiling actually
+      # produces.
+      - run:
+          name: Smoke-test the linux-arm64 artifact under emulation
+          command: |
+            qemu-aarch64-static -L /usr/aarch64-linux-gnu \
+              "$(ls clis/darklang-*-linux-arm64)" version
+            qemu-aarch64-static -L /usr/aarch64-linux-gnu \
+              "$(ls clis/darklang-*-linux-arm64)" eval "1 + 2"
+      - run:
+          name: Confirm the glibc floor of what we're shipping
+          command: |
+            objdump -T "$(ls clis/darklang-*-linux-x64)" \
+              | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -1
+      # The build image IS the floor (20.04, glibc 2.31), so running the
+      # artifact here rather than on a modern machine is what catches
+      # symbols that only exist in newer glibc. That's not hypothetical: a
+      # DllImport of "stat" worked everywhere we tested and threw on every
+      # system below glibc 2.33, which is exactly the audience the low floor
+      # exists to serve.
+      - run:
+          name: Exercise libc-dependent builtins at the glibc floor
+          command: |
+            X64="$(ls clis/darklang-*-linux-x64)"
+            "$X64" eval 'Builtin.posixStat "/etc/hostname"' | tee /tmp/stat.out
+            grep -q "Ok(" /tmp/stat.out
+            "$X64" eval 'Builtin.posixGetcwd ()' > /dev/null
+      - run:
+          name: Gzip artifacts
+          command: gzip -f clis/darklang-*
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - clis
+      - store_artifacts: { path: clis }
+
+  build-cli-linux-musl:
+    executor: release-musl
+    resource_class: large
+    steps:
+      - run:
+          name: Install build dependencies
+          command: |
+            apk add --no-cache bash git curl clang build-base zlib-dev zig openssl icu-libs
+            # build-sqlite.sh looks for zig at $HOME/zig/zig, same as everywhere else
+            mkdir -p "$HOME/zig" && ln -sf "$(command -v zig)" "$HOME/zig/zig"
+      - checkout
+      - run:
+          name: Install the pinned .NET SDK
+          command: |
+            # The image ships a newer patch than backend/global.json pins, and
+            # that file sets rollForward: disable, so every dotnet command fails
+            # until the exact version is present. Read it rather than hardcode a
+            # third copy of the version.
+            SDK=$(grep -oE '"version"[^"]*"[^"]+"' backend/global.json \
+                    | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+            echo "Installing .NET SDK $SDK (from backend/global.json)"
+            curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+            bash /tmp/dotnet-install.sh --version "$SDK" --install-dir /usr/share/dotnet
+            dotnet --version
+      - attach_workspace: { at: "." }
+      - run: ./scripts/build/_dotnet-wrapper tool restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run:
+          name: Build the musl SQLite archive
+          command: ./scripts/build/build-sqlite.sh --runtimes=linux-musl-x64
+      - run:
+          name: AOT-publish linux-musl-x64
+          command: |
+            ./scripts/build/build-release-cli-exes.sh \
+              --mode=aot \
+              --seed=rundir/seed.db \
+              --runtimes=linux-musl-x64
+      # Natively runnable here, unlike the cross-built targets: this job *is*
+      # Alpine, so the musl loader and libs the binary needs are present.
+      - run:
+          name: Validate the musl artifact
+          command: |
+            ./scripts/testing/validate-cli-artifact \
+              "$(ls clis/darklang-*-linux-musl-x64)"
+      - run:
+          name: Gzip artifacts
+          command: gzip -f clis/darklang-*
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - clis
+      - store_artifacts: { path: clis }
+
+  build-cli-macos:
+    executor: macos-builder
+    steps:
+      - checkout
+      - attach_workspace: { at: "." }
+      # build-sqlite.sh writes to app/backend/src/Cli/lib relative to ~, so
+      # the checkout has to live at ~/app here the same as it does in the
+      # container. That's what working_directory on the executor is for.
+      - run:
+          name: Install build dependencies
+          command: |
+            # Read the SDK version out of global.json rather than pinning a
+            # third copy of it. global.json sets rollForward: disable, so
+            # `--channel 10.0` installs something newer and every dotnet
+            # command then refuses to run, blaming an SDK version rather than
+            # this file.
+            SDK=$(python3 -c \
+              "import json;print(json.load(open('backend/global.json'))['sdk']['version'])")
+            echo "Installing .NET SDK $SDK (from backend/global.json)"
+            curl -sSL https://dot.net/v1/dotnet-install.sh -o dotnet-install.sh
+            bash dotnet-install.sh --version "$SDK" --install-dir "$HOME/.dotnet"
+            echo 'export PATH="$HOME/.dotnet:$PATH"' >> "$BASH_ENV"
+            brew install zig
+            mkdir -p "$HOME/zig" && ln -sf "$(which zig)" "$HOME/zig/zig"
+      - run: ./scripts/build/_dotnet-wrapper tool restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run:
+          name: Hash build-sqlite.sh for cache key
+          command: shasum scripts/build/build-sqlite.sh > ../sqlite-checksum
+      - restore_cache:
+          keys:
+            - v1-sqlite-archives-macos-{{ checksum "../sqlite-checksum" }}
+      - run:
+          name: Build SQLite static archives (skips on cache hit)
+          command: ./scripts/build/build-sqlite.sh --runtimes=osx-arm64,osx-x64
+      - save_cache:
+          paths:
+            - backend/src/Cli/lib
+          key: v1-sqlite-archives-macos-{{ checksum "../sqlite-checksum" }}
+      # Deliberately two separate invocations, not one --mode=auto over both.
+      #
+      # osx-x64 from an arm64 Mac is cross-architecture. `auto` would pick AOT
+      # for it (same OS family passes the capability check) and then fail the
+      # whole release if ilc doesn't cooperate, which nobody has ever tested.
+      # An earlier version of this comment claimed auto would fall back; it
+      # would not. So Apple Silicon gets AOT and Intel gets R2R, and the
+      # release can't be held hostage to an unknown.
+      #
+      # Trying AOT for osx-x64 is worth doing once someone can verify the
+      # result on an Intel Mac. Until then this is the honest configuration.
+      - run:
+          name: AOT-publish osx-arm64
+          command: |
+            ./scripts/build/build-release-cli-exes.sh \
+              --mode=aot \
+              --seed=rundir/seed.db \
+              --runtimes=osx-arm64
+      - run:
+          name: R2R-publish osx-x64
+          command: |
+            ./scripts/build/build-release-cli-exes.sh \
+              --mode=r2r \
+              --seed=rundir/seed.db \
+              --runtimes=osx-x64
+      - run:
+          name: Validate the osx-arm64 artifact
+          command: |
+            ./scripts/testing/validate-cli-artifact \
+              "$(ls clis/darklang-*-osx-arm64)"
+      - run:
+          name: Gzip artifacts
+          command: gzip -f clis/darklang-*
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - clis
+      - store_artifacts: { path: clis }
+
+  publish-release-clis:
+    executor: in-container
+    steps:
+      - darkcheckout
+      - setup-app
+      - attach_workspace: { at: "." }
+      - run:
+          name: Show what we're about to publish
+          command: ls -la clis/
+      - run: ./scripts/deployment/publish-github-release
+
   #
   # This is used as a no-op dependency for other jobs, to prevent "deploy things"
   # from happening before the "build things" are done
@@ -271,3 +622,60 @@ workflows:
             branches:
               only: main
           requires: [ok-to-deploy]
+
+  # The NativeAOT release matrix. Normally tag-only; see the
+  # release-matrix-on-every-push parameter at the top of this file.
+  #
+  # The CircleCI trap here: a tag-filtered job's entire `requires` chain needs
+  # tag filters too. Miss one and a tag build silently runs nothing. Every job
+  # below carries the anchor for that reason, including seed-db.
+  release-clis:
+    when:
+      or:
+        - << pipeline.parameters.release-matrix-on-every-push >>
+        - << pipeline.git.tag >>
+    jobs:
+      - seed-db:
+          filters: &release-filters
+            tags:
+              only: /^v.*/
+            # FLIP TO `ignore: /.*/` BEFORE MERGE, together with the
+            # release-matrix-on-every-push parameter at the top of this file.
+            #
+            # pull/* is here because this branch lives on a fork: CircleCI
+            # reports a forked PR's branch as `pull/<number>`, not the branch
+            # name, so matching only the branch name filters every job out and
+            # the workflow silently doesn't appear at all.
+            branches:
+              only:
+                - /^native-aot.*/
+                - /^pull\/.*/
+
+      - build-cli-linux-glibc:
+          filters: *release-filters
+          requires: [seed-db]
+
+      - build-cli-linux-musl:
+          filters: *release-filters
+          requires: [seed-db]
+
+      - build-cli-macos:
+          filters: *release-filters
+          requires: [seed-db]
+
+      # Publishing is tags-only regardless of the parameter above. The build
+      # jobs run on this branch while the matrix is being debugged, and they
+      # should: the artifacts are the point. Publishing on a branch push is
+      # different, because publish-github-release creates a real GitHub
+      # release with the next free v0.0.N tag. Without this narrower filter,
+      # every push to the branch would cut a release.
+      - publish-release-clis:
+          filters:
+            tags:
+              only: /^v.*/
+            branches:
+              ignore: /.*/
+          requires:
+            - build-cli-linux-glibc
+            - build-cli-linux-musl
+            - build-cli-macos

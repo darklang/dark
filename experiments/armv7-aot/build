@@ -1,0 +1,77 @@
+#!/usr/bin/env bash
+
+# Build an armv7 NativeAOT darklang binary. Unsupported experiment; see README.
+#
+# Deliberately does its own `dotnet publish` rather than going through
+# scripts/build/build-release-cli-exes.sh. That script refuses armv7 AOT on
+# purpose (the glibc floor it targets can't satisfy .NET's 32-bit ARM runtime),
+# and this isn't a release path, so it shouldn't pretend to be one by borrowing
+# the release machinery.
+#
+# Needs the cross toolchain from Dockerfile.build-base. The dev container doesn't
+# have it. See README for the exact docker invocation.
+
+set -euo pipefail
+
+here="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+repo="$( cd "$here/../.." && pwd )"
+
+zig="${ZIG:-$HOME/zig/zig}"
+sysroot=/usr/arm-linux-gnueabihf
+shim_archive="$here/libdarktime64-linux-arm.a"
+sqlite_archive="$repo/backend/src/Cli/lib/libe_sqlite3-linux-arm.a"
+
+fail() { echo "error: $*" >&2; exit 1; }
+
+[[ -x "$zig" ]] || fail "no zig at $zig (set ZIG=/path/to/zig)"
+[[ -d "$sysroot" ]] || fail "no armhf sysroot at $sysroot; run this in the release image"
+command -v clang > /dev/null || fail "no clang; run this in the release image"
+[[ -f "$repo/rundir/data.db" ]] || fail "no seed at rundir/data.db; do a normal build first"
+
+# SQLite gets statically linked into any AOT build. The release script builds
+# these archives for supported targets; armv7 isn't one, so build it here.
+if [[ ! -f "$sqlite_archive" ]]; then
+  echo "Building the armv7 SQLite archive..."
+  ( cd "$repo" && ./scripts/build/build-sqlite.sh --runtimes=linux-arm )
+fi
+
+echo "Building the time64 shim..."
+"$zig" cc -target arm-linux-gnueabihf -Os -fPIC -D_LARGEFILE64_SOURCE \
+  -c "$here/time64-shim.c" -o "$here/time64-shim.o"
+"$zig" ar rcs "$shim_archive" "$here/time64-shim.o"
+rm -f "$here/time64-shim.o"
+
+# Cross-architecture AOT needs all four of these. Each fails at a different
+# stage without the others: clang because gcc can't cross-target at all,
+# SysRoot for the headers and libs, lld because the default ld.bfd can't emit
+# foreign architectures, and the cross objcopy because the default one can't
+# read them. DarkExtraNativeLibs is the generic hook in Cli.fsproj.
+echo "Publishing linux-arm (this takes 10-15 minutes)..."
+# From the repo root: _dotnet-wrapper cds into backend/ itself, so the project
+# path below is relative to backend/, matching how the release script calls it.
+cd "$repo"
+./scripts/build/_dotnet-wrapper publish -c Release src/Cli/Cli.fsproj \
+  /p:DebugType=None \
+  /p:DebugSymbols=false \
+  /p:PublishAot=true \
+  /p:CppCompilerAndLinker=clang \
+  "/p:SysRoot=$sysroot" \
+  /p:LinkerFlavor=lld \
+  /p:ObjCopyName=arm-linux-gnueabihf-objcopy \
+  "/p:DarkExtraNativeLibs=$shim_archive" \
+  --self-contained true \
+  --runtime linux-arm
+
+built="$repo/backend/Build/out/Cli/Release/net10.0/linux-arm/publish/Cli"
+[[ -f "$built" ]] || fail "publish reported success but produced no binary at $built"
+
+mkdir -p "$repo/clis"
+target="$repo/clis/darklang-armv7-experimental"
+cp "$built" "$target"
+chmod +x "$target"
+
+echo ""
+echo "Built $target"
+echo "glibc floor: $(objdump -T "$target" | grep -o 'GLIBC_[0-9.]*' | sort -uV | tail -n 1)"
+echo ""
+echo "Reminder: absolute timestamps in this binary are wrong after 2038. See README."
