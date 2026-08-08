@@ -49,7 +49,7 @@ executors:
     environment:
       IN_DEV_CONTAINER: true
     docker:
-      - image: darklang/dark-build-base:latest
+      - image: darklang/dark-build-base:f7f57dd
 
   # musl has to be built ON musl: cross-compiling to it from glibc is the part
   # that fights you, and this way clang, the loader and the libc all agree.
