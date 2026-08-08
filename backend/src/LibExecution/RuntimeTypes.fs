@@ -2201,9 +2201,9 @@ module ApplyStage =
        "lambda.execPoint"
        "pkg.fetchOnly"
        "pkg.frameTst"
-       "z.applyTotal"
-       "z.lambdaTotal"
-       "z.biTotal"
+       "apply.total"
+       "lambda.total"
+       "bi.total"
        "bi.argList" |]
 
   [<Literal>]
@@ -2246,8 +2246,12 @@ module ApplyStage =
   let PkgFetchOnly = 18
   [<Literal>]
   let PkgFrameTst = 19
-  // Coarse brackets, used to find allocation the fine-grained stages don't cover. `z.` so they sort
-  // last and read as scaffolding rather than as findings.
+  // Coarse brackets around a whole Apply, a whole lambda application and a whole builtin call.
+  //
+  // These NEST, and they nest into each other and into the fine-grained stages: a builtin that runs
+  // Dark code contains the applies that code makes. So they cannot be summed, and they cannot be
+  // compared against the process total. They exist to answer "is anything large hiding between the
+  // fine-grained stages", which they did -- the answer was no, to within 29 KB.
   [<Literal>]
   let ApplyTotal = 20
   [<Literal>]

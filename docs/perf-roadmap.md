@@ -128,6 +128,16 @@ workload. Consider a `ValueTask` builder.
 - Mine the telemetry corpus: every checkout's `rundir/logs/telemetry.jsonl` has thousands of real
   runs, which could retarget the campaign against what people actually do.
 
+## Considered and declined
+
+- **Moving the gate to the `build-cli` job**, so it measures the artifact users actually download
+  rather than the solution publish in `build-backend`. `build-cli` does run migrations and
+  `reload-packages`, so it would work. Declined because both are Release builds of the same code and
+  the difference is packaging, so there is no measured reason to expect different allocation --
+  and moving a CI step for an unmeasured reason is exactly what this campaign learned not to do.
+  Revisit if the release script ever starts passing different publish flags (trimming, single-file,
+  AOT), because then the binaries genuinely differ.
+
 ## Closed, so nobody re-opens them
 
 - **Inline caching at call sites.** The point was skipping the per-call type check. Memoizing
