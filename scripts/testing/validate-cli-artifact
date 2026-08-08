@@ -68,9 +68,15 @@ if [[ ! -x "$ARTIFACT" ]]; then
   exit 1
 fi
 
-ARTIFACT=$(realpath "$ARTIFACT")
+# Not `realpath`: that's GNU coreutils and isn't dependable on macOS. The
+# absolute path matters because every check runs with cwd moved elsewhere.
+abspath() {
+  printf '%s/%s\n' "$(cd "$(dirname "$1")" && pwd -P)" "$(basename "$1")"
+}
+
+ARTIFACT=$(abspath "$ARTIFACT")
 if [[ -n "$COMPARE_AGAINST" ]]; then
-  COMPARE_AGAINST=$(realpath "$COMPARE_AGAINST")
+  COMPARE_AGAINST=$(abspath "$COMPARE_AGAINST")
 fi
 
 WORKDIR=$(mktemp -d)

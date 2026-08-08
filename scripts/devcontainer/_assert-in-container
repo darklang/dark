@@ -2,7 +2,10 @@
 
 # do not set -euo pipefail here, that's the responsibility of the scripts
 
-if [[ ! -v IN_DEV_CONTAINER ]]; then
+# `-z` rather than `-v`: macOS ships bash 3.2, where `-v` is a syntax error.
+# It failed open there (the guard silently did nothing), which is worse than
+# failing closed, because it looked like it was running.
+if [[ -z "${IN_DEV_CONTAINER:-}" ]]; then
   scripts/run-in-docker "${@}"
   exit $?
 fi

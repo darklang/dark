@@ -285,6 +285,9 @@ build_for_runtime() {
 
     # Cross-arch targets need clang and a sysroot; same-arch uses the default
     # toolchain. See cross_triple_for_runtime above for why.
+    # Expanded below as ${cross_args[@]+...}: under `set -u`, bash 3.2 (macOS)
+    # treats an empty array's expansion as unbound and aborts. Same-arch
+    # targets leave this empty, so every macOS build hit it.
     local cross_args=() triple
     triple="$(cross_triple_for_runtime "$rt")"
     if [[ -n "$triple" ]]; then
@@ -318,7 +321,7 @@ build_for_runtime() {
       /p:DebugType=None \
       /p:DebugSymbols=false \
       /p:PublishAot=true \
-      "${cross_args[@]}" \
+      ${cross_args[@]+"${cross_args[@]}"} \
       --self-contained true \
       --runtime "$rt"
   else
