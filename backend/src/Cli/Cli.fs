@@ -208,7 +208,7 @@ let main (args : string[]) =
     Telemetry.time "cli.consoleWait" [] NonBlockingConsole.wait
 
     // Startup instrumentation. All of it is inert when telemetry is off; read it with
-    // `scripts/testing/view-telemetry.py`.
+    // `scripts/perf/view-telemetry.py`.
 
     // How many package items this run actually decoded. Emitted alongside the spans because per-item
     // cost and item count are useless separately.

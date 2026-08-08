@@ -5,7 +5,7 @@
 // by side says "returning an Option costs six times returning an Int", which is actionable, and
 // that is exactly how the type-checker work of the last few rounds got found.
 //
-//   ./scripts/run-cli run scripts/testing/perf-workloads/costs.dark
+//   ./scripts/run-cli run scripts/perf/workloads/costs.dark
 //
 // Read it as a cost model, not as a benchmark: the baseline row is the harness itself (a fold, a
 // lambda application and an Int add per iteration) and every other row includes it. Compare rows to

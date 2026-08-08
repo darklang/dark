@@ -3,8 +3,8 @@
 
 # The reference workload in node and python, for the allocation-per-iteration comparison.
 #
-# Same shape as scripts/testing/perf-workloads/steady.dark: 200 iterations of
-# `range 1 50 |> map (+1) |> length`. Run Dark's side with `scripts/testing/perf-suite lists`.
+# Same shape as scripts/perf/workloads/steady.dark: 200 iterations of
+# `range 1 50 |> map (+1) |> length`. Run Dark's side with `scripts/perf/suite lists`.
 #
 # The flags below are load-bearing:
 #   --expose-gc            so the script can collect before measuring

@@ -1,29 +1,29 @@
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
-# Allocation and time for every workload in scripts/testing/perf-workloads/suite/.
+# Allocation and time for every workload in scripts/perf/workloads/suite/.
 #
 # Six shapes, because a change that helps one can quietly cost another: records, strings, dicts and
 # JSON go through different parts of the runtime than lists and recursion do.
 #
 # Each workload reads its iteration count from PERF_ITERS and is run twice, at 0 and at N; the
 # difference is the body. Startup, parsing and package loading appear in both and cancel, which is
-# most of the total on a short run. `perf-gate` deliberately does not difference: a regression in
+# most of the total on a short run. `scripts/perf/gate` deliberately does not difference: a regression in
 # startup is still a regression.
 #
-#   scripts/testing/perf-suite                  all workloads
-#   scripts/testing/perf-suite lists json       just these
-#   scripts/testing/perf-suite --iters 500      override the iteration count
-#   scripts/testing/perf-suite --release        against the shipped build
-#   scripts/testing/perf-suite --json out.json  also write machine-readable results
-#   scripts/testing/perf-suite --record         append to benchmarks/results/history.jsonl
+#   scripts/perf/suite                  all workloads
+#   scripts/perf/suite lists json       just these
+#   scripts/perf/suite --iters 500      override the iteration count
+#   scripts/perf/suite --release        against the shipped build
+#   scripts/perf/suite --json out.json  also write machine-readable results
+#   scripts/perf/suite --record         append to benchmarks/results/history.jsonl
 #
 # Allocation repeats to the byte and is the number to trust; time is printed but never fails
 # anything. Method and traps: docs/perf/playbook.md.
 set -euo pipefail
 cd /home/dark/app
 
-SUITE="scripts/testing/perf-workloads/suite"
+SUITE="scripts/perf/workloads/suite"
 ITERS=200
 JSON_OUT=""
 RECORD=false
@@ -57,7 +57,7 @@ else
 fi
 
 if [[ ! -x "$EXE" ]]; then
-  echo "perf-suite: no CLI at $EXE -- run scripts/dev/build (or scripts/build/build-release-cli-exes.sh)" >&2
+  echo "perf/suite: no CLI at $EXE -- run scripts/dev/build (or scripts/build/build-release-cli-exes.sh)" >&2
   exit 2
 fi
 
@@ -99,7 +99,7 @@ results=""
 for name in "${NAMES[@]}"; do
   script="$SUITE/$name.dark"
   if [[ ! -f "$script" ]]; then
-    echo "perf-suite: no such workload: $name" >&2
+    echo "perf/suite: no such workload: $name" >&2
     exit 2
   fi
 

@@ -7,12 +7,12 @@
 # it, so this samples allocation volume rather than object count. Once nothing is above 5%, stop
 # profiling and build a comparison instead -- see docs/perf/playbook.md.
 #
-#   scripts/testing/alloc-profile [script.dark] [out-name]
+#   scripts/perf/alloc-profile [script.dark] [out-name]
 set -euo pipefail
 cd /home/dark/app
 export PATH="$PATH:/home/dark/.dotnet/tools"
 
-SCRIPT=${1:-rundir/perf-workloads/steady.dark}
+SCRIPT=${1:-scripts/perf/workloads/steady.dark}
 OUT=rundir/perf-scratch/${2:-alloc-now}
 mkdir -p rundir/perf-scratch
 

@@ -12,9 +12,9 @@ set -euo pipefail
 cd /home/dark/app
 
 EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
-[[ -x "$EXE" ]] || { echo "perf-checks: no CLI at $EXE -- run scripts/dev/build" >&2; exit 2; }
+[[ -x "$EXE" ]] || { echo "perf/checks: no CLI at $EXE -- run scripts/dev/build" >&2; exit 2; }
 
-CHECKS="scripts/testing/perf-workloads/checks"
+CHECKS="scripts/perf/workloads/checks"
 SCRATCH=rundir/perf-scratch
 mkdir -p "$SCRATCH"
 

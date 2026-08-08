@@ -4,7 +4,7 @@ Written across three campaigns. This is method, not results -- the numbers live 
 `docs/perf/history.md` and what to do next lives in `docs/perf/roadmap.md`.
 
 If you are an agent picking this up cold: read this file, then the roadmap, then run
-`scripts/testing/perf-suite` to see where things actually are before believing anything.
+`scripts/perf/suite` to see where things actually are before believing anything.
 
 The one-line version: **almost all the wasted effort, in every campaign, came from trusting a
 measurement I hadn't checked.** Everything below is a way of not doing that.
@@ -39,7 +39,7 @@ probing first.
 
 ## 3. When the profile goes flat, build a comparison instead
 
-The type profiler (`scripts/testing/alloc-profile`) is excellent until it isn't. Early on, one entry
+The type profiler (`scripts/perf/alloc-profile`) is excellent until it isn't. Early on, one entry
 is 30-50% and the work is obvious. Later, nothing is above 5% and the profiler says "no single thing
 dominates" -- which is true and useless.
 
@@ -53,7 +53,7 @@ was flat; measuring return types against each other was one line of insight:
     returns Result<Int,String>  5,202 B
 
 The two most-used types in the language cost 4-6x anything else. That produced three separate
-commits. It's now `scripts/testing/perf-workloads/costs.dark`; extend it rather than reinventing it,
+commits. It's now `scripts/perf/workloads/costs.dark`; extend it rather than reinventing it,
 and note its harness floor (~200 B) when reading rows.
 
 ## 4. Distrust your own counters
@@ -90,7 +90,7 @@ package lookups out of a computation expression (wrong function -- there are sev
 workloads finally existed, that script was the *second-cheapest* of them, and three of the round's
 biggest wins were invisible on it.
 
-Run `perf-suite` (six shapes) and `perf-http` (the async path, under concurrency) after anything
+Run `scripts/perf/suite` (six shapes) and `scripts/perf/http` (the async path, under concurrency) after anything
 structural. A change that helps one shape can cost another, and you cannot see that from inside one
 workload.
 
@@ -100,7 +100,7 @@ more specific to the thing you're measuring.
 ## 7. Verify past the test suite, by hand
 
 The 10,119-test suite has **twice** passed while the interpreter returned a quietly wrong answer.
-For anything touching execution, run `scripts/testing/perf-checks` and read the output --
+For anything touching execution, run `scripts/perf/checks` and read the output --
 self-recursion, enums, records, lambdas, matches, map/filter/fold, a polymorphic JSON round trip, a
 deliberate type error, an error raised inside nested lambdas, and the four record construction
 failures.
@@ -147,7 +147,7 @@ claiming credit for.
 
 ## 10. Working with the tooling here
 
-- Run `perf-suite`, `perf-gate` and the rest in the **foreground**, with `< /dev/null`. Backgrounded
+- Run `scripts/perf/suite`, `scripts/perf/gate` and the rest in the **foreground**, with `< /dev/null`. Backgrounded
   shell commands are throttled here by ~50x, which reads as a regression.
 - Pass `< /dev/null` to everything going through `scripts/run-in-docker`, or it hangs after
   finishing and every later command in the clone crawls. Never `pkill -f run-in-docker` -- it
@@ -171,13 +171,13 @@ claiming credit for.
 
 ## 11. Leave the next person a gate, not a story
 
-`scripts/testing/perf-gate` asserts allocation against a checked-in budget, separately for Debug and
+`scripts/perf/gate` asserts allocation against a checked-in budget, separately for Debug and
 published, and CI runs it. **Lower the budget in the same commit that earns it** -- a budget nobody
 tightens stops being a gate and becomes a ceiling to drift up to.
 
 **Keep CI's share of this small.** The gate is deliberately one script and a couple of seconds:
-enough to catch a careless regression, not enough to slow every build. Do not put `perf-suite` or
-`perf-http` in CI -- the suite runs twelve processes and `perf-http` starts a server and drives it
+enough to catch a careless regression, not enough to slow every build. Do not put `scripts/perf/suite` or
+`scripts/perf/http` in CI -- the suite runs twelve processes and `scripts/perf/http` starts a server and drives it
 under load. Those are for a human, or a nightly, deciding something. A long perf job in the main
 pipeline gets ignored and then disabled.
 

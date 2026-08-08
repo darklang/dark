@@ -10,7 +10,7 @@ Method: `docs/perf/playbook.md`. What's next: `docs/perf/roadmap.md`.
 
 ## The arc
 
-The reference workload is `scripts/testing/perf-workloads/steady.dark`: 200 iterations of
+The reference workload is `scripts/perf/workloads/steady.dark`: 200 iterations of
 `List.range 1 50 |> List.map (+1) |> List.length`. Whole-process allocation, Debug, unless noted.
 
 | point | allocation | body time |

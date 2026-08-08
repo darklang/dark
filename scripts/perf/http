@@ -8,15 +8,15 @@
 # server, warms it, reads its allocation over its own /alloc route, fires N requests at concurrency
 # C, and reads again.
 #
-#   scripts/testing/perf-http                 /json, 2000 requests, concurrency 16
-#   scripts/testing/perf-http --route /hello  a route that does almost nothing
-#   scripts/testing/perf-http -n 5000 -c 64   more load
-#   scripts/testing/perf-http --release       against the shipped build
+#   scripts/perf/http                 /json, 2000 requests, concurrency 16
+#   scripts/perf/http --route /hello  a route that does almost nothing
+#   scripts/perf/http -n 5000 -c 64   more load
+#   scripts/perf/http --release       against the shipped build
 set -euo pipefail
 cd /home/dark/app
 
 EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
-SERVER="scripts/testing/perf-workloads/http-server.dark"
+SERVER="scripts/perf/workloads/http-server.dark"
 PORT="${PERF_HTTP_PORT:-9097}"
 ROUTE="/json"
 N=2000
@@ -40,7 +40,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ ! -x "$EXE" ]]; then
-  echo "perf-http: no CLI at $EXE -- run scripts/dev/build" >&2
+  echo "perf/http: no CLI at $EXE -- run scripts/dev/build" >&2
   exit 2
 fi
 
@@ -67,7 +67,7 @@ SERVER_PID=$!
 for _ in $(seq 1 120); do
   if grep -q LISTENING "$SERVER_LOG" 2>/dev/null; then break; fi
   if ! kill -0 "$SERVER_PID" 2>/dev/null; then
-    echo "perf-http: server exited before listening:" >&2
+    echo "perf/http: server exited before listening:" >&2
     cat "$SERVER_LOG" >&2
     exit 1
   fi
@@ -75,7 +75,7 @@ for _ in $(seq 1 120); do
 done
 
 if ! grep -q LISTENING "$SERVER_LOG" 2>/dev/null; then
-  echo "perf-http: server never reported LISTENING" >&2
+  echo "perf/http: server never reported LISTENING" >&2
   cat "$SERVER_LOG" >&2
   exit 1
 fi

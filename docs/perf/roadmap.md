@@ -7,20 +7,20 @@ Numbers are measured unless marked *(estimate)*. The difference matters a lot wh
 
 **How to measure anything here:**
 
-    scripts/testing/perf-suite              six workloads, allocation per iteration
-    scripts/testing/perf-suite --release    the same, against the shipped build
-    scripts/testing/perf-suite --record     append a run to benchmarks/results/history.jsonl
-    scripts/testing/perf-http               a real server under concurrent load
-    scripts/testing/perf-gate               the CI assertion, against a checked-in budget
-    scripts/testing/perf-checks             by-hand semantics and error-message checks
-    scripts/testing/perf-crosslang          the same workload in node and python
-    scripts/testing/alloc-profile           allocation by type name
-    ./scripts/run-cli run scripts/testing/perf-workloads/costs.dark    per-operation cost table
+    scripts/perf/suite              six workloads, allocation per iteration
+    scripts/perf/suite --release    the same, against the shipped build
+    scripts/perf/suite --record     append a run to benchmarks/results/history.jsonl
+    scripts/perf/http               a real server under concurrent load
+    scripts/perf/gate               the CI assertion, against a checked-in budget
+    scripts/perf/checks             by-hand semantics and error-message checks
+    scripts/perf/crosslang          the same workload in node and python
+    scripts/perf/alloc-profile           allocation by type name
+    ./scripts/run-cli run scripts/perf/workloads/costs.dark    per-operation cost table
 
 Method, and the traps: `docs/perf/playbook.md`. History and how we got here:
 `docs/perf/history.md`.
 
-Only `perf-gate` runs in CI, and only because it's one script and a couple of seconds. The suite and
+Only `scripts/perf/gate` runs in CI, and only because it's one script and a couple of seconds. The suite and
 the HTTP driver are for a human deciding something, not for every build.
 
 ---
@@ -52,7 +52,7 @@ So when AOT lands, run `perf-suite --release` and `perf-http --release` before a
 startup timing. The six workloads are all steady-state loops and are precisely the shape that could
 regress. If they do, that's a real tradeoff to make deliberately, not a surprise to find later.
 
-**And re-pin the gate.** `scripts/testing/perf-budget.json` holds a published budget measured against
+**And re-pin the gate.** `scripts/perf/budget.json` holds a published budget measured against
 an R2R build. An AOT binary will not allocate identically, so the gate needs
 `perf-gate --published --update` in the same commit, with the new number stated.
 
