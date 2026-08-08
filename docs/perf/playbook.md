@@ -133,9 +133,11 @@ crediting.
 - Environment variables do **not** survive the container re-entry these scripts do. Make it a flag.
 - `ls a b` exits **non-zero when either operand is missing**, even though it prints the one that
   matched. Under `set -euo pipefail` that kills the script mid-assignment with no message.
-- There are **two** places a published binary can be: CI's `build-backend` job runs `dotnet publish`
-  and leaves it in the publish directory, while `build-cli` runs `build-release-cli-exes.sh`, which
-  *moves* it to `clis/` and empties that one. `scripts/perf/_common` handles both; use it.
+- There are **three** places a published binary can be, and the difference is the runtime
+  identifier. CI publishes the solution with no `-r`, so it lands in `net10.0/publish/`;
+  `build-release-cli-exes.sh` publishes per-RID into `net10.0/<rid>/publish/` and then *moves* it to
+  `clis/`, emptying that. A tool that knows one layout passes in one environment and fails in
+  another. `scripts/perf/_common` knows all three; use it rather than writing the paths again.
 - `backend/Build/out` is a container volume and is not writable from the host. Staging anything there
   has to happen inside the container.
 - Debug builds in ~2 minutes, Release in ~10. Develop in Debug, decide in Release, and know the two

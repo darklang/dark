@@ -32,7 +32,9 @@ else
 fi
 
 if [[ ! -x "$EXE" ]]; then
-  echo "perf/gate: no CLI at $EXE" >&2
+  if [[ "$PUBLISHED" == "true" ]]; then no_release_exe perf/gate
+  else echo "perf/gate: no CLI at $EXE -- run scripts/dev/build" >&2
+  fi
   exit 2
 fi
 

@@ -52,7 +52,9 @@ fi
 TELEMETRY=$(telemetry_for "${EXE:-.}")
 
 if [[ ! -x "$EXE" ]]; then
-  echo "perf/suite: no CLI at $EXE -- run scripts/dev/build (or scripts/build/build-release-cli-exes.sh)" >&2
+  if [[ "$RELEASE" == "true" ]]; then no_release_exe perf/suite
+  else echo "perf/suite: no CLI at $EXE -- run scripts/dev/build" >&2
+  fi
   exit 2
 fi
 
