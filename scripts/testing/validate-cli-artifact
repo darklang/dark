@@ -1,0 +1,222 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# Validate a published CLI artifact.
+#
+#   ./scripts/testing/validate-cli-artifact clis/darklang-alpha-abc1234567-linux-x64
+#   ./scripts/testing/validate-cli-artifact <artifact> --compare-against <other>
+#
+# The gate for the NativeAOT rollout. A trimming failure is invisible at build
+# time and surfaces at runtime in whichever command happens to hit it, so an
+# artifact is not considered good until it has actually run.
+#
+# Three parts, in increasing order of how much they'd catch:
+#
+#   1. A reflection-heavy smoke set. These are the paths most likely to break
+#      under trimming: the parser, the interpreter, package loading, the HTTP
+#      client's TLS stack, the HTTP server's request handling.
+#   2. The Dark CLI test suite, pointed at this artifact via DARK_CLI_UNDER_TEST
+#      rather than at the dev wrapper.
+#   3. Optionally, an output diff against a second artifact (the R2R build of
+#      the same commit).
+#
+# On (3): checking exit codes is not enough. A failing run is fast, and during
+# the perf campaign a broken binary was mistaken for a fast one three times.
+# Both times the tell was output (`ls` printing 5 lines where the other printed
+# 7), not timing or exit status.
+#
+# Each artifact gets its own DARKLANG_HOME. Two binaries sharing one .darklang
+# directory corrupt the store outright ("database disk image is malformed"),
+# which is its own way to produce a confidently wrong result.
+
+set -euo pipefail
+
+ARTIFACT=""
+COMPARE_AGAINST=""
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --compare-against)
+      COMPARE_AGAINST="${2:-}"
+      shift 2
+      ;;
+    --compare-against=*)
+      COMPARE_AGAINST="${1#*=}"
+      shift
+      ;;
+    -*)
+      echo "Unknown argument: $1"
+      exit 1
+      ;;
+    *)
+      if [[ -n "$ARTIFACT" ]]; then
+        echo "Expected one artifact, got a second: $1"
+        exit 1
+      fi
+      ARTIFACT="$1"
+      shift
+      ;;
+  esac
+done
+
+if [[ -z "$ARTIFACT" ]]; then
+  echo "Usage: $0 <artifact> [--compare-against <other-artifact>]"
+  exit 1
+fi
+if [[ ! -x "$ARTIFACT" ]]; then
+  echo "Not an executable file: $ARTIFACT"
+  exit 1
+fi
+
+# Not `realpath`: that's GNU coreutils and isn't dependable on macOS. The
+# absolute path matters because every check runs with cwd moved elsewhere.
+abspath() {
+  printf '%s/%s\n' "$(cd "$(dirname "$1")" && pwd -P)" "$(basename "$1")"
+}
+
+ARTIFACT=$(abspath "$ARTIFACT")
+if [[ -n "$COMPARE_AGAINST" ]]; then
+  COMPARE_AGAINST=$(abspath "$COMPARE_AGAINST")
+fi
+
+WORKDIR=$(mktemp -d)
+trap 'rm -rf "$WORKDIR"' EXIT
+
+failures=0
+
+# Prefix each line of stdin. `sed 's/^/.../'` trips SC2001 and the parameter
+# expansion it suggests doesn't do per-line prefixes, so: a read loop.
+indent() {
+  while IFS= read -r line; do
+    printf '       %s\n' "$line"
+  done
+}
+
+# Run one command against one binary, in that binary's own home directory.
+# Echoes the combined output; returns the command's exit code.
+run_in_home() {
+  local binary="$1" home="$2"
+  shift 2
+  mkdir -p "$home"
+  ( cd "$home" && HOME="$home" "$binary" "$@" 2>&1 )
+}
+
+check() {
+  local name="$1" expected="$2"
+  shift 2
+
+  local out rc=0
+  out=$(run_in_home "$ARTIFACT" "$WORKDIR/primary" "$@") || rc=$?
+
+  if [[ $rc -ne 0 ]]; then
+    echo "  FAIL $name (exit $rc)"
+    echo "$out" | indent
+    failures=$((failures + 1))
+    return
+  fi
+  if [[ -n "$expected" && "$out" != *"$expected"* ]]; then
+    echo "  FAIL $name (output did not contain '$expected')"
+    echo "$out" | indent
+    failures=$((failures + 1))
+    return
+  fi
+  echo "  ok   $name"
+}
+
+echo "Validating $(basename "$ARTIFACT")"
+echo ""
+echo "Smoke set:"
+
+# Cheap liveness first. If these fail, everything below is noise.
+#
+# `status` goes first deliberately, so the check that covers first run is not
+# also the one that talks to the network. This is a fresh store, so whichever
+# command runs first pays for the setup and the package-DB grow, and that is
+# worth asserting on: first run is the path every new user takes. But `version`
+# calls the GitHub releases API, and CI runs from shared IPs that GitHub
+# rate-limits, so leading with it conflates "first run is broken" with "GitHub
+# said no today". Keep both, just not as the same assertion.
+check "status (first run)" ""  status
+check "version"        ""    version
+check "help"           ""    help
+
+# The interpreter, parser and package loading in one line. If trimming broke
+# any of the three, this is where it shows.
+check "eval"           "3"   eval "1 + 2"
+
+# Package space: name resolution and the package deserializer.
+check "ls"             ""    ls
+check "ls a module"    ""    ls Darklang.Stdlib.List
+
+# The HTTP client's whole TLS stack, which is reflection-heavy and entirely
+# absent from every other check here.
+check "version check"  ""    version --check
+
+echo ""
+echo "Dark CLI test suite:"
+
+# There's no `tests` subcommand; the suite is a package fn. It stays in the
+# repo root because its cases shell out with paths relative to the tree, but
+# the binary those cases drive is the artifact, via DARK_CLI_UNDER_TEST.
+#
+# runAllTests returns 0/1 rather than setting the process exit code, so the
+# summary line is what we check.
+suite_out=""
+suite_rc=0
+# The home directory has to exist before the binary starts. A single-file R2R
+# build extracts its embedded native libraries to a cache under HOME and fails
+# outright if that path isn't writable ("Failed to determine location for
+# extracting embedded files"). AOT binaries extract nothing, so this only
+# shows up the first time you point the validator at an R2R artifact, which
+# is exactly what --compare-against does.
+mkdir -p "$WORKDIR/suite"
+suite_out=$(DARK_CLI_UNDER_TEST="$ARTIFACT" HOME="$WORKDIR/suite" \
+  "$ARTIFACT" eval "Darklang.Cli.Tests.runAllTests ()" 2>&1) || suite_rc=$?
+
+if [[ $suite_rc -ne 0 ]]; then
+  echo "  FAIL suite did not run (exit $suite_rc)"
+  echo "$suite_out" | tail -40 | indent
+  failures=$((failures + 1))
+elif echo "$suite_out" | grep -q "All tests passed"; then
+  echo "$suite_out" | grep -E "^(Total tests|Passed|Failed):" | indent
+  echo "  ok   suite"
+else
+  echo "  FAIL suite"
+  echo "$suite_out" | tail -40 | indent
+  failures=$((failures + 1))
+fi
+
+if [[ -n "$COMPARE_AGAINST" ]]; then
+  echo ""
+  echo "Output comparison against $(basename "$COMPARE_AGAINST"):"
+
+  # Warm both binaries first. A CLI keeps its store next to itself, so the
+  # first invocation of each prints setup chatter ("Setting up Darklang CLI
+  # data directory", "Growing package DB from ops") that has nothing to do
+  # with whether the two builds agree.
+  run_in_home "$ARTIFACT" "$WORKDIR/cmp-a" version > /dev/null 2>&1 || true
+  run_in_home "$COMPARE_AGAINST" "$WORKDIR/cmp-b" version > /dev/null 2>&1 || true
+
+  # Commands whose output should be byte-identical between two builds of the
+  # same commit. `version` is excluded on purpose: it can legitimately differ.
+  for cmd in "help" "ls" "ls Darklang.Stdlib.List" "eval 1 + 2"; do
+    # shellcheck disable=SC2086
+    a=$(run_in_home "$ARTIFACT" "$WORKDIR/cmp-a" $cmd 2>&1 || true)
+    # shellcheck disable=SC2086
+    b=$(run_in_home "$COMPARE_AGAINST" "$WORKDIR/cmp-b" $cmd 2>&1 || true)
+    if [[ "$a" == "$b" ]]; then
+      echo "  ok   $cmd"
+    else
+      echo "  FAIL $cmd (output differs)"
+      diff <(echo "$b") <(echo "$a") | head -20 | indent
+      failures=$((failures + 1))
+    fi
+  done
+fi
+
+echo ""
+if [[ $failures -ne 0 ]]; then
+  echo "$failures check(s) failed."
+  exit 1
+fi
+echo "All checks passed."

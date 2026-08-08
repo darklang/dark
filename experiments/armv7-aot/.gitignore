@@ -1,0 +1,3 @@
+# Build output, never committed.
+*.a
+*.o
