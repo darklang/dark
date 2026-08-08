@@ -11,15 +11,15 @@ let toEgcSeq (s : string) : seq<string> =
       yield tee.GetTextElement()
   }
 
-/// True when the string's extended grapheme clusters are exactly its chars, so EGC-wise operations
-/// and ordinary char-wise ones give the same answer.
+/// True when the string's extended grapheme clusters are exactly its chars, so a char-wise
+/// operation gives the same answer as the EGC-correct one.
 ///
-/// ASCII qualifies, with one exception: CR followed by LF is a single cluster, so a string
-/// containing CR is rejected outright rather than looked ahead through. That costs nothing real and
-/// keeps the rule to one comparison per char.
+/// Purely a performance guard: the EGC implementations build one string per cluster, and most
+/// strings a program splits or measures are paths, keys and identifiers. Correctness never depends
+/// on which branch is taken, so if in doubt, return false.
 ///
-/// This exists because the EGC-correct implementations build one string per cluster, and the
-/// overwhelming majority of strings a program splits or measures are paths, keys and identifiers.
+/// CR is rejected along with non-ASCII, because CRLF is a single cluster. Rejecting outright rather
+/// than looking ahead keeps this to one comparison per char.
 let isCharwise (s : string) : bool =
   let mutable i = 0
   let mutable ok = true

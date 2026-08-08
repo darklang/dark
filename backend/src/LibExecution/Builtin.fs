@@ -19,8 +19,8 @@ let renameFunctions
   (existing : List<BuiltInFn>)
   : List<BuiltInFn> =
   // A rename can name a function that is itself the target of an earlier rename, so look in what
-  // this fold has produced before falling back to the real ones. It used to merge the two maps to
-  // ask, which rebuilt all ~800 entries per rename.
+  // this fold has produced before falling back to the real ones. Merging the two maps to ask that
+  // rebuilt the whole table once per rename.
   let existingByName = Dictionary<FQFnName.Builtin, BuiltInFn>()
   existing |> List.iter (fun fn -> existingByName[fn.name] <- fn)
 

@@ -446,15 +446,14 @@ let unify
 
 /// Resolved declarations for types with no type arguments, which is nearly all of them.
 ///
-/// Type-checking a record or enum argument resolves its declaration, and that goes to the package
-/// manager every time. It shows up as soon as you look at anything that passes records around: an
-/// HTTP request costs 258 KB, and the type checker is most of the profile.
+/// Type-checking a record or enum argument resolves its declaration, which otherwise goes to the
+/// package manager on every call. Anything that passes records around pays it constantly.
 ///
 /// Keyed on the `Types` instance as well as the name. Keying on the name alone looks safe -- an
-/// `FQTypeName` is a content hash, so the same name should be the same declaration -- and it is not:
-/// 713 tests errored, because tests mint their own package managers and reuse names across different
-/// declarations. Scoping per `Types` keeps essentially all of the win anyway, since a server has one
-/// for the life of the process.
+/// `FQTypeName` is a content hash, so the same name should mean the same declaration -- but it is
+/// not: tests mint their own package managers and reuse names across different declarations.
+/// Scoping per `Types` costs nothing in practice, since a server has one for the life of the
+/// process.
 ///
 /// Only the non-alias branch is cached: resolving an alias depends on the caller's type symbol
 /// table, so its answer isn't a function of the name.
@@ -587,9 +586,9 @@ let private unifyDvalSync
 /// store. Failures are rare and already the slow path, so they are not worth a sync variant.
 /// The type arguments of a custom type, unified pairwise without awaiting.
 ///
-/// Parameterised types are not a corner case: `Option` and `Result` are the two most common types in
-/// the language, and until this existed, returning one cost about 4 KB against 1.3 KB for a plain
-/// record, entirely because the type arguments sent the check down the asynchronous route.
+/// Parameterised types are not a corner case: `Option` and `Result` are the two most common types
+/// in the language, and returning either used to cost several times a plain record purely because
+/// its type arguments sent the check down the asynchronous route.
 ///
 /// `ValueNone` on anything unresolved *or* mismatched, so the async path still produces the error
 /// message and the path that describes where the mismatch was.
@@ -1088,10 +1087,9 @@ module DvalCreator =
   /// One field of a record being constructed: validate it, unify it against the declared field
   /// type, and fold what that taught us back into the type arguments and the symbol table.
   ///
-  /// Top-level and fully parameterised, and threading its accumulators as arguments rather than as
-  /// a tuple. As a lambda passed to `Ply.List.foldSequentially` it allocated a closure, a state
-  /// machine and a three-element accumulator tuple *per field of every record ever built*; the
-  /// tuple alone was 2% of the profile for an HTTP request.
+  /// Top-level and fully parameterised, threading its accumulators as arguments rather than as a
+  /// tuple. As a lambda passed to `Ply.List.foldSequentially` it allocated a closure, a state
+  /// machine and a three-element accumulator tuple *per field of every record ever built*.
   let rec private checkRecordFields
     (types : Types)
     (threadID : ThreadID)
@@ -1123,9 +1121,8 @@ module DvalCreator =
       | ValueSome fieldDef ->
         // The overwhelming majority of fields unify without needing the type store, and a type with
         // no parameters has nothing to learn from them. When both hold, the whole field is handled
-        // without entering the Ply builder at all -- and Ply's builder is not resumable code, so it
-        // allocates a continuation in Release just as much as in Debug. This was 9% of the profile
-        // of an HTTP server returning a constant string.
+        // without entering the Ply builder at all -- which matters because Ply's builder is not
+        // resumable code, so it allocates a continuation in Release just as much as in Debug.
         match tryUnifySync tst fieldDef.typ fieldValue with
         | ValueSome newTST when List.isEmpty currentTypeArgs ->
           checkRecordFields

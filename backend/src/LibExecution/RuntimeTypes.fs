@@ -428,54 +428,59 @@ type TypeReference =
     isConcrete this
 
 
-/// Our record/tracking of any type arguments in scope
+/// The type arguments in scope: a mapping from type-variable name to the concrete type bound to it.
 ///
-/// i.e. within the execution of
-///   `let serialize<'a> (x : 'a) : string = ...`,
-/// called with inputs
-///   `serialize<int> 1`,
-/// we would have a TypeSymbolTable of
-///  { "a" => TInt64 }
-/// At most two entries in practice. The interpreter's own instrumentation reports a maximum of 2 and
-/// a mean of 1.23 over a real workload, and as an `FSharpMap` this was 47% of everything the
-/// interpreter allocated, because a one-entry map is three heap objects.
+/// Within the execution of `let serialize<'a> (x : 'a) : string = ...` called as `serialize<int> 1`,
+/// this holds `{ "a" => TInt64 }`.
 ///
-/// So the first two entries live in the struct and allocate nothing; above two it falls back to a
-/// Map, which in this codebase has never been observed to happen. Copying is 48 bytes of stack on a
-/// path that was doing three heap allocations.
+/// Represented as two inline slots plus an overflow map. It is nearly always one or two entries,
+/// and as an `FSharpMap` it was the single largest source of allocation in the interpreter, since
+/// a one-entry map is three heap objects.
 ///
-/// Equality is by content, not field-by-field: two tables with the same pairs must compare equal
-/// whichever way they were built, since a `Dval` can carry one (inside `DApplicable`) and Dvals are
-/// compared.
+/// Invariants, which every operation below depends on:
+/// - `Count` is the *total* number of entries, inline and overflow together.
+/// - Inline slots fill from 0 and stay packed: slot 0 is live when `Count >= 1`, slot 1 when
+///   `Count >= 2`. `remove` slides entries down to preserve this.
+/// - `Overflow` holds only entries past the first two, and is `Map.empty` (a singleton, so free)
+///   whenever `Count <= 2`. In practice it has never been observed non-empty.
+/// - A name appears in at most one place across the slots and the overflow.
+/// - Order is not part of the value. `ToList` returns slots first, but equality and hashing are
+///   order-independent, so callers must not depend on it.
+///
+/// Equality is by content rather than field-by-field, since two tables with the same pairs can be
+/// built different ways, and a `Dval` can carry one inside `DApplicable`.
 [<Struct; NoComparison; CustomEquality>]
 type TypeSymbolTable =
   {
+    /// Total entries, inline and overflow together
     Count : int
-    K0 : string
-    V0 : ValueType
-    K1 : string
-    V1 : ValueType
-    /// Only meaningful when `Count` is above 2. `Map.empty` otherwise, which is a singleton.
-    Rest : Map<string, ValueType>
+    Var0 : string
+    Bound0 : ValueType
+    Var1 : string
+    Bound1 : ValueType
+    Overflow : Map<string, ValueType>
   }
 
   member this.TryFind(name : string) : ValueType voption =
-    if this.Count > 0 && this.K0 = name then
-      ValueSome this.V0
-    elif this.Count > 1 && this.K1 = name then
-      ValueSome this.V1
+    if this.Count > 0 && this.Var0 = name then
+      ValueSome this.Bound0
+    elif this.Count > 1 && this.Var1 = name then
+      ValueSome this.Bound1
     elif this.Count > 2 then
       let mutable found = Unchecked.defaultof<ValueType>
-      if this.Rest.TryGetValue(name, &found) then ValueSome found else ValueNone
+      if this.Overflow.TryGetValue(name, &found) then ValueSome found else ValueNone
     else
       ValueNone
 
   member this.ToList() : List<string * ValueType> =
     match this.Count with
     | 0 -> []
-    | 1 -> [ (this.K0, this.V0) ]
-    | 2 -> [ (this.K0, this.V0); (this.K1, this.V1) ]
-    | _ -> (this.K0, this.V0) :: (this.K1, this.V1) :: Map.toList this.Rest
+    | 1 -> [ (this.Var0, this.Bound0) ]
+    | 2 -> [ (this.Var0, this.Bound0); (this.Var1, this.Bound1) ]
+    | _ ->
+      (this.Var0, this.Bound0)
+      :: (this.Var1, this.Bound1)
+      :: Map.toList this.Overflow
 
   override this.Equals(o : obj) : bool =
     match o with
@@ -495,16 +500,15 @@ type TypeSymbolTable =
     this.ToList() |> List.fold (fun acc (k, v) -> acc ^^^ (hash k * 31 + hash v)) 0
 
 
-/// Operations on `TypeSymbolTable`. Every one of these is allocation-free at two entries or fewer,
-/// which the instrumentation says is always.
+/// Operations on `TypeSymbolTable`. All of these are allocation-free at two entries or fewer.
 module TST =
   let empty : TypeSymbolTable =
     { Count = 0
-      K0 = Unchecked.defaultof<string>
-      V0 = Unchecked.defaultof<ValueType>
-      K1 = Unchecked.defaultof<string>
-      V1 = Unchecked.defaultof<ValueType>
-      Rest = Map.empty }
+      Var0 = Unchecked.defaultof<string>
+      Bound0 = Unchecked.defaultof<ValueType>
+      Var1 = Unchecked.defaultof<string>
+      Bound1 = Unchecked.defaultof<ValueType>
+      Overflow = Map.empty }
 
   let inline isEmpty (t : TypeSymbolTable) : bool = t.Count = 0
   let inline count (t : TypeSymbolTable) : int = t.Count
@@ -515,47 +519,51 @@ module TST =
   let inline toList (t : TypeSymbolTable) : List<string * ValueType> = t.ToList()
 
   let add (name : string) (vt : ValueType) (t : TypeSymbolTable) : TypeSymbolTable =
-    if t.Count > 0 && t.K0 = name then
-      { t with V0 = vt }
-    elif t.Count > 1 && t.K1 = name then
-      { t with V1 = vt }
-    elif t.Count > 2 && Map.containsKey name t.Rest then
-      { t with Rest = Map.add name vt t.Rest }
+    if t.Count > 0 && t.Var0 = name then
+      { t with Bound0 = vt }
+    elif t.Count > 1 && t.Var1 = name then
+      { t with Bound1 = vt }
+    elif t.Count > 2 && Map.containsKey name t.Overflow then
+      { t with Overflow = Map.add name vt t.Overflow }
     elif t.Count = 0 then
-      { t with Count = 1; K0 = name; V0 = vt }
+      { t with Count = 1; Var0 = name; Bound0 = vt }
     elif t.Count = 1 then
-      { t with Count = 2; K1 = name; V1 = vt }
+      { t with Count = 2; Var1 = name; Bound1 = vt }
     else
-      { t with Count = t.Count + 1; Rest = Map.add name vt t.Rest }
+      { t with Count = t.Count + 1; Overflow = Map.add name vt t.Overflow }
 
   let remove (name : string) (t : TypeSymbolTable) : TypeSymbolTable =
-    if t.Count > 0 && t.K0 = name then
+    if t.Count > 0 && t.Var0 = name then
       // Slide the second entry down so the invariant "slots fill from 0" holds.
       if t.Count = 1 then
         empty
       elif t.Count = 2 then
-        { t with Count = 1; K0 = t.K1; V0 = t.V1 }
+        { t with Count = 1; Var0 = t.Var1; Bound0 = t.Bound1 }
       else
-        match Map.toList t.Rest with
+        match Map.toList t.Overflow with
         | (k, v) :: _ ->
           { t with
-              K0 = t.K1
-              V0 = t.V1
-              K1 = k
-              V1 = v
-              Rest = Map.remove k t.Rest
+              Var0 = t.Var1
+              Bound0 = t.Bound1
+              Var1 = k
+              Bound1 = v
+              Overflow = Map.remove k t.Overflow
               Count = t.Count - 1 }
-        | [] -> { t with Count = 1; K0 = t.K1; V0 = t.V1 }
-    elif t.Count > 1 && t.K1 = name then
+        | [] -> { t with Count = 1; Var0 = t.Var1; Bound0 = t.Bound1 }
+    elif t.Count > 1 && t.Var1 = name then
       if t.Count = 2 then
-        { t with Count = 1; K1 = Unchecked.defaultof<string> }
+        { t with Count = 1; Var1 = Unchecked.defaultof<string> }
       else
-        match Map.toList t.Rest with
+        match Map.toList t.Overflow with
         | (k, v) :: _ ->
-          { t with K1 = k; V1 = v; Rest = Map.remove k t.Rest; Count = t.Count - 1 }
-        | [] -> { t with Count = 1; K1 = Unchecked.defaultof<string> }
-    elif t.Count > 2 && Map.containsKey name t.Rest then
-      { t with Rest = Map.remove name t.Rest; Count = t.Count - 1 }
+          { t with
+              Var1 = k
+              Bound1 = v
+              Overflow = Map.remove k t.Overflow
+              Count = t.Count - 1 }
+        | [] -> { t with Count = 1; Var1 = Unchecked.defaultof<string> }
+    elif t.Count > 2 && Map.containsKey name t.Overflow then
+      { t with Overflow = Map.remove name t.Overflow; Count = t.Count - 1 }
     else
       t
 
@@ -574,9 +582,9 @@ module TST =
     (t : TypeSymbolTable)
     : 'st =
     let mutable acc = state
-    if t.Count > 0 then acc <- f acc t.K0 t.V0
-    if t.Count > 1 then acc <- f acc t.K1 t.V1
-    if t.Count > 2 then acc <- Map.fold f acc t.Rest
+    if t.Count > 0 then acc <- f acc t.Var0 t.Bound0
+    if t.Count > 1 then acc <- f acc t.Var1 t.Bound1
+    if t.Count > 2 then acc <- Map.fold f acc t.Overflow
     acc
 
   let map (f : ValueType -> 'a) (t : TypeSymbolTable) : Map<string, 'a> =
@@ -1541,12 +1549,11 @@ module Dval =
   // instance from a fresh one, and the values a program actually computes cluster hard at the small
   // end: loop counters, indices, lengths, flags.
   //
-  // `DInt` is the expensive one. `DarkInt` is a struct DU whose `Infinite` case carries a `bigint`,
-  // so a `DInt` object is 56 bytes whether the number needs them or not -- adding two small integers
-  // was the second-largest builtin in the profile at 1.1 MB. `DBool` is only 24 bytes but there are
-  // just two of them in the universe, so caching them is free.
+  // `DInt` is the expensive one: `DarkInt` is a struct DU whose `Infinite` case carries a `bigint`,
+  // so a `DInt` object is 56 bytes whether the number needs them or not. `DBool` is only 24 bytes,
+  // but there are exactly two in the universe, so caching them is free.
   //
-  // The tables cost about 90 KB at startup, once.
+  // The tables are built once at startup and never written after.
   let dTrue : Dval = DBool true
   let dFalse : Dval = DBool false
   let inline bool (b : bool) : Dval = if b then dTrue else dFalse
@@ -1614,10 +1621,8 @@ module Dval =
 
   // The scalar cases above hand back a shared wrapper. The container cases could not, because their
   // ValueType depends on the element type -- so `Known(KTList t)` was two objects, built fresh, on
-  // every call. `toValueType` runs at least three times per package call (argument inference, the
-  // parameter check, the return check), and those three stages together were 1.79 MB on the reference
-  // workload; with the container cases stubbed out to a constant they measured 0.03 MB. So this is
-  // essentially all of it.
+  // every call, and `toValueType` runs at least three times per package call (argument inference,
+  // the parameter check, the return check).
   //
   // Memoized on the element type's *identity*, not its structure. That's what makes the lookup cheap,
   // and it's enough: a list carries one `ValueType` object for its whole life, and the scalar element
@@ -2248,10 +2253,10 @@ module ApplyStage =
   let PkgFrameTst = 19
   // Coarse brackets around a whole Apply, a whole lambda application and a whole builtin call.
   //
-  // These NEST, and they nest into each other and into the fine-grained stages: a builtin that runs
-  // Dark code contains the applies that code makes. So they cannot be summed, and they cannot be
-  // compared against the process total. They exist to answer "is anything large hiding between the
-  // fine-grained stages", which they did -- the answer was no, to within 29 KB.
+  // These NEST, into each other and into the fine-grained stages: a builtin that runs Dark code
+  // contains the applies that code makes. So they cannot be summed, and cannot be compared against
+  // the process total. They answer one question -- "is anything large hiding between the
+  // fine-grained stages" -- and nothing else.
   [<Literal>]
   let ApplyTotal = 20
   [<Literal>]
@@ -2406,10 +2411,10 @@ type InterpreterStats =
 
     /// How many times each stage's bracket ran, alongside the bytes.
     ///
-    /// Without this, the only denominator available is the total call count, and dividing by it
-    /// silently assumes the cost is spread evenly. It isn't: `pkg.fetchOnly` looked like 20 bytes on
-    /// each of 41,402 package calls and was really ~15 KB on each of 52 cold ones, with the other
-    /// 41,350 free. Two separate pieces of work got aimed at the wrong thing before that turned up.
+    /// Without this the only denominator is the total call count, and dividing by it assumes the
+    /// cost is spread evenly. Cold-path stages break that badly: a stage that costs kilobytes on a
+    /// few dozen cold calls and nothing on tens of thousands of warm ones reads as a small
+    /// per-call cost, and work aimed at it measures flat.
     countByStage : int64[]
 
     /// Type-symbol-table size at each frame push, summed and maxed. The TST is an immutable F# Map that a
@@ -2539,8 +2544,8 @@ type VMState =
     pendingCallArgs : Dictionary<uuid, Dval list>
 
     /// Scratch space for the bindings a match pattern produces, reused across every `match` the VM
-    /// evaluates. As a returned `List<Register * Dval>` this was a tuple and a cons per bound
-    /// variable per pattern *tried*, which came to 11.6% of allocation.
+    /// evaluates. As a returned `List<Register * Dval>` this cost a tuple and a cons per bound
+    /// variable per pattern *tried* -- including every pattern that failed.
     ///
     /// A buffer rather than writing straight into the registers, because a pattern can fail halfway:
     /// the caller applies these only once the whole pattern has matched, and an or-pattern's failed
@@ -2632,20 +2637,19 @@ type BuiltInFn =
 and BuiltInFnSig =
   // (exeState * vmState * typeArgs * fnArgs) -> result
   //
-  // Arguments arrive as an *array*. As an `FSharpList` the caller paid a cons per argument to build
-  // one: 63 bytes on every builtin call, which measured at 77% of the recursion workload's
-  // allocation and 27% of the list workload's. An array is a single allocation, and it leaves room
-  // to hand over a reused buffer later, which a list can never do.
+  // Arguments arrive as an *array*. As an `FSharpList` the caller paid a cons per argument on every
+  // builtin call, which was the single largest source of allocation in call-heavy code. An array is
+  // one allocation, and unlike a list it can be a reused buffer -- which is what `CallFrame.argBuf`
+  // now hands over.
   //
-  // A *struct* tuple. As a reference tuple this was built on the heap on every builtin call, and at
-  // 9.5% of the interpreter's allocation profile it was the last fixed cost of making one. The price
+  // A *struct* tuple, because as a reference tuple this was another heap object per call. The price
   // is that every implementation's pattern has to say `struct (...)`.
   (struct (ExecutionState * VMState * List<TypeReference> * Dval[])) -> DvalTask
 
 
 /// Functionally written in F# and shipped with the executable
-/// Both are `Dictionary` rather than `Map`. There are ~800 builtins, the set is fixed once the
-/// process starts, and it is looked up on every builtin call. An F# `Map` charged for that twice: a
+/// Both are `Dictionary` rather than `Map`. The set is fixed once the process starts and is looked
+/// up on every builtin call, and an F# `Map` charged for that twice: a
 /// tree node per entry per rebuild (and `combine` rebuilds at every nesting level, so each builtin
 /// was inserted into a balanced tree three times), and an O(log n) walk of generic structural
 /// comparisons on every lookup.
@@ -2781,10 +2785,9 @@ module Types =
 
   /// Declarations already looked up, per `Types` instance.
   ///
-  /// `find` was `types.package pkg |> Ply.map (Option.map _.declaration)`, which is a computation
-  /// expression *and* a fresh `Some` on every lookup, even though the package manager behind it is
-  /// already a cache hit. It was 5% of the allocation profile for an HTTP request, reached mostly
-  /// through `unwrapAlias`.
+  /// `find` was `types.package pkg |> Ply.map (Option.map _.declaration)`: a computation expression
+  /// *and* a fresh `Some` on every lookup, even though the package manager behind it is already a
+  /// cache hit. `unwrapAlias` reaches it constantly.
   ///
   /// Keyed on the `Types` instance as well as the name. Keying on the name alone looks safe, since a
   /// type name is a content hash, and it isn't: tests mint their own package managers and reuse
@@ -2910,8 +2913,8 @@ module TypeReference =
 
   /// A declared `TypeReference` as a `ValueType`.
   ///
-  /// Three things were wrong with this, and together they were the top of the allocation profile for
-  /// an HTTP request at about 18%.
+  /// Three things were wrong with this, and together they were the top of the allocation profile
+  /// for an HTTP request.
   ///
   /// The `let r = toVT types tst` alias was a closure over both arguments, built on entry to every
   /// call including the scalar ones that never used it. Each recursion now passes them explicitly.

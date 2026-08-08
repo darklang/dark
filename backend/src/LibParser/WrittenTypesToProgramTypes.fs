@@ -21,13 +21,12 @@ type Context =
 
 /// The builtin name sets that name resolution checks against.
 ///
-/// `builtins.fns |> Map.keys |> Set` was written inline at each of the twelve resolution sites, so a set
-/// of every builtin -- there are ~727 fns -- was rebuilt for every name in every expression of every
-/// package fn being loaded. It is the same set every time, and it was one of the larger single items in
-/// startup allocation.
+/// Every resolution site used to build `builtins.fns |> Map.keys |> Set` inline, so the whole
+/// builtin name set was rebuilt for every name in every expression of every package fn loaded. It
+/// is the same set each time.
 ///
-/// Keyed on the `Builtins` instance rather than cached in a mutable, so tests that build their own
-/// builtin set in parallel don't see each other's. In practice there is one per process.
+/// Keyed on the `Builtins` instance rather than held in a mutable, so tests building their own
+/// builtin sets in parallel don't see each other's.
 module private BuiltinNames =
   let private fnCache =
     System.Runtime.CompilerServices.ConditionalWeakTable<RT.Builtins, Set<RT.FQFnName.Builtin>>()

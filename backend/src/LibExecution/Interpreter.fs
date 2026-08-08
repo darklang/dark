@@ -423,8 +423,8 @@ let rec checkAndExtractLetPattern
 ///
 /// Returns whether it matched. The bindings go in a caller-supplied buffer rather than a returned
 /// list because a returned `List<Register * Dval>` cost a tuple and a cons per bound variable, on
-/// every pattern *tried* rather than every pattern that matched: 11.6% of the interpreter's
-/// allocation. The buffer is reused for the life of the VM.
+/// every pattern *tried* rather than every pattern that matched. The buffer is reused for the life
+/// of the VM.
 ///
 /// The caller writes the registers only once the whole pattern has matched, so a pattern that fails
 /// partway leaves the frame untouched. An or-pattern's failed alternative truncates the buffer back
@@ -668,9 +668,9 @@ let inline private removeIfPresent
 /// lockstep.
 ///
 /// Top-level and taking the arguments as a parameter, not a local closing over them. As a local it
-/// captured the argument array, which F# can't lambda-lift, so it allocated a closure on every
-/// builtin call -- 57% of the recursion workload's profile, and it appeared the moment this stopped
-/// taking the arguments as an argument.
+/// captured the argument array, which F# cannot lambda-lift, so it allocated a closure on every
+/// builtin call -- enough to dominate the profile, and it appeared the moment this stopped taking
+/// the arguments as an argument.
 let rec private inferBiParams
   (acc : TypeSymbolTable)
   (ps : List<BuiltInParam>)
@@ -732,15 +732,10 @@ let inline private allocNow (vm : VMState) : int64 =
   if vm.stats.enabled then System.GC.GetAllocatedBytesForCurrentThread() else 0L
 
 
-/// Write a pattern-match's register assignments into a frame's registers.
-///
-/// Top-level and fully parameterised so nothing is captured: the `List.iter` this replaces allocated a
-/// closure over the register array, on a path that runs once per lambda parameter per lambda call.
 /// Copy a call's arguments into the callee's register file, positionally.
 ///
-/// Top-level and taking the array, rather than a local `let rec` that closes over it: F# can't lift a
-/// recursive local that captures, so that was a closure allocated on every package call. `fill@1157`
-/// was 4.7% of the allocation profile.
+/// Top-level and taking the array, rather than a local `let rec` that closes over it: F# cannot lift
+/// a recursive local that captures, so that was a closure allocated on every package call.
 let rec private fillRegisters
   (registers : Dval array)
   (i : int)
@@ -1132,8 +1127,7 @@ let private callBuiltinResolved
     let typeCheckParam = TypeChecker.checkFnParam exeState.types applicable.name
     // An immutable snapshot, so the `uply` below captures this instead of the mutable `tst`. A
     // mutable a closure captures becomes a heap ref cell, allocated on every call to serve a branch
-    // that after the first call is never taken; `FSharpRef<FSharpMap<string, ValueType>>` was 1.1%
-    // of the profile and this is both of the places it came from.
+    // that after the first call is never taken.
     let tstAtCheck = tst
     uply {
       let mutable tstRest = tstAtCheck
@@ -1402,8 +1396,7 @@ let private callPackageResolved
     let typeCheckParam = TypeChecker.checkFnParam exeState.types applicable.name
     // An immutable snapshot, so the `uply` below captures this instead of the mutable `tst`. A
     // mutable a closure captures becomes a heap ref cell, allocated on every call to serve a branch
-    // that after the first call is never taken; `FSharpRef<FSharpMap<string, ValueType>>` was 1.1%
-    // of the profile and this is both of the places it came from.
+    // that after the first call is never taken.
     let tstAtCheck = tst
     uply {
       let mutable tstRest = tstAtCheck
@@ -1572,7 +1565,7 @@ let private applyInstruction
       // The `ExecutionPoint` a lambda body runs under is a pure function of (calling frame's
       // execution point, lambda's expression id), and both repeat: a lambda in a loop is called
       // from the same function over and over. So it's memoized rather than rebuilt per call, which
-      // was 88% of everything a lambda application allocated.
+      // was nearly everything a lambda application allocated.
       //
       // Keyed on the expression id, holding the parent it was derived from. A single last-value
       // slot is not enough -- `List.map` alternates between its own recursion and the caller's
@@ -1713,9 +1706,8 @@ let private applyInstruction
     | FQFnName.Builtin builtin ->
       let biTotalAlloc = allocNow vm
       let biLookupAlloc = allocNow vm
-      // `TryGetValue` rather than `Map.find`, which allocates a `Some` on every hit --
-      // `FSharpOption<BuiltInFn>` was 0.9% of the profile, and this is where it came from.
-      // F#'s Map implements IDictionary, so the byref overload is available here too.
+      // `TryGetValue` rather than `Map.find`, which allocates a `Some` on every hit. F#'s Map
+      // implements IDictionary, so the byref overload is available here too.
       let mutable found = Unchecked.defaultof<BuiltInFn>
       if not (exeState.fns.builtIn.TryGetValue(builtin, &found)) then
         RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE vm.threadID
@@ -1761,9 +1753,9 @@ let private applyInstruction
           }
       recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
       // Overwritten on the next line either way; F# needs something to start from.
-      // No `let mutable` spanning the bind. A mutable a continuation captures becomes a
-      // heap ref cell, allocated whether or not the branch that needs it is taken; measured
-      // at 4.4 MB for this one. Duplicating two lines is cheaper than the cell.
+      // No `let mutable` spanning the bind: a mutable a continuation captures becomes a heap ref
+      // cell, allocated whether or not the branch needing it is taken. Duplicating two lines is
+      // cheaper than the cell.
       match Ply.trySync call with
       | ValueSome(PartiallyApplied dv) -> registers[putResultIn] <- dv
       | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
@@ -1788,8 +1780,8 @@ let private runSyncInstructions
   (instrData : InstrData)
   (startCounter : int)
   : struct (int * ApplyOutcome) =
-  // No local `raiseRTE` alias: F# doesn't lift it out of the loop below, so it's a closure over
-  // the VM allocated on every call. `raiseRTE@614` was 2.9% of the profile.
+  // No local `raiseRTE` alias: F# doesn't lift it out of the loop below, so it becomes a closure
+  // over the VM, allocated on every call.
   let mutable counter = startCounter
   let mutable running = true
   // Set only if an `Apply` below has to wait for something. A struct, so carrying it costs nothing.
@@ -1804,9 +1796,9 @@ let private runSyncInstructions
     | CreateEnum _
     | LoadValue _ -> running <- false
 
-    // `Apply` is 114,202 of the 114,274 instructions that used to stop this drain and hand control
-    // to the computation expression, which builds a continuation per iteration. It almost never has
-    // to wait, so it runs here, and only a genuine await stops the drain.
+    // `Apply` is all but a handful of the instructions that used to stop this drain and hand
+    // control to the computation expression, which builds a continuation per iteration. It almost
+    // never has to wait, so it runs here, and only a genuine await stops the drain.
     | Apply(putResultIn, thingToCallReg, typeArgs, newArgRegs) ->
       if vm.stats.enabled then
         vm.stats.instructionCount <- vm.stats.instructionCount + 1L
@@ -2097,9 +2089,8 @@ type private FrameStep =
 /// opcodes, a pushed frame, or the end of the block.
 ///
 /// This is the loop that used to live inside the computation expression, where Ply built a
-/// continuation for its body on every iteration -- once per frame activation, about 122,000 times in
-/// the reference workload. Here it's an ordinary `while`, and the caller enters the builder only for
-/// the cases above, which are rare.
+/// continuation for its body on every iteration. Here it's an ordinary `while`, and the caller
+/// enters the builder only for the cases above, which are rare.
 let private runFrame
   (exeState : ExecutionState)
   (vm : VMState)
@@ -2147,12 +2138,6 @@ let inline private pushFrame (vm : VMState) (frame : CallFrame) : unit =
   vm.currentFrameID <- frame.id
 
 
-/// EXPERIMENT: this loop's computation expression is F#'s built-in `task`, not Ply's `uply`.
-///
-/// Ply is continuation-based and predates F# 6's resumable code. A micro-benchmark says a `uply`
-/// loop allocates per iteration in proportion to the size of its body -- 32 bytes an iteration for a
-/// ten-statement body, with or without a bind in it -- while the same loop under `task` allocates
-/// nothing. This body is far bigger than ten statements and runs about 122,000 times.
 /// A `Task<unit>` that is already finished, allocated once. `Task.CompletedTask` is the untyped
 /// `Task`, and `Task.FromResult ()` would allocate on every call that has nothing to await.
 let private completedUnit : System.Threading.Tasks.Task<unit> =
@@ -2499,6 +2484,12 @@ let private handleFrameStep
 
 
 
+/// The outermost interpreter loop.
+///
+/// `task`, not Ply's `uply`. Ply is continuation-based and predates F# 6's resumable code, so a
+/// `uply` loop allocates on every iteration in proportion to the size of its body, bind or no bind;
+/// the same loop under `task` allocates nothing. This body is large and runs once per frame
+/// activation, so that difference dominated the interpreter's allocation.
 let private executeInnerTask
   (exeState : ExecutionState)
   (vm : VMState)
