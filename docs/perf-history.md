@@ -62,8 +62,8 @@ wrongly-scaled one.
 
 ## Round 2: the rewrite, and the course correction
 
-273 -> 8.0 MB Debug, 212 -> 7.84 MB Release. Full write-up, including every individual win:
-`PR-round2-interpreter-allocation.md`.
+273 -> 8.0 MB Debug, 212 -> 7.6 MB Release. The round-2 PR description has the full write-up,
+including every individual win.
 
 The shape of it: half a round of more-of-round-1 (representation changes, the biggest being the
 interpreter loop moving off Ply onto F#'s resumable-code `task`, worth -51.2 MB on its own), then a
