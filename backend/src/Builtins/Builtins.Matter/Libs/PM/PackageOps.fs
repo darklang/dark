@@ -31,7 +31,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         "Compute real content-addressed hashes for package ops (SCC-aware)."
       fn =
         (function
-        | struct (_, _, _, [| DList(_vt, ops) |]) ->
+        | _, _, _, [| DList(_vt, ops) |] ->
           uply {
             let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
             let stabilized = LibDB.HashStabilization.computeRealHashes ptOps
@@ -61,7 +61,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt KTString
         let resultError = Dval.resultError KTInt KTString
         (function
-        | struct (exeState, _, _, [| DUuid branchId; DList(_vtTODO, ops) |]) ->
+        | exeState, _, _, [| DUuid branchId; DList(_vtTODO, ops) |] ->
           uply {
             try
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
@@ -281,11 +281,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTString KTString
         let resultError = Dval.resultError KTString KTString
         (function
-        | struct (_, _, _,
-                  [| DUuid accountId
-                     DUuid branchId
-                     DString message
-                     DList(_, opIds) |]) ->
+        | _,
+          _,
+          _,
+          [| DUuid accountId; DUuid branchId; DString message; DList(_, opIds) |] ->
           uply {
             try
               let ids =
@@ -321,7 +320,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt KTString
         let resultError = Dval.resultError KTInt KTString
         (function
-        | struct (_, _, _, [| DUuid branchId |]) ->
+        | _, _, _, [| DUuid branchId |] ->
           uply {
             let! result = LibDB.Inserts.discardWipOps branchId
             match result with
@@ -426,7 +425,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
         selected item references uncommitted items not in the selection."
       fn =
         (function
-        | struct (_, _, _, [| DUuid branchId; hashDval |]) ->
+        | _, _, _, [| DUuid branchId; hashDval |] ->
           uply {
             let itemHash = PT2DT.Hash.fromDT hashDval
             let! chain = LibDB.Branches.getBranchChain branchId

@@ -24,7 +24,7 @@ let fns () : List<BuiltInFn> =
       description = "Computes the SHA-256 digest of the given <param data>"
       fn =
         (function
-        | struct (state, _, _, [| DBlob ref |]) ->
+        | state, _, _, [| DBlob ref |] ->
           uply {
             let! data = Blob.readBytes state ref
             let hash = SHA256.HashData(System.ReadOnlySpan(data))
@@ -44,7 +44,7 @@ let fns () : List<BuiltInFn> =
       description = "Computes the SHA-384 digest of the given <param data>"
       fn =
         (function
-        | struct (state, _, _, [| DBlob ref |]) ->
+        | state, _, _, [| DBlob ref |] ->
           uply {
             let! data = Blob.readBytes state ref
             let hash = SHA384.HashData(System.ReadOnlySpan data)
@@ -65,7 +65,7 @@ let fns () : List<BuiltInFn> =
         "Computes the md5 digest of the given <param data>. NOTE: There are multiple security problems with md5, see https://en.wikipedia.org/wiki/MD5#Security"
       fn =
         (function
-        | struct (state, _, _, [| DBlob ref |]) ->
+        | state, _, _, [| DBlob ref |] ->
           uply {
             let! data = Blob.readBytes state ref
             let hash = MD5.HashData(System.ReadOnlySpan data)
@@ -86,7 +86,7 @@ let fns () : List<BuiltInFn> =
         "Computes the SHA-256 HMAC (hash-based message authentication code) digest of the given <param key> and <param data>."
       fn =
         (function
-        | struct (state, _, _, [| DBlob keyRef; DBlob dataRef |]) ->
+        | state, _, _, [| DBlob keyRef; DBlob dataRef |] ->
           uply {
             let! key = Blob.readBytes state keyRef
             let! data = Blob.readBytes state dataRef
@@ -109,7 +109,7 @@ let fns () : List<BuiltInFn> =
         "Computes the SHA1-HMAC (hash-based message authentication code) digest of the given <param key> and <param data>."
       fn =
         (function
-        | struct (state, _, _, [| DBlob keyRef; DBlob dataRef |]) ->
+        | state, _, _, [| DBlob keyRef; DBlob dataRef |] ->
           uply {
             let! key = Blob.readBytes state keyRef
             let! data = Blob.readBytes state dataRef

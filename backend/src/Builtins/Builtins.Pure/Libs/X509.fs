@@ -24,7 +24,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTString KTString
         let resultError = Dval.resultError KTString KTString
         (function
-        | struct (_, _, _, [| DString certString |]) ->
+        | _, _, _, [| DString certString |] ->
           try
             let cert = X509CertificateLoader.LoadCertificate(UTF8.toBytes certString)
             // Workaround to support ECC certs

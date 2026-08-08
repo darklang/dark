@@ -700,8 +700,10 @@ let fns (config : Configuration) : List<BuiltInFn> =
         let resultOk = Dval.resultOk responseTypeOK responseTypeErr
         let resultError = Dval.resultError responseTypeOK responseTypeErr
         (function
-        | struct (state, vm, _,
-                  [| DString method; DString uri; DList(_, reqHeaders); DBlob bodyRef |]) ->
+        | state,
+          vm,
+          _,
+          [| DString method; DString uri; DList(_, reqHeaders); DBlob bodyRef |] ->
           uply {
             // precise check: this exact method+URL must be covered (the gate only checked http presence).
             LibExecution.CapabilityCheck.requireHttp state.grantedCaps method uri
@@ -836,7 +838,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
         let syncClient = BaseClient.create syncConfig
 
         (function
-        | struct (_, _, _, [| DString uri |]) ->
+        | _, _, _, [| DString uri |] ->
           uply {
             let request : Request =
               { url = uri; method = HttpMethod "GET"; headers = []; body = [||] }
@@ -884,8 +886,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
         let resultOk = Dval.resultOk streamTypeOk streamTypeErr
         let resultError = Dval.resultError streamTypeOk streamTypeErr
         (function
-        | struct (state, vm, _,
-                  [| DString method; DString uri; DList(_, reqHeaders) |]) ->
+        | state, vm, _, [| DString method; DString uri; DList(_, reqHeaders) |] ->
           uply {
             // precise check: this exact method+URL must be covered (the gate only checked http presence).
             LibExecution.CapabilityCheck.requireHttp state.grantedCaps method uri

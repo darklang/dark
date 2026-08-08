@@ -23,7 +23,7 @@ let fns () : List<BuiltInFn> =
         "Prints the given <param value> to the standard output, followed by a newline."
       fn =
         (function
-        | struct (_, _, _, [| DString str |]) ->
+        | _, _, _, [| DString str |] ->
           print str
           Ply DUnit
         | _ -> incorrectArgs ())
@@ -40,7 +40,7 @@ let fns () : List<BuiltInFn> =
       description = "Prints the given <param value> to the standard output."
       fn =
         (function
-        | struct (_, _, _, [| DString str |]) ->
+        | _, _, _, [| DString str |] ->
           printInline str
           Ply DUnit
         | _ -> incorrectArgs ())
@@ -78,8 +78,7 @@ let fns () : List<BuiltInFn> =
         "Start capturing standard output into an in-memory buffer instead of printing it. Pair with <fn stdoutCaptureStop>. Used to run a command and show its output in-frame. Returns false if a capture was already open, in which case the existing one is left untouched and this call captured nothing."
       fn =
         (function
-        | struct (_, _, _, [| DUnit |]) ->
-          DBool(NonBlockingConsole.startCapture ()) |> Ply
+        | _, _, _, [| DUnit |] -> DBool(NonBlockingConsole.startCapture ()) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -95,7 +94,7 @@ let fns () : List<BuiltInFn> =
         "Stop capturing standard output and return everything written since <fn stdoutCaptureStart>."
       fn =
         (function
-        | struct (_, _, _, [| DUnit |]) ->
+        | _, _, _, [| DUnit |] ->
           let captured = NonBlockingConsole.stopCapture ()
           Ply(DString captured)
         | _ -> incorrectArgs ())
@@ -114,7 +113,7 @@ let fns () : List<BuiltInFn> =
       description = "Prints the given <param value> to the standard output"
       fn =
         (function
-        | struct (exeState, _, _, [| DString label; value |]) ->
+        | exeState, _, _, [| DString label; value |] ->
           uply {
             let! repr = Exe.dvalToRepr exeState value
             print $"DEBUG: {label}: {repr}"

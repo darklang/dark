@@ -330,7 +330,7 @@ let fns () : List<BuiltInFn> =
       description = "Sample terminal width and height together as (columns, rows)"
       fn =
         (function
-        | struct (_, _, _, [| DUnit |]) ->
+        | _, _, _, [| DUnit |] ->
           let (width, height) = terminalSize ()
           DTuple(Dval.int (bigint width), Dval.int (bigint height), []) |> Ply
         | _ -> incorrectArgs ())
@@ -347,7 +347,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the absolute path to the CLI log directory"
       fn =
         (function
-        | struct (_, _, [], [| DUnit |]) -> DString(LibConfig.Config.logDir) |> Ply
+        | _, _, [], [| DUnit |] -> DString(LibConfig.Config.logDir) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -367,7 +367,7 @@ let fns () : List<BuiltInFn> =
         "Arm emergency terminal restoration for host failure or process termination"
       fn =
         (function
-        | struct (_, _, _, [| DString sequence |]) ->
+        | _, _, _, [| DString sequence |] ->
           TerminalRestoreGuard.arm sequence
           Ply DUnit
         | _ -> incorrectArgs ())
@@ -384,7 +384,7 @@ let fns () : List<BuiltInFn> =
       description = "Flush normal terminal cleanup and disarm fallback restoration"
       fn =
         (function
-        | struct (_, _, _, [| DUnit |]) ->
+        | _, _, _, [| DUnit |] ->
           TerminalRestoreGuard.disarm ()
           Ply DUnit
         | _ -> incorrectArgs ())
@@ -402,7 +402,7 @@ let fns () : List<BuiltInFn> =
       description = "Terminal columns occupied by text that may carry SGR styling"
       fn =
         (function
-        | struct (_, _, _, [| DString text |]) ->
+        | _, _, _, [| DString text |] ->
           text |> DisplayWidth.styledWidth |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -421,7 +421,7 @@ let fns () : List<BuiltInFn> =
         "Clip styled text to a column count, keeping SGR and dropping other escapes and control characters"
       fn =
         (function
-        | struct (_, vm, _, [| DString text; DInt maxWidth |]) ->
+        | _, vm, _, [| DString text; DInt maxWidth |] ->
           DString(DisplayWidth.clipToWidth text (intToInt32 vm maxWidth)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
@@ -440,7 +440,7 @@ let fns () : List<BuiltInFn> =
         "Wrap plain or SGR-styled text into terminal-width rows, reapplying active styling after a wrap"
       fn =
         (function
-        | struct (_, vm, _, [| DString text; DInt maxWidth |]) ->
+        | _, vm, _, [| DString text; DInt maxWidth |] ->
           DisplayWidth.wrapStyled text (intToInt32 vm maxWidth)
           |> List.map DString
           |> fun rows -> DList(VT.string, rows)
@@ -462,7 +462,7 @@ let fns () : List<BuiltInFn> =
         "Zero-based (row, column) cursor position immediately after plain text at a given width"
       fn =
         (function
-        | struct (_, vm, _, [| DString text; DInt maxWidth |]) ->
+        | _, vm, _, [| DString text; DInt maxWidth |] ->
           let (row, column) =
             DisplayWidth.positionAfter text (intToInt32 vm maxWidth)
           DTuple(row |> bigint |> Dval.int, column |> bigint |> Dval.int, []) |> Ply
@@ -481,7 +481,7 @@ let fns () : List<BuiltInFn> =
         "Return (display width when control-free, contains control characters)"
       fn =
         (function
-        | struct (_, _, _, [| DString text |]) ->
+        | _, _, _, [| DString text |] ->
           DTuple(
             text |> DisplayWidth.ofString |> bigint |> Dval.int,
             text |> DisplayWidth.containsControl |> DBool,
@@ -502,7 +502,7 @@ let fns () : List<BuiltInFn> =
       description = "Return (input is terminal, output is terminal, TERM value)"
       fn =
         (function
-        | struct (_, _, _, [| DUnit |]) ->
+        | _, _, _, [| DUnit |] ->
           DTuple(
             TerminalCapabilities.isInputTerminal () |> DBool,
             TerminalCapabilities.isOutputTerminal () |> DBool,

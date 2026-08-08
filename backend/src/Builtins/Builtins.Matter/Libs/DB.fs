@@ -124,7 +124,7 @@ let fns () : List<BuiltInFn> =
       description = "Creates a new database"
       fn =
         (function
-        | struct (exeState, _, _, [| DString dbName; typeHashDval |]) ->
+        | exeState, _, _, [| DString dbName; typeHashDval |] ->
           let typeHash = PT2DT.Hash.fromDT typeHashDval
           uply {
             // precise check: creating this datastore must be covered (gate checked db presence).
@@ -177,7 +177,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns a list of (name, typeName) tuples for all DBs"
       fn =
         (function
-        | struct (_, _, _, [| DUuid branchId |]) ->
+        | _, _, _, [| DUuid branchId |] ->
           uply {
             let! app = Toplevels.loadAllDBs ()
             let pm = LibDB.PackageManager.pt
@@ -215,7 +215,7 @@ let fns () : List<BuiltInFn> =
       description = "Drops (deletes) all databases with the given name"
       fn =
         (function
-        | struct (exeState, _, _, [| DString dbName |]) ->
+        | exeState, _, _, [| DString dbName |] ->
           uply {
             // precise check: dropping this datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbWrite exeState.grantedCaps dbName
@@ -266,7 +266,7 @@ let fns () : List<BuiltInFn> =
         "Upsert <param val> into <param table>, accessible by <param key>"
       fn =
         (function
-        | struct (exeState, vm, _, [| value; DString key; DDB dbname |]) ->
+        | exeState, vm, _, [| value; DString key; DDB dbname |] ->
           uply {
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbWrite exeState.grantedCaps dbname
@@ -292,7 +292,7 @@ let fns () : List<BuiltInFn> =
       description = "Finds a value in <param table> by <param key>"
       fn =
         (function
-        | struct (exeState, vm, _, [| DString key; DDB dbname |]) ->
+        | exeState, vm, _, [| DString key; DDB dbname |] ->
           uply {
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbRead exeState.grantedCaps dbname
@@ -317,7 +317,7 @@ let fns () : List<BuiltInFn> =
         let valueType = VT.unknownDbTODO
         let optType = KTList valueType
         (function
-        | struct (exeState, vm, _, [| DList(_, keys); DDB dbname |]) ->
+        | exeState, vm, _, [| DList(_, keys); DDB dbname |] ->
           uply {
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbRead exeState.grantedCaps dbname
@@ -355,7 +355,7 @@ let fns () : List<BuiltInFn> =
         "Finds many values in <param table> by <param keys> (ignoring any missing items), returning a {{ [value] }} list of values"
       fn =
         (function
-        | struct (exeState, vm, _, [| DList(_, keys); DDB dbname |]) ->
+        | exeState, vm, _, [| DList(_, keys); DDB dbname |] ->
           uply {
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbRead exeState.grantedCaps dbname
@@ -387,7 +387,7 @@ let fns () : List<BuiltInFn> =
         "Finds many values in <param table> by <param keys>, returning a {{ {key:{value}, key2: {value2} } }} object of keys and values"
       fn =
         (function
-        | struct (exeState, vm, _, [| DList(_, keys); DDB dbname |]) ->
+        | exeState, vm, _, [| DList(_, keys); DDB dbname |] ->
           uply {
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbRead exeState.grantedCaps dbname
@@ -417,7 +417,7 @@ let fns () : List<BuiltInFn> =
       description = "Delete <param key> from <param table>"
       fn =
         (function
-        | struct (exeState, _, _, [| DString key; DDB dbname |]) ->
+        | exeState, _, _, [| DString key; DDB dbname |] ->
           uply {
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbWrite exeState.grantedCaps dbname
@@ -439,7 +439,7 @@ let fns () : List<BuiltInFn> =
       description = "Delete everything from <param table>"
       fn =
         (function
-        | struct (exeState, _, _, [| DDB dbname |]) ->
+        | exeState, _, _, [| DDB dbname |] ->
           uply {
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbWrite exeState.grantedCaps dbname
@@ -461,7 +461,7 @@ let fns () : List<BuiltInFn> =
       description = "Fetch all the values in <param table>"
       fn =
         (function
-        | struct (exeState, vm, _, [| DDB dbname |]) ->
+        | exeState, vm, _, [| DDB dbname |] ->
           uply {
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbRead exeState.grantedCaps dbname
@@ -488,7 +488,7 @@ let fns () : List<BuiltInFn> =
         "Fetch all the values in <param table>. Returns an object with key: value. ie. {key : value, key2: value2}"
       fn =
         (function
-        | struct (exeState, vm, _, [| DDB dbname |]) ->
+        | exeState, vm, _, [| DDB dbname |] ->
           uply {
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbRead exeState.grantedCaps dbname
@@ -511,7 +511,7 @@ let fns () : List<BuiltInFn> =
       description = "Return the number of items stored in <param table>"
       fn =
         (function
-        | struct (exeState, _, _, [| DDB dbname |]) ->
+        | exeState, _, _, [| DDB dbname |] ->
           uply {
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbRead exeState.grantedCaps dbname
@@ -533,8 +533,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns a random key suitable for use as a DB key"
       fn =
         (function
-        | struct (_, _, _, [| DUnit |]) ->
-          System.Guid.NewGuid() |> string |> DString |> Ply
+        | _, _, _, [| DUnit |] -> System.Guid.NewGuid() |> string |> DString |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
@@ -550,7 +549,7 @@ let fns () : List<BuiltInFn> =
         "Fetch all the keys of entries in <param table>. Returns an list with strings"
       fn =
         (function
-        | struct (exeState, _, _, [| DDB dbname |]) ->
+        | exeState, _, _, [| DDB dbname |] ->
           uply {
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbRead exeState.grantedCaps dbname
@@ -575,7 +574,7 @@ let fns () : List<BuiltInFn> =
         Errors at compile-time if Dark's compiler does not support the code in question."
       fn =
         (function
-        | struct (exeState, vm, _, [| DDB dbname; DApplicable(AppLambda appLambda) |]) ->
+        | exeState, vm, _, [| DDB dbname; DApplicable(AppLambda appLambda) |] ->
           uply {
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbRead exeState.grantedCaps dbname
@@ -605,7 +604,7 @@ let fns () : List<BuiltInFn> =
         "Fetch all the values from <param table> for which filter returns true, returning {key : value} as a dict."
       fn =
         (function
-        | struct (exeState, vm, _, [| DDB dbname; DApplicable(AppLambda appLambda) |]) ->
+        | exeState, vm, _, [| DDB dbname; DApplicable(AppLambda appLambda) |] ->
           uply {
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbRead exeState.grantedCaps dbname
@@ -635,7 +634,7 @@ let fns () : List<BuiltInFn> =
         "Fetch exactly one value from <param table> for which filter returns true. Returns Some if exactly one found, None otherwise."
       fn =
         (function
-        | struct (exeState, vm, _, [| DDB dbname; DApplicable(AppLambda appLambda) |]) ->
+        | exeState, vm, _, [| DDB dbname; DApplicable(AppLambda appLambda) |] ->
           uply {
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbRead exeState.grantedCaps dbname
@@ -665,7 +664,7 @@ let fns () : List<BuiltInFn> =
         "Return the number of items from <param table> for which filter returns true."
       fn =
         (function
-        | struct (exeState, vm, _, [| DDB dbname; DApplicable(AppLambda appLambda) |]) ->
+        | exeState, vm, _, [| DDB dbname; DApplicable(AppLambda appLambda) |] ->
           uply {
             // precise check: this exact datastore must be covered (gate checked db presence).
             LibExecution.CapabilityCheck.requireDbRead exeState.grantedCaps dbname

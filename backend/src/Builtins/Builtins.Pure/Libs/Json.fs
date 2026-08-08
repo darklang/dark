@@ -786,7 +786,7 @@ let fns () : List<BuiltInFn> =
       description = "Serializes a Dark value to a JSON string."
       fn =
         (function
-        | struct (_, vm, [ _typeToSerializeAs ], [| arg |]) ->
+        | _, vm, [ _typeToSerializeAs ], [| arg |] ->
           uply {
             let response = writeJson (fun w -> serialize vm.threadID w arg)
             return DString response
@@ -809,7 +809,7 @@ let fns () : List<BuiltInFn> =
         "Parses a JSON string <param json> as a Dark value, matching the type <typeParam a>"
       fn =
         (function
-        | struct (exeState, vm, [ typeArg ], [| DString arg |]) ->
+        | exeState, vm, [ typeArg ], [| DString arg |] ->
           let threadID = vm.threadID
 
           let okType = VT.unknownTODO // "a"

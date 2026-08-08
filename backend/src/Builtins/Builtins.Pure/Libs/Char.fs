@@ -131,7 +131,7 @@ let fns () : List<BuiltInFn> =
       description = "Stringify <param c>"
       fn =
         (function
-        | struct (_, _, _, [| DChar c |]) -> Ply(DString c)
+        | _, _, _, [| DChar c |] -> Ply(DString c)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

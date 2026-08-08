@@ -54,7 +54,7 @@ let fns () : List<BuiltInFn> =
         "Returns all hashes that the given item references (forward dependencies), scoped to the branch chain."
       fn =
         (function
-        | struct (_, _, _, [| DUuid branchId; sourceDval |]) ->
+        | _, _, _, [| DUuid branchId; sourceDval |] ->
           uply {
             let source = PT2DT.Hash.fromDT sourceDval
             let! branchChain = Branches.getBranchChain branchId
@@ -89,7 +89,7 @@ let fns () : List<BuiltInFn> =
         "Returns items that reference any of the given (location, kind) targets (reverse dependencies), scoped to the branch chain. Returns (itemHash, itemLocation, kind) tuples."
       fn =
         (function
-        | struct (_, _, _, [| DUuid branchId; DList(_, targets) |]) ->
+        | _, _, _, [| DUuid branchId; DList(_, targets) |] ->
           uply {
             let! branchChain = Branches.getBranchChain branchId
             let targets =
@@ -134,7 +134,7 @@ let fns () : List<BuiltInFn> =
         "Resolve hashes to PackageLocations. Returns (itemHash, location) tuples."
       fn =
         (function
-        | struct (_, _, _, [| DUuid branchId; DList(_, itemHashes) |]) ->
+        | _, _, _, [| DUuid branchId; DList(_, itemHashes) |] ->
           uply {
             let hashes = itemHashes |> List.map PT2DT.Hash.fromDT
 

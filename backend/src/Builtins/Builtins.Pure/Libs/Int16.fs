@@ -40,7 +40,7 @@ let fns () : List<BuiltInFn> =
         a different behavior for negative numbers."
       fn =
         (function
-        | struct (_, vm, _, [| DInt16 v; DInt16 m |]) ->
+        | _, vm, _, [| DInt16 v; DInt16 m |] ->
           if m = 0s then
             RTE.Ints.ZeroModulus |> RTE.Int |> raiseRTE vm.threadID
           else if m < 0s then
@@ -73,7 +73,7 @@ let fns () : List<BuiltInFn> =
       fn =
         let resultOk r = Dval.resultOk KTInt16 KTString r |> Ply
         (function
-        | struct (_, vm, _, [| DInt16 v; DInt16 d |]) ->
+        | _, vm, _, [| DInt16 v; DInt16 d |] ->
           (try
             v % d |> DInt16 |> resultOk
            with e ->
@@ -98,7 +98,7 @@ let fns () : List<BuiltInFn> =
       description = "Adds two 16-bit signed integers together, wrapping on overflow"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a; DInt16 b |]) -> Ply(DInt16(a + b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a + b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -113,7 +113,7 @@ let fns () : List<BuiltInFn> =
       description = "Subtracts two 16-bit signed integers, wrapping on overflow"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a; DInt16 b |]) -> Ply(DInt16(a - b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a - b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -128,7 +128,7 @@ let fns () : List<BuiltInFn> =
       description = "Multiplies two 16-bit signed integers, wrapping on overflow"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a; DInt16 b |]) -> Ply(DInt16(a * b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a * b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -146,7 +146,7 @@ let fns () : List<BuiltInFn> =
         Overflow wraps around."
       fn =
         (function
-        | struct (_, vm, _, [| DInt16 number; DInt16 exp |]) ->
+        | _, vm, _, [| DInt16 number; DInt16 exp |] ->
           if exp < 0s then
             RTE.Ints.NegativeExponent |> RTE.Int |> raiseRTE vm.threadID
           else
@@ -170,7 +170,7 @@ let fns () : List<BuiltInFn> =
       description = "Divides two 16-bit signed integers"
       fn =
         (function
-        | struct (_, vm, _, [| DInt16 a; DInt16 b |]) ->
+        | _, vm, _, [| DInt16 a; DInt16 b |] ->
           if b = 0s then
             RTE.Ints.DivideByZeroError |> RTE.Int |> raiseRTE vm.threadID
           else
@@ -190,7 +190,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns the negation of <param a>, {{-a}}"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a |]) -> Ply(DInt16(-a))
+        | _, _, _, [| DInt16 a |] -> Ply(DInt16(-a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -205,7 +205,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is greater than <param b>"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a; DInt16 b |]) -> Ply(DBool(a > b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DBool(a > b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -221,7 +221,7 @@ let fns () : List<BuiltInFn> =
         "Returns {{true}} if <param a> is greater than or equal to <param b>"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a; DInt16 b |]) -> Ply(DBool(a >= b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DBool(a >= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -236,7 +236,7 @@ let fns () : List<BuiltInFn> =
       description = "Returns {{true}} if <param a> is less than <param b>"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a; DInt16 b |]) -> Ply(DBool(a < b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DBool(a < b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -252,7 +252,7 @@ let fns () : List<BuiltInFn> =
         "Returns {{true}} if <param a> is less than or equal to <param b>"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a; DInt16 b |]) -> Ply(DBool(a <= b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DBool(a <= b))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -267,7 +267,7 @@ let fns () : List<BuiltInFn> =
       description = "Stringify <param int16>"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a |]) -> Ply(DString(string a))
+        | _, _, _, [| DInt16 a |] -> Ply(DString(string a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -282,7 +282,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an <type Int16> to a <type Float>"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a |]) -> Ply(DFloat(float a))
+        | _, _, _, [| DInt16 a |] -> Ply(DFloat(float a))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -304,7 +304,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTInt16 (KTCustomType(typeName, []))
         let resultError = Dval.resultError KTInt16 (KTCustomType(typeName, []))
         (function
-        | struct (_, _, _, [| DString s |]) ->
+        | _, _, _, [| DString s |] ->
           try
             s |> System.Convert.ToInt16 |> DInt16 |> resultOk |> Ply
           with
@@ -328,7 +328,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts an Int8 to a 16-bit signed integer."
       fn =
         (function
-        | struct (_, _, _, [| DInt8 a |]) -> DInt16(int16 a) |> Ply
+        | _, _, _, [| DInt8 a |] -> DInt16(int16 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -343,7 +343,7 @@ let fns () : List<BuiltInFn> =
       description = "Converts a UInt8 to a 16-bit signed integer."
       fn =
         (function
-        | struct (_, _, _, [| DUInt8 a |]) -> DInt16(int16 a) |> Ply
+        | _, _, _, [| DUInt8 a |] -> DInt16(int16 a) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -359,7 +359,7 @@ let fns () : List<BuiltInFn> =
         "Converts a UInt16 to a 16-bit signed integer. Returns {{None}} if the value is greater than 32767"
       fn =
         (function
-        | struct (_, _, _, [| DUInt16 a |]) ->
+        | _, _, _, [| DUInt16 a |] ->
           if a > uint16 System.Int16.MaxValue then
             Dval.optionNone KTInt16 |> Ply
           else
@@ -379,7 +379,7 @@ let fns () : List<BuiltInFn> =
         "Converts an Int32 to a 16-bit signed integer. Returns {{None}} if the value is less than -32768 or greater than 32767"
       fn =
         (function
-        | struct (_, _, _, [| DInt32 a |]) ->
+        | _, _, _, [| DInt32 a |] ->
           if a < int32 System.Int16.MinValue || a > int32 System.Int16.MaxValue then
             Dval.optionNone KTInt16 |> Ply
           else
@@ -399,7 +399,7 @@ let fns () : List<BuiltInFn> =
         "Converts a UInt32 to a 16-bit signed integer. Returns {{None}} if the value is greater than 32767"
       fn =
         (function
-        | struct (_, _, _, [| DUInt32 a |]) ->
+        | _, _, _, [| DUInt32 a |] ->
           if a > uint32 System.Int16.MaxValue then
             Dval.optionNone KTInt16 |> Ply
           else
@@ -419,7 +419,7 @@ let fns () : List<BuiltInFn> =
         "Converts an Int64 to a 16-bit signed integer. Returns {{None}} if the value is less than -32768 or greater than 32767"
       fn =
         (function
-        | struct (_, _, _, [| DInt64 a |]) ->
+        | _, _, _, [| DInt64 a |] ->
           if a < int64 System.Int16.MinValue || a > int64 System.Int16.MaxValue then
             Dval.optionNone KTInt16 |> Ply
           else
@@ -439,7 +439,7 @@ let fns () : List<BuiltInFn> =
         "Converts a UInt64 to a 16-bit signed integer. Returns {{None}} if the value is greater than 32767"
       fn =
         (function
-        | struct (_, _, _, [| DUInt64 a |]) ->
+        | _, _, _, [| DUInt64 a |] ->
           if a > uint64 System.Int16.MaxValue then
             Dval.optionNone KTInt16 |> Ply
           else
@@ -459,7 +459,7 @@ let fns () : List<BuiltInFn> =
         "Converts an Int128 to a 16-bit signed integer. Returns {{None}} if the value is less than -32768 or greater than 32767"
       fn =
         (function
-        | struct (_, _, _, [| DInt128 a |]) ->
+        | _, _, _, [| DInt128 a |] ->
           if
             a < System.Int128.op_Implicit System.Int16.MinValue
             || a > System.Int128.op_Implicit System.Int16.MaxValue
@@ -482,7 +482,7 @@ let fns () : List<BuiltInFn> =
         "Converts an UInt128 to a 16-bit signed integer. Returns {{None}} if the value is greater than 32767"
       fn =
         (function
-        | struct (_, _, _, [| DUInt128 a |]) ->
+        | _, _, _, [| DUInt128 a |] ->
           if a > 32767Z then
             Dval.optionNone KTInt16 |> Ply
           else
@@ -501,7 +501,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise AND on two <type Int16> values"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a; DInt16 b |]) -> Ply(DInt16(a &&& b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a &&& b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -516,7 +516,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise OR on two <type Int16> values"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a; DInt16 b |]) -> Ply(DInt16(a ||| b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a ||| b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -531,7 +531,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise XOR on two <type Int16> values"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a; DInt16 b |]) -> Ply(DInt16(a ^^^ b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a ^^^ b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -546,7 +546,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise NOT on an <type Int16> value"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a |]) -> Ply(DInt16(~~~a))
+        | _, _, _, [| DInt16 a |] -> Ply(DInt16(~~~a))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -561,7 +561,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise left shift of an <type Int16> value"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a; DInt16 b |]) -> Ply(DInt16(a <<< int b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a <<< int b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -576,7 +576,7 @@ let fns () : List<BuiltInFn> =
       description = "Bitwise right shift of an <type Int16> value"
       fn =
         (function
-        | struct (_, _, _, [| DInt16 a; DInt16 b |]) -> Ply(DInt16(a >>> int b))
+        | _, _, _, [| DInt16 a; DInt16 b |] -> Ply(DInt16(a >>> int b))
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

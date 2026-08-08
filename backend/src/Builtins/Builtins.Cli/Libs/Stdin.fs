@@ -179,7 +179,7 @@ let fns () : List<BuiltInFn> =
       description = "Reads a single line from the standard input."
       fn =
         (function
-        | struct (_, _, _, [| DUnit |]) ->
+        | _, _, _, [| DUnit |] ->
           // Treat Ctrl+C as input so the Dark code can handle it gracefully
           Console.TreatControlCAsInput <- true
           let readKey, pasteText, repeat = readKeyOrPaste ()
@@ -398,7 +398,7 @@ let fns () : List<BuiltInFn> =
       description = "Reads a single line from the standard input."
       fn =
         (function
-        | struct (_, _, _, [| DUnit |]) ->
+        | _, _, _, [| DUnit |] ->
           let input = System.Console.ReadLine()
           if input = null then Ply(DString "") else Ply(DString input)
         | _ -> incorrectArgs ())
@@ -433,7 +433,7 @@ let fns () : List<BuiltInFn> =
       description = "Reads a specified number of characters from the standard input."
       fn =
         (function
-        | struct (_, vm, _, [| DInt lengthArg |]) ->
+        | _, vm, _, [| DInt lengthArg |] ->
           // length must fit a native int and be non-negative; both bounds are
           // "out of range" for this parameter, surfaced as a Dark error.
           let length = intToInt32 vm lengthArg
@@ -460,7 +460,7 @@ let fns () : List<BuiltInFn> =
         Blocks if stdin is an interactive TTY with no EOF signal."
       fn =
         (function
-        | struct (_, _, _, [| DUnit |]) ->
+        | _, _, _, [| DUnit |] ->
           let input = System.Console.In.ReadToEnd()
           Ply(DString input)
         | _ -> incorrectArgs ())

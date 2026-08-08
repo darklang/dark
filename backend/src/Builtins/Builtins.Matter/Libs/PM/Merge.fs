@@ -26,7 +26,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTUnit (PT2DT.MergeError.knownType ())
         let resultError = Dval.resultError KTUnit (PT2DT.MergeError.knownType ())
         (function
-        | struct (_, _, _, [| DUuid branchId |]) ->
+        | _, _, _, [| DUuid branchId |] ->
           uply {
             let! result = LibDB.Merge.merge branchId
             match result with
@@ -52,7 +52,7 @@ let fns () : List<BuiltInFn> =
         let resultOk = Dval.resultOk KTUnit (PT2DT.MergeError.knownType ())
         let resultError = Dval.resultError KTUnit (PT2DT.MergeError.knownType ())
         (function
-        | struct (_, _, _, [| DUuid branchId |]) ->
+        | _, _, _, [| DUuid branchId |] ->
           uply {
             let! result = LibDB.Merge.canMerge branchId
             match result with
