@@ -130,13 +130,6 @@ let rec private readRegs
   | [] -> []
   | r :: rest -> registers[r] :: readRegs registers rest
 
-let private readRegsNE
-  (registers : Registers)
-  (regs : NEList<Register>)
-  : List<Dval> =
-  registers[regs.head] :: readRegs registers regs.tail
-
-
 /// A call's arguments, without materialising them into a list.
 ///
 /// `FSharpList<Dval>` is the largest single entry in the allocation profile: one cons per argument
