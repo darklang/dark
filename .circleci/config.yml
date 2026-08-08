@@ -8,16 +8,14 @@ version: 2.1
 # compile itself; it drives _dotnet-wrapper directly, so the two can drift.
 
 parameters:
-  # The release matrix (NativeAOT, every OS) normally runs only on a pushed
-  # tag. While it's being built out it runs on every push to the branch too,
-  # because a fan-out across three runner types is not something you get right
-  # without iterating on it.
-  #
-  # FLIP TO false BEFORE MERGE. The other half of the flip is the
-  # `release-filters` anchor further down.
+  # The release matrix (NativeAOT, every OS) runs only on a pushed tag. Set this
+  # to true to run it on every push to a branch as well, which is how it was
+  # built out: a fan-out across three runner types is not something you get
+  # right without iterating on it. Pair it with the `release-filters` anchor
+  # further down, which also has to allow the branch.
   release-matrix-on-every-push:
     type: boolean
-    default: true
+    default: false
 
 executors:
   simple-executor:
@@ -637,17 +635,14 @@ workflows:
           filters: &release-filters
             tags:
               only: /^v.*/
-            # FLIP TO `ignore: /.*/` BEFORE MERGE, together with the
-            # release-matrix-on-every-push parameter at the top of this file.
-            #
-            # pull/* is here because this branch lives on a fork: CircleCI
-            # reports a forked PR's branch as `pull/<number>`, not the branch
-            # name, so matching only the branch name filters every job out and
-            # the workflow silently doesn't appear at all.
+            # Tags only. To watch the matrix on a branch, allow it here and set
+            # release-matrix-on-every-push at the top of this file; both are
+            # needed. One gotcha if you do: on a fork, CircleCI reports a PR's
+            # branch as `pull/<number>` rather than the branch name, so matching
+            # the branch name alone filters every job out and the workflow
+            # silently does not appear at all.
             branches:
-              only:
-                - /^native-aot.*/
-                - /^pull\/.*/
+              ignore: /.*/
 
       - build-cli-linux-glibc:
           filters: *release-filters
