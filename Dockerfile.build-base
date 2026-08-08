@@ -1,4 +1,5 @@
-# Build image for the NativeAOT release artifacts. Not a dev container.
+# Build image for release artifacts. Not a dev container: dark-base is where
+# you work, this is where things get published from.
 #
 # Old on purpose: an AOT binary inherits its glibc floor from the machine that
 # builds it, and 24.04 would yield one that won't start on Debian 12, RHEL 9 or
