@@ -100,6 +100,9 @@ ALL_RUNTIMES="linux-x64 linux-musl-x64 linux-arm64 linux-arm osx-x64 osx-arm64 w
 # target, so it can't be linked here at all. That's a runtime requirement
 # rather than a toolchain gap, so it isn't going to be fixed by better
 # cross-compile flags. armv7 keeps the R2R build.
+#
+# linux-musl-x64 IS supported, but only from a musl host: cross-compiling to
+# musl from glibc is the part that fights you. CI builds it in an Alpine job.
 AOT_CAPABLE_RUNTIMES="linux-x64 linux-musl-x64 linux-arm64 osx-x64 osx-arm64"
 
 # OS family of a runtime identifier, for the cross-OS guard.

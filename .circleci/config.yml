@@ -51,6 +51,16 @@ executors:
     docker:
       - image: darklang/dark-aot-release-base:latest
 
+  # musl has to be built ON musl: cross-compiling to it from glibc is the part
+  # that fights you, and this way clang, the loader and the libc all agree.
+  # Stock Microsoft image plus a few apk packages, so no custom image needed.
+  release-musl:
+    working_directory: ~/app
+    environment:
+      IN_DEV_CONTAINER: true
+    docker:
+      - image: mcr.microsoft.com/dotnet/sdk:10.0-alpine
+
   # CircleCI's macOS executors are bare VMs with no Docker, so there's no
   # container for the scripts to enter. IN_DEV_CONTAINER is what tells
   # _assert-in-container not to re-enter and just run, which is exactly how
@@ -411,6 +421,46 @@ jobs:
             - clis
       - store_artifacts: { path: clis }
 
+  build-cli-musl:
+    executor: release-musl
+    resource_class: large
+    steps:
+      - run:
+          name: Install build dependencies
+          command: |
+            apk add --no-cache bash git curl clang build-base zlib-dev zig openssl icu-libs
+            # build-sqlite.sh looks for zig at $HOME/zig/zig, same as everywhere else
+            mkdir -p "$HOME/zig" && ln -sf "$(command -v zig)" "$HOME/zig/zig"
+      - checkout
+      - attach_workspace: { at: "." }
+      - run: ./scripts/build/_dotnet-wrapper tool restore
+      - run: ./scripts/build/_dotnet-wrapper paket restore
+      - run:
+          name: Build the musl SQLite archive
+          command: ./scripts/build/build-sqlite.sh --runtimes=linux-musl-x64
+      - run:
+          name: AOT-publish linux-musl-x64
+          command: |
+            ./scripts/build/build-release-cli-exes.sh \
+              --mode=aot \
+              --seed=rundir/seed.db \
+              --runtimes=linux-musl-x64
+      # Natively runnable here, unlike the cross-built targets: this job *is*
+      # Alpine, so the musl loader and libs the binary needs are present.
+      - run:
+          name: Validate the musl artifact
+          command: |
+            ./scripts/testing/validate-cli-artifact \
+              "$(ls clis/darklang-*-linux-musl-x64)"
+      - run:
+          name: Gzip artifacts
+          command: gzip -f clis/darklang-*
+      - persist_to_workspace:
+          root: "."
+          paths:
+            - clis
+      - store_artifacts: { path: clis }
+
   build-cli-macos:
     executor: macos-builder
     steps:
@@ -583,6 +633,10 @@ workflows:
           filters: *release-filters
           requires: [seed-db]
 
+      - build-cli-musl:
+          filters: *release-filters
+          requires: [seed-db]
+
       - build-cli-macos:
           filters: *release-filters
           requires: [seed-db]
@@ -601,4 +655,5 @@ workflows:
               ignore: /.*/
           requires:
             - build-cli-linux
+            - build-cli-musl
             - build-cli-macos
