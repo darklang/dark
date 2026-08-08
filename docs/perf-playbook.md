@@ -133,7 +133,19 @@ The corollary bit me anyway: a rewrite meant to remove allocation *added* it, be
 closed over an array instead of taking it as a parameter. 57% of the profile, created by the fix.
 **When you extract a helper on a hot path, make it top-level and pass everything explicitly.**
 
-## 9. Working with the tooling here
+## 9. Know what your binary actually contains
+
+A Release build takes ten minutes, so it is tempting to measure against the one you built earlier.
+Don't. I recorded a Release snapshot into the tracked benchmark history from a binary that predated
+**five** subsequent commits, including the single biggest win of the round, and the numbers were
+wrong in the direction that flatters nothing.
+
+`build-release-cli-exes.sh` names the binary after `git rev-parse HEAD` *at build time*, which is
+worse than no label: it looks authoritative and is wrong if the tree had uncommitted changes or has
+moved on since. Before quoting a Release number, check the binary is newer than every commit you are
+claiming credit for.
+
+## 10. Working with the tooling here
 
 - `rundir/perf-workloads/measure` in the **foreground**, with `< /dev/null`. Backgrounded shell
   commands are throttled here by ~50x.
@@ -145,14 +157,29 @@ closed over an array instead of taking it as a parameter. 57% of the profile, cr
 - `alloc-profile` needs `--rundown false`. Without it the JIT rundown is ~80% of the trace and the
   profile looks flat when it isn't. This cost the campaign days.
 - Environment variables do **not** survive the container re-entry these scripts do. Make it a flag.
+- `ls a b` exits **non-zero when either operand is missing**, even though it prints the one that
+  matched. Under `set -euo pipefail` that kills the script mid-assignment, with no message. Append
+  `|| true` to any `EXE=$(ls a b | head -1)`.
+- There are **two** places a published binary can be. CI's `build-backend` job runs `dotnet publish`
+  and leaves it in `backend/Build/out/Cli/Release/.../publish/`; `build-cli` runs
+  `build-release-cli-exes.sh`, which *moves* it to `clis/` and leaves the publish directory empty.
+  Look in both. A tool that checks only one passes locally and fails in CI, or vice versa.
+- `backend/Build/out` is a container volume and is not writable from the host. Staging anything
+  there for a test has to happen inside the container.
 - Debug builds in ~2 minutes, Release in ~10. Develop in Debug, decide in Release, and know that the
   two disagree by up to 3x on CE-heavy paths.
 
-## 10. Leave the next person a gate, not a story
+## 11. Leave the next person a gate, not a story
 
 `scripts/testing/perf-gate` asserts allocation against a checked-in budget, separately for Debug and
 published, and CI runs it. **Lower the budget in the same commit that earns it** -- a budget nobody
 tightens stops being a gate and becomes a ceiling to drift up to.
+
+**Keep CI's share of this small.** The gate is deliberately one script and a couple of seconds:
+enough to catch a careless regression, not enough to slow every build. Do not put `perf-suite` or
+`perf-http` in CI -- the suite runs twelve processes and `perf-http` starts a server and drives it
+under load. Those are for a human, or a nightly, deciding something. A long perf job in the main
+pipeline gets ignored and then disabled.
 
 Same principle for documents: one roadmap, one history, one playbook, updated in place. Round 2
 started with 58 markdown files of working notes across two repos, which is how you end up with five

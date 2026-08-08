@@ -16,6 +16,9 @@ Numbers are measured unless marked *(estimate)*. The difference matters a lot wh
 Method, and the traps: `docs/perf-playbook.md`. History and how we got here:
 `docs/perf-history.md`.
 
+Only `perf-gate` runs in CI, and only because it's one script and a couple of seconds. The suite and
+the HTTP driver are for a human deciding something, not for every build.
+
 ---
 
 ## Where things stand
