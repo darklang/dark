@@ -60,6 +60,28 @@ allocation unchanged), and CI's gate runs against the plain Release publish from
 which the AOT work doesn't change. Re-pin to 8.2 MB when the published build actually becomes AOT,
 not before.
 
+### Follow-ups this round created
+
+**Try `IlcOptimizationPreference=Speed` before believing the throughput gap.** `Cli.fsproj` sets
+`Size`, and `IlcFoldIdenticalMethodBodies=true` alongside it. So the 0.3-5.6% sustained-server
+deficit was measured against a binary told to prefer small code over fast code. Some or all of it
+may be that setting rather than a property of AOT. This is a one-line experiment and nobody has run
+it: flip to `Speed`, re-run `perf/http --release -n 20000 -c 32` three paired times, and compare
+against the numbers in `history.md`. Watch the binary size, which is the thing `Size` was buying
+(27 MB today, against R2R's 45 MB). Do this before anyone treats the gap as inherent.
+
+**Static PGO is the principled answer if the gap survives that.** The mechanism behind the deficit
+is that a JIT re-optimises hot methods from runtime profile data and an AOT compiler has none. That
+isn't unfixable: ilc accepts MIBC profile data, so a profile collected from a representative run can
+be fed back into the build. Worth investigating only if `serve` becomes a workload we care about,
+since it adds a profile artifact to maintain and a way for the build to go stale.
+
+**The interpreter loop is the hot loop, and that is where a JIT was helping.** Everything in the
+ranked list below makes the interpreter do less work, which helps both build modes. But under AOT
+there is no second chance from re-JITting, so anything that keeps `runSyncInstructions` from
+bailing into the computation expression is worth marginally more than these numbers suggest. Item 1
+below is the clearest case.
+
 Everything below is the queue after that.
 
 ## Ranked, with what's known

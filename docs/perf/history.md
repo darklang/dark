@@ -172,6 +172,13 @@ So the trade is real and it is small: **give up a few percent of sustained serve
 4.6-8x on one-shot commands.** For a CLI that is obviously the right side of the trade. If `serve`
 ever becomes the main way Dark runs, it is worth re-measuring rather than inheriting this decision.
 
+**One confound, stated because it undercuts the number above.** `Cli.fsproj` sets
+`IlcOptimizationPreference=Size`, so the throughput deficit was measured against an AOT binary that
+was explicitly asked to prefer small code over fast code, and `IlcFoldIdenticalMethodBodies=true`
+is on as well. Some or all of the 0.3-5.6% could be those settings rather than anything inherent to
+compiling ahead of time. Nobody has measured `Speed`. Do that before treating the gap as a property
+of AOT; see the roadmap.
+
 Allocation per iteration is unchanged, within 4% and in both directions. AOT changes when code is
 compiled, not what the interpreter allocates.
 
