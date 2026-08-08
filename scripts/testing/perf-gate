@@ -1,21 +1,16 @@
 #!/usr/bin/env bash
 . ./scripts/devcontainer/_assert-in-container "$0" "$@"
 
-# Fails if the reference workload allocates more than its budget.
+# Fails if the reference workload allocates more than its budget. This is the only perf tool in CI,
+# deliberately: one script, a couple of seconds. A long perf job gets ignored and then disabled.
 #
-# Allocation, not time. Allocation for a fixed workload repeats to within about a tenth of a percent
-# between runs and doesn't care how loaded the machine is, which makes it the only number of the two
-# that can be asserted on in CI. Time is measured and printed, but never fails the build.
+#   scripts/testing/perf-gate              against the debug build
+#   scripts/testing/perf-gate --published  against the published one, as CI does
+#   scripts/testing/perf-gate --update     rewrite this mode's budget to what it measures
 #
-#   scripts/testing/perf-gate                  against the debug build
-#   scripts/testing/perf-gate --published      against the published one, as CI does
-#   scripts/testing/perf-gate --update         rewrite this mode's budget to what it measures
-#
-# Debug and published are budgeted separately: they don't allocate the same amount, and a budget
-# carried across from the other mode would be wrong in a way that looks right.
-#
-# The budget lives in scripts/testing/perf-budget.json. When a change makes things better, lower it in
-# the same commit -- a budget nobody tightens stops being a gate and becomes a ceiling to drift up to.
+# Allocation, not time: it repeats to within a tenth of a percent and doesn't care how loaded the
+# machine is. Debug and published are budgeted separately, since they don't allocate the same amount.
+# The budget is in scripts/testing/perf-budget.json -- lower it in the same commit that earns it.
 
 set -euo pipefail
 
@@ -30,11 +25,9 @@ for arg in "$@"; do
 done
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  # Two places, because two things produce a published binary and they disagree. CI runs
-  # `dotnet publish` and leaves it in the publish directory; `build-release-cli-exes.sh`, which is
-  # what you run locally, *moves* it to `clis/` and leaves that directory empty. Prefer whichever
-  # exists, newest first, or the gate passes locally and fails in CI -- which is how this comment
-  # came to be written.
+  # Two places, because CI's `dotnet publish` leaves the binary in the publish directory while
+  # `build-release-cli-exes.sh` *moves* it to clis/ and empties that one. Checking only one passes
+  # locally and fails in CI, which is how this comment came to be written.
   EXE=$(ls -t clis/darklang-alpha-*-linux-x64 \
                 backend/Build/out/Cli/Release/net10.0/linux-x64/publish/Cli \
           2>/dev/null | head -1 || true)
@@ -50,8 +43,7 @@ fi
 BUDGET_FILE="scripts/testing/perf-budget.json"
 WORKLOAD="scripts/testing/perf-workloads/steady.dark"
 
-# A published binary resolves its data and log directories relative to its own location, not to
-# DARK_CONFIG_RUNDIR, so the two modes read their telemetry from different places.
+# A published binary resolves its log directory relative to its own location, not DARK_CONFIG_RUNDIR.
 if [[ "$PUBLISHED" == "true" ]]; then
   TELEMETRY="$(dirname "$EXE")/.darklang/logs/telemetry.jsonl"
 else
@@ -59,11 +51,11 @@ else
 fi
 
 # Trace detail off: a dev shell sets it on, a user's run has it off, and with it on the interpreter
-# holds every argument and result alive for the whole run. Pinned here so the number means one thing.
+# holds every argument and result alive for the whole run.
 run_workload() { DARK_TELEMETRY=1 DARK_CONFIG_TRACE_DETAIL=off "$EXE" run "$WORKLOAD"; }
 
-# One throwaway run first. Against an empty store the first invocation seeds it -- on the published
-# binary that's an extra ~470 MB of one-time work, which would be recorded as the budget.
+# One throwaway run first: against an empty store the first invocation seeds it, which on the
+# published binary is an extra ~470 MB that would otherwise be recorded as the budget.
 run_workload > /dev/null
 rm -f "$TELEMETRY"
 OUTPUT=$(run_workload)

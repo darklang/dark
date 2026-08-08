@@ -4,7 +4,7 @@ The durable record of the performance campaigns. Round-by-round numbers, what ea
 the things learned that are worth not re-learning. Working notes for each round have been deleted;
 this is what survived them.
 
-Method: `docs/perf-playbook.md`. What's next: `docs/perf-roadmap.md`.
+Method: `docs/perf/playbook.md`. What's next: `docs/perf/roadmap.md`.
 
 ---
 

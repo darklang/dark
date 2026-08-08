@@ -1,6 +1,0 @@
-let main () : Int64 =
-  let xs = [1L; 2L; 3L]
-  let ys = xs |> Stdlib.List.map (fun x -> if x == 2L then Builtin.testRuntimeError "boom" else x)
-  Builtin.debug "ys" ys
-  0L
-main ()

@@ -1,7 +1,7 @@
 # How to do performance work on Dark
 
 Written across three campaigns. This is method, not results -- the numbers live in
-`docs/perf-history.md` and what to do next lives in `docs/perf-roadmap.md`.
+`docs/perf/history.md` and what to do next lives in `docs/perf/roadmap.md`.
 
 If you are an agent picking this up cold: read this file, then the roadmap, then run
 `scripts/testing/perf-suite` to see where things actually are before believing anything.
@@ -100,10 +100,10 @@ more specific to the thing you're measuring.
 ## 7. Verify past the test suite, by hand
 
 The 10,119-test suite has **twice** passed while the interpreter returned a quietly wrong answer.
-For anything touching execution, run the checks in
-`scripts/testing/perf-workloads/checks/` and read the output -- self-recursion, enums, records,
-lambdas, matches, map/filter/fold, a polymorphic JSON round trip, a deliberate type error, an error
-raised inside nested lambdas, and the record/enum construction failures.
+For anything touching execution, run `scripts/testing/perf-checks` and read the output --
+self-recursion, enums, records, lambdas, matches, map/filter/fold, a polymorphic JSON round trip, a
+deliberate type error, an error raised inside nested lambdas, and the four record construction
+failures.
 
 Error paths deserve special attention: they only run once something has already gone wrong, so a
 change can garble every error message with every test green.

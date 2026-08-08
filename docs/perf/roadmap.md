@@ -9,12 +9,16 @@ Numbers are measured unless marked *(estimate)*. The difference matters a lot wh
 
     scripts/testing/perf-suite              six workloads, allocation per iteration
     scripts/testing/perf-suite --release    the same, against the shipped build
+    scripts/testing/perf-suite --record     append a run to benchmarks/results/history.jsonl
     scripts/testing/perf-http               a real server under concurrent load
     scripts/testing/perf-gate               the CI assertion, against a checked-in budget
+    scripts/testing/perf-checks             by-hand semantics and error-message checks
+    scripts/testing/perf-crosslang          the same workload in node and python
+    scripts/testing/alloc-profile           allocation by type name
     ./scripts/run-cli run scripts/testing/perf-workloads/costs.dark    per-operation cost table
 
-Method, and the traps: `docs/perf-playbook.md`. History and how we got here:
-`docs/perf-history.md`.
+Method, and the traps: `docs/perf/playbook.md`. History and how we got here:
+`docs/perf/history.md`.
 
 Only `perf-gate` runs in CI, and only because it's one script and a couple of seconds. The suite and
 the HTTP driver are for a human deciding something, not for every build.
@@ -98,11 +102,11 @@ scoped -- re-measure before committing to it. The place to put a static checker 
 (`applyAddFn`), the store is content-addressed so a verdict never goes stale, and the dependency DAG
 for invalidation is already a table. Most of the risk is soundness, not plumbing.
 
-Full design: `docs/perf-compile-time-typechecking-design.md`.
+Full design: `docs/perf/compile-time-typechecking-design.md`.
 
 ### 6. NativeAOT for the shipped CLI
 
-Promoted -- see the top of this document. Full report: `docs/perf-aot-shipping-report.md`.
+Promoted -- see the top of this document. Full report: `docs/perf/aot-shipping-report.md`.
 
 ### 7. Startup, and one-shot command latency
 

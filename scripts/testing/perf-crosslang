@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+. ./scripts/devcontainer/_assert-in-container "$0" "$@"
+
+# The reference workload in node and python, for the allocation-per-iteration comparison.
+#
+# Same shape as scripts/testing/perf-workloads/steady.dark: 200 iterations of
+# `range 1 50 |> map (+1) |> length`. Run Dark's side with `scripts/testing/perf-suite lists`.
+#
+# The flags below are load-bearing:
+#   --expose-gc            so the script can collect before measuring
+#   --max-semi-space-size  512 MB of young generation, so nothing is collected *during* the
+#                          measured section and heapUsed growth equals everything allocated
+# python needs neither: it frees by refcount as it goes, so each iteration's result is retained
+# and tracemalloc's traced total is what the work allocated.
+set -euo pipefail
+cd /home/dark/app
+
+node --expose-gc --max-semi-space-size=512 - <<'JS'
+function work(n){const xs=[];for(let i=1;i<=n;i++)xs.push(i);return xs.map(x=>x+1).length;}
+function repeat(t,n,a){return t<=0?a:repeat(t-1,n,a+work(n));}
+repeat(20,50,0);
+global.gc();
+const before = process.memoryUsage().heapUsed, t0 = process.hrtime.bigint();
+const r = repeat(200,50,0);
+const t1 = process.hrtime.bigint(), after = process.memoryUsage().heapUsed;
+console.log(`node    per_iter=${((after-before)/200/1024).toFixed(2)} KB  `
+          + `cumulative=${((after-before)/1024).toFixed(1)} KB  `
+          + `elapsed_ms=${(Number(t1-t0)/1e6).toFixed(2)}  result=${r}`);
+JS
+
+python3 - <<'PY'
+# Transient per-iteration objects (the range and map wrappers) are freed by refcount and so are not
+# counted; they are a few hundred bytes each, which does not change the order of magnitude.
+import tracemalloc, gc, time
+def work(n, keep):
+    xs = list(map(lambda x: x + 1, range(1, n + 1)))
+    keep.append(xs)
+    return len(xs)
+def repeat(times, n, acc, keep):
+    if times <= 0: return acc
+    return repeat(times - 1, n, acc + work(n, keep), keep)
+repeat(20, 50, 0, [])
+gc.disable()
+tracemalloc.start()
+keep = []
+before, _ = tracemalloc.get_traced_memory()
+t0 = time.perf_counter()
+r = repeat(200, 50, 0, keep)
+t1 = time.perf_counter()
+after, _ = tracemalloc.get_traced_memory()
+tracemalloc.stop()
+print(f"python  per_iter={(after-before)/200/1024:.2f} KB  "
+      f"cumulative={(after-before)/1024:.1f} KB  "
+      f"elapsed_ms={(t1-t0)*1000:.2f}  result={r}")
+PY

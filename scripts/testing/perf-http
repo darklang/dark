@@ -3,25 +3,20 @@
 
 # Allocation and latency per HTTP request, under concurrency.
 #
-# Every other perf tool here measures one process running one script start to finish. That misses
-# the whole async half of the runtime: the accept loop, request parsing, running a handler per
-# request, serializing a response, and doing all of it concurrently. Those are a different set of
-# problems -- contention, per-request state, connection handling -- and nothing was watching them.
+# Every other perf tool here runs one process, one script, start to finish, which misses the async
+# half of the runtime entirely: the accept loop, per-request state, contention. This starts the Dark
+# server, warms it, reads its allocation over its own /alloc route, fires N requests at concurrency
+# C, and reads again.
 #
-# Method: start the Dark server, take a baseline allocation reading once it's warm, fire N requests
-# at concurrency C, then take a second reading. The difference over N is what a request costs. The
-# warm-up matters more here than elsewhere: the first request through a route pays to load and
-# convert the package functions the handler calls.
-#
-# Usage:
-#   scripts/testing/perf-http                          /json, 2000 requests, concurrency 16
-#   scripts/testing/perf-http --route /hello           a route that does almost nothing
-#   scripts/testing/perf-http -n 5000 -c 64            more load
+#   scripts/testing/perf-http                 /json, 2000 requests, concurrency 16
+#   scripts/testing/perf-http --route /hello  a route that does almost nothing
+#   scripts/testing/perf-http -n 5000 -c 64   more load
+#   scripts/testing/perf-http --release       against the shipped build
 set -euo pipefail
 cd /home/dark/app
 
 EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
-SERVER="scripts/testing/perf-workloads/http/server.dark"
+SERVER="scripts/testing/perf-workloads/http-server.dark"
 PORT="${PERF_HTTP_PORT:-9097}"
 ROUTE="/json"
 N=2000
@@ -33,8 +28,8 @@ while [[ $# -gt 0 ]]; do
     -n) N="$2"; shift 2 ;;
     -c) C="$2"; shift 2 ;;
     --port) PORT="$2"; shift 2 ;;
-    # A flag, not an environment variable: these scripts re-enter the container, and the environment
-    # does not survive that. See perf-suite for the same reason the binary lives in clis/.
+    # A flag, not an environment variable: these scripts re-enter the container and the environment
+    # does not survive that.
     --release)
       EXE=$(ls -t clis/darklang-alpha-*-linux-x64 \
                     backend/Build/out/Cli/Release/net10.0/linux-x64/publish/Cli \
@@ -99,10 +94,8 @@ def hit():
     return (time.perf_counter() - t) * 1000
 
 def alloc():
-    """Bytes the server process has allocated so far, over its own /alloc route.
-
-    A server never exits, so there is no end-of-process reading to take. Asking it costs one
-    request's worth of work, which is why the reading is taken outside the measured window."""
+    # A server never exits, so there is no end-of-process reading to take. Asking costs one
+    # request's worth of work, which is why the readings are taken outside the measured window.
     with urllib.request.urlopen(f"http://localhost:{port}/alloc", timeout=30) as r:
         return int(r.read())
 

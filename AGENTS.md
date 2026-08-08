@@ -87,6 +87,7 @@ tell you the tree has moved on rather than silently running a stale binary.
     ./scripts/testing/test-build-planning.py          tests of the build itself
     ./scripts/testing/perf-gate                       reference workload, allocation vs budget
     ./scripts/testing/perf-suite                      six workloads, allocation per iteration
+    ./scripts/testing/perf-checks                     by-hand semantics and error-message checks
 
 Find what you want before guessing at a filter: `--groups` and `--find` need no
 database and no package reload, and print the exact command for what they found.
@@ -100,9 +101,9 @@ their own help text.
 
 Three living documents, kept up to date in place rather than replaced:
 
-    docs/perf-playbook.md    how to do perf work here, and the traps. Read before starting.
-    docs/perf-roadmap.md     what's worth doing next, ranked, with measured vs estimated marked
-    docs/perf-history.md     the numbers round by round, and facts not worth re-deriving
+    docs/perf/playbook.md    how to do perf work here, and the traps. Read before starting.
+    docs/perf/roadmap.md     what's worth doing next, ranked, with measured vs estimated marked
+    docs/perf/history.md     the numbers round by round, and facts not worth re-deriving
 
 The playbook is the one to read cold: the recurring lesson across three campaigns is that almost all
 wasted effort came from trusting a measurement nobody had checked.
