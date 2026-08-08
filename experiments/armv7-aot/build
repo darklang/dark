@@ -8,7 +8,7 @@
 # and this isn't a release path, so it shouldn't pretend to be one by borrowing
 # the release machinery.
 #
-# Needs the cross toolchain from Dockerfile.release. The dev container doesn't
+# Needs the cross toolchain from Dockerfile.aot-release. The dev container doesn't
 # have it. See README for the exact docker invocation.
 
 set -euo pipefail

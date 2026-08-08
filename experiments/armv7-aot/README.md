@@ -36,12 +36,12 @@ structs at the boundary. The resulting binary has a glibc floor of 2.29.
 ## Building it
 
 Needs the cross toolchain: clang, an armhf sysroot, lld, and zig. The release image
-(`Dockerfile.release` at the repo root) has all of it; the dev container does not.
+(`Dockerfile.aot-release` at the repo root) has all of it; the dev container does not.
 
-    docker build -f Dockerfile.release -t dark-release-base .
+    docker build -f Dockerfile.aot-release -t dark-aot-release-base .
     docker run --rm -v "$PWD:/root/app" -w /root/app \
       -e HOME=/root -e IN_DEV_CONTAINER=true \
-      dark-release-base bash -c '
+      dark-aot-release-base bash -c '
         git config --global --add safe.directory /root/app
         ./experiments/armv7-aot/build'
 

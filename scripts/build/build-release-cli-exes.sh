@@ -139,7 +139,7 @@ can_aot() {
 # Same-arch builds are left alone: they link with the default toolchain, which
 # is what the validated linux-x64 path already uses.
 #
-# The sysroot paths are what the cross packages in Dockerfile.release install.
+# The sysroot paths are what the cross packages in Dockerfile.aot-release install.
 # A build host without those packages fails at link, which is the guard below.
 cross_triple_for_runtime() {
   local rid="$1" host_arch
@@ -287,7 +287,7 @@ build_for_runtime() {
     if [[ -n "$triple" ]]; then
       if [[ ! -d "/usr/$triple" ]]; then
         echo "Cross-linking $rt needs a sysroot at /usr/$triple, which isn't here."
-        echo "Build in the release image (Dockerfile.release), which installs it."
+        echo "Build in the release image (Dockerfile.aot-release), which installs it."
         exit 1
       fi
       echo "  cross-linking via clang, sysroot /usr/$triple"

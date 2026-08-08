@@ -41,7 +41,7 @@ executors:
   #     image carries clang and cross sysroots, so one x64 runner produces all
   #     four linux artifacts.
   #
-  # Built from Dockerfile.release. There is no arm runner in this workflow on
+  # Built from Dockerfile.aot-release. There is no arm runner in this workflow on
   # purpose: dark-base is published amd64-only, so an arm resource class has
   # no image to run.
   release-linux:
@@ -49,7 +49,7 @@ executors:
     environment:
       IN_DEV_CONTAINER: true
     docker:
-      - image: darklang/dark-release-base:latest
+      - image: darklang/dark-aot-release-base:latest
 
   # CircleCI's macOS executors are bare VMs with no Docker, so there's no
   # container for the scripts to enter. IN_DEV_CONTAINER is what tells

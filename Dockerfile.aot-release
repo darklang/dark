@@ -1,0 +1,63 @@
+# Build image for the NativeAOT release artifacts. Not a dev container.
+#
+# Old on purpose: an AOT binary inherits its glibc floor from the machine that
+# builds it, and 24.04 would yield one that won't start on Debian 12, RHEL 9 or
+# Amazon Linux 2023. 20.04 gives a floor of 2.29.
+#
+# Carries clang and cross sysroots because ilc links through a C compiler and
+# gcc can't cross-target, so one x64 runner covers every linux artifact. macOS
+# still needs a Mac.
+FROM ubuntu:20.04
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# tzdata and libicu aren't optional: without them the SDK installs and then
+# dies in TimeZoneInfo..cctor() on first use.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends \
+    ca-certificates curl unzip xz-utils git \
+    tzdata libicu66 \
+    clang lld \
+    gcc-aarch64-linux-gnu libc6-dev-arm64-cross \
+    gcc-arm-linux-gnueabihf libc6-dev-armhf-cross \
+    zlib1g-dev \
+    binutils \
+    # so the cross-built arm64 artifact can be run here rather than shipped unrun
+    qemu-user-static \
+  && rm -rf /var/lib/apt/lists/*
+
+# arm64 runtime libs, so the emulated smoke test gets past .NET dlopening
+# OpenSSL. arm64 packages live on ports.ubuntu.com, hence pinning the existing
+# sources to amd64 first.
+RUN sed -i 's/^deb /deb [arch=amd64] /' /etc/apt/sources.list \
+  && dpkg --add-architecture arm64 \
+  && echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports focal main universe" \
+       > /etc/apt/sources.list.d/arm64.list \
+  && echo "deb [arch=arm64] http://ports.ubuntu.com/ubuntu-ports focal-updates main universe" \
+       >> /etc/apt/sources.list.d/arm64.list \
+  && apt-get update \
+  && apt-get install -y --no-install-recommends libssl1.1:arm64 libicu66:arm64 \
+  && rm -rf /var/lib/apt/lists/*
+
+# Pinned to match backend/global.json, which sets rollForward: disable.
+# Anything else and dotnet refuses to run. Bump both together.
+ARG DOTNET_SDK_VERSION=10.0.102
+RUN curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh \
+  && bash /tmp/dotnet-install.sh --version "${DOTNET_SDK_VERSION}" --install-dir /usr/share/dotnet \
+  && ln -s /usr/share/dotnet/dotnet /usr/bin/dotnet \
+  && rm /tmp/dotnet-install.sh
+
+# zig builds the SQLite static archives. Keep in step with the dev container.
+ARG ZIG_VERSION=0.13.0
+RUN curl -sSL "https://ziglang.org/download/${ZIG_VERSION}/zig-linux-x86_64-${ZIG_VERSION}.tar.xz" -o /tmp/zig.tar.xz \
+  && mkdir -p /root/zig \
+  && tar -xf /tmp/zig.tar.xz -C /root/zig --strip-components=1 \
+  && rm /tmp/zig.tar.xz
+ENV PATH="/root/zig:${PATH}"
+
+# Stops the build scripts re-entering a container; CI is already in this image.
+ENV IN_DEV_CONTAINER=true
+ENV DOTNET_CLI_TELEMETRY_OPTOUT=1
+ENV DOTNET_NOLOGO=1
+
+WORKDIR /root/app
