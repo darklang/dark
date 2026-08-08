@@ -2128,6 +2128,13 @@ type InstrData =
     resultReg : Register
   }
 
+/// One activation of a function, lambda or the root script.
+///
+/// Every field is mutable because frames are pooled: a popped frame goes back into
+/// `VMState.framePool` with its register array attached and is reinitialised, field by field, by
+/// the next push of the same register count. Nothing outside the VM ever holds a `CallFrame` (the
+/// parent link is an id, not a reference), and a VM runs on one thread, so no field here is ever
+/// written while another reader could see it.
 type CallFrame =
   {
     mutable id : uuid
@@ -2150,9 +2157,8 @@ type CallFrame =
 
     /// Scratch space for the arguments of a builtin called from this frame.
     ///
-    /// Builtins take a `Dval[]`, and building a fresh one was the largest remaining allocation in
-    /// the runtime: 39 bytes on every builtin call, which is most of what a call-heavy program
-    /// spends. This is that array, reused.
+    /// Builtins take a `Dval[]`, and building a fresh one on every call was the largest remaining
+    /// allocation in the runtime. This is that array, reused.
     ///
     /// Per *frame* rather than per VM, which is what makes it safe without any rent/return
     /// bookkeeping. A builtin that runs Dark code does so in a new frame -- a package call pushes
@@ -2499,6 +2505,11 @@ type InterpreterStats =
   member this.recordPackageFn(hash : string, elapsedTicks : int64) =
     this.addTiming this.packageFnTiming this.packageFnCounts hash elapsedTicks
 
+/// The mutable state of one execution.
+///
+/// One VM belongs to one execution on one thread, which is what makes the mutable fields and the
+/// scratch buffers below safe without synchronisation. Anything shared across executions lives in
+/// `ExecutionState` instead, and is either immutable or a `ConditionalWeakTable`.
 type VMState =
   {
     mutable threadID : uuid

@@ -42,7 +42,7 @@ let private readRequestBodyWithLimit
   elif req.ContentLength64 = 0L then
     Task.FromResult(Ok [||])
   // A declared length means the size is known, so read straight into an array of exactly that size:
-  // no MemoryStream, no copy out of it, and the 8 KB scratch buffer is not needed either.
+  // no MemoryStream, no copy out of it, no scratch buffer.
   elif req.ContentLength64 > 0L then
     task {
       let body = Array.zeroCreate (int req.ContentLength64)
