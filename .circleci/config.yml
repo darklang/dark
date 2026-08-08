@@ -62,8 +62,12 @@ executors:
     environment:
       IN_DEV_CONTAINER: true
     macos:
-      xcode: "16.0"
-    resource_class: macos.m1.medium.gen1
+      xcode: "16.2.0"
+    # m1.medium.gen1 reached end of life on 16 February 2026. CircleCI rejects
+    # an invalid class/image pair outright ("not a valid resource class"), so
+    # a stale one fails the job before it runs anything. If this pair is
+    # rejected, the error message lists what your plan does have.
+    resource_class: macos.m4pro.medium
 
 commands:
   show-large-files-and-directories:
