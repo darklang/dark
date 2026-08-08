@@ -433,9 +433,9 @@ type TypeReference =
 /// Within the execution of `let serialize<'a> (x : 'a) : string = ...` called as `serialize<int> 1`,
 /// this holds `{ "a" => TInt64 }`.
 ///
-/// Represented as two inline slots plus an overflow map. It is nearly always one or two entries,
-/// and as an `FSharpMap` it was the single largest source of allocation in the interpreter, since
-/// a one-entry map is three heap objects.
+/// Represented as two inline slots plus an overflow map, because it is nearly always one or two
+/// entries and an `FSharpMap` charges three heap objects for a single-entry map -- enough, at this
+/// call frequency, to dominate the interpreter's allocation.
 ///
 /// Invariants, which every operation below depends on:
 /// - `Count` is the *total* number of entries, inline and overflow together.
@@ -1516,8 +1516,8 @@ module TypeDeclaration =
 
 /// One shared `ValueType.Known` wrapper per scalar type.
 ///
-/// The `KT*` cases are nullary, so F# already shares those; it was the `Known` around them that got
-/// rebuilt. Two places convert to a ValueType on every call -- `Dval.toValueType` from a value, and
+/// The `KT*` cases are nullary, so F# already shares those; it is the `Known` around them that would
+/// otherwise be rebuilt. Two places convert to a ValueType on every call -- `Dval.toValueType` from a value, and
 /// `TypeReference.toVT` from a declaration -- and between them they run several times per argument
 /// per function call. They now hand back the same objects, which also means the identity check at
 /// the top of `ValueType.merge` fires between a value's type and its declared type.
@@ -1619,10 +1619,10 @@ module Dval =
   let private vtDateTime = KnownVT.dateTime
   let private vtUuid = KnownVT.uuid
 
-  // The scalar cases above hand back a shared wrapper. The container cases could not, because their
-  // ValueType depends on the element type -- so `Known(KTList t)` was two objects, built fresh, on
-  // every call, and `toValueType` runs at least three times per package call (argument inference,
-  // the parameter check, the return check).
+  // The scalar cases above hand back a shared wrapper. The container cases cannot, because their
+  // ValueType depends on the element type: `Known(KTList t)` is two objects, and `toValueType` runs
+  // at least three times per package call (argument inference, the parameter check, the return
+  // check).
   //
   // Memoized on the element type's *identity*, not its structure. That's what makes the lookup cheap,
   // and it's enough: a list carries one `ValueType` object for its whole life, and the scalar element
@@ -1965,10 +1965,9 @@ type PackageManager =
     // These are the items a script defines itself, so for a script this is the lookup for every call
     // it makes to its own functions -- `depth`, `fib`, whatever it declared.
     //
-    // It used to be `match Map.tryFind id fnMap with | Some f -> Some f |> Ply`, which allocates a
-    // `Some` in `tryFind` and then a *second* one to return, 48 bytes a call, on top of walking a
-    // balanced tree with the generic comparer. Holding the `Option` in a `Dictionary` means a hit
-    // returns the same object and allocates nothing.
+    // Holding the `Option` in a `Dictionary` means a hit returns the same object and allocates
+    // nothing. `Map.tryFind` would allocate a `Some` and then a second one to return it, on top of
+    // walking a balanced tree with the generic comparer.
     let optionMap (items : List<'v>) (hashOf : 'v -> Hash) =
       let d = Dictionary<Hash, Option<'v>>()
       items |> List.iter (fun item -> d[hashOf item] <- Some item)
@@ -2157,8 +2156,8 @@ type CallFrame =
 
     /// Scratch space for the arguments of a builtin called from this frame.
     ///
-    /// Builtins take a `Dval[]`, and building a fresh one on every call was the largest remaining
-    /// allocation in the runtime. This is that array, reused.
+    /// Builtins take a `Dval[]`, and a fresh one per call is the largest allocation a call-heavy
+    /// program makes. This is that array, reused.
     ///
     /// Per *frame* rather than per VM, which is what makes it safe without any rent/return
     /// bookkeeping. A builtin that runs Dark code does so in a new frame -- a package call pushes
@@ -2523,9 +2522,9 @@ type VMState =
     /// Per-VM memoization of InstrData derived from `exeState.lambdaInstrCache`.
     mutable lambdaInstrDataCache : Dictionary<id, InstrData>
 
-    /// Memoized `ExecutionPoint`s for lambda frames, keyed on the lambda's expression id and
-    /// holding the calling frame's execution point it was derived from. See the note at the use
-    /// site in `applyInstruction`.
+    /// Memoized `ExecutionPoint`s for lambda frames, keyed on the lambda's expression id and holding
+    /// the calling frame's execution point they derive from. See the note at the use site in
+    /// `applyInstruction`.
     lambdaEpCache : Dictionary<id, struct (ExecutionPoint * ExecutionPoint)>
 
     /// Performance counters — incremented during execution
@@ -2555,8 +2554,8 @@ type VMState =
     pendingCallArgs : Dictionary<uuid, Dval list>
 
     /// Scratch space for the bindings a match pattern produces, reused across every `match` the VM
-    /// evaluates. As a returned `List<Register * Dval>` this cost a tuple and a cons per bound
-    /// variable per pattern *tried* -- including every pattern that failed.
+    /// evaluates. Returning a `List<Register * Dval>` instead costs a tuple and a cons per bound
+    /// variable on every pattern *tried*, including every one that fails.
     ///
     /// A buffer rather than writing straight into the registers, because a pattern can fail halfway:
     /// the caller applies these only once the whole pattern has matched, and an or-pattern's failed
@@ -2648,22 +2647,20 @@ type BuiltInFn =
 and BuiltInFnSig =
   // (exeState * vmState * typeArgs * fnArgs) -> result
   //
-  // Arguments arrive as an *array*. As an `FSharpList` the caller paid a cons per argument on every
-  // builtin call, which was the single largest source of allocation in call-heavy code. An array is
-  // one allocation, and unlike a list it can be a reused buffer -- which is what `CallFrame.argBuf`
-  // now hands over.
+  // Arguments arrive as an *array*. An `FSharpList` costs a cons per argument on every builtin call,
+  // which in call-heavy code is the single largest source of allocation; an array is one allocation,
+  // and unlike a list it can be a reused buffer -- which is what `CallFrame.argBuf` hands over.
   //
-  // A *struct* tuple, because as a reference tuple this was another heap object per call. The price
-  // is that every implementation's pattern has to say `struct (...)`.
+  // A *struct* tuple, because a reference tuple is another heap object per call. The price is that
+  // every implementation's pattern has to say `struct (...)`.
   (struct (ExecutionState * VMState * List<TypeReference> * Dval[])) -> DvalTask
 
 
 /// Functionally written in F# and shipped with the executable
-/// Both are `Dictionary` rather than `Map`. The set is fixed once the process starts and is looked
-/// up on every builtin call, and an F# `Map` charged for that twice: a
-/// tree node per entry per rebuild (and `combine` rebuilds at every nesting level, so each builtin
-/// was inserted into a balanced tree three times), and an O(log n) walk of generic structural
-/// comparisons on every lookup.
+/// Both are `Dictionary` rather than `Map`. The set is fixed once the process starts and is looked up
+/// on every builtin call, and an F# `Map` charges twice for that: a tree node per entry per rebuild
+/// (and `combine` rebuilds at every nesting level, so each builtin lands in a balanced tree several
+/// times), plus an O(log n) walk of generic structural comparisons on every lookup.
 and Builtins =
   { values : Dictionary<FQValueName.Builtin, BuiltInValue>
     fns : Dictionary<FQFnName.Builtin, BuiltInFn> }
@@ -2924,14 +2921,14 @@ module TypeReference =
 
   /// A declared `TypeReference` as a `ValueType`.
   ///
-  /// Three things were wrong with this, and together they were the top of the allocation profile
-  /// for an HTTP request.
+  /// Three things here matter enough to be worth stating, since together they put this at the top of
+  /// the allocation profile for an HTTP request when any of them is undone.
   ///
-  /// The `let r = toVT types tst` alias was a closure over both arguments, built on entry to every
-  /// call including the scalar ones that never used it. Each recursion now passes them explicitly.
+  /// Each recursion passes `types` and `tst` explicitly. A `let r = toVT types tst` alias is a
+  /// closure over both, built on entry to every call including the scalar ones that never use it.
   ///
-  /// The whole body was one `uply`, so `TString` -- which cannot be an alias and cannot await --
-  /// still entered the builder. Only the cases that can genuinely need the store do now.
+  /// Only the cases that can genuinely need the store enter the `uply`. With one builder around the
+  /// whole body, `TString` -- which cannot be an alias and cannot await -- pays for it too.
   ///
   /// And every scalar case built a fresh `Known` wrapper. They come from `KnownVT` instead, which is
   /// the same object `Dval.toValueType` returns, so comparing a value's type against its declared

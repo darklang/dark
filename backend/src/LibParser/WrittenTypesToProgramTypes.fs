@@ -21,9 +21,9 @@ type Context =
 
 /// The builtin name sets that name resolution checks against.
 ///
-/// Every resolution site used to build `builtins.fns |> Map.keys |> Set` inline, so the whole
-/// builtin name set was rebuilt for every name in every expression of every package fn loaded. It
-/// is the same set each time.
+/// It is the same set every time, and building `builtins.fns |> Map.keys |> Set` inline at each
+/// resolution site rebuilds the whole builtin name set for every name in every expression of every
+/// package fn loaded.
 ///
 /// Keyed on the `Builtins` instance rather than held in a mutable, so tests building their own
 /// builtin sets in parallel don't see each other's.

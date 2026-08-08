@@ -586,9 +586,9 @@ let private unifyDvalSync
 /// store. Failures are rare and already the slow path, so they are not worth a sync variant.
 /// The type arguments of a custom type, unified pairwise without awaiting.
 ///
-/// Parameterised types are not a corner case: `Option` and `Result` are the two most common types
-/// in the language, and returning either used to cost several times a plain record purely because
-/// its type arguments sent the check down the asynchronous route.
+/// Parameterised types are not a corner case: `Option` and `Result` are the two most common types in
+/// the language. Without this, their type arguments send the check down the asynchronous route, and
+/// returning either costs several times a plain record.
 ///
 /// `ValueNone` on anything unresolved *or* mismatched, so the async path still produces the error
 /// message and the path that describes where the mismatch was.
@@ -889,8 +889,8 @@ module DvalCreator =
 
 
   /// One field of an enum case being constructed. Same shape as `checkRecordFields`, and the same
-  /// reason for existing: as a lambda over a three-element accumulator it cost a closure, a state
-  /// machine and a tuple per field of every enum ever built.
+  /// reason for existing: as a lambda over a three-element accumulator this costs a closure, a state
+  /// machine and a tuple per field of every enum built.
   let rec private checkEnumFields
     (types : Types)
     (threadID : ThreadID)

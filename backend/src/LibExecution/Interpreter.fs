@@ -132,13 +132,13 @@ let rec private readRegs
 
 /// A call's arguments, without materialising them into a list.
 ///
-/// `FSharpList<Dval>` is the largest single entry in the allocation profile: one cons per argument
-/// per call, for a list whose uses on the package path are two lockstep walks and a copy into the
-/// callee's registers, all of which can read the caller's register file directly.
+/// Materialising costs a cons per argument per call, and the package path does not need it: its uses
+/// are two lockstep walks and a copy into the callee's registers, all of which can read the caller's
+/// register file directly.
 ///
 /// The head is held separately from the tail rather than as one list, because the `Apply` instruction
-/// carries its argument registers as an `NEList` and `head :: tail` would itself be the allocation
-/// this is trying to remove. A first attempt did exactly that and measured worse.
+/// carries its argument registers as an `NEList`, and `head :: tail` would be exactly the allocation
+/// this exists to avoid.
 ///
 /// `Prior` covers partial application without a second code path: the walks consume already-applied
 /// arguments first, then the registers. Tracing, partial application and the builtin ABI still want a
@@ -414,10 +414,9 @@ let rec checkAndExtractLetPattern
 
 /// Try a match pattern against a value, appending any bindings it makes to `buf`.
 ///
-/// Returns whether it matched. The bindings go in a caller-supplied buffer rather than a returned
-/// list because a returned `List<Register * Dval>` cost a tuple and a cons per bound variable, on
-/// every pattern *tried* rather than every pattern that matched. The buffer is reused for the life
-/// of the VM.
+/// Returns whether it matched. The bindings go in a caller-supplied buffer, reused for the life of
+/// the VM, rather than a returned `List<Register * Dval>`: returning one costs a tuple and a cons
+/// per bound variable on every pattern *tried*, not just on the one that matches.
 ///
 /// The caller writes the registers only once the whole pattern has matched, so a pattern that fails
 /// partway leaves the frame untouched. An or-pattern's failed alternative truncates the buffer back
@@ -728,7 +727,7 @@ let inline private allocNow (vm : VMState) : int64 =
 /// Copy a call's arguments into the callee's register file, positionally.
 ///
 /// Top-level and taking the array, rather than a local `let rec` that closes over it: F# cannot lift
-/// a recursive local that captures, so that was a closure allocated on every package call.
+/// a recursive local that captures, so a local here means a closure on every package call.
 let rec private fillRegisters
   (registers : Dval array)
   (i : int)
@@ -839,8 +838,8 @@ let private resolveTypeArgsAsync
 
 /// Record a builtin's result in the trace, and hand it back.
 ///
-/// Top-level for the same reason as `finishBuiltin` below it: as a local it was captured by that
-/// function's cold-path `uply`, so it was built on every builtin call.
+/// Top-level for the same reason as `finishBuiltin` below it: a local here is captured by that
+/// function's cold-path `uply`, and so gets built on every builtin call, hot path included.
 let private traceBuiltinResult
   (exeState : ExecutionState)
   (currentFrame : CallFrame)
@@ -1539,8 +1538,8 @@ let private applyInstruction
 
     if argCount = paramCount then
       let lambdaFrameAlloc = allocNow vm
-      // Hoisted out of the record expression so each piece can be bracketed separately;
-      // `lambda.frame` was the largest Apply stage and most of it was unaccounted for.
+      // Hoisted out of the record expression so each piece can be bracketed separately: as one
+      // expression, `lambda.frame` reports a single total with no way to attribute it.
       let lambdaTstAlloc = allocNow vm
       let lambdaTst =
         if TST.isEmpty appLambda.typeSymbolTable then
@@ -1557,13 +1556,13 @@ let private applyInstruction
       let parentEp = currentFrame.executionPoint
       // The `ExecutionPoint` a lambda body runs under is a pure function of (calling frame's
       // execution point, lambda's expression id), and both repeat: a lambda in a loop is called
-      // from the same function over and over. So it's memoized rather than rebuilt per call, which
-      // was nearly everything a lambda application allocated.
+      // from the same function over and over. Rebuilding it per call is nearly everything a lambda
+      // application allocates, so it is memoized.
       //
-      // Keyed on the expression id, holding the parent it was derived from. A single last-value
-      // slot is not enough -- `List.map` alternates between its own recursion and the caller's
-      // lambda, so two expression ids interleave and a one-entry cache misses every time. This
-      // cost an hour to find; the counter barely moved and the reason was thrashing, not a bug.
+      // Keyed on the expression id, holding the parent it was derived from. A single last-value slot
+      // is not enough: `List.map` alternates between its own recursion and the caller's lambda, so
+      // two expression ids interleave and a one-entry cache misses every time. A memo that thrashes
+      // looks like a memo that does not help -- check the hit rate, not just the total.
       let lambdaEp =
         let mutable hit =
           Unchecked.defaultof<struct (ExecutionPoint * ExecutionPoint)>
@@ -1660,9 +1659,9 @@ let private applyInstruction
     recordStage vm ApplyStage.LambdaTotal lambdaTotalAlloc
 
   | AppNamedFn applicable ->
-    // The symbol table the call starts from. `callBuiltin` and `callPackage` take it from
-    // here and do the rest -- shadowing, inference, checking, invocation -- outside this
-    // computation expression, which is where all of it used to live.
+    // The symbol table the call starts from. `callBuiltin` and `callPackage` take it from here and
+    // do the rest -- shadowing, inference, checking, invocation -- outside this computation
+    // expression, so the common case never enters the builder.
     let tst =
       if TST.isEmpty applicable.typeSymbolTable then
         currentFrame.typeSymbolTable
@@ -1724,10 +1723,9 @@ let private applyInstruction
       let pkgFetchAlloc = allocNow vm
       // Warm cache after the first call, which for a script means all but a handful of these.
       //
-      // The `let!` for the cold path used to sit here, in the loop's computation expression,
-      // and cost a continuation closure on every call whether or not it was reached -- the
-      // same thing that made the two call paths expensive before they were extracted. Now the
-      // miss builds its own `uply` and the hit never touches the builder.
+      // The miss builds its own `uply` and the hit never touches the builder. A `let!` here instead
+      // would sit in the loop's computation expression and cost a continuation closure on every
+      // call, reached or not.
       let fetchOnlyAlloc = allocNow vm
       let fetch = exeState.fns.package pkg
       let fetched = Ply.trySync fetch
@@ -1789,9 +1787,9 @@ let private runSyncInstructions
     | CreateEnum _
     | LoadValue _ -> running <- false
 
-    // `Apply` is all but a handful of the instructions that used to stop this drain and hand
-    // control to the computation expression, which builds a continuation per iteration. It almost
-    // never has to wait, so it runs here, and only a genuine await stops the drain.
+    // `Apply` is all but a handful of the instructions that could stop this drain, and it almost
+    // never has to wait. So it runs here rather than handing control to the computation expression,
+    // which would build a continuation per iteration; only a genuine await stops the drain.
     | Apply(putResultIn, thingToCallReg, typeArgs, newArgRegs) ->
       if vm.stats.enabled then
         vm.stats.instructionCount <- vm.stats.instructionCount + 1L
@@ -2081,9 +2079,9 @@ type private FrameStep =
 /// Run a frame's instructions until something needs the caller: an await, one of the four rare
 /// opcodes, a pushed frame, or the end of the block.
 ///
-/// This is the loop that used to live inside the computation expression, where Ply built a
-/// continuation for its body on every iteration. Here it's an ordinary `while`, and the caller
-/// enters the builder only for the cases above, which are rare.
+/// An ordinary `while`, deliberately: inside a computation expression, Ply builds a continuation
+/// for the body on every iteration. The caller enters the builder only for the cases above, which
+/// are rare.
 let private runFrame
   (exeState : ExecutionState)
   (vm : VMState)
@@ -2399,10 +2397,9 @@ let private handleFrameStep
     | FrameAwaitBuiltin _
     | FrameAwaitPackage _ -> ()
 
-    // Either a frame was pushed, or this one finished. An await or a rare opcode just comes round
-    // again, since the frame it was running is still the current one.
-    // Only when the frame's block actually ended. An await or a rare opcode leaves the frame
-    // part-run, and the next turn of this loop picks it up where it left off.
+    // Only when the frame's block actually ended: either a frame was pushed or this one finished.
+    // An await or a rare opcode leaves the frame part-run and comes round again, since the frame it
+    // was running is still the current one.
     if step.IsBlockEnded then
       match vm.frameToPush with
       | ValueSome newFrame ->
@@ -2497,9 +2494,10 @@ let private executeInnerTask
       let registers = currentFrame.registers
 
 
-      // Resolved when the frame was pushed. This used to be a cache lookup bound with `let!` on every
-      // iteration of this loop, which in the Ply builder's dynamic path allocates a continuation closure
-      // each time -- once per awaiting instruction executed, so tens of thousands per script.
+      // Resolved once, when the frame was pushed. Looking it up here instead would mean a `let!` on
+      // every iteration of this loop, and in the Ply builder's dynamic path that allocates a
+      // continuation closure each time -- once per awaiting instruction, so tens of thousands of
+      // them across a script.
       let instrData = currentFrame.instrData
 
       vm.frameToPush <- ValueNone

@@ -37,8 +37,8 @@ let private readRequestBodyWithLimit
   : Task<Result<byte[], unit>> =
   if req.ContentLength64 > maxBytes then
     Task.FromResult(Error())
-  // A GET has no body, and every request used to allocate a read buffer, a `MemoryStream` and its
-  // internal buffer just to discover that.
+  // A GET has no body. Without this arm, discovering that costs a read buffer, a `MemoryStream` and
+  // its internal buffer, on every request.
   elif req.ContentLength64 = 0L then
     Task.FromResult(Ok [||])
   // A declared length means the size is known, so read straight into an array of exactly that size:
