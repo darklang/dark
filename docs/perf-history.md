@@ -27,12 +27,25 @@ telemetry that reports it was added by round 1:
 
 | workload | before round 1 | after round 1 | after round 2 | total |
 |---|---|---|---|---|
-| `recursion` | 13,436 KB | 2,470.6 KB | **0.48 KB** | 27,993x |
-| `lists` | 3,345 KB | 865.3 KB | **12.0 KB** | 279x |
-| `dicts` | 1,055 KB | 369.2 KB | **15.7 KB** | 67x |
-| `strings` | 684 KB | 191.5 KB | **6.6 KB** | 104x |
-| `records` | 202 KB | 62.6 KB | **8.3 KB** | 24x |
-| `json` | 76 KB | 33.4 KB | **13.0 KB** | 5.8x |
+| `recursion` | 13,436 KB | 2,470.6 KB (5.4x) | **0.48 KB** (5,147x) | **27,993x** |
+| `lists` | 3,345 KB | 865.3 KB (3.9x) | **12.0 KB** (72x) | **279x** |
+| `strings` | 684 KB | 191.5 KB (3.6x) | **6.6 KB** (29x) | **104x** |
+| `dicts` | 1,055 KB | 369.2 KB (2.9x) | **15.7 KB** (23.5x) | **67x** |
+| `records` | 202 KB | 62.6 KB (3.2x) | **8.3 KB** (7.5x) | **24x** |
+| `json` | 76 KB | 33.4 KB (2.3x) | **13.0 KB** (2.6x) | **5.8x** |
+
+Time, Release, 200 iterations each:
+
+| workload | before round 1 | after round 1 | after round 2 | total |
+|---|---|---|---|---|
+| `recursion` | 53,389 ms | 616 ms (87x) | **501 ms** (1.2x) | **107x** |
+| `records` | 823 ms | 25 ms (33x) | **16 ms** (1.6x) | **51x** |
+| `strings` | 905 ms | 73 ms (12.4x) | **48 ms** (1.5x) | **18.9x** |
+| `json` | 242 ms | 17 ms (14.2x) | **13 ms** (1.3x) | **18.6x** |
+| `lists` | 2,127 ms | 244 ms (8.7x) | **190 ms** (1.3x) | **11.2x** |
+| `dicts` | 1,073 ms | 143 ms (7.5x) | **103 ms** (1.4x) | **10.4x** |
+
+Round 1 took most of the time; round 2 took most of the allocation.
 
 Careful with older documents: round 1's own notes quote the reference workload at 107.1 MB at its
 end, and ~868 MB before it. Those were a *different, lighter* workload, replaced during round 2 when
