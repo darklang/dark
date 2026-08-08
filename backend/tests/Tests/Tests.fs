@@ -54,7 +54,9 @@ let main (args : string array) : int =
         // which fetches from api.github.com. Request and connect timeouts are
         // already 30s and 10s, so the fetch alone cannot explain a ten-minute
         // stall. Re-enabling needs a repro on a runner without egress, not a guess.
-        //   scripts/run-backend-tests --filter-test-list CliTraces
+        //
+        // Uncomment the line below to run them; no filter reaches them while it is commented out,
+        // so nothing currently exercises the tracer end to end.
         // Tests.CliTraces.tests
         Tests.Toplevels.tests
 
