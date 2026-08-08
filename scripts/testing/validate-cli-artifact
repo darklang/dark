@@ -122,6 +122,15 @@ echo ""
 echo "Smoke set:"
 
 # Cheap liveness first. If these fail, everything below is noise.
+#
+# `status` goes first deliberately, so the check that covers first run is not
+# also the one that talks to the network. This is a fresh store, so whichever
+# command runs first pays for the setup and the package-DB grow, and that is
+# worth asserting on: first run is the path every new user takes. But `version`
+# calls the GitHub releases API, and CI runs from shared IPs that GitHub
+# rate-limits, so leading with it conflates "first run is broken" with "GitHub
+# said no today". Keep both, just not as the same assertion.
+check "status (first run)" ""  status
 check "version"        ""    version
 check "help"           ""    help
 
@@ -132,9 +141,6 @@ check "eval"           "3"   eval "1 + 2"
 # Package space: name resolution and the package deserializer.
 check "ls"             ""    ls
 check "ls a module"    ""    ls Darklang.Stdlib.List
-
-# Store plumbing.
-check "status"         ""    status
 
 # The HTTP client's whole TLS stack, which is reflection-heavy and entirely
 # absent from every other check here.
