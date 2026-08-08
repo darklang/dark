@@ -23,12 +23,36 @@ the HTTP driver are for a human deciding something, not for every build.
 
 ## Where things stand
 
-Reference workload, Release, whole process: **7.84 MB**, down from 211.99 MB at the start of round 2
-and from ~868 MB before round 1. Per iteration it is **7.1x node** on the list workload, past the
-~10x goal that was set -- but that workload is the *cheapest* of six, so treat it as a best case.
+Reference workload, Release, whole process: **7.6 MB**, from 211.99 MB at the start of round 2. Per
+iteration the list workload is **7.1x node**, past the ~10x goal -- but it is the *cheapest* of six,
+so treat it as a best case rather than a summary.
 
-Per iteration, Release: `recursion` 0.52 KB, `records` 8.7 KB, `lists` 12.0, `json` ~13, `strings`
-~6, `dicts` ~15. An HTTP request returning a constant string: **~104 KB**.
+Per iteration, Release: `recursion` 0.48 KB, `strings` 6.6, `records` 8.3, `lists` 12.0, `json` 13.0,
+`dicts` 15.7. An HTTP request returning a constant string: **85.4 KB**.
+
+Time is the axis that hasn't moved: 1.4x in Release this round against 28x for allocation. That is
+what makes AOT the right next step rather than more of this.
+
+## Next round is NativeAOT
+
+Decided 2026-08-08. It's the right call and it outranks everything below: one-shot command latency
+is dominated by `cli.preMain` -- runtime init and JIT -- which is exactly what AOT deletes, and no
+amount of interpreter work touches that. It's also already built, on its own branch.
+
+**The one thing to measure rather than assume.** AOT trades steady-state throughput for startup: it
+compiles ahead of time, so the JIT can't use runtime profile information or re-optimise hot loops.
+Long-running work can come out *slower*. This repo already has a hint in that direction -- round 1
+landed `TieredPGO=0` because tiered PGO was hurting throughput here.
+
+So when AOT lands, run `perf-suite --release` and `perf-http --release` before and after, not just a
+startup timing. The six workloads are all steady-state loops and are precisely the shape that could
+regress. If they do, that's a real tradeoff to make deliberately, not a surprise to find later.
+
+**And re-pin the gate.** `scripts/testing/perf-budget.json` holds a published budget measured against
+an R2R build. An AOT binary will not allocate identically, so the gate needs
+`perf-gate --published --update` in the same commit, with the new number stated.
+
+Everything below is the queue after that.
 
 ## Ranked, with what's known
 
@@ -78,11 +102,7 @@ Full design: `docs/perf-compile-time-typechecking-design.md`.
 
 ### 6. NativeAOT for the shipped CLI
 
-**Built, blocked on CI.** The unix side is close to done and worth doing; Windows is a real project;
-the whole thing needs multi-OS CI runners, which is why it was parked. A phased rollout gets most of
-the benefit. Being worked separately on the `native-aot` branch.
-
-Full report: `docs/perf-aot-shipping-report.md`.
+Promoted -- see the top of this document. Full report: `docs/perf-aot-shipping-report.md`.
 
 ### 7. Startup, and one-shot command latency
 
