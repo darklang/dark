@@ -12,7 +12,11 @@ let renderViewBody (state: State) (region: UI.Layout.Region) : List<UI.Layout.Sp
     // out. Matter built its own title and showed neither, so a filtered tree was indistinguishable from the
     // whole thing - which is the one place that matters most, since this is the view you browse in.
     let treeTitle =
-      let base_ = if state.matterLens == "values" then "Values" else "Tree"
+      let base_ =
+        match state.matterLens with
+        | "values" -> "Values"
+        | "changed" -> "Changed"
+        | _ -> "Tree"
       let count = Stdlib.Int.toString (Stdlib.List.length state.items)
       if state.filter == "" then base_ ++ "  ·  " ++ count
       else base_ ++ "  ·  " ++ count ++ "  ·  filter: " ++ state.filter
@@ -130,18 +134,21 @@ let viewBlurb (idx: Int) : (String * String) =
 /// Honest, context-relevant key hints per view - the 3-6 most useful keys first, then the anchored global
 /// keys (view-switch, help, quit) so the footer's right edge is stable. Keys are emphasized by `formatHints`.
 /// Only advertises what actually works today.
-let hintsForView (state: State) : String =
+let hintsForView (state: State) (width: Int) : String =
   let view = state.activeView
   // `tab preview` only makes sense when the split view actually has items (and thus a preview pane).
   let hasPreview = Stdlib.Bool.not (Stdlib.List.isEmpty state.items)
   let tabHint = if hasPreview then [ ("tab", "preview") ] else []
   // Global keys, always the same, anchored at the right end of the footer.
   // `p` earns a slot here: it's the way out to the prompt, and an escape hatch nobody can see isn't one.
-  let global =
-    [ ("/", "search"); (":", "cmd"); ("p", "prompt"); ("`", "views"); ("?", "help"); ("esc/q", "quit") ]
+  // Split by what a person cannot do without. `?` opens the keymap and `esc/q` leaves; everything else on
+  // this row is discoverable THROUGH `?`, so everything else can give way on a narrow terminal.
+  let essential = [ ("?", "help"); ("esc/q", "quit") ]
+  let secondaryGlobal =
+    [ ("/", "search"); (":", "cmd"); ("p", "prompt"); ("`", "views") ]
   let ctx =
     if view == vMatter then
-      [ ("↑↓", "move"); ("→", "in"); ("d", "deps"); ("n/t/v", "new"); ("e", "edit"); ("r", "rename"); ("L", "values"); ("f", "filter") ]
+      [ ("↑↓", "move"); ("→", "in"); ("d", "deps"); ("n/t/v", "new"); ("e", "edit"); ("r", "rename"); ("C", "changed"); ("L", "lens"); ("f", "filter") ]
     else if view == vHome then
       // Home is a dashboard, not a list - nothing here moves, so don't advertise a cursor. The tabs panel
       // names its own keys.
@@ -173,7 +180,9 @@ let hintsForView (state: State) : String =
         let h = vd.hints
         h state
       | None -> [ ("↑↓", "move") ]
-  Frame.formatHints (Stdlib.List.append ctx global)
+  // Fitted rather than concatenated. The droppable run is ordered cheapest-last, so this view's own actions
+  // outlive the secondary global keys, and `?`/`esc/q` outlive everything.
+  Frame.formatHintsFitted (Stdlib.List.append ctx secondaryGlobal) essential width
 
 /// The keymap, grouped, for the `?` overlay - (category, keys).
 val helpGroups =

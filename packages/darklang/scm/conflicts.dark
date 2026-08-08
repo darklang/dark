@@ -1,0 +1,568 @@
+module Darklang.SCM.Conflicts
+
+// The base-agnostic conflict DETECTOR, and the `conflicts` / `sync_bases` silo.
+//
+// A conflict is a RECONCILIATION event: two divergent op sets folded against a common BASE -- a merge, a
+// rebase, or a sync-import -- where BOTH sides rebound the same name to DIFFERENT hashes since that base.
+// Superseding your own earlier version is an update, so nothing here runs on the authoring hot path.
+//
+// BASE-AGNOSTIC on purpose: a branch merge supplies `branch_name_bases`, a sync-import supplies
+// `sync_bases`. One path, two base sources, which is what makes main-to-main sync as conflict-aware as a
+// branch merge.
+//
+// Detection never decides what APPLIES -- the fold's origin_ts LWW does. This decides what gets RECORDED,
+// so the loser of an auto-resolution is never silently gone.
+//
+// OWNS every statement against `conflicts` and `sync_bases`, plus the `locations` reads the detector needs.
+// Does NOT read `package_ops`: that is `SCM.PackageOps`'s silo, which assembles the op-log side and hands
+// it here as plain `Binding`s. One-way, PackageOps -> Conflicts.
+
+let localDb () : String = Builtin.localDbPath ()
+
+/// The branch this process is on ("" is main).
+///
+/// Asked of `SCM.Branches` rather than of `SCM.PackageOps`, which spells the same thing `currentBranch`:
+/// PackageOps depends on this module, so reaching back for it would close the loop.
+let onBranch () : String = Branches.current ()
+
+
+// the shapes
+
+/// One side's binding of a name: the hash it points at, plus the authoring stamp of the op that bound it
+/// (the same `origin_ts` the fold's LWW compares).
+type Binding =
+  { owner: String
+    modules: String
+    name: String
+    itemType: String
+    hash: String
+    originTs: String
+    /// WHO wrote it, when that is known. "" for anything read out of the local projection, which does not
+    /// record authorship per name; the local side of a conflict is labelled by the caller instead.
+    author: String
+
+    /// The hash this binding REPLACED, when the op said. `None` means no predecessor was recorded -- by a
+    /// parser that had no store to ask, or by an op written before bindings carried this at all.
+    ///
+    /// Two bindings of one name that BOTH say None were each created from nothing, which is the case the
+    /// detector could not previously see. One that names the other's hash descends from it, which is an
+    /// ordinary edit and not a conflict.
+    previous: Stdlib.Option.Option<String> }
+
+/// A recorded per-name base: the hash two sides last AGREED on. "" = the name did not exist at the base.
+type NameBase =
+  { owner: String
+    modules: String
+    name: String
+    baseHash: String }
+
+/// One competing version of a name at a reconciliation point. `side` is "local" or "incoming"; `author` is
+/// a best-effort label (an identity or a source id) -- ops aren't signed yet, so it's attribution, not proof.
+type Candidate =
+  { side: String
+    hash: String
+    originTs: String
+    author: String }
+
+/// A recorded conflict. `autoResolvedTo` is the hash the deterministic fold picked; the LOSER stays here in
+/// `candidates` so the choice is reviewable and reversible rather than silent.
+type Conflict =
+  { id: String
+    owner: String
+    modules: String
+    name: String
+    itemType: String
+    kind: String
+    candidates: List<Candidate>
+    autoResolvedTo: String
+    reason: String
+    status: String
+    resolvedBy: String }
+
+
+// small shared helpers
+
+/// The join key for a location across the three sides (local / incoming / base). A name can't contain "/",
+/// so this is unambiguous.
+let bindingKey (owner: String) (modules: String) (name: String) : String =
+  $"{owner}/{modules}/{name}"
+
+/// The human-facing dotted name for a location.
+let fqn (owner: String) (modules: String) (name: String) : String =
+  if modules == "" then $"{owner}.{name}" else $"{owner}.{modules}.{name}"
+
+/// Lexical "is <param a> after <param b>". Dark's numeric operators don't span String, and both things we
+/// order here (ISO stamps, hex hashes) are compared lexically by the F# fold, so route it through the same
+/// ordinal ordering `Stdlib.List.sort` uses rather than inventing a second rule.
+let stringGt (a: String) (b: String) : Bool =
+  if a == b then
+    false
+  else
+    match Stdlib.List.sort [ a; b ] with
+    | [ lower; _ ] -> lower == b
+    | _ -> false
+
+
+// the auto-resolution rule (must mirror the fold exactly)
+
+/// Does the INCOMING binding beat the LOCAL one?
+///
+/// THIS RULE EXISTS TWICE. `PackageOpPlayback.isStale` decides the same question during the fold, and the
+/// two must agree or a recorded conflict names a winner the fold did not pick -- or the stores diverge.
+/// Change one, change both. Both say: later stamp wins, an exact tie goes to the higher hash (portable, so
+/// every instance converges), and a local binding with no stamp never defends itself.
+///
+/// No equal-hash case here: `detect` returns None when the hashes match, so this is only asked about two
+/// genuinely different versions. The F# side needs that case, since the fold sees every op.
+let incomingWins (incoming: Binding) (local: Binding) : Bool =
+  if local.originTs == "" then
+    true
+  else if incoming.originTs == local.originTs then
+    stringGt incoming.hash local.hash
+  else
+    stringGt incoming.originTs local.originTs
+
+/// Why the auto-resolution picked what it did.
+let resolutionReason (incoming: Binding) (local: Binding) : String =
+  if local.originTs == "" then "no-local-stamp"
+  else if incoming.originTs == local.originTs then "tie-break-by-hash"
+  else "later-origin-ts"
+
+/// A stable short id: the first 8 hex of sha256 over the location plus both candidate hashes, SORTED so the
+/// id doesn't depend on which side happened to be local. Re-detecting the same conflict yields the same id,
+/// so recording is idempotent (INSERT OR IGNORE) instead of piling up duplicate rows on every re-fold.
+let conflictId
+  (owner: String)
+  (modules: String)
+  (name: String)
+  (hashes: List<String>)
+  : String =
+  let sorted = Stdlib.List.sort hashes
+  let material = $"{owner}/{modules}/{name}|" ++ (Stdlib.String.join sorted ",")
+  let digest = Stdlib.Blob.toHex (Stdlib.Crypto.sha256 (Stdlib.String.toBlob material))
+  Stdlib.String.toLowercase (Stdlib.String.first digest 8)
+
+
+// THE DETECTOR
+
+/// A name conflicts iff BOTH sides moved it since the recorded base:
+///   incoming != local, incoming != base, local != base, and a base was actually RECORDED for the name.
+///
+/// The four rejections matter as much as the acceptance:
+///   - no recorded base   -> we can't prove both sides moved. Guessing here is what false-alarms on every
+///                           ordinary peer update, so it is NOT a conflict.
+///   - same hash          -> not a divergence at all (a re-pull, or both sides authored identical bytes).
+///   - only local moved   -> our own update; the peer is simply behind.
+///   - only incoming moved-> an ordinary peer update of a name we never touched. Take it, quietly.
+let detect
+  (localLabel: String)
+  (incomingLabel: String)
+  (local: List<Binding>)
+  (incoming: List<Binding>)
+  (bases: List<NameBase>)
+  : List<Conflict> =
+  let localEntries =
+    local |> Stdlib.List.map (fun b -> (bindingKey b.owner b.modules b.name, b))
+
+  let localByKey = Stdlib.Dict.fromListOverwritingDuplicates localEntries
+
+  let baseEntries =
+    bases |> Stdlib.List.map (fun b -> (bindingKey b.owner b.modules b.name, b.baseHash))
+
+  let baseByKey = Stdlib.Dict.fromListOverwritingDuplicates baseEntries
+
+  incoming
+  |> Stdlib.List.filterMap (fun inc ->
+    let k = bindingKey inc.owner inc.modules inc.name
+
+    // No base at all is reached whenever a name was created after the last agreement with this source. It
+    // covers two situations that only a binding recording what it REPLACED can tell apart:
+    //
+    //   - each side invented the name from nothing. Neither has a predecessor: a real conflict, and whoever
+    //     loses simply stops being what the name meant.
+    //   - one side edited the other's version. Its binding names the other's hash as what it replaced, so
+    //     it descends from it and taking it is collaborating.
+    //
+    // Only the first is reported, and only when BOTH sides say they replaced nothing. `None` also means
+    // "no predecessor recorded", which is what any pre-lineage op says, so requiring it from both sides
+    // keeps that weaker reading from manufacturing conflicts.
+    let bothCreatedFromNothing =
+      (inc.previous == Stdlib.Option.Option.None)
+      && (inc.hash != "")
+
+    match (Stdlib.Dict.get localByKey k, Stdlib.Dict.get baseByKey k) with
+    | (Some loc, None) when
+      bothCreatedFromNothing
+      && (loc.previous == Stdlib.Option.Option.None)
+      && (inc.hash != loc.hash)
+      ->
+      let winner = if incomingWins inc loc then inc.hash else loc.hash
+
+      (Conflict
+        { id = conflictId inc.owner inc.modules inc.name [ loc.hash; inc.hash ]
+          owner = inc.owner
+          modules = inc.modules
+          name = inc.name
+          itemType = inc.itemType
+          kind = "independent-creation"
+          candidates =
+            [ Candidate
+                { side = "local"
+                  hash = loc.hash
+                  originTs = loc.originTs
+                  author = localLabel }
+              Candidate
+                { side = "incoming"
+                  hash = inc.hash
+                  originTs = inc.originTs
+                  author = if inc.author == "" then incomingLabel else inc.author } ]
+          autoResolvedTo = winner
+          reason = resolutionReason inc loc
+          status = "pending"
+          resolvedBy = "" })
+      |> Stdlib.Option.Option.Some
+
+    | (Some loc, Some baseHash) ->
+      if (inc.hash == loc.hash) || (inc.hash == baseHash) || (loc.hash == baseHash) then
+        Stdlib.Option.Option.None
+      else
+        let winner = if incomingWins inc loc then inc.hash else loc.hash
+
+        (Conflict
+          { id = conflictId inc.owner inc.modules inc.name [ loc.hash; inc.hash ]
+            owner = inc.owner
+            modules = inc.modules
+            name = inc.name
+            itemType = inc.itemType
+            kind = "same-name-different-hash"
+            candidates =
+              [ Candidate
+                  { side = "local"
+                    hash = loc.hash
+                    originTs = loc.originTs
+                    author = localLabel }
+                Candidate
+                  { side = "incoming"
+                    hash = inc.hash
+                    originTs = inc.originTs
+                    // The op's own author when the sender told us, falling back to the source it arrived
+                    // through. The fallback is what every pre-v5 sender gives us, and it is what a conflict
+                    // used to say always: the relay's URL rather than a person.
+                    author = if inc.author == "" then incomingLabel else inc.author } ]
+            autoResolvedTo = winner
+            reason = resolutionReason inc loc
+            status = "pending"
+            resolvedBy = "" })
+        |> Stdlib.Option.Option.Some
+    | _ -> Stdlib.Option.Option.None)
+
+
+// reading the LOCAL side (the `locations` projection)
+
+/// "@p0, @p1, ..." for an IN-list of <param values>.
+let inPlaceholders (values: List<String>) : String =
+  let ps =
+    values
+    |> Stdlib.List.indexedMap (fun i _ -> $"@p{Stdlib.Int.toString i}")
+
+  Stdlib.String.join ps ", "
+
+let bindingFromRow (row: Dict<Stdlib.Sqlite.Value>) : Stdlib.Option.Option<Binding> =
+  match
+    (Stdlib.Sqlite.textField row "owner",
+     Stdlib.Sqlite.textField row "modules",
+     Stdlib.Sqlite.textField row "name",
+     Stdlib.Sqlite.textField row "item_hash")
+  with
+  | (Some owner, Some modules, Some name, Some hash) ->
+    (Binding
+      { owner = owner
+        modules = modules
+        name = name
+        itemType =
+          Stdlib.Sqlite.textField row "item_type" |> Stdlib.Option.withDefault ""
+        hash = hash
+        originTs = Stdlib.Sqlite.textField row "ts" |> Stdlib.Option.withDefault ""
+        // `locations` records no authorship, so the local side is labelled by the caller.
+        author = ""
+        // `locations` records the binding, not the op that made it, so it cannot say what came before.
+        // The op-log read (`bindingFromOp`) is where a predecessor is available.
+        previous = Stdlib.Option.Option.None })
+    |> Stdlib.Option.Option.Some
+  | _ -> Stdlib.Option.Option.None
+
+/// How many values go into one `IN (...)`.
+///
+/// SQLite caps bound parameters per statement, and the cap is a compile-time constant of whatever build is
+/// linked (32,766 here, 999 on anything older). Crossing it does not return fewer rows, it ERRORS -- and
+/// every caller here turns an error into `[]`, which reads downstream as "nothing bound locally", which
+/// reads as "no conflict". Detection quietly reporting all-clear is what this module exists to prevent, so
+/// nothing in it builds an unbounded IN-list.
+///
+/// 900 stays under even the old cap. Nothing here is on a hot path, so there is no reason to run closer.
+val inChunkSize = 900
+
+/// Split <param values> into IN-list-sized chunks. Falls back to one chunk rather than dropping
+/// anything, because the size is a constant and the only Error case is a non-positive one.
+let inChunks (values: List<String>) : List<List<String>> =
+  match Stdlib.List.chunkBySize values inChunkSize with
+  | Ok cs -> cs
+  | Error _ -> [ values ]
+
+/// What this instance's fold currently binds, restricted to <param names> (the incoming side's bare names),
+/// so a reconciliation never scans the whole `locations` projection. Filtering by bare name is enough of a
+/// narrowing; the detector matches on the full (owner, modules, name) key anyway.
+///
+/// Chunked: a sync bundle can touch thousands of names, and see `inChunkSize` for why the un-chunked
+/// version failed by reporting no conflicts rather than by failing.
+let localBindingsFor (names: List<String>) : List<Binding> =
+  match names with
+  | [] -> []
+  | _ ->
+    Stdlib.List.unique names
+    |> inChunks
+    |> Stdlib.List.map (fun chunk ->
+      let sql =
+        "SELECT owner, modules, name, item_type, item_hash, COALESCE(origin_ts,'') AS ts
+         FROM locations
+         WHERE unlisted_at IS NULL AND name IN ("
+        ++ (inPlaceholders chunk)
+        ++ ")"
+
+      match Stdlib.Sqlite.queryP (localDb ()) sql chunk with
+      | Ok rows -> rows |> Stdlib.List.filterMap bindingFromRow
+      | Error _ -> [])
+    |> Stdlib.List.flatten
+
+
+// reading the BASES (the two sources, one shape)
+
+let baseFromRow (row: Dict<Stdlib.Sqlite.Value>) : Stdlib.Option.Option<NameBase> =
+  match
+    (Stdlib.Sqlite.textField row "owner",
+     Stdlib.Sqlite.textField row "modules",
+     Stdlib.Sqlite.textField row "name",
+     Stdlib.Sqlite.textField row "base_hash")
+  with
+  | (Some owner, Some modules, Some name, Some baseHash) ->
+    (NameBase
+      { owner = owner
+        modules = modules
+        name = name
+        baseHash = baseHash })
+    |> Stdlib.Option.Option.Some
+  | _ -> Stdlib.Option.Option.None
+
+/// The bases a BRANCH recorded when it first touched each name (the parent's hash at the fork point).
+let branchBases (branchId: String) : List<NameBase> =
+  match
+    Stdlib.Sqlite.queryP
+      (localDb ())
+      "SELECT owner, modules, name, base_hash FROM branch_name_bases WHERE branch_id = @p0"
+      [ branchId ]
+  with
+  | Ok rows -> rows |> Stdlib.List.filterMap baseFromRow
+  | Error _ -> []
+
+/// The bases recorded for a SYNC SOURCE: the hashes this instance and that source last agreed on.
+let syncBases (sourceId: String) : List<NameBase> =
+  match
+    Stdlib.Sqlite.queryP
+      (localDb ())
+      "SELECT owner, modules, name, base_hash FROM sync_bases WHERE source_id = @p0"
+      [ sourceId ]
+  with
+  | Ok rows -> rows |> Stdlib.List.filterMap baseFromRow
+  | Error _ -> []
+
+/// Has this instance ever recorded agreement with <param sourceId>? A first sync has none, which is why a
+/// first sync can't (and shouldn't) report conflicts.
+let hasSyncBases (sourceId: String) : Bool =
+  let n =
+    Stdlib.Sqlite.scalarIntP
+      (localDb ())
+      "SELECT count(*) AS n FROM sync_bases WHERE source_id = @p0"
+      [ sourceId ]
+      "n"
+
+  (Stdlib.Option.withDefault n 0L) > 0L
+
+/// Record agreement with <param sourceId> for EVERY name this instance currently binds, in one statement.
+/// The bulk-import path: adopting a whole log wholesale is exactly "we now agree on everything I hold", and
+/// decoding every op blob in Dark just to narrow the list would cost far more than it buys.
+let recordAllSyncBases (sourceId: String) : Unit =
+  let _ =
+    Stdlib.Sqlite.execP
+      (localDb ())
+      "INSERT INTO sync_bases (source_id, owner, modules, name, base_hash)
+       SELECT @p0, owner, modules, name, item_hash FROM locations WHERE unlisted_at IS NULL
+       ON CONFLICT(source_id, owner, modules, name)
+       DO UPDATE SET base_hash = excluded.base_hash, updated_at = datetime('now')"
+      [ sourceId ]
+
+  ()
+
+
+// the `conflicts` table (record / read / resolve)
+
+let conflictFromRow (row: Dict<Stdlib.Sqlite.Value>) : Stdlib.Option.Option<Conflict> =
+  let text (col: String) : String =
+    Stdlib.Sqlite.textField row col |> Stdlib.Option.withDefault ""
+
+  match Stdlib.Sqlite.textField row "id" with
+  | Some id ->
+    let candidates =
+      match Stdlib.Json.parse<List<Candidate>> (text "candidates") with
+      | Ok cs -> cs
+      | Error _ -> []
+
+    (Conflict
+      { id = id
+        owner = text "owner"
+        modules = text "modules"
+        name = text "name"
+        itemType = text "item_type"
+        kind = text "kind"
+        candidates = candidates
+        autoResolvedTo = text "auto_resolved_to"
+        reason = text "reason"
+        status = text "status"
+        resolvedBy = text "resolved_by" })
+    |> Stdlib.Option.Option.Some
+  | None -> Stdlib.Option.Option.None
+
+/// Record conflicts against <param branchId> ("" is main) as `pending`. Returns how many rows it wrote.
+///
+/// INSERT OR IGNORE on the content-derived id, so re-detecting the same divergence is a no-op rather than a
+/// pile of duplicates, and an already-acked conflict is never quietly reopened.
+///
+/// The branch is a PARAMETER, not read from the process: a sync import folds into wherever the process is
+/// standing, while a merge folds into the PARENT of the branch being merged. Reading `currentBranch ()`
+/// here would file a merge's conflicts on the branch that just stopped existing.
+///
+/// Counted rather than discarded. The CLI prints "the losing version is kept, not dropped" off the back of
+/// this; if the write failed, that sentence is a lie and nobody can tell.
+let record (branchId: String) (conflicts: List<Conflict>) : Int =
+  conflicts
+  |> Stdlib.List.fold 0 (fun written c ->
+    match
+      Stdlib.Sqlite.execP
+        (localDb ())
+        "INSERT OR IGNORE INTO conflicts
+           (id, owner, modules, name, item_type, kind, candidates, auto_resolved_to, reason, status, origin_ts, branch_id)
+         VALUES (@p0, @p1, @p2, @p3, @p4, @p5, @p6, @p7, @p8, 'pending',
+                 strftime('%Y-%m-%dT%H:%M:%fZ','now'), @p9)"
+        [ c.id
+          c.owner
+          c.modules
+          c.name
+          c.itemType
+          c.kind
+          Stdlib.Json.serialize<List<Candidate>> c.candidates
+          c.autoResolvedTo
+          c.reason
+          branchId ]
+    with
+    | Ok _ -> written + 1
+    | Error _ -> written)
+
+/// Conflicts awaiting a human ON THIS BRANCH, oldest first.
+///
+/// Scoped, because a conflict is a divergence in one line of work: settling main's while standing on a
+/// branch would write the answer into an overlay where it does nothing until merge, and settling a
+/// branch's from main would answer for a projection that hasn't happened yet. Each branch sees its own.
+let pending () : List<Conflict> =
+  match
+    Stdlib.Sqlite.queryP
+      (localDb ())
+      "SELECT id, owner, modules, name, item_type, kind, candidates, auto_resolved_to, reason, status,
+              COALESCE(resolved_by,'') AS resolved_by
+       FROM conflicts WHERE status = 'pending' AND branch_id = @p0 ORDER BY created_at"
+      [ onBranch () ]
+  with
+  | Ok rows -> rows |> Stdlib.List.filterMap conflictFromRow
+  | Error _ -> []
+
+/// How many conflicts are waiting -- the number `dark status` and `dark commit` surface.
+let pendingCount () : Int64 =
+  Stdlib.Sqlite.scalarIntP
+    (localDb ())
+    "SELECT count(*) AS n FROM conflicts WHERE status = 'pending' AND branch_id = @p0"
+    [ onBranch () ]
+    "n"
+  |> Stdlib.Option.withDefault 0L
+
+/// One conflict by id PREFIX (ids are short already; a prefix keeps them typeable).
+/// The conflict on THIS branch whose id starts with <param rawPrefix>.
+///
+/// Branch-scoped like `pending`, so the ids you can act on are exactly the ids you were just shown. An
+/// unscoped lookup would let an id pasted from main's list resolve while standing on a branch, which is the
+/// incoherent write the scoping exists to prevent.
+let getByIdPrefix (rawPrefix: String) : Stdlib.Option.Option<Conflict> =
+  // `dark conflicts` prints ids as `#509907c8`, so copy-pasting one brings the `#` along -- and the lookup
+  // then matched nothing and said "no conflict matching \"#509907c8\"" about an id it had just displayed.
+  // Accept what we print.
+  let idPrefix =
+    if Stdlib.String.startsWith rawPrefix "#" then
+      Stdlib.String.dropFirst rawPrefix 1
+    else
+      rawPrefix
+
+  match
+    Stdlib.Sqlite.queryP
+      (localDb ())
+      "SELECT id, owner, modules, name, item_type, kind, candidates, auto_resolved_to, reason, status,
+              COALESCE(resolved_by,'') AS resolved_by
+       FROM conflicts WHERE id LIKE @p0 || '%' AND branch_id = @p1 ORDER BY created_at LIMIT 1"
+      [ idPrefix; onBranch () ]
+  with
+  | Ok [ row ] -> conflictFromRow row
+  | _ -> Stdlib.Option.Option.None
+
+/// Close a conflict: 'acked' (the auto-pick stands) or 'overridden' (a resolution op took over).
+let setStatus (id: String) (status: String) (resolvedBy: String) : Unit =
+  let _ =
+    Stdlib.Sqlite.execP
+      (localDb ())
+      "UPDATE conflicts SET status = @p1, resolved_by = @p2 WHERE id = @p0"
+      [ id; status; resolvedBy ]
+
+  ()
+
+
+// rendering (one place, so pretty and --json never drift)
+
+let shortHash (h: String) : String =
+  if h == "" then "(none)"
+  else if Stdlib.String.length h <= 8 then h
+  else Stdlib.String.first h 8
+
+let candidateFor (c: Conflict) (side: String) : Stdlib.Option.Option<Candidate> =
+  Stdlib.List.findFirst c.candidates (fun cand -> cand.side == side)
+
+/// One line per conflict: the name, which side the fold kept, and the id to inspect with.
+let summaryLine (c: Conflict) : String =
+  let kept =
+    match candidateFor c "local" with
+    | Some local -> if local.hash == c.autoResolvedTo then "kept yours" else "took theirs"
+    | None -> "auto"
+
+  let dotted = fqn c.owner c.modules c.name
+  $"  #{c.id}  {dotted}   auto: {kept} ({c.reason})   [{c.status}]"
+
+/// The full block for one conflict: both candidates, the auto-pick, and why.
+let detailLines (c: Conflict) : List<String> =
+  let dotted = fqn c.owner c.modules c.name
+
+  let candidateLines =
+    c.candidates
+    |> Stdlib.List.map (fun cand ->
+      let mark = if cand.hash == c.autoResolvedTo then "kept" else "over"
+      let who = if cand.author == "" then cand.side else $"{cand.side} ({cand.author})"
+      $"    {mark}  {who}  hash {shortHash cand.hash}  stamped {cand.originTs}")
+
+  Stdlib.List.append
+    [ $"  #{c.id}  {dotted}  [{c.itemType}] -- two live versions" ]
+    (Stdlib.List.append
+      candidateLines
+      [ $"    auto-resolution: {shortHash c.autoResolvedTo}, by {c.reason}" ])

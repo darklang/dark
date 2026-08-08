@@ -1,0 +1,4 @@
+# Everything except the published binary. The build context is deploy/, and the only thing in it that
+# belongs in the image is `publish/`.
+fly.toml
+.dockerignore

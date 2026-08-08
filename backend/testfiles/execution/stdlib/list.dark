@@ -317,6 +317,19 @@ Stdlib.List.unique [ 1L; 1L; 1L; 1L ] = [ 1L ]
 Stdlib.List.unique [ 7L; 42L; 7L; 2L; 10L ] = [ 2L; 7L; 10L; 42L ]
 Stdlib.List.unique [] = []
 
+// dedup KEEPS the order, which is the whole reason it exists next to unique. The case that matters is
+// exactly the one unique gets wrong: input that is already in a meaningful order.
+Stdlib.List.dedup [ 7L; 42L; 7L; 2L; 10L ] = [ 7L; 42L; 2L; 10L ]
+Stdlib.List.dedup [ 1L; 1L; 1L; 1L ] = [ 1L ]
+Stdlib.List.dedup [ 1L; 2L; 3L ] = [ 1L; 2L; 3L ]
+Stdlib.List.dedup [] = []
+Stdlib.List.dedup [ "b"; "a"; "b" ] = [ "b"; "a" ]
+
+// the FIRST occurrence is the one kept, so the value carried alongside the key is the earliest one
+Stdlib.List.dedupBy [ (1L, "a"); (2L, "b"); (3L, "a") ] (fun p -> Stdlib.Tuple2.second p) = [ (1L, "a"); (2L, "b") ]
+Stdlib.List.dedupBy [ 1L; 2L; 3L; 4L ] (fun x -> Stdlib.Int64.divide x 2L) = [ 1L; 2L; 4L ]
+Stdlib.List.dedupBy [] (fun x -> x) = []
+
 module Zipping =
   // TODO: more tests, with values of more complex types
   Stdlib.List.unzip [ (1L, 10L); (2L, 20L); (3L, 30L) ] = ([ 1L; 2L; 3L ], [ 10L; 20L; 30L ])

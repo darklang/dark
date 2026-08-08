@@ -55,7 +55,7 @@ module ParseError =
     | NotJson
 
   let toString
-    (branchId: Uuid)
+    (branchId: String)
     (e: ParseError)
     : String =
     match e with

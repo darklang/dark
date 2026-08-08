@@ -23,6 +23,13 @@ let asInt (v: Value) : Stdlib.Option.Option<Int64> =
   | Int i -> Stdlib.Option.Option.Some i
   | _ -> Stdlib.Option.Option.None
 
+/// The Blob of a <param Bytes> cell (Some), else None — pull a BLOB column (e.g. an op
+/// log's serialized op_blob) out of a row.
+let asBytes (v: Value) : Stdlib.Option.Option<Blob> =
+  match v with
+  | Bytes b -> Stdlib.Option.Option.Some b
+  | _ -> Stdlib.Option.Option.None
+
 
 /// Run a statement (CREATE/INSERT/UPDATE/DELETE/DDL) against the SQLite file at
 /// <param dbPath>; returns the number of rows affected. Users call this, not the
@@ -69,6 +76,12 @@ let textField (row: Dict<Value>) (col: String) : Stdlib.Option.Option<String> =
 let intField (row: Dict<Value>) (col: String) : Stdlib.Option.Option<Int64> =
   match Stdlib.Dict.get row col with
   | Some v -> asInt v
+  | None -> Stdlib.Option.Option.None
+
+/// The Blob value of column <param col> in <param row>, or None if missing/non-blob.
+let bytesField (row: Dict<Value>) (col: String) : Stdlib.Option.Option<Blob> =
+  match Stdlib.Dict.get row col with
+  | Some v -> asBytes v
   | None -> Stdlib.Option.Option.None
 
 /// The first row of <param sql> (or None if it returned no rows / errored).

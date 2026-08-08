@@ -8,14 +8,14 @@ Darklang is a LIVE PROGRAMMING ENVIRONMENT (like Smalltalk).
 You don't write scripts - you build a persistent package tree.
 - Use `fn` to CREATE functions in the tree
 - Use `eval` to TEST those functions
-- Use `commit` to SAVE your work
+- Your edits are live immediately; `commit` reviews them and records them
 - CLI state doesn't persist between calls - the PACKAGE TREE does
 
 ## Workflow
   1. fn myFn        # create function (stored in package tree)
   2. eval myFn      # test it
-  3. status         # see changes
-  4. commit "msg"   # save to SCM
+  3. status         # see what changed, and what FOLLOWED your change
+  4. commit "msg"   # review + commit (your edits were already live)
 
 ## First Commands
   tree              # see package structure
@@ -82,14 +82,32 @@ If a capability denial is blocking you and you trust this environment, run `caps
   ls / back         # list / go back
 
 ## SCM (version control)
-  status               # see current branch + uncommitted changes
-  commit <msg> [-y]    # commit changes; -y/--yes skips the y/n prompt
-  log                  # history
-  discard              # undo uncommitted changes
+
+Your edits are LIVE the moment you author them. `commit` doesn't make them
+real -- it reviews them and records them. Before that they're your draft: running,
+changeable, not yet anyone else's.
+
+Editing an item repoints everything that uses it, immediately. That's
+PROPAGATION, and it's the one behaviour to know about, because it means a
+`status` after one edit can show two changed items.
 
 `commit` records who you are, so log in first: `login <name>` (run `login` with no name to
 list accounts). The account persists across runs. For non-interactive use, log in once, then
 `./scripts/run-cli commit "msg" -y`.
+
+  status [--json]      what changed, what FOLLOWED, what's waiting
+  commit <msg> [-y]    review + commit; -y skips the prompt
+  commit --json        a dry review -- exactly what committing would do
+  discard [-y]         drop the whole draft
+  undo <name>          step ONE item back one version
+  deps <name> --json   what it uses and what uses it, each flagged `behind`
+  propagate pin <name> stop something following, and undo the repoint it got
+  ack --all            leave every constraint finding for now
+
+Every question-answering command takes `--json`, and it's the same data the
+human view renders. `status --json` flags each changed item `followed` or not,
+which is how you tell what you did from what propagation did.
+  (see: docs scm -- the full model, branches, merge, conflicts, sync)
 
 ## Deprecation (mark items as unused / dangerous / obsolete)
   deprecate <fn|type|value> <name> --kind <k> [options]
@@ -100,18 +118,21 @@ list accounts). The account persists across runs. For non-interactive use, log i
   eval --allow-harmful <fn>                   # opt out of harmful halt
   (see: docs deprecation)
 
-## Branches (use --branch flag!)
-Branch context does NOT persist between CLI invocations.
-Always pass --branch when working on non-main branches:
+## Branches
 
-  dark branch create feature
-  dark --branch feature fn "Darklang.Math.fib ..."
-  dark --branch feature status
-  dark --branch feature commit "done"
-  dark --branch feature rebase
-  dark --branch feature merge
+A branch is an overlay on the same op log, invisible to main until it merges.
+Several agents on several branches is the case this is built for: one process
+each, and they never see each other's work until someone merges.
 
-Without --branch, commands run on main.
+  dark switch feature              # persists; the next `dark` starts here
+  dark --branch feature <cmd>      # ONE command, without switching
+  dark branches [--json]           # what exists
+  dark diff feature                # what it changes vs its parent
+  dark rebase feature              # take the parent's current state
+  dark merge feature               # fold it in
+
+Conflicts never block. Both sides converge on the same winner, the loser is
+kept, and `dark conflicts` is where you review it after.
   (see: docs scm)
 
 ## Name Resolution
@@ -134,7 +155,7 @@ Rules:
     (works from any module, even outside Darklang)
   - `Builtin.X`: resolves to F# builtins (fns/values only, not types)
   - Cross-owner: must use full path
-    (from Tests.*, write `Darklang.SCM.Branch.mainBranchId`)
+    (from Tests.*, write `Darklang.SCM.PackageOps.currentBranch`)
 
 ## Critical Syntax
 - Whitespace-sensitive (like Python)

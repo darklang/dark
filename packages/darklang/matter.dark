@@ -1,0 +1,968 @@
+/// matter.darklang.com: a MINIMAL Dark-on-Dark op-sync relay + landing page.
+///
+/// Run with: `dark http serve --port 8080 Darklang.Matter.router`
+///
+/// A relay is a DUMB store-and-forward for the op log: it holds ops and hands them back
+/// out; it never folds or resolves them, so it never runs anyone's code. Once ops are
+/// signed that makes it trustless -- a relay can withhold an op but can't forge one. It
+/// reuses the SCM.PackageOps wire codec, so the relay's own store IS an op log like any
+/// instance's. This is the first bit of "all future web in Dark".
+///
+/// Routes:
+///   GET  /            -> a small HTML landing page
+///   GET  /ping        -> "pong" (health)
+///   GET  /sync/pull   -> the op log as JSON SyncOp records {id, blobHex, ts}
+///   POST /sync/push   -> ingest JSON SyncOp records (stored pending; origin_ts preserved)
+module Darklang.Matter
+
+type HttpResponse = Stdlib.Http.Response
+type HttpRequest = Stdlib.Http.Request
+type Handler = Stdlib.HttpServer.Handler
+
+// tiny route helpers so the handler list reads as routes, not Handler-record boilerplate.
+let get (route: String) (fn: HttpRequest -> HttpResponse) : Handler =
+  Handler { route = route; method = "GET"; handler = fn }
+
+let post (route: String) (fn: HttpRequest -> HttpResponse) : Handler =
+  Handler { route = route; method = "POST"; handler = fn }
+
+
+let db () : String = Builtin.localDbPath ()
+
+
+/// The owners with packages here, biggest first.
+let owners () : List<(String * Int64)> =
+  match
+    Stdlib.Sqlite.query
+      (db ())
+      "SELECT owner, COUNT(*) n FROM locations WHERE unlisted_at IS NULL
+       GROUP BY owner ORDER BY n DESC LIMIT 12"
+  with
+  | Ok rows ->
+    rows
+    |> Stdlib.List.filterMap (fun r ->
+      match (Stdlib.Sqlite.textField r "owner", Stdlib.Sqlite.intField r "n") with
+      | (Some o, Some n) -> Stdlib.Option.Option.Some((o, n))
+      | _ -> Stdlib.Option.Option.None)
+  | Error _ -> []
+
+
+/// The biggest modules, which is the closest thing to "what is here" that a stranger can skim.
+let topModules (limit: String) : List<(String * Int64)> =
+  match
+    Stdlib.Sqlite.queryP
+      (db ())
+      "SELECT owner || '.' || modules AS m, COUNT(*) n FROM locations
+       WHERE unlisted_at IS NULL AND modules <> ''
+       GROUP BY m ORDER BY n DESC LIMIT @p0"
+      [ limit ]
+  with
+  | Ok rows ->
+    rows
+    |> Stdlib.List.filterMap (fun r ->
+      match (Stdlib.Sqlite.textField r "m", Stdlib.Sqlite.intField r "n") with
+      | (Some m, Some n) -> Stdlib.Option.Option.Some((m, n))
+      | _ -> Stdlib.Option.Option.None)
+  | Error _ -> []
+
+
+let totalItems () : Int64 =
+  Stdlib.Sqlite.scalarInt
+    (db ())
+    "SELECT COUNT(*) AS n FROM locations WHERE unlisted_at IS NULL"
+    "n"
+  |> Stdlib.Option.withDefault 0L
+
+
+let publisherCount () : Int64 =
+  Stdlib.Sqlite.scalarInt
+    (db ())
+    "SELECT COUNT(DISTINCT owner) AS n FROM locations WHERE unlisted_at IS NULL"
+    "n"
+  |> Stdlib.Option.withDefault 0L
+
+
+let css () : String =
+  ":root{--ink:#16161a;--dim:#6b6b76;--line:#e6e6ea;--bg:#fff;--accent:#4338ca;--chip:#f4f4f7}"
+  ++ "@media(prefers-color-scheme:dark){:root{--ink:#ececf0;--dim:#9a9aa6;--line:#2a2a32;--bg:#111114;--accent:#a5b4fc;--chip:#1c1c22}}"
+  ++ "*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--ink);"
+  ++ "font:16px/1.65 ui-sans-serif,system-ui,-apple-system,'Segoe UI',sans-serif}"
+  ++ ".wrap{max-width:52rem;margin:0 auto;padding:4rem 1.5rem 5rem}"
+  ++ "header{margin-bottom:3rem}"
+  ++ ".logo{display:inline-flex;align-items:baseline;gap:0;text-decoration:none;color:inherit;font-size:1.6rem;letter-spacing:-.03em}"
+  ++ ".logo b{font-weight:700;color:var(--accent)}"
+  ++ ".logo span{color:var(--dim);font-weight:400}"
+  ++ "h1{font-size:2.1rem;line-height:1.15;letter-spacing:-.03em;font-weight:650;margin:1.75rem 0 .75rem;max-width:30ch}"
+  ++ ".lede{color:var(--dim);font-size:1.05rem;margin:0;max-width:56ch}"
+  ++ "h2{font-size:.78rem;text-transform:uppercase;letter-spacing:.1em;color:var(--dim);"
+  ++ "font-weight:600;margin:3rem 0 1rem;padding-bottom:.5rem;border-bottom:1px solid var(--line)}"
+  ++ ".grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(15rem,1fr));gap:.6rem}"
+  ++ ".card{border:1px solid var(--line);border-radius:.6rem;padding:.75rem .9rem}"
+  ++ ".card .n{font-family:ui-monospace,SFMono-Regular,monospace;font-size:.9rem;word-break:break-word}"
+  ++ ".card .c{color:var(--dim);font-size:.78rem;margin-top:.15rem}"
+  ++ ".chips{display:flex;flex-wrap:wrap;gap:.4rem}"
+  ++ ".chip{background:var(--chip);border-radius:2rem;padding:.3rem .8rem;font-size:.85rem}"
+  ++ ".chip b{font-weight:600}.chip span{color:var(--dim)}"
+  ++ "code{font-family:ui-monospace,SFMono-Regular,monospace;background:var(--chip);"
+  ++ "padding:.12rem .4rem;border-radius:.3rem;font-size:.88em}"
+  ++ "pre{background:var(--chip);padding:.9rem 1rem;border-radius:.6rem;overflow-x:auto;font-size:.88rem;margin:.6rem 0}"
+  ++ "pre code{background:none;padding:0}"
+  ++ "details{margin-top:1rem;border-top:1px solid var(--line);padding-top:1rem}"
+  ++ "summary{cursor:pointer;color:var(--dim);font-size:.9rem}"
+  ++ "table{border-collapse:collapse;width:100%;margin-top:.9rem;font-size:.87rem}"
+  ++ "td,th{text-align:left;padding:.35rem .6rem;border-bottom:1px solid var(--line)}"
+  ++ "th{color:var(--dim);font-weight:500;font-size:.75rem;text-transform:uppercase;letter-spacing:.06em}"
+  ++ ".m{color:var(--accent);font-weight:600}"
+  ++ "footer{margin-top:4rem;padding-top:1.25rem;border-top:1px solid var(--line);color:var(--dim);font-size:.88rem}"
+  ++ "p a{color:var(--accent);text-decoration:underline;text-underline-offset:2px}"
+  ++ ".feats{display:grid;grid-template-columns:repeat(auto-fill,minmax(16rem,1fr));gap:1.1rem 1.6rem}"
+  ++ ".feat b{display:block;font-weight:600;font-size:.95rem;margin-bottom:.2rem}"
+  ++ ".feat p{margin:0;color:var(--dim);font-size:.88rem;line-height:1.5}"
+  ++ ".stat{display:flex;gap:2rem;flex-wrap:wrap;margin:.5rem 0 0}"
+  ++ ".stat div{display:flex;flex-direction:column}"
+  ++ ".stat .k{font-size:1.5rem;font-weight:650;letter-spacing:-.02em}"
+  ++ ".stat .l{color:var(--dim);font-size:.8rem;text-transform:uppercase;letter-spacing:.06em}"
+  ++ "header{display:flex;align-items:center;justify-content:space-between;gap:1rem;flex-wrap:wrap}"
+  ++ ".find input{font:inherit;font-size:.9rem;padding:.4rem .75rem;border:1px solid var(--line);"
+  ++ "border-radius:2rem;background:var(--bg);color:var(--ink);min-width:14rem}"
+  ++ ".find input:focus{outline:2px solid var(--accent);outline-offset:-1px}"
+  ++ ".crumbs{font-family:ui-monospace,SFMono-Regular,monospace;font-size:.85rem;color:var(--dim);margin-bottom:.25rem}"
+  ++ ".crumbs a{color:var(--dim);text-decoration:none}"
+  ++ ".crumbs a:hover{color:var(--accent);text-decoration:underline}"
+  ++ ".crumbs .sep{opacity:.5;padding:0 .1rem}"
+  ++ ".meta{color:var(--dim);font-size:.9rem;margin:.25rem 0 1rem}"
+  ++ ".rows{display:flex;flex-direction:column;border-top:1px solid var(--line)}"
+  ++ ".row{display:block;padding:.6rem .2rem;border-bottom:1px solid var(--line);"
+  ++ "text-decoration:none;color:inherit}"
+  ++ ".row:hover{background:var(--chip)}"
+  ++ ".row .n{font-size:.95rem}.row .c{color:var(--dim);font-size:.85rem;margin-top:.1rem}"
+  ++ ".pills{display:flex;flex-wrap:wrap;gap:.35rem}"
+  ++ ".pill{text-decoration:none;color:inherit;background:var(--chip);border-radius:.4rem;"
+  ++ "padding:.2rem .5rem;font-size:.85rem}"
+  ++ ".pill:hover{outline:1px solid var(--accent)}"
+  ++ ".pill code{background:none;padding:0}"
+  ++ ".tag{font-size:.7rem;text-transform:uppercase;letter-spacing:.06em;background:var(--chip);"
+  ++ "color:var(--dim);border-radius:.3rem;padding:.1rem .4rem;vertical-align:middle}"
+  ++ "a.card{text-decoration:none;color:inherit;display:block}"
+  ++ "a.card:hover{outline:1px solid var(--accent)}"
+
+
+let feature (title: String) (desc: String) : String =
+  $"<div class=\"feat\"><b>{title}</b><p>{desc}</p></div>"
+
+
+let card (name: String) (n: Int64) : String =
+  let c = Stdlib.Int64.toString n
+  $"<a class=\"card\" href=\"/m?name={name}\" style=\"text-decoration:none;color:inherit;display:block\"><div class=\"n\">{name}</div><div class=\"c\">{c} items</div></a>"
+
+
+let chip (name: String) (n: Int64) : String =
+  let c = Stdlib.Int64.toString n
+  $"<span class=\"chip\"><b>{name}</b> <span>{c}</span></span>"
+
+
+let route (m: String) (path: String) (what: String) : String =
+  $"<tr><td><span class=\"m\">{m}</span></td><td><code>{path}</code></td><td>{what}</td></tr>"
+
+
+/// The landing page. Written for someone who has never heard of this: what's here, then how to get it, and
+/// only then the machine-facing endpoints -- which live behind a fold, because a relay's HTTP surface is
+/// what a MACHINE wants and almost nobody arrives wanting it first.
+let landingHandlerFn (req: HttpRequest) : HttpResponse =
+  let featBlock =
+    (feature "No setup" "Point a machine here and pull. No tailscale, no infra, nothing exposed to the internet.")
+    ++ (feature "Pick up where you left off" "Write on your laptop, keep going on your desktop. Your packages follow you.")
+    ++ (feature "Nothing ever breaks" "Every version is kept forever, content-addressed. Nothing is overwritten, so code that worked keeps working.")
+    ++ (feature "You're in control" "Changes land pending until you approve them. It never runs your code, so it's safe to point at.")
+
+  // The pitch is for someone who has never heard of this; the browse block is for everyone who has. Both
+  // are on the front page because a relay with nothing to look at reads like a status endpoint, and the
+  // packages ARE the reason to visit.
+  let items = totalItems ()
+  let pubs = publisherCount ()
+
+  let modCards =
+    topModules "12"
+    |> Stdlib.List.map (fun m ->
+      let (nm, n) = m
+      card nm n)
+    |> (fun l -> Stdlib.String.join l "")
+
+  let itemsStr = Stdlib.Int64.toString items
+  let pubsStr = Stdlib.Int64.toString pubs
+
+  page
+    "matter.darklang.com"
+    ("<h1>Simple, easy code sync.</h1>"
+     ++ "<p class=\"lede\">Code hosting and sharing that loops into the rest of your dev life. Write on one "
+     ++ "machine, pick up on another — your Darklang packages follow you, with nothing exposed to the "
+     ++ "internet and no tailscale to set up.</p>"
+     ++ "<h2>What's here</h2>"
+     ++ $"<div class=\"stat\"><div><span class=\"k\">{itemsStr}</span><span class=\"l\">items</span></div>"
+     ++ $"<div><span class=\"k\">{pubsStr}</span><span class=\"l\">publishers</span></div></div>"
+     ++ "<p class=\"lede\" style=\"margin-top:1rem\">Search above, or start from the biggest modules. "
+     ++ "Everything is browsable down to source without installing anything — "
+     ++ "<a href=\"/owners\">by publisher</a>, or <a href=\"/stats\">by the numbers</a>.</p>"
+     ++ $"<div class=\"grid\" style=\"margin-top:1rem\">{modCards}</div>"
+     ++ "<h2>Why matter</h2>"
+     ++ $"<div class=\"feats\">{featBlock}</div>"
+     ++ "<h2>Try it</h2>"
+     ++ "<p>Point a machine here and pull. Changes land <strong>pending</strong> until you approve them, so "
+     ++ "nothing runs just because it showed up.</p>"
+     ++ "<pre><code>dark connect https://matter.darklang.com --secret &lt;secret&gt;\ndark pull\ndark review approve</code></pre>"
+     ++ "<h2>Or keep it local</h2>"
+     ++ "<p>Your Matter — all your packages — lives on your own machine no matter what. Syncing it "
+     ++ "<em>through matter.darklang.com</em> is the optional part: point your machines at your own "
+     ++ "<a href=\"https://docs.darklang.com/sync/tailscale\">tailscale</a> instead, or skip sync entirely and "
+     ++ "work fully offline. Local-first, always.</p>"
+     ++ "<details><summary>HTTP endpoints (for tooling)</summary>"
+     ++ "<table><tr><th>method</th><th>path</th><th>what it does</th></tr>"
+     ++ route "GET" "/sync/head" "how much it holds, without transferring anything"
+     ++ route "GET" "/sync/pull" "ops as wire records; <code>?sinceSeq=</code> pages, <code>?owner=</code> filters"
+     ++ route "POST" "/sync/push" "ingest ops; content-addressed, so a re-push is a no-op"
+     ++ route "GET" "/branch/list" "branches held for an owner"
+     ++ route "GET" "/branch/pull" "one branch bundle"
+     ++ route "POST" "/branch/push" "store a branch bundle"
+     ++ route "GET" "/ping" "health"
+     ++ "</table></details>"
+     ++ "<p class=\"lede\" style=\"margin-top:2rem\">It only stores and hands back your changes. It never runs "
+     ++ "your code — so it could hold something back, but it can't forge a change. That's what makes it "
+     ++ "safe to point your machines at.</p>")
+
+
+let pingHandlerFn (req: HttpRequest) : HttpResponse =
+  Stdlib.Http.responseWithText "pong" 200
+
+
+/// Hand out ops as portable wire records. `?sinceSeq=<n>` makes it INCREMENTAL, paging by the RELAY's OWN
+/// arrival order and returning the position to resume from in the bundle's `cursor`.
+///
+/// Deliberately not the client's `max(origin_ts)`, which is what this used to take. A stamp cursor assumes
+/// ops arrive in stamp order; concurrent editing on two machines breaks that constantly, and the ops that
+/// get skipped are exactly the interesting ones (a peer's concurrent edit) -- skipped silently, forever.
+let pullHandlerFn (req: HttpRequest) : HttpResponse =
+  let sinceSeq =
+    match Stdlib.Http.Request.queryParam req "sinceSeq" with
+    | Some raw ->
+      (match Stdlib.Int64.parse raw with
+       | Ok n -> n
+       | Error _ -> 0L)
+    | None -> 0L
+
+  let owner =
+    Stdlib.Http.Request.queryParam req "owner" |> Stdlib.Option.withDefault ""
+
+  let result =
+    if owner == "" then
+      SCM.PackageOps.exportAllSince sinceSeq // no owner -> everything the relay holds
+    else
+      SCM.PackageOps.exportOwnedSince owner sinceSeq // just this identity's stuff
+
+  let (ops, cursor) = result
+  Stdlib.Http.responseWithJson (SCM.PackageOps.wireEncodeAt cursor ops) 200
+
+/// Cheap "what do you hold?" summary (op count + cursor) -- no full-log transfer. Powers
+/// `dark sync status <url>`.
+let headHandlerFn (req: HttpRequest) : HttpResponse =
+  Stdlib.Http.responseWithJson (SCM.PackageOps.headEncode (SCM.PackageOps.localHead ())) 200
+
+
+/// May this request write?
+///
+/// FAIL CLOSED. A relay with no `DARK_MATTER_WRITE_SECRET` set refuses every write and says so, rather than
+/// accepting anything. A relay is a thing you stand up and walk away from, so the failure mode of the other
+/// default is an open write endpoint nobody remembers is open.
+///
+/// The secret comes from the ENVIRONMENT, never from the package store. This server publishes its own store
+/// as HTML at `/m` and `/p`, so a secret that lived in a package would be readable by anyone who can load a
+/// page -- including this file, which is itself a package. That is why the check is here in public source
+/// and the value is not.
+///
+/// This is write-AUTHORISATION, not authorship: it answers "may this connection write", not "who wrote
+/// this". Everyone holding the secret can write as anyone, which is the accepted trade for a relay shared
+/// between people who have met. See notes/fresh-arch/AUTHORSHIP.md for what changes if that stops being
+/// true.
+let writeAllowed (req: HttpRequest) : Stdlib.Result.Result<Unit, String> =
+  match Builtin.environmentGet "DARK_MATTER_WRITE_SECRET" with
+  | None ->
+    Stdlib.Result.Result.Error
+      "this relay has no write secret configured, so it accepts no writes. Set DARK_MATTER_WRITE_SECRET where it runs."
+  | Some "" ->
+    Stdlib.Result.Result.Error
+      "this relay has an empty write secret, so it accepts no writes. Set DARK_MATTER_WRITE_SECRET where it runs."
+  | Some expected ->
+    let presented =
+      match Stdlib.Http.Request.header req "authorization" with
+      | Some h -> Stdlib.String.replaceAll h "Bearer " ""
+      | None -> ""
+
+    if presented == expected then
+      Stdlib.Result.Result.Ok()
+    else if presented == "" then
+      Stdlib.Result.Result.Error
+        "push needs the relay's write secret: `dark connect <url> --secret <secret>`"
+    else
+      // Telling someone who just typed a secret to type a secret sends them looking for the flag they
+      // already used. The two cases are different problems -- one is "you have not set this up", the
+      // other is "the value is wrong" -- and only the relay can tell them apart.
+      Stdlib.Result.Result.Error
+        "that write secret isn't the one this relay expects. Check it with whoever runs the relay, then `dark connect <url> --secret <secret>` again."
+
+
+/// Ingest pushed ops into the relay's store (pending; origin_ts preserved). Content-
+/// addressed dedup means a re-push is a no-op.
+let pushHandlerFn (req: HttpRequest) : HttpResponse =
+  match writeAllowed req with
+  | Error why -> Stdlib.Http.responseWithText why 401
+  | Ok _ ->
+
+  let owner =
+    Stdlib.Http.Request.queryParam req "owner" |> Stdlib.Option.withDefault ""
+
+  match SCM.PackageOps.wireDecode req.body with
+  | Ok bundle ->
+    match SCM.PackageOps.storeWithOwner owner bundle.ops with
+    | Ok n ->
+      Stdlib.Http.responseWithText
+        $"stored {Stdlib.Int.toString n} new op(s) for \"{owner}\""
+        200
+    | Error e -> Stdlib.Http.serverError e
+  | Error _ ->
+    Stdlib.Http.badRequest "expected a versioned SyncBundle {formatVersion, darkBuild, ops}"
+
+
+/// Store a pushed branch BUNDLE (registry + frontier ops) keyed by (owner, branch). The relay is a
+/// dumb store; it never folds or runs the branch. `?owner=X&branch=Y`, body = the export JSON.
+let branchPushHandlerFn (req: HttpRequest) : HttpResponse =
+  match writeAllowed req with
+  | Error why -> Stdlib.Http.responseWithText why 401
+  | Ok _ ->
+
+  let owner =
+    Stdlib.Http.Request.queryParam req "owner" |> Stdlib.Option.withDefault ""
+
+  let branch =
+    Stdlib.Http.Request.queryParam req "branch" |> Stdlib.Option.withDefault ""
+
+  // Validate before claiming anything. Storing whatever arrives under whatever was asked for and always
+  // answering 200 means an empty body with no query params gets "stored branch \"\" for \"\"" -- a success
+  // message for having done nothing, and a table full of junk rows keyed on "". `/sync/push` rejects a
+  // body it can't read; this holds to the same standard.
+  let body = Stdlib.String.fromBlobWithReplacement req.body
+
+  if owner == "" || branch == "" then
+    Stdlib.Http.responseWithText
+      "branch push needs ?owner= and ?branch="
+      400
+  else if body == "" then
+    Stdlib.Http.responseWithText $"branch push for \"{branch}\" had an empty body" 400
+  // A BRANCH bundle, not a sync bundle: `exportBranch` emits {"branchId":..,"name":..,"ops":[..]}, which
+  // `wireDecode` rightly rejects. Validate the shape THIS endpoint receives -- reaching for `wireDecode`
+  // here 400s every legitimate branch push.
+  else if Stdlib.Bool.not (Stdlib.String.startsWith (Stdlib.String.trim body) "{") then
+    Stdlib.Http.responseWithText "branch push body wasn't JSON" 400
+  else if Stdlib.Bool.not (Stdlib.String.contains body "\"ops\"") then
+    Stdlib.Http.responseWithText "branch push body had no ops" 400
+  else
+    SCM.PackageOps.relayStoreBranch owner branch body
+    Stdlib.Http.responseWithText $"stored branch \"{branch}\" for \"{owner}\"" 200
+
+/// Serve a stored branch bundle (`?owner=X&branch=Y`), or "" if none.
+let branchPullHandlerFn (req: HttpRequest) : HttpResponse =
+  let owner =
+    Stdlib.Http.Request.queryParam req "owner" |> Stdlib.Option.withDefault ""
+
+  let branch =
+    Stdlib.Http.Request.queryParam req "branch" |> Stdlib.Option.withDefault ""
+
+  Stdlib.Http.responseWithText (SCM.PackageOps.relayGetBranch owner branch) 200
+
+/// List the branch ids an owner has pushed (`?owner=X`), newline-joined.
+let branchListHandlerFn (req: HttpRequest) : HttpResponse =
+  let owner =
+    Stdlib.Http.Request.queryParam req "owner" |> Stdlib.Option.withDefault ""
+
+  Stdlib.Http.responseWithText (SCM.PackageOps.relayListBranches owner) 200
+
+
+/// The items in one module, newest-looking first by name.
+let itemsIn (modulePath: String) : List<(String * String * String)> =
+  let parts = Stdlib.String.split modulePath "."
+
+  match parts with
+  | [] -> []
+  | owner :: rest ->
+    let mods = Stdlib.String.join rest "."
+
+    match
+      Stdlib.Sqlite.queryP
+        (db ())
+        "SELECT name, item_type, item_hash FROM locations
+         WHERE owner = @p0 AND modules = @p1 AND unlisted_at IS NULL
+         ORDER BY item_type, name"
+        [ owner; mods ]
+    with
+    | Ok rows ->
+      rows
+      |> Stdlib.List.filterMap (fun r ->
+        match
+          (Stdlib.Sqlite.textField r "name",
+           Stdlib.Sqlite.textField r "item_type",
+           Stdlib.Sqlite.textField r "item_hash")
+        with
+        | (Some n, Some t, Some h) -> Stdlib.Option.Option.Some((n, t, h))
+        | _ -> Stdlib.Option.Option.None)
+    | Error _ -> []
+
+
+/// Everything user-supplied that reaches a page goes through this. A search box that echoes its query is
+/// the one place on a read-only site where someone else picks the markup, so it is not optional.
+let esc (s: String) : String = Stdlib.String.htmlEscape s
+
+
+/// The modules directly under <param path>, with how many items each holds.
+///
+/// SQLite has no "split on dots", so this asks for every module BELOW the path and cuts each one back to
+/// its next segment in Dark. Cheap enough at this size, and it keeps the SQL to one statement.
+let submodulesOf (path: String) : List<(String * Int64)> =
+  let prefix = $"{path}."
+
+  match
+    Stdlib.Sqlite.queryP
+      (db ())
+      "SELECT owner || '.' || modules AS m, COUNT(*) n FROM locations
+       WHERE unlisted_at IS NULL AND modules <> '' AND (owner || '.' || modules) LIKE @p0
+       GROUP BY m"
+      [ $"{prefix}%" ]
+  with
+  | Ok rows ->
+    rows
+    |> Stdlib.List.filterMap (fun r ->
+      match (Stdlib.Sqlite.textField r "m", Stdlib.Sqlite.intField r "n") with
+      | (Some m, Some n) ->
+        let rest = Stdlib.String.dropFirst m (Stdlib.String.length prefix)
+        (match Stdlib.String.split rest "." with
+         | seg :: _ -> Stdlib.Option.Option.Some(($"{prefix}{seg}", n))
+         | [] -> Stdlib.Option.Option.None)
+      | _ -> Stdlib.Option.Option.None)
+    // One row per module BELOW us collapses to one row per direct child, so the counts add up.
+    |> Stdlib.List.fold [] (fun acc pair ->
+      let (nm, n) = pair
+
+      match Stdlib.List.findFirst acc (fun e -> let (en, _) = e in en == nm) with
+      | Some _ ->
+        acc
+        |> Stdlib.List.map (fun e ->
+          let (en, ec) = e
+          if en == nm then (en, ec + n) else (en, ec))
+      | None -> Stdlib.List.append acc [ (nm, n) ])
+    |> Stdlib.List.sortBy (fun e -> let (en, _) = e in en)
+  | Error _ -> []
+
+
+/// The doc comment for an item, which is the only prose the store holds about it.
+let descriptionOf (kind: String) (hash: String) : String =
+  let table =
+    match kind with
+    | "fn" -> "package_functions"
+    | "type" -> "package_types"
+    | _ -> "package_values"
+
+  match
+    Stdlib.Sqlite.queryP
+      (db ())
+      $"SELECT description FROM {table} WHERE hash = @p0"
+      [ hash ]
+  with
+  | Ok rows ->
+    (match rows with
+     | r :: _ -> Stdlib.Sqlite.textField r "description" |> Stdlib.Option.withDefault ""
+     | [] -> "")
+  | Error _ -> ""
+
+
+/// What this item calls. Recorded by the fold, so it is the real call graph rather than a guess from text.
+let dependenciesOf (hash: String) : List<(String * String)> =
+  match
+    Stdlib.Sqlite.queryP
+      (db ())
+      "SELECT DISTINCT depends_on_owner o, depends_on_modules m, depends_on_name n, depends_on_item_type t
+       FROM package_dependencies
+       WHERE item_hash = @p0 AND depends_on_name IS NOT NULL
+       ORDER BY o, m, n"
+      [ hash ]
+  with
+  | Ok rows ->
+    rows
+    |> Stdlib.List.filterMap (fun r ->
+      match
+        (Stdlib.Sqlite.textField r "o",
+         Stdlib.Sqlite.textField r "m",
+         Stdlib.Sqlite.textField r "n",
+         Stdlib.Sqlite.textField r "t")
+      with
+      | (Some o, Some m, Some n, Some t) ->
+        let full = if m == "" then $"{o}.{n}" else $"{o}.{m}.{n}"
+        Stdlib.Option.Option.Some((full, t))
+      | _ -> Stdlib.Option.Option.None)
+  | Error _ -> []
+
+
+/// Who calls this item. The direction nobody can work out by reading the code in front of them, and the
+/// one that decides whether a change is safe.
+let dependentsOf (hash: String) : List<(String * String)> =
+  match
+    Stdlib.Sqlite.queryP
+      (db ())
+      "SELECT DISTINCT l.owner o, l.modules m, l.name n, l.item_type t
+       FROM package_dependencies d
+       JOIN locations l ON l.item_hash = d.item_hash
+       WHERE d.depends_on_hash = @p0 AND l.unlisted_at IS NULL
+       ORDER BY o, m, n
+       LIMIT 200"
+      [ hash ]
+  with
+  | Ok rows ->
+    rows
+    |> Stdlib.List.filterMap (fun r ->
+      match
+        (Stdlib.Sqlite.textField r "o",
+         Stdlib.Sqlite.textField r "m",
+         Stdlib.Sqlite.textField r "n",
+         Stdlib.Sqlite.textField r "t")
+      with
+      | (Some o, Some m, Some n, Some t) ->
+        let full = if m == "" then $"{o}.{n}" else $"{o}.{m}.{n}"
+        Stdlib.Option.Option.Some((full, t))
+      | _ -> Stdlib.Option.Option.None)
+  | Error _ -> []
+
+
+/// Whether this exact content is deprecated. Keyed on the hash, so it says nothing about later versions
+/// of the same name -- which is the point: a deprecation is about content, not about a place.
+let isDeprecated (hash: String) : Bool =
+  match
+    Stdlib.Sqlite.queryP
+      (db ())
+      "SELECT COUNT(*) AS n FROM deprecations WHERE item_hash = @p0"
+      [ hash ]
+  with
+  | Ok rows ->
+    (match rows with
+     | r :: _ -> (Stdlib.Sqlite.intField r "n" |> Stdlib.Option.withDefault 0L) > 0L
+     | [] -> false)
+  | Error _ -> false
+
+
+/// Name and doc-comment search, newest-looking first. Bounded, because this is a public page and the
+/// store is large enough that an unbounded LIKE would be a way to make the relay do work for free.
+let searchItems (q: String) : List<(String * String * String)> =
+  match
+    Stdlib.Sqlite.queryP
+      (db ())
+      "SELECT l.owner o, l.modules m, l.name n, l.item_type t
+       FROM locations l
+       WHERE l.unlisted_at IS NULL
+         AND (l.owner || '.' || l.modules || '.' || l.name) LIKE @p0
+       ORDER BY LENGTH(l.owner || l.modules || l.name), o, m, n
+       LIMIT 100"
+      [ $"%{q}%" ]
+  with
+  | Ok rows ->
+    rows
+    |> Stdlib.List.filterMap (fun r ->
+      match
+        (Stdlib.Sqlite.textField r "o",
+         Stdlib.Sqlite.textField r "m",
+         Stdlib.Sqlite.textField r "n",
+         Stdlib.Sqlite.textField r "t")
+      with
+      | (Some o, Some m, Some n, Some t) ->
+        let full = if m == "" then $"{o}.{n}" else $"{o}.{m}.{n}"
+        Stdlib.Option.Option.Some((full, t, m))
+      | _ -> Stdlib.Option.Option.None)
+  | Error _ -> []
+
+
+/// A path like `Darklang.Stdlib.List` as links to each of its parents, because arriving on a deep module
+/// from a search result with no way back up is how a browser stops being a browser.
+let crumbs (path: String) : String =
+  let segs = Stdlib.String.split path "."
+
+  let links =
+    segs
+    |> Stdlib.List.indexedMap (fun i _ ->
+      let upto = segs |> Stdlib.List.take (i + 1) |> (fun l -> Stdlib.String.join l ".")
+      let label = segs |> Stdlib.List.getAt i |> Stdlib.Option.withDefault ""
+      $"<a href=\"/m?name={esc upto}\">{esc label}</a>")
+    |> (fun l -> Stdlib.String.join l "<span class=\"sep\">.</span>")
+
+  $"<nav class=\"crumbs\">{links}</nav>"
+
+
+let page (title: String) (body: String) : HttpResponse =
+  let html =
+    "<!doctype html><html lang=\"en\"><head><meta charset=\"utf-8\">"
+    ++ "<meta name=\"viewport\" content=\"width=device-width,initial-scale=1\">"
+    ++ $"<title>{esc title} -- matter</title><style>"
+    ++ css ()
+    ++ "</style></head><body><div class=\"wrap\">"
+    ++ "<header><a class=\"logo\" href=\"/\"><b>matter</b><span>darklang packages</span></a>"
+    ++ "<form class=\"find\" action=\"/search\" method=\"get\">"
+    ++ "<input name=\"q\" placeholder=\"Search packages\" autocomplete=\"off\" spellcheck=\"false\">"
+    ++ "</form></header>"
+    ++ body
+    ++ "<footer>Every version here is kept forever and addressed by the hash of its content. "
+    ++ "<a href=\"/stats\">What this relay holds</a>.</footer>"
+    ++ "</div></body></html>"
+
+  Stdlib.Http.responseWithHtml html 200
+
+
+/// A module's contents. The landing page lists modules; this is where clicking one lands.
+/// A doc comment, as HTML.
+///
+/// Darklang doc comments carry two bits of markup: `{{expr}}` for inline code and `<param name>` for a
+/// parameter reference. Raw, they reach the page as literal braces and escaped angle brackets, which is
+/// how "Return {{true}} if all elements in &lt;param as&gt; ..." ends up on a public page.
+///
+/// Escaping happens FIRST and the markers are recognised in their escaped form, so nothing in a doc
+/// comment can introduce markup of its own -- the only tags here are the ones this function adds.
+let renderDoc (raw: String) : String =
+  // The tags that actually occur, counted across the package sources: param (906), type (427), var (185),
+  // fn (57), list (2). Enumerated rather than matched loosely, so a stray `&lt;` in prose stays prose
+  // instead of swallowing the rest of the sentence into a code span.
+  esc raw
+  |> (fun d -> Stdlib.String.replaceAll d "{{" "<code>")
+  |> (fun d -> Stdlib.String.replaceAll d "}}" "</code>")
+  |> (fun d -> Stdlib.String.replaceAll d "&lt;param " "<code>")
+  |> (fun d -> Stdlib.String.replaceAll d "&lt;type " "<code>")
+  |> (fun d -> Stdlib.String.replaceAll d "&lt;var " "<code>")
+  |> (fun d -> Stdlib.String.replaceAll d "&lt;fn " "<code>")
+  |> (fun d -> Stdlib.String.replaceAll d "&lt;list " "<code>")
+  |> (fun d -> Stdlib.String.replaceAll d "&lt;returns " "<code>")
+  |> (fun d -> Stdlib.String.replaceAll d "&gt;" "</code>")
+
+
+let kindLabel (k: String) : String =
+  match k with
+  | "fn" -> "function"
+  | "type" -> "type"
+  | _ -> "value"
+
+
+/// One row in a list of items: name, kind, and the first line of its doc comment. The description is what
+/// turns a wall of names into something you can skim, and it is the whole reason these pages beat `ls`.
+let itemRow (modulePath: String) (nm: String) (kind: String) (hash: String) : String =
+  let full = $"{modulePath}.{nm}"
+  let desc = descriptionOf kind hash
+
+  let blurb =
+    match Stdlib.String.split desc "\n" with
+    | first :: _ -> if first == "" then "" else $"<div class=\"c\">{renderDoc first}</div>"
+    | [] -> ""
+
+  let dep = if isDeprecated hash then " <span class=\"tag\">deprecated</span>" else ""
+
+  $"<a class=\"row\" href=\"/p?name={esc full}\"><div class=\"n\"><code>{esc nm}</code>{dep}</div>{blurb}</a>"
+
+
+/// A module: what's under it, then what's in it. Grouped by kind, because "the types in here" and "the
+/// functions in here" are different questions and a single alphabetical list answers neither.
+let moduleHandlerFn (req: HttpRequest) : HttpResponse =
+  let name =
+    Stdlib.Http.Request.queryParam req "name" |> Stdlib.Option.withDefault ""
+
+  let items = itemsIn name
+  let subs = submodulesOf name
+
+  match (items, subs) with
+  | ([], []) ->
+    page
+      name
+      ($"{crumbs name}<h1>{esc name}</h1>"
+       ++ "<p class=\"lede\">Nothing here, or no such module.</p>")
+  | _ ->
+    let subBlock =
+      if subs == [] then
+        ""
+      else
+        let cards =
+          subs
+          |> Stdlib.List.map (fun sm ->
+            let (smName, n) = sm
+            let leaf =
+              Stdlib.String.split smName "." |> Stdlib.List.last |> Stdlib.Option.withDefault smName
+            let c = Stdlib.Int64.toString n
+            $"<a class=\"card\" href=\"/m?name={esc smName}\"><div class=\"n\">{esc leaf}</div><div class=\"c\">{c} items</div></a>")
+          |> (fun l -> Stdlib.String.join l "")
+
+        $"<h2>Modules</h2><div class=\"grid\">{cards}</div>"
+
+    let section (kind: String) (heading: String) : String =
+      let ofKind =
+        items |> Stdlib.List.filter (fun i -> let (_, k, _) = i in k == kind)
+
+      if ofKind == [] then
+        ""
+      else
+        let rows =
+          ofKind
+          |> Stdlib.List.map (fun i ->
+            let (nm, k, h) = i
+            itemRow name nm k h)
+          |> (fun l -> Stdlib.String.join l "")
+
+        $"<h2>{heading}</h2><div class=\"rows\">{rows}</div>"
+
+    let count = Stdlib.Int.toString (Stdlib.List.length items)
+
+    let lede =
+      if items == [] then
+        "A module of modules."
+      else
+        $"{count} items."
+
+    page
+      name
+      ($"{crumbs name}<h1>{esc name}</h1><p class=\"lede\">{lede}</p>"
+       ++ subBlock
+       ++ (section "type" "Types")
+       ++ (section "fn" "Functions")
+       ++ (section "value" "Values"))
+
+
+/// One item: its source, what it needs, and who needs it.
+///
+/// The dependents list is the half you cannot get by reading the code in front of you, and it is the one
+/// that decides whether changing this is safe. It comes from the fold, so it is the real call graph.
+let itemHandlerFn (req: HttpRequest) : HttpResponse =
+  let name =
+    Stdlib.Http.Request.queryParam req "name" |> Stdlib.Option.withDefault ""
+
+  let parts = Stdlib.String.split name "."
+  let leaf = Stdlib.List.last parts |> Stdlib.Option.withDefault ""
+
+  let modulePath =
+    parts |> Stdlib.List.dropLast |> (fun ps -> Stdlib.String.join ps ".")
+
+  let found =
+    itemsIn modulePath |> Stdlib.List.findFirst (fun i -> let (n, _, _) = i in n == leaf)
+
+  match found with
+  | None ->
+    page
+      name
+      ($"{crumbs modulePath}<h1>{esc leaf}</h1>"
+       ++ "<p class=\"lede\">Not found here. It may live under a different module, or "
+       ++ $"<a href=\"/search?q={esc leaf}\">search for it</a>.</p>")
+  | Some item ->
+    let (_, kind, hashStr) = item
+    let h = LanguageTools.ProgramTypes.Hash.Hash hashStr
+
+    // The relay holds no branches of its own, so everything it serves is main's view.
+    let ctx = PrettyPrinter.ProgramTypes.Context.forBranch ""
+
+    let src =
+      match kind with
+      | "fn" ->
+        (match LanguageTools.PackageManager.Function.get h with
+         | Some f -> PrettyPrinter.ProgramTypes.packageFn ctx f
+         | None -> "(not stored here)")
+      | "type" ->
+        (match LanguageTools.PackageManager.Type.get h with
+         | Some t -> PrettyPrinter.ProgramTypes.packageType ctx t
+         | None -> "(not stored here)")
+      | _ ->
+        (match LanguageTools.PackageManager.Value.get h with
+         | Some v -> PrettyPrinter.ProgramTypes.packageValue ctx v
+         | None -> "(not stored here)")
+
+    let short = Stdlib.String.slice hashStr 0 12
+    let desc = descriptionOf kind hashStr
+
+    let descBlock =
+      if desc == "" then "" else $"<p class=\"lede\">{renderDoc desc}</p>"
+
+    let depBadge =
+      if isDeprecated hashStr then
+        " <span class=\"tag\">deprecated</span>"
+      else
+        ""
+
+    let linkList (title: String) (items: List<(String * String)>) (empty: String) : String =
+      if items == [] then
+        $"<h2>{title}</h2><p class=\"lede\">{empty}</p>"
+      else
+        let links =
+          items
+          |> Stdlib.List.map (fun d ->
+            let (full, k) = d
+            $"<a class=\"pill\" href=\"/p?name={esc full}\"><code>{esc full}</code></a>")
+          |> (fun l -> Stdlib.String.join l "")
+
+        $"<h2>{title}</h2><div class=\"pills\">{links}</div>"
+
+    let deps = dependenciesOf hashStr
+    let dependents = dependentsOf hashStr
+
+    page
+      name
+      ($"{crumbs modulePath}<h1>{esc leaf}{depBadge}</h1>"
+       ++ $"<p class=\"meta\">{kindLabel kind} &middot; <code title=\"{esc hashStr}\">{short}</code></p>"
+       ++ descBlock
+       ++ $"<pre><code>{esc src}</code></pre>"
+       ++ (linkList "Uses" deps "Nothing. This stands on its own.")
+       ++ (linkList "Used by" dependents "Nothing here calls it yet.")
+       ++ "<details><summary>What the hash means</summary><p class=\"lede\">Content-addressed: this hash "
+       ++ "is this code, forever. Editing the name publishes a different hash, and this one stays "
+       ++ "reachable and keeps working for anything already calling it.</p></details>")
+
+
+/// Search across every listed name. Deliberately name-and-module only: it is the query people actually
+/// type, and it stays a single indexed-ish scan rather than a full-text engine the relay has to maintain.
+let searchHandlerFn (req: HttpRequest) : HttpResponse =
+  let q =
+    Stdlib.Http.Request.queryParam req "q" |> Stdlib.Option.withDefault ""
+
+  if Stdlib.String.trim q == "" then
+    page "Search" "<h1>Search</h1><p class=\"lede\">Type a name above.</p>"
+  else
+    let results = searchItems (Stdlib.String.trim q)
+    let n = Stdlib.List.length results
+
+    if n == 0 then
+      page
+        $"Search: {q}"
+        ($"<h1>No matches</h1><p class=\"lede\">Nothing here matches <code>{esc q}</code>.</p>")
+    else
+      let rows =
+        results
+        |> Stdlib.List.map (fun r ->
+          let (full, kind, mods) = r
+          $"<a class=\"row\" href=\"/p?name={esc full}\"><div class=\"n\"><code>{esc full}</code></div>"
+          ++ $"<div class=\"c\">{kindLabel kind}</div></a>")
+        |> (fun l -> Stdlib.String.join l "")
+
+      let capped =
+        if n >= 100 then
+          "<p class=\"lede\">Showing the first 100. Narrow the search to see more.</p>"
+        else
+          ""
+
+      page
+        $"Search: {q}"
+        ($"<h1>{Stdlib.Int.toString n} matches</h1>"
+         ++ $"<p class=\"lede\">for <code>{esc q}</code></p>{capped}"
+         ++ $"<div class=\"rows\">{rows}</div>")
+
+
+/// Everyone who has published here, which on a shared relay is also the list of people you are working
+/// with. Counts only; who pushed which op is the relay's business and not a visitor's.
+let ownersHandlerFn (req: HttpRequest) : HttpResponse =
+  let rows =
+    owners ()
+    |> Stdlib.List.map (fun o ->
+      let (name, n) = o
+      let c = Stdlib.Int64.toString n
+      $"<a class=\"card\" href=\"/m?name={esc name}\"><div class=\"n\">{esc name}</div><div class=\"c\">{c} items</div></a>")
+    |> (fun l -> Stdlib.String.join l "")
+
+  page
+    "Publishers"
+    ("<h1>Publishers</h1><p class=\"lede\">Who owns the packages this relay serves. Code pushed here by "
+     ++ "other machines is held and handed back on request, but it is not folded into what the relay runs, "
+     ++ "so it does not appear here. <a href=\"/stats\">Why</a>.</p>"
+     ++ $"<div class=\"grid\">{rows}</div>")
+
+
+/// What the relay holds, in numbers. Aggregates only -- a visitor learns the shape of the store without
+/// learning who pushed what, which is the one thing here that is nobody else's business.
+let statsHandlerFn (req: HttpRequest) : HttpResponse =
+  let ops =
+    Stdlib.Sqlite.scalarInt (db ()) "SELECT COUNT(*) AS n FROM package_ops" "n"
+    |> Stdlib.Option.withDefault 0L
+
+  let fns =
+    Stdlib.Sqlite.scalarInt
+      (db ())
+      "SELECT COUNT(*) AS n FROM locations WHERE unlisted_at IS NULL AND item_type = 'fn'"
+      "n"
+    |> Stdlib.Option.withDefault 0L
+
+  let types =
+    Stdlib.Sqlite.scalarInt
+      (db ())
+      "SELECT COUNT(*) AS n FROM locations WHERE unlisted_at IS NULL AND item_type = 'type'"
+      "n"
+    |> Stdlib.Option.withDefault 0L
+
+  let values =
+    Stdlib.Sqlite.scalarInt
+      (db ())
+      "SELECT COUNT(*) AS n FROM locations WHERE unlisted_at IS NULL AND item_type = 'value'"
+      "n"
+    |> Stdlib.Option.withDefault 0L
+
+  let edges =
+    Stdlib.Sqlite.scalarInt (db ()) "SELECT COUNT(*) AS n FROM package_dependencies" "n"
+    |> Stdlib.Option.withDefault 0L
+
+  let stat (k: Int64) (l: String) : String =
+    $"<div><span class=\"k\">{Stdlib.Int64.toString k}</span><span class=\"l\">{l}</span></div>"
+
+  let opsStat = stat ops "ops"
+  let fnStat = stat fns "functions"
+  let typeStat = stat types "types"
+  let valueStat = stat values "values"
+  let edgeStat = stat edges "dependency edges"
+
+  page
+    "What this relay holds"
+    ("<h1>What this relay holds</h1>"
+     ++ "<p class=\"lede\">Every op ever pushed here is kept. Nothing is overwritten, so these only go up.</p>"
+     ++ $"<div class=\"stat\">{opsStat}{fnStat}{typeStat}{valueStat}{edgeStat}</div>"
+     ++ "<h2>Two numbers, two different things</h2>"
+     ++ "<p class=\"lede\">The op count is everything anyone has ever pushed here. The function, type and "
+     ++ "value counts are smaller and mean something else: they are what this relay itself RUNS and can "
+     ++ "therefore show you source for.</p>"
+     ++ "<p class=\"lede\">A relay stores what you push without folding it into its own package set. That "
+     ++ "is deliberate, and it is the whole reason a relay is safe to point a machine at: pushing code here "
+     ++ "cannot change what this server runs, so nobody can push a new version of the relay to the relay. "
+     ++ "The cost is that hosted code is held, served back to whoever pulls it, and not browsable on these "
+     ++ "pages. What you can browse here is the package set this build ships with.</p>"
+     ++ "<h2>What an op is</h2>"
+     ++ "<p class=\"lede\">One recorded change: publishing a function, moving a name, deprecating "
+     ++ "something. Every version of everything is still here, which is why the op count runs so far ahead "
+     ++ "of the item count. That is the point of the store, not an accident of it.</p>")
+
+
+/// The relay's own surface: pages to read, and the sync endpoints a CLI talks to.
+val handlers =
+  [ get "/" landingHandlerFn
+    get "/m" moduleHandlerFn
+    get "/p" itemHandlerFn
+    get "/search" searchHandlerFn
+    get "/owners" ownersHandlerFn
+    get "/stats" statsHandlerFn
+    get "/ping" pingHandlerFn
+    get "/sync/head" headHandlerFn
+    get "/sync/pull" pullHandlerFn
+    post "/sync/push" pushHandlerFn
+    post "/branch/push" branchPushHandlerFn
+    get "/branch/pull" branchPullHandlerFn
+    get "/branch/list" branchListHandlerFn ]
+
+/// One server, two audiences.
+///
+/// `handlers` above is for people and for the CLI. The package-server routes appended here (`/search`,
+/// `/type/...`, `/function/...`) are the JSON that darklang.com's package pages fetch, and they already
+/// existed -- they were just running nowhere, on a hostname that stopped existing. Serving them from the
+/// same process is what lets one deployment be both the thing you read and the thing the site reads.
+///
+/// Matter's own routes come FIRST so it keeps `/ping` and its own paths; the package server has a
+/// `/:location` catch-all at the end of its list that would otherwise swallow them.
+let router (req: HttpRequest) : HttpResponse =
+  Stdlib.HttpServer.routeRequest
+    (Stdlib.List.append handlers Darklang.Internal.DarkPackages.handlers)
+    req

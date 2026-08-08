@@ -44,7 +44,7 @@ let runServerCli (u: Unit) : Int =
             shouldShutdown = false
             accountID = Stdlib.Option.Option.None
             accountName = ""
-            currentBranchId = SCM.Branch.mainBranchId
+            currentBranchId = ""
             documentsInScope = Dict { } }
 
     | _ ->
@@ -55,7 +55,7 @@ let runServerCli (u: Unit) : Int =
           shouldShutdown = false
           accountID = Stdlib.Option.Option.None
           accountName = ""
-          currentBranchId = SCM.Branch.mainBranchId
+          currentBranchId = ""
           documentsInScope = Dict { } }
 
 

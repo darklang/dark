@@ -1,80 +1,269 @@
 module Darklang.Cli.Docs.SCM
 
 let content () : String =
-  """# SCM (Source Control)
+  """# Source control
 
-Darklang has built-in version control for the package tree.
-NOT git - this is for Darklang definitions (fns, types, values).
+Not git. This versions Darklang DEFINITIONS -- fns, types, values -- and the
+model is different enough that git intuitions will mislead you in two places,
+so read the first two sections before the command list.
 
-## Workflow
-  fn myFn           # create/edit function
-  run myFn          # test it
-  status            # see what changed (shows current branch)
-  commit "message"  # save changes
+## Two things to understand first
+
+1. YOUR EDITS ARE ALREADY LIVE. There is no staging area and no build step.
+   The moment you author something it runs. `commit` doesn't make it real; it
+   reviews what you did and records it as a commit, which is what makes it
+   history other machines can rely on. Before that it's your DRAFT: running,
+   still changeable, not yet anyone else's problem.
+
+2. EVERYTHING IS ADDRESSED BY CONTENT. An item's identity is the hash of what
+   it says. Edit a fn and it is a NEW item -- the old one still exists, and
+   anything that referenced it still references it, correctly, until something
+   moves it. That "something" is PROPAGATION, and it's the next section.
+
+A name is a separate thing from the item it points at. `Ux.Money.cents` is a
+binding, and editing the fn rebinds the name to the new version. That's why
+you can leave a caller on an older version deliberately: the caller isn't
+broken, it's pointing at a thing that still exists.
+
+## Propagation: what follows what
+
+Edit `base`, and everything that uses it is repointed to your new version,
+immediately, in your draft. You see the effect right away -- run a dependent
+and it uses your change.
+
+That default is right far more often than it's wrong. When it's wrong:
+
+  propagate                  the impact screen: what moved, toggle any of it
+  propagate pin <name>       stop it following, AND undo the repoint it got
+  propagate follow <name>    follow again, AND catch up on what it missed
+  propagate show <name>      what governs it, and what it's behind on
+  propagate unset <name>     forget the choice entirely
+
+Both verbs are RETROACTIVE, and that's deliberate: by the time you decide
+something shouldn't have followed, it already has. A pin that only applied to
+the next edit would be useless for the thing you're actually doing.
+
+BEFORE COMMIT a pin un-stages the repoint -- it never happened, and nothing is
+recorded. AFTER commit it authors a rebinding, because committed history doesn't
+change. Same verb, and you don't have to know which one you're getting.
+
+A name can be a MODULE, in which case the choice covers everything under it.
+The most specific choice wins, so an item can follow inside a pinned module.
+Module pins are forward-looking only -- they don't roll anything back.
+
+## Your draft
+
+  status              one line: what changed, what followed, what's waiting
+  commit "<msg>"      review it, then commit it
+  commit "<msg>" --include=A,B   commit only these, plus what they need
+  commit "<msg>" -y   commit without the prompt
+  discard             drop the whole draft (`-y` to skip the confirmation)
+  undo <name>         step ONE item back to its previous version
+  show <id>           what a commit committed, or what one op does
+  commits             the commits, newest first
+
+`status` distinguishes what you changed from what followed, and so does the
+commit review:
+
+    CHANGED (2)
+      ~ fn    Ux.Money.cents  updated          <- you did this
+      > fn    Ux.Money.total  updated, followed <- propagation did this
+
+    STAYING BEHIND (1)   (pinned, so they keep the version they have)
+      . Ux.Money.rate  still on the old Ux.Money.cents
+
+`discard` and `undo` are different tools. `discard` drops everything uncommitted;
+`undo` steps one name back one version and brings its dependents with it.
+Neither destroys anything -- every version stays in the store and every op
+stays in the log, so both are reversible.
+
+Committing collapses the churn: four edits to one fn commit as one naming of it,
+not four. Intermediate versions you never showed anyone aren't history.
 
 ## Branches
-  branch                  # list branches (* = current)
-  branch create <name>    # create + switch to new branch
-  branch switch <name>    # switch to existing branch
-  branch rename <old> <new>
-  branch delete <name>
 
-Branches inherit committed state from their parent. Your current
-branch sees its own WIP + committed changes, plus committed changes
-from all ancestor branches up to main.
+A branch is an overlay on the same op log, not a copy. Its ops are invisible
+to main until they merge, which is what makes several agents on several
+branches safe at once.
 
-### --branch flag (for non-interactive / AI use)
-Branch context does NOT persist between CLI invocations. In
-interactive mode, `branch switch` works for the session. For
-non-interactive use (AI agents, scripts), pass --branch:
+You refer to a branch by NAME everywhere on the command line. Underneath it
+has a uuid, which is what the op tags, bundles and parent links point at, so
+renaming a branch doesn't orphan its work and two machines that each started
+a `fix-auth` keep two branches rather than silently becoming one. `branches`
+prints both.
 
-  dark --branch feature status
-  dark --branch feature commit "my changes"
+  branch                       which branch am I on (the prompt shows it too, as @<name>)
+  branch <name>                switch to it, starting it if it's new
+  branches                     list them (name, short id, parent, status)
+  switch <name>                same as `branch <name>`; `switch main` returns
+  branch archive <name>        discard a branch and its unmerged work
+  diff <name>                  everything it changes vs its parent
+  log [<name>]                 its ops oldest-first (on main: the commits)
 
-Without --branch, all commands run on main.
+  dark --branch <name> <cmd>   run ONE command on a branch, without switching
 
-## Rebase & Merge
-  rebase            # update branch with parent's latest commits
-  rebase --status   # check for conflicts without rebasing
-  merge             # merge current branch into parent
-  merge --dry-run   # check if merge is possible
+The branch is per PROCESS. `switch` persists it, so the next `dark` starts
+there; `--branch` is for one command; `DARK_BRANCH` sets it for one shell,
+which is how several agents run on several branches without fighting over
+the persisted setting. Agents working in parallel should use one process
+each, which they get for free.
 
-Workflow: create branch → make changes → commit → rebase → merge
+`--branch` and `switch` differ in one more way. A branch started by the flag
+is parented to main; one started by `switch` is parented to the branch you're
+standing on (branches off branches). That matters because a branch can't merge
+while it has children, so a one-off scratch branch shouldn't become one.
 
-## Commands
-  status            # show current branch + uncommitted changes
-  commit <msg>      # commit all changes on current branch
-  log               # show commit history for current branch
-  show <hash>       # show commit details
-  discard           # discard uncommitted changes on current branch
+## Rebase and merge
 
-## What Gets Versioned
-- Function definitions
-- Type definitions
-- Value definitions
-- NOT: runtime state, external files
+  rebase <name>  accept the parent's current state as this branch's new base
+  merge <name>   fold the branch's ops into its parent
 
-## Example Session (interactive)
-  branch create feature    # create + switch to feature branch
-  fn fib                   # create fibonacci function
-  run fib 10              # test it
-  status                   # see "fib" as uncommitted on feature
-  commit "Add fibonacci"   # save it
-  rebase                   # pick up any new commits from parent
-  merge                    # merge feature into parent branch
+Merging the branch you're standing on puts you back on its parent and says so,
+because the branch is finished and the next thing you write shouldn't land on
+it. A merged branch stays in `branches` marked merged, and stays addressable by
+name so you can still `diff` or `log` it. What it stops being is a switch
+target: `switch <that name>` starts a fresh branch instead, the same as any
+other unused name.
 
-## Example Session (non-interactive / AI agent)
-  dark branch create feature
-  dark --branch feature fn "Darklang.Math.fib ..."
-  dark --branch feature run fib 10
-  dark --branch feature status
-  dark --branch feature commit "Add fibonacci"
-  dark --branch feature rebase
-  dark --branch feature merge
+Rebase first when the parent moved a name your branch also moved. Merge tells
+you if you need to.
 
-## Tips
-- Commit often with descriptive messages
-- Use `discard` to undo mistakes before committing
-- Use branches for experimental work
-- Rebase before merging to avoid conflicts
-- AI agents: always pass --branch for non-main work"""
+Nothing blocks on a conflict. Both sides converge deterministically (later
+authoring stamp wins, ties broken by content hash, so every machine picks the
+same winner), and the LOSER IS KEPT and recorded for you to look at:
+
+  conflicts                    what was auto-resolved and not yet reviewed
+  conflicts show <id>          both versions, as code
+  conflicts ack <id>           you're happy with the auto-pick
+  conflicts override <id> A|B  take the other one; syncs as an op
+                               (A is yours, B is what arrived)
+  conflicts branch <branch>    preview a branch's conflicts before merging
+  resolve <branch> <name> mine|theirs   settle one name on a branch
+
+Review-after, not block-before. Losing someone's work quietly is the failure
+mode this design is built to avoid, and a merge that stops and asks is just a
+slower way to be blocked.
+
+## Constraints: standing findings about your store
+
+Things that are true right now and won't fix themselves, reported when you ask
+rather than shouted at you when you commit:
+
+  constraints                        what's outstanding
+  constraints --kind <kind>          just one kind
+  constraints --json                 the same, for scripts and agents
+  ack <id>... [--why "..."]          leave it for now (`ack --all` for all)
+  constraints resolve <id>... [--as <how>]   fix it now, naming the fix
+
+Two kinds today, and they want opposite things from you.
+
+DRIFTED REFERENCES -- a live item still using a version that isn't what the
+name means now. In a distributed store this is the NORMAL steady state, not a
+backlog: another machine's caller of your fn can't be propagated to, and must
+not silently repoint when you sync. Usually you ack it, or pin it and mean it.
+
+  #a1b2c3d4  Ux.Money.total
+         uses Ux.Money.cents @ 6dcfe636, current is c422b6f1
+
+TYPE MISMATCHES -- code that cannot run, found without running it. Authoring
+doesn't stop you writing this, on purpose: half a thought should be allowed to
+exist. But it is a mistake with a definite answer, so it is worth saying so
+before the call site does.
+
+  #84259ac9  Ux.Money.cents
+         its body wants String, but is Int64 -- this fails when it runs
+
+The check is deliberately timid. It reports only two types that could never be
+the same thing whatever you substituted, so silence is NOT a claim your code
+type-checks -- it means nothing here was certain enough to bother you with. It
+also can't see inside `match`, pipes or records yet.
+
+Acking is bulk -- "seen it" means the same for every finding. Resolving isn't:
+it means something different per kind, so it asks you to name the resolution
+when there's more than one to choose from.
+
+A `propagate pin` is a DURABLE ack FOR A REFERENCE: it already says that
+reference is deliberate, with your reason, and it syncs. It has no opinion
+about a type mismatch and won't hide one -- pinning something doesn't make it
+run. A mismatch ack lasts until you edit the item; the next version is checked
+afresh, because a different version is a different question.
+
+## Sync: the same work on your other machines
+
+  connect <url>       remember a relay and push (do this once)
+  sync                push then pull -- what you run day to day
+  push / pull         one direction
+  sync status         are we in sync? (cheap, no transfer)
+  whoami              this instance's id
+  identity <name>     name it something readable
+
+  branch push <name>  put a branch on the relay
+  branch pull         bring your branches down on another machine
+
+  review pull [url] [queue]     stage someone's ops instead of applying them
+  review import <file> [queue]  same, from a bundle on disk
+  review <queue>                what's waiting in it
+  review approve <queue>        fold the queue into main
+  review reject <queue>         discard it
+
+A queue IS a branch, named by you (default "review"), so every branch verb
+works on it: `diff <queue>`, `log <queue>`, `conflicts branch <queue>`. The
+staged count is what's actually pending, not how much of the bundle was new to
+you -- a whole-log bundle is mostly ops you already have.
+
+DECISIONS TRAVEL, not just code. A pin crosses the wire with its reason and
+holds on the far machine; so does a constraint ack. Both are ops.
+
+Branches are keyed by owner, so a branch follows YOU across machines: give
+both instances the same `identity`.
+
+## The op log
+
+Everything above is a projection of one append-only log. The log is the truth;
+the package tree you browse is derived from it and can be rebuilt.
+
+  ops                 the recent ops this branch can see
+  ops <n>             the n most recent
+  ops show <id>       what one op does
+
+`ops` only READS. Every verb that changes the log is a root command.
+
+## For agents
+
+Every command that answers a question speaks `--json`, and it's the same data
+the human view renders, never a subset:
+
+  status --json        changed items, each flagged `followed` or not;
+                       `propagates`, `leftBehind`, conflicts, constraint count
+  commit --json        a dry review; add -y to commit and get the commit id back
+  deps <name> --json   both directions, each edge flagged `behind`
+  conflicts --json / constraints --json / propagate --json
+  commits --json / branches --json
+
+Bulk where the decision is made: `ack --all`, `propagate pin A B C`,
+`constraints resolve --all --as repoint`. Partial failure reports per target
+and doesn't abort, so you never have to bisect a batch.
+
+`commit --json` without `-y` is a safe dry run: it tells you exactly what
+committing would do without committing.
+
+## Worked example
+
+  fn Ux.Money.cents "(d: Int64) : Int64 = Stdlib.Int64.multiply d 100L"
+  fn Ux.Money.total "(a: Int64) : Int64 = Ux.Money.cents a"
+  status                       # draft: 2 items changed
+  eval "Ux.Money.total 3L"     # 300 -- already live
+  commit "money helpers" -y
+
+  fn Ux.Money.cents "(d: Int64) : Int64 = Stdlib.Int64.multiply d 1000L"
+  status                       # draft: 1 item changed, 1 followed
+  eval "Ux.Money.total 3L"     # 3000 -- total followed
+  propagate pin Ux.Money.total # dropped the staged repoint
+  eval "Ux.Money.total 3L"     # 300 -- back on the old cents
+  commit "cents in mills"      # CHANGED (1), STAYING BEHIND (1)
+
+## What is not versioned here
+
+Runtime state, external files, and your local config (the relay url, your
+identity, the current branch) -- that last group is deliberately per-install
+and never syncs."""

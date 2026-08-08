@@ -170,19 +170,24 @@ let remapSetNames
   let prevHashes =
     prevOps
     |> List.choose (function
-      | PT.PackageOp.SetName(loc, target) ->
+      | PT.PackageOp.SetName(loc, target, _) ->
         Some((target.kind.toString (), loc), target.hash)
       | _ -> None)
     |> Map.ofList
 
   newOps
   |> List.map (function
-    | PT.PackageOp.SetName(loc, target) ->
+    | PT.PackageOp.SetName(loc, target, previous) ->
       let hash =
         prevHashes
         |> Map.tryFind (target.kind.toString (), loc)
         |> Option.defaultValue (Hash "")
-      PT.PackageOp.SetName(loc, PT.Reference.fromHashAndKind (hash, target.kind))
+      // Only the TARGET is being restated here; what this binding replaced is unchanged by rehashing it.
+      PT.PackageOp.SetName(
+        loc,
+        PT.Reference.fromHashAndKind (hash, target.kind),
+        previous
+      )
     | other -> other)
 
 
@@ -206,21 +211,21 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
   for op in ops do
     match op with
     | PT.PackageOp.AddType t -> pendingType <- Some t
-    | PT.PackageOp.SetName(loc, PT.PackageType hash) ->
+    | PT.PackageOp.SetName(loc, PT.PackageType hash, _) ->
       match pendingType with
       | Some t ->
         typeMap <- Map.add (PackageLocation.toFQN loc) (t, hash, loc) typeMap
         pendingType <- None
       | None -> ()
     | PT.PackageOp.AddFn f -> pendingFn <- Some f
-    | PT.PackageOp.SetName(loc, PT.PackageFn hash) ->
+    | PT.PackageOp.SetName(loc, PT.PackageFn hash, _) ->
       match pendingFn with
       | Some f ->
         fnMap <- Map.add (PackageLocation.toFQN loc) (f, hash, loc) fnMap
         pendingFn <- None
       | None -> ()
     | PT.PackageOp.AddValue v -> pendingValue <- Some v
-    | PT.PackageOp.SetName(loc, PT.PackageValue hash) ->
+    | PT.PackageOp.SetName(loc, PT.PackageValue hash, _) ->
       match pendingValue with
       | Some v ->
         valueMap <- Map.add (PackageLocation.toFQN loc) (v, hash, loc) valueMap
@@ -240,28 +245,34 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
 
   let rec processOps (remaining : List<PT.PackageOp>) (acc : List<PT.PackageOp>) =
     match remaining with
-    | PT.PackageOp.AddType t :: PT.PackageOp.SetName(loc, PT.PackageType oldHash) :: rest ->
+    | PT.PackageOp.AddType t :: PT.PackageOp.SetName(loc,
+                                                     PT.PackageType oldHash,
+                                                     previous) :: rest ->
       let newHash = hashFor loc oldHash
       let transformed = { AT.transformType s.mapping t with hash = newHash }
       processOps
         rest
-        (PT.PackageOp.SetName(loc, PT.PackageType newHash)
+        (PT.PackageOp.SetName(loc, PT.PackageType newHash, previous)
          :: PT.PackageOp.AddType transformed
          :: acc)
-    | PT.PackageOp.AddFn f :: PT.PackageOp.SetName(loc, PT.PackageFn oldHash) :: rest ->
+    | PT.PackageOp.AddFn f :: PT.PackageOp.SetName(loc,
+                                                   PT.PackageFn oldHash,
+                                                   previous) :: rest ->
       let newHash = hashFor loc oldHash
       let transformed = { AT.transformFn s.mapping f with hash = newHash }
       processOps
         rest
-        (PT.PackageOp.SetName(loc, PT.PackageFn newHash)
+        (PT.PackageOp.SetName(loc, PT.PackageFn newHash, previous)
          :: PT.PackageOp.AddFn transformed
          :: acc)
-    | PT.PackageOp.AddValue v :: PT.PackageOp.SetName(loc, PT.PackageValue oldHash) :: rest ->
+    | PT.PackageOp.AddValue v :: PT.PackageOp.SetName(loc,
+                                                      PT.PackageValue oldHash,
+                                                      previous) :: rest ->
       let newHash = hashFor loc oldHash
       let transformed = { AT.transformValue s.mapping v with hash = newHash }
       processOps
         rest
-        (PT.PackageOp.SetName(loc, PT.PackageValue newHash)
+        (PT.PackageOp.SetName(loc, PT.PackageValue newHash, previous)
          :: PT.PackageOp.AddValue transformed
          :: acc)
     | op :: rest -> processOps rest (op :: acc)
@@ -274,5 +285,5 @@ let computeRealHashes (ops : List<PT.PackageOp>) : List<PT.PackageOp> =
 let extractAllHashes (ops : List<PT.PackageOp>) : List<Hash> =
   ops
   |> List.choose (function
-    | PT.PackageOp.SetName(_, target) -> Some target.hash
+    | PT.PackageOp.SetName(_, target, _) -> Some target.hash
     | _ -> None)

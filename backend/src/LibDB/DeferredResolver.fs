@@ -61,46 +61,27 @@ let private parseFnOrValueName (name : string) : Result<string * int, string> =
 // Core re-resolution
 // --------------------------------------------------------------------------
 
-let private refreshResolvedAtLocation
-  (branchId : PT.BranchId)
-  (nr : PT.NameResolution<'a>)
-  (loc : PT.PackageLocation)
-  (findInPM : (PT.BranchId * PT.PackageLocation) -> Ply<Option<Hash>>)
-  (makePackage : Hash -> 'a)
-  (currentHash : Hash)
-  : Ply<PT.NameResolution<'a>> =
-  uply {
-    match! findInPM (branchId, loc) with
-    | Some hash when hash = currentHash -> return nr
-    | Some hash ->
-      return
-        { nr with resolved = Ok { name = makePackage hash; location = Some loc } }
-    // Location is authoritative. If it disappeared, do not silently
-    // re-resolve the same text into another namespace.
-    | None -> return nr
-  }
-
-
-/// Re-resolve or refresh a NameResolution against the current PM state.
-/// Resolved package refs with a location are refreshed by that exact location;
-/// location-less or NotFound refs fall back to candidate lookup.
+/// Re-resolve a NameResolution against the current PM state. Already-resolved refs are LEFT PINNED (see the
+/// match arm below); only genuinely-unresolved / location-less refs fall back to candidate lookup.
 let private reResolveNameResolution
-  (branchId : PT.BranchId)
   (contextModules : List<string>)
   (nr : PT.NameResolution<'a>)
-  (findInPM : (PT.BranchId * PT.PackageLocation) -> Ply<Option<Hash>>)
+  (findInPM : PT.PackageLocation -> Ply<Option<Hash>>)
   (makePackage : Hash -> 'a)
-  (getCurrentHash : 'a -> Option<Hash>)
   (parseName : string -> Result<string * int, string>)
   : Ply<PT.NameResolution<'a>> =
   match nr.resolved with
   | Error PT.NameResolutionError.InvalidName -> Ply nr
 
-  | Ok { name = name; location = Some loc } ->
-    match getCurrentHash name with
-    | Some currentHash ->
-      refreshResolvedAtLocation branchId nr loc findInPM makePackage currentHash
-    | None -> Ply nr
+  // Already resolved with a location: LEAVE IT PINNED. We used to refresh it to the
+  // location's current hash here -- an implicit, whole-store propagation that
+  // repointed every dependent on every author. Propagation is now owned by
+  // autoPropagate (explicit, targeted PropagateUpdate ops emitted from the CLI
+  // update path), so re-resolution's only job is resolving genuinely-UNRESOLVED refs
+  // (forward-refs). Keeping resolved refs stable is also what lets WipRefresh's gate
+  // fire on a plain update (reResolvedOps = compactedOps), skipping the redundant
+  // whole-store SCC rehash.
+  | Ok { location = Some _ } -> Ply nr
 
   | _ ->
     match List.splitLast nr.originalName with
@@ -115,7 +96,7 @@ let private reResolveNameResolution
 
           let! result =
             NameLookup.findFirstPackageMatch contextModules genericName (fun loc ->
-              findInPM (branchId, loc))
+              findInPM loc)
 
           match result with
           | Some(hash, loc) ->
@@ -131,57 +112,47 @@ let private reResolveNameResolution
 // --------------------------------------------------------------------------
 
 let private reResolveTypeName
-  (branchId : PT.BranchId)
   (contextModules : List<string>)
-  (findType : (PT.BranchId * PT.PackageLocation) -> Ply<Option<Hash>>)
+  (findType : PT.PackageLocation -> Ply<Option<Hash>>)
   (nr : PT.NameResolution<PT.FQTypeName.FQTypeName>)
   : Ply<PT.NameResolution<PT.FQTypeName.FQTypeName>> =
   reResolveNameResolution
-    branchId
     contextModules
     nr
     findType
     PT.FQTypeName.Package
-    PackageItem.typePackageHash
     parseTypeName
 
 
 let private reResolveFnName
-  (branchId : PT.BranchId)
   (contextModules : List<string>)
-  (findFn : (PT.BranchId * PT.PackageLocation) -> Ply<Option<Hash>>)
+  (findFn : PT.PackageLocation -> Ply<Option<Hash>>)
   (nr : PT.NameResolution<PT.FQFnName.FQFnName>)
   : Ply<PT.NameResolution<PT.FQFnName.FQFnName>> =
   reResolveNameResolution
-    branchId
     contextModules
     nr
     findFn
     PT.FQFnName.Package
-    PackageItem.fnPackageHash
     parseFnOrValueName
 
 
 let private reResolveValueName
-  (branchId : PT.BranchId)
   (contextModules : List<string>)
-  (findValue : (PT.BranchId * PT.PackageLocation) -> Ply<Option<Hash>>)
+  (findValue : PT.PackageLocation -> Ply<Option<Hash>>)
   (nr : PT.NameResolution<PT.FQValueName.FQValueName>)
   : Ply<PT.NameResolution<PT.FQValueName.FQValueName>> =
   reResolveNameResolution
-    branchId
     contextModules
     nr
     findValue
     PT.FQValueName.Package
-    PackageItem.valuePackageHash
     parseFnOrValueName
 
 
 // -- TypeReference walker --
 
 let rec private reResolveTypeRef
-  (branchId : PT.BranchId)
   (contextModules : List<string>)
   (pm : PT.PackageManager)
   (typeRef : PT.TypeReference)
@@ -210,40 +181,37 @@ let rec private reResolveTypeRef
     | PT.TVariable _ -> return typeRef
 
     | PT.TStream inner ->
-      let! inner = reResolveTypeRef branchId contextModules pm inner
+      let! inner = reResolveTypeRef contextModules pm inner
       return PT.TStream inner
 
     | PT.TList inner ->
-      let! inner = reResolveTypeRef branchId contextModules pm inner
+      let! inner = reResolveTypeRef contextModules pm inner
       return PT.TList inner
 
     | PT.TDict inner ->
-      let! inner = reResolveTypeRef branchId contextModules pm inner
+      let! inner = reResolveTypeRef contextModules pm inner
       return PT.TDict inner
 
     | PT.TDB inner ->
-      let! inner = reResolveTypeRef branchId contextModules pm inner
+      let! inner = reResolveTypeRef contextModules pm inner
       return PT.TDB inner
 
     | PT.TTuple(first, second, rest) ->
-      let! first = reResolveTypeRef branchId contextModules pm first
-      let! second = reResolveTypeRef branchId contextModules pm second
-      let! rest =
-        Ply.List.mapSequentially (reResolveTypeRef branchId contextModules pm) rest
+      let! first = reResolveTypeRef contextModules pm first
+      let! second = reResolveTypeRef contextModules pm second
+      let! rest = Ply.List.mapSequentially (reResolveTypeRef contextModules pm) rest
       return PT.TTuple(first, second, rest)
 
     | PT.TCustomType(nr, typeArgs) ->
-      let! nr = reResolveTypeName branchId contextModules pm.findType nr
+      let! nr = reResolveTypeName contextModules pm.findType nr
       let! typeArgs =
-        Ply.List.mapSequentially
-          (reResolveTypeRef branchId contextModules pm)
-          typeArgs
+        Ply.List.mapSequentially (reResolveTypeRef contextModules pm) typeArgs
       return PT.TCustomType(nr, typeArgs)
 
     | PT.TFn(args, ret) ->
       let! args =
-        Ply.NEList.mapSequentially (reResolveTypeRef branchId contextModules pm) args
-      let! ret = reResolveTypeRef branchId contextModules pm ret
+        Ply.NEList.mapSequentially (reResolveTypeRef contextModules pm) args
+      let! ret = reResolveTypeRef contextModules pm ret
       return PT.TFn(args, ret)
   }
 
@@ -251,7 +219,6 @@ let rec private reResolveTypeRef
 // -- StringSegment walker --
 
 let rec private reResolveStringSegment
-  (branchId : PT.BranchId)
   (contextModules : List<string>)
   (pm : PT.PackageManager)
   (segment : PT.StringSegment)
@@ -260,7 +227,7 @@ let rec private reResolveStringSegment
     match segment with
     | PT.StringText _ -> return segment
     | PT.StringInterpolation expr ->
-      let! expr = reResolveExpr branchId contextModules pm expr
+      let! expr = reResolveExpr contextModules pm expr
       return PT.StringInterpolation expr
   }
 
@@ -268,7 +235,6 @@ let rec private reResolveStringSegment
 // -- MatchCase walker --
 
 and private reResolveMatchCase
-  (branchId : PT.BranchId)
   (contextModules : List<string>)
   (pm : PT.PackageManager)
   (case : PT.MatchCase)
@@ -278,12 +244,12 @@ and private reResolveMatchCase
       match case.whenCondition with
       | Some expr ->
         uply {
-          let! e = reResolveExpr branchId contextModules pm expr
+          let! e = reResolveExpr contextModules pm expr
           return Some e
         }
       | None -> Ply None
 
-    let! rhs = reResolveExpr branchId contextModules pm case.rhs
+    let! rhs = reResolveExpr contextModules pm case.rhs
     return { pat = case.pat; whenCondition = whenCondition; rhs = rhs }
   }
 
@@ -291,7 +257,6 @@ and private reResolveMatchCase
 // -- PipeExpr walker --
 
 and private reResolvePipeExpr
-  (branchId : PT.BranchId)
   (contextModules : List<string>)
   (pm : PT.PackageManager)
   (pipeExpr : PT.PipeExpr)
@@ -299,32 +264,27 @@ and private reResolvePipeExpr
   uply {
     match pipeExpr with
     | PT.EPipeLambda(id, pats, body) ->
-      let! body = reResolveExpr branchId contextModules pm body
+      let! body = reResolveExpr contextModules pm body
       return PT.EPipeLambda(id, pats, body)
 
     | PT.EPipeInfix(id, infix, rhs) ->
-      let! rhs = reResolveExpr branchId contextModules pm rhs
+      let! rhs = reResolveExpr contextModules pm rhs
       return PT.EPipeInfix(id, infix, rhs)
 
     | PT.EPipeFnCall(id, nr, typeArgs, args) ->
-      let! nr = reResolveFnName branchId contextModules pm.findFn nr
+      let! nr = reResolveFnName contextModules pm.findFn nr
       let! typeArgs =
-        Ply.List.mapSequentially
-          (reResolveTypeRef branchId contextModules pm)
-          typeArgs
-      let! args =
-        Ply.List.mapSequentially (reResolveExpr branchId contextModules pm) args
+        Ply.List.mapSequentially (reResolveTypeRef contextModules pm) typeArgs
+      let! args = Ply.List.mapSequentially (reResolveExpr contextModules pm) args
       return PT.EPipeFnCall(id, nr, typeArgs, args)
 
     | PT.EPipeEnum(id, nr, caseName, fields) ->
-      let! nr = reResolveTypeName branchId contextModules pm.findType nr
-      let! fields =
-        Ply.List.mapSequentially (reResolveExpr branchId contextModules pm) fields
+      let! nr = reResolveTypeName contextModules pm.findType nr
+      let! fields = Ply.List.mapSequentially (reResolveExpr contextModules pm) fields
       return PT.EPipeEnum(id, nr, caseName, fields)
 
     | PT.EPipeVariable(id, varName, args) ->
-      let! args =
-        Ply.List.mapSequentially (reResolveExpr branchId contextModules pm) args
+      let! args = Ply.List.mapSequentially (reResolveExpr contextModules pm) args
       return PT.EPipeVariable(id, varName, args)
   }
 
@@ -332,7 +292,6 @@ and private reResolvePipeExpr
 // -- Expr walker --
 
 and private reResolveExpr
-  (branchId : PT.BranchId)
   (contextModules : List<string>)
   (pm : PT.PackageManager)
   (expr : PT.Expr)
@@ -360,46 +319,41 @@ and private reResolveExpr
 
     | PT.EString(id, segments) ->
       let! segments =
-        Ply.List.mapSequentially
-          (reResolveStringSegment branchId contextModules pm)
-          segments
+        Ply.List.mapSequentially (reResolveStringSegment contextModules pm) segments
       return PT.EString(id, segments)
 
     | PT.EIf(id, cond, thenExpr, elseExpr) ->
-      let! cond = reResolveExpr branchId contextModules pm cond
-      let! thenExpr = reResolveExpr branchId contextModules pm thenExpr
+      let! cond = reResolveExpr contextModules pm cond
+      let! thenExpr = reResolveExpr contextModules pm thenExpr
       let! elseExpr =
         match elseExpr with
         | Some e ->
           uply {
-            let! e = reResolveExpr branchId contextModules pm e
+            let! e = reResolveExpr contextModules pm e
             return Some e
           }
         | None -> Ply None
       return PT.EIf(id, cond, thenExpr, elseExpr)
 
     | PT.EPipe(id, lhs, parts) ->
-      let! lhs = reResolveExpr branchId contextModules pm lhs
+      let! lhs = reResolveExpr contextModules pm lhs
       let! parts =
-        Ply.List.mapSequentially (reResolvePipeExpr branchId contextModules pm) parts
+        Ply.List.mapSequentially (reResolvePipeExpr contextModules pm) parts
       return PT.EPipe(id, lhs, parts)
 
     | PT.EMatch(id, arg, cases) ->
-      let! arg = reResolveExpr branchId contextModules pm arg
+      let! arg = reResolveExpr contextModules pm arg
       let! cases =
-        Ply.List.mapSequentially
-          (reResolveMatchCase branchId contextModules pm)
-          cases
+        Ply.List.mapSequentially (reResolveMatchCase contextModules pm) cases
       return PT.EMatch(id, arg, cases)
 
     | PT.ELet(id, pat, value, body) ->
-      let! value = reResolveExpr branchId contextModules pm value
-      let! body = reResolveExpr branchId contextModules pm body
+      let! value = reResolveExpr contextModules pm value
+      let! body = reResolveExpr contextModules pm body
       return PT.ELet(id, pat, value, body)
 
     | PT.EList(id, items) ->
-      let! items =
-        Ply.List.mapSequentially (reResolveExpr branchId contextModules pm) items
+      let! items = Ply.List.mapSequentially (reResolveExpr contextModules pm) items
       return PT.EList(id, items)
 
     | PT.EDict(id, pairs) ->
@@ -407,86 +361,77 @@ and private reResolveExpr
         Ply.List.mapSequentially
           (fun (k, v) ->
             uply {
-              let! v = reResolveExpr branchId contextModules pm v
+              let! v = reResolveExpr contextModules pm v
               return (k, v)
             })
           pairs
       return PT.EDict(id, pairs)
 
     | PT.ETuple(id, first, second, rest) ->
-      let! first = reResolveExpr branchId contextModules pm first
-      let! second = reResolveExpr branchId contextModules pm second
-      let! rest =
-        Ply.List.mapSequentially (reResolveExpr branchId contextModules pm) rest
+      let! first = reResolveExpr contextModules pm first
+      let! second = reResolveExpr contextModules pm second
+      let! rest = Ply.List.mapSequentially (reResolveExpr contextModules pm) rest
       return PT.ETuple(id, first, second, rest)
 
     | PT.EApply(id, fnExpr, typeArgs, args) ->
-      let! fnExpr = reResolveExpr branchId contextModules pm fnExpr
+      let! fnExpr = reResolveExpr contextModules pm fnExpr
       let! typeArgs =
-        Ply.List.mapSequentially
-          (reResolveTypeRef branchId contextModules pm)
-          typeArgs
-      let! args =
-        Ply.NEList.mapSequentially (reResolveExpr branchId contextModules pm) args
+        Ply.List.mapSequentially (reResolveTypeRef contextModules pm) typeArgs
+      let! args = Ply.NEList.mapSequentially (reResolveExpr contextModules pm) args
       return PT.EApply(id, fnExpr, typeArgs, args)
 
     | PT.EFnName(id, nr) ->
-      let! nr = reResolveFnName branchId contextModules pm.findFn nr
+      let! nr = reResolveFnName contextModules pm.findFn nr
       return PT.EFnName(id, nr)
 
     | PT.ELambda(id, pats, body) ->
-      let! body = reResolveExpr branchId contextModules pm body
+      let! body = reResolveExpr contextModules pm body
       return PT.ELambda(id, pats, body)
 
     | PT.EInfix(id, infix, lhs, rhs) ->
-      let! lhs = reResolveExpr branchId contextModules pm lhs
-      let! rhs = reResolveExpr branchId contextModules pm rhs
+      let! lhs = reResolveExpr contextModules pm lhs
+      let! rhs = reResolveExpr contextModules pm rhs
       return PT.EInfix(id, infix, lhs, rhs)
 
     | PT.ERecord(id, nr, typeArgs, fields) ->
-      let! nr = reResolveTypeName branchId contextModules pm.findType nr
+      let! nr = reResolveTypeName contextModules pm.findType nr
       let! typeArgs =
-        Ply.List.mapSequentially
-          (reResolveTypeRef branchId contextModules pm)
-          typeArgs
+        Ply.List.mapSequentially (reResolveTypeRef contextModules pm) typeArgs
       let! fields =
         Ply.List.mapSequentially
           (fun (name, expr) ->
             uply {
-              let! expr = reResolveExpr branchId contextModules pm expr
+              let! expr = reResolveExpr contextModules pm expr
               return (name, expr)
             })
           fields
       return PT.ERecord(id, nr, typeArgs, fields)
 
     | PT.ERecordFieldAccess(id, record, fieldName) ->
-      let! record = reResolveExpr branchId contextModules pm record
+      let! record = reResolveExpr contextModules pm record
       return PT.ERecordFieldAccess(id, record, fieldName)
 
     | PT.ERecordUpdate(id, record, updates) ->
-      let! record = reResolveExpr branchId contextModules pm record
+      let! record = reResolveExpr contextModules pm record
       let! updates =
         Ply.NEList.mapSequentially
           (fun (name, expr) ->
             uply {
-              let! expr = reResolveExpr branchId contextModules pm expr
+              let! expr = reResolveExpr contextModules pm expr
               return (name, expr)
             })
           updates
       return PT.ERecordUpdate(id, record, updates)
 
     | PT.EEnum(id, nr, typeArgs, caseName, fields) ->
-      let! nr = reResolveTypeName branchId contextModules pm.findType nr
+      let! nr = reResolveTypeName contextModules pm.findType nr
       let! typeArgs =
-        Ply.List.mapSequentially
-          (reResolveTypeRef branchId contextModules pm)
-          typeArgs
-      let! fields =
-        Ply.List.mapSequentially (reResolveExpr branchId contextModules pm) fields
+        Ply.List.mapSequentially (reResolveTypeRef contextModules pm) typeArgs
+      let! fields = Ply.List.mapSequentially (reResolveExpr contextModules pm) fields
       return PT.EEnum(id, nr, typeArgs, caseName, fields)
 
     | PT.EValue(id, nr) ->
-      let! nr = reResolveValueName branchId contextModules pm.findValue nr
+      let! nr = reResolveValueName contextModules pm.findValue nr
       match nr.resolved with
       | Error PT.NameResolutionError.NotFound ->
         // A qualified fn used in value position (`let f = Mod.fn`) lowers to EValue
@@ -496,15 +441,15 @@ and private reResolveExpr
         let fnNr : PT.NameResolution<PT.FQFnName.FQFnName> =
           { originalName = nr.originalName
             resolved = Error PT.NameResolutionError.NotFound }
-        let! fnNr = reResolveFnName branchId contextModules pm.findFn fnNr
+        let! fnNr = reResolveFnName contextModules pm.findFn fnNr
         match fnNr.resolved with
         | Ok _ -> return PT.EFnName(id, fnNr)
         | Error _ -> return PT.EValue(id, nr)
       | _ -> return PT.EValue(id, nr)
 
     | PT.EStatement(id, first, next) ->
-      let! first = reResolveExpr branchId contextModules pm first
-      let! next = reResolveExpr branchId contextModules pm next
+      let! first = reResolveExpr contextModules pm first
+      let! next = reResolveExpr contextModules pm next
       return PT.EStatement(id, first, next)
   }
 
@@ -512,7 +457,6 @@ and private reResolveExpr
 // -- TypeDeclaration walker --
 
 let private reResolveTypeDefinition
-  (branchId : PT.BranchId)
   (contextModules : List<string>)
   (pm : PT.PackageManager)
   (def : PT.TypeDeclaration.Definition)
@@ -520,7 +464,7 @@ let private reResolveTypeDefinition
   uply {
     match def with
     | PT.TypeDeclaration.Alias typeRef ->
-      let! typeRef = reResolveTypeRef branchId contextModules pm typeRef
+      let! typeRef = reResolveTypeRef contextModules pm typeRef
       return PT.TypeDeclaration.Alias typeRef
 
     | PT.TypeDeclaration.Record fields ->
@@ -528,7 +472,7 @@ let private reResolveTypeDefinition
         Ply.NEList.mapSequentially
           (fun (f : PT.TypeDeclaration.RecordField) ->
             uply {
-              let! typ = reResolveTypeRef branchId contextModules pm f.typ
+              let! typ = reResolveTypeRef contextModules pm f.typ
               return { f with typ = typ }
             })
           fields
@@ -543,7 +487,7 @@ let private reResolveTypeDefinition
                 Ply.List.mapSequentially
                   (fun (f : PT.TypeDeclaration.EnumField) ->
                     uply {
-                      let! typ = reResolveTypeRef branchId contextModules pm f.typ
+                      let! typ = reResolveTypeRef contextModules pm f.typ
                       return { f with typ = typ }
                     })
                   c.fields
@@ -561,7 +505,6 @@ let private reResolveTypeDefinition
 /// Re-resolve all unresolved NameResolutions in a PackageType
 let reResolveType
   (pm : PT.PackageManager)
-  (branchId : PT.BranchId)
   (owner : string)
   (modules : List<string>)
   (t : PT.PackageType.PackageType)
@@ -570,7 +513,7 @@ let reResolveType
 
   uply {
     let! definition =
-      reResolveTypeDefinition branchId contextModules pm t.declaration.definition
+      reResolveTypeDefinition contextModules pm t.declaration.definition
 
     return { t with declaration = { t.declaration with definition = definition } }
   }
@@ -579,7 +522,6 @@ let reResolveType
 /// Re-resolve all unresolved NameResolutions in a PackageFn
 let reResolveFn
   (pm : PT.PackageManager)
-  (branchId : PT.BranchId)
   (owner : string)
   (modules : List<string>)
   (f : PT.PackageFn.PackageFn)
@@ -587,18 +529,18 @@ let reResolveFn
   let contextModules = owner :: modules
 
   uply {
-    let! body = reResolveExpr branchId contextModules pm f.body
+    let! body = reResolveExpr contextModules pm f.body
 
     let! parameters =
       Ply.NEList.mapSequentially
         (fun (p : PT.PackageFn.Parameter) ->
           uply {
-            let! typ = reResolveTypeRef branchId contextModules pm p.typ
+            let! typ = reResolveTypeRef contextModules pm p.typ
             return { p with typ = typ }
           })
         f.parameters
 
-    let! returnType = reResolveTypeRef branchId contextModules pm f.returnType
+    let! returnType = reResolveTypeRef contextModules pm f.returnType
 
     return { f with body = body; parameters = parameters; returnType = returnType }
   }
@@ -607,7 +549,6 @@ let reResolveFn
 /// Re-resolve all unresolved NameResolutions in a PackageValue
 let reResolveValue
   (pm : PT.PackageManager)
-  (branchId : PT.BranchId)
   (owner : string)
   (modules : List<string>)
   (v : PT.PackageValue.PackageValue)
@@ -615,6 +556,6 @@ let reResolveValue
   let contextModules = owner :: modules
 
   uply {
-    let! body = reResolveExpr branchId contextModules pm v.body
+    let! body = reResolveExpr contextModules pm v.body
     return { v with body = body }
   }

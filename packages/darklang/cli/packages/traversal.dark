@@ -57,7 +57,7 @@ let getCurrentModulePath (location: PackageLocation) : List<String> =
 
 
 let applySegment
-  (branchId: Uuid)
+  (branchId: String)
   (location: PackageLocation)
   (segment: PathSegment)
   : Stdlib.Result.Result<PackageLocation, String> =
@@ -92,7 +92,7 @@ let applySegment
 
 // Resolve a name to an actual entity (module, type, fn, or value)
 let resolveEntity
-  (branchId: Uuid)
+  (branchId: String)
   (basePath: List<String>)
   (name: String)
   : Stdlib.Result.Result<PackageLocation, String> =
@@ -117,11 +117,16 @@ let resolveEntity
       | [] ->
         match entityResults.values with
         | item :: _ -> Stdlib.Result.Result.Ok (PackageLocation.Value item.location)
-        | [] -> Stdlib.Result.Result.Error "Not found"
+        | [] ->
+          // Name what wasn't found. A bare "Not found" is the same sentence for a typo, a name you haven't
+          // authored yet, and a path resolved from somewhere you didn't expect to be standing -- and the
+          // only one of those you can act on is the one it doesn't tell you.
+          let path = Stdlib.String.join (Stdlib.List.append basePath [ name ]) "."
+          Stdlib.Result.Result.Error $"Not found: {path}"
 
 
 let applyPath
-  (branchId: Uuid)
+  (branchId: String)
   (start: PackageLocation)
   (segments: List<PathSegment>)
   : Stdlib.Result.Result<PackageLocation, String> =
@@ -136,7 +141,7 @@ let applyPath
 // Search for modules globally where a segment starts with the prefix
 // Returns only the path up to the matching segment, not descendants
 let searchModulesByPrefix
-  (branchId: Uuid)
+  (branchId: String)
   (prefixText: String)
   : List<String> =
   // Search from root with AllDescendants - database returns all matching paths
@@ -170,7 +175,7 @@ let searchModulesByPrefix
 
 // Get all available items at a location for completion
 let getAvailableItems
-  (branchId: Uuid)
+  (branchId: String)
   (location: PackageLocation)
   (prefixText: String)
   : List<Cli.Completion.CompletionItem> =
@@ -227,7 +232,7 @@ let getAvailableItems
 
 // Simple completion: traverse exact path, then fuzzy search the last part
 let completePartialPath
-  (branchId: Uuid)
+  (branchId: String)
   (start: PackageLocation)
   (partialPath: String)
   : List<Cli.Completion.CompletionItem> =
@@ -282,7 +287,7 @@ let completePartialPath
 
 // Main traverse function
 let traverse
-  (branchId: Uuid)
+  (branchId: String)
   (start: PackageLocation)
   (path: String)
   : Stdlib.Result.Result<PackageLocation, String> =

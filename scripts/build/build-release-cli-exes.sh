@@ -51,15 +51,17 @@ export GIT_COMMIT="$sha"
 mkdir -p clis
 rm -rf clis/.darklang
 
-# Export a seed (smaller DB) and use it as the embedded data.db for smaller exes.
-# The seed has full schema but no derived data — the grow step rebuilds on first run.
-# We intentionally ship the slim seed (not a pre-projected DB) so every user
-# has the same boot path and the ops are present for rewind/inspection.
+# Export a seed (smaller DB) for embedding. The seed has full schema but no derived data — the grow
+# step rebuilds on first run. We intentionally ship the slim seed (not a pre-projected DB) so every
+# user has the same boot path and the ops are present for rewind/inspection.
+#
+# This used to `cp rundir/seed.db rundir/data.db` afterwards, which built the exe correctly and took
+# the developer's working store with it -- branches, config and all -- as a side effect of a build.
+# The project embeds rundir/seed.db directly now, so the working store is left alone.
 echo "Exporting seed for embedding..."
 sqlite3 rundir/data.db "PRAGMA wal_checkpoint(TRUNCATE);" || true
 scripts/run-local-exec export-seed rundir/seed.db
-cp rundir/seed.db rundir/data.db
-echo "Replaced data.db with seed ($(du -h rundir/data.db | cut -f1))"
+echo "Seed ready ($(du -h rundir/seed.db | cut -f1))"
 
 # All supported runtimes.
 ALL_RUNTIMES="linux-x64 linux-musl-x64 linux-arm64 linux-arm osx-x64 osx-arm64 win-x64 win-arm64"

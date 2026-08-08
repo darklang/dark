@@ -1,0 +1,269 @@
+module Darklang.SCM.Branches
+
+//  the BRANCH-TABLES data-access silo
+//
+// Owns the SQL for `branches`, `op_branches`, `branch_name_bases` and `relay_branches`. These were F#
+// builtins purely because that's where the code happened to start; none of them need the compiler, the
+// binary codec, SCC hashing or the fold, which is the line SPEC section 9 draws. They're SELECTs, an
+// upsert, and some DELETEs -- so they belong here, behind one silo, in the language.
+//
+// What stays F#: `createBranch` and `recordNameBases`, which the authoring path calls from inside
+// `scmAddOps` (already in F#, mid-transaction), and `storeDeltaOps` / `markMergedEffective`, which are the
+// fold's business.
+
+let localDb () : String = Builtin.localDbPath ()
+
+/// The branch this process is on, or "" for main. This is an ID.
+///
+/// `--branch <name>` and `DARK_BRANCH` name a branch the way a person does and are resolved to an id in the
+/// CLI entry point, before any Dark runs. The persistent `current_branch` already holds an id, with
+/// `current_branch_name` beside it for display. Either way this is the only honest source.
+///
+/// Lives in this silo, the lowest branch-aware module, so both `SCM.PackageOps` and `SCM.Conflicts` can ask
+/// without either depending on the other. `SCM.PackageOps.currentBranch` is the name most callers use.
+let current () : String = Builtin.scmCurrentBranch ()
+
+
+//  relay-side branch storage (a relay stores pushed branches by owner)
+// A relay is a dumb store: it holds branch BUNDLES keyed by (owner, branch) and hands them back. It never
+// folds or runs a branch. Re-push replaces.
+
+let relayStoreBundle (owner: String) (branchId: String) (bundle: String) : Unit =
+  let _ =
+    Stdlib.Sqlite.execP
+      (localDb ())
+      "INSERT OR REPLACE INTO relay_branches (owner, branch_id, bundle) VALUES (@p0, @p1, @p2)"
+      [ owner; branchId; bundle ]
+
+  ()
+
+/// The stored bundle for (owner, branch), or "" if the relay doesn't hold one.
+let relayGetBundle (owner: String) (branchId: String) : String =
+  match
+    Stdlib.Sqlite.queryOneP
+      (localDb ())
+      "SELECT bundle FROM relay_branches WHERE owner = @p0 AND branch_id = @p1"
+      [ owner; branchId ]
+  with
+  | Some row -> Stdlib.Sqlite.textField row "bundle" |> Stdlib.Option.withDefault ""
+  | None -> ""
+
+/// The branch ids an owner has pushed here ("pull all my branches").
+let relayListBranches (owner: String) : List<String> =
+  match
+    Stdlib.Sqlite.queryP
+      (localDb ())
+      "SELECT branch_id FROM relay_branches WHERE owner = @p0 ORDER BY branch_id"
+      [ owner ]
+  with
+  | Ok rows ->
+    rows |> Stdlib.List.filterMap (fun row -> Stdlib.Sqlite.textField row "branch_id")
+  | Error _ -> []
+
+
+/// Can this branch merge into its parent? Two structural preconditions: it has changes, and it has no
+/// active (unmerged, unarchived) children.
+///
+/// It deliberately does NOT gate on conflicts. Those are detected, auto-resolved by the fold's origin_ts
+/// LWW, and RECORDED at reconciliation, so the model is review-AFTER rather than block-before. Blocking
+/// taught people to rebase reflexively without reading anything, which is the churn the checkpoint design
+/// exists to remove; the recorded conflict is what keeps that safe.
+///
+/// Here rather than in F# because it is a DECISION, and because both counts are against `branches` and
+/// `op_branches`, which this silo owns. The F# side keeps the merge MECHANISM -- flipping ops effective,
+/// folding, retagging -- which is transactional and genuinely belongs there.
+let canMerge (branchId: String) : Stdlib.Result.Result<Unit, String> =
+  if branchId == "" then
+    // Said "nothing to merge (the branch has no changes)" on main, which answers a question nobody asked:
+    // you are not on a branch, so there is no branch whose changes could be counted.
+    Stdlib.Result.Result.Error
+      "you're on main -- merge moves a BRANCH into its parent. `dark merge <branch>`, or switch to one."
+  else
+
+  let changes =
+    Stdlib.Sqlite.scalarIntP
+      (localDb ())
+      "SELECT count(*) AS n FROM op_branches WHERE branch_id = @p0"
+      [ branchId ]
+      "n"
+    |> Stdlib.Option.withDefault 0L
+
+  if changes == 0L then
+    Stdlib.Result.Result.Error "nothing to merge (the branch has no changes)"
+  else
+    // "Active" has to mean the same thing here as in the message below, which tells you to merge OR ARCHIVE
+    // the children. Counting archived children as active made that advice a dead end: you archive the
+    // child, the gate does not move, and the message repeats the instruction you just followed.
+    let activeChildren =
+      Stdlib.Sqlite.scalarIntP
+        (localDb ())
+        "SELECT count(*) AS n FROM branches
+         WHERE parent_id = @p0 AND merged_at IS NULL AND archived_at IS NULL"
+        [ branchId ]
+        "n"
+      |> Stdlib.Option.withDefault 0L
+
+    if activeChildren > 0L then
+      Stdlib.Result.Result.Error
+        "branch has active children -- merge or archive them first"
+    else
+      Stdlib.Result.Result.Ok()
+
+
+//  branch lifecycle
+
+/// Register a branch off a parent if it doesn't exist yet. Idempotent, and FIRST WRITE WINS the parent: an
+/// existing branch is never re-parented, so switching onto one can't quietly move it. Re-using an id
+/// REVIVES it (clears archived/merged), which is what lets a review queue be reused after approve/reject.
+let ensure (branchId: String) (parentId: String) : Unit =
+  let _ =
+    Stdlib.Sqlite.execP
+      (localDb ())
+      "INSERT INTO branches (id, name, parent_id) VALUES (@p0, '', @p1)
+       ON CONFLICT(id) DO UPDATE SET archived_at = NULL, merged_at = NULL"
+      [ branchId; parentId ]
+
+  ()
+
+/// Point a branch's NAME at something else. The id is untouched, so every reference survives.
+let setName (branchId: String) (name: String) : Unit =
+  let _ =
+    Stdlib.Sqlite.execP
+      (localDb ())
+      "UPDATE branches SET name = @p1 WHERE id = @p0"
+      [ branchId; name ]
+
+  ()
+
+/// ARCHIVE (soft-delete): discard the branch's unmerged (effective=0) ops, drop its frontier and name-bases,
+/// and mark it archived so it leaves the listings. A MERGED branch's ops are already the parent's and
+/// untagged, so this just marks it. Idempotent.
+///
+/// Deliberately only deletes effective=0 ops: anything that made it into main is main's now, and deleting it
+/// here would tear a hole in the shared log rather than discarding a branch.
+let archive (branchId: String) : Unit =
+  let db = localDb ()
+
+  let _ =
+    Stdlib.Sqlite.execP
+      db
+      // Only ops NO OTHER branch holds. `op_branches` is many-to-many and op ids are content hashes, so two
+      // review queues importing overlapping bundles genuinely share rows. Without this, rejecting one queue
+      // deleted ops the other still lists -- gone from an append-only log, with its tags left counting them.
+      "DELETE FROM package_ops
+       WHERE effective = 0
+         AND id IN (SELECT op_id FROM op_branches WHERE branch_id = @p0)
+         AND id NOT IN (SELECT op_id FROM op_branches WHERE branch_id <> @p0)"
+      [ branchId ]
+
+  let _ =
+    Stdlib.Sqlite.execP db "DELETE FROM op_branches WHERE branch_id = @p0" [ branchId ]
+
+  let _ =
+    Stdlib.Sqlite.execP
+      db
+      "DELETE FROM branch_name_bases WHERE branch_id = @p0"
+      [ branchId ]
+
+  let _ =
+    Stdlib.Sqlite.execP
+      db
+      "UPDATE branches SET archived_at = datetime('now') WHERE id = @p0"
+      [ branchId ]
+
+  ()
+
+/// Untag a review branch's already-APPLIED ops. A whole-log review import tags every re-imported op to the
+/// queue, including ones already in main (the op row dedups, but the tag is new), which inflates the
+/// queue's diff/log/merge. Pruning leaves only the genuinely-pending delta -- what's actually up for
+/// approval. Safe: an applied op is already in main, so untagging it loses nothing.
+let pruneAppliedTags (branchId: String) : Unit =
+  let _ =
+    Stdlib.Sqlite.execP
+      (localDb ())
+      "DELETE FROM op_branches
+       WHERE branch_id = @p0 AND op_id IN (SELECT id FROM package_ops WHERE applied = 1)"
+      [ branchId ]
+
+  ()
+
+
+//  listings
+
+/// One active branch, as data. The CLI renders it as a line and the LSP as JSON, so the QUERY lives in
+/// one place and neither surface has to know the table.
+type BranchRow =
+  { id: String
+    /// a mutable display alias; "" when the id is the only handle
+    name: String
+    parent: String
+    /// how many ops are on its frontier
+    ops: Int64
+    merged: Bool }
+
+/// Every active branch, oldest first.
+let list () : List<BranchRow> =
+  match
+    Stdlib.Sqlite.query
+      (localDb ())
+      "SELECT b.id, b.name, b.parent_id, b.merged_at IS NOT NULL AS merged,
+              (SELECT count(*) FROM op_branches ob WHERE ob.branch_id = b.id) AS ops
+       FROM branches b WHERE b.archived_at IS NULL ORDER BY b.created_at"
+  with
+  | Ok rows ->
+    rows
+    |> Stdlib.List.filterMap (fun row ->
+      match Stdlib.Sqlite.textField row "id" with
+      | Some id ->
+        Stdlib.Option.Option.Some(
+          BranchRow
+            { id = id
+              name = Stdlib.Sqlite.textField row "name" |> Stdlib.Option.withDefault ""
+              parent =
+                Stdlib.Sqlite.textField row "parent_id"
+                |> Stdlib.Option.withDefault "main"
+              ops = Stdlib.Sqlite.intField row "ops" |> Stdlib.Option.withDefault 0L
+              merged =
+                (Stdlib.Sqlite.intField row "merged" |> Stdlib.Option.withDefault 0L) > 0L }
+        )
+      | None -> Stdlib.Option.Option.None)
+  | Error _ -> []
+
+/// One line per active branch: name <- parent [status], oldest first.
+///
+/// The NAME leads because that's what you type at every branch verb. The id is shown too, shortened,
+/// because bundles and relay keys carry it and a listing you can't cross-reference against a push is not
+/// much of a listing. A branch with no name of its own (one that arrived as tagged ops) shows its id.
+let listLines () : List<String> =
+  // Fetched ONCE. `parentLabel` used to call `list ()` itself, which is a query over `branches` plus a
+  // correlated count per row -- so rendering n branches ran n+1 of them.
+  let branches = list ()
+
+  let parentLabel (parentId: String) : String =
+    if parentId == "main" then
+      "main"
+    else
+      match Stdlib.List.findFirst branches (fun p -> p.id == parentId) with
+      | Some p when p.name != "" -> p.name
+      | _ -> Stdlib.String.slice parentId 0 8
+
+  branches
+  |> Stdlib.List.map (fun b ->
+    let status =
+      if b.merged then "merged" else $"{Stdlib.Int64.toString b.ops} op(s)"
+
+    let label = if b.name == "" then b.id else b.name
+    let shortId = Stdlib.String.slice b.id 0 8
+    $"{label} ({shortId}) <- {parentLabel b.parent}  [{status}]")
+
+/// The names a branch has recorded a base for -- i.e. every name it has touched.
+let touchedNames (branchId: String) : List<String> =
+  match
+    Stdlib.Sqlite.queryP
+      (localDb ())
+      "SELECT name FROM branch_name_bases WHERE branch_id = @p0"
+      [ branchId ]
+  with
+  | Ok rows ->
+    rows |> Stdlib.List.filterMap (fun row -> Stdlib.Sqlite.textField row "name")
+  | Error _ -> []

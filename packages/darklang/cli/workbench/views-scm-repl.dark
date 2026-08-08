@@ -14,10 +14,12 @@ let renderScmHeader (state: State) (region: UI.Layout.Region) : List<UI.Layout.S
       | Some pid -> (match SCM.Branch.get pid with | Some p -> p.name | None -> "?")
       | None -> "(root)"
     | None -> "(root)"
-  let wip = wipItemCount state.branchId
-  let commits = SCM.PackageOps.getCommitCount state.branchId
-  let conflicts = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
-  let peers = Stdlib.List.length (Darklang.Sync.status ())
+  let wip = state.scmStatus.changed
+  let commits = state.scmStatus.commits
+  let conflicts = Stdlib.List.length state.scmStatus.conflicts
+  // A relay, not peers: sync goes through one address you `connect` to, so "configured or not" is the
+  // honest summary. The peer count came from a sync model this branch replaced.
+  let relay = SCM.PackageOps.relay ()
   let line1 =
     "  " ++ (Colors.boldText ("branch: " ++ branch)) ++ (Colors.dimText ("   →   " ++ parent))
   let wipPart =
@@ -26,7 +28,11 @@ let renderScmHeader (state: State) (region: UI.Layout.Region) : List<UI.Layout.S
   let confPart =
     if conflicts == 0 then Colors.dimText "no conflicts"
     else Colors.colorize Colors.pink ("⚠ " ++ (plural conflicts "conflict"))
-  let syncPart = if peers == 0 then Colors.dimText "no peers" else Colors.dimText ((Stdlib.Int.toString peers) ++ " peers")
+  let syncPart =
+    if relay == "" then
+      Colors.dimText "no relay"
+    else
+      Colors.dimText "relay set"
   let sep = Colors.dimText "     "
   let line2 =
     "  " ++ wipPart ++ sep ++ (Colors.dimText (plural commits "commit")) ++ sep ++ confPart ++ sep ++ syncPart

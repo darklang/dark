@@ -136,7 +136,7 @@ let toPT
 
       let ops =
         [ ProgramTypes.PackageOp.AddType pt
-          ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageType pt.hash) ]
+          ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageType pt.hash, Stdlib.Option.Option.None) ]
 
       (pt, ops, unresolvedNames))
 
@@ -158,7 +158,7 @@ let toPT
 
       let ops =
         [ ProgramTypes.PackageOp.AddValue pv
-          ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageValue pv.hash) ]
+          ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageValue pv.hash, Stdlib.Option.Option.None) ]
 
       (pv, ops, unresolvedNames))
 
@@ -180,7 +180,7 @@ let toPT
 
       let ops =
         [ ProgramTypes.PackageOp.AddFn pf
-          ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageFn pf.hash) ]
+          ProgramTypes.PackageOp.SetName(location, ProgramTypes.Reference.PackageFn pf.hash, Stdlib.Option.Option.None) ]
 
       (pf, ops, unresolvedNames))
 
@@ -344,7 +344,7 @@ let parse
 /// Single-shot parse for CLI use: creates PM and NRContext internally
 /// so that lambdas in the PM stay within the same execution context.
 let parseForCli
-  (branchId: Uuid)
+  (branchId: String)
   (owner: String)
   (scriptName: String)
   (filename: String)

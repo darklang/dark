@@ -69,8 +69,16 @@ let makeSerializer<'T, 'ID>
       finalStream.ToArray())
 
 
-/// Create an optimized deserializer function with embedded error handling
-let makeDeserializer<'T, 'ID> (reader : BinaryReader -> 'T) : 'ID -> byte[] -> 'T =
+/// Version-dispatched deserializer: the reader receives the blob's format version,
+/// so a type whose on-disk layout has changed can branch (`match version with 1u ->
+/// readV1 r | 2u -> readV2 r`). Keep every historical readVN forever + one current
+/// writer; this is what lets a new binary decode an OLD blob (the migrator's
+/// keystone -- see notes/fresh-arch/SPEC.md section 10). Today CurrentVersion = 1,
+/// so all readers ignore it (via `makeDeserializer` below); the plumbing exists for
+/// the first real format change.
+let makeDeserializerV<'T, 'ID>
+  (reader : uint32 -> BinaryReader -> 'T)
+  : 'ID -> byte[] -> 'T =
   fun id data ->
     wrap (fun () -> string id) (fun () ->
       use stream = new MemoryStream(data)
@@ -84,7 +92,15 @@ let makeDeserializer<'T, 'ID> (reader : BinaryReader -> 'T) : 'ID -> byte[] -> '
       if uint32 remainingBytes <> header.DataLength then
         Validation.validateDataLength header.DataLength (uint32 remainingBytes)
 
-      reader r)
+      reader header.Version r)
+
+
+/// Create an optimized deserializer function with embedded error handling.
+/// Version-agnostic convenience over `makeDeserializerV` (the reader ignores the
+/// blob version). Use `makeDeserializerV` directly when a type needs to decode more
+/// than one format version.
+let makeDeserializer<'T, 'ID> (reader : BinaryReader -> 'T) : 'ID -> byte[] -> 'T =
+  makeDeserializerV (fun _version r -> reader r)
 
 
 module PT =
@@ -129,10 +145,6 @@ module PT =
   module PackageOp =
     let serialize id value = makeSerializer PT.PackageOp.write id value
     let deserialize id data = makeDeserializer PT.PackageOp.read id data
-
-  module BranchOp =
-    let serialize = PT.BranchOp.serialize
-    let deserialize = PT.BranchOp.deserialize
 
   module Toplevel =
     let serialize id value = makeSerializer PT.Toplevel.write id value

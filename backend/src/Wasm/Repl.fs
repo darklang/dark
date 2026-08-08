@@ -59,7 +59,6 @@ let private buildState () : RT.ExecutionState =
     Exe.noTracing
     RT.consoleReporter
     RT.consoleNotifier
-    PT.mainBranchId
     program
 
 let private getState () : RT.ExecutionState =
@@ -160,7 +159,6 @@ let private lowerOnce
           builtins
           pmX
           NR.OnMissing.Allow
-          PT.mainBranchId
           (WT2PT.PackageFn.Name.toModules fn.name)
           fn)
     let! types =
@@ -169,7 +167,6 @@ let private lowerOnce
         WT2PT.PackageType.toPT
           pmX
           NR.OnMissing.Allow
-          PT.mainBranchId
           (WT2PT.PackageType.Name.toModules typ.name)
           typ)
     let! values =
@@ -179,24 +176,23 @@ let private lowerOnce
           builtins
           pmX
           NR.OnMissing.Allow
-          PT.mainBranchId
           (WT2PT.PackageValue.Name.toModules value.name)
           value)
     return
       [ for (wtType, ptType) in List.zip c.types types do
           yield PT.PackageOp.AddType ptType
           let loc = WT2PT.PackageType.Name.toLocation wtType.name
-          yield PT.PackageOp.SetName(loc, PT.PackageType(nameBasedHash loc))
+          yield PT.PackageOp.SetName(loc, PT.PackageType(nameBasedHash loc), None)
 
         for (wtValue, ptValue) in List.zip c.values values do
           yield PT.PackageOp.AddValue ptValue
           let loc = WT2PT.PackageValue.Name.toLocation wtValue.name
-          yield PT.PackageOp.SetName(loc, PT.PackageValue(nameBasedHash loc))
+          yield PT.PackageOp.SetName(loc, PT.PackageValue(nameBasedHash loc), None)
 
         for (wtFn, ptFn) in List.zip c.fns fns do
           yield PT.PackageOp.AddFn ptFn
           let loc = WT2PT.PackageFn.Name.toLocation wtFn.name
-          yield PT.PackageOp.SetName(loc, PT.PackageFn(nameBasedHash loc)) ]
+          yield PT.PackageOp.SetName(loc, PT.PackageFn(nameBasedHash loc), None) ]
   }
 
 /// Two lowering passes, like the package loader's convergence loop: pass 1
@@ -308,14 +304,7 @@ let private evalOne
         argMap = Map.empty
         localBindings = Set.ofList (List.map fst sessionVars) }
     let! pt =
-      WT2PT.Expr.toPT
-        builtins
-        pm
-        NR.OnMissing.Allow
-        PT.mainBranchId
-        [ replOwner ]
-        ctx
-        e
+      WT2PT.Expr.toPT builtins pm NR.OnMissing.Allow [ replOwner ] ctx e
       |> Ply.toTask
     let symbols =
       sessionVars |> List.mapi (fun i (name, _) -> (name, i)) |> Map.ofList

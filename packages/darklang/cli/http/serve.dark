@@ -127,10 +127,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               [ $"Using router: {parsed.routerPath}"
                 $"Max body bytes: {maxBytesStr}"
                 ""
-                Colors.success $"Listening on http://localhost:{portStr}" ]
+                Colors.success $"Listening on port {portStr}, on every interface" ]
 
+            // It binds `http://*:port`, and saying "localhost" hid that. Anyone standing up a relay for
+            // another machine to sync against read that line as "this is local only" and went looking for
+            // a flag to change it. There isn't one, because there doesn't need to be.
             let tail =
-              [ Colors.hint "  Requests print here as they arrive (method, path, status, duration)."
+              [ Colors.hint $"  http://localhost:{portStr} here, or this machine's address from anywhere else."
+                Colors.hint "  Requests print here as they arrive (method, path, status, duration)."
                 "Press Ctrl+C to stop"
                 "" ]
 

@@ -1,0 +1,42 @@
+# The matter relay, as a deployable image.
+#
+# NOT the Dockerfile at the repo root: that one is the dev container, which carries a compiler, the
+# package sources and a shell you can work in. This is the opposite -- one published binary and the
+# runtime it needs.
+#
+# The binary embeds the package seed, so the image has no packages of its own to keep in sync. On first
+# boot it grows a store; on later boots it tops that store up with whatever this build added. That is what
+# makes a redeploy safe: the hosted ops on the volume survive, and the relay's own code comes from the
+# binary rather than from whatever a client last pushed.
+#
+# The publish output is copied OUT of the dev container first, because that is where the build happens
+# and `docker build` reads its context from the host:
+#   scripts/build/_dotnet-wrapper publish -c Release fsdark.sln
+#   docker cp <container>:/home/dark/app/backend/Build/out/Cli/Release/net10.0/publish/. deploy/publish/
+#   fly deploy --config deploy/fly.toml
+
+# `runtime`, not `runtime-deps`: this publish is framework-dependent, so the image has to carry .NET
+# itself. (A self-contained publish would let this be `runtime-deps` and shave ~50MB; the repo already has
+# `scripts/build/build-release-cli-exes.sh` for that, and it is worth doing when image size starts to
+# matter rather than tonight.)
+FROM mcr.microsoft.com/dotnet/runtime:10.0-noble
+
+RUN useradd --create-home --shell /bin/bash dark
+WORKDIR /home/dark
+
+# The whole publish output, not just the exe: it is self-contained apart from these.
+COPY --chown=dark:dark publish/ /home/dark/bin/
+
+# The store lives on the volume. Nothing else here is worth keeping across a deploy.
+ENV DARK_CONFIG_RUNDIR=/data
+RUN mkdir -p /data && chown dark:dark /data
+VOLUME /data
+
+USER dark
+
+# 9090 inside, always. Fly maps 443 to it.
+EXPOSE 9090
+
+# `serve` resolves the router out of the package store, so the store has to exist first -- which the
+# binary does for itself on startup.
+CMD ["/home/dark/bin/Cli", "serve", "--port", "9090", "Darklang.Matter.router"]

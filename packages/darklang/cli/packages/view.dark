@@ -4,7 +4,7 @@ module Darklang.Cli.Packages.View
 /// Resolve a replacement Reference to a human-readable location name for the
 /// current branch, falling back to a short hash if no location is bound.
 let resolveReplacementName
-  (branchId: Uuid)
+  (branchId: String)
   (ref: LanguageTools.ProgramTypes.Reference)
   : String =
   let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
@@ -24,11 +24,11 @@ let resolveReplacementName
 
 /// Build a deprecation header for an item, if any.
 let deprecationHeaderRowsFor
-  (branchId: Uuid)
+  (branchId: String)
   (hash: LanguageTools.ProgramTypes.Hash)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
   : List<String> =
-  match Builtin.pmGetCurrentDeprecation branchId hash itemKind with
+  match Builtin.pmGetCurrentDeprecation hash itemKind with
   | None -> []
   | Some tuple ->
     let (kind, message) = tuple
@@ -70,7 +70,7 @@ let sourceRows (source: String) : List<String> =
 
 
 /// Build the complete textual representation of an entity without printing it.
-let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
+let entityRows (branchId: String) (location: PackageLocation) : List<String> =
   match location with
   | Module path ->
     // Names only. This listing prints each item's name and nothing else, so materializing every matched
@@ -212,7 +212,7 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
       ]
 
 
-let viewEntity (branchId: Uuid) (location: PackageLocation) : Unit =
+let viewEntity (branchId: String) (location: PackageLocation) : Unit =
   entityRows branchId location |> Stdlib.printLines
 
 
@@ -265,7 +265,7 @@ let parseArgs
 /// The function at a location, if the location names one. `--ast` and `--instructions` are function-only
 /// views, and saying which kind of thing you actually pointed at beats a bare "not found".
 let fnAt
-  (branchId: Uuid)
+  (branchId: String)
   (location: PackageLocation)
   : Stdlib.Result.Result<LanguageTools.ProgramTypes.PackageFn.PackageFn, String> =
   match location with
@@ -288,7 +288,7 @@ let fnAt
 /// The ProgramTypes tree, indented by depth. Node kinds are coloured and payloads dimmed, so the shape
 /// reads at a glance and the detail is there when you look for it.
 let astRows
-  (branchId: Uuid)
+  (branchId: String)
   (name: String)
   (fn: LanguageTools.ProgramTypes.PackageFn.PackageFn)
   : List<String> =
@@ -310,7 +310,7 @@ let astRows
 /// The disassembly, plus any lambdas defined inside it. Lambdas get their own section rather than being
 /// inlined, because `CreateLambda` is otherwise a dead end in the listing.
 let instructionRows
-  (branchId: Uuid)
+  (branchId: String)
   (instrs: LanguageTools.RuntimeTypes.Instructions)
   : List<String> =
   let renderBody (is: LanguageTools.RuntimeTypes.Instructions) : List<String> =
@@ -358,7 +358,7 @@ let instructionRows
 
 /// Render one of the compiler views of the function at <param location>.
 let viewCompiled
-  (branchId: Uuid)
+  (branchId: String)
   (location: PackageLocation)
   (mode: ViewMode)
   : Unit =
@@ -404,7 +404,15 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
     match locationResult with
     | Error errorMsg ->
-      Stdlib.printLine (Colors.error $"Cannot view: {errorMsg}")
+      // Names the target you asked for. "Cannot view: Not found: Zzz" tells you what failed but not what
+      // you typed, which matters when the arg was resolved relative to your current location.
+      //
+      // Unwrapped, not interpolated raw: `pathArg` is an Option, and interpolating one throws
+      // "Expected String in string interpolation" -- so the error path meant to name your target crashed
+      // instead of printing it.
+      let asked = pathArg |> Stdlib.Option.withDefault ""
+      let what = if asked == "" then "" else $" {asked}"
+      Stdlib.printLine (Colors.error $"Cannot view{what}: {errorMsg}")
       state
     | Ok location ->
       match mode with

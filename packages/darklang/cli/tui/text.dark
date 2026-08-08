@@ -138,6 +138,22 @@ let styledWidth (text: String) : Int =
 
 
 /// Pad or clip text to exactly the requested terminal-column width.
+/// Clip to <param maxWidth>, marking the cut so a truncated line reads as truncated.
+///
+/// `clipToWidth` alone just stops, which is indistinguishable from a line that happened to be that long --
+/// "Interactive tree outliner (ful" looks like the whole label to anyone who has not seen it wider. One
+/// character of ellipsis is the difference between "there is more" and "that is all".
+///
+/// Below two columns there is no room to say anything, so it degrades to a plain clip.
+let clipMarked (text: String) (maxWidth: Int) : String =
+  if styledWidth text <= maxWidth then
+    text
+  else if maxWidth <= 1 then
+    clipToWidth text maxWidth
+  else
+    (clipToWidth text (maxWidth - 1)) ++ "…"
+
+
 let fitToWidth (text: String) (targetWidth: Int) : String =
   let clipped = clipToWidth text targetWidth
   let padding = Stdlib.Int.max 0 (targetWidth - displayWidth (stripSgr clipped))

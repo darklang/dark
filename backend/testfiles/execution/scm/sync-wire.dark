@@ -1,0 +1,164 @@
+// The sync WIRE codec: what an op bundle says about itself, and what a reader does with a version it
+// doesn't know.
+//
+// A bundle is an ARCHIVE format, not just a transport, which is what makes the version rules
+// load-bearing: the reader has to keep reading what it wrote, and it has to distinguish "this is from
+// the future, upgrade" from "this file is damaged". Only one of those is fixed by upgrading, so
+// collapsing them into one error sends people looking in the wrong place.
+
+module Helpers =
+  let decode (json: String) : Stdlib.Result.Result<Darklang.SCM.PackageOps.SyncBundle, String> =
+    Darklang.SCM.PackageOps.wireDecode (Stdlib.String.toBlob json)
+
+  let isError (r: Stdlib.Result.Result<Darklang.SCM.PackageOps.SyncBundle, String>) : Bool =
+    match r with
+    | Ok _ -> false
+    | Error _ -> true
+
+  let errorText (r: Stdlib.Result.Result<Darklang.SCM.PackageOps.SyncBundle, String>) : String =
+    match r with
+    | Ok _ -> ""
+    | Error e -> e
+
+  /// A v5 bundle (the current shape) carrying no ops.
+  let v5 (version: String) : String =
+    $"""{{"formatVersion":{version},"darkBuild":"abc123","kernelHash":"deadbeef","owner":"inst-1","cursor":0,"ops":[]}}"""
+
+  /// A v4 bundle: everything v5 has, except its ops carry no `author`.
+  let v4 (version: String) : String =
+    $"""{{"formatVersion":{version},"darkBuild":"abc123","kernelHash":"deadbeef","owner":"inst-1","cursor":0,"ops":[]}}"""
+
+  /// A v3 bundle: everything v4 has except `kernelHash`.
+  let v3 (version: String) : String =
+    $"""{{"formatVersion":{version},"darkBuild":"abc123","owner":"inst-1","cursor":0,"ops":[]}}"""
+
+  /// A v4 bundle carrying ONE op written the pre-v5 way, with no author on it. The fixtures above carry
+  /// no ops at all, so they never exercise the op shape -- which is the half of a version bump most
+  /// likely to break quietly, and the half that overlaps between versions.
+  val v4WithOp =
+    """{"formatVersion":4,"darkBuild":"abc123","kernelHash":"deadbeef","owner":"inst-1","cursor":0,"ops":[{"id":"11111111-1111-1111-1111-111111111111","blobHex":"00","ts":"2026-01-01T00:00:00.000Z"}]}"""
+
+  /// The same for v3, which has no `kernelHash`.
+  val v3WithOp =
+    """{"formatVersion":3,"darkBuild":"abc123","owner":"inst-1","cursor":0,"ops":[{"id":"22222222-2222-2222-2222-222222222222","blobHex":"00","ts":"2026-01-01T00:00:00.000Z"}]}"""
+
+  let firstAuthor (r: Stdlib.Result.Result<Darklang.SCM.PackageOps.SyncBundle, String>) : String =
+    match r with
+    | Ok b ->
+      (match Stdlib.List.head b.ops with
+       | Some op -> op.author
+       | None -> "<no ops>")
+    | Error e -> $"<error {e}>"
+
+
+module CurrentVersion =
+  // The version this build speaks. Bumping it is a deliberate act, so it's worth asserting rather than
+  // letting a stray edit move it.
+  Darklang.SCM.PackageOps.currentWireVersion = 5L
+
+
+module RoundTrip =
+  // What we write, we read.
+  (Helpers.decode (Darklang.SCM.PackageOps.wireEncode [])
+   |> Stdlib.Result.map (fun b -> b.formatVersion)) = Stdlib.Result.Result.Ok 5L
+
+  // Every bundle self-identifies with the ABI that produced it, so someone holding nothing but the file
+  // and sqlite can tell whether their build can read it.
+  ((Helpers.decode (Darklang.SCM.PackageOps.wireEncode [])
+    |> Stdlib.Result.map (fun b -> b.kernelHash == ""))
+   |> Stdlib.Result.withDefault true) = false
+
+  // The server's position round-trips, which is what makes a paged pull resumable.
+  (Helpers.decode (Darklang.SCM.PackageOps.wireEncodeAt 4200L [])
+   |> Stdlib.Result.map (fun b -> b.cursor)) = Stdlib.Result.Result.Ok 4200L
+
+
+module ReadsItsOwnHistory =
+  // v3 still reads. An op bundle is meant to be an archive you come back to, and a format that only
+  // reads its own latest version isn't an archive format.
+  (Helpers.decode (Helpers.v3 "3") |> Stdlib.Result.map (fun b -> b.formatVersion)) =
+    Stdlib.Result.Result.Ok 3L
+
+  // An unknown kernelHash reads as "" rather than a guess: not knowing which ABI wrote something is a
+  // fact worth representing, and inventing one would be worse than empty.
+  (Helpers.decode (Helpers.v3 "3") |> Stdlib.Result.map (fun b -> b.kernelHash)) =
+    Stdlib.Result.Result.Ok ""
+
+  (Helpers.decode (Helpers.v3 "3") |> Stdlib.Result.map (fun b -> b.owner)) =
+    Stdlib.Result.Result.Ok "inst-1"
+
+  // An EMPTY v4 bundle is the case that dispatching on the version exists for: it parses as v5 just fine,
+  // because the field v5 added lives on the ops and there are none to miss. Falling back only on a parse
+  // FAILURE would report it as "upgrade your build" for a bundle this build reads perfectly.
+  // v4 still reads, and keeps the kernelHash it carried.
+  (Helpers.decode (Helpers.v4 "4") |> Stdlib.Result.map (fun b -> b.formatVersion)) =
+    Stdlib.Result.Result.Ok 4L
+
+  (Helpers.decode (Helpers.v4 "4") |> Stdlib.Result.map (fun b -> b.kernelHash)) =
+    Stdlib.Result.Result.Ok "deadbeef"
+
+  // The OPS inside an older bundle read as well, which is the part a version bump breaks quietly: adding
+  // a required field to `SyncOp` would make every pre-v5 bundle fail to parse while the envelope still
+  // looked fine.
+  (Helpers.firstAuthor (Helpers.decode Helpers.v4WithOp)) = ""
+
+  (Helpers.firstAuthor (Helpers.decode Helpers.v3WithOp)) = ""
+
+  // An unknown author reads as "", for the same reason an unknown kernelHash does: a pre-v5 sender did
+  // not tell us who wrote these, and the detector reads "" as "fall back to the source it arrived
+  // through", which is what a conflict used to say always.
+  ((Helpers.decode Helpers.v4WithOp
+    |> Stdlib.Result.map (fun b -> Stdlib.List.length b.ops))) = Stdlib.Result.Result.Ok 1
+
+
+module RejectsTheFuture =
+  // A bundle from a NEWER build is an error, and the error says to upgrade.
+  (Helpers.isError (Helpers.decode (Helpers.v5 "99"))) = true
+
+  (Stdlib.String.contains (Helpers.errorText (Helpers.decode (Helpers.v5 "99"))) "v99") = true
+
+  (Stdlib.String.contains
+    (Helpers.errorText (Helpers.decode (Helpers.v4 "99")))
+    "not understood by this build") = true
+
+  // The version check applies on the V3 FALLBACK path too. Without it the whole guard rests on how
+  // strict the JSON parser happens to be about unknown fields: a future bundle that fails the v4 parse
+  // but still structurally satisfies the older, SMALLER v3 shape would be waved through, and the
+  // "upgrade your build" error would never fire for exactly the bundles it exists for.
+  (Helpers.isError (Helpers.decode (Helpers.v3 "5"))) = true
+
+  (Stdlib.String.contains (Helpers.errorText (Helpers.decode (Helpers.v3 "5"))) "v5") = true
+
+  // A v2-era bundle is equally not-v3, and equally refused rather than half-read.
+  (Helpers.isError (Helpers.decode (Helpers.v3 "2"))) = true
+
+
+module RejectsDamage =
+  // Not JSON at all.
+  (Helpers.isError (Helpers.decode "this is not a bundle")) = true
+
+  // JSON, but not a bundle. Distinct from the version error above: this one means the file is damaged,
+  // that one means you're behind, and only one of them is fixed by upgrading.
+  (Helpers.isError (Helpers.decode """{"hello":"world"}""")) = true
+
+  (Stdlib.String.contains
+    (Helpers.errorText (Helpers.decode """{"hello":"world"}"""))
+    "unparseable") = true
+
+  // Empty body.
+  (Helpers.isError (Helpers.decode "")) = true
+
+
+module HeadCodec =
+  // The cheap "are we in sync?" check. Count plus cursor, no op transfer.
+  (Darklang.SCM.PackageOps.headDecode
+    (Stdlib.String.toBlob (Darklang.SCM.PackageOps.headEncode (Darklang.SCM.PackageOps.SyncHead { count = 7L; maxTs = "2026-01-02T00:00:00.000Z" })))
+   |> Stdlib.Result.map (fun h -> h.count)) = Stdlib.Result.Result.Ok 7L
+
+  (Darklang.SCM.PackageOps.headDecode (Stdlib.String.toBlob "not json")) =
+    Stdlib.Result.Result.Error "unparseable head"
+
+  // The stamp is what gets remembered between pulls, so "nothing moved" is a string compare rather than
+  // a transfer.
+  (Darklang.SCM.PackageOps.headStamp (Darklang.SCM.PackageOps.SyncHead { count = 7L; maxTs = "2026-01-02T00:00:00.000Z" })) =
+    "7@2026-01-02T00:00:00.000Z"

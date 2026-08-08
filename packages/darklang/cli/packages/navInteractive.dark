@@ -29,7 +29,7 @@ type State =
     focusRows: List<String>
     /// First logical row visible in the independently scrollable preview.
     focusScrollOffset: Int
-    branchId: Uuid }
+    branchId: String }
 
 
 /// A running navigation model and its process-local presentation state.
@@ -167,7 +167,7 @@ let buildNavItemsFromResults
 
 
 // Create interactive navigation state for a location
-let buildState (branchId: Uuid) (location: PackageLocation) : State =
+let buildState (branchId: String) (location: PackageLocation) : State =
   let modulePath = modulePathOf location
 
   // Get all entities in this location
@@ -189,7 +189,7 @@ let buildState (branchId: Uuid) (location: PackageLocation) : State =
 
 // Load truncated focus rows without printing them.
 let loadFocusRows
-  (branchId: Uuid)
+  (branchId: String)
   (location: PackageLocation)
   : List<String> =
   let maxItemsPerCategory = 3

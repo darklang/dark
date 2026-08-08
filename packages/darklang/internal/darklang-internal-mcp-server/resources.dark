@@ -68,7 +68,14 @@ let logs () : ModelContextProtocol.ServerBuilder.Resource =
     name = "Package Logs"
     description = "Recent package loading and compilation logs"
     handler = fun _uri ->
-      let logContent = Builtin.fileReadAll "rundir/logs/packages.log"
+      // `Builtin.fileRead`, which exists. `fileReadAll` does not, so this resource threw on every request:
+      // a missing builtin resolves lazily and only fails when called.
+      let logContent =
+        match Builtin.fileRead "rundir/logs/packages.log" with
+        | Ok bytes ->
+          Stdlib.Option.Option.Some(Stdlib.String.fromBlobWithReplacement bytes)
+        | Error _ -> Stdlib.Option.Option.None
+
       match logContent with
       | Some content ->
           let lines = Stdlib.String.split content "\n"

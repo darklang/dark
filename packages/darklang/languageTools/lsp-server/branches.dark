@@ -1,416 +1,421 @@
 module Darklang.LanguageTools.LspServer.Branches
 
+// The `dark/*` branch surface the editor talks to.
+//
+// A branch has an ID and a NAME, and they are not the same. The id is a uuid and is what `op_branches`
+// tags, what a bundle carries and what the parent link points at; the name is what a person reads and
+// can rename or reuse. This surface sends both on every branch, so the editor displays names and echoes
+// ids back, and never has to know how either is formed.
+//
+// Two methods here answer "not supported by this build" rather than being absent. That's deliberate: a
+// method that explains itself is a surface someone can see and finish, where a missing one is a
+// timeout and an afternoon of reading.
 
-/// Helper to convert a branch to JSON with isActive flag
-let branchToJson (branch: SCM.Branch.Branch) (activeBranchId: Uuid) : Json =
-  let parentIdStr =
-    match branch.parentBranchId with
-    | Some pid -> Stdlib.Uuid.toString pid
-    | None -> ""
 
+/// One branch as JSON, with the flag the tree view sorts on.
+let branchToJson (b: SCM.Branches.BranchRow) (activeBranchId: String) : Json =
   Json.Object
-    [ ("id", Json.String (Stdlib.Uuid.toString branch.id))
-      ("name", Json.String branch.name)
-      ("parentBranchId", Json.String parentIdStr)
-      ("isActive", Json.Bool (branch.id == activeBranchId)) ]
+    [ ("id", Json.String b.id)
+      ("name", Json.String(if b.name == "" then b.id else b.name))
+      ("parentBranchId", Json.String(if b.parent == "main" then "" else b.parent))
+      ("ops", Json.Number(Stdlib.Int64.toFloat b.ops))
+      ("merged", Json.Bool b.merged)
+      ("isActive", Json.Bool(b.id == activeBranchId)) ]
 
 
-/// Handles `dark/getBranches` requests - returns list of branches with active flag
+let respondOk (requestID: JsonRPC.RequestID) (result: Json) : Unit =
+  (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestID) result)
+  |> Stdlib.AltJson.format
+  |> logAndSendToClient
+
+
+let respondError (requestID: JsonRPC.RequestID) (message: String) : Unit =
+  (JsonRPC.Response.Error.make
+    (Stdlib.Option.Option.Some requestID)
+    JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
+    message
+    Stdlib.Option.Option.None)
+  |> Stdlib.AltJson.format
+  |> logAndSendToClient
+
+
+/// A method this build has no concept for. Answering is the point: the editor gets a specific reason
+/// instead of a timeout, and the surface stays visible for whoever implements it.
+let respondUnsupported
+  (requestID: JsonRPC.RequestID)
+  (method: String)
+  (why: String)
+  : Unit =
+  respondError requestID $"{method} isn't supported by this build: {why}"
+
+
+/// Tell the editor the branch moved, and that anything SCM-shaped on screen is stale.
+let notifyBranchChanged (branchId: String) (name: String) : Unit =
+  let payload =
+    Json.Object [ ("id", Json.String branchId); ("name", Json.String name) ]
+
+  (JsonRPC.Request.makeNotificationString
+    "dark/branchChanged"
+    (Stdlib.Option.Option.Some(JsonRPC.Request.RequestParams.Array [ payload ])))
+  |> logAndSendToClient
+
+  (JsonRPC.Request.makeNotificationString "dark/scm/changed" Stdlib.Option.Option.None)
+  |> logAndSendToClient
+
+
+/// The branch this LSP process is on ("" = main). Read from the process, not from `LspState`: the
+/// overlay used for resolution is process state, so anything else would be a second answer to the same
+/// question and the two would drift.
+let activeBranch () : String = SCM.PackageOps.currentBranch ()
+
+
+/// `dark/getBranches` -- every active branch, with the active one flagged.
 let handleGetBranchesRequest
   (state: LspState)
   (requestID: JsonRPC.RequestID)
   : LspState =
-  let branches = SCM.Branch.list ()
+  let active = activeBranch ()
 
-  let branchesJson =
-    branches
-    |> Stdlib.List.map (fun b -> branchToJson b state.currentBranchId)
+  let branches =
+    SCM.Branches.list ()
+    |> Stdlib.List.map (fun b -> branchToJson b active)
     |> Json.Array
 
-  let responseJson =
-    (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestID) branchesJson)
-    |> Stdlib.AltJson.format
-
-  logAndSendToClient responseJson
+  respondOk requestID branches
   state
 
 
-/// Handles `dark/createBranch` requests - creates a new branch and switches to it
+/// `dark/getCurrentBranch` -- main is reported as its own row rather than as an absence, because the
+/// tree view needs something to select.
+let handleGetCurrentBranchRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestID)
+  : LspState =
+  let active = activeBranch ()
+
+  let result =
+    if active == "" then
+      Json.Object
+        [ ("id", Json.String "main")
+          ("name", Json.String "main")
+          ("parentBranchId", Json.String "")
+          ("isActive", Json.Bool true) ]
+    else
+      match
+        SCM.Branches.list () |> Stdlib.List.findFirst (fun b -> b.id == active)
+      with
+      | Some b -> branchToJson b active
+      | None ->
+        // On a branch that has ops but no registry row yet (an import that arrived before anything
+        // registered it locally). Report what's true rather than falling back to main.
+        Json.Object
+          [ ("id", Json.String active)
+            ("name", Json.String active)
+            ("parentBranchId", Json.String "")
+            ("isActive", Json.Bool true) ]
+
+  respondOk requestID result
+  state
+
+
+/// `dark/createBranch` -- start the branch off whatever we're on, and move onto it.
+///
+/// The client sends a name; the id is minted here. Asking twice for the same name gets you the branch
+/// you already have rather than a second one beside it.
 let handleCreateBranchRequest
   (state: LspState)
   (requestID: JsonRPC.RequestID)
   (branchName: String)
   : LspState =
-  let newBranch = SCM.Branch.create branchName state.currentBranchId
+  if Stdlib.String.trim branchName == "" then
+    respondError requestID "a branch needs a name"
+    state
+  else
+    let name = Stdlib.String.trim branchName
+    let parentId =
+      match activeBranch () with
+      | "" -> "main"
+      | cur -> cur
 
-  let resultJson = branchToJson newBranch newBranch.id
+    let (id, _created) = SCM.PackageOps.ensureBranch name parentId
+    let _ = Builtin.configSet "current_branch" id
+    let _ = Builtin.configSet "current_branch_name" name
+    let _ = SCM.PackageOps.selectBranch id
 
-  let responseJson =
-    (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestID) resultJson)
-    |> Stdlib.AltJson.format
+    respondOk
+      requestID
+      (Json.Object
+        [ ("id", Json.String id)
+          ("name", Json.String name)
+          ("parentBranchId", Json.String(if parentId == "main" then "" else parentId))
+          ("isActive", Json.Bool true) ])
 
-  logAndSendToClient responseJson
-
-  // Notify client of branch change
-  let notificationJson =
-    Json.Object
-      [ ("id", Json.String (Stdlib.Uuid.toString newBranch.id))
-        ("name", Json.String newBranch.name) ]
-
-  let notification =
-    (JsonRPC.Request.makeNotificationString
-      "dark/branchChanged"
-      (Stdlib.Option.Option.Some(JsonRPC.Request.RequestParams.Array [ notificationJson ])))
-
-  logAndSendToClient notification
-
-  // Notify SCM views to refresh
-  let scmNotification =
-    (JsonRPC.Request.makeNotificationString
-      "dark/scm/changed"
-      Stdlib.Option.Option.None)
-
-  logAndSendToClient scmNotification
-
-  { state with currentBranchId = newBranch.id }
+    notifyBranchChanged id name
+    { state with currentBranchId = id }
 
 
-/// Handles `dark/deleteBranch` requests - deletes a branch by ID
+/// `dark/switchBranch` -- move this process's overlay, and remember it for the next one.
+let handleSwitchBranchRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestID)
+  (branchId: String)
+  : LspState =
+  if (branchId == "") || (branchId == "main") then
+    let _ = Builtin.configSet "current_branch" ""
+    let _ = Builtin.configSet "current_branch_name" ""
+    let _ = SCM.PackageOps.selectBranch ""
+
+    respondOk
+      requestID
+      (Json.Object
+        [ ("id", Json.String "main"); ("name", Json.String "main"); ("success", Json.Bool true) ])
+
+    notifyBranchChanged "main" "main"
+    { state with currentBranchId = "" }
+  else
+    // The client may send either -- a name it showed a person, or an id it got from `listBranches`.
+    match
+      match SCM.PackageOps.branchIdForName branchId with
+      | Some id -> Stdlib.Option.Option.Some id
+      | None ->
+        if SCM.PackageOps.branchExists branchId then
+          Stdlib.Option.Option.Some branchId
+        else
+          Stdlib.Option.Option.None
+    with
+    | None ->
+      respondError requestID $"no branch \"{branchId}\""
+      state
+    | Some id ->
+      let name = SCM.PackageOps.branchName id
+      let _ = Builtin.configSet "current_branch" id
+      let _ = Builtin.configSet "current_branch_name" name
+      let _ = SCM.PackageOps.selectBranch id
+
+      respondOk
+        requestID
+        (Json.Object
+          [ ("id", Json.String id)
+            ("name", Json.String name)
+            ("success", Json.Bool true) ])
+
+      notifyBranchChanged id name
+      // The state carries the branch every later request resolves against, so a switch that moved only
+      // the process overlay would leave completions and hovers answering for the branch you just left.
+      { state with currentBranchId = id }
+
+
+/// `dark/deleteBranch` -- archive, which is what deleting a branch means here. Nothing is destroyed:
+/// the ops stay in the log, they just stop being anyone's frontier.
 let handleDeleteBranchRequest
   (state: LspState)
   (requestID: JsonRPC.RequestID)
-  (branchIdStr: String)
+  (branchId: String)
   : LspState =
-  match Stdlib.Uuid.parse branchIdStr with
-  | Ok branchId ->
-    if branchId == state.currentBranchId then
-      let responseJson =
-        (JsonRPC.Response.Error.make
-          (Stdlib.Option.Option.Some requestID)
-          JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
-          "Cannot delete the currently active branch"
-          Stdlib.Option.Option.None)
-        |> Stdlib.AltJson.format
-
-      logAndSendToClient responseJson
-      state
-    else if branchId == SCM.Branch.mainBranchId then
-      let responseJson =
-        (JsonRPC.Response.Error.make
-          (Stdlib.Option.Option.Some requestID)
-          JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
-          "Cannot delete the main branch"
-          Stdlib.Option.Option.None)
-        |> Stdlib.AltJson.format
-
-      logAndSendToClient responseJson
-      state
-    else
-      match SCM.Branch.delete branchId with
-      | Ok _ ->
-        let responseJson =
-          (JsonRPC.Response.Ok.make
-            (Stdlib.Option.Option.Some requestID)
-            (Json.Object [ ("success", Json.Bool true) ]))
-          |> Stdlib.AltJson.format
-
-        logAndSendToClient responseJson
-        state
-      | Error msg ->
-        let responseJson =
-          (JsonRPC.Response.Error.make
-            (Stdlib.Option.Option.Some requestID)
-            JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
-            msg
-            Stdlib.Option.Option.None)
-          |> Stdlib.AltJson.format
-
-        logAndSendToClient responseJson
-        state
-
-  | Error _ ->
-    let responseJson =
-      (JsonRPC.Response.Error.make
-        (Stdlib.Option.Option.Some requestID)
-        JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
-        "Invalid branch ID"
-        Stdlib.Option.Option.None)
-      |> Stdlib.AltJson.format
-
-    logAndSendToClient responseJson
+  if Stdlib.Bool.not (SCM.PackageOps.branchExists branchId) then
+    respondError requestID $"no branch \"{branchId}\""
     state
+  else
+    match SCM.PackageOps.archiveBranch branchId with
+    | Ok msg ->
+      // Archiving the branch you're standing on leaves you nowhere; go back to main.
+      let landedOn =
+        if activeBranch () == branchId then
+          let _ = Builtin.configSet "current_branch" ""
+          let _ = Builtin.configSet "current_branch_name" ""
+    let _ = Builtin.configSet "current_branch_name" ""
+          let _ = SCM.PackageOps.selectBranch ""
+          let _ = notifyBranchChanged "main" "main"
+          ""
+        else
+          let _ = notifyBranchChanged (activeBranch ()) (SCM.PackageOps.branchName (activeBranch ()))
+          state.currentBranchId
 
+      respondOk
+        requestID
+        (Json.Object [ ("success", Json.Bool true); ("message", Json.String msg) ])
 
-/// Handles `dark/renameBranch` requests - renames a branch
-let handleRenameBranchRequest
-  (state: LspState)
-  (requestID: JsonRPC.RequestID)
-  (branchIdStr: String)
-  (newName: String)
-  : LspState =
-  match Stdlib.Uuid.parse branchIdStr with
-  | Ok branchId ->
-    match SCM.Branch.rename branchId newName with
-    | Ok _ ->
-      let resultJson =
-        Json.Object
-          [ ("success", Json.Bool true)
-            ("id", Json.String branchIdStr)
-            ("name", Json.String newName) ]
-
-      let responseJson =
-        (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestID) resultJson)
-        |> Stdlib.AltJson.format
-
-      logAndSendToClient responseJson
-
-      // If we renamed the current branch, notify the client
-      if branchId == state.currentBranchId then
-        let notificationJson =
-          Json.Object
-            [ ("id", Json.String branchIdStr)
-              ("name", Json.String newName) ]
-
-        let notification =
-          (JsonRPC.Request.makeNotificationString
-            "dark/branchChanged"
-            (Stdlib.Option.Option.Some(JsonRPC.Request.RequestParams.Array [ notificationJson ])))
-
-        logAndSendToClient notification
-      else
-        ()
-
+      { state with currentBranchId = landedOn }
+    | Error e ->
+      respondError requestID e
       state
 
-    | Error msg ->
-      let responseJson =
-        (JsonRPC.Response.Error.make
-          (Stdlib.Option.Option.Some requestID)
-          JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
-          msg
-          Stdlib.Option.Option.None)
-        |> Stdlib.AltJson.format
 
-      logAndSendToClient responseJson
-      state
-
-  | Error _ ->
-    let responseJson =
-      (JsonRPC.Response.Error.make
-        (Stdlib.Option.Option.Some requestID)
-        JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
-        "Invalid branch ID"
-        Stdlib.Option.Option.None)
-      |> Stdlib.AltJson.format
-
-    logAndSendToClient responseJson
-    state
-
-
-/// Handles `dark/rebase` requests - rebases current branch onto parent
-let handleRebaseRequest
-  (state: LspState)
-  (requestID: JsonRPC.RequestID)
-  : LspState =
-  match SCM.Rebase.rebase state.currentBranchId with
-  | Ok message ->
-    let resultJson =
-      Json.Object
-        [ ("success", Json.Bool true)
-          ("message", Json.String message) ]
-
-    let responseJson =
-      (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestID) resultJson)
-      |> Stdlib.AltJson.format
-
-    logAndSendToClient responseJson
-
-    // Notify SCM views to refresh since commits may have changed
-    let scmNotification =
-      (JsonRPC.Request.makeNotificationString
-        "dark/scm/changed"
-        Stdlib.Option.Option.None)
-
-    logAndSendToClient scmNotification
-
-    state
-
-  | Error conflicts ->
-    let conflictsJson =
-      conflicts
-      |> Stdlib.List.map (fun c -> Json.String c)
-      |> Json.Array
-
-    let resultJson =
-      Json.Object
-        [ ("success", Json.Bool false)
-          ("conflicts", conflictsJson) ]
-
-    let responseJson =
-      (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestID) resultJson)
-      |> Stdlib.AltJson.format
-
-    logAndSendToClient responseJson
-    state
-
-
-/// Handles `dark/rebaseStatus` requests - checks for rebase conflicts without rebasing
-let handleRebaseStatusRequest
-  (state: LspState)
-  (requestID: JsonRPC.RequestID)
-  : LspState =
-  let conflicts = SCM.Rebase.getConflicts state.currentBranchId
-
-  let conflictsJson =
-    conflicts
-    |> Stdlib.List.map (fun c -> Json.String c)
-    |> Json.Array
-
-  let resultJson =
-    Json.Object
-      [ ("conflicts", conflictsJson)
-        ("hasConflicts", Json.Bool (Stdlib.List.length conflicts > 0)) ]
-
-  let responseJson =
-    (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestID) resultJson)
-    |> Stdlib.AltJson.format
-
-  logAndSendToClient responseJson
-  state
-
-
-/// Handles `dark/merge` requests - merges current branch into parent
-let handleMergeRequest
-  (state: LspState)
-  (requestID: JsonRPC.RequestID)
-  : LspState =
-  match SCM.Merge.merge state.currentBranchId with
-  | Ok _ ->
-    // After merge, switch back to parent branch
-    let parentBranchId =
-      match SCM.Branch.get state.currentBranchId with
-      | Some branch ->
-        match branch.parentBranchId with
-        | Some pid -> pid
-        | None -> SCM.Branch.mainBranchId
-      | None -> SCM.Branch.mainBranchId
-
-    let parentName =
-      match SCM.Branch.get parentBranchId with
-      | Some b -> b.name
-      | None -> "main"
-
-    let resultJson =
-      Json.Object
-        [ ("success", Json.Bool true)
-          ("switchedTo",
-            Json.Object
-              [ ("id", Json.String (Stdlib.Uuid.toString parentBranchId))
-                ("name", Json.String parentName) ]) ]
-
-    let responseJson =
-      (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestID) resultJson)
-      |> Stdlib.AltJson.format
-
-    logAndSendToClient responseJson
-
-    // Notify client of branch change (switched to parent)
-    let notificationJson =
-      Json.Object
-        [ ("id", Json.String (Stdlib.Uuid.toString parentBranchId))
-          ("name", Json.String parentName) ]
-
-    let notification =
-      (JsonRPC.Request.makeNotificationString
-        "dark/branchChanged"
-        (Stdlib.Option.Option.Some(JsonRPC.Request.RequestParams.Array [ notificationJson ])))
-
-    logAndSendToClient notification
-
-    let scmNotification =
-      (JsonRPC.Request.makeNotificationString
-        "dark/scm/changed"
-        Stdlib.Option.Option.None)
-
-    logAndSendToClient scmNotification
-
-    { state with currentBranchId = parentBranchId }
-
-  | Error err ->
-    let msg = SCM.Merge.mergeErrorToString err
-    let responseJson =
-      (JsonRPC.Response.Error.make
-        (Stdlib.Option.Option.Some requestID)
-        JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
-        msg
-        Stdlib.Option.Option.None)
-      |> Stdlib.AltJson.format
-
-    logAndSendToClient responseJson
-    state
-
-
-/// Handles `dark/canMerge` requests - checks if current branch can be merged
+/// `dark/canMerge` -- what a merge WOULD hit. Nothing is recorded by looking.
+///
+/// Conflicts do not BLOCK a merge: they are detected, auto-resolved by origin_ts LWW, and recorded for
+/// review afterwards. So `canMerge` is true whenever the branch exists and has changes, and `conflicts`
+/// is advisory. The editor should present it as "these will be reconciled", not as a gate.
 let handleCanMergeRequest
   (state: LspState)
   (requestID: JsonRPC.RequestID)
+  (branchId: String)
   : LspState =
-  match SCM.Merge.canMerge state.currentBranchId with
-  | Ok _ ->
-    let resultJson =
-      Json.Object
-        [ ("canMerge", Json.Bool true) ]
+  if Stdlib.Bool.not (SCM.PackageOps.branchExists branchId) then
+    respondError requestID $"no branch \"{branchId}\""
+    state
+  else
+    let conflicts = SCM.PackageOps.branchPreview branchId
+    let changes = SCM.PackageOps.branchDiffLines branchId
 
-    let responseJson =
-      (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestID) resultJson)
-      |> Stdlib.AltJson.format
+    let conflictJson =
+      conflicts
+      |> Stdlib.List.map (fun c ->
+        Json.Object
+          [ ("id", Json.String c.id)
+            ("name", Json.String(SCM.Conflicts.fqn c.owner c.modules c.name))
+            ("autoResolvedTo", Json.String c.autoResolvedTo)
+            ("reason", Json.String c.reason) ])
+      |> Json.Array
 
-    logAndSendToClient responseJson
+    respondOk
+      requestID
+      (Json.Object
+        [ ("canMerge", Json.Bool(Stdlib.List.isEmpty changes |> Stdlib.Bool.not))
+          ("changeCount", Json.Number(Stdlib.Int.toFloat (Stdlib.List.length changes)))
+          ("conflicts", conflictJson)
+          ("blocking", Json.Bool false) ])
+
     state
 
-  | Error err ->
-    let msg = SCM.Merge.mergeErrorToString err
-    let resultJson =
-      Json.Object
-        [ ("canMerge", Json.Bool false)
-          ("reason", Json.String msg) ]
 
-    let responseJson =
-      (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestID) resultJson)
-      |> Stdlib.AltJson.format
+/// `dark/merge` -- fold a branch into its parent. Records what it reconciled on the way.
+let handleMergeRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestID)
+  (branchId: String)
+  : LspState =
+  if Stdlib.Bool.not (SCM.PackageOps.branchExists branchId) then
+    respondError requestID $"no branch \"{branchId}\""
+    state
+  else
+    match SCM.PackageOps.mergeBranch branchId with
+    | Ok outcome ->
+      respondOk
+        requestID
+        (Json.Object
+          [ ("success", Json.Bool true)
+            ("merged", Json.Number(Stdlib.Int.toFloat outcome.merged))
+            ("conflicts",
+             Json.Number(Stdlib.Int.toFloat (Stdlib.List.length outcome.conflicts))) ])
 
-    logAndSendToClient responseJson
+      notifyBranchChanged (activeBranch ()) (SCM.PackageOps.branchName (activeBranch ()))
+      state
+    | Error e ->
+      respondError requestID e
+      state
+
+
+/// `dark/rebase` -- take the parent's current state as the new base.
+let handleRebaseRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestID)
+  (branchId: String)
+  : LspState =
+  if Stdlib.Bool.not (SCM.PackageOps.branchExists branchId) then
+    respondError requestID $"no branch \"{branchId}\""
+    state
+  else
+    match SCM.PackageOps.rebaseBranch branchId with
+    | Ok outcome ->
+      respondOk
+        requestID
+        (Json.Object
+          [ ("success", Json.Bool true)
+            ("message", Json.String outcome.message)
+            ("conflicts",
+             Json.Number(Stdlib.Int.toFloat (Stdlib.List.length outcome.conflicts))) ])
+
+      notifyBranchChanged (activeBranch ()) (SCM.PackageOps.branchName (activeBranch ()))
+      state
+    | Error e ->
+      respondError requestID e
+      state
+
+
+/// `dark/rebaseStatus` -- is this branch behind its parent, and on what.
+let handleRebaseStatusRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestID)
+  (branchId: String)
+  : LspState =
+  if Stdlib.Bool.not (SCM.PackageOps.branchExists branchId) then
+    respondError requestID $"no branch \"{branchId}\""
+    state
+  else
+    let conflicts = SCM.PackageOps.branchPreview branchId
+
+    respondOk
+      requestID
+      (Json.Object
+        [ ("branchId", Json.String branchId)
+          ("parent", Json.String(SCM.PackageOps.branchParentOf branchId))
+          ("rebaseNeeded", Json.Bool(Stdlib.List.isEmpty conflicts |> Stdlib.Bool.not))
+          ("divergedNames",
+           Json.Number(Stdlib.Int.toFloat (Stdlib.List.length conflicts))) ])
+
     state
 
 
-/// Handles `dark/getCurrentBranch` requests - returns current branch info
-let handleGetCurrentBranchRequest
+/// `dark/scm/getWipSummary` -- what's in the draft: the ops you have authored and not yet committed with
+/// `dark commit`. Authoring is live-on-write, so these are already running; the draft is what you
+/// haven't reviewed, not what hasn't taken effect.
+let handleGetWipSummaryRequest
   (state: LspState)
   (requestID: JsonRPC.RequestID)
   : LspState =
-  match SCM.Branch.get state.currentBranchId with
-  | Some branch ->
-    let resultJson = branchToJson branch state.currentBranchId
+  let changed = SCM.PackageOps.draftBindings ()
 
-    let responseJson =
-      (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestID) resultJson)
-      |> Stdlib.AltJson.format
-
-    logAndSendToClient responseJson
-    state
-
-  | None ->
-    // Fallback: return a minimal response with just the ID
-    let resultJson =
+  let items =
+    changed
+    |> Stdlib.List.map (fun b ->
       Json.Object
-        [ ("id", Json.String (Stdlib.Uuid.toString state.currentBranchId))
-          ("name", Json.String "unknown")
-          ("parentBranchId", Json.String "")
-          ("isActive", Json.Bool true) ]
+        [ ("name", Json.String(SCM.Conflicts.fqn b.owner b.modules b.name))
+          ("itemType", Json.String b.itemType)
+          ("hash", Json.String b.hash) ])
+    |> Json.Array
 
-    let responseJson =
-      (JsonRPC.Response.Ok.make (Stdlib.Option.Option.Some requestID) resultJson)
-      |> Stdlib.AltJson.format
+  respondOk
+    requestID
+    (Json.Object
+      [ ("branch", Json.String(SCM.PackageOps.branchName (activeBranch ())))
+        ("opCount", Json.Number(Stdlib.Int64.toFloat (SCM.PackageOps.draftOpCount ())))
+        ("changed", items)
+        ("conflicts",
+         Json.Number(Stdlib.Int64.toFloat (SCM.Conflicts.pendingCount ())))])
 
-    logAndSendToClient responseJson
-    state
+  state
+
+
+/// `dark/renameBranch` -- not wired up, but no longer hard.
+///
+/// It used to be genuinely expensive: a branch id WAS its name, so renaming meant re-keying every
+/// `op_branches` tag, every recorded base and every relay bundle. That stopped being true when ids became
+/// uuids. `branches.name` is now an alias nothing points at, so a rename is one `UPDATE`, plus deciding
+/// two things: what to do when the new name is already taken by a live branch, and updating the
+/// `current_branch` config when you rename the branch you are standing on (that key holds a name).
+/// Whoever wants this should implement it rather than route around it.
+let handleRenameBranchRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestID)
+  : LspState =
+  respondUnsupported
+    requestID
+    "dark/renameBranch"
+    "not implemented. It's a one-column update now that a branch id is a uuid and the name is just an alias; it needs a collision rule and a `current_branch` update, and nobody has written those yet."
+
+  state
+
+
+/// `dark/listInstances` -- there is no instance registry. An instance is a store; it mints its own id on
+/// first use, and the only thing it knows about the outside world is one remembered relay url.
+let handleListInstancesRequest
+  (state: LspState)
+  (requestID: JsonRPC.RequestID)
+  : LspState =
+  respondUnsupported
+    requestID
+    "dark/listInstances"
+    "instances aren't registered anywhere. `dark whoami` reports this one; `dark connect <url>` sets the relay it syncs through."
+
+  state

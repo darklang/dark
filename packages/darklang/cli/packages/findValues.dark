@@ -4,7 +4,7 @@ module Darklang.Cli.Packages.FindValues
 
 /// Resolve a type path to its hash
 let resolveTypeHash
-  (branchId: Uuid)
+  (branchId: String)
   (typePath: String)
   : Stdlib.Result.Result<LanguageTools.ProgramTypes.Hash, String> =
   let parts = Stdlib.String.split typePath "."

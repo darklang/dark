@@ -20,19 +20,23 @@ let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
   // package path. Matter has one; nothing else does, so nothing else gets the row.
   let path =
     if state.activeView == vMatter then Packages.formatLocation state.location else ""
-  let branch =
-    match SCM.Branch.get state.branchId with
-    | Some b -> b.name
-    | None -> "main"
-  // Real sync state, computed per-frame (render runs per-keypress, so it never goes stale). Drives both the
-  // Resolve tab badge and the context line's right-side status.
-  let conflictCount = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
+  let branch = state.scmStatus.branchName
+  // Off the cached SCM status rather than a query here. This runs per keypress, and it drives both the
+  // Resolve tab badge and the context line, so it has to agree with what Home and the SCM view say -- which
+  // it can't if each of them counts for itself.
+  let conflictCount = Stdlib.List.length state.scmStatus.conflicts
+  // Conflicts AND standing findings, because they're one question ("is anything waiting on me?") and they
+  // fail the same way when they're separate: the record is correct, and nobody looks. The tab badge stays
+  // conflicts-only, since that's the tab it marks.
+  //
+  // This used to read "✓ synced", which it never was: it counted conflicts and said nothing about sync.
+  let needsYou = state.scmStatus.needsYou
   let (syncColored, syncPlain) =
-    if conflictCount > 0 then
-      let s = "⚠ " ++ (Stdlib.Int.toString conflictCount) ++ " to resolve"
+    if needsYou > 0 then
+      let s = "⚠ " ++ (Stdlib.Int.toString needsYou) ++ " need you"
       (Colors.colorize Colors.pink s, s)
     else
-      (Colors.colorize Colors.green "✓ synced", "✓ synced")
+      (Colors.colorize Colors.green "✓ nothing waiting", "✓ nothing waiting")
   // Columns, not graphemes: `⚠`/`✓` are non-ASCII, and `String.length` counts one per grapheme, so a wide
   // glyph would right-align this past the edge of the row.
   let syncVisibleLen = Tui.Text.displayWidth syncPlain
@@ -42,13 +46,61 @@ let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
     UI.Layout.fixedSize
       1
       (fun r ->
+        // The draft, split, on the row you always have on screen. This is the highest-value thing in the
+        // SCM work and it deliberately does NOT live in the SCM view: "what moved because of what I just
+        // did" is asked many times an hour, while you're looking at code, and if the only way to answer it
+        // is to switch views then people stop asking and lose track of their own draft.
+        //
+        // The split rather than the total, because "3 changed" right after you edited one thing is either
+        // completely fine or a disaster and the number alone cannot tell you which.
+        let draft = scmStatusLine state.scmStatus
+
+        let draftPart =
+          if draft == "" then "" else (Colors.dimText ("    " ++ draft))
+
+        // The right-aligned glance is written over this row, so anything the left side spills past its
+        // start is simply lost. It used to spill: at 100 columns the draft summary ran under "nothing
+        // waiting" and the tail went with it -- and the tail is `N behind`, which is the part people forget
+        // they asked for and the least guessable from anywhere else.
+        //
+        // So drop whole segments in priority order instead of letting the row overwrite itself. The draft
+        // split is the most valuable thing here and the branch is the second, so `instance:` goes first and
+        // the account name second. Only if it still does not fit does the draft get clipped.
+        let room = Stdlib.Int.max 0 (r.cols - syncVisibleLen - 4)
+
+        let widthOf (plain: String) : Int = Tui.Text.displayWidth plain
+
+        let fullPlain =
+          "  " ++ state.accountName ++ "    instance: " ++ state.instanceName
+          ++ "    branch: " ++ branch ++ (if draft == "" then "" else "    " ++ draft)
+
+        let noInstancePlain =
+          "  " ++ state.accountName ++ "    branch: " ++ branch
+          ++ (if draft == "" then "" else "    " ++ draft)
+
+        let noAccountPlain =
+          "  branch: " ++ branch ++ (if draft == "" then "" else "    " ++ draft)
+
         let line =
-          "  "
-          ++ (Colors.boldText state.accountName)
-          ++ (Colors.dimText "    instance: ")
-          ++ (Colors.dimText state.instanceName)
-          ++ (Colors.dimText "    branch: ")
-          ++ (Colors.dimText branch)
+          if widthOf fullPlain <= room then
+            "  "
+            ++ (Colors.boldText state.accountName)
+            ++ (Colors.dimText "    instance: ")
+            ++ (Colors.dimText state.instanceName)
+            ++ (Colors.dimText "    branch: ")
+            ++ (Colors.dimText branch)
+            ++ draftPart
+          else if widthOf noInstancePlain <= room then
+            "  "
+            ++ (Colors.boldText state.accountName)
+            ++ (Colors.dimText "    branch: ")
+            ++ (Colors.dimText branch)
+            ++ draftPart
+          else if widthOf noAccountPlain <= room then
+            "  " ++ (Colors.dimText "branch: ") ++ (Colors.dimText branch) ++ draftPart
+          else
+            Colors.dimText (Tui.Text.clipToWidth ("  branch: " ++ branch ++ "  " ++ draft) room)
+
         Stdlib.List.flatten
           [ UI.Layout.at r 0 0 line
             UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - syncVisibleLen - 2)) syncColored ])
@@ -85,7 +137,7 @@ let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
               | None ->
                 if Stdlib.Bool.not (Stdlib.List.isEmpty state.searchHits) then
                   Frame.formatHints [ ("↑↓", "move"); ("⏎", "jump"); ("esc", "close"); ("q", "quit") ]
-                else hintsForView state
+                else hintsForView state r.cols
         // A toast sits *beside* the hints, right-aligned, rather than replacing the row. It used to take the
         // whole row, so every message cost you the shortcuts until you pressed a key to clear it - exactly
         // when a new arrival is most likely to be looking for them.
@@ -198,13 +250,22 @@ let viewAtSize (state: State) (size: Tui.Size) : Tui.View =
 
   let spans =
     if tooSmall then
-      let msg = "terminal too small - resize to at least 56x12"
+      // Two lines, because one was 44 columns wide and the guard fires from 24. The canvas clips at the
+      // width, so the single-line version lost its tail -- and the tail was the size you needed, which is
+      // the only thing the message is for. Both lines fit in 24.
       let screen =
         UI.Layout.Region { top = 1; left = 1; rows = size.height; cols = size.width }
+
+      let centred (text: String) (row: Int) : List<UI.Layout.Span> =
+        let col =
+          Stdlib.Int.max 0 (Stdlib.Int.divide (size.width - (Tui.Text.displayWidth text)) 2)
+        UI.Layout.at screen row col (Colors.dimText text)
+
       let row = Stdlib.Int.max 0 (Stdlib.Int.divide size.height 2)
-      let col =
-        Stdlib.Int.max 0 (Stdlib.Int.divide (size.width - (Tui.Text.displayWidth msg)) 2)
-      UI.Layout.at screen row col (Colors.dimText msg)
+
+      Stdlib.List.flatten
+        [ centred "terminal too small" (Stdlib.Int.max 0 (row - 1))
+          centred "resize to at least 56x12" row ]
     else
       renderFull state size
 
