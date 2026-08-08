@@ -410,7 +410,15 @@ jobs:
             "$X64" eval 'Builtin.posixGetcwd ()' > /dev/null
       - run:
           name: Gzip artifacts
-          command: gzip -f clis/darklang-*
+          command: |
+            # Drop the CLI's own store before persisting. The validator runs the
+            # binary out of clis/, and the CLI keeps its store next to the
+            # executable, so clis/.darklang is left behind. Every build job
+            # would then persist the same clis/.darklang/data.db, and applying
+            # those layers fails with "Concurrent upstream jobs persisted the
+            # same file(s)". Only the artifacts should travel.
+            rm -rf clis/.darklang
+            gzip -f clis/darklang-*
       - persist_to_workspace:
           root: "."
           paths:
@@ -438,7 +446,15 @@ jobs:
               --runtimes=win-x64,win-arm64,linux-arm
       - run:
           name: Gzip artifacts
-          command: gzip -f clis/darklang-*
+          command: |
+            # Drop the CLI's own store before persisting. The validator runs the
+            # binary out of clis/, and the CLI keeps its store next to the
+            # executable, so clis/.darklang is left behind. Every build job
+            # would then persist the same clis/.darklang/data.db, and applying
+            # those layers fails with "Concurrent upstream jobs persisted the
+            # same file(s)". Only the artifacts should travel.
+            rm -rf clis/.darklang
+            gzip -f clis/darklang-*
       - persist_to_workspace:
           root: "."
           paths:
@@ -491,7 +507,15 @@ jobs:
               "$(ls clis/darklang-*-linux-musl-x64)"
       - run:
           name: Gzip artifacts
-          command: gzip -f clis/darklang-*
+          command: |
+            # Drop the CLI's own store before persisting. The validator runs the
+            # binary out of clis/, and the CLI keeps its store next to the
+            # executable, so clis/.darklang is left behind. Every build job
+            # would then persist the same clis/.darklang/data.db, and applying
+            # those layers fails with "Concurrent upstream jobs persisted the
+            # same file(s)". Only the artifacts should travel.
+            rm -rf clis/.darklang
+            gzip -f clis/darklang-*
       - persist_to_workspace:
           root: "."
           paths:
@@ -569,7 +593,15 @@ jobs:
               "$(ls clis/darklang-*-osx-arm64)"
       - run:
           name: Gzip artifacts
-          command: gzip -f clis/darklang-*
+          command: |
+            # Drop the CLI's own store before persisting. The validator runs the
+            # binary out of clis/, and the CLI keeps its store next to the
+            # executable, so clis/.darklang is left behind. Every build job
+            # would then persist the same clis/.darklang/data.db, and applying
+            # those layers fails with "Concurrent upstream jobs persisted the
+            # same file(s)". Only the artifacts should travel.
+            rm -rf clis/.darklang
+            gzip -f clis/darklang-*
       - persist_to_workspace:
           root: "."
           paths:
