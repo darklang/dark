@@ -60,14 +60,24 @@ let info () =
 // Execution
 // ---------------------
 
-let builtins : RT.Builtins =
-  // Outer CLI uses main branch for its own execution context.
-  // User scripts get branch-specific context via cliParseAndExecuteScript.
-  LibExecution.Builtin.combine
-    [ Builtins.CliHost.Libs.Cli.builtinsToUse ()
-      Builtins.CliHost.Builtin.builtins ()
-      BuiltinCli.builtins () ]
-    []
+/// Deferred deliberately, and this must stay a `lazy`.
+///
+/// Constructing the builtins resolves PackageRefs. On a first run the hash file is still empty at that
+/// point: `Seed.growIfNeeded` is what regenerates it and calls `PackageRefs.reloadHashes`. A plain
+/// module-level value is built by F#'s per-file static initializer, which runs before `main` does
+/// anything at all, so every ref would resolve to "" -- silently tolerated, by design, so that a fresh
+/// clone can load -- and the builtins would then disagree with the freshly grown package DB. The first
+/// command fails with `Apply` (or `FnNotFound (Package (Hash ""))`). Forced after the grow instead.
+/// This is the same invariant that makes `growIfNeeded` take `getBuiltins` as a function; see Seed.fs.
+let private builtinsLazy : Lazy<RT.Builtins> =
+  lazy
+    // Outer CLI uses main branch for its own execution context.
+    // User scripts get branch-specific context via cliParseAndExecuteScript.
+    (LibExecution.Builtin.combine
+      [ Builtins.CliHost.Libs.Cli.builtinsToUse ()
+        Builtins.CliHost.Builtin.builtins ()
+        BuiltinCli.builtins () ]
+      [])
 
 
 
@@ -91,7 +101,7 @@ let state (packageManager : RT.PackageManager) =
     uply { printException "Internal error" metadata exn }
 
   Exe.createState
-    builtins
+    (builtinsLazy.Force())
     packageManager
     Exe.noTracing
     sendException
@@ -179,11 +189,6 @@ let main (args : string[]) =
         System.Console.Error.WriteLine "Copying seed.db as data.db"
         System.IO.File.Copy(seedPath, dbPath))
 
-    // Force the module-level `builtins` binding here, so its cost is attributed to a span of its own
-    // rather than to whichever phase happens to touch it first.
-    Telemetry.time "cli.builtinsInit" [] (fun () ->
-      builtins.fns.Count |> ignore<int>)
-
     // Separated from `growIfNeeded` so the first connection open and its PRAGMA round trip are attributable
     // to themselves rather than to whichever query happened to run first.
     Telemetry.time "cli.dbConnect" [] LibDB.Sqlite.Sql.warm
@@ -193,10 +198,19 @@ let main (args : string[]) =
       Telemetry.time "cli.createPM" [] (fun () -> LibDB.PackageManager.rt)
 
     Telemetry.time "cli.growIfNeeded" [] (fun () ->
-      (LibDB.Seed.growIfNeeded (fun () -> builtins) cliPackageManager (fun msg ->
-        System.Console.Error.WriteLine msg))
+      (LibDB.Seed.growIfNeeded
+        (fun () -> builtinsLazy.Force())
+        cliPackageManager
+        (fun msg -> System.Console.Error.WriteLine msg))
         .Result
       |> ignore<bool>)
+
+    // After the grow, never before: see the comment on `builtinsLazy`. Forced explicitly (rather than
+    // left to whoever touches it first) so its cost lands in a span of its own instead of in
+    // `cli.execute`. On a first run `growIfNeeded` will already have forced it, so this reads ~0 and the
+    // cost shows up under `cli.growIfNeeded`; on every warm run it reads as it always did.
+    Telemetry.time "cli.builtinsInit" [] (fun () ->
+      builtinsLazy.Force().fns.Count |> ignore<int>)
 
     Telemetry.time "cli.pmInit" [] (fun () -> cliPackageManager.init.Result)
 
