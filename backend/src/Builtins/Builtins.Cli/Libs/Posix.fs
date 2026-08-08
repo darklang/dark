@@ -300,7 +300,10 @@ module Libc =
 
   /// stat(2), routed through whichever entry point this libc actually has.
   let private stat_compat (path : string) (buf : IntPtr) : int =
-    if useXstat.Force() then xstat_raw (statVer, path, buf) else stat_raw (path, buf)
+    if useXstat.Force() then
+      xstat_raw (statVer, path, buf)
+    else
+      stat_raw (path, buf)
 
   /// Calls stat() and extracts (mode, size, mtimeSec) from the struct.
   /// Offsets are platform-specific (Linux vs macOS struct layouts differ).
