@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# Sourced by the perf tools; not runnable on its own.
+
+# The newest published CLI, or empty if there isn't one.
+#
+# Two places to look: CI's `dotnet publish` leaves the binary in the publish directory, while
+# `build-release-cli-exes.sh` *moves* it to clis/ and empties that one. Checking only one passes
+# locally and fails in CI, or the reverse.
+release_exe() {
+  # shellcheck disable=SC2012 # need mtime order, and no filename here has a space in it
+  ls -t clis/darklang-alpha-*-linux-x64 \
+        backend/Build/out/Cli/Release/net10.0/linux-x64/publish/Cli \
+    2>/dev/null | head -1 || true
+}
+
+# Where a given binary writes its telemetry. A published binary resolves its log directory relative
+# to its own location rather than to DARK_CONFIG_RUNDIR, so the two build modes disagree.
+telemetry_for() {
+  case "$1" in
+  backend/Build/out/Cli/Debug/*) echo "${DARK_CONFIG_RUNDIR}/logs/telemetry.jsonl" ;;
+  *) echo "$(dirname "$1")/.darklang/logs/telemetry.jsonl" ;;
+  esac
+}

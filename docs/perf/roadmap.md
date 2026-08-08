@@ -95,18 +95,50 @@ making `Infinite` hold a reference, is the real fix. *(estimate: moderate win, w
 
 ### 5. Move type checking to compile time
 
-**A real project, weeks not days.** Ablation said the checking half is worth -20% allocation and
--14% wall. Note this round already took a large bite out of the *runtime* cost by caching and by
-answering the common cases synchronously, so the remaining prize is smaller than when it was first
-scoped -- re-measure before committing to it. The place to put a static checker already exists
-(`applyAddFn`), the store is content-addressed so a verdict never goes stale, and the dependency DAG
-for invalidation is already a table. Most of the risk is soundness, not plumbing.
+**A real project: weeks, not days.** The plumbing is easy and the middle is a type checker for a
+polymorphic language. Ablation put the prize at -20% allocation and -14% wall, but that was measured
+before this round cached and synchronised much of the same work, so re-measure before committing.
 
-Full design: `docs/perf/compile-time-typechecking-design.md`.
+**Runtime type checking is two jobs in one code path, and only one can move.** *Checking* asks
+whether an argument matches its declared type; making `checkFnParam`/`checkFnResult` no-ops is where
+the -20% came from, and everything still runs. *Instantiation* binds type variables into the symbol
+table so `'a` has a meaning inside the frame; remove it and the CLI does not start, because
+`Json.parse` has no concrete type to parse into. So this is a split, not a deletion.
 
-### 6. NativeAOT for the shipped CLI
+**Where the static checker goes.** `applyAddFn` in `LibDB/PackageOpPlayback.fs` already compiles
+package code at save time and stores `rt_instrs` beside `pt_def`; a checker is another pass there and
+its verdict another column. Content addressing means a verdict never goes stale -- the hash *is* the
+definition -- which removes the invalidation problem that makes this miserable elsewhere.
+`package_dependencies` already gives topological order and reverse reachability.
+`LibParser/Validation.fs` is the model for the pass itself: same shape, one stage earlier.
 
-Promoted -- see the top of this document. Full report: `docs/perf/aot-shipping-report.md`.
+**The gradual boundary.** Three states per item -- `Checked`, `Unchecked`, `Failed` -- and a call
+skips its runtime argument check only when caller and callee are both `Checked`. Checks stay
+wherever a value enters from outside a verified region: scripts and `eval`, deserialization
+(`Json.parse`, DB reads, request bodies), builtins returning `Unknown`, and any `Unchecked` callee.
+This degrades correctly: a store where nothing is checked behaves exactly as today, and each item
+that passes removes checks from its own call sites with no flag day.
+
+**Where it will hurt.** The checker must under-approximate: anything it cannot prove is `Unchecked`,
+so being wrong costs performance rather than correctness -- the opposite direction trades a good
+error message for undefined behaviour. Static `TypeReference` and runtime `ValueType` are different
+lattices that meet in `unifyValueType`, and the existing `TypeChecker` should not be assumed reusable
+for a value-free version. And most calls are into signatures containing a type variable, so this
+needs real inference over type variables; a design that fast-paths the monomorphic case is optimising
+the small half.
+
+**Phasing**, each step independently useful and revertable. 1: split checking from instantiation in
+the interpreter, no behaviour change, so "skip the check, keep the binding" becomes a condition
+rather than a refactor. 2: write the checker and run it over the whole package set in CI reporting
+only -- how many check clean, how many it declines, how many it calls wrong (expect both real errors
+and checker bugs). This is the phase that says whether the idea is viable, and it ships nothing.
+3: store the verdict, wire the runtime skip behind a flag defaulting to off, measure. 4: default it
+on. Phases 1 and 3 are days each; phase 2 is the project.
+
+**Decide before starting:** whether `Failed` blocks a save (probably warn first -- early `Failed`
+results will mostly be checker bugs); that the checker runs on already-resolved references, since
+items are global but name resolution is branch-scoped; and whether the LSP is the better reason to
+build it, since type errors while typing may be worth more than the allocation.
 
 ### 7. Startup, and one-shot command latency
 
@@ -151,6 +183,8 @@ workload. Consider a `ValueTask` builder.
 - Make builtins opt-in, as installable extensions. Would cut startup and the builtins table.
 - Mine the telemetry corpus: every checkout's `rundir/logs/telemetry.jsonl` has thousands of real
   runs, which could retarget the campaign against what people actually do.
+- Runtime call stacks name package functions by content hash, which makes every error harder to act
+  on than it needs to be. Not a performance problem, but it is in the same code.
 
 ## Considered and declined
 

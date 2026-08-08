@@ -14,6 +14,7 @@
 #   scripts/perf/http --release       against the shipped build
 set -euo pipefail
 cd /home/dark/app
+. ./scripts/perf/_common
 
 EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
 SERVER="scripts/perf/workloads/http-server.dark"
@@ -30,11 +31,7 @@ while [[ $# -gt 0 ]]; do
     --port) PORT="$2"; shift 2 ;;
     # A flag, not an environment variable: these scripts re-enter the container and the environment
     # does not survive that.
-    --release)
-      EXE=$(ls -t clis/darklang-alpha-*-linux-x64 \
-                    backend/Build/out/Cli/Release/net10.0/linux-x64/publish/Cli \
-              2>/dev/null | head -1 || true)
-      shift ;;
+    --release) EXE=$(release_exe); shift ;;
     *) echo "unknown argument: $1" >&2; exit 2 ;;
   esac
 done

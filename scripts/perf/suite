@@ -22,6 +22,7 @@
 # anything. Method and traps: docs/perf/playbook.md.
 set -euo pipefail
 cd /home/dark/app
+. ./scripts/perf/_common
 
 SUITE="scripts/perf/workloads/suite"
 ITERS=200
@@ -41,20 +42,14 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# A published binary resolves its data and log directories relative to its own location, not to
-# DARK_CONFIG_RUNDIR. And there are two places it can be: CI's `dotnet publish` fills the publish
-# directory, `build-release-cli-exes.sh` moves the binary to clis/ and empties it.
 if [[ "$RELEASE" == "true" ]]; then
-  EXE=$(ls -t clis/darklang-alpha-*-linux-x64 \
-                backend/Build/out/Cli/Release/net10.0/linux-x64/publish/Cli \
-          2>/dev/null | head -1 || true)
+  EXE=$(release_exe)
   MODE=release
-  TELEMETRY="$(dirname "${EXE:-.}")/.darklang/logs/telemetry.jsonl"
 else
   EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
   MODE=debug
-  TELEMETRY="${DARK_CONFIG_RUNDIR}/logs/telemetry.jsonl"
 fi
+TELEMETRY=$(telemetry_for "${EXE:-.}")
 
 if [[ ! -x "$EXE" ]]; then
   echo "perf/suite: no CLI at $EXE -- run scripts/dev/build (or scripts/build/build-release-cli-exes.sh)" >&2
