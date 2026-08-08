@@ -72,12 +72,14 @@ executors:
     environment:
       IN_DEV_CONTAINER: true
     macos:
-      xcode: "16.2.0"
-    # m1.medium.gen1 reached end of life on 16 February 2026. CircleCI rejects
-    # an invalid class/image pair outright ("not a valid resource class"), so
-    # a stale one fails the job before it runs anything. If this pair is
-    # rejected, the error message lists what your plan does have.
-    resource_class: macos.m4pro.medium
+      xcode: "15.4.0"
+    # The class and the image version have to be a pair CircleCI supports
+    # together, and the plan has to include macOS at all. m1.medium.gen1 is
+    # end-of-life (Feb 2026); m4pro.medium was rejected for this project. This
+    # pair is the one CircleCI documents most widely. If it's rejected too, the
+    # error names the plan as the cause and macOS needs enabling under
+    # Plan -> Usage Controls.
+    resource_class: macos.m2pro.medium
 
 commands:
   show-large-files-and-directories:
@@ -327,7 +329,7 @@ jobs:
   # All four linux artifacts from one x64 runner. The cross-compiles work
   # because the release image supplies clang and cross sysroots; the stock
   # gcc in dark-base rejects ilc's `--target=<triple>` and the link fails.
-  build-cli-linux:
+  build-cli-linux-glibc:
     executor: release-linux
     resource_class: xlarge
     steps:
@@ -421,7 +423,7 @@ jobs:
             - clis
       - store_artifacts: { path: clis }
 
-  build-cli-musl:
+  build-cli-linux-musl:
     executor: release-musl
     resource_class: large
     steps:
@@ -432,6 +434,19 @@ jobs:
             # build-sqlite.sh looks for zig at $HOME/zig/zig, same as everywhere else
             mkdir -p "$HOME/zig" && ln -sf "$(command -v zig)" "$HOME/zig/zig"
       - checkout
+      - run:
+          name: Install the pinned .NET SDK
+          command: |
+            # The image ships a newer patch than backend/global.json pins, and
+            # that file sets rollForward: disable, so every dotnet command fails
+            # until the exact version is present. Read it rather than hardcode a
+            # third copy of the version.
+            SDK=$(grep -oE '"version"[^"]*"[^"]+"' backend/global.json \
+                    | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')
+            echo "Installing .NET SDK $SDK (from backend/global.json)"
+            curl -sSL https://dot.net/v1/dotnet-install.sh -o /tmp/dotnet-install.sh
+            bash /tmp/dotnet-install.sh --version "$SDK" --install-dir /usr/share/dotnet
+            dotnet --version
       - attach_workspace: { at: "." }
       - run: ./scripts/build/_dotnet-wrapper tool restore
       - run: ./scripts/build/_dotnet-wrapper paket restore
@@ -636,11 +651,11 @@ workflows:
                 - /^native-aot.*/
                 - /^pull\/.*/
 
-      - build-cli-linux:
+      - build-cli-linux-glibc:
           filters: *release-filters
           requires: [seed-db]
 
-      - build-cli-musl:
+      - build-cli-linux-musl:
           filters: *release-filters
           requires: [seed-db]
 
@@ -661,6 +676,6 @@ workflows:
             branches:
               ignore: /.*/
           requires:
-            - build-cli-linux
-            - build-cli-musl
+            - build-cli-linux-glibc
+            - build-cli-linux-musl
             - build-cli-macos
