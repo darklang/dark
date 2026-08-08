@@ -626,8 +626,15 @@ workflows:
               only: /^v.*/
             # FLIP TO `ignore: /.*/` BEFORE MERGE, together with the
             # release-matrix-on-every-push parameter at the top of this file.
+            #
+            # pull/* is here because this branch lives on a fork: CircleCI
+            # reports a forked PR's branch as `pull/<number>`, not the branch
+            # name, so matching only the branch name filters every job out and
+            # the workflow silently doesn't appear at all.
             branches:
-              only: /^native-aot.*/
+              only:
+                - /^native-aot.*/
+                - /^pull\/.*/
 
       - build-cli-linux:
           filters: *release-filters
