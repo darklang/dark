@@ -30,9 +30,14 @@ for arg in "$@"; do
 done
 
 if [[ "$PUBLISHED" == "true" ]]; then
-  # `build-release-cli-exes.sh` moves the published binary into clis/, so the publish directory is
-  # empty by the time it finishes. Take the newest one it left.
-  EXE=$(ls -t clis/darklang-alpha-*-linux-x64 2>/dev/null | head -1)
+  # Two places, because two things produce a published binary and they disagree. CI runs
+  # `dotnet publish` and leaves it in the publish directory; `build-release-cli-exes.sh`, which is
+  # what you run locally, *moves* it to `clis/` and leaves that directory empty. Prefer whichever
+  # exists, newest first, or the gate passes locally and fails in CI -- which is how this comment
+  # came to be written.
+  EXE=$(ls -t clis/darklang-alpha-*-linux-x64 \
+                backend/Build/out/Cli/Release/net10.0/linux-x64/publish/Cli \
+          2>/dev/null | head -1 || true)
 else
   EXE="backend/Build/out/Cli/Debug/net10.0/Cli"
 fi

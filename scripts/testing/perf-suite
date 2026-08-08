@@ -44,11 +44,13 @@ done
 # DARK_CONFIG_RUNDIR, so the two modes read their telemetry from different places. Same trap as
 # perf-gate's --published.
 if [[ "$RELEASE" == "true" ]]; then
-  # `build-release-cli-exes.sh` *moves* the published binary into clis/, so the publish directory it
-  # names in its own log is empty by the time it finishes. Take the newest one it left behind.
-  EXE=$(ls -t clis/darklang-alpha-*-linux-x64 2>/dev/null | head -1)
+  # See perf-gate: `dotnet publish` fills the publish directory, `build-release-cli-exes.sh` moves
+  # the binary to clis/ and empties it. Take whichever exists, newest first.
+  EXE=$(ls -t clis/darklang-alpha-*-linux-x64 \
+                backend/Build/out/Cli/Release/net10.0/linux-x64/publish/Cli \
+          2>/dev/null | head -1 || true)
   if [[ -z "$EXE" ]]; then
-    echo "perf-suite: no release CLI in clis/ -- run scripts/build/build-release-cli-exes.sh" >&2
+    echo "perf-suite: no release CLI -- run scripts/build/build-release-cli-exes.sh" >&2
     exit 2
   fi
   TELEMETRY="$(dirname "$EXE")/.darklang/logs/telemetry.jsonl"
