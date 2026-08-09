@@ -152,6 +152,33 @@ check "ls a module"    ""    ls Darklang.Stdlib.List
 # absent from every other check here.
 check "version check"  ""    version --check
 
+# Run it the way a user does: from outside the checkout entirely.
+#
+# Everything above runs the artifact from within the source tree, and that hides
+# a whole class of bug. `PackageRefs` prefers `package-ref-hashes.txt` from the
+# tree it was COMPILED in, and falls back to the embedded copy only when that
+# path is missing. So inside the checkout a wrong or empty embedded copy is
+# invisible: the on-disk file wins, and the first run regenerates it anyway.
+#
+# That is not academic. The first tagged release shipped with an empty embedded
+# hash file and failed with `FnNotFound` on every command, while passing every
+# check above.
+echo ""
+echo "Outside the source tree (what a user actually gets):"
+
+OUTSIDE=$(mktemp -d /tmp/dark-artifact-outside.XXXXXX)
+cp "$ARTIFACT" "$OUTSIDE/dark"
+outside_rc=0
+outside_out=$( cd "$OUTSIDE" && HOME="$OUTSIDE" ./dark eval "1 + 2" 2>&1 ) || outside_rc=$?
+if [[ $outside_rc -ne 0 || "$outside_out" != *"3"* ]]; then
+  echo "  FAIL eval outside the checkout (exit $outside_rc)"
+  echo "$outside_out" | tail -15 | indent
+  failures=$((failures + 1))
+else
+  echo "  ok   eval outside the checkout"
+fi
+rm -rf "$OUTSIDE"
+
 echo ""
 echo "Dark CLI test suite:"
 

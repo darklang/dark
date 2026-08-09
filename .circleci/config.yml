@@ -341,6 +341,16 @@ jobs:
           root: "."
           paths:
             - rundir/seed.db
+            # Hand over the hash file too, not just the seed.
+            #
+            # `reload-packages` above populates it, but it is gitignored, so the
+            # build jobs' own checkout has only the empty one MSBuild creates.
+            # They then embed THAT, and every ref in the shipped binary resolves
+            # to "" -> `FnNotFound` on every command. It goes unnoticed inside a
+            # source tree, because there the file on disk wins over the embedded
+            # copy and the first run regenerates it. A user running the artifact
+            # anywhere else has only the embedded copy.
+            - backend/src/LibExecution/package-ref-hashes.txt
 
   # All four linux artifacts from one x64 runner. The cross-compiles work
   # because the release image supplies clang and cross sysroots; the stock
