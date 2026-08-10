@@ -445,15 +445,16 @@ module Libc =
     if position < 0L then Error(lastError ()) else Ok position
 
   /// Read one terminal file descriptor's window size as (columns, rows).
+  ///
+  /// Disabled on macOS. Darwin's ioctl is variadic, but this P/Invoke declares
+  /// a fixed third argument. On Apple arm64, those signatures use different
+  /// calling conventions, so ioctl may receive an invalid output pointer and
+  /// corrupt memory. The caller uses its terminal-size fallback instead.
   let tryTerminalWindowSize (fd : int) : Option<int64 * int64> =
-    if OperatingSystem.IsWindows() then
+    if OperatingSystem.IsWindows() || isMac then
       None
     else
-      let request =
-        if isMac then
-          0x40087468UL // TIOCGWINSZ on Darwin
-        else
-          0x5413UL // TIOCGWINSZ on Linux
+      let request = 0x5413UL // TIOCGWINSZ on Linux
 
       let buffer = Marshal.AllocHGlobal 8
       try
