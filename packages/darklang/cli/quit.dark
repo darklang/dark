@@ -22,9 +22,10 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   []
 
 
-let help (_state: AppState) : Unit =
+let help (state: AppState) : AppState =
   [
     "Usage: quit"
     "Exit the CLI immediately."
   ] |> Stdlib.printLines
+  state
 

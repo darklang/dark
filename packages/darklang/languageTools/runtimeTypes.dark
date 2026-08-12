@@ -2,7 +2,7 @@ module Darklang.LanguageTools.RuntimeTypes
 
 
 // <aliases>
-type Option = Stdlib.Option.Option
+type Option<'a> = Stdlib.Option.Option<'a>
 // </aliases>
 
 type Hash = | Hash of String
@@ -140,7 +140,7 @@ type MatchPattern =
   | MPList of List<MatchPattern>
   | MPListCons of head: MatchPattern * tail: MatchPattern
   | MPEnum of caseName: String * fieldPatterns: List<MatchPattern>
-  | MPVariable of String
+  | MPVariable of Register
   | MPOr of List<MatchPattern>
 
 type Register = Int32

@@ -7,7 +7,7 @@ module Darklang.LanguageTools.Parser.Canvas
 type WTCanvasModule =
   { owner: String
     name: List<String>
-    types: List<LanguageTools.WrittenTypes.TypeReference.TypeReference>
+    types: List<LanguageTools.WrittenTypes.TypeDeclaration.TypeDeclaration>
     values:
       List<LanguageTools.WrittenTypes.ValueDeclaration.ValueDeclaration>
     fns: List<LanguageTools.WrittenTypes.FnDeclaration.FnDeclaration>

@@ -251,7 +251,7 @@ let complete (_state: AppState) (args: List<String>) : List<Completion.Completio
   | _ -> []
 
 
-let help (_state: AppState) : Unit =
+let help (state: AppState) : AppState =
   [ "Usage: branch [subcommand] [args]"
     ""
     "Subcommands:"
@@ -273,3 +273,4 @@ let help (_state: AppState) : Unit =
     "  dark --branch feature status"
     "  dark --branch feature commit \"my changes\"" ]
   |> Stdlib.printLines
+  state

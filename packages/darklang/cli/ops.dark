@@ -129,12 +129,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [ n ] ->
     match Stdlib.Int64.parse n with
     | Ok l -> executeList state l
-    | Error _ ->
-      help state
-      state
-  | _ ->
-    help state
-    state
+    | Error _ -> help state
+  | _ -> help state
 
 let complete
   (state: AppState)

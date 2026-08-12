@@ -266,7 +266,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
   | _ -> []
 
 
-let help (state: AppState): Unit =
+let help (state: AppState): AppState =
   [ "Usage: tree [path] [--depth=N] [--toc] [--include-deprecated]"
     "       packages [path] [--depth=N] [--toc]"
     ""
@@ -289,3 +289,4 @@ let help (state: AppState): Unit =
     "  tree --depth=5               - Show deeper tree structure"
     "  tree Darklang.Stdlib         - Show Stdlib tree" ]
   |> Stdlib.printLines
+  state

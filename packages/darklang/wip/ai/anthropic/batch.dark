@@ -508,7 +508,7 @@ let getSuccessfulResults
   Stdlib.List.filterMap results (fun r ->
     match r.result with
     | Succeeded response ->
-      Stdlib.Option.Option.Some(r.custom_id, response)
+      Stdlib.Option.Option.Some ((r.custom_id, response))
     | _ -> Stdlib.Option.Option.None)
 
 /// Get only the errored results from a batch results list
@@ -518,7 +518,7 @@ let getErroredResults
   Stdlib.List.filterMap results (fun r ->
     match r.result with
     | Errored error ->
-      Stdlib.Option.Option.Some(r.custom_id, error)
+      Stdlib.Option.Option.Some ((r.custom_id, error))
     | _ -> Stdlib.Option.Option.None)
 
 /// Check if an error is retryable (server errors can be retried)

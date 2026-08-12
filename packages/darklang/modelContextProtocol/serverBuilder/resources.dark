@@ -118,7 +118,7 @@ let handleResourceRequestWithTemplates (server: McpServerBuilder) (uri: String) 
             uriMatchesTemplate uri template)
 
       match matchedTemplate with
-      | Some (_template, resourceDef) ->
+      | Some ((_template, resourceDef)) ->
           let handler = resourceDef.handler
           handler uri
       | None ->

@@ -96,7 +96,6 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     Stdlib.printLine (Colors.error "Invalid arguments")
     Stdlib.printLine ""
     help state
-    state
 
 
 let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =

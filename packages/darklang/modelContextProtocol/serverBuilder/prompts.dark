@@ -14,7 +14,7 @@ let handlePromptRequest (server: McpServerBuilder) (name: String) (args: Darklan
   | None ->
       [
         ModelContextProtocol.PromptMessage {
-          role = ModelContextProtocol.MessageRole.System
+          role = ModelContextProtocol.MessageRole.Assistant
           content = ModelContextProtocol.PromptContent.Text $"Error: Unknown prompt '{name}'"
         }
       ]
@@ -33,7 +33,7 @@ let addPrompt (server: McpServerBuilder) (prompt: Prompt) : McpServerBuilder =
     let content = handler args
     [
       ModelContextProtocol.PromptMessage {
-        role = ModelContextProtocol.MessageRole.System
+        role = ModelContextProtocol.MessageRole.Assistant
         content = ModelContextProtocol.PromptContent.Text content
       }
     ]

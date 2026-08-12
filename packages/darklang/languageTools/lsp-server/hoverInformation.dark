@@ -776,7 +776,7 @@ let collectFnParameterHoverInfoAtPos
   (position: LanguageServerProtocol.Position.Position)
   : Stdlib.Option.Option<Info> =
   match p with
-  | Unit r -> createBuiltinTypeInfoIfInRange ctx r "Unit" position
+  | Unit up -> createBuiltinTypeInfoIfInRange ctx up.range "Unit" position
   | Normal np ->
     // check if we are hovering over a parameter
     match CursorPosition.checkIfPositionWithinRange position np.range with
@@ -1527,7 +1527,7 @@ let collectPipeExprHoverInfoAtPos
   | EPipeVariableOrFnCall(r, name) ->
     // check if position is within the PipeExpr range
     if CursorPosition.isLineNumberInRange position r then
-      match tryGetFnAndCollectHoverInfo ctx name r with
+      match tryGetFnAndCollectHoverInfo ctx [ name ] r with
       | Some r -> Stdlib.Option.Option.Some r
       | None ->
         let description =
@@ -1756,7 +1756,7 @@ let collectExpressionHoverInfoAtPos
 
     | None -> Stdlib.Option.Option.None
 
-  | EFieldAccess(r, expr, fieldName, _symbolDot) ->
+  | ERecordFieldAccess(r, expr, fieldName, _symbolDot) ->
     // check if we are hovering over a field access expression range
     if CursorPosition.isLineNumberInRange position r then
       // check if we are hovering over the expression

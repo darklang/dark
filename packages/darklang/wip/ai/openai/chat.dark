@@ -1219,7 +1219,7 @@ let send (apiKey: String) (req: Request) : Stdlib.Result.Result<Response, String
         | code when code >= 200 && code < 300 ->
           match Stdlib.AltJson.parse bodyStr with
           | Ok json -> parseResponse json
-          | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ e)
+          | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ (Stdlib.AltJson.ParseError.toString e))
         | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
         | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
         | code when code >= 500 -> Stdlib.Result.Result.Error("OpenAI server error: " ++ bodyStr)
@@ -1342,7 +1342,7 @@ let get (apiKey: String) (completionId: String) : Stdlib.Result.Result<Response,
       | code when code >= 200 && code < 300 ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok json -> parseResponse json
-        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ e)
+        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ (Stdlib.AltJson.ParseError.toString e))
       | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
       | 404 -> Stdlib.Result.Result.Error("Chat completion not found: " ++ completionId)
       | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
@@ -1374,7 +1374,7 @@ let update
       | code when code >= 200 && code < 300 ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok json -> parseResponse json
-        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ e)
+        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ (Stdlib.AltJson.ParseError.toString e))
       | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
       | 404 -> Stdlib.Result.Result.Error("Chat completion not found: " ++ completionId)
       | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
@@ -1602,7 +1602,7 @@ let completeJson (apiKey: String) (prompt: String) : Stdlib.Result.Result<Json, 
     | Some c ->
       match Stdlib.AltJson.parse c with
       | Ok json -> Stdlib.Result.Result.Ok json
-      | Error e -> Stdlib.Result.Result.Error("Failed to parse JSON: " ++ e)
+      | Error e -> Stdlib.Result.Result.Error("Failed to parse JSON: " ++ (Stdlib.AltJson.ParseError.toString e))
     | None -> Stdlib.Result.Result.Error "No content in response"
   | Error e -> Stdlib.Result.Result.Error e
 

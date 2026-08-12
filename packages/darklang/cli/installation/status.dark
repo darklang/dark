@@ -29,7 +29,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   []
 
 
-let help (state: AppState) : Unit =
+let help (state: AppState) : AppState =
   [
     "Usage: status"
     "Show current CLI installation status."
@@ -38,3 +38,4 @@ let help (state: AppState) : Unit =
     "and shows installation location."
   ]
   |> Stdlib.printLines
+  state

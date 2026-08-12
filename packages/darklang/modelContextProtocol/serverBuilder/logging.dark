@@ -6,7 +6,7 @@ let getLogFilePath (serverName: String) : String =
 let logWithPath (logFilePath: String) (message: String) : Unit =
   let timestamp = (Stdlib.DateTime.now ()) |> Stdlib.DateTime.toString
   let logMessage = $"[{timestamp}] {message}\n"
-  Builtin.fileAppendText logFilePath logMessage
+  let _ = Builtin.fileAppendText logFilePath logMessage
   ()
 
 let logIncomingRequestWithPath (logFilePath: String) (message: String) : Unit =

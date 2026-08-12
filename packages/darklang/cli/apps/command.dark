@@ -48,7 +48,9 @@ let row (app: Model.App) : String =
 /// `apps run <slug>` — run a foreground app attached, dispatching its CLI command in-process.
 let runApp (state: Cli.AppState) (slug: String) : Cli.AppState =
   match Registry.findBySlug state.currentBranchId slug with
-  | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
+  | None ->
+    Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
+    state
   | Some app ->
     match app.target with
     | Foreground command -> Cli.Registry.executeCommand command state []
@@ -65,7 +67,8 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
   else
 
   match Registry.findBySlug state.currentBranchId slug with
-  | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
+  | None ->
+    Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
   | Some app ->
     match app.target with
     | Daemon entrypoint ->
@@ -84,7 +87,8 @@ let startDaemon (state: Cli.AppState) (slug: String) : Cli.AppState =
 /// `apps inspect <slug>` — label, slug, target, installed?, and (daemons) status + recent logs.
 let inspect (state: Cli.AppState) (slug: String) : Cli.AppState =
   match Registry.findBySlug state.currentBranchId slug with
-  | None -> Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
+  | None ->
+    Stdlib.printLine (Colors.error $"no app '{slug}' (see `apps list-available`)")
   | Some app ->
     Stdlib.printLine $"{app.name}  [{Model.kindTag app.target}]"
     Stdlib.printLine (Colors.dimText $"  {app.slug} — {app.description}")

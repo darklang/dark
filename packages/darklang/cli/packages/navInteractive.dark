@@ -768,13 +768,9 @@ let performSearch (navState: State) : State =
 
     // Convert search results to NavItems with full paths
     let moduleItems =
-      match results.submodules with
-      | [] -> []
-      | [submodulePaths] ->
-        submodulePaths
-        |> Stdlib.List.map (fun modulePath ->
-          NavItem { name = Stdlib.String.join modulePath "."; entityType = EntityType.Module; location = PackageLocation.Module modulePath })
-      | _ -> []
+      results.submodules
+      |> Stdlib.List.map (fun modulePath ->
+        NavItem { name = Stdlib.String.join modulePath "."; entityType = EntityType.Module; location = PackageLocation.Module modulePath })
 
     let typeItems =
       results.types

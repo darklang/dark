@@ -23,14 +23,14 @@ module ClientInfo =
         match
           Stdlib.List.findFirst (fun (key, _) -> key == "name") fields
         with
-        | Some(_, String name) -> Stdlib.Result.Result.Ok name
+        | Some ((_, String name)) -> Stdlib.Result.Result.Ok name
         | _ -> Stdlib.Result.Result.Error()
 
       let version = // Result<Option<String>, Unit>
         match
           Stdlib.List.findFirst (fun (key, _) -> key == "version") fields
         with
-        | Some(_, String version) -> Stdlib.Result.Result.Ok(Some version)
+        | Some ((_, String version)) -> Stdlib.Result.Result.Ok(Some version)
         | _ -> Stdlib.Result.Result.Error()
 
       match (name, version) with

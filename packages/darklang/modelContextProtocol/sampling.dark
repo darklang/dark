@@ -219,26 +219,26 @@ module CreateMessageParamsParser =
         // Parse messages (required)
         let messagesResult =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "messages") with
-          | Some (_, Array messageList) ->
+          | Some ((_, Array messageList)) ->
               // For now, parse as empty list - proper message parsing would be complex
               Stdlib.Result.Result.Ok []
-          | Some (_, _) -> Stdlib.Result.Result.Error "messages must be an array"
+          | Some ((_, _)) -> Stdlib.Result.Result.Error "messages must be an array"
           | None -> Stdlib.Result.Result.Error "messages is required"
 
         // Parse optional fields
         let systemPrompt =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "systemPrompt") with
-          | Some (_, String prompt) -> Stdlib.Option.Option.Some prompt
+          | Some ((_, String prompt)) -> Stdlib.Option.Option.Some prompt
           | _ -> Stdlib.Option.Option.None
 
         let temperature =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "temperature") with
-          | Some (_, Number temp) -> Stdlib.Option.Option.Some temp
+          | Some ((_, Number temp)) -> Stdlib.Option.Option.Some temp
           | _ -> Stdlib.Option.Option.None
 
         let maxTokens =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "maxTokens") with
-          | Some (_, Number tokens) -> Stdlib.Option.Option.Some (Stdlib.Int.fromFloat tokens)
+          | Some ((_, Number tokens)) -> Stdlib.Option.Option.Some (Stdlib.Int.fromFloat tokens)
           | _ -> Stdlib.Option.Option.None
 
         match messagesResult with

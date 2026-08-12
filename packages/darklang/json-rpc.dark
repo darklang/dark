@@ -74,7 +74,7 @@ module Request =
 
       | None -> Stdlib.Result.Result.Error(ParseError.MissingJsonRpcField)
 
-      | Some(_, invalidJsonRpc) ->
+      | Some((_, invalidJsonRpc)) ->
         Stdlib.Result.Result.Error(ParseError.InvalidJsonRpcField invalidJsonRpc)
 
 

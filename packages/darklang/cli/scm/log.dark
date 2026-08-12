@@ -86,7 +86,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   []
 
 
-let help (_state: AppState) : Unit =
+let help (state: AppState) : AppState =
   [ "Usage: commits [limit] [--detailed]"
     "Show commit history for the current branch and its ancestors."
     "Commits from parent branches are shown dimmed with the branch name."
@@ -100,3 +100,4 @@ let help (_state: AppState) : Unit =
     ""
     "Use 'show <commit-id>' to see details of a specific commit." ]
   |> Stdlib.printLines
+  state

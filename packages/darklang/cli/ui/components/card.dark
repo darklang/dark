@@ -235,7 +235,7 @@ let renderMediaCard (component: Core.Types.Component<MediaCardModel>) (context: 
     if Stdlib.List.isEmpty model.actions then
       []
     else
-      let actionText = Stdlib.String.join " | " model.actions
+      let actionText = Stdlib.String.join model.actions " | "
       let paddedActions = Core.Rendering.padText actionText (model.width - 4) Core.Types.Alignment.Center
       ["│ " ++ paddedActions ++ " │"]
 

@@ -192,7 +192,7 @@ let ``and``
   : Stdlib.Option.Option<'b> =
   match option1 with
   | Some _ -> option2
-  | None -> option1
+  | None -> Stdlib.Option.Option.None
 
 
 /// Returns <param option1> if it is {{Some _}}. Otherwise, returns <param option2>.

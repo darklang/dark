@@ -18,7 +18,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
   Completion.commandNamesCompletion state args
 
 
-let help (state: AppState) : Unit =
+let help (state: AppState) : AppState =
 
   // CLEANUP I wanted this somewhere but couldn't decide where.
   [ Colors.purpleBg
@@ -47,6 +47,7 @@ let help (state: AppState) : Unit =
   ]
   |> Stdlib.printLines
 
+  state
 
 // CLEANUP I think there's other `help` stuff we can move here
 // specifically, the commandNamesCompletino

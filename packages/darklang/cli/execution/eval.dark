@@ -27,7 +27,6 @@ let execute (state: AppState) (args: List<String>) : AppState =
   match args with
   | [] ->
     help state
-    state
   | _ ->
     // Special case: a single "-" arg means "read expression from stdin" so
     // callers can pipe multi-line expressions via heredoc without quoting.
@@ -50,7 +49,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   []
 
 
-let help (_state: AppState) : Unit =
+let help (state: AppState) : AppState =
   [
     "Usage: eval <expression>"
     "       eval -    (read expression from stdin, for multi-line input)"
@@ -68,3 +67,4 @@ let help (_state: AppState) : Unit =
     "  Stdlib.List.length xs"
     "  EOF"
   ] |> Stdlib.printLines
+  state

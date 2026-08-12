@@ -39,7 +39,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   []
 
 
-let help (_state: AppState) : Unit =
+let help (state: AppState) : AppState =
   [
     "Usage: version"
     "Display CLI version and store-format information."
@@ -47,3 +47,4 @@ let help (_state: AppState) : Unit =
     "Shows the current version, whether a newer release exists, and whether your data"
     "matches this binary's store format."
   ] |> Stdlib.printLines
+  state

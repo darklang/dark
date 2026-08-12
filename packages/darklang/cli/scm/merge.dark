@@ -44,7 +44,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   [ Completion.simple "--dry-run" ]
 
 
-let help (_state: AppState) : Unit =
+let help (state: AppState) : AppState =
   [ "Usage: merge [--dry-run|-n]"
     "Merge current branch into its parent."
     ""
@@ -56,3 +56,4 @@ let help (_state: AppState) : Unit =
     "Flags:"
     "  --dry-run, -n   Check if merge is possible without doing it" ]
   |> Stdlib.printLines
+  state
