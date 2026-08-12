@@ -205,7 +205,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     |> Stdlib.List.filter (fun a ->
       a != "--yes" && a != "-y" && a != "--json" && a != "--view")
   match args with
-  | [] -> help state
+  | [] ->
+    Stdlib.printLine (help state)
+    state
 
   | [ "list" ] ->
     if wantsJson then executeListJson state 20 else executeList state 20
@@ -458,10 +460,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | head :: _ ->
         Stdlib.printLine (Colors.error $"Unknown subcommand: {head}")
         Stdlib.printLine ""
-        help state
-      | [] -> help state
+        Stdlib.printLine (help state)
+        state
+      | [] ->
+        Stdlib.printLine (help state)
+        state
     else
-      help state
+      Stdlib.printLine (help state)
+      state
 
 
 let executeList (state: Cli.AppState) (limit: Int) : Cli.AppState =
@@ -1283,7 +1289,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Completion.Compl
   | _ -> []
 
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [ "Usage: traces <subcommand>"
     ""
     "Subcommands:"
@@ -1357,5 +1363,4 @@ let help (state: Cli.AppState) : Cli.AppState =
     "Workflow for debugging the last request:"
     "  traces tail                          - what just ran (call tree)"
     "  traces replay <id>                   - re-run under current code" ]
-  |> Stdlib.printLines
-  state
+  |> Stdlib.String.join "\n"

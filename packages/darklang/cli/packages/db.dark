@@ -3,8 +3,12 @@ module Darklang.Cli.Packages.DB
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
-  | [] -> help state
-  | [ "help" ] -> help state
+  | [] ->
+    Stdlib.printLine (help state)
+    state
+  | [ "help" ] ->
+    Stdlib.printLine (help state)
+    state
   | [ "list" ] -> listDBs state
   | [ "view"; dbName ] -> viewDB state dbName
   | [ "get"; dbName; key ] -> getDBValue state dbName key
@@ -320,7 +324,7 @@ let createDB (state: Cli.AppState) (dbName: String) (typeName: String) : Cli.App
         state
 
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [ "Database commands"
     ""
     "Usage:"
@@ -348,9 +352,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     ""
     "The database will be created in your account's canvas."
     "" ]
-  |> Stdlib.printLines
-
-  state
+  |> Stdlib.String.join "\n"
 
 
 let getDBNamesForCompletion (state: Cli.AppState) : List<String> =

@@ -771,7 +771,7 @@ let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cl
       Stdlib.printLine message
       cliState
 
-let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
+let help (_state: Darklang.Cli.AppState) : String =
   [ "Usage: review [--all]"
     "Review changes on the current branch."
     ""
@@ -782,8 +782,7 @@ let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
     "Diff view:   Up/Down scroll | Left/Esc back"
     "Commits:     Up/Down navigate | Right/Enter view | Left/Esc back"
     "Branch list: Up/Down navigate | Right/Enter open | r refresh | Left/Esc exit" ]
-  |> Stdlib.printLines
-  _state
+  |> Stdlib.String.join "\n"
 
 let complete (_state: Darklang.Cli.AppState) (_args: List<String>) : List<Darklang.Cli.Completion.CompletionItem> =
   [Darklang.Cli.Completion.CompletionItem { display = "--all"; value = "--all" }]

@@ -52,7 +52,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   []
 
 
-let help (state: AppState) : AppState =
+let help (_state: AppState) : String =
   [ "Usage: discard [--yes|-y]"
     "Discard all uncommitted (WIP) changes on the current branch."
     ""
@@ -60,5 +60,4 @@ let help (state: AppState) : AppState =
     ""
     "Flags:"
     "  --yes, -y   Skip confirmation prompt" ]
-  |> Stdlib.printLines
-  state
+  |> Stdlib.String.join "\n"

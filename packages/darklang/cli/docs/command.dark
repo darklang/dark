@@ -275,7 +275,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         state
 
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [ Colors.info "Usage: " ++ Colors.command "docs [topic]"
     "Browse in-CLI documentation."
     ""
@@ -284,9 +284,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "  " ++ Colors.command "docs for-ai" ++ "  - AI agent quick start"
     "  " ++ Colors.command "docs syntax" ++ "  - Language syntax reference"
     "  " ++ Colors.command "docs errors" ++ "  - Common errors and fixes" ]
-  |> Stdlib.printLines
-
-  state
+  |> Stdlib.String.join "\n"
 
 
 let complete

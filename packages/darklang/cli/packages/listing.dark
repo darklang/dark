@@ -77,7 +77,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
         Stdlib.printLine "Use 'view' to see details of types, values, or functions."
         state
   | _ ->
-    help state
+    Stdlib.printLine (help state)
+    state
 
 
 
@@ -92,7 +93,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
   | _ -> []
 
 
-let help (state: AppState) : AppState =
+let help (_state: AppState) : String =
   [
     "Usage: ls [path] [--include-deprecated]"
     "List contents of the current location or specified path with icons."
@@ -108,5 +109,4 @@ let help (state: AppState) : AppState =
     "  ls .. --include-deprecated - Include deprecated items"
     ""
     "See also: `tree` for multi-level view, `view` for detailed view"
-  ] |> Stdlib.printLines
-  state
+  ] |> Stdlib.String.join "\n"

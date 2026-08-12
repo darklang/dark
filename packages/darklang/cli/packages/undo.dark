@@ -46,7 +46,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   match args with
   | [] ->
-    help state
+    Stdlib.printLine (help state)
+    state
 
   | [itemType] ->
     Stdlib.printLine (Colors.error "Error: Missing name argument")
@@ -218,7 +219,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       Stdlib.printLine "Must be one of: fn, type, value"
       state
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [ "Undo WIP changes to a function, type, or value"
     ""
     "Usage: undo <fn|type|value> <name> [--yes|-y]"
@@ -237,9 +238,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "  undo type Darklang.MyModule.Status"
     "  undo value Darklang.Config.maxRetries"
     "" ]
-  |> Stdlib.printLines
-
-  state
+  |> Stdlib.String.join "\n"
 
 
 let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =

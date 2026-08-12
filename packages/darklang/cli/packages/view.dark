@@ -397,7 +397,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
   match parseArgs args with
   | Error e ->
     Stdlib.printLine (Colors.error $"Cannot view: {e}")
-    help state
+    Stdlib.printLine (help state)
+    state
   | Ok parsed ->
     let (pathArg, mode) = parsed
 
@@ -436,7 +437,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
     Traversal.completePartialPath branchId state.packageData.currentLocation ""
 
 
-let help (state: AppState) : AppState =
+let help (_state: AppState) : String =
   [
     "Usage: view [path] [--ast | --instructions]"
     "View detailed information about functions, types, values, or modules."
@@ -456,5 +457,4 @@ let help (state: AppState) : AppState =
     "  view Stdlib.List                - View contents of Stdlib.List module"
     "  view List.last --ast            - View List.last as a syntax tree"
     "  view List.map --instructions    - Disassemble List.map"
-  ] |> Stdlib.printLines
-  state
+  ] |> Stdlib.String.join "\n"

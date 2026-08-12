@@ -238,7 +238,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | Error e -> Stdlib.printLine (Colors.error e)
     state
 
-  | _ -> Command.help state
+  | _ ->
+    Stdlib.printLine (Command.help state)
+    state
 
 
 // Show the stable app slug as the completion value, with the human name as the hint.
@@ -275,7 +277,7 @@ let helpLine (usage: String) (desc: String) : String =
   let pad = Stdlib.Result.withDefault (Stdlib.String.padEnd usage " " 26) usage
   "  " ++ pad ++ Colors.dimText desc
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   Stdlib.printLine (Colors.boldText "dark apps")
   Stdlib.printLine (Colors.dimText "  See, curate, run, and manage the Dark apps this instance cares about.")
   Stdlib.printLine ""
@@ -300,6 +302,4 @@ let help (state: Cli.AppState) : Cli.AppState =
     helpLine "apps logs <slug>" "Recent log lines"
     helpLine "apps enable <slug>" "Auto-start on login (OS service)"
     helpLine "apps disable <slug>" "Remove its auto-start" ]
-  |> Stdlib.printLines
-
-  state
+  |> Stdlib.String.join "\n"

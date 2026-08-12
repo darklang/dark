@@ -43,11 +43,10 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   []
 
 
-let help (state: AppState) : AppState =
+let help (_state: AppState) : String =
   [ "Usage: status"
     "Show uncommitted (WIP) changes on the current branch."
     ""
     "Displays the current branch and a summary of types, values, and"
     "functions that have been created or modified but not yet committed." ]
-  |> Stdlib.printLines
-  state
+  |> Stdlib.String.join "\n"

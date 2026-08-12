@@ -47,7 +47,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   [ Completion.simple "--status" ]
 
 
-let help (state: AppState) : AppState =
+let help (_state: AppState) : String =
   [ "Usage: rebase [--status|-s]"
     "Rebase current branch onto parent's latest."
     ""
@@ -56,6 +56,4 @@ let help (state: AppState) : AppState =
     ""
     "If conflicts are found, reconcile each on your branch to match the parent's version, then"
     "retry (or archive the branch to abandon it)." ]
-  |> Stdlib.printLines
-
-  state
+  |> Stdlib.String.join "\n"

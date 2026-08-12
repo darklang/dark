@@ -10,9 +10,8 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   []
 
 
-let help (state: AppState) : AppState =
+let help (_state: AppState) : String =
   [
     "Usage: clear"
     "Clear the terminal screen."
-  ] |> Stdlib.printLines
-  state
+  ] |> Stdlib.String.join "\n"

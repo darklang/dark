@@ -49,7 +49,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
 
 
-let help (state: AppState) : AppState =
+let help (_state: AppState) : String =
   [ "Log in as one of the seeded accounts."
     ""
     "Usage:"
@@ -58,8 +58,7 @@ let help (state: AppState) : AppState =
     ""
     "Logging in unblocks `commit` and other authoring actions — it records"
     "who authors each change (serving needs no login). `logout` clears it." ]
-  |> Stdlib.printLines
-  state
+  |> Stdlib.String.join "\n"
 
 
 let complete

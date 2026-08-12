@@ -147,11 +147,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           state
 
 
-let help (state: Cli.AppState) : Cli.AppState =
-  Stdlib.printLine "Start an HTTP server backed by a Darklang router."
-  Stdlib.printLine ""
-  printUsage ()
-  state
+let help (_state: Cli.AppState) : String =
+  [ "Start an HTTP server backed by a Darklang router."
+    "" ]
+  |> Stdlib.List.append (usageLines ())
+  |> Stdlib.String.join "\n"
 
 
 let complete

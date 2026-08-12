@@ -3,7 +3,9 @@ module Darklang.Cli.Packages.Type
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
-  | [] -> help state
+  | [] ->
+    Stdlib.printLine (help state)
+    state
 
   // type SomeModule.myType = definition
   | location :: definitionParts ->
@@ -169,7 +171,7 @@ let createTypeInline
     state
 
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [
     "Create or update a type"
     ""
@@ -205,9 +207,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "  type ../Adjacent.Foo = ...  # Relative to current location"
     "  type /Darklang.Foo = ...    # Absolute path"
     ""
-  ] |> Stdlib.printLines
-
-  state
+  ] |> Stdlib.String.join "\n"
 
 
 /// CLEANUP could offer useful completions:

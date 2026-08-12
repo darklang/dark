@@ -212,21 +212,19 @@ let resolveInteractively
   Stdlib.printLine (Colors.hint "Run `dark sync` to share your picks with peers.")
   state
 
-let help (state: AppState) : AppState =
-  Stdlib.printLine "dark conflicts — review + resolve sync divergences"
-  Stdlib.printLine ""
-  Stdlib.printLine "  dark conflicts                   review them one at a time (a plain list if piped)"
-  Stdlib.printLine "  dark conflicts list              just print the unreviewed conflicts"
-  Stdlib.printLine "  dark conflicts show <loc>        the two candidate contents"
-  Stdlib.printLine "  dark conflicts ok <loc>          acknowledge (the auto choice stands)"
-  Stdlib.printLine "  dark conflicts keep-mine <loc>   override: keep your version (syncs)"
-  Stdlib.printLine "  dark conflicts keep-theirs <loc> override: keep their version (syncs)"
-  Stdlib.printLine ""
-  Stdlib.printLine
+let help (_state: AppState) : String =
+  [ "dark conflicts — review + resolve sync divergences"
+    ""
+    "  dark conflicts                   review them one at a time (a plain list if piped)"
+    "  dark conflicts list              just print the unreviewed conflicts"
+    "  dark conflicts show <loc>        the two candidate contents"
+    "  dark conflicts ok <loc>          acknowledge (the auto choice stands)"
+    "  dark conflicts keep-mine <loc>   override: keep your version (syncs)"
+    "  dark conflicts keep-theirs <loc> override: keep their version (syncs)"
+    ""
     "  `ok` reviews it HERE only — the auto pick stands and nothing tells your peers."
-  Stdlib.printLine
-    "  `keep-mine`/`keep-theirs` mint a synced Resolution, so the conflict clears on peers too."
-  state
+    "  `keep-mine`/`keep-theirs` mint a synced Resolution, so the conflict clears on peers too." ]
+  |> Stdlib.String.join "\n"
 
 let execute (state: AppState) (args: List<String>) : AppState =
   match args with
@@ -301,7 +299,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
       $"OK — {c.location} will be {theirs}, not {mine}   (syncs to your peers)")
 
-  | _ -> help state
+  | _ ->
+    Stdlib.printLine (help state)
+    state
 
 let complete
   (state: AppState)

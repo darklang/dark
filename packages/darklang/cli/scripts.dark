@@ -152,7 +152,7 @@ let complete (_state: AppState) (args: List<String>) : List<Completion.Completio
   | _ -> []
 
 
-let help (state: AppState) : AppState =
+let help (_state: AppState) : String =
   [
     "Usage: scripts <command> [args...]"
     "Store, manage, and run Dark scripts."
@@ -170,5 +170,4 @@ let help (state: AppState) : AppState =
     "  scripts add hello 'Stdlib.printLine \"Hello World\"'"
     "  scripts run hello"
     "  scripts edit hello 'Stdlib.printLine \"Updated Hello\"'"
-  ] |> Stdlib.printLines
-  state
+  ] |> Stdlib.String.join "\n"

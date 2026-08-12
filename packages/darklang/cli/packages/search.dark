@@ -366,7 +366,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         state
 
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [
     "Search for packages, types, functions, and values"
     ""
@@ -398,9 +398,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "Use --shallow to search only direct children of the current module."
     "Use 'nav' to change your current location first if needed."
     ""
-  ] |> Stdlib.printLines
-
-  state
+  ] |> Stdlib.String.join "\n"
 
 
 let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =

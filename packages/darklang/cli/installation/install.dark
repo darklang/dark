@@ -96,7 +96,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   []
 
 
-let help (state: AppState) : AppState =
+let help (_state: AppState) : String =
   [ "Usage: install [--yes|-y] [--uninstall-if-installed]"
     "Install Darklang CLI globally for system-wide access."
     ""
@@ -106,5 +106,4 @@ let help (state: AppState) : AppState =
     "Flags:"
     "  --yes, -y                 Skip all prompts (use defaults)"
     "  --uninstall-if-installed  Uninstall existing installation first" ]
-  |> Stdlib.printLines
-  state
+  |> Stdlib.String.join "\n"

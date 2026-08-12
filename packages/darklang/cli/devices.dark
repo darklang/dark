@@ -45,7 +45,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
 
 
-let help (state: AppState) : AppState =
+let help (_state: AppState) : String =
   [ "Usage: devices <command>"
     "Your tailnet devices + a couple of operations (over the `tailscale` CLI)."
     ""
@@ -53,8 +53,7 @@ let help (state: AppState) : AppState =
     "  status            List your tailnet devices (default)"
     "  serve <port>      Expose a local HTTP port over the tailnet via TLS (443)"
     "  ping <peer>       Reachability check to a device by MagicDNS name" ]
-  |> Stdlib.printLines
-  state
+  |> Stdlib.String.join "\n"
 
 
 let complete

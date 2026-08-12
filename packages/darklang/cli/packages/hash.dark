@@ -37,7 +37,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Stdlib.printLine (Colors.error "Not found at this location")
         state
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [ "Usage: hash [--long] <location>"
     "Show the hash of a package type, function, or value."
     "By default shows a short (8-char) hash; use --long or --full for the full hash."
@@ -47,9 +47,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "  hash --long MyType   -- full hash"
     "  hash Module.myFn     -- hash of fn in submodule"
     "  hash /Owner.M.x      -- hash at absolute path" ]
-  |> Stdlib.printLines
-
-  state
+  |> Stdlib.String.join "\n"
 
 let complete (state: Cli.AppState) (args: List<String>) : List<Completion.CompletionItem> =
   []
