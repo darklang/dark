@@ -533,6 +533,7 @@ module CompletionRequest =
             { triggerKind = triggerKind
               triggerCharacter = triggerCharacter })
           |> Stdlib.Result.Result.Ok
+        | (Error _, _) -> Stdlib.Result.Result.Error()
 
       | _ -> Stdlib.Result.Result.Error()
 

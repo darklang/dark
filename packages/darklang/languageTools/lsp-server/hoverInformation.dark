@@ -1259,6 +1259,17 @@ let collectLetPatternHoverInfoAtPos
 
     | None -> Stdlib.Option.Option.None
 
+  | LPWildcard r ->
+    // check if position is within the wildcard range
+    match CursorPosition.checkIfPositionWithinRange position r with
+    | Some r ->
+      let metadata = Stdlib.Option.Option.Some("Wildcard let pattern")
+      let description = Stdlib.Option.Option.None
+
+      Stdlib.Option.Option.Some(createHoverInfo r description metadata)
+
+    | None -> Stdlib.Option.Option.None
+
   | LPTuple(r, first, _, second, rest, _, _) ->
     // check if position is within the Tuple range
     if CursorPosition.isLineNumberInRange position r then
