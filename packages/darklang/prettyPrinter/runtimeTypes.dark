@@ -379,9 +379,8 @@ module Dval =
     | DBool true -> "true"
     | DBool false -> "false"
 
-    | DChar c ->
-      let c = Stdlib.Char.toString c
-      $"'{c}'"
+    // RuntimeTypes.Dval declares DChar as carrying a String, so no conversion here
+    | DChar c -> $"'{c}'"
     | DString s -> $"\"{s}\""
 
     | DInt8 i -> Stdlib.Int8.toString i
@@ -512,9 +511,9 @@ module Dval =
         | [] -> ""
         | args ->
           args
-          |> Stdlib.List.map (fun t -> valueTypeName branchId t)
+          |> Stdlib.List.map (fun t -> valueType branchId t)
           |> Stdlib.String.join ", "
-          |> fun betweenBrackets -> "<" + betweenBrackets + ">"
+          |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
 
       let short = Stdlib.String.join strs ", "
 

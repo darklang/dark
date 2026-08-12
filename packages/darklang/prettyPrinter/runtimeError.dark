@@ -104,7 +104,6 @@ module RuntimeError =
           | ValueType vt -> valueType branchId vt
           | FieldName f -> $"`{f}`"
           | InlineFieldName f -> f
-          | DBName db -> db
           | VarName v -> $"`{v}`"
           | InlineVarName v -> v
           | InlineValue dv ->

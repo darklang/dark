@@ -201,7 +201,7 @@ module TextDocumentItem =
     |> Json.Object
 
   let fromJson (json: Json) : Stdlib.Result.Result<TextDocumentItem, Unit> =
-    match Stdlib.Json.parse<TextDocumentItem> json with
+    match Stdlib.Json.parse<TextDocumentItem> (Stdlib.AltJson.format json) with
     | Ok item -> Stdlib.Result.Result.Ok item
     | Error _ -> Stdlib.Result.Result.Error()
 
@@ -531,10 +531,10 @@ module Diagnostic =
       [ Stdlib.Option.Option.Some(("range", Range.toJson d.range))
         d.severity
         |> Stdlib.Option.map (fun s -> ("severity", DiagnosticSeverity.toJson s))
-        // d.code |> Stdlib.Option.map (fun c -> ("code", DiagnosticCode.toJson c))
+        d.code |> Stdlib.Option.map (fun c -> ("code", DiagnosticCode.toJson c))
         // d.codeDescription
         // |> Stdlib.Option.map (fun cd -> ("codeDescription", CodeDescription.toJson cd))
-        // d.source |> Stdlib.Option.map (fun s -> ("source", Json.String s))
+        d.source |> Stdlib.Option.map (fun s -> ("source", Json.String s))
         Stdlib.Option.Option.Some(("message", d.message |> Json.String))
         // d.tags |> Stdlib.Option.map (fun tags ->
         //   ("tags", Json.Array(tags |> Stdlib.List.map DiagnosticTag.toJson)))

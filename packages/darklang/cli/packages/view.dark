@@ -347,7 +347,7 @@ let instructionRows
         PrettyPrinter.RuntimeTypes.Instructions.header l.instructions
       Stdlib.List.flatten
         [ [ ""
-            Colors.hint $"lambda#{Stdlib.UInt64.toString l.exprId}"
+            Colors.hint $"lambda#{Stdlib.Int64.toString l.exprId}"
             Colors.dimText $"  {header}"
             "" ]
           renderBody l.instructions ])
