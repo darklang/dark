@@ -312,7 +312,7 @@ module TextDocumentFilterScheme =
   let toJson (s: TextDocumentFilterScheme) : Json =
     [ s.language |> Stdlib.Option.map (fun l -> ("language", Json.String l))
 
-      Some(("scheme", Json.String s.scheme))
+      Stdlib.Option.Option.Some(("scheme", Json.String s.scheme))
 
       s.pattern |> Stdlib.Option.map (fun p -> ("pattern", Json.String p)) ]
 

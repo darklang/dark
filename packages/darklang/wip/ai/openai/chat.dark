@@ -1389,7 +1389,7 @@ let delete (apiKey: String) (completionId: String) : Stdlib.Result.Result<ChatCo
     let headers = Config.getHeaders apiKey
     let url = Config.baseUrl ++ "/chat/completions/" ++ completionId
 
-    match Stdlib.HttpClient.delete url headers with
+    match Stdlib.HttpClient.request "DELETE" url headers Stdlib.Blob.empty with
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
     | Ok response ->
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body

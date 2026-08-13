@@ -404,7 +404,7 @@ let cancelBatch
   let headers = Models.getHeaders apiKey
 
   let response =
-    Stdlib.HttpClient.post (batchCancelEndpoint batchId) headers []
+    Stdlib.HttpClient.post (batchCancelEndpoint batchId) headers Stdlib.Blob.empty
 
   handleBatchResponse response
 

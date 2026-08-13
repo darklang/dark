@@ -141,7 +141,7 @@ module Sampling =
   /// Convert create message params to JSON
   let createMessageParamsToJson (params: CreateMessageParams) : Json =
     let fields = [
-      ("messages", Json.Array (Stdlib.List.map samplingMessageToJson params.messages))
+      ("messages", Json.Array (Stdlib.List.map params.messages samplingMessageToJson))
     ]
 
     let fieldsWithModelPrefs =
@@ -177,7 +177,7 @@ module Sampling =
     let fieldsWithStopSequences =
       match params.stopSequences with
       | Some sequences ->
-          let seqJson = Stdlib.List.map (fun s -> Json.String s) sequences
+          let seqJson = Stdlib.List.map sequences (fun s -> Json.String s)
           fieldsWithMaxTokens @ [("stopSequences", Json.Array seqJson)]
       | None -> fieldsWithMaxTokens
 

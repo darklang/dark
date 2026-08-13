@@ -30,10 +30,18 @@ let packages () : ModelContextProtocol.ServerBuilder.Resource =
     name = "Package Manifest"
     description = "List of available Darklang packages and their capabilities"
     handler = fun _uri ->
-      let packageList = Darklang.LanguageTools.PackageManager.getAllPackages ()
+      let query =
+        LanguageTools.ProgramTypes.Search.SearchQuery
+          { currentModule = [ "Darklang" ]
+            text = ""
+            searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
+            entityTypes = []
+            exactMatch = false }
+      let results =
+        LanguageTools.PackageManager.Search.search SCM.Branch.mainBranchId query
       let formattedPackages =
-        packageList
-        |> Stdlib.List.map (fun pkg -> $"## {pkg.name}\nVersion: {pkg.version}\nDescription: {pkg.description}\n")
+        results.submodules
+        |> Stdlib.List.map (fun path -> "## " ++ (Stdlib.String.join path "."))
         |> Stdlib.String.join "\n"
       $"# Available Darklang Packages\n\n{formattedPackages}"
   }
@@ -68,14 +76,16 @@ let logs () : ModelContextProtocol.ServerBuilder.Resource =
     name = "Package Logs"
     description = "Recent package loading and compilation logs"
     handler = fun _uri ->
-      let logContent = Builtin.fileReadAll "rundir/logs/packages.log"
-      match logContent with
-      | Some content ->
+      match Builtin.fileRead "rundir/logs/packages.log" with
+      | Ok bytes ->
+          let content = Stdlib.String.fromBlobWithReplacement bytes
           let lines = Stdlib.String.split content "\n"
-          let recentLines = Stdlib.List.takeLast lines 50L
+          let lineCount = Stdlib.List.length lines
+          let recentLines =
+            if lineCount > 50 then Stdlib.List.drop lines (lineCount - 50) else lines
           let formattedLines = Stdlib.String.join recentLines "\n"
           $"# Recent Package Logs\n\n```\n{formattedLines}\n```"
-      | None -> "# Package Logs\n\nNo recent logs available."
+      | Error _ -> "# Package Logs\n\nNo recent logs available."
   }
 
 

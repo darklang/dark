@@ -125,50 +125,51 @@ let parse
     | Ok moduleWT ->
       let initialParse = toPT ctx moduleWT
 
+      // withExtras needs located items; derive each location from the
+      // written declaration's name (map2 pairs decls with their PT items,
+      // which toPT produced in the same order).
+      let locatedTypes =
+        (Stdlib.List.map2 moduleWT.types initialParse.types (fun decl entity ->
+          ProgramTypes.LocatedItem
+            { entity = entity
+              location =
+                ProgramTypes.PackageLocation
+                  { owner = moduleWT.owner
+                    modules = moduleWT.name
+                    name = decl.name.name } }))
+        |> Stdlib.Option.withDefault []
+
+      let locatedValues =
+        (Stdlib.List.map2 moduleWT.values initialParse.values (fun decl entity ->
+          ProgramTypes.LocatedItem
+            { entity = entity
+              location =
+                ProgramTypes.PackageLocation
+                  { owner = moduleWT.owner
+                    modules = moduleWT.name
+                    name = decl.name.name } }))
+        |> Stdlib.Option.withDefault []
+
+      let locatedFns =
+        (Stdlib.List.map2 moduleWT.fns initialParse.fns (fun decl entity ->
+          ProgramTypes.LocatedItem
+            { entity = entity
+              location =
+                ProgramTypes.PackageLocation
+                  { owner = moduleWT.owner
+                    modules = moduleWT.name
+                    name = decl.name.name } }))
+        |> Stdlib.Option.withDefault []
+
       let pm =
         ProgramTypes.PackageManager.withExtras
           ctx.pm
-          initialParse.types
-          initialParse.values
-          initialParse.fns
+          locatedTypes
+          locatedValues
+          locatedFns
 
+      // Items are content-addressed, so the second (fully resolved) pass
+      // already carries the right hashes — no name-based adjustment needed.
       let result = toPT { ctx with pm = pm } moduleWT
 
-      let adjusted =
-        PTCanvasModule
-          { types =
-              result.types
-              |> Stdlib.List.map (fun t ->
-                { t with
-                    hash =
-                      initialParse.types
-                      |> Stdlib.List.findFirst (fun original ->
-                        original.name == t.name)
-                      |> Stdlib.Option.mapWithDefault t.hash (fun original ->
-                        original.hash) })
-
-            values =
-              result.values
-              |> Stdlib.List.map (fun v ->
-                { v with
-                    hash =
-                      initialParse.values
-                      |> Stdlib.List.findFirst (fun original ->
-                        original.name == v.name)
-                      |> Stdlib.Option.mapWithDefault v.hash (fun original ->
-                        original.hash) })
-
-            fns =
-              result.fns
-              |> Stdlib.List.map (fun f ->
-                { f with
-                    hash =
-                      initialParse.fns
-                      |> Stdlib.List.findFirst (fun original ->
-                        original.name == f.name)
-                      |> Stdlib.Option.mapWithDefault f.hash (fun original ->
-                        original.hash) })
-
-            exprs = result.exprs }
-
-      Stdlib.Result.Result.Ok adjusted
+      Stdlib.Result.Result.Ok result

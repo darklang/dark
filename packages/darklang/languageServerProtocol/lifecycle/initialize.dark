@@ -21,21 +21,22 @@ module ClientInfo =
     | Object fields ->
       let name = // Result<String, Unit>
         match
-          Stdlib.List.findFirst (fun (key, _) -> key == "name") fields
+          Stdlib.List.findFirst fields (fun (key, _) -> key == "name")
         with
         | Some ((_, String name)) -> Stdlib.Result.Result.Ok name
         | _ -> Stdlib.Result.Result.Error()
 
       let version = // Result<Option<String>, Unit>
         match
-          Stdlib.List.findFirst (fun (key, _) -> key == "version") fields
+          Stdlib.List.findFirst fields (fun (key, _) -> key == "version")
         with
-        | Some ((_, String version)) -> Stdlib.Result.Result.Ok(Some version)
+        | Some ((_, String version)) ->
+          Stdlib.Result.Result.Ok(Stdlib.Option.Option.Some version)
         | _ -> Stdlib.Result.Result.Error()
 
       match (name, version) with
       | (Ok name, Ok version) ->
-        (ClientInfo { name = name, version = version })
+        (ClientInfo { name = name; version = version })
         |> Stdlib.Result.Result.Ok
       | _ -> Stdlib.Result.Result.Error()
     | _ -> Stdlib.Result.Result.Error()
@@ -385,9 +386,11 @@ module InitializeParams =
     match json with
     | Object fields ->
       let clientInfo = // Result<Option<ClientInfo>, Unit>
-        match Json.Object.get fields "clientInfo" with
-        | Some clientInfo -> ClientInfo.fromJson clientInfo
-        | None -> Stdlib.Result.Result.Ok()
+        match Stdlib.AltJson.Helpers.getValue "clientInfo" fields with
+        | Some clientInfoJson ->
+          (ClientInfo.fromJson clientInfoJson)
+          |> Stdlib.Result.map (fun ci -> Stdlib.Option.Option.Some ci)
+        | None -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
 
       match clientInfo with
       | Ok clientInfo ->
@@ -429,7 +432,8 @@ module TextDocumentSyncServerCapabilities =
     match capabilities with
     | TextDocumentSyncOptions o ->
       DocumentSync.TextDocument.TextDocumentSyncOptions.toJson o
-    | TextDocumentSyncKind kind -> TextDocumentSyncKind.toJson kind
+    | TextDocumentSyncKind kind ->
+      DocumentSync.TextDocument.TextDocumentSyncKind.toJson kind
 
 
 
@@ -600,7 +604,7 @@ module ServerInfo =
 
   let toJson (serverInfo: ServerInfo) : Json =
     let fields =
-      [ Some(("name", Json.String serverInfo.name))
+      [ Stdlib.Option.Option.Some(("name", Json.String serverInfo.name))
 
         (serverInfo.version
           |> Stdlib.Option.map (fun v -> ("version", Json.String v))) ]

@@ -1785,7 +1785,7 @@ let thinkingBlock (thinking: String) (signature: String) : ContentBlock =
 /// Create a redacted thinking block (for when thinking is redacted in responses)
 let redactedThinkingBlock (data: String) : ContentBlock =
   let block = emptyBlock ContentType.RedactedThinking
-  ContentBlock { block with data = Stdlib.Option.Option.Some data }
+  { block with data = Stdlib.Option.Option.Some data }
 
 
 // --- Tool Reference Block ---
@@ -1793,7 +1793,7 @@ let redactedThinkingBlock (data: String) : ContentBlock =
 /// Create a tool reference block (used in tool search results)
 let toolReferenceBlock (toolName: String) : ContentBlock =
   let block = emptyBlock ContentType.ToolReference
-  ContentBlock { block with tool_name = Stdlib.Option.Option.Some toolName }
+  { block with tool_name = Stdlib.Option.Option.Some toolName }
 
 
 // --- Container Upload Block ---
@@ -1801,7 +1801,7 @@ let toolReferenceBlock (toolName: String) : ContentBlock =
 /// Create a container upload block (for file references in containers)
 let containerUploadBlock (fileId: String) : ContentBlock =
   let block = emptyBlock ContentType.ContainerUpload
-  ContentBlock { block with file_id = Stdlib.Option.Option.Some fileId }
+  { block with file_id = Stdlib.Option.Option.Some fileId }
 
 
 // --- Server Tool Use Block ---
@@ -1809,8 +1809,7 @@ let containerUploadBlock (fileId: String) : ContentBlock =
 /// Create a server tool use block
 let serverToolUseBlock (id: String) (name: String) (input: Json) : ContentBlock =
   let block = emptyBlock ContentType.ServerToolUse
-  ContentBlock
-    { block with
+  { block with
         id = Stdlib.Option.Option.Some id
         name = Stdlib.Option.Option.Some name
         input = Stdlib.Option.Option.Some input }
@@ -1823,8 +1822,7 @@ let serverToolUseBlockWithCaller
   (caller: CallerType)
   : ContentBlock =
   let block = emptyBlock ContentType.ServerToolUse
-  ContentBlock
-    { block with
+  { block with
         id = Stdlib.Option.Option.Some id
         name = Stdlib.Option.Option.Some name
         input = Stdlib.Option.Option.Some input
@@ -1841,8 +1839,7 @@ let toolUseBlockWithCaller
   (caller: CallerType)
   : ContentBlock =
   let block = emptyBlock ContentType.ToolUse
-  ContentBlock
-    { block with
+  { block with
         id = Stdlib.Option.Option.Some id
         name = Stdlib.Option.Option.Some name
         input = Stdlib.Option.Option.Some input
@@ -1859,7 +1856,7 @@ let documentBlockContent (contentBlocks: String) : ContentBlock =
         ("content", Json.String contentBlocks) ]
 
   let block = emptyBlock ContentType.Document
-  ContentBlock { block with source = Stdlib.Option.Option.Some source }
+  { block with source = Stdlib.Option.Option.Some source }
 
 
 // ---------------------------------------------------------------------------

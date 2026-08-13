@@ -182,9 +182,9 @@ let tryGetFnAndCollectHoverInfo
   let resolvedFn =
     NameResolver.FnName.resolve nrCtx fnName
 
-  match resolvedFn with
-  | Ok fn ->
-    match fn with
+  match resolvedFn.resolved with
+  | Ok resolvedName ->
+    match resolvedName.name with
     | Package pkgFn ->
       match ctx.pm.getFn pkgFn with
       | Some f ->
@@ -244,10 +244,10 @@ let tryGetPkgType
   let resolvedType =
     NameResolver.TypeName.resolve nrCtx typeName
 
-  match resolvedType with
-  | Ok typ ->
+  match resolvedType.resolved with
+  | Ok resolvedName ->
     let t =
-      match typ with
+      match resolvedName.name with
       | Package t -> t
 
     ctx.pm.getType t
@@ -273,13 +273,11 @@ let tryGetPkgVal
   let resolvedVal =
     NameResolver.ValueName.resolve nrCtx valName
 
-  match resolvedVal with
-  | Ok value ->
-    let v =
-      match value with
-      | Package v -> v
-
-    ctx.pm.getValue v
+  match resolvedVal.resolved with
+  | Ok resolvedName ->
+    match resolvedName.name with
+    | Package v -> ctx.pm.getValue v
+    | Builtin _ -> Stdlib.Option.Option.None
   | _ -> Stdlib.Option.Option.None
 
 
@@ -2131,9 +2129,6 @@ let collectNodeHoverInfoAtPos
         else
           Stdlib.Option.Option.None
 
-      | Expr e ->
-        collectExpressionHoverInfoAtPos ctx e position
-
       | Module m ->
         // Check if position is within module range for early escape
         if CursorPosition.isLineNumberInRange position m.range then
@@ -2177,65 +2172,6 @@ let collectNodeHoverInfoAtPos
                       Stdlib.List.append ctx.currentModules [ name ] }
 
               collectModuleDeclHoverInfoAtPos newCtx m.declarations position
-
-        else
-          Stdlib.Option.Option.None
-
-      | SubModule m ->
-        // Check if position is within submodule range for early escape
-        if CursorPosition.isLineNumberInRange position m.range then
-          match
-            CursorPosition.checkIfPositionWithinRange
-              position
-              m.keywordModule
-          with
-          | Some r ->
-            let thingAtPosition =
-              CursorPosition.ThingAtPosition.Keyword("module")
-
-            (hoverInfoForThingAtPosition ctx thingAtPosition r)
-            |> Stdlib.Option.Option.Some
-
-          | None ->
-            let (nameRange, subModuleName) = m.name
-
-            match
-              CursorPosition.checkIfPositionWithinRange position nameRange
-            with
-            | Some r ->
-              let fqName =
-                (Stdlib.String.join ctx.currentModules ".")
-                |> (fun currentModules ->
-                  if currentModules == "" then
-                    subModuleName
-                  else
-                    currentModules ++ "." ++ subModuleName)
-
-              let description =
-                Stdlib.Option.Option.Some(
-                  "TODO: add description when /// comments are supported"
-                )
-
-              let thingAtPosition =
-                CursorPosition.ThingAtPosition.SubModuleName(
-                  fqName,
-                  description
-                )
-
-              (hoverInfoForThingAtPosition ctx thingAtPosition r)
-              |> Stdlib.Option.Option.Some
-
-            | None ->
-              let newCtx =
-                Context
-                  { branchId = ctx.branchId
-                    pm = ctx.pm
-                    owner = ctx.owner
-                    currentModules =
-                      Stdlib.List.append ctx.currentModules [ subModuleName ] }
-
-              collectModuleDeclHoverInfoAtPos newCtx m.declarations position
-
 
         else
           Stdlib.Option.Option.None

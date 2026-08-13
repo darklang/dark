@@ -65,7 +65,7 @@ module Transport =
     let url = Config.baseUrl ++ path
     let headers = authHeaders apiKey
 
-    match Stdlib.HttpClient.request "DELETE" url headers [] with
+    match Stdlib.HttpClient.request "DELETE" url headers Stdlib.Blob.empty with
     | Ok response -> Stdlib.Result.Result.Ok response
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
 
