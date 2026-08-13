@@ -309,6 +309,30 @@ let testSearchFindsNestedHelpersFromParentModule (): TestResult =
       $"Expected `AltJson.get` to find nested AltJson helpers, got: {output}"
 
 
+let testBatchSearchKeepsQueriesIndependent (): TestResult =
+  let output =
+    runWithCommand
+      [ "search"
+        "--batch"
+        "string toList"
+        "json parse"
+        "list map"
+        "--fn" ]
+
+  if
+    Stdlib.String.contains output "Search results for: string toList"
+    && Stdlib.String.contains output "Darklang.Stdlib.String.toList"
+    && Stdlib.String.contains output "Search results for: json parse"
+    && Stdlib.String.contains output "Darklang.Stdlib.Json.parse"
+    && Stdlib.String.contains output "Search results for: list map"
+    && Stdlib.String.contains output "Darklang.Stdlib.List.map"
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      $"Expected three independent batch search results, got: {output}"
+
+
 let testListTypes (): TestResult =
   let output = runWithCommand ["ls"; "Stdlib.Option"]
   if Stdlib.String.contains output "Types" &&

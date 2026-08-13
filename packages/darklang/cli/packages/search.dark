@@ -3,6 +3,9 @@ module Darklang.Cli.Packages.Search
 // Max results rendered per entity type.
 val displayCap = 20
 
+// Batch mode caps each entity section at three results.
+val batchDisplayCap = 3
+
 
 // Operator symbols aren't function names, so a literal search for one finds
 // nothing useful. Map each to the keyword that surfaces its named operation —
@@ -158,6 +161,7 @@ let contextFor
 let renderSection
   (header: String)
   (query: String)
+  (cap: Int)
   (items: List<LanguageTools.ProgramTypes.LocatedItem<'a>>)
   (renderItem: LanguageTools.ProgramTypes.LocatedItem<'a> -> String)
   : Unit =
@@ -169,7 +173,7 @@ let renderSection
       items
       |> Stdlib.List.sortBy (fun i ->
         sortKey query i.location.owner i.location.modules i.location.name)
-    let shown = Stdlib.List.take sorted displayCap
+    let shown = Stdlib.List.take sorted cap
     shown |> Stdlib.List.iter (fun item -> Stdlib.printLine (renderItem item))
     overflowNote (Stdlib.List.length sorted) (Stdlib.List.length shown)
     Stdlib.printLine ""
@@ -178,6 +182,7 @@ let renderSection
 type ParsedArgs =
   { queryParts: List<String>
     entityTypes: List<LanguageTools.ProgramTypes.Search.EntityType>
+    batch: Bool
     exactMatch: Bool
     withDocs: Bool
     shallow: Bool
@@ -193,6 +198,7 @@ val argSpec =
         [ ("--type", [])
           ("--fn", [ "--function" ])
           ("--val", [ "--value" ])
+          ("--batch", [])
           ("--exact", [])
           ("--shallow", [])
           ("--with-docs", [])
@@ -222,6 +228,7 @@ let parseArgs (args: List<String>) : ParsedArgs =
   ParsedArgs
     { queryParts = p.positionals
       entityTypes = entityTypes
+      batch = FlagParser.hasFlag p "--batch"
       exactMatch = FlagParser.hasFlag p "--exact"
       withDocs = FlagParser.hasFlag p "--with-docs"
       shallow = FlagParser.hasFlag p "--shallow"
@@ -230,10 +237,12 @@ let parseArgs (args: List<String>) : ParsedArgs =
 
 
 val usage =
-  "Usage: search <query> [--type] [--fn] [--val] [--exact] [--shallow] [--with-docs] [--include-deprecated]"
+  "Usage: search <query> [--batch] [--type] [--fn] [--val] [--exact] [--shallow] [--with-docs] [--include-deprecated]"
 
 
-let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+// Execute one query. `execute` below fans batch arguments out through this
+// function so ranking, filtering, and rendering stay identical in both modes.
+let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [] ->
     // Enter interactive search mode (nav with search enabled)
@@ -316,6 +325,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           Stdlib.printLine ""
 
           // Key format: match rank followed by the fixed section order.
+          let resultCap = if parsed.batch then batchDisplayCap else displayCap
+
           let moduleRank =
             if Stdlib.List.isEmpty parsed.entityTypes then
               bestModuleRank queryText results.submodules
@@ -340,18 +351,18 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           |> Stdlib.List.iter (fun tag ->
             match tag with
             | "function" ->
-              renderSection "function" queryText results.fns (fun item ->
+              renderSection "function" queryText resultCap results.fns (fun item ->
                 let mark = Query.deprecationMarker depSets item.entity.hash
                 let ctx = contextFor state.currentBranchId item
                 let sigBody = Signatures.formatFn ctx item.entity
                 let line = $"{fullPathOf item} {Colors.dimText sigBody}{mark}"
                 withOptionalDoc parsed.withDocs line item.entity.description)
             | "value" ->
-              renderSection "value" queryText results.values (fun item ->
+              renderSection "value" queryText resultCap results.values (fun item ->
                 let mark = Query.deprecationMarker depSets item.entity.hash
                 withOptionalDoc parsed.withDocs $"{fullPathOf item}{mark}" item.entity.description)
             | "type" ->
-              renderSection "type" queryText results.types (fun item ->
+              renderSection "type" queryText resultCap results.types (fun item ->
                 let mark = Query.deprecationMarker depSets item.entity.hash
                 let ctx = contextFor state.currentBranchId item
                 let defn = Signatures.formatType ctx (fullPathOf item) item.entity
@@ -366,7 +377,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                     let owner = Stdlib.Option.withDefault (Stdlib.List.head modulePath) ""
                     let mods = Stdlib.Option.withDefault (Stdlib.List.tail modulePath) []
                     sortKey queryText owner mods modName)
-                let shownMods = Stdlib.List.take sortedMods displayCap
+                let shownMods = Stdlib.List.take sortedMods resultCap
                 shownMods
                 |> Stdlib.List.iter (fun modulePath ->
                   let moduleStr = Stdlib.String.join modulePath "."
@@ -378,12 +389,49 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             | _ -> ())
 
           // show hint about --with-docs if results have descriptions but weren't shown
-          if Stdlib.Bool.not parsed.withDocs then
+          if (Stdlib.Bool.not parsed.withDocs) && (Stdlib.Bool.not parsed.batch) then
             Stdlib.printLine (Colors.hint "  (add --with-docs to show doc comments)")
           else
             ()
 
         state
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  match args with
+  | [] -> executeQuery state args
+  | _ ->
+    let parsed = parseArgs args
+    if
+      (Stdlib.Bool.not parsed.batch)
+      || (Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors))
+    then
+      executeQuery state args
+    else if Stdlib.List.isEmpty parsed.queryParts then
+      Stdlib.printLine (Colors.error "Error: Batch search requires at least one query")
+      Stdlib.printLine ""
+      Stdlib.printLine usage
+      state
+    else
+      // FlagParser has no value-taking flags in this command, so retaining the
+      // original flag arguments is sufficient to give every query the same
+      // filters. Each positional remains one query even when it contains spaces.
+      let flags =
+        args
+        |> Stdlib.List.filter (fun arg -> Stdlib.String.startsWith arg "--")
+
+      parsed.queryParts
+      |> Stdlib.List.iter (fun query ->
+        let queryArgs = Stdlib.List.push flags query
+        let _ = executeQuery state queryArgs
+        ())
+
+      if Stdlib.Bool.not parsed.withDocs then
+        Stdlib.printLine (Colors.hint "  (add --with-docs to show doc comments)")
+      else
+        ()
+
+      state
 
 
 let help (state: Cli.AppState) : Cli.AppState =
@@ -396,6 +444,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "With query: Execute search and display results"
     ""
     "Options:"
+    "  --batch                Treat each quoted query as an independent search (3 results each)"
     "  --type                 Search only types"
     "  --fn                   Search only functions"
     "  --val                  Search only values"
@@ -410,6 +459,8 @@ let help (state: Cli.AppState) : Cli.AppState =
     "  search List --shallow       # Find all entities matching 'List' (direct descendants only)"
     "  search map --fn             # Find functions matching 'map' (with param names)"
     "  search map --fn --with-docs # ...and doc comments too"
+    "  search --batch \"List.map\" \"Json.serialize\" \"String.slice\" --fn"
+    "                              # Run several searches in one command"
     "  search String --type        # Find types matching 'String'"
     "  search parseJson --exact    # Find exact match for 'parseJson'"
     "  search Http --fn --val      # Find functions and values matching 'Http'"
@@ -428,7 +479,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
   match Stdlib.List.last args with
   | Some lastArg ->
     if Stdlib.String.startsWith lastArg "--" then
-      ["--type"; "--fn"; "--val"; "--exact"; "--shallow"; "--with-docs"; "--include-deprecated"]
+      ["--batch"; "--type"; "--fn"; "--val"; "--exact"; "--shallow"; "--with-docs"; "--include-deprecated"]
       |> Stdlib.List.filter (fun flag -> Stdlib.String.startsWith flag lastArg)
       |> Stdlib.List.map Cli.Completion.simple
     else
