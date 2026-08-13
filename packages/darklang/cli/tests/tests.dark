@@ -333,6 +333,43 @@ let testBatchSearchKeepsQueriesIndependent (): TestResult =
       $"Expected three independent batch search results, got: {output}"
 
 
+let testUnresolvedNameGuidance (): TestResult =
+  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let branchName = "cli-name-guidance-test-" ++ suffix
+  let moduleName = "Tests.CliNameGuidance"
+  let _ = runWithCommand ["branch"; "create"; branchName]
+  let stdlibOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "fn"
+        "/" ++ moduleName ++ ".negate"
+        "(value: Bool) : Bool = Bool.not value" ]
+  let internalSource =
+    ("(values: List<Int>) : List<Int> = "
+     ++ "PACKAGE.Darklang.Stdlib.List.map values (fun value -> value)")
+  let packageOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "fn"
+        "/" ++ moduleName ++ ".map"
+        internalSource ]
+  let _ = runWithCommand ["branch"; "archive"; branchName]
+
+  if
+    Stdlib.String.contains stdlibOutput "Did you mean `Stdlib.Bool.not`?"
+    && Stdlib.String.contains packageOutput "`PACKAGE.` is internal notation"
+    && Stdlib.String.contains packageOutput "write `Stdlib.List.map`"
+    && Stdlib.Bool.not (Stdlib.String.contains packageOutput "Created function")
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      ($"Expected source-name guidance; stdlib={stdlibOutput}; "
+       ++ $"PACKAGE={packageOutput}")
+
+
 let testListTypes (): TestResult =
   let output = runWithCommand ["ls"; "Stdlib.Option"]
   if Stdlib.String.contains output "Types" &&

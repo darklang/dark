@@ -202,7 +202,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             let ops = Builtin.pmStabilizeHashes ops
             let updates = updatedItems branchId ops
 
-            if Errors.reportUnresolvedNames unresolvedNames then
+            if Errors.reportUnresolvedNames branchId unresolvedNames then
               state
             else
               match SCM.PackageOps.add branchId ops with

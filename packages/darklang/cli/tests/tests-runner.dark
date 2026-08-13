@@ -40,6 +40,8 @@ let allTests (): List<String * TestFunction> =
       fun () -> testSearchFindsNestedHelpersFromParentModule () )
     ( "Batch Search Keeps Queries Independent",
       fun () -> testBatchSearchKeepsQueriesIndependent () )
+    ( "Unresolved Name Guidance",
+      fun () -> testUnresolvedNameGuidance () )
     ("List Types", fun () -> testListTypes ())
 
     ("Help for Run", fun () -> testHelpForRun ())

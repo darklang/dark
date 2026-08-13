@@ -147,6 +147,11 @@ let resolveGenericName
               |> Stdlib.List.all (fun c ->
                 (Stdlib.Char.isASCIILetter c) || (Stdlib.Char.isDigit c)))
 
+      let usesInternalPackagePrefix =
+        match given with
+        | "PACKAGE" :: _ -> true
+        | _ -> false
+
       let genericName =
         GenericName { modules = modules; name = name; version = version }
 
@@ -154,7 +159,7 @@ let resolveGenericName
       // find a successful candidate we keep it; further candidates
       // are skipped. An invalid written name skips the search entirely.
       let (resolved, location) =
-        if Stdlib.Bool.not isValidName then
+        if usesInternalPackagePrefix || (Stdlib.Bool.not isValidName) then
           (Stdlib.Result.Result.Error ProgramTypes.NameResolutionError.InvalidName,
            Stdlib.Option.Option.None)
         else

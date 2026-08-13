@@ -319,7 +319,12 @@ let tests =
             ("bare-some", [ "M" ], [], [], "Some 5")
             ("bare-none", [ "M" ], [], [], "None")
             ("bare-ok", [ "M" ], [], [], "Ok 5")
-            ("bare-error", [ "M" ], [], [], "Error \"no\"") ]
+            ("bare-error", [ "M" ], [], [], "Error \"no\"")
+            ("internal-package-prefix",
+             [ "M" ],
+             [],
+             [],
+             "PACKAGE.Darklang.Stdlib.List.map") ]
         let mismatches = ResizeArray<string>()
         for (label, cmod, cfn, prms, snip) in cases do
           let ctx : WT2PT.Context =
