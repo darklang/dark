@@ -35,7 +35,7 @@ let renderModal (component: Core.Types.Component<ModalModel>) (context: Core.Typ
     let backdropWidth = 60
     let backdropHeight = 20
     let backdrop =
-      Stdlib.List.repeat backdropHeight (Core.Rendering.dim (Stdlib.String.repeat "░" backdropWidth))
+      Stdlib.List.repeatUnsafe backdropHeight (Core.Rendering.dim (Stdlib.String.repeat "░" backdropWidth))
 
     // Calculate modal position (centered)
     let modalX = Stdlib.Int.divide (backdropWidth - model.width) 2
@@ -64,7 +64,7 @@ let renderModal (component: Core.Types.Component<ModalModel>) (context: Core.Typ
     let remainingHeight = (model.height - 4) - Stdlib.List.length contentLines
     let fillerLines =
       if remainingHeight > 0 then
-        Stdlib.List.repeat remainingHeight ("║" ++ Stdlib.String.repeat " " (model.width - 2) ++ "║")
+        Stdlib.List.repeatUnsafe remainingHeight ("║" ++ Stdlib.String.repeat " " (model.width - 2) ++ "║")
       else
         []
 

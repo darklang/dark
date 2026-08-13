@@ -26,81 +26,78 @@ let installOrUpdateLatestRelease
 
   let assetName = (basename downloadUrl) |> Builtin.unwrap
 
-  match host.os with
-  | Windows ->
-    let darklangHomeDir = Config.getDarklangHomeDir host
+  if Stdlib.Bool.not (Stdlib.String.endsWith assetName ".gz") then
+    Stdlib.Result.Result.Error
+      $"Expected a .gz release asset, got: {assetName}"
+  else
+    // the executable's name: the asset name minus its `.gz` suffix
+    let extractedName = Stdlib.String.dropLast assetName 3
 
-    let executableDir = $"{darklangHomeDir}\\bin\\"
-    let configPath = $"{darklangHomeDir}\\config.json"
+    match host.os with
+    | Windows ->
+      let darklangHomeDir = Config.getDarklangHomeDir host
 
-    let ensureDirectoryExists =
-      Stdlib.Cli.PowerShell.ensureDirectoryExists executableDir
+      let executableDir = $"{darklangHomeDir}\\bin\\"
+      let configPath = $"{darklangHomeDir}\\config.json"
 
-    let downloadTo = $"{executableDir}{assetName}"
+      let ensureDirectoryExists =
+        Stdlib.Cli.PowerShell.ensureDirectoryExists executableDir
 
-    let downloadFileToPath =
-      Stdlib.Cli.Curl.downloadFileToPath downloadUrl downloadTo
+      let downloadTo = $"{executableDir}{assetName}"
 
-    let extractedExecutablePath =
-      if Stdlib.String.endsWith assetName ".gz" then
-        $"{executableDir}{assetName |> Stdlib.String.dropLast 3}"
-      else
-        // TODO: error here better
-        Stdlib.Result.Result.Error "Asset is not a .gz file"
+      let downloadFileToPath =
+        Stdlib.Cli.Curl.downloadFileToPath downloadUrl downloadTo
 
-    (Stdlib.Cli.PowerShell.Gzip.unzipToFile
-      downloadTo
-      extractedExecutablePath)
-    |> Builtin.unwrap
+      let extractedExecutablePath = $"{executableDir}{extractedName}"
 
-    (Stdlib.Cli.PowerShell.createFile configPath) |> Builtin.unwrap
+      (Stdlib.Cli.PowerShell.Gzip.unzipToFile
+        downloadTo
+        extractedExecutablePath)
+      |> Builtin.unwrap
 
-    (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
+      (Stdlib.Cli.PowerShell.createFile configPath) |> Builtin.unwrap
 
-    (Stdlib.Cli.PowerShell.removeFile downloadTo) |> Builtin.unwrap
+      (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
 
-    (Stdlib.Cli.PowerShell.grantExecutePermission extractedExecutablePath)
-    |> Builtin.unwrap
+      (Stdlib.Cli.PowerShell.removeFile downloadTo) |> Builtin.unwrap
 
-    // Add bin directory to PATH (works in non-interactive processes)
-    (Stdlib.Cli.PowerShell.addToPath executableDir)
-    |> Builtin.unwrap
+      (Stdlib.Cli.PowerShell.grantExecutePermission extractedExecutablePath)
+      |> Builtin.unwrap
 
-    Stdlib.Result.Result.Ok()
+      // Add bin directory to PATH (works in non-interactive processes)
+      (Stdlib.Cli.PowerShell.addToPath executableDir)
+      |> Builtin.unwrap
 
-  | Linux | MacOS ->
-    let configPath = "$HOME/.darklang/config.json"
-    let executableDir = "$HOME/.darklang/bin/"
+      Stdlib.Result.Result.Ok()
 
-    (Stdlib.Cli.Unix.ensureDirectoryExists executableDir) |> Builtin.unwrap
+    | Linux | MacOS ->
+      let configPath = "$HOME/.darklang/config.json"
+      let executableDir = "$HOME/.darklang/bin/"
 
-    let downloadTo = $"{executableDir}{assetName}"
+      (Stdlib.Cli.Unix.ensureDirectoryExists executableDir) |> Builtin.unwrap
 
-    (Stdlib.Cli.Curl.downloadFileToPath downloadUrl downloadTo)
-    |> Builtin.unwrap
+      let downloadTo = $"{executableDir}{assetName}"
 
-    // unzip the .gz file
-    let extractedExecutablePath =
-      if Stdlib.String.endsWith assetName ".gz" then
-        $"{executableDir}{assetName |> Stdlib.String.dropLast 3}"
-      else
-        // TODO: error here better
-        Stdlib.Result.Result.Error "Asset is not a .gz file"
+      (Stdlib.Cli.Curl.downloadFileToPath downloadUrl downloadTo)
+      |> Builtin.unwrap
 
-    (Stdlib.Cli.Gunzip.unzipToFile downloadTo extractedExecutablePath)
-    |> Builtin.unwrap
+      // unzip the .gz file
+      let extractedExecutablePath = $"{executableDir}{extractedName}"
 
-    (Stdlib.Cli.Unix.removeFile downloadTo) |> Builtin.unwrap
+      (Stdlib.Cli.Gunzip.unzipToFile downloadTo extractedExecutablePath)
+      |> Builtin.unwrap
 
-    (Stdlib.Cli.Unix.grantExecutePermission extractedExecutablePath)
-    |> Builtin.unwrap
+      (Stdlib.Cli.Unix.removeFile downloadTo) |> Builtin.unwrap
 
-    (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
+      (Stdlib.Cli.Unix.grantExecutePermission extractedExecutablePath)
+      |> Builtin.unwrap
 
-    // Add bin directory to PATH (works in non-interactive shells like VS Code)
-    (Stdlib.Cli.Unix.addToPath host.defaultShell executableDir)
-    |> Builtin.unwrap
+      (Config.updateVersion configPath latestReleaseTag) |> Builtin.unwrap
 
-    Stdlib.Result.Result.Ok()
+      // Add bin directory to PATH (works in non-interactive shells like VS Code)
+      (Stdlib.Cli.Unix.addToPath host.defaultShell executableDir)
+      |> Builtin.unwrap
 
-  | _ -> Stdlib.Result.Result.Error "Unsupported OS"
+      Stdlib.Result.Result.Ok()
+
+    | _ -> Stdlib.Result.Result.Error "Unsupported OS"
