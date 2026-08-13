@@ -41,6 +41,12 @@ let locationPlaceholderHash
   ProgramTypes.Hash.Hash $"{owner}.{modulesPart}.{name}"
 
 
+let stabilizePackageOps
+  (ops: List<ProgramTypes.PackageOp>)
+  : List<ProgramTypes.PackageOp> =
+  Builtin.pmStabilizeHashes ops
+
+
 // Option and Result constructors can be bare. Other enum constructors require
 // `Type.Case` until expected-type inference is supported.
 let optionOrResultTypeName

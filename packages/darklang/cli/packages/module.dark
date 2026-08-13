@@ -199,7 +199,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
             // Resolve the placeholders as one graph so mutually recursive
             // declarations receive consistent content-addressed hashes.
-            let ops = Builtin.pmStabilizeHashes ops
+            let ops =
+              LanguageTools.WrittenTypesToProgramTypes.stabilizePackageOps
+                ops
             let updates = updatedItems branchId ops
 
             if Errors.reportUnresolvedNames branchId unresolvedNames then

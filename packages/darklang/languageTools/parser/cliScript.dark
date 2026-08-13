@@ -247,7 +247,9 @@ let parseFromWT
         toPT { ctx with onMissing = NameResolver.OnMissing.Allow } moduleWT
 
       // Stabilize first-pass ops so PM has real content-addressed hashes
-      let firstPassOps = Builtin.pmStabilizeHashes firstPassOps
+      let firstPassOps =
+        LanguageTools.WrittenTypesToProgramTypes.stabilizePackageOps
+          firstPassOps
 
       // Create PM with stabilized first pass ops for second pass
       let pm = ProgramTypes.PackageManager.withExtraOps ctx.pm firstPassOps
