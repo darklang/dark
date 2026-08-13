@@ -15,6 +15,9 @@ let allTests (): List<String * TestFunction> =
 
     ("Eval String Length", fun () -> testEvalStringLength ())
     ("Eval List Length", fun () -> testEvalListLength ())
+    ("Module Command", fun () -> testModuleCommand ())
+    ( "Module Rejects Duplicate Names",
+      fun () -> testModuleRejectsDuplicateNames () )
 
     ("View AST", fun () -> testViewAst ())
     ("View Instructions", fun () -> testViewInstructions ())

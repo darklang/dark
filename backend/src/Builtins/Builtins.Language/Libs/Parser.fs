@@ -14,6 +14,7 @@ module NR = LibExecution.RuntimeTypes.NameResolution
 module Tok = LibParser.Tokenizer
 module Lex = LibParser.Lexer
 module P = LibParser.Parser
+module Validation = LibParser.Validation
 module WT = LibParser.WrittenTypes
 module WTRefs = LibExecution.PackageRefs.Type.LanguageTools.WrittenTypes
 module WT2PT = LibParser.WrittenTypesToProgramTypes
@@ -1288,6 +1289,36 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DString sourceCode |] ->
           Ply(
             WrittenTypesToDarkTypes.diagnosticsToDT (P.parse sourceCode).diagnostics
+          )
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+    { name = fn "parserParsePackageDiagnostics" 0
+      typeParams = []
+      parameters = [ Param.make "sourceCode" TString "" ]
+      returnType =
+        TList(
+          TTuple(
+            TCustomType(NR.ok (FQTypeName.fqPackage (PackageRefs.range ())), []),
+            TString,
+            []
+          )
+        )
+      description =
+        "Package-source diagnostics using declaration semantics at the file root."
+      fn =
+        (function
+        | _, _, _, [| DString sourceCode |] ->
+          let diagnostics =
+            match P.parseFor Validation.Package sourceCode with
+            | Ok _ -> []
+            | Error diagnostics -> diagnostics
+          Ply(
+            WrittenTypesToDarkTypes.diagnosticsToDT
+              diagnostics
           )
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

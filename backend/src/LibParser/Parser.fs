@@ -1770,7 +1770,9 @@ and parseInterpString (state : ParserState) (i : int) : WT.Expr * int =
                 |> List.map (fun (t : SpannedToken) ->
                   { t with range = offRange t.range })
                 |> List.toArray
-              let subResult = parseTokensAt (state.interpDepth + 1) offToks
+              // Interpolation contents are expressions even when the surrounding
+              // file is being parsed as package declarations.
+              let subResult = parseTokensAt (state.interpDepth + 1) false offToks
               // surface parse errors from inside the interpolation `{…}` (their
               // ranges are already offset to the outer source) rather than dropping them
               subResult.diagnostics |> List.iter state.diagnostics.Add
@@ -2909,7 +2911,8 @@ and isDbAttr (state : ParserState) (i : int) : bool =
 // that sequences with what follows).
 // Test assertions and `[<DB>]` declarations are represented in every parse.
 // Validation later decides whether Script, Package, or Test source may contain
-// them. This keeps file purpose out of expression parsing.
+// them. `insideModule` only distinguishes declaration-scope `let` from a
+// script binding.
 and parseItems
   (state : ParserState)
   (insideModule : bool)
@@ -3072,9 +3075,9 @@ and parseItemsBody
       if k = before then if tok state k = TEOF then go <- false else k <- k + 1
   (List.ofSeq decls, List.ofSeq exprs, k)
 
-and parseFile (state : ParserState) : ParseResult =
+and parseFile (rootIsDeclarationScope : bool) (state : ParserState) : ParseResult =
   validateLiterals state
-  let (topDecls, topExprs, _) = parseItems state false 0 0
+  let (topDecls, topExprs, _) = parseItems state rootIsDeclarationScope 0 0
   let fileRange =
     if state.tokenCount > 1 then
       span (rng state 0) (rng state (state.tokenCount - 2))
@@ -3086,7 +3089,11 @@ and parseFile (state : ParserState) : ParseResult =
 
 /// Parse a pre-tokenized stream. Part of the rec chain so string interpolation
 /// can recursively parse the (range-offset) sub-tokens of each `{expr}`.
-and parseTokensAt (interpDepth : int) (toks : SpannedToken[]) : ParseResult =
+and parseTokensAt
+  (interpDepth : int)
+  (rootIsDeclarationScope : bool)
+  (toks : SpannedToken[])
+  : ParseResult =
   let scopes = System.Collections.Generic.Stack<OffsideScope>()
   scopes.Push { stmtCol = -1; stmtExact = false }
   let state =
@@ -3102,11 +3109,14 @@ and parseTokensAt (interpDepth : int) (toks : SpannedToken[]) : ParseResult =
       abandoned = false
       steps = 0
       interpDepth = interpDepth }
-  parseFile state
+  parseFile rootIsDeclarationScope state
 
-and parseTokens (toks : SpannedToken[]) : ParseResult = parseTokensAt 0 toks
+and parseTokens (toks : SpannedToken[]) : ParseResult = parseTokensAt 0 false toks
 
-let private parseSyntax (source : string) : ParseResult =
+let private parseSyntaxWithRootScope
+  (rootIsDeclarationScope : bool)
+  (source : string)
+  : ParseResult =
   match tokenize source with
   | Error e ->
     { parsed = None
@@ -3121,7 +3131,11 @@ let private parseSyntax (source : string) : ParseResult =
   | Ok(toksList, lexDiags) ->
     // lexical-recovery diagnostics (malformed lexemes the tokenizer recovered from)
     // are surfaced alongside the parser's own diagnostics.
-    let result = parseTokens (List.toArray toksList)
+    let result =
+      if rootIsDeclarationScope then
+        parseTokensAt 0 true (List.toArray toksList)
+      else
+        parseTokens (List.toArray toksList)
     let lexDiagnostics =
       lexDiags
       |> List.map (fun (r, m) ->
@@ -3136,7 +3150,7 @@ let private parseSyntax (source : string) : ParseResult =
 /// Parse for tooling: return a recoverable tree and include mode-independent
 /// structural diagnostics after a clean syntax pass.
 let parse (source : string) : ParseResult =
-  let result = parseSyntax source
+  let result = parseSyntaxWithRootScope false source
   let syntaxDiagnostics = result.diagnostics
   // Tree-wide rules have one implementation in Validation. Run them only
   // after a clean syntax pass so recovery holes do not create cascaded errors.
@@ -3155,7 +3169,7 @@ let parseFor
   (mode : Validation.Mode)
   (source : string)
   : Result<Validation.ValidatedSourceFile, List<Diagnostic>> =
-  let result = parseSyntax source
+  let result = parseSyntaxWithRootScope (mode = Validation.Package) source
   match result.diagnostics, result.parsed with
   | [], Some(WT.SourceFile sourceFile) ->
     match Validation.validate mode sourceFile with

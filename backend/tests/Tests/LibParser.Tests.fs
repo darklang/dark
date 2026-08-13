@@ -304,6 +304,20 @@ let private parserStructureTests =
             "migration hint"
         | other -> failtest $"expected one diagnostic, got {other}")
 
+      testCase "package roots diagnose let values without an EOF cascade" (fun _ ->
+        let source =
+          "let chars = \"abc\"\n\nlet length (s: String) : Int = Stdlib.String.length s"
+        match P.parseFor Validation.Package source with
+        | Error [ diagnostic ] ->
+          Expect.equal
+            diagnostic.message
+            "Module value declarations must use 'val'; 'let' is reserved for functions and local bindings"
+            "focused package-value diagnostic"
+          Expect.isFalse
+            (diagnostic.message.Contains "end of file")
+            "the package-mode diagnostic identifies the root cause"
+        | other -> failtest $"expected one diagnostic, got {other}")
+
       testCase "val cannot declare a function" (fun _ ->
         let result = P.parse "val f (x: Int64) : Int64 = x"
         Expect.exists
