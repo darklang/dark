@@ -6,11 +6,12 @@ let content () : String =
 ## Define
   type Status = | Pending | Done of Int
 
-## Construct (need type prefix)
+## Construct
   Status.Pending
   Status.Done 42
-  Option.Some 5
-  Result.Ok "yes"
+  Some 5             # Option/Result constructors can be bare
+  Ok "yes"
+  MyType.Case value  # other enums need the type prefix
 
 ## Match (no type prefix)
   match status with
@@ -21,7 +22,8 @@ let content () : String =
   | Some v -> v
   | None -> default
 
-## Gotcha: Some with tuple
+## Gotcha: a tuple inside a constructor needs double parens
   match x with
-  | Some ((a, b)) -> ...    # double parens!
-  | None -> ..."""
+  | Some ((a, b)) -> ...    # one field containing a tuple
+  | None -> ...
+  # `Some (a, b)` is read as two fields and rejected."""

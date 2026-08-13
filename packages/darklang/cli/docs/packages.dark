@@ -24,6 +24,10 @@ let content () : String =
   Stdlib.List.map list fn
   Stdlib.Json.parse<T> str
 
+`PACKAGE.` is internal runtime/debug notation and is never valid in Dark source
+or search queries. Write `Stdlib.List.map` (preferred) or the full source name
+`Darklang.Stdlib.List.map`, never `PACKAGE.Darklang.Stdlib.List.map`.
+
 ## Files
   packages/<owner>/<module>/<file>.dark
 

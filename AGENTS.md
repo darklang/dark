@@ -210,6 +210,10 @@ hash not found". After adding a ref:
 and `Darklang.SCM.Branch.mainBranchId` resolve; `SCM.Branch.mainBranchId` doesn't. Impl:
 `backend/src/LibParser/NameResolver.fs` and `packages/darklang/languageTools/nameResolver.dark`.
 
+**No `PACKAGE.` source prefix.** `PACKAGE.` is internal runtime/debug notation, not a
+Dark namespace. Write `Stdlib.List.map` or `Darklang.Stdlib.List.map`, never
+`PACKAGE.Darklang.Stdlib.List.map`; the same rule applies to search queries.
+
 **Enum construction across modules.** Name the DU type, not just the module:
 `ProgramTypes.Reference.PackageFn hash` works, `ProgramTypes.PackageFn hash` doesn't. In a
 match arm the bare case is fine, since the matched value's type resolves it.
