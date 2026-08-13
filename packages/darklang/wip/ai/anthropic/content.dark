@@ -124,15 +124,15 @@ module CallerType =
   let parse (json: Stdlib.AltJson.Json) : Stdlib.Option.Option<CallerType> =
     match json with
     | Object fields ->
-      let typeStr = JsonHelpers.getString "type" fields
+      let typeStr = Stdlib.AltJson.Helpers.getString "type" fields
       match typeStr with
       | Some "direct" -> Stdlib.Option.Option.Some CallerType.Direct
       | Some "code_execution_20250825" ->
-        match JsonHelpers.getString "tool_id" fields with
+        match Stdlib.AltJson.Helpers.getString "tool_id" fields with
         | Some toolId -> Stdlib.Option.Option.Some(CallerType.CodeExecution20250825 toolId)
         | None -> Stdlib.Option.Option.None
       | Some "code_execution_20260120" ->
-        match JsonHelpers.getString "tool_id" fields with
+        match Stdlib.AltJson.Helpers.getString "tool_id" fields with
         | Some toolId -> Stdlib.Option.Option.Some(CallerType.CodeExecution20260120 toolId)
         | None -> Stdlib.Option.Option.None
       | _ -> Stdlib.Option.Option.None
@@ -460,8 +460,8 @@ module Citation =
   let parse (json: Json) : Stdlib.Option.Option<Citation> =
     match json with
     | Object fields ->
-      let typeStr = JsonHelpers.getString "type" fields
-      let citedText = JsonHelpers.getString "cited_text" fields
+      let typeStr = Stdlib.AltJson.Helpers.getString "type" fields
+      let citedText = Stdlib.AltJson.Helpers.getString "cited_text" fields
 
       match (typeStr, citedText) with
       | (Some t, Some text) ->
@@ -471,20 +471,20 @@ module Citation =
             Citation
               { ``type`` = citationType
                 cited_text = text
-                document_index = JsonHelpers.getIntOption "document_index" fields
-                document_title = JsonHelpers.getString "document_title" fields
-                start_char_index = JsonHelpers.getIntOption "start_char_index" fields
-                end_char_index = JsonHelpers.getIntOption "end_char_index" fields
-                start_page_number = JsonHelpers.getIntOption "start_page_number" fields
-                end_page_number = JsonHelpers.getIntOption "end_page_number" fields
-                start_block_index = JsonHelpers.getIntOption "start_block_index" fields
-                end_block_index = JsonHelpers.getIntOption "end_block_index" fields
-                encrypted_index = JsonHelpers.getString "encrypted_index" fields
-                url = JsonHelpers.getString "url" fields
-                title = JsonHelpers.getString "title" fields
-                search_result_index = JsonHelpers.getIntOption "search_result_index" fields
-                source = JsonHelpers.getString "source" fields
-                file_id = JsonHelpers.getString "file_id" fields })
+                document_index = Stdlib.AltJson.Helpers.getIntOption "document_index" fields
+                document_title = Stdlib.AltJson.Helpers.getString "document_title" fields
+                start_char_index = Stdlib.AltJson.Helpers.getIntOption "start_char_index" fields
+                end_char_index = Stdlib.AltJson.Helpers.getIntOption "end_char_index" fields
+                start_page_number = Stdlib.AltJson.Helpers.getIntOption "start_page_number" fields
+                end_page_number = Stdlib.AltJson.Helpers.getIntOption "end_page_number" fields
+                start_block_index = Stdlib.AltJson.Helpers.getIntOption "start_block_index" fields
+                end_block_index = Stdlib.AltJson.Helpers.getIntOption "end_block_index" fields
+                encrypted_index = Stdlib.AltJson.Helpers.getString "encrypted_index" fields
+                url = Stdlib.AltJson.Helpers.getString "url" fields
+                title = Stdlib.AltJson.Helpers.getString "title" fields
+                search_result_index = Stdlib.AltJson.Helpers.getIntOption "search_result_index" fields
+                source = Stdlib.AltJson.Helpers.getString "source" fields
+                file_id = Stdlib.AltJson.Helpers.getString "file_id" fields })
         | None -> Stdlib.Option.Option.None
       | _ -> Stdlib.Option.Option.None
     | _ -> Stdlib.Option.Option.None

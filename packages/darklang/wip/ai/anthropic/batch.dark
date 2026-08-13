@@ -162,16 +162,16 @@ type BatchListResponse =
 
 let parseRequestCounts (fields: List<(String * Json)>) : BatchRequestCounts =
   BatchRequestCounts
-    { processing = JsonHelpers.getInt "processing" fields
-      succeeded = JsonHelpers.getInt "succeeded" fields
-      errored = JsonHelpers.getInt "errored" fields
-      canceled = JsonHelpers.getInt "canceled" fields
-      expired = JsonHelpers.getInt "expired" fields }
+    { processing = Stdlib.AltJson.Helpers.getInt "processing" fields
+      succeeded = Stdlib.AltJson.Helpers.getInt "succeeded" fields
+      errored = Stdlib.AltJson.Helpers.getInt "errored" fields
+      canceled = Stdlib.AltJson.Helpers.getInt "canceled" fields
+      expired = Stdlib.AltJson.Helpers.getInt "expired" fields }
 
 let parseMessageBatch (json: Json) : Stdlib.Result.Result<MessageBatch, String> =
   match json with
   | Object fields ->
-    let statusStr = JsonHelpers.getString "processing_status" fields
+    let statusStr = Stdlib.AltJson.Helpers.getString "processing_status" fields
     let status =
       match statusStr with
       | Some s ->
@@ -180,31 +180,31 @@ let parseMessageBatch (json: Json) : Stdlib.Result.Result<MessageBatch, String> 
         | None -> BatchProcessingStatus.InProgress
       | None -> BatchProcessingStatus.InProgress
 
-    let requestCountsFields = JsonHelpers.getObject "request_counts" fields
+    let requestCountsFields = Stdlib.AltJson.Helpers.getObject "request_counts" fields
 
     Stdlib.Result.Result.Ok(
       MessageBatch
         { id =
-            match JsonHelpers.getString "id" fields with
+            match Stdlib.AltJson.Helpers.getString "id" fields with
             | Some s -> s
             | None -> ""
           ``type`` =
-            match JsonHelpers.getString "type" fields with
+            match Stdlib.AltJson.Helpers.getString "type" fields with
             | Some s -> s
             | None -> "message_batch"
           processing_status = status
           request_counts = parseRequestCounts requestCountsFields
-          ended_at = JsonHelpers.getString "ended_at" fields
+          ended_at = Stdlib.AltJson.Helpers.getString "ended_at" fields
           created_at =
-            match JsonHelpers.getString "created_at" fields with
+            match Stdlib.AltJson.Helpers.getString "created_at" fields with
             | Some s -> s
             | None -> ""
           expires_at =
-            match JsonHelpers.getString "expires_at" fields with
+            match Stdlib.AltJson.Helpers.getString "expires_at" fields with
             | Some s -> s
             | None -> ""
-          cancel_initiated_at = JsonHelpers.getString "cancel_initiated_at" fields
-          results_url = JsonHelpers.getString "results_url" fields }
+          cancel_initiated_at = Stdlib.AltJson.Helpers.getString "cancel_initiated_at" fields
+          results_url = Stdlib.AltJson.Helpers.getString "results_url" fields }
     )
   | _ -> Stdlib.Result.Result.Error "Invalid batch response format"
 
@@ -213,7 +213,7 @@ let parseBatchListResponse
   : Stdlib.Result.Result<BatchListResponse, String> =
   match json with
   | Object fields ->
-    let dataArray = JsonHelpers.getArray "data" fields
+    let dataArray = Stdlib.AltJson.Helpers.getArray "data" fields
     let batches =
       Stdlib.List.filterMap dataArray (fun item ->
         match parseMessageBatch item with
@@ -223,20 +223,20 @@ let parseBatchListResponse
     Stdlib.Result.Result.Ok(
       BatchListResponse
         { data = batches
-          has_more = (JsonHelpers.getBool "has_more" fields) |> Stdlib.Option.withDefault false
-          first_id = JsonHelpers.getString "first_id" fields
-          last_id = JsonHelpers.getString "last_id" fields }
+          has_more = (Stdlib.AltJson.Helpers.getBool "has_more" fields) |> Stdlib.Option.withDefault false
+          first_id = Stdlib.AltJson.Helpers.getString "first_id" fields
+          last_id = Stdlib.AltJson.Helpers.getString "last_id" fields }
     )
   | _ -> Stdlib.Result.Result.Error "Invalid batch list response format"
 
 let parseBatchError (fields: List<(String * Json)>) : BatchError =
   BatchError
     { ``type`` =
-        match JsonHelpers.getString "type" fields with
+        match Stdlib.AltJson.Helpers.getString "type" fields with
         | Some s -> s
         | None -> "unknown"
       message =
-        match JsonHelpers.getString "message" fields with
+        match Stdlib.AltJson.Helpers.getString "message" fields with
         | Some s -> s
         | None -> "" }
 
@@ -246,23 +246,23 @@ let parseBatchIndividualResponse
   match json with
   | Object fields ->
     let customId =
-      match JsonHelpers.getString "custom_id" fields with
+      match Stdlib.AltJson.Helpers.getString "custom_id" fields with
       | Some s -> s
       | None -> ""
 
-    let resultFields = JsonHelpers.getObject "result" fields
-    let resultType = JsonHelpers.getString "type" resultFields
+    let resultFields = Stdlib.AltJson.Helpers.getObject "result" fields
+    let resultType = Stdlib.AltJson.Helpers.getString "type" resultFields
 
     let resultContent =
       match resultType with
       | Some "succeeded" ->
         // Parse the message field
-        let messageFields = JsonHelpers.getObject "message" resultFields
+        let messageFields = Stdlib.AltJson.Helpers.getObject "message" resultFields
         match Chat.parseResponse (Json.Object messageFields) with
         | Ok response -> BatchResultContent.Succeeded response
         | Error _ -> BatchResultContent.Errored(BatchError { ``type`` = "parse_error"; message = "Failed to parse message" })
       | Some "errored" ->
-        let errorFields = JsonHelpers.getObject "error" resultFields
+        let errorFields = Stdlib.AltJson.Helpers.getObject "error" resultFields
         BatchResultContent.Errored(parseBatchError errorFields)
       | Some "canceled" -> BatchResultContent.Canceled
       | Some "expired" -> BatchResultContent.Expired
