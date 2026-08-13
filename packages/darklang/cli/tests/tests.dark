@@ -281,6 +281,34 @@ let testViewFunction (): TestResult =
     TestResult.Fail "Expected function signature for List.head"
 
 
+let testSearchMatchesModuleAndCamelCaseName (): TestResult =
+  let output = runWithCommand ["search"; "string toList"; "--fn"]
+  if Stdlib.String.contains output "Darklang.Stdlib.String.toList" then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      $"Expected `string toList` to find Stdlib.String.toList, got: {output}"
+
+
+let testSearchMatchesModuleAndOperationName (): TestResult =
+  let output = runWithCommand ["search"; "json parse"; "--fn"]
+  if Stdlib.String.contains output "Darklang.Stdlib.Json.parse" then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      $"Expected `json parse` to find Stdlib.Json.parse, got: {output}"
+
+
+let testSearchFindsNestedHelpersFromParentModule (): TestResult =
+  let output = runWithCommand ["search"; "AltJson.get"; "--fn"]
+
+  if Stdlib.String.contains output "Darklang.Stdlib.AltJson.Helpers.getInt" then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      $"Expected `AltJson.get` to find nested AltJson helpers, got: {output}"
+
+
 let testListTypes (): TestResult =
   let output = runWithCommand ["ls"; "Stdlib.Option"]
   if Stdlib.String.contains output "Types" &&

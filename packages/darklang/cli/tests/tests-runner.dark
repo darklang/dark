@@ -32,6 +32,12 @@ let allTests (): List<String * TestFunction> =
 
     ("List Functions", fun () -> testListFunctions ())
     ("View Function", fun () -> testViewFunction ())
+    ( "Search Module and CamelCase Name",
+      fun () -> testSearchMatchesModuleAndCamelCaseName () )
+    ( "Search Module and Operation Name",
+      fun () -> testSearchMatchesModuleAndOperationName () )
+    ( "Search Finds Nested Helpers",
+      fun () -> testSearchFindsNestedHelpersFromParentModule () )
     ("List Types", fun () -> testListTypes ())
 
     ("Help for Run", fun () -> testHelpForRun ())

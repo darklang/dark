@@ -240,10 +240,11 @@ let search
       let isQualified = query.text.Contains "."
 
       // Multi-token searches require every significant token to match either the
-      // item name or doc comment. Single unqualified queries of 3+ chars also search docs.
+      // qualified location or doc comment. Dotted queries use the same rule, so
+      // their tokens may match non-contiguous segments of a qualified location.
+      // Single unqualified queries of 3+ chars also search docs.
       let tokens = tokenizeQuery query.text
-      let useTokenSearch =
-        (not query.exactMatch) && (not isQualified) && (List.length tokens > 1)
+      let useTokenSearch = (not query.exactMatch) && (List.length tokens > 1)
 
       // Ignore short filler tokens in multi-token searches, unless every token is short.
       let matchTokens =
@@ -254,7 +255,12 @@ let search
         if useTokenSearch then
           matchTokens
           |> List.mapi (fun i _ ->
-            $"(l.name LIKE '%%' || @tok{i} || '%%' OR c.description LIKE '%%' || @tok{i} || '%%')")
+            // Match each token against the qualified location and docs. Restricting
+            // this to the item name would prevent module-path tokens from matching.
+            let qualifiedName = "(l.owner || '.' || l.modules || '.' || l.name)"
+
+            $"({qualifiedName} LIKE '%%' || @tok{i} || '%%' "
+            + $"OR c.description LIKE '%%' || @tok{i} || '%%')")
           |> String.concat " AND "
         elif query.exactMatch then
           if isQualified then

@@ -50,17 +50,37 @@ let isStdlib (owner: String) (modules: List<String>) : Bool =
   && (Stdlib.List.head modules == Stdlib.Option.Option.Some "Stdlib")
 
 
-// Sort key: match quality first, then Stdlib-first, then name. Both ranks are a
-// single digit, so plain string ordering under `sortBy` gives the right result.
+// For a qualified or multi-token query, the final token normally describes the
+// item while the preceding tokens describe its module path. Rank by that item
+// token; the database has already required every token to match the location or
+// documentation.
+let itemQuery (query: String) : String =
+  query
+    |> Stdlib.String.toLowercase
+    |> Stdlib.String.replaceAll "." " "
+    |> Stdlib.String.split " "
+    |> Stdlib.List.filter (fun token ->
+      Stdlib.Bool.not (Stdlib.String.isEmpty token))
+    |> Stdlib.List.last
+    |> Stdlib.Option.withDefault query
+
+
+// Sort key: match quality first, then Stdlib-first, and finally the full path
+// for deterministic ordering. Both ranks are a single digit, so plain string
+// ordering under `sortBy` gives the intended result.
 let sortKey
   (query: String)
   (owner: String)
   (modules: List<String>)
   (name: String)
   : String =
-  let mr = Stdlib.Int.toString (matchRank query name)
+  let mr = Stdlib.Int.toString (matchRank (itemQuery query) name)
   let st = if isStdlib owner modules then "0" else "1"
-  $"{mr}{st}:{name}"
+  let path =
+    [ [owner]; modules; [name] ]
+    |> Stdlib.List.flatten
+    |> Stdlib.String.join "."
+  $"{mr}{st}:{path}"
 
 
 // Used to rank result sections; empty sections sort last.
@@ -70,7 +90,7 @@ let bestItemRank
   : Int =
   items
   |> Stdlib.List.fold 9 (fun acc item ->
-    let r = matchRank query item.location.name
+    let r = matchRank (itemQuery query) item.location.name
     if r < acc then r else acc)
 
 
