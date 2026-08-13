@@ -261,6 +261,79 @@ let testModuleRejectsDuplicateNames (): TestResult =
        ++ $"module={moduleOutput}; search={searchOutput}")
 
 
+let testFnAcceptsCompleteDeclaration (): TestResult =
+  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let branchName = "cli-authoring-test-" ++ suffix
+  let moduleName = "Tests.CliAuthoring"
+  let fnSource =
+    [ "/// Greets someone by name."
+      "let main (name: String) : String ="
+      "  \"Hello, \" ++ name"
+    ] |> Stdlib.String.join "\n"
+  let mismatchedSource =
+    "let other (name: String) : String = name"
+  let multipleSource =
+    [ "let extra (n: Int) : Int = n"
+      "let ignored (n: Int) : Int = n" ]
+    |> Stdlib.String.join "\n"
+  let _ = runWithCommand [ "branch"; "create"; branchName ]
+  let fnOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "fn"
+        "/" ++ moduleName ++ ".main"
+        fnSource ]
+  let evalOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "eval"
+        moduleName ++ ".main \"Dark\"" ]
+  let fragmentOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "fn"
+        "/" ++ moduleName ++ ".double"
+        "(n: Int) : Int = n * 2" ]
+  let fragmentEval =
+    runWithCommand
+      [ "--branch"; branchName; "eval"; moduleName ++ ".double 4" ]
+  let mismatchOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "fn"
+        "/" ++ moduleName ++ ".main"
+        mismatchedSource ]
+  let multipleOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "fn"
+        "/" ++ moduleName ++ ".extra"
+        multipleSource ]
+  let _ = runWithCommand [ "branch"; "archive"; branchName ]
+
+  if
+    Stdlib.String.contains fnOutput "Created function"
+    && evalOutput == "Hello, Dark"
+    && Stdlib.String.contains fragmentOutput "Created function"
+    && fragmentEval == "8"
+    && Stdlib.String.contains mismatchOutput "does not match target"
+    && Stdlib.String.contains multipleOutput "exactly one function declaration"
+    && Stdlib.Bool.not (Stdlib.String.contains multipleOutput "Created function")
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      ($"Expected complete and fragment fn input with target-name validation; "
+       ++ $"fn={fnOutput}; eval={evalOutput}; fragment={fragmentOutput}; "
+       ++ $"fragment eval={fragmentEval}; mismatch={mismatchOutput}; "
+       ++ $"multiple={multipleOutput}")
+
+
 let testListFunctions (): TestResult =
   let output = runWithCommand ["ls"; "Stdlib.List"]
   if Stdlib.String.contains output "Functions" &&

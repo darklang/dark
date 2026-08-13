@@ -28,10 +28,11 @@ Create several declarations atomically:
   let main (n: Int) : Int = double n
   EOF
 
-For one function, pass its signature and body:
+For one function, stdin accepts a complete declaration; the shorter signature
+and body fragment remains valid:
 
   fn /Darklang.Example.double - <<'EOF'
-  (n: Int) : Int = n * 2
+  let double (n: Int) : Int = n * 2
   EOF
 
 At module scope values use `val name = value`; `let` declares functions. Inside

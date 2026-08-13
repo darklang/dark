@@ -36,7 +36,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         ""
         "  # Multi-line body via stdin (run from shell, not the REPL):"
         "  ./scripts/run-cli fn fib - <<'EOF'"
-        "  (n: Int): Int ="
+        "  let fib (n: Int): Int ="
         "    if n < 2 then n"
         "    else fib (n - 1) + fib (n - 2)"
         "  EOF"
@@ -62,26 +62,44 @@ let createFnInline
   // Parse location relative to current position
   match Location.parseRelativeTo currentLocation locationStr with
   | Ok location ->
-    // Build full source code for parsing
-    let fullSource = $"let {location.name} {definition}"
+    // Keep accepting the concise historical fragment, while also accepting a
+    // complete declaration (with an optional doc comment).
+    let trimmedDefinition = Stdlib.String.trim definition
+    let fullSource =
+      if
+        Stdlib.String.startsWith trimmedDefinition "let "
+        || Stdlib.String.startsWith trimmedDefinition "///"
+      then
+        definition
+      else
+        $"let {location.name} {definition}"
 
     // Parse the function definition
     match Builtin.parserParseToWrittenTypes fullSource with
     | Some(SourceFile sourceFile) ->
       // The parser may recover a tree after errors; do not save it.
       let hasParseError = Errors.reportParseErrors (Builtin.parserParseDiagnostics fullSource)
-      let found =
+      let parsedFunction =
         if hasParseError then
           Stdlib.Option.Option.None
         else
-          sourceFile.declarations
-          |> Stdlib.List.findFirst (fun d ->
-            match d with
-            | Function _ -> true
-            | _ -> false)
+          match sourceFile.declarations with
+          | [ Function writtenFn ] -> Stdlib.Option.Option.Some writtenFn
+          | _ -> Stdlib.Option.Option.None
 
-      match found with
-      | Some(Function writtenFn) ->
+      match parsedFunction with
+      | Some writtenFn when writtenFn.name.name != location.name ->
+        let actual = writtenFn.name.name
+        Stdlib.printLine
+          (Colors.error
+            $"Function name `{actual}` does not match target `{location.name}`")
+        Stdlib.printLine
+          (Colors.hint
+            ($"Rename it to `let {location.name} ...`, or change the "
+             ++ "fn target."))
+        state
+
+      | Some writtenFn ->
         // Convert to ProgramTypes.PackageFn
         let pm = LanguageTools.PackageManager.pm ()
 
@@ -144,9 +162,9 @@ let createFnInline
           state
         else
           [
-            (Colors.error "Failed to parse function definition")
+            (Colors.error "Expected exactly one function declaration")
             ""
-            "Make sure your syntax is correct. Examples:"
+            "Examples:"
             "  fn double (x: Int): Int = Stdlib.Int.multiply x 2"
             "  fn greet (name: String): String = \"Hello, \" ++ name"
             ""
@@ -191,10 +209,12 @@ let help (state: Cli.AppState) : Cli.AppState =
     ""
     "  # Multi-line body via stdin (run from shell, not the REPL — '-' reads stdin):"
     "  ./scripts/run-cli fn fib - <<'EOF'"
-    "  (n: Int): Int ="
+    "  let fib (n: Int): Int ="
     "    if n < 2 then n"
     "    else fib (n - 1) + fib (n - 2)"
     "  EOF"
+    "  # Stdin accepts a complete `let` declaration; the shorter fragment"
+    "  # `(n: Int): Int = ...` form remains valid too."
     ""
     "Location can be relative or absolute:"
     "  fn helper (x: Int): Int = ...    # Relative to current location"

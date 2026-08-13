@@ -18,6 +18,8 @@ let allTests (): List<String * TestFunction> =
     ("Module Command", fun () -> testModuleCommand ())
     ( "Module Rejects Duplicate Names",
       fun () -> testModuleRejectsDuplicateNames () )
+    ( "Fn Accepts Complete Declaration",
+      fun () -> testFnAcceptsCompleteDeclaration () )
 
     ("View AST", fun () -> testViewAst ())
     ("View Instructions", fun () -> testViewInstructions ())
