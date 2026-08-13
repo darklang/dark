@@ -1316,10 +1316,7 @@ let fns () : List<BuiltInFn> =
             match P.parseFor Validation.Package sourceCode with
             | Ok _ -> []
             | Error diagnostics -> diagnostics
-          Ply(
-            WrittenTypesToDarkTypes.diagnosticsToDT
-              diagnostics
-          )
+          Ply(WrittenTypesToDarkTypes.diagnosticsToDT diagnostics)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
