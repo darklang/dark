@@ -3,180 +3,62 @@ module Darklang.Cli.Docs.ForAI
 let content () : String =
   """# Darklang AI Quick Reference
 
-## IMPORTANT: Darklang is Different
-Darklang is a LIVE PROGRAMMING ENVIRONMENT (like Smalltalk).
-You don't write scripts - you build a persistent package tree.
-- Use `fn` to CREATE functions in the tree
-- Use `eval` to TEST those functions
-- Use `commit` to SAVE your work
-- CLI state doesn't persist between calls - the PACKAGE TREE does
+Darklang is a persistent package tree, not a directory of scripts. CLI process
+state resets between calls; package changes persist.
 
 ## Workflow
-  1. fn myFn        # create function (stored in package tree)
-  2. eval myFn      # test it
-  3. status         # see changes
-  4. commit "msg"   # save to SCM
 
-## First Commands
-  tree              # see package structure
-  docs stdlib       # list top-level Stdlib modules
-  docs signatures <module>   # signatures for one module
-  builtins          # list F# builtins (lower-level than stdlib)
-  search <term>     # find anything
-  view <name>       # inspect entity (full source + docs)
+  search --batch "List.map" "Json.serialize" --fn # related searches
+  module /Darklang.Example -                     # declarations from stdin
+  eval Darklang.Example.main "arg"               # test an expression
+  status                                          # inspect changes
+  commit "message" -y                            # save them
 
-## Finding a function
-  search <term>              # ranked hits across all modules (best matches +
-                             #   Stdlib first), with parameter names, e.g.
-                             #   `List.map (l: List<'a>) (fn: 'a -> 'b) -> List<'b>`
-  search <term> --with-docs  # also show doc comments
-  search <term> --fn         # functions only (also --type, --val)
-  search <term> --exact      # exact name match (default is fuzzy)
-  docs signatures <module>   # browse every signature in a module you already know
-  view <name>                # full source + docs for one entity
+Batch search caps each result section at three items. Use `--fn`, `--type`, or
+`--val` to focus results; `--with-docs` shows full comments, `docs signatures
+<module>` browses a known module, and `view <name>` shows source.
 
-`search` matches the term against names and (for multi-word or 3+ char queries)
-doc comments, so a concept usually resolves even when the name differs: `search
-map`, `search toList`, `search modulo` (finds `mod`). Operator symbols map to
-their operation: `search %` -> `mod`, `search ++` -> concat, `search /` ->
-`divide`. 1-2 searches is usually enough; drill into the module if unsure.
+## Authoring
 
-## Creating Code (use these, not eval!)
-  fn <name>         # create function - MAIN WAY TO WRITE CODE
-  type <name>       # create type
-  val <name>        # create value
+Create several declarations atomically:
 
-Names need full paths (owner.module.name), e.g.:
-  fn Darklang.Testing.fib (n: Int): Int = ...
-Inside the body, use short names (e.g., `fib` for recursion).
-
-For multi-line bodies, use `-` and pipe via stdin (heredoc form):
-  ./scripts/run-cli fn Darklang.Foo.bar - <<'EOF'
-  (n: Int): Int =
-    let x = n + 1
-    x * 2
+  module /Darklang.Example - <<'EOF'
+  type State = { count: Int }
+  let double (n: Int) : Int = n * 2
+  let main (n: Int) : Int = double n
   EOF
 
-## Running/Testing
-  eval <fn> [args]  # call a function / evaluate an expression
-  run <path>        # execute a .dark script file (not for calling fns)
-  run <path> --sandbox   # ...with NO capabilities (deny-all, for untrusted scripts)
+For one function, pass its signature and body:
 
-## Capabilities (effectful operations may be gated)
-Effectful builtins — http, filesystem, subprocess, env vars, datastores, clock, randomness, llm — run
-under a per-instance capability GRANT. A call the grant doesn't cover fails with `capability denied: …`.
-Pure code never needs a grant. A fresh instance is permissive; once you configure a grant, both `eval`
-and `run` obey it.
+  fn /Darklang.Example.double - <<'EOF'
+  (n: Int) : Int = n * 2
+  EOF
 
-  caps                    # show the current grant
-  caps needed-for <fn>    # what a fn (transitively) needs to run
-  caps grant <spec>       # allow one — e.g. `caps grant http-client GET`, `caps grant file read`, `caps grant llm`
-  caps grant-for-fn <fn>  # grant exactly what a fn needs
-  caps grant-all          # remove ALL restrictions
-  caps clear              # revoke everything (NONE)
+At module scope values use `val name = value`; `let` declares functions. Inside
+a function, local values use `let`. Nested helpers need full annotations:
+`let helper (x: Int) : Int = ...`.
 
-If a capability denial is blocking you and you trust this environment, run `caps grant-all` to proceed.
+## Names and syntax
 
-## Navigation
-  nav <path>        # go to module (cd)
-  ls / back         # list / go back
+- `Stdlib.X` expands to `Darklang.Stdlib.X`. Cross-owner names need a full path.
+- Never write `PACKAGE.` in source or search; it is internal notation.
+- Lists use semicolons: `[1; 2]`; chars use single quotes: `'a'`.
+- `|>` passes its left value as the first argument. Parenthesize a complex left side.
+- Strings concatenate with `++`. Interpolation does not coerce non-strings.
+- Bare integers are arbitrary-precision `Int`; numeric operands must have one type.
+- Local values use `let max = 6` without annotations; package values use `val`.
+- Record construction is `State { count = 0 }`; update is `{ state with count = 1 }`.
+- Option/Result cases work bare: `Some x`, `None`, `Ok x`, `Error e`.
+- User enum construction uses `TypeName.Case`; match cases are bare.
+- Nested constructor patterns can use `Some (Ok x)`.
+- A tuple payload needs double parentheses: `Some ((a, b))`.
 
-## SCM (version control)
-  status               # see current branch + uncommitted changes
-  commit <msg> [-y]    # commit changes; -y/--yes skips the y/n prompt
-  log                  # history
-  discard              # undo uncommitted changes
+Effectful code may need `caps grant-for-fn <fn>` or `caps grant-all`. Pass a
+non-main branch on every call: `dark --branch feature ...`.
 
-`commit` records who you are, so log in first: `login <name>` (run `login` with no name to
-list accounts). The account persists across runs. For non-interactive use, log in once, then
-`./scripts/run-cli commit "msg" -y`.
+## Targeted help
 
-## Deprecation (mark items as unused / dangerous / obsolete)
-  deprecate <fn|type|value> <name> --kind <k> [options]
-    kinds: superseded-by (requires --replacement), harmful, obsolete
-  delete <fn|type|value> <name> [options]     # sugar for --kind obsolete
-    options: --ignore-dependents; --force = --ignore-dependents + --yes
-  undo <fn|type|value> <name>                 # reverse a WIP deprecate
-  eval --allow-harmful <fn>                   # opt out of harmful halt
-  (see: docs deprecation)
-
-## Branches (use --branch flag!)
-Branch context does NOT persist between CLI invocations.
-Always pass --branch when working on non-main branches:
-
-  dark branch create feature
-  dark --branch feature fn "Darklang.Math.fib ..."
-  dark --branch feature status
-  dark --branch feature commit "done"
-  dark --branch feature rebase
-  dark --branch feature merge
-
-Without --branch, commands run on main.
-  (see: docs scm)
-
-## Name Resolution
-Names resolve relative to the current module, searching from
-most-specific to least-specific.
-
-In `module Darklang.Stdlib.List`, writing `Option.Option` tries:
-  1. Darklang.Stdlib.List.Option.Option
-  2. Darklang.Stdlib.Option.Option   <-- found here
-  3. Darklang.Option.Option
-  4. Option.Option
-
-Rules:
-  - Same module: no qualifier needed
-    (in Darklang.Stdlib.List, `map` finds Darklang.Stdlib.List.map)
-  - Parent/sibling modules: use relative name
-    (in Darklang.Stdlib.List, `Option.Option` finds
-     Darklang.Stdlib.Option.Option)
-  - `Stdlib.X` shortcut: always expands to `Darklang.Stdlib.X`
-    (works from any module, even outside Darklang)
-  - `Builtin.X`: resolves to F# builtins (fns/values only, not types)
-  - Cross-owner: must use full path
-    (from Tests.*, write `Darklang.SCM.Branch.mainBranchId`)
-  - `PACKAGE.` is internal notation, never a source prefix. Use `Stdlib.X`
-    or `Darklang.Stdlib.X` instead.
-
-## Critical Syntax
-- Whitespace-sensitive (like Python)
-- Nested function definitions require annotated params and a return type:
-  `let helper (x: Int) : Int = ...`. The parser desugars this to a local lambda,
-  so use it for task-local helpers. A nested fn can call one defined above it;
-  a FORWARD reference to one defined below fails.
-- NO binding modules to variables (`let c = Darklang.Cli.Colors` is invalid —
-  modules are not first-class values. Use the full path each time.)
-- Pipe |> feeds the left value as the FIRST argument of the right fn; any
-  args written after the fn come after it: `[1; 2] |> Stdlib.List.map toString`,
-  `n |> Stdlib.Int.add 1`. Wrap a complex left side in parens: (complex expr) |> fn
-- Lists: [1; 2; 3] (semicolons)
-- Char literals use single quotes: 'a', '\n', '\t', 'A' (a String uses
-  double quotes; "a" is not 'a')
-- Tuples destructure inline in `let` and in lambda params:
-  `let (a, b) = pair`, `fun (name, done) -> ...`
-- String concat: ++ (not @)
-- String interpolation: $"x = {expr}; total = {a ++ b}" — does NOT auto-coerce
-  non-strings; wrap with Stdlib.Int.toString / Stdlib.Float.toString
-- Numeric operators (+ - * / % ^ < > <= >= and unary -) are polymorphic over
-  numeric types; operands must match (`1 + 2`, `1.0 + 2.0`). `/` is integer
-  division on ints; float division on floats. A bare `1` is an arbitrary-
-  precision `Int` and never overflows.
-
-## Records
-  MyRecord { a = 1; b = 2 }
-  # { must not be left of type name
-
-## Enums
-  Some 5              # Option/Result constructors are bare
-  Status.Done 42      # other constructors use TypeName.Case
-  | Some x -> ...     # match: just Case (bare form OK at top level of an arm)
-  | (Ok x, Ok y) -> ...      # tuple of constructors
-  | Some (Ok v) -> ...       # nested constructors
-  | Some ((a, b)) -> ...     # a tuple payload needs double parentheses
-
-## Troubleshooting
-If commands hang or fail silently, check logs:
-  rundir/logs/cli.log    # main CLI log
-  rundir/logs/           # other logs
-
-## More: docs syntax|types|operators|stdlib|errors|cli|scm"""
+  docs syntax | types | operators | errors | packages
+  docs stdlib | cli | scm | deprecation
+  docs signatures <module>
+  help <command>"""
