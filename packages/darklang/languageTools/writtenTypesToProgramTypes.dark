@@ -41,14 +41,29 @@ let locationPlaceholderHash
   ProgramTypes.Hash.Hash $"{owner}.{modulesPart}.{name}"
 
 
+// Option and Result constructors can be bare. Other enum constructors require
+// `Type.Case` until expected-type inference is supported.
+let optionOrResultTypeName
+  (caseName: String)
+  : Stdlib.Option.Option<List<String>> =
+  match caseName with
+  | "Some"
+  | "None" -> Stdlib.Option.Option.Some [ "Stdlib"; "Option"; "Option" ]
+  | "Ok"
+  | "Error" -> Stdlib.Option.Option.Some [ "Stdlib"; "Result"; "Result" ]
+  | _ -> Stdlib.Option.Option.None
+
+
 module Identifiers =
   module Type =
     let toPT (typ: WrittenTypes.TypeIdentifier) : String = typ.name
 
   module QualifiedType =
-    let toPT
+    let toPTWithTypeName
       (ctx: NameResolver.NRContext)
       (i: WrittenTypes.QualifiedTypeIdentifier)
+      (typeName:
+        ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName>)
       : (ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> *
         List<ProgramTypes.TypeReference> *
         List<WrittenTypes.UnresolvedName>)
@@ -58,16 +73,6 @@ module Identifiers =
         |> Stdlib.List.map (fun t ->
           TypeReference.toPT ctx t)
         |> Stdlib.List.unzip
-
-      let nameToResolve =
-        Stdlib.List.append
-          (Stdlib.List.map i.modules (fun (m, _) -> m.name))
-          [ i.typ |> Type.toPT ]
-
-      let typeName =
-        NameResolver.TypeName.resolve
-          ctx
-          (WrittenTypes.Name.Unresolved(i.range, nameToResolve))
 
       match typeName.resolved with
       | Error e ->
@@ -80,6 +85,54 @@ module Identifiers =
 
       | _ ->
         (typeName, typeArgs, typeArgsUnresolvedNames |> Stdlib.List.flatten)
+
+
+    let toPT
+      (ctx: NameResolver.NRContext)
+      (i: WrittenTypes.QualifiedTypeIdentifier)
+      : (ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> *
+        List<ProgramTypes.TypeReference> *
+        List<WrittenTypes.UnresolvedName>)
+      =
+      let nameToResolve =
+        Stdlib.List.append
+          (Stdlib.List.map i.modules (fun (m, _) -> m.name))
+          [ i.typ |> Type.toPT ]
+      let typeName =
+        NameResolver.TypeName.resolve
+          ctx
+          (WrittenTypes.Name.Unresolved(i.range, nameToResolve))
+      toPTWithTypeName ctx i typeName
+
+
+    let toPTForEnumCase
+      (ctx: NameResolver.NRContext)
+      (i: WrittenTypes.QualifiedTypeIdentifier)
+      (caseName: String)
+      : (ProgramTypes.NameResolution<ProgramTypes.FQTypeName.FQTypeName> *
+        List<ProgramTypes.TypeReference> *
+        List<WrittenTypes.UnresolvedName>)
+      =
+      let typeNameElided =
+        (Stdlib.List.isEmpty i.modules) && (i.typ.name == "")
+
+      if Stdlib.Bool.not typeNameElided then
+        toPT ctx i
+      else
+        let typeName =
+          match optionOrResultTypeName caseName with
+          | Some name ->
+            NameResolver.TypeName.resolve
+              ctx
+              (WrittenTypes.Name.Unresolved(i.range, name))
+          | None ->
+            ProgramTypes.NameResolution
+              { originalName = [ caseName ]
+                resolved =
+                  Stdlib.Result.Result.Error
+                    ProgramTypes.NameResolutionError.InvalidName }
+
+        toPTWithTypeName ctx i typeName
 
   module Value =
     let toPT (v: WrittenTypes.ValueIdentifier) : String = v.name
@@ -684,11 +737,15 @@ module Expr =
       // variable (values/fns are lowercase, so never those). Lower it to an
       // EVariable and let name resolution disambiguate — this mirrors the F# WT2PT
       // so the two lowerings agree.
-      if typeNameElided && (Stdlib.List.isEmpty fields) then
+      if
+        typeNameElided
+        && (Stdlib.List.isEmpty fields)
+        && (optionOrResultTypeName caseName == Stdlib.Option.Option.None)
+      then
         toPT ctx context (WrittenTypes.Expr.EVariable(range, caseName))
       else
         let (typeName, typeArgs, typeNameUnresolvedNames) =
-          Identifiers.QualifiedType.toPT ctx typeName
+          Identifiers.QualifiedType.toPTForEnumCase ctx typeName caseName
 
         let (fields, fieldsUnresolvedNames) =
           fields
@@ -696,12 +753,9 @@ module Expr =
             toPT ctx context expr)
           |> Stdlib.List.unzip
 
-        // A bare constructor WITH fields (`Ok 5`) has an elided type name that can't
-        // be constructed without a resolved type — the runtime rejects it. Constructors
-        // must be qualified (`Stdlib.Result.Result.Ok 5`); the corpus does this
-        // universally. So the elided-type-name resolution stays tracked, and CLI create
-        // reports it as an invalid name (fail fast) rather than saving a fn that fails
-        // at runtime. `typeNameElided` is bound above; kept for the nullary-case check.
+        // Prelude cases resolve above. A bare user-defined case still has no
+        // inferable type, so retain its invalid-name result and report the case
+        // name rather than the parser's empty type-name placeholder.
         let unresolvedNames =
           Stdlib.List.flatten
             [ typeNameUnresolvedNames

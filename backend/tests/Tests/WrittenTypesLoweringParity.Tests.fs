@@ -315,7 +315,11 @@ let tests =
              [ "M" ],
              [],
              [ "x" ],
-             "x |> Stdlib.Json.serialize<Bool>") ]
+             "x |> Stdlib.Json.serialize<Bool>")
+            ("bare-some", [ "M" ], [], [], "Some 5")
+            ("bare-none", [ "M" ], [], [], "None")
+            ("bare-ok", [ "M" ], [], [], "Ok 5")
+            ("bare-error", [ "M" ], [], [], "Error \"no\"") ]
         let mismatches = ResizeArray<string>()
         for (label, cmod, cfn, prms, snip) in cases do
           let ctx : WT2PT.Context =
