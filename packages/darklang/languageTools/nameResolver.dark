@@ -147,6 +147,8 @@ let resolveGenericName
               |> Stdlib.List.all (fun c ->
                 (Stdlib.Char.isASCIILetter c) || (Stdlib.Char.isDigit c)))
 
+      // `PACKAGE.` is not a source namespace, but agents still commonly write
+      // it. Mirrors the guard in LibParser's NameResolver.fs.
       let usesInternalPackagePrefix =
         match given with
         | "PACKAGE" :: _ -> true

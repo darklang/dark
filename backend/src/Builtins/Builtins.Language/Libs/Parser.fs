@@ -1296,27 +1296,45 @@ let fns () : List<BuiltInFn> =
       capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 
-    { name = fn "parserParsePackageDiagnostics" 0
+    // CLEANUP: replace this with one parser that takes Package, Script, or Test.
+    // The current F#-to-Dark conversion drops details needed for validation:
+    // `[<DB>] type T` becomes a normal type, and the test `1 = 1` becomes plain
+    // expressions. For now, validate here and return the same package tree.
+    { name = fn "parserParsePackageToWrittenTypes" 0
       typeParams = []
       parameters = [ Param.make "sourceCode" TString "" ]
       returnType =
-        TList(
-          TTuple(
-            TCustomType(NR.ok (FQTypeName.fqPackage (PackageRefs.range ())), []),
-            TString,
-            []
-          )
-        )
+        TypeReference.result
+          (TCustomType(NR.ok (FQTypeName.fqPackage (WTRefs.parsedFile ())), []))
+          (TList(
+            TTuple(
+              TCustomType(NR.ok (FQTypeName.fqPackage (PackageRefs.range ())), []),
+              TString,
+              []
+            )
+          ))
       description =
-        "Package-source diagnostics using declaration semantics at the file root."
+        "Parse and validate package source using declaration semantics at the "
+        + "file root. Returns WrittenTypes on success or diagnostics on failure."
       fn =
         (function
         | _, _, _, [| DString sourceCode |] ->
-          let diagnostics =
-            match P.parseFor Validation.Package sourceCode with
-            | Ok _ -> []
-            | Error diagnostics -> diagnostics
-          Ply(WrittenTypesToDarkTypes.diagnosticsToDT diagnostics)
+          let parsedFileKT =
+            KTCustomType(FQTypeName.fqPackage (WTRefs.parsedFile ()), [])
+          let diagnosticVT =
+            VT.tuple (VT.customType (rangeTypeName ()) []) VT.string []
+          let diagnosticsKT = KTList diagnosticVT
+          match P.parseFor Validation.Package sourceCode with
+          | Ok validated ->
+            let parsedFile =
+              validated
+              |> Validation.ValidatedSourceFile.toWrittenTypes
+              |> WT.SourceFile
+              |> WrittenTypesToDarkTypes.parsedFileToDT
+            Ply(Dval.resultOk parsedFileKT diagnosticsKT parsedFile)
+          | Error diagnostics ->
+            let diagnostics = WrittenTypesToDarkTypes.diagnosticsToDT diagnostics
+            Ply(Dval.resultError parsedFileKT diagnosticsKT diagnostics)
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure

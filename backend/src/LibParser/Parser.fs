@@ -244,6 +244,11 @@ type ParserState =
     // Threaded as parent + 1 and capped at `maxInterpNesting` to stay stack-safe.
     interpDepth : int }
 
+[<RequireQualifiedAccess>]
+type ItemScope =
+  | Script
+  | Module
+
 let private maxDepth = 200
 
 let tok (state : ParserState) i =
@@ -1770,9 +1775,10 @@ and parseInterpString (state : ParserState) (i : int) : WT.Expr * int =
                 |> List.map (fun (t : SpannedToken) ->
                   { t with range = offRange t.range })
                 |> List.toArray
-              // Interpolation contents are expressions even when the surrounding
-              // file is being parsed as package declarations.
-              let subResult = parseTokensAt (state.interpDepth + 1) false offToks
+              // Parse `{...}` as an expression. Package declaration scope applies
+              // only to the outer file, not to interpolation contents.
+              let subResult =
+                parseTokensAt (state.interpDepth + 1) ItemScope.Script offToks
               // surface parse errors from inside the interpolation `{…}` (their
               // ranges are already offset to the outer source) rather than dropping them
               subResult.diagnostics |> List.iter state.diagnostics.Add
@@ -2906,16 +2912,16 @@ and isDbAttr (state : ParserState) (i : int) : bool =
 // Parse declarations/expressions whose start column is >= minCol (offside): a
 // less-indented item ends the scope. Used for the file body and, recursively,
 // for nested `module X =` blocks, so module nesting is preserved (FQN paths).
-// `insideModule` distinguishes a module body (declarations only — values require
-// `val`) from a file's top level (a no-param `let x = …` is a script EXPRESSION
-// that sequences with what follows).
+// `itemScope` distinguishes module declaration rules (values require `val`)
+// from script rules (a no-param `let x = …` is an expression that sequences
+// with what follows).
 // Test assertions and `[<DB>]` declarations are represented in every parse.
 // Validation later decides whether Script, Package, or Test source may contain
-// them. `insideModule` only distinguishes declaration-scope `let` from a
-// script binding.
+// them. `itemScope` only distinguishes declaration-scope `let` from a script
+// binding.
 and parseItems
   (state : ParserState)
-  (insideModule : bool)
+  (itemScope : ItemScope)
   (start : int)
   (minCol : int)
   : List<WT.Declaration> * List<WT.Expr> * int =
@@ -2923,13 +2929,13 @@ and parseItems
   // the enclosing scope's anchor + decl anchor are restored on exit
   let savedDecl = state.declAnchor
   let r =
-    withElementScope state (fun () -> parseItemsBody state insideModule start minCol)
+    withElementScope state (fun () -> parseItemsBody state itemScope start minCol)
   state.declAnchor <- savedDecl
   r
 
 and parseItemsBody
   (state : ParserState)
-  (insideModule : bool)
+  (itemScope : ItemScope)
   (start : int)
   (minCol : int)
   : List<WT.Declaration> * List<WT.Expr> * int =
@@ -2987,7 +2993,7 @@ and parseItemsBody
          // is a DFunction and is never reparsed.
          let asExpr =
            match d with
-           | WT.DValue _ -> tok state k2 = TIn || not insideModule
+           | WT.DValue _ -> tok state k2 = TIn || itemScope = ItemScope.Script
            | _ -> false
          if asExpr then
            state.diagnostics.RemoveRange(
@@ -2999,7 +3005,7 @@ and parseItemsBody
            k <- k3
          else
            match d with
-           | WT.DValue _ when insideModule ->
+           | WT.DValue _ when itemScope = ItemScope.Module ->
              state.diagnostics.Add
                { code = DiagnosticCode.unexpected
                  severity = DiagError
@@ -3036,9 +3042,9 @@ and parseItemsBody
          // `module Darklang.X` (no `=`): file-level header wrapping the rest.
          let (mdecls, mexprs, k2) =
            if tok state nk = TEquals then
-             parseItems state true (nk + 1) (moduleCol + 1)
+             parseItems state ItemScope.Module (nk + 1) (moduleCol + 1)
            else
-             parseItems state true nk minCol
+             parseItems state ItemScope.Module nk minCol
          if tok state nk = TEquals && List.isEmpty mdecls && List.isEmpty mexprs then
            errExpected state (nk + 1) "an indented module body"
          // A module's trailing expressions belong to the module (as `DExpr`
@@ -3075,9 +3081,9 @@ and parseItemsBody
       if k = before then if tok state k = TEOF then go <- false else k <- k + 1
   (List.ofSeq decls, List.ofSeq exprs, k)
 
-and parseFile (rootIsDeclarationScope : bool) (state : ParserState) : ParseResult =
+and parseFile (rootScope : ItemScope) (state : ParserState) : ParseResult =
   validateLiterals state
-  let (topDecls, topExprs, _) = parseItems state rootIsDeclarationScope 0 0
+  let (topDecls, topExprs, _) = parseItems state rootScope 0 0
   let fileRange =
     if state.tokenCount > 1 then
       span (rng state 0) (rng state (state.tokenCount - 2))
@@ -3091,7 +3097,7 @@ and parseFile (rootIsDeclarationScope : bool) (state : ParserState) : ParseResul
 /// can recursively parse the (range-offset) sub-tokens of each `{expr}`.
 and parseTokensAt
   (interpDepth : int)
-  (rootIsDeclarationScope : bool)
+  (rootScope : ItemScope)
   (toks : SpannedToken[])
   : ParseResult =
   let scopes = System.Collections.Generic.Stack<OffsideScope>()
@@ -3109,12 +3115,13 @@ and parseTokensAt
       abandoned = false
       steps = 0
       interpDepth = interpDepth }
-  parseFile rootIsDeclarationScope state
+  parseFile rootScope state
 
-and parseTokens (toks : SpannedToken[]) : ParseResult = parseTokensAt 0 false toks
+and parseTokens (toks : SpannedToken[]) : ParseResult =
+  parseTokensAt 0 ItemScope.Script toks
 
 let private parseSyntaxWithRootScope
-  (rootIsDeclarationScope : bool)
+  (rootScope : ItemScope)
   (source : string)
   : ParseResult =
   match tokenize source with
@@ -3131,11 +3138,7 @@ let private parseSyntaxWithRootScope
   | Ok(toksList, lexDiags) ->
     // lexical-recovery diagnostics (malformed lexemes the tokenizer recovered from)
     // are surfaced alongside the parser's own diagnostics.
-    let result =
-      if rootIsDeclarationScope then
-        parseTokensAt 0 true (List.toArray toksList)
-      else
-        parseTokens (List.toArray toksList)
+    let result = parseTokensAt 0 rootScope (List.toArray toksList)
     let lexDiagnostics =
       lexDiags
       |> List.map (fun (r, m) ->
@@ -3150,7 +3153,7 @@ let private parseSyntaxWithRootScope
 /// Parse for tooling: return a recoverable tree and include mode-independent
 /// structural diagnostics after a clean syntax pass.
 let parse (source : string) : ParseResult =
-  let result = parseSyntaxWithRootScope false source
+  let result = parseSyntaxWithRootScope ItemScope.Script source
   let syntaxDiagnostics = result.diagnostics
   // Tree-wide rules have one implementation in Validation. Run them only
   // after a clean syntax pass so recovery holes do not create cascaded errors.
@@ -3169,7 +3172,12 @@ let parseFor
   (mode : Validation.Mode)
   (source : string)
   : Result<Validation.ValidatedSourceFile, List<Diagnostic>> =
-  let result = parseSyntaxWithRootScope (mode = Validation.Package) source
+  let rootScope =
+    match mode with
+    | Validation.Package -> ItemScope.Module
+    | Validation.Script
+    | Validation.Test -> ItemScope.Script
+  let result = parseSyntaxWithRootScope rootScope source
   match result.diagnostics, result.parsed with
   | [], Some(WT.SourceFile sourceFile) ->
     match Validation.validate mode sourceFile with

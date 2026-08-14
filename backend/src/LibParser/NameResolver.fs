@@ -90,8 +90,8 @@ let resolveGenericName<'FQName, 'Builtin when 'Builtin : comparison>
     let notFoundError = Error NRE.NotFound
     let (modules, name) = NEList.splitLast given
 
-    // `PACKAGE.` is runtime/debug notation, not a source namespace. Classify
-    // it as invalid so deferred resolution does not keep retrying it.
+    // `PACKAGE.` is not a source namespace, but agents still commonly write it.
+    // Classify it as invalid so deferred resolution does not keep retrying it.
     let parsedName =
       match originalName with
       | "PACKAGE" :: _ -> Error "reserved PACKAGE prefix"
