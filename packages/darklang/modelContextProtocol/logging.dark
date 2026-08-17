@@ -78,28 +78,28 @@ module LogMessage =
     | Object fields ->
         let levelResult =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "level") with
-          | Some (_, String level) -> loggingLevelFromString level
-          | Some (_, _) -> Stdlib.Result.Result.Error "level must be a string"
+          | Some ((_, String level)) -> loggingLevelFromString level
+          | Some ((_, _)) -> Stdlib.Result.Result.Error "level must be a string"
           | None -> Stdlib.Result.Result.Error "level is required"
 
         let messageResult =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "message") with
-          | Some (_, String msg) -> Stdlib.Result.Result.Ok msg
-          | Some (_, _) -> Stdlib.Result.Result.Error "message must be a string"
+          | Some ((_, String msg)) -> Stdlib.Result.Result.Ok msg
+          | Some ((_, _)) -> Stdlib.Result.Result.Error "message must be a string"
           | None -> Stdlib.Result.Result.Error "message is required"
 
         let loggerResult =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "logger") with
-          | Some (_, String logger) -> 
+          | Some ((_, String logger)) -> 
               Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some logger)
-          | Some (_, _) -> 
+          | Some ((_, _)) -> 
               Stdlib.Result.Result.Error "logger must be a string"
           | None -> 
               Stdlib.Result.Result.Ok Stdlib.Option.Option.None
 
         let dataResult =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "data") with
-          | Some (_, data) -> 
+          | Some ((_, data)) -> 
               Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some data)
           | None -> 
               Stdlib.Result.Result.Ok Stdlib.Option.Option.None
@@ -129,13 +129,13 @@ module SetLoggingLevel =
     match json with
     | Object fields ->
         match Stdlib.List.findFirst fields (fun (k, _) -> k == "level") with
-        | Some (_, String level) ->
+        | Some ((_, String level)) ->
             match loggingLevelFromString level with
             | Ok lvl -> 
                 Stdlib.Result.Result.Ok (SetLoggingLevelParams { level = lvl })
             | Error e -> 
                 Stdlib.Result.Result.Error e
-        | Some (_, _) ->
+        | Some ((_, _)) ->
             Stdlib.Result.Result.Error "level must be a string"
         | None ->
             Stdlib.Result.Result.Error "level is required"

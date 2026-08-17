@@ -9,7 +9,8 @@ module Registry =
       description: String
       aliases: List<String>
       execute: AppState -> List<String> -> AppState
-      help: AppState -> AppState // CLEANUP we shouldn't need to return an AppState? Like a string would be fine...
+      /// Pure: returns the help text; callers decide where it goes.
+      help: AppState -> String
       complete: AppState -> List<String> -> List<Completion.CompletionItem> }
 
   let allCommands () : List<CommandHandler> =
@@ -118,9 +119,7 @@ module Registry =
             Stdlib.printLine (View.formatError $"Unknown command: {name}")
             Stdlib.printLine "Use 'help' to see available commands."
             state
-          help = fun state ->
-            Stdlib.printLine $"No help available for command: {name}"
-            state
+          help = fun _state -> $"No help available for command: {name}"
           complete = fun _state _args -> [] }
 
   let executeCommand (name: String) (state: AppState) (args: List<String>) : AppState =
@@ -137,17 +136,13 @@ module Registry =
 
   let executeCommandHelp (name: String) (state: AppState) : AppState =
     let handler = findCommandIn state.allCommandsCache name
-    let help = handler.help
-    let _ = help state
-
-    // Automatically append alias information if aliases exist
-    match handler.aliases with
-    | [] -> state
-    | aliases ->
-      let aliasText = Stdlib.String.join aliases ", "
-      Stdlib.printLine ""
-      Stdlib.printLine $"Aliases: {aliasText}"
-      state
+    let helpFn = handler.help
+    let aliasSuffix =
+      match handler.aliases with
+      | [] -> ""
+      | aliases -> "\n\nAliases: " ++ (Stdlib.String.join aliases ", ")
+    Stdlib.printLine ((helpFn state) ++ aliasSuffix)
+    state
 
   // Command groups organized by category (shared between compact and detailed views)
   let commandGroups () : List<(String * List<String>)> =

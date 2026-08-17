@@ -156,10 +156,10 @@ module ApiError =
   let fromHttpError (err: Stdlib.HttpClient.RequestError) : ApiError =
     match err with
     | NetworkError -> ApiError.NetworkError
-    | BadUrl url -> ApiError.BadUrl url
     | Timeout -> ApiError.Timeout
-    | BadHeader h -> ApiError.BadHeader h
-    | BadBody b -> ApiError.BadBody b
+    | BadUrl _ -> ApiError.BadUrl(Stdlib.HttpClient.toString err)
+    | BadHeader _ -> ApiError.BadHeader(Stdlib.HttpClient.toString err)
+    | BadMethod -> ApiError.InvalidRequest(Stdlib.HttpClient.toString err)
 
 
 // ---------------------------------------------------------------------------

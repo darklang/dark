@@ -53,7 +53,8 @@ module ShowDocumentRequest =
           match
             Stdlib.List.findFirst fields (fun (key, _) -> key == "selection")
           with
-          | Some((_, selection)) -> Range.fromJson selection
+          | Some((_, selection)) ->
+            Range.fromJson selection |> Stdlib.Result.toOption
           | _ -> Stdlib.Option.Option.None
 
         match uri with
@@ -66,6 +67,8 @@ module ShowDocumentRequest =
           |> Stdlib.Result.Result.Ok
 
         | _ -> Stdlib.Result.Result.Error()
+
+      | _ -> Stdlib.Result.Result.Error()
 
 
     let toJson (params: ShowDocumentParams) : Json =
@@ -117,6 +120,8 @@ module ShowDocumentResult =
         (ShowDocumentResult { success = success }) |> Stdlib.Result.Result.Ok
 
       | _ -> Stdlib.Result.Result.Error()
+
+    | _ -> Stdlib.Result.Result.Error()
 
 (*
   /// A request to show a document in the UI

@@ -104,19 +104,16 @@ let executeList (state: AppState) (limit: Int64) : AppState =
     Stdlib.printLine (Colors.error $"Couldn't read the op log: {e}")
     state
 
-let help (state: AppState) : AppState =
-  Stdlib.List.iter
-    [ "dark ops — inspect this branch's op log (the rows that ARE your packages), read live from SQLite."
-      ""
-      "  dark ops           the 20 most recent ops on this branch"
-      "  dark ops <n>       the n most recent"
-      "  dark ops list <n>  same"
-      ""
-      "The log is the `package_ops` table; this reads it through Stdlib.Sqlite — the same generic interface a"
-      "peer's wire read uses (and a future Dark-managed fold would). Read-only." ]
-    (fun line -> Stdlib.printLine line)
-
-  state
+let help (_state: AppState) : String =
+  [ "dark ops — inspect this branch's op log (the rows that ARE your packages), read live from SQLite."
+    ""
+    "  dark ops           the 20 most recent ops on this branch"
+    "  dark ops <n>       the n most recent"
+    "  dark ops list <n>  same"
+    ""
+    "The log is the `package_ops` table; this reads it through Stdlib.Sqlite — the same generic interface a"
+    "peer's wire read uses (and a future Dark-managed fold would). Read-only." ]
+  |> Stdlib.String.join "\n"
 
 let execute (state: AppState) (args: List<String>) : AppState =
   match args with
@@ -130,10 +127,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
     match Stdlib.Int64.parse n with
     | Ok l -> executeList state l
     | Error _ ->
-      help state
+      Stdlib.printLine (help state)
       state
   | _ ->
-    help state
+    Stdlib.printLine (help state)
     state
 
 let complete

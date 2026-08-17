@@ -251,7 +251,7 @@ let complete (_state: AppState) (args: List<String>) : List<Completion.Completio
   | _ -> []
 
 
-let help (_state: AppState) : Unit =
+let help (_state: AppState) : String =
   [ "Usage: branch [subcommand] [args]"
     ""
     "Subcommands:"
@@ -272,4 +272,4 @@ let help (_state: AppState) : Unit =
     "For non-interactive use, pass --branch <name> as a global flag:"
     "  dark --branch feature status"
     "  dark --branch feature commit \"my changes\"" ]
-  |> Stdlib.printLines
+  |> Stdlib.String.join "\n"

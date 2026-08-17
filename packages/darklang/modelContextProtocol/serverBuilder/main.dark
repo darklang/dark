@@ -64,7 +64,9 @@ let runServerCliLoop (state: State.BuilderServerState) : Int =
               | Ok request ->
                   handleIncomingMessage acc request
               | Error err ->
-                  logWithPath state.logFilePath $"Error in batch request item: {err}"
+                  let errStr =
+                    Stdlib.Json.serialize<JsonRPC.Request.Parsing.ParseError> err
+                  logWithPath state.logFilePath $"Error in batch request item: {errStr}"
                   acc
             )
 
@@ -180,7 +182,7 @@ let runServerCliLoop (state: State.BuilderServerState) : Int =
 
           state
 
-      | NotObjectOrArray ->
+      | NotObjectOrArray _ ->
           logWithPath state.logFilePath $"Error parsing incoming message as json-rpc:\n{incomingMessageRaw}"
 
           sendErrorResponseWithPath

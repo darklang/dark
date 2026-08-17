@@ -827,7 +827,7 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 
   // CLEANUP: remove this case before shipping to users
   | expr ->
-    let s = Builtin.Json.serialize<LanguageTools.ProgramTypes.Expr> expr
+    let s = Stdlib.Json.serialize<LanguageTools.ProgramTypes.Expr> expr
 
     $"{s}"
 

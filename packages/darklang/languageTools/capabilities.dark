@@ -382,7 +382,7 @@ let urlToPattern (url: LanguageTools.Capabilities.UrlScope) : String =
     match url.ports with
     | Any -> ":*"
     | Only [ n ] ->
-      if n == LanguageTools.Capabilities.defaultPortValue schemeTok then "" else $":{n}"
+      if n == LanguageTools.Capabilities.defaultPortValue schemeTok then "" else $":{Stdlib.Int.toString n}"
     | _ -> ""
   let pathTok =
     match url.paths with

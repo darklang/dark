@@ -99,13 +99,15 @@ let typeReferenceEqual
 
   | (TCustomType (typA, argsA), TCustomType (typB, argsB)) ->
     let namesEqual =
-      match (typA, typB) with
-      | (Ok (Package idA), Ok (Package idB)) ->
-        let locA = resolveTypeName branchId idA
-        let locB = resolveTypeName branchId idB
-        match (locA, locB) with
-        | (Some lA, Some lB) -> lA == lB
-        | _ -> idA == idB
+      match (typA.resolved, typB.resolved) with
+      | (Ok resolvedA, Ok resolvedB) ->
+        match (resolvedA.name, resolvedB.name) with
+        | (Package idA, Package idB) ->
+          let locA = resolveTypeName branchId idA
+          let locB = resolveTypeName branchId idB
+          match (locA, locB) with
+          | (Some lA, Some lB) -> lA == lB
+          | _ -> idA == idB
       | (Error eA, Error eB) -> eA == eB
       | _ -> false
 

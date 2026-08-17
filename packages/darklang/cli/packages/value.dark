@@ -3,7 +3,9 @@ module Darklang.Cli.Packages.Value
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
-  | [] -> help state
+  | [] ->
+    Stdlib.printLine (help state)
+    state
 
   // val SomeModule.myValue = expression
   | location :: definitionParts ->
@@ -170,7 +172,7 @@ let createValueInline
     state
 
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [
     "Create or update a value"
     ""
@@ -205,9 +207,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "  val foo = 42          # Relative to current location"
     "  val /Darklang.Foo.x = 42  # Absolute path"
     ""
-  ] |> Stdlib.printLines
-
-  state
+  ] |> Stdlib.String.join "\n"
 
 
 let complete (_state: Cli.AppState) (_args: List<String>) : List<Cli.Completion.CompletionItem> = []

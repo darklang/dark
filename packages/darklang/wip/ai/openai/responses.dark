@@ -834,7 +834,7 @@ let send
       | code when code >= 200 && code < 300 ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok json -> parseResponse json
-        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ e)
+        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ (Stdlib.AltJson.ParseError.toString e))
       | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
       | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
       | code when code >= 500 -> Stdlib.Result.Result.Error("OpenAI server error: " ++ bodyStr)
@@ -869,7 +869,7 @@ let get
       | code when code >= 200 && code < 300 ->
         match Stdlib.AltJson.parse bodyStr with
         | Ok json -> parseResponse json
-        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ e)
+        | Error e -> Stdlib.Result.Result.Error("Failed to parse response: " ++ (Stdlib.AltJson.ParseError.toString e))
       | 401 -> Stdlib.Result.Result.Error "Authentication failed: Invalid API key"
       | 404 -> Stdlib.Result.Result.Error("Response not found: " ++ responseId)
       | 429 -> Stdlib.Result.Result.Error "Rate limit exceeded"
@@ -886,7 +886,7 @@ let delete
     let headers = Config.getHeaders apiKey
     let url = Config.baseUrl ++ "/responses/" ++ responseId
 
-    match Stdlib.HttpClient.delete url headers with
+    match Stdlib.HttpClient.request "DELETE" url headers Stdlib.Blob.empty with
     | Error e -> Stdlib.Result.Result.Error("HTTP request failed: " ++ Stdlib.HttpClient.toString e)
     | Ok response ->
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body

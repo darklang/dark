@@ -133,9 +133,9 @@ module ListResourceTemplatesRequest =
     match json with
     | Object fields ->
       match Stdlib.List.findFirst fields (fun (k, _) -> k == "method") with
-      | Some (_, String method) ->
+      | Some ((_, String method)) ->
           Stdlib.Result.Result.Ok (ListResourceTemplatesParams { method = method })
-      | Some (_, _) ->
+      | Some ((_, _)) ->
           Stdlib.Result.Result.Error "method must be a string"
       | None ->
           Stdlib.Result.Result.Error "method is required"
@@ -206,7 +206,8 @@ module Helpers =
     else
       // Extract variables from each segment
       let variablePairs =
-        (Stdlib.List.zip uriSegments templateSegments)
+        // Lengths are equal (checked above), so zipShortest zips everything.
+        (Stdlib.List.zipShortest uriSegments templateSegments)
         |> Stdlib.List.filterMap (fun (uriSeg, templateSeg) ->
           // Check if this segment is a variable (enclosed in {})
           if Stdlib.String.startsWith templateSeg "{" && Stdlib.String.endsWith templateSeg "}" then
@@ -216,7 +217,7 @@ module Helpers =
               |> Stdlib.String.dropFirst 1
               |> Stdlib.String.dropLast 1
 
-            Stdlib.Option.Option.Some (varName, uriSeg)
+            Stdlib.Option.Option.Some ((varName, uriSeg))
           else if uriSeg == templateSeg then
             // This is a static segment that matches
             Stdlib.Option.Option.None
@@ -225,6 +226,6 @@ module Helpers =
             Stdlib.Option.Option.None
         )
 
-      // Convert the list of pairs to a dictionary
-      (Stdlib.Dict.fromList variablePairs)
-      |> Stdlib.Option.Option.Some
+      // Convert the list of pairs to a dictionary; fromList is None on
+      // duplicate variable names, which is a non-match here.
+      Stdlib.Dict.fromList variablePairs

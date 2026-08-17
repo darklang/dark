@@ -74,7 +74,7 @@ module Request =
 
       | None -> Stdlib.Result.Result.Error(ParseError.MissingJsonRpcField)
 
-      | Some(_, invalidJsonRpc) ->
+      | Some((_, invalidJsonRpc)) ->
         Stdlib.Result.Result.Error(ParseError.InvalidJsonRpcField invalidJsonRpc)
 
 
@@ -178,7 +178,7 @@ module Request =
               ``params`` = paramsMaybe })
           |> Stdlib.Result.Result.Ok
 
-      | _ -> Stdlib.Result.Result.Error ParseError.NotObject
+      | _ -> Stdlib.Result.Result.Error(ParseError.NotObject json)
 
 
   let makeString

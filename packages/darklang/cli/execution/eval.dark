@@ -26,7 +26,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   match args with
   | [] ->
-    help state
+    Stdlib.printLine (help state)
     state
   | _ ->
     // Special case: a single "-" arg means "read expression from stdin" so
@@ -50,7 +50,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   []
 
 
-let help (_state: AppState) : Unit =
+let help (_state: AppState) : String =
   [
     "Usage: eval <expression>"
     "       eval -    (read expression from stdin, for multi-line input)"
@@ -67,4 +67,4 @@ let help (_state: AppState) : Unit =
     "  let xs = [1; 2; 3]"
     "  Stdlib.List.length xs"
     "  EOF"
-  ] |> Stdlib.printLines
+  ] |> Stdlib.String.join "\n"

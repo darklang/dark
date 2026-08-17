@@ -16,13 +16,13 @@ module TraceNotification =
     match json with
     | Object fields ->
       match Stdlib.List.findFirst fields (fun (k, _) -> k == "value") with
-      | Some (_, String "off") ->
+      | Some ((_, String "off")) ->
           Stdlib.Result.Result.Ok  (TraceNotificationParams  { value = TraceLevel.Off })
-      | Some (_, String "messages") ->
+      | Some ((_, String "messages")) ->
           Stdlib.Result.Result.Ok  (TraceNotificationParams  { value = TraceLevel.Messages })
-      | Some (_, String "verbose") ->
+      | Some ((_, String "verbose")) ->
           Stdlib.Result.Result.Ok  (TraceNotificationParams  { value = TraceLevel.Verbose })
-      | Some (_, _) ->
+      | Some ((_, _)) ->
           Stdlib.Result.Result.Error "value must be one of: 'off', 'messages', 'verbose'"
       | None ->
           Stdlib.Result.Result.Error "value is required"

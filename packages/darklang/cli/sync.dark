@@ -316,7 +316,7 @@ let daemonConfigSet
 
   state
 
-let help (state: AppState) : AppState =
+let help (_state: AppState) : String =
   [ "dark sync — keep your packages in step with your other instances, over HTTP."
     "Sync is opt-in, and only between the machines you want. Once you connect a peer it stays current."
     ""
@@ -341,9 +341,7 @@ let help (state: AppState) : AppState =
     ""
     "When two instances edit the same name, sync auto-resolves (latest wins) but records it:"
     "  dark conflicts               review + override sync divergences" ]
-  |> Stdlib.printLines
-
-  state
+  |> Stdlib.String.join "\n"
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
@@ -540,11 +538,14 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine (Colors.error $"Invalid --port: {portStr}")
       state
 
-  | [ "help" ] -> help state
+  | [ "help" ] ->
+    Stdlib.printLine (help state)
+    state
   | _ ->
     Stdlib.printLine (Colors.error $"Unknown: dark sync {Stdlib.String.join args " "}")
     Stdlib.printLine ""
-    help state
+    Stdlib.printLine (help state)
+    state
 
 
 let complete

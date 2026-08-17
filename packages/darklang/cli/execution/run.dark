@@ -18,7 +18,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   match args with
   | [] ->
-    help state
+    Stdlib.printLine (help state)
     state
   | scriptPath :: scriptArgs ->
     executeScript state scriptPath scriptArgs allowHarmful sandbox
@@ -104,7 +104,7 @@ let complete (_state: AppState) (args: List<String>) : List<Completion.Completio
   | _ -> []
 
 
-let help (state: AppState) : Unit =
+let help (_state: AppState) : String =
   [ "Usage: run-script <path> [args...]"
     "Execute a Dark script file."
     ""
@@ -119,4 +119,4 @@ let help (state: AppState) : Unit =
     ""
     "To call a package function, use 'eval' instead:"
     "  eval Stdlib.Int.add 5 3" ]
-  |> Stdlib.printLines
+  |> Stdlib.String.join "\n"

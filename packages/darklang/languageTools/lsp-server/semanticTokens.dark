@@ -27,7 +27,12 @@ val tokenTypes =
     "function" // [9] for function names/identifiers
     "property" // [10] for field names
     "enumMember" // [11] for enum case names
-    "typeParameter" ] // [12] for type parameter names
+    "typeParameter" // [12] for type parameter names
+
+    // not yet emitted, but mapped so every TokenType has an encoding
+    "comment" // [13] for comments
+    "method" // [14] for methods
+    "regexp" ] // [15] for regular expressions
 
 val tokenModifiers = []
 
@@ -56,6 +61,10 @@ module EncodeSemanticTokens =
     | Property -> 10UL
     | EnumMember -> 11UL
     | TypeParameter -> 12UL
+
+    | Comment -> 13UL
+    | Method -> 14UL
+    | RegularExpression -> 15UL
 
   let toRelativeTokens
     (tokens: List<LanguageTools.SemanticTokens.SemanticToken>)

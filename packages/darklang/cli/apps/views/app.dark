@@ -332,8 +332,8 @@ let execute
 
 
 let help
-  (state: Darklang.Cli.AppState)
-  : Darklang.Cli.AppState =
+  (_state: Darklang.Cli.AppState)
+  : String =
   [ "Usage: views [name|list]"
     "Browse and preview available CLI views."
     ""
@@ -348,8 +348,7 @@ let help
     "  Up/Down    Select a view or scroll its content"
     "  Enter      Open the selected view"
     "  Escape     Back to list / exit" ]
-  |> Stdlib.printLines
-  state
+  |> Stdlib.String.join "\n"
 
 
 let complete

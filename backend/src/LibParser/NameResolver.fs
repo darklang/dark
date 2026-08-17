@@ -13,19 +13,19 @@ type NRE = PT.NameResolutionError
 // `Name_v0`.
 let private parseFnNameString (fnName : string) : Result<string * int, string> =
   match fnName with
-  | Regex.Regex "^([a-z][a-z0-9A-Z]*[']?)_v(\d+)$" [ name; version ] ->
+  | Regex.Regex "^([a-z][a-z0-9A-Z_]*[']?)_v(\d+)$" [ name; version ] ->
     // TryParse (not `int`) so an absurdly long version string is a format error, not
     // an OverflowException raised from a function that otherwise returns Result
     match System.Int32.TryParse version with
     | true, v -> Ok(name, v)
     | false, _ -> Error "Bad format in fn name"
-  | Regex.Regex "^([a-z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok(name, 0)
+  | Regex.Regex "^([a-z][a-z0-9A-Z_]*[']?)$" [ name ] -> Ok(name, 0)
   | _ -> Error "Bad format in fn name"
 
 let private parseTypeNameString (typeName : string) : Result<string, string> =
   match typeName with
-  | Regex.Regex "^([A-Z][a-z0-9A-Z]*[']?)_v0$" [ name ] -> Ok name
-  | Regex.Regex "^([A-Z][a-z0-9A-Z]*[']?)$" [ name ] -> Ok name
+  | Regex.Regex "^([A-Z][a-z0-9A-Z_]*[']?)_v0$" [ name ] -> Ok name
+  | Regex.Regex "^([A-Z][a-z0-9A-Z_]*[']?)$" [ name ] -> Ok name
   | _ -> Error "Bad format in type name"
 
 

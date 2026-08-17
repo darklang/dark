@@ -14,7 +14,13 @@ let makeShowDocumentRequest
 
     |> LanguageServerProtocol.Window.ShowDocument.ShowDocumentRequest.ShowDocumentParams.toJson
 
+  let params =
+    match showDocParams with
+    | Object fields -> JsonRPC.Request.RequestParams.Object fields
+    | Array items -> JsonRPC.Request.RequestParams.Array items
+    | other -> JsonRPC.Request.RequestParams.Array [ other ]
+
   JsonRPC.Request.makeString
     ("window/showDocument")
     (Stdlib.Option.Option.Some(requestId))
-    (Stdlib.Option.Option.Some(showDocParams))
+    (Stdlib.Option.Option.Some(params))

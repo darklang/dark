@@ -114,7 +114,7 @@ let delete
     let headers = Config.getHeaders apiKey
     let url = Config.baseUrl ++ "/models/" ++ modelId
 
-    match Stdlib.HttpClient.delete url headers with
+    match Stdlib.HttpClient.request "DELETE" url headers Stdlib.Blob.empty with
     | Ok response ->
       let bodyStr = Stdlib.String.fromBlobWithReplacement response.body
 

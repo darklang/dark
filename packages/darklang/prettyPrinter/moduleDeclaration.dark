@@ -53,14 +53,14 @@ module ModuleDeclaration =
 
         Stdlib.List.append otherModules [ newModuleWithSubmodule ]
 
-      | [ foundModule ], [] ->
+      | foundModule :: _, [] ->
         let updatedModule =
           { foundModule with
               types = Stdlib.List.append foundModule.types [ t ] }
 
         Stdlib.List.append otherModules [ updatedModule ]
 
-      | [ foundModule ], submoduleNames ->
+      | foundModule :: _, submoduleNames ->
         let updatedModule =
           { foundModule with
               submodules = withTypeHelper foundModule.submodules t submoduleNames }
@@ -130,14 +130,14 @@ module ModuleDeclaration =
 
         Stdlib.List.append otherModules [ newModuleWithSubmodule ]
 
-      | [ foundModule ], [] ->
+      | foundModule :: _, [] ->
         let updatedModule =
           { foundModule with
               fns = Stdlib.List.append foundModule.fns [ f ] }
 
         Stdlib.List.append otherModules [ updatedModule ]
 
-      | [ foundModule ], submoduleNames ->
+      | foundModule :: _, submoduleNames ->
         let updatedModule =
           { foundModule with
               submodules = withFnHelper foundModule.submodules f submoduleNames }
@@ -206,14 +206,14 @@ module ModuleDeclaration =
 
         Stdlib.List.append otherModules [ newModuleWithSubmodule ]
 
-      | [ foundModule ], [] ->
+      | foundModule :: _, [] ->
         let updatedModule =
           { foundModule with
               values = Stdlib.List.append foundModule.values [ v ] }
 
         Stdlib.List.append otherModules [ updatedModule ]
 
-      | [ foundModule ], submoduleNames ->
+      | foundModule :: _, submoduleNames ->
         let updatedModule =
           { foundModule with
               submodules = withValueHelper foundModule.submodules v submoduleNames }
@@ -284,14 +284,14 @@ module ModuleDeclaration =
 
         Stdlib.List.append otherModules [ newModuleWithSubmodule ]
 
-      | [ foundModule ], [] ->
+      | foundModule :: _, [] ->
         let updatedModule =
           { foundModule with
               exprs = Stdlib.List.append foundModule.exprs [ (expr, []) ] }
 
         Stdlib.List.append otherModules [ updatedModule ]
 
-      | [ foundModule ], submoduleNames ->
+      | foundModule :: _, submoduleNames ->
         let updatedModule =
           { foundModule with
               submodules = withExpr foundModule.submodules (expr, submoduleNames) }

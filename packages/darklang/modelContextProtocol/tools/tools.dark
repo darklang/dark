@@ -23,7 +23,7 @@ module Darklang =
           | Object fields ->
             let cursorResult =
               match Stdlib.List.findFirst fields (fun (k, _) -> k == "cursor") with
-              | Some ((_, String cursor)) -> Stdlib.Result.Result.OK (Stdlib.Option.Option.Some cursor)
+              | Some ((_, String cursor)) -> Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some cursor)
               | Some ((_, Null)) -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None
               | Some ((_, _)) -> Stdlib.Result.Result.Error "cursor must be a string or null"
               | None -> Stdlib.Result.Result.Ok Stdlib.Option.Option.None

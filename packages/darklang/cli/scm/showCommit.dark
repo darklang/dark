@@ -73,7 +73,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   []
 
 
-let help (_state: AppState) : Unit =
+let help (_state: AppState) : String =
   [ "Usage: show <commit-id>"
     "Show details of a specific commit."
     ""
@@ -81,4 +81,4 @@ let help (_state: AppState) : Unit =
     "  commit-id   Full or partial (8+ chars) commit ID"
     ""
     "Use 'log' to see available commits." ]
-  |> Stdlib.printLines
+  |> Stdlib.String.join "\n"

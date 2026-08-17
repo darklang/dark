@@ -220,7 +220,7 @@ let execute (state: AppState) (args: List<String>): AppState =
   state
 
 
-let help (state: AppState): AppState =
+let help (_state: AppState) : String =
   [ "Usage: builtins [--with-sigs] [--with-purity] [filter]"
     ""
     "Lists all builtin functions grouped by category."
@@ -238,9 +238,7 @@ let help (state: AppState): AppState =
     "  builtins --with-purity                  - Compact + purity tag"
     "  builtins --with-sigs --with-purity http - HTTP fns, sigs + purity"
     "  builtins json                           - Filter by 'json'" ]
-  |> Stdlib.printLines
-
-  state
+  |> Stdlib.String.join "\n"
 
 
 let complete

@@ -458,6 +458,14 @@ module Key =
     | Delete | Insert -> true
     | _ -> false
 
+  /// Display name of the key, e.g. `Enter` or `A`
+  let toString (k: Key): String =
+    // toRepr prints the fully-qualified case name; keep just the last segment
+    (Builtin.toRepr k)
+    |> Stdlib.String.split "."
+    |> Stdlib.List.last
+    |> Stdlib.Option.withDefault ""
+
 
 module Modifiers =
   type Modifiers =

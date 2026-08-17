@@ -130,10 +130,12 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match (parsed.itemType, parsed.target, parsed.kind) with
   | _ when Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) ->
     Stdlib.printLine (Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
-    help state
+    Stdlib.printLine (help state)
+    state
 
   | (None, _, _) ->
-    help state
+    Stdlib.printLine (help state)
+    state
 
   | (Some _, None, _) ->
     Stdlib.printLine (Colors.error "Error: Missing target (location or hash)")
@@ -251,7 +253,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               state
 
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [ "Mark a function, type, or value as deprecated."
     ""
     "Usage: deprecate <fn|type|value> <name-or-hash> --kind <k> [options]"
@@ -281,8 +283,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "Related:"
     "  delete — sugar for `deprecate --kind obsolete` with dependents gate"
     "  undo   — reverse a WIP deprecate on the current branch" ]
-  |> Stdlib.printLines
-  state
+  |> Stdlib.String.join "\n"
 
 
 let complete

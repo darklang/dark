@@ -8,6 +8,11 @@ let resolveReplacementName
   (ref: LanguageTools.ProgramTypes.Reference)
   : String =
   let ctx = PrettyPrinter.ProgramTypes.Context.forBranch branchId
+  let hash =
+    match ref with
+    | PackageFn h -> h
+    | PackageType h -> h
+    | PackageValue h -> h
   let locs =
     match ref with
     | PackageFn h -> Builtin.pmGetLocationsByFn branchId h
@@ -19,7 +24,7 @@ let resolveReplacementName
   | Some loc ->
     PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc
   | None ->
-    $"<hash:{LanguageTools.ProgramTypes.hashToShort ref.hash}>"
+    $"<hash:{LanguageTools.ProgramTypes.hashToShort hash}>"
 
 
 /// Build a deprecation header for an item, if any.
@@ -342,7 +347,7 @@ let instructionRows
         PrettyPrinter.RuntimeTypes.Instructions.header l.instructions
       Stdlib.List.flatten
         [ [ ""
-            Colors.hint $"lambda#{Stdlib.UInt64.toString l.exprId}"
+            Colors.hint $"lambda#{Stdlib.Int64.toString l.exprId}"
             Colors.dimText $"  {header}"
             "" ]
           renderBody l.instructions ])
@@ -392,7 +397,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   match parseArgs args with
   | Error e ->
     Stdlib.printLine (Colors.error $"Cannot view: {e}")
-    help state
+    Stdlib.printLine (help state)
     state
   | Ok parsed ->
     let (pathArg, mode) = parsed
@@ -432,7 +437,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
     Traversal.completePartialPath branchId state.packageData.currentLocation ""
 
 
-let help (_state: AppState) : Unit =
+let help (_state: AppState) : String =
   [
     "Usage: view [path] [--ast | --instructions]"
     "View detailed information about functions, types, values, or modules."
@@ -452,4 +457,4 @@ let help (_state: AppState) : Unit =
     "  view Stdlib.List                - View contents of Stdlib.List module"
     "  view List.last --ast            - View List.last as a syntax tree"
     "  view List.map --instructions    - Disassemble List.map"
-  ] |> Stdlib.printLines
+  ] |> Stdlib.String.join "\n"

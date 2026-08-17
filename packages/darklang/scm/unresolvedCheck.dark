@@ -154,22 +154,22 @@ let checkExpr (expr: LanguageTools.ProgramTypes.Expr) : List<String> =
     Stdlib.List.append (checkExpr first) (checkExpr next)
   | EUnit _
   | ESelf _
-  | EFloat (_id, _sign, _whole, _frac) -> []
-  | EBool (_id, _v)
-  | EInt8 (_id, _v)
-  | EUInt8 (_id, _v)
-  | EInt16 (_id, _v)
-  | EUInt16 (_id, _v)
-  | EInt32 (_id, _v)
-  | EUInt32 (_id, _v)
-  | EInt64 (_id, _v)
-  | EUInt64 (_id, _v)
-  | EInt128 (_id, _v)
-  | EUInt128 (_id, _v)
-  | EInt (_id, _v)
-  | EChar (_id, _v)
-  | EVariable (_id, _v)
-  | EArg (_id, _idx) -> []
+  | EFloat (_, _, _, _) -> []
+  | EBool (_, _)
+  | EInt8 (_, _)
+  | EUInt8 (_, _)
+  | EInt16 (_, _)
+  | EUInt16 (_, _)
+  | EInt32 (_, _)
+  | EUInt32 (_, _)
+  | EInt64 (_, _)
+  | EUInt64 (_, _)
+  | EInt128 (_, _)
+  | EUInt128 (_, _)
+  | EInt (_, _)
+  | EChar (_, _)
+  | EVariable (_, _)
+  | EArg (_, _) -> []
 
 
 let checkTypeDefinition

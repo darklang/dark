@@ -26,7 +26,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   []
 
 
-let help (_state: AppState) : Unit =
+let help (_state: AppState) : String =
   [
     "Usage: back"
     "Navigate back to the previous location in navigation history."
@@ -37,4 +37,4 @@ let help (_state: AppState) : Unit =
     "Example:"
     "  nav /Darklang/Stdlib    (moves to Stdlib, adds current to history)"
     "  back                    (returns to previous location)"
-  ] |> Stdlib.printLines
+  ] |> Stdlib.String.join "\n"

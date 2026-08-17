@@ -388,7 +388,9 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   else
     match options.args with
     | [] -> runInteractive state provider options.provider options.model options.writeMode; state
-    | "--help" :: _ | "-h" :: _ -> help state
+    | "--help" :: _ | "-h" :: _ ->
+      Stdlib.printLine (help state)
+      state
     | subName :: rest ->
       match Stdlib.List.findFirst subcommands (fun s -> s.name == subName) with
       | Some sub ->
@@ -401,7 +403,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Stdlib.printLine (Colors.error $"Unknown subcommand. Use: agent {names}")
         state
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   let lines =
     Stdlib.List.map subcommands (fun s ->
       let padded =
@@ -433,8 +435,7 @@ let help (state: Cli.AppState) : Cli.AppState =
       "  agent fix Darklang.Cli.SCM.Status.render --yes" ]
 
   let all = Stdlib.List.append (Stdlib.List.append header lines) footer
-  Stdlib.printLines all
-  state
+  Stdlib.String.join all "\n"
 
 let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.CompletionItem> =
   match args with

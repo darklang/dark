@@ -192,7 +192,7 @@ let handleWrite (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
       | Ok fullPath ->
         match Stdlib.Cli.File.writeText fullPath content with
         | Ok _ -> Stdlib.Result.Result.Ok(ToolOutput.Text $"Wrote to {path}")
-        | Error e -> Stdlib.Result.Result.Error $"{e}"
+        | Error e -> Stdlib.Result.Result.Error e.message
     | _ -> Stdlib.Result.Result.Error "path and content required"
   | _ -> Stdlib.Result.Result.Error "invalid input"
 

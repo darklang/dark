@@ -59,9 +59,8 @@ module TextEdit =
   let execute (cliState: Cli.AppState) (_args: List<String>) : Cli.AppState =
     Component.launch cliState component Outliner.TextEditor.empty
 
-  let help (state: Cli.AppState) : Cli.AppState =
-    Stdlib.printLine "A tiny text editor (demo) — type, Enter or Esc to exit."
-    state
+  let help (_state: Cli.AppState) : String =
+    "A tiny text editor (demo) — type, Enter or Esc to exit."
 
   let complete
     (_state: Cli.AppState)

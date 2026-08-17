@@ -21,7 +21,7 @@ let handleIncomingMessage
 
   | Shutdown requestId ->
       logWithPath state.logFilePath "Handling shutdown request"
-      sendSuccessResponseWithPath state.logFilePath (Stdlib.Option.Option.Some requestId) Null
+      sendSuccessResponseWithPath state.logFilePath (Stdlib.Option.Option.Some requestId) Json.Null
       State.BuilderServerState {
         initialized = state.initialized
         shouldShutdown = true
@@ -123,9 +123,29 @@ let handleIncomingMessage
 
   | GetPromptRequest(requestId, name, arguments) ->
       logWithPath state.logFilePath $"Handling get prompt request: {name}"
-      let messages = Prompts.handlePromptRequest state.server name arguments
+      let messages =
+        (Prompts.handlePromptRequest state.server name arguments)
+        |> Stdlib.List.map (fun msg ->
+          let role =
+            match msg.role with
+            | User -> ModelContextProtocol.Prompts.GetPromptResponse.MessageRole.User
+            | Assistant -> ModelContextProtocol.Prompts.GetPromptResponse.MessageRole.Assistant
+          let content =
+            match msg.content with
+            | Text text ->
+              ModelContextProtocol.Prompts.GetPromptResponse.PromptContent.Text text
+            | Image img ->
+              ModelContextProtocol.Prompts.GetPromptResponse.PromptContent.Resource(
+                Json.Object [ ("type", Json.String "image"); ("data", Json.String img.data); ("mimeType", Json.String img.mimeType) ])
+            | Audio audio ->
+              ModelContextProtocol.Prompts.GetPromptResponse.PromptContent.Resource(
+                Json.Object [ ("type", Json.String "audio"); ("data", Json.String audio.data); ("mimeType", Json.String audio.mimeType) ])
+            | Resource res ->
+              ModelContextProtocol.Prompts.GetPromptResponse.PromptContent.Resource(
+                Json.Object [ ("uri", Json.String res.uri); ("mimeType", Json.String res.mimeType); ("text", Json.String res.text) ])
+          ModelContextProtocol.Prompts.GetPromptResponse.PromptMessage { role = role; content = content })
       let response = ModelContextProtocol.Prompts.GetPromptResponse.GetPromptResult {
-        description = $"Generated prompt: {name}"
+        description = Stdlib.Option.Option.Some $"Generated prompt: {name}"
         messages = messages
       }
       sendSuccessResponseWithPath
@@ -138,7 +158,7 @@ let handleIncomingMessage
       logWithPath state.logFilePath $"Got Other message type: {jsonRpcRequest.method}"
       sendErrorResponseWithPath
         state.logFilePath
-        (Stdlib.Option.Option.Some jsonRpcRequest.id)
+        jsonRpcRequest.id
         ModelContextProtocol.ErrorCodes.methodNotFound
         $"Method not found: {jsonRpcRequest.method}"
       state
@@ -147,7 +167,7 @@ let handleIncomingMessage
       logWithPath state.logFilePath $"Unhandled message type: {request.method}"
       sendErrorResponseWithPath
         state.logFilePath
-        (Stdlib.Option.Option.Some request.id)
+        request.id
         ModelContextProtocol.ErrorCodes.methodNotFound
         $"Method not found: {request.method}"
       state

@@ -76,7 +76,7 @@ module DirectApiTests =
         if hasStopReason && hasUsage && isComplete then
           TestResult.Pass
         else
-          TestResult.Fail $"Missing expected response fields. StopReason: {hasStopReason}, Usage: {hasUsage}, Complete: {isComplete}"
+          TestResult.Fail $"Missing expected response fields. StopReason: {Stdlib.Bool.toString hasStopReason}, Usage: {Stdlib.Bool.toString hasUsage}, Complete: {Stdlib.Bool.toString isComplete}"
       | Error e ->
         TestResult.Fail $"API error: {Response.ApiError.toString e}"
 
@@ -105,7 +105,7 @@ module TokenCountingTests =
         if result.input_tokens > 0 then
           TestResult.Pass
         else
-          TestResult.Fail $"Expected positive token count, got {result.input_tokens}"
+          TestResult.Fail $"Expected positive token count, got {Stdlib.Int.toString result.input_tokens}"
       | Error e ->
         TestResult.Fail $"Token count error: {Response.ApiError.toString e}"
 
@@ -138,7 +138,7 @@ module TokenCountingTests =
           if longResult.input_tokens > shortResult.input_tokens then
             TestResult.Pass
           else
-            TestResult.Fail $"Expected long prompt ({longResult.input_tokens}) > short prompt ({shortResult.input_tokens})"
+            TestResult.Fail $"Expected long prompt ({Stdlib.Int.toString longResult.input_tokens}) > short prompt ({Stdlib.Int.toString shortResult.input_tokens})"
         | Error e -> TestResult.Fail $"Long prompt error: {Response.ApiError.toString e}"
       | Error e -> TestResult.Fail $"Short prompt error: {Response.ApiError.toString e}"
 
@@ -918,7 +918,7 @@ module BatchTests =
         if (isProcessing || isComplete) && total >= 1 then
           TestResult.Pass
         else
-          TestResult.Fail $"Unexpected batch state: processing={isProcessing}, complete={isComplete}, total={total}"
+          TestResult.Fail $"Unexpected batch state: processing={Stdlib.Bool.toString isProcessing}, complete={Stdlib.Bool.toString isComplete}, total={Stdlib.Int.toString total}"
       | Error e ->
         TestResult.Fail $"Create batch error: {Response.ApiError.toString e}"
 
