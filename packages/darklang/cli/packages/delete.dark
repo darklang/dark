@@ -81,8 +81,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match (parsed.itemType, parsed.target) with
   | _ when Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) ->
     Stdlib.printLine (Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
-    help state
-  | (None, _) -> help state
+    Stdlib.printLine (help state)
+    state
+  | (None, _) ->
+    Stdlib.printLine (help state)
+    state
   | (Some itemTypeStr, targetOpt) ->
     match Propagate.itemKindFromString itemTypeStr with
     | None ->
@@ -122,7 +125,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               Deprecate.execute state (toDeprecateArgs parsed itemTypeStr target)
 
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [ "Take a fn/type/value off the shelf (sugar for deprecate --kind obsolete)."
     ""
     "Usage: delete <fn|type|value> <name-or-hash> [options]"
@@ -142,8 +145,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     ""
     "Prefer `deprecate --kind superseded-by` or `deprecate --kind harmful` when"
     "an item has a proper replacement or should runtime-halt, respectively." ]
-  |> Stdlib.printLines
-  state
+  |> Stdlib.String.join "\n"
 
 
 let complete

@@ -153,10 +153,10 @@ let runSearch (branchId: Uuid) (queryText: String) : List<SearchHit> =
         entityTypes = []
         exactMatch = false }
   let r = LanguageTools.PackageManager.Search.search branchId query
-  let hit (tag: String) (item: LanguageTools.ProgramTypes.LocatedItem<'a>) : SearchHit =
-    let modules = Stdlib.List.append [ item.location.owner ] item.location.modules
-    let full = Stdlib.String.join (Stdlib.List.append modules [ item.location.name ]) "."
-    SearchHit { modules = modules; name = item.location.name; kind = tag; display = "  " ++ tag ++ "  " ++ full }
+  let hit (tag: String) (location: LanguageTools.ProgramTypes.PackageLocation) : SearchHit =
+    let modules = Stdlib.List.append [ location.owner ] location.modules
+    let full = Stdlib.String.join (Stdlib.List.append modules [ location.name ]) "."
+    SearchHit { modules = modules; name = location.name; kind = tag; display = "  " ++ tag ++ "  " ++ full }
   // Rank by how well the LEAF NAME matches, because the search also matches descriptions and those hits
   // otherwise interleave alphabetically with the real ones: searching `toUppercase` put
   // `Stdlib.String.toUppercase` sixth, behind `Stdlib.Blob.fromHex`, which matched on its description.
@@ -168,9 +168,9 @@ let runSearch (branchId: Uuid) (queryText: String) : List<SearchHit> =
     else if Stdlib.String.contains name needle then 2
     else 3
   Stdlib.List.flatten
-    [ r.types |> Stdlib.List.map (fun i -> hit "type" i)
-      r.values |> Stdlib.List.map (fun i -> hit "val " i)
-      r.fns |> Stdlib.List.map (fun i -> hit "fn  " i) ]
+    [ r.types |> Stdlib.List.map (fun i -> hit "type" i.location)
+      r.values |> Stdlib.List.map (fun i -> hit "val " i.location)
+      r.fns |> Stdlib.List.map (fun i -> hit "fn  " i.location) ]
   |> Stdlib.List.sortBy rank
 
 /// Dependencies of the selected Tree leaf (what it uses), formatted for the reader. `d` shows this.
@@ -229,11 +229,15 @@ let readBadges (state: State) : (List<String> * List<String>) =
       |> Stdlib.List.map (fun d -> Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "")
     let sets = Packages.Query.loadDeprecationSets state.branchId
     let results = Packages.Query.allDirectDescendants state.branchId (modulePathOf state.location)
-    let pick = fun items ->
-      items
-      |> Stdlib.List.filter (fun i -> Packages.Query.isDeprecated sets i.entity.hash)
-      |> Stdlib.List.map (fun i -> i.location.name)
-    (wip, Stdlib.List.flatten [ pick results.fns; pick results.types; pick results.values ])
+    let pick = fun pairs ->
+      pairs
+      |> Stdlib.List.filter (fun (hash, _name) -> Packages.Query.isDeprecated sets hash)
+      |> Stdlib.List.map (fun (_hash, name) -> name)
+    (wip,
+     Stdlib.List.flatten
+       [ pick (results.fns |> Stdlib.List.map (fun i -> (i.entity.hash, i.location.name)))
+         pick (results.types |> Stdlib.List.map (fun i -> (i.entity.hash, i.location.name)))
+         pick (results.values |> Stdlib.List.map (fun i -> (i.entity.hash, i.location.name))) ])
 
 
 /// Carry the cached badge sets forward, re-reading only when something they depend on moved.

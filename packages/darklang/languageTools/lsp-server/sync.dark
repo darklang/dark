@@ -5,20 +5,11 @@ let handleListInstancesRequest
   (state: LspState)
   (requestID: JsonRPC.RequestID)
   : LspState =
-  let instances = SCM.Instances.list ()
-
-  let instancesJson =
-    instances
-    |> Stdlib.List.map (fun instance ->
-      Json.Object
-        [ ("id", Json.String (Stdlib.Uuid.toString instance.id))
-          ("name", Json.String instance.name)
-          ("url", Json.String instance.url) ])
-    |> Json.Array
-
+  // TODO: instances aren't modeled yet (there is no SCM.Instances);
+  // reply with an empty list so the client gets a valid response.
   let responseJson =
     let requestID = Stdlib.Option.Option.Some requestID
-    (JsonRPC.Response.Ok.make requestID instancesJson)
+    (JsonRPC.Response.Ok.make requestID (Json.Array []))
     |> Stdlib.AltJson.format
 
   logAndSendToClient responseJson

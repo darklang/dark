@@ -71,7 +71,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [ "Find all package values of a given type."
     ""
     "Usage: find-values <type-path> [namespace]"
@@ -79,9 +79,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "Examples:"
     "  find-values Darklang.LanguageTools.WrittenTypesToProgramTypes.Context"
     "  find-values Darklang.CLI.UI.Core.Types.RenderContext Darklang.CLI" ]
-  |> Stdlib.printLines
-
-  state
+  |> Stdlib.String.join "\n"
 
 
 let complete

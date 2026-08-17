@@ -55,23 +55,23 @@ module ProgressNotification =
     | Object fields ->
         let tokenResult =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "progressToken") with
-          | Some (_, token) -> progressTokenFromJson token
+          | Some ((_, token)) -> progressTokenFromJson token
           | None -> Stdlib.Result.Result.Error "progressToken is required"
 
         let progressResult =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "progress") with
-          | Some (_, Number n) -> 
+          | Some ((_, Number n)) -> 
               Stdlib.Result.Result.Ok (Stdlib.Int.fromFloat n)
-          | Some (_, _) -> 
+          | Some ((_, _)) -> 
               Stdlib.Result.Result.Error "progress must be a number"
           | None -> 
               Stdlib.Result.Result.Error "progress is required"
 
         let totalResult =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "total") with
-          | Some (_, Number n) -> 
+          | Some ((_, Number n)) -> 
               Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some (Stdlib.Int.fromFloat n))
-          | Some (_, _) -> 
+          | Some ((_, _)) -> 
               Stdlib.Result.Result.Error "total must be a number"
           | None -> 
               Stdlib.Result.Result.Ok Stdlib.Option.Option.None

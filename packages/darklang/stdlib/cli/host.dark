@@ -33,6 +33,8 @@ module Architecture =
         | "arm64" -> Stdlib.Result.Result.Ok Architecture.Arm64
         | "armv7l" -> Stdlib.Result.Result.Ok Architecture.Armv7l
         | _ -> Stdlib.Result.Result.Error "Unsupported architecture"
+      else
+        Stdlib.Result.Result.Error arch.stderr
 
     | Ok MacOS ->
       let arch = Stdlib.Cli.execute "uname -m"
@@ -63,6 +65,8 @@ module Architecture =
         | _ -> Stdlib.Result.Result.Error "Unsupported architecture"
       else
         Stdlib.Result.Result.Error arch.stderr
+
+    | Error e -> Stdlib.Result.Result.Error e
 
 
 module Shell =

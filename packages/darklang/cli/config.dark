@@ -95,7 +95,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | _ ->
     Stdlib.printLine (Colors.error "Invalid arguments")
     Stdlib.printLine ""
-    help state
+    Stdlib.printLine (help state)
     state
 
 
@@ -113,7 +113,7 @@ let complete (_state: Cli.AppState) (args: List<String>) : List<Cli.Completion.C
   | _ -> []
 
 
-let help (_state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [ "Usage:"
     "  config get <key>           - Get a configuration value"
     "  config set <key> <value>   - Set a configuration value"
@@ -129,6 +129,4 @@ let help (_state: Cli.AppState) : Cli.AppState =
     "  sync.default_instance    - Which instance to sync with"
     "  sync.interval_seconds    - How often to check for changes (default: 20)"
     "  sync.auto_start          - Start sync service automatically (default: true)" ]
-  |> Stdlib.printLines
-
-  _state
+  |> Stdlib.String.join "\n"

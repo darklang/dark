@@ -47,7 +47,7 @@ module HoverRequest =
         position: Position.Position
       }
 
-    let fromJson (json: Json) : Stdlib.Result.Result<HoverParams, string> =
+    let fromJson (json: Json) : Stdlib.Result.Result<HoverParams, Unit> =
       match json with
       | Object fields ->
         let textDocument =

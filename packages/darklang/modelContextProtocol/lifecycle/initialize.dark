@@ -59,14 +59,14 @@ let fromJson (json: Json) : Stdlib.Result.Result<InitializeParams, String> =
           // Parse elicitation
           let elicitation =
             match Stdlib.List.findFirst capFields (fun (k, _) -> k == "elicitation") with
-            | Some (_, json) -> Stdlib.Option.Option.Some json
+            | Some ((_, json)) -> Stdlib.Option.Option.Some json
             | None -> Stdlib.Option.Option.None
 
           // Parse experimental
           let experimental =
             match Stdlib.List.findFirst capFields (fun (k, _) -> k == "experimental") with
-            | Some (_, Object expFields) -> 
-              let dict = Stdlib.List.fold Stdlib.Dict.empty expFields (fun acc (key, value) ->
+            | Some ((_, Object expFields)) ->
+              let dict = Stdlib.List.fold expFields Stdlib.Dict.empty (fun acc (key, value) ->
                 Stdlib.Dict.set acc key value
               )
               Stdlib.Option.Option.Some dict
@@ -75,10 +75,10 @@ let fromJson (json: Json) : Stdlib.Result.Result<InitializeParams, String> =
           // Parse roots
           let roots =
             match Stdlib.List.findFirst capFields (fun (k, _) -> k == "roots") with
-            | Some (_, Object rootFields) ->
+            | Some ((_, Object rootFields)) ->
               let listChanged =
                 match Stdlib.List.findFirst rootFields (fun (k, _) -> k == "listChanged") with
-                | Some (_, Bool b) -> Stdlib.Option.Option.Some b
+                | Some ((_, Bool b)) -> Stdlib.Option.Option.Some b
                 | _ -> Stdlib.Option.Option.None
               Stdlib.Option.Option.Some (RootsClientCapabilities { listChanged = listChanged })
             | _ -> Stdlib.Option.Option.None
@@ -86,7 +86,7 @@ let fromJson (json: Json) : Stdlib.Result.Result<InitializeParams, String> =
           // Parse sampling  
           let sampling =
             match Stdlib.List.findFirst capFields (fun (k, _) -> k == "sampling") with
-            | Some (_, json) -> Stdlib.Option.Option.Some json
+            | Some ((_, json)) -> Stdlib.Option.Option.Some json
             | None -> Stdlib.Option.Option.None
 
           Stdlib.Result.Result.Ok (ClientCapabilities { 
@@ -127,48 +127,44 @@ let toJson (params: InitializeParams) : Json =
         match info.version with
         | Some v -> fields @ [("version", Json.String v)]
         | None -> fields
-      Stdlib.Option.Option.Some ("clientInfo", Json.Object fieldsWithVersion)
+      Stdlib.Option.Option.Some (("clientInfo", Json.Object fieldsWithVersion))
     | None -> Stdlib.Option.Option.None
 
-  let resourceCapabilitiesJson =
-    match params.capabilities.resources with
-    | Some res ->
-      let fields = []
-      let fieldsWithListChanged =
-        match res.listChanged with
-        | Some b -> fields @ [("listChanged", Json.Bool b)]
-        | None -> fields
-      let fieldsWithSubscribe =
-        match res.subscribe with
-        | Some b -> fieldsWithListChanged @ [("subscribe", Json.Bool b)]
-        | None -> fieldsWithListChanged
-      Stdlib.Option.Option.Some ("resources", Json.Object fieldsWithSubscribe)
+  let elicitationJson =
+    params.capabilities.elicitation
+    |> Stdlib.Option.map (fun j -> ("elicitation", j))
+
+  let experimentalJson =
+    params.capabilities.experimental
+    |> Stdlib.Option.map (fun d -> ("experimental", Json.Object (Stdlib.Dict.toList d)))
+
+  let rootsJson =
+    match params.capabilities.roots with
+    | Some r ->
+      let fields =
+        match r.listChanged with
+        | Some b -> [("listChanged", Json.Bool b)]
+        | None -> []
+      Stdlib.Option.Option.Some (("roots", Json.Object fields))
     | None -> Stdlib.Option.Option.None
 
-  let toolCapabilitiesJson =
-    match params.capabilities.tools with
-    | Some tools ->
-      let fields = []
-      let fieldsWithListChanged =
-        match tools.listChanged with
-        | Some b -> fields @ [("listChanged", Json.Bool b)]
-        | None -> fields
-      Stdlib.Option.Option.Some ("tools", Json.Object fieldsWithListChanged)
-    | None -> Stdlib.Option.Option.None
+  let samplingJson =
+    params.capabilities.sampling
+    |> Stdlib.Option.map (fun j -> ("sampling", j))
 
   let capabilitiesFields =
-    [resourceCapabilitiesJson; toolCapabilitiesJson]
+    [elicitationJson; experimentalJson; rootsJson; samplingJson]
     |> Stdlib.Option.values
 
   let traceJson =
     match params.trace with
-    | Some Off -> Stdlib.Option.Option.Some ("trace", Json.String "off")
-    | Some Messages -> Stdlib.Option.Option.Some ("trace", Json.String "messages")
-    | Some Verbose -> Stdlib.Option.Option.Some ("trace", Json.String "verbose")
+    | Some Off -> Stdlib.Option.Option.Some (("trace", Json.String "off"))
+    | Some Messages -> Stdlib.Option.Option.Some (("trace", Json.String "messages"))
+    | Some Verbose -> Stdlib.Option.Option.Some (("trace", Json.String "verbose"))
     | None -> Stdlib.Option.Option.None
 
   let fields =
-    [clientInfoJson; Stdlib.Option.Option.Some ("capabilities", Json.Object capabilitiesFields); traceJson]
+    [clientInfoJson; Stdlib.Option.Option.Some (("capabilities", Json.Object capabilitiesFields)); traceJson]
     |> Stdlib.Option.values
 
   Json.Object fields
@@ -207,12 +203,11 @@ module InitializeResult =
     let toolCapabilitiesJson =
       match result.capabilities.tools with
       | Some tools ->
-        Stdlib.Option.Option.Some ((
-          "tools",
-          Json.Object [
-            ("supportsToolListing", Json.Bool tools.supportsToolListing)
-          ]
-        ))
+        let fields =
+          match tools.listChanged with
+          | Some b -> [ ("listChanged", Json.Bool b) ]
+          | None -> []
+        Stdlib.Option.Option.Some (("tools", Json.Object fields))
       | None -> Stdlib.Option.Option.None
 
     let capabilitiesFields =

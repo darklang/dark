@@ -46,7 +46,7 @@ type ContactInfo =
 
 let extractContactParsed (text: String) : Stdlib.Result.Result<ContactInfo, String> =
   match Stdlib.AltJson.parse (extractContact text) with
-  | Error e -> Stdlib.Result.Result.Error e
+  | Error e -> Stdlib.Result.Result.Error(Stdlib.AltJson.ParseError.toString e)
   | Ok (Object fields) ->
     Stdlib.Result.Result.Ok(
       ContactInfo

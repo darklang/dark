@@ -86,7 +86,7 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
 
 
 /// CLI help text.
-let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
+let help (_state: Darklang.Cli.AppState) : String =
   [ "Usage: outliner"
     "Interactive tree outliner with multi-document support."
     ""
@@ -116,8 +116,7 @@ let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
     "  Left/Right   Move cursor"
     "  Backspace    Delete before cursor"
     "  Enter/Esc    Finish editing"
-  ] |> Stdlib.printLines
-  _state
+  ] |> Stdlib.String.join "\n"
 
 
 /// Tab completion (no arguments).

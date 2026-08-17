@@ -108,22 +108,24 @@ let parseIncomingMessage (r: JsonRPC.Request.Request) : IncomingMessage =
       IncomingMessage.GetPromptRequest(requestId, name, arguments)
 
   // Logging
-  | ("logging/setLevel", requestId, Some json) ->
-      (SetLoggingLevel.fromJson json)
+  | ("logging/setLevel", requestId, Some(Object fields)) ->
+      (Stdlib.AltJson.Json.Object fields)
+      |> SetLoggingLevel.fromJson
       |> Stdlib.Result.map (fun params -> IncomingMessage.SetLoggingLevelRequest(requestId, params))
       |> Stdlib.Result.withDefault (IncomingMessage.Other r)
 
   // Progress
-  | ("$/progress", None, Some json) ->
-      (ProgressNotification.fromJson json)
+  | ("$/progress", None, Some(Object fields)) ->
+      (Stdlib.AltJson.Json.Object fields)
+      |> ProgressNotification.fromJson
       |> Stdlib.Result.map (fun params -> IncomingMessage.ProgressNotification params)
       |> Stdlib.Result.withDefault (IncomingMessage.Other r)
 
   // Notifications
   | ("notifications/cancel", None, Some(Object fields)) ->
       match Stdlib.List.findFirst fields (fun (k, _) -> k == "requestId") with
-      | Some ((_, String id)) -> IncomingMessage.CancelNotification id
-      | Some ((_, Number id)) -> IncomingMessage.CancelNotification (Stdlib.Int.toString (Stdlib.Int.fromFloat id))
+      | Some ((_, String id)) -> IncomingMessage.CancelNotification (JsonRPC.RequestID.String id)
+      | Some ((_, Number id)) -> IncomingMessage.CancelNotification (JsonRPC.RequestID.Int (Stdlib.Int.fromFloat id))
       | _ -> IncomingMessage.Other r
 
   // Roots
@@ -131,14 +133,16 @@ let parseIncomingMessage (r: JsonRPC.Request.Request) : IncomingMessage =
       IncomingMessage.ListRootsRequest requestId
 
   // Sampling
-  | ("sampling/createMessage", Some requestId, Some json) ->
-      (Sampling.CreateMessageParams.fromJson json)
+  | ("sampling/createMessage", Some requestId, Some(Object fields)) ->
+      (Stdlib.AltJson.Json.Object fields)
+      |> CreateMessageParamsParser.fromJson
       |> Stdlib.Result.map (fun params -> IncomingMessage.CreateMessageRequest(requestId, params))
       |> Stdlib.Result.withDefault (IncomingMessage.Other r)
 
   // Completion
-  | ("completion/complete", Some requestId, Some json) ->
-      (parseCompletionParams json)
+  | ("completion/complete", Some requestId, Some(Object fields)) ->
+      (Stdlib.AltJson.Json.Object fields)
+      |> parseCompletionParams
       |> Stdlib.Result.map (fun params -> IncomingMessage.CompleteRequest(requestId, params))
       |> Stdlib.Result.withDefault (IncomingMessage.Other r)
 

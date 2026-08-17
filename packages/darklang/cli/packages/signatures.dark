@@ -292,7 +292,8 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   if Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) then
     Stdlib.printLine (Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
-    help state
+    Stdlib.printLine (help state)
+    state
   else if isUnscoped then
     Darklang.Cli.Docs.StdlibOverview.execute state args
   else
@@ -304,7 +305,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       parsed.filter
 
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [ "Usage: docs signatures [filter|module] [--types] [--module <path>] [--all] [--include-deprecated]"
     ""
     "Token-tight dump of stdlib functions with full type signatures."
@@ -328,9 +329,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     ""
     "Output: per-module sections, one signature per line."
     "Use `view <name>` to see source code and docs for a single item." ]
-  |> Stdlib.printLines
-
-  state
+  |> Stdlib.String.join "\n"
 
 
 let complete

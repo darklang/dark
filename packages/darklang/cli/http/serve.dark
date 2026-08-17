@@ -31,9 +31,8 @@ let parseArgs (rest: List<String>) (acc: Args) : Args =
   | "--max-body-bytes" :: value :: tail ->
     match Stdlib.Int.parse value with
     | Error _ ->
-      Args
-        { acc with
-            error = Stdlib.Option.Option.Some $"Invalid --max-body-bytes: {value}" }
+      { acc with
+          error = Stdlib.Option.Option.Some $"Invalid --max-body-bytes: {value}" }
     | Ok n -> parseArgs tail { acc with maxBodyBytes = n }
   | flag :: _ when Stdlib.String.startsWith flag "--" ->
     { acc with
@@ -147,11 +146,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           state
 
 
-let help (state: Cli.AppState) : Cli.AppState =
-  Stdlib.printLine "Start an HTTP server backed by a Darklang router."
-  Stdlib.printLine ""
-  printUsage ()
-  state
+let help (_state: Cli.AppState) : String =
+  [ "Start an HTTP server backed by a Darklang router."
+    "" ]
+  |> Stdlib.List.append (usageLines ())
+  |> Stdlib.String.join "\n"
 
 
 let complete

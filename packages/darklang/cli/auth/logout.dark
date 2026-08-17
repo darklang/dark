@@ -28,10 +28,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
 
 
-let help (state: AppState) : AppState =
+let help (_state: AppState) : String =
   [ "Clear the active account. Use `login <name>` to log back in." ]
-  |> Stdlib.printLines
-  state
+  |> Stdlib.String.join "\n"
 
 
 let complete

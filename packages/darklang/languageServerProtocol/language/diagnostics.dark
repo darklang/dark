@@ -39,7 +39,9 @@ module Messages =
         let fields =
           [ Stdlib.Option.Option.Some(("uri", Json.String p.uri))
 
-            (p.version |> Stdlib.Option.map (fun v -> ("version", Json.String v)))
+            (p.version
+             |> Stdlib.Option.map (fun v ->
+               ("version", Json.Number(Stdlib.Int.toFloat v))))
 
             Stdlib.Option.Option.Some(
               ("diagnostics",

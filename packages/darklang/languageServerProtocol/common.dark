@@ -201,7 +201,7 @@ module TextDocumentItem =
     |> Json.Object
 
   let fromJson (json: Json) : Stdlib.Result.Result<TextDocumentItem, Unit> =
-    match Stdlib.Json.parse<TextDocumentItem> json with
+    match Stdlib.Json.parse<TextDocumentItem> (Stdlib.AltJson.format json) with
     | Ok item -> Stdlib.Result.Result.Ok item
     | Error _ -> Stdlib.Result.Result.Error()
 
@@ -312,7 +312,7 @@ module TextDocumentFilterScheme =
   let toJson (s: TextDocumentFilterScheme) : Json =
     [ s.language |> Stdlib.Option.map (fun l -> ("language", Json.String l))
 
-      Some(("scheme", Json.String s.scheme))
+      Stdlib.Option.Option.Some(("scheme", Json.String s.scheme))
 
       s.pattern |> Stdlib.Option.map (fun p -> ("pattern", Json.String p)) ]
 
@@ -420,10 +420,10 @@ module DiagnosticSeverity =
 
   let fromJson (json: Json) : Stdlib.Result.Result<DiagnosticSeverity, Unit> =
     match json with
-    | Number 1 -> DiagnosticSeverity.Error |> Stdlib.Result.Result.Ok
-    | Number 2 -> DiagnosticSeverity.Warning |> Stdlib.Result.Result.Ok
-    | Number 3 -> DiagnosticSeverity.Information |> Stdlib.Result.Result.Ok
-    | Number 4 -> DiagnosticSeverity.Hint |> Stdlib.Result.Result.Ok
+    | Number 1.0 -> DiagnosticSeverity.Error |> Stdlib.Result.Result.Ok
+    | Number 2.0 -> DiagnosticSeverity.Warning |> Stdlib.Result.Result.Ok
+    | Number 3.0 -> DiagnosticSeverity.Information |> Stdlib.Result.Result.Ok
+    | Number 4.0 -> DiagnosticSeverity.Hint |> Stdlib.Result.Result.Ok
     | _ -> Stdlib.Result.Result.Error()
 
 module DiagnosticTag =
@@ -442,13 +442,13 @@ module DiagnosticTag =
 
   let toJson (t: DiagnosticTag) : Json =
     match t with
-    | Unnecessary -> Json.Number 1
-    | Deprecated -> Json.Number 2
+    | Unnecessary -> Json.Number 1.0
+    | Deprecated -> Json.Number 2.0
 
   let fromJson (json: Json) : Stdlib.Result.Result<DiagnosticTag, Unit> =
     match json with
-    | Number 1 -> DiagnosticTag.Unnecessary |> Stdlib.Result.Result.Ok
-    | Number 2 -> DiagnosticTag.Deprecated |> Stdlib.Result.Result.Ok
+    | Number 1.0 -> DiagnosticTag.Unnecessary |> Stdlib.Result.Result.Ok
+    | Number 2.0 -> DiagnosticTag.Deprecated |> Stdlib.Result.Result.Ok
     | _ -> Stdlib.Result.Result.Error()
 
 module DiagnosticRelatedInformation =
@@ -531,10 +531,10 @@ module Diagnostic =
       [ Stdlib.Option.Option.Some(("range", Range.toJson d.range))
         d.severity
         |> Stdlib.Option.map (fun s -> ("severity", DiagnosticSeverity.toJson s))
-        // d.code |> Stdlib.Option.map (fun c -> ("code", DiagnosticCode.toJson c))
+        d.code |> Stdlib.Option.map (fun c -> ("code", DiagnosticCode.toJson c))
         // d.codeDescription
         // |> Stdlib.Option.map (fun cd -> ("codeDescription", CodeDescription.toJson cd))
-        // d.source |> Stdlib.Option.map (fun s -> ("source", Json.String s))
+        d.source |> Stdlib.Option.map (fun s -> ("source", Json.String s))
         Stdlib.Option.Option.Some(("message", d.message |> Json.String))
         // d.tags |> Stdlib.Option.map (fun tags ->
         //   ("tags", Json.Array(tags |> Stdlib.List.map DiagnosticTag.toJson)))

@@ -98,8 +98,8 @@ let extractStringFromArgs (args: Json) (key: String) : String =
   match args with
   | Object fields ->
       match Stdlib.List.findFirst fields (fun (k, _v) -> k == key) with
-      | Some (_k, String value) -> value
-      | Some (_k, other) -> Stdlib.AltJson.format other
+      | Some ((_k, String value)) -> value
+      | Some ((_k, other)) -> Stdlib.AltJson.format other
       | None -> ""
   | _ -> ""
 
@@ -109,6 +109,6 @@ let extractOptionalStringFromArgs (args: Json) (key: String) : Stdlib.Option.Opt
   match args with
   | Object fields ->
       match Stdlib.List.findFirst fields (fun (k, _v) -> k == key) with
-      | Some (_k, String value) -> Stdlib.Option.Option.Some value
+      | Some ((_k, String value)) -> Stdlib.Option.Option.Some value
       | _ -> Stdlib.Option.Option.None
   | _ -> Stdlib.Option.Option.None

@@ -3,7 +3,9 @@ module Darklang.Cli.Packages.Fn
 
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
-  | [] -> help state
+  | [] ->
+    Stdlib.printLine (help state)
+    state
 
   // fn SomeModule.myFn (param: Type): ReturnType = body
   | location :: definitionParts ->
@@ -167,7 +169,7 @@ let createFnInline
     state
 
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [
     "Create or update a function"
     ""
@@ -200,9 +202,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "  fn helper (x: Int): Int = ...    # Relative to current location"
     "  fn /Darklang.Foo.bar (x: String): String = ...  # Absolute path"
     ""
-  ] |> Stdlib.printLines
-
-  state
+  ] |> Stdlib.String.join "\n"
 
 
 let complete (_state: Cli.AppState) (_args: List<String>) : List<Cli.Completion.CompletionItem> = []

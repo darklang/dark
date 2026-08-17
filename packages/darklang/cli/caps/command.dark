@@ -272,7 +272,7 @@ let complete
     Cli.Completion.simple "profile" ]
 
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [ "Usage: caps [list] | grant <spec> | set <spec>… | clear | grant-all | revoke <domain> | grant-for-fn <fn> | needed-for <fn>"
     ""
     "View + control the capabilities this instance grants to the code it runs. LOCAL (never synced),"
@@ -308,6 +308,4 @@ let help (state: Cli.AppState) : Cli.AppState =
     "    file read|write [PATH]        e.g. `file write ~/.darklang/` = write only inside that dir"
     "    env read|write [VAR]   ·  db read|write [TABLE]   ·  http-server"
     "    random  ·  clock  ·  stdout  ·  stdin  ·  llm" ]
-  |> Stdlib.printLines
-
-  state
+  |> Stdlib.String.join "\n"

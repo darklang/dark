@@ -46,7 +46,7 @@ module TreeItemLabel =
       highlights: Stdlib.Option.Option<List<Int * Int>> }
 
   let toJson (l: TreeItemLabel) : Json =
-    [ Some(("label", Json.String l.label))
+    [ Stdlib.Option.Option.Some(("label", Json.String l.label))
 
       l.highlights
       |> Stdlib.Option.map (fun h ->

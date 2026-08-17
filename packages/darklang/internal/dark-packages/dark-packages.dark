@@ -124,7 +124,7 @@ val opsPostHandler =
 
 
 let opsGetHandlerFn (req: HttpRequest) : HttpResponse =
-  match HttpRequest.queryParam req "limit" with
+  match Stdlib.Http.Request.queryParam req "limit" with
   | None -> Stdlib.Http.badRequest "Missing required query parameter: 'limit'"
   | Some limitStr ->
     match Stdlib.Int.parse limitStr with
@@ -153,16 +153,16 @@ val statsHandler =
 
 
 let searchHandlerFn (req: HttpRequest) : HttpResponse =
-  match HttpRequest.queryParam req "modules" with
+  match Stdlib.Http.Request.queryParam req "modules" with
   | None -> Stdlib.Http.badRequest "Missing required query parameter: 'modules'"
   | Some modulesStr ->
-    match HttpRequest.queryParam req "searchDepth" with
+    match Stdlib.Http.Request.queryParam req "searchDepth" with
     | None -> Stdlib.Http.badRequest "Missing required query parameter: 'searchDepth'"
     | Some depthStr ->
       match parseSearchDepth depthStr with
       | Error errorMsg -> Stdlib.Http.badRequest errorMsg
       | Ok searchDepth ->
-        match HttpRequest.queryParam req "entityTypes" with
+        match Stdlib.Http.Request.queryParam req "entityTypes" with
         | None -> Stdlib.Http.badRequest "Missing required query parameter: 'entityTypes'"
         | Some entityTypesStr ->
           let parsedTypes =
@@ -176,7 +176,7 @@ let searchHandlerFn (req: HttpRequest) : HttpResponse =
             let entityTypes = Stdlib.List.unique entityTypesRaw
 
             let exactMatchResult =
-              match HttpRequest.queryParam req "exactMatch" with
+              match Stdlib.Http.Request.queryParam req "exactMatch" with
               | None -> Stdlib.Result.Result.Ok false
               | Some s -> parseExactMatch s
 
@@ -184,7 +184,7 @@ let searchHandlerFn (req: HttpRequest) : HttpResponse =
             | Error errorMsg -> Stdlib.Http.badRequest errorMsg
             | Ok exactMatch ->
               let text =
-                match HttpRequest.queryParam req "text" with
+                match Stdlib.Http.Request.queryParam req "text" with
                 | Some t -> t
                 | None -> ""
 

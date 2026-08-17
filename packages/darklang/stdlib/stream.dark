@@ -12,7 +12,7 @@ let unfold
   (seed: 's)
   (step: 's -> Stdlib.Option.Option<('a * 's)>)
   : Stream<'a> =
-  Builtin.streamUnfold<'a, 's> seed step
+  Builtin.streamUnfold<'s, 'a> seed step
 
 
 /// Pulls the next element from <param stream>. Returns {{None}} when

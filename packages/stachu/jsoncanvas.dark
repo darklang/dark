@@ -187,7 +187,7 @@ module Edge =
         color = Stdlib.Option.Option.None
         label = Stdlib.Option.Option.None }
 
-  let withLabel (label: String) (edge: Edge) : Edge =
+  let withLabel (edge: Edge) (label: String) : Edge =
     { edge with label = Stdlib.Option.Option.Some label }
 
 
@@ -195,10 +195,10 @@ module Edge =
 // Canvas operations
 // ---------------------
 
-let addNode (node: Node) (canvas: Canvas) : Canvas =
+let addNode (canvas: Canvas) (node: Node) : Canvas =
   { canvas with nodes = Stdlib.List.append canvas.nodes [ node ] }
 
-let addEdge (edge: Edge) (canvas: Canvas) : Canvas =
+let addEdge (canvas: Canvas) (edge: Edge) : Canvas =
   { canvas with edges = Stdlib.List.append canvas.edges [ edge ] }
 
 let getNodeIds (canvas: Canvas) : List<String> =

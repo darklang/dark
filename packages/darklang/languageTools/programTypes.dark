@@ -468,9 +468,9 @@ module Reference =
 
   let fromHashAndKind (h: Hash) (k: ItemKind) : Reference =
     match k with
-    | Type -> PackageType h
-    | Value -> PackageValue h
-    | Fn -> PackageFn h
+    | Type -> Reference.PackageType h
+    | Value -> Reference.PackageValue h
+    | Fn -> Reference.PackageFn h
 
 /// Why a package item has been deprecated. Author-supplied metadata on the
 /// Deprecate op; consumers decide how loud to be.

@@ -52,15 +52,15 @@ module ListRoots =
     | Object fields ->
         let uriResult =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "uri") with
-          | Some (_, String uri) -> Stdlib.Result.Result.Ok uri
-          | Some (_, _) -> Stdlib.Result.Result.Error "uri must be a string"
+          | Some ((_, String uri)) -> Stdlib.Result.Result.Ok uri
+          | Some ((_, _)) -> Stdlib.Result.Result.Error "uri must be a string"
           | None -> Stdlib.Result.Result.Error "uri is required"
 
         let nameResult =
           match Stdlib.List.findFirst fields (fun (k, _) -> k == "name") with
-          | Some (_, String name) -> 
+          | Some ((_, String name)) -> 
               Stdlib.Result.Result.Ok (Stdlib.Option.Option.Some name)
-          | Some (_, _) -> 
+          | Some ((_, _)) -> 
               Stdlib.Result.Result.Error "name must be a string"
           | None -> 
               Stdlib.Result.Result.Ok Stdlib.Option.Option.None

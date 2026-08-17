@@ -142,7 +142,7 @@ let handleIncomingMessage
       log "shutting down"
 
       let response =
-        (JsonRPC.Response.Ok.make (Some r.id) Json.Null)
+        (JsonRPC.Response.Ok.make r.id Json.Null)
         |> Stdlib.AltJson.format
 
       logAndSendToClient response
@@ -335,7 +335,7 @@ let handleIncomingMessage
           state
 
     | _ ->
-      log $"TODO: we don't yet support this method: {jsonRpcRequest.method}"
+      log $"TODO: we don't yet support this method: {r.method}"
       // TODO: log more than just the method
       state
 

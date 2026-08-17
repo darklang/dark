@@ -229,7 +229,7 @@ let join
   : Stdlib.Result.Result<'t, 'e> =
   match result with
   | Ok value -> value
-  | Error _ -> result
+  | Error msg -> Stdlib.Result.Result.Error msg
 
 
 /// Combines a list of results into a single list of unwrapped values.

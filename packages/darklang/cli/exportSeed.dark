@@ -14,7 +14,7 @@ let execute (state: AppState) (args: List<String>): AppState =
     Stdlib.printLine (View.formatError "Usage: export-seed <output-path>")
     state
 
-let help (state: AppState): AppState =
+let help (_state: AppState) : String =
   [ "Export a minimal seed.db from the current database."
     ""
     "Usage: export-seed <output-path>"
@@ -22,8 +22,7 @@ let help (state: AppState): AppState =
     "The seed contains only source-of-truth tables (ops, branches, commits),"
     "excluding derived data (locations, types, values, functions)."
     "Archived branches are excluded." ]
-  |> Stdlib.printLines
-  state
+  |> Stdlib.String.join "\n"
 
 let complete (state: AppState) (args: List<String>): List<Completion.CompletionItem> =
   []

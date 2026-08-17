@@ -132,9 +132,11 @@ let resolveGenericName
         | _ -> (name, 0l)
 
       // the written-name format check (mirrors the F# parse*NameString regexes:
-      // a letter then letters/digits, optional trailing apostrophe): a name that
-      // can't be a package name is InvalidName, not NotFound — so tooling agrees
-      // with the loader and DeferredResolver doesn't retry hopeless names
+      // a letter then letters/digits/underscores, optional trailing apostrophe):
+      // a name that can't be a package name is InvalidName, not NotFound — so
+      // tooling agrees with the loader and DeferredResolver doesn't retry
+      // hopeless names. `_v<digits>` suffixes stay reserved for versioning
+      // (split off above, before this check).
       let isValidName =
         // an optional trailing apostrophe is allowed (`foo'`)
         let core =
@@ -145,7 +147,9 @@ let resolveGenericName
           (Stdlib.Char.isASCIILetter first)
           && (rest
               |> Stdlib.List.all (fun c ->
-                (Stdlib.Char.isASCIILetter c) || (Stdlib.Char.isDigit c)))
+                (Stdlib.Char.isASCIILetter c)
+                || (Stdlib.Char.isDigit c)
+                || (Stdlib.Char.toString c == "_")))
 
       let genericName =
         GenericName { modules = modules; name = name; version = version }

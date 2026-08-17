@@ -22,6 +22,7 @@ let parseTest
 
   match exprsToEval with
   | [] -> Stdlib.Result.Result.Error "no exprs to eval"
+  | _ :: _ :: _ -> Stdlib.Result.Result.Error "expected exactly one expr to eval"
   | [ e ] ->
     match e with
     | EInfix(r, _, actual, expected) ->

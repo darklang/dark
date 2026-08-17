@@ -23,11 +23,28 @@ let searchFunctions () : ModelContextProtocol.ServerBuilder.Tool =
     description = "Search for Darklang functions by name or description"
     handler =
       fun query ->
-        let results = LanguageTools.FunctionSearch.search query
-        let resultCount = (Stdlib.List.length results) |> Stdlib.Int.toString
+        let searchQuery =
+          LanguageTools.ProgramTypes.Search.SearchQuery
+            { currentModule = [ "Darklang" ]
+              text = query
+              searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+              entityTypes = [ LanguageTools.ProgramTypes.Search.EntityType.Fn ]
+              exactMatch = false }
+        let results =
+          LanguageTools.PackageManager.Search.search SCM.Branch.mainBranchId searchQuery
+        let resultCount = (Stdlib.List.length results.fns) |> Stdlib.Int.toString
         let formattedResults =
-          results
-          |> Stdlib.List.map (fun fn -> $"- {fn.name}: {fn.description}")
+          results.fns
+          |> Stdlib.List.map (fun fn ->
+            let full =
+              Stdlib.String.join
+                (Stdlib.List.flatten
+                  [ [ fn.location.owner ]; fn.location.modules; [ fn.location.name ] ])
+                "."
+            if fn.entity.description == "" then
+              "- " ++ full
+            else
+              "- " ++ full ++ ": " ++ fn.entity.description)
           |> Stdlib.String.join "\n"
         $"Found {resultCount} functions:\n{formattedResults}"
   }
@@ -37,16 +54,17 @@ let searchFunctions () : ModelContextProtocol.ServerBuilder.Tool =
 let typecheck () : ModelContextProtocol.ServerBuilder.Tool =
   ModelContextProtocol.ServerBuilder.Tool {
     name = "typecheck"
-    description = "Type check Darklang code without executing it"
+    description = "Check Darklang code for syntax errors without executing it"
     handler = fun code ->
-      match LanguageTools.TypeChecker.checkCode code with
-      | Ok typeInfo -> $"Type check passed: {typeInfo}"
-      | Error errors ->
+      match Builtin.parserParseDiagnostics code with
+      | [] -> "Parse check passed: no syntax errors found"
+      | diagnostics ->
           let errorList =
-            errors
-            |> Stdlib.List.map (fun err -> $"- {err}")
+            diagnostics
+            |> Stdlib.List.map (fun (range, message) ->
+              $"- {message} (line {range.start.row |> Stdlib.Int.toString})")
             |> Stdlib.String.join "\n"
-          $"Type errors found:\n{errorList}"
+          $"Syntax errors found:\n{errorList}"
   }
 
 
@@ -56,11 +74,19 @@ let listPackages () : ModelContextProtocol.ServerBuilder.Tool =
     name = "list_packages"
     description = "List all available Darklang packages"
     handler = fun filter ->
-      let packages = LanguageTools.PackageManager.listPackages filter
-      let packageCount = (Stdlib.List.length packages) |> Stdlib.Int.toString
+      let query =
+        LanguageTools.ProgramTypes.Search.SearchQuery
+          { currentModule = [ "Darklang" ]
+            text = filter
+            searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.AllDescendants
+            entityTypes = []
+            exactMatch = false }
+      let results =
+        LanguageTools.PackageManager.Search.search SCM.Branch.mainBranchId query
+      let packageCount = (Stdlib.List.length results.submodules) |> Stdlib.Int.toString
       let formattedPackages =
-        packages
-        |> Stdlib.List.map (fun pkg -> $"- {pkg.name} (v{pkg.version}): {pkg.description}")
+        results.submodules
+        |> Stdlib.List.map (fun path -> "- " ++ (Stdlib.String.join path "."))
         |> Stdlib.String.join "\n"
-      $"Found {packageCount} packages:\n{formattedPackages}"
+      $"Found {packageCount} modules:\n{formattedPackages}"
   }

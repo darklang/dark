@@ -30,7 +30,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   []
 
 
-let help (state: AppState) : Unit =
+let help (_state: AppState) : String =
   [ "Usage: update [--yes|-y]"
     "Update Darklang CLI to the latest version."
     ""
@@ -39,4 +39,4 @@ let help (state: AppState) : Unit =
     ""
     "Flags:"
     "  --yes, -y  Skip confirmation prompt" ]
-  |> Stdlib.printLines
+  |> Stdlib.String.join "\n"

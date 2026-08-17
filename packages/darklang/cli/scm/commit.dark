@@ -200,7 +200,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
   []
 
 
-let help (_state: AppState) : Unit =
+let help (_state: AppState) : String =
   [ "Usage: commit \"message\" [--include=name1,name2] [--yes|-y]"
     "Commit uncommitted (WIP) changes on the current branch."
     ""
@@ -216,4 +216,4 @@ let help (_state: AppState) : Unit =
     "                      whether to pull them into the commit."
     "  --yes, -y           Skip confirmation prompts (includes referenced"
     "                      uncommitted items)" ]
-  |> Stdlib.printLines
+  |> Stdlib.String.join "\n"
