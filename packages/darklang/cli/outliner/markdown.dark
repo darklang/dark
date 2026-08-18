@@ -1,80 +1,117 @@
+/// Markdown in and out.
+///
+/// The shape we write is the shape every outliner writes: a `#` title, then a bullet per line, two spaces
+/// of indent per level, and `- [ ]` / `- [x]` for the lines that are tasks. What we read is looser than
+/// what we write, because the point of importing is to accept a file someone else made.
 module Darklang.Cli.Outliner.Markdown
 
-let exportHelper (outline: Outline) (ids: List<Int>) (depth: Int) : List<String> =
+let bulletFor (mark: Mark) : String =
+  match mark with
+  | Plain -> "- "
+  | Todo -> "- [ ] "
+  | Done -> "- [x] "
+
+let exportInto (outline: Outline) (ids: List<Int>) (depth: Int) (acc: List<String>) : List<String> =
   ids
-  |> Stdlib.List.fold [] (fun acc id ->
-    let text = getNodeText outline id
-    let s = getStructure outline id
+  |> Stdlib.List.fold acc (fun soFar id ->
+    let content = getContent outline id
     let indent = Stdlib.String.repeat "  " depth
-    let line = $"{indent}- {text}"
-    let childLines =
-      exportHelper outline s.children (depth + 1)
-    Stdlib.List.append acc (Stdlib.List.append [line] childLines))
+    let line = $"{indent}{bulletFor content.mark}{content.text}"
+    let withLine = Stdlib.List.push soFar line
+    exportInto outline (getStructure outline id).children (depth + 1) withLine)
 
 let export (doc: Document) : String =
-  let header = $"# {doc.title}"
-  let lines = exportHelper doc.outline doc.outline.rootChildren 0
-  Stdlib.String.join (Stdlib.List.append [header; ""] lines) "\n"
+  let lines = Stdlib.List.reverse (exportInto doc.outline doc.outline.rootChildren 0 [])
+  Stdlib.String.join (Stdlib.List.flatten [ [ $"# {doc.title}"; "" ]; lines ]) "\n"
+
+
+// --- Import ---
+
+/// One parsed line: how deep it sits, what it says, and whether it's a task.
+type Line =
+  { depth: Int
+    text: String
+    mark: Mark }
+
+/// Leading whitespace, counting a tab as one indent level (the two spaces we'd have written).
+let indentWidth (line: String) : Int =
+  // Widen tabs first, so a file indented with them lands at the same depths as one indented with spaces.
+  let widened = Stdlib.String.replaceAll line "\t" "  "
+  (Stdlib.String.length widened) - (Stdlib.String.length (Stdlib.String.trimStart widened))
+
+/// Strip a bullet (`-`, `*`, `+`) and a checkbox, and say what was there.
+let readMark (text: String) : (String * Mark) =
+  let withoutBullet =
+    if Stdlib.String.startsWith text "- " then Stdlib.String.dropFirst text 2
+    else if Stdlib.String.startsWith text "* " then Stdlib.String.dropFirst text 2
+    else if Stdlib.String.startsWith text "+ " then Stdlib.String.dropFirst text 2
+    else text
+
+  let lowered = Stdlib.String.toLowercase withoutBullet
+
+  if Stdlib.String.startsWith lowered "[ ] " then
+    (Stdlib.String.dropFirst withoutBullet 4, Mark.Todo)
+  else if Stdlib.String.startsWith lowered "[x] " then
+    (Stdlib.String.dropFirst withoutBullet 4, Mark.Done)
+  else
+    (withoutBullet, Mark.Plain)
+
+let parseLine (raw: String) : Line =
+  let (text, mark) = readMark (Stdlib.String.trim raw)
+  Line { depth = Stdlib.Int.divide (indentWidth raw) 2; text = text; mark = mark }
+
+/// Add one line to the outline being built, hanging it off the nearest shallower line.
+///
+/// `stack` is the trail of (depth, id) we're inside. Depths in a hand-written file skip around, so the
+/// parent is "the last line shallower than this one", not "the line at depth - 1".
+let importLine
+  (outline: Outline)
+  (stack: List<(Int * Int)>)
+  (line: Line)
+  : (Outline * List<(Int * Int)>) =
+  let id = outline.nextId
+  let withNode = setMark (addNode outline id line.text) id line.mark
+  let trail = stack |> Stdlib.List.filter (fun pair ->
+    let (d, _id) = pair
+    d < line.depth)
+
+  let parentId =
+    Stdlib.List.last trail
+    |> Stdlib.Option.map (fun pair ->
+      let (_d, pid) = pair
+      pid)
+
+  let siblings = getChildren withNode parentId
+  let placed = setChildren withNode parentId (Stdlib.List.append siblings [ id ])
+
+  ({ placed with nextId = id + 1 }, Stdlib.List.append trail [ (line.depth, id) ])
 
 let import (markdown: String) : Document =
   let lines = Stdlib.String.split markdown "\n"
+
   let title =
     match Stdlib.List.head lines with
     | Some first ->
       if Stdlib.String.startsWith first "# " then
-        Stdlib.String.dropFirst first 2
+        Stdlib.String.trim (Stdlib.String.dropFirst first 2)
       else
         "Imported"
     | None -> "Imported"
-  let contentLines =
+
+  let body =
     match Stdlib.List.head lines with
-    | Some first ->
-      if Stdlib.String.startsWith first "# " then
-        Stdlib.List.drop lines 1
-      else
-        lines
+    | Some first -> if Stdlib.String.startsWith first "# " then Stdlib.List.drop lines 1 else lines
     | None -> []
-  let nonEmptyLines =
-    contentLines
-    |> Stdlib.List.filter (fun line ->
-      Stdlib.Bool.not (Stdlib.String.isEmpty (Stdlib.String.trim line)))
-  let result =
-    nonEmptyLines
-    |> Stdlib.List.fold (emptyOutline (), [], 0) (fun acc line ->
-      let (outline, stack, _count) = acc
-      let trimmed = Stdlib.String.trim line
-      let text =
-        if Stdlib.String.startsWith trimmed "- " then
-          Stdlib.String.dropFirst trimmed 2
-        else
-          trimmed
-      let indentChars =
-        (Stdlib.String.length line) - (Stdlib.String.length (Stdlib.String.trimStart line))
-      let depth = Stdlib.Int.divide indentChars 2
-      let id = outline.nextId
-      let o1 = addNode outline id text
-      let newStack =
-        stack
-        |> Stdlib.List.filter (fun pair ->
-          let (d, _sid) = pair
-          d < depth)
-      let parentId =
-        (Stdlib.List.last newStack)
-        |> Stdlib.Option.map (fun pair ->
-          let (_d, sid) = pair
-          sid)
-      let o2 =
-        match parentId with
-        | None ->
-          { o1 with rootChildren = Stdlib.List.append o1.rootChildren [id] }
-        | Some pid ->
-          let children = getChildren o1 (Stdlib.Option.Option.Some pid)
-          setChildren o1 (Stdlib.Option.Option.Some pid) (Stdlib.List.append children [id])
-      let o3 = { o2 with nextId = id + 1 }
-      let updatedStack = Stdlib.List.append newStack [(depth, id)]
-      (o3, updatedStack, 0))
-  let (finalOutline, _stack, _count) = result
-  Document
-    { id = 0
-      title = title
-      outline = finalOutline }
+
+  let parsed =
+    body
+    |> Stdlib.List.filter (fun line -> (Stdlib.String.trim line) != "")
+    |> Stdlib.List.map parseLine
+
+  let (outline, _stack) =
+    parsed
+    |> Stdlib.List.fold ((emptyOutline ()), []) (fun acc line ->
+      let (soFar, stack) = acc
+      importLine soFar stack line)
+
+  Document { id = 0; title = title; outline = outline }

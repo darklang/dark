@@ -60,7 +60,7 @@ let combineLogoAndText (logoStr: String) (textLines: List<String>) (color: Strin
         paddedLine
       else
         // Add color to non-empty lines
-        color ++ paddedLine ++ Colors.reset)
+        color ++ paddedLine ++ Stdlib.Cli.UI.Colors.reset)
 
   let logoHeight = Stdlib.List.length paddedLogoLines
   let textHeight = Stdlib.List.length textLines

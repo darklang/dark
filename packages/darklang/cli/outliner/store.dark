@@ -1,0 +1,222 @@
+/// Where documents live on disk, and how they get there.
+///
+/// The file is versioned now. It wasn't, and the loader treated *any* parse failure as "start fresh": a
+/// format change, or a file half-written by a crash, silently dropped you into the two demo documents, and
+/// the next keystroke saved those over whatever you actually had. Now an unreadable file is an error the
+/// app shows and refuses to write over, and a file in the old shape is migrated rather than discarded.
+module Darklang.Cli.Outliner.Store
+
+/// Bump when the shape below changes, and add a migration.
+val currentVersion = 2
+
+type PersistedData =
+  { version: Int
+    documents: List<Document>
+    activeDocId: Int
+    nextDocId: Int }
+
+
+// --- Version 1: no version field, no parent pointers, no marks ---
+
+type V1NodeContent =
+  { text: String }
+
+type V1TreeStructure =
+  { children: List<Int>
+    collapsed: Bool }
+
+type V1Outline =
+  { nodes: Dict<V1NodeContent>
+    structure: Dict<V1TreeStructure>
+    rootChildren: List<Int>
+    nextId: Int }
+
+type V1Document =
+  { id: Int
+    title: String
+    outline: V1Outline }
+
+type V1Data =
+  { documents: List<V1Document>
+    activeDocId: Int
+    nextDocId: Int }
+
+/// Rebuild a v1 outline: every node becomes Plain, and the parent pointers are derived from the child
+/// lists that v1 did have.
+let migrateOutline (old: V1Outline) : Outline =
+  let withNodes =
+    old.nodes
+    |> Stdlib.Dict.toList
+    |> Stdlib.List.fold (emptyOutline ()) (fun acc pair ->
+      let (key, nc) = pair
+      addNode acc (parseKey key) nc.text)
+
+  let withChildren =
+    old.structure
+    |> Stdlib.Dict.toList
+    |> Stdlib.List.fold withNodes (fun acc pair ->
+      let (key, s) = pair
+      let id = parseKey key
+      let placed = setChildren acc (Stdlib.Option.Option.Some id) s.children
+      setCollapsed placed id s.collapsed)
+
+  let withRoots = setChildren withChildren Stdlib.Option.Option.None old.rootChildren
+  { withRoots with nextId = old.nextId }
+
+let migrateDocument (old: V1Document) : Document =
+  Document { id = old.id; title = old.title; outline = migrateOutline old.outline }
+
+let migrateV1 (old: V1Data) : PersistedData =
+  PersistedData
+    { version = currentVersion
+      documents = Stdlib.List.map old.documents migrateDocument
+      activeDocId = old.activeDocId
+      nextDocId = old.nextDocId }
+
+
+// --- Location ---
+
+let dataFilePath () : String =
+  match Stdlib.Cli.Unix.getHomeDirectory () with
+  | Ok home -> $"{home}/.darklang/outliner.json"
+  | Error _ -> "rundir/outliner.json"
+
+let ensureDataDir () : Unit =
+  match Stdlib.Cli.Unix.getHomeDirectory () with
+  | Ok home ->
+    let _created = Stdlib.Cli.Unix.ensureDirectoryExists $"{home}/.darklang"
+    ()
+  | Error _ -> ()
+
+
+// --- Demo content, for a first run ---
+
+let starterDocuments () : List<Document> =
+  let notes =
+    buildOutline
+      [ (1, "Welcome to Outliner")
+        (2, "Arrow keys move, Enter edits, Esc goes back")
+        (3, "Tab indents, Shift+Tab outdents - they work while you type")
+        (4, "x turns a line into a task, and ticks it off")
+        (5, "What else is here")
+        (6, "Space folds a branch, / searches, u undoes")
+        (7, "o adds a line below, O adds one underneath this one")
+        (8, "e exports to Markdown or OPML") ]
+      [ (1, [ 2; 3; 4 ]); (5, [ 6; 7; 8 ]) ]
+      [ 1; 5 ]
+      9
+
+  let tasks =
+    buildOutline
+      [ (1, "Today")
+        (2, "Try the outliner")
+        (3, "Add your own items")
+        (4, "Later")
+        (5, "Organise your thoughts") ]
+      [ (1, [ 2; 3 ]); (4, [ 5 ]) ]
+      [ 1; 4 ]
+      6
+
+  let taskMarks =
+    [ 2; 3; 5 ] |> Stdlib.List.fold tasks (fun acc id -> setMark acc id Mark.Todo)
+
+  [ Document { id = 1; title = "My Notes"; outline = notes }
+    Document { id = 2; title = "Tasks"; outline = taskMarks } ]
+
+let starterData () : PersistedData =
+  PersistedData
+    { version = currentVersion
+      documents = starterDocuments ()
+      activeDocId = 1
+      nextDocId = 3 }
+
+
+// --- Reading ---
+
+/// What came back from disk.
+type LoadResult =
+  /// A file we understood (or no file at all, in which case this is the starter content).
+  | Loaded of PersistedData
+  /// A file we didn't understand. The caller must not write over it.
+  | Unreadable of path: String * reason: String
+
+let parse (contents: String) : LoadResult =
+  match Stdlib.Json.parse<PersistedData> contents with
+  | Ok data -> LoadResult.Loaded data
+  | Error _ ->
+    // No version field means it predates versioning, not that it's broken.
+    match Stdlib.Json.parse<V1Data> contents with
+    | Ok old -> LoadResult.Loaded(migrateV1 old)
+    | Error _ ->
+      // Deliberately not the parser's own message: rendering one needs a branch id to resolve type names
+      // against, which is more than this needs to say. The file is named, and it's still there.
+      LoadResult.Unreadable(dataFilePath (), "not in a shape the outliner understands")
+
+let load () : LoadResult =
+  let path = dataFilePath ()
+
+  if Stdlib.Cli.FileSystem.pathExists path then
+    match Stdlib.Cli.FileSystem.readFile path with
+    | Ok bytes -> parse (Stdlib.String.fromBlobWithReplacement bytes)
+    | Error e -> LoadResult.Unreadable(path, Stdlib.Cli.FileSystem.FileError.toString e)
+  else
+    LoadResult.Loaded(starterData ())
+
+
+// --- Writing ---
+
+/// What the file looked like when we last agreed with it: modification time and size.
+///
+/// Enough to notice that something else wrote it. Not a lock: two writes inside the same second with the
+/// same size would slip through, which is a far better failure than the one it replaces.
+type Stamp =
+  { mtimeSec: Int
+    size: Int }
+
+let stamp () : Stdlib.Option.Option<Stamp> =
+  match Stdlib.Cli.Posix.stat (dataFilePath ()) with
+  | Ok st -> Stdlib.Option.Option.Some(Stamp { mtimeSec = st.mtimeSec; size = st.size })
+  | Error _ -> Stdlib.Option.Option.None
+
+
+/// Write the documents, atomically.
+///
+/// Into a temporary file first, then `rename` over the real one, which is atomic within a filesystem. A
+/// plain write truncates and then fills, so a crash, a full disk or a kill in the middle of it left a
+/// half-written file - and a half-written file is one the loader can't parse, which is the failure this
+/// and `parse` are both guarding.
+/// `expected` is the stamp this session last agreed with. If the file no longer matches it, someone else
+/// has written since (a second outliner in another terminal, most likely), and their work is not ours to
+/// throw away: refuse, and let the caller say so.
+let save
+  (documents: List<Document>)
+  (activeDocId: Int)
+  (nextDocId: Int)
+  (expected: Stdlib.Option.Option<Stamp>)
+  : Stdlib.Result.Result<Stdlib.Option.Option<Stamp>, String> =
+  ensureDataDir ()
+
+  let data =
+    PersistedData
+      { version = currentVersion
+        documents = documents
+        activeDocId = activeDocId
+        nextDocId = nextDocId }
+
+  let json = Stdlib.Json.serialize<PersistedData> data
+  let path = dataFilePath ()
+  let pending = $"{path}.writing"
+  let current = stamp ()
+
+  if current != expected then
+    Stdlib.Result.Result.Error
+      "the file changed underneath this session - another outliner has it open"
+  else
+    match Stdlib.Cli.FileSystem.overwriteFile pending (Stdlib.String.toBlob json) with
+    | Error e -> Stdlib.Result.Result.Error e
+    | Ok _ ->
+      match Stdlib.Cli.Posix.rename pending path with
+      | Ok _ -> Stdlib.Result.Result.Ok(stamp ())
+      | Error e ->
+        // The old file is still whole; say what happened rather than leaving the temporary behind silently.
+        Stdlib.Result.Result.Error e.message

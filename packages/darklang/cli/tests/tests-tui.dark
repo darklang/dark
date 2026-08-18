@@ -6,20 +6,20 @@ module Darklang.Cli.Tests
 
 // ── Workbench canvas (spans -> rows) ──
 
-let canvasRegion () : Darklang.Cli.UI.Layout.Region =
-  Darklang.Cli.UI.Layout.Region { top = 1; left = 1; rows = 4; cols = 10 }
+let canvasRegion () : Darklang.Stdlib.Cli.UI.Layout.Region =
+  Darklang.Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = 4; cols = 10 }
 
 
-let canvasRow (spans: List<Darklang.Cli.UI.Layout.Span>) : String =
-  Darklang.Cli.UI.Canvas.compose 10 2 spans
+let canvasRow (spans: List<Darklang.Stdlib.Cli.UI.Layout.Span>) : String =
+  Darklang.Stdlib.Cli.UI.Canvas.compose 10 2 spans
   |> Stdlib.List.head
   |> Stdlib.Option.withDefault ""
-  |> Darklang.Cli.Tui.Text.stripSgr
+  |> Darklang.Stdlib.Cli.Tui.Text.stripSgr
 
 
 let testCanvasPlacesSpans (): TestResult =
   let region = canvasRegion ()
-  let spans = Darklang.Cli.UI.Layout.at region 0 2 "hi"
+  let spans = Darklang.Stdlib.Cli.UI.Layout.at region 0 2 "hi"
   let row = canvasRow spans
 
   // No trailing pad: the renderer erases each row before writing it, so padding would be bytes on the wire
@@ -34,8 +34,8 @@ let testCanvasLayersLaterSpans (): TestResult =
   let region = canvasRegion ()
   let spans =
     Stdlib.List.flatten
-      [ Darklang.Cli.UI.Layout.at region 0 0 "aaaaa"
-        Darklang.Cli.UI.Layout.at region 0 2 "BB" ]
+      [ Darklang.Stdlib.Cli.UI.Layout.at region 0 0 "aaaaa"
+        Darklang.Stdlib.Cli.UI.Layout.at region 0 2 "BB" ]
   let row = canvasRow spans
 
   // The later span wins. Where it lands inside an earlier one, the earlier one's right-hand remainder is
@@ -52,8 +52,8 @@ let testCanvasWideGlyphOccupiesTwoColumns (): TestResult =
   let region = canvasRegion ()
   let spans =
     Stdlib.List.flatten
-      [ Darklang.Cli.UI.Layout.at region 0 0 "界"
-        Darklang.Cli.UI.Layout.at region 0 2 "X" ]
+      [ Darklang.Stdlib.Cli.UI.Layout.at region 0 0 "界"
+        Darklang.Stdlib.Cli.UI.Layout.at region 0 2 "X" ]
   let row = canvasRow spans
 
   // A double-width glyph eats two cells, so the next span still lands where it was asked to.
@@ -68,8 +68,8 @@ let testCanvasStylingIsZeroWidth (): TestResult =
   let region = canvasRegion ()
   let spans =
     Stdlib.List.flatten
-      [ Darklang.Cli.UI.Layout.at region 0 0 (Colors.info "ab")
-        Darklang.Cli.UI.Layout.at region 0 2 "cd" ]
+      [ Darklang.Stdlib.Cli.UI.Layout.at region 0 0 (Stdlib.Cli.UI.Colors.info "ab")
+        Darklang.Stdlib.Cli.UI.Layout.at region 0 2 "cd" ]
   let row = canvasRow spans
 
   // Colour codes carry no width, so the second span is not pushed sideways by them.
@@ -81,8 +81,8 @@ let testCanvasStylingIsZeroWidth (): TestResult =
 
 let testCanvasUntouchedRowsAreEmpty (): TestResult =
   let region = canvasRegion ()
-  let spans = Darklang.Cli.UI.Layout.at region 0 0 "x"
-  let rows = Darklang.Cli.UI.Canvas.compose 10 3 spans
+  let spans = Darklang.Stdlib.Cli.UI.Layout.at region 0 0 "x"
+  let rows = Darklang.Stdlib.Cli.UI.Canvas.compose 10 3 spans
 
   match Stdlib.List.getAt rows 1 with
   | Some second ->
@@ -94,32 +94,32 @@ let testCanvasUntouchedRowsAreEmpty (): TestResult =
   | None -> TestResult.Fail "Expected three composed rows"
 
 
-// -- Tui.Text: the hand-rolled escape parser and the width math on top of it --
+// -- Stdlib.Cli.Tui.Text: the hand-rolled escape parser and the width math on top of it --
 
 let testTextClipsByColumnsNotCharacters (): TestResult =
-  let clipped = Tui.Text.clipToWidth "\u001b[31mabcdef" 3
+  let clipped = Stdlib.Cli.Tui.Text.clipToWidth "\u001b[31mabcdef" 3
 
   // SGR carries no width, so 3 columns means 3 visible characters, styling retained.
-  if Tui.Text.stripSgr clipped == "abc" && Stdlib.String.contains clipped "\u001b[31m" then
+  if Stdlib.Cli.Tui.Text.stripSgr clipped == "abc" && Stdlib.String.contains clipped "\u001b[31m" then
     TestResult.Pass
   else
-    TestResult.Fail $"Expected styled clip to 'abc', got '{Tui.Text.stripSgr clipped}'"
+    TestResult.Fail $"Expected styled clip to 'abc', got '{Stdlib.Cli.Tui.Text.stripSgr clipped}'"
 
 
 let testTextNeverSplitsAWideGlyph (): TestResult =
   // Two double-width glyphs in three columns: the second cannot fit, and half of it must not be emitted.
-  let clipped = Tui.Text.clipToWidth "界界" 3
+  let clipped = Stdlib.Cli.Tui.Text.clipToWidth "界界" 3
 
-  if Tui.Text.displayWidth clipped == 2 then
+  if Stdlib.Cli.Tui.Text.displayWidth clipped == 2 then
     TestResult.Pass
   else
     TestResult.Fail
-      $"Expected a wide glyph to be dropped whole, got width {Stdlib.Int.toString (Tui.Text.displayWidth clipped)}"
+      $"Expected a wide glyph to be dropped whole, got width {Stdlib.Int.toString (Stdlib.Cli.Tui.Text.displayWidth clipped)}"
 
 
 let testTextDropsNonSgrEscapes (): TestResult =
   // A cursor-forward escape in dynamic content must not survive into a row: rows are text, not commands.
-  let normalized = Tui.Text.normalizeToWidth "a\u001b[5Cb" 10
+  let normalized = Stdlib.Cli.Tui.Text.normalizeToWidth "a\u001b[5Cb" 10
 
   if normalized == "ab" then
     TestResult.Pass
@@ -128,14 +128,14 @@ let testTextDropsNonSgrEscapes (): TestResult =
 
 
 let testTextWrapReappliesStyleAcrossRows (): TestResult =
-  let rows = Tui.Text.wrapStyled "\u001b[31mabcd" 2
+  let rows = Stdlib.Cli.Tui.Text.wrapStyled "\u001b[31mabcd" 2
   let first = Stdlib.List.getAt rows 0 |> Stdlib.Option.withDefault ""
   let second = Stdlib.List.getAt rows 1 |> Stdlib.Option.withDefault ""
 
   // The renderer resets style after every row, so a style spanning a wrap has to be restated on the next.
   if Stdlib.List.length rows == 2
-     && Tui.Text.stripSgr first == "ab"
-     && Tui.Text.stripSgr second == "cd"
+     && Stdlib.Cli.Tui.Text.stripSgr first == "ab"
+     && Stdlib.Cli.Tui.Text.stripSgr second == "cd"
      && Stdlib.String.contains second "\u001b[31m"
   then
     TestResult.Pass
@@ -146,7 +146,7 @@ let testTextWrapReappliesStyleAcrossRows (): TestResult =
 let testTextCursorAfterFullRowWraps (): TestResult =
   // Text that exactly fills the width leaves the cursor at the start of the following row, matching what
   // the terminal does. Prompt cursor placement depends on this.
-  let (row, column) = Tui.Text.positionAfter "abcd" 4
+  let (row, column) = Stdlib.Cli.Tui.Text.positionAfter "abcd" 4
 
   if row == 1 && column == 0 then
     TestResult.Pass
@@ -157,14 +157,14 @@ let testTextCursorAfterFullRowWraps (): TestResult =
 
 // -- InlineFrame: relative addressing, the part that can wreck scrollback --
 
-let inlineView (rows: List<String>) : Tui.View =
-  Tui.View { rows = rows; cursor = Tui.Cursor.Hidden; mode = Tui.ViewMode.Inline }
+let inlineView (rows: List<String>) : Stdlib.Cli.Tui.View =
+  Stdlib.Cli.Tui.View { rows = rows; cursor = Stdlib.Cli.Tui.Cursor.Hidden; mode = Stdlib.Cli.Tui.ViewMode.Inline }
 
 
 let testInlineFrameEmitsNothingWhenUnchanged (): TestResult =
   let view = inlineView [ "a"; "b" ]
   let output =
-    Tui.InlineFrame.renderAtWidth 20 (Stdlib.Option.Option.Some view) view
+    Stdlib.Cli.Tui.InlineFrame.renderAtWidth 20 (Stdlib.Option.Option.Some view) view
 
   // An unchanged frame must write literally nothing, or an idle prompt would still churn the terminal.
   if output == "" then
@@ -177,7 +177,7 @@ let testInlineFrameMovesRelativeToPreviousCursor (): TestResult =
   let previous = inlineView [ "a"; "b" ]
   let next = inlineView [ "a"; "B" ]
   let output =
-    Tui.InlineFrame.renderAtWidth 20 (Stdlib.Option.Option.Some previous) next
+    Stdlib.Cli.Tui.InlineFrame.renderAtWidth 20 (Stdlib.Option.Option.Some previous) next
 
   // Only the changed row is rewritten, and it's addressed by moving from where the last frame left the
   // cursor rather than by absolute position, because inline rows travel with scrollback.
@@ -191,15 +191,15 @@ let testInlineFrameMovesRelativeToPreviousCursor (): TestResult =
 
 // -- TerminalSession lifecycle, through the `Prepared` seam that exists so this needs no real terminal --
 
-let fullscreenView (rows: List<String>) : Tui.View =
-  Tui.View { rows = rows; cursor = Tui.Cursor.Hidden; mode = Tui.ViewMode.Fullscreen }
+let fullscreenView (rows: List<String>) : Stdlib.Cli.Tui.View =
+  Stdlib.Cli.Tui.View { rows = rows; cursor = Stdlib.Cli.Tui.Cursor.Hidden; mode = Stdlib.Cli.Tui.ViewMode.Fullscreen }
 
 
 let testSessionTakesAlternateScreenOnFirstPresent (): TestResult =
   let prepared =
-    Tui.TerminalSession.preparePresentAtSize
-      (Tui.TerminalSession.init ())
-      (Tui.Size { width = 20; height = 5 })
+    Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize
+      (Stdlib.Cli.Tui.TerminalSession.init ())
+      (Stdlib.Cli.Tui.Size { width = 20; height = 5 })
       (fullscreenView [ "hello" ])
 
   if Stdlib.String.contains prepared.output "\u001b[?1049h" then
@@ -209,12 +209,12 @@ let testSessionTakesAlternateScreenOnFirstPresent (): TestResult =
 
 
 let testSessionSecondIdenticalPresentIsSilent (): TestResult =
-  let size = Tui.Size { width = 20; height = 5 }
+  let size = Stdlib.Cli.Tui.Size { width = 20; height = 5 }
   let view = fullscreenView [ "hello" ]
   let first =
-    Tui.TerminalSession.preparePresentAtSize (Tui.TerminalSession.init ()) size view
+    Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize (Stdlib.Cli.Tui.TerminalSession.init ()) size view
   let second =
-    Tui.TerminalSession.preparePresentAtSize first.state size view
+    Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize first.state size view
 
   // Presenting the same view again is the common case in a render loop; it must cost nothing.
   if second.output == "" then
@@ -224,14 +224,14 @@ let testSessionSecondIdenticalPresentIsSilent (): TestResult =
 
 
 let testSessionStopRestoresOnlyWhenRunning (): TestResult =
-  let size = Tui.Size { width = 20; height = 5 }
+  let size = Stdlib.Cli.Tui.Size { width = 20; height = 5 }
   let started =
-    Tui.TerminalSession.preparePresentAtSize
-      (Tui.TerminalSession.init ())
+    Stdlib.Cli.Tui.TerminalSession.preparePresentAtSize
+      (Stdlib.Cli.Tui.TerminalSession.init ())
       size
       (fullscreenView [ "hello" ])
-  let stopped = Tui.TerminalSession.prepareStop started.state
-  let stoppedAgain = Tui.TerminalSession.prepareStop stopped.state
+  let stopped = Stdlib.Cli.Tui.TerminalSession.prepareStop started.state
+  let stoppedAgain = Stdlib.Cli.Tui.TerminalSession.prepareStop stopped.state
 
   // Stopping a live session leaves the alternate screen; stopping an already-stopped one is a no-op.
   if Stdlib.String.contains stopped.output "\u001b[?1049l" && stoppedAgain.output == "" then
@@ -256,11 +256,11 @@ let workbenchState () : Darklang.Cli.Workbench.State =
 /// Render one view and report whether it produced a plausible frame.
 let rendersView (viewIndex: Int) : Bool =
   let state = { (workbenchState ()) with activeView = viewIndex }
-  let size = Tui.Size { width = 120; height = 40 }
+  let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
   let view = Darklang.Cli.Workbench.viewAtSize state size
   // A frame is `height` rows, and a view that drew nothing at all is a bug even if it didn't crash.
   (Stdlib.List.length view.rows == 40)
-  && (view.rows |> Stdlib.List.any (fun r -> (Tui.Text.stripSgr r) != ""))
+  && (view.rows |> Stdlib.List.any (fun r -> (Stdlib.Cli.Tui.Text.stripSgr r) != ""))
 
 
 let testWorkbenchEveryViewRenders (): TestResult =
@@ -421,7 +421,7 @@ let testReplCapturesRealValues (): TestResult =
 
 let testWorkbenchCapturesStrayOutput (): TestResult =
   // The workbench owns the whole screen, so anything a command prints scrolls the alternate screen and every
-  // frame after it lands that many rows off, which reads as two overlapping copies of the UI. It's easy to
+  // frame after it lands that many rows off, which reads as two overlapping copies of the Stdlib.Cli.UI. It's easy to
   // hit: `cliEvaluateExpression` prints a three-line call-stack header on any runtime error, so a typo at the
   // REPL does it. `captureOutputAnd` returns the value AND the output, so a caller gets the result without
   // letting the print through.
@@ -438,9 +438,9 @@ let testWorkbenchCapturesStrayOutput (): TestResult =
 /// Does rendering view `viewIndex` put `marker` on the screen?
 let viewShows (viewIndex: Int) (marker: String) : Bool =
   let state = { (workbenchState ()) with activeView = viewIndex }
-  let view = Darklang.Cli.Workbench.viewAtSize state (Tui.Size { width = 160; height = 40 })
+  let view = Darklang.Cli.Workbench.viewAtSize state (Stdlib.Cli.Tui.Size { width = 160; height = 40 })
   view.rows
-  |> Stdlib.List.any (fun r -> Stdlib.String.contains (Tui.Text.stripSgr r) marker)
+  |> Stdlib.List.any (fun r -> Stdlib.String.contains (Stdlib.Cli.Tui.Text.stripSgr r) marker)
 
 
 let testWorkbenchViewsShowTheirChrome (): TestResult =

@@ -1,0 +1,409 @@
+// The outliner's pure core: the tree operations, the widgets it's built from, and the import/export
+// round trips.
+//
+// These used to live in `packages/darklang/cli/outliner/tests.dark` as 482 lines with a hand-rolled
+// TestResult/TestSummary and a printing runner, referenced by nothing: not the registry, not the backend
+// suite, not a testfile. The only way to find out whether they passed was to call `runAllTests` by hand.
+//
+// Names are fully qualified: testfiles parse with owner "Tests", so `Darklang.` prefixes are required.
+
+module Outline =
+  let sample () : Darklang.Cli.Outliner.Outline =
+    // A
+    //   B
+    //   C
+    // D
+    Darklang.Cli.Outliner.buildOutline
+      [ (1, "A"); (2, "B"); (3, "C"); (4, "D") ]
+      [ (1, [ 2; 3 ]) ]
+      [ 1; 4 ]
+      5
+
+  let texts (o: Darklang.Cli.Outliner.Outline) : List<String> =
+    Darklang.Cli.Outliner.flattenVisible o |> Stdlib.List.map (fun vn -> vn.text)
+
+  let depths (o: Darklang.Cli.Outliner.Outline) : List<Int> =
+    Darklang.Cli.Outliner.flattenVisible o |> Stdlib.List.map (fun vn -> vn.depth)
+
+  (texts (sample ())) = [ "A"; "B"; "C"; "D" ]
+  (depths (sample ())) = [ 0; 1; 1; 0 ]
+
+  // Collapsing hides descendants but keeps the node itself.
+  (texts (Darklang.Cli.Outliner.setCollapsed (sample ()) 1 true)) = [ "A"; "D" ]
+
+  // Parents are stored, not searched for.
+  (Darklang.Cli.Outliner.findParentId (sample ()) 2) = Stdlib.Option.Option.Some 1
+  (Darklang.Cli.Outliner.findParentId (sample ()) 1) = Stdlib.Option.Option.None
+
+  // ... and `setChildren` keeps them honest in both directions.
+  (Darklang.Cli.Outliner.findParentId
+    (Darklang.Cli.Outliner.setChildren (sample ()) (Stdlib.Option.Option.Some 4) [ 2 ])
+    2) = Stdlib.Option.Option.Some 4
+
+  // A collapsed branch reports everything underneath it, not just its immediate children.
+  (Darklang.Cli.Outliner.subtreeSize (sample ()) 1) = 2
+
+  // Deleting takes the subtree with it.
+  (texts (Darklang.Cli.Outliner.removeSubtree (sample ()) 1)) = [ "D" ]
+
+  // Marks cycle plain -> todo -> done -> plain.
+  (Darklang.Cli.Outliner.getMark (Darklang.Cli.Outliner.cycleMark (sample ()) 2) 2) =
+    Darklang.Cli.Outliner.Mark.Todo
+
+  (Darklang.Cli.Outliner.getMark
+    (Darklang.Cli.Outliner.cycleMark
+      (Darklang.Cli.Outliner.cycleMark (Darklang.Cli.Outliner.cycleMark (sample ()) 2) 2)
+      2)
+    2) = Darklang.Cli.Outliner.Mark.Plain
+
+
+module ListEdits =
+  // Insert after a member, as normal.
+  (Darklang.Cli.Outliner.insertIdAfter [ 1; 2; 3 ] 2 9) = [ 1; 2; 9; 3 ]
+
+  // Insert after something that isn't in the list. This used to return the list unchanged, which dropped
+  // the new node: it stayed in the content dict with nothing pointing at it, invisible and unreachable,
+  // and got written to disk on every save from then on.
+  (Darklang.Cli.Outliner.insertIdAfter [ 1; 2; 3 ] 7 9) = [ 1; 2; 3; 9 ]
+
+  (Darklang.Cli.Outliner.swapAt [ 1; 2; 3 ] 0 2) = [ 3; 2; 1 ]
+
+  // Out-of-range swaps leave the list alone. They used to write a 0 into it (an id no node ever has),
+  // via a `withDefault 0` on the lookup.
+  (Darklang.Cli.Outliner.swapAt [ 1; 2; 3 ] 0 9) = [ 1; 2; 3 ]
+  (Darklang.Cli.Outliner.swapAt [ 1; 2; 3 ] -1 1) = [ 1; 2; 3 ]
+
+
+module Editing =
+  let editorOn (o: Darklang.Cli.Outliner.Outline) : Darklang.Cli.Outliner.Editor.State =
+    Darklang.Cli.Outliner.Editor.fromOutline o
+
+  let texts (s: Darklang.Cli.Outliner.Editor.State) : List<String> =
+    Darklang.Cli.Outliner.Editor.visible s |> Stdlib.List.map (fun vn -> vn.text)
+
+  let depths (s: Darklang.Cli.Outliner.Editor.State) : List<Int> =
+    Darklang.Cli.Outliner.Editor.visible s |> Stdlib.List.map (fun vn -> vn.depth)
+
+  // Indenting hangs a line off the sibling above it: C, the second of A's children, goes under B.
+  ((Darklang.Cli.Outliner.Editor.indent
+     (Darklang.Cli.Outliner.Editor.cursorToIndex (editorOn (Outline.sample ())) 2))
+   |> depths) = [ 0; 1; 2; 0 ]
+
+  // Outdenting B puts it after A, which is where its remaining sibling C isn't.
+  ((Darklang.Cli.Outliner.Editor.outdent
+     (Darklang.Cli.Outliner.Editor.moveDown (editorOn (Outline.sample ()))))
+   |> texts) = [ "A"; "C"; "B"; "D" ]
+
+  ((Darklang.Cli.Outliner.Editor.outdent
+     (Darklang.Cli.Outliner.Editor.moveDown (editorOn (Outline.sample ()))))
+   |> depths) = [ 0; 1; 0; 0 ]
+
+  // Indent then outdent is the identity, which is the property the two have to keep between them.
+  ((Darklang.Cli.Outliner.Editor.outdent
+     (Darklang.Cli.Outliner.Editor.indent
+       (Darklang.Cli.Outliner.Editor.cursorToIndex (editorOn (Outline.sample ())) 2)))
+   |> depths) = [ 0; 1; 1; 0 ]
+
+  // The first of a parent's children has nothing to indent under, so nothing happens.
+  ((Darklang.Cli.Outliner.Editor.indent
+     (Darklang.Cli.Outliner.Editor.moveDown (editorOn (Outline.sample ()))))
+   |> depths) = [ 0; 1; 1; 0 ]
+
+  // Nor does the first line of the document.
+  ((Darklang.Cli.Outliner.Editor.indent (editorOn (Outline.sample ()))) |> depths) = [ 0; 1; 1; 0 ]
+
+  // Moving among siblings, and back.
+  ((Darklang.Cli.Outliner.Editor.moveWithin
+     (Darklang.Cli.Outliner.Editor.moveDown (editorOn (Outline.sample ())))
+     1)
+   |> texts) = [ "A"; "C"; "B"; "D" ]
+
+  ((Darklang.Cli.Outliner.Editor.moveWithin
+     (Darklang.Cli.Outliner.Editor.moveWithin
+       (Darklang.Cli.Outliner.Editor.moveDown (editorOn (Outline.sample ())))
+       1)
+     -1)
+   |> texts) = [ "A"; "B"; "C"; "D" ]
+
+  // Undo restores what a change replaced.
+  (let editor = editorOn (Outline.sample ())
+   let (undone, note) =
+     Darklang.Cli.Outliner.Editor.undo (Darklang.Cli.Outliner.Editor.cycleTodo editor)
+
+   (texts undone, note)) = ([ "A"; "B"; "C"; "D" ], "undo")
+
+  // With nothing to undo it says so rather than doing something.
+  (let (_state, note) = Darklang.Cli.Outliner.Editor.undo (editorOn (Outline.sample ()))
+   note) = "nothing to undo"
+
+  // Search keeps the ancestors of a hit, so a match deep in the tree stays locatable.
+  ((Darklang.Cli.Outliner.Editor.applyFilter (editorOn (Outline.sample ())) "B") |> texts) = [ "A"; "B" ]
+
+  // And clearing brings everything back.
+  ((Darklang.Cli.Outliner.Editor.clearFilter
+     (Darklang.Cli.Outliner.Editor.applyFilter (editorOn (Outline.sample ())) "B"))
+   |> texts) = [ "A"; "B"; "C"; "D" ]
+
+
+module TextField =
+  let noMods () : Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers =
+    Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false; shift = false; alt = false }
+
+  // A paste arrives as one chunk. Moving the cursor by one per keypress is what made typing `abcdef` and
+  // then `X` produce `aXbcdef`.
+  (let field = Darklang.Stdlib.Cli.UI.TextField.insert Darklang.Stdlib.Cli.UI.TextField.empty "abcdef"
+   let typed = Darklang.Stdlib.Cli.UI.TextField.insert field "X"
+   (typed.text, typed.cursor)) = ("abcdefX", 7)
+
+  (let back = Darklang.Stdlib.Cli.UI.TextField.backspace (Darklang.Stdlib.Cli.UI.TextField.fromText "hello")
+   (back.text, back.cursor)) = ("hell", 4)
+
+  // Backspace at the start does nothing, rather than going negative.
+  (Darklang.Stdlib.Cli.UI.TextField.backspace
+    (Darklang.Stdlib.Cli.UI.TextField.fromTextAtStart "hello")).text = "hello"
+
+  (Darklang.Stdlib.Cli.UI.TextField.deleteForward
+    (Darklang.Stdlib.Cli.UI.TextField.fromTextAtStart "hello")).text = "ello"
+
+  (Darklang.Stdlib.Cli.UI.TextField.killToEnd
+    (Darklang.Stdlib.Cli.UI.TextField.moveRight
+      (Darklang.Stdlib.Cli.UI.TextField.fromTextAtStart "hello"))).text = "h"
+
+  // The window follows the cursor, so a line longer than the box doesn't take the cursor off-screen.
+  (Darklang.Stdlib.Cli.UI.TextField.windowFor
+    (Darklang.Stdlib.Cli.UI.TextField.fromText "0123456789abcdef") 10) = 7
+
+  (Darklang.Stdlib.Cli.UI.TextField.windowFor
+    (Darklang.Stdlib.Cli.UI.TextField.fromTextAtStart "0123456789abcdef") 10) = 0
+
+  // Tab is passed up rather than typed into the line: that's what lets the outliner indent while editing.
+  (match
+     Darklang.Stdlib.Cli.UI.TextField.onKey
+       Darklang.Stdlib.Cli.UI.TextField.empty
+       (Darklang.Stdlib.Cli.UI.Widget.press
+         Darklang.Stdlib.Cli.Stdin.Key.Key.Tab
+         (noMods ())
+         (Stdlib.Option.Option.Some "\t"))
+   with
+   | Ignored -> "ignored"
+   | Handled _ -> "typed a tab"
+   | Emitted _ -> "emitted") = "ignored"
+
+  // Enter hands the text to the parent.
+  (match
+     Darklang.Stdlib.Cli.UI.TextField.onKey
+       (Darklang.Stdlib.Cli.UI.TextField.fromText "done")
+       (Darklang.Stdlib.Cli.UI.Widget.press
+         Darklang.Stdlib.Cli.Stdin.Key.Key.Enter
+         (noMods ())
+         Stdlib.Option.Option.None)
+   with
+   | Emitted(_state, Submitted text) -> text
+   | _ -> "") = "done"
+
+
+module Picker =
+  let three () : Darklang.Stdlib.Cli.UI.Picker.State =
+    Darklang.Stdlib.Cli.UI.Picker.make [ "one"; "two"; "three" ]
+
+  (Darklang.Stdlib.Cli.UI.Picker.moveDown (three ())).selected = 1
+  (Darklang.Stdlib.Cli.UI.Picker.moveUp (three ())).selected = 0
+  (Darklang.Stdlib.Cli.UI.Picker.moveToEnd (three ())).selected = 2
+
+  // Moving past the end stops at the end.
+  (Darklang.Stdlib.Cli.UI.Picker.moveTo (three ()) 99).selected = 2
+
+  // The window moves only as far as it must to keep the selection visible.
+  (Darklang.Stdlib.Cli.UI.Picker.scrolled
+    (Darklang.Stdlib.Cli.UI.Picker.moveToEnd (three ())) 2).scroll = 1
+
+  (Darklang.Stdlib.Cli.UI.Picker.scrolled (three ()) 2).scroll = 0
+
+  // Rebuilding with new labels keeps the cursor if the row still exists.
+  (Darklang.Stdlib.Cli.UI.Picker.withLabels
+    (Darklang.Stdlib.Cli.UI.Picker.moveToEnd (three ()))
+    [ "a"; "b" ]).selected = 1
+
+  // A selected row is marked, not just coloured: colour alone is invisible on a monochrome terminal.
+  (Stdlib.String.contains (Darklang.Stdlib.Cli.UI.Picker.rowFor "x" true) "> x") = true
+
+  (Stdlib.String.startsWith
+    (Darklang.Stdlib.Cli.UI.Picker.rowFor "x" true)
+    Darklang.Stdlib.Cli.UI.Colors.selection) = true
+
+  (Darklang.Stdlib.Cli.UI.Picker.rowFor "x" false) = "  x"
+
+
+module Confirm =
+  let question () : Darklang.Stdlib.Cli.UI.Confirm.State =
+    Darklang.Stdlib.Cli.UI.Confirm.askDangerous "Delete?" "3 lines"
+
+  let key (c: String) : Darklang.Stdlib.Cli.UI.Widget.KeyPress =
+    Darklang.Stdlib.Cli.UI.Widget.press
+      Darklang.Stdlib.Cli.Stdin.Key.Key.None
+      (Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false; shift = false; alt = false })
+      (Stdlib.Option.Option.Some c)
+
+  (match Darklang.Stdlib.Cli.UI.Confirm.onKey (question ()) (key "y") with
+   | Emitted(_s, Confirmed) -> "yes"
+   | _ -> "other") = "yes"
+
+  (match Darklang.Stdlib.Cli.UI.Confirm.onKey (question ()) (key "n") with
+   | Emitted(_s, Declined) -> "no"
+   | _ -> "other") = "no"
+
+  // Any other key is swallowed. A modal that let keys through would act on the thing being asked about.
+  (match Darklang.Stdlib.Cli.UI.Confirm.onKey (question ()) (key "j") with
+   | Handled _ -> "swallowed"
+   | _ -> "other") = "swallowed"
+
+  // Enter declines a dangerous question: the safe answer is the easy one.
+  (match
+     Darklang.Stdlib.Cli.UI.Confirm.onKey
+       (question ())
+       (Darklang.Stdlib.Cli.UI.Widget.press
+         Darklang.Stdlib.Cli.Stdin.Key.Key.Enter
+         (Darklang.Stdlib.Cli.Stdin.Modifiers.Modifiers { ctrl = false; shift = false; alt = false })
+         Stdlib.Option.Option.None)
+   with
+   | Emitted(_s, Declined) -> "declined"
+   | _ -> "other") = "declined"
+
+
+module Formats =
+  let doc () : Darklang.Cli.Outliner.Document =
+    Darklang.Cli.Outliner.Markdown.import "# Trip\n\n- one\n  - [ ] two\n  - [x] three\n- four"
+
+  (doc ()).title = "Trip"
+
+  // Markdown out and back is the identity, tasks included.
+  (Darklang.Cli.Outliner.Markdown.export (doc ())) =
+    "# Trip\n\n- one\n  - [ ] two\n  - [x] three\n- four"
+
+  // Tabs indent as well as spaces do.
+  (Darklang.Cli.Outliner.Markdown.export (Darklang.Cli.Outliner.Markdown.import "# T\n\n- a\n\t- b")) =
+    "# T\n\n- a\n  - b"
+
+  // A file that skips a level still hangs off the nearest line above it.
+  (Darklang.Cli.Outliner.Markdown.export
+    (Darklang.Cli.Outliner.Markdown.import "# T\n\n- a\n      - deep")) = "# T\n\n- a\n  - deep"
+
+  // OPML round-trips through the parser that didn't exist until now.
+  (match Darklang.Cli.Outliner.Export.fromOpml (Darklang.Cli.Outliner.Export.toOpml (doc ())) with
+   | Ok back -> Darklang.Cli.Outliner.Markdown.export back
+   | Error e -> e) = "# Trip\n\n- one\n  - [ ] two\n  - [x] three\n- four"
+
+  // Something that isn't OPML is an error, not an empty document.
+  (match Darklang.Cli.Outliner.Export.fromOpml "hello" with
+   | Ok _ -> "parsed"
+   | Error _ -> "rejected") = "rejected"
+
+
+module Persistence =
+  // A file written before versioning had no `version`, no parent pointers and no marks. It has to be
+  // migrated: the loader used to treat anything it couldn't parse as "start fresh", which quietly replaced
+  // the file with the demo documents on the next save.
+  let v1 () : String =
+    "{\"activeDocId\":1,\"nextDocId\":2,\"documents\":[{\"id\":1,\"title\":\"Old\",\"outline\":"
+    ++ "{\"nextId\":3,\"rootChildren\":[1],\"nodes\":{\"1\":{\"text\":\"parent\"},\"2\":{\"text\":\"child\"}},"
+    ++ "\"structure\":{\"1\":{\"children\":[2],\"collapsed\":false},\"2\":{\"children\":[],\"collapsed\":false}}}}]}"
+
+  (match Darklang.Cli.Outliner.Store.parse (v1 ()) with
+   | Loaded data -> (Stdlib.List.length data.documents, data.version)
+   | Unreadable(_p, _r) -> (0, 0)) = (1, 2)
+
+  // The migration rebuilds the parent pointers v1 didn't store.
+  (match Darklang.Cli.Outliner.Store.parse (v1 ()) with
+   | Loaded data ->
+     match Stdlib.List.head data.documents with
+     | Some doc -> Darklang.Cli.Outliner.findParentId doc.outline 2
+     | None -> Stdlib.Option.Option.None
+   | Unreadable(_p, _r) -> Stdlib.Option.Option.None) = Stdlib.Option.Option.Some 1
+
+  // Something genuinely broken is reported, not swallowed.
+  (match Darklang.Cli.Outliner.Store.parse "{ not json" with
+   | Loaded _ -> "loaded"
+   | Unreadable(_p, _r) -> "unreadable") = "unreadable"
+
+  // What we write is what we can read back. This is the canary for a schema change: add a field to a node,
+  // a document or the file itself without thinking about the old shape, and this fails here rather than on
+  // someone's documents.
+  (let saved =
+     Darklang.Cli.Outliner.Store.PersistedData
+       { version = 2
+         documents = Darklang.Cli.Outliner.Store.starterDocuments ()
+         activeDocId = 1
+         nextDocId = 3 }
+
+   match
+     Darklang.Cli.Outliner.Store.parse
+       (Stdlib.Json.serialize<Darklang.Cli.Outliner.Store.PersistedData> saved)
+   with
+   | Loaded back -> back == saved
+   | Unreadable(_p, _r) -> false) = true
+
+  // Including the parts of a document that aren't its text: the fold state, the task marks, the tree.
+  (let outline =
+     Darklang.Cli.Outliner.setCollapsed
+       (Darklang.Cli.Outliner.setMark (Outline.sample ()) 2 Darklang.Cli.Outliner.Mark.Done)
+       1
+       true
+
+   let saved =
+     Darklang.Cli.Outliner.Store.PersistedData
+       { version = 2
+         documents = [ Darklang.Cli.Outliner.Document { id = 1; title = "T"; outline = outline } ]
+         activeDocId = 1
+         nextDocId = 2 }
+
+   match
+     Darklang.Cli.Outliner.Store.parse
+       (Stdlib.Json.serialize<Darklang.Cli.Outliner.Store.PersistedData> saved)
+   with
+   | Loaded back ->
+     match Stdlib.List.head back.documents with
+     | Some doc ->
+       (Darklang.Cli.Outliner.getMark doc.outline 2, (Darklang.Cli.Outliner.getStructure doc.outline 1).collapsed)
+     | None -> (Darklang.Cli.Outliner.Mark.Plain, false)
+   | Unreadable(_p, _r) -> (Darklang.Cli.Outliner.Mark.Plain, false)) =
+    (Darklang.Cli.Outliner.Mark.Done, true)
+
+
+module Chrome =
+  // The bar fills the width, so its background reaches the edge.
+  (Stdlib.String.length
+    (Darklang.Stdlib.Cli.Tui.Text.stripSgr
+      (Darklang.Stdlib.Cli.UI.Chrome.bar 20 Darklang.Stdlib.Cli.UI.Colors.dim "hi"))) = 20
+
+  // A message replaces the hints for the frame it's shown on.
+  (Stdlib.String.contains
+    (Darklang.Stdlib.Cli.UI.Chrome.footBar
+      (Darklang.Stdlib.Cli.UI.Chrome.withMessage
+        (Darklang.Stdlib.Cli.UI.Chrome.frame "T" "B" "the hints")
+        "wrote /tmp/x.md")
+      40)
+    "wrote /tmp/x.md") = true
+
+  // The body gets what's left after the title and the hints.
+  (Darklang.Stdlib.Cli.UI.Chrome.bodyRegion
+    (Darklang.Stdlib.Cli.Tui.Size { width = 80; height = 24 })).rows = 21
+
+  // A terminal too short for the whole frame gives up the blank line, then the hints, before the body.
+  (Darklang.Stdlib.Cli.UI.Chrome.bodyRegion
+    (Darklang.Stdlib.Cli.Tui.Size { width = 80; height = 2 })).rows = 1
+
+module Wrapping =
+  // Long lines used to run off the right edge of the pane and stop existing.
+  (Darklang.Stdlib.Cli.Tui.Text.wrap "the quick brown fox jumps over the lazy dog" 12) =
+    [ "the quick"; "brown fox"; "jumps over"; "the lazy dog" ]
+
+  // A word longer than the pane is split rather than dropped.
+  (Darklang.Stdlib.Cli.Tui.Text.wrap "supercalifragilistic" 7) = [ "superca"; "lifragi"; "listic" ]
+
+  // Text that fits comes back as one line, and empty text as one empty line (a row is still a row).
+  (Darklang.Stdlib.Cli.Tui.Text.wrap "short" 20) = [ "short" ]
+  (Darklang.Stdlib.Cli.Tui.Text.wrap "" 20) = [ "" ]
+
+  // Wrapping is measured in columns, so a wide glyph takes the two it occupies.
+  (Darklang.Stdlib.Cli.Tui.Text.wrap "日本 語" 4) = [ "日本"; "語" ]
+

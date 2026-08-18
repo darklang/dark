@@ -12,17 +12,17 @@ module Darklang.Cli
 ///
 /// Presentation only. It's added on the render path and not by `releasePromptRegion`, so it disappears rather
 /// than piling up in scrollback behind every command you run.
-let withModeHint (state: AppState) (view: Tui.View) : Tui.View =
+let withModeHint (state: AppState) (view: Stdlib.Cli.Tui.View) : Stdlib.Cli.Tui.View =
   if Stdlib.List.isEmpty state.pageStack then
     view
   else
     let hintRow =
-      Colors.dimText "command prompt  ·  `quit` returns to the workbench"
+      Stdlib.Cli.UI.Colors.dimText "command prompt  ·  `quit` returns to the workbench"
     let rows = Stdlib.List.push view.rows hintRow
     // The prompt's cursor is addressed against its own rows, so inserting a row above it moves it down one.
     match view.cursor with
     | Visible(row, column) ->
-      { view with rows = rows; cursor = Tui.Cursor.Visible(row + 1, column) }
+      { view with rows = rows; cursor = Stdlib.Cli.Tui.Cursor.Visible(row + 1, column) }
     | Hidden -> { view with rows = rows }
 
 
@@ -39,9 +39,9 @@ let releasePromptRegion (state: AppState) : AppState =
         state.prompt
         (locationStr state)
         ""
-        (Tui.TerminalSession.currentSize ())
+        (Stdlib.Cli.Tui.TerminalSession.currentSize ())
     let _stopped =
-      Tui.TerminalSession.stopInlineWithView terminal parked
+      Stdlib.Cli.Tui.TerminalSession.stopInlineWithView terminal parked
     { state with promptTerminal = Stdlib.Option.Option.None }
 
 
@@ -54,13 +54,13 @@ let clearPromptRegion (state: AppState) : AppState =
   | None -> state
   | Some terminal ->
     let cleared =
-      Tui.View {
+      Stdlib.Cli.Tui.View {
         rows = []
-        cursor = Tui.Cursor.Hidden
-        mode = Tui.ViewMode.Inline
+        cursor = Stdlib.Cli.Tui.Cursor.Hidden
+        mode = Stdlib.Cli.Tui.ViewMode.Inline
       }
     let _stopped =
-      Tui.TerminalSession.stopInlineWithView terminal cleared
+      Stdlib.Cli.Tui.TerminalSession.stopInlineWithView terminal cleared
     { state with promptTerminal = Stdlib.Option.Option.None }
 
 
@@ -74,7 +74,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
         let _stopped = CompletionPicker.stop session
         state
       | InteractiveNav session ->
-        let _stopped = Tui.TerminalSession.stop session.terminal
+        let _stopped = Stdlib.Cli.Tui.TerminalSession.stop session.terminal
         state
       | SubApp app ->
         app.onTerminate ()
@@ -134,7 +134,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
         let released = releasePromptRegion state
         Stdlib.printLine ""
         let pickerState = CompletionPicker.create state.prompt.text multiple
-        let size = Tui.TerminalSession.currentSize ()
+        let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
         match CompletionPicker.startAtSize pickerState size with
         | Ok session ->
           { released with
@@ -181,7 +181,7 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
 
   | CompletionPicker session ->
     // Completion picker key handling
-    let size = Tui.TerminalSession.currentSize ()
+    let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
     match
       CompletionPicker.handleKeyAtSize
         session.state
@@ -224,12 +224,14 @@ let handleKeyInput (state: AppState) (key: Stdlib.Cli.Stdin.Key.Key) (modifiers:
       { state with
           currentPage = Page.SubApp newApp }
     | Save ->
-      newApp.onSave ()
+      // The app may come back changed: a failed write leaves a message on it.
+      let saved = newApp.onSave ()
       { state with
-          currentPage = Page.SubApp newApp }
+          currentPage = Page.SubApp saved }
     | Exit ->
       newApp.onTerminate ()
-      newApp.onSave ()
+      // On the way out there's no frame left to say anything on, so whatever comes back is dropped.
+      let _saved = newApp.onSave ()
       match state.pageStack with
       | returnTo :: rest ->
         // Launched from another page (e.g. a foreground app opened from the workbench). Return to the
@@ -334,7 +336,7 @@ let runInteractiveLoop (state: AppState) : Int =
     let location = locationStr state
     // Sampled once per pass. A resize while idle still repaints: SIGWINCH wakes the blocking read (see
     // Stdin.fs) with a keypress nobody handles, which sends us round again and re-samples here.
-    let size = Tui.TerminalSession.currentSize ()
+    let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
 
     let tHint = if state.telemetryEnabled then Telemetry.now () else 0
     let hintCached = state.cachedHintInput == state.prompt.text
@@ -389,7 +391,7 @@ let runInteractiveLoop (state: AppState) : Int =
         | Some terminal ->
           let tPresent = if state.telemetryEnabled then Telemetry.now () else 0
           let nextTerminal =
-            Tui.TerminalSession.presentAtSize
+            Stdlib.Cli.Tui.TerminalSession.presentAtSize
               terminal
               size
               promptView
@@ -399,7 +401,7 @@ let runInteractiveLoop (state: AppState) : Int =
               promptTerminal =
                 Stdlib.Option.Option.Some nextTerminal }
         | None ->
-          match Tui.TerminalSession.startAtSize size promptView with
+          match Stdlib.Cli.Tui.TerminalSession.startAtSize size promptView with
           | Ok terminal ->
             { state with
                 promptTerminal =

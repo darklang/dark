@@ -1,0 +1,70 @@
+/// SplitPane — split a region into two focus-aware bordered panes. The layout primitive every multi-pane
+/// view (Inspect, Changes, History, Mesh, …) mounts into. Render helpers, called during a render pass:
+/// the child callbacks run immediately and are never stored in state (so the lambda-persistence rule is
+/// safe here).
+module Darklang.Stdlib.Cli.UI.SplitPane
+
+type Orientation =
+  | Horizontal
+  | Vertical
+
+type Focus =
+  | First
+  | Second
+
+/// Split `region` into two bordered panes by `firstPct` (0-100), render each child into its inner region.
+/// `focused` marks which pane gets the bright border. Below `minTotal`, collapses to the focused child only
+/// (with a "‹1/2›" hint), per the narrow-terminal rule.
+let render
+  (region: Layout.Region)
+  (orientation: Orientation)
+  (firstPct: Int)
+  (focused: Focus)
+  (titleFirst: String)
+  (renderFirst: Layout.Region -> List<Layout.Span>)
+  (titleSecond: String)
+  (renderSecond: Layout.Region -> List<Layout.Span>)
+  : List<Layout.Span> =
+  let firstFocused = focused == Focus.First
+  let minTotal = 46
+
+  let tooNarrow =
+    match orientation with
+    | Horizontal -> region.cols < minTotal
+    | Vertical -> region.rows < 8
+
+  if tooNarrow then
+    // Collapse: show only the focused pane, full region, with a which-of-two hint in the title.
+    let (title, renderFn) =
+      if firstFocused then (titleFirst ++ " ‹1/2›", renderFirst)
+      else (titleSecond ++ " ‹2/2›", renderSecond)
+    Box.panel region title true renderFn
+  else
+    match orientation with
+    | Horizontal ->
+      let firstCols = Stdlib.Int.divide (region.cols * firstPct) 100
+      let secondCols = region.cols - firstCols
+      let firstRegion =
+        Layout.Region { top = region.top; left = region.left; rows = region.rows; cols = firstCols }
+      let secondRegion =
+        Layout.Region { top = region.top; left = region.left + firstCols; rows = region.rows; cols = secondCols }
+      Stdlib.List.flatten
+        [ Box.panel firstRegion titleFirst firstFocused renderFirst
+          Box.panel secondRegion titleSecond (Stdlib.Bool.not firstFocused) renderSecond ]
+    | Vertical ->
+      let firstRows = Stdlib.Int.divide (region.rows * firstPct) 100
+      let secondRows = region.rows - firstRows
+      let firstRegion =
+        Layout.Region { top = region.top; left = region.left; rows = firstRows; cols = region.cols }
+      let secondRegion =
+        Layout.Region { top = region.top + firstRows; left = region.left; rows = secondRows; cols = region.cols }
+      Stdlib.List.flatten
+        [ Box.panel firstRegion titleFirst firstFocused renderFirst
+          Box.panel secondRegion titleSecond (Stdlib.Bool.not firstFocused) renderSecond ]
+
+
+/// Toggle focus between the two panes (Tab handler helper).
+let toggle (focus: Focus) : Focus =
+  match focus with
+  | First -> Focus.Second
+  | Second -> Focus.First

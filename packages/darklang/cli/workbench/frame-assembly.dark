@@ -4,14 +4,14 @@
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
 
-let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
+let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.Layout.Span> =
   // Clamp to sane minimums - mid-resize the terminal reports 0/tiny sizes; without this the region math
   // goes negative and the whole view crashes back to the prompt. A safe default renders one off frame; the
   // next keypress picks up the real size.
   let h = if size.height < 8 then 24 else size.height
   let w = if size.width < 24 then 80 else size.width
   // Full height now: the last row used to be reserved for the CLI's status bar, and that's gone.
-  let screen = UI.Layout.Region { top = 1; left = 1; rows = h; cols = w }
+  let screen = Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = h; cols = w }
   // The breadcrumb only earns its row when it has something the rest of the frame doesn't already say.
   //
   // It used to show the view name and item count for every view, which meant "Builtins" appeared three times
@@ -30,34 +30,34 @@ let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
   let (syncColored, syncPlain) =
     if conflictCount > 0 then
       let s = "⚠ " ++ (Stdlib.Int.toString conflictCount) ++ " to resolve"
-      (Colors.colorize Colors.pink s, s)
+      (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink s, s)
     else
-      (Colors.colorize Colors.green "✓ synced", "✓ synced")
+      (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ synced", "✓ synced")
   // Columns, not graphemes: `⚠`/`✓` are non-ASCII, and `String.length` counts one per grapheme, so a wide
   // glyph would right-align this past the edge of the row.
-  let syncVisibleLen = Tui.Text.displayWidth syncPlain
+  let syncVisibleLen = Stdlib.Cli.Tui.Text.displayWidth syncPlain
   // The context line - the workbench's `pwd`: where edits land. Account, instance, branch, and the sync
   // glance right-aligned. Branch is here and nowhere else; it used to be on this row AND the breadcrumb.
   let context =
-    UI.Layout.fixedSize
+    Stdlib.Cli.UI.Layout.fixedSize
       1
       (fun r ->
         let line =
           "  "
-          ++ (Colors.boldText state.accountName)
-          ++ (Colors.dimText "    instance: ")
-          ++ (Colors.dimText state.instanceName)
-          ++ (Colors.dimText "    branch: ")
-          ++ (Colors.dimText branch)
+          ++ (Stdlib.Cli.UI.Colors.boldText state.accountName)
+          ++ (Stdlib.Cli.UI.Colors.dimText "    instance: ")
+          ++ (Stdlib.Cli.UI.Colors.dimText state.instanceName)
+          ++ (Stdlib.Cli.UI.Colors.dimText "    branch: ")
+          ++ (Stdlib.Cli.UI.Colors.dimText branch)
         Stdlib.List.flatten
-          [ UI.Layout.at r 0 0 line
-            UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - syncVisibleLen - 2)) syncColored ])
+          [ Stdlib.Cli.UI.Layout.at r 0 0 line
+            Stdlib.Cli.UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - syncVisibleLen - 2)) syncColored ])
   let tabSegs = visibleViews state |> Stdlib.List.map (fun i -> (i, viewLabel i))
-  let tabbar = UI.Layout.fixedSize 1 (fun r -> Frame.renderTabBar r tabSegs state.activeView conflictCount)
-  let crumb = UI.Layout.fixedSize 1 (fun r -> Frame.renderBreadcrumb r path "" 0)
-  let body = UI.Layout.greedy (fun r -> renderBody state r)
+  let tabbar = Stdlib.Cli.UI.Layout.fixedSize 1 (fun r -> Frame.renderTabBar r tabSegs state.activeView conflictCount)
+  let crumb = Stdlib.Cli.UI.Layout.fixedSize 1 (fun r -> Frame.renderBreadcrumb r path "" 0)
+  let body = Stdlib.Cli.UI.Layout.greedy (fun r -> renderBody state r)
   let hints =
-    UI.Layout.fixedSize
+    Stdlib.Cli.UI.Layout.fixedSize
       1
       (fun r ->
         let h =
@@ -72,18 +72,22 @@ let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
               // reverse-video block caret so it's unmistakable the app is capturing keystrokes. For the command
               // bar, trail a dim ghost of the completion (fish-style; tab accepts it).
               let ghost =
-                if inp.action == "command" then Colors.dimText (commandCompletionHint state inp.text)
+                if inp.action == "command" then Stdlib.Cli.UI.Colors.dimText (commandCompletionHint state inp.field.text)
                 else ""
-              (Colors.colorize Colors.cyan "› ")
-              ++ (Colors.boldText inp.prompt)
-              ++ inp.text
-              ++ (Colors.colorize Colors.reverse " ")
+              // The caret comes from the field now, and sits wherever the cursor is rather than always at
+              // the end - which is the visible half of being able to move it at all.
+              let room =
+                Stdlib.Int.max 8 (size.width - 6 - (Stdlib.Cli.Tui.Text.displayWidth inp.prompt))
+
+              (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "› ")
+              ++ (Stdlib.Cli.UI.Colors.boldText inp.prompt)
+              ++ (Stdlib.Cli.UI.TextField.renderInline inp.field room)
               ++ ghost
             | None ->
               match state.reading with
               | Some _ -> Frame.formatHints [ ("↑↓", "scroll"); ("PgUp/PgDn", "page"); (":", "cmd"); ("esc", "back") ]
               | None ->
-                if Stdlib.Bool.not (Stdlib.List.isEmpty state.searchHits) then
+                if Stdlib.Bool.not (Stdlib.List.isEmpty state.search.hits) then
                   Frame.formatHints [ ("↑↓", "move"); ("⏎", "jump"); ("esc", "close"); ("q", "quit") ]
                 else hintsForView state
         // A toast sits *beside* the hints, right-aligned, rather than replacing the row. It used to take the
@@ -99,14 +103,14 @@ let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
               || (Stdlib.String.contains state.message "conflict")
               || (Stdlib.String.contains state.message "descend")
             (if bad then "✗ " else "✓ ") ++ state.message
-        let toastWidth = Tui.Text.displayWidth toastPlain
+        let toastWidth = Stdlib.Cli.Tui.Text.displayWidth toastPlain
         let toast =
           if toastPlain == "" then
             []
           else
             let bad = Stdlib.String.startsWith toastPlain "✗"
-            let colored = Colors.colorize (if bad then Colors.pink else Colors.green) toastPlain
-            UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - toastWidth - 2)) colored
+            let colored = Stdlib.Cli.UI.Colors.colorize (if bad then Stdlib.Cli.UI.Colors.pink else Stdlib.Cli.UI.Colors.green) toastPlain
+            Stdlib.Cli.UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - toastWidth - 2)) colored
         // Clip the hints to stop short of the toast rather than letting the toast overwrite them. Canvas lets a
         // later span truncate an earlier one, which worked, but left the two abutting with no gap on a long
         // hint row - it read as a collision rather than two things sharing a line.
@@ -115,15 +119,17 @@ let renderFull (state: State) (size: Tui.Size) : List<UI.Layout.Span> =
         // An ellipsis where the row was cut, so a hint list that lost its tail reads as truncated rather than
         // as a key whose name happens to end mid-word.
         let shownHints =
-          if (Tui.Text.styledWidth h) <= hintRoom then
+          if (Stdlib.Cli.Tui.Text.styledWidth h) <= hintRoom then
             h
           else
-            (Tui.Text.clipToWidth h (Stdlib.Int.max 0 (hintRoom - 2))) ++ (Colors.dimText "…")
+            (Stdlib.Cli.Tui.Text.clipToWidth h (Stdlib.Int.max 0 (hintRoom - 2))) ++ (Stdlib.Cli.UI.Colors.dimText "…")
         Stdlib.List.flatten [ Frame.renderKeyHints r shownHints; toast ])
   Stdlib.List.flatten
-    [ UI.Layout.vstack screen (Stdlib.List.flatten [ [ context; tabbar ]; (if path == "" then [] else [ crumb ]); [ body; hints ] ])
-      if state.showHelp then renderHelpOverlay screen else []
-      if state.viewPicker then renderViewPicker state screen else []
+    [ Stdlib.Cli.UI.Layout.vstack screen (Stdlib.List.flatten [ [ context; tabbar ]; (if path == "" then [] else [ crumb ]); [ body; hints ] ])
+      match state.overlay with
+      | NoOverlay -> []
+      | Keymap -> renderHelpOverlay screen
+      | ViewPicker selected -> renderViewPicker state selected screen
       renderCommandCompletions state screen ]
 
 
@@ -160,14 +166,14 @@ let applyCompletionValue (text: String) (value: String) : String =
 /// A live dropdown of command completions anchored just above the `:` input line - the "pretty typeahead" menu
 /// from the classic prompt. Shown only while the command bar is open and there are matches. Drawn as an overlay
 /// (the full frame redraws each keystroke, so it clears itself when the bar closes).
-let renderCommandCompletions (state: State) (screen: UI.Layout.Region) : List<UI.Layout.Span> =
+let renderCommandCompletions (state: State) (screen: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   match state.input with
   | None -> []
   | Some inp ->
     if inp.action != "command" then
       []
     else
-      let items = commandCompletions state inp.text |> Stdlib.List.take 8
+      let items = commandCompletions state inp.field.text |> Stdlib.List.take 8
       if Stdlib.List.isEmpty items then
         []
       else
@@ -176,23 +182,23 @@ let renderCommandCompletions (state: State) (screen: UI.Layout.Region) : List<UI
         let footerRow = screen.top + screen.rows - 1
         let top = Stdlib.Int.max screen.top (footerRow - boxRows)
         // Full width so it fully covers the body band underneath (no bleed-through of the body's box borders).
-        let region = UI.Layout.Region { top = top; left = screen.left; rows = boxRows; cols = screen.cols }
-        UI.Box.panel region "complete  ·  tab to accept" true (fun inner ->
+        let region = Stdlib.Cli.UI.Layout.Region { top = top; left = screen.left; rows = boxRows; cols = screen.cols }
+        Stdlib.Cli.UI.Box.panel region "complete  ·  tab to accept" true (fun inner ->
           let rows =
             items
             |> Stdlib.List.indexedMap (fun i item ->
               let selected = i == state.completionSel
               let raw = (if selected then "> " else "  ") ++ item.display
-              let line = if selected then Colors.colorize Colors.cyan raw else raw
-              UI.Layout.at inner i 0 line)
+              let line = if selected then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan raw else raw
+              Stdlib.Cli.UI.Layout.at inner i 0 line)
             |> Stdlib.List.flatten
           // Clear the interior first - this floats over the body, which would otherwise bleed through.
-          Stdlib.List.flatten [ UI.Layout.clearRegion inner; rows ])
+          Stdlib.List.flatten [ Stdlib.Cli.UI.Layout.clearRegion inner; rows ])
 
 /// Render the workbench. Below a usable size, show an explicit "too small" hint instead of a garbled frame
 /// (per the TUI rule: degrade with a message, never render garbage). A real 0/tiny size mid-resize still falls
 /// through to renderFull's clamp, which draws one safe frame until the next keypress.
-let viewAtSize (state: State) (size: Tui.Size) : Tui.View =
+let viewAtSize (state: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
   let tooSmall =
     (size.width >= 24 && size.width < 56) || (size.height >= 8 && size.height < 12)
 
@@ -200,12 +206,12 @@ let viewAtSize (state: State) (size: Tui.Size) : Tui.View =
     if tooSmall then
       let msg = "terminal too small - resize to at least 56x12"
       let screen =
-        UI.Layout.Region { top = 1; left = 1; rows = size.height; cols = size.width }
+        Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = size.height; cols = size.width }
       let row = Stdlib.Int.max 0 (Stdlib.Int.divide size.height 2)
       let col =
-        Stdlib.Int.max 0 (Stdlib.Int.divide (size.width - (Tui.Text.displayWidth msg)) 2)
-      UI.Layout.at screen row col (Colors.dimText msg)
+        Stdlib.Int.max 0 (Stdlib.Int.divide (size.width - (Stdlib.Cli.Tui.Text.displayWidth msg)) 2)
+      Stdlib.Cli.UI.Layout.at screen row col (Stdlib.Cli.UI.Colors.dimText msg)
     else
       renderFull state size
 
-  UI.Canvas.toView size spans
+  Stdlib.Cli.UI.Canvas.toView size spans

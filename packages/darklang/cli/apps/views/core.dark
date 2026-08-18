@@ -28,15 +28,15 @@ let allViews () : List<ViewEntry> =
         kind = ViewKind.PackageStats }
     ViewEntry
       { name = "UI Components"
-        description = "Visual showcase of CLI UI components"
+        description = "Gallery of the Stdlib.Cli.UI widgets"
         kind = ViewKind.UiComponents } ]
 
 /// Build one registered dashboard as logical rows without terminal I/O.
 let rowsAtSize
   (kind: ViewKind)
-  (size: Darklang.Cli.Tui.Size)
+  (size: Darklang.Stdlib.Cli.Tui.Size)
   : List<String> =
   match kind with
   | AiChats -> AiChats.rowsAtSize size
   | PackageStats -> PackageStats.rowsAtSize size
-  | UiComponents -> Darklang.CLI.UI.Demo.rows ()
+  | UiComponents -> UiGallery.rowsAtSize size

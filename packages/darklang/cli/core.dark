@@ -19,7 +19,11 @@ type SubAppAction =
 type SubApp =
   { onKey: Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> (SubAppAction * SubApp)
     onDisplay: Unit -> Unit
-    onSave: Unit -> Unit
+    /// Persist, and return the app as it stands afterwards.
+    ///
+    /// Returns a `SubApp` rather than `Unit` because saving can fail (a full disk, a read-only home) and
+    /// the only place that can say so is the app itself, on the frame after the write.
+    onSave: Unit -> SubApp
     /// Restore the app's terminal surface when the CLI exits on Ctrl-C,
     /// bypassing the app's own exit action. Safe when already stopped.
     onTerminate: Unit -> Unit
@@ -48,7 +52,7 @@ type AppState =
     accountID: Stdlib.Option.Option<Uuid>
     accountName: String
     /// Retained presentation state while the main prompt owns an inline region.
-    promptTerminal: Stdlib.Option.Option<Tui.TerminalSession.State>
+    promptTerminal: Stdlib.Option.Option<Stdlib.Cli.Tui.TerminalSession.State>
     /// True when invoked from the command line (not the interactive REPL)
     nonInteractive: Bool
     /// Cached completion hint — skip recompute when prompt text unchanged
@@ -107,7 +111,7 @@ let resolveBranchName (name: String) (source: String) : Uuid =
   | Some b -> b.id
   | None ->
     Stdlib.printLine
-      (Colors.error $"Warning: {source} '{name}' not found, using main.")
+      (Stdlib.Cli.UI.Colors.error $"Warning: {source} '{name}' not found, using main.")
     SCM.Branch.mainBranchId
 
 let resolveStartingBranch () : Uuid =
@@ -199,9 +203,9 @@ module ExecutionError =
 
 module View =
   let formatError (message: String) : String =
-    Colors.error ("Error: " ++ message)
+    Stdlib.Cli.UI.Colors.error ("Error: " ++ message)
 
   let formatSuccess (message: String) : String =
-    Colors.success message
+    Stdlib.Cli.UI.Colors.success message
 
   let formatWelcome () : String = Registry.getCompactCommandList ()

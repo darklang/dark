@@ -11,15 +11,15 @@ let execute (state: AppState) (args: List<String>) : AppState =
     match currentMode with
     | Installed ->
       let homeDir = Config.getDarklangHomeDir host
-      Colors.success "Status: " ++ "Globally installed at " ++ homeDir ++ " and ready to use"
+      Stdlib.Cli.UI.Colors.success "Status: " ++ "Globally installed at " ++ homeDir ++ " and ready to use"
     | Portable ->
       let currentDir = Stdlib.Cli.FileSystem.currentDirectory ()
-      Colors.warning "Status: " ++ "Running in portable mode at " ++ currentDir ++ "/.darklang (run 'install' for global system-wide access)"
+      Stdlib.Cli.UI.Colors.warning "Status: " ++ "Running in portable mode at " ++ currentDir ++ "/.darklang (run 'install' for global system-wide access)"
 
   let statusText =
-    Colors.info "Version: " ++ version ++ "\n" ++
+    Stdlib.Cli.UI.Colors.info "Version: " ++ version ++ "\n" ++
     installationStatus ++ "\n\n" ++
-    "Type " ++ Colors.hint "'help'" ++ " for available commands"
+    "Type " ++ Stdlib.Cli.UI.Colors.hint "'help'" ++ " for available commands"
 
   Stdlib.printLine statusText
   state

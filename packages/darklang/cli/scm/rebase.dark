@@ -13,12 +13,12 @@ let execute (state: AppState) (args: List<String>) : AppState =
     // together: genuinely up to date vs. behind-but-clean (parent moved, nothing overlaps).
     if Stdlib.List.isEmpty conflicts then
       if SCM.Rebase.needed state.currentBranchId then
-        Stdlib.printLine (Colors.warning "Rebase needed — your branch is behind its parent.")
-        Stdlib.printLine (Colors.hint "  No conflicts. Run `rebase` to catch up.")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.warning "Rebase needed — your branch is behind its parent.")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "  No conflicts. Run `rebase` to catch up.")
       else
-        Stdlib.printLine (Colors.success "Up to date with parent — no rebase needed.")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.success "Up to date with parent — no rebase needed.")
     else
-      Stdlib.printLine (Colors.warning "Rebase needed, but these locations conflict:")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.warning "Rebase needed, but these locations conflict:")
       conflicts |> Stdlib.List.iter (fun c -> Stdlib.printLine $"  {c}")
       [ ""
         "Reconcile each on your branch so it matches the parent's version, then run `rebase`."
@@ -29,11 +29,11 @@ let execute (state: AppState) (args: List<String>) : AppState =
   else
     match SCM.Rebase.rebase state.currentBranchId with
     | Ok msg ->
-      Stdlib.printLine (Colors.success msg)
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.success msg)
       state
     | Error conflicts ->
       Stdlib.printLine (
-        Colors.error
+        Stdlib.Cli.UI.Colors.error
           "Rebase blocked — these locations changed on both your branch and its parent:")
       conflicts |> Stdlib.List.iter (fun c -> Stdlib.printLine $"  {c}")
       [ ""

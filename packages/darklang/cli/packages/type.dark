@@ -26,7 +26,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     if Stdlib.String.isEmpty inlineDefinition then
       // No inline definition provided - show error
       [
-        (Colors.error "Error: Inline type definition required")
+        (Stdlib.Cli.UI.Colors.error "Error: Inline type definition required")
         ""
         "Usage: type <location> <definition>"
         "       type <location> -    (read definition from stdin, for multi-line input)"
@@ -125,7 +125,7 @@ let createTypeInline
             let action = if isUpdate then "Updated" else "Created"
 
             Stdlib.printLine ""
-            Stdlib.printLine (Colors.success $"✓ {action} type: {fullPath}")
+            Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"✓ {action} type: {fullPath}")
 
             // Auto-propagate if this is an update
             if isUpdate then
@@ -136,7 +136,7 @@ let createTypeInline
 
           | Error msg ->
             [ ""
-              (Colors.error $"✗ Failed to add type: {msg}")
+              (Stdlib.Cli.UI.Colors.error $"✗ Failed to add type: {msg}")
               "" ]
             |> Stdlib.printLines
 
@@ -149,7 +149,7 @@ let createTypeInline
           state
         else
           [
-            (Colors.error "Failed to parse type definition")
+            (Stdlib.Cli.UI.Colors.error "Failed to parse type definition")
             ""
             "Make sure your syntax is correct. Examples:"
             "  type Status = | Active | Inactive"
@@ -159,7 +159,7 @@ let createTypeInline
           state
     | None ->
       [
-        (Colors.error "Failed to parse type definition")
+        (Stdlib.Cli.UI.Colors.error "Failed to parse type definition")
         ""
         "Make sure your syntax is correct. Examples:"
         "  type Status = | Active | Inactive"
@@ -168,7 +168,7 @@ let createTypeInline
       ] |> Stdlib.printLines
       state
   | Error msg ->
-    Stdlib.printLine (Colors.error $"Invalid location: {msg}")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Invalid location: {msg}")
     state
 
 

@@ -1,17 +1,66 @@
+/// Conversions in and out of the formats an outline can live in.
 module Darklang.Cli.Outliner.Export
 
-/// Convert an outline's nodes to generic Opml.Node tree for OPML export.
 let toOpmlNodes (outline: Outline) (ids: List<Int>) : List<Darklang.Opml.Node> =
   ids
   |> Stdlib.List.map (fun id ->
-    let text = getNodeText outline id
-    let s = getStructure outline id
-    let children = toOpmlNodes outline s.children
-    Darklang.Opml.Node { text = text; children = children })
+    let content = getContent outline id
+    // OPML has no notion of a checkbox, so a task keeps its box in the text rather than losing it.
+    let text =
+      match content.mark with
+      | Plain -> content.text
+      | Todo -> $"[ ] {content.text}"
+      | Done -> $"[x] {content.text}"
+
+    Darklang.Opml.Node
+      { text = text
+        children = toOpmlNodes outline (getStructure outline id).children })
 
 let toOpml (doc: Document) : String =
-  let nodes = toOpmlNodes doc.outline doc.outline.rootChildren
-  Darklang.Opml.export doc.title nodes
+  Darklang.Opml.export doc.title (toOpmlNodes doc.outline doc.outline.rootChildren)
 
 let toMarkdown (doc: Document) : String =
   Markdown.export doc
+
+/// Fold OPML nodes into an outline, reading back the checkbox prefix `toOpmlNodes` wrote.
+let fromOpmlNodes
+  (outline: Outline)
+  (parentId: Stdlib.Option.Option<Int>)
+  (nodes: List<Darklang.Opml.Node>)
+  : Outline =
+  nodes
+  |> Stdlib.List.fold outline (fun acc node ->
+    let id = acc.nextId
+    let (text, mark) = Markdown.readMark node.text
+    let withNode = setMark (addNode acc id text) id mark
+    let siblings = getChildren withNode parentId
+    let placed = setChildren withNode parentId (Stdlib.List.append siblings [ id ])
+    fromOpmlNodes { placed with nextId = id + 1 } (Stdlib.Option.Option.Some id) node.children)
+
+let fromOpml (opml: String) : Stdlib.Result.Result<Document, String> =
+  match Darklang.Opml.parse opml with
+  | Error e -> Stdlib.Result.Result.Error e
+  | Ok pair ->
+    let (title, nodes) = pair
+    let outline = fromOpmlNodes (emptyOutline ()) Stdlib.Option.Option.None nodes
+
+    Stdlib.Result.Result.Ok(
+      Document
+        { id = 0
+          title = if title == "" then "Imported" else title
+          outline = outline })
+
+let fromMarkdown (markdown: String) : Stdlib.Result.Result<Document, String> =
+  let doc = Markdown.import markdown
+
+  if Stdlib.List.isEmpty doc.outline.rootChildren then
+    Stdlib.Result.Result.Error "nothing to import (no bullet lines found)"
+  else
+    Stdlib.Result.Result.Ok doc
+
+/// Pick the reader from the file name, since that's what the user already told us.
+let fromFile (path: String) (contents: String) : Stdlib.Result.Result<Document, String> =
+  if Stdlib.String.endsWith (Stdlib.String.toLowercase path) ".opml" then
+    fromOpml contents
+  else
+    fromMarkdown contents

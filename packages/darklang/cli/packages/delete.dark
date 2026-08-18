@@ -80,7 +80,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   match (parsed.itemType, parsed.target) with
   | _ when Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) ->
-    Stdlib.printLine (Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
     Stdlib.printLine (help state)
     state
   | (None, _) ->
@@ -90,25 +90,25 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     match Propagate.itemKindFromString itemTypeStr with
     | None ->
       Stdlib.printLine
-        (Colors.error
+        (Stdlib.Cli.UI.Colors.error
           $"Error: '{itemTypeStr}' is not a valid item kind. Expected fn, type, or value.")
       Stdlib.printLine "Usage: delete <fn|type|value> <name-or-hash> [options]"
       state
     | Some itemKind ->
       match targetOpt with
       | None ->
-        Stdlib.printLine (Colors.error "Error: Missing target (location or hash)")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Error: Missing target (location or hash)")
         state
       | Some target ->
         let currentLoc = state.packageData.currentLocation
         match Location.parseRelativeTo currentLoc target with
         | Error errMsg ->
-          Stdlib.printLine (Colors.error $"Could not resolve {itemTypeStr} {target}: {errMsg}")
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Could not resolve {itemTypeStr} {target}: {errMsg}")
           state
         | Ok targetLoc ->
           match Deprecate.resolveTarget branchId currentLoc itemKind target with
           | None ->
-            Stdlib.printLine (Colors.error $"Could not resolve {itemTypeStr} {target}")
+            Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Could not resolve {itemTypeStr} {target}")
             state
           | Some _targetRef ->
             // Only gate `delete` adds over `deprecate --kind obsolete`: refuse
@@ -116,7 +116,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             let depCount = countLiveDependents branchId targetLoc itemKind
             if depCount > 0 && Stdlib.Bool.not parsed.ignoreDependents then
               Stdlib.printLine
-                (Colors.error
+                (Stdlib.Cli.UI.Colors.error
                   $"{Cli.Text.plural depCount "live dependent"} still reference this item.")
               Stdlib.printLine
                 "Use `deprecate` to give them time to migrate, or pass `--ignore-dependents` / `--force`."

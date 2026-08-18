@@ -192,9 +192,9 @@ let warnIfSignatureChanged
       if Stdlib.Bool.not (fnSignatureEqual branchId oldF newF) then
         let oldSig = PrettyPrinter.ProgramTypes.PackageFn.signature ctx oldF
         let newSig = PrettyPrinter.ProgramTypes.PackageFn.signature ctx newF
-        Stdlib.printLine (Colors.warning "  Warning: function signature changed")
-        Stdlib.printLine (Colors.warning $"    was: {oldSig}")
-        Stdlib.printLine (Colors.warning $"    now: {newSig}")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.warning "  Warning: function signature changed")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"    was: {oldSig}")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"    now: {newSig}")
         true
       else
         false
@@ -209,9 +209,9 @@ let warnIfSignatureChanged
       if Stdlib.Bool.not (typeDeclarationEqual branchId oldT.declaration newT.declaration) then
         let oldDef = PrettyPrinter.ProgramTypes.customType ctx oldT.declaration
         let newDef = PrettyPrinter.ProgramTypes.customType ctx newT.declaration
-        Stdlib.printLine (Colors.warning "  Warning: type definition changed")
-        Stdlib.printLine (Colors.warning $"    was: {oldDef}")
-        Stdlib.printLine (Colors.warning $"    now: {newDef}")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.warning "  Warning: type definition changed")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"    was: {oldDef}")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"    now: {newDef}")
         true
       else
         false
@@ -260,16 +260,16 @@ let propagateFromHashes
         if signatureChanged then
           Stdlib.printLine ""
           Stdlib.printLine
-            (Colors.warning "  These callers may need manual updates. To review:")
+            (Stdlib.Cli.UI.Colors.warning "  These callers may need manual updates. To review:")
 
           repoints
           |> Stdlib.List.iter (fun repoint ->
             let name = Deps.getName namesDict (LanguageTools.ProgramTypes.Reference.hash repoint.toRef)
             let kindStr = itemKindToString (LanguageTools.ProgramTypes.Reference.kind repoint.toRef)
-            Stdlib.printLine (Colors.hint $"    view {kindStr} {name}"))
+            Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"    view {kindStr} {name}"))
 
     | Error errMsg ->
-      Stdlib.printLine (Colors.error $"  Auto-propagation failed: {errMsg}")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"  Auto-propagation failed: {errMsg}")
 
 
 /// Auto-propagate after creating/updating a definition.

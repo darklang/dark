@@ -4,26 +4,26 @@ module Darklang.Cli.SyntaxHighlighting
 /// Maps semantic token types to CLI colors.
 let tokenTypeToCliColor (tokenType: LanguageTools.SemanticTokens.TokenType) : String =
   match tokenType with
-  | Symbol -> Colors.blue
-  | Keyword -> Colors.magenta
+  | Symbol -> Stdlib.Cli.UI.Colors.blue
+  | Keyword -> Stdlib.Cli.UI.Colors.magenta
 
-  | ModuleName -> Colors.brightBlack
-  | TypeName -> Colors.brightBlue
+  | ModuleName -> Stdlib.Cli.UI.Colors.brightBlack
+  | TypeName -> Stdlib.Cli.UI.Colors.brightBlue
 
-  | Operator -> Colors.brightMagenta
-  | String -> Colors.stringColor
-  | Number -> Colors.numberColor
-  | ParameterName -> Colors.brightBlue
-  | VariableName -> Colors.white
-  | FunctionName -> Colors.brightBlue
+  | Operator -> Stdlib.Cli.UI.Colors.brightMagenta
+  | String -> Stdlib.Cli.UI.Colors.stringColor
+  | Number -> Stdlib.Cli.UI.Colors.numberColor
+  | ParameterName -> Stdlib.Cli.UI.Colors.brightBlue
+  | VariableName -> Stdlib.Cli.UI.Colors.white
+  | FunctionName -> Stdlib.Cli.UI.Colors.brightBlue
 
-  | Comment -> Colors.commentColor
+  | Comment -> Stdlib.Cli.UI.Colors.commentColor
 
-  | TypeParameter -> Colors.magenta
-  | EnumMember -> Colors.magenta
-  | Property -> Colors.white
-  | Method -> Colors.blue
-  | RegularExpression -> Colors.stringColor
+  | TypeParameter -> Stdlib.Cli.UI.Colors.magenta
+  | EnumMember -> Stdlib.Cli.UI.Colors.magenta
+  | Property -> Stdlib.Cli.UI.Colors.white
+  | Method -> Stdlib.Cli.UI.Colors.blue
+  | RegularExpression -> Stdlib.Cli.UI.Colors.stringColor
 
 
 /// Highlights one line by inserting color codes at token boundaries.
@@ -32,7 +32,7 @@ let highlightLine (line: String) (lineTokens: List<LanguageTools.SemanticTokens.
     lineTokens
     |> Stdlib.List.map (fun token ->
         [ (token.range.start.column, tokenTypeToCliColor token.tokenType)
-          (token.range.end_.column, Colors.reset) ])
+          (token.range.end_.column, Stdlib.Cli.UI.Colors.reset) ])
     |> Stdlib.List.flatten
     // stable sort keeps a token's end before the next token's start at a shared
     // column, so adjacent tokens render as `…reset<next-color>…`
@@ -55,7 +55,7 @@ let highlightLine (line: String) (lineTokens: List<LanguageTools.SemanticTokens.
   // color opened but not closed at line end, which then bleeds into whatever prints next. This kills the
   // bleed; it doesn't fix the overlap itself (that needs token de-overlap) — the token colors within the
   // line are still whatever the overlap produced, just no longer leaking past it.
-  highlighted ++ Colors.reset
+  highlighted ++ Stdlib.Cli.UI.Colors.reset
 
 
 /// Splits a token that spans multiple rows into one single-line token per row it

@@ -76,7 +76,7 @@ module Command =
       /// Title of the command, like save.
       title: String
 
-      /// A tooltip for the command, when represented in the UI.
+      /// A tooltip for the command, when represented in the Stdlib.Cli.UI.
       tooltip: Stdlib.Option.Option<String>
     }
 

@@ -1,14 +1,30 @@
+/// The outline itself: nodes, the tree they hang in, and the pure operations over both.
+///
+/// Content and structure are separate dicts keyed by id, so moving a node is two list edits rather than a
+/// recursive rebuild, and a node can grow metadata without the tree noticing.
 module Darklang.Cli.Outliner
 
 
 // --- Types ---
 
+/// What a node is, beyond its text.
+type Mark =
+  | Plain
+  | Todo
+  | Done
+
 type NodeContent =
-  { text: String }
+  { text: String
+    mark: Mark }
 
 type TreeStructure =
   { children: List<Int>
-    collapsed: Bool }
+    collapsed: Bool
+    /// The node this hangs under, or None at the root.
+    ///
+    /// Held rather than searched for. Finding a parent used to mean scanning every node's children and
+    /// parsing its key, on every indent, outdent, move and insert.
+    parent: Stdlib.Option.Option<Int> }
 
 type Outline =
   { nodes: Dict<NodeContent>
@@ -16,11 +32,20 @@ type Outline =
     rootChildren: List<Int>
     nextId: Int }
 
+/// One line of the tree as it appears on screen.
 type VisibleNode =
   { id: Int
     text: String
+    mark: Mark
     depth: Int
     hasChildren: Bool
+    /// How many lines a fold is hiding, or 0 when nothing is folded here.
+    ///
+    /// Only counted for a collapsed line, because that's the only place it's shown - and because counting
+    /// it for every line means walking every subtree on every keystroke, which is quadratic in the size of
+    /// the document. A collapsed line's subtree isn't walked by the flatten itself, so the two together
+    /// still visit each node once.
+    hiddenCount: Int
     childCount: Int
     isCollapsed: Bool }
 
@@ -29,16 +54,19 @@ type Document =
     title: String
     outline: Outline }
 
-type PersistedData =
-  { documents: List<Document>
-    activeDocId: Int
-    nextDocId: Int }
 
-
-// --- Outline helpers ---
+// --- Keys ---
 
 let k (id: Int) : String =
   Stdlib.Int.toString id
+
+let parseKey (key: String) : Int =
+  match Stdlib.Int.parse key with
+  | Ok id -> id
+  | Error _ -> 0
+
+
+// --- Construction ---
 
 let emptyOutline () : Outline =
   Outline
@@ -47,124 +75,251 @@ let emptyOutline () : Outline =
       rootChildren = []
       nextId = 1 }
 
-let getNodeText (outline: Outline) (id: Int) : String =
+let emptyStructure () : TreeStructure =
+  TreeStructure
+    { children = []; collapsed = false; parent = Stdlib.Option.Option.None }
+
+
+// --- Reading ---
+
+let getContent (outline: Outline) (id: Int) : NodeContent =
   match Stdlib.Dict.get outline.nodes (k id) with
-  | Some nc -> nc.text
-  | None -> ""
+  | Some nc -> nc
+  | None -> NodeContent { text = ""; mark = Mark.Plain }
+
+let getNodeText (outline: Outline) (id: Int) : String =
+  (getContent outline id).text
+
+let getMark (outline: Outline) (id: Int) : Mark =
+  (getContent outline id).mark
 
 let getStructure (outline: Outline) (id: Int) : TreeStructure =
   match Stdlib.Dict.get outline.structure (k id) with
   | Some s -> s
-  | None -> TreeStructure { children = []; collapsed = false }
+  | None -> emptyStructure ()
 
-let addNode (outline: Outline) (id: Int) (text: String) : Outline =
-  let key = k id
-  let nc = NodeContent { text = text }
-  let ts = TreeStructure { children = []; collapsed = false }
-  { outline with
-      nodes = Stdlib.Dict.setOverridingDuplicates outline.nodes key nc
-      structure = Stdlib.Dict.setOverridingDuplicates outline.structure key ts }
-
-let setNodeText (outline: Outline) (id: Int) (text: String) : Outline =
-  let key = k id
-  let nc = NodeContent { text = text }
-  { outline with nodes = Stdlib.Dict.setOverridingDuplicates outline.nodes key nc }
-
-let removeNodeData (outline: Outline) (id: Int) : Outline =
-  let key = k id
-  { outline with
-      nodes = Stdlib.Dict.remove outline.nodes key
-      structure = Stdlib.Dict.remove outline.structure key }
-
-let setCollapsed (outline: Outline) (id: Int) (collapsed: Bool) : Outline =
-  let key = k id
-  match Stdlib.Dict.get outline.structure key with
-  | Some s ->
-    let updated = { s with collapsed = collapsed }
-    { outline with structure = Stdlib.Dict.setOverridingDuplicates outline.structure key updated }
-  | None -> outline
-
-let getChildren (outline: Outline) (parentId: Stdlib.Option.Option<Int>) : List<Int> =
-  match parentId with
-  | None -> outline.rootChildren
-  | Some pid ->
-    let s = getStructure outline pid
-    s.children
-
-let setChildren (outline: Outline) (parentId: Stdlib.Option.Option<Int>) (newChildren: List<Int>) : Outline =
-  match parentId with
-  | None -> { outline with rootChildren = newChildren }
-  | Some pid ->
-    let key = k pid
-    let s = getStructure outline pid
-    let updated = { s with children = newChildren }
-    { outline with structure = Stdlib.Dict.setOverridingDuplicates outline.structure key updated }
+let exists (outline: Outline) (id: Int) : Bool =
+  match Stdlib.Dict.get outline.structure (k id) with
+  | Some _ -> true
+  | None -> false
 
 let findParentId (outline: Outline) (targetId: Int) : Stdlib.Option.Option<Int> =
-  if Stdlib.List.any outline.rootChildren (fun id -> id == targetId) then
-    Stdlib.Option.Option.None
-  else
-    (Stdlib.Dict.toList outline.structure)
-    |> Stdlib.List.findFirst (fun pair ->
-      let (_key, s) = pair
-      Stdlib.List.any s.children (fun id -> id == targetId))
-    |> Stdlib.Option.map (fun pair ->
-      let (key, _s) = pair
-      match Stdlib.Int.parse key with
-      | Ok id -> id
-      | Error _ -> 0)
+  (getStructure outline targetId).parent
+
+let getChildren
+  (outline: Outline)
+  (parentId: Stdlib.Option.Option<Int>)
+  : List<Int> =
+  match parentId with
+  | None -> outline.rootChildren
+  | Some pid -> (getStructure outline pid).children
+
+
+// --- Writing ---
+
+let setStructure (outline: Outline) (id: Int) (s: TreeStructure) : Outline =
+  { outline with
+      structure = Stdlib.Dict.setOverridingDuplicates outline.structure (k id) s }
+
+let setContent (outline: Outline) (id: Int) (nc: NodeContent) : Outline =
+  { outline with
+      nodes = Stdlib.Dict.setOverridingDuplicates outline.nodes (k id) nc }
+
+let addNode (outline: Outline) (id: Int) (text: String) : Outline =
+  let withContent = setContent outline id (NodeContent { text = text; mark = Mark.Plain })
+  setStructure withContent id (emptyStructure ())
+
+let setNodeText (outline: Outline) (id: Int) (text: String) : Outline =
+  setContent outline id { (getContent outline id) with text = text }
+
+let setMark (outline: Outline) (id: Int) (mark: Mark) : Outline =
+  setContent outline id { (getContent outline id) with mark = mark }
+
+/// Plain -> Todo -> Done -> Plain. One key cycles a line between a bullet and a checkbox.
+let cycleMark (outline: Outline) (id: Int) : Outline =
+  let next =
+    match getMark outline id with
+    | Plain -> Mark.Todo
+    | Todo -> Mark.Done
+    | Done -> Mark.Plain
+
+  setMark outline id next
+
+let removeNodeData (outline: Outline) (id: Int) : Outline =
+  { outline with
+      nodes = Stdlib.Dict.remove outline.nodes (k id)
+      structure = Stdlib.Dict.remove outline.structure (k id) }
+
+let setCollapsed (outline: Outline) (id: Int) (collapsed: Bool) : Outline =
+  match Stdlib.Dict.get outline.structure (k id) with
+  | Some s -> setStructure outline id { s with collapsed = collapsed }
+  | None -> outline
+
+let setParent
+  (outline: Outline)
+  (id: Int)
+  (parent: Stdlib.Option.Option<Int>)
+  : Outline =
+  setStructure outline id { (getStructure outline id) with parent = parent }
+
+/// Replace a parent's child list, and keep every child's `parent` pointer honest.
+///
+/// The two are one operation: an edit that sets one without the other leaves a tree that reads differently
+/// depending on which direction you walk it.
+let setChildren
+  (outline: Outline)
+  (parentId: Stdlib.Option.Option<Int>)
+  (newChildren: List<Int>)
+  : Outline =
+  let withList =
+    match parentId with
+    | None -> { outline with rootChildren = newChildren }
+    | Some pid ->
+      setStructure outline pid { (getStructure outline pid) with children = newChildren }
+
+  newChildren
+  |> Stdlib.List.fold withList (fun acc childId -> setParent acc childId parentId)
 
 
 // --- List helpers ---
 
+/// Insert `newId` directly after `afterId`, or at the end when `afterId` isn't there.
+///
+/// The old version dropped `newId` on the floor in that case, leaving a node in the dicts that no list
+/// pointed at: invisible, unreachable, and saved to disk forever.
 let insertIdAfter (ids: List<Int>) (afterId: Int) (newId: Int) : List<Int> =
-  ids
-  |> Stdlib.List.fold [] (fun acc id ->
-    if id == afterId then
-      Stdlib.List.append acc [id; newId]
-    else
-      Stdlib.List.append acc [id])
+  if Stdlib.List.member ids afterId then
+    ids
+    |> Stdlib.List.fold [] (fun acc id ->
+      if id == afterId then
+        Stdlib.List.append acc [ id; newId ]
+      else
+        Stdlib.List.append acc [ id ])
+  else
+    Stdlib.List.append ids [ newId ]
 
+/// Swap two positions. Out-of-range indices leave the list alone rather than writing a 0 into it.
 let swapAt (ids: List<Int>) (i: Int) (j: Int) : List<Int> =
-  let iVal =
-    (Stdlib.List.getAt ids i) |> Stdlib.Option.withDefault 0
-  let jVal =
-    (Stdlib.List.getAt ids j) |> Stdlib.Option.withDefault 0
-  ids
-  |> Stdlib.List.indexedMap (fun idx id ->
-    if idx == i then jVal
-    else if idx == j then iVal
-    else id)
+  let count = Stdlib.List.length ids
+
+  if i < 0 || j < 0 || i >= count || j >= count || i == j then
+    ids
+  else
+    let iVal = Stdlib.List.getAt ids i
+    let jVal = Stdlib.List.getAt ids j
+
+    match iVal, jVal with
+    | Some a, Some b ->
+      ids
+      |> Stdlib.List.indexedMap (fun idx id ->
+        if idx == i then b else if idx == j then a else id)
+    | _ -> ids
 
 
-// --- Flatten ---
+// --- Traversal ---
 
-let flattenVisibleHelper (outline: Outline) (ids: List<Int>) (depth: Int) : List<VisibleNode> =
+/// Every descendant of `ids`, depth first, including the nodes themselves.
+let descendants (outline: Outline) (ids: List<Int>) : List<Int> =
   ids
   |> Stdlib.List.fold [] (fun acc id ->
-    let text = getNodeText outline id
+    let children = (getStructure outline id).children
+    Stdlib.List.append (Stdlib.List.append acc [ id ]) (descendants outline children))
+
+let subtreeSize (outline: Outline) (id: Int) : Int =
+  (Stdlib.List.length (descendants outline [ id ])) - 1
+
+/// The visible lines, in order, at their depths.
+///
+/// Accumulates with `push` and reverses once. Building this with `List.append` inside a fold, as it used to,
+/// costs a copy of everything accumulated so far per node: 500 nodes took ~0.11s and 2000 took ~0.59s, and
+/// it runs at least twice per keystroke.
+let flattenInto
+  (outline: Outline)
+  (ids: List<Int>)
+  (depth: Int)
+  (acc: List<VisibleNode>)
+  : List<VisibleNode> =
+  ids
+  |> Stdlib.List.fold acc (fun soFar id ->
+    let content = getContent outline id
     let s = getStructure outline id
-    let hasChildren = Stdlib.Bool.not (Stdlib.List.isEmpty s.children)
+    let childCount = Stdlib.List.length s.children
+
     let vn =
       VisibleNode
         { id = id
-          text = text
+          text = content.text
+          mark = content.mark
           depth = depth
-          hasChildren = hasChildren
-          childCount = (Stdlib.List.length s.children)
+          hasChildren = childCount > 0
+          hiddenCount = if s.collapsed then subtreeSize outline id else 0
+          childCount = childCount
           isCollapsed = s.collapsed }
-    let childNodes =
-      if s.collapsed then
-        []
-      else
-        flattenVisibleHelper outline s.children (depth + 1)
-    Stdlib.List.append acc (Stdlib.List.append [vn] childNodes))
+
+    let withNode = Stdlib.List.push soFar vn
+
+    if s.collapsed then withNode else flattenInto outline s.children (depth + 1) withNode)
 
 let flattenVisible (outline: Outline) : List<VisibleNode> =
-  flattenVisibleHelper outline outline.rootChildren 0
+  Stdlib.List.reverse (flattenInto outline outline.rootChildren 0 [])
+
+/// The index of `nodeId` among the visible lines, or `fallback` when it isn't one.
+let indexOf (outline: Outline) (nodeId: Int) (fallback: Int) : Int =
+  flattenVisible outline
+  |> Stdlib.List.findFirstIndex (fun vn -> vn.id == nodeId)
+  |> Stdlib.Option.withDefault fallback
 
 
-// --- Outline builder ---
+// --- Search ---
+
+/// Ids whose text contains `needle`, case-insensitively.
+let matching (outline: Outline) (needle: String) : List<Int> =
+  let lowered = Stdlib.String.toLowercase needle
+
+  if lowered == "" then
+    []
+  else
+    outline.nodes
+    |> Stdlib.Dict.toList
+    |> Stdlib.List.filter (fun pair ->
+      let (_key, nc) = pair
+      Stdlib.String.contains (Stdlib.String.toLowercase nc.text) lowered)
+    |> Stdlib.List.map (fun pair ->
+      let (key, _nc) = pair
+      parseKey key)
+
+/// A node's ancestors, nearest first.
+let ancestors (outline: Outline) (id: Int) : List<Int> =
+  match findParentId outline id with
+  | None -> []
+  | Some pid -> Stdlib.List.push (ancestors outline pid) pid
+
+/// Expand every ancestor of every match, so a hit inside a collapsed branch is actually reachable.
+let revealAll (outline: Outline) (ids: List<Int>) : Outline =
+  ids
+  |> Stdlib.List.fold outline (fun acc id ->
+    (ancestors acc id)
+    |> Stdlib.List.fold acc (fun inner ancestorId -> setCollapsed inner ancestorId false))
+
+
+// --- Structural edits ---
+
+/// Detach `id` from wherever it hangs, leaving its own subtree intact.
+let detach (outline: Outline) (id: Int) : Outline =
+  let parentId = findParentId outline id
+  let siblings = getChildren outline parentId
+  setChildren outline parentId (Stdlib.List.filter siblings (fun sid -> sid != id))
+
+/// Remove a node and everything under it.
+let removeSubtree (outline: Outline) (id: Int) : Outline =
+  let doomed = descendants outline [ id ]
+  let detached = detach outline id
+
+  doomed
+  |> Stdlib.List.fold detached (fun acc doomedId -> removeNodeData acc doomedId)
+
+
+// --- Building (tests, demo content, import) ---
 
 let buildOutline
   (nodeList: List<(Int * String)>)
@@ -172,29 +327,17 @@ let buildOutline
   (roots: List<Int>)
   (nextId: Int)
   : Outline =
-  let nodeEntries =
+  let withNodes =
     nodeList
-    |> Stdlib.List.map (fun pair ->
+    |> Stdlib.List.fold (emptyOutline ()) (fun acc pair ->
       let (id, text) = pair
-      (k id, NodeContent { text = text }))
-  let nodes = Stdlib.Dict.fromListOverwritingDuplicates nodeEntries
-  let structEntries =
-    nodeList
-    |> Stdlib.List.map (fun pair ->
-      let (id, _text) = pair
-      let children =
-        childMap
-        |> Stdlib.List.findFirst (fun cm ->
-          let (cmId, _cids) = cm
-          cmId == id)
-        |> Stdlib.Option.map (fun cm ->
-          let (_cmId, cids) = cm
-          cids)
-        |> Stdlib.Option.withDefault []
-      (k id, TreeStructure { children = children; collapsed = false }))
-  let structure = Stdlib.Dict.fromListOverwritingDuplicates structEntries
-  Outline
-    { nodes = nodes
-      structure = structure
-      rootChildren = roots
-      nextId = nextId }
+      addNode acc id text)
+
+  let withChildren =
+    childMap
+    |> Stdlib.List.fold withNodes (fun acc pair ->
+      let (id, children) = pair
+      setChildren acc (Stdlib.Option.Option.Some id) children)
+
+  let withRoots = setChildren withChildren Stdlib.Option.Option.None roots
+  { withRoots with nextId = nextId }

@@ -1,0 +1,80 @@
+/// A yes/no question, drawn over whatever is already on screen.
+///
+/// For the actions that don't have an undo. Deleting a document used to happen the instant you pressed `d`,
+/// with no confirmation and no way back.
+module Darklang.Stdlib.Cli.UI.Confirm
+
+type State =
+  { question: String
+    detail: String
+    /// Draws the box in red and makes `n` the default reading of the prompt.
+    danger: Bool }
+
+type Msg =
+  | Confirmed
+  | Declined
+
+let ask (question: String) : State =
+  State { question = question; detail = ""; danger = false }
+
+let askDangerous (question: String) (detail: String) : State =
+  State { question = question; detail = detail; danger = true }
+
+
+let onKey (state: State) (kp: Widget.KeyPress) : Widget.Outcome<State, Msg> =
+  match kp.key with
+  | Enter ->
+    // Enter agrees with a plain question and declines a dangerous one: the safe answer is the easy one.
+    if state.danger then
+      Widget.Outcome.Emitted(state, Msg.Declined)
+    else
+      Widget.Outcome.Emitted(state, Msg.Confirmed)
+  | Escape -> Widget.Outcome.Emitted(state, Msg.Declined)
+  | _ ->
+    if Widget.isChar kp "y" then
+      Widget.Outcome.Emitted(state, Msg.Confirmed)
+    else if Widget.isChar kp "n" then
+      Widget.Outcome.Emitted(state, Msg.Declined)
+    else
+      // Anything else is swallowed rather than passed on: a modal question that let other keys through
+      // would act on the thing you were being asked about.
+      Widget.Outcome.Handled state
+
+
+/// Centre a box `rows` x `cols` inside `region`.
+let centred (region: Layout.Region) (rows: Int) (cols: Int) : Layout.Region =
+  let w = Stdlib.Int.min region.cols cols
+  let h = Stdlib.Int.min region.rows rows
+
+  Layout.Region
+    { top = region.top + (Stdlib.Int.divide (region.rows - h) 2)
+      left = region.left + (Stdlib.Int.divide (region.cols - w) 2)
+      rows = h
+      cols = w }
+
+let view (state: State) (region: Layout.Region) : List<Layout.Span> =
+  let hasDetail = state.detail != ""
+  let width =
+    Stdlib.Int.max
+      32
+      (4 + (Stdlib.Int.max
+              (Tui.Text.displayWidth state.question)
+              (Tui.Text.displayWidth state.detail)))
+
+  let box = centred region (if hasDetail then 7 else 6) width
+  let title = if state.danger then "confirm" else "question"
+
+  Box.panel box title true (fun inner ->
+    let detail =
+      if hasDetail then Layout.at inner 2 1 (Colors.dimText state.detail) else []
+
+    Stdlib.List.flatten
+      [ Layout.clearRegion inner
+        Layout.at inner 0 1 state.question
+        detail
+        Layout.at
+          inner
+          (inner.rows - 1)
+          1
+          (Colors.dimText "y: yes    n / Esc: no") ])
+

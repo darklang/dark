@@ -142,9 +142,12 @@ Logs go to `rundir/logs/fsharp-tests.log`.
       Builtins/           # Cli, CliHost, Http.Client, Http.Server, Language,
                           # Matter, Pure, Random, Time
     packages/darklang/    # .dark files
-      cli/                # CLI code
+      cli/                # the CLI app: registry, loop, workbench, outliner, review
       scm/                # SCM library (branch, rebase, merge, packageOps)
       stdlib/             # standard library
+        cli/stdin.dark    #   reads keys
+        cli/tui/          #   paints: view types, frame diffing, terminal session
+        cli/ui/           #   composes: widgets, layout, the palette
     backend/migrations/   # schema.sql, plus incremental/ for additive migrations
     rundir/logs/          # log files
     scripts/dev/          # start, build, plan, status, watch, host-port
@@ -230,6 +233,16 @@ match arm the bare case is fine, since the matched value's type resolves it.
 **Cross-module pipes.** Dark parses pipes greedily, so
 `Stdlib.List.length xs |> Stdlib.Int.toString` raises "Pipe: LongIdent". Parenthesize the
 left side.
+
+**A wildcard doesn't match a multi-field DU case.** `| ExportPath _ ->` silently fails to match
+`ExportPath of String * TextField.State`; you need `| ExportPath(_ext, _field) ->`. It's a
+runtime error ("No matching case found") at the moment that case comes up, not a load
+error, so it waits until you press the key that reaches it.
+
+**`nonInteractive` means "run as `dark <cmd>`", not "no terminal".** `AppState.nonInteractive`
+is set for any command given on the command line (entry.dark), so it's true even with a
+perfectly good terminal in front of you. To decide whether a TUI can start, ask
+`Stdlib.Cli.Tui.TerminalSupport.current ()`.
 
 **Nested functions.** Only the fully annotated form works: `let helper (x: Int) : Int = ...`.
 It desugars to a local lambda, can close over outer bindings and can call itself, but mutual

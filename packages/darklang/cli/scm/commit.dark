@@ -43,15 +43,15 @@ let promptYesNo (question: String) (autoConfirm: Bool) (defaultYes: Bool) : Bool
 
 
 let printUnresolved (items: List<SCM.UnresolvedCheck.UnresolvedItem>) : Unit =
-  Stdlib.printLine (Colors.error "Cannot commit: unresolved references found:")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Cannot commit: unresolved references found:")
 
   items
   |> Stdlib.List.iter (fun item ->
-    Stdlib.printLine (Colors.error $"  {item.label}:")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"  {item.label}:")
 
     item.names
     |> Stdlib.List.iter (fun name ->
-      Stdlib.printLine (Colors.error $"    - {name}")))
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"    - {name}")))
 
   Stdlib.printLine ""
 
@@ -60,7 +60,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   match state.accountID with
   | None ->
     Stdlib.printLine
-      (Colors.error
+      (Stdlib.Cli.UI.Colors.error
         "Not logged in. Run `login <name>` (see `login` for available accounts).")
     state
   | Some accountId ->
@@ -82,7 +82,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   let message = Stdlib.String.join messageParts " "
 
   if Stdlib.String.isEmpty (Stdlib.String.trim message) then
-    Stdlib.printLine (Colors.error "Commit message required.")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Commit message required.")
     Stdlib.printLine "Usage: commit \"Your commit message\""
     state
   else
@@ -114,7 +114,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
                 (selection, [])
               else
                 Stdlib.printLine
-                  (Colors.warning
+                  (Stdlib.Cli.UI.Colors.warning
                     "Selected item(s) reference uncommitted item(s) not in the selection:")
 
                 depClosure
@@ -149,7 +149,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
       match plan with
       | Error msg ->
-        Stdlib.printLine (Colors.error msg)
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
         state
 
       | Ok((opIds, summaryLines)) ->
@@ -178,18 +178,18 @@ let execute (state: AppState) (args: List<String>) : AppState =
                 with
               | Ok commitHash ->
                 let shortId = Stdlib.String.first commitHash 8
-                Stdlib.printLine (Colors.success $"Created commit {shortId}")
+                Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Created commit {shortId}")
                 // Make the outbound side of sync visible right where you'd wonder "where did this go?": sync
                 // is pull-based, so your commit sits on your instance until a peer pulls it — there's no push.
                 // Only worth saying when you actually have peers.
                 if Stdlib.List.isEmpty (Darklang.Sync.peers ()) |> Stdlib.Bool.not then
-                  Stdlib.printLine (Colors.hint "  Peers pull your commits when they sync.")
+                  Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "  Peers pull your commits when they sync.")
                 else
                   ()
 
                 state
               | Error e ->
-                Stdlib.printLine (Colors.error $"Commit failed: {e}")
+                Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Commit failed: {e}")
                 state
           else
             Stdlib.printLine "Commit cancelled."

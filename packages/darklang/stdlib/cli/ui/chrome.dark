@@ -1,0 +1,137 @@
+/// The frame around a full-screen app: a title bar at the top, a help bar at the bottom, and the body in
+/// between.
+///
+/// Four apps had grown their own copy of this (a `titleRow`, a `helpRow`, some arithmetic splitting the
+/// height three ways, a `clipToWidth` over the result), each subtly different: one padded the help bar and
+/// one didn't, one degraded to a single row at small heights and one drew over itself. Now there's one.
+///
+/// The other thing it adds is a place for a *message*: "wrote /tmp/notes.md", "can't delete the last
+/// document". Apps that had nowhere to say that just did nothing when they refused an action, which reads
+/// as the app being broken rather than as an answer.
+module Darklang.Stdlib.Cli.UI.Chrome
+
+/// How a mode badge reads: what you're in, what you're doing, what went wrong.
+type Tone =
+  | Neutral
+  | Active
+  | Danger
+
+type Frame =
+  { /// Left of the title bar. The document name, the branch, whatever names the thing on screen.
+    title: String
+    /// The mode badge, right of the title. "" for none.
+    badge: String
+    badgeTone: Tone
+    /// The key hints along the bottom.
+    help: String
+    /// A transient status line. When set it replaces the help bar for that frame.
+    message: String
+    messageTone: Tone }
+
+let frame (title: String) (badge: String) (help: String) : Frame =
+  Frame
+    { title = title
+      badge = badge
+      badgeTone = Tone.Neutral
+      help = help
+      message = ""
+      messageTone = Tone.Neutral }
+
+let withBadgeTone (f: Frame) (tone: Tone) : Frame =
+  { f with badgeTone = tone }
+
+let withMessage (f: Frame) (message: String) : Frame =
+  { f with message = message; messageTone = Tone.Neutral }
+
+let withError (f: Frame) (message: String) : Frame =
+  { f with message = message; messageTone = Tone.Danger }
+
+
+// --- Styling ---
+
+let toneStyle (tone: Tone) : String =
+  match tone with
+  | Neutral -> Colors.grayBg ++ Colors.white
+  | Active -> Colors.greenBg ++ Colors.black
+  | Danger -> Colors.bgRed ++ Colors.brightWhite
+
+/// A full-width bar, padded so the background colour reaches the right edge.
+let bar (width: Int) (style: String) (text: String) : String =
+  let clipped = Tui.Text.clipToWidth text width
+  let used = Tui.Text.styledWidth clipped
+  let padding =
+    if width > used then Stdlib.String.repeat " " (width - used) else ""
+
+  Colors.colorize style (clipped ++ padding)
+
+
+// --- Layout ---
+
+/// Rows the title bar occupies, including the blank line under it.
+///
+/// A short terminal gives up the blank line first, then the help bar, then the title: the body is the last
+/// thing to lose space, because it's the only part that's actually the app.
+let titleRows (height: Int) : Int =
+  if height >= 4 then 2 else if height >= 2 then 1 else 0
+
+let helpRows (height: Int) : Int =
+  if height >= 3 then 1 else 0
+
+/// The region the body gets, in a terminal of this size.
+let bodyRegion (size: Tui.Size) : Layout.Region =
+  let height = Stdlib.Int.max 1 size.height
+  let top = titleRows height
+
+  Layout.Region
+    { top = top + 1
+      left = 1
+      rows = Stdlib.Int.max 0 (height - top - (helpRows height))
+      cols = Stdlib.Int.max 1 size.width }
+
+
+// --- Rendering ---
+
+let titleBar (f: Frame) (width: Int) : String =
+  let title =
+    Colors.colorize
+      (Colors.purpleBg ++ Colors.white ++ Colors.bold)
+      $" {f.title} "
+
+  let badge =
+    if f.badge == "" then
+      ""
+    else
+      " " ++ (Colors.colorize (toneStyle f.badgeTone) $" {f.badge} ")
+
+  Tui.Text.clipToWidth (title ++ badge) width
+
+let footBar (f: Frame) (width: Int) : String =
+  if f.message == "" then
+    bar width (Colors.grayBg ++ Colors.white) f.help
+  else
+    bar width (toneStyle f.messageTone) f.message
+
+/// Draw the frame with `body` filling what's left. `body` runs during this call and is never retained, so
+/// passing a lambda here is fine.
+let view
+  (f: Frame)
+  (size: Tui.Size)
+  (body: Layout.Region -> List<Layout.Span>)
+  : Tui.View =
+  let width = Stdlib.Int.max 1 size.width
+  let height = Stdlib.Int.max 1 size.height
+  let screen = Layout.Region { top = 1; left = 1; rows = height; cols = width }
+  let region = bodyRegion size
+
+  let titleSpans =
+    if (titleRows height) == 0 then [] else Layout.at screen 0 0 (titleBar f width)
+
+  let helpSpans =
+    if (helpRows height) == 0 then
+      []
+    else
+      Layout.at screen (height - 1) 0 (footBar f width)
+
+  let bodySpans = if region.rows == 0 then [] else body region
+
+  Canvas.toView size (Stdlib.List.flatten [ titleSpans; bodySpans; helpSpans ])

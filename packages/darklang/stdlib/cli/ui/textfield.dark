@@ -1,0 +1,211 @@
+/// A one-line text field: the thing you type a name, a path, or an outline item into.
+///
+/// A `UI.Widget`, so it draws into whatever region its parent gives it and hands the parent a message when
+/// the user is done. Everything about it is pure; the caller owns the state.
+///
+/// It replaces the outliner's private `TextEditor`, which had two bugs this doesn't:
+///
+/// - It advanced the cursor by one per keystroke, on the assumption that a keypress is one character. A
+///   paste (or a multi-byte read) arrives as a chunk, so `abcdef` followed by `X` produced `aXbcdef`.
+///   `insert` moves by the length of what actually arrived.
+/// - It had no horizontal scrolling, so once a line passed the width of the terminal the text and the
+///   cursor with it simply left the screen and you typed blind. `windowFor` keeps the cursor in view.
+///
+/// Indices are grapheme clusters, which is what `Stdlib.String` counts, so a flag or a family emoji is one
+/// step of the cursor and can't be cut in half. Column width (where `界` counts two) is the renderer's
+/// business, and `Tui.Text` handles it on the way out.
+module Darklang.Stdlib.Cli.UI.TextField
+
+type State =
+  { text: String
+    /// Grapheme index the cursor sits *before*: 0 is the start, `length text` is the end.
+    cursor: Int }
+
+/// What the field tells its parent.
+type Msg =
+  /// Enter, with the text as it stands.
+  | Submitted of String
+  /// Escape. The parent decides whether that discards anything.
+  | Cancelled
+
+val empty =
+  State { text = ""; cursor = 0 }
+
+let fromText (text: String) : State =
+  State { text = text; cursor = Stdlib.String.length text }
+
+/// Start with the cursor at the beginning rather than the end - for "edit this from the top" cases.
+let fromTextAtStart (text: String) : State =
+  State { text = text; cursor = 0 }
+
+
+// --- Edits ---
+
+let clampCursor (state: State) : State =
+  let len = Stdlib.String.length state.text
+  { state with cursor = Stdlib.Int.max 0 (Stdlib.Int.min len state.cursor) }
+
+/// Insert a string of any length at the cursor, and move past all of it.
+let insert (state: State) (s: String) : State =
+  let before = Stdlib.String.slice state.text 0 state.cursor
+  let after = Stdlib.String.dropFirst state.text state.cursor
+
+  State
+    { text = before ++ s ++ after
+      cursor = state.cursor + (Stdlib.String.length s) }
+
+let backspace (state: State) : State =
+  if state.cursor == 0 then
+    state
+  else
+    let before = Stdlib.String.slice state.text 0 (state.cursor - 1)
+    let after = Stdlib.String.dropFirst state.text state.cursor
+    State { text = before ++ after; cursor = state.cursor - 1 }
+
+/// Delete the character to the right of the cursor.
+let deleteForward (state: State) : State =
+  if state.cursor >= (Stdlib.String.length state.text) then
+    state
+  else
+    let before = Stdlib.String.slice state.text 0 state.cursor
+    let after = Stdlib.String.dropFirst state.text (state.cursor + 1)
+    { state with text = before ++ after }
+
+/// Drop everything from the cursor to the end (readline's ^k), so replacing a line is two keys.
+let killToEnd (state: State) : State =
+  { state with text = Stdlib.String.slice state.text 0 state.cursor }
+
+let moveLeft (state: State) : State =
+  { state with cursor = Stdlib.Int.max 0 (state.cursor - 1) }
+
+let moveRight (state: State) : State =
+  { state with
+      cursor = Stdlib.Int.min (Stdlib.String.length state.text) (state.cursor + 1) }
+
+let moveToStart (state: State) : State =
+  { state with cursor = 0 }
+
+let moveToEnd (state: State) : State =
+  { state with cursor = Stdlib.String.length state.text }
+
+
+// --- Keys ---
+
+/// Is this something a person typed, rather than a key that merely arrived with a character attached?
+///
+/// Control characters reach here as text (Tab as "\t", Enter as "\r"), and inserting them puts an
+/// invisible byte in the middle of a line that nothing can see and everything has to carry.
+let isTypeable (c: String) : Bool =
+  c != ""
+  && (Stdlib.Bool.not (Stdlib.String.contains c "\t"))
+  && (Stdlib.Bool.not (Stdlib.String.contains c "\n"))
+  && (Stdlib.Bool.not (Stdlib.String.contains c "\r"))
+  && (Stdlib.Bool.not (Stdlib.String.contains c "\u001b"))
+
+
+let onKey (state: State) (kp: Widget.KeyPress) : Widget.Outcome<State, Msg> =
+  match kp.key with
+  | Enter -> Widget.Outcome.Emitted(state, Msg.Submitted state.text)
+  | Escape -> Widget.Outcome.Emitted(state, Msg.Cancelled)
+  | Backspace -> Widget.Outcome.Handled(backspace state)
+  | Delete -> Widget.Outcome.Handled(deleteForward state)
+  | LeftArrow -> Widget.Outcome.Handled(moveLeft state)
+  | RightArrow -> Widget.Outcome.Handled(moveRight state)
+  | Home -> Widget.Outcome.Handled(moveToStart state)
+  | End -> Widget.Outcome.Handled(moveToEnd state)
+  | Spacebar -> Widget.Outcome.Handled(insert state " ")
+  // Tab is passed on deliberately, and explicitly: the reader delivers it as a key *and* as a "\t"
+  // character, so falling through to the character branch would type a tab into the line instead of
+  // letting the parent indent. That indent-while-typing is the whole point of answering `Ignored`.
+  | Tab -> Widget.Outcome.Ignored
+  | _ ->
+    match kp.char with
+    | Some c ->
+      if isTypeable c then
+        Widget.Outcome.Handled(insert state c)
+      else
+        Widget.Outcome.Ignored
+    // The arrows the field doesn't use, function keys, anything else: the parent's problem.
+    | None -> Widget.Outcome.Ignored
+
+
+// --- Rendering ---
+
+/// The first grapheme to show, so that the cursor is inside a window `width` wide.
+let windowFor (state: State) (width: Int) : Int =
+  let w = Stdlib.Int.max 1 width
+  let len = Stdlib.String.length state.text
+  // Keep the window anchored at the end when the text is short enough to fit whole.
+  if len < w then
+    0
+  else if state.cursor < w then
+    0
+  else
+    state.cursor - w + 1
+
+/// The text as it should appear in `width` columns, with the cursor cell shown in reverse video.
+///
+/// Returns a styled string for embedding in a row the caller is already building (an outline item, say).
+/// The cursor is drawn on the character it sits before, or on a trailing space at the end of the line.
+let renderInline (state: State) (width: Int) : String =
+  let w = Stdlib.Int.max 1 width
+  let start = windowFor state w
+  let len = Stdlib.String.length state.text
+  let stop = Stdlib.Int.min len (start + w)
+  let visible = Stdlib.String.slice state.text start stop
+  let cursorAt = state.cursor - start
+
+  let before = Stdlib.String.slice visible 0 cursorAt
+
+  let cursorChar =
+    if state.cursor < len then
+      Stdlib.String.slice visible cursorAt (cursorAt + 1)
+    else
+      " "
+
+  let after =
+    if state.cursor < len then
+      Stdlib.String.dropFirst visible (cursorAt + 1)
+    else
+      ""
+
+  before ++ (Colors.colorize Colors.reverse cursorChar) ++ after
+
+/// Render a field that may not have focus, with a placeholder for when it's empty and unfocused.
+///
+/// For forms, where several fields are on screen and one has the cursor.
+let renderMaybeFocused
+  (state: State)
+  (focused: Bool)
+  (placeholder: String)
+  (width: Int)
+  : String =
+  if focused then renderInline state width
+  else if state.text == "" then Colors.dimText placeholder
+  else Tui.Text.clipToWidth state.text width
+
+/// The text edits only: `Some` for a key the field consumed, `None` for everything else.
+///
+/// A narrower door than `onKey` for callers that own Enter and Escape themselves (a form deciding what
+/// "done" means for the whole form, not for one field).
+let handleTextKey (state: State) (kp: Widget.KeyPress) : Stdlib.Option.Option<State> =
+  match kp.key with
+  | Backspace -> Stdlib.Option.Option.Some(backspace state)
+  | Delete -> Stdlib.Option.Option.Some(deleteForward state)
+  | LeftArrow -> Stdlib.Option.Option.Some(moveLeft state)
+  | RightArrow -> Stdlib.Option.Option.Some(moveRight state)
+  | Home -> Stdlib.Option.Option.Some(moveToStart state)
+  | End -> Stdlib.Option.Option.Some(moveToEnd state)
+  | Spacebar -> Stdlib.Option.Option.Some(insert state " ")
+  | Tab -> Stdlib.Option.Option.None
+  | Enter -> Stdlib.Option.Option.None
+  | Escape -> Stdlib.Option.Option.None
+  | _ ->
+    match kp.char with
+    | Some c -> if isTypeable c then Stdlib.Option.Option.Some(insert state c) else Stdlib.Option.Option.None
+    | None -> Stdlib.Option.Option.None
+
+
+let view (state: State) (region: Layout.Region) : List<Layout.Span> =
+  Layout.at region 0 0 (renderInline state region.cols)
+

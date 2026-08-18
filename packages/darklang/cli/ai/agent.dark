@@ -148,7 +148,7 @@ val findCliExecutable =
   else Stdlib.Option.Option.None
 
 let confirmCommand (cmd: String) : Bool =
-  Stdlib.print (Colors.warning $"Allow: {cmd}? (y/n): ")
+  Stdlib.print (Stdlib.Cli.UI.Colors.warning $"Allow: {cmd}? (y/n): ")
   let response = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
   response == "y" || response == "Y"
 
@@ -195,7 +195,7 @@ let runCliCommand
       match findCliExecutable with
       | Some exe ->
         let fullCmd = exe ++ " " ++ branchArg ++ " " ++ cmd
-        Stdlib.printLine (Colors.dimText ("[agent] cli> " ++ cmd))
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText ("[agent] cli> " ++ cmd))
         let result = Stdlib.Cli.execute fullCmd
 
         match result.exitCode with
@@ -205,12 +205,12 @@ let runCliCommand
             Stdlib.Result.Result.Error (Stdlib.String.trim output)
           else
             let preview = if (Stdlib.String.length output) > 100 then (Stdlib.String.slice output 0 100) ++ "..." else output
-            Stdlib.printLine (Colors.dimText ("  -> " ++ preview))
+            Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText ("  -> " ++ preview))
             Stdlib.Result.Result.Ok (Darklang.LLM.Agent.ToolOutput.text output)
         | exitCode ->
           let details = if result.stderr != "" then result.stderr else if result.stdout != "" then result.stdout else "no output"
           let errorMsg = "CLI command failed (exit " ++ (Stdlib.Int.toString exitCode) ++ "): " ++ (Stdlib.String.trim details)
-          Stdlib.printLine (Colors.error ("  -> " ++ errorMsg))
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.error ("  -> " ++ errorMsg))
           Stdlib.Result.Result.Error errorMsg
       | None -> Stdlib.Result.Result.Error "Could not find CLI executable"
 
@@ -253,25 +253,25 @@ let printAgentInfo (provider: String) (requestedProvider: Stdlib.Option.Option<S
     match requestedProvider with
     | Some _ -> $"[agent] provider: {providerName}"
     | None -> $"[agent] provider: {providerName} (auto-detected)"
-  Stdlib.printLine (Colors.dimText providerLine)
-  Stdlib.printLine (Colors.dimText $"[agent] model: {model.name}")
-  Stdlib.printLine (Colors.dimText $"[agent] branch: {branchName}")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText providerLine)
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"[agent] model: {model.name}")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"[agent] branch: {branchName}")
 
 let printResult (result: Stdlib.Result.Result<Darklang.LLM.Agent.AgentResult, String>) : Unit =
   match result with
   | Ok response ->
     if Stdlib.Bool.not (Stdlib.List.isEmpty response.toolCalls) then
       Stdlib.printLine ""
-      Stdlib.printLine (Colors.info "Actions:")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.info "Actions:")
       Stdlib.List.iter response.toolCalls (fun tc ->
-        let status = if tc.isError then Colors.error "error" else Colors.success "ok"
+        let status = if tc.isError then Stdlib.Cli.UI.Colors.error "error" else Stdlib.Cli.UI.Colors.success "ok"
         Stdlib.printLine $"  - {tc.name} [{status}]")
     Stdlib.printLine ""
     Stdlib.printLine response.response
   | Error e ->
-    Stdlib.printLine (Colors.error e)
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
     if Stdlib.String.contains e "API key" then
-      Stdlib.printLine (Colors.dimText "Tip: set ANTHROPIC_API_KEY or OPENAI_API_KEY, or run with --provider local")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText "Tip: set ANTHROPIC_API_KEY or OPENAI_API_KEY, or run with --provider local")
 
 let resolveModel (provider: String) (requestedModel: Stdlib.Option.Option<String>) : Darklang.LLM.Models.Model =
   match requestedModel with
@@ -279,16 +279,16 @@ let resolveModel (provider: String) (requestedModel: Stdlib.Option.Option<String
     match lookupModelAlias name with
     | Some m -> m
     | None ->
-      Stdlib.printLine (Colors.warning $"Unknown model '{name}', using default for {provider}")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"Unknown model '{name}', using default for {provider}")
       defaultModelForProvider provider
   | None -> defaultModelForProvider provider
 
 
 let writeModeLabel (mode: WriteMode) : String =
   match mode with
-  | Allowed -> Colors.warning "write-enabled (auto)"
-  | Confirm -> Colors.warning "write-enabled (confirm)"
-  | Denied -> Colors.dimText "read-only"
+  | Allowed -> Stdlib.Cli.UI.Colors.warning "write-enabled (auto)"
+  | Confirm -> Stdlib.Cli.UI.Colors.warning "write-enabled (confirm)"
+  | Denied -> Stdlib.Cli.UI.Colors.dimText "read-only"
 
 
 
@@ -299,14 +299,14 @@ let runAgent (state: Cli.AppState) (provider: String) (requestedProvider: Stdlib
   let agent = createAgent model branchName writeMode
   printAgentInfo provider requestedProvider model branchName
   let modeLabel = writeModeLabel writeMode
-  Stdlib.printLine (Colors.dimText $"[agent] mode: {modeLabel}")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"[agent] mode: {modeLabel}")
   printResult (Darklang.LLM.Agent.run agent task)
 
 let runInteractiveLoop
   (agent: Darklang.LLM.Agent.Agent)
   (history: List<Darklang.LLM.Provider.Message>)
   : Unit =
-  Stdlib.print (Colors.dimText "you> ")
+  Stdlib.print (Stdlib.Cli.UI.Colors.dimText "you> ")
   let input = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
 
   if Stdlib.String.isEmpty input then
@@ -314,16 +314,16 @@ let runInteractiveLoop
   else if input == "exit" || input == "quit" || input == ":q" then
     ()
   else
-    Stdlib.printLine (Colors.dimText "[agent] thinking...")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText "[agent] thinking...")
     match Darklang.LLM.Agent.runWithHistory agent history input with
     | Ok response ->
-      Stdlib.printLine (Colors.info "agent> ")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.info "agent> ")
       Stdlib.printLine response.response
       // Use full message history including tool calls/results for context continuity
       let _ = runInteractiveLoop agent response.messages
       ()
     | Error e ->
-      Stdlib.printLine (Colors.error e)
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
       runInteractiveLoop agent history
 
 let runInteractive (state: Cli.AppState) (provider: String) (requestedProvider: Stdlib.Option.Option<String>) (requestedModel: Stdlib.Option.Option<String>) (writeMode: WriteMode) : Unit =
@@ -332,8 +332,8 @@ let runInteractive (state: Cli.AppState) (provider: String) (requestedProvider: 
   let agent = createAgent model branchName writeMode
   printAgentInfo provider requestedProvider model branchName
   let modeLabel = writeModeLabel writeMode
-  Stdlib.printLine (Colors.dimText $"[agent] mode: {modeLabel}")
-  Stdlib.printLine (Colors.dimText "[agent] interactive mode. Type ':q' to exit.")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"[agent] mode: {modeLabel}")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText "[agent] interactive mode. Type ':q' to exit.")
   runInteractiveLoop agent []
 
 
@@ -355,19 +355,19 @@ let executeAsk (state: Cli.AppState) (provider: String) (options: AgentOptions) 
 let executeCode (state: Cli.AppState) (provider: String) (options: AgentOptions) : Unit =
   let task = Stdlib.String.join options.args " "
   if Stdlib.String.isEmpty (Stdlib.String.trim task) then
-    Stdlib.printLine (Colors.error "Usage: agent code <task> [--yes|-y]")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: agent code <task> [--yes|-y]")
   else
     runAgent state provider options.provider options.model task options.writeMode
 
 let executeReview (state: Cli.AppState) (provider: String) (options: AgentOptions) : Unit =
   match options.args with
   | [ itemName ] -> runAgent state provider options.provider options.model (reviewTaskPrompt itemName) WriteMode.Denied
-  | _ -> Stdlib.printLine (Colors.error "Usage: agent review <item>")
+  | _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: agent review <item>")
 
 let executeFix (state: Cli.AppState) (provider: String) (options: AgentOptions) : Unit =
   match options.args with
   | [ itemName ] -> runAgent state provider options.provider options.model (fixTaskPrompt itemName) options.writeMode
-  | _ -> Stdlib.printLine (Colors.error "Usage: agent fix <item> [--yes|-y]")
+  | _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: agent fix <item> [--yes|-y]")
 
 type Subcommand = { name: String; description: String; usage: String; execute: Cli.AppState -> String -> AgentOptions -> Unit }
 
@@ -385,7 +385,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   let provider = resolveProvider options.provider
 
   if Stdlib.Bool.not (Stdlib.List.member validProviders provider) then
-    Stdlib.printLine (Colors.error $"Unknown provider: {provider}. Use: anthropic, openai, local")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Unknown provider: {provider}. Use: anthropic, openai, local")
     state
   else
     match options.args with
@@ -402,7 +402,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | None ->
         let nameList = Stdlib.List.map subcommands (fun s -> s.name)
         let names = Stdlib.String.join nameList "|"
-        Stdlib.printLine (Colors.error $"Unknown subcommand. Use: agent {names}")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Unknown subcommand. Use: agent {names}")
         state
 
 let help (_state: Cli.AppState) : String =

@@ -1,7 +1,7 @@
 /// Reference example apps — one of each kind:
 ///   - `heartbeat`, a daemon: claims a pidfile (via `Stdlib.Cli.Daemon`) and logs a beat every interval
 ///     until `apps stop` SIGTERMs it.
-///   - `TextEdit`, a foreground app: the outliner's `TextEditor` widget surfaced standalone via the generic
+///   - `TextEdit`, a foreground app: `Stdlib.Cli.UI.TextField` surfaced standalone via the generic
 ///     `Cli.Component` adapter — shows how a self-contained component becomes an app in a few lines.
 module Darklang.Cli.Apps.Examples
 
@@ -35,29 +35,33 @@ let heartbeat (name: String) : Int =
 
 
 module TextEdit =
-  // The outliner's `TextEditor` (state + handleKey + renderInline) as a standalone foreground app: a thin
-  // render/onKey adapter over the generic `Cli.Component`, then one `launch`. That's the whole wrapper.
-  // (Named fns, not inline lambdas — see `Cli.Component` on why.)
-  let render (state: Outliner.TextEditor.State) : String =
-    "  text editor (demo) — type, Enter or Esc to exit\n\n  "
-    ++ (Outliner.TextEditor.renderInline state)
+  // `Stdlib.Cli.UI.TextField` as a standalone foreground app: a thin
+  // view/onKey adapter over the generic `Cli.Component`, then one `launch`. That's the whole wrapper.
+  // (Named fns, not inline lambdas - see `Cli.Component` on why.)
+  let view
+    (state: Stdlib.Cli.UI.TextField.State)
+    (_size: Stdlib.Cli.Tui.Size)
+    : Stdlib.Cli.Tui.View =
+    Component.viewOfString
+      ("  text editor (demo) - type, Enter or Esc to exit\n\n  "
+       ++ (Stdlib.Cli.UI.TextField.renderInline state 60))
 
   let onKey
-    (state: Outliner.TextEditor.State)
+    (state: Stdlib.Cli.UI.TextField.State)
     (key: Stdlib.Cli.Stdin.Key.Key)
     (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
     (keyChar: Stdlib.Option.Option<String>)
-    : Component.Step<Outliner.TextEditor.State> =
-    match Outliner.TextEditor.handleKey state key modifiers keyChar with
-    | Editing next -> Component.Step.Stay next
-    | Finished _ -> Component.Step.Exit
-    | Cancelled -> Component.Step.Exit
+    : Component.Step<Stdlib.Cli.UI.TextField.State> =
+    match Stdlib.Cli.UI.TextField.onKey state (Stdlib.Cli.UI.Widget.press key modifiers keyChar) with
+    | Handled next -> Component.Step.Stay next
+    | Emitted(next, _msg) -> Component.Step.Exit next
+    | Ignored -> Component.Step.Stay state
 
   val component =
-    Component.Component { render = render; onKey = onKey }
+    Component.stateless view onKey
 
   let execute (cliState: Cli.AppState) (_args: List<String>) : Cli.AppState =
-    Component.launch cliState component Outliner.TextEditor.empty
+    Component.launch cliState component Stdlib.Cli.UI.TextField.empty
 
   let help (_state: Cli.AppState) : String =
     "A tiny text editor (demo) — type, Enter or Esc to exit."

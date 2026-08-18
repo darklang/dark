@@ -52,17 +52,17 @@ let deprecationHeaderRowsFor
 
     let replacementRows =
       match replacementLine with
-      | Some line -> [ Colors.hint line ]
+      | Some line -> [ Stdlib.Cli.UI.Colors.hint line ]
       | None -> []
 
     let messageRows =
       if message != "" then
-        [ Colors.dimText $"   {message}" ]
+        [ Stdlib.Cli.UI.Colors.dimText $"   {message}" ]
       else
         []
 
     Stdlib.List.flatten [
-      [ Colors.warning $"⚠ {header}" ]
+      [ Stdlib.Cli.UI.Colors.warning $"⚠ {header}" ]
       replacementRows
       messageRows
       [ "" ]
@@ -188,7 +188,7 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
           item.entity.hash
           LanguageTools.ProgramTypes.ItemKind.Fn
         sourceRows highlighted
-        [ Colors.dimText $"capabilities: {capsBadge}" ]
+        [ Stdlib.Cli.UI.Colors.dimText $"capabilities: {capsBadge}" ]
       ]
 
   | Value name ->
@@ -304,12 +304,12 @@ let astRows
     // The signature is depth 0 and the body starts at depth 0 too, so the tree reads as a block under
     // the signature rather than being pushed a level in by scaffolding that isn't there any more.
     let indent = Stdlib.String.repeat "  " l.depth
-    let label = Colors.keyword l.label
+    let label = Stdlib.Cli.UI.Colors.keyword l.label
 
     if l.detail == "" then
       $"{indent}{label}"
     else
-      $"{indent}{label} {Colors.dimText l.detail}")
+      $"{indent}{label} {Stdlib.Cli.UI.Colors.dimText l.detail}")
 
 
 /// The disassembly, plus any lambdas defined inside it. Lambdas get their own section rather than being
@@ -328,12 +328,12 @@ let instructionRows
     is.instructions
       |> Stdlib.List.indexedMap (fun index i ->
         let idx =
-          Colors.dimText
+          Stdlib.Cli.UI.Colors.dimText
             (PrettyPrinter.RuntimeTypes.Instructions.padFrom 4 (Stdlib.Int.toString index))
         // Width of the widest opcode actually in this body, not a fixed 22. Most functions use short
         // opcodes, and a fixed column leaves a corridor of blanks between them and their operands.
         let op =
-          Colors.command
+          Stdlib.Cli.UI.Colors.command
             (PrettyPrinter.RuntimeTypes.Instructions.padTo
               opcodeWidth
               (PrettyPrinter.RuntimeTypes.Instructions.opcode i))
@@ -347,14 +347,14 @@ let instructionRows
         PrettyPrinter.RuntimeTypes.Instructions.header l.instructions
       Stdlib.List.flatten
         [ [ ""
-            Colors.hint $"lambda#{Stdlib.Int64.toString l.exprId}"
-            Colors.dimText $"  {header}"
+            Stdlib.Cli.UI.Colors.hint $"lambda#{Stdlib.Int64.toString l.exprId}"
+            Stdlib.Cli.UI.Colors.dimText $"  {header}"
             "" ]
           renderBody l.instructions ])
     |> Stdlib.List.flatten
 
   Stdlib.List.flatten
-    [ [ Colors.dimText
+    [ [ Stdlib.Cli.UI.Colors.dimText
           $"  {PrettyPrinter.RuntimeTypes.Instructions.header instrs}"
         "" ]
       renderBody instrs
@@ -368,9 +368,9 @@ let viewCompiled
   (mode: ViewMode)
   : Unit =
   match fnAt branchId location with
-  | Error e -> Stdlib.printLine (Colors.error $"Cannot {modeName mode}: {e}")
+  | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot {modeName mode}: {e}")
   | Ok fn ->
-    let title = Colors.boldText (Packages.formatLocation location)
+    let title = Stdlib.Cli.UI.Colors.boldText (Packages.formatLocation location)
     Stdlib.printLine title
     Stdlib.printLine ""
 
@@ -386,7 +386,7 @@ let viewCompiled
       | Some instrs -> instructionRows branchId instrs |> Stdlib.printLines
       | None ->
         Stdlib.printLine
-          (Colors.error "No compiled instructions stored for this function.")
+          (Stdlib.Cli.UI.Colors.error "No compiled instructions stored for this function.")
     | Source -> viewEntity branchId location
 
 
@@ -396,7 +396,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   match parseArgs args with
   | Error e ->
-    Stdlib.printLine (Colors.error $"Cannot view: {e}")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot view: {e}")
     Stdlib.printLine (help state)
     state
   | Ok parsed ->
@@ -409,7 +409,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
     match locationResult with
     | Error errorMsg ->
-      Stdlib.printLine (Colors.error $"Cannot view: {errorMsg}")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot view: {errorMsg}")
       state
     | Ok location ->
       match mode with

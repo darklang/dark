@@ -23,7 +23,7 @@ let saveEditing (state: State) (es: EditingState) : Step =
   let keepErr (msg: String) : Step =
     Step.Continue { state with editing = Stdlib.Option.Option.Some { es with err = msg } }
 
-  let rawSource = UI.Editor.toText es.buf
+  let rawSource = Stdlib.Cli.UI.Editor.toText es.buf
   // A `module Owner.Mod` first line (the free-form Edit/draft flow) sets where everything lands - parse it off
   // and treat the rest as the declaration. Otherwise use the editor's target module (the n/t/v flow).
   let srcLines = Stdlib.String.split rawSource "\n"
@@ -136,7 +136,7 @@ let openNewEditor (state: State) (kind: String) (targetModule: List<String>) : S
     else if kind == "value" then ("New value", "val newValue = 1", 4)
     else ("New function", "let newFunction (x: Int): Int =\n  x", 4)
   let where = "  ·  in " ++ (Stdlib.String.join targetModule ".")
-  let buf = UI.Editor.fromText template
+  let buf = Stdlib.Cli.UI.Editor.fromText template
   Step.Continue
     { state with
         editing =
@@ -161,7 +161,7 @@ let startNew (state: State) (kind: String) : Step =
       { state with
           input =
             Stdlib.Option.Option.Some
-              (InputState { prompt = "save into module (owner.Module): "; text = prefill; action = "author-" ++ kind }) }
+              (InputState { prompt = "save into module (owner.Module): "; field = Stdlib.Cli.UI.TextField.fromText prefill; action = "author-" ++ kind }) }
 
 /// Open the editor on an existing fn, prefilled with its full current declaration (doc comments dropped).
 let openEditExisting (state: State) (item: BodyItem) : Step =
@@ -193,5 +193,5 @@ let openEditExisting (state: State) (item: BodyItem) : Step =
       { state with
           editing =
             Stdlib.Option.Option.Some
-              (EditingState { kind = kind; nameStr = "Editing " ++ fullName; targetModule = modules; buf = UI.Editor.fromText (stripDocComments src); err = "" }) }
+              (EditingState { kind = kind; nameStr = "Editing " ++ fullName; targetModule = modules; buf = Stdlib.Cli.UI.Editor.fromText (stripDocComments src); err = "" }) }
   | None -> Step.Continue state

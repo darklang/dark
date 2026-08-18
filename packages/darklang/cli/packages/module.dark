@@ -119,7 +119,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   match input with
   | Error message ->
-    Stdlib.printLine (Colors.error message)
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
     state
   | Ok((modulePath, source)) ->
     // Package input is declaration scope at its root. In particular, `val x`
@@ -138,14 +138,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       let duplicateNames = duplicateDeclarationNames declarations
 
       if Stdlib.List.isEmpty declarations then
-        Stdlib.printLine (Colors.error "Package source contains no declarations")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Package source contains no declarations")
         state
       else if Stdlib.Bool.not (Stdlib.List.isEmpty duplicateNames) then
         Stdlib.printLine
-          (Colors.error "Package source contains duplicate declaration names:")
+          (Stdlib.Cli.UI.Colors.error "Package source contains duplicate declaration names:")
         duplicateNames
         |> Stdlib.List.iter (fun name ->
-          Stdlib.printLine (Colors.error $"  - {name}"))
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"  - {name}"))
         state
       else
         // Resolve a synthetic item path below the requested module so the
@@ -157,7 +157,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             locationInput
         with
         | Error message ->
-          Stdlib.printLine (Colors.error $"Invalid module location: {message}")
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Invalid module location: {message}")
           state
         | Ok baseLocation ->
           let basePm = LanguageTools.PackageManager.pm ()
@@ -206,7 +206,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             match SCM.PackageOps.add branchId ops with
             | Error message ->
               Stdlib.printLine
-                (Colors.error $"Failed to define module: {message}")
+                (Stdlib.Cli.UI.Colors.error $"Failed to define module: {message}")
               state
             | Ok _ ->
               updates
@@ -218,7 +218,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                   update.kind)
               let count = Stdlib.List.length declarations
               Stdlib.printLine
-                (Colors.success
+                (Stdlib.Cli.UI.Colors.success
                   $"✓ Defined {Stdlib.Int.toString count} declarations in {modulePath}")
               state
 

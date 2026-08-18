@@ -1,0 +1,125 @@
+/// A list you move through and choose from: documents, export formats, branches, views.
+///
+/// A `UI.Widget` over *display lines*, not over items. The parent keeps its own list and gets back an
+/// index, which is what lets this be one widget rather than one per element type. (The outliner's private
+/// picker was generic over the item and carried a parallel list of labels, because the labelling function
+/// couldn't be stored in retained state. Holding the strings only is simpler and has the same effect.)
+///
+/// Scrolling keeps the selection in view without pinning it to the bottom of the pane: the window moves
+/// only when the selection would leave it.
+module Darklang.Stdlib.Cli.UI.Picker
+
+type State =
+  { labels: List<String>
+    selected: Int
+    /// First visible row. Carried on the state so the list doesn't jump when the selection moves back into
+    /// a window it never left.
+    scroll: Int }
+
+type Msg =
+  /// Enter, with the index into the labels the parent handed in.
+  | Chose of Int
+  /// Escape.
+  | Cancelled
+
+let make (labels: List<String>) : State =
+  State { labels = labels; selected = 0; scroll = 0 }
+
+/// Rebuild with new labels, keeping the cursor where it was if it still exists.
+let withLabels (state: State) (labels: List<String>) : State =
+  let count = Stdlib.List.length labels
+  let selected = Stdlib.Int.max 0 (Stdlib.Int.min (count - 1) state.selected)
+  State { labels = labels; selected = selected; scroll = state.scroll }
+
+let count (state: State) : Int =
+  Stdlib.List.length state.labels
+
+// --- Movement ---
+
+let moveTo (state: State) (index: Int) : State =
+  let last = Stdlib.Int.max 0 ((count state) - 1)
+  { state with selected = Stdlib.Int.max 0 (Stdlib.Int.min last index) }
+
+let moveUp (state: State) : State =
+  moveTo state (state.selected - 1)
+
+let moveDown (state: State) : State =
+  moveTo state (state.selected + 1)
+
+let moveToStart (state: State) : State =
+  moveTo state 0
+
+let moveToEnd (state: State) : State =
+  moveTo state ((count state) - 1)
+
+/// Slide the window so the selection sits inside it, moving as little as possible.
+let scrolled (state: State) (rows: Int) : State =
+  let visible = Stdlib.Int.max 1 rows
+  let last = Stdlib.Int.max 0 ((count state) - visible)
+
+  let scroll =
+    if state.selected < state.scroll then state.selected
+    else if state.selected >= (state.scroll + visible) then
+      state.selected - visible + 1
+    else
+      state.scroll
+
+  { state with scroll = Stdlib.Int.max 0 (Stdlib.Int.min last scroll) }
+
+
+// --- Keys ---
+
+let onKey (state: State) (kp: Widget.KeyPress) : Widget.Outcome<State, Msg> =
+  match kp.key with
+  | UpArrow -> Widget.Outcome.Handled(moveUp state)
+  | DownArrow -> Widget.Outcome.Handled(moveDown state)
+  | Home -> Widget.Outcome.Handled(moveToStart state)
+  | End -> Widget.Outcome.Handled(moveToEnd state)
+  | PageUp -> Widget.Outcome.Handled(moveTo state (state.selected - 10))
+  | PageDown -> Widget.Outcome.Handled(moveTo state (state.selected + 10))
+  | Enter ->
+    if (count state) == 0 then
+      Widget.Outcome.Emitted(state, Msg.Cancelled)
+    else
+      Widget.Outcome.Emitted(state, Msg.Chose state.selected)
+  | Escape -> Widget.Outcome.Emitted(state, Msg.Cancelled)
+  | _ -> Widget.Outcome.Ignored
+
+
+// --- Rendering ---
+
+/// One row, marked and highlighted when it's the selection.
+///
+/// The marker is not decoration: selection used to be colour alone, which is invisible on a monochrome
+/// terminal and on e-ink.
+let rowFor (label: String) (isSelected: Bool) : String =
+  let line = (if isSelected then "> " else "  ") ++ label
+
+  if isSelected then Colors.colorize Colors.selection line else line
+
+let view (state: State) (region: Layout.Region) : List<Layout.Span> =
+  let windowed = scrolled state region.rows
+
+  let rows =
+    state.labels
+    |> Stdlib.List.indexedMap (fun i label -> (i, label))
+    |> Stdlib.List.drop windowed.scroll
+    |> Stdlib.List.take region.rows
+    |> Stdlib.List.map (fun pair ->
+      let (i, label) = pair
+      Layout.at region (i - windowed.scroll) 0 (rowFor label (i == state.selected)))
+    |> Stdlib.List.flatten
+
+  let thumb =
+    if (count state) > region.rows then
+      let position =
+        Stdlib.Int.divide
+          (state.selected * (region.rows - 1))
+          (Stdlib.Int.max 1 ((count state) - 1))
+
+      Layout.at region position (region.cols - 1) (Colors.colorize Colors.cyan "|")
+    else
+      []
+
+  Stdlib.List.flatten [ rows; thumb ]
+

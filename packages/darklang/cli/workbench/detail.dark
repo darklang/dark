@@ -17,7 +17,7 @@ module Darklang.Cli.Workbench
 /// Every glyph here measures ONE column under `displayWidth`, which is what makes that padding correct. `⚡`
 /// used to be the fn icon and measured two, while terminals draw it as one, so fn rows came out a column short
 /// of everything else and no padding could be right for both. Any replacement needs the same property: check
-/// `Tui.Text.displayWidth` before swapping a glyph in here.
+/// `Stdlib.Cli.Tui.Text.displayWidth` before swapping a glyph in here.
 let iconFor (item: BodyItem) : String =
   let glyph =
     if item.isModule then "🗂"
@@ -26,11 +26,11 @@ let iconFor (item: BodyItem) : String =
       | "fn" -> "ƒ"
       | "type" -> "#"
       | _ -> "•"
-  Tui.Text.fitToWidth glyph 2
+  Stdlib.Cli.Tui.Text.fitToWidth glyph 2
 
-let renderTreeList (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+let renderTreeList (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   if Stdlib.List.isEmpty state.items then
-    UI.Layout.at region 1 2 (Colors.dimText "(no items here)")
+    Stdlib.Cli.UI.Layout.at region 1 2 (Stdlib.Cli.UI.Colors.dimText "(no items here)")
   else
     // Per-row badges (Matter tree, non-values lens only): a pink ● for items edited-but-not-committed, and a
     // yellow ⚠ for items deprecated-but-still-shown (deprecated-and-referenced, so they survive the
@@ -38,7 +38,7 @@ let renderTreeList (state: State) (region: UI.Layout.Region) : List<UI.Layout.Sp
     let modPath = modulePathOf state.location
     let wipNames = state.wipNames
     let deprecatedNames = state.deprecatedNames
-    // Build the styled rows (cursor + icon + name, selection in cyan); UI.ListView owns the viewport + scrollbar.
+    // Build the styled rows (cursor + icon + name, selection in cyan); Stdlib.Cli.UI.ListView owns the viewport + scrollbar.
     let lines =
       state.items
       |> Stdlib.List.indexedMap (fun i item ->
@@ -47,20 +47,20 @@ let renderTreeList (state: State) (region: UI.Layout.Region) : List<UI.Layout.Sp
         let fullName = Stdlib.String.join (Stdlib.List.append modPath [ item.name ]) "."
         let wipBadge =
           if (Stdlib.Bool.not (Stdlib.List.isEmpty wipNames)) && (Stdlib.List.member wipNames fullName) then
-            Colors.colorize Colors.pink " ●"
+            Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink " ●"
           else
             ""
         let depBadge =
-          if Stdlib.List.member deprecatedNames item.name then Colors.colorize Colors.yellow " ⚠" else ""
+          if Stdlib.List.member deprecatedNames item.name then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow " ⚠" else ""
         let line = cursor ++ (iconFor item) ++ " " ++ display
         let badge = wipBadge ++ depBadge
-        if i == state.selected then (Colors.colorize Colors.cyan line) ++ badge else line ++ badge)
-    UI.ListView.render region lines state.selected
+        if i == state.selected then (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan line) ++ badge else line ++ badge)
+    Stdlib.Cli.UI.ListView.render region lines state.selected
 
 /// The source/detail of the currently-selected item, as lines for the Inspect pane.
 let detailLines (state: State) : List<String> =
   // Values lens: items carry full paths (owner.mod.name), so look them up by full path, not leaf-in-location.
-  if (state.activeView == vMatter) && (state.matterLens == "values") then
+  if (state.activeView == vMatter) && (state.matter.lens == Lens.ValuesOnly) then
     Stdlib.String.split (thingDetail state) "\n"
   else
   match Stdlib.List.getAt state.items state.selected with
@@ -78,7 +78,7 @@ let detailLines (state: State) : List<String> =
       //
       // The `vMatter` test has to match the one `refreshPeek` applies, or this branch reads a `renderPeek` that
       // was never populated and reports "no output" for something that renders fine.
-      if (Stdlib.String.trim state.renderPeek) == "" then [ Colors.dimText "(view produced no output)" ]
+      if (Stdlib.String.trim state.renderPeek) == "" then [ Stdlib.Cli.UI.Colors.dimText "(view produced no output)" ]
       else Stdlib.String.split state.renderPeek "\n"
     else
       let modulePath = modulePathOf state.location
@@ -159,10 +159,10 @@ let traceDetail (state: State) : String =
     // rows are invented. Saying "mock data" over a run that genuinely happened undersells what works.
     let provenance =
       if item.kind == "trace-sample" then
-        Colors.dimText "(mock data) - nothing recorded in this environment yet"
+        Stdlib.Cli.UI.Colors.dimText "(mock data) - nothing recorded in this environment yet"
       else
-        Colors.dimText "this run is real; what it recorded is not stored yet"
-    (Colors.boldText item.name)
+        Stdlib.Cli.UI.Colors.dimText "this run is real; what it recorded is not stored yet"
+    (Stdlib.Cli.UI.Colors.boldText item.name)
     ++ "\n\n"
     ++ provenance
     ++ "\n\n"
@@ -198,22 +198,22 @@ let itemMeta (state: State) : String =
         match hashOpt with
         | Some h ->
           let sets = Packages.Query.loadDeprecationSets state.branchId
-          if Packages.Query.isDeprecated sets h then Colors.colorize Colors.yellow "deprecated ⚠" else "not deprecated"
+          if Packages.Query.isDeprecated sets h then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow "deprecated ⚠" else "not deprecated"
         | None -> "not deprecated"
       kindLabel ++ "  ·  hash " ++ short ++ "  ·  current  ·  " ++ deprecation
 
 /// Per-node actions offered on the item page. Only what's wired (`d` deps); try/traces are named in the
 /// hint line but land in later passes, so they read as affordances, not working keys yet.
 let itemActions (item: BodyItem) : String =
-  if item.kind == "fn" then Colors.dimText "d deps  ·  t try, x traces (coming)"
-  else Colors.dimText "d deps"
+  if item.kind == "fn" then Stdlib.Cli.UI.Colors.dimText "d deps  ·  t try, x traces (coming)"
+  else Stdlib.Cli.UI.Colors.dimText "d deps"
 
 let inspectPageLines (state: State) : List<String> =
   match Stdlib.List.getAt state.items state.selected with
-  | None -> [ Colors.dimText "(nothing selected - browse the tree)" ]
+  | None -> [ Stdlib.Cli.UI.Colors.dimText "(nothing selected - browse the tree)" ]
   | Some item ->
     if item.isModule then
-      [ (iconFor item) ++ " " ++ item.name; ""; Colors.dimText "module - → to enter" ]
+      [ (iconFor item) ++ " " ++ item.name; ""; Stdlib.Cli.UI.Colors.dimText "module - → to enter" ]
     else
       // Highlight the source portion here (the page mixes code + colored ref/meta lines, so renderPreview
       // can't blanket-highlight it). Guard: only swap in the highlighted lines if the count still lines up.
@@ -225,25 +225,25 @@ let inspectPageLines (state: State) : List<String> =
       let refs = Stdlib.String.split (depsText state) "\n"
       Stdlib.List.flatten
         [ src
-          [ ""; Colors.dimText (itemMeta state) ]
+          [ ""; Stdlib.Cli.UI.Colors.dimText (itemMeta state) ]
           [ ""; itemActions item ]
-          [ ""; Colors.colorize Colors.cyan "── references ──"; "" ]
+          [ ""; Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "── references ──"; "" ]
           refs ]
 
 /// The preview content for the selected item in the current view. One function so the preview pane, its
 /// scroll bounds, and the full-screen reader all agree. SCM previews depend on the active section.
 let previewLines (state: State) : List<String> =
   if state.activeView == vSCM then
-    if state.scmSection == 1 then Stdlib.String.split (commitSummary state.branchId state.selected) "\n"
-    else if state.scmSection == 2 then Stdlib.String.split (conflictDetail state) "\n"
-    else if state.scmSection == 3 then Stdlib.String.split (branchDetail state) "\n"
+    if state.scm.section == ScmSection.History then Stdlib.String.split (commitSummary state.branchId state.selected) "\n"
+    else if state.scm.section == ScmSection.Conflicts then Stdlib.String.split (conflictDetail state) "\n"
+    else if state.scm.section == ScmSection.Branches then Stdlib.String.split (branchDetail state) "\n"
     else Stdlib.String.split (wipDiffText state) "\n"
   else if state.activeView == vMatter then
     // Matter folds in the old Inspect: its preview IS the item page (source + meta + references + actions),
     // except under the Values lens, where the value's own detail is what you want.
-    if state.matterLens == "values" then detailLines state else inspectPageLines state
+    if state.matter.lens == Lens.ValuesOnly then detailLines state else inspectPageLines state
   else if state.activeView == vAI then
-    if state.aiSection == 1 then Stdlib.String.split (promptDetail state.selected) "\n"
+    if state.ai.section == AiSection.Prompts then Stdlib.String.split (promptDetail state.selected) "\n"
     else Stdlib.String.split (aiThreadDetail state.selected) "\n"
   else if state.activeView == vApps then Stdlib.String.split (appDetail state) "\n"
   else if state.activeView == vTraces then Stdlib.String.split (traceDetail state) "\n"

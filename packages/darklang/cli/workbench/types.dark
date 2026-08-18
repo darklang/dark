@@ -16,12 +16,129 @@ type SearchHit =
     kind: String
     display: String }
 
+/// Which part of the SCM view is showing. Tab cycles it.
+///
+/// These were 0, 1, 2 and 3, compared as numbers in five files with the mapping written down in a comment
+/// here. A reader had to hold "2 means conflicts" in their head to follow `if state.scm.section == ScmSection.Conflicts then
+/// resolveConflict ...`.
+type ScmSection =
+  | Changes
+  | History
+  | Conflicts
+  | Branches
+
+type ScmState =
+  { section: ScmSection }
+
+/// Which part of the AI view is showing. Tab cycles it.
+type AiSection =
+  | Agents
+  | Prompts
+
+type AiState =
+  { section: AiSection }
+
+/// What the Matter view is showing: the whole tree, or values only (the Values lens, `L`).
+///
+/// This was a String compared against "values", which meant every other string was a silently valid state
+/// that behaved like "all".
+type Lens =
+  | WholeTree
+  | ValuesOnly
+
+type MatterState =
+  { lens: Lens }
+
+let emptyScm () : ScmState =
+  ScmState { section = ScmSection.Changes }
+
+/// Tab order, wrapping.
+let nextScmSection (section: ScmSection) : ScmSection =
+  match section with
+  | Changes -> ScmSection.History
+  | History -> ScmSection.Conflicts
+  | Conflicts -> ScmSection.Branches
+  | Branches -> ScmSection.Changes
+
+/// Position in the tab bar.
+let scmSectionIndex (section: ScmSection) : Int =
+  match section with
+  | Changes -> 0
+  | History -> 1
+  | Conflicts -> 2
+  | Branches -> 3
+
+let emptyAi () : AiState =
+  AiState { section = AiSection.Agents }
+
+let nextAiSection (section: AiSection) : AiSection =
+  match section with
+  | Agents -> AiSection.Prompts
+  | Prompts -> AiSection.Agents
+
+let aiSectionIndex (section: AiSection) : Int =
+  match section with
+  | Agents -> 0
+  | Prompts -> 1
+
+let emptyMatter () : MatterState =
+  MatterState { lens = Lens.WholeTree }
+
+let otherLens (lens: Lens) : Lens =
+  match lens with
+  | WholeTree -> Lens.ValuesOnly
+  | ValuesOnly -> Lens.WholeTree
+
+
+/// The search-results mode: a jumpable list of matches, and the cursor into it. Enter navigates to the
+/// hit's location. No hits means it isn't open.
+type SearchState =
+  { hits: List<SearchHit>
+    selected: Int }
+
+let emptySearch () : SearchState =
+  SearchState { hits = []; selected = 0 }
+
+
+/// What's drawn over the frame, and holding the keyboard while it is.
+///
+/// One field rather than a `showHelp` flag beside a `viewPicker` flag beside the picker's cursor: those
+/// three could describe a state that can't happen (both overlays open), and the cursor belonged to only one
+/// of them.
+type Overlay =
+  | NoOverlay
+  /// The `?` keymap, drawn centred with its interior cleared. Any key closes it.
+  | Keymap
+  /// The ` view picker: a jumpable list of every view, since 1-9 only reach the first nine. Carries the
+  /// cursor, as a position into the *visible* views (gated ones are hidden, so it isn't a view index).
+  | ViewPicker of selected: Int
+
+
+/// The REPL view's state: what's been run, what's bound, and what's half-typed.
+type ReplState =
+  { /// The eval log, newest last, each entry already rendered (the `> expr` and its result lines).
+    log: List<String>
+    /// Session bindings, in the order they were first bound. `let x = ...` at the REPL records one, and
+    /// every later expression is evaluated with them in scope (see `Darklang.Cli.Repl`). Session-lived:
+    /// they go away when the CLI exits.
+    bindings: List<Darklang.Cli.Repl.Binding>
+    /// The result of the last expression, unstyled - what the session pane shows under "last result".
+    /// Held rather than scraped back out of `log`, which is display text.
+    last: String
+    /// Lines of a multi-line statement typed so far, each ended with a `\`. Empty except while one is being
+    /// assembled; the next unbackslashed line completes it and the whole thing runs as one statement.
+    pending: String }
+
+let emptyRepl () : ReplState =
+  ReplState { log = []; bindings = []; last = ""; pending = "" }
+
+
 type State =
   { activeView: Int
     location: Packages.PackageLocation
     items: List<BodyItem>
     selected: Int
-    focus: UI.SplitPane.Focus
+    focus: Stdlib.Cli.UI.SplitPane.Focus
     detailScroll: Int
     /// When Some, a full-body reader is open (e.g. a Docs topic); its text scrolls via detailScroll.
     reading: Stdlib.Option.Option<String>
@@ -40,24 +157,15 @@ type State =
     /// A transient status message (e.g. "committed", "saved foo") shown in the footer after a write action,
     /// then cleared on the next keypress. "" = nothing to show.
     message: String
-    /// When non-empty, the search-results mode is open: a jumpable list of matches. `searchSelected` is the
-    /// cursor into it; Enter navigates to the hit's location.
-    searchHits: List<SearchHit>
-    searchSelected: Int
-    /// When true, the `?` keymap overlay is drawn centered over the frame, its interior cleared so nothing
-    /// shows through. Any key closes it.
-    showHelp: Bool
-    /// When true, the ` view-picker overlay is open - a jumpable list of all views (since 1-9 only reach the
-    /// first nine). `pickerSelected` is the cursor into viewNames.
-    viewPicker: Bool
-    pickerSelected: Int
+    /// The search-results mode: open when it has hits, with its own cursor.
+    search: SearchState
+    /// The overlay drawn over the frame, if any.
+    overlay: Overlay
     /// `:` command bar: which completion in the dropdown is highlighted (↑↓ move, tab accepts it). Reset to 0
     /// whenever the text changes.
     completionSel: Int
-    /// SCM view: which section is active - 0 Changes, 1 History, 2 Conflicts, 3 Branches. Tab cycles it.
-    scmSection: Int
-    /// AI view: which section is active - 0 Agents, 1 Prompts. Tab cycles it.
-    aiSection: Int
+    scm: ScmState
+    ai: AiState
     /// The gated views (Devices, Crons, Calendar, ...) enabled for this account, computed once at launch from
     /// (see `viewSpecs` / `gateEnabled`). Hidden gated views drop out of the tab bar, number keys,
     /// [ ]/cycle, and the picker.
@@ -76,20 +184,11 @@ type State =
     /// renderer has to stay a pure function of state for frame diffing to be sound. Refreshed on transitions
     /// by `refreshPeek`.
     renderPeek: String
-    /// Scratch view: the eval log, newest last, each entry already rendered (the `> expr` and its result lines).
-    scratchLog: List<String>
-    /// REPL session bindings, in the order they were first bound. `let x = ...` at the REPL records one, and
-    /// every later expression is evaluated with them in scope (see `Darklang.Cli.Repl`). Session-lived: they
-    /// go away when the CLI exits.
-    replBindings: List<Darklang.Cli.Repl.Binding>
-    /// The result of the last REPL expression, unstyled - what the session pane shows under "last result".
-    /// Held rather than scraped back out of `scratchLog`, which is display text.
-    replLast: String
-    /// Lines of a multi-line REPL statement typed so far, each ended with a `\`. Empty except while one is
-    /// being assembled; the next unbackslashed line completes it and the whole thing runs as one statement.
-    replPending: String
-    /// Matter view: "all" shows the whole tree; "values" filters to values only (the Values lens, `v`).
-    matterLens: String
+    /// The REPL view's own state. Everything in here belongs to that one view, so it lives in one field
+    /// rather than as four more on the workbench: a view you can hand a record to is a view you could mount
+    /// somewhere else, and the parent stops being the place every view keeps its things.
+    repl: ReplState
+    matter: MatterState
     /// In-view find-as-you-type filter (`f`); "" = no filter. Narrows the current list by substring.
     filter: String
     branchId: Uuid }
@@ -97,7 +196,9 @@ type State =
 /// A single-line text entry. `action` tags what Enter does (e.g. "commit").
 type InputState =
   { prompt: String
-    text: String
+    /// The text being typed, as a `UI.TextField`: a cursor you can move, rather than a string you could
+    /// only append to and backspace off the end of.
+    field: Stdlib.Cli.UI.TextField.State
     action: String }
 
 /// The multiline editor's state: the item kind ("fn"/"type"/"value"), the fully-qualified name being
@@ -108,7 +209,7 @@ type EditingState =
     /// The module (owner.Module...) the item saves into - from the tree location, or asked for when you're too
     /// shallow to have one. Lets you author from anywhere, not just inside a module.
     targetModule: List<String>
-    buf: UI.Editor.Buf
+    buf: Stdlib.Cli.UI.Editor.Buf
     err: String }
 
 type Step =
@@ -137,7 +238,7 @@ type ViewDef =
     /// the selectable rows (for the shared cursor + list pane); Unit-in since extension views are self-contained
     loadItems: Unit -> List<BodyItem>
     /// the body's spans for the region (returned, not printed, so frames can be diffed)
-    render: State -> UI.Layout.Region -> List<UI.Layout.Span>
+    render: State -> Stdlib.Cli.UI.Layout.Region -> List<Stdlib.Cli.UI.Layout.Span>
     /// preview/detail lines for the selected row
     detail: State -> List<String>
     /// context key-hints for the footer

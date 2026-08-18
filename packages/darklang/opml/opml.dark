@@ -37,3 +37,117 @@ let export (title: String) (nodes: List<Node>) : String =
     [ "  </body>"
       "</opml>" ]
   Stdlib.String.join (Stdlib.List.append (Stdlib.List.append header body) footer) "\n"
+
+
+// --- Parsing ---
+//
+// A deliberately small reader: enough for the `<outline text="...">` trees that outliners actually write
+// (ours, Workflowy, Dynalist, OmniOutliner), and not a general XML parser. It walks lines, because every
+// OPML exporter in practice puts one element per line, and reports what it couldn't read rather than
+// guessing.
+
+let unescapeXml (text: String) : String =
+  text
+  |> Stdlib.String.replaceAll "&lt;" "<"
+  |> Stdlib.String.replaceAll "&gt;" ">"
+  |> Stdlib.String.replaceAll "&quot;" "\""
+  |> Stdlib.String.replaceAll "&#39;" "'"
+  |> Stdlib.String.replaceAll "&apos;" "'"
+  // Last, so an escaped ampersand doesn't get re-read as the start of another entity.
+  |> Stdlib.String.replaceAll "&amp;" "&"
+
+/// The value of `attribute` in an element, if it's there.
+let attributeValue
+  (line: String)
+  (attribute: String)
+  : Stdlib.Option.Option<String> =
+  let marker = $"{attribute}=\""
+
+  match Stdlib.String.indexOf line marker with
+  | None -> Stdlib.Option.Option.None
+  | Some start ->
+    let afterMarker = Stdlib.String.dropFirst line (start + (Stdlib.String.length marker))
+
+    match Stdlib.String.indexOf afterMarker "\"" with
+    | None -> Stdlib.Option.Option.None
+    | Some stop ->
+      Stdlib.Option.Option.Some(unescapeXml (Stdlib.String.slice afterMarker 0 stop))
+
+/// The `<title>` from the head, or "" when there isn't one.
+let parseTitle (opml: String) : String =
+  match Stdlib.String.indexOf opml "<title>" with
+  | None -> ""
+  | Some start ->
+    let afterTag = Stdlib.String.dropFirst opml (start + 7)
+
+    match Stdlib.String.indexOf afterTag "</title>" with
+    | None -> ""
+    | Some stop -> unescapeXml (Stdlib.String.trim (Stdlib.String.slice afterTag 0 stop))
+
+/// One `<outline>` line, reduced to what we care about.
+type Event =
+  /// An element that contains others: text, and we're now one level deeper.
+  | Open of String
+  /// A self-closing element: text, same level.
+  | Leaf of String
+  /// `</outline>`: back up a level.
+  | Close
+  /// Anything else (the xml declaration, head, body, blank lines).
+  | Skip
+
+let classify (line: String) : Event =
+  let trimmed = Stdlib.String.trim line
+
+  if Stdlib.String.startsWith trimmed "</outline>" then
+    Event.Close
+  else if Stdlib.String.startsWith trimmed "<outline" then
+    let text =
+      match attributeValue trimmed "text" with
+      | Some t -> t
+      | None ->
+        // OmniOutliner and some feed tools write `title=` instead.
+        match attributeValue trimmed "title" with
+        | Some t -> t
+        | None -> ""
+
+    if Stdlib.String.endsWith trimmed "/>" then Event.Leaf text else Event.Open text
+  else
+    Event.Skip
+
+/// Attach `node` to the tree at `depth`, where depth 0 is the root list.
+let attachAt (siblings: List<Node>) (depth: Int) (node: Node) : List<Node> =
+  if depth <= 0 then
+    Stdlib.List.append siblings [ node ]
+  else
+    match Stdlib.List.last siblings with
+    | None -> Stdlib.List.append siblings [ node ]
+    | Some parent ->
+      let updated = Node { text = parent.text; children = attachAt parent.children (depth - 1) node }
+      Stdlib.List.append (Stdlib.List.dropLast siblings) [ updated ]
+
+let parseLines (lines: List<String>) (nodes: List<Node>) (depth: Int) : List<Node> =
+  match lines with
+  | [] -> nodes
+  | line :: rest ->
+    match classify line with
+    | Skip -> parseLines rest nodes depth
+    | Close -> parseLines rest nodes (Stdlib.Int.max 0 (depth - 1))
+    | Leaf text ->
+      parseLines rest (attachAt nodes depth (Node { text = text; children = [] })) depth
+    | Open text ->
+      parseLines
+        rest
+        (attachAt nodes depth (Node { text = text; children = [] }))
+        (depth + 1)
+
+/// Read an OPML document into a title and a tree.
+let parse (opml: String) : Stdlib.Result.Result<(String * List<Node>), String> =
+  if Stdlib.Bool.not (Stdlib.String.contains opml "<opml") then
+    Stdlib.Result.Result.Error "not an OPML document (no <opml> element)"
+  else
+    let nodes = parseLines (Stdlib.String.split opml "\n") [] 0
+
+    if Stdlib.List.isEmpty nodes then
+      Stdlib.Result.Result.Error "no <outline> elements"
+    else
+      Stdlib.Result.Result.Ok((parseTitle opml, nodes))

@@ -24,7 +24,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           accountID = Stdlib.Option.Option.None
           accountName = "" }
   | _ ->
-    Stdlib.printLine (Colors.error "Usage: logout")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: logout")
     state
 
 

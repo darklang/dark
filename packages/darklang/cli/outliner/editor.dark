@@ -1,0 +1,682 @@
+/// The tree editor: the part of the outliner that is an outline.
+///
+/// A `Stdlib.Cli.UI.Widget`. It owns the outline, the cursor, undo, the search filter, and the text field
+/// that appears when you're editing a line. It draws into whatever region it's given and tells its parent
+/// what happened by emitting a message; it doesn't know it's in a full-screen app, or that documents exist.
+///
+/// Keys it doesn't use come back as `Ignored`, and the text field inside it does the same. That's what lets
+/// Tab indent the node *while you're typing in it*: the field ignores Tab, so the editor sees it. The old
+/// version couldn't express that, and worked around it by having the parent peek at whether the editor was
+/// mid-edit before deciding who got the key.
+module Darklang.Cli.Outliner.Editor
+
+/// How deep the undo stack goes. Snapshots are cheap (the dicts share structure) but not free.
+val historyLimit = 50
+
+type State =
+  { outline: Outline
+    /// The cursor, held as a node id rather than a row number: the row a node sits on changes whenever
+    /// anything above it is indented, collapsed or deleted, and the cursor shouldn't move because of that.
+    cursorId: Int
+    /// First visible row. A hint the renderer adjusts to fit the region it gets.
+    scroll: Int
+    editing: Stdlib.Option.Option<Stdlib.Cli.UI.TextField.State>
+    /// The current search text. "" means no filter.
+    filter: String
+    /// The search box, while it's open.
+    searching: Stdlib.Option.Option<Stdlib.Cli.UI.TextField.State>
+    history: List<Outline>
+    future: List<Outline> }
+
+/// What the editor tells the app around it.
+type Msg =
+  /// The outline changed and should be persisted.
+  | Dirty
+  /// Something worth saying in the status bar.
+  | Note of String
+  /// Escape from the top level: the parent decides what "back" means.
+  | Back
+  /// The user asked to delete a node that isn't empty. The parent owns the confirmation.
+  | DeleteRequested of id: Int * descendants: Int
+
+
+let fromOutline (outline: Outline) : State =
+  let firstId =
+    match Stdlib.List.head (flattenVisible outline) with
+    | Some vn -> vn.id
+    | None -> 0
+
+  State
+    { outline = outline
+      cursorId = firstId
+      scroll = 0
+      editing = Stdlib.Option.Option.None
+      filter = ""
+      searching = Stdlib.Option.Option.None
+      history = []
+      future = [] }
+
+// --- The visible rows ---
+
+/// The lines on screen: the whole tree, or the search matches with the ancestors that locate them.
+let visible (state: State) : List<VisibleNode> =
+  let all = flattenVisible state.outline
+
+  if state.filter == "" then
+    all
+  else
+    let hits = matching state.outline state.filter
+
+    let keep =
+      hits
+      |> Stdlib.List.fold hits (fun acc id ->
+        Stdlib.List.append acc (ancestors state.outline id))
+
+    all |> Stdlib.List.filter (fun vn -> Stdlib.List.member keep vn.id)
+
+let cursorIndex (state: State) : Int =
+  visible state
+  |> Stdlib.List.findFirstIndex (fun vn -> vn.id == state.cursorId)
+  |> Stdlib.Option.withDefault 0
+
+let cursorNode (state: State) : Stdlib.Option.Option<VisibleNode> =
+  visible state |> Stdlib.List.findFirst (fun vn -> vn.id == state.cursorId)
+
+/// Put the cursor on a row number, clamped to the list.
+let cursorToIndex (state: State) (index: Int) : State =
+  let rows = visible state
+  let last = Stdlib.Int.max 0 ((Stdlib.List.length rows) - 1)
+  let wanted = Stdlib.Int.max 0 (Stdlib.Int.min last index)
+
+  match Stdlib.List.getAt rows wanted with
+  | Some vn -> { state with cursorId = vn.id }
+  | None -> state
+
+
+// --- Undo ---
+
+/// Snapshot before a change. Every mutation goes through this, so undo covers all of them.
+let remember (state: State) : State =
+  { state with
+      history = Stdlib.List.take (Stdlib.List.push state.history state.outline) historyLimit
+      future = [] }
+
+let undo (state: State) : (State * String) =
+  match state.history with
+  | [] -> (state, "nothing to undo")
+  | previous :: rest ->
+    let restored =
+      { state with
+          outline = previous
+          history = rest
+          future = Stdlib.List.push state.future state.outline }
+
+    let landed =
+      if exists previous restored.cursorId then
+        restored
+      else
+        cursorToIndex restored 0
+
+    (landed, "undo")
+
+let redo (state: State) : (State * String) =
+  match state.future with
+  | [] -> (state, "nothing to redo")
+  | next :: rest ->
+    let restored =
+      { state with
+          outline = next
+          future = rest
+          history = Stdlib.List.push state.history state.outline }
+
+    let landed =
+      if exists next restored.cursorId then
+        restored
+      else
+        cursorToIndex restored 0
+
+    (landed, "redo")
+
+
+// --- Tree edits ---
+
+let toggleCollapse (state: State) : State =
+  match cursorNode state with
+  | None -> state
+  | Some vn ->
+    if Stdlib.Bool.not vn.hasChildren then
+      state
+    else
+      let next = remember state
+      { next with outline = setCollapsed next.outline vn.id (Stdlib.Bool.not vn.isCollapsed) }
+
+let cycleTodo (state: State) : State =
+  match cursorNode state with
+  | None -> state
+  | Some vn ->
+    let next = remember state
+    { next with outline = cycleMark next.outline vn.id }
+
+/// A new sibling after the cursor (or the first node, in an empty outline), ready to type into.
+let insertAfter (state: State) : State =
+  let base_ = remember state
+  let outline = base_.outline
+  let id = outline.nextId
+  let withNode = addNode outline id ""
+
+  let placed =
+    match cursorNode state with
+    | None -> setChildren withNode Stdlib.Option.Option.None [ id ]
+    | Some vn ->
+      let parentId = findParentId withNode vn.id
+      let siblings = getChildren withNode parentId
+      setChildren withNode parentId (insertIdAfter siblings vn.id id)
+
+  { base_ with
+      outline = { placed with nextId = id + 1 }
+      cursorId = id
+      editing = Stdlib.Option.Option.Some Stdlib.Cli.UI.TextField.empty }
+
+/// A new child of the cursor, opened for typing. Saves an insert-then-indent.
+let insertChild (state: State) : State =
+  match cursorNode state with
+  | None -> insertAfter state
+  | Some vn ->
+    let base_ = remember state
+    let outline = base_.outline
+    let id = outline.nextId
+    let withNode = addNode outline id ""
+    let children = getChildren withNode (Stdlib.Option.Option.Some vn.id)
+
+    let placed =
+      setChildren withNode (Stdlib.Option.Option.Some vn.id) (Stdlib.List.append children [ id ])
+
+    { base_ with
+        outline = setCollapsed { placed with nextId = id + 1 } vn.id false
+        cursorId = id
+        editing = Stdlib.Option.Option.Some Stdlib.Cli.UI.TextField.empty }
+
+/// Delete a node and everything under it, landing the cursor somewhere sensible.
+let deleteSubtree (state: State) (id: Int) : State =
+  let rows = visible state
+  let index = cursorIndex state
+  let base_ = remember state
+  let after = { base_ with outline = removeSubtree base_.outline id }
+  cursorToIndex after (Stdlib.Int.min index ((Stdlib.List.length (visible after)) - 1))
+
+let indent (state: State) : State =
+  match cursorNode state with
+  | None -> state
+  | Some vn ->
+    let outline = state.outline
+    let parentId = findParentId outline vn.id
+    let siblings = getChildren outline parentId
+
+    match Stdlib.List.findFirstIndex siblings (fun id -> id == vn.id) with
+    | None -> state
+    | Some i ->
+      if i == 0 then
+        state
+      else
+        match Stdlib.List.getAt siblings (i - 1) with
+        | None -> state
+        | Some newParent ->
+          let base_ = remember state
+          let detached = detach base_.outline vn.id
+          let newSiblings = getChildren detached (Stdlib.Option.Option.Some newParent)
+
+          let moved =
+            setChildren
+              detached
+              (Stdlib.Option.Option.Some newParent)
+              (Stdlib.List.append newSiblings [ vn.id ])
+
+          { base_ with outline = setCollapsed moved newParent false }
+
+let outdent (state: State) : State =
+  match cursorNode state with
+  | None -> state
+  | Some vn ->
+    match findParentId state.outline vn.id with
+    | None -> state
+    | Some parentId ->
+      let base_ = remember state
+      let grandparentId = findParentId base_.outline parentId
+      let detached = detach base_.outline vn.id
+      let gpChildren = getChildren detached grandparentId
+      { base_ with
+          outline = setChildren detached grandparentId (insertIdAfter gpChildren parentId vn.id) }
+
+let moveWithin (state: State) (offset: Int) : State =
+  match cursorNode state with
+  | None -> state
+  | Some vn ->
+    let parentId = findParentId state.outline vn.id
+    let siblings = getChildren state.outline parentId
+
+    match Stdlib.List.findFirstIndex siblings (fun id -> id == vn.id) with
+    | None -> state
+    | Some i ->
+      let target = i + offset
+
+      if target < 0 || target >= (Stdlib.List.length siblings) then
+        state
+      else
+        let base_ = remember state
+        { base_ with outline = setChildren base_.outline parentId (swapAt siblings i target) }
+
+
+// --- Cursor movement ---
+
+/// Move the cursor `delta` rows, computing the visible list once rather than once to find where the cursor
+/// is and again to put it somewhere else.
+let moveBy (state: State) (delta: Int) : State =
+  let rows = visible state
+  let last = Stdlib.Int.max 0 ((Stdlib.List.length rows) - 1)
+
+  let current =
+    rows
+    |> Stdlib.List.findFirstIndex (fun vn -> vn.id == state.cursorId)
+    |> Stdlib.Option.withDefault 0
+
+  let wanted = Stdlib.Int.max 0 (Stdlib.Int.min last (current + delta))
+
+  match Stdlib.List.getAt rows wanted with
+  | Some vn -> { state with cursorId = vn.id }
+  | None -> state
+
+let moveUp (state: State) : State =
+  moveBy state -1
+
+let moveDown (state: State) : State =
+  moveBy state 1
+
+let moveToStart (state: State) : State =
+  cursorToIndex state 0
+
+let moveToEnd (state: State) : State =
+  cursorToIndex state ((Stdlib.List.length (visible state)) - 1)
+
+/// Left: close an open branch, otherwise go up to the parent. The way out of a deep subtree.
+let collapseOrParent (state: State) : State =
+  match cursorNode state with
+  | None -> state
+  | Some vn ->
+    if vn.hasChildren && (Stdlib.Bool.not vn.isCollapsed) then
+      toggleCollapse state
+    else
+      match findParentId state.outline vn.id with
+      | Some pid -> { state with cursorId = pid }
+      | None -> state
+
+/// Right: open a closed branch, otherwise step into it.
+let expandOrChild (state: State) : State =
+  match cursorNode state with
+  | None -> state
+  | Some vn ->
+    if vn.hasChildren && vn.isCollapsed then
+      toggleCollapse state
+    else
+      match Stdlib.List.head (getChildren state.outline (Stdlib.Option.Option.Some vn.id)) with
+      | Some childId -> { state with cursorId = childId }
+      | None -> state
+
+
+// --- Editing a line ---
+
+let startEditing (state: State) : State =
+  match cursorNode state with
+  | None -> state
+  | Some vn ->
+    { state with
+        editing = Stdlib.Option.Option.Some(Stdlib.Cli.UI.TextField.fromText vn.text) }
+
+/// Write the field's text back to the node.
+///
+/// Escape commits too. Discarding what you typed is a surprise in an outliner, and undo is the honest way
+/// back: the old version threw the text away, and left behind whatever empty node you'd just made.
+let commitEdit (state: State) (text: String) : State =
+  match cursorNode state with
+  | None -> { state with editing = Stdlib.Option.Option.None }
+  | Some vn ->
+    let base_ = if vn.text == text then state else remember state
+    { base_ with
+        outline = setNodeText base_.outline vn.id text
+        editing = Stdlib.Option.Option.None }
+
+/// Enter at the end of a line: commit, then open a fresh sibling to keep typing into. On an empty line it
+/// ends the list instead, which is how you stop.
+let commitAndContinue (state: State) (text: String) : State =
+  let committed = commitEdit state text
+
+  if text == "" then
+    match cursorNode committed with
+    | Some vn ->
+      if vn.hasChildren then committed else deleteSubtree committed vn.id
+    | None -> committed
+  else
+    insertAfter committed
+
+
+// --- Searching ---
+
+let startSearch (state: State) : State =
+  { state with
+      searching = Stdlib.Option.Option.Some(Stdlib.Cli.UI.TextField.fromText state.filter) }
+
+let applyFilter (state: State) (needle: String) : State =
+  let hits = matching state.outline needle
+  let revealed = revealAll state.outline hits
+
+  let landed =
+    { state with outline = revealed; filter = needle; searching = Stdlib.Option.Option.None }
+
+  match Stdlib.List.head hits with
+  | Some _ -> cursorToIndex landed 0
+  | None -> landed
+
+let clearFilter (state: State) : State =
+  { state with filter = ""; searching = Stdlib.Option.Option.None }
+
+
+// --- Keys ---
+
+/// Keys that work while you're typing in a line, because the text field passed on them.
+let onKeyWhileEditing
+  (state: State)
+  (field: Stdlib.Cli.UI.TextField.State)
+  (kp: Stdlib.Cli.UI.Widget.KeyPress)
+  : Stdlib.Cli.UI.Widget.Outcome<State, Msg> =
+  let committed = commitEdit state field.text
+
+  match kp.key with
+  // Indent and outdent without leaving the line: the field ignores Tab, so it arrives here.
+  | Tab ->
+    let moved = if kp.modifiers.shift then outdent committed else indent committed
+    Stdlib.Cli.UI.Widget.Outcome.Emitted(
+      { moved with editing = Stdlib.Option.Option.Some field },
+      Msg.Dirty)
+  | UpArrow ->
+    Stdlib.Cli.UI.Widget.Outcome.Emitted(startEditing (moveUp committed), Msg.Dirty)
+  | DownArrow ->
+    Stdlib.Cli.UI.Widget.Outcome.Emitted(startEditing (moveDown committed), Msg.Dirty)
+  | _ -> Stdlib.Cli.UI.Widget.Outcome.Ignored
+
+let onKeyEditing
+  (state: State)
+  (field: Stdlib.Cli.UI.TextField.State)
+  (kp: Stdlib.Cli.UI.Widget.KeyPress)
+  : Stdlib.Cli.UI.Widget.Outcome<State, Msg> =
+  match Stdlib.Cli.UI.TextField.onKey field kp with
+  | Handled next ->
+    Stdlib.Cli.UI.Widget.Outcome.Handled
+      { state with editing = Stdlib.Option.Option.Some next }
+  | Emitted(next, msg) ->
+    match msg with
+    | Submitted text ->
+      Stdlib.Cli.UI.Widget.Outcome.Emitted(commitAndContinue state text, Msg.Dirty)
+    | Cancelled ->
+      Stdlib.Cli.UI.Widget.Outcome.Emitted(commitEdit state next.text, Msg.Dirty)
+  | Ignored -> onKeyWhileEditing state field kp
+
+let onKeySearching
+  (state: State)
+  (field: Stdlib.Cli.UI.TextField.State)
+  (kp: Stdlib.Cli.UI.Widget.KeyPress)
+  : Stdlib.Cli.UI.Widget.Outcome<State, Msg> =
+  match Stdlib.Cli.UI.TextField.onKey field kp with
+  | Handled next ->
+    Stdlib.Cli.UI.Widget.Outcome.Handled
+      { state with searching = Stdlib.Option.Option.Some next }
+  | Emitted(next, msg) ->
+    match msg with
+    | Submitted text ->
+      let filtered = applyFilter state text
+      let hits = Stdlib.List.length (visible filtered)
+
+      let note =
+        if text == "" then "filter cleared"
+        else if hits == 0 then $"no matches for \"{text}\""
+        else $"{Stdlib.Int.toString hits} lines match \"{text}\""
+
+      Stdlib.Cli.UI.Widget.Outcome.Emitted(filtered, Msg.Note note)
+    | Cancelled ->
+      Stdlib.Cli.UI.Widget.Outcome.Handled
+        { state with searching = Stdlib.Option.Option.None }
+  | Ignored -> Stdlib.Cli.UI.Widget.Outcome.Ignored
+
+/// Backspace/Delete: an empty leaf goes quietly, anything else asks first.
+let requestDelete (state: State) : Stdlib.Cli.UI.Widget.Outcome<State, Msg> =
+  match cursorNode state with
+  | None -> Stdlib.Cli.UI.Widget.Outcome.Ignored
+  | Some vn ->
+    if vn.text == "" && (Stdlib.Bool.not vn.hasChildren) then
+      Stdlib.Cli.UI.Widget.Outcome.Emitted(deleteSubtree state vn.id, Msg.Dirty)
+    else
+      // Counted here rather than carried on the row: a line that isn't folded doesn't have the number,
+      // and this is the one moment anything needs it.
+      Stdlib.Cli.UI.Widget.Outcome.Emitted(
+        state,
+        Msg.DeleteRequested(vn.id, subtreeSize state.outline vn.id))
+
+let onKeyNavigating
+  (state: State)
+  (kp: Stdlib.Cli.UI.Widget.KeyPress)
+  : Stdlib.Cli.UI.Widget.Outcome<State, Msg> =
+  match kp.key with
+  | Escape ->
+    if state.filter == "" then
+      Stdlib.Cli.UI.Widget.Outcome.Emitted(state, Msg.Back)
+    else
+      Stdlib.Cli.UI.Widget.Outcome.Emitted(clearFilter state, Msg.Note "filter cleared")
+  | UpArrow ->
+    if kp.modifiers.ctrl then
+      Stdlib.Cli.UI.Widget.Outcome.Emitted(moveWithin state -1, Msg.Dirty)
+    else
+      Stdlib.Cli.UI.Widget.Outcome.Handled(moveUp state)
+  | DownArrow ->
+    if kp.modifiers.ctrl then
+      Stdlib.Cli.UI.Widget.Outcome.Emitted(moveWithin state 1, Msg.Dirty)
+    else
+      Stdlib.Cli.UI.Widget.Outcome.Handled(moveDown state)
+  | LeftArrow -> Stdlib.Cli.UI.Widget.Outcome.Emitted(collapseOrParent state, Msg.Dirty)
+  | RightArrow -> Stdlib.Cli.UI.Widget.Outcome.Emitted(expandOrChild state, Msg.Dirty)
+  | Home -> Stdlib.Cli.UI.Widget.Outcome.Handled(moveToStart state)
+  | End -> Stdlib.Cli.UI.Widget.Outcome.Handled(moveToEnd state)
+  | PageUp -> Stdlib.Cli.UI.Widget.Outcome.Handled(moveBy state -10)
+  | PageDown -> Stdlib.Cli.UI.Widget.Outcome.Handled(moveBy state 10)
+  | Enter -> Stdlib.Cli.UI.Widget.Outcome.Handled(startEditing state)
+  | Tab ->
+    let moved = if kp.modifiers.shift then outdent state else indent state
+    Stdlib.Cli.UI.Widget.Outcome.Emitted(moved, Msg.Dirty)
+  | Spacebar -> Stdlib.Cli.UI.Widget.Outcome.Emitted(toggleCollapse state, Msg.Dirty)
+  | Backspace -> requestDelete state
+  | Delete -> requestDelete state
+  | _ ->
+    if Stdlib.Cli.UI.Widget.isChar kp "o" then
+      Stdlib.Cli.UI.Widget.Outcome.Emitted(insertAfter state, Msg.Dirty)
+    else if Stdlib.Cli.UI.Widget.isChar kp "O" then
+      Stdlib.Cli.UI.Widget.Outcome.Emitted(insertChild state, Msg.Dirty)
+    else if Stdlib.Cli.UI.Widget.isChar kp "x" then
+      Stdlib.Cli.UI.Widget.Outcome.Emitted(cycleTodo state, Msg.Dirty)
+    else if Stdlib.Cli.UI.Widget.isChar kp "d" then
+      requestDelete state
+    else if Stdlib.Cli.UI.Widget.isChar kp "/" then
+      Stdlib.Cli.UI.Widget.Outcome.Handled(startSearch state)
+    else if Stdlib.Cli.UI.Widget.isChar kp "u" then
+      let (next, note) = undo state
+      Stdlib.Cli.UI.Widget.Outcome.Emitted(next, Msg.Note note)
+    else if Stdlib.Cli.UI.Widget.isChar kp "r" then
+      let (next, note) = redo state
+      Stdlib.Cli.UI.Widget.Outcome.Emitted(next, Msg.Note note)
+    else
+      Stdlib.Cli.UI.Widget.Outcome.Ignored
+
+let onKey
+  (state: State)
+  (kp: Stdlib.Cli.UI.Widget.KeyPress)
+  : Stdlib.Cli.UI.Widget.Outcome<State, Msg> =
+  match state.searching with
+  | Some field -> onKeySearching state field kp
+  | None ->
+    match state.editing with
+    | Some field -> onKeyEditing state field kp
+    | None -> onKeyNavigating state kp
+
+
+// --- Rendering ---
+
+/// The bullet, or the checkbox for a line that's a task.
+let marker (vn: VisibleNode) : String =
+  match vn.mark with
+  | Todo -> "[ ]"
+  | Done -> "[x]"
+  | Plain ->
+    if vn.isCollapsed && vn.hasChildren then ">"
+    else if vn.hasChildren then "-"
+    else "*"
+
+/// The gutter is what says "the cursor is here" without relying on colour.
+let gutterFor (isCursor: Bool) : String =
+  if isCursor then "> " else "  "
+
+/// Everything left of the text: gutter, indent, marker, and the space after it.
+let prefixFor (vn: VisibleNode) (isCursor: Bool) : String =
+  let indent = Stdlib.String.repeat "  " vn.depth
+  $"{gutterFor isCursor}{indent}{marker vn} "
+
+/// The count of what a fold is hiding, as it appears at the end of the line.
+let hiddenSuffix (vn: VisibleNode) : String =
+  if vn.hiddenCount > 0 then
+    $" ({Stdlib.Int.toString vn.hiddenCount} hidden)"
+  else
+    ""
+
+/// Colour the prefix (the marker only) for a row that isn't the cursor's.
+let colouredPrefix (vn: VisibleNode) : String =
+  let indent = Stdlib.String.repeat "  " vn.depth
+
+  let bullet =
+    match vn.mark with
+    | Done -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green (marker vn)
+    | Todo -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow (marker vn)
+    | Plain ->
+      if vn.isCollapsed && vn.hasChildren then
+        Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow (marker vn)
+      else
+        Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.dim (marker vn)
+
+  $"  {indent}{bullet} "
+
+/// Every screen row one line of the outline occupies: its own, plus continuations when the text is wider
+/// than the pane.
+///
+/// Long lines used to run off the right edge and stop existing. Wrapping is done on the plain text and the
+/// colour applied after, because a selected row has to be coloured in one piece: an inner colour code ends
+/// with a reset, which would cancel the highlight for everything after it.
+let rowsForNode (state: State) (vn: VisibleNode) (cols: Int) : List<String> =
+  let isCursor = vn.id == state.cursorId
+  let prefix = prefixFor vn isCursor
+  let prefixWidth = Stdlib.String.length prefix
+  // One column is left for the scrollbar, which sits in the last one.
+  let room = Stdlib.Int.max 8 (cols - prefixWidth - 1)
+
+  match state.editing with
+  | Some field ->
+    if isCursor then
+      // The line being typed doesn't wrap: the field scrolls sideways instead, which is what keeps the
+      // caret on screen and in one place.
+      [ prefix ++ (Stdlib.Cli.UI.TextField.renderInline field room) ]
+    else
+      [ (colouredPrefix vn) ++ vn.text ]
+  | None ->
+    let full = vn.text ++ (hiddenSuffix vn)
+    let chunks = Stdlib.Cli.Tui.Text.wrap full room
+    let continuation = Stdlib.String.repeat " " prefixWidth
+
+    if isCursor then
+      chunks
+      |> Stdlib.List.indexedMap (fun i chunk ->
+        let line = if i == 0 then prefix ++ chunk else continuation ++ chunk
+        Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.selection line)
+    else
+      let body =
+        match vn.mark with
+        | Done -> Stdlib.Cli.UI.Colors.dimText
+        | _ -> Stdlib.Cli.UI.Colors.plain
+
+      chunks
+      |> Stdlib.List.indexedMap (fun i chunk ->
+        if i == 0 then (colouredPrefix vn) ++ (body chunk) else continuation ++ (body chunk))
+
+/// Screen rows for the whole visible outline, each tagged with the line it belongs to.
+let displayRows (state: State) (cols: Int) : List<(Int * String)> =
+  visible state
+  |> Stdlib.List.map (fun vn ->
+    rowsForNode state vn cols |> Stdlib.List.map (fun row -> (vn.id, row)))
+  |> Stdlib.List.flatten
+
+/// Slide the window as little as possible to keep `row` on screen.
+let scrollFor (state: State) (height: Int) (total: Int) (row: Int) : Int =
+  let rows = Stdlib.Int.max 1 height
+  let last = Stdlib.Int.max 0 (total - rows)
+
+  let wanted =
+    if row < state.scroll then row
+    else if row >= (state.scroll + rows) then row - rows + 1
+    else state.scroll
+
+  Stdlib.Int.max 0 (Stdlib.Int.min last wanted)
+
+let emptyMessage (state: State) : String =
+  if state.filter == "" then
+    "  empty - press o to add a line"
+  else
+    $"  nothing matches \"{state.filter}\" - Esc to clear"
+
+let view
+  (state: State)
+  (region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let rows = displayRows state region.cols
+
+  if Stdlib.List.isEmpty rows then
+    Stdlib.Cli.UI.Layout.at region 0 0 (Stdlib.Cli.UI.Colors.dimText (emptyMessage state))
+  else
+    let total = Stdlib.List.length rows
+
+    let cursorRow =
+      rows
+      |> Stdlib.List.findFirstIndex (fun pair ->
+        let (nodeId, _row) = pair
+        nodeId == state.cursorId)
+      |> Stdlib.Option.withDefault 0
+
+    let offset = scrollFor state region.rows total cursorRow
+
+    let lines =
+      rows
+      |> Stdlib.List.indexedMap (fun i pair -> (i, pair))
+      |> Stdlib.List.drop offset
+      |> Stdlib.List.take region.rows
+      |> Stdlib.List.map (fun entry ->
+        let (i, pair) = entry
+        let (_nodeId, row) = pair
+        Stdlib.Cli.UI.Layout.at region (i - offset) 0 row)
+      |> Stdlib.List.flatten
+
+    let thumb =
+      if total > region.rows then
+        let position =
+          Stdlib.Int.divide (cursorRow * (region.rows - 1)) (Stdlib.Int.max 1 (total - 1))
+
+        Stdlib.Cli.UI.Layout.at
+          region
+          position
+          (region.cols - 1)
+          (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "|")
+      else
+        []
+
+    Stdlib.List.flatten [ lines; thumb ]
+

@@ -1,0 +1,36 @@
+/// ListView — a scrollable, selectable list of pre-formatted display lines. Owns the genuinely reusable part:
+/// a bottom-anchored viewport that keeps the selected row visible even in long lists, plus a scrollbar thumb on
+/// the right edge when the list overflows. The caller styles its own rows (selection highlight, icons, cursor)
+/// and passes them in — so any view (the package tree, Changes, History, Docs …) mounts the same list body.
+module Darklang.Stdlib.Cli.UI.ListView
+
+let render (region: Layout.Region) (displayLines: List<String>) (selected: Int) : List<Layout.Span> =
+  let total = Stdlib.List.length displayLines
+  if total == 0 then
+    []
+  else
+    // Bottom-anchored viewport: once the selection passes the last visible row, scroll so it stays on screen.
+    let visible = region.rows
+    let scrollOffset = Stdlib.Int.max 0 (selected - visible + 1)
+    let rows =
+      displayLines
+      |> Stdlib.List.indexedMap (fun i l -> (i, l))
+      |> Stdlib.List.drop scrollOffset
+      |> Stdlib.List.take visible
+      |> Stdlib.List.map (fun pair ->
+        let (i, l) = pair
+        Layout.at region (i - scrollOffset) 0 l)
+      |> Stdlib.List.flatten
+
+    // Scrollbar thumb, only when the list is taller than the pane. It used to be printed directly, because
+    // the old length-based truncation would eat a coloured glyph sitting in the last column; clipping counts
+    // columns now, so it can go through the same path as everything else.
+    let thumb =
+      if total > region.rows then
+        let thumbRow =
+          Stdlib.Int.divide (selected * (region.rows - 1)) (Stdlib.Int.max 1 (total - 1))
+        Layout.at region thumbRow (region.cols - 1) (Colors.colorize Colors.cyan "▐")
+      else
+        []
+
+    Stdlib.List.flatten [ rows; thumb ]

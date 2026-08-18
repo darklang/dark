@@ -4,7 +4,7 @@ let content () : String =
   """# Terminal UI
 
 Every full-screen thing in the CLI - the workbench, nav, the editor, the outliner - and the inline
-prompt and completion picker all render through one layer, `Darklang.Cli.Tui`. This is how it works
+prompt and completion picker all render through one layer, `Darklang.Stdlib.Cli.Tui`. This is how it works
 and, more usefully, why it doesn't flicker.
 
 ## The model
@@ -12,7 +12,7 @@ and, more usefully, why it doesn't flicker.
 Three layers, and the separation is the whole point:
 
 1. A view is a value.
-   `Tui.View = { rows: List<String>; cursor: Cursor; mode: ViewMode }`. Rows are plain text plus SGR
+   `Stdlib.Cli.Tui.View = { rows: List<String>; cursor: Cursor; mode: ViewMode }`. Rows are plain text plus SGR
    styling only: no cursor movement, no clearing, no mode changes. Zero-based coordinates throughout.
 
 2. A frame is a diff.
@@ -23,7 +23,7 @@ Three layers, and the separation is the whole point:
    `TerminalSession` holds `{ status; previousView; terminalSize }`, decides full-repaint vs diff,
    writes exactly once, and knows how to restore the terminal.
 
-  packages/darklang/cli/tui/
+  packages/darklang/stdlib/cli/tui/
     core.dark             View, Size, Cursor, ViewMode  (types only)
     text.dark             widths, clipping, wrapping, SGR sanitizing
     layout.dark           blankRows / fitRows / viewport
@@ -31,6 +31,43 @@ Three layers, and the separation is the whole point:
     inlineFrame.dark      inline diffing, cursor-relative addressing
     terminalSession.dark  lifecycle, alt-screen, restore guards
     terminalSupport.dark  "can we even run a TUI here"
+
+## What sits on top
+
+`Tui` is the bottom. Above it, `Stdlib.Cli.UI` is how a screen is built out of parts, and there are exactly
+two shapes to know:
+
+1. A widget owns a piece of the screen.
+   A convention, not a framework: a module with a `State` and two functions over it,
+   `view: 's -> Region -> List<Span>` and `onKey: 's -> KeyPress -> Outcome`. A parent keeps the child's
+   state in a field and calls those by name. `view` returns spans rather than printing, which is what lets
+   a parent place a child anywhere and still have the frame diff down to the rows that changed. `onKey` can
+   answer `Ignored`, so a child gets first refusal on every key and the parent handles what's left - that's
+   how the outliner's Tab indents a line while its text field has the keyboard. A child talks upward by
+   emitting a message, never by having its state read.
+
+2. A component is a widget with a lifetime.
+   `Cli.Component = { view: 's -> Size -> View; onKey -> Step; save; refresh }`, and `Component.launch`
+   owns the session: starting the terminal, presenting on every transition, tearing down, and re-taking the
+   surface after another page borrowed it. Nothing should hand-write that again.
+
+  packages/darklang/stdlib/cli/ui/
+    widget.dark           the shared vocabulary: KeyPress, Outcome
+    layout.dark           Region / Span / SizeRequest, vstack, hstack
+    canvas.dark           spans -> rows (the bridge back down to a View)
+    box.dark              a bordered, titled pane
+    splitpane.dark        two of those, side by side
+    listview.dark         a scrolling list body with a scrollbar
+    picker.dark           a list you choose from, emits an index
+    textfield.dark        one line of text, with a cursor and a scrolling window
+    editor.dark           a multiline buffer (pure edit/motion ops)
+    confirm.dark          a yes/no over the current screen
+    chrome.dark           the title / help / message frame around an app
+    colors.dark           the palette, and the one-shot colourisers
+
+The rule that keeps this honest: a widget is pure and knows nothing about a terminal. If you find yourself
+printing inside one, you've broken the diffing, because the renderer may call `view` again to compare
+frames.
 
 `ViewMode` is the fork that matters:
 
@@ -80,7 +117,7 @@ The per-row sequence is worth reading carefully, because the ordering is load-be
 
 ## Measuring text
 
-`Tui.Text.displayWidth` counts terminal columns; `styledWidth` does the same while ignoring SGR
+`Stdlib.Cli.Tui.Text.displayWidth` counts terminal columns; `styledWidth` does the same while ignoring SGR
 sequences. Use them for anything positional.
 
 `Stdlib.String.length` is not the tool for column math. It counts extended grapheme clusters, which
@@ -94,7 +131,7 @@ across the screen": `界` is one grapheme occupying two columns, and so is a ZWJ
 2. View functions are pure. If you need the world, read it during the state transition and stash the
    result on the state. The renderer may call your view function and diff it.
 3. One write per frame. Don't interleave `printLine` with a live session.
-4. Measure with `Tui.Text.displayWidth` for plain text, `styledWidth` once SGR is in the row - never
+4. Measure with `Stdlib.Cli.Tui.Text.displayWidth` for plain text, `styledWidth` once SGR is in the row - never
    `Stdlib.String.length`. Passing a row containing control sequences to `displayWidth` is not valid.
 5. Release the inline region before printing to scrollback. `releasePromptRegion` /
    `stopInlineWithView` shrink the region to what should persist and hand the terminal back;

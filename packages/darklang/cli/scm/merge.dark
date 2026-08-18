@@ -8,16 +8,16 @@ let execute (state: AppState) (args: List<String>) : AppState =
   if dryRun then
     match SCM.Merge.canMerge state.currentBranchId with
     | Ok _ ->
-      Stdlib.printLine (Colors.success "Branch is ready to merge.")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.success "Branch is ready to merge.")
       state
     | Error err ->
       let msg = SCM.Merge.mergeErrorToString err
-      Stdlib.printLine (Colors.error $"Cannot merge: {msg}")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Cannot merge: {msg}")
       state
   else
     match SCM.Merge.merge state.currentBranchId with
     | Ok _ ->
-      Stdlib.printLine (Colors.success "Branch merged successfully.")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.success "Branch merged successfully.")
       // Switch to parent branch
       match SCM.Branch.get state.currentBranchId with
       | Some b ->
@@ -36,7 +36,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         { state with currentBranchId = mainId }
     | Error err ->
       let msg = SCM.Merge.mergeErrorToString err
-      Stdlib.printLine (Colors.error $"Merge failed: {msg}")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Merge failed: {msg}")
       state
 
 

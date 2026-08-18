@@ -8,7 +8,7 @@ module Darklang.Cli.Devices
 let showStatus () : Unit =
   match Darklang.Tailscale.status () with
   | Ok out -> Stdlib.printLine out
-  | Error e -> Stdlib.printLine (Colors.error $"devices: status failed: {e}")
+  | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"devices: status failed: {e}")
 
 let execute (state: AppState) (args: List<String>) : AppState =
   match args with
@@ -16,7 +16,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     // interactive landing — what's on the tailnet + what you can do
     showStatus ()
     Stdlib.printLine ""
-    Stdlib.printLine (Colors.hint "actions:  devices serve <port>    devices ping <peer>")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "actions:  devices serve <port>    devices ping <peer>")
     state
 
   | [ "status" ] ->
@@ -29,15 +29,15 @@ let execute (state: AppState) (args: List<String>) : AppState =
       match Darklang.Tailscale.serve port with
       | Ok() ->
         Stdlib.printLine
-          (Colors.success $"serving local :{portStr} over the tailnet (TLS on 443)")
-      | Error e -> Stdlib.printLine (Colors.error $"devices: serve failed: {e}")
-    | Error _ -> Stdlib.printLine (Colors.error "Usage: devices serve <port>")
+          (Stdlib.Cli.UI.Colors.success $"serving local :{portStr} over the tailnet (TLS on 443)")
+      | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"devices: serve failed: {e}")
+    | Error _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: devices serve <port>")
     state
 
   | [ "ping"; peer ] ->
     match Darklang.Tailscale.ping peer with
     | Ok out -> Stdlib.printLine out
-    | Error e -> Stdlib.printLine (Colors.error $"devices: ping failed: {e}")
+    | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"devices: ping failed: {e}")
     state
 
   | _ ->

@@ -19,37 +19,37 @@ let viewName (i: Int) : String =
 /// Devices, are opt-in and hidden). `active` is the active view index, rendered bright with a ◆ marker, the
 /// rest dim. When `conflictCount` > 0, the SCM tab carries a red count badge so an attention state is visible
 /// from any view.
-let renderTabBar (region: UI.Layout.Region) (visible: List<(Int * String)>) (active: Int) (conflictCount: Int) : List<UI.Layout.Span> =
+let renderTabBar (region: Stdlib.Cli.UI.Layout.Region) (visible: List<(Int * String)>) (active: Int) (conflictCount: Int) : List<Stdlib.Cli.UI.Layout.Span> =
   let segs =
     visible
     |> Stdlib.List.map (fun pair ->
       let (i, name) = pair
       // SCM is index 4 - badge it when there's a conflict to resolve (conflicts live in SCM now).
       let label =
-        if i == 4 && conflictCount > 0 then name ++ (Colors.colorize Colors.pink (" ⚠" ++ Stdlib.Int.toString conflictCount))
+        if i == 4 && conflictCount > 0 then name ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink (" ⚠" ++ Stdlib.Int.toString conflictCount))
         else name
       if i == active then
-        Colors.colorize (Colors.bold ++ Colors.cyan) ("◆ " ++ label)
+        Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold ++ Stdlib.Cli.UI.Colors.cyan) ("◆ " ++ label)
       else if i == 4 && conflictCount > 0 then
         // Keep the badge visible even when the tab isn't active (name dim, badge already colored).
-        (Colors.colorize Colors.dim name) ++ (Colors.colorize Colors.pink (" ⚠" ++ Stdlib.Int.toString conflictCount))
+        (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.dim name) ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink (" ⚠" ++ Stdlib.Int.toString conflictCount))
       else
-        Colors.colorize Colors.dim name)
-  UI.Layout.at region 0 0 ("  " ++ (Stdlib.String.join segs "   "))
+        Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.dim name)
+  Stdlib.Cli.UI.Layout.at region 0 0 ("  " ++ (Stdlib.String.join segs "   "))
 
 /// Render the breadcrumb row: the current package path on the left, and a pre-built right segment (branch +
 /// sync status) right-aligned. `rightColored` is the ANSI-colored text; `rightVisibleLen` is its visible width
 /// (so placement math isn't thrown off by the color codes).
 let renderBreadcrumb
-  (region: UI.Layout.Region)
+  (region: Stdlib.Cli.UI.Layout.Region)
   (path: String)
   (rightColored: String)
   (rightVisibleLen: Int)
-  : List<UI.Layout.Span> =
+  : List<Stdlib.Cli.UI.Layout.Span> =
   let rightCol = Stdlib.Int.max 0 (region.cols - rightVisibleLen - 2)
   Stdlib.List.flatten
-    [ UI.Layout.at region 0 0 ("  " ++ (Colors.boldText path))
-      UI.Layout.at region 0 rightCol rightColored ]
+    [ Stdlib.Cli.UI.Layout.at region 0 0 ("  " ++ (Stdlib.Cli.UI.Colors.boldText path))
+      Stdlib.Cli.UI.Layout.at region 0 rightCol rightColored ]
 
 /// Format a list of (key, label) hints into a footer string: the key bright (cyan), the label dim, pairs
 /// separated by three dim spaces (kept plain so a footer full of hints doesn't clip on a narrow terminal).
@@ -58,10 +58,10 @@ let formatHints (pairs: List<(String * String)>) : String =
   pairs
   |> Stdlib.List.map (fun pair ->
     let (k, l) = pair
-    (Colors.colorize Colors.cyan k) ++ " " ++ (Colors.dimText l))
-  |> Stdlib.String.join (Colors.dimText "   ")
+    (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan k) ++ " " ++ (Stdlib.Cli.UI.Colors.dimText l))
+  |> Stdlib.String.join (Stdlib.Cli.UI.Colors.dimText "   ")
 
 /// Render a one-row, pre-colored key-hint bar at the bottom of the body. The string is already styled
 /// (see `formatHints`), so this just indents + places it.
-let renderKeyHints (region: UI.Layout.Region) (hints: String) : List<UI.Layout.Span> =
-  UI.Layout.at region 0 0 ("  " ++ hints)
+let renderKeyHints (region: Stdlib.Cli.UI.Layout.Region) (hints: String) : List<Stdlib.Cli.UI.Layout.Span> =
+  Stdlib.Cli.UI.Layout.at region 0 0 ("  " ++ hints)

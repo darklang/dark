@@ -43,12 +43,12 @@ let changeLines (changes: List<Darklang.Sync.EventLog.Change>) : List<String> =
 // few, grouped counts for many. `changeLines` already deduped and chose the form.
 let printPull (who: String) (changes: List<Darklang.Sync.EventLog.Change>) : Unit =
   match changeLines changes with
-  | [ one ] -> Stdlib.printLine (Colors.success $"Pulled from {who}: {one}")
+  | [ one ] -> Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Pulled from {who}: {one}")
   | many ->
-    Stdlib.printLine (Colors.success $"Pulled from {who}:")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Pulled from {who}:")
 
     many
-    |> Stdlib.List.iter (fun l -> Stdlib.printLine (Colors.success $"  {l}"))
+    |> Stdlib.List.iter (fun l -> Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"  {l}"))
 
 // After a pull, mention any name where an incoming change overwrote a different local one — so last-writer-wins
 // is never SILENT, without crying "conflict". Most of the time this is just a peer that was ahead of you (a
@@ -63,7 +63,7 @@ let conflictNudge () : Unit =
 
   if unreviewed > 0 then
     Stdlib.printLine (
-      Colors.dimText
+      Stdlib.Cli.UI.Colors.dimText
         $"  {Text.plural unreviewed "name"} updated by a peer (last-writer-wins) — `dark conflicts` to review")
   else
     ()
@@ -75,10 +75,10 @@ let serveOn (port: Int) (state: AppState) : AppState =
   let portStr = Stdlib.Int.toString port
 
   let announce () : Unit =
-    [ Colors.success $"Serving sync on http://localhost:{portStr} — peers can pull from you here."
-      Colors.hint $"  Remote peers use your tailnet address, e.g. http://you.tailnet:{portStr}"
-      Colors.hint "  Each peer's request prints here as it arrives."
-      Colors.hint "  Keep it running (serve on boot):  dark sync daemon start"
+    [ Stdlib.Cli.UI.Colors.success $"Serving sync on http://localhost:{portStr} — peers can pull from you here."
+      Stdlib.Cli.UI.Colors.hint $"  Remote peers use your tailnet address, e.g. http://you.tailnet:{portStr}"
+      Stdlib.Cli.UI.Colors.hint "  Each peer's request prints here as it arrives."
+      Stdlib.Cli.UI.Colors.hint "  Keep it running (serve on boot):  dark sync daemon start"
       "  Press Ctrl+C to stop." ]
     |> Stdlib.printLines
 
@@ -89,7 +89,7 @@ let serveOn (port: Int) (state: AppState) : AppState =
       announce
   with
   | Ok _ -> ()
-  | Error msg -> Stdlib.printLine (Colors.error msg)
+  | Error msg -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
 
   state
 
@@ -142,14 +142,14 @@ let firstRunDialog () : Unit =
   Stdlib.printLine "Setting up automatic sync. Defaults:"
 
   Stdlib.printLine (
-    Colors.hint
+    Stdlib.Cli.UI.Colors.hint
       $"  - pull from peers + serve to them, every {Stdlib.Int.toString (intervalSec ())}s")
 
   Stdlib.printLine (
-    Colors.hint
+    Stdlib.Cli.UI.Colors.hint
       $"  - serve on port {Stdlib.Int.toString (servePort ())} — all branches, open to anyone who can reach you")
 
-  Stdlib.printLine (Colors.hint "  - start automatically on boot")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "  - start automatically on boot")
 
   let _ =
     if Stdlib.Cli.UI.Prompt.confirm "Adjust these settings?" then
@@ -199,7 +199,7 @@ let daemonStart (state: AppState) : AppState =
       firstRunDialog ()
     else
       Stdlib.printLine (
-        Colors.success $"Automatic sync started — {settingsLine ()}.")
+        Stdlib.Cli.UI.Colors.success $"Automatic sync started — {settingsLine ()}.")
 
   let started =
     Stdlib.List.fold (daemonSlugs (daemonMode ())) state (fun s slug ->
@@ -210,7 +210,7 @@ let daemonStart (state: AppState) : AppState =
   // case where you most need one: it's the mode where nothing is printed at you.
   let _ =
     daemonSlugs (daemonMode ())
-    |> Stdlib.List.map (fun slug -> Colors.hint $"  Watch it:  dark apps logs {slug}")
+    |> Stdlib.List.map (fun slug -> Stdlib.Cli.UI.Colors.hint $"  Watch it:  dark apps logs {slug}")
     |> Stdlib.printLines
 
   started
@@ -219,11 +219,11 @@ let daemonStop (state: AppState) : AppState =
   let _ =
     Stdlib.List.map [ "sync-pull"; "sync-serve" ] (fun slug ->
       match Stdlib.Cli.Daemon.stop slug with
-      | Ok _ -> Stdlib.printLine (Colors.success $"Stopped {slug}.")
+      | Ok _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Stopped {slug}.")
       | Error _ -> ())
 
   Stdlib.printLine (
-    Colors.hint
+    Stdlib.Cli.UI.Colors.hint
       "Automatic sync off. One-off: dark sync (pull), or dark sync serve (be reachable).")
 
   state
@@ -232,7 +232,7 @@ let daemonStatusCmd (state: AppState) : AppState =
   Stdlib.printLine "Automatic sync:"
   Stdlib.printLine $"  {Stdlib.Cli.Daemon.statusLine "sync-pull"}"
   Stdlib.printLine $"  {Stdlib.Cli.Daemon.statusLine "sync-serve"}"
-  Stdlib.printLine (Colors.hint $"  {settingsLine ()}    (change: dark sync daemon config)")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"  {settingsLine ()}    (change: dark sync daemon config)")
   state
 
 let daemonConfigShow (state: AppState) : AppState =
@@ -243,7 +243,7 @@ let daemonConfigShow (state: AppState) : AppState =
   Stdlib.printLine $"  on-boot   {if onBoot () then "yes" else "no"}"
 
   Stdlib.printLine (
-    Colors.hint
+    Stdlib.Cli.UI.Colors.hint
       "  change: dark sync daemon config <mode|interval|port|on-boot> <value>")
 
   state
@@ -307,11 +307,11 @@ let daemonConfigSet
       let _ = Darklang.Cli.Config.writeConfig updated
 
       Stdlib.printLine (
-        Colors.success
+        Stdlib.Cli.UI.Colors.success
           $"Set {key} = {value}. Apply: dark sync daemon stop, then dark sync daemon start.")
     | None ->
       Stdlib.printLine (
-        Colors.error
+        Stdlib.Cli.UI.Colors.error
           $"Can't set '{key}' to '{value}'. Keys: mode | interval (seconds) | port | on-boot (yes/no).")
 
   state
@@ -353,7 +353,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine "You're not syncing with anyone yet."
 
       Stdlib.printLine (
-        Colors.hint "  dark sync connect <url>   sync with one of your instances")
+        Stdlib.Cli.UI.Colors.hint "  dark sync connect <url>   sync with one of your instances")
 
       state
     | ps ->
@@ -385,7 +385,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
       let _ =
         errors
-        |> Stdlib.List.map (fun e -> Colors.error e)
+        |> Stdlib.List.map (fun e -> Stdlib.Cli.UI.Colors.error e)
         |> Stdlib.printLines
 
       if Stdlib.List.length allChanges > 0 then
@@ -394,11 +394,11 @@ let execute (state: AppState) (args: List<String>) : AppState =
         // Ops applied, but nothing a human would call a change — branch structure, or content whose
         // name-binding came in an earlier batch. Say that honestly rather than invent a count.
         Stdlib.printLine (
-          Colors.success
+          Stdlib.Cli.UI.Colors.success
             $"Synced with {reachedPhrase reached (Stdlib.List.length ps)} — no new names")
       else if reached > 0 then
         Stdlib.printLine (
-          Colors.success
+          Stdlib.Cli.UI.Colors.success
             $"Already up to date with {reachedPhrase reached (Stdlib.List.length ps)}")
       else
         ()
@@ -412,7 +412,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine "You're not syncing with anyone yet."
 
       Stdlib.printLine (
-        Colors.hint "  dark sync connect <url>   sync with one of your instances")
+        Stdlib.Cli.UI.Colors.hint "  dark sync connect <url>   sync with one of your instances")
 
       state
     | sts ->
@@ -444,7 +444,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           // Name leads (you sync with `feriel`, not a URL); the URL trails, dimmed, for when you need it.
           // Cursor is the PEER's rowid — meaningless to show; what's honest is whether we've pulled it yet.
           let mark = if cursor == 0L then "not pulled yet" else "pulled"
-          $"  {padded}   {Colors.dim}{peer}{Colors.reset}   ({mark})")
+          $"  {padded}   {Stdlib.Cli.UI.Colors.dim}{peer}{Stdlib.Cli.UI.Colors.reset}   ({mark})")
 
       // Every branch syncs wholesale — the same branches exist on every instance you connect.
       let branchNames =
@@ -454,7 +454,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         match branchNames with
         | [] -> []
         | names ->
-          [ Colors.hint
+          [ Stdlib.Cli.UI.Colors.hint
               $"  {Text.plural (Stdlib.List.length names) "branch"} syncing: {Stdlib.String.join names ", "}" ]
 
       Stdlib.printLines (
@@ -470,15 +470,15 @@ let execute (state: AppState) (args: List<String>) : AppState =
       match Darklang.Sync.reachable peer with
       | Ok n ->
         Stdlib.printLine (
-          Colors.success $"Now syncing with {peer} — reachable ({Stdlib.Int64.toString n} ops)")
+          Stdlib.Cli.UI.Colors.success $"Now syncing with {peer} — reachable ({Stdlib.Int64.toString n} ops)")
         Stdlib.printLine (
-          Colors.hint "  dark sync — sync now.  dark sync daemon start — keep current on boot.")
+          Stdlib.Cli.UI.Colors.hint "  dark sync — sync now.  dark sync daemon start — keep current on boot.")
       | Error _ ->
-        Stdlib.printLine (Colors.success $"Added {peer}")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Added {peer}")
         Stdlib.printLine (
-          Colors.hint
+          Stdlib.Cli.UI.Colors.hint
             "  can't reach it yet — check the URL and that the instance is running `dark sync serve`; it'll sync once it's up")
-    | Error e -> Stdlib.printLine (Colors.error e)
+    | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
 
     state
 
@@ -489,7 +489,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     match Darklang.Sync.resolvePeer peerRef with
     | None ->
       Stdlib.printLine (
-        Colors.error
+        Stdlib.Cli.UI.Colors.error
           $"Not syncing with an instance named '{peerRef}'. Use its URL, or `dark sync status` to see the names you have.")
 
       state
@@ -501,10 +501,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
           if Stdlib.List.length result.changes > 0 then
             printPull who result.changes
           else if result.applied > 0 then
-            Stdlib.printLine (Colors.success $"Synced with {who} — no new names")
+            Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Synced with {who} — no new names")
           else
-            Stdlib.printLine (Colors.success $"Already up to date with {who}")
-        | Error e -> Stdlib.printLine (Colors.error e)
+            Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Already up to date with {who}")
+        | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error e)
 
       let _ = conflictNudge ()
       state
@@ -517,9 +517,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
       | None -> peerRef
 
     if Darklang.Sync.disconnect peer then
-      Stdlib.printLine (Colors.success $"Stopped syncing with {Darklang.Sync.instanceName peer}")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Stopped syncing with {Darklang.Sync.instanceName peer}")
     else
-      Stdlib.printLine (Colors.hint $"You weren't syncing with {peerRef}")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"You weren't syncing with {peerRef}")
 
     state
 
@@ -535,14 +535,14 @@ let execute (state: AppState) (args: List<String>) : AppState =
     match Stdlib.Int.parse portStr with
     | Ok p -> serveOn p state
     | Error _ ->
-      Stdlib.printLine (Colors.error $"Invalid --port: {portStr}")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Invalid --port: {portStr}")
       state
 
   | [ "help" ] ->
     Stdlib.printLine (help state)
     state
   | _ ->
-    Stdlib.printLine (Colors.error $"Unknown: dark sync {Stdlib.String.join args " "}")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Unknown: dark sync {Stdlib.String.join args " "}")
     Stdlib.printLine ""
     Stdlib.printLine (help state)
     state
