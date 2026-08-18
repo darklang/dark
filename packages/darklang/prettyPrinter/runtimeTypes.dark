@@ -60,14 +60,14 @@ let resolvePackageHashWithOriginalName
 
 module FQTypeName =
   let package
-        (branchId: Uuid)
+        (branchId: String)
         (hash: LanguageTools.RuntimeTypes.FQTypeName.Package)
     : String =
     resolvePackageHash LanguageTools.PackageManager.PickContext.empty (Builtin.pmGetLocationsByType branchId hash) hash
 
 // TODO rename to fqtypeName?
 let typeName
-    (branchId: Uuid)
+    (branchId: String)
     (t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
   : String =
   match t with
@@ -87,14 +87,14 @@ module FQValueName =
     $"{namePart}{versionPart}"
 
   let package
-        (branchId: Uuid)
+        (branchId: String)
         (hash: LanguageTools.RuntimeTypes.FQValueName.Package)
     : String =
     resolvePackageHash LanguageTools.PackageManager.PickContext.empty (Builtin.pmGetLocationsByValue branchId hash) hash
 
 // TODO rename to fqvalueName?
 let valueName
-    (branchId: Uuid)
+    (branchId: String)
     (t: LanguageTools.RuntimeTypes.FQValueName.FQValueName)
   : String =
   match t with
@@ -115,7 +115,7 @@ module FQFnName =
     $"Builtin.{namePart}{versionPart}"
 
   let package
-        (branchId: Uuid)
+        (branchId: String)
         (hash: LanguageTools.RuntimeTypes.FQFnName.Package)
     : String =
     resolvePackageHash LanguageTools.PackageManager.PickContext.empty (Builtin.pmGetLocationsByFn branchId hash) hash
@@ -123,7 +123,7 @@ module FQFnName =
 
 // TODO rename to fqfnName?
 let fnName
-    (branchId: Uuid)
+    (branchId: String)
     (t: LanguageTools.RuntimeTypes.FQFnName.FQFnName)
   : String =
   match t with
@@ -133,7 +133,7 @@ let fnName
 
 
 let typeReference
-    (branchId: Uuid)
+    (branchId: String)
     (t: LanguageTools.RuntimeTypes.TypeReference)
   : String =
   match t with
@@ -213,7 +213,7 @@ let typeReference
 
 
 let knownType
-    (branchId: Uuid)
+    (branchId: String)
     (t: LanguageTools.RuntimeTypes.KnownType)
   : String =
   match t with
@@ -273,7 +273,7 @@ let knownType
 
 
 let valueType
-    (branchId: Uuid)
+    (branchId: String)
     (vt: LanguageTools.RuntimeTypes.ValueType)
   : String =
   match vt with
@@ -296,7 +296,7 @@ let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
 
 module Dval =
   let valueTypeName
-        (branchId: Uuid)
+        (branchId: String)
         (dv: LanguageTools.RuntimeTypes.Dval)
     : String =
     // TODO: When a builtin for Dval.toValueType is available, use:
@@ -363,7 +363,7 @@ module Dval =
     | Error _ -> ""
 
   let withIndent
-    (branchId: Uuid)
+    (branchId: String)
     (indent: Int)
     (dv: LanguageTools.RuntimeTypes.Dval)
     : String =
@@ -545,7 +545,7 @@ module Dval =
 
 
 let dval
-    (branchId: Uuid)
+    (branchId: String)
     (dv: LanguageTools.RuntimeTypes.Dval)
   : String =
   Dval.withIndent branchId 0 dv

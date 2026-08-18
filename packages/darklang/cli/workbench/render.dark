@@ -27,7 +27,7 @@ let renderScrollableLines
     let (i, p) = pair
     let row = i - off
     let disp = Stdlib.List.getAt display i |> Stdlib.Option.withDefault p
-    UI.Layout.at region row colOffset (Tui.Text.clipToWidth disp maxFit))
+    UI.Layout.at region row colOffset (Tui.Text.clipMarked disp maxFit))
   |> Stdlib.List.flatten
 
 let renderPreview (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
@@ -61,27 +61,42 @@ let plural (n: Int) (noun: String) : String =
 /// tell which of them do anything, so the bottom panel names each one, says what it's for, and marks the ones
 /// still running on sample data. It replaced a list of commands you had to already know to look for.
 let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
-  let wip = wipItemCount state.branchId
-  let commits = SCM.PackageOps.getCommitCount state.branchId
+  // Five separate DB reads once lived here, and the renderer runs on every keypress. They're one cached
+  // read now (`state.scmStatus`), which is also what the tree's badges and the SCM view use, so the
+  // dashboard and the thing it's summarising can no longer disagree.
+  let scm = state.scmStatus
+  let wip = scm.changed
+  let commits = scm.commits
   let rootItems = loadItems state.branchId (Packages.PackageLocation.Module [])
-  let branch =
-    match SCM.Branch.get state.branchId with
-    | Some b -> b.name
-    | None -> "main"
-  let conflictCount = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
-  let lastCommit =
-    match Stdlib.List.head (SCM.PackageOps.getCommitsWithAncestors state.branchId 1) with
-    | Some c -> c.message
-    | None -> "no commits yet"
+  let branch = scm.branchName
+  let conflictCount = Stdlib.List.length scm.conflicts
+  let lastCommit = if scm.lastCommit == "" then "no commits yet" else scm.lastCommit
   let owner = if state.accountName == "" then "there" else state.accountName
+
+  // A machine that has synced nothing, committed nothing and changed nothing has just been installed. It
+  // gets a different landing screen: the normal one is a dashboard OF your work, and with no work it is a
+  // wall of zeroes and ten tabs, which reads as "you are behind" rather than "welcome".
+  let isFresh = (commits == 0) && (wip == 0) && (SCM.PackageOps.relay () == "")
 
   let renderHeader (r: UI.Layout.Region) : List<UI.Layout.Span> =
     // The third row is the escape hatch, and it's on the landing screen deliberately. Every classic command
     // still runs from the `:` bar and `:commands` gives you the old prompt outright, but neither is guessable
     // from an empty full-screen UI - and this replaced the panel that used to say so.
     Stdlib.List.flatten
-      [ UI.Layout.at r 0 2 (Colors.boldText ($"Welcome back, {owner}"))
-        UI.Layout.at r 1 2 (Colors.dimText ($"on {branch}  ·  a workbench over Dark Matter"))
+      [ UI.Layout.at
+          r
+          0
+          2
+          (Colors.boldText (if isFresh then "Welcome to Darklang" else $"Welcome back, {owner}"))
+        UI.Layout.at
+          r
+          1
+          2
+          (Colors.dimText (
+            if isFresh then
+              "a workbench over Dark Matter  ·  the packages here are yours to read and edit"
+            else
+              $"on {branch}  ·  a workbench over Dark Matter"))
         // Short enough to survive an 80-column terminal; `?` carries the detail that `quit` comes back.
         UI.Layout.at
           r
@@ -96,9 +111,16 @@ let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
     let wipLine =
       if wip == 0 then Colors.colorize Colors.green "✓ working tree clean"
       else Colors.colorize Colors.pink (plural wip "uncommitted change")
+    // "in sync" is a claim about a relay, so it can only be made when there IS one. With none configured
+    // this used to report the conflict count as sync health, and a machine that had never synced in its
+    // life said "✓ in sync" -- true about conflicts, and the opposite of the truth about sync.
     let syncLine =
-      if conflictCount == 0 then Colors.dimText "✓ in sync"
-      else Colors.colorize Colors.pink ("⚠ " ++ (plural conflictCount "divergence") ++ "  ·  5 › Conflicts")
+      if conflictCount > 0 then
+        Colors.colorize Colors.pink ("⚠ " ++ (plural conflictCount "divergence") ++ "  ·  5 › Conflicts")
+      else if SCM.PackageOps.relay () == "" then
+        Colors.dimText "not syncing  ·  `:connect <url>` to set it up"
+      else
+        Colors.dimText "✓ in sync"
     Stdlib.List.flatten
       [ UI.Layout.at inner 0 1 wipLine
         UI.Layout.at inner 1 1 (Colors.dimText (plural commits "commit" ++ " on this branch"))
@@ -109,10 +131,9 @@ let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
     if wip == 0 then
       UI.Layout.at inner 0 1 (Colors.dimText "nothing in progress - the tree is yours to edit")
     else
-      SCM.PackageOps.getWipItems state.branchId
+      scm.wipNames
       |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
-      |> Stdlib.List.indexedMap (fun i d ->
-        let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
+      |> Stdlib.List.indexedMap (fun i name ->
         // Pink ● is the "uncommitted work" marker everywhere (matches the tree WIP badge); keep it consistent.
         UI.Layout.at inner i 1 (Colors.colorize Colors.pink ("● " ++ name)))
       |> Stdlib.List.flatten
@@ -155,11 +176,30 @@ let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
       UI.Layout.at inner row 1 line)
     |> Stdlib.List.flatten
 
+  // On a fresh machine the WIP panel can only say "nothing in progress", which is a whole box spent telling
+  // someone they have done nothing. Spend it on what to do instead, keyed by the actual keystroke.
+  let renderStart (inner: UI.Layout.Region) : List<UI.Layout.Span> =
+    let step (key: String) (what: String) : String =
+      let padded =
+        key ++ (Stdlib.String.repeat " " (Stdlib.Int.max 1 (15 - (Stdlib.String.length key))))
+
+      (Colors.colorize Colors.cyan padded) ++ (Colors.dimText what)
+
+    Stdlib.List.flatten
+      [ UI.Layout.at inner 0 1 (step "3" "evaluate something; `let` binds")
+        UI.Layout.at inner 1 1 (step "2" "browse the packages you already have")
+        UI.Layout.at inner 2 1 (step ":connect <url>" "sync this machine with a relay")
+        UI.Layout.at inner 3 1 (step "?" "the keys, and the plain prompt") ]
+
   let leftCol (r: UI.Layout.Region) : List<UI.Layout.Span> =
     UI.Layout.vstack
       r
       [ UI.Layout.fixedSize 6 (fun rr -> UI.Box.panel rr "Status" false renderStatus)
-        UI.Layout.greedy (fun rr -> UI.Box.panel rr "Pick up where you left off" false renderWip) ]
+        UI.Layout.greedy (fun rr ->
+          if isFresh then
+            UI.Box.panel rr "Start here" false renderStart
+          else
+            UI.Box.panel rr "Pick up where you left off" false renderWip) ]
 
   // Home fills the body region, same as every other view. The right column scales with the width rather than
   // sitting at a fixed 40, so it grows with the terminal instead of staying a sliver beside Status. Status
@@ -171,7 +211,11 @@ let renderHome (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> 
 
   // What each band needs at minimum: the middle is as tall as its taller column (Status (6) over the WIP
   // list, against the owners list), the tabs want a row per tab plus a border.
-  let minMid = Stdlib.Int.max (6 + (Stdlib.Int.max 1 wip) + 2) ((Stdlib.List.length rootItems) + 3)
+  // The lower-left panel is the WIP list normally and the four-step "Start here" when fresh, so ask for
+  // whichever it will actually draw. Sizing it off `wip` alone gave the fresh panel one row and silently
+  // cropped three of its four steps.
+  let lowerLeftRows = if isFresh then 4 else Stdlib.Int.max 1 wip
+  let minMid = Stdlib.Int.max (6 + lowerLeftRows + 2) ((Stdlib.List.length rootItems) + 3)
   let minTabs = (Stdlib.List.length (visibleViews state)) + 1
 
   // Floors first: the bands don't shrink on their own, and on a 24-row terminal the total used to run off the

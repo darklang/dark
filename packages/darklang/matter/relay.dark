@@ -1,0 +1,178 @@
+/// The relay's PROTOCOL surface: the endpoints another instance talks to.
+///
+/// Separate from the website in `Darklang.Matter` because they answer to different readers. These are a
+/// wire contract -- a peer depends on their shapes and status codes -- while the pages beside them are
+/// free to be rewritten whenever they read badly.
+///
+/// A relay stores and hands back ops. It never folds them, so it cannot change what anyone's code means;
+/// the worst a bad relay does is withhold. That is what makes it safe to point machines at.
+module Darklang.Matter.Relay
+
+type HttpResponse = Stdlib.Http.Response
+type HttpRequest = Stdlib.Http.Request
+
+let pingHandlerFn (req: HttpRequest) : HttpResponse =
+  Stdlib.Http.responseWithText "pong" 200
+
+
+/// Hand out ops as portable wire records. `?sinceSeq=<n>` makes it INCREMENTAL, paging by the RELAY's OWN
+/// arrival order and returning the position to resume from in the bundle's `cursor`.
+///
+/// Deliberately not the client's `max(origin_ts)`: a stamp cursor assumes ops arrive in stamp order, and
+/// concurrent editing on two machines then skips exactly the interesting ops, silently and forever.
+let pullHandlerFn (req: HttpRequest) : HttpResponse =
+  let sinceSeq =
+    match Stdlib.Http.Request.queryParam req "sinceSeq" with
+    | Some raw ->
+      (match Stdlib.Int64.parse raw with
+       | Ok n -> n
+       | Error _ -> 0L)
+    | None -> 0L
+
+  let owner =
+    Stdlib.Http.Request.queryParam req "owner" |> Stdlib.Option.withDefault ""
+
+  let result =
+    if owner == "" then
+      SCM.PackageOps.exportAllSince sinceSeq // no owner -> everything the relay holds
+    else
+      SCM.PackageOps.exportOwnedSince owner sinceSeq // just this identity's stuff
+
+  let (ops, cursor) = result
+  Stdlib.Http.responseWithJson (SCM.PackageOps.wireEncodeAt cursor ops) 200
+
+/// Cheap "what do you hold?" summary (op count + cursor) -- no full-log transfer. Powers
+/// `dark sync status <url>`.
+let headHandlerFn (req: HttpRequest) : HttpResponse =
+  Stdlib.Http.responseWithJson (SCM.PackageOps.headEncode (SCM.PackageOps.localHead ())) 200
+
+
+/// May this request write?
+///
+/// FAIL CLOSED: a relay with no `DARK_MATTER_WRITE_SECRET` set refuses every write and says so. A relay is
+/// a thing you stand up and walk away from, so the other default is an open write endpoint nobody
+/// remembers is open.
+///
+/// The secret comes from the ENVIRONMENT, never from the package store. This server publishes its own
+/// store as HTML at `/m` and `/p`, so a secret that lived in a package would be readable by anyone who can
+/// load a page -- including this file, which is itself a package.
+///
+/// Write-AUTHORISATION, not authorship: everyone holding the secret can write as anyone, the accepted
+/// trade for a relay shared between people who have met. See notes/fresh-arch/AUTHORSHIP.md.
+let writeAllowed (req: HttpRequest) : Stdlib.Result.Result<Unit, String> =
+  match Builtin.environmentGet "DARK_MATTER_WRITE_SECRET" with
+  | None ->
+    Stdlib.Result.Result.Error
+      "this relay has no write secret configured, so it accepts no writes. Set DARK_MATTER_WRITE_SECRET where it runs."
+  | Some "" ->
+    Stdlib.Result.Result.Error
+      "this relay has an empty write secret, so it accepts no writes. Set DARK_MATTER_WRITE_SECRET where it runs."
+  | Some expected ->
+    let presented =
+      match Stdlib.Http.Request.header req "authorization" with
+      | Some h -> Stdlib.String.replaceAll h "Bearer " ""
+      | None -> ""
+
+    if presented == expected then
+      Stdlib.Result.Result.Ok()
+    else if presented == "" then
+      Stdlib.Result.Result.Error
+        "push needs the relay's write secret: `dark connect <url> --secret <secret>`"
+    else
+      // A different message from the empty case: "you have not set this up" and "the value is wrong" are
+      // different problems, and only the relay can tell them apart.
+      Stdlib.Result.Result.Error
+        "that write secret isn't the one this relay expects. Check it with whoever runs the relay, then `dark connect <url> --secret <secret>` again."
+
+
+/// Ingest pushed ops into the relay's store (pending; origin_ts preserved). Content-
+/// addressed dedup means a re-push is a no-op.
+let pushHandlerFn (req: HttpRequest) : HttpResponse =
+  match writeAllowed req with
+  | Error why -> Stdlib.Http.responseWithText why 401
+  | Ok _ ->
+
+  let owner =
+    Stdlib.Http.Request.queryParam req "owner" |> Stdlib.Option.withDefault ""
+
+  match SCM.PackageOps.wireDecode req.body with
+  | Ok bundle ->
+    match SCM.PackageOps.storeWithOwner owner bundle.ops with
+    | Ok n ->
+      Stdlib.Http.responseWithText
+        $"stored {Stdlib.Int.toString n} new op(s) for \"{owner}\""
+        200
+    | Error e -> Stdlib.Http.serverError e
+  | Error _ ->
+    Stdlib.Http.badRequest "expected a versioned SyncBundle {formatVersion, darkBuild, ops}"
+
+
+/// A branch is somebody's unmerged work, so READING one takes the same secret as writing.
+///
+/// The package log stays open: `/m` and `/p` already serve it as HTML, so gating `/sync/pull` would
+/// protect nothing. A branch has never been published anywhere, which is the whole point of it.
+let branchAccessAllowed (req: HttpRequest) : Stdlib.Result.Result<Unit, String> =
+  match writeAllowed req with
+  | Ok _ -> Stdlib.Result.Result.Ok()
+  | Error _ ->
+    Stdlib.Result.Result.Error
+      "branches are not public: this needs the relay's secret. `dark connect <url> --secret <secret>`"
+
+
+/// Store a pushed branch BUNDLE (registry + frontier ops) keyed by (owner, branch). `?owner=X&branch=Y`,
+/// body = the export JSON. The relay is a dumb store; it never folds or runs the branch.
+let branchPushHandlerFn (req: HttpRequest) : HttpResponse =
+  match writeAllowed req with
+  | Error why -> Stdlib.Http.responseWithText why 401
+  | Ok _ ->
+
+  let owner =
+    Stdlib.Http.Request.queryParam req "owner" |> Stdlib.Option.withDefault ""
+
+  let branch =
+    Stdlib.Http.Request.queryParam req "branch" |> Stdlib.Option.withDefault ""
+
+  // Validate before claiming anything: storing whatever arrives and always answering 200 means an empty
+  // body with no query params gets a success message and a junk row keyed on "".
+  let body = Stdlib.String.fromBlobWithReplacement req.body
+
+  if owner == "" || branch == "" then
+    Stdlib.Http.responseWithText
+      "branch push needs ?owner= and ?branch="
+      400
+  else if body == "" then
+    Stdlib.Http.responseWithText $"branch push for \"{branch}\" had an empty body" 400
+  // A BRANCH bundle, not a sync bundle: `exportBranch` emits {"branchId":..,"name":..,"ops":[..]}, which
+  // `wireDecode` rightly rejects, so validate the shape THIS endpoint receives instead.
+  else if Stdlib.Bool.not (Stdlib.String.startsWith (Stdlib.String.trim body) "{") then
+    Stdlib.Http.responseWithText "branch push body wasn't JSON" 400
+  else if Stdlib.Bool.not (Stdlib.String.contains body "\"ops\"") then
+    Stdlib.Http.responseWithText "branch push body had no ops" 400
+  else
+    SCM.PackageOps.relayStoreBranch owner branch body
+    Stdlib.Http.responseWithText $"stored branch \"{branch}\" for \"{owner}\"" 200
+
+/// Serve a stored branch bundle (`?owner=X&branch=Y`), or "" if none.
+let branchPullHandlerFn (req: HttpRequest) : HttpResponse =
+  match branchAccessAllowed req with
+  | Error why -> Stdlib.Http.responseWithText why 401
+  | Ok _ ->
+
+  let owner =
+    Stdlib.Http.Request.queryParam req "owner" |> Stdlib.Option.withDefault ""
+
+  let branch =
+    Stdlib.Http.Request.queryParam req "branch" |> Stdlib.Option.withDefault ""
+
+  Stdlib.Http.responseWithText (SCM.PackageOps.relayGetBranch owner branch) 200
+
+/// List the branch ids an owner has pushed (`?owner=X`), newline-joined.
+let branchListHandlerFn (req: HttpRequest) : HttpResponse =
+  match branchAccessAllowed req with
+  | Error why -> Stdlib.Http.responseWithText why 401
+  | Ok _ ->
+
+  let owner =
+    Stdlib.Http.Request.queryParam req "owner" |> Stdlib.Option.withDefault ""
+
+  Stdlib.Http.responseWithText (SCM.PackageOps.relayListBranches owner) 200

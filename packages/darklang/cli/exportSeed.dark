@@ -2,6 +2,10 @@ module Darklang.Cli.ExportSeed
 
 let execute (state: AppState) (args: List<String>): AppState =
   match args with
+  // Every other command treats a bare `help` as "show me the help". This one used to treat it as a path and
+  // write a 32MB seed database to a file called `help`, which is a surprising amount of disk for a typo.
+  | [] | [ "help" ] ->
+    help state
   | [outputPath] ->
     match Builtin.pmSeedExport outputPath with
     | Ok _ ->

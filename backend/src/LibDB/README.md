@@ -5,7 +5,7 @@ SQLite-backed persistence for the package manager, branches, SCM ops, user DBs, 
 Surface (most relevant first):
 
 - `PackageManager.fs` — `pt(branchId)` builds a branch-scoped PM that resolves names against the branch's chain.
-- `Branches.fs` / `Inserts.fs` / `Rebase.fs` / `Merge.fs` — SCM ops (CRUD, conflict detection, rebase, merge into parent).
+- `Branches.fs` / `Inserts.fs` — SCM ops (branch CRUD, conflict detection + resolution, diff, retag/merge into parent). The overlay model folded the old separate `Rebase.fs` / `Merge.fs` in here; both were carved.
 - `Queries.fs` — branch-aware SQL for resolving package items.
 - `Caching.fs` — in-process cache for repeated lookups.
 - `UserDB.fs` — runtime CRUD for user-defined Datastores (`Stdlib.DB.set` / `get` / etc.). Rows are global, keyed by `(table_tlid, key)`.

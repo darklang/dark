@@ -31,7 +31,7 @@ let hardcodedServerCapabilities
     )
 
 let parseAndReportDiagnostics
-  (branchId: Uuid)
+  (branchId: String)
   (requestUri: String)
   (requestText: String)
   : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
@@ -127,7 +127,7 @@ let handleTextDocumentDidOpen
       // defined for clean trees (Expr.toPT has no EError arm, by contract) —
       // so skip lowering unless the parse produced no diagnostics.
       if Stdlib.List.isEmpty (Builtin.parserParseDiagnostics request.textDocument.text) then
-        (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
+        (WrittenTypesToProgramTypes.parsedFileAsSourceFile state.currentBranchId parsedFile)
         |> Stdlib.Tuple3.first
         |> Stdlib.Option.Option.Some
       else
@@ -197,7 +197,7 @@ let handleTextDocumentDidSave
       | Ok parsedFile ->
         // Same guard as didOpen: never lower a tree with parse-error holes.
         if Stdlib.List.isEmpty (Builtin.parserParseDiagnostics text) then
-          (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
+          (WrittenTypesToProgramTypes.parsedFileAsSourceFile state.currentBranchId parsedFile)
           |> Stdlib.Tuple3.first
           |> Stdlib.Option.Option.Some
         else

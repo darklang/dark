@@ -42,7 +42,7 @@ let buildPathFromLocation
 /// Uses indexed type lookup for efficiency
 /// Optionally filters by namespace prefix
 let findByType
-  (branchId: Uuid)
+  (branchId: String)
   (targetNamespace: String)
   (targetTypeHash: LanguageTools.ProgramTypes.Hash)
   : List<FoundValue<'a>> =

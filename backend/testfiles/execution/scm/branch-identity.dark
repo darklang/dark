@@ -1,0 +1,22 @@
+// Main is a branch id like any other, and every dispatch in the SCM layer decides "am I on main?" by
+// comparing against it. When the constant and the value a process actually reports disagree, nothing
+// errors: each `match` simply takes its branch arm on main. `discard` and `collapse` then no-op silently,
+// name lookups route through an empty overlay and still answer correctly, and the suite stays green.
+//
+// That happened. These assertions are the cheap version of catching it.
+
+// The constant IS what a process on main reports.
+Darklang.SCM.PackageOps.currentBranch () = Darklang.SCM.Branch.mainBranchId
+
+// ...and it is not the empty string, which is what it used to be. Spelled out because the whole failure
+// was two spellings of the same idea drifting apart.
+(Darklang.SCM.Branch.mainBranchId == "") = false
+
+// Main is not a row in `branches`: it needs no registration, so `get` finds nothing for it.
+Darklang.SCM.Branch.get Darklang.SCM.Branch.mainBranchId = Stdlib.Option.Option.None
+
+// A branch id that isn't main has no overlay ops on main, and asking about main yields none either.
+Darklang.SCM.PackageOps.visibleParams Darklang.SCM.Branch.mainBranchId = []
+
+// The display name of main is "main" rather than an id or an empty string.
+Darklang.SCM.PackageOps.branchName Darklang.SCM.Branch.mainBranchId = "main"

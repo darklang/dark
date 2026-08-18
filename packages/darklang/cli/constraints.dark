@@ -1,0 +1,421 @@
+module Darklang.Cli.ConstraintsCmd
+
+// `dark constraints` -- standing checks over the store, and what you've decided about them.
+//
+// One kind exists today: a live item still calling a version that is no longer current. A KIND rather than
+// its own command, because the others sketched alongside it want the same detect / record / ack lifecycle,
+// so the next should be a case and not another top-level noun.
+//
+// Checks you RUN rather than warnings at commit: in a distributed store, usages on non-current versions are
+// the normal steady state. Another machine's caller of your fn cannot be propagated to and must not
+// silently repoint when you sync, so reporting it at commit reports a permanent condition every time.
+//
+// TWO AUDIENCES. A person resolves two or three findings and wants to read them; an agent reconciling
+// hundreds wants `--json` in and `--all` out, with no table to parse.
+//
+// Bulk applies to ACKING, not resolving. "Leave it, I've seen it" means the same for every finding, so it
+// takes a list and lives at the root as `dark ack`. A resolution means something different per kind, so
+// `resolve` makes you name it with `--as` once there is more than one to choose from.
+//
+// All SQL is siloed in `SCM.Constraints`; this file writes NO SQL, it only formats.
+
+let printOk (msg: String) : Unit = Stdlib.printLine (Colors.success msg)
+let printErr (msg: String) : Unit = Stdlib.printLine (Colors.error msg)
+let printHint (msg: String) : Unit = Stdlib.printLine (Colors.hint msg)
+
+let shortHash (h: LanguageTools.ProgramTypes.Hash) : String =
+  LanguageTools.ProgramTypes.hashToString h |> Stdlib.String.slice 0 8
+
+let jsonStr (s: String) : String =
+  let escaped =
+    s
+    |> Stdlib.String.replaceAll "\\" "\\\\"
+    |> Stdlib.String.replaceAll "\"" "\\\""
+
+  $"\"{escaped}\""
+
+
+/// One finding, as two lines: who, and what about them.
+///
+/// A kind change reads differently on purpose. "uses X @ abc, current is def" is the right sentence for a
+/// version behind, and the wrong one here: the usage is not behind, it is pointing at a different KIND of
+/// thing that happens to have held the name. Saying which kinds, and that the usage still works, is the
+/// difference between "go fix this" and "know about this".
+let line (f: SCM.Constraints.Finding) : String =
+  let u = SCM.Constraints.fqnOf f.usage
+  let d = SCM.Constraints.fqnOf f.dependency
+
+  match f.kind with
+  | KindChanged ->
+    let was = SCM.Deps.kindString f.dependencyKind
+    $"  #{f.id}  {u}\n         uses {d} as a {was}; that name is something else now (still resolves, by hash)"
+  | StaleUsage ->
+    $"  #{f.id}  {u}\n         uses {d} @ {shortHash f.using}, current is {shortHash f.current}"
+  // Says WHERE before it says what, because "expected String, got Int64" is unactionable until you know
+  // which position it is talking about.
+  | TypeMismatch where expected actual ->
+    let ctx =
+      match where with
+      | Some i -> $"argument {Stdlib.Int64.toString i}"
+      | None -> "its body"
+
+    // Main's context and not the current branch's: the only types this reports are scalars and functions,
+    // never a custom type, so there is no name here that a branch could resolve differently.
+    let pp = PrettyPrinter.ProgramTypes.Context.forBranch "main"
+    let e = PrettyPrinter.ProgramTypes.typeReference pp expected
+    let a = PrettyPrinter.ProgramTypes.typeReference pp actual
+    $"  #{f.id}  {u}\n         {ctx} wants {e}, but is {a} -- this fails when it runs"
+
+
+/// The same data the human view renders, not a subset. If an agent ever has to fall back to parsing the
+/// pretty output for one field, this is incomplete and that's a bug, not a workaround.
+let toJson (f: SCM.Constraints.Finding) : String =
+  let k = jsonStr (SCM.Constraints.kindToString f.kind)
+  let u = jsonStr (SCM.Constraints.fqnOf f.usage)
+  let d = jsonStr (SCM.Constraints.fqnOf f.dependency)
+  let using = jsonStr (LanguageTools.ProgramTypes.hashToString f.using)
+  let cur = jsonStr (LanguageTools.ProgramTypes.hashToString f.current)
+  let uk = jsonStr (SCM.Deps.kindString f.usageKind)
+  let dk = jsonStr (SCM.Deps.kindString f.dependencyKind)
+
+  // A type mismatch has no edge, so it carries its own detail instead of repeating the item as its own
+  // dependency. An agent matching on `kind` gets the fields that mean something for that kind.
+  match f.kind with
+  | TypeMismatch where expected actual ->
+    let site =
+      match where with
+      | Some i -> $"{{\"argument\":{Stdlib.Int64.toString i}}}"
+      | None -> "\"returnValue\""
+
+    let pp = PrettyPrinter.ProgramTypes.Context.forBranch "main"
+    let e = jsonStr (PrettyPrinter.ProgramTypes.typeReference pp expected)
+    let a = jsonStr (PrettyPrinter.ProgramTypes.typeReference pp actual)
+
+    $"{{\"id\":{jsonStr f.id},\"kind\":{k},\"item\":{u},\"itemKind\":{uk},\"at\":{site},\"expected\":{e},\"actual\":{a},\"hash\":{using}}}"
+  | _ ->
+    $"{{\"id\":{jsonStr f.id},\"kind\":{k},\"usage\":{u},\"usageKind\":{uk},\"dependency\":{d},\"dependencyKind\":{dk},\"using\":{using},\"current\":{cur}}}"
+
+
+let selectKind
+  (findings: List<SCM.Constraints.Finding>)
+  (args: List<String>)
+  : List<SCM.Constraints.Finding> =
+  match Stdlib.List.findFirstIndex args (fun a -> a == "--kind") with
+  | Some i ->
+    match Stdlib.List.getAt args (i + 1) with
+    | Some wanted ->
+      findings
+      |> Stdlib.List.filter (fun f ->
+        SCM.Constraints.kindToString f.kind == wanted)
+    | None -> findings
+  | None -> findings
+
+
+let executeJson (state: AppState) (args: List<String>) : AppState =
+  let findings = SCM.Constraints.pending () |> (fun fs -> selectKind fs args)
+  let body = findings |> Stdlib.List.map toJson |> (fun ls -> Stdlib.String.join ls ",")
+  Stdlib.printLine $"{{\"findings\":[{body}]}}"
+  state
+
+
+let executeList (state: AppState) (args: List<String>) : AppState =
+  match SCM.Constraints.pending () |> (fun fs -> selectKind fs args) with
+  | [] ->
+    // Says what was CHECKED, not just that nothing turned up, and covers both kinds. The old wording only
+    // described drifted references, so once type mismatches became a kind it was quietly claiming less than
+    // the command actually looked at. It also has to fit a narrow terminal, which the old one did not.
+    printOk "no constraints: nothing drifted or fails to type-check."
+    state
+  | findings ->
+    printOk (Cli.Status.plural (Stdlib.List.length findings) "constraint")
+    findings |> Stdlib.List.iter (fun f -> Stdlib.printLine (line f))
+    Stdlib.printLine ""
+
+    Stdlib.printLine
+      (Colors.hint
+        "  dark ack <id>... [--why ...]   leave for now (`dark ack --all` for every one)")
+
+    Stdlib.printLine
+      (Colors.hint
+        "  dark constraints resolve <id>... [--as <how>]   fix it now, naming the fix")
+
+    // Only when a pin could actually answer something on screen. A pin says a REFERENCE is deliberate; it
+    // has no opinion about whether an item type-checks, and does not suppress a mismatch. Offering it under
+    // a list of mismatches would be advice that silently does nothing.
+    let pinnable =
+      findings
+      |> Stdlib.List.any (fun f ->
+        match f.kind with
+        | TypeMismatch _ _ _ -> false
+        | _ -> true)
+
+    if pinnable then
+      Stdlib.printLine
+        (Colors.hint
+          "  dark propagate pin <name>          leave it for good; a pin is already a durable ack")
+
+    state
+
+
+/// Findings matching the ids given, or every pending one under `--all`.
+///
+/// Unknown ids are REPORTED and skipped rather than aborting the batch. An agent that has to bisect a failed
+/// batch to find the one bad target is worse off than one that made N calls in the first place.
+let selectTargets
+  (ids: List<String>)
+  : (List<SCM.Constraints.Finding> * List<String>) =
+  let all = SCM.Constraints.detectAll ()
+
+  if Stdlib.List.member ids "--all" then
+    (SCM.Constraints.pending (), [])
+  else
+    // Findings are printed as `#1d8740cd`, so a pasted id arrives with the `#`. Accept what we print.
+    let normalize (i: String) : String =
+      if Stdlib.String.startsWith i "#" then Stdlib.String.dropFirst i 1 else i
+
+    // An EMPTY prefix must not match. `startsWith f.id ""` is true of every finding, so `dark constraints
+    // ack ""` matched the first one and acked it -- a mutation, chosen arbitrarily, from an argument that
+    // says nothing. It's treated as an unknown id now, which reports and skips.
+    let real =
+      ids
+      |> Stdlib.List.filter (fun i -> Stdlib.String.startsWith i "--" |> Stdlib.Bool.not)
+      |> Stdlib.List.map normalize
+
+    let matches (idPrefix: String) : Stdlib.Option.Option<SCM.Constraints.Finding> =
+      if idPrefix == "" then
+        Stdlib.Option.Option.None
+      else
+        all |> Stdlib.List.findFirst (fun f -> Stdlib.String.startsWith f.id idPrefix)
+
+    let found = real |> Stdlib.List.filterMap matches
+
+    let missing =
+      real |> Stdlib.List.filter (fun idPrefix -> matches idPrefix |> Stdlib.Option.isNone)
+
+    (found, missing)
+
+
+/// `--why <text>`, or everything after `--why` when it wasn't quoted.
+let whyFrom (args: List<String>) : String =
+  match Stdlib.List.findFirstIndex args (fun a -> a == "--why") with
+  | Some i ->
+    args |> Stdlib.List.drop (i + 1) |> (fun rest -> Stdlib.String.join rest " ")
+  | None -> ""
+
+
+/// Constraints are a property of the whole STORE, not of a branch: detection runs over main's live bindings
+/// and their dependency edges, which a branch's overlay doesn't change. So there is nothing branch-scoped to
+/// ack, and acking from a branch would record an answer to a question that wasn't asked there.
+///
+/// This is deliberate, not the limitation propagation choices had. Those genuinely differ per branch (a
+/// branch may want a different pin), so they're scoped by `branch_id`. An ack isn't like that -- if the
+/// finding is real it's real everywhere, and one answer is the right number of answers.
+let onBranch () : Bool = SCM.PackageOps.currentBranch () != "main"
+
+
+let executeAck (state: AppState) (args: List<String>) : AppState =
+  if onBranch () then
+    printErr "constraints are a property of the store, not of a branch -- switch to main to ack."
+    printHint "  detection runs over main's bindings, so there's nothing branch-local here to answer."
+    state
+  else
+    let (targets, missing) = selectTargets args
+    let why = whyFrom args
+
+    missing
+    |> Stdlib.List.iter (fun m -> printErr $"no constraint matching \"{m}\" -- skipped.")
+
+    match targets with
+    | [] ->
+      if Stdlib.List.isEmpty missing then
+        printOk "nothing to ack."
+      else
+        ()
+
+      state
+    | _ ->
+      targets
+      |> Stdlib.List.iter (fun f ->
+        match SCM.Constraints.ack state.currentBranchId f why with
+        | Ok _ -> printOk $"acked #{f.id}  {SCM.Constraints.fqnOf f.usage}"
+        | Error e -> printErr $"couldn't ack #{f.id}: {e}")
+
+      // Both of these lines are about REFERENCES, and neither is true of a type mismatch: that one comes
+      // back when the item is edited, not when it moves to another old version, and a pin has no opinion
+      // about it. Say what applies to what was actually acked.
+      let acked (p: SCM.Constraints.Finding -> Bool) : Bool =
+        targets |> Stdlib.List.any p
+
+      let anyReference =
+        acked (fun f ->
+          match f.kind with
+          | TypeMismatch _ _ _ -> false
+          | _ -> true)
+
+      let anyMismatch =
+        acked (fun f ->
+          match f.kind with
+          | TypeMismatch _ _ _ -> true
+          | _ -> false)
+
+      if anyReference then
+        printHint "  an ack comes back if that item later moves to some other old version."
+        printHint "  `dark propagate pin` instead, if it's deliberate for good."
+
+      if anyMismatch then
+        printHint "  a mismatch ack lasts until you edit the item; the next version is checked afresh."
+
+      state
+
+
+/// `--as <choice>`, naming which resolution to apply.
+let chosenResolution (args: List<String>) : String =
+  match Stdlib.List.findFirstIndex args (fun a -> a == "--as") with
+  | Some i -> Stdlib.List.getAt args (i + 1) |> Stdlib.Option.withDefault ""
+  | None -> ""
+
+/// Every resolution a set of targets could take, deduped, in the order the kinds offer them.
+let resolutionsAcross
+  (targets: List<SCM.Constraints.Finding>)
+  : List<String> =
+  targets
+  |> Stdlib.List.map (fun f -> SCM.Constraints.resolutionsFor f.kind)
+  |> Stdlib.List.flatten
+  |> Stdlib.List.dedup
+
+/// Can this batch proceed without being told which resolution to apply?
+///
+/// Only when every target offers exactly one, and it's the same one. Acking in bulk is fine because "leave
+/// it" means one thing everywhere; RESOLVING in bulk is only fine when there is nothing to choose. As soon
+/// as a kind offers two, or a batch spans kinds that resolve differently, the caller has to say what it
+/// means -- otherwise the command picks on its behalf and calls that a resolution.
+let resolutionFor
+  (targets: List<SCM.Constraints.Finding>)
+  (args: List<String>)
+  : Stdlib.Result.Result<String, String> =
+  let choices = resolutionsAcross targets
+
+  match chosenResolution args with
+  | "" ->
+    match choices with
+    | [ only ] -> Stdlib.Result.Result.Ok only
+    | [] -> Stdlib.Result.Result.Error "these findings offer no resolution."
+    | many ->
+      let list = Stdlib.String.join many " | "
+
+      Stdlib.Result.Result.Error
+        $"these findings can be resolved more than one way -- say which with `--as <{list}>`."
+  | asked ->
+    let unsupported =
+      targets
+      |> Stdlib.List.filter (fun f ->
+        (SCM.Constraints.offersResolution f.kind asked) |> Stdlib.Bool.not)
+
+    match unsupported with
+    | [] -> Stdlib.Result.Result.Ok asked
+    | fs ->
+      let ids =
+        fs |> Stdlib.List.map (fun f -> $"#{f.id}") |> (fun l -> Stdlib.String.join l " ")
+
+      Stdlib.Result.Result.Error $"{ids} can't be resolved as \"{asked}\"."
+
+
+/// RESOLVE: apply a named resolution. `repoint` runs the same cascade an ordinary edit runs, so everything
+/// above the item moves too.
+let executeResolve (state: AppState) (args: List<String>) : AppState =
+  let (targets, missing) = selectTargets args
+
+  missing
+  |> Stdlib.List.iter (fun m -> printErr $"no constraint matching \"{m}\" -- skipped.")
+
+  match targets with
+  | [] ->
+    if Stdlib.List.isEmpty missing then
+      printOk "nothing to resolve."
+    else
+      ()
+
+    state
+  | _ ->
+
+  match resolutionFor targets args with
+  | Error e ->
+    printErr e
+    printHint "  `dark constraints ack <id>...` leaves them for now, which needs no choice."
+    state
+  | Ok resolution ->
+    targets
+    |> Stdlib.List.iter (fun f ->
+      // A pinned item would be repointed and then held by the pin on the next change, which reads as the
+      // command not working. Say so instead of doing something that won't stick.
+      if (SCM.Propagation.shouldFollow f.usage) |> Stdlib.Bool.not then
+        printErr
+          $"#{f.id}: {SCM.Constraints.fqnOf f.usage} is pinned -- `dark propagate follow` it first, which also catches it up."
+      else
+        PropagateCmd.cascadeAndForce state f.dependency f.dependencyKind f.using f.current
+        printOk
+          $"resolved #{f.id} as \"{resolution}\"  {SCM.Constraints.fqnOf f.usage}")
+
+    state
+
+
+let help (state: AppState) : AppState =
+  Stdlib.printLine "dark constraints -- standing checks over the store"
+  Stdlib.printLine ""
+  Stdlib.printLine "  Checks you RUN, not warnings at commit. Three kinds today:"
+  Stdlib.printLine ""
+  Stdlib.printLine "    stale-usage    a live item still uses a version that is not"
+  Stdlib.printLine "                   what the name means now. NORMAL in a distributed"
+  Stdlib.printLine "                   store: another machine's caller of your fn cannot"
+  Stdlib.printLine "                   be propagated to, and must not silently repoint"
+  Stdlib.printLine "                   when you sync. Usually you ack it, or pin it."
+  Stdlib.printLine "    kind-changed   the name is a different KIND of thing now, so"
+  Stdlib.printLine "                   the usage cannot be repointed at all."
+  Stdlib.printLine "    type-mismatch  the item cannot run. Found without running it."
+  Stdlib.printLine ""
+  Stdlib.printLine "  dark constraints                     what's outstanding"
+  Stdlib.printLine "  dark constraints --kind <kind>       just one kind"
+  Stdlib.printLine "  dark constraints --json              the same, for agents"
+  Stdlib.printLine "  dark ack <id>... [--why W]           leave for now"
+  Stdlib.printLine "                                       (bulk: `dark ack --all`)"
+  Stdlib.printLine "  dark constraints resolve <id>... [--as C]   apply resolution C"
+  Stdlib.printLine ""
+  Stdlib.printLine "  Ack is bulk: \"leave it, I have seen it\" means the same for every"
+  Stdlib.printLine "  finding. Resolve is not -- it means something different per kind,"
+  Stdlib.printLine "  so it asks you to name one with --as when there is a choice."
+  Stdlib.printLine ""
+  Stdlib.printLine "  `dark propagate pin <name>` is a durable, syncable way to say a"
+  Stdlib.printLine "  REFERENCE is deliberate, and it suppresses a stale-usage finding"
+  Stdlib.printLine "  for good. It has no opinion about a type mismatch and will not"
+  Stdlib.printLine "  hide one: pinning something does not make it run."
+  state
+
+
+/// `dark ack` -- the bulk verb at the root, because acking is the boring high-volume case and burying it
+/// under a noun makes an agent type a subcommand to say "seen it".
+let executeAckCmd (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | []
+  | [ "help" ] ->
+    printErr "which findings? `dark ack <id>...`, or `dark ack --all`."
+    printHint "  `dark constraints` lists them."
+    state
+  | _ -> executeAck state args
+
+let execute (state: AppState) (args: List<String>) : AppState =
+  match args with
+  | [ "help" ] -> help state
+  | "resolve" :: rest -> executeResolve state rest
+  | "ack" :: rest -> executeAck state rest
+  | _ ->
+    if Stdlib.List.member args "--json" then
+      executeJson state args
+    else
+      executeList state args
+
+
+let complete
+  (_state: AppState)
+  (_args: List<String>)
+  : List<Completion.CompletionItem> =
+  []

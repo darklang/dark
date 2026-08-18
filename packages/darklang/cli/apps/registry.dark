@@ -15,20 +15,7 @@ let available () : List<Model.App> =
         slug = "heartbeat"
         description = "Demo daemon: logs a heartbeat every interval until stopped"
         target = Model.Target.Daemon "Darklang.Cli.Apps.Examples.heartbeat" }
-    // Sync is two independent halves, so it's two apps: you can pull without serving (a laptop that
-    // follows a peer), serve without pulling (a box others follow), or run both (the usual setup). The
-    // slugs name each half (pull / serve) rather than one being bare `sync` — which read as the whole
-    // feature and collided with the `dark sync` command.
-    Model.App
-      { name = "Sync (pull)"
-        slug = "sync-pull"
-        description = "Pull half: fetch your peers' changes on an interval"
-        target = Model.Target.Daemon "Darklang.Sync.daemon" }
-    Model.App
-      { name = "Sync (serve)"
-        slug = "sync-serve"
-        description = "Serve half: answer peers' pulls with your changes"
-        target = Model.Target.Daemon "Darklang.Cli.Apps.Servers.syncServer" }
+    // (sync apps removed: the F# sync stack was ripped; sync gets rebuilt in Dark on the op substrate.)
     Model.App
       { name = "Outliner"
         slug = "outliner"
@@ -58,7 +45,7 @@ let available () : List<Model.App> =
 
 /// Any `App` value declared anywhere, discovered by type — so a user's own app shows up in
 /// `list-available` without editing this file.
-let discover (branchId: Uuid) : List<Model.App> =
+let discover (branchId: String) : List<Model.App> =
   match Packages.FindValues.resolveTypeHash branchId "Darklang.Cli.Apps.Model.App" with
   | Ok typeHash ->
     let found =
@@ -67,7 +54,7 @@ let discover (branchId: Uuid) : List<Model.App> =
   | Error _ -> []
 
 /// The full catalog: the curated `available` set plus any discovered apps not already in it (by slug).
-let catalog (branchId: Uuid) : List<Model.App> =
+let catalog (branchId: String) : List<Model.App> =
   let seedSlugs = (available ()) |> Stdlib.List.map (fun a -> a.slug)
   let extra =
     (discover branchId)
@@ -77,7 +64,7 @@ let catalog (branchId: Uuid) : List<Model.App> =
 
 /// Look up an app by slug across the full catalog (curated + discovered), so apps a user
 /// declares in their own packages are addable/runnable, not just the hardcoded seed.
-let findBySlug (branchId: Uuid) (slug: String) : Stdlib.Option.Option<Model.App> =
+let findBySlug (branchId: String) (slug: String) : Stdlib.Option.Option<Model.App> =
   Stdlib.List.findFirst (catalog branchId) (fun a -> a.slug == slug)
 
 
@@ -111,6 +98,6 @@ let removeInstalled (slug: String) : Unit =
 
 /// The apps this instance has installed — the `catalog` filtered to the curated slugs, so an
 /// installed discovered app still resolves. Empty by default.
-let installed (branchId: Uuid) : List<Model.App> =
+let installed (branchId: String) : List<Model.App> =
   let slugs = installedSlugs ()
   (catalog branchId) |> Stdlib.List.filter (fun a -> Stdlib.List.member slugs a.slug)

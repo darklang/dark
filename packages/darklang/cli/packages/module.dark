@@ -70,7 +70,7 @@ let duplicateDeclarationNames
 
 
 let updatedItem
-  (branchId: Uuid)
+  (branchId: String)
   (location: LanguageTools.ProgramTypes.PackageLocation)
   (hash: LanguageTools.ProgramTypes.Hash)
   (kind: LanguageTools.ProgramTypes.ItemKind)
@@ -87,7 +87,7 @@ let updatedItem
 /// Hash stabilization has already replaced the location placeholders in these
 /// SetName ops, so the hashes are safe to pass to propagation after insertion.
 let updatedItems
-  (branchId: Uuid)
+  (branchId: String)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : List<UpdatedItem> =
   ops

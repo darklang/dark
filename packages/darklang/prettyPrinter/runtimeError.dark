@@ -62,7 +62,7 @@ module RuntimeError =
   type ErrorSegments = List<ErrorSegment>
 
 
-  let segmentsToString (branchId: Uuid) (segments: ErrorSegments) : String =
+  let segmentsToString (branchId: String) (segments: ErrorSegments) : String =
     let reversed = Stdlib.List.reverse segments
 
     let parts =
@@ -529,7 +529,7 @@ module RuntimeError =
 
 
   let toString
-    (branchId: Uuid)
+    (branchId: String)
     (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
     : String =
     let s = e |> toSegments
@@ -539,7 +539,7 @@ module RuntimeError =
   type ErrorMessage = ErrorString of String
 
   let toErrorMessage
-        (branchId: Uuid)
+        (branchId: String)
         (e: LanguageTools.RuntimeTypes.RuntimeError.Error)
     : ErrorMessage =
     ErrorMessage.ErrorString(toString branchId e)

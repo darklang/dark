@@ -402,7 +402,7 @@ let testReplCapturesRealValues (): TestResult =
   // The end of the round-trip that matters: a value goes out as source you could paste back in. Enums are
   // in here because they're what a REPL actually produces, and they only render as names because
   // `dvalToExpr` resolves the type's package location.
-  let branch = Stdlib.Uuid.toString Darklang.SCM.Branch.mainBranchId
+  let branch = Darklang.SCM.Branch.mainBranchId
   let cases =
     [ (Darklang.Cli.Repl.captureValue branch 42, "ok:42")
       (Darklang.Cli.Repl.captureValue branch [ 1L; 2L ], "ok:[1L; 2L]")

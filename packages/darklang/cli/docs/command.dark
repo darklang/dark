@@ -150,8 +150,27 @@ module Topics =
 
       DocTopic
         { name = "scm"
-          description = "Version control for packages"
-          aliases = [ "git"; "vcs"; "commits" ]
+          description = "Source control: edits, propagation, branches, merge, conflicts, sync"
+          // Every noun someone would reach for lands here, because the model is one thing and splitting it
+          // into six topics would mean six places to learn a quarter of it.
+          aliases =
+            [ "git"
+              "vcs"
+              "commits"
+              "commit"
+              "propagate"
+              "propagation"
+              "branch"
+              "branches"
+              "merge"
+              "rebase"
+              "conflicts"
+              "sync"
+              "constraints"
+              "draft"
+              // NOT "ops" -- `operators` already claims that alias, and `findTopic` resolves in list
+              // order, so adding it here would be a silent no-op rather than an ambiguity anyone notices.
+              "undo" ]
           context = "cli"
           content = Docs.SCM.content
           subtopics = [] }

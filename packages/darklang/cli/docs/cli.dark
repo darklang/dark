@@ -3,44 +3,68 @@ module Darklang.Cli.Docs.CLI
 let content () : String =
   """# CLI Commands
 
-## Global Flags
-  --branch <name>   # run command on a specific branch (default: main)
-                    # required for non-interactive use on non-main branches
+`help` lists everything, grouped. This is the same set with a sentence of
+context each; `docs scm` is the one to read for how source control WORKS,
+because that model is not git's.
 
-## Creating Code (main workflow)
-  fn <name>       # create function - USE THIS TO WRITE CODE
-  type <name>     # create type
-  val <name>      # create value (let)
+## Global flags
+  --branch <id>     run ONE command on a branch, without switching to it
+  --safe            ignore the stored entry point, run the shipped CLI
+  --json            on any command that answers a question
 
 ## Running/Testing
   eval <expr>     # evaluate an expression — also how you run a fn: eval MyMod.myFn 1 2
   run <file>      # run a .dark script file (alias: run-script)
 
-## Navigation
-  nav <path>      # go to module (cd)
-  ls              # list contents
-  back            # previous location
-  tree            # show hierarchy
+Branch context DOES persist: `dark switch <name>` moves you and the next `dark`
+starts there. `--branch` is for a one-off.
 
-## Viewing
-  view <name>     # inspect fn/type/value
-  builtins        # list builtins
-  search <term>   # find anything
-  deps <name>     # show dependencies
+## Writing code
+  fn <name> "<body>"      create or update a function
+  type <name> "<body>"    create or update a type
+  val <name> "<expr>"     create or update a value (`let` is an alias)
+  deprecate / delete      take something off the shelf (see: docs deprecation)
 
-## Version Control (SCM)
-  status          # current branch + uncommitted changes
-  commit <msg>    # commit on current branch
-  log             # history for current branch
-  show <hash>     # commit details
-  discard         # undo uncommitted changes
+Your edits are LIVE as soon as you write them. There is no build step.
+
+## Running
+  eval <expr>       evaluate an expression -- this is how you call a function
+  run-script <f>    run a .dark script file (`run` is an alias)
+  scripts           store and re-run named scripts
+  traces            what ran, and what it returned
+
+## Looking around
+  nav <path>        go to a module (`cd`)
+  ls / back / tree  list / go back / show the hierarchy
+  view <name>       inspect a fn, type or value
+  search <term>     find anything
+  deps <name>       what it uses and what uses it (`--json`, `--deep`)
+  builtins          the F# builtins
+  find-values       every value of a given type
+
+## Your changes
+  status            what changed, what FOLLOWED your change, what's waiting
+  commit "<msg>"    review your draft and commit it (`-y` skips the prompt)
+  commits           the commits, newest first
+  show <id>         what a commit committed, or what one op does
+  discard           drop the whole draft
+  undo <name>       step ONE item back a version
+  propagate         choose what follows what when a dependency changes
+  conflicts         review what a merge, rebase or sync auto-resolved
+  constraints       standing checks over the store
+  ack <id>...       leave a constraint finding for now (`ack --all`)
+  ops               read this branch's op log
 
 ## Branches
-  branch          # list branches (* = current)
-  branch create   # create + switch
-  branch switch   # switch to branch
-  rebase          # update from parent
-  merge           # merge into parent
+  branch            which branch am I on
+  branch <id>       switch to it, creating it if it's new
+  branches          list them
+  switch <id>       same as `branch <id>`; `switch main` returns
+  diff <id>         what it changes vs its parent
+  log [<id>]        its ops (on main: the commits)
+  rebase <id>       take the parent's current state
+  merge <id>        fold it into its parent
+  resolve <id> <name> mine|theirs
   (see: docs scm)
 
 ## Server
@@ -56,17 +80,25 @@ let content () : String =
   config          # get/set/list CLI config (config set <key> <value>)
 
 ## Sync + apps + AI
-  sync            # share package changes with other instances
+  connect <url>   # remember a relay and push (once per machine)
+  sync            # push then pull -- what you run day to day
+  push / pull     # one direction
+  whoami          # this instance's sync identity (`identity <name>` renames it)
+  review          # stage someone else's ops instead of applying them
   conflicts       # review + resolve sync divergences
   devices         # your tailnet devices (status/serve/ping)
   apps            # list, install, manage apps (daemons, foreground, UI)
   agent <verb>    # AI workflows: ask/code/review/fix/diff (alias: ai)
   traces          # list + view execution traces
 
-## Other
-  help [cmd]      # help
-  docs [topic]    # documentation
-  clear / quit
+## Serving
+  serve <port> <router>   run an HTTP server backed by a Darklang router
+  apps                    install and run apps
+
+## Everything else
+  help [cmd] / docs [topic] / clear / quit
+  caps              what this instance is allowed to do
+  config            per-install settings
 
 ## Troubleshooting
 If something hangs or behaves unexpectedly, check the logs:

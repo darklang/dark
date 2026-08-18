@@ -1,5 +1,40 @@
 module Darklang.Cli.Prompt
 
+/// Is stdin a terminal? Both confirmation helpers need it, and a builtin gets exactly one wrapper.
+let interactive () : Bool = Builtin.stdinIsInteractive ()
+
+/// Ask a yes/no question, unless told not to. THE one place the CLI reads a confirmation.
+///
+/// `-y` skips it. Non-interactive stdin (a piped script, CI, an agent) also skips and proceeds: hanging on a
+/// read nobody will answer is worse than either answer, and every caller here is asking about something the
+/// user already typed a command to do. Matches the `rm -i` shape.
+let confirm (autoConfirm: Bool) (question: String) : Bool =
+  if autoConfirm then
+    true
+  else if Stdlib.Bool.not (interactive ()) then
+    true
+  else
+    Stdlib.print question
+    let response = Stdlib.String.trim (Builtin.stdinReadLine ())
+    (response == "") || (response == "y") || (response == "Y")
+
+/// Ask a yes/no question that only an explicit yes answers.
+///
+/// The difference from `confirm` is the default. `confirm` proceeds on an empty answer and on
+/// non-interactive stdin, which suits a command whose whole job is the thing being confirmed. This one
+/// suits commands that THROW WORK AWAY: there, defaulting to yes turns a stray Return, or a pipe, into a
+/// loss. Non-interactive callers have to say so with a flag.
+let confirmExplicit (autoConfirm: Bool) (question: String) : Bool =
+  if autoConfirm then
+    true
+  else if Stdlib.Bool.not (interactive ()) then
+    false
+  else
+    Stdlib.print question
+    let response = Stdlib.String.trim (Builtin.stdinReadLine ())
+    (response == "y") || (response == "Y")
+
+
 /// State for prompt-specific fields (text, cursor, history)
 type State =
   { text: String

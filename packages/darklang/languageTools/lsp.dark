@@ -24,3 +24,41 @@ type Range = { start: Position; end_: Position }
 type Location = { uri: DocumentUri; range: Range }
 
 // -- done with base types --
+
+type ScriptParseError =
+  | FailedToParse of msg: String * range: Stdlib.Option.Option<Range>
+  | Other of msg: String
+
+// <Diagnostics>
+
+/// "Warning" | "Error"
+type DiagnosticSeverity = String
+
+type Diagnostic =
+  { severity: DiagnosticSeverity
+    range: Range
+    message: String }
+
+type ComputeDiagnosticsOutput = { diagnostics: List<Diagnostic> }
+
+/// Syntax diagnostics for one document, as the LSP wants them.
+///
+/// `Builtin.parserParseDiagnostics` returns (range, message) pairs and an empty list on a clean parse,
+/// which is exactly this shape. `docSync` already reports diagnostics this way, so the two agree about
+/// what an error looks like instead of each having its own idea.
+let getDiagnostics (uri: String) (text: String) : String =
+  let diagnostics =
+    Builtin.parserParseDiagnostics text
+    |> Stdlib.List.map (fun pair ->
+      let (range, message) = pair
+
+      Diagnostic
+        { severity = "Error"
+          range = range
+          message = $"Can't parse -- {message}" })
+
+  (ComputeDiagnosticsOutput { diagnostics = diagnostics })
+  |> Stdlib.Json.serialize<ComputeDiagnosticsOutput>
+
+
+// </Diagnostics>

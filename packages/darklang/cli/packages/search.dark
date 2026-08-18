@@ -147,7 +147,7 @@ let fullPathOf (item: LanguageTools.ProgramTypes.LocatedItem<'a>) : String =
 // as `Option.Option` for a Stdlib hit, and a package hit's types collapse to its
 // own root rather than being forced through the Stdlib namespace.
 let contextFor
-  (branchId: Uuid)
+  (branchId: String)
   (item: LanguageTools.ProgramTypes.LocatedItem<'a>)
   : PrettyPrinter.ProgramTypes.Context =
   let modulePath = Stdlib.List.append [item.location.owner] item.location.modules

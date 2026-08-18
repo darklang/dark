@@ -144,7 +144,20 @@ let private runSchemaBootstrap () : unit =
       $"schema.sql changed (hash {have[0..7]} → {want[0..7]}); preserving {ops} op(s), \
         rebuilding projections."
     dropProjectionTables ()
-    Sql.query sql |> Sql.executeStatementSync
+    // A canonical-table SHAPE change (a new column on package_ops, say) lands here as a raw SQLite error
+    // like "no such column", because CREATE TABLE IF NOT EXISTS won't alter the existing table. Say what
+    // that means and what to do about it, rather than surfacing the bare error: the op log is the source of
+    // truth and it's still intact, so this is recoverable -- but only if you export before resetting.
+    try
+      Sql.query sql |> Sql.executeStatementSync
+    with e ->
+      print
+        "schema.sql changed the SHAPE of a canonical table, which this bootstrap can't apply in place."
+      print
+        $"  Your {ops} op(s) are intact. Export them (`dark sync export <file>`), delete rundir/data.db,"
+      print
+        "  then start again and import. (A data-preserving migrator is SPEC section 10, not built.)"
+      reraise ()
     markOpsUnapplied ()
     writeHash want
   | None ->
@@ -237,7 +250,8 @@ let private runIncrementalMigrations () : unit =
 
 let run () : unit =
   runSchemaBootstrap ()
-  // Then reconcile the store's Release (op-format/hash version) with this binary's: stamp a fresh store,
-  // migrate an older one forward, refuse a newer one. Registry + logic live in `LibDB.Releases`.
-  LibDB.Releases.applyPending LibDB.Releases.currentRelease
+  // Release steps come after the bootstrap and before the incremental files. After, because they need the
+  // tables to exist and a fresh store to have been given the current shape already; before, because an
+  // incremental data migration may depend on a column a release step adds.
+  LibDB.Releases.runPending ()
   runIncrementalMigrations ()

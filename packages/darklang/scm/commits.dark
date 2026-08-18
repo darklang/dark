@@ -1,0 +1,108 @@
+module Darklang.SCM.Commits
+
+//  the CHECKPOINT record + its silo
+//
+// Authoring is live-on-write: an op takes effect the moment it folds, committed or not, so a commit is not a
+// gate. It is the one human moment -- review what changed, let propagation run over the FINAL versions,
+// surface conflicts, commit the dep-closed set -- and afterwards the answer to "what have I changed since I
+// last looked".
+//
+// Membership is `package_ops.commit_hash` (NULL = draft). This module OWNS the `commits` table; the
+// `package_ops` side of it (the draft query, the stamping) belongs to `SCM.PackageOps`.
+
+let localDb () : String = Builtin.localDbPath ()
+
+type Commit =
+  { hash: String
+    message: String
+    author: String
+    originTs: String
+    createdAt: String }
+
+/// The next portable stamp: MAX(origin_ts) + 1s over the log, not wall-clock. Authoring stamps from a
+/// monotonic counter that can run ahead of the clock, so `now` isn't reliably "after" the ops being
+/// committed -- and this way it needs no clock capability.
+let nextStamp () : String =
+  match
+    Stdlib.Sqlite.queryOneP
+      (localDb ())
+      "SELECT COALESCE(strftime('%Y-%m-%dT%H:%M:%fZ', MAX(origin_ts), '+1 second'),
+              strftime('%Y-%m-%dT%H:%M:%fZ','now')) AS ts FROM package_ops"
+      []
+  with
+  | Some row -> Stdlib.Sqlite.textField row "ts" |> Stdlib.Option.withDefault ""
+  | None -> ""
+
+/// A content-derived commit id, so the same commit computes the same id on two machines rather than each
+/// inventing its own. Short: it's a handle you type, not a security boundary.
+let mintHash (message: String) (author: String) (stamp: String) : String =
+  let material = $"{message}|{author}|{stamp}"
+  let digest = Stdlib.Blob.toHex (Stdlib.Crypto.sha256 (Stdlib.String.toBlob material))
+  Stdlib.String.toLowercase (Stdlib.String.first digest 16)
+
+/// Write a commit ROW (it commits nothing by itself -- the caller stamps the ops). Returns its hash.
+let create (message: String) (author: String) : String =
+  let stamp = nextStamp ()
+  let hash = mintHash message author stamp
+
+  let _ =
+    Stdlib.Sqlite.execP
+      (localDb ())
+      "INSERT OR REPLACE INTO commits (hash, message, author, origin_ts)
+       VALUES (@p0, @p1, @p2, @p3)"
+      [ hash; message; author; stamp ]
+
+  hash
+
+let commitFromRow (row: Dict<Stdlib.Sqlite.Value>) : Stdlib.Option.Option<Commit> =
+  let text (col: String) : String =
+    Stdlib.Sqlite.textField row col |> Stdlib.Option.withDefault ""
+
+  match Stdlib.Sqlite.textField row "hash" with
+  | Some hash ->
+    (Commit
+      { hash = hash
+        message = text "message"
+        author = text "author"
+        originTs = text "origin_ts"
+        createdAt = text "created_at" })
+    |> Stdlib.Option.Option.Some
+  | None -> Stdlib.Option.Option.None
+
+/// The most recent commits, newest first.
+let recent (limit: Int64) : List<Commit> =
+  match
+    Stdlib.Sqlite.queryP
+      (localDb ())
+      "SELECT hash, message, author, origin_ts, created_at FROM commits
+       ORDER BY created_at DESC, rowid DESC LIMIT @p0"
+      [ Stdlib.Int64.toString limit ]
+  with
+  | Ok rows -> rows |> Stdlib.List.filterMap commitFromRow
+  | Error _ -> []
+
+/// Remove a commit row. For a commit that turned out to name no ops -- an import where everything deduped,
+/// which is what a routine re-sync is. The ops side of "did it commit anything" is `PackageOps.opCountIn`;
+/// this owns the table.
+let delete (hash: String) : Unit =
+  let _ =
+    Stdlib.Sqlite.execP (localDb ()) "DELETE FROM commits WHERE hash = @p0" [ hash ]
+
+  ()
+
+/// The commit whose hash starts with <param prefix>. Newest wins if a short prefix matches more than one,
+/// which is the same rule `dark ops show` uses for op ids.
+let byHashPrefix (prefix: String) : Stdlib.Option.Option<Commit> =
+  match
+    Stdlib.Sqlite.queryOneP
+      (localDb ())
+      "SELECT hash, message, author, origin_ts, created_at FROM commits
+       WHERE hash LIKE @p0 || '%' ORDER BY created_at DESC, rowid DESC LIMIT 1"
+      [ prefix ]
+  with
+  | Some row -> commitFromRow row
+  | None -> Stdlib.Option.Option.None
+
+let count () : Int64 =
+  Stdlib.Sqlite.scalarInt (localDb ()) "SELECT count(*) AS n FROM commits" "n"
+  |> Stdlib.Option.withDefault 0L

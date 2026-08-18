@@ -8,11 +8,11 @@ let executeDarklang () : ModelContextProtocol.ServerBuilder.Tool =
     description = "Execute Darklang code and return the result"
     handler =
       fun code ->
-        match Builtin.cliEvaluateExpression (Stdlib.Option.Option.None) SCM.Branch.mainBranchId code false with
+        match Builtin.cliEvaluateExpression (Stdlib.Option.Option.None) "" code false with
         | Ok (Some result) -> $"Result: {result}"
         | Ok None -> "Result: ()"
         | Error err ->
-            $"Error: {Cli.ExecutionError.toString SCM.Branch.mainBranchId err}"
+            $"Error: {Cli.ExecutionError.toString "" err}"
   }
 
 

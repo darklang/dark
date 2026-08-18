@@ -1,121 +1,130 @@
 module Darklang.Cli.Ops
 
-// Inspect this branch's op log directly. The ops ARE your packages — every add / rename / deprecate of a
-// fn, type or value is a row in the `package_ops` SQLite table. Read-only.
+// Read this branch's op log. The ops ARE your packages: every add / rename / deprecate of a fn, type or
+// value is a row in `package_ops`, and the package tree you browse is a projection of them.
 //
-// It reads them through the generic `Stdlib.Sqlite` interface — the same one a peer's wire read uses, and the
-// same one an eventual Dark-managed fold would. That's worth knowing if you work on this; it is not worth
-// telling the person who typed `dark ops`, which is why the read time no longer heads the output.
+// READ-ONLY, deliberately. Everything that CHANGES the log has a root command of its own -- `dark commit`,
+// `dark undo`, `dark merge`, `dark sync`, `dark branch` -- so there is one obvious place per verb rather
+// than a second surface hiding under `ops`.
+//
+// All op-log SQL is siloed in `SCM.PackageOps`; this file writes NO SQL, it only formats what that silo
+// returns.
 
-let db () : String = Darklang.Sync.localDbPath ()
+let printOk (msg: String) : Unit = Stdlib.printLine (Colors.success msg)
+let printErr (msg: String) : Unit = Stdlib.printLine (Colors.error msg)
+let printHint (msg: String) : Unit = Stdlib.printLine (Colors.hint msg)
 
 let short (s: String) : String =
   if Stdlib.String.length s <= 8 then s else Stdlib.String.slice s 0 8
 
-let textCell (row: Dict<Stdlib.Sqlite.Value>) (col: String) : String =
-  (Stdlib.Sqlite.textField row col) |> Stdlib.Option.withDefault ""
+/// One display row for an op summary: [short-or-full id; size; when].
+let summaryRow (fullId: Bool) (s: SCM.PackageOps.OpSummary) : List<String> =
+  let id = if fullId then s.id else short s.id
+  [ id; $"{Stdlib.Int64.toString s.sizeBytes}B"; s.ts ]
 
-/// How many ops are on <param branchId>. `dark ops` is about THIS branch: the log holds every branch's ops
-/// (10k+ of them on a seeded store), and a count spanning all of them answers a question nobody asked.
-let countOps (branchId: Uuid) : Int64 =
-  (Stdlib.Sqlite.scalarIntP
-    (db ())
-    "SELECT count(*) AS n FROM package_ops WHERE branch_id = @p0"
-    [ Stdlib.Uuid.toString branchId ]
-    "n")
-  |> Stdlib.Option.withDefault 0L
+/// Show what the op(s) matching an id-prefix actually DO -- pretty-printed content, not just metadata.
+let executeShow (state: AppState) (idPrefix: String) : AppState =
+  // An empty prefix matches EVERY op, so `dark ops show ""` would print whichever came first as though you
+  // had asked for it.
+  if idPrefix == "" then
+    printErr "which op? `dark ops` lists them, then `dark ops show <id>`."
+    state
+  else
 
-/// The most recent <param limit> ops on the current branch, newest first.
-///
-/// Ordered by `rowid DESC` — insertion order — rather than the `created_at DESC` this used to say. Not
-/// because that was returning the wrong rows: a whole seed load lands in one or two `created_at` seconds
-/// (10,662 ops, 2 distinct values), and SQLite happens to walk `idx_package_ops_created` in reverse, so ties
-/// come back rowid-descending, which IS newest-first. It got the right answer by luck. Tie-break order isn't
-/// something SQLite promises, and a sort key with 2 values across 10k rows isn't sorting anything. rowid is
-/// monotonic per insert and can't tie. WIP ops are the newest by definition, so they land on top for free.
+  let ops = SCM.PackageOps.getByIdPrefix idPrefix
+
+  if Stdlib.List.isEmpty ops then
+    printErr $"No op found matching {idPrefix}"
+  else
+    ops
+    |> Stdlib.List.iter (fun op ->
+      Stdlib.printLine
+        (PrettyPrinter.ProgramTypes.PackageOp.packageOp state.currentBranchId op))
+
+  state
+
+/// The most recent <param limit> ops this branch can see, newest first.
 let executeList (state: AppState) (limit: Int64) : AppState =
-  let branchId = state.currentBranchId
+  let branch = SCM.PackageOps.currentBranch ()
+  // Through `branchName`, so a branch shows its name rather than its raw id.
+  let branchName = SCM.PackageOps.branchName branch
+  let total = SCM.PackageOps.countFor branch
+  let summaries = SCM.PackageOps.summariesFor branch limit
+  let shown = Stdlib.List.length summaries
 
-  let branchName =
-    match SCM.Branch.get branchId with
-    | Some b -> b.name
-    | None -> "unknown"
+  let header =
+    if shown >= (Stdlib.Int.fromInt64 total) then
+      $"{Stdlib.Int64.toString total} ops on branch {branchName}"
+    else
+      $"{Stdlib.Int64.toString total} ops on branch {branchName} - showing the {Stdlib.Int.toString shown} most recent"
 
-  let total = countOps branchId
+  printOk header
 
-  let sql =
-    "SELECT o.id AS id, o.commit_hash AS ch, o.origin_ts AS ts, "
-    ++ "CAST(length(o.op_blob) AS TEXT) AS sz, COALESCE(c.message, '') AS msg "
-    ++ "FROM package_ops o LEFT JOIN commits c ON o.commit_hash = c.hash "
-    ++ "WHERE o.branch_id = @p0 "
-    ++ $"ORDER BY o.rowid DESC LIMIT {Stdlib.Int64.toString limit}"
+  Stdlib.Cli.UI.Table.print
+    [ "op"; "size"; "when" ]
+    (summaries |> Stdlib.List.map (summaryRow false))
 
-  match Stdlib.Sqlite.queryP (db ()) sql [ Stdlib.Uuid.toString branchId ] with
-  | Ok rows ->
-    let shown = Stdlib.List.length rows
-
-    let header =
-      if shown >= (Stdlib.Int.fromInt64 total) then
-        $"{Stdlib.Int64.toString total} ops on branch {branchName}"
-      else
-        $"{Stdlib.Int64.toString total} ops on branch {branchName} — showing the {Stdlib.Int.toString shown} most recent"
-
-    Stdlib.printLine (Colors.success header)
-
-    // A commit message belongs to the COMMIT, not to each op — repeating it down every row was noise that made
-    // 20 ops of one commit look like 20 unrelated things. It prints once per run of ops sharing a commit, so a
-    // CHANGE of commit is what catches your eye. A WIP op's stamp is the opposite: it belongs to the op, so
-    // every WIP row shows its own.
-    //
-    // `lastCommit` starts as None rather than "": "" is the WIP sentinel, so a "" seed would make the first
-    // WIP row look like a repeat of a previous one and blank its stamp.
-    let rendered =
-      rows
-      |> Stdlib.List.fold ([], Stdlib.Option.Option.None) (fun acc row ->
-        let (out, lastCommit) = acc
-        let commit = textCell row "ch"
-        let isWip = commit == ""
-        let commitStr = if isWip then "WIP" else short commit
-
-        let lastWasSame =
-          match lastCommit with
-          | Some c -> c == commit
-          | None -> false
-
-        let msgCell =
-          if isWip then textCell row "ts"
-          else if lastWasSame then ""
-          else textCell row "msg"
-
-        let line =
-          [ short (textCell row "id"); commitStr; $"{textCell row "sz"}B"; msgCell ]
-
-        (Stdlib.List.append out [ line ], Stdlib.Option.Option.Some commit))
-
-    let (rowsOut, _) = rendered
-
-    // "message / when": the column holds a commit's message, or — for a WIP op, which has no commit and so no
-    // message — the stamp saying when you authored it. Naming it just "message" would make the WIP rows read
-    // as though a timestamp were somebody's commit message.
-    Stdlib.Cli.UI.Table.print [ "op"; "commit"; "size"; "message / when" ] rowsOut
-
-    state
-  | Error e ->
-    Stdlib.printLine (Colors.error $"Couldn't read the op log: {e}")
-    state
+  state
 
 let help (_state: AppState) : String =
-  [ "dark ops — inspect this branch's op log (the rows that ARE your packages), read live from SQLite."
+  [ "dark ops - read this branch's op log (the rows that ARE your packages)."
     ""
-    "  dark ops           the 20 most recent ops on this branch"
-    "  dark ops <n>       the n most recent"
-    "  dark ops list <n>  same"
+    "  dark ops              the 20 most recent ops on this branch"
+    "  dark ops <n>          the n most recent"
+    "  dark ops show <id>    pretty-print what an op does (by id-prefix)"
     ""
-    "The log is the `package_ops` table; this reads it through Stdlib.Sqlite — the same generic interface a"
-    "peer's wire read uses (and a future Dark-managed fold would). Read-only." ]
+    "  Changing the log has its own commands: `dark commit`,"
+    "  `dark undo`, `dark propagate`,"
+    "  `dark branch`, `dark merge`, `dark rebase`, `dark sync`, `dark review`."
+    ""
+    "Op-log SQL is siloed in SCM.PackageOps; this command just formats it." ]
   |> Stdlib.String.join "\n"
 
+/// Where a verb that used to be an `ops` subcommand lives. `ops` reads; every verb that CHANGES the log is
+/// a root command, and a guess at the old shape deserves an answer rather than the help text.
+let movedFromOps (verb: String) : Stdlib.Option.Option<String> =
+  match verb with
+  | "branch"
+  | "branches"
+  | "switch"
+  | "merge"
+  | "rebase"
+  | "diff"
+  | "log"
+  | "resolve"
+  | "push"
+  | "pull"
+  | "sync"
+  | "connect"
+  | "whoami"
+  | "identity" -> Stdlib.Option.Option.Some $"dark {verb}"
+  | "login" -> Stdlib.Option.Option.Some "dark identity <name>"
+  | "status" -> Stdlib.Option.Option.Some "dark sync status"
+  | "export" -> Stdlib.Option.Option.Some "dark sync export <file>"
+  | "import" -> Stdlib.Option.Option.Some "dark sync import <file>"
+  | "review-pull" -> Stdlib.Option.Option.Some "dark review pull"
+  | "review-import" -> Stdlib.Option.Option.Some "dark review import <file>"
+  | "approve" -> Stdlib.Option.Option.Some "dark review approve <queue>"
+  | "reject" -> Stdlib.Option.Option.Some "dark review reject <queue>"
+  | "archive" -> Stdlib.Option.Option.Some "dark branch archive <id>"
+  | "branch-export" -> Stdlib.Option.Option.Some "dark branch export <id> <file>"
+  | "branch-import" -> Stdlib.Option.Option.Some "dark branch import <file>"
+  | "branch-push" -> Stdlib.Option.Option.Some "dark branch push <id>"
+  | "branch-pull" -> Stdlib.Option.Option.Some "dark branch pull"
+  | _ -> Stdlib.Option.Option.None
+
 let execute (state: AppState) (args: List<String>) : AppState =
+  // `ops` takes no flags at all, and every unrecognised argument shape falls through to `help` -- which
+  // would answer a flag mistake with the manual and no error.
+  let flags = args |> Stdlib.List.filter (fun a -> Stdlib.String.startsWith a "--")
+
+  if Stdlib.Bool.not (Stdlib.List.isEmpty flags) then
+    let f = Stdlib.String.join flags " "
+    printErr $"ops takes no flags, and doesn't understand {f}."
+    printHint "  `dark ops help` says what it does."
+    state
+  else
+
   match args with
   | [] -> executeList state 20L
   | [ "list" ] -> executeList state 20L
@@ -123,15 +132,21 @@ let execute (state: AppState) (args: List<String>) : AppState =
     match Stdlib.Int64.parse n with
     | Ok l -> executeList state l
     | Error _ -> executeList state 20L
-  | [ n ] ->
-    match Stdlib.Int64.parse n with
-    | Ok l -> executeList state l
-    | Error _ ->
-      Stdlib.printLine (help state)
-      state
-  | _ ->
+  | [ "show"; id ] -> executeShow state id
+  | [ "help" ] ->
     Stdlib.printLine (help state)
     state
+  | verb :: _ ->
+    match movedFromOps verb with
+    | Some target ->
+      printErr $"`ops` only reads the log -- {verb} is `{target}`."
+      state
+    | None ->
+      match Stdlib.Int64.parse verb with
+      | Ok l -> executeList state l
+      | Error _ ->
+        Stdlib.printLine (help state)
+        state
 
 let complete
   (state: AppState)

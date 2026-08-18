@@ -116,6 +116,43 @@ let generate () : Ply<unit> =
           | None -> None)
       |> List.sortBy fst
 
+    // A HARDENED pin moving is refused here rather than reported as a diff. See
+    // `PackageRefs.hardened` for which ones and why: the point is that the failure
+    // arrives at the moment the identity moves, naming what moved and what it moved
+    // to, instead of arriving in CI as "the worktree is dirty".
+    //
+    // The escape hatch is deliberate and deliberately awkward. Sometimes the move IS
+    // correct (the type genuinely changed), and then re-running with the variable
+    // set is the way to say so on purpose.
+    let hardenedMoves =
+      merged
+      |> List.choose (fun (key, hash) ->
+        if PackageRefs.hardened |> Set.contains key then
+          match Map.tryFind key existingMap with
+          | Some old when old <> hash -> Some(key, old, hash)
+          | _ -> None
+        else
+          None)
+
+    let repinAllowed =
+      match System.Environment.GetEnvironmentVariable "DARK_REPIN_HARDENED" with
+      | "1" -> true
+      | _ -> false
+
+    if not (List.isEmpty hardenedMoves) && not repinAllowed then
+      let detail =
+        hardenedMoves
+        |> List.map (fun (key, old, hash) ->
+          $"  {key}\n    was {old}\n    now {hash}")
+        |> String.concat "\n"
+
+      Exception.raiseInternal
+        ("A hardened package ref moved. These are constructed by name throughout the kernel, so their "
+         + "identity moving means something changed underneath the whole tree -- check that before "
+         + "re-pinning. If the move is correct, re-run with DARK_REPIN_HARDENED=1.\n"
+         + detail)
+        []
+
     let lines = merged |> List.map (fun (key, hash) -> $"{key}|{hash}")
 
     // Always set the in-memory cache so PackageRefs lookups work

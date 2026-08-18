@@ -15,7 +15,7 @@ module Darklang.Cli.Packages.Signatures
 // like `Stdlib.Option.Option` render as `Option.Option` everywhere,
 // regardless of which sub-module we scoped the listing to. For non-Stdlib
 // roots, fall back to the root itself.
-let rootContext (branchId: Uuid) (modulePath: List<String>) : PrettyPrinter.ProgramTypes.Context =
+let rootContext (branchId: String) (modulePath: List<String>) : PrettyPrinter.ProgramTypes.Context =
   let cur =
     match modulePath with
     | "Darklang" :: "Stdlib" :: _ -> "Darklang.Stdlib"

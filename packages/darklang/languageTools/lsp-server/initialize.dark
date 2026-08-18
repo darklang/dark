@@ -60,5 +60,8 @@ let handleInitializeRequest
       shouldShutdown = false
       accountID = Stdlib.Option.Option.None
       accountName = ""
-      currentBranchId = SCM.Branch.mainBranchId
+      // The branch this LSP process was launched on, not a hardcoded main: an editor started from a
+      // branch checkout should complete and hover against that branch's names. `dark/switchBranch`
+      // moves it from here.
+      currentBranchId = SCM.PackageOps.currentBranch ()
       documentsInScope = Dict { } }

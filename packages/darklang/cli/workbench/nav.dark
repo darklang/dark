@@ -77,12 +77,11 @@ let openReader (state: State) (content: String) (isCode: Bool) : Step =
 let switchView (state: State) (nv: Int) : Step =
   let newItems = itemsForView nv state.branchId state.location state.scmSection state.aiSection state.matterLens
   let clamped = Stdlib.Int.max 0 (Stdlib.Int.min state.selected (Stdlib.Int.max 0 ((Stdlib.List.length newItems) - 1)))
-  // The REPL is somewhere you type, so arriving opens the prompt. Every other view is somewhere you look.
-  let inp =
-    if nv == vScratch then
-      Stdlib.Option.Option.Some(InputState { prompt = "repl> "; text = ""; action = "scratch" })
-    else
-      Stdlib.Option.Option.None
+  // Arriving at a view never starts capturing your keystrokes, the REPL included. Typing mode is something
+  // you ENTER (⏎) and stay in until you leave it (esc); a view that grabs the keyboard because you
+  // navigated to it makes every other key you'd have pressed -- the view switches, the nav keys -- silently
+  // become text.
+  let inp = Stdlib.Option.Option.None
   Step.Continue
     { state with
         activeView = nv
@@ -115,16 +114,34 @@ let resolveConflict (state: State) (which: String) : Step =
   match selectedConflict state with
   | None -> Step.Continue { state with message = "no conflict selected" }
   | Some c ->
-    let ok =
-      if which == "ours" then Darklang.Sync.Conflicts.keep c.location c.localHash
-      else if which == "theirs" then Darklang.Sync.Conflicts.keep c.location c.incomingHash
-      else Darklang.Sync.Conflicts.acknowledge c.location
+    // `sideFor` reads "local" / "incoming", which is what `Candidate.side` actually holds. Asking for
+    // "A" / "B" matched nothing, so both hashes came back "" and the keep keys fed an empty hash to the
+    // resolver -- which would have bound a live name to nothing.
+    let sideFor (side: String) : String =
+      match SCM.Conflicts.candidateFor c side with
+      | Some cand -> cand.hash
+      | None -> ""
+
+    let outcome =
+      if which == "ours" then
+        SCM.PackageOps.settleConflict state.branchId c (sideFor "local")
+      else if which == "theirs" then
+        SCM.PackageOps.settleConflict state.branchId c (sideFor "incoming")
+      else
+        let _ = SCM.Conflicts.setStatus c.id "acked" ""
+        Stdlib.Result.Result.Ok()
+
     let label = if which == "ok" then "acknowledged" else "kept " ++ which
+
+    // A `Result` is not a `Bool`. This read `if ok then ...` on the Result itself, which is a runtime type
+    // error, so every resolve key in this view threw instead of resolving. Nothing tested it.
+    let message =
+      match outcome with
+      | Ok _ -> "resolved: " ++ label
+      | Error e -> "resolve failed: " ++ e
+
     Step.Continue
-      { state with
-          items = reloadItems state
-          selected = 0
-          message = if ok then "resolved: " ++ label else "resolve failed" }
+      { state with items = reloadItems state; selected = 0; message = message }
 
 /// The app the cursor is on, resolved by name rather than by position.
 ///

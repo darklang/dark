@@ -7,7 +7,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
   if inp.action == "commit" then
     match state.accountId with
     | Some acct ->
-      match SCM.PackageOps.commit acct state.branchId inp.text with
+      match SCM.PackageOps.commitDraft acct state.branchId inp.text with
       | Ok _ ->
         Step.Continue
           { state with
@@ -28,7 +28,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
   else if inp.action == "discard" then
     // Destructive: only proceed on an explicit "y".
     if inp.text == "y" then
-      let _ = SCM.PackageOps.discard state.branchId
+      let _ = SCM.PackageOps.discardDraftFor state.branchId
       Step.Continue
         { state with
             input = Stdlib.Option.Option.None
@@ -70,7 +70,14 @@ let performInputAction (state: State) (inp: InputState) : Step =
           | Ok newLoc ->
             // Two fields, not one tuple: `SetName((a, b))` passes a single tuple and blows up at runtime with
             // "Expected 2 fields ... but got 1", which took the whole CLI down every time you pressed `r`.
-            let op = LanguageTools.ProgramTypes.PackageOp.SetName(newLoc, reference)
+            // None: a rename binds the content at a name that was not in use. "No predecessor known" is
+            // the honest answer, and the detector only concludes anything when BOTH sides say it.
+            let op =
+              LanguageTools.ProgramTypes.PackageOp.SetName(
+                newLoc,
+                reference,
+                Stdlib.Option.Option.None
+              )
             match SCM.PackageOps.add state.branchId [ op ] with
             | Ok _ ->
               Step.Continue
@@ -85,7 +92,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
     if inp.text != "y" then
       Step.Continue { state with input = Stdlib.Option.Option.None }
     else
-      match SCM.Merge.merge state.branchId with
+      match SCM.PackageOps.mergeBranch state.branchId with
       | Ok _ ->
         // Merged into parent - follow the branch pointer to the parent, like the `merge` command does.
         let parentId =
@@ -102,12 +109,12 @@ let performInputAction (state: State) (inp: InputState) : Step =
               message = "merged into parent" }
       | Error e ->
         Step.Continue
-          { state with input = Stdlib.Option.Option.None; message = "merge failed: " ++ (SCM.Merge.mergeErrorToString e) }
+          { state with input = Stdlib.Option.Option.None; message = "merge failed: " ++ e }
   else if inp.action == "rebase" then
     if inp.text != "y" then
       Step.Continue { state with input = Stdlib.Option.Option.None }
     else
-      match SCM.Rebase.rebase state.branchId with
+      match SCM.PackageOps.rebaseBranch state.branchId with
       | Ok _ ->
         Step.Continue
           { state with
@@ -115,11 +122,9 @@ let performInputAction (state: State) (inp: InputState) : Step =
               items = reloadItems state
               selected = 0
               message = "rebased onto parent" }
-      | Error conflicts ->
+      | Error e ->
         Step.Continue
-          { state with
-              input = Stdlib.Option.Option.None
-              message = "rebase: " ++ (Stdlib.Int.toString (Stdlib.List.length conflicts)) ++ " conflict(s) - see Resolve" }
+          { state with input = Stdlib.Option.Option.None; message = "rebase failed: " ++ e }
   else if Stdlib.String.startsWith inp.action "author-" then
     // A new item's target module was asked for (shallow tree location): parse it, then open the editor.
     let kind = Stdlib.String.dropFirst inp.action (Stdlib.String.length "author-")
@@ -190,7 +195,20 @@ let performInputAction (state: State) (inp: InputState) : Step =
           captureOutput (fun () ->
             if isKnown then Darklang.Cli.Registry.executeCommand cmd appState args
             else Darklang.Cli.Registry.executeCommand "eval" appState words)
-        let shown = if (Stdlib.String.trim output) == "" then "(no output)" else output
+        let body = if (Stdlib.String.trim output) == "" then "(no output)" else output
+
+        // Say which path ran when it was not the one you asked for. Falling back to `eval` is what makes
+        // `: 1 + 2` work, but when the first word was MEANT as a command the fallback's error answers a
+        // question you did not ask -- you typed `zzqqxx` and got "There is no variable named: zzqqxx",
+        // which explains the mechanism rather than the mistake.
+        let shown =
+          if isKnown then
+            body
+          else
+            (Colors.dimText
+              $"{cmd} isn't a command -- ran the line as a Dark expression instead. `?` lists commands.")
+            ++ "\n\n"
+            ++ body
         // `config set devices.enabled true` should show up in the tab bar now, not on next launch. The gate
         // list is read from disk, so it's computed once rather than per frame; a config command is the one
         // thing that can invalidate it.
@@ -253,7 +271,17 @@ let performInputAction (state: State) (inp: InputState) : Step =
           selected = 0
           detailScroll = 0 }
   else if inp.action == "branch-create" then
-    let b = Darklang.SCM.Branch.create inp.text state.branchId
+    // `create` hands back an Option: it looks the branch up after registering it, and a name that could not
+    // be registered has nothing to return. Reading `.id` straight off the Option threw instead of creating
+    // anything, so `b` in this view has never worked.
+    match Darklang.SCM.Branch.create inp.text state.branchId with
+    | None ->
+      Step.Continue
+        { state with
+            input = Stdlib.Option.Option.None
+            message = "couldn't start a branch called \"" ++ inp.text ++ "\"" }
+    | Some b ->
+
     let newItems =
       itemsForView state.activeView b.id state.location state.scmSection state.aiSection state.matterLens
     // Land on the branch you just made, the way saving lands on the item you just wrote. Resetting to 0 put

@@ -361,7 +361,12 @@ let parsePackageLocation (nameToParse: String): PackageLocation =
     // Empty name (shouldn't happen, but handle it)
     PackageLocation { owner = ""; modules = []; name = "" }
 
-type BranchID = Uuid
+/// A branch's stable id, `"main"` for main. A uuid in a String, because that's how it's stored (the columns
+/// are TEXT) and because main is the absence of a branch rather than a branch with an id.
+///
+/// NOT the branch's name. The name is what a person types and can rename or reuse; this is what op tags,
+/// per-name bases, bundles and parent links point at. The CLI turns one into the other at its edge.
+type BranchID = String
 
 /// Content-addressed hash for package items (hex-encoded SHA-256)
 type Hash = | Hash of String
@@ -466,6 +471,9 @@ module Reference =
     | PackageValue _ -> ItemKind.Value
     | PackageFn _ -> ItemKind.Fn
 
+  /// Construction must NAME the type (`Reference.PackageFn`), not just the case: a bare `PackageFn h` only
+  /// resolves in a match arm, where the matched value supplies the type. Unqualified here, this raised
+  /// "PackageFn is not a valid name" at runtime for every caller.
   let fromHashAndKind (h: Hash) (k: ItemKind) : Reference =
     match k with
     | Type -> Reference.PackageType h
@@ -482,37 +490,58 @@ type DeprecationKind =
   /// Don't use this anymore (catch-all).
   | Obsolete
 
-/// A single repoint operation within a PropagateUpdate
+/// A single repoint: what propagation moved. Reported back to the caller; NOT an op
 type PropagateRepoint =
   { location: PackageLocation
     fromRef: Reference
     toRef: Reference }
 
 
+/// What happened to a branch. A closed set, so a type rather than a string. Both cases are monotonic:
+/// applying one twice, or out of order, lands in the same place. Rename is absent because it is
+/// last-writer-wins and `branches` records no stamp to arbitrate with.
+type BranchEventKind =
+  | Merged
+  | Archived
+
 type PackageOp =
   | AddType of PackageType.PackageType
   | AddValue of PackageValue.PackageValue
   | AddFn of PackageFn.PackageFn
   // Bind a name (location) to a piece of content (target).
-  | SetName of location: PackageLocation * target: Reference
+  /// `previous` is the hash this binding REPLACED, or None when the location was empty (or when whoever
+  /// authored it had no store to ask, which is true of the parsers). Two SetNames for one location that
+  /// BOTH name no predecessor are two independent creations, which is a conflict; one that names the
+  /// other's hash is an ordinary edit, which is not.
+  | SetName of
+      location: PackageLocation *
+      target: Reference *
+      previous: Stdlib.Option.Option<Hash>
   // Author-initiated deprecation annotation on a specific hash.
   | Deprecate of target: Reference * kind: DeprecationKind * message: String
   // Clear any prior deprecation on a target.
   | Undeprecate of target: Reference
-  // Propagation: when a definition is updated, propagate the change to all dependents
-  | PropagateUpdate of
-      propagationId: Uuid *
-      sourceLocation: PackageLocation *
-      fromRefs: List<Reference> *
-      toRef: Reference *
-      repoints: List<PropagateRepoint>
-  // Revert a propagation: restore previous versions atomically
-  | RevertPropagation of
-      revertId: Uuid *
-      revertedPropagationIds: List<Uuid> *
-      sourceLocation: PackageLocation *
-      restoredSourceRef: Reference *
-      revertedRepoints: List<PropagateRepoint>
+  // A human's answer to a recorded conflict: bind this name to THIS version, the one the fold didn't pick.
+  // Its own op rather than another SetName because ops are content-addressed -- re-authoring the losing
+  // SetName produces the op that already exists and folds nothing. Folds with source='resolution'.
+  | Resolve of
+      decisionId: String *
+      location: PackageLocation *
+      target: Reference
+  /// A person's standing DECISION about a name (as opposed to a binding of one). Used for propagation
+  /// policy (kind="propagation", value="pin"|"follow") and Constraint acks (kind="constraint-ack",
+  /// value=the finding id). It's an op because a decision that doesn't travel is half a decision.
+  | Decide of
+    kind: String *
+    location: PackageLocation *
+    value: String *
+    reason: String *
+    /// the stamp of the decision itself, which is what makes each one a distinct op
+    decidedAt: String
+  /// Something that happened to a BRANCH rather than to a name. Merged ops already travel, since they
+  /// become main ops; the FACT of the merge did not, so a colleague's copy of a branch still listed as
+  /// live work after you landed it.
+  | BranchEvent of branchId: String * event: BranchEventKind * at: String
 
 
 module Search =
@@ -654,21 +683,21 @@ module PackageManager =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetName (loc, PackageType hash) -> Stdlib.Option.Option.Some((loc, hash))
+        | SetName (loc, PackageType hash, _) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let valueLocationMap =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetName (loc, PackageValue hash) -> Stdlib.Option.Option.Some((loc, hash))
+        | SetName (loc, PackageValue hash, _) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     let fnLocationMap =
       ops
       |> Stdlib.List.filterMap (fun op ->
         match op with
-        | SetName (loc, PackageFn hash) -> Stdlib.Option.Option.Some((loc, hash))
+        | SetName (loc, PackageFn hash, _) -> Stdlib.Option.Option.Some((loc, hash))
         | _ -> Stdlib.Option.Option.None)
 
     // Create PackageManager that looks up in ops first, then falls back to basePM

@@ -44,7 +44,9 @@ type AppState =
     /// Pages to return to, innermost first. A SubApp that launches another page (e.g. the workbench opening a
     /// foreground app) pushes itself here; when the launched page exits, we pop back instead of quitting.
     pageStack: List<Page>
-    currentBranchId: Uuid
+    /// The branch this session is on: an ID, "" for main. A NAME is what you type; the entry point resolves
+    /// it once.
+    currentBranchId: String
     accountID: Stdlib.Option.Option<Uuid>
     accountName: String
     /// Retained presentation state while the main prompt owns an inline region.
@@ -69,8 +71,22 @@ type AppState =
     /// When true, write telemetry to rundir/logs/telemetry.jsonl
     telemetryEnabled: Bool }
 
+/// What the prompt shows to your left: where you are in the package tree, and WHICH BRANCH, when you're on
+/// one.
+///
+/// The branch belongs in the prompt rather than in a status bar. The bar this replaced was positioned
+/// absolutely at the bottom of the terminal, which the frame-based renderer has no place for -- it owns the
+/// screen and composes views out of rows. The prompt is a row, it's already showing you context, and both
+/// the styled output and the cursor math derive from this one string, so the cursor stays correct for free.
+///
+/// Only when you're on a branch. Everyone is on main almost all the time, and a prompt that says so every
+/// line is noise you learn to stop reading.
 let locationStr (state: AppState) : String =
-  Packages.formatLocation state.packageData.currentLocation
+  let where = Packages.formatLocation state.packageData.currentLocation
+
+  match state.currentBranchId with
+  | "" -> where
+  | id -> $"{where} @{SCM.PackageOps.branchName id}"
 
 /// Takes the command list rather than calling `Registry.allCommands ()` itself: `initState` needs both the
 /// list and the options, and building the list is 60 records of 6 fields including 3 fn refs each. Calling it
@@ -96,42 +112,13 @@ let restoreSessionAccount () : (Stdlib.Option.Option<Uuid> * String) =
         (Stdlib.Option.Option.Some account.id, account.name)
 
 
-/// Where a CLI run starts, absent a `--branch` flag: `DARK_BRANCH` if set, else the `branch.default` you
-/// configured (`dark branch default <name>`), else main.
+/// The branch this run starts on, `"main"` for main.
 ///
-/// That order is the usual one — flag beats env beats config beats default — and each rung is scoped tighter
-/// than the one below: the flag is this command, DARK_BRANCH is this shell (so concurrent runs don't stomp
-/// each other), the config is this machine.
-let resolveBranchName (name: String) (source: String) : Uuid =
-  match SCM.Branch.getByName name with
-  | Some b -> b.id
-  | None ->
-    Stdlib.printLine
-      (Colors.error $"Warning: {source} '{name}' not found, using main.")
-    SCM.Branch.mainBranchId
-
-let resolveStartingBranch () : Uuid =
-  let mainId = SCM.Branch.mainBranchId
-
-  let fromEnv =
-    match Builtin.environmentGet "DARK_BRANCH" with
-    | Some name ->
-      if Stdlib.String.isEmpty name then
-        Stdlib.Option.Option.None
-      else
-        Stdlib.Option.Option.Some name
-    | None -> Stdlib.Option.Option.None
-
-  match fromEnv with
-  | Some name -> resolveBranchName name "DARK_BRANCH="
-  | None ->
-    match Darklang.Cli.Config.get "branch.default" with
-    | Some name ->
-      if Stdlib.String.isEmpty name then
-        mainId
-      else
-        resolveBranchName name "default branch"
-    | None -> mainId
+/// The three-tier resolution (`--branch` for this command, `DARK_BRANCH` for this shell, the
+/// `current_branch` config for this machine) happens in the CLI entry point before any Dark runs, so all
+/// that is left here is to read the answer. It gets read ONCE, into `AppState.currentBranchId`, and is
+/// passed from there: a command that wants to know which branch it is on asks its state, not the process.
+let resolveStartingBranch () : String = SCM.PackageOps.currentBranch ()
 
 
 let initState () : AppState =
@@ -180,7 +167,7 @@ module ExecutionError =
     | Runtime of LanguageTools.RuntimeTypes.RuntimeError.Error
     | Unhandled of Unhandled
 
-  let toString (branchId: Uuid) (err: ExecutionError) : String =
+  let toString (branchId: String) (err: ExecutionError) : String =
     match err with
     | Parse pe -> LanguageTools.Parser.CliScript.ParseError.toString pe
     | Runtime rte ->

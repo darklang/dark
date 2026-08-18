@@ -1,0 +1,55 @@
+#!/usr/bin/expect -f
+# Typing mode in the workbench REPL is something you ENTER, not something that happens to you.
+#
+# Arriving at the tab used to open the prompt, which meant every key you pressed next -- a tab number, a
+# nav key -- silently became text in an expression. So: arriving is quiet, Enter starts typing, and it
+# stays until Escape.
+
+set timeout 30
+log_user 0
+
+spawn ./scripts/run-cli
+sleep 4
+
+# 3 = the REPL tab.
+send "3"
+sleep 2
+
+# Arriving must NOT open the prompt, and the view should say how to start.
+expect {
+  -re "starts typing" { }
+  timeout { puts "FAIL: REPL tab did not offer the 'starts typing' hint"; exit 1 }
+}
+
+set before $expect_out(buffer)
+if {[string match "*repl>*" $before]} {
+  puts "FAIL: arriving at the REPL tab opened the prompt; it should wait for Enter"
+  exit 1
+}
+
+# Enter starts typing.
+send "\r"
+sleep 2
+expect {
+  -re "repl>" { }
+  timeout { puts "FAIL: Enter did not open the repl prompt"; exit 1 }
+}
+
+# And it evaluates.
+send "1 + 1"
+sleep 1
+send "\r"
+sleep 3
+expect {
+  -re "2" { }
+  timeout { puts "FAIL: repl did not evaluate 1 + 1"; exit 1 }
+}
+
+# Escape leaves typing mode.
+send "\033"
+sleep 2
+
+send "q"
+sleep 2
+puts "PASS: repl typing mode is entered deliberately and left with esc"
+exit 0

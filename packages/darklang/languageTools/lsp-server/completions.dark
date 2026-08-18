@@ -67,7 +67,7 @@ let processSearchResults (names: List<String>) (kind: LanguageServerProtocol.Com
 
 
 let createCompletions
-  (branchId: Uuid)
+  (branchId: String)
   (wordUnderCursor: String)
   : List<LanguageServerProtocol.Completions.CompletionItem.CompletionItem> =
   let keywords =

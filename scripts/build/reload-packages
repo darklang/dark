@@ -30,5 +30,14 @@ grey="\033[1;30m"
 reset="\033[0m"
 
 echo -e "Reloading packages ${grey}(${LOG_PACKAGES})${reset}"
-./scripts/run-local-exec $PUBLISHED_FLAG reload-packages > $LOG_PACKAGES 2>&1
+
+# Everything goes to the log because a reload is thousands of lines of parse progress. But a FAILURE went
+# there too, so the script printed "Reloading packages" and then nothing at all -- and since it runs from
+# other scripts, the caller carried on against a store that hadn't changed. Show the reason on the way out.
+if ! ./scripts/run-local-exec $PUBLISHED_FLAG reload-packages > $LOG_PACKAGES 2>&1; then
+  echo "Reloading packages FAILED. Last lines of ${LOG_PACKAGES}:" >&2
+  grep -E "Exception:|error:|Failed to parse" "$LOG_PACKAGES" | head -20 >&2 || tail -20 "$LOG_PACKAGES" >&2
+  exit 1
+fi
+
 echo "Done reloading packages"

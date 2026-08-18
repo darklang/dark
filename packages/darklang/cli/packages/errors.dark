@@ -31,7 +31,7 @@ let splitLast
 /// Suggest the `Stdlib.`-qualified form of an unresolved multi-part name when
 /// an item exists at that standard-library location.
 let stdlibSuggestion
-  (branchId: Uuid)
+  (branchId: String)
   (originalName: List<String>)
   : Stdlib.Option.Option<String> =
   match originalName with
@@ -76,7 +76,7 @@ let reportParseErrors
 /// Unresolved names are allowed in WIP — they'll be resolved by WipRefresh when
 /// the missing items are added, and rejected at commit time if still unresolved.
 let reportUnresolvedNames
-  (branchId: Uuid)
+  (branchId: String)
   (unresolvedNames:
     List<LanguageTools.Parser.Range
       * List<String>

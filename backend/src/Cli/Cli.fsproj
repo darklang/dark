@@ -5,22 +5,16 @@
     <IsTrimmable>true</IsTrimmable>
 
     <!-- Tiered PGO instruments tier-0 code to build a profile that tier-1 then optimizes against. A CLI
-         command lives a second or two and exits, so it pays the instrumentation and never collects on the
-         profile: measured ~20% of release throughput on a call-heavy script, and ~9% in Debug.
-
-         Scoped to this project rather than set globally because `darklang serve` is long-lived and is
-         exactly the shape PGO is designed for. If serve ever moves into its own entry point, it should
-         keep the default. -->
+         command lives a second or two and exits, so it pays the instrumentation and never collects.
+         Scoped to this project, not global: `darklang serve` is long-lived and should keep the default. -->
     <TieredPGO>false</TieredPGO>
     <!-- Publishing configuration -->
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <!-- Assembly linking - trim framework assemblies too -->
     <TrimMode>link</TrimMode>
-    <!-- Show every trim/AOT warning so latent reflective/dynamic-code paths
-         get surfaced (cf. the sprintf "%.Ng" float-formatter bug fixed
-         alongside this setting). If a warning is genuinely not actionable
-         after audit, suppress it locally via `<NoWarn>` on the offending
-         assembly's project, not globally. -->
+    <!-- Show every trim/AOT warning so latent reflective/dynamic-code paths get surfaced. If a
+         warning is genuinely not actionable after audit, suppress it locally via `<NoWarn>` on the
+         offending assembly's project, not globally. -->
     <SuppressTrimAnalysisWarnings>false</SuppressTrimAnalysisWarnings>
     <TrimmerSingleWarn>false</TrimmerSingleWarn>
     <EnableTrimAnalyzer>true</EnableTrimAnalyzer>
@@ -28,15 +22,6 @@
     <!-- Additional aggressive settings -->
     <InvariantGlobalization>true</InvariantGlobalization>
     <IlcOptimizationPreference>Size</IlcOptimizationPreference>
-
-    <!-- Statically link SQLite into the AOT binary so the published exe
-         has no libe_sqlite3.so dependency on the user's filesystem. The
-         archives are built by scripts/build/build-sqlite.sh from the
-         SQLite amalgamation via zig cc; one per runtime identifier in
-         lib/libe_sqlite3-<rid>.a. DllImport name in
-         SQLitePCLRaw.provider.e_sqlite3 is "e_sqlite3" — DirectPInvoke
-         matches that name so the linker resolves the imports at AOT
-         publish time. Per-RID <NativeLibrary> items below. -->
 
     <!-- Disable optional .NET runtime subsystems we don't use under AOT.
          Each prunes a meaningful slice of metadata + code from the published
@@ -74,11 +59,7 @@
     <!-- <PublishReadyToRun>false</PublishReadyToRun> -->
     <!-- <SelfContained>true</SelfContained> -->
   </PropertyGroup>
-  <!--
-    +++++++++++++++++++++++++++
-    This creates build-time values that we use to make version info
-    +++++++++++++++++++++++++++
-  -->
+  <!-- Build-time values that we use to make version info -->
   <!-- Creates a GitHash property -->
   <Target Name="GitHash" BeforeTargets="AddCliAssemblyMetadata">
     <Exec Command="git describe --long --always --dirty --exclude=* --abbrev=8" ConsoleToMSBuild="True" IgnoreExitCode="False">
@@ -107,21 +88,14 @@
     <TrimmerRootAssembly Include="LibExecution" />
   </ItemGroup>
 
-  <!-- Static-link SQLite under NativeAOT. DirectPInvoke binds the managed
-       DllImport("e_sqlite3") calls to the linker; <NativeLibrary> tells the
-       AOT linker where to find the archive. Picked per RuntimeIdentifier;
-       must stay in sync with scripts/build/build-sqlite.sh.
+  <!-- Static-link SQLite under NativeAOT so the published exe has no libe_sqlite3.so dependency.
+       DirectPInvoke binds the managed DllImport("e_sqlite3") calls to the linker; <NativeLibrary>
+       tells the AOT linker where to find the archive, picked per RuntimeIdentifier. The archives
+       come from scripts/build/build-sqlite.sh, and the per-RID list below must stay in sync with it.
 
-       Only active for PublishAot=true builds — JIT publish and `dotnet build`
-       (dev) ignore both items and dynamically load libe_sqlite3.so from the
-       NuGet at runtime.
-
-       The archives are produced by scripts/build/build-sqlite.sh. The
-       release script (build-release-cli-exes.sh) invokes it for AOT
-       targets automatically. A hand-rolled `dotnet publish` with
-       /p:PublishAot=true outside that script needs the archives present
-       first — run build-sqlite.sh with the appropriate runtimes argument
-       (see its header for the exact flag). -->
+       Only active for PublishAot=true. JIT publish and `dotnet build` ignore both items and load
+       libe_sqlite3.so from the NuGet at runtime. build-release-cli-exes.sh runs build-sqlite.sh for
+       AOT targets; a hand-rolled `dotnet publish /p:PublishAot=true` needs the archives first. -->
   <ItemGroup Condition="'$(PublishAot)' == 'true'">
     <DirectPInvoke Include="e_sqlite3" />
   </ItemGroup>
@@ -166,9 +140,9 @@
   <ItemGroup Condition="'$(Configuration)' == 'Release'">
     <!-- Embed the seed db gzip-compressed (saves ~7 MB on the AOT binary).
          The .gz is regenerated by the CompressDatabase target below from
-         rundir/data.db just-in-time at build. EmbeddedResources.fs decompresses
+         rundir/seed.db just-in-time at build. EmbeddedResources.fs decompresses
          on first extract via GZipStream. -->
-    <EmbeddedResource Include="../../../rundir/data.db.gz">
+    <EmbeddedResource Include="../../../rundir/seed.db.gz">
       <LogicalName>data.db.gz</LogicalName>
     </EmbeddedResource>
     <EmbeddedResource Include="README-to-embed.md">
@@ -176,19 +150,38 @@
     </EmbeddedResource>
   </ItemGroup>
 
-  <!-- Fail the build if the database doesn't exist in Release mode -->
+  <!-- Fail the build if there's no SEED to embed in Release mode.
+       Deliberately rundir/seed.db and NOT rundir/data.db: data.db is a working store, holding relay
+       secrets, sync identity and cursors in the same file as the packages. `export-seed`
+       (LibDB.Seed.export) is the one place that knows what a stranger may inherit; this only insists
+       that it has been run. -->
   <Target Name="CheckDatabaseExists" BeforeTargets="PrepareForBuild">
-    <Error Condition="'$(Configuration)' == 'Release' And !Exists('../../../rundir/data.db')"
-           Text="Database file (rundir/data.db) not found. The database must be created before building the CLI in Release mode. Run migrations first." />
+    <Error Condition="'$(Configuration)' == 'Release' And !Exists('../../../rundir/seed.db')"
+           Text="No seed to embed (rundir/seed.db). Build one from your store first: scripts/run-local-exec export-seed rundir/seed.db" />
   </Target>
 
-  <!-- Compress data.db → data.db.gz at build time. Re-run only when the
-       source file is newer than the .gz (or .gz doesn't exist yet). -->
+  <!-- Warn when the seed predates the package sources it is supposed to carry. A bare `dotnet publish`
+       embeds whatever seed is lying around, so the binary's PackageRefs can point at hashes its own
+       seed does not have, which fails only OUTSIDE the source tree.
+       A warning rather than an error: mtime is a proxy, and a touched-but-unchanged .dark should not
+       fail a build. `build-release-cli-exes.sh` exports first, so the scripted path stays quiet. -->
+  <Target Name="WarnIfSeedIsStale" BeforeTargets="PrepareForBuild"
+          Condition="'$(Configuration)' == 'Release' And Exists('../../../rundir/seed.db')">
+    <Exec Command="find ../../../packages -name '*.dark' -newer ../../../rundir/seed.db -print -quit 2>/dev/null | grep -q ."
+          ContinueOnError="true" IgnoreExitCode="true" StandardOutputImportance="low">
+      <Output TaskParameter="ExitCode" PropertyName="SeedIsStale" />
+    </Exec>
+    <Warning Condition="'$(SeedIsStale)' == '0'"
+             Text="rundir/seed.db is older than a file in packages/. This binary may embed a seed that does not match its package refs, which fails only OUTSIDE the source tree. Re-export: scripts/run-local-exec export-seed rundir/seed.db" />
+  </Target>
+
+  <!-- Compress seed.db -> seed.db.gz at build time. Re-run only when the source file is newer
+       than the .gz (or the .gz doesn't exist yet). -->
   <Target Name="CompressDatabase" BeforeTargets="PrepareForBuild"
-          Condition="'$(Configuration)' == 'Release' And Exists('../../../rundir/data.db')"
-          Inputs="../../../rundir/data.db"
-          Outputs="../../../rundir/data.db.gz">
-    <Exec Command="gzip -9 -c ../../../rundir/data.db &gt; ../../../rundir/data.db.gz" />
+          Condition="'$(Configuration)' == 'Release' And Exists('../../../rundir/seed.db')"
+          Inputs="../../../rundir/seed.db"
+          Outputs="../../../rundir/seed.db.gz">
+    <Exec Command="gzip -9 -c ../../../rundir/seed.db &gt; ../../../rundir/seed.db.gz" />
   </Target>
   <Import Project="..\..\.paket\Paket.Restore.targets" />
 </Project>

@@ -12,12 +12,7 @@
 
     <!-- PM -->
     <Compile Include="Libs/PM/PackageOps.fs" />
-    <Compile Include="Libs/PM/Branches.fs" />
-    <Compile Include="Libs/PM/Rebase.fs" />
-    <Compile Include="Libs/PM/Merge.fs" />
     <Compile Include="Libs/PM/Packages.fs" />
-    <Compile Include="Libs/PM/Scripts.fs" />
-    <Compile Include="Libs/PM/Dependencies.fs" />
     <Compile Include="Libs/PM/Seed.fs" />
     <Compile Include="Libs/PM/Caps.fs" />
     <Compile Include="Libs/PM/Store.fs" />
@@ -28,9 +23,6 @@
     <!-- Accounts -->
     <Compile Include="Libs/Account.fs" />
     <Compile Include="Libs/Sqlite.fs" />
-    <Compile Include="Libs/Sync/OpLog.fs" />
-    <Compile Include="Libs/Sync/Blobs.fs" />
-    <Compile Include="Libs/Conflicts.fs" />
 
     <Compile Include="Builtin.fs" />
   </ItemGroup>

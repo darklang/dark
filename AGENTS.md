@@ -92,7 +92,14 @@ tell you the tree has moved on rather than silently running a stale binary.
 Find what you want before guessing at a filter: `--groups` and `--find` need no
 database and no package reload, and print the exact command for what they found.
 
-The one trap worth knowing here: a filter that matches nothing used to be reported as
+`run-backend-tests` does NOT compile. It reloads packages and runs the test binary that is
+already there, so an `.fs` change you have not built yet is simply not in the run. It looks
+exactly like a passing test, and a red test you "fixed" stays red with its old message,
+which is the tell. Build first:
+
+    scripts/dev/build && ./scripts/run-backend-tests
+
+The other trap: a filter that matches nothing used to be reported as
 `0 tests run - Success!` with exit 0. It fails now. `docs/unittests.md` has the rest,
 including what the three filter flags actually do and why they used to disagree with
 their own help text.
@@ -187,16 +194,37 @@ the value genuinely has no Dark-side type, which is rare.
 
 ## SCM / branches
 
-    LibDB/Branches.fs         # branch CRUD, getBranchChain
-    LibDB/Rebase.fs           # conflict detection, rebase
-    LibDB/Merge.fs            # merge into parent
-    LibDB/Inserts.fs          # ops take branchId
-    LibDB/Queries.fs          # branch-aware SQL
-    LibDB/PackageManager.fs   # pt(branchId) constructs PM
-    Builtins/Builtins.Matter/Libs/PM/{Branches,Rebase,Merge}.fs
+`package_ops` is canonical and append-only; an op's id IS its content hash. Everything else -- `locations`,
+`package_functions`, `package_dependencies`, `propagation_policy` -- is a projection you can drop and
+re-fold from the log. That is why a schema change to a projection costs nothing and a change to a canonical
+table needs `LibDB/Releases.fs`.
 
-`PackageManager.pt` takes a branchId and pre-computes the branch chain for name resolution.
-Items are global (content-addressed); locations (name bindings) are branch-scoped.
+The decisions live in Dark; F# does what only F# can do (parse, hash, serialize, execute, store bytes).
+
+    packages/darklang/scm/     # the silos, each owning the SQL for its own tables
+      packageOps.dark          #   package_ops: the log, and branches as overlays
+      branches.dark            #   branches, op_branches, branch_name_bases; canMerge lives here
+      commits.dark             #   commits
+      conflicts.dark           #   conflicts, sync_bases; the base-agnostic detector
+      constraints.dark         #   standing findings (outdated usages)
+      propagation.dark         #   propagation_policy: pin and follow
+      draft.dark               #   one answer to "what have I changed"
+      storeHealth.dark         #   what can be wrong with the STORE
+
+    LibDB/PackageOpPlayback.fs # THE FOLD: ops -> projections. Read this first.
+    LibDB/Inserts.fs           # author: mint the op id, insert, fold
+    LibDB/Draft.fs             # discard / un-stage; the only code that edits `locations` outside the fold
+    LibDB/Branches.fs          # branch tables + the merge MECHANISM (the gate is in Dark)
+    LibDB/Propagation.fs       # the cascade: who depends on what moved
+    LibDB/Releases.fs          # shape changes to canonical tables on existing stores
+
+**A branch is an overlay, not a copy.** Its ops live in the same table, stored `effective = 0` and tagged in
+`op_branches`. A branch's package manager is main's with those ops layered on top.
+
+**This is the trap.** `locations` has NO `branch_id`. A branch has no rows there at all, so any read that
+goes straight to `locations` answers about MAIN while you are standing on a branch -- and it answers
+plausibly, which is why it is hard to spot. Go through the overlay helpers in `SCM.PackageOps`, or read the
+op log directly. Three call sites had already drifted this way.
 
 ## Gotchas
 
@@ -226,6 +254,13 @@ left side.
 It desugars to a local lambda, can close over outer bindings and can call itself, but mutual
 recursion between nested functions isn't supported. There's no `rec` keyword; top-level
 functions are self-recursive already.
+
+**A `val` holding a custom type can go stale.** `val forMain = forBranch ""` stores a *value*,
+and that value carries the type identity it was built against. Reload packages and a caller can
+be handed a `Context` the callee no longer recognises: `FnParameterNotExpectedType` on a
+parameter whose type you never touched. Confusingly it reproduces only where the package set is
+rebuilt (the LibExecution testfile harness) and not under `eval`. Call the function instead of
+reaching for the `val` when the result is a custom type.
 
 **Record update takes no type tag.** `{ state with field = v }` is right.
 `MyType { state with field = v }` looks like F# but parses as function application.

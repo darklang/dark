@@ -1,0 +1,39 @@
+// `seenEverything` decides whether `pull` may skip and whether `sync status` says "in sync". Both read it,
+// so a wrong answer here is silent in exactly the way that matters: the CLI keeps reporting success while
+// the machine stops receiving anything.
+//
+// The case worth pinning: a matching stamp while our own count is SHORT. That is the state a client lands
+// in if anything records the relay's head without having fetched what is under it, and believing the stamp
+// there makes the client permanently deaf.
+
+module Seen =
+  let head (count: Int64) (ts: String) : Darklang.SCM.PackageOps.SyncHead =
+    Darklang.SCM.PackageOps.SyncHead { count = count; maxTs = ts }
+
+  let check (seen: String) (theirCount: Int64) (myCount: Int64) : Bool =
+    Darklang.SCM.PackageOps.seenEverything
+      seen
+      (Seen.head theirCount "2026-08-08T00:00:00Z")
+      (Seen.head myCount "2026-08-08T00:00:00Z")
+
+  let stampFor (count: Int64) : String =
+    Darklang.SCM.PackageOps.headStamp (Seen.head count "2026-08-08T00:00:00Z")
+
+// Caught up: same stamp, and we hold as many as they do.
+Seen.check (Seen.stampFor 100L) 100L 100L = true
+
+// Ahead of them, because we have local work they have not taken. Still caught up on the RECEIVE side.
+Seen.check (Seen.stampFor 100L) 100L 140L = true
+
+// The regression. The stamp says we have seen their head, but we hold far fewer ops than they do, so the
+// stamp cannot be describing this store. Must NOT skip.
+Seen.check (Seen.stampFor 95829L) 95829L 12179L = false
+
+// Off by one on the same shape, so the boundary is pinned rather than only the dramatic case.
+Seen.check (Seen.stampFor 100L) 100L 99L = false
+
+// No marker at all: a relay we have never pulled from.
+Seen.check "" 100L 100L = false
+
+// A marker for a DIFFERENT head. Their log moved; go and get it.
+Seen.check (Seen.stampFor 90L) 100L 100L = false

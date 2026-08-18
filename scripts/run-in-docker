@@ -67,6 +67,16 @@ for var in $(env | sed -n 's/^\(DARK_[A-Z0-9_]*\)=.*/\1/p'); do
   DARK_ENV_FLAGS+=( -e "$var" )
 done
 
+# fd 0 has to be something that will actually reach EOF, because the `cat <&0` below
+# reads it to completion. Agent harnesses (Claude Code's Bash tool, at least) hand the
+# command a *socket* that never EOFs and never carries data; `cat` then blocks forever,
+# deadlocking this pipeline long after the `docker exec` has exited, and every call
+# leaks ~10 processes. Pipes and regular files do EOF, so they're forwarded as before;
+# anything else that isn't a tty gets /dev/null.
+if [ ! -t 0 ] && [ ! -p /dev/stdin ] && [ ! -f /dev/stdin ]; then
+  exec 0</dev/null
+fi
+
 if [ -t 0 ] ;
 then
   docker exec "${DARK_ENV_FLAGS[@]}" -it "${NAME}" "${ARGS[@]}" ;

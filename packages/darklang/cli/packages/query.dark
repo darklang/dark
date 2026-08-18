@@ -2,7 +2,7 @@ module Darklang.Cli.Packages.Query
 
 /// Search for all contents (modules, types, values, functions) in a given module path
 let allDirectDescendants
-  (branchId: Uuid)
+  (branchId: String)
   (modulePath: List<String>)
   : LanguageTools.ProgramTypes.Search.SearchResults =
   let query =
@@ -22,7 +22,7 @@ let allDirectDescendants
 /// This is what completion wants -- `allDirectDescendants` materializes every matched item's full
 /// definition to hand back names.
 let allDirectDescendantNames
-  (branchId: Uuid)
+  (branchId: String)
   (modulePath: List<String>)
   : (List<String> * List<String> * List<String> * List<String>) =
   let query =
@@ -41,7 +41,7 @@ let allDirectDescendantNames
 ///
 /// For listings, which need the hash to render the deprecation mark but never the definition.
 let allDirectDescendantNamesAndHashes
-  (branchId: Uuid)
+  (branchId: String)
   (modulePath: List<String>)
   : (List<String> *
      List<(String * LanguageTools.ProgramTypes.Hash)> *
@@ -73,7 +73,7 @@ let filterDeprecatedPairs
 
 /// Search for a specific entity by name in a given module path (exact match)
 let searchExactMatch
-  (branchId: Uuid)
+  (branchId: String)
   (modulePath: List<String>)
   (entityName: String)
   : LanguageTools.ProgramTypes.Search.SearchResults =
@@ -138,8 +138,8 @@ let hashListToDict
 /// Build the deprecation sets for a branch. One builtin call (two DB queries
 /// sharing work on the backend); cache per invocation by calling once at the
 /// entry point of ls/tree/search.
-let loadDeprecationSets (branchId: Uuid) : DeprecationSets =
-  let (all, hidden) = Builtin.pmGetDeprecationSets branchId
+let loadDeprecationSets (branchId: String) : DeprecationSets =
+  let (all, hidden) = Builtin.pmGetDeprecationSets ()
   DeprecationSets
     { allDeprecated = hashListToDict all
       hidden = hashListToDict hidden }
@@ -194,10 +194,19 @@ let deprecationMarker
   if isDeprecated sets hash then " ⚠" else ""
 
 
-/// Forward dependencies of an item: the hashes it references (each with its kind), scoped to the branch.
-/// Wraps the builtin so callers (the `deps` command, the workbench item page) go through one place.
+/// Forward dependencies of an item: the hashes it references, each with its kind.
+///
+/// Went through `Builtin.depsGetDependencies`, which this branch deleted along with the rest of the
+/// per-query builtins. Nothing caught it, because a missing builtin resolves lazily and only throws when
+/// it's CALLED -- `reload-packages` says Done, and then the workbench's item page (the only caller) errored
+/// the moment you selected a function or a type. Which is to say: the main browsing surface was broken and
+/// the build was green.
+///
+/// `SCM.Deps.dependenciesOf` is the Dark-side query and has the same shape, so this is the wrapper the
+/// docstring always claimed it was. `branchId` is unused: `package_dependencies` is content-addressed, one
+/// row set per item hash, and a branch's items fold their content in exactly so their edges are recorded.
 let getDependencies
-  (branchId: Uuid)
+  (branchId: String)
   (hash: LanguageTools.ProgramTypes.Hash)
   : List<(LanguageTools.ProgramTypes.Hash * String)> =
-  Builtin.depsGetDependencies branchId hash
+  SCM.Deps.dependenciesOf hash
