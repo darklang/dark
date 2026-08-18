@@ -117,6 +117,223 @@ let testEvalListLength (): TestResult =
     TestResult.Fail $"Expected '3', got '{output}'"
 
 
+let testModuleCommand (): TestResult =
+  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let branchName = "cli-module-test-" ++ suffix
+  let moduleName = "Tests.CliModule"
+  let initialSource =
+    [ "type Counter = { value: Int }"
+      ""
+      "val initial = Counter { value = 0 }"
+      ""
+      "let double (n: Int) : Int = n * 2"
+      ""
+      "let quadruple (n: Int) : Int = double (double n)"
+    ] |> Stdlib.String.join "\n"
+  let updatedSource =
+    [ "type Counter = { value: Int }"
+      ""
+      "val initial = Counter { value = 1 }"
+      ""
+      "let double (n: Int) : Int = n * 3"
+      ""
+      "let quadruple (n: Int) : Int = double (double n)"
+    ] |> Stdlib.String.join "\n"
+  let invalidSource =
+    [ "type Wrapped = Wrap of (Int * String)"
+      ""
+      "let shouldNotExist (value: Wrapped) : Wrapped ="
+      "  match value with"
+      "  | Wrap((number, text)) -> Wrapped.Wrap(number, text)"
+    ] |> Stdlib.String.join "\n"
+  let initialPath = Stdlib.Cli.File.createTemp () |> Builtin.unwrap
+  let updatedPath = Stdlib.Cli.File.createTemp () |> Builtin.unwrap
+  let invalidPath = Stdlib.Cli.File.createTemp () |> Builtin.unwrap
+  let _ =
+    (Stdlib.Cli.File.writeAtomic initialPath initialSource) |> Builtin.unwrap
+  let _ =
+    (Stdlib.Cli.File.writeAtomic updatedPath updatedSource) |> Builtin.unwrap
+  let _ =
+    (Stdlib.Cli.File.writeAtomic invalidPath invalidSource) |> Builtin.unwrap
+  let _ = runWithCommand ["branch"; "create"; branchName]
+  let moduleOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "module"
+        "/" ++ moduleName
+        initialPath ]
+  let initialEval =
+    runWithCommand
+      [ "--branch"; branchName; "eval"; moduleName ++ ".quadruple 3" ]
+  let updateOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "module"
+        "/" ++ moduleName
+        updatedPath ]
+  let updatedEval =
+    runWithCommand
+      [ "--branch"; branchName; "eval"; moduleName ++ ".quadruple 3" ]
+  let invalidOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "module"
+        "/" ++ moduleName
+        invalidPath ]
+  let searchOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "search"
+        moduleName ++ ".shouldNotExist"
+        "--exact"
+        "--fn" ]
+  let afterInvalidEval =
+    runWithCommand
+      [ "--branch"; branchName; "eval"; moduleName ++ ".quadruple 3" ]
+  let _ = runWithCommand ["branch"; "archive"; branchName]
+  let _ = Stdlib.Cli.File.delete initialPath
+  let _ = Stdlib.Cli.File.delete updatedPath
+  let _ = Stdlib.Cli.File.delete invalidPath
+
+  if
+    Stdlib.String.contains moduleOutput "Defined 4 declarations"
+    && initialEval == "12"
+    && Stdlib.String.contains updateOutput "Defined 4 declarations"
+    && updatedEval == "27"
+    && Stdlib.String.contains invalidOutput "expects 1 field(s)"
+    && Stdlib.String.contains searchOutput "No results found"
+    && afterInvalidEval == "27"
+  then
+    TestResult.Pass
+  else
+    let details =
+      [ $"create: {moduleOutput}"
+        $"initial eval: {initialEval}"
+        $"update: {updateOutput}"
+        $"updated eval: {updatedEval}"
+        $"invalid: {invalidOutput}"
+        $"invalid item search: {searchOutput}"
+        $"eval after invalid: {afterInvalidEval}"
+      ] |> Stdlib.String.join "; "
+    TestResult.Fail
+      $"Expected atomic create, update, and rejection; got {details}"
+
+
+let testModuleRejectsDuplicateNames (): TestResult =
+  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let branchName = "cli-module-duplicate-test-" ++ suffix
+  let moduleName = "Tests.CliModuleDuplicate"
+  let source =
+    [ "let duplicate (n: Int) : Int = n"
+      ""
+      "let duplicate (n: Int) : Int = n + 1"
+    ] |> Stdlib.String.join "\n"
+  let sourcePath = Stdlib.Cli.File.createTemp () |> Builtin.unwrap
+  let _ = Stdlib.Cli.File.writeAtomic sourcePath source |> Builtin.unwrap
+  let _ = runWithCommand ["branch"; "create"; branchName]
+  let moduleOutput =
+    runWithCommand
+      [ "--branch"; branchName; "module"; "/" ++ moduleName; sourcePath ]
+  let searchOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "search"
+        moduleName ++ ".duplicate"
+        "--exact"
+        "--fn" ]
+  let _ = runWithCommand ["branch"; "archive"; branchName]
+  let _ = Stdlib.Cli.File.delete sourcePath
+
+  if
+    Stdlib.String.contains moduleOutput "duplicate declaration names"
+    && Stdlib.String.contains moduleOutput "duplicate"
+    && Stdlib.String.contains searchOutput "No results found"
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      ($"Expected duplicate declarations to be rejected without mutation; "
+       ++ $"module={moduleOutput}; search={searchOutput}")
+
+
+let testFnAcceptsCompleteDeclaration (): TestResult =
+  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let branchName = "cli-authoring-test-" ++ suffix
+  let moduleName = "Tests.CliAuthoring"
+  let fnSource =
+    [ "/// Greets someone by name."
+      "let main (name: String) : String ="
+      "  \"Hello, \" ++ name"
+    ] |> Stdlib.String.join "\n"
+  let mismatchedSource =
+    "let other (name: String) : String = name"
+  let multipleSource =
+    [ "let extra (n: Int) : Int = n"
+      "let ignored (n: Int) : Int = n" ]
+    |> Stdlib.String.join "\n"
+  let _ = runWithCommand [ "branch"; "create"; branchName ]
+  let fnOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "fn"
+        "/" ++ moduleName ++ ".main"
+        fnSource ]
+  let evalOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "eval"
+        moduleName ++ ".main \"Dark\"" ]
+  let fragmentOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "fn"
+        "/" ++ moduleName ++ ".double"
+        "(n: Int) : Int = n * 2" ]
+  let fragmentEval =
+    runWithCommand
+      [ "--branch"; branchName; "eval"; moduleName ++ ".double 4" ]
+  let mismatchOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "fn"
+        "/" ++ moduleName ++ ".main"
+        mismatchedSource ]
+  let multipleOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "fn"
+        "/" ++ moduleName ++ ".extra"
+        multipleSource ]
+  let _ = runWithCommand [ "branch"; "archive"; branchName ]
+
+  if
+    Stdlib.String.contains fnOutput "Created function"
+    && evalOutput == "Hello, Dark"
+    && Stdlib.String.contains fragmentOutput "Created function"
+    && fragmentEval == "8"
+    && Stdlib.String.contains mismatchOutput "does not match target"
+    && Stdlib.String.contains multipleOutput "exactly one function declaration"
+    && Stdlib.Bool.not (Stdlib.String.contains multipleOutput "Created function")
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      ($"Expected complete and fragment fn input with target-name validation; "
+       ++ $"fn={fnOutput}; eval={evalOutput}; fragment={fragmentOutput}; "
+       ++ $"fragment eval={fragmentEval}; mismatch={mismatchOutput}; "
+       ++ $"multiple={multipleOutput}")
+
+
 let testListFunctions (): TestResult =
   let output = runWithCommand ["ls"; "Stdlib.List"]
   if Stdlib.String.contains output "Functions" &&
@@ -135,6 +352,95 @@ let testViewFunction (): TestResult =
       TestResult.Pass
   else
     TestResult.Fail "Expected function signature for List.head"
+
+
+let testSearchMatchesModuleAndCamelCaseName (): TestResult =
+  let output = runWithCommand ["search"; "string toList"; "--fn"]
+  if Stdlib.String.contains output "Darklang.Stdlib.String.toList" then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      $"Expected `string toList` to find Stdlib.String.toList, got: {output}"
+
+
+let testSearchMatchesModuleAndOperationName (): TestResult =
+  let output = runWithCommand ["search"; "json parse"; "--fn"]
+  if Stdlib.String.contains output "Darklang.Stdlib.Json.parse" then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      $"Expected `json parse` to find Stdlib.Json.parse, got: {output}"
+
+
+let testSearchFindsNestedHelpersFromParentModule (): TestResult =
+  let output = runWithCommand ["search"; "AltJson.get"; "--fn"]
+
+  if Stdlib.String.contains output "Darklang.Stdlib.AltJson.Helpers.getInt" then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      $"Expected `AltJson.get` to find nested AltJson helpers, got: {output}"
+
+
+let testBatchSearchKeepsQueriesIndependent (): TestResult =
+  let output =
+    runWithCommand
+      [ "search"
+        "--batch"
+        "string toList"
+        "json parse"
+        "list map"
+        "--fn" ]
+
+  if
+    Stdlib.String.contains output "Search results for: string toList"
+    && Stdlib.String.contains output "Darklang.Stdlib.String.toList"
+    && Stdlib.String.contains output "Search results for: json parse"
+    && Stdlib.String.contains output "Darklang.Stdlib.Json.parse"
+    && Stdlib.String.contains output "Search results for: list map"
+    && Stdlib.String.contains output "Darklang.Stdlib.List.map"
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      $"Expected three independent batch search results, got: {output}"
+
+
+let testUnresolvedNameGuidance (): TestResult =
+  let suffix = Stdlib.Int.toString (Stdlib.Int.random 100000 999999)
+  let branchName = "cli-name-guidance-test-" ++ suffix
+  let moduleName = "Tests.CliNameGuidance"
+  let _ = runWithCommand ["branch"; "create"; branchName]
+  let stdlibOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "fn"
+        "/" ++ moduleName ++ ".negate"
+        "(value: Bool) : Bool = Bool.not value" ]
+  let internalSource =
+    ("(values: List<Int>) : List<Int> = "
+     ++ "PACKAGE.Darklang.Stdlib.List.map values (fun value -> value)")
+  let packageOutput =
+    runWithCommand
+      [ "--branch"
+        branchName
+        "fn"
+        "/" ++ moduleName ++ ".map"
+        internalSource ]
+  let _ = runWithCommand ["branch"; "archive"; branchName]
+
+  if
+    Stdlib.String.contains stdlibOutput "Did you mean `Stdlib.Bool.not`?"
+    && Stdlib.String.contains packageOutput "`PACKAGE.` is internal notation"
+    && Stdlib.String.contains packageOutput "write `Stdlib.List.map`"
+    && Stdlib.Bool.not (Stdlib.String.contains packageOutput "Created function")
+  then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      ($"Expected source-name guidance; stdlib={stdlibOutput}; "
+       ++ $"PACKAGE={packageOutput}")
 
 
 let testListTypes (): TestResult =

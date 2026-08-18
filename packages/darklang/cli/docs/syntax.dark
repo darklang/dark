@@ -9,8 +9,14 @@ let content () : String =
   if cond then a else b
   // comment
 
-## Functions (module-level only, no nesting)
+## Functions
   let greet (name: String) : String = $"Hello, {name}"
+
+Nested functions are supported in a function body, but require parameter and
+return annotations:
+  let outer (n: Int) : Int =
+    let double (x: Int) : Int = x * 2
+    double n
 
 ## Match
   match x with

@@ -134,16 +134,13 @@ module Disallowed =
   (get "http://google.com" [ ("X-Google-Metadata-Request", " True ") ]) = errInvalidRequest
   (get "http://google.com" [ (" x-Google-metaData-Request", " True ") ]) = errInvalidRequest
 
-module BadSSL =
-  // `.test` is reserved by RFC 6761 and can never be registered, so this can't stop
-  // failing to resolve the way thenonexistingurlforsure.com could have.
-  (get "http://no-such-host.dark.test" []) = errNetworkError
-
-  // Third-party and intermittently flaky: seen erroring in one full run out of
-  // several while the rest of the suite was stable. Testing a self-signed cert
-  // properly needs a local TLS endpoint, which the httpclient test server doesn't
-  // serve yet.
-  (get "https://self-signed.badssl.com" []) = errNetworkError
+module NetworkFailures =
+  // `.test` cannot resolve publicly. Depending on the DNS environment, that is
+  // reported immediately as NetworkError or when the request times out.
+  (match get "http://no-such-host.dark.test" [] with
+   | Error NetworkError -> true
+   | Error Timeout -> true
+   | _ -> false) = true
 
 
 

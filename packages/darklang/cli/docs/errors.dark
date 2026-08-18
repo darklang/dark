@@ -13,12 +13,14 @@ let content () : String =
 ## Type mismatch
   - Wrong literal suffix (5 vs 5.0)
   - Param order wrong
-  - Missing Option.Some wrapper
+  - Missing `Some` wrapper
   - Missing list wrapper [x]
 
 ## "Function not found"
   - Use full path: Stdlib.List.map
   - Check spelling/case
+  - Never prefix a source name with `PACKAGE.`; remove it. Prefer `Stdlib.*`
+    for standard-library names.
 
 ## Operator errors
   - Numeric operators require matching numeric operand types
@@ -26,11 +28,12 @@ let content () : String =
   - List concat: use Stdlib.List.append
 
 ## Enum errors
-  - Constructing: need TypeName.Case
+  - Option/Result expressions use bare `Some`, `None`, `Ok`, and `Error`
+  - Other enum expressions use `TypeName.Case`
   - Matching: just Case (no prefix)
 
 ## Some + tuple
-  - Use Some ((a, b)) with double parens
+  - Use `Some ((a, b))` with double parens
 
 ## Debug
   1. Simplify expression

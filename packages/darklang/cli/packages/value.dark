@@ -104,7 +104,7 @@ let createValueInline
             writtenValue
 
         // Check for unresolved names
-        if Errors.reportUnresolvedNames unresolvedNames then
+        if Errors.reportUnresolvedNames state.currentBranchId unresolvedNames then
           state
         // no unresolved names - keep going
         else

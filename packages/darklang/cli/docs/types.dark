@@ -11,12 +11,12 @@ let content () : String =
   Char     'a'
 
 ## Option
-  Option.Some 5
-  Option.None
+  Type: Stdlib.Option.Option<Int>
+  Construct: Some 5, None
 
 ## Result
-  Result.Ok value
-  Result.Error msg
+  Type: Stdlib.Result.Result<Int, String>
+  Construct: Ok value, Error msg
 
 ## Collections
   List<T>     [1; 2]

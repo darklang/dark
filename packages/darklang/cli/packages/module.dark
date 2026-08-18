@@ -1,0 +1,248 @@
+module Darklang.Cli.Packages.ModuleCommand
+
+
+type UpdatedItem =
+  { location: LanguageTools.ProgramTypes.PackageLocation
+    hash: LanguageTools.ProgramTypes.Hash
+    kind: LanguageTools.ProgramTypes.ItemKind }
+
+
+let sfDeclToModuleDecl
+  (decl: LanguageTools.WrittenTypes.SourceFile.SourceFileDeclaration)
+  : LanguageTools.WrittenTypes.ModuleDeclaration.Declaration =
+  match decl with
+  | Type typ -> LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Type typ
+  | Function fn ->
+    LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Function fn
+  | Value value ->
+    LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.Value value
+  | Module modul ->
+    LanguageTools.WrittenTypes.ModuleDeclaration.Declaration.SubModule modul
+
+
+let collectDecls
+  (modules: List<String>)
+  (decls: List<LanguageTools.WrittenTypes.ModuleDeclaration.Declaration>)
+  : List<List<String>
+      * LanguageTools.WrittenTypes.ModuleDeclaration.Declaration> =
+  decls
+  |> Stdlib.List.map (fun decl ->
+    match decl with
+    | SubModule modul ->
+      let nestedModules =
+        Stdlib.List.append modules [ Stdlib.Tuple2.second modul.name ]
+      collectDecls nestedModules modul.declarations
+    | _ -> [ (modules, decl) ])
+  |> Stdlib.List.flatten
+
+
+let declarationName
+  (decl: LanguageTools.WrittenTypes.ModuleDeclaration.Declaration)
+  : String =
+  match decl with
+  | Type typ -> typ.name.name
+  | Function fn -> fn.name.name
+  | Value value -> value.name.name
+  | SubModule modul -> Stdlib.Tuple2.second modul.name
+
+
+/// Return every declaration path that occurs more than once in the input.
+/// `collectDecls` has already flattened submodules, so the relative module path
+/// plus declaration name uniquely identifies the eventual package location.
+let duplicateDeclarationNames
+  (declarations:
+    List<List<String>
+      * LanguageTools.WrittenTypes.ModuleDeclaration.Declaration>)
+  : List<String> =
+  let (_, duplicates) =
+    declarations
+    |> Stdlib.List.fold ([], []) (fun (seen, duplicates) (modules, decl) ->
+      let path =
+        Stdlib.List.append modules [declarationName decl]
+        |> Stdlib.String.join "."
+
+      if Stdlib.List.member seen path then
+        (seen, Stdlib.List.push duplicates path)
+      else
+        (Stdlib.List.push seen path, duplicates))
+
+  Stdlib.List.unique duplicates
+
+
+let updatedItem
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (hash: LanguageTools.ProgramTypes.Hash)
+  (kind: LanguageTools.ProgramTypes.ItemKind)
+  : Stdlib.Option.Option<UpdatedItem> =
+  let previous = Propagate.getAllPreviousHashes branchId location kind
+  if Stdlib.List.isEmpty previous then
+    Stdlib.Option.Option.None
+  else
+    Stdlib.Option.Option.Some
+      (UpdatedItem { location = location; hash = hash; kind = kind })
+
+
+/// Return the definitions that replaced an existing package location.
+/// Hash stabilization has already replaced the location placeholders in these
+/// SetName ops, so the hashes are safe to pass to propagation after insertion.
+let updatedItems
+  (branchId: Uuid)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : List<UpdatedItem> =
+  ops
+  |> Stdlib.List.filterMap (fun op ->
+    match op with
+    | SetName (location, PackageType hash) ->
+      updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Type
+    | SetName (location, PackageValue hash) ->
+      updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Value
+    | SetName (location, PackageFn hash) ->
+      updatedItem branchId location hash LanguageTools.ProgramTypes.ItemKind.Fn
+    | _ -> Stdlib.Option.Option.None)
+
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  let input =
+    match args with
+    | [ modulePath; "-" ] ->
+      Stdlib.Result.Result.Ok((modulePath, Builtin.stdinReadAll ()))
+    | [ modulePath; sourcePath ] ->
+      match Stdlib.Cli.File.readText sourcePath with
+      | Ok source -> Stdlib.Result.Result.Ok((modulePath, source))
+      | Error err ->
+        Stdlib.Result.Result.Error
+          $"Could not read '{sourcePath}': {err.message}"
+    | _ ->
+      Stdlib.Result.Result.Error
+        "Usage: module <module> <source-file|->"
+
+  match input with
+  | Error message ->
+    Stdlib.printLine (Colors.error message)
+    state
+  | Ok((modulePath, source)) ->
+    // Package input is declaration scope at its root. In particular, `val x`
+    // declares a package value while `let x` is diagnosed directly instead of
+    // being consumed as a script binding and failing later at EOF.
+    match Builtin.parserParsePackageToWrittenTypes source with
+    | Error diagnostics ->
+      let _ = Errors.reportParseErrors diagnostics
+      state
+    | Ok(SourceFile sourceFile) ->
+      let declarations =
+        let moduleDecls =
+          sourceFile.declarations
+          |> Stdlib.List.map sfDeclToModuleDecl
+        collectDecls [] moduleDecls
+      let duplicateNames = duplicateDeclarationNames declarations
+
+      if Stdlib.List.isEmpty declarations then
+        Stdlib.printLine (Colors.error "Package source contains no declarations")
+        state
+      else if Stdlib.Bool.not (Stdlib.List.isEmpty duplicateNames) then
+        Stdlib.printLine
+          (Colors.error "Package source contains duplicate declaration names:")
+        duplicateNames
+        |> Stdlib.List.iter (fun name ->
+          Stdlib.printLine (Colors.error $"  - {name}"))
+        state
+      else
+        // Resolve a synthetic item path below the requested module so the
+        // module path follows the same rules as `fn`, `type`, and `val`.
+        let locationInput = modulePath ++ ".__module__"
+        match
+          Location.parseRelativeTo
+            state.packageData.currentLocation
+            locationInput
+        with
+        | Error message ->
+          Stdlib.printLine (Colors.error $"Invalid module location: {message}")
+          state
+        | Ok baseLocation ->
+          let basePm = LanguageTools.PackageManager.pm ()
+          let branchId = state.currentBranchId
+          let rootModule =
+            LanguageTools.WrittenTypes.ModuleDeclaration.ModuleDeclaration
+              { range = sourceFile.range
+                name = (sourceFile.range, "__module__")
+                declarations =
+                  sourceFile.declarations
+                  |> Stdlib.List.map sfDeclToModuleDecl
+                keywordModule = sourceFile.range }
+          let ctx =
+            LanguageTools.NameResolver.NRContext
+              { onMissing = LanguageTools.NameResolver.OnMissing.Allow
+                pm = basePm
+                branchId = branchId
+                owner = baseLocation.owner
+                currentModule = baseLocation.modules }
+
+          // The provisional ops use unique location hashes, allowing all
+          // declarations to resolve each other without touching the DB.
+          let (_, provisionalOps, _) =
+            LanguageTools.WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper
+              ctx
+              rootModule
+          let pm =
+            LanguageTools.ProgramTypes.PackageManager.withExtraOps
+              basePm
+              provisionalOps
+          let (_, ops, unresolvedNames) =
+            LanguageTools.WrittenTypesToProgramTypes.moduleDeclarationWithOpsHelper
+              { ctx with pm = pm }
+              rootModule
+
+          // Resolve the placeholders as one graph so mutually recursive
+          // declarations receive consistent content-addressed hashes.
+          let ops =
+            LanguageTools.WrittenTypesToProgramTypes.stabilizePackageOps
+              ops
+          let updates = updatedItems branchId ops
+
+          if Errors.reportUnresolvedNames branchId unresolvedNames then
+            state
+          else
+            match SCM.PackageOps.add branchId ops with
+            | Error message ->
+              Stdlib.printLine
+                (Colors.error $"Failed to define module: {message}")
+              state
+            | Ok _ ->
+              updates
+              |> Stdlib.List.iter (fun update ->
+                Propagate.autoPropagateAfterUpdate
+                  branchId
+                  update.location
+                  update.hash
+                  update.kind)
+              let count = Stdlib.List.length declarations
+              Stdlib.printLine
+                (Colors.success
+                  $"✓ Defined {Stdlib.Int.toString count} declarations in {modulePath}")
+              state
+
+
+let help (state: Cli.AppState) : Cli.AppState =
+  [ "Define a module from multiple package declarations atomically"
+    ""
+    "Usage: module <module> <source-file|->"
+    ""
+    "The source may contain functions, types, values, and nested modules."
+    "All declarations are validated before a single package operation is added."
+    ""
+    "Example:"
+    "  ./scripts/run-cli module /Darklang.Example - <<'EOF'"
+    "  val greeting = \"hello\""
+    "  let double (n: Int) : Int = n * 2"
+    "  let quadruple (n: Int) : Int = double (double n)"
+    "  EOF"
+  ] |> Stdlib.printLines
+  state
+
+
+let complete
+  (_state: Cli.AppState)
+  (_args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  []

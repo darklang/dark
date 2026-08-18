@@ -15,6 +15,11 @@ let allTests (): List<String * TestFunction> =
 
     ("Eval String Length", fun () -> testEvalStringLength ())
     ("Eval List Length", fun () -> testEvalListLength ())
+    ("Module Command", fun () -> testModuleCommand ())
+    ( "Module Rejects Duplicate Names",
+      fun () -> testModuleRejectsDuplicateNames () )
+    ( "Fn Accepts Complete Declaration",
+      fun () -> testFnAcceptsCompleteDeclaration () )
 
     ("View AST", fun () -> testViewAst ())
     ("View Instructions", fun () -> testViewInstructions ())
@@ -29,6 +34,16 @@ let allTests (): List<String * TestFunction> =
 
     ("List Functions", fun () -> testListFunctions ())
     ("View Function", fun () -> testViewFunction ())
+    ( "Search Module and CamelCase Name",
+      fun () -> testSearchMatchesModuleAndCamelCaseName () )
+    ( "Search Module and Operation Name",
+      fun () -> testSearchMatchesModuleAndOperationName () )
+    ( "Search Finds Nested Helpers",
+      fun () -> testSearchFindsNestedHelpersFromParentModule () )
+    ( "Batch Search Keeps Queries Independent",
+      fun () -> testBatchSearchKeepsQueriesIndependent () )
+    ( "Unresolved Name Guidance",
+      fun () -> testUnresolvedNameGuidance () )
     ("List Types", fun () -> testListTypes ())
 
     ("Help for Run", fun () -> testHelpForRun ())

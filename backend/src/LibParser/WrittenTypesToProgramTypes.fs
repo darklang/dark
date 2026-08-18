@@ -94,6 +94,17 @@ let private enumTypeName
   (q.modules |> List.map (fun (m, _) -> m.name)) @ [ q.typ.name ]
   |> List.filter (fun s -> s <> "")
 
+// Option and Result constructors can be bare. Other enum constructors require
+// `Type.Case` until expected-type inference is supported.
+let private enumTypeNameForCase
+  (q : WT.QualifiedTypeIdentifier)
+  (caseName : string)
+  : WT.UnresolvedEnumTypeName =
+  match enumTypeName q, caseName with
+  | [], ("Some" | "None") -> [ "Stdlib"; "Option"; "Option" ]
+  | [], ("Ok" | "Error") -> [ "Stdlib"; "Result"; "Result" ]
+  | names, _ -> names
+
 module InfixFnName =
   let toPT (name : WT.InfixFnName) : PT.InfixFnName =
     match name with
@@ -697,7 +708,7 @@ module Expr =
       // EVariable so name resolution disambiguates. Left as an EEnum, a DB or
       // variable ref would be forced into enum-case resolution and fail.
       | WT.EEnum(_, tn, (_, caseName), fields, _) when
-        List.isEmpty tn.modules && tn.typ.name = "" && List.isEmpty fields
+        List.isEmpty (enumTypeNameForCase tn caseName) && List.isEmpty fields
         ->
         return! toPT context (WT.EVariable(WT.synthRange, caseName))
       | WT.EEnum(_, tn, (_, caseName), fields, _) ->
@@ -708,7 +719,7 @@ module Expr =
             onMissing
             branchId
             currentModule
-            (enumTypeName tn)
+            (enumTypeNameForCase tn caseName)
             caseName
         let! exprs = Ply.List.mapSequentially (toPT context) fields
         let! typeArgs =
@@ -885,7 +896,7 @@ module Expr =
             onMissing
             branchId
             currentModule
-            (enumTypeName tn)
+            (enumTypeNameForCase tn caseName)
             caseName
         let! fields = Ply.List.mapSequentially (toPT context) fields
         return PT.EPipeEnum(id, typeName, caseName, fields)

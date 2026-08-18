@@ -15,7 +15,8 @@ let content () : String =
     let double (x: Int) : Int = x * 2
     double n
 
-  # Params need parens - `let double x = x * 2` is a parse error.
+  # Nested params and the return need types. `let double (x) = ...` and
+  # `let double x = ...` are parse errors.
   # A nested fn sees the bindings above it, including other nested fns.
   # Calling one defined further down doesn't work; use a top-level fn for that.
 
