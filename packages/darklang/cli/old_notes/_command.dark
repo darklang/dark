@@ -153,7 +153,7 @@ module Command =
                     | Error _ -> "~/.darklang"
                 $"{Colors.green}Status:{Colors.reset} Globally installed at {homeDir} and ready to use"
               | Portable ->
-                let currentDir = Builtin.directoryCurrent ()
+                let currentDir = Stdlib.Cli.FileSystem.currentDirectory ()
                 $"{Colors.yellow}Status:{Colors.reset} Running in portable mode at {currentDir}/.darklang (run 'install' for global system-wide access)"
 
             let textContent =

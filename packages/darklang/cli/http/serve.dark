@@ -108,7 +108,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           // In the dev container the host reaches this port on a per-clone offset, set as
           // DARK_HOST_PORT_BASE at startup. Unset outside it, so there's nothing to add.
           let hostLines =
-            match Builtin.environmentGet "DARK_HOST_PORT_BASE" with
+            match Stdlib.Env.get "DARK_HOST_PORT_BASE" with
             | None -> []
             | Some baseStr ->
               match Stdlib.Int.parse baseStr with

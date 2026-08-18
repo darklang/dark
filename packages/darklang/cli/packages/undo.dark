@@ -172,7 +172,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               else
                 Stdlib.printLine ""
                 Stdlib.print (Colors.warning "Proceed? (y/n): ")
-                let response = Builtin.stdinReadLine ()
+                let response = Stdlib.Cli.Stdin.readLine ()
                 (response == "y") || (response == "Y")
 
           if proceed then

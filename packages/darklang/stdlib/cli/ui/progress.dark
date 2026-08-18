@@ -21,8 +21,8 @@ let bar (current: Int) (total: Int) (label: String) : Unit =
     if total == 0 then 0
     else Stdlib.Int.divide (current * 100) total
 
-  Builtin.print
+  Stdlib.print
     $"\r[{filledStr}{emptyStr}] {Stdlib.Int.toString pct}% {label}"
 
-  if current >= total then Builtin.printLine ""
+  if current >= total then Stdlib.printLine ""
   else ()

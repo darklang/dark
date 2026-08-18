@@ -55,18 +55,18 @@ let resolveTarget
   | Ok location ->
     match itemKind with
     | Fn ->
-      match Builtin.pmFindFn branchId location with
+      match LanguageTools.PackageManager.Function.find branchId location with
       | Some h ->
         Stdlib.Option.Option.Some (LanguageTools.ProgramTypes.Reference.PackageFn h)
       | None -> Stdlib.Option.Option.None
     | Type ->
-      match Builtin.pmFindType branchId location with
+      match LanguageTools.PackageManager.Type.find branchId location with
       | Some h ->
         Stdlib.Option.Option.Some
           (LanguageTools.ProgramTypes.Reference.PackageType h)
       | None -> Stdlib.Option.Option.None
     | Value ->
-      match Builtin.pmFindValue branchId location with
+      match LanguageTools.PackageManager.Value.find branchId location with
       | Some h ->
         Stdlib.Option.Option.Some
           (LanguageTools.ProgramTypes.Reference.PackageValue h)
@@ -233,7 +233,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               else
                 Stdlib.printLine ""
                 Stdlib.print (Colors.warning "Proceed? (y/n): ")
-                let response = Builtin.stdinReadLine ()
+                let response = Stdlib.Cli.Stdin.readLine ()
                 (response == "y") || (response == "Y")
 
             if proceed then

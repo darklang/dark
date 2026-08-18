@@ -19,13 +19,21 @@ module Exe = LibExecution.Execution
 open TestUtils.TestUtils
 
 
+/// Every builtin library a running `darklang` has. `localBuiltIns` is the set
+/// the tests execute with, which leaves out CliHost -- `dark eval`, script
+/// running, the CLI's own entry points -- so the checks below would otherwise
+/// ignore that whole library.
+let private allBuiltinSets () : List<RT.Builtins> =
+  [ localBuiltIns PT.PackageManager.empty; Builtins.CliHost.Builtin.builtins () ]
+
+
 let oldFunctionsAreDeprecated =
   let builtinToString (name : RT.FQFnName.Builtin) = $"{name.name}_v{name.version}"
 
   testTask "old functions are deprecated" {
     let mutable counts = Map.empty
 
-    let fns = (localBuiltIns PT.PackageManager.empty).fns.Values |> List.ofSeq
+    let fns = allBuiltinSets () |> List.collect (fun b -> b.fns.Values |> List.ofSeq)
 
     fns
     |> List.iter (fun fn ->
@@ -47,15 +55,26 @@ let oldFunctionsAreDeprecated =
   }
 
 
+/// The name of every builtin a running `darklang` can call -- fns and values
+/// alike, since `Builtin.x` is how Dark reaches both.
+let private allBuiltinNames () : List<string> =
+  allBuiltinSets ()
+  |> List.collect (fun builtins ->
+    let fnNames = builtins.fns.Values |> Seq.map (fun fn -> fn.name.name)
+    let valueNames = builtins.values.Values |> Seq.map (fun v -> v.name.name)
+    Seq.append fnNames valueNames |> List.ofSeq)
+  |> List.distinct
+
+
 // -- Builtin access in package matter --
 //
 // Walk every .dark under packages/ and count textual references to
 // `Builtin.<name>` (or `Builtin.<name>_v<digits>`) for every registered
-// builtin fn. Anything with >1 textual reference must appear in the
-// allowlist below.
+// builtin. Anything with >1 textual reference must appear in the allowlist
+// below.
 //
-// A builtin should normally have one package wrapper. The allowlist names
-// the cases where direct multi-use is intentional.
+// A builtin should have one package wrapper, and callers should go through
+// it. The allowlist names the cases where direct multi-use is intentional.
 //
 // Infix-dispatched builtins (`+`, `==`, etc.) are dispatched through
 // operator syntax, so they have no textual `Builtin.X` references.
@@ -83,110 +102,29 @@ let private infixDispatched : Set<string> =
 
 
 /// Builtins intentionally referenced from more than one place in `packages/`.
-/// Add a short comment for each group. Keep alphabetical within each group.
-///
-/// TODO continue routing direct `Builtin.X` callers through stdlib
-/// wrappers in batches and shrink this list. Finished: delete unused,
-/// int conversions/ops, json/blob/string codecs. Remaining: CLI/IO,
-/// Posix, package-manager browsing, traces, streams, and misc runtime
-/// entry points. Route each caller through a wrapper unless direct builtin
-/// access is required.
+/// Everything else routes through a single Dark wrapper; when a builtin picks
+/// up a second caller, wrap it rather than adding it here. An entry needs a
+/// comment saying why a wrapper is the wrong answer for that one.
 let private multiUseAllowlist : Set<string> =
   Set.ofList
-    [ // `Stdlib.String.contains` and `Stdlib.String.indexOf` both call the
-      // builtin directly. `contains` stays direct because the SQL compiler
-      // maps the builtin to SQLite INSTR; the Option-returning wrapper is
-      // not queryable.
-      "stringIndexOf"
-
-      // Structured parse diagnostics used by CLI package creation,
-      // CLI-script parsing, and LSP diagnostics.
-      "parserParseDiagnostics"
-
-      // CLI / IO surface called by many CLI commands.
-      "debug"
-      "directoryCurrent"
-      "directoryList"
-      "environmentGet"
-      "fileAppendText"
-      "fileDelete"
-      "fileExists"
-      "fileIsDirectory"
-      "fileRead"
-      "fileWrite"
-      "getCurrentExecutablePath"
-      "print"
-      "printLine"
-      "stdinReadAll"
-      "stdinReadLine"
-      "timeSleep"
-      "toRepr"
-      "unwrap"
-
-      // Posix wrappers (file descriptor primitives).
-      "posixFdClose"
-      "posixFdWrite"
-      "posixReadlink"
-      "posixUname"
-
-      // Package manager browsing used by CLI, LSP, and agent code.
-      "dbListAll"
-      "depsGetDependents"
-      "getAllBuiltinFns"
-      "pmFindFn"
-      "pmFindType"
-      "pmFindValue"
-      "pmGetFn"
-      "pmGetLocationsByFn"
-      "pmGetLocationsByType"
-      "pmGetLocationsByValue"
-      "pmGetType"
-      "pmGetValue"
-      "pmScriptsGet"
-      "pmScriptsList"
-      "pmScriptsUpdate"
-      "pmSearch"
-
-      // HTTP server entry called by the `dark serve` wrapper.
-      "httpServerServe"
-
-      // Streams (CLI / agent / scripts use them directly).
-      "streamClose"
-      "streamFilter"
-      "streamMap"
-      "streamNext"
-      "streamToBlob"
-      "streamToList"
-      "streamUnfold"
-
-      // Trace surface read by CLI commands and LSP.
-      "tracesFind"
-      "tracesHotspots"
-      "tracesList"
-      "tracesStatsByHandler"
-
-      // Parser entry point used by CLI syntax highlighting, package display,
-      // LSP, and CLI-script parsing.
-      "parserParseToWrittenTypes"
-
-      // Sync conflict-review surface: the recorded-divergence log, read by the
-      // `dark conflicts` review UI and by the `dark sync` pull nudge (which
-      // counts unreviewed conflicts so last-writer-wins is never silent).
-      "conflictsList"
-
-      // Misc.
-      "interpreterStatsReset" ]
+    [ // The unwrap idiom, in 60-odd places across packages/. A generic Dark
+      // wrapper does work -- `let unwrap (value: 'optOrRes) : 'a` typechecks
+      // for both Option and Result -- but it costs a package call at every
+      // unwrap and puts itself at the bottom of every unwrap failure's call
+      // stack, one frame below the code that actually had the None.
+      "unwrap" ]
 
 
-/// Find packages/ by walking up from CWD until we hit one with darklang/.
-let private findPackagesDir () : string =
+/// Find the repo root by walking up from CWD until we hit one with
+/// packages/darklang/.
+let private findRepoRoot () : string =
   let rec walk (dir : string) : string option =
     if System.String.IsNullOrEmpty dir then
       None
     else
       let candidate = Path.Combine(dir, "packages", "darklang")
       if Directory.Exists candidate then
-        Some(Path.Combine(dir, "packages"))
+        Some dir
       else
         walk (Path.GetDirectoryName dir)
 
@@ -198,6 +136,20 @@ let private findPackagesDir () : string =
       [ "cwd", Directory.GetCurrentDirectory() ]
 
 
+/// Read every .dark file under <root>, minus whole-line comments, as one string.
+/// Build output is skipped: it holds copies of files we've already read.
+let private darkTextUnder (root : string) : string =
+  Directory.EnumerateFiles(root, "*.dark", SearchOption.AllDirectories)
+  |> Seq.filter (fun path ->
+    let sep = Path.DirectorySeparatorChar
+    not (path.Contains $"{sep}Build{sep}"))
+  |> Seq.map File.ReadAllText
+  |> String.concat "\n"
+  |> String.splitOnNewline
+  |> List.filter (fun line -> not ((line.TrimStart()).StartsWith "//"))
+  |> String.concat "\n"
+
+
 /// Concatenate every .dark file under packages/ into one string, minus whole-line
 /// comments. Cached.
 ///
@@ -207,34 +159,33 @@ let private findPackagesDir () : string =
 /// entirely a comment are dropped, so a `//` inside a string literal can't swallow
 /// real code after it on the same line.
 let private packagesText : Lazy<string> =
-  lazy
-    (let root = findPackagesDir ()
-     Directory.EnumerateFiles(root, "*.dark", SearchOption.AllDirectories)
-     |> Seq.map File.ReadAllText
-     |> String.concat "\n"
-     |> String.splitOnNewline
-     |> List.filter (fun line -> not ((line.TrimStart()).StartsWith "//"))
-     |> String.concat "\n")
+  lazy (darkTextUnder (Path.Combine(findRepoRoot (), "packages")))
+
+
+/// Every .dark file in the repo, minus whole-line comments. Wider than
+/// `packagesText`: it also covers test files, perf workloads and sample
+/// scripts, which is the difference between "shipped once" and "dead".
+let private repoDarkText : Lazy<string> = lazy (darkTextUnder (findRepoRoot ()))
 
 
 /// Count textual references to `Builtin.<name>` (or `Builtin.<name>_v<n>`)
 /// across packages/. The `(?![a-zA-Z0-9_])` lookahead prevents matching
 /// `Builtin.dictGet` against the prefix of `Builtin.dictGetItem`.
-let private countReferences (builtinName : string) : int =
+let private countReferencesIn (corpus : string) (builtinName : string) : int =
   let escaped = Regex.Escape builtinName
   let pattern = $@"Builtin\.{escaped}(?:_v[0-9]+)?(?![a-zA-Z0-9_])"
   let regex = Regex(pattern, RegexOptions.Compiled)
-  regex.Matches(packagesText.Value).Count
+  regex.Matches(corpus).Count
+
+let private countReferences (builtinName : string) : int =
+  countReferencesIn packagesText.Value builtinName
 
 
 let builtinAccessInPackageMatter =
   testTask "builtin access in package matter" {
-    let fns = (localBuiltIns PT.PackageManager.empty).fns.Values |> List.ofSeq
-
     let offenders =
-      fns
-      |> Seq.choose (fun fn ->
-        let name = fn.name.name
+      allBuiltinNames ()
+      |> Seq.choose (fun name ->
         if Set.contains name multiUseAllowlist then
           None
         elif Set.contains name infixDispatched then
@@ -254,12 +205,59 @@ let builtinAccessInPackageMatter =
         false
         ("Some builtins are referenced from more than one place in packages/:\n"
          + lines
-         + "\n\nPrefer wrapping the builtin in a single Dark package fn (e.g. a Stdlib/Cli helper) and routing "
-         + "all callers through it, so the builtin is referenced once. Only add to `multiUseAllowlist` as a "
-         + "last resort, when direct builtin access from several places is genuinely required (e.g. the SQL "
-         + "compiler needs the raw builtin). The goal is to shrink that list, not grow it.")
+         + "\n\nWrap the builtin in one Dark package fn -- a Stdlib or Cli helper that names it, types it "
+         + "and documents it -- and route the callers through that. `multiUseAllowlist` is for the cases "
+         + "where a wrapper is the wrong answer, and it is down to one entry; a new one needs its reason "
+         + "written next to it.")
+  }
+
+
+// -- Unused builtins --
+//
+// The mirror of the test above: a builtin nothing calls is dead F# we keep
+// compiling, serializing and documenting. Every registered builtin should be
+// reachable from Dark somewhere in the repo -- packages/, test files, perf
+// workloads or sample scripts.
+
+/// Builtins with no Dark caller anywhere, kept deliberately.
+/// Each one needs a reason; without one, delete the builtin instead.
+let private unusedAllowlist : Set<string> =
+  Set.ofList
+    [ // Test-harness escape hatch for the cases that expect an exception to
+      // reach the reporter. The harness still reads the count it sets; the
+      // testfile cases that set it are currently commented out.
+      "testSetExpectedExceptionCount" ]
+
+
+let everyBuiltinIsReferenced =
+  testTask "every builtin is referenced from Dark" {
+    let unused =
+      allBuiltinNames ()
+      |> Seq.filter (fun name ->
+        not (Set.contains name unusedAllowlist)
+        && not (Set.contains name infixDispatched)
+        && countReferencesIn repoDarkText.Value name = 0)
+      |> List.ofSeq
+
+    if not (List.isEmpty unused) then
+      let lines =
+        unused
+        |> List.sort
+        |> List.map (fun name -> $"  {name}")
+        |> String.concat "\n"
+      Expect.isTrue
+        false
+        ("Some builtins have no Dark caller anywhere in the repo:\n"
+         + lines
+         + "\n\nDelete the builtin, or wire it up (a package wrapper, a test file, a perf workload). "
+         + "Add to `unusedAllowlist` only with a reason -- an uncalled builtin is dead weight in every "
+         + "build and every serialized package.")
   }
 
 
 let tests =
-  testList "builtin" [ oldFunctionsAreDeprecated; builtinAccessInPackageMatter ]
+  testList
+    "builtin"
+    [ oldFunctionsAreDeprecated
+      builtinAccessInPackageMatter
+      everyBuiltinIsReferenced ]

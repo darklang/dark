@@ -114,7 +114,7 @@ let resolveStartingBranch () : Uuid =
   let mainId = SCM.Branch.mainBranchId
 
   let fromEnv =
-    match Builtin.environmentGet "DARK_BRANCH" with
+    match Stdlib.Env.get "DARK_BRANCH" with
     | Some name ->
       if Stdlib.String.isEmpty name then
         Stdlib.Option.Option.None
@@ -157,7 +157,8 @@ let initState () : AppState =
       cachedFilterItems = []
       allCommandsCache = commands
       commandOptionsCache = commandOptions commands
-      telemetryEnabled = (Builtin.environmentGet "DARK_TELEMETRY") == Stdlib.Option.Option.Some "1" }
+      telemetryEnabled =
+        (Stdlib.Env.get "DARK_TELEMETRY") == Stdlib.Option.Option.Some "1" }
 
 type Msg =
   | ProcessInput of String

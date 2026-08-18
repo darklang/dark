@@ -9,7 +9,7 @@ val defaultConfig =
 
 // TODO: typify the error messages
 let read (configPath: String) : Stdlib.Result.Result<Dict<String>, String> =
-  match Builtin.fileRead configPath with
+  match Stdlib.Cli.FileSystem.readFile configPath with
   | Ok content ->
     content
     |> Stdlib.String.fromBlobWithReplacement
@@ -42,7 +42,7 @@ let updateVersion
     |> Stdlib.Json.serialize<Dict<String>>
     |> Stdlib.String.toBlob
 
-  match Builtin.fileWrite serializedConfig configPath with
+  match Stdlib.Cli.FileSystem.overwriteFile configPath serializedConfig with
   | Ok _ -> Stdlib.Result.Result.Ok()
   | Error err -> Stdlib.Result.Result.Error "Failed to update config.json"
 

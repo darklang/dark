@@ -6,6 +6,31 @@ type Script = {
   text: String
 }
 
+
+// The stored-script surface. The wrappers live here, next to the type the
+// builtins return; the LSP's script filesystem provider calls them too.
+
+/// Every stored script.
+let list () : List<Script> =
+  Builtin.pmScriptsList ()
+
+/// The stored script named <param name>, if there is one.
+let get (name: String) : Stdlib.Option.Option<Script> =
+  Builtin.pmScriptsGet name
+
+/// Store a new script. Errors if the name is taken.
+let add (name: String) (text: String) : Stdlib.Result.Result<Script, String> =
+  Builtin.pmScriptsAdd name text
+
+/// Replace an existing script's text. Errors if there's no such script.
+let update (name: String) (text: String) : Stdlib.Result.Result<Unit, String> =
+  Builtin.pmScriptsUpdate name text
+
+/// Delete a stored script. Errors if there's no such script.
+let delete (name: String) : Stdlib.Result.Result<Unit, String> =
+  Builtin.pmScriptsDelete name
+
+
 // Scripts command - manage and run stored Dark scripts
 // TODO rename to just execute
 let execute (state: AppState) (args: List<String>) : AppState =
@@ -25,7 +50,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     state
 
   | ["list"] ->
-    let scripts = Builtin.pmScriptsList ()
+    let scripts = list ()
     if Stdlib.List.isEmpty scripts then
       Stdlib.printLine "No scripts found"
       state
@@ -38,7 +63,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | ["view"; name] ->
-    match Builtin.pmScriptsGet name with
+    match get name with
     | Some script ->
       let output = $"Script: {script.name}\n\n{script.text}"
       Stdlib.printLine output
@@ -66,7 +91,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   | "add" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
     let text = Stdlib.String.join textParts " "
-    match Builtin.pmScriptsAdd name text with
+    match add name text with
     | Ok script ->
       let message = $"Script '{script.name}' added successfully"
       Stdlib.printLine message
@@ -76,7 +101,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | ["edit"; name] ->
-    match Builtin.pmScriptsGet name with
+    match get name with
     | Some script ->
       [
         $"Current content of script '{name}':\n{script.text}"
@@ -91,7 +116,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   | "edit" :: name :: textParts when Stdlib.Bool.not (Stdlib.List.isEmpty textParts) ->
     let text = Stdlib.String.join textParts " "
-    match Builtin.pmScriptsUpdate name text with
+    match update name text with
     | Ok () ->
       let message = $"Script '{name}' updated successfully"
       Stdlib.printLine message
@@ -101,7 +126,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | ["delete"; name] ->
-    match Builtin.pmScriptsDelete name with
+    match delete name with
     | Ok () ->
       let message = $"Script '{name}' deleted successfully"
       Stdlib.printLine message
@@ -111,9 +136,17 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | ["run"; name] ->
-    match Builtin.pmScriptsGet name with
+    match get name with
     | Some script ->
-      let result = Builtin.cliParseAndExecuteScript state.accountID state.currentBranchId $"script:{name}" script.text [] false false
+      let result =
+        Run.parseAndExecute
+          state.accountID
+          state.currentBranchId
+          $"script:{name}"
+          script.text
+          []
+          false
+          false
       match result with
       | Ok 0 -> state
       | Ok exitCode ->
@@ -141,7 +174,7 @@ let complete (_state: AppState) (args: List<String>) : List<Completion.Completio
     |> Stdlib.List.map Completion.simple
   // Referencing a specific script - recommend names
   | ["view"] | ["edit"] | ["delete"] | ["run"] ->
-    let scripts = Builtin.pmScriptsList ()
+    let scripts = list ()
     scripts
     |> Stdlib.List.map (fun s -> s.name)
     |> Stdlib.List.map Completion.simple

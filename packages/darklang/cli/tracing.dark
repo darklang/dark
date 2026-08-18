@@ -17,7 +17,7 @@ type TraceData = Darklang.Tracing.TraceData
 /// to tell the two apart from in here until the tracesEnabled builtin, so this asks
 /// rather than guessing.
 let emptyStateHint () : String =
-  if Builtin.tracesEnabled () then
+  if Darklang.Tracing.Store.enabled () then
     "(Traces are recorded by `darklang eval`, `darklang run`, or HTTP handlers under `darklang serve`.)"
   else
     "(Recording is OFF, so this is empty whatever ran. For one command: DARK_CONFIG_TRACE_DETAIL=on darklang ...)"
@@ -97,7 +97,7 @@ let resolveTraceID (input: String) : Stdlib.Option.Option<String> =
       Stdlib.printLine (Colors.error "Trace ID must not be empty")
       Stdlib.Option.Option.None
     else
-      match Builtin.tracesResolveID trimmed with
+      match Darklang.Tracing.Store.resolveID trimmed with
       | Ok fullID -> Stdlib.Option.Option.Some fullID
       | Error msg ->
         Stdlib.printLine (Colors.error msg)
@@ -188,7 +188,7 @@ let confirmDestructive (autoConfirm: Bool) (action: String) : Bool =
     true
   else
     Stdlib.printLine $"{action} (y/n): "
-    let response = Builtin.stdinReadLine ()
+    let response = Stdlib.Cli.Stdin.readLine ()
     (response == "y") || (response == "Y")
 
 
@@ -475,7 +475,7 @@ let executeList (state: Cli.AppState) (limit: Int) : Cli.AppState =
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
-    let rows = Builtin.tracesList limit
+    let rows = Darklang.Tracing.Store.list limit
 
     match rows with
     | [] ->
@@ -499,7 +499,7 @@ let executeListJson (state: Cli.AppState) (limit: Int) : Cli.AppState =
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
-    let rows = Builtin.tracesList limit
+    let rows = Darklang.Tracing.Store.list limit
     Stdlib.printLine (Stdlib.Json.serialize<List<TraceSummary>> rows)
     state
 
@@ -517,7 +517,7 @@ let executeListByFn
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
-    let rows = Builtin.tracesListByFn fnName limit
+    let rows = Darklang.Tracing.Store.listByFn fnName limit
     if jsonMode then
       Stdlib.printLine (Stdlib.Json.serialize<List<TraceSummary>> rows)
       state
@@ -547,7 +547,7 @@ let executeHotspots
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
-    let rows = Builtin.tracesHotspots traceLimit
+    let rows = Darklang.Tracing.Store.hotspots traceLimit
 
     match rows with
     | [] ->
@@ -581,7 +581,7 @@ let executeHotspotsJson
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
-    let rows = Builtin.tracesHotspots traceLimit
+    let rows = Darklang.Tracing.Store.hotspots traceLimit
     let body =
       rows
       |> Stdlib.List.map (fun row ->
@@ -621,7 +621,7 @@ let executeFind
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
-    let rows = Builtin.tracesFind pattern limit
+    let rows = Darklang.Tracing.Store.find pattern limit
 
     match rows with
     | [] ->
@@ -653,7 +653,7 @@ let executeFindJson
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
-    let rows = Builtin.tracesFind pattern limit
+    let rows = Darklang.Tracing.Store.find pattern limit
     Stdlib.printLine (Stdlib.Json.serialize<List<TraceSummary>> rows)
     state
 
@@ -666,7 +666,7 @@ let executeFindView (state: Cli.AppState) (pattern: String) : Cli.AppState =
     Stdlib.printLine (Colors.error "find pattern must not be empty")
     state
   else
-    let rows = Builtin.tracesFind pattern 1
+    let rows = Darklang.Tracing.Store.find pattern 1
     match rows with
     | [] ->
       Stdlib.printLine $"No traces match '{pattern}'."
@@ -706,7 +706,7 @@ let executeTail
       match routeFilter with
       | Some _ -> 500
       | None -> n
-    let allRows = Builtin.tracesList fetch
+    let allRows = Darklang.Tracing.Store.list fetch
     let candidates =
       match routeFilter with
       | Some route ->
@@ -746,7 +746,7 @@ let executeStats (state: Cli.AppState) (limit: Int) : Cli.AppState =
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
-    let rows = Builtin.tracesStatsByHandler limit
+    let rows = Darklang.Tracing.Store.statsByHandler limit
 
     match rows with
     | [] ->
@@ -788,7 +788,7 @@ let executeStatsJson (state: Cli.AppState) (limit: Int) : Cli.AppState =
     Stdlib.printLine (Colors.error "Limit must be ≥ 1")
     state
   else
-    let rows = Builtin.tracesStatsByHandler limit
+    let rows = Darklang.Tracing.Store.statsByHandler limit
     let body =
       rows
       |> Stdlib.List.map (fun row ->
@@ -812,7 +812,7 @@ let followLoop
   (lastSeen: String)
   (jsonMode: Bool)
   : Unit =
-  let rows = Builtin.tracesList 50
+  let rows = Darklang.Tracing.Store.list 50
 
   let candidates =
     rows |> Stdlib.List.takeWhile (fun row -> row.traceId != lastSeen)
@@ -872,7 +872,7 @@ let executeFollow
     Stdlib.printLine ""
 
   // Anchor: ignore traces that already existed when we started.
-  let initialRows = Builtin.tracesList 1
+  let initialRows = Darklang.Tracing.Store.list 1
   let initialSeen =
     match initialRows with
     | [] -> ""
@@ -902,7 +902,7 @@ let executeListByRoute
     // unfiltered, so to find N matching we may need to pull more. Cap at
     // 500 to bound the fetch.
     let overFetch = if limit < 50 then 500 else limit * 10
-    let allRows = Builtin.tracesList overFetch
+    let allRows = Darklang.Tracing.Store.list overFetch
     let routeUpper = Stdlib.String.toUppercase route
     let matching =
       allRows
@@ -1094,7 +1094,7 @@ let executeView
   (traceID: String)
   (opts: ViewOptions)
   : Cli.AppState =
-  let result = Builtin.tracesView traceID
+  let result = Darklang.Tracing.Store.view traceID
 
   match result with
   | None ->
@@ -1121,7 +1121,7 @@ let executeView
 /// the row's input is fetched via `tracesGetInput` which returns None for
 /// non-string inputs. Each replay creates a fresh trace.
 let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
-  match Builtin.tracesGetInput traceID with
+  match Darklang.Tracing.Store.getInput traceID with
   | None ->
     Stdlib.printLine
       (Colors.error
@@ -1131,7 +1131,7 @@ let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
     Stdlib.printLine $"Replaying trace {traceID}..."
     Stdlib.printLine ""
     match
-      Builtin.cliEvaluateExpression
+      Eval.evaluateRaw
         state.accountID state.currentBranchId code false
     with
     | Ok outputOpt ->
@@ -1148,7 +1148,7 @@ let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
 
 
 let executeClear (state: Cli.AppState) : Cli.AppState =
-  let count = Builtin.tracesClear ()
+  let count = Darklang.Tracing.Store.clear ()
   match count with
   | 0 ->
     Stdlib.printLine "No traces to clear."
@@ -1185,7 +1185,7 @@ let executeClearBefore
     let cutoffDt =
       Stdlib.DateTime.subtractSeconds now seconds
     let cutoff = Stdlib.DateTime.toString cutoffDt
-    let count = Builtin.tracesClearBefore cutoff
+    let count = Darklang.Tracing.Store.clearBefore cutoff
     match count with
     | 0 ->
       Stdlib.printLine $"No traces older than {durationStr}."
@@ -1200,7 +1200,7 @@ let executeClearBefore
 /// `traces delete <id>` — remove one trace and its fn_calls. ID accepts
 /// the same prefix-resolution as view/replay.
 let executeDelete (state: Cli.AppState) (traceID: String) : Cli.AppState =
-  let deleted = Builtin.tracesDelete traceID
+  let deleted = Darklang.Tracing.Store.delete traceID
   match deleted with
   | 0 ->
     Stdlib.printLine (Colors.error $"Trace not found: {traceID}")
@@ -1218,7 +1218,7 @@ let executePruneKeep (state: Cli.AppState) (keepN: Int) : Cli.AppState =
     Stdlib.printLine (Colors.error "--keep N must be ≥ 0")
     state
   else
-    let deleted = Builtin.tracesPruneKeep keepN
+    let deleted = Darklang.Tracing.Store.pruneKeep keepN
     match deleted with
     | 0 ->
       Stdlib.printLine

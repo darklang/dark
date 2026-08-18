@@ -128,7 +128,7 @@ let highlightCode (sourceCode: String) : String =
   // returns `Some` (a partial tree; precise diagnostics are reported separately)
   // for virtually all input. `None` only on a hard lex failure — fall back to
   // the uncolored source.
-  match Builtin.parserParseToWrittenTypes sourceCode with
+  match LanguageTools.Parser.Parse.toWrittenTypes sourceCode with
   | Some parsedFile ->
     applyTokenColors sourceCode (LanguageTools.SemanticTokens.ParsedFile.tokenize parsedFile)
   | None -> sourceCode

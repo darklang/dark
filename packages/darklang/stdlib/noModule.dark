@@ -7,3 +7,7 @@ let equals (a: 'a) (b: 'a) : Bool = Builtin.equals a b
 
 /// Returns true if the two value are not equal
 let notEquals (a: 'a) (b: 'a) : Bool = Builtin.notEquals a b
+
+/// A developer-facing string for <param value>: the shape you'd want in a
+/// debug print, not something to parse or show a user.
+let toRepr (value: 'a) : String = Builtin.toRepr value

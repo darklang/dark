@@ -5,7 +5,7 @@ val logFilePath = "/home/dark/app/rundir/logs/lsp-server.log"
 
 let log (input: String) : Unit =
   // returns Result -- ignored
-  let _logged = Builtin.fileAppendText logFilePath (input ++ "\n")
+  let _logged = Stdlib.Cli.FileSystem.appendToFile logFilePath (input ++ "\n")
 
   ()
 
@@ -22,7 +22,7 @@ let logAndSendToClient (response: String) : Unit =
     |> Stdlib.List.length
     |> Stdlib.Int.toString
 
-  Builtin.print $"Content-Length: {contentLengthInBytes}\r\n\r\n{response}"
+  Stdlib.print $"Content-Length: {contentLengthInBytes}\r\n\r\n{response}"
 
 (*
   // These are (basically) the only things we're allowed to do before

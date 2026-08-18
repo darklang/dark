@@ -3,36 +3,36 @@ module Darklang.Stdlib.Cli.UI.Prompt
 
 /// Ask the user for text input.
 let ask (question: String) : String =
-  Builtin.print ($"{question} ")
-  Builtin.stdinReadLine ()
+  Stdlib.print ($"{question} ")
+  Stdlib.Cli.Stdin.readLine ()
 
 
 /// Ask the user a yes/no question. Returns true for yes.
 let confirm (question: String) : Bool =
-  Builtin.print ($"{question} [y/N] ")
-  let answer = Stdlib.String.toLowercase (Builtin.stdinReadLine ())
+  Stdlib.print ($"{question} [y/N] ")
+  let answer = Stdlib.String.toLowercase (Stdlib.Cli.Stdin.readLine ())
   answer == "y" || answer == "yes"
 
 
 /// Ask the user to select from a list of choices. Returns the chosen item.
 let select (question: String) (choices: List<String>) : String =
-  Builtin.printLine question
+  Stdlib.printLine question
 
   let _ =
     choices
     |> Stdlib.List.indexedMap (fun i choice ->
-      Builtin.printLine ($"  {Color.bold (Stdlib.Int.toString (i + 1))}. {choice}"))
+      Stdlib.printLine ($"  {Color.bold (Stdlib.Int.toString (i + 1))}. {choice}"))
 
-  Builtin.print "Enter number: "
-  let input = Builtin.stdinReadLine ()
+  Stdlib.print "Enter number: "
+  let input = Stdlib.Cli.Stdin.readLine ()
 
   match Stdlib.Int.parse input with
   | Ok n ->
     match Stdlib.List.getAt choices (n - 1) with
     | Some choice -> choice
     | None ->
-      Builtin.printLine (Color.red "Invalid selection")
+      Stdlib.printLine (Color.red "Invalid selection")
       select question choices
   | Error _e ->
-    Builtin.printLine (Color.red "Please enter a number")
+    Stdlib.printLine (Color.red "Please enter a number")
     select question choices

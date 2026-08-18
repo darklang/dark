@@ -37,7 +37,7 @@ let copy (src: String) (dst: String) : Result.Result<Unit, Posix.Error> =
     match Posix.openFile src (Posix.OpenFlags.rdonly ()) 0 with
     | Ok srcFd ->
       let readResult = Posix.fdReadAll srcFd []
-      let _ = Builtin.posixFdClose srcFd
+      let _ = Posix.fdClose srcFd
 
       match readResult with
       | Ok bytes ->
@@ -50,8 +50,8 @@ let copy (src: String) (dst: String) : Result.Result<Unit, Posix.Error> =
 
         match Posix.openFile dst flags srcMode with
         | Ok dstFd ->
-          let writeResult = Builtin.posixFdWrite dstFd bytes
-          let _ = Builtin.posixFdClose dstFd
+          let writeResult = Posix.fdWrite dstFd bytes
+          let _ = Posix.fdClose dstFd
 
           match writeResult with
           | Ok _ -> Stdlib.Result.Result.Ok()
@@ -72,7 +72,7 @@ let readBytes (path: String) : Result.Result<Blob, Posix.Error> =
   | Ok fd ->
     let result = Posix.fdReadAll fd []
 
-    let _ = Builtin.posixFdClose fd
+    let _ = Posix.fdClose fd
     result
   | Error e -> Stdlib.Result.Result.Error e
 
@@ -83,7 +83,7 @@ let readText (path: String) : Result.Result<String, Posix.Error> =
   | Ok fd ->
     let result = Posix.fdReadAll fd []
 
-    let _ = Builtin.posixFdClose fd
+    let _ = Posix.fdClose fd
 
     match result with
     | Ok blob ->
@@ -185,7 +185,7 @@ let readLastLines
       | Ok fd ->
         let tailResult =
           readTailChunks fd fileSize count 0 []
-        let _closed = Builtin.posixFdClose fd
+        let _closed = Posix.fdClose fd
 
         tailResult
         |> Stdlib.Result.andThen (fun (blob, startedAtBeginning) ->
@@ -230,9 +230,9 @@ let writeText (path: String) (content: String) : Result.Result<Unit, Posix.Error
   match Posix.openFile path flags Posix.Modes.defaultFile with
   | Ok fd ->
     let blob = Stdlib.String.toBlob content
-    let result = Builtin.posixFdWrite fd blob
+    let result = Posix.fdWrite fd blob
 
-    let _ = Builtin.posixFdClose fd
+    let _ = Posix.fdClose fd
 
     match result with
     | Ok _ -> Stdlib.Result.Result.Ok()
@@ -252,9 +252,9 @@ let appendText (path: String) (content: String) : Result.Result<Unit, Posix.Erro
   match Posix.openFile path flags Posix.Modes.defaultFile with
   | Ok fd ->
     let blob = Stdlib.String.toBlob content
-    let result = Builtin.posixFdWrite fd blob
+    let result = Posix.fdWrite fd blob
 
-    let _ = Builtin.posixFdClose fd
+    let _ = Posix.fdClose fd
 
     match result with
     | Ok _ -> Stdlib.Result.Result.Ok()
@@ -274,7 +274,7 @@ let touch (path: String) : Result.Result<Unit, Posix.Error> =
 
     match Posix.openFile path flags Posix.Modes.defaultFile with
     | Ok fd ->
-      let _ = Builtin.posixFdClose fd
+      let _ = Posix.fdClose fd
       Stdlib.Result.Result.Ok()
     | Error e -> Stdlib.Result.Result.Error e
 
@@ -293,7 +293,7 @@ let createTemp () : Result.Result<String, Posix.Error> =
 
   (Posix.mkstemp prefix)
   |> Stdlib.Result.map (fun result ->
-    let _ = Builtin.posixFdClose (Stdlib.Tuple2.first result)
+    let _ = Posix.fdClose (Stdlib.Tuple2.first result)
     Stdlib.Tuple2.second result)
 
 
@@ -355,8 +355,8 @@ let writeAtomic (path: String) (content: String) : Result.Result<Unit, Posix.Err
     let fd = Stdlib.Tuple2.first result
     let tmpPath = Stdlib.Tuple2.second result
     let blob = Stdlib.String.toBlob content
-    let writeResult = Builtin.posixFdWrite fd blob
-    let _ = Builtin.posixFdClose fd
+    let writeResult = Posix.fdWrite fd blob
+    let _ = Posix.fdClose fd
 
     match writeResult with
     | Ok _ -> Posix.rename tmpPath path
@@ -378,10 +378,10 @@ let withLock (path: String) (fn: Unit -> 'a) : Result.Result<'a, Posix.Error> =
     | Ok _ ->
       let result = fn ()
       let _ = Posix.flock fd false
-      let _ = Builtin.posixFdClose fd
+      let _ = Posix.fdClose fd
       Stdlib.Result.Result.Ok result
     | Error e ->
-      let _ = Builtin.posixFdClose fd
+      let _ = Posix.fdClose fd
       Stdlib.Result.Result.Error e
   | Error e -> Stdlib.Result.Result.Error e
 

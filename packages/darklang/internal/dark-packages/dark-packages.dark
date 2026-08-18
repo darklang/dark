@@ -196,7 +196,7 @@ let searchHandlerFn (req: HttpRequest) : HttpResponse =
                     entityTypes = entityTypes
                     exactMatch = exactMatch }
 
-              let results = Builtin.pmSearch serverBranchId query
+              let results = LanguageTools.PackageManager.Search.search serverBranchId query
               let json = results |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Search.SearchResults>
               Stdlib.Http.responseWithJson json 200
 
@@ -231,7 +231,7 @@ let locationHandlerFn (req: HttpRequest) : HttpResponse =
               entityTypes = []
               exactMatch = false }
 
-        let results = Builtin.pmSearch serverBranchId searchQuery
+        let results = LanguageTools.PackageManager.Search.search serverBranchId searchQuery
         let json = results |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Search.SearchResults>
         Stdlib.Http.responseWithJson json 200
     else
@@ -243,19 +243,19 @@ let locationHandlerFn (req: HttpRequest) : HttpResponse =
         | Some ((hash, kind)) ->
           match kind with
           | Fn ->
-            match Builtin.pmGetFn hash with
+            match LanguageTools.PackageManager.Function.get hash with
             | Some fn ->
               let json = fn |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
               Stdlib.Http.responseWithJson json 200
             | None -> Stdlib.Http.notFound ()
           | Type ->
-            match Builtin.pmGetType hash with
+            match LanguageTools.PackageManager.Type.get hash with
             | Some t ->
               let json = t |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageType.PackageType>
               Stdlib.Http.responseWithJson json 200
             | None -> Stdlib.Http.notFound ()
           | Value ->
-            match Builtin.pmGetValue hash with
+            match LanguageTools.PackageManager.Value.get hash with
             | Some v ->
               let json = v |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
               Stdlib.Http.responseWithJson json 200
@@ -269,7 +269,7 @@ let locationHandlerFn (req: HttpRequest) : HttpResponse =
                 searchDepth = LanguageTools.ProgramTypes.Search.SearchDepth.OnlyDirectDescendants
                 entityTypes = []
                 exactMatch = false }
-          let results = Builtin.pmSearch serverBranchId searchQuery
+          let results = LanguageTools.PackageManager.Search.search serverBranchId searchQuery
           let json =
             results
             |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Search.SearchResults>
@@ -297,7 +297,7 @@ let typeFindHandlerFn (req: HttpRequest) : HttpResponse =
     match parseNameToLocation name with
     | Error errorMsg -> Stdlib.Http.badRequest errorMsg
     | Ok location ->
-      match Builtin.pmFindType serverBranchId location with
+      match LanguageTools.PackageManager.Type.find serverBranchId location with
       | Some hash ->
         Stdlib.Http.responseWithJson (hash |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>) 200
       | None -> Stdlib.Http.notFound ()
@@ -312,7 +312,7 @@ let typeGetHandlerFn (req: HttpRequest) : HttpResponse =
   | None -> Stdlib.Http.badRequest "Missing :hash segment"
   | Some hashStr ->
     let hash = LanguageTools.ProgramTypes.Hash.Hash hashStr
-    match Builtin.pmGetType hash with
+    match LanguageTools.PackageManager.Type.get hash with
     | Some t ->
       let json = t |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageType.PackageType>
       Stdlib.Http.responseWithJson json 200
@@ -353,7 +353,7 @@ let valueFindHandlerFn (req: HttpRequest) : HttpResponse =
     match parseNameToLocation name with
     | Error errorMsg -> Stdlib.Http.badRequest errorMsg
     | Ok location ->
-      match Builtin.pmFindValue serverBranchId location with
+      match LanguageTools.PackageManager.Value.find serverBranchId location with
       | Some hash ->
         Stdlib.Http.responseWithJson (hash |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>) 200
       | None -> Stdlib.Http.notFound ()
@@ -369,7 +369,7 @@ let valueGetHandlerFn (req: HttpRequest) : HttpResponse =
   | None -> Stdlib.Http.badRequest "Missing :hash segment"
   | Some hashStr ->
     let hash = LanguageTools.ProgramTypes.Hash.Hash hashStr
-    match Builtin.pmGetValue hash with
+    match LanguageTools.PackageManager.Value.get hash with
     | Some v ->
       let json = v |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageValue.PackageValue>
       Stdlib.Http.responseWithJson json 200
@@ -411,7 +411,7 @@ let functionFindHandlerFn (req: HttpRequest) : HttpResponse =
     match parseNameToLocation name with
     | Error errorMsg -> Stdlib.Http.badRequest errorMsg
     | Ok location ->
-      match Builtin.pmFindFn serverBranchId location with
+      match LanguageTools.PackageManager.Function.find serverBranchId location with
       | Some hash ->
         Stdlib.Http.responseWithJson (hash |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.Hash>) 200
       | None -> Stdlib.Http.notFound ()
@@ -429,7 +429,7 @@ let functionGetHandlerFn (req: HttpRequest) : HttpResponse =
   | None -> Stdlib.Http.badRequest "Missing :hash segment"
   | Some hashStr ->
     let hash = LanguageTools.ProgramTypes.Hash.Hash hashStr
-    match Builtin.pmGetFn hash with
+    match LanguageTools.PackageManager.Function.get hash with
     | Some f ->
       let json = f |> Stdlib.Json.serialize<LanguageTools.ProgramTypes.PackageFn.PackageFn>
       Stdlib.Http.responseWithJson json 200

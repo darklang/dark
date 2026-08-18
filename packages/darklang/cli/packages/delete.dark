@@ -50,7 +50,7 @@ let countLiveDependents
   (targetLoc: LanguageTools.ProgramTypes.PackageLocation)
   (targetKind: LanguageTools.ProgramTypes.ItemKind)
   : Int =
-  let deps = Builtin.depsGetDependents branchId [ (targetLoc, targetKind) ]
+  let deps = Cli.Deps.getDependents branchId [ (targetLoc, targetKind) ]
   let depSets = Query.loadDeprecationSets branchId
   deps
   |> Stdlib.List.filter (fun entry ->

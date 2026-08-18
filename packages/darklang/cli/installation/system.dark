@@ -21,7 +21,7 @@ let installationModeToString (mode: InstallationMode) : String =
 
 /// Detect current CLI installation mode based on executable location
 let getInstallationMode () : InstallationMode =
-  let executablePath = Builtin.getCurrentExecutablePath ()
+  let executablePath = Stdlib.Cli.Sys.currentExecutablePath ()
   let host = (Stdlib.Cli.Host.getRuntimeHost ()) |> Builtin.unwrap
   let darklangHomeDir = Config.getDarklangHomeDir host
 
@@ -82,8 +82,8 @@ let globalInstallationExists (host: Stdlib.Cli.Host.Host) : Bool =
 /// Install CLI by copying the current binary (for development/testing)
 /// If autoConfirm is true, skips prompts and uses fresh database
 let installFromCurrentBinary (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : Stdlib.Result.Result<String, String> =
-  let currentBinaryPath = Builtin.getCurrentExecutablePath ()
-  let currentDir = Builtin.directoryCurrent ()
+  let currentBinaryPath = Stdlib.Cli.Sys.currentExecutablePath ()
+  let currentDir = Stdlib.Cli.FileSystem.currentDirectory ()
   let portableDbPath = $"{currentDir}/.darklang/data.db"
 
   let darklangHomeDir = Config.getDarklangHomeDir host
@@ -144,7 +144,7 @@ let installFromCurrentBinary (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : 
           "fresh"
         else
           Stdlib.printLine "Would you like to copy the data from this portable directory to the installation, or start fresh? (copy/fresh, default: fresh): "
-          (Builtin.stdinReadLine ()) |> Stdlib.String.trim
+          (Stdlib.Cli.Stdin.readLine ()) |> Stdlib.String.trim
 
       if migrateChoice == "copy" then
         if Stdlib.Cli.Unix.fileExists portableDbPath || Stdlib.Cli.PowerShell.fileExists portableDbPath then
@@ -162,7 +162,7 @@ let installFromCurrentBinary (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : 
 /// Install CLI with option to migrate existing portable data
 /// If autoConfirm is true, skips prompts and uses fresh database
 let install (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : Stdlib.Result.Result<String, String> =
-  let currentDir = Builtin.directoryCurrent ()
+  let currentDir = Stdlib.Cli.FileSystem.currentDirectory ()
   let portableDbPath = $"{currentDir}/.darklang/data.db"
 
   let choice =
@@ -174,7 +174,7 @@ let install (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) : Stdlib.Result.Res
       Stdlib.printLine "1. Fresh install (start with clean database)"
       Stdlib.printLine "2. Migrate current data to global installation"
       Stdlib.printLine "Choose option (1 or 2, default: 1): "
-      (Builtin.stdinReadLine ()) |> Stdlib.String.trim
+      (Stdlib.Cli.Stdin.readLine ()) |> Stdlib.String.trim
 
   match Download.installOrUpdateLatestRelease host with
   | Ok _ ->
@@ -202,7 +202,7 @@ let updateIfAvailable (currentVersion: String) (host: Stdlib.Cli.Host.Host) (aut
           Stdlib.printLine "You're currently running a locally-installed binary (from development)."
           Stdlib.printLine $"Latest official release is {latestVersion}."
           Stdlib.printLine "Update to the official release? (y/n): "
-          (Builtin.stdinReadLine ()) |> Stdlib.String.trim
+          (Stdlib.Cli.Stdin.readLine ()) |> Stdlib.String.trim
 
       if choice == "y" || choice == "Y" then
         match Download.installOrUpdateLatestRelease host with
@@ -231,7 +231,7 @@ let uninstallWithConfirmation (host: Stdlib.Cli.Host.Host) (autoConfirm: Bool) :
       "y"
     else
       Stdlib.printLine "Are you sure you want to uninstall the CLI? (y/n): "
-      Builtin.stdinReadLine ()
+      Stdlib.Cli.Stdin.readLine ()
 
   if response == "y" || response == "Y" then
     Stdlib.printLine "Uninstalling..."

@@ -16,13 +16,6 @@ module Dval = LibExecution.Dval
 module PT2RT = LibExecution.ProgramTypesToRuntimeTypes
 module PackageRefs = LibExecution.PackageRefs
 
-open Fumble
-open LibDB.Sqlite
-
-
-let varA = TVariable "a"
-let varB = TVariable "b"
-
 
 let values : List<BuiltInValue> =
   [ { name = value "testNan" 0
@@ -112,47 +105,6 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | state, _, _, [| DUnit |] -> Ply(Dval.int64 state.test.sideEffectCount)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
-      deprecated = NotDeprecated }
-
-
-    { name = fn "testInspect" 0
-      typeParams = []
-      parameters = [ Param.make "var" varA ""; Param.make "msg" TString "" ]
-      returnType = varA
-      description = "Prints the value into stdout"
-      fn =
-        (function
-        | _, _, _, [| v; DString msg |] ->
-          print $"{msg}: {v}"
-          Ply v
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
-      deprecated = NotDeprecated }
-
-
-    { name = fn "testDeleteUser" 0
-      typeParams = []
-      parameters = [ Param.make "username" TString "" ]
-      returnType = TypeReference.result TUnit varB
-      description = "Delete a user (test only)"
-      fn =
-        (function
-        | _, _, _, [| DString username |] ->
-          uply {
-            do!
-              // This is unsafe. A user has canvases, and canvases have traces. It
-              // will either break or cascade (haven't checked)
-              Sql.query "DELETE FROM accounts_v0 WHERE username = @username"
-              |> Sql.parameters [ "username", Sql.string (string username) ]
-              |> Sql.executeStatementAsync
-            return DUnit
-          }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure

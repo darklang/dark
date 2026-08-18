@@ -38,7 +38,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
 
   | Portable ->
-    let currentDir = Builtin.directoryCurrent ()
+    let currentDir = Stdlib.Cli.FileSystem.currentDirectory ()
 
     if Installation.System.globalInstallationExists host then
       if uninstallFirst then
@@ -71,7 +71,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           Stdlib.printLine "1. Copy this binary (for testing local changes)"
           Stdlib.printLine "2. Download latest release from GitHub"
           Stdlib.printLine "Choose option (1 or 2): "
-          (Builtin.stdinReadLine ()) |> Stdlib.String.trim
+          (Stdlib.Cli.Stdin.readLine ()) |> Stdlib.String.trim
 
       if choice == "1" then
         match Installation.System.installFromCurrentBinary host autoConfirm with

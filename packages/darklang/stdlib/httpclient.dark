@@ -270,7 +270,7 @@ module Sse =
     (bytes: Stream<UInt8>)
     (state: ParseState)
     : Stdlib.Option.Option<(Event * ParseState)> =
-    match Builtin.streamNext<UInt8> bytes with
+    match Stdlib.Stream.next<UInt8> bytes with
     | None ->
       // End of stream. Flush any buffered lines as a final event
       // (SSE spec: a trailing blank line is optional).
@@ -351,5 +351,5 @@ module Sse =
   /// so a slow LLM response surfaces tokens as they're produced.
   let parse (bytes: Stream<UInt8>) : Stream<Event> =
     let initial = ParseState { lastId = ""; currentLines = []; currentLine = [] }
-    Builtin.streamUnfold<ParseState, Event> initial (fun state ->
+    Stdlib.Stream.unfold<ParseState, Event> initial (fun state ->
       pullNextEvent bytes state)

@@ -40,7 +40,7 @@ let resolveTypeName
   : Stdlib.Option.Option<LanguageTools.ProgramTypes.PackageLocation> =
   Darklang.LanguageTools.PackageManager.pickLocation
     Darklang.LanguageTools.PackageManager.PickContext.empty
-    (Builtin.pmGetLocationsByType branchId hash)
+    (LanguageTools.PackageManager.Type.locations branchId hash)
 
 
 /// Compare two lists element-wise; returns false if lengths differ.
@@ -184,8 +184,8 @@ let warnIfSignatureChanged
 
   match itemKind with
   | Fn ->
-    let oldFn = Builtin.pmGetFn previousHash
-    let newFn = Builtin.pmGetFn currentHash
+    let oldFn = LanguageTools.PackageManager.Function.get previousHash
+    let newFn = LanguageTools.PackageManager.Function.get currentHash
 
     match (oldFn, newFn) with
     | (Some oldF, Some newF) ->
@@ -201,8 +201,8 @@ let warnIfSignatureChanged
     | _ -> false
 
   | Type ->
-    let oldType = Builtin.pmGetType previousHash
-    let newType = Builtin.pmGetType currentHash
+    let oldType = LanguageTools.PackageManager.Type.get previousHash
+    let newType = LanguageTools.PackageManager.Type.get currentHash
 
     match (oldType, newType) with
     | (Some oldT, Some newT) ->

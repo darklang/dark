@@ -1,6 +1,17 @@
 module Darklang.Stdlib.Cli.Stdin
 
 
+/// Read one line from stdin, without its trailing newline. Blocks until a
+/// line (or EOF) arrives.
+let readLine () : String =
+  Builtin.stdinReadLine ()
+
+
+/// Read all of stdin, until EOF.
+let readAll () : String =
+  Builtin.stdinReadAll ()
+
+
 module Key =
   type Key =
     | None
@@ -461,7 +472,7 @@ module Key =
   /// Display name of the key, e.g. `Enter` or `A`
   let toString (k: Key): String =
     // toRepr prints the fully-qualified case name; keep just the last segment
-    (Builtin.toRepr k)
+    (Stdlib.toRepr k)
     |> Stdlib.String.split "."
     |> Stdlib.List.last
     |> Stdlib.Option.withDefault ""

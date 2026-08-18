@@ -45,7 +45,7 @@ let logWithContext
   let wall = Stdlib.DateTime.toString (Stdlib.DateTime.now ())
   let line = $"{{\"event\":\"{label}\",\"ms\":{Stdlib.Int.toString elapsed},\"wall\":\"{wall}\",\"ctx\":{ctxJson}}}"
 
-  let _ = Builtin.fileAppendText logFilePath (line ++ "\n")
+  let _ = Stdlib.Cli.FileSystem.appendToFile logFilePath (line ++ "\n")
   ()
 
 /// Shorthand: log a timing event with no extra context
@@ -58,7 +58,7 @@ let logMessage (label: String) (message: String) : Unit =
   let escaped = Stdlib.String.replaceAll message "\"" "\\\""
   let line = $"{{\"event\":\"{label}\",\"msg\":\"{escaped}\",\"wall\":\"{wall}\"}}"
 
-  let _ = Builtin.fileAppendText logFilePath (line ++ "\n")
+  let _ = Stdlib.Cli.FileSystem.appendToFile logFilePath (line ++ "\n")
   ()
 
 /// Log the start of a session so we can separate runs in the log
@@ -66,5 +66,5 @@ let logSessionStart () : Unit =
   let wall = Stdlib.DateTime.toString (Stdlib.DateTime.now ())
   let line = $"{{\"event\":\"session_start\",\"wall\":\"{wall}\"}}"
 
-  let _ = Builtin.fileAppendText logFilePath (line ++ "\n")
+  let _ = Stdlib.Cli.FileSystem.appendToFile logFilePath (line ++ "\n")
   ()

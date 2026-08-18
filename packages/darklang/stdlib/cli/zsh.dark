@@ -3,13 +3,13 @@ module Darklang.Stdlib.Cli.Zsh
 
 /// Read the content of .zshrc file
 let readZshrc () : Result.Result<String, String> =
-  (Builtin.fileRead "$HOME/.zshrc")
+  (Stdlib.Cli.FileSystem.readFile "$HOME/.zshrc")
   |> Result.map Stdlib.String.fromBlobWithReplacement
   |> Result.mapError Stdlib.Cli.FileSystem.FileError.toString
 
 /// Overwrite what's in the .zshrc file
 let overwriteZshrc (content: String) : Result.Result<Unit, String> =
-  (Builtin.fileWrite (Stdlib.String.toBlob content) "$HOME/.zshrc")
+  (FileSystem.overwriteFile "$HOME/.zshrc" (Stdlib.String.toBlob content))
   |> Result.map (fun _ -> ())
 
 

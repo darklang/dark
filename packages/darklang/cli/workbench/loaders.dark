@@ -201,7 +201,7 @@ let depsText (state: State) : String =
             let namesDict = Darklang.Cli.Deps.resolveNames state.branchId (deps |> Stdlib.List.map (fun p -> let (h, _) = p in h))
             deps |> Stdlib.List.map (fun p -> let (th, _rt) = p in "  " ++ (Darklang.Cli.Deps.getName namesDict th))
         // Dependents - what uses this item.
-        let dependents = Builtin.depsGetDependents state.branchId [ (loc, kind) ]
+        let dependents = Cli.Deps.getDependents state.branchId [ (loc, kind) ]
         let dependentLines =
           if Stdlib.List.isEmpty dependents then [ Colors.dimText "  (none)" ]
           else dependents |> Stdlib.List.map (fun t -> let (_h, sLoc, _rt) = t in "  " ++ (PrettyPrinter.ProgramTypes.PackageLocation.packageLocation sLoc))
@@ -289,7 +289,7 @@ let refreshPeek (next: State) : State =
           let fullpath =
             Stdlib.String.join (Stdlib.List.append (modulePathOf next.location) [ item.name ]) "."
           captureOutput (fun () ->
-            Builtin.cliEvaluateExpression next.accountId next.branchId (fullpath ++ " ()") false)
+            Eval.evaluateRaw next.accountId next.branchId (fullpath ++ " ()") false)
         else
           ""
       | None -> ""

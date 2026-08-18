@@ -34,7 +34,7 @@ let promptYesNo (question: String) (autoConfirm: Bool) (defaultYes: Bool) : Bool
     true
   else
     Stdlib.printLine question
-    let response = Builtin.stdinReadLine ()
+    let response = Stdlib.Cli.Stdin.readLine ()
 
     if Stdlib.String.isEmpty (Stdlib.String.trim response) then
       defaultYes

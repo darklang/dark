@@ -95,7 +95,7 @@ let sortGroups
 
 
 let execute (state: AppState) (args: List<String>): AppState =
-  let allBuiltins = Builtin.getAllBuiltinFns ()
+  let allBuiltins = LanguageTools.allBuiltinFns ()
 
   // Parse flags
   let withSigs = Stdlib.List.any args (fun arg -> arg == "--with-sigs")

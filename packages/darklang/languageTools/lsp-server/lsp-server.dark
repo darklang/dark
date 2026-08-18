@@ -17,7 +17,7 @@ type Json = Stdlib.AltJson.Json
 /// to `rundir/logs/lsp-server.log`, for local debugging.
 let runServerCli (u: Unit) : Int =
   // clear `lsp-server.log`, and write a timestamp of the start-up
-  let _deleted = Builtin.fileDelete logFilePath
+  let _deleted = Stdlib.Cli.FileSystem.deleteFile logFilePath
 
   (Stdlib.DateTime.now ())
   |> Stdlib.DateTime.toString
@@ -194,7 +194,7 @@ let runServerCliLoop (state: LspState) : Int =
 let tryReadHeader
   (contentLength: Stdlib.Option.Option<Int>)
   : Stdlib.Result.Result<Int, String> =
-  let line = Builtin.stdinReadLine ()
+  let line = Stdlib.Cli.Stdin.readLine ()
 
   if line == "" then
     contentLength |> Stdlib.Option.toResult "No Content-Length header found"

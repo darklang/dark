@@ -40,7 +40,7 @@ To run the CLI executable against the local package manager:
           | Ok Linux | Ok MacOS -> "$HOME/.darklang/config.json"
 
 
-        if Stdlib.Bool.not (Builtin.fileExists configPath) then
+        if Stdlib.Bool.not (Stdlib.Cli.FileSystem.pathExists configPath) then
           Stdlib.Result.Result.Ok()
         // don't update _too_ often
         else if hasUpdatedInLastDay configPath then

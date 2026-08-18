@@ -340,7 +340,7 @@ let parse
   match source |> LanguageTools.Parser.Parse.initialParse with
   | Error e -> Stdlib.Result.Result.Error(ParseError.Message e)
   | Ok parsedFile ->
-    parseFromWT ctx scriptName (Builtin.parserParseDiagnostics source) parsedFile
+    parseFromWT ctx scriptName (Parse.diagnostics source) parsedFile
 
 
 /// Single-shot parse for CLI use: creates PM and NRContext internally
@@ -372,11 +372,11 @@ let pmWithExtras
   (source: String)
   : Stdlib.Result.Result<ProgramTypes.PackageManager.PackageManager, ParseError> =
   // The range-complete parser, matching the rest of the LSP.
-  match Builtin.parserParseToWrittenTypes source with
+  match Parse.toWrittenTypes source with
   | None -> Stdlib.Result.Result.Error(ParseError.Message "parse failed")
   | Some parsedFile ->
     match
-      parseDecls ctx.owner scriptName (Builtin.parserParseDiagnostics source) parsedFile
+      parseDecls ctx.owner scriptName (Parse.diagnostics source) parsedFile
     with
     | Error e -> Stdlib.Result.Result.Error e
     | Ok moduleWT ->
