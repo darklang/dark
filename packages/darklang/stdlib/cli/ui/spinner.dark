@@ -6,7 +6,7 @@ module Darklang.Stdlib.Cli.UI.Spinner
 /// Note: not a real spinner — prints a static message. A real spinner
 /// would need background threads, which Dark doesn't support yet.
 let run (message: String) (fn: Unit -> 'a) : 'a =
-  Builtin.print ($"{message}... ")
+  Stdlib.print ($"{message}... ")
   let result = fn ()
-  Builtin.printLine (Color.green "done")
+  Stdlib.printLine (Color.green "done")
   result

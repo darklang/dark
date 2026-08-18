@@ -14,20 +14,25 @@ let currentUser () : Stdlib.Option.Option<String> =
 
 /// Get the system hostname.
 let hostname () : Result.Result<String, Posix.Error> =
-  (Builtin.posixUname ())
+  (Posix.uname ())
   |> Stdlib.Result.map (fun result -> Stdlib.Tuple3.second result)
 
 
 /// Get the operating system name (e.g. "Linux", "Darwin").
 let os () : Result.Result<String, Posix.Error> =
-  (Builtin.posixUname ())
+  (Posix.uname ())
   |> Stdlib.Result.map (fun result -> Stdlib.Tuple3.first result)
 
 
 /// Get the CPU architecture (e.g. "x86_64", "aarch64").
 let arch () : Result.Result<String, Posix.Error> =
-  (Builtin.posixUname ())
+  (Posix.uname ())
   |> Stdlib.Result.map (fun result -> Stdlib.Tuple3.third result)
+
+
+/// The path of the running executable.
+let currentExecutablePath () : String =
+  Builtin.getCurrentExecutablePath ()
 
 
 /// Get the number of available CPUs.

@@ -82,14 +82,14 @@ let renderContent
   // and fell to "content unavailable", even though the item is right there. Exactly one pmGet* matches a given
   // hash, so trying all three (the itemKind param is now just a legacy hint) shows both sides every time.
   let rendered =
-    match Builtin.pmGetValue hash with
+    match LanguageTools.PackageManager.Value.get hash with
     | Some e ->
       Stdlib.Option.Option.Some(PrettyPrinter.ProgramTypes.packageValue ctx e)
     | None ->
-      match Builtin.pmGetFn hash with
+      match LanguageTools.PackageManager.Function.get hash with
       | Some e -> Stdlib.Option.Option.Some(PrettyPrinter.ProgramTypes.packageFn ctx e)
       | None ->
-        match Builtin.pmGetType hash with
+        match LanguageTools.PackageManager.Type.get hash with
         | Some e ->
           Stdlib.Option.Option.Some(PrettyPrinter.ProgramTypes.packageType ctx e)
         | None -> Stdlib.Option.Option.None

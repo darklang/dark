@@ -1,5 +1,31 @@
 module Darklang.Cli.Run
 
+
+/// Parse <param code> as a script and run it, returning its exit code. The one
+/// call into the host's script runner: `run <path>` and `scripts run <name>`
+/// both come through here.
+///
+/// <param sandbox> runs the body with no capabilities at all, for code you
+/// don't trust; otherwise it runs under the host's configured grant.
+let parseAndExecute
+  (accountID: Stdlib.Option.Option<Uuid>)
+  (branchId: Uuid)
+  (filename: String)
+  (code: String)
+  (args: List<String>)
+  (allowHarmful: Bool)
+  (sandbox: Bool)
+  : Stdlib.Result.Result<Int, ExecutionError.ExecutionError> =
+  Builtin.cliParseAndExecuteScript
+    accountID
+    branchId
+    filename
+    code
+    args
+    allowHarmful
+    sandbox
+
+
 // `run-script <path> [args...]` — execute a Dark script file.
 //
 // For calling package fns, use `eval` instead.
@@ -40,7 +66,7 @@ let executeScript
   (allowHarmful: Bool)
   (sandbox: Bool)
   : AppState =
-  match Builtin.fileRead scriptPath with
+  match Stdlib.Cli.FileSystem.readFile scriptPath with
   | Error e ->
     match e with
     | NotFound ->
@@ -59,7 +85,7 @@ let executeScript
   | Ok script ->
     let scriptSourceCode = Stdlib.String.fromBlobWithReplacement script
     let result =
-      Builtin.cliParseAndExecuteScript
+      parseAndExecute
         state.accountID
         state.currentBranchId
         scriptPath
@@ -85,7 +111,7 @@ let complete (_state: AppState) (args: List<String>) : List<Completion.Completio
   match args with
   | [] ->
     let files = Stdlib.Cli.FileSystem.getDirectoryContents "."
-    let currentDir = Builtin.directoryCurrent ()
+    let currentDir = Stdlib.Cli.FileSystem.currentDirectory ()
 
     let directories =
       files

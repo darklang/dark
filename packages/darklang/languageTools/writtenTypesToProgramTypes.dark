@@ -1669,7 +1669,7 @@ let parsedFileAsSourceFile
   )
   =
   let pm = LanguageTools.PackageManager.pm ()
-  let branchId = Builtin.scmMainBranchId
+  let branchId = Darklang.SCM.Branch.mainBranchId
   let ctx =
     NameResolver.NRContext
       { onMissing = NameResolver.OnMissing.Allow

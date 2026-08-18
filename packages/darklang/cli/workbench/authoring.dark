@@ -46,11 +46,11 @@ let saveEditing (state: State) (es: EditingState) : Step =
   match Packages.Location.parseRelativeTo (Packages.PackageLocation.Module targetMod) leaf with
   | Error e -> keepErr ("bad name: " ++ e)
   | Ok location ->
-    let diags = Builtin.parserParseDiagnostics fullSource
+    let diags = LanguageTools.Parser.Parse.diagnostics fullSource
     if Stdlib.Bool.not (Stdlib.List.isEmpty diags) then
       keepErr "parse error - fix it, then ^s"
     else
-      match Builtin.parserParseToWrittenTypes fullSource with
+      match LanguageTools.Parser.Parse.toWrittenTypes fullSource with
       | Some(SourceFile sourceFile) ->
         let pm = LanguageTools.PackageManager.pm ()
         let ctx =

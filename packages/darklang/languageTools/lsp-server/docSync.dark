@@ -43,13 +43,13 @@ let parseAndReportDiagnostics
   // always returns `Some` (a partial tree + precise diagnostics reported below).
   // `None` is unreachable.
   let parsed =
-    match Builtin.parserParseToWrittenTypes requestText with
+    match Parser.Parse.toWrittenTypes requestText with
     | Some parsedFile -> Stdlib.Result.Result.Ok parsedFile
     | None -> Stdlib.Result.Result.Error "tokenizer failure"
 
   // the parser's precise syntax errors (empty on a clean parse) — reported
   // alongside name-resolution warnings below
-  let parseDiagnostics = Builtin.parserParseDiagnostics requestText
+  let parseDiagnostics = Parser.Parse.diagnostics requestText
 
   match parsed with
   | Ok (SourceFile sf) ->
@@ -126,7 +126,7 @@ let handleTextDocumentDidOpen
       // A recovered tree can contain EError holes, and lowering is only
       // defined for clean trees (Expr.toPT has no EError arm, by contract) —
       // so skip lowering unless the parse produced no diagnostics.
-      if Stdlib.List.isEmpty (Builtin.parserParseDiagnostics request.textDocument.text) then
+      if Stdlib.List.isEmpty (Parser.Parse.diagnostics request.textDocument.text) then
         (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
         |> Stdlib.Tuple3.first
         |> Stdlib.Option.Option.Some
@@ -196,7 +196,7 @@ let handleTextDocumentDidSave
       match parsed with
       | Ok parsedFile ->
         // Same guard as didOpen: never lower a tree with parse-error holes.
-        if Stdlib.List.isEmpty (Builtin.parserParseDiagnostics text) then
+        if Stdlib.List.isEmpty (Parser.Parse.diagnostics text) then
           (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
           |> Stdlib.Tuple3.first
           |> Stdlib.Option.Option.Some

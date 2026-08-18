@@ -70,14 +70,22 @@ module Type =
     : Stdlib.Option.Option<ProgramTypes.PackageType.PackageType> =
     Builtin.pmGetType hash
 
+  /// Every name this type is bound to on <param branchId>. More than one
+  /// when structurally identical types share a hash.
+  let locations
+    (branchId: Uuid)
+    (hash: ProgramTypes.FQTypeName.Package)
+    : List<ProgramTypes.PackageLocation> =
+    Builtin.pmGetLocationsByType branchId hash
+
   let getWithLocation
     (branchId: Uuid)
     (hash: ProgramTypes.FQTypeName.Package)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageType.PackageType>> =
-    match Builtin.pmGetType hash with
+    match get hash with
     | Some entity ->
-      match PackageManager.pickLocation PackageManager.PickContext.empty (Builtin.pmGetLocationsByType branchId hash) with
+      match PackageManager.pickLocation PackageManager.PickContext.empty (locations branchId hash) with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -98,14 +106,21 @@ module Value =
     : Stdlib.Option.Option<ProgramTypes.PackageValue.PackageValue> =
     Builtin.pmGetValue hash
 
+  /// Every name this value is bound to on <param branchId>.
+  let locations
+    (branchId: Uuid)
+    (hash: ProgramTypes.FQValueName.Package)
+    : List<ProgramTypes.PackageLocation> =
+    Builtin.pmGetLocationsByValue branchId hash
+
   let getWithLocation
     (branchId: Uuid)
     (hash: ProgramTypes.FQValueName.Package)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageValue.PackageValue>> =
-    match Builtin.pmGetValue hash with
+    match get hash with
     | Some entity ->
-      match PackageManager.pickLocation PackageManager.PickContext.empty (Builtin.pmGetLocationsByValue branchId hash) with
+      match PackageManager.pickLocation PackageManager.PickContext.empty (locations branchId hash) with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -126,14 +141,21 @@ module Function =
     : Stdlib.Option.Option<ProgramTypes.PackageFn.PackageFn> =
     Builtin.pmGetFn hash
 
+  /// Every name this fn is bound to on <param branchId>.
+  let locations
+    (branchId: Uuid)
+    (hash: ProgramTypes.FQFnName.Package)
+    : List<ProgramTypes.PackageLocation> =
+    Builtin.pmGetLocationsByFn branchId hash
+
   let getWithLocation
     (branchId: Uuid)
     (hash: ProgramTypes.FQFnName.Package)
     : Stdlib.Option.Option<
       ProgramTypes.LocatedItem<ProgramTypes.PackageFn.PackageFn>> =
-    match Builtin.pmGetFn hash with
+    match get hash with
     | Some entity ->
-      match PackageManager.pickLocation PackageManager.PickContext.empty (Builtin.pmGetLocationsByFn branchId hash) with
+      match PackageManager.pickLocation PackageManager.PickContext.empty (locations branchId hash) with
       | Some location ->
         Stdlib.Option.Option.Some(
           ProgramTypes.LocatedItem { entity = entity; location = location }
@@ -148,15 +170,15 @@ let findAny
   (branchId: Uuid)
   (location: ProgramTypes.PackageLocation)
   : Stdlib.Option.Option<(ProgramTypes.Hash * ProgramTypes.ItemKind)> =
-  match Builtin.pmFindType branchId location with
+  match Type.find branchId location with
   | Some hash ->
     Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Type))
   | None ->
-    match Builtin.pmFindFn branchId location with
+    match Function.find branchId location with
     | Some hash ->
       Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Fn))
     | None ->
-      match Builtin.pmFindValue branchId location with
+      match Value.find branchId location with
       | Some hash ->
         Stdlib.Option.Option.Some((hash, ProgramTypes.ItemKind.Value))
       | None -> Stdlib.Option.Option.None

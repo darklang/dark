@@ -3,7 +3,7 @@ module Darklang.ModelContextProtocol.ServerBuilder
 
 /// Read a message from the client using line-based stdio
 let readMessageFromClientWithPath (logFilePath: String) : String =
-  let message = Builtin.stdinReadLine ()
+  let message = Stdlib.Cli.Stdin.readLine ()
   logWithPath logFilePath $"Got message from stdin, length: {(Stdlib.String.length message) |> Stdlib.Int.toString}"
 
   if message == "" then

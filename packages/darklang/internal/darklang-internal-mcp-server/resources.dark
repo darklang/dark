@@ -76,7 +76,7 @@ let logs () : ModelContextProtocol.ServerBuilder.Resource =
     name = "Package Logs"
     description = "Recent package loading and compilation logs"
     handler = fun _uri ->
-      match Builtin.fileRead "rundir/logs/packages.log" with
+      match Stdlib.Cli.FileSystem.readFile "rundir/logs/packages.log" with
       | Ok bytes ->
           let content = Stdlib.String.fromBlobWithReplacement bytes
           let lines = Stdlib.String.split content "\n"

@@ -60,7 +60,7 @@ let executeCliCommand (args: List<String>) : Int =
   | [] ->
     if initialState.telemetryEnabled then
       Telemetry.logSessionStart ()
-      let _ = Builtin.interpreterStatsReset ()
+      let _ = LanguageTools.InterpreterStats.reset ()
       ()
 
     // `dark` with no args opens the workbench — that's the experience now, no chooser. DARK_CLASSIC=1 is the
@@ -70,7 +70,7 @@ let executeCliCommand (args: List<String>) : Int =
     // No screen clear and no scroll region here any more: the prompt is an inline Tui region that keeps
     // scrollback, and the workbench owns the alternate screen through its own terminal session.
     let classic =
-      match Builtin.environmentGet "DARK_CLASSIC" with
+      match Stdlib.Env.get "DARK_CLASSIC" with
       | Some "1" -> true
       | _ -> false
 

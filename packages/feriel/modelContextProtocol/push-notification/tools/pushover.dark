@@ -1,9 +1,9 @@
 module Feriel.ModelContextProtocol.PushNotification.Tools.Pushover
 
 let sendNotification (message: String) (title: String) : String =
-  match Builtin.environmentGet "PUSHOVER_USER_KEY" with
+  match Stdlib.Env.get "PUSHOVER_USER_KEY" with
   | Some userKey ->
-    (match Builtin.environmentGet "PUSHOVER_APP_TOKEN" with
+    (match Stdlib.Env.get "PUSHOVER_APP_TOKEN" with
     | Some appToken ->
       let url = "https://api.pushover.net/1/messages.json"
       let headers = [ ("Content-Type", "application/x-www-form-urlencoded") ]

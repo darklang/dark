@@ -106,7 +106,7 @@ let stop (name: String) : Stdlib.Result.Result<String, String> =
 // The executable to re-invoke for the detached child — the `dark` binary currently running. No env var:
 // `getCurrentExecutablePath` is what the installer already uses to find itself.
 let launcher () : String =
-  Builtin.getCurrentExecutablePath ()
+  Stdlib.Cli.Sys.currentExecutablePath ()
 
 
 // Spawn `expr` DETACHED so it survives this process exiting: `nohup … &` backgrounds it + shields it

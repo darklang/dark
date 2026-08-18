@@ -21,7 +21,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine (View.formatError e)
       state
   | Portable ->
-    let message = $"Running in portable mode from {Builtin.directoryCurrent ()}/.darklang\n\nTo update this portable executable, please download the latest release manually from:\nhttps://github.com/darklang/dark/releases\n\nFor automatic updates, consider running 'install' to set up global installation."
+    let message = $"Running in portable mode from {Stdlib.Cli.FileSystem.currentDirectory ()}/.darklang\n\nTo update this portable executable, please download the latest release manually from:\nhttps://github.com/darklang/dark/releases\n\nFor automatic updates, consider running 'install' to set up global installation."
     Stdlib.printLine (View.formatSuccess message)
     state
 

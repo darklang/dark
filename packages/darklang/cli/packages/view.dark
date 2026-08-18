@@ -15,9 +15,9 @@ let resolveReplacementName
     | PackageValue h -> h
   let locs =
     match ref with
-    | PackageFn h -> Builtin.pmGetLocationsByFn branchId h
-    | PackageType h -> Builtin.pmGetLocationsByType branchId h
-    | PackageValue h -> Builtin.pmGetLocationsByValue branchId h
+    | PackageFn h -> LanguageTools.PackageManager.Function.locations branchId h
+    | PackageType h -> LanguageTools.PackageManager.Type.locations branchId h
+    | PackageValue h -> LanguageTools.PackageManager.Value.locations branchId h
   match Darklang.LanguageTools.PackageManager.pickLocation
           (PrettyPrinter.ProgramTypes.Context.toPickContext ctx)
           locs with

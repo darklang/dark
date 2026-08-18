@@ -32,6 +32,11 @@ type BuiltinFunction =
     returnType: RuntimeTypes.TypeReference
     purity: BuiltinFunctionPurity }
 
+/// Every builtin fn this runtime has. The list is built fresh on each call,
+/// so hold onto it if you're looking up more than one name.
+let allBuiltinFns () : List<BuiltinFunction> =
+  Builtin.getAllBuiltinFns ()
+
 /// A Darklang builtin value
 type BuiltinValue =
   { name: RuntimeTypes.FQValueName.Builtin

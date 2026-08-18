@@ -328,7 +328,7 @@ let runInteractiveLoop (state: AppState) : Int =
   else
     let tLoopStart = if state.telemetryEnabled then Telemetry.now () else 0
     if state.telemetryEnabled then
-      let _ = Builtin.interpreterStatsReset ()
+      let _ = LanguageTools.InterpreterStats.reset ()
       ()
 
     let location = locationStr state
@@ -478,7 +478,7 @@ let runInteractiveLoop (state: AppState) : Int =
         Telemetry.logWithContext "readKey" tReadKey [("char", keyInput.keyChar)]
         Telemetry.logWithContext "update" tUpdate [("char", keyInput.keyChar); ("repeats", Stdlib.Int.toString times)]
         let loopWorkMs = (Telemetry.elapsedMs tLoopStart) - (Telemetry.elapsedMs tReadKey)
-        let interpStats = Builtin.interpreterStatsGet ()
+        let interpStats = LanguageTools.InterpreterStats.get ()
         Telemetry.logWithContext "loopWork" tLoopStart [("workMs", Stdlib.Int.toString loopWorkMs); ("interp", interpStats)]
 
       runInteractiveLoop {

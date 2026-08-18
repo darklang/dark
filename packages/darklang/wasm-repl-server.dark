@@ -40,7 +40,7 @@ let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
   else
     let file = if path == "/" then "/index.html" else path
 
-    match Builtin.fileRead (root () ++ file) with
+    match Stdlib.Cli.FileSystem.readFile (root () ++ file) with
     | Ok blob ->
       // HEAD gets the same headers/status as GET, minus the body
       let body = if method == "HEAD" then Stdlib.String.toBlob "" else blob

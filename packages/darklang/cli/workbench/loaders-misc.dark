@@ -225,7 +225,7 @@ let cronDetail (state: State) : String =
 /// preview set so the surface reads as complete rather than empty (this env records none).
 let loadTraceBodyItems () : List<BodyItem> =
   let real =
-    Builtin.tracesList 30
+    Darklang.Tracing.Store.list 30
     |> Stdlib.List.map (fun t ->
       BodyItem { name = t.handler ++ "  ·  " ++ t.timestamp; kind = "trace"; isModule = false })
   if Stdlib.Bool.not (Stdlib.List.isEmpty real) then

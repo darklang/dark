@@ -141,13 +141,15 @@ let hasUnsafeChars (input: String) : Bool =
   Stdlib.String.contains input "$" || Stdlib.String.contains input "`"
 
 val findCliExecutable =
-  if Builtin.fileExists "./scripts/run-cli" then Stdlib.Option.Option.Some "./scripts/run-cli"
-  else if Stdlib.Cli.Unix.isCommandAvailable "dark" then Stdlib.Option.Option.Some "dark"
+  if Stdlib.Cli.FileSystem.pathExists "./scripts/run-cli" then
+    Stdlib.Option.Option.Some "./scripts/run-cli"
+  else if Stdlib.Cli.Unix.isCommandAvailable "dark" then
+    Stdlib.Option.Option.Some "dark"
   else Stdlib.Option.Option.None
 
 let confirmCommand (cmd: String) : Bool =
   Stdlib.print (Colors.warning $"Allow: {cmd}? (y/n): ")
-  let response = Stdlib.String.trim (Builtin.stdinReadLine ())
+  let response = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
   response == "y" || response == "Y"
 
 let runCliCommand
@@ -305,7 +307,7 @@ let runInteractiveLoop
   (history: List<Darklang.LLM.Provider.Message>)
   : Unit =
   Stdlib.print (Colors.dimText "you> ")
-  let input = Stdlib.String.trim (Builtin.stdinReadLine ())
+  let input = Stdlib.String.trim (Stdlib.Cli.Stdin.readLine ())
 
   if Stdlib.String.isEmpty input then
     runInteractiveLoop agent history

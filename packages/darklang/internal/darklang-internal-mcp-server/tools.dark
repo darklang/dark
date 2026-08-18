@@ -8,7 +8,7 @@ let executeDarklang () : ModelContextProtocol.ServerBuilder.Tool =
     description = "Execute Darklang code and return the result"
     handler =
       fun code ->
-        match Builtin.cliEvaluateExpression (Stdlib.Option.Option.None) SCM.Branch.mainBranchId code false with
+        match Cli.Eval.evaluateRaw (Stdlib.Option.Option.None) SCM.Branch.mainBranchId code false with
         | Ok (Some result) -> $"Result: {result}"
         | Ok None -> "Result: ()"
         | Error err ->
@@ -56,7 +56,7 @@ let typecheck () : ModelContextProtocol.ServerBuilder.Tool =
     name = "typecheck"
     description = "Check Darklang code for syntax errors without executing it"
     handler = fun code ->
-      match Builtin.parserParseDiagnostics code with
+      match LanguageTools.Parser.Parse.diagnostics code with
       | [] -> "Parse check passed: no syntax errors found"
       | diagnostics ->
           let errorList =

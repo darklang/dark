@@ -179,6 +179,15 @@ Dark-side code formats for display. Don't build `"superseded-by:<hash>"` in F# f
 caller to parse; return the `DeprecationKind` enum. F#-side stringify is only right when
 the value genuinely has no Dark-side type, which is rare.
 
+Then wrap it, once. `tests/builtin` asserts both halves of that: a builtin with two or
+more `Builtin.x` references anywhere in `packages/` fails, and so does one with no Dark
+caller anywhere in the repo. So give each builtin exactly one Dark wrapper -- a stdlib
+or CLI fn that names it, types it and documents it -- and route callers through the
+wrapper. The wrapper is where the raw builtin's `List<'a>` becomes `List<TraceSummary>`.
+The allowlists in `backend/tests/Tests/Builtin.Tests.fs` are for cases that genuinely
+can't work that way; they're down to one entry each, so adding a third needs a reason
+written next to it.
+
 ## Adding a CLI command (Darklang)
 
 1. `packages/darklang/cli/<name>.dark`

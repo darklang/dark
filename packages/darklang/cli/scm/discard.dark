@@ -32,7 +32,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         true
       else
         Stdlib.printLine (Colors.warning "This cannot be undone. Proceed? (y/n): ")
-        let response = Builtin.stdinReadLine ()
+        let response = Stdlib.Cli.Stdin.readLine ()
         (response == "y") || (response == "Y")
 
     if proceed then

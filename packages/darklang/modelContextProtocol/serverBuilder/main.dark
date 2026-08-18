@@ -218,7 +218,7 @@ let run (server: McpServerBuilder) : Int =
   let logFilePath = getLogFilePath server.name
 
   // clear log file and write a timestamp of the start-up
-  let _deleted = Builtin.fileDelete logFilePath
+  let _deleted = Stdlib.Cli.FileSystem.deleteFile logFilePath
 
   (Stdlib.DateTime.now ())
   |> Stdlib.DateTime.toString

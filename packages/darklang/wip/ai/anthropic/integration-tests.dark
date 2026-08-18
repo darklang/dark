@@ -944,7 +944,7 @@ module BatchTests =
               Stdlib.Result.Result.Ok currentBatch
             else
               // Wait 2 seconds before next poll
-              let _ = Builtin.timeSleep 2000.0
+              let _ = Stdlib.Cli.Posix.sleep 2000.0
               Stdlib.Result.Result.Error "Still processing"
           | Error e ->
             Stdlib.Result.Result.Error (Response.ApiError.toString e))

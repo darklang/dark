@@ -1,3 +1,9 @@
+/// File and directory operations, over the runtime's `file*` and `directory*`
+/// builtins.
+///
+/// `Stdlib.Cli.File` and `Stdlib.Cli.Dir` cover much of the same ground through
+/// posix syscalls, and carry an errno on failure. The two families haven't been
+/// merged; this is the one the CLI, LSP and agent tools call.
 module Darklang.Stdlib.Cli.FileSystem
 
 
@@ -21,9 +27,40 @@ module FileError =
     | Other msg -> msg
 
 
+/// The process's current working directory.
+let currentDirectory () : String =
+  Builtin.directoryCurrent ()
+
+
+/// Full paths of the entries in the directory at <param path>.
+let listDirectory (path: String) : List<String> =
+  Builtin.directoryList path
+
+
+/// Is there a file or directory at <param path>?
+let pathExists (path: String) : Bool =
+  Builtin.fileExists path
+
+
+/// Is <param path> a directory?
+let isDirectory (path: String) : Bool =
+  Builtin.fileIsDirectory path
+
+
+/// Delete the file at <param path>.
+let deleteFile (path: String) : Result.Result<Unit, String> =
+  Builtin.fileDelete path
+
+
+/// Append <param content> to the file at <param path>, creating the file if
+/// it isn't there.
+let appendToFile (path: String) (content: String) : Result.Result<Unit, String> =
+  Builtin.fileAppendText path content
+
+
 // Get files in a directory - returns just filenames
 let getDirectoryContents (path: String) : List<String> =
-  let currentDir = Builtin.directoryCurrent ()
+  let currentDir = currentDirectory ()
 
   let fullPath =
     if Stdlib.String.startsWith path "/" then
@@ -37,7 +74,7 @@ let getDirectoryContents (path: String) : List<String> =
           path
       $"{currentDir}/{normalizedPath}"
 
-  let files = Builtin.directoryList fullPath
+  let files = listDirectory fullPath
 
   files
   |> Stdlib.List.map (fun fullFilePath ->
@@ -51,7 +88,7 @@ let getDirectoryContents (path: String) : List<String> =
 
 // Check if a path is a directory - expects full path
 let isDirectoryAtPath (dirPath: String) (fileName: String) : Bool =
-  let currentDir = Builtin.directoryCurrent ()
+  let currentDir = currentDirectory ()
   let normalizedDirPath =
     if Stdlib.String.startsWith dirPath "/" then
       dirPath
@@ -67,6 +104,13 @@ let isDirectoryAtPath (dirPath: String) (fileName: String) : Bool =
 /// Read an entire file as a Blob.
 let readFile (path: String) : Result.Result<Blob, FileError> =
   Builtin.fileRead path
+
+
+/// Write <param content> to <param path>, replacing whatever's there. The
+/// parent directory has to exist already; <fn writeFile> is this plus the
+/// mkdir.
+let overwriteFile (path: String) (content: Blob) : Result.Result<Unit, String> =
+  Builtin.fileWrite content path
 
 
 /// Read an entire file and decode it as UTF-8. Convenience over
@@ -96,4 +140,4 @@ let writeFile (path: String) (content: Blob) : Result.Result<Unit, String> =
 
   match mkdirResult with
   | Error e -> Stdlib.Result.Result.Error e
-  | Ok _ -> Builtin.fileWrite content path
+  | Ok _ -> overwriteFile path content

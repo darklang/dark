@@ -146,7 +146,7 @@ let builtinHints (state: State) : List<(String * String)> =
 /// experience. Gated on `internal.enabled` (config), so `config set internal.enabled stachu,feriel` turns the
 /// whole tier on for those two accounts and nobody else. This is the dev-tools surface #4.B asked for.
 let loadBuiltinItems () : List<BodyItem> =
-  Builtin.getAllBuiltinFns ()
+  LanguageTools.allBuiltinFns ()
   |> Stdlib.List.map (fun fn -> fn.name.name)
   |> Stdlib.List.sort
   |> Stdlib.List.map (fun n -> BodyItem { name = n; kind = "builtin"; isModule = false })
@@ -155,7 +155,7 @@ let builtinDetailLines (state: State) : List<String> =
   match Stdlib.List.getAt state.items state.selected with
   | None -> [ Colors.dimText "(nothing selected)" ]
   | Some item ->
-    let all = Builtin.getAllBuiltinFns ()
+    let all = LanguageTools.allBuiltinFns ()
     match Stdlib.List.findFirst all (fun fn -> fn.name.name == item.name) with
     | None -> [ Colors.dimText "(builtin not found)" ]
     | Some fn ->

@@ -44,7 +44,7 @@ module ReadFile =
           nameForLookup
           |> Stdlib.String.dropFirst 7  // Drop "script/"
 
-        match Builtin.pmScriptsGet scriptName with
+        match Cli.Scripts.get scriptName with
         | Some script -> script.text
         | None -> $"Script not found: {scriptName}"
       else
@@ -239,14 +239,14 @@ module WriteFile =
         |> Stdlib.String.dropFirst 7  // Drop "script/"
 
       // Update the script content
-      match Builtin.pmScriptsUpdate scriptName content with
+      match Cli.Scripts.update scriptName content with
       | Ok () -> sendSuccessResponse state requestId [] Stdlib.Option.Option.None
       | Error err -> sendErrorResponse state requestId [ err ]
     else
       // Parse package module content
       // Parse then collect every declaration with its module path (descending into nested modules).
       let allDecls =
-        match Builtin.parserParseToWrittenTypes content with
+        match Parser.Parse.toWrittenTypes content with
         | Some(SourceFile sourceFile) ->
           sourceFile.declarations
           |> Stdlib.List.map WriteFile.sfDeclToModuleDecl

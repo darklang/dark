@@ -36,7 +36,7 @@ let print (columns: List<String>) (rows: List<List<String>>) : Unit =
       | None -> header)
     |> Stdlib.String.join "  "
 
-  Builtin.printLine (Color.bold headerLine)
+  Stdlib.printLine (Color.bold headerLine)
 
   // Print separator
   let sepLine =
@@ -44,7 +44,7 @@ let print (columns: List<String>) (rows: List<List<String>>) : Unit =
     |> Stdlib.List.map (fun w -> Stdlib.String.repeat "-" w)
     |> Stdlib.String.join "  "
 
-  Builtin.printLine sepLine
+  Stdlib.printLine sepLine
 
   // Print data rows
   let _ =
@@ -63,6 +63,6 @@ let print (columns: List<String>) (rows: List<List<String>>) : Unit =
           | None -> cell)
         |> Stdlib.String.join "  "
 
-      Builtin.printLine line)
+      Stdlib.printLine line)
 
   ()

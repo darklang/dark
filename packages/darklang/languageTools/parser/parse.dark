@@ -1,12 +1,27 @@
 module Darklang.LanguageTools.Parser.Parse
 
 
+/// The written-types tree for <param code>, or {{None}} if the tokenizer
+/// failed outright. Syntax errors short of that come back as a tree plus
+/// `diagnostics`.
+let toWrittenTypes
+  (code: String)
+  : Stdlib.Option.Option<WrittenTypes.ParsedFile> =
+  Builtin.parserParseToWrittenTypes code
+
+
+/// The parser's syntax diagnostics for <param code>, as (range, message)
+/// pairs. Empty on a clean parse.
+let diagnostics (code: String) : List<(Parser.Range * String)> =
+  Builtin.parserParseDiagnostics code
+
+
 let initialParse
   (code: String)
   : Stdlib.Result.Result<WrittenTypes.ParsedFile, String> =
   // The range-complete parser. Every consumer of this fn — canvas modules,
   // CLI scripts, the package-test runner, parsePTExpr — parses through it.
-  match Builtin.parserParseToWrittenTypes code with
+  match toWrittenTypes code with
   | Some parsedFile -> Stdlib.Result.Result.Ok parsedFile
   | None -> Stdlib.Result.Result.Error "parse failed"
 
@@ -41,7 +56,7 @@ let parsePTExprInContext
       NameResolver.NRContext
         { onMissing = NameResolver.OnMissing.Allow
           pm = PackageManager.pm ()
-          branchId = Builtin.scmMainBranchId
+          branchId = Darklang.SCM.Branch.mainBranchId
           owner = owner
           currentModule = currentModule }
 

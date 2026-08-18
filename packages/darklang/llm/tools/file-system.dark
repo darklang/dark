@@ -27,7 +27,7 @@ let resolveSafePath (path: String) : Stdlib.Result.Result<String, String> =
   else if isUnsafePath path then
     Stdlib.Result.Result.Error unsafePathError
   else
-    let currentDir = Builtin.directoryCurrent ()
+    let currentDir = Stdlib.Cli.FileSystem.currentDirectory ()
     let normalized =
       if path == "." then
         ""
@@ -57,7 +57,7 @@ let formatDirectoryEntries (entries: List<String>) : String =
         | Some n -> n
         | None -> entryPath
 
-      if Builtin.fileIsDirectory entryPath then
+      if Stdlib.Cli.FileSystem.isDirectory entryPath then
         name ++ "/"
       else
         name)
@@ -81,7 +81,7 @@ val maxSearchResults = 50
 val maxSearchFiles = 200
 
 let filePathToDisplayPath (fullPath: String) : String =
-  let cwd = Builtin.directoryCurrent ()
+  let cwd = Stdlib.Cli.FileSystem.currentDirectory ()
   let cwdPrefix = cwd ++ "/"
   if Stdlib.String.startsWith fullPath cwdPrefix then
     Stdlib.String.dropFirst fullPath (Stdlib.String.length cwdPrefix)
@@ -102,7 +102,7 @@ let searchFileForPattern
     if nextState.filesScanned > maxSearchFiles then
       { nextState with hitFileLimit = true }
     else
-      match Builtin.fileRead fullPath with
+      match Stdlib.Cli.FileSystem.readFile fullPath with
       | Error _ -> nextState
       | Ok bytes ->
         let content = Stdlib.String.fromBlobWithReplacement bytes
@@ -139,8 +139,8 @@ let searchPathsForPattern
     match pendingPaths with
     | [] -> state
     | path :: remaining ->
-      if Builtin.fileIsDirectory path then
-        let children = Builtin.directoryList path
+      if Stdlib.Cli.FileSystem.isDirectory path then
+        let children = Stdlib.Cli.FileSystem.listDirectory path
         let nextPending = Stdlib.List.append children remaining
         searchPathsForPattern nextPending pattern state
       else
@@ -171,7 +171,7 @@ let handleRead (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
       match resolveSafePath path with
       | Error e -> Stdlib.Result.Result.Error e
       | Ok fullPath ->
-        match Builtin.fileRead fullPath with
+        match Stdlib.Cli.FileSystem.readFile fullPath with
         | Ok bytes ->
           let content = Stdlib.String.fromBlobWithReplacement bytes
           Stdlib.Result.Result.Ok(ToolOutput.Text content)
@@ -208,10 +208,10 @@ let handleList (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
   match resolveSafePath path with
   | Error e -> Stdlib.Result.Result.Error e
   | Ok fullPath ->
-    if Stdlib.Bool.not (Builtin.fileIsDirectory fullPath) then
+    if Stdlib.Bool.not (Stdlib.Cli.FileSystem.isDirectory fullPath) then
       Stdlib.Result.Result.Error $"Not a directory: {path}"
     else
-      let entries = Builtin.directoryList fullPath
+      let entries = Stdlib.Cli.FileSystem.listDirectory fullPath
       Stdlib.Result.Result.Ok(ToolOutput.Text (formatDirectoryEntries entries))
 
 
@@ -239,7 +239,7 @@ let handleSearch (input: Json) : Stdlib.Result.Result<ToolOutput, String> =
                 hitFileLimit = false }
 
           let finalState =
-            if Builtin.fileIsDirectory fullPath then
+            if Stdlib.Cli.FileSystem.isDirectory fullPath then
               searchPathsForPattern [ fullPath ] pattern initialState
             else
               searchFileForPattern fullPath pattern initialState

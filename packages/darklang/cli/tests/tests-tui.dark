@@ -391,7 +391,7 @@ let testReplSplitsPastedStatements (): TestResult =
     |> Stdlib.List.filter (fun c ->
       let (input, expected) = c
       (Darklang.Cli.Repl.splitStatements input) != expected)
-    |> Stdlib.List.map (fun c -> let (input, _e) = c in Builtin.toRepr input)
+    |> Stdlib.List.map (fun c -> let (input, _e) = c in Stdlib.toRepr input)
   if Stdlib.List.isEmpty wrong then
     TestResult.Pass
   else

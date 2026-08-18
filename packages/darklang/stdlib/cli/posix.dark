@@ -43,6 +43,17 @@ let fdRead (fd: Int) (count: Int) : Result.Result<Blob, Error> =
   Builtin.posixFdRead fd count
 
 
+/// Write <param bytes> to an open file descriptor. Returns the number
+/// of bytes written.
+let fdWrite (fd: Int) (bytes: Blob) : Result.Result<Int, Error> =
+  Builtin.posixFdWrite fd bytes
+
+
+/// Close an open file descriptor.
+let fdClose (fd: Int) : Result.Result<Unit, Error> =
+  Builtin.posixFdClose fd
+
+
 /// Read all bytes from a file descriptor until EOF.
 /// Accumulates chunks (as Blobs) and concats once at EOF.
 let fdReadAll
@@ -123,7 +134,7 @@ let readlink (path: String) : Result.Result<String, Error> =
 /// Uses readlink — returns Ok true/false, or Error on permission/other failures.
 /// readlink returns EINVAL when the target is not a symlink.
 let isSymlink (path: String) : Result.Result<Bool, Error> =
-  match Builtin.posixReadlink path with
+  match readlink path with
   | Ok _ -> Stdlib.Result.Result.Ok true
   | Error e ->
     if e.errno == Errno.einval then
@@ -161,6 +172,11 @@ let listDir (path: String) : Result.Result<List<String>, Error> =
 /// Get an environment variable
 let getenv (name: String) : Stdlib.Option.Option<String> =
   Builtin.posixGetenv name
+
+
+/// System name info: (sysname, nodename, machine).
+let uname () : Result.Result<(String * String * String), Error> =
+  Builtin.posixUname ()
 
 
 /// Send a signal to a process

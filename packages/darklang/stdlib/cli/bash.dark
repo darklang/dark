@@ -3,7 +3,7 @@ module Darklang.Stdlib.Cli.Bash
 
 /// Read the content of .bashrc file
 let readBashrc () : Result.Result<String, String> =
-  (Builtin.fileRead "$HOME/.bashrc")
+  (Stdlib.Cli.FileSystem.readFile "$HOME/.bashrc")
   |> Result.map Stdlib.String.fromBlobWithReplacement
   |> Result.mapError Stdlib.Cli.FileSystem.FileError.toString
 
@@ -14,7 +14,7 @@ let applyBashConfigChanges () : Result.Result<Unit, String> =
 
 /// Write content to .bashrc file
 let overwriteBashrc (content: String) : Result.Result<Unit, String> =
-  (Builtin.fileWrite (Stdlib.String.toBlob content) "$HOME/.bashrc")
+  (FileSystem.overwriteFile "$HOME/.bashrc" (Stdlib.String.toBlob content))
   |> Result.map (fun _ -> ())
 
 
@@ -47,7 +47,7 @@ let addAlias
     | Ok() ->
       // CLEANUP: in bash `source ~/.bashrc` doesn't work from a subprocess, This is why we need to print a message to the user to run the command manually
       // one workaround is adding `[[ -f ~/.bashrc ]] && . ~/.bashrc` which makes sure .bashrc exists and sources it, applying it configuration to the current shell session.
-      Builtin.printLine
+      Stdlib.printLine
         "Changes have been made to your .bashrc file. \nTo apply these changes to your current terminal session, please run the following command:\nsource ~/.bashrc\n\n "
 
       applyBashConfigChanges ()
@@ -69,7 +69,7 @@ let addToPath (dir: String) : Result.Result<Unit, String> =
 
       match overwriteBashrc updatedContent with
       | Ok() ->
-        Builtin.printLine
+        Stdlib.printLine
           "Changes have been made to your .bashrc file. \nTo apply these changes to your current terminal session, please run the following command:\nsource ~/.bashrc\n\n "
 
         applyBashConfigChanges ()

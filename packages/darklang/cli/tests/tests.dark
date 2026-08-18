@@ -18,7 +18,7 @@ type TestResult =
 /// build. That matters most under NativeAOT, where a trimming failure is
 /// invisible at build time and only shows up in the one command that hits it.
 let cliUnderTest () : String =
-  match Builtin.environmentGet "DARK_CLI_UNDER_TEST" with
+  match Stdlib.Env.get "DARK_CLI_UNDER_TEST" with
   | Some path -> path
   | None -> "./scripts/run-cli"
 

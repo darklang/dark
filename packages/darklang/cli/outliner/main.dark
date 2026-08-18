@@ -94,7 +94,7 @@ let defaultExportPath (title: String) (ext: String) : String =
     title
     |> Stdlib.String.replaceAll " " "-"
     |> Stdlib.String.toLowercase
-  let cwd = Builtin.directoryCurrent ()
+  let cwd = Stdlib.Cli.FileSystem.currentDirectory ()
   $"{cwd}/{safeTitle}{ext}"
 
 
@@ -382,14 +382,14 @@ module Persistence =
           nextDocId = state.nextDocId }
     let json = Stdlib.Json.serialize<PersistedData> data
     let jsonBytes = Stdlib.String.toBlob json
-    let _ = Builtin.fileWrite jsonBytes (dataFilePath ())
+    let _ = Stdlib.Cli.FileSystem.overwriteFile (dataFilePath ()) jsonBytes
     ()
 
   let load () : State =
     let filePath = dataFilePath ()
-    match Builtin.fileExists filePath with
+    match Stdlib.Cli.FileSystem.pathExists filePath with
     | true ->
-      match Builtin.fileRead filePath with
+      match Stdlib.Cli.FileSystem.readFile filePath with
       | Ok bytes ->
         let contents = Stdlib.String.fromBlobWithReplacement bytes
         match Stdlib.Json.parse<PersistedData> contents with

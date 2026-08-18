@@ -1,0 +1,78 @@
+/// Reads and maintenance over the recorded trace store.
+///
+/// These are thin wrappers over the `traces*` builtins, typed to the shapes
+/// in `Darklang.Tracing`: the builtins return bare `List<'a>`, so without a
+/// wrapper every caller re-states the type it expects. Consumers (the CLI
+/// `traces` command, the workbench, dashboards) go through here.
+module Darklang.Tracing.Store
+
+
+/// Is trace recording on for this process? Worth asking before reporting an
+/// empty result: with recording off, every query returns empty whatever ran.
+let enabled () : Bool =
+  Builtin.tracesEnabled ()
+
+
+/// The most recent <param limit> traces, newest first.
+let list (limit: Int) : List<TraceSummary> =
+  Builtin.tracesList limit
+
+
+/// The most recent <param limit> traces that called <param fnName>.
+let listByFn (fnName: String) (limit: Int) : List<TraceSummary> =
+  Builtin.tracesListByFn fnName limit
+
+
+/// The most recent <param limit> traces whose inputs, args or results
+/// contain <param pattern>.
+let find (pattern: String) (limit: Int) : List<TraceSummary> =
+  Builtin.tracesFind pattern limit
+
+
+/// Full payload for one trace: summary, inputs and fn calls.
+let view (traceID: String) : Stdlib.Option.Option<TraceData> =
+  Builtin.tracesView traceID
+
+
+/// The trace's input as source text, for replay. {{None}} when the trace
+/// is missing or its input isn't a string (e.g. an HTTP Request record).
+let getInput (traceID: String) : Stdlib.Option.Option<String> =
+  Builtin.tracesGetInput traceID
+
+
+/// Expand a trace-ID prefix to the full ID, or say why it can't be.
+let resolveID (input: String) : Stdlib.Result.Result<String, String> =
+  Builtin.tracesResolveID input
+
+
+/// Per-fn totals over the last <param traceLimit> traces:
+/// (fnName, totalMs, maxMs, callCount).
+let hotspots (traceLimit: Int) : List<(String * Int * Int * Int)> =
+  Builtin.tracesHotspots traceLimit
+
+
+/// Per-handler totals over the last <param traceLimit> traces:
+/// (handler, totalMs, maxMs, traceCount).
+let statsByHandler (traceLimit: Int) : List<(String * Int * Int * Int)> =
+  Builtin.tracesStatsByHandler traceLimit
+
+
+/// Delete one trace by full ID. Returns the number of rows deleted.
+let delete (traceID: String) : Int =
+  Builtin.tracesDelete traceID
+
+
+/// Delete every trace. Returns the number deleted.
+let clear () : Int =
+  Builtin.tracesClear ()
+
+
+/// Delete traces recorded before <param cutoff>. Returns the number deleted.
+let clearBefore (cutoff: String) : Int =
+  Builtin.tracesClearBefore cutoff
+
+
+/// Keep the <param keepN> most recent traces, delete the rest. Returns the
+/// number deleted.
+let pruneKeep (keepN: Int) : Int =
+  Builtin.tracesPruneKeep keepN

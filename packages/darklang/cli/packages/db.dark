@@ -1,6 +1,11 @@
 module Darklang.Cli.Packages.DB
 
 
+/// Every user DB on <param branchId>, as (name, typeName) pairs.
+let listAll (branchId: Uuid) : List<(String * String)> =
+  Builtin.dbListAll branchId
+
+
 let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   match args with
   | [] ->
@@ -45,7 +50,7 @@ let getDBTypeName
   (state: Cli.AppState)
   (dbName: String)
   : Stdlib.Option.Option<String> =
-  let dbs = Builtin.dbListAll state.currentBranchId
+  let dbs = listAll state.currentBranchId
 
   dbs
   |> Stdlib.List.filterMap (fun db ->
@@ -67,10 +72,10 @@ let getDBFieldNames
   with
   | Error _ -> []
   | Ok loc ->
-    match Builtin.pmFindType state.currentBranchId loc with
+    match LanguageTools.PackageManager.Type.find state.currentBranchId loc with
     | None -> []
     | Some typeHash ->
-      match Builtin.pmGetType typeHash with
+      match LanguageTools.PackageManager.Type.get typeHash with
       | None -> []
       | Some pkgType ->
         match pkgType.declaration.definition with
@@ -79,7 +84,7 @@ let getDBFieldNames
 
 
 let listDBs (state: Cli.AppState) : Cli.AppState =
-  let dbs = Builtin.dbListAll state.currentBranchId
+  let dbs = listAll state.currentBranchId
 
   match dbs with
   | [] ->
@@ -130,12 +135,12 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
     let fieldAccessors =
       fieldNames
       |> Stdlib.List.map (fun f ->
-        "(Builtin.toRepr value." ++ f ++ ")")
+        "(Stdlib.toRepr value." ++ f ++ ")")
       |> Stdlib.String.join " ++ \"|||\" ++ "
 
     let rowExpr =
       if Stdlib.List.isEmpty fieldNames then
-        "key ++ \"|||\" ++ (Builtin.toRepr value)"
+        "key ++ \"|||\" ++ (Stdlib.toRepr value)"
       else
         "key ++ \"|||\" ++ " ++ fieldAccessors
 
@@ -150,7 +155,7 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
       ++ nl ++ "  " ++ rowExpr ++ ")"
       ++ nl ++ "|> Stdlib.String.join \"<<<ROW>>>\""
 
-    match  Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr false with
+    match Eval.evaluateRaw state.accountID state.currentBranchId expr false with
     | Ok resultOpt ->
       let result = resultOpt |> Stdlib.Option.withDefault ""
       Stdlib.printLine ""
@@ -213,7 +218,7 @@ let getDBValue
   : Cli.AppState =
   let expr = $"Stdlib.DB.get \"{key}\" {dbName}"
 
-  match  Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr false with
+  match Eval.evaluateRaw state.accountID state.currentBranchId expr false with
   | Ok (Some result) ->
     Stdlib.printLine result
     state
@@ -237,7 +242,7 @@ let setDBValue
     let expr =
       $"Stdlib.DB.set ({typeName} {valueExpr}) \"{key}\" {dbName}"
 
-    match  Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr false with
+    match Eval.evaluateRaw state.accountID state.currentBranchId expr false with
     | Ok _ ->
       Stdlib.printLine (Colors.success $"Set {key} in {dbName}")
       state
@@ -253,7 +258,7 @@ let deleteDBValue
   : Cli.AppState =
   let expr = $"Stdlib.DB.delete \"{key}\" {dbName}"
 
-  match  Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr false with
+  match Eval.evaluateRaw state.accountID state.currentBranchId expr false with
   | Ok _ ->
     Stdlib.printLine (Colors.success $"Deleted {key} from {dbName}")
     state
@@ -269,7 +274,7 @@ let queryDB
   : Cli.AppState =
   let expr = $"Stdlib.DB.query {dbName} ({filterExpr})"
 
-  match  Builtin.cliEvaluateExpression state.accountID state.currentBranchId expr false with
+  match Eval.evaluateRaw state.accountID state.currentBranchId expr false with
   | Ok (Some result) ->
     Stdlib.printLine result
     state
@@ -296,7 +301,7 @@ let createDB (state: Cli.AppState) (dbName: String) (typeName: String) : Cli.App
     state
 
   | Ok typeLocation ->
-    match Builtin.pmFindType state.currentBranchId typeLocation with
+    match LanguageTools.PackageManager.Type.find state.currentBranchId typeLocation with
     | None ->
       let fullTypeName =
         PrettyPrinter.ProgramTypes.PackageLocation.packageLocation typeLocation
@@ -356,7 +361,7 @@ let help (_state: Cli.AppState) : String =
 
 
 let getDBNamesForCompletion (state: Cli.AppState) : List<String> =
-  (Builtin.dbListAll state.currentBranchId)
+  (listAll state.currentBranchId)
   |> Stdlib.List.map (fun db ->
     let (name, _) = db
     name)
