@@ -9,7 +9,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [commandName] ->
     Registry.executeCommandHelp commandName state
   | _ ->
-    Stdlib.printLine (Colors.error "Usage: help [command]")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: help [command]")
     Stdlib.printLine "Too many arguments. Use 'help' for general help or 'help <command>' for specific help."
     state
 
@@ -22,28 +22,28 @@ let help (_state: AppState) : String =
 
   // CLEANUP I wanted this somewhere but couldn't decide where.
   let swatches =
-    [ Colors.purpleBg
-      Colors.magentaBg
-      Colors.lightPinkBg
-      Colors.pinkBg
-      Colors.blueBg
-      Colors.greenBg
-      Colors.yellowBg
-      Colors.brownBg
-      Colors.orangeBg
-      Colors.peachBg
-      Colors.salmonBg ]
-    |> Stdlib.List.map (fun color -> $"{color}  {Colors.reset}")
+    [ Stdlib.Cli.UI.Colors.purpleBg
+      Stdlib.Cli.UI.Colors.magentaBg
+      Stdlib.Cli.UI.Colors.lightPinkBg
+      Stdlib.Cli.UI.Colors.pinkBg
+      Stdlib.Cli.UI.Colors.blueBg
+      Stdlib.Cli.UI.Colors.greenBg
+      Stdlib.Cli.UI.Colors.yellowBg
+      Stdlib.Cli.UI.Colors.brownBg
+      Stdlib.Cli.UI.Colors.orangeBg
+      Stdlib.Cli.UI.Colors.peachBg
+      Stdlib.Cli.UI.Colors.salmonBg ]
+    |> Stdlib.List.map (fun color -> $"{color}  {Stdlib.Cli.UI.Colors.reset}")
     |> Stdlib.String.join ""
 
   [
     swatches
-    (Colors.info "Usage: " ++ Colors.command "help [command]")
+    (Stdlib.Cli.UI.Colors.info "Usage: " ++ Stdlib.Cli.UI.Colors.command "help [command]")
     "Show general help or help for a specific command."
     ""
-    (Colors.info "Examples:")
-    ("  " ++ Colors.command "help" ++ "        - Show all available commands")
-    ("  " ++ Colors.command "help quit" ++ "   - Show help for the quit command")
+    (Stdlib.Cli.UI.Colors.info "Examples:")
+    ("  " ++ Stdlib.Cli.UI.Colors.command "help" ++ "        - Show all available commands")
+    ("  " ++ Stdlib.Cli.UI.Colors.command "help quit" ++ "   - Show help for the quit command")
   ]
   |> Stdlib.String.join "\n"
 

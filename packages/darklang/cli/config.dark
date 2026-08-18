@@ -56,14 +56,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       state
 
     | None ->
-      Stdlib.printLine (Colors.error $"Configuration key not found: {key}")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Configuration key not found: {key}")
       state
 
   | ["set"; key; value] ->
     let config = readConfig ()
     let updatedConfig = Stdlib.Dict.setOverridingDuplicates config key value
     writeConfig updatedConfig
-    Stdlib.printLine (Colors.success $"Set {key} = {value}")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Set {key} = {value}")
 
     // Show the implied local URL for well-formed app port settings.
     match Stdlib.String.split key "." with
@@ -71,7 +71,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       match Stdlib.Int.parse value with
       | Ok port ->
         if port >= 1 && port <= 65535 then
-          Stdlib.printLine (Colors.dimText $"  → http://localhost:{value}")
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"  → http://localhost:{value}")
         else
           ()
       | Error _ -> ()
@@ -93,7 +93,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   | _ ->
-    Stdlib.printLine (Colors.error "Invalid arguments")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Invalid arguments")
     Stdlib.printLine ""
     Stdlib.printLine (help state)
     state

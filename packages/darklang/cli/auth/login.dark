@@ -11,7 +11,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     let accounts = SCM.Account.list ()
     if Stdlib.List.isEmpty accounts then
       Stdlib.printLine
-        (Colors.error
+        (Stdlib.Cli.UI.Colors.error
           "No accounts. Seed via the .sql migration / LocalExec init.")
       state
     else
@@ -25,7 +25,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [ name ] ->
     match SCM.Account.getByName name with
     | None ->
-      Stdlib.printLine (Colors.error $"No account '{name}'.")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"No account '{name}'.")
       Stdlib.printLine "Run `login` to see the available accounts."
       state
     | Some account ->
@@ -39,13 +39,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
           (Stdlib.Uuid.toString account.id)
       Config.writeConfig updated
 
-      Stdlib.printLine (Colors.success $"Logged in as {account.name}.")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Logged in as {account.name}.")
       { state with
           accountID = Stdlib.Option.Option.Some account.id
           accountName = account.name }
 
   | _ ->
-    Stdlib.printLine (Colors.error "Usage: login [<name>]")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: login [<name>]")
     state
 
 

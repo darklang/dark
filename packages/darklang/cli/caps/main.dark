@@ -251,7 +251,7 @@ let renderOneRow (state: State) (pair: (Int * Row)) : String =
   let prefix = if selected then "›" else " "
   let line = $"  {prefix} {rowText r}"
   if selected then
-    Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
+    Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.selection line
   else
     line
 
@@ -274,7 +274,7 @@ let browsingRows (state: State) (height: Int) : List<String> =
   let allRows =
     Stdlib.List.flatten
       [ flagRows
-        [ ""; Darklang.Cli.Colors.dimText "  Scoped rules" ]
+        [ ""; Darklang.Stdlib.Cli.UI.Colors.dimText "  Scoped rules" ]
         ruleRows ]
   let selectedPhysicalRow =
     if state.cursor < flagCount then
@@ -282,7 +282,7 @@ let browsingRows (state: State) (height: Int) : List<String> =
     else
       state.cursor + 2
 
-  Darklang.Cli.Tui.Layout.viewport
+  Darklang.Stdlib.Cli.Tui.Layout.viewport
     allRows
     selectedPhysicalRow
     height
@@ -300,18 +300,18 @@ let menuRows
       let prefix = if selected then "›" else " "
       let line = $"  {prefix} {item}"
       if selected then
-        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
+        Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.selection line
       else
         line)
   let rows = Stdlib.List.append [ title; "" ] itemRows
   // Account for the title and blank row before the selected menu item.
-  Darklang.Cli.Tui.Layout.viewport rows (cursor + 2) height
+  Darklang.Stdlib.Cli.Tui.Layout.viewport rows (cursor + 2) height
 
 /// Construct the complete caps editor view without performing terminal I/O.
 let viewAtSize
   (state: State)
-  (size: Darklang.Cli.Tui.Size)
-  : Darklang.Cli.Tui.View =
+  (size: Darklang.Stdlib.Cli.Tui.Size)
+  : Darklang.Stdlib.Cli.Tui.View =
   let width = Stdlib.Int.max 1 size.width
   let contentHeight = Stdlib.Int.max 1 size.height
   let titleHeight = if contentHeight >= 3 then 2 else 1
@@ -320,11 +320,11 @@ let viewAtSize
     Stdlib.Int.max 0 (contentHeight - titleHeight - helpHeight)
 
   let dirtyTag =
-    if state.dirty then Darklang.Cli.Colors.colorize Darklang.Cli.Colors.yellow "  ● unsaved"
+    if state.dirty then Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.yellow "  ● unsaved"
     else ""
   let title =
-    Darklang.Cli.Colors.colorize
-      (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold)
+    Darklang.Stdlib.Cli.UI.Colors.colorize
+      (Darklang.Stdlib.Cli.UI.Colors.purpleBg ++ Darklang.Stdlib.Cli.UI.Colors.white ++ Darklang.Stdlib.Cli.UI.Colors.bold)
       " capabilities "
 
   let (bodyRows, helpText) =
@@ -350,31 +350,31 @@ let viewAtSize
           bodyHeight
       , "  ↑↓ move · enter apply · esc cancel" )
     | EditHttp(_, editor) ->
-      (Darklang.Cli.Tui.Layout.fitRows bodyHeight (HttpRuleEditor.render editor), "")
+      (Darklang.Stdlib.Cli.Tui.Layout.fitRows bodyHeight (HttpRuleEditor.render editor), "")
     | EditExec(_, editor) ->
-      (Darklang.Cli.Tui.Layout.fitRows bodyHeight (ExecRuleEditor.render editor), "")
+      (Darklang.Stdlib.Cli.Tui.Layout.fitRows bodyHeight (ExecRuleEditor.render editor), "")
     | EditAccess(_, editor) ->
-      (Darklang.Cli.Tui.Layout.fitRows bodyHeight (AccessEditor.render editor), "")
+      (Darklang.Stdlib.Cli.Tui.Layout.fitRows bodyHeight (AccessEditor.render editor), "")
 
   let titleRows =
-    Darklang.Cli.Tui.Layout.fitRows
+    Darklang.Stdlib.Cli.Tui.Layout.fitRows
       titleHeight
       [ $"{title}{dirtyTag}" ]
   let helpRows =
     if helpHeight == 0 then
       []
     else
-      [ Darklang.Cli.Colors.dimText helpText ]
+      [ Darklang.Stdlib.Cli.UI.Colors.dimText helpText ]
   let viewRows =
     Stdlib.List.flatten [ titleRows; bodyRows; helpRows ]
     |> Stdlib.List.take contentHeight
     |> Stdlib.List.map (fun row ->
-      Darklang.Cli.Tui.Text.clipToWidth row width)
+      Darklang.Stdlib.Cli.Tui.Text.clipToWidth row width)
 
-  Darklang.Cli.Tui.View {
+  Darklang.Stdlib.Cli.Tui.View {
     rows = viewRows
-    cursor = Darklang.Cli.Tui.Cursor.Hidden
-    mode = Darklang.Cli.Tui.ViewMode.Fullscreen
+    cursor = Darklang.Stdlib.Cli.Tui.Cursor.Hidden
+    mode = Darklang.Stdlib.Cli.Tui.ViewMode.Fullscreen
   }
 
 let save (state: State) : Unit =

@@ -48,14 +48,14 @@ let resolveCmd
       match openAt location with
       | Some c ->
         if act c then
-          Stdlib.printLine (Colors.success (okMsg c))
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.success (okMsg c))
         else
-          Stdlib.printLine (Colors.error (noneMsg location))
-      | None -> Stdlib.printLine (Colors.error (noneMsg location))
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.error (noneMsg location))
+      | None -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error (noneMsg location))
 
     state
   | _ ->
-    Stdlib.printLine (Colors.error $"usage: dark conflicts {verb} <loc>")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"usage: dark conflicts {verb} <loc>")
 
     state
 
@@ -155,16 +155,16 @@ let printOpenList
     let activeSide = if c.chosenHash == c.incomingHash then "theirs" else "yours"
     Stdlib.printLine ""
     Stdlib.printLine $"  {c.location} ({c.itemKind})"
-    Stdlib.printLine (Colors.hint $"    yours:  {yoursV}")
-    Stdlib.printLine (Colors.hint $"    theirs: {theirsV}")
-    Stdlib.printLine (Colors.hint $"    active: {activeSide} ({c.resolvedBy})"))
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"    yours:  {yoursV}")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"    theirs: {theirsV}")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"    active: {activeSide} ({c.resolvedBy})"))
 
   Stdlib.printLine ""
-  Stdlib.printLine (Colors.hint "  What you can do:")
-  Stdlib.printLine (Colors.hint "    dark conflicts show <loc>        see both versions in full")
-  Stdlib.printLine (Colors.hint "    dark conflicts keep-mine <loc>   keep yours (syncs to peers)")
-  Stdlib.printLine (Colors.hint "    dark conflicts keep-theirs <loc> keep theirs (syncs to peers)")
-  Stdlib.printLine (Colors.hint "    dark conflicts ok <loc>          accept the auto pick, review done")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "  What you can do:")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "    dark conflicts show <loc>        see both versions in full")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "    dark conflicts keep-mine <loc>   keep yours (syncs to peers)")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "    dark conflicts keep-theirs <loc> keep theirs (syncs to peers)")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "    dark conflicts ok <loc>          accept the auto pick, review done")
   state
 
 // Step through each conflict: show both sides, pick mine / theirs / skip. Shown for a bare `dark conflicts`
@@ -198,18 +198,18 @@ let resolveInteractively
     match choice with
     | "mine" ->
       if Darklang.Sync.Conflicts.keep c.location c.localHash then
-        Stdlib.printLine (Colors.success "    kept yours — syncs to peers")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.success "    kept yours — syncs to peers")
       else
-        Stdlib.printLine (Colors.error "    couldn't apply — still open")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error "    couldn't apply — still open")
     | "theirs" ->
       if Darklang.Sync.Conflicts.keep c.location c.incomingHash then
-        Stdlib.printLine (Colors.success "    kept theirs — syncs to peers")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.success "    kept theirs — syncs to peers")
       else
-        Stdlib.printLine (Colors.error "    couldn't apply — still open")
-    | _ -> Stdlib.printLine (Colors.hint "    skipped — still open"))
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error "    couldn't apply — still open")
+    | _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "    skipped — still open"))
 
   Stdlib.printLine ""
-  Stdlib.printLine (Colors.hint "Run `dark sync` to share your picks with peers.")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "Run `dark sync` to share your picks with peers.")
   state
 
 let help (_state: AppState) : String =
@@ -231,7 +231,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [] ->
     match unreviewed () with
     | [] ->
-      Stdlib.printLine (Colors.success "No conflicts — everything's converged.")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.success "No conflicts — everything's converged.")
       state
     // Bare `dark conflicts` in a session walks you through each; one-shot/piped prints the list to act on.
     | cs ->
@@ -240,7 +240,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | [ "list" ] ->
     match unreviewed () with
     | [] ->
-      Stdlib.printLine (Colors.success "No conflicts — everything's converged.")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.success "No conflicts — everything's converged.")
       state
     | cs -> printOpenList state cs
 
@@ -263,14 +263,14 @@ let execute (state: AppState) (args: List<String>) : AppState =
       Stdlib.printLine ""
 
       Stdlib.printLine (
-        Colors.hint $"  keep yours:   dark conflicts keep-mine {location}")
+        Stdlib.Cli.UI.Colors.hint $"  keep yours:   dark conflicts keep-mine {location}")
 
       Stdlib.printLine (
-        Colors.hint $"  keep theirs:  dark conflicts keep-theirs {location}")
+        Stdlib.Cli.UI.Colors.hint $"  keep theirs:  dark conflicts keep-theirs {location}")
 
       state
     | None ->
-      Stdlib.printLine (Colors.error (noneMsg location))
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error (noneMsg location))
       state
 
   | "ok" :: rest ->

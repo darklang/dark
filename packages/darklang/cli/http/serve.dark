@@ -74,13 +74,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
     match parsed.error with
     | Some err ->
-      Stdlib.printLine (Colors.error err)
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error err)
       printUsage ()
       state
     | None ->
       if parsed.routerPath == "" then
         Stdlib.printLine
-          (Colors.error
+          (Stdlib.Cli.UI.Colors.error
             "Missing router path. Usage: serve <router-path> [--port N] [--max-body-bytes N]")
         state
       else
@@ -119,17 +119,17 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                   []
                 else
                   let hostStr = Stdlib.Int.toString (hostBase + offset)
-                  [ Colors.hint $"  From the host: http://localhost:{hostStr}" ]
+                  [ Stdlib.Cli.UI.Colors.hint $"  From the host: http://localhost:{hostStr}" ]
 
           let announce () : Unit =
             let head =
               [ $"Using router: {parsed.routerPath}"
                 $"Max body bytes: {maxBytesStr}"
                 ""
-                Colors.success $"Listening on http://localhost:{portStr}" ]
+                Stdlib.Cli.UI.Colors.success $"Listening on http://localhost:{portStr}" ]
 
             let tail =
-              [ Colors.hint "  Requests print here as they arrive (method, path, status, duration)."
+              [ Stdlib.Cli.UI.Colors.hint "  Requests print here as they arrive (method, path, status, duration)."
                 "Press Ctrl+C to stop"
                 "" ]
 
@@ -137,11 +137,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
           match Stdlib.HttpServer.serve config router announce with
           | Ok _ -> ()
-          | Error msg -> Stdlib.printLine (Colors.error msg)
+          | Error msg -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
           state
         | Error msg ->
           Stdlib.printLine (
-            Colors.error $"{msg} — is it defined and committed on this branch?")
+            Stdlib.Cli.UI.Colors.error $"{msg} — is it defined and committed on this branch?")
 
           state
 

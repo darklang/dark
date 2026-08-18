@@ -1,17 +1,37 @@
+/// The outliner itself: documents, the screens you move between, and the frame around them.
+///
+/// Everything on screen is a widget from `Stdlib.Cli.UI` (a picker, a text field, a confirmation, the
+/// outline editor) drawn into a region. This module is the part that decides which one has the keyboard,
+/// what their messages mean, and what the status line says.
 module Darklang.Cli.Outliner.Main
 
+/// An action waiting on a yes/no.
+type Pending =
+  | DeleteDocument of Int
+  | DeleteNode of Int
+
 type Screen =
-  | DocPicker of ListPicker.State<Document>
-  | DocRenaming of docId: Int * ListPicker.State<Document> * TextEditor.State
-  | Editor of OutlineEditor.State
-  | ExportPicker of ListPicker.State<(String * String)>
-  | ExportPath of ext: String * TextEditor.State
+  | DocPicker of Stdlib.Cli.UI.Picker.State
+  | DocRenaming of docId: Int * Stdlib.Cli.UI.Picker.State * Stdlib.Cli.UI.TextField.State
+  | Editing of Editor.State
+  | ExportFormat of Stdlib.Cli.UI.Picker.State
+  | ExportPath of ext: String * Stdlib.Cli.UI.TextField.State
 
 type State =
   { documents: List<Document>
     activeDocId: Int
     nextDocId: Int
-    screen: Screen }
+    screen: Screen
+    /// A question drawn over whatever screen is underneath, holding what it's a question about.
+    confirm: Stdlib.Option.Option<(Stdlib.Cli.UI.Confirm.State * Pending)>
+    message: String
+    messageIsError: Bool
+    /// Set when the file on disk couldn't be read. While it's set, nothing is written: see `Store`.
+    loadError: Stdlib.Option.Option<String>
+
+    /// What the file looked like when this session last agreed with it, so a write can tell that someone
+    /// else has been in since.
+    savedStamp: Stdlib.Option.Option<Store.Stamp> }
 
 type KeyResult =
   | Continue of State
@@ -19,123 +39,363 @@ type KeyResult =
   | Exit of State
 
 
-// --- Document helpers ---
+// --- Documents ---
 
 let activeDoc (state: State) : Document =
-  let fallback =
-    Document
-      { id = 0; title = "Untitled"; outline = emptyOutline () }
+  let fallback = Document { id = 0; title = "Untitled"; outline = emptyOutline () }
+
   state.documents
   |> Stdlib.List.findFirst (fun d -> d.id == state.activeDocId)
   |> Stdlib.Option.withDefault fallback
 
-let updateDoc (state: State) (docId: Int) (updater: Document -> Document) : State =
+let updateDoc (state: State) (docId: Int) (updated: Outline) : State =
   { state with
       documents =
         Stdlib.List.map state.documents (fun d ->
-          if d.id == docId then updater d
-          else d) }
+          if d.id == docId then { d with outline = updated } else d) }
 
-let createDocument (state: State) (title: String) : State =
-  let newDoc =
-    Document
-      { id = state.nextDocId
-        title = title
-        outline = emptyOutline () }
-  let newState =
+/// "Tasks  (12 lines, 3 done)" - a count of what's in the document, not of its top level.
+///
+/// The old label counted `rootChildren`, so a nine-line document read "(3 items)".
+let docLabel (doc: Document) : String =
+  let all = descendants doc.outline doc.outline.rootChildren
+  let total = Stdlib.List.length all
+
+  let done_ =
+    all
+    |> Stdlib.List.filter (fun id ->
+      match getMark doc.outline id with
+      | Done -> true
+      | _ -> false)
+    |> Stdlib.List.length
+
+  let suffix =
+    if total == 0 then "empty"
+    else if done_ > 0 then
+      $"{Stdlib.Int.toString total} lines, {Stdlib.Int.toString done_} done"
+    else
+      $"{Stdlib.Int.toString total} lines"
+
+  $"{doc.title}  ({suffix})"
+
+let docLabels (state: State) : List<String> =
+  Stdlib.List.map state.documents docLabel
+
+let makeDocPicker (state: State) : Stdlib.Cli.UI.Picker.State =
+  let picker = Stdlib.Cli.UI.Picker.make (docLabels state)
+
+  let index =
+    state.documents
+    |> Stdlib.List.findFirstIndex (fun d -> d.id == state.activeDocId)
+    |> Stdlib.Option.withDefault 0
+
+  Stdlib.Cli.UI.Picker.moveTo picker index
+
+let docAt (state: State) (index: Int) : Stdlib.Option.Option<Document> =
+  Stdlib.List.getAt state.documents index
+
+
+// --- Status line ---
+
+let say (state: State) (message: String) : State =
+  { state with message = message; messageIsError = false }
+
+let complain (state: State) (message: String) : State =
+  { state with message = message; messageIsError = true }
+
+/// Clear the last message, so it belongs to one action rather than lingering.
+let quiet (state: State) : State =
+  { state with message = ""; messageIsError = false }
+
+
+// --- Screen transitions ---
+
+let openDocument (state: State) (doc: Document) : State =
+  { (quiet state) with
+      activeDocId = doc.id
+      screen = Screen.Editing(Editor.fromOutline doc.outline) }
+
+/// Back to the document list, keeping the outline the editor was holding.
+let backToPicker (state: State) : State =
+  { (quiet state) with screen = Screen.DocPicker(makeDocPicker state) }
+
+let createDocument (state: State) : State =
+  let doc =
+    Document { id = state.nextDocId; title = "Untitled"; outline = emptyOutline () }
+
+  let withDoc =
     { state with
-        documents = Stdlib.List.append state.documents [newDoc]
-        activeDocId = state.nextDocId
+        documents = Stdlib.List.append state.documents [ doc ]
+        activeDocId = doc.id
         nextDocId = state.nextDocId + 1 }
-  let editor = OutlineEditor.fromOutline newDoc.outline
-  { newState with screen = Screen.Editor editor }
+
+  // Straight into the editor with a line open: a new document you have to press a key to start typing in
+  // is a new document you abandon.
+  { (say withDoc "new document") with
+      screen = Screen.Editing(Editor.insertAfter (Editor.fromOutline doc.outline)) }
 
 let deleteDocument (state: State) (docId: Int) : State =
-  let docCount = Stdlib.List.length state.documents
-  if docCount <= 1 then
-    state
+  if (Stdlib.List.length state.documents) <= 1 then
+    complain state "that's the only document"
   else
     let remaining = Stdlib.List.filter state.documents (fun d -> d.id != docId)
-    let newActiveId =
+
+    let activeId =
       if state.activeDocId == docId then
-        (Stdlib.List.head remaining)
-        |> Stdlib.Option.map (fun d -> d.id)
-        |> Stdlib.Option.withDefault state.activeDocId
+        match Stdlib.List.head remaining with
+        | Some d -> d.id
+        | None -> state.activeDocId
       else
         state.activeDocId
-    let newState =
-      { state with
-          documents = remaining
-          activeDocId = newActiveId }
-    { newState with screen = Screen.DocPicker (makeDocPicker newState) }
 
-let renameDocument (state: State) (docId: Int) (newTitle: String) : State =
-  updateDoc state docId (fun d -> { d with title = newTitle })
+    let next = { state with documents = remaining; activeDocId = activeId }
+    { (say next "deleted") with screen = Screen.DocPicker(makeDocPicker next) }
 
 
-// --- Pickers ---
+// --- Export ---
 
-let makeDocPicker (state: State) : ListPicker.State<Document> =
-  ListPicker.make state.documents (fun doc ->
-    let nodeCount = Stdlib.List.length doc.outline.rootChildren
-    $"{doc.title}  ({Stdlib.Int.toString nodeCount} items)")
+val exportFormats = [ ("Markdown", ".md"); ("OPML", ".opml") ]
 
-val exportFormats =
-  [ ("Markdown", ".md")
-    ("OPML", ".opml") ]
+let makeExportPicker () : Stdlib.Cli.UI.Picker.State =
+  Stdlib.Cli.UI.Picker.make
+    (exportFormats
+     |> Stdlib.List.map (fun pair ->
+       let (name, ext) = pair
+       $"{name}  ({ext})"))
 
-let makeExportPicker () : ListPicker.State<(String * String)> =
-  ListPicker.make exportFormats (fun pair ->
-    let (name, ext) = pair
-    $"{name}  ({ext})")
-
+/// Where an export lands by default.
+///
+/// The home directory, not the working directory. The CLI's cwd is wherever the shell happened to be -
+/// which, for anyone working on Darklang, is the repo, and exports were quietly landing in it.
 let defaultExportPath (title: String) (ext: String) : String =
   let safeTitle =
-    title
-    |> Stdlib.String.replaceAll " " "-"
-    |> Stdlib.String.toLowercase
-  let cwd = Stdlib.Cli.FileSystem.currentDirectory ()
-  $"{cwd}/{safeTitle}{ext}"
+    title |> Stdlib.String.replaceAll " " "-" |> Stdlib.String.toLowercase
+
+  match Stdlib.Cli.Unix.getHomeDirectory () with
+  | Ok home -> $"{home}/{safeTitle}{ext}"
+  | Error _ -> $"{safeTitle}{ext}"
+
+let exportTo (state: State) (path: String) (ext: String) : State =
+  let doc = activeDoc state
+  let content = if ext == ".opml" then Export.toOpml doc else Export.toMarkdown doc
+
+  match Stdlib.Cli.FileSystem.writeFile path (Stdlib.String.toBlob content) with
+  | Ok _ -> say state $"wrote {path}"
+  | Error e -> complain state $"couldn't write {path}: {e}"
 
 
-// --- Key handling ---
+// --- Keys: the document picker ---
 
-let handleDocPickerKey
+let onPickerKey
   (state: State)
-  (picker: ListPicker.State<Document>)
-  (key: Stdlib.Cli.Stdin.Key.Key)
-  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
-  (keyChar: Stdlib.Option.Option<String>)
+  (picker: Stdlib.Cli.UI.Picker.State)
+  (kp: Stdlib.Cli.UI.Widget.KeyPress)
   : KeyResult =
-  match keyChar with
-  | Some "n" -> KeyResult.Save (createDocument state "Untitled")
-  | Some "d" ->
-    match Stdlib.List.getAt picker.items picker.selected with
-    | Some doc -> KeyResult.Save (deleteDocument state doc.id)
+  let selected = docAt state picker.selected
+
+  if Stdlib.Cli.UI.Widget.isChar kp "n" then
+    KeyResult.Save(createDocument state)
+  else if Stdlib.Cli.UI.Widget.isChar kp "d" then
+    match selected with
     | None -> KeyResult.Continue state
-  | Some "r" ->
-    match Stdlib.List.getAt picker.items picker.selected with
     | Some doc ->
-      let te = TextEditor.fromText doc.title
-      KeyResult.Continue ({ state with screen = Screen.DocRenaming (doc.id, picker, te) })
+      let question =
+        Stdlib.Cli.UI.Confirm.askDangerous
+          $"Delete \"{doc.title}\"?"
+          $"{docLabel doc}. Undo doesn't reach this."
+
+      KeyResult.Continue
+        { state with
+            confirm =
+              Stdlib.Option.Option.Some((question, Pending.DeleteDocument doc.id)) }
+  else if Stdlib.Cli.UI.Widget.isChar kp "r" then
+    match selected with
     | None -> KeyResult.Continue state
-  | Some "e" ->
-    match Stdlib.List.getAt picker.items picker.selected with
     | Some doc ->
       KeyResult.Continue
-        ({ state with
-            activeDocId = doc.id
-            screen = Screen.ExportPicker (makeExportPicker ()) })
+        { state with
+            screen =
+              Screen.DocRenaming(
+                doc.id,
+                picker,
+                Stdlib.Cli.UI.TextField.fromText doc.title) }
+  else if Stdlib.Cli.UI.Widget.isChar kp "e" then
+    match selected with
     | None -> KeyResult.Continue state
-  | _ ->
-    match ListPicker.handleKey picker key modifiers keyChar with
-    | Browsing newPicker ->
-      KeyResult.Continue ({ state with screen = Screen.DocPicker newPicker })
-    | Selected doc ->
-      let editor = OutlineEditor.fromOutline doc.outline
-      KeyResult.Save ({ state with activeDocId = doc.id; screen = Screen.Editor editor })
+    | Some doc ->
+      KeyResult.Continue
+        { state with activeDocId = doc.id; screen = Screen.ExportFormat(makeExportPicker ()) }
+  else
+    match Stdlib.Cli.UI.Picker.onKey picker kp with
+    | Handled next -> KeyResult.Continue { state with screen = Screen.DocPicker next }
+    | Emitted(next, msg) ->
+      match msg with
+      | Chose index ->
+        match docAt state index with
+        | Some doc -> KeyResult.Save(openDocument state doc)
+        | None -> KeyResult.Continue state
+      | Cancelled -> KeyResult.Exit state
+    | Ignored -> KeyResult.Continue state
+
+
+// --- Keys: renaming ---
+
+let onRenameKey
+  (state: State)
+  (docId: Int)
+  (picker: Stdlib.Cli.UI.Picker.State)
+  (field: Stdlib.Cli.UI.TextField.State)
+  (kp: Stdlib.Cli.UI.Widget.KeyPress)
+  : KeyResult =
+  match Stdlib.Cli.UI.TextField.onKey field kp with
+  | Handled next ->
+    KeyResult.Continue { state with screen = Screen.DocRenaming(docId, picker, next) }
+  | Emitted(next, msg) ->
+    match msg with
+    | Submitted title ->
+      let trimmed = Stdlib.String.trim title
+
+      if trimmed == "" then
+        KeyResult.Continue(complain state "a document needs a name")
+      else
+        let renamed =
+          { state with
+              documents =
+                Stdlib.List.map state.documents (fun d ->
+                  if d.id == docId then { d with title = trimmed } else d) }
+
+        KeyResult.Save
+          { (say renamed "renamed") with screen = Screen.DocPicker(makeDocPicker renamed) }
     | Cancelled ->
-      KeyResult.Exit state
+      KeyResult.Continue { state with screen = Screen.DocPicker picker }
+  | Ignored -> KeyResult.Continue state
+
+
+// --- Keys: the editor ---
+
+let onEditorKey
+  (state: State)
+  (editor: Editor.State)
+  (kp: Stdlib.Cli.UI.Widget.KeyPress)
+  : KeyResult =
+  match Editor.onKey editor kp with
+  | Handled next -> KeyResult.Continue { state with screen = Screen.Editing next }
+  | Emitted(next, msg) ->
+    let carried = updateDoc { state with screen = Screen.Editing next } state.activeDocId next.outline
+
+    match msg with
+    | Dirty -> KeyResult.Save(quiet carried)
+    | Note note -> KeyResult.Save(say carried note)
+    | Back -> KeyResult.Save(backToPicker carried)
+    | DeleteRequested(id, count) ->
+      let text = getNodeText next.outline id
+      let shown = if text == "" then "this line" else $"\"{text}\""
+
+      let question =
+        if count == 0 then
+          Stdlib.Cli.UI.Confirm.ask $"Delete {shown}?"
+        else
+          Stdlib.Cli.UI.Confirm.askDangerous
+            $"Delete {shown}?"
+            $"{Stdlib.Int.toString count} lines underneath go with it. u undoes it."
+
+      KeyResult.Continue
+        { carried with
+            confirm = Stdlib.Option.Option.Some((question, Pending.DeleteNode id)) }
+  | Ignored ->
+    // Keys the editor passed on: the outliner's own.
+    if Stdlib.Cli.UI.Widget.isChar kp "e" then
+      KeyResult.Continue { (quiet state) with screen = Screen.ExportFormat(makeExportPicker ()) }
+    else if Stdlib.Cli.UI.Widget.isChar kp "g" then
+      KeyResult.Continue(backToPicker state)
+    else
+      KeyResult.Continue state
+
+
+// --- Keys: export ---
+
+let onExportFormatKey
+  (state: State)
+  (picker: Stdlib.Cli.UI.Picker.State)
+  (kp: Stdlib.Cli.UI.Widget.KeyPress)
+  : KeyResult =
+  match Stdlib.Cli.UI.Picker.onKey picker kp with
+  | Handled next -> KeyResult.Continue { state with screen = Screen.ExportFormat next }
+  | Emitted(next, msg) ->
+    match msg with
+    | Chose index ->
+      match Stdlib.List.getAt exportFormats index with
+      | Some pair ->
+        let (_name, ext) = pair
+        let doc = activeDoc state
+        let path = defaultExportPath doc.title ext
+
+        KeyResult.Continue
+          { state with
+              screen = Screen.ExportPath(ext, Stdlib.Cli.UI.TextField.fromText path) }
+      | None -> KeyResult.Continue state
+    | Cancelled -> KeyResult.Continue(backToDocument state)
+  | Ignored -> KeyResult.Continue state
+
+/// Return to the document the export was started from, with the cursor where it was.
+let backToDocument (state: State) : State =
+  match state.screen with
+  | Editing _ -> state
+  | _ ->
+    { state with screen = Screen.Editing(Editor.fromOutline (activeDoc state).outline) }
+
+let onExportPathKey
+  (state: State)
+  (ext: String)
+  (field: Stdlib.Cli.UI.TextField.State)
+  (kp: Stdlib.Cli.UI.Widget.KeyPress)
+  : KeyResult =
+  match Stdlib.Cli.UI.TextField.onKey field kp with
+  | Handled next -> KeyResult.Continue { state with screen = Screen.ExportPath(ext, next) }
+  | Emitted(next, msg) ->
+    match msg with
+    | Submitted path ->
+      let trimmed = Stdlib.String.trim path
+
+      if trimmed == "" then
+        KeyResult.Continue(complain state "a path, please")
+      else
+        KeyResult.Continue(backToDocument (exportTo state trimmed ext))
+    | Cancelled -> KeyResult.Continue(backToDocument state)
+  | Ignored -> KeyResult.Continue state
+
+
+// --- Keys: the confirmation, when one is open ---
+
+let onConfirmKey
+  (state: State)
+  (question: Stdlib.Cli.UI.Confirm.State)
+  (pending: Pending)
+  (kp: Stdlib.Cli.UI.Widget.KeyPress)
+  : KeyResult =
+  match Stdlib.Cli.UI.Confirm.onKey question kp with
+  | Handled next ->
+    KeyResult.Continue
+      { state with confirm = Stdlib.Option.Option.Some((next, pending)) }
+  | Emitted(_next, msg) ->
+    let closed = { state with confirm = Stdlib.Option.Option.None }
+
+    match msg with
+    | Declined -> KeyResult.Continue(say closed "left alone")
+    | Confirmed ->
+      match pending with
+      | DeleteDocument docId -> KeyResult.Save(deleteDocument closed docId)
+      | DeleteNode nodeId ->
+        match closed.screen with
+        | Editing editor ->
+          let next = Editor.deleteSubtree editor nodeId
+          let carried =
+            updateDoc { closed with screen = Screen.Editing next } closed.activeDocId next.outline
+
+          KeyResult.Save(say carried "deleted")
+        | _ -> KeyResult.Continue closed
+  | Ignored -> KeyResult.Continue state
+
 
 let handleKey
   (state: State)
@@ -143,319 +403,173 @@ let handleKey
   (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
   (keyChar: Stdlib.Option.Option<String>)
   : KeyResult =
-  match state.screen with
-  | DocPicker picker ->
-    handleDocPickerKey state picker key modifiers keyChar
+  let kp = Stdlib.Cli.UI.Widget.press key modifiers keyChar
 
-  | DocRenaming (docId, picker, te) ->
-    match TextEditor.handleKey te key modifiers keyChar with
-    | Editing newTE ->
-      KeyResult.Continue ({ state with screen = Screen.DocRenaming (docId, picker, newTE) })
-    | Finished newTitle ->
-      let newState = renameDocument state docId newTitle
-      KeyResult.Save ({ newState with screen = Screen.DocPicker (makeDocPicker newState) })
-    | Cancelled ->
-      KeyResult.Continue ({ state with screen = Screen.DocPicker picker })
-
-  | Editor editor ->
-    // Intercept compositor-level keys only when not editing a node
-    let isEditingNode =
-      match editor.editing with
-      | Some _ -> true
-      | None -> false
-    if (Stdlib.Bool.not isEditingNode) && keyChar == (Stdlib.Option.Option.Some "/") then
-      KeyResult.Continue ({ state with screen = Screen.DocPicker (makeDocPicker state) })
-    else if (Stdlib.Bool.not isEditingNode) && keyChar == (Stdlib.Option.Option.Some "e") then
-      KeyResult.Continue ({ state with screen = Screen.ExportPicker (makeExportPicker ()) })
-    else
-      match OutlineEditor.handleKey editor key modifiers keyChar with
-      | Continue newEditor ->
-        KeyResult.Continue ({ state with screen = Screen.Editor newEditor })
-      | Save newEditor ->
-        let newState = updateDoc state state.activeDocId (fun d -> { d with outline = newEditor.outline })
-        KeyResult.Save ({ newState with screen = Screen.Editor newEditor })
-      | Back _ ->
-        KeyResult.Continue ({ state with screen = Screen.DocPicker (makeDocPicker state) })
-
-  | ExportPicker picker ->
-    match ListPicker.handleKey picker key modifiers keyChar with
-    | Browsing newPicker ->
-      KeyResult.Continue ({ state with screen = Screen.ExportPicker newPicker })
-    | Selected pair ->
-      let (_name, ext) = pair
-      let doc = activeDoc state
-      let path = defaultExportPath doc.title ext
-      let te = TextEditor.fromText path
-      KeyResult.Continue ({ state with screen = Screen.ExportPath (ext, te) })
-    | Cancelled ->
-      KeyResult.Continue ({ state with screen = Screen.Editor (OutlineEditor.fromOutline (activeDoc state).outline) })
-
-  | ExportPath (ext, te) ->
-    match TextEditor.handleKey te key modifiers keyChar with
-    | Editing newTE ->
-      KeyResult.Continue ({ state with screen = Screen.ExportPath (ext, newTE) })
-    | Finished path ->
-      let doc = activeDoc state
-      let content =
-        if ext == ".opml" then Export.toOpml doc
-        else Export.toMarkdown doc
-      let _ = Stdlib.Cli.FileSystem.writeFile path (Stdlib.String.toBlob content)
-      KeyResult.Continue ({ state with screen = Screen.Editor (OutlineEditor.fromOutline doc.outline) })
-    | Cancelled ->
-      KeyResult.Continue ({ state with screen = Screen.Editor (OutlineEditor.fromOutline (activeDoc state).outline) })
+  match state.confirm with
+  | Some pair ->
+    let (question, pending) = pair
+    onConfirmKey state question pending kp
+  | None ->
+    match state.screen with
+    | DocPicker picker -> onPickerKey state picker kp
+    | DocRenaming(docId, picker, field) -> onRenameKey state docId picker field kp
+    | Editing editor -> onEditorKey state editor kp
+    | ExportFormat picker -> onExportFormatKey state picker kp
+    | ExportPath(ext, field) -> onExportPathKey state ext field kp
 
 
 // --- Rendering ---
 
-let titleRow (titleText: String) (modeIndicator: String) : String =
-  let title =
-    Darklang.Cli.Colors.colorize
-      (Darklang.Cli.Colors.purpleBg
-       ++ Darklang.Cli.Colors.white
-       ++ Darklang.Cli.Colors.bold)
-      $" {titleText} "
-  title ++ " " ++ modeIndicator
-
-let helpRow (width: Int) (helpText: String) : String =
-  let clipped =
-    Darklang.Cli.Tui.Text.clipToWidth helpText width
-  let helpWidth =
-    Darklang.Cli.Tui.Text.displayWidth
-      (Darklang.Cli.Tui.Text.stripSgr clipped)
-  let helpPadding =
-    if width > helpWidth then Stdlib.String.repeat " " (width - helpWidth)
-    else ""
-  Darklang.Cli.Colors.colorize
-    (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white)
-    (clipped ++ helpPadding)
-
+/// The rename screen: the document list with one row replaced by the text field.
 let renameRows
-  (docId: Int)
-  (picker: ListPicker.State<Document>)
-  (editor: TextEditor.State)
-  (height: Int)
-  : List<String> =
-  let rows =
-    picker.items
-    |> Stdlib.List.indexedMap (fun idx item ->
-      let isSelected = idx == picker.selected
-      let displayText =
-        if item.id == docId then
-          TextEditor.renderInline editor
-        else
-          ListPicker.labelAt picker idx
-      let prefix = if isSelected then ">" else " "
-      let line = $"  {prefix} {displayText}"
-      if isSelected then
-        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection line
-      else
-        line)
-
-  Darklang.Cli.Tui.Layout.viewport rows picker.selected height
-
-/// Construct the complete outliner view without performing terminal I/O.
-let viewAtSize
   (state: State)
-  (size: Darklang.Cli.Tui.Size)
-  : Darklang.Cli.Tui.View =
-  let width = Stdlib.Int.max 1 size.width
-  let contentHeight = Stdlib.Int.max 1 size.height
-  let titleHeight = if contentHeight >= 3 then 2 else 1
-  let helpHeight = if contentHeight >= 2 then 1 else 0
-  let bodyHeight =
-    Stdlib.Int.max 0 (contentHeight - titleHeight - helpHeight)
+  (docId: Int)
+  (picker: Stdlib.Cli.UI.Picker.State)
+  (field: Stdlib.Cli.UI.TextField.State)
+  (region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let labels =
+    state.documents
+    |> Stdlib.List.map (fun d ->
+      if d.id == docId then
+        Stdlib.Cli.UI.TextField.renderInline field (Stdlib.Int.max 8 (region.cols - 4))
+      else
+        docLabel d)
 
-  let documentsMode =
-    Darklang.Cli.Colors.colorize
-      (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white)
-      " DOCUMENTS "
-  let exportMode =
-    Darklang.Cli.Colors.colorize
-      (Darklang.Cli.Colors.purpleBg ++ Darklang.Cli.Colors.white)
-      " EXPORT "
+  Stdlib.Cli.UI.Picker.view (Stdlib.Cli.UI.Picker.withLabels picker labels) region
 
-  let (titleText, modeIndicator, helpText, bodyRows) =
-    match state.screen with
-    | DocPicker picker ->
-      ( "Outliner"
-      , documentsMode
-      , "Up/Down: select | Enter: open | n: new | d: delete | r: rename | e: export | Esc: exit"
-      , ListPicker.viewRows picker bodyHeight )
+let exportPathRows
+  (ext: String)
+  (field: Stdlib.Cli.UI.TextField.State)
+  (region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let format = if ext == ".opml" then "OPML" else "Markdown"
 
-    | DocRenaming (docId, picker, editor) ->
-      let renameMode =
-        Darklang.Cli.Colors.colorize
-          (Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black)
-          " RENAME "
-      ( "Outliner"
-      , documentsMode ++ " " ++ renameMode
-      , "Type to rename | Enter/Esc: finish"
-      , renameRows docId picker editor bodyHeight )
+  Stdlib.List.flatten
+    [ Stdlib.Cli.UI.Layout.at region 0 2 (Stdlib.Cli.UI.Colors.dimText $"Format: {format}")
+      Stdlib.Cli.UI.Layout.at region 2 2 (Stdlib.Cli.UI.Colors.dimText "Path:")
+      Stdlib.Cli.UI.Layout.at
+        region
+        3
+        2
+        (Stdlib.Cli.UI.TextField.renderInline field (Stdlib.Int.max 8 (region.cols - 4))) ]
 
-    | Editor editor ->
-      let doc = activeDoc state
-      let isEditing =
-        match editor.editing with
-        | Some _ -> true
-        | None -> false
-      let modeText = if isEditing then " EDIT " else " NAVIGATE "
-      let modeColor =
-        if isEditing then
-          Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black
-        else
-          Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white
-      let editorHelp =
-        if isEditing then
-          "Type to edit | Left/Right: move cursor | Enter/Esc: finish editing"
-        else
-          "Up/Down: move | Enter: edit | o: new | Tab/S-Tab: indent | Space: collapse | C-Up/Down: reorder | Esc: back"
-      ( doc.title
-      , Darklang.Cli.Colors.colorize modeColor modeText
-      , editorHelp
-      , OutlineEditor.viewRows editor bodyHeight )
+/// Title, badge and hints for the screen in front.
+let chromeFor (state: State) : Stdlib.Cli.UI.Chrome.Frame =
+  match state.screen with
+  | DocPicker _ ->
+    Stdlib.Cli.UI.Chrome.frame
+      "Outliner"
+      "DOCUMENTS"
+      "Enter: open   n: new   r: rename   d: delete   e: export   Esc: quit"
+  | DocRenaming(_docId, _picker, _field) ->
+    Stdlib.Cli.UI.Chrome.withBadgeTone
+      (Stdlib.Cli.UI.Chrome.frame "Outliner" "RENAME" "Enter: keep   Esc: cancel")
+      Stdlib.Cli.UI.Chrome.Tone.Active
+  | Editing editor ->
+    let doc = activeDoc state
 
-    | ExportPicker picker ->
-      let doc = activeDoc state
-      ( $"Export: {doc.title}"
-      , exportMode
-      , "Up/Down: select | Enter: choose | Esc: cancel"
-      , ListPicker.viewRows picker bodyHeight )
+    match editor.searching with
+    | Some _ ->
+      Stdlib.Cli.UI.Chrome.withBadgeTone
+        (Stdlib.Cli.UI.Chrome.frame doc.title "SEARCH" "Type to search   Enter: apply   Esc: cancel")
+        Stdlib.Cli.UI.Chrome.Tone.Active
+    | None ->
+      match editor.editing with
+      | Some _ ->
+        Stdlib.Cli.UI.Chrome.withBadgeTone
+          (Stdlib.Cli.UI.Chrome.frame
+            doc.title
+            "EDIT"
+            "Enter: next line   Tab: indent   Up/Down: move   Esc: done")
+          Stdlib.Cli.UI.Chrome.Tone.Active
+      | None ->
+        let badge = if editor.filter == "" then "NAVIGATE" else $"FILTER {editor.filter}"
 
-    | ExportPath (ext, editor) ->
-      let doc = activeDoc state
-      let formatName = if ext == ".opml" then "OPML" else "Markdown"
-      let pathLabel =
-        Darklang.Cli.Colors.colorize Darklang.Cli.Colors.dim "  Path: "
-      let greenExportMode =
-        Darklang.Cli.Colors.colorize
-          (Darklang.Cli.Colors.greenBg ++ Darklang.Cli.Colors.black)
-          " EXPORT "
-      ( $"Export: {doc.title}"
-      , greenExportMode
-      , "Edit path | Enter: export | Esc: cancel"
-      , Darklang.Cli.Tui.Layout.fitRows
-          bodyHeight
-          [ $"  Format: {formatName}"
-            ""
-            pathLabel ++ TextEditor.renderInline editor ] )
+        Stdlib.Cli.UI.Chrome.frame
+          doc.title
+          badge
+          "Enter: edit   o: line   Tab: indent   x: task   Space: fold   /: find   u: undo   e: export   g: docs   Esc: back"
+  | ExportFormat _ ->
+    Stdlib.Cli.UI.Chrome.frame $"Export: {(activeDoc state).title}" "EXPORT" "Enter: choose   Esc: cancel"
+  | ExportPath(_ext, _field) ->
+    Stdlib.Cli.UI.Chrome.withBadgeTone
+      (Stdlib.Cli.UI.Chrome.frame
+        $"Export: {(activeDoc state).title}"
+        "EXPORT"
+        "Enter: write   Esc: cancel")
+      Stdlib.Cli.UI.Chrome.Tone.Active
 
-  let titleRows =
-    Darklang.Cli.Tui.Layout.fitRows
-      titleHeight
-      [ titleRow titleText modeIndicator ]
-  let helpRows =
-    if helpHeight == 0 then [] else [ helpRow width helpText ]
-  let rows =
-    Stdlib.List.flatten [ titleRows; bodyRows; helpRows ]
-    |> Stdlib.List.take contentHeight
-    |> Stdlib.List.map (fun row ->
-      Darklang.Cli.Tui.Text.clipToWidth row width)
+let bodyFor
+  (state: State)
+  (region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  match state.screen with
+  | DocPicker picker -> Stdlib.Cli.UI.Picker.view picker region
+  | DocRenaming(docId, picker, field) -> renameRows state docId picker field region
+  | Editing editor -> Editor.view editor region
+  | ExportFormat picker -> Stdlib.Cli.UI.Picker.view picker region
+  | ExportPath(ext, field) -> exportPathRows ext field region
 
-  Darklang.Cli.Tui.View {
-    rows = rows
-    cursor = Darklang.Cli.Tui.Cursor.Hidden
-    mode = Darklang.Cli.Tui.ViewMode.Fullscreen
-  }
+/// Build the whole view. Pure: no terminal, no reads.
+let viewAtSize (state: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
+  let base_ = chromeFor state
 
+  let framed =
+    match state.loadError with
+    | Some reason -> Stdlib.Cli.UI.Chrome.withError base_ $"not saving: {reason}"
+    | None ->
+      if state.message == "" then base_
+      else if state.messageIsError then Stdlib.Cli.UI.Chrome.withError base_ state.message
+      else Stdlib.Cli.UI.Chrome.withMessage base_ state.message
 
-// --- Persistence ---
+  Stdlib.Cli.UI.Chrome.view framed size (fun region ->
+    let body = bodyFor state region
 
-module Persistence =
-  let dataFilePath () : String =
-    match Stdlib.Cli.Unix.getHomeDirectory () with
-    | Ok home -> $"{home}/.darklang/outliner.json"
-    | Error _ -> "rundir/outliner.json"
-
-  let ensureDataDir () : Unit =
-    match Stdlib.Cli.Unix.getHomeDirectory () with
-    | Ok home ->
-      let _ = Stdlib.Cli.Unix.ensureDirectoryExists $"{home}/.darklang"
-      ()
-    | Error _ -> ()
-
-  let save (state: State) : Unit =
-    ensureDataDir ()
-    let data =
-      PersistedData
-        { documents = state.documents
-          activeDocId = state.activeDocId
-          nextDocId = state.nextDocId }
-    let json = Stdlib.Json.serialize<PersistedData> data
-    let jsonBytes = Stdlib.String.toBlob json
-    let _ = Stdlib.Cli.FileSystem.overwriteFile (dataFilePath ()) jsonBytes
-    ()
-
-  let load () : State =
-    let filePath = dataFilePath ()
-    match Stdlib.Cli.FileSystem.pathExists filePath with
-    | true ->
-      match Stdlib.Cli.FileSystem.readFile filePath with
-      | Ok bytes ->
-        let contents = Stdlib.String.fromBlobWithReplacement bytes
-        match Stdlib.Json.parse<PersistedData> contents with
-        | Ok data ->
-          let docs = data.documents
-          let picker =
-            ListPicker.make docs (fun doc ->
-              let nodeCount = Stdlib.List.length doc.outline.rootChildren
-              $"{doc.title}  ({Stdlib.Int.toString nodeCount} items)")
-          State
-            { documents = docs
-              activeDocId = data.activeDocId
-              nextDocId = data.nextDocId
-              screen = Screen.DocPicker picker }
-        | Error _ -> defaultState ()
-      | Error _ -> defaultState ()
-    | false -> defaultState ()
+    match state.confirm with
+    | None -> body
+    | Some pair ->
+      let (question, _pending) = pair
+      Stdlib.List.flatten [ body; Stdlib.Cli.UI.Confirm.view question region ])
 
 
-// --- Default state ---
+// --- Loading and saving ---
 
-let defaultState () : State =
-  let notesOutline =
-    buildOutline
-      [ (1, "Welcome to Outliner")
-        (2, "Use arrow keys to navigate")
-        (3, "Press Enter to edit an item")
-        (4, "Press Tab to indent")
-        (5, "Features")
-        (6, "Collapse/expand with Space")
-        (7, "Add new items with 'o'")
-        (8, "Move items with Ctrl+Up/Down")
-        (9, "Press / for document picker") ]
-      [ (1, [2; 3; 4])
-        (5, [6; 7; 8]) ]
-      [1; 5; 9]
-      10
-  let tasksOutline =
-    buildOutline
-      [ (1, "Today")
-        (2, "Try out the outliner")
-        (3, "Add your own items")
-        (4, "Later")
-        (5, "Organize your thoughts")
-        (6, "Set up a project outline") ]
-      [ (1, [2; 3])
-        (4, [5; 6]) ]
-      [1; 4]
-      7
-  let doc1 =
-    Document
-      { id = 1
-        title = "My Notes"
-        outline = notesOutline }
-  let doc2 =
-    Document
-      { id = 2
-        title = "Tasks"
-        outline = tasksOutline }
-  let docs = [doc1; doc2]
-  let picker =
-    ListPicker.make docs (fun doc ->
-      let nodeCount = Stdlib.List.length doc.outline.rootChildren
-      $"{doc.title}  ({Stdlib.Int.toString nodeCount} items)")
-  State
-    { documents = docs
-      activeDocId = 1
-      nextDocId = 3
-      screen = Screen.DocPicker picker }
+let fromData (data: Store.PersistedData) : State =
+  let state =
+    State
+      { documents = data.documents
+        activeDocId = data.activeDocId
+        nextDocId = data.nextDocId
+        screen = Screen.DocPicker(Stdlib.Cli.UI.Picker.make [])
+        confirm = Stdlib.Option.Option.None
+        message = ""
+        messageIsError = false
+        loadError = Stdlib.Option.Option.None
+        savedStamp = Store.stamp () }
+
+  { state with screen = Screen.DocPicker(makeDocPicker state) }
+
+let load () : State =
+  match Store.load () with
+  | Loaded data -> fromData data
+  | Unreadable(path, reason) ->
+    // Start empty rather than with the demo content, and refuse to write: the file is still there, and
+    // whatever is wrong with it is fixable by hand.
+    let state = fromData (Store.starterData ())
+    { state with
+        documents = []
+        screen = Screen.DocPicker(Stdlib.Cli.UI.Picker.make [])
+        loadError = Stdlib.Option.Option.Some $"{path} ({reason})" }
+
+let save (state: State) : State =
+  match state.loadError with
+  | Some _ -> state
+  | None ->
+    match
+      Store.save state.documents state.activeDocId state.nextDocId state.savedStamp
+    with
+    | Ok stamp -> { state with savedStamp = stamp }
+    // A write that fails used to fail silently, which for the one thing standing between you and your
+    // documents is the wrong way round.
+    | Error e -> complain state $"couldn't save: {e}"

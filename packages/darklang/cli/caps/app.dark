@@ -1,87 +1,34 @@
 module Darklang.Cli.Caps.App
 
-// The interactive capability editor, wrapped as a CLI SubApp. Composes the http/exec/access rule
-// editors + flag toggles + profile picker over a working copy of the grant, written via `pmCapsSet`.
+// The interactive capability editor as a `Cli.Component`: the http/exec/access rule editors + flag toggles
+// + profile picker over a working copy of the grant, written via `pmCapsSet`. The terminal lifecycle lives
+// in `Cli.Component`.
 
-type Session =
-  { state: Main.State
-    terminal: Darklang.Cli.Tui.TerminalSession.State
-    shouldSave: Bool }
+let view (state: Main.State) (size: Darklang.Stdlib.Cli.Tui.Size) : Darklang.Stdlib.Cli.Tui.View =
+  Main.viewAtSize state size
 
-let presentState
-  (session: Session)
+let onKey
   (state: Main.State)
-  (shouldSave: Bool)
-  : Session =
-  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
-  let terminal =
-    Darklang.Cli.Tui.TerminalSession.presentAtSize
-      session.terminal
-      size
-      (Main.viewAtSize state size)
-  Session {
-    state = state
-    terminal = terminal
-    shouldSave = shouldSave
-  }
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Darklang.Cli.Component.Step<Main.State> =
+  match Main.handleKey state key modifiers keyChar with
+  | Continue next -> Darklang.Cli.Component.Step.Stay next
+  | Save next -> Darklang.Cli.Component.Step.Save next
+  // Escape/q discard the working copy. The persisted grant is already `state.saved`, so exiting must not
+  // rewrite it.
+  | Exit next -> Darklang.Cli.Component.Step.Exit next
 
-let makeSubApp (session: Session) : Darklang.Cli.SubApp =
-  Darklang.Cli.SubApp
-    { onKey =
-        fun key modifiers keyChar ->
-          match Main.handleKey session.state key modifiers keyChar with
-          | Continue state ->
-            let next = presentState session state false
-            (Darklang.Cli.SubAppAction.Continue, makeSubApp next)
-          | Save state ->
-            let next = presentState session state true
-            (Darklang.Cli.SubAppAction.Save, makeSubApp next)
-          | Exit state ->
-            let next =
-              Session {
-                state = state
-                terminal = session.terminal
-                // Escape/q discard the working copy. The persisted grant is
-                // already `state.saved`, so exiting must not rewrite it.
-                shouldSave = false
-              }
-            (Darklang.Cli.SubAppAction.Exit, makeSubApp next)
-      // The session presents on launch and state transitions.
-      onDisplay = fun () -> ()
-      onSave =
-        fun () ->
-          if session.shouldSave then Main.save session.state else ()
-      onTerminate =
-        fun () ->
-          let _stopped =
-            Darklang.Cli.Tui.TerminalSession.stop session.terminal
-          ()
-      onResume =
-        fun () ->
-          let terminal =
-            Darklang.Cli.Tui.TerminalSession.resumed (fun size -> Main.viewAtSize session.state size)
-          makeSubApp (Session { state = session.state; terminal = terminal; shouldSave = session.shouldSave }) }
+let save (state: Main.State) : Main.State =
+  Main.save state
+  state
+
+val component =
+  Darklang.Cli.Component.simple view onKey save
 
 let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.Cli.AppState =
-  let state = Main.load ()
-  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
-  match
-    Darklang.Cli.Tui.TerminalSession.startAtSize
-      size
-      (Main.viewAtSize state size)
-  with
-  | Ok terminal ->
-    let session =
-      Session {
-        state = state
-        terminal = terminal
-        shouldSave = false
-      }
-    { cliState with
-        currentPage = Darklang.Cli.Page.SubApp (makeSubApp session) }
-  | Error message ->
-    Stdlib.printLine message
-    cliState
+  Darklang.Cli.Component.launch cliState component (Main.load ())
 
 let help (_state: Darklang.Cli.AppState) : String =
   [ "Usage: caps-edit"

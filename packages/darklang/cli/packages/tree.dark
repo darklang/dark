@@ -68,8 +68,8 @@ val tocEntries =
 // Display the table of contents
 let displayTableOfContents (): Unit =
   Stdlib.printLine ""
-  Stdlib.printLine (Colors.colorize Colors.bold "DARKLANG PACKAGE TABLE OF CONTENTS")
-  Stdlib.printLine (Colors.colorize Colors.bold "===================================")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.bold "DARKLANG PACKAGE TABLE OF CONTENTS")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.bold "===================================")
   Stdlib.printLine ""
 
   // Group entries by category
@@ -98,20 +98,20 @@ let displayTableOfContents (): Unit =
   |> Stdlib.List.iter (fun category ->
     match Stdlib.Dict.get grouped category with
     | Some entries ->
-      Stdlib.printLine (Colors.colorize Colors.bold category)
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.bold category)
 
       entries
       |> Stdlib.List.iter (fun entry ->
-        let pathDisplay = Colors.colorize Colors.cyan entry.path
-        let descDisplay = Colors.colorize Colors.dim entry.description
+        let pathDisplay = Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan entry.path
+        let descDisplay = Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.dim entry.description
         Stdlib.printLine $"  {pathDisplay}"
         Stdlib.printLine $"    {descDisplay}")
 
       Stdlib.printLine ""
     | None -> ())
 
-  Stdlib.printLine (Colors.hint "Use 'tree <path>' to explore a specific package")
-  Stdlib.printLine (Colors.hint "Use 'tree --depth=N' for deeper views (max 10)")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "Use 'tree <path>' to explore a specific package")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "Use 'tree --depth=N' for deeper views (max 10)")
 
 
 let execute (state: AppState) (args: List<String>): AppState =

@@ -1,0 +1,125 @@
+/// A gallery of the terminal widgets, rendered with the widgets themselves.
+///
+/// This replaces a 3,470-line parallel widget library that existed only to be shown here: it rendered to
+/// strings, knew nothing about regions, and nothing else in the CLI could mount it. What's below draws the
+/// real `Stdlib.Cli.UI` toolkit, so the gallery is a live check that they look right rather than a museum.
+module Darklang.Cli.Apps.Views.UiGallery
+
+let heading (region: Stdlib.Cli.UI.Layout.Region) (row: Int) (text: String) : List<Stdlib.Cli.UI.Layout.Span> =
+  Stdlib.Cli.UI.Layout.at region row 0 (Stdlib.Cli.UI.Colors.boldText text)
+
+/// A row of the palette, so a colour change is visible somewhere other than in a diff.
+let paletteRow (region: Stdlib.Cli.UI.Layout.Region) (row: Int) : List<Stdlib.Cli.UI.Layout.Span> =
+  let swatch =
+    [ ("info", Stdlib.Cli.UI.Colors.infoColor)
+      ("success", Stdlib.Cli.UI.Colors.successColor)
+      ("warning", Stdlib.Cli.UI.Colors.warningColor)
+      ("error", Stdlib.Cli.UI.Colors.errorColor)
+      ("hint", Stdlib.Cli.UI.Colors.hintColor)
+      ("selection", Stdlib.Cli.UI.Colors.selection) ]
+    |> Stdlib.List.map (fun pair ->
+      let (name, code) = pair
+      Stdlib.Cli.UI.Colors.colorize code $" {name} ")
+    |> Stdlib.String.join " "
+
+  Stdlib.Cli.UI.Layout.at region row 0 swatch
+
+let rowsAtSize (size: Stdlib.Cli.Tui.Size) : List<String> =
+  let width = Stdlib.Int.max 40 size.width
+  let height = Stdlib.Int.max 24 size.height
+
+  let screen =
+    Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = height; cols = width }
+
+  let half = Stdlib.Int.divide (width - 4) 2
+
+  // A picker, mid-list, with more items than fit: the selection marker and the scrollbar both show.
+  let picker =
+    Stdlib.Cli.UI.Picker.moveDown
+      (Stdlib.Cli.UI.Picker.moveDown
+        (Stdlib.Cli.UI.Picker.make
+          [ "documents"; "branches"; "traces"; "packages"; "devices"; "views"; "apps" ]))
+
+  let pickerRegion =
+    Stdlib.Cli.UI.Layout.Region { top = 4; left = 1; rows = 7; cols = half }
+
+  let pickerSpans =
+    Stdlib.Cli.UI.Box.panel pickerRegion "Picker" true (fun inner ->
+      Stdlib.Cli.UI.Picker.view picker inner)
+
+  // A text field whose content is wider than the box, with the cursor near the end: the window scrolls.
+  let field =
+    Stdlib.Cli.UI.TextField.moveLeft
+      (Stdlib.Cli.UI.TextField.fromText
+        "~/notes/a-fairly-long-path-that-does-not-fit.md")
+
+  let fieldRegion =
+    Stdlib.Cli.UI.Layout.Region
+      { top = 4; left = half + 3; rows = 3; cols = width - half - 3 }
+
+  let fieldSpans =
+    Stdlib.Cli.UI.Box.panel fieldRegion "TextField" false (fun inner ->
+      Stdlib.Cli.UI.TextField.view field inner)
+
+  let listRegion =
+    Stdlib.Cli.UI.Layout.Region
+      { top = 8; left = half + 3; rows = 3; cols = width - half - 3 }
+
+  let listSpans =
+    Stdlib.Cli.UI.Box.panel listRegion "ListView" false (fun inner ->
+      Stdlib.Cli.UI.ListView.render
+        inner
+        [ "one"; "two"; "three"; "four" ]
+        1)
+
+  // The chrome bars, drawn as they appear at the top and bottom of an app.
+  let frame =
+    Stdlib.Cli.UI.Chrome.frame "Document" "NAVIGATE" "Up/Down: move   Enter: edit   Esc: back"
+
+  let chromeSpans =
+    Stdlib.List.flatten
+      [ heading screen 12 "Chrome"
+        Stdlib.Cli.UI.Layout.at screen 13 0 (Stdlib.Cli.UI.Chrome.titleBar frame width)
+        Stdlib.Cli.UI.Layout.at screen 14 0 (Stdlib.Cli.UI.Chrome.footBar frame width)
+        Stdlib.Cli.UI.Layout.at
+          screen
+          15
+          0
+          (Stdlib.Cli.UI.Chrome.footBar
+            (Stdlib.Cli.UI.Chrome.withMessage frame "wrote ~/notes/document.md")
+            width)
+        Stdlib.Cli.UI.Layout.at
+          screen
+          16
+          0
+          (Stdlib.Cli.UI.Chrome.footBar
+            (Stdlib.Cli.UI.Chrome.withError frame "can't delete the last document")
+            width) ]
+
+  let confirmRegion =
+    Stdlib.Cli.UI.Layout.Region { top = 18; left = 1; rows = 7; cols = width }
+
+  let confirmSpans =
+    Stdlib.Cli.UI.Confirm.view
+      (Stdlib.Cli.UI.Confirm.askDangerous
+        "Delete \"Tasks\"?"
+        "3 items. This can't be undone.")
+      confirmRegion
+
+  let spans =
+    Stdlib.List.flatten
+      [ heading screen 0 "Stdlib.Cli.UI"
+        Stdlib.Cli.UI.Layout.at
+          screen
+          1
+          0
+          (Stdlib.Cli.UI.Colors.dimText
+            "every widget below is the one the apps use, drawn into a region")
+        paletteRow screen 2
+        pickerSpans
+        fieldSpans
+        listSpans
+        chromeSpans
+        confirmSpans ]
+
+  Stdlib.Cli.UI.Canvas.compose width height spans

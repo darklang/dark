@@ -22,59 +22,37 @@
 ///   keys-view.dark        the plain-view key map, and the dispatcher between layers
 ///   frame.dark            the shared chrome render helpers (its own module)
 ///
-/// Rendering returns spans (see `UI.Canvas`), which compose into a `Tui.View` that the renderer diffs
+/// Rendering returns spans (see `Stdlib.Cli.UI.Canvas`), which compose into a `Stdlib.Cli.Tui.View` that the renderer diffs
 /// against the previous frame. A keypress rewrites the rows that changed rather than clearing the screen.
 module Darklang.Cli.Workbench
 
 
-/// A running workbench and the terminal session presenting it.
-type Session =
-  { state: State
-    terminal: Darklang.Cli.Tui.TerminalSession.State }
+/// Recompute the derived reads after every transition.
+///
+/// The renderer has to be a pure function of state for frame diffing to be sound, so the badge and peek
+/// caches are refreshed here rather than read while drawing.
+let refresh (previous: State) (next: State) : State =
+  refreshPeek (refreshBadges previous next)
 
+let onKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Darklang.Cli.Component.Step<State> =
+  match handleKey state key modifiers keyChar with
+  | Continue s -> Darklang.Cli.Component.Step.Stay s
+  | Exit s -> Darklang.Cli.Component.Step.Exit s
+  // Hand off to a foreground command; the CLI returns to this workbench (state s) when it exits.
+  | Launch(s, cmd) -> Darklang.Cli.Component.Step.Launch(s, cmd)
+  | ToPrompt s -> Darklang.Cli.Component.Step.ToPrompt s
 
-/// Present the next state, keeping the renderer's history so only changed rows are written.
-let presentState (session: Session) (state: State) : Session =
-  // Every Continue funnels through here, which makes it the one place derived reads belong: the renderer
-  // has to be a pure function of state for frame diffing to be sound.
-  let state = refreshPeek (refreshBadges session.state state)
-  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
-  let terminal =
-    Darklang.Cli.Tui.TerminalSession.presentAtSize
-      session.terminal
-      size
-      (viewAtSize state size)
-  Session { state = state; terminal = terminal }
-
-
-let makeSubApp (session: Session) : Darklang.Cli.SubApp =
-  Darklang.Cli.SubApp
-    { onKey =
-        fun key modifiers keyChar ->
-          match handleKey session.state key modifiers keyChar with
-          | Continue s ->
-            (Darklang.Cli.SubAppAction.Continue, makeSubApp (presentState session s))
-          | Exit s ->
-            (Darklang.Cli.SubAppAction.Exit, makeSubApp (Session { state = s; terminal = session.terminal }))
-          // Hand off to a foreground command; the CLI returns to this workbench (state s) when it exits.
-          | Launch(s, cmd) ->
-            (Darklang.Cli.SubAppAction.LaunchCommand cmd, makeSubApp (Session { state = s; terminal = session.terminal }))
-          | ToPrompt s ->
-            (Darklang.Cli.SubAppAction.LaunchPrompt, makeSubApp (Session { state = s; terminal = session.terminal }))
-      // The session presents on launch and on every state transition, so the returned SubApp carries the
-      // matching renderer history.
-      onDisplay = fun () -> ()
-      onSave = fun () -> ()
-      onTerminate =
-        fun () ->
-          let _stopped =
-            Darklang.Cli.Tui.TerminalSession.stop session.terminal
-          ()
-      onResume =
-        fun () ->
-          let terminal =
-            Darklang.Cli.Tui.TerminalSession.resumed (fun size -> viewAtSize session.state size)
-          makeSubApp (Session { state = session.state; terminal = terminal }) }
+val component =
+  Darklang.Cli.Component.Component
+    { view = viewAtSize
+      onKey = onKey
+      save = Darklang.Cli.Component.noSave
+      refresh = refresh }
 
 
 // ── CLI command entry ──
@@ -96,7 +74,7 @@ let initialState
         location = rootLoc
         items = loadItems branchId rootLoc
         selected = 0
-        focus = UI.SplitPane.Focus.First
+        focus = Stdlib.Cli.UI.SplitPane.Focus.First
         detailScroll = 0
         reading = Stdlib.Option.Option.None
         readingIsCode = false
@@ -106,20 +84,14 @@ let initialState
         accountName = accountName
         instanceName = instanceName
         message = ""
-        searchHits = []
-        searchSelected = 0
-        showHelp = false
-        viewPicker = false
-        pickerSelected = 0
+        search = emptySearch ()
+        overlay = Overlay.NoOverlay
         completionSel = 0
-        scmSection = 0
-        aiSection = 0
+        scm = emptyScm ()
+        ai = emptyAi ()
         enabledGatedViews = enabledGatedViews
-        scratchLog = []
-        replBindings = []
-        replLast = ""
-        replPending = ""
-        matterLens = "all"
+        repl = emptyRepl ()
+        matter = emptyMatter ()
         filter = ""
         wipNames = []
         deprecatedNames = []
@@ -128,7 +100,7 @@ let initialState
 
 
 let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.Cli.AppState =
-  match Darklang.Cli.Tui.TerminalSupport.current () with
+  match Darklang.Stdlib.Cli.Tui.TerminalSupport.current () with
   | Unavailable reason ->
     // Don't seize the alternate screen when there's nothing there to seize. Piping `dark` used to dump the
     // whole frame, escape sequences and all, into whatever was reading it.
@@ -137,7 +109,7 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
     // path (the prompt says the same thing) but would leave an explicit `dark wb` silent, and it prints the
     // message twice when it does fire.
     Stdlib.printLine
-      (Darklang.Cli.Tui.TerminalSupport.unavailableMessage reason)
+      (Darklang.Stdlib.Cli.Tui.TerminalSupport.unavailableMessage reason)
     { cliState with isExiting = true }
   | Available ->
 
@@ -164,20 +136,9 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
   // seeding - the first frame is Home, which has no `render` fn to peek at.
   let (wip, deprecated) = readBadges state
   let state = { state with wipNames = wip; deprecatedNames = deprecated }
-  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
-  // Starting the session is what enters the alternate screen and paints the first frame; from here on the
-  // renderer diffs, so a keystroke rewrites the rows that changed rather than clearing and repainting.
-  match
-    Darklang.Cli.Tui.TerminalSession.startAtSize size (viewAtSize state size)
-  with
-  | Ok terminal ->
-    { cliState with
-        currentPage =
-          Darklang.Cli.Page.SubApp
-            (makeSubApp (Session { state = state; terminal = terminal })) }
-  | Error message ->
-    Stdlib.printLine message
-    { cliState with isExiting = true }
+  // Launching is what enters the alternate screen and paints the first frame; from here on the renderer
+  // diffs, so a keystroke rewrites the rows that changed rather than clearing and repainting.
+  Darklang.Cli.Component.launchOrExit cliState component state
 
 let help (_state: Darklang.Cli.AppState) : String =
   [ "Usage: workbench"

@@ -10,7 +10,7 @@ type Field =
 
 type State =
   { methodIdx: Int
-    url: LineInput.State
+    url: Stdlib.Cli.UI.TextField.State
     field: Field }
 
 type EditResult =
@@ -24,7 +24,7 @@ val methods =
 val empty =
   State
     { methodIdx = 1
-      url = LineInput.empty
+      url = Stdlib.Cli.UI.TextField.empty
       field = Field.MethodField }
 
 // find a method's index (default 0 = `*`)
@@ -42,12 +42,12 @@ let fromSpec (spec: String) : State =
   | [ "http-client"; m; url ] ->
     State
       { methodIdx = indexOfMethod m
-        url = LineInput.make url
+        url = Stdlib.Cli.UI.TextField.fromText url
         field = Field.MethodField }
   | [ "http-client"; m ] ->
     State
       { methodIdx = indexOfMethod m
-        url = LineInput.empty
+        url = Stdlib.Cli.UI.TextField.empty
         field = Field.MethodField }
   | _ -> empty
 
@@ -80,10 +80,11 @@ let toggleField (state: State) : State =
 let applyUrlKey
   (state: State)
   (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
   (keyChar: Stdlib.Option.Option<String>)
   : State =
   if state.field == Field.UrlField then
-    match LineInput.handleKey state.url key keyChar with
+    match Stdlib.Cli.UI.TextField.handleTextKey state.url (Stdlib.Cli.UI.Widget.press key modifiers keyChar) with
     | Some u -> { state with url = u }
     | None -> state
   else
@@ -92,7 +93,7 @@ let applyUrlKey
 let handleKey
   (state: State)
   (key: Stdlib.Cli.Stdin.Key.Key)
-  (_modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
   (keyChar: Stdlib.Option.Option<String>)
   : EditResult =
   let onMethod = state.field == Field.MethodField
@@ -104,14 +105,14 @@ let handleKey
   | DownArrow -> EditResult.Editing ({ state with field = Field.UrlField })
   | LeftArrow ->
     if onMethod then EditResult.Editing (cycleMethod state (0 - 1))
-    else EditResult.Editing (applyUrlKey state key keyChar)
+    else EditResult.Editing (applyUrlKey state key modifiers keyChar)
   | RightArrow ->
     if onMethod then EditResult.Editing (cycleMethod state 1)
-    else EditResult.Editing (applyUrlKey state key keyChar)
+    else EditResult.Editing (applyUrlKey state key modifiers keyChar)
   | Spacebar ->
     if onMethod then EditResult.Editing (cycleMethod state 1)
-    else EditResult.Editing (applyUrlKey state key keyChar)
-  | _ -> EditResult.Editing (applyUrlKey state key keyChar)
+    else EditResult.Editing (applyUrlKey state key modifiers keyChar)
+  | _ -> EditResult.Editing (applyUrlKey state key modifiers keyChar)
 
 /// Render the editor as lines (caller positions them).
 let render (state: State) : List<String> =
@@ -121,15 +122,15 @@ let render (state: State) : List<String> =
   let mLabel = if m == "*" then "any method" else m
   let methodVal =
     if methodFocused then
-      Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection $" {mLabel} "
+      Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.selection $" {mLabel} "
     else
       $"[{mLabel}]"
   let urlVal =
-    LineInput.render state.url urlFocused "anywhere (e.g. https://*.github.com/api)"
+    Stdlib.Cli.UI.TextField.renderMaybeFocused state.url urlFocused "anywhere (e.g. https://*.github.com/api)" 60
   let hint =
-    Darklang.Cli.Colors.dimText
+    Darklang.Stdlib.Cli.UI.Colors.dimText
       "  (left/right cycle method, Tab switch field, Enter save, Esc cancel)"
-  let specLabel = Darklang.Cli.Colors.dimText "spec:"
+  let specLabel = Darklang.Stdlib.Cli.UI.Colors.dimText "spec:"
   [ "  Edit http-client rule:"
     $"    method:  {methodVal}"
     $"    url:     {urlVal}"

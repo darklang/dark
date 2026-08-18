@@ -214,7 +214,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   match filteredArgs with
   | [] ->
-    [ Colors.error "Usage: deps <subcommand> <path>"
+    [ Stdlib.Cli.UI.Colors.error "Usage: deps <subcommand> <path>"
       ""
       "Subcommands:"
       "  uses <path>         - Show what the entity uses (dependencies)"
@@ -228,7 +228,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | ["uses"; pathArg] ->
     match resolvePath branchId state.packageData.currentLocation pathArg with
     | Error errMsg ->
-      Stdlib.printLine (Colors.error errMsg)
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error errMsg)
       state
     | Ok result ->
       let (hash, _loc, name, _entityType) = result
@@ -238,7 +238,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   | ["usedby"; pathArg] ->
     match resolvePath branchId state.packageData.currentLocation pathArg with
     | Error errMsg ->
-      Stdlib.printLine (Colors.error errMsg)
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error errMsg)
       state
     | Ok result ->
       let (_hash, loc, name, entityType) = result
@@ -254,7 +254,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     // Default to showing both uses and usedby
     match resolvePath branchId state.packageData.currentLocation pathArg with
     | Error errMsg ->
-      Stdlib.printLine (Colors.error errMsg)
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error errMsg)
       state
     | Ok result ->
       let (hash, loc, name, entityType) = result

@@ -26,7 +26,7 @@
   /// a set of parameters.
   export interface SignatureInformation {
     /// The label of this signature. Will be shown in
-    /// the UI.
+    /// the Stdlib.Cli.UI.
     label: string;
 
     /// The human-readable doc-comment of this signature. Will be shown

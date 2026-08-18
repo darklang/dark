@@ -75,12 +75,12 @@ let openReader (state: State) (content: String) (isCode: Bool) : Step =
 /// Switch to view `nv`: reload its items, keep the cursor where it was (clamped to the new list - a partial
 /// shared cursor, so you don't lose your place hopping views), reset scroll/focus/filter.
 let switchView (state: State) (nv: Int) : Step =
-  let newItems = itemsForView nv state.branchId state.location state.scmSection state.aiSection state.matterLens
+  let newItems = itemsForView nv state.branchId state.location state.scm.section state.ai.section state.matter.lens
   let clamped = Stdlib.Int.max 0 (Stdlib.Int.min state.selected (Stdlib.Int.max 0 ((Stdlib.List.length newItems) - 1)))
   // The REPL is somewhere you type, so arriving opens the prompt. Every other view is somewhere you look.
   let inp =
     if nv == vScratch then
-      Stdlib.Option.Option.Some(InputState { prompt = "repl> "; text = ""; action = "scratch" })
+      Stdlib.Option.Option.Some(InputState { prompt = "repl> "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "scratch" })
     else
       Stdlib.Option.Option.None
   Step.Continue
@@ -91,7 +91,7 @@ let switchView (state: State) (nv: Int) : Step =
         filter = ""
         detailScroll = 0
         input = inp
-        focus = UI.SplitPane.Focus.First }
+        focus = Stdlib.Cli.UI.SplitPane.Focus.First }
 
 /// Move to the previous/next visible view (dir -1 / +1), skipping any opted-out views (e.g. Devices).
 let cycleView (state: State) (dir: Int) : Step =
@@ -157,7 +157,7 @@ let toggleInstall (state: State) : Step =
     let _ = Darklang.Cli.Apps.Registry.saveInstalled newSlugs
     Step.Continue
       { state with
-          items = itemsForView vApps state.branchId state.location state.scmSection state.aiSection state.matterLens
+          items = itemsForView vApps state.branchId state.location state.scm.section state.ai.section state.matter.lens
           message = msg }
   | None -> Step.Continue state
 
@@ -171,7 +171,7 @@ let runAppsSubcommand (state: State) (sub: String) : Step =
       classicState state
     let out = captureOutput (fun () -> Darklang.Cli.Registry.executeCommand "apps" appState [ sub; app.slug ])
     let refreshed =
-      itemsForView vApps state.branchId state.location state.scmSection state.aiSection state.matterLens
+      itemsForView vApps state.branchId state.location state.scm.section state.ai.section state.matter.lens
     let shown =
       if (Stdlib.String.trim out) == "" then $"apps {sub} {app.slug}\n\n(done)" else out
     openReader { state with items = refreshed } shown false
@@ -204,8 +204,7 @@ let jumpToHit (state: State) (hit: SearchHit) : Step =
         items = items
         selected = idx
         detailScroll = 0
-        focus = UI.SplitPane.Focus.First
+        focus = Stdlib.Cli.UI.SplitPane.Focus.First
         filter = ""
-        searchHits = []
-        searchSelected = 0
+        search = emptySearch ()
         message = "jumped to " ++ hit.name }

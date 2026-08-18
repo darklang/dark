@@ -1,0 +1,61 @@
+/// A widget is a piece of interface that stands on its own: its own state, its own keys, its own patch of
+/// screen. Parents include them; they never reach inside.
+///
+/// The contract is a convention, not a framework: a module with a `State`, and two named functions over it.
+///
+///   view  : 's -> Region -> List<Span>      what it draws, in the space it was given
+///   onKey : 's -> KeyPress -> Outcome       what a key does, including "not mine"
+///
+/// A parent keeps a child's `State` in a field and calls those by name. That's deliberate: what has to be
+/// stored between keystrokes is data, and Dark only preserves named-fn references in retained state, so a
+/// record of closures is the wrong thing to hold. `KeyPress` and `Outcome` below are the whole shared
+/// vocabulary.
+///
+/// Two things make these compose where the older ad-hoc widgets didn't:
+///
+/// 1. `view` returns spans rather than printing, so a parent can place a child anywhere and the whole frame
+///    still diffs down to the rows that changed. (Placing one by *negotiated size* - handing widgets to
+///    `Layout.vstack` - isn't done anywhere yet, so there's no `node`/`size` here: it would be a seam
+///    nothing has pulled on. Add it when something needs it.)
+/// 2. `onKey` can answer `Ignored`. A child gets first refusal on every key and the parent handles what's
+///    left. That's what lets the outliner's editor own Tab and the outliner itself own `/`, without the
+///    parent having to know the child is mid-edit (it used to peek at `editor.editing` to decide).
+///
+/// A child talks upward by *emitting a message*, never by having its state read: `Emitted (state, msg)`
+/// carries a value the parent understands ("the user picked this document", "editing finished with this
+/// text"). The parent keeps the child's state in a field and pattern-matches the message.
+///
+/// `Cli.Component` is this same shape with a terminal lifecycle bolted on, for the outermost widget in a
+/// full-screen app. Nothing else in the stack needs to know a terminal exists.
+module Darklang.Stdlib.Cli.UI.Widget
+
+/// One keystroke, as one value.
+///
+/// The loop hands key, modifiers and character around as three separate arguments; every widget signature
+/// that passes them along got three parameters wider for no reason. One record threads through instead.
+type KeyPress =
+  { key: Stdlib.Cli.Stdin.Key.Key
+    modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers
+    char: Stdlib.Option.Option<String> }
+
+/// What a widget did with a key.
+type Outcome<'s, 'msg> =
+  /// Not mine. The parent (or its parent) should have a look.
+  | Ignored
+  /// Mine, and here's the new state.
+  | Handled of 's
+  /// Mine, and here's something for the parent: a value, not a screen change.
+  | Emitted of 's * 'msg
+
+// --- Keys ---
+
+let press
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (char: Stdlib.Option.Option<String>)
+  : KeyPress =
+  KeyPress { key = key; modifiers = modifiers; char = char }
+
+/// Did this keypress type `c`?
+let isChar (kp: KeyPress) (c: String) : Bool =
+  kp.char == (Stdlib.Option.Option.Some c)

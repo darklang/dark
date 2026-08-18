@@ -11,7 +11,7 @@ type Field =
 type State =
   { domain: String
     accessIdx: Int
-    scope: LineInput.State
+    scope: Stdlib.Cli.UI.TextField.State
     field: Field }
 
 type EditResult =
@@ -25,7 +25,7 @@ let forDomain (domain: String) : State =
   State
     { domain = domain
       accessIdx = 0
-      scope = LineInput.empty
+      scope = Stdlib.Cli.UI.TextField.empty
       field = Field.AccessField }
 
 let indexOfAccess (a: String) : Int =
@@ -45,8 +45,8 @@ let fromSpec (spec: String) : State =
       { domain = domain
         accessIdx = indexOfAccess access
         scope =
-          if scope == "" then LineInput.empty
-          else LineInput.make scope
+          if scope == "" then Stdlib.Cli.UI.TextField.empty
+          else Stdlib.Cli.UI.TextField.fromText scope
         field = Field.AccessField }
   | _ -> forDomain "file"
 
@@ -79,10 +79,11 @@ let toggleField (state: State) : State =
 let applyScopeKey
   (state: State)
   (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
   (keyChar: Stdlib.Option.Option<String>)
   : State =
   if state.field == Field.ScopeField then
-    match LineInput.handleKey state.scope key keyChar with
+    match Stdlib.Cli.UI.TextField.handleTextKey state.scope (Stdlib.Cli.UI.Widget.press key modifiers keyChar) with
     | Some s -> { state with scope = s }
     | None -> state
   else
@@ -91,7 +92,7 @@ let applyScopeKey
 let handleKey
   (state: State)
   (key: Stdlib.Cli.Stdin.Key.Key)
-  (_modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
   (keyChar: Stdlib.Option.Option<String>)
   : EditResult =
   let onAccess = state.field == Field.AccessField
@@ -103,14 +104,14 @@ let handleKey
   | DownArrow -> EditResult.Editing ({ state with field = Field.ScopeField })
   | LeftArrow ->
     if onAccess then EditResult.Editing (cycleAccess state (0 - 1))
-    else EditResult.Editing (applyScopeKey state key keyChar)
+    else EditResult.Editing (applyScopeKey state key modifiers keyChar)
   | RightArrow ->
     if onAccess then EditResult.Editing (cycleAccess state 1)
-    else EditResult.Editing (applyScopeKey state key keyChar)
+    else EditResult.Editing (applyScopeKey state key modifiers keyChar)
   | Spacebar ->
     if onAccess then EditResult.Editing (cycleAccess state 1)
-    else EditResult.Editing (applyScopeKey state key keyChar)
-  | _ -> EditResult.Editing (applyScopeKey state key keyChar)
+    else EditResult.Editing (applyScopeKey state key modifiers keyChar)
+  | _ -> EditResult.Editing (applyScopeKey state key modifiers keyChar)
 
 let render (state: State) : List<String> =
   let accessFocused = state.field == Field.AccessField
@@ -118,7 +119,7 @@ let render (state: State) : List<String> =
   let access = currentAccess state
   let accessVal =
     if accessFocused then
-      Darklang.Cli.Colors.colorize Darklang.Cli.Colors.selection $" {access} "
+      Darklang.Stdlib.Cli.UI.Colors.colorize Darklang.Stdlib.Cli.UI.Colors.selection $" {access} "
     else
       $"[{access}]"
   let scopePlaceholder =
@@ -126,11 +127,11 @@ let render (state: State) : List<String> =
     else if state.domain == "env" then "any var"
     else "any table"
   let scopeVal =
-    LineInput.render state.scope scopeFocused scopePlaceholder
+    Stdlib.Cli.UI.TextField.renderMaybeFocused state.scope scopeFocused scopePlaceholder 60
   let hint =
-    Darklang.Cli.Colors.dimText
+    Darklang.Stdlib.Cli.UI.Colors.dimText
       "  (left/right cycle access, Tab switch field, Enter save, Esc cancel)"
-  let specLabel = Darklang.Cli.Colors.dimText "spec:"
+  let specLabel = Darklang.Stdlib.Cli.UI.Colors.dimText "spec:"
   [ $"  Edit {state.domain} rule:"
     $"    access:  {accessVal}"
     $"    scope:   {scopeVal}"

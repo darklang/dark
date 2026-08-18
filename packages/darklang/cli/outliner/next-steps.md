@@ -1,73 +1,47 @@
-# Outliner: Next Steps
+# Outliner: what's next
 
-## Architecture
+The app is a compositor over `Stdlib.Cli.UI` widgets: `Editor` (the tree, a widget), `Picker` (documents,
+export formats), `TextField` (renaming, export paths, editing a line), `Confirm` (deletes), `Chrome` (the
+frame). `Store` owns the file; `Commands` is the same core without a terminal. See
+`notes/composed-cli-design-2026-08-18.md` for the shape and `notes/outliner-review-2026-08-17.md` for what
+the rebuild fixed.
 
-The outliner is composed of reusable components following a nested TEA pattern:
+Everything the old version of this file asked for is done: the flat node map, multi-document support,
+persistence, undo/redo, tasks, search, Home/End and jump-to-parent, word wrap, OPML round-tripping, and an
+HStack (`UI.Layout.hstack`, which was already there).
 
-- **core.dark** — shared types (Outline, Document) and pure outline operations
-- **text-editor.dark** — reusable inline text editing (cursor, insert, backspace)
-- **list-picker.dark** — reusable list selection (up/down/enter/escape)
-- **outline-editor.dark** — tree navigation/editing, delegates to TextEditor
-- **main.dark** — compositor: Screen enum, document management, persistence, rendering
-- **app.dark** — CLI boundary (SubApp wrapping)
-- **export.dark** / **markdown.dark** — import/export
+---
 
-Each component has its own State and Result types. The compositor holds the
-active child's state in a Screen enum and delegates keys/rendering to it.
+## Worth doing next
 
-Each child returns logical rows. `Darklang.Cli.Tui.Layout.viewport` bounds long
-document and outline lists while keeping their selected row visible; the main
-view composes title, body, and help rows and clips them to Unicode terminal
-width. `Darklang.Cli.Tui.TerminalSession` retains and presents the resulting
-complete view.
+**Notes under a line.** A line is one string. Outliners of any use let a line carry a paragraph underneath
+it that folds independently of its children. `UI.Editor` is already a multiline buffer, so the editing side
+exists; the work is in the model (a `note: String` on `NodeContent`), the renderer (fold state per note),
+and both exporters.
 
-See `read-me/outliner-app-architecture.md` for the full design.
+**Sync.** Documents live in `~/.darklang/outliner.json`, outside the op log, so they don't travel between
+instances and have no history. "A note written on the laptop is on the reMarkable within seconds" is the
+thing we keep writing down; this is the app that would show it. Blocked on nothing in the outliner itself.
 
+**An event log instead of snapshots.** `notes/app-substrate.md` section 9, step 3 names the outliner for
+this. Undo already keeps snapshots, which is the cheap version. The honest version is a per-app `Evt` +
+`playback`, with the model as the fold - and the outliner is a good size to try it on, now that its
+persistence is versioned and every mutation funnels through one place.
 
-## Next: Features
+**Side-by-side.** The document list and the editor at once, via `UI.SplitPane`. Cheap now; it was the
+"HStack" item on the old list.
 
-### Undo/Redo
-- Store a stack of outline snapshots per document
-- `u` to undo, `ctrl+r` or `U` to redo in navigate mode
-- Cap the stack at some reasonable depth (20-50)
+**Filter by task state.** `x` cycles a line through todo and done; there's no way to ask for "everything
+unfinished". A filter that isn't a text match wants a slightly wider `filter` type.
 
-### Checkboxes / Todo Items
-- Node type: plain text vs todo (unchecked / checked)
-- Toggle with `x` in navigate mode
-- Render: `[ ]` / `[x]` prefix instead of bullet
+---
 
-### Search / Filter
-- `f` in navigate mode to enter search
-- Filter the visible tree to matching nodes (plus their ancestors for context)
+## Smaller things
 
-### Navigation
-- Home/End to jump to first/last visible item
-- Jump to parent with left arrow at depth 0
-
-
-## Next: Data & Persistence
-
-### OPML Import
-- Round-trip: export to OPML and import back
-
-### One File Per Document
-- `~/.darklang/outliner/<title>.json` instead of single monolithic file
-
-
-## Next: Rendering & UX
-
-### Word Wrap
-- Long node text currently extends off screen
-
-### Tree Drawing Characters
-- Option to use `├──` / `└──` instead of bullet characters
-
-### Node Types / Rich Content
-- Headings, notes/annotations, links, tags
-
-
-## Next: Layout System
-
-### HStack
-- Horizontal stacking for side-by-side views (e.g. doc picker + editor)
-- Add pure column distribution to `Darklang.Cli.Tui.Layout`
+- Undo is per-editing-session: switching documents drops the stack. Per-document history would be better,
+  and is a `Dict<Int, List<Outline>>` away.
+- The document picker has no search. Fine at four documents, not at forty.
+- Export always writes the whole document. A subtree export ("just this branch") is a natural `e` on a
+  selected line.
+- `Commands.add` appends to the top level only. `--under <line>` would make it a real capture tool.
+- Import always creates a new document; merging into an existing one has no path.

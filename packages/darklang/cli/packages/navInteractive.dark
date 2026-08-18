@@ -35,7 +35,7 @@ type State =
 /// A running navigation model and its process-local presentation state.
 type Session =
   { state: State
-    terminal: Darklang.Cli.Tui.TerminalSession.State }
+    terminal: Darklang.Stdlib.Cli.Tui.TerminalSession.State }
 
 
 /// Navigation regions derived from one terminal-size sample.
@@ -98,7 +98,7 @@ let packHelpRows
       if current == "" then section
       else current ++ " • " ++ section
 
-    if Darklang.Cli.Tui.Text.displayWidth candidate <= width then
+    if Darklang.Stdlib.Cli.Tui.Text.displayWidth candidate <= width then
       packHelpRows width remaining candidate rows
     else if current != "" then
       packHelpRows
@@ -108,7 +108,7 @@ let packHelpRows
         (Stdlib.List.pushBack rows current)
     else
       let wrapped =
-        Darklang.Cli.Tui.Text.wrapStyled section width
+        Darklang.Stdlib.Cli.Tui.Text.wrapStyled section width
       packHelpRows
         width
         remaining
@@ -279,7 +279,7 @@ let refreshFocusRows (navState: State) : State =
 /// Calculate navigation regions for the complete terminal viewport.
 let layout
   (navState: State)
-  (size: Darklang.Cli.Tui.Size)
+  (size: Darklang.Stdlib.Cli.Tui.Size)
   : Layout =
   let width = Stdlib.Int.max 1 size.width
   let contentHeight = Stdlib.Int.max 1 size.height
@@ -351,16 +351,16 @@ let layout
 /// Build the complete desired navigation view for one terminal-size sample.
 let viewAtSize
   (navState: State)
-  (size: Darklang.Cli.Tui.Size)
-  : Darklang.Cli.Tui.View =
+  (size: Darklang.Stdlib.Cli.Tui.Size)
+  : Darklang.Stdlib.Cli.Tui.View =
   let regions = layout navState size
-  let clip = fun text -> Darklang.Cli.Tui.Text.clipToWidth text regions.width
+  let clip = fun text -> Darklang.Stdlib.Cli.Tui.Text.clipToWidth text regions.width
   let itemClip =
     fun text ->
-      Darklang.Cli.Tui.Text.clipToWidth text regions.listWidth
+      Darklang.Stdlib.Cli.Tui.Text.clipToWidth text regions.listWidth
   let focusClip =
     fun text ->
-      Darklang.Cli.Tui.Text.clipToWidth text regions.focusWidth
+      Darklang.Stdlib.Cli.Tui.Text.clipToWidth text regions.focusWidth
   let horizontalRule (line: String) : String =
     Stdlib.String.repeat line regions.width
   let locationStr = Packages.formatLocation navState.currentLocation
@@ -378,10 +378,10 @@ let viewAtSize
   let headerRows =
     match navState.mode with
     | Nav ->
-      [ Colors.boldText (clip $"{headerPrefix} {locationStr}{displaySuffix}")
+      [ Stdlib.Cli.UI.Colors.boldText (clip $"{headerPrefix} {locationStr}{displaySuffix}")
         horizontalRule "─" ]
     | Search ->
-      [ Colors.boldText (clip $"{headerPrefix} {locationStr}{displaySuffix}")
+      [ Stdlib.Cli.UI.Colors.boldText (clip $"{headerPrefix} {locationStr}{displaySuffix}")
         horizontalRule "━"
         clip $"  {navState.searchQuery}_"
         horizontalRule "━" ]
@@ -431,14 +431,14 @@ let viewAtSize
           match item.entityType with
           | Module ->
             if isSelected then
-              Colors.info cursor
+              Stdlib.Cli.UI.Colors.info cursor
               ++ icon
-              ++ Colors.info (" " ++ nameDisplay)
+              ++ Stdlib.Cli.UI.Colors.info (" " ++ nameDisplay)
             else
               cursor ++ icon ++ " " ++ nameDisplay
           | _ ->
             let line = cursor ++ icon ++ " " ++ nameDisplay
-            if isSelected then Colors.info line else line
+            if isSelected then Stdlib.Cli.UI.Colors.info line else line
 
         itemClip line)
 
@@ -471,9 +471,9 @@ let viewAtSize
           $"Preview • {Stdlib.Int.toString totalRows} rows"
       let heading =
         if regions.sideBySide then
-          Colors.hint (focusClip position)
+          Stdlib.Cli.UI.Colors.hint (focusClip position)
         else
-          Colors.hint (focusClip ("─ " ++ position))
+          Stdlib.Cli.UI.Colors.hint (focusClip ("─ " ++ position))
       Stdlib.List.push visibleRows heading
 
   let helpRows =
@@ -482,16 +482,16 @@ let viewAtSize
         navState.mode
         navState.display
         regions.width
-      |> Stdlib.List.map Colors.hint
-    Darklang.Cli.Tui.Layout.fitRows regions.helpHeight styledRows
+      |> Stdlib.List.map Stdlib.Cli.UI.Colors.hint
+    Darklang.Stdlib.Cli.Tui.Layout.fitRows regions.helpHeight styledRows
 
   let fittedItemRows =
-    Darklang.Cli.Tui.Layout.fitRows
+    Darklang.Stdlib.Cli.Tui.Layout.fitRows
       regions.itemViewportHeight
       itemRows
 
   let fittedFocusRows =
-    Darklang.Cli.Tui.Layout.fitRows
+    Darklang.Stdlib.Cli.Tui.Layout.fitRows
       regions.focusHeight
       focusRows
 
@@ -501,10 +501,10 @@ let viewAtSize
         fittedItemRows
         fittedFocusRows
         (fun itemRow focusRow ->
-          Darklang.Cli.Tui.Text.fitToWidth
+          Darklang.Stdlib.Cli.Tui.Text.fitToWidth
             itemRow
             regions.listWidth
-          ++ Colors.dimText "│"
+          ++ Stdlib.Cli.UI.Colors.dimText "│"
           ++ focusClip (" " ++ focusRow))
     else
       Stdlib.List.append fittedItemRows fittedFocusRows
@@ -520,12 +520,12 @@ let viewAtSize
         footerRuleRows
         helpRows
       ]
-    Darklang.Cli.Tui.Layout.fitRows regions.contentHeight desiredRows
+    Darklang.Stdlib.Cli.Tui.Layout.fitRows regions.contentHeight desiredRows
 
-  Darklang.Cli.Tui.View {
+  Darklang.Stdlib.Cli.Tui.View {
     rows = rows
-    cursor = Darklang.Cli.Tui.Cursor.Hidden
-    mode = Darklang.Cli.Tui.ViewMode.Fullscreen
+    cursor = Darklang.Stdlib.Cli.Tui.Cursor.Hidden
+    mode = Darklang.Stdlib.Cli.Tui.ViewMode.Fullscreen
   }
 
 
@@ -533,9 +533,9 @@ let viewAtSize
 let start
   (navState: State)
   : Stdlib.Result.Result<Session, String> =
-  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+  let size = Darklang.Stdlib.Cli.Tui.TerminalSession.currentSize ()
   match
-    Darklang.Cli.Tui.TerminalSession.startAtSize
+    Darklang.Stdlib.Cli.Tui.TerminalSession.startAtSize
       size
       (viewAtSize navState size)
   with
@@ -549,11 +549,11 @@ let start
 /// Present the next navigation model using an already sampled terminal size.
 let presentAtSize
   (session: Session)
-  (size: Darklang.Cli.Tui.Size)
+  (size: Darklang.Stdlib.Cli.Tui.Size)
   (navState: State)
   : Session =
   let terminal =
-    Darklang.Cli.Tui.TerminalSession.presentAtSize
+    Darklang.Stdlib.Cli.Tui.TerminalSession.presentAtSize
       session.terminal
       size
       (viewAtSize navState size)
@@ -563,7 +563,7 @@ let presentAtSize
 
 /// Present the next navigation model while retaining renderer history.
 let presentState (session: Session) (navState: State) : Session =
-  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+  let size = Darklang.Stdlib.Cli.Tui.TerminalSession.currentSize ()
   presentAtSize session size navState
 
 
@@ -581,7 +581,7 @@ let show
 let showAtSize
   (state: Cli.AppState)
   (session: Session)
-  (size: Darklang.Cli.Tui.Size)
+  (size: Darklang.Stdlib.Cli.Tui.Size)
   (navState: State)
   : Cli.AppState =
   { state with
@@ -676,7 +676,7 @@ let exitToMainPrompt
   (session: Session)
   : Cli.AppState =
   let _stoppedTerminal =
-    Darklang.Cli.Tui.TerminalSession.stop session.terminal
+    Darklang.Stdlib.Cli.Tui.TerminalSession.stop session.terminal
 
   { state with
       currentPage = Page.MainPrompt
@@ -693,10 +693,10 @@ let selectAndExit
     match Stdlib.List.getAt navState.items navState.selectedIndex with
     | Some selectedItem ->
       let _stoppedTerminal =
-        Darklang.Cli.Tui.TerminalSession.stop session.terminal
+        Darklang.Stdlib.Cli.Tui.TerminalSession.stop session.terminal
       let newState = Nav.navTo state selectedItem.location
       let locationStr = Packages.formatLocation selectedItem.location
-      Stdlib.printLine (Colors.success $"Selected: {locationStr}")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Selected: {locationStr}")
       { newState with
           currentPage = Page.MainPrompt
           prompt = Prompt.Editing.clear newState.prompt }
@@ -896,7 +896,7 @@ let handleKey
   (session: Session)
   : Cli.AppState =
   let navState = session.state
-  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+  let size = Darklang.Stdlib.Cli.Tui.TerminalSession.currentSize ()
   let regions = layout navState size
   let viewportHeight = regions.itemViewportHeight
   let previewPageSize =

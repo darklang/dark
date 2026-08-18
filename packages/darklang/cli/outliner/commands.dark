@@ -1,0 +1,182 @@
+/// The outliner without the terminal: list, show, add, export, import.
+///
+/// The app used to be interactive or nothing. With no TTY it printed "standard input is not a terminal" and
+/// stopped, which meant you couldn't pipe an outline anywhere, couldn't script it, an agent couldn't use
+/// it, and its behaviour could only be tested by driving a real terminal. All of that is the same pure core
+/// the full-screen app runs on; only the input and output differ.
+module Darklang.Cli.Outliner.Commands
+
+/// Read the documents, or explain why not.
+let documents () : Stdlib.Result.Result<Store.PersistedData, String> =
+  match Store.load () with
+  | Loaded data -> Stdlib.Result.Result.Ok data
+  | Unreadable(path, reason) ->
+    Stdlib.Result.Result.Error $"can't read {path}: {reason}"
+
+/// Find a document by number (as printed by `ls`), exact name, or unique prefix.
+let findDoc
+  (docs: List<Document>)
+  (needle: String)
+  : Stdlib.Result.Result<Document, String> =
+  let lowered = Stdlib.String.toLowercase needle
+
+  let byNumber =
+    match Stdlib.Int.parse needle with
+    | Ok n -> Stdlib.List.getAt docs (n - 1)
+    | Error _ -> Stdlib.Option.Option.None
+
+  match byNumber with
+  | Some doc -> Stdlib.Result.Result.Ok doc
+  | None ->
+    let matches =
+      docs
+      |> Stdlib.List.filter (fun d ->
+        Stdlib.String.startsWith (Stdlib.String.toLowercase d.title) lowered)
+
+    match matches with
+    | [ one ] -> Stdlib.Result.Result.Ok one
+    | [] -> Stdlib.Result.Result.Error $"no document matching \"{needle}\""
+    | many ->
+      let names = many |> Stdlib.List.map (fun d -> d.title) |> Stdlib.String.join ", "
+      Stdlib.Result.Result.Error $"\"{needle}\" matches several: {names}"
+
+let printError (message: String) : Unit =
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.error message)
+
+
+// --- ls ---
+
+let ls () : Unit =
+  match documents () with
+  | Error e -> printError e
+  | Ok data ->
+    if Stdlib.List.isEmpty data.documents then
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText "no documents")
+    else
+      data.documents
+      |> Stdlib.List.indexedMap (fun i doc ->
+        let number = Stdlib.Int.toString (i + 1)
+        let active = if doc.id == data.activeDocId then "*" else " "
+        let count = Stdlib.List.length (descendants doc.outline doc.outline.rootChildren)
+        let lines = Stdlib.Cli.UI.Colors.dimText $"({Stdlib.Int.toString count} lines)"
+        $"{active} {number}. {doc.title}  {lines}")
+      |> Stdlib.printLines
+
+
+// --- show ---
+
+/// The tree as plain text, the way the editor draws it minus the cursor.
+let showRows (doc: Document) : List<String> =
+  flattenVisible doc.outline
+  |> Stdlib.List.map (fun vn ->
+    let indent = Stdlib.String.repeat "  " vn.depth
+
+    let bullet =
+      match vn.mark with
+      | Plain -> "-"
+      | Todo -> "[ ]"
+      | Done -> "[x]"
+
+    $"{indent}{bullet} {vn.text}")
+
+let show (name: String) : Unit =
+  match documents () with
+  | Error e -> printError e
+  | Ok data ->
+    match findDoc data.documents name with
+    | Error e -> printError e
+    | Ok doc ->
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText doc.title)
+      Stdlib.printLine ""
+      Stdlib.printLines (showRows doc)
+
+
+// --- export ---
+
+let renderAs (doc: Document) (format: String) : Stdlib.Result.Result<String, String> =
+  match Stdlib.String.toLowercase format with
+  | "md" -> Stdlib.Result.Result.Ok(Export.toMarkdown doc)
+  | "markdown" -> Stdlib.Result.Result.Ok(Export.toMarkdown doc)
+  | "opml" -> Stdlib.Result.Result.Ok(Export.toOpml doc)
+  | other -> Stdlib.Result.Result.Error $"unknown format \"{other}\" (md or opml)"
+
+/// `export <doc> [format] [path]`. Without a path it goes to stdout, so it can be piped.
+let export (name: String) (format: String) (path: String) : Unit =
+  match documents () with
+  | Error e -> printError e
+  | Ok data ->
+    match findDoc data.documents name with
+    | Error e -> printError e
+    | Ok doc ->
+      match renderAs doc format with
+      | Error e -> printError e
+      | Ok content ->
+        if path == "" then
+          Stdlib.printLine content
+        else
+          match Stdlib.Cli.FileSystem.writeFile path (Stdlib.String.toBlob content) with
+          | Ok _ -> Stdlib.printLine $"wrote {path}"
+          | Error e -> printError $"couldn't write {path}: {e}"
+
+
+// --- import ---
+
+let import (path: String) (title: String) : Unit =
+  match documents () with
+  | Error e -> printError e
+  | Ok data ->
+    match Stdlib.Cli.FileSystem.readFile path with
+    | Error e ->
+      printError $"can't read {path}: {Stdlib.Cli.FileSystem.FileError.toString e}"
+    | Ok bytes ->
+      match Export.fromFile path (Stdlib.String.fromBlobWithReplacement bytes) with
+      | Error e -> printError e
+      | Ok imported ->
+        let doc =
+          Document
+            { id = data.nextDocId
+              title = if title == "" then imported.title else title
+              outline = imported.outline }
+
+        let saved =
+          Store.save
+            (Stdlib.List.append data.documents [ doc ])
+            doc.id
+            (data.nextDocId + 1)
+            (Store.stamp ())
+
+        match saved with
+        | Ok _ ->
+          let count = Stdlib.List.length (descendants doc.outline doc.outline.rootChildren)
+          Stdlib.printLine $"imported \"{doc.title}\" ({Stdlib.Int.toString count} lines)"
+        | Error e -> printError $"couldn't save: {e}"
+
+
+// --- add ---
+
+/// Append a line to the end of a document's top level. The quickest possible capture.
+let add (name: String) (text: String) : Unit =
+  match documents () with
+  | Error e -> printError e
+  | Ok data ->
+    match findDoc data.documents name with
+    | Error e -> printError e
+    | Ok doc ->
+      let id = doc.outline.nextId
+      let withNode = addNode doc.outline id text
+
+      let placed =
+        setChildren
+          withNode
+          Stdlib.Option.Option.None
+          (Stdlib.List.append withNode.rootChildren [ id ])
+
+      let updated = { doc with outline = { placed with nextId = id + 1 } }
+
+      let documents =
+        data.documents
+        |> Stdlib.List.map (fun d -> if d.id == doc.id then updated else d)
+
+      match Store.save documents data.activeDocId data.nextDocId (Store.stamp ()) with
+      | Ok _ -> Stdlib.printLine $"added to \"{doc.title}\": {text}"
+      | Error e -> printError $"couldn't save: {e}"

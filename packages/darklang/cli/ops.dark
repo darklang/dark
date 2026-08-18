@@ -60,7 +60,7 @@ let executeList (state: AppState) (limit: Int64) : AppState =
       else
         $"{Stdlib.Int64.toString total} ops on branch {branchName} — showing the {Stdlib.Int.toString shown} most recent"
 
-    Stdlib.printLine (Colors.success header)
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.success header)
 
     // A commit message belongs to the COMMIT, not to each op — repeating it down every row was noise that made
     // 20 ops of one commit look like 20 unrelated things. It prints once per run of ops sharing a commit, so a
@@ -101,7 +101,7 @@ let executeList (state: AppState) (limit: Int64) : AppState =
 
     state
   | Error e ->
-    Stdlib.printLine (Colors.error $"Couldn't read the op log: {e}")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Couldn't read the op log: {e}")
     state
 
 let help (_state: AppState) : String =

@@ -50,7 +50,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   | [itemType] ->
-    Stdlib.printLine (Colors.error "Error: Missing name argument")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Error: Missing name argument")
     Stdlib.printLine ""
     Stdlib.printLine "Usage: undo <fn|type|value> <name> [--yes|-y]"
     state
@@ -171,7 +171,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 true
               else
                 Stdlib.printLine ""
-                Stdlib.print (Colors.warning "Proceed? (y/n): ")
+                Stdlib.print (Stdlib.Cli.UI.Colors.warning "Proceed? (y/n): ")
                 let response = Stdlib.Cli.Stdin.readLine ()
                 (response == "y") || (response == "Y")
 
@@ -180,7 +180,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               Builtin.pmAtomicUndo branchId revertable location itemKind myPropagationIds targetHash
             with
             | Error errMsg ->
-              Stdlib.printLine (Colors.error errMsg)
+              Stdlib.printLine (Stdlib.Cli.UI.Colors.error errMsg)
               state
             | Ok result ->
               let (_revertId, restoredHash) = result
@@ -195,10 +195,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
               if isToCommitted then
                 Stdlib.printLine
-                  (Colors.success $"Restored committed version of {itemTypeStr} {fullPath}")
+                  (Stdlib.Cli.UI.Colors.success $"Restored committed version of {itemTypeStr} {fullPath}")
               else
                 Stdlib.printLine
-                  (Colors.success $"Restored previous version of {itemTypeStr} {fullPath}")
+                  (Stdlib.Cli.UI.Colors.success $"Restored previous version of {itemTypeStr} {fullPath}")
 
               // Re-propagate overlapping dependents
               match overlapping with
@@ -212,10 +212,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             Stdlib.printLine "Undo cancelled."
             state
       | Error msg ->
-        Stdlib.printLine (Colors.error $"Invalid location: {msg}")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Invalid location: {msg}")
         state
     | None ->
-      Stdlib.printLine (Colors.error $"Error: Invalid item type '{itemTypeStr}'")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Error: Invalid item type '{itemTypeStr}'")
       Stdlib.printLine "Must be one of: fn, type, value"
       state
 

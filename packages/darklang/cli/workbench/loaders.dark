@@ -104,9 +104,9 @@ let wipDiffText (state: State) : String =
       SCM.Review.App.diffForItem ops state.branchId parentId pkg
       |> Stdlib.List.map (fun dl ->
         match dl with
-        | Same s -> Colors.dimText ("  " ++ s)
-        | Added s -> Colors.colorize Colors.green ("+ " ++ s)
-        | Removed s -> Colors.colorize Colors.red ("- " ++ s))
+        | Same s -> Stdlib.Cli.UI.Colors.dimText ("  " ++ s)
+        | Added s -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green ("+ " ++ s)
+        | Removed s -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.red ("- " ++ s))
       |> Stdlib.String.join "\n"
 
 /// The current source of the selected WIP item, for the Changes reader.
@@ -196,22 +196,22 @@ let depsText (state: State) : String =
         // Dependencies - what this item uses.
         let deps = Packages.Query.getDependencies state.branchId hash
         let depLines =
-          if Stdlib.List.isEmpty deps then [ Colors.dimText "  (none)" ]
+          if Stdlib.List.isEmpty deps then [ Stdlib.Cli.UI.Colors.dimText "  (none)" ]
           else
             let namesDict = Darklang.Cli.Deps.resolveNames state.branchId (deps |> Stdlib.List.map (fun p -> let (h, _) = p in h))
             deps |> Stdlib.List.map (fun p -> let (th, _rt) = p in "  " ++ (Darklang.Cli.Deps.getName namesDict th))
         // Dependents - what uses this item.
         let dependents = Cli.Deps.getDependents state.branchId [ (loc, kind) ]
         let dependentLines =
-          if Stdlib.List.isEmpty dependents then [ Colors.dimText "  (none)" ]
+          if Stdlib.List.isEmpty dependents then [ Stdlib.Cli.UI.Colors.dimText "  (none)" ]
           else dependents |> Stdlib.List.map (fun t -> let (_h, sLoc, _rt) = t in "  " ++ (PrettyPrinter.ProgramTypes.PackageLocation.packageLocation sLoc))
-        (Colors.boldText item.name)
+        (Stdlib.Cli.UI.Colors.boldText item.name)
         ++ "\n\n"
-        ++ (Colors.dimText ("Dependencies (uses) - " ++ (Stdlib.Int.toString (Stdlib.List.length deps))))
+        ++ (Stdlib.Cli.UI.Colors.dimText ("Dependencies (uses) - " ++ (Stdlib.Int.toString (Stdlib.List.length deps))))
         ++ "\n"
         ++ (Stdlib.String.join depLines "\n")
         ++ "\n\n"
-        ++ (Colors.dimText ("Dependents (used by) - " ++ (Stdlib.Int.toString (Stdlib.List.length dependents))))
+        ++ (Stdlib.Cli.UI.Colors.dimText ("Dependents (used by) - " ++ (Stdlib.Int.toString (Stdlib.List.length dependents))))
         ++ "\n"
         ++ (Stdlib.String.join dependentLines "\n")
 
@@ -221,7 +221,7 @@ let depsText (state: State) : String =
 /// Read the badge sets for a state: which items have uncommitted edits, and which are deprecated.
 let readBadges (state: State) : (List<String> * List<String>) =
   // Only the Matter tree shows badges, and the values lens hides them, so everything else skips both reads.
-  if (state.activeView != vMatter) || (state.matterLens == "values") then
+  if (state.activeView != vMatter) || (state.matter.lens == Lens.ValuesOnly) then
     ([], [])
   else
     let wip =
@@ -248,7 +248,7 @@ let refreshBadges (previous: State) (next: State) : State =
   let unchanged =
     (previous.branchId == next.branchId)
     && (previous.location == next.location)
-    && (previous.matterLens == next.matterLens)
+    && (previous.matter.lens == next.matter.lens)
     && (previous.activeView == next.activeView)
     && (previous.items == next.items)
 
@@ -280,7 +280,7 @@ let refreshBadges (previous: State) (next: State) : State =
 /// path this builds would have nothing to do with the selected row.
 let refreshPeek (next: State) : State =
   let peek =
-    if (next.activeView != vMatter) || (next.matterLens == "values") then
+    if (next.activeView != vMatter) || (next.matter.lens == Lens.ValuesOnly) then
       ""
     else
       match Stdlib.List.getAt next.items next.selected with

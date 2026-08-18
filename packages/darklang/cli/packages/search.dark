@@ -111,7 +111,7 @@ let docBlock (desc: String) (indent: String) : String =
   else
     let lines = Stdlib.String.splitOnNewline desc
     lines
-    |> Stdlib.List.map (fun line -> Colors.dimText (indent ++ line))
+    |> Stdlib.List.map (fun line -> Stdlib.Cli.UI.Colors.dimText (indent ++ line))
     |> Stdlib.String.join "\n"
 
 
@@ -130,7 +130,7 @@ let overflowNote (total: Int) (shown: Int) : Unit =
   let extra = total - shown
   if extra > 0 then
     Stdlib.printLine (
-      Colors.hint
+      Stdlib.Cli.UI.Colors.hint
         $"  ... and {Stdlib.Int.toString extra} more (narrow with --exact or `nav` into a module)")
   else
     ()
@@ -261,7 +261,7 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     let parsed = parseArgs args
 
     if Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) then
-      Stdlib.printLine (Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
       Stdlib.printLine ""
       Stdlib.printLine usage
       state
@@ -272,7 +272,7 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       let queryText = Stdlib.Option.withDefault aliasKeyword rawQueryText
 
       if Stdlib.String.isEmpty queryText then
-        Stdlib.printLine (Colors.error "Error: Search query cannot be empty")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Error: Search query cannot be empty")
         Stdlib.printLine ""
         Stdlib.printLine usage
         state
@@ -313,14 +313,14 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           + submodulesCount
 
         if totalResults == 0 then
-          Stdlib.printLine (Colors.dimText $"No results found for: {queryText}")
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"No results found for: {queryText}")
           Stdlib.printLine ""
         else
-          Stdlib.printLine (Colors.boldText $"Search results for: {queryText}")
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText $"Search results for: {queryText}")
           match aliasKeyword with
           | Some kw ->
             Stdlib.printLine (
-              Colors.hint $"  (operator {rawQueryText} maps to the \"{kw}\" operation)")
+              Stdlib.Cli.UI.Colors.hint $"  (operator {rawQueryText} maps to the \"{kw}\" operation)")
           | None -> ()
           Stdlib.printLine ""
 
@@ -355,7 +355,7 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 let mark = Query.deprecationMarker depSets item.entity.hash
                 let ctx = contextFor state.currentBranchId item
                 let sigBody = Signatures.formatFn ctx item.entity
-                let line = $"{fullPathOf item} {Colors.dimText sigBody}{mark}"
+                let line = $"{fullPathOf item} {Stdlib.Cli.UI.Colors.dimText sigBody}{mark}"
                 withOptionalDoc parsed.withDocs line item.entity.description)
             | "value" ->
               renderSection "value" queryText resultCap results.values (fun item ->
@@ -390,7 +390,7 @@ let executeQuery (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
           // show hint about --with-docs if results have descriptions but weren't shown
           if (Stdlib.Bool.not parsed.withDocs) && (Stdlib.Bool.not parsed.batch) then
-            Stdlib.printLine (Colors.hint "  (add --with-docs to show doc comments)")
+            Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "  (add --with-docs to show doc comments)")
           else
             ()
 
@@ -409,7 +409,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     then
       executeQuery state args
     else if Stdlib.List.isEmpty parsed.queryParts then
-      Stdlib.printLine (Colors.error "Error: Batch search requires at least one query")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Error: Batch search requires at least one query")
       Stdlib.printLine ""
       Stdlib.printLine usage
       state
@@ -428,7 +428,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         ())
 
       if Stdlib.Bool.not parsed.withDocs then
-        Stdlib.printLine (Colors.hint "  (add --with-docs to show doc comments)")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "  (add --with-docs to show doc comments)")
       else
         ()
 

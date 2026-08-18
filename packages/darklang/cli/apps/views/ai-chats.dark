@@ -70,20 +70,20 @@ let demoThreads () : List<Thread> =
 
 let statusBadge (status: String) : String =
   match status with
-  | "running" -> Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bgGreen ++ Darklang.Cli.Colors.black ++ Darklang.Cli.Colors.bold) " RUNNING "
-  | "review" -> Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bgYellow ++ Darklang.Cli.Colors.black ++ Darklang.Cli.Colors.bold) " REVIEW  "
-  | "blocked" -> Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bgRed ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) " BLOCKED "
-  | "done" -> Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bgBlue ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) " DONE    "
-  | "paused" -> Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.grayBg ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) " PAUSED  "
-  | "error" -> Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bgRed ++ Darklang.Cli.Colors.white ++ Darklang.Cli.Colors.bold) " ERROR   "
-  | _ -> Darklang.Cli.Colors.dimText status
+  | "running" -> Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bgGreen ++ Darklang.Stdlib.Cli.UI.Colors.black ++ Darklang.Stdlib.Cli.UI.Colors.bold) " RUNNING "
+  | "review" -> Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bgYellow ++ Darklang.Stdlib.Cli.UI.Colors.black ++ Darklang.Stdlib.Cli.UI.Colors.bold) " REVIEW  "
+  | "blocked" -> Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bgRed ++ Darklang.Stdlib.Cli.UI.Colors.white ++ Darklang.Stdlib.Cli.UI.Colors.bold) " BLOCKED "
+  | "done" -> Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bgBlue ++ Darklang.Stdlib.Cli.UI.Colors.white ++ Darklang.Stdlib.Cli.UI.Colors.bold) " DONE    "
+  | "paused" -> Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.grayBg ++ Darklang.Stdlib.Cli.UI.Colors.white ++ Darklang.Stdlib.Cli.UI.Colors.bold) " PAUSED  "
+  | "error" -> Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bgRed ++ Darklang.Stdlib.Cli.UI.Colors.white ++ Darklang.Stdlib.Cli.UI.Colors.bold) " ERROR   "
+  | _ -> Darklang.Stdlib.Cli.UI.Colors.dimText status
 
 let hr (cols: Int) : String =
-  Darklang.Cli.Colors.dimText
+  Darklang.Stdlib.Cli.UI.Colors.dimText
     (Stdlib.String.repeat "─" (Stdlib.Int.max 1 cols))
 
 let thinHr (cols: Int) : String =
-  Darklang.Cli.Colors.dimText
+  Darklang.Stdlib.Cli.UI.Colors.dimText
     (Stdlib.String.repeat "╌" (Stdlib.Int.max 1 cols))
 
 let padRight (s: String) (width: Int) : String =
@@ -94,29 +94,29 @@ let padRight (s: String) (width: Int) : String =
     s ++ (Stdlib.String.repeat " " (width - len))
 
 let threadRows (cols: Int) (thread: Thread) : List<String> =
-  let idStr = Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.cyan) ("#" ++ Stdlib.Int.toString thread.id)
+  let idStr = Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bold ++ Darklang.Stdlib.Cli.UI.Colors.cyan) ("#" ++ Stdlib.Int.toString thread.id)
   let badge = statusBadge thread.status
   let topicStr =
     if thread.status == "done" then
-      Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight thread.topic 40)
+      Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bold ++ Darklang.Stdlib.Cli.UI.Colors.dim) (padRight thread.topic 40)
     else
-      Darklang.Cli.Colors.boldText (padRight thread.topic 40)
-  let branchStr = Darklang.Cli.Colors.dimText (padRight thread.branch 10)
+      Darklang.Stdlib.Cli.UI.Colors.boldText (padRight thread.topic 40)
+  let branchStr = Darklang.Stdlib.Cli.UI.Colors.dimText (padRight thread.branch 10)
   let costColor =
     match thread.status with
-    | "running" -> Darklang.Cli.Colors.green
-    | "review" -> Darklang.Cli.Colors.yellow
-    | _ -> Darklang.Cli.Colors.dim
-  let costStr = Darklang.Cli.Colors.colorize costColor (padRight thread.cost 10)
-  let tokensStr = Darklang.Cli.Colors.dimText (padRight thread.tokens 10)
-  let timeStr = Darklang.Cli.Colors.dimText (padRight thread.time 8)
+    | "running" -> Darklang.Stdlib.Cli.UI.Colors.green
+    | "review" -> Darklang.Stdlib.Cli.UI.Colors.yellow
+    | _ -> Darklang.Stdlib.Cli.UI.Colors.dim
+  let costStr = Darklang.Stdlib.Cli.UI.Colors.colorize costColor (padRight thread.cost 10)
+  let tokensStr = Darklang.Stdlib.Cli.UI.Colors.dimText (padRight thread.tokens 10)
+  let timeStr = Darklang.Stdlib.Cli.UI.Colors.dimText (padRight thread.time 8)
 
   let detailColor =
     match thread.status with
-    | "review" -> Darklang.Cli.Colors.yellow
-    | _ -> Darklang.Cli.Colors.dim
+    | "review" -> Darklang.Stdlib.Cli.UI.Colors.yellow
+    | _ -> Darklang.Stdlib.Cli.UI.Colors.dim
   [ "  " ++ idStr ++ "    " ++ badge ++ "  " ++ topicStr ++ "  " ++ branchStr ++ "  " ++ costStr ++ "  " ++ tokensStr ++ "  " ++ timeStr
-    Darklang.Cli.Colors.colorize detailColor
+    Darklang.Stdlib.Cli.UI.Colors.colorize detailColor
       ("       ╰─ " ++ thread.detail)
     thinHr cols ]
 
@@ -124,7 +124,7 @@ let threadRows (cols: Int) (thread: Thread) : List<String> =
 /// Build the complete AI-chats dashboard without reading or writing the
 /// terminal. Rows are clipped by the gallery after it composes its footer.
 let rowsAtSize
-  (size: Darklang.Cli.Tui.Size)
+  (size: Darklang.Stdlib.Cli.Tui.Size)
   : List<String> =
   let threads = demoThreads ()
   let cols = Stdlib.Int.max 1 size.width
@@ -144,19 +144,19 @@ let rowsAtSize
   // Column headers
   let headerLine =
     "  "
-    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "ID" 4)
+    ++ Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bold ++ Darklang.Stdlib.Cli.UI.Colors.dim) (padRight "ID" 4)
     ++ "    "
-    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "STATUS" 10)
+    ++ Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bold ++ Darklang.Stdlib.Cli.UI.Colors.dim) (padRight "STATUS" 10)
     ++ "  "
-    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "TOPIC" 40)
+    ++ Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bold ++ Darklang.Stdlib.Cli.UI.Colors.dim) (padRight "TOPIC" 40)
     ++ "  "
-    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "BRANCH" 10)
+    ++ Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bold ++ Darklang.Stdlib.Cli.UI.Colors.dim) (padRight "BRANCH" 10)
     ++ "  "
-    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "COST" 10)
+    ++ Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bold ++ Darklang.Stdlib.Cli.UI.Colors.dim) (padRight "COST" 10)
     ++ "  "
-    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "TOKENS" 10)
+    ++ Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bold ++ Darklang.Stdlib.Cli.UI.Colors.dim) (padRight "TOKENS" 10)
     ++ "  "
-    ++ Darklang.Cli.Colors.colorize (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.dim) (padRight "TIME" 8)
+    ++ Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bold ++ Darklang.Stdlib.Cli.UI.Colors.dim) (padRight "TIME" 8)
   let threadLines =
     threads
     |> Stdlib.List.map (threadRows cols)
@@ -164,31 +164,31 @@ let rowsAtSize
 
   let summary =
     ("  "
-     ++ Darklang.Cli.Colors.boldText "Session totals"
+     ++ Darklang.Stdlib.Cli.UI.Colors.boldText "Session totals"
      ++ "  "
-     ++ Darklang.Cli.Colors.dimText "│"
-     ++ "  Cost: " ++ Darklang.Cli.Colors.boldText "$16.06"
-     ++ "  " ++ Darklang.Cli.Colors.dimText "│"
-     ++ "  Tokens: " ++ Darklang.Cli.Colors.boldText "451k"
-     ++ "  " ++ Darklang.Cli.Colors.dimText "│"
-     ++ "  Uptime: " ++ Darklang.Cli.Colors.boldText "51m"
-     ++ "  " ++ Darklang.Cli.Colors.dimText "│"
-     ++ "  Files changed: " ++ Darklang.Cli.Colors.boldText "31")
+     ++ Darklang.Stdlib.Cli.UI.Colors.dimText "│"
+     ++ "  Cost: " ++ Darklang.Stdlib.Cli.UI.Colors.boldText "$16.06"
+     ++ "  " ++ Darklang.Stdlib.Cli.UI.Colors.dimText "│"
+     ++ "  Tokens: " ++ Darklang.Stdlib.Cli.UI.Colors.boldText "451k"
+     ++ "  " ++ Darklang.Stdlib.Cli.UI.Colors.dimText "│"
+     ++ "  Uptime: " ++ Darklang.Stdlib.Cli.UI.Colors.boldText "51m"
+     ++ "  " ++ Darklang.Stdlib.Cli.UI.Colors.dimText "│"
+     ++ "  Files changed: " ++ Darklang.Stdlib.Cli.UI.Colors.boldText "31")
 
   let hints =
     ("  "
-     ++ Darklang.Cli.Colors.dimText "[enter]" ++ " open thread   "
-     ++ Darklang.Cli.Colors.dimText "[r]" ++ " review flagged   "
-     ++ Darklang.Cli.Colors.dimText "[n]" ++ " new thread   "
-     ++ Darklang.Cli.Colors.dimText "[k]" ++ " kill thread   "
-     ++ Darklang.Cli.Colors.dimText "[q]" ++ " quit")
+     ++ Darklang.Stdlib.Cli.UI.Colors.dimText "[enter]" ++ " open thread   "
+     ++ Darklang.Stdlib.Cli.UI.Colors.dimText "[r]" ++ " review flagged   "
+     ++ Darklang.Stdlib.Cli.UI.Colors.dimText "[n]" ++ " new thread   "
+     ++ Darklang.Stdlib.Cli.UI.Colors.dimText "[k]" ++ " kill thread   "
+     ++ Darklang.Stdlib.Cli.UI.Colors.dimText "[q]" ++ " quit")
 
   Stdlib.List.flatten [
     [ ""
       "  "
-      ++ Darklang.Cli.Colors.boldText "dark ai chats"
+      ++ Darklang.Stdlib.Cli.UI.Colors.boldText "dark ai chats"
       ++ "  "
-      ++ Darklang.Cli.Colors.dimText
+      ++ Darklang.Stdlib.Cli.UI.Colors.dimText
           ("—  "
            ++ Stdlib.Int.toString threadCount
            ++ " threads  •  "

@@ -1,77 +1,171 @@
-/// Turn a self-contained interactive component into a full-screen CLI app.
+/// The one way a full-screen thing becomes a CLI page.
 ///
-/// A `Component` is a `render` (state → screen) + an `onKey` (state + key → stay-or-exit). `launch` wraps
-/// one as a SubApp the CLI main loop drives — no per-component SubApp boilerplate. Pass *named* functions
-/// (not inline lambdas): the component lives in `AppState` across loop iterations, and Dark only preserves
-/// named-fn references there, not lambda bodies.
+/// A `Component` is three named functions over one state type: `view` (state + terminal size -> a complete
+/// `Stdlib.Cli.Tui.View`), `onKey` (state + key -> what happens next), and `save` (persist, or do nothing). `launch`
+/// wraps one as the CLI's current page and owns everything effectful around it: starting and stopping the
+/// terminal session, presenting on every transition, re-taking the surface after another page borrowed it,
+/// and calling `save` when a step asks for it.
+///
+/// Before this existed, every app hand-wrote that lifecycle: a `Session` record, a `presentState`, and a
+/// recursive `makeSubApp`, about eighty near-identical lines each, five times over. `SubApp` is still the
+/// seam the loop drives (see `Cli.SubApp`); it's just that nothing has to build one by hand any more.
+///
+/// Pass *named* functions, not inline lambdas: the component lives in `AppState` across loop iterations,
+/// and Dark only preserves named-fn references there, not lambda bodies.
+///
+/// For the pieces *inside* a screen (a list, a text field, a tree) see `Cli.UI.Widget`: those are pure,
+/// return spans for a region, and know nothing about the terminal. A component is a widget plus a
+/// lifecycle.
 module Darklang.Cli.Component
 
-/// On each key, a component either stays (with new state) or exits.
+/// What one keystroke does to a component.
 type Step<'s> =
+  /// Keep going with this state.
   | Stay of 's
-  | Exit
+  /// Keep going, and persist first (`save` is called with the new state).
+  | Save of 's
+  /// Leave the app. Nothing is persisted, so a component that wants "save on exit" says `Save` first.
+  | Exit of 's
+  /// Hand off to a foreground command; the CLI returns to this page (at this state) when it exits.
+  | Launch of 's * String
+  /// Drop to the classic prompt, pushing this page so `quit` there comes back here.
+  | ToPrompt of 's
 
 type Component<'s> =
-  { render: 's -> String
-    onKey: 's -> Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> Step<'s> }
+  { /// The complete view at a given terminal size. Must be pure: the renderer may call it to diff frames,
+    /// so read the world during `onKey` and stash the result on the state.
+    view: 's -> Stdlib.Cli.Tui.Size -> Stdlib.Cli.Tui.View
+    onKey: 's -> Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> Step<'s>
+    /// Persist, and return the state as it stands afterwards - annotated, if the write failed and the app
+    /// wants to say so. `noSave` when there's nothing to persist.
+    save: 's -> 's
+
+    /// Recompute derived state after a transition, given (previous, next).
+    ///
+    /// `view` has to be a pure function of state for frame diffing to be sound, so anything that needs a
+    /// DB read or runs user code is computed here and stashed on the state instead. `noRefresh` when
+    /// there's nothing derived.
+    refresh: 's -> 's -> 's }
 
 
-/// Convert a component's rendered text into a complete logical terminal view.
-///
-/// Components still return a string while they migrate incrementally. Splitting
-/// that string here keeps terminal effects and lifecycle control out of feature
-/// code without requiring each existing component to understand the renderer.
-let view (c: Component<'s>) (state: 's) : Tui.View =
-  let rendered = c.render state
+/// Lift rows into a full-screen view. For components that think in lines rather than regions.
+let viewOfRows (rows: List<String>) : Stdlib.Cli.Tui.View =
+  Stdlib.Cli.Tui.View
+    { rows = rows
+      cursor = Stdlib.Cli.Tui.Cursor.Hidden
+      mode = Stdlib.Cli.Tui.ViewMode.Fullscreen }
 
+/// Lift a rendered string (newline-separated) into a full-screen view.
+let viewOfString (rendered: String) : Stdlib.Cli.Tui.View =
   let rows =
-    if rendered == "" then
-      []
-    else
-      Stdlib.String.split rendered "\n"
+    if rendered == "" then [] else Stdlib.String.split rendered "\n"
 
-  Tui.View {
-    rows = rows
-    cursor = Tui.Cursor.Hidden
-    mode = Tui.ViewMode.Fullscreen
-  }
+  viewOfRows rows
+
+/// The `save` for a component with nothing to persist. Named so it survives in retained state.
+let noSave (state: 's) : 's =
+  state
+
+/// The `refresh` for a component with no derived state. Named for the same reason.
+let noRefresh (_previous: 's) (next: 's) : 's =
+  next
+
+/// A component with something to persist but nothing derived.
+let simple
+  (view: 's -> Stdlib.Cli.Tui.Size -> Stdlib.Cli.Tui.View)
+  (onKey: 's -> Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> Step<'s>)
+  (save: 's -> 's)
+  : Component<'s> =
+  Component { view = view; onKey = onKey; save = save; refresh = noRefresh }
+
+/// A component that persists nothing and derives nothing.
+let stateless
+  (view: 's -> Stdlib.Cli.Tui.Size -> Stdlib.Cli.Tui.View)
+  (onKey: 's -> Stdlib.Cli.Stdin.Key.Key -> Stdlib.Cli.Stdin.Modifiers.Modifiers -> Stdlib.Option.Option<String> -> Step<'s>)
+  : Component<'s> =
+  Component { view = view; onKey = onKey; save = noSave; refresh = noRefresh }
 
 
-let toSubApp
-  (c: Component<'s>)
-  (state: 's)
-  (terminal: Tui.TerminalSession.State)
-  : Cli.SubApp =
+/// One retained session: where the component is, and what the terminal currently shows.
+type Session<'s> =
+  { state: 's
+    terminal: Stdlib.Cli.Tui.TerminalSession.State }
+
+let present (c: Component<'s>) (session: Session<'s>) (state: 's) : Session<'s> =
+  // Every transition funnels through here, which makes it the one place derived reads belong.
+  let state = c.refresh session.state state
+  let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
+
+  let terminal =
+    Stdlib.Cli.Tui.TerminalSession.presentAtSize session.terminal size (c.view state size)
+
+  Session { state = state; terminal = terminal }
+
+/// Carry the state forward without repainting - for steps that hand the terminal to someone else.
+let handOff (session: Session<'s>) (state: 's) : Session<'s> =
+  Session { state = state; terminal = session.terminal }
+
+let toSubApp (c: Component<'s>) (session: Session<'s>) : Cli.SubApp =
   Cli.SubApp
     { onKey =
         fun key modifiers keyChar ->
-          match c.onKey state key modifiers keyChar with
+          match c.onKey session.state key modifiers keyChar with
           | Stay next ->
-            let nextTerminal =
-              Tui.TerminalSession.present terminal (view c next)
-            (Cli.SubAppAction.Continue, toSubApp c next nextTerminal)
-          | Exit ->
-            (Cli.SubAppAction.Exit, toSubApp c state terminal)
-      // Presentation happens on launch and state transitions so the returned
-      // SubApp retains the corresponding renderer state.
+            (Cli.SubAppAction.Continue, toSubApp c (present c session next))
+          | Save next ->
+            (Cli.SubAppAction.Save, toSubApp c (present c session next))
+          | Exit next ->
+            (Cli.SubAppAction.Exit, toSubApp c (handOff session next))
+          | Launch(next, command) ->
+            (Cli.SubAppAction.LaunchCommand command, toSubApp c (handOff session next))
+          | ToPrompt next ->
+            (Cli.SubAppAction.LaunchPrompt, toSubApp c (handOff session next))
+      // The session presents on launch and on every state transition, so the returned SubApp carries the
+      // matching renderer history. Nothing is drawn here.
       onDisplay = fun () -> ()
-      onSave = fun () -> ()
+      onSave =
+        fun () ->
+          // Presenting the post-save state is how a failed write reaches the screen. When nothing changed
+          // the renderer diffs it against the last frame and writes nothing, so this costs a comparison.
+          toSubApp c (present c session (c.save session.state))
       onTerminate =
         fun () ->
-          let _stopped = Tui.TerminalSession.stop terminal
+          let _stopped = Stdlib.Cli.Tui.TerminalSession.stop session.terminal
           ()
       onResume =
         fun () ->
-          // A Component renders without consulting the size, so the view is the same at any of them.
-          toSubApp c state (Tui.TerminalSession.resumed (fun _size -> view c state)) }
+          // Whatever ran on top tore the surface down, so the retained view is stale: start over and
+          // repaint from scratch rather than diffing against it.
+          let terminal =
+            Stdlib.Cli.Tui.TerminalSession.resumed (fun size -> c.view session.state size)
+
+          toSubApp c (Session { state = session.state; terminal = terminal }) }
 
 
 /// Launch `c` (starting at `init`) as the CLI's current full-screen page.
 let launch (cliState: Cli.AppState) (c: Component<'s>) (init: 's) : Cli.AppState =
-  match Tui.TerminalSession.start (view c init) with
+  let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
+
+  match Stdlib.Cli.Tui.TerminalSession.startAtSize size (c.view init size) with
   | Ok terminal ->
-    { cliState with
-        currentPage = Cli.Page.SubApp (toSubApp c init terminal) }
+    let session = Session { state = init; terminal = terminal }
+    { cliState with currentPage = Cli.Page.SubApp (toSubApp c session) }
   | Error message ->
     Stdlib.printLine message
     cliState
+
+
+/// Launch, or leave the CLI if the terminal can't be taken.
+///
+/// For a component that has no meaningful fallback: dropping to the prompt after failing to start would
+/// leave you somewhere you didn't ask to be.
+let launchOrExit (cliState: Cli.AppState) (c: Component<'s>) (init: 's) : Cli.AppState =
+  let size = Stdlib.Cli.Tui.TerminalSession.currentSize ()
+
+  match Stdlib.Cli.Tui.TerminalSession.startAtSize size (c.view init size) with
+  | Ok terminal ->
+    let session = Session { state = init; terminal = terminal }
+    { cliState with currentPage = Cli.Page.SubApp (toSubApp c session) }
+  | Error message ->
+    Stdlib.printLine message
+    { cliState with isExiting = true }

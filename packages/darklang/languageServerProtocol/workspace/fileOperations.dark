@@ -78,7 +78,7 @@
   /// Capabilities relating to events from file operations by the user in the client.
   ///
   /// These events do not come from the file system, they come from user operations
-  /// like renaming a file in the UI.
+  /// like renaming a file in the Stdlib.Cli.UI.
   export interface FileOperationClientCapabilities {
     /// Whether the client supports dynamic registration for file requests/notifications.
     dynamicRegistration?: boolean;

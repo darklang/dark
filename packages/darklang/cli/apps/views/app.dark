@@ -10,150 +10,64 @@ type State =
     views: List<ViewEntry> }
 
 
-// ── Pure rendering ──
+// -- Screens --
+//
+// Two: a list of the gallery's views, and one of them filling the screen. Both are `Stdlib.Cli.UI` widgets
+// in a `Chrome` frame, where they used to be hand-built rows with their own title bar, their own rule
+// lines, their own footer and their own viewport arithmetic.
 
-let clipRows (width: Int) (rows: List<String>) : List<String> =
-  rows
-  |> Stdlib.List.map (fun row ->
-    Darklang.Cli.Tui.Text.clipToWidth row width)
+/// The picker labels: a view's name, and its description in dim text after it.
+let listLabels (state: State) : List<String> =
+  state.views
+  |> Stdlib.List.map (fun entry ->
+    (Stdlib.Cli.UI.Colors.boldText entry.name)
+    ++ "   "
+    ++ (Stdlib.Cli.UI.Colors.dimText entry.description))
 
-let listItemRows
-  (selected: Int)
-  (index: Int)
-  (entry: ViewEntry)
-  : List<String> =
-  let isSelected = index == selected
-  let pointer =
-    if isSelected then
-      Darklang.Cli.Colors.colorize
-        (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.cyan)
-        "▸ "
-    else
-      "  "
-  let name =
-    if isSelected then
-      Darklang.Cli.Colors.colorize
-        (Darklang.Cli.Colors.bold ++ Darklang.Cli.Colors.cyan)
-        entry.name
-    else
-      Darklang.Cli.Colors.boldText entry.name
-  [ "  " ++ pointer ++ name
-    "      " ++ Darklang.Cli.Colors.dimText entry.description
-    "" ]
+let listPicker (state: State) (selected: Int) : Stdlib.Cli.UI.Picker.State =
+  Stdlib.Cli.UI.Picker.moveTo (Stdlib.Cli.UI.Picker.make (listLabels state)) selected
 
-let viewListRows
-  (state: State)
-  (selected: Int)
-  (width: Int)
-  (height: Int)
-  : List<String> =
-  let titleHeight = if height >= 3 then 3 else 1
-  let footerHeight =
-    if height >= 4 then 2
-    else if height >= 2 then 1
-    else 0
-  let bodyHeight = Stdlib.Int.max 0 (height - titleHeight - footerHeight)
-
-  let titleRows =
-    Darklang.Cli.Tui.Layout.fitRows
-      titleHeight
-      [ "  "
-        ++ Darklang.Cli.Colors.boldText "Views"
-        ++ "  "
-        ++ Darklang.Cli.Colors.dimText
-            ("—  "
-             ++ Stdlib.Int.toString
-                  (Stdlib.List.length state.views)
-             ++ " available")
-        Darklang.Cli.Colors.dimText
-          (Stdlib.String.repeat "─" width) ]
-
-  let itemRows =
-    state.views
-    |> Stdlib.List.indexedMap (fun index entry ->
-      listItemRows selected index entry)
-    |> Stdlib.List.flatten
-  let selectedRow = Stdlib.Int.max 0 (selected * 3)
-  let bodyRows =
-    Darklang.Cli.Tui.Layout.viewport
-      itemRows
-      selectedRow
-      bodyHeight
-  let footerRows =
-    Darklang.Cli.Tui.Layout.fitRows
-      footerHeight
-      [ Darklang.Cli.Colors.dimText
-          (Stdlib.String.repeat "─" width)
-        "  "
-        ++ Darklang.Cli.Colors.dimText "↑↓"
-        ++ " navigate   "
-        ++ Darklang.Cli.Colors.dimText "enter"
-        ++ " open view   "
-        ++ Darklang.Cli.Colors.dimText "esc"
-        ++ " exit" ]
-
-  Stdlib.List.flatten [ titleRows; bodyRows; footerRows ]
-
-let viewDisplayRows
+/// One view's rows, scrolled to the focused row.
+let displayRows
   (state: State)
   (viewIndex: Int)
   (focusedRow: Int)
-  (size: Darklang.Cli.Tui.Size)
-  (height: Int)
-  : List<String> =
-  let footerHeight = if height >= 2 then 2 else 1
-  let bodyHeight = Stdlib.Int.max 0 (height - footerHeight)
-  let dashboardRows =
+  (size: Stdlib.Cli.Tui.Size)
+  (region: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  let rows =
     match Stdlib.List.getAt state.views viewIndex with
     | Some entry -> rowsAtSize entry.kind size
-    | None -> [ Darklang.Cli.Colors.error "View not found" ]
-  let bodyRows =
-    Darklang.Cli.Tui.Layout.viewport
-      dashboardRows
-      focusedRow
-      bodyHeight
-  let footerRows =
-    Darklang.Cli.Tui.Layout.fitRows
-      footerHeight
-      [ Darklang.Cli.Colors.dimText
-          (Stdlib.String.repeat "─" (Stdlib.Int.max 1 size.width))
-        "  "
-        ++ Darklang.Cli.Colors.dimText "↑↓"
-        ++ " scroll   "
-        ++ Darklang.Cli.Colors.dimText "esc"
-        ++ " back to views list" ]
-  Stdlib.List.append bodyRows footerRows
+    | None -> [ Stdlib.Cli.UI.Colors.error "View not found" ]
+
+  Stdlib.Cli.Tui.Layout.viewport rows focusedRow region.rows
+  |> Stdlib.List.indexedMap (fun i row -> Stdlib.Cli.UI.Layout.at region i 0 row)
+  |> Stdlib.List.flatten
+
+let chromeFor (state: State) : Stdlib.Cli.UI.Chrome.Frame =
+  match state.screen with
+  | ViewList _selected ->
+    let count = Stdlib.Int.toString (Stdlib.List.length state.views)
+
+    Stdlib.Cli.UI.Chrome.frame
+      "Views"
+      $"{count} available"
+      "Up/Down: select   Enter: open   Esc: exit"
+  | ViewDisplay(viewIndex, _focusedRow) ->
+    let name =
+      match Stdlib.List.getAt state.views viewIndex with
+      | Some entry -> entry.name
+      | None -> "View"
+
+    Stdlib.Cli.UI.Chrome.frame name "PREVIEW" "Up/Down: scroll   Esc: back to the list"
 
 /// Build the complete gallery view without terminal reads or writes.
-let viewAtSize
-  (state: State)
-  (size: Darklang.Cli.Tui.Size)
-  : Darklang.Cli.Tui.View =
-  let width = Stdlib.Int.max 1 size.width
-  let contentHeight = Stdlib.Int.max 1 size.height
-  let logicalRows =
+let viewAtSize (state: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View =
+  Stdlib.Cli.UI.Chrome.view (chromeFor state) size (fun region ->
     match state.screen with
-    | ViewList selected ->
-      viewListRows state selected width contentHeight
+    | ViewList selected -> Stdlib.Cli.UI.Picker.view (listPicker state selected) region
     | ViewDisplay(viewIndex, focusedRow) ->
-      viewDisplayRows
-        state
-        viewIndex
-        focusedRow
-        size
-        contentHeight
-  let rows =
-    clipRows
-      width
-      (Darklang.Cli.Tui.Layout.fitRows
-        contentHeight
-        logicalRows)
-
-  Darklang.Cli.Tui.View {
-    rows = rows
-    cursor = Darklang.Cli.Tui.Cursor.Hidden
-    mode = Darklang.Cli.Tui.ViewMode.Fullscreen
-  }
+      displayRows state viewIndex focusedRow size region)
 
 
 // ── Key handling ──
@@ -208,50 +122,20 @@ let handleKey
     | _ -> Action.Continue state
 
 
-// ── Terminal session adapter ──
+// -- Component adapter --
 
-type Session =
-  { state: State
-    terminal: Darklang.Cli.Tui.TerminalSession.State }
+let onKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Darklang.Cli.Component.Step<State> =
+  match handleKey state key modifiers keyChar with
+  | Continue next -> Darklang.Cli.Component.Step.Stay next
+  | Exit next -> Darklang.Cli.Component.Step.Exit next
 
-let presentState (session: Session) (state: State) : Session =
-  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
-  let terminal =
-    Darklang.Cli.Tui.TerminalSession.presentAtSize
-      session.terminal
-      size
-      (viewAtSize state size)
-  Session { state = state; terminal = terminal }
-
-let makeSubApp (session: Session) : Darklang.Cli.SubApp =
-  Darklang.Cli.SubApp
-    { onKey =
-        fun key modifiers keyChar ->
-          match
-            handleKey session.state key modifiers keyChar
-          with
-          | Continue state ->
-            let next = presentState session state
-            ( Darklang.Cli.SubAppAction.Continue
-            , makeSubApp next )
-          | Exit state ->
-            let next =
-              Session { state = state; terminal = session.terminal }
-            ( Darklang.Cli.SubAppAction.Exit
-            , makeSubApp next )
-      // The session presents on launch and state transitions.
-      onDisplay = fun () -> ()
-      onSave = fun () -> ()
-      onTerminate =
-        fun () ->
-          let _stopped =
-            Darklang.Cli.Tui.TerminalSession.stop session.terminal
-          ()
-      onResume =
-        fun () ->
-          let terminal =
-            Darklang.Cli.Tui.TerminalSession.resumed (fun size -> viewAtSize session.state size)
-          makeSubApp (Session { state = session.state; terminal = terminal }) }
+val component =
+  Darklang.Cli.Component.stateless viewAtSize onKey
 
 
 // ── CLI command entry points ──
@@ -270,15 +154,15 @@ let execute
   // Non-interactive: `views list` prints available views.
   | [ "list" ] ->
     Stdlib.printLine
-      (Darklang.Cli.Colors.boldText "Available views:")
+      (Darklang.Stdlib.Cli.UI.Colors.boldText "Available views:")
     Stdlib.printLine ""
     views
     |> Stdlib.List.iter (fun entry ->
       Stdlib.printLine
         ("  "
-         ++ Darklang.Cli.Colors.boldText (slug entry)
+         ++ Darklang.Stdlib.Cli.UI.Colors.boldText (slug entry)
          ++ "  "
-         ++ Darklang.Cli.Colors.dimText entry.description))
+         ++ Darklang.Stdlib.Cli.UI.Colors.dimText entry.description))
     Stdlib.printLine ""
     cliState
 
@@ -291,12 +175,12 @@ let execute
         slug entry == requested)
     match found with
     | Some entry ->
-      let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
+      let size = Darklang.Stdlib.Cli.Tui.TerminalSession.currentSize ()
       rowsAtSize entry.kind size |> Stdlib.printLines
       cliState
     | None ->
       Stdlib.printLine
-        (Darklang.Cli.Colors.error
+        (Darklang.Stdlib.Cli.UI.Colors.error
           ("Unknown view: " ++ viewName))
       Stdlib.printLine
         "Use 'views list' to see available views."
@@ -307,7 +191,7 @@ let execute
     match views with
     | [] ->
       Stdlib.printLine
-        (Darklang.Cli.Colors.dimText "No views available.")
+        (Darklang.Stdlib.Cli.UI.Colors.dimText "No views available.")
       cliState
     | _ ->
       let state =
@@ -315,20 +199,7 @@ let execute
           screen = Screen.ViewList 0
           views = views
         }
-      let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
-      match
-        Darklang.Cli.Tui.TerminalSession.startAtSize
-          size
-          (viewAtSize state size)
-      with
-      | Ok terminal ->
-        let session = Session { state = state; terminal = terminal }
-        { cliState with
-            currentPage =
-              Darklang.Cli.Page.SubApp (makeSubApp session) }
-      | Error message ->
-        Stdlib.printLine message
-        cliState
+      Darklang.Cli.Component.launch cliState component state
 
 
 let help

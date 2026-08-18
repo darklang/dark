@@ -37,13 +37,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ typePath ] ->
     match resolveTypeHash state.currentBranchId typePath with
     | Error msg ->
-      Stdlib.printLine (Colors.error msg)
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
       state
     | Ok typeHash ->
       let values = Stdlib.ValueSearch.findByType state.currentBranchId "" typeHash
 
       if Stdlib.List.isEmpty values then
-        Stdlib.printLine (Colors.dimText $"No values of type {typePath}")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"No values of type {typePath}")
       else
         values
         |> Stdlib.List.iter (fun discovered -> Stdlib.printLine discovered.path)
@@ -53,13 +53,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   | [ typePath; namespace_ ] ->
     match resolveTypeHash state.currentBranchId typePath with
     | Error msg ->
-      Stdlib.printLine (Colors.error msg)
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
       state
     | Ok typeHash ->
       let values = Stdlib.ValueSearch.findByType state.currentBranchId namespace_ typeHash
 
       if Stdlib.List.isEmpty values then
-        Stdlib.printLine (Colors.dimText $"No values of type {typePath} in {namespace_}")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText $"No values of type {typePath} in {namespace_}")
       else
         values
         |> Stdlib.List.iter (fun discovered -> Stdlib.printLine discovered.path)
@@ -78,7 +78,7 @@ let help (_state: Cli.AppState) : String =
     ""
     "Examples:"
     "  find-values Darklang.LanguageTools.WrittenTypesToProgramTypes.Context"
-    "  find-values Darklang.CLI.UI.Core.Types.RenderContext Darklang.CLI" ]
+    "  find-values Darklang.Stdlib.Cli.UI.Layout.Region Darklang.Cli" ]
   |> Stdlib.String.join "\n"
 
 

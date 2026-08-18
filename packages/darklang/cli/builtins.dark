@@ -160,7 +160,7 @@ let execute (state: AppState) (args: List<String>): AppState =
       let group = Stdlib.Tuple2.first pair
       let fns = Stdlib.Tuple2.second pair
       Stdlib.printLine ""
-      Stdlib.printLine (Colors.colorize Colors.bold (getDisplayName group))
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.bold (getDisplayName group))
 
       fns
       |> Stdlib.List.iter (fun fn ->
@@ -197,7 +197,7 @@ let execute (state: AppState) (args: List<String>): AppState =
         |> Stdlib.String.join ", "
 
       Stdlib.printLine ""
-      Stdlib.printLine $"{Colors.colorize Colors.bold (getDisplayName group)}: {names}")
+      Stdlib.printLine $"{Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.bold (getDisplayName group)}: {names}")
 
   let totalCount =
     filteredGroups
@@ -211,11 +211,11 @@ let execute (state: AppState) (args: List<String>): AppState =
       $"Showing {Stdlib.Int.toString totalCount} functions matching '{pattern}'"
 
   [ ""
-    Colors.hint summary ]
+    Stdlib.Cli.UI.Colors.hint summary ]
   |> Stdlib.printLines
 
   if Stdlib.Bool.not withSigs then
-    Stdlib.printLine (Colors.hint "Use --with-sigs to see full function signatures, --with-purity to tag pure/impure")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "Use --with-sigs to see full function signatures, --with-purity to tag pure/impure")
 
   state
 

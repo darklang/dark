@@ -151,21 +151,21 @@ module Command =
                     match Stdlib.Cli.Unix.getHomeDirectory () with
                     | Ok dir -> $"{dir}/.darklang"
                     | Error _ -> "~/.darklang"
-                $"{Colors.green}Status:{Colors.reset} Globally installed at {homeDir} and ready to use"
+                $"{Stdlib.Cli.UI.Colors.green}Status:{Stdlib.Cli.UI.Colors.reset} Globally installed at {homeDir} and ready to use"
               | Portable ->
                 let currentDir = Stdlib.Cli.FileSystem.currentDirectory ()
-                $"{Colors.yellow}Status:{Colors.reset} Running in portable mode at {currentDir}/.darklang (run 'install' for global system-wide access)"
+                $"{Stdlib.Cli.UI.Colors.yellow}Status:{Stdlib.Cli.UI.Colors.reset} Running in portable mode at {currentDir}/.darklang (run 'install' for global system-wide access)"
 
             let textContent =
               [
-                $"{Colors.magenta}Version:{Colors.reset} {version}"
-                $"{Colors.magenta}Location:{Colors.reset} {currentLocation}"
-                $"{Colors.magenta}Mode:{Colors.reset} {modeDisplay}"
+                $"{Stdlib.Cli.UI.Colors.magenta}Version:{Stdlib.Cli.UI.Colors.reset} {version}"
+                $"{Stdlib.Cli.UI.Colors.magenta}Location:{Stdlib.Cli.UI.Colors.reset} {currentLocation}"
+                $"{Stdlib.Cli.UI.Colors.magenta}Mode:{Stdlib.Cli.UI.Colors.reset} {modeDisplay}"
                 installationStatus
                 ""
-                $"Type {Colors.gray}'help'{Colors.reset} for available commands"
+                $"Type {Stdlib.Cli.UI.Colors.gray}'help'{Stdlib.Cli.UI.Colors.reset} for available commands"
               ] |> Stdlib.String.join "\n"
-            //let statusInfo = combineLogoAndText logo textContent Colors.purple
+            //let statusInfo = combineLogoAndText logo textContent Stdlib.Cli.UI.Colors.purple
 
             let newState = { state with commandResult = CommandResult.Info textContent }
             (newState, [])

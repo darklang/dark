@@ -1,107 +1,131 @@
 module Darklang.Cli.Outliner.App
 
-type Session =
-  { state: Main.State
-    terminal: Darklang.Cli.Tui.TerminalSession.State
-    shouldSave: Bool }
+/// The outliner as a `Cli.Component`: a view, a key handler, and a save. The terminal lifecycle (start,
+/// present, stop, resume) belongs to `Cli.Component`, not here.
 
-let presentState
-  (session: Session)
+let view (state: Main.State) (size: Darklang.Stdlib.Cli.Tui.Size) : Darklang.Stdlib.Cli.Tui.View =
+  Main.viewAtSize state size
+
+let onKey
   (state: Main.State)
-  (shouldSave: Bool)
-  : Session =
-  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
-  let terminal =
-    Darklang.Cli.Tui.TerminalSession.presentAtSize
-      session.terminal
-      size
-      (Main.viewAtSize state size)
-  Session {
-    state = state
-    terminal = terminal
-    shouldSave = shouldSave
-  }
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (modifiers: Stdlib.Cli.Stdin.Modifiers.Modifiers)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Darklang.Cli.Component.Step<Main.State> =
+  match Main.handleKey state key modifiers keyChar with
+  | Continue next -> Darklang.Cli.Component.Step.Stay next
+  | Save next -> Darklang.Cli.Component.Step.Save next
+  // Leaving the picker doesn't change persisted documents: every mutation already saved itself.
+  | Exit next -> Darklang.Cli.Component.Step.Exit next
 
-/// Wrap a retained outliner session for the CLI host.
-let makeSubApp (session: Session) : Darklang.Cli.SubApp =
-  Darklang.Cli.SubApp
-    { onKey = fun key modifiers keyChar ->
-        match Main.handleKey session.state key modifiers keyChar with
-        | Continue state ->
-          let next = presentState session state false
-          (Darklang.Cli.SubAppAction.Continue, makeSubApp next)
-        | Save state ->
-          let next = presentState session state true
-          (Darklang.Cli.SubAppAction.Save, makeSubApp next)
-        | Exit state ->
-          let next =
-            Session {
-              state = state
-              terminal = session.terminal
-              // Leaving the picker does not change persisted documents.
-              shouldSave = false
-            }
-          (Darklang.Cli.SubAppAction.Exit, makeSubApp next)
-      // The session presents on launch and state transitions.
-      onDisplay = fun () -> ()
-      onSave =
-        fun () ->
-          if session.shouldSave then
-            Main.Persistence.save session.state
-          else
-            ()
-      onTerminate =
-        fun () ->
-          let _stopped =
-            Darklang.Cli.Tui.TerminalSession.stop session.terminal
-          ()
-      onResume =
-        fun () ->
-          let terminal =
-            Darklang.Cli.Tui.TerminalSession.resumed (fun size -> Main.viewAtSize session.state size)
-          makeSubApp (Session { state = session.state; terminal = terminal; shouldSave = session.shouldSave }) }
+let save (state: Main.State) : Main.State =
+  Main.save state
+
+val component =
+  Darklang.Cli.Component.simple view onKey save
 
 
-/// CLI command: enter the outliner.
-let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.Cli.AppState =
-  let state = Main.Persistence.load ()
-  let size = Darklang.Cli.Tui.TerminalSession.currentSize ()
-  match
-    Darklang.Cli.Tui.TerminalSession.startAtSize
-      size
-      (Main.viewAtSize state size)
-  with
-  | Ok terminal ->
-    let session =
-      Session {
-        state = state
-        terminal = terminal
-        shouldSave = false
-      }
-    { cliState with
-        currentPage = Darklang.Cli.Page.SubApp (makeSubApp session) }
-  | Error message ->
-    Stdlib.printLine message
+/// Flag values, with a default when the flag isn't there.
+let flag (args: List<String>) (name: String) (fallback: String) : String =
+  let rec_ = args |> Stdlib.List.findFirstIndex (fun a -> a == $"--{name}")
+
+  match rec_ with
+  | None -> fallback
+  | Some i ->
+    match Stdlib.List.getAt args (i + 1) with
+    | Some v -> v
+    | None -> fallback
+
+/// The words that aren't flags or flag values.
+let positional (args: List<String>) : List<String> =
+  args
+  |> Stdlib.List.indexedMap (fun i a -> (i, a))
+  |> Stdlib.List.filter (fun pair ->
+    let (i, a) = pair
+    let previous = Stdlib.List.getAt args (i - 1) |> Stdlib.Option.withDefault ""
+
+    (Stdlib.Bool.not (Stdlib.String.startsWith a "--"))
+    && (Stdlib.Bool.not (Stdlib.String.startsWith previous "--")))
+  |> Stdlib.List.map (fun pair ->
+    let (_i, a) = pair
+    a)
+
+/// CLI command: the subcommands, or the full-screen app.
+let execute (cliState: Darklang.Cli.AppState) (args: List<String>) : Darklang.Cli.AppState =
+  let words = positional args
+
+  match words with
+  | [] ->
+    // Without a terminal there's nothing to drive, so say what's there rather than refusing. (The check is
+    // the terminal's own, not `cliState.nonInteractive`, which only means "typed as `dark outliner`" and is
+    // true even when there's a perfectly good terminal.)
+    match Stdlib.Cli.Tui.TerminalSupport.current () with
+    | Available -> Darklang.Cli.Component.launch cliState component (Main.load ())
+    | Unavailable _reason ->
+      Commands.ls ()
+      cliState
+  | "ls" :: _ ->
+    Commands.ls ()
+    cliState
+  | [ "show" ] ->
+    Stdlib.printLine "Usage: outliner show <document>"
+    cliState
+  | "show" :: name :: _ ->
+    Commands.show name
+    cliState
+  | [ "export" ] ->
+    Stdlib.printLine "Usage: outliner export <document> [--format md|opml] [--out <path>]"
+    cliState
+  | "export" :: name :: _ ->
+    Commands.export name (flag args "format" "md") (flag args "out" "")
+    cliState
+  | [ "import" ] ->
+    Stdlib.printLine "Usage: outliner import <path> [--title <name>]"
+    cliState
+  | "import" :: path :: _ ->
+    Commands.import path (flag args "title" "")
+    cliState
+  | [ "add" ] ->
+    Stdlib.printLine "Usage: outliner add <document> <text>"
+    cliState
+  | "add" :: name :: rest ->
+    if Stdlib.List.isEmpty rest then
+      Stdlib.printLine "Usage: outliner add <document> <text>"
+      cliState
+    else
+      Commands.add name (Stdlib.String.join rest " ")
+      cliState
+  | other ->
+    let word = Stdlib.List.head other |> Stdlib.Option.withDefault ""
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error $"outliner: unknown subcommand \"{word}\"")
+    Stdlib.printLine "Try: ls, show, add, export, import - or no arguments for the app."
     cliState
 
 
 /// CLI help text.
-let help (_state: Darklang.Cli.AppState) : String =
+let help (_state: Darklang.Cli.AppState) : Darklang.Cli.AppState =
   [ "Usage: outliner"
     "Interactive tree outliner with multi-document support."
     ""
     "Navigate mode:"
-    "  Up/Down      Move between items"
-    "  Enter        Edit selected item"
+    "  Up/Down      Move between lines"
+    "  Left/Right   Fold, or step out to the parent / in to the first child"
+    "  Home/End     First and last line"
+    "  Enter        Edit the selected line"
     "  Tab          Indent (make child of previous sibling)"
     "  Shift+Tab    Outdent (move to parent's level)"
-    "  o            New sibling below"
-    "  Space        Toggle collapse/expand"
-    "  Ctrl+Up      Move item up among siblings"
-    "  Ctrl+Down    Move item down among siblings"
-    "  Backspace    Delete empty item"
-    "  e            Export current document"
-    "  Escape       Back to document picker"
+    "  o            New line below, O a new line underneath this one"
+    "  x            Plain line -> task -> done -> plain"
+    "  Space        Fold or unfold"
+    "  Ctrl+Up      Move a line up among its siblings"
+    "  Ctrl+Down    Move a line down among its siblings"
+    "  Backspace    Delete a line (asks first, unless it's empty)"
+    "  u / r        Undo, redo"
+    "  /            Search this document; Esc clears the filter"
+    "  e            Export this document"
+    "  g            Back to the document list"
+    "  Escape       Back to the document list"
     ""
     "Document picker:"
     "  Up/Down      Select document"
@@ -109,16 +133,45 @@ let help (_state: Darklang.Cli.AppState) : String =
     "  n            Create new document"
     "  d            Delete selected document"
     "  r            Rename selected document"
+    "  e            Export selected document"
     "  Escape       Exit to main CLI"
     ""
     "Edit mode:"
     "  Type         Insert characters"
-    "  Left/Right   Move cursor"
-    "  Backspace    Delete before cursor"
-    "  Enter/Esc    Finish editing"
-  ] |> Stdlib.String.join "\n"
+    "  Left/Right   Move cursor, Home/End for the ends"
+    "  Tab          Indent this line without leaving it"
+    "  Up/Down      Keep editing, one line further"
+    "  Enter        Finish this line and start the next"
+    "  Esc          Finish editing (the text is kept; u undoes)"
+    ""
+    "Without a terminal:"
+    "  outliner ls                              List documents"
+    "  outliner show <doc>                      Print one as a tree"
+    "  outliner add <doc> <text>                Append a line"
+    "  outliner export <doc> [--format md|opml] [--out <path>]"
+    "  outliner import <path> [--title <name>]  Read Markdown or OPML"
+  ] |> Stdlib.printLines
+  _state
 
 
-/// Tab completion (no arguments).
-let complete (_state: Darklang.Cli.AppState) (_args: List<String>) : List<Darklang.Cli.Completion.CompletionItem> =
-  []
+/// Complete subcommands, then document names for the ones that take one.
+let complete
+  (_state: Darklang.Cli.AppState)
+  (args: List<String>)
+  : List<Darklang.Cli.Completion.CompletionItem> =
+  let item (value: String) : Darklang.Cli.Completion.CompletionItem =
+    Darklang.Cli.Completion.CompletionItem { value = value; display = value }
+
+  match args with
+  | [] -> [ "ls"; "show"; "add"; "export"; "import" ] |> Stdlib.List.map item
+  | [ word ] ->
+    [ "ls"; "show"; "add"; "export"; "import" ]
+    |> Stdlib.List.filter (fun c -> Stdlib.String.startsWith c word)
+    |> Stdlib.List.map item
+  | verb :: _ ->
+    if verb == "show" || verb == "add" || verb == "export" then
+      match Store.load () with
+      | Loaded data -> data.documents |> Stdlib.List.map (fun d -> item d.title)
+      | Unreadable(_path, _reason) -> []
+    else
+      []

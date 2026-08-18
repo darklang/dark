@@ -168,7 +168,7 @@ module Display =
     if Stdlib.String.isEmpty locationStr then
       "> "
     else
-      Colors.dimText $"{locationStr} " ++ "> "
+      Stdlib.Cli.UI.Colors.dimText $"{locationStr} " ++ "> "
 
   /// Format the complete prompt with input and optional hint
   let formatPromptWithInput
@@ -179,15 +179,15 @@ module Display =
     if Stdlib.String.isEmpty hint then
       styledPrefix locationStr ++ text
     else
-      styledPrefix locationStr ++ text ++ (Colors.hint hint)
+      styledPrefix locationStr ++ text ++ (Stdlib.Cli.UI.Colors.hint hint)
 
   /// Build the complete prompt region and Unicode-correct logical cursor.
   let viewAtSize
     (state: State)
     (locationStr: String)
     (hint: String)
-    (size: Tui.Size)
-    : Tui.View =
+    (size: Stdlib.Cli.Tui.Size)
+    : Stdlib.Cli.Tui.View =
     let width = Stdlib.Int.max 1 size.width
     let styled =
       formatPromptWithInput locationStr state.text hint
@@ -199,18 +199,18 @@ module Display =
     let cursorText =
       plainPrefix locationStr ++ beforeCursor
     let (cursorRow, cursorColumn) =
-      Tui.Text.positionAfter cursorText width
-    let wrapped = Tui.Text.wrapStyled styled width
+      Stdlib.Cli.Tui.Text.positionAfter cursorText width
+    let wrapped = Stdlib.Cli.Tui.Text.wrapStyled styled width
     let requiredHeight =
       Stdlib.Int.max
         (Stdlib.List.length wrapped)
         (cursorRow + 1)
     let rows =
-      Tui.Layout.fitRows requiredHeight wrapped
+      Stdlib.Cli.Tui.Layout.fitRows requiredHeight wrapped
 
-    Tui.View {
+    Stdlib.Cli.Tui.View {
       rows = rows
       cursor =
-        Tui.Cursor.Visible(cursorRow, cursorColumn)
-      mode = Tui.ViewMode.Inline
+        Stdlib.Cli.Tui.Cursor.Visible(cursorRow, cursorColumn)
+      mode = Stdlib.Cli.Tui.ViewMode.Inline
     }

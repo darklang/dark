@@ -267,10 +267,10 @@ let executeFiltered
     else ""
 
   let summary = $"{Stdlib.Int.toString totalFns} fns{typesNote} across {Stdlib.Int.toString (Stdlib.List.length allKeys)} modules"
-  Stdlib.printLine (Colors.hint summary)
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.hint summary)
 
   if Stdlib.Bool.not includeTypes then
-    Stdlib.printLine (Colors.hint "Use --types to include type definitions. `view <name>` shows source/docs.")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "Use --types to include type definitions. `view <name>` shows source/docs.")
 
   state
 
@@ -291,7 +291,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     && (Stdlib.Bool.not parsed.all)
 
   if Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) then
-    Stdlib.printLine (Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
     Stdlib.printLine (help state)
     state
   else if isUnscoped then

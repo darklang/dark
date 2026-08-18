@@ -218,19 +218,19 @@ module Topics =
         let contextTag =
           match t.context with
           | "general" -> ""
-          | ctx -> Colors.dimText $" [{ctx}]"
+          | ctx -> Stdlib.Cli.UI.Colors.dimText $" [{ctx}]"
 
-        $"  {Colors.command t.name}{Colors.dimText aliasStr} - {t.description}{contextTag}")
+        $"  {Stdlib.Cli.UI.Colors.command t.name}{Stdlib.Cli.UI.Colors.dimText aliasStr} - {t.description}{contextTag}")
 
     let header =
-      [ Colors.info "Available documentation topics:"
+      [ Stdlib.Cli.UI.Colors.info "Available documentation topics:"
         "" ]
 
     let footer =
       [ ""
-        "Usage: " ++ Colors.command "docs <topic>"
+        "Usage: " ++ Stdlib.Cli.UI.Colors.command "docs <topic>"
         ""
-        "Start with: " ++ Colors.command "docs for-ai" ]
+        "Start with: " ++ Stdlib.Cli.UI.Colors.command "docs for-ai" ]
 
     (Stdlib.List.append (Stdlib.List.append header lines) footer)
     |> Stdlib.String.join "\n"
@@ -269,21 +269,21 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Stdlib.printLine (contentFn ())
         state
       | None ->
-        Stdlib.printLine (Colors.error $"Unknown topic: {topicName}")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Unknown topic: {topicName}")
         Stdlib.printLine ""
         Stdlib.printLine (Topics.formatTopicList ())
         state
 
 
 let help (_state: Cli.AppState) : String =
-  [ Colors.info "Usage: " ++ Colors.command "docs [topic]"
+  [ Stdlib.Cli.UI.Colors.info "Usage: " ++ Stdlib.Cli.UI.Colors.command "docs [topic]"
     "Browse in-CLI documentation."
     ""
-    Colors.info "Examples:"
-    "  " ++ Colors.command "docs" ++ "         - List all topics"
-    "  " ++ Colors.command "docs for-ai" ++ "  - AI agent quick start"
-    "  " ++ Colors.command "docs syntax" ++ "  - Language syntax reference"
-    "  " ++ Colors.command "docs errors" ++ "  - Common errors and fixes" ]
+    Stdlib.Cli.UI.Colors.info "Examples:"
+    "  " ++ Stdlib.Cli.UI.Colors.command "docs" ++ "         - List all topics"
+    "  " ++ Stdlib.Cli.UI.Colors.command "docs for-ai" ++ "  - AI agent quick start"
+    "  " ++ Stdlib.Cli.UI.Colors.command "docs syntax" ++ "  - Language syntax reference"
+    "  " ++ Stdlib.Cli.UI.Colors.command "docs errors" ++ "  - Common errors and fixes" ]
   |> Stdlib.String.join "\n"
 
 

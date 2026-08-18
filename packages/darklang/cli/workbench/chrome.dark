@@ -4,7 +4,7 @@
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
 
-let renderViewBody (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+let renderViewBody (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   if state.activeView == vHome then
     renderHome state region
   else if state.activeView == vMatter then
@@ -12,13 +12,13 @@ let renderViewBody (state: State) (region: UI.Layout.Region) : List<UI.Layout.Sp
     // out. Matter built its own title and showed neither, so a filtered tree was indistinguishable from the
     // whole thing - which is the one place that matters most, since this is the view you browse in.
     let treeTitle =
-      let base_ = if state.matterLens == "values" then "Values" else "Tree"
+      let base_ = if state.matter.lens == Lens.ValuesOnly then "Values" else "Tree"
       let count = Stdlib.Int.toString (Stdlib.List.length state.items)
       if state.filter == "" then base_ ++ "  ·  " ++ count
       else base_ ++ "  ·  " ++ count ++ "  ·  filter: " ++ state.filter
-    UI.SplitPane.render
+    Stdlib.Cli.UI.SplitPane.render
       region
-      UI.SplitPane.Orientation.Horizontal
+      Stdlib.Cli.UI.SplitPane.Orientation.Horizontal
       45
       state.focus
       treeTitle
@@ -34,11 +34,11 @@ let renderViewBody (state: State) (region: UI.Layout.Region) : List<UI.Layout.Sp
   else if state.activeView == vAI then
     renderAI state region
   else if state.activeView == vApps then
-    splitListPreview state region "Apps" "Detail" (Colors.dimText "no apps registered")
+    splitListPreview state region "Apps" "Detail" (Stdlib.Cli.UI.Colors.dimText "no apps registered")
   else if state.activeView == vTraces then
-    splitListPreview state region "Traces" "Detail" (Colors.dimText "no traces yet - eval or run an app to record")
+    splitListPreview state region "Traces" "Detail" (Stdlib.Cli.UI.Colors.dimText "no traces yet - eval or run an app to record")
   else if state.activeView == vDocs then
-    splitListPreview state region "Docs" "Topic" (Colors.dimText "(no topics)")
+    splitListPreview state region "Docs" "Topic" (Stdlib.Cli.UI.Colors.dimText "(no topics)")
   else
     // Extension views render themselves (see `extensionViews`); anything unrecognised shows a stub.
     match extensionViewAt state.activeView with
@@ -49,15 +49,15 @@ let renderViewBody (state: State) (region: UI.Layout.Region) : List<UI.Layout.Sp
       boxedLines
         region
         (viewLabel state.activeView)
-        [ Colors.dimText ((viewLabel state.activeView) ++ " - coming soon") ]
+        [ Stdlib.Cli.UI.Colors.dimText ((viewLabel state.activeView) ++ " - coming soon") ]
 
 /// The multiline editor, framed in a titled box: a spacious authoring surface (not the bottom prompt bar).
 /// The error line (if any) sits just under the title; the buffer renders below with a reverse-video cursor at
 /// (row, col). One column of left padding inside the border reads as intentional.
-let renderEditing (es: EditingState) (region: UI.Layout.Region) : List<UI.Layout.Span> =
-  UI.Box.panel region es.nameStr true (fun inner ->
+let renderEditing (es: EditingState) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
+  Stdlib.Cli.UI.Box.panel region es.nameStr true (fun inner ->
     let errSpans =
-      if es.err != "" then UI.Layout.at inner 0 1 (Colors.error es.err) else []
+      if es.err != "" then Stdlib.Cli.UI.Layout.at inner 0 1 (Stdlib.Cli.UI.Colors.error es.err) else []
     let bodyTop = if es.err != "" then 1 else 0
     let visible = Stdlib.Int.max 1 (inner.rows - bodyTop)
     let scroll = Stdlib.Int.max 0 (es.buf.row - visible + 1)
@@ -74,32 +74,32 @@ let renderEditing (es: EditingState) (region: UI.Layout.Region) : List<UI.Layout
           let before = Stdlib.String.slice l 0 es.buf.col
           let atCursor = if es.buf.col < llen then Stdlib.String.slice l es.buf.col (es.buf.col + 1) else " "
           let after = if es.buf.col < llen then Stdlib.String.slice l (es.buf.col + 1) llen else ""
-          UI.Layout.at inner screenRow 1 (before ++ (Colors.colorize Colors.reverse atCursor) ++ after)
+          Stdlib.Cli.UI.Layout.at inner screenRow 1 (before ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.reverse atCursor) ++ after)
         else
-          UI.Layout.at inner screenRow 1 l)
+          Stdlib.Cli.UI.Layout.at inner screenRow 1 l)
       |> Stdlib.List.flatten
     Stdlib.List.flatten [ errSpans; bodySpans ])
 
 /// The jumpable search-results list, framed in a box. Selection in cyan; ⏎ navigates to the hit.
-let renderSearchResults (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
-  let title = "Search  ·  " ++ (Stdlib.Int.toString (Stdlib.List.length state.searchHits)) ++ " results"
-  UI.Box.panel region title true (fun inner ->
+let renderSearchResults (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
+  let title = "Search  ·  " ++ (Stdlib.Int.toString (Stdlib.List.length state.search.hits)) ++ " results"
+  Stdlib.Cli.UI.Box.panel region title true (fun inner ->
     let lines =
-      state.searchHits
+      state.search.hits
       |> Stdlib.List.indexedMap (fun i h ->
-        if i == state.searchSelected then Colors.colorize Colors.cyan ("> " ++ h.display)
+        if i == state.search.selected then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan ("> " ++ h.display)
         else "  " ++ h.display)
-    UI.ListView.render inner lines state.searchSelected)
+    Stdlib.Cli.UI.ListView.render inner lines state.search.selected)
 
 /// Dispatch the body: the editor, then a reader, then search results, else the active view's body.
-let renderBody (state: State) (region: UI.Layout.Region) : List<UI.Layout.Span> =
+let renderBody (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   match state.editing with
   | Some es -> renderEditing es region
   | None ->
   match state.reading with
   | Some content -> renderReading content state.readingIsCode state.detailScroll region
   | None ->
-    if Stdlib.Bool.not (Stdlib.List.isEmpty state.searchHits) then renderSearchResults state region
+    if Stdlib.Bool.not (Stdlib.List.isEmpty state.search.hits) then renderSearchResults state region
     else renderViewBody state region
 
 /// What a tab is for, and how much of it is actually backed by something, as `(blurb, caveat)`. An empty
@@ -149,16 +149,16 @@ let hintsForView (state: State) : String =
     else if view == vScratch then
       [ ("⏎", "run"); ("f", "clear log"); ("x", "clear session") ]
     else if view == vSCM then
-      if state.scmSection == 3 then
+      if state.scm.section == ScmSection.Branches then
         [ ("↑↓", "move"); ("tab", "section"); ("⏎", "switch"); ("r", "rename"); ("x", "delete"); ("b", "new") ]
-      else if state.scmSection == 2 then
+      else if state.scm.section == ScmSection.Conflicts then
         [ ("↑↓", "move"); ("tab", "section"); ("o", "ours"); ("t", "theirs"); ("a", "ack") ]
       else
         [ ("↑↓", "move"); ("tab", "section"); ("c", "commit"); ("x", "discard"); ("b", "branch"); ("s", "switch"); ("m", "merge"); ("r", "rebase") ]
     else if view == vDevices then
       [ ("c", "config"); ("s", "sync"); ("a", "add") ]
     else if view == vAI then
-      let enterHint = if state.aiSection == 1 then ("⏎", "use") else ("⏎", "open")
+      let enterHint = if state.ai.section == AiSection.Prompts then ("⏎", "use") else ("⏎", "open")
       [ ("↑↓", "move"); enterHint; ("tab", "section"); ("a", "ask") ]
     else if view == vApps then
       [ ("↑↓", "move"); ("⏎", "inspect"); ("i", "install"); ("r", "start"); ("s", "stop") ]
@@ -196,18 +196,22 @@ val helpGroups =
 
 /// The view-picker overlay: a centered, boxed, jumpable list of every view (number + name), the current one
 /// marked. Reaches the views the number keys can't (10th+).
-let renderViewPicker (state: State) (screen: UI.Layout.Region) : List<UI.Layout.Span> =
-  // Only the visible views (Devices hidden unless opted in). pickerSelected is a POSITION into this list.
+let renderViewPicker
+  (state: State)
+  (selected: Int)
+  (screen: Stdlib.Cli.UI.Layout.Region)
+  : List<Stdlib.Cli.UI.Layout.Span> =
+  // Only the visible views (Devices hidden unless opted in). `selected` is a POSITION into this list.
   let vis = visibleViews state
   let n = Stdlib.List.length vis
   let w = 34
   let h = Stdlib.Int.min (n + 2) (screen.rows - 2)
   let top = screen.top + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.rows - h)) 2)
   let left = screen.left + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.cols - w)) 2)
-  let region = UI.Layout.Region { top = top; left = left; rows = h; cols = w }
+  let region = Stdlib.Cli.UI.Layout.Region { top = top; left = left; rows = h; cols = w }
   Stdlib.List.flatten
-    [ UI.Layout.clearRegion region
-      UI.Box.panel region "Go to view  ·  ⏎ jump · esc" true (fun inner ->
+    [ Stdlib.Cli.UI.Layout.clearRegion region
+      Stdlib.Cli.UI.Box.panel region "Go to view  ·  ⏎ jump · esc" true (fun inner ->
         vis
         |> Stdlib.List.indexedMap (fun p viewIdx -> (p, viewIdx))
         |> Stdlib.List.take (inner.rows)
@@ -217,12 +221,12 @@ let renderViewPicker (state: State) (screen: UI.Layout.Region) : List<UI.Layout.
       let numPad = if Stdlib.String.length num < 2 then " " ++ num else num
       let mark = if viewIdx == state.activeView then " ◆" else ""
       let line = numPad ++ "  " ++ (viewLabel viewIdx) ++ mark
-          let styled = if p == state.pickerSelected then Colors.colorize Colors.cyan ("> " ++ line) else "  " ++ line
-          UI.Layout.at inner p 1 styled)
+          let styled = if p == selected then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan ("> " ++ line) else "  " ++ line
+          Stdlib.Cli.UI.Layout.at inner p 1 styled)
         |> Stdlib.List.flatten) ]
 
 /// A centered, boxed keymap overlay drawn over the frame. The interior is cleared so nothing shows through.
-let renderHelpOverlay (screen: UI.Layout.Region) : List<UI.Layout.Span> =
+let renderHelpOverlay (screen: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   // Wide enough for the longest group, not a round number. A fixed 70 clipped the Matter row - the single most
   // useful line in the keymap - on a terminal with room to spare. 11 is where the keys column starts, plus the
   // border and a column of padding either side.
@@ -230,17 +234,17 @@ let renderHelpOverlay (screen: UI.Layout.Region) : List<UI.Layout.Span> =
     helpGroups
     |> Stdlib.List.map (fun pair ->
       let (_label, keys) = pair
-      Tui.Text.displayWidth keys)
+      Stdlib.Cli.Tui.Text.displayWidth keys)
     |> Stdlib.List.fold 0 (fun acc n -> Stdlib.Int.max acc n)
   let w = Stdlib.Int.min (Stdlib.Int.max 40 (widest + 14)) (Stdlib.Int.max 40 (screen.cols - 4))
   let rows = (Stdlib.List.length helpGroups) * 2 + 3
   let h = Stdlib.Int.min (Stdlib.Int.max 8 rows) (screen.rows - 2)
   let top = screen.top + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.rows - h)) 2)
   let left = screen.left + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.cols - w)) 2)
-  let region = UI.Layout.Region { top = top; left = left; rows = h; cols = w }
+  let region = Stdlib.Cli.UI.Layout.Region { top = top; left = left; rows = h; cols = w }
   Stdlib.List.flatten
-    [ UI.Layout.clearRegion region
-      UI.Box.panel region "Keys  ·  any key closes" true (fun inner ->
+    [ Stdlib.Cli.UI.Layout.clearRegion region
+      Stdlib.Cli.UI.Box.panel region "Keys  ·  any key closes" true (fun inner ->
         helpGroups
         |> Stdlib.List.indexedMap (fun i pair -> (i, pair))
         |> Stdlib.List.map (fun ipair ->
@@ -248,6 +252,6 @@ let renderHelpOverlay (screen: UI.Layout.Region) : List<UI.Layout.Span> =
           let (label, keys) = pair
           let row = (i * 2) + 1
           Stdlib.List.flatten
-            [ UI.Layout.at inner row 1 (Colors.colorize Colors.cyan label)
-              UI.Layout.at inner row 11 (Colors.dimText keys) ])
+            [ Stdlib.Cli.UI.Layout.at inner row 1 (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan label)
+              Stdlib.Cli.UI.Layout.at inner row 11 (Stdlib.Cli.UI.Colors.dimText keys) ])
         |> Stdlib.List.flatten) ]

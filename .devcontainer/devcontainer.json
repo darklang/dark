@@ -100,6 +100,12 @@
     // Shared on purpose: a package cache, not the state of any one clone.
     "type=volume,src=dark_nuget,dst=/home/dark/.nuget",
 
+    // `~/.darklang` is where an instance keeps what a person made: the outliner's documents, the
+    // capability grant. It was living in the container's writable layer, so it survived a stop and start
+    // and went away with a rebuild. Keyed per clone, like the build output, since clones are separate
+    // instances and shouldn't be handing each other their documents.
+    "type=volume,src=dark_home_${localWorkspaceFolderBasename},dst=/home/dark/.darklang",
+
     // VS Code extensions
     "type=volume,src=darklang-dark-extension-volume,dst=/home/dark/.vscode-server/extensions",
     "type=volume,src=darklang-dark-extension-volume-insiders,dst=/home/dark/.vscode-server-insiders/extensions"

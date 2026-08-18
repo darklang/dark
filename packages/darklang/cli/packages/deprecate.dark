@@ -129,7 +129,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
   match (parsed.itemType, parsed.target, parsed.kind) with
   | _ when Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) ->
-    Stdlib.printLine (Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error (FlagParser.parseErrorsMessage parsed.parseErrors))
     Stdlib.printLine (help state)
     state
 
@@ -138,26 +138,26 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     state
 
   | (Some _, None, _) ->
-    Stdlib.printLine (Colors.error "Error: Missing target (location or hash)")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Error: Missing target (location or hash)")
     state
 
   | (_, _, None) ->
     Stdlib.printLine
-      (Colors.error
+      (Stdlib.Cli.UI.Colors.error
         "Error: Missing --kind. Use: superseded-by, harmful, or obsolete")
     state
 
   | (Some itemTypeStr, Some target, Some kindStr) ->
     match Propagate.itemKindFromString itemTypeStr with
     | None ->
-      Stdlib.printLine (Colors.error $"Error: Invalid item type '{itemTypeStr}'")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Error: Invalid item type '{itemTypeStr}'")
       Stdlib.printLine "Must be one of: fn, type, value"
       state
     | Some itemKind ->
       let currentLoc = state.packageData.currentLocation
       match resolveTarget branchId currentLoc itemKind target with
       | None ->
-        Stdlib.printLine (Colors.error $"Could not resolve {itemTypeStr} {target}")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Could not resolve {itemTypeStr} {target}")
         state
       | Some targetRef ->
         // --replacement has three outcomes we care about:
@@ -178,13 +178,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
         match replacementResult with
         | Error msg ->
-          Stdlib.printLine (Colors.error msg)
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
           state
         | Ok replacementRef ->
 
         match parseKind itemKind kindStr replacementRef with
         | Error msg ->
-          Stdlib.printLine (Colors.error msg)
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
           state
         | Ok deprecationKind ->
           let fullPath =
@@ -217,7 +217,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           | [ _ ] -> ()
           | _ ->
             Stdlib.printLine
-              (Colors.warning
+              (Stdlib.Cli.UI.Colors.warning
                 $"  Heads up: this {itemTypeStr}'s content is bound to multiple names — deprecation keys on content, so ALL of these are deprecated together:")
             affected
             |> Stdlib.List.map (fun a -> $"    - {a}")
@@ -232,7 +232,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
                 true
               else
                 Stdlib.printLine ""
-                Stdlib.print (Colors.warning "Proceed? (y/n): ")
+                Stdlib.print (Stdlib.Cli.UI.Colors.warning "Proceed? (y/n): ")
                 let response = Stdlib.Cli.Stdin.readLine ()
                 (response == "y") || (response == "Y")
 
@@ -243,10 +243,10 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               match SCM.PackageOps.add branchId [ op ] with
               | Ok _ ->
                 Stdlib.printLine
-                  (Colors.success $"Deprecated {itemTypeStr} {fullPath}")
+                  (Stdlib.Cli.UI.Colors.success $"Deprecated {itemTypeStr} {fullPath}")
                 state
               | Error e ->
-                Stdlib.printLine (Colors.error $"Deprecation failed: {e}")
+                Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Deprecation failed: {e}")
                 state
             else
               Stdlib.printLine "Deprecation cancelled."

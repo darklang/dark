@@ -44,13 +44,13 @@ let promptDetail (selected: Int) : String =
   match Stdlib.List.getAt (demoPrompts ()) selected with
   | Some p ->
     let (name, desc) = p
-    (Colors.boldText name)
+    (Stdlib.Cli.UI.Colors.boldText name)
     ++ "\n\n"
     ++ desc
     ++ "\n\n"
     ++ "⏎ use (fills the ask bar)  ·  e edit  ·  n new"
     ++ "\n\n"
-    ++ (Colors.dimText "(mock data)")
+    ++ (Stdlib.Cli.UI.Colors.dimText "(mock data)")
   | None -> "(no prompt selected)"
 
 /// All package values across the tree (for the Things view) - a flat, searchable browser of the data/consts.
@@ -147,7 +147,7 @@ let branchDetail (state: State) : String =
       match b.mergedAt with
       | Some _ -> "merged"
       | None -> if b.id == state.branchId then "active (current)" else "active"
-    (Colors.boldText b.name)
+    (Stdlib.Cli.UI.Colors.boldText b.name)
     ++ "\n\n"
     ++ "parent:  " ++ parent ++ "\n"
     ++ "status:  " ++ status ++ "\n\n"
@@ -184,19 +184,19 @@ let errorDetail (state: State) : String =
     // The conflict rows are real; only the sample rows are invented.
     let provenance =
       if item.kind == "error-sample" then
-        Colors.dimText "(mock data) - a real Errors view aggregates: test failures + tests that"
+        Stdlib.Cli.UI.Colors.dimText "(mock data) - a real Errors view aggregates: test failures + tests that"
       else
-        Colors.dimText "this is a real recorded conflict. The rest of an Errors view aggregates:"
-    (Colors.boldText item.name)
+        Stdlib.Cli.UI.Colors.dimText "this is a real recorded conflict. The rest of an Errors view aggregates:"
+    (Stdlib.Cli.UI.Colors.boldText item.name)
     ++ "\n\n"
     ++ provenance
     ++ "\n"
-    ++ (Colors.dimText "pass but shouldn't, HTTP 5xx on tracked endpoints, unresolved conflicts,")
+    ++ (Stdlib.Cli.UI.Colors.dimText "pass but shouldn't, HTTP 5xx on tracked endpoints, unresolved conflicts,")
     ++ "\n"
-    ++ (Colors.dimText "deprecations still in use, and perf regressions.")
+    ++ (Stdlib.Cli.UI.Colors.dimText "deprecations still in use, and perf regressions.")
     ++ "\n\n"
     ++ "⏎ open the source / trace     f filter by kind"
-  | None -> Colors.colorize Colors.green "✓ all clear - no errors"
+  | None -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ all clear - no errors"
 
 /// The Crons view - scheduled jobs on this instance (mock until a Darklang.Cron value type + engine exist;
 /// see notes/cli-ux/22-things.md and classic Dark's cron model). Columns: status · name · schedule · last · next.
@@ -209,17 +209,17 @@ let loadCronItems () : List<BodyItem> =
 let cronDetail (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
   | Some item ->
-    (Colors.boldText item.name)
+    (Stdlib.Cli.UI.Colors.boldText item.name)
     ++ "\n\n"
     ++ "schedule : daily at 02:00  (EveryDay)\n"
     ++ "handler  : Stachu.Backups.nightly  @9fa3…\n"
     ++ "last run : 2026-07-24 02:00  ok  1.2s\n"
     ++ "next run : 2026-07-25 02:00  (in 9h)\n"
     ++ "state    : enabled · runs 41 · fails 0 · ● this instance\n\n"
-    ++ (Colors.dimText "(mock data)")
+    ++ (Stdlib.Cli.UI.Colors.dimText "(mock data)")
     ++ "\n\n"
     ++ "r run-now   p pause/resume   t traces   e edit"
-  | None -> Colors.dimText "no crons yet - declare a Darklang.Cron value"
+  | None -> Stdlib.Cli.UI.Colors.dimText "no crons yet - declare a Darklang.Cron value"
 
 /// Recent execution traces (for the Traces view). Real traces if any are recorded; otherwise a labeled
 /// preview set so the surface reads as complete rather than empty (this env records none).
@@ -249,25 +249,25 @@ let loadAppItems (branchId: Uuid) : List<BodyItem> =
 
 /// The body items for a given view. Home/Matter list packages (Matter with a Values lens); SCM lists its
 /// active section (WIP / commits / conflicts); AI/Apps/Traces/Docs their own; Scratch/Devices render their
-/// own bodies (no list). `scmSection` and `matterLens` come from state.
+/// own bodies (no list). The section and the lens come from the view states.
 let itemsForView
   (view: Int)
   (branchId: Uuid)
   (location: Packages.PackageLocation)
-  (scmSection: Int)
-  (aiSection: Int)
-  (matterLens: String)
+  (scmSection: ScmSection)
+  (aiSection: AiSection)
+  (matterLens: Lens)
   : List<BodyItem> =
   if view == vHome then loadItems branchId location
   else if view == vMatter then
-    if matterLens == "values" then loadThingItems branchId else loadItems branchId location
+    if matterLens == Lens.ValuesOnly then loadThingItems branchId else loadItems branchId location
   else if view == vSCM then
-    if scmSection == 1 then loadCommitBodyItems branchId
-    else if scmSection == 2 then loadConflictBodyItems ()
-    else if scmSection == 3 then loadBranchItems branchId
+    if scmSection == ScmSection.History then loadCommitBodyItems branchId
+    else if scmSection == ScmSection.Conflicts then loadConflictBodyItems ()
+    else if scmSection == ScmSection.Branches then loadBranchItems branchId
     else loadWipBodyItems branchId
   else if view == vAI then
-    if aiSection == 1 then loadPromptItems () else loadAiThreadItems ()
+    if aiSection == AiSection.Prompts then loadPromptItems () else loadAiThreadItems ()
   else if view == vApps then loadAppItems branchId
   else if view == vTraces then loadTraceBodyItems ()
   else if view == vDocs then loadDocBodyItems ()
@@ -303,7 +303,7 @@ let applyFilter (items: List<BodyItem>) (filter: String) : List<BodyItem> =
 /// Switching to a DIFFERENT list is the other case, and those sites clear `filter` instead: a filter you
 /// typed for Changes has no business narrowing History.
 let reloadItems (state: State) : List<BodyItem> =
-  itemsForView state.activeView state.branchId state.location state.scmSection state.aiSection state.matterLens
+  itemsForView state.activeView state.branchId state.location state.scm.section state.ai.section state.matter.lens
   |> applyFilter state.filter
 
 

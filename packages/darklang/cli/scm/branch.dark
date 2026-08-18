@@ -15,7 +15,7 @@ let branchAnnotation
   let pendingPart =
     if wip.total > 0 then
       let total = Stdlib.Int.toString wip.total
-      [ Colors.warning $"{total} pending" ]
+      [ Stdlib.Cli.UI.Colors.warning $"{total} pending" ]
     else
       []
 
@@ -28,7 +28,7 @@ let branchAnnotation
 
       if commitCount > 0 then
         let count = Stdlib.Int.toString commitCount
-        [ Colors.info $"{count} committed" ]
+        [ Stdlib.Cli.UI.Colors.info $"{count} committed" ]
       else
         []
 
@@ -69,7 +69,7 @@ let printBranchTree
 
     let marker =
       if child.id == currentBranchId then
-        Colors.success "* "
+        Stdlib.Cli.UI.Colors.success "* "
       else
         "  "
 
@@ -106,7 +106,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       | Some main ->
         let marker =
           if main.id == state.currentBranchId then
-            Colors.success "* "
+            Stdlib.Cli.UI.Colors.success "* "
           else
             "  "
 
@@ -128,7 +128,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           if isOrphan then
             let orphanMarker =
               if b.id == state.currentBranchId then
-                Colors.success "* "
+                Stdlib.Cli.UI.Colors.success "* "
               else
                 "  "
 
@@ -144,7 +144,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
         |> Stdlib.List.iter (fun b ->
           let marker =
             if b.id == state.currentBranchId then
-              Colors.success "* "
+              Stdlib.Cli.UI.Colors.success "* "
             else
               "  "
 
@@ -153,7 +153,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
 
   | [ "create"; name ] ->
     let newBranch = SCM.Branch.create name state.currentBranchId
-    Stdlib.printLine (Colors.success $"Created and switched to branch '{name}'")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Created and switched to branch '{name}'")
     if state.nonInteractive then
       Stdlib.printLine
         "(non-interactive: pass --branch or set DARK_BRANCH on the next call)"
@@ -168,7 +168,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           "(non-interactive: pass --branch or set DARK_BRANCH on the next call)"
       { state with currentBranchId = b.id }
     | None ->
-      Stdlib.printLine (Colors.error $"Branch '{name}' not found.")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Branch '{name}' not found.")
       state
 
   // `switch` only lasts as long as the process, which is no use to a non-interactive run — hence its own
@@ -191,27 +191,27 @@ let execute (state: AppState) (args: List<String>) : AppState =
           name
 
       let _ = Darklang.Cli.Config.writeConfig updated
-      Stdlib.printLine (Colors.success $"Default branch is now '{name}'.")
-      Stdlib.printLine (Colors.hint "  Override once with --branch, or per-shell with DARK_BRANCH.")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Default branch is now '{name}'.")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.hint "  Override once with --branch, or per-shell with DARK_BRANCH.")
       state
     | None ->
-      Stdlib.printLine (Colors.error $"Branch '{name}' not found.")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Branch '{name}' not found.")
       state
 
   // Setting is its own verb (`set-default`), so `default` reads as show-only and doesn't silently write.
   | [ "default"; name ] ->
-    Stdlib.printLine (Colors.hint $"To set the default branch, use:  branch set-default {name}")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"To set the default branch, use:  branch set-default {name}")
     state
 
   | [ "rename"; oldName; newName ] ->
     match SCM.Branch.getByName oldName with
     | Some b ->
       match SCM.Branch.rename b.id newName with
-      | Ok _ -> Stdlib.printLine (Colors.success $"Renamed '{oldName}' to '{newName}'")
-      | Error e -> Stdlib.printLine (Colors.error $"Rename failed: {e}")
+      | Ok _ -> Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Renamed '{oldName}' to '{newName}'")
+      | Error e -> Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Rename failed: {e}")
       state
     | None ->
-      Stdlib.printLine (Colors.error $"Branch '{oldName}' not found.")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Branch '{oldName}' not found.")
       state
 
   | [ "delete"; name ] | [ "archive"; name ] ->
@@ -219,7 +219,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     | Some b ->
       match SCM.Branch.archive b.id with
       | Ok _ ->
-        Stdlib.printLine (Colors.success $"Archived branch '{name}'")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Archived branch '{name}'")
         if b.id == state.currentBranchId then
           let mainId = SCM.Branch.mainBranchId
           Stdlib.printLine "Switched to main."
@@ -227,10 +227,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
         else
           state
       | Error e ->
-        Stdlib.printLine (Colors.error $"Archive failed: {e}")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Archive failed: {e}")
         state
     | None ->
-      Stdlib.printLine (Colors.error $"Branch '{name}' not found.")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Branch '{name}' not found.")
       state
 
   | _ ->

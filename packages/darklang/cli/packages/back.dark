@@ -6,7 +6,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
   match Stdlib.List.last state.packageData.locationHistory with
   | Some previousLocation ->
     let pathStr = formatLocation previousLocation
-    Stdlib.printLine (Colors.success ("Back to: " ++ pathStr))
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.success ("Back to: " ++ pathStr))
 
     { state with
         prompt = Prompt.Editing.clear state.prompt

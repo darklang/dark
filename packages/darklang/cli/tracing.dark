@@ -25,7 +25,7 @@ let emptyStateHint () : String =
 
 /// Print the empty-result explanation, dimmed.
 let printEmptyStateHint () : Unit =
-  Stdlib.printLine (Colors.dimText (emptyStateHint ()))
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.dimText (emptyStateHint ()))
 
 
 /// Filters applied when rendering a trace tree. Each filter hides matching
@@ -88,19 +88,19 @@ let parsePositionalErr (input: String) (label: String) : String =
 /// "Trace not found: --fake-arg".
 let resolveTraceID (input: String) : Stdlib.Option.Option<String> =
   if Stdlib.String.startsWith input "-" then
-    Stdlib.printLine (Colors.error $"Unknown flag: {input}")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Unknown flag: {input}")
     Stdlib.Option.Option.None
   else
     // Trim accidental whitespace from copy-paste; never part of a UUID.
     let trimmed = Stdlib.String.trim input
     if trimmed == "" then
-      Stdlib.printLine (Colors.error "Trace ID must not be empty")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Trace ID must not be empty")
       Stdlib.Option.Option.None
     else
       match Darklang.Tracing.Store.resolveID trimmed with
       | Ok fullID -> Stdlib.Option.Option.Some fullID
       | Error msg ->
-        Stdlib.printLine (Colors.error msg)
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
         Stdlib.Option.Option.None
 
 
@@ -213,18 +213,18 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     if wantsJson then executeListJson state 20 else executeList state 20
   | [ "list"; "--fn" ] ->
     Stdlib.printLine
-      (Colors.error "Usage: traces list --fn <name> [limit] [--json]")
+      (Stdlib.Cli.UI.Colors.error "Usage: traces list --fn <name> [limit] [--json]")
     state
   | [ "list"; "--route" ] ->
     Stdlib.printLine
-      (Colors.error "Usage: traces list --route <substring> [limit] [--json]")
+      (Stdlib.Cli.UI.Colors.error "Usage: traces list --route <substring> [limit] [--json]")
     state
   | [ "list"; limitStr ] ->
     match Stdlib.Int.parse limitStr with
     | Ok limit ->
       if wantsJson then executeListJson state limit else executeList state limit
     | Error _ ->
-      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
       state
   | [ "list"; "--fn"; fnName ] ->
     executeListByFn state fnName 20 wantsJson
@@ -232,7 +232,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     match Stdlib.Int.parse limitStr with
     | Ok limit -> executeListByFn state fnName limit wantsJson
     | Error _ ->
-      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
       state
   | [ "list"; "--route"; route ] ->
     executeListByRoute state route 20 wantsJson
@@ -240,7 +240,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     match Stdlib.Int.parse limitStr with
     | Ok limit -> executeListByRoute state route limit wantsJson
     | Error _ ->
-      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
       state
 
   | [ "follow" ] ->
@@ -255,7 +255,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     | Ok limit ->
       if wantsJson then executeStatsJson state limit else executeStats state limit
     | Error _ ->
-      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
       state
 
   | [ "tail" ] -> executeTail state Stdlib.Option.Option.None 1
@@ -263,13 +263,13 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // (which would otherwise treat "--route" as a malformed N).
   | [ "tail"; "--route" ] ->
     Stdlib.printLine
-      (Colors.error "Usage: traces tail [N] --route <substring>")
+      (Stdlib.Cli.UI.Colors.error "Usage: traces tail [N] --route <substring>")
     state
   | [ "tail"; nStr ] ->
     match Stdlib.Int.parse nStr with
     | Ok n -> executeTail state Stdlib.Option.Option.None n
     | Error _ ->
-      Stdlib.printLine (Colors.error (parsePositionalErr nStr "trace number"))
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr nStr "trace number"))
       state
   | [ "tail"; "--route"; route ] ->
     executeTail state (Stdlib.Option.Option.Some route) 1
@@ -278,7 +278,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     match Stdlib.Int.parse nStr with
     | Ok n -> executeTail state (Stdlib.Option.Option.Some route) n
     | Error _ ->
-      Stdlib.printLine (Colors.error (parsePositionalErr nStr "trace number"))
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr nStr "trace number"))
       state
 
   | [ "find"; pattern ] ->
@@ -294,7 +294,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       if wantsJson then executeFindJson state pattern limit
       else executeFind state pattern limit
     | Error _ ->
-      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
       state
 
   | [ "hotspots" ] ->
@@ -306,7 +306,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       if wantsJson then executeHotspotsJson state limit
       else executeHotspots state limit
     | Error _ ->
-      Stdlib.printLine (Colors.error (parsePositionalErr limitStr "limit"))
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr limitStr "limit"))
       state
 
   | "view" :: traceID :: flagArgs ->
@@ -316,7 +316,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
       | Some full -> executeView state full opts
       | None -> state
     | Error msg ->
-      Stdlib.printLine (Colors.error msg)
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
       state
 
   | [ "replay"; traceID ] ->
@@ -354,7 +354,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
         Stdlib.printLine "Cancelled."
         state
     | Error _ ->
-      Stdlib.printLine (Colors.error (parsePositionalErr nStr "--keep N"))
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error (parsePositionalErr nStr "--keep N"))
       state
 
   | [ "delete"; traceID ] ->
@@ -372,14 +372,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // (the list/tail variants are handled inline above).
   | [ "follow"; "--route" ] ->
     Stdlib.printLine
-      (Colors.error "Usage: traces follow --route <substring> [--json]")
+      (Stdlib.Cli.UI.Colors.error "Usage: traces follow --route <substring> [--json]")
     state
   | [ "delete"; "--keep" ] ->
-    Stdlib.printLine (Colors.error "Usage: traces delete --keep <N>")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: traces delete --keep <N>")
     state
   | [ "delete"; "--before" ] ->
     Stdlib.printLine
-      (Colors.error
+      (Stdlib.Cli.UI.Colors.error
         "Usage: traces delete --before <duration> (e.g. 30s, 5m, 1h, 2d)")
     state
 
@@ -387,19 +387,19 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // argument. Better than dumping the full multi-page help — the user
   // ran a known command, just forgot the id/path.
   | [ "view" ] ->
-    Stdlib.printLine (Colors.error "Usage: traces view <trace-id> [flags]")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: traces view <trace-id> [flags]")
     state
   | [ "replay" ] ->
-    Stdlib.printLine (Colors.error "Usage: traces replay <trace-id>")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: traces replay <trace-id>")
     state
   | [ "delete" ] ->
     Stdlib.printLine
-      (Colors.error
+      (Stdlib.Cli.UI.Colors.error
         "Usage: traces delete <trace-id> | --all | --keep <N> | --before <duration>")
     state
   | [ "find" ] ->
     Stdlib.printLine
-      (Colors.error
+      (Stdlib.Cli.UI.Colors.error
         "Usage: traces find <pattern> [limit] [--view] [--json]")
     state
 
@@ -407,40 +407,40 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
   // by the earlier specific arms (e.g. `traces follow --fake-arg`).
   | "follow" :: _ ->
     Stdlib.printLine
-      (Colors.error "Usage: traces follow [--route <substring>] [--json]")
+      (Stdlib.Cli.UI.Colors.error "Usage: traces follow [--route <substring>] [--json]")
     state
 
   // Catch malformed arity-1 invocations (e.g. `traces replay <id> --fake-arg`)
   // that the strict-length arms above missed.
   | "replay" :: _ ->
-    Stdlib.printLine (Colors.error "Usage: traces replay <trace-id>")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Usage: traces replay <trace-id>")
     state
   | "delete" :: _ ->
     Stdlib.printLine
-      (Colors.error
+      (Stdlib.Cli.UI.Colors.error
         "Usage: traces delete <trace-id> | --all | --keep <N> | --before <duration>")
     state
   | "tail" :: _ ->
     Stdlib.printLine
-      (Colors.error "Usage: traces tail [N] [--route <substring>]")
+      (Stdlib.Cli.UI.Colors.error "Usage: traces tail [N] [--route <substring>]")
     state
   | "list" :: _ ->
     Stdlib.printLine
-      (Colors.error
+      (Stdlib.Cli.UI.Colors.error
         "Usage: traces list [limit] | list --fn <substring> [limit] [--json] | list --route <substring> [limit] [--json]")
     state
   | "find" :: _ ->
     Stdlib.printLine
-      (Colors.error
+      (Stdlib.Cli.UI.Colors.error
         "Usage: traces find <pattern> [limit] [--view] [--json]")
     state
   | "hotspots" :: _ ->
     Stdlib.printLine
-      (Colors.error "Usage: traces hotspots [trace-limit] [--json]")
+      (Stdlib.Cli.UI.Colors.error "Usage: traces hotspots [trace-limit] [--json]")
     state
   | "stats" :: _ ->
     Stdlib.printLine
-      (Colors.error "Usage: traces stats [limit] [--json]")
+      (Stdlib.Cli.UI.Colors.error "Usage: traces stats [limit] [--json]")
     state
 
   | _ ->
@@ -458,7 +458,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
     if Stdlib.Bool.not isKnownHead then
       match args with
       | head :: _ ->
-        Stdlib.printLine (Colors.error $"Unknown subcommand: {head}")
+        Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Unknown subcommand: {head}")
         Stdlib.printLine ""
         Stdlib.printLine (help state)
         state
@@ -472,7 +472,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 
 let executeList (state: Cli.AppState) (limit: Int) : Cli.AppState =
   if limit < 1 then
-    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Limit must be ≥ 1")
     state
   else
     let rows = Darklang.Tracing.Store.list limit
@@ -496,7 +496,7 @@ let executeList (state: Cli.AppState) (limit: Int) : Cli.AppState =
 /// footers. Designed for piping into jq / scripts. Empty store prints `[]`.
 let executeListJson (state: Cli.AppState) (limit: Int) : Cli.AppState =
   if limit < 1 then
-    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Limit must be ≥ 1")
     state
   else
     let rows = Darklang.Tracing.Store.list limit
@@ -511,10 +511,10 @@ let executeListByFn
   (jsonMode: Bool)
   : Cli.AppState =
   if Stdlib.String.trim fnName == "" then
-    Stdlib.printLine (Colors.error "--fn pattern must not be empty")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "--fn pattern must not be empty")
     state
   else if limit < 1 then
-    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Limit must be ≥ 1")
     state
   else
     let rows = Darklang.Tracing.Store.listByFn fnName limit
@@ -544,7 +544,7 @@ let executeHotspots
   (traceLimit: Int)
   : Cli.AppState =
   if traceLimit < 1 then
-    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Limit must be ≥ 1")
     state
   else
     let rows = Darklang.Tracing.Store.hotspots traceLimit
@@ -578,7 +578,7 @@ let executeHotspotsJson
   (traceLimit: Int)
   : Cli.AppState =
   if traceLimit < 1 then
-    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Limit must be ≥ 1")
     state
   else
     let rows = Darklang.Tracing.Store.hotspots traceLimit
@@ -615,10 +615,10 @@ let executeFind
   (limit: Int)
   : Cli.AppState =
   if pattern == "" then
-    Stdlib.printLine (Colors.error "find pattern must not be empty")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "find pattern must not be empty")
     state
   else if limit < 1 then
-    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Limit must be ≥ 1")
     state
   else
     let rows = Darklang.Tracing.Store.find pattern limit
@@ -647,10 +647,10 @@ let executeFindJson
   (limit: Int)
   : Cli.AppState =
   if pattern == "" then
-    Stdlib.printLine (Colors.error "find pattern must not be empty")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "find pattern must not be empty")
     state
   else if limit < 1 then
-    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Limit must be ≥ 1")
     state
   else
     let rows = Darklang.Tracing.Store.find pattern limit
@@ -663,7 +663,7 @@ let executeFindJson
 /// the others are noted but the user gets the freshest one.
 let executeFindView (state: Cli.AppState) (pattern: String) : Cli.AppState =
   if pattern == "" then
-    Stdlib.printLine (Colors.error "find pattern must not be empty")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "find pattern must not be empty")
     state
   else
     let rows = Darklang.Tracing.Store.find pattern 1
@@ -694,10 +694,10 @@ let executeTail
     | Some r -> Stdlib.String.trim r == ""
     | None -> false
   if n < 1 then
-    Stdlib.printLine (Colors.error "tail N must be ≥ 1")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "tail N must be ≥ 1")
     state
   else if routeIsEmpty then
-    Stdlib.printLine (Colors.error "--route pattern must not be empty")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "--route pattern must not be empty")
     state
   else
     // Over-fetch so route-filtered Nth candidate is reachable; the
@@ -743,7 +743,7 @@ let executeTail
 /// for "which routes are heavy?" vs "which fns are heavy?".
 let executeStats (state: Cli.AppState) (limit: Int) : Cli.AppState =
   if limit < 1 then
-    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Limit must be ≥ 1")
     state
   else
     let rows = Darklang.Tracing.Store.statsByHandler limit
@@ -785,7 +785,7 @@ let executeStats (state: Cli.AppState) (limit: Int) : Cli.AppState =
 /// for piping. Empty store prints `[]`.
 let executeStatsJson (state: Cli.AppState) (limit: Int) : Cli.AppState =
   if limit < 1 then
-    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Limit must be ≥ 1")
     state
   else
     let rows = Darklang.Tracing.Store.statsByHandler limit
@@ -860,7 +860,7 @@ let executeFollow
     | Some r -> Stdlib.String.trim r == ""
     | None -> false
   if routeIsEmpty then
-    Stdlib.printLine (Colors.error "--route pattern must not be empty")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "--route pattern must not be empty")
     state
   else
   if jsonMode == false then
@@ -892,10 +892,10 @@ let executeListByRoute
   (jsonMode: Bool)
   : Cli.AppState =
   if Stdlib.String.trim route == "" then
-    Stdlib.printLine (Colors.error "--route pattern must not be empty")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "--route pattern must not be empty")
     state
   else if limit < 1 then
-    Stdlib.printLine (Colors.error "Limit must be ≥ 1")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Limit must be ≥ 1")
     state
   else
     // Over-fetch then filter; tracesList returns the most-recent N rows
@@ -1098,7 +1098,7 @@ let executeView
 
   match result with
   | None ->
-    Stdlib.printLine (Colors.error $"Trace not found: {traceID}")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Trace not found: {traceID}")
     state
   | Some trace ->
     let input = formatInputs state.currentBranchId trace.inputs
@@ -1124,7 +1124,7 @@ let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
   match Darklang.Tracing.Store.getInput traceID with
   | None ->
     Stdlib.printLine
-      (Colors.error
+      (Stdlib.Cli.UI.Colors.error
         $"Trace not found, or trace input isn't a replayable string: {traceID}")
     state
   | Some code ->
@@ -1143,7 +1143,7 @@ let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
       state
     | Error err ->
       let pretty = Cli.ExecutionError.toString state.currentBranchId err
-      Stdlib.printLine (Colors.error $"Replay failed: {pretty}")
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Replay failed: {pretty}")
       state
 
 
@@ -1177,7 +1177,7 @@ let executeClearBefore
   : Cli.AppState =
   match parseDuration durationStr with
   | Error msg ->
-    Stdlib.printLine (Colors.error msg)
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error msg)
     state
   | Ok seconds ->
     let now = Stdlib.DateTime.now ()
@@ -1203,7 +1203,7 @@ let executeDelete (state: Cli.AppState) (traceID: String) : Cli.AppState =
   let deleted = Darklang.Tracing.Store.delete traceID
   match deleted with
   | 0 ->
-    Stdlib.printLine (Colors.error $"Trace not found: {traceID}")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"Trace not found: {traceID}")
     state
   | _ ->
     Stdlib.printLine $"Deleted trace {traceID}."
@@ -1215,7 +1215,7 @@ let executeDelete (state: Cli.AppState) (traceID: String) : Cli.AppState =
 /// grows; pair with `traces delete --all` for a full wipe.
 let executePruneKeep (state: Cli.AppState) (keepN: Int) : Cli.AppState =
   if keepN < 0 then
-    Stdlib.printLine (Colors.error "--keep N must be ≥ 0")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error "--keep N must be ≥ 0")
     state
   else
     let deleted = Darklang.Tracing.Store.pruneKeep keepN

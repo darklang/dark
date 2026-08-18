@@ -196,7 +196,7 @@ module Registry =
     let allLines =
       Stdlib.List.append [ welcome; ""; availableCommands; "" ] groupsWithFooter
 
-    Logo.combineLogoAndText Logo.logo allLines Colors.logoColor
+    Logo.combineLogoAndText Logo.logo allLines Stdlib.Cli.UI.Colors.logoColor
 
   // Detailed command list for help command (no logo, full details)
   let getDetailedCommandList () : String =
