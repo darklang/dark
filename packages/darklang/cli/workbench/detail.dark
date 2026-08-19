@@ -224,7 +224,7 @@ let inspectPageLines (state: State) : List<String> =
         else
           Stdlib.List.append
             srcPlain
-            [ Colors.warning
+            [ Stdlib.Cli.UI.Colors.warning
                 $"(syntax highlighting off: re-lexing produced {Stdlib.Int.toString (Stdlib.List.length h)} lines, source has {Stdlib.Int.toString (Stdlib.List.length srcPlain)})" ]
       let refs = Stdlib.String.split (depsText state) "\n"
       Stdlib.List.flatten

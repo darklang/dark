@@ -18,9 +18,9 @@ let renderOneLine
   let suffix = if isAncestor then $"  [{c.branchName}]" else ""
 
   if isAncestor then
-    $"{Cli.Colors.dim}  {id}  {createdAt}  {c.committerName}  {opCount} ops  {c.message}{suffix}{Cli.Colors.reset}"
+    $"{Stdlib.Cli.UI.Colors.dim}  {id}  {createdAt}  {c.committerName}  {opCount} ops  {c.message}{suffix}{Stdlib.Cli.UI.Colors.reset}"
   else
-    $"  {Cli.Colors.cyan}{id}{Cli.Colors.reset}  {createdAt}  {Cli.Colors.dim}{c.committerName}{Cli.Colors.reset}  {opCount} ops  {c.message}"
+    $"  {Stdlib.Cli.UI.Colors.cyan}{id}{Stdlib.Cli.UI.Colors.reset}  {createdAt}  {Stdlib.Cli.UI.Colors.dim}{c.committerName}{Stdlib.Cli.UI.Colors.reset}  {opCount} ops  {c.message}"
 
 let renderDetailed (c: SCM.PackageOps.Commit) (isAncestor: Bool) (long: Bool) : Unit =
   let id = LanguageTools.ProgramTypes.hashToShort c.hash
@@ -29,12 +29,12 @@ let renderDetailed (c: SCM.PackageOps.Commit) (isAncestor: Bool) (long: Bool) : 
 
   if isAncestor then
     Stdlib.printLine
-      $"{Cli.Colors.dim}{id}  {createdAt}  {c.committerName}  ({opCount} ops)  [{c.branchName}]{Cli.Colors.reset}"
+      $"{Stdlib.Cli.UI.Colors.dim}{id}  {createdAt}  {c.committerName}  ({opCount} ops)  [{c.branchName}]{Stdlib.Cli.UI.Colors.reset}"
 
-    Stdlib.printLine $"{Cli.Colors.dim}    {c.message}{Cli.Colors.reset}"
+    Stdlib.printLine $"{Stdlib.Cli.UI.Colors.dim}    {c.message}{Stdlib.Cli.UI.Colors.reset}"
   else
     Stdlib.printLine
-      $"{Cli.Colors.cyan}{id}{Cli.Colors.reset}  {createdAt}  {Cli.Colors.dim}{c.committerName}{Cli.Colors.reset}  ({opCount} ops)"
+      $"{Stdlib.Cli.UI.Colors.cyan}{id}{Stdlib.Cli.UI.Colors.reset}  {createdAt}  {Stdlib.Cli.UI.Colors.dim}{c.committerName}{Stdlib.Cli.UI.Colors.reset}  ({opCount} ops)"
 
     Stdlib.printLine $"    {c.message}"
 
@@ -70,7 +70,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
     // Say what you're looking at. The bare list left you to infer both the branch and that commits from
     // parent branches are in here too (the dimmed ones).
     Stdlib.printLine (
-      Cli.Colors.success
+      Stdlib.Cli.UI.Colors.success
         $"Commits on {branchName} ({Stdlib.Int.toString (Stdlib.List.length commits)}, newest first):")
 
     commits

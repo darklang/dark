@@ -24,10 +24,10 @@ let execute (state: AppState) (args: List<String>) : AppState =
         match matching with
         | [ c ] -> LanguageTools.ProgramTypes.hashToString c.hash
         | [] ->
-          Stdlib.printLine (Cli.Colors.error "No matching commit found.")
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.error "No matching commit found.")
           commitHashStr
         | _ ->
-          Stdlib.printLine (Cli.Colors.error "Multiple commits match that prefix. Be more specific.")
+          Stdlib.printLine (Stdlib.Cli.UI.Colors.error "Multiple commits match that prefix. Be more specific.")
           commitHashStr
       else
         commitHashStr
@@ -50,12 +50,12 @@ let execute (state: AppState) (args: List<String>) : AppState =
       match meta with
       | Some c ->
         Stdlib.printLine
-          $"Commit {Cli.Colors.cyan}{shortId}{Cli.Colors.reset} — {c.committerName}, {RelativeTime.ago c.createdAt} — {Stdlib.Int.toString (Stdlib.List.length ops)} ops"
+          $"Commit {Stdlib.Cli.UI.Colors.cyan}{shortId}{Stdlib.Cli.UI.Colors.reset} — {c.committerName}, {RelativeTime.ago c.createdAt} — {Stdlib.Int.toString (Stdlib.List.length ops)} ops"
 
         Stdlib.printLine $"  {c.message}"
       | None ->
         Stdlib.printLine
-          $"Commit {Cli.Colors.cyan}{shortId}{Cli.Colors.reset} — {Stdlib.Int.toString (Stdlib.List.length ops)} ops:"
+          $"Commit {Stdlib.Cli.UI.Colors.cyan}{shortId}{Stdlib.Cli.UI.Colors.reset} — {Stdlib.Int.toString (Stdlib.List.length ops)} ops:"
 
       // Capped: the init commit holds eleven thousand ops, and printing all of them buries the header
       // that says so. The count is already in the line above, so the footer only has to say what's left.

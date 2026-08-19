@@ -23,7 +23,7 @@ let capped (rows: List<String>) (limit: Int) (more: String) : List<String> =
 
     Stdlib.List.append
       (Stdlib.List.take rows limit)
-      [ Colors.hint $"  ... and {extra} more ({more})" ]
+      [ Stdlib.Cli.UI.Colors.hint $"  ... and {extra} more ({more})" ]
 
 
 /// Split a fully-qualified name into its module path and its leaf.
@@ -57,7 +57,7 @@ let groupedByModule (names: List<String>) : List<String> =
       |> Stdlib.List.map (fun n -> Stdlib.Tuple2.second (Listing.splitLeaf n))
 
     let count = Stdlib.Int.toString (Stdlib.List.length leaves)
-    let header = Colors.dimText $"  {m}  ({count})"
+    let header = Stdlib.Cli.UI.Colors.dimText $"  {m}  ({count})"
 
     [ header; $"    {Stdlib.String.join leaves ", "}" ])
   |> Stdlib.List.flatten
