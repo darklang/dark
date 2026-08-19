@@ -67,6 +67,16 @@ for var in $(env | sed -n 's/^\(DARK_[A-Z0-9_]*\)=.*/\1/p'); do
   DARK_ENV_FLAGS+=( -e "$var" )
 done
 
+# The `cat <&0` below reads fd 0 to EOF, so only forward it when something will get there.
+# Pipes and regular files always do. Sockets are ambiguous: agent harnesses hand over one that
+# carries no data and never EOFs, while node/libuv's `stdio: 'pipe'` socketpair does both, so
+# test for readability (which EOF counts as) rather than excluding sockets outright.
+if [[ ! -v DARK_STDIN ]] \
+  && [ ! -t 0 ] && [ ! -p /dev/stdin ] && [ ! -f /dev/stdin ] \
+  && ! read -r -t 0 -u 0 2>/dev/null; then
+  exec 0</dev/null
+fi
+
 if [ -t 0 ] ;
 then
   docker exec "${DARK_ENV_FLAGS[@]}" -it "${NAME}" "${ARGS[@]}" ;

@@ -252,6 +252,11 @@ functions are self-recursive already.
 **Record update takes no type tag.** `{ state with field = v }` is right.
 `MyType { state with field = v }` looks like F# but parses as function application.
 
+**`run-in-docker` ignores stdin unless something's on it.** Fd 0 is forwarded through a `cat`
+that needs an EOF, and an agent harness hands you a socket that never gives one, which used to
+hang the call well past its timeout. If you pipe real input and it gets dropped, `DARK_STDIN=1`
+forces it through.
+
 **Value bindings take no type annotation.** `let xs = [...]`, not `let xs : List<String> = [...]`,
 which fails with "Value annotations are not supported". Function bindings do take them, and
 nested functions require them.
