@@ -141,12 +141,15 @@ let fits (room: Int) (items: List<(Int * Mode * Doc)>) : Bool =
 
 
 /// The rendering loop: walk the pending work, emitting text and deciding each group as it is reached.
+///
+/// `acc` is the output so far as a reversed list of chunks; `render` joins it once at the end.
+/// Appending to a string per node would copy the whole output each time, quadratic in its length.
 let renderLoop
   (width: Int)
   (col: Int)
-  (acc: String)
+  (acc: List<String>)
   (items: List<(Int * Mode * Doc)>)
-  : String =
+  : List<String> =
   match items with
   | [] -> acc
   | (i, m, d) :: rest ->
@@ -154,32 +157,32 @@ let renderLoop
     | Empty -> Pretty.renderLoop width col acc rest
 
     | Text s ->
-      Pretty.renderLoop width (col + (Stdlib.String.displayWidth s)) (acc ++ s) rest
+      Pretty.renderLoop width (col + (Stdlib.String.displayWidth s)) (Stdlib.List.push acc s) rest
 
     | Styled(opening, t, closing) ->
       Pretty.renderLoop
         width
         (col + (Stdlib.String.displayWidth t))
-        (acc ++ opening ++ t ++ closing)
+        (Stdlib.List.push (Stdlib.List.push (Stdlib.List.push acc opening) t) closing)
         rest
 
     | HardLine ->
       let pad = Stdlib.String.repeat " " i
-      Pretty.renderLoop width i (acc ++ "\n" ++ pad) rest
+      Pretty.renderLoop width i (Stdlib.List.push (Stdlib.List.push acc "\n") pad) rest
 
     | Line ->
       match m with
-      | Flat -> Pretty.renderLoop width (col + 1) (acc ++ " ") rest
+      | Flat -> Pretty.renderLoop width (col + 1) (Stdlib.List.push acc " ") rest
       | Break ->
         let pad = Stdlib.String.repeat " " i
-        Pretty.renderLoop width i (acc ++ "\n" ++ pad) rest
+        Pretty.renderLoop width i (Stdlib.List.push (Stdlib.List.push acc "\n") pad) rest
 
     | SoftLine ->
       match m with
       | Flat -> Pretty.renderLoop width col acc rest
       | Break ->
         let pad = Stdlib.String.repeat " " i
-        Pretty.renderLoop width i (acc ++ "\n" ++ pad) rest
+        Pretty.renderLoop width i (Stdlib.List.push (Stdlib.List.push acc "\n") pad) rest
 
     | Concat(a, b) ->
       Pretty.renderLoop
@@ -203,4 +206,6 @@ let renderLoop
 
 /// Lay out `doc` for a page `width` columns wide.
 let render (width: Int) (doc: Doc) : String =
-  Pretty.renderLoop width 0 "" [ ((0, Mode.Break, doc)) ]
+  Pretty.renderLoop width 0 [] [ ((0, Mode.Break, doc)) ]
+  |> Stdlib.List.reverse
+  |> Stdlib.String.join ""
