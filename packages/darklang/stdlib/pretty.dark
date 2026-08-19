@@ -137,7 +137,7 @@ let fits (room: Int) (items: List<(Int * Mode * Doc)>) : Bool =
       | Concat(a, b) ->
         Pretty.fits room (Stdlib.List.push (Stdlib.List.push rest ((i, m, b))) ((i, m, a)))
       | Nest(j, x) -> Pretty.fits room (Stdlib.List.push rest ((i + j, m, x)))
-      | Group x -> Pretty.fits room (Stdlib.List.push rest ((i, Mode.Flat, x)))
+      | Group x -> Pretty.fits room (Stdlib.List.push rest ((i, m, x)))
 
 
 /// The rendering loop: walk the pending work, emitting text and deciding each group as it is reached.
