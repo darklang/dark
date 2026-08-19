@@ -1756,6 +1756,126 @@ let private applyInstruction
   outcome
 
 
+/// `TypeReference.toVT` over a list, without awaiting. `ValueNone` if any element needs the store.
+///
+/// The empty list is the overwhelmingly common case and costs nothing here.
+let rec private toVTsSync
+  (types : Types)
+  (tst : TypeSymbolTable)
+  (acc : List<ValueType>)
+  (typeArgs : List<TypeReference>)
+  : List<ValueType> voption =
+  match typeArgs with
+  | [] -> ValueSome(List.rev acc)
+  | t :: rest ->
+    match Ply.trySync (TypeReference.toVT types tst t) with
+    | ValueSome vt -> toVTsSync types tst (vt :: acc) rest
+    | ValueNone -> ValueNone
+
+
+/// Build a record, an enum or a record update without entering a computation expression.
+///
+/// These three opcodes are async only because their builders can need the type store. That store is
+/// cached, so after the first reference to a type the `Ply` they hand back is already complete, and
+/// the drain can take the value straight out of it.
+///
+/// Returns false when the store is genuinely needed. Nothing has been written to a register in that
+/// case, and the caller leaves the counter where it is so `runRareOpcode` runs the same instruction
+/// properly. That does mean the builder runs twice on a miss: the discarded `Ply` finishes on its own
+/// and its result is dropped. These builders only read the type store and construct a value, so a
+/// repeat is wasted work rather than a second effect, and a miss happens about once per type.
+let private tryBuildSync
+  (exeState : ExecutionState)
+  (vm : VMState)
+  (currentFrame : CallFrame)
+  (registers : Dval array)
+  (inst : Instruction)
+  : bool =
+  let tst = currentFrame.typeSymbolTable
+
+  match inst with
+  | CreateRecord(recordReg, sourceTypeName, typeArgs, fields) ->
+    match toVTsSync exeState.types tst [] typeArgs with
+    | ValueNone -> false
+    | ValueSome typeArgs ->
+      let fields =
+        fields |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
+
+      match
+        Ply.trySync (
+          TypeChecker.DvalCreator.record
+            exeState.types
+            vm.threadID
+            tst
+            sourceTypeName
+            typeArgs
+            fields
+        )
+      with
+      | ValueSome record ->
+        registers[recordReg] <- record
+        true
+      | ValueNone -> false
+
+  | CreateEnum(enumReg, typeName, typeArgs, caseName, fields) ->
+    match toVTsSync exeState.types tst [] typeArgs with
+    | ValueNone -> false
+    | ValueSome typeArgs ->
+      let fields = fields |> List.map (fun valueReg -> registers[valueReg])
+
+      match
+        Ply.trySync (
+          TypeChecker.DvalCreator.enum
+            exeState.types
+            vm.threadID
+            tst
+            typeName
+            typeArgs
+            caseName
+            fields
+        )
+      with
+      | ValueSome newEnum ->
+        registers[enumReg] <- newEnum
+        true
+      | ValueNone -> false
+
+  | CloneRecordWithUpdates(targetReg, originalRecordReg, fieldUpdates) ->
+    // A non-record here is a runtime error, which the async path raises. Declining keeps the error
+    // construction in one place rather than duplicating it.
+    match registers[originalRecordReg] with
+    | DRecord(sourceTypeName, resolvedTypeName, typeArgs, originalFields) ->
+      let fieldUpdates =
+        fieldUpdates
+        |> List.map (fun (name, valueReg) -> (name, registers[valueReg]))
+
+      match
+        Ply.trySync (
+          TypeChecker.DvalCreator.recordUpdate
+            exeState.types
+            vm.threadID
+            tst
+            sourceTypeName
+            resolvedTypeName
+            typeArgs
+            originalFields
+            fieldUpdates
+        )
+      with
+      | ValueSome updated ->
+        registers[targetReg] <- updated
+        true
+      | ValueNone -> false
+    | _ -> false
+
+  | _ ->
+    // Only the three above are offered here. Anything else reaching this is a routing mistake, and
+    // silently declining would turn it into a hang or a wrong answer.
+    Exception.raiseInternal
+      "tryBuildSync given an opcode it does not handle"
+      [ "opcode", Opcode.index inst ]
+
+
 /// Run consecutive instructions that need no `await`, without entering the interpreter's computation
 /// expression at all. Returns the counter where it stopped: past the end of the block, or at one of the
 /// five opcodes that must be handled on the async path.
@@ -1782,9 +1902,36 @@ let private runSyncInstructions
     let inst = instrData.instructions[counter]
 
     match inst with
+    // Records, enums and record updates are built here when their type is already resolved, which
+    // after the first reference to it is always. Only a genuine store miss stops the drain.
     | CreateRecord _
     | CloneRecordWithUpdates _
-    | CreateEnum _
+    | CreateEnum _ ->
+      if vm.stats.enabled then
+        vm.stats.instructionCount <- vm.stats.instructionCount + 1L
+
+      let allocBefore =
+        if vm.stats.enabled then
+          System.GC.GetAllocatedBytesForCurrentThread()
+        else
+          0L
+
+      let handled = tryBuildSync exeState vm currentFrame registers inst
+
+      if vm.stats.enabled then
+        let tag = Opcode.index inst
+        if tag >= 0 && tag < vm.stats.allocByOpcode.Length then
+          let delta = System.GC.GetAllocatedBytesForCurrentThread() - allocBefore
+          if delta > 0L then
+            vm.stats.allocByOpcode[tag] <- vm.stats.allocByOpcode[tag] + delta
+          vm.stats.countByOpcode[tag] <- vm.stats.countByOpcode[tag] + 1L
+          if handled then
+            vm.stats.syncHitByOpcode[tag] <- vm.stats.syncHitByOpcode[tag] + 1L
+          else
+            vm.stats.syncMissByOpcode[tag] <- vm.stats.syncMissByOpcode[tag] + 1L
+
+      if handled then counter <- counter + 1 else running <- false
+
     | LoadValue _ -> running <- false
 
     // `Apply` is all but a handful of the instructions that could stop this drain, and it almost

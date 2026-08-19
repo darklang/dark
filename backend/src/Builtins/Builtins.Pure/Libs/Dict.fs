@@ -14,6 +14,32 @@ let varA = TVariable "a"
 let varB = TVariable "b"
 
 
+/// Add every (key, value) tuple to the map, merging the value type as it goes. A top-level
+/// recursion rather than a fold: the lambda would be a closure and the accumulator a tuple, both
+/// allocated per entry.
+let rec private addAllEntries
+  (threadID : ThreadID)
+  (typ : ValueType)
+  (acc : DvalMap)
+  (remaining : List<Dval>)
+  : struct (ValueType * DvalMap) =
+  match remaining with
+  | [] -> struct (typ, acc)
+  | DTuple(DString k, value, []) :: rest ->
+    let struct (typ, acc) =
+      TypeChecker.DvalCreator.dictAddEntry
+        threadID
+        typ
+        acc
+        k
+        value
+        TypeChecker.ReplaceValue
+    addAllEntries threadID typ acc rest
+  | dv :: _ ->
+    Exception.raiseInternal
+      "Not string tuples in fromListOverwritingDuplicates"
+      [ "dval", dv ]
+
 let fns () : List<BuiltInFn> =
   [ { name = fn "dictSize" 0
       typeParams = []
@@ -40,7 +66,11 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DDict(_, o) |] ->
           // CLEANUP follow up here if/when `key` type is dynamic (not just String)
-          o |> Map.keys |> Seq.map DString |> Seq.toList |> Dval.list KTString |> Ply
+          // `Map.foldBack` walks the tree directly, in `Map.keys`' ascending order. A lazy `Seq`
+          // chain would cost an enumerator and a closure per stage.
+          Map.foldBack (fun k _ acc -> DString k :: acc) o []
+          |> Dval.list KTString
+          |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -57,7 +87,8 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DDict(valueType, o) |] ->
-          o |> Map.values |> Seq.toList |> (fun vs -> DList(valueType, vs) |> Ply)
+          // See `dictKeys`: a direct fold rather than a lazy sequence and its enumerator.
+          DList(valueType, Map.foldBack (fun _ v acc -> v :: acc) o []) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure
@@ -104,21 +135,7 @@ let fns () : List<BuiltInFn> =
         | _, _, _, [| DList(_, []) |] -> DDict(VT.unknown, Map.empty) |> Ply
 
         | _, vm, _, [| DList(ValueType.Known(KTTuple(_keyType, valueType, [])), l) |] ->
-          let f (accType, accMap) dv =
-            match dv with
-            | DTuple(DString k, value, []) ->
-              TypeChecker.DvalCreator.dictAddEntry
-                vm.threadID
-                accType
-                accMap
-                (k, value)
-                TypeChecker.ReplaceValue
-            | _ ->
-              Exception.raiseInternal
-                "Not string tuples in fromListOverwritingDuplicates"
-                [ "dval", dv ]
-
-          let (typ, map) = List.fold f (valueType, Map.empty) l
+          let struct (typ, map) = addAllEntries vm.threadID valueType Map.empty l
           DDict(typ, map) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
@@ -247,12 +264,13 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DDict(vt, o); DString k; v |] ->
-          let (typ, map) =
+          let struct (typ, map) =
             TypeChecker.DvalCreator.dictAddEntry
               vm.threadID
               vt
               o
-              (k, v)
+              k
+              v
               TypeChecker.ThrowIfDuplicate
           DDict(typ, map) |> Ply
         | _ -> incorrectArgs ())
@@ -275,12 +293,13 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DDict(vt, o); DString k; v |] ->
-          let (typ, map) =
+          let struct (typ, map) =
             TypeChecker.DvalCreator.dictAddEntry
               vm.threadID
               vt
               o
-              (k, v)
+              k
+              v
               TypeChecker.ReplaceValue
           DDict(typ, map) |> Ply
         | _ -> incorrectArgs ())

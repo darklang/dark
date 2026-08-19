@@ -56,21 +56,35 @@ let private loadHashes () : Map<string, string> =
 /// the hash file is regenerated (e.g. during reload-packages in CI).
 let mutable private hashCache : Map<string, string> option = None
 
+/// Bumped whenever `hashCache` is replaced. Each ref closure caches its resolved hash against the
+/// generation it resolved under, so a reload invalidates every cached ref without tracking them.
+let mutable private hashGeneration = 0
+
 let private getHashes () : Map<string, string> =
   match hashCache with
   | Some h -> h
   | None ->
     let h = loadHashes ()
     hashCache <- Some h
+    hashGeneration <- hashGeneration + 1
     h
+
+let private currentGeneration () : int =
+  // Touch the cache first, so a lazy first load is reflected in the generation the caller records.
+  getHashes () |> ignore<Map<string, string>>
+  hashGeneration
 
 /// Force-reload hashes from disk. Call after PackageRefsGenerator writes
 /// the hash file so that subsequent PackageRefs calls get real values.
-let reloadHashes () : unit = hashCache <- Some(loadHashes ())
+let reloadHashes () : unit =
+  hashCache <- Some(loadHashes ())
+  hashGeneration <- hashGeneration + 1
 
 /// Set hashes directly from a map (for installed CLIs where the
 /// source tree isn't available to write/read the hashes file).
-let setHashes (hashes : Map<string, string>) : unit = hashCache <- Some hashes
+let setHashes (hashes : Map<string, string>) : unit =
+  hashCache <- Some hashes
+  hashGeneration <- hashGeneration + 1
 
 
 module Type =
@@ -82,24 +96,37 @@ module Type =
   /// Returns "" if the hash file is empty (CI before reload-packages).
   let private p modules name : (unit -> string) =
     _lookup <- _lookup |> Map.add (modules, name) ""
+    // Resolved once per hash generation: the answer cannot change while the generation is stable,
+    // and resolving per call costs an interpolated key, a Map walk and a Map.add. These sit under
+    // Option and Result construction, so they run constantly.
+    let mutable cachedGen = -1
+    let mutable cached = ""
+
     fun () ->
-      let fqn = $"""type/{String.concat "." modules}.{name}"""
-      let h = getHashes ()
-      match Map.tryFind fqn h with
-      | Some hash ->
-        _lookup <- _lookup |> Map.add (modules, name) hash
-        hash
-      | None ->
-        if Map.isEmpty h then
-          "" // Hash file not yet populated (CI before reload-packages)
-        else
-          // Non-empty hash file that doesn't know this ref means the file is stale, which happens
-          // whenever a ref is added (or an older binary regenerates the file in-place -- `growIfNeeded`
-          // rewrites it, so running a previous release inside the source tree is enough). The fix is
-          // always the same, so say it rather than making the next person find it in AGENTS.md.
-          Exception.raiseInternal
-            "PackageRefs: type hash not found. The hash file is stale; regenerate it with `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`"
-            [ "fqn", fqn ]
+      let gen = currentGeneration ()
+      if gen = cachedGen then
+        cached
+      else
+
+        let fqn = $"""type/{String.concat "." modules}.{name}"""
+        let h = getHashes ()
+        match Map.tryFind fqn h with
+        | Some hash ->
+          _lookup <- _lookup |> Map.add (modules, name) hash
+          cachedGen <- gen
+          cached <- hash
+          hash
+        | None ->
+          if Map.isEmpty h then
+            "" // Hash file not yet populated (CI before reload-packages)
+          else
+            // Non-empty hash file that doesn't know this ref means the file is stale, which happens
+            // whenever a ref is added (or an older binary regenerates the file in-place -- `growIfNeeded`
+            // rewrites it, so running a previous release inside the source tree is enough). The fix is
+            // always the same, so say it rather than making the next person find it in AGENTS.md.
+            Exception.raiseInternal
+              "PackageRefs: type hash not found. The hash file is stale; regenerate it with `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`"
+              [ "fqn", fqn ]
 
   // Darklang.Sync.* — internal sync machinery (op-log wire types)
   module Sync =
@@ -444,20 +471,31 @@ module Fn =
   /// Returns "" if the hash file is empty (CI before reload-packages).
   let private p modules name : (unit -> string) =
     _lookup <- _lookup |> Map.add (modules, name) ""
+    // Resolved once per hash generation; see the note on the type-ref version above.
+    let mutable cachedGen = -1
+    let mutable cached = ""
+
     fun () ->
-      let fqn = $"""fn/{String.concat "." modules}.{name}"""
-      let h = getHashes ()
-      match Map.tryFind fqn h with
-      | Some hash ->
-        _lookup <- _lookup |> Map.add (modules, name) hash
-        hash
-      | None ->
-        if Map.isEmpty h then
-          "" // Hash file not yet populated (CI before reload-packages)
-        else
-          Exception.raiseInternal
-            "PackageRefs: fn hash not found. The hash file is stale; regenerate it with `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`"
-            [ "fqn", fqn ]
+      let gen = currentGeneration ()
+      if gen = cachedGen then
+        cached
+      else
+
+        let fqn = $"""fn/{String.concat "." modules}.{name}"""
+        let h = getHashes ()
+        match Map.tryFind fqn h with
+        | Some hash ->
+          _lookup <- _lookup |> Map.add (modules, name) hash
+          cachedGen <- gen
+          cached <- hash
+          hash
+        | None ->
+          if Map.isEmpty h then
+            "" // Hash file not yet populated (CI before reload-packages)
+          else
+            Exception.raiseInternal
+              "PackageRefs: fn hash not found. The hash file is stale; regenerate it with `> backend/src/LibExecution/package-ref-hashes.txt && ./scripts/build/reload-packages`"
+              [ "fqn", fqn ]
 
   module Stdlib =
     let private p addl = p ("Stdlib" :: addl)

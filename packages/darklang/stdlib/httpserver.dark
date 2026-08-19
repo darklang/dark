@@ -57,12 +57,17 @@ let matchSegment
 
 
 /// Match a request path against a route pattern
-let matchRoute (routePattern: String) (requestPath: String) : RouteMatch =
-  let routeSegs = parseRouteSegments routePattern
-  let pathSegs =
-    (String.split requestPath "/")
-    |> List.filter (fun s -> Bool.not (String.isEmpty s))
+/// Split a request path into non-empty segments.
+let splitPath (requestPath: String) : List<String> =
+  (String.split requestPath "/")
+  |> List.filter (fun s -> Bool.not (String.isEmpty s))
 
+
+/// `matchRoute` against segments that have already been parsed and split.
+///
+/// Routing splits one path against every handler, so doing it here rather than inside `matchRoute`
+/// lets the caller split once instead of once per handler.
+let matchRouteSegments (routeSegs: List<RouteSegment>) (pathSegs: List<String>) : RouteMatch =
   let routeLen = List.length routeSegs
   let pathLen = List.length pathSegs
 
@@ -93,24 +98,34 @@ let matchRoute (routePattern: String) (requestPath: String) : RouteMatch =
     | None -> RouteMatch { matched = false; vars = [] }
 
 
+let matchRoute (routePattern: String) (requestPath: String) : RouteMatch =
+  matchRouteSegments (parseRouteSegments routePattern) (splitPath requestPath)
+
+
 /// Find the first handler that matches the request
 let findHandler
   (handlers: List<Handler>)
   (method: String)
   (path: String)
   : Option.Option<Handler * RouteMatch> =
-  // First find a matching handler
+  // Split once here rather than inside `matchRoute`, which runs per handler: the result is the
+  // same every time, so splitting there scales the work with handlers tested.
+  let pathSegs = splitPath path
+
   let matchingHandler =
     handlers
     |> List.findFirst (fun h ->
-      let methodMatches = (h.method == method) || (h.method == "*")
-      let routeMatch = matchRoute h.route path
-      methodMatches && routeMatch.matched)
+      // Method first. The route match is the expensive half, and a handler whose method cannot
+      // match never needs it -- the previous order computed it regardless.
+      if (h.method == method) || (h.method == "*") then
+        let routeMatch = matchRouteSegments (parseRouteSegments h.route) pathSegs
+        routeMatch.matched
+      else
+        false)
 
-  // If found, compute the route match again to return it
   match matchingHandler with
   | Some h ->
-    let routeMatch = matchRoute h.route path
+    let routeMatch = matchRouteSegments (parseRouteSegments h.route) pathSegs
     Option.Option.Some ((h, routeMatch))
   | None -> Option.Option.None
 

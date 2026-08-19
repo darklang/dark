@@ -133,10 +133,11 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
   | DList(_, items) -> w.writeArray (fun () -> List.iter r items)
 
   | DDict(_, fields) ->
+    // `Map.iter` rather than `Map.toList |> List.iter`: the latter builds a tuple and a cons per
+    // field, for a list that is walked once and dropped. Both visit in ascending key order.
     w.writeObject (fun () ->
       fields
-      |> Map.toList
-      |> List.iter (fun (k, v) ->
+      |> Map.iter (fun k v ->
         w.WritePropertyName k
         r v))
 
@@ -147,10 +148,10 @@ let rec serialize (threadID : ThreadID) (w : Utf8JsonWriter) (dv : Dval) : unit 
       w.writeArray (fun () -> fields |> List.iter r))
 
   | DRecord(_, _, _, fields) ->
+    // See `DDict` above.
     w.writeObject (fun () ->
       fields
-      |> Map.toList
-      |> List.iter (fun (fieldName, dval) ->
+      |> Map.iter (fun fieldName dval ->
         w.WritePropertyName fieldName
         r dval))
 
@@ -814,14 +815,21 @@ let fns () : List<BuiltInFn> =
 
           let okType = VT.unknownTODO // "a"
           let errType = KTCustomType(ParseError.typeName (), []) |> VT.known
-          let resultOk = TypeChecker.DvalCreator.Result.ok threadID okType errType
-          let resultError =
-            TypeChecker.DvalCreator.Result.error threadID okType errType
 
+          // Applied in full in each branch rather than partially applied into `resultOk` and
+          // `resultError` up front. Both closures were built on every call and exactly one was
+          // ever invoked.
           uply {
             match! parse threadID exeState.types typeArg arg with
-            | Ok v -> return resultOk v
-            | Error e -> return resultError (ParseError.toDT e)
+            | Ok v ->
+              return TypeChecker.DvalCreator.Result.ok threadID okType errType v
+            | Error e ->
+              return
+                TypeChecker.DvalCreator.Result.error
+                  threadID
+                  okType
+                  errType
+                  (ParseError.toDT e)
           }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

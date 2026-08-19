@@ -83,7 +83,9 @@ let fns () : List<BuiltInFn> =
       returnType = TString
       description =
         "Returns interpreter performance counters as a JSON string. "
-        + "Includes instruction count, builtin/package call counts, frame pushes. "
+        + "Includes instruction count, builtin/package call counts, frame pushes, bytes and "
+        + "counts per opcode, and bytes and counts per named region of the Apply path (read the "
+        + "fine-grained stages, not the totals -- see the note in the implementation). "
         + "When detailed timing is enabled, also includes per-builtin and per-package-fn "
         + "cumulative nanoseconds and call counts."
       fn =
@@ -112,6 +114,57 @@ let fns () : List<BuiltInFn> =
           let dtStr = if s.detailedTiming then "true" else "false"
           sb.Append($",\"detailedTiming\":{dtStr}")
           |> ignore<System.Text.StringBuilder>
+
+          // Which opcode produced the garbage, which a flat allocation profile cannot answer.
+          // Non-zero entries only.
+          let anyOpcode = s.countByOpcode |> Array.exists (fun c -> c > 0L)
+          if anyOpcode then
+            sb.Append(",\"byOpcode\":{") |> ignore<System.Text.StringBuilder>
+            let mutable firstOp = true
+            for i in 0 .. s.countByOpcode.Length - 1 do
+              if s.countByOpcode[i] > 0L then
+                let name =
+                  if i < LibExecution.RuntimeTypes.Opcode.names.Length then
+                    LibExecution.RuntimeTypes.Opcode.names[i]
+                  else
+                    string i
+                if not firstOp then
+                  sb.Append(",") |> ignore<System.Text.StringBuilder>
+                let syncPart =
+                  if s.syncHitByOpcode[i] > 0L || s.syncMissByOpcode[i] > 0L then
+                    $",\"syncHit\":{s.syncHitByOpcode[i]},\"syncMiss\":{s.syncMissByOpcode[i]}"
+                  else
+                    ""
+                sb.Append(
+                  $"\"{name}\":{{\"bytes\":{s.allocByOpcode[i]},\"n\":{s.countByOpcode[i]}{syncPart}}}"
+                )
+                |> ignore<System.Text.StringBuilder>
+                firstOp <- false
+            sb.Append("}") |> ignore<System.Text.StringBuilder>
+
+          // Per-stage bytes and counts for the Apply path. Read the fine-grained stages only: the
+          // three totals (`apply.total`, `bi.total`, `lambda.total`) bracket across the builtin's
+          // `Ply`, so they measure nested execution and can exceed what the process allocated.
+          // `stats.builtinAlloc` has the same defect, so it is collected but not reported.
+          let anyStage = s.countByStage |> Array.exists (fun c -> c > 0L)
+          if anyStage then
+            sb.Append(",\"byStage\":{") |> ignore<System.Text.StringBuilder>
+            let mutable firstStage = true
+            for i in 0 .. s.countByStage.Length - 1 do
+              if s.countByStage[i] > 0L then
+                let name =
+                  if i < LibExecution.RuntimeTypes.ApplyStage.names.Length then
+                    LibExecution.RuntimeTypes.ApplyStage.names[i]
+                  else
+                    string i
+                if not firstStage then
+                  sb.Append(",") |> ignore<System.Text.StringBuilder>
+                sb.Append(
+                  $"\"{name}\":{{\"bytes\":{s.allocByStage[i]},\"n\":{s.countByStage[i]}}}"
+                )
+                |> ignore<System.Text.StringBuilder>
+                firstStage <- false
+            sb.Append("}") |> ignore<System.Text.StringBuilder>
 
           if s.detailedTiming && s.builtinTiming.Count > 0 then
             sb.Append(",\"builtinTiming\":{") |> ignore<System.Text.StringBuilder>

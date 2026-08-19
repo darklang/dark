@@ -1,0 +1,54 @@
+// Option and Result: construction, matching and chaining. These are how idiomatic Dark reports
+// absence and failure, and until this workload existed nothing in the suite built many of them --
+// which hid three consecutive halvings of container construction.
+let iters () : Int =
+  match Stdlib.Env.get "PERF_ITERS" with
+  | Some s ->
+    match Stdlib.Int.parse s with
+    | Ok n -> n
+    | Error _ -> 0
+  | None -> 0
+
+type Boxed<'v> = { v: 'v; tag: String }
+
+let empties () : List<Int> = []
+
+let work (n: Int) : Int =
+  let xs = [n; n + 1; n + 2]
+
+  // Option from the standard library, matched
+  let a =
+    match Stdlib.List.head xs with
+    | Some v -> v
+    | None -> 0
+
+  // Option that is absent, so the None path is exercised too
+  let b =
+    match Stdlib.List.head (empties ()) with
+    | Some v -> v
+    | None -> 1
+
+  // Result from parsing, both arms
+  let c =
+    match Stdlib.Int.parse "123" with
+    | Ok v -> v
+    | Error _ -> 0
+  let d =
+    match Stdlib.Int.parse "not a number" with
+    | Ok v -> v
+    | Error _ -> 1
+
+  // A parameterised record, which took the same slow path as Option and Result
+  let boxed = Boxed<Int> { v = a; tag = "t" }
+
+  a + b + c + d + boxed.v
+
+let repeat (times: Int) (acc: Int) : Int =
+  if times <= 0 then acc else repeat (times - 1) (acc + (work times))
+
+let _warm = repeat 20 0
+let _reset = Darklang.LanguageTools.InterpreterStats.reset ()
+let t0 = Darklang.Cli.Telemetry.now ()
+let result = repeat (iters ()) 0
+let t1 = Darklang.Cli.Telemetry.now ()
+Stdlib.printLine ("elapsed_ms=" ++ (Stdlib.Int.toString (t1 - t0)) ++ " result=" ++ (Stdlib.Int.toString result) ++ " stats=" ++ (Darklang.LanguageTools.InterpreterStats.get ()))

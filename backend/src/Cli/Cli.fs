@@ -133,12 +133,14 @@ let initSerializers () = ()
 [<EntryPoint>]
 let main (args : string[]) =
   try
+    // Sampled before anything else in the process, including the environment read below. It is one
+    // half of `cli.preMain`, and the other half -- the process start time -- costs milliseconds to
+    // obtain, so taking this first is what keeps the measurement from including itself.
+    let mainEntry = System.DateTime.UtcNow
+
     // How long the process took to reach here. `cli.total` starts after resource extraction and can't
     // see runtime init, assembly loading or JIT of the startup path, which is a large share of a short
     // command. Wall clock rather than Stopwatch, because the only fixed point is when the OS started us.
-    // Read the switch before doing any measuring: `Process.GetCurrentProcess()` reads /proc and
-    // initialises the Process machinery, which is not free on a command this short, and the only thing
-    // it feeds is a telemetry event.
     let telemetryEnabled =
       match System.Environment.GetEnvironmentVariable "DARK_TELEMETRY" with
       | "1" -> true
@@ -146,9 +148,12 @@ let main (args : string[]) =
 
     let preMainMs =
       if telemetryEnabled then
+        // `Process.GetCurrentProcess()` reads /proc and initialises the Process machinery, which is
+        // not free on a command this short. It sits after `mainEntry` deliberately: it is the cost of
+        // reading the clock, not part of the startup being measured.
         let processStart =
           System.Diagnostics.Process.GetCurrentProcess().StartTime.ToUniversalTime()
-        int64 (System.DateTime.UtcNow - processStart).TotalMilliseconds
+        int64 (mainEntry - processStart).TotalMilliseconds
       else
         0L
 

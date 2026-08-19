@@ -2387,6 +2387,12 @@ type InterpreterStats =
     allocByOpcode : int64[]
     countByOpcode : int64[]
 
+    /// For the opcodes the drain tries to run synchronously: how often the builder's `Ply` was
+    /// already complete, and how often it wasn't. Without the denominator a fast path that never
+    /// fires and a fast path that fires and saves little are the same number.
+    syncHitByOpcode : int64[]
+    syncMissByOpcode : int64[]
+
     /// Total register slots allocated across every frame pushed. Each frame gets its own
     /// `Array.zeroCreate registerCount`, so this times 8 bytes is the register-file share of Apply's
     /// allocation -- the leading suspect for its ~5.6 KB per call.
@@ -2446,6 +2452,8 @@ type InterpreterStats =
         packageFnCounts = Dictionary()
         framePushTimestamps = Dictionary()
         allocByOpcode = Array.zeroCreate 32
+        syncHitByOpcode = Array.zeroCreate 32
+        syncMissByOpcode = Array.zeroCreate 32
         countByOpcode = Array.zeroCreate 32
         registersAllocated = 0L
         builtinBodyAlloc = 0L
@@ -2479,6 +2487,8 @@ type InterpreterStats =
     System.Array.Clear(this.allocByStage, 0, this.allocByStage.Length)
     System.Array.Clear(this.countByStage, 0, this.countByStage.Length)
     System.Array.Clear(this.allocByOpcode, 0, this.allocByOpcode.Length)
+    System.Array.Clear(this.syncHitByOpcode, 0, this.syncHitByOpcode.Length)
+    System.Array.Clear(this.syncMissByOpcode, 0, this.syncMissByOpcode.Length)
     System.Array.Clear(this.countByOpcode, 0, this.countByOpcode.Length)
 
   member private this.addTiming
