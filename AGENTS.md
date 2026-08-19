@@ -192,13 +192,10 @@ functions are self-recursive already.
 **Record update takes no type tag.** `{ state with field = v }` is right.
 `MyType { state with field = v }` looks like F# but parses as function application.
 
-**Don't leave `run-in-docker` reading an agent's stdin.** The non-tty path forwards stdin
-with `cat <&0`, which needs an fd 0 that reaches EOF. Claude Code's Bash tool hands you a
-socket that never does, so the call hangs past its timeout and strands ~10 processes per
-invocation. `run-in-docker` now redirects fd 0 to `/dev/null` unless it's a tty, a pipe or
-a regular file, so this is handled; don't undo that guard. If you ever see stalled
-`run-in-docker` trees, `pkill -f 'scripts/run-in-docker'` clears them, and the container
-work they were driving has usually already finished.
+**`run-in-docker` ignores stdin unless something's on it.** Fd 0 is forwarded through a `cat`
+that needs an EOF, and an agent harness hands you a socket that never gives one, which used to
+hang the call well past its timeout. If you pipe real input and it gets dropped, `DARK_STDIN=1`
+forces it through.
 
 **Value bindings take no type annotation.** `let xs = [...]`, not `let xs : List<String> = [...]`,
 which fails with "Value annotations are not supported". Function bindings do take them, and
