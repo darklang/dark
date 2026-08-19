@@ -5,9 +5,12 @@ module Darklang.Cli.SCM.ShowCommit
 let execute (state: AppState) (args: List<String>) : AppState =
   let branchId = state.currentBranchId
 
+  let all = Stdlib.List.member args Listing.allFlag
+  let args = args |> Stdlib.List.filter (fun a -> a != Listing.allFlag)
+
   match args with
   | [] ->
-    Stdlib.printLine "Usage: show <commit-id>"
+    Stdlib.printLine "Usage: show <commit-id> [--all]"
     state
   | [ commitHashStr ] ->
     // Allow partial commit IDs (prefix matching)
@@ -57,18 +60,19 @@ let execute (state: AppState) (args: List<String>) : AppState =
         Stdlib.printLine
           $"Commit {Stdlib.Cli.UI.Colors.cyan}{shortId}{Stdlib.Cli.UI.Colors.reset} — {Stdlib.Int.toString (Stdlib.List.length ops)} ops:"
 
-      // Capped: the init commit holds eleven thousand ops, and printing all of them buries the header
-      // that says so. The count is already in the line above, so the footer only has to say what's left.
-      ops
-      |> Stdlib.List.map (fun op ->
-        let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp branchId op
-        $"  {opStr}")
-      |> fun rows -> Listing.capped rows Listing.defaultLimit "use `ops` to page through them"
+      // Cut before pretty-printing: each op costs a name lookup, and the init commit has eleven
+      // thousand of them. Rendering all of them to show twenty took eight seconds.
+      let (shown, left) =
+        Listing.cut ops Listing.defaultLimit (Listing.shouldCap all) (fun _ -> 1) (fun _ -> 1)
+
+      shown
+      |> Stdlib.List.map (fun op -> $"  {PrettyPrinter.ProgramTypes.PackageOp.packageOp branchId op}")
+      |> fun rows -> Listing.withFooter rows left "ops"
       |> Stdlib.printLines
 
     state
   | _ ->
-    Stdlib.printLine "Usage: show <commit-id>"
+    Stdlib.printLine "Usage: show <commit-id> [--all]"
     state
 
 
@@ -78,11 +82,14 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
 
 
 let help (_state: AppState) : String =
-  [ "Usage: show <commit-id>"
+  [ "Usage: show <commit-id> [--all]"
     "Show details of a specific commit."
     ""
     "Arguments:"
     "  commit-id   Full or partial (8+ chars) commit ID"
+    ""
+    "Options:"
+    "  --all       Show every op; the listing is capped at 20 otherwise"
     ""
     "Use 'log' to see available commits." ]
   |> Stdlib.String.join "\n"
