@@ -113,12 +113,14 @@ module ReadFile =
                 values = results.values |> Stdlib.List.map (fun found -> found.entity)
                 exprs = [] }
 
+          // The owner is not a module, so a package's items fan out into several top-level
+          // modules (`Stdlib`, `Cli`, ...). Print all of them; `head` would show only the first.
           let modules =
             PrettyPrinter.ModuleDeclaration.toModules state.currentBranchId definitions
 
-          match Stdlib.List.head modules with
-          | Some rootModule -> PrettyPrinter.moduleDeclaration ctx rootModule
-          | None -> $"// No definitions found in {nameForLookup}"
+          match modules with
+          | [] -> $"// No definitions found in {nameForLookup}"
+          | _ -> PrettyPrinter.definitions ctx definitions
 
     sendResponse state requestId getContent
 
@@ -502,12 +504,13 @@ module WriteFile =
                     values = results.values |> Stdlib.List.map (fun found -> found.entity)
                     exprs = [] }
 
+              // As above: every top-level module, not just the first.
               let modules =
                 PrettyPrinter.ModuleDeclaration.toModules state.currentBranchId definitions
 
-              (match Stdlib.List.head modules with
-              | Some rootModule -> PrettyPrinter.moduleDeclaration ctx rootModule
-              | None -> $"// No definitions found in {nameForLookup}")
+              (match modules with
+              | [] -> $"// No definitions found in {nameForLookup}"
+              | _ -> PrettyPrinter.definitions ctx definitions)
               |> Stdlib.Option.Option.Some
             else
               Stdlib.Option.Option.None

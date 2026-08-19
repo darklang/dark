@@ -350,8 +350,12 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DUnit |] ->
+          // Per no-color.org, only a non-empty value counts: `NO_COLOR=` is how a
+          // wrapper re-enables color without having to unset the variable.
           let noColor =
-            System.Environment.GetEnvironmentVariable "NO_COLOR" |> isNull |> not
+            System.Environment.GetEnvironmentVariable "NO_COLOR"
+            |> System.String.IsNullOrEmpty
+            |> not
           DBool(not noColor && TerminalCapabilities.isOutputTerminal ()) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
