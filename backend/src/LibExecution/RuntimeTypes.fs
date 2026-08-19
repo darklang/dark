@@ -1250,9 +1250,14 @@ module RuntimeError =
         typeName : FQTypeName.FQTypeName *
         caseName : string
 
+      // `declaredType` is the field's type as written in the type declaration,
+      // or None where the constructor is builtin and nothing was written. It
+      // supplies names only; `expectedType` remains the authority on shape. See
+      // the note on `FnParameterNotExpectedType` for why both are needed.
       | ConstructionFieldOfWrongType of
         caseName : string *
         fieldIndex : int *
+        declaredType : Option<TypeReference> *
         expectedType : ValueType *
         actualType : ValueType *
         actualValue : Dval
@@ -1270,8 +1275,13 @@ module RuntimeError =
       | CreationMissingField of fieldName : string
       | CreationDuplicateField of fieldName : string
       | CreationFieldNotExpected of fieldName : string
+      // `declaredType` is the field's type as written in the type declaration,
+      // or None where the constructor is builtin and nothing was written. It
+      // supplies names only; `expectedType` remains the authority on shape. See
+      // the note on `FnParameterNotExpectedType` for why both are needed.
       | CreationFieldOfWrongType of
         fieldName : string *
+        declaredType : Option<TypeReference> *
         expectedType : ValueType *
         actualType : ValueType *
         actualValue : Dval
@@ -1281,8 +1291,13 @@ module RuntimeError =
       | UpdateEmptyKey
       | UpdateDuplicateField of fieldName : string
       | UpdateFieldNotExpected of fieldName : string
+      // `declaredType` is the field's type as written in the type declaration,
+      // or None where the constructor is builtin and nothing was written. It
+      // supplies names only; `expectedType` remains the authority on shape. See
+      // the note on `FnParameterNotExpectedType` for why both are needed.
       | UpdateFieldOfWrongType of
         fieldName : string *
+        declaredType : Option<TypeReference> *
         expectedType : ValueType *
         actualType : ValueType *
         actualValue : Dval
@@ -1308,16 +1323,31 @@ module RuntimeError =
 
       | TooManyArgsForFn of fn : FQFnName.FQFnName * expected : int * actual : int
 
+      // `declaredType` is the type reference as written at the declaration, or
+      // None where there was nothing written (a raise site with no declaration
+      // behind it). `expectedType` stays the authority on shape, because it has
+      // been through the type symbol table and so has concrete types where the
+      // declaration had variables; `declaredType` supplies only names.
+      //
+      // Both are needed because a `ValueType` carries content hashes, and one
+      // hash can be bound to several names: `Stdlib.Int`, `Stdlib.Float` and
+      // `Stdlib.Uuid` all declare `ParseError` as `| BadFormat`, which makes them
+      // one type with three names. Choosing between those from the hash alone is
+      // a guess, and it guessed wrong often enough to report an `Int.parse`
+      // failure as a `Uuid.ParseError`. Names are display metadata and never
+      // reach the hash, so carrying them costs content addressing nothing.
       | FnParameterNotExpectedType of
         fnName : FQFnName.FQFnName *
         paramIndex : int *
         paramName : string *
+        declaredType : Option<TypeReference> *
         expectedType : ValueType *
         actualType : ValueType *
         actualValue : Dval
 
       | FnResultNotExpectedType of
         fnName : FQFnName.FQFnName *
+        declaredType : Option<TypeReference> *
         expectedType : ValueType *
         actualType : ValueType *
         actualValue : Dval

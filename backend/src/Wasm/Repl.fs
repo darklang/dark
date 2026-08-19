@@ -105,17 +105,9 @@ let LoadPackagesFromUrl (snapshotUrl : string) : Task =
 
 // ---------- declarations: REPL entries become Repl-owned package items ----------
 
-/// Mirror of LibParser.Package's placeholder for Set*Name ops; the real hash
-/// replaces it in HashStabilization.computeRealHashes.
-let private nameBasedHash (loc : PT.PackageLocation) : PT.Hash =
-  let nameKey = PackageLocation.toFQN loc
-  let nameBytes =
-    System.Security.Cryptography.SHA256.HashData(
-      System.Text.Encoding.UTF8.GetBytes(nameKey)
-    )
-  PT.Hash(
-    System.BitConverter.ToString(nameBytes).Replace("-", "").ToLowerInvariant()
-  )
+/// Placeholder for Set*Name ops; the real hash replaces it in
+/// HashStabilization.computeRealHashes.
+let private nameBasedHash = PackageLocation.placeholderHash
 
 type private Classified =
   { fns : List<WT.PackageFn.PackageFn>

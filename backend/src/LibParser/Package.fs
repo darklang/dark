@@ -61,17 +61,9 @@ let private wtModuleToOps
           (WT2PT.PackageValue.Name.toModules value.name)
           value)
 
-    // Compute a deterministic name-based placeholder hash for Set*Name ops.
-    // The real hash replaces this in LoadPackagesFromDisk.computeRealHashes.
-    let nameBasedHash (loc : PT.PackageLocation) : Hash =
-      let nameKey = PackageLocation.toFQN loc
-      let nameBytes =
-        System.Security.Cryptography.SHA256.HashData(
-          System.Text.Encoding.UTF8.GetBytes(nameKey)
-        )
-      Hash(
-        System.BitConverter.ToString(nameBytes).Replace("-", "").ToLowerInvariant()
-      )
+    // Set*Name ops carry a placeholder; the real hash replaces it in
+    // LoadPackagesFromDisk.computeRealHashes.
+    let nameBasedHash = PackageLocation.placeholderHash
 
     let ops : List<PT.PackageOp> =
       [ for (wtType, ptType) in List.zip modul.types types do

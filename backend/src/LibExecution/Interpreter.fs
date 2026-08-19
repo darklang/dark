@@ -2310,6 +2310,7 @@ let private frameReturnTypeCheckAsync
         Ply.toTask (TypeReference.toVT exeState.types tst expectedReturnType)
       RuntimeError.Applications.FnResultNotExpectedType(
         fnName,
+        Some expectedReturnType,
         expectedVT,
         Dval.toValueType resultOfFrame,
         resultOfFrame

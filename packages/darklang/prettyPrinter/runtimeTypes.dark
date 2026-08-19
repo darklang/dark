@@ -28,8 +28,14 @@ let packageName
       let modules = Stdlib.String.join modules "."
       $"{modules}."
 
+  // Owners that are scaffolding rather than a namespace someone chose: a
+  // testfile's declarations, and the ones a CLI script declares for itself.
+  // Printing the scaffolding back at the reader is noise, and for a script it is
+  // worse than noise, since `CliScript` is not a name anything can be reached by.
   match owner with
-  | "Tests" -> $"{modulesPart}{name}"
+  | ""
+  | "Tests"
+  | "CliScript" -> $"{modulesPart}{name}"
   | _ -> $"{owner}.{modulesPart}{name}"
 
 /// Given PM locations for a hash, resolve to best display name.
@@ -369,6 +375,111 @@ let valueType
   match vt with
   | Known kt -> knownType branchId kt
   | Unknown -> "_"
+
+
+/// A value type, named the way it was written where it was declared.
+///
+/// Two sources, each authoritative about a different thing. The `ValueType` is
+/// the authority on shape: it has been through the type symbol table, so where
+/// the declaration said `List<'a>` it says `List<Int>`. The declared
+/// `TypeReference` is the authority on names: a hash bound to one location has
+/// one name and needs no help, but bound to several, every one of those names is
+/// equally true of the type and choosing between them from the hash is a guess.
+/// `Stdlib.Int.ParseError`, `Stdlib.Float.ParseError` and
+/// `Stdlib.Uuid.ParseError` are all `| BadFormat`, so they are one type with
+/// three names, and an `Int.parse` failure reported as a `Uuid.ParseError` is a
+/// real thing this printed.
+///
+/// So walk the two together, taking shape from the left and names from the
+/// right. They can stop lining up: an alias unwraps to something of a different
+/// shape, a type variable resolves to a concrete type, a raise site has no
+/// declaration at all. Wherever that happens the declaration is dropped for that
+/// subtree and the rest is named canonically, which is the answer <fn valueType>
+/// gives on its own.
+let declaredValueType
+    (branchId: Uuid)
+    (declared: Stdlib.Option.Option<LanguageTools.RuntimeTypes.TypeReference>)
+    (vt: LanguageTools.RuntimeTypes.ValueType)
+  : String =
+  match vt with
+  | Unknown -> "_"
+  | Known kt -> declaredKnownType branchId declared kt
+
+
+let declaredKnownType
+    (branchId: Uuid)
+    (declared: Stdlib.Option.Option<LanguageTools.RuntimeTypes.TypeReference>)
+    (kt: LanguageTools.RuntimeTypes.KnownType)
+  : String =
+  // The declared reference for the nth type argument, when the declaration has
+  // the same shape and so has an nth type argument to give.
+  let nth
+    (refs: List<LanguageTools.RuntimeTypes.TypeReference>)
+    (i: Int)
+    : Stdlib.Option.Option<LanguageTools.RuntimeTypes.TypeReference> =
+    Stdlib.List.getAt refs i
+
+  match kt, declared with
+  | KTStream inner, Some(TStream dInner) ->
+    $"Stream<{declaredValueType branchId (Stdlib.Option.Option.Some dInner) inner}>"
+
+  | KTList inner, Some(TList dInner) ->
+    $"List<{declaredValueType branchId (Stdlib.Option.Option.Some dInner) inner}>"
+
+  | KTDict inner, Some(TDict dInner) ->
+    $"Dict<{declaredValueType branchId (Stdlib.Option.Option.Some dInner) inner}>"
+
+  | KTTuple(t1, t2, trest), Some(TTuple(d1, d2, drest)) ->
+    let items = Stdlib.List.append [ t1; t2 ] trest
+    let declaredItems = Stdlib.List.append [ d1; d2 ] drest
+
+    if (Stdlib.List.length items) == (Stdlib.List.length declaredItems) then
+      items
+      |> Stdlib.List.indexedMap (fun i item ->
+        declaredValueType branchId (nth declaredItems i) item)
+      |> Stdlib.String.join " * "
+      |> fun s -> $"({s})"
+    else
+      knownType branchId kt
+
+  | KTFn(argTypes, retType), Some(TFn(dArgTypes, dRetType)) ->
+    if (Stdlib.List.length argTypes) == (Stdlib.List.length dArgTypes) then
+      let args =
+        argTypes
+        |> Stdlib.List.indexedMap (fun i arg ->
+          declaredValueType branchId (nth dArgTypes i) arg)
+
+      let ret =
+        declaredValueType branchId (Stdlib.Option.Option.Some dRetType) retType
+
+      (Stdlib.List.push args ret) |> Stdlib.String.join " -> "
+    else
+      knownType branchId kt
+
+  | KTCustomType(Package hash, typeArgs), Some(TCustomType(dName, dTypeArgs)) ->
+    let typeArgsPortion =
+      match typeArgs with
+      | [] -> ""
+      | args ->
+        args
+        |> Stdlib.List.indexedMap (fun i arg ->
+          declaredValueType branchId (nth dTypeArgs i) arg)
+        |> Stdlib.String.join ", "
+        |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
+
+    let locations = Darklang.LanguageTools.PackageManager.Type.locations branchId hash
+
+    let namePart =
+      resolvePackageHashWithOriginalName
+        LanguageTools.PackageManager.PickContext.empty
+        locations
+        dName.originalName
+        hash
+
+    namePart ++ typeArgsPortion
+
+  | _, _ -> knownType branchId kt
+
 
 let letPattern (pat: LanguageTools.RuntimeTypes.LetPattern) : String =
   match pat with

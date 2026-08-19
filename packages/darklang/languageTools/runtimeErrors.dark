@@ -69,6 +69,7 @@ module Enums =
     | ConstructionFieldOfWrongType of
       caseName: String *
       fieldIndex: Int *
+      declaredType: Stdlib.Option.Option<TypeReference> *
       expectedType: ValueType *
       actualType: ValueType *
       actualValue: Dval
@@ -83,6 +84,7 @@ module Records =
     | CreationFieldNotExpected of fieldName: String
     | CreationFieldOfWrongType of
       fieldName: String *
+      declaredType: Stdlib.Option.Option<TypeReference> *
       expectedType: ValueType *
       actualType: ValueType *
       actualValue: Dval
@@ -94,6 +96,7 @@ module Records =
     | UpdateFieldNotExpected of fieldName: String
     | UpdateFieldOfWrongType of
       fieldName: String *
+      declaredType: Stdlib.Option.Option<TypeReference> *
       expectedType: ValueType *
       actualType: ValueType *
       actualValue : Dval
@@ -110,8 +113,8 @@ module Applications =
     | WrongNumberOfTypeArgsForFn of fn: FQFnName.FQFnName * expected: Int * actual: Int
     | CannotApplyTypeArgsMoreThanOnce
     | TooManyArgsForFn of fn: FQFnName.FQFnName * expected: Int * actual: Int
-    | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int * paramName : String * expectedType : ValueType * actualType : ValueType * actualValue : Dval
-    | FnResultNotExpectedType of fnName : FQFnName.FQFnName * expectedType : ValueType * actualType : ValueType * actualValue : Dval
+    | FnParameterNotExpectedType of fnName : FQFnName.FQFnName * paramIndex: Int * paramName : String * declaredType : Stdlib.Option.Option<TypeReference> * expectedType : ValueType * actualType : ValueType * actualValue : Dval
+    | FnResultNotExpectedType of fnName : FQFnName.FQFnName * declaredType : Stdlib.Option.Option<TypeReference> * expectedType : ValueType * actualType : ValueType * actualValue : Dval
 
     | CannotApplyTypeArgsToLambda
     | TooManyArgsForLambda of lambdaExprId: ID * expected: Int * actual: Int

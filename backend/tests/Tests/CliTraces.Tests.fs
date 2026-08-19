@@ -206,6 +206,104 @@ let private testEvalCases =
       "simple expr", [ "eval"; "2L + 3L" ], "5"
       "string concat", [ "eval"; "\"hello\" ++ \"world\"" ], "helloworld" ]
 
+// ─── Script declaration identity ────────────────────────────────────
+
+/// A script's own types, values and fns are grafted into the package manager
+/// keyed by content hash, so two declarations that hash the same collapse into
+/// one and calls to either reach whichever survived.
+///
+/// Collapsing is correct when the declarations really are identical, and wrong
+/// when they only look identical because they were hashed before their
+/// references resolved: an unresolved reference carries no name, so
+/// `f (r: TA) = 7` and `f (r: TB) = 7` serialise the same.
+let private testScriptDeclIdentity =
+  testCliEquals
+    "script declaration identity"
+    [ // Both fns are byte-identical apart from a parameter type that is still
+      // unresolved when the first pass runs. They must stay two functions.
+      "distinct types behind unresolved refs",
+      [ "eval"
+        "type TA = { a: String }\n\
+         type TB = { b: Int }\n\
+         let takesA (r: TA) : Int = 7\n\
+         let takesB (r: TB) : Int = 7\n\
+         (takesA (TA { a = \"x\" })) + (takesB (TB { b = 1 }))" ],
+      "14"
+
+      // The other direction: genuinely identical declarations SHOULD share one
+      // hash. Collapsing them is content addressing working, not a bug.
+      "identical fns share one hash",
+      [ "eval"
+        "let alpha (x: Int) : Int = x + 1\n\
+         let beta (x: Int) : Int = x + 1\n\
+         (alpha 1) + (beta 1)" ],
+      "4"
+
+      // Hashing after resolution means the hash graph can contain cycles, so
+      // mutually recursive declarations have to be hashed as a batch.
+      "mutually recursive fns",
+      [ "eval"
+        "let isEven (n: Int) : Bool = if n == 0 then true else isOdd (n - 1)\n\
+         let isOdd (n: Int) : Bool = if n == 0 then false else isEven (n - 1)\n\
+         isEven 10" ],
+      "true"
+
+      // Content addressing reaches across the script/package boundary: a script
+      // type with the same shape as a package type IS that type. This is what a
+      // location-keyed identity scheme would have cost.
+      "script type unifies with package type",
+      [ "eval"
+        "type MyErr = | BadFormat\n\
+         let f (e: Darklang.Stdlib.Int.ParseError) : Int = 1\n\
+         f (MyErr.BadFormat)" ],
+      "1" ]
+
+
+// ─── Runtime error rendering ────────────────────────────────────────
+
+/// A type mismatch against a package declaration names the function, the
+/// parameter and both types. Hashes appearing here instead of names is the
+/// failure mode that hid a declaration-collision bug for a whole release: the
+/// message named two hashes, so it read as a type mismatch rather than as the
+/// wrong function being called.
+let private testRteNamesPackageDecls =
+  cliTest "RTE names package declarations" (fun state ->
+    task {
+      let! output = runCli state [ "eval"; "Stdlib.List.length \"not a list\"" ]
+      Expect.stringContains
+        output
+        "Darklang.Stdlib.List.length"
+        "fn named, not hashed"
+      Expect.stringContains output "1st parameter `list`" "parameter named"
+      Expect.stringContains output "expects List<_>" "expected type named"
+      Expect.stringContains output "but got String" "actual type named"
+    })
+
+/// The same message for a script's own declarations. These are never in the
+/// store, and the CLI renders the error after the executor holding them is gone,
+/// so the pretty-printer's hash-to-name lookup used to miss and fall back to
+/// printing 64-character hashes. That is what made a declaration-collision bug
+/// read as an ordinary type mismatch.
+let private testRteNamesScriptDecls =
+  cliTest "RTE names script declarations" (fun state ->
+    task {
+      let! output =
+        runCli
+          state
+          [ "eval"
+            "type Celsius = { degrees: Int }\n\
+             type Fahrenheit = { degrees: Float }\n\
+             let describe (t: Celsius) : String = \"ok\"\n\
+             describe (Fahrenheit { degrees = 1.0 })" ]
+      Expect.stringContains output "describe's 1st parameter `t`" "fn named"
+      Expect.stringContains output "expects Celsius" "expected type named"
+      Expect.stringContains output "but got Fahrenheit" "actual type named"
+      // Bare, not `CliScript.Celsius`: the owner is scaffolding the parser
+      // stamped on, and no name can reach the declaration through it.
+      Expect.isFalse (output.Contains "CliScript.") "no scaffolding owner"
+    })
+
+
 let private testListFunctions =
   cliTest "ls Stdlib.List" (fun state ->
     task {
@@ -775,6 +873,9 @@ let tests =
       testStatusCommand
       testRunCases
       testEvalCases
+      testScriptDeclIdentity
+      testRteNamesPackageDecls
+      testRteNamesScriptDecls
       testListFunctions
       testViewFunction
       testListTypes
