@@ -441,7 +441,11 @@ let infix (i: LanguageTools.ProgramTypes.Infix) : String =
 
 let stringSegment (ctx: Context) (s: LanguageTools.ProgramTypes.StringSegment) : String =
   match s with
-  | StringText text -> PrettyPrinter.escapeSpecialCharacters text
+  // Inside `$"..."` a brace opens an interpolation, so a literal one is written doubled.
+  | StringText text ->
+    PrettyPrinter.escapeSpecialCharacters text
+    |> fun t -> Stdlib.String.replaceAll t "{" "{{"
+    |> fun t -> Stdlib.String.replaceAll t "}" "}}"
   | StringInterpolation interpolationExpr -> $"{{{expr ctx interpolationExpr}}}"
 
 let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
@@ -675,11 +679,18 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
   // `if c then a else b` on one line when it fits. An `else if` chain keeps the `else if` together
   // rather than indenting a whole nested if under it.
   | EIf(_id, cond, thenBranch, elseBranch) ->
+    // `if a then if b then c else d` is ambiguous on one line: the parser attaches `else d` to
+    // the inner `if`, even if it was written for the outer one. Breaking the outer `if` puts
+    // `else` on its own line at the outer `if`'s indentation, which the parser reads correctly.
+    let thenSep =
+      match thenBranch with
+      | EIf(_, _, _, _) -> Stdlib.Pretty.hardLine
+      | _ -> Stdlib.Pretty.line
+
     let head =
       Stdlib.Pretty.concat
         (txt $"if {expr ctx cond} then")
-        (Stdlib.Pretty.nest 2 (
-          Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx thenBranch)))
+        (Stdlib.Pretty.nest 2 (Stdlib.Pretty.concat thenSep (exprDoc ctx thenBranch)))
 
     match elseBranch with
     | None -> Stdlib.Pretty.group head

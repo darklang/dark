@@ -34,6 +34,141 @@ module PackageRefs = LibExecution.PackageRefs
 /// Both are fixed by the source-printer work, at which point this list should be empty.
 let knownNonIdempotent : Set<string> = Set.empty
 
+
+/// The parsed shape of a source file, for comparing two parses structurally.
+module SourceFileAst =
+  module PT2DT = LibExecution.ProgramTypesToDarkTypes
+  module D = LibExecution.DvalDecoder
+
+  type Definitions =
+    { types : List<PT.PackageType.PackageType>
+      values : List<PT.PackageValue.PackageValue>
+      fns : List<PT.PackageFn.PackageFn>
+      exprs : List<PT.Expr * List<string>> }
+
+  type Declaration =
+    | Type of PT.PackageType.PackageType
+    | Value of PT.PackageValue.PackageValue
+    | Function of PT.PackageFn.PackageFn
+    | Module of Definitions
+
+  type SourceFile = { declarations : List<Declaration>; exprsToEval : List<PT.Expr> }
+
+  let rec definitionsOfDval (d : RT.Dval) : Definitions =
+    match d with
+    | RT.DRecord(_, _, _, fields) ->
+      { types = fields |> D.field "types" |> D.list PT2DT.PackageType.fromDT
+        values = fields |> D.field "values" |> D.list PT2DT.PackageValue.fromDT
+        fns = fields |> D.field "fns" |> D.list PT2DT.PackageFn.fromDT
+        exprs =
+          fields
+          |> D.field "exprs"
+          |> D.list (fun d ->
+            match d with
+            | RT.DTuple(e, path, []) -> (PT2DT.Expr.fromDT e, D.list D.string path)
+            | _ -> Exception.raiseInternal "Invalid Definitions.exprs entry" []) }
+    | _ -> Exception.raiseInternal "Invalid Definitions" []
+
+  and declarationOfDval (d : RT.Dval) : Declaration =
+    match d with
+    | RT.DEnum(_, _, _, "Type", [ t ]) -> Type(PT2DT.PackageType.fromDT t)
+    | RT.DEnum(_, _, _, "Value", [ v ]) -> Value(PT2DT.PackageValue.fromDT v)
+    | RT.DEnum(_, _, _, "Function", [ f ]) -> Function(PT2DT.PackageFn.fromDT f)
+    | RT.DEnum(_, _, _, "Module", [ m ]) -> Module(definitionsOfDval m)
+    | _ -> Exception.raiseInternal "Invalid Declaration" []
+
+  let ofDval (d : RT.Dval) : SourceFile =
+    match d with
+    | RT.DRecord(_, _, _, fields) ->
+      { declarations = fields |> D.field "declarations" |> D.list declarationOfDval
+        exprsToEval = fields |> D.field "exprsToEval" |> D.list PT2DT.Expr.fromDT }
+    | _ -> Exception.raiseInternal "Invalid SourceFile" []
+
+
+module RoundTripExpect =
+  module Canonical = LibSerialization.Hashing.Canonical
+
+  /// The bytes content-addressing hashes: ids, `originalName`, descriptions and locations are
+  /// skipped; names compare by what they resolved to. "Same bytes" is exactly "same program".
+  let private canon (write : System.IO.BinaryWriter -> unit) : string =
+    use ms = new System.IO.MemoryStream()
+    use w = new System.IO.BinaryWriter(ms)
+    write w
+    w.Flush()
+    System.Convert.ToHexString(ms.ToArray())
+
+  let rec private definitionsCanon
+    (d : SourceFileAst.Definitions)
+    : List<string * string> =
+    [ yield!
+        d.types
+        |> List.mapi (fun i t ->
+          $"type {i}", canon (fun w -> Canonical.writeType Canonical.Normal w t))
+      yield!
+        d.values
+        |> List.mapi (fun i v ->
+          $"value {i}", canon (fun w -> Canonical.writeValue Canonical.Normal w v))
+      yield!
+        d.fns
+        |> List.mapi (fun i f ->
+          $"fn {i}", canon (fun w -> Canonical.writeFn Canonical.Normal w f))
+      yield!
+        d.exprs
+        |> List.mapi (fun i (e, path) ->
+          let at = String.concat "." path
+          $"module expr {i} at {at}",
+          canon (fun w -> Canonical.writeExpr Canonical.Normal w e)) ]
+
+  let private sourceFileCanon
+    (sf : SourceFileAst.SourceFile)
+    : List<string * string> =
+    [ yield!
+        sf.declarations
+        |> List.mapi (fun i decl ->
+          match decl with
+          | SourceFileAst.Type t ->
+            [ $"decl {i} type",
+              canon (fun w -> Canonical.writeType Canonical.Normal w t) ]
+          | SourceFileAst.Value v ->
+            [ $"decl {i} value",
+              canon (fun w -> Canonical.writeValue Canonical.Normal w v) ]
+          | SourceFileAst.Function f ->
+            [ $"decl {i} fn",
+              canon (fun w -> Canonical.writeFn Canonical.Normal w f) ]
+          | SourceFileAst.Module m ->
+            definitionsCanon m
+            |> List.map (fun (k, v) -> $"decl {i} module / {k}", v))
+        |> List.concat
+      yield!
+        sf.exprsToEval
+        |> List.mapi (fun i e ->
+          $"expr {i}", canon (fun w -> Canonical.writeExpr Canonical.Normal w e)) ]
+
+  /// Two parses of "the same" source describe the same program.
+  let sourceFileEqual
+    (actual : SourceFileAst.SourceFile)
+    (expected : SourceFileAst.SourceFile)
+    (printed : string)
+    : unit =
+    let a = sourceFileCanon actual
+    let e = sourceFileCanon expected
+
+    Expect.equal
+      (List.map fst a)
+      (List.map fst e)
+      "Re-parsing the printed source gave a different set of items"
+
+    List.iter2
+      (fun (label, ab) (_, eb) ->
+        if ab <> eb then
+          failtest (
+            $"Re-parsing the printed source changed the meaning of {label}.\n"
+            + $"The printer emitted text that parses to a different program:\n{printed}"
+          ))
+      a
+      e
+
+
 let t
   (name : string)
   (input : string)
@@ -59,8 +194,9 @@ let t
         pmPT |> PT.PackageManager.withExtras extraTypes extraValues extraFns
 
     // Parse `src` (so its declarations produce PackageOps), then pretty-print it
-    // back to source with those ops available for name resolution.
-    let roundOnce (src : string) : Task<string> =
+    // back to source with those ops available for name resolution. Returns the parsed
+    // source file too, so the caller can compare trees and not just text.
+    let roundOnce (src : string) : Task<RT.Dval * string> =
       task {
         let! parseExeState = executionStateFor basePM false Map.empty
         let args = NEList.singleton (RT.DString src)
@@ -93,7 +229,7 @@ let t
           let! resultDval = unwrapExecutionResult ppExeState ppResult |> Ply.toTask
 
           match resultDval with
-          | RT.DString result -> return result
+          | RT.DString result -> return (sourceFile, result)
           | _ -> return failtest $"Unexpected pretty print result: {resultDval}"
 
         | RT.DEnum(tn, _, _, "Error", [ RT.DString errMsg ]) when
@@ -103,7 +239,7 @@ let t
         | _ -> return failtest $"Unexpected parse result format: {parseDval}"
       }
 
-    let! firstPrint = roundOnce input
+    let! (firstTree, firstPrint) = roundOnce input
     Expect.RT.equalDval
       (RT.DString firstPrint)
       (RT.DString expected)
@@ -120,12 +256,23 @@ let t
     if Set.contains name knownNonIdempotent then
       return ()
     else
-      let! secondPrint = roundOnce firstPrint
+      let! (secondTree, secondPrint) = roundOnce firstPrint
+      Expect.RT.equalDval
+        (RT.DString secondPrint)
+        (RT.DString firstPrint)
+        "Printing is not idempotent: printing the printer's own output changed it"
+
+      // Parse, print, parse: the second tree must equal the first.
+      //
+      // Text idempotency can't see a printer that emits stable-but-wrong text: `if a then (if b
+      // then c) else d` printed flat re-parses with the `else` on the inner `if`, and printing
+      // that again gives the same flat text, so both checks above pass while the program has
+      // changed meaning. Comparing the trees (ids aside) is what catches that.
       return
-        Expect.RT.equalDval
-          (RT.DString secondPrint)
-          (RT.DString firstPrint)
-          "Printing is not idempotent: printing the printer's own output changed it"
+        RoundTripExpect.sourceFileEqual
+          (SourceFileAst.ofDval secondTree)
+          (SourceFileAst.ofDval firstTree)
+          firstPrint
   }
 
 
@@ -1360,6 +1507,16 @@ let exprs =
       []
       []
       false
+    // Literal braces in an interpolated string are written doubled; printed back, they must be
+    // doubled again, or `{{x}}` (the text `{x}`) comes back as an interpolation of `x`.
+    t
+      "interpolated string, literal braces"
+      "$\"{{x}} = {x}\""
+      "$\"{{x}} = {x}\""
+      []
+      []
+      []
+      false
     t "option none, short" "Stdlib.Option.Option.None" "Option.None" [] [] [] false
     t "option none, long" "Stdlib.Option.Option.None" "Option.None" [] [] [] false
     t "option some" "Stdlib.Option.Option.Some 1L" "Option.Some(1L)" [] [] [] false
@@ -1580,7 +1737,9 @@ if a > b then
     c
   else
     b"""
-      """if a > b then if c > d then c else b"""
+      // A nested `if` in a then-branch always gets its own line; see "else for outer if".
+      """if a > b then
+  if c > d then c else b"""
       []
       []
       []
@@ -1594,7 +1753,12 @@ if a > b then
     c
 else
   b"""
-      """if a > b then if c > d then c else b"""
+      // A nested `if` in a then-branch always gets its own line: on one row the parser would give
+      // this `else` to the inner `if`, making it "else for inner if" above. Indentation decides.
+      """if a > b then
+  if c > d then c
+else
+  b"""
       []
       []
       []
