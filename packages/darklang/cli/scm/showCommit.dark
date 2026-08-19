@@ -50,17 +50,21 @@ let execute (state: AppState) (args: List<String>) : AppState =
       match meta with
       | Some c ->
         Stdlib.printLine
-          $"Commit {Cli.Colors.cyan}{shortId}{Cli.Colors.reset} — {c.committerName}, {Stdlib.DateTime.toString c.createdAt} — {Stdlib.Int.toString (Stdlib.List.length ops)} ops"
+          $"Commit {Cli.Colors.cyan}{shortId}{Cli.Colors.reset} — {c.committerName}, {RelativeTime.ago c.createdAt} — {Stdlib.Int.toString (Stdlib.List.length ops)} ops"
 
         Stdlib.printLine $"  {c.message}"
       | None ->
         Stdlib.printLine
           $"Commit {Cli.Colors.cyan}{shortId}{Cli.Colors.reset} — {Stdlib.Int.toString (Stdlib.List.length ops)} ops:"
 
+      // Capped: the init commit holds eleven thousand ops, and printing all of them buries the header
+      // that says so. The count is already in the line above, so the footer only has to say what's left.
       ops
-      |> Stdlib.List.iter (fun op ->
+      |> Stdlib.List.map (fun op ->
         let opStr = PrettyPrinter.ProgramTypes.PackageOp.packageOp branchId op
-        Stdlib.printLine $"  {opStr}")
+        $"  {opStr}")
+      |> fun rows -> Listing.capped rows Listing.defaultLimit "use `ops` to page through them"
+      |> Stdlib.printLines
 
     state
   | _ ->

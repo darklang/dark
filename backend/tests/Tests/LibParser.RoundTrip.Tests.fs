@@ -18,6 +18,22 @@ module RT = LibExecution.RuntimeTypes
 module Dval = LibExecution.Dval
 module PackageRefs = LibExecution.PackageRefs
 
+/// Cases where printing the printer's own output changes it, with the reason.
+///
+/// These are pre-existing bugs the idempotency check found, not licence to add more. Two causes:
+///
+///  - **Module declarations re-nest.** The printer emits the owner as a `module` wrapper, and these
+///    files are parsed with owner "Tests", so printing `module Tests = …` and feeding it back yields
+///    `module Tests = module Tests = …`, one level deeper each pass. That is a real hazard for anything
+///    that prefills a buffer from the printer and saves it back through the parser.
+///
+///  - **Parenthesisation is unstable.** `EApply` parenthesises its arguments and `EInfix` wraps both
+///    sides, so `factorial (n) - (1L)` re-prints as `(factorial n) - (1L)`. Same tree, different text;
+///    the printer just doesn't agree with itself about which parens are needed.
+///
+/// Both are fixed by the source-printer work, at which point this list should be empty.
+let knownNonIdempotent : Set<string> = Set.empty
+
 let t
   (name : string)
   (input : string)
@@ -88,11 +104,28 @@ let t
       }
 
     let! firstPrint = roundOnce input
-    return
-      Expect.RT.equalDval
-        (RT.DString firstPrint)
-        (RT.DString expected)
-        "Didn't round-trip as expected"
+    Expect.RT.equalDval
+      (RT.DString firstPrint)
+      (RT.DString expected)
+      "Didn't round-trip as expected"
+
+    // Print, parse, print: the second print must equal the first.
+    //
+    // The assertion above only says the printer turns *this* input into the expected text. It says
+    // nothing about whether the printer's own output is a fixed point, and those come apart: a printer
+    // that re-qualifies a name, or lays a construct out differently from how it accepts it, passes the
+    // first check and still churns the text every time a file goes through it. That matters here
+    // because the expected strings are hand-written, so a layout change means regenerating them -- and
+    // a regenerated expectation is only trustworthy if the printer agrees with itself.
+    if Set.contains name knownNonIdempotent then
+      return ()
+    else
+      let! secondPrint = roundOnce firstPrint
+      return
+        Expect.RT.equalDval
+          (RT.DString secondPrint)
+          (RT.DString firstPrint)
+          "Printing is not idempotent: printing the printer's own output changed it"
   }
 
 
@@ -605,7 +638,7 @@ let typeReferences =
     t
       "option alias, shortcut name"
       "type MyOption = Stdlib.Option.Option"
-      "type MyOption =\n  Stdlib.Option.Option"
+      "type MyOption =\n  Option"
       []
       []
       []
@@ -613,7 +646,7 @@ let typeReferences =
     t
       "option alias, unapplied"
       "type MyOption = Stdlib.Option.Option"
-      "type MyOption =\n  Stdlib.Option.Option"
+      "type MyOption =\n  Option"
       []
       []
       []
@@ -621,7 +654,7 @@ let typeReferences =
     t
       "option alias, applied"
       "type MyOption = Stdlib.Option.Option<Int64>"
-      "type MyOption =\n  Stdlib.Option.Option<Int64>"
+      "type MyOption =\n  Option<Int64>"
       []
       []
       []
@@ -638,13 +671,14 @@ let typeReferences =
 
     // Unqualified Result/Option type names resolve via the stdlib fallback from any
     // module, mirroring how their constructors (Ok/Error, Some/None) already
-    // resolve unqualified everywhere. Once resolved, the name pretty-prints in
-    // the canonical `Stdlib.X.Y` form, so the unqualified input round-trips to the
-    // qualified output.
+    // resolve unqualified everywhere. The printer knows about that fallback too, so
+    // these print back unqualified: input and output are the same text, which is
+    // what you want from a round-trip and wasn't true while the printer re-qualified
+    // them to `Stdlib.X.Y`.
     t
       "unqualified Result resolves through stdlib fallback"
       "type MyResult = Result<Int64, String>"
-      "type MyResult =\n  Stdlib.Result.Result<Int64, String>"
+      "type MyResult =\n  Result<Int64, String>"
       []
       []
       []
@@ -652,7 +686,7 @@ let typeReferences =
     t
       "unqualified Option resolves through stdlib fallback"
       "type MyOpt = Option<Int64>"
-      "type MyOpt =\n  Stdlib.Option.Option<Int64>"
+      "type MyOpt =\n  Option<Int64>"
       []
       []
       []
@@ -660,7 +694,7 @@ let typeReferences =
     t
       "unqualified Result unapplied resolves through stdlib fallback"
       "type MyResult = Result"
-      "type MyResult =\n  Stdlib.Result.Result"
+      "type MyResult =\n  Result"
       []
       []
       []
@@ -978,7 +1012,7 @@ let exprs =
     t
       "string match pattern with escape"
       "match s with\n| \"a\\nb\" -> 1L\n| _ -> 0L"
-      "match s with\n| \"a\\nb\" ->\n  1L\n| _ ->\n  0L"
+      "match s with\n| \"a\\nb\" -> 1L\n| _ -> 0L"
       []
       []
       []
@@ -1060,7 +1094,7 @@ let exprs =
     t
       "multiline string - interpolated"
       "$\"\"\"test {\"1\"}\"\"\" == \"test 1\""
-      "($\"test {\"1\"}\") == (\"test 1\")"
+      "$\"test {\"1\"}\" == \"test 1\""
       []
       []
       []
@@ -1101,7 +1135,7 @@ let exprs =
   Stdlib.Int64.add 1L 2L
   Stdlib.List.head [1L; 2L]
 ]"""
-      "[Stdlib.Tuple2.second (4L, 5L); Stdlib.Int64.add 1L 2L; Stdlib.List.head [1L; 2L]]"
+      "[\n  Stdlib.Tuple2.second (4L, 5L);\n  Stdlib.Int64.add 1L 2L;\n  Stdlib.List.head [1L; 2L]\n]"
       []
       []
       []
@@ -1116,14 +1150,14 @@ let exprs =
     2L)
   Stdlib.List.head [1L; 2L]
 ]"""
-      "[Stdlib.Tuple2.second (4L, 5L); Stdlib.Int64.add 1L 2L; Stdlib.List.head [1L; 2L]]"
+      "[\n  Stdlib.Tuple2.second (4L, 5L);\n  Stdlib.Int64.add 1L 2L;\n  Stdlib.List.head [1L; 2L]\n]"
       []
       []
       []
       false
 
     // dict literal
-    t "empty dict" "Dict { }" "Dict {  }" [] [] [] false
+    t "empty dict" "Dict { }" "Dict {}" [] [] [] false
     t "simple int dict" "Dict { a = 1L }" "Dict { a = 1L }" [] [] [] false
     t
       "string dict"
@@ -1204,7 +1238,7 @@ let exprs =
       []
       []
       false
-    t "tuple with expr" "(1L, 2L + 3L, 4L)" "(1L, (2L) + (3L), 4L)" [] [] [] false
+    t "tuple with expr" "(1L, 2L + 3L, 4L)" "(1L, 2L + 3L, 4L)" [] [] [] false
 
     // record literals
     t
@@ -1309,8 +1343,7 @@ let exprs =
       name = "Jane"
       age = 31L
       hasPet = false })"""
-      """let myRec =
-  Tests.Person { name = "John"; age = 30L; hasPet = true }
+      """let myRec = Tests.Person { name = "John"; age = 30L; hasPet = true }
 { myRec with name = "Jane"; age = 31L; hasPet = false }"""
       [ person ]
       []
@@ -1327,30 +1360,9 @@ let exprs =
       []
       []
       false
-    t
-      "option none, short"
-      "Stdlib.Option.Option.None"
-      "Stdlib.Option.Option.None"
-      []
-      []
-      []
-      false
-    t
-      "option none, long"
-      "Stdlib.Option.Option.None"
-      "Stdlib.Option.Option.None"
-      []
-      []
-      []
-      false
-    t
-      "option some"
-      "Stdlib.Option.Option.Some 1L"
-      "Stdlib.Option.Option.Some(1L)"
-      []
-      []
-      []
-      false
+    t "option none, short" "Stdlib.Option.Option.None" "Option.None" [] [] [] false
+    t "option none, long" "Stdlib.Option.Option.None" "Option.None" [] [] [] false
+    t "option some" "Stdlib.Option.Option.Some 1L" "Option.Some(1L)" [] [] [] false
     t
       "custom enum tupled params"
       "Tests.MyEnum.C((1L, 2L))"
@@ -1384,7 +1396,7 @@ let exprs =
       "enum with indented field"
       """Stdlib.Result.Result.Error
   Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero"""
-      """Stdlib.Result.Result.Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)"""
+      """Result.Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)"""
       []
       []
       []
@@ -1404,7 +1416,7 @@ let exprs =
       []
       false
     // Pretty-printing normalizes the let body indentation.
-    t "simple let expr" "let x = 1L\n  x" "let x =\n  1L\nx" [] [] [] false
+    t "simple let expr" "let x = 1L\n  x" "let x = 1L\nx" [] [] [] false
     // A nested function definition desugars to a lambda bound by a let, so the
     // roundtrip is intentionally lossy: the param/return types are dropped and the
     // `let f (x) = ...` sugar prints as `let f = (fun x -> ...)`. (Top-level
@@ -1413,17 +1425,17 @@ let exprs =
     t
       "nested function definition (desugars to lambda)"
       "let result =\n  let double (x: Int64): Int64 = x * 2L\n  double 5L\nresult"
-      "let result =\n  let double =\n    (fun x ->\n      (x) * (2L))\n  double 5L\nresult"
+      "let result =\n  let double = (fun x -> x * 2L)\n  double 5L\nresult"
       []
       []
       []
       false
-    t "let expr with indent" "let x =\n  1L\nx" "let x =\n  1L\nx" [] [] [] false
+    t "let expr with indent" "let x =\n  1L\nx" "let x = 1L\nx" [] [] [] false
 
     t
       "tuple destructuring"
-      "let (var1, var2) =\n  var3\n(var1, var2)"
-      "let (var1, var2) =\n  var3\n(var1, var2)"
+      "let (var1, var2) = var3\n(var1, var2)"
+      "let (var1, var2) = var3\n(var1, var2)"
       []
       []
       []
@@ -1431,8 +1443,8 @@ let exprs =
 
     t
       "tuple destructuring 2"
-      "let (var1, var2) =\n  (var3, var4)\n(var1, var2)"
-      "let (var1, var2) =\n  (var3, var4)\n(var1, var2)"
+      "let (var1, var2) = (var3, var4)\n(var1, var2)"
+      "let (var1, var2) = (var3, var4)\n(var1, var2)"
       []
       []
       []
@@ -1472,31 +1484,24 @@ let exprs =
       []
       []
       false
-    t
-      "field access in context"
-      "person.age + 1L"
-      "(person.age) + (1L)"
-      []
-      []
-      []
-      false
+    t "field access in context" "person.age + 1L" "person.age + 1L" [] [] [] false
 
     // lambda
-    t "simple lambda" "fun x -> x + 1L" "(fun x ->\n  (x) + (1L))" [] [] [] false
+    t "simple lambda" "fun x -> x + 1L" "(fun x -> x + 1L)" [] [] [] false
     t
       "lambda wrapped with parens"
       "(fun x -> x + 1L)"
-      "(fun x ->\n  (x) + (1L))"
+      "(fun x -> x + 1L)"
       []
       []
       []
       false
-    t "lambda, 2 args" "fun x y -> x * y" "(fun x y ->\n  (x) * (y))" [] [] [] false
-    t "lambda, unit arg" "fun () -> 1L" "(fun () ->\n  1L)" [] [] [] false
+    t "lambda, 2 args" "fun x y -> x * y" "(fun x y -> x * y)" [] [] [] false
+    t "lambda, unit arg" "fun () -> 1L" "(fun () -> 1L)" [] [] [] false
     t
       "lambda with notable body"
       "fun var -> (Stdlib.String.toUppercase (Stdlib.String.fromChar var))"
-      "(fun var ->\n  Stdlib.String.toUppercase (Stdlib.String.fromChar var))"
+      "(fun var -> Stdlib.String.toUppercase (Stdlib.String.fromChar var))"
       []
       []
       []
@@ -1504,7 +1509,7 @@ let exprs =
     t
       "lambda with notable body 2"
       "fun (str1, str2) -> str1 ++ str2"
-      "(fun (str1, str2) ->\n  (str1) ++ (str2))"
+      "(fun (str1, str2) -> str1 ++ str2)"
       []
       []
       []
@@ -1512,19 +1517,12 @@ let exprs =
 
 
     // if expressions
-    t "if, 1" "if true then 1L" "if true then\n  1L" [] [] [] false
-    t
-      "if, 2"
-      "if true then 1L else 2L"
-      "if true then\n  1L\nelse\n  2L"
-      []
-      []
-      []
-      false
+    t "if, 1" "if true then 1L" "if true then 1L" [] [] [] false
+    t "if, 2" "if true then 1L else 2L" "if true then 1L else 2L" [] [] [] false
     t
       "if, 3"
       "if a < b then 1L else if c > d then 2L"
-      "if (a) < (b) then\n  1L\nelse if (c) > (d) then\n  2L"
+      "if a < b then 1L else if c > d then 2L"
       []
       []
       []
@@ -1532,25 +1530,18 @@ let exprs =
     t
       "if, 4"
       "if a < b then 1L else if c > d then 2L else 3L"
-      "if (a) < (b) then\n  1L\nelse if (c) > (d) then\n  2L\nelse\n  3L"
+      "if a < b then 1L else if c > d then 2L else 3L"
       []
       []
       []
       false
 
-    t "if, 5" "if true then\n 1L" "if true then\n  1L" [] [] [] false
-    t
-      "if, 6"
-      "if true then\n 1L\nelse\n 2L"
-      "if true then\n  1L\nelse\n  2L"
-      []
-      []
-      []
-      false
+    t "if, 5" "if true then\n 1L" "if true then 1L" [] [] [] false
+    t "if, 6" "if true then\n 1L\nelse\n 2L" "if true then 1L else 2L" [] [] [] false
     t
       "if, 7"
       "if true then\n a\nelse if false then\n c"
-      "if true then\n  a\nelse if false then\n  c"
+      "if true then a else if false then c"
       []
       []
       []
@@ -1559,20 +1550,13 @@ let exprs =
     t
       "if, 8"
       "if a > b then\n a\nelse if c > d then\n c\nelse d"
-      "if (a) > (b) then\n  a\nelse if (c) > (d) then\n  c\nelse\n  d"
+      "if a > b then a else if c > d then c else d"
       []
       []
       []
       false
 
-    t
-      "if, 9"
-      "if true then\n\ta\nelse\n\tb"
-      "if true then\n  a\nelse\n  b"
-      []
-      []
-      []
-      false
+    t "if, 9" "if true then\n\ta\nelse\n\tb" "if true then a else b" [] [] [] false
 
     t
       "if, many branches"
@@ -1582,12 +1566,7 @@ else if false then
   c
 else if true then
   d"""
-      """if true then
-  a
-else if false then
-  c
-else if true then
-  d"""
+      "if true then a else if false then c else if true then d"
       []
       []
       []
@@ -1601,11 +1580,7 @@ if a > b then
     c
   else
     b"""
-      """if (a) > (b) then
-  if (c) > (d) then
-    c
-  else
-    b"""
+      """if a > b then if c > d then c else b"""
       []
       []
       []
@@ -1619,11 +1594,7 @@ if a > b then
     c
 else
   b"""
-      """if (a) > (b) then
-  if (c) > (d) then
-    c
-else
-  b"""
+      """if a > b then if c > d then c else b"""
       []
       []
       []
@@ -1644,16 +1615,9 @@ else
         g
       else
         h"""
-      """if (a) > (b) then
+      """if a > b then
   a
-else if (c) > (d) then
-  c
-else if (e) > (f) then
-  e
-else if (g) > (h) then
-  g
-else
-  h"""
+else if c > d then c else if e > f then e else if g > h then g else h"""
       []
       []
       []
@@ -1664,7 +1628,7 @@ else
     t
       "match, unit"
       "match () with\n| () -> true"
-      "match () with\n| () ->\n  true"
+      "match () with\n| () -> true"
       []
       []
       []
@@ -1672,7 +1636,7 @@ else
     t
       "match, bool"
       "match true with\n| true -> true"
-      "match true with\n| true ->\n  true"
+      "match true with\n| true -> true"
       []
       []
       []
@@ -1681,7 +1645,7 @@ else
     t
       "match, int 1y"
       "match 1y with\n| 1y -> true"
-      "match 1y with\n| 1y ->\n  true"
+      "match 1y with\n| 1y -> true"
       []
       []
       []
@@ -1689,7 +1653,7 @@ else
     t
       "match, int -1y"
       "match -1y with\n| -1y -> true"
-      "match -1y with\n| -1y ->\n  true"
+      "match -1y with\n| -1y -> true"
       []
       []
       []
@@ -1697,7 +1661,7 @@ else
     t
       "match, int 0uy"
       "match 0uy with\n| 0uy -> true"
-      "match 0uy with\n| 0uy ->\n  true"
+      "match 0uy with\n| 0uy -> true"
       []
       []
       []
@@ -1705,7 +1669,7 @@ else
     t
       "match, int 1s"
       "match 1s with\n| 1s -> true"
-      "match 1s with\n| 1s ->\n  true"
+      "match 1s with\n| 1s -> true"
       []
       []
       []
@@ -1713,7 +1677,7 @@ else
     t
       "match, int 2us"
       "match 2us with\n| 2us -> true"
-      "match 2us with\n| 2us ->\n  true"
+      "match 2us with\n| 2us -> true"
       []
       []
       []
@@ -1721,7 +1685,7 @@ else
     t
       "match, int 3l"
       "match 3l with\n| 3l -> true"
-      "match 3l with\n| 3l ->\n  true"
+      "match 3l with\n| 3l -> true"
       []
       []
       []
@@ -1729,7 +1693,7 @@ else
     t
       "match, int 5ul"
       "match 5ul with\n| 5ul -> true"
-      "match 5ul with\n| 5ul ->\n  true"
+      "match 5ul with\n| 5ul -> true"
       []
       []
       []
@@ -1737,7 +1701,7 @@ else
     t
       "match, int 7L"
       "match 7L with\n| 7L -> true"
-      "match 7L with\n| 7L ->\n  true"
+      "match 7L with\n| 7L -> true"
       []
       []
       []
@@ -1745,7 +1709,7 @@ else
     t
       "match, int 8UL"
       "match 8UL with\n| 8UL -> true"
-      "match 8UL with\n| 8UL ->\n  true"
+      "match 8UL with\n| 8UL -> true"
       []
       []
       []
@@ -1753,7 +1717,7 @@ else
     t
       "match, int 9Q"
       "match 9Q with\n| 9Q -> true"
-      "match 9Q with\n| 9Q ->\n  true"
+      "match 9Q with\n| 9Q -> true"
       []
       []
       []
@@ -1761,7 +1725,7 @@ else
     t
       "match, int 10Z"
       "match 10Z with\n| 10Z -> true"
-      "match 10Z with\n| 10Z ->\n  true"
+      "match 10Z with\n| 10Z -> true"
       []
       []
       []
@@ -1769,7 +1733,7 @@ else
     t
       "match, float 0.9"
       "match 0.9 with\n| 0.9 -> true"
-      "match 0.9 with\n| 0.9 ->\n  true"
+      "match 0.9 with\n| 0.9 -> true"
       []
       []
       []
@@ -1777,7 +1741,7 @@ else
     t
       "match, string"
       "match \"str\" with\n| \"str\" -> true"
-      "match \"str\" with\n| \"str\" ->\n  true"
+      "match \"str\" with\n| \"str\" -> true"
       []
       []
       []
@@ -1785,7 +1749,7 @@ else
     t
       "match, char"
       "match 'c' with\n| 'c' -> true"
-      "match 'c' with\n| 'c' ->\n  true"
+      "match 'c' with\n| 'c' -> true"
       []
       []
       []
@@ -1793,7 +1757,7 @@ else
     t
       "match, var"
       "match var with\n| var -> true"
-      "match var with\n| var ->\n  true"
+      "match var with\n| var -> true"
       []
       []
       []
@@ -1801,7 +1765,7 @@ else
     t
       "match, str 2"
       "match \"str\" with\n| \"str\" -> true\n| \"other\" -> false"
-      "match \"str\" with\n| \"str\" ->\n  true\n| \"other\" ->\n  false"
+      "match \"str\" with\n| \"str\" -> true\n| \"other\" -> false"
       []
       []
       []
@@ -1809,7 +1773,7 @@ else
     t
       "match, int list 1"
       "match [1L; 2L] with\n| [1L; 2L] -> true"
-      "match [1L; 2L] with\n| [1L; 2L] ->\n  true"
+      "match [1L; 2L] with\n| [1L; 2L] -> true"
       []
       []
       []
@@ -1817,7 +1781,7 @@ else
     t
       "match, int list 2"
       "match [1L; 2L; 3L] with\n| head :: tail ->\n \"pass\""
-      "match [1L; 2L; 3L] with\n| head :: tail ->\n  \"pass\""
+      "match [1L; 2L; 3L] with\n| head :: tail -> \"pass\""
       []
       []
       []
@@ -1825,7 +1789,7 @@ else
     t
       "match, int tuple"
       "match (1L, 2L) with\n| (1L, 2L) -> true"
-      "match (1L, 2L) with\n| (1L, 2L) ->\n  true"
+      "match (1L, 2L) with\n| (1L, 2L) -> true"
       []
       []
       []
@@ -1833,7 +1797,7 @@ else
     t
       "match, enum"
       "match Stdlib.Result.Result.Ok 5L with\n| Ok(5L) -> true\n| Error(e) -> false"
-      "match Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) ->\n  true\n| Error(e) ->\n  false"
+      "match Result.Ok(5L) with\n| Ok(5L) -> true\n| Error(e) -> false"
       []
       []
       []
@@ -1841,7 +1805,7 @@ else
     t
       "match, enum no parens with one arg"
       "match Stdlib.Result.Result.Ok 5L with\n| Ok 5L -> true\n| Error e  -> false"
-      "match Stdlib.Result.Result.Ok(5L) with\n| Ok(5L) ->\n  true\n| Error(e) ->\n  false"
+      "match Result.Ok(5L) with\n| Ok(5L) -> true\n| Error(e) -> false"
       []
       []
       []
@@ -1849,7 +1813,7 @@ else
     t
       "match, enum with 2 args"
       "match MyEnum.D(5L, 3L) with\n| D(5L, 3L) -> true\n| _  -> false"
-      "match MyEnum.D(5L, 3L) with\n| D(5L, 3L) ->\n  true\n| _ ->\n  false"
+      "match MyEnum.D(5L, 3L) with\n| D(5L, 3L) -> true\n| _ -> false"
       []
       []
       []
@@ -1857,7 +1821,7 @@ else
     t
       "match, enum no parens with 1 tuple arg"
       "match Stdlib.Result.Result.Ok((5L, 3L)) with\n| Ok((5L, 3L)) -> true\n| Error e  -> false"
-      "match Stdlib.Result.Result.Ok((5L, 3L)) with\n| Ok((5L, 3L)) ->\n  true\n| Error(e) ->\n  false"
+      "match Result.Ok((5L, 3L)) with\n| Ok((5L, 3L)) -> true\n| Error(e) -> false"
       []
       []
       []
@@ -1865,7 +1829,7 @@ else
     t
       "match, string 3"
       "match \"str\" with\n| \"str\" when true -> true"
-      "match \"str\" with\n| \"str\" when true ->\n  true"
+      "match \"str\" with\n| \"str\" when true -> true"
       []
       []
       []
@@ -1873,7 +1837,7 @@ else
     t
       "match, when simple"
       "match x with\n| y when y > 1L -> true\n| z when z < 1L -> false\n| w -> w"
-      "match x with\n| y when (y) > (1L) ->\n  true\n| z when (z) < (1L) ->\n  false\n| w ->\n  w"
+      "match x with\n| y when y > 1L -> true\n| z when z < 1L -> false\n| w -> w"
       []
       []
       []
@@ -1881,7 +1845,7 @@ else
     t
       "match, ignored 1"
       "match true with\n| _ -> true"
-      "match true with\n| _ ->\n  true"
+      "match true with\n| _ -> true"
       []
       []
       []
@@ -1889,7 +1853,7 @@ else
     t
       "match, ignored 2"
       "match true with\n| _var -> true"
-      "match true with\n| _var ->\n  true"
+      "match true with\n| _var -> true"
       []
       []
       []
@@ -1898,7 +1862,7 @@ else
     t
       "match, multiple patterns"
       "match (1L, 2L) with\n| (1L, 2L) | (2L, 1L) -> true\n| _ -> false"
-      "match (1L, 2L) with\n| (1L, 2L) | (2L, 1L) ->\n  true\n| _ ->\n  false"
+      "match (1L, 2L) with\n| (1L, 2L) | (2L, 1L) -> true\n| _ -> false"
       []
       []
       []
@@ -1906,12 +1870,12 @@ else
 
 
     // pipe expression
-    t "pipe, infix" "1L |> (+) 2L" "1L\n|> (+) 2L" [] [] [] false
-    t "pipe, into var" "1L |> x" "1L\n|> x" [] [] [] false
+    t "pipe, infix" "1L |> (+) 2L" "1L |> (+) 2L" [] [] [] false
+    t "pipe, into var" "1L |> x" "1L |> x" [] [] [] false
     t
       "pipe, into lambda"
       "1L |> (fun x -> x + 1L)"
-      "1L\n|> fun x -> (x) + (1L)"
+      "1L |> fun x -> x + 1L"
       []
       []
       []
@@ -1919,7 +1883,7 @@ else
     t
       "pipe, into lambda, 2"
       "1L |> fun x -> x + 1L"
-      "1L\n|> fun x -> (x) + (1L)"
+      "1L |> fun x -> x + 1L"
       []
       []
       []
@@ -1927,7 +1891,7 @@ else
     t
       "pipe, into enum"
       "3L |> Stdlib.Result.Result.Ok"
-      "3L\n|> Stdlib.Result.Result.Ok"
+      "3L |> Result.Ok"
       []
       []
       []
@@ -1935,7 +1899,7 @@ else
     t
       "pipe, into enum 2"
       "33L |> Tests.MyEnum.D(21L)"
-      "33L\n|> Tests.MyEnum.D(21L)"
+      "33L |> Tests.MyEnum.D(21L)"
       [ myEnum ]
       []
       []
@@ -1943,7 +1907,7 @@ else
     t
       "pipe, into fn call"
       "1L |> Stdlib.Int64.add 2L"
-      "1L\n|> Stdlib.Int64.add 2L"
+      "1L |> Stdlib.Int64.add 2L"
       []
       []
       []
@@ -1951,7 +1915,7 @@ else
     t
       "pipe, into fn call 2"
       "1L |> Stdlib.Int64.toString"
-      "1L\n|> Stdlib.Int64.toString"
+      "1L |> Stdlib.Int64.toString"
       []
       []
       []
@@ -1959,7 +1923,7 @@ else
     t
       "pipe, into fn call 3"
       "\"true\" |> Builtin.jsonParse<Bool>"
-      "\"true\"\n|> Builtin.jsonParse<Bool>"
+      "\"true\" |> Builtin.jsonParse<Bool>"
       []
       []
       []
@@ -1967,7 +1931,7 @@ else
     t
       "pipe, into fn call 4"
       "Stdlib.Int64.add 1L 2L |> Stdlib.Int64.add 1L"
-      "Stdlib.Int64.add 1L 2L\n|> Stdlib.Int64.add 1L"
+      "Stdlib.Int64.add 1L 2L |> Stdlib.Int64.add 1L"
       []
       []
       []
@@ -1975,33 +1939,26 @@ else
     t
       "pipe, into fn call 5"
       "[1L; 2L] |> Stdlib.List.last |> Builtin.unwrap"
-      "[1L; 2L]\n|> Stdlib.List.last\n|> Builtin.unwrap"
+      "[1L; 2L] |> Stdlib.List.last |> Builtin.unwrap"
       []
       []
       []
       false
 
     // Infix calls pretty-print with explicit operand parentheses.
-    t "fn call, add once" "1L + 2L" "(1L) + (2L)" [] [] [] false
-    t "fn call, add twice" "1L + b + 3L" "((1L) + (b)) + (3L)" [] [] [] false
-    t
-      "fn call, add thrice"
-      "1L + 2L * 3L - 4L"
-      "((1L) + ((2L) * (3L))) - (4L)"
-      []
-      []
-      []
-      false
-    t "fn call, >" "1L > 2L" "(1L) > (2L)" [] [] [] false
-    t "fn call, >=" "1L >= 2L" "(1L) >= (2L)" [] [] [] false
-    t "fn call, <" "1L < 2L" "(1L) < (2L)" [] [] [] false
-    t "fn call, <=" "1L <= 2L" "(1L) <= (2L)" [] [] [] false
-    t "fn call, ==" "1L == 2L" "(1L) == (2L)" [] [] [] false
-    t "fn call, !=" "1L != 2L" "(1L) != (2L)" [] [] [] false
-    t "fn call, ^" "1L ^ 2L" "(1L) ^ (2L)" [] [] [] false
-    t "fn call, ++" "strVar ++ \"str\"" "(strVar) ++ (\"str\")" [] [] [] false
-    t "fn call, &&" "true && false" "(true) && (false)" [] [] [] false
-    t "fn call, ||" "true || false" "(true) || (false)" [] [] [] false
+    t "fn call, add once" "1L + 2L" "1L + 2L" [] [] [] false
+    t "fn call, add twice" "1L + b + 3L" "1L + b + 3L" [] [] [] false
+    t "fn call, add thrice" "1L + 2L * 3L - 4L" "1L + 2L * 3L - 4L" [] [] [] false
+    t "fn call, >" "1L > 2L" "1L > 2L" [] [] [] false
+    t "fn call, >=" "1L >= 2L" "1L >= 2L" [] [] [] false
+    t "fn call, <" "1L < 2L" "1L < 2L" [] [] [] false
+    t "fn call, <=" "1L <= 2L" "1L <= 2L" [] [] [] false
+    t "fn call, ==" "1L == 2L" "1L == 2L" [] [] [] false
+    t "fn call, !=" "1L != 2L" "1L != 2L" [] [] [] false
+    t "fn call, ^" "1L ^ 2L" "1L ^ 2L" [] [] [] false
+    t "fn call, ++" "strVar ++ \"str\"" "strVar ++ \"str\"" [] [] [] false
+    t "fn call, &&" "true && false" "true && false" [] [] [] false
+    t "fn call, ||" "true || false" "true || false" [] [] [] false
     t "fn call, and short" "and true false" "and true false" [] [] [] true
     t
       "fn call, and longer"
@@ -2051,10 +2008,11 @@ else
   (fun x -> Stdlib.String.toUppercase x)
   ("one", 2L, "pi")
 """
-      """Stdlib.Tuple3.mapAllThree (fun x ->
-  Stdlib.String.toUppercase x) (fun x ->
-  (x) - (2L)) (fun x ->
-  Stdlib.String.toUppercase x) ("one", 2L, "pi")"""
+      """Stdlib.Tuple3.mapAllThree
+  (fun x -> Stdlib.String.toUppercase x)
+  (fun x -> x - 2L)
+  (fun x -> Stdlib.String.toUppercase x)
+  ("one", 2L, "pi")"""
       []
       []
       []
@@ -2062,7 +2020,10 @@ else
     t
       "fn call with db reference"
       """Stdlib.DB.set Tests.Person { name = "John"; age = 30L; hasPet = true } "key" TestDB"""
-      """Stdlib.DB.set Tests.Person { name = "John"; age = 30L; hasPet = true } "key" TestDB"""
+      """Stdlib.DB.set
+  Tests.Person { name = "John"; age = 30L; hasPet = true }
+  "key"
+  TestDB"""
       [ person ]
       []
       []
@@ -2158,7 +2119,7 @@ let valueDeclarations =
     t
       "dict, empty"
       "val emptyDict = Dict {}"
-      "val emptyDict = Dict {  }"
+      "val emptyDict = Dict {}"
       []
       []
       []
@@ -2224,7 +2185,7 @@ let valueDeclarations =
     t
       "option, none"
       "val none = Stdlib.Option.Option.None"
-      "val none = Stdlib.Option.Option.None"
+      "val none = Option.None"
       []
       []
       []
@@ -2232,7 +2193,7 @@ let valueDeclarations =
     t
       "option, some 1"
       "val some = Stdlib.Option.Option.Some(1L)"
-      "val some = Stdlib.Option.Option.Some(1L)"
+      "val some = Option.Some(1L)"
       []
       []
       []
@@ -2259,7 +2220,7 @@ let functionDeclarations =
   [ t
       "function doc comment"
       "/// Greets a user\nlet greet (name: String): String = \"Hello \" ++ name"
-      "/// Greets a user\nlet greet (name: String): String =\n  (\"Hello \") ++ (name)"
+      "/// Greets a user\nlet greet (name: String): String =\n  \"Hello \" ++ name"
       []
       []
       []
@@ -2277,7 +2238,7 @@ let functionDeclarations =
     t
       "single package param"
       "let double2 (i: LanguageTools.ID) : Int64 = (i + i)"
-      "let double2 (i: LanguageTools.ID): Int64 =\n  (i) + (i)"
+      "let double2 (i: LanguageTools.ID): Int64 =\n  i + i"
       []
       []
       []
@@ -2354,7 +2315,7 @@ let functionDeclarations =
     t
       "fn declaration with indented body"
       "let helloPerson (name: String): String =\n  let greeting = \"Hello \"\n  greeting ++ name"
-      "let helloPerson (name: String): String =\n  let greeting =\n    \"Hello \"\n  (greeting) ++ (name)"
+      "let helloPerson (name: String): String =\n  let greeting = \"Hello \"\n  greeting ++ name"
       []
       []
       []
@@ -2367,7 +2328,7 @@ let functionDeclarations =
     1L
   else
     n * (factorial (n - 1L))"""
-      "let factorial (n: Int64): Int64 =\n  if (n) <= (1L) then\n    1L\n  else\n    (n) * (factorial (n) - (1L))"
+      "let factorial (n: Int64): Int64 =\n  if n <= 1L then 1L else n * factorial (n - 1L)"
       []
       []
       []
@@ -2386,13 +2347,9 @@ let functionDeclarations =
   if Stdlib.Int64.lessThanOrEqualTo z 0L then
     y
   else
-    let result =
-      incr y (Stdlib.Int64.subtract z 1L)
-    let incr =
-      (fun x ->
-        Stdlib.Int64.add x 2L)
-    let lambdaResult =
-      incr z
+    let result = incr y (Stdlib.Int64.subtract z 1L)
+    let incr = (fun x -> Stdlib.Int64.add x 2L)
+    let lambdaResult = incr z
     Stdlib.Int64.add result lambdaResult"""
       []
       []
@@ -2404,7 +2361,7 @@ let moduleDeclarations =
   [ t
       "simple module"
       "module MyModule =\n  type ID = Int64"
-      "module Tests =\n  module MyModule =\n    type ID =\n      Int64"
+      "module MyModule =\n  type ID =\n    Int64"
       []
       []
       []
@@ -2416,7 +2373,7 @@ let moduleDeclarations =
     t
       "unqualified Result resolves inside a non-Stdlib module"
       "module MyModule =\n  type MyResult = Result<Int64, String>"
-      "module Tests =\n  module MyModule =\n    type MyResult =\n      Stdlib.Result.Result<Int64, String>"
+      "module MyModule =\n  type MyResult =\n    Result<Int64, String>"
       []
       []
       []
@@ -2430,7 +2387,7 @@ let moduleDeclarations =
   type MyString = String
   let myFn (i: Int64): Int64 = 1L
   val x = 100L"""
-      "module Tests =\n  module MyModule =\n    type ID =\n      Int64\n\n    type MyString =\n      String\n\n    let myFn (i: Int64): Int64 =\n      1L\n\n    val x = 100L"
+      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn (i: Int64): Int64 =\n    1L\n\n  val x = 100L"
       []
       []
       []
@@ -2446,7 +2403,7 @@ let moduleDeclarations =
   let myFn (i: Int64): Int64 = 1L
 
   val x = 100L"""
-      "module Tests =\n  module MyModule =\n    type ID =\n      Int64\n\n    type MyString =\n      String\n\n    let myFn (i: Int64): Int64 =\n      1L\n\n    val x = 100L"
+      "module MyModule =\n  type ID =\n    Int64\n\n  type MyString =\n    String\n\n  let myFn (i: Int64): Int64 =\n    1L\n\n  val x = 100L"
       []
       []
       []
@@ -2462,7 +2419,7 @@ let moduleDeclarations =
       type ID = Int64
       val x = 100L
       1L"""
-      "module Tests =\n  module MyModule1 =\n    type ID =\n      Int64\n\n    module MyModule2 =\n      type ID =\n        Int64\n\n      module MyModule3 =\n        type ID =\n          Int64\n\n        val x = 100L\n\n        1L"
+      "module MyModule1 =\n  type ID =\n    Int64\n\n  module MyModule2 =\n    type ID =\n      Int64\n\n    module MyModule3 =\n      type ID =\n        Int64\n\n      val x = 100L\n\n      1L"
       []
       []
       []
@@ -2490,10 +2447,10 @@ let sourceFiles =
       "type BookID =\n  Int64
 
 let getTitle (bookId: BookID): String =
-  let book =\n    Library.getBook bookId
+  let book = Library.getBook bookId
   getNameFromBook book
 
-let curiousGeorgeBookId =\n  101L
+let curiousGeorgeBookId = 101L
 Builtin.printLine (getTitle curiousGeorgeBookId)
 0L"
       []
@@ -2511,7 +2468,7 @@ Builtin.printLine (getTitle curiousGeorgeBookId)
 val two = 2L
 
 two"""
-      "module Tests =\n  module Helpers =\n    /// One from Helpers\n    val one = 1L\n\n/// Top-level value\nval two = 2L\n\ntwo"
+      "module Helpers =\n  /// One from Helpers\n  val one = 1L\n\n/// Top-level value\nval two = 2L\n\ntwo"
       []
       []
       []

@@ -88,7 +88,7 @@ Stdlib.List.filter [ 1L; 2L; 3L ] (fun item ->
   match item with
   | 1L -> Stdlib.Option.Option.None
   | 2L -> false
-  | 3L -> true) = error="Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (Darklang.Stdlib.Option.Option<_>.None)"
+  | 3L -> true) = error="Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (None)"
 Stdlib.List.filter [ true; false; true ] (fun item -> "a") = error="Encountered a condition that must be a Bool, but got a String (\"a\")"
 Stdlib.List.filter [ 1L; 2L; 3L ] (fun item ->
   match item with
@@ -225,7 +225,7 @@ module Partition =
     match item with
     | 1L -> Stdlib.Option.Option.None
     | 2L -> false
-    | 3L -> true) = error="Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (Darklang.Stdlib.Option.Option<_>.None)"
+    | 3L -> true) = error="Encountered a condition that must be a Bool, but got a Darklang.Stdlib.Option.Option<_> (None)"
 Stdlib.List.pushBack [ 2L; 3L ] 1L = [ 2L; 3L; 1L ]
 Stdlib.List.pushBack [] 1L = [ 1L ]
 

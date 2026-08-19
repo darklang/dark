@@ -10,9 +10,10 @@ module Darklang.Cli.SCM.Log
 let renderOneLine
   (c: SCM.PackageOps.Commit)
   (isAncestor: Bool)
+  (long: Bool)
   : String =
   let id = LanguageTools.ProgramTypes.hashToShort c.hash
-  let createdAt = Stdlib.DateTime.toString c.createdAt
+  let createdAt = RelativeTime.stamp long c.createdAt
   let opCount = Stdlib.Int.toString c.opCount
   let suffix = if isAncestor then $"  [{c.branchName}]" else ""
 
@@ -21,9 +22,9 @@ let renderOneLine
   else
     $"  {Cli.Colors.cyan}{id}{Cli.Colors.reset}  {createdAt}  {Cli.Colors.dim}{c.committerName}{Cli.Colors.reset}  {opCount} ops  {c.message}"
 
-let renderDetailed (c: SCM.PackageOps.Commit) (isAncestor: Bool) : Unit =
+let renderDetailed (c: SCM.PackageOps.Commit) (isAncestor: Bool) (long: Bool) : Unit =
   let id = LanguageTools.ProgramTypes.hashToShort c.hash
-  let createdAt = Stdlib.DateTime.toString c.createdAt
+  let createdAt = RelativeTime.stamp long c.createdAt
   let opCount = Stdlib.Int.toString c.opCount
 
   if isAncestor then
@@ -43,6 +44,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
   let branchId = state.currentBranchId
   let detailed =
     (Stdlib.List.member args "--detailed") || (Stdlib.List.member args "--full")
+
+  // Relative by default; the exact stamp when you ask for it.
+  let long = Stdlib.List.member args "--long"
 
   let limit =
     match Stdlib.List.filter args (fun a -> Stdlib.String.startsWith a "--" |> Stdlib.Bool.not) with
@@ -75,9 +79,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
       let isAncestor = commitBranchId != currentBranchIdStr && commitBranchId != ""
 
       if detailed then
-        renderDetailed c isAncestor
+        renderDetailed c isAncestor long
       else
-        Stdlib.printLine (renderOneLine c isAncestor))
+        Stdlib.printLine (renderOneLine c isAncestor long))
 
   state
 
@@ -87,7 +91,7 @@ let complete (_state: AppState) (_args: List<String>) : List<Completion.Completi
 
 
 let help (_state: AppState) : String =
-  [ "Usage: commits [limit] [--detailed]"
+  [ "Usage: commits [limit] [--detailed] [--long]"
     "Show commit history for the current branch and its ancestors."
     "Commits from parent branches are shown dimmed with the branch name."
     ""
@@ -95,6 +99,7 @@ let help (_state: AppState) : String =
     "  limit        Maximum number of commits to show (default: 20)"
     "  --detailed   Three lines per commit (id/date/author, message, blank) instead of one."
     "               --full does the same."
+    "  --long       Exact timestamps instead of `3 days ago`."
     ""
     "Aliases: log, history"
     ""

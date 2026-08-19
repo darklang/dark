@@ -7,8 +7,9 @@ let sourceFile
   let ctx =
     PrettyPrinter.ProgramTypes.Context
       { branchId = branchId
-        currentModule = Stdlib.Option.Option.None
-        currentFunction = Stdlib.Option.Option.None }
+        currentModule = []
+        currentFunction = Stdlib.Option.Option.None
+        width = 80 }
 
   let declsPart =
     (Stdlib.List.fold source.declarations [] (fun acc decl ->

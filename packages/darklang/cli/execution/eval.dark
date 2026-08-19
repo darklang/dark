@@ -9,11 +9,26 @@ let evaluateRaw
   (accountID: Stdlib.Option.Option<Uuid>)
   (branchId: Uuid)
   (expr: String)
+  (currentModule: List<String>)
   (allowHarmful: Bool)
   : Stdlib.Result.Result<
       Stdlib.Option.Option<String>,
       ExecutionError.ExecutionError> =
-  Builtin.cliEvaluateExpression accountID branchId expr allowHarmful
+  // Width and color are decided here rather than inside the builtin. They are facts about the process
+  // the output is headed for, and `Cli.Terminal` is what owns them; having the host reach across into
+  // another builtin's terminal code to ask would be the wrong way round. Both fall back sanely when
+  // there is no terminal (80 columns, no color), so the callers that never print are unaffected.
+  let (width, _rows) = Terminal.getSize ()
+  let color = Terminal.colorEnabled ()
+
+  Builtin.cliEvaluateExpression
+    accountID
+    branchId
+    expr
+    currentModule
+    width
+    color
+    allowHarmful
 
 
 /// Evaluate `expr` and hand back what it produced: `Ok (Some printed)` for a value, `Ok None` for something
@@ -25,7 +40,13 @@ let evaluate
   (expr: String)
   (allowHarmful: Bool)
   : Stdlib.Result.Result<Stdlib.Option.Option<String>, String> =
-  match evaluateRaw state.accountID state.currentBranchId expr allowHarmful with
+  // Where the user is standing, so the printed value spells names the way they would.
+  let currentModule =
+    Packages.Traversal.getCurrentModulePath state.packageData.currentLocation
+
+  match
+    evaluateRaw state.accountID state.currentBranchId expr currentModule allowHarmful
+  with
   | Ok result -> Stdlib.Result.Result.Ok result
   | Error err ->
     Stdlib.Result.Result.Error(ExecutionError.toString state.currentBranchId err)

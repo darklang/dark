@@ -74,7 +74,10 @@ module ModuleDeclaration =
     : List<Module> =
     match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Type.locations branchId t.hash) with
     | Some location ->
-      let fullPath = Stdlib.List.push location.modules location.owner
+      // The owner is NOT a module. The parser takes it as a separate input, so printing it as one
+      // means the output re-parses a level deeper than it started: `module Tests = ...` fed back in
+      // with owner "Tests" becomes `Tests.Tests.*`, and again on every pass after that.
+      let fullPath = location.modules
       withTypeHelper ms t fullPath
     | None ->
       [ Module
@@ -151,7 +154,10 @@ module ModuleDeclaration =
     : List<Module> =
     match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Function.locations branchId f.hash) with
     | Some location ->
-      let fullPath = Stdlib.List.push location.modules location.owner
+      // The owner is NOT a module. The parser takes it as a separate input, so printing it as one
+      // means the output re-parses a level deeper than it started: `module Tests = ...` fed back in
+      // with owner "Tests" becomes `Tests.Tests.*`, and again on every pass after that.
+      let fullPath = location.modules
       withFnHelper ms f fullPath
     | None ->
       [ Module
@@ -227,7 +233,10 @@ module ModuleDeclaration =
     : List<Module> =
     match Darklang.LanguageTools.PackageManager.pickLocation Darklang.LanguageTools.PackageManager.PickContext.empty (LanguageTools.PackageManager.Value.locations branchId v.hash) with
     | Some location ->
-      let fullPath = Stdlib.List.push location.modules location.owner
+      // The owner is NOT a module. The parser takes it as a separate input, so printing it as one
+      // means the output re-parses a level deeper than it started: `module Tests = ...` fed back in
+      // with owner "Tests" becomes `Tests.Tests.*`, and again on every pass after that.
+      let fullPath = location.modules
       withValueHelper ms v fullPath
     | None ->
       [ Module
@@ -322,7 +331,15 @@ module ModuleDeclaration =
       Stdlib.List.fold
         p.exprs
         modulesWithTypesAndFnsAndValues
-        (fun modules e -> withExpr modules e)
+        (fun modules e ->
+          // Same rule as the declarations above: the owner is not a module. An expr's path arrives
+          // from the parser owner-first, so drop that segment before nesting it.
+          let (expr, path) = e
+          let path =
+            match path with
+            | [] -> []
+            | _ :: rest -> rest
+          withExpr modules ((expr, path)))
 
 
     modulesWithTypesAndFnsAndValuesAndExprs

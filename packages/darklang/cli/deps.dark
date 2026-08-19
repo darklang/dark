@@ -21,10 +21,24 @@ let resolveNames
   (branchId: Uuid)
   (itemHashes: List<LanguageTools.ProgramTypes.Hash>)
   : Dict<String> =
+  Deps.resolveNamesIn branchId [] itemHashes
+
+
+/// Like `resolveNames`, but spelling each name from `currentModule`.
+///
+/// `[]` gives the fully-qualified form, which is what a standalone list wants. A caller that knows
+/// where the reader is standing should say so: reading one item's references inside a module, the path
+/// back up to the root is the noise it looks like.
+let resolveNamesIn
+  (branchId: Uuid)
+  (currentModule: List<String>)
+  (itemHashes: List<LanguageTools.ProgramTypes.Hash>)
+  : Dict<String> =
   (Builtin.depsResolveLocations branchId itemHashes)
   |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (itemHash, location) ->
     let h = Darklang.LanguageTools.ProgramTypes.hashToString itemHash
-    let displayName = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
+    let displayName =
+      PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn currentModule location
     Stdlib.Dict.set acc h displayName)
 
 
@@ -58,10 +72,13 @@ let showDependents
     Stdlib.printLine ""
 
     deps
-    |> Stdlib.List.iter (fun (_sourceHash, sourceLoc, refType) ->
-      let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation sourceLoc
-      let kind = Darklang.Cli.Packages.Propagate.itemKindToString refType
-      Stdlib.printLine $"  [{kind}] {name}")
+    // Grouped by module and capped, like every other long listing. Four hundred flat rows whose only
+    // difference is the last segment is a list you scroll past rather than read.
+    |> Stdlib.List.map (fun (_sourceHash, sourceLoc, _refType) ->
+      PrettyPrinter.ProgramTypes.PackageLocation.packageLocation sourceLoc)
+    |> Listing.groupedByModule
+    |> fun rows -> Listing.capped rows Listing.defaultLimit "narrow with a module path"
+    |> Stdlib.printLines
 
 
 /// Helper for transitive traversal — collects dependents via batched
@@ -140,11 +157,14 @@ let showTransitiveDependents
     Stdlib.printLine $"Found {Stdlib.Int.toString count} items that could break if {entityName} changes:"
     Stdlib.printLine ""
 
+    // Grouped by module and capped. Four hundred flat rows whose only difference is the last segment
+    // is a list you scroll past, not one you read.
     deps
-    |> Stdlib.List.iter (fun (sourceLoc, refType) ->
-      let name = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation sourceLoc
-      let kind = Darklang.Cli.Packages.Propagate.itemKindToString refType
-      Stdlib.printLine $"  [{kind}] {name}")
+    |> Stdlib.List.map (fun (sourceLoc, _refType) ->
+      PrettyPrinter.ProgramTypes.PackageLocation.packageLocation sourceLoc)
+    |> Listing.groupedByModule
+    |> fun rows -> Listing.capped rows Listing.defaultLimit "narrow with a module path"
+    |> Stdlib.printLines
 
 
 /// Display dependencies (what this entity uses)
@@ -167,9 +187,10 @@ let showDependencies
     let namesDict = resolveNames branchId hashes
 
     deps
-    |> Stdlib.List.iter (fun (targetHash, refType) ->
-      let name = getName namesDict targetHash
-      Stdlib.printLine $"  [{refType}] {name}")
+    |> Stdlib.List.map (fun (targetHash, refType) ->
+      $"{Glyphs.forKind refType} {getName namesDict targetHash}")
+    |> fun rows -> Listing.capped rows Listing.defaultLimit "narrow with a module path"
+    |> Stdlib.printLines
 
 
 /// Resolve a path to (hash, location, kind, displayName).

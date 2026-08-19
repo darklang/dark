@@ -96,9 +96,7 @@ module RuntimeError =
           | InlineParamName p -> p // Inline versions don't have quotes
           | TypeName t -> typeName branchId t
           | ValueName v -> valueName branchId v
-          | ShortTypeName t ->
-            // TODO: make it short
-            typeName branchId t
+          | ShortTypeName t -> shortTypeName branchId t
           | TypeReference t -> typeReference branchId t
           | TypeOfValue dv -> Dval.valueTypeName branchId dv
           | ValueType vt -> valueType branchId vt

@@ -8,10 +8,11 @@ module Darklang.PrettyPrinter.Capabilities
 
 let methodLabel (m: String) : String = if m == "*" then "any" else m
 
+/// Pad to `goal` terminal columns. Measured in columns, not graphemes: `padEnd` counts characters, and
+/// a domain token containing anything double-width would then leave the detail column ragged.
 let pad (s: String) (goal: Int) : String =
-  match Stdlib.String.padEnd s " " goal with
-  | Ok r -> r
-  | Error _ -> s
+  let n = goal - (Stdlib.String.displayWidth s)
+  if n <= 0 then s else s ++ (Stdlib.String.repeat " " n)
 
 /// The domain token of a spec — its first word. "http-client GET" → "http-client".
 let domainOf (spec: String) : String =
@@ -52,8 +53,26 @@ let line (spec: String) : String =
     $"{PrettyPrinter.Capabilities.pad (PrettyPrinter.Capabilities.domainOf spec) 14}{det}"
 
 /// The multi-line view: one aligned line per spec.
+///
+/// The domain column is as wide as the widest domain actually present, rather than a fixed 14. A fixed
+/// column is either too narrow for `http-client` or leaves a corridor of blanks in front of every
+/// `random`, and it can only be right for one set of specs.
 let lines (specs: List<String>) : List<String> =
-  Stdlib.List.map specs (fun s -> PrettyPrinter.Capabilities.line s)
+  let width =
+    specs
+    |> Stdlib.List.map (fun s ->
+      Stdlib.String.displayWidth (PrettyPrinter.Capabilities.domainOf s))
+    |> Stdlib.List.fold 0 (fun acc n -> if n > acc then n else acc)
+
+  specs
+  |> Stdlib.List.map (fun s ->
+    let det = PrettyPrinter.Capabilities.detail s
+
+    if det == "" then
+      PrettyPrinter.Capabilities.domainOf s
+    else
+      let domain = PrettyPrinter.Capabilities.pad (PrettyPrinter.Capabilities.domainOf s) (width + 2)
+      $"{domain}{det}")
 
 /// A one-line summary: the distinct domains, e.g. "http-client, file, random".
 let compact (specs: List<String>) : String =

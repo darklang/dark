@@ -568,6 +568,12 @@ let fns () : List<BuiltInFn> =
           Param.make "branchId" TUuid ""
           Param.make "expression" TString ""
           Param.make
+            "currentModule"
+            (TList TString)
+            "Where the caller is standing, owner-first; names in the result are spelled relative to it"
+          Param.make "width" TInt "Columns the result should be laid out for"
+          Param.make "color" TBool "Whether the result may carry terminal color"
+          Param.make
             "allowHarmful"
             TBool
             "Opt out of Harmful-deprecation halting (see docs/deprecation)" ]
@@ -587,9 +593,15 @@ let fns () : List<BuiltInFn> =
         let okNone () = resultOk (Dval.optionNone KTString)
         (function
         | exeState,
-          _,
+          vm,
           [],
-          [| accountIDDval; DUuid branchId; DString expression; DBool allowHarmful |] ->
+          [| accountIDDval
+             DUuid branchId
+             DString expression
+             DList(_, currentModule)
+             DInt width
+             DBool color
+             DBool allowHarmful |] ->
           uply {
             // Attribute the run to the calling account so the trace
             // insert can stamp `traces.account_id`.
@@ -630,7 +642,22 @@ let fns () : List<BuiltInFn> =
                   | DUnit -> return okNone ()
                   | DString s -> return okSome s
                   | _ ->
-                    let! asString = Exe.dvalToRepr exeState result
+                    // Width and color are the caller's to decide: they are facts about the process
+                    // this output is headed for, and asking here would mean reaching into another
+                    // builtin's terminal code. `Cli.Terminal` owns both and answers them in Dark.
+                    let currentModule =
+                      currentModule
+                      |> List.choose (fun d ->
+                        match d with
+                        | DString s -> Some s
+                        | _ -> None)
+                    let! asString =
+                      Exe.dvalToReprForTerminal
+                        exeState
+                        (intToInt32 vm width)
+                        color
+                        currentModule
+                        result
                     return okSome asString
                 | Error(e, callStack) ->
                   let! csString = Exe.callStackString exeState callStack

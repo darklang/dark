@@ -1,0 +1,207 @@
+// Tests for the value pretty-printer, `PrettyPrinter.RuntimeTypes.dval`.
+//
+// This is what `eval` shows you, what a trace records, and what a runtime error quotes a value with, so
+// it is worth pinning precisely. `Builtin.reflect` turns an ordinary value into the RuntimeTypes.Dval
+// the printer takes, which is how these cases stay readable.
+//
+// Note when reading the expectations: they are Dark source, so `"\"a\\nb\""` is the eleven characters
+// `"a\nb"` with a real backslash in the middle. That is the point of most of the escaping cases.
+
+// --- helpers ---
+let pp (v: 'a) : String =
+  Darklang.PrettyPrinter.RuntimeTypes.dval
+    Darklang.SCM.Branch.mainBranchId
+    (Builtin.reflect v)
+
+let emptyInts () : List<Int> = []
+
+let emptyStrings () : List<String> = []
+
+let loc
+  (owner: String)
+  (modules: List<String>)
+  (name: String)
+  : Darklang.LanguageTools.ProgramTypes.PackageLocation =
+  Darklang.LanguageTools.ProgramTypes.PackageLocation
+    { owner = owner; modules = modules; name = name }
+
+
+// ========================================
+// Scalars
+// ========================================
+module Scalars =
+  pp () = "()"
+  pp true = "true"
+  pp false = "false"
+  pp 42 = "42"
+  pp (-7) = "-7"
+  pp "" = "\"\""
+  pp "plain" = "\"plain\""
+  pp 'a' = "'a'"
+
+
+// ========================================
+// Escaping
+//
+// Strings and chars used to be wrapped in their quotes unescaped, so a value holding a newline printed
+// as a real line break inside its own literal and one holding a quote closed it early.
+// ========================================
+module Escaping =
+  pp "a\nb" = "\"a\\nb\""
+  pp "say \"hi\"" = "\"say \\\"hi\\\"\""
+  pp "tab\there" = "\"tab\\there\""
+  pp "back\\slash" = "\"back\\\\slash\""
+  pp "car\rriage" = "\"car\\rriage\""
+
+  pp '\n' = "'\\n'"
+  pp '\'' = "'\\''"
+  pp '\\' = "'\\\\'"
+
+  // Non-ASCII is not a control character and passes through as itself.
+  pp "héllo" = "\"héllo\""
+  pp "日本" = "\"日本\""
+
+  // Escaping happens at every depth, not just the top level.
+  pp [ "a\nb" ] = "[\"a\\nb\"]"
+
+
+// ========================================
+// Collections
+// ========================================
+module Collections =
+  // `List<_>`, not `List<Int>`, even though `emptyInts` is annotated: an empty list carries no element
+  // type at runtime, so there is nothing for the printer to report. See the note in Records below.
+  pp (emptyInts ()) = "List<_> []"
+  pp [ 1; 2; 3 ] = "[1, 2, 3]"
+  pp [ [ 1; 2 ]; [ 3 ] ] = "[[1, 2], [3]]"
+
+  pp (1, 2) = "(1, 2)"
+  pp (1, "two", true) = "(1, \"two\", true)"
+
+  pp (Stdlib.Dict.empty) = "{}"
+  pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("a", 1); ("b", 2) ]) = "{ a: 1, b: 2 }"
+
+  // A key that isn't a bare identifier is backticked, the way the source printer quotes field names.
+  pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("has-hyphen", 1) ]) = "{ ``has-hyphen``: 1 }"
+  pp (Stdlib.Dict.fromListOverwritingDuplicates [ ("type", 1) ]) = "{ ``type``: 1 }"
+
+
+// ========================================
+// Records
+//
+// Fields print in the order the type declares them. They live in a Dict, which iterates
+// alphabetically, so without the reordering `PackageLocation` came out modules/name/owner.
+// ========================================
+module Records =
+  // Breaks, because the whole line is measured: the type name in front counts toward the fit. The
+  // string version measured the joined fields alone, so a 51-character name didn't count and this
+  // printed as one 118-column line while reporting that it fitted in 80.
+  pp (loc "Darklang" [ "Stdlib"; "List" ] "map") =
+    "LanguageTools.ProgramTypes.PackageLocation {\n  owner: \"Darklang\",\n  modules: [\"Stdlib\", \"List\"],\n  name: \"map\"\n}"
+
+  // `List<_>`, not `List<String>`: an empty list carries no element type at runtime, and the printer
+  // doesn't consult the field's declared type to recover one. Recorded as-is because it is what happens;
+  // the `_` is the same gap that shows up as `Option<_>.None`, and belongs with the type-args work.
+  pp (loc "Darklang" [] "x") =
+    "LanguageTools.ProgramTypes.PackageLocation {\n  owner: \"Darklang\",\n  modules: List<_> [],\n  name: \"x\"\n}"
+
+
+// ========================================
+// Enums
+// ========================================
+module Enums =
+  // Option and Result print their case alone: `Some`, `None`, `Ok`, `Error` are unambiguous everywhere
+  // and resolve unqualified, so naming their type in front of them is noise. Any other enum keeps its
+  // type name, because a bare `Red` doesn't tell you it came from `Color`.
+  pp (Stdlib.Option.Option.Some 1) = "Some(1)"
+  pp (Stdlib.Result.Result.Ok 1) = "Ok(1)"
+
+
+// ========================================
+// Name shortening
+//
+// The rule mirrors `LibDB.NameLookup.namesToTry`, which tries a given name with progressively shorter
+// prefixes of the current module glued on. So the shortest spelling that still resolves is the target's
+// path minus its longest common prefix with the current module. These cases are the shapes that matter.
+// ========================================
+module Shortening =
+  let short
+    (currentModule: List<String>)
+    (owner: String)
+    (modules: List<String>)
+    (name: String)
+    : String =
+    Darklang.PrettyPrinter.shortenName currentModule owner modules name
+
+  // Same module: the leaf name alone.
+  short [ "Darklang"; "LanguageTools"; "ProgramTypes"; "PackageFn" ]
+        "Darklang" [ "LanguageTools"; "ProgramTypes"; "PackageFn" ] "Parameter" = "Parameter"
+
+  // Parent module: still just the leaf, because the resolver walks up.
+  short [ "Darklang"; "LanguageTools"; "ProgramTypes"; "PackageFn" ]
+        "Darklang" [ "LanguageTools"; "ProgramTypes" ] "TypeReference" = "TypeReference"
+
+  // Sibling module: keep the part that differs.
+  short [ "Darklang"; "Stdlib"; "Option" ] "Darklang" [ "Stdlib"; "List" ] "map" = "List.map"
+
+  // No context at all: `Stdlib.` resolves with `Darklang` implied, so the owner comes off.
+  short [] "Darklang" [ "Stdlib"; "List" ] "map" = "Stdlib.List.map"
+
+  // Someone else's package stays fully qualified.
+  short [ "Darklang"; "Stdlib" ] "Stachu" [ "Parser" ] "map" = "Stachu.Parser.map"
+
+  // Option and Result resolve unqualified from anywhere.
+  short [ "Darklang"; "Stdlib"; "List" ] "Darklang" [ "Stdlib"; "Option" ] "Option" = "Option"
+  short [ "Stachu"; "Whatever" ] "Darklang" [ "Stdlib"; "Result" ] "Result" = "Result"
+
+  // Prefixes are compared segment-wise. The old rule compared strings, so from `...List` a reference to
+  // `...ListView.render` was shortened to `iew.render`.
+  short [ "Darklang"; "Stdlib"; "List" ] "Darklang" [ "Stdlib"; "ListView" ] "render" = "ListView.render"
+
+  // A partial segment match is not a match.
+  short [ "Darklang"; "Stdlib"; "Li" ] "Darklang" [ "Stdlib"; "List" ] "map" = "List.map"
+
+
+// ========================================
+// Options
+//
+// The same value, rendered against different constraints. This is the property the printers are
+// supposed to have: nothing is read from the environment, so the caller decides and the output follows.
+// ========================================
+module Options =
+  let at (width: Int) (v: 'a) : String =
+    Darklang.PrettyPrinter.RuntimeTypes.dvalWith
+      Darklang.SCM.Branch.mainBranchId
+      (Darklang.PrettyPrinter.DisplayOptions.atWidth width)
+      (Builtin.reflect v)
+
+  // Wide enough: one line.
+  at 200 [ 1; 2; 3 ] = "[1, 2, 3]"
+
+  // Narrow enough that the same list has to break.
+  at 8 [ 100; 200; 300 ] = "[\n  100,\n  200,\n  300\n]"
+
+  // The default is 80 columns, and `dval` is the default-options wrapper, so the two agree.
+  (at 80 [ 1; 2; 3 ]) == (pp [ 1; 2; 3 ]) = true
+
+  // Nested wrappers, which is where the old output was worst: this used to be three lines of
+  // `Darklang.Stdlib.Option.Option<Darklang.Stdlib.Option.Option<List<Int>>>.Some(...)`.
+  pp (Stdlib.Option.Option.Some(Stdlib.Option.Option.Some [ 1; 2; 3 ])) = "Some(Some([1, 2, 3]))"
+
+  // A non-wrapper enum keeps its type name.
+  pp (Stdlib.List.chunkBySize [ 1; 2; 3 ] 0) =
+    "Error(Stdlib.List.ChunkBySizeError.SizeMustBeGreaterThanZero)"
+
+  // Unless the type has several names and nothing says which. `Stdlib.Int.ParseError`,
+  // `Stdlib.Float.ParseError` and `Stdlib.Uuid.ParseError` are all `| BadFormat`, so content-addressing
+  // makes them one type with three names; naming one is guessing, and it used to guess wrong often
+  // enough that `Stdlib.Int.parse` would report a `Stdlib.Uuid.ParseError`. The case alone is honest.
+  pp (Stdlib.Int.parse "abc") = "Error(BadFormat)"
+
+  // The same record at a width that fits it: one line, so the break above is the width deciding, not a
+  // record always breaking.
+  Darklang.PrettyPrinter.RuntimeTypes.dvalWith
+    Darklang.SCM.Branch.mainBranchId
+    (Darklang.PrettyPrinter.DisplayOptions.atWidth 200)
+    (Builtin.reflect (loc "Darklang" [ "Stdlib" ] "map")) =
+    "LanguageTools.ProgramTypes.PackageLocation { owner: \"Darklang\", modules: [\"Stdlib\"], name: \"map\" }"

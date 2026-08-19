@@ -5,10 +5,32 @@
 module Darklang.Cli.Workbench
 
 /// Render `lines` into `region` as a vertically-scrollable block: drop `scroll` rows, take what fits, each cut
-/// ANSI-aware so colour survives an overflow. `display` is the styled variant shown per row (pass `lines`
+/// ANSI-aware so color survives an overflow. `display` is the styled variant shown per row (pass `lines`
 /// itself when there's no highlighting); `lines` drives the count. `colOffset` insets the text from the
 /// region's left (the split-pane preview insets 1; the full-screen reader doesn't). Backs both
 /// `renderPreview` and `renderReading`.
+/// Break one logical line into the rows it occupies at `maxFit` columns.
+///
+/// Continuation rows are indented two columns, so a wrapped line reads as one thing rather than as two
+/// unrelated rows; the wrap width is reduced to match, which keeps every row inside the pane.
+let wrapRow (maxFit: Int) (line: String) : List<String> =
+  let room = Stdlib.Int.max 1 (maxFit - 2)
+
+  match Tui.Text.wrapStyled line room with
+  | [] -> [ "" ]
+  | first :: rest -> Stdlib.List.push (rest |> Stdlib.List.map (fun r -> "  " ++ r)) first
+
+
+/// Render `lines` into `region` as a vertically-scrollable block: wrap each logical line to the pane
+/// width, drop `scroll` rows, take what fits. `display` is the styled variant shown per row (pass
+/// `lines` itself when there's no highlighting); `lines` drives the fallback. `colOffset` insets the
+/// text from the region's left (the split-pane preview insets 1; the full-screen reader doesn't). Backs
+/// both `renderPreview` and `renderReading`.
+///
+/// Rows used to be cut with `clipToWidth`, which meant anything past the pane's right edge was gone:
+/// not wrapped, not reachable by scrolling, and with no mark that it had ever been there. A record
+/// literal printed on one line (the source printer doesn't break them) lost most of its fields that
+/// way. Wrapping is a floor under that, not a substitute for the printer laying out to the width.
 let renderScrollableLines
   (region: Stdlib.Cli.UI.Layout.Region)
   (colOffset: Int)
@@ -16,29 +38,84 @@ let renderScrollableLines
   (display: List<String>)
   (scroll: Int)
   : List<Stdlib.Cli.UI.Layout.Span> =
-  let len = Stdlib.List.length lines
+  let maxFit = Stdlib.Int.max 1 (region.cols - 1)
+
+  // Wrap first, then scroll: `scroll` counts screen rows, so it has to index the wrapped list or
+  // scrolling skips whole tails of long lines.
+  let rows =
+    lines
+    |> Stdlib.List.indexedMap (fun i l ->
+      let disp = Stdlib.List.getAt display i |> Stdlib.Option.withDefault l
+      wrapRow maxFit disp)
+    |> Stdlib.List.flatten
+
+  let len = Stdlib.List.length rows
   let off = Stdlib.Int.min scroll (Stdlib.Int.max 0 (len - 1))
-  let maxFit = Stdlib.Int.max 0 (region.cols - 1)
-  lines
+
+  rows
   |> Stdlib.List.indexedMap (fun i l -> (i, l))
   |> Stdlib.List.drop off
   |> Stdlib.List.take region.rows
   |> Stdlib.List.map (fun pair ->
-    let (i, p) = pair
+    let (i, l) = pair
     let row = i - off
-    let disp = Stdlib.List.getAt display i |> Stdlib.Option.withDefault p
-    Stdlib.Cli.UI.Layout.at region row colOffset (Stdlib.Cli.Tui.Text.clipToWidth disp maxFit))
+    // Belt and braces: a single grapheme wider than the pane can't be wrapped, only cut.
+    Stdlib.Cli.UI.Layout.at region row colOffset (Stdlib.Cli.Tui.Text.clipToWidth l maxFit))
   |> Stdlib.List.flatten
+
+
+/// How wide the tree pane should be, as a percent of the body, for the items currently in it.
+///
+/// Sized to the longest name plus its cursor, glyph, badges and borders, then held between a floor and
+/// a ceiling. The tree is a column of short names; the Inspect pane is where the text that needs room
+/// actually goes, so any column the tree doesn't need belongs to it.
+let matterSplitFor (state: State) : Int =
+  let (w, _h) = Terminal.getSize ()
+  let w = if w < 24 then 80 else w
+
+  let longest =
+    state.items
+    |> Stdlib.List.map (fun i -> Stdlib.String.displayWidth i.name)
+    |> Stdlib.List.fold 0 (fun acc n -> if n > acc then n else acc)
+
+  // cursor (2) + glyph (2) + space (1) + trailing `/` and badges (4) + both borders (2)
+  let needed = longest + 11
+  let pct = Stdlib.Int.divide (needed * 100) w
+
+  Stdlib.Int.max matterSplitMinPct (Stdlib.Int.min matterSplitMaxPct pct)
+
+
+/// Roughly how many columns the Matter preview pane gives its text.
+///
+/// Mirrors the geometry the render pass actually uses: the body spans the screen, `SplitPane` gives the
+/// tree at most `matterSplitMaxPct` of it, `Box.inner` takes a column of border off each side, and
+/// `renderScrollableLines` insets one more. Used only to bound scrolling; the render pass has the real
+/// region and is authoritative, so being a column or two out costs nothing. Keep in step with
+/// `renderViewBody`'s `SplitPane.render` call.
+let previewInnerWidth () : Int =
+  let (w, _h) = Terminal.getSize ()
+  let w = if w < 24 then 80 else w
+  let treeCols = Stdlib.Int.divide (w * matterSplitMaxPct) 100
+  Stdlib.Int.max 1 (w - treeCols - 3)
+
+
+/// How many screen rows `previewLines` occupies once wrapped: what scrolling is bounded by.
+let previewRowCount (state: State) : Int =
+  let maxFit = previewInnerWidth ()
+
+  previewLines state
+  |> Stdlib.List.map (fun l -> Stdlib.List.length (wrapRow maxFit l))
+  |> Stdlib.List.fold 0 (fun acc n -> acc + n)
 
 let renderPreview (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   let plain = previewLines state
   // Syntax-highlight Matter's source preview. Nothing else here is code: Docs, the History summary and the
-  // Conflicts detail are prose, and Changes shows a pre-coloured +/- diff.
+  // Conflicts detail are prose, and Changes shows a pre-colored +/- diff.
   //
-  // Anything already carrying ANSI is left alone - a pre-coloured diff or a tree-native render peek is not
-  // plain source, and re-highlighting it would mangle the colours it already has. In practice that means
+  // Anything already carrying ANSI is left alone - a pre-colored diff or a tree-native render peek is not
+  // plain source, and re-highlighting it would mangle the colors it already has. In practice that means
   // highlighting only fires under the values lens, because Matter's ordinary preview comes from
-  // `inspectPageLines`, which pre-colours.
+  // `inspectPageLines`, which pre-colors.
   let alreadyColored = Stdlib.String.contains (Stdlib.String.join plain "\n") ""
   let doHighlight = (state.activeView == vMatter) && (Stdlib.Bool.not alreadyColored)
   let highlighted =
@@ -129,7 +206,7 @@ let renderHome (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
         owners ]
 
   // Every tab: its number key, its name, what it's for, and whether it's real. `Layout.at` measures in
-  // terminal columns and ignores SGR, so the colour doesn't count toward the width and get clipped.
+  // terminal columns and ignores SGR, so the color doesn't count toward the width and get clipped.
   //
   // The number key is the row's position in the *full* visible list (Home is 1), which is what the digit keys
   // index; past nine there's no digit, and the row says so by leaving the column blank.
@@ -137,7 +214,7 @@ let renderHome (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
     // Local rather than `String.padEnd`, which returns a Result (it can reject a multi-char pad) and would
     // need unwrapping at both call sites for a column of spaces.
     let pad (s: String) (n: Int) : String =
-      s ++ (Stdlib.String.repeat " " (Stdlib.Int.max 0 (n - (Stdlib.String.length s))))
+      s ++ (Stdlib.String.repeat " " (Stdlib.Int.max 0 (n - (Stdlib.String.displayWidth s))))
     visibleViews state
     |> Stdlib.List.indexedMap (fun i v -> (i, v))
     |> Stdlib.List.filter (fun pair -> let (_i, v) = pair in v != vHome)

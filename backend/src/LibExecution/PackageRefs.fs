@@ -501,6 +501,7 @@ module Fn =
 
   module Cli =
     let executeCliCommand = p [ "Cli" ] "executeCliCommand"
+    let renderValue = p [ "Cli"; "Terminal" ] "renderValue"
 
   module Internal =
     let private p addl = p ("Internal" :: addl)

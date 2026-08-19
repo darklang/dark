@@ -1,0 +1,63 @@
+/// One rule for what a long listing does when it is too long to read.
+///
+/// `search` already capped its results and said how many it dropped; `deps` printed all 431 dependents
+/// and `show` all 11,578 ops. A listing that scrolls a thousand lines past you has told you less than
+/// one that shows twenty and says how many there were, and silently truncating is worse than either --
+/// a cap you can't see reads as "that's all of them".
+module Darklang.Cli.Listing
+
+/// How many rows a long listing shows before it stops and says how many are left.
+val defaultLimit = 20
+
+
+/// The first `limit` rows, plus a footer saying how many were left out and how to see them.
+///
+/// `more` is the hint: what the reader should do to get the rest.
+let capped (rows: List<String>) (limit: Int) (more: String) : List<String> =
+  let n = Stdlib.List.length rows
+
+  if n <= limit then
+    rows
+  else
+    let extra = Stdlib.Int.toString (n - limit)
+
+    Stdlib.List.append
+      (Stdlib.List.take rows limit)
+      [ Colors.hint $"  ... and {extra} more ({more})" ]
+
+
+/// Split a fully-qualified name into its module path and its leaf.
+let splitLeaf (name: String) : (String * String) =
+  let parts = Stdlib.String.split name "."
+
+  match Stdlib.List.last parts with
+  | None -> ("", name)
+  | Some leaf ->
+    let modulePath =
+      parts
+      |> Stdlib.List.take ((Stdlib.List.length parts) - 1)
+      |> Stdlib.String.join "."
+
+    (modulePath, leaf)
+
+
+/// Group qualified names under their module, so a long list reads as a few modules rather than as
+/// hundreds of near-identical paths whose only difference is the last segment.
+let groupedByModule (names: List<String>) : List<String> =
+  let modules =
+    names
+    |> Stdlib.List.map (fun n -> Stdlib.Tuple2.first (Listing.splitLeaf n))
+    |> Stdlib.List.unique
+
+  modules
+  |> Stdlib.List.map (fun m ->
+    let leaves =
+      names
+      |> Stdlib.List.filter (fun n -> (Stdlib.Tuple2.first (Listing.splitLeaf n)) == m)
+      |> Stdlib.List.map (fun n -> Stdlib.Tuple2.second (Listing.splitLeaf n))
+
+    let count = Stdlib.Int.toString (Stdlib.List.length leaves)
+    let header = Colors.dimText $"  {m}  ({count})"
+
+    [ header; $"    {Stdlib.String.join leaves ", "}" ])
+  |> Stdlib.List.flatten
