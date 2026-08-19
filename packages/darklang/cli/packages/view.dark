@@ -75,6 +75,12 @@ let sourceRows (source: String) : List<String> =
 
 
 /// Build the complete textual representation of an entity without printing it.
+/// A printer context for `modulePath`, laid out for the terminal's width rather than a fixed 80.
+let terminalContext (branchId: Uuid) (modulePath: List<String>) : PrettyPrinter.ProgramTypes.Context =
+  let (width, _rows) = Terminal.getSize ()
+  { PrettyPrinter.ProgramTypes.Context.forModule branchId modulePath with width = width }
+
+
 let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
   match location with
   | Module path ->
@@ -146,10 +152,7 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
       let locationStr = Packages.formatLocation location
       [ $"Type '{locationStr}' not found." ]
     | item :: _ ->
-      let ctx =
-        PrettyPrinter.ProgramTypes.Context.forModule
-          branchId
-          (Stdlib.List.push name.modules name.owner)
+      let ctx = terminalContext branchId (Stdlib.List.push name.modules name.owner)
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageType ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
 
@@ -170,10 +173,7 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
       let locationStr = Packages.formatLocation location
       [ $"Function '{locationStr}' not found." ]
     | item :: _ ->
-      let ctx =
-        PrettyPrinter.ProgramTypes.Context.forModule
-          branchId
-          (Stdlib.List.push name.modules name.owner)
+      let ctx = terminalContext branchId (Stdlib.List.push name.modules name.owner)
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       let capsBadge =
@@ -198,10 +198,7 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
       let locationStr = Packages.formatLocation location
       [ $"Value '{locationStr}' not found." ]
     | item :: _ ->
-      let ctx =
-        PrettyPrinter.ProgramTypes.Context.forModule
-          branchId
-          (Stdlib.List.push name.modules name.owner)
+      let ctx = terminalContext branchId (Stdlib.List.push name.modules name.owner)
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
 
