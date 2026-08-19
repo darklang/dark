@@ -20,5 +20,15 @@ let get () : String =
 /// Also record per-expression time from here on. Off by default: on some
 /// hosts reading the clock costs more than the expression being timed, so
 /// this is a deliberate, per-run choice rather than something to leave on.
-let enableDetailedTiming () : Unit =
-  Builtin.interpreterStatsEnableDetailedTiming ()
+let enableDetailedTiming (enabled: Bool) : Unit =
+  Builtin.interpreterStatsEnableDetailedTiming enabled
+
+
+/// Bytes this process has allocated since it started, including memory since
+/// freed. Read it either side of a piece of work and subtract.
+///
+/// This is the number to compare two versions of the same code with: unlike
+/// wall-clock time it repeats exactly, and it does not care how loaded the
+/// machine is.
+let allocatedBytes () : Int64 =
+  Builtin.gcAllocatedBytes ()

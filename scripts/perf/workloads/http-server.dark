@@ -19,14 +19,16 @@ let echoFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
 // How much this process has allocated so far. The load driver reads it before and after the
 // measured run, which is the only way to get a per-request number out of a server that never exits.
 let allocFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-  Stdlib.Http.responseWithText (Stdlib.Int64.toString (Builtin.gcAllocatedBytes ())) 200
+  Stdlib.Http.responseWithText (Stdlib.Int64.toString (Darklang.LanguageTools.InterpreterStats.allocatedBytes ())) 200
 
 // Interpreter counters for the VM that ran this request. Each request gets its own VM, so this is
 // per-request work: how many instructions, builtin calls and package calls a request costs.
 let statsFn (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-  Stdlib.Http.responseWithText (Builtin.interpreterStatsGet ()) 200
+  Stdlib.Http.responseWithText (Darklang.LanguageTools.InterpreterStats.get ()) 200
 
-let handlers () : List<Stdlib.HttpServer.Handler> =
+// A value, not a function. As `handlers ()` this rebuilt five records and five lambdas on every
+// request, which is not what the documented usage does and made the benchmark measure the harness.
+let handlers =
   [ Stdlib.HttpServer.Handler { route = "/hello"; method = "GET"; handler = helloFn }
     Stdlib.HttpServer.Handler { route = "/json"; method = "GET"; handler = jsonFn }
     Stdlib.HttpServer.Handler { route = "/echo"; method = "POST"; handler = echoFn }
@@ -34,10 +36,10 @@ let handlers () : List<Stdlib.HttpServer.Handler> =
     Stdlib.HttpServer.Handler { route = "/stats"; method = "GET"; handler = statsFn } ]
 
 let router (req: Stdlib.Http.Request) : Stdlib.Http.Response =
-  Stdlib.HttpServer.routeRequest (handlers ()) req
+  Stdlib.HttpServer.routeRequest handlers req
 
 let port () : Int =
-  match Builtin.environmentGet "PERF_HTTP_PORT" with
+  match Stdlib.Env.get "PERF_HTTP_PORT" with
   | Some s ->
     match Stdlib.Int.parse s with
     | Ok n -> n

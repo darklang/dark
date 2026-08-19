@@ -36,6 +36,11 @@ Almost every change that measured flat and was reverted was built without probin
 `scripts/perf/alloc-profile` is excellent until it isn't. Early on one entry is 30-50% and the work
 is obvious. Later nothing is above 5%, and "no single thing dominates" is true and useless.
 
+`alloc-profile` also has a floor: it samples one tick per ~100 KB, so a workload that allocates only
+a few megabytes yields a few dozen ticks and resolves nothing. Amplify by looping the work in-process
+first -- and if the work is cached per process and therefore cannot be looped, the profiler is simply
+the wrong instrument for it.
+
 At that point stop profiling and **put comparable things side by side**. Measuring return types
 against each other was one line of insight when the json profile was flat:
 
@@ -62,6 +67,59 @@ allocated in total. Only bracket synchronous stretches.
 
 A useful control: bracket *nothing*, next to the suspicious one. Non-zero means the instrument is
 wrong rather than the code.
+
+**One workload, one run, one instrument.** A figure assembled from parts measured in different
+places is not a measurement. This round produced a phantom 1,240-byte layer by taking a function's
+cost from one workload and the enclosing opcode's from another -- the same function costs 680 bytes
+in one and 1,960 in the other. Bracketed on a single workload the numbers closed exactly.
+
+**Never promote a residual.** A number you got by subtracting measured regions from a measured
+total is not a measurement; it is everything you failed to bracket, plus your arithmetic. Four
+suspects were promoted that way in one night -- each looked like thousands of bytes as a residual
+and measured in the tens when bracketed directly. If the interesting number is the part you did not
+measure, go and measure it. The two allocation counters, incidentally, do agree:
+`GetAllocatedBytesForCurrentThread()` and `GetTotalAllocatedBytes(true)` returned identical figures
+on a continuation-heavy path, so a thread hop is not the explanation for a gap.
+
+**Not across two scripts either.** The night after "never promote a residual" went into this file,
+a 70%-of-the-cost item was opened by subtracting a bracket taken in one probe script from a row
+total taken in another. It survived one tick. Each number was measured honestly, which is what makes
+this half easy to miss.
+
+**Bound the outermost suspect first.** Five hypotheses about JSON's `convert` died in a row, every
+one assuming the function was where the bytes were. A bracket around `Json.parse` itself settled it
+in one build: the whole function is a third of what the call costs. One measurement either
+implicates a function or clears it, and clearing it retires every hypothesis about its insides.
+
+**Confirm a row measures what its label says.** Two rows labelled with two different types spent
+three ticks looking like a 2x property. They were sitting on a bug where a type annotation resolves
+to the wrong type, so the labels lied. Printing the parsed value once would have cost one run.
+Related: type names are content hashes, so a probe's `type RBool = { a: Bool }` is the same type as
+anything else with that shape. When one row of a sweep is an outlier, suspect the harness first.
+
+**Read instruction counts next to byte counts.** They disagree with a wrong story faster. The
+per-opcode counters caught one row taking an extra match arm, and separately proved that forwarding
+hops really were executing while allocating nothing. Both results came from the denominator, not
+the bytes.
+
+**An intervention that shows nothing may not have intervened.** "The last-declared type is cheap"
+was dismissed by adding a trailing type and seeing no change, but the type was unused and unused
+declarations are dropped. Making it used reproduced the effect immediately.
+
+**The first row of a sweep pays one-time cost.** Measure the baseline again at the end; a first row
+has read 931 bytes where every later row read 231.
+
+**A tight spread within one sweep is not low variance.** Three readings from one build can sit
+inside 0.5% of each other and still be a percent or two away from three readings of the *next*
+build, because each build reshuffles code layout. This misread twice in one campaign: a workload
+looked like it regressed 1.2%, the next pass showed it below where it had started, and the pass
+after that it was "up" again. Treat a sub-2% move across builds as unresolved until a third build
+agrees, and let the most realistic workload decide a mixed result.
+
+**Count the hit rate before explaining a disappointing fast path.** A fast path that never fires and
+a fast path that fires but had little to remove produce the same small number, and they need
+opposite fixes. The sync-build path on the record opcodes looked like the first and was the second:
+400 hits, 0 misses. `byOpcode` in `interpreterStatsGet` reports `syncHit`/`syncMiss` for this.
 
 ## 5. Change one thing, measure, keep or revert
 
@@ -111,7 +169,20 @@ reads a builtin's arguments *after* the body has returned, a lifetime nobody thi
   remove allocation added it instead, because the new helper closed over an array rather than taking
   it as a parameter -- and became the largest single entry in the profile.
 
-## 9. Know what your binary actually contains
+## 9. Debug timings are not small-multiple wrong, they are order-of-magnitude wrong
+
+Allocation is nearly identical between Debug and Release, which makes it tempting to trust Debug
+*timings* too. Don't. On one `dark eval`, SQL measured 39.9 ms in Debug and 2.7 ms on the shipped
+AOT binary, and deserialization 17.5 ms against 0.6 ms. A roadmap item survived for a while on the
+Debug figure and evaporated when measured properly.
+
+Profile allocation in Debug freely. Never quote a Debug duration, and never rank work by one.
+
+And never mix runs. A percentage built from a numerator taken in one run and a denominator taken in
+another is not a measurement. Startup here has ±20% run-to-run spread, so any split of it needs a
+median over ten or more runs, all from the same configuration.
+
+## 10. Know what your binary actually contains
 
 A Release build takes ten minutes, so measuring against the one you built earlier is tempting. Don't.
 `build-release-cli-exes.sh` names the binary after `git rev-parse HEAD` *at build time*, which is
@@ -119,7 +190,7 @@ worse than no label: it looks authoritative and is wrong if the tree had uncommi
 moved on. Before quoting a Release number, check the binary is newer than every commit you are
 crediting.
 
-## 10. Working with the tooling here
+## 11. Working with the tooling here
 
 - Run the perf tools in the **foreground**, with `< /dev/null`. Backgrounded shell commands are
   throttled here by ~50x, which reads as a regression.
@@ -143,7 +214,7 @@ crediting.
 - Debug builds in ~2 minutes, Release in ~10. Develop in Debug, decide in Release, and know the two
   disagree by up to 3x on paths still heavy in computation expressions.
 
-## 11. Leave the next person a gate, not a story
+## 12. Leave the next person a gate, not a story
 
 `scripts/perf/gate` asserts allocation against a checked-in budget, separately for Debug and
 published, and CI runs it. **Lower the budget in the same commit that earns it** -- a budget nobody

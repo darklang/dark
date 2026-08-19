@@ -88,6 +88,27 @@ record_case missing-field    "Missing field \`y\`"                              
 record_case extra-field      "No field named \`z\`"                                'Point { x = 1; y = "a"; z = 3 }'
 record_case duplicate-field  "Duplicate field \`x\`"                               'Point { x = 1; x = 2; y = "a" }'
 
+# --- record update failures -----------------------------------------------------------------
+#
+# Separate from construction: updates go through `DvalCreator.recordUpdate`, a different function
+# with its own error messages, and nothing else exercises them.
+
+update_case() { # update_case <name> <expect> <update-expr>
+  run "record update: $1" "$2" "$(case_file "upd-$1" <<DARK
+type Point = { x: Int; y: String }
+let main () : Int64 =
+  let p = Point { x = 1; y = "a" }
+  let bad = $3
+  Builtin.debug "should not get here" bad
+  0L
+main ()
+DARK
+)"
+}
+
+update_case wrong-type   "Failed to create updated record. Expected String for field \`y\`, but got 2 (an Int)" '{ p with y = 2 }'
+update_case unknown-field "No field named \`z\`"                                                              '{ p with z = 3 }'
+
 # --- call stacks -------------------------------------------------------------------------------
 
 # Worth checking whenever frames start sharing ExecutionPoints. Not `Builtin.testRuntimeError`:

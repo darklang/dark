@@ -122,9 +122,11 @@ and merge (left : ValueType) (right : ValueType) : Result<ValueType, unit> =
     Ok left
   else
 
-    match left, right with
-    | ValueType.Unknown, v
-    | v, ValueType.Unknown -> Ok v
-
-    | ValueType.Known left, ValueType.Known right ->
-      mergeKnownTypes left right |> Result.map ValueType.Known
+    // Nested matches, not `match left, right with`: the tuple form allocates the pair, and this
+    // runs once per list element, dict entry and record field.
+    match left with
+    | ValueType.Unknown -> Ok right
+    | ValueType.Known l ->
+      match right with
+      | ValueType.Unknown -> Ok left
+      | ValueType.Known r -> mergeKnownTypes l r |> Result.map ValueType.Known

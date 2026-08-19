@@ -5,8 +5,8 @@ let repeat (times: Int) (n: Int) (acc: Int) : Int =
   if times <= 0 then acc else repeat (times - 1) n (acc + (work n))
 
 let _warm = repeat 20 50 0
-let _reset = Builtin.interpreterStatsReset ()
-let t0 = Builtin.timeNowMs ()
+let _reset = Darklang.LanguageTools.InterpreterStats.reset ()
+let t0 = Darklang.Cli.Telemetry.now ()
 let result = repeat 200 50 0
-let t1 = Builtin.timeNowMs ()
-Stdlib.printLine ("elapsed_ms=" ++ (Stdlib.Int.toString (t1 - t0)) ++ " stats=" ++ (Builtin.interpreterStatsGet ()))
+let t1 = Darklang.Cli.Telemetry.now ()
+Stdlib.printLine ("elapsed_ms=" ++ (Stdlib.Int.toString (t1 - t0)) ++ " stats=" ++ (Darklang.LanguageTools.InterpreterStats.get ()))

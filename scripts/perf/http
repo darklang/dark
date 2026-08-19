@@ -11,7 +11,15 @@
 #   scripts/perf/http                 /json, 2000 requests, concurrency 16
 #   scripts/perf/http --route /hello  a route that does almost nothing
 #   scripts/perf/http -n 5000 -c 64   more load
+#   scripts/perf/http -p 1            drive from one process (see below)
 #   scripts/perf/http --release       against the shipped build
+#
+# Load comes from several client *processes*, not one. A single Python process is GIL-bound at
+# around 2,100 req/s, which is slower than the server: with one process this tool saturates on its
+# own client and reports the client's ceiling as the server's. Worse than a wrong number, it makes
+# the tool blind -- server throughput can move in either direction and the reading will not.
+# Measured on one server: 1 process 2,160 req/s, 2 procs 3,382, 4 procs 3,827, 8 procs 4,295.
+# `-p 1` reproduces the old single-process behaviour, for comparing against historical figures.
 set -euo pipefail
 cd /home/dark/app
 . ./scripts/perf/_common
@@ -22,12 +30,14 @@ PORT="${PERF_HTTP_PORT:-9097}"
 ROUTE="/json"
 N=2000
 C=16
+P=4
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --route) ROUTE="$2"; shift 2 ;;
     -n) N="$2"; shift 2 ;;
     -c) C="$2"; shift 2 ;;
+    -p) P="$2"; shift 2 ;;
     --port) PORT="$2"; shift 2 ;;
     # A flag, not an environment variable: these scripts re-enter the container and the environment
     # does not survive that.
@@ -77,11 +87,11 @@ if ! grep -q LISTENING "$SERVER_LOG" 2>/dev/null; then
   exit 1
 fi
 
-python3 - "$PORT" "$ROUTE" "$N" "$C" <<'PY'
+python3 - "$PORT" "$ROUTE" "$N" "$C" "$P" <<'PY'
 import http.client, json, statistics, sys, threading, time, urllib.request
-from concurrent.futures import ThreadPoolExecutor
+from concurrent.futures import ProcessPoolExecutor, ThreadPoolExecutor
 
-port, route, n, c = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4])
+port, route, n, c, procs = sys.argv[1], sys.argv[2], int(sys.argv[3]), int(sys.argv[4]), int(sys.argv[5])
 url = f"http://localhost:{port}{route}"
 
 def hit():
@@ -96,28 +106,43 @@ def alloc():
     with urllib.request.urlopen(f"http://localhost:{port}/alloc", timeout=30) as r:
         return int(r.read())
 
+def worker(spec):
+    # One client process: its own share of the requests, at its own share of the concurrency.
+    # Runs in a child, so its thread pool contends with no other pool for the GIL.
+    reqs, threads = spec
+    with ThreadPoolExecutor(max_workers=threads) as pool:
+        return list(pool.map(lambda _: hit(), range(reqs)))
+
 # Warm up: the first request through a route pays to load and convert every package function the
 # handler touches, which is thousands of times a steady-state request.
 for _ in range(200):
     hit()
 
+# Split both the work and the concurrency across processes, so `-c` still means total in-flight
+# requests however many processes carry them. Remainders go to the earliest workers.
+procs = max(1, min(procs, c))
+specs = [(n // procs + (1 if i < n % procs else 0),
+          c // procs + (1 if i < c % procs else 0)) for i in range(procs)]
+
 before = alloc()
 t0 = time.perf_counter()
-with ThreadPoolExecutor(max_workers=c) as pool:
-    lats = list(pool.map(lambda _: hit(), range(n)))
+if procs == 1:
+    lats = worker(specs[0])
+else:
+    with ProcessPoolExecutor(max_workers=procs) as pool:
+        lats = [x for part in pool.map(worker, specs) for x in part]
 wall = time.perf_counter() - t0
 after = alloc()
 
 lats.sort()
 print(f"  route            {route}")
-print(f"  requests         {n} at concurrency {c}")
+print(f"  requests         {n} at concurrency {c} across {procs} client process(es)")
 print(f"  throughput       {n/wall:,.0f} req/s  ({wall:.2f}s wall)")
 print(f"  latency p50      {statistics.median(lats):.2f} ms")
 print(f"  latency p95      {lats[int(len(lats)*0.95)]:.2f} ms")
 print(f"  latency p99      {lats[int(len(lats)*0.99)]:.2f} ms")
 print(f"  latency max      {lats[-1]:.2f} ms")
 print(f"  alloc/request    {(after - before)/n/1024:.2f} KB")
-print(f"  alloc measured   {(after - before)/1e6:.1f} MB over {n} requests")
 PY
 
 cleanup

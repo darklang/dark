@@ -1,231 +1,385 @@
 # Where the next performance work is
 
-The single tracking document for Dark performance work. Replaces `perf-ideas-backlog.md` and the
-per-round note piles that preceded it. Update it in place; don't start a new one.
+The single tracking document for Dark performance work. Update it in place; don't start a new one.
+Numbers are measured unless marked *(estimate)*.
 
-Numbers are measured unless marked *(estimate)*. The difference matters a lot when picking.
-
-**How to measure anything here:**
-
-    scripts/perf/suite              six workloads, allocation per iteration
-    scripts/perf/suite --release    the same, against the shipped build
-    scripts/perf/suite --record     append a run to benchmarks/results/history.jsonl
-    scripts/perf/http               a real server under concurrent load
+    scripts/perf/suite              six workloads, allocation per iteration (--release for the shipped build)
+    scripts/perf/http               a real server under concurrent load (-p client processes, default 4)
     scripts/perf/gate               the CI assertion, against a checked-in budget
     scripts/perf/checks             by-hand semantics and error-message checks
+    scripts/perf/bench              repeatable CLI timing, with an A/B mode
+    scripts/perf/alloc-profile      allocation by type name
     scripts/perf/crosslang          the same workload in node and python
-    scripts/perf/alloc-profile           allocation by type name
     ./scripts/run-cli run scripts/perf/workloads/costs.dark    per-operation cost table
 
-Method, and the traps: `docs/perf/playbook.md`. History and how we got here:
-`docs/perf/history.md`.
+Method and traps: `docs/perf/playbook.md`. Numbers round by round: `docs/perf/history.md`.
 
-Only `scripts/perf/gate` runs in CI, and only because it's one script and a couple of seconds. The suite and
-the HTTP driver are for a human deciding something, not for every build.
+Only `gate` runs in CI. The suite and the HTTP driver are for a human deciding something.
 
 ---
 
 ## Where things stand
 
-Reference workload, Release, whole process: **7.6 MB**, from 211.99 MB at the start of round 2. Per
-iteration the list workload is **7.1x node**, past the ~10x goal -- but it is the *cheapest* of six,
-so treat it as a best case rather than a summary.
+Per iteration, Release: `recursion` 0.45 KB, `containers` 3.04, `records` 4.26, `strings` 6.45,
+`json` 10.00, `lists` 11.84, `dicts` 12.36. An HTTP request: **76.31 KB** at 5,269 req/s, p50
+2.21 ms.
 
-Per iteration, Release: `recursion` 0.48 KB, `strings` 6.6, `records` 8.3, `lists` 12.0, `json` 13.0,
-`dicts` 15.7. An HTTP request returning a constant string: **85.4 KB**.
+The two easy classes -- a wrong data structure on a hot path, and a computation expression around
+work that never awaits -- are largely spent. What remains is a representation change with a wide
+blast radius, or standard-library work. Expect smaller allocation wins than earlier rounds.
 
-Time is the axis that hasn't moved: 1.4x in Release this round against 28x for allocation. That is
-what makes AOT the right next step rather than more of this.
+Allocation, execution speed and latency all count now. A change that only moves wall-clock is a
+legitimate win, which was not true in the first two rounds.
 
-## Next round is NativeAOT
+**Improve the instrument when the instrument is the limit.** `recursion` reads 0.20-0.48 KB across
+runs of the *same* binary, because it is a difference of two large startup numbers. Before chasing
+anything that small, fix the measurement.
 
-Decided 2026-08-08. It's the right call and it outranks everything below: one-shot command latency
-is dominated by `cli.preMain` -- runtime init and JIT -- which is exactly what AOT deletes, and no
-amount of interpreter work touches that. It's also already built, on its own branch.
+**AOT, measured against R2R on the same commit:** startup 6.9x faster (214 ms to 31 ms), steady
+state 1.3-2.3x on all six workloads, allocation identical. The open gap is that `gate` measures the
+solution publish, not the AOT artifact users download. Low severity while allocation is identical
+between them, but nothing measures the shipped artifact.
 
-**Measured 2026-08-08. Both checks done; numbers in `history.md`, round 3.**
+---
 
-The throughput worry was half right. The six suite workloads did not regress, they came out
-1.3-2.3x faster. But `perf/http` under sustained load (20k requests, ~11s) has R2R ahead in 3 of 3
-paired runs by 0.3-5.6%, with latency moving the same way. A short 2k-request run shows a dead
-heat, so the cost only appears once the JIT has time to finish tiering, which is the mechanism
-predicted here. The trade is a few percent of sustained server throughput for 4.6-8x on one-shot
-commands. Right side of the trade for a CLI; worth re-measuring if `serve` ever becomes the main
-way Dark runs.
+## Open, roughly ranked
 
-**The gate was deliberately not re-pinned.** An AOT binary does allocate differently, as predicted:
-8.2 MB against R2R's 7.7 MB on the reference workload, reproducible, and `gate --published` fails
-against it. But that gap is startup, not the body (`suite` differences startup out and shows
-allocation unchanged), and CI's gate runs against the plain Release publish from `build-backend`,
-which the AOT work doesn't change. Re-pin to 8.2 MB when the published build actually becomes AOT,
-not before.
+### Startup: ~19 ms of the 21 is ours, and it is before `main`
 
-### Follow-ups this round created
+Answering the question this item carried for two rounds: **no, 20 ms is not normal for a NativeAOT
+binary.** A hello-world AOT built with the same SDK starts in **1.8 ms** (median 1.9), against
+`/bin/true` at 0.5. Whatever our binary spends, it is not the runtime's floor.
 
-**Try `IlcOptimizationPreference=Speed` before believing the throughput gap.** `Cli.fsproj` sets
-`Size`, and `IlcFoldIdenticalMethodBodies=true` alongside it. So the 0.3-5.6% sustained-server
-deficit was measured against a binary told to prefer small code over fast code. Some or all of it
-may be that setting rather than a property of AOT. This is a one-line experiment and nobody has run
-it: flip to `Speed`, re-run `perf/http --release -n 20000 -c 32` three paired times, and compare
-against the numbers in `history.md`. Watch the binary size, which is the thing `Size` was buying
-(27 MB today, against R2R's 45 MB). Do this before anyone treats the gap as inherent.
+Measured on the shipped AOT binary with an argument it rejects immediately, which is the closest
+thing to a no-op invocation available (`--version` is useless for this: it makes a network call and
+takes 320 ms):
 
-**Static PGO is the principled answer if the gap survives that.** The mechanism behind the deficit
-is that a JIT re-optimises hot methods from runtime profile data and an AOT compiler has none. That
-isn't unfixable: ilc accepts MIBC profile data, so a profile collected from a representative run can
-be fed back into the build. Worth investigating only if `serve` becomes a workload we care about,
-since it adds a profile artifact to maintain and a way for the build to go stale.
+| event | median |
+|---|---|
+| whole process | 21.8 ms |
+| `cli.preMain` | **20.5 ms** |
+| `cli.total` | 11.0 ms |
+| `cli.execute` | 6.0 ms |
+| `cli.builtinsInit` | 2.0 ms |
+| `sql.total` | 2.0 ms |
+| `cli.extractResources` | 1.0 ms |
 
-**The interpreter loop is the hot loop, and that is where a JIT was helping.** Everything in the
-ranked list below makes the interpreter do less work, which helps both build modes. But under AOT
-there is no second chance from re-JITting, so anything that keeps `runSyncInstructions` from
-bailing into the computation expression is worth marginally more than these numbers suggest. Item 1
-below is the clearest case.
+`preMain` and `cli.total` overlap, so they do not sum to the process time; read them as two views.
 
-Everything below is the queue after that.
+Inside `preMain`, `strace` finds a single **15.9 ms window with zero syscalls**, so it is
+computation, not I/O, and not page-faulting the 28 MB image. It is **not the GC**, though the window
+opens right after `sched_getaffinity`: `DOTNET_gcServer=0`, `GCHeapCount=1` and `GCHeapHardLimit`
+all match the default across nine runs each.
 
-## Ranked, with what's known
+What is left to check: eager static initialisation. F# module-level values run on first access, and
+`cli.builtinsInit` at 2 ms shows the builtins table alone is measurable, so the natural suspect is
+the rest of that class. A profiler that can see inside a no-syscall window is the missing tool.
 
-### 1. The record and enum opcodes stop the interpreter's fast loop
+**Worth keeping in proportion.** 21 ms for a no-op is already good, and runtime performance matters
+more. This is written down because the question was open for two rounds and is now settled, not
+because it is the next thing to do.
 
-**Measured, biggest known win, design written.** Building a record costs 6x calling a function
-(1,507 B vs 231 B); updating one costs 2.3x building one (3,431 B). `CreateRecord`, `CreateEnum` and
-`CloneRecordWithUpdates` are three of the four opcodes that stop `runSyncInstructions` and enter the
-computation expression. They only need to be async because the builders can need the type store,
-which is now cached, so in the common case the `Ply` they return is already complete.
+### Package deserialization: real, but unmeasurable -- parked
 
-The full design, including why no new DU cases are needed and what to verify, is in the task list
-(#69). Records and enums are what real programs are made of, so this is the fast loop being left
-constantly.
+A one-shot eval loads 59 package items for 1.03 MB, ~17.5 KB each and 24% of the command's
+allocation, from an average 1,129-byte blob: ~15x expansion into the object graph. The load path
+around it is lean.
 
-### 2. Pool the builtin argument buffers further
+Parked because the instruments cannot resolve it: `alloc-profile` yields 41 ticks total on a
+load-dominated run, and items are cached per process so the work cannot be looped in-process.
+Reviving it needs a harness driving the loader directly, a finer allocation provider, or counters
+inside the deserializer. One guess has already been tried and reverted.
 
-**Measured ceiling.** Already done per-frame, which took recursion to 0.52 KB/iteration. A
-deliberately unsafe whole-VM probe suggested there is a little more, but the per-frame version got
-essentially all of it. Low priority now; recorded so nobody re-probes it.
+### Record and enum construction still enters three builders per value
 
-### 3. An HTTP request costs ~104 KB to return a constant string
+The top runtime item, measured. An amplified `records` workload (60,000 iterations, 4,487 allocation
+ticks, so the profile actually resolves) says **43% of its allocation is closures and async state
+machines**, concentrated in the construction path:
 
-**Measured, mostly not the runtime's fault any more.** 82% is framing rather than the handler, and
-93% is Dark-side interpretation rather than F# marshalling: **333 package calls to route one
-request**. That is `Stdlib.HttpServer.routeRequest` splitting paths and walking handler lists, so the
-win is now in the standard library, not the interpreter. Worth doing -- it's what every Dark web
-service pays -- but it's a different kind of work.
+| enclosing method | share |
+|---|---|
+| `enum` | 14.8% |
+| `recordUpdate` | 8.2% |
+| `resolveEnumType` | 4.8% |
+| `resolveRecordType` | 4.5% |
+| `record` | 4.0% |
+| `list` | 2.4% |
 
-### 4. Unbox scalar Dvals
+For comparison the entire `Map<string, Dval>` family -- the thing a value-representation change would
+address -- is about 18%.
 
-**Partly done, representation untouched.** Small integers and both booleans are interned, so
-`1 + 1` allocates nothing. But `DInt` is 56 bytes because `DarkInt` is a struct DU carrying space
-for a `bigint`, so any integer outside -128..1023 still costs that. Splitting the representation, or
-making `Infinite` hold a reference, is the real fix. *(estimate: moderate win, wide blast radius)*
+Two causes, both continuations of this round's theme.
 
-### 5. Move type checking to compile time
+**The enclosing functions are unconditional `uply` blocks.** `DvalCreator.enum` and `recordUpdate`
+open with `let! ... = resolveEnumType/resolveRecordType`, so a builder is entered on every call. This
+round put synchronous fast paths *inside* the field loops; the functions wrapping those loops still
+build a state machine. The chain is three deep -- `enum` to `resolveEnumType` to `resolveType` --
+for a lookup that is a cache hit in steady state.
 
-**A real project: weeks, not days.** The plumbing is easy and the middle is a type checker for a
-polymorphic language. Ablation put the prize at -20% allocation and -14% wall, but that was measured
-before this round cached and synchronised much of the same work, so re-measure before committing.
+**`resolveType`'s cache is behind `List.isEmpty typeArgs`.** It already has the right shape:
 
-**Runtime type checking is two jobs in one code path, and only one can move.** *Checking* asks
-whether an argument matches its declared type; making `checkFnParam`/`checkFnResult` no-ops is where
-the -20% came from, and everything still runs. *Instantiation* binds type variables into the symbol
-table so `'a` has a meaning inside the frame; remove it and the CLI does not start, because
-`Json.parse` has no concrete type to parse into. So this is a split, not a deletion.
+    if List.isEmpty typeArgs && (cacheFor types).TryGetValue(typeName, &cached) then
+      Ply cached
 
-**Where the static checker goes.** `applyAddFn` in `LibDB/PackageOpPlayback.fs` already compiles
-package code at save time and stores `rt_instrs` beside `pt_def`; a checker is another pass there and
-its verdict another column. Content addressing means a verdict never goes stale -- the hash *is* the
-definition -- which removes the invalidation problem that makes this miserable elsewhere.
-`package_dependencies` already gives topological order and reverse reachability.
-`LibParser/Validation.fs` is the model for the pass itself: same shape, one stage earlier.
+That is a fourth instance of the condition this round removed from three other places, and it means
+the cache never serves a parameterised type. Unlike the other three it is not simply dead: the
+returned value includes a type-argument mapping, so caching by name alone would be wrong. The fix is
+the same shape as the round-4 one -- cache what does not depend on the arguments, derive the mapping
+synchronously -- rather than deleting the condition.
 
-**The gradual boundary.** Three states per item -- `Checked`, `Unchecked`, `Failed` -- and a call
-skips its runtime argument check only when caller and callee are both `Checked`. Checks stay
-wherever a value enters from outside a verified region: scripts and `eval`, deserialization
-(`Json.parse`, DB reads, request bodies), builtins returning `Unknown`, and any `Unchecked` callee.
-This degrades correctly: a store where nothing is checked behaves exactly as today, and each item
-that passes removes checks from its own call sites with no flag day.
+**Done, five passes, Debug, three readings at each step:**
 
-**Where it will hurt.** The checker must under-approximate: anything it cannot prove is `Unchecked`,
-so being wrong costs performance rather than correctness -- the opposite direction trades a good
-error message for undefined behaviour. Static `TypeReference` and runtime `ValueType` are different
-lattices that meet in `unifyValueType`, and the existing `TypeChecker` should not be assumed reusable
-for a value-free version. And most calls are into signatures containing a type variable, so this
-needs real inference over type variables; a design that fast-paths the monomorphic case is optimising
-the small half.
+| workload | round start | now | change |
+|---|---|---|---|
+Debug, which is what the pass-by-pass work was steered by:
 
-**Phasing**, each step independently useful and revertable. 1: split checking from instantiation in
-the interpreter, no behaviour change, so "skip the check, keep the binding" becomes a condition
-rather than a refactor. 2: write the checker and run it over the whole package set in CI reporting
-only -- how many check clean, how many it declines, how many it calls wrong (expect both real errors
-and checker bugs). This is the phase that says whether the idea is viable, and it ships nothing.
-3: store the verdict, wire the runtime skip behind a flag defaulting to off, measure. 4: default it
-on. Phases 1 and 3 are days each; phase 2 is the project.
+| workload | round start | now | change |
+|---|---|---|---|
+| `records` | 8.82 KB | **4.43** | **-49.8%** |
+| `containers` | 6.18 KB | **3.48** | **-43.7%** |
+| HTTP request | 99.65 KB | **82.29** | **-17.4%** |
+| `json` | 17.40 KB | 15.23 | -12.5% |
+| `dicts` | 14.05 KB | **12.43** | **-11.5%** |
+| `strings` | 6.94 KB | 6.61 | -4.8% |
+| `lists` | 12.20 KB | 11.93 | -2.2% |
 
-**Decide before starting:** whether `Failed` blocks a save (probably warn first -- early `Failed`
-results will mostly be checker bugs); that the checker runs on already-resolved references, since
-items are global but name resolution is branch-scoped; and whether the LSP is the better reason to
-build it, since type errors while typing may be worth more than the allocation.
+Release, measured against a CLI built from this branch's head, which is what ships and what
+`history.md` records: records 8.3 -> **4.26** (-48.7%), json 13.0 -> **10.00** (-23.1%), dicts
+15.7 -> **12.36** (-21.3%), strings -2.3%, lists -1.3%, containers **3.04** (new).
 
-### 7. Startup, and one-shot command latency
+Closures fell from 43% of the records workload to 7%, and the profile's tick count from 4,487 to
+2,571 for identical work. A real HTTP request went 99.65 -> 89.26 KB after three of the five. The
+gate's Debug budget came down 8.0 -> 7.9 MB. On a real HTTP request,
+A/B'd by rebuilding the pre-change type checker, the first half alone was worth 99.65 -> 95.91 KB;
+throughput is unchanged at ~4,080 req/s, which is expected -- allocation is not what limits
+throughput here.
 
-**Measured, deprioritised because AOT is the lever.** `dark eval "1L+1L"` spends most of its time in
-runtime init and JIT, which is what AOT deletes. The part that survives AOT: **46 package functions
-load to add two integers**, one SQL query each, and **a SQLite point lookup costs ~0.4 ms** against a
-local file, which should be tens of microseconds. It doesn't vary with payload, so it's
-per-statement overhead -- Fumble builds a fresh `SqliteCommand` per call, so the statement is
-re-prepared every time. WAL, `synchronous=NORMAL` and pooling are already on.
+It took three passes, each found by re-profiling the one before, and none of them was the step
+originally planned.
 
-### 8. JSON
+1. `enum`, `record` and `recordUpdate` were unconditional `uply` blocks opening with a `let!`.
+   Reading both their lookups with `Ply.trySync` keeps the common construction out of a builder.
+   Worth -11%.
+2. The next profile showed an 11.3% entry, `afterResolve` -- the local helper step 1 had just
+   introduced. Marked `inline`, but it closed over `types`, `threadID` and `tst`, so F# allocated a
+   closure per construction anyway. Hoisting the three helpers to top level, taking everything
+   explicitly, was worth another -12.5%: more than the change it was cleaning up after.
+3. The next profile showed `resolveEnumType` and `resolveRecordType` at 11.8% combined, both trivial
+   `uply` wrappers around `resolveType`, plus `finish` at 2.5% -- another local helper left behind by
+   step 2. Same treatment: -11.4%.
+4. With closures down to 11%, the next profile put `DvalCreator.list` and `dict` on top: both folded
+   a lambda over a tuple accumulator, so a closure and a tuple per element. Top-level recursions
+   with a struct-tuple result instead. records -8.6%, containers -12.4%, json -5.5%.
+5. Closures then being spent at 7%, the profile turned to reference tuples, the largest at 9.4%:
+   `unifyTypeArgsSyncVT` used `match declared, actual with`, which allocates the pair, once per type
+   argument on the path every parameterised value takes. Nested matches instead. This is the only
+   pass that moved *every* workload -- containers -15.3%, records -5.3%, strings -4.0%, dicts -1.8%,
+   and dicts had not moved all round.
 
-**Now among the most expensive per iteration.** The fixed cost per `Json.parse` is down from 8,501
-to ~3,700 bytes but is still the bulk for small documents. Known remaining items, all small: the
-converter's `match typ, j.ValueKind with` allocates a pair per node (F# builds the tuple and boxes
-the enum), record fields go into an `FSharpMap`, and the `JsonDocument` is never disposed so its
-pooled buffers are never returned (~350 bytes a parse -- measured, and *not* worth the
-use-after-dispose hazard on its own).
+6. The return tuples. `resolveEnumType` and `resolveRecordType` returned reference `Tuple3`s at
+   4.4% combined; both are struct tuples now. records -6.4%, containers -1.6%, HTTP -5.4%.
 
-### 9. Dicts and records both use `Map<string, Dval>`
+   This one looked like it cost something: `lists` +1.2% and `strings` +1.8%, repeatable across
+   three readings. It prompted a hypothesis -- that a struct tuple crossing a `Ply` boundary
+   enlarges the state machine on the *async* path, so struct tuples would pay only where the
+   synchronous path dominates.
+7. `checkEnumFields` returns a struct tuple too, which was chosen as the test of that hypothesis
+   because it is the same shape of change on the same paths. **The hypothesis did not hold.**
+   `lists` went 11.97 -> 11.70, below even its pass-5 value, so pass 6's apparent regression was
+   recovered rather than compounded. records -5.8%, containers -4.0%. `strings` drifted up again
+   but its spread (6.75-6.94) overlaps its pass-5 spread, so that one is unresolved rather than
+   real.
 
-`Dict.set` costs ~370 bytes, most of it `Map.add` rebuilding the tree path, which is inherent to an
-immutable dict. A cheaper small-map representation would help dicts *and* records, since `DRecord`
-holds its fields the same way. Big change; no design yet. *(estimate)*
+8. `checkRecordFields` and `updateRecordFields`, the last reference `Tuple3`, at 6.7%. records
+   -4.1%, strings -4.1%, HTTP -2.5%, `lists` +1.9%. Mixed, and HTTP decided it.
 
-### 10. The rest of the codebase is still on Ply
+**What is left is the value representation.** After eight passes the profile is
+`FSharpList<Dval>` 18.0%, `MapTreeNode` 14.5%, `Option<Dval>` 8.8%, `FSharpMap` 7.4%, and the
+`Tuple2<string, Dval>` pairs a Map is built from -- roughly 34% in the Map family alone. Those are
+not accidents of how the code is written; they are what a `DRecord` and a `DDict` *are*. Closures are
+down to 10% and no single non-representation entry is above 7%, so the flat-profile rule applies:
+stop optimising this file and change the representation, or stop.
 
-~400 `uply` sites outside the interpreter loop. The cost is the *builder*, not the value -- a
-completed `Ply` is a struct and allocates nothing -- so the ones that matter are those entering a
-builder to hand back something they already have. Several such sites have each been worth 5-20% of a
-workload. Consider a `ValueTask` builder.
+**On `lists`:** it read +1.2% at pass 6, -2.3% at pass 7, +1.9% at pass 8, always with a tight
+within-sweep spread. That is build-to-build variance, not a trend; see the playbook note.
+
+The pattern is worth stating plainly, since it caught the same mistake three times: **a local helper
+on a hot path is a closure however it is annotated**, and each fix reveals the next one only if the
+profile is re-read. Do that before assuming what is left.
+Both lookups are read with `Ply.trySync`, so a construction whose type is cached and whose fields
+unify never enters a builder. The slow paths await the *same* `Ply` rather than recomputing, so
+there is one implementation of each step and no twin. The case lookup and arity check moved into
+`enumCaseFields`, shared by both paths, so the errors read identically either way.
+
+Still to do, from the same profile: the `List.isEmpty typeArgs` condition on `resolveType`'s cache,
+and `list` (2.4%). Re-profile before going further -- the shares above were measured before any of
+this landed, and three of the five entries have now moved.
+
+### Dicts: it is the map, not the call volume
+
+13.89 -> 12.60 KB/iteration (-9.3%) by making `dictAddEntry` return a struct tuple, take its key and
+value untupled, and replacing the fold-with-a-lambda in `Dict.fromListOverwritingDuplicates` with a
+top-level recursion.
+
+**The "dicts is volume" framing this item used to carry was wrong as a statement about allocation.**
+Profiled amplified, the workload is `MapTreeNode` 45.0%, `FSharpList<Dval>` 14.4%, `FSharpMap` 8.9%,
+`String` 7.4% -- and closures plus state machines total **0.41%**. The ~237 package calls per
+iteration cost instructions and frame pushes, not bytes, because a warm package call allocates
+nothing. What is left is the immutable map itself: see the value-representation item.
+
+### Unbox scalar Dvals
+
+Small integers and both booleans are interned, so `1 + 1` allocates nothing. But `DInt` is 56 bytes
+because `DarkInt` is a struct DU carrying space for a `bigint`, so any integer outside -128..1023
+costs that. Splitting the representation, or making `Infinite` hold a reference, is the real fix.
+*(estimate: moderate win, wide blast radius)*
+
+### Dicts and records both use `Map<string, Dval>`
+
+A cheaper small-map representation would help dicts *and* records, since `DRecord` holds its fields
+the same way. Big change, no design yet. *(estimate)*
+
+### Moving the rest of the codebase off Ply -- measured neutral, do not redo for performance
+
+~400 `uply` sites remain outside the interpreter loop, and it is tempting to read the interpreter's
+wins as an argument for converting them. It is not.
+
+**It has been done, on the `ply-to-task` branch: 42 commits, complete, tests green, unmerged.** Its
+own measurement says the hot-path swap is *within GC noise*, because `task { }` and `uply { }` are
+both struct-state-machine builders. That branch was pursued for NativeAOT trimming rather than
+allocation, and in its snapshot the release binary grew 381 KB. It also had to `--nowarn:3511` where
+the resumable-code analyzer could not statically reduce a recursive `task`, falling back to
+dynamic-dispatch state machines.
+
+The lesson generalises: **the win is never entering a builder, not entering a different one.** That
+is why the synchronous fast paths pay and why the roughly thirteen `*Sync` twins across
+`TypeChecker.fs` and `Interpreter.fs` cannot be deleted by changing builder. They are the mechanism,
+not a workaround for Ply.
+
+If Ply removal is revisited, do it for trimming, binary size or dependency reduction, and measure
+those. Do not expect allocation to move.
+
+### Pool the builtin argument buffers further
+
+Already done per-frame. An unsafe whole-VM probe suggested a little more, but the per-frame version
+got essentially all of it. Low priority; recorded so nobody re-probes it.
+
+### HTTP routing re-parses a constant -- left for a human
+
+`parseRouteSegments` re-parses a never-changing route pattern on every request, ~32 package calls
+per handler tested. Fixing it needs public stdlib API (a `makeRouter`, or a parsed field on
+`Handler`), so it is a design decision rather than an optimisation.
+
+### Compile-time type checking -- owned elsewhere
+
+Ablation put the prize at -20% allocation and -14% wall, measured before much of the same work was
+cached and synchronised, so re-measure before committing. Someone else is working on this; do not
+start it here.
+
+---
+
+### Every remaining workload is now its own data structure
+
+All six profiled amplified, after ten passes. Closures and state machines are under 2% in every one.
+What is left is what the values *are*:
+
+| workload | dominant | share |
+|---|---|---|
+| `lists` | `FSharpList<Dval>` cons cells | 88% |
+| `dicts` | `MapTreeNode` | 45% |
+| `strings` | `System.String` + lists of `Dval` | 36% + 26% |
+| `records` | the `Map<string, Dval>` family | ~34% |
+
+The last cross-cutting item was `ValueType.merge` matching its two arguments as a pair, which
+allocated one per list element, dict entry and record field. Nested matches instead: every workload
+improved, containers -3.1%, the rest 1-2%.
+
+There is nothing else in this class left to find. `checkAndExtractLetPattern` was the last suspected
+`match a, b with` and it does not appear in any profile, so changing it would be on faith. Continuing
+means changing the representation.
+
+## Larger, not yet scoped
+
+**Value representation.** Struct `Dval` with tag and payload, cached singletons for small
+ints/bools/unit, array-backed records with a shared shape descriptor instead of a `Map` per record.
+Weeks, highest ceiling, highest risk, and the main remaining allocation play.
+
+**Concurrency in the language.** Not a runtime-serialization problem: the server already uses seven
+cores. What is missing is a way to *express* parallel work, and ideally to find it automatically in
+sequential code. The safety predicate already exists -- `CapabilityAnalysis` folds transitive
+effective capabilities and `noCaps` means pure -- so "is this lambda safe to run out of order" is
+answerable per call site. A narrow first version would be `List.map`/`filter` where the lambda is
+`noCaps` and the list is long enough to pay for scheduling. Two cautions: it will not help
+allocation, and per-element work must exceed task overhead by a good margin. Not a priority.
+
+---
+
+## Correctness, not performance
+
+**Two declarations can share a hash, and one silently wins.** A function whose signature says `TA`
+will accept a `TB` and run: not an error path, a wrong-code path. `NameResolutionError` carries no
+name and the canonical writer skips `originalName`, so every unresolved reference serialises to the
+same two bytes; two declarations differing only in one hash identically; and `withExtras` keys by
+hash with `Map.ofList`, keeping the last. Scripts hit it constantly, because `Cli.fs` hashes a
+script's fns before its own types are in scope.
+
+Not fixed here. The obvious three-line fix -- write `originalName` into the hash when unresolved --
+breaks the content-addressing invariant that names never affect hashes, and was reverted. The real
+fix is to stop content-hashing before resolution, using the location-derived placeholders
+`LibParser/Package.fs` already has. Context, failure and options:
+`notes/hashing-unresolved-refs-collision-2026-08-19.md`.
+
+
+**A type argument can be violated silently.**
+
+    type Box<'a> = { v: 'a; tag: String }
+    let b = Box<Int> { v = 1; tag = "t" }
+    { b with v = "str" }        // succeeds, giving Box<Int> { v: "str" }
+
+The check that should catch it is dead. In four places in `TypeChecker.fs` the code matches `vt`,
+binds the catch-all as `known`, and then calls `ValueType.merge known vt` -- merging a value with
+itself, which always succeeds. Three of those predate this campaign; the fourth is
+`updateTypeArgsSync`, which reproduced the idiom when extracting the synchronous twin. Letting
+parameterised types onto the fast path did not widen the exposure, since the async path ran the same
+self-merge, but the fix is now a four-site change.
+
+---
 
 ## Smaller, known, unowned
 
 - `run-in-docker` hangs after the command finishes (`cat <&0` waits for EOF); pass `< /dev/null`.
-  Every later command in the clone crawls until it's killed. Fixing it properly is a small job.
+- `Builtin.debug` has no package wrapper anywhere, and its only mention under `packages/` is a
+  commented-out line, so its reference count is propped up by scripts outside `packages/`.
 - Re-enable the `CliTraces` suite once its network call is stubbed.
-- Decide what `dark version` should do when the network is slow or absent -- it makes a network call
-  that costs ~700 ms.
-- Unify `callBuiltinResolved` and `callPackageResolved`: same five steps, different parameter and
-  outcome types. Needs `BuiltInParam` and `PackageFn.Parameter` to share an interface.
+- Decide what `dark version` should do when the network is slow or absent; it costs ~700 ms.
+- Unify `callBuiltinResolved` and `callPackageResolved`: same five steps, different types. Needs
+  `BuiltInParam` and `PackageFn.Parameter` to share an interface.
 - Make builtins opt-in, as installable extensions. Would cut startup and the builtins table.
 - Mine the telemetry corpus: every checkout's `rundir/logs/telemetry.jsonl` has thousands of real
   runs, which could retarget the campaign against what people actually do.
 - Runtime call stacks name package functions by content hash, which makes every error harder to act
-  on than it needs to be. Not a performance problem, but it is in the same code.
+  on. Not a performance problem, but it is in the same code.
 
-## Considered and declined
-
-- **Moving the gate to the `build-cli` job**, so it measures the artifact users actually download
-  rather than the solution publish in `build-backend`. `build-cli` does run migrations and
-  `reload-packages`, so it would work. Declined because both are Release builds of the same code and
-  the difference is packaging, so there is no measured reason to expect different allocation --
-  and moving a CI step for an unmeasured reason is exactly what this campaign learned not to do.
-  Revisit if the release script ever starts passing different publish flags (trimming, single-file,
-  AOT), because then the binaries genuinely differ.
+---
 
 ## Closed, so nobody re-opens them
 
-- **Inline caching at call sites.** The point was skipping the per-call type check. Memoizing
-  container `ValueType`s took those stages to 0 B/run; there is nothing left to cache.
-- **Whether a package callee should inherit the caller's type symbol table.** Was only ever a
-  performance question via inline caching. Still an open *design* question, but not a perf one.
-- **Argument lists.** Done: builtins take an array, reused per frame.
+- **Records and enums**, **enum construction**, and **the dead gate in both record paths**: done.
+  The remainder is spread thin.
+- **JSON.** `Json.parse` is a third of what the call costs; nothing inside dominates. A list element
+  is ~900 B, a record field ~100.
+- **Making stdlib wrappers free.** A warm package call allocates *nothing*: 0, 1, 2, 4 and 8 extra
+  forwarding hops all allocate 231 bytes while package calls rise 4 to 12. Only the first call to a
+  given fn pays. There was nothing to win.
+- **Calling a polymorphic builtin.** Claimed 7,470 B from a residual across two probe scripts;
+  actually 192 B. Retracted.
+- **A 2x between two record types.** Was the hash collision described below: the two rows were not
+  measuring the types they named.
+- **`scripts/perf/http` saturating on its own client.** Fixed with `-p` processes.
+- **Sizing the binary readers' collections exactly** in `Serializers/Common.fs`. Measured 3% *worse*
+  (17,486 to 18,023 bytes per package load) and reverted.
+- **Inline caching at call sites.** Memoizing container `ValueType`s took those stages to 0 B/run.
+- **Argument lists.** Builtins take an array, reused per frame.
+- **Moving the gate to the `build-cli` job.** Both are Release builds of the same code and the
+  difference is packaging, so there is no measured reason to expect different allocation. Revisit if
+  the release script starts passing different publish flags.

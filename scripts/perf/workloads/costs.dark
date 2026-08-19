@@ -38,9 +38,9 @@ let measure (label: String) (f: Int -> Int) : Unit =
     Stdlib.List.fold (Stdlib.List.range 1 n) 0 (fun acc i ->
       if (f i) == -987654321 then acc + 1 else acc)
   let _warm = run 50
-  let before = Builtin.gcAllocatedBytes ()
+  let before = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
   let _r = run 2000
-  let after = Builtin.gcAllocatedBytes ()
+  let after = Darklang.LanguageTools.InterpreterStats.allocatedBytes ()
   Builtin.debug label ((after - before) / 2000L)
 
 let main () : Int64 =

@@ -1,7 +1,7 @@
 // Records and enums: construction, field access, functional update, and matching. Every Dark
 // program that models anything does this constantly, and none of it goes through the list path.
 let iters () : Int =
-  match Builtin.environmentGet "PERF_ITERS" with
+  match Stdlib.Env.get "PERF_ITERS" with
   | Some s ->
     match Stdlib.Int.parse s with
     | Ok n -> n
@@ -33,8 +33,8 @@ let repeat (times: Int) (acc: Int) : Int =
   if times <= 0 then acc else repeat (times - 1) (acc + (work times))
 
 let _warm = repeat 20 0
-let _reset = Builtin.interpreterStatsReset ()
-let t0 = Builtin.timeNowMs ()
+let _reset = Darklang.LanguageTools.InterpreterStats.reset ()
+let t0 = Darklang.Cli.Telemetry.now ()
 let result = repeat (iters ()) 0
-let t1 = Builtin.timeNowMs ()
-Stdlib.printLine ("elapsed_ms=" ++ (Stdlib.Int.toString (t1 - t0)) ++ " result=" ++ (Stdlib.Int.toString result))
+let t1 = Darklang.Cli.Telemetry.now ()
+Stdlib.printLine ("elapsed_ms=" ++ (Stdlib.Int.toString (t1 - t0)) ++ " result=" ++ (Stdlib.Int.toString result) ++ " stats=" ++ (Darklang.LanguageTools.InterpreterStats.get ()))
