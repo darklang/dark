@@ -147,10 +147,9 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
       [ $"Type '{locationStr}' not found." ]
     | item :: _ ->
       let ctx =
-        PrettyPrinter.ProgramTypes.Context
-          { branchId = branchId
-            currentModule = Stdlib.Option.Option.None
-            currentFunction = Stdlib.Option.Option.None }
+        PrettyPrinter.ProgramTypes.Context.forModule
+          branchId
+          (Stdlib.List.push name.modules name.owner)
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageType ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
 
@@ -172,10 +171,9 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
       [ $"Function '{locationStr}' not found." ]
     | item :: _ ->
       let ctx =
-        PrettyPrinter.ProgramTypes.Context
-          { branchId = branchId
-            currentModule = Stdlib.Option.Option.None
-            currentFunction = Stdlib.Option.Option.None }
+        PrettyPrinter.ProgramTypes.Context.forModule
+          branchId
+          (Stdlib.List.push name.modules name.owner)
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageFn ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
       let capsBadge =
@@ -201,10 +199,9 @@ let entityRows (branchId: Uuid) (location: PackageLocation) : List<String> =
       [ $"Value '{locationStr}' not found." ]
     | item :: _ ->
       let ctx =
-        PrettyPrinter.ProgramTypes.Context
-          { branchId = branchId
-            currentModule = Stdlib.Option.Option.None
-            currentFunction = Stdlib.Option.Option.None }
+        PrettyPrinter.ProgramTypes.Context.forModule
+          branchId
+          (Stdlib.List.push name.modules name.owner)
       let prettyPrinted = PrettyPrinter.ProgramTypes.packageValue ctx item.entity
       let highlighted = SyntaxHighlighting.highlightCode prettyPrinted
 
@@ -290,7 +287,7 @@ let fnAt
     Stdlib.Result.Result.Error "that's a value; this view is for functions"
 
 
-/// The ProgramTypes tree, indented by depth. Node kinds are coloured and payloads dimmed, so the shape
+/// The ProgramTypes tree, indented by depth. Node kinds are colored and payloads dimmed, so the shape
 /// reads at a glance and the detail is there when you look for it.
 let astRows
   (branchId: Uuid)

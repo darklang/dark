@@ -340,6 +340,26 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "cliTerminalColorEnabled" 0
+      typeParams = []
+      parameters = [ Param.make "unit" TUnit "" ]
+      returnType = TBool
+      description =
+        "Whether output should carry color: false when NO_COLOR is set, or when "
+        + "stdout is redirected"
+      fn =
+        (function
+        | _, _, _, [| DUnit |] ->
+          let noColor =
+            System.Environment.GetEnvironmentVariable "NO_COLOR" |> isNull |> not
+          DBool(not noColor && TerminalCapabilities.isOutputTerminal ()) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "cliGetLogDir" 0
       typeParams = []
       parameters = [ Param.make "unit" TUnit "" ]

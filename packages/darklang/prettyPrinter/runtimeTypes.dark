@@ -58,6 +58,75 @@ let resolvePackageHashWithOriginalName
     | [] -> resolvePackageHash ctx locations hash
 
 
+/// A type's name for value output, spelled relative to `opts.currentModule`.
+let typeNameWith
+    (branchId: Uuid)
+    (opts: PrettyPrinter.DisplayOptions)
+    (t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
+  : String =
+  match t with
+  | Package hash ->
+    let locations = Darklang.LanguageTools.PackageManager.Type.locations branchId hash
+    match
+      Darklang.LanguageTools.PackageManager.pickLocation
+        (LanguageTools.PackageManager.PickContext { currentModule = opts.currentModule })
+        locations
+    with
+    | Some l -> PrettyPrinter.shortenName opts.currentModule l.owner l.modules l.name
+    | None -> Darklang.LanguageTools.RuntimeTypes.hashToString hash
+
+
+/// Whether a value of this type says its type name before its case.
+///
+/// `Some`, `None`, `Ok` and `Error` are unambiguous everywhere and resolve unqualified, so naming their
+/// type in front of them is pure noise: `Some(Some([1, 2, 3]))` says everything
+/// `Option.Some(Option.Some([1, 2, 3]))` does. Every other enum keeps its type name, because `Red` on
+/// its own doesn't tell you it came from `Color`.
+let caseNameStandsAlone
+    (branchId: Uuid)
+    (currentModule: List<String>)
+    (t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
+  : Bool =
+  match t with
+  | Package hash ->
+    let locations = Darklang.LanguageTools.PackageManager.Type.locations branchId hash
+
+    // Several names for one type, and nothing in the reader's context to choose between them.
+    //
+    // Types are content-addressed, so two declarations with the same shape ARE one type:
+    // `Stdlib.Int.ParseError`, `Stdlib.Float.ParseError` and `Stdlib.Uuid.ParseError` are all
+    // `| BadFormat`, which makes them a single type with three names. Printing one of those names is
+    // picking arbitrarily, and it picks wrong most of the time -- `Stdlib.Int.parse "abc"` reporting a
+    // `Stdlib.Uuid.ParseError` is a real thing this used to print. The case name alone is the most that
+    // can honestly be said, so say that.
+    let ambiguous =
+      match locations with
+      | []
+      | [ _ ] -> false
+      | _ ->
+        locations
+        |> Stdlib.List.map (fun l ->
+          Darklang.LanguageTools.PackageManager.countMatchingPrefix
+            currentModule
+            (Stdlib.List.push l.modules l.owner))
+        |> Stdlib.List.fold 0 (fun acc n -> if n > acc then n else acc)
+        |> fun best -> best == 0
+
+    if ambiguous then
+      true
+    else
+      match
+        Darklang.LanguageTools.PackageManager.pickLocation
+          LanguageTools.PackageManager.PickContext.empty
+          locations
+      with
+      | Some l ->
+        let path = Stdlib.List.push l.modules l.owner
+        (path == [ "Darklang"; "Stdlib"; "Option" ] && l.name == "Option")
+        || (path == [ "Darklang"; "Stdlib"; "Result" ] && l.name == "Result")
+      | None -> false
+
+
 module FQTypeName =
   let package
         (branchId: Uuid)
@@ -72,6 +141,27 @@ let typeName
   : String =
   match t with
   | Package p -> FQTypeName.package branchId p
+
+
+/// Just the type's own name, without the module path that leads to it.
+///
+/// For error messages, where the surrounding sentence already says what kind of thing is being talked
+/// about and the full path is noise: "expects Option, but got Result" reads better than the same line
+/// with two forty-character paths in it. Falls back to the full name when the type has no location.
+let shortTypeName
+    (branchId: Uuid)
+    (t: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
+  : String =
+  match t with
+  | Package hash ->
+    let locations = Darklang.LanguageTools.PackageManager.Type.locations branchId hash
+    match
+      Darklang.LanguageTools.PackageManager.pickLocation
+        LanguageTools.PackageManager.PickContext.empty
+        locations
+    with
+    | Some l -> l.name
+    | None -> Darklang.LanguageTools.RuntimeTypes.hashToString hash
 
 
 module FQValueName =
@@ -357,195 +447,247 @@ module Dval =
     | DBlobEphemeral _ -> "Blob"
     | DStreamStub vt -> $"Stream<{valueType branchId vt}>"
 
+  /// The field names of a record type, in the order they were declared.
+  ///
+  /// Empty when the type isn't resolvable or isn't a record, which callers treat as "no opinion".
+  let declaredFieldOrder
+    (typeName: LanguageTools.RuntimeTypes.FQTypeName.FQTypeName)
+    : List<String> =
+    match typeName with
+    | Package hash ->
+      match Darklang.LanguageTools.PackageManager.Type.get hash with
+      | Some t ->
+        match t.declaration.definition with
+        | Record fields -> fields |> Stdlib.List.map (fun f -> f.name)
+        | _ -> []
+      | None -> []
+
+
+  /// Put `pairs` into `order`, keeping anything `order` doesn't mention on the end.
+  ///
+  /// A record's fields live in a `Dict`, which iterates alphabetically, so a value printed straight
+  /// from it comes out in an order nobody wrote: `PackageLocation` declared as owner/modules/name
+  /// printed as modules/name/owner, and so didn't match its own `view`.
+  /// Subject first, because `|>` supplies the first parameter.
+  let inDeclaredOrder
+    (pairs: List<(String * LanguageTools.RuntimeTypes.Dval)>)
+    (order: List<String>)
+    : List<(String * LanguageTools.RuntimeTypes.Dval)> =
+    match order with
+    | [] -> pairs
+    | _ ->
+      let ordered =
+        order
+        |> Stdlib.List.filterMap (fun n ->
+          pairs |> Stdlib.List.findFirst (fun pair -> (Stdlib.Tuple2.first pair) == n))
+
+      let extra =
+        pairs
+        |> Stdlib.List.filter (fun pair ->
+          Stdlib.Bool.not (Stdlib.List.member order (Stdlib.Tuple2.first pair)))
+
+      Stdlib.List.append ordered extra
+
+
   let makeSpaces (len: Int) : String =
     match Stdlib.List.repeat len " " with
     | Ok spaces -> spaces |> Stdlib.String.join ""
     | Error _ -> ""
 
-  let withIndent
+  /// A value as a `Pretty.Doc`: the shapes it could take, not one it has already been forced into.
+  ///
+  /// Every container is a `group`, so it renders on one line when it fits and breaks when it doesn't --
+  /// and, unlike the string version this replaces, the decision counts everything on the line. A record
+  /// used to be measured by its fields alone, so a 51-character type name in front of them didn't count
+  /// and a 118-column line reported as fitting. Here the name is part of the same document.
+  ///
+  /// `depth` is compared against `opts.maxDepth`; past it, a value is elided rather than descended into.
+  let toDoc
     (branchId: Uuid)
-    (indent: Int)
+    (opts: PrettyPrinter.DisplayOptions)
+    (depth: Int)
     (dv: LanguageTools.RuntimeTypes.Dval)
-    : String =
-    let nl = "\n" ++ (makeSpaces indent)
-    let inl = "\n" ++ (makeSpaces (indent + 2))
-    let indent = indent + 2
+    : Stdlib.Pretty.Doc =
+    let txt (s: String) : Stdlib.Pretty.Doc = Stdlib.Pretty.text s
+
+    // Painted by kind. With the default plain palette every style is an empty string, so the output is
+    // byte-for-byte what it was before anyone asked for color.
+    let paint (style: String) (t: String) : Stdlib.Pretty.Doc =
+      Stdlib.Pretty.styled style t opts.palette.reset
+
+    let tooDeep =
+      match opts.maxDepth with
+      | None -> false
+      | Some max -> depth > max
+
+    if tooDeep then
+      txt "..."
+    else
+
+    // `[a, b]` flat, and one per line when broken. `open`/`close` hug their contents via `softLine`, so
+    // fitting on one line doesn't gain a pair of spaces the way `{ a, b }` deliberately does.
+    let wrapped
+      (opening: String)
+      (closing: String)
+      (opener: Stdlib.Pretty.Doc)
+      (parts: List<Stdlib.Pretty.Doc>)
+      : Stdlib.Pretty.Doc =
+      let sep = Stdlib.Pretty.concat (txt ",") Stdlib.Pretty.line
+      let inner = Stdlib.Pretty.join parts sep
+
+      Stdlib.Pretty.group (
+        Stdlib.Pretty.concat
+          (txt opening)
+          (Stdlib.Pretty.concat
+            (Stdlib.Pretty.nest 2 (Stdlib.Pretty.concat opener inner))
+            (Stdlib.Pretty.concat opener (txt closing))))
+
+    let bracketed (o: String) (c: String) (parts: List<Stdlib.Pretty.Doc>) : Stdlib.Pretty.Doc =
+      wrapped o c Stdlib.Pretty.softLine parts
+
+    let braced (o: String) (c: String) (parts: List<Stdlib.Pretty.Doc>) : Stdlib.Pretty.Doc =
+      wrapped o c Stdlib.Pretty.line parts
+
+    let child (v: LanguageTools.RuntimeTypes.Dval) : Stdlib.Pretty.Doc =
+      Dval.toDoc branchId opts (depth + 1) v
 
     let valueTypeName = valueTypeName branchId dv
 
     match dv with
-    | DUnit -> "()"
+    | DUnit -> paint opts.palette.keyword "()"
 
-    | DBool true -> "true"
-    | DBool false -> "false"
+    | DBool true -> paint opts.palette.keyword "true"
+    | DBool false -> paint opts.palette.keyword "false"
 
-    // RuntimeTypes.Dval declares DChar as carrying a String, so no conversion here
-    | DChar c -> $"'{c}'"
-    | DString s -> $"\"{s}\""
+    | DChar c -> paint opts.palette.string_ $"'{PrettyPrinter.escapeCharLiteral (Stdlib.Char.toString c)}'"
+    | DString s -> paint opts.palette.string_ $"\"{PrettyPrinter.escapeSpecialCharacters s}\""
 
-    | DInt8 i -> Stdlib.Int8.toString i
-    | DUInt8 i -> Stdlib.UInt8.toString i
-    | DInt16 i -> Stdlib.Int16.toString i
-    | DUInt16 i -> Stdlib.UInt16.toString i
-    | DInt32 i -> Stdlib.Int32.toString i
-    | DUInt32 i -> Stdlib.UInt32.toString i
-    | DInt64 i -> Stdlib.Int64.toString i
-    | DUInt64 i -> Stdlib.UInt64.toString i
-    | DInt128 i -> Stdlib.Int128.toString i
-    | DUInt128 i -> Stdlib.UInt128.toString i
-    | DInt i -> Stdlib.Int.toString i
+    | DInt8 i -> paint opts.palette.number (Stdlib.Int8.toString i)
+    | DUInt8 i -> paint opts.palette.number (Stdlib.UInt8.toString i)
+    | DInt16 i -> paint opts.palette.number (Stdlib.Int16.toString i)
+    | DUInt16 i -> paint opts.palette.number (Stdlib.UInt16.toString i)
+    | DInt32 i -> paint opts.palette.number (Stdlib.Int32.toString i)
+    | DUInt32 i -> paint opts.palette.number (Stdlib.UInt32.toString i)
+    | DInt64 i -> paint opts.palette.number (Stdlib.Int64.toString i)
+    | DUInt64 i -> paint opts.palette.number (Stdlib.UInt64.toString i)
+    | DInt128 i -> paint opts.palette.number (Stdlib.Int128.toString i)
+    | DUInt128 i -> paint opts.palette.number (Stdlib.UInt128.toString i)
+    | DInt i -> paint opts.palette.number (Stdlib.Int.toString i)
 
-    | DFloat f -> Stdlib.Float.toString f // CLEANUP: deal with Infinity, NegativeInfinity, and NaN
+    | DFloat f -> paint opts.palette.number (Stdlib.Float.toString f)
 
-    | DDateTime d -> $"<{valueTypeName}: {Stdlib.DateTime.toString d}>"
-
-    | DUuid uuid -> $"<{valueTypeName}: {Stdlib.Uuid.toString uuid}>"
-
+    | DDateTime d -> txt $"<{valueTypeName}: {Stdlib.DateTime.toString d}>"
+    | DUuid uuid -> txt $"<{valueTypeName}: {Stdlib.Uuid.toString uuid}>"
 
     | DTuple(first, second, theRest) ->
-      let l = Stdlib.List.append [ first; second ] theRest
-
       let parts =
-        Stdlib.List.map l (fun item -> withIndent branchId indent item)
+        (Stdlib.List.append [ first; second ] theRest) |> Stdlib.List.map (fun i -> child i)
+      bracketed "(" ")" parts
 
-      let short = Stdlib.String.join parts ", "
-
-      if Stdlib.String.length short <= 80 then
-        $"({short})"
-      else
-        let long = Stdlib.String.join parts $"{inl}, "
-
-        $"({inl}{long}{nl})"
-
-
-    | DList(vt, l) ->
+    | DList(_vt, l) ->
       if Stdlib.List.isEmpty l then
-        $"{valueTypeName} []"
+        txt $"{valueTypeName} []"
       else
-        let parts =
-          Stdlib.List.map l (fun item -> withIndent branchId indent item)
-        let short = Stdlib.String.join parts ", "
-
-        if Stdlib.String.length short <= 80 then
-          $"[{short}]"
-        else
-          let long = Stdlib.String.join parts $",{inl}"
-          $"[{inl}{long}{nl}]"
-
+        bracketed "[" "]" (l |> Stdlib.List.map (fun i -> child i))
 
     | DDict(_, d) ->
       if d == Stdlib.Dict.empty then
-        "{}"
+        txt "{}"
       else
-        let strs =
+        let parts =
           d
           |> Stdlib.Dict.toList
           |> Stdlib.List.map (fun pair ->
             let (key, value) = pair
-            $"{key}: {withIndent branchId indent value}")
+            let key = PrettyPrinter.formatFieldName key
+            Stdlib.Pretty.concat (txt $"{key}: ") (child value))
+        braced "{" "}" parts
 
-        let short = Stdlib.String.join strs ", "
-
-        if Stdlib.String.length short <= 80 then
-          "{ " ++ short ++ " }"
-        else
-          let long = Stdlib.String.join strs $",{inl}"
-          "{" ++ inl ++ long ++ nl ++ "}"
-
-
-    // Don't fetch the bytes for rendering — payloads can be many MB.
+    // Don't fetch the bytes for rendering -- payloads can be many MB.
     | DBlobPersistent(hash, length) ->
       let short = Stdlib.String.first hash 8
-      $"<Blob: {short}… {Stdlib.Int.toString length} bytes>"
-    | DBlobEphemeral _ -> "<Blob: ephemeral>"
+      txt $"<Blob: {short}… {Stdlib.Int.toString length} bytes>"
+    | DBlobEphemeral _ -> txt "<Blob: ephemeral>"
 
-    | DStreamStub _ -> "<stream: stub>"
+    | DStreamStub _ -> txt "<stream: stub>"
 
     | DEnum(_, typeName, typeArgs, caseName, fields) ->
       let typeArgsPart =
-        match typeArgs with
-        | [] -> ""
-        | typeArgs ->
-          typeArgs
-          |> Stdlib.List.map (fun typeArg -> valueType branchId typeArg)
-          |> Stdlib.String.join ", "
-          |> fun parts -> $"<{parts}>"
+        if Stdlib.Bool.not opts.showTypeArgs then
+          ""
+        else
+          match typeArgs with
+          | [] -> ""
+          | typeArgs ->
+            typeArgs
+            |> Stdlib.List.map (fun typeArg -> valueType branchId typeArg)
+            |> Stdlib.String.join ", "
+            |> fun parts -> $"<{parts}>"
 
-      let short =
-        let fieldStr =
-          fields
-          |> Stdlib.List.map (fun value -> withIndent branchId indent value)
-          |> Stdlib.String.join ", "
+      // `Some(1)`, not `Option.Some(1)`; but `Color.Red`, not `Red`.
+      let prefix =
+        if caseNameStandsAlone branchId opts.currentModule typeName then
+          ""
+        else
+          (typeNameWith branchId opts typeName) ++ typeArgsPart ++ "."
 
-        let fieldStr = if fieldStr == "" then "" else $"({fieldStr})"
-
-        let typeStr = RuntimeTypes.typeName branchId typeName
-        $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
-
-      if Stdlib.String.length short <= 80 then
-        short
-      else
-        let fieldStr =
-          fields
-          |> Stdlib.List.map (fun value -> withIndent branchId indent value)
-          |> Stdlib.String.join $",{inl}"
-
-        let fieldStr = if fieldStr == "" then "" else $"({inl}{fieldStr}{nl})"
-
-        let typeStr = RuntimeTypes.typeName branchId typeName
-        $"{typeStr}{typeArgsPart}.{caseName}{fieldStr}"
-
+      match fields with
+      | [] -> txt $"{prefix}{caseName}"
+      | fields ->
+        Stdlib.Pretty.concat
+          (txt $"{prefix}{caseName}")
+          (bracketed "(" ")" (fields |> Stdlib.List.map (fun f -> child f)))
 
     | DRecord(_, typeName, typeArgs, o) ->
-      let strs =
-        o
-        |> Stdlib.Dict.toList
-        |> Stdlib.List.map (fun pair ->
-          let (key, value) = pair
-          $"{key}: {withIndent branchId indent value}")
-
-      let typeStr = RuntimeTypes.typeName branchId typeName
+      let typeStr = typeNameWith branchId opts typeName
 
       let typeArgsPart =
-        match typeArgs with
-        | [] -> ""
-        | args ->
-          args
-          |> Stdlib.List.map (fun t -> valueType branchId t)
-          |> Stdlib.String.join ", "
-          |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
+        if Stdlib.Bool.not opts.showTypeArgs then
+          ""
+        else
+          match typeArgs with
+          | [] -> ""
+          | args ->
+            args
+            |> Stdlib.List.map (fun t -> valueType branchId t)
+            |> Stdlib.String.join ", "
+            |> fun betweenBrackets -> "<" ++ betweenBrackets ++ ">"
 
-      let short = Stdlib.String.join strs ", "
+      let parts =
+        o
+        |> Stdlib.Dict.toList
+        |> Dval.inDeclaredOrder (Dval.declaredFieldOrder typeName)
+        |> Stdlib.List.map (fun pair ->
+          let (key, value) = pair
+          let key = PrettyPrinter.formatFieldName key
+          Stdlib.Pretty.concat (txt $"{key}: ") (child value))
 
-      if Stdlib.String.length short <= 80 then
-        typeStr ++ typeArgsPart ++ " { " ++ short ++ " }"
-      else
-        let long = Stdlib.String.join strs $",{inl}"
-        typeStr ++ typeArgsPart ++ " {" ++ inl ++ long ++ nl ++ "}"
-
+      // The type name is part of the document, so it counts toward the fit.
+      Stdlib.Pretty.concat (txt $"{typeStr}{typeArgsPart} ") (braced "{" "}" parts)
 
     | DApplicable(AppNamedFn namedFn) ->
-      PrettyPrinter.RuntimeTypes.fnName branchId namedFn.name
+      txt (PrettyPrinter.RuntimeTypes.fnName branchId namedFn.name)
 
-    | DApplicable(AppLambda _lambda) ->
-      // // Note: this use case is safe (RE docs/dblock-serialization.md)
-      // let ps =
-      //   impl.parameters
-      //   |> Stdlib.List.map Stdlib.Tuple2.second
-      //   |> Stdlib.String.join ", "
+    | DApplicable(AppLambda _lambda) -> txt "(lambda)"
 
-      // // TODO
-      // // let body = impl.body |> RuntimeTypes.Expr.toString
-      // $"\\ {ps} {{ ... }}"
-      "(lambda)"
+    | DDB name -> txt $"<{valueTypeName}: {name}>"
 
 
-    | DDB name -> $"<{valueTypeName}: {name}>"
+let dvalWith
+    (branchId: Uuid)
+    (opts: PrettyPrinter.DisplayOptions)
+    (dv: LanguageTools.RuntimeTypes.Dval)
+  : String =
+  // The one place a `Doc` is collapsed into text. Everything above builds alternatives; this picks.
+  Stdlib.Pretty.render opts.width (Dval.toDoc branchId opts 0 dv)
 
 
-
+/// Render a value with the default options.
+///
+/// Kept at this exact signature because `Execution.fs` reaches it through `PackageRefs`, which is how
+/// every F#-side value repr is produced. Prefer `dvalWith` in Dark code.
 let dval
     (branchId: Uuid)
     (dv: LanguageTools.RuntimeTypes.Dval)
   : String =
-  Dval.withIndent branchId 0 dv
+  dvalWith branchId PrettyPrinter.DisplayOptions.default dv

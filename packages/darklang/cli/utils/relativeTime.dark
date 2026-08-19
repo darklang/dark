@@ -1,0 +1,39 @@
+/// Timestamps as a reader thinks about them.
+///
+/// `2026-08-17T18:43:04Z` is precise and nearly useless for scanning a log: working out that it was
+/// yesterday takes longer than reading the rest of the row. "22 hours ago" answers the question the
+/// column is actually there for. The exact stamp is still one flag away, for when it's the thing you
+/// need.
+module Darklang.Cli.RelativeTime
+
+/// "3 days ago", "22 hours ago", "just now".
+///
+/// Coarse on purpose: one unit, no "1 day 4 hours". A log column wants a glance, not a duration.
+let ago (then_: DateTime) : String =
+  // On one line deliberately: a `-` starting a continuation line at the same column reads as a new
+  // statement (it could be a negative literal), so the split form silently became two expressions.
+  let now = Stdlib.DateTime.toSeconds (Stdlib.DateTime.now ())
+  let seconds = now - (Stdlib.DateTime.toSeconds then_)
+
+  let plural (n: Int) (unit: String) : String =
+    let s = if n == 1 then "" else "s"
+    $"{Stdlib.Int.toString n} {unit}{s} ago"
+
+  // A clock that is a little ahead, or a commit made during this second.
+  if seconds < 60 then
+    "just now"
+  else if seconds < 3600 then
+    plural (Stdlib.Int.divide seconds 60) "minute"
+  else if seconds < 86400 then
+    plural (Stdlib.Int.divide seconds 3600) "hour"
+  else if seconds < 2592000 then
+    plural (Stdlib.Int.divide seconds 86400) "day"
+  else if seconds < 31536000 then
+    plural (Stdlib.Int.divide seconds 2592000) "month"
+  else
+    plural (Stdlib.Int.divide seconds 31536000) "year"
+
+
+/// The relative form, or the exact stamp when `long` is set.
+let stamp (long: Bool) (t: DateTime) : String =
+  if long then Stdlib.DateTime.toString t else RelativeTime.ago t

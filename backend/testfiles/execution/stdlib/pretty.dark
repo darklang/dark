@@ -1,0 +1,208 @@
+// Tests for Stdlib.Pretty, the width-aware layout combinators.
+//
+// The cases follow the behaviour table in the library's own spec: the same document rendered at a wide
+// and a narrow width, plus the properties that separate a real Wadler/Leijen renderer from string
+// concatenation -- text never wraps, groups decide independently, and a hard line forces its enclosing
+// groups to break.
+
+// --- helpers ---
+let t (s: String) : Darklang.Stdlib.Pretty.Doc = Darklang.Stdlib.Pretty.text s
+
+let r (width: Int) (d: Darklang.Stdlib.Pretty.Doc) : String =
+  Darklang.Stdlib.Pretty.render width d
+
+let g (d: Darklang.Stdlib.Pretty.Doc) : Darklang.Stdlib.Pretty.Doc =
+  Darklang.Stdlib.Pretty.group d
+
+let abc () : Darklang.Stdlib.Pretty.Doc =
+  Darklang.Stdlib.Pretty.vsep [ t "a"; t "b"; t "c" ]
+
+/// `[a, b, c, d, e]`: a bracketed list that breaks one element per line when it must.
+let bracketed (items: List<String>) : Darklang.Stdlib.Pretty.Doc =
+  let docs = Stdlib.List.map items (fun i -> t i)
+  let inner =
+    Darklang.Stdlib.Pretty.join
+      docs
+      (Darklang.Stdlib.Pretty.concat (t ",") Darklang.Stdlib.Pretty.line)
+  g (Darklang.Stdlib.Pretty.concat
+      (t "[")
+      (Darklang.Stdlib.Pretty.concat
+        (Darklang.Stdlib.Pretty.nest 2 inner)
+        (t "]")))
+
+
+// ========================================
+// Text never wraps
+// ========================================
+module Simple =
+  r 80 (t "hello world") = "hello world"
+
+  // Still, at a width it cannot possibly fit: only `line` produces breaks, never `text`.
+  r 5 (t "hello world") = "hello world"
+
+  r 80 Darklang.Stdlib.Pretty.empty = ""
+
+
+// ========================================
+// A group is flat if it fits, broken if it doesn't
+// ========================================
+module Inline =
+  r 80 (g (abc ())) = "a b c"
+  r 4 (g (abc ())) = "a\nb\nc"
+
+  // Exactly wide enough.
+  r 5 (g (abc ())) = "a b c"
+
+
+// ========================================
+// nest indents the inside of a break, not the front of the document
+// ========================================
+module Nested =
+  let doc () : Darklang.Stdlib.Pretty.Doc =
+    Darklang.Stdlib.Pretty.concat
+      (t "outer")
+      (Darklang.Stdlib.Pretty.nest 2
+        (Darklang.Stdlib.Pretty.concat
+          Darklang.Stdlib.Pretty.line
+          (Darklang.Stdlib.Pretty.vsep [ t "inner1"; t "inner2" ])))
+
+  r 80 (g (doc ())) = "outer inner1 inner2"
+  r 10 (g (doc ())) = "outer\n  inner1\n  inner2"
+
+
+// ========================================
+// Lists and records: the shapes the value printer actually needs
+// ========================================
+module Structures =
+  r 80 (bracketed [ "a"; "b"; "c"; "d"; "e" ]) = "[a, b, c, d, e]"
+  r 10 (bracketed [ "aaa"; "bbb"; "ccc"; "ddd" ]) = "[aaa,\n  bbb,\n  ccc,\n  ddd]"
+
+  let rec_ () : Darklang.Stdlib.Pretty.Doc =
+    bracketed [ "name: alice"; "age: 30"; "role: admin" ]
+
+  r 80 (rec_ ()) = "[name: alice, age: 30, role: admin]"
+  r 20 (rec_ ()) = "[name: alice,\n  age: 30,\n  role: admin]"
+
+
+// ========================================
+// Groups decide independently
+//
+// The property that makes this a layout engine rather than a width check: an outer group breaking does
+// not force an inner one to, so a long structure of short parts stays readable.
+// ========================================
+module Independence =
+  let doc () : Darklang.Stdlib.Pretty.Doc =
+    Darklang.Stdlib.Pretty.vsep
+      [ g (Darklang.Stdlib.Pretty.vsep [ t "aa"; t "bb" ])
+        g (Darklang.Stdlib.Pretty.vsep [ t "cc"; t "dd" ]) ]
+
+  // Everything fits: one line.
+  r 80 (g (doc ())) = "aa bb cc dd"
+
+  // The outer group can't fit, so it breaks -- but each inner pair still can, so they stay flat.
+  r 6 (g (doc ())) = "aa bb\ncc dd"
+
+
+// ========================================
+// hardLine always breaks, and forces its enclosing groups to break with it
+// ========================================
+module Hard =
+  let doc () : Darklang.Stdlib.Pretty.Doc =
+    Darklang.Stdlib.Pretty.concat
+      (t "a")
+      (Darklang.Stdlib.Pretty.concat Darklang.Stdlib.Pretty.hardLine (t "b"))
+
+  r 80 (doc ()) = "a\nb"
+
+  // Wide enough for `a b`, but a hard line is not a soft one: the group breaks anyway.
+  r 80 (g (doc ())) = "a\nb"
+
+
+// ========================================
+// Joining
+// ========================================
+module Joining =
+  r 80 (Darklang.Stdlib.Pretty.hsep [ t "a"; t "b"; t "c" ]) = "a b c"
+  r 80 (Darklang.Stdlib.Pretty.hsep []) = ""
+  r 80 (Darklang.Stdlib.Pretty.vsep []) = ""
+  r 80 (Darklang.Stdlib.Pretty.join [ t "a"; t "b" ] (t ", ")) = "a, b"
+  r 80 (Darklang.Stdlib.Pretty.join [ t "only" ] (t ", ")) = "only"
+
+
+// ========================================
+// softLine: a break that costs nothing when flat
+//
+// The difference between `[1, 2]` and `[ 1, 2 ]`, which is why delimiters use it and separators don't.
+// ========================================
+module Soft =
+  let doc () : Darklang.Stdlib.Pretty.Doc =
+    Darklang.Stdlib.Pretty.concat
+      (t "[")
+      (Darklang.Stdlib.Pretty.concat
+        (Darklang.Stdlib.Pretty.nest 2
+          (Darklang.Stdlib.Pretty.concat
+            Darklang.Stdlib.Pretty.softLine
+            (Darklang.Stdlib.Pretty.join
+              [ t "1"; t "2" ]
+              (Darklang.Stdlib.Pretty.concat (t ",") Darklang.Stdlib.Pretty.line))))
+        (Darklang.Stdlib.Pretty.concat Darklang.Stdlib.Pretty.softLine (t "]")))
+
+  r 80 (g (doc ())) = "[1, 2]"
+  r 4 (g (doc ())) = "[\n  1,\n  2\n]"
+
+
+// ========================================
+// Measured in columns, not characters
+//
+// `Stdlib.String.length` counts grapheme clusters; a CJK character is one grapheme two columns wide. A
+// layout engine measuring the former lets lines overflow by up to half their width.
+// ========================================
+module Width =
+  Stdlib.String.length "日本語" = 3
+  Stdlib.String.displayWidth "日本語" = 6
+
+  Stdlib.String.length "👍" = 1
+  Stdlib.String.displayWidth "👍" = 2
+
+  // Four graphemes, eight columns: fits in 10 by the wrong measure, breaks by the right one.
+  r 10 (g (Darklang.Stdlib.Pretty.vsep [ t "日本"; t "語text" ])) = "日本\n語text"
+
+
+// ========================================
+// A hard line after a group doesn't stop the group fitting
+//
+// Inside the group it means "cannot be one line"; after it, it just ends the line. Conflating the two
+// made every group followed by a hard line break, which is every arm of a match.
+// ========================================
+module HardAfter =
+  let doc () : Darklang.Stdlib.Pretty.Doc =
+    Darklang.Stdlib.Pretty.concat
+      (g (Darklang.Stdlib.Pretty.vsep [ t "a"; t "b" ]))
+      (Darklang.Stdlib.Pretty.concat Darklang.Stdlib.Pretty.hardLine (t "next"))
+
+  r 80 (doc ()) = "a b\nnext"
+
+  // And a hard line *inside* the group still forces it open.
+  r 80 (g (Darklang.Stdlib.Pretty.concat
+            (t "a")
+            (Darklang.Stdlib.Pretty.concat Darklang.Stdlib.Pretty.hardLine (t "b")))) = "a\nb"
+
+
+// ========================================
+// Styled text is measured by its text
+//
+// Decoration must not move where a document breaks. If the escapes counted, a colored value would wrap
+// earlier than the same value plain, which is the sort of bug you chase for an hour.
+// ========================================
+module Styled =
+  let red (x: String) : Darklang.Stdlib.Pretty.Doc =
+    Darklang.Stdlib.Pretty.styled "<<" x ">>"
+
+  // Two columns of text, whatever the decoration weighs.
+  r 80 (red "ab") = "<<ab>>"
+
+  // The same break decision as the undecorated form, at both widths.
+  r 5 (g (Darklang.Stdlib.Pretty.vsep [ red "ab"; red "cd" ])) = "<<ab>> <<cd>>"
+  r 5 (g (Darklang.Stdlib.Pretty.vsep [ t "ab"; t "cd" ])) = "ab cd"
+  r 3 (g (Darklang.Stdlib.Pretty.vsep [ red "ab"; red "cd" ])) = "<<ab>>\n<<cd>>"
+  r 3 (g (Darklang.Stdlib.Pretty.vsep [ t "ab"; t "cd" ])) = "ab\ncd"

@@ -1,0 +1,57 @@
+/// The one set of glyphs for package item kinds.
+///
+/// Every glyph here occupies exactly ONE terminal column under `Tui.Text.displayWidth`, and `forKind`
+/// pads to two. That property is the whole point, and it is easy to lose: `⚡` (the old function icon)
+/// measures two by the Unicode tables while terminals draw it as one, so a column of mixed rows came
+/// out ragged and no amount of padding fixed it for both. The emoji that were used elsewhere -- 🗂️ ⚡️ 🔖
+/// 💎 -- carry variation selectors and have the same problem.
+///
+/// Check `Tui.Text.displayWidth` before swapping any of these.
+module Darklang.Cli.Glyphs
+
+/// A module.
+val module_ = "🗂"
+
+/// A function.
+val fn = "ƒ"
+
+/// A type.
+val type_ = "#"
+
+/// A value, and the fallback for anything unrecognised.
+val value = "•"
+
+
+/// The glyph for a kind name, padded to two terminal columns so names line up.
+///
+/// Accepts the spellings the various callers use: the tree loaders say "fn"/"type"/"val", the backend's
+/// display kinds are "Fn"/"Type"/"Value", and the package listings say "function"/"value"/"submodule".
+let forKind (kind: String) : String =
+  let glyph =
+    match Stdlib.String.toLowercase kind with
+    | "module" -> Glyphs.module_
+    | "submodule" -> Glyphs.module_
+    | "fn" -> Glyphs.fn
+    | "function" -> Glyphs.fn
+    | "type" -> Glyphs.type_
+    | "val" -> Glyphs.value
+    | "value" -> Glyphs.value
+    | _ -> Glyphs.value
+
+  Tui.Text.fitToWidth glyph 2
+
+
+/// A section header for a listing: glyph plus the plural noun.
+let sectionHeader (kind: String) : String =
+  let label =
+    match Stdlib.String.toLowercase kind with
+    | "module" -> "Modules"
+    | "submodule" -> "Submodules"
+    | "fn" -> "Functions"
+    | "function" -> "Functions"
+    | "type" -> "Types"
+    | "val" -> "Values"
+    | "value" -> "Values"
+    | other -> other
+
+  $"{Glyphs.forKind kind} {label}:"

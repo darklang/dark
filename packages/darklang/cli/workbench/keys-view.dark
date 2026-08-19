@@ -134,10 +134,6 @@ let handleViewKey
                 (InputState { prompt = "search "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "search" }) }
     | Some "]" -> cycleView state 1
     | Some "[" -> cycleView state (0 - 1)
-    | Some "d" ->
-      // Matter/Inspect: show the selected leaf's dependencies (what it uses) in the reader.
-      if state.activeView == vMatter then openReader state (depsText state) false
-      else Step.Continue state
     | Some "a" ->
       // SCM Conflicts: acknowledge. AI: ask the agent. Devices: add an instance (placeholder).
       if (state.activeView == vSCM) && (state.scm.section == ScmSection.Conflicts) then resolveConflict state "ok"

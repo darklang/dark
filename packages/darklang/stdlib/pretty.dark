@@ -1,0 +1,206 @@
+/// Width-aware layout, in the Wadler/Leijen tradition.
+///
+/// A `Doc` is not text; it is a description of the ways some text *could* be laid out. Nothing decides
+/// between them until `render`, which is given a width and picks. That is the whole point: a printer
+/// that returns a `String` has already committed, so its caller can't lay it out against the room that
+/// actually turned out to be available. A printer that returns a `Doc` leaves the choice where the
+/// information is.
+///
+/// The two combinators that matter are `nest`, which says "indent the inside of this if it breaks", and
+/// `group`, which says "put this on one line if it fits, otherwise break every soft line in it". Groups
+/// nest, and each decides independently, so a long outer structure can break while a short inner one
+/// stays flat.
+module Darklang.Stdlib.Pretty
+
+/// A document: text plus the places it may be broken.
+type Doc =
+  /// Renders to nothing.
+  | Empty
+
+  /// Literal text. Never broken, so it can exceed the width if a single token is wider than the page.
+  | Text of String
+
+  /// A soft break: a space when the enclosing group fits on one line, a newline plus the current
+  /// indentation when it doesn't.
+  | Line
+
+  /// A break that is always a newline, and which forces every enclosing group to break.
+  | HardLine
+
+  /// A break that is nothing at all when the enclosing group fits, and a newline plus indentation when
+  /// it doesn't. The difference from `Line` is what separates `[1, 2]` from `[ 1, 2 ]`: use this where a
+  /// delimiter shouldn't gain a space just because everything fit.
+  | SoftLine
+
+  /// Two documents, one after the other, with nothing between them.
+  | Concat of Doc * Doc
+
+  /// Indent everything inside by `n` columns, applied after each break rather than once at the front.
+  | Nest of Int * Doc
+
+  /// Try to fit the inside on one line.
+  | Group of Doc
+
+  /// Text with something wrapped around it that occupies no columns -- a terminal escape, typically.
+  /// Only the middle is measured, which is the entire point: decoration must not change where a
+  /// document breaks, and it silently would if the escapes were part of a `Text`.
+  | Styled of opening: String * text: String * closing: String
+
+
+/// Whether we are currently rendering a group flat or broken.
+type Mode =
+  | Flat
+  | Break
+
+
+val empty = Doc.Empty
+
+val line = Doc.Line
+
+val hardLine = Doc.HardLine
+
+val softLine = Doc.SoftLine
+
+let text (s: String) : Doc = Doc.Text s
+
+/// `text`, wrapped in zero-width decoration. `opening`/`closing` are emitted but never measured.
+let styled (opening: String) (t: String) (closing: String) : Doc = Doc.Styled(opening, t, closing)
+
+let concat (a: Doc) (b: Doc) : Doc = Doc.Concat(a, b)
+
+let concatSpace (a: Doc) (b: Doc) : Doc = Doc.Concat(a, Doc.Concat(Doc.Text " ", b))
+
+let concatLine (a: Doc) (b: Doc) : Doc = Doc.Concat(a, Doc.Concat(Doc.Line, b))
+
+let nest (n: Int) (d: Doc) : Doc = Doc.Nest(n, d)
+
+let group (d: Doc) : Doc = Doc.Group d
+
+
+/// Join with spaces.
+let hsep (ds: List<Doc>) : Doc =
+  match ds with
+  | [] -> Doc.Empty
+  | first :: rest -> Stdlib.List.fold rest first (fun acc d -> Pretty.concatSpace acc d)
+
+/// Join with soft breaks: one line if the group fits, one per item if it doesn't.
+let vsep (ds: List<Doc>) : Doc =
+  match ds with
+  | [] -> Doc.Empty
+  | first :: rest -> Stdlib.List.fold rest first (fun acc d -> Pretty.concatLine acc d)
+
+/// Join with `sep` between items.
+///
+/// Subject first, so it pipes: `docs |> Pretty.join sep`.
+let join (ds: List<Doc>) (sep: Doc) : Doc =
+  match ds with
+  | [] -> Doc.Empty
+  | first :: rest ->
+    Stdlib.List.fold rest first (fun acc d ->
+      Doc.Concat(acc, Doc.Concat(sep, d)))
+
+
+/// Would the rest of this line fit in `room` columns?
+///
+/// Walks the pending work until it reaches a break that ends the line (at which point everything so far
+/// fits) or runs out of room. `HardLine` answers no, which is what makes a group containing one always
+/// break. The pending items after the group are included, so a group isn't kept flat only to have the
+/// text that follows it overflow anyway.
+let fits (room: Int) (items: List<(Int * Mode * Doc)>) : Bool =
+  if room < 0 then
+    false
+  else
+    match items with
+    | [] -> true
+    | (i, m, d) :: rest ->
+      match d with
+      | Empty -> Pretty.fits room rest
+      | Text s -> Pretty.fits (room - (Stdlib.String.displayWidth s)) rest
+      | Styled(_, t, _) -> Pretty.fits (room - (Stdlib.String.displayWidth t)) rest
+
+      // Inside the group being tested (Flat) a hard line means it cannot be one line, so it doesn't
+      // fit. After the group (Break) it simply ends the line, so everything measured so far does fit.
+      // Answering `false` in both cases made every group followed by a hard line break -- which is
+      // every match arm, since the arms are hard-lined apart.
+      | HardLine ->
+        match m with
+        | Flat -> false
+        | Break -> true
+      | Line ->
+        match m with
+        | Flat -> Pretty.fits (room - 1) rest
+        | Break -> true
+      | SoftLine ->
+        match m with
+        | Flat -> Pretty.fits room rest
+        | Break -> true
+      | Concat(a, b) ->
+        Pretty.fits room (Stdlib.List.push (Stdlib.List.push rest ((i, m, b))) ((i, m, a)))
+      | Nest(j, x) -> Pretty.fits room (Stdlib.List.push rest ((i + j, m, x)))
+      | Group x -> Pretty.fits room (Stdlib.List.push rest ((i, Mode.Flat, x)))
+
+
+/// The rendering loop: walk the pending work, emitting text and deciding each group as it is reached.
+let renderLoop
+  (width: Int)
+  (col: Int)
+  (acc: String)
+  (items: List<(Int * Mode * Doc)>)
+  : String =
+  match items with
+  | [] -> acc
+  | (i, m, d) :: rest ->
+    match d with
+    | Empty -> Pretty.renderLoop width col acc rest
+
+    | Text s ->
+      Pretty.renderLoop width (col + (Stdlib.String.displayWidth s)) (acc ++ s) rest
+
+    | Styled(opening, t, closing) ->
+      Pretty.renderLoop
+        width
+        (col + (Stdlib.String.displayWidth t))
+        (acc ++ opening ++ t ++ closing)
+        rest
+
+    | HardLine ->
+      let pad = Stdlib.String.repeat " " i
+      Pretty.renderLoop width i (acc ++ "\n" ++ pad) rest
+
+    | Line ->
+      match m with
+      | Flat -> Pretty.renderLoop width (col + 1) (acc ++ " ") rest
+      | Break ->
+        let pad = Stdlib.String.repeat " " i
+        Pretty.renderLoop width i (acc ++ "\n" ++ pad) rest
+
+    | SoftLine ->
+      match m with
+      | Flat -> Pretty.renderLoop width col acc rest
+      | Break ->
+        let pad = Stdlib.String.repeat " " i
+        Pretty.renderLoop width i (acc ++ "\n" ++ pad) rest
+
+    | Concat(a, b) ->
+      Pretty.renderLoop
+        width
+        col
+        acc
+        (Stdlib.List.push (Stdlib.List.push rest ((i, m, b))) ((i, m, a)))
+
+    | Nest(j, x) ->
+      Pretty.renderLoop width col acc (Stdlib.List.push rest ((i + j, m, x)))
+
+    | Group x ->
+      // The one decision this whole module exists to make.
+      let flat = Stdlib.List.push rest ((i, Mode.Flat, x))
+
+      if Pretty.fits (width - col) flat then
+        Pretty.renderLoop width col acc flat
+      else
+        Pretty.renderLoop width col acc (Stdlib.List.push rest ((i, Mode.Break, x)))
+
+
+/// Lay out `doc` for a page `width` columns wide.
+let render (width: Int) (doc: Doc) : String =
+  Pretty.renderLoop width 0 "" [ ((0, Mode.Break, doc)) ]

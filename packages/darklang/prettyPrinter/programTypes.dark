@@ -43,26 +43,42 @@ module NameResolutionError =
 // we can shorten names that share the same prefix
 type Context =
   { branchId: Uuid
-    currentModule: Stdlib.Option.Option<String>
+    /// The module we're printing from, owner-first (`["Darklang"; "Stdlib"; "Option"]`), or empty for
+    /// "no context". A path rather than a dotted string, because shortening compares segments and
+    /// `PickContext` wants a path too; the two used to disagree and be converted by splitting on ".".
+    currentModule: List<String>
     /// Used to resolve ESelf and EArg expressions when pretty-printing function bodies.
     /// When Some, contains (functionName, argMap) where argMap maps parameter names to indices.
-    currentFunction: Stdlib.Option.Option<(String * Dict<Int>)> }
+    currentFunction: Stdlib.Option.Option<(String * Dict<Int>)>
+
+    /// Columns available. Layout decisions are made against this; it is a field rather than something
+    /// looked up so that printing stays reproducible and a caller can print for a pane.
+    width: Int }
 
 module Context =
   let forBranch (branchId: Uuid) : Context =
     Context
       { branchId = branchId
-        currentModule = Stdlib.Option.Option.None
-        currentFunction = Stdlib.Option.Option.None }
+        currentModule = []
+        currentFunction = Stdlib.Option.Option.None
+        width = 80 }
 
   val forMain = forBranch SCM.Branch.mainBranchId
 
+  /// A context anchored at `path` (owner-first, e.g. `["Darklang"; "Stdlib"; "Option"]`).
+  ///
+  /// References inside a printed definition are then spelled the way someone standing in that module
+  /// would say them. Anything that knows which module it is showing should use this rather than
+  /// `forBranch`, whose `currentModule` is None and so forces every name to its full path.
+  let forModule (branchId: Uuid) (path: List<String>) : Context =
+    Context
+      { branchId = branchId
+        currentModule = path
+        currentFunction = Stdlib.Option.Option.None
+        width = 80 }
+
   let toPickContext (ctx: Context) : LanguageTools.PackageManager.PickContext =
-    LanguageTools.PackageManager.PickContext
-      { currentModule =
-          match ctx.currentModule with
-          | Some m -> Stdlib.String.split m "."
-          | None -> [] }
+    LanguageTools.PackageManager.PickContext { currentModule = ctx.currentModule }
 
 let packageNameWithContext
   (ctx: Context)
@@ -70,36 +86,8 @@ let packageNameWithContext
   (modules: List<String>)
   (name: String)
   : String =
-  let modulesPart =
-    match modules with
-    | [] -> ""
-    | modules ->
-      let modules = Stdlib.String.join modules "."
-      $"{modules}."
+  PrettyPrinter.shortenName ctx.currentModule owner modules name
 
-  let fullName = $"{owner}.{modulesPart}{name}"
-
-  // Try to shorten relative to current context
-  match ctx.currentModule with
-  | Some currentModule ->
-    // If we're in Darklang.Stdlib and referencing Darklang.Stdlib.Option.Option,
-    // just show "Option.Option"
-    if Stdlib.String.startsWith fullName currentModule then
-      let prefix = currentModule ++ "."
-      Stdlib.String.dropFirst fullName (Stdlib.String.length prefix)
-    else if owner == "Darklang" then
-      // For Darklang packages, drop the "Darklang." prefix for brevity
-      let withoutDarklang = Stdlib.String.dropFirst fullName 9 // "Darklang.".length
-      withoutDarklang
-    else
-      fullName
-  | None ->
-    match owner with
-    | "Tests" -> $"{modulesPart}{name}"
-    | "Darklang" ->
-      // For Darklang packages, just show module path
-      $"{modulesPart}{name}"
-    | _ -> $"{owner}.{modulesPart}{name}"
 
 // CLEANUP: this function exists for backwards compatibility
 // Prefer using packageNameWithContext with a proper Context
@@ -130,13 +118,6 @@ module FQTypeName =
         packageNameWithContext ctx l.owner l.modules l.name
       | None -> shortHash hash
 
-
-  let atDefinition
-    (ctx: Context)
-    (t: LanguageTools.ProgramTypes.FQTypeName.FQTypeName)
-    : String =
-    match t with
-    | Package p -> FQTypeName.Package.atDefinition ctx p
 
   let fullForReference
     (ctx: Context)
@@ -183,16 +164,6 @@ module FQValueName =
 
 
 
-  let atDefinition
-    (ctx: Context)
-    (t: LanguageTools.ProgramTypes.FQValueName.FQValueName)
-    : String =
-    match t with
-    | Builtin b ->
-      FQValueName.Builtin.fullForReference b
-    | Package p ->
-      FQValueName.Package.atDefinition ctx p
-
   let fullForReference
     (ctx: Context)
     (t: LanguageTools.ProgramTypes.FQValueName.FQValueName)
@@ -238,15 +209,6 @@ module FQFnName =
         packageNameWithContext ctx l.owner l.modules l.name
       | None -> shortHash hash
 
-
-  let atDefinition
-    (ctx: Context)
-    (t: LanguageTools.ProgramTypes.FQFnName.FQFnName)
-    : String =
-    match t with
-    | Builtin _b ->
-      "why are you trying to print a stdlib type name _definition_?"
-    | Package p -> FQFnName.Package.atDefinition ctx p
 
   let fullForReference
     (ctx: Context)
@@ -546,7 +508,374 @@ let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
       $"{typeNamePart}.{caseName}{fieldPart}"
 
 
+/// Text that may already contain newlines, as a Doc.
+///
+/// Splitting on the newlines matters: a `Text` holding one would be measured as though it were a single
+/// long line, so an enclosing group could decide it fits and then emit something several lines tall.
+/// As `hardLine`s, the group is forced to break, which is the truth.
+let docOfText (s: String) : Stdlib.Pretty.Doc =
+  s
+  |> Stdlib.String.split "\n"
+  |> Stdlib.List.map (fun l -> Stdlib.Pretty.text l)
+  |> Stdlib.Pretty.join Stdlib.Pretty.hardLine
+
+
+/// Binding power of an infix operator, and whether it associates right.
+///
+/// Mirrors `infixBindingPower` in `LibParser/Parser.fs`, loosest to tightest:
+///   1 `||`  2 `&&`  3 comparisons  4 `@` (right)  5 `+ - ++`  6 `* / %`  7 `^` (right)
+/// If that table moves, this has to move with it, or the printer starts emitting parens that change
+/// what the parser builds.
+let infixPower (i: LanguageTools.ProgramTypes.Infix) : (Int * Bool) =
+  match i with
+  | BinOp BinOpOr -> (1, false)
+  | BinOp BinOpAnd -> (2, false)
+  | InfixFnCall op ->
+    match op with
+    | ComparisonEquals
+    | ComparisonNotEquals
+    | ComparisonLessThan
+    | ComparisonGreaterThan
+    | ComparisonLessThanOrEqual
+    | ComparisonGreaterThanOrEqual -> (3, false)
+    | ArithmeticPlus
+    | ArithmeticMinus
+    | StringConcat -> (5, false)
+    | ArithmeticMultiply
+    | ArithmeticDivide
+    | ArithmeticModulo -> (6, false)
+    | ArithmeticPower -> (7, true)
+
+
+/// How tightly an expression binds, for deciding whether it needs parentheses inside a larger one.
+///
+/// 0 is for the constructs that swallow whatever follows them -- an `if`, a `match`, a lambda -- which
+/// always need wrapping when they appear inside something else. 100 is everything self-delimiting: a
+/// literal, a variable, a record, an application. Application binds tighter than any operator, so
+/// `factorial n * 2L` needs no parens around the call, which is the main thing the old printer got
+/// wrong by bracketing every operand unconditionally.
+let exprPower (e: LanguageTools.ProgramTypes.Expr) : Int =
+  match e with
+  | EInfix(_, op, _, _) ->
+    let (p, _) = infixPower op
+    p
+  | EIf(_, _, _, _) -> 0
+  | EMatch(_, _, _) -> 0
+  | ELet(_, _, _, _) -> 0
+  | ELambda(_, _, _) -> 0
+  | EPipe(_, _, _) -> 0
+  | EStatement(_, _, _) -> 0
+  | _ -> 100
+
+
+/// Whether an operand of an infix expression has to be parenthesised.
+///
+/// Looser than its parent always does. At equal power it depends on the side: `a - b - c` groups left,
+/// so a right operand of the same power needs parens to mean anything else; `2 ^ 3 ^ 2` groups right,
+/// so the left one does.
+let infixOperandNeedsParens
+  (operand: LanguageTools.ProgramTypes.Expr)
+  (parentPower: Int)
+  (parentIsRightAssoc: Bool)
+  (isRightOperand: Bool)
+  : Bool =
+  let p = exprPower operand
+
+  if p < parentPower then
+    true
+  else if p == parentPower then
+    if parentIsRightAssoc then Stdlib.Bool.not isRightOperand else isRightOperand
+  else
+    false
+
+
+/// Whether an argument in an application has to be parenthesised.
+///
+/// Application is left-associative and binds tightest, so anything that isn't self-delimiting has to be
+/// wrapped or it would be read as further arguments: `f (g x)`, `f (a + b)`, `f (fun x -> x)`.
+let applyArgNeedsParens (arg: LanguageTools.ProgramTypes.Expr) : Bool =
+  match arg with
+  | EApply(_, _, _, _) -> true
+  // A lambda prints its own parentheses, so wrapping it again just gives `((fun x -> ...))`.
+  | ELambda(_, _, _) -> false
+  | _ -> (exprPower arg) < 100
+
+
+/// `opening parts... closing`, on one line if it fits and one part per line if it doesn't.
+///
+/// `opener` decides whether the delimiters hug: `softLine` for brackets (`[1; 2]`), `line` for braces
+/// (`{ a = 1 }`). `sep` stays in the output either way, so the broken form still parses.
+let wrapExprs
+  (opening: String)
+  (closing: String)
+  (sep: String)
+  (opener: Stdlib.Pretty.Doc)
+  (parts: List<Stdlib.Pretty.Doc>)
+  : Stdlib.Pretty.Doc =
+  match parts with
+  | [] -> Stdlib.Pretty.text (opening ++ closing)
+  | parts ->
+    let separated =
+      Stdlib.Pretty.join
+        parts
+        (Stdlib.Pretty.concat (Stdlib.Pretty.text sep) Stdlib.Pretty.line)
+
+    Stdlib.Pretty.group (
+      Stdlib.Pretty.concat
+        (Stdlib.Pretty.text opening)
+        (Stdlib.Pretty.concat
+          (Stdlib.Pretty.nest 2 (Stdlib.Pretty.concat opener separated))
+          (Stdlib.Pretty.concat opener (Stdlib.Pretty.text closing))))
+
+
+/// An expression as a Doc: the layouts it could take, for the caller to choose between.
+///
+/// Ported construct by construct. Anything not yet ported falls back to `exprString`, whose output is
+/// spliced in via `docOfText` so it still forces enclosing groups to break correctly -- an unported
+/// child can't make its parent claim to fit.
+let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.Doc =
+  let txt (s: String) : Stdlib.Pretty.Doc = Stdlib.Pretty.text s
+
+  match e with
+  // `let x = 1` on one line when it fits; the old printer always broke after the `=`, which turned
+  // every binding into two lines and a chain of four into eight.
+  | ELet(_id, pattern, rhs, body) ->
+    let binding =
+      Stdlib.Pretty.group (
+        Stdlib.Pretty.concat
+          (txt $"let {letPattern pattern} =")
+          (Stdlib.Pretty.nest 2 (
+            Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx rhs))))
+
+    Stdlib.Pretty.concat
+      binding
+      (Stdlib.Pretty.concat Stdlib.Pretty.hardLine (exprDoc ctx body))
+
+  // `| Some v -> Some(fn v)` on the arm's own line when it fits.
+  | EMatch(_id, arg, cases) ->
+    let arms =
+      cases
+      |> Stdlib.List.map (fun case ->
+        let whenPart =
+          match case.whenCondition with
+          | Some cond -> $" when {expr ctx cond}"
+          | None -> ""
+
+        Stdlib.Pretty.group (
+          Stdlib.Pretty.concat
+            (txt $"| {matchPattern case.pat}{whenPart} ->")
+            (Stdlib.Pretty.nest 2 (
+              Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx case.rhs)))))
+      |> Stdlib.Pretty.join Stdlib.Pretty.hardLine
+
+    Stdlib.Pretty.concat
+      (txt $"match {expr ctx arg} with")
+      (Stdlib.Pretty.concat Stdlib.Pretty.hardLine arms)
+
+  // `if c then a else b` on one line when it fits. An `else if` chain keeps the `else if` together
+  // rather than indenting a whole nested if under it.
+  | EIf(_id, cond, thenBranch, elseBranch) ->
+    let head =
+      Stdlib.Pretty.concat
+        (txt $"if {expr ctx cond} then")
+        (Stdlib.Pretty.nest 2 (
+          Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx thenBranch)))
+
+    match elseBranch with
+    | None -> Stdlib.Pretty.group head
+    | Some eb ->
+      match eb with
+      | EIf(_, _, _, _) ->
+        Stdlib.Pretty.group (
+          Stdlib.Pretty.concat
+            head
+            (Stdlib.Pretty.concat
+              Stdlib.Pretty.line
+              (Stdlib.Pretty.concat (txt "else ") (exprDoc ctx eb))))
+      | _ ->
+        Stdlib.Pretty.group (
+          Stdlib.Pretty.concat
+            head
+            (Stdlib.Pretty.concat
+              Stdlib.Pretty.line
+              (Stdlib.Pretty.concat
+                (txt "else")
+                (Stdlib.Pretty.nest 2 (
+                  Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx eb))))))
+
+  // `xs |> List.length` on one line when it fits; longer chains keep one stage per line.
+  | EPipe(_id, e, pipeExprs) ->
+    let stages =
+      pipeExprs
+      |> Stdlib.List.map (fun pe -> txt $"|> {pipeExpr ctx pe}")
+      |> Stdlib.Pretty.join Stdlib.Pretty.line
+
+    Stdlib.Pretty.group (
+      Stdlib.Pretty.concat
+        (exprDoc ctx e)
+        (Stdlib.Pretty.concat Stdlib.Pretty.line stages))
+
+  // Parenthesise only where precedence or associativity requires it. The old printer wrapped both
+  // operands unconditionally, which turned `n * (factorial n - 1L)` into `(n) * ((factorial n) - (1L))`
+  // and meant printing its own output kept adding brackets.
+  | EInfix(_id, infixOp, left, right) ->
+    let (power, rightAssoc) = infixPower infixOp
+
+    let side (e: LanguageTools.ProgramTypes.Expr) (isRight: Bool) : Stdlib.Pretty.Doc =
+      let inner = exprDoc ctx e
+
+      if infixOperandNeedsParens e power rightAssoc isRight then
+        Stdlib.Pretty.concat (txt "(") (Stdlib.Pretty.concat inner (txt ")"))
+      else
+        inner
+
+    Stdlib.Pretty.group (
+      Stdlib.Pretty.concat
+        (side left false)
+        (Stdlib.Pretty.concat
+          (txt $" {infix infixOp} ")
+          (side right true)))
+
+  | EApply(_id, fnName, typeArgs, args) ->
+    let typeArgsPart =
+      match typeArgs with
+      | [] -> ""
+      | _ ->
+        typeArgs
+        |> Stdlib.List.map (fun typeArg -> typeReference ctx typeArg)
+        |> Stdlib.String.join ", "
+        |> fun parts -> $"<{parts}>"
+
+    let argDocs =
+      args
+      |> Stdlib.List.map (fun arg ->
+        let inner = exprDoc ctx arg
+
+        if applyArgNeedsParens arg then
+          Stdlib.Pretty.concat (txt "(") (Stdlib.Pretty.concat inner (txt ")"))
+        else
+          inner)
+
+    match argDocs with
+    | [] -> Stdlib.Pretty.concat (exprDoc ctx fnName) (txt typeArgsPart)
+    | argDocs ->
+      // Args are separated by `line`, not a literal space, so the choice is made for the call as a whole:
+      // one line when it fits, otherwise one arg per line under a 2-space indent. Joining with a hard
+      // space meant the outer group could never break, so each arg decided alone and the result was
+      // ragged -- `f (fun x ->` , continuation, then the next arg starting mid-line.
+      Stdlib.Pretty.group (
+        Stdlib.Pretty.concat
+          (Stdlib.Pretty.concat (exprDoc ctx fnName) (txt typeArgsPart))
+          (Stdlib.Pretty.nest 2 (
+            Stdlib.Pretty.concat
+              Stdlib.Pretty.line
+              (Stdlib.Pretty.join argDocs Stdlib.Pretty.line))))
+
+  // Collections: one line when they fit, one element per line when they don't. They never broke before,
+  // at any length, so a forty-element list was a single four-hundred-column line.
+  //
+  // Brackets hug their contents (`softLine`, so `[1; 2]` gains no inner spaces) while braces keep theirs
+  // (`line`, so a record reads `T { a = 1 }`). Separators stay explicit either way, which is what makes
+  // the broken form parse back.
+  | EList(_id, items) ->
+    let parts = items |> Stdlib.List.map (fun i -> exprDoc ctx i)
+    wrapExprs "[" "]" ";" Stdlib.Pretty.softLine parts
+
+  | ETuple(_id, first, second, theRest) ->
+    let parts =
+      (Stdlib.List.append [ first; second ] theRest)
+      |> Stdlib.List.map (fun i -> exprDoc ctx i)
+    wrapExprs "(" ")" "," Stdlib.Pretty.softLine parts
+
+  | ERecord(_id, typeName, typeArgs, fields) ->
+    let typeArgsPart =
+      match typeArgs with
+      | [] -> ""
+      | _ ->
+        typeArgs
+        |> Stdlib.List.map (fun typeArg -> typeReference ctx typeArg)
+        |> Stdlib.String.join ", "
+        |> fun parts -> $"<{parts}>"
+
+    let parts =
+      fields
+      |> Stdlib.List.map (fun pair ->
+        let (name, value) = pair
+        Stdlib.Pretty.concat
+          (txt $"{PrettyPrinter.formatFieldName name} = ")
+          (exprDoc ctx value))
+
+    Stdlib.Pretty.concat
+      (txt $"{NameResolution.typeName ctx typeName}{typeArgsPart} ")
+      (wrapExprs "{" "}" ";" Stdlib.Pretty.line parts)
+
+  // Dicts and enum payloads break like the other collections. A lambda's body is nested and hard-lined,
+  // since `fun x ->` followed by its body on the same line only reads well when the body is tiny, and
+  // the group above it already decides that. `EStatement` is always a hard line: that is what it means.
+  | EDict(_id, pairs) ->
+    let parts =
+      pairs
+      |> Stdlib.List.map (fun pair ->
+        let (key, value) = pair
+        Stdlib.Pretty.concat
+          (txt $"{PrettyPrinter.formatFieldName key} = ")
+          (exprDoc ctx value))
+
+    Stdlib.Pretty.concat (txt "Dict ") (wrapExprs "{" "}" ";" Stdlib.Pretty.line parts)
+
+  | EEnum(_id, typeName, typeArgs, caseName, fields) ->
+    let typeNamePart = NameResolution.typeName ctx typeName
+
+    let typeArgsPart =
+      match typeArgs with
+      | [] -> ""
+      | _ ->
+        typeArgs
+        |> Stdlib.List.map (fun typeArg -> typeReference ctx typeArg)
+        |> Stdlib.String.join ", "
+        |> fun parts -> $"<{parts}>"
+
+    // A bare, unqualified case (no type name) prints as just the case name; the `.` only separates a
+    // present type name from its case.
+    let sep = if typeNamePart == "" then "" else "."
+    let head = txt $"{typeNamePart}{typeArgsPart}{sep}{caseName}"
+
+    match fields with
+    | [] -> head
+    | fields ->
+      let parts = fields |> Stdlib.List.map (fun f -> exprDoc ctx f)
+      Stdlib.Pretty.concat head (wrapExprs "(" ")" "," Stdlib.Pretty.softLine parts)
+
+  | ELambda(_id, pats, body) ->
+    let patsPart =
+      pats
+      |> Stdlib.List.map (fun pat -> letPattern pat)
+      |> Stdlib.String.join " "
+
+    // Grouped, so a short lambda stays on one line. It used to break unconditionally, which cost two
+    // lines for `(fun x -> x + 1L)` and pushed the body of every `List.map` down a line for nothing.
+    Stdlib.Pretty.group (
+      Stdlib.Pretty.concat
+        (txt $"(fun {patsPart} ->")
+        (Stdlib.Pretty.concat
+          (Stdlib.Pretty.nest 2 (
+            Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx body)))
+          (txt ")")))
+
+  | EStatement(_id, first, next) ->
+    Stdlib.Pretty.concat
+      (exprDoc ctx first)
+      (Stdlib.Pretty.concat Stdlib.Pretty.hardLine (exprDoc ctx next))
+
+  | e -> docOfText (exprString ctx e)
+
+
 let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
+  Stdlib.Pretty.render ctx.width (exprDoc ctx e)
+
+
+/// The original string-building printer, still handling every construct the Doc layer hasn't taken over.
+let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
   match e with
   | EUnit _id -> "()"
 
@@ -584,12 +913,6 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 
 
   // structures of data
-  | EList(_id, items) ->
-    items
-    |> Stdlib.List.map (fun item -> expr ctx item)
-    |> Stdlib.String.join "; "
-    |> fun parts -> "[" ++ parts ++ "]"
-
   | EDict(_id, pairs) ->
     let pairPart =
       pairs
@@ -601,35 +924,6 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 
     $"Dict {pairPart}"
 
-
-  | ETuple(_id, first, second, theRest) ->
-    (Stdlib.List.append [ first; second ] theRest)
-    |> Stdlib.List.map (fun item -> expr ctx item)
-    |> Stdlib.String.join ", "
-    |> fun parts -> "(" ++ parts ++ ")"
-
-  | ERecord(_id, typeName, typeArgs, fields) ->
-    let typeNamePart = NameResolution.typeName ctx typeName
-
-    let typeArgsPart =
-      match typeArgs with
-      | [] -> ""
-      | _ ->
-        typeArgs
-        |> Stdlib.List.map (fun typeArg ->
-          typeReference ctx typeArg)
-        |> Stdlib.String.join ", "
-        |> fun parts -> $"<{parts}>"
-
-    let fieldPart =
-      fields
-      |> Stdlib.List.map (fun pair ->
-        let (name, value) = pair
-        $"{PrettyPrinter.formatFieldName name} = {expr ctx value}")
-      |> Stdlib.String.join "; "
-      |> fun parts -> "{ " ++ parts ++ " }"
-
-    $"{typeNamePart}{typeArgsPart} {fieldPart}"
 
   | EEnum(_id, typeName, typeArgs, caseName, fields) ->
     let typeNamePart = NameResolution.typeName ctx typeName
@@ -660,12 +954,6 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 
 
   // declaring and accessing variables
-  | ELet(_id, pattern, rhs, body) ->
-    let patternPart = letPattern pattern
-    let rhsPart = expr ctx rhs
-    let bodyPart = expr ctx body
-    $"let {patternPart} =\n{PrettyPrinter.indent rhsPart}\n{bodyPart}"
-
   | ERecordFieldAccess(_id, e, fieldName) ->
     let exprPart = expr ctx e
 
@@ -690,74 +978,6 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     | None -> $"earg{Stdlib.Int.toString index}"
 
   // control flow
-  | EIf(_id, cond, thenBranch, elseBranch) ->
-    let condPart = expr ctx cond
-
-    let thenPart =
-      (expr ctx thenBranch) |> PrettyPrinter.indent
-
-    match elseBranch with
-    | None -> $"if {condPart} then\n{thenPart}"
-    | Some elseBranch ->
-      match elseBranch with
-      | EIf(_, _, _, _) ->
-        let elsePart = (expr ctx elseBranch)
-        $"if {condPart} then\n{thenPart}\nelse {elsePart}"
-
-      | _ ->
-        let elsePart = (expr ctx elseBranch) |> PrettyPrinter.indent
-        $"if {condPart} then\n{thenPart}\nelse\n{elsePart}"
-
-  | EMatch(_id, arg, cases) ->
-    let cases =
-      cases
-      |> Stdlib.List.map (fun case ->
-        let patternPart = matchPattern case.pat
-
-        let whenPart =
-          match case.whenCondition with
-          | Some cond ->
-            let whenCondition = expr ctx cond
-            $" when {whenCondition}"
-          | None -> ""
-
-        let rhsPart =
-          (expr ctx case.rhs) |> PrettyPrinter.indent
-
-        $"| {patternPart}{whenPart} ->\n{rhsPart}")
-
-    let casesPart = Stdlib.String.join cases "\n"
-
-    let argPart = expr ctx arg
-
-    $"match {argPart} with\n{casesPart}"
-
-
-  | EPipe(_id, e, pipeExprs) ->
-    // LanguageTools.ID *
-    // LanguageTools.ProgramTypes.Expr *
-    // List<LanguageTools.ProgramTypes.PipeExpr>
-    let exprPart = expr ctx e
-
-    let pipeParts =
-      pipeExprs
-      |> Stdlib.List.map (fun pe ->
-        pipeExpr ctx pe)
-      |> Stdlib.String.join "\n|> "
-
-    $"{exprPart}\n|> {pipeParts}"
-
-
-
-  // function calls
-
-  | EInfix(_id, infixOp, left, right) ->
-    let infixPart = infix infixOp
-    let leftPart = expr ctx left
-    let rightPart = expr ctx right
-    // TODO: might need to wrap in parens
-    $"({leftPart}) {infixPart} ({rightPart})"
-
   | ELambda(_id, pats, body) ->
     let patsPart =
       pats
@@ -767,28 +987,6 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     let bodyPart = expr ctx body
 
     $"(fun {patsPart} ->\n{PrettyPrinter.indent bodyPart})"
-
-  | EApply(_id, fnName, typeArgs, args) ->
-    let fnNamePart = expr ctx fnName
-
-    let argsPart =
-      args
-      |> Stdlib.List.map (fun arg ->
-        match arg with
-        | EApply(_, _, _, _) -> $"({expr ctx arg})"
-        | _ -> expr ctx arg)
-      |> Stdlib.String.join " "
-
-    match typeArgs with
-    | [] -> $"{fnNamePart} {argsPart}"
-    | _ ->
-      let typeArgsPart =
-        typeArgs
-        |> Stdlib.List.map (fun typeArg ->
-          typeReference ctx typeArg)
-        |> Stdlib.String.join ", "
-
-      $"{fnNamePart}<{typeArgsPart}> {argsPart}"
 
   | EFnName(_id, fnName) ->
     NameResolution.fnName ctx fnName
@@ -825,11 +1023,10 @@ let expr (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
     // CLEANUP: consider making this a runtime error instead
     | None -> "ESelf"
 
-  // CLEANUP: remove this case before shipping to users
-  | expr ->
-    let s = Stdlib.Json.serialize<LanguageTools.ProgramTypes.Expr> expr
-
-    $"{s}"
+  // Everything above is a real case; this arm only fires if `Expr` gains one the printer wasn't taught.
+  // It used to dump the whole expression as JSON into the middle of the source, which buries the
+  // problem in output nobody can read. Say what happened instead, in one line that stands out.
+  | _expr -> "<expression this printer doesn't handle yet>"
 
 // CLEANUP this isn't currently used
 // if/when we uncomment this, take note that the `m` argument is a function
@@ -954,6 +1151,18 @@ let packageValue
 
 
 module PackageLocation =
+  /// A location as seen from `currentModule`.
+  ///
+  /// The plain `packageLocation` below stays fully qualified, and that is right where each line stands
+  /// alone and may be from any owner: `show` and `ops` list ops across the whole store, and a shortened
+  /// name there would be ambiguous. Anywhere the reader has a place -- browsing a module, reading one
+  /// item's references -- the full path is the noise it looks like.
+  let packageLocationIn
+    (currentModule: List<String>)
+    (loc: LanguageTools.ProgramTypes.PackageLocation)
+    : String =
+    PrettyPrinter.shortenName currentModule loc.owner loc.modules loc.name
+
   let packageLocation (loc: LanguageTools.ProgramTypes.PackageLocation) : String =
     let modulesPart =
       match loc.modules with
@@ -1033,9 +1242,14 @@ let packageFn
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (name, idx) ->
       Stdlib.Dict.set acc name idx)
 
+  // The body is laid out and THEN indented two columns, so it has to be laid out for two columns less
+  // or every decision is off by the indent it is about to receive. Found by the 1B.A audit: a printer
+  // that emits a leading indent has to account for it, and this one didn't -- a body line landing
+  // exactly on the width came out two columns over.
   let contextWithFn =
     { ctx with
-        currentFunction = Stdlib.Option.Option.Some((namePart, argMap)) }
+        currentFunction = Stdlib.Option.Option.Some((namePart, argMap))
+        width = Stdlib.Int.max 20 (ctx.width - 2) }
 
   let bodyPart = expr contextWithFn p.body
 

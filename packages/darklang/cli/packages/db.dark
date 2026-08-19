@@ -155,7 +155,7 @@ let viewDB (state: Cli.AppState) (dbName: String) : Cli.AppState =
       ++ nl ++ "  " ++ rowExpr ++ ")"
       ++ nl ++ "|> Stdlib.String.join \"<<<ROW>>>\""
 
-    match Eval.evaluateRaw state.accountID state.currentBranchId expr false with
+    match Eval.evaluateRaw state.accountID state.currentBranchId expr [] false with
     | Ok resultOpt ->
       let result = resultOpt |> Stdlib.Option.withDefault ""
       Stdlib.printLine ""
@@ -218,7 +218,7 @@ let getDBValue
   : Cli.AppState =
   let expr = $"Stdlib.DB.get \"{key}\" {dbName}"
 
-  match Eval.evaluateRaw state.accountID state.currentBranchId expr false with
+  match Eval.evaluateRaw state.accountID state.currentBranchId expr [] false with
   | Ok (Some result) ->
     Stdlib.printLine result
     state
@@ -242,7 +242,7 @@ let setDBValue
     let expr =
       $"Stdlib.DB.set ({typeName} {valueExpr}) \"{key}\" {dbName}"
 
-    match Eval.evaluateRaw state.accountID state.currentBranchId expr false with
+    match Eval.evaluateRaw state.accountID state.currentBranchId expr [] false with
     | Ok _ ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Set {key} in {dbName}")
       state
@@ -258,7 +258,7 @@ let deleteDBValue
   : Cli.AppState =
   let expr = $"Stdlib.DB.delete \"{key}\" {dbName}"
 
-  match Eval.evaluateRaw state.accountID state.currentBranchId expr false with
+  match Eval.evaluateRaw state.accountID state.currentBranchId expr [] false with
   | Ok _ ->
     Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"Deleted {key} from {dbName}")
     state
@@ -274,7 +274,7 @@ let queryDB
   : Cli.AppState =
   let expr = $"Stdlib.DB.query {dbName} ({filterExpr})"
 
-  match Eval.evaluateRaw state.accountID state.currentBranchId expr false with
+  match Eval.evaluateRaw state.accountID state.currentBranchId expr [] false with
   | Ok (Some result) ->
     Stdlib.printLine result
     state

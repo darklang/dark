@@ -15,7 +15,7 @@ module Darklang.Stdlib.Cli.Tui.Text
 ///
 /// The width is valid only when the control-character flag is false.
 let inspect (text: String) : (Int * Bool) =
-  Builtin.cliTerminalInspectText text
+  Stdlib.String.inspectDisplay text
 
 
 /// Return the number of terminal columns occupied by plain, single-line text.

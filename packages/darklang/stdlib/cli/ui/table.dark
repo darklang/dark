@@ -9,20 +9,21 @@ let print (columns: List<String>) (rows: List<List<String>>) : Unit =
   let colWidths =
     columns
     |> Stdlib.List.indexedMap (fun i header ->
-      let headerLen = Stdlib.String.length header
+      let headerLen = Stdlib.String.displayWidth header
 
       let maxCellLen =
         rows
         |> Stdlib.List.fold 0 (fun mx row ->
           match Stdlib.List.getAt row i with
-          | Some cell -> Stdlib.Int.max mx (Stdlib.String.length cell)
+          | Some cell -> Stdlib.Int.max mx (Stdlib.String.displayWidth cell)
           | None -> mx)
 
       Stdlib.Int.max headerLen maxCellLen)
 
-  // Pad a string to a given width with spaces
+  // Pad a string to a given width. Terminal columns, not characters: a cell holding a CJK character is
+  // one grapheme two columns wide, so padding by character count leaves the next column ragged.
   let pad = (fun s width ->
-    let padding = width - (Stdlib.String.length s)
+    let padding = width - (Stdlib.String.displayWidth s)
 
     if padding <= 0 then s
     else s ++ (Stdlib.String.repeat " " padding))
@@ -35,6 +36,9 @@ let print (columns: List<String>) (rows: List<List<String>>) : Unit =
       | Some w -> pad header w
       | None -> header)
     |> Stdlib.String.join "  "
+    // Padding on the final column is trailing whitespace with nothing after it to line up against. It
+    // shows up as a corridor of highlighted blanks once the header is bolded.
+    |> Stdlib.String.trimEnd
 
   Stdlib.printLine (Color.bold headerLine)
 
@@ -62,6 +66,7 @@ let print (columns: List<String>) (rows: List<List<String>>) : Unit =
           | Some w -> pad cell w
           | None -> cell)
         |> Stdlib.String.join "  "
+        |> Stdlib.String.trimEnd
 
       Stdlib.printLine line)
 

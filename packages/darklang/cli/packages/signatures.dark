@@ -11,19 +11,14 @@ module Darklang.Cli.Packages.Signatures
 // would cover the same surface without the separate dispatch entry.
 
 
-// Pretty-printer context: prefer collapsing to `Darklang.Stdlib` so that types
-// like `Stdlib.Option.Option` render as `Option.Option` everywhere,
-// regardless of which sub-module we scoped the listing to. For non-Stdlib
-// roots, fall back to the root itself.
+// Pretty-printer context for a listing rooted at `modulePath`.
+//
+// This used to special-case `Darklang.Stdlib` by name so that `Stdlib.Option.Option` would print as
+// `Option.Option` regardless of which submodule the listing was scoped to. `shortenName` makes that
+// unnecessary: it drops the longest common prefix with the current module and knows Option and Result
+// resolve bare, so the same listing shortens correctly without anyone naming a namespace.
 let rootContext (branchId: Uuid) (modulePath: List<String>) : PrettyPrinter.ProgramTypes.Context =
-  let cur =
-    match modulePath with
-    | "Darklang" :: "Stdlib" :: _ -> "Darklang.Stdlib"
-    | _ -> Stdlib.String.join modulePath "."
-  PrettyPrinter.ProgramTypes.Context
-    { branchId = branchId
-      currentModule = Stdlib.Option.Option.Some cur
-      currentFunction = Stdlib.Option.Option.None }
+  PrettyPrinter.ProgramTypes.Context.forModule branchId modulePath
 
 
 // Renders the signature body only (no name) — e.g.

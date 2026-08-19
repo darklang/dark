@@ -1132,7 +1132,7 @@ let executeReplay (state: Cli.AppState) (traceID: String) : Cli.AppState =
     Stdlib.printLine ""
     match
       Eval.evaluateRaw
-        state.accountID state.currentBranchId code false
+        state.accountID state.currentBranchId code [] false
     with
     | Ok outputOpt ->
       match outputOpt with

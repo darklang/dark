@@ -73,8 +73,9 @@ let renderContent
   let ctx =
     PrettyPrinter.ProgramTypes.Context
       { branchId = branchId
-        currentModule = Stdlib.Option.Option.None
-        currentFunction = Stdlib.Option.Option.None }
+        currentModule = []
+        currentFunction = Stdlib.Option.Option.None
+        width = 80 }
   // Resolve the hash across kinds rather than by the conflict's stored `itemKind`. A hash is
   // content-addressed and kind-agnostic, and a CROSS-KIND conflict (one side bound the name to a value, the
   // other to a fn — reachable since a name holds ONE item regardless of kind, post one-name-one-item) stores

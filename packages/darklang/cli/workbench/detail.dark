@@ -7,26 +7,12 @@ module Darklang.Cli.Workbench
 
 /// The glyph for a row's kind, padded to two terminal columns.
 ///
-/// Lowercased first because two vocabularies meet here: the tree's loaders use "fn"/"type"/"val", while WIP
-/// rows carry the backend's display kinds ("Fn"/"Type"/"Value", see `getWipItems`). Matching only the
-/// lowercase spelling meant every row in SCM Changes fell through to the bullet.
-///
-/// Padded to a fixed two columns, because the glyphs aren't all one column and concatenating them raw left
-/// names in a mixed list starting a column apart - a ragged left edge down the tree.
-///
-/// Every glyph here measures ONE column under `displayWidth`, which is what makes that padding correct. `⚡`
-/// used to be the fn icon and measured two, while terminals draw it as one, so fn rows came out a column short
-/// of everything else and no padding could be right for both. Any replacement needs the same property: check
-/// `Stdlib.Cli.Tui.Text.displayWidth` before swapping a glyph in here.
+/// `Cli.Glyphs` owns the vocabulary, including the rule that every glyph measures one column and gets
+/// padded to two; this only has to decide that a module row is a module, since `BodyItem` carries that
+/// separately from its kind string.
 let iconFor (item: BodyItem) : String =
-  let glyph =
-    if item.isModule then "🗂"
-    else
-      match Stdlib.String.toLowercase item.kind with
-      | "fn" -> "ƒ"
-      | "type" -> "#"
-      | _ -> "•"
-  Stdlib.Cli.Tui.Text.fitToWidth glyph 2
+  if item.isModule then Glyphs.forKind "module" else Glyphs.forKind item.kind
+
 
 let renderTreeList (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   if Stdlib.List.isEmpty state.items then
@@ -83,11 +69,15 @@ let detailLines (state: State) : List<String> =
     else
       let modulePath = modulePathOf state.location
       let results = Packages.Query.searchExactMatch state.branchId modulePath item.name
+      // Anchored at the module being browsed, so the Inspect pane spells references the way someone
+      // standing in that module would. `modulePath` is owner-first, which is what `forModule` wants.
+      //
+      // And laid out for the pane it is going into, rather than for the printers' default 80. Reading
+      // the pane width is the caller's job -- the printer can't, by design -- so it happens here.
+      // Wrapping in `renderScrollableLines` stays as the floor under a line no layout could shorten.
       let ctx =
-        PrettyPrinter.ProgramTypes.Context
-          { branchId = state.branchId
-            currentModule = Stdlib.Option.Option.None
-            currentFunction = Stdlib.Option.Option.None }
+        { PrettyPrinter.ProgramTypes.Context.forModule state.branchId modulePath with
+            width = previewInnerWidth () }
       let src =
         match item.kind with
         | "fn" ->
@@ -202,11 +192,14 @@ let itemMeta (state: State) : String =
         | None -> "not deprecated"
       kindLabel ++ "  ·  hash " ++ short ++ "  ·  current  ·  " ++ deprecation
 
-/// Per-node actions offered on the item page. Only what's wired (`d` deps); try/traces are named in the
-/// hint line but land in later passes, so they read as affordances, not working keys yet.
-let itemActions (item: BodyItem) : String =
-  if item.kind == "fn" then Stdlib.Cli.UI.Colors.dimText "d deps  ·  t try, x traces (coming)"
-  else Stdlib.Cli.UI.Colors.dimText "d deps"
+/// Per-node actions offered on the item page, or nothing when there are none to offer.
+///
+/// `d deps` used to lead here. It opened the item's dependencies in the reader, which is the same text
+/// this page already prints under `── references ──`, so it was a keystroke to see what was on screen.
+/// try/traces are named as affordances and land in later passes; they are not wired yet.
+let itemActions (item: BodyItem) : List<String> =
+  if item.kind == "fn" then [ ""; Stdlib.Cli.UI.Colors.dimText "t try, x traces (coming)" ]
+  else []
 
 let inspectPageLines (state: State) : List<String> =
   match Stdlib.List.getAt state.items state.selected with
@@ -216,17 +209,28 @@ let inspectPageLines (state: State) : List<String> =
       [ (iconFor item) ++ " " ++ item.name; ""; Stdlib.Cli.UI.Colors.dimText "module - → to enter" ]
     else
       // Highlight the source portion here (the page mixes code + colored ref/meta lines, so renderPreview
-      // can't blanket-highlight it). Guard: only swap in the highlighted lines if the count still lines up.
+      // can't blanket-highlight it).
+      //
+      // The guard is a line-count check: highlighting re-lexes the rendered text, and if that comes back
+      // with a different number of lines the colors would land on the wrong rows. Falling back to the
+      // plain source is right, but it used to be silent, so a printer change that altered the line count
+      // just quietly turned syntax highlighting off and nothing said why. Say it.
       let srcPlain = detailLines state
       let src =
         let h =
           SyntaxHighlighting.highlightCode (Stdlib.String.join srcPlain "\n") |> Stdlib.String.split "\n"
-        if Stdlib.List.length h == Stdlib.List.length srcPlain then h else srcPlain
+        if Stdlib.List.length h == Stdlib.List.length srcPlain then
+          h
+        else
+          Stdlib.List.append
+            srcPlain
+            [ Colors.warning
+                $"(syntax highlighting off: re-lexing produced {Stdlib.Int.toString (Stdlib.List.length h)} lines, source has {Stdlib.Int.toString (Stdlib.List.length srcPlain)})" ]
       let refs = Stdlib.String.split (depsText state) "\n"
       Stdlib.List.flatten
         [ src
           [ ""; Stdlib.Cli.UI.Colors.dimText (itemMeta state) ]
-          [ ""; itemActions item ]
+          (itemActions item)
           [ ""; Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "── references ──"; "" ]
           refs ]
 

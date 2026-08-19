@@ -1396,7 +1396,7 @@ module UserDefinedAliases =
   Stdlib.Json.serialize<StringResult<Int64>> (Result.Error "err") = "{\"Error\":[\"err\"]}"
 
   // This test currently slips by the typechecker, and so we get an internal exception
-  Stdlib.Json.serialize<StringResult<Int64>> (Result.Error 1L) = error="Darklang.Stdlib.Json.serialize's 1st parameter `value` expects Darklang.Stdlib.Result.Result<Int64, String>, but got Darklang.Stdlib.Result.Result<_, Int64> (Darklang.Stdlib.Result.Result<_, Int64>.Error(1))"
+  Stdlib.Json.serialize<StringResult<Int64>> (Result.Error 1L) = error="Darklang.Stdlib.Json.serialize's 1st parameter `value` expects Darklang.Stdlib.Result.Result<Int64, String>, but got Darklang.Stdlib.Result.Result<_, Int64> (Error(1))"
 module Package =
   Stdlib.Json.serialize<Option<Int64>> Option.None = "{\"None\":[]}"
 

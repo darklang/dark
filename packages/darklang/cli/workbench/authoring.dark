@@ -171,8 +171,9 @@ let openEditExisting (state: State) (item: BodyItem) : Step =
   let ctx =
     PrettyPrinter.ProgramTypes.Context
       { branchId = state.branchId
-        currentModule = Stdlib.Option.Option.None
-        currentFunction = Stdlib.Option.Option.None }
+        currentModule = []
+        currentFunction = Stdlib.Option.Option.None
+        width = 80 }
   // Prefill from the item's current source, per kind. `val` items save under the "value" kind (see saveEditing).
   let kindAndSrc =
     if item.kind == "type" then

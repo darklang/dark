@@ -65,6 +65,26 @@ let toLowercase (s: String) : String = Builtin.stringToLowercase s
 let length (s: String) : Int = Builtin.stringLength s
 
 
+/// How many terminal columns <param s> occupies.
+///
+/// Not the same question as <fn length>, which counts extended grapheme clusters: `界` is one grapheme
+/// in two columns, and so is a ZWJ emoji. Use this for anything positional -- laying out, padding,
+/// deciding whether something fits -- and <fn length> for "how many characters is this".
+///
+/// Assumes plain text. Terminal escape sequences are not text and are not measured here.
+let displayWidth (s: String) : Int =
+  let (width, _containsControl) = Stdlib.String.inspectDisplay s
+  width
+
+
+/// Measure <param s> in terminal columns, and report whether it contains control characters.
+///
+/// The width is only meaningful when the flag is false. The single place this builtin is reached;
+/// `Cli.Tui.Text` layers escape-awareness on top of it.
+let inspectDisplay (s: String) : (Int * Bool) =
+  Builtin.cliTerminalInspectText s
+
+
 /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.
 let append (s1: String) (s2: String) : String = $"{s1}{s2}"
 

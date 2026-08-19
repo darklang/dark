@@ -55,8 +55,9 @@ module ReadFile =
         let ctx =
           PrettyPrinter.ProgramTypes.Context
             { branchId = branchId
-              currentModule = Stdlib.Option.Option.None
-              currentFunction = Stdlib.Option.Option.None }
+              currentModule = []
+              currentFunction = Stdlib.Option.Option.None
+              width = 80 }
 
         // Try to find as a specific entity (type, function, or value)
         let entityContent =
@@ -98,8 +99,9 @@ module ReadFile =
           let ctx =
             PrettyPrinter.ProgramTypes.Context
               { branchId = state.currentBranchId
-                currentModule = Stdlib.Option.Option.None
-                currentFunction = Stdlib.Option.Option.None }
+                currentModule = []
+                currentFunction = Stdlib.Option.Option.None
+                width = 80 }
 
           let results =
             LanguageTools.PackageManager.Search.search state.currentBranchId searchQuery
@@ -486,8 +488,9 @@ module WriteFile =
               let ctx =
                 PrettyPrinter.ProgramTypes.Context
                   { branchId = state.currentBranchId
-                    currentModule = Stdlib.Option.Option.None
-                    currentFunction = Stdlib.Option.Option.None }
+                    currentModule = []
+                    currentFunction = Stdlib.Option.Option.None
+                    width = 80 }
 
               let results =
                 LanguageTools.PackageManager.Search.search state.currentBranchId searchQuery

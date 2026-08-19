@@ -125,8 +125,9 @@ let changesSourceText (branchId: Uuid) (selected: Int) : String =
     let ctx =
       PrettyPrinter.ProgramTypes.Context
         { branchId = branchId
-          currentModule = Stdlib.Option.Option.None
-          currentFunction = Stdlib.Option.Option.None }
+          currentModule = []
+          currentFunction = Stdlib.Option.Option.None
+          width = 80 }
     let src =
       if kind == "Type" then
         match results.types with
@@ -198,20 +199,33 @@ let depsText (state: State) : String =
         let depLines =
           if Stdlib.List.isEmpty deps then [ Stdlib.Cli.UI.Colors.dimText "  (none)" ]
           else
-            let namesDict = Darklang.Cli.Deps.resolveNames state.branchId (deps |> Stdlib.List.map (fun p -> let (h, _) = p in h))
+            let namesDict =
+              Darklang.Cli.Deps.resolveNamesIn
+                state.branchId
+                (modulePathOf state.location)
+                (deps |> Stdlib.List.map (fun p -> let (h, _) = p in h))
             deps |> Stdlib.List.map (fun p -> let (th, _rt) = p in "  " ++ (Darklang.Cli.Deps.getName namesDict th))
         // Dependents - what uses this item.
         let dependents = Cli.Deps.getDependents state.branchId [ (loc, kind) ]
         let dependentLines =
           if Stdlib.List.isEmpty dependents then [ Stdlib.Cli.UI.Colors.dimText "  (none)" ]
-          else dependents |> Stdlib.List.map (fun t -> let (_h, sLoc, _rt) = t in "  " ++ (PrettyPrinter.ProgramTypes.PackageLocation.packageLocation sLoc))
-        (Stdlib.Cli.UI.Colors.boldText item.name)
-        ++ "\n\n"
-        ++ (Stdlib.Cli.UI.Colors.dimText ("Dependencies (uses) - " ++ (Stdlib.Int.toString (Stdlib.List.length deps))))
+          else
+            // Spelled from where the reader is standing, like everything else on this page.
+            let here = modulePathOf state.location
+            dependents
+            |> Stdlib.List.map (fun t ->
+              let (_h, sLoc, _rt) = t
+              "  " ++ (PrettyPrinter.ProgramTypes.PackageLocation.packageLocationIn here sLoc))
+        // No item name here: `inspectPageLines` composes this under a page already headed by that
+        // item's source, so including it printed the name twice on one screen.
+        //
+        // Counts use the same `label  ·  count` shape as the pane titles and the meta strip, rather
+        // than a third punctuation for the same idea on the same screen.
+        (Stdlib.Cli.UI.Colors.dimText ("Dependencies (uses)  ·  " ++ (Stdlib.Int.toString (Stdlib.List.length deps))))
         ++ "\n"
         ++ (Stdlib.String.join depLines "\n")
         ++ "\n\n"
-        ++ (Stdlib.Cli.UI.Colors.dimText ("Dependents (used by) - " ++ (Stdlib.Int.toString (Stdlib.List.length dependents))))
+        ++ (Stdlib.Cli.UI.Colors.dimText ("Dependents (used by)  ·  " ++ (Stdlib.Int.toString (Stdlib.List.length dependents))))
         ++ "\n"
         ++ (Stdlib.String.join dependentLines "\n")
 
@@ -289,7 +303,7 @@ let refreshPeek (next: State) : State =
           let fullpath =
             Stdlib.String.join (Stdlib.List.append (modulePathOf next.location) [ item.name ]) "."
           captureOutput (fun () ->
-            Eval.evaluateRaw next.accountId next.branchId (fullpath ++ " ()") false)
+            Eval.evaluateRaw next.accountId next.branchId (fullpath ++ " ()") [] false)
         else
           ""
       | None -> ""

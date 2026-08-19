@@ -5,7 +5,7 @@
 /// listing is the only place the answer is legible.
 ///
 /// `opcode` and `operands` are separate functions rather than one rendered line, so a caller can align
-/// the columns and colour them independently. `listing` is the plain-text version for anyone who just
+/// the columns and color them independently. `listing` is the plain-text version for anyone who just
 /// wants the text.
 module Darklang.PrettyPrinter.RuntimeTypes.Instructions
 
@@ -124,7 +124,7 @@ let inlineDval (branchId: Uuid) (dv: LanguageTools.RuntimeTypes.Dval) : String =
   | other -> PrettyPrinter.RuntimeTypes.dval branchId other
 
 
-/// The opcode name on its own, so callers can colour or align it.
+/// The opcode name on its own, so callers can color or align it.
 let opcode (i: LanguageTools.RuntimeTypes.Instruction) : String =
   match i with
   | LoadVal(_, _) -> "LoadVal"
@@ -223,12 +223,15 @@ let header (instrs: LanguageTools.RuntimeTypes.Instructions) : String =
 
 /// `Stdlib.String.padStart`/`padEnd` return a `Result` (they can reject a multi-character pad), which
 /// is noise for a fixed single-space pad. These just widen.
+// Padding is positional, so it measures columns rather than graphemes. `Stdlib.String.length` counts
+// grapheme clusters, which is the wrong question here: one CJK character is a single grapheme two
+// columns wide, so a column padded by grapheme count comes out ragged.
 let padTo (width: Int) (s: String) : String =
-  let n = width - (Stdlib.String.length s)
+  let n = width - (Stdlib.String.displayWidth s)
   if n <= 0 then s else s ++ (Stdlib.String.repeat " " n)
 
 let padFrom (width: Int) (s: String) : String =
-  let n = width - (Stdlib.String.length s)
+  let n = width - (Stdlib.String.displayWidth s)
   if n <= 0 then s else (Stdlib.String.repeat " " n) ++ s
 
 

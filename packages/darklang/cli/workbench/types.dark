@@ -3,6 +3,17 @@
 /// Part of `Darklang.Cli.Workbench`, split across files (see app.dark for the overview).
 module Darklang.Cli.Workbench
 
+
+/// The most of the Matter body the tree pane may take, as a percent.
+///
+/// A ceiling rather than the split itself: `matterSplitFor` narrows it to what the names actually need.
+/// A flat 45 gave eight short names 117 columns on a wide terminal while the pane that was clipping got
+/// the smaller half.
+val matterSplitMaxPct = 45
+
+/// The least of it, so the tree doesn't collapse to nothing in a narrow window.
+val matterSplitMinPct = 18
+
 type BodyItem =
   { name: String
     kind: String

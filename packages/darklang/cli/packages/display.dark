@@ -1,20 +1,14 @@
 module Darklang.Cli.Packages.Display
 
-/// Icon mappings for different entity types
+/// Icon for an entity type. The glyphs themselves live in `Cli.Glyphs`, which is the single vocabulary
+/// shared with the workbench; this is just the `EntityType` spelling of the same question.
 let getIcon (entityType: EntityType) : String =
   match entityType with
-  | Module -> "🗂️"
-  | Function -> "⚡️"
-  | Type -> "🔖"
-  | Value -> "💎"
+  | Module -> Glyphs.module_
+  | Function -> Glyphs.fn
+  | Type -> Glyphs.type_
+  | Value -> Glyphs.value
 
 
-/// Get section header with icon for entity type
-let getSectionHeader (entityType: String) : String =
-  match entityType with
-  | "module" -> "🗂️ Modules:"
-  | "function" -> "⚡️ Functions:"
-  | "type" -> "🔖 Types:"
-  | "value" -> "💎 Values:"
-  | "submodule" -> "🗂️ Submodules:"
-  | _ -> entityType ++ ":"
+/// Section header with icon for an entity type.
+let getSectionHeader (entityType: String) : String = Glyphs.sectionHeader entityType

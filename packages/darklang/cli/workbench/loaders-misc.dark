@@ -79,11 +79,11 @@ let thingDetail (state: State) : String =
     let results = Packages.Query.searchExactMatch state.branchId mods leaf
     match results.values with
     | i :: _ ->
+      // `mods` is the value's own module, and the pane knows its width: the last two places in the
+      // workbench still printing against neither.
       let ctx =
-        PrettyPrinter.ProgramTypes.Context
-          { branchId = state.branchId
-            currentModule = Stdlib.Option.Option.None
-            currentFunction = Stdlib.Option.Option.None }
+        { PrettyPrinter.ProgramTypes.Context.forModule state.branchId mods with
+            width = previewInnerWidth () }
       PrettyPrinter.ProgramTypes.packageValue ctx i.entity
     | [] -> "(not found)"
 
