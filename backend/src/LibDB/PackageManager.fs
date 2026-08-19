@@ -90,18 +90,34 @@ let pt : PT.PackageManager =
     getFn = withCache PMPT.Fn.get
     getValue = withCache PMPT.Value.get
 
+    // A CLI script's declarations are never in the store, so without a fallback
+    // they render as hashes. Only as a fallback, though: hashes are content
+    // addressed, so a script's private name for some shape is also a name for
+    // every stored declaration of that shape, and `pickLocation` breaks ties by
+    // shortest path, which a script's one-segment path always wins. Consulted
+    // ahead of the store, `type MyErr = | BadFormat` in a script would rename
+    // `Stdlib.Int.ParseError` for the rest of the process.
     getTypeLocations =
       fun branchId id ->
-        let chain = getBranchChain branchId
-        PMPT.Type.getLocations chain id
+        uply {
+          match! PMPT.Type.getLocations (getBranchChain branchId) id with
+          | [] -> return EphemeralPackages.typeLocations id
+          | stored -> return stored
+        }
     getValueLocations =
       fun branchId id ->
-        let chain = getBranchChain branchId
-        PMPT.Value.getLocations chain id
+        uply {
+          match! PMPT.Value.getLocations (getBranchChain branchId) id with
+          | [] -> return EphemeralPackages.valueLocations id
+          | stored -> return stored
+        }
     getFnLocations =
       fun branchId id ->
-        let chain = getBranchChain branchId
-        PMPT.Fn.getLocations chain id
+        uply {
+          match! PMPT.Fn.getLocations (getBranchChain branchId) id with
+          | [] -> return EphemeralPackages.fnLocations id
+          | stored -> return stored
+        }
 
     search =
       fun (branchId, query) ->

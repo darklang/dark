@@ -1200,11 +1200,16 @@ module RuntimeError =
         | RuntimeError.Records.CreationFieldNotExpected fieldName ->
           "CreationFieldNotExpected", [ DString fieldName ]
         | RuntimeError.Records.CreationFieldOfWrongType(fieldName,
+                                                        declaredType,
                                                         expectedType,
                                                         actualType,
                                                         actual) ->
           "CreationFieldOfWrongType",
           [ DString fieldName
+            declaredType
+            |> C2DT.Option.toDT
+              TypeReference.toDT
+              (KTCustomType(TypeReference.typeName (), []))
             ValueType.toDT expectedType
             ValueType.toDT actualType
             Dval.toDT actual ]
@@ -1217,11 +1222,16 @@ module RuntimeError =
         | RuntimeError.Records.UpdateFieldNotExpected fieldName ->
           "UpdateFieldNotExpected", [ DString fieldName ]
         | RuntimeError.Records.UpdateFieldOfWrongType(fieldName,
+                                                      declaredType,
                                                       expectedType,
                                                       actualType,
                                                       actual) ->
           "UpdateFieldOfWrongType",
           [ DString fieldName
+            declaredType
+            |> C2DT.Option.toDT
+              TypeReference.toDT
+              (KTCustomType(TypeReference.typeName (), []))
             ValueType.toDT expectedType
             ValueType.toDT actualType
             Dval.toDT actual ]
@@ -1251,9 +1261,10 @@ module RuntimeError =
               _,
               [],
               "CreationFieldOfWrongType",
-              [ fieldName; expectedType; actualType; actual ]) ->
+              [ fieldName; declaredType; expectedType; actualType; actual ]) ->
         RuntimeError.Records.CreationFieldOfWrongType(
           D.string fieldName,
+          C2DT.Option.fromDT TypeReference.fromDT declaredType,
           ValueType.fromDT expectedType,
           ValueType.fromDT actualType,
           Dval.fromDT actual
@@ -1270,9 +1281,10 @@ module RuntimeError =
               _,
               [],
               "UpdateFieldOfWrongType",
-              [ fieldName; expectedType; actualType; actual ]) ->
+              [ fieldName; declaredType; expectedType; actualType; actual ]) ->
         RuntimeError.Records.UpdateFieldOfWrongType(
           D.string fieldName,
+          C2DT.Option.fromDT TypeReference.fromDT declaredType,
           ValueType.fromDT expectedType,
           ValueType.fromDT actualType,
           Dval.fromDT actual
@@ -1308,12 +1320,17 @@ module RuntimeError =
           "ConstructionCaseNotFound", [ FQTypeName.toDT typeName; DString caseName ]
         | RuntimeError.Enums.ConstructionFieldOfWrongType(caseName,
                                                           fieldIndex,
+                                                          declaredType,
                                                           expectedType,
                                                           actualType,
                                                           actualValue) ->
           "ConstructionFieldOfWrongType",
           [ DString caseName
             dintOfInt fieldIndex
+            declaredType
+            |> C2DT.Option.toDT
+              TypeReference.toDT
+              (KTCustomType(TypeReference.typeName (), []))
             ValueType.toDT expectedType
             ValueType.toDT actualType
             Dval.toDT actualValue ]
@@ -1342,10 +1359,16 @@ module RuntimeError =
               _,
               [],
               "ConstructionFieldOfWrongType",
-              [ caseName; fieldIndex; expectedType; actualType; actualValue ]) ->
+              [ caseName
+                fieldIndex
+                declaredType
+                expectedType
+                actualType
+                actualValue ]) ->
         RuntimeError.Enums.ConstructionFieldOfWrongType(
           D.string caseName,
           D.int fieldIndex,
+          C2DT.Option.fromDT TypeReference.fromDT declaredType,
           ValueType.fromDT expectedType,
           ValueType.fromDT actualType,
           Dval.fromDT actualValue
@@ -1376,6 +1399,7 @@ module RuntimeError =
         | RuntimeError.Applications.FnParameterNotExpectedType(fnName,
                                                                paramIndex,
                                                                paramName,
+                                                               declaredType,
                                                                expectedType,
                                                                actualType,
                                                                actualValue) ->
@@ -1383,15 +1407,24 @@ module RuntimeError =
           [ FQFnName.toDT fnName
             dintOfInt paramIndex
             DString paramName
+            declaredType
+            |> C2DT.Option.toDT
+              TypeReference.toDT
+              (KTCustomType(TypeReference.typeName (), []))
             ValueType.toDT expectedType
             ValueType.toDT actualType
             Dval.toDT actualValue ]
         | RuntimeError.Applications.FnResultNotExpectedType(fnName,
+                                                            declaredType,
                                                             expectedType,
                                                             actualType,
                                                             actualValue) ->
           "FnResultNotExpectedType",
           [ FQFnName.toDT fnName
+            declaredType
+            |> C2DT.Option.toDT
+              TypeReference.toDT
+              (KTCustomType(TypeReference.typeName (), []))
             ValueType.toDT expectedType
             ValueType.toDT actualType
             Dval.toDT actualValue ]
@@ -1434,11 +1467,18 @@ module RuntimeError =
               _,
               [],
               "FnParameterNotExpectedType",
-              [ fnName; paramIndex; paramName; expectedType; actualType; actualValue ]) ->
+              [ fnName
+                paramIndex
+                paramName
+                declaredType
+                expectedType
+                actualType
+                actualValue ]) ->
         RuntimeError.Applications.FnParameterNotExpectedType(
           FQFnName.fromDT fnName,
           D.int paramIndex,
           D.string paramName,
+          C2DT.Option.fromDT TypeReference.fromDT declaredType,
           ValueType.fromDT expectedType,
           ValueType.fromDT actualType,
           Dval.fromDT actualValue
@@ -1447,9 +1487,10 @@ module RuntimeError =
               _,
               [],
               "FnResultNotExpectedType",
-              [ fnName; expectedType; actualType; actualValue ]) ->
+              [ fnName; declaredType; expectedType; actualType; actualValue ]) ->
         RuntimeError.Applications.FnResultNotExpectedType(
           FQFnName.fromDT fnName,
+          C2DT.Option.fromDT TypeReference.fromDT declaredType,
           ValueType.fromDT expectedType,
           ValueType.fromDT actualType,
           Dval.fromDT actualValue

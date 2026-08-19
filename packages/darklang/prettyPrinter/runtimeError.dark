@@ -38,6 +38,12 @@ module RuntimeError =
     | TypeReference of TypeReference
     | TypeOfValue of Dval // CLEANUP should these all just be ValueTypes?
     | ValueType of ValueType
+    /// A value type together with the type reference it was declared as. One
+    /// content hash can be bound to several names, so the declaration is the
+    /// only thing that says which of them the author meant.
+    | DeclaredValueType of
+      Stdlib.Option.Option<LanguageTools.RuntimeTypes.TypeReference> *
+      ValueType
     | FieldName of String // records and enums
     | InlineFieldName of String // records and enums
 
@@ -100,6 +106,8 @@ module RuntimeError =
           | TypeReference t -> typeReference branchId t
           | TypeOfValue dv -> Dval.valueTypeName branchId dv
           | ValueType vt -> valueType branchId vt
+          | DeclaredValueType(declared, vt) ->
+            declaredValueType branchId declared vt
           | FieldName f -> $"`{f}`"
           | InlineFieldName f -> f
           | VarName v -> $"`{v}`"
@@ -303,10 +311,10 @@ module RuntimeError =
           // ES.TypeName typeName
           // ES.String " record"
           ]
-      | CreationFieldOfWrongType (fieldName,  expectedType,  actualType, actualValue) ->
+      | CreationFieldOfWrongType(fieldName, declaredType, expectedType, actualType, actualValue) ->
         [ ES.String "Failed to create record. "
           ES.String "Expected "
-          ES.ValueType expectedType
+          ES.DeclaredValueType(declaredType, expectedType)
           ES.String " for field "
           ES.FieldName fieldName
           ES.String ", but got "
@@ -334,10 +342,10 @@ module RuntimeError =
           // ES.TypeName typeName
           // ES.String " record"
           ]
-      | UpdateFieldOfWrongType(fieldName, expectedType,  actualType, actualValue) ->
+      | UpdateFieldOfWrongType(fieldName, declaredType, expectedType, actualType, actualValue) ->
         [ ES.String "Failed to create updated record. "
           ES.String "Expected "
-          ES.ValueType expectedType
+          ES.DeclaredValueType(declaredType, expectedType)
           ES.String " for field "
           ES.FieldName fieldName
           ES.String ", but got "
@@ -382,10 +390,10 @@ module RuntimeError =
           ES.String " in "
           ES.TypeName typeName ]
 
-      | ConstructionFieldOfWrongType (caseName, fieldIndex, expectedType, actualType, actualValue) ->
+      | ConstructionFieldOfWrongType(caseName, fieldIndex, declaredType, expectedType, actualType, actualValue) ->
         [ ES.String "Failed to create enum. "
           ES.String "Expected "
-          ES.ValueType expectedType
+          ES.DeclaredValueType(declaredType, expectedType)
           ES.String " for field "
           ES.Int fieldIndex
           ES.String " in "
@@ -429,23 +437,23 @@ module RuntimeError =
           ES.Count(expected, ES.String "argument", ES.String "arguments")
           ES.String ", but got "
           ES.Count(actual, ES.String "argument", ES.String "arguments") ]
-      | FnParameterNotExpectedType(fnName, paramIndex, paramName, expectedType, actualType, actualValue) ->
+      | FnParameterNotExpectedType(fnName, paramIndex, paramName, declaredType, expectedType, actualType, actualValue) ->
         [ ES.FunctionName fnName
           ES.String "'s "
           ES.Ordinal(paramIndex + 1)
           ES.String " parameter "
           ES.ParamName paramName
           ES.String " expects "
-          ES.ValueType expectedType
+          ES.DeclaredValueType(declaredType, expectedType)
           ES.String ", but got "
           ES.ValueType actualType
           ES.String " ("
           ES.FullValue actualValue
           ES.String ")" ]
-      | FnResultNotExpectedType(fnName, expectedType, actualType, actualValue) ->
+      | FnResultNotExpectedType(fnName, declaredType, expectedType, actualType, actualValue) ->
         [ ES.FunctionName fnName
           ES.String "'s return value expects "
-          ES.ValueType expectedType
+          ES.DeclaredValueType(declaredType, expectedType)
           ES.String ", but got "
           ES.ValueType actualType
           ES.String " ("

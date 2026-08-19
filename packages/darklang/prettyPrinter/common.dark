@@ -158,11 +158,14 @@ let shortenName
     let remaining = Stdlib.List.drop fullPath shared
 
     // Nothing shared and not ours: an explicit `Stdlib.` prefix still resolves, so drop the owner for
-    // Darklang's own packages and leave anyone else's fully qualified.
+    // Darklang's own packages and leave anyone else's fully qualified. `Tests` and `CliScript` come off
+    // for a different reason: they are scaffolding the parser stamped on, not names anything can be
+    // reached by, so printing them tells the reader nothing.
+    let ownerComesOff =
+      owner == "Darklang" || owner == "Tests" || owner == "CliScript" || owner == ""
+
     let remaining =
-      if shared == 0 && owner == "Darklang" then
-        Stdlib.List.drop fullPath 1
-      else if shared == 0 && owner == "Tests" then
+      if shared == 0 && ownerComesOff then
         Stdlib.List.drop fullPath 1
       else
         remaining

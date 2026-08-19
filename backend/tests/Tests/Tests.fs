@@ -58,6 +58,7 @@ let main (args : string array) : int =
         // Uncomment the line below to run them; no filter reaches them while it is commented out,
         // so nothing currently exercises the tracer end to end.
         // Tests.CliTraces.tests
+        Tests.CliScriptLowering.tests
         Tests.Toplevels.tests
 
         // cross-cutting

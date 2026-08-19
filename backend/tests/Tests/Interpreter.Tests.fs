@@ -368,7 +368,13 @@ module RecordUpdate =
       "let r = Test.Test { key = true }\nlet r2 = { r | key = 1 }\nr2.key"
       E.RecordUpdate.fieldWithWrongType
       (RTE.Record(
-        RTE.Records.UpdateFieldOfWrongType("key", VT.bool, VT.int64, RT.DInt64 1L)
+        RTE.Records.UpdateFieldOfWrongType(
+          "key",
+          Some RT.TBool,
+          VT.bool,
+          VT.int64,
+          RT.DInt64 1L
+        )
       ))
 
   let tests =

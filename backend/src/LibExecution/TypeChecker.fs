@@ -655,17 +655,22 @@ let checkFnParam
   (actual : Dval)
   : Ply<Result<TypeSymbolTable, RTE.Error>> =
   uply {
-    let! expected = TypeReference.unwrapAlias types expected
-    match! unify types tst expected actual with
+    let! unwrapped = TypeReference.unwrapAlias types expected
+    match! unify types tst unwrapped actual with
     | Ok updatedTst -> return Ok updatedTst
     | Error _path ->
-      let! expected = TypeReference.toVT types tst expected
+      let! expectedVT = TypeReference.toVT types tst unwrapped
       return
         RTE.Applications.FnParameterNotExpectedType(
           fnName,
           paramIndex,
           paramName,
-          expected,
+          // The reference as written, from before `unwrapAlias`, so an alias
+          // reports the alias. Built here rather than above the unify: it exists
+          // only to describe the failure, and this runs on every parameter of
+          // every call.
+          Some expected,
+          expectedVT,
           Dval.toValueType actual,
           actual
         )
@@ -682,17 +687,19 @@ let checkFnResult
   (actual : Dval)
   : Ply<Result<TypeSymbolTable, RTE.Error>> =
   uply {
-    let! expected = TypeReference.unwrapAlias types expected
-    match! unify types tst expected actual with
+    let! unwrapped = TypeReference.unwrapAlias types expected
+    match! unify types tst unwrapped actual with
     | Ok updatedTst -> return Ok updatedTst
     | Error _path ->
       // Resolved here rather than before the unify: it exists only to render the error, and computing it
       // eagerly meant every successful return -- which is nearly all of them -- paid a full type
       // resolution (`toVT` walks the reference and can hit `Types.find`) to build a message nobody sees.
-      let! expectedVT = TypeReference.toVT types tst expected
+      // `Some expected` is built here for the same reason, and is pre-unwrap so an alias reports the alias.
+      let! expectedVT = TypeReference.toVT types tst unwrapped
       return
         RTE.Applications.FnResultNotExpectedType(
           fnName,
+          Some expected,
           expectedVT,
           Dval.toValueType actual,
           actual
@@ -816,7 +823,14 @@ module DvalCreator =
     match VT.merge expected vt with
     | Ok typ -> DEnum(typeName, typeName, [ typ ], "Some", [ dv ])
     | Error() ->
-      RuntimeError.Enums.ConstructionFieldOfWrongType("Some", 0, expected, vt, dv)
+      RuntimeError.Enums.ConstructionFieldOfWrongType(
+        "Some",
+        0,
+        None,
+        expected,
+        vt,
+        dv
+      )
       |> RuntimeError.Enum
       |> raiseRTE threadID
 
@@ -846,6 +860,7 @@ module DvalCreator =
         RuntimeError.Enums.ConstructionFieldOfWrongType(
           "Ok",
           0,
+          None,
           okType,
           dvalType,
           dvOk
@@ -867,6 +882,7 @@ module DvalCreator =
         RuntimeError.Enums.ConstructionFieldOfWrongType(
           "Error",
           0,
+          None,
           errorType,
           dvalType,
           dvError
@@ -1056,6 +1072,7 @@ module DvalCreator =
             RTE.Enums.ConstructionFieldOfWrongType(
               caseName,
               fieldIndex,
+              Some fieldDef,
               expected,
               Dval.toValueType actualField,
               actualField
@@ -1088,6 +1105,7 @@ module DvalCreator =
                           RTE.Enums.ConstructionFieldOfWrongType(
                             caseName,
                             fieldIndex,
+                            Some fieldDef,
                             expected,
                             Dval.toValueType actualField,
                             actualField
@@ -1352,6 +1370,7 @@ module DvalCreator =
               return
                 RTE.Records.CreationFieldOfWrongType(
                   fieldName,
+                  Some fieldDef.typ,
                   expected,
                   Dval.toValueType fieldValue,
                   fieldValue
@@ -1384,6 +1403,7 @@ module DvalCreator =
                             return
                               RTE.Records.CreationFieldOfWrongType(
                                 fieldName,
+                                Some fieldDef.typ,
                                 expected,
                                 Dval.toValueType fieldValue,
                                 fieldValue
@@ -1475,6 +1495,7 @@ module DvalCreator =
               return
                 RTE.Records.UpdateFieldOfWrongType(
                   fieldName,
+                  Some fieldDef.typ,
                   expected,
                   Dval.toValueType fieldValue,
                   fieldValue
@@ -1506,6 +1527,7 @@ module DvalCreator =
                             return
                               RTE.Records.UpdateFieldOfWrongType(
                                 fieldName,
+                                Some fieldDef.typ,
                                 expected,
                                 Dval.toValueType fieldValue,
                                 fieldValue
