@@ -144,6 +144,82 @@ module RoundTripExpect =
         |> List.mapi (fun i e ->
           $"expr {i}", canon (fun w -> Canonical.writeExpr Canonical.Normal w e)) ]
 
+  /// Canonical contents and their name bindings, in source order.
+  let nameBindings (ops : List<PT.PackageOp>) : List<string> =
+    ops
+    |> List.choose (fun op ->
+      match op with
+      | PT.PackageOp.AddType t ->
+        Some $"content {canon (fun w -> Canonical.writeType Canonical.Normal w t)}"
+      | PT.PackageOp.AddValue v ->
+        Some $"content {canon (fun w -> Canonical.writeValue Canonical.Normal w v)}"
+      | PT.PackageOp.AddFn f ->
+        Some $"content {canon (fun w -> Canonical.writeFn Canonical.Normal w f)}"
+      | PT.PackageOp.SetName(loc, target) ->
+        let kind =
+          match target with
+          | PT.Reference.PackageType _ -> "type"
+          | PT.Reference.PackageValue _ -> "value"
+          | PT.Reference.PackageFn _ -> "fn"
+        let path = String.concat "." (loc.owner :: loc.modules)
+        Some $"bind {kind} {path}.{loc.name}"
+      | _ -> None)
+
+  /// Unresolved names in traversal order, which the canonical serializer omits.
+  let rec collectUnresolved (d : RT.Dval) : List<string> =
+    let fromFields (fields : RT.DvalMap) : List<string> =
+      let own =
+        match Map.tryFind "originalName" fields, Map.tryFind "resolved" fields with
+        | Some(RT.DList(_, segs)), Some(RT.DEnum(_, _, _, "Error", _)) ->
+          let name =
+            segs
+            |> List.choose (fun s ->
+              match s with
+              | RT.DString s -> Some s
+              | _ -> None)
+            |> String.concat "."
+          [ name ]
+        | _ -> []
+      own
+      @ (fields |> Map.toList |> List.collect (fun (_, v) -> collectUnresolved v))
+
+    match d with
+    | RT.DList(_, items) -> items |> List.collect collectUnresolved
+    | RT.DTuple(a, b, rest) -> (a :: b :: rest) |> List.collect collectUnresolved
+    | RT.DRecord(_, _, _, fields) -> fromFields fields
+    | RT.DEnum(_, _, _, _, fields) -> fields |> List.collect collectUnresolved
+    | RT.DDict(_, entries) ->
+      entries |> Map.toList |> List.collect (fun (_, v) -> collectUnresolved v)
+    | RT.DApplicable(RT.AppLambda lambda) ->
+      let closed =
+        lambda.closedRegisters
+        |> List.collect (fun (_, value) -> collectUnresolved value)
+      closed @ (lambda.argsSoFar |> List.collect collectUnresolved)
+    | RT.DApplicable(RT.AppNamedFn namedFn) ->
+      namedFn.argsSoFar |> List.collect collectUnresolved
+
+    | RT.DUnit
+    | RT.DBool _
+    | RT.DInt8 _
+    | RT.DUInt8 _
+    | RT.DInt16 _
+    | RT.DUInt16 _
+    | RT.DInt32 _
+    | RT.DUInt32 _
+    | RT.DInt64 _
+    | RT.DUInt64 _
+    | RT.DInt128 _
+    | RT.DUInt128 _
+    | RT.DInt _
+    | RT.DFloat _
+    | RT.DChar _
+    | RT.DString _
+    | RT.DDateTime _
+    | RT.DUuid _
+    | RT.DDB _
+    | RT.DBlob _
+    | RT.DStream _ -> []
+
   /// Two parses of "the same" source describe the same program.
   let sourceFileEqual
     (actual : SourceFileAst.SourceFile)
@@ -184,7 +260,9 @@ let t
     )
 
   let prettyPrintFnName =
-    RT.FQFnName.fqPackage (PackageRefs.Fn.PrettyPrinter.ProgramTypes.sourceFile ())
+    RT.FQFnName.fqPackage (
+      PackageRefs.Fn.PrettyPrinter.ProgramTypes.sourceFileAtWidth ()
+    )
 
   testTask name {
     let basePM =
@@ -193,10 +271,11 @@ let t
       else
         pmPT |> PT.PackageManager.withExtras extraTypes extraValues extraFns
 
-    // Parse `src` (so its declarations produce PackageOps), then pretty-print it
-    // back to source with those ops available for name resolution. Returns the parsed
-    // source file too, so the caller can compare trees and not just text.
-    let roundOnce (src : string) : Task<RT.Dval * string> =
+    // Parse, then print with the resulting name bindings available.
+    let roundOnceAt
+      (width : int)
+      (src : string)
+      : Task<RT.Dval * List<PT.PackageOp> * string> =
       task {
         let! parseExeState = executionStateFor basePM false Map.empty
         let args = NEList.singleton (RT.DString src)
@@ -219,7 +298,10 @@ let t
           let enhancedPM = LibDB.PackageManager.withExtraOps basePM packageOps
           let! ppExeState = executionStateFor enhancedPM false Map.empty
 
-          let ppArgs = NEList.ofList (RT.DUuid PT.mainBranchId) [ sourceFile ]
+          let ppArgs =
+            NEList.ofList
+              (RT.DUuid PT.mainBranchId)
+              [ Dval.int (bigint width); sourceFile ]
           let! ppResult =
             LibExecution.Execution.executeFunction
               ppExeState
@@ -229,7 +311,7 @@ let t
           let! resultDval = unwrapExecutionResult ppExeState ppResult |> Ply.toTask
 
           match resultDval with
-          | RT.DString result -> return (sourceFile, result)
+          | RT.DString result -> return (sourceFile, packageOps, result)
           | _ -> return failtest $"Unexpected pretty print result: {resultDval}"
 
         | RT.DEnum(tn, _, _, "Error", [ RT.DString errMsg ]) when
@@ -239,40 +321,59 @@ let t
         | _ -> return failtest $"Unexpected parse result format: {parseDval}"
       }
 
-    let! (firstTree, firstPrint) = roundOnce input
+    let roundOnce (src : string) : Task<RT.Dval * List<PT.PackageOp> * string> =
+      roundOnceAt 80 src
+
+    let! (firstTree, firstOps, firstPrint) = roundOnce input
     Expect.RT.equalDval
       (RT.DString firstPrint)
       (RT.DString expected)
       "Didn't round-trip as expected"
 
-    // Print, parse, print: the second print must equal the first.
-    //
-    // The assertion above only says the printer turns *this* input into the expected text. It says
-    // nothing about whether the printer's own output is a fixed point, and those come apart: a printer
-    // that re-qualifies a name, or lays a construct out differently from how it accepts it, passes the
-    // first check and still churns the text every time a file goes through it. That matters here
-    // because the expected strings are hand-written, so a layout change means regenerating them -- and
-    // a regenerated expectation is only trustworthy if the printer agrees with itself.
+    // Printing the printer's output must be a fixed point.
     if Set.contains name knownNonIdempotent then
       return ()
     else
-      let! (secondTree, secondPrint) = roundOnce firstPrint
+      let! (secondTree, secondOps, secondPrint) = roundOnce firstPrint
       Expect.RT.equalDval
         (RT.DString secondPrint)
         (RT.DString firstPrint)
         "Printing is not idempotent: printing the printer's own output changed it"
 
-      // Parse, print, parse: the second tree must equal the first.
-      //
-      // Text idempotency can't see a printer that emits stable-but-wrong text: `if a then (if b
-      // then c) else d` printed flat re-parses with the `else` on the inner `if`, and printing
-      // that again gives the same flat text, so both checks above pass while the program has
-      // changed meaning. Comparing the trees (ids aside) is what catches that.
-      return
+      // Text idempotency does not detect stable output with different semantics.
+      RoundTripExpect.sourceFileEqual
+        (SourceFileAst.ofDval secondTree)
+        (SourceFileAst.ofDval firstTree)
+        firstPrint
+
+      // Canonical content omits bindings and unresolved-name spellings.
+      Expect.equal
+        (RoundTripExpect.nameBindings secondOps)
+        (RoundTripExpect.nameBindings firstOps)
+        "Re-parsing the printed source bound different names"
+
+      Expect.equal
+        (RoundTripExpect.collectUnresolved secondTree)
+        (RoundTripExpect.collectUnresolved firstTree)
+        "Re-parsing the printed source changed an unresolved name"
+
+      // Every chosen layout must parse to the same program.
+      for width in [ 20; 48; 200 ] do
+        let! (_, _, sweepPrint) = roundOnceAt width input
+        let! (sweepTree, sweepOps, _) = roundOnce sweepPrint
+        Expect.equal
+          (RoundTripExpect.nameBindings sweepOps)
+          (RoundTripExpect.nameBindings firstOps)
+          $"Width-{width} rendering bound different names"
+
+        Expect.equal
+          (RoundTripExpect.collectUnresolved sweepTree)
+          (RoundTripExpect.collectUnresolved firstTree)
+          $"Width-{width} rendering changed an unresolved name"
         RoundTripExpect.sourceFileEqual
-          (SourceFileAst.ofDval secondTree)
+          (SourceFileAst.ofDval sweepTree)
           (SourceFileAst.ofDval firstTree)
-          firstPrint
+          $"(printed at width {width})\n{sweepPrint}"
   }
 
 
@@ -521,6 +622,20 @@ let myEnum : (PT.PackageType.PackageType * PT.PackageLocation) =
                          { typ = PT.TypeReference.TInt64
                            label = None
                            description = "" } ]
+                     description = "" })
+                  ({ name = "E"
+                     fields =
+                       [ { typ = PT.TypeReference.TInt64
+                           label = None
+                           description = "" }
+
+                         { typ = PT.TypeReference.TInt64
+                           label = None
+                           description = "" }
+
+                         { typ = PT.TypeReference.TInt64
+                           label = None
+                           description = "" } ]
                      description = "" }) ]
             ) } }
   let location : PT.PackageLocation =
@@ -741,6 +856,31 @@ let typeReferences =
       []
       false
 
+    t
+      "fn with fn arg"
+      "type HigherOrder = (Int64 -> String) -> Bool"
+      "type HigherOrder =\n  (Int64 -> String) -> Bool"
+      []
+      []
+      []
+      false
+    t
+      "fn with fn return"
+      "type Curried = Int64 -> (String -> Bool)"
+      "type Curried =\n  Int64 -> (String -> Bool)"
+      []
+      []
+      []
+      false
+    t
+      "tuple containing fn"
+      "type FunctionAndFlag = ((Int64 -> String) * Bool)"
+      "type FunctionAndFlag =\n  ((Int64 -> String) * Bool)"
+      []
+      []
+      []
+      false
+
     t "db with generic" "type MyDB = DB<'a>" "type MyDB =\n  DB<'a>" [] [] [] false
     t
       "db with custom type"
@@ -851,6 +991,15 @@ let typeReferences =
 
 let typeDeclarations =
   [ t "unit" "type SimpleAlias = Unit" "type SimpleAlias =\n  Unit" [] [] [] false
+
+    t
+      "enum with fn field in product"
+      "type WithCallback = | WithCallback of (Int64 -> String) * Bool"
+      "type WithCallback =\n  | WithCallback of (Int64 -> String) * Bool"
+      []
+      []
+      []
+      false
 
     t
       "type doc comment"
@@ -2035,11 +2184,27 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
 
     // pipe expression
     t "pipe, infix" "1L |> (+) 2L" "1L |> (+) 2L" [] [] [] false
+    t
+      "pipe, computed arg"
+      "[1L; 2L] |> Stdlib.List.take (2L - 1L)"
+      "[1L; 2L] |> Stdlib.List.take (2L - 1L)"
+      []
+      []
+      []
+      false
+    t
+      "pipe, if head"
+      "(if true then 1L else 2L) |> Stdlib.Int64.add 1L"
+      "(if true then 1L else 2L) |> Stdlib.Int64.add 1L"
+      []
+      []
+      []
+      false
     t "pipe, into var" "1L |> x" "1L |> x" [] [] [] false
     t
       "pipe, into lambda"
       "1L |> (fun x -> x + 1L)"
-      "1L |> fun x -> x + 1L"
+      "1L |> (fun x -> x + 1L)"
       []
       []
       []
@@ -2047,7 +2212,7 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
     t
       "pipe, into lambda, 2"
       "1L |> fun x -> x + 1L"
-      "1L |> fun x -> x + 1L"
+      "1L |> (fun x -> x + 1L)"
       []
       []
       []
@@ -2064,6 +2229,22 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       "pipe, into enum 2"
       "33L |> Tests.MyEnum.D(21L)"
       "33L |> Tests.MyEnum.D(21L)"
+      [ myEnum ]
+      []
+      []
+      false
+    t
+      "pipe, lambda then another stage"
+      "1L |> (fun x -> x + 1L) |> Stdlib.Int64.add 2L"
+      "1L |> (fun x -> x + 1L) |> Stdlib.Int64.add 2L"
+      []
+      []
+      []
+      false
+    t
+      "pipe, into enum, several fields"
+      "33L |> Tests.MyEnum.E(21L, 42L)"
+      "33L |> Tests.MyEnum.E(21L, 42L)"
       [ myEnum ]
       []
       []
@@ -2385,6 +2566,24 @@ let functionDeclarations =
       "function doc comment"
       "/// Greets a user\nlet greet (name: String): String = \"Hello \" ++ name"
       "/// Greets a user\nlet greet (name: String): String =\n  \"Hello \" ++ name"
+      []
+      []
+      []
+      false
+
+    t
+      "nested fn type in parameter"
+      "let apply (f: (Int64 -> String) -> Bool): Bool = true"
+      "let apply (f: (Int64 -> String) -> Bool): Bool =\n  true"
+      []
+      []
+      []
+      false
+
+    t
+      "nested fn type in return"
+      "let curry (): Int64 -> (String -> Bool) = fun x y -> true"
+      "let curry (): Int64 -> (String -> Bool) =\n  (fun x y -> true)"
       []
       []
       []

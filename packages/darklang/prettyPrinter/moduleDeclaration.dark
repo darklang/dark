@@ -346,7 +346,8 @@ let moduleDeclaration
   (ctx: PrettyPrinter.ProgramTypes.Context)
   (m: ModuleDeclaration.Module)
   : String =
-  let headerPart = $"module {m.name} =\n"
+  // Account for the indentation added after rendering.
+  let ctx = { ctx with width = Stdlib.Int.max 1 (ctx.width - 2) }
 
   let typesPart =
     match m.types with

@@ -68,6 +68,9 @@ let styled (opening: String) (t: String) (closing: String) : Doc = Doc.Styled(op
 
 let concat (a: Doc) (b: Doc) : Doc = Doc.Concat(a, b)
 
+let concatAll (ds: List<Doc>) : Doc =
+  Stdlib.List.fold ds Doc.Empty (fun acc d -> Doc.Concat(acc, d))
+
 let concatSpace (a: Doc) (b: Doc) : Doc = Doc.Concat(a, Doc.Concat(Doc.Text " ", b))
 
 let concatLine (a: Doc) (b: Doc) : Doc = Doc.Concat(a, Doc.Concat(Doc.Line, b))
@@ -88,6 +91,16 @@ let vsep (ds: List<Doc>) : Doc =
   match ds with
   | [] -> Doc.Empty
   | first :: rest -> Stdlib.List.fold rest first (fun acc d -> Pretty.concatLine acc d)
+
+/// Hang `items` from `head`, breaking and indenting them when needed.
+let hang (indent: Int) (head: Doc) (items: List<Doc>) : Doc =
+  Doc.Group(
+    Doc.Concat(
+      head,
+      Doc.Nest(
+        indent,
+        Pretty.concatAll (items |> Stdlib.List.map (fun d -> Doc.Concat(Doc.Line, d))))))
+
 
 /// Join with `sep` between items.
 ///
