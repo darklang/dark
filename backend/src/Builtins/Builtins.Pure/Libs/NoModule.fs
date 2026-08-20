@@ -768,4 +768,11 @@ let fns () : List<BuiltInFn> =
     ]
 
 
-let builtins () = LibExecution.Builtin.make [] (fns ())
+let builtins () =
+  // The operators (`add`, `equals`, `lessThan`, `negate`, ...) declare independent
+  // `'a`/`'b` parameters because the type language has no numeric constraint and
+  // no way to say "same type as the other argument"; their implementations
+  // dispatch on the runtime value. Infix syntax lowers to them
+  // (`PT.InfixFnName.toBuiltinName`, and `-x` to `negate`), and the at-rest checker
+  // checks a by-name call with the operator's rule rather than this signature.
+  LibExecution.Builtin.make [] (fns ())

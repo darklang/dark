@@ -205,7 +205,47 @@ let insertAndApplyOpsAsWip
   insertAndApplyOps branchId None ops
 
 
-/// Names in `ops` whose SetName would bind a name to a DIFFERENT kind than the one live there — reported as
+/// The hashes that two `Add*` ops in <param ops> claim for different content,
+/// as ready-to-print messages; empty when the batch is sound.
+///
+/// Unlike `kindClashes` this IS an invariant, on every path including sync: a
+/// hash names exactly one body. The batch that breaks it is a duplicate name
+/// that went through `HashStabilization.computeRealHashes`, which keys by name
+/// and so hands both bodies the survivor's hash. Storing that would file one
+/// body under the other's identity (and insertion's dedupe of identical ops
+/// then leaves an orphan `Add` that `WipRefresh` cannot repair), so it is
+/// refused before anything is written.
+let hashClashes (ops : List<PT.PackageOp>) : List<string> =
+  let declared =
+    ops
+    |> List.choose (fun op ->
+      match op with
+      | PT.PackageOp.AddType t ->
+        Some(("type", t.hash), Hashing.computeTypeHash Hashing.Normal t)
+      | PT.PackageOp.AddFn f ->
+        Some(("fn", f.hash), Hashing.computeFnHash Hashing.Normal f)
+      | PT.PackageOp.AddValue v ->
+        Some(("value", v.hash), Hashing.computeValueHash Hashing.Normal v)
+      | _ -> None)
+    |> List.filter (fun ((_, Hash h), _) -> h <> "")
+  declared
+  |> List.fold
+    (fun (acc : Map<string * Hash, List<Hash>>) (key, fingerprint) ->
+      let fingerprints = Map.tryFind key acc |> Option.defaultValue []
+      Map.add key (fingerprint :: fingerprints) acc)
+    Map.empty
+  |> Map.toList
+  |> List.choose (fun ((kind, Hash h), fingerprints) ->
+    // Compare the same canonical, meaning-stable representation used for
+    // content identity. Descriptions, parameter names and alpha-renamed
+    // binders deliberately do not make two declarations different bodies.
+    let distinct = List.distinct fingerprints
+    if List.length distinct > 1 then
+      Some $"{kind} hash {h} is claimed by {List.length distinct} different bodies"
+    else
+      None)
+
+
 /// ready-to-print messages, empty when there's no clash.
 ///
 /// One name holds one item, so replacing a value with a fn at the same name is a real decision, not a typo to

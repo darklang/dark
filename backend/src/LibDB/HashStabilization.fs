@@ -186,6 +186,32 @@ let remapSetNames
     | other -> other)
 
 
+/// The (kind, FQN) pairs that more than one Add+SetName pair in <param ops>
+/// declares, as "fn Darklang.Foo.bar"-style strings, in first-seen order.
+///
+/// `computeRealHashes` assumes each location is declared once: it keys items by
+/// FQN, so two bodies at one name silently collapse to one hash, and whichever
+/// body loses is then stored under the winner's content hash. A raw op stream
+/// can legitimately hold the same name twice (edits are successive pairs, which
+/// `WipRefresh.compactWipOps` folds), so this is not checked in there; authoring
+/// boundaries call it on the batch they are about to stabilize and refuse.
+let duplicateDeclarations (ops : List<PT.PackageOp>) : List<string> =
+  let rec pairs (remaining : List<PT.PackageOp>) (acc : List<string * string>) =
+    match remaining with
+    | PT.PackageOp.AddType _ :: PT.PackageOp.SetName(loc, PT.PackageType _) :: rest ->
+      pairs rest (("type", PackageLocation.toFQN loc) :: acc)
+    | PT.PackageOp.AddFn _ :: PT.PackageOp.SetName(loc, PT.PackageFn _) :: rest ->
+      pairs rest (("fn", PackageLocation.toFQN loc) :: acc)
+    | PT.PackageOp.AddValue _ :: PT.PackageOp.SetName(loc, PT.PackageValue _) :: rest ->
+      pairs rest (("value", PackageLocation.toFQN loc) :: acc)
+    | _ :: rest -> pairs rest acc
+    | [] -> List.rev acc
+  pairs ops []
+  |> List.countBy (fun key -> key)
+  |> List.filter (fun (_, count) -> count > 1)
+  |> List.map (fun ((kind, fqn), _) -> $"{kind} {fqn}")
+
+
 /// Post-process parsed ops to compute real hashes using SCC-aware hashing.
 /// Expects SetName hashes to match the Hash references in items' ASTs
 /// (either placeholder IDs on first pass, or previous hashes via remapSetNames).

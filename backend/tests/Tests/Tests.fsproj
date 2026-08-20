@@ -56,6 +56,7 @@
     <Compile Include="OpsProjections.Tests.fs" />
     <Compile Include="SyncScenarios.Tests.fs" />
     <Compile Include="MultiInstanceHarness.fs" />
+    <Compile Include="AtRestTypeChecker.Tests.fs" />
     <Compile Include="MultiInstance.Tests.fs" />
     <Compile Include="SyncE2E.Tests.fs" />
     <Compile Include="Releases.Tests.fs" />

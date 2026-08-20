@@ -14,6 +14,7 @@ open LibExecution.Builtin.Shortcuts
 
 module Dval = LibExecution.Dval
 module Execution = LibExecution.Execution
+module NR = LibExecution.RuntimeTypes.NameResolution
 module Http = Builtins.Http.Server.Http
 module AT = LibExecution.AnalysisTypes
 module Tracing = LibDB.Tracing
@@ -370,8 +371,24 @@ let fns () : List<BuiltInFn> =
         [ Param.make "port" TInt "TCP port to listen on"
           Param.makeWithArgs
             "handler"
-            // CLEANUP real types
-            (TFn(NEList.singleton (TVariable "request"), TVariable "response"))
+            (TFn(
+              NEList.singleton (
+                TCustomType(
+                  FQTypeName.fqPackage (
+                    LibExecution.PackageRefs.Type.Stdlib.Http.request ()
+                  )
+                  |> NR.ok,
+                  []
+                )
+              ),
+              TCustomType(
+                FQTypeName.fqPackage (
+                  LibExecution.PackageRefs.Type.Stdlib.Http.response ()
+                )
+                |> NR.ok,
+                []
+              )
+            ))
             "Handler function: request -> response"
             [ "request" ]
           Param.make

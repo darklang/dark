@@ -231,6 +231,44 @@ let toPT
     unresolvedNames)
 
 
+/// Find the stabilized identity corresponding to one provisional first-pass
+/// declaration. Hash stabilization preserves operation order.
+let stabilizedHash
+  (original: ProgramTypes.Reference)
+  (provisionalOps: List<ProgramTypes.PackageOp>)
+  (stabilizedOps: List<ProgramTypes.PackageOp>)
+  : ProgramTypes.Hash =
+  match (provisionalOps, stabilizedOps) with
+  | (provisional :: provisionalRest, stabilized :: stabilizedRest) ->
+    let references =
+      match (provisional, stabilized) with
+      | (AddType before, AddType after) ->
+        Stdlib.Option.Option.Some(
+          (ProgramTypes.Reference.PackageType before.hash,
+            ProgramTypes.Reference.PackageType after.hash)
+        )
+      | (AddValue before, AddValue after) ->
+        Stdlib.Option.Option.Some(
+          (ProgramTypes.Reference.PackageValue before.hash,
+            ProgramTypes.Reference.PackageValue after.hash)
+        )
+      | (AddFn before, AddFn after) ->
+        Stdlib.Option.Option.Some(
+          (ProgramTypes.Reference.PackageFn before.hash,
+            ProgramTypes.Reference.PackageFn after.hash)
+        )
+      | _ -> Stdlib.Option.Option.None
+
+    match references with
+    | Some((before, after)) ->
+      if before == original then
+        ProgramTypes.Reference.hash after
+      else
+        stabilizedHash original provisionalRest stabilizedRest
+    | None -> stabilizedHash original provisionalRest stabilizedRest
+  | _ -> ProgramTypes.Reference.hash original
+
+
 /// Name-resolves + lowers an ALREADY-PARSED WrittenTypes file. The LSP parses
 /// and feeds the result here directly (no re-parse).
 let parseFromWT
@@ -243,13 +281,11 @@ let parseFromWT
     | Error e -> Stdlib.Result.Result.Error e
     | Ok moduleWT ->
       // First pass: parse and generate ops (allowing unresolved names)
-      let (initialParse, firstPassOps, _) =
+      let (initialParse, provisionalFirstPassOps, _) =
         toPT { ctx with onMissing = NameResolver.OnMissing.Allow } moduleWT
 
       // Stabilize first-pass ops so PM has real content-addressed hashes
-      let firstPassOps =
-        LanguageTools.WrittenTypesToProgramTypes.stabilizePackageOps
-          firstPassOps
+      let firstPassOps = LanguageTools.PackageManager.stabilizeHashes provisionalFirstPassOps
 
       // Create PM with stabilized first pass ops for second pass
       let pm = ProgramTypes.PackageManager.withExtraOps ctx.pm firstPassOps
@@ -263,7 +299,12 @@ let parseFromWT
           zipped
           |> Stdlib.List.map (fun tuple ->
             let (newType, originalType) = tuple
-            { newType with hash = originalType.hash }))
+            { newType with
+                hash =
+                  stabilizedHash
+                    (ProgramTypes.Reference.PackageType originalType.hash)
+                    provisionalFirstPassOps
+                    firstPassOps }))
 
       let adjustedValues =
         (Stdlib.List.zip result.values initialParse.values)
@@ -271,7 +312,12 @@ let parseFromWT
           zipped
           |> Stdlib.List.map (fun tuple ->
             let (newValue, originalValue) = tuple
-            { newValue with hash = originalValue.hash }))
+            { newValue with
+                hash =
+                  stabilizedHash
+                    (ProgramTypes.Reference.PackageValue originalValue.hash)
+                    provisionalFirstPassOps
+                    firstPassOps }))
 
       let adjustedFns =
         (Stdlib.List.zip result.fns initialParse.fns)
@@ -279,7 +325,12 @@ let parseFromWT
           zipped
           |> Stdlib.List.map (fun tuple ->
             let (newFn, originalFn) = tuple
-            { newFn with hash = originalFn.hash }))
+            { newFn with
+                hash =
+                  stabilizedHash
+                    (ProgramTypes.Reference.PackageFn originalFn.hash)
+                    provisionalFirstPassOps
+                    firstPassOps }))
 
       let adjustedSubmodules =
         (Stdlib.List.zip result.submodules initialParse.submodules)
@@ -294,7 +345,12 @@ let parseFromWT
                 z
                 |> Stdlib.List.map (fun t ->
                   let (newT, origT) = t
-                  { newT with hash = origT.hash }))
+                  { newT with
+                      hash =
+                        stabilizedHash
+                          (ProgramTypes.Reference.PackageType origT.hash)
+                          provisionalFirstPassOps
+                          firstPassOps }))
 
             let subValues =
               (Stdlib.List.zip newSub.values originalSub.values)
@@ -302,7 +358,12 @@ let parseFromWT
                 z
                 |> Stdlib.List.map (fun v ->
                   let (newV, origV) = v
-                  { newV with hash = origV.hash }))
+                  { newV with
+                      hash =
+                        stabilizedHash
+                          (ProgramTypes.Reference.PackageValue origV.hash)
+                          provisionalFirstPassOps
+                          firstPassOps }))
 
             let subFns =
               (Stdlib.List.zip newSub.fns originalSub.fns)
@@ -310,7 +371,12 @@ let parseFromWT
                 z
                 |> Stdlib.List.map (fun f ->
                   let (newF, origF) = f
-                  { newF with hash = origF.hash }))
+                  { newF with
+                      hash =
+                        stabilizedHash
+                          (ProgramTypes.Reference.PackageFn origF.hash)
+                          provisionalFirstPassOps
+                          firstPassOps }))
 
             ProgramTypes.Definitions
               { types = subTypes

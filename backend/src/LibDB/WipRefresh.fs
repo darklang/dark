@@ -136,7 +136,7 @@ let private reResolveAllItems
 ///    item's NRs only to throw the older copies away).
 /// 3. Re-resolve unresolved NameResolutions using current PM
 /// 4. Run HashStabilization.computeRealHashes
-/// 5. If any hashes changed, discard old WIP and re-insert
+/// 5. If the ops changed at all, discard old WIP and re-insert
 /// 6. Return count of changed items
 let refresh (pm : PT.PackageManager) (branchId : System.Guid) : Task<int64> =
   task {
@@ -158,11 +158,19 @@ let refresh (pm : PT.PackageManager) (branchId : System.Guid) : Task<int64> =
       // 4. Stabilize hashes (SCC-aware)
       let stabilizedOps = HS.computeRealHashes reResolvedOps
 
-      // 5. Compare old and new hashes
+      // 5. Compare the stored ops with what they should be. The hash set alone
+      // is not enough: two bodies already stored under one hash (a duplicate
+      // name that got past an authoring check) leave the set unchanged while
+      // compaction dropped one of them, and skipping the rewrite would keep the
+      // loser on disk under the winner's hash. Compaction only removes ops and
+      // any body change moves its hash, so hash set plus op count is the
+      // normalized comparison. (Not full structural equality: ops from sync or
+      // disk may carry an empty `hash` on the Add item that stabilization
+      // fills, which would rewrite all WIP on every refresh.)
       let oldHashes = HS.extractAllHashes wipOps |> Set.ofList
       let newHashes = HS.extractAllHashes stabilizedOps |> Set.ofList
 
-      if oldHashes = newHashes then
+      if oldHashes = newHashes && List.length stabilizedOps = List.length wipOps then
         return 0L
       else
         // Count changed items (items that got a new hash)

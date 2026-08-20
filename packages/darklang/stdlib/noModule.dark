@@ -2,7 +2,7 @@ module Darklang.Stdlib
 
 
 /// Returns true if the two value are equal
-let equals (a: 'a) (b: 'a) : Bool = Builtin.equals a b
+let equals (a: 'a) (b: 'a) : Bool = a == b
 
 
 /// Returns true if the two value are not equal

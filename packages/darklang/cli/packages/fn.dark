@@ -133,9 +133,12 @@ let createFnInline
             [ LanguageTools.ProgramTypes.PackageOp.AddFn packageFn
               LanguageTools.ProgramTypes.PackageOp.SetName (location, LanguageTools.ProgramTypes.Reference.PackageFn packageFn.hash) ]
 
-          // Add ops as WIP (use 'scm commit' to commit)
-          match SCM.PackageOps.add state.currentBranchId ops with
-          | Ok _ ->
+          // Add ops as WIP (use 'commit' to commit). The at-rest checker's verdict
+          // is shown, not enforced, here; `commit` is what refuses a Failed one.
+          match SCM.PackageOps.addAuthored state.currentBranchId ops with
+          | Ok report ->
+            AtRestCheck.printSaveReport state.currentBranchId report
+
             // Show success message
             let fullPath = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation location
             let action = if isUpdate then "Updated" else "Created"

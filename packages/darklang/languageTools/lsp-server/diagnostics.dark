@@ -1,10 +1,257 @@
 module Darklang.LanguageTools.LspServer.Diagnostics
 
 
+type ItemSource =
+  { hash: String
+    range: Parser.Range }
+
+let moduleTypes
+  (m: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+  : List<WrittenTypes.TypeDeclaration.TypeDeclaration> =
+  let direct =
+    m.declarations
+    |> Stdlib.List.filterMap (fun declaration ->
+      match declaration with
+      | Type typ -> Stdlib.Option.Option.Some typ
+      | _ -> Stdlib.Option.Option.None)
+  let nested =
+    m.declarations
+    |> Stdlib.List.filterMap (fun declaration ->
+      match declaration with
+      | SubModule submodule -> Stdlib.Option.Option.Some(moduleTypes submodule)
+      | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.List.flatten
+  Stdlib.List.append direct nested
+
+let moduleValues
+  (m: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+  : List<WrittenTypes.ValueDeclaration.ValueDeclaration> =
+  let direct =
+    m.declarations
+    |> Stdlib.List.filterMap (fun declaration ->
+      match declaration with
+      | Value value -> Stdlib.Option.Option.Some value
+      | _ -> Stdlib.Option.Option.None)
+  let nested =
+    m.declarations
+    |> Stdlib.List.filterMap (fun declaration ->
+      match declaration with
+      | SubModule submodule -> Stdlib.Option.Option.Some(moduleValues submodule)
+      | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.List.flatten
+  Stdlib.List.append direct nested
+
+let moduleFns
+  (m: WrittenTypes.ModuleDeclaration.ModuleDeclaration)
+  : List<WrittenTypes.FnDeclaration.FnDeclaration> =
+  let direct =
+    m.declarations
+    |> Stdlib.List.filterMap (fun declaration ->
+      match declaration with
+      | Function fn -> Stdlib.Option.Option.Some fn
+      | _ -> Stdlib.Option.Option.None)
+  let nested =
+    m.declarations
+    |> Stdlib.List.filterMap (fun declaration ->
+      match declaration with
+      | SubModule submodule -> Stdlib.Option.Option.Some(moduleFns submodule)
+      | _ -> Stdlib.Option.Option.None)
+    |> Stdlib.List.flatten
+  Stdlib.List.append direct nested
+
+let typeSources
+  (written: List<WrittenTypes.TypeDeclaration.TypeDeclaration>)
+  (program: List<ProgramTypes.PackageType.PackageType>)
+  : List<ItemSource> =
+  match written with
+  | [] -> []
+  | wt :: wtRest ->
+    match program with
+    | [] -> []
+    | pt :: ptRest ->
+      Stdlib.List.push
+        (typeSources wtRest ptRest)
+        (ItemSource
+          { hash = ProgramTypes.hashToString pt.hash
+            range = wt.range })
+
+let valueSources
+  (written: List<WrittenTypes.ValueDeclaration.ValueDeclaration>)
+  (program: List<ProgramTypes.PackageValue.PackageValue>)
+  : List<ItemSource> =
+  match written with
+  | [] -> []
+  | wt :: wtRest ->
+    match program with
+    | [] -> []
+    | pt :: ptRest ->
+      Stdlib.List.push
+        (valueSources wtRest ptRest)
+        (ItemSource
+          { hash = ProgramTypes.hashToString pt.hash
+            range = WrittenTypes.Expr.range wt.body })
+
+let fnSources
+  (written: List<WrittenTypes.FnDeclaration.FnDeclaration>)
+  (program: List<ProgramTypes.PackageFn.PackageFn>)
+  : List<ItemSource> =
+  match written with
+  | [] -> []
+  | wt :: wtRest ->
+    match program with
+    | [] -> []
+    | pt :: ptRest ->
+      Stdlib.List.push
+        (fnSources wtRest ptRest)
+        (ItemSource
+          { hash = ProgramTypes.hashToString pt.hash
+            range = WrittenTypes.Expr.range wt.body })
+
+let submoduleSources
+  (written: List<WrittenTypes.ModuleDeclaration.ModuleDeclaration>)
+  (program: List<ProgramTypes.Definitions>)
+  : List<ItemSource> =
+  match written with
+  | [] -> []
+  | wt :: wtRest ->
+    match program with
+    | [] -> []
+    | pt :: ptRest ->
+      let current =
+        Stdlib.List.flatten
+          [ typeSources (moduleTypes wt) pt.types
+            valueSources (moduleValues wt) pt.values
+            fnSources (moduleFns wt) pt.fns ]
+      Stdlib.List.append current (submoduleSources wtRest ptRest)
+
+let packageOpsAndSources
+  (written: Parser.CliScript.WTCliScriptModule)
+  (program: Parser.CliScript.PTCliScriptModule)
+  : (List<ProgramTypes.PackageOp> * List<ItemSource>) =
+  let ops =
+    Stdlib.List.flatten
+      [ program.types
+        |> Stdlib.List.map (fun typ -> ProgramTypes.PackageOp.AddType typ)
+        program.values
+        |> Stdlib.List.map (fun value -> ProgramTypes.PackageOp.AddValue value)
+        program.fns
+        |> Stdlib.List.map (fun fn -> ProgramTypes.PackageOp.AddFn fn)
+        program.submodules
+        |> Stdlib.List.map (fun definitions ->
+          Stdlib.List.flatten
+            [ definitions.types
+              |> Stdlib.List.map (fun typ -> ProgramTypes.PackageOp.AddType typ)
+              definitions.values
+              |> Stdlib.List.map (fun value -> ProgramTypes.PackageOp.AddValue value)
+              definitions.fns
+              |> Stdlib.List.map (fun fn -> ProgramTypes.PackageOp.AddFn fn) ])
+        |> Stdlib.List.flatten ]
+  let sources =
+    Stdlib.List.flatten
+      [ typeSources written.types program.types
+        valueSources written.values program.values
+        fnSources written.fns program.fns
+        submoduleSources written.submodules program.submodules ]
+  (ops, sources)
+
+/// Every source range that produced `reference`. Items are content-addressed, so
+/// two declarations with identical bodies share one hash and one report entry;
+/// each of them gets the diagnostic.
+let sourcesForItem
+  (fallback: Parser.Range)
+  (sources: List<ItemSource>)
+  (reference: ProgramTypes.Reference)
+  : List<Parser.Range> =
+  let hash =
+    reference
+    |> ProgramTypes.Reference.hash
+    |> ProgramTypes.hashToString
+  match
+    sources
+    |> Stdlib.List.filter (fun source -> source.hash == hash)
+    |> Stdlib.List.map (fun source -> source.range)
+  with
+  | [] -> [ fallback ]
+  | ranges -> ranges
+
+let issueDiagnostic
+  (severity: LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity)
+  (range: Parser.Range)
+  (issue: AtRestTypeChecker.Issue)
+  : LanguageServerProtocol.Diagnostic.Diagnostic =
+  createDiagnosticWithCode
+    severity
+    range
+    (AtRestTypeChecker.issueCodeToString issue.code)
+    "darklang-at-rest"
+    (AtRestTypeChecker.issueToString issue)
+
+/// The name resolver already reports every unresolved name in the document as a
+/// warning, at the identifier's own range. The checker blocks on the same names
+/// per item, at the declaration's range; publishing both warns twice for one
+/// problem.
+let reportedByNameResolver (issue: AtRestTypeChecker.Issue) : Bool =
+  match issue.code with
+  | UnresolvedTypeName
+  | UnresolvedFunctionName
+  | UnresolvedValueName -> true
+  | _ -> false
+
+let itemDiagnostics
+  (fallback: Parser.Range)
+  (sources: List<ItemSource>)
+  (item: AtRestTypeChecker.ItemReport)
+  : List<LanguageServerProtocol.Diagnostic.Diagnostic> =
+  let ranges = sourcesForItem fallback sources item.item
+  // Severity follows the issue, not the item: a definite diagnostic is an error,
+  // a blocker is only "couldn't prove" and stays a warning even when the same
+  // item also has a definite error. Rendering a Failed item's blockers as errors
+  // would tell the author two things are wrong when the checker knows of one.
+  let keep (issue: AtRestTypeChecker.Issue) : Bool =
+    Stdlib.Bool.not (reportedByNameResolver issue)
+  let severityOf
+    (severity: LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity)
+    (issues: List<AtRestTypeChecker.Issue>)
+    : List<LanguageServerProtocol.Diagnostic.Diagnostic> =
+    ranges
+    |> Stdlib.List.map (fun range ->
+      issues
+      |> Stdlib.List.filter keep
+      |> Stdlib.List.map (issueDiagnostic severity range))
+    |> Stdlib.List.flatten
+  let error = LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Error
+  let warning = LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Warning
+  Stdlib.List.append
+    (severityOf error item.diagnostics)
+    (severityOf warning item.blockers)
+
+
+let atRestDiagnostics
+  (fallback: Parser.Range)
+  (written: Parser.CliScript.WTCliScriptModule)
+  (program: Parser.CliScript.PTCliScriptModule)
+  : List<LanguageServerProtocol.Diagnostic.Diagnostic> =
+  let (ops, sources) = packageOpsAndSources written program
+  let report = AtRestTypeChecker.checkPackageOps ops
+  let itemResults =
+    report.items
+    |> Stdlib.List.map (itemDiagnostics fallback sources)
+    |> Stdlib.List.flatten
+  let aggregateBlockers =
+    if Stdlib.List.isEmpty report.items then
+      report.blockers
+      |> Stdlib.List.map (issueDiagnostic
+           LanguageServerProtocol.DiagnosticSeverity.DiagnosticSeverity.Warning
+           fallback)
+    else
+      []
+  Stdlib.List.append itemResults aggregateBlockers
+
 let gatherAndReportDiagnostics
   (requestUri: String)
   (unresolvedNames: List<WrittenTypes.UnresolvedName>)
   (parseDiagnostics: List<(Parser.Range * String)>)
+  (checkerDiagnostics: List<LanguageServerProtocol.Diagnostic.Diagnostic>)
   : Unit =
   let warningDiagnostics =
     unresolvedNames
@@ -13,65 +260,12 @@ let gatherAndReportDiagnostics
         range
         (PrettyPrinter.ProgramTypes.NameResolutionError.error originalName error))
 
-  // precise syntax errors from the parser
   let syntaxErrorDiagnostics =
     parseDiagnostics
     |> Stdlib.List.map (fun (range, message) -> createErrorDiagnostic range message)
 
-  let diagnostics = Stdlib.List.append warningDiagnostics syntaxErrorDiagnostics
+  let diagnostics =
+    Stdlib.List.flatten
+      [ warningDiagnostics; syntaxErrorDiagnostics; checkerDiagnostics ]
 
   sendDiagnostic requestUri diagnostics
-
-
-
-
-(* future: report diagnostics on content update or save
-
-async function gatherAndReportDiagnostics(
-  textDocument: TextDocument,
-): Promise<void> {
-  const diagnosticsFromDarkResponse = await runDarkCli(
-    "@LanguageTools.LanguageServerProtocol.getDiagnostics",
-    textDocument.uri,
-    JSON.stringify(textDocument.getText()),
-  );
-
-  if (diagnosticsFromDarkResponse.stderr) {
-    console.error("stderr", diagnosticsFromDarkResponse.stderr);
-  } else {
-    console.log("got diagnostics back", diagnosticsFromDarkResponse.stdout);
-    const diagnosticsFromDark: ComputeDiagnosticsOutput = JSON.parse(
-      diagnosticsFromDarkResponse.stdout,
-    );
-    const diagnostics = diagnosticsFromDark.diagnostics.map(DT2LT.diagnostic);
-    connection.sendDiagnostics({ uri: textDocument.uri, diagnostics });
-  }
-}
-
-// when a document is changed or saved, we want to re-run diagnostics
-let changeToProcessNext: null | TextDocumentChangeEvent<TextDocument> = null;
-let processing = false;
-const processChange = async () => {
-  if (processing || !changeToProcessNext) return;
-  processing = true;
-  try {
-    const doc = changeToProcessNext.document;
-    changeToProcessNext = null;
-    await gatherAndReportDiagnostics(doc);
-  } finally {
-    processing = false;
-    if (changeToProcessNext) {
-      processChange();
-    }
-  }
-};
-documents.onDidSave(change => {
-  changeToProcessNext = change;
-  processChange();
-});
-documents.onDidChangeContent(change => {
-  changeToProcessNext = change;
-  processChange();
-});
-
-*)

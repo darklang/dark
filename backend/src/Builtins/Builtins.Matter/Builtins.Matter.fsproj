@@ -11,6 +11,7 @@
     <Compile Include="Libs/DB.fs" />
 
     <!-- PM -->
+    <Compile Include="Libs/PM/AtRestTypeChecker.fs" />
     <Compile Include="Libs/PM/PackageOps.fs" />
     <Compile Include="Libs/PM/Branches.fs" />
     <Compile Include="Libs/PM/Rebase.fs" />

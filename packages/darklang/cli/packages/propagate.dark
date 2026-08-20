@@ -273,15 +273,38 @@ let propagateFromHashes
 
 
 /// Auto-propagate after creating/updating a definition.
+/// The hash live at <param location> on the branch, or <param fallback> if the
+/// location holds nothing of that kind.
+///
+/// Callers that just saved an item often only have the hash lowering stamped on
+/// it, which is a placeholder; the location row is the source of truth once the
+/// item is stored. `LibDB.Propagation.resolveCurrentHash` does the same on the F#
+/// side, and this keeps the Dark-side signature warning honest too.
+let currentHashAt
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (itemKind: LanguageTools.ProgramTypes.ItemKind)
+  (fallback: LanguageTools.ProgramTypes.Hash)
+  : LanguageTools.ProgramTypes.Hash =
+  let found =
+    match itemKind with
+    | Type -> LanguageTools.PackageManager.Type.find branchId location
+    | Fn -> LanguageTools.PackageManager.Function.find branchId location
+    | Value -> LanguageTools.PackageManager.Value.find branchId location
+  Stdlib.Option.withDefault found fallback
+
+
 /// Falls back to `getAllPreviousHashes` to discover prior hashes.
 /// Used by `undo` and other callers that don't already know the
-/// pre-update hash.
+/// pre-update hash. <param currentHash> may be a lowering placeholder; the
+/// stored hash at <param location> is what is actually used.
 let autoPropagateAfterUpdate
   (branchId: Uuid)
   (location: LanguageTools.ProgramTypes.PackageLocation)
   (currentHash: LanguageTools.ProgramTypes.Hash)
   (itemKind: LanguageTools.ProgramTypes.ItemKind)
   : Unit =
+  let currentHash = currentHashAt branchId location itemKind currentHash
   let previousHashes =
     (getAllPreviousHashes branchId location itemKind)
     |> Stdlib.List.filter (fun id -> id != currentHash)

@@ -7,7 +7,7 @@ type IncomingMessage =
   // lifecycle
   | InitializeRequest // TODO add requestId and params
   | Initialized
-  | Shutdown // TODO is this a notification or a request?
+  | Shutdown of requestId: JsonRPC.RequestID
   // | Exit TODO
 
   // utility
@@ -53,7 +53,8 @@ let parseIncomingMessage (r: JsonRPC.Request.Request) : IncomingMessage =
   | ("initialize", None, _) -> IncomingMessage.InitializeRequest
   | ("initialized", None, Some(Object params)) -> IncomingMessage.Initialized
   | ("$/setTrace", None, _) -> IncomingMessage.SetTrace
-  | ("shutdown", None, _) -> IncomingMessage.Shutdown
+  // `shutdown` is an LSP request, so it carries a JSON-RPC request ID.
+  | ("shutdown", Some requestId, _) -> IncomingMessage.Shutdown requestId
 
   // -- textDocument synchronization
   | ("textDocument/didOpen", None, Some(Object p)) ->

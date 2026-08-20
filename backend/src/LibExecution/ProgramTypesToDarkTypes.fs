@@ -9,6 +9,12 @@ module VT = ValueType
 module D = LibExecution.DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
 
+/// Recursive Dark-to-ProgramTypes conversion runs before consumers such as the
+/// at-rest checker can apply their own depth guards. Probe first so pathological
+/// persisted input raises a catchable exception instead of overflowing the process.
+let private ensureSufficientExecutionStack () : unit =
+  System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
+
 
 // This isn't in PT but I'm not sure where else to put it...
 // maybe rename this file to InternalTypesToDarkTypes?
@@ -337,6 +343,7 @@ module TypeReference =
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let rec fromDT (d : Dval) : PT.TypeReference =
+    ensureSufficientExecutionStack ()
     match d with
     | DEnum(_, _, [], "TVariable", [ DString name ]) -> PT.TVariable(name)
 
@@ -402,6 +409,7 @@ module LetPattern =
 
 
   let rec fromDT (d : Dval) : PT.LetPattern =
+    ensureSufficientExecutionStack ()
     match d with
     | DEnum(_, _, [], "LPVariable", [ DInt64 id; DString name ]) ->
       PT.LPVariable(uint64 id, name)
@@ -472,6 +480,7 @@ module MatchPattern =
     DEnum(typeName (), typeName (), [], caseName, fields)
 
   let rec fromDT (d : Dval) : PT.MatchPattern =
+    ensureSufficientExecutionStack ()
     match d with
     | DEnum(_, _, [], "MPVariable", [ DInt64 id; DString name ]) ->
       PT.MPVariable(uint64 id, name)
@@ -931,6 +940,7 @@ module Expr =
 
 
   let rec fromDT (d : Dval) : PT.Expr =
+    ensureSufficientExecutionStack ()
     match d with
     | DEnum(_, _, [], "EUnit", [ DInt64 id ]) -> PT.EUnit(uint64 id)
 

@@ -86,24 +86,43 @@ let parseAndReportDiagnostics
           owner = owner
           currentModule = if scriptName == "" then [] else [ scriptName ] }
 
-    // name-resolve off the already-parsed file (no re-parse)
-    let unresolvedNames =
+    let parsedFile = WrittenTypes.ParsedFile.SourceFile sf
+
+    // Name-resolve, lower, and check the same parsed tree. Checker diagnostics
+    // are only meaningful for a syntax-clean tree; parser diagnostics continue
+    // to be published while the user is midway through an edit.
+    let (unresolvedNames, checkerDiagnostics) =
       match
         Parser.CliScript.parseFromWT
           nrCtx
           scriptName
           parseDiagnostics
-          (WrittenTypes.ParsedFile.SourceFile sf)
+          parsedFile
       with
-      | Ok ((_ptCliScriptModule, unresolvedNames)) -> unresolvedNames
+      | Ok ((ptCliScriptModule, unresolvedNames)) ->
+        match
+          Parser.CliScript.parseDecls
+            owner
+            scriptName
+            parseDiagnostics
+            parsedFile
+        with
+        | Ok wtCliScriptModule ->
+          (unresolvedNames,
+            Diagnostics.atRestDiagnostics
+              sf.range
+              wtCliScriptModule
+              ptCliScriptModule)
+        | Error _ -> (unresolvedNames, [])
       | Error err ->
         log $"Name resolution error: {Parser.CliScript.ParseError.toString err}"
-        []
+        ([], [])
 
     Diagnostics.gatherAndReportDiagnostics
       requestUri
       unresolvedNames
       parseDiagnostics
+      checkerDiagnostics
 
     parsed
   | Error err ->
@@ -118,7 +137,11 @@ let handleTextDocumentDidOpen
     LanguageServerProtocol.DocumentSync.TextDocument.DidOpenTextDocumentNotification.DidOpenTextDocumentParams.DidOpenTextDocumentParams)
   : LspState =
 
-  let parsed = parseAndReportDiagnostics state.currentBranchId request.textDocument.uri request.textDocument.text
+  let parsed =
+    parseAndReportDiagnostics
+      state.currentBranchId
+      request.textDocument.uri
+      request.textDocument.text
 
   let parsedToPT =
     match parsed with
@@ -161,7 +184,24 @@ let handleTextDocumentDidChange
     | None ->
       log $"document not found in scope: {request.textDocument.uri}"
       state
-    | Some existingDoc ->
+    | Some _existingDoc ->
+      let parsed =
+        parseAndReportDiagnostics
+          state.currentBranchId
+          request.textDocument.uri
+          text.text
+
+      let parsedToPT =
+        match parsed with
+        | Ok parsedFile ->
+          if Stdlib.List.isEmpty (Parser.Parse.diagnostics text.text) then
+            (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
+            |> Stdlib.Tuple3.first
+            |> Stdlib.Option.Option.Some
+          else
+            Stdlib.Option.Option.None
+        | Error _ -> Stdlib.Option.Option.None
+
       { state with
           documentsInScope =
             state.documentsInScope
@@ -170,10 +210,8 @@ let handleTextDocumentDidChange
                   (LanguageTools.LspServer.DocumentInScope
                     { uri = request.textDocument.uri
                       text = text.text
-                      // don't re-parse the text, just use the existing parsed value
-                      // TODO maybe we should re-parse, currently it breaks the LSP server
-                      parsed = existingDoc.parsed
-                      parsedToPT = existingDoc.parsedToPT }) }
+                      parsed = parsed
+                      parsedToPT = parsedToPT }) }
 
 
 let handleTextDocumentDidSave
@@ -190,7 +228,8 @@ let handleTextDocumentDidSave
     state
 
   | Some text ->
-    let parsed = parseAndReportDiagnostics state.currentBranchId request.textDocument.uri text
+    let parsed =
+      parseAndReportDiagnostics state.currentBranchId request.textDocument.uri text
 
     let parsedToPT =
       match parsed with
@@ -222,6 +261,9 @@ let handleTextDocumentDidClose
   (requestParams:
     LanguageServerProtocol.DocumentSync.TextDocument.DidCloseTextDocumentNotification.DidCloseTextDocumentParams.DidCloseTextDocumentParams)
   : LspState =
+  // Publishing an empty list is the LSP mechanism for clearing squiggles that
+  // belonged to a document which is no longer in scope.
+  sendDiagnostic requestParams.textDocument.uri []
   { state with
       documentsInScope =
         Stdlib.Dict.remove
