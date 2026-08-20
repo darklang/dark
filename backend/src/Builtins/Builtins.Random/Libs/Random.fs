@@ -222,7 +222,7 @@ let fns () : List<BuiltInFn> =
 
 
     { name = fn "listRandomElement" 0
-      typeParams = []
+      typeParams = [ "a" ]
       parameters = [ Param.make "list" (TList(TVariable "a")) "" ]
       returnType = TypeReference.option (TVariable "a")
       description =

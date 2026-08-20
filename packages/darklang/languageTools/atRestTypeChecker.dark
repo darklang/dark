@@ -1,0 +1,208 @@
+/// Structured results from checking serialized ProgramTypes before persistence.
+module Darklang.LanguageTools.AtRestTypeChecker
+
+type StaticType =
+  | TUnit
+  | TBool
+  | TInt8
+  | TUInt8
+  | TInt16
+  | TUInt16
+  | TInt32
+  | TUInt32
+  | TInt64
+  | TUInt64
+  | TInt128
+  | TUInt128
+  | TInt
+  | TFloat
+  | TChar
+  | TString
+  | TUuid
+  | TDateTime
+  | TBlob
+  | TStream of StaticType
+  | TList of StaticType
+  | TTuple of StaticType * StaticType * List<StaticType>
+  | TDict of StaticType
+  | TCustom of LanguageTools.ProgramTypes.Hash * List<StaticType>
+  | TFn of List<StaticType> * StaticType
+  | TDB of StaticType
+  | TRigidVariable of String
+  | TInferenceVariable of Int
+
+type Verdict =
+  | Checked
+  | Failed
+  | Incomplete
+
+type IssueCode =
+  | TypeMismatch
+  | OccursCheckFailed
+  | UnknownVariable
+  | InvalidArgumentIndex
+  | NotCallable
+  | ExplicitTypeArgumentCountMismatch
+  | InvalidPattern
+  | DuplicatePatternBinding
+  | UnknownRecordField
+  | MissingRecordField
+  | DuplicateRecordField
+  | UnknownEnumCase
+  | EnumFieldCountMismatch
+  | InvalidInfixOperand
+  | DuplicateTypeParameter
+  | DuplicateTypeMember
+  | UnresolvedTypeName
+  | UnresolvedFunctionName
+  | UnresolvedValueName
+  | MissingTypeDeclaration
+  | MissingFunctionSignature
+  | MissingValueSignature
+  | AliasCycle
+  | UnknownDeclaredTypeVariable
+  | AmbiguousType
+  | NonExhaustiveMatch
+  | UnsupportedConstruct
+
+type Issue =
+  { code: IssueCode
+    nodeId: Stdlib.Option.Option<UInt64>
+    expected: Stdlib.Option.Option<StaticType>
+    actual: Stdlib.Option.Option<StaticType>
+    context: String }
+
+type ItemReport =
+  { item: LanguageTools.ProgramTypes.Reference
+    verdict: Verdict
+    diagnostics: List<Issue>
+    blockers: List<Issue> }
+
+type Report =
+  { verdict: Verdict
+    items: List<ItemReport>
+    diagnostics: List<Issue>
+    blockers: List<Issue> }
+
+/// The report for nothing: no items, so trivially Checked.
+let emptyReport () : Report =
+  Report { verdict = Verdict.Checked; items = []; diagnostics = []; blockers = [] }
+
+/// Check package operations before they are persisted or presented as diagnostics.
+///
+/// This is the single Dark-facing boundary for the runtime checker builtin.
+let checkPackageOps
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Report =
+  Builtin.atRestCheckPackageOps ops
+
+let staticTypeToStringWith
+  (customTypeName:
+    LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>)
+  (typ: StaticType)
+  : String =
+  let recurse = staticTypeToStringWith customTypeName
+  let wrapped (name: String) (inner: StaticType) : String =
+    name ++ "<" ++ recurse inner ++ ">"
+  match typ with
+  | TUnit -> "Unit"
+  | TBool -> "Bool"
+  | TInt8 -> "Int8"
+  | TUInt8 -> "UInt8"
+  | TInt16 -> "Int16"
+  | TUInt16 -> "UInt16"
+  | TInt32 -> "Int32"
+  | TUInt32 -> "UInt32"
+  | TInt64 -> "Int64"
+  | TUInt64 -> "UInt64"
+  | TInt128 -> "Int128"
+  | TUInt128 -> "UInt128"
+  | TInt -> "Int"
+  | TFloat -> "Float"
+  | TChar -> "Char"
+  | TString -> "String"
+  | TUuid -> "Uuid"
+  | TDateTime -> "DateTime"
+  | TBlob -> "Blob"
+  | TStream inner -> wrapped "Stream" inner
+  | TList inner -> wrapped "List" inner
+  | TTuple(first, second, rest) ->
+    let parts =
+      Stdlib.List.append
+        [ recurse first; recurse second ]
+        (Stdlib.List.map rest recurse)
+    "(" ++ Stdlib.String.join parts " * " ++ ")"
+  | TDict inner -> wrapped "Dict" inner
+  | TCustom(hash, args) ->
+    let name =
+      match customTypeName hash with
+      | Some name -> name
+      | None -> "type #" ++ LanguageTools.ProgramTypes.hashToShort hash
+    if Stdlib.List.isEmpty args then name
+    else
+      name
+      ++ "<"
+      ++ Stdlib.String.join (Stdlib.List.map args recurse) ", "
+      ++ ">"
+  | TFn(parameters, returnType) ->
+    "("
+    ++ Stdlib.String.join (Stdlib.List.map parameters recurse) ", "
+    ++ ") -> "
+    ++ recurse returnType
+  | TDB inner -> wrapped "DB" inner
+  | TRigidVariable name -> "'" ++ name
+  | TInferenceVariable _ -> "_"
+
+let staticTypeToString (typ: StaticType) : String =
+  staticTypeToStringWith (fun _ -> Stdlib.Option.Option.None) typ
+
+let issueCodeToString (code: IssueCode) : String =
+  match code with
+  | TypeMismatch -> "TypeMismatch"
+  | OccursCheckFailed -> "OccursCheckFailed"
+  | UnknownVariable -> "UnknownVariable"
+  | InvalidArgumentIndex -> "InvalidArgumentIndex"
+  | NotCallable -> "NotCallable"
+  | ExplicitTypeArgumentCountMismatch -> "ExplicitTypeArgumentCountMismatch"
+  | InvalidPattern -> "InvalidPattern"
+  | DuplicatePatternBinding -> "DuplicatePatternBinding"
+  | UnknownRecordField -> "UnknownRecordField"
+  | MissingRecordField -> "MissingRecordField"
+  | DuplicateRecordField -> "DuplicateRecordField"
+  | UnknownEnumCase -> "UnknownEnumCase"
+  | EnumFieldCountMismatch -> "EnumFieldCountMismatch"
+  | InvalidInfixOperand -> "InvalidInfixOperand"
+  | DuplicateTypeParameter -> "DuplicateTypeParameter"
+  | DuplicateTypeMember -> "DuplicateTypeMember"
+  | UnresolvedTypeName -> "UnresolvedTypeName"
+  | UnresolvedFunctionName -> "UnresolvedFunctionName"
+  | UnresolvedValueName -> "UnresolvedValueName"
+  | MissingTypeDeclaration -> "MissingTypeDeclaration"
+  | MissingFunctionSignature -> "MissingFunctionSignature"
+  | MissingValueSignature -> "MissingValueSignature"
+  | AliasCycle -> "AliasCycle"
+  | UnknownDeclaredTypeVariable -> "UnknownDeclaredTypeVariable"
+  | AmbiguousType -> "AmbiguousType"
+  | NonExhaustiveMatch -> "NonExhaustiveMatch"
+  | UnsupportedConstruct -> "UnsupportedConstruct"
+
+let issueToStringWith
+  (customTypeName:
+    LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>)
+  (issue: Issue)
+  : String =
+  let detail =
+    match issue.expected with
+    | Some expected ->
+      match issue.actual with
+      | Some actual ->
+        ": expected "
+        ++ staticTypeToStringWith customTypeName expected
+        ++ ", got "
+        ++ staticTypeToStringWith customTypeName actual
+      | None -> ""
+    | None -> ""
+  issue.context ++ detail
+
+let issueToString (issue: Issue) : String =
+  issueToStringWith (fun _ -> Stdlib.Option.Option.None) issue

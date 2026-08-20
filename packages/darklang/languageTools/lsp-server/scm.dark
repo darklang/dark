@@ -95,7 +95,9 @@ let handleCommitRequest
     logAndSendToClient response
     state
   | Some accountId ->
-  match SCM.PackageOps.commit accountId state.currentBranchId message with
+  // No override from the editor: a Failed at-rest check comes back as the error
+  // message; the CLI's `commit --allow-type-errors` is the escape hatch.
+  match SCM.PackageOps.commit accountId state.currentBranchId message false with
   | Ok commitHash ->
     let responseJson =
       Stdlib.AltJson.Json.Object
@@ -118,12 +120,12 @@ let handleCommitRequest
 
     state
 
-  | Error msg ->
+  | Error error ->
     let responseJson =
       (JsonRPC.Response.Error.make
         (Stdlib.Option.Option.Some requestId)
         JsonRPC.Response.Error.KnownErrorCodes.invalidRequest
-        msg
+        (SCM.PackageOps.commitErrorMessage error)
         Stdlib.Option.Option.None)
       |> Stdlib.AltJson.format
 

@@ -94,8 +94,8 @@ let saveEditing (state: State) (es: EditingState) : Step =
             | _ -> Stdlib.Result.Result.Error "not a function definition"
         match opsResult with
         | Ok ops ->
-          match SCM.PackageOps.add state.branchId ops with
-          | Ok _ ->
+          match SCM.PackageOps.addAuthored state.branchId ops with
+          | Ok report ->
             // Land on what you just saved. Resetting to 0 sent you to the top of the module every time -
             // after authoring, the new item wasn't selected; after editing an existing one, you lost your
             // place in a list you were working in.
@@ -112,7 +112,10 @@ let saveEditing (state: State) (es: EditingState) : Step =
                   items = reloaded
                   selected = landed
                   detailScroll = 0
-                  message = "saved " ++ leaf }
+                  message =
+                    match Packages.AtRestCheck.summary report with
+                    | Some summary -> "saved " ++ leaf ++ " (" ++ summary ++ ")"
+                    | None -> "saved " ++ leaf }
           | Error m -> keepErr ("save failed: " ++ m)
         | Error m -> keepErr m
       | None -> keepErr "could not parse"

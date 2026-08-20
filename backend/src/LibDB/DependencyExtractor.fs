@@ -33,254 +33,285 @@ let private extractFromNameResolution
   | Error _ -> []
 
 
-/// Extract dependencies from a TypeReference
-let rec private extractFromTypeRef (typeRef : PT.TypeReference) : List<Dependency> =
-  match typeRef with
-  | PT.TUnit
-  | PT.TBool
-  | PT.TInt8
-  | PT.TUInt8
-  | PT.TInt16
-  | PT.TUInt16
-  | PT.TInt32
-  | PT.TUInt32
-  | PT.TInt64
-  | PT.TUInt64
-  | PT.TInt128
-  | PT.TUInt128
-  | PT.TInt
-  | PT.TFloat
-  | PT.TChar
-  | PT.TString
-  | PT.TUuid
-  | PT.TDateTime
-  | PT.TBlob
-  | PT.TVariable _ -> []
+/// One node in the explicit dependency-discovery work list. Package declarations
+/// are persisted input, so none of these walks may consume the process call stack:
+/// a `StackOverflowException` cannot be caught by the at-rest checker boundary.
+type private Work =
+  | TypeRef of PT.TypeReference
+  | Expr of PT.Expr
+  | StringSegment of PT.StringSegment
+  | MatchPattern of PT.MatchPattern
+  | MatchCase of PT.MatchCase
+  | PipeExpr of PT.PipeExpr
 
-  | PT.TStream inner -> extractFromTypeRef inner
+let private extract (roots : List<Work>) : List<Dependency> =
+  let work = System.Collections.Generic.Stack<Work>()
+  let mutable dependencies : List<Dependency> = []
 
-  | PT.TList inner -> extractFromTypeRef inner
-  | PT.TDict inner -> extractFromTypeRef inner
-  | PT.TDB inner -> extractFromTypeRef inner
+  let pushInOrder (items : List<Work>) : unit =
+    items |> List.rev |> List.iter work.Push
 
-  | PT.TTuple(first, second, rest) ->
-    [ extractFromTypeRef first
-      extractFromTypeRef second
-      rest |> List.collect extractFromTypeRef ]
-    |> List.concat
+  let pushTypesInOrder (types : List<PT.TypeReference>) : unit =
+    types |> List.rev |> List.iter (TypeRef >> work.Push)
 
-  | PT.TCustomType(nr, typeArgs) ->
-    List.concat
-      [ extractFromNameResolution nr PT.ItemKind.Type PackageItem.typePackageHash
-        typeArgs |> List.collect extractFromTypeRef ]
+  let pushExprsInOrder (exprs : List<PT.Expr>) : unit =
+    exprs |> List.rev |> List.iter (Expr >> work.Push)
 
-  | PT.TFn(args, ret) ->
-    List.concat
-      [ args |> NEList.toList |> List.collect extractFromTypeRef
-        extractFromTypeRef ret ]
+  let addNameResolution
+    (nr : PT.NameResolution<'a>)
+    (itemKind : PT.ItemKind)
+    (getPackageHash : 'a -> Option<Hash>)
+    : unit =
+    for dependency in extractFromNameResolution nr itemKind getPackageHash do
+      dependencies <- dependency :: dependencies
+
+  pushInOrder roots
+
+  while work.Count > 0 do
+    match work.Pop() with
+    | TypeRef typeRef ->
+      match typeRef with
+      | PT.TUnit
+      | PT.TBool
+      | PT.TInt8
+      | PT.TUInt8
+      | PT.TInt16
+      | PT.TUInt16
+      | PT.TInt32
+      | PT.TUInt32
+      | PT.TInt64
+      | PT.TUInt64
+      | PT.TInt128
+      | PT.TUInt128
+      | PT.TInt
+      | PT.TFloat
+      | PT.TChar
+      | PT.TString
+      | PT.TUuid
+      | PT.TDateTime
+      | PT.TBlob
+      | PT.TVariable _ -> ()
+
+      | PT.TStream inner
+      | PT.TList inner
+      | PT.TDict inner
+      | PT.TDB inner -> work.Push(TypeRef inner)
+
+      | PT.TTuple(first, second, rest) ->
+        pushTypesInOrder rest
+        work.Push(TypeRef second)
+        work.Push(TypeRef first)
+
+      | PT.TCustomType(nr, typeArgs) ->
+        addNameResolution nr PT.ItemKind.Type PackageItem.typePackageHash
+        pushTypesInOrder typeArgs
+
+      | PT.TFn(args, ret) ->
+        work.Push(TypeRef ret)
+        pushTypesInOrder (NEList.toList args)
+
+    | StringSegment segment ->
+      match segment with
+      | PT.StringText _ -> ()
+      | PT.StringInterpolation expr -> work.Push(Expr expr)
+
+    | MatchPattern pattern ->
+      // Match patterns do not contain package references, but they are still
+      // traversed iteratively so adding one later cannot reintroduce this bug.
+      match pattern with
+      | PT.MPUnit _
+      | PT.MPBool _
+      | PT.MPInt8 _
+      | PT.MPUInt8 _
+      | PT.MPInt16 _
+      | PT.MPUInt16 _
+      | PT.MPInt32 _
+      | PT.MPUInt32 _
+      | PT.MPInt64 _
+      | PT.MPUInt64 _
+      | PT.MPInt128 _
+      | PT.MPUInt128 _
+      | PT.MPInt _
+      | PT.MPFloat _
+      | PT.MPChar _
+      | PT.MPString _
+      | PT.MPVariable _ -> ()
+
+      | PT.MPList(_, patterns)
+      | PT.MPEnum(_, _, patterns) ->
+        patterns |> List.rev |> List.iter (MatchPattern >> work.Push)
+
+      | PT.MPListCons(_, head, tail) ->
+        work.Push(MatchPattern tail)
+        work.Push(MatchPattern head)
+
+      | PT.MPTuple(_, first, second, rest) ->
+        rest |> List.rev |> List.iter (MatchPattern >> work.Push)
+        work.Push(MatchPattern second)
+        work.Push(MatchPattern first)
+
+      | PT.MPOr(_, patterns) ->
+        patterns
+        |> NEList.toList
+        |> List.rev
+        |> List.iter (MatchPattern >> work.Push)
+
+    | MatchCase case ->
+      work.Push(Expr case.rhs)
+      case.whenCondition |> Option.iter (Expr >> work.Push)
+      work.Push(MatchPattern case.pat)
+
+    | PipeExpr pipeExpr ->
+      match pipeExpr with
+      | PT.EPipeLambda(_, _, body)
+      | PT.EPipeInfix(_, _, body) -> work.Push(Expr body)
+
+      | PT.EPipeFnCall(_, nr, typeArgs, args) ->
+        addNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash
+        pushExprsInOrder args
+        pushTypesInOrder typeArgs
+
+      | PT.EPipeEnum(_, nr, _, fields) ->
+        addNameResolution nr PT.ItemKind.Type PackageItem.typePackageHash
+        pushExprsInOrder fields
+
+      | PT.EPipeVariable(_, _, args) -> pushExprsInOrder args
+
+    | Expr expr ->
+      match expr with
+      | PT.EUnit _
+      | PT.EBool _
+      | PT.EInt8 _
+      | PT.EUInt8 _
+      | PT.EInt16 _
+      | PT.EUInt16 _
+      | PT.EInt32 _
+      | PT.EUInt32 _
+      | PT.EInt64 _
+      | PT.EUInt64 _
+      | PT.EInt128 _
+      | PT.EUInt128 _
+      | PT.EInt _
+      | PT.EFloat _
+      | PT.EChar _
+      | PT.EVariable _
+      | PT.EArg _
+      | PT.ESelf _ -> ()
+
+      | PT.EString(_, segments) ->
+        segments |> List.rev |> List.iter (StringSegment >> work.Push)
+
+      | PT.EIf(_, condition, thenExpr, elseExpr) ->
+        elseExpr |> Option.iter (Expr >> work.Push)
+        work.Push(Expr thenExpr)
+        work.Push(Expr condition)
+
+      | PT.EPipe(_, lhs, parts) ->
+        parts |> List.rev |> List.iter (PipeExpr >> work.Push)
+        work.Push(Expr lhs)
+
+      | PT.EMatch(_, arg, cases) ->
+        cases |> List.rev |> List.iter (MatchCase >> work.Push)
+        work.Push(Expr arg)
+
+      | PT.ELet(_, _pattern, value, body) ->
+        work.Push(Expr body)
+        work.Push(Expr value)
+
+      | PT.EList(_, items) -> pushExprsInOrder items
+
+      | PT.EDict(_, pairs) -> pairs |> List.map snd |> pushExprsInOrder
+
+      | PT.ETuple(_, first, second, rest) ->
+        pushExprsInOrder rest
+        work.Push(Expr second)
+        work.Push(Expr first)
+
+      | PT.EApply(_, fnExpr, typeArgs, args) ->
+        pushExprsInOrder (NEList.toList args)
+        pushTypesInOrder typeArgs
+        work.Push(Expr fnExpr)
+
+      | PT.EFnName(_, nr) ->
+        addNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash
+
+      | PT.ELambda(_, _, body) -> work.Push(Expr body)
+
+      | PT.EInfix(_, _, lhs, rhs) ->
+        work.Push(Expr rhs)
+        work.Push(Expr lhs)
+
+      | PT.ERecord(_, nr, typeArgs, fields) ->
+        addNameResolution nr PT.ItemKind.Type PackageItem.typePackageHash
+        fields |> List.map snd |> pushExprsInOrder
+        pushTypesInOrder typeArgs
+
+      | PT.ERecordFieldAccess(_, record, _) -> work.Push(Expr record)
+
+      | PT.ERecordUpdate(_, record, updates) ->
+        updates |> NEList.toList |> List.map snd |> pushExprsInOrder
+        work.Push(Expr record)
+
+      | PT.EEnum(_, nr, typeArgs, _, fields) ->
+        addNameResolution nr PT.ItemKind.Type PackageItem.typePackageHash
+        pushExprsInOrder fields
+        pushTypesInOrder typeArgs
+
+      | PT.EValue(_, nr) ->
+        addNameResolution nr PT.ItemKind.Value PackageItem.valuePackageHash
+
+      | PT.EStatement(_, first, next) ->
+        work.Push(Expr next)
+        work.Push(Expr first)
+
+  List.rev dependencies
 
 
-/// Extract references from a StringSegment
-let rec private extractFromStringSegment
-  (segment : PT.StringSegment)
-  : List<Dependency> =
-  match segment with
-  | PT.StringText _ -> []
-  | PT.StringInterpolation expr -> extractFromExpr expr
-
-
-/// Extract references from a MatchPattern (no type references in match patterns)
-and private extractFromMatchPattern (pat : PT.MatchPattern) : List<Dependency> =
-  match pat with
-  | PT.MPUnit _
-  | PT.MPBool _
-  | PT.MPInt8 _
-  | PT.MPUInt8 _
-  | PT.MPInt16 _
-  | PT.MPUInt16 _
-  | PT.MPInt32 _
-  | PT.MPUInt32 _
-  | PT.MPInt64 _
-  | PT.MPUInt64 _
-  | PT.MPInt128 _
-  | PT.MPUInt128 _
-  | PT.MPInt _
-  | PT.MPFloat _
-  | PT.MPChar _
-  | PT.MPString _
-  | PT.MPVariable _ -> []
-
-  | PT.MPList(_, pats) -> pats |> List.collect extractFromMatchPattern
-
-  | PT.MPListCons(_, head, tail) ->
-    List.concat [ extractFromMatchPattern head; extractFromMatchPattern tail ]
-
-  | PT.MPTuple(_, first, second, rest) ->
-    [ extractFromMatchPattern first
-      extractFromMatchPattern second
-      rest |> List.collect extractFromMatchPattern ]
-    |> List.concat
-
-  | PT.MPEnum(_, _, fieldPats) -> fieldPats |> List.collect extractFromMatchPattern
-
-  | PT.MPOr(_, pats) -> pats |> NEList.toList |> List.collect extractFromMatchPattern
-
-
-/// Extract references from a MatchCase
-and private extractFromMatchCase (case : PT.MatchCase) : List<Dependency> =
-  List.concat
-    [ extractFromMatchPattern case.pat
-      case.whenCondition |> Option.map extractFromExpr |> Option.defaultValue []
-      extractFromExpr case.rhs ]
-
-
-/// Extract references from a PipeExpr
-and private extractFromPipeExpr (pipeExpr : PT.PipeExpr) : List<Dependency> =
-  match pipeExpr with
-  | PT.EPipeLambda(_, _, body) -> extractFromExpr body
-
-  | PT.EPipeInfix(_, _, rhs) -> extractFromExpr rhs
-
-  | PT.EPipeFnCall(_, nr, typeArgs, args) ->
-    List.concat
-      [ extractFromNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash
-        typeArgs |> List.collect extractFromTypeRef
-        args |> List.collect extractFromExpr ]
-
-  | PT.EPipeEnum(_, nr, _, fields) ->
-    List.concat
-      [ extractFromNameResolution nr PT.ItemKind.Type PackageItem.typePackageHash
-        fields |> List.collect extractFromExpr ]
-
-  | PT.EPipeVariable(_, _, args) -> args |> List.collect extractFromExpr
-
-
-/// Extract all references from an expression (recursive AST walk)
-and extractFromExpr (expr : PT.Expr) : List<Dependency> =
-  match expr with
-  // Simple expressions with no references
-  | PT.EUnit _
-  | PT.EBool _
-  | PT.EInt8 _
-  | PT.EUInt8 _
-  | PT.EInt16 _
-  | PT.EUInt16 _
-  | PT.EInt32 _
-  | PT.EUInt32 _
-  | PT.EInt64 _
-  | PT.EUInt64 _
-  | PT.EInt128 _
-  | PT.EUInt128 _
-  | PT.EInt _
-  | PT.EFloat _
-  | PT.EChar _
-  | PT.EVariable _
-  | PT.EArg _
-  | PT.ESelf _ -> []
-
-  | PT.EString(_, segments) -> segments |> List.collect extractFromStringSegment
-
-  // Flow control
-  | PT.EIf(_, cond, thenExpr, elseExpr) ->
-    List.concat
-      [ extractFromExpr cond
-        extractFromExpr thenExpr
-        elseExpr |> Option.map extractFromExpr |> Option.defaultValue [] ]
-
-  | PT.EPipe(_, lhs, parts) ->
-    List.concat [ extractFromExpr lhs; parts |> List.collect extractFromPipeExpr ]
-
-  | PT.EMatch(_, arg, cases) ->
-    List.concat [ extractFromExpr arg; cases |> List.collect extractFromMatchCase ]
-
-  | PT.ELet(_, _pat, value, body) ->
-    List.concat [ extractFromExpr value; extractFromExpr body ]
-
-  // Basic structures
-  | PT.EList(_, items) -> items |> List.collect extractFromExpr
-
-  | PT.EDict(_, pairs) -> pairs |> List.collect (snd >> extractFromExpr)
-
-  | PT.ETuple(_, first, second, rest) ->
-    [ extractFromExpr first
-      extractFromExpr second
-      rest |> List.collect extractFromExpr ]
-    |> List.concat
-
-  // Function application
-  | PT.EApply(_, fnExpr, typeArgs, args) ->
-    List.concat
-      [ extractFromExpr fnExpr
-        typeArgs |> List.collect extractFromTypeRef
-        args |> NEList.toList |> List.collect extractFromExpr ]
-
-  | PT.EFnName(_, nr) ->
-    extractFromNameResolution nr PT.ItemKind.Fn PackageItem.fnPackageHash
-
-  | PT.ELambda(_, _, body) -> extractFromExpr body
-
-  | PT.EInfix(_, _, lhs, rhs) ->
-    List.concat [ extractFromExpr lhs; extractFromExpr rhs ]
-
-  // Records and custom types
-  | PT.ERecord(_, nr, typeArgs, fields) ->
-    List.concat
-      [ extractFromNameResolution nr PT.ItemKind.Type PackageItem.typePackageHash
-        typeArgs |> List.collect extractFromTypeRef
-        fields |> List.collect (snd >> extractFromExpr) ]
-
-  | PT.ERecordFieldAccess(_, record, _) -> extractFromExpr record
-
-  | PT.ERecordUpdate(_, record, updates) ->
-    List.concat
-      [ extractFromExpr record
-        updates |> NEList.toList |> List.collect (snd >> extractFromExpr) ]
-
-  | PT.EEnum(_, nr, typeArgs, _, fields) ->
-    List.concat
-      [ extractFromNameResolution nr PT.ItemKind.Type PackageItem.typePackageHash
-        typeArgs |> List.collect extractFromTypeRef
-        fields |> List.collect extractFromExpr ]
-
-  | PT.EValue(_, nr) ->
-    extractFromNameResolution nr PT.ItemKind.Value PackageItem.valuePackageHash
-
-  | PT.EStatement(_, first, next) ->
-    List.concat [ extractFromExpr first; extractFromExpr next ]
+/// Extract all references from an expression without recursive stack use.
+let extractFromExpr (expr : PT.Expr) : List<Dependency> = extract [ Expr expr ]
 
 
 /// Extract all references from a function definition
 let extractFromFn (fn : PT.PackageFn.PackageFn) : List<Dependency> =
   // Deduplicate references
-  List.concat
-    [ extractFromExpr fn.body
-      fn.parameters
-      |> NEList.toList
-      |> List.collect (fun p -> extractFromTypeRef p.typ)
-      extractFromTypeRef fn.returnType ]
+  extract (
+    Expr fn.body
+    :: (fn.parameters
+        |> NEList.toList
+        |> List.map (fun parameter -> TypeRef parameter.typ))
+    @ [ TypeRef fn.returnType ]
+  )
+  |> List.distinct
+
+
+/// Extract references from a function's signature only (parameters and return
+/// type), not its body. Enough to type-check a call to it.
+let extractFromFnSignature (fn : PT.PackageFn.PackageFn) : List<Dependency> =
+  extract (
+    (fn.parameters
+     |> NEList.toList
+     |> List.map (fun parameter -> TypeRef parameter.typ))
+    @ [ TypeRef fn.returnType ]
+  )
   |> List.distinct
 
 
 /// Extract all references from a value definition
 let extractFromValue (value : PT.PackageValue.PackageValue) : List<Dependency> =
-  extractFromExpr value.body |> List.distinct
+  extract [ Expr value.body ] |> List.distinct
 
 
 /// Extract all references from a type definition
 let extractFromType (typ : PT.PackageType.PackageType) : List<Dependency> =
-  let extractFromDefinition
-    (def : PT.TypeDeclaration.Definition)
-    : List<Dependency> =
-    match def with
-    | PT.TypeDeclaration.Alias typeRef -> extractFromTypeRef typeRef
-
+  let roots =
+    match typ.declaration.definition with
+    | PT.TypeDeclaration.Alias typeRef -> [ TypeRef typeRef ]
     | PT.TypeDeclaration.Record fields ->
-      fields |> NEList.toList |> List.collect (fun f -> extractFromTypeRef f.typ)
-
+      fields |> NEList.toList |> List.map (fun field -> TypeRef field.typ)
     | PT.TypeDeclaration.Enum cases ->
       cases
       |> NEList.toList
-      |> List.collect (fun c ->
-        c.fields |> List.collect (fun f -> extractFromTypeRef f.typ))
+      |> List.collect (fun case ->
+        case.fields |> List.map (fun field -> TypeRef field.typ))
 
-  extractFromDefinition typ.declaration.definition |> List.distinct
+  extract roots |> List.distinct

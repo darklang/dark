@@ -145,7 +145,7 @@ list and letting you conclude nothing happened."
     { name = fn "tracesList" 0
       typeParams = []
       parameters = [ Param.make "limit" TInt "Max number of traces to return" ]
-      returnType = TList(TVariable "a")
+      returnType = TList(TCustomType(NR.ok (traceSummaryTypeName ()), []))
       description = "List recent traces"
       fn =
         (function
@@ -186,7 +186,8 @@ list and letting you conclude nothing happened."
     { name = fn "tracesView" 0
       typeParams = []
       parameters = [ Param.make "traceID" TString "The trace ID to view" ]
-      returnType = TypeReference.option (TVariable "a")
+      returnType =
+        TypeReference.option (TCustomType(NR.ok (traceDataTypeName ()), []))
       description =
         "View trace details by trace ID. Returns a TraceData record with structured inputs and function calls."
       fn =
@@ -243,7 +244,7 @@ list and letting you conclude nothing happened."
       parameters =
         [ Param.make "fnName" TString "Function name to search for"
           Param.make "limit" TInt "Max number of traces to return" ]
-      returnType = TList(TVariable "a")
+      returnType = TList(TCustomType(NR.ok (traceSummaryTypeName ()), []))
       description = "List traces that called a specific function"
       fn =
         (function
@@ -411,7 +412,7 @@ list and letting you conclude nothing happened."
       parameters =
         [ Param.make "pattern" TString "Substring to find in inputs/args/results"
           Param.make "limit" TInt "Max number of traces to return" ]
-      returnType = TList(TVariable "a")
+      returnType = TList(TCustomType(NR.ok (traceSummaryTypeName ()), []))
       description =
         "List traces whose recorded input or any fn-call args/result contains the substring (case-sensitive). Match is on the developer-repr form of each Dval."
       fn =

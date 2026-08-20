@@ -549,6 +549,47 @@ and PipeExpr =
   | EPipeVariable of id * varContainingPipeable : string * args : List<Expr>
 
 
+module InfixFnName =
+  /// The builtin each infix operator lowers to at runtime. `a + b` and
+  /// `Builtin.add a b` execute identically, so anything that reasons about one
+  /// (lowering, the at-rest checker) reads this table rather than its own copy.
+  let toBuiltinName (name : InfixFnName) : string =
+    match name with
+    | ArithmeticPlus -> "add"
+    | ArithmeticMinus -> "subtract"
+    | ArithmeticMultiply -> "multiply"
+    | ArithmeticDivide -> "divide"
+    | ArithmeticModulo -> "modulo"
+    | ArithmeticPower -> "power"
+    | ComparisonGreaterThan -> "greaterThan"
+    | ComparisonGreaterThanOrEqual -> "greaterThanOrEqualTo"
+    | ComparisonLessThan -> "lessThan"
+    | ComparisonLessThanOrEqual -> "lessThanOrEqualTo"
+    | StringConcat -> "stringAppend"
+    | ComparisonEquals -> "equals"
+    | ComparisonNotEquals -> "notEquals"
+
+  /// Every case, for building the reverse of `toBuiltinName`. Keep in step with
+  /// the type; `toBuiltinName` is the exhaustive one.
+  let all : List<InfixFnName> =
+    [ ArithmeticPlus
+      ArithmeticMinus
+      ArithmeticMultiply
+      ArithmeticDivide
+      ArithmeticModulo
+      ArithmeticPower
+      ComparisonGreaterThan
+      ComparisonGreaterThanOrEqual
+      ComparisonLessThan
+      ComparisonLessThanOrEqual
+      StringConcat
+      ComparisonEquals
+      ComparisonNotEquals ]
+
+  /// The unary-minus builtin the parser lowers `-x` (non-literal) to.
+  let negateBuiltinName = "negate"
+
+
 module Expr =
   let toID (expr : Expr) : id =
     match expr with
