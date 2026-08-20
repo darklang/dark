@@ -31,12 +31,12 @@ let displayOptions () : PrettyPrinter.DisplayOptions =
 /// string looks like.
 let palette () : PrettyPrinter.Palette =
   PrettyPrinter.Palette
-    { string_ = Colors.stringColor
-      number = Colors.numberColor
-      typeName = Colors.brightBlue
-      caseName = Colors.magenta
-      keyword = Colors.keywordColor
-      reset = Colors.reset }
+    { string_ = Stdlib.Cli.UI.Colors.stringColor
+      number = Stdlib.Cli.UI.Colors.numberColor
+      typeName = Stdlib.Cli.UI.Colors.brightBlue
+      caseName = Stdlib.Cli.UI.Colors.magenta
+      keyword = Stdlib.Cli.UI.Colors.keywordColor
+      reset = Stdlib.Cli.UI.Colors.reset }
 
 
 /// A value rendered for this terminal: laid out for `width`, painted with the CLI's palette.

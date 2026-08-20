@@ -228,11 +228,17 @@ let runtimeErrorToString
     return! executeFunction state fnName [] args
   }
 
-/// Fallback for when a pretty printer call fails.
-/// Clearly marks the output so it's obvious something went wrong,
-/// while still giving the user the raw F# representation.
-let private prettyPrintFallback (label : string) (raw : obj) : string =
-  $"<pretty-print failed for {label}: {raw}>"
+/// Fallback for when a pretty printer call fails: the error it raised, then the raw value.
+let private prettyPrintFallback
+  (label : string)
+  (raw : obj)
+  (result : RT.ExecutionResult)
+  : string =
+  match result with
+  | Error(rte, _callStack) ->
+    $"<pretty-print failed for {label}: {rte}\n  value: {raw}>"
+  | Ok other ->
+    $"<pretty-print failed for {label}: printer returned {other}\n  value: {raw}>"
 
 let fnNameToString
   (state : RT.ExecutionState)
@@ -244,7 +250,7 @@ let fnNameToString
     let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.FQFnName.toDT name ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
-    | _ -> return prettyPrintFallback "fnName" name
+    | result -> return prettyPrintFallback "fnName" name result
   }
 
 
@@ -255,7 +261,7 @@ let dvalToRepr (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
     let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.Dval.toDT dval ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
-    | _ -> return prettyPrintFallback "dval" dval
+    | result -> return prettyPrintFallback "dval" dval result
   }
 
 
@@ -286,7 +292,7 @@ let dvalToReprForTerminal
           RT2DT.Dval.toDT dval ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
-    | _ -> return prettyPrintFallback "dval" dval
+    | result -> return prettyPrintFallback "dval" dval result
   }
 
 
@@ -303,7 +309,7 @@ let typeRefToString
       NEList.ofList (RT.DUuid state.branchId) [ RT2DT.TypeReference.toDT typeRef ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
-    | _ -> return prettyPrintFallback "typeRef" typeRef
+    | result -> return prettyPrintFallback "typeRef" typeRef result
   }
 
 let dvalToTypeName (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
@@ -315,7 +321,7 @@ let dvalToTypeName (state : RT.ExecutionState) (dval : RT.Dval) : Task<string> =
     let args = NEList.ofList (RT.DUuid state.branchId) [ RT2DT.Dval.toDT dval ]
     match! executeFunction state fnName [] args with
     | Ok(RT.DString s) -> return s
-    | _ -> return prettyPrintFallback "typeName" dval
+    | result -> return prettyPrintFallback "typeName" dval result
   }
 
 
@@ -417,7 +423,7 @@ let rec rteToString
 
     match rteMessage with
     | Ok(RT.DString msg) -> return msg
-    | Ok(other) -> return prettyPrintFallback "rteToString" other
+    | Ok(other) -> return prettyPrintFallback "rteToString" other rteMessage
     | Error(rte, _cs) ->
       debuG "Error converting RTE to string" rte
       return! r rte

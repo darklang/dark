@@ -536,6 +536,7 @@ module Fn =
     module ProgramTypes =
       let private p addl = p ("ProgramTypes" :: addl)
       let sourceFile = p [] "sourceFile"
+      let sourceFileAtWidth = p [] "sourceFileAtWidth"
 
   module Cli =
     let executeCliCommand = p [ "Cli" ] "executeCliCommand"

@@ -60,6 +60,7 @@ let showDependents
   (targetLoc: LanguageTools.ProgramTypes.PackageLocation)
   (targetKind: LanguageTools.ProgramTypes.ItemKind)
   (entityName: String)
+  (cap: Bool)
   : Unit =
   let dependents = getDependents branchId [ (targetLoc, targetKind) ]
 
@@ -77,7 +78,7 @@ let showDependents
     |> Stdlib.List.map (fun (_sourceHash, sourceLoc, _refType) ->
       PrettyPrinter.ProgramTypes.PackageLocation.packageLocation sourceLoc)
     |> Listing.groupedByModule
-    |> fun rows -> Listing.capped rows Listing.defaultLimit "narrow with a module path"
+    |> fun groups -> Listing.cappedGroups groups Listing.defaultLimit cap "dependents"
     |> Stdlib.printLines
 
 
@@ -146,6 +147,7 @@ let showTransitiveDependents
   (targetLoc: LanguageTools.ProgramTypes.PackageLocation)
   (targetKind: LanguageTools.ProgramTypes.ItemKind)
   (entityName: String)
+  (cap: Bool)
   : Unit =
   let allDependents = getTransitiveDependents branchId targetLoc targetKind
 
@@ -163,7 +165,7 @@ let showTransitiveDependents
     |> Stdlib.List.map (fun (sourceLoc, _refType) ->
       PrettyPrinter.ProgramTypes.PackageLocation.packageLocation sourceLoc)
     |> Listing.groupedByModule
-    |> fun rows -> Listing.capped rows Listing.defaultLimit "narrow with a module path"
+    |> fun groups -> Listing.cappedGroups groups Listing.defaultLimit cap "dependents"
     |> Stdlib.printLines
 
 
@@ -172,6 +174,7 @@ let showDependencies
   (branchId: Uuid)
   (sourceHash: LanguageTools.ProgramTypes.Hash)
   (entityName: String)
+  (cap: Bool)
   : Unit =
   let dependencies = Darklang.Cli.Packages.Query.getDependencies branchId sourceHash
 
@@ -189,7 +192,7 @@ let showDependencies
     deps
     |> Stdlib.List.map (fun (targetHash, refType) ->
       $"{Glyphs.forKind refType} {getName namesDict targetHash}")
-    |> fun rows -> Listing.capped rows Listing.defaultLimit "narrow with a module path"
+    |> fun rows -> Listing.capped rows Listing.defaultLimit cap "dependencies"
     |> Stdlib.printLines
 
 
@@ -228,9 +231,12 @@ let resolvePath
 
 
 let execute (state: AppState) (args: List<String>) : AppState =
-  // Check for --deep flag
+  // Flags: --deep (transitive), --all (don't cap the listing)
   let deep = Stdlib.List.member args "--deep"
-  let filteredArgs = args |> Stdlib.List.filter (fun arg -> arg != "--deep")
+  let all = Stdlib.List.member args Listing.allFlag
+  let cap = Listing.shouldCap all
+  let filteredArgs =
+    args |> Stdlib.List.filter (fun arg -> arg != "--deep" && arg != Listing.allFlag)
   let branchId = state.currentBranchId
 
   match filteredArgs with
@@ -242,7 +248,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
       "  usedby <path>       - Show what uses the entity (dependents)"
       ""
       "Options:"
-      "  --deep              - Show transitive dependents (everything that could break)" ]
+      "  --deep              - Show transitive dependents (everything that could break)"
+      "  --all               - Show every row; listings are capped at 20 otherwise" ]
     |> Stdlib.printLines
     state
 
@@ -253,7 +260,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
     | Ok result ->
       let (hash, _loc, name, _entityType) = result
-      showDependencies branchId hash name
+      showDependencies branchId hash name cap
       state
 
   | ["usedby"; pathArg] ->
@@ -265,9 +272,9 @@ let execute (state: AppState) (args: List<String>) : AppState =
       let (_hash, loc, name, entityType) = result
 
       if deep then
-        showTransitiveDependents branchId loc entityType name
+        showTransitiveDependents branchId loc entityType name cap
       else
-        showDependents branchId loc entityType name
+        showDependents branchId loc entityType name cap
 
       state
 
@@ -279,13 +286,13 @@ let execute (state: AppState) (args: List<String>) : AppState =
       state
     | Ok result ->
       let (hash, loc, name, entityType) = result
-      showDependencies branchId hash name
+      showDependencies branchId hash name cap
       Stdlib.printLine ""
 
       if deep then
-        showTransitiveDependents branchId loc entityType name
+        showTransitiveDependents branchId loc entityType name cap
       else
-        showDependents branchId loc entityType name
+        showDependents branchId loc entityType name cap
 
       state
 
@@ -319,7 +326,7 @@ let complete (state: AppState) (args: List<String>) : List<Completion.Completion
 
 let help (_state: AppState) : String =
   [
-    "Usage: deps [subcommand] <path> [--deep]"
+    "Usage: deps [subcommand] <path> [--deep] [--all]"
     "Show dependencies and dependents of a function, type, or value."
     ""
     "Subcommands:"
@@ -328,6 +335,7 @@ let help (_state: AppState) : String =
     ""
     "Options:"
     "  --deep         - Show transitive dependents (everything that could break)"
+    "  --all          - Show every row; listings are capped at 20 otherwise"
     ""
     "Without subcommand, shows both uses and usedby."
     ""

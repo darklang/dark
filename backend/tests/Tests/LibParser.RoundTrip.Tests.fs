@@ -34,6 +34,217 @@ module PackageRefs = LibExecution.PackageRefs
 /// Both are fixed by the source-printer work, at which point this list should be empty.
 let knownNonIdempotent : Set<string> = Set.empty
 
+
+/// The parsed shape of a source file, for comparing two parses structurally.
+module SourceFileAst =
+  module PT2DT = LibExecution.ProgramTypesToDarkTypes
+  module D = LibExecution.DvalDecoder
+
+  type Definitions =
+    { types : List<PT.PackageType.PackageType>
+      values : List<PT.PackageValue.PackageValue>
+      fns : List<PT.PackageFn.PackageFn>
+      exprs : List<PT.Expr * List<string>> }
+
+  type Declaration =
+    | Type of PT.PackageType.PackageType
+    | Value of PT.PackageValue.PackageValue
+    | Function of PT.PackageFn.PackageFn
+    | Module of Definitions
+
+  type SourceFile = { declarations : List<Declaration>; exprsToEval : List<PT.Expr> }
+
+  let rec definitionsOfDval (d : RT.Dval) : Definitions =
+    match d with
+    | RT.DRecord(_, _, _, fields) ->
+      { types = fields |> D.field "types" |> D.list PT2DT.PackageType.fromDT
+        values = fields |> D.field "values" |> D.list PT2DT.PackageValue.fromDT
+        fns = fields |> D.field "fns" |> D.list PT2DT.PackageFn.fromDT
+        exprs =
+          fields
+          |> D.field "exprs"
+          |> D.list (fun d ->
+            match d with
+            | RT.DTuple(e, path, []) -> (PT2DT.Expr.fromDT e, D.list D.string path)
+            | _ -> Exception.raiseInternal "Invalid Definitions.exprs entry" []) }
+    | _ -> Exception.raiseInternal "Invalid Definitions" []
+
+  and declarationOfDval (d : RT.Dval) : Declaration =
+    match d with
+    | RT.DEnum(_, _, _, "Type", [ t ]) -> Type(PT2DT.PackageType.fromDT t)
+    | RT.DEnum(_, _, _, "Value", [ v ]) -> Value(PT2DT.PackageValue.fromDT v)
+    | RT.DEnum(_, _, _, "Function", [ f ]) -> Function(PT2DT.PackageFn.fromDT f)
+    | RT.DEnum(_, _, _, "Module", [ m ]) -> Module(definitionsOfDval m)
+    | _ -> Exception.raiseInternal "Invalid Declaration" []
+
+  let ofDval (d : RT.Dval) : SourceFile =
+    match d with
+    | RT.DRecord(_, _, _, fields) ->
+      { declarations = fields |> D.field "declarations" |> D.list declarationOfDval
+        exprsToEval = fields |> D.field "exprsToEval" |> D.list PT2DT.Expr.fromDT }
+    | _ -> Exception.raiseInternal "Invalid SourceFile" []
+
+
+module RoundTripExpect =
+  module Canonical = LibSerialization.Hashing.Canonical
+
+  /// The bytes content-addressing hashes: ids, `originalName`, descriptions and locations are
+  /// skipped; names compare by what they resolved to. "Same bytes" is exactly "same program".
+  let private canon (write : System.IO.BinaryWriter -> unit) : string =
+    use ms = new System.IO.MemoryStream()
+    use w = new System.IO.BinaryWriter(ms)
+    write w
+    w.Flush()
+    System.Convert.ToHexString(ms.ToArray())
+
+  let rec private definitionsCanon
+    (d : SourceFileAst.Definitions)
+    : List<string * string> =
+    [ yield!
+        d.types
+        |> List.mapi (fun i t ->
+          $"type {i}", canon (fun w -> Canonical.writeType Canonical.Normal w t))
+      yield!
+        d.values
+        |> List.mapi (fun i v ->
+          $"value {i}", canon (fun w -> Canonical.writeValue Canonical.Normal w v))
+      yield!
+        d.fns
+        |> List.mapi (fun i f ->
+          $"fn {i}", canon (fun w -> Canonical.writeFn Canonical.Normal w f))
+      yield!
+        d.exprs
+        |> List.mapi (fun i (e, path) ->
+          let at = String.concat "." path
+          $"module expr {i} at {at}",
+          canon (fun w -> Canonical.writeExpr Canonical.Normal w e)) ]
+
+  let private sourceFileCanon
+    (sf : SourceFileAst.SourceFile)
+    : List<string * string> =
+    [ yield!
+        sf.declarations
+        |> List.mapi (fun i decl ->
+          match decl with
+          | SourceFileAst.Type t ->
+            [ $"decl {i} type",
+              canon (fun w -> Canonical.writeType Canonical.Normal w t) ]
+          | SourceFileAst.Value v ->
+            [ $"decl {i} value",
+              canon (fun w -> Canonical.writeValue Canonical.Normal w v) ]
+          | SourceFileAst.Function f ->
+            [ $"decl {i} fn",
+              canon (fun w -> Canonical.writeFn Canonical.Normal w f) ]
+          | SourceFileAst.Module m ->
+            definitionsCanon m
+            |> List.map (fun (k, v) -> $"decl {i} module / {k}", v))
+        |> List.concat
+      yield!
+        sf.exprsToEval
+        |> List.mapi (fun i e ->
+          $"expr {i}", canon (fun w -> Canonical.writeExpr Canonical.Normal w e)) ]
+
+  /// Canonical contents and their name bindings, in source order.
+  let nameBindings (ops : List<PT.PackageOp>) : List<string> =
+    ops
+    |> List.choose (fun op ->
+      match op with
+      | PT.PackageOp.AddType t ->
+        Some $"content {canon (fun w -> Canonical.writeType Canonical.Normal w t)}"
+      | PT.PackageOp.AddValue v ->
+        Some $"content {canon (fun w -> Canonical.writeValue Canonical.Normal w v)}"
+      | PT.PackageOp.AddFn f ->
+        Some $"content {canon (fun w -> Canonical.writeFn Canonical.Normal w f)}"
+      | PT.PackageOp.SetName(loc, target) ->
+        let kind =
+          match target with
+          | PT.Reference.PackageType _ -> "type"
+          | PT.Reference.PackageValue _ -> "value"
+          | PT.Reference.PackageFn _ -> "fn"
+        let path = String.concat "." (loc.owner :: loc.modules)
+        Some $"bind {kind} {path}.{loc.name}"
+      | _ -> None)
+
+  /// Unresolved names in traversal order, which the canonical serializer omits.
+  let rec collectUnresolved (d : RT.Dval) : List<string> =
+    let fromFields (fields : RT.DvalMap) : List<string> =
+      let own =
+        match Map.tryFind "originalName" fields, Map.tryFind "resolved" fields with
+        | Some(RT.DList(_, segs)), Some(RT.DEnum(_, _, _, "Error", _)) ->
+          let name =
+            segs
+            |> List.choose (fun s ->
+              match s with
+              | RT.DString s -> Some s
+              | _ -> None)
+            |> String.concat "."
+          [ name ]
+        | _ -> []
+      own
+      @ (fields |> Map.toList |> List.collect (fun (_, v) -> collectUnresolved v))
+
+    match d with
+    | RT.DList(_, items) -> items |> List.collect collectUnresolved
+    | RT.DTuple(a, b, rest) -> (a :: b :: rest) |> List.collect collectUnresolved
+    | RT.DRecord(_, _, _, fields) -> fromFields fields
+    | RT.DEnum(_, _, _, _, fields) -> fields |> List.collect collectUnresolved
+    | RT.DDict(_, entries) ->
+      entries |> Map.toList |> List.collect (fun (_, v) -> collectUnresolved v)
+    | RT.DApplicable(RT.AppLambda lambda) ->
+      let closed =
+        lambda.closedRegisters
+        |> List.collect (fun (_, value) -> collectUnresolved value)
+      closed @ (lambda.argsSoFar |> List.collect collectUnresolved)
+    | RT.DApplicable(RT.AppNamedFn namedFn) ->
+      namedFn.argsSoFar |> List.collect collectUnresolved
+
+    | RT.DUnit
+    | RT.DBool _
+    | RT.DInt8 _
+    | RT.DUInt8 _
+    | RT.DInt16 _
+    | RT.DUInt16 _
+    | RT.DInt32 _
+    | RT.DUInt32 _
+    | RT.DInt64 _
+    | RT.DUInt64 _
+    | RT.DInt128 _
+    | RT.DUInt128 _
+    | RT.DInt _
+    | RT.DFloat _
+    | RT.DChar _
+    | RT.DString _
+    | RT.DDateTime _
+    | RT.DUuid _
+    | RT.DDB _
+    | RT.DBlob _
+    | RT.DStream _ -> []
+
+  /// Two parses of "the same" source describe the same program.
+  let sourceFileEqual
+    (actual : SourceFileAst.SourceFile)
+    (expected : SourceFileAst.SourceFile)
+    (printed : string)
+    : unit =
+    let a = sourceFileCanon actual
+    let e = sourceFileCanon expected
+
+    Expect.equal
+      (List.map fst a)
+      (List.map fst e)
+      "Re-parsing the printed source gave a different set of items"
+
+    List.iter2
+      (fun (label, ab) (_, eb) ->
+        if ab <> eb then
+          failtest (
+            $"Re-parsing the printed source changed the meaning of {label}.\n"
+            + $"The printer emitted text that parses to a different program:\n{printed}"
+          ))
+      a
+      e
+
+
 let t
   (name : string)
   (input : string)
@@ -49,7 +260,9 @@ let t
     )
 
   let prettyPrintFnName =
-    RT.FQFnName.fqPackage (PackageRefs.Fn.PrettyPrinter.ProgramTypes.sourceFile ())
+    RT.FQFnName.fqPackage (
+      PackageRefs.Fn.PrettyPrinter.ProgramTypes.sourceFileAtWidth ()
+    )
 
   testTask name {
     let basePM =
@@ -58,9 +271,11 @@ let t
       else
         pmPT |> PT.PackageManager.withExtras extraTypes extraValues extraFns
 
-    // Parse `src` (so its declarations produce PackageOps), then pretty-print it
-    // back to source with those ops available for name resolution.
-    let roundOnce (src : string) : Task<string> =
+    // Parse, then print with the resulting name bindings available.
+    let roundOnceAt
+      (width : int)
+      (src : string)
+      : Task<RT.Dval * List<PT.PackageOp> * string> =
       task {
         let! parseExeState = executionStateFor basePM false Map.empty
         let args = NEList.singleton (RT.DString src)
@@ -83,7 +298,10 @@ let t
           let enhancedPM = LibDB.PackageManager.withExtraOps basePM packageOps
           let! ppExeState = executionStateFor enhancedPM false Map.empty
 
-          let ppArgs = NEList.ofList (RT.DUuid PT.mainBranchId) [ sourceFile ]
+          let ppArgs =
+            NEList.ofList
+              (RT.DUuid PT.mainBranchId)
+              [ Dval.int (bigint width); sourceFile ]
           let! ppResult =
             LibExecution.Execution.executeFunction
               ppExeState
@@ -93,7 +311,7 @@ let t
           let! resultDval = unwrapExecutionResult ppExeState ppResult |> Ply.toTask
 
           match resultDval with
-          | RT.DString result -> return result
+          | RT.DString result -> return (sourceFile, packageOps, result)
           | _ -> return failtest $"Unexpected pretty print result: {resultDval}"
 
         | RT.DEnum(tn, _, _, "Error", [ RT.DString errMsg ]) when
@@ -103,29 +321,59 @@ let t
         | _ -> return failtest $"Unexpected parse result format: {parseDval}"
       }
 
-    let! firstPrint = roundOnce input
+    let roundOnce (src : string) : Task<RT.Dval * List<PT.PackageOp> * string> =
+      roundOnceAt 80 src
+
+    let! (firstTree, firstOps, firstPrint) = roundOnce input
     Expect.RT.equalDval
       (RT.DString firstPrint)
       (RT.DString expected)
       "Didn't round-trip as expected"
 
-    // Print, parse, print: the second print must equal the first.
-    //
-    // The assertion above only says the printer turns *this* input into the expected text. It says
-    // nothing about whether the printer's own output is a fixed point, and those come apart: a printer
-    // that re-qualifies a name, or lays a construct out differently from how it accepts it, passes the
-    // first check and still churns the text every time a file goes through it. That matters here
-    // because the expected strings are hand-written, so a layout change means regenerating them -- and
-    // a regenerated expectation is only trustworthy if the printer agrees with itself.
+    // Printing the printer's output must be a fixed point.
     if Set.contains name knownNonIdempotent then
       return ()
     else
-      let! secondPrint = roundOnce firstPrint
-      return
-        Expect.RT.equalDval
-          (RT.DString secondPrint)
-          (RT.DString firstPrint)
-          "Printing is not idempotent: printing the printer's own output changed it"
+      let! (secondTree, secondOps, secondPrint) = roundOnce firstPrint
+      Expect.RT.equalDval
+        (RT.DString secondPrint)
+        (RT.DString firstPrint)
+        "Printing is not idempotent: printing the printer's own output changed it"
+
+      // Text idempotency does not detect stable output with different semantics.
+      RoundTripExpect.sourceFileEqual
+        (SourceFileAst.ofDval secondTree)
+        (SourceFileAst.ofDval firstTree)
+        firstPrint
+
+      // Canonical content omits bindings and unresolved-name spellings.
+      Expect.equal
+        (RoundTripExpect.nameBindings secondOps)
+        (RoundTripExpect.nameBindings firstOps)
+        "Re-parsing the printed source bound different names"
+
+      Expect.equal
+        (RoundTripExpect.collectUnresolved secondTree)
+        (RoundTripExpect.collectUnresolved firstTree)
+        "Re-parsing the printed source changed an unresolved name"
+
+      // Every chosen layout must parse to the same program.
+      for width in [ 20; 48; 200 ] do
+        let! (_, _, sweepPrint) = roundOnceAt width input
+        let! (sweepTree, sweepOps, _) = roundOnce sweepPrint
+        Expect.equal
+          (RoundTripExpect.nameBindings sweepOps)
+          (RoundTripExpect.nameBindings firstOps)
+          $"Width-{width} rendering bound different names"
+
+        Expect.equal
+          (RoundTripExpect.collectUnresolved sweepTree)
+          (RoundTripExpect.collectUnresolved firstTree)
+          $"Width-{width} rendering changed an unresolved name"
+        RoundTripExpect.sourceFileEqual
+          (SourceFileAst.ofDval sweepTree)
+          (SourceFileAst.ofDval firstTree)
+          $"(printed at width {width})\n{sweepPrint}"
   }
 
 
@@ -374,6 +622,20 @@ let myEnum : (PT.PackageType.PackageType * PT.PackageLocation) =
                          { typ = PT.TypeReference.TInt64
                            label = None
                            description = "" } ]
+                     description = "" })
+                  ({ name = "E"
+                     fields =
+                       [ { typ = PT.TypeReference.TInt64
+                           label = None
+                           description = "" }
+
+                         { typ = PT.TypeReference.TInt64
+                           label = None
+                           description = "" }
+
+                         { typ = PT.TypeReference.TInt64
+                           label = None
+                           description = "" } ]
                      description = "" }) ]
             ) } }
   let location : PT.PackageLocation =
@@ -594,6 +856,31 @@ let typeReferences =
       []
       false
 
+    t
+      "fn with fn arg"
+      "type HigherOrder = (Int64 -> String) -> Bool"
+      "type HigherOrder =\n  (Int64 -> String) -> Bool"
+      []
+      []
+      []
+      false
+    t
+      "fn with fn return"
+      "type Curried = Int64 -> (String -> Bool)"
+      "type Curried =\n  Int64 -> (String -> Bool)"
+      []
+      []
+      []
+      false
+    t
+      "tuple containing fn"
+      "type FunctionAndFlag = ((Int64 -> String) * Bool)"
+      "type FunctionAndFlag =\n  ((Int64 -> String) * Bool)"
+      []
+      []
+      []
+      false
+
     t "db with generic" "type MyDB = DB<'a>" "type MyDB =\n  DB<'a>" [] [] [] false
     t
       "db with custom type"
@@ -704,6 +991,15 @@ let typeReferences =
 
 let typeDeclarations =
   [ t "unit" "type SimpleAlias = Unit" "type SimpleAlias =\n  Unit" [] [] [] false
+
+    t
+      "enum with fn field in product"
+      "type WithCallback = | WithCallback of (Int64 -> String) * Bool"
+      "type WithCallback =\n  | WithCallback of (Int64 -> String) * Bool"
+      []
+      []
+      []
+      false
 
     t
       "type doc comment"
@@ -1360,6 +1656,16 @@ let exprs =
       []
       []
       false
+    // Literal braces in an interpolated string are written doubled; printed back, they must be
+    // doubled again, or `{{x}}` (the text `{x}`) comes back as an interpolation of `x`.
+    t
+      "interpolated string, literal braces"
+      "$\"{{x}} = {x}\""
+      "$\"{{x}} = {x}\""
+      []
+      []
+      []
+      false
     t "option none, short" "Stdlib.Option.Option.None" "Option.None" [] [] [] false
     t "option none, long" "Stdlib.Option.Option.None" "Option.None" [] [] [] false
     t "option some" "Stdlib.Option.Option.Some 1L" "Option.Some(1L)" [] [] [] false
@@ -1580,7 +1886,9 @@ if a > b then
     c
   else
     b"""
-      """if a > b then if c > d then c else b"""
+      // A nested `if` in a then-branch always gets its own line; see "else for outer if".
+      """if a > b then
+  if c > d then c else b"""
       []
       []
       []
@@ -1594,7 +1902,12 @@ if a > b then
     c
 else
   b"""
-      """if a > b then if c > d then c else b"""
+      // A nested `if` in a then-branch always gets its own line: on one row the parser would give
+      // this `else` to the inner `if`, making it "else for inner if" above. Indentation decides.
+      """if a > b then
+  if c > d then c
+else
+  b"""
       []
       []
       []
@@ -1871,11 +2184,27 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
 
     // pipe expression
     t "pipe, infix" "1L |> (+) 2L" "1L |> (+) 2L" [] [] [] false
+    t
+      "pipe, computed arg"
+      "[1L; 2L] |> Stdlib.List.take (2L - 1L)"
+      "[1L; 2L] |> Stdlib.List.take (2L - 1L)"
+      []
+      []
+      []
+      false
+    t
+      "pipe, if head"
+      "(if true then 1L else 2L) |> Stdlib.Int64.add 1L"
+      "(if true then 1L else 2L) |> Stdlib.Int64.add 1L"
+      []
+      []
+      []
+      false
     t "pipe, into var" "1L |> x" "1L |> x" [] [] [] false
     t
       "pipe, into lambda"
       "1L |> (fun x -> x + 1L)"
-      "1L |> fun x -> x + 1L"
+      "1L |> (fun x -> x + 1L)"
       []
       []
       []
@@ -1883,7 +2212,7 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
     t
       "pipe, into lambda, 2"
       "1L |> fun x -> x + 1L"
-      "1L |> fun x -> x + 1L"
+      "1L |> (fun x -> x + 1L)"
       []
       []
       []
@@ -1900,6 +2229,22 @@ else if c > d then c else if e > f then e else if g > h then g else h"""
       "pipe, into enum 2"
       "33L |> Tests.MyEnum.D(21L)"
       "33L |> Tests.MyEnum.D(21L)"
+      [ myEnum ]
+      []
+      []
+      false
+    t
+      "pipe, lambda then another stage"
+      "1L |> (fun x -> x + 1L) |> Stdlib.Int64.add 2L"
+      "1L |> (fun x -> x + 1L) |> Stdlib.Int64.add 2L"
+      []
+      []
+      []
+      false
+    t
+      "pipe, into enum, several fields"
+      "33L |> Tests.MyEnum.E(21L, 42L)"
+      "33L |> Tests.MyEnum.E(21L, 42L)"
       [ myEnum ]
       []
       []
@@ -2221,6 +2566,24 @@ let functionDeclarations =
       "function doc comment"
       "/// Greets a user\nlet greet (name: String): String = \"Hello \" ++ name"
       "/// Greets a user\nlet greet (name: String): String =\n  \"Hello \" ++ name"
+      []
+      []
+      []
+      false
+
+    t
+      "nested fn type in parameter"
+      "let apply (f: (Int64 -> String) -> Bool): Bool = true"
+      "let apply (f: (Int64 -> String) -> Bool): Bool =\n  true"
+      []
+      []
+      []
+      false
+
+    t
+      "nested fn type in return"
+      "let curry (): Int64 -> (String -> Bool) = fun x y -> true"
+      "let curry (): Int64 -> (String -> Bool) =\n  (fun x y -> true)"
       []
       []
       []

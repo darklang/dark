@@ -9,20 +9,34 @@ module ModuleDeclaration =
       exprs: List<LanguageTools.ProgramTypes.Expr * List<String>>
       submodules: List<Module> }
 
+  /// Add an item that has no module path to the sentinel module `name`, creating it at the end
+  /// of `ms` if it isn't there yet. Everything already in `ms` is kept.
+  let intoRootless (ms: List<Module>) (name: String) (add: Module -> Module) : List<Module> =
+    let (found, others) = ms |> Stdlib.List.partition (fun m -> m.name == name)
+
+    let target =
+      match found with
+      | m :: _ -> m
+      | [] ->
+        Module
+          { name = name
+            types = []
+            fns = []
+            values = []
+            exprs = []
+            submodules = [] }
+
+    Stdlib.List.append others [ add target ]
+
   let withTypeHelper
     (ms: List<Module>)
     (t: LanguageTools.ProgramTypes.PackageType.PackageType)
     (modulePath: List<String>)
     : List<Module> =
     match modulePath with
-    | [] ->
-      [ Module
-          { name = "type has no modules"
-            types = [ t ]
-            fns = []
-            values = []
-            exprs = []
-            submodules = [] } ]
+    // An item with no module path (`Owner.name`) has nowhere in the tree to go. Keep the modules
+    // accumulated so far and add it under a sentinel, rather than replacing them with it.
+    | [] -> ModuleDeclaration.intoRootless ms "type has no modules" (fun m -> { m with types = Stdlib.List.append m.types [ t ] })
 
     | firstModuleNamePart :: submoduleNames ->
       let (foundModuleMaybe, otherModules) =
@@ -95,14 +109,9 @@ module ModuleDeclaration =
     (modulePath: List<String>)
     : List<Module> =
     match modulePath with
-    | [] ->
-      [ Module
-          { name = "fn has no modules"
-            types = []
-            fns = [ f ]
-            values = []
-            exprs = []
-            submodules = [] } ]
+    // An item with no module path (`Owner.name`) has nowhere in the tree to go. Keep the modules
+    // accumulated so far and add it under a sentinel, rather than replacing them with it.
+    | [] -> ModuleDeclaration.intoRootless ms "fn has no modules" (fun m -> { m with fns = Stdlib.List.append m.fns [ f ] })
 
     | firstModuleNamePart :: submoduleNames ->
       let (foundModuleMaybe, otherModules) =
@@ -174,14 +183,9 @@ module ModuleDeclaration =
     (modulePath: List<String>)
     : List<Module> =
     match modulePath with
-    | [] ->
-      [ Module
-          { name = "value has no modules"
-            types = []
-            fns = []
-            values = [ v ]
-            exprs = []
-            submodules = [] } ]
+    // An item with no module path (`Owner.name`) has nowhere in the tree to go. Keep the modules
+    // accumulated so far and add it under a sentinel, rather than replacing them with it.
+    | [] -> ModuleDeclaration.intoRootless ms "value has no modules" (fun m -> { m with values = Stdlib.List.append m.values [ v ] })
 
     | firstModuleNamePart :: submoduleNames ->
       let (foundModuleMaybe, otherModules) =
@@ -255,14 +259,7 @@ module ModuleDeclaration =
     let (expr, modules) = e
 
     match modules with
-    | [] ->
-      [ Module
-          { name = "expression has no modules"
-            types = []
-            fns = []
-            values = []
-            exprs = [ (expr, []) ]
-            submodules = [] } ]
+    | [] -> ModuleDeclaration.intoRootless ms "expression has no modules" (fun m -> { m with exprs = Stdlib.List.append m.exprs [ (expr, []) ] })
 
     | firstModuleNamePart :: submoduleNames ->
       let (foundModuleMaybe, otherModules) =
@@ -349,7 +346,8 @@ let moduleDeclaration
   (ctx: PrettyPrinter.ProgramTypes.Context)
   (m: ModuleDeclaration.Module)
   : String =
-  let headerPart = $"module {m.name} =\n"
+  // Account for the indentation added after rendering.
+  let ctx = { ctx with width = Stdlib.Int.max 1 (ctx.width - 2) }
 
   let typesPart =
     match m.types with

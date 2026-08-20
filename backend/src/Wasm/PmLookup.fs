@@ -30,7 +30,7 @@ let private locationsFn
     description = "Returns all locations of a package item by its hash"
     fn =
       (function
-      | _, _, _, [ DUuid branchId; hashDval ] ->
+      | _, _, _, [| DUuid branchId; hashDval |] ->
         uply {
           let hash = PT2DT.Hash.fromDT hashDval
           let! result = lookup (getPM ()) branchId hash

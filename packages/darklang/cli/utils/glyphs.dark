@@ -38,7 +38,7 @@ let forKind (kind: String) : String =
     | "value" -> Glyphs.value
     | _ -> Glyphs.value
 
-  Tui.Text.fitToWidth glyph 2
+  Stdlib.Cli.Tui.Text.fitToWidth glyph 2
 
 
 /// A section header for a listing: glyph plus the plural noun.

@@ -97,13 +97,13 @@ module Records =
   // string version measured the joined fields alone, so a 51-character name didn't count and this
   // printed as one 118-column line while reporting that it fitted in 80.
   pp (loc "Darklang" [ "Stdlib"; "List" ] "map") =
-    "LanguageTools.ProgramTypes.PackageLocation {\n  owner: \"Darklang\",\n  modules: [\"Stdlib\", \"List\"],\n  name: \"map\"\n}"
+    "Darklang.LanguageTools.ProgramTypes.PackageLocation {\n  owner: \"Darklang\",\n  modules: [\"Stdlib\", \"List\"],\n  name: \"map\"\n}"
 
   // `List<_>`, not `List<String>`: an empty list carries no element type at runtime, and the printer
   // doesn't consult the field's declared type to recover one. Recorded as-is because it is what happens;
   // the `_` is the same gap that shows up as `Option<_>.None`, and belongs with the type-args work.
   pp (loc "Darklang" [] "x") =
-    "LanguageTools.ProgramTypes.PackageLocation {\n  owner: \"Darklang\",\n  modules: List<_> [],\n  name: \"x\"\n}"
+    "Darklang.LanguageTools.ProgramTypes.PackageLocation {\n  owner: \"Darklang\",\n  modules: List<_> [],\n  name: \"x\"\n}"
 
 
 // ========================================
@@ -204,4 +204,4 @@ module Options =
     Darklang.SCM.Branch.mainBranchId
     (Darklang.PrettyPrinter.DisplayOptions.atWidth 200)
     (Builtin.reflect (loc "Darklang" [ "Stdlib" ] "map")) =
-    "LanguageTools.ProgramTypes.PackageLocation { owner: \"Darklang\", modules: [\"Stdlib\"], name: \"map\" }"
+    "Darklang.LanguageTools.ProgramTypes.PackageLocation { owner: \"Darklang\", modules: [\"Stdlib\"], name: \"map\" }"
