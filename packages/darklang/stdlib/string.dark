@@ -82,7 +82,7 @@ let displayWidth (s: String) : Int =
 /// The width is only meaningful when the flag is false. The single place this builtin is reached;
 /// `Cli.Tui.Text` layers escape-awareness on top of it.
 let inspectDisplay (s: String) : (Int * Bool) =
-  Builtin.cliTerminalInspectText s
+  Builtin.stringInspectText s
 
 
 /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.

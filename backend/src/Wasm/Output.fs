@@ -25,7 +25,7 @@ let private fns : List<BuiltInFn> =
         "Prints the given <param value> to the REPL output, followed by a newline."
       fn =
         (function
-        | _, _, _, [ DString str ] ->
+        | _, _, _, [| DString str |] ->
           buffer.Append(str).Append('\n') |> ignore<System.Text.StringBuilder>
           Ply DUnit
         | _ -> incorrectArgs ())
@@ -41,7 +41,7 @@ let private fns : List<BuiltInFn> =
       description = "Prints the given <param value> to the REPL output."
       fn =
         (function
-        | _, _, _, [ DString str ] ->
+        | _, _, _, [| DString str |] ->
           buffer.Append(str) |> ignore<System.Text.StringBuilder>
           Ply DUnit
         | _ -> incorrectArgs ())

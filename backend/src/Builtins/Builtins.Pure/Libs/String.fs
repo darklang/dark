@@ -15,7 +15,28 @@ module Interpreter = LibExecution.Interpreter
 module Blob = LibExecution.Blob
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "stringToList" 0
+  [ { name = fn "stringInspectText" 0
+      typeParams = []
+      parameters = [ Param.make "text" TString "One candidate logical terminal row" ]
+      returnType = TTuple(TInt, TBool, [])
+      description =
+        "Return (display width in terminal columns when control-free, contains control characters)"
+      fn =
+        (function
+        | _, _, _, [| DString text |] ->
+          DTuple(
+            text |> LibExecution.DisplayWidth.ofString |> bigint |> Dval.int,
+            text |> LibExecution.DisplayWidth.containsControl |> DBool,
+            []
+          )
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+    { name = fn "stringToList" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
       returnType = TList TChar

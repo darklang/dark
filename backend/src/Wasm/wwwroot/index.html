@@ -107,6 +107,9 @@
     form.addEventListener("submit", async (ev) => {
       ev.preventDefault();
       const source = input.value; if (!source.trim()) return;
+      // Enter reaches here via requestSubmit() even while the run button is disabled,
+      // so an eager first entry could run before the runtime and packages were loaded.
+      if (runBtn.disabled) return;
       if (evalInFlight) return;
 
       evalInFlight = true;

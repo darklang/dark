@@ -21,6 +21,7 @@
     <ProjectReference Include="../Prelude/Prelude.fsproj" />
   </ItemGroup>
   <ItemGroup>
+    <Compile Include="DisplayWidth.fs" />
     <Compile Include="DarkDateTime.fs" />
     <Compile Include="PackageRefs.fs" />
     <!-- Capabilities (resource-domain gating model — RT-independent) /-->

@@ -4,7 +4,7 @@ module Tests.Terminal
 open Expecto
 
 module TerminalRestoreGuard = Builtins.Cli.Libs.Terminal.TerminalRestoreGuard
-module DisplayWidth = Builtins.Cli.Libs.Terminal.DisplayWidth
+module DisplayWidth = LibExecution.DisplayWidth
 module PosixLibc = Builtins.Cli.Libs.Posix.Libc
 
 
