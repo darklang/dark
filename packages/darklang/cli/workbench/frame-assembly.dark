@@ -1,5 +1,6 @@
-/// Assembling the whole frame: the chrome rows around the body, the command bar's completion dropdown,
-/// and `viewAtSize`, which is what the terminal session actually renders.
+/// Assembling the whole frame: the context row, the sidebar beside the body,
+/// the footer, the command bar's completion dropdown, and `viewAtSize`, which
+/// is what the terminal session actually renders.
 ///
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
@@ -12,50 +13,65 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
   let w = if size.width < 24 then 80 else size.width
   // Full height now: the last row used to be reserved for the CLI's status bar, and that's gone.
   let screen = Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = h; cols = w }
-  // The breadcrumb only earns its row when it has something the rest of the frame doesn't already say.
-  //
-  // It used to show the view name and item count for every view, which meant "Builtins" appeared three times
-  // on screen - the tab bar's ◆ marker, this row, and the pane's own box title - and the count twice. The tab
-  // bar owns which view you're in and the box title owns what's in the pane, so all this row can add is a
-  // package path. Matter has one; nothing else does, so nothing else gets the row.
-  let path =
-    if state.activeView == vMatter then Packages.formatLocation state.location else ""
   let branch =
     match SCM.Branch.get state.branchId with
     | Some b -> b.name
     | None -> "main"
-  // Real sync state, computed per-frame (render runs per-keypress, so it never goes stale). Drives both the
-  // Resolve tab badge and the context line's right-side status.
+  // Real state, computed per-frame (render runs per-keypress, so it never
+  // goes stale). Drives the glance at the right of the context row and the
+  // sidebar's badges.
   let conflictCount = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
+  let wip = wipItemCount state.branchId
+  // The state segment: green "synced" while nothing needs you, orange "to
+  // resolve" when something does.
   let (syncColored, syncPlain) =
     if conflictCount > 0 then
-      let s = "⚠ " ++ (Stdlib.Int.toString conflictCount) ++ " to resolve"
-      (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink s, s)
+      let s = " ⚠ " ++ (Stdlib.Int.toString conflictCount) ++ " to resolve "
+      (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.orangeBg ++ Stdlib.Cli.UI.Colors.black) s, s)
     else
-      (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ synced", "✓ synced")
-  // Columns, not graphemes: `⚠`/`✓` are non-ASCII, and `String.length` counts one per grapheme, so a wide
-  // glyph would right-align this past the edge of the row.
-  let syncVisibleLen = Stdlib.Cli.Tui.Text.displayWidth syncPlain
-  // The context line - the workbench's `pwd`: where edits land. Account, instance, branch, and the sync
-  // glance right-aligned. Branch is here and nowhere else; it used to be on this row AND the breadcrumb.
+      (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.greenBg ++ Stdlib.Cli.UI.Colors.black) " ✓ synced ", " ✓ synced ")
+  let (wipColored, wipPlain) =
+    if wip > 0 then
+      let s = "● " ++ (Stdlib.Int.toString wip) ++ " uncommitted"
+      (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink s, s ++ "  ")
+    else
+      ("", "")
+  // Columns, not graphemes: `⚠`/`✓`/`●` are non-ASCII, and `String.length`
+  // counts one per grapheme, so a wide glyph would right-align this past the
+  // edge of the row.
+  let glancePlain = wipPlain ++ syncPlain
+  let glanceColored = if wip > 0 then wipColored ++ "  " ++ syncColored else syncColored
+  let glanceLen = Stdlib.Cli.Tui.Text.displayWidth glancePlain
+  // The status row - the workbench's `pwd`, as segments: who (purple), on
+  // which instance (grey), on which branch; and at the right, the glance:
+  // uncommitted work and sync. This is the only row that says any of it; the
+  // panels don't repeat it.
+  let account = if state.accountName == "" then "guest" else state.accountName
   let context =
     Stdlib.Cli.UI.Layout.fixedSize
       1
       (fun r ->
         let line =
-          "  "
-          ++ (Stdlib.Cli.UI.Colors.boldText state.accountName)
-          ++ (Stdlib.Cli.UI.Colors.dimText "    instance: ")
-          ++ (Stdlib.Cli.UI.Colors.dimText state.instanceName)
-          ++ (Stdlib.Cli.UI.Colors.dimText "    branch: ")
-          ++ (Stdlib.Cli.UI.Colors.dimText branch)
+          " "
+          ++ (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.purpleBg ++ Stdlib.Cli.UI.Colors.white ++ Stdlib.Cli.UI.Colors.bold) (" " ++ account ++ " "))
+          ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.grayBg (" " ++ state.instanceName ++ " "))
+          ++ (Stdlib.Cli.UI.Colors.dimText "  ⎇ ")
+          ++ (Stdlib.Cli.UI.Colors.boldText branch)
         Stdlib.List.flatten
           [ Stdlib.Cli.UI.Layout.at r 0 0 line
-            Stdlib.Cli.UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - syncVisibleLen - 2)) syncColored ])
-  let tabSegs = visibleViews state |> Stdlib.List.map (fun i -> (i, viewLabel i))
-  let tabbar = Stdlib.Cli.UI.Layout.fixedSize 1 (fun r -> Frame.renderTabBar r tabSegs state.activeView conflictCount)
-  let crumb = Stdlib.Cli.UI.Layout.fixedSize 1 (fun r -> Frame.renderBreadcrumb r path "" 0)
-  let body = Stdlib.Cli.UI.Layout.greedy (fun r -> renderBody state r)
+            Stdlib.Cli.UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - glanceLen - 1)) glanceColored ])
+  // The body: the sidebar column beside the view when there's room, else the
+  // view alone (the sidebar becomes an overlay, see below).
+  let sidebarColumn = sidebarIsColumn w
+  let body =
+    Stdlib.Cli.UI.Layout.greedy (fun r ->
+      if sidebarColumn then
+        Stdlib.Cli.UI.Layout.hstack
+          r
+          [ Stdlib.Cli.UI.Layout.fixedWidth sidebarCols (fun rr -> renderSidebar state wip conflictCount rr)
+            Stdlib.Cli.UI.Layout.greedyWidth (fun rr -> renderBody state rr) ]
+      else
+        renderBody state r)
   let hints =
     Stdlib.Cli.UI.Layout.fixedSize
       1
@@ -90,10 +106,13 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
                 if Stdlib.Bool.not (Stdlib.List.isEmpty state.search.hits) then
                   Frame.formatHints [ ("↑↓", "move"); ("⏎", "jump"); ("esc", "close"); ("q", "quit") ]
                 else hintsForView state
-        // A toast sits *beside* the hints, right-aligned, rather than replacing the row. It used to take the
-        // whole row, so every message cost you the shortcuts until you pressed a key to clear it - exactly
-        // when a new arrival is most likely to be looking for them.
-        // A failure/guidance toast reads pink with ✗; a success reads green with ✓.
+        // A toast sits *beside* the hints, right-aligned, rather than
+        // replacing the row. It used to take the whole row, so every message
+        // cost you the shortcuts until you pressed a key to clear it -
+        // exactly when a new arrival is most likely to be looking for them. A
+        // failure/guidance toast reads pink with ✗; a success reads green
+        // with ✓. Drawn as a segment (dark text on green, or on pink for a
+        // failure), like the status row's.
         let toastPlain =
           if state.message == "" then
             ""
@@ -102,15 +121,16 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
               (Stdlib.String.contains state.message "fail")
               || (Stdlib.String.contains state.message "conflict")
               || (Stdlib.String.contains state.message "descend")
-            (if bad then "✗ " else "✓ ") ++ state.message
+            (if bad then " ✗ " else " ✓ ") ++ state.message ++ " "
         let toastWidth = Stdlib.Cli.Tui.Text.displayWidth toastPlain
         let toast =
           if toastPlain == "" then
             []
           else
-            let bad = Stdlib.String.startsWith toastPlain "✗"
-            let colored = Stdlib.Cli.UI.Colors.colorize (if bad then Stdlib.Cli.UI.Colors.pink else Stdlib.Cli.UI.Colors.green) toastPlain
-            Stdlib.Cli.UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - toastWidth - 2)) colored
+            let bad = Stdlib.String.startsWith toastPlain " ✗"
+            let colored =
+              Stdlib.Cli.UI.Colors.colorize ((if bad then Stdlib.Cli.UI.Colors.pinkBg else Stdlib.Cli.UI.Colors.greenBg) ++ Stdlib.Cli.UI.Colors.black) toastPlain
+            Stdlib.Cli.UI.Layout.at r 0 (Stdlib.Int.max 0 (r.cols - toastWidth - 1)) colored
         // Clip the hints to stop short of the toast rather than letting the toast overwrite them. Canvas lets a
         // later span truncate an earlier one, which worked, but left the two abutting with no gap on a long
         // hint row - it read as a collision rather than two things sharing a line.
@@ -125,11 +145,16 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
             (Stdlib.Cli.Tui.Text.clipToWidth h (Stdlib.Int.max 0 (hintRoom - 2))) ++ (Stdlib.Cli.UI.Colors.dimText "…")
         Stdlib.List.flatten [ Frame.renderKeyHints r shownHints; toast ])
   Stdlib.List.flatten
-    [ Stdlib.Cli.UI.Layout.vstack screen (Stdlib.List.flatten [ [ context; tabbar ]; (if path == "" then [] else [ crumb ]); [ body; hints ] ])
+    [ Stdlib.Cli.UI.Layout.vstack screen [ context; body; hints ]
       match state.overlay with
       | NoOverlay -> []
       | Keymap -> renderHelpOverlay screen
-      | ViewPicker selected -> renderViewPicker state selected screen
+      // A narrow terminal has no sidebar column, so focusing the sidebar
+      // draws it as an overlay instead.
+      if (sidebarFocused state) && (Stdlib.Bool.not sidebarColumn) then
+        renderSidebarOverlay state wip conflictCount screen
+      else
+        []
       renderCommandCompletions state screen ]
 
 
@@ -187,9 +212,9 @@ let renderCommandCompletions (state: State) (screen: Stdlib.Cli.UI.Layout.Region
           let rows =
             items
             |> Stdlib.List.indexedMap (fun i item ->
-              let selected = i == state.completionSel
-              let raw = (if selected then "> " else "  ") ++ item.display
-              let line = if selected then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan raw else raw
+              let raw = "  " ++ item.display
+              let line =
+                if i == state.completionSel then selectionRow inner.cols raw else raw
               Stdlib.Cli.UI.Layout.at inner i 0 line)
             |> Stdlib.List.flatten
           // Clear the interior first - this floats over the body, which would otherwise bleed through.

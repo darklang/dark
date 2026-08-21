@@ -74,20 +74,11 @@ let renderDevices (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<St
 /// The AI view: agents dark is running (preview data for now) with a thread detail. `a` asks the agent.
 /// Prompts library + real managed-agent state come later.
 let renderAI (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  // Section switcher (Agents / Prompts), Tab cycles it - same shape as SCM's. Returns spans; discarding
-  // the result renders a blank band.
-  let switcherSpans = renderSectionSwitcher region 0 [ "Agents"; "Prompts" ] (aiSectionIndex state.ai.section)
-  let bodyRegion =
-    Stdlib.Cli.UI.Layout.Region
-      { top = region.top + 2
-        left = region.left
-        rows = Stdlib.Int.max 1 (region.rows - 2)
-        cols = region.cols }
+  // Agents or Prompts - which one is picked in the sidebar.
   let (leftTitle, previewTitle, empty) =
     if state.ai.section == AiSection.Prompts then ("Prompts  ·  (mock data)", "Prompt", Stdlib.Cli.UI.Colors.dimText "no prompts")
     else ("Agents  ·  (mock data)", "Thread", Stdlib.Cli.UI.Colors.dimText "no agents - press a to ask the agent")
-  Stdlib.List.flatten
-    [ switcherSpans; splitListPreview state bodyRegion leftTitle previewTitle empty ]
+  splitListPreview state region leftTitle previewTitle empty
 
 /// The Calendar view (mock) - a month grid over cron fire-times + date-typed values, with today's agenda. A
 /// personal, login-gated view; greenfield, so this is a stand-in for the real system to come.
@@ -114,9 +105,7 @@ let renderCalendar (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
 
 
 // ── Extension views: the composable registry ──
-// Each entry is a self-contained `ViewDef`; the core dispatch delegates to these generically (see the `else`
-// arms of itemsForView / previewLines / renderViewBody / hintsForView). Adding a view = one row in
-// `extensionViews` + its handful of small fns above. No edits to the core, the tab bar, or the gating.
+// ViewDef handles loading and rendering; workspaces controls placement.
 
 let renderErrors (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   splitListPreview state region "Errors" "Detail" (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ all clear - no errors")
@@ -149,7 +138,7 @@ let loadBuiltinItems () : List<BodyItem> =
   LanguageTools.allBuiltinFns ()
   |> Stdlib.List.map (fun fn -> fn.name.name)
   |> Stdlib.List.sort
-  |> Stdlib.List.map (fun n -> BodyItem { name = n; kind = "builtin"; isModule = false })
+  |> Stdlib.List.map (fun n -> BodyItem { name = n; kind = "builtin"; isModule = false; desc = "" })
 
 let builtinDetailLines (state: State) : List<String> =
   match Stdlib.List.getAt state.items state.selected with

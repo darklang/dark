@@ -1,12 +1,10 @@
-/// Frame - the always-on workbench chrome (tab bar + breadcrumb). Render helpers used by the workbench
-/// SubApp; the bottom status bar is the CLI's existing one. See design main/notes/cli-ux/03A.
+/// Frame - the always-on workbench chrome: the view-name table and the
+/// footer's key-hint helpers. Render helpers used by the workbench SubApp.
+/// See design main/notes/cli-ux/03A.
 module Darklang.Cli.Workbench.Frame
 
-/// The built-in views (indices 0-9), in tab-bar order. Kept in sync with the view-index constants in App
-/// (vHome..vDocs). Extension views (index 10+) are named by their `ViewDef` in App's registry, not here - the
-/// tab bar receives already-resolved labels (see `renderTabBar`), so this stays the base-name table only.
-/// Index 2 is a placeholder: Inspect was folded into Matter's preview, but the views after it are addressed
-/// by index (number keys, the SCM badge), so the slot stays rather than shifting everything down one.
+/// Labels for stable built-in view indices. Index 2 stays reserved for the
+/// former Inspect view so later indices do not change.
 val viewNames =
   [ "Home"; "Matter"; "(unused)"; "REPL"; "SCM"
     "Devices"; "AI"; "Apps"; "Traces"; "Docs" ]
@@ -14,52 +12,16 @@ val viewNames =
 let viewName (i: Int) : String =
   Stdlib.List.getAt viewNames i |> Stdlib.Option.withDefault "Home"
 
-/// Render the tab bar into `region` (one row). `visible` is the ordered list of (view index, label) pairs to
-/// show - labels are resolved by the caller so the frame needn't know about extension views (some views, e.g.
-/// Devices, are opt-in and hidden). `active` is the active view index, rendered bright with a ◆ marker, the
-/// rest dim. When `conflictCount` > 0, the SCM tab carries a red count badge so an attention state is visible
-/// from any view.
-let renderTabBar (region: Stdlib.Cli.UI.Layout.Region) (visible: List<(Int * String)>) (active: Int) (conflictCount: Int) : List<Stdlib.Cli.UI.Layout.Span> =
-  let segs =
-    visible
-    |> Stdlib.List.map (fun pair ->
-      let (i, name) = pair
-      // SCM is index 4 - badge it when there's a conflict to resolve (conflicts live in SCM now).
-      let label =
-        if i == 4 && conflictCount > 0 then name ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink (" ⚠" ++ Stdlib.Int.toString conflictCount))
-        else name
-      if i == active then
-        Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold ++ Stdlib.Cli.UI.Colors.cyan) ("◆ " ++ label)
-      else if i == 4 && conflictCount > 0 then
-        // Keep the badge visible even when the tab isn't active (name dim, badge already colored).
-        (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.dim name) ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink (" ⚠" ++ Stdlib.Int.toString conflictCount))
-      else
-        Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.dim name)
-  Stdlib.Cli.UI.Layout.at region 0 0 ("  " ++ (Stdlib.String.join segs "   "))
-
-/// Render the breadcrumb row: the current package path on the left, and a pre-built right segment (branch +
-/// sync status) right-aligned. `rightColored` is the ANSI-colored text; `rightVisibleLen` is its visible width
-/// (so placement math isn't thrown off by the color codes).
-let renderBreadcrumb
-  (region: Stdlib.Cli.UI.Layout.Region)
-  (path: String)
-  (rightColored: String)
-  (rightVisibleLen: Int)
-  : List<Stdlib.Cli.UI.Layout.Span> =
-  let rightCol = Stdlib.Int.max 0 (region.cols - rightVisibleLen - 2)
-  Stdlib.List.flatten
-    [ Stdlib.Cli.UI.Layout.at region 0 0 ("  " ++ (Stdlib.Cli.UI.Colors.boldText path))
-      Stdlib.Cli.UI.Layout.at region 0 rightCol rightColored ]
-
-/// Format a list of (key, label) hints into a footer string: the key bright (cyan), the label dim, pairs
-/// separated by three dim spaces (kept plain so a footer full of hints doesn't clip on a narrow terminal).
-/// Per the TUI rule "key emphasized, label muted" so shortcuts actually read.
+/// Format a list of (key, label) hints into a footer string: the key in plain
+/// white, the label dim, pairs separated by a dim `·`. Quiet on purpose - the
+/// help row is a reference, not a call to action - and per the TUI rule "key
+/// emphasized, label muted" so shortcuts still read at a glance.
 let formatHints (pairs: List<(String * String)>) : String =
   pairs
   |> Stdlib.List.map (fun pair ->
     let (k, l) = pair
-    (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan k) ++ " " ++ (Stdlib.Cli.UI.Colors.dimText l))
-  |> Stdlib.String.join (Stdlib.Cli.UI.Colors.dimText "   ")
+    (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.white k) ++ " " ++ (Stdlib.Cli.UI.Colors.dimText l))
+  |> Stdlib.String.join (Stdlib.Cli.UI.Colors.dimText " · ")
 
 /// Render a one-row, pre-colored key-hint bar at the bottom of the body. The string is already styled
 /// (see `formatHints`), so this just indents + places it.

@@ -12,8 +12,7 @@ let errorDetailLines (state: State) : List<String> = Stdlib.String.split (errorD
 let cronDetailLines (state: State) : List<String> = Stdlib.String.split (cronDetail state) "\n"
 let calendarDetailLines (_state: State) : List<String> = []
 
-/// The composed extension views, appended after the built-ins (their absolute index = baseViewCount + position
-/// here). This is the ONE place the extensible surface is enumerated; the core never names these views.
+/// Extension views in stable index order. Workspaces place them in navigation.
 let extensionViews () : List<ViewDef> =
   [ ViewDef
       { id = "errors"

@@ -3,60 +3,17 @@
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
 
-/// The SCM status header - the always-true summary of Dark Matter's state on this branch.
-let renderScmHeader (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  let branchOpt = SCM.Branch.get state.branchId
-  let branch = match branchOpt with | Some b -> b.name | None -> "main"
-  let parent =
-    match branchOpt with
-    | Some b ->
-      match b.parentBranchId with
-      | Some pid -> (match SCM.Branch.get pid with | Some p -> p.name | None -> "?")
-      | None -> "(root)"
-    | None -> "(root)"
-  let wip = wipItemCount state.branchId
-  let commits = SCM.PackageOps.getCommitCount state.branchId
-  let conflicts = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
-  let peers = Stdlib.List.length (Darklang.Sync.status ())
-  let line1 =
-    "  " ++ (Stdlib.Cli.UI.Colors.boldText ("branch: " ++ branch)) ++ (Stdlib.Cli.UI.Colors.dimText ("   →   " ++ parent))
-  let wipPart =
-    if wip == 0 then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ clean"
-    else Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink ("● " ++ (plural wip "change"))
-  let confPart =
-    if conflicts == 0 then Stdlib.Cli.UI.Colors.dimText "no conflicts"
-    else Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink ("⚠ " ++ (plural conflicts "conflict"))
-  let syncPart = if peers == 0 then Stdlib.Cli.UI.Colors.dimText "no peers" else Stdlib.Cli.UI.Colors.dimText ((Stdlib.Int.toString peers) ++ " peers")
-  let sep = Stdlib.Cli.UI.Colors.dimText "     "
-  let line2 =
-    "  " ++ wipPart ++ sep ++ (Stdlib.Cli.UI.Colors.dimText (plural commits "commit")) ++ sep ++ confPart ++ sep ++ syncPart
-  Stdlib.List.flatten
-    [ Stdlib.Cli.UI.Layout.at region 0 0 line1
-      Stdlib.Cli.UI.Layout.at region 1 0 line2 ]
-
-/// The SCM view: the status header, a section switcher (Changes / History / Conflicts, cycled by Tab), and
-/// the active section's list + detail. One home for the state of Dark Matter and its version control; conflict
-/// resolution lives here. The ahead/behind glance is in the header (setup + cross-instance health live in Devices).
+/// The SCM view: the active section's list + detail. Which section - Changes,
+/// History, Branches, Conflicts - is picked in the sidebar; the branch and
+/// its health are on the context row. Conflict resolution lives in the
+/// Conflicts section (setup + cross-instance health live in Devices).
 let renderScm (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  let headerRows = 4
-  let headerRegion = Stdlib.Cli.UI.Layout.Region { top = region.top; left = region.left; rows = 2; cols = region.cols }
-  // These return spans; they used to print as a side effect. Discarding the result renders a blank band.
-  let headerSpans = renderScmHeader state headerRegion
-  let switcherSpans =
-    renderSectionSwitcher region 2 [ "Changes"; "History"; "Conflicts"; "Branches" ] (scmSectionIndex state.scm.section)
-  let bodyRegion =
-    Stdlib.Cli.UI.Layout.Region
-      { top = region.top + headerRows
-        left = region.left
-        rows = Stdlib.Int.max 1 (region.rows - headerRows)
-        cols = region.cols }
   let (title, empty) =
     if state.scm.section == ScmSection.History then ("History", Stdlib.Cli.UI.Colors.dimText "no commits yet")
     else if state.scm.section == ScmSection.Conflicts then ("Conflicts", Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ nothing to resolve - in sync")
     else if state.scm.section == ScmSection.Branches then ("Branches", Stdlib.Cli.UI.Colors.dimText "no branches")
     else ("Changes", Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ working tree clean - nothing to commit")
-  Stdlib.List.flatten
-    [ headerSpans; switcherSpans; splitListPreview state bodyRegion title "Detail" empty ]
+  splitListPreview state region title "Detail" empty
 
 /// Evaluate `expr` as written, with whatever the evaluator prints on the way captured rather than let loose
 /// on the frame (see `captureOutputAnd` - a runtime error prints a call-stack header, which would scroll the
@@ -165,24 +122,27 @@ let applyReplStatement (state: State) (stmt: String) : State =
                 last = Stdlib.String.trim output
                 log = Stdlib.List.append state.repl.log (Stdlib.List.append echoLines resultLines) } }
 
-/// The REPL view: a persistent eval log on the left, the session on the right. ⏎ evaluates and appends to the
-/// log; `let x = ...` binds for the rest of the session and shows up in the sidebar.
-///
-/// The view's keys live in the two pane titles rather than the footer, because the footer is the input bar
-/// whenever you're typing - which here is nearly always.
+/// The REPL view: a persistent eval log on the left, the session on the
+/// right. ⏎ opens the prompt; ⏎ there evaluates and appends to the log; `let
+/// x = ...` binds for the rest of the session and shows up in the session
+/// pane. The prompt is something you open, not the view's resting state, so
+/// between evaluations the navigation keys work like everywhere else (esc
+/// leaves the prompt).
 let renderRepl (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
+  let typing = match state.input with | Some _ -> true | None -> false
+  let logTitle = if typing then "REPL  ·  ⏎ run  ·  esc leaves the prompt" else "REPL  ·  ⏎ to type  ·  f clears"
   Stdlib.Cli.UI.SplitPane.render
     region
     Stdlib.Cli.UI.SplitPane.Orientation.Horizontal
     62
     state.focus
-    "REPL  ·  ⏎ run  ·  f clears  ·  esc or ctrl+←→ leaves"
+    logTitle
     (fun inner ->
       let all =
         if Stdlib.List.isEmpty state.repl.log then
           [ Stdlib.Cli.UI.Colors.boldText "A REPL over your whole package space."
             ""
-            Stdlib.Cli.UI.Colors.dimText "The prompt below is already open. Type; ⏎ runs; results log here."
+            Stdlib.Cli.UI.Colors.dimText "⏎ opens the prompt below. Type; ⏎ runs; results log here."
             ""
             Stdlib.Cli.UI.Colors.dimText "try:"
             (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "  1 + 1")
@@ -190,7 +150,7 @@ let renderRepl (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdli
             (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "  Stdlib.List.map xs (fun x -> x * 2)")
             ""
             Stdlib.Cli.UI.Colors.dimText "`let` binds for the session - the"
-            Stdlib.Cli.UI.Colors.dimText "sidebar lists what's bound."
+            Stdlib.Cli.UI.Colors.dimText "session pane lists what's bound."
             ""
             Stdlib.Cli.UI.Colors.dimText "Multi-line just works: ⏎ after a line that can't"
             Stdlib.Cli.UI.Colors.dimText "have ended - an open bracket, a trailing `=` or"

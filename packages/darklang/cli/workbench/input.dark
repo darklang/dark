@@ -85,13 +85,23 @@ let performInputAction (state: State) (inp: InputState) : Step =
     if inp.field.text != "y" then
       Step.Continue { state with input = Stdlib.Option.Option.None }
     else
-      match SCM.Merge.merge state.branchId with
+      // The branch under the cursor, or the current one - the same choice the
+      // prompt named.
+      let target =
+        match branchForAction state with
+        | Some b -> b.id
+        | None -> state.branchId
+      match SCM.Merge.merge target with
       | Ok _ ->
-        // Merged into parent - follow the branch pointer to the parent, like the `merge` command does.
+        // Merged the branch you're on into its parent - follow the pointer to
+        // the parent, like the `merge` command does. Merging some other
+        // branch leaves you where you are.
         let parentId =
-          match SCM.Branch.get state.branchId with
-          | Some b -> (match b.parentBranchId with | Some p -> p | None -> state.branchId)
-          | None -> state.branchId
+          if target != state.branchId then state.branchId
+          else
+            match SCM.Branch.get target with
+            | Some b -> (match b.parentBranchId with | Some p -> p | None -> state.branchId)
+            | None -> state.branchId
         Step.Continue
           { state with
               input = Stdlib.Option.Option.None
@@ -107,7 +117,11 @@ let performInputAction (state: State) (inp: InputState) : Step =
     if inp.field.text != "y" then
       Step.Continue { state with input = Stdlib.Option.Option.None }
     else
-      match SCM.Rebase.rebase state.branchId with
+      let target =
+        match branchForAction state with
+        | Some b -> b.id
+        | None -> state.branchId
+      match SCM.Rebase.rebase target with
       | Ok _ ->
         Step.Continue
           { state with
@@ -119,7 +133,10 @@ let performInputAction (state: State) (inp: InputState) : Step =
         Step.Continue
           { state with
               input = Stdlib.Option.Option.None
-              message = "rebase: " ++ (Stdlib.Int.toString (Stdlib.List.length conflicts)) ++ " conflict(s) - see Resolve" }
+              message =
+                "rebase: "
+                ++ (Stdlib.Int.toString (Stdlib.List.length conflicts))
+                ++ " conflict(s) - see Changes › Conflicts" }
   else if Stdlib.String.startsWith inp.action "author-" then
     // A new item's target module was asked for (shallow tree location): parse it, then open the editor.
     let kind = Stdlib.String.dropFirst inp.action (Stdlib.String.length "author-")
@@ -193,8 +210,9 @@ let performInputAction (state: State) (inp: InputState) : Step =
             if isKnown then Darklang.Cli.Registry.executeCommand cmd appState args
             else Darklang.Cli.Registry.executeCommand "eval" appState words)
         let shown = if (Stdlib.String.trim output) == "" then "(no output)" else output
-        // `config set devices.enabled true` should show up in the tab bar now, not on next launch. The gate
-        // list is read from disk, so it's computed once rather than per frame; a config command is the one
+        // `config set devices.enabled true` should show up in the sidebar
+        // now, not on next launch. The gate list is read from disk, so it's
+        // computed once rather than per frame; a config command is the one
         // thing that can invalidate it.
         let gated =
           if cmd == "config" then recomputeGatedViews state else state.enabledGatedViews

@@ -1,0 +1,459 @@
+/// Workspace navigation for the workbench.
+///
+/// The active workspace expands to show its destinations. On narrow
+/// terminals, the same rows appear in an overlay while the sidebar has focus.
+///
+/// Part of `Darklang.Cli.Workbench`.
+module Darklang.Cli.Workbench
+
+/// A workspace: a name and its destinations, each labelled for the sidebar. A
+/// one-destination workspace (Home) draws as a single row.
+type Workspace = { name: String; dests: List<(String * Dest)> }
+
+/// A workspace header or a destination at its rendered indentation depth.
+type SideRowKind =
+  | WorkspaceHeader
+  | Destination of depth: Int
+
+/// One rendered sidebar row.
+type SideRow =
+  { kind: SideRowKind
+    ws: Int
+    label: String
+    /// Where ⏎ goes. For a header, where you last were in that workspace.
+    dest: Dest
+    /// A right-aligned marker: a WIP/conflict count, or a caveat like "sample
+    /// data". "" for none.
+    badge: String
+    badgeColor: String }
+
+/// The extension view's absolute index by id (see `extensionViews`); -1 if
+/// there's no such view, which is never in `visibleViews`, so a destination
+/// pointing at it simply doesn't show.
+let extViewIndex (id: String) : Int =
+  match Stdlib.List.findFirstIndex (extensionViews ()) (fun vd -> vd.id == id) with
+  | Some i -> baseViewCount + i
+  | None -> 0 - 1
+
+let mkDest (view: Int) (section: Int) : Dest = Dest { view = view; section = section }
+
+/// Every workspace, in sidebar order. Home first, so `1` is Home. The number
+/// key for a workspace is its position here, so hiding one (gating) doesn't
+/// renumber the rest.
+let workspaces () : List<Workspace> =
+  [ Workspace { name = "Home"; dests = [ ("Home", mkDest vHome 0) ] }
+    // Builtins are part of the tree - the bottom tier of it - not
+    // documentation about it.
+    Workspace
+      { name = "Code"
+        dests = [ ("Tree", mkDest vMatter 0); ("Builtins", mkDest (extViewIndex "builtins") 0) ] }
+    Workspace
+      { name = "Changes"
+        dests =
+          [ ("Changes", mkDest vSCM 0)
+            ("History", mkDest vSCM 1)
+            ("Branches", mkDest vSCM 3)
+            ("Conflicts", mkDest vSCM 2) ] }
+    // Its own row, not a leaf of Code: you reach for it from anywhere, so it gets a number key.
+    Workspace { name = "REPL"; dests = [ ("REPL", mkDest vScratch 0) ] }
+    // Run starts work; Activity shows its results.
+    Workspace
+      { name = "Run"
+        dests =
+          [ ("Apps", mkDest vApps 0)
+            ("Crons", mkDest (extViewIndex "crons") 0)
+            ("Calendar", mkDest (extViewIndex "calendar") 0) ] }
+    // Read-only results of running software.
+    Workspace
+      { name = "Activity"
+        dests = [ ("Traces", mkDest vTraces 0); ("Errors", mkDest (extViewIndex "errors") 0) ] }
+    Workspace
+      { name = "AI"
+        dests = [ ("Agents", mkDest vAI 0); ("Prompts", mkDest vAI 1) ] }
+    Workspace { name = "Docs"; dests = [ ("Guides", mkDest vDocs 0) ] }
+    // This machine: its config and the peers it syncs with.
+    Workspace { name = "Instance"; dests = [ ("Devices", mkDest vDevices 0) ] } ]
+
+/// The destinations of `ws` this account can see (gated views drop out).
+let visibleDests (state: State) (ws: Workspace) : List<(String * Dest)> =
+  let vis = visibleViews state
+  ws.dests |> Stdlib.List.filter (fun pair -> let (_l, d) = pair in Stdlib.List.member vis d.view)
+
+/// The workspaces with at least one visible destination, as (index into
+/// `workspaces`, workspace).
+let visibleWorkspaces (state: State) : List<(Int * Workspace)> =
+  workspaces ()
+  |> Stdlib.List.indexedMap (fun i w -> (i, w))
+  |> Stdlib.List.filter (fun pair ->
+    let (_i, w) = pair
+    Stdlib.Bool.not (Stdlib.List.isEmpty (visibleDests state w)))
+
+/// The section `view` is currently on, in `Dest` terms.
+let sectionOf (state: State) (view: Int) : Int =
+  if view == vSCM then scmSectionIndex state.scm.section
+  else if view == vAI then aiSectionIndex state.ai.section
+  else 0
+
+/// Where you are, as a destination.
+let activeDest (state: State) : Dest = mkDest state.activeView (sectionOf state state.activeView)
+
+/// The workspace holding `d`; Home if none does.
+let workspaceOf (d: Dest) : Int =
+  let holds (w: Workspace) : Bool =
+    w.dests |> Stdlib.List.any (fun pair -> let (_l, dd) = pair in dd == d)
+  match Stdlib.List.findFirstIndex (workspaces ()) holds with
+  | Some i -> i
+  | None -> 0
+
+/// Where ⏎ on a workspace header, or its number key, takes you: where you
+/// last were in it, else its first visible destination. None for a workspace
+/// with nothing visible.
+let workspaceEntry (state: State) (wsIdx: Int) : Stdlib.Option.Option<Dest> =
+  match Stdlib.List.getAt (workspaces ()) wsIdx with
+  | None -> Stdlib.Option.Option.None
+  | Some w ->
+    let vis = visibleDests state w |> Stdlib.List.map (fun pair -> let (_l, d) = pair in d)
+    let remembered =
+      state.wsLast
+      |> Stdlib.List.findFirst (fun pair -> let (i, _d) = pair in i == wsIdx)
+      |> Stdlib.Option.map (fun pair -> let (_i, d) = pair in d)
+    match remembered with
+    | Some d -> if Stdlib.List.member vis d then Stdlib.Option.Option.Some d else Stdlib.List.head vis
+    | None -> Stdlib.List.head vis
+
+/// The rows the sidebar draws: every visible workspace, the active one
+/// expanded into its destinations. `wip` and `conflicts` are the frame's
+/// already-computed counts, for the badges; pass 0s when only the shape
+/// matters (the key handler does).
+let sidebarRows (state: State) (wip: Int) (conflicts: Int) : List<SideRow> =
+  let activeWs = workspaceOf (activeDest state)
+  let count (n: Int) : String = Stdlib.Int.toString n
+  visibleWorkspaces state
+  |> Stdlib.List.map (fun pair ->
+    let (i, w) = pair
+    let dests = visibleDests state w
+    let entry = workspaceEntry state i |> Stdlib.Option.withDefault (mkDest vHome 0)
+    if Stdlib.List.length dests == 1 then
+      [ SideRow
+          { kind = SideRowKind.Destination 0
+            ws = i
+            label = w.name
+            dest = entry
+            badge = ""
+            badgeColor = "" } ]
+    else
+      // The header's badge: what needs you in there, or that the whole
+      // workspace is still a sketch.
+      let (badge, color) =
+        if w.name == "Changes" then
+          if conflicts > 0 then ("⚠ " ++ (count conflicts), Stdlib.Cli.UI.Colors.orange)
+          else if wip > 0 then ("● " ++ (count wip), Stdlib.Cli.UI.Colors.pink)
+          else ("", "")
+        else if (w.name == "Code") && (wip > 0) then ("● " ++ (count wip), Stdlib.Cli.UI.Colors.pink)
+        // Destination rows carry their own caveat badges.
+        else ("", "")
+      let header =
+        SideRow
+          { kind = SideRowKind.WorkspaceHeader
+            ws = i
+            label = w.name
+            dest = entry
+            badge = badge
+            badgeColor = color }
+      let children =
+        if i != activeWs then
+          []
+        else
+          dests
+          |> Stdlib.List.map (fun ld ->
+            let (label, d) = ld
+            let (b, c) =
+              if (d.view == vSCM) && (d.section == 2) && (conflicts > 0) then ("⚠ " ++ (count conflicts), Stdlib.Cli.UI.Colors.orange)
+              else if (d.view == vSCM) && (d.section == 0) && (wip > 0) then (count wip, Stdlib.Cli.UI.Colors.pink)
+              else if (d.view == vMatter) && (d.section == 0) && (wip > 0) then ("●", Stdlib.Cli.UI.Colors.pink)
+              else
+                // Keep caveat badges to one word in the narrow sidebar.
+                let (_blurb, caveat) = viewBlurb d.view
+                if caveat == "" then ("", "")
+                else if Stdlib.String.contains caveat "sketch" then ("sketch", Stdlib.Cli.UI.Colors.dim)
+                else ("sample", Stdlib.Cli.UI.Colors.dim)
+            SideRow
+              { kind = SideRowKind.Destination 1
+                ws = i
+                label = label
+                dest = d
+                badge = b
+                badgeColor = c })
+      Stdlib.List.append [ header ] children)
+  |> Stdlib.List.flatten
+
+/// The row for where you are - the active destination's row - so the sidebar
+/// and the body agree.
+let activeRow (state: State) (rows: List<SideRow>) : Int =
+  let active = activeDest state
+  match
+    Stdlib.List.findFirstIndex rows (fun r ->
+      match r.kind with
+      | Destination _ -> r.dest == active
+      | WorkspaceHeader -> false)
+  with
+  | Some i -> i
+  | None -> 0
+
+/// Put the sidebar cursor on the row for where you are.
+let withSideCursorOnActive (state: State) : State =
+  { state with sideSel = activeRow state (sidebarRows state 0 0) }
+
+// ── Where the sidebar lives ──
+
+/// The sidebar column's width, border included.
+val sidebarCols = 24
+
+/// The sidebar takes a column at this terminal width or more; below it, it's
+/// an overlay.
+val sidebarMinWidth = 100
+
+let sidebarIsColumn (cols: Int) : Bool = cols >= sidebarMinWidth
+
+/// Does the sidebar currently own the keyboard?
+let sidebarFocused (state: State) : Bool =
+  state.focus == Stdlib.Cli.UI.SplitPane.Focus.Neither
+
+/// Is the sidebar a column right now? For the key handlers, which don't get
+/// the size handed to them.
+let sidebarIsColumnNow () : Bool =
+  let (w, _h) = Terminal.getSize ()
+  sidebarIsColumn w
+
+// ── Moving ──
+
+/// Hand the keyboard to the sidebar, cursor on where you are. On a narrow
+/// terminal this is what opens the overlay.
+let focusSidebar (state: State) : State =
+  withSideCursorOnActive
+    { state with focus = Stdlib.Cli.UI.SplitPane.Focus.Neither }
+
+/// Hand the keyboard to the content: its first pane.
+let focusContent (state: State) : State =
+  { state with focus = Stdlib.Cli.UI.SplitPane.Focus.First }
+
+/// Go to `d`: switch view and section, reload the list (cursor clamped, so
+/// hopping around doesn't lose your place), drop the filter and scroll, and
+/// remember `d` as where you were in its workspace. Focus lands on the
+/// content unless `stayInSidebar`.
+let goTo (state: State) (d: Dest) (stayInSidebar: Bool) : State =
+  let scm = if d.view == vSCM then scmSectionAt d.section else state.scm.section
+  let ai = if d.view == vAI then aiSectionAt d.section else state.ai.section
+  // Arriving at the tree is arriving at the whole tree; the values-only lens
+  // is something you switch on once you're there (`L`), and it doesn't follow
+  // you back in.
+  let lens = if d.view == vMatter then Lens.WholeTree else state.matter.lens
+  let newItems = itemsForView d.view state.branchId state.location scm ai lens
+  let clamped =
+    Stdlib.Int.max 0 (Stdlib.Int.min state.selected (Stdlib.Int.max 0 ((Stdlib.List.length newItems) - 1)))
+  let wsIdx = workspaceOf d
+  let remembered =
+    Stdlib.List.append
+      (state.wsLast
+       |> Stdlib.List.filter (fun pair -> let (i, _d) = pair in i != wsIdx))
+      [ (wsIdx, d) ]
+  let moved =
+    { state with
+        activeView = d.view
+        scm = { state.scm with section = scm }
+        ai = { state.ai with section = ai }
+        matter = { state.matter with lens = lens }
+        items = newItems
+        selected = clamped
+        filter = ""
+        detailScroll = 0
+        wsLast = remembered }
+  let moved = fixHomeSelection moved
+  if stayInSidebar then focusSidebar moved else focusContent moved
+
+/// Jump to a workspace; repeat its number to cycle through its destinations.
+let jumpToWorkspace (state: State) (n: Int) : State =
+  match workspaceEntry state (n - 1) with
+  | None -> state
+  | Some d ->
+    let here = activeDest state
+    if (d.view != here.view) || (d.section != here.section) then goTo state d false
+    else
+      let vis =
+        match Stdlib.List.getAt (workspaces ()) (n - 1) with
+        | Some w -> visibleDests state w |> Stdlib.List.map (fun pair -> let (_l, dd) = pair in dd)
+        | None -> []
+      match Stdlib.List.findFirstIndex vis (fun dd -> (dd.view == here.view) && (dd.section == here.section)) with
+      | Some i ->
+        let next = Stdlib.List.getAt vis (if i + 1 >= Stdlib.List.length vis then 0 else i + 1)
+        (match next with | Some nd -> goTo state nd false | None -> state)
+      | None -> goTo state d false
+
+/// The shortest repeated workspace-number sequence from `state` to `d`.
+let keysTo (state: State) (d: Dest) : String =
+  match Stdlib.List.findFirstIndex (workspaces ()) (fun w -> w.dests |> Stdlib.List.any (fun pair -> let (_l, dd) = pair in dd == d)) with
+  | None -> ""
+  | Some wsIdx ->
+    let vis =
+      match Stdlib.List.getAt (workspaces ()) wsIdx with
+      | Some w -> visibleDests state w |> Stdlib.List.map (fun pair -> let (_l, dd) = pair in dd)
+      | None -> []
+    match Stdlib.List.findFirstIndex vis (fun dd -> dd == d) with
+    | None -> ""
+    | Some pos ->
+      let key = Stdlib.Int.toString (wsIdx + 1)
+      let n = Stdlib.List.length vis
+      let entry = workspaceEntry state wsIdx
+      let start =
+        match entry with
+        | Some first ->
+          Stdlib.List.findFirstIndex vis (fun dd -> dd == first)
+          |> Stdlib.Option.withDefault 0
+        | None -> 0
+      let alreadyAtEntry = entry == Stdlib.Option.Option.Some (activeDest state)
+      let offset = ((pos - start) + n) % n
+      let presses =
+        if alreadyAtEntry then
+          if offset == 0 then n else offset
+        else
+          offset + 1
+      Stdlib.List.repeatUnsafe presses key |> Stdlib.String.join " "
+
+/// Keys while the sidebar has the keyboard. ↑↓ (j/k) move, ⏎ goes, →/tab to
+/// the content, ←/h back to the header, esc to Home (or, as an overlay,
+/// closes). Anything global (`/`, `:`, `?`, numbers, `q`) still works.
+let handleSidebarKey
+  (state: State)
+  (key: Stdlib.Cli.Stdin.Key.Key)
+  (keyChar: Stdlib.Option.Option<String>)
+  : Step =
+  let rows = sidebarRows state 0 0
+  let n = Stdlib.List.length rows
+  let sel = Stdlib.Int.max 0 (Stdlib.Int.min state.sideSel (n - 1))
+  let moveTo (i: Int) : Step =
+    Step.Continue { state with sideSel = Stdlib.Int.max 0 (Stdlib.Int.min (n - 1) i) }
+  let narrow = Stdlib.Bool.not (sidebarIsColumnNow ())
+  let openSel =
+    match Stdlib.List.getAt rows sel with
+    | None -> Step.Continue state
+    | Some row ->
+      // A header: go where you last were in it and stay in the sidebar - that
+      // row is now visible under the expanded header, so ⏎ again enters it. A
+      // destination: go, and take the content.
+      match row.kind with
+      | WorkspaceHeader -> Step.Continue (goTo state row.dest true)
+      | Destination _ -> Step.Continue (goTo state row.dest false)
+  let collapseSel =
+    match Stdlib.List.getAt rows sel with
+    | None -> Step.Continue state
+    | Some row ->
+      match row.kind with
+      | Destination 1 ->
+        match
+          Stdlib.List.findFirstIndex rows (fun r ->
+            match r.kind with
+            | WorkspaceHeader -> r.ws == row.ws
+            | Destination _ -> false)
+        with
+        | Some i -> moveTo i
+        | None -> Step.Continue state
+      | _ -> Step.Continue state
+  let back =
+    if narrow then Step.Continue (focusContent state)
+    else if state.activeView == vHome then Step.Continue state
+    else Step.Continue (goTo state (mkDest vHome 0) true)
+  // → (and l) step into the content pane, like everywhere else; ← on a
+  // section row goes to its header.
+  match key with
+  | UpArrow -> moveTo (sel - 1)
+  | DownArrow -> moveTo (sel + 1)
+  | Enter -> openSel
+  | RightArrow -> Step.Continue (focusContent state)
+  | LeftArrow -> collapseSel
+  | Escape -> back
+  | Tab -> Step.Continue (focusContent state)
+  | _ ->
+    match keyChar with
+    | Some "k" -> moveTo (sel - 1)
+    | Some "j" -> moveTo (sel + 1)
+    | Some "l" -> Step.Continue (focusContent state)
+    | Some "h" -> collapseSel
+    | Some "g" -> moveTo 0
+    | Some "G" -> moveTo (n - 1)
+    // ` toggles: it opened the sidebar, so it also hands the keyboard back.
+    | Some "`" -> Step.Continue (focusContent state)
+    | _ ->
+      match globalKey state keyChar with
+      | Some step -> step
+      | None -> Step.Continue state
+
+// ── Drawing ──
+
+/// Draw the sidebar rows into `inner`. The cursor row is a purple bar while
+/// the sidebar has the keyboard; otherwise the row for where you are is
+/// bright and the rest dim, so it reads as a map, not a menu.
+let renderSidebarRows (state: State) (rows: List<SideRow>) (inner: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
+  let n = Stdlib.List.length rows
+  let active = activeRow state rows
+  let sel = Stdlib.Int.max 0 (Stdlib.Int.min state.sideSel (n - 1))
+  let width = Stdlib.Int.max 1 inner.cols
+  let activeWs = workspaceOf (activeDest state)
+  let lines =
+    rows
+    |> Stdlib.List.indexedMap (fun i r ->
+      let left =
+        match r.kind with
+        | Destination 1 -> "    " ++ r.label
+        | WorkspaceHeader ->
+          (if r.ws == activeWs then "▾ " else "▸ ") ++ r.label
+        | Destination _ -> "  " ++ r.label
+      let num =
+        match r.kind with
+        | Destination 1 -> ""
+        | _ -> Stdlib.Int.toString (r.ws + 1)
+      let sep = if (r.badge != "") && (num != "") then "  " else ""
+      let rightPlain = r.badge ++ sep ++ num
+      // Two columns of gutter on every row, so the cursor bar (which lives in
+      // the gutter) doesn't shift the row it's on.
+      let gap =
+        Stdlib.Int.max 1 (width - 2 - (Stdlib.Cli.Tui.Text.displayWidth left) - (Stdlib.Cli.Tui.Text.displayWidth rightPlain) - 1)
+      let spaces = Stdlib.String.repeat " " gap
+      let badgeStyled = if r.badge == "" then "" else Stdlib.Cli.UI.Colors.colorize r.badgeColor r.badge
+      let numStyled = if num == "" then "" else Stdlib.Cli.UI.Colors.dimText num
+      let right = spaces ++ badgeStyled ++ sep ++ numStyled
+      if (sidebarFocused state) && (i == sel) then
+        selectionBar left right true
+      else
+        let leftStyled =
+          if i == active then Stdlib.Cli.UI.Colors.boldText left
+          else if sidebarFocused state then left
+          else Stdlib.Cli.UI.Colors.dimText left
+        "  " ++ leftStyled ++ right)
+  Stdlib.Cli.UI.ListView.render
+    inner
+    lines
+    (if sidebarFocused state then sel else active)
+
+/// The sidebar column: the rows in a bare panel - no title, the rows say what
+/// it is
+/// - bright-bordered while
+/// it has the keyboard.
+let renderSidebar (state: State) (wip: Int) (conflicts: Int) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
+  let rows = sidebarRows state wip conflicts
+  Stdlib.Cli.UI.Box.panel region "" (sidebarFocused state) (fun inner ->
+    renderSidebarRows state rows inner)
+
+/// The same rows as a centred overlay, for a terminal too narrow for the
+/// column. Drawn only while the sidebar has the keyboard, so it opens on `
+/// (or esc from the top of a list) and closes when you go.
+let renderSidebarOverlay (state: State) (wip: Int) (conflicts: Int) (screen: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
+  let rows = sidebarRows state wip conflicts
+  let n = Stdlib.List.length rows
+  let w = 34
+  let h = Stdlib.Int.min (n + 2) (Stdlib.Int.max 3 (screen.rows - 2))
+  let top = screen.top + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.rows - h)) 2)
+  let left = screen.left + (Stdlib.Int.divide (Stdlib.Int.max 0 (screen.cols - w)) 2)
+  let region = Stdlib.Cli.UI.Layout.Region { top = top; left = left; rows = h; cols = w }
+  Stdlib.List.flatten
+    [ Stdlib.Cli.UI.Layout.clearRegion region
+      Stdlib.Cli.UI.Box.panel region "⏎ go · esc" true (fun inner -> renderSidebarRows state rows inner) ]

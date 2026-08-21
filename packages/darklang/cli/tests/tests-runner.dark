@@ -77,6 +77,10 @@ let allTests (): List<String * TestFunction> =
     ("Session Stop Restores Once", fun () -> testSessionStopRestoresOnlyWhenRunning ())
 
     ("Workbench Every View Renders", fun () -> testWorkbenchEveryViewRenders ())
+    ("Workbench Diff Lines Render Through Pipe", fun () ->
+      testWorkbenchDiffLinesRenderThroughPipe ())
+    ("Workbench Module Inspect Previews Children", fun () ->
+      testWorkbenchModuleInspectPreviewsChildren ())
 
     ("REPL Parses Let Binding", fun () -> testReplParsesLetBinding ())
     ("REPL Injects Binding Chain", fun () -> testReplInjectsBindingChain ())
@@ -87,6 +91,7 @@ let allTests (): List<String * TestFunction> =
     ("REPL Captures Real Values", fun () -> testReplCapturesRealValues ())
     ("Workbench Captures Stray Output", fun () -> testWorkbenchCapturesStrayOutput ())
     ("Workbench Views Show Chrome", fun () -> testWorkbenchViewsShowTheirChrome ())
+    ("Workbench Sidebar Navigation", fun () -> testWorkbenchSidebarNavigation ())
   ]
 
 type TestSummary =
