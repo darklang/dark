@@ -8,15 +8,8 @@ let renderViewBody (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
   if state.activeView == vHome then
     renderHome state region
   else if state.activeView == vMatter then
-    // Same treatment the other views get from `splitListPreview`: the count,
-    // and an active filter spelled out. Matter built its own title and showed
-    // neither, so a filtered tree was indistinguishable from the whole thing
-    // - which is the one place that matters most, since this is the view you
-    // browse in. The path lives in the title now that there's no breadcrumb
-    // row: `Tree · Darklang › Example · 5`. Under the values lens the list is
-    // branch-wide and flat, so the title says that instead of a path. The
-    // pill (what's before the first ` · `, see `Box.draw`) is the path when
-    // there is one, else Tree.
+    // Matter owns its split, so its title carries the path or lens, item
+    // count, and active filter here.
     let treeTitle =
       let path = Stdlib.String.join (modulePathOf state.location) " › "
       let where =
@@ -133,9 +126,7 @@ let viewBlurb (idx: Int) : (String * String) =
       else ("", "")
     | None -> ("", "")
 
-/// Honest, context-relevant key hints: what the focused thing does with the
-/// keys, then the same globals at the right end so the footer's right edge is
-/// stable. Only advertises what actually works today.
+/// Key hints for the focused pane, followed by global shortcuts.
 let hintsForView (state: State) : String =
   let view = state.activeView
   // Pane movement only applies when a preview exists.

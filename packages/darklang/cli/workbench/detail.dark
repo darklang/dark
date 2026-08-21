@@ -5,18 +5,8 @@
 module Darklang.Cli.Workbench
 
 
-/// The item list, as name + description rows: the name bright (bold with a
-/// trailing `/` for a module), then a dim one-liner from `BodyItem.desc` - a
-/// signature, `= value`, `record · 3 fields`, a timestamp - so a row says
-/// what it is without an icon. Names pad to a shared column (capped) so the
-/// descriptions line up.
-///
-/// The selected row is a cursor bar (see `selectionBar`): purple `┃` and name
-/// while this pane has the keyboard, grey when it doesn't; the description
-/// stays dim either way. Badges - pink ● for edited-but-not-committed, yellow
-/// ⚠ for deprecated-but-still-shown - come off the state (see
-/// `refreshBadges`); they used to be two DB reads per keypress.
-/// Stdlib.Cli.UI.ListView owns the viewport + scrollbar.
+/// Render Tree items as aligned name/description rows with selection state,
+/// WIP and deprecation badges, and a scrollable viewport.
 let renderTreeList (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   if Stdlib.List.isEmpty state.items then
     Stdlib.Cli.UI.Layout.at region 1 2 (Stdlib.Cli.UI.Colors.dimText "(no items here)")
