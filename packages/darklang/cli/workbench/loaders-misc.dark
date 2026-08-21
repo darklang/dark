@@ -9,7 +9,7 @@ let loadAiThreadItems () : List<BodyItem> =
     BodyItem
       { name = "[" ++ (Stdlib.String.toUppercase t.status) ++ "]  " ++ t.topic ++ "   " ++ t.branch
         kind = t.status
-        isModule = false })
+        isModule = false; desc = "" })
 
 /// The selected AI thread's detail (for the AI preview).
 let aiThreadDetail (selected: Int) : String =
@@ -37,7 +37,7 @@ let loadPromptItems () : List<BodyItem> =
   demoPrompts ()
   |> Stdlib.List.map (fun p ->
     let (name, _desc) = p
-    BodyItem { name = name; kind = "prompt"; isModule = false })
+    BodyItem { name = name; kind = "prompt"; isModule = false; desc = "" })
 
 /// The selected prompt's detail (for the AI · Prompts preview).
 let promptDetail (selected: Int) : String =
@@ -53,7 +53,7 @@ let promptDetail (selected: Int) : String =
     ++ (Stdlib.Cli.UI.Colors.dimText "(mock data)")
   | None -> "(no prompt selected)"
 
-/// All package values across the tree (for the Things view) - a flat, searchable browser of the data/consts.
+/// All package values for Tree's flat values-only lens.
 let loadThingItems (branchId: Uuid) : List<BodyItem> =
   let q =
     LanguageTools.ProgramTypes.Search.SearchQuery
@@ -66,7 +66,7 @@ let loadThingItems (branchId: Uuid) : List<BodyItem> =
   |> Stdlib.List.map (fun i ->
     let full =
       Stdlib.String.join (Stdlib.List.flatten [ [ i.location.owner ]; i.location.modules; [ i.location.name ] ]) "."
-    BodyItem { name = full; kind = "val"; isModule = false })
+    BodyItem { name = full; kind = "val"; isModule = false; desc = "" })
 
 /// The source of the selected Thing (value), for the preview - looked up by its full path.
 let thingDetail (state: State) : String =
@@ -83,15 +83,15 @@ let thingDetail (state: State) : String =
       // workbench still printing against neither.
       let ctx =
         { PrettyPrinter.ProgramTypes.Context.forModule state.branchId mods with
-            width = previewInnerWidth () }
+            width = previewInnerWidth state }
       PrettyPrinter.ProgramTypes.packageValue ctx i.entity
     | [] -> "(not found)"
 
-/// Recorded sync divergences (for the Resolve view).
+/// Recorded sync divergences for Changes › Conflicts.
 let loadConflictBodyItems () : List<BodyItem> =
   Darklang.Sync.Conflicts.list ()
   |> Stdlib.List.map (fun c ->
-    BodyItem { name = c.location ++ "  ·  " ++ c.status; kind = "conflict"; isModule = false })
+    BodyItem { name = c.location; kind = "conflict"; isModule = false; desc = c.status })
 
 /// Branches on this instance (for the SCM · Branches section). Current branch marked ●, merged ones noted.
 let loadBranchItems (currentBranchId: Uuid) : List<BodyItem> =
@@ -102,7 +102,7 @@ let loadBranchItems (currentBranchId: Uuid) : List<BodyItem> =
       match b.mergedAt with
       | Some _ -> "   (merged)"
       | None -> ""
-    BodyItem { name = marker ++ b.name ++ tag; kind = "branch"; isModule = false })
+    BodyItem { name = marker ++ b.name ++ tag; kind = "branch"; isModule = false; desc = "" })
 
 /// The branch the cursor is on, resolved by name rather than by position.
 ///
@@ -122,6 +122,18 @@ let selectedBranch (state: State) : Stdlib.Option.Option<Darklang.SCM.Branch.Bra
       |> fun s -> Stdlib.String.split s "   (merged)" |> Stdlib.List.head |> Stdlib.Option.withDefault s
       |> Stdlib.String.trim
     Darklang.SCM.Branch.list () |> Stdlib.List.findFirst (fun b -> b.name == name)
+
+/// The branch a merge or rebase acts on: the row under the cursor when that
+/// row is a branch (Home's branch rows, or the Branches section), else the
+/// branch you're on. Home advertises `m`/`r` on *other* branches, so acting
+/// on `state.branchId` there would mutate the wrong one.
+let branchForAction (state: State) : Stdlib.Option.Option<Darklang.SCM.Branch.Branch> =
+  let onBranchRow =
+    match Stdlib.List.getAt state.items state.selected with
+    | Some item ->
+      (item.kind == "home-branch") || ((state.activeView == vSCM) && (state.scm.section == ScmSection.Branches))
+    | None -> false
+  if onBranchRow then selectedBranch state else Darklang.SCM.Branch.get state.branchId
 
 /// The conflict the cursor is on, by location. Same filtered-cursor reasoning as `selectedBranch`.
 let selectedConflict (state: State) : Stdlib.Option.Option<Darklang.Sync.Conflicts.Conflict> =
@@ -159,7 +171,7 @@ let branchDetail (state: State) : String =
 let loadDocBodyItems () : List<BodyItem> =
   Docs.Command.Topics.allTopics ()
   |> Stdlib.List.map (fun t ->
-    BodyItem { name = t.name ++ "  ·  " ++ t.description; kind = "doc"; isModule = false })
+    BodyItem { name = t.name; kind = "doc"; isModule = false; desc = t.description })
 
 /// The Errors view - the high-importance issues an operator running software on Dark cares about. Real
 /// conflicts (genuine) first, then a mock set of the other error kinds until those signals are wired.
@@ -167,15 +179,15 @@ let loadErrorItems () : List<BodyItem> =
   let conflicts =
     Darklang.Sync.Conflicts.list ()
     |> Stdlib.List.map (fun c ->
-      BodyItem { name = "⚠ conflict    " ++ c.location ++ "  ·  " ++ c.status; kind = "error"; isModule = false })
+      BodyItem { name = "⚠ conflict    " ++ c.location ++ "  ·  " ++ c.status; kind = "error"; isModule = false; desc = "" })
   // Invented rows showing the shape of the thing. Tagged apart from the real conflicts above so the
   // detail pane can say which one you are looking at.
   let mock =
-    [ BodyItem { name = "⚠ 500         POST /checkout - 12 in the last hour"; kind = "error-sample"; isModule = false }
-      BodyItem { name = "✗ test        Stachu.Auth.login passes but shouldn't"; kind = "error-sample"; isModule = false }
-      BodyItem { name = "⚠ 500         GET /api/user/:id - 3 in the last hour"; kind = "error-sample"; isModule = false }
-      BodyItem { name = "✗ deprecated  Stdlib.List.oldMap still called by 4 fns"; kind = "error-sample"; isModule = false }
-      BodyItem { name = "⚠ perf        Stachu.report.build - 4.2s p95 (was 0.8s)"; kind = "error-sample"; isModule = false } ]
+    [ BodyItem { name = "⚠ 500         POST /checkout - 12 in the last hour"; kind = "error-sample"; isModule = false; desc = "" }
+      BodyItem { name = "✗ test        Stachu.Auth.login passes but shouldn't"; kind = "error-sample"; isModule = false; desc = "" }
+      BodyItem { name = "⚠ 500         GET /api/user/:id - 3 in the last hour"; kind = "error-sample"; isModule = false; desc = "" }
+      BodyItem { name = "✗ deprecated  Stdlib.List.oldMap still called by 4 fns"; kind = "error-sample"; isModule = false; desc = "" }
+      BodyItem { name = "⚠ perf        Stachu.report.build - 4.2s p95 (was 0.8s)"; kind = "error-sample"; isModule = false; desc = "" } ]
   Stdlib.List.append conflicts mock
 
 let errorDetail (state: State) : String =
@@ -201,10 +213,10 @@ let errorDetail (state: State) : String =
 /// The Crons view - scheduled jobs on this instance (mock until a Darklang.Cron value type + engine exist;
 /// see notes/cli-ux/22-things.md and classic Dark's cron model). Columns: status · name · schedule · last · next.
 let loadCronItems () : List<BodyItem> =
-  [ BodyItem { name = "●  nightly-backup    daily 02:00    14h ago ok    in 9h"; kind = "cron"; isModule = false }
-    BodyItem { name = "⏸  digest-email      weekly Mon     3d ago  ok    paused"; kind = "cron"; isModule = false }
-    BodyItem { name = "⚠  sync-metrics      every 1h       52m ago fail  in 8m"; kind = "cron"; isModule = false }
-    BodyItem { name = "○  cleanup-temp      every 12h      never         in 12h"; kind = "cron"; isModule = false } ]
+  [ BodyItem { name = "●  nightly-backup    daily 02:00    14h ago ok    in 9h"; kind = "cron"; isModule = false; desc = "" }
+    BodyItem { name = "⏸  digest-email      weekly Mon     3d ago  ok    paused"; kind = "cron"; isModule = false; desc = "" }
+    BodyItem { name = "⚠  sync-metrics      every 1h       52m ago fail  in 8m"; kind = "cron"; isModule = false; desc = "" }
+    BodyItem { name = "○  cleanup-temp      every 12h      never         in 12h"; kind = "cron"; isModule = false; desc = "" } ]
 
 let cronDetail (state: State) : String =
   match Stdlib.List.getAt state.items state.selected with
@@ -227,17 +239,17 @@ let loadTraceBodyItems () : List<BodyItem> =
   let real =
     Darklang.Tracing.Store.list 30
     |> Stdlib.List.map (fun t ->
-      BodyItem { name = t.handler ++ "  ·  " ++ t.timestamp; kind = "trace"; isModule = false })
+      BodyItem { name = t.handler; kind = "trace"; isModule = false; desc = t.timestamp })
   if Stdlib.Bool.not (Stdlib.List.isEmpty real) then
     real
   else
     // Nothing recorded here yet, so show a shape-of-the-thing sample. Tagged distinctly so the detail pane
     // can say which it's looking at, rather than calling every trace mock.
-    [ BodyItem { name = "✓ eval   Stdlib.List.map [1;2;3] (fun x -> x * 2)"; kind = "trace-sample"; isModule = false }
-      BodyItem { name = "✓ GET    /echo → 200            heartbeat"; kind = "trace-sample"; isModule = false }
-      BodyItem { name = "✗ POST   /sync → 500            syncer"; kind = "trace-sample"; isModule = false }
-      BodyItem { name = "✓ eval   @stachu.fizzbuzz 3"; kind = "trace-sample"; isModule = false }
-      BodyItem { name = "✓ CLI    dark status"; kind = "trace-sample"; isModule = false } ]
+    [ BodyItem { name = "✓ eval   Stdlib.List.map [1;2;3] (fun x -> x * 2)"; kind = "trace-sample"; isModule = false; desc = "" }
+      BodyItem { name = "✓ GET    /echo → 200            heartbeat"; kind = "trace-sample"; isModule = false; desc = "" }
+      BodyItem { name = "✗ POST   /sync → 500            syncer"; kind = "trace-sample"; isModule = false; desc = "" }
+      BodyItem { name = "✓ eval   @stachu.fizzbuzz 3"; kind = "trace-sample"; isModule = false; desc = "" }
+      BodyItem { name = "✓ CLI    dark status"; kind = "trace-sample"; isModule = false; desc = "" } ]
 
 /// Installed + available apps (for the Apps view). A filled dot marks installed; a hollow one available.
 let loadAppItems (branchId: Uuid) : List<BodyItem> =
@@ -245,11 +257,13 @@ let loadAppItems (branchId: Uuid) : List<BodyItem> =
   Darklang.Cli.Apps.Registry.available ()
   |> Stdlib.List.map (fun a ->
     let mark = if Stdlib.List.member slugs a.slug then "● " else "○ "
-    BodyItem { name = mark ++ a.name ++ "  ·  " ++ a.description; kind = "app"; isModule = false })
+    BodyItem { name = mark ++ a.name; kind = "app"; isModule = false; desc = a.description })
 
-/// The body items for a given view. Home/Matter list packages (Matter with a Values lens); SCM lists its
-/// active section (WIP / commits / conflicts); AI/Apps/Traces/Docs their own; Scratch/Devices render their
-/// own bodies (no list). The section and the lens come from the view states.
+/// The body items for a given view. Home lists the branch's state (see
+/// `loadHomeItems`); Matter the packages (with a Values lens); SCM lists its
+/// active section (WIP / commits / conflicts); AI/Apps/Traces/Docs their own;
+/// Scratch/Devices render their own bodies (no list). The section and the
+/// lens come from the view states.
 let itemsForView
   (view: Int)
   (branchId: Uuid)
@@ -258,7 +272,7 @@ let itemsForView
   (aiSection: AiSection)
   (matterLens: Lens)
   : List<BodyItem> =
-  if view == vHome then loadItems branchId location
+  if view == vHome then loadHomeItems branchId
   else if view == vMatter then
     if matterLens == Lens.ValuesOnly then loadThingItems branchId else loadItems branchId location
   else if view == vSCM then

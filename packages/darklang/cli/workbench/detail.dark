@@ -5,43 +5,94 @@
 module Darklang.Cli.Workbench
 
 
-/// The glyph for a row's kind, padded to two terminal columns.
+/// The item list, as name + description rows: the name bright (bold with a
+/// trailing `/` for a module), then a dim one-liner from `BodyItem.desc` - a
+/// signature, `= value`, `record · 3 fields`, a timestamp - so a row says
+/// what it is without an icon. Names pad to a shared column (capped) so the
+/// descriptions line up.
 ///
-/// `Cli.Glyphs` owns the vocabulary, including the rule that every glyph measures one column and gets
-/// padded to two; this only has to decide that a module row is a module, since `BodyItem` carries that
-/// separately from its kind string.
-let iconFor (item: BodyItem) : String =
-  if item.isModule then Glyphs.forKind "module" else Glyphs.forKind item.kind
-
-
+/// The selected row is a cursor bar (see `selectionBar`): purple `┃` and name
+/// while this pane has the keyboard, grey when it doesn't; the description
+/// stays dim either way. Badges - pink ● for edited-but-not-committed, yellow
+/// ⚠ for deprecated-but-still-shown - come off the state (see
+/// `refreshBadges`); they used to be two DB reads per keypress.
+/// Stdlib.Cli.UI.ListView owns the viewport + scrollbar.
 let renderTreeList (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
   if Stdlib.List.isEmpty state.items then
     Stdlib.Cli.UI.Layout.at region 1 2 (Stdlib.Cli.UI.Colors.dimText "(no items here)")
   else
-    // Per-row badges (Matter tree, non-values lens only): a pink ● for items edited-but-not-committed, and a
-    // yellow ⚠ for items deprecated-but-still-shown (deprecated-and-referenced, so they survive the
-    // visibility filter). Both come off the state; they used to be two DB reads per keypress.
     let modPath = modulePathOf state.location
     let wipNames = state.wipNames
     let deprecatedNames = state.deprecatedNames
-    // Build the styled rows (cursor + icon + name, selection in cyan); Stdlib.Cli.UI.ListView owns the viewport + scrollbar.
+    let focused = state.focus == Stdlib.Cli.UI.SplitPane.Focus.First
+    let displayOf (item: BodyItem) : String = if item.isModule then item.name ++ "/" else item.name
+    // The description column: after the longest name, capped so one long name
+    // doesn't push every description off the pane - a name longer than the
+    // cap is clipped with an ellipsis instead, so the column stays straight.
+    // Only when something has a description at all.
+    let anyDesc = state.items |> Stdlib.List.any (fun it -> it.desc != "")
+    let nameCap = 36
+    let nameCol =
+      if Stdlib.Bool.not anyDesc then 0
+      else
+        state.items
+        |> Stdlib.List.filter (fun it -> Stdlib.Bool.not (isHomeHeader it))
+        |> Stdlib.List.map (fun it -> Stdlib.Cli.Tui.Text.displayWidth (displayOf it))
+        |> Stdlib.List.fold 0 (fun acc n -> Stdlib.Int.max acc n)
+        |> Stdlib.Int.min nameCap
+    let fitName (s: String) : String =
+      if (Stdlib.Cli.Tui.Text.displayWidth s) <= nameCap then s
+      else (Stdlib.Cli.Tui.Text.clipToWidth s (nameCap - 1)) ++ "…"
     let lines =
       state.items
       |> Stdlib.List.indexedMap (fun i item ->
-        let cursor = if i == state.selected then "> " else "  "
-        let display = if item.isModule then item.name ++ "/" else item.name
+        let display = if item.desc == "" then displayOf item else fitName (displayOf item)
         let fullName = Stdlib.String.join (Stdlib.List.append modPath [ item.name ]) "."
-        let wipBadge =
-          if (Stdlib.Bool.not (Stdlib.List.isEmpty wipNames)) && (Stdlib.List.member wipNames fullName) then
-            Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink " ●"
-          else
-            ""
-        let depBadge =
-          if Stdlib.List.member deprecatedNames item.name then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow " ⚠" else ""
-        let line = cursor ++ (iconFor item) ++ " " ++ display
-        let badge = wipBadge ++ depBadge
-        if i == state.selected then (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan line) ++ badge else line ++ badge)
+        let isWip =
+          (Stdlib.Bool.not (Stdlib.List.isEmpty wipNames)) && (Stdlib.List.member wipNames fullName)
+        let isDeprecated = Stdlib.List.member deprecatedNames item.name
+        let badges =
+          (if isWip then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink " ●" else "")
+          ++ (if isDeprecated then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow " ⚠" else "")
+        let gap =
+          if item.desc == "" then ""
+          else Stdlib.String.repeat " " (Stdlib.Int.max 2 (nameCol + 2 - (Stdlib.Cli.Tui.Text.displayWidth display)))
+        let rest = gap ++ (if item.desc == "" then "" else Stdlib.Cli.UI.Colors.dimText item.desc) ++ badges
+        if isHomeHeader item then
+          // A section label (or a blank spacer), not a row: dim, and never
+          // the cursor (see `homeSelectable`).
+          if item.name == "" then "" else "  " ++ (Stdlib.Cli.UI.Colors.dimText item.name)
+        else if i == state.selected then
+          selectionBar display rest focused
+        else
+          let name = if item.isModule then Stdlib.Cli.UI.Colors.boldText display else display
+          "  " ++ name ++ rest)
     Stdlib.Cli.UI.ListView.render region lines state.selected
+
+/// The selected module's immediate children for the Inspect pane. This is a
+/// preview of the next Tree level, not a recursive package listing.
+let modulePreviewLines (state: State) (item: BodyItem) : List<String> =
+  let path = Stdlib.List.append (modulePathOf state.location) [ item.name ]
+  let location = Packages.PackageLocation.Module path
+  let children = loadItems state.branchId location
+  let childLine (child: BodyItem) : String =
+    let display = if child.isModule then child.name ++ "/" else child.name
+    let name = if child.isModule then Stdlib.Cli.UI.Colors.boldText display else display
+    let desc =
+      if child.desc == "" then ""
+      else "  " ++ (Stdlib.Cli.UI.Colors.dimText child.desc)
+    "  " ++ name ++ desc
+  let contents =
+    if Stdlib.List.isEmpty children then
+      [ Stdlib.Cli.UI.Colors.dimText "  (empty module)" ]
+    else
+      Stdlib.List.map children childLine
+  Stdlib.List.flatten
+    [ [ Stdlib.Cli.UI.Colors.boldText (item.name ++ "/")
+        Stdlib.Cli.UI.Colors.dimText (plural (Stdlib.List.length children) "item")
+        "" ]
+      contents
+      [ ""; Stdlib.Cli.UI.Colors.dimText "⏎ enter" ] ]
 
 /// The source/detail of the currently-selected item, as lines for the Inspect pane.
 let detailLines (state: State) : List<String> =
@@ -53,7 +104,7 @@ let detailLines (state: State) : List<String> =
   | None -> [ "(nothing selected)" ]
   | Some item ->
     if item.isModule then
-      [ (iconFor item) ++ " " ++ item.name; ""; "module - → to enter" ]
+      modulePreviewLines state item
     else if (state.activeView == vMatter) && item.kind == "fn" && item.name == "render" then
       // Tree-native view peek: a `render` fn lights up its output right here - show the rendered frame instead
       // of source. Any view value in the Matter tree previews just by cursoring onto it.
@@ -77,7 +128,7 @@ let detailLines (state: State) : List<String> =
       // Wrapping in `renderScrollableLines` stays as the floor under a line no layout could shorten.
       let ctx =
         { PrettyPrinter.ProgramTypes.Context.forModule state.branchId modulePath with
-            width = previewInnerWidth () }
+            width = previewInnerWidth state }
       let src =
         match item.kind with
         | "fn" ->
@@ -117,8 +168,8 @@ let docContent (state: State) : String =
   | Some t -> t.content ()
   | None -> "(no topic selected)"
 
-/// A recorded divergence's detail, for the Resolve preview. By location, not by index - the section is
-/// filterable, same reasoning as `selectedBranch`.
+/// A recorded divergence's detail for the Conflicts preview. It resolves by
+/// location because the section is filterable, like `selectedBranch`.
 let conflictDetail (state: State) : String =
   match selectedConflict state with
   | Some c ->
@@ -192,21 +243,48 @@ let itemMeta (state: State) : String =
         | None -> "not deprecated"
       kindLabel ++ "  ·  hash " ++ short ++ "  ·  current  ·  " ++ deprecation
 
-/// Per-node actions offered on the item page, or nothing when there are none to offer.
+/// Per-node actions offered on the item page. Only what's wired: every key
+/// named here does something, and nothing named here means something else in
+/// this view (`t` is new-type, so it isn't "try").
 ///
 /// `d deps` used to lead here. It opened the item's dependencies in the reader, which is the same text
 /// this page already prints under `── references ──`, so it was a keystroke to see what was on screen.
-/// try/traces are named as affordances and land in later passes; they are not wired yet.
 let itemActions (item: BodyItem) : List<String> =
-  if item.kind == "fn" then [ ""; Stdlib.Cli.UI.Colors.dimText "t try, x traces (coming)" ]
-  else []
+  if item.kind == "fn" then [ ""; Stdlib.Cli.UI.Colors.dimText "x traces  ·  e edit  ·  r rename" ]
+  else [ ""; Stdlib.Cli.UI.Colors.dimText "e edit  ·  r rename" ]
+
+/// The runs that called the selected fn, for the `x` reader: one row per
+/// trace, newest first, or a line saying nothing has called it yet and how to
+/// change that.
+let tracesText (state: State) : String =
+  match Stdlib.List.getAt state.items state.selected with
+  | None -> "(nothing selected)"
+  | Some item ->
+    let fullName = Stdlib.String.join (Stdlib.List.append (modulePathOf state.location) [ item.name ]) "."
+    let rows =
+      Darklang.Tracing.Store.listByFn fullName 30
+      |> Stdlib.List.map (fun t -> "  " ++ t.handler ++ "  ·  " ++ t.timestamp)
+    // Empty means one of two things, and `traces list` already knows which:
+    // nothing has called it, or recording is off (the default) so nothing
+    // would show whatever ran. Say the same thing it says.
+    let body =
+      if Stdlib.List.isEmpty rows then
+        [ Stdlib.Cli.UI.Colors.dimText "  no recorded calls"; Stdlib.Cli.UI.Colors.dimText ("  " ++ (Darklang.Cli.Tracing.emptyStateHint ())) ]
+      else
+        rows
+    Stdlib.String.join
+      (Stdlib.List.flatten
+        [ [ Stdlib.Cli.UI.Colors.boldText ("Traces calling " ++ fullName); "" ]
+          body
+          [ ""; Stdlib.Cli.UI.Colors.dimText "  6 › Traces lists every run" ] ])
+      "\n"
 
 let inspectPageLines (state: State) : List<String> =
   match Stdlib.List.getAt state.items state.selected with
   | None -> [ Stdlib.Cli.UI.Colors.dimText "(nothing selected - browse the tree)" ]
   | Some item ->
     if item.isModule then
-      [ (iconFor item) ++ " " ++ item.name; ""; Stdlib.Cli.UI.Colors.dimText "module - → to enter" ]
+      modulePreviewLines state item
     else
       // Highlight the source portion here (the page mixes code + colored ref/meta lines, so renderPreview
       // can't blanket-highlight it).
@@ -224,7 +302,7 @@ let inspectPageLines (state: State) : List<String> =
         else
           Stdlib.List.append
             srcPlain
-            [ Colors.warning
+            [ Stdlib.Cli.UI.Colors.warning
                 $"(syntax highlighting off: re-lexing produced {Stdlib.Int.toString (Stdlib.List.length h)} lines, source has {Stdlib.Int.toString (Stdlib.List.length srcPlain)})" ]
       let refs = Stdlib.String.split (depsText state) "\n"
       Stdlib.List.flatten
@@ -237,7 +315,8 @@ let inspectPageLines (state: State) : List<String> =
 /// The preview content for the selected item in the current view. One function so the preview pane, its
 /// scroll bounds, and the full-screen reader all agree. SCM previews depend on the active section.
 let previewLines (state: State) : List<String> =
-  if state.activeView == vSCM then
+  if state.activeView == vHome then homeDetail state
+  else if state.activeView == vSCM then
     if state.scm.section == ScmSection.History then Stdlib.String.split (commitSummary state.branchId state.selected) "\n"
     else if state.scm.section == ScmSection.Conflicts then Stdlib.String.split (conflictDetail state) "\n"
     else if state.scm.section == ScmSection.Branches then Stdlib.String.split (branchDetail state) "\n"
@@ -259,4 +338,3 @@ let previewLines (state: State) : List<String> =
       let d = vd.detail
       d state
     | None -> detailLines state
-

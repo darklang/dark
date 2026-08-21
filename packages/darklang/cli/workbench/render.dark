@@ -1,14 +1,10 @@
-/// The generic frame primitives every view mounts into (scrollable lines, boxed lines, the list+preview
-/// split, the section switcher), plus the Home dashboard and the full-screen reader.
+/// The generic frame primitives every view mounts into (scrollable lines,
+/// boxed lines, the list+preview split, the selection row), plus the
+/// full-screen reader. Home lives in home.dark.
 ///
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
 
-/// Render `lines` into `region` as a vertically-scrollable block: drop `scroll` rows, take what fits, each cut
-/// ANSI-aware so color survives an overflow. `display` is the styled variant shown per row (pass `lines`
-/// itself when there's no highlighting); `lines` drives the count. `colOffset` insets the text from the
-/// region's left (the split-pane preview insets 1; the full-screen reader doesn't). Backs both
-/// `renderPreview` and `renderReading`.
 /// Break one logical line into the rows it occupies at `maxFit` columns.
 ///
 /// Continuation rows are indented two columns, so a wrapped line reads as one thing rather than as two
@@ -16,7 +12,7 @@ module Darklang.Cli.Workbench
 let wrapRow (maxFit: Int) (line: String) : List<String> =
   let room = Stdlib.Int.max 1 (maxFit - 2)
 
-  match Tui.Text.wrapStyled line room with
+  match Stdlib.Cli.Tui.Text.wrapStyled line room with
   | [] -> [ "" ]
   | first :: rest -> Stdlib.List.push (rest |> Stdlib.List.map (fun r -> "  " ++ r)) first
 
@@ -85,23 +81,35 @@ let matterSplitFor (state: State) : Int =
   Stdlib.Int.max matterSplitMinPct (Stdlib.Int.min matterSplitMaxPct pct)
 
 
-/// Roughly how many columns the Matter preview pane gives its text.
+/// How many columns the preview pane gives its text - the same number the
+/// render pass arrives at.
 ///
-/// Mirrors the geometry the render pass actually uses: the body spans the screen, `SplitPane` gives the
-/// tree at most `matterSplitMaxPct` of it, `Box.inner` takes a column of border off each side, and
-/// `renderScrollableLines` insets one more. Used only to bound scrolling; the render pass has the real
-/// region and is authoritative, so being a column or two out costs nothing. Keep in step with
-/// `renderViewBody`'s `SplitPane.render` call.
-let previewInnerWidth () : Int =
+/// Mirrors the real geometry step by step: the body is the screen less the
+/// sidebar column when there's room for one (`sidebarIsColumn`); `SplitPane`
+/// collapses to one pane under 46 columns, else gives the list the view's own
+/// share (Home 48, Matter `matterSplitFor`, everything else 55); `Box.inner`
+/// takes a border column off each side; `renderScrollableLines` insets one
+/// more. It bounds scrolling and sizes the pretty-printer and the diff wash,
+/// so an estimate won't do: the old one ignored the sidebar and used Matter's
+/// ceiling split for every view, which over-padded diff lines until each
+/// wrapped in two. Keep in step with `frame-assembly`, `renderViewBody`, and
+/// Home's `SplitPane.render` call.
+let previewInnerWidth (state: State) : Int =
   let (w, _h) = Terminal.getSize ()
   let w = if w < 24 then 80 else w
-  let treeCols = Stdlib.Int.divide (w * matterSplitMaxPct) 100
-  Stdlib.Int.max 1 (w - treeCols - 3)
-
+  let bodyCols = if sidebarIsColumn w then w - sidebarCols else w
+  let pct =
+    if state.activeView == vHome then 48
+    else if state.activeView == vMatter then matterSplitFor state
+    else 55
+  let previewCols =
+    if bodyCols < 46 then bodyCols
+    else bodyCols - (Stdlib.Int.divide (bodyCols * pct) 100)
+  Stdlib.Int.max 1 (previewCols - 3)
 
 /// How many screen rows `previewLines` occupies once wrapped: what scrolling is bounded by.
 let previewRowCount (state: State) : Int =
-  let maxFit = previewInnerWidth ()
+  let maxFit = previewInnerWidth state
 
   previewLines state
   |> Stdlib.List.map (fun l -> Stdlib.List.length (wrapRow maxFit l))
@@ -132,160 +140,20 @@ let renderPreview (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<St
 let plural (n: Int) (noun: String) : String =
   (Stdlib.Int.toString n) ++ " " ++ noun ++ (if n == 1 then "" else "s")
 
-/// Home, the landing dashboard: am I in a good state, what was I doing, what's here, and where can I go.
-///
-/// The last of those is the panel that earns its keep. The workbench opens on thirteen tabs with no way to
-/// tell which of them do anything, so the bottom panel names each one, says what it's for, and marks the ones
-/// still running on sample data. It replaced a list of commands you had to already know to look for.
-let renderHome (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-  let wip = wipItemCount state.branchId
-  let commits = SCM.PackageOps.getCommitCount state.branchId
-  let rootItems = loadItems state.branchId (Packages.PackageLocation.Module [])
-  let branch =
-    match SCM.Branch.get state.branchId with
-    | Some b -> b.name
-    | None -> "main"
-  let conflictCount = Stdlib.List.length (Darklang.Sync.Conflicts.list ())
-  let lastCommit =
-    match Stdlib.List.head (SCM.PackageOps.getCommitsWithAncestors state.branchId 1) with
-    | Some c -> c.message
-    | None -> "no commits yet"
-  let owner = if state.accountName == "" then "there" else state.accountName
+/// A reverse-video selection used by modal pickers. `plain` must be unstyled.
+let selectionRow (width: Int) (plain: String) : String =
+  let padded = Stdlib.Cli.Tui.Text.fitToWidth plain width
+  Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.reverse padded
 
-  let renderHeader (r: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-    // The third row is the escape hatch, and it's on the landing screen deliberately. Every classic command
-    // still runs from the `:` bar and `:commands` gives you the old prompt outright, but neither is guessable
-    // from an empty full-screen UI - and this replaced the panel that used to say so.
-    Stdlib.List.flatten
-      [ Stdlib.Cli.UI.Layout.at r 0 2 (Stdlib.Cli.UI.Colors.boldText ($"Welcome back, {owner}"))
-        Stdlib.Cli.UI.Layout.at r 1 2 (Stdlib.Cli.UI.Colors.dimText ($"on {branch}  ·  a workbench over Dark Matter"))
-        // Short enough to survive an 80-column terminal; `?` carries the detail that `quit` comes back.
-        Stdlib.Cli.UI.Layout.at
-          r
-          2
-          2
-          ((Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan ":")
-           ++ (Stdlib.Cli.UI.Colors.dimText " runs any command  ·  ")
-           ++ (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "p")
-           ++ (Stdlib.Cli.UI.Colors.dimText " drops to the command prompt")) ]
-
-  let renderStatus (inner: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-    let wipLine =
-      if wip == 0 then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green "✓ working tree clean"
-      else Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink (plural wip "uncommitted change")
-    let syncLine =
-      if conflictCount == 0 then Stdlib.Cli.UI.Colors.dimText "✓ in sync"
-      else Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink ("⚠ " ++ (plural conflictCount "divergence") ++ "  ·  5 › Conflicts")
-    Stdlib.List.flatten
-      [ Stdlib.Cli.UI.Layout.at inner 0 1 wipLine
-        Stdlib.Cli.UI.Layout.at inner 1 1 (Stdlib.Cli.UI.Colors.dimText (plural commits "commit" ++ " on this branch"))
-        Stdlib.Cli.UI.Layout.at inner 2 1 (Stdlib.Cli.UI.Colors.dimText ("last: " ++ lastCommit))
-        Stdlib.Cli.UI.Layout.at inner 3 1 syncLine ]
-
-  let renderWip (inner: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-    if wip == 0 then
-      Stdlib.Cli.UI.Layout.at inner 0 1 (Stdlib.Cli.UI.Colors.dimText "nothing in progress - the tree is yours to edit")
-    else
-      SCM.PackageOps.getWipItems state.branchId
-      |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
-      |> Stdlib.List.indexedMap (fun i d ->
-        let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
-        // Pink ● is the "uncommitted work" marker everywhere (matches the tree WIP badge); keep it consistent.
-        Stdlib.Cli.UI.Layout.at inner i 1 (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink ("● " ++ name)))
-      |> Stdlib.List.flatten
-
-  let renderMatterPanel (inner: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-    let owners =
-      rootItems
-      |> Stdlib.List.take (Stdlib.Int.max 1 (inner.rows - 1))
-      |> Stdlib.List.indexedMap (fun i it ->
-        Stdlib.Cli.UI.Layout.at inner (i + 1) 1 (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan ("🗂 " ++ it.name)))
-      |> Stdlib.List.flatten
-    Stdlib.List.flatten
-      [ Stdlib.Cli.UI.Layout.at inner 0 1 (Stdlib.Cli.UI.Colors.dimText (plural (Stdlib.List.length rootItems) "top-level owner"))
-        owners ]
-
-  // Every tab: its number key, its name, what it's for, and whether it's real. `Layout.at` measures in
-  // terminal columns and ignores SGR, so the color doesn't count toward the width and get clipped.
-  //
-  // The number key is the row's position in the *full* visible list (Home is 1), which is what the digit keys
-  // index; past nine there's no digit, and the row says so by leaving the column blank.
-  let renderTabs (inner: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-    // Local rather than `String.padEnd`, which returns a Result (it can reject a multi-char pad) and would
-    // need unwrapping at both call sites for a column of spaces.
-    let pad (s: String) (n: Int) : String =
-      s ++ (Stdlib.String.repeat " " (Stdlib.Int.max 0 (n - (Stdlib.String.displayWidth s))))
-    visibleViews state
-    |> Stdlib.List.indexedMap (fun i v -> (i, v))
-    |> Stdlib.List.filter (fun pair -> let (_i, v) = pair in v != vHome)
-    |> Stdlib.List.take (Stdlib.Int.max 1 inner.rows)
-    |> Stdlib.List.indexedMap (fun row pair ->
-      let (i, v) = pair
-      let key = if i < 9 then Stdlib.Int.toString (i + 1) else " "
-      let (blurb, caveat) = viewBlurb v
-      let tag = if caveat == "" then "" else Stdlib.Cli.UI.Colors.dimText ("   (" ++ caveat ++ ")")
-      let line =
-        (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan (pad key 2))
-        ++ (pad (viewLabel v) 11)
-        ++ (Stdlib.Cli.UI.Colors.dimText blurb)
-        ++ tag
-      Stdlib.Cli.UI.Layout.at inner row 1 line)
-    |> Stdlib.List.flatten
-
-  let leftCol (r: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
-    Stdlib.Cli.UI.Layout.vstack
-      r
-      [ Stdlib.Cli.UI.Layout.fixedSize 6 (fun rr -> Stdlib.Cli.UI.Box.panel rr "Status" false renderStatus)
-        Stdlib.Cli.UI.Layout.greedy (fun rr -> Stdlib.Cli.UI.Box.panel rr "Pick up where you left off" false renderWip) ]
-
-  // Home fills the body region, same as every other view. The right column scales with the width rather than
-  // sitting at a fixed 40, so it grows with the terminal instead of staying a sliver beside Status. Status
-  // still takes whatever is left, so on a very wide terminal it is a wide box around four short lines - the
-  // cost of filling the width, and the width is what was asked for.
-  // Floor is low enough that a narrow terminal shrinks this column rather than letting it outgrow Status,
-  // which is the primary panel and was ending up the narrower of the two at around 70 columns.
-  let matterCols = Stdlib.Int.max 24 (Stdlib.Int.min 72 (Stdlib.Int.divide region.cols 3))
-
-  // What each band needs at minimum: the middle is as tall as its taller column (Status (6) over the WIP
-  // list, against the owners list), the tabs want a row per tab plus a border.
-  let minMid = Stdlib.Int.max (6 + (Stdlib.Int.max 1 wip) + 2) ((Stdlib.List.length rootItems) + 3)
-  let minTabs = (Stdlib.List.length (visibleViews state)) + 1
-
-  // Floors first: the bands don't shrink on their own, and on a 24-row terminal the total used to run off the
-  // bottom and the footer drew over the last row. The middle keeps its Status panel and four rows; the tabs
-  // take what's left, truncating gracefully (the title already points at the picker).
-  let avail = Stdlib.Int.max 1 region.rows
-  let midFloor = Stdlib.Int.max 6 (Stdlib.Int.min minMid (avail - 3 - 4))
-  let tabFloor = Stdlib.Int.max 0 (Stdlib.Int.min minTabs (avail - 3 - midFloor))
-
-  // Then the surplus, split evenly rather than handed to either one - all of it to the middle put a 28-row box
-  // around one line of "nothing in progress", and all of it to the tabs left the same hole at the bottom.
-  // Both lists do grow in real use, so the space isn't wasted, just not pooled anywhere it can look broken.
-  //
-  // Shared out here rather than through `flex`, which splits in proportion to (preferred - min) using integer
-  // division and drops the odd row - one blank line above the footer that no band asked for. This assigns the
-  // remainder explicitly, so the three bands always add up to the full height.
-  let slack = Stdlib.Int.max 0 (avail - 3 - midFloor - tabFloor)
-  let midShare = midFloor + (Stdlib.Int.divide slack 2)
-  let tabShare = tabFloor + slack - (Stdlib.Int.divide slack 2)
-  // Under three rows there's no room for a border and a line, so the tabs panel goes rather than draw a stub -
-  // and its rows go to the middle rather than sitting blank above the footer.
-  let (midRows, tabRows) =
-    if tabShare < 3 then (midShare + tabShare, 0) else (midShare, tabShare)
-
-  Stdlib.Cli.UI.Layout.vstack
-    region
-    [ Stdlib.Cli.UI.Layout.fixedSize 3 renderHeader
-      Stdlib.Cli.UI.Layout.fixedSize midRows (fun r ->
-        Stdlib.Cli.UI.Layout.hstack
-          r
-          [ Stdlib.Cli.UI.Layout.greedyWidth leftCol
-            Stdlib.Cli.UI.Layout.fixedWidth matterCols (fun rr -> Stdlib.Cli.UI.Box.panel rr "Your Matter" false renderMatterPanel) ])
-      if tabRows == 0 then
-        Stdlib.Cli.UI.Layout.fixedSize 0 (fun _r -> [])
-      else
-        Stdlib.Cli.UI.Layout.fixedSize tabRows (fun rr ->
-          Stdlib.Cli.UI.Box.panel rr "The tabs  ·  press the number, or ` for the picker" false renderTabs) ]
+/// The other selection: a cursor bar. A `┃` in the two-column gutter and the
+/// name in Darklang purple while the pane has the keyboard, dim grey when it
+/// doesn't; `rest` (a description, badges) is left as it came, colours and
+/// all. For rows that carry a description - the tree, changes, traces, the
+/// sidebar - this reads better than a block, which would swallow the
+/// description's dimness. Pickers keep the block.
+let selectionBar (name: String) (rest: String) (focused: Bool) : String =
+  let color = if focused then Stdlib.Cli.UI.Colors.purple else Stdlib.Cli.UI.Colors.brightBlack
+  (Stdlib.Cli.UI.Colors.colorize color ("┃ " ++ name)) ++ rest
 
 /// A full-body scrollable reader (Docs topic content, etc.).
 let renderReading (content: String) (isCode: Bool) (scroll: Int) (region: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI.Layout.Span> =
@@ -315,9 +183,7 @@ let boxedLines
       if i < inner.rows then Stdlib.Cli.UI.Layout.at inner (i + 1) 1 l else [])
     |> Stdlib.List.flatten)
 
-/// A list+preview view (the IDE three-panel shape): the list on the dominant left pane, a scrollable preview of
-/// the selected item on the right. Tab toggles focus; the preview scrolls when focused. Falls back to a single
-/// empty box (naming the fill action) when the list is empty.
+/// A list and scrollable preview. Falls back to one empty-state box.
 let splitListPreview
   (state: State)
   (region: Stdlib.Cli.UI.Layout.Region)
@@ -346,15 +212,3 @@ let splitListPreview
       (fun r -> renderTreeList state r)
       previewTitle
       (fun r -> renderPreview state r)
-
-/// A "tab  [Active]   Other   Other" section switcher at `row` within the region: the active section bright in
-/// brackets, the rest dim. Shared by the SCM (Changes/History/Conflicts/Branches) and AI (Agents/Prompts) views.
-let renderSectionSwitcher (region: Stdlib.Cli.UI.Layout.Region) (row: Int) (sections: List<String>) (active: Int) : List<Stdlib.Cli.UI.Layout.Span> =
-  let secLine =
-    sections
-    |> Stdlib.List.indexedMap (fun i s ->
-      if i == active then Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.bold ++ Stdlib.Cli.UI.Colors.cyan) ("[" ++ s ++ "]")
-      else Stdlib.Cli.UI.Colors.dimText (" " ++ s ++ " "))
-    |> Stdlib.String.join "  "
-  Stdlib.Cli.UI.Layout.at region row 0 ("  " ++ (Stdlib.Cli.UI.Colors.dimText "tab") ++ "  " ++ secLine)
-

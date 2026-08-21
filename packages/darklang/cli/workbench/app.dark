@@ -1,19 +1,20 @@
-/// The `workbench` SubApp - the framed home the CLI-UX redesign is built around: the Frame chrome (tab bar
-/// + breadcrumb + key hints) around a live, navigable body, one view per tab. `dark` with no args opens it.
-/// See design main/notes/cli-ux/{03A,10,11,12}.
+/// The `workbench` SubApp: context, workspace sidebar, body, and key hints.
+/// `dark` with no arguments opens it.
 ///
 /// This module is split across files (Dark merges same-named modules; modelContextProtocol does the same).
 /// This file holds only the CLI integration surface: the SubApp wrapper and the command entry points.
 ///
 ///   types.dark            State and the other records, view indices, the view registry helpers
 ///   loaders.dark          reads for the package tree and SCM
-///   loaders-misc.dark     reads for AI, things, conflicts, branches, docs, errors
+///   loaders-misc.dark     reads for AI, values, conflicts, branches, docs
 ///   detail.dark           the item list, and the text behind the detail/preview pane
-///   render.dark           the frame primitives every view mounts into, plus Home and the reader
+///   render.dark           shared frame primitives and the reader
+///   home.dark             Home's branch overview and detail pane
 ///   views-scm-repl.dark   the SCM and REPL bodies
 ///   views-misc.dark       Devices, AI, Calendar, Errors, Crons, Builtins
-///   viewdefs.dark         the extension-view registry (add a view without the core knowing)
-///   chrome.dark           body dispatch, the editor pane, hints, overlays
+///   viewdefs.dark         the extension-view registry
+///   sidebar.dark          workspace definitions, navigation, and rendering
+///   chrome.dark           body dispatch, editor, hints, and help overlay
 ///   frame-assembly.dark   the chrome around the body, the completion dropdown, viewAtSize
 ///   nav.dark              movement and actions; each returns a Step
 ///   input.dark            the `:` bar and the other single-line input modes
@@ -22,17 +23,18 @@
 ///   keys-view.dark        the plain-view key map, and the dispatcher between layers
 ///   frame.dark            the shared chrome render helpers (its own module)
 ///
-/// Rendering returns spans (see `Stdlib.Cli.UI.Canvas`), which compose into a `Stdlib.Cli.Tui.View` that the renderer diffs
-/// against the previous frame. A keypress rewrites the rows that changed rather than clearing the screen.
+/// Rendering returns spans composed into a diffed `Stdlib.Cli.Tui.View`.
 module Darklang.Cli.Workbench
 
 
 /// Recompute the derived reads after every transition.
 ///
-/// The renderer has to be a pure function of state for frame diffing to be sound, so the badge and peek
-/// caches are refreshed here rather than read while drawing.
+/// The renderer has to be a pure function of state for frame diffing to be
+/// sound, so the badge and peek caches are refreshed here rather than read
+/// while drawing. Home's cursor is kept off its section headers here too,
+/// since any transition can reload the list under it.
 let refresh (previous: State) (next: State) : State =
-  refreshPeek (refreshBadges previous next)
+  fixHomeSelection (refreshCommitDetail (refreshPeek (refreshBadges previous next)))
 
 let onKey
   (state: State)
@@ -69,12 +71,13 @@ let initialState
   (enabledGatedViews: List<Int>)
   : State =
   let rootLoc = Packages.PackageLocation.Module []
+  let homeItems = loadHomeItems branchId
   State
-      { activeView = 0
+      { activeView = vHome
         location = rootLoc
-        items = loadItems branchId rootLoc
-        selected = 0
-        focus = Stdlib.Cli.UI.SplitPane.Focus.First
+        items = homeItems
+        selected = homeSelectable homeItems 0 1
+        focus = Stdlib.Cli.UI.SplitPane.Focus.Neither
         detailScroll = 0
         reading = Stdlib.Option.Option.None
         readingIsCode = false
@@ -86,6 +89,9 @@ let initialState
         message = ""
         search = emptySearch ()
         overlay = Overlay.NoOverlay
+        // Start in the sidebar so the first keypress can take you anywhere.
+        sideSel = 0
+        wsLast = []
         completionSel = 0
         scm = emptyScm ()
         ai = emptyAi ()
@@ -96,6 +102,7 @@ let initialState
         wipNames = []
         deprecatedNames = []
         renderPeek = ""
+        commitDetail = ("", [])
         branchId = branchId }
 
 
@@ -135,7 +142,7 @@ let execute (cliState: Darklang.Cli.AppState) (_args: List<String>) : Darklang.C
   // Seed the badge cache for the first frame; `presentState` keeps it fresh after that. The view peek needs no
   // seeding - the first frame is Home, which has no `render` fn to peek at.
   let (wip, deprecated) = readBadges state
-  let state = { state with wipNames = wip; deprecatedNames = deprecated }
+  let state = refreshCommitDetail { state with wipNames = wip; deprecatedNames = deprecated }
   // Launching is what enters the alternate screen and paints the first frame; from here on the renderer
   // diffs, so a keystroke rewrites the rows that changed rather than clearing and repainting.
   Darklang.Cli.Component.launchOrExit cliState component state
@@ -144,7 +151,8 @@ let help (_state: Darklang.Cli.AppState) : String =
   [ "Usage: workbench"
     "Open the workbench - a framed, navigable view of your package tree."
     ""
-    "  Up/Down   move    Right/Enter into    Left up    1-9 switch view    Esc/q exit" ]
+    "  The sidebar on the left is every place you can go: Up/Down walk it, Enter goes, Esc backs out."
+    "  1-9 jump to a workspace    tab next pane    ` sidebar    / find    : command    ? keys    q quit" ]
   |> Stdlib.String.join "\n"
 
 let complete

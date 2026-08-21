@@ -56,6 +56,12 @@ val brownBg = "\x1b[48;5;180m"
 val orangeBg = "\x1b[48;5;222m"
 val peachBg = "\x1b[48;5;216m"
 val salmonBg = "\x1b[48;5;223m"
+// Faint washes for diff lines - a tint behind normally-highlighted code, not
+// a colour of its own. 24-bit, because the 256-colour cube has no green or
+// red darker than 22/52, which read as solid bars; a terminal without
+// truecolour ignores these and shows the line with no wash, which is fine.
+val faintGreenBg = "\x1b[48;2;24;44;30m"
+val faintRedBg = "\x1b[48;2;52;28;32m"
 
 // Semantic colors for CLI elements
 val commandColor = "\u001b[34m"

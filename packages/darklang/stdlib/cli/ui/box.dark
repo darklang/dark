@@ -1,6 +1,4 @@
-/// Box — a single focus-aware bordered, titled pane. The primitive every framed view mounts into. Render
-/// helpers only (the content callback runs immediately during the render pass, never stored — the
-/// lambda-persistence rule is safe here). SplitPane composes two of these; single-list views use one.
+/// A focus-aware, rounded pane with an optional pill title.
 module Darklang.Stdlib.Cli.UI.Box
 
 /// The content region inside a box's border.
@@ -11,19 +9,40 @@ let inner (region: Layout.Region) : Layout.Region =
       rows = Stdlib.Int.max 0 (region.rows - 2)
       cols = Stdlib.Int.max 0 (region.cols - 2) }
 
-/// Draw a focus-aware box (bright cyan border + title when focused, dim otherwise) around `region`.
+/// Draw a focus-aware, rounded box around `region`: the border is Darklang
+/// purple when focused, dim otherwise, and the title is a pill.
+///
+/// The title splits at its first ` · `: what's before is the pane's identity
+/// and goes in the pill (purple with white text when focused, grey when not);
+/// what's after - a count, a path, a filter, key hints - trails it dim. So
+/// `Tree · 5` is a pill saying Tree and a dim `· 5`, and a plain title is
+/// just the pill.
 ///
 /// Returns spans. Colour codes carry no width now that clipping goes through `Tui.Text`, so the border no
 /// longer has to dodge the layout helpers to avoid being mis-measured.
 let draw (region: Layout.Region) (title: String) (focused: Bool) : List<Layout.Span> =
-  let color = if focused then Colors.cyan else Colors.brightBlack
+  let color = if focused then Colors.purple else Colors.brightBlack
   let paint = fun s -> Colors.colorize color s
 
   let innerCols = Stdlib.Int.max 0 (region.cols - 2)
-  let titlePart = if title == "" then "" else "─ " ++ title ++ " "
-  let fillLen = Stdlib.Int.max 0 (innerCols - (Tui.Text.displayWidth titlePart))
-  let top = "┌" ++ titlePart ++ (Stdlib.String.repeat "─" fillLen) ++ "┐"
-  let bottom = "└" ++ (Stdlib.String.repeat "─" innerCols) ++ "┘"
+  let (pillText, rest) =
+    match Stdlib.String.split title "  ·  " with
+    | [] -> ("", "")
+    | first :: [] -> (first, "")
+    | first :: more -> (first, Stdlib.String.join more "  ·  ")
+  let pillPlain = if pillText == "" then "" else " " ++ pillText ++ " "
+  let pillStyle = if focused then Colors.purpleBg ++ Colors.white ++ Colors.bold else Colors.grayBg
+  let pill = if pillPlain == "" then "" else Colors.colorize pillStyle pillPlain
+  let restPlain = if rest == "" then "" else " · " ++ rest ++ " "
+  let restStyled = if restPlain == "" then "" else Colors.dimText restPlain
+  // The pill and its trailer carry their own colours (and resets), so the
+  // border is painted around them in pieces rather than as one string.
+  let lead = if pillPlain == "" then "" else "─"
+  let used = (Tui.Text.displayWidth lead) + (Tui.Text.displayWidth pillPlain) + (Tui.Text.displayWidth restPlain)
+  let fillLen = Stdlib.Int.max 0 (innerCols - used)
+  let top =
+    (paint ("╭" ++ lead)) ++ pill ++ restStyled ++ (paint ((Stdlib.String.repeat "─" fillLen) ++ "╮"))
+  let bottom = "╰" ++ (Stdlib.String.repeat "─" innerCols) ++ "╯"
 
   let sides =
     (Stdlib.List.range 1 (region.rows - 2))
@@ -34,7 +53,7 @@ let draw (region: Layout.Region) (title: String) (focused: Bool) : List<Layout.S
     |> Stdlib.List.flatten
 
   Stdlib.List.flatten
-    [ Layout.at region 0 0 (paint top)
+    [ Layout.at region 0 0 top
       sides
       Layout.at region (region.rows - 1) 0 (paint bottom) ]
 

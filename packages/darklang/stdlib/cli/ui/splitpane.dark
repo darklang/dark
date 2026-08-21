@@ -11,6 +11,8 @@ type Orientation =
 type Focus =
   | First
   | Second
+  /// Neither pane has focus; both borders are dim.
+  | Neither
 
 /// Split `region` into two bordered panes by `firstPct` (0-100), render each child into its inner region.
 /// `focused` marks which pane gets the bright border. Below `minTotal`, collapses to the focused child only
@@ -26,6 +28,7 @@ let render
   (renderSecond: Layout.Region -> List<Layout.Span>)
   : List<Layout.Span> =
   let firstFocused = focused == Focus.First
+  let secondFocused = focused == Focus.Second
   let minTotal = 46
 
   let tooNarrow =
@@ -36,9 +39,9 @@ let render
   if tooNarrow then
     // Collapse: show only the focused pane, full region, with a which-of-two hint in the title.
     let (title, renderFn) =
-      if firstFocused then (titleFirst ++ " ‹1/2›", renderFirst)
-      else (titleSecond ++ " ‹2/2›", renderSecond)
-    Box.panel region title true renderFn
+      if secondFocused then (titleSecond ++ " ‹2/2›", renderSecond)
+      else (titleFirst ++ " ‹1/2›", renderFirst)
+    Box.panel region title (focused != Focus.Neither) renderFn
   else
     match orientation with
     | Horizontal ->
@@ -50,7 +53,7 @@ let render
         Layout.Region { top = region.top; left = region.left + firstCols; rows = region.rows; cols = secondCols }
       Stdlib.List.flatten
         [ Box.panel firstRegion titleFirst firstFocused renderFirst
-          Box.panel secondRegion titleSecond (Stdlib.Bool.not firstFocused) renderSecond ]
+          Box.panel secondRegion titleSecond secondFocused renderSecond ]
     | Vertical ->
       let firstRows = Stdlib.Int.divide (region.rows * firstPct) 100
       let secondRows = region.rows - firstRows
@@ -60,11 +63,4 @@ let render
         Layout.Region { top = region.top + firstRows; left = region.left; rows = secondRows; cols = region.cols }
       Stdlib.List.flatten
         [ Box.panel firstRegion titleFirst firstFocused renderFirst
-          Box.panel secondRegion titleSecond (Stdlib.Bool.not firstFocused) renderSecond ]
-
-
-/// Toggle focus between the two panes (Tab handler helper).
-let toggle (focus: Focus) : Focus =
-  match focus with
-  | First -> Focus.Second
-  | Second -> Focus.First
+          Box.panel secondRegion titleSecond secondFocused renderSecond ]
