@@ -9,21 +9,63 @@ module Darklang.Cli.Listing
 /// How many rows a long listing shows before it stops and says how many are left.
 val defaultLimit = 20
 
+/// The flag every capped listing accepts to print everything. Kept here so the commands and the
+/// footers that name it can't drift apart.
+val allFlag = "--all"
 
-/// The first `limit` rows, plus a footer saying how many were left out and how to see them.
-///
-/// `more` is the hint: what the reader should do to get the rest.
-let capped (rows: List<String>) (limit: Int) (more: String) : List<String> =
-  let n = Stdlib.List.length rows
 
-  if n <= limit then
-    rows
+/// Whether to cap at all: only for a person at a terminal, never under `--all`, never when stdout is
+/// a pipe or file -- there the reader is `grep` or `wc`, and a silent cut is data loss. Commands call
+/// this once and pass the answer down, so the helpers below stay pure.
+let shouldCap (all: Bool) : Bool =
+  (Stdlib.Bool.not all)
+  && (Stdlib.Cli.Tui.TerminalSupport.currentFacts ()).outputIsTerminal
+
+
+/// The footer under a capped listing: how many were left out, and that `--all` shows them.
+let footer (left: Int) (what: String) : String =
+  Stdlib.Cli.UI.Colors.hint $"  ... and {Stdlib.Int.toString left} more {what} (pass {Listing.allFlag} to see them)"
+
+
+/// Where every capped listing decides what to drop: the items to show, and how many things were
+/// left out. `cost` is rows an item occupies (spent against `limit`); `count` is things it holds
+/// (what the footer reports). Both are 1 for a flat list. Always keeps at least one item; with `cap`
+/// false, keeps everything.
+let cut
+  (items: List<'a>)
+  (limit: Int)
+  (cap: Bool)
+  (cost: 'a -> Int)
+  (count: 'a -> Int)
+  : (List<'a> * Int) =
+  if Stdlib.Bool.not cap then
+    (items, 0)
   else
-    let extra = Stdlib.Int.toString (n - limit)
+    let (shown, _) =
+      Stdlib.List.fold items ([], 0) (fun acc item ->
+        let (taken, spent) = acc
+        let next = spent + (cost item)
 
-    Stdlib.List.append
-      (Stdlib.List.take rows limit)
-      [ Colors.hint $"  ... and {extra} more ({more})" ]
+        if taken == [] || next <= limit then
+          (Stdlib.List.append taken [ item ], next)
+        else
+          (taken, spent))
+
+    let total = items |> Stdlib.List.map count |> Stdlib.Int.sum
+    let kept = shown |> Stdlib.List.map count |> Stdlib.Int.sum
+
+    (shown, total - kept)
+
+
+/// Render what `cut` kept and add the footer if anything was left out.
+let withFooter (rows: List<String>) (left: Int) (what: String) : List<String> =
+  if left <= 0 then rows else Stdlib.List.append rows [ Listing.footer left what ]
+
+
+/// A flat listing: the first `limit` rows, then a footer counting the rest as `what`.
+let capped (rows: List<String>) (limit: Int) (cap: Bool) (what: String) : List<String> =
+  let (shown, left) = Listing.cut rows limit cap (fun _ -> 1) (fun _ -> 1)
+  Listing.withFooter shown left what
 
 
 /// Split a fully-qualified name into its module path and its leaf.
@@ -43,7 +85,9 @@ let splitLeaf (name: String) : (String * String) =
 
 /// Group qualified names under their module, so a long list reads as a few modules rather than as
 /// hundreds of near-identical paths whose only difference is the last segment.
-let groupedByModule (names: List<String>) : List<String> =
+///
+/// Each group is the module path and its leaves, in first-seen order.
+let groupedByModule (names: List<String>) : List<(String * List<String>)> =
   let modules =
     names
     |> Stdlib.List.map (fun n -> Stdlib.Tuple2.first (Listing.splitLeaf n))
@@ -56,8 +100,31 @@ let groupedByModule (names: List<String>) : List<String> =
       |> Stdlib.List.filter (fun n -> (Stdlib.Tuple2.first (Listing.splitLeaf n)) == m)
       |> Stdlib.List.map (fun n -> Stdlib.Tuple2.second (Listing.splitLeaf n))
 
-    let count = Stdlib.Int.toString (Stdlib.List.length leaves)
-    let header = Colors.dimText $"  {m}  ({count})"
+    (m, leaves))
 
-    [ header; $"    {Stdlib.String.join leaves ", "}" ])
-  |> Stdlib.List.flatten
+
+/// One group as its two rows: a dimmed header with the count, and the leaves on one line.
+let groupRows (group: (String * List<String>)) : List<String> =
+  let (m, leaves) = group
+  let count = Stdlib.Int.toString (Stdlib.List.length leaves)
+
+  [ Stdlib.Cli.UI.Colors.dimText $"  {m}  ({count})"; $"    {Stdlib.String.join leaves ", "}" ]
+
+
+/// Grouped names, capped by whole modules: as many groups as fit in `limit` rows, then a footer
+/// counting the items left out -- not rows, so it adds up with a header that counted items.
+let cappedGroups
+  (groups: List<(String * List<String>)>)
+  (limit: Int)
+  (cap: Bool)
+  (what: String)
+  : List<String> =
+  let (shown, left) =
+    Listing.cut
+      groups
+      limit
+      cap
+      (fun g -> Stdlib.List.length (Listing.groupRows g))
+      (fun (_, leaves) -> Stdlib.List.length leaves)
+
+  Listing.withFooter (shown |> Stdlib.List.map Listing.groupRows |> Stdlib.List.flatten) left what

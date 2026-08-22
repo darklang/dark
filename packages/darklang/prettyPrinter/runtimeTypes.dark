@@ -662,8 +662,6 @@ module Dval =
     let child (v: LanguageTools.RuntimeTypes.Dval) : Stdlib.Pretty.Doc =
       Dval.toDoc branchId opts (depth + 1) v
 
-    let valueTypeName = valueTypeName branchId dv
-
     match dv with
     | DUnit -> paint opts.palette.keyword "()"
 
@@ -687,8 +685,8 @@ module Dval =
 
     | DFloat f -> paint opts.palette.number (Stdlib.Float.toString f)
 
-    | DDateTime d -> txt $"<{valueTypeName}: {Stdlib.DateTime.toString d}>"
-    | DUuid uuid -> txt $"<{valueTypeName}: {Stdlib.Uuid.toString uuid}>"
+    | DDateTime d -> txt $"<{valueTypeName branchId dv}: {Stdlib.DateTime.toString d}>"
+    | DUuid uuid -> txt $"<{valueTypeName branchId dv}: {Stdlib.Uuid.toString uuid}>"
 
     | DTuple(first, second, theRest) ->
       let parts =
@@ -697,7 +695,7 @@ module Dval =
 
     | DList(_vt, l) ->
       if Stdlib.List.isEmpty l then
-        txt $"{valueTypeName} []"
+        txt $"{valueTypeName branchId dv} []"
       else
         bracketed "[" "]" (l |> Stdlib.List.map (fun i -> child i))
 
@@ -781,7 +779,7 @@ module Dval =
 
     | DApplicable(AppLambda _lambda) -> txt "(lambda)"
 
-    | DDB name -> txt $"<{valueTypeName}: {name}>"
+    | DDB name -> txt $"<{valueTypeName branchId dv}: {name}>"
 
 
 let dvalWith

@@ -270,8 +270,74 @@ module NameResolution =
     | Error _ -> NameResolutionError.source nr.originalName
 
 
-let typeReference
+/// Render a type reference, parenthesizing function types when required.
+let typeReferenceDocWithFnParens
   (ctx: Context)
+  (fnNeedsParens: Bool)
+  (t: LanguageTools.ProgramTypes.TypeReference)
+  : Stdlib.Pretty.Doc =
+  let txt = Stdlib.Pretty.text
+
+  let angled (name: String) (inners: List<Stdlib.Pretty.Doc>) : Stdlib.Pretty.Doc =
+    Stdlib.Pretty.concat
+      (txt name)
+      (wrapExprs "<" ">" "," Stdlib.Pretty.softLine inners)
+
+  match t with
+  | TStream inner -> angled "Stream" [ typeReferenceDocWithFnParens ctx false inner ]
+  | TList inner -> angled "List" [ typeReferenceDocWithFnParens ctx false inner ]
+  | TDict inner -> angled "Dict" [ typeReferenceDocWithFnParens ctx false inner ]
+  | TDB inner -> angled "DB" [ typeReferenceDocWithFnParens ctx false inner ]
+
+  | TTuple(first, second, theRest) ->
+    let parts =
+      (Stdlib.List.append [ first; second ] theRest)
+      // Preserve function types nested in the tuple.
+      |> Stdlib.List.map (fun item -> typeReferenceDocWithFnParens ctx true item)
+    let separator = Stdlib.Pretty.concat (txt " *") Stdlib.Pretty.line
+    Stdlib.Pretty.group (parens (Stdlib.Pretty.join parts separator))
+
+  | TCustomType(typ, args) ->
+    let head = txt (NameResolution.typeName ctx typ)
+    match args with
+    | [] -> head
+    | args ->
+      Stdlib.Pretty.concat
+        head
+        (wrapExprs
+          "<"
+          ">"
+          ","
+          Stdlib.Pretty.softLine
+          (args
+           |> Stdlib.List.map (fun a ->
+             typeReferenceDocWithFnParens ctx false a)))
+
+  | TFn(args, ret) ->
+    let parts =
+      // Preserve nested functions rather than flattening the arrow chain.
+      (Stdlib.List.append args [ ret ])
+      |> Stdlib.List.map (fun a -> typeReferenceDocWithFnParens ctx true a)
+    let doc =
+      Stdlib.Pretty.group (
+        Stdlib.Pretty.join
+          parts
+          (Stdlib.Pretty.concat (txt " ->") Stdlib.Pretty.line))
+    if fnNeedsParens then parens doc else doc
+
+  | other -> txt (typeReferenceFlat ctx other)
+
+
+let typeReferenceDoc
+  (ctx: Context)
+  (t: LanguageTools.ProgramTypes.TypeReference)
+  : Stdlib.Pretty.Doc =
+  typeReferenceDocWithFnParens ctx false t
+
+
+let typeReferenceFlatAtPrecedence
+  (ctx: Context)
+  (fnNeedsParens: Bool)
   (t: LanguageTools.ProgramTypes.TypeReference)
   : String =
   match t with
@@ -297,20 +363,20 @@ let typeReference
   | TUuid -> "Uuid"
   | TBlob -> "Blob"
 
-  | TStream inner -> $"Stream<{typeReference ctx inner}>"
+  | TStream inner -> $"Stream<{typeReferenceFlatAtPrecedence ctx false inner}>"
 
   | TList inner ->
-    $"List<{typeReference ctx inner}>"
+    $"List<{typeReferenceFlatAtPrecedence ctx false inner}>"
 
   | TTuple(first, second, theRest) ->
     (Stdlib.List.append [ first; second ] theRest)
     |> Stdlib.List.map (fun item ->
-      typeReference ctx item)
+      typeReferenceFlatAtPrecedence ctx true item)
     |> Stdlib.String.join " * "
     |> fun parts -> "(" ++ parts ++ ")"
 
   | TDict inner ->
-    $"Dict<{typeReference ctx inner}>"
+    $"Dict<{typeReferenceFlatAtPrecedence ctx false inner}>"
 
   | TCustomType(typ, args) ->
     let argsPart =
@@ -319,7 +385,7 @@ let typeReference
       | args ->
         args
         |> Stdlib.List.map (fun arg ->
-          typeReference ctx arg)
+          typeReferenceFlatAtPrecedence ctx false arg)
         |> Stdlib.String.join ", "
         |> fun parts -> $"<{parts}>"
 
@@ -328,16 +394,44 @@ let typeReference
     $"{typeNamePart}{argsPart}"
 
   | TDB inner ->
-    $"DB<{typeReference ctx inner}>"
+    $"DB<{typeReferenceFlatAtPrecedence ctx false inner}>"
 
   | TFn(args, ret) ->
     let argPart =
       args
       |> Stdlib.List.map (fun arg ->
-        typeReference ctx arg)
+        typeReferenceFlatAtPrecedence ctx true arg)
       |> Stdlib.String.join " -> "
 
-    $"{argPart} -> {typeReference ctx ret}"
+    let rendered =
+      $"{argPart} -> {typeReferenceFlatAtPrecedence ctx true ret}"
+
+    if fnNeedsParens then $"({rendered})" else rendered
+
+
+let typeReferenceFlat
+  (ctx: Context)
+  (t: LanguageTools.ProgramTypes.TypeReference)
+  : String =
+  typeReferenceFlatAtPrecedence ctx false t
+
+
+let typeReference
+  (ctx: Context)
+  (t: LanguageTools.ProgramTypes.TypeReference)
+  : String =
+  typeReferenceFlat ctx t
+
+
+let typeArgumentsDoc
+  (ctx: Context)
+  (args: List<LanguageTools.ProgramTypes.TypeReference>)
+  : Stdlib.Pretty.Doc =
+  match args with
+  | [] -> Stdlib.Pretty.empty
+  | args ->
+    let docs = args |> Stdlib.List.map (fun arg -> typeReferenceDoc ctx arg)
+    wrapExprs "<" ">" "," Stdlib.Pretty.softLine docs
 
 
 let letPattern (lp: LanguageTools.ProgramTypes.LetPattern) : String =
@@ -441,71 +535,69 @@ let infix (i: LanguageTools.ProgramTypes.Infix) : String =
 
 let stringSegment (ctx: Context) (s: LanguageTools.ProgramTypes.StringSegment) : String =
   match s with
-  | StringText text -> PrettyPrinter.escapeSpecialCharacters text
+  // Inside `$"..."` a brace opens an interpolation, so a literal one is written doubled.
+  | StringText text ->
+    PrettyPrinter.escapeSpecialCharacters text
+    |> fun t -> Stdlib.String.replaceAll t "{" "{{"
+    |> fun t -> Stdlib.String.replaceAll t "}" "}}"
   | StringInterpolation interpolationExpr -> $"{{{expr ctx interpolationExpr}}}"
 
-let pipeExpr (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : String =
+/// Parenthesize a Doc and indent its broken layout past the opening paren.
+let parens (d: Stdlib.Pretty.Doc) : Stdlib.Pretty.Doc =
+  Stdlib.Pretty.concat
+    (Stdlib.Pretty.text "(")
+    (Stdlib.Pretty.concat (Stdlib.Pretty.nest 1 d) (Stdlib.Pretty.text ")"))
+
+
+/// Render an application argument with any required parentheses.
+let applyArg (ctx: Context) (arg: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.Doc =
+  let inner = exprDoc ctx arg
+  if applyArgNeedsParens arg then parens inner else inner
+
+
+let pipeExprDoc (ctx: Context) (p: LanguageTools.ProgramTypes.PipeExpr) : Stdlib.Pretty.Doc =
+  let txt (s: String) : Stdlib.Pretty.Doc = Stdlib.Pretty.text s
+
+  let applied (head: Stdlib.Pretty.Doc) (args: List<LanguageTools.ProgramTypes.Expr>) : Stdlib.Pretty.Doc =
+    match args with
+    | [] -> head
+    | args -> Stdlib.Pretty.hang 2 head (args |> Stdlib.List.map (fun a -> applyArg ctx a))
+
   match p with
   | EPipeVariable(_id, varName, exprs) ->
-    let exprs =
-      exprs
-      |> Stdlib.List.map (expr ctx)
-      |> Stdlib.String.join " "
-    if exprs == "" then varName else $"({varName} {exprs})"
+    match exprs with
+    | [] -> txt varName
+    | exprs -> parens (applied (txt varName) exprs)
 
   | EPipeLambda(_id, pats, body) ->
     let argsPart =
       pats
       |> Stdlib.List.map (fun lp -> letPattern lp)
       |> Stdlib.String.join " "
-    $"fun {argsPart} -> {expr ctx body}"
+
+    // A bare lambda would swallow the remaining pipe stages.
+    parens (
+      Stdlib.Pretty.hang 2 (txt $"fun {argsPart} ->") [ exprDoc ctx body ])
 
   | EPipeInfix(_id, infixOp, e) ->
-    let infixPart = infix infixOp
-    let exprPart = expr ctx e
-    $"({infixPart}) {exprPart}"
+    Stdlib.Pretty.concat (txt $"({infix infixOp}) ") (applyArg ctx e)
 
   | EPipeFnCall(_id, fnName, typeArgs, args) ->
     let fnNamePart = NameResolution.fnName ctx fnName
+    let head =
+      Stdlib.Pretty.concat (txt fnNamePart) (typeArgumentsDoc ctx typeArgs)
+    applied head args
 
-    let typeArgsPart =
-      match typeArgs with
-      | [] -> ""
-      | _ ->
-        typeArgs
-        |> Stdlib.List.map (fun typeArg ->
-          typeReference ctx typeArg)
-        |> Stdlib.String.join ", "
-        |> fun parts -> $"<{parts}>"
-
-    let argsPart =
-      args
-      |> Stdlib.List.map (fun arg -> expr ctx arg)
-      |> Stdlib.List.map (fun arg -> $"{arg}")
-      |> Stdlib.String.join " "
-
-    if argsPart == "" then
-      $"{fnNamePart}{typeArgsPart}"
-    else
-      $"{fnNamePart}{typeArgsPart} {argsPart}"
-
-  // LanguageTools.ID *
-  // typeName: LanguageTools.ProgramTypes.TypeName.TypeName *
-  // caseName: String *
-  // fields: List<LanguageTools.ProgramTypes.Expr>
   | EPipeEnum(_id, typeName, caseName, fields) ->
     let typeNamePart = NameResolution.typeName ctx typeName
+    let head = txt $"{typeNamePart}.{caseName}"
 
+    // Multiple fields share one paren pair: `Case(a, b)`.
     match fields with
-    | [] -> $"{typeNamePart}.{caseName}"
+    | [] -> head
     | fields ->
-      let fieldPart =
-        fields
-        |> Stdlib.List.map (fun field -> expr ctx field)
-        |> Stdlib.List.map (fun field -> $"({field})")
-        |> Stdlib.String.join " "
-
-      $"{typeNamePart}.{caseName}{fieldPart}"
+      let parts = fields |> Stdlib.List.map (fun f -> exprDoc ctx f)
+      Stdlib.Pretty.concat head (wrapExprs "(" ")" "," Stdlib.Pretty.softLine parts)
 
 
 /// Text that may already contain newlines, as a Doc.
@@ -641,11 +733,7 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
   // every binding into two lines and a chain of four into eight.
   | ELet(_id, pattern, rhs, body) ->
     let binding =
-      Stdlib.Pretty.group (
-        Stdlib.Pretty.concat
-          (txt $"let {letPattern pattern} =")
-          (Stdlib.Pretty.nest 2 (
-            Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx rhs))))
+      Stdlib.Pretty.hang 2 (txt $"let {letPattern pattern} =") [ exprDoc ctx rhs ]
 
     Stdlib.Pretty.concat
       binding
@@ -675,11 +763,18 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
   // `if c then a else b` on one line when it fits. An `else if` chain keeps the `else if` together
   // rather than indenting a whole nested if under it.
   | EIf(_id, cond, thenBranch, elseBranch) ->
+    // `if a then if b then c else d` is ambiguous on one line: the parser attaches `else d` to
+    // the inner `if`, even if it was written for the outer one. Breaking the outer `if` puts
+    // `else` on its own line at the outer `if`'s indentation, which the parser reads correctly.
+    let thenSep =
+      match thenBranch with
+      | EIf(_, _, _, _) -> Stdlib.Pretty.hardLine
+      | _ -> Stdlib.Pretty.line
+
     let head =
       Stdlib.Pretty.concat
         (txt $"if {expr ctx cond} then")
-        (Stdlib.Pretty.nest 2 (
-          Stdlib.Pretty.concat Stdlib.Pretty.line (exprDoc ctx thenBranch)))
+        (Stdlib.Pretty.nest 2 (Stdlib.Pretty.concat thenSep (exprDoc ctx thenBranch)))
 
     match elseBranch with
     | None -> Stdlib.Pretty.group head
@@ -707,13 +802,17 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
   | EPipe(_id, e, pipeExprs) ->
     let stages =
       pipeExprs
-      |> Stdlib.List.map (fun pe -> txt $"|> {pipeExpr ctx pe}")
+      |> Stdlib.List.map (fun pe -> Stdlib.Pretty.concat (txt "|> ") (pipeExprDoc ctx pe))
       |> Stdlib.Pretty.join Stdlib.Pretty.line
 
+    // Low-power heads would swallow the pipe into their final branch.
+    let head =
+      match e with
+      | ELambda(_, _, _) -> exprDoc ctx e
+      | _ -> if (exprPower e) == 0 then parens (exprDoc ctx e) else exprDoc ctx e
+
     Stdlib.Pretty.group (
-      Stdlib.Pretty.concat
-        (exprDoc ctx e)
-        (Stdlib.Pretty.concat Stdlib.Pretty.line stages))
+      Stdlib.Pretty.concat head (Stdlib.Pretty.concat Stdlib.Pretty.line stages))
 
   // Parenthesise only where precedence or associativity requires it. The old printer wrapped both
   // operands unconditionally, which turned `n * (factorial n - 1L)` into `(n) * ((factorial n) - (1L))`
@@ -725,7 +824,7 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
       let inner = exprDoc ctx e
 
       if infixOperandNeedsParens e power rightAssoc isRight then
-        Stdlib.Pretty.concat (txt "(") (Stdlib.Pretty.concat inner (txt ")"))
+        parens inner
       else
         inner
 
@@ -737,39 +836,18 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
           (side right true)))
 
   | EApply(_id, fnName, typeArgs, args) ->
-    let typeArgsPart =
-      match typeArgs with
-      | [] -> ""
-      | _ ->
-        typeArgs
-        |> Stdlib.List.map (fun typeArg -> typeReference ctx typeArg)
-        |> Stdlib.String.join ", "
-        |> fun parts -> $"<{parts}>"
+    let head =
+      Stdlib.Pretty.concat (exprDoc ctx fnName) (typeArgumentsDoc ctx typeArgs)
 
-    let argDocs =
-      args
-      |> Stdlib.List.map (fun arg ->
-        let inner = exprDoc ctx arg
-
-        if applyArgNeedsParens arg then
-          Stdlib.Pretty.concat (txt "(") (Stdlib.Pretty.concat inner (txt ")"))
-        else
-          inner)
+    let argDocs = args |> Stdlib.List.map (fun arg -> applyArg ctx arg)
 
     match argDocs with
-    | [] -> Stdlib.Pretty.concat (exprDoc ctx fnName) (txt typeArgsPart)
+    | [] -> head
     | argDocs ->
-      // Args are separated by `line`, not a literal space, so the choice is made for the call as a whole:
-      // one line when it fits, otherwise one arg per line under a 2-space indent. Joining with a hard
-      // space meant the outer group could never break, so each arg decided alone and the result was
-      // ragged -- `f (fun x ->` , continuation, then the next arg starting mid-line.
-      Stdlib.Pretty.group (
-        Stdlib.Pretty.concat
-          (Stdlib.Pretty.concat (exprDoc ctx fnName) (txt typeArgsPart))
-          (Stdlib.Pretty.nest 2 (
-            Stdlib.Pretty.concat
-              Stdlib.Pretty.line
-              (Stdlib.Pretty.join argDocs Stdlib.Pretty.line))))
+      Stdlib.Pretty.hang
+        2
+        head
+        argDocs
 
   // Collections: one line when they fit, one element per line when they don't. They never broke before,
   // at any length, so a forty-element list was a single four-hundred-column line.
@@ -788,15 +866,6 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
     wrapExprs "(" ")" "," Stdlib.Pretty.softLine parts
 
   | ERecord(_id, typeName, typeArgs, fields) ->
-    let typeArgsPart =
-      match typeArgs with
-      | [] -> ""
-      | _ ->
-        typeArgs
-        |> Stdlib.List.map (fun typeArg -> typeReference ctx typeArg)
-        |> Stdlib.String.join ", "
-        |> fun parts -> $"<{parts}>"
-
     let parts =
       fields
       |> Stdlib.List.map (fun pair ->
@@ -805,9 +874,12 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
           (txt $"{PrettyPrinter.formatFieldName name} = ")
           (exprDoc ctx value))
 
-    Stdlib.Pretty.concat
-      (txt $"{NameResolution.typeName ctx typeName}{typeArgsPart} ")
-      (wrapExprs "{" "}" ";" Stdlib.Pretty.line parts)
+    let head =
+      Stdlib.Pretty.concat
+        (txt (NameResolution.typeName ctx typeName))
+        (Stdlib.Pretty.concat (typeArgumentsDoc ctx typeArgs) (txt " "))
+
+    Stdlib.Pretty.concat head (wrapExprs "{" "}" ";" Stdlib.Pretty.line parts)
 
   // Dicts and enum payloads break like the other collections. A lambda's body is nested and hard-lined,
   // since `fun x ->` followed by its body on the same line only reads well when the body is tiny, and
@@ -826,19 +898,15 @@ let exprDoc (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : Stdlib.Pretty.
   | EEnum(_id, typeName, typeArgs, caseName, fields) ->
     let typeNamePart = NameResolution.typeName ctx typeName
 
-    let typeArgsPart =
-      match typeArgs with
-      | [] -> ""
-      | _ ->
-        typeArgs
-        |> Stdlib.List.map (fun typeArg -> typeReference ctx typeArg)
-        |> Stdlib.String.join ", "
-        |> fun parts -> $"<{parts}>"
-
     // A bare, unqualified case (no type name) prints as just the case name; the `.` only separates a
     // present type name from its case.
     let sep = if typeNamePart == "" then "" else "."
-    let head = txt $"{typeNamePart}{typeArgsPart}{sep}{caseName}"
+    let head =
+      Stdlib.Pretty.concat
+        (txt typeNamePart)
+        (Stdlib.Pretty.concat
+          (typeArgumentsDoc ctx typeArgs)
+          (txt $"{sep}{caseName}"))
 
     match fields with
     | [] -> head
@@ -1042,59 +1110,103 @@ let exprString (ctx: Context) (e: LanguageTools.ProgramTypes.Expr) : String =
 //   | DeprecatedBecause reason -> $"DeprecatedBecause {reason}"
 
 module TypeDeclaration =
+  let recordFieldDoc
+    (ctx: Context)
+    (d: LanguageTools.ProgramTypes.TypeDeclaration.RecordField)
+    : Stdlib.Pretty.Doc =
+    Stdlib.Pretty.concat
+      (Stdlib.Pretty.text $"{PrettyPrinter.formatFieldName d.name}: ")
+      (typeReferenceDoc ctx d.typ)
+
   let recordField
     (ctx: Context)
     (d: LanguageTools.ProgramTypes.TypeDeclaration.RecordField)
     : String =
-    // TODO: /// for description
-    $"{PrettyPrinter.formatFieldName d.name}: {typeReference ctx d.typ}"
+    Stdlib.Pretty.render ctx.width (TypeDeclaration.recordFieldDoc ctx d)
+
+  let enumFieldDoc
+    (ctx: Context)
+    (d: LanguageTools.ProgramTypes.TypeDeclaration.EnumField)
+    : Stdlib.Pretty.Doc =
+    // Function fields need parens within the enum case's `*` product.
+    let typ = typeReferenceDocWithFnParens ctx true d.typ
+
+    match d.label with
+    | None -> typ
+    | Some label ->
+      Stdlib.Pretty.concat
+        (Stdlib.Pretty.text $"{PrettyPrinter.formatFieldName label}: ")
+        typ
 
   let enumField
     (ctx: Context)
     (d: LanguageTools.ProgramTypes.TypeDeclaration.EnumField)
     : String =
-    match d.label with
-    | None -> typeReference ctx d.typ
-    | Some label ->
-      $"{PrettyPrinter.formatFieldName label}: {typeReference ctx d.typ}"
+    Stdlib.Pretty.render ctx.width (TypeDeclaration.enumFieldDoc ctx d)
+
+  let enumCaseDoc
+    (ctx: Context)
+    (c: LanguageTools.ProgramTypes.TypeDeclaration.EnumCase)
+    : Stdlib.Pretty.Doc =
+    match c.fields with
+    | [] -> Stdlib.Pretty.text ("| " ++ c.name)
+    | fields ->
+      let fieldPart =
+        fields
+        |> Stdlib.List.map (fun field ->
+          TypeDeclaration.enumFieldDoc ctx field)
+        |> fun docs ->
+          Stdlib.Pretty.join
+            docs
+            (Stdlib.Pretty.concat
+              (Stdlib.Pretty.text " *")
+              Stdlib.Pretty.line)
+        |> Stdlib.Pretty.group
+
+      Stdlib.Pretty.hang
+        2
+        (Stdlib.Pretty.text $"| {c.name} of")
+        [ fieldPart ]
 
   let enumCase
     (ctx: Context)
     (c: LanguageTools.ProgramTypes.TypeDeclaration.EnumCase)
     : String =
-    match c.fields with
-    | [] -> "| " ++ c.name
-    | fields ->
-      let fieldPart =
-        fields
-        |> Stdlib.List.map (fun field ->
-          TypeDeclaration.enumField ctx field)
-        |> Stdlib.String.join " * "
+    Stdlib.Pretty.render ctx.width (TypeDeclaration.enumCaseDoc ctx c)
 
-      $"| {c.name} of {fieldPart}"
+
+let customTypeDoc
+  (ctx: Context)
+  (d: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
+  : Stdlib.Pretty.Doc =
+  match d.definition with
+  | Alias typeRef -> typeReferenceDoc ctx typeRef
+
+  | Record fields ->
+    let fieldsPart =
+      fields
+      |> Stdlib.List.map (fun field ->
+        TypeDeclaration.recordFieldDoc ctx field)
+      |> fun docs -> Stdlib.Pretty.join docs Stdlib.Pretty.hardLine
+
+    Stdlib.Pretty.concat
+      (Stdlib.Pretty.text "{ ")
+      (Stdlib.Pretty.concat
+        (Stdlib.Pretty.nest 2 fieldsPart)
+        (Stdlib.Pretty.text " }"))
+
+  | Enum cases ->
+    cases
+    |> Stdlib.List.map (fun case ->
+      TypeDeclaration.enumCaseDoc ctx case)
+    |> fun docs -> Stdlib.Pretty.join docs Stdlib.Pretty.hardLine
 
 
 let customType
   (ctx: Context)
   (d: LanguageTools.ProgramTypes.TypeDeclaration.TypeDeclaration)
   : String =
-  match d.definition with
-  | Alias typeRef -> typeReference ctx typeRef
-
-  | Record fields ->
-    let fieldsPart =
-      fields
-      |> Stdlib.List.map (fun field ->
-        TypeDeclaration.recordField ctx field)
-      |> Stdlib.String.join "\n  "
-
-    "{ " ++ (fieldsPart) ++ " }"
-
-  | Enum cases ->
-    cases
-    |> Stdlib.List.map (fun case ->
-      TypeDeclaration.enumCase ctx case)
-    |> Stdlib.String.join "\n"
+  Stdlib.Pretty.render ctx.width (customTypeDoc ctx d)
 
 
 let db
@@ -1107,9 +1219,12 @@ let db
     else
       $"_v{Stdlib.Int32.toString db.version}"
 
-  let typPart = typeReference ctx db.typ
-
-  $"type {db.name}{versionPart} = {typPart}"
+  let doc =
+    Stdlib.Pretty.hang
+      2
+      (Stdlib.Pretty.text $"type {db.name}{versionPart} =")
+      [ typeReferenceDoc ctx db.typ ]
+  Stdlib.Pretty.render ctx.width doc
 
 
 
@@ -1129,9 +1244,10 @@ let packageType
       |> Stdlib.String.join ", "
       |> fun parts -> $"<{parts}>"
 
+  let definitionWidth = Stdlib.Int.max 1 (ctx.width - 2)
   let defPart =
-    (customType ctx p.declaration)
-    |> PrettyPrinter.indent
+    let doc = customTypeDoc ctx p.declaration
+    PrettyPrinter.indent (Stdlib.Pretty.render definitionWidth doc)
 
   let docComment = formatDocComment p.description
 
@@ -1194,6 +1310,25 @@ module PackageFn =
     else
       $"({p.name}: {typeReference ctx p.typ})"
 
+  /// Render a function parameter with a breakable type.
+  let parameterDoc
+    (ctx: Context)
+    (p: LanguageTools.ProgramTypes.PackageFn.Parameter)
+    : Stdlib.Pretty.Doc =
+    let isUnitPlaceholder =
+      match p.typ with
+      | TUnit -> p.name == "_"
+      | _ -> false
+
+    if isUnitPlaceholder then
+      Stdlib.Pretty.text "()"
+    else
+      parens (
+        Stdlib.Pretty.hang
+          2
+          (Stdlib.Pretty.text $"{p.name}:")
+          [ typeReferenceDoc ctx p.typ ])
+
 
   let signature
     (ctx: Context)
@@ -1227,13 +1362,25 @@ let packageFn
       |> Stdlib.String.join ", "
       |> fun parts -> $"<{parts}>"
 
-  let paramPart =
-    p.parameters
-    |> Stdlib.List.map (fun param ->
-      PackageFn.parameter ctx param)
-    |> Stdlib.String.join " "
+  // Group the whole header so parameters and the return type break together.
+  let headerDoc =
+    let txt = Stdlib.Pretty.text
 
-  let retPart = typeReference ctx p.returnType
+    let params =
+      p.parameters |> Stdlib.List.map (fun param -> PackageFn.parameterDoc ctx param)
+
+    // `softLine` keeps the colon next to the last parameter only in flat layout.
+    Stdlib.Pretty.group (
+      Stdlib.Pretty.concat
+        (txt $"let {namePart}{typeParamPart}")
+        (Stdlib.Pretty.nest 2 (
+          Stdlib.Pretty.concatAll (
+            Stdlib.List.flatten
+              [ params |> Stdlib.List.map (fun d -> Stdlib.Pretty.concat Stdlib.Pretty.line d)
+                [ Stdlib.Pretty.softLine
+                  txt ": "
+                  typeReferenceDoc ctx p.returnType
+                  txt " =" ] ]))))
 
   let argMap =
     p.parameters
@@ -1242,20 +1389,19 @@ let packageFn
     |> Stdlib.List.fold Stdlib.Dict.empty (fun acc (name, idx) ->
       Stdlib.Dict.set acc name idx)
 
-  // The body is laid out and THEN indented two columns, so it has to be laid out for two columns less
-  // or every decision is off by the indent it is about to receive. Found by the 1B.A audit: a printer
-  // that emits a leading indent has to account for it, and this one didn't -- a body line landing
-  // exactly on the width came out two columns over.
+  // Account for the indentation added after rendering.
   let contextWithFn =
     { ctx with
         currentFunction = Stdlib.Option.Option.Some((namePart, argMap))
-        width = Stdlib.Int.max 20 (ctx.width - 2) }
+        width = Stdlib.Int.max 1 (ctx.width - 2) }
 
   let bodyPart = expr contextWithFn p.body
 
   let docComment = formatDocComment p.description
 
-  $"{docComment}let {namePart}{typeParamPart} {paramPart}: {retPart} =\n{PrettyPrinter.indent bodyPart}"
+  let headerPart = Stdlib.Pretty.render ctx.width headerDoc
+
+  $"{docComment}{headerPart}\n{PrettyPrinter.indent bodyPart}"
 
 
 module BuiltinFn =

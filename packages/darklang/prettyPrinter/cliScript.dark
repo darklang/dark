@@ -1,15 +1,13 @@
 module Darklang.PrettyPrinter.ProgramTypes
 
-let sourceFile
+let sourceFileAtWidth
   (branchId: Uuid)
+  (width: Int)
   (source: LanguageTools.ProgramTypes.SourceFile.SourceFile)
   : String =
+  // The parser supplies the owner separately, so print names from the root.
   let ctx =
-    PrettyPrinter.ProgramTypes.Context
-      { branchId = branchId
-        currentModule = []
-        currentFunction = Stdlib.Option.Option.None
-        width = 80 }
+    { PrettyPrinter.ProgramTypes.Context.forModule branchId [] with width = width }
 
   let declsPart =
     (Stdlib.List.fold source.declarations [] (fun acc decl ->
@@ -38,3 +36,11 @@ let sourceFile
     |> Stdlib.List.reverse
 
   [ declsPart; exprsPart ] |> Stdlib.List.flatten |> Stdlib.String.join "\n\n"
+
+
+/// Print a source file using the standard source width.
+let sourceFile
+  (branchId: Uuid)
+  (source: LanguageTools.ProgramTypes.SourceFile.SourceFile)
+  : String =
+  PrettyPrinter.ProgramTypes.sourceFileAtWidth branchId 80 source
