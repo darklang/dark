@@ -3,7 +3,25 @@
 /// Part of `Darklang.Cli.Workbench`.
 module Darklang.Cli.Workbench
 
+/// Move focus left: detail → list → sidebar when visible.
+let focusLeft (state: State) : Step =
+  if state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second then
+    Step.Continue { state with focus = Stdlib.Cli.UI.SplitPane.Focus.First }
+  else if sidebarIsColumnNow () then
+    Step.Continue (focusSidebar state)
+  else
+    Step.Continue state
+
+/// Move focus from the list to an available detail pane.
+let focusRight (state: State) : Step =
+  if (state.focus == Stdlib.Cli.UI.SplitPane.Focus.First) && (Stdlib.Bool.not (Stdlib.List.isEmpty state.items)) then
+    Step.Continue { state with focus = Stdlib.Cli.UI.SplitPane.Focus.Second }
+  else
+    Step.Continue state
+
+/// Enter the selected Matter module.
 let descend (state: State) : Step =
+  if state.activeView == vHome then Step.Continue state else
   match Stdlib.List.getAt state.items state.selected with
   | Some item ->
     if item.isModule then
@@ -24,6 +42,7 @@ let descend (state: State) : Step =
   | None -> Step.Continue state
 
 let ascend (state: State) : Step =
+  if state.activeView == vHome then Step.Continue state else
   let path = modulePathOf state.location
   match Stdlib.List.reverse path with
   | [] -> Step.Continue state
@@ -41,25 +60,40 @@ let ascend (state: State) : Step =
 
 /// Up: scroll the inspector when it's focused, else move the list selection up.
 let navUp (state: State) : Step =
-  match state.focus with
-  | Second -> Step.Continue { state with detailScroll = Stdlib.Int.max 0 (state.detailScroll - 1) }
-  | First -> Step.Continue { state with selected = Stdlib.Int.max 0 (state.selected - 1); detailScroll = 0 }
+  if state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second then
+    Step.Continue { state with detailScroll = Stdlib.Int.max 0 (state.detailScroll - 1) }
+  else
+    let target = Stdlib.Int.max 0 (state.selected - 1)
+    // Home's section headers aren't rows: step over them (and stay put if
+    // there's nothing above).
+    let landed =
+      if state.activeView == vHome then
+        let s = homeSelectable state.items target (0 - 1)
+        if s > state.selected then state.selected else s
+      else target
+    Step.Continue { state with selected = landed; detailScroll = 0 }
 
 /// Down: scroll the inspector when it's focused, else move the list selection down.
 let navDown (state: State) : Step =
-  match state.focus with
-  | Second ->
+  if state.focus == Stdlib.Cli.UI.SplitPane.Focus.Second then
     // Screen rows, not logical lines: a long line wraps to several, and bounding on the unwrapped count
     // stops the scroll before its tail is reachable.
     let maxScroll = Stdlib.Int.max 0 ((previewRowCount state) - 1)
     Step.Continue { state with detailScroll = Stdlib.Int.min maxScroll (state.detailScroll + 1) }
-  | First ->
+  else
     let maxIdx = (Stdlib.List.length state.items) - 1
-    Step.Continue { state with selected = Stdlib.Int.min maxIdx (state.selected + 1); detailScroll = 0 }
+    let target = Stdlib.Int.min maxIdx (state.selected + 1)
+    let landed =
+      if state.activeView == vHome then
+        let s = homeSelectable state.items target 1
+        if s < state.selected then state.selected else s
+      else target
+    Step.Continue { state with selected = landed; detailScroll = 0 }
 
 /// Jump to the top / bottom of the list (vim g / G).
 let navTop (state: State) : Step =
-  Step.Continue { state with selected = 0; detailScroll = 0 }
+  let top = if state.activeView == vHome then homeSelectable state.items 0 1 else 0
+  Step.Continue { state with selected = top; detailScroll = 0 }
 
 let navBottom (state: State) : Step =
   let maxIdx = Stdlib.Int.max 0 ((Stdlib.List.length state.items) - 1)
@@ -73,44 +107,6 @@ let openReader (state: State) (content: String) (isCode: Bool) : Step =
         reading = Stdlib.Option.Option.Some content
         readingIsCode = isCode
         detailScroll = 0 }
-
-/// Switch to view `nv`: reload its items, keep the cursor where it was (clamped to the new list - a partial
-/// shared cursor, so you don't lose your place hopping views), reset scroll/focus/filter.
-let switchView (state: State) (nv: Int) : Step =
-  let newItems = itemsForView nv state.branchId state.location state.scm.section state.ai.section state.matter.lens
-  let clamped = Stdlib.Int.max 0 (Stdlib.Int.min state.selected (Stdlib.Int.max 0 ((Stdlib.List.length newItems) - 1)))
-  // The REPL is somewhere you type, so arriving opens the prompt. Every other view is somewhere you look.
-  let inp =
-    if nv == vScratch then
-      Stdlib.Option.Option.Some(InputState { prompt = "repl> "; field = Stdlib.Cli.UI.TextField.fromText ""; action = "scratch" })
-    else
-      Stdlib.Option.Option.None
-  Step.Continue
-    { state with
-        activeView = nv
-        items = newItems
-        selected = clamped
-        filter = ""
-        detailScroll = 0
-        input = inp
-        focus = Stdlib.Cli.UI.SplitPane.Focus.First }
-
-/// Move to the previous/next visible view (dir -1 / +1), skipping any opted-out views (e.g. Devices).
-let cycleView (state: State) (dir: Int) : Step =
-  let vis = visibleViews state
-  let pos =
-    vis
-    |> Stdlib.List.indexedMap (fun i v -> (i, v))
-    |> Stdlib.List.findFirst (fun pair -> let (_i, v) = pair in v == state.activeView)
-    |> Stdlib.Option.map (fun pair -> let (i, _v) = pair in i)
-    |> Stdlib.Option.withDefault 0
-  // Wrap. It's called cycling and the footer sells it as cycling; clamping made the first and last tabs
-  // dead ends, so you'd hit `]` at the end and nothing happened.
-  let count = Stdlib.List.length vis
-  let newPos = if count == 0 then 0 else ((pos + dir) % count + count) % count
-  match Stdlib.List.getAt vis newPos with
-  | Some v -> switchView state v
-  | None -> Step.Continue state
 
 /// Resolve the selected conflict (Conflicts view): keep ours (local), theirs (incoming), or just acknowledge.
 let resolveConflict (state: State) (which: String) : Step =
@@ -199,14 +195,13 @@ let jumpToHit (state: State) (hit: SearchHit) : Step =
     |> Stdlib.List.findFirst (fun pair -> let (_i, it) = pair in it.name == hit.name)
     |> Stdlib.Option.map (fun pair -> let (i, _it) = pair in i)
     |> Stdlib.Option.withDefault 0
+  // Through `goTo` so the sidebar and the workspace memory follow; then land
+  // on the leaf, which `goTo` can't know about (it reloads the list for the
+  // location it's given).
+  let moved = goTo { state with location = newLoc } (mkDest vMatter 0) false
   Step.Continue
-    { state with
-        activeView = 1
-        location = newLoc
+    { moved with
         items = items
         selected = idx
-        detailScroll = 0
-        focus = Stdlib.Cli.UI.SplitPane.Focus.First
-        filter = ""
         search = emptySearch ()
         message = "jumped to " ++ hit.name }

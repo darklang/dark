@@ -10,21 +10,51 @@ let modulePathOf (location: Packages.PackageLocation) : List<String> =
   | Value v -> Stdlib.List.append [ v.owner ] v.modules
   | Function f -> Stdlib.List.append [ f.owner ] f.modules
 
+/// A one-line, clipped rendering of a value's body for the row description:
+/// `= "hello"`, `= [1; 2; 3]`. First line only, and no more than `width`
+/// columns - a value can be a whole table.
+let valueDesc (ctx: PrettyPrinter.ProgramTypes.Context) (body: LanguageTools.ProgramTypes.Expr) (width: Int) : String =
+  let printed = PrettyPrinter.ProgramTypes.expr ctx body
+  let firstLine = Stdlib.String.split printed "\n" |> Stdlib.List.head |> Stdlib.Option.withDefault printed
+  let clipped =
+    if Stdlib.String.length firstLine > width then (Stdlib.String.slice firstLine 0 (width - 1)) ++ "…"
+    else firstLine
+  "= " ++ clipped
+
+/// The rows of a module: its submodules, then types, values and fns, each
+/// with a description built from the entity the search already returned - a
+/// fn's signature, a type's shape, a value's literal - so a module reads as a
+/// table of contents rather than a list of names.
 let loadItems (branchId: Uuid) (location: Packages.PackageLocation) : List<BodyItem> =
   let modulePath = modulePathOf location
   let results = Packages.Query.allDirectDescendants branchId modulePath
   let subs = Packages.Query.getDirectSubmodules results (Stdlib.List.length modulePath)
+  // Anchored at the module being listed, so a signature spells its neighbours
+  // by their short names.
+  let ctx = PrettyPrinter.ProgramTypes.Context.forModule branchId modulePath
+  let typeRef (t: LanguageTools.ProgramTypes.TypeReference) : String = PrettyPrinter.ProgramTypes.typeReference ctx t
   let moduleItems =
-    subs |> Stdlib.List.map (fun n -> BodyItem { name = n; kind = "module"; isModule = true })
+    subs |> Stdlib.List.map (fun n -> BodyItem { name = n; kind = "module"; isModule = true; desc = "" })
   let typeItems =
     results.types
-    |> Stdlib.List.map (fun t -> BodyItem { name = t.location.name; kind = "type"; isModule = false })
+    |> Stdlib.List.map (fun t ->
+      let shape =
+        match t.entity.declaration.definition with
+        | Record fields -> "record · " ++ (Stdlib.Int.toString (Stdlib.List.length fields)) ++ " fields"
+        | Enum cases -> "enum · " ++ (Stdlib.Int.toString (Stdlib.List.length cases)) ++ " cases"
+        | Alias tr -> "= " ++ (typeRef tr)
+      BodyItem { name = t.location.name; kind = "type"; isModule = false; desc = shape })
   let valItems =
     results.values
-    |> Stdlib.List.map (fun v -> BodyItem { name = v.location.name; kind = "val"; isModule = false })
+    |> Stdlib.List.map (fun v ->
+      BodyItem { name = v.location.name; kind = "val"; isModule = false; desc = valueDesc ctx v.entity.body 40 })
   let fnItems =
     results.fns
-    |> Stdlib.List.map (fun f -> BodyItem { name = f.location.name; kind = "fn"; isModule = false })
+    |> Stdlib.List.map (fun f ->
+      let params = f.entity.parameters |> Stdlib.List.map (fun p -> typeRef p.typ)
+      let args = if Stdlib.List.isEmpty params then "()" else Stdlib.String.join params " -> "
+      let sig_ = args ++ " -> " ++ (typeRef f.entity.returnType)
+      BodyItem { name = f.location.name; kind = "fn"; isModule = false; desc = sig_ })
   Stdlib.List.flatten [ moduleItems; typeItems; valItems; fnItems ]
 
 /// How many uncommitted *items* there are - the same number the Changes list shows.
@@ -41,7 +71,7 @@ let loadWipBodyItems (branchId: Uuid) : List<BodyItem> =
   |> Stdlib.List.map (fun d ->
     let name = Stdlib.Dict.get d "name" |> Stdlib.Option.withDefault "?"
     let kind = Stdlib.Dict.get d "kind" |> Stdlib.Option.withDefault "?"
-    BodyItem { name = name; kind = kind; isModule = false })
+    BodyItem { name = name; kind = kind; isModule = false; desc = "" })
 
 /// Recent commits (this branch + ancestors) as body items (for the History view).
 let loadCommitBodyItems (branchId: Uuid) : List<BodyItem> =
@@ -50,9 +80,10 @@ let loadCommitBodyItems (branchId: Uuid) : List<BodyItem> =
     let short = LanguageTools.ProgramTypes.hashToShort c.hash
     let ops = Stdlib.Int.toString c.opCount
     BodyItem
-      { name = short ++ "  " ++ c.message ++ "  (" ++ ops ++ " ops)"
+      { name = c.message
         kind = "commit"
-        isModule = false })
+        isModule = false
+        desc = short ++ " · " ++ ops ++ " ops" })
 
 /// The ops of the selected commit, rendered for the reader. Capped - a seed commit can have 10k+ ops.
 let commitOpsText (branchId: Uuid) (selected: Int) : String =
@@ -89,6 +120,68 @@ let commitSummary (branchId: Uuid) (selected: Int) : String =
     ++ (Stdlib.Int.toString c.opCount)
     ++ " ops  ·  press ⏎ to view them"
 
+/// Render diff lines as syntax-highlighted code with a faint wash behind what
+/// changed: green behind added lines, red behind removed, nothing behind
+/// context. The code keeps its normal highlighting either way.
+///
+/// Highlighting is a whole-program pass, so it runs twice - once over the old
+/// side (context + removed), once over the new (context + added) - and the
+/// diff is walked once more to pick each line's coloured form from the side
+/// it belongs to. A highlighted line carries resets, which would end the wash
+/// mid-line; the wash is re-asserted after each, and the line is padded so it
+/// reads as a highlighter stroke to the pane's edge.
+let renderDiffLines (lines: List<Stdlib.Diff.DiffLine>) (state: State) : List<String> =
+  let textOf (dl: Stdlib.Diff.DiffLine) : String =
+    match dl with
+    | Same s -> s
+    | Added s -> s
+    | Removed s -> s
+  let isOld (dl: Stdlib.Diff.DiffLine) : Bool =
+    match dl with
+    | Added _ -> false
+    | _ -> true
+  let isNew (dl: Stdlib.Diff.DiffLine) : Bool =
+    match dl with
+    | Removed _ -> false
+    | _ -> true
+  let highlightSide (keep: Stdlib.Diff.DiffLine -> Bool) : List<String> =
+    let src = lines |> Stdlib.List.filter keep |> Stdlib.List.map textOf |> Stdlib.String.join "\n"
+    let h = SyntaxHighlighting.highlightCode src |> Stdlib.String.split "\n"
+    let n = lines |> Stdlib.List.filter keep |> Stdlib.List.length
+    // The parser can't change the line count, but be safe: fall back to plain
+    // text if it somehow did.
+    if Stdlib.List.length h == n then h else lines |> Stdlib.List.filter keep |> Stdlib.List.map textOf
+  let oldSide = highlightSide isOld
+  let newSide = highlightSide isNew
+  // Pad to the preview pane's width, no further: `wrapRow` folds anything
+  // wider than `innerWidth - 2`, so a fixed 160 turned one short line into
+  // several rows of blank wash on a narrow pane.
+  let fillWidth = Stdlib.Int.max 1 ((previewInnerWidth state) - 2)
+  let wash (bg: String) (gutter: String) (code: String) : String =
+    // Re-assert the background after every reset in the line - the gutter's
+    // own and the highlighter's.
+    let washed = Stdlib.String.replaceAll (gutter ++ code) Stdlib.Cli.UI.Colors.reset (Stdlib.Cli.UI.Colors.reset ++ bg)
+    let visible = Stdlib.Cli.Tui.Text.displayWidth (Stdlib.Cli.Tui.Text.stripSgr (gutter ++ code))
+    let pad = Stdlib.String.repeat " " (Stdlib.Int.max 0 (fillWidth - visible))
+    bg ++ washed ++ pad ++ Stdlib.Cli.UI.Colors.reset
+  // Walk the diff, consuming from each side as its lines come up: (oldIdx,
+  // newIdx, rendered so far).
+  let (_o, _n, out) =
+    lines
+    |> Stdlib.List.fold (0, 0, []) (fun acc dl ->
+      let (o, n, done_) = acc
+      match dl with
+      | Same _ ->
+        let code = Stdlib.List.getAt newSide n |> Stdlib.Option.withDefault (textOf dl)
+        (o + 1, n + 1, Stdlib.List.append done_ [ "  " ++ code ])
+      | Added _ ->
+        let code = Stdlib.List.getAt newSide n |> Stdlib.Option.withDefault (textOf dl)
+        (o, n + 1, Stdlib.List.append done_ [ wash Stdlib.Cli.UI.Colors.faintGreenBg (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.green ++ Stdlib.Cli.UI.Colors.bold) "+ ") code ])
+      | Removed _ ->
+        let code = Stdlib.List.getAt oldSide o |> Stdlib.Option.withDefault (textOf dl)
+        (o + 1, n, Stdlib.List.append done_ [ wash Stdlib.Cli.UI.Colors.faintRedBg (Stdlib.Cli.UI.Colors.colorize (Stdlib.Cli.UI.Colors.red ++ Stdlib.Cli.UI.Colors.bold) "- ") code ]))
+  out
+
 /// A real +/- diff of the selected WIP item (old-vs-new), reusing the review app's diff engine. Matched by
 /// name so it lines up with the workbench's own WIP list regardless of ordering.
 let wipDiffText (state: State) : String =
@@ -102,11 +195,7 @@ let wipDiffText (state: State) : String =
       let ops = SCM.PackageOps.getWip state.branchId
       let parentId = SCM.Review.App.getParentBranchId state.branchId
       SCM.Review.App.diffForItem ops state.branchId parentId pkg
-      |> Stdlib.List.map (fun dl ->
-        match dl with
-        | Same s -> Stdlib.Cli.UI.Colors.dimText ("  " ++ s)
-        | Added s -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green ("+ " ++ s)
-        | Removed s -> Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.red ("- " ++ s))
+      |> renderDiffLines state
       |> Stdlib.String.join "\n"
 
 /// The current source of the selected WIP item, for the Changes reader.

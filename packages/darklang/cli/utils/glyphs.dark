@@ -1,12 +1,12 @@
 /// The one set of glyphs for package item kinds.
 ///
-/// Every glyph here occupies exactly ONE terminal column under `Tui.Text.displayWidth`, and `forKind`
+/// Every glyph here occupies exactly ONE terminal column under `Stdlib.Cli.Tui.Text.displayWidth`, and `forKind`
 /// pads to two. That property is the whole point, and it is easy to lose: `⚡` (the old function icon)
 /// measures two by the Unicode tables while terminals draw it as one, so a column of mixed rows came
 /// out ragged and no amount of padding fixed it for both. The emoji that were used elsewhere -- 🗂️ ⚡️ 🔖
 /// 💎 -- carry variation selectors and have the same problem.
 ///
-/// Check `Tui.Text.displayWidth` before swapping any of these.
+/// Check `Stdlib.Cli.Tui.Text.displayWidth` before swapping any of these.
 module Darklang.Cli.Glyphs
 
 /// A module.
@@ -38,7 +38,7 @@ let forKind (kind: String) : String =
     | "value" -> Glyphs.value
     | _ -> Glyphs.value
 
-  Tui.Text.fitToWidth glyph 2
+  Stdlib.Cli.Tui.Text.fitToWidth glyph 2
 
 
 /// A section header for a listing: glyph plus the plural noun.
