@@ -601,9 +601,11 @@ module Expr =
     : (ProgramTypes.Expr *
       List<WrittenTypes.UnresolvedName>)
     =
-    // Callers must reject parser diagnostics before lowering. EError is a
-    // WrittenTypes-only recovery hole and intentionally has no ProgramTypes form.
+    // Callers must reject parser diagnostics before using the lowered program.
+    // Keep lowering total for recovered trees by replacing their EError holes.
     match e with
+    | EError _ -> (ProgramTypes.Expr.EUnit(gid ()), [])
+
     // simple
     | EUnit _ -> (ProgramTypes.Expr.EUnit(gid ()), [])
 

@@ -23,6 +23,44 @@ let handleToolCall (server: McpServerBuilder) (name: String) (args: Json) : Json
       |> ModelContextProtocol.Tools.CallToolResponse.toJson
 
 
+/// Adapt a string-valued tool handler to the JSON shape used by MCP.
+let toolJsonHandler (tool: Tool) (args: Json) : Json =
+  match args with
+  | Object fields ->
+    let foundField =
+      Stdlib.List.findFirst fields (fun field ->
+        let key = Stdlib.Tuple2.first field
+        key == "input")
+    match foundField with
+    | Some field ->
+      let value = Stdlib.Tuple2.second field
+      let inputString =
+        match value with
+        | String s -> s
+        | _ -> Stdlib.AltJson.format value
+      let result = tool.handler inputString
+      (ModelContextProtocol.Tools.CallToolResponse.CallToolResult
+        { content =
+            [ ModelContextProtocol.Tools.CallToolResponse.ContentItem.TextContent
+                result ]
+          isError = false })
+      |> ModelContextProtocol.Tools.CallToolResponse.toJson
+    | None ->
+      (ModelContextProtocol.Tools.CallToolResponse.CallToolResult
+        { content =
+            [ ModelContextProtocol.Tools.CallToolResponse.ContentItem.TextContent
+                "Error: Missing 'input' parameter" ]
+          isError = true })
+      |> ModelContextProtocol.Tools.CallToolResponse.toJson
+  | _ ->
+    (ModelContextProtocol.Tools.CallToolResponse.CallToolResult
+      { content =
+          [ ModelContextProtocol.Tools.CallToolResponse.ContentItem.TextContent
+              "Error: Arguments must be an object" ]
+        isError = true })
+    |> ModelContextProtocol.Tools.CallToolResponse.toJson
+
+
 // Add a tool from a simple Tool record
 let addTool (server: McpServerBuilder) (tool: Tool) : McpServerBuilder =
   let toolDescription = ModelContextProtocol.ToolDescription {
@@ -42,49 +80,7 @@ let addTool (server: McpServerBuilder) (tool: Tool) : McpServerBuilder =
     annotations = Stdlib.Option.Option.None
   }
 
-  // Create a JSON handler that extracts the input string and calls the user handler
-  let jsonHandler =
-    fun args ->
-      match args with
-      | Object fields ->
-          let foundField = Stdlib.List.findFirst fields (fun field ->
-            let key = Stdlib.Tuple2.first field
-            key == "input"
-          )
-          match foundField with
-          | Some field ->
-              let foundKey = Stdlib.Tuple2.first field
-              let value = Stdlib.Tuple2.second field
-              // Try to extract string value directly from JSON
-              let inputString =
-                match value with
-                | String s -> s
-                | _ -> Stdlib.AltJson.format value  // Use JSON representation if not a string
-              let handler = tool.handler
-              let result = handler inputString
-              (ModelContextProtocol.Tools.CallToolResponse.CallToolResult {
-                content = [
-                  ModelContextProtocol.Tools.CallToolResponse.ContentItem.TextContent result
-                ]
-                isError = false
-              })
-              |> ModelContextProtocol.Tools.CallToolResponse.toJson
-          | None ->
-              (ModelContextProtocol.Tools.CallToolResponse.CallToolResult {
-                content = [
-                  ModelContextProtocol.Tools.CallToolResponse.ContentItem.TextContent "Error: Missing 'input' parameter"
-                ]
-                isError = true
-              })
-              |> ModelContextProtocol.Tools.CallToolResponse.toJson
-      | _ ->
-          (ModelContextProtocol.Tools.CallToolResponse.CallToolResult {
-            content = [
-              ModelContextProtocol.Tools.CallToolResponse.ContentItem.TextContent "Error: Arguments must be an object"
-            ]
-            isError = true
-          })
-          |> ModelContextProtocol.Tools.CallToolResponse.toJson
+  let jsonHandler = toolJsonHandler tool
 
   let toolDef = ToolDefinition {
     description = toolDescription

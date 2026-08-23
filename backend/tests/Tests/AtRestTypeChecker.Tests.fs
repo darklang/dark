@@ -988,13 +988,31 @@ let private unitTests =
                   name = unconstrainedRTName
                   typeParams = [ "result" ]
                   returnType = RT.TVariable "result" } ]
-        // A result-only variable is not a universal result: it must not be trusted.
+        // A result-only variable is not inferred from value arguments, so a call
+        // that omits its reified type arguments must not be trusted.
         oneArgFn
           PT.TUnit
           PT.TInt
           (call (PT.FQFnName.fqBuiltIn "unconstrainedResult" 0))
         |> Checker.checkPackageFunction (environmentFor unconstrainedBuiltins)
         |> expectBlocker Checker.UnsupportedConstruct
+
+        // Supplying every declared/structural type argument makes that same
+        // signature checkable. This is how `Builtin.jsonParse<'a>` communicates
+        // the result type that its String parameter cannot constrain.
+        let explicitlyTypedCall =
+          PT.EApply(
+            140UL,
+            PT.EFnName(
+              141UL,
+              PT.NameResolution.ok (PT.FQFnName.fqBuiltIn "unconstrainedResult" 0)
+            ),
+            [ PT.TInt; PT.TInt; PT.TInt ],
+            NEList.ofList (PT.EInt(142UL, 1I)) [ PT.EInt(143UL, 2I) ]
+          )
+        oneArgFn PT.TUnit PT.TInt explicitlyTypedCall
+        |> Checker.checkPackageFunction (environmentFor unconstrainedBuiltins)
+        |> expectChecked
 
         // The real `unwrap : optOrRes -> 'a` has a result-only variable, so it is
         // not trusted even though nothing marks it by name.

@@ -33,7 +33,7 @@ let fakeType () : Darklang.LanguageTools.RuntimeTypes.FQTypeName.FQTypeName =
  | Ok (EFloat(_, _sign, w, f)) -> w ++ "." ++ f
  | _ -> "FAIL") = "3.14"
 
-(match promote (Darklang.LanguageTools.RuntimeTypes.Dval.DChar "a") with | Ok (EChar(_, c)) -> c | _ -> "FAIL") = "a"
+(match promote (Darklang.LanguageTools.RuntimeTypes.Dval.DChar 'a') with | Ok (EChar(_, c)) -> c | _ -> "FAIL") = "a"
 
 (match promote (Darklang.LanguageTools.RuntimeTypes.Dval.DString "hi") with
  | Ok (EString(_, [ StringText s ])) -> s

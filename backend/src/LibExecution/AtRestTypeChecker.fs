@@ -195,6 +195,7 @@ type TypeEnvironment =
     { types : Map<FQTypeName.Package, TypeDeclaration.T>
       functions : Map<FQFnName.FQFnName, FunctionSignature>
       unsupportedFunctions : Map<FQFnName.FQFnName, string>
+      requiresExplicitTypeArguments : Set<FQFnName.FQFnName>
       values : Map<FQValueName.FQValueName, TypeReference>
       checkedValues : Map<FQValueName.FQValueName, TypeScheme> }
 
@@ -203,6 +204,7 @@ module TypeEnvironment =
     { types = Map.empty
       functions = Map.empty
       unsupportedFunctions = Map.empty
+      requiresExplicitTypeArguments = Set.empty
       values = Map.empty
       checkedValues = Map.empty }
 
@@ -227,6 +229,14 @@ module TypeEnvironment =
     : TypeEnvironment =
     { environment with
         unsupportedFunctions = Map.add name reason environment.unsupportedFunctions }
+
+  let private requireExplicitTypeArguments
+    (name : FQFnName.FQFnName)
+    (environment : TypeEnvironment)
+    : TypeEnvironment =
+    { environment with
+        requiresExplicitTypeArguments =
+          Set.add name environment.requiresExplicitTypeArguments }
 
   let addValue
     (name : FQValueName.FQValueName)
@@ -291,10 +301,14 @@ module TypeEnvironment =
               |> List.map (fun parameter -> runtimeTypeVariables parameter.typ)
               |> Set.unionMany
             let returnVariables = runtimeTypeVariables fn.returnType
-            if not (Set.isSubset returnVariables parameterVariables) then
+            let resultOnlyVariables =
+              Set.difference returnVariables parameterVariables
+            let declaredVariables = Set.ofList fn.typeParams
+            if not (Set.isSubset resultOnlyVariables declaredVariables) then
               // A result variable no parameter constrains (`Hash -> Option<'a>`)
-              // is not a universal result; it means the result type is only known
-              // at runtime. Quantifying it would prove any caller's use of it.
+              // and that is not an explicit type parameter means the result type
+              // is only known at runtime. Quantifying it would prove any caller's
+              // use of it.
               addUnsupportedFunction
                 name
                 "The declared result contains type variables unconstrained by the parameters"
@@ -316,7 +330,17 @@ module TypeEnvironment =
                        |> List.map (fun parameter ->
                          runtimeTypeToProgramType parameter.typ))
                   returnType = runtimeTypeToProgramType fn.returnType }
-              addFunction name signature environment, errors)
+              let environment = addFunction name signature environment
+              let environment =
+                if Set.isEmpty resultOnlyVariables then
+                  environment
+                else
+                  // Result-only declared parameters are sound only when the call
+                  // supplies their reified type arguments (for example
+                  // `jsonParse<'a>`). Without them the runtime has no value
+                  // argument from which to discover the requested type.
+                  requireExplicitTypeArguments name environment
+              environment, errors)
         (environment, [])
     match errors with
     | [] -> Ok environment
@@ -1773,6 +1797,17 @@ let private instantiateFunction
         UnsupportedConstruct,
         nodeId,
         $"{displayFunctionName name} cannot be checked statically: {reason}"
+      )
+      state.FreshTainted nodeId
+    | None when
+      Set.contains name state.Environment.requiresExplicitTypeArguments
+      && List.isEmpty explicitTypeArgs
+      ->
+      state.Block(
+        UnsupportedConstruct,
+        nodeId,
+        $"{displayFunctionName name} requires explicit type arguments because "
+        + "its result type cannot be inferred from its value parameters"
       )
       state.FreshTainted nodeId
     | None ->

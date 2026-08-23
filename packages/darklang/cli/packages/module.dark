@@ -38,12 +38,14 @@ let collectDecls
 
 let declarationName
   (decl: LanguageTools.WrittenTypes.ModuleDeclaration.Declaration)
-  : String =
+  : Stdlib.Option.Option<String> =
   match decl with
-  | Type typ -> typ.name.name
-  | Function fn -> fn.name.name
-  | Value value -> value.name.name
-  | SubModule modul -> Stdlib.Tuple2.second modul.name
+  | Type typ -> Stdlib.Option.Option.Some typ.name.name
+  | Function fn -> Stdlib.Option.Option.Some fn.name.name
+  | Value value -> Stdlib.Option.Option.Some value.name.name
+  | SubModule modul ->
+    Stdlib.Option.Option.Some (Stdlib.Tuple2.second modul.name)
+  | Expr _ -> Stdlib.Option.Option.None
 
 
 /// Return every declaration path that occurs more than once in the input.
@@ -57,14 +59,17 @@ let duplicateDeclarationNames
   let (_, duplicates) =
     declarations
     |> Stdlib.List.fold ([], []) (fun (seen, duplicates) (modules, decl) ->
-      let path =
-        Stdlib.List.append modules [declarationName decl]
-        |> Stdlib.String.join "."
+      match declarationName decl with
+      | None -> (seen, duplicates)
+      | Some name ->
+        let path =
+          Stdlib.List.append modules [name]
+          |> Stdlib.String.join "."
 
-      if Stdlib.List.member seen path then
-        (seen, Stdlib.List.push duplicates path)
-      else
-        (Stdlib.List.push seen path, duplicates))
+        if Stdlib.List.member seen path then
+          (seen, Stdlib.List.push duplicates path)
+        else
+          (Stdlib.List.push seen path, duplicates))
 
   Stdlib.List.unique duplicates
 

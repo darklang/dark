@@ -119,9 +119,9 @@ let fns () : List<BuiltInFn> =
 
 
     { name = fn "dictFromListOverwritingDuplicates" 0
-      typeParams = []
+      typeParams = [ "a" ]
       parameters = [ Param.make "entries" (TList(TTuple(TString, varA, []))) "" ]
-      returnType = TDict varB
+      returnType = TDict varA
       description =
         "Returns a <type dict> with <param entries>. Each value in <param "
         + "entries> must be a {{(key, value)}} tuple, where <var key> is a <type "

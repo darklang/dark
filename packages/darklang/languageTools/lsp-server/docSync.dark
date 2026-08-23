@@ -146,9 +146,8 @@ let handleTextDocumentDidOpen
   let parsedToPT =
     match parsed with
     | Ok parsedFile ->
-      // A recovered tree can contain EError holes, and lowering is only
-      // defined for clean trees (Expr.toPT has no EError arm, by contract) —
-      // so skip lowering unless the parse produced no diagnostics.
+      // A recovered tree can contain EError holes. Although lowering replaces
+      // those holes with units, do not publish a partial program as a clean tree.
       if Stdlib.List.isEmpty (Parser.Parse.diagnostics request.textDocument.text) then
         (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
         |> Stdlib.Tuple3.first

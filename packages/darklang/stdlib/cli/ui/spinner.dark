@@ -8,5 +8,5 @@ module Darklang.Stdlib.Cli.UI.Spinner
 let run (message: String) (fn: Unit -> 'a) : 'a =
   Stdlib.print ($"{message}... ")
   let result = fn ()
-  Stdlib.printLine (Color.green "done")
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.greenText "done")
   result

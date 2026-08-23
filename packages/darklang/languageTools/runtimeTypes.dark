@@ -255,7 +255,7 @@ type Dval =
   | DUInt128 of UInt128
   | DInt of Int
   | DFloat of Float
-  | DChar of String
+  | DChar of Char
   | DString of String
   | DDateTime of DateTime
   | DUuid of Uuid

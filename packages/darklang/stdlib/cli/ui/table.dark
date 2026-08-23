@@ -32,7 +32,7 @@ let print (columns: List<String>) (rows: List<List<String>>) : Unit =
     // shows up as a corridor of highlighted blanks once the header is bolded.
     |> Stdlib.String.trimEnd
 
-  Stdlib.printLine (Color.bold headerLine)
+  Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText headerLine)
 
   // Print separator
   let sepLine =
