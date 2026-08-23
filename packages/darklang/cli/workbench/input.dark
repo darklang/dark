@@ -7,7 +7,7 @@ let performInputAction (state: State) (inp: InputState) : Step =
   if inp.action == "commit" then
     match state.accountId with
     | Some acct ->
-      match SCM.PackageOps.commit acct state.branchId inp.field.text with
+      match SCM.PackageOps.commit acct state.branchId inp.field.text false with
       | Ok _ ->
         Step.Continue
           { state with
@@ -16,9 +16,10 @@ let performInputAction (state: State) (inp: InputState) : Step =
               selected = 0
               message = "committed" }
       | Error e ->
+        let m = SCM.PackageOps.commitErrorMessage e
         Step.Continue
           { state with
-              input = Stdlib.Option.Option.Some { inp with prompt = "commit failed: " ++ e ++ " - esc"; field = Stdlib.Cli.UI.TextField.empty } }
+              input = Stdlib.Option.Option.Some { inp with prompt = "commit failed: " ++ m ++ " - esc"; field = Stdlib.Cli.UI.TextField.empty } }
     | None ->
       Step.Continue
         { state with

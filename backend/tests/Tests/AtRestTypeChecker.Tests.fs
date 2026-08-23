@@ -1709,4 +1709,170 @@ let private unitTests =
       } ]
 
 
-let tests = testList "AtRestTypeChecker" [ unitTests ]
+// The rollout policy end to end: `dark fn` and `dark module` store through
+// `SCM.PackageOps.addAuthored`, which saves Failed, Checked and Incomplete alike and
+// reports the verdict; `commit` refuses while a Failed declaration is in the batch,
+// and `commit --allow-type-errors` takes it anyway. Runs the real CLI against an
+// isolated seeded
+// store, so it is sequenced like the other harness users.
+let private authoringTypeCheckPolicy =
+  testTask "authoring warns on Failed; commit refuses it unless allowed" {
+    let! instance = seededInstance "authoring-type-check-policy"
+    try
+      activate instance
+      let! state = buildCliState ()
+
+      // Commit is intentionally authenticated. Do not rely on a developer's
+      // persisted CLI session: CI and a clean checkout start logged out.
+      let! loginOutput = runCli state [ "login"; "Stachu" ]
+      Expect.stringContains
+        loginOutput
+        "Logged in as Stachu"
+        "the isolated CLI fixture has an authenticated commit author"
+
+      let! failedOutput =
+        runCli state [ "fn"; "Test.AtRestAuthoring.invalid"; "(x: Int): String = x" ]
+      Expect.stringContains
+        failedOutput
+        "Created function"
+        "a definite type error is still saved as WIP"
+      Expect.stringContains
+        failedOutput
+        "At-rest type check failed (saved as WIP; `commit` will refuse it until fixed)"
+        "and the author is told what that means"
+      Expect.stringContains failedOutput "[TypeMismatch]" "with the diagnostic"
+      let! failedSearch =
+        runCli state [ "search"; "Test.AtRestAuthoring.invalid"; "--exact" ]
+      Expect.stringContains
+        failedSearch
+        "Test.AtRestAuthoring.invalid"
+        "the failed declaration is visible on the branch"
+
+      let! checkedOutput =
+        runCli state [ "fn"; "Test.AtRestAuthoring.valid"; "(x: Int): Int = x + 1" ]
+      Expect.stringContains
+        checkedOutput
+        "Created function"
+        "a checked declaration is persisted"
+      Expect.isFalse
+        (checkedOutput.Contains "At-rest type check")
+        "a checked declaration says nothing about the checker"
+
+      let! incompleteOutput =
+        runCli
+          state
+          [ "fn"
+            "Test.AtRestAuthoring.incomplete"
+            "(x: Bool): String = match x with | true -> \"yes\"" ]
+      Expect.stringContains
+        incompleteOutput
+        "At-rest type check was incomplete (save continued)"
+        "an incomplete proof is reported without rejecting the declaration"
+
+      let! mixedOutput =
+        runCli
+          state
+          [ "fn"
+            "Test.AtRestAuthoring.mixed"
+            "(x: Bool): String = match x with | true -> 1" ]
+      Expect.stringContains
+        mixedOutput
+        "At-rest type check failed (saved as WIP; `commit` will refuse it until fixed)"
+        "a definite error is not hidden by an unrelated incomplete proof"
+      Expect.stringContains
+        mixedOutput
+        "[TypeMismatch]"
+        "definite diagnostics are included alongside incomplete blockers"
+
+      // `module` batches several declarations through the same door: the bad
+      // one is reported, the whole batch is still saved.
+      let modulePath =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          "at-rest-authoring-module.dark"
+        )
+      System.IO.File.WriteAllText(
+        modulePath,
+        "let fine (x: Int) : Int = x + 1\nlet broken (x: Bool) : String = x\n"
+      )
+      let! moduleOutput =
+        runCli state [ "module"; "Test.AtRestAuthoring.Mod"; modulePath ]
+      Expect.stringContains
+        moduleOutput
+        "Defined 2 declarations"
+        "the module is saved"
+      Expect.stringContains
+        moduleOutput
+        "At-rest type check failed (saved as WIP"
+        "and its bad declaration is reported"
+
+      // The gate. Failed declarations are in WIP, so a plain commit is refused,
+      // names the culprits, and commits nothing.
+      let! refused = runCli state [ "commit"; "gate"; "--yes" ]
+      Expect.stringContains
+        refused
+        "Cannot commit: 3 declarations have definite type errors"
+        "commit refuses while Failed declarations are in the batch"
+      Expect.stringContains refused "Test.AtRestAuthoring.invalid" "and names them"
+      Expect.stringContains
+        refused
+        "Test.AtRestAuthoring.mixed"
+        "including mixed reports"
+      Expect.stringContains refused "Test.AtRestAuthoring.Mod.broken" "all of them"
+      Expect.isFalse (refused.Contains "Created commit") "nothing was committed"
+      let! statusAfterRefusal = runCli state [ "status" ]
+      Expect.stringContains
+        statusAfterRefusal
+        "Uncommitted changes"
+        "the WIP is untouched"
+
+      // A partial commit of only the good declarations goes through.
+      let! partial =
+        runCli
+          state
+          [ "commit"; "good ones"; "--include=Test.AtRestAuthoring.valid"; "--yes" ]
+      Expect.stringContains
+        partial
+        "Created commit"
+        "Checked declarations commit on their own"
+
+      // Fixing the error un-refuses it (the batch is re-checked at commit time),
+      // and --allow-type-errors takes whatever is left. --force is a different
+      // override (unresolved references) and must not open this gate.
+      let! fixedOutput =
+        runCli
+          state
+          [ "fn"
+            "Test.AtRestAuthoring.invalid"
+            "(x: Int): String = Stdlib.Int.toString x" ]
+      Expect.stringContains fixedOutput "Updated function" "the fix is saved"
+      let! stillRefused = runCli state [ "commit"; "still broken"; "--yes" ]
+      Expect.stringContains
+        stillRefused
+        "Cannot commit: 2 declarations have definite type errors"
+        "the fixed one no longer counts; the remaining definite errors still do"
+      let! forced = runCli state [ "commit"; "take it"; "--yes"; "--force" ]
+      Expect.stringContains
+        forced
+        "Cannot commit: 2 declarations have definite type errors"
+        "--force does not allow type errors"
+      let! allowed =
+        runCli state [ "commit"; "take it"; "--yes"; "--allow-type-errors" ]
+      Expect.stringContains
+        allowed
+        "Created commit"
+        "--allow-type-errors commits Failed declarations"
+      let! statusAfterAllow = runCli state [ "status" ]
+      Expect.stringContains
+        statusAfterAllow
+        "No uncommitted changes"
+        "everything was committed"
+    finally
+      teardown [ instance ]
+  }
+
+let private authoringTests =
+  testSequenced <| testList "authoring" [ authoringTypeCheckPolicy ]
+
+
+let tests = testList "AtRestTypeChecker" [ unitTests; authoringTests ]

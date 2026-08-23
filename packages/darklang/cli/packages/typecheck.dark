@@ -1,0 +1,189 @@
+/// Read-only audit of serialized package declarations on the current branch.
+module Darklang.Cli.Packages.Typecheck
+
+type Counts =
+  { checkedCount: Int
+    failedCount: Int
+    incompleteCount: Int }
+
+type OutputFilter =
+  { showChecked: Bool
+    showFailed: Bool
+    showIncomplete: Bool }
+
+type ParsedArgs =
+  { outputFilter: OutputFilter
+    parseErrors: List<FlagParser.ParseError>
+    positionals: List<String>
+    conflictingFilters: Bool }
+
+val usage = "Usage: typecheck [--failed] [--incomplete] [--all]"
+
+val argSpec =
+  FlagParser.Spec
+    { flags = [ ("--failed", []); ("--incomplete", []); ("--all", []) ]
+      valueFlags = [] }
+
+let parseArgs (args: List<String>) : ParsedArgs =
+  let parsed = FlagParser.parse argSpec args
+  let failedOnly = FlagParser.hasFlag parsed "--failed"
+  let incompleteOnly = FlagParser.hasFlag parsed "--incomplete"
+  let showAll = FlagParser.hasFlag parsed "--all"
+  let hasSpecificFilter = failedOnly || incompleteOnly
+  ParsedArgs
+    { outputFilter =
+        OutputFilter
+          { showChecked = showAll
+            showFailed = showAll || failedOnly || Stdlib.Bool.not hasSpecificFilter
+            showIncomplete =
+              showAll || incompleteOnly || Stdlib.Bool.not hasSpecificFilter }
+      parseErrors = parsed.errors
+      positionals = parsed.positionals
+      conflictingFilters = showAll && hasSpecificFilter }
+
+let fullPath (location: LanguageTools.ProgramTypes.PackageLocation) : String =
+  [ [ location.owner ]; location.modules; [ location.name ] ]
+  |> Stdlib.List.flatten
+  |> Stdlib.String.join "."
+
+let locationsFor
+  (branchId: Uuid)
+  (reference: LanguageTools.ProgramTypes.Reference)
+  : List<LanguageTools.ProgramTypes.PackageLocation> =
+  match reference with
+  | PackageType hash -> LanguageTools.PackageManager.Type.locations branchId hash
+  | PackageValue hash -> LanguageTools.PackageManager.Value.locations branchId hash
+  | PackageFn hash -> LanguageTools.PackageManager.Function.locations branchId hash
+
+let fallbackLabel (reference: LanguageTools.ProgramTypes.Reference) : String =
+  let kind =
+    match reference with
+    | PackageType _ -> "type"
+    | PackageValue _ -> "value"
+    | PackageFn _ -> "function"
+  let hash =
+    LanguageTools.ProgramTypes.hashToShort (
+      LanguageTools.ProgramTypes.Reference.hash reference)
+  $"{kind} {hash}"
+
+let itemLabel
+  (branchId: Uuid)
+  (reference: LanguageTools.ProgramTypes.Reference)
+  : String =
+  let paths =
+    locationsFor branchId reference
+    |> Stdlib.List.map fullPath
+    |> Stdlib.List.unique
+    |> Stdlib.List.sort
+  match paths with
+  | [] -> fallbackLabel reference
+  | [ path ] -> path
+  | _ -> Stdlib.String.join paths ", "
+
+let counts
+  (items: List<LanguageTools.AtRestTypeChecker.ItemReport>)
+  : Counts =
+  items
+  |> Stdlib.List.fold
+       (Counts { checkedCount = 0; failedCount = 0; incompleteCount = 0 })
+       (fun acc item ->
+         match item.verdict with
+         | Checked -> { acc with checkedCount = acc.checkedCount + 1 }
+         | Failed -> { acc with failedCount = acc.failedCount + 1 }
+         | Incomplete -> { acc with incompleteCount = acc.incompleteCount + 1 })
+
+let printItem
+  (branchId: Uuid)
+  (outputFilter: OutputFilter)
+  (item: LanguageTools.AtRestTypeChecker.ItemReport)
+  : Unit =
+  let label = itemLabel branchId item.item
+  match item.verdict with
+  | Checked ->
+    if outputFilter.showChecked then
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.success $"checked: {label}")
+  | Failed ->
+    if outputFilter.showFailed then
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"failed: {label}")
+      Stdlib.List.append
+        (AtRestCheck.issueLines branchId item.diagnostics)
+        (AtRestCheck.issueLines branchId item.blockers)
+      |> Stdlib.printLines
+  | Incomplete ->
+    if outputFilter.showIncomplete then
+      Stdlib.printLine (Stdlib.Cli.UI.Colors.warning $"incomplete: {label}")
+      Stdlib.List.append
+        (AtRestCheck.issueLines branchId item.diagnostics)
+        (AtRestCheck.issueLines branchId item.blockers)
+      |> Stdlib.printLines
+
+let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
+  let parsed = parseArgs args
+  if Stdlib.Bool.not (Stdlib.List.isEmpty parsed.parseErrors) then
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error
+        (FlagParser.parseErrorsMessage parsed.parseErrors))
+    Stdlib.printLine usage
+    state
+  else if Stdlib.Bool.not (Stdlib.List.isEmpty parsed.positionals) then
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error
+        "Error: typecheck does not take positional arguments")
+    Stdlib.printLine usage
+    state
+  else if parsed.conflictingFilters then
+    Stdlib.printLine (
+      Stdlib.Cli.UI.Colors.error
+        "Error: --all cannot be combined with --failed or --incomplete")
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.error usage)
+    state
+  else
+    let report = AtRestCheck.checkBranch state.currentBranchId
+    let totals = counts report.items
+    let total = Stdlib.List.length report.items
+    let checkedCount = Stdlib.Int.toString totals.checkedCount
+    let failedCount = Stdlib.Int.toString totals.failedCount
+    let incompleteCount = Stdlib.Int.toString totals.incompleteCount
+    let totalCount = Stdlib.Int.toString total
+
+    Stdlib.printLine (Stdlib.Cli.UI.Colors.boldText "At-rest package type audit")
+    Stdlib.printLine (
+      $"checked {checkedCount}, failed {failedCount}, incomplete {incompleteCount}, total {totalCount}")
+
+    report.items
+    |> Stdlib.List.sortBy (fun item -> itemLabel state.currentBranchId item.item)
+    |> Stdlib.List.iter (printItem state.currentBranchId parsed.outputFilter)
+
+    if Stdlib.List.isEmpty report.items then
+      match report.verdict with
+      | Incomplete ->
+        Stdlib.printLine
+          (Stdlib.Cli.UI.Colors.warning "The audit could not complete:")
+        AtRestCheck.issueLines state.currentBranchId report.blockers
+        |> Stdlib.printLines
+      | Checked
+      | Failed -> ()
+
+    state
+
+let help (_state: Cli.AppState) : String =
+  [ "Audit all visible package types, values, and functions on the current branch."
+    "The command is read-only and reports definite errors separately from checks"
+    "that are incomplete because the checker cannot yet prove them."
+    ""
+    usage
+    ""
+    "Options:"
+    "  --failed      List only declarations with definite type errors"
+    "  --incomplete  List only declarations the checker could not fully prove"
+    "  --all         List checked, failed, and incomplete declarations"
+    ""
+    "Without a filter, failed and incomplete declarations are listed."
+    "--failed and --incomplete may be combined; --all is mutually exclusive." ]
+  |> Stdlib.String.join "\n"
+
+let complete
+  (_state: Cli.AppState)
+  (_args: List<String>)
+  : List<Cli.Completion.CompletionItem> =
+  []

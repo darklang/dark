@@ -117,3 +117,36 @@ let printSaveReport
           "At-rest type check was incomplete (save continued):") ]
       details
     |> Stdlib.printLines
+
+
+/// Print why `commit` refused: each declaration with definite type errors, its
+/// errors, and the way out.
+let printCommitRefusal
+  (branchId: Uuid)
+  (report: LanguageTools.AtRestTypeChecker.Report)
+  : Unit =
+  let failed =
+    report.items
+    |> Stdlib.List.filter (fun item ->
+      match item.verdict with
+      | Failed -> true
+      | _ -> false)
+  let count = Stdlib.List.length failed
+  let noun = if count == 1 then "declaration has" else "declarations have"
+  Stdlib.printLine
+    (Stdlib.Cli.UI.Colors.error
+      $"Cannot commit: {Stdlib.Int.toString count} {noun} definite type errors:")
+  failed
+  |> Stdlib.List.iter (fun item ->
+    Stdlib.printLine
+      (Stdlib.Cli.UI.Colors.error $"  {Typecheck.itemLabel branchId item.item}")
+    Stdlib.List.append
+      (issueLines branchId item.diagnostics)
+      (issueLines branchId item.blockers)
+    |> Stdlib.List.map (fun line -> "  " ++ line)
+    |> Stdlib.printLines)
+  Stdlib.printLine ""
+  Stdlib.printLine
+    (Stdlib.Cli.UI.Colors.hint
+      ("Fix them (or `undo` them), then commit again; "
+       ++ "`commit --allow-type-errors` commits anyway."))

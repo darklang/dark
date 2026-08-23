@@ -48,3 +48,30 @@ module AuthoringDuplicates =
    with
    | Error message -> message
    | Ok _ -> "stored") = "Declared more than once: fn Test.Dup.twice"
+
+  // A partial commit may select only the SetName row of an authored pair. The
+  // commit gate must still check the WIP body that the selected name publishes.
+  (match
+    fnOps "invalid" 1L "invalid-hash"
+    |> Stdlib.List.map (fun op ->
+      match op with
+      | AddFn fn ->
+        Darklang.LanguageTools.ProgramTypes.PackageOp.AddFn
+          { fn with
+              hash =
+                Darklang.LanguageTools.ProgramTypes.Hash.Hash "invalid-hash"
+              returnType =
+                Darklang.LanguageTools.ProgramTypes.TypeReference.TString }
+      | _ -> op)
+   with
+   | invalidOps ->
+     let selectedSetName =
+       invalidOps
+       |> Stdlib.List.filter (fun op ->
+         match op with
+         | SetName (_, _) -> true
+         | _ -> false)
+     let checkOps =
+       Darklang.SCM.PackageOps.opsForCommitTypeCheck invalidOps selectedSetName
+     (Darklang.LanguageTools.AtRestTypeChecker.checkPackageOps checkOps).verdict) =
+    Darklang.LanguageTools.AtRestTypeChecker.Verdict.Failed
