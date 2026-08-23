@@ -14,6 +14,7 @@ module Branches = LibDB.Branches
 module Inserts = LibDB.Inserts
 module BranchOpPlayback = LibDB.BranchOpPlayback
 module Rebase = LibDB.Rebase
+module HS = LibDB.HashStabilization
 
 open Fumble
 open LibDB.Sqlite
@@ -398,6 +399,90 @@ let testPartialCommitDeprecationState =
 /// when the two versions actually DIFFER. Identical edits on both sides aren't a conflict — and the
 /// path-only check that predated this could never be cleared by editing (re-editing keeps the path
 /// "modified"), a permanent deadlock behind an impossible "fix it, then rebase" instruction.
+let testDuplicateDeclarations =
+  testTask
+    "duplicate declarations: detected before stabilization, refused at storage" {
+    let! (branch : PT.Branch) = Branches.create "test-bo-duplicates" PT.mainBranchId
+
+    // Two functions for ONE name with different bodies, as an authoring surface
+    // hands them over: placeholder identities, real hashes still to be computed.
+    let first = { makeFn (eInt64 1L) with hash = PT.Hash "" }
+    let second = { makeFn (eInt64 2L) with hash = PT.Hash "" }
+    let ops =
+      [ PT.PackageOp.AddFn first
+        PT.PackageOp.SetName(loc "twice", PT.PackageFn(PT.Hash "placeholder-1"))
+        PT.PackageOp.AddFn second
+        PT.PackageOp.SetName(loc "twice", PT.PackageFn(PT.Hash "placeholder-2")) ]
+
+    Expect.equal
+      (HS.duplicateDeclarations ops)
+      [ "fn Test.BranchOps.twice" ]
+      "the doubly-declared name is reported once, with its kind"
+    Expect.isEmpty
+      (HS.duplicateDeclarations (List.take 2 ops))
+      "a single declaration is not a duplicate"
+
+    // Why the check exists: stabilized anyway, the batch keys by name, so both
+    // bodies come out under the one surviving hash...
+    let stabilized = HS.computeRealHashes ops
+    let hashes = HS.extractAllHashes stabilized |> List.distinct
+    Expect.hasLength hashes 1 "stabilizing a duplicate collapses it to one hash"
+    let survivingHash = List.exactlyOne hashes
+
+    // ...which storage refuses as a broken invariant, whatever path sent it.
+    Expect.hasLength
+      (Inserts.hashClashes stabilized)
+      1
+      "one hash with two bodies is a clash"
+    Expect.isEmpty
+      (Inserts.hashClashes (List.skip 2 stabilized))
+      "one body per hash is sound"
+
+    // Content identity deliberately ignores authoring-only metadata and
+    // parameter names. Those differences must not turn two equivalent bodies
+    // with one hash into a storage collision.
+    let alphaFirst =
+      { testPackageFn [] (NEList.singleton "x") PT.TInt64 (eArg 0) with
+          description = "first description" }
+    let alphaSecond =
+      let fn = testPackageFn [] (NEList.singleton "renamed") PT.TInt64 (eArg 0)
+      { fn with
+          description = "second description"
+          parameters =
+            fn.parameters
+            |> NEList.map (fun p ->
+              { p with description = "different parameter description" }) }
+    let sharedMeaningHash = Hashing.computeFnHash Hashing.Normal alphaFirst
+    let equivalentAdds =
+      [ PT.PackageOp.AddFn { alphaFirst with hash = sharedMeaningHash }
+        PT.PackageOp.AddFn { alphaSecond with hash = sharedMeaningHash } ]
+    Expect.isEmpty
+      (Inserts.hashClashes equivalentAdds)
+      "meaning-equivalent declarations with different metadata are sound"
+
+    // Declared once, the same name goes through cleanly: stabilize, store,
+    // partially commit, and the body read back is the one its hash names.
+    let! (_ : int64) =
+      Inserts.insertAndApplyOpsAsWip branch.id (List.skip 2 stabilized)
+    let! wip = LibDB.Queries.getWipOpsWithIds branch.id
+    let ids = wip |> List.map (fun (id, _, _) -> id)
+    Expect.hasLength ids 2 "one Add+SetName pair is WIP"
+    let! (commitResult : Result<PT.Hash, string>) =
+      Inserts.commitWipOpsByIds
+        LibCloud.Account.IDs.darklang
+        branch.id
+        "commit the survivor"
+        ids
+    Expect.isOk commitResult "commit should succeed"
+
+    let! (stored : Option<PT.PackageFn.PackageFn>) =
+      LibDB.PackageManager.pt.getFn survivingHash |> Ply.toTask
+    match stored with
+    | Some fn -> Expect.equal fn.body second.body "stored body matches its hash"
+    | None -> failtest "the committed function should be readable by its hash"
+  }
+
+
 let testRebaseConflictsAreContentAware =
   testTask
     "rebase conflicts: only DIVERGENT both-sides edits are conflicts, not identical ones" {
@@ -541,5 +626,6 @@ let tests =
       testPartialCommit
       testPartialCommitSameFqn
       testPartialCommitDeprecationState
+      testDuplicateDeclarations
       testRebaseConflictsAreContentAware
       testRebaseConflictCrossKind ]

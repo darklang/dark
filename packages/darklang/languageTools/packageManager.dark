@@ -164,6 +164,28 @@ module Function =
     | None -> Stdlib.Option.Option.None
 
 
+/// Replace the provisional hashes in a batch of package ops with real
+/// content-addressed ones. SCC-aware: references between items in the batch
+/// are rewritten to the final hashes too, so a batch lowered against
+/// placeholder or first-pass identities comes out self-consistent.
+let stabilizeHashes
+  (ops: List<ProgramTypes.PackageOp>)
+  : List<ProgramTypes.PackageOp> =
+  Builtin.pmStabilizeHashes ops
+
+
+/// The names that more than one declaration in <param ops> would bind, as
+/// `"fn Owner.Module.name"` strings; empty when the batch is well-formed.
+///
+/// `stabilizeHashes` keys the batch by name, so a batch that declares one name
+/// twice comes out with both bodies under a single content hash. Check this on
+/// anything about to be stabilized and stored, and refuse it with the names.
+let duplicateDeclarations
+  (ops: List<ProgramTypes.PackageOp>)
+  : List<String> =
+  Builtin.pmDuplicateDeclarations ops
+
+
 /// Find any item (type, fn, or value) at a location.
 /// Returns the hash and what kind of item it is.
 let findAny

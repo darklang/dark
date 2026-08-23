@@ -1,0 +1,50 @@
+// A batch that declares one name twice must be refused before it is stabilized
+// and stored: `PackageManager.stabilizeHashes` keys by name, so both bodies would
+// come out under one content hash. `addAuthored` is the boundary every authoring
+// surface (fn/type/val/module, the Workbench, the LSP) goes through.
+
+module AuthoringDuplicates =
+  let fnOps
+    (name: String)
+    (body: Int64)
+    (placeholder: String)
+    : List<Darklang.LanguageTools.ProgramTypes.PackageOp> =
+    let fn =
+      Darklang.LanguageTools.ProgramTypes.PackageFn.PackageFn
+        { hash = Darklang.LanguageTools.ProgramTypes.Hash.Hash ""
+          body = Darklang.LanguageTools.ProgramTypes.Expr.EInt64(1L, body)
+          typeParams = []
+          parameters =
+            [ Darklang.LanguageTools.ProgramTypes.PackageFn.Parameter
+                { name = "x"
+                  typ = Darklang.LanguageTools.ProgramTypes.TypeReference.TUnit
+                  description = "" } ]
+          returnType = Darklang.LanguageTools.ProgramTypes.TypeReference.TInt64
+          description = "" }
+    [ Darklang.LanguageTools.ProgramTypes.PackageOp.AddFn fn
+      Darklang.LanguageTools.ProgramTypes.PackageOp.SetName(
+        Darklang.LanguageTools.ProgramTypes.PackageLocation
+          { owner = "Test"; modules = [ "Dup" ]; name = name },
+        Darklang.LanguageTools.ProgramTypes.Reference.PackageFn(
+          Darklang.LanguageTools.ProgramTypes.Hash.Hash placeholder
+        )
+      ) ]
+
+  // Two bodies, one name: named once, with its kind.
+  (Darklang.LanguageTools.PackageManager.duplicateDeclarations
+    (Stdlib.List.append (fnOps "twice" 1L "p1") (fnOps "twice" 2L "p2"))) =
+    [ "fn Test.Dup.twice" ]
+
+  // Two names: no duplicate.
+  (Darklang.LanguageTools.PackageManager.duplicateDeclarations
+    (Stdlib.List.append (fnOps "one" 1L "p1") (fnOps "two" 2L "p2"))) = []
+
+  // The common boundary refuses the batch and names the culprit; nothing is
+  // stabilized or stored.
+  (match
+    Darklang.SCM.PackageOps.addAuthored
+      Darklang.SCM.Branch.mainBranchId
+      (Stdlib.List.append (fnOps "twice" 1L "p1") (fnOps "twice" 2L "p2"))
+   with
+   | Error message -> message
+   | Ok _ -> "stored") = "Declared more than once: fn Test.Dup.twice"

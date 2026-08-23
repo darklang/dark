@@ -18,12 +18,43 @@ type Commit =
 /// Returns the number of inserted ops on success (duplicates are skipped),
 /// or an error message on failure.
 ///
-/// Use `commit` to commit WIP ops.
+/// This is raw storage: nothing is checked and nothing is rejected on the checker's
+/// account. Sync (`Darklang.Sync`), rename and deprecate use it — their ops carry
+/// final hashes and add no declaration. Declarations written just now go through
+/// `addAuthored`. Use `commit` to commit WIP ops.
 let add
   (branchId: Uuid)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
   : Stdlib.Result.Result<Int, String> =
   Builtin.scmAddOps branchId ops
+
+
+/// Store declarations written just now on an interactive surface (`fn`, `type`,
+/// `val`, `module`, the Workbench, the LSP) as WIP on <param branchId>, and
+/// report the at-rest type check on them.
+///
+/// Stabilizes the placeholder hashes as one graph first (so mutually recursive
+/// declarations get consistent content-addressed hashes, and the checker sees the
+/// identities storage will keep), then stores that exact batch. It never refuses
+/// on the checker: the gate is `commit`, so a definite type error can sit in your
+/// WIP but cannot leave your branch. Show the report. `Error` is a storage failure,
+/// or a batch that declares one name twice: stabilizing that would file both
+/// bodies under one hash, so it is refused here, whichever surface sent it.
+let addAuthored
+  (branchId: Uuid)
+  (ops: List<LanguageTools.ProgramTypes.PackageOp>)
+  : Stdlib.Result.Result<LanguageTools.AtRestTypeChecker.Report, String> =
+  let duplicates = LanguageTools.PackageManager.duplicateDeclarations ops
+  if Stdlib.Bool.not (Stdlib.List.isEmpty duplicates) then
+    Stdlib.Result.Result.Error(
+      "Declared more than once: " ++ (Stdlib.String.join duplicates ", "))
+  else
+    let stabilizedOps = LanguageTools.PackageManager.stabilizeHashes ops
+    match add branchId stabilizedOps with
+    | Ok _ ->
+      Stdlib.Result.Result.Ok(
+        LanguageTools.AtRestTypeChecker.checkPackageOps stabilizedOps)
+    | Error message -> Stdlib.Result.Result.Error message
 
 
 /// Get recent package ops from the database
