@@ -632,8 +632,7 @@ let private parsedType (tsrc : string) : WT.TypeReference =
 /// PM/builtins). Exercises the structural desugars WT2PT folds in (which used to
 /// live in the separate R→WT lowering).
 let private toPT (e : WT.Expr) : PT.Expr =
-  let emptyBuiltins : RTT.Builtins =
-    { values = Dictionary.empty (); fns = Dictionary.empty () }
+  let emptyBuiltins : RTT.Builtins = LibExecution.Builtin.make [] []
   let ctx : WT2PT.Context =
     { currentFnName = None; argMap = Map.empty; localBindings = Set.empty }
   (WT2PT.Expr.toPT
@@ -653,8 +652,7 @@ let private toPTWithInModule
   (context : WT2PT.Context)
   (e : WT.Expr)
   : PT.Expr =
-  let emptyBuiltins : RTT.Builtins =
-    { values = Dictionary.empty (); fns = Dictionary.empty () }
+  let emptyBuiltins : RTT.Builtins = LibExecution.Builtin.make [] []
   (WT2PT.Expr.toPT
     emptyBuiltins
     pm

@@ -100,8 +100,7 @@ let private declarationsToModule
       validated
       |> Validation.ValidatedSourceFile.toWrittenTypes
       |> WTSourceFile.items
-    let builtins : RT.Builtins =
-      { values = state.values.builtIn; fns = state.fns.builtIn }
+    let builtins = state.builtins
     let baseModules = if scriptName = "" then [] else [ scriptName ]
 
     // Build WT package declarations + top-level expressions.

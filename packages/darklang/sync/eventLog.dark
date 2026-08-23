@@ -56,7 +56,7 @@ type Batch =
 /// transfers in bounded batches — loop on the returned cursor until the events come back empty.
 let readSince (cursor: Int64) (limit: Int64) : Batch =
   let (commits, events, next) =
-    Builtin.packageOpsReadNative<Commit, Event> cursor limit
+    Builtin.packageOpsReadNative cursor limit
 
   Batch { commits = commits; events = events; next = next }
 
@@ -65,7 +65,7 @@ let readSince (cursor: Int64) (limit: Int64) : Batch =
 /// a human. The resume cursor comes from `readSince`'s `next`. Idempotent: re-appending the same events is a
 /// no-op (content-addressed ids), and reports no changes.
 let append (commits: List<Commit>) (events: List<Event>) : AppendResult =
-  Builtin.packageOpsAppendNative<Commit, Event> commits events
+  Builtin.packageOpsAppendNative commits events
 
 
 // ── the branch-structure log ──────────────────────────────────────────────────────────────────────
@@ -89,13 +89,13 @@ type BranchBatch =
 /// Read at most <param limit> branch ops after <param cursor> — as a Stream + the resume cursor. Built
 /// natively.
 let readBranchOps (cursor: Int64) (limit: Int64) : BranchBatch =
-  let (events, next) = Builtin.branchOpsReadNative<BranchOpEvent> cursor limit
+  let (events, next) = Builtin.branchOpsReadNative cursor limit
   BranchBatch { events = events; next = next }
 
 /// Apply received branch ops into the branch-ops log; folds into branches/commits. Returns how many were
 /// processed. Idempotent — content-addressed, so re-applying is a no-op.
 let appendBranchOps (events: List<BranchOpEvent>) : Int =
-  Builtin.branchOpsAppendNative<BranchOpEvent> events
+  Builtin.branchOpsAppendNative events
 
 
 // ── the resolutions log ───────────────────────────────────────────────────────────────────────────
@@ -121,11 +121,11 @@ type ResolutionBatch =
 /// Read at most <param limit> resolutions after <param cursor> — as a Stream + resume cursor.
 let readResolutions (cursor: Int64) (limit: Int64) : ResolutionBatch =
   let (events, next) =
-    Builtin.resolutionsReadNative<ResolutionEvent> cursor limit
+    Builtin.resolutionsReadNative cursor limit
 
   ResolutionBatch { events = events; next = next }
 
 /// Apply received resolutions — record + overlay onto the locations projection. Returns how many were
 /// processed. Idempotent + LWW-gated.
 let appendResolutions (events: List<ResolutionEvent>) : Int =
-  Builtin.resolutionsAppendNative<ResolutionEvent> events
+  Builtin.resolutionsAppendNative events
