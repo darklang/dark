@@ -250,7 +250,7 @@ let fns () : List<BuiltInFn> =
 
 
     { name = fn "dictSet" 0
-      typeParams = []
+      typeParams = [ "a" ]
       parameters =
         [ Param.make "dict" (TDict(TVariable "a")) ""
           Param.make "key" TString ""
@@ -279,7 +279,7 @@ let fns () : List<BuiltInFn> =
 
 
     { name = fn "dictSetOverridingDuplicates" 0
-      typeParams = []
+      typeParams = [ "a" ]
       parameters =
         [ Param.make "dict" (TDict(TVariable "a")) ""
           Param.make "key" TString ""

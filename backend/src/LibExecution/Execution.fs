@@ -44,6 +44,7 @@ let createState
     branchId = branchId
     program = program
 
+    builtins = builtins
     types = { package = pm.getType }
     values = { builtIn = builtins.values; package = pm.getValue }
     blobs = { get = pm.getBlob; persist = pm.persistBlob }

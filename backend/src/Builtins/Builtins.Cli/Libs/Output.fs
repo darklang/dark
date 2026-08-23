@@ -105,7 +105,7 @@ let fns () : List<BuiltInFn> =
 
 
     { name = fn "debug" 0
-      typeParams = []
+      typeParams = [ "a" ]
       parameters =
         [ Param.make "label" TString "The label to be printed."
           Param.make "value" (TVariable "a") "The value to be printed." ]
