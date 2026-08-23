@@ -84,8 +84,11 @@ let updatedItem
 
 
 /// Return the definitions that replaced an existing package location.
-/// Hash stabilization has already replaced the location placeholders in these
-/// SetName ops, so the hashes are safe to pass to propagation after insertion.
+///
+/// Decide this BEFORE the batch is stored: afterwards the new hash is itself in
+/// each location's history and everything looks like an update. The hashes here
+/// are lowering's placeholders; `Propagate.autoPropagateAfterUpdate` resolves the
+/// stored one from the location.
 let updatedItems
   (branchId: Uuid)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
@@ -193,22 +196,23 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               { ctx with pm = pm }
               rootModule
 
-          // Resolve the placeholders as one graph so mutually recursive
-          // declarations receive consistent content-addressed hashes.
-          let ops =
-            LanguageTools.WrittenTypesToProgramTypes.stabilizePackageOps
-              ops
           let updates = updatedItems branchId ops
 
           if Errors.reportUnresolvedNames branchId unresolvedNames then
             state
           else
-            match SCM.PackageOps.add branchId ops with
+            // `addAuthored` stabilizes the placeholder hashes as one graph (so
+            // mutually recursive declarations get consistent content-addressed
+            // hashes), stores the batch, and reports the type check; `commit`
+            // is what refuses a Failed one.
+            match SCM.PackageOps.addAuthored branchId ops with
             | Error message ->
               Stdlib.printLine
                 (Stdlib.Cli.UI.Colors.error $"Failed to define module: {message}")
               state
-            | Ok _ ->
+            | Ok report ->
+              AtRestCheck.printSaveReport branchId report
+
               updates
               |> Stdlib.List.iter (fun update ->
                 Propagate.autoPropagateAfterUpdate
@@ -223,13 +227,14 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
               state
 
 
-let help (state: Cli.AppState) : Cli.AppState =
+let help (_state: Cli.AppState) : String =
   [ "Define a module from multiple package declarations atomically"
     ""
     "Usage: module <module> <source-file|->"
     ""
     "The source may contain functions, types, values, and nested modules."
-    "All declarations are validated before a single package operation is added."
+    "All declarations are validated, then saved as WIP in one batch; the at-rest"
+    "type check is reported and `commit` refuses definite type errors."
     ""
     "Example:"
     "  ./scripts/run-cli module /Darklang.Example - <<'EOF'"
@@ -237,8 +242,7 @@ let help (state: Cli.AppState) : Cli.AppState =
     "  let double (n: Int) : Int = n * 2"
     "  let quadruple (n: Int) : Int = double (double n)"
     "  EOF"
-  ] |> Stdlib.printLines
-  state
+  ] |> Stdlib.String.join "\n"
 
 
 let complete
