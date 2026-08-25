@@ -169,8 +169,8 @@ module TypeReference =
 
 module InfixFnName =
   let toFnName (name : PT.InfixFnName) : RT.FQFnName.Builtin =
-    // Operators dispatch by runtime value type. The shared PT table also keeps
-    // lowering and static checking aligned.
+    // Use the shared operator-to-builtin mapping so runtime lowering and static
+    // checking resolve operators consistently.
     RT.FQFnName.builtin (PT.InfixFnName.toBuiltinName name) 0
 
 
