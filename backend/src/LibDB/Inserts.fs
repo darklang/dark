@@ -205,8 +205,9 @@ let insertAndApplyOpsAsWip
   insertAndApplyOps branchId None ops
 
 
-/// Report hashes claimed by multiple `Add*` bodies. This is a storage invariant
-/// on every path, including sync: one content hash must name exactly one body.
+/// Report hashes claimed by different canonical bodies in this batch. This is
+/// an early error for callers that can validate before writing the op log;
+/// `PackageOpPlayback` also enforces the invariant against stored content.
 let hashClashes (ops : List<PT.PackageOp>) : List<string> =
   let declared =
     ops

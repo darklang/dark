@@ -13,6 +13,7 @@ module PT = LibExecution.ProgramTypes
 module Branches = LibDB.Branches
 module Inserts = LibDB.Inserts
 module BranchOpPlayback = LibDB.BranchOpPlayback
+module PackageOpPlayback = LibDB.PackageOpPlayback
 module Rebase = LibDB.Rebase
 module HS = LibDB.HashStabilization
 
@@ -427,7 +428,7 @@ let testDuplicateDeclarations =
     Expect.hasLength hashes 1 "stabilizing a duplicate collapses it to one hash"
     let survivingHash = List.exactlyOne hashes
 
-    // Storage independently enforces the same invariant.
+    // Batch preflight catches the collision before any op is written.
     Expect.hasLength
       (Inserts.hashClashes stabilized)
       1
@@ -435,6 +436,27 @@ let testDuplicateDeclarations =
     Expect.isEmpty
       (Inserts.hashClashes (List.skip 2 stabilized))
       "one body per hash is sound"
+
+    // The projection writer is the shared boundary for local authoring, sync,
+    // and replay. It must not replace an existing hash with another body.
+    let collisionHash = Hashing.computeFnHash Hashing.Normal first
+    let storedFirst = { first with hash = collisionHash }
+    let conflictingSecond = { second with hash = collisionHash }
+    do! PackageOpPlayback.applyOps branch.id None [ PT.PackageOp.AddFn storedFirst ]
+    let mutable collisionError : Option<string> = None
+    try
+      do!
+        PackageOpPlayback.applyOps
+          branch.id
+          None
+          [ PT.PackageOp.AddFn conflictingSecond ]
+    with ex ->
+      collisionError <- Some ex.Message
+    let (PT.Hash collisionHashStr) = collisionHash
+    Expect.equal
+      collisionError
+      (Some $"fn hash {collisionHashStr} is already stored with different content")
+      "the shared projection writer rejects a hash collision"
 
     // Authoring metadata and alpha-renaming do not change content identity.
     let alphaFirst =
@@ -455,6 +477,16 @@ let testDuplicateDeclarations =
     Expect.isEmpty
       (Inserts.hashClashes equivalentAdds)
       "meaning-equivalent declarations with different metadata are sound"
+    do!
+      PackageOpPlayback.applyOps
+        branch.id
+        None
+        [ PT.PackageOp.AddFn { alphaFirst with hash = sharedMeaningHash } ]
+    do!
+      PackageOpPlayback.applyOps
+        branch.id
+        None
+        [ PT.PackageOp.AddFn { alphaSecond with hash = sharedMeaningHash } ]
 
     // A single declaration stabilizes, stores, and partially commits normally.
     let! (_ : int64) =
