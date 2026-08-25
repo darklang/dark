@@ -10,6 +10,9 @@ module ValueType = LibExecution.ValueType
 module RTE = RuntimeError
 
 
+// Builtin types cannot express “both operands have the same numeric type,” so
+// these operator signatures are intentionally loose. Runtime dispatch and the
+// at-rest checker enforce the constraint.
 let varA = TVariable "a"
 let varB = TVariable "b"
 
@@ -612,7 +615,4 @@ let fns () : List<BuiltInFn> =
     ]
 
 
-let builtins () =
-  // Operator signatures cannot express same-type numeric constraints. Runtime
-  // dispatch enforces them; the at-rest checker uses operator-specific rules.
-  LibExecution.Builtin.make [] (fns ())
+let builtins () = LibExecution.Builtin.make [] (fns ())
