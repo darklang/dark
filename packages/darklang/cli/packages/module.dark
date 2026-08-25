@@ -88,12 +88,8 @@ let updatedItem
       (UpdatedItem { location = location; hash = hash; kind = kind })
 
 
-/// Return the definitions that replaced an existing package location.
-///
-/// Decide this BEFORE the batch is stored: afterwards the new hash is itself in
-/// each location's history and everything looks like an update. The hashes here
-/// are lowering's placeholders; `Propagate.autoPropagateAfterUpdate` resolves the
-/// stored one from the location.
+/// Definitions that replace an existing location. Must run before storage, while
+/// history still distinguishes creates from updates. Hashes are placeholders.
 let updatedItems
   (branchId: Uuid)
   (ops: List<LanguageTools.ProgramTypes.PackageOp>)
@@ -206,10 +202,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
           if Errors.reportUnresolvedNames branchId unresolvedNames then
             state
           else
-            // `addAuthored` stabilizes the placeholder hashes as one graph (so
-            // mutually recursive declarations get consistent content-addressed
-            // hashes), stores the batch, and reports the type check; `commit`
-            // is what refuses a Failed one.
+            // Stabilize and store the module as one mutually recursive batch.
             match SCM.PackageOps.addAuthored branchId ops with
             | Error message ->
               Stdlib.printLine
@@ -218,13 +211,11 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
             | Ok report ->
               AtRestCheck.printSaveReport branchId report
 
-              updates
-              |> Stdlib.List.iter (fun update ->
-                Propagate.autoPropagateAfterUpdate
-                  branchId
-                  update.location
-                  update.hash
-                  update.kind)
+              let propagationUpdates =
+                updates
+                |> Stdlib.List.map (fun update ->
+                  (update.location, update.hash, update.kind))
+              Propagate.autoPropagateUpdates branchId propagationUpdates
               let count = Stdlib.List.length declarations
               Stdlib.printLine
                 (Stdlib.Cli.UI.Colors.success

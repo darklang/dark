@@ -154,9 +154,8 @@ let packageOpsAndSources
         submoduleSources written.submodules program.submodules ]
   (ops, sources)
 
-/// Every source range that produced `reference`. Items are content-addressed, so
-/// two declarations with identical bodies share one hash and one report entry;
-/// each of them gets the diagnostic.
+/// All source ranges for `reference`; identical bodies share a content hash and
+/// therefore one report entry.
 let sourcesForItem
   (fallback: Parser.Range)
   (sources: List<ItemSource>)
@@ -186,10 +185,7 @@ let issueDiagnostic
     "darklang-at-rest"
     (AtRestTypeChecker.issueToString issue)
 
-/// The name resolver already reports every unresolved name in the document as a
-/// warning, at the identifier's own range. The checker blocks on the same names
-/// per item, at the declaration's range; publishing both warns twice for one
-/// problem.
+/// Exclude unresolved-name blockers already reported at their identifier ranges.
 let reportedByNameResolver (issue: AtRestTypeChecker.Issue) : Bool =
   match issue.code with
   | UnresolvedTypeName
@@ -203,10 +199,8 @@ let itemDiagnostics
   (item: AtRestTypeChecker.ItemReport)
   : List<LanguageServerProtocol.Diagnostic.Diagnostic> =
   let ranges = sourcesForItem fallback sources item.item
-  // Severity follows the issue, not the item: a definite diagnostic is an error,
-  // a blocker is only "couldn't prove" and stays a warning even when the same
-  // item also has a definite error. Rendering a Failed item's blockers as errors
-  // would tell the author two things are wrong when the checker knows of one.
+  // Severity follows the issue: definite diagnostics are errors; incomplete
+  // blockers remain warnings even on an otherwise failed item.
   let keep (issue: AtRestTypeChecker.Issue) : Bool =
     Stdlib.Bool.not (reportedByNameResolver issue)
   let severityOf

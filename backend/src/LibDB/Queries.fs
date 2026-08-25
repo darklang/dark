@@ -157,6 +157,10 @@ type LocationTarget =
 
 /// Find items whose dep edges point at any of the given target package items.
 ///
+/// Returns only declarations visible from the current branch: current-branch WIP
+/// or committed rows, inherited committed rows, and the nearest binding when a
+/// child shadows an ancestor location.
+///
 /// Primary match: dep edge's target kind + location equal one of the targets.
 /// This prevents same-hash and same-location cross-kind cascades.
 ///
@@ -194,8 +198,22 @@ let private getDependentsByLocationsChunk
         |> String.concat ", "
 
       let branchParams = branchChain |> List.mapi (fun i id -> $"b_{i}", Sql.uuid id)
-      let branchInClause =
-        branchChain |> List.mapi (fun i _ -> $"@b_{i}") |> String.concat ", "
+      let branchOrder =
+        branchChain
+        |> List.mapi (fun i _ -> $"WHEN @b_{i} THEN {i}")
+        |> String.concat " "
+      let visibleBranchFilter =
+        match branchChain with
+        | [ _ ] -> "candidate.branch_id = @b_0"
+        | _current :: ancestors ->
+          let ancestorParams =
+            ancestors |> List.mapi (fun i _ -> $"@b_{i + 1}") |> String.concat ", "
+          $"""
+          (candidate.branch_id = @b_0
+            OR (candidate.branch_id IN ({ancestorParams})
+              AND candidate.commit_hash IS NOT NULL))
+          """
+        | [] -> "1 = 0"
       let hashParams =
         targets
         |> List.collect (fun target ->
@@ -211,10 +229,8 @@ let private getDependentsByLocationsChunk
         | [] ->
           $"""
           pd.depends_on_hash IN (
-            SELECT tl.item_hash FROM locations tl
+            SELECT tl.item_hash FROM visible_locations tl
             WHERE (tl.item_type, tl.owner, tl.modules, tl.name) IN ({locTuples})
-              AND tl.branch_id IN ({branchInClause})
-              AND tl.unlisted_at IS NULL
           )
           """
         | _ ->
@@ -229,21 +245,42 @@ let private getDependentsByLocationsChunk
 
       let sql =
         $"""
+          WITH ranked_locations AS (
+            SELECT
+              candidate.*,
+              ROW_NUMBER() OVER (
+                PARTITION BY
+                  candidate.item_type,
+                  candidate.owner,
+                  candidate.modules,
+                  candidate.name
+                ORDER BY
+                  CASE candidate.branch_id {branchOrder} END,
+                  CASE WHEN candidate.commit_hash IS NULL THEN 0 ELSE 1 END,
+                  candidate.created_at DESC
+              ) AS visibility_rank
+            FROM locations candidate
+            WHERE candidate.unlisted_at IS NULL
+              AND {visibleBranchFilter}
+          ),
+          visible_locations AS (
+            SELECT * FROM ranked_locations WHERE visibility_rank = 1
+          )
           SELECT DISTINCT l.item_hash, l.item_type, l.owner, l.modules, l.name
           FROM package_dependencies pd
-          INNER JOIN locations l ON pd.item_hash = l.item_hash
+          INNER JOIN visible_locations l ON pd.item_hash = l.item_hash
           WHERE (
-              (pd.depends_on_item_type, pd.depends_on_owner, pd.depends_on_modules, pd.depends_on_name)
+              (pd.depends_on_item_type,
+               pd.depends_on_owner,
+               pd.depends_on_modules,
+               pd.depends_on_name)
                 IN ({locTuples})
               OR (
                 pd.depends_on_owner IS NULL
                 AND {hashFallbackClause}
               )
             )
-            AND l.unlisted_at IS NULL
-            AND l.branch_id IN ({branchInClause})
-          -- By name, not by hash. Hash order is stable but arbitrary to a reader, so a dependents list
-          -- looked shuffled; these columns are already selected, so ordering by them is free.
+          -- Keep dependents stable and readable by ordering by their locations.
           ORDER BY l.owner, l.modules, l.name
         """
 

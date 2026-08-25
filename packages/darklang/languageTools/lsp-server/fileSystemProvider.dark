@@ -171,8 +171,7 @@ module WriteFile =
     |> Stdlib.List.flatten
 
 
-  /// One declaration lowered to ProgramTypes: where it will live, what kind of
-  /// item it is, and the Add + SetName ops that put it there.
+  /// One lowered declaration and the ops that publish it.
   type LoweredDecl =
     { location: LanguageTools.ProgramTypes.PackageLocation
       kind: LanguageTools.ProgramTypes.ItemKind
@@ -180,10 +179,8 @@ module WriteFile =
       unresolvedNames: List<LanguageTools.WrittenTypes.UnresolvedName> }
 
 
-  /// Lower one declaration against `pm`. Placeholder hashes give each
-  /// declaration the same identity in both lowering passes; `pmStabilizeHashes`
-  /// replaces them with content-addressed ones before anything is checked or
-  /// stored.
+  /// Lower against `pm` with a stable placeholder identity; batch stabilization
+  /// replaces it before checking or storage.
   let lowerDecl
     (pm: LanguageTools.ProgramTypes.PackageManager.PackageManager)
     (branchId: Uuid)
@@ -193,7 +190,7 @@ module WriteFile =
     : LoweredDecl =
     let (extraModules, decl) = decl
 
-    // extraModules contains the full path, strip the owner to get modules
+    // `extraModules` includes the owner; package modules do not.
     let modules =
       match extraModules with
       | _owner :: rest -> rest
@@ -257,8 +254,7 @@ module WriteFile =
             [ LanguageTools.ProgramTypes.PackageOp.AddValue packageValue
               LanguageTools.ProgramTypes.PackageOp.SetName (location, ProgramTypes.Reference.PackageValue packageValue.hash) ]
           unresolvedNames = unresolvedNames }
-    // `collectDecls` flattens submodules and never yields exprs, so nothing
-    // here is saved.
+    // `collectDecls` flattens submodules and never saves expressions.
     | SubModule _
     | Expr _ ->
       LoweredDecl
@@ -369,10 +365,7 @@ module WriteFile =
             (sourceFile.declarations |> Stdlib.List.map WriteFile.sfDeclToModuleDecl)
         | None -> []
 
-      // One name, one declaration. Stabilizing a batch that binds a name twice
-      // files both bodies under one hash (`PackageManager.duplicateDeclarations`),
-      // and `addAuthored` refuses it anyway; refusing here names the culprits
-      // instead of reporting a storage failure.
+      // Reject duplicate names before stabilization collapses their identities.
       let duplicateNames =
         Cli.Packages.ModuleCommand.duplicateDeclarationNames allDecls
 
@@ -393,13 +386,8 @@ module WriteFile =
         let pm = LanguageTools.PackageManager.pm ()
         let branchId = state.currentBranchId
 
-        // Lower the file as one batch, the way diagnostics do (`Parser.CliScript.parseFromWT`):
-        // a first pass with unresolved names allowed gives every declaration a
-        // content-addressed identity, then a second pass against a package manager that
-        // knows those identities resolves references between declarations in the same
-        // file. Saving each declaration on its own left those references unresolved,
-        // which the checker only reports as Incomplete — so they were persisted even
-        // though the editor showed the document as clean.
+        // First assign batch identities, then lower against them so declarations
+        // in the same file resolve one another.
         let firstPassOps =
           allDecls
           |> Stdlib.List.map (WriteFile.lowerDecl pm branchId owner)
@@ -409,8 +397,7 @@ module WriteFile =
 
         let batchPm = ProgramTypes.PackageManager.withExtraOps pm firstPassOps
 
-        // Only NEW items are saved. Existence is checked against the persistent
-        // package manager; the batch one knows every declaration in the file.
+        // Save only locations absent from the persistent package manager.
         let allOps =
           allDecls
           |> Stdlib.List.map (WriteFile.lowerDecl batchPm branchId owner)
@@ -419,9 +406,8 @@ module WriteFile =
           |> Stdlib.List.map (fun lowered -> lowered.ops)
           |> Stdlib.List.flatten
 
-        // Only add ops if there are new items (added as WIP). The save succeeds
-        // whatever the at-rest checker says — its findings reach the editor as
-        // diagnostics (`Diagnostics.atRestDiagnostics`), and `commit` is the gate.
+        // Save as WIP; editor diagnostics report findings and `commit`
+        // enforces them.
         let addResult = SCM.PackageOps.addAuthored branchId allOps
 
         match addResult with

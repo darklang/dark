@@ -91,7 +91,9 @@ let collectTransitiveDependents
   (processed: List<String>)
   (pending: List<LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind>)
   (accumulated: List<LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind>)
-  : List<LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind> =
+  : List<
+      LanguageTools.ProgramTypes.PackageLocation
+      * LanguageTools.ProgramTypes.ItemKind> =
   let fqn = PrettyPrinter.ProgramTypes.PackageLocation.packageLocation
   match pending with
   | [] -> accumulated
@@ -130,15 +132,27 @@ let collectTransitiveDependents
       collectTransitiveDependents branchId newProcessed newTargets newAccumulated
 
 
-/// Get all transitive dependents (everything that could break if this changes)
+/// Get all transitive dependents of one or more targets.
+let getTransitiveDependentsFor
+  (branchId: Uuid)
+  (targets:
+    List<
+      (LanguageTools.ProgramTypes.PackageLocation
+       * LanguageTools.ProgramTypes.ItemKind)>)
+  : List<
+      LanguageTools.ProgramTypes.PackageLocation
+      * LanguageTools.ProgramTypes.ItemKind> =
+  collectTransitiveDependents branchId [] targets []
+  |> Stdlib.List.unique
+
+
+/// Get all transitive dependents (everything that could break if this changes).
 let getTransitiveDependents
   (branchId: Uuid)
   (targetLoc: LanguageTools.ProgramTypes.PackageLocation)
   (targetKind: LanguageTools.ProgramTypes.ItemKind)
   : List<LanguageTools.ProgramTypes.PackageLocation * LanguageTools.ProgramTypes.ItemKind> =
-  (collectTransitiveDependents branchId [] [ (targetLoc, targetKind) ] [])
-  |> Stdlib.List.uniqueBy (fun (loc, _) ->
-    PrettyPrinter.ProgramTypes.PackageLocation.packageLocation loc)
+  getTransitiveDependentsFor branchId [ (targetLoc, targetKind) ]
 
 
 /// Display all transitive dependents (what could break)

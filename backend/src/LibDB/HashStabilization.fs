@@ -186,15 +186,10 @@ let remapSetNames
     | other -> other)
 
 
-/// The (kind, FQN) pairs that more than one Add+SetName pair in <param ops>
-/// declares, as "fn Darklang.Foo.bar"-style strings, in first-seen order.
-///
-/// `computeRealHashes` assumes each location is declared once: it keys items by
-/// FQN, so two bodies at one name silently collapse to one hash, and whichever
-/// body loses is then stored under the winner's content hash. A raw op stream
-/// can legitimately hold the same name twice (edits are successive pairs, which
-/// `WipRefresh.compactWipOps` folds), so this is not checked in there; authoring
-/// boundaries call it on the batch they are about to stabilize and refuse.
+/// Duplicate (kind, FQN) declarations in <param ops>, formatted for display.
+/// Authoring must reject these before `computeRealHashes`, which keys by FQN and
+/// would otherwise assign both bodies one content hash. Raw WIP may contain
+/// successive edits and is compacted separately.
 let duplicateDeclarations (ops : List<PT.PackageOp>) : List<string> =
   let rec pairs (remaining : List<PT.PackageOp>) (acc : List<string * string>) =
     match remaining with

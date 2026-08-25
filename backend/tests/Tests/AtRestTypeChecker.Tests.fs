@@ -802,10 +802,8 @@ let private unitTests =
       }
 
       test "operator builtins called by name are checked as the operator" {
-        // `Builtin.lessThan` declares independent `'a`/`'b` parameters but is what
-        // `<` lowers to, and raises at runtime unless both are the same numeric
-        // type. Trusting the signature would prove `lessThan 1 "x" : Bool`; the
-        // checker applies the operator's rule instead.
+        // The loose builtin signature must not make `lessThan 1 "x"` checkable;
+        // direct calls use the same numeric rule as `<`.
         let environment = builtinEnvironment ()
         let call name lhs rhs =
           PT.EApply(
@@ -988,8 +986,7 @@ let private unitTests =
                   name = unconstrainedRTName
                   typeParams = [ "result" ]
                   returnType = RT.TVariable "result" } ]
-        // A result-only variable is not inferred from value arguments, so a call
-        // that omits its reified type arguments must not be trusted.
+        // Result-only variables require reified type arguments.
         oneArgFn
           PT.TUnit
           PT.TInt
@@ -997,9 +994,7 @@ let private unitTests =
         |> Checker.checkPackageFunction (environmentFor unconstrainedBuiltins)
         |> expectBlocker Checker.UnsupportedConstruct
 
-        // Supplying every declared/structural type argument makes that same
-        // signature checkable. This is how `Builtin.jsonParse<'a>` communicates
-        // the result type that its String parameter cannot constrain.
+        // Reified arguments make result-only types such as `jsonParse<'a>` sound.
         let explicitlyTypedCall =
           PT.EApply(
             140UL,
@@ -1014,8 +1009,7 @@ let private unitTests =
         |> Checker.checkPackageFunction (environmentFor unconstrainedBuiltins)
         |> expectChecked
 
-        // The real `unwrap : optOrRes -> 'a` has a result-only variable, so it is
-        // not trusted even though nothing marks it by name.
+        // `unwrap` infers its result from the solved Option/Result argument.
         oneArgFn
           PT.TUnit
           PT.TInt
@@ -1157,6 +1151,125 @@ let private unitTests =
             )
           )
         oneArgFn PT.TUnit (PT.TTuple(PT.TInt, PT.TString, [])) body
+        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectChecked
+      }
+
+      test "a let-bound lambda may call itself" {
+        // An unshadowed nested function can recurse and keeps its declared arity.
+        // This covers the Workbench `scan` regression.
+        let recurse =
+          PT.ELambda(
+            300UL,
+            NEList.doubleton
+              (PT.LPVariable(301UL, "n"))
+              (PT.LPVariable(317UL, "step")),
+            PT.EIf(
+              302UL,
+              PT.EInfix(
+                303UL,
+                PT.InfixFnCall PT.ComparisonEquals,
+                PT.EVariable(304UL, "n"),
+                PT.EInt(305UL, 0I)
+              ),
+              PT.EInt(306UL, 0I),
+              Some(
+                PT.EApply(
+                  307UL,
+                  PT.EVariable(308UL, "loop"),
+                  [],
+                  NEList.doubleton
+                    (PT.EInfix(
+                      309UL,
+                      PT.InfixFnCall PT.ArithmeticMinus,
+                      PT.EVariable(310UL, "n"),
+                      PT.EVariable(311UL, "step")
+                    ))
+                    (PT.EVariable(318UL, "step"))
+                )
+              )
+            )
+          )
+        let body =
+          PT.ELet(
+            312UL,
+            PT.LPVariable(313UL, "loop"),
+            recurse,
+            PT.EApply(
+              314UL,
+              PT.EVariable(315UL, "loop"),
+              [],
+              NEList.doubleton (PT.EArg(316UL, 0)) (PT.EInt(319UL, 1I))
+            )
+          )
+        oneArgFn PT.TInt PT.TInt body
+        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectChecked
+      }
+
+      test "a self-call is checked against the lambda's own type" {
+        // The let-rec scoping must not accept nonsense: passing the recursive
+        // result where the argument goes ties Int to the function type itself.
+        let recurse =
+          PT.ELambda(
+            320UL,
+            NEList.singleton (PT.LPVariable(321UL, "n")),
+            PT.EApply(
+              322UL,
+              PT.EVariable(323UL, "loop"),
+              [],
+              NEList.singleton (PT.EString(324UL, [ PT.StringText "wrong" ]))
+            )
+          )
+        let body =
+          PT.ELet(
+            325UL,
+            PT.LPVariable(326UL, "loop"),
+            recurse,
+            PT.EApply(
+              327UL,
+              PT.EVariable(328UL, "loop"),
+              [],
+              NEList.singleton (PT.EArg(329UL, 0))
+            )
+          )
+        oneArgFn PT.TInt PT.TInt body
+        |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
+        |> expectDiagnostic Checker.TypeMismatch
+      }
+
+      test "a same-named nested lambda captures an outer local" {
+        // Runtime lowering treats this as capture, not recursion: the new binding
+        // is not in scope in its RHS when an outer `f` already exists.
+        let inner =
+          PT.ELambda(
+            330UL,
+            NEList.singleton (PT.LPVariable(331UL, "x")),
+            PT.EInfix(
+              332UL,
+              PT.InfixFnCall PT.ArithmeticPlus,
+              PT.EVariable(333UL, "f"),
+              PT.EVariable(334UL, "x")
+            )
+          )
+        let body =
+          PT.ELet(
+            335UL,
+            PT.LPVariable(336UL, "f"),
+            PT.EInt(337UL, 1I),
+            PT.ELet(
+              338UL,
+              PT.LPVariable(339UL, "f"),
+              inner,
+              PT.EApply(
+                340UL,
+                PT.EVariable(341UL, "f"),
+                [],
+                NEList.singleton (PT.EArg(342UL, 0))
+              )
+            )
+          )
+        oneArgFn PT.TInt PT.TInt body
         |> Checker.checkPackageFunction Checker.TypeEnvironment.empty
         |> expectChecked
       }
@@ -1535,10 +1648,7 @@ let private unitTests =
           "each candidate has a distinct stable identity"
       }
 
-      // Deeply nested input must come back as a verdict, not a stack overflow: an
-      // overflow is not an exception and takes the CLI, LSP or server with it.
-      // These run in-process because the checker probes the stack before each
-      // recursive step and converts exhaustion into an Incomplete blocker.
+      // Deep input must return `Incomplete`, not overflow the process stack.
       test "a deeply nested type is reported as Incomplete, not a crash" {
         let deep = [ 1..1_000_000 ] |> List.fold (fun typ _ -> PT.TList typ) PT.TInt
         oneArgFn deep PT.TUnit (PT.EUnit 1UL)
@@ -1670,9 +1780,7 @@ let private unitTests =
       }
 
       test "a deeply nested alias chain is reported as Incomplete, not a crash" {
-        // Each alias wraps the next in a container, so expanding one means
-        // descending into it: the walk cannot tail-call its way through. (A flat
-        // chain of bare aliases does, and completes as Checked.)
+        // Container-wrapped aliases force a non-tail-recursive descent.
         let depth = 300_000
         let aliasName (index : int) = PT.FQTypeName.package $"alias-{index}"
         let environment =
@@ -1727,12 +1835,8 @@ let private unitTests =
       } ]
 
 
-// The rollout policy end to end: `dark fn` and `dark module` store through
-// `SCM.PackageOps.addAuthored`, which saves Failed, Checked and Incomplete alike and
-// reports the verdict; `commit` refuses while a Failed declaration is in the batch,
-// and `commit --allow-type-errors` takes it anyway. Runs the real CLI against an
-// isolated seeded
-// store, so it is sequenced like the other harness users.
+// End-to-end rollout policy: saves report but allow errors; commits reject definite
+// errors unless explicitly overridden.
 let private authoringTypeCheckPolicy =
   testTask "authoring warns on Failed; commit refuses it unless allowed" {
     let! instance = seededInstance "authoring-type-check-policy"
@@ -1802,8 +1906,7 @@ let private authoringTypeCheckPolicy =
         "[TypeMismatch]"
         "definite diagnostics are included alongside incomplete blockers"
 
-      // `module` batches several declarations through the same door: the bad
-      // one is reported, the whole batch is still saved.
+      // Module saves report errors without rejecting the batch.
       let modulePath =
         System.IO.Path.Combine(
           System.IO.Path.GetTempPath(),
@@ -1824,8 +1927,7 @@ let private authoringTypeCheckPolicy =
         "At-rest type check failed (saved as WIP"
         "and its bad declaration is reported"
 
-      // The gate. Failed declarations are in WIP, so a plain commit is refused,
-      // names the culprits, and commits nothing.
+      // A plain commit names failed WIP declarations and commits nothing.
       let! refused = runCli state [ "commit"; "gate"; "--yes" ]
       Expect.stringContains
         refused
@@ -1844,7 +1946,7 @@ let private authoringTypeCheckPolicy =
         "Uncommitted changes"
         "the WIP is untouched"
 
-      // A partial commit of only the good declarations goes through.
+      // A partial commit of checked declarations succeeds.
       let! partial =
         runCli
           state
@@ -1854,9 +1956,7 @@ let private authoringTypeCheckPolicy =
         "Created commit"
         "Checked declarations commit on their own"
 
-      // Fixing the error un-refuses it (the batch is re-checked at commit time),
-      // and --allow-type-errors takes whatever is left. --force is a different
-      // override (unresolved references) and must not open this gate.
+      // Recheck fixes at commit time; only --allow-type-errors opens this gate.
       let! fixedOutput =
         runCli
           state
@@ -1889,8 +1989,211 @@ let private authoringTypeCheckPolicy =
       teardown [ instance ]
   }
 
+// Updates report failed affected dependents immediately; commit remains the gate.
+let private updateReportsFailedDependents =
+  testTask "updating a definition reports dependents with type errors" {
+    let! instance = seededInstance "at-rest-update-dependents"
+    try
+      activate instance
+      let! state = buildCliState ()
+
+      let modulePath =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          "at-rest-update-dependents.dark"
+        )
+      System.IO.File.WriteAllText(
+        modulePath,
+        "let double (n: Int) : Int = n * 2\n"
+        + "let quad (n: Int) : Int = double (double n)\n"
+      )
+      let! moduleOutput =
+        runCli state [ "module"; "Test.AtRestDependents"; modulePath ]
+      Expect.stringContains
+        moduleOutput
+        "Defined 2 declarations"
+        "the module is saved"
+
+      // The breaking change: quad still passes an Int and expects one back.
+      let! broke =
+        runCli
+          state
+          [ "fn"; "Test.AtRestDependents.double"; "(s: String): String = s" ]
+      Expect.stringContains
+        broke
+        "After this update, 1 dependent has definite type errors"
+        "the damage is reported at update time, not first at commit"
+      Expect.stringContains
+        broke
+        "Test.AtRestDependents.quad"
+        "naming the broken caller"
+      Expect.stringContains broke "[TypeMismatch]" "with its diagnostics"
+
+      // A compatible update heals quad along with it; nothing to report.
+      let! (healed : string) =
+        runCli
+          state
+          [ "fn"; "Test.AtRestDependents.double"; "(n: Int): Int = n * 3" ]
+      Expect.isFalse
+        (healed.Contains "After this update")
+        "a compatible update says nothing about dependents"
+
+      // If a direct caller was already invalid, a compatible update still
+      // reports its current state without falsely claiming causation.
+      let! alreadyBroken =
+        runCli
+          state
+          [ "fn"
+            "Test.AtRestDependents.alreadyBroken"
+            "(n: Int): String = double n" ]
+      Expect.stringContains
+        alreadyBroken
+        "At-rest type check failed"
+        "the pre-existing caller error is saved as WIP"
+      let! compatible =
+        runCli
+          state
+          [ "fn"; "Test.AtRestDependents.double"; "(n: Int): Int = n * 4" ]
+      Expect.stringContains
+        compatible
+        "After this update, 1 dependent has definite type errors"
+        "the existing error remains visible after the update"
+      Expect.isFalse
+        (compatible.Contains "This update broke")
+        "the compatible update is not blamed for an existing error"
+
+    finally
+      teardown [ instance ]
+  }
+
+
+let private updateReportsTransitiveValueFailures =
+  testTask "value updates report failures beyond the direct dependent" {
+    let! instance = seededInstance "at-rest-update-transitive"
+    try
+      activate instance
+      let! state = buildCliState ()
+
+      let modulePath =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          "at-rest-update-transitive.dark"
+        )
+      System.IO.File.WriteAllText(
+        modulePath,
+        "val source = 1\n"
+        + "val relay = source\n"
+        + "let useRelay (n: Int) : Int = relay + n\n"
+      )
+      let! _ = runCli state [ "module"; "Test.AtRestTransitive"; modulePath ]
+
+      let! output =
+        runCli state [ "val"; "Test.AtRestTransitive.source"; "\"changed\"" ]
+      Expect.stringContains
+        output
+        "After this update, 1 dependent has definite type errors"
+        "the transitive caller is checked after relay's inferred type changes"
+      Expect.stringContains
+        output
+        "Test.AtRestTransitive.useRelay"
+        "the broken transitive caller is named"
+    finally
+      teardown [ instance ]
+  }
+
+
+let private dependentCountsUseLocations =
+  testTask "dependent reports count locations that share one content hash" {
+    let! instance = seededInstance "at-rest-update-alias-count"
+    try
+      activate instance
+      let! state = buildCliState ()
+
+      let modulePath =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          "at-rest-update-alias-count.dark"
+        )
+      System.IO.File.WriteAllText(
+        modulePath,
+        "let source (n: Int) : Int = n\n"
+        + "let first (n: Int) : Int = source n\n"
+        + "let second (n: Int) : Int = source n\n"
+      )
+      let! _ = runCli state [ "module"; "Test.AtRestAliasCount"; modulePath ]
+
+      let! output =
+        runCli
+          state
+          [ "fn"; "Test.AtRestAliasCount.source"; "(s: String): String = s" ]
+      Expect.stringContains
+        output
+        "After this update, 2 dependents have definite type errors"
+        "the report counts both locations, not one shared body hash"
+      Expect.stringContains
+        output
+        "Test.AtRestAliasCount.first"
+        "the first alias is named"
+      Expect.stringContains
+        output
+        "Test.AtRestAliasCount.second"
+        "the second alias is named"
+    finally
+      teardown [ instance ]
+  }
+
+
+let private moduleUpdatesReportDependentsOnce =
+  testTask "module updates consolidate dependent reporting" {
+    let! instance = seededInstance "at-rest-update-module-batch"
+    try
+      activate instance
+      let! state = buildCliState ()
+
+      let initialPath =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          "at-rest-update-module-initial.dark"
+        )
+      System.IO.File.WriteAllText(
+        initialPath,
+        "let first (n: Int) : Int = n\n"
+        + "let second (n: Int) : Int = n\n"
+        + "let combined (n: Int) : Int = first n + second n\n"
+      )
+      let! _ = runCli state [ "module"; "Test.AtRestModuleBatch"; initialPath ]
+
+      let updatePath =
+        System.IO.Path.Combine(
+          System.IO.Path.GetTempPath(),
+          "at-rest-update-module-update.dark"
+        )
+      System.IO.File.WriteAllText(
+        updatePath,
+        "let first (s: String) : String = s\n" + "let second (b: Bool) : Bool = b\n"
+      )
+      let! output = runCli state [ "module"; "Test.AtRestModuleBatch"; updatePath ]
+      Expect.stringContains
+        output
+        "After these updates, 1 dependent has definite type errors"
+        "the final graph is reported as one update batch"
+      Expect.equal
+        (output.Split("After these updates").Length - 1)
+        1
+        "the shared dependent is reported once"
+    finally
+      teardown [ instance ]
+  }
+
 let private authoringTests =
-  testSequenced <| testList "authoring" [ authoringTypeCheckPolicy ]
+  testSequenced
+  <| testList
+    "authoring"
+    [ authoringTypeCheckPolicy
+      updateReportsFailedDependents
+      updateReportsTransitiveValueFailures
+      dependentCountsUseLocations
+      moduleUpdatesReportDependentsOnce ]
 
 
 let tests = testList "AtRestTypeChecker" [ unitTests; authoringTests ]

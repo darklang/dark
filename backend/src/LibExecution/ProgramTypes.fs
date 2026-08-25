@@ -550,9 +550,8 @@ and PipeExpr =
 
 
 module InfixFnName =
-  /// The builtin each infix operator lowers to at runtime. `a + b` and
-  /// `Builtin.add a b` execute identically, so anything that reasons about one
-  /// (lowering, the at-rest checker) reads this table rather than its own copy.
+  /// The builtin each infix operator lowers to. Lowering and static checking
+  /// share this table.
   let toBuiltinName (name : InfixFnName) : string =
     match name with
     | ArithmeticPlus -> "add"

@@ -9,9 +9,8 @@ module VT = ValueType
 module D = LibExecution.DvalDecoder
 module C2DT = LibExecution.CommonToDarkTypes
 
-/// Recursive Dark-to-ProgramTypes conversion runs before consumers such as the
-/// at-rest checker can apply their own depth guards. Probe first so pathological
-/// persisted input raises a catchable exception instead of overflowing the process.
+/// Guard recursive conversion of persisted input against process-ending stack
+/// overflow.
 let private ensureSufficientExecutionStack () : unit =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
 

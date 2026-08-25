@@ -205,16 +205,8 @@ let insertAndApplyOpsAsWip
   insertAndApplyOps branchId None ops
 
 
-/// The hashes that two `Add*` ops in <param ops> claim for different content,
-/// as ready-to-print messages; empty when the batch is sound.
-///
-/// Unlike `kindClashes` this IS an invariant, on every path including sync: a
-/// hash names exactly one body. The batch that breaks it is a duplicate name
-/// that went through `HashStabilization.computeRealHashes`, which keys by name
-/// and so hands both bodies the survivor's hash. Storing that would file one
-/// body under the other's identity (and insertion's dedupe of identical ops
-/// then leaves an orphan `Add` that `WipRefresh` cannot repair), so it is
-/// refused before anything is written.
+/// Report hashes claimed by multiple `Add*` bodies. This is a storage invariant
+/// on every path, including sync: one content hash must name exactly one body.
 let hashClashes (ops : List<PT.PackageOp>) : List<string> =
   let declared =
     ops
@@ -236,9 +228,8 @@ let hashClashes (ops : List<PT.PackageOp>) : List<string> =
     Map.empty
   |> Map.toList
   |> List.choose (fun ((kind, Hash h), fingerprints) ->
-    // Compare the same canonical, meaning-stable representation used for
-    // content identity. Descriptions, parameter names and alpha-renamed
-    // binders deliberately do not make two declarations different bodies.
+    // Compare canonical content identity; authoring metadata and alpha-renamed
+    // binders do not distinguish bodies.
     let distinct = List.distinct fingerprints
     if List.length distinct > 1 then
       Some $"{kind} hash {h} is claimed by {List.length distinct} different bodies"

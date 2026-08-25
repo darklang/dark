@@ -88,9 +88,7 @@ let parseAndReportDiagnostics
 
     let parsedFile = WrittenTypes.ParsedFile.SourceFile sf
 
-    // Name-resolve, lower, and check the same parsed tree. Checker diagnostics
-    // are only meaningful for a syntax-clean tree; parser diagnostics continue
-    // to be published while the user is midway through an edit.
+    // Check only syntax-clean trees; keep parser diagnostics during partial edits.
     let (unresolvedNames, checkerDiagnostics) =
       match
         Parser.CliScript.parseFromWT
@@ -146,8 +144,7 @@ let handleTextDocumentDidOpen
   let parsedToPT =
     match parsed with
     | Ok parsedFile ->
-      // A recovered tree can contain EError holes. Although lowering replaces
-      // those holes with units, do not publish a partial program as a clean tree.
+      // Do not publish a recovered tree with `EError` holes as clean.
       if Stdlib.List.isEmpty (Parser.Parse.diagnostics request.textDocument.text) then
         (WrittenTypesToProgramTypes.parsedFileAsSourceFile parsedFile)
         |> Stdlib.Tuple3.first
@@ -260,8 +257,7 @@ let handleTextDocumentDidClose
   (requestParams:
     LanguageServerProtocol.DocumentSync.TextDocument.DidCloseTextDocumentNotification.DidCloseTextDocumentParams.DidCloseTextDocumentParams)
   : LspState =
-  // Publishing an empty list is the LSP mechanism for clearing squiggles that
-  // belonged to a document which is no longer in scope.
+  // An empty diagnostic list clears the closed document's squiggles.
   sendDiagnostic requestParams.textDocument.uri []
   { state with
       documentsInScope =

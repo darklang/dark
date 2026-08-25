@@ -33,9 +33,8 @@ let private extractFromNameResolution
   | Error _ -> []
 
 
-/// One node in the explicit dependency-discovery work list. Package declarations
-/// are persisted input, so none of these walks may consume the process call stack:
-/// a `StackOverflowException` cannot be caught by the at-rest checker boundary.
+/// One node in the iterative dependency walk. Persisted declarations must not be
+/// able to exhaust the process stack.
 type private Work =
   | TypeRef of PT.TypeReference
   | Expr of PT.Expr
@@ -116,8 +115,7 @@ let private extract (roots : List<Work>) : List<Dependency> =
       | PT.StringInterpolation expr -> work.Push(Expr expr)
 
     | MatchPattern pattern ->
-      // Match patterns do not contain package references, but they are still
-      // traversed iteratively so adding one later cannot reintroduce this bug.
+      // Patterns currently contain no package references; keep the walk iterative.
       match pattern with
       | PT.MPUnit _
       | PT.MPBool _

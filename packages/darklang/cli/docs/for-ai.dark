@@ -42,6 +42,10 @@ a function, local values use `let`. Nested helpers need full annotations:
 
 `fn`, `type`, `val` and `module` run the at-rest type checker on what they save
 and print its findings; the save goes through regardless (WIP is yours to break).
+Updating existing items also re-checks their visible transitive dependents after
+all propagation finishes and lists any that have definite type errors. Reports
+count package locations rather than shared content hashes and do not misattribute
+errors that already existed.
 `commit` re-checks what it is committing and refuses a definite type error —
 `commit --allow-type-errors` overrides that. An incomplete proof is reported but
 never blocks: it means the checker lacked evidence, not that the declaration is

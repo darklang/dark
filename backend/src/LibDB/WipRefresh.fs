@@ -158,15 +158,8 @@ let refresh (pm : PT.PackageManager) (branchId : System.Guid) : Task<int64> =
       // 4. Stabilize hashes (SCC-aware)
       let stabilizedOps = HS.computeRealHashes reResolvedOps
 
-      // 5. Compare the stored ops with what they should be. The hash set alone
-      // is not enough: two bodies already stored under one hash (a duplicate
-      // name that got past an authoring check) leave the set unchanged while
-      // compaction dropped one of them, and skipping the rewrite would keep the
-      // loser on disk under the winner's hash. Compaction only removes ops and
-      // any body change moves its hash, so hash set plus op count is the
-      // normalized comparison. (Not full structural equality: ops from sync or
-      // disk may carry an empty `hash` on the Add item that stabilization
-      // fills, which would rewrite all WIP on every refresh.)
+      // 5. Hashes plus op count detect compaction without comparing transient
+      // Add-item hashes, which stabilization may fill differently on each load.
       let oldHashes = HS.extractAllHashes wipOps |> Set.ofList
       let newHashes = HS.extractAllHashes stabilizedOps |> Set.ofList
 

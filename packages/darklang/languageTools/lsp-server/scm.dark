@@ -95,8 +95,7 @@ let handleCommitRequest
     logAndSendToClient response
     state
   | Some accountId ->
-  // No override from the editor: a Failed at-rest check comes back as the error
-  // message; the CLI's `commit --allow-type-errors` is the escape hatch.
+  // Editor commits do not override failed type checks; the CLI can.
   match SCM.PackageOps.commit accountId state.currentBranchId message false with
   | Ok commitHash ->
     let responseJson =

@@ -1,9 +1,7 @@
 /// Authoring adapter for the at-rest type checker.
 ///
-/// This module loads the transitive package dependency closure of candidate ops,
-/// invokes the storage-independent checker, and converts its result to structured
-/// Dark values. It does not persist anything and is deliberately separate from
-/// PackageOps so replay, sync, and imports are unaffected.
+/// Loads candidate dependencies, invokes the storage-independent checker, and
+/// converts its report to structured Dark values without persisting anything.
 module Builtins.Matter.Libs.PM.AtRestTypeChecker
 
 open Prelude

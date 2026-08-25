@@ -2873,9 +2873,8 @@ and ExecutionState =
     branchId : BranchId
     program : Program
 
-    /// The builtins this state was created with. `fns.builtIn` and `values.builtIn`
-    /// are views into it for the interpreter's hot path; this is the whole record,
-    /// for anything that needs to hand it on (e.g. to create another state).
+    /// The complete builtin set used to create this state; `fns.builtIn` and
+    /// `values.builtIn` are interpreter-facing views.
     builtins : Builtins
 
     types : Types

@@ -169,10 +169,8 @@ module TypeReference =
 
 module InfixFnName =
   let toFnName (name : PT.InfixFnName) : RT.FQFnName.Builtin =
-    // Operators dispatch to polymorphic builtins that inspect the runtime value
-    // type (like `equals`), so `1.0 + 2.0`, `1y < 2y`, etc. all work without
-    // per-type operator routing. The table lives in PT so the at-rest checker
-    // reads the same one.
+    // Operators dispatch by runtime value type. The shared PT table also keeps
+    // lowering and static checking aligned.
     RT.FQFnName.builtin (PT.InfixFnName.toBuiltinName name) 0
 
 

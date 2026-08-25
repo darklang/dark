@@ -1,9 +1,7 @@
 /// Static checking for serialized ProgramTypes.
 ///
-/// This module is intentionally independent of storage, package operations, and the
-/// interpreter. Callers construct an immutable TypeEnvironment and receive a
-/// conservative verdict: only complete proofs are Checked; missing information is
-/// Incomplete.
+/// Storage-independent and conservative: only complete proofs are `Checked`;
+/// missing information is `Incomplete`.
 module LibExecution.AtRestTypeChecker
 
 open Prelude
@@ -269,9 +267,8 @@ module TypeEnvironment =
         returnType = fn.returnType }
     addFunction (FQFnName.Package fn.hash) signature environment
 
-  /// Add the runtime's builtin signatures without importing executable bodies into
-  /// the checker. Invalid zero-argument builtins are reported structurally rather
-  /// than throwing while a environment is assembled.
+  /// Add builtin signatures without executable bodies. Invalid zero-argument
+  /// builtins are returned as errors instead of throwing.
   let addBuiltins
     (builtins : RT.Builtins)
     (environment : TypeEnvironment)
@@ -305,10 +302,8 @@ module TypeEnvironment =
               Set.difference returnVariables parameterVariables
             let declaredVariables = Set.ofList fn.typeParams
             if not (Set.isSubset resultOnlyVariables declaredVariables) then
-              // A result variable no parameter constrains (`Hash -> Option<'a>`)
-              // and that is not an explicit type parameter means the result type
-              // is only known at runtime. Quantifying it would prove any caller's
-              // use of it.
+              // An undeclared result-only variable is known only at runtime;
+              // quantifying it would incorrectly accept every caller.
               addUnsupportedFunction
                 name
                 "The declared result contains type variables unconstrained by the parameters"
@@ -335,10 +330,8 @@ module TypeEnvironment =
                 if Set.isEmpty resultOnlyVariables then
                   environment
                 else
-                  // Result-only declared parameters are sound only when the call
-                  // supplies their reified type arguments (for example
-                  // `jsonParse<'a>`). Without them the runtime has no value
-                  // argument from which to discover the requested type.
+                  // Result-only parameters require reified type arguments, such
+                  // as `jsonParse<'a>`; no value argument can infer them.
                   requireExplicitTypeArguments name environment
               environment, errors)
         (environment, [])
@@ -451,13 +444,9 @@ type private State(environment : TypeEnvironment) =
 // Conversion and unification
 // --------------------
 
-/// Deeply nested input is the one thing a traversal cannot recover from on its
-/// own: a stack overflow kills the process, and `try ... with` never sees it.
-/// Every recursive walk in this file probes the stack first; when there is not
-/// enough left, .NET raises `InsufficientExecutionStackException`, which IS an
-/// ordinary exception. `guardingStack` turns it into an `Incomplete` verdict for
-/// the item being checked, so a pathological declaration costs one blocker
-/// instead of the CLI, the LSP or the server.
+/// Probe before recursive walks so deeply nested persisted input produces a
+/// catchable `InsufficientExecutionStackException`, which callers convert to an
+/// `Incomplete` verdict, rather than a process-ending stack overflow.
 let private ensureStack () : unit =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
 
@@ -704,12 +693,9 @@ let rec private normalizeAliases
   | Some(expanded, seen) -> normalizeAliases state nodeId seen expanded
   | None -> typ
 
-/// Validate every component reachable from a type, including components hidden inside
-/// containers, aliases, records, and enums. Declaration parameters stay rigid while
-/// their definitions are validated: supplied arguments are checked separately, so a
-/// finite type such as Alias<Alias<Int>> is not mistaken for a recursive declaration.
-/// Nominal record/enum recursion is valid and is cut off after one structural visit;
-/// entering one also breaks a transparent-alias chain.
+/// Validate every component reachable from a type. Declaration parameters remain
+/// rigid; nominal record/enum recursion stops after one structural visit, while
+/// transparent alias cycles remain errors.
 let rec private validateTypeClosureFrom
   (state : State)
   (nodeId : Option<id>)
@@ -1119,9 +1105,7 @@ let private declarationFieldType
     let scope = List.zip typeParams typeArgs |> Map.ofList
     convertType state nodeId scope typ
   else
-    // All current callers obtain these lists from a validated declaration lookup.
-    // Keep this boundary total so future recovery paths cannot turn malformed
-    // serialized input into an exception.
+    // Keep malformed serialized input at this boundary from throwing.
     let expected = List.length typeParams
     let actual = List.length typeArgs
     let expectedText = countNoun expected "type argument" "type arguments"
@@ -1660,11 +1644,8 @@ let private uncoveredMatchPattern
     |> Option.bind List.tryHead
     |> Option.orElse (Some MissingWildcard)
 
-/// `Builtin.unwrap : optOrRes -> 'a` has a result variable no parameter
-/// constrains (Option vs Result is only known at runtime), but when its
-/// argument's type is already solved the result type follows from it:
-/// Option<T> -> T, Result<T, _> -> T. Only an argument whose type stays unknown
-/// is genuinely uncheckable.
+/// Infer `Builtin.unwrap` from a solved argument: `Option<T> -> T` or
+/// `Result<T, _> -> T`. An unknown argument remains uncheckable.
 let private asUnwrapBuiltin
   (name : NameResolution<FQFnName.FQFnName>)
   : Option<FQFnName.FQFnName> =
@@ -1706,12 +1687,7 @@ let private isSignedNumeric (typ : StaticType) : bool =
   | TFloat -> true
   | _ -> false
 
-/// The operator builtins (`Builtin.add`, `Builtin.lessThan`, ...) are what infix
-/// syntax lowers to: `a + b` and `Builtin.add a b` execute identically. Their
-/// declared `'a -> 'b -> ...` signatures overstate what they accept (the type
-/// language has no numeric constraint), so a by-name call is checked with the
-/// operator's own rule instead, read from the same table the lowering uses.
-/// Returns the operator to check the call as.
+/// Recognize operator builtins whose loose signatures require infix rules.
 let private asOperatorBuiltin
   (name : NameResolution<FQFnName.FQFnName>)
   : Option<FQFnName.FQFnName * Infix> =
@@ -1722,8 +1698,7 @@ let private asOperatorBuiltin
     |> Option.map (fun op -> fqName, InfixFnCall op)
   | _ -> None
 
-/// `Builtin.negate` is what the parser lowers unary minus on a non-literal
-/// (`-x`, `-(f y)`) to. Same story as the infix operators.
+/// Recognize the builtin used for non-literal unary minus.
 let private asNegateBuiltin
   (name : NameResolution<FQFnName.FQFnName>)
   : Option<FQFnName.FQFnName> =
@@ -1737,8 +1712,7 @@ let private asNegateBuiltin
 let private isOperatorLikeBuiltin (name : NameResolution<FQFnName.FQFnName>) : bool =
   Option.isSome (asOperatorBuiltin name) || Option.isSome (asNegateBuiltin name)
 
-/// Unary minus: the operand must be a signed integer or Float, and the result
-/// is the operand's type.
+/// Check unary minus and return its operand type.
 let private inferNegateResult
   (state : State)
   (nodeId : id)
@@ -2409,7 +2383,22 @@ and private inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
       | None -> ()
     resultType
   | ELet(nodeId, pattern, value, body) ->
-    let valueType = inferExpr state env value
+    let valueType =
+      match pattern, value with
+      // An unshadowed let-bound lambda can recurse by name. If an outer local has
+      // the same name, the runtime captures that binding instead.
+      | LPVariable(_, name), ELambda(_, patterns, _) when
+        name <> "" && name <> "_" && not (Map.containsKey name env.locals)
+        ->
+        // Pre-shape the recursive type to the lambda's arity; inference for an
+        // unknown callee otherwise builds a curried type one argument at a time.
+        let parameterTypes =
+          patterns |> NEList.map (fun _ -> state.Fresh(Some nodeId))
+        let selfType = TFn(parameterTypes, state.Fresh(Some nodeId))
+        let recEnv = addBindings state (Some nodeId) env [ name, selfType ]
+        checkExpr state recEnv selfType value
+        selfType
+      | _ -> inferExpr state env value
     let bindings = checkLetPattern state valueType pattern
     let bodyEnv =
       if isNonExpansive value then
@@ -2727,25 +2716,16 @@ let private finish
   resolvePendingFieldAccesses state
   let scheme = { scheme with typ = applySubstitutions state scheme.typ }
   let inferredType = displayType scheme
-  // Inference variables are implementation details unless they remain observable
-  // in the checked item's type. Calls to polymorphic functions commonly create
-  // variables that occur only in discarded values or unused generic fields. Those
-  // variables impose no unresolved constraint and do not weaken the proof.
-  //
-  // Pending field/operator/callability ambiguity reports its own blocker at the
-  // operation site. A diagnostic containing an inference variable is not yet a
-  // definite error, so those variables remain observable too. Quantified variables
-  // are complete by construction.
+  // Only inference variables observable in the item's type or diagnostics weaken
+  // the proof. Variables confined to discarded polymorphic results do not.
   let variablesInDiagnostic (diagnostic : Diagnostic) : Set<int> =
     [ diagnostic.expected; diagnostic.actual ]
     |> List.collect Option.toList
     |> List.map (applySubstitutions state >> inferenceVariables)
     |> Set.unionMany
   let diagnosticIsDefinite (diagnostic : Diagnostic) : bool =
-    // A diagnostic whose remaining inference variables are not quantified is
-    // provisional: solving one of those variables may make the apparent
-    // mismatch disappear. Diagnostics with no such variables are definite,
-    // even when an unrelated construct also prevented a complete proof.
+    // A diagnostic with unresolved, unquantified variables is provisional;
+    // solving them may remove the apparent mismatch.
     variablesInDiagnostic diagnostic
     |> fun variables -> Set.difference variables scheme.quantified
     |> Set.isEmpty
@@ -3002,13 +2982,9 @@ let private checkValuesInDependencyOrder
       { item = Reference.PackageValue value.hash; verdict = verdicts[value.hash] })
   environment, ordered
 
-/// Check a closed package batch against a caller-supplied base environment.
-/// The environment may be empty or contain trusted builtins and stored dependencies.
-///
-/// Types and function signatures are predeclared, so declaration order and mutual
-/// function recursion do not affect checking. Values have no declared type in
-/// ProgramTypes; acyclic values are inferred in dependency order, while recursive
-/// value groups conservatively remain Incomplete.
+/// Check a closed package batch against a base environment. Types and function
+/// signatures are predeclared, making declaration order irrelevant. Values are
+/// inferred in dependency order; recursive value groups remain `Incomplete`.
 let checkPackageBatch
   (baseEnvironment : TypeEnvironment)
   (types : List<PackageType.PackageType>)

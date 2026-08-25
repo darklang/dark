@@ -73,9 +73,8 @@ let execute (state: AppState) (args: List<String>) : AppState =
   let autoConfirm =
     (Stdlib.List.member args "--yes") || (Stdlib.List.member args "-y")
 
-  // Two separate overrides for two separate gates, so neither grows to mean
-  // "skip everything": `--allow-type-errors` opens the at-rest type check,
-  // `--force` the unresolved-references check. `--yes` is only the prompt.
+  // Keep type-error and unresolved-reference overrides independent;
+  // `--yes` controls only the prompt.
   let allowTypeErrors = Stdlib.List.member args "--allow-type-errors"
   let force = Stdlib.List.member args "--force"
 

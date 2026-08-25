@@ -240,46 +240,43 @@ let propagateFromHashes
 
     match Builtin.pmPropagate branchId location itemKind previousHashes currentHash with
     | Ok resultTuple ->
-      let (propagationId, repoints) = resultTuple
+      let (_propagationId, repoints) = resultTuple
 
-      match repoints with
-      | [] -> ()
-      | _ ->
-        let count = Stdlib.List.length repoints
-        Stdlib.printLine $"  Propagated to {Stdlib.Int.toString count} dependents:"
+      let _ =
+        match repoints with
+        | [] -> ()
+        | _ ->
+          let count = Stdlib.List.length repoints
+          Stdlib.printLine $"  Propagated to {Stdlib.Int.toString count} dependents:"
 
-        let ids = repoints |> Stdlib.List.map (fun r -> LanguageTools.ProgramTypes.Reference.hash r.toRef) |> Stdlib.List.unique
-        let namesDict = Deps.resolveNames branchId ids
-
-        repoints
-        |> Stdlib.List.iter (fun repoint ->
-          let name = Deps.getName namesDict (LanguageTools.ProgramTypes.Reference.hash repoint.toRef)
-          let kindStr = itemKindToString (LanguageTools.ProgramTypes.Reference.kind repoint.toRef)
-          Stdlib.printLine $"    [{kindStr}] {name}")
-
-        if signatureChanged then
-          Stdlib.printLine ""
-          Stdlib.printLine
-            (Stdlib.Cli.UI.Colors.warning "  These callers may need manual updates. To review:")
+          let ids = repoints |> Stdlib.List.map (fun r -> LanguageTools.ProgramTypes.Reference.hash r.toRef) |> Stdlib.List.unique
+          let namesDict = Deps.resolveNames branchId ids
 
           repoints
           |> Stdlib.List.iter (fun repoint ->
             let name = Deps.getName namesDict (LanguageTools.ProgramTypes.Reference.hash repoint.toRef)
             let kindStr = itemKindToString (LanguageTools.ProgramTypes.Reference.kind repoint.toRef)
-            Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"    view {kindStr} {name}"))
+            Stdlib.printLine $"    [{kindStr}] {name}")
+
+          if signatureChanged then
+            Stdlib.printLine ""
+            Stdlib.printLine
+              (Stdlib.Cli.UI.Colors.warning "  These callers may need manual updates. To review:")
+
+            repoints
+            |> Stdlib.List.iter (fun repoint ->
+              let name = Deps.getName namesDict (LanguageTools.ProgramTypes.Reference.hash repoint.toRef)
+              let kindStr = itemKindToString (LanguageTools.ProgramTypes.Reference.kind repoint.toRef)
+              Stdlib.printLine (Stdlib.Cli.UI.Colors.hint $"    view {kindStr} {name}"))
+
+      ()
 
     | Error errMsg ->
       Stdlib.printLine (Stdlib.Cli.UI.Colors.error $"  Auto-propagation failed: {errMsg}")
 
 
-/// Auto-propagate after creating/updating a definition.
-/// The hash live at <param location> on the branch, or <param fallback> if the
-/// location holds nothing of that kind.
-///
-/// Callers that just saved an item often only have the hash lowering stamped on
-/// it, which is a placeholder; the location row is the source of truth once the
-/// item is stored. `LibDB.Propagation.resolveCurrentHash` does the same on the F#
-/// side, and this keeps the Dark-side signature warning honest too.
+/// The stored hash at <param location>, or <param fallback> when absent. Saved
+/// items may still carry lowering placeholders, so the location is authoritative.
 let currentHashAt
   (branchId: Uuid)
   (location: LanguageTools.ProgramTypes.PackageLocation)
@@ -294,11 +291,8 @@ let currentHashAt
   Stdlib.Option.withDefault found fallback
 
 
-/// Falls back to `getAllPreviousHashes` to discover prior hashes.
-/// Used by `undo` and other callers that don't already know the
-/// pre-update hash. <param currentHash> may be a lowering placeholder; the
-/// stored hash at <param location> is what is actually used.
-let autoPropagateAfterUpdate
+/// Propagate one update from location history to its authoritative stored hash.
+let propagateAfterUpdate
   (branchId: Uuid)
   (location: LanguageTools.ProgramTypes.PackageLocation)
   (currentHash: LanguageTools.ProgramTypes.Hash)
@@ -311,3 +305,31 @@ let autoPropagateAfterUpdate
   propagateFromHashes branchId location previousHashes currentHash itemKind
 
 
+/// Propagate a saved batch, then report affected dependents once against the
+/// final graph. Grouping avoids duplicate reports for multi-definition modules.
+let autoPropagateUpdates
+  (branchId: Uuid)
+  (updates:
+    List<
+      (LanguageTools.ProgramTypes.PackageLocation
+       * LanguageTools.ProgramTypes.Hash
+       * LanguageTools.ProgramTypes.ItemKind)>)
+  : Unit =
+  updates
+  |> Stdlib.List.iter (fun (location, currentHash, itemKind) ->
+    propagateAfterUpdate branchId location currentHash itemKind)
+
+  let targets =
+    updates
+    |> Stdlib.List.map (fun (location, _, itemKind) -> (location, itemKind))
+    |> Stdlib.List.unique
+  AtRestCheck.printDependentsReport branchId targets
+
+
+let autoPropagateAfterUpdate
+  (branchId: Uuid)
+  (location: LanguageTools.ProgramTypes.PackageLocation)
+  (currentHash: LanguageTools.ProgramTypes.Hash)
+  (itemKind: LanguageTools.ProgramTypes.ItemKind)
+  : Unit =
+  autoPropagateUpdates branchId [ (location, currentHash, itemKind) ]

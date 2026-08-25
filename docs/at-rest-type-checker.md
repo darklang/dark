@@ -85,6 +85,24 @@ unavailable.
 `SCM.PackageOps.add` is raw storage — no check, no rejection — for ops that carry
 final hashes and add no declaration: sync, rename, deprecate.
 
+Updating a definition rewrites its dependents with a blind hash swap — committed
+callers via propagation's repoints, WIP callers via WipRefresh inside the save
+itself (in which case propagation reports no repoints at all) — so a signature
+change can materialize broken callers without a word said. The CLI's propagation
+path (`Cli.Packages.Propagate.propagateFromHashes`) therefore checks the *current*
+bodies of all visible transitive dependents immediately afterwards and prints the
+findings (`AtRestCheck.printDependentsReport`) — advisory, like the save-time
+report, since commit re-checks and refuses regardless. Transitive checking matters
+for values and aliases: a direct dependent may remain valid while its inferred or
+expanded type changes and breaks its own callers. Multi-definition updates
+propagate completely and then run one combined check against the final graph.
+Reports count dependent locations, even when identical bodies share a content
+hash. Failed dependents are listed as having errors after the update, without
+claiming the update caused errors that may already have existed. Incomplete ones
+are one summary line, because a dependent the checker cannot prove is usually
+incomplete for reasons older than the update; a checker-wide incomplete result is
+also reported rather than silently discarded.
+
 The read-only `typecheck` CLI command checks every visible type, value, and function on
 the current branch in one batch. It prints aggregate `Checked`, `Failed`, and
 `Incomplete` counts and lists non-checked items by package location. `typecheck --all`
@@ -185,7 +203,14 @@ have regression tests. In the initial full-package run, three general checker de
 (function-parameter scope, wildcard binding, and aliased constructors) accounted for
 most apparent failures; fixing those reduced the count from 700 to 129 across 5,629
 declarations. The 2026-08-18 audit reported 5,666 declarations: 5,492 checked,
-86 failed, 88 incomplete under that revision's classification. Re-run the audit after
+86 failed, 88 incomplete under that revision's classification. A fourth checker
+defect surfaced by the audit — a self-recursive nested function (a let-bound
+lambda calling itself by name, which lowering resolves at runtime) was reported
+as `UnknownVariable`, and once scoped, its multi-parameter self-call unified as a
+curried chain against the n-ary lambda type — was fixed by checking the
+`ELet(LPVariable, ELambda)` shape let-rec style with the binding pre-shaped to
+the lambda's arity; both forms have regression tests. The 2026-08-25 audit after
+that fix reported 5,738 declarations: 5,732 checked, 0 failed, 6 incomplete. Re-run the audit after
 classification changes; moving concrete diagnostics out of mixed `Incomplete` reports
 can change those counts without discovering a new source error. As inference coverage
 improves, declarations previously hidden behind an `Incomplete` verdict can become

@@ -404,8 +404,7 @@ let testDuplicateDeclarations =
     "duplicate declarations: detected before stabilization, refused at storage" {
     let! (branch : PT.Branch) = Branches.create "test-bo-duplicates" PT.mainBranchId
 
-    // Two functions for ONE name with different bodies, as an authoring surface
-    // hands them over: placeholder identities, real hashes still to be computed.
+    // One name with two placeholder-identified bodies.
     let first = { makeFn (eInt64 1L) with hash = PT.Hash "" }
     let second = { makeFn (eInt64 2L) with hash = PT.Hash "" }
     let ops =
@@ -422,14 +421,13 @@ let testDuplicateDeclarations =
       (HS.duplicateDeclarations (List.take 2 ops))
       "a single declaration is not a duplicate"
 
-    // Why the check exists: stabilized anyway, the batch keys by name, so both
-    // bodies come out under the one surviving hash...
+    // Stabilization would collapse both bodies to one hash.
     let stabilized = HS.computeRealHashes ops
     let hashes = HS.extractAllHashes stabilized |> List.distinct
     Expect.hasLength hashes 1 "stabilizing a duplicate collapses it to one hash"
     let survivingHash = List.exactlyOne hashes
 
-    // ...which storage refuses as a broken invariant, whatever path sent it.
+    // Storage independently enforces the same invariant.
     Expect.hasLength
       (Inserts.hashClashes stabilized)
       1
@@ -438,9 +436,7 @@ let testDuplicateDeclarations =
       (Inserts.hashClashes (List.skip 2 stabilized))
       "one body per hash is sound"
 
-    // Content identity deliberately ignores authoring-only metadata and
-    // parameter names. Those differences must not turn two equivalent bodies
-    // with one hash into a storage collision.
+    // Authoring metadata and alpha-renaming do not change content identity.
     let alphaFirst =
       { testPackageFn [] (NEList.singleton "x") PT.TInt64 (eArg 0) with
           description = "first description" }
@@ -460,8 +456,7 @@ let testDuplicateDeclarations =
       (Inserts.hashClashes equivalentAdds)
       "meaning-equivalent declarations with different metadata are sound"
 
-    // Declared once, the same name goes through cleanly: stabilize, store,
-    // partially commit, and the body read back is the one its hash names.
+    // A single declaration stabilizes, stores, and partially commits normally.
     let! (_ : int64) =
       Inserts.insertAndApplyOpsAsWip branch.id (List.skip 2 stabilized)
     let! wip = LibDB.Queries.getWipOpsWithIds branch.id

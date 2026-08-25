@@ -1,7 +1,5 @@
-// A batch that declares one name twice must be refused before it is stabilized
-// and stored: `PackageManager.stabilizeHashes` keys by name, so both bodies would
-// come out under one content hash. `addAuthored` is the boundary every authoring
-// surface (fn/type/val/module, the Workbench, the LSP) goes through.
+// `addAuthored` rejects duplicate names before stabilization can collapse their
+// bodies to one content hash.
 
 module AuthoringDuplicates =
   let fnOps
@@ -39,8 +37,7 @@ module AuthoringDuplicates =
   (Darklang.LanguageTools.PackageManager.duplicateDeclarations
     (Stdlib.List.append (fnOps "one" 1L "p1") (fnOps "two" 2L "p2"))) = []
 
-  // The common boundary refuses the batch and names the culprit; nothing is
-  // stabilized or stored.
+  // The common boundary names the duplicate and stores nothing.
   (match
     Darklang.SCM.PackageOps.addAuthored
       Darklang.SCM.Branch.mainBranchId
@@ -49,8 +46,7 @@ module AuthoringDuplicates =
    | Error message -> message
    | Ok _ -> "stored") = "Declared more than once: fn Test.Dup.twice"
 
-  // A partial commit may select only the SetName row of an authored pair. The
-  // commit gate must still check the WIP body that the selected name publishes.
+  // Partial commits must check the WIP body published by a selected SetName.
   (match
     fnOps "invalid" 1L "invalid-hash"
     |> Stdlib.List.map (fun op ->
