@@ -157,9 +157,9 @@ type LocationTarget =
 
 /// Find items whose dep edges point at any of the given target package items.
 ///
-/// Returns only declarations visible from the current branch: current-branch WIP
-/// or committed rows, inherited committed rows, and the nearest binding when a
-/// child shadows an ancestor location.
+/// Returns one visible declaration per (kind, location): current-branch WIP
+/// shadows current committed content, the current branch shadows ancestors,
+/// and only committed ancestor declarations are inherited.
 ///
 /// Primary match: dep edge's target kind + location equal one of the targets.
 /// This prevents same-hash and same-location cross-kind cascades.

@@ -568,9 +568,8 @@ module InfixFnName =
     | ComparisonEquals -> "equals"
     | ComparisonNotEquals -> "notEquals"
 
-  /// Every case, for building the reverse of `toBuiltinName`. Keep in step with
-  /// the type; `toBuiltinName` is the exhaustive one.
-  let all : List<InfixFnName> =
+  // Keep in step with the type; `toBuiltinName` is the exhaustive mapping.
+  let private all : List<InfixFnName> =
     [ ArithmeticPlus
       ArithmeticMinus
       ArithmeticMultiply
@@ -584,6 +583,10 @@ module InfixFnName =
       StringConcat
       ComparisonEquals
       ComparisonNotEquals ]
+
+  /// Recognize the infix operator implemented by a builtin.
+  let tryFromBuiltinName (builtinName : string) : Option<InfixFnName> =
+    all |> List.tryFind (fun name -> toBuiltinName name = builtinName)
 
   /// The unary-minus builtin the parser lowers `-x` (non-literal) to.
   let negateBuiltinName = "negate"

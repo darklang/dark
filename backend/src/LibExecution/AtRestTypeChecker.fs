@@ -1693,8 +1693,7 @@ let private asOperatorBuiltin
   : Option<FQFnName.FQFnName * Infix> =
   match resolvedName name with
   | Some(FQFnName.Builtin b as fqName) when b.version = 0 ->
-    InfixFnName.all
-    |> List.tryFind (fun op -> InfixFnName.toBuiltinName op = b.name)
+    InfixFnName.tryFromBuiltinName b.name
     |> Option.map (fun op -> fqName, InfixFnCall op)
   | _ -> None
 
