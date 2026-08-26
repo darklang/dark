@@ -254,18 +254,18 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "cliTerminalHardWrap" 0
+    { name = fn "cliTerminalWrapAtColumn" 0
       typeParams = []
       parameters =
         [ Param.make "text" TString "One logical row, possibly carrying SGR styling"
           Param.make "maxWidth" TInt "Terminal columns to wrap at" ]
       returnType = TList TString
       description =
-        "Hard-wrap plain or SGR-styled text into terminal-width rows, reapplying active styling after a wrap"
+        "Break text into terminal-width rows at the column, restating styling across a wrap"
       fn =
         (function
         | _, vm, _, [| DString text; DInt maxWidth |] ->
-          TerminalText.hardWrap text (intToInt32 vm maxWidth)
+          TerminalText.wrapAtColumn text (intToInt32 vm maxWidth)
           |> List.map DString
           |> fun rows -> DList(VT.string, rows)
           |> Ply

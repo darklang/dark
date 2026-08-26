@@ -7,7 +7,7 @@
 /// or reset the terminal.
 ///
 /// The fitters are native; they walk a row a character at a time, and a Dark loop pays a builtin call
-/// per character. `wrapWords` below stays in Dark because it measures whole words.
+/// per character. `wrapAtWords` below stays in Dark because it measures whole words.
 module Darklang.Stdlib.Cli.Tui.Text
 
 
@@ -26,9 +26,10 @@ let clipToWidth (text: String) (maxWidth: Int) : String =
   Builtin.cliTerminalClipToWidth text maxWidth
 
 
-/// Hard-wrap a row at the column, restating styling that spans the wrap. For prose, use `wrapWords`.
-let hardWrap (text: String) (maxWidth: Int) : List<String> =
-  Builtin.cliTerminalHardWrap text maxWidth
+/// Break a row at the column, restating styling that spans the wrap. To break at spaces where it
+/// can, use `wrapAtWords`.
+let wrapAtColumn (text: String) (maxWidth: Int) : List<String> =
+  Builtin.cliTerminalWrapAtColumn text maxWidth
 
 
 /// Zero-based cursor position immediately after plain text. Exactly past the last column reads as
@@ -91,9 +92,9 @@ let addWord
     (Stdlib.List.append (Stdlib.List.append lines [ current ]) wrapped, rest)
 
 
-/// Wrap plain text to `width` columns, breaking at spaces where it can and inside a word where it
-/// must. Styling isn't handled: wrap first, colour after.
-let wrapWords (text: String) (width: Int) : List<String> =
+/// Break plain text at spaces where it can and inside a word where it must.
+/// Styling isn't handled: wrap first, colour after.
+let wrapAtWords (text: String) (width: Int) : List<String> =
   let w = Stdlib.Int.max 1 width
 
   if text == "" then

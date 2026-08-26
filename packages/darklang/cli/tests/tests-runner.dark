@@ -70,7 +70,7 @@ let allTests (): List<String * TestFunction> =
     ("Text Cursor After Full Row", fun () -> testTextCursorAfterFullRowWraps ())
     ("Text Fits By Columns", fun () -> testTextFitPadsByColumnsNotCharacters ())
     ("Text Fit Ignores Styling", fun () -> testTextFitIgnoresStylingWhenPadding ())
-    ("Text Wraps At Words", fun () -> testTextWrapWordsBreaksAtSpaces ())
+    ("Text Wraps At Words", fun () -> testTextWrapAtWordsBreaksAtSpaces ())
 
     ("InlineFrame Silent Unchanged", fun () -> testInlineFrameEmitsNothingWhenUnchanged ())
     ("InlineFrame Relative Move", fun () -> testInlineFrameMovesRelativeToPreviousCursor ())

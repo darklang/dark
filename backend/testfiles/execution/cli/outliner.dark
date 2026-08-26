@@ -394,16 +394,16 @@ module Chrome =
 
 module Wrapping =
   // Long lines used to run off the right edge of the pane and stop existing.
-  (Darklang.Stdlib.Cli.Tui.Text.wrapWords "the quick brown fox jumps over the lazy dog" 12) =
+  (Darklang.Stdlib.Cli.Tui.Text.wrapAtWords "the quick brown fox jumps over the lazy dog" 12) =
     [ "the quick"; "brown fox"; "jumps over"; "the lazy dog" ]
 
   // A word longer than the pane is split rather than dropped.
-  (Darklang.Stdlib.Cli.Tui.Text.wrapWords "supercalifragilistic" 7) = [ "superca"; "lifragi"; "listic" ]
+  (Darklang.Stdlib.Cli.Tui.Text.wrapAtWords "supercalifragilistic" 7) = [ "superca"; "lifragi"; "listic" ]
 
   // Text that fits comes back as one line, and empty text as one empty line (a row is still a row).
-  (Darklang.Stdlib.Cli.Tui.Text.wrapWords "short" 20) = [ "short" ]
-  (Darklang.Stdlib.Cli.Tui.Text.wrapWords "" 20) = [ "" ]
+  (Darklang.Stdlib.Cli.Tui.Text.wrapAtWords "short" 20) = [ "short" ]
+  (Darklang.Stdlib.Cli.Tui.Text.wrapAtWords "" 20) = [ "" ]
 
   // Wrapping is measured in columns, so a wide glyph takes the two it occupies.
-  (Darklang.Stdlib.Cli.Tui.Text.wrapWords "日本 語" 4) = [ "日本"; "語" ]
+  (Darklang.Stdlib.Cli.Tui.Text.wrapAtWords "日本 語" 4) = [ "日本"; "語" ]
 

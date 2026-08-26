@@ -99,11 +99,11 @@ let clipToWidth (text : string) (maxWidth : int) : string =
 
     out.ToString()
 
-/// Hard-wrap a row into explicit terminal-width rows, keeping any styling it carries.
+/// Break a row into terminal-width rows at the column, keeping any styling it carries.
 ///
 /// Styling active at a wrap is restated on the next row, since the frame renderer resets after each
 /// one. Clusters are never split. Empty input yields one empty row.
-let hardWrap (text : string) (maxWidth : int) : string list =
+let wrapAtColumn (text : string) (maxWidth : int) : string list =
   let width = max 1 maxWidth
   let completed = ResizeArray<string>()
   let current = System.Text.StringBuilder()

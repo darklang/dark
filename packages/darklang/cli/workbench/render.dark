@@ -12,7 +12,7 @@ module Darklang.Cli.Workbench
 let wrapRow (maxFit: Int) (line: String) : List<String> =
   let room = Stdlib.Int.max 1 (maxFit - 2)
 
-  match Stdlib.Cli.Tui.Text.hardWrap line room with
+  match Stdlib.Cli.Tui.Text.wrapAtColumn line room with
   | [] -> [ "" ]
   | first :: rest -> Stdlib.List.push (rest |> Stdlib.List.map (fun r -> "  " ++ r)) first
 

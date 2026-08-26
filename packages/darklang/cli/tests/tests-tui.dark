@@ -128,7 +128,7 @@ let testTextDropsNonSgrEscapes (): TestResult =
 
 
 let testTextWrapReappliesStyleAcrossRows (): TestResult =
-  let rows = Stdlib.Cli.Tui.Text.hardWrap "\u001b[31mabcd" 2
+  let rows = Stdlib.Cli.Tui.Text.wrapAtColumn "\u001b[31mabcd" 2
   let first = Stdlib.List.getAt rows 0 |> Stdlib.Option.withDefault ""
   let second = Stdlib.List.getAt rows 1 |> Stdlib.Option.withDefault ""
 
@@ -176,9 +176,9 @@ let testTextFitIgnoresStylingWhenPadding (): TestResult =
     TestResult.Fail $"Expected 'ab' padded to 5 columns, got '{Stdlib.Cli.Tui.Text.stripSgr fitted}'"
 
 
-let testTextWrapWordsBreaksAtSpaces (): TestResult =
+let testTextWrapAtWordsBreaksAtSpaces (): TestResult =
   // The word wrapper stays in Dark, measuring whole words.
-  let rows = Stdlib.Cli.Tui.Text.wrapWords "alpha beta gamma" 11
+  let rows = Stdlib.Cli.Tui.Text.wrapAtWords "alpha beta gamma" 11
 
   if rows == [ "alpha beta"; "gamma" ] then
     TestResult.Pass

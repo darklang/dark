@@ -62,17 +62,17 @@ let terminalTextTests =
           ""
           "a zero width clips everything"
       }
-      test "hardWrap reapplies active styling on each row" {
+      test "wrapAtColumn reapplies active styling on each row" {
         Expect.equal
-          (TerminalText.hardWrap $"{red}abcd" 2)
+          (TerminalText.wrapAtColumn $"{red}abcd" 2)
           [ $"{red}ab"; $"{red}cd" ]
           "styling active at the wrap opens the next row"
         Expect.equal
-          (TerminalText.hardWrap "" 4)
+          (TerminalText.wrapAtColumn "" 4)
           [ "" ]
           "empty input is one empty row"
         Expect.equal
-          (TerminalText.hardWrap "界界" 2)
+          (TerminalText.wrapAtColumn "界界" 2)
           [ "界"; "界" ]
           "a row holds whole clusters only"
       }
