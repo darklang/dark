@@ -255,9 +255,47 @@ let everyBuiltinIsReferenced =
   }
 
 
+/// A description written across several source lines has to read as one sentence, since most
+/// things that show it (the workbench signature pane, `dark help`, LSP hover) have one line to
+/// show it on.
+let descriptionsAreJoined =
+  let builtins =
+    allBuiltinSets () |> List.collect (fun b -> b.fns.Values |> List.ofSeq)
+
+  testList
+    "descriptions"
+    [ test "no builtin description carries source indentation" {
+        let ragged =
+          builtins
+          |> List.filter (fun fn -> Regex.IsMatch(fn.description, @"\n[ \t]"))
+          |> List.map (fun fn -> string fn.name)
+
+        Expect.isEmpty
+          ragged
+          ("These descriptions keep the indentation of the F# literal they were written in, which "
+           + "renders as a gap mid-sentence:\n"
+           + String.concat "\n" ragged)
+      }
+      test "a wrapped description reads as one sentence" {
+        // `add` is written across four indented source lines.
+        let add =
+          builtins
+          |> List.tryFind (fun fn -> fn.name.name = "add" && fn.name.version = 0)
+
+        match add with
+        | None -> failtest "no `add` builtin"
+        | Some fn ->
+          Expect.stringContains
+            fn.description
+            "integer overflow wraps around"
+            "the line break should have become a single space"
+      } ]
+
+
 let tests =
   testList
     "builtin"
     [ oldFunctionsAreDeprecated
       builtinAccessInPackageMatter
-      everyBuiltinIsReferenced ]
+      everyBuiltinIsReferenced
+      descriptionsAreJoined ]
