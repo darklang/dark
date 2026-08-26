@@ -157,6 +157,25 @@ left to right rather than rediscovering it per span.
 looks quadratic, but a row holds ~6 spans, so it walks six elements. Changed to `List.push` with a
 `reverse` per row: 62 -> 63 ms, flat, reverted.
 
+**Pane borders are 86% of the frame's spans and 85% of the time to composite it.** The single
+biggest structural fact found this round. `Box.draw` emits the vertical sides as two spans per row --
+a colorized `│` at each edge -- so a full-height panel is 76 spans and the workbench draws three
+panels. Probed by dropping `sides`: spans 252 -> 36, `Canvas.toView` 53 -> **8 ms**.
+
+That also explains the size curve from the top of this section. 80x24 is ~95 ms and 120x40 ~284
+because the narrow terminal drops panes, not because it has fewer cells; and 280x60 is barely worse
+than 200x50 because the pane count is the same and only the row count grew.
+
+Nothing cheap fixes it. Compose costs ~200 us a span and a border span is already one character;
+there is no fat in it. The options are architectural: draw the vertical chrome as part of each row
+rather than as spans, or cache it, since it depends only on region size and focus and is identical
+frame to frame. Both are bigger than an afternoon. The alternative is the per-operation interpreter
+cost, filed under "Larger, not yet scoped".
+
+Two smaller redundancies noticed while measuring, neither worth a commit alone: `Layout.at` measures
+a span with `styledWidth` and then `composeRow` measures the same text again, so every span is
+measured twice; and `Layout.at` returns a single-element list per span that is then flattened.
+
 **The body pane is two thirds of the view build.** Probed by stubbing `renderBody` to `[]`:
 `renderFull` 49 -> 20 ms and `Canvas.toView` 54 -> 19, with spans falling 252 -> 86. So the body
 costs ~29 ms to build and ~35 ms to composite, ~64 ms of the ~100 ms view. The sidebar, context row,
