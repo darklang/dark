@@ -84,6 +84,31 @@ let dateTests =
         [ "2000-10-01T16:01:01Z",
           NodaTime.Instant.ofUtcInstant (2000, 10, 1, 16, 1, 1) ] ]
 
+let textWidthTests =
+  testList
+    "TextWidth"
+    [ testMany
+        "ofString"
+        TextWidth.ofString
+        [ "", 0
+          "hello", 5
+          // a cluster is measured whole, however it's spelled
+          "é", 1
+          "e\u0301", 1
+          "界", 2
+          "🙂", 2
+          "👨‍👩‍👧‍👦", 2
+          "🇺🇸", 2
+          // VS16 asks for emoji presentation, so two columns
+          "♥️", 2
+          "·", 1
+          "A界🙂e\u0301", 6 ]
+      testMany
+        "containsControl"
+        TextWidth.containsControl
+        [ "plain界", false; "before\u001b[2Jafter", true; "tab\there", true ] ]
+
+
 let assertions =
   testList
     "Assertions"
@@ -95,4 +120,6 @@ let assertions =
 
 
 let tests =
-  testList "prelude" [ asyncTests; mapTests; floatTests; dateTests; assertions ]
+  testList
+    "prelude"
+    [ asyncTests; mapTests; floatTests; dateTests; textWidthTests; assertions ]

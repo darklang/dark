@@ -87,11 +87,7 @@ let thinHr (cols: Int) : String =
     (Stdlib.String.repeat "╌" (Stdlib.Int.max 1 cols))
 
 let padRight (s: String) (width: Int) : String =
-  let len = Stdlib.String.length s
-  if len >= width then
-    Stdlib.String.slice s 0 width
-  else
-    s ++ (Stdlib.String.repeat " " (width - len))
+  Stdlib.Cli.Tui.Text.fitToWidth s width
 
 let threadRows (cols: Int) (thread: Thread) : List<String> =
   let idStr = Darklang.Stdlib.Cli.UI.Colors.colorize (Darklang.Stdlib.Cli.UI.Colors.bold ++ Darklang.Stdlib.Cli.UI.Colors.cyan) ("#" ++ Stdlib.Int.toString thread.id)

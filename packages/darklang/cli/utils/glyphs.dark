@@ -1,12 +1,12 @@
 /// The one set of glyphs for package item kinds.
 ///
-/// Every glyph here occupies exactly ONE terminal column under `Stdlib.Cli.Tui.Text.displayWidth`, and `forKind`
-/// pads to two. That property is the whole point, and it is easy to lose: `⚡` (the old function icon)
-/// measures two by the Unicode tables while terminals draw it as one, so a column of mixed rows came
-/// out ragged and no amount of padding fixed it for both. The emoji that were used elsewhere -- 🗂️ ⚡️ 🔖
-/// 💎 -- carry variation selectors and have the same problem.
+/// Every glyph here occupies exactly ONE terminal column under `Stdlib.String.displayWidth`, and
+/// `forKind` pads to two. That property is the whole point, and it is easy to lose: `⚡` (the old
+/// function icon) measures two by the Unicode tables while terminals draw it as one, so a column of
+/// mixed rows came out ragged and no amount of padding fixed it for both. The emoji that were used
+/// elsewhere -- 🗂️ ⚡️ 🔖 💎 -- carry variation selectors and have the same problem.
 ///
-/// Check `Stdlib.Cli.Tui.Text.displayWidth` before swapping any of these.
+/// Check `Stdlib.String.displayWidth` before swapping any of these.
 module Darklang.Cli.Glyphs
 
 /// A module.

@@ -214,7 +214,7 @@ let renderHelpOverlay (screen: Stdlib.Cli.UI.Layout.Region) : List<Stdlib.Cli.UI
     helpGroups
     |> Stdlib.List.map (fun pair ->
       let (_label, keys) = pair
-      Stdlib.Cli.Tui.Text.displayWidth keys)
+      Stdlib.String.displayWidth keys)
     |> Stdlib.List.fold 0 (fun acc n -> Stdlib.Int.max acc n)
   let w = Stdlib.Int.min (Stdlib.Int.max 40 (widest + 14)) (Stdlib.Int.max 40 (screen.cols - 4))
   let rows = (Stdlib.List.length helpGroups) * 2 + 3

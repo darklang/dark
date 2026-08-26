@@ -94,7 +94,7 @@ let testCanvasUntouchedRowsAreEmpty (): TestResult =
   | None -> TestResult.Fail "Expected three composed rows"
 
 
-// -- Stdlib.Cli.Tui.Text: the hand-rolled escape parser and the width math on top of it --
+// -- Stdlib.Cli.Tui.Text: fitting styled rows to a column count --
 
 let testTextClipsByColumnsNotCharacters (): TestResult =
   let clipped = Stdlib.Cli.Tui.Text.clipToWidth "\u001b[31mabcdef" 3
@@ -110,11 +110,11 @@ let testTextNeverSplitsAWideGlyph (): TestResult =
   // Two double-width glyphs in three columns: the second cannot fit, and half of it must not be emitted.
   let clipped = Stdlib.Cli.Tui.Text.clipToWidth "界界" 3
 
-  if Stdlib.Cli.Tui.Text.displayWidth clipped == 2 then
+  if Stdlib.String.displayWidth clipped == 2 then
     TestResult.Pass
   else
     TestResult.Fail
-      $"Expected a wide glyph to be dropped whole, got width {Stdlib.Int.toString (Stdlib.Cli.Tui.Text.displayWidth clipped)}"
+      $"Expected a wide glyph to be dropped whole, got width {Stdlib.Int.toString (Stdlib.String.displayWidth clipped)}"
 
 
 let testTextDropsNonSgrEscapes (): TestResult =
@@ -128,7 +128,7 @@ let testTextDropsNonSgrEscapes (): TestResult =
 
 
 let testTextWrapReappliesStyleAcrossRows (): TestResult =
-  let rows = Stdlib.Cli.Tui.Text.wrapStyled "\u001b[31mabcd" 2
+  let rows = Stdlib.Cli.Tui.Text.hardWrap "\u001b[31mabcd" 2
   let first = Stdlib.List.getAt rows 0 |> Stdlib.Option.withDefault ""
   let second = Stdlib.List.getAt rows 1 |> Stdlib.Option.withDefault ""
 
@@ -153,6 +153,37 @@ let testTextCursorAfterFullRowWraps (): TestResult =
   else
     TestResult.Fail
       $"Expected (1, 0), got ({Stdlib.Int.toString row}, {Stdlib.Int.toString column})"
+
+
+let testTextFitPadsByColumnsNotCharacters (): TestResult =
+  // A wide glyph is one character in two columns, so padding by character count comes out short.
+  let fitted = Stdlib.Cli.Tui.Text.fitToWidth "界a" 6
+
+  if Stdlib.String.displayWidth fitted == 6 then
+    TestResult.Pass
+  else
+    TestResult.Fail
+      $"Expected 6 columns, got {Stdlib.Int.toString (Stdlib.String.displayWidth fitted)}"
+
+
+let testTextFitIgnoresStylingWhenPadding (): TestResult =
+  // Styling costs no columns, so a styled row pads to what its plain text would.
+  let fitted = Stdlib.Cli.Tui.Text.fitToWidth "\u001b[31mab\u001b[0m" 5
+
+  if Stdlib.Cli.Tui.Text.stripSgr fitted == "ab   " then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected 'ab' padded to 5 columns, got '{Stdlib.Cli.Tui.Text.stripSgr fitted}'"
+
+
+let testTextWrapWordsBreaksAtSpaces (): TestResult =
+  // The word wrapper stays in Dark, measuring whole words.
+  let rows = Stdlib.Cli.Tui.Text.wrapWords "alpha beta gamma" 11
+
+  if rows == [ "alpha beta"; "gamma" ] then
+    TestResult.Pass
+  else
+    TestResult.Fail $"Expected a break at the space, got {Stdlib.String.join rows " | "}"
 
 
 // -- InlineFrame: relative addressing, the part that can wreck scrollback --

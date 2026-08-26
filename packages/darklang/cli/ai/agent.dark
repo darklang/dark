@@ -408,10 +408,7 @@ let execute (state: Cli.AppState) (args: List<String>) : Cli.AppState =
 let help (_state: Cli.AppState) : String =
   let lines =
     Stdlib.List.map subcommands (fun s ->
-      let padded =
-        match Stdlib.String.padEnd s.usage " " 40 with
-        | Ok p -> p
-        | Error _ -> s.usage
+      let padded = Stdlib.String.padEndToWidth s.usage 40
       $"  {padded} - {s.description}")
 
   let header =

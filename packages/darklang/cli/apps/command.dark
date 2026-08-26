@@ -274,7 +274,7 @@ let complete
 
 // A single help line: "  cmd <args>   description", padded for a clean column.
 let helpLine (usage: String) (desc: String) : String =
-  let pad = Stdlib.Result.withDefault (Stdlib.String.padEnd usage " " 26) usage
+  let pad = Stdlib.String.padEndToWidth usage 26
   "  " ++ pad ++ Stdlib.Cli.UI.Colors.dimText desc
 
 let help (_state: Cli.AppState) : String =

@@ -436,10 +436,7 @@ let execute (state: AppState) (args: List<String>) : AppState =
           let cursor = Stdlib.Tuple2.second pc
           let name = Darklang.Sync.instanceName peer
 
-          let padded =
-            match Stdlib.String.padEnd name " " width with
-            | Ok s -> s
-            | Error _ -> name
+          let padded = Stdlib.String.padEndToWidth name width
 
           // Name leads (you sync with `feriel`, not a URL); the URL trails, dimmed, for when you need it.
           // Cursor is the PEER's rowid — meaningless to show; what's honest is whether we've pulled it yet.

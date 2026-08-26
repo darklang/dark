@@ -13,7 +13,7 @@ val compactHelpText = "↑↓ move  Enter select  Esc cancel"
 val minimumHelpText = "↑↓ Enter Esc"
 
 val minimumHeight = 2
-val minimumWidth = Stdlib.Cli.Tui.Text.displayWidth minimumHelpText
+val minimumWidth = Stdlib.String.displayWidth minimumHelpText
 
 type Layout =
   { itemCapacity: Int
@@ -26,9 +26,9 @@ val unsupportedSizeMessage =
   $"Completion picker requires at least {Stdlib.Int.toString minimumWidth} columns and {Stdlib.Int.toString minimumHeight} rows."
 
 let helpTextAtWidth (width: Int) : String =
-  if Stdlib.Cli.Tui.Text.displayWidth fullHelpText <= width then
+  if Stdlib.String.displayWidth fullHelpText <= width then
     fullHelpText
-  else if Stdlib.Cli.Tui.Text.displayWidth compactHelpText <= width then
+  else if Stdlib.String.displayWidth compactHelpText <= width then
     compactHelpText
   else
     minimumHelpText

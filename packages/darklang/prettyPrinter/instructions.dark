@@ -221,27 +221,13 @@ let header (instrs: LanguageTools.RuntimeTypes.Instructions) : String =
   $"{n} instructions, {regs} registers, result in {register instrs.resultIn}"
 
 
-/// `Stdlib.String.padStart`/`padEnd` return a `Result` (they can reject a multi-character pad), which
-/// is noise for a fixed single-space pad. These just widen.
-// Padding is positional, so it measures columns rather than graphemes. `Stdlib.String.length` counts
-// grapheme clusters, which is the wrong question here: one CJK character is a single grapheme two
-// columns wide, so a column padded by grapheme count comes out ragged.
-let padTo (width: Int) (s: String) : String =
-  let n = width - (Stdlib.String.displayWidth s)
-  if n <= 0 then s else s ++ (Stdlib.String.repeat " " n)
-
-let padFrom (width: Int) (s: String) : String =
-  let n = width - (Stdlib.String.displayWidth s)
-  if n <= 0 then s else (Stdlib.String.repeat " " n) ++ s
-
-
 /// Plain-text listing, for callers that don't want to lay it out themselves.
 let listing (branchId: Uuid) (instrs: LanguageTools.RuntimeTypes.Instructions) : String =
   let body =
     instrs.instructions
     |> Stdlib.List.indexedMap (fun index i ->
-      let idx = padFrom 4 (Stdlib.Int.toString index)
-      let op = padTo 24 (opcode i)
+      let idx = Stdlib.String.padStartToWidth (Stdlib.Int.toString index) 4
+      let op = Stdlib.String.padEndToWidth (opcode i) 24
       $"{idx}  {op} {operands branchId index i}")
     |> Stdlib.String.join "\n"
 

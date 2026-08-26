@@ -98,7 +98,7 @@ let packHelpRows
       if current == "" then section
       else current ++ " • " ++ section
 
-    if Darklang.Stdlib.Cli.Tui.Text.displayWidth candidate <= width then
+    if Stdlib.String.displayWidth candidate <= width then
       packHelpRows width remaining candidate rows
     else if current != "" then
       packHelpRows
@@ -108,7 +108,7 @@ let packHelpRows
         (Stdlib.List.pushBack rows current)
     else
       let wrapped =
-        Darklang.Stdlib.Cli.Tui.Text.wrapStyled section width
+        Darklang.Stdlib.Cli.Tui.Text.hardWrap section width
       packHelpRows
         width
         remaining

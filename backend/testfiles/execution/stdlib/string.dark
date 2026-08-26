@@ -842,6 +842,27 @@ module PadEnd =
   Stdlib.String.padEnd "123" "" 10 = Stdlib.Result.Result.Error "Expected `padWith` to be 1 character long, but it was `\"\"`"
 
 
+// Columns, not characters. Contrast `PadEnd` above: `padEnd "界界界" "0" 6` adds three zeroes to
+// something already six columns wide.
+module PadToWidth =
+  Stdlib.String.padEndToWidth "" 0 = ""
+  Stdlib.String.padEndToWidth "abc" 3 = "abc"
+  Stdlib.String.padEndToWidth "abc" 6 = "abc   "
+  Stdlib.String.padEndToWidth "abc" -3 = "abc"
+  Stdlib.String.padEndToWidth "abcdef" 3 = "abcdef"
+  Stdlib.String.padEndToWidth "界" 4 = "界  "
+  Stdlib.String.padEndToWidth "界界界" 6 = "界界界"
+  Stdlib.String.padEndToWidth "🙂" 4 = "🙂  "
+  Stdlib.String.padEndToWidth "e\u0301" 3 = "e\u0301  "
+
+  Stdlib.String.padStartToWidth "" 0 = ""
+  Stdlib.String.padStartToWidth "abc" 6 = "   abc"
+  Stdlib.String.padStartToWidth "abc" 3 = "abc"
+  Stdlib.String.padStartToWidth "abcdef" 3 = "abcdef"
+  Stdlib.String.padStartToWidth "界" 4 = "  界"
+  Stdlib.String.padStartToWidth "界界界" 6 = "界界界"
+
+
 module IndexOf =
   Stdlib.String.indexOf "hello world" "world" = Stdlib.Option.Option.Some 6
   Stdlib.String.indexOf "hello world" "earth" = Stdlib.Option.Option.None

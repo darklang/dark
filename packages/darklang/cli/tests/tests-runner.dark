@@ -68,6 +68,9 @@ let allTests (): List<String * TestFunction> =
     ("Text Drops Non-SGR Escapes", fun () -> testTextDropsNonSgrEscapes ())
     ("Text Wrap Reapplies Style", fun () -> testTextWrapReappliesStyleAcrossRows ())
     ("Text Cursor After Full Row", fun () -> testTextCursorAfterFullRowWraps ())
+    ("Text Fits By Columns", fun () -> testTextFitPadsByColumnsNotCharacters ())
+    ("Text Fit Ignores Styling", fun () -> testTextFitIgnoresStylingWhenPadding ())
+    ("Text Wraps At Words", fun () -> testTextWrapWordsBreaksAtSpaces ())
 
     ("InlineFrame Silent Unchanged", fun () -> testInlineFrameEmitsNothingWhenUnchanged ())
     ("InlineFrame Relative Move", fun () -> testInlineFrameMovesRelativeToPreviousCursor ())

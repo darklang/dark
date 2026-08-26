@@ -333,6 +333,8 @@ let dropFirst (string: String) (characterCount: Int) : String =
 /// copy of <param string> starting with enough copies of <param padWith> for the
 /// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
 /// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>
+///
+/// Counts characters, not terminal columns. To line up columns, use <fn padStartToWidth>.
 let padStart
   (string: String)
   (padWith: String)
@@ -353,6 +355,8 @@ let padStart
 /// copy of <param string> ending with enough copies of <param padWith> for the
 /// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
 /// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>.
+///
+/// Counts characters, not terminal columns. To line up columns, use <fn padEndToWidth>.
 let padEnd
   (string: String)
   (padWith: String)
@@ -367,6 +371,22 @@ let padEnd
     let padCount = goalLength - String.length string
     let pad = String.repeat padWith padCount
     Result.Result.Ok(string ++ pad)
+
+
+/// Pad <param s> with leading spaces to at least <param width> terminal columns.
+///
+/// This is the padding that lines up columns: `界` is one character in two, so <fn padStart> leaves
+/// them ragged. Longer text comes back unclipped; styled text wants `Cli.Tui.Text.fitToWidth`.
+let padStartToWidth (s: String) (width: Int) : String =
+  let padding = width - (String.displayWidth s)
+  if padding <= 0 then s else (String.repeat " " padding) ++ s
+
+
+/// Pad <param s> with trailing spaces to at least <param width> terminal columns.
+/// See <fn padStartToWidth> for why this measures columns.
+let padEndToWidth (s: String) (width: Int) : String =
+  let padding = width - (String.displayWidth s)
+  if padding <= 0 then s else s ++ (String.repeat " " padding)
 
 
 // TODO: re-write in dark

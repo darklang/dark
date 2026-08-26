@@ -161,7 +161,7 @@ let renderDiffLines (lines: List<Stdlib.Diff.DiffLine>) (state: State) : List<St
     // Re-assert the background after every reset in the line - the gutter's
     // own and the highlighter's.
     let washed = Stdlib.String.replaceAll (gutter ++ code) Stdlib.Cli.UI.Colors.reset (Stdlib.Cli.UI.Colors.reset ++ bg)
-    let visible = Stdlib.Cli.Tui.Text.displayWidth (Stdlib.Cli.Tui.Text.stripSgr (gutter ++ code))
+    let visible = Stdlib.Cli.Tui.Text.styledWidth (gutter ++ code)
     let pad = Stdlib.String.repeat " " (Stdlib.Int.max 0 (fillWidth - visible))
     bg ++ washed ++ pad ++ Stdlib.Cli.UI.Colors.reset
   // Walk the diff, consuming from each side as its lines come up: (oldIdx,

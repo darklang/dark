@@ -19,18 +19,11 @@ let demoStats () : List<ModuleStats> =
 
 
 let padRight (s: String) (width: Int) : String =
-  let len = Stdlib.String.length s
-  if len >= width then
-    Stdlib.String.slice s 0 (width)
-  else
-    s ++ (Stdlib.String.repeat " " ((width - len)))
+  Stdlib.Cli.Tui.Text.fitToWidth s width
 
+/// Exactly `width` terminal columns, right-aligned.
 let padLeft (s: String) (width: Int) : String =
-  let len = Stdlib.String.length s
-  if len >= width then
-    Stdlib.String.slice s 0 (width)
-  else
-    (Stdlib.String.repeat " " ((width - len))) ++ s
+  Stdlib.String.padStartToWidth (Stdlib.Cli.Tui.Text.clipToWidth s width) width
 
 let bar (value: Int) (maxVal: Int) (width: Int) (color: String) : String =
   let barLen =

@@ -25,8 +25,8 @@ let fns () : List<BuiltInFn> =
         (function
         | _, _, _, [| DString text |] ->
           DTuple(
-            text |> LibExecution.DisplayWidth.ofString |> bigint |> Dval.int,
-            text |> LibExecution.DisplayWidth.containsControl |> DBool,
+            text |> TextWidth.ofString |> bigint |> Dval.int,
+            text |> TextWidth.containsControl |> DBool,
             []
           )
           |> Ply

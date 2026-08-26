@@ -27,11 +27,11 @@ let renderTreeList (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
       else
         state.items
         |> Stdlib.List.filter (fun it -> Stdlib.Bool.not (isHomeHeader it))
-        |> Stdlib.List.map (fun it -> Stdlib.Cli.Tui.Text.displayWidth (displayOf it))
+        |> Stdlib.List.map (fun it -> Stdlib.String.displayWidth (displayOf it))
         |> Stdlib.List.fold 0 (fun acc n -> Stdlib.Int.max acc n)
         |> Stdlib.Int.min nameCap
     let fitName (s: String) : String =
-      if (Stdlib.Cli.Tui.Text.displayWidth s) <= nameCap then s
+      if (Stdlib.String.displayWidth s) <= nameCap then s
       else (Stdlib.Cli.Tui.Text.clipToWidth s (nameCap - 1)) ++ "…"
     let lines =
       state.items
@@ -46,7 +46,7 @@ let renderTreeList (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
           ++ (if isDeprecated then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow " ⚠" else "")
         let gap =
           if item.desc == "" then ""
-          else Stdlib.String.repeat " " (Stdlib.Int.max 2 (nameCol + 2 - (Stdlib.Cli.Tui.Text.displayWidth display)))
+          else Stdlib.String.repeat " " (Stdlib.Int.max 2 (nameCol + 2 - (Stdlib.String.displayWidth display)))
         let rest = gap ++ (if item.desc == "" then "" else Stdlib.Cli.UI.Colors.dimText item.desc) ++ badges
         if isHomeHeader item then
           // A section label (or a blank spacer), not a row: dim, and never

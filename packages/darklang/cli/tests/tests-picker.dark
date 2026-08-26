@@ -41,7 +41,7 @@ let testCompletionPickerNarrowHelp (): TestResult =
           (CompletionPicker.supportsSize
             (Stdlib.Cli.Tui.Size { width = width - 1; height = 2 }))
      && help == CompletionPicker.minimumHelpText
-     && Stdlib.Cli.Tui.Text.displayWidth help <= width
+     && Stdlib.String.displayWidth help <= width
   then
     TestResult.Pass
   else
