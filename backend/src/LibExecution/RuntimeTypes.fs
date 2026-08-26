@@ -2717,7 +2717,9 @@ type VMState =
     vm.finalResult <- ValueNone
     vm.matchBindings.Clear()
     vm.pendingCallArgs.Clear()
-    vm.framePool.Clear()
+    // `framePool` is deliberately *not* cleared. It holds frames that have already been returned,
+    // keyed by register count, for the next push to reuse -- so clearing it here threw away the
+    // pool on every application and made each one allocate its lambda's frame afresh.
     vm
 
 

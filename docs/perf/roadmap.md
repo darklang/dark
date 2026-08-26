@@ -197,7 +197,7 @@ applies per element; `map` and `filter` are `fold` plus a `push` builtin per ele
 `reverse`; `range` is its own Dark recursion with a `push` per element. Five interpreter operations
 an element, at a few microseconds each.
 
-**Target 2, three cuts, measured through the native-`map` amplifier.** It builds one VM per element,
+**Target 2, four cuts, measured through the native-`map` amplifier.** It builds one VM per element,
 so `steady.dark` builds 10,000 and the gate reads the per-application cost magnified.
 
 | | gate | ~total |
@@ -205,24 +205,36 @@ so `steady.dark` builds 10,000 and the gate reads the per-application cost magni
 | native map, untouched | 843.7% over | 73.6 MB |
 | + pool the VM (`VMState.reuseFor`) | 257.0% | ~27.9 MB |
 | + cache the `Apply` instruction per arity, write registers directly | 188.7% | ~22.5 MB |
-| + reuse the root frame, its registers, and the `InstrData` array | **144.7%** | ~19.1 MB |
+| + reuse the root frame, its registers, and the `InstrData` array | 144.7% | ~19.1 MB |
+| + stop clearing `framePool` on reuse | **94.6%** | **15.2 MB** |
 
-The second cut is the one worth describing: the per-call `LoadVal` instructions existed only to move
-the callable and arguments into registers, so they are gone and the caller writes the registers
-itself. What is left is a single `Apply`, identical for every application of the same arity, so its
-`InstrData` is built once ever and shared.
+The instruction cut: the per-call `LoadVal` instructions existed only to move the callable and its
+arguments into registers, so they are gone and the caller writes those registers itself. What remains
+is a single `Apply`, identical for every application of the same arity, so its `InstrData` is built
+once ever and shared.
 
-**Still 2.4x over, and the remainder looks like async machinery rather than the VM.** ~1.1 KB an
-application: a `Task`, a `Result`, and the state machines of `executeApplicable`'s `task { }`, plus a
-GUID and the `callFrames` clear-and-insert. The VM itself is close to free now. Getting further
-probably means a synchronous path for the common case where the lambda does not await, which is the
-same shape as the `Ply.trySync` work in rounds 1-4.
+**The last cut was a bug in the first.** `framePool` holds returned `CallFrame`s keyed by register
+count for the next push to reuse -- the mechanism that makes a lambda's frame cheap. `reuseFor` was
+clearing it on every application, so each one allocated its lambda's frame afresh and threw it away.
+Keeping it is safe: the root frame is removed rather than returned when it completes, so it is never
+in the pool and there is no double ownership.
+
+**Negative result: the `Ply` wrapper around the interpreter loop is not the cost.**
+`Interpreter.execute` is `uply { return! executeInnerTask }`, so a caller already inside a `task`
+awaits a Ply wrapping a Task, a builder each way per application. Added a Task-returning entry point
+and used it: 15.2 MB either way. Reverted.
+
+**Still 2x over, ~730 bytes an application.** What is left is the `task { }` in `executeApplicable`
+itself with its try/try/with/finally, the `Task` and `Result` it returns, a GUID, and the
+`NEList.singleton` the caller builds per element. Removing the builder needs a synchronous path for
+the case where the lambda does not await -- returning `Ply<ExecutionResult>` rather than
+`Task<ExecutionResult>`, which ripples to `Stream.fs`, `HttpServer.fs` and `DB.fs`.
 
 **Safety note, checked rather than assumed:** `CallFrame.argBuf` documents that its reuse is safe
-because "the builtins that invoke a lambda directly build a whole new VM". Pooling preserves that
-invariant -- a VM is out of the bag for as long as it is running, so a nested application takes a
-different one -- but it is now an invariant of the pool rather than of construction, and it is worth
-knowing that if the pool ever hands out a VM twice, `argBuf` corrupts silently.
+because "the builtins that invoke a lambda directly build a whole new VM". Pooling preserves that --
+a VM is out of the bag for as long as it is running, so a nested application takes a different one --
+but it is now an invariant of the pool, and if the pool ever hands the same VM out twice, `argBuf`
+corrupts silently.
 
 **Target 2, first half done: pool the VM instead of building one per lambda application.**
 `VMState.reuseFor` re-points a finished VM at a new tiny program, and `ExecutionState` carries a
