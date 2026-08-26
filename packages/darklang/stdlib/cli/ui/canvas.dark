@@ -37,6 +37,18 @@ type Segment =
 let overlay (existing: List<Segment>) (next: Segment) : List<Segment> =
   let nextEnd = next.col + next.width
 
+  // The common case by far is a span that lands clear of everything already placed: a row is
+  // usually disjoint runs left to right, and only an overlay band covers anything. Answering that
+  // costs one walk; trimming costs three and allocates a list per segment on the way.
+  let overlaps =
+    existing
+    |> Stdlib.List.any (fun seg ->
+      ((seg.col + seg.width) > next.col) && (seg.col < nextEnd))
+
+  if Stdlib.Bool.not overlaps then
+    Stdlib.List.append existing [ next ]
+  else
+
   let kept =
     existing
     |> Stdlib.List.map (fun seg ->

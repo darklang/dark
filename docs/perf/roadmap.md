@@ -137,6 +137,38 @@ tuple list 465 us (~36 us an element), `List.range 1 13` 175 us, `List.filter` o
 and 2.3 ms for `visibleViews` was thirteen elements through a filter with a `member` inside it. The
 wins in this area are structural -- do less list work -- not a fix to any one function.
 
+**Done: `overlay` trimmed every placed segment even when nothing overlapped.** With the view build
+now dominant, splitting it gives `renderFull` 46 ms (252 spans) and `Canvas.toView` 63 ms. Inside
+`toView` the per-row floor is 1 ms for 40 empty rows and bucketing all 252 spans is 3 ms, so ~60 ms
+was `composeRow`. `overlay` ran `List.map` + `List.flatten` + `List.append` per span; stubbing it to
+a plain append probed the ceiling at 63 -> 43 ms. A no-overlap fast path (one `List.any` instead of
+three walks and a list allocation per segment) took it to 53.
+
+| | before | after |
+|---|---|---|
+| `Canvas.toView` | 63 ms | **52** |
+| `viewAtSize` | 106 ms | **98** |
+| keypress, end to end | 176 ms | **163** |
+
+Half the probed ceiling. The rest needs the `any` walk gone too, which means knowing a row is built
+left to right rather than rediscovering it per span.
+
+**Negative result: bucketing spans by row is not worth touching.** `List.append existing [span]`
+looks quadratic, but a row holds ~6 spans, so it walks six elements. Changed to `List.push` with a
+`reverse` per row: 62 -> 63 ms, flat, reverted.
+
+**The body pane is two thirds of the view build.** Probed by stubbing `renderBody` to `[]`:
+`renderFull` 49 -> 20 ms and `Canvas.toView` 54 -> 19, with spans falling 252 -> 86. So the body
+costs ~29 ms to build and ~35 ms to composite, ~64 ms of the ~100 ms view. The sidebar, context row,
+hints and overlays are the other third. Next: decompose `renderViewBody` (Home is a split pane, list
+plus detail) the way the sidebar was.
+
+**Negative results in `Canvas.toView`, so nobody re-probes them.** `styledWidth` costs ~4 us a call,
+1 ms across all 252 spans -- it is native and it is not the cost. The per-row floor is 1 ms for 40
+empty rows. Bucketing all 252 spans is 3 ms. Spans are evenly spread at 6-9 a row with no renderer
+emitting many tiny ones, so there is no span-count pathology to fix. What is left is ~20 ms in
+`renderSegments` and ~9 ms in the residual `overlay` walk, both volume rather than structure.
+
 **`sidebarRows` is still built at least twice per keypress.** It is the whole of
 `handleKey`'s 71 ms: `focusRight` alone measures 0 ms, and an unhandled key (F12) costs the same 70
 ms as a handled one, so none of it is the action. `handleSidebarKey` opens with
@@ -447,6 +479,55 @@ There is nothing else in this class left to find. `checkAndExtractLetPattern` wa
 means changing the representation.
 
 ## Larger, not yet scoped
+
+**An interpreter round aimed at latency, not allocation.** Stachu's suggestion, and this round has
+been quietly building the case for it. Rounds 1-4 optimised the interpreter for *allocation* and, by
+their own account, largely exhausted the easy classes. Round 5 has now found the same thing four
+times over in the CLI: there is no pathology, only volume. Measured here, per call: a 13-element
+tuple literal 465 us, `List.range 1 13` 175 us, `List.filter` over 13 Ints 215 us, `List.member` over
+13 Ints 70 us, a 29-field record update 11 us. That is roughly **15-35 us per list element**, and it
+is the multiplier on every structural win in this round.
+
+Which means the ceiling on interactive latency is not the CLI's code. Every fix so far has been
+"do fewer list operations", and each one is bounded by how few are actually needed. Halving the
+per-element cost would take a keypress from 163 ms to somewhere near 80 without touching a single
+renderer.
+
+Worth stating clearly because it is a *different* target from rounds 1-4: those measured bytes, and
+the roadmap says plainly that allocation campaigns move allocation while time follows far less. This
+would be a wall-clock campaign against the per-operation cost of the loop -- dispatch, list
+construction, record field access -- and it needs an instrument that measures time per operation
+rather than bytes per workload. `scripts/perf/workloads/costs.dark` is the closest thing we have and
+it reports allocation.
+
+**Prefetch package items while something else is running.** Stachu's idea, filed with a size on it.
+Items are cached per process, so only the first touch of anything pays; the thought is to start
+loading what will be needed shortly while current work runs, hiding the latency rather than reducing
+the cost. It pairs with the parked "Package deserialization" item below, which is about the cost
+itself and is parked for want of an instrument.
+
+Measured, first render of each view against its second (the gap is package loading):
+
+| view | cold | warm | penalty |
+|---|---|---|---|
+| Home | 162 ms | 112 ms | 50 ms |
+| 1 | 149 | 113 | 36 |
+| 5 | 87 | 62 | 25 |
+| 2, 3, 4, 6, 7, 8 | | | 0-4 |
+
+So the prize is real but bounded and front-loaded: the first view opened pays ~50 ms, the next
+distinct one ~36, and by the fourth it is noise, because earlier views have already warmed what they
+share. Views were rendered in order here, so this is the shape of a session that visits several
+views, not of one that sits in a single view.
+
+That makes it a **startup and first-visit** win of maybe 60-90 ms total across a session, against the
+120 ms per keypress this round has already removed. Worth doing, not worth doing first.
+
+Where it would live: the loader is F#, so warming a cache on a background task needs nothing from the
+language. That matters, because expressing parallel work *in Dark* does not exist yet -- see
+"Concurrency in the language" below. Prefetching from F# sidesteps that entirely. What to prefetch is
+the open question; sidebar navigation is predictable enough (the adjacent views) that a guess would
+often be right, and a wrong guess costs only work nobody waited for.
 
 **Value representation.** Struct `Dval` with tag and payload, cached singletons for small
 ints/bools/unit, array-backed records with a shared shape descriptor instead of a `Map` per record.
