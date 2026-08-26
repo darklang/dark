@@ -2571,6 +2571,9 @@ type VMState =
     // The inst data for each fn/lambda/etc. is stored here, so that
     // it doesn't have to be copied into each CallFrame.
     mutable rootInstrData : Option<tlid> * InstrData
+
+    /// The root frame of a pooled VM, kept so `reuseFor` can re-point it rather than build another.
+    mutable pooledRootFrame : CallFrame voption
     /// Per-VM memoization of InstrData derived from `exeState.lambdaInstrCache`.
     mutable lambdaInstrDataCache : Dictionary<id, InstrData>
 
@@ -2649,6 +2652,7 @@ type VMState =
         d[rootCallFrameID] <- rootCallFrame
         d
       rootInstrData = (tlid, rootInstrData)
+      pooledRootFrame = ValueNone
       lambdaInstrDataCache = Dictionary()
       lambdaEpCache = Dictionary()
       stats = InterpreterStats.create ()
@@ -2669,30 +2673,45 @@ type VMState =
   /// Only valid on a VM whose frames have all popped, which is what returning it to the pool means.
   /// The per-VM lambda caches are deliberately kept: they are keyed by expression id, so reuse warms
   /// them across applications instead of discarding them every time.
-  static member reuseFor(vm : VMState, instrs : Option<tlid> * Instructions) : VMState =
-    let tlid, instrsValue = instrs
-
-    let rootInstrData : InstrData =
-      { instructions = List.toArray instrsValue.instructions
-        resultReg = instrsValue.resultIn }
-
+  static member reuseFor
+    (vm : VMState, tlid : Option<tlid>, instrData : InstrData, registerCount : int)
+    : VMState =
     let rootCallFrameID = System.Guid.NewGuid()
 
-    let rootCallFrame : CallFrame =
-      { id = rootCallFrameID
-        executionPoint = Source
-        instrData = rootInstrData
-        expectedReturnType = ValueNone
-        programCounter = 0
-        registers = Array.zeroCreate instrsValue.registerCount
-        argBuf = Array.empty
-        typeSymbolTable = TST.empty
-        parent = ValueNone }
+    // The frame itself is reused where there is one to reuse, and so are its registers when they
+    // are big enough. Every field of a `CallFrame` is mutable, and the frame is only reachable from
+    // this VM, which is out of the pool for as long as this call runs.
+    let rootCallFrame =
+      match vm.pooledRootFrame with
+      | ValueSome (frame : CallFrame) ->
+        frame.id <- rootCallFrameID
+        frame.executionPoint <- Source
+        frame.instrData <- instrData
+        frame.expectedReturnType <- ValueNone
+        frame.programCounter <- 0
+        frame.typeSymbolTable <- TST.empty
+        frame.parent <- ValueNone
+        if frame.registers.Length < registerCount then
+          frame.registers <- Array.zeroCreate registerCount
+        else
+          System.Array.Clear(frame.registers, 0, registerCount)
+        frame
+      | ValueNone ->
+        { id = rootCallFrameID
+          executionPoint = Source
+          instrData = instrData
+          expectedReturnType = ValueNone
+          programCounter = 0
+          registers = Array.zeroCreate registerCount
+          argBuf = Array.empty
+          typeSymbolTable = TST.empty
+          parent = ValueNone }
 
+    vm.pooledRootFrame <- ValueSome rootCallFrame
     vm.callFrames.Clear()
     vm.callFrames[rootCallFrameID] <- rootCallFrame
     vm.currentFrameID <- rootCallFrameID
-    vm.rootInstrData <- (tlid, rootInstrData)
+    vm.rootInstrData <- (tlid, instrData)
     vm.frameToPush <- ValueNone
     vm.frameIdCounter <- 0L
     vm.finalResult <- ValueNone

@@ -197,6 +197,33 @@ applies per element; `map` and `filter` are `fold` plus a `push` builtin per ele
 `reverse`; `range` is its own Dark recursion with a `push` per element. Five interpreter operations
 an element, at a few microseconds each.
 
+**Target 2, three cuts, measured through the native-`map` amplifier.** It builds one VM per element,
+so `steady.dark` builds 10,000 and the gate reads the per-application cost magnified.
+
+| | gate | ~total |
+|---|---|---|
+| native map, untouched | 843.7% over | 73.6 MB |
+| + pool the VM (`VMState.reuseFor`) | 257.0% | ~27.9 MB |
+| + cache the `Apply` instruction per arity, write registers directly | 188.7% | ~22.5 MB |
+| + reuse the root frame, its registers, and the `InstrData` array | **144.7%** | ~19.1 MB |
+
+The second cut is the one worth describing: the per-call `LoadVal` instructions existed only to move
+the callable and arguments into registers, so they are gone and the caller writes the registers
+itself. What is left is a single `Apply`, identical for every application of the same arity, so its
+`InstrData` is built once ever and shared.
+
+**Still 2.4x over, and the remainder looks like async machinery rather than the VM.** ~1.1 KB an
+application: a `Task`, a `Result`, and the state machines of `executeApplicable`'s `task { }`, plus a
+GUID and the `callFrames` clear-and-insert. The VM itself is close to free now. Getting further
+probably means a synchronous path for the common case where the lambda does not await, which is the
+same shape as the `Ply.trySync` work in rounds 1-4.
+
+**Safety note, checked rather than assumed:** `CallFrame.argBuf` documents that its reuse is safe
+because "the builtins that invoke a lambda directly build a whole new VM". Pooling preserves that
+invariant -- a VM is out of the bag for as long as it is running, so a nested application takes a
+different one -- but it is now an invariant of the pool rather than of construction, and it is worth
+knowing that if the pool ever hands out a VM twice, `argBuf` corrupts silently.
+
 **Target 2, first half done: pool the VM instead of building one per lambda application.**
 `VMState.reuseFor` re-points a finished VM at a new tiny program, and `ExecutionState` carries a
 `ConcurrentBag` of them; `executeApplicable` takes one when it can. Only a VM that ran to completion

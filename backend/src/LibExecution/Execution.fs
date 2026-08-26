@@ -132,40 +132,65 @@ let executeToplevel
 /// Execute an applicable (lambda or named fn) with given args in a fresh VM.
 /// Lambda + package fn instruction caches live on `exeState`, so lambdas
 /// created in the caller's VM remain findable here.
+/// The instruction stream for applying a callable to `n` arguments, one per arity.
+///
+/// It is the same stream every time: `Apply` reading the callable from register 1 and the arguments
+/// from 2 onwards. Building it per call meant a `LoadVal` instruction per argument, assembled with
+/// list appends, purely to move values into registers that the caller can write to directly.
+let private applyInstrsByArity =
+  System.Collections.Concurrent.ConcurrentDictionary<int, struct (RT.InstrData * int)>()
+
+/// The `InstrData` for applying to `n` arguments, plus the register count it needs.
+///
+/// Cached as `InstrData` rather than `Instructions` so the array is built once ever, not converted
+/// from a list on every application.
+let private applyInstrsFor (argCount : int) : struct (RT.InstrData * int) =
+  applyInstrsByArity.GetOrAdd(
+    argCount,
+    fun n ->
+      let argRegs = [ 2 .. n + 1 ]
+      let instrData : RT.InstrData =
+        { instructions = [| RT.Apply(0, 1, [], argRegs |> NEList.ofListUnsafe "" []) |]
+          resultReg = 0 }
+      struct (instrData, n + 2)
+  )
+
+/// Put the callable and its arguments straight into the root frame's registers.
+let private loadApplyRegisters
+  (vm : RT.VMState)
+  (applicable : RT.Applicable)
+  (args : NEList<RT.Dval>)
+  : unit =
+  let registers = vm.callFrames[vm.currentFrameID].registers
+  registers[1] <- RT.DApplicable applicable
+  registers[2] <- args.head
+  // Head and tail directly: `NEList.toList` would allocate a list per application.
+  args.tail |> List.iteri (fun i arg -> registers[i + 3] <- arg)
+
+
 /// Use this when calling a Darklang callback from within a builtin.
 let executeApplicable
   (exeState : RT.ExecutionState)
   (applicable : RT.Applicable)
   (args : NEList<RT.Dval>)
   : Task<RT.ExecutionResult> =
-  let resultReg, rc = 0, 1
-
-  let fnInstr, fnReg, rc =
-    let dval = RT.DApplicable applicable
-    RT.LoadVal(rc, dval), rc, rc + 1
-
-  let argInstrs, argRegs, rc =
-    args
-    |> NEList.fold
-      (fun (instrs, argRegs, rc) arg ->
-        instrs @ [ RT.LoadVal(rc, arg) ], argRegs @ [ rc ], rc + 1)
-      ([], [], rc)
-
-  let applyInstr =
-    RT.Apply(resultReg, fnReg, [], argRegs |> NEList.ofListUnsafe "" [])
-
-  let instrs : RT.Instructions =
-    { registerCount = rc
-      instructions = [ fnInstr ] @ argInstrs @ [ applyInstr ]
-      resultIn = 0 }
+  let struct (instrData, registerCount) = applyInstrsFor (NEList.length args)
 
   task {
     // Reuse a finished VM where one is going spare. See `VMState.reuseFor`: a lambda applied per
     // element of a list would otherwise build one VM per element.
     let vm =
       match exeState.applicableVMPool.TryTake() with
-      | true, pooled -> RT.VMState.reuseFor (pooled, (None, instrs))
-      | _ -> RT.VMState.create (None, instrs)
+      | true, pooled -> RT.VMState.reuseFor (pooled, None, instrData, registerCount)
+      | _ ->
+        let instrs : RT.Instructions =
+          { registerCount = registerCount
+            instructions = List.ofArray instrData.instructions
+            resultIn = 0 }
+        RT.VMState.create (None, instrs)
+
+    loadApplyRegisters vm applicable args
+
     try
       try
         let! result = Interpreter.execute exeState vm
