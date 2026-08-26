@@ -208,7 +208,9 @@ so `steady.dark` builds 10,000 and the gate reads the per-application cost magni
 | + reuse the root frame, its registers, and the `InstrData` array | 144.7% | ~19.1 MB |
 | + stop clearing `framePool` on reuse | 94.6% | 15.2 MB |
 | + `executeApplicable` returns `Ply`, answered synchronously | 60.0% | 12.5 MB |
-| + the builtin's own per-element loop asked synchronously too | **53.4%** | **12.0 MB** |
+| + the builtin's own per-element loop asked synchronously too | 53.4% | 12.0 MB |
+| + keep the root frame's id instead of a fresh `Guid.NewGuid()` | 53.3% | 12.0 MB |
+| + a thread-static slot instead of a `ConcurrentBag` | **46.9%** | **11.4 MB** |
 
 And on the clock, which is what round 6 is actually for -- `map over 5`, above baseline: Dark **+99
 us**, native map before target 2 **+55**, native map now **+40**.
@@ -238,7 +240,44 @@ type checker. Two callers needed `|> Ply.toTask`: `HttpServer.executeHandler` an
 Applying the same question inside the builtin's own loop -- `trySync` per element rather than a `let!`
 that allocates a continuation to await something already finished -- was worth another 0.5 MB.
 
-**Still 1.5x over, ~410 bytes an application.** A GUID, the `callFrames` clear-and-insert, the
+**The frame id was the same trap the interpreter already documents.** `nextFrameId` derives a frame
+id from a counter, and says why: "`Guid.NewGuid()` draws from the cryptographic RNG, and a frame push
+happens tens of thousands of times in a single command." `reuseFor` was calling `Guid.NewGuid()` once
+per lambda application. It keeps the frame's existing id now -- the frame is being reused, and frame
+identity is internal to a VM. A `Guid` is a struct, so this is invisible to the gate and shows on the
+clock: `map over 5` 60,500 -> 57,750 ns.
+
+**The pool was allocating to hold the pool.** `ConcurrentBag.Add` allocates a node per add, once per
+application. A VM's interpreter loop is single-threaded, so a thread-static slot needs no
+synchronisation and no node, and one slot suffices: a nested application finds it empty and builds
+its own. Worth 12.0 -> 11.4 MB, and `ExecutionState.applicableVMPool` is gone with it.
+
+**What target 1 actually buys, and what it costs -- measured, and it decides the order.** Ran the
+suite and the CLI with native `map` in, against the same build without it.
+
+| workload | alloc before | after | time before | after |
+|---|---|---|---|---|
+| `lists` | 11.79 KB | **27.75** | 347 ms | **226** |
+| `strings` | 6.34 KB | **8.89** | 84 ms | **64** |
+| `dicts` | 12.57 KB | 11.93 | 175 ms | 169 |
+| `containers` | 3.39 KB | 3.67 | 13 ms | 14 |
+| `json`, `records`, `recursion` | flat | flat | flat | flat |
+
+And the CLI: `viewAtSize` **75 -> 69 ms**, repeatable, about 5% of a keypress.
+
+So native `map` is a genuine trade today: **`lists` 1.5x faster and 2.4x more allocating.** That is
+not "a change that only moves wall-clock", which the top of this document allows; it is spending
+rounds 1-4's work to buy round 6's.
+
+**Which settles it: target 1 must not land until target 2 is closed, and closing it is not more
+trimming.** Eight cuts took the per-application cost from 73.6 MB to 11.4 on the amplifier, and the
+~350 bytes left is the interpreter's own `task { }` and `Task` per nested execution -- the thing a
+nested run inherently pays for being a *separate* execution. Removing it means what target 2 always
+said: push a frame on the VM the builtin is already running inside and run until it pops, rather than
+starting an execution. Every cut so far has been making the separate execution cheaper; the remainder
+is the separateness itself.
+
+**Still 1.4x over, ~350 bytes an application.** A GUID, the `callFrames` clear-and-insert, the
 `NEList.singleton` the caller builds per element, and the `Result` and `Ply` wrappers. Target 1 needs
 this under the budget, so it stays blocked -- but the gap is now four times smaller than the budget
 itself, where it started at nine times larger.

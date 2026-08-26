@@ -2676,7 +2676,15 @@ type VMState =
   static member reuseFor
     (vm : VMState, tlid : Option<tlid>, instrData : InstrData, registerCount : int)
     : VMState =
-    let rootCallFrameID = System.Guid.NewGuid()
+    // Keep the id when the frame is kept. `Guid.NewGuid()` draws from the cryptographic RNG, which
+    // is why `nextFrameId` exists for pushes; this runs once per lambda application, so it is the
+    // same trap. Frame identity is internal to a VM -- `callFrames`, `pendingCallArgs` and the
+    // tracer's per-frame maps key on it and it never leaves -- and the previous application's
+    // frames are gone, so reusing the id collides with nothing.
+    let rootCallFrameID =
+      match vm.pooledRootFrame with
+      | ValueSome frame -> frame.id
+      | ValueNone -> System.Guid.NewGuid()
 
     // The frame itself is reused where there is one to reuse, and so are its registers when they
     // are big enough. Every field of a `CallFrame` is mutable, and the frame is only reachable from
@@ -2818,13 +2826,6 @@ and ExecutionState =
     /// invoked from another (e.g. an httpServerServe request handler VM).
     lambdaInstrCache :
       System.Collections.Concurrent.ConcurrentDictionary<id, LambdaImpl>
-
-    /// VMs kept for reuse by `executeApplicable` and `executeFunction`.
-    ///
-    /// Both build a tiny program and run it, and building a `VMState` for that costs two GUIDs, five
-    /// dictionaries, a `ResizeArray` and a stats block. Once per call that is invisible; once per
-    /// element of a `List.map` it is not. A VM goes back in the bag when its frames have popped.
-    applicableVMPool : System.Collections.Concurrent.ConcurrentBag<VMState>
 
     /// Memoization of `InstrData` derived from package function bodies.
     /// Shared across VMs for the same reason as `lambdaInstrCache`.

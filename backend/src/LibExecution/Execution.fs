@@ -39,7 +39,6 @@ let createState
     notify = notify
 
     lambdaInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
-    applicableVMPool = System.Collections.Concurrent.ConcurrentBag()
     packageFnInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
 
     branchId = branchId
@@ -137,6 +136,26 @@ let executeToplevel
 /// It is the same stream every time: `Apply` reading the callable from register 1 and the arguments
 /// from 2 onwards. Building it per call meant a `LoadVal` instruction per argument, assembled with
 /// list appends, purely to move values into registers that the caller can write to directly.
+/// One spare VM per thread, for `executeApplicable` to borrow.
+///
+/// A `ConcurrentBag` allocates a node per add, and this runs once per lambda application. A VM's
+/// interpreter loop is single-threaded, so a thread-static slot needs no synchronisation and no
+/// node; and one slot is enough, because a nested application finds it empty and builds its own.
+type private VMSlot() =
+  [<System.ThreadStatic; DefaultValue>]
+  static val mutable private spare : RT.VMState
+
+  static member Take() : RT.VMState voption =
+    let vm = VMSlot.spare
+    if obj.ReferenceEquals(vm, null) then
+      ValueNone
+    else
+      VMSlot.spare <- Unchecked.defaultof<RT.VMState>
+      ValueSome vm
+
+  static member Return(vm : RT.VMState) : unit = VMSlot.spare <- vm
+
+
 let private applyInstrsByArity =
   System.Collections.Concurrent.ConcurrentDictionary<int, struct (RT.InstrData * int)>()
 
@@ -179,21 +198,21 @@ let executeApplicable
   // Reuse a finished VM where one is going spare. See `VMState.reuseFor`: a lambda applied per
   // element of a list would otherwise build one VM per element.
   let vm =
-    match exeState.applicableVMPool.TryTake() with
-    | true, pooled -> RT.VMState.reuseFor (pooled, None, instrData, registerCount)
-    | _ ->
+    match VMSlot.Take() with
+    | ValueNone ->
       let instrs : RT.Instructions =
         { registerCount = registerCount
           instructions = List.ofArray instrData.instructions
           resultIn = 0 }
       RT.VMState.create (None, instrs)
+    | ValueSome spare -> RT.VMState.reuseFor (spare, None, instrData, registerCount)
 
   loadApplyRegisters vm applicable args
 
   // Only a VM that ran to completion is safe to hand back; one that raised may still hold frames,
   // and `reuseFor` assumes they have all popped.
   let succeeded (result : RT.Dval) : RT.ExecutionResult =
-    exeState.applicableVMPool.Add vm
+    VMSlot.Return vm
     Ok result
 
   let runtimeError (rte : RTE.Error) : RT.ExecutionResult =
