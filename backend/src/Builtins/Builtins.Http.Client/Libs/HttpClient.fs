@@ -691,9 +691,9 @@ let fns (config : Configuration) : List<BuiltInFn> =
           (TCustomType(NR.ok (responseOKType ()), []))
           (TCustomType(NR.ok (responseErrorType ()), []))
       description =
-        "Make blocking HTTP call to <param uri>. Returns a <type Result> where
-      the response is wrapped in {{ Ok }} if a response was successfully
-      received and parsed, and is wrapped in {{ Error }} otherwise"
+        "Make blocking HTTP call to <param uri>. Returns a <type Result> where "
+        + "the response is wrapped in {{ Ok }} if a response was successfully "
+        + "received and parsed, and is wrapped in {{ Error }} otherwise"
       fn =
         let responseTypeOK = KTCustomType(responseOKType (), [])
         let responseTypeErr = KTCustomType(responseErrorType (), [])
@@ -876,11 +876,12 @@ let fns (config : Configuration) : List<BuiltInFn> =
           (TCustomType(NR.ok (streamResponseType ()), []))
           (TCustomType(NR.ok (responseErrorType ()), []))
       description =
-        "Make a streaming HTTP call to <param uri>. Returns a <type StreamResponse>
-      whose `body` is a lazy <type Stream> that yields bytes as they arrive.
-      Drain with `Builtin.streamToList`/`streamToBlob`, or compose with
-      `streamMap`/`streamFilter`/etc. The underlying HTTP response is released
-      when the stream is drained to completion or `Builtin.streamClose`d."
+        "Make a streaming HTTP call to <param uri>. Returns a <type "
+        + "StreamResponse> whose `body` is a lazy <type Stream> that yields bytes "
+        + "as they arrive. Drain with `Builtin.streamToList`/`streamToBlob`, or "
+        + "compose with `streamMap`/`streamFilter`/etc. The underlying HTTP "
+        + "response is released when the stream is drained to completion or "
+        + "`Builtin.streamClose`d."
       fn =
         let streamTypeOk = KTCustomType(streamResponseType (), [])
         let streamTypeErr = KTCustomType(responseErrorType (), [])

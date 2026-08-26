@@ -31,9 +31,10 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = capsType
       description =
-        "This instance's current capability grant, as a structured <type Capabilities> value (NONE — the
-         strict default — is the all-empty grant). The CORE read primitive: `.dark` renders it and
-         composes adjustments over it."
+        "This instance's current capability grant, as a structured <type "
+        + "Capabilities> value (NONE — the strict default — is the all-empty "
+        + "grant). The CORE read primitive: `.dark` renders it and composes "
+        + "adjustments over it."
       fn =
         (function
         | _, _, _, [| DUnit |] ->
@@ -52,9 +53,10 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "caps" capsType "The full grant to replace with" ]
       returnType = TUnit
       description =
-        "REPLACE the whole grant with exactly this <type Capabilities> — the CORE write primitive. The
-         all-empty grant sets NONE. `.dark` parses/validates spec strings into the structure and builds
-         grant/revoke/clear/profile on top of get+set."
+        "REPLACE the whole grant with exactly this <type Capabilities> — the "
+        + "CORE write primitive. The all-empty grant sets NONE. `.dark` "
+        + "parses/validates spec strings into the structure and builds "
+        + "grant/revoke/clear/profile on top of get+set."
       fn =
         (function
         | _, _, _, [| caps |] ->
@@ -74,8 +76,9 @@ let fns : List<BuiltInFn> =
       parameters = [ Param.make "hash" TString "The package-fn hash to analyze" ]
       returnType = capsType
       description =
-        "The capabilities a package fn (transitively) needs, as a structured <type Capabilities> value
-         (behind `dark caps needed-for <fn>`). See `LibDB.PackageCaps`."
+        "The capabilities a package fn (transitively) needs, as a structured "
+        + "<type Capabilities> value (behind `dark caps needed-for <fn>`). See "
+        + "`LibDB.PackageCaps`."
       fn =
         (function
         | exeState, _, _, [| DString hashStr |] ->

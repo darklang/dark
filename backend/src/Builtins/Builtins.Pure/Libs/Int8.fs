@@ -32,12 +32,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt8 ""; Param.make "b" TInt8 "" ]
       returnType = TInt8
       description =
-        "Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-
-        The modulus <param b> must be greater than 0.
-
-        Use <fn Int8.remainder> if you want the remainder after division, which has
-        a different behavior for negative numbers."
+        "Returns the result of wrapping <param a> around so that {{0 <= res < "
+        + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
+        + "Int8.remainder> if you want the remainder after division, which has a "
+        + "different behavior for negative numbers."
       fn =
         (function
         | _, vm, _, [| DInt8 v; DInt8 m |] ->
@@ -61,15 +59,12 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "value" TInt8 ""; Param.make "divisor" TInt8 "" ]
       returnType = TypeReference.result TInt8 TString
       description =
-        "Returns the integer remainder left over after dividing <param value> by
-        <param divisor>, as a <type Result>.
-
-        For example, {{Int8.remainder 15 6 == Ok 3}}. The remainder will be
-        negative only if {{<var value> < 0}}.
-
-        The sign of <param divisor> doesn't influence the outcome.
-
-        Returns an {{Error}} if <param divisor> is {{0}}."
+        "Returns the integer remainder left over after dividing <param value> "
+        + "by <param divisor>, as a <type Result>.\n\nFor example, "
+        + "{{Int8.remainder 15 6 == Ok 3}}. The remainder will be negative only "
+        + "if {{<var value> < 0}}.\n\nThe sign of <param divisor> doesn't "
+        + "influence the outcome.\n\nReturns an {{Error}} if <param divisor> is "
+        + "{{0}}."
       fn =
         let resultOk r = Dval.resultOk KTInt8 KTString r |> Ply
         (function
@@ -141,9 +136,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "base" TInt8 ""; Param.make "exponent" TInt8 "" ]
       returnType = TInt8
       description =
-        "Raise <param base> to the power of <param exponent>.
-        <param exponent> must to be positive.
-        Overflow wraps around."
+        "Raise <param base> to the power of <param exponent>. <param exponent> "
+        + "must to be positive. Overflow wraps around."
       fn =
         (function
         | _, vm, _, [| DInt8 number; DInt8 exp |] ->

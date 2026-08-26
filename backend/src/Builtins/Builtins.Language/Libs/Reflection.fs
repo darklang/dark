@@ -41,10 +41,10 @@ let fns () : List<BuiltInFn> =
           []
         )
       description =
-        "Returns a meta representation of the real underlying dval, as a
-         <type LanguageTools.RuntimeTypes.Dval>. This is what lets a value be
-         turned back into source (see
-         <fn LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr>)."
+        "Returns a meta representation of the real underlying dval, as a <type "
+        + "LanguageTools.RuntimeTypes.Dval>. This is what lets a value be turned "
+        + "back into source (see <fn "
+        + "LanguageTools.RuntimeTypesToProgramTypes.dvalToExpr>)."
       fn =
         (function
         | _, _, _, [| dv |] ->

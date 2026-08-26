@@ -60,8 +60,8 @@ let fns () : List<BuiltInFn> =
           Param.make "replaceWith" TString "" ]
       returnType = TString
       description =
-        "Replace all instances on <param searchFor> in <param s> with <param
-         replaceWith>"
+        "Replace all instances on <param searchFor> in <param s> with <param "
+        + "replaceWith>"
       fn =
         (function
         | _, _, _, [| DString s; DString search; DString replace |] ->
@@ -167,8 +167,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "s1" TString ""; Param.make "s2" TString "" ]
       returnType = TString
       description =
-        "Concatenates the two strings by appending <param s2> to <param s1> and
-         returns the joined string."
+        "Concatenates the two strings by appending <param s2> to <param s1> and "
+        + "returns the joined string."
       fn =
         (function
         // TODO add fuzzer to ensure all strings are normalized no matter what we do to them.
@@ -188,8 +188,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "string" TString "" ]
       returnType = TString
       description =
-        "Turns a string into a prettified slug, including only lowercased
-         alphanumeric characters, joined by hyphens"
+        "Turns a string into a prettified slug, including only lowercased "
+        + "alphanumeric characters, joined by hyphens"
       fn =
         (function
         | _, _, _, [| DString s |] ->
@@ -236,8 +236,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "s" TString ""; Param.make "separator" TString "" ]
       returnType = TList TString
       description =
-        "Splits a string at the separator, returning a list of strings without the separator.
-        If the separator is not present, returns a list containing only the initial string."
+        "Splits a string at the separator, returning a list of strings without "
+        + "the separator. If the separator is not present, returns a list "
+        + "containing only the initial string."
       fn =
         (function
         | _, _, _, [| DString s; DString sep |] ->
@@ -316,8 +317,9 @@ let fns () : List<BuiltInFn> =
           Param.make "to" TInt "" ]
       returnType = TString
       description =
-        "Returns the substring of <param string> between the <param from> and <param to> indices.
-         Negative indices start counting from the end of <param string>."
+        "Returns the substring of <param string> between the <param from> and "
+        + "<param to> indices. Negative indices start counting from the end of "
+        + "<param string>."
       fn =
         (function
         | _, vm, _, [| DString s; DInt firstD; DInt lastD |] ->
@@ -365,10 +367,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "str" TString "" ]
       returnType = TString
       description =
-        "Returns a copy of <param str> with all leading and trailing whitespace
-         removed. 'whitespace' here means all Unicode characters with the
-         {{White_Space}} property, which includes {{\" \"}}, {{\"\\t\"}} and
-         {{\"\\n\"}}"
+        "Returns a copy of <param str> with all leading and trailing whitespace "
+        + "removed. 'whitespace' here means all Unicode characters with the "
+        + "{{White_Space}} property, which includes {{\" \"}}, {{\"\\t\"}} and "
+        + "{{\"\\n\"}}"
       fn =
         (function
         | _, _, _, [| DString toTrim |] -> toTrim.Trim() |> DString |> Ply
@@ -384,9 +386,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "str" TString "" ]
       returnType = TString
       description =
-        "Returns a copy of <param str> with all leading whitespace removed. 'whitespace'
-         here means all Unicode characters with the {{White_Space}} property, which
-         includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}"
+        "Returns a copy of <param str> with all leading whitespace removed. "
+        + "'whitespace' here means all Unicode characters with the "
+        + "{{White_Space}} property, which includes {{\" \"}}, {{\"\\t\"}} and "
+        + "{{\"\\n\"}}"
       fn =
         (function
         | _, _, _, [| DString toTrim |] -> Ply(DString(toTrim.TrimStart()))
@@ -402,9 +405,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "str" TString "" ]
       returnType = TString
       description =
-        "Returns a copy of <param str> with all trailing whitespace removed.
-         'whitespace' here means all Unicode characters with the {{White_Space}}
-         property, which includes {{\" \"}}, {{\"\\t\"}} and {{\"\\n\"}}."
+        "Returns a copy of <param str> with all trailing whitespace removed. "
+        + "'whitespace' here means all Unicode characters with the "
+        + "{{White_Space}} property, which includes {{\" \"}}, {{\"\\t\"}} and "
+        + "{{\"\\n\"}}."
       fn =
         (function
         | _, _, _, [| DString toTrim |] -> Ply(DString(toTrim.TrimEnd()))
@@ -505,10 +509,10 @@ let fns () : List<BuiltInFn> =
           Param.make "searchingFor" TString "The substring to look for" ]
       returnType = TBool
       description =
-        "Returns {{true}} if <param lookingIn> contains <param searchingFor>.
-         SQL-queryable: it only checks found/not-found, which SQLite's INSTR and
-         .NET's Contains agree on (unlike index position, which they count
-         differently for some Unicode text)."
+        "Returns {{true}} if <param lookingIn> contains <param searchingFor>. "
+        + "SQL-queryable: it only checks found/not-found, which SQLite's INSTR "
+        + "and .NET's Contains agree on (unlike index position, which they count "
+        + "differently for some Unicode text)."
       fn =
         (function
         | _, _, _, [| DString lookingIn; DString searchingFor |] ->
@@ -533,20 +537,20 @@ let fns () : List<BuiltInFn> =
             "The string to search for within <param str>" ]
       returnType = TInt
       description =
-        "Returns the index of the first occurrence of <param searchFor> in <param str>,
-         measured in UTF-16 code units (the .NET string representation). Returns -1 if
-         <param searchFor> does not occur. For an index that pairs with {{String.length}},
-         {{String.slice}}, {{String.first}}, and {{String.dropFirst}} (which are all
-         EGC-indexed), use {{stringIndexOfEgc}}.
-
-         Note on SQL: SQLite's INSTR and .NET's IndexOf both tell us whether
-         a substring was found, but they count positions differently for some
-         Unicode text. SQLite counts Unicode characters; .NET IndexOf counts
-         UTF-16 code units. For example, SQLite reports the \"a\" in \"😄a\" at
-         index 1, while .NET reports it at index 2 because the emoji takes two
-         UTF-16 code units. So {{String.contains}} is portable in SQL because it
-         only checks found/not-found, but {{String.indexOf}} may return different
-         numeric indexes outside simple ASCII text."
+        "Returns the index of the first occurrence of <param searchFor> in "
+        + "<param str>, measured in UTF-16 code units (the .NET string "
+        + "representation). Returns -1 if <param searchFor> does not occur. For "
+        + "an index that pairs with {{String.length}}, {{String.slice}}, "
+        + "{{String.first}}, and {{String.dropFirst}} (which are all "
+        + "EGC-indexed), use {{stringIndexOfEgc}}.\n\nNote on SQL: SQLite's INSTR "
+        + "and .NET's IndexOf both tell us whether a substring was found, but "
+        + "they count positions differently for some Unicode text. SQLite counts "
+        + "Unicode characters; .NET IndexOf counts UTF-16 code units. For "
+        + "example, SQLite reports the \"a\" in \"😄a\" at index 1, while .NET "
+        + "reports it at index 2 because the emoji takes two UTF-16 code units. "
+        + "So {{String.contains}} is portable in SQL because it only checks "
+        + "found/not-found, but {{String.indexOf}} may return different numeric "
+        + "indexes outside simple ASCII text."
       fn =
         (function
         | _, _, _, [| DString str; DString search |] ->
@@ -574,14 +578,14 @@ let fns () : List<BuiltInFn> =
             "The string to search for within <param str>" ]
       returnType = TInt
       description =
-        "Returns the index of the first occurrence of <param searchFor> in <param str>,
-         measured in extended grapheme clusters (consistent with {{String.length}},
-         {{String.slice}}, {{String.first}}, and {{String.dropFirst}}). Returns -1 if
-         <param searchFor> does not occur. The match must begin and end on EGC
-         boundaries — partial-grapheme matches (e.g. finding a skin-tone modifier
-         alone inside a full skin-toned emoji) are not reported. Not SQL-queryable
-         because SQLite has no EGC-aware INSTR; use {{stringIndexOf}} inside DB
-         query lambdas."
+        "Returns the index of the first occurrence of <param searchFor> in "
+        + "<param str>, measured in extended grapheme clusters (consistent with "
+        + "{{String.length}}, {{String.slice}}, {{String.first}}, and "
+        + "{{String.dropFirst}}). Returns -1 if <param searchFor> does not occur. "
+        + "The match must begin and end on EGC boundaries — partial-grapheme "
+        + "matches (e.g. finding a skin-tone modifier alone inside a full "
+        + "skin-toned emoji) are not reported. Not SQL-queryable because SQLite "
+        + "has no EGC-aware INSTR; use {{stringIndexOf}} inside DB query lambdas."
       fn =
         (function
         | _, _, _, [| DString str; DString search |] ->
@@ -633,10 +637,10 @@ let fns () : List<BuiltInFn> =
             "The string to search for within <param str>" ]
       returnType = TInt
       description =
-        "Returns the index of the last occurrence of <param searchFor> in <param str>,
-         measured in UTF-16 code units. Returns -1 if <param searchFor> does not occur.
-         For an EGC-indexed result that pairs with {{String.length}} / {{String.slice}},
-         use {{stringLastIndexOfEgc}}."
+        "Returns the index of the last occurrence of <param searchFor> in "
+        + "<param str>, measured in UTF-16 code units. Returns -1 if <param "
+        + "searchFor> does not occur. For an EGC-indexed result that pairs with "
+        + "{{String.length}} / {{String.slice}}, use {{stringLastIndexOfEgc}}."
       fn =
         (function
         | _, _, _, [| DString str; DString search |] ->
@@ -659,11 +663,12 @@ let fns () : List<BuiltInFn> =
             "The string to search for within <param str>" ]
       returnType = TInt
       description =
-        "Returns the index of the last occurrence of <param searchFor> in <param str>,
-         measured in extended grapheme clusters (consistent with {{String.length}},
-         {{String.slice}}, {{String.first}}, and {{String.dropFirst}}). Returns -1 if
-         <param searchFor> does not occur. The match must begin and end on EGC
-         boundaries — partial-grapheme matches are not reported."
+        "Returns the index of the last occurrence of <param searchFor> in "
+        + "<param str>, measured in extended grapheme clusters (consistent with "
+        + "{{String.length}}, {{String.slice}}, {{String.first}}, and "
+        + "{{String.dropFirst}}). Returns -1 if <param searchFor> does not occur. "
+        + "The match must begin and end on EGC boundaries — partial-grapheme "
+        + "matches are not reported."
       fn =
         (function
         | _, _, _, [| DString str; DString search |] ->

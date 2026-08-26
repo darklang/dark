@@ -33,12 +33,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt32 ""; Param.make "b" TUInt32 "" ]
       returnType = TUInt32
       description =
-        "Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-
-        The modulus <param b> must be greater than 0.
-
-        Use <fn UInt32.remainder> if you want the remainder after division, which has
-        a different behavior for negative numbers."
+        "Returns the result of wrapping <param a> around so that {{0 <= res < "
+        + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
+        + "UInt32.remainder> if you want the remainder after division, which has "
+        + "a different behavior for negative numbers."
       fn =
         (function
         | _, vm, _, [| DUInt32 v; DUInt32 m |] ->
@@ -106,9 +104,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "base" TUInt32 ""; Param.make "exponent" TUInt32 "" ]
       returnType = TUInt32
       description =
-        "Raise <param base> to the power of <param exponent>.
-        <param exponent> must to be positive.
-        Overflow wraps around."
+        "Raise <param base> to the power of <param exponent>. <param exponent> "
+        + "must to be positive. Overflow wraps around."
       fn =
         (function
         | _, _, _, [| DUInt32 number; DUInt32 exp |] ->
@@ -286,8 +283,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt8 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts an Int8 to a 32-bit unsigned integer.
-        Returns {{None}} if the value is less than 0."
+        "Converts an Int8 to a 32-bit unsigned integer. Returns {{None}} if the "
+        + "value is less than 0."
       fn =
         (function
         | _, _, _, [| DInt8 a |] ->
@@ -322,8 +319,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt16 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts an Int16 to a 32-bit unsigned integer.
-        Returns {{None}} if the value is less than 0."
+        "Converts an Int16 to a 32-bit unsigned integer. Returns {{None}} if "
+        + "the value is less than 0."
       fn =
         (function
         | _, _, _, [| DInt16 a |] ->
@@ -358,8 +355,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt32 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts an Int32 to a 32-bit unsigned integer.
-        Returns {{None}} if the value is less than 0"
+        "Converts an Int32 to a 32-bit unsigned integer. Returns {{None}} if "
+        + "the value is less than 0"
       fn =
         (function
         | _, _, _, [| DInt32 a |] ->
@@ -379,8 +376,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt64 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts an Int64 to a 32-bit unsigned integer.
-        Returns {{None}} if the value is less than 0 or greater than 4294967295."
+        "Converts an Int64 to a 32-bit unsigned integer. Returns {{None}} if "
+        + "the value is less than 0 or greater than 4294967295."
       fn =
         (function
         | _, _, _, [| DInt64 a |] ->
@@ -402,8 +399,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt64 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts a UInt64 to a 32-bit unsigned integer.
-        Returns {{None}} if the value is greater than 4294967295."
+        "Converts a UInt64 to a 32-bit unsigned integer. Returns {{None}} if "
+        + "the value is greater than 4294967295."
       fn =
         (function
         | _, _, _, [| DUInt64 a |] ->
@@ -446,8 +443,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt128 "" ]
       returnType = TypeReference.option TUInt32
       description =
-        "Converts a UInt128 to a 32-bit unsigned integer.
-        Returns {{None}} if the value is greater than 4294967295."
+        "Converts a UInt128 to a 32-bit unsigned integer. Returns {{None}} if "
+        + "the value is greater than 4294967295."
       fn =
         (function
         | _, _, _, [| DUInt128 a |] ->

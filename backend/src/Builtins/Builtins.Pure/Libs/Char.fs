@@ -14,8 +14,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
       description =
-        "Return the uppercase value of <param c>.
-        If <param c> does not have an uppercase value, returns <param c>"
+        "Return the uppercase value of <param c>. If <param c> does not have an "
+        + "uppercase value, returns <param c>"
       fn =
         function
         | _, _, _, [| DChar c |] -> Ply(DChar(c.ToUpper()))
@@ -31,8 +31,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "c" TChar "" ]
       returnType = TChar
       description =
-        "Return the lowercase value of <param c>.
-        If <param c> does not have a lowercase value, returns <param c>"
+        "Return the lowercase value of <param c>. If <param c> does not have a "
+        + "lowercase value, returns <param c>"
       fn =
         function
         | _, _, _, [| DChar c |] -> Ply(DChar(c.ToLower()))
@@ -144,9 +144,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "codepoint" TInt "" ]
       returnType = TypeReference.option TChar
       description =
-        "Return {{Some <var c>}} for the Unicode codepoint <param codepoint>,
-        or {{None}} if the value is not a valid scalar codepoint
-        (i.e. negative, greater than 0x10FFFF, or a surrogate)."
+        "Return {{Some <var c>}} for the Unicode codepoint <param codepoint>, "
+        + "or {{None}} if the value is not a valid scalar codepoint (i.e. "
+        + "negative, greater than 0x10FFFF, or a surrogate)."
       fn =
         function
         | _, _, _, [| DInt cp |] ->

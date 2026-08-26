@@ -324,8 +324,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "date" TDateTime "" ]
       returnType = TInt
       description =
-        "Returns the weekday of <param date> as an <type Int>.
-        Monday = {{1}}, Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601)"
+        "Returns the weekday of <param date> as an <type Int>. Monday = {{1}}, "
+        + "Tuesday = {{2}}, ... Sunday = {{7}} (in accordance with ISO 8601)"
       fn =
         (function
         | _, _, _, [| DDateTime d |] ->

@@ -32,12 +32,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TUInt64 ""; Param.make "b" TUInt64 "" ]
       returnType = TUInt64
       description =
-        "Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-
-         The modulus <param b> must be greater than 0.
-
-         Use <fn UInt64.remainder> if you want the remainder after division, which has
-         a different behavior for negative numbers."
+        "Returns the result of wrapping <param a> around so that {{0 <= res < "
+        + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
+        + "UInt64.remainder> if you want the remainder after division, which has "
+        + "a different behavior for negative numbers."
       fn =
         (function
         | _, vm, _, [| DUInt64 v; DUInt64 m |] ->
@@ -104,9 +102,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "base" TUInt64 ""; Param.make "exponent" TUInt64 "" ]
       returnType = TUInt64
       description =
-        "Raise <param base> to the power of <param exponent>.
-        <param exponent> must to be positive.
-        Overflow wraps around."
+        "Raise <param base> to the power of <param exponent>. <param exponent> "
+        + "must to be positive. Overflow wraps around."
       fn =
         (function
         | _, _, _, [| DUInt64 number; DUInt64 exp |] ->

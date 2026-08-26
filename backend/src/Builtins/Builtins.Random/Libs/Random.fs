@@ -226,9 +226,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "list" (TList(TVariable "a")) "" ]
       returnType = TypeReference.option (TVariable "a")
       description =
-        "Returns {{Some <var randomValue>}}, where <var randomValue> is a randomly
-         selected value in <param list>. Returns {{None}} if <param list> is
-         empty."
+        "Returns {{Some <var randomValue>}}, where <var randomValue> is a "
+        + "randomly selected value in <param list>. Returns {{None}} if <param "
+        + "list> is empty."
       fn =
         let optType = VT.unknownTODO
         (function

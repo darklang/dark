@@ -76,10 +76,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
       returnType = TInt
       description =
-        "Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-         The modulus <param b> must be greater than 0.
-         Use <fn Int.remainder> if you want the remainder after division, which
-         has a different behavior for negative numbers."
+        "Returns the result of wrapping <param a> around so that {{0 <= res < "
+        + "b}}. The modulus <param b> must be greater than 0. Use <fn "
+        + "Int.remainder> if you want the remainder after division, which has a "
+        + "different behavior for negative numbers."
       fn =
         (function
         | _, vm, _, [| DInt a; DInt b |] ->
@@ -103,10 +103,11 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "value" TInt ""; Param.make "divisor" TInt "" ]
       returnType = TypeReference.result TInt TString
       description =
-        "Returns the integer remainder left over after dividing <param value> by
-         <param divisor>, as a <type Result>. The remainder will be negative only
-         if {{<var value> < 0}}. The sign of <param divisor> doesn't influence the
-         outcome. Returns an {{Error}} if <param divisor> is {{0}}."
+        "Returns the integer remainder left over after dividing <param value> "
+        + "by <param divisor>, as a <type Result>. The remainder will be negative "
+        + "only if {{<var value> < 0}}. The sign of <param divisor> doesn't "
+        + "influence the outcome. Returns an {{Error}} if <param divisor> is "
+        + "{{0}}."
       fn =
         let resultOk = Dval.resultOk KTInt KTString
         let resultError = Dval.resultError KTInt KTString
@@ -176,8 +177,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "base" TInt ""; Param.make "exponent" TInt "" ]
       returnType = TInt
       description =
-        "Raise <param base> to the power of <param exponent>. <param exponent>
-         must be non-negative. The arbitrary-precision result grows as needed."
+        "Raise <param base> to the power of <param exponent>. <param exponent> "
+        + "must be non-negative. The arbitrary-precision result grows as needed."
       fn =
         (function
         | _, vm, _, [| DInt b; DInt exp |] ->
@@ -307,8 +308,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt "" ]
       returnType = TFloat
       description =
-        "Get the square root of an <type Int> as a <type Float>. Note that very
-         large values lose precision when converted to a float."
+        "Get the square root of an <type Int> as a <type Float>. Note that very "
+        + "large values lose precision when converted to a float."
       fn =
         (function
         | _, _, _, [| (DInt _) as v |] -> Ply(DFloat(sqrt (float (Dval.asBigInt v))))
@@ -324,8 +325,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt "" ]
       returnType = TFloat
       description =
-        "Converts an <type Int> to a <type Float>. Very large values lose
-         precision."
+        "Converts an <type Int> to a <type Float>. Very large values lose "
+        + "precision."
       fn =
         (function
         | _, _, _, [| (DInt _) as v |] -> Ply(DFloat(float (Dval.asBigInt v)))
@@ -341,9 +342,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
-        "Converts a <type Float> to an <type Int>, truncating toward zero.
-         Unlike going via Int64, this preserves the full integer part of the
-         float (no 64-bit clamp)."
+        "Converts a <type Float> to an <type Int>, truncating toward zero. "
+        + "Unlike going via Int64, this preserves the full integer part of the "
+        + "float (no 64-bit clamp)."
       fn =
         (function
         // `bigint f` truncates toward zero; `roundedToInt` adds the NaN/Infinity
@@ -364,8 +365,8 @@ let fns () : List<BuiltInFn> =
           FQTypeName.fqPackage (PackageRefs.Type.Stdlib.intParseError ())
         TypeReference.result TInt (TCustomType(NR.ok errorType, []))
       description =
-        "Returns the <type Int> value of a <type String>. Arbitrary precision, so
-         the only failure is a badly-formatted string."
+        "Returns the <type Int> value of a <type String>. Arbitrary precision, "
+        + "so the only failure is a badly-formatted string."
       fn =
         let typeName =
           FQTypeName.fqPackage (PackageRefs.Type.Stdlib.intParseError ())
@@ -686,8 +687,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt "" ]
       returnType = TypeReference.option TInt64
       description =
-        "Converts an Int to an Int64, returning None if it doesn't fit the
-         64-bit range."
+        "Converts an Int to an Int64, returning None if it doesn't fit the "
+        + "64-bit range."
       fn =
         let someType = KTInt64
         (function

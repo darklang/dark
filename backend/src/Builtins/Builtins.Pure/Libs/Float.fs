@@ -57,11 +57,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
-        "Round down to an integer value.
-
-        Consider <fn Float.truncate> if your goal
-        is to discard the fractional part of a number: {{Float.floor -1.9 == -2.0}}
-        but {{Float.truncate -1.9 == -1.0}}"
+        "Round down to an integer value.\n\nConsider <fn Float.truncate> if "
+        + "your goal is to discard the fractional part of a number: {{Float.floor "
+        + "-1.9 == -2.0}} but {{Float.truncate -1.9 == -1.0}}"
       fn =
         (function
         | _, vm, _, [| DFloat a |] -> a |> System.Math.Floor |> roundedToInt vm
@@ -77,11 +75,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TFloat "" ]
       returnType = TInt
       description =
-        "Round down to an integer value.
-
-         Consider <fn Float.truncate> if your goal is to discard the fractional part
-         of a number: {{Float.floor -1.9 == -2.0}} but {{Float.truncate -1.9 ==
-         -1.0}}"
+        "Round down to an integer value.\n\nConsider <fn Float.truncate> if "
+        + "your goal is to discard the fractional part of a number: {{Float.floor "
+        + "-1.9 == -2.0}} but {{Float.truncate -1.9 == -1.0}}"
 
       fn =
         (function

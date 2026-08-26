@@ -113,11 +113,11 @@ let fns () : List<BuiltInFn> =
             [ "state" ] ]
       returnType = TStream(TVariable "a")
       description =
-        "Constructs a stream from a seed state and a step function. The step is
-         called once per pull — return Some of a (value, nextState) tuple to
-         yield an element, or None to end the stream. Useful for writing custom
-         lazy producers in Dark: file line readers, paginated API iterators,
-         protocol parsers like SSE, etc."
+        "Constructs a stream from a seed state and a step function. The step is "
+        + "called once per pull — return Some of a (value, nextState) tuple to "
+        + "yield an element, or None to end the stream. Useful for writing custom "
+        + "lazy producers in Dark: file line readers, paginated API iterators, "
+        + "protocol parsers like SSE, etc."
       fn =
         (function
         | state, vm, [ _; outputType ], [| initialState; DApplicable app |] ->
@@ -244,10 +244,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "stream" (TStream varA) "" ]
       returnType = TUnit
       description =
-        "Marks <param stream> as fully consumed. Idempotent — calling on an
-         already-closed stream is a no-op. Not strictly required (streams are
-         GC-closed via their .NET finalizer), but useful when you want to release
-         an IO source promptly."
+        "Marks <param stream> as fully consumed. Idempotent — calling on an "
+        + "already-closed stream is a no-op. Not strictly required (streams are "
+        + "GC-closed via their .NET finalizer), but useful when you want to "
+        + "release an IO source promptly."
       fn =
         (function
         | _, _, _, [| DStream(impl, disposed, _lockObj) |] ->
@@ -286,9 +286,9 @@ let fns () : List<BuiltInFn> =
             [ "elem" ] ]
       returnType = TStream(TVariable "b")
       description =
-        "Returns a new stream whose elements are <param fn> applied to each
-         element of <param stream>. Lazy — <param fn> runs only when the
-         returned stream is drained."
+        "Returns a new stream whose elements are <param fn> applied to each "
+        + "element of <param stream>. Lazy — <param fn> runs only when the "
+        + "returned stream is drained."
       fn =
         (function
         | state, vm, [ _; outputType ], [| DStream(src, _, _); DApplicable app |] ->
@@ -321,9 +321,9 @@ let fns () : List<BuiltInFn> =
             [ "elem" ] ]
       returnType = TStream varA
       description =
-        "Returns a new stream that yields only the elements of <param stream>
-         for which <param pred> returns true. Lazy — <param pred> runs as the
-         result is drained, skipping rejected elements without buffering."
+        "Returns a new stream that yields only the elements of <param stream> "
+        + "for which <param pred> returns true. Lazy — <param pred> runs as the "
+        + "result is drained, skipping rejected elements without buffering."
       fn =
         (function
         | state, vm, _, [| DStream(src, _, _); DApplicable app |] ->
@@ -354,9 +354,9 @@ let fns () : List<BuiltInFn> =
           Param.make "n" TInt "Maximum number of elements to yield." ]
       returnType = TStream varA
       description =
-        "Returns a new stream that yields at most the first <param n> elements
-         of <param stream>. If the source has fewer elements, yields them all.
-         Terminates early without pulling the source past the limit."
+        "Returns a new stream that yields at most the first <param n> elements "
+        + "of <param stream>. If the source has fewer elements, yields them all. "
+        + "Terminates early without pulling the source past the limit."
       fn =
         (function
         | _, _, _, [| DStream(src, _, _); DInt n |] ->
@@ -382,8 +382,8 @@ let fns () : List<BuiltInFn> =
         [ Param.make "streams" (TList(TStream varA)) "Streams to concatenate." ]
       returnType = TStream varA
       description =
-        "Returns a new stream that drains <param streams> in list order,
-         advancing to the next sub-stream when the current one is exhausted."
+        "Returns a new stream that drains <param streams> in list order, "
+        + "advancing to the next sub-stream when the current one is exhausted."
       fn =
         (function
         | _, _, _, [| DList(_, items) |] ->

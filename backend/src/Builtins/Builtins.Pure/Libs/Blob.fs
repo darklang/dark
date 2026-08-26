@@ -81,8 +81,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "blob" TBlob "" ]
       returnType = TString
       description =
-        "Hex (Base16) encodes <param blob> using an uppercase alphabet. Complies
-         with [RFC 4648 section 8](https://www.rfc-editor.org/rfc/rfc4648.html#section-8)."
+        "Hex (Base16) encodes <param blob> using an uppercase alphabet. "
+        + "Complies with [RFC 4648 section "
+        + "8](https://www.rfc-editor.org/rfc/rfc4648.html#section-8)."
       fn =
         (function
         | state, _, _, [| DBlob ref |] ->

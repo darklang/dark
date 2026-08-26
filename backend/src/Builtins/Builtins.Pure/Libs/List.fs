@@ -306,9 +306,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TList varA
       description =
-        "Returns the passed list, with only unique values.
-         Only one of each value will be returned, but the
-         order will not be maintained."
+        "Returns the passed list, with only unique values. Only one of each "
+        + "value will be returned, but the order will not be maintained."
       fn =
         (function
         | _, _, _, [| DList(vt, l) |] ->
@@ -328,12 +327,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "list" (TList varA) "" ]
       returnType = TList varA
       description =
-        "Returns a copy of <param list> with every value sorted in ascending order.
-
-         Use this if the values have types Dark knows how to sort.
-
-         Consider <fn List.sortBy> or <fn List.sortByComparator> if you need more
-         control over the sorting process."
+        "Returns a copy of <param list> with every value sorted in ascending "
+        + "order.\n\nUse this if the values have types Dark knows how to "
+        + "sort.\n\nConsider <fn List.sortBy> or <fn List.sortByComparator> if "
+        + "you need more control over the sorting process."
       fn =
         (function
         | _, _, _, [| DList(vt, list) |] ->
@@ -354,8 +351,8 @@ let fns () : List<BuiltInFn> =
         [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varA) "" ]
       returnType = TList varA
       description =
-        "Returns a new list with all values in <param as> followed by all values in <param bs>,
-         preserving the order."
+        "Returns a new list with all values in <param as> followed by all "
+        + "values in <param bs>, preserving the order."
       fn =
         (function
         | _, vm, _, [| DList(vt1, l1); DList(vt2, l2) |] ->
@@ -420,8 +417,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "list" (TList(TList varA)) "" ]
       returnType = TList varA
       description =
-        "Returns a single list containing the values of every list directly in <param list>
-         (does not recursively flatten nested lists)."
+        "Returns a single list containing the values of every list directly in "
+        + "<param list> (does not recursively flatten nested lists)."
       fn =
         (function
         | _, vm, _, [| DList(_, sublists) |] ->
