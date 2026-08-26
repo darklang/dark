@@ -1,0 +1,105 @@
+// What each basic operation costs in *time*, measured against each other.
+//
+// The time counterpart to `costs.dark`, which measures the same operations in bytes. Rounds 1-4
+// were allocation campaigns and the roadmap says plainly that allocation campaigns move allocation
+// while time follows far less. Round 5 is a latency campaign and had no instrument for this: every
+// finding in it bottomed out at "~15-35 us per list element" with no way to say which operations
+// those microseconds were in.
+//
+//   ./scripts/run-cli run scripts/perf/workloads/optime.dark
+//
+// Read it as a cost model, not a benchmark. The baseline row is the harness itself (a fold, a lambda
+// application and an Int comparison per iteration) and every other row includes it, so compare rows
+// to each other and subtract the baseline, never read a row as an absolute.
+//
+// Each row is the fastest of three passes. Time is noisy where allocation is not -- the playbook is
+// blunt about this -- and the minimum of several passes is the least noisy estimator available:
+// a pass can be slowed by the machine, never sped up by it.
+
+type Rec = { a: Int; b: String }
+
+type Enum =
+  | One of Int
+  | Two of String * Int
+
+let plainFn (i: Int) : Int = i + 1
+let twoArgFn (i: Int) (j: Int) : Int = i + j
+let recFn (i: Int) : Rec = Rec { a = i; b = "x" }
+let optFn (i: Int) : Stdlib.Option.Option<Int> = Stdlib.Option.Option.Some i
+let listFn (i: Int) : List<Int> = [ i ]
+
+val iterations = 4000
+
+/// One timed pass of `f`, in milliseconds.
+///
+/// The accumulator is never added to, for the reason `costs.dark` gives: summing the results made
+/// each row depend on how large its own accumulator grew, so the harness measured the arithmetic.
+let onePass (f: Int -> Int) : Int =
+  let t0 = Darklang.Cli.Telemetry.now ()
+
+  let _r =
+    Stdlib.List.fold (Stdlib.List.range 1 iterations) 0 (fun acc i ->
+      if (f i) == -987654321 then acc + 1 else acc)
+
+  (Darklang.Cli.Telemetry.now ()) - t0
+
+let measure (label: String) (f: Int -> Int) : Unit =
+  // Warm first: the first call through a function loads and converts it.
+  let _warm = onePass f
+  let a = onePass f
+  let b = onePass f
+  let c = onePass f
+  let best = Stdlib.Int.min a (Stdlib.Int.min b c)
+  // Nanoseconds per call, from milliseconds over `iterations`.
+  let ns = Stdlib.Int.divide (best * 1000000) iterations
+  Stdlib.printLine (label ++ "  " ++ (Stdlib.Int.toString ns) ++ " ns")
+
+Stdlib.printLine "--- harness"
+measure "baseline (fold + lambda + compare)   " (fun i -> i)
+
+Stdlib.printLine "--- calls"
+measure "call a 1-arg fn                      " (fun i -> plainFn i)
+measure "call a 2-arg fn                      " (fun i -> twoArgFn i 1)
+measure "apply a lambda                       " (fun i -> (fun x -> x + 1) i)
+
+Stdlib.printLine "--- values"
+measure "build a 2-field record               " (fun i -> (Rec { a = i; b = "x" }).a)
+measure "read a record field                  " (fun i -> (recFn i).a)
+measure "update a record field                " (fun i ->
+  let r = Rec { a = i; b = "x" }
+  ({ r with a = i + 1 }).a)
+measure "build a 1-field enum                 " (fun i ->
+  match Enum.One i with
+  | One v -> v
+  | Two(_, v) -> v)
+measure "build an Option                      " (fun i ->
+  match optFn i with
+  | Some v -> v
+  | None -> 0)
+measure "build a tuple                        " (fun i ->
+  let (a, b) = (i, i + 1)
+  a + b)
+
+Stdlib.printLine "--- lists"
+measure "cons onto a 3-list                   " (fun i -> Stdlib.List.length (Stdlib.List.push [ 1; 2; 3 ] i))
+measure "range 1..5                           " (fun i -> Stdlib.List.length (Stdlib.List.range 1 5))
+measure "map over 5                           " (fun i -> Stdlib.List.length (Stdlib.List.map [ 1; 2; 3; 4; 5 ] (fun x -> x + i)))
+measure "fold over 5                          " (fun i -> Stdlib.List.fold [ 1; 2; 3; 4; 5 ] 0 (fun acc x -> acc + x))
+measure "filter over 5                        " (fun i -> Stdlib.List.length (Stdlib.List.filter [ 1; 2; 3; 4; 5 ] (fun x -> x > 2)))
+measure "member of a 5-list                   " (fun i -> if Stdlib.List.member [ 1; 2; 3; 4; 5 ] 3 then 1 else 0)
+measure "build a 5-element literal            " (fun i -> Stdlib.List.length [ i; i; i; i; i ])
+
+Stdlib.printLine "--- strings"
+measure "concat two strings                   " (fun i -> Stdlib.String.length ("ab" ++ "cd"))
+measure "Int to String                        " (fun i -> Stdlib.String.length (Stdlib.Int.toString i))
+
+Stdlib.printLine "--- control flow"
+measure "if/else                              " (fun i -> if i > 1000 then 1 else 0)
+measure "match on an Int                      " (fun i ->
+  match i with
+  | 1 -> 1
+  | _ -> 0)
+
+// Repeated last as well as first: the first row absorbs one-time costs, so the honest floor is this.
+Stdlib.printLine "--- harness, again"
+measure "baseline again, at the end           " (fun i -> i)

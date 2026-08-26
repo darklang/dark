@@ -11,6 +11,7 @@ Numbers are measured unless marked *(estimate)*.
     scripts/perf/alloc-profile      allocation by type name
     scripts/perf/crosslang          the same workload in node and python
     scripts/perf/keystroke          what one keypress costs in the interactive CLI (needs a TTY)
+    ./scripts/run-cli run scripts/perf/workloads/optime.dark      time per operation (costs.dark's time twin)
     ./scripts/run-cli run scripts/perf/workloads/costs.dark      per-operation cost table
     ./scripts/run-cli run scripts/perf/workloads/workbench.dark  ms to build each workbench view
 
@@ -156,6 +157,95 @@ left to right rather than rediscovering it per span.
 **Negative result: bucketing spans by row is not worth touching.** `List.append existing [span]`
 looks quadratic, but a row holds ~6 spans, so it walks six elements. Changed to `List.push` with a
 `reverse` per row: 62 -> 63 ms, flat, reverted.
+
+**The per-element cost is `List.fold`, and it is a Dark recursion.** Round 5's every finding
+bottomed out at "~15-35 us per list element" with no way to say which operations those microseconds
+were in. `scripts/perf/workloads/optime.dark` is the time twin of `costs.dark` and now says. Above
+the harness baseline (21.3 us, stable to 250 ns across the run):
+
+| operation | above baseline |
+|---|---|
+| `List.map` over 5 | **+104 us** |
+| `List.filter` over 5 | **+93 us** |
+| `List.range 1..5` | **+76 us** |
+| `List.fold` over 5 | +48 us |
+| build a 5-element list literal | +6.4 us |
+| `Int.toString` | +8.9 us |
+| call a 1-arg package fn | +5.1 us |
+| apply a lambda | +4.1 us |
+| build a 2-field record | +2.4 us |
+| if/else | +3.1 us |
+| match on an Int | +0.4 us |
+
+Building a list is cheap. *Iterating* one is 10-40x anything else, and the reason is in
+`stdlib/list.dark`: `fold` is a Dark recursion, so it costs a package call, a match and two lambda
+applies per element; `map` and `filter` are `fold` plus a `push` builtin per element plus a
+`reverse`; `range` is its own Dark recursion with a `push` per element. Five interpreter operations
+an element, at a few microseconds each.
+
+**Probed: a native `List.map` is worth ~2x on the operation, not 10x.** Wrote a throwaway
+`listMapProbe` builtin that applies the lambda with `Exe.executeApplicable` per element, measured it
+against the Dark `map`, then reverted it. Over 5 elements, above the 21.5 us baseline: Dark map
+**+99 us**, native map **+52 us**. About 9.4 us an element saved.
+
+The residual says where the ceiling is. Native map's remaining ~10 us an element is the
+`executeApplicable` call, and an *inline* lambda apply measures 4.1 us. So going native trades five
+interpreter operations for one builtin dispatch plus one applicable call, and that applicable call
+is more expensive than an ordinary lambda application. **If `executeApplicable` were as cheap as an
+inline apply, native map would be 3-4x rather than 2x** -- worth measuring before assuming the
+builtin is the whole answer.
+
+Precedent exists: `Param.makeWithArgs` takes a `TFn`, and `Stream.fs` and `HttpServer.fs` already
+apply Dark lambdas from builtins this way. `Param.make` asserts *against* function types, which is
+why nothing in `List.fs` takes one today.
+
+**Why `executeApplicable` costs 10 us: it boots a VM per call.** Read rather than guessed. Both it
+and `executeFunction` build a small instruction sequence (`LoadVal` for the callable, one per arg, an
+`Apply`) and then call `RT.VMState.create`, which allocates, *per lambda application*:
+
+- two fresh `Guid.NewGuid()` values (thread id and root call frame id),
+- the instruction array and a registers array,
+- five `Dictionary`s -- `callFrames`, `lambdaInstrDataCache`, `lambdaEpCache`, `pendingCallArgs`,
+  `framePool` -- plus a `ResizeArray`,
+- and `InterpreterStats.create()`, which is another eight `Dictionary`s and six `Array.zeroCreate 32`.
+
+So applying a one-argument lambda from a builtin allocates roughly thirteen dictionaries, seven
+arrays and two GUIDs. The interpreter's own `Apply` opcode instead pushes a frame onto the VM it is
+already running and finds the lambda in `exeState.lambdaInstrCache`. That is the whole 4.1 us versus
+10 us.
+
+Three consequences beyond the timing:
+
+- **Every lambda-taking builtin pays it per application**, not per call: `Stream.unfold` pays it on
+  every pull, and `HttpServer` and `DB` have the same shape.
+- **`InterpreterStats` cannot see any of it.** The fresh VM gets fresh stats and nothing merges them
+  back, so work run through `executeApplicable`/`executeFunction` is invisible to the counters. The
+  numbers earlier in this section are unaffected -- the CLI's lambdas go through `List.map`, which is
+  Dark, so its applies run on the main VM and are counted -- but anyone measuring a lambda-taking
+  builtin should know.
+- **The per-VM lambda caches are thrown away each call**, so `lambdaInstrDataCache` and
+  `lambdaEpCache` never warm across applications.
+
+The fix is to apply on the caller's VM by pushing a frame, rather than constructing one. That is an
+interpreter API change and wants its own pass. A cheaper partial: `InterpreterStats.create()` is
+unconditional even though `enabled` is read at construction, so the eight dictionaries and six arrays
+are allocated whether or not anything will record into them.
+
+**Not landed, and the reason is types.** The Dark `map` gets its result element type from the values
+it built; the probe returned `VT.unknown`, which is fine for a timing probe and wrong for the
+language. A real implementation has to compute the result `ValueType` the way `listFlatten` does,
+and `map` is used everywhere, so getting that wrong is a type-checking bug rather than a slow path.
+That is the next piece of work, not a five-minute change.
+
+**That is the target for an interpreter round, and it is narrow.** `push` and `reverse` are already
+builtins; `fold`, `map`, `filter` and `range` are not. The CLI's renderers are `map`/`filter`/
+`flatten` pipelines almost end to end, which is why every structural win this round has been "run
+fewer list operations". Making the iteration primitives native attacks all of them at once.
+
+**This qualifies a closed item.** "Making stdlib wrappers free" was closed with "a warm package call
+allocates *nothing*", which is true and was measured. In *time* a package call costs ~5.1 us, and
+`fold` makes one per element. The old conclusion was right about bytes and says nothing about
+latency; both belong on the record.
 
 **Pane borders are 86% of the frame's spans and 85% of the time to composite it.** The single
 biggest structural fact found this round. `Box.draw` emits the vertical sides as two spans per row --
