@@ -72,7 +72,6 @@ let overlay (existing: List<Segment>) (next: Segment) : List<Segment> =
 let renderSegments (width: Int) (segments: List<Segment>) : String =
   let (text, _endCol) =
     segments
-    |> Stdlib.List.sortBy (fun seg -> seg.col)
     |> Stdlib.List.fold ("", 0) (fun acc seg ->
       let (out, col) = acc
       if seg.col >= width then
@@ -96,16 +95,32 @@ let renderSegments (width: Int) (segments: List<Segment>) : String =
 
 /// Paint one row's spans, in order.
 let composeRow (width: Int) (rowSpans: List<Layout.Span>) : String =
-  let placed =
+  // `renderSegments` walks the segments left to right, so they have to be in column order. Sorting
+  // them there cost `sortBy`, which is two Dark `map`s around a native sort -- about 240 us a row to
+  // reorder a row that a renderer had already produced left to right.
+  //
+  // So notice instead. `overlay` appends, and trimming an earlier segment leaves it where it was, so
+  // the result is in column order exactly when the spans arrived that way. Tracking that is one
+  // comparison against the highest column seen, and the sort only runs for a row that needs it.
+  let (placed, ordered, _lastCol) =
     rowSpans
-    |> Stdlib.List.fold [] (fun acc span ->
-      overlay
-        acc
-        (Segment
+    |> Stdlib.List.fold ([], true, -1) (fun acc span ->
+      let (segs, orderedSoFar, lastCol) = acc
+
+      let seg =
+        Segment
           { col = span.col
             text = span.text
-            width = Tui.Text.styledWidth span.text }))
-  renderSegments width placed
+            width = Tui.Text.styledWidth span.text }
+
+      // While the row is still in order, the last column seen is the highest one, so this needs no
+      // `max` -- and `Int.max` is a package call, which at one per span is not free.
+      (overlay segs seg, orderedSoFar && (span.col >= lastCol), span.col))
+
+  let sorted =
+    if ordered then placed else placed |> Stdlib.List.sortBy (fun seg -> seg.col)
+
+  renderSegments width sorted
 
 
 /// Paint spans onto a `height` x `width` grid and return the rows.

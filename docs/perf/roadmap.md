@@ -45,6 +45,20 @@ between them, but nothing measures the shipped artifact.
 
 ---
 
+## Round 5 in one line, before the detail
+
+283 to 141 ms a keypress across seven fixes, and every one of them removed work rather than making
+anything faster: an invariant recomputed in a loop, constants rebuilt per call, a handler computing
+outcomes for keys nobody pressed, a general helper on a hot path, a search asked an existence
+question, a sort of already-sorted data. That seam is mined out -- the last sweep for more of it found
+0.2 ms -- and what remains in the CLI is architectural.
+
+Every probe bottomed out at the same constant: 15-35 us per list element, 4.6 us to read a record
+field, 5.1 us to call a package fn. **The CLI is not slow because its renderers are badly written; it
+is slow because it runs many small list operations against a slow interpreter.** That is round 6, and
+it serves HTTP, eval, scripts and the LSP at the same time. See "An interpreter round aimed at
+latency" below, which now has three measured targets rather than a hunch.
+
 ## Round 5: the interactive CLI, which nothing has ever measured
 
 Rounds 1-4 measured allocation on interpreter workloads. Every instrument we have takes a fixed
@@ -183,6 +197,22 @@ applies per element; `map` and `filter` are `fold` plus a `push` builtin per ele
 `reverse`; `range` is its own Dark recursion with a `push` per element. Five interpreter operations
 an element, at a few microseconds each.
 
+**Target 2 is a prerequisite for target 1, not an enhancement. Measured the hard way.** Landed a real
+native `List.map` -- correct types, correct error propagation, backend suite green at 10,341, and
+`map over 5` went 120,250 -> 76,000 ns as predicted. Then `scripts/perf/gate` failed at **73.6 MB
+against a 7.8 MB budget, 9.4x over**. Reverted.
+
+The cause is exactly the `executeApplicable` finding below: it boots a fresh `VMState` per call, and
+`steady.dark` maps over 50 elements 200 times, so that is 10,000 VMs, each with two GUIDs, ~13
+dictionaries and 7 arrays. Native map trades five interpreter operations for one builtin dispatch
+plus one VM construction, which is faster in time and far worse in bytes.
+
+**So the order is fixed: make applying a lambda from a builtin cheap first, then the list primitives
+become worth landing.** Doing them the other way round ships a 9x allocation regression that a
+time-only instrument cannot see -- `optime.dark` reported the win and said nothing about the cost.
+This is the clearest case this campaign has produced for the playbook's rule about measuring the
+thing you are not looking at.
+
 **Probed: a native `List.map` is worth ~2x on the operation, not 10x.** Wrote a throwaway
 `listMapProbe` builtin that applies the lambda with `Exe.executeApplicable` per element, measured it
 against the Dark `map`, then reverted it. Over 5 elements, above the 21.5 us baseline: Dark map
@@ -246,6 +276,30 @@ fewer list operations". Making the iteration primitives native attacks all of th
 allocates *nothing*", which is true and was measured. In *time* a package call costs ~5.1 us, and
 `fold` makes one per element. The old conclusion was right about bytes and says nothing about
 latency; both belong on the record.
+
+**Done: `composeRow` notices when a row is already in column order.** `renderSegments` walks
+segments left to right, so it sorted them first -- with `sortBy`, which is two Dark `map`s around a
+native sort, about 240 us a row. But a renderer produces a row left to right, so it was almost always
+reordering data that was already ordered. `overlay` appends, and trimming an earlier segment leaves
+it where it was, so the result is in column order exactly when the spans arrived that way; tracking
+that is one comparison against the last column seen.
+
+| | before | after |
+|---|---|---|
+| `Canvas.toView` | 53 ms | **48** |
+| `viewAtSize` | 82 ms | **74** |
+| keypress, end to end | 141 ms | 141 |
+
+Probing said removing the sort entirely was worth 10 ms; half of that goes back into the tracking,
+because carrying a three-part accumulator costs a tuple build and destructure per span. Using the
+last column rather than a running maximum saved another millisecond by dropping an `Int.max`, which
+is a package call at ~5 us and was running once per span.
+
+End to end did not move. The phase numbers repeat exactly (48/48/48 across runs), so the 8 ms is
+real; `keystroke`'s spread at this point is wider than the win.
+
+Checked rather than assumed: spans fed in ascending, descending and shuffled order all compose to the
+same row, so the sort still runs when it is needed.
 
 **Done: border spans are built directly, not through `Layout.at`.** `Layout.at` measures the text,
 clips it to the region and bounds-checks the position: right for arbitrary content, all wasted on a
