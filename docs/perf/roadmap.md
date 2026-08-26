@@ -197,6 +197,26 @@ applies per element; `map` and `filter` are `fold` plus a `push` builtin per ele
 `reverse`; `range` is its own Dark recursion with a `push` per element. Five interpreter operations
 an element, at a few microseconds each.
 
+**Sized target 2: stats are half of it, and trimming the other half will not be enough.** Used native
+`map` as an amplifier -- it builds one VM per element, so `steady.dark` builds 10,000 and the gate
+reads the per-VM cost magnified. Baseline with native map: 73.6 MB, 843.7% over budget. Probed by
+making `InterpreterStats.create()` always return one shared instance (wrong, but it bounds the
+share): **430.7%**, so ~41.4 MB. Stats are about half the per-VM cost; the rest is the two GUIDs, the
+instruction and register arrays, five `Dictionary`s and a `ResizeArray`.
+
+**Which settles the approach.** Even with stats free, native map is still 5.3x over budget. There is
+no version of trimming `VMState.create` that makes building one per element acceptable. Target 2 has
+to be what it always looked like: push a frame on the VM the builtin is already running inside, the
+way the `Apply` opcode does, and construct nothing.
+
+**Landed, unverifiable, honest about it:** `InterpreterStats.create()` now returns a single shared
+instance while counting is off. Every write to those counters is behind `if vm.stats.enabled`, so
+sharing is safe, and a fresh set is thirteen `Dictionary`s and seven arrays per VM. But
+`scripts/perf/gate` runs with `DARK_TELEMETRY=1`, so it never takes that path and cannot see the
+change; it is landed on the reading of the code, not on a measurement, and it becomes measurable the
+moment target 2 makes VM creation common. Worth noting the corollary: **every gate number includes
+per-VM stats allocation that a real run with telemetry off does not pay.**
+
 **Target 2 is a prerequisite for target 1, not an enhancement. Measured the hard way.** Landed a real
 native `List.map` -- correct types, correct error propagation, backend suite green at 10,341, and
 `map over 5` went 120,250 -> 76,000 ns as predicted. Then `scripts/perf/gate` failed at **73.6 MB

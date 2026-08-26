@@ -2465,9 +2465,8 @@ type InterpreterStats =
     mutable tstSizeMax : int64
   }
 
-  static member create() =
-    let s =
-      { enabled = Telemetry.isEnabled ()
+  static member private fresh(enabled : bool) =
+      { enabled = enabled
         instructionCount = 0L
         builtinCallCount = 0L
         packageCallCount = 0L
@@ -2494,8 +2493,21 @@ type InterpreterStats =
         tstSizeSum = 0L
         tstSizeMax = 0L }
 
-    if s.enabled then InterpreterStatsSink.add (box s)
-    s
+  /// The one instance every VM shares while counting is off.
+  ///
+  /// Every write to these counters is behind `if vm.stats.enabled`, so with telemetry off nothing
+  /// ever touches them -- and a fresh set is thirteen `Dictionary`s and seven arrays. That is
+  /// invisible while a process builds one VM, and it is not: `executeApplicable` builds one per
+  /// lambda application, so a `List.map` over a long list built one per element.
+  static member val private sharedDisabled = InterpreterStats.fresh false
+
+  static member create() =
+    if Telemetry.isEnabled () then
+      let s = InterpreterStats.fresh true
+      InterpreterStatsSink.add (box s)
+      s
+    else
+      InterpreterStats.sharedDisabled
 
   member this.reset() =
     this.instructionCount <- 0L
