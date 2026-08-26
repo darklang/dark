@@ -252,6 +252,61 @@ application. A VM's interpreter loop is single-threaded, so a thread-static slot
 synchronisation and no node, and one slot suffices: a nested application finds it empty and builds
 its own. Worth 12.0 -> 11.4 MB, and `ExecutionState.applicableVMPool` is gone with it.
 
+**A stdlib wrapper costs more in time than the builtin it wraps.** Same builtin reached both ways,
+above a ~20.7 us baseline, repeated three times:
+
+| | above baseline |
+|---|---|
+| `Builtin.stringLength "hello"` | **+1.75 us** |
+| `Stdlib.String.length "hello"` | **+4.0 us** |
+
+So the package-call machinery -- resolving the fn, type-checking the arguments, pushing a frame,
+checking the return type -- is **+2.25 us**, more than the call it wraps costs in total.
+
+**This qualifies a closed item, for the second time in this round.** "Making stdlib wrappers free"
+was closed on the finding that a warm package call allocates *nothing*: 0, 1, 2, 4 and 8 forwarding
+hops all allocated 231 bytes, so "there was nothing to win". That is true and was measured. In time
+there is a great deal to win, and the two facts are not in tension -- they are answers to different
+questions, and the closed item only ever answered one of them.
+
+**Which suggests the shape of the fix: elide the wrapper.** A stdlib fn whose body is exactly
+`Builtin.g a b` carries no information a caller needs at runtime. Detecting that at instruction
+generation and emitting the builtin call directly at the call site would take 2.25 us off every such
+call. The cost is in call stacks and tracing, which would stop naming the wrapper -- and the roadmap
+already records that "runtime call stacks name package functions by content hash", so that surface is
+due attention anyway.
+
+**Sized: 44% of a view build's package calls are thin wrappers.** Ran a workbench view with
+`detailedTiming` on, resolved the hashes against `locations`, and checked each function's body in
+`packages/`. 4,197 of 9,505 calls, at 2.25 us each, is **~9.4 ms off a 75 ms view build -- 12.5%** --
+and it would apply to every workload, not just this one.
+
+The top of the list, by calls in one view build: `List.push` 771, `Int.greaterThan` 590,
+`List.append` 520, `Int.toString` 303, `Dict.get` 292, `Text.styledWidth` 289, `Bool.not` 283,
+`String.repeat` 269, `Dict.setOverridingDuplicates` 252. The 56% that are not wrappers are led by
+`List.fold` at 1,671, `List.any` 1,007 and `List.findFirst` 668 -- the Dark recursions target 1 is
+about, which is a neat confirmation that the two targets are disjoint and additive.
+
+**Two ways to elide, and the callee-side one is far more contained.** Doing it at the call site means
+the caller's instruction generation must know the callee's body, which adds a load dependency.
+Doing it in the Apply path -- a cached "this fn is a thin wrapper for builtin B" flag, checked before
+pushing a frame -- changes no instruction generation at all.
+
+**Ablated the type check, and it is not where the time is.** Stubbed `checkPkgParamsSync` to accept
+everything and re-measured: the wrapper's overhead over the raw builtin goes **2.25 -> 1.75 us**. So
+argument type-checking is ~0.5 us of it, 22%, and the other 1.75 us is the TST shadow, building the
+argument sequence, **the frame push**, and the return type check.
+
+**Which largely dissolves the semantics worry.** An elision that keeps the wrapper's argument and
+return checks and skips only the frame push would still take most of the 2.25 us, and
+`Stdlib.String.length 5` would report exactly what it reports today. That is a much smaller thing to
+be sure of than "skip the checks and accept different errors".
+
+**Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
+result against its declared return type. Skipping those is where the time is, but it changes what
+`Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`
+after. Worth measuring how much of the 2.25 us is the checks before deciding whether to pay that.
+
 **Target 3 is withdrawn, and it corrects a round 5 claim.** A record field read is **0.75 us above
 baseline**, not the 4.6 this round has been quoting. The old `optime.dark` row was `(recFn i).a`,
 which is a package call plus a record construction plus a field read -- and it reported *less* than
