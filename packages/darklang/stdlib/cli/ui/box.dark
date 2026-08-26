@@ -48,13 +48,26 @@ let draw (region: Layout.Region) (title: String) (focused: Bool) : List<Layout.S
   // full-height panel draws it 76 times; three panels are most of a frame's spans.
   let bar = paint "│"
 
+  // Built directly rather than through `Layout.at`. That helper measures the text, clips it to the
+  // region and bounds-checks the position, which is right for arbitrary content and all wasted on a
+  // one-character bar at a position this function just computed. It costs ~52 us a call and the
+  // borders are most of a frame's spans; a panel draws two per row.
+  let top1 = region.top - 1
+  let left1 = region.left - 1
+  let rightCol = left1 + region.cols - 1
+
+  // `Layout.at` would drop an out-of-bounds span; checked once here for the whole panel instead of
+  // once per row, since every row of a given panel is in bounds or none of them is.
   let sides =
-    (Stdlib.List.range 1 (region.rows - 2))
-    |> Stdlib.List.map (fun row ->
-      Stdlib.List.flatten
-        [ Layout.at region row 0 bar
-          Layout.at region row (region.cols - 1) bar ])
-    |> Stdlib.List.flatten
+    if region.cols < 2 then
+      []
+    else
+      (Stdlib.List.range 1 (region.rows - 2))
+      |> Stdlib.List.map (fun row ->
+        let r = top1 + row
+        [ Layout.Span { row = r; col = left1; text = bar }
+          Layout.Span { row = r; col = rightCol; text = bar } ])
+      |> Stdlib.List.flatten
 
   Stdlib.List.flatten
     [ Layout.at region 0 0 top

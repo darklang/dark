@@ -247,6 +247,27 @@ allocates *nothing*", which is true and was measured. In *time* a package call c
 `fold` makes one per element. The old conclusion was right about bytes and says nothing about
 latency; both belong on the record.
 
+**Done: border spans are built directly, not through `Layout.at`.** `Layout.at` measures the text,
+clips it to the region and bounds-checks the position: right for arbitrary content, all wasted on a
+one-character bar at a position `Box.draw` just computed. Measured at **52 us a call above harness
+floor**, and only 7 us of that is `styledWidth` -- the rest is five record-field reads at ~4.6 us
+each, the `Int.max`, the `Span` record and the single-element list. A panel draws two per row.
+
+| | before | after |
+|---|---|---|
+| `renderFull` | 46 ms | **38** |
+| `viewAtSize` | 97 ms | **89** |
+| keypress, end to end | 159 ms | **150** |
+
+Same 252 spans out; they are just cheaper to make. The bounds check `Layout.at` would have done is
+now one check per panel rather than one per row, since every row of a panel is in bounds or none is.
+
+**Negative result: the nullary-constant sweep is exhausted here.** After three wins from that
+pattern, grepping the render path for the rest of it finds nothing worth taking:
+`sidebarIsColumnNow` is 30 us a call (it makes a syscall for the terminal size) and `extensionViews`
+45 us, each called about four times a frame -- ~0.2 ms together against an 89 ms view build. Both
+correctly remain functions.
+
 **Pane borders are 86% of the frame's spans and 85% of the time to composite it.** The single
 biggest structural fact found this round. `Box.draw` emits the vertical sides as two spans per row --
 a colorized `│` at each edge -- so a full-height panel is 76 spans and the workbench draws three
