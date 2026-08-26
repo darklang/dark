@@ -1,0 +1,43 @@
+#!/usr/bin/expect -f
+# Driven by scripts/perf/keystroke; see there for what this measures and why.
+log_user 0
+
+proc drain {secs} { set timeout $secs; expect { -re {.+} { exp_continue } timeout {} } }
+
+set cols [lindex $argv 0]
+set rows [lindex $argv 1]
+set stty_init "rows $rows columns $cols"
+
+set timeout 90
+spawn ./scripts/run-cli
+# An eof branch on every expect: without one a CLI that died reads as a run that produced no
+# output, which looks like a slow keypress rather than a broken harness.
+expect {
+  "synced" {}
+  eof      { puts "the CLI exited during startup"; exit 1 }
+  timeout  { puts "the CLI never finished starting"; exit 1 }
+}
+drain 4
+
+set samples {}
+for {set i 0} {$i < 12} {incr i} {
+  set key [expr {$i % 2 == 0 ? "\033\[C" : "\033\[D"}]
+  set t0 [clock microseconds]
+  set tlast 0
+  send -- $key
+  set timeout 20
+  expect {
+    -re {.+} { set tlast [clock microseconds]; set timeout 1; exp_continue }
+    eof      { break }
+    timeout  {}
+  }
+  if {$tlast != 0} { lappend samples [expr {$tlast - $t0}] }
+}
+send -- "\003"
+
+set sorted [lsort -integer $samples]
+set c [llength $sorted]
+if {$c == 0} { puts "no samples: the CLI never redrew"; exit 1 }
+set ms {}
+foreach s $sorted { lappend ms [format %.0f [expr {$s/1000.0}]] }
+puts "${cols}x${rows}: median [lindex $ms [expr {$c/2}]] ms  (n=$c, [lindex $ms 0]-[lindex $ms end])"

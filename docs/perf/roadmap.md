@@ -10,7 +10,9 @@ Numbers are measured unless marked *(estimate)*.
     scripts/perf/bench              repeatable CLI timing, with an A/B mode
     scripts/perf/alloc-profile      allocation by type name
     scripts/perf/crosslang          the same workload in node and python
-    ./scripts/run-cli run scripts/perf/workloads/costs.dark    per-operation cost table
+    scripts/perf/keystroke          what one keypress costs in the interactive CLI (needs a TTY)
+    ./scripts/run-cli run scripts/perf/workloads/costs.dark      per-operation cost table
+    ./scripts/run-cli run scripts/perf/workloads/workbench.dark  ms to build each workbench view
 
 Method and traps: `docs/perf/playbook.md`. Numbers round by round: `docs/perf/history.md`.
 
@@ -41,6 +43,81 @@ solution publish, not the AOT artifact users download. Low severity while alloca
 between them, but nothing measures the shipped artifact.
 
 ---
+
+## Round 5: the interactive CLI, which nothing has ever measured
+
+Rounds 1-4 measured allocation on interpreter workloads. Every instrument we have takes a fixed
+script and reports bytes. None of them touches the thing a person actually waits for, which is the
+CLI redrawing after a keypress, and it turns out to be the slowest thing we ship.
+
+**One arrow key costs ~283 ms** (`scripts/perf/keystroke`, 120x40, median of 12, spread 281-356).
+
+Size changes the answer by 3x, and not smoothly: 80x24 is ~95 ms, 120x40 is ~284, and 280x60 is only
+~317. The step is between 80 and 120 columns, where the workbench starts laying out all its panes, so
+this is a per-pane cost rather than a per-cell one. **Never compare two runs at different sizes.**
+
+Building the view is most of it. `scripts/perf/workloads/workbench.dark` renders each view with no
+terminal involved, repeats to ~3%, and can be profiled:
+
+| view | ms/render |
+|---|---|
+| Home (0) | 179 |
+| Matter (2) | 120 |
+| the rest (1, 3-9) | 151-178 |
+
+So ~150 ms of the ~283 is building the view, and the remaining ~130 is reading the key, diffing the
+frame and writing it -- unattributed so far.
+
+### Two instruments, and what they cost to trust
+
+`workbench.dark` is the one to work against: pure, loopable, repeatable, no TTY. `keystroke` is the
+end-to-end check that the loop actually got faster. Traps that each produced a confident wrong number
+before being handled, all written into the scripts:
+
+- Measure to the **last** byte of the redraw. First-byte latency reads ~95 ms where the screen takes
+  ~300, and the gap is the whole problem.
+- Handle `eof` on every `expect`. A CLI that died reads as a keypress that produced no output.
+- The workbench's cost is **data-dependent**. Home's detail pane only does its expensive work when
+  the cursor is on a commit row and that commit isn't cached, so a view-level A/B can move by 10x
+  between two stores. Measure the function, not the frame, when the function is what changed.
+
+### Done
+
+**A commit's summary loaded the whole commit.** Home's detail pane shows twelve of a commit's named
+changes; it called `getCommitOps`, which turns every op into a Dark value. Against the init commit
+(~11,700 ops) that is `commitChangeLines` at **1,648 -> 330 ms**, same output.
+`scmGetCommitNamedOps` filters and caps F#-side and converts only what will be shown.
+
+### Open, ranked
+
+**Where the ~130 ms outside the view build goes.** Frame diffing, the terminal write, and stdin
+handling are all unmeasured. Subtracting two numbers is not attribution; this needs its own probe
+before anyone optimises a guess.
+
+**~150 ms to build one view is the floor for every keypress.** No view is cheap, and the cheapest
+(Matter, 120 ms) is not much cheaper than the dearest. That flatness suggests a shared cost -- layout,
+span composition, or the per-row fitting in `Cli.Tui.Text` -- rather than anything view-specific.
+Profile one view amplified before picking.
+
+**The remaining 330 ms of `commitChangeLines`** is deserializing ~11,700 op blobs to discover which
+are `SetName` or `Deprecate`. Bounding it needs the op kind readable without deserializing, which is
+a schema question.
+
+**Redraw on every keypress at all.** An arrow key moves a cursor; it does not change most of the
+frame. Whether the diff already exploits that, and what it costs when it does, is unmeasured.
+
+### Tooling gaps found while doing this
+
+- `alloc-profile` cannot run: `dotnet-trace` is not installed in the container, and the script fails
+  with `command not found` rather than saying so.
+- **`gate` does not restore a fixture, and the debug store drifts.** The same commit measured
+  7,780,170 bytes and then 8,530,000 an hour later with no code change, because the store grows with
+  every package reload. `bench` restores a byte-identical store for exactly this reason. A debug
+  gate comparison taken across a work session is not a comparison.
+- **`scripts/dev/build` can skip a rebuild it needed.** It compares by content, so after switching
+  branches to something built earlier in the session it reports "nothing has changed since the last
+  successful build" while the binary on disk belongs to the other branch. Deleting
+  `rundir/build-index.json` forces it. This produced a `FnNotFound` that looked like a code bug.
 
 ## Open, roughly ranked
 

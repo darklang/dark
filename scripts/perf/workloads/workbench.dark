@@ -1,0 +1,46 @@
+// One workbench view render, per view, timed. `viewAtSize` is a pure function of state and size,
+// so this needs no terminal and repeats: it is the loopable half of what a keystroke costs.
+//
+// The other half -- reading the key, diffing the frame, writing it -- needs a real TTY and lives in
+// `scripts/perf/keystroke`.
+
+let renderN
+  (i: Int)
+  (state: Darklang.Cli.Workbench.State)
+  (size: Stdlib.Cli.Tui.Size)
+  (acc: Int)
+  : Int =
+  if i == 0 then
+    acc
+  else
+    let v = Darklang.Cli.Workbench.viewAtSize state size
+    renderN (i - 1) state size (acc + (Stdlib.List.length v.rows))
+
+let timeView
+  (idx: Int)
+  (base: Darklang.Cli.Workbench.State)
+  (size: Stdlib.Cli.Tui.Size)
+  : Unit =
+  let state = { base with activeView = idx }
+  // One warm render first: the first touch of a view loads packages the rest of them reuse.
+  let _warm = renderN 1 state size 0
+  let t0 = Darklang.Cli.Telemetry.now ()
+  let _r = renderN 3 state size 0
+  let t1 = Darklang.Cli.Telemetry.now ()
+
+  Stdlib.printLine
+    ("view " ++ (Stdlib.Int.toString idx) ++ ": "
+     ++ (Stdlib.Int.toString (Stdlib.Int.divide (t1 - t0) 3)) ++ " ms/render")
+
+let base =
+  Darklang.Cli.Workbench.initialState
+    Darklang.SCM.Branch.mainBranchId
+    Stdlib.Option.Option.None
+    "perf"
+    "perf-instance"
+    (Stdlib.List.range 0 40)
+
+// 120x40 is the smallest size that lays out every pane; below it the workbench drops panes and the
+// numbers stop meaning what they look like they mean.
+let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+Stdlib.List.iter (Stdlib.List.range 0 9) (fun i -> timeView i base size)
