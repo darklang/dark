@@ -74,19 +74,29 @@ let workspaces () : List<Workspace> =
     // This machine: its config and the peers it syncs with.
     Workspace { name = "Instance"; dests = [ ("Devices", mkDest vDevices 0) ] } ]
 
-/// The destinations of `ws` this account can see (gated views drop out).
-let visibleDests (state: State) (ws: Workspace) : List<(String * Dest)> =
-  let vis = visibleViews state
+/// The destinations of `ws` this account can see, given the already-computed visible view list.
+///
+/// Takes `vis` rather than `state` because every caller is inside a loop over workspaces, and
+/// `visibleViews` costs 2.3 ms: recomputing it per workspace was the whole cost of building the
+/// sidebar, and the sidebar is rebuilt two or three times per keypress.
+let visibleDestsIn (vis: List<Int>) (ws: Workspace) : List<(String * Dest)> =
   ws.dests |> Stdlib.List.filter (fun pair -> let (_l, d) = pair in Stdlib.List.member vis d.view)
 
-/// The workspaces with at least one visible destination, as (index into
-/// `workspaces`, workspace).
-let visibleWorkspaces (state: State) : List<(Int * Workspace)> =
+/// The destinations of `ws` this account can see (gated views drop out).
+let visibleDests (state: State) (ws: Workspace) : List<(String * Dest)> =
+  visibleDestsIn (visibleViews state) ws
+
+let visibleWorkspacesIn (vis: List<Int>) : List<(Int * Workspace)> =
   workspaces ()
   |> Stdlib.List.indexedMap (fun i w -> (i, w))
   |> Stdlib.List.filter (fun pair ->
     let (_i, w) = pair
-    Stdlib.Bool.not (Stdlib.List.isEmpty (visibleDests state w)))
+    Stdlib.Bool.not (Stdlib.List.isEmpty (visibleDestsIn vis w)))
+
+/// The workspaces with at least one visible destination, as (index into
+/// `workspaces`, workspace).
+let visibleWorkspaces (state: State) : List<(Int * Workspace)> =
+  visibleWorkspacesIn (visibleViews state)
 
 /// The section `view` is currently on, in `Dest` terms.
 let sectionOf (state: State) (view: Int) : Int =
@@ -108,11 +118,15 @@ let workspaceOf (d: Dest) : Int =
 /// Where ⏎ on a workspace header, or its number key, takes you: where you
 /// last were in it, else its first visible destination. None for a workspace
 /// with nothing visible.
-let workspaceEntry (state: State) (wsIdx: Int) : Stdlib.Option.Option<Dest> =
+let workspaceEntryIn
+  (vis: List<Int>)
+  (state: State)
+  (wsIdx: Int)
+  : Stdlib.Option.Option<Dest> =
   match Stdlib.List.getAt (workspaces ()) wsIdx with
   | None -> Stdlib.Option.Option.None
   | Some w ->
-    let vis = visibleDests state w |> Stdlib.List.map (fun pair -> let (_l, d) = pair in d)
+    let vis = visibleDestsIn vis w |> Stdlib.List.map (fun pair -> let (_l, d) = pair in d)
     let remembered =
       state.wsLast
       |> Stdlib.List.findFirst (fun pair -> let (i, _d) = pair in i == wsIdx)
@@ -121,6 +135,10 @@ let workspaceEntry (state: State) (wsIdx: Int) : Stdlib.Option.Option<Dest> =
     | Some d -> if Stdlib.List.member vis d then Stdlib.Option.Option.Some d else Stdlib.List.head vis
     | None -> Stdlib.List.head vis
 
+
+let workspaceEntry (state: State) (wsIdx: Int) : Stdlib.Option.Option<Dest> =
+  workspaceEntryIn (visibleViews state) state wsIdx
+
 /// The rows the sidebar draws: every visible workspace, the active one
 /// expanded into its destinations. `wip` and `conflicts` are the frame's
 /// already-computed counts, for the badges; pass 0s when only the shape
@@ -128,11 +146,13 @@ let workspaceEntry (state: State) (wsIdx: Int) : Stdlib.Option.Option<Dest> =
 let sidebarRows (state: State) (wip: Int) (conflicts: Int) : List<SideRow> =
   let activeWs = workspaceOf (activeDest state)
   let count (n: Int) : String = Stdlib.Int.toString n
-  visibleWorkspaces state
+  // Once, not once per workspace and again per row.
+  let vis = visibleViews state
+  visibleWorkspacesIn vis
   |> Stdlib.List.map (fun pair ->
     let (i, w) = pair
-    let dests = visibleDests state w
-    let entry = workspaceEntry state i |> Stdlib.Option.withDefault (mkDest vHome 0)
+    let dests = visibleDestsIn vis w
+    let entry = workspaceEntryIn vis state i |> Stdlib.Option.withDefault (mkDest vHome 0)
     if Stdlib.List.length dests == 1 then
       [ SideRow
           { kind = SideRowKind.Destination 0

@@ -101,7 +101,22 @@ Measured per phase, headless, 120x40, `initialState` with every view gated on:
 
 The frame diff is not the problem and never was. Two things are.
 
-**`sidebarRows` costs 66 ms and is built at least twice per keypress.** It is the whole of
+**Done: `visibleViews` was recomputed ~28 times per sidebar build.** `visibleDests` took `state` and
+called `visibleViews` itself, and every caller was inside a loop over the nine workspaces, so
+building the sidebar recomputed the same 13-element list once per workspace in `visibleWorkspaces`,
+again per workspace in `sidebarRows`, and again per row in `workspaceEntry`. Threading the computed
+list through (`visibleDestsIn`, `visibleWorkspacesIn`, `workspaceEntryIn`) computes it once.
+
+| | before | after |
+|---|---|---|
+| `sidebarRows` | 66 ms | **18** |
+| `handleKey` | 71 ms | **23** |
+| `viewAtSize` | 172 ms | **120** |
+| keypress, end to end | 283 ms | **198** |
+
+The view build fell too, which confirms the sidebar is a real share of every view.
+
+**`sidebarRows` is still built at least twice per keypress.** It is the whole of
 `handleKey`'s 71 ms: `focusRight` alone measures 0 ms, and an unhandled key (F12) costs the same 70
 ms as a handled one, so none of it is the action. `handleSidebarKey` opens with
 `let rows = sidebarRows state 0 0`, and `renderSidebar` builds the same rows again during the view.
