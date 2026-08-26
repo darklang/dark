@@ -40,7 +40,7 @@ let mkDest (view: Int) (section: Int) : Dest = Dest { view = view; section = sec
 /// Every workspace, in sidebar order. Home first, so `1` is Home. The number
 /// key for a workspace is its position here, so hiding one (gating) doesn't
 /// renumber the rest.
-let workspaces () : List<Workspace> =
+val workspaces =
   [ Workspace { name = "Home"; dests = [ ("Home", mkDest vHome 0) ] }
     // Builtins are part of the tree - the bottom tier of it - not
     // documentation about it.
@@ -87,7 +87,7 @@ let visibleDests (state: State) (ws: Workspace) : List<(String * Dest)> =
   visibleDestsIn (visibleViews state) ws
 
 let visibleWorkspacesIn (vis: List<Int>) : List<(Int * Workspace)> =
-  workspaces ()
+  workspaces
   |> Stdlib.List.indexedMap (fun i w -> (i, w))
   |> Stdlib.List.filter (fun pair ->
     let (_i, w) = pair
@@ -111,7 +111,7 @@ let activeDest (state: State) : Dest = mkDest state.activeView (sectionOf state 
 let workspaceOf (d: Dest) : Int =
   let holds (w: Workspace) : Bool =
     w.dests |> Stdlib.List.any (fun pair -> let (_l, dd) = pair in dd == d)
-  match Stdlib.List.findFirstIndex (workspaces ()) holds with
+  match Stdlib.List.findFirstIndex (workspaces) holds with
   | Some i -> i
   | None -> 0
 
@@ -123,7 +123,7 @@ let workspaceEntryIn
   (state: State)
   (wsIdx: Int)
   : Stdlib.Option.Option<Dest> =
-  match Stdlib.List.getAt (workspaces ()) wsIdx with
+  match Stdlib.List.getAt (workspaces) wsIdx with
   | None -> Stdlib.Option.Option.None
   | Some w ->
     let vis = visibleDestsIn vis w |> Stdlib.List.map (fun pair -> let (_l, d) = pair in d)
@@ -300,7 +300,7 @@ let jumpToWorkspace (state: State) (n: Int) : State =
     if (d.view != here.view) || (d.section != here.section) then goTo state d false
     else
       let vis =
-        match Stdlib.List.getAt (workspaces ()) (n - 1) with
+        match Stdlib.List.getAt (workspaces) (n - 1) with
         | Some w -> visibleDests state w |> Stdlib.List.map (fun pair -> let (_l, dd) = pair in dd)
         | None -> []
       match Stdlib.List.findFirstIndex vis (fun dd -> (dd.view == here.view) && (dd.section == here.section)) with
@@ -311,11 +311,11 @@ let jumpToWorkspace (state: State) (n: Int) : State =
 
 /// The shortest repeated workspace-number sequence from `state` to `d`.
 let keysTo (state: State) (d: Dest) : String =
-  match Stdlib.List.findFirstIndex (workspaces ()) (fun w -> w.dests |> Stdlib.List.any (fun pair -> let (_l, dd) = pair in dd == d)) with
+  match Stdlib.List.findFirstIndex (workspaces) (fun w -> w.dests |> Stdlib.List.any (fun pair -> let (_l, dd) = pair in dd == d)) with
   | None -> ""
   | Some wsIdx ->
     let vis =
-      match Stdlib.List.getAt (workspaces ()) wsIdx with
+      match Stdlib.List.getAt (workspaces) wsIdx with
       | Some w -> visibleDests state w |> Stdlib.List.map (fun pair -> let (_l, dd) = pair in dd)
       | None -> []
     match Stdlib.List.findFirstIndex vis (fun dd -> dd == d) with

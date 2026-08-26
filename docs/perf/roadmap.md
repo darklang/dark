@@ -116,6 +116,27 @@ list through (`visibleDestsIn`, `visibleWorkspacesIn`, `workspaceEntryIn`) compu
 
 The view build fell too, which confirms the sidebar is a real share of every view.
 
+**Done: `let f () = <constant>` rebuilds the constant on every call; `val` evaluates it once.**
+`workspaces` (9 records with nested lists) cost 910 us a call and was called ~11 times per sidebar
+build; `viewSpecs` (13 tuples) cost 465 us. Neither depends on state. As `val`s they are built once.
+
+| | before | after |
+|---|---|---|
+| `sidebarRows` | 18 ms | **9** |
+| `handleKey` | 23 ms | **11** |
+| `viewAtSize` | 120 ms | **108** |
+| keypress, end to end | 198 ms | **176** |
+
+Worth sweeping for elsewhere: any `let f () =` whose body is a literal is paying this. `extensionViews`
+is the obvious next one, but its records hold function fields, and lambdas stored in a package value
+have bitten us before, so it needs testing rather than assuming.
+
+**There is no interpreter pathology here, only volume.** Measured per call: building a 13-element
+tuple list 465 us (~36 us an element), `List.range 1 13` 175 us, `List.filter` over 13 Ints 215 us,
+`List.member` over 13 Ints 70 us. So ~15-35 us per list element is simply what the interpreter costs,
+and 2.3 ms for `visibleViews` was thirteen elements through a filter with a `member` inside it. The
+wins in this area are structural -- do less list work -- not a fix to any one function.
+
 **`sidebarRows` is still built at least twice per keypress.** It is the whole of
 `handleKey`'s 71 ms: `focusRight` alone measures 0 ms, and an unhandled key (F12) costs the same 70
 ms as a handled one, so none of it is the action. `handleSidebarKey` opens with
