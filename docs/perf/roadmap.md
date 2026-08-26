@@ -206,7 +206,12 @@ so `steady.dark` builds 10,000 and the gate reads the per-application cost magni
 | + pool the VM (`VMState.reuseFor`) | 257.0% | ~27.9 MB |
 | + cache the `Apply` instruction per arity, write registers directly | 188.7% | ~22.5 MB |
 | + reuse the root frame, its registers, and the `InstrData` array | 144.7% | ~19.1 MB |
-| + stop clearing `framePool` on reuse | **94.6%** | **15.2 MB** |
+| + stop clearing `framePool` on reuse | 94.6% | 15.2 MB |
+| + `executeApplicable` returns `Ply`, answered synchronously | 60.0% | 12.5 MB |
+| + the builtin's own per-element loop asked synchronously too | **53.4%** | **12.0 MB** |
+
+And on the clock, which is what round 6 is actually for -- `map over 5`, above baseline: Dark **+99
+us**, native map before target 2 **+55**, native map now **+40**.
 
 The instruction cut: the per-call `LoadVal` instructions existed only to move the callable and its
 arguments into registers, so they are gone and the caller writes those registers itself. What remains
@@ -224,7 +229,21 @@ in the pool and there is no double ownership.
 awaits a Ply wrapping a Task, a builder each way per application. Added a Task-returning entry point
 and used it: 15.2 MB either way. Reverted.
 
-**Still 2x over, ~730 bytes an application.** What is left is the `task { }` in `executeApplicable`
+**The `Ply` cut is the interesting one.** `executeApplicable` returned `Task<ExecutionResult>` and
+built a `task` state machine per application. It returns `Ply` now and asks `Ply.trySync` first, so a
+lambda that does not await -- an arithmetic body, a field read, a comparison, which is nearly all of
+them -- costs no builder at all. Same shape as the `Ply.trySync` fast paths rounds 1-4 put through the
+type checker. Two callers needed `|> Ply.toTask`: `HttpServer.executeHandler` and one test.
+
+Applying the same question inside the builtin's own loop -- `trySync` per element rather than a `let!`
+that allocates a continuation to await something already finished -- was worth another 0.5 MB.
+
+**Still 1.5x over, ~410 bytes an application.** A GUID, the `callFrames` clear-and-insert, the
+`NEList.singleton` the caller builds per element, and the `Result` and `Ply` wrappers. Target 1 needs
+this under the budget, so it stays blocked -- but the gap is now four times smaller than the budget
+itself, where it started at nine times larger.
+
+**Superseded: ~730 bytes an application.** What is left is the `task { }` in `executeApplicable`
 itself with its try/try/with/finally, the `Task` and `Result` it returns, a GUID, and the
 `NEList.singleton` the caller builds per element. Removing the builder needs a synchronous path for
 the case where the lambda does not await -- returning `Ply<ExecutionResult>` rather than

@@ -173,45 +173,75 @@ let executeApplicable
   (exeState : RT.ExecutionState)
   (applicable : RT.Applicable)
   (args : NEList<RT.Dval>)
-  : Task<RT.ExecutionResult> =
+  : Ply<RT.ExecutionResult> =
   let struct (instrData, registerCount) = applyInstrsFor (NEList.length args)
 
-  task {
-    // Reuse a finished VM where one is going spare. See `VMState.reuseFor`: a lambda applied per
-    // element of a list would otherwise build one VM per element.
-    let vm =
-      match exeState.applicableVMPool.TryTake() with
-      | true, pooled -> RT.VMState.reuseFor (pooled, None, instrData, registerCount)
-      | _ ->
-        let instrs : RT.Instructions =
-          { registerCount = registerCount
-            instructions = List.ofArray instrData.instructions
-            resultIn = 0 }
-        RT.VMState.create (None, instrs)
+  // Reuse a finished VM where one is going spare. See `VMState.reuseFor`: a lambda applied per
+  // element of a list would otherwise build one VM per element.
+  let vm =
+    match exeState.applicableVMPool.TryTake() with
+    | true, pooled -> RT.VMState.reuseFor (pooled, None, instrData, registerCount)
+    | _ ->
+      let instrs : RT.Instructions =
+        { registerCount = registerCount
+          instructions = List.ofArray instrData.instructions
+          resultIn = 0 }
+      RT.VMState.create (None, instrs)
 
-    loadApplyRegisters vm applicable args
+  loadApplyRegisters vm applicable args
 
-    try
-      try
-        let! result = Interpreter.execute exeState vm
-        // Only a VM that ran to completion is safe to hand back; one that raised may still hold
-        // frames, and `reuseFor` assumes they have all popped.
-        exeState.applicableVMPool.Add vm
-        return Ok result
-      with
-      | RT.RuntimeErrorException(_threadID, rte) ->
-        let callStack = callStackFromVM vm
-        return Error(rte, callStack)
-      | ex ->
-        let metadata : Metadata =
-          Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
-        do! exeState.reportException exeState vm metadata ex
-        let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
-        let callStack = callStackFromVM vm
-        return Error(RTE.UncaughtException(ex.Message, metadata), callStack)
-    finally
+  // Only a VM that ran to completion is safe to hand back; one that raised may still hold frames,
+  // and `reuseFor` assumes they have all popped.
+  let succeeded (result : RT.Dval) : RT.ExecutionResult =
+    exeState.applicableVMPool.Add vm
+    Ok result
+
+  let runtimeError (rte : RTE.Error) : RT.ExecutionResult =
+    Error(rte, callStackFromVM vm)
+
+  let uncaught (ex : exn) : Ply<RT.ExecutionResult> =
+    uply {
+      let metadata : Metadata =
+        Exception.toMetadata ex |> List.map (fun (k, v) -> k, string v)
+      do! exeState.reportException exeState vm metadata ex
+      let metadata = metadata |> List.map (fun (k, v) -> k, RT.DString(string v))
+      return Error(RTE.UncaughtException(ex.Message, metadata), callStackFromVM vm)
+    }
+
+  // `Ply`, and asked synchronously first. A lambda that does not await -- which is nearly all of
+  // them: an arithmetic body, a field read, a comparison -- then costs no builder at all, where
+  // before it paid for a `task` state machine and the `Task` it returned. Same shape as the
+  // `Ply.trySync` fast paths in the type checker.
+  try
+    let running = Interpreter.execute exeState vm
+
+    match Ply.trySync running with
+    | ValueSome result ->
       exeState.test.postTestExecutionHook exeState.test
-  }
+      Ply(succeeded result)
+    | ValueNone ->
+      uply {
+        try
+          try
+            let! result = running
+            return succeeded result
+          with
+          | RT.RuntimeErrorException(_threadID, rte) -> return runtimeError rte
+          | ex -> return! uncaught ex
+        finally
+          exeState.test.postTestExecutionHook exeState.test
+      }
+  with
+  | RT.RuntimeErrorException(_threadID, rte) ->
+    exeState.test.postTestExecutionHook exeState.test
+    Ply(runtimeError rte)
+  | ex ->
+    uply {
+      try
+        return! uncaught ex
+      finally
+        exeState.test.postTestExecutionHook exeState.test
+    }
 
 
 let executeFunction
