@@ -28,6 +28,11 @@ let recFn (i: Int) : Rec = Rec { a = i; b = "x" }
 let optFn (i: Int) : Stdlib.Option.Option<Int> = Stdlib.Option.Option.Some i
 let listFn (i: Int) : List<Int> = [ i ]
 
+type Rec5 = { a: Int; b: Int; c: Int; d: Int; e: Int }
+
+val preBuilt = Rec { a = 1; b = "x" }
+val preBuilt5 = Rec5 { a = 1; b = 2; c = 3; d = 4; e = 5 }
+
 val iterations = 4000
 
 /// One timed pass of `f`, in milliseconds.
@@ -64,7 +69,11 @@ measure "apply a lambda                       " (fun i -> (fun x -> x + 1) i)
 
 Stdlib.printLine "--- values"
 measure "build a 2-field record               " (fun i -> (Rec { a = i; b = "x" }).a)
-measure "read a record field                  " (fun i -> (recFn i).a)
+// Built once, outside the loop. The old row here was `(recFn i).a`, which is a package call plus a
+// record construction plus a field read, and cannot isolate any of the three -- it read as *cheaper*
+// than the bare package call above it, which is how the confound showed.
+measure "read a record field                  " (fun i -> preBuilt.a)
+measure "read a 5-field record's last field   " (fun i -> preBuilt5.e)
 measure "update a record field                " (fun i ->
   let r = Rec { a = i; b = "x" }
   ({ r with a = i + 1 }).a)

@@ -252,6 +252,24 @@ application. A VM's interpreter loop is single-threaded, so a thread-static slot
 synchronisation and no node, and one slot suffices: a nested application finds it empty and builds
 its own. Worth 12.0 -> 11.4 MB, and `ExecutionState.applicableVMPool` is gone with it.
 
+**Target 3 is withdrawn, and it corrects a round 5 claim.** A record field read is **0.75 us above
+baseline**, not the 4.6 this round has been quoting. The old `optime.dark` row was `(recFn i).a`,
+which is a package call plus a record construction plus a field read -- and it reported *less* than
+the bare package call on the line above, which should have been caught at the time. The row now uses
+a record built outside the loop. A 5-field record reads the same as a 2-field one, so the `Map.find`
+depth is not the cost at these sizes either.
+
+**The round 5 note on `Layout.at` is wrong in its explanation, not its result.** It attributed most
+of that helper's 52 us to "five record-field reads at ~4.6 us each". At 0.75 us those five are under
+4 us of the 52. The fix -- building border spans directly -- measured a real 9 ms and still stands;
+only the reason given for it was wrong.
+
+**What the corrected table actually ranks.** Above a 20.75 us baseline: calling a package fn **+4.5
+us**, applying a lambda **+4.0**, updating a record field **+5.25**, building a record **+1.75**,
+reading a field **+0.75**. So the per-operation cost worth attacking is *calls*, not field access --
+which is the same conclusion target 2 reached from the other direction, and where `List.fold`'s
+package call per element already put it.
+
 **What target 1 actually buys, and what it costs -- measured, and it decides the order.** Ran the
 suite and the CLI with native `map` in, against the same build without it.
 
