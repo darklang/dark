@@ -150,3 +150,15 @@ let getCommitsWithAncestors (branchId: Uuid) (limit: Int) : List<Commit> =
 /// Get ops for a specific commit
 let getCommitOps (commitHash: String) : List<LanguageTools.ProgramTypes.PackageOp> =
   Builtin.scmGetCommitOps commitHash
+
+
+/// The ops in a commit that name or deprecate something, capped at <param limit>, with the total
+/// count of them alongside.
+///
+/// <fn getCommitOps> turns every op in the commit into a Dark value; the init commit holds ~11,700
+/// of them, which costs over a second to render a twelve-line summary from.
+let getCommitNamedOps
+  (commitHash: String)
+  (limit: Int)
+  : (List<LanguageTools.ProgramTypes.PackageOp> * Int) =
+  Builtin.scmGetCommitNamedOps commitHash limit
