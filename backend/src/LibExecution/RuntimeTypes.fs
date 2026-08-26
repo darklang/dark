@@ -2570,7 +2570,7 @@ type VMState =
 
     // The inst data for each fn/lambda/etc. is stored here, so that
     // it doesn't have to be copied into each CallFrame.
-    rootInstrData : Option<tlid> * InstrData
+    mutable rootInstrData : Option<tlid> * InstrData
     /// Per-VM memoization of InstrData derived from `exeState.lambdaInstrCache`.
     mutable lambdaInstrDataCache : Dictionary<id, InstrData>
 
@@ -2658,6 +2658,49 @@ type VMState =
       matchBindings = ResizeArray()
       pendingCallArgs = Dictionary()
       framePool = Dictionary() }
+
+  /// Re-point a finished VM at a new tiny program, instead of building another one.
+  ///
+  /// `executeApplicable` and `executeFunction` each build a two- or three-instruction program and run
+  /// it. Constructing a `VMState` for that is two GUIDs, five dictionaries, a `ResizeArray` and a
+  /// stats block: invisible once per call, and very much not invisible once per element of a
+  /// `List.map`, which is one per element.
+  ///
+  /// Only valid on a VM whose frames have all popped, which is what returning it to the pool means.
+  /// The per-VM lambda caches are deliberately kept: they are keyed by expression id, so reuse warms
+  /// them across applications instead of discarding them every time.
+  static member reuseFor(vm : VMState, instrs : Option<tlid> * Instructions) : VMState =
+    let tlid, instrsValue = instrs
+
+    let rootInstrData : InstrData =
+      { instructions = List.toArray instrsValue.instructions
+        resultReg = instrsValue.resultIn }
+
+    let rootCallFrameID = System.Guid.NewGuid()
+
+    let rootCallFrame : CallFrame =
+      { id = rootCallFrameID
+        executionPoint = Source
+        instrData = rootInstrData
+        expectedReturnType = ValueNone
+        programCounter = 0
+        registers = Array.zeroCreate instrsValue.registerCount
+        argBuf = Array.empty
+        typeSymbolTable = TST.empty
+        parent = ValueNone }
+
+    vm.callFrames.Clear()
+    vm.callFrames[rootCallFrameID] <- rootCallFrame
+    vm.currentFrameID <- rootCallFrameID
+    vm.rootInstrData <- (tlid, rootInstrData)
+    vm.frameToPush <- ValueNone
+    vm.frameIdCounter <- 0L
+    vm.finalResult <- ValueNone
+    vm.matchBindings.Clear()
+    vm.pendingCallArgs.Clear()
+    vm.framePool.Clear()
+    vm
+
 
   static member createWithoutTLID(instrs : Instructions) : VMState =
     VMState.create (None, instrs)
@@ -2754,6 +2797,13 @@ and ExecutionState =
     /// invoked from another (e.g. an httpServerServe request handler VM).
     lambdaInstrCache :
       System.Collections.Concurrent.ConcurrentDictionary<id, LambdaImpl>
+
+    /// VMs kept for reuse by `executeApplicable` and `executeFunction`.
+    ///
+    /// Both build a tiny program and run it, and building a `VMState` for that costs two GUIDs, five
+    /// dictionaries, a `ResizeArray` and a stats block. Once per call that is invisible; once per
+    /// element of a `List.map` it is not. A VM goes back in the bag when its frames have popped.
+    applicableVMPool : System.Collections.Concurrent.ConcurrentBag<VMState>
 
     /// Memoization of `InstrData` derived from package function bodies.
     /// Shared across VMs for the same reason as `lambdaInstrCache`.

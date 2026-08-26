@@ -39,6 +39,7 @@ let createState
     notify = notify
 
     lambdaInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
+    applicableVMPool = System.Collections.Concurrent.ConcurrentBag()
     packageFnInstrCache = System.Collections.Concurrent.ConcurrentDictionary()
 
     branchId = branchId
@@ -159,10 +160,18 @@ let executeApplicable
       resultIn = 0 }
 
   task {
-    let vm = RT.VMState.create (None, instrs)
+    // Reuse a finished VM where one is going spare. See `VMState.reuseFor`: a lambda applied per
+    // element of a list would otherwise build one VM per element.
+    let vm =
+      match exeState.applicableVMPool.TryTake() with
+      | true, pooled -> RT.VMState.reuseFor (pooled, (None, instrs))
+      | _ -> RT.VMState.create (None, instrs)
     try
       try
         let! result = Interpreter.execute exeState vm
+        // Only a VM that ran to completion is safe to hand back; one that raised may still hold
+        // frames, and `reuseFor` assumes they have all popped.
+        exeState.applicableVMPool.Add vm
         return Ok result
       with
       | RT.RuntimeErrorException(_threadID, rte) ->

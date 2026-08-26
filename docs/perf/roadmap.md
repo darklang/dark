@@ -197,6 +197,36 @@ applies per element; `map` and `filter` are `fold` plus a `push` builtin per ele
 `reverse`; `range` is its own Dark recursion with a `push` per element. Five interpreter operations
 an element, at a few microseconds each.
 
+**Target 2, first half done: pool the VM instead of building one per lambda application.**
+`VMState.reuseFor` re-points a finished VM at a new tiny program, and `ExecutionState` carries a
+`ConcurrentBag` of them; `executeApplicable` takes one when it can. Only a VM that ran to completion
+goes back in the bag, since one that raised may still hold frames. The per-VM lambda caches are kept
+deliberately -- keyed by expression id, so reuse warms them across applications rather than throwing
+them away every call, which was a separate complaint below.
+
+Measured through the native-`map` amplifier (one VM per element, so `steady.dark` builds 10,000):
+
+| | gate |
+|---|---|
+| native map, before any of this | 843.7% over |
+| + shared disabled stats | 843.1% (gate runs telemetry-on, so no effect there) |
+| + VM pooling | **257.0% over** |
+
+73.6 MB down to ~27.9. Not enough to land target 1 yet: ~2 KB an application remains, which is the
+instruction list rebuilt per call (`LoadVal` per argument, assembled with list appends), the
+`List.toArray` of it, the registers array, the `CallFrame` and a GUID.
+
+**The next cut is obvious from that list.** The `LoadVal` instructions exist only to get the callable
+and the arguments into registers. Writing them into the registers directly leaves a single `Apply`
+instruction, whose array can be cached per arity and shared across every call. That removes the list
+building, the array conversion and most of what is left.
+
+**Honest about what is landed:** nothing hot uses `executeApplicable` today -- the CLI's lambdas go
+through `List.map`, which is Dark -- so this has no user-visible effect on its own and no instrument
+outside the amplifier can see it. It is landed because it is measured through that amplifier and it
+is the thing standing between round 6 and its first real win. `executeFunction` was left alone: it
+routes through `executeExpr`, which also serves top-level runs whose stats the gate reads.
+
 **Sized target 2: stats are half of it, and trimming the other half will not be enough.** Used native
 `map` as an amplifier -- it builds one VM per element, so `steady.dark` builds 10,000 and the gate
 reads the per-VM cost magnified. Baseline with native map: 73.6 MB, 843.7% over budget. Probed by
