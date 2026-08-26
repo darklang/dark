@@ -16,11 +16,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns the cosine of the given <param angleInRadians>.
-
-         One interpretation of the result relates to a right triangle: the cosine is
-         the ratio of the lengths of the side adjacent to the angle and the
-         hypotenuse."
+        "Returns the cosine of the given <param angleInRadians>.\n\nOne "
+        + "interpretation of the result relates to a right triangle: the cosine "
+        + "is the ratio of the lengths of the side adjacent to the angle and the "
+        + "hypotenuse."
       fn =
         (function
         | _, _, _, [| DFloat a |] -> Ply(DFloat(System.Math.Cos a))
@@ -36,10 +35,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns the sine of the given <param angleInRadians>.
-
-         One interpretation of the result relates to a right triangle: the sine is
-         the ratio of the lengths of the side opposite the angle and the hypotenuse"
+        "Returns the sine of the given <param angleInRadians>.\n\nOne "
+        + "interpretation of the result relates to a right triangle: the sine is "
+        + "the ratio of the lengths of the side opposite the angle and the "
+        + "hypotenuse"
       fn =
         (function
         | _, _, _, [| DFloat a |] -> Ply(DFloat(System.Math.Sin a))
@@ -55,11 +54,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "angleInRadians" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns the tangent of the given <param angleInRadians>.
-
-         One interpretation of the result relates to a right triangle: the tangent is
-         the ratio of the lengths of the side opposite the angle and the side
-         adjacent to the angle."
+        "Returns the tangent of the given <param angleInRadians>.\n\nOne "
+        + "interpretation of the result relates to a right triangle: the tangent "
+        + "is the ratio of the lengths of the side opposite the angle and the "
+        + "side adjacent to the angle."
       fn =
         (function
         | _, _, _, [| DFloat a |] -> Ply(DFloat(System.Math.Tan a))
@@ -75,13 +73,11 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TypeReference.option TFloat
       description =
-        "Returns the arc cosine of <param ratio>, as an <type Option>.
-
-         If <param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns {{Some
-         result}} where <var result> is in radians and is between {{0.0}} and <fn
-         Math.pi>. Otherwise, returns {{None}}.
-
-         This function is the inverse of <fn Math.cos>."
+        "Returns the arc cosine of <param ratio>, as an <type Option>.\n\nIf "
+        + "<param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns "
+        + "{{Some result}} where <var result> is in radians and is between "
+        + "{{0.0}} and <fn Math.pi>. Otherwise, returns {{None}}.\n\nThis "
+        + "function is the inverse of <fn Math.cos>."
       fn =
         (function
         | _, _, _, [| DFloat r |] ->
@@ -103,13 +99,11 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TypeReference.option TFloat
       description =
-        "Returns the arc sine of <param ratio>, as an <type Option>.
-
-         If <param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns {{Some
-         result}} where <var result> is in radians and is between {{-Math.pi/2}} and
-         {{Math.pi/2}}. Otherwise, returns {{None}}.
-
-         This function is the inverse of <fn Math.sin>."
+        "Returns the arc sine of <param ratio>, as an <type Option>.\n\nIf "
+        + "<param ratio> is in the inclusive range {{[-1.0, 1.0]}}, returns "
+        + "{{Some result}} where <var result> is in radians and is between "
+        + "{{-Math.pi/2}} and {{Math.pi/2}}. Otherwise, returns {{None}}.\n\nThis "
+        + "function is the inverse of <fn Math.sin>."
       fn =
         (function
         | _, _, _, [| DFloat r |] ->
@@ -131,11 +125,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "ratio" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns the arc tangent of <param ratio>. The result is in radians and is between
-         {{-Math.pi/2}} and {{Math.pi/2}}.
-
-         This function is the inverse of <fn Math.tan>. Use <fn Math.atan2> to expand the
-         output range, if you know the numerator and denominator of <param ratio>."
+        "Returns the arc tangent of <param ratio>. The result is in radians and "
+        + "is between {{-Math.pi/2}} and {{Math.pi/2}}.\n\nThis function is the "
+        + "inverse of <fn Math.tan>. Use <fn Math.atan2> to expand the output "
+        + "range, if you know the numerator and denominator of <param ratio>."
       fn =
         (function
         | _, _, _, [| DFloat a |] -> Ply(DFloat(System.Math.Atan a))
@@ -151,13 +144,11 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "y" TFloat ""; Param.make "x" TFloat "" ]
       returnType = TFloat
       description =
-        "Returns the arc tangent of {{y / x}}, using the signs of <param y> and
-         <param x> to determine the quadrant of the result.
-
-         The result is in radians and is between {{-Math.pi}} and {{Math.pi}}.
-
-         Consider <fn Math.atan> if you know the value of {{y / x}} but not the
-         individual values <param x> and <param y>."
+        "Returns the arc tangent of {{y / x}}, using the signs of <param y> and "
+        + "<param x> to determine the quadrant of the result.\n\nThe result is in "
+        + "radians and is between {{-Math.pi}} and {{Math.pi}}.\n\nConsider <fn "
+        + "Math.atan> if you know the value of {{y / x}} but not the individual "
+        + "values <param x> and <param y>."
       fn =
         (function
         | _, _, _, [| DFloat y; DFloat x |] -> Ply(DFloat(System.Math.Atan2(y, x)))

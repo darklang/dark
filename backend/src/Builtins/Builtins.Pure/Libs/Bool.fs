@@ -14,9 +14,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "b" TBool "" ]
       returnType = TBool
       description =
-        "Returns the inverse of <param b>:
-        {{true}} if <param b> is {{false}}
-        and {{false}} if <param b> is {{true}}"
+        "Returns the inverse of <param b>: {{true}} if <param b> is {{false}} "
+        + "and {{false}} if <param b> is {{true}}"
       fn =
         (function
         | _, _, _, [| DBool b |] -> Ply(Dval.bool (not b))

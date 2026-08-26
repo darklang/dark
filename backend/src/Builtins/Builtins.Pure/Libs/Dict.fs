@@ -101,8 +101,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "dict" (TDict varA) "" ]
       returnType = TList(TTuple(TString, varA, []))
       description =
-        "Returns <param dict>'s entries as a list of {{(key, value)}} tuples, in an arbitrary order.
-        This function is the opposite of <fn Dict.fromList>"
+        "Returns <param dict>'s entries as a list of {{(key, value)}} tuples, "
+        + "in an arbitrary order. This function is the opposite of <fn "
+        + "Dict.fromList>"
       fn =
         (function
         | _, _, _, [| DDict(valueType, o) |] ->
@@ -122,14 +123,12 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "entries" (TList(TTuple(TString, varA, []))) "" ]
       returnType = TDict varB
       description =
-        "Returns a <type dict> with <param entries>. Each value in <param entries>
-          must be a {{(key, value)}} tuple, where <var key> is a <type String>.
-
-          If <param entries> contains duplicate <var key>s, the last entry with that
-          key will be used in the resulting dictionary (use <fn Dict.fromList> if you
-          want to enforce unique keys).
-
-          This function is the opposite of <fn Dict.toList>."
+        "Returns a <type dict> with <param entries>. Each value in <param "
+        + "entries> must be a {{(key, value)}} tuple, where <var key> is a <type "
+        + "String>.\n\nIf <param entries> contains duplicate <var key>s, the last "
+        + "entry with that key will be used in the resulting dictionary (use <fn "
+        + "Dict.fromList> if you want to enforce unique keys).\n\nThis function "
+        + "is the opposite of <fn Dict.toList>."
       fn =
         (function
         | _, _, _, [| DList(_, []) |] -> DDict(VT.unknown, Map.empty) |> Ply
@@ -149,14 +148,12 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "entries" (TList(TTuple(TString, varB, []))) "" ]
       returnType = TypeReference.option (TDict varB)
       description =
-        "Each value in <param entries> must be a {{(key, value)}} tuple, where <var
-         key> is a <type String>.
-
-         If <param entries> contains no duplicate keys, returns {{Some <var dict>}}
-         where <var dict> has <param entries>.
-
-         Otherwise, returns {{None}} (use <fn Dict.fromListOverwritingDuplicates>
-         if you want to overwrite duplicate keys)."
+        "Each value in <param entries> must be a {{(key, value)}} tuple, where "
+        + "<var key> is a <type String>.\n\nIf <param entries> contains no "
+        + "duplicate keys, returns {{Some <var dict>}} where <var dict> has "
+        + "<param entries>.\n\nOtherwise, returns {{None}} (use <fn "
+        + "Dict.fromListOverwritingDuplicates> if you want to overwrite duplicate "
+        + "keys)."
       fn =
         let dictType = VT.unknownTODO
         let optType = VT.dict dictType
@@ -191,8 +188,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]
       returnType = TypeReference.option varA
       description =
-        "If the <param dict> contains <param key>, returns the corresponding value,
-         wrapped in an <type Option>: {{Some value}}. Otherwise, returns {{None}}."
+        "If the <param dict> contains <param key>, returns the corresponding "
+        + "value, wrapped in an <type Option>: {{Some value}}. Otherwise, returns "
+        + "{{None}}."
       fn =
         (function
         | _, vm, _, [| DDict(_vtTODO, o); DString s |] ->
@@ -211,8 +209,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]
       returnType = TBool
       description =
-        "Returns {{true}} if the <param dict> contains an entry with <param key>, and
-         {{false}} otherwise"
+        "Returns {{true}} if the <param dict> contains an entry with <param "
+        + "key>, and {{false}} otherwise"
       fn =
         (function
         | _, _, _, [| DDict(_, o); DString s |] -> Ply(DBool(Map.containsKey s o))
@@ -229,9 +227,9 @@ let fns () : List<BuiltInFn> =
         [ Param.make "left" (TDict varA) ""; Param.make "right" (TDict varA) "" ]
       returnType = TDict varA
       description =
-        "Returns a combined dictionary with both dictionaries' entries.
-        If the same key exists in both <param left> and <param right>,
-          it will have the value from <param right>."
+        "Returns a combined dictionary with both dictionaries' entries. If the "
+        + "same key exists in both <param left> and <param right>, it will have "
+        + "the value from <param right>."
       fn =
         (function
         | _, _vm, _, [| DDict(vt1, intoMap); DDict(vt2, fromMap) |] ->
@@ -259,8 +257,8 @@ let fns () : List<BuiltInFn> =
           Param.make "val" varA "" ]
       returnType = (TDict(TVariable "a"))
       description =
-        "Returns a copy of <param dict> with the <param key> set to <param val>.
-        If the key already exists in the Dict, an exception is raised."
+        "Returns a copy of <param dict> with the <param key> set to <param "
+        + "val>. If the key already exists in the Dict, an exception is raised."
       fn =
         (function
         | _, vm, _, [| DDict(vt, o); DString k; v |] ->
@@ -288,8 +286,9 @@ let fns () : List<BuiltInFn> =
           Param.make "val" varA "" ]
       returnType = (TDict(TVariable "a"))
       description =
-        "Returns a copy of <param dict> with the <param key> set to <param val>.
-        If the key already exists in the Dict, the previous value is overwritten."
+        "Returns a copy of <param dict> with the <param key> set to <param "
+        + "val>. If the key already exists in the Dict, the previous value is "
+        + "overwritten."
       fn =
         (function
         | _, vm, _, [| DDict(vt, o); DString k; v |] ->

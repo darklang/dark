@@ -127,9 +127,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TBool
       description =
-        "Whether traces are being recorded. False means every trace query will come
-back empty no matter what ran, so callers can say so instead of showing an empty
-list and letting you conclude nothing happened."
+        "Whether traces are being recorded. False means every trace query will "
+        + "come back empty no matter what ran, so callers can say so instead of "
+        + "showing an empty list and letting you conclude nothing happened."
       fn =
         (function
         | _, _, _, [| DUnit |] ->

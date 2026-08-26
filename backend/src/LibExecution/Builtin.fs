@@ -69,44 +69,7 @@ let combine (libs : List<Builtins>) (fnRenames : FnRenames) : Builtins =
     fns = byName (fns |> renameFunctions fnRenames) _.name }
 
 
-/// Join a description that was written as an indented multi-line F# string literal.
-///
-/// The compiler keeps both the newline and the source indentation, so `"one\n         two"` is what
-/// a wrapped description actually holds, and anything rendering it on one line shows those nine
-/// spaces as a gap mid-sentence. Continuation lines join with a single space; a blank line is a
-/// deliberate paragraph break and survives as one.
-let private joinDescriptionLines (description : string) : string =
-  if not (description.Contains '\n') then
-    description
-  else
-    description.Split "\n\n"
-    |> Array.map (fun paragraph ->
-      paragraph.Split '\n'
-      |> Array.map (fun line -> line.Trim())
-      |> Array.filter (fun line -> line <> "")
-      |> String.concat " ")
-    |> Array.filter (fun paragraph -> paragraph <> "")
-    |> String.concat "\n\n"
-
-
 let make (values : List<BuiltInValue>) (fns : List<BuiltInFn>) : Builtins =
-  // Every library builds its `Builtins` here, and `combine` merges what this produced, so this is
-  // the one place a description has to be cleaned for every consumer of it.
-  let values =
-    values
-    |> List.map (fun v ->
-      { v with description = joinDescriptionLines v.description })
-
-  let fns =
-    fns
-    |> List.map (fun f ->
-      { f with
-          description = joinDescriptionLines f.description
-          parameters =
-            f.parameters
-            |> List.map (fun p ->
-              { p with description = joinDescriptionLines p.description }) })
-
   { values = byName values _.name; fns = byName fns _.name }
 
 

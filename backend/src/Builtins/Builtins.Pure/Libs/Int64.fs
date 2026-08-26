@@ -33,12 +33,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" TInt64 ""; Param.make "b" TInt64 "" ]
       returnType = TInt64
       description =
-        "Returns the result of wrapping <param a> around so that {{0 <= res < b}}.
-
-         The modulus <param b> must be greater than 0.
-
-         Use <fn Int64.remainder> if you want the remainder after division, which has
-         a different behavior for negative numbers."
+        "Returns the result of wrapping <param a> around so that {{0 <= res < "
+        + "b}}.\n\nThe modulus <param b> must be greater than 0.\n\nUse <fn "
+        + "Int64.remainder> if you want the remainder after division, which has a "
+        + "different behavior for negative numbers."
       fn =
         (function
         | _, vm, _, [| DInt64 v; DInt64 m |] ->
@@ -103,15 +101,12 @@ let fns () : List<BuiltInFn> =
         [ Param.make "dividend" TInt64 ""; Param.make "divisor" TInt64 "" ]
       returnType = TypeReference.result TInt64 TString
       description =
-        "Returns the integer remainder left over after dividing <param dividend> by
-         <param divisor>, as a <type Result>.
-
-         For example, {{Int64.remainder 15 6 == Ok 3}}. The remainder will be
-         negative only if {{<var dividend> < 0}}.
-
-         The sign of <param divisor> doesn't influence the outcome.
-
-         Returns an {{Error}} if <param divisor> is {{0}}."
+        "Returns the integer remainder left over after dividing <param "
+        + "dividend> by <param divisor>, as a <type Result>.\n\nFor example, "
+        + "{{Int64.remainder 15 6 == Ok 3}}. The remainder will be negative only "
+        + "if {{<var dividend> < 0}}.\n\nThe sign of <param divisor> doesn't "
+        + "influence the outcome.\n\nReturns an {{Error}} if <param divisor> is "
+        + "{{0}}."
       fn =
         let resultOk r = Dval.resultOk KTInt64 KTString r |> Ply
         (function
@@ -186,9 +181,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "base" TInt64 ""; Param.make "exponent" TInt64 "" ]
       returnType = TInt64
       description =
-        "Raise <param base> to the power of <param exponent>.
-        <param exponent> must to be positive.
-        Overflow wraps around."
+        "Raise <param base> to the power of <param exponent>. <param exponent> "
+        + "must to be positive. Overflow wraps around."
       fn =
         (function
         | _, vm, _, [| DInt64 number; DInt64 exp |] ->

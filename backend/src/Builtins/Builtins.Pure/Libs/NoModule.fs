@@ -255,10 +255,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = varA
       description =
-        "Adds two numbers of the same numeric type. Fixed-width integer overflow
-         wraps around; the arbitrary-precision Int grows
-         instead of overflowing; float arithmetic follows IEEE (overflow to
-         infinity)."
+        "Adds two numbers of the same numeric type. Fixed-width integer "
+        + "overflow wraps around; the arbitrary-precision Int grows instead of "
+        + "overflowing; float arithmetic follows IEEE (overflow to infinity)."
       fn =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a + b))
@@ -290,10 +289,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = varA
       description =
-        "Subtracts two numbers of the same numeric type. Fixed-width integer
-         overflow wraps around; the arbitrary-precision Int
-         grows instead of overflowing; float arithmetic follows IEEE (overflow
-         to infinity)."
+        "Subtracts two numbers of the same numeric type. Fixed-width integer "
+        + "overflow wraps around; the arbitrary-precision Int grows instead of "
+        + "overflowing; float arithmetic follows IEEE (overflow to infinity)."
       fn =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a - b))
@@ -321,10 +319,9 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = varA
       description =
-        "Multiplies two numbers of the same numeric type. Fixed-width integer
-         overflow wraps around; the arbitrary-precision Int
-         grows instead of overflowing; float arithmetic follows IEEE (overflow
-         to infinity)."
+        "Multiplies two numbers of the same numeric type. Fixed-width integer "
+        + "overflow wraps around; the arbitrary-precision Int grows instead of "
+        + "overflowing; float arithmetic follows IEEE (overflow to infinity)."
       fn =
         (function
         | _, _, _, [| DInt8 a; DInt8 b |] -> Ply(DInt8(a * b))
@@ -352,10 +349,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = varA
       description =
-        "Divides two numbers of the same numeric type. Integer types use integer
-         division; dividing an integer by zero raises a runtime error. Signed
-         integer overflow (e.g. {{Int64.MinValue / -1}}) wraps around to
-         {{MinValue}}."
+        "Divides two numbers of the same numeric type. Integer types use "
+        + "integer division; dividing an integer by zero raises a runtime error. "
+        + "Signed integer overflow (e.g. {{Int64.MinValue / -1}}) wraps around to "
+        + "{{MinValue}}."
       fn =
         // Unsigned division can't overflow. Signed division overflows only on
         // `MinValue / -1`, whose wrapped result is `MinValue` itself. For the
@@ -418,8 +415,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "a" varA ""; Param.make "b" varB "" ]
       returnType = varA
       description =
-        "Wraps <param a> around so that {{0 <= res < b}}, for two numbers of the
-         same numeric type. The modulus <param b> must be greater than 0."
+        "Wraps <param a> around so that {{0 <= res < b}}, for two numbers of "
+        + "the same numeric type. The modulus <param b> must be greater than 0."
       fn =
         (function
         | _, vm, _, [| DInt8 v; DInt8 m |] ->
@@ -502,11 +499,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "base" varA ""; Param.make "exponent" varA "" ]
       returnType = varA
       description =
-        "Raises a number to the power of another number of the same type.
-         Supported for every integer type and Float (not Int128/UInt128).
-         Integer exponents must be non-negative. Fixed-width integer overflow
-         wraps around; the arbitrary-precision Int grows
-         instead."
+        "Raises a number to the power of another number of the same type. "
+        + "Supported for every integer type and Float (not Int128/UInt128). "
+        + "Integer exponents must be non-negative. Fixed-width integer overflow "
+        + "wraps around; the arbitrary-precision Int grows instead."
       fn =
         // Fixed-width powers wrap, so they use modular exponentiation
         // (`powSigned`/`powUnsigned`) — this stays cheap even for huge

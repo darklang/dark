@@ -409,8 +409,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       returnType =
         TTuple(TList TString, TList TString, [ TList TString; TList TString ])
       description =
-        "Search, returning only names: (direct submodules, types, values, fns). Submodules are already
-         reduced to the direct children of the query's module and sorted."
+        "Search, returning only names: (direct submodules, types, values, fns). "
+        + "Submodules are already reduced to the direct children of the query's "
+        + "module and sorted."
       fn =
         function
         | _, _, _, [| DUuid branchId; query as DRecord(_, _, _, _fields) |] ->
@@ -473,8 +474,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           TList(TTuple(TString, TCustomType(NR.ok (PT2DT.Hash.typeName ()), []), []))
         TTuple(TList TString, nameAndHash, [ nameAndHash; nameAndHash ])
       description =
-        "Search, returning (direct submodules, types, values, fns) as (name, hash) pairs. Like
-         pmSearchNames but keeps each item's hash, which listings need for deprecation marks."
+        "Search, returning (direct submodules, types, values, fns) as (name, "
+        + "hash) pairs. Like pmSearchNames but keeps each item's hash, which "
+        + "listings need for deprecation marks."
       fn =
         function
         | _, _, _, [| DUuid branchId; query as DRecord(_, _, _, _fields) |] ->

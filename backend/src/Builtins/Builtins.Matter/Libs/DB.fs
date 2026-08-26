@@ -569,9 +569,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ tableParam "a"; queryFilterParam "a" ]
       returnType = TList(tvar "a")
       description =
-        "Fetch all the values from <param table> for which filter returns true.
-        Note that this does not check every value in <param table>, but rather is optimized to find data with indexes.
-        Errors at compile-time if Dark's compiler does not support the code in question."
+        "Fetch all the values from <param table> for which filter returns true. "
+        + "Note that this does not check every value in <param table>, but rather "
+        + "is optimized to find data with indexes. Errors at compile-time if "
+        + "Dark's compiler does not support the code in question."
       fn =
         (function
         | exeState, vm, _, [| DDB dbname; DApplicable(AppLambda appLambda) |] ->

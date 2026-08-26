@@ -54,9 +54,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           Param.make "ops" (TList(TCustomType(NR.ok (packageOpTypeName ()), []))) "" ]
       returnType = TypeReference.result TInt TString
       description =
-        "Add package ops to the database as WIP (uncommitted) on the given branch.
-        Returns the number of inserted ops on success (duplicates are skipped), or an error message on failure.
-        Use scmCommitWipOpsByIds to commit WIP ops."
+        "Add package ops to the database as WIP (uncommitted) on the given "
+        + "branch. Returns the number of inserted ops on success (duplicates are "
+        + "skipped), or an error message on failure. Use scmCommitWipOpsByIds to "
+        + "commit WIP ops."
       fn =
         let resultOk = Dval.resultOk KTInt KTString
         let resultError = Dval.resultError KTInt KTString
@@ -232,9 +233,9 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           )
         )
       description =
-        "Get all WIP ops on a branch with their DB row id and propagation_id
-        (None unless the op is part of a propagation batch). Use this when you
-        need to operate on individual ops (e.g. partial commit / discard)."
+        "Get all WIP ops on a branch with their DB row id and propagation_id "
+        + "(None unless the op is part of a propagation batch). Use this when you "
+        + "need to operate on individual ops (e.g. partial commit / discard)."
       fn =
         function
         | _, vm, _, [| DUuid branchId |] ->
@@ -269,14 +270,14 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           Param.make
             "opIds"
             (TList TUuid)
-            "WIP op IDs from scmGetWipOpsWithIds. Every id must belong to this
-            branch and still be WIP, or nothing is committed." ]
+            ("WIP op IDs from scmGetWipOpsWithIds. Every id must belong to this "
+             + "branch and still be WIP, or nothing is committed.") ]
       returnType = TypeReference.result TString TString
       description =
-        "Commit the named WIP ops and their derived projection rows. The caller
-        owns selection policy and dependency closure. Projection rows are matched
-        by content key until they can be tied directly to source op IDs. Returns
-        the commit hash, or an error message on failure."
+        "Commit the named WIP ops and their derived projection rows. The caller "
+        + "owns selection policy and dependency closure. Projection rows are "
+        + "matched by content key until they can be tied directly to source op "
+        + "IDs. Returns the commit hash, or an error message on failure."
       fn =
         let resultOk = Dval.resultOk KTString KTString
         let resultError = Dval.resultError KTString KTString
@@ -314,8 +315,8 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
       parameters = [ Param.make "branchId" TUuid "Branch ID" ]
       returnType = TypeReference.result TInt TString
       description =
-        "Discard all WIP ops on a branch.
-        Returns the count of discarded ops on success, or an error message on failure."
+        "Discard all WIP ops on a branch. Returns the count of discarded ops on "
+        + "success, or an error message on failure."
       fn =
         let resultOk = Dval.resultOk KTInt KTString
         let resultError = Dval.resultError KTInt KTString
@@ -420,9 +421,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           )
         )
       description =
-        "Get the items (content hash + kind) that the given item directly depends
-        on, resolved over the branch chain. Used by partial commit to warn when a
-        selected item references uncommitted items not in the selection."
+        "Get the items (content hash + kind) that the given item directly "
+        + "depends on, resolved over the branch chain. Used by partial commit to "
+        + "warn when a selected item references uncommitted items not in the "
+        + "selection."
       fn =
         (function
         | _, _, _, [| DUuid branchId; hashDval |] ->

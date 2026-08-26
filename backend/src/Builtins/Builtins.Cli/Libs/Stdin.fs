@@ -456,8 +456,8 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "unit" TUnit "" ]
       returnType = TString
       description =
-        "Reads all available input from standard input until EOF.
-        Blocks if stdin is an interactive TTY with no EOF signal."
+        "Reads all available input from standard input until EOF. Blocks if "
+        + "stdin is an interactive TTY with no EOF signal."
       fn =
         (function
         | _, _, _, [| DUnit |] ->

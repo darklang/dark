@@ -18,10 +18,11 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "s" TString "" ]
       returnType = TypeReference.result TBlob TString
       description =
-        "Base64 decodes a string. Works with both the URL-safe and standard Base64
-         alphabets defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
-         sections [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and
-         [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
+        "Base64 decodes a string. Works with both the URL-safe and standard "
+        + "Base64 alphabets defined in [RFC "
+        + "4648](https://www.rfc-editor.org/rfc/rfc4648.html) sections "
+        + "[4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4) and "
+        + "[5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
         let resultOk r = Dval.resultOk KTBlob KTString r |> Ply
         let resultError r = Dval.resultError KTBlob KTString r |> Ply
@@ -59,9 +60,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "blob" TBlob "" ]
       returnType = TString
       description =
-        "Base64 encodes <param blob> with {{=}} padding. Uses the standard
-         alphabet defined in [RFC 4648](https://www.rfc-editor.org/rfc/rfc4648.html)
-         section [4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4)."
+        "Base64 encodes <param blob> with {{=}} padding. Uses the standard "
+        + "alphabet defined in [RFC "
+        + "4648](https://www.rfc-editor.org/rfc/rfc4648.html) section "
+        + "[4](https://www.rfc-editor.org/rfc/rfc4648.html#section-4)."
       fn =
         (function
         | state, _, _, [| DBlob ref |] ->
@@ -81,9 +83,10 @@ let fns () : List<BuiltInFn> =
       parameters = [ Param.make "blob" TBlob "" ]
       returnType = TString
       description =
-        "Base64URL encodes <param blob> with {{=}} padding. Uses URL-safe encoding
-         with {{-}} and {{_}} instead of {{+}} and {{/}}, as defined in RFC 4648
-         section [5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
+        "Base64URL encodes <param blob> with {{=}} padding. Uses URL-safe "
+        + "encoding with {{-}} and {{_}} instead of {{+}} and {{/}}, as defined "
+        + "in RFC 4648 section "
+        + "[5](https://www.rfc-editor.org/rfc/rfc4648.html#section-5)."
       fn =
         (function
         | state, _, _, [| DBlob ref |] ->
