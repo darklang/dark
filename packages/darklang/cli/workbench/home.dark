@@ -134,7 +134,16 @@ let isFirstRun (state: State) : Bool =
   // so only ask when the cheap test hasn't already answered.
   if Stdlib.Bool.not noWip then false
   else if owner == "" then true
-  else Stdlib.List.isEmpty (loadItems state.branchId (Packages.PackageLocation.Module [ owner ]))
+  else
+    // Names, not items. `loadItems` materializes every item's full definition and pretty-prints its
+    // signature to build the list, which is 4.5 ms thrown away to answer "is it empty".
+    let (subs, types, values, fns) =
+      Packages.Query.allDirectDescendantNames state.branchId [ owner ]
+
+    (Stdlib.List.isEmpty subs)
+    && (Stdlib.List.isEmpty types)
+    && (Stdlib.List.isEmpty values)
+    && (Stdlib.List.isEmpty fns)
 
 let welcomeLines (state: State) : List<String> =
   let name = if state.accountName == "" then "there" else state.accountName

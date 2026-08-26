@@ -262,6 +262,58 @@ each, the `Int.max`, the `Span` record and the single-element list. A panel draw
 Same 252 spans out; they are just cheaper to make. The bounds check `Layout.at` would have done is
 now one check per panel rather than one per row, since every row of a panel is in bounds or none is.
 
+**Done: `isFirstRun` asked for items when it wanted a yes/no.** Home's detail pane and its title both
+call it, per frame. It answers "does this account have any packages of its own" with
+`List.isEmpty (loadItems ...)`, and `loadItems` materializes every matched item's full definition
+*and pretty-prints its type signature* to build the list it then measures the length of. There is
+already a cheap variant, `allDirectDescendantNames`, documented as what completion wants for exactly
+this reason.
+
+It depends entirely on whether the account's module has anything in it:
+
+| owner module | items (before) | names (after) |
+|---|---|---|
+| populated | 32.6 ms | **7.5 ms** |
+| empty | 4.4 ms | 4.4 ms |
+
+**And that is a caveat on this whole section.** The workloads build state with a made-up owner name,
+whose module is empty, so they measure only the cheap column -- which is why this fix reads as flat on
+`keypress.dark`. `scripts/perf/keystroke`, which drives the real CLI, agrees with the workloads at
+~150 ms, so the empty case is the representative one and the round's numbers stand. But an account
+that has authored packages pays the other column on every frame, and nothing in the harness would
+have shown it. The workloads now say so in a comment.
+
+**A package search costs a fixed ~4.4 ms, whatever it finds.** Measured through
+`allDirectDescendantNames` on this store: a module that does not exist (0 results) 4.4 ms, the root
+(3) 5.3, `Darklang` (23) 6.4, `Darklang.Stdlib.List` (53) 4.8. Result count barely moves it, so it is
+a floor, not a per-row cost. It matters because `isFirstRun` runs a search per frame -- twice, since
+Home's detail pane and its title both call it -- and completion, listings and nav all search too.
+
+Where it goes:
+
+- **One search is four SQL queries** (submodules, types, values, fns), each hitting `locations`,
+  which holds 5,914 rows here. Timed directly in sqlite3, one of them is ~2 ms.
+- **Each is a scan, not a seek.** `EXPLAIN QUERY PLAN` says `SCAN l USING INDEX idx_locations_module`
+  -- the index is only avoiding the table read. The predicate is
+  `(modules LIKE 'X.%') OR (owner || '.' || modules LIKE 'X.%')`, and an `OR` over a computed
+  expression cannot seek.
+- **The first branch of that `OR` matches nothing.** All 5,914 rows have `modules` not starting with
+  `owner` (`Darklang` + `Cli`, never `Darklang` + `Darklang.Cli`). So in this store the scan exists to
+  evaluate a condition that is always false.
+
+Three candidate fixes, largest first, none taken yet:
+
+1. Confirm the dead `OR` branch is genuinely dead, and if so drop it. That leaves a single prefix
+   predicate on the computed `owner || '.' || modules`, which an expression index could serve as a
+   range seek instead of a 5,914-row scan.
+2. Collapse the four queries into one with a kind discriminator: ~3 scans saved per search.
+3. Call `isFirstRun` once a frame rather than twice, worth 4.4 ms and needing no DB change -- but the
+   two callers sit either side of the generic preview path, so it wants a little plumbing.
+
+**Negative result: `allDirectDescendantNames` is not cheaper on an empty module.** Both it and
+`loadItems` cost 4.4 ms there, so the saving is entirely the materialization, not the search. The
+search itself is 4.4 ms for a module that does not exist, which is its own question.
+
 **Negative result: the nullary-constant sweep is exhausted here.** After three wins from that
 pattern, grepping the render path for the rest of it finds nothing worth taking:
 `sidebarIsColumnNow` is 30 us a call (it makes a syscall for the terminal size) and `extensionViews`
