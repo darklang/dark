@@ -88,16 +88,51 @@ changes; it called `getCommitOps`, which turns every op into a Dark value. Again
 (~11,700 ops) that is `commitChangeLines` at **1,648 -> 330 ms**, same output.
 `scmGetCommitNamedOps` filters and caps F#-side and converts only what will be shown.
 
+### Where the 283 ms goes
+
+Measured per phase, headless, 120x40, `initialState` with every view gated on:
+
+| phase | ms |
+|---|---|
+| `handleKey` -- the state transition | 71 |
+| `viewAtSize` -- building the view | 172 |
+| `preparePresentAtSize` -- diffing and encoding the frame | 4 |
+| unattributed (stdin, the terminal write, loop) | ~36 |
+
+The frame diff is not the problem and never was. Two things are.
+
+**`sidebarRows` costs 66 ms and is built at least twice per keypress.** It is the whole of
+`handleKey`'s 71 ms: `focusRight` alone measures 0 ms, and an unhandled key (F12) costs the same 70
+ms as a handled one, so none of it is the action. `handleSidebarKey` opens with
+`let rows = sidebarRows state 0 0`, and `renderSidebar` builds the same rows again during the view.
+`syncSideSel` makes a third call on the transitions that run it.
+
+Building it once per keypress is the obvious win and worth ~66 ms. The better question is why ~15
+rows of pure list-and-record work cost 66 ms at all, with no DB call anywhere in it. That number is
+the one to chase; it likely indicts something shared rather than the sidebar.
+
+**`handleSidebarKey` computes what keys you didn't press.** `let` is eager, so `openSel` and
+`collapseSel` are evaluated on every keypress, and `openSel` reaches `goTo`, which calls
+`itemsForView` and loads items from the DB. Measured on its own, `goTo` on row 0 is 70 ms. It does
+not show up in `handleSidebarKey`'s total, which is within noise of `sidebarRows` alone -- so
+something is not evaluating it, and *that* wants understanding before anything is changed here.
+Making both lazy (nested functions rather than values) is correct regardless of what the measurement
+turns out to mean.
+
 ### Open, ranked
 
-**Where the ~130 ms outside the view build goes.** Frame diffing, the terminal write, and stdin
-handling are all unmeasured. Subtracting two numbers is not attribution; this needs its own probe
-before anyone optimises a guess.
+**Why ~15 sidebar rows cost 66 ms.** No DB, no I/O; pure interpreted list and record construction.
+This is the largest single number in the keypress and the least explained.
 
 **~150 ms to build one view is the floor for every keypress.** No view is cheap, and the cheapest
 (Matter, 120 ms) is not much cheaper than the dearest. That flatness suggests a shared cost -- layout,
 span composition, or the per-row fitting in `Cli.Tui.Text` -- rather than anything view-specific.
-Profile one view amplified before picking.
+Profile one view amplified before picking. Note the sidebar is part of every view, so the item above
+may be most of this one.
+
+**A record update is not the problem.** 2,000 updates of the 29-field workbench `State` take 22 ms,
+about 11 us each, so the value-representation item from earlier rounds is not what makes a keypress
+slow. Worth knowing before someone reaches for it here.
 
 **The remaining 330 ms of `commitChangeLines`** is deserializing ~11,700 op blobs to discover which
 are `SetName` or `Deprecate`. Bounding it needs the op kind readable without deserializing, which is
