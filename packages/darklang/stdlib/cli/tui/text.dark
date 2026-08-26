@@ -11,6 +11,12 @@
 module Darklang.Stdlib.Cli.Tui.Text
 
 
+/// Measure a row and report whether it holds control characters. The width is only meaningful when
+/// the flag is false, and the two come back together because the frame fast path wants both.
+let inspect (text: String) : (Int * Bool) =
+  Builtin.cliTerminalInspectRow text
+
+
 /// Terminal columns occupied by a row that may carry SGR styling.
 let styledWidth (text: String) : Int =
   Builtin.cliTerminalStyledWidth text
@@ -42,7 +48,7 @@ let positionAfter (text: String) (maxWidth: Int) : (Int * Int) =
 /// it costs one measurement.
 let normalizeToWidth (text: String) (maxWidth: Int) : String =
   let width = Stdlib.Int.max 0 maxWidth
-  let (measuredWidth, containsControl) = Stdlib.String.inspectDisplay text
+  let (measuredWidth, containsControl) = inspect text
 
   if Stdlib.Bool.not containsControl && measuredWidth <= width then
     text

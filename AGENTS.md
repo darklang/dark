@@ -290,8 +290,10 @@ node and is fine in Dark; the row fitters in `Builtins.Cli/Libs/TerminalText.fs`
 and cost seconds per keystroke, which is why they're native. Dark layout code measures spans, not
 characters -- check that before moving anything else to F#.
 
-Widths are columns, never `String.length`. `Stdlib.String.padEndToWidth`/`padStartToWidth` pad by
-column; `padEnd`/`padStart` count characters and go ragged on the first wide glyph.
+Widths are display cells, never `String.length`. `Stdlib.String.displayWidth` measures them and is
+medium-independent; `Cli.Tui.Text` is only for rows that carry escape sequences.
+`padEndToWidth`/`padStartToWidth` pad by cell, `padEnd`/`padStart` count characters and go ragged on
+the first wide glyph.
 
 ## Keep this file honest
 

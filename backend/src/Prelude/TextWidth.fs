@@ -1,13 +1,14 @@
-/// Terminal columns occupied by plain text, over extended grapheme clusters.
+/// Cells occupied by plain text in a fixed-width grid, over extended grapheme clusters.
 ///
-/// Knows nothing about escape sequences; `Builtins.Cli.Libs.TerminalText` layers those on top.
-/// Reached from Dark as `Stdlib.String.displayWidth`.
+/// A Unicode property of the text, not a terminal capability: the answer is the same wherever it is
+/// rendered. Reached from Dark as `Stdlib.String.displayWidth`, and
+/// `Builtins.Cli.Libs.TerminalText` layers escape handling on top for rows that carry styling.
 module TextWidth
 
 let private isRegionalIndicator (value : int) : bool =
   value >= 0x1F1E6 && value <= 0x1F1FF
 
-/// Terminal columns occupied by one extended grapheme cluster.
+/// Cells occupied by one extended grapheme cluster.
 let ofCluster (cluster : string) : int =
   // Fast path: a lone printable ASCII character is always one column, and is most of what a frame
   // measures. The table lookup below is comparatively expensive; taking it every time costs
@@ -46,7 +47,7 @@ let ofCluster (cluster : string) : int =
     else
       widestScalar
 
-/// Terminal columns occupied by plain, single-line text. Strip escapes first; controls measure zero.
+/// Cells occupied by plain, single-line text. Strip escapes first; controls measure zero.
 let ofString (text : string) : int = text |> String.toEgcSeq |> Seq.sumBy ofCluster
 
 /// Whether text contains an ASCII/Unicode control character.

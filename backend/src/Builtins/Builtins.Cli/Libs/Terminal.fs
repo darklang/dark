@@ -201,6 +201,28 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "cliTerminalInspectRow" 0
+      typeParams = []
+      parameters = [ Param.make "text" TString "One candidate logical row" ]
+      returnType = TTuple(TInt, TBool, [])
+      description =
+        "Return (columns the row occupies when control-free, whether it holds control characters)"
+      fn =
+        (function
+        | _, _, _, [| DString text |] ->
+          DTuple(
+            text |> TextWidth.ofString |> bigint |> Dval.int,
+            text |> TextWidth.containsControl |> DBool,
+            []
+          )
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "cliTerminalStyledWidth" 0
       typeParams = []
       parameters =

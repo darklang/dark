@@ -15,21 +15,16 @@ module Interpreter = LibExecution.Interpreter
 module Blob = LibExecution.Blob
 
 let fns () : List<BuiltInFn> =
-  [ { name = fn "stringInspectText" 0
+  [ { name = fn "stringDisplayWidth" 0
       typeParams = []
-      parameters = [ Param.make "text" TString "One candidate logical terminal row" ]
-      returnType = TTuple(TInt, TBool, [])
+      parameters = [ Param.make "text" TString "Plain, single-line text" ]
+      returnType = TInt
       description =
-        "Return (display width in terminal columns when control-free, contains control characters)"
+        "Cells the text occupies in a fixed-width grid, over extended grapheme clusters"
       fn =
         (function
         | _, _, _, [| DString text |] ->
-          DTuple(
-            text |> TextWidth.ofString |> bigint |> Dval.int,
-            text |> TextWidth.containsControl |> DBool,
-            []
-          )
-          |> Ply
+          text |> TextWidth.ofString |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
