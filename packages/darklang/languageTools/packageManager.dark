@@ -184,6 +184,14 @@ let findAny
       | None -> Stdlib.Option.Option.None
 
 
+/// Whether <param owner> has any listed item at all.
+///
+/// `searchNames` would answer the same question, but a search scans `locations` four times and
+/// costs ~4.4 ms whatever it finds; this is an equality seek on the owner index.
+let ownerHasItems (branchId: Uuid) (owner: String) : Bool =
+  Builtin.pmOwnerHasItems branchId owner
+
+
 module Search =
   let search
     (branchId: Uuid)
@@ -204,6 +212,7 @@ module Search =
   /// values. Completion reads `.location.name` and throws the rest away, which is most of a millisecond
   /// per item. Submodules come back already reduced to the direct children of the query's module, because
   /// doing that reduction in Dark means walking every module path under the store root.
+
   let searchNames
     (branchId: Uuid)
     (query: ProgramTypes.Search.SearchQuery)

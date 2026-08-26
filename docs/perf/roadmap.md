@@ -283,6 +283,33 @@ whose module is empty, so they measure only the cheap column -- which is why thi
 that has authored packages pays the other column on every frame, and nothing in the harness would
 have shown it. The workloads now say so in a comment.
 
+**Done: `isFirstRun` asks an existence question, so it does an existence query.** It wants to know
+whether the account has any packages of its own. It was asking a *search*, which scans `locations`
+four times for a fixed ~4.4 ms whatever it finds. `pmOwnerHasItems` is an equality seek on the owner
+index -- `EXPLAIN QUERY PLAN` says `SEARCH locations USING INDEX idx_locations_owner_modules
+(owner=?)`.
+
+| | before | after |
+|---|---|---|
+| `isFirstRun` | 4.50 ms | **0.16** |
+| `previewLines` | 8.66 ms | **4.03** |
+| `renderFull` | 38 ms | **28** |
+| `viewAtSize` | 89 ms | **82** |
+| keypress, end to end | 150 ms | **141** |
+
+Home calls it twice a frame (detail pane and pane title), so the frame saves both.
+
+**Negative result: indexing the search's predicate does not help.** Tried on a copy of the store.
+Dropping the dead `OR` branch leaves `owner || '.' || modules LIKE 'X.%'`, still a computed
+expression, still `SCAN`. Adding an expression index on `owner || '.' || modules COLLATE NOCASE` did
+not change the plan either -- SQLite kept the covering scan, with `LIKE` and with `GLOB`. So the seek
+is not available by indexing, and the search's floor is simply four scans.
+
+Which also right-sizes the scan: **5,914 rows scan in ~1 ms**, four of them make the 4.4 ms. There is
+nothing pathological in any single query. The remaining candidate is collapsing the four into one
+with a kind discriminator, worth ~3 ms a search; the `isFirstRun` fix above avoided the search
+entirely, which was better.
+
 **A package search costs a fixed ~4.4 ms, whatever it finds.** Measured through
 `allDirectDescendantNames` on this store: a module that does not exist (0 results) 4.4 ms, the root
 (3) 5.3, `Darklang` (23) 6.4, `Darklang.Stdlib.List` (53) 4.8. Result count barely moves it, so it is
