@@ -347,14 +347,34 @@ let handleSidebarKey
   (key: Stdlib.Cli.Stdin.Key.Key)
   (keyChar: Stdlib.Option.Option<String>)
   : Step =
-  let rows = sidebarRows state 0 0
-  let n = Stdlib.List.length rows
-  let sel = Stdlib.Int.max 0 (Stdlib.Int.min state.sideSel (n - 1))
-  let moveTo (i: Int) : Step =
+  // Every one of these is a function, not a value. `let` is eager, so binding them computed the
+  // outcome of keys that were not pressed on every keypress -- including `openSel`, which calls
+  // `goTo` and loads items from the DB, and `sidebarRows`, which is the most expensive thing the
+  // key handler touches. Stepping into the content pane now does none of it.
+  let rowsNow (_u: Unit) : List<SideRow> = sidebarRows state 0 0
+
+  let selIn (rows: List<SideRow>) : Int =
+    Stdlib.Int.max 0 (Stdlib.Int.min state.sideSel ((Stdlib.List.length rows) - 1))
+
+  let moveToIn (rows: List<SideRow>) (i: Int) : Step =
+    let n = Stdlib.List.length rows
     Step.Continue { state with sideSel = Stdlib.Int.max 0 (Stdlib.Int.min (n - 1) i) }
-  let narrow = Stdlib.Bool.not (sidebarIsColumnNow ())
-  let openSel =
-    match Stdlib.List.getAt rows sel with
+
+  let moveBy (delta: Int) : Step =
+    let rows = rowsNow ()
+    moveToIn rows ((selIn rows) + delta)
+
+  let moveToEnd (_u: Unit) : Step =
+    let rows = rowsNow ()
+    moveToIn rows ((Stdlib.List.length rows) - 1)
+
+  let moveToStart (_u: Unit) : Step =
+    let rows = rowsNow ()
+    moveToIn rows 0
+
+  let openSel (_u: Unit) : Step =
+    let rows = rowsNow ()
+    match Stdlib.List.getAt rows (selIn rows) with
     | None -> Step.Continue state
     | Some row ->
       // A header: go where you last were in it and stay in the sidebar - that
@@ -363,8 +383,10 @@ let handleSidebarKey
       match row.kind with
       | WorkspaceHeader -> Step.Continue (goTo state row.dest true)
       | Destination _ -> Step.Continue (goTo state row.dest false)
-  let collapseSel =
-    match Stdlib.List.getAt rows sel with
+
+  let collapseSel (_u: Unit) : Step =
+    let rows = rowsNow ()
+    match Stdlib.List.getAt rows (selIn rows) with
     | None -> Step.Continue state
     | Some row ->
       match row.kind with
@@ -375,31 +397,32 @@ let handleSidebarKey
             | WorkspaceHeader -> r.ws == row.ws
             | Destination _ -> false)
         with
-        | Some i -> moveTo i
+        | Some i -> moveToIn rows i
         | None -> Step.Continue state
       | _ -> Step.Continue state
-  let back =
+
+  let back (_u: Unit) : Step =
+    let narrow = Stdlib.Bool.not (sidebarIsColumnNow ())
     if narrow then Step.Continue (focusContent state)
     else if state.activeView == vHome then Step.Continue state
     else Step.Continue (goTo state (mkDest vHome 0) true)
-  // → (and l) step into the content pane, like everywhere else; ← on a
-  // section row goes to its header.
+
   match key with
-  | UpArrow -> moveTo (sel - 1)
-  | DownArrow -> moveTo (sel + 1)
-  | Enter -> openSel
+  | UpArrow -> moveBy -1
+  | DownArrow -> moveBy 1
+  | Enter -> openSel ()
   | RightArrow -> Step.Continue (focusContent state)
-  | LeftArrow -> collapseSel
-  | Escape -> back
+  | LeftArrow -> collapseSel ()
+  | Escape -> back ()
   | Tab -> Step.Continue (focusContent state)
   | _ ->
     match keyChar with
-    | Some "k" -> moveTo (sel - 1)
-    | Some "j" -> moveTo (sel + 1)
+    | Some "k" -> moveBy -1
+    | Some "j" -> moveBy 1
     | Some "l" -> Step.Continue (focusContent state)
-    | Some "h" -> collapseSel
-    | Some "g" -> moveTo 0
-    | Some "G" -> moveTo (n - 1)
+    | Some "h" -> collapseSel ()
+    | Some "g" -> moveToStart ()
+    | Some "G" -> moveToEnd ()
     // ` toggles: it opened the sidebar, so it also hands the keyboard back.
     | Some "`" -> Step.Continue (focusContent state)
     | _ ->

@@ -278,6 +278,27 @@ empty rows. Bucketing all 252 spans is 3 ms. Spans are evenly spread at 6-9 a ro
 emitting many tiny ones, so there is no span-count pathology to fix. What is left is ~20 ms in
 `renderSegments` and ~9 ms in the residual `overlay` walk, both volume rather than structure.
 
+**Done: the sidebar key handler computed the outcome of keys nobody pressed.** `let` is eager, so
+`handleSidebarKey` opened by binding `rows = sidebarRows state 0 0` (the most expensive thing the
+handler touches), then `openSel`, `collapseSel` and `back` -- and `openSel` calls `goTo`, which loads
+items from the DB. All of it ran on every keypress and was discarded unless that exact key was
+pressed. Stepping into the content pane used none of it.
+
+They are nested functions now, so each key does only its own work.
+
+| | before | after |
+|---|---|---|
+| `handleKey` (the whole state transition) | 11 ms | **0** |
+| keypress, end to end | 163 ms | 159 |
+
+The state transition phase is gone. End to end moved ~4 ms, inside the noise band, because the
+handler is a small share of a keypress once the view build dominates -- but the phase instrument is
+unambiguous and repeats exactly.
+
+This is the third time this round the same bug has appeared: a value bound eagerly that only some
+paths need. `visibleViews` per workspace, `workspaces` and `viewSpecs` as nullary functions, and now
+a whole key handler's worth. Worth grepping for others.
+
 **`sidebarRows` is still built at least twice per keypress.** It is the whole of
 `handleKey`'s 71 ms: `focusRight` alone measures 0 ms, and an unhandled key (F12) costs the same 70
 ms as a handled one, so none of it is the action. `handleSidebarKey` opens with
