@@ -57,9 +57,6 @@ module TerminalRestoreGuard =
     System.Console.CancelKeyPress.Add(fun _ -> restoreToTerminal ())
 
 
-module DisplayWidth = LibExecution.DisplayWidth
-
-
 module TerminalCapabilities =
   let isInputTerminal () : bool = not System.Console.IsInputRedirected
 
@@ -204,6 +201,28 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "cliTerminalInspectRow" 0
+      typeParams = []
+      parameters = [ Param.make "text" TString "One candidate logical row" ]
+      returnType = TTuple(TInt, TBool, [])
+      description =
+        "Return (columns the row occupies when control-free, whether it holds control characters)"
+      fn =
+        (function
+        | _, _, _, [| DString text |] ->
+          DTuple(
+            text |> TextWidth.ofString |> bigint |> Dval.int,
+            text |> TextWidth.containsControl |> DBool,
+            []
+          )
+          |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "cliTerminalStyledWidth" 0
       typeParams = []
       parameters =
@@ -213,7 +232,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, _, _, [| DString text |] ->
-          text |> DisplayWidth.styledWidth |> bigint |> Dval.int |> Ply
+          text |> TerminalText.styledWidth |> bigint |> Dval.int |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -232,7 +251,7 @@ let fns () : List<BuiltInFn> =
       fn =
         (function
         | _, vm, _, [| DString text; DInt maxWidth |] ->
-          DString(DisplayWidth.clipToWidth text (intToInt32 vm maxWidth)) |> Ply
+          DString(TerminalText.clipToWidth text (intToInt32 vm maxWidth)) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Pure
@@ -240,18 +259,35 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "cliTerminalWrapStyled" 0
+    { name = fn "cliTerminalStripSgr" 0
+      typeParams = []
+      parameters =
+        [ Param.make "text" TString "One logical row, possibly carrying SGR styling" ]
+      returnType = TString
+      description =
+        "Drop SGR styling, other escapes and control characters, leaving the visible text"
+      fn =
+        (function
+        | _, _, _, [| DString text |] -> DString(TerminalText.stripSgr text) |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "cliTerminalWrapAtColumn" 0
       typeParams = []
       parameters =
         [ Param.make "text" TString "One logical row, possibly carrying SGR styling"
           Param.make "maxWidth" TInt "Terminal columns to wrap at" ]
       returnType = TList TString
       description =
-        "Wrap plain or SGR-styled text into terminal-width rows, reapplying active styling after a wrap"
+        "Break text into terminal-width rows at the column, restating styling across a wrap"
       fn =
         (function
         | _, vm, _, [| DString text; DInt maxWidth |] ->
-          DisplayWidth.wrapStyled text (intToInt32 vm maxWidth)
+          TerminalText.wrapAtColumn text (intToInt32 vm maxWidth)
           |> List.map DString
           |> fun rows -> DList(VT.string, rows)
           |> Ply
@@ -274,7 +310,7 @@ let fns () : List<BuiltInFn> =
         (function
         | _, vm, _, [| DString text; DInt maxWidth |] ->
           let (row, column) =
-            DisplayWidth.positionAfter text (intToInt32 vm maxWidth)
+            TerminalText.positionAfter text (intToInt32 vm maxWidth)
           DTuple(row |> bigint |> Dval.int, column |> bigint |> Dval.int, []) |> Ply
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

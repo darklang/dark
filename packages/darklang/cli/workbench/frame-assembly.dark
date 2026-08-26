@@ -41,7 +41,7 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
   // edge of the row.
   let glancePlain = wipPlain ++ syncPlain
   let glanceColored = if wip > 0 then wipColored ++ "  " ++ syncColored else syncColored
-  let glanceLen = Stdlib.Cli.Tui.Text.displayWidth glancePlain
+  let glanceLen = Stdlib.String.displayWidth glancePlain
   // The status row - the workbench's `pwd`, as segments: who (purple), on
   // which instance (grey), on which branch; and at the right, the glance:
   // uncommitted work and sync. This is the only row that says any of it; the
@@ -93,7 +93,7 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
               // The caret comes from the field now, and sits wherever the cursor is rather than always at
               // the end - which is the visible half of being able to move it at all.
               let room =
-                Stdlib.Int.max 8 (size.width - 6 - (Stdlib.Cli.Tui.Text.displayWidth inp.prompt))
+                Stdlib.Int.max 8 (size.width - 6 - (Stdlib.String.displayWidth inp.prompt))
 
               (Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.cyan "› ")
               ++ (Stdlib.Cli.UI.Colors.boldText inp.prompt)
@@ -122,7 +122,7 @@ let renderFull (state: State) (size: Stdlib.Cli.Tui.Size) : List<Stdlib.Cli.UI.L
               || (Stdlib.String.contains state.message "conflict")
               || (Stdlib.String.contains state.message "descend")
             (if bad then " ✗ " else " ✓ ") ++ state.message ++ " "
-        let toastWidth = Stdlib.Cli.Tui.Text.displayWidth toastPlain
+        let toastWidth = Stdlib.String.displayWidth toastPlain
         let toast =
           if toastPlain == "" then
             []
@@ -234,7 +234,7 @@ let viewAtSize (state: State) (size: Stdlib.Cli.Tui.Size) : Stdlib.Cli.Tui.View 
         Stdlib.Cli.UI.Layout.Region { top = 1; left = 1; rows = size.height; cols = size.width }
       let row = Stdlib.Int.max 0 (Stdlib.Int.divide size.height 2)
       let col =
-        Stdlib.Int.max 0 (Stdlib.Int.divide (size.width - (Stdlib.Cli.Tui.Text.displayWidth msg)) 2)
+        Stdlib.Int.max 0 (Stdlib.Int.divide (size.width - (Stdlib.String.displayWidth msg)) 2)
       Stdlib.Cli.UI.Layout.at screen row col (Stdlib.Cli.UI.Colors.dimText msg)
     else
       renderFull state size

@@ -416,7 +416,7 @@ let renderSidebarRows (state: State) (rows: List<SideRow>) (inner: Stdlib.Cli.UI
       // Two columns of gutter on every row, so the cursor bar (which lives in
       // the gutter) doesn't shift the row it's on.
       let gap =
-        Stdlib.Int.max 1 (width - 2 - (Stdlib.Cli.Tui.Text.displayWidth left) - (Stdlib.Cli.Tui.Text.displayWidth rightPlain) - 1)
+        Stdlib.Int.max 1 (width - 2 - (Stdlib.String.displayWidth left) - (Stdlib.String.displayWidth rightPlain) - 1)
       let spaces = Stdlib.String.repeat " " gap
       let badgeStyled = if r.badge == "" then "" else Stdlib.Cli.UI.Colors.colorize r.badgeColor r.badge
       let numStyled = if num == "" then "" else Stdlib.Cli.UI.Colors.dimText num

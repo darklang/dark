@@ -200,7 +200,7 @@ module Display =
       plainPrefix locationStr ++ beforeCursor
     let (cursorRow, cursorColumn) =
       Stdlib.Cli.Tui.Text.positionAfter cursorText width
-    let wrapped = Stdlib.Cli.Tui.Text.wrapStyled styled width
+    let wrapped = Stdlib.Cli.Tui.Text.wrapAtColumn styled width
     let requiredHeight =
       Stdlib.Int.max
         (Stdlib.List.length wrapped)

@@ -38,7 +38,7 @@ let draw (region: Layout.Region) (title: String) (focused: Bool) : List<Layout.S
   // The pill and its trailer carry their own colours (and resets), so the
   // border is painted around them in pieces rather than as one string.
   let lead = if pillPlain == "" then "" else "─"
-  let used = (Tui.Text.displayWidth lead) + (Tui.Text.displayWidth pillPlain) + (Tui.Text.displayWidth restPlain)
+  let used = (Stdlib.String.displayWidth lead) + (Stdlib.String.displayWidth pillPlain) + (Stdlib.String.displayWidth restPlain)
   let fillLen = Stdlib.Int.max 0 (innerCols - used)
   let top =
     (paint ("╭" ++ lead)) ++ pill ++ restStyled ++ (paint ((Stdlib.String.repeat "─" fillLen) ++ "╮"))

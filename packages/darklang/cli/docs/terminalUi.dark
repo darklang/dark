@@ -117,7 +117,7 @@ The per-row sequence is worth reading carefully, because the ordering is load-be
 
 ## Measuring text
 
-`Stdlib.Cli.Tui.Text.displayWidth` counts terminal columns; `styledWidth` does the same while ignoring SGR
+`Stdlib.String.displayWidth` counts terminal columns; `styledWidth` does the same while ignoring SGR
 sequences. Use them for anything positional.
 
 `Stdlib.String.length` is not the tool for column math. It counts extended grapheme clusters, which
@@ -131,7 +131,7 @@ across the screen": `界` is one grapheme occupying two columns, and so is a ZWJ
 2. View functions are pure. If you need the world, read it during the state transition and stash the
    result on the state. The renderer may call your view function and diff it.
 3. One write per frame. Don't interleave `printLine` with a live session.
-4. Measure with `Stdlib.Cli.Tui.Text.displayWidth` for plain text, `styledWidth` once SGR is in the row - never
+4. Measure with `Stdlib.String.displayWidth` for plain text, `styledWidth` once SGR is in the row - never
    `Stdlib.String.length`. Passing a row containing control sequences to `displayWidth` is not valid.
 5. Release the inline region before printing to scrollback. `releasePromptRegion` /
    `stopInlineWithView` shrink the region to what should persist and hand the terminal back;

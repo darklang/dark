@@ -65,24 +65,17 @@ let toLowercase (s: String) : String = Builtin.stringToLowercase s
 let length (s: String) : Int = Builtin.stringLength s
 
 
-/// How many terminal columns <param s> occupies.
+/// How many cells <param s> occupies in a fixed-width grid.
 ///
-/// Not the same question as <fn length>, which counts extended grapheme clusters: `界` is one grapheme
-/// in two columns, and so is a ZWJ emoji. Use this for anything positional -- laying out, padding,
-/// deciding whether something fits -- and <fn length> for "how many characters is this".
+/// A different question from <fn length>, which counts characters: `界` is one character two cells
+/// wide, and so is a ZWJ emoji. Ask this one for anything positional (laying out, padding, deciding
+/// whether something fits) and <fn length> for "how many characters is this".
 ///
-/// Assumes plain text. Terminal escape sequences are not text and are not measured here.
+/// A property of the text rather than of any one medium, so the answer is the same in a terminal, a
+/// monospaced buffer or a fixed-width report. Plain text only: escape sequences aren't text, and
+/// `Cli.Tui.Text` handles rows that carry them.
 let displayWidth (s: String) : Int =
-  let (width, _containsControl) = Stdlib.String.inspectDisplay s
-  width
-
-
-/// Measure <param s> in terminal columns, and report whether it contains control characters.
-///
-/// The width is only meaningful when the flag is false. The single place this builtin is reached;
-/// `Cli.Tui.Text` layers escape-awareness on top of it.
-let inspectDisplay (s: String) : (Int * Bool) =
-  Builtin.stringInspectText s
+  Builtin.stringDisplayWidth s
 
 
 /// Concatenates the two strings by appending <param s2> to <param s1> and returns the joined string.
@@ -333,6 +326,8 @@ let dropFirst (string: String) (characterCount: Int) : String =
 /// copy of <param string> starting with enough copies of <param padWith> for the
 /// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
 /// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>
+///
+/// Counts characters, not display cells. To line up columns of text, use <fn padStartToWidth>.
 let padStart
   (string: String)
   (padWith: String)
@@ -353,6 +348,8 @@ let padStart
 /// copy of <param string> ending with enough copies of <param padWith> for the
 /// result have <param goalLength>. A returning value is wrapped in a {{Result}}.
 /// If the <param string> is longer than <param goalLength>, returns an unchanged copy of <param string>.
+///
+/// Counts characters, not display cells. To line up columns of text, use <fn padEndToWidth>.
 let padEnd
   (string: String)
   (padWith: String)
@@ -367,6 +364,22 @@ let padEnd
     let padCount = goalLength - String.length string
     let pad = String.repeat padWith padCount
     Result.Result.Ok(string ++ pad)
+
+
+/// Pad <param s> with leading spaces to at least <param width> display cells.
+///
+/// This is the padding that lines up columns: `界` is one character two cells wide, so <fn padStart>
+/// leaves them ragged. Longer text comes back unclipped; styled text wants `Cli.Tui.Text.fitToWidth`.
+let padStartToWidth (s: String) (width: Int) : String =
+  let padding = width - (String.displayWidth s)
+  if padding <= 0 then s else (String.repeat " " padding) ++ s
+
+
+/// Pad <param s> with trailing spaces to at least <param width> display cells.
+/// See <fn padStartToWidth> for why this measures cells.
+let padEndToWidth (s: String) (width: Int) : String =
+  let padding = width - (String.displayWidth s)
+  if padding <= 0 then s else s ++ (String.repeat " " padding)
 
 
 // TODO: re-write in dark

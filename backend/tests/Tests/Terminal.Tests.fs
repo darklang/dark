@@ -2,33 +2,89 @@
 module Tests.Terminal
 
 open Expecto
+open TestUtils.TestUtils
 
 module TerminalRestoreGuard = Builtins.Cli.Libs.Terminal.TerminalRestoreGuard
-module DisplayWidth = LibExecution.DisplayWidth
+module TerminalText = Builtins.Cli.Libs.TerminalText
 module PosixLibc = Builtins.Cli.Libs.Posix.Libc
 
 
-let displayWidthTests =
-  [ "", 0
-    "hello", 5
-    "é", 1
-    "e\u0301", 1
-    "界", 2
-    "🙂", 2
-    "👨‍👩‍👧‍👦", 2
-    "🇺🇸", 2
-    "♥️", 2
-    "·", 1
-    "A界🙂e\u0301", 6 ]
-  |> List.map (fun (text, expected) ->
-    let display = sprintf "%A" text
-    test $"width of {display}" {
-      Expect.equal
-        (DisplayWidth.ofString text)
-        expected
-        "text should occupy the expected number of terminal columns"
-    })
-  |> testList "Terminal display width"
+let private red = "\u001b[31m"
+let private reset = "\u001b[0m"
+
+let terminalTextTests =
+  testList
+    "TerminalText"
+    [ testMany
+        "styledWidth"
+        TerminalText.styledWidth
+        [ "", 0
+          "abc", 3
+          $"{red}abc{reset}", 3
+          // a non-SGR escape is dropped whole, and so is a bare control character
+          "before\u001b[2Jafter", 11
+          "a\tb", 2
+          "界", 2 ]
+      testMany
+        "stripSgr"
+        TerminalText.stripSgr
+        [ "", ""
+          "abc", "abc"
+          $"{red}abc{reset}", "abc"
+          "before\u001b[2Jafter", "beforeafter"
+          // an incomplete escape takes the rest of the row with it
+          "abc\u001b[3", "abc" ]
+      test "styledWidth agrees with measuring the stripped text" {
+        // `fitToWidth` pads by the difference between these two, and they walk the row separately.
+        for row in
+          [ ""
+            "plain"
+            $"{red}styled{reset}"
+            $"{red}界{reset}🙂"
+            "cursor\u001b[2Jmoves"
+            "\u001b[1;31mbold red\u001b[0m tail" ] do
+          Expect.equal
+            (TerminalText.styledWidth row)
+            (TextWidth.ofString (TerminalText.stripSgr row))
+            $"styledWidth should equal the width of the stripped row: {row}"
+      }
+      test "clipToWidth keeps styling, drops other escapes, never splits a cluster" {
+        Expect.equal
+          (TerminalText.clipToWidth $"{red}abcdef" 3)
+          $"{red}abc"
+          "styling is retained and costs no columns"
+        Expect.equal
+          (TerminalText.clipToWidth "界界" 3)
+          "界"
+          "a double-width cluster that doesn't fit is dropped whole"
+        Expect.equal
+          (TerminalText.clipToWidth "abc" 0)
+          ""
+          "a zero width clips everything"
+      }
+      test "wrapAtColumn reapplies active styling on each row" {
+        Expect.equal
+          (TerminalText.wrapAtColumn $"{red}abcd" 2)
+          [ $"{red}ab"; $"{red}cd" ]
+          "styling active at the wrap opens the next row"
+        Expect.equal
+          (TerminalText.wrapAtColumn "" 4)
+          [ "" ]
+          "empty input is one empty row"
+        Expect.equal
+          (TerminalText.wrapAtColumn "界界" 2)
+          [ "界"; "界" ]
+          "a row holds whole clusters only"
+      }
+      testMany2
+        "positionAfter"
+        TerminalText.positionAfter
+        [ "", 4, (0, 0)
+          "abc", 4, (0, 3)
+          // a cursor exactly past the last column belongs at the start of the next row
+          "abcd", 4, (1, 0)
+          "abcde", 4, (1, 1)
+          "界界", 4, (1, 0) ] ]
 
 
 let tests =
@@ -62,14 +118,6 @@ let tests =
         finally
           TerminalRestoreGuard.disarm ()
       }
-      test "terminal text metrics identify dynamic controls" {
-        Expect.isFalse
-          (DisplayWidth.containsControl "plain界")
-          "plain Unicode text should be safe"
-        Expect.isTrue
-          (DisplayWidth.containsControl "before\u001b[2Jafter")
-          "terminal escape content should require sanitization"
-      }
       test "file descriptors can seek before a bounded read" {
         let path = System.IO.Path.GetTempFileName()
 
@@ -99,4 +147,4 @@ let tests =
         finally
           System.IO.File.Delete path
       }
-      displayWidthTests ]
+      terminalTextTests ]

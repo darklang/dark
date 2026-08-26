@@ -279,6 +279,22 @@ Telemetry lands in `rundir/logs/telemetry.jsonl`. Full guide: `docs interactive-
 `///` for doc comments on types, DU cases and fns, in both F# and Dark. `//` for inline
 notes. 85 columns.
 
+## Measuring text, and what may go native
+
+Pretty-printing lives in Dark; `Execution.fs` looks the printers up through `PackageRefs` and
+calls them. **F# owns measurement, Dark owns layout.** How wide a character is, is a table lookup
+(`Prelude/TextWidth.fs`). Where a line breaks is not.
+
+The trap: a Dark loop pays a builtin call per character. `Stdlib.Pretty` measures once per `Doc`
+node and is fine in Dark; the row fitters in `Builtins.Cli/Libs/TerminalText.fs` walked characters
+and cost seconds per keystroke, which is why they're native. Dark layout code measures spans, not
+characters -- check that before moving anything else to F#.
+
+Widths are display cells, never `String.length`. `Stdlib.String.displayWidth` measures them and is
+medium-independent; `Cli.Tui.Text` is only for rows that carry escape sequences.
+`padEndToWidth`/`padStartToWidth` pad by cell, `padEnd`/`padStart` count characters and go ragged on
+the first wide glyph.
+
 ## Keep this file honest
 
 If you learn something that cost 30+ minutes and isn't written down here or in

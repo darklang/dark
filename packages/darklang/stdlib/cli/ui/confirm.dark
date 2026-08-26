@@ -58,8 +58,8 @@ let view (state: State) (region: Layout.Region) : List<Layout.Span> =
     Stdlib.Int.max
       32
       (4 + (Stdlib.Int.max
-              (Tui.Text.displayWidth state.question)
-              (Tui.Text.displayWidth state.detail)))
+              (Stdlib.String.displayWidth state.question)
+              (Stdlib.String.displayWidth state.detail)))
 
   let box = centred region (if hasDetail then 7 else 6) width
   let title = if state.danger then "confirm" else "question"

@@ -71,7 +71,7 @@ let refreshPresentation (state: State) : State =
 let truncate (s: String) (maxLen: Int) : String =
   if maxLen <= 0 then
     ""
-  else if Darklang.Stdlib.Cli.Tui.Text.displayWidth s <= maxLen then
+  else if Stdlib.String.displayWidth s <= maxLen then
     s
   else if maxLen == 1 then
     "…"
@@ -110,9 +110,9 @@ let appRow (state: State) (width: Int) (idx: Int) (app: Model.App) : String =
     else if isRunning then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.green rawState
     else if isStale then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow rawState
     else Stdlib.Cli.UI.Colors.dimText rawState
-  let stateWidth = if rawState == "" then 0 else (Stdlib.String.length rawState) + 3
+  let stateWidth = if rawState == "" then 0 else (Stdlib.String.displayWidth rawState) + 3
 
-  let name = Stdlib.Result.withDefault (Stdlib.String.padEnd app.name " " 26) app.name
+  let name = Stdlib.String.padEndToWidth app.name 26
   // prefix (▸ + install glyph + run glyph + space) = 5 cols, name column = 26, gap before description = 2
   let descBudget = Stdlib.Int.max (width - 5 - 26 - 2 - stateWidth) 8
   let desc = truncate app.description descBudget
