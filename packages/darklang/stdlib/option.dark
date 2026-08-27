@@ -227,9 +227,16 @@ let join
 let combine
   (options: List<Stdlib.Option.Option<'a>>)
   : Stdlib.Option.Option<List<'a>> =
-  Stdlib.List.fold options (Stdlib.Option.Option.Some []) (fun acc option ->
-    Stdlib.Option.andThen2 acc option (fun acc value ->
-      Stdlib.Option.Option.Some(Stdlib.List.append acc [ value ])))
+  // Built back to front and reversed once: `List.append acc [ value ]` copies the accumulator every
+  // element, so this was quadratic in the list length.
+  let folded =
+    Stdlib.List.fold options (Stdlib.Option.Option.Some []) (fun acc option ->
+      Stdlib.Option.andThen2 acc option (fun acc value ->
+        Stdlib.Option.Option.Some(Stdlib.List.push acc value)))
+
+  match folded with
+  | Some l -> Stdlib.Option.Option.Some(Stdlib.List.reverse l)
+  | None -> Stdlib.Option.Option.None
 
 
 /// Returns a list of all the values that are {{Some _}}, and ignores all the {{None}} values.

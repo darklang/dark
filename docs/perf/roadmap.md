@@ -2619,6 +2619,38 @@ was in `indexedMap` (fixed earlier) and was *not* in `Canvas.compose`'s per-span
 rows hold about six spans and consing measured slightly worse. Which of the three it is, is a
 question about the caller, not the function.
 
+### A sweep for accumulate-by-copy, and what each one turned out to be worth
+
+`map2shortest` being quadratic prompted a grep for the shape across the stdlib -- `pushBack acc x`
+or `List.append acc [x]` inside a fold. Five sites, and they are worth wildly different amounts,
+which is the point.
+
+**`Layout.vstack` and `hstack`, on the render path.** Each folded over its components appending the
+child's spans to an accumulator, and `List.append` copies its left side -- so a span three stacks
+deep was copied on the way out of each one. Collected into a list of lists and flattened once:
+
+    view, A/B five runs each   min 5,831 -> 5,734 ms, median 5,918 -> 5,798
+                               ~0.24-0.30 ms a view, about 2%. Arms do not overlap.
+
+**`Result.collect` and `Option.combine`, latent.** Neither is called on a long list by the CLI or the
+server, which is exactly why a latent quadratic survives. Built back to front and reversed once. Over
+400 elements:
+
+    Result.collect   425 -> 324 ms   (-24%)
+    Option.combine   575 -> 554 ms   (-4%)
+
+`combine`'s small number is worth understanding: it calls `Option.andThen2` per element, a package
+call, and that dominates whatever the accumulator does. A Dark-only fix cannot beat the interpreted
+per-element floor -- which is why `map2shortest` showed 5.3x (it went native, removing the package
+call and the lambda application too) and this shows 24%.
+
+**`Canvas.composeRow`'s per-span append: left alone**, measured earlier as slightly *worse* when
+consed, because rows hold about six spans.
+
+So the same shape spans 5.3x, 24%, 2%, 4% and negative. The size is a property of the caller, not the
+function, and the only way to know is a workload sized to the caller. `map2scale.dark` and
+`collectscale.dark` exist for the two that the CLI's own workloads cannot see.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

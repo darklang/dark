@@ -172,13 +172,19 @@ let toOption
 let collect
   (results: List<Stdlib.Result.Result<'t, 'e>>)
   : Stdlib.Result.Result<List<'t>, 'e> =
-  results
-  |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc result ->
-    match (acc, result) with
-    | (Ok acc, Ok result) ->
-      Stdlib.Result.Result.Ok(Stdlib.List.pushBack acc result)
-    | (Ok _, Error err) -> Stdlib.Result.Result.Error err
-    | (Error err, _) -> Stdlib.Result.Result.Error err)
+  // Built back to front with `push` and reversed once. `pushBack` copies the accumulator, so this
+  // was quadratic in the list length: collecting 1,000 results did ~500,000 element copies.
+  let folded =
+    results
+    |> Stdlib.List.fold (Stdlib.Result.Result.Ok []) (fun acc result ->
+      match (acc, result) with
+      | (Ok acc, Ok result) -> Stdlib.Result.Result.Ok(Stdlib.List.push acc result)
+      | (Ok _, Error err) -> Stdlib.Result.Result.Error err
+      | (Error err, _) -> Stdlib.Result.Result.Error err)
+
+  match folded with
+  | Ok l -> Stdlib.Result.Result.Ok(Stdlib.List.reverse l)
+  | Error err -> Stdlib.Result.Result.Error err
 
 
 /// If <param result> is {{Ok <var value>}}, returns true. Otherwise, returns false.

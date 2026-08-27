@@ -1,0 +1,43 @@
+// `Result.collect` and `Option.combine` over a long list.
+//
+// Both accumulated by copying (`pushBack` / `append acc [v]`), so both were quadratic in the list
+// length. Nothing in the CLI or the server path calls them on a long list, which is exactly why a
+// latent quadratic survives: it is invisible in the workload that made you look.
+val iterations = 100
+
+let oks = Stdlib.List.map (Stdlib.List.range 1 400) (fun i -> Stdlib.Result.Result.Ok i)
+let somes = Stdlib.List.map (Stdlib.List.range 1 400) (fun i -> Stdlib.Option.Option.Some i)
+
+let runCollect (n: Int) (acc: Int) : Int =
+  if n <= 0 then
+    acc
+  else
+    let r = Stdlib.Result.collect oks
+    let len =
+      match r with
+      | Ok l -> Stdlib.List.length l
+      | Error _ -> 0
+    runCollect (n - 1) (acc + len)
+
+let runCombine (n: Int) (acc: Int) : Int =
+  if n <= 0 then
+    acc
+  else
+    let o = Stdlib.Option.combine somes
+    let len =
+      match o with
+      | Some l -> Stdlib.List.length l
+      | None -> 0
+    runCombine (n - 1) (acc + len)
+
+let time (label: String) (f: Int -> Int) : Unit =
+  let _warm = f 3
+  let t0 = Darklang.Cli.Telemetry.now ()
+  let total = f iterations
+  let elapsed = (Darklang.Cli.Telemetry.now ()) - t0
+  Stdlib.printLine
+    (label ++ "  " ++ (Stdlib.Int.toString elapsed) ++ " ms (checksum " ++ (Stdlib.Int.toString total) ++ ")")
+
+let _1 = time "Result.collect over 400 " (fun n -> runCollect n 0)
+let _2 = time "Option.combine over 400 " (fun n -> runCombine n 0)
+Stdlib.printLine "done"
