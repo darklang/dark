@@ -1125,6 +1125,21 @@ concatenates onto a growing string per segment, which looks like the classic qua
 Collecting the pieces and joining once measured **5.25 ms against 4.7** -- the list building and the
 reverse cost more than the appends they replace. Left alone.
 
+**And one more in the bucketing: `Option.withDefault` is a package call.** It reads better than a
+match and costs nothing anywhere it is not in a per-item loop -- but `compose` calls it once per span,
+and it is a real package function with a frame, not an elided forwarder. Matching the `Option` inline:
+bucketing **5.65 -> 4.35 ms**, `compose` **13 -> 12**, `viewAtSize` **27-28 -> 26-27**.
+
+Worth knowing where the line is: `withDefault` runs 275 times in a view build, so the same change
+elsewhere would buy roughly nothing per site and cost readability at every one. It is worth it in a
+loop over 252 spans and nowhere else that has been measured.
+
+**Negative result: the spans do not arrive grouped by row.** If they did, bucketing would be one pass
+and no `Dict`. Counted over a real frame: the row number descends only **5** times in 252 spans, but
+there are **143 runs** of equal row against 40 distinct rows. So they arrive as roughly six ascending
+passes -- one per region: header, sidebar, body, hints, overlay -- rather than one sorted sequence.
+Nearly-sorted, but not groupable in a single walk.
+
 So what remains in `compose` is native, or fewer than 252 spans, which is CLI code rather than this.
 
 **The obvious move is to make `compose` native**, and the precedent is already in the tree: the row
