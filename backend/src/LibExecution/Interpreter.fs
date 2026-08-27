@@ -1351,6 +1351,63 @@ let private tryFastOp
 ///
 /// `tryFastOp` covers the ones that arrive through an elided package wrapper; this covers the ones
 /// compiled as a direct builtin call, which is what `a + b` is.
+/// The operator table, dispatched straight off the caller's registers for a known builtin name.
+///
+/// Split out from `tryFastOpDirect` so the elided-wrapper path can reach it too. That path used to
+/// build an `ApplyContext` and an `ArgSeq` first and then let `tryFastOp` unpick them again, which
+/// measured 0.63 us a call against reaching the table directly -- on 1,678 calls in a view build,
+/// because nearly all Dark code calls `Stdlib.x` rather than `Builtin.x`.
+let private tryFastOpOn
+  (threadID : ThreadID)
+  (registers : Dval array)
+  (b : FQFnName.Builtin)
+  (argRegs : NEList<Register>)
+  : Dval voption =
+  let mutable tag = 0
+  if not (FastOps.byName.TryGetValue(b, &tag)) then
+    ValueNone
+  else
+    match argRegs.tail with
+    | [] -> FastOps.eval1 tag registers[argRegs.head]
+
+    | [ secondReg ] ->
+      // Nested, not `match a, b with`, which allocates the pair -- on every two-argument `Apply`,
+      // operator or not. It measured 4.4% on the gate and 10% on a view build.
+      match registers[argRegs.head] with
+      | DInt x ->
+        match registers[secondReg] with
+        | DInt y -> FastOps.eval tag x y
+        | _ -> ValueNone
+      | DString x ->
+        match registers[secondReg] with
+        | DString y -> FastOps.evalStr tag x y
+        | DInt n -> FastOps.evalStrInt tag x n
+        | _ -> ValueNone
+      | DList(vt1, l1) ->
+        match registers[secondReg] with
+        | DList(vt2, l2) -> FastOps.evalList tag vt1 l1 vt2 l2
+        | _ -> ValueNone
+      | DDict(_, o) ->
+        match registers[secondReg] with
+        | DString k -> FastOps.evalDictGet threadID tag o k
+        | _ -> ValueNone
+      | _ -> ValueNone
+
+    | [ secondReg; thirdReg ] ->
+      match registers[argRegs.head] with
+      | DDict(vt, o) ->
+        match registers[secondReg] with
+        | DString k -> FastOps.evalDictSet threadID tag vt o k registers[thirdReg]
+        | _ -> ValueNone
+      | _ -> ValueNone
+
+    | _ -> ValueNone
+
+
+/// The same operators as `tryFastOp`, reached straight from `Apply` before an `ApplyContext` exists.
+///
+/// `tryFastOp` covers the ones that arrive through an elided package wrapper and have already had a
+/// context built; this covers the ones compiled as a direct builtin call, which is what `a + b` is.
 let private tryFastOpDirect
   (exeState : ExecutionState)
   (threadID : ThreadID)
@@ -1359,73 +1416,16 @@ let private tryFastOpDirect
   (typeArgs : List<TypeReference>)
   (argRegs : NEList<Register>)
   : Dval voption =
-  match argRegs.tail with
-  | [] when
-    exeState.tracing.skipTracing
-    && List.isEmpty typeArgs
-    && List.isEmpty applicable.argsSoFar
-    ->
+  if
+    not exeState.tracing.skipTracing
+    || not (List.isEmpty typeArgs)
+    || not (List.isEmpty applicable.argsSoFar)
+  then
+    ValueNone
+  else
     match applicable.name with
-    | FQFnName.Builtin b ->
-      let mutable tag = 0
-      if FastOps.byName.TryGetValue(b, &tag) then
-        FastOps.eval1 tag registers[argRegs.head]
-      else
-        ValueNone
+    | FQFnName.Builtin b -> tryFastOpOn threadID registers b argRegs
     | _ -> ValueNone
-  | [ secondReg; thirdReg ] when
-    exeState.tracing.skipTracing
-    && List.isEmpty typeArgs
-    && List.isEmpty applicable.argsSoFar
-    ->
-    match applicable.name with
-    | FQFnName.Builtin b ->
-      let mutable tag = 0
-      if FastOps.byName.TryGetValue(b, &tag) then
-        match registers[argRegs.head] with
-        | DDict(vt, o) ->
-          match registers[secondReg] with
-          | DString k -> FastOps.evalDictSet threadID tag vt o k registers[thirdReg]
-          | _ -> ValueNone
-        | _ -> ValueNone
-      else
-        ValueNone
-    | _ -> ValueNone
-
-  | [ secondReg ] when
-    exeState.tracing.skipTracing
-    && List.isEmpty typeArgs
-    && List.isEmpty applicable.argsSoFar
-    ->
-    match applicable.name with
-    | FQFnName.Builtin b ->
-      let mutable tag = 0
-      if FastOps.byName.TryGetValue(b, &tag) then
-        // Nested, not `match a, b with`, which allocates the pair -- on every two-argument `Apply`,
-        // Int operator or not. It measured 4.4% on the gate and 10% on a view build.
-        match registers[argRegs.head] with
-        | DInt x ->
-          match registers[secondReg] with
-          | DInt y -> FastOps.eval tag x y
-          | _ -> ValueNone
-        | DString x ->
-          match registers[secondReg] with
-          | DString y -> FastOps.evalStr tag x y
-          | DInt n -> FastOps.evalStrInt tag x n
-          | _ -> ValueNone
-        | DList(vt1, l1) ->
-          match registers[secondReg] with
-          | DList(vt2, l2) -> FastOps.evalList tag vt1 l1 vt2 l2
-          | _ -> ValueNone
-        | DDict(_, o) ->
-          match registers[secondReg] with
-          | DString k -> FastOps.evalDictGet threadID tag o k
-          | _ -> ValueNone
-        | _ -> ValueNone
-      else
-        ValueNone
-    | _ -> ValueNone
-  | _ -> ValueNone
 
 
 let rec private callBuiltinResolved
@@ -2334,6 +2334,23 @@ let private applyInstruction
           // every forwarder that reached the cache.
           if vm.stats.enabled then
             vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
+
+          // The operator table, before the context exists. `callBuiltinResolved` checks the same
+          // table, but only after an `ApplyContext` and an `ArgSeq` have been built for it to unpick
+          // -- 0.63 us a call, and nearly every `Stdlib.x` call in Dark arrives down this path.
+          let early =
+            if exeState.tracing.skipTracing then
+              tryFastOpOn vm.threadID registers biFn.name newArgRegs
+            else
+              ValueNone
+
+          match early with
+          | ValueSome result ->
+            if vm.stats.enabled then
+              vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
+            registers[putResultIn] <- result
+
+          | ValueNone ->
 
           let ctx : ApplyContext =
             { applicable = applicable

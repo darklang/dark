@@ -111,13 +111,19 @@ measure "load a val (an Int)                  " (fun i -> preBuiltInt)
 measure "call a 1-arg fn                      " (fun i -> plainFn i)
 measure "call a 2-arg fn                      " (fun i -> twoArgFn i 1)
 measure "apply a lambda                       " (fun i -> (fun x -> x + 1) i)
-// The same builtin, reached both ways. The difference is the package-call machinery itself:
-// resolving the fn, type-checking the arguments, pushing a frame, checking the return type.
+// The same builtin reached both ways, twice over. The gap in each pair is what is left of the
+// package-call machinery after the thin-wrapper elision has taken what it can.
+//
+// The "via its package wrapper" row used to sit under `boolNot` while measuring `String.length`,
+// which reads as though it pairs with the row above it. It does not, and that is exactly the misread
+// the header warns about -- the pairs are adjacent now.
 measure "call a builtin directly              " (fun i -> Builtin.stringLength "hello")
-// `stringLength` counts grapheme clusters, so the row above is mostly its body. `boolNot` has no
-// body worth the name, so this one is the call machinery on its own.
-measure "call a trivial builtin (boolNot)     " (fun i -> if Builtin.boolNot true then 1 else 0)
 measure "  the same, via its package wrapper  " (fun i -> Stdlib.String.length "hello")
+// `stringLength` counts grapheme clusters, so the pair above carries its body as well. `boolNot` has
+// no body worth the name and is on the interpreter's operator fast path, so this pair is the call
+// machinery on its own, with and without a wrapper around it.
+measure "call a trivial builtin (boolNot)     " (fun i -> if Builtin.boolNot true then 1 else 0)
+measure "  the same, via its package wrapper  " (fun i -> if Stdlib.Bool.not true then 1 else 0)
 
 Stdlib.printLine "--- values"
 measure "build a 2-field record, read a field" (fun i -> (Rec { a = i; b = "x" }).a)

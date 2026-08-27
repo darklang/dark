@@ -2240,6 +2240,45 @@ have now been changed three times this round.
     viewAtSize             12 ms   (consistently; was 24 at the start of round 6)
     preparePresentAtSize    1 ms
 
+### The operator fast path was being checked too late for anything called as `Stdlib.x`
+
+Found by fixing a mislabelled row. `optime` had `"the same, via its package wrapper"` sitting under
+the `boolNot` row while actually measuring `String.length`, so it read as a pair with the row above
+it and was not one -- exactly the misread the file's own header warns about. With the pairs made
+adjacent and a real `Stdlib.Bool.not` row added, the two elision costs are very different:
+
+    stringLength (slow path)   direct 1.90 us   via wrapper 2.07 us   elision 0.17 us
+    boolNot (fast path)        direct 0.73 us   via wrapper 1.37 us   elision 0.63 us
+
+The reason is where the table is consulted. A direct `Builtin.x` call reaches `tryFastOpDirect`
+straight off the caller's registers. An elided `Stdlib.x` wrapper instead built an `ApplyContext` and
+an `ArgSeq` and *then* let `callBuiltinResolved` check the same table and unpick them again. Nearly
+all Dark code calls `Stdlib.x`:
+
+    fast-path ops via an elided wrapper   1,678 a view
+    fast-path ops reached directly        5,323
+    slow path                               843
+
+`tryFastOpOn` now holds the register-based dispatch, and both routes call it -- the wrapper route
+before it builds anything.
+
+    boolNot via wrapper   1.37 -> 1.00 us      (elision 0.63 -> 0.30 us)
+    viewAtSize (Debug)    18-19 -> 17-18 ms
+
+`packageCalls` and `builtinCalls` are unchanged at 2,971 and 7,844, so the accounting still reports
+what happened; allocation is unchanged to within 16 bytes; published gate 6.9 MB.
+
+### A caveat on every per-builtin number this round quoted from `viewprofile`
+
+`viewprofile` enables stats, and with stats on the builtin path calls
+`GC.GetAllocatedBytesForCurrentThread()` **twice** per builtin call and updates two name-keyed
+dictionaries. So per-builtin microsecond figures taken from it are inflated relative to a real run;
+`optime`, which runs with stats off, is the honest instrument for a per-call cost.
+
+This does not invalidate the A/B comparisons in this document -- both arms carried the same overhead
+-- but it does mean a figure like "`styledWidth` is 3.17 us a call" is an upper bound, not the cost a
+user pays. Where a number matters absolutely rather than comparatively, take it from `optime`.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the
