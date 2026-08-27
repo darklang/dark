@@ -1053,6 +1053,13 @@ the language's core IR. Three percent does not buy that. Reopen it if the arithm
 build rises well above the 65% measured here, or if an instruction is being added for other reasons
 anyway.
 
+**The published binary allocates the same shape as Debug, for the view build.** Profiled with
+`PROFILE_EXE=... scripts/perf/alloc-profile` (the script takes an override now): `System.String` 27%
+against Debug's 29, `FSharpList<Dval>` 9 against 9, the record and dict machinery
+(`MapTreeNode`/`FSharpMap`/`MapTree`/field lists) ~17 against ~17. So nothing is hiding in the shipped
+build that Debug does not show, and the `json` workload's allocation difference (9.93 KB/iteration
+published against 15.19) is specific to that workload rather than general.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`
@@ -1444,25 +1451,33 @@ turns out to mean.
 
 ### Open, ranked
 
-**Why ~15 sidebar rows cost 66 ms.** No DB, no I/O; pure interpreted list and record construction.
-This is the largest single number in the keypress and the least explained.
+*These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the
+view build from ~150 ms to 31 (Debug) / 24 (published). Corrected below rather than deleted, so the
+reasoning stays readable.*
 
-**~150 ms to build one view is the floor for every keypress.** No view is cheap, and the cheapest
-(Matter, 120 ms) is not much cheaper than the dearest. That flatness suggests a shared cost -- layout,
-span composition, or the per-row fitting in `Cli.Tui.Text` -- rather than anything view-specific.
-Profile one view amplified before picking. Note the sidebar is part of every view, so the item above
-may be most of this one.
+**~~Why ~15 sidebar rows cost 66 ms.~~ Superseded.** A whole view is now 31 ms, so 66 of it cannot be
+the sidebar. Round 5 took several sidebar items directly, and round 6 took the interpreter underneath
+all of them. No sidebar function appears in the current per-view ranking at all: the hottest package
+functions are `Option.withDefault` (275 calls), `Canvas.overlay` (252), `Tuple2.second` (105),
+`Option.isSome` (102), `Colors.colorize` (71). Whether the sidebar is still the largest *share* of a
+view is unmeasured at current numbers, and would need a workload of its own.
 
-**A record update is not the problem.** 2,000 updates of the 29-field workbench `State` take 22 ms,
-about 11 us each, so the value-representation item from earlier rounds is not what makes a keypress
-slow. Worth knowing before someone reaches for it here.
+**~~~150 ms to build one view is the floor for every keypress.~~ Superseded.** 31 ms on Debug, 24 on
+the published binary. The flatness it described is gone too: ten workbench views now run 28-56 ms
+(Debug), which is the same spread it always had, proportionally.
+
+**A record update is not the problem.** Still true, and round 6 added two more reasons to believe it:
+a field *read* is 25 ns, and record construction is ~17% of a view build's allocation but only ~1 ms
+of its time. The value-representation item is not where a keypress goes.
 
 **The remaining 330 ms of `commitChangeLines`** is deserializing ~11,700 op blobs to discover which
-are `SetName` or `Deprecate`. Bounding it needs the op kind readable without deserializing, which is
-a schema question.
+are `SetName` or `Deprecate`. Bounding it needs the op kind readable without deserializing, which is a
+schema question. Untouched by rounds 5 and 6 -- it lives on its own branch.
 
 **Redraw on every keypress at all.** An arrow key moves a cursor; it does not change most of the
-frame. Whether the diff already exploits that, and what it costs when it does, is unmeasured.
+frame. Whether the diff already exploits that, and what it costs when it does, is still unmeasured.
+This is the largest genuinely-open item on the CLI side: the view build is 24 ms on the shipped
+binary, and not doing most of it would beat anything left in the interpreter.
 
 ### Tooling gaps found while doing this
 
