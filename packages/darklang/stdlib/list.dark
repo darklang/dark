@@ -60,13 +60,7 @@ let reverse (list: List<'a>) : List<'a> =
 /// list for which <param fn> returns {{true}}. Returns {{None}} if no such
 /// value exists
 let findFirst (list: List<'a>) (fn: 'a -> Bool) : Option.Option<'a> =
-  match list with
-  | [] -> Option.Option.None
-  | head :: tail ->
-    if (fn head) then
-      Option.Option.Some head
-    else
-      findFirst tail fn
+  Builtin.listFindFirst list fn
 
 
 /// Returns the index of the first element in <param list> for which <param fn>
@@ -290,13 +284,7 @@ let all (list: List<'a>) (fn: 'a -> Bool) : Bool =
 
 /// Return {{true}} if any elements in the list meet the function's criteria, else {{false}}
 let any (list: List<'a>) (fn: 'a -> Bool) : Bool =
-  match list with
-  | [] -> false
-  | head :: tail ->
-    if fn head then
-      true
-    else
-      any tail fn
+  Builtin.listAny list fn
 
 
 /// Calls <param f> on every <var val> in <param list>, returning a list of only

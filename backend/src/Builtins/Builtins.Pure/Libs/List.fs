@@ -552,6 +552,126 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "listAny" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, TBool)) "" [ "elem" ] ]
+      returnType = TBool
+      description =
+        "Returns true if <param fn> returns true for any value in <param list>, stopping at the "
+        + "first one that does"
+      fn =
+        (function
+        | state, vm, [], [| DList(_, items); DApplicable app |] ->
+          let mutable found = false
+          let mutable rest = items
+          let mutable pending = ValueNone
+
+          while ValueOption.isNone pending && not found && not (List.isEmpty rest) do
+            match rest with
+            | elem :: tail ->
+              let call = Exe.executeApplicable1 state app elem
+              match Ply.trySync call with
+              | ValueSome(Ok(DBool true)) -> found <- true
+              | ValueSome(Ok(DBool false)) -> rest <- tail
+              | ValueSome(Ok other) -> raiseRTE vm.threadID (predicateNotBool other)
+              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
+              | ValueNone -> pending <- ValueSome(struct (call, tail))
+            | [] -> ()
+
+          match pending with
+          | ValueNone -> Ply(DBool found)
+          | ValueSome(struct (call, tail)) ->
+            uply {
+              let! first = call
+              match first with
+              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
+              | Ok other ->
+                match other with
+                | DBool true -> return DBool true
+                | DBool false ->
+                  let mutable found = false
+                  let mutable rest = tail
+                  while not found && not (List.isEmpty rest) do
+                    match rest with
+                    | elem :: elemTail ->
+                      match! Exe.executeApplicable1 state app elem with
+                      | Ok(DBool true) -> found <- true
+                      | Ok(DBool false) -> rest <- elemTail
+                      | Ok bad -> return raiseRTE vm.threadID (predicateNotBool bad)
+                      | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
+                    | [] -> ()
+                  return DBool found
+                | bad -> return raiseRTE vm.threadID (predicateNotBool bad)
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listFindFirst" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, TBool)) "" [ "elem" ] ]
+      returnType = TypeReference.option varA
+      description =
+        "Returns the first value in <param list> for which <param fn> returns true, stopping there"
+      fn =
+        (function
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
+          let mutable hit = None
+          let mutable rest = items
+          let mutable pending = ValueNone
+
+          while ValueOption.isNone pending
+                && Option.isNone hit
+                && not (List.isEmpty rest) do
+            match rest with
+            | elem :: tail ->
+              let call = Exe.executeApplicable1 state app elem
+              match Ply.trySync call with
+              | ValueSome(Ok(DBool true)) -> hit <- Some elem
+              | ValueSome(Ok(DBool false)) -> rest <- tail
+              | ValueSome(Ok other) -> raiseRTE vm.threadID (predicateNotBool other)
+              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
+              | ValueNone -> pending <- ValueSome(struct (call, elem, tail))
+            | [] -> ()
+
+          match pending with
+          | ValueNone -> Ply(TypeChecker.DvalCreator.option vm.threadID vt hit)
+          | ValueSome(struct (call, elem, tail)) ->
+            uply {
+              let! first = call
+              match first with
+              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
+              | Ok(DBool true) ->
+                return TypeChecker.DvalCreator.option vm.threadID vt (Some elem)
+              | Ok(DBool false) ->
+                let mutable hit = None
+                let mutable rest = tail
+                while Option.isNone hit && not (List.isEmpty rest) do
+                  match rest with
+                  | next :: elemTail ->
+                    match! Exe.executeApplicable1 state app next with
+                    | Ok(DBool true) -> hit <- Some next
+                    | Ok(DBool false) -> rest <- elemTail
+                    | Ok bad -> return raiseRTE vm.threadID (predicateNotBool bad)
+                    | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
+                  | [] -> ()
+                return TypeChecker.DvalCreator.option vm.threadID vt hit
+              | Ok bad -> return raiseRTE vm.threadID (predicateNotBool bad)
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "listLength" 0
       typeParams = []
       parameters = [ Param.make "list" (TList varA) "" ]
