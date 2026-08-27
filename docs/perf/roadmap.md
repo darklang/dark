@@ -2556,6 +2556,44 @@ passes explicit type args, which in the CLI is none and in HTTP is one `Json.ser
 For the record, the `json` workload is mostly its builtins: `jsonParse` 30.4 us and `jsonSerialize`
 7.8 us of a ~50 us iteration. Its time is the F# JSON implementation, not the interpreter.
 
+### `startsWith` and `endsWith` were three package calls to test a prefix
+
+`String.startsWith` was `slice subject 0 (String.length prefix) == prefix`: a package call for the
+wrapper, plus `slice`, plus `length`, plus the comparison. 10 calls in routing one request at 14.85
+us each, and 115 call sites across `packages/`.
+
+Both are builtins now, with the Dark functions as bare forwarders (so they elide as well).
+
+    stringStartsWith   14.85 -> 1.69 us per call
+    routing            ~470 -> ~417 us a route     (-11%; ~600 -> ~417 across both string changes, -32%)
+    view               unchanged
+    checksum           identical
+
+**The semantics are the interesting part.** These are *cluster* tests in Dark, not byte tests, because
+`slice` and `length` both count extended grapheme clusters. Ordinal `StartsWith` is not equivalent:
+"\U0001F471" is a byte-prefix of "\U0001F471\U0001F3FB" but not a cluster-prefix of it, so ordinal
+answers true where Dark answers false. The testfiles pin the cluster behaviour hard -- Zalgo, ZWJ
+sequences, skin-tone modifiers -- but not that particular case, so getting it right was a matter of
+reading the Dark source rather than passing the suite.
+
+Rather than reimplement, `stringSlice`'s logic was factored into `egcSubstring` and
+`normalizeEgcIndex`, and all three builtins are expressed on them, so they cannot drift. There is an
+ordinal fast path for when *both* sides are charwise, where every cluster is one character and the
+two notions coincide; that is nearly every call, and it skips the cluster walk entirely.
+
+Verified against the exact case the fast path must not swallow: `startsWith "\U0001F471\U0001F3FB" "\U0001F471"` is
+false, and `startsWith "\U0001F471\U0001F471\U0001F3FB" "\U0001F471"` is true.
+
+### Where routing stands
+
+    routeRequest        804 us    findHandler       681
+    parseRouteSegments  78 x 4    matchRouteSegments 62 x 4
+
+`parseRouteSegments` re-parsing constant route patterns per request is still the largest item and
+still a design question (it wants a handler to carry its parsed segments, which changes a public
+type, or a builtin that constructs a package enum by hash). Everything else on that path is now
+either native or elided.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

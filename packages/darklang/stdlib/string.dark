@@ -429,16 +429,12 @@ let fromBlob (blob: Blob) : Option.Option<String> = Builtin.stringFromBlob blob
 
 /// Checks if <param subject> starts with <param prefix>
 let startsWith (subject: String) (prefix: String) : Bool =
-  String.slice subject 0 (String.length prefix) == prefix
+  Builtin.stringStartsWith subject prefix
 
 
 /// Checks if <param subject> ends with <param suffix>
 let endsWith (subject: String) (suffix: String) : Bool =
-  String.slice
-    subject
-    (String.length subject - String.length suffix)
-    (String.length subject)
-  == suffix
+  Builtin.stringEndsWith subject suffix
 
 
 /// Returns the plural form of <param word> by a simple English rule: words ending
