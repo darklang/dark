@@ -752,10 +752,26 @@ which is 185 KB per view build and is now fixed.
 the same time as a 2-field record's, three runs each. Anyone reaching for "flatten records into arrays
 indexed per type" should know the tree walk was never the cost.
 
-**`optime` drifts within a single run, by more than several of this round's findings.** The baseline
-is printed at both ends and they do not agree: **~4,000 ns at the top against ~3,250 at the bottom**,
-repeatably. The same expression measured twice, once near the top and once at the end, reads ~5,600
-and ~4,500. So a row near the top is inflated against a row near the bottom by roughly **0.75 us**.
+**`optime` drifted within a single run, by more than several of this round's findings. Now fixed.**
+The baseline was **~4,000 ns at the top against ~3,250 at the bottom**, repeatably, and the same
+expression measured near the top and at the end read ~5,600 and ~4,500 -- a positional bias of roughly
+**0.75 us**.
+
+The cause was the *process* warming, not the row: `measure` already warms each row, and doing more of
+that changed nothing. A `saturate` pass before the first row -- 40,000 iterations exercising a fold, a
+lambda, package and builtin calls, a record and a list -- removes it. The two baselines now agree to
+within ~0.25 us, which is the instrument's noise floor. A first attempt at 4,000 iterations did
+nothing, which is worth knowing: the table's own work is ~380,000 iterations, so a warm-up has to be a
+real fraction of that.
+
+**What remains is first-touch, and it is small.** The first row to reference a value reads ~0.4 us
+above later ones. A third copy of the same row in the *middle* of the table read the same as the one
+at the end, which is what separates first-touch from position. The two `load a val (an Int)` rows stay
+in, at both ends, as the standing check: ~0.4 us apart is expected, more than that means the drift is
+back.
+
+**Absolute `optime` numbers recorded before this are not comparable with ones after.** Adding the
+warm-up moved the baseline from ~4,000 to ~3,000 ns by removing bias, not cost.
 
 That is bigger than the elision overhead (0.5 us), the argument type check (0.25) and the frame
 dictionary (0.06) -- all of which this round has quoted.

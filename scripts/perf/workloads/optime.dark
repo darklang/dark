@@ -21,20 +21,21 @@
 // Neither matters when comparing rows to each other. Both matter a great deal if a row is read as the
 // cost of the thing in its name -- which is how "record field access at 4.6 us" reached a roadmap.
 //
-// AND THE TABLE WARMS UP AS IT RUNS. The baseline is printed at both ends and they do not agree:
-// ~4,000 ns at the top against ~3,250 at the bottom, repeatably. `load a val (an Int)` is measured
-// twice, in both positions, and reads ~5,600 near the top and ~4,500 at the end -- the same
-// expression, 1.1 us apart. So a row near the top is inflated against a row near the bottom by
-// something like 0.75 us.
+// THE TABLE USED TO WARM UP AS IT RAN, and `saturate` below is why it no longer does. The baseline
+// was ~4,000 ns at the top against ~3,250 at the bottom, and the same expression read 1.1 us slower
+// near the top than at the end -- a positional bias bigger than most of what this table is used to
+// measure. Warming each row inside `measure` did not fix it, because what was warming was the
+// process, not the row.
 //
-// What that means in practice:
+// The two baselines now agree to within ~0.25 us, which is this instrument's noise floor.
 //
-//   - comparing a row to the SAME row in another build is sound, and is how every ablation in this
-//     round was done
-//   - comparing two rows far apart in this table is biased by the drift; subtract the nearer
-//     baseline, and treat a difference under ~0.75 us as unmeasurable here
-//   - the two `load a val (an Int)` rows exist to keep this visible; if they ever agree, the drift
-//     is gone and this note can go with it
+// `load a val (an Int)` is measured at both ends to keep that honest. Expect the first to read
+// ~0.4 us above the second and no more: that gap is first-touch, not drift -- a third copy in the
+// middle of the table read the same as the one at the end, so only the first row to reference a
+// value pays it. A *larger* gap means the drift is back and the warm-up needs more.
+//
+// Absolute numbers here are not comparable with any recorded before `saturate` was added: it moved
+// the baseline from ~4,000 to ~3,000 ns by removing bias, not cost.
 //
 // Each row is the fastest of three passes. Time is noisy where allocation is not -- the playbook is
 // blunt about this -- and the minimum of several passes is the least noisy estimator available:
@@ -83,6 +84,24 @@ let measure (label: String) (f: Int -> Int) : Unit =
   // Nanoseconds per call, from milliseconds over `iterations`.
   let ns = Stdlib.Int.divide (best * 1000000) iterations
   Stdlib.printLine (label ++ "  " ++ (Stdlib.Int.toString ns) ++ " ns")
+
+/// Run the process hot before the first row is timed.
+///
+/// Warming each row inside `measure` is not enough: the drift is the *process* getting faster, not
+/// the row -- the same expression reads 1.1 us slower near the top of the table than at the end. This
+/// exercises the paths the table shares (a fold, a lambda, package and builtin calls, a record, a
+/// list) enough times to saturate that before any of it counts.
+let saturate (n: Int) (acc: Int) : Int =
+  if n == 0 then
+    acc
+  else
+    let r = Rec { a = n; b = "x" }
+    let l = Stdlib.List.map [ 1; 2; 3; 4; 5 ] (fun x -> x + n)
+    saturate
+      (n - 1)
+      (acc + r.a + (plainFn n) + (twoArgFn n 1) + (Stdlib.List.length l))
+
+let _saturated = saturate 40000 0
 
 Stdlib.printLine "--- harness"
 measure "baseline (fold + lambda + compare)   " (fun i -> i)
