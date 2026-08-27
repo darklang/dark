@@ -111,8 +111,8 @@ let renderSegments (width: Int) (segments: List<Segment>) : String =
 /// Paint one row's spans, in order.
 let composeRow (width: Int) (rowSpans: List<Layout.Span>) : String =
   // `renderSegments` walks the segments left to right, so they have to be in column order. Sorting
-  // them there cost `sortBy`, which is two Dark `map`s around a native sort -- about 240 us a row to
-  // reorder a row that a renderer had already produced left to right.
+  // them there cost a `sortBy` per row, to reorder rows a renderer had already produced left to
+  // right.
   //
   // So notice instead. `overlay` appends, and trimming an earlier segment leaves it where it was, so
   // the result is in column order exactly when the spans arrived that way. Tracking that is one
@@ -169,9 +169,8 @@ let compose (width: Int) (height: Int) (spans: List<Layout.Span>) : List<String>
           let key = Stdlib.Int.toString span.row
 
           // Matched here rather than `|> Option.withDefault []`. `withDefault` is a real package
-          // function -- a frame, a match, a return -- and this runs once per span: 1.2 ms of a frame
-          // at 252 of them. Worth the two extra lines only because of where it sits; everywhere else
-          // `withDefault` reads better and costs nothing that matters.
+          // call, and this runs once per span. Worth the two extra lines only because of where it
+          // sits; everywhere else `withDefault` reads better and costs nothing that matters.
           let existing =
             match Stdlib.Dict.get acc key with
             | Some existing -> existing

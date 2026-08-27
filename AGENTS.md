@@ -257,10 +257,8 @@ that needs an EOF, and an agent harness hands you a socket that never gives one,
 hang the call well past its timeout. If you pipe real input and it gets dropped, `DARK_STDIN=1`
 forces it through.
 
-**`let f () = <a literal>` rebuilds it on every call.** A nullary function whose body is a constant
-is not a constant: `workspaces ()`, nine records with nested lists, cost 910 us *per call* and was
-called eleven times to draw one sidebar. `val` is evaluated once. If the body doesn't depend on
-anything, make it a `val`.
+**`let f () = <a literal>` rebuilds it on every call.** A nullary function whose body is a constant is
+not a constant; `val` is evaluated once. If the body doesn't depend on anything, make it a `val`.
 
 **Value bindings take no type annotation.** `let xs = [...]`, not `let xs : List<String> = [...]`,
 which fails with "Value annotations are not supported". Function bindings do take them, and
@@ -294,17 +292,12 @@ The trap: a Dark loop pays a builtin call per character. `Stdlib.Pretty` measure
 node and is fine in Dark; the row fitters in `Builtins.Cli/Libs/TerminalText.fs` walked characters
 and cost seconds per keystroke, which is why they're native.
 
-"Characters bad, spans fine" is the wrong test, though, and this section used to say it. `Canvas.compose`
-measures spans -- 252 of them in a frame, never a character -- and is **59% of a view build**: 17 ms of
-29, at 67 us to place one span. Nothing in it is wasteful. There is no quadratic blowup (the widest row
-holds 9 spans, and the sum of squares over a frame is 1,708), and round 5 already took the obvious
-Dark-side win in `overlay`. It costs that because it runs ~12 interpreted operations per span, and a
-package call is ~3 us in Debug.
+"Characters bad, spans fine" is the wrong test, though. `Canvas.compose` only ever touches spans, a
+couple of hundred per frame, and is still the largest thing in a view build -- because it runs about a
+dozen interpreted operations on each one.
 
 So count **operations per frame**, not what they operate on. A Dark loop over 250 items doing a dozen
-calls each is 3,000 operations, and that is the number that decides whether something belongs in F#,
-whichever unit it is iterating. `scripts/perf/workloads/regionprobe.dark` measures a frame by stage if
-you need the split.
+calls each is 3,000 operations, and that is the number that decides whether something belongs in F#.
 
 Widths are display cells, never `String.length`. `Stdlib.String.displayWidth` measures them and is
 medium-independent; `Cli.Tui.Text` is only for rows that carry escape sequences.

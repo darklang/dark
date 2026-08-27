@@ -227,3 +227,25 @@ perf job in the main pipeline gets ignored and then disabled.
 
 Same for documents: one roadmap, one history, one playbook, updated in place. The alternative is
 dozens of working notes and no way to tell which is current.
+
+## An A/B is only an A/B if both arms run in the same session
+
+The store drifts, the box gets busy, and a baseline taken an hour ago is not a baseline. A change once
+read as a 4% regression against an earlier number and was flat when both arms were re-measured back to
+back. Rebuild both arms and measure them together, always.
+
+The same rule caught a per-call figure that was wrong by 20x, and an HTTP throughput claim that had to
+be retracted -- `scripts/perf/http`'s throughput column is not comparable across sessions at all,
+though its allocation column repeats to 0.1 KB.
+
+## Instruments lie in specific ways
+
+- `viewprofile` enables stats, and the builtin path then reads the allocation counter twice per call.
+  Per-call figures from it are upper bounds; take absolute numbers from `optime`, which runs with
+  stats off.
+- `fnprofile` reports the minimum per call across however many runs you feed it. Feed it three.
+  One run of it once misread a builtin by 20x.
+- `scripts/perf/suite`'s allocation is **not** byte-deterministic, unlike the gate's. A couple of
+  percent there is noise.
+- Wall-clock loops (`viewloop`, `routeloop`) resolve about 1%; `keypress` reports whole milliseconds
+  and cannot see a sub-millisecond win at all.

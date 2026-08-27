@@ -135,9 +135,8 @@ let isFirstRun (state: State) : Bool =
   if Stdlib.Bool.not noWip then false
   else if owner == "" then true
   else
-    // An existence check, not a search. A search scans `locations` four times for a fixed ~4.4 ms
-    // whatever it finds; this seeks the owner index. Home's detail pane and its title both call
-    // this, per frame.
+    // An existence check rather than a search: a search scans `locations` in full whatever it
+    // finds, and this runs per frame.
     Stdlib.Bool.not (LanguageTools.PackageManager.ownerHasItems state.branchId owner)
 
 let welcomeLines (state: State) : List<String> =

@@ -241,38 +241,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "intMax" 0
-      typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
-      returnType = TInt
-      description = "Returns the higher of <param a> and <param b>"
-      fn =
-        (function
-        | _, _, _, [| DInt a; DInt b |] ->
-          Ply(if DarkInt.compare a b > 0 then DInt a else DInt b)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
-      deprecated = NotDeprecated }
-
-
-    { name = fn "intMin" 0
-      typeParams = []
-      parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]
-      returnType = TInt
-      description = "Returns the lower of <param a> and <param b>"
-      fn =
-        (function
-        | _, _, _, [| DInt a; DInt b |] ->
-          Ply(if DarkInt.compare a b < 0 then DInt a else DInt b)
-        | _ -> incorrectArgs ())
-      sqlSpec = NotQueryable
-      previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
-      deprecated = NotDeprecated }
-
-
     { name = fn "intGreaterThan" 0
       typeParams = []
       parameters = [ Param.make "a" TInt ""; Param.make "b" TInt "" ]

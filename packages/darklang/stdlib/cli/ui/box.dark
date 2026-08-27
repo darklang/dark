@@ -49,9 +49,9 @@ let draw (region: Layout.Region) (title: String) (focused: Bool) : List<Layout.S
   let bar = paint "│"
 
   // Built directly rather than through `Layout.at`. That helper measures the text, clips it to the
-  // region and bounds-checks the position, which is right for arbitrary content and all wasted on a
-  // one-character bar at a position this function just computed. It costs ~52 us a call and the
-  // borders are most of a frame's spans; a panel draws two per row.
+  // region and bounds-checks the position -- right for arbitrary content, all wasted on a
+  // one-character bar at a position this function just computed. Borders are most of a frame's
+  // spans, so it adds up.
   let top1 = region.top - 1
   let left1 = region.left - 1
   let rightCol = left1 + region.cols - 1

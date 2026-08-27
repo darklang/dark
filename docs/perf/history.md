@@ -185,3 +185,24 @@ Cheap to state, expensive to learn.
   harness needs a throwaway run first.
 - Enabling telemetry costs ~6 ms on a one-shot command, so absolute latency needs it off and the
   breakdown needs it on. The two cannot be mixed.
+
+## What a call costs (round 5)
+
+Net of the harness baseline, Debug then published. Debug is ~2.5x pessimistic but preserves the
+ordering, so develop against it and quote the published column.
+
+| | Debug | published |
+|---|---|---|
+| package fn call, 1 arg | 2.7 us | 1.2 us |
+| builtin call | 1.7 us | 0.5 us |
+| lambda application | 1.6 us | 0.6 us |
+| a record field read | 25 ns | -- |
+
+A lambda application does no argument type-check, no return type check and no TST work, so the gap
+between it and a package call is roughly the package-specific half; the rest is frame machinery the
+two share. A package fetch is ~85 ns. Applying a lambda from a builtin is within 9% of the
+interpreter's own Apply.
+
+**`builtinCalls` over-reports for per-call arithmetic**: most of it is operators taken by the fast
+path, which are counted but never enter the builtin machinery. Multiplying that counter by a per-call
+cost overstates by more than 2x.

@@ -186,8 +186,8 @@ let findAny
 
 /// Whether <param owner> has any listed item at all.
 ///
-/// `searchNames` would answer the same question, but a search scans `locations` four times and
-/// costs ~4.4 ms whatever it finds; this is an equality seek on the owner index.
+/// `searchNames` would answer the same question, but it scans `locations` in full whatever it finds;
+/// this is an equality seek on the owner index.
 let ownerHasItems (branchId: Uuid) (owner: String) : Bool =
   Builtin.pmOwnerHasItems branchId owner
 

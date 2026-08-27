@@ -1003,12 +1003,7 @@ let fns (config : Configuration) : List<BuiltInFn> =
       deprecated = NotDeprecated } ]
 
 
-/// The one builtin set that takes a construction parameter, so two execution states can hold two
-/// different `BuiltInFn` values under one name -- one blocking localhost, private ranges,
-/// cloud-metadata and non-http schemes, one blocking none of it.
-///
-/// `config` must keep reaching only the bodies. Nothing may make a signature depend on it: the
-/// interpreter caches a builtin's free type variables by name, across execution states, and that is
-/// only sound while the signature is the name's to decide. A cache that held the resolved fn instead
-/// of the name already handed one state's configuration to another's callers once.
+/// These builtins are configurable: one instance can block localhost and private ranges where
+/// another allows them. Keep `config` affecting only the function bodies, never their signatures --
+/// the interpreter assumes a builtin's signature is the same everywhere its name is.
 let builtins config = Builtin.make [] (fns config)

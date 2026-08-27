@@ -34,6 +34,7 @@
     <Compile Include="Dval.fs" />
     <Compile Include="Builtin.fs" />
     <Compile Include="TypeChecker.fs" />
+    <Compile Include="FastOps.fs" />
     <Compile Include="Interpreter.fs" />
     <Compile Include="AnalysisTypes.fs" />
     <!-- Dev-time, Language Design, Mental Model /-->

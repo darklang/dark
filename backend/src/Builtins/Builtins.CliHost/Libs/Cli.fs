@@ -473,9 +473,7 @@ let execute
     | exprs ->
       let exprInstrs = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0 None)
 
-      // Awaited in order, and the first error ends the script. They used to be started as a list and
-      // then only the last one awaited, so an error anywhere earlier was dropped on the floor: the
-      // statement ran, its failure vanished, and the script carried on to the next one.
+      // Awaited in order, and the first error ends the script.
       let rec runInOrder (instrs : List<RT.Instructions>) : Ply<RT.ExecutionResult> =
         uply {
           match instrs with

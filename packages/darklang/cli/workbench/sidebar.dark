@@ -77,8 +77,7 @@ val workspaces =
 /// The destinations of `ws` this account can see, given the already-computed visible view list.
 ///
 /// Takes `vis` rather than `state` because every caller is inside a loop over workspaces, and
-/// `visibleViews` costs 2.3 ms: recomputing it per workspace was the whole cost of building the
-/// sidebar, and the sidebar is rebuilt two or three times per keypress.
+/// `visibleViews` is expensive enough that recomputing it per workspace dominated the sidebar.
 let visibleDestsIn (vis: List<Int>) (ws: Workspace) : List<(String * Dest)> =
   ws.dests |> Stdlib.List.filter (fun pair -> let (_l, d) = pair in Stdlib.List.member vis d.view)
 
