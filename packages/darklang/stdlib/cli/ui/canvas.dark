@@ -102,20 +102,31 @@ let composeRow (width: Int) (rowSpans: List<Layout.Span>) : String =
   // So notice instead. `overlay` appends, and trimming an earlier segment leaves it where it was, so
   // the result is in column order exactly when the spans arrived that way. Tracking that is one
   // comparison against the highest column seen, and the sort only runs for a row that needs it.
-  let (placed, ordered, _lastCol) =
+  // `rightmost` is the far edge of everything placed. A span starting at or after it cannot overlap
+  // anything, which is the ordinary case for a row a renderer produced left to right -- and that is
+  // one comparison where `overlay` would run `List.any` over every segment already placed. The two
+  // agree by construction: `overlay`'s no-overlap branch is this append.
+  let (placed, ordered, _lastCol, _rightmost) =
     rowSpans
-    |> Stdlib.List.fold ([], true, -1) (fun acc span ->
-      let (segs, orderedSoFar, lastCol) = acc
+    |> Stdlib.List.fold ([], true, -1, 0) (fun acc span ->
+      let (segs, orderedSoFar, lastCol, rightmost) = acc
+      let w = Tui.Text.styledWidth span.text
 
-      let seg =
-        Segment
-          { col = span.col
-            text = span.text
-            width = Tui.Text.styledWidth span.text }
+      let seg = Segment { col = span.col; text = span.text; width = w }
+
+      let nextPlaced =
+        if span.col >= rightmost then
+          Stdlib.List.append segs [ seg ]
+        else
+          overlay segs seg
+
+      let nextRightmost =
+        let e = span.col + w
+        if e > rightmost then e else rightmost
 
       // While the row is still in order, the last column seen is the highest one, so this needs no
       // `max` -- and `Int.max` is a package call, which at one per span is not free.
-      (overlay segs seg, orderedSoFar && (span.col >= lastCol), span.col))
+      (nextPlaced, orderedSoFar && (span.col >= lastCol), span.col, nextRightmost))
 
   let sorted =
     if ordered then placed else placed |> Stdlib.List.sortBy (fun seg -> seg.col)

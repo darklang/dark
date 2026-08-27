@@ -1105,8 +1105,27 @@ between them, so they are not a problem.
 instead of `List.append existing [span]`, measured flat at 62 -> 63 ms and reverted. The operation
 counts have not changed since, so it would still be flat.
 
-So there is no Dark-side fix left in `compose`. The choices are to make it native, or to produce fewer
-than 252 spans, which is CLI code rather than this.
+**But there was one left in `composeRow`, and it is done.** `overlay` runs `List.any` over every
+segment already placed, per span, to ask whether the new one overlaps. `composeRow` can answer that in
+one comparison: carry the far edge of everything placed, and a span starting at or after it cannot
+overlap anything -- which is the ordinary case for a row a renderer produced left to right. The two
+agree by construction, since `overlay`'s no-overlap branch is exactly the append the early-out does.
+
+    overlay over a frame's 252 spans    7.9 -> 4.05 ms
+    Canvas.compose                        17 -> 13 ms
+    viewAtSize                         29-31 -> 27-28 ms
+
+**And the split that found it**, timed by replicating each piece over a real frame's spans:
+
+    all 40 composeRow      14.1 ms      overlay ~6.8, renderSegments ~4.7, the rest its own fold
+    styledWidth x 252       1.1 ms
+
+**Negative result: building a row with `String.join` is worse than appending.** `renderSegments`
+concatenates onto a growing string per segment, which looks like the classic quadratic mistake.
+Collecting the pieces and joining once measured **5.25 ms against 4.7** -- the list building and the
+reverse cost more than the appends they replace. Left alone.
+
+So what remains in `compose` is native, or fewer than 252 spans, which is CLI code rather than this.
 
 **The obvious move is to make `compose` native**, and the precedent is already in the tree: the row
 fitters in `Builtins.Cli/Libs/TerminalText.fs` are native for exactly this reason -- "a Dark loop pays
