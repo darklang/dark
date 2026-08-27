@@ -2425,6 +2425,51 @@ is *not* affected: `optime` and the wall-clock loops (`viewloop`, `routeloop`, `
 allocation numbers, `gate`, and every A/B in this round, since both arms carried the same loss. The
 wins stand; the rankings that pointed at them were dimmer than they should have been.
 
+### `wrapAtColumn` was the third function building a cluster per character, and a 20x outlier
+
+With the profile fixed, `cliTerminalWrapAtColumn` appeared for the first time at 9 calls a view and
+**133 us a call** -- 1.20 ms, about 8% of a view. It calls `GetNextTextElement` per character, the
+same shape already fixed in `styledWidth` and `TextWidth.ofString`, so the same peek-ahead rule
+applies: a printable ASCII character followed by another ASCII character is one column and one
+character and needs nothing extracted. The text being wrapped is descriptions and help, nearly all
+ASCII.
+
+**Then `viewloop` refused to move.** 5,712-5,773 ms either side, where 8% would have been ~460 ms.
+Allocation *did* drop, deterministically, so the change was doing something. Rebuilding the old code
+and measuring it twice:
+
+    old, 45 calls    6.80 us      old, 180 calls   6.45 us
+    new, 45 calls    4.76 us      new, 180 calls   4.76 us
+
+**The 133 us was a one-off outlier, wrong by 20x.** The honest result:
+
+    cliTerminalWrapAtColumn   6.6 -> 4.76 us per call   (-28%)
+    view allocation           1,567,784 -> 1,556,656 bytes  (11,128, deterministic)
+    view wall clock           unchanged
+
+Worth keeping as a method note rather than just a number. I had already written "1.16 ms, 8% of a
+view" into a draft before the wall clock contradicted it. A single reading from `viewprofile` is not
+a measurement, especially for a builtin called only nine times a view, where one slow call moves the
+mean by 20%. The allocation column repeats to the byte and is what this change should be judged on;
+the per-call timing needed three runs and a rebuild of the old code to pin down.
+
+### The fixed profile's ranking of a view
+
+First ranking taken with the instrument that does not drop calls. Inclusive, so a caller carries its
+callees, and detailed timing inflates per-builtin figures:
+
+    viewAtSize        24.52 ms      Canvas.compose      12.75    renderFull      11.74
+    Layout.vstack     11.34         Layout.hstack       10.21    composeRow       9.77 (40 calls)
+    Box.panel          7.23         renderSegments       2.99 (40 calls)
+
+`composeRow` and `renderSegments` together are the largest own-cost item in the view: turning spans
+into strings. `composeprobe` splits it as 6.4 ms for all 40 rows, of which `renderSegments` is 3.6
+and `styledWidth` 1.1, leaving ~1.7 for the fold itself. The `join`-based alternative to
+`renderSegments` was already tried and is worse (4,950 us against 3,600).
+
+`vstack` and `hstack` are large only because they are inclusive of every child's render; there is no
+own-cost there to take.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

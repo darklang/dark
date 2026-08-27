@@ -171,8 +171,17 @@ let wrapAtColumn (text : string) (maxWidth : int) : string list =
     elif System.Char.IsControl text[i] then
       i <- i + 1
     else
-      let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
-      let charWidth = TextWidth.ofCluster cluster
+      let c = text[i]
+      // A printable ASCII character followed by another ASCII character is one column and one
+      // character, and cannot combine into a longer cluster -- so nothing needs extracting. The same
+      // rule `styledWidth` and `TextWidth.ofString` use, and for the same reason:
+      // `GetNextTextElement` allocates a string per character, and the text being wrapped here is
+      // descriptions and help text, which is nearly all ASCII.
+      let plain =
+        c >= ' ' && c <= '~' && (i + 1 >= text.Length || text[i + 1] < '\u0080')
+      let cluster =
+        if plain then "" else System.Globalization.StringInfo.GetNextTextElement(text, i)
+      let charWidth = if plain then 1 else TextWidth.ofCluster cluster
       let shouldWrap =
         wrapPending || (currentWidth > 0 && currentWidth + charWidth > width)
 
@@ -181,10 +190,14 @@ let wrapAtColumn (text : string) (maxWidth : int) : string list =
         current.Clear() |> ignore<System.Text.StringBuilder>
         current.Append(activeStyle) |> ignore<System.Text.StringBuilder>
 
-      current.Append(cluster) |> ignore<System.Text.StringBuilder>
+      if plain then
+        current.Append(c) |> ignore<System.Text.StringBuilder>
+      else
+        current.Append(cluster) |> ignore<System.Text.StringBuilder>
+
       currentWidth <- if shouldWrap then charWidth else currentWidth + charWidth
       wrapPending <- currentWidth >= width
-      i <- i + cluster.Length
+      i <- i + (if plain then 1 else cluster.Length)
 
   completed.Add(current.ToString())
   List.ofSeq completed
