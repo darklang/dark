@@ -17,7 +17,7 @@ module Blob = LibExecution.Blob
 /// The substring of `s` between cluster indices `first` and `last`, both already clamped to
 /// [0, length] with `first <= last`.
 ///
-/// Shared by `stringSlice`, `stringStartsWith` and `stringEndsWith` so the three cannot drift.
+/// Shared by `stringSlice` and `stringStartsWith` so the two cannot drift.
 /// Prefix and suffix tests are cluster tests in Dark, not byte tests: `String.startsWith` was
 /// `slice subject 0 (length prefix) == prefix`, and ordinal `StartsWith` is NOT equivalent -- "\U0001F471"
 /// is a byte-prefix of "\U0001F471\U0001F3FB" but not a cluster-prefix of it.
@@ -414,36 +414,6 @@ let fns () : List<BuiltInFn> =
             let subjectLen = String.lengthInEgcs subject
             let last = min (String.lengthInEgcs prefix) subjectLen
             Ply(DBool(egcSubstring subject 0 last = prefix))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
-      deprecated = NotDeprecated }
-
-
-    { name = fn "stringEndsWith" 0
-      typeParams = []
-      parameters =
-        [ Param.make "subject" TString ""; Param.make "suffix" TString "" ]
-      returnType = TBool
-      description = "Checks if <param subject> ends with <param suffix>"
-      fn =
-        (function
-        | _, _, _, [| DString subject; DString suffix |] ->
-          // The Dark version was
-          // `slice subject (length subject - length suffix) (length subject) == suffix`, and the
-          // negative case matters: when the suffix is longer, `from` goes negative and `slice`
-          // counts it from the end rather than clamping to zero. `normalizeEgcIndex` keeps that.
-          if suffix = "" then
-            Ply(DBool true)
-          elif String.isCharwise subject && String.isCharwise suffix then
-            Ply(DBool(subject.EndsWith(suffix, System.StringComparison.Ordinal)))
-          else
-            let subjectLen = String.lengthInEgcs subject
-            let suffixLen = String.lengthInEgcs suffix
-            let first =
-              normalizeEgcIndex subjectLen (DarkInt.Finite(int64 subjectLen - int64 suffixLen))
-            Ply(DBool(egcSubstring subject first subjectLen = suffix))
         | _ -> incorrectArgs ())
       sqlSpec = NotYetImplemented
       previewable = Pure

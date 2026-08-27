@@ -183,21 +183,6 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
-    { name = fn "dictIsEmpty" 0
-      typeParams = []
-      parameters = [ Param.make "dict" (TDict(TVariable "a")) "" ]
-      returnType = TBool
-      description = "Returns true if <param dict> has no entries"
-      fn =
-        (function
-        | _, _, _, [| DDict(_, o) |] -> Ply(DBool(Map.isEmpty o))
-        | _ -> incorrectArgs ())
-      sqlSpec = NotYetImplemented
-      previewable = Pure
-      capabilities = LibExecution.Capabilities.noCaps
-      deprecated = NotDeprecated }
-
-
     { name = fn "dictGet" 0
       typeParams = []
       parameters = [ Param.make "dict" (TDict varA) ""; Param.make "key" TString "" ]

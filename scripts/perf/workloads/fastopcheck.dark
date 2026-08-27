@@ -44,8 +44,6 @@ let _18b = show "string isEmpty yes" (if Stdlib.String.isEmpty "" then "y" else 
 let _18c = show "string isEmpty no" (if Stdlib.String.isEmpty "a" then "y" else "n") "n"
 let _18d = show "list isEmpty yes" (if Stdlib.List.isEmpty [] then "y" else "n") "y"
 let _18e = show "list isEmpty no" (if Stdlib.List.isEmpty [ 1 ] then "y" else "n") "n"
-let _18f = show "dict isEmpty yes" (if Stdlib.Dict.isEmpty Stdlib.Dict.empty then "y" else "n") "y"
-let _18g = show "dict isEmpty no" (if Stdlib.Dict.isEmpty d then "y" else "n") "n"
 let _19 = show "dict set strict value" (Stdlib.Int.toString (Stdlib.Option.withDefault (Stdlib.Dict.get (Stdlib.Dict.set d "c" 3) "c") 0)) "3"
 
 Stdlib.printLine "-- fast op check done --"

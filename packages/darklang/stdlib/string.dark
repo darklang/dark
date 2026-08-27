@@ -429,7 +429,7 @@ let startsWith (subject: String) (prefix: String) : Bool =
 
 /// Checks if <param subject> ends with <param suffix>
 let endsWith (subject: String) (suffix: String) : Bool =
-  Builtin.stringEndsWith subject suffix
+  String.slice subject (String.length subject - String.length suffix) (String.length subject) == suffix
 
 
 /// Returns the plural form of <param word> by a simple English rule: words ending

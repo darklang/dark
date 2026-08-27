@@ -1109,7 +1109,6 @@ module private FastOps =
   let dictSetStrict = 19
   let strIsEmpty = 20
   let listIsEmpty = 21
-  let dictIsEmpty = 22
 
   /// The operator itself, given a tag from `byName` and two `Int`s.
   let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
@@ -1203,10 +1202,6 @@ module private FastOps =
     elif tag = listIsEmpty then
       match arg with
       | DList(_, l) -> ValueSome(Dval.bool (List.isEmpty l))
-      | _ -> ValueNone
-    elif tag = dictIsEmpty then
-      match arg with
-      | DDict(_, o) -> ValueSome(Dval.bool (Map.isEmpty o))
       | _ -> ValueNone
     elif tag = listLength then
       match arg with
@@ -1344,7 +1339,6 @@ module private FastOps =
     put "listLength" listLength
     put "stringIsEmpty" strIsEmpty
     put "listIsEmpty" listIsEmpty
-    put "dictIsEmpty" dictIsEmpty
     put "dictGet" dictGet
     put "dictSetOverridingDuplicates" dictSet
     put "dictSet" dictSetStrict
@@ -1408,10 +1402,6 @@ let private tryFastOp
       | _ -> ValueNone
 
 
-/// The same operators as `tryFastOp`, reached straight from `Apply` before an `ApplyContext` exists.
-///
-/// `tryFastOp` covers the ones that arrive through an elided package wrapper; this covers the ones
-/// compiled as a direct builtin call, which is what `a + b` is.
 /// The operator table, dispatched straight off the caller's registers for a known builtin name.
 ///
 /// Split out from `tryFastOpDirect` so the elided-wrapper path can reach it too. That path used to
