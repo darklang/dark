@@ -707,8 +707,30 @@ operation from the trace -- the same shape as eliding an effectful forwarder. It
 by `FQFnName.Builtin`: the probe that sized this matched on the name string and got 36 ms where the
 table gets 33, so the dispatch is worth about 3 ms on its own.
 
-Still not a compiler change -- the `Apply` still happens. An opcode emitted by `PT2RT` would remove
-that too.
+**And the fast path now runs before the call machinery, not inside it.** It sat in
+`callBuiltinResolved`, already past the `ApplyContext`, the builtin-table lookup and an `ArgSeq`.
+`a + b` compiles to a direct builtin call, so `Apply` can take it directly:
+
+    add two Ints        1.0 -> 0.5 us
+    compare two Ints   0.85 -> 0.5-0.75
+    viewAtSize        33-34 -> 31-32 ms
+    steady.dark          38 -> 35 ms
+
+`tryIntOp` stays where it was, for the same operators arriving through an elided wrapper.
+
+**Two allocation traps on that path, both worth knowing.** `match a, b with` allocates the pair, and
+this runs for every two-argument `Apply` whether or not it is an Int operator: 4.4% of the reference
+workload, 10% of a view build. Nested matches fix it, and the warning already existed twenty lines
+away on `biRestPs`. A `let mutable` would have been worse still -- the rest of `Apply` has `uply`
+blocks, so a mutable a continuation captures becomes a heap ref cell on every instruction.
+
+I guessed the cause twice and was wrong both times; `alloc-profile` named it in one run,
+`System.Tuple<Dval, Dval>` at 8.76%. On this path, profile before theorising.
+
+**What a compile-time opcode is still worth.** An Int operator is now 0.5 us where `match on an Int`
+-- a real opcode, no `Apply` -- is 0.25. So emitting one from `PT2RT` is worth ~0.25 us x 7,049 calls,
+about **1.8 ms of a 32 ms view build**, down from the 4.6 ms it was worth before this commit. It needs
+a new instruction with a fallback for non-Int operands, and that is the remaining structural step.
 
 **Conversions are not in the keypress path.** A view build calls 45 distinct builtins, and none of
 them is a PT/RT/DT conversion or reflection builtin -- the only one that appears at all is

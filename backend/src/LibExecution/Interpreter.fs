@@ -1079,6 +1079,33 @@ module private IntOps =
   let max = 8
   let min = 9
 
+  /// The operator itself, given a tag from `byName` and two `Int`s.
+  let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
+    if tag = add then
+      ValueSome(Dval.dint (DarkInt.add a b))
+    elif tag = subtract then
+      ValueSome(Dval.dint (DarkInt.subtract a b))
+    elif tag = lessThan then
+      ValueSome(Dval.bool (DarkInt.compare a b < 0))
+    elif tag = lessThanOrEqualTo then
+      ValueSome(Dval.bool (DarkInt.compare a b <= 0))
+    elif tag = greaterThan then
+      ValueSome(Dval.bool (DarkInt.compare a b > 0))
+    elif tag = greaterThanOrEqualTo then
+      ValueSome(Dval.bool (DarkInt.compare a b >= 0))
+    // Structurally, which is what `equals` does for this case: `DarkInt` is `Finite` whenever the
+    // value fits an int64, so equal values have equal representations.
+    elif tag = equals then
+      ValueSome(Dval.bool (a = b))
+    elif tag = notEquals then
+      ValueSome(Dval.bool (a <> b))
+    elif tag = max then
+      ValueSome(if DarkInt.compare a b > 0 then DInt a else DInt b)
+    elif tag = min then
+      ValueSome(if DarkInt.compare a b < 0 then DInt a else DInt b)
+    else
+      ValueNone
+
   /// Looked up by name once per call rather than matched as a string: `FQFnName.Builtin` is a small
   /// record and this is a single probe of a table with ten entries in it.
   let byName : Dictionary<FQFnName.Builtin, int> =
@@ -1120,32 +1147,44 @@ let private tryIntOp
       | ValueSome(struct (DInt a, rest)) ->
         match ArgSeq.uncons rest with
         | ValueSome(struct (DInt b, tail)) when ArgSeq.isEmpty tail ->
-          if tag = IntOps.add then
-            ValueSome(Dval.dint (DarkInt.add a b))
-          elif tag = IntOps.subtract then
-            ValueSome(Dval.dint (DarkInt.subtract a b))
-          elif tag = IntOps.lessThan then
-            ValueSome(Dval.bool (DarkInt.compare a b < 0))
-          elif tag = IntOps.lessThanOrEqualTo then
-            ValueSome(Dval.bool (DarkInt.compare a b <= 0))
-          elif tag = IntOps.greaterThan then
-            ValueSome(Dval.bool (DarkInt.compare a b > 0))
-          elif tag = IntOps.greaterThanOrEqualTo then
-            ValueSome(Dval.bool (DarkInt.compare a b >= 0))
-          // Structurally, which is what `equals` does for this case: `DarkInt` is `Finite` whenever
-          // the value fits an int64, so equal values have equal representations.
-          elif tag = IntOps.equals then
-            ValueSome(Dval.bool (a = b))
-          elif tag = IntOps.notEquals then
-            ValueSome(Dval.bool (a <> b))
-          elif tag = IntOps.max then
-            ValueSome(if DarkInt.compare a b > 0 then DInt a else DInt b)
-          elif tag = IntOps.min then
-            ValueSome(if DarkInt.compare a b < 0 then DInt a else DInt b)
-          else
-            ValueNone
+          IntOps.eval tag a b
         | _ -> ValueNone
       | _ -> ValueNone
+
+
+/// The same operators as `tryIntOp`, reached straight from `Apply` before an `ApplyContext` exists.
+///
+/// `tryIntOp` covers the ones that arrive through an elided package wrapper; this covers the ones
+/// compiled as a direct builtin call, which is what `a + b` is.
+let private tryIntOpDirect
+  (exeState : ExecutionState)
+  (registers : Dval array)
+  (applicable : ApplicableNamedFn)
+  (typeArgs : List<TypeReference>)
+  (argRegs : NEList<Register>)
+  : Dval voption =
+  match argRegs.tail with
+  | [ secondReg ] when
+    exeState.tracing.skipTracing
+    && List.isEmpty typeArgs
+    && List.isEmpty applicable.argsSoFar
+    ->
+    match applicable.name with
+    | FQFnName.Builtin b ->
+      let mutable tag = 0
+      if IntOps.byName.TryGetValue(b, &tag) then
+        // Nested, not `match a, b with`, which allocates the pair -- on every two-argument `Apply`,
+        // Int operator or not. It measured 4.4% on the gate and 10% on a view build.
+        match registers[argRegs.head] with
+        | DInt x ->
+          match registers[secondReg] with
+          | DInt y -> IntOps.eval tag x y
+          | _ -> ValueNone
+        | _ -> ValueNone
+      else
+        ValueNone
+    | _ -> ValueNone
+  | _ -> ValueNone
 
 
 let rec private callBuiltinResolved
@@ -1956,75 +1995,89 @@ let private applyInstruction
           |> RTE.Apply
           |> raiseRTE vm.threadID
 
-    let ctx : ApplyContext =
-      { applicable = applicable
-        typeArgs = typeArgs
-        args = ArgSeq.ofNE registers newArgRegs
-        tst = tst
-        putResultIn = putResultIn
-        returnPc = currentFrame.programCounter + 1 }
+    // An `Int` operator called directly, taken before any of the call machinery: no `ApplyContext`,
+    // no builtin-table lookup, no `ArgSeq`. `tryIntOp` further down catches the same operators
+    // arriving through an elided package wrapper -- `Stdlib.Int.max` never reaches here.
+    //
+    // A function, not a `let mutable` here: the rest of this body has `uply` blocks in it, and a
+    // mutable a continuation captures becomes a heap ref cell allocated on every `Apply`, taken
+    // branch or not. Written that way first, it cost the reference workload 4% and a view build 10%.
+    match tryIntOpDirect exeState registers applicable typeArgs newArgRegs with
+    | ValueSome result ->
+      if vm.stats.enabled then
+        vm.stats.builtinCallCount <- vm.stats.builtinCallCount + 1L
+      registers[putResultIn] <- result
+    | ValueNone ->
 
-    // CLEANUP the two branches below are near-identical in shape, and so are `callBuiltin`
-    // and `callPackage` behind them: same five steps, different parameter and outcome types.
-    // Unifying them needs `BuiltInParam` and `PackageFn.Parameter` to share an interface.
-    match applicable.name with
-    | FQFnName.Builtin builtin ->
-      let biTotalAlloc = allocNow vm
-      let biLookupAlloc = allocNow vm
-      // `TryGetValue` rather than `Map.find`, which allocates a `Some` on every hit. F#'s Map
-      // implements IDictionary, so the byref overload is available here too.
-      let mutable found = Unchecked.defaultof<BuiltInFn>
-      if not (exeState.fns.builtIn.TryGetValue(builtin, &found)) then
-        RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE vm.threadID
-      else
-        let fn = found
-        recordStage vm ApplyStage.BiFnLookup biLookupAlloc
-        let call = callBuiltin exeState vm currentFrame ctx fn
-        // Usually already finished, in which case there's no bind to pay for.
+      let ctx : ApplyContext =
+        { applicable = applicable
+          typeArgs = typeArgs
+          args = ArgSeq.ofNE registers newArgRegs
+          tst = tst
+          putResultIn = putResultIn
+          returnPc = currentFrame.programCounter + 1 }
+
+      // CLEANUP the two branches below are near-identical in shape, and so are `callBuiltin`
+      // and `callPackage` behind them: same five steps, different parameter and outcome types.
+      // Unifying them needs `BuiltInParam` and `PackageFn.Parameter` to share an interface.
+      match applicable.name with
+      | FQFnName.Builtin builtin ->
+        let biTotalAlloc = allocNow vm
+        let biLookupAlloc = allocNow vm
+        // `TryGetValue` rather than `Map.find`, which allocates a `Some` on every hit. F#'s Map
+        // implements IDictionary, so the byref overload is available here too.
+        let mutable found = Unchecked.defaultof<BuiltInFn>
+        if not (exeState.fns.builtIn.TryGetValue(builtin, &found)) then
+          RTE.FnNotFound(FQFnName.Builtin builtin) |> raiseRTE vm.threadID
+        else
+          let fn = found
+          recordStage vm ApplyStage.BiFnLookup biLookupAlloc
+          let call = callBuiltin exeState vm currentFrame ctx fn
+          // Usually already finished, in which case there's no bind to pay for.
+          match Ply.trySync call with
+          | ValueSome dv -> registers[putResultIn] <- dv
+          | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
+          recordStage vm ApplyStage.BiTotal biTotalAlloc
+
+      | FQFnName.Package pkg ->
+        // Harmful-deprecation runtime halt.
+        // Checked before even fetching the fn so the error is surfaced
+        // whether or not the fn definition is still available.
+        let isHarmful = exeState.fns.isHarmful pkg
+        if isHarmful && not exeState.allowHarmful then
+          RTE.DeprecatedItemHalted pkg |> raiseRTE vm.threadID
+        let pkgFetchAlloc = allocNow vm
+        // Warm cache after the first call, which for a script means all but a handful of these.
+        //
+        // The miss builds its own `uply` and the hit never touches the builder. A `let!` here instead
+        // would sit in the loop's computation expression and cost a continuation closure on every
+        // call, reached or not.
+        let fetchOnlyAlloc = allocNow vm
+        let fetch = exeState.fns.package pkg
+        let fetched = Ply.trySync fetch
+        recordStage vm ApplyStage.PkgFetchOnly fetchOnlyAlloc
+        let call =
+          match fetched with
+          | ValueSome(Some fn) -> callPackage exeState vm currentFrame ctx fn
+          | ValueSome None ->
+            RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
+          | ValueNone ->
+            uply {
+              match! fetch with
+              | Some fn -> return! callPackage exeState vm currentFrame ctx fn
+              | None ->
+                return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
+            }
+        recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
+        // Overwritten on the next line either way; F# needs something to start from.
+        // No `let mutable` spanning the bind: a mutable a continuation captures becomes a heap ref
+        // cell, allocated whether or not the branch needing it is taken. Duplicating two lines is
+        // cheaper than the cell.
         match Ply.trySync call with
-        | ValueSome dv -> registers[putResultIn] <- dv
-        | ValueNone -> outcome <- AwaitBuiltin(call, putResultIn)
-        recordStage vm ApplyStage.BiTotal biTotalAlloc
-
-    | FQFnName.Package pkg ->
-      // Harmful-deprecation runtime halt.
-      // Checked before even fetching the fn so the error is surfaced
-      // whether or not the fn definition is still available.
-      let isHarmful = exeState.fns.isHarmful pkg
-      if isHarmful && not exeState.allowHarmful then
-        RTE.DeprecatedItemHalted pkg |> raiseRTE vm.threadID
-      let pkgFetchAlloc = allocNow vm
-      // Warm cache after the first call, which for a script means all but a handful of these.
-      //
-      // The miss builds its own `uply` and the hit never touches the builder. A `let!` here instead
-      // would sit in the loop's computation expression and cost a continuation closure on every
-      // call, reached or not.
-      let fetchOnlyAlloc = allocNow vm
-      let fetch = exeState.fns.package pkg
-      let fetched = Ply.trySync fetch
-      recordStage vm ApplyStage.PkgFetchOnly fetchOnlyAlloc
-      let call =
-        match fetched with
-        | ValueSome(Some fn) -> callPackage exeState vm currentFrame ctx fn
-        | ValueSome None ->
-          RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
-        | ValueNone ->
-          uply {
-            match! fetch with
-            | Some fn -> return! callPackage exeState vm currentFrame ctx fn
-            | None ->
-              return RTE.FnNotFound(FQFnName.Package pkg) |> raiseRTE vm.threadID
-          }
-      recordStage vm ApplyStage.PkgFetch pkgFetchAlloc
-      // Overwritten on the next line either way; F# needs something to start from.
-      // No `let mutable` spanning the bind: a mutable a continuation captures becomes a heap ref
-      // cell, allocated whether or not the branch needing it is taken. Duplicating two lines is
-      // cheaper than the cell.
-      match Ply.trySync call with
-      | ValueSome(PartiallyApplied dv)
-      | ValueSome(Completed dv) -> registers[putResultIn] <- dv
-      | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
-      | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
+        | ValueSome(PartiallyApplied dv)
+        | ValueSome(Completed dv) -> registers[putResultIn] <- dv
+        | ValueSome(PushFrame frame) -> vm.frameToPush <- ValueSome frame
+        | ValueNone -> outcome <- AwaitPackage(call, putResultIn)
 
   recordStage vm ApplyStage.ApplyTotal applyTotalAlloc
   outcome

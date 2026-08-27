@@ -160,6 +160,10 @@ measure "concat two strings                   " (fun i -> Stdlib.String.length (
 measure "Int to String                        " (fun i -> Stdlib.String.length (Stdlib.Int.toString i))
 
 Stdlib.printLine "--- control flow"
+// What an `Int` operator costs now that the interpreter evaluates it rather than calling a builtin.
+// The `Apply` instruction is still there, so this is what a compile-time opcode would be aiming at.
+measure "add two Ints                         " (fun i -> i + 1)
+measure "compare two Ints                     " (fun i -> if i < 1000 then 1 else 0)
 measure "if/else                              " (fun i -> if i > 1000 then 1 else 0)
 measure "match on an Int                      " (fun i ->
   match i with
