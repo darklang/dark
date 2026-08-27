@@ -644,6 +644,46 @@ suspect state shared between tests before suspecting the feature under test.
 (The paragraph that stood here proposed the frame stack as round 7's target. The probe above
 retracts it.)
 
+**Native `any`/`findFirst` cost the HTTP path 33% of its allocation, and nothing was watching.**
+An HTTP request: **62.90 -> 83.90 KB** at the commit that made them native, 85.17 at the branch tip.
+Bisected by checking out each commit and re-measuring; every figure repeatable to two decimals.
+
+`gate` asserts allocation on `steady.dark`, which calls neither. `suite` has no workload that does.
+`optime` and `costs` had rows for `map`, `fold` and `range` but not these. So it went unnoticed for
+four commits and turned up only in a full sweep run for other reasons. Both files have rows now.
+
+**The trade is the general shape of this work.** Making a lambda-per-element Dark recursion native
+removes the recursion's frames and adds an `executeApplicable` per element, and the application
+allocates more than the frame did -- 160 B against 134 B in `lambdaalloc.dark`. `map` and `filter`
+came out ahead on bytes as well as time because they also removed a *second* lambda application per
+element and a whole `reverse`. `any` and `findFirst` removed only the recursion, so: faster, and
+heavier. Before making the next Dark recursion native, count how many applications it removes, not
+just how many frames.
+
+Kept, not reverted -- this round is aimed at latency and the CLI, `viewAtSize` is 44 ms against 46,
+and the HTTP path is not what it is aimed at. But it is a decision, not an accident.
+
+**Where round 6 stands, measured at the tip:**
+
+    optime, above baseline
+      call a 1-arg fn        4.9 us     apply a lambda       2.25 us
+      call a builtin         0.75 us    via a wrapper        1.25 us
+
+    viewAtSize                44 ms   (76 at the round's start)
+    keystroke, end to end     92 ms   (141 at round 5's end)
+    workbench, per view       42 ms mean over ten
+    steady.dark               54 ms, 7.4 MB
+    suite: lists 56 ms, dicts 63, strings 25, records 21, json 24, containers 13
+    HTTP  4,400-4,500 req/s, 85.17 KB/request
+    crosslang: Dark 9.90 KB/iter against node 1.72, python 0.47
+
+**And the cost model is complete enough to say there is no hot spot left.** A frame-pushing package
+call is 4.9 us: ~1.25 of it the callee's own body, 0.75 the four ablatable costs (argument and return
+type checks, the type-symbol-table work, tracing), 0.06 the frame dictionary, and ~2.8 spread across
+frame setup and two turns of the interpreter loop. A builtin call is 0.75 us, of which the argument
+type check is 0.25 and the result check and tracing are nothing. Every one of those was measured by
+ablation, and every single suspect came back smaller than it looked.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`

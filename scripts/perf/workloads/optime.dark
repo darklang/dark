@@ -100,6 +100,12 @@ measure "map over 5                           " (fun i -> Stdlib.List.length (St
 measure "fold over 5                          " (fun i -> Stdlib.List.fold [ 1; 2; 3; 4; 5 ] 0 (fun acc x -> acc + x))
 measure "filter over 5                        " (fun i -> Stdlib.List.length (Stdlib.List.filter [ 1; 2; 3; 4; 5 ] (fun x -> x > 2)))
 measure "member of a 5-list                   " (fun i -> if Stdlib.List.member [ 1; 2; 3; 4; 5 ] 3 then 1 else 0)
+measure "any over 5                           " (fun i ->
+  if Stdlib.List.any [ 1; 2; 3; 4; 5 ] (fun x -> x > 4) then 1 else 0)
+measure "findFirst over 5                     " (fun i ->
+  match Stdlib.List.findFirst [ 1; 2; 3; 4; 5 ] (fun x -> x > 4) with
+  | Some v -> v
+  | None -> 0)
 measure "build a 5-element literal            " (fun i -> Stdlib.List.length [ i; i; i; i; i ])
 
 Stdlib.printLine "--- strings"
