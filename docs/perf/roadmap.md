@@ -1021,6 +1021,38 @@ Quote Debug numbers as Debug numbers. The view build users get is ~24 ms, not 31
 Note that `--optimize` also runs `reload-packages --published`, so restore the Debug build and reload
 afterwards or the store and the binary disagree.
 
+**The published budget was stale by a whole round, and CI gates on published.** `gate` keeps two:
+Debug (what a developer runs) and published (what CI asserts). The Debug one has been lowered through
+this round; the published one had not, and read **8.8% under**. Now 7.6 -> **7.0 MB**, measured from a
+publish of HEAD rather than from the month-old binary that happened to be lying around.
+
+**Round 6 on the binary that ships**, for the record:
+
+    viewAtSize                    24 ms      (Debug 31)
+    steady.dark                   7.0 MB     (Debug 7.3)
+    suite: lists 27 ms, dicts 38, strings 16, records 11, json 12, containers 6, recursion 362
+           (Debug: 34, 52, 21, 14, 22, 8, 543)
+    HTTP    53.07 KB per request, 5,672 req/s, p50 2.10 ms   (Debug 56.42 KB, ~5,300 req/s)
+
+`json` is the one whose *allocation* differs, not just its time: 9.93 KB/iteration published against
+15.19 Debug. Release codegen is not merely faster there; it allocates less. So the Debug gate's number
+is not a proxy for the published one in either direction, which is why there are two budgets.
+
+**Running the two builds against each other found a real bug**, which is the argument for doing it at
+all. `packageCalls` read 1,005 on Debug and 405 on published for the same workload -- 600 apart, which
+is three elided calls per iteration across `steady.dark`'s 200. The early wrapper dispatch was not
+incrementing `packageCallCount`, the same defect fixed once for the late elision path and
+reintroduced by the faster one. Fixed; both builds now report 1,005.
+
+**Decision, not a deferral: the compile-time `Int` opcode is closed.** It is worth ~0.1 us per
+operation on Release (`add two Ints` 0.15 against `match on an Int` 0.05), so **~0.7 ms of a 24 ms
+view build, about 3%**. Landing it means a new case in the `Instruction` DU and therefore edits to the
+opcode index, the binary serialiser, `RuntimeTypesToDarkTypes`, the interpreter and `PT2RT` -- six
+sites, one of them the stored instruction format -- plus a permanent special case for ten builtins in
+the language's core IR. Three percent does not buy that. Reopen it if the arithmetic share of a view
+build rises well above the 65% measured here, or if an instruction is being added for other reasons
+anyway.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`
