@@ -471,18 +471,25 @@ let execute
         |> RuntimeError.CLI
         |> raiseUntargetedRTE
     | exprs ->
-      let exprInsrts = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0 None)
-      let results = exprInsrts |> List.map (Exe.executeExpr state)
-      match List.tryLast results with
-      | Some lastResult ->
-        let! result = lastResult
-        do! tracer.storeTraceResults state
-        return result
-      | None ->
-        return
-          Exception.raiseInternal
-            "No results from executing expressions (which should be impossible..)"
-            []
+      let exprInstrs = exprs |> List.map (PT2RT.Expr.toRT Map.empty 0 None)
+
+      // Awaited in order, and the first error ends the script. They used to be started as a list and
+      // then only the last one awaited, so an error anywhere earlier was dropped on the floor: the
+      // statement ran, its failure vanished, and the script carried on to the next one.
+      let rec runInOrder (instrs : List<RT.Instructions>) : Ply<RT.ExecutionResult> =
+        uply {
+          match instrs with
+          | [] -> return Ok DUnit
+          | [ last ] -> return! Exe.executeExpr state last
+          | instr :: rest ->
+            match! Exe.executeExpr state instr with
+            | Error _ as failed -> return failed
+            | Ok _ -> return! runInOrder rest
+        }
+
+      let! result = runInOrder exprInstrs
+      do! tracer.storeTraceResults state
+      return result
   }
 
 /// Create a branch-specific execution state for parsing.

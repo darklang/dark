@@ -183,6 +183,31 @@ let private testRegistryDoesNotDisplaceStoredNames =
   }
 
 
+/// A script's expressions used to be started as a list, with only the last one awaited, so an error
+/// in any earlier one was dropped: the statement ran, its failure vanished, and the script carried on
+/// and reported the last expression's success. That is silent, and it hid a broken row in a perf
+/// workload for long enough to be worth a test.
+let private testMiddleStatementErrorStopsTheScript =
+  testTask "an error in a middle statement ends the script" {
+    let code =
+      "let boom (xs: List<Int>) : Unit =\n"
+      + "  match xs with\n"
+      + "  | [] -> ()\n"
+      + "boom [ 1; 2 ]\n"
+      + "0\n"
+
+    let! mod' = parse code
+    let! state = executionStateFor pmPT false Map.empty
+    let! result =
+      Cli.execute state PT.mainBranchId mod' [] Map.empty (Cli.RunScript("t", code))
+      |> Ply.toTask
+
+    match result with
+    | Ok dval -> failtest $"expected the failure to surface, got %A{dval}"
+    | Error _ -> ()
+  }
+
+
 let tests =
   testList
     "CliScriptLowering"
@@ -191,4 +216,5 @@ let tests =
       testMutuallyRecursiveDeclarations
       testScriptTypeUnifiesWithPackageType
       testDeclarationsAreNameableAfterLowering
-      testRegistryDoesNotDisplaceStoredNames ]
+      testRegistryDoesNotDisplaceStoredNames
+      testMiddleStatementErrorStopsTheScript ]
