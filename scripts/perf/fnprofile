@@ -1,0 +1,77 @@
+#!/usr/bin/env python3
+"""Resolve InterpreterStats' package-fn hashes to names, and rank them.
+
+`InterpreterStats.get` reports per-fn time keyed by content hash, which is
+unreadable by hand. This reads that JSON on stdin and prints a ranked table,
+looking the names up in the package store.
+
+    ./scripts/run-cli run scripts/perf/workloads/viewprofile.dark | ./scripts/perf/fnprofile
+
+Time is INCLUSIVE of callees, so an outer fn sits at the top by construction.
+The column to read for a leaf is us/call; the one to read for a caller is the
+share, and whether its own callees account for it.
+
+  --divide N   counts are over N iterations; report per-iteration
+  --by         total | percall | n        (default: total)
+  --top N      how many rows (default 25)
+"""
+import json, sqlite3, sys, os
+
+args = sys.argv[1:]
+
+
+def opt(flag, default):
+  if flag in args:
+    return args[args.index(flag) + 1]
+  return default
+
+
+divide = float(opt("--divide", 1))
+order = opt("--by", "total")
+top = int(opt("--top", 25))
+
+root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+db = os.path.join(root, "rundir", "data.db")
+
+stats = None
+for line in sys.stdin:
+  line = line.strip()
+  if line.startswith("{") and '"instructions"' in line:
+    stats = json.loads(line)
+if stats is None:
+  sys.exit("no InterpreterStats JSON on stdin")
+
+fns = stats.get("packageFnTiming", {})
+if not fns:
+  sys.exit("no packageFnTiming -- the workload needs enableDetailedTiming true")
+
+names = {}
+if os.path.exists(db):
+  con = sqlite3.connect(f"file:{db}?mode=ro", uri=True)
+  for h, owner, mods, name in con.execute(
+    "select item_hash, owner, modules, name from locations where unlisted_at is null"
+  ):
+    names[h] = f"{owner}.{mods}.{name}" if mods else f"{owner}.{name}"
+
+rows = []
+for h, v in fns.items():
+  ns, n = v["ns"], v["n"]
+  rows.append((names.get(h, h[:12] + " (unnamed)"), ns / divide, n / divide, ns / max(n, 1)))
+
+key = {"total": lambda r: r[1], "percall": lambda r: r[3], "n": lambda r: r[2]}[order]
+rows.sort(key=key, reverse=True)
+
+total = sum(r[1] for r in rows)
+print(f"{'ms':>9} {'share':>7} {'calls':>8} {'us/call':>9}  fn")
+for name, ns, n, per in rows[:top]:
+  print(f"{ns/1e6:9.2f} {100*ns/total:6.1f}% {n:8.0f} {per/1000:9.2f}  {name}")
+
+bi = stats.get("builtinTiming", {})
+if bi:
+  bis = sorted(bi.items(), key=lambda kv: -kv[1]["ns"])
+  print(f"\n{'ms':>9} {'calls':>8} {'us/call':>9}  builtin")
+  for name, v in bis[:12]:
+    print(
+      f"{v['ns']/1e6/divide:9.2f} {v['n']/divide:8.0f} "
+      f"{v['ns']/max(v['n'],1)/1000:9.2f}  {name}"
+    )

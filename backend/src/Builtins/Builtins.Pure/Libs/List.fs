@@ -9,6 +9,8 @@ module Dval = LibExecution.Dval
 module Exe = LibExecution.Execution
 module Interpreter = LibExecution.Interpreter
 module TypeChecker = LibExecution.TypeChecker
+module ValueType = LibExecution.ValueType
+module RTE = RuntimeError
 
 
 module DvalComparator =
@@ -608,6 +610,43 @@ let fns () : List<BuiltInFn> =
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable
       previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listMember" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""; Param.make "value" varA "" ]
+      returnType = TBool
+      description = "Returns true if <param value> is in <param list>"
+      fn =
+        (function
+        | _, vm, [], [| DList(_, items); value |] ->
+          // The Dark version of this was `findFirst list (fun e -> e == value)`, which pays a
+          // lambda application per element to run what is only an equality test. Here the
+          // comparison is direct, and the value's type is read once rather than per element.
+          //
+          // `==` type-checks before comparing, and raises rather than answering false on
+          // incompatible types; this keeps that, so a heterogeneous list still reports the
+          // same error it always did.
+          let vtValue = Dval.toValueType value
+
+          let rec search (rest : List<Dval>) : bool =
+            match rest with
+            | [] -> false
+            | elem :: tail ->
+              let vtElem = Dval.toValueType elem
+              match ValueType.merge vtElem vtValue with
+              | Error _ ->
+                RTE.EqualityCheckOnIncompatibleTypes(vtElem, vtValue)
+                |> raiseRTE vm.threadID
+              | Ok _ -> if NoModule.equals elem value then true else search tail
+
+          Ply(DBool(search items))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
       capabilities = LibExecution.Capabilities.noCaps
       deprecated = NotDeprecated }
 

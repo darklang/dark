@@ -33,14 +33,19 @@ let renderTreeList (state: State) (region: Stdlib.Cli.UI.Layout.Region) : List<S
     let fitName (s: String) : String =
       if (Stdlib.String.displayWidth s) <= nameCap then s
       else (Stdlib.Cli.Tui.Text.clipToWidth s (nameCap - 1)) ++ "…"
+    // Hoisted: both were being asked once per item. `isEmpty` is a package call, and a `member`
+    // against an empty list still costs a call and the `isSome` inside it, so the guard is worth
+    // having on both -- `isWip` had one and `isDeprecated` did not.
+    let anyWip = Stdlib.Bool.not (Stdlib.List.isEmpty wipNames)
+    let anyDeprecated = Stdlib.Bool.not (Stdlib.List.isEmpty deprecatedNames)
+
     let lines =
       state.items
       |> Stdlib.List.indexedMap (fun i item ->
         let display = if item.desc == "" then displayOf item else fitName (displayOf item)
         let fullName = Stdlib.String.join (Stdlib.List.append modPath [ item.name ]) "."
-        let isWip =
-          (Stdlib.Bool.not (Stdlib.List.isEmpty wipNames)) && (Stdlib.List.member wipNames fullName)
-        let isDeprecated = Stdlib.List.member deprecatedNames item.name
+        let isWip = anyWip && (Stdlib.List.member wipNames fullName)
+        let isDeprecated = anyDeprecated && (Stdlib.List.member deprecatedNames item.name)
         let badges =
           (if isWip then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.pink " ●" else "")
           ++ (if isDeprecated then Stdlib.Cli.UI.Colors.colorize Stdlib.Cli.UI.Colors.yellow " ⚠" else "")

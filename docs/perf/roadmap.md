@@ -1545,6 +1545,55 @@ something is not evaluating it, and *that* wants understanding before anything i
 Making both lazy (nested functions rather than values) is correct regardless of what the measurement
 turns out to mean.
 
+### `List.member` was 13% of a view, because equality went through a lambda
+
+`Stdlib.List.member` was `Option.isSome (findFirst list (fun elem -> elem == value))`. That is an
+equality test written as a predicate search, so every element paid a Dark lambda application (~3.7
+us) to run a comparison worth a few hundred nanoseconds. Nothing about the list lengths was wrong:
+they average about five entries. The per-element call was the whole cost.
+
+Per view build, before:
+
+    List.member          102 calls    36.27 us each    3.70 ms   13% of viewAtSize
+    listFindFirst        118 calls    20.00 us each    2.36 ms
+    listFilter            36 calls   163.34 us each    5.88 ms
+
+New native `listMember` compares Dvals directly, reading the value's type once instead of once per
+element. It keeps `==`'s behaviour on mismatched types (raise, not answer false), so a heterogeneous
+list reports the error it always did. After:
+
+    List.member          gone from the top 25 (< 0.4 ms)
+    listFindFirst        gone from the top 12
+    listFilter            36 calls    55.12 us each    1.98 ms
+
+`listFilter` fell by two thirds as a side effect: its predicates were themselves calling `member`.
+
+    viewAtSize (Debug)   26 -> 23-24 ms
+    gate debug           7.3 -> 7.2 MB
+    gate published       7.0 -> 6.9 MB
+
+Both budgets lowered in the same commit. This is the same shape as round 6's target 1 and suggests
+the rest of that shape is worth a sweep: any stdlib function whose Dark definition passes a *fixed*
+lambda to a native higher-order function is paying per element for something F# can do directly.
+
+**Negative result: hoisting the per-item guards in `detail.dark` bought ~nothing.** `isDeprecated` had
+no emptiness guard and `isEmpty wipNames` was recomputed per item, so both were hoisted out of the
+`indexedMap`. That is 6 package calls per view out of 4,137 -- the item list is about three long in
+this workload, not the ~100 the `member` count suggested. Kept because it is clearer and strictly
+cheaper, but it is not a measurable win, and the `member` calls were coming from elsewhere.
+
+**Tooling: `scripts/perf/fnprofile`.** `InterpreterStats` reports per-fn time keyed by content hash,
+which cannot be read by hand -- this is why the ranking above was previously guessed at from frame
+counts. `fnprofile` resolves the hashes against `locations` in the package store and prints a ranked
+table with calls and us/call:
+
+    ./scripts/run-cli run scripts/perf/workloads/viewprofile.dark | ./scripts/perf/fnprofile --divide 5
+
+Time is inclusive of callees, so the outer functions sit at the top by construction; the column to
+read for a leaf is us/call. Finding `List.member` took one run of this after several rounds of
+guessing from call counts, which had ranked it fourth by frames and given no hint it was 36 us a
+call.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the
