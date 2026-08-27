@@ -62,7 +62,7 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
           uply {
             let ptOps = ops |> List.choose PT2DT.PackageOp.fromDT
             return
-              LibDB.HashStabilization.duplicateDeclarations ptOps
+              LibDB.OpValidation.duplicateDeclarations ptOps
               |> List.map Dval.string
               |> Dval.list KTString
           }
@@ -94,10 +94,10 @@ let fns (pm : PT.PackageManager) : List<BuiltInFn> =
               let ops = ops |> List.choose PT2DT.PackageOp.fromDT
 
               // One name holds one item. Authoring a fn over a name that holds a value would REPLACE it
-              // (that's what the fold does, and must do — see Inserts.kindClashes), so refuse here instead
+              // (that's what the fold does, and must do — see OpValidation.kindClashes), so refuse here instead
               // and make the author say what they meant. Sync's fold still replaces; it has no one to ask.
-              let! kindClashes = LibDB.Inserts.kindClashes branchId ops
-              let clashes = LibDB.Inserts.hashClashes ops @ kindClashes
+              let! kindClashes = LibDB.OpValidation.kindClashes branchId ops
+              let clashes = LibDB.OpValidation.hashClashes ops @ kindClashes
 
               if not (List.isEmpty clashes) then
                 return resultError (Dval.string (String.concat "\n" clashes))

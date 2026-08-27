@@ -24,116 +24,9 @@ module BS = LibSerialization.Binary.Serialization
 module DE = LibDB.DependencyExtractor
 open LibSerialization.Hashing
 
-
-// ------------------------------------------------------------------
-// Low-level helpers — raw Microsoft.Data.Sqlite on a shared connection
-// with per-SQL-template SqliteCommand caching.
-// ------------------------------------------------------------------
-
-/// Per-batch context: holds the open connection plus a cache of
-/// SqliteCommand objects keyed by SQL text. First time we see a given
-/// SQL, we build + Prepare() the command; subsequent calls clear the
-/// parameter collection and reuse the same prepared command. Avoids
-/// re-allocating SqliteCommand and re-parsing SQL on each of the ~20k
-/// statements that fly during a 9845-op grow.
-type private Ctx =
-  { conn : SqliteConnection
-    cmds : System.Collections.Generic.Dictionary<string, SqliteCommand> }
-
-let private newCtx (conn : SqliteConnection) : Ctx =
-  { conn = conn
-    cmds = System.Collections.Generic.Dictionary<string, SqliteCommand>() }
-
-let private disposeCtx (ctx : Ctx) : unit =
-  for KeyValue(_, cmd) in ctx.cmds do
-    cmd.Dispose()
-  ctx.cmds.Clear()
-
-/// Get a prepared command from this batch's cache.
-let private command (ctx : Ctx) (sql : string) : SqliteCommand =
-  match ctx.cmds.TryGetValue(sql) with
-  | true, cmd -> cmd
-  | false, _ ->
-    let cmd = ctx.conn.CreateCommand()
-    cmd.CommandText <- sql
-    cmd.Prepare()
-    ctx.cmds[sql] <- cmd
-    cmd
-
-/// Run a non-query SQL statement and return its affected-row count.
-/// `setParams` populates the SqliteCommand's parameters (named with `$name`).
-/// Commands are prepared once per batch and reused.
-let private execRows
-  (ctx : Ctx)
-  (sql : string)
-  (setParams : SqliteCommand -> unit)
-  : Task<int> =
-  task {
-    let cmd = command ctx sql
-    cmd.Parameters.Clear()
-    setParams cmd
-    return! cmd.ExecuteNonQueryAsync()
-  }
-
-/// Run a non-query SQL statement, ignoring its affected-row count.
-let private exec
-  (ctx : Ctx)
-  (sql : string)
-  (setParams : SqliteCommand -> unit)
-  : Task<unit> =
-  task {
-    let! _ = execRows ctx sql setParams
-    return ()
-  }
-
-/// Helper for `cmd.Parameters.AddWithValue` that always returns unit.
-let inline private p (cmd : SqliteCommand) (name : string) (value : obj) =
-  cmd.Parameters.AddWithValue(name, value) |> ignore<SqliteParameter>
-
-/// Read one optional BLOB scalar using the batch's prepared-command cache.
-let private bytesOption
-  (ctx : Ctx)
-  (sql : string)
-  (setParams : SqliteCommand -> unit)
-  : Task<Option<byte[]>> =
-  task {
-    let cmd = command ctx sql
-    cmd.Parameters.Clear()
-    setParams cmd
-    let! value = cmd.ExecuteScalarAsync()
-    return
-      match value with
-      | :? (byte[]) as bytes -> Some bytes
-      | null -> None
-      | value when System.Convert.IsDBNull value -> None
-      | value ->
-        Exception.raiseInternal
-          "Expected a BLOB from package projection lookup"
-          [ "actualType", value.GetType().FullName ]
-  }
-
-/// Bind a `Guid` as its canonical text representation. Without this, the
-/// default Microsoft.Data.Sqlite type mapping is `BLOB(16)`, which does
-/// not match the TEXT columns we store branch_id / location_id / etc. as
-/// — so foreign-key checks fail with "constraint violated" even though
-/// the parent row exists. (Fumble's `Sql.uuid` did this implicitly; we
-/// replicate it.)
-let inline private pUuid
-  (cmd : SqliteCommand)
-  (name : string)
-  (value : System.Guid)
-  =
-  p cmd name (string value)
-
-/// Bind a `string option` as either the string or DBNull.
-let inline private pOpt
-  (cmd : SqliteCommand)
-  (name : string)
-  (value : string option)
-  =
-  match value with
-  | Some s -> p cmd name (box s)
-  | None -> p cmd name (box System.DBNull.Value)
+// `Ctx`, `exec`, `execRows`, `bytesOption`, `p`, `pUuid`, `pOpt`: one connection and one
+// prepared-command cache for the whole batch. See LibDB.PreparedBatch for why.
+open LibDB.PreparedBatch
 
 
 // ------------------------------------------------------------------
@@ -194,15 +87,18 @@ let private updateDependencies
 // Individual op handlers.
 // ------------------------------------------------------------------
 
-/// A hash is a content identity, not merely a database key. On an upsert, make
-/// sure an existing row has the same canonical body before updating metadata.
+/// Prove that an already-stored row holds the same body we are about to write over.
+///
+/// A hash is a content identity, not merely a database key, so two different bodies
+/// under one hash is a bug somewhere upstream, not a row to overwrite. Raise rather than
+/// let the second body silently become the first.
 let private ensureExistingBodyMatches
   (ctx : Ctx)
   (kind : string)
   (table : string)
   (hash : Hash)
   (incomingFingerprint : Hash)
-  (existingFingerprint : byte[] -> Hash)
+  (storedFingerprint : byte[] -> Hash)
   : Task<unit> =
   task {
     let (Hash hashStr) = hash
@@ -211,7 +107,7 @@ let private ensureExistingBodyMatches
         p cmd "$hash" hashStr)
 
     match existing with
-    | Some bytes when existingFingerprint bytes = incomingFingerprint -> return ()
+    | Some bytes when storedFingerprint bytes = incomingFingerprint -> return ()
     | Some _ ->
       return
         raise (
@@ -225,6 +121,70 @@ let private ensureExistingBodyMatches
           "Package projection insert conflicted, but its row was not found"
           [ "kind", kind; "hash", hashStr; "table", table ]
   }
+
+
+/// Write one content-addressed projection row: insert it, or, if the hash is already
+/// present, check the stored body matches before refreshing its metadata.
+///
+/// The three item kinds differ only in which table and columns they use and how their
+/// canonical fingerprint is computed, so they share this and keep only their own
+/// serialization.
+///
+/// <param columns> carries the body and metadata, and is written on both paths.
+/// <param insertOnlyNulls> names columns the insert must mention but this path never
+/// fills: `package_values` leaves `rt_dval` and `value_type` for
+/// `Seed.evaluateAllValues`, which runs once every op in the batch has been applied and
+/// cross-package references can resolve.
+let private upsertContentAddressed
+  (ctx : Ctx)
+  (kind : string)
+  (table : string)
+  (hash : Hash)
+  (columns : List<string * obj>)
+  (insertOnlyNulls : List<string>)
+  (incomingFingerprint : Hash)
+  (storedFingerprint : byte[] -> Hash)
+  : Task<unit> =
+  task {
+    let (Hash hashStr) = hash
+    let names = columns |> List.map fst
+
+    let bind (cmd : SqliteCommand) : unit =
+      p cmd "$hash" hashStr
+      columns |> List.iter (fun (name, value) -> p cmd $"${name}" value)
+
+    let insertColumns = ("hash" :: names) @ insertOnlyNulls |> String.concat ", "
+    let insertValues =
+      ("$hash" :: (names |> List.map (fun name -> $"${name}")))
+      @ (insertOnlyNulls |> List.map (fun _ -> "NULL"))
+      |> String.concat ", "
+
+    let! inserted =
+      execRows
+        ctx
+        $"""
+        INSERT INTO {table} ({insertColumns})
+        VALUES ({insertValues})
+        ON CONFLICT(hash) DO NOTHING
+        """
+        bind
+
+    if inserted = 0 then
+      do!
+        ensureExistingBodyMatches
+          ctx
+          kind
+          table
+          hash
+          incomingFingerprint
+          storedFingerprint
+
+      let assignments =
+        names |> List.map (fun name -> $"{name} = ${name}") |> String.concat ", "
+
+      do! exec ctx $"UPDATE {table} SET {assignments} WHERE hash = $hash" bind
+  }
+
 
 /// Apply a single AddType op to the package_types table.
 let private applyAddType
@@ -241,41 +201,21 @@ let private applyAddType
     let typ = { typ with hash = hash }
     let (Hash hashStr) = hash
 
-    let ptDef = BS.PT.PackageType.serialize hashStr typ
-    let rtDef = typ |> PT2RT.PackageType.toRT |> BS.RT.PackageType.serialize hashStr
-
-    let! inserted =
-      execRows ctx """
-        INSERT INTO package_types (hash, pt_def, rt_def, description)
-        VALUES ($hash, $pt_def, $rt_def, $description)
-        ON CONFLICT(hash) DO NOTHING
-        """ (fun cmd ->
-        p cmd "$hash" hashStr
-        p cmd "$pt_def" ptDef
-        p cmd "$rt_def" rtDef
-        p cmd "$description" typ.description)
-
-    if inserted = 0 then
-      do!
-        ensureExistingBodyMatches
-          ctx
-          "type"
-          "package_types"
-          hash
-          (Hashing.computeTypeHash Hashing.Normal typ)
-          (fun bytes ->
-            BS.PT.PackageType.deserialize hash bytes
-            |> Hashing.computeTypeHash Hashing.Normal)
-      do!
-        exec ctx """
-          UPDATE package_types
-          SET pt_def = $pt_def, rt_def = $rt_def, description = $description
-          WHERE hash = $hash
-          """ (fun cmd ->
-          p cmd "$hash" hashStr
-          p cmd "$pt_def" ptDef
-          p cmd "$rt_def" rtDef
-          p cmd "$description" typ.description)
+    do!
+      upsertContentAddressed
+        ctx
+        "type"
+        "package_types"
+        hash
+        [ "pt_def", box (BS.PT.PackageType.serialize hashStr typ)
+          "rt_def",
+          box (typ |> PT2RT.PackageType.toRT |> BS.RT.PackageType.serialize hashStr)
+          "description", box typ.description ]
+        []
+        (Hashing.computeTypeHash Hashing.Normal typ)
+        (fun bytes ->
+          BS.PT.PackageType.deserialize hash bytes
+          |> Hashing.computeTypeHash Hashing.Normal)
 
     // Extract and store dependency references atomically. Each
     // Dependency carries its own location (populated by the resolver).
@@ -284,9 +224,6 @@ let private applyAddType
   }
 
 /// Apply a single AddValue op to the package_values table.
-/// Note: rt_dval and value_type are stored as NULL here. They are populated
-/// by Seed.evaluateAllValues after all ops are applied, so cross-
-/// package references resolve correctly.
 let private applyAddValue
   (ctx : Ctx)
   (value : PT.PackageValue.PackageValue)
@@ -299,38 +236,19 @@ let private applyAddValue
     let value = { value with hash = hash }
     let (Hash hashStr) = hash
 
-    let ptDef = BS.PT.PackageValue.serialize hashStr value
-
-    let! inserted =
-      execRows ctx """
-        INSERT INTO package_values (hash, pt_def, rt_dval, value_type, description)
-        VALUES ($hash, $pt_def, NULL, NULL, $description)
-        ON CONFLICT(hash) DO NOTHING
-        """ (fun cmd ->
-        p cmd "$hash" hashStr
-        p cmd "$pt_def" ptDef
-        p cmd "$description" value.description)
-
-    if inserted = 0 then
-      do!
-        ensureExistingBodyMatches
-          ctx
-          "value"
-          "package_values"
-          hash
-          (Hashing.computeValueHash Hashing.Normal value)
-          (fun bytes ->
-            BS.PT.PackageValue.deserialize hash bytes
-            |> Hashing.computeValueHash Hashing.Normal)
-      do!
-        exec ctx """
-          UPDATE package_values
-          SET pt_def = $pt_def, description = $description
-          WHERE hash = $hash
-          """ (fun cmd ->
-          p cmd "$hash" hashStr
-          p cmd "$pt_def" ptDef
-          p cmd "$description" value.description)
+    do!
+      upsertContentAddressed
+        ctx
+        "value"
+        "package_values"
+        hash
+        [ "pt_def", box (BS.PT.PackageValue.serialize hashStr value)
+          "description", box value.description ]
+        [ "rt_dval"; "value_type" ]
+        (Hashing.computeValueHash Hashing.Normal value)
+        (fun bytes ->
+          BS.PT.PackageValue.deserialize hash bytes
+          |> Hashing.computeValueHash Hashing.Normal)
 
     let refs = DE.extractFromValue value
     do! updateDependencies ctx hashStr refs
@@ -346,41 +264,21 @@ let private applyAddFn (ctx : Ctx) (fn : PT.PackageFn.PackageFn) : Task<unit> =
     let fn = { fn with hash = hash }
     let (Hash hashStr) = hash
 
-    let ptDef = BS.PT.PackageFn.serialize hashStr fn
-    let rtInstrs = fn |> PT2RT.PackageFn.toRT |> BS.RT.PackageFn.serialize hashStr
-
-    let! inserted =
-      execRows ctx """
-        INSERT INTO package_functions (hash, pt_def, rt_instrs, description)
-        VALUES ($hash, $pt_def, $rt_instrs, $description)
-        ON CONFLICT(hash) DO NOTHING
-        """ (fun cmd ->
-        p cmd "$hash" hashStr
-        p cmd "$pt_def" ptDef
-        p cmd "$rt_instrs" rtInstrs
-        p cmd "$description" fn.description)
-
-    if inserted = 0 then
-      do!
-        ensureExistingBodyMatches
-          ctx
-          "fn"
-          "package_functions"
-          hash
-          (Hashing.computeFnHash Hashing.Normal fn)
-          (fun bytes ->
-            BS.PT.PackageFn.deserialize hash bytes
-            |> Hashing.computeFnHash Hashing.Normal)
-      do!
-        exec ctx """
-          UPDATE package_functions
-          SET pt_def = $pt_def, rt_instrs = $rt_instrs, description = $description
-          WHERE hash = $hash
-          """ (fun cmd ->
-          p cmd "$hash" hashStr
-          p cmd "$pt_def" ptDef
-          p cmd "$rt_instrs" rtInstrs
-          p cmd "$description" fn.description)
+    do!
+      upsertContentAddressed
+        ctx
+        "fn"
+        "package_functions"
+        hash
+        [ "pt_def", box (BS.PT.PackageFn.serialize hashStr fn)
+          "rt_instrs",
+          box (fn |> PT2RT.PackageFn.toRT |> BS.RT.PackageFn.serialize hashStr)
+          "description", box fn.description ]
+        []
+        (Hashing.computeFnHash Hashing.Normal fn)
+        (fun bytes ->
+          BS.PT.PackageFn.deserialize hash bytes
+          |> Hashing.computeFnHash Hashing.Normal)
 
     let refs = DE.extractFromFn fn
     do! updateDependencies ctx hashStr refs

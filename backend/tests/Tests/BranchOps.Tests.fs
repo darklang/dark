@@ -16,6 +16,7 @@ module BranchOpPlayback = LibDB.BranchOpPlayback
 module PackageOpPlayback = LibDB.PackageOpPlayback
 module Rebase = LibDB.Rebase
 module HS = LibDB.HashStabilization
+module OV = LibDB.OpValidation
 
 open Fumble
 open LibDB.Sqlite
@@ -415,11 +416,11 @@ let testDuplicateDeclarations =
         PT.PackageOp.SetName(loc "twice", PT.PackageFn(PT.Hash "placeholder-2")) ]
 
     Expect.equal
-      (HS.duplicateDeclarations ops)
+      (OV.duplicateDeclarations ops)
       [ "fn Test.BranchOps.twice" ]
       "the doubly-declared name is reported once, with its kind"
     Expect.isEmpty
-      (HS.duplicateDeclarations (List.take 2 ops))
+      (OV.duplicateDeclarations (List.take 2 ops))
       "a single declaration is not a duplicate"
 
     // Stabilization would collapse both bodies to one hash.
@@ -430,11 +431,11 @@ let testDuplicateDeclarations =
 
     // Batch preflight catches the collision before any op is written.
     Expect.hasLength
-      (Inserts.hashClashes stabilized)
+      (OV.hashClashes stabilized)
       1
       "one hash with two bodies is a clash"
     Expect.isEmpty
-      (Inserts.hashClashes (List.skip 2 stabilized))
+      (OV.hashClashes (List.skip 2 stabilized))
       "one body per hash is sound"
 
     // The projection writer is the shared boundary for local authoring, sync,
@@ -475,7 +476,7 @@ let testDuplicateDeclarations =
       [ PT.PackageOp.AddFn { alphaFirst with hash = sharedMeaningHash }
         PT.PackageOp.AddFn { alphaSecond with hash = sharedMeaningHash } ]
     Expect.isEmpty
-      (Inserts.hashClashes equivalentAdds)
+      (OV.hashClashes equivalentAdds)
       "meaning-equivalent declarations with different metadata are sound"
     do!
       PackageOpPlayback.applyOps

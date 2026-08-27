@@ -186,27 +186,6 @@ let remapSetNames
     | other -> other)
 
 
-/// Duplicate (kind, FQN) declarations in <param ops>, formatted for display.
-/// Authoring must reject these before `computeRealHashes`, which keys by FQN and
-/// would otherwise assign both bodies one content hash. Raw WIP may contain
-/// successive edits and is compacted separately.
-let duplicateDeclarations (ops : List<PT.PackageOp>) : List<string> =
-  let rec pairs (remaining : List<PT.PackageOp>) (acc : List<string * string>) =
-    match remaining with
-    | PT.PackageOp.AddType _ :: PT.PackageOp.SetName(loc, PT.PackageType _) :: rest ->
-      pairs rest (("type", PackageLocation.toFQN loc) :: acc)
-    | PT.PackageOp.AddFn _ :: PT.PackageOp.SetName(loc, PT.PackageFn _) :: rest ->
-      pairs rest (("fn", PackageLocation.toFQN loc) :: acc)
-    | PT.PackageOp.AddValue _ :: PT.PackageOp.SetName(loc, PT.PackageValue _) :: rest ->
-      pairs rest (("value", PackageLocation.toFQN loc) :: acc)
-    | _ :: rest -> pairs rest acc
-    | [] -> List.rev acc
-  pairs ops []
-  |> List.countBy (fun key -> key)
-  |> List.filter (fun (_, count) -> count > 1)
-  |> List.map (fun ((kind, fqn), _) -> $"{kind} {fqn}")
-
-
 /// Post-process parsed ops to compute real hashes using SCC-aware hashing.
 /// Expects SetName hashes to match the Hash references in items' ASTs
 /// (either placeholder IDs on first pass, or previous hashes via remapSetNames).

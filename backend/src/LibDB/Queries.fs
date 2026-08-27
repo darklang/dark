@@ -157,9 +157,11 @@ type LocationTarget =
 
 /// Find items whose dep edges point at any of the given target package items.
 ///
-/// Returns one visible declaration per (kind, location): current-branch WIP
-/// shadows current committed content, the current branch shadows ancestors,
-/// and only committed ancestor declarations are inherited.
+/// One name can be declared more than once across the branch chain, so this returns the
+/// single declaration a reader standing on this branch would actually see: your own
+/// branch's work before anything inherited, and from an ancestor only what it committed.
+/// `visible_locations` in the SQL below is that rule, and the ranking inside it is
+/// commented clause by clause.
 ///
 /// Primary match: dep edge's target kind + location equal one of the targets.
 /// This prevents same-hash and same-location cross-kind cascades.
@@ -202,6 +204,8 @@ let private getDependentsByLocationsChunk
         branchChain
         |> List.mapi (fun i _ -> $"WHEN @b_{i} THEN {i}")
         |> String.concat " "
+      // The current branch contributes everything it has; an ancestor contributes only
+      // what it committed, since its WIP belongs to whoever is working on it.
       let visibleBranchFilter =
         match branchChain with
         | [ _ ] -> "candidate.branch_id = @b_0"
@@ -255,8 +259,11 @@ let private getDependentsByLocationsChunk
                   candidate.modules,
                   candidate.name
                 ORDER BY
+                  -- Nearest branch first; the chain is ordered current-branch-first.
                   CASE candidate.branch_id {branchOrder} END,
+                  -- Within one branch, your uncommitted WIP shadows what's committed.
                   CASE WHEN candidate.commit_hash IS NULL THEN 0 ELSE 1 END,
+                  -- Still tied means one branch holds two rows for the name; newest wins.
                   candidate.created_at DESC
               ) AS visibility_rank
             FROM locations candidate
@@ -280,7 +287,9 @@ let private getDependentsByLocationsChunk
                 AND {hashFallbackClause}
               )
             )
-          -- Keep dependents stable and readable by ordering by their locations.
+          -- By name, not by hash. Hash order is stable but arbitrary to a reader, so a
+          -- dependents list looked shuffled; these columns are already selected, so
+          -- ordering by them is free.
           ORDER BY l.owner, l.modules, l.name
         """
 

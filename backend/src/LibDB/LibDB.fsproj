@@ -17,6 +17,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Sqlite.fs" />
+    <Compile Include="PreparedBatch.fs" />
     <Compile Include="Lww.fs" />
     <Compile Include="PackageLocation.fs" />
     <Compile Include="Caching.fs" />
@@ -30,6 +31,7 @@
     <Compile Include="NameLookup.fs" />
     <Compile Include="DeferredResolver.fs" />
     <Compile Include="PackageOpPlayback.fs" />
+    <Compile Include="OpValidation.fs" />
     <Compile Include="Inserts.fs" />
     <Compile Include="Queries.fs" />
     <Compile Include="Rebase.fs" />
