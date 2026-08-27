@@ -302,12 +302,7 @@ let dropLast (string: String) (characterCount: Int) : String =
 /// If <param characterCount> is longer than <param string>, returns the empty string.
 /// If <param characterCount> is negative, returns <param string>.
 let dropFirst (string: String) (characterCount: Int) : String =
-  if characterCount < 0 then
-    string
-  else if characterCount > String.length string then
-    ""
-  else
-    String.slice string characterCount (String.length string)
+  Builtin.stringDropFirst string characterCount
 
 
 /// If <param string> is shorter than <param goalLength> characters, returns a

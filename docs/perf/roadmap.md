@@ -2687,6 +2687,36 @@ So `lists`, like `recursion`, sits on a floor this round measured and closed: la
 9% gap to the interpreter's own Apply, and 1.32 us of it is the frame. Neither workload has anything
 left in it that is not that floor.
 
+### `zipShortest` and `dropFirst` native: routing is 45% faster than when it was first profiled
+
+Two more of the shape, both found by re-profiling the server path after each change rather than
+working from the first ranking.
+
+- **`List.zipShortest`** was a Dark recursion costing a package call, two matches and a `push` per
+  element. Unlike `map2shortest` it needs **no lambda at all** -- pairing is pure structure -- so the
+  builtin has no application per element either. `mappedList` merges the tuples' own ValueTypes, so
+  the element type comes out `KTTuple(a, b)` without naming it.
+- **`String.dropFirst`** was two `String.length` calls, two comparisons and a `slice`. As a builtin it
+  needs one branch, not two: `normalizeEgcIndex` already clamps a count longer than the string, but a
+  *negative* count still needs its own arm, since a negative index counts from the end rather than
+  clamping to zero.
+
+Same-session A/B, three runs an arm, arms not overlapping:
+
+    routing   min 1,146 -> 993 ms   (~382 -> ~331 us a route, -13.3%)
+    view      unchanged
+    checksum  identical
+
+**Routing across this round:** ~600 us a route when it was first profiled, ~331 now. That is 45%, and
+it came from six separate changes -- `filterMap`, `slice`, `startsWith`/`endsWith`, the three
+`isEmpty`s, `zipShortest`, `dropFirst` -- none of which was visible until the one before it was done.
+Re-profiling after each change is what found them; the first ranking named only `filterMap`.
+
+What is left on that path is `parseRouteSegments` (11% and still the design question: it re-parses
+constant route patterns every request) and `matchRouteSegments`, which builds an intermediate tuple
+list via `zipShortest` purely to fold over it -- now much cheaper, and fusing the two would need a
+`fold2` that does not exist.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

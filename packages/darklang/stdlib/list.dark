@@ -407,13 +407,7 @@ let map2
 /// See <fn unzip> if you want to deconstruct the result into <param as>
 /// and <param bs> again.
 let zipShortest (as_: List<'a>) (bs: List<'b>) : List<('a * 'b)> =
-  match as_ with
-  | [] -> []
-  | aHead :: aTail ->
-    match bs with
-    | [] -> []
-    | bHead :: bTail ->
-      push (zipShortest aTail bTail) (aHead, bHead)
+  Builtin.listZipShortest as_ bs
 
 
 /// If the lists have the same length, returns {{Some list of tuples}} formed from

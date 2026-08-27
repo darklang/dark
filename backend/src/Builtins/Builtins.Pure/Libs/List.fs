@@ -668,6 +668,42 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "listZipShortest" 0
+      typeParams = []
+      parameters =
+        [ Param.make "as" (TList varA) ""; Param.make "bs" (TList varB) "" ]
+      returnType = TList(TTuple(varA, varB, []))
+      description =
+        "Returns a list of parallel pairs from <param as> and <param bs>, stopping when either "
+        + "runs out"
+      fn =
+        (function
+        | _, vm, [], [| DList(_, listA); DList(_, listB) |] ->
+          // The Dark version recursed a package call, two matches and a `push` per element. There is
+          // no lambda here at all -- pairing is pure structure -- so unlike `map2shortest` this
+          // needs no application per element either.
+          let mutable acc = []
+          let mutable restA = listA
+          let mutable restB = listB
+
+          while not (List.isEmpty restA) && not (List.isEmpty restB) do
+            match restA, restB with
+            | a :: tailA, b :: tailB ->
+              acc <- DTuple(a, b, []) :: acc
+              restA <- tailA
+              restB <- tailB
+            | _ -> ()
+
+          // `mappedList` merges the tuples' own ValueTypes, so the element type comes out
+          // `KTTuple(a, b)` without naming it here.
+          Ply(mappedList vm (List.rev acc))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "listMap2shortest" 0
       typeParams = []
       parameters =

@@ -347,6 +347,35 @@ let fns () : List<BuiltInFn> =
       deprecated = NotDeprecated }
 
 
+    { name = fn "stringDropFirst" 0
+      typeParams = []
+      parameters =
+        [ Param.make "string" TString ""; Param.make "count" TInt "" ]
+      returnType = TString
+      description =
+        "Returns <param string> with the first <param count> characters removed. The whole string "
+        + "if <param count> is negative, the empty string if it is longer than <param string>."
+      fn =
+        (function
+        | _, _, _, [| DString s; DInt countD |] ->
+          // The Dark version was two `String.length` calls, two comparisons and a `slice`. The
+          // "count is longer than the string" case needs no branch here: `normalizeEgcIndex` clamps
+          // it to the length, and an empty range gives "". A NEGATIVE count does need one, because
+          // a negative index counts from the end rather than clamping to zero.
+          match countD with
+          | DarkInt.Finite i when i < 0L -> Ply(DString s)
+          | DarkInt.Infinite b when b.Sign < 0 -> Ply(DString s)
+          | _ ->
+            let len = String.lengthInEgcs s
+            let first = normalizeEgcIndex len countD
+            egcSubstring s first len |> DString |> Ply
+        | _ -> incorrectArgs ())
+      sqlSpec = NotYetImplemented
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
     { name = fn "stringIsEmpty" 0
       typeParams = []
       parameters = [ Param.make "s" TString "" ]
