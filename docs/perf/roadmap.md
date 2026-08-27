@@ -1795,6 +1795,33 @@ is left is a compiler change (emitting opcodes for common operations at `PT2RT`,
 this round as too invasive for the ~0.7 ms it was worth) or the architectural one below, which is
 worth an order of magnitude more than everything remaining in the interpreter combined.
 
+### `styledWidth` extracted a grapheme cluster per character to discover ASCII is one column
+
+`TextWidth.ofCluster` already fast-paths the *width* of a printable ASCII cluster -- there is a
+comment there saying the table lookup costs hundreds of milliseconds a frame if taken every time.
+But `TerminalText.styledWidth` still called `StringInfo.GetNextTextElement` once per character to
+*build* the cluster it then measured, which is an ICU call and a string allocation each.
+
+A printable ASCII character followed by another ASCII character cannot be part of a longer grapheme
+cluster, so it is exactly one column and needs no cluster extracted. The only multi-character ASCII
+cluster is CRLF, and both halves are control characters already caught by the branch above -- which
+is what makes the peek-ahead sound, and is the check `history.md` says any ASCII fast path over
+strings has to get right.
+
+    cliTerminalStyledWidth   3.93 -> 3.49 us per call (289 calls a view), 1.14 -> 1.01 ms
+    viewAtSize (Debug)       21 -> 20 ms
+
+Checked three times: 3.55, 3.54, 3.39 against 3.80-3.93 before. The win is smaller than the
+allocation-per-character suggests because most spans in a frame are colourized, so much of what
+`styledWidth` walks is escape sequences going through `skipEscape` rather than ASCII text.
+
+Verified against the cases that would break it: `"hello"` 5, `""` 0, `"界界"` 4, `"a界b"` 4, `"é"` 1,
+`"a\r\nb"` 2.
+
+`TextWidth.ofString` has the same shape -- `String.toEgcSeq |> Seq.sumBy ofCluster`, a cluster
+allocated per character -- and backs `Stdlib.String.displayWidth`. Left alone: 35 calls a view, so
+worth ~0.03 ms, below the threshold for touching a measurement primitive.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

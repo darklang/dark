@@ -42,9 +42,22 @@ let styledWidth (text : string) : int =
   let mutable i = 0
 
   while i < text.Length do
-    if text[i] = '\u001b' then
+    let c = text[i]
+    if c = '\u001b' then
       i <- skipEscape text i ignore
-    elif System.Char.IsControl text[i] then
+    elif System.Char.IsControl c then
+      i <- i + 1
+    // A printable ASCII character followed by another ASCII character cannot be part of a longer
+    // grapheme cluster, so it is exactly one column and needs no cluster extracted. The only
+    // multi-character ASCII cluster is CRLF, and both of its halves are control characters caught
+    // above. `TextWidth.ofCluster` already fast-paths the *width* of an ASCII cluster; this skips
+    // building the cluster at all, which `GetNextTextElement` does one allocation per character.
+    elif
+      c >= ' '
+      && c <= '~'
+      && (i + 1 >= text.Length || text[i + 1] < '\u0080')
+    then
+      total <- total + 1
       i <- i + 1
     else
       let cluster = System.Globalization.StringInfo.GetNextTextElement(text, i)
