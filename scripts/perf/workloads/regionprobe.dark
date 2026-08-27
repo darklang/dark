@@ -63,6 +63,24 @@ timeIt "  Canvas.compose (no spans)  " (fun i ->
 
 Stdlib.printLine ("spans in a frame: " ++ (Stdlib.Int.toString (Stdlib.List.length spans)))
 
+// Spans per row. `overlay` appends to the row's placed list per span, which is O(n) each, so a row
+// with many spans costs O(n^2). The average is meaningless if the distribution is skewed.
+let perRow =
+  Stdlib.List.range 0 39
+  |> Stdlib.List.map (fun r ->
+    Stdlib.List.length (Stdlib.List.filter spans (fun sp -> sp.row == r)))
+
+let maxRow = Stdlib.List.fold perRow 0 (fun acc n -> Stdlib.Int.max acc n)
+
+let sumSquares = Stdlib.List.fold perRow 0 (fun acc n -> acc + (n * n))
+
+Stdlib.printLine ("max spans in one row:  " ++ (Stdlib.Int.toString maxRow))
+Stdlib.printLine ("sum of squares:        " ++ (Stdlib.Int.toString sumSquares))
+Stdlib.printLine
+  ("rows with >12 spans:   "
+   ++ (Stdlib.Int.toString
+        (Stdlib.List.length (Stdlib.List.filter perRow (fun n -> n > 12)))))
+
 let afterRight = step base Stdlib.Cli.Stdin.Key.Key.RightArrow
 
 let sidebarSame =

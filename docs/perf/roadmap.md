@@ -1077,6 +1077,37 @@ which is why `intToString` runs 303 times a frame), `Tui.Text.styledWidth`, and 
 against what is already placed; then `renderSegments` once per row. Round 5 already took the biggest
 Dark-side win here, the no-overlap fast path in `overlay`, and this is what is left after it.
 
+**`compose` is not doing anything wasteful; it is doing ~3,000 operations.** Worth establishing before
+anyone tries to micro-optimise it. The widest row holds 9 spans and the sum of squares over a frame is
+1,708, so `overlay`'s `List.append` per span is not blowing up quadratically. Round 5 already took the
+Dark-side win here. What is left is volume: roughly a dozen interpreted operations per span -- bucket
+by `Int.toString` into a string-keyed `Dict`, `styledWidth`, `overlay` with its `List.any` over what is
+placed, then `renderSegments` per row -- times 252 spans.
+
+**That contradicts the rule in `AGENTS.md`, which is now corrected.** It said Dark layout code
+"measures spans, not characters -- check that before moving anything else to F#". `compose` measures
+spans and never a character, and is 59% of a view build. The test is operations per frame, not what
+they iterate over. A Dark loop over 250 items doing a dozen calls each is 3,000 operations regardless
+of whether the items are characters or spans.
+
+**Inside `compose`: bucketing 5.65 ms, `composeRow` the other 11.35.** Timed by replicating the
+bucketing fold over a real frame's 252 spans. That is a third of it in `Int.toString` + `Dict.get` +
+`Option.withDefault` + `List.append` + `Dict.set`, five of the dozen operations a span costs.
+
+**Negative result: sorting instead does not help.** `List.sortBy` over the same 252 spans costs
+**4.25 ms** on its own, before any grouping -- the comparator is an interpreted lambda and a sort calls
+it O(n log n) times, about 2,000 applications. Replacing five cheap operations per span with one
+expensive comparison per comparison is not a trade. Worth knowing generally: a `sortBy` over a few
+hundred items is milliseconds. The view build's own 13 sorts are on small lists and cost 0.17 ms
+between them, so they are not a problem.
+
+**And the other bucketing idea was already tried in round 5**: `List.push` with a reverse per row
+instead of `List.append existing [span]`, measured flat at 62 -> 63 ms and reverted. The operation
+counts have not changed since, so it would still be flat.
+
+So there is no Dark-side fix left in `compose`. The choices are to make it native, or to produce fewer
+than 252 spans, which is CLI code rather than this.
+
 **The obvious move is to make `compose` native**, and the precedent is already in the tree: the row
 fitters in `Builtins.Cli/Libs/TerminalText.fs` are native for exactly this reason -- "a Dark loop pays
 a builtin call per character". `compose` is pure and has a small signature: `(width, height, spans) ->

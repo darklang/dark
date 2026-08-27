@@ -292,8 +292,19 @@ calls them. **F# owns measurement, Dark owns layout.** How wide a character is, 
 
 The trap: a Dark loop pays a builtin call per character. `Stdlib.Pretty` measures once per `Doc`
 node and is fine in Dark; the row fitters in `Builtins.Cli/Libs/TerminalText.fs` walked characters
-and cost seconds per keystroke, which is why they're native. Dark layout code measures spans, not
-characters -- check that before moving anything else to F#.
+and cost seconds per keystroke, which is why they're native.
+
+"Characters bad, spans fine" is the wrong test, though, and this section used to say it. `Canvas.compose`
+measures spans -- 252 of them in a frame, never a character -- and is **59% of a view build**: 17 ms of
+29, at 67 us to place one span. Nothing in it is wasteful. There is no quadratic blowup (the widest row
+holds 9 spans, and the sum of squares over a frame is 1,708), and round 5 already took the obvious
+Dark-side win in `overlay`. It costs that because it runs ~12 interpreted operations per span, and a
+package call is ~3 us in Debug.
+
+So count **operations per frame**, not what they operate on. A Dark loop over 250 items doing a dozen
+calls each is 3,000 operations, and that is the number that decides whether something belongs in F#,
+whichever unit it is iterating. `scripts/perf/workloads/regionprobe.dark` measures a frame by stage if
+you need the split.
 
 Widths are display cells, never `String.length`. `Stdlib.String.displayWidth` measures them and is
 medium-independent; `Cli.Tui.Text` is only for rows that carry escape sequences.
