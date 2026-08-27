@@ -59,7 +59,7 @@ val preBuiltInt = 7
 val preBuilt = Rec { a = 1; b = "x" }
 val preBuilt5 = Rec5 { a = 1; b = 2; c = 3; d = 4; e = 5 }
 
-val iterations = 4000
+val iterations = 10000
 
 /// One timed pass of `f`, in milliseconds.
 ///
@@ -114,6 +114,9 @@ measure "apply a lambda                       " (fun i -> (fun x -> x + 1) i)
 // The same builtin, reached both ways. The difference is the package-call machinery itself:
 // resolving the fn, type-checking the arguments, pushing a frame, checking the return type.
 measure "call a builtin directly              " (fun i -> Builtin.stringLength "hello")
+// `stringLength` counts grapheme clusters, so the row above is mostly its body. `boolNot` has no
+// body worth the name, so this one is the call machinery on its own.
+measure "call a trivial builtin (boolNot)     " (fun i -> if Builtin.boolNot true then 1 else 0)
 measure "  the same, via its package wrapper  " (fun i -> Stdlib.String.length "hello")
 
 Stdlib.printLine "--- values"

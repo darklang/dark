@@ -867,6 +867,41 @@ type checks, the TST, tracing, the frame dictionary, the record representation, 
 The profile is flat in both time and allocation, and the remaining buckets are all "what a call
 costs", spread over thousands of calls with no single hot spot.
 
+**An env-gated probe only fires if its name starts with `DARK_`.** `scripts/run-in-docker` propagates
+exactly those. Four ablation switches named `ABL_*` never reached the process, and each reported the
+thing it was ablating as costing nothing. **A probe that does not fire is indistinguishable from a
+probe that finds nothing** -- the worst failure mode this method has. Check that the switch changes
+*behaviour* before trusting that it changed no *timing*: `DARK_ABL_PLUMB=1 run-cli eval
+'Builtin.boolNot 5'` should stop reporting a type error, and did not.
+
+**`optime`'s resolution was 250 ns, and most of this round's small findings are one quantum.** It
+times in milliseconds over `iterations`, which was 4,000. Every "0.25 us" in the entries above --
+elision overhead, the argument type check, the frame dictionary -- is a single step, which is not
+distinguishable from noise. `iterations` is 10,000 now, so 100 ns, and the table still runs in 13
+seconds.
+
+**With both fixed, the type machinery is the largest item left.** A trivial builtin call -- `boolNot`,
+which has no body to speak of -- splits as:
+
+    total                     1.70 us
+    argument type check       0.30
+    result type check         0.20-0.30
+    type-symbol-table work    0.20
+
+~45% of a builtin call, across ~7,200 calls in a view build: **about 5 ms of 31**. That is a real
+target, not the "nothing here" the quantised readings suggested, and it is where a round 7 should
+start rather than at the compile-time opcode (1.4 ms at the corrected resolution).
+
+The safe corner of it is done: the builtin path merged `explicitlyBound` into the TST unconditionally
+where the package path already guards on it being empty, which it is on every call without explicit
+type args. 1.70 -> ~1.57 us per trivial builtin call, not visible in `viewAtSize` because 7,200 calls
+x 0.13 us is 0.9 ms and that instrument's spread is wider.
+
+The rest needs care: a builtin whose signature has no type variables at all could skip the TST work
+entirely and check arguments by `Dval` case rather than by unification. That is a second type checker
+unless it is written as a fast path *inside* the existing one, and getting it wrong accepts bad values
+rather than merely running slowly.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`

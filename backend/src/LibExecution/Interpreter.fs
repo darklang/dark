@@ -1246,7 +1246,10 @@ and private callBuiltinResolvedSlow
       TST.empty
     else
       List.zip fn.typeParams resolvedTypeArgsVT |> TST.ofList
-  tst <- TST.mergeFavoringRight tst explicitlyBound
+  // Guarded, as the package path already guards it: with no explicit type args there is nothing to
+  // merge, and that is nearly every call.
+  if not (TST.isEmpty explicitlyBound) then
+    tst <- TST.mergeFavoringRight tst explicitlyBound
   recordStage vm ApplyStage.BiTstShadow biShadowAlloc
 
   let biArgsAlloc = allocNow vm
