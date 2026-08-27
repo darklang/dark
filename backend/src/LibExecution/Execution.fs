@@ -184,7 +184,9 @@ let private loadApplyRegisters
   let registers = vm.callFrames[vm.currentFrameID].registers
   registers[1] <- RT.DApplicable applicable
   registers[2] <- args.head
-  // Head and tail directly: `NEList.toList` would allocate a list per application.
+  // Head and tail directly: `NEList.toList` would allocate a list per application. The `iteri`
+  // closure looks like a per-application allocation and is not one: hand-rolling the loop measured
+  // neutral on both the gate and the lambda amplifier, so the optimiser is already eliding it.
   args.tail |> List.iteri (fun i arg -> registers[i + 3] <- arg)
 
 
