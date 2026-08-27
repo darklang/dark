@@ -690,9 +690,25 @@ dispatch -> argument type check -> `Dval` boxing, at 1.0-1.25 us, so roughly **8
 build is spent adding integers through the generic call machinery**. The interpreter has no opcode
 for `+`.
 
-That is the largest single identified bucket left in the CLI path, and it is a different kind of
-change from anything in this round: dedicated `Int` opcodes for the arithmetic and comparison
-operators, falling back to the builtin for every other type. Not attempted here.
+**Done, and it was the largest single win of the round.** The interpreter evaluates the ten `Int`
+operators itself when both operands are `Int`, and takes the ordinary path for everything else.
+
+    viewAtSize                42-44 -> 33-34 ms
+    steady.dark                  55 -> 38 ms
+    optime: fold over 5       30.75 -> 19.75 us,  map 33.0 -> 22.5,  any 29.5 -> 19.5
+    suite: recursion           1144 -> 676 ms,  lists 56 -> 39,  records 21 -> 15
+
+`recursion` halving is the tell: that workload is `depth` and `fib`, nothing but arithmetic and calls.
+
+Three things to know if this is extended. It declines while tracing is on, because a builtin call is
+recorded with its arguments and result when it returns and skipping that would drop every arithmetic
+operation from the trace -- the same shape as eliding an effectful forwarder. It still increments
+`builtinCalls`, so the stats do not start lying. And dispatch is one probe of a ten-entry table keyed
+by `FQFnName.Builtin`: the probe that sized this matched on the name string and got 36 ms where the
+table gets 33, so the dispatch is worth about 3 ms on its own.
+
+Still not a compiler change -- the `Apply` still happens. An opcode emitted by `PT2RT` would remove
+that too.
 
 **Conversions are not in the keypress path.** A view build calls 45 distinct builtins, and none of
 them is a PT/RT/DT conversion or reflection builtin -- the only one that appears at all is
