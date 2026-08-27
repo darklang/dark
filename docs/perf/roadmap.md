@@ -2563,13 +2563,16 @@ passes explicit type args, which in the CLI is none and in HTTP is one `Json.ser
 For the record, the `json` workload is mostly its builtins: `jsonParse` 30.4 us and `jsonSerialize`
 7.8 us of a ~50 us iteration. Its time is the F# JSON implementation, not the interpreter.
 
-### `startsWith` and `endsWith` were three package calls to test a prefix
+### `startsWith` was three package calls to test a prefix
 
 `String.startsWith` was `slice subject 0 (String.length prefix) == prefix`: a package call for the
 wrapper, plus `slice`, plus `length`, plus the comparison. 10 calls in routing one request at 14.85
 us each, and 115 call sites across `packages/`.
 
-Both are builtins now, with the Dark functions as bare forwarders (so they elide as well).
+`startsWith` is a builtin now, with the Dark function as a bare forwarder (so it elides as well).
+`endsWith` was given the same treatment and then **taken back out**: it has no measured hot caller,
+and a builtin is a permanent cost. See the builtin-count entry below. It stays in Dark, expressed on
+`slice`, which is fast now.
 
     stringStartsWith   14.85 -> 1.69 us per call
     routing            ~470 -> ~417 us a route     (-11%; ~600 -> ~417 across both string changes, -32%)
@@ -2584,7 +2587,7 @@ sequences, skin-tone modifiers -- but not that particular case, so getting it ri
 reading the Dark source rather than passing the suite.
 
 Rather than reimplement, `stringSlice`'s logic was factored into `egcSubstring` and
-`normalizeEgcIndex`, and all three builtins are expressed on them, so they cannot drift. There is an
+`normalizeEgcIndex`, and both string builtins are expressed on them, so they cannot drift. There is an
 ordinal fast path for when *both* sides are charwise, where every cluster is one character and the
 two notions coincide; that is nearly every call, and it skips the cluster walk entirely.
 
@@ -2723,6 +2726,37 @@ What is left on that path is `parseRouteSegments` (11% and still the design ques
 constant route patterns every request) and `matchRouteSegments`, which builds an intermediate tuple
 list via `zipShortest` purely to fold over it -- now much cheaper, and fusing the two would need a
 `fold2` that does not exist.
+
+### Counting the builtins this round adds, and removing the ones nothing earned
+
+754 builtins exist today. Each is a permanent cost to the solution, so the marginal additions were
+measured rather than assumed at the end of the round.
+
+This branch adds 24: 22 for performance, plus `pmOwnerHasItems` and `scmGetCommitNamedOps`, which
+round 5's CLI work needed. Of the 22, four looked like they were added for completeness rather than
+measured need. Removing all four, same-session A/B:
+
+    routing   min 1,022 -> 1,125 ms   (-9.2% to remove them)
+    view      min 5,682 -> 5,775 ms   (-1.6%)
+
+But all of that cost is in two of the four:
+
+    listZipShortest   6 calls a route -- the Dark version pays a lambda application per element
+    stringDropFirst   2 calls a route, on `slice`
+
+The other two were removed, with no measurable effect anywhere (routing 992 against 1,022 ms, view
+5,725 against 5,682 -- both inside noise):
+
+    stringEndsWith   added for symmetry with `startsWith`, never measured hot
+    dictIsEmpty      no caller on the view or the server path
+
+Net: **20 performance builtins**. The general lesson is that symmetry is not a reason -- `endsWith`
+was added because `startsWith` was, and nothing else.
+
+**Worth a broader pass after this merges.** Count the 754, find the ones no measurement earns, and
+take a little performance back for a smaller surface. This round's method transfers directly: remove
+the candidate, A/B it in one session on `routeloop` and `viewloop`, and keep it only if the number
+survives.
 
 ### Open, ranked
 
