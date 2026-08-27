@@ -12,6 +12,30 @@
 // application and an Int comparison per iteration) and every other row includes it, so compare rows
 // to each other and subtract the baseline, never read a row as an absolute.
 //
+// Two things a row's name leaves out, because the harness needs every row to return an `Int`:
+//
+//   - the list and string rows wrap their result in `List.length` or `String.length`, an elided
+//     package wrapper around a builtin, so each carries that call as well as the operation it names
+//   - a row naming a `val` pays to load a package value first; `load a val` is there to subtract
+//
+// Neither matters when comparing rows to each other. Both matter a great deal if a row is read as the
+// cost of the thing in its name -- which is how "record field access at 4.6 us" reached a roadmap.
+//
+// AND THE TABLE WARMS UP AS IT RUNS. The baseline is printed at both ends and they do not agree:
+// ~4,000 ns at the top against ~3,250 at the bottom, repeatably. `load a val (an Int)` is measured
+// twice, in both positions, and reads ~5,600 near the top and ~4,500 at the end -- the same
+// expression, 1.1 us apart. So a row near the top is inflated against a row near the bottom by
+// something like 0.75 us.
+//
+// What that means in practice:
+//
+//   - comparing a row to the SAME row in another build is sound, and is how every ablation in this
+//     round was done
+//   - comparing two rows far apart in this table is biased by the drift; subtract the nearer
+//     baseline, and treat a difference under ~0.75 us as unmeasurable here
+//   - the two `load a val (an Int)` rows exist to keep this visible; if they ever agree, the drift
+//     is gone and this note can go with it
+//
 // Each row is the fastest of three passes. Time is noisy where allocation is not -- the playbook is
 // blunt about this -- and the minimum of several passes is the least noisy estimator available:
 // a pass can be slowed by the machine, never sped up by it.
@@ -30,6 +54,7 @@ let listFn (i: Int) : List<Int> = [ i ]
 
 type Rec5 = { a: Int; b: Int; c: Int; d: Int; e: Int }
 
+val preBuiltInt = 7
 val preBuilt = Rec { a = 1; b = "x" }
 val preBuilt5 = Rec5 { a = 1; b = 2; c = 3; d = 4; e = 5 }
 
@@ -63,6 +88,7 @@ Stdlib.printLine "--- harness"
 measure "baseline (fold + lambda + compare)   " (fun i -> i)
 
 Stdlib.printLine "--- calls"
+measure "load a val (an Int)                  " (fun i -> preBuiltInt)
 measure "call a 1-arg fn                      " (fun i -> plainFn i)
 measure "call a 2-arg fn                      " (fun i -> twoArgFn i 1)
 measure "apply a lambda                       " (fun i -> (fun x -> x + 1) i)
@@ -72,12 +98,14 @@ measure "call a builtin directly              " (fun i -> Builtin.stringLength "
 measure "  the same, via its package wrapper  " (fun i -> Stdlib.String.length "hello")
 
 Stdlib.printLine "--- values"
-measure "build a 2-field record               " (fun i -> (Rec { a = i; b = "x" }).a)
+measure "build a 2-field record, read a field" (fun i -> (Rec { a = i; b = "x" }).a)
 // Built once, outside the loop. The old row here was `(recFn i).a`, which is a package call plus a
 // record construction plus a field read, and cannot isolate any of the three -- it read as *cheaper*
 // than the bare package call above it, which is how the confound showed.
-measure "read a record field                  " (fun i -> preBuilt.a)
-measure "read a 5-field record's last field   " (fun i -> preBuilt5.e)
+// A `val` is a package value, and loading one is most of what these two rows cost. Subtract the
+// `load a val` row for the field read itself, which is ~25 ns and nothing like what these look like.
+measure "load a val, read its field           " (fun i -> preBuilt.a)
+measure "load a val, read a 5-field's last    " (fun i -> preBuilt5.e)
 measure "update a record field                " (fun i ->
   let r = Rec { a = i; b = "x" }
   ({ r with a = i + 1 }).a)
@@ -121,4 +149,5 @@ measure "match on an Int                      " (fun i ->
 
 // Repeated last as well as first: the first row absorbs one-time costs, so the honest floor is this.
 Stdlib.printLine "--- harness, again"
+measure "load a val (an Int), at the end      " (fun i -> preBuiltInt)
 measure "baseline again, at the end           " (fun i -> i)

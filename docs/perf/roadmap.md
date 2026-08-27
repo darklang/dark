@@ -752,6 +752,30 @@ which is 185 KB per view build and is now fixed.
 the same time as a 2-field record's, three runs each. Anyone reaching for "flatten records into arrays
 indexed per type" should know the tree walk was never the cost.
 
+**`optime` drifts within a single run, by more than several of this round's findings.** The baseline
+is printed at both ends and they do not agree: **~4,000 ns at the top against ~3,250 at the bottom**,
+repeatably. The same expression measured twice, once near the top and once at the end, reads ~5,600
+and ~4,500. So a row near the top is inflated against a row near the bottom by roughly **0.75 us**.
+
+That is bigger than the elision overhead (0.5 us), the argument type check (0.25) and the frame
+dictionary (0.06) -- all of which this round has quoted.
+
+It does **not** touch any of them, because every one was measured by ablation: the same row, in two
+builds, in the same position. That is the sound comparison and it is the one to keep using. What is
+*not* sound is subtracting two rows far apart in one table, which is exactly how a cost model gets
+built by eye. Subtract the nearer baseline, and treat a difference under ~0.75 us as unmeasurable
+here.
+
+`load a val (an Int)` is now measured twice, at both ends, so the drift stays visible. If the two ever
+agree, it is gone.
+
+**And two rows were measuring more than their names said.** `read a record field` was `preBuilt.a`,
+where `preBuilt` is a `val`, so it measured loading a package value and then reading a field -- and it
+is how "record field access at 4.6 us" became a ranked target in the campaign brief. `build a 2-field
+record` also read a field back. Both now say so. Every list and string row also wraps its result in
+`List.length` or `String.length`, which is an elided wrapper around a builtin, carried on top of the
+operation the row names.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`
