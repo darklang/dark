@@ -2058,6 +2058,38 @@ left. Two plausible causes, both measured with `lambdapath.dark` and both flat:
 Which leaves the ~1.5 us of lambda machinery with no single dominant component -- the playbook's
 "profile has gone flat" state. Recorded so neither is attempted again on the strength of how it reads.
 
+### `skipEscape` allocated a substring per SGR sequence that two of its four callers threw away
+
+`styledWidth` is the busiest non-HOF builtin left in a view build -- 289 calls, and it cannot join
+the operator fast path because that path computes results itself and this one walks escape sequences.
+So: make the body cheaper instead.
+
+`skipEscape` handed its caller the SGR sequence as a `string`, via `text.Substring`. Two of its four
+callers (`styledWidth`, `stripSgr`) pass `ignore`. A colourized span carries a couple of sequences
+and a frame measures 289 of them, so that was several hundred substrings a frame that nothing ever
+read. It now hands back a start and a length; the one caller that genuinely needs a string builds
+one, and the one appending to a `StringBuilder` no longer needs an intermediate at all.
+
+Measured with `viewalloc.dark`, which repeats **to the byte**:
+
+    before   1,615,048 bytes per view build
+    after    1,587,288 bytes per view build
+    saved       27,760 bytes, 1.7%
+
+Time is flat, at 3.31 us a call either way -- which is the playbook's point about deciding with
+allocation and reporting time. The gate does not move because `steady.dark` renders nothing.
+
+**Negative result: vectorizing the printable-ASCII run made it slower.** `styledWidth` walks a
+~100-character row a character at a time, so consuming each printable run in one
+`IndexOfAnyExceptInRange` -- vectorized, where the per-character version pays three branches each --
+looked like the obvious win. It measured **3.59, 3.62, 3.66 us against 3.31**: about 9% worse.
+
+The reason is that the runs are short and interleaved. A colourized span is an escape, a dozen
+characters, another escape, so the loop turns over four or five times per string and each turn builds
+a span and enters a vectorized call whose setup costs more than the dozen branches it saves. The
+character-at-a-time version, with the ASCII peek-ahead added earlier this round, is already the right
+shape for this data. Reverted, and worth recording because the change reads as obviously correct.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the
