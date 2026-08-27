@@ -1694,10 +1694,29 @@ full-screen frame that looked like the biggest remaining item in the render path
     dictSetOverridingDuplicates    252 calls    0.54 ms
 
 Replacing it wants one native sort by row and a single lockstep pass against rows 0..h-1, which in
-Dark means a new top-level recursive function and gap-padding for empty rows -- perhaps 25 fiddly
-lines in the hottest render function there is, to win 8%. Ranked here with an honest estimate rather
-than taken. The earlier guess of ~2.7 ms was too high because it double-counted the fold's lambda
-applications.
+Dark means a new top-level recursive function and gap-padding for empty rows.
+
+**Priced properly, it is worth ~0.8 ms, not the 8% first estimated, and it is not worth taking.**
+The first estimate counted only what the Dict costs and nothing of what the replacement costs. Both
+sides, per view:
+
+    now          bucketing         1.77 ms  (intToString 0.58, dictGet 0.66, dictSet 0.53)
+                 its List.appends  0.45 ms  (252 of the 520)
+                 the fold's lambda 0.40 ms
+                                   2.62 ms
+
+    after        filter's lambda   0.40 ms  (252 applications)
+                 sortBy's key fn   0.50 ms  (252 applications, plus the sort)
+                 the emit walk     0.79 ms  (292 Dark self-recursive package calls at ~2.7 us)
+                                   1.69 ms
+
+The trap is that gap-padding for empty rows forces a *recursive* walk rather than a fold, and a Dark
+self-recursive package call is ~2.7 us where a fold's lambda application is ~1.6. That walk runs once
+per span plus once per row, so it costs 0.79 ms on its own and eats most of what the Dict gave back.
+Roughly 0.8 ms of a 20 ms view, in the riskiest function to change. Closed.
+
+The general lesson, and the second time today: an estimate that prices only the thing being removed
+is not an estimate.
 
 **Negative result: the per-span `List.append` is not quadratic in practice.** `List.append existing
 [ span ]` copies a row's spans every time one is added, so it should cost n^2/2 copies for a row of
@@ -1822,10 +1841,40 @@ Verified against the cases that would break it: `"hello"` 5, `""` 0, `"界界"` 
 allocated per character -- and backs `Stdlib.String.displayWidth`. Left alone: 35 calls a view, so
 worth ~0.03 ms, below the threshold for touching a measurement primitive.
 
+### Where round 6 has got to
+
+Measured on the published binary, which is what anyone actually runs:
+
+    viewAtSize             24 -> 12-14 ms
+    preparePresentAtSize   2 -> 1-2 ms
+    viewAtSize (Debug)     31 -> 20 ms
+
+Debug remains ~2.5x pessimistic and preserves the ordering, so it is still the right thing to
+develop against; the published number is the one to quote.
+
+The round is close to done, and it is worth being explicit about why rather than leaving it to be
+rediscovered. A view build issues ~12,500 `Apply` opcodes: ~3,292 package calls, ~3,332 real builtin
+calls, ~2,435 lambda applications, and ~4,800 operators taken by the fast paths. Everything else --
+the ~29,500 non-`Apply` instructions -- is worth perhaps 1.2 ms of the 20. So a view *is* its calls,
+and each of the three call costs has now been measured and worked:
+
+- package call 2.7 us: the type-checking half is bounded at ~0.2-0.3 us and closed; what remains is
+  TST shadowing, the fetch and the frame push
+- builtin call 1.7 us: the operator fast path takes the ones that can be taken; the rest need the
+  builtin's record
+- lambda application 1.6 us: frames are pooled, the execution point and instruction data memoized,
+  and per-arity entry points avoid the `NEList`
+
+Which leaves two ways forward, and neither is more interpreter tuning: **emit opcodes for common
+operations at `PT2RT`** (closed earlier at ~0.7 ms, and it needs a new `Instruction` case across six
+sites including binary serialisation), or **issue fewer calls**, which is the CLI's code and round
+5's territory. The redraw item below is the latter at its largest: 95% of a frame is identical to the
+one before it, and not rebuilding it is worth more than everything left in the interpreter combined.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the
-view build from ~150 ms to 31 (Debug) / 24 (published). Corrected below rather than deleted, so the
+view build from ~150 ms to 20 (Debug) / 12-14 (published). Corrected below rather than deleted, so the
 reasoning stays readable.*
 
 **~~Why ~15 sidebar rows cost 66 ms.~~ Superseded.** A whole view is now 31 ms, so 66 of it cannot be
@@ -1835,8 +1884,8 @@ functions are `Option.withDefault` (275 calls), `Canvas.overlay` (252), `Tuple2.
 `Option.isSome` (102), `Colors.colorize` (71). Whether the sidebar is still the largest *share* of a
 view is unmeasured at current numbers, and would need a workload of its own.
 
-**~~~150 ms to build one view is the floor for every keypress.~~ Superseded.** 31 ms on Debug, 24 on
-the published binary. The flatness it described is gone too: ten workbench views now run 28-56 ms
+**~~~150 ms to build one view is the floor for every keypress.~~ Superseded.** 20 ms on Debug,
+12-14 on the published binary. The flatness it described is gone too: ten workbench views now run 28-56 ms
 (Debug), which is the same spread it always had, proportionally.
 
 **A record update is not the problem.** Still true, and round 6 added two more reasons to believe it:
