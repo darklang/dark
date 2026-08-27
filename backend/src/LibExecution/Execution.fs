@@ -169,7 +169,8 @@ let private applyInstrsFor (argCount : int) : struct (RT.InstrData * int) =
     fun n ->
       let argRegs = [ 2 .. n + 1 ]
       let instrData : RT.InstrData =
-        { instructions = [| RT.Apply(0, 1, [], argRegs |> NEList.ofListUnsafe "" []) |]
+        { instructions =
+            [| RT.Apply(0, 1, [], argRegs |> NEList.ofListUnsafe "" []) |]
           resultReg = 0 }
       struct (instrData, n + 2)
   )
