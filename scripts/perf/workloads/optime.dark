@@ -122,6 +122,10 @@ measure "  the same, via its package wrapper  " (fun i -> Stdlib.String.length "
 // `stringLength` counts grapheme clusters, so the pair above carries its body as well. `boolNot` has
 // no body worth the name and is on the interpreter's operator fast path, so this pair is the call
 // machinery on its own, with and without a wrapper around it.
+// A wrapper called with an EXPLICIT type argument. The thin-wrapper elision declines when
+// `typeArgs` is non-empty, so this pair is the un-elided cost of the same forwarding.
+measure "builtin with a type arg              " (fun i -> Stdlib.String.length (Builtin.jsonSerialize<Int> i))
+measure "  the same, via its package wrapper  " (fun i -> Stdlib.String.length (Stdlib.Json.serialize<Int> i))
 measure "call a trivial builtin (boolNot)     " (fun i -> if Builtin.boolNot true then 1 else 0)
 measure "  the same, via its package wrapper  " (fun i -> if Stdlib.Bool.not true then 1 else 0)
 

@@ -2507,6 +2507,55 @@ Priced one component of that call directly, using the slope technique -- three e
 (511 full package calls). So a self-call fast path that skipped the fetch is not worth building, and
 `recursion` stays where it is until a package call gets structurally cheaper. Closed.
 
+### `String.slice` normalized its indices in Dark, with a lambda, twice per call
+
+`String.slice` built a `normalize` lambda and applied it to both indices before calling
+`Builtin.stringSlice` -- a `CreateLambda`, two lambda applications and a `String.length` on every
+call, to clamp two integers. The builtin already handled negative indices; the wrapper added the
+clamp to `[0, len]` and the "end never precedes start" rule.
+
+Moved into the builtin, which makes the wrapper a bare forwarder and therefore elided as well.
+`startsWith`, `dropFirst`, `first` and `endsWith` all go through `slice`, so they follow.
+
+    routing   1801 1842 1866 ms  ->  1393 1416 1439 ms   (~600 -> ~470 us a route, -21%)
+    view      unchanged
+    checksum  identical
+
+**Two things went wrong on the way, and both were caught by instruments rather than by reading.**
+
+- **The first version regressed a view build 4%.** I used `StringInfo(s).LengthInTextElements` for the
+  length, where the Dark wrapper had called `String.length` -- which is `lengthInEgcs`, and that
+  checks `isCharwise` first and answers `s.Length` for text with no multi-character clusters. Nearly
+  all text. `viewloop` read 5,905-6,039 against a 5,711-5,773 baseline. Using the same helper put it
+  back.
+- **The second version failed a testfile.** `String.slice "abc" 0 4503599627370498` is "abc", because
+  the wrapper clamped *before* narrowing to int32. Normalizing after `intToInt32` raised
+  `Int OutOfRange` instead. Clamping in the `Int` domain first, with an `Infinite` arm for values past
+  int64 in either direction, restores it. `backend/testfiles/execution/stdlib/string.dark:783` is the
+  line, and it is exactly the kind of case a hand-written check would not have thought of.
+
+### A thin wrapper called with explicit type arguments is never elided
+
+Measured while profiling the `json` suite workload, which had never been profiled per function.
+`Json.parse` and `Json.serialize` are bare forwarders, yet both show up as real package calls: the
+elision requires `List.isEmpty typeArgs`, and these are called as `Json.serialize<Item> item`.
+
+`optime`, net of baseline:
+
+    Builtin.jsonSerialize<Int> direct    5.93 us
+    via Stdlib.Json.serialize<Int>       9.33 us     -> the wrapper costs 3.4 us
+    for comparison, an elided wrapper                   0.17 us
+
+**20x the overhead of an elided wrapper.** Extending the elision means checking that the body's type
+args are exactly the wrapper's own type params in order, then passing the caller's resolved args
+through -- which is type-argument resolution in the elision path, the riskiest part of the
+interpreter, and not all 3.4 us is recoverable (the builtin's parameterised return type check happens
+either way). **Recorded with a size, not taken.** The reach is narrow too: it needs a call site that
+passes explicit type args, which in the CLI is none and in HTTP is one `Json.serialize` per request.
+
+For the record, the `json` workload is mostly its builtins: `jsonParse` 30.4 us and `jsonSerialize`
+7.8 us of a ~50 us iteration. Its time is the F# JSON implementation, not the interpreter.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

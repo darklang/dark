@@ -318,17 +318,35 @@ let fns () : List<BuiltInFn> =
         + "<param string>."
       fn =
         (function
-        | _, vm, _, [| DString s; DInt firstD; DInt lastD |] ->
-          let getLengthInTextElements s = StringInfo(s).LengthInTextElements
+        | _, _, _, [| DString s; DInt firstD; DInt lastD |] ->
+          // `String.lengthInEgcs`, not `StringInfo(_).LengthInTextElements`: the former checks
+          // `isCharwise` first and answers with `s.Length` for text that has no multi-char clusters,
+          // which is nearly all of it. Going straight to `StringInfo` cost a view build 4%.
+          let len = String.lengthInEgcs s
 
-          // slice positions are bounded by string length; narrow Int -> native int
-          let first = intToInt32 vm firstD
-          let last = intToInt32 vm lastD
+          // Normalizing here rather than in the Dark wrapper, which built a lambda and applied it
+          // twice to do exactly this, then called in with the results. Same rule, unchanged: a
+          // negative index counts from the end, the result is clamped to [0, len], and the end never
+          // precedes the start. That wrapper is a bare forwarder now, so it elides.
+          //
+          // The length was already being computed for the negative case, and the wrapper called
+          // `String.length` unconditionally, so nothing new is walked.
+          // Clamp in the `Int` domain and only then narrow. Narrowing first would raise
+          // `OutOfRange` on an index past int32, where the wrapper this replaced clamped it --
+          // `String.slice "abc" 0 4503599627370498` is "abc", and there is a testfile line for it.
+          let normalize (d : DarkInt) : int =
+            match d with
+            | DarkInt.Finite i ->
+              let i = if i < 0L then int64 len + i else i
+              if i < 0L then 0
+              elif i > int64 len then len
+              else int i
+            // Past int64 either way: still just "before the start" or "past the end".
+            | DarkInt.Infinite b -> if b.Sign > 0 then len else 0
 
-          // Handle negative indexes (which allow counting from the end)
-          let first =
-            if first < 0 then getLengthInTextElements (s) + first else first
-          let last = if last < 0 then getLengthInTextElements (s) + last else last
+          let first = normalize firstD
+          let last = normalize lastD
+          let last = if first > last then first else last
 
           if first >= last then
             Ply(DString "")

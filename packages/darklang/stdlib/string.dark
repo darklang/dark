@@ -253,19 +253,7 @@ let contains (lookingIn: String) (searchingFor: String) : Bool =
 /// Returns the substring of <param string> between the <param from> and <param to> indices.
 /// Negative indices start counting from the end of <param string>.
 let slice (string: String) (from: Int) (``to``: Int) : String =
-  let len = String.length string
-
-  let normalize =
-    (fun i ->
-      (if i < 0 then len + i else i)
-      |> Int.min len
-      |> Int.max 0)
-
-  let f = normalize from
-  let l = normalize ``to``
-  let l = if f > l then f else l
-
-  string |> Builtin.stringSlice f l
+  Builtin.stringSlice string from ``to``
 
 
 /// Returns the first <param characterCount> characters of <param string>, as a Builtin.String.
