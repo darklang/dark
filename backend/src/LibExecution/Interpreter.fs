@@ -424,11 +424,17 @@ and private assignLetPatterns
   (pats : List<LetPattern>)
   (dvs : List<Dval>)
   : bool =
-  match pats, dvs with
-  | [], [] -> true
-  | pat :: patRest, dv :: dvRest ->
-    assignLetPattern registers pat dv && assignLetPatterns registers patRest dvRest
-  | _ -> false
+  // Nested, not `match pats, dvs with`, which allocates the pair. Every tuple destructure reaches
+  // here, including the pairs that make up nearly all of them: `assignLetPattern` handles the first
+  // two elements itself and calls this with the rest, which for a pair is two empty lists -- so the
+  // allocation happened on the way to answering `true` about nothing.
+  match pats with
+  | [] -> List.isEmpty dvs
+  | pat :: patRest ->
+    match dvs with
+    | dv :: dvRest ->
+      assignLetPattern registers pat dv && assignLetPatterns registers patRest dvRest
+    | [] -> false
 
 
 /// Try a match pattern against a value, appending any bindings it makes to `buf`.

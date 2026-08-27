@@ -814,6 +814,28 @@ record` also read a field back. Both now say so. Every list and string row also 
 `List.length` or `String.length`, which is an elided wrapper around a builtin, carried on top of the
 operation the row names.
 
+**Swept the interpreter for the tuple-match trap; one hot site, now fixed.** `assignLetPatterns`
+matched `pats, dvs` as a pair, and every tuple destructure reaches it -- including the pairs that are
+nearly all of them, where it is called with two empty lists and allocated a pair to answer `true`
+about nothing. **2,071,180 -> 2,017,644 bytes per view**, gate 7.3 -> 7.2 MB. Of the three sites using
+the tuple form, that was the only hot one: `sameType` runs once per package fn and is cached, and the
+third is a comment warning about the other two.
+
+`System.Tuple<Dval, Dval>` no longer appears in a view build's allocation profile at all.
+
+**Negative result: `String.Normalize` is already free on normalized input.** `stringAppend` runs 728
+times per view and normalizes every result, which looked like an obvious guard to add. Measured with a
+throwaway builtin, 100 calls each against a zero-call row: `s.Normalize()` **5 ns**,
+`if s.IsNormalized() then s else s.Normalize()` **5 ns**, no normalize at all 0. .NET short-circuits
+already. 728 appends is 3.6 us of a 32 ms view build.
+
+**Where a view build's allocation now sits**, from `alloc-profile`: `System.String` 29% (output text
+the CLI builds, not interpreter), `FSharpList<Dval>` 9% (list values themselves), record and dict
+construction through `Map<string, Dval>` ~17% between `MapTreeNode`, `FSharpMap`,
+`Tuple<string, Dval>` and the field lists, `BigInteger` 3%. Nothing dominant, and the record share is
+worth ~1 ms of time (549 constructions at ~1.75 us), which is consistent with field *reads* not being
+the cost either.
+
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
 `Stdlib.String.length 5` reports: the wrapper's type error today, the builtin's `incorrectArgs`
