@@ -49,21 +49,26 @@ let overlay (existing: List<Segment>) (next: Segment) : List<Segment> =
     Stdlib.List.append existing [ next ]
   else
 
+  // `filterMap` rather than `map` into one-element lists and `flatten`: the branches here answer
+  // "keep, trim, or drop", which is what an `Option` says, and building a list per segment only to
+  // concatenate them all was the long way round. `filterMap` is native now, which it was not when
+  // this was written.
   let kept =
     existing
-    |> Stdlib.List.map (fun seg ->
+    |> Stdlib.List.filterMap (fun seg ->
       let segEnd = seg.col + seg.width
       if segEnd <= next.col || seg.col >= nextEnd then
-        [ seg ]
+        Stdlib.Option.Option.Some seg
       else if seg.col < next.col then
         let keepWidth = next.col - seg.col
-        [ Segment
+        Stdlib.Option.Option.Some(
+          Segment
             { col = seg.col
               text = Tui.Text.clipToWidth seg.text keepWidth
-              width = keepWidth } ]
+              width = keepWidth }
+        )
       else
-        [])
-    |> Stdlib.List.flatten
+        Stdlib.Option.Option.None)
 
   Stdlib.List.append kept [ next ]
 
