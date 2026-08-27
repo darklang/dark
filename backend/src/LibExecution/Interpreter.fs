@@ -1199,6 +1199,32 @@ type private PackageOutcome =
 let private thinWrapperCache =
   System.Collections.Concurrent.ConcurrentDictionary<Hash, BuiltInFn voption>()
 
+/// Structural type equality that ignores the name a type was written as.
+///
+/// `TCustomType` carries the source name beside the resolved hash, and the two sides of a forwarder
+/// spell the same type differently: a builtin's `TypeReference.option varA` has no original name,
+/// where the Dark signature wrapping it says `Option<'a>`. Comparing whole `TypeReference`s rejected
+/// every forwarder whose signature mentions a custom type -- `Dict.get` among them, at 292 calls in
+/// one workbench view.
+let rec private sameType (a : TypeReference) (b : TypeReference) : bool =
+  match a, b with
+  | TCustomType(aName, aArgs), TCustomType(bName, bArgs) ->
+    aName.resolved = bName.resolved && sameTypes aArgs bArgs
+  | TStream x, TStream y
+  | TList x, TList y
+  | TDict x, TDict y
+  | TDB x, TDB y -> sameType x y
+  | TTuple(a1, a2, aRest), TTuple(b1, b2, bRest) ->
+    sameType a1 b1 && sameType a2 b2 && sameTypes aRest bRest
+  | TFn(aArgs, aRet), TFn(bArgs, bRet) ->
+    sameTypes (NEList.toList aArgs) (NEList.toList bArgs) && sameType aRet bRet
+  // Primitives and `TVariable`, where the case itself is the whole of the type.
+  | _ -> a = b
+
+and private sameTypes (a : List<TypeReference>) (b : List<TypeReference>) : bool =
+  List.length a = List.length b && List.forall2 sameType a b
+
+
 let private detectThinWrapper
   (exeState : ExecutionState)
   (fn : PackageFn.PackageFn)
@@ -1206,11 +1232,18 @@ let private detectThinWrapper
   // The builtin's own type params are left to inference, which is what running the wrapper's body
   // would have done: that body applies the builtin with no explicit type args, which the match below
   // insists on.
+  // Never a builtin that needs capabilities. Eliding `Stdlib.HttpClient.request`, a bare forwarder
+  // like any other, changed what `request "put" "file:///etc/passwd"` does: 36 testfiles that assert
+  // an unsupported-protocol error instead saw a real request attempted. The effectful builtins reach
+  // for more of the calling context than a pure one does, and the wrapper's frame is part of that
+  // context. Pure builtins are the whole of the win here anyway -- `Dict.get`, `Option`, `Tuple2` --
+  // so this costs nothing worth having.
   let sameSignature (bi : BuiltInFn) =
-    fn.returnType = bi.returnType
+    System.Object.ReferenceEquals(bi.capabilities, Capabilities.noCaps)
+    && sameType fn.returnType bi.returnType
     && List.length bi.parameters = NEList.length fn.parameters
     && List.forall2
-      (fun (p : PackageFn.Parameter) (bp : BuiltInParam) -> p.typ = bp.typ)
+      (fun (p : PackageFn.Parameter) (bp : BuiltInParam) -> sameType p.typ bp.typ)
       (NEList.toList fn.parameters)
       bi.parameters
 

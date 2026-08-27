@@ -594,12 +594,42 @@ Anyone who opens this expecting to find a type-checking hot spot should read thi
 `uuid`-keyed dictionary per turn, for one frame. One `TryGetValue`: `call a 1-arg fn` 5.25 -> 4.9 us,
 `apply a lambda` 2.50 -> 2.25, `viewAtSize` 46 -> 44 ms.
 
-**The rest of it is `Dictionary<uuid, CallFrame>` itself.** Frames are pushed and popped in strict
-stack order, and a dictionary keyed by a 16-byte uuid is being asked to model a stack: an insert per
-push, a remove per pop, a hash per lookup. A frame stack indexed by depth would make a push an array
-write. That is the round 7 target with the best evidence behind it, and it is a wide change --
+**Negative result: the frame dictionary is not the cost, and the round 7 target named here was
+wrong.** A throwaway builtin doing one insert, one lookup and one remove on a
+`Dictionary<Guid, obj>`, priced against a zero-cycle row: **50-60 ns per cycle**, three runs. Against a
+package call's 4.9 us that is **1.4%**. Replacing it with a frame stack is a wide change --
 `callFrames`, `pendingCallArgs`, `framePushTimestamps` and the tracer's per-frame maps are all keyed
-the same way.
+the same way -- for six hundredths of a microsecond. Do not.
+
+So the accounting for a frame-pushing package call now reads: ~1.25 us is the callee's own body (in
+`optime` that is `i + 1`, an elided forwarder to a builtin), 0.75 us is the four ablatable costs,
+0.06 us is the dictionary, and the remaining ~2.8 us is frame setup plus two turns of the interpreter
+loop. Nothing in it is a hot spot; it is the shape of the loop.
+
+**Widening the elision was worth more than any of that.** `Stdlib.Dict.get` is
+`Builtin.dictGet dict key` and was not being elided, nor was any forwarder whose signature mentions
+`Option`, `Result` or a user type: `TCustomType` carries the name as written beside the resolved hash,
+so a builtin's `TypeReference.option varA` and the Dark `Option<'a>` wrapping it are not equal, and
+`sameSignature` compared whole `TypeReference`s. `sameType` compares the resolved hash and the type
+args and ignores the name.
+
+    frame-pushing package calls per view   1,762 -> 1,292
+    frame pushes per view                  5,422 -> 4,397
+    viewAtSize                                46 -> 43 ms
+
+**OPEN, and it wants a real answer: eliding an effectful forwarder changes behaviour.** Without the
+`noCaps` guard now on `sameSignature`, this elides `Stdlib.HttpClient.request` -- a bare forwarder like
+any other -- and 36 testfiles fail. Reproducer:
+`Stdlib.HttpClient.request "put" "file:///etc/passwd" [] Stdlib.Blob.empty`, which should be
+`errUnsupportedProtocol` and instead reports an exception thrown inside the HTTP client
+("The 'file' scheme is not supported"), the harness counting one reported exception where it expects
+none. `requireHttp` does not read the VM, and the builtin's own capability gate runs either way, so
+neither is it. I did not find the mechanism. The guard is correct regardless -- the win is entirely
+pure forwarders -- but something on the effectful path depends on the wrapper's frame, and that is
+worth knowing before anyone relies on elision elsewhere.
+
+(The paragraph that stood here proposed the frame stack as round 7's target. The probe above
+retracts it.)
 
 **Superseded: the open question is the type checks.** Part of the 2.25 us is checking the arguments against the *wrapper's* declared types and the
 result against its declared return type. Skipping those is where the time is, but it changes what
