@@ -190,10 +190,7 @@ let sort (list: List<'a>) : List<'a> = Builtin.listSort list
 /// Consider <fn sort> if the list values can be directly compared, or <fn
 /// sortByComparator> if you want more control over the sorting process.
 let sortBy (list: List<'a>) (fn: 'a -> 'b) : List<'a> =
-  list
-  |> map (fun x -> (fn x, x))
-  |> sort
-  |> map (Tuple2.second)
+  Builtin.listSortBy list fn
 
 
 /// Helper functions for sortByComparator
@@ -343,13 +340,7 @@ let dropLast (list: List<'a>) : List<'a> =
 
 /// Drops all but the first <param count> values from <param list>
 let take (list: List<'a>) (count: Int) : List<'a> =
-  if count <= 0 then
-    []
-  else
-    match list with
-    | [] -> []
-    | head :: tail ->
-      push (take tail (count - 1)) head
+  Builtin.listTake list count
 
 
 /// Return the longest prefix of <param list> which satisfies the predicate <param fn>
@@ -374,11 +365,7 @@ let map (list: List<'a>) (fn: 'a -> 'b) : List<'b> =
 /// returning a list of the results of those calls.
 /// Consider <fn map> if you don't need the index.
 let indexedMap (list: List<'a>) (fn: Int -> 'a -> 'b) : List<'b> =
-  list
-  |> fold ([], 0) (fun (acc, index) item ->
-    let mappedItem = fn index item
-    (pushBack acc mappedItem, index + 1))
-  |> Tuple2.first
+  Builtin.listIndexedMap list fn
 
 
 // Helper function for map2shortest

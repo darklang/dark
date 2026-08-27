@@ -294,6 +294,20 @@ let varC = TVariable "c"
 /// directly; where they do not, hand it to `DvalCreator.list`, which is the general path and reports
 /// the mismatch properly. Accumulating with `push`, which is what the Dark version did, merged the
 /// same types one element at a time.
+/// Sort (key, value) pairs the way the Dark `sortBy` did.
+///
+/// It was `map (fun x -> (fn x, x)) |> sort |> map Tuple2.second`, so it sorted the *tuple*, and
+/// comparing a tuple compares its fields in order. The tie-break on the value is therefore not
+/// incidental -- dropping it would silently reorder elements with equal keys.
+let private sortedByKey (vt : ValueType) (keyed : List<struct (Dval * Dval)>) : Dval =
+  keyed
+  |> List.sortWith (fun (struct (k1, v1)) (struct (k2, v2)) ->
+    let c = DvalComparator.compareDvalInt k1 k2
+    if c <> 0 then c else DvalComparator.compareDvalInt v1 v2)
+  |> List.map (fun (struct (_, v)) -> v)
+  |> fun l -> DList(vt, l)
+
+
 let private mappedList (vm : VMState) (items : List<Dval>) : Dval =
   let merged =
     items
@@ -380,6 +394,184 @@ let fns () : List<BuiltInFn> =
                     | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
                   | [] -> ()
                 return acc
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listTake" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""; Param.make "count" TInt "" ]
+      returnType = TList varA
+      description =
+        "Returns the first <param count> values of <param list>, or all of them if there are fewer"
+      fn =
+        (function
+        | _, vm, [], [| DList(_, items); DInt count |] ->
+          // The Dark version recursed one package call, one match and one `push` per element. There
+          // is no lambda here at all -- it is pure structure -- so nothing about it needed to be
+          // interpreted.
+          let n =
+            match count with
+            | DarkInt.Finite i -> i
+            // Past either end of any list. `intToInt32` would raise instead, and `take` with an
+            // absurd count is defined to return the whole list rather than fail.
+            | DarkInt.Infinite b -> if b.Sign > 0 then System.Int64.MaxValue else 0L
+
+          if n <= 0L then
+            Ply(DList(VT.unknown, []))
+          else
+            let mutable acc = []
+            let mutable rest = items
+            let mutable taken = 0L
+
+            while taken < n && not (List.isEmpty rest) do
+              match rest with
+              | elem :: tail ->
+                acc <- elem :: acc
+                rest <- tail
+                taken <- taken + 1L
+              | [] -> ()
+
+            // The element ValueType is merged from what was actually taken, not inherited from the
+            // source list. That is what the Dark version did -- it rebuilt the prefix with `push` --
+            // and a prefix can be narrower than the whole.
+            Ply(mappedList vm (List.rev acc))
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Pure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listIndexedMap" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs
+            "fn"
+            (TFn(NEList.doubleton TInt varA, varB))
+            ""
+            [ "index"; "elem" ] ]
+      returnType = TList varB
+      description =
+        "Calls <param fn> on every value in <param list> with its index, returning a list of the "
+        + "results"
+      fn =
+        (function
+        | state, vm, [], [| DList(_, items); DApplicable app |] ->
+          // The Dark version folded with `pushBack`, which copies the accumulator per element, so it
+          // was quadratic on top of the two lambda applications a fold costs. Built back to front
+          // and reversed once, as `listMap` does.
+          let mutable acc = []
+          let mutable rest = items
+          let mutable i = 0L
+          let mutable pending = ValueNone
+
+          while ValueOption.isNone pending && not (List.isEmpty rest) do
+            match rest with
+            | elem :: tail ->
+              let call =
+                Exe.executeApplicable2 state app (Dval.int (bigint i)) elem
+              match Ply.trySync call with
+              | ValueSome(Ok mapped) ->
+                acc <- mapped :: acc
+                rest <- tail
+                i <- i + 1L
+              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
+              | ValueNone -> pending <- ValueSome(struct (call, tail, i + 1L))
+            | [] -> ()
+
+          match pending with
+          | ValueNone -> Ply(mappedList vm (List.rev acc))
+          | ValueSome(struct (call, tail, nextI)) ->
+            uply {
+              let! first = call
+              match first with
+              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
+              | Ok mapped ->
+                let mutable acc = mapped :: acc
+                let mutable rest = tail
+                let mutable i = nextI
+                while not (List.isEmpty rest) do
+                  match rest with
+                  | elem :: elemTail ->
+                    match!
+                      Exe.executeApplicable2 state app (Dval.int (bigint i)) elem
+                    with
+                    | Ok stepped ->
+                      acc <- stepped :: acc
+                      rest <- elemTail
+                      i <- i + 1L
+                    | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
+                  | [] -> ()
+                return mappedList vm (List.rev acc)
+            }
+        | _ -> incorrectArgs ())
+      sqlSpec = NotQueryable
+      previewable = Impure
+      capabilities = LibExecution.Capabilities.noCaps
+      deprecated = NotDeprecated }
+
+
+    { name = fn "listSortBy" 0
+      typeParams = []
+      parameters =
+        [ Param.make "list" (TList varA) ""
+          Param.makeWithArgs "fn" (TFn(NEList.singleton varA, varB)) "" [ "elem" ] ]
+      returnType = TList varA
+      description =
+        "Returns a copy of <param list>, sorted by the value <param fn> returns for each element"
+      fn =
+        (function
+        | state, vm, [], [| DList(vt, items); DApplicable app |] ->
+          // Was two interpreted passes and a tuple per element around a native sort: one `map` to
+          // build `(key, value)`, the sort, then a second `map` of `Tuple2.second` -- which is where
+          // the 105 `Tuple2.second` calls in a view build came from. Only the key function needs
+          // interpreting.
+          //
+          // The result keeps the source list's ValueType: sorting is a permutation, so the elements
+          // are exactly the ones already merged into it. `listSort` does the same.
+          let mutable keyed = []
+          let mutable rest = items
+          let mutable pending = ValueNone
+
+          while ValueOption.isNone pending && not (List.isEmpty rest) do
+            match rest with
+            | elem :: tail ->
+              let call = Exe.executeApplicable1 state app elem
+              match Ply.trySync call with
+              | ValueSome(Ok key) ->
+                keyed <- struct (key, elem) :: keyed
+                rest <- tail
+              | ValueSome(Error(rte, cs)) -> Exe.raiseFromApplied vm rte cs
+              | ValueNone -> pending <- ValueSome(struct (call, elem, tail))
+            | [] -> ()
+
+          match pending with
+          | ValueNone -> Ply(sortedByKey vt (List.rev keyed))
+          | ValueSome(struct (call, elem, tail)) ->
+            uply {
+              let! first = call
+              match first with
+              | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
+              | Ok key ->
+                let mutable keyed = struct (key, elem) :: keyed
+                let mutable rest = tail
+                while not (List.isEmpty rest) do
+                  match rest with
+                  | e :: elemTail ->
+                    match! Exe.executeApplicable1 state app e with
+                    | Ok k ->
+                      keyed <- struct (k, e) :: keyed
+                      rest <- elemTail
+                    | Error(rte, cs) -> return Exe.raiseFromApplied vm rte cs
+                  | [] -> ()
+                return sortedByKey vt (List.rev keyed)
             }
         | _ -> incorrectArgs ())
       sqlSpec = NotQueryable

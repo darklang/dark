@@ -1714,6 +1714,87 @@ Rows have few enough spans that the quadratic never bites, so a cons costs what 
 the 40 reverses are pure loss. Reverted. This is the second time this week a shape that is obviously
 quadratic on paper turned out to be running on n=6.
 
+### Target 1, continued: `take`, `indexedMap` and `sortBy` go native
+
+`fold`/`map`/`filter`/`range` landed earlier in this round. Ranking the package functions by *time
+per call* rather than by frame count -- which `scripts/perf/fnprofile` made possible -- showed three
+more of exactly the same shape still sitting near the top of a view build:
+
+    Stdlib.List.indexedMap     13 calls   247.71 us each   3.22 ms
+    Stdlib.List.take           30 calls    87.19 us each   2.62 ms
+    Stdlib.List.sortBy         13 calls   147.09 us each   1.91 ms  (+ listSort 1.25, Tuple2.second 0.32)
+
+None of them needed to be interpreted:
+
+- **`take`** was a Dark recursion costing a package call, a match and a `push` per element. There is
+  no lambda in it at all -- it is pure structure.
+- **`indexedMap`** folded with `pushBack`, which copies the accumulator every element, so it was
+  quadratic *on top of* the two lambda applications a fold costs. Native, it is one two-argument
+  apply per element, built back to front and reversed once.
+- **`sortBy`** was `map (fun x -> (fn x, x)) |> sort |> map Tuple2.second`: two interpreted passes
+  and a tuple per element around a native sort. Those 105 `Tuple2.second` calls a view -- the most
+  called package function in the profile -- were its second pass. Only the key function needs
+  interpreting.
+
+After:
+
+    listIndexedMap             13 calls   155.65 us each   2.02 ms
+    listTake                   below the top 12 (< 0.3 ms)
+    listSortBy                 13 calls    29.15 us each   0.38 ms
+    Tuple2.second              gone -- 105 calls a view
+    listMap                    65 -> 39 calls  (sortBy's two passes)
+    listFold                   46.23 -> 40.01 ms
+
+    viewAtSize (Debug)         22 -> 21 ms, min 20
+
+Worth stating plainly: the inclusive times above sum to more than the view actually moved, because
+inclusive time double-counts a caller and its callees. 1 ms on the view is the honest number, and
+these three together are the last of the obvious list functions.
+
+**On the typing, which the brief flagged as the real blocker.** Each was decided rather than
+guessed:
+
+- `take` merges the element ValueType from what it actually took, via the same `mappedList` helper
+  `listMap` uses. It does *not* inherit the source list's VT, because the Dark version rebuilt the
+  prefix with `push` and a prefix can be narrower than the whole.
+- `sortBy` *does* keep the source VT, because sorting is a permutation -- the elements are exactly
+  the ones already merged into it. `listSort` does the same.
+- `sortBy`'s tie-break is not incidental and is preserved: it sorted the `(key, value)` tuple, and
+  comparing a tuple compares its fields in order, so equal keys are ordered by value. A plain stable
+  sort would have silently reordered them. Checked against
+  `sortBy [(2,"b"); (1,"a"); (2,"a")] first`, which must put `(2,"a")` before `(2,"b")` despite the
+  input order.
+- `take` with a count too large for an `int64` returns the whole list rather than raising, which is
+  why it doesn't go through `intToInt32`.
+
+### Type checking is not where a package call's time goes -- probed, bounded, closed
+
+A package call costs 2.7 us against a lambda application's 1.6, and the difference is the
+package-specific work: TST shadowing, inference, argument type checking, the fetch, and the return
+type check. Argument and return checking looked like the obvious targets.
+
+Probed the ceiling before building anything, per the playbook, by stubbing both out -- semantically
+wrong, arguments assumed to check and every frame's return check skipped:
+
+    argument checks removed        1-arg call 2.7 -> 2.5 us,  2-arg 3.0 -> 2.6 us,  view 21 -> 20-21 ms
+    return checks removed as well  no further change at all
+
+So **the entire type-checking half of a package call is worth ~0.2-0.3 us of 2.7, about 10%, and
+~0.5-1 ms of a 21 ms view** -- and that is the ceiling for deleting it outright, not for optimising
+it. Any real change would capture a fraction of that. Closed.
+
+This is a consequence of work already done rather than a surprise: the `tryUnifySync` primitive
+early-out landed earlier in this round, and it evidently took the cost out. The remaining
+package-specific microsecond is TST shadowing, the fetch and `completePackage`'s frame push and
+register fill, none of which is obviously compressible.
+
+Worth reading alongside the frame-machinery note: frames are pooled, their ids are `Guid`s in a
+`Dictionary`, and a push/pop cycle does 3-4 of those dictionary operations -- perhaps 5% of a frame.
+Between the two, **the interpreter's per-call cost no longer has a large bounded win in it.** What
+is left is a compiler change (emitting opcodes for common operations at `PT2RT`, closed earlier in
+this round as too invasive for the ~0.7 ms it was worth) or the architectural one below, which is
+worth an order of magnitude more than everything remaining in the interpreter combined.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the
