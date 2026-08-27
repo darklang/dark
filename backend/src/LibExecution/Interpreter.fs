@@ -2094,6 +2094,12 @@ let private applyInstruction
 
         match earlyWrapper with
         | ValueSome biFn when NEList.length newArgRegs = List.length biFn.parameters ->
+          // Counted, since a package call happened. The late elision in `callPackageResolved` does
+          // the same; this path was added afterwards and missed it, so `packageCalls` under-reported
+          // every forwarder that reached the cache.
+          if vm.stats.enabled then
+            vm.stats.packageCallCount <- vm.stats.packageCallCount + 1L
+
           let ctx : ApplyContext =
             { applicable = applicable
               typeArgs = typeArgs
