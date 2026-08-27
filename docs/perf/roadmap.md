@@ -2138,6 +2138,49 @@ as much a restatement as reproducing its success.
 
 `fastopcheck.dark` is up to 18 checks.
 
+### `TextWidth.ofString` allocated a string per character to measure ASCII
+
+`ofString` was `String.toEgcSeq |> Seq.sumBy ofCluster`. `toEgcSeq` yields a *string* per grapheme
+cluster, which for ASCII text is one allocation per character -- handed to `ofCluster` so it can
+answer the width by a comparison. It backs `Stdlib.String.displayWidth` and
+`cliTerminalInspectRow`, so it runs well beyond the view build.
+
+Same peek-ahead rule `styledWidth` already uses: a printable ASCII character followed by another
+ASCII character is one column and cannot be part of a longer cluster. CRLF's first half is not
+printable, so it still takes the cluster path and measures as it always did.
+
+    view allocation      1,579,008 -> 1,567,784 bytes  (11,224 saved, deterministic)
+    stringDisplayWidth   3.40 -> ~2.46 us per call
+
+Checked against `"hello"` 5, `""` 0, `"界界"` 4, `"a界b"` 4, `"é"` 1, `"a\r\nb"` 2 and the flag emoji
+`"🇬🇧"` 2 -- the last being the multi-scalar cluster that has to keep taking the slow path.
+
+**Render-path allocation across the day:** 1,615,048 -> 1,567,784 bytes a view, 2.9%, in three
+deterministic steps (the SGR substring 27,760, the shared `String.repeat` 8,280, this 11,224).
+
+### The lambda frame, bounded by comparison -- because it cannot be stubbed
+
+The obvious way to bound "what if we did not push a frame" is the playbook's: stub the region to a
+constant and measure. **It does not work here, and that is worth writing down.** Returning a constant
+from the lambda-apply path breaks every lambda in the process, including the ones inside the error
+formatter, so the run dies with `Apply` and a note that stringifying the error also failed. There is
+no measurement to take. The runtime depends on the thing being stubbed.
+
+Bounded by comparison instead. A builtin call does the `Apply` dispatch and pushes **no** frame; on
+the operator fast path a trivial builtin is 0.53 us net. So of the 1.32 us a lambda costs before its
+body runs, roughly 0.5 us is dispatch that would remain and **~0.85 us is the frame** -- push,
+register file, the loop turn to reach it, the return.
+
+    ~0.85 us x ~2,435 applications a view = ~2.1 ms of an 18-19 ms view, about 11%
+
+Still the largest item left, and still its own round: evaluating a single-expression body in the
+caller's frame needs register remapping. But 11% is the honest figure to decide on, not the 17% the
+raw intercept suggests.
+
+**New: `scripts/perf/workloads/framestub.dark`,** a lambda probe driven entirely by self-recursion.
+`lambdapath.dark` times its rows inside a `List.fold`, which is fine until the thing being probed is
+the lambda machinery itself -- then the harness breaks before the measurement does.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the
