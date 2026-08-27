@@ -1106,6 +1106,7 @@ module private FastOps =
   let dictSet = 16
   let strRepeat = 17
   let listMember = 18
+  let dictSetStrict = 19
 
   /// The operator itself, given a tag from `byName` and two `Int`s.
   let eval (tag : int) (a : DarkInt) (b : DarkInt) : Dval voption =
@@ -1275,7 +1276,12 @@ module private FastOps =
     (k : string)
     (v : Dval)
     : Dval voption =
-    if tag = dictSet then
+    if tag = dictSet || tag = dictSetStrict then
+      // `Dict.set` raises on a key already present and `setOverridingDuplicates` does not, so the
+      // strict one declines to the slow path when the key is there and lets the builtin raise.
+      if tag = dictSetStrict && Map.containsKey k o then
+        ValueNone
+      else
       // Declines when the value would not merge, rather than letting `dictAddEntry` raise. The slow
       // path's *parameter* check catches a mismatched value first and reports it differently, and an
       // error message that depends on whether tracing happens to be on is worse than anything this
@@ -1323,6 +1329,7 @@ module private FastOps =
     put "listLength" listLength
     put "dictGet" dictGet
     put "dictSetOverridingDuplicates" dictSet
+    put "dictSet" dictSetStrict
     put "stringRepeat" strRepeat
     put "listMember" listMember
     d

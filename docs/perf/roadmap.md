@@ -2470,6 +2470,43 @@ and `styledWidth` 1.1, leaving ~1.7 for the fold itself. The `join`-based altern
 `vstack` and `hstack` are large only because they are inclusive of every child's render; there is no
 own-cost there to take.
 
+### `Dict.set` on the fast path: the `dicts` workload is 23% faster
+
+`Dict.setOverridingDuplicates` went on the operator table earlier; `Dict.set` did not, and they are
+different builtins -- `set` raises on a key already present. It is the main operation in the `dicts`
+suite workload, which was the second-slowest of the six.
+
+The strict variant declines to the slow path when the key is present, and lets the builtin raise, for
+the same reason every other entry declines rather than reproducing an error. Both error paths
+verified: a duplicate key still gives "Cannot add two dictionary entries with the same key", a
+wrong-typed value still gives the parameter type error.
+
+    dicts, A/B four runs each   39 40 40 41 ms  ->  30 30 31 32 ms   (-23%)
+    allocation                  unchanged, 12.4-12.8 KB either way
+
+Allocation not moving is the expected shape: the fast path skips dispatch, not work.
+
+### Why round 5 never moved the `recursion` workload, and what a package fetch costs
+
+`recursion` is ~530 ms where every other suite workload is 14-40, and it is essentially unchanged
+since round 2 (501 ms then). Worth explaining, since it looks like a miss.
+
+It is `depth 200` plus `fib 12` per iteration and nothing else: ~665 **self-recursive package calls**,
+no containers, no strings. Every round-5 win missed it by construction. The operator fast path covers
+its `+`/`-`/`<` but those were never the cost; wrapper elision does not apply, because these are user
+functions rather than forwarders; and it touches no list operation. What is left is the package call
+itself, at ~2.7 us, which this round measured and found no large bounded win in.
+
+Priced one component of that call directly, using the slope technique -- three extra
+`exeState.fns.package` fetches per call, then subtract:
+
+    baseline          521 526 527 ms
+    +3 fetches/call   571 572 572 ms
+
+**One package fetch is ~85 ns, 3.2% of a pure-call workload** and about 0.04 ms of a 14 ms CLI view
+(511 full package calls). So a self-call fast path that skipped the fetch is not worth building, and
+`recursion` stays where it is until a package call gets structurally cheaper. Closed.
+
 ### Open, ranked
 
 *These were written during round 5, against a keypress that no longer exists. Rounds 5 and 6 took the

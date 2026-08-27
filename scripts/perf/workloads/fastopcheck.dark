@@ -39,5 +39,7 @@ let _14 = show "repeat multi char" (Stdlib.String.repeat "ab" 2) "abab"
 let _15 = show "repeat zero" (Stdlib.String.repeat "x" 0) ""
 let _16 = show "repeat negative" (Stdlib.String.repeat "x" (-2)) ""
 let _17 = show "repeat empty" (Stdlib.String.repeat "" 5) ""
+let _18 = show "dict set strict new" (Stdlib.Int.toString (Stdlib.List.length (Stdlib.Dict.keys (Stdlib.Dict.set d "c" 3)))) "3"
+let _19 = show "dict set strict value" (Stdlib.Int.toString (Stdlib.Option.withDefault (Stdlib.Dict.get (Stdlib.Dict.set d "c" 3) "c") 0)) "3"
 
 Stdlib.printLine "-- fast op check done --"
