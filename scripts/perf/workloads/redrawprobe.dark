@@ -1,0 +1,45 @@
+// How much of a view build is redundant between one keypress and the next.
+//
+// `keypress.dark` says a view costs ~31 ms (Debug) to build and ~2 ms to present. If an arrow key
+// changes only a couple of rows, most of that build is work whose answer was already on screen --
+// which sizes "redraw on every keypress at all", the largest open item on the CLI side.
+//
+//   ./scripts/run-cli run scripts/perf/workloads/redrawprobe.dark
+
+let base =
+  Darklang.Cli.Workbench.initialState
+    Darklang.SCM.Branch.mainBranchId
+    Stdlib.Option.Option.None
+    "perf"
+    "perf-instance"
+    (Stdlib.List.range 0 40)
+
+let size = Stdlib.Cli.Tui.Size { width = 120; height = 40 }
+let mods = Stdlib.Cli.Stdin.Modifiers.Modifiers { alt = false; ctrl = false; shift = false }
+
+let rowsOf (s: Darklang.Cli.Workbench.State) : List<String> =
+  (Darklang.Cli.Workbench.viewAtSize s size).rows
+  |> Stdlib.List.map (fun r -> Stdlib.Cli.Tui.Text.stripSgr r)
+
+let differing (a: List<String>) (b: List<String>) : Int =
+  Stdlib.List.fold (Stdlib.List.range 0 ((Stdlib.List.length a) - 1)) 0 (fun acc i ->
+    if (Stdlib.List.getAt a i) == (Stdlib.List.getAt b i) then acc else acc + 1)
+
+let step (s: Darklang.Cli.Workbench.State) (k: Stdlib.Cli.Stdin.Key.Key) : Darklang.Cli.Workbench.State =
+  match Darklang.Cli.Workbench.handleKey s k mods Stdlib.Option.Option.None with
+  | Continue next -> next
+  | Exit next -> next
+  | Launch(next, _) -> next
+  | ToPrompt next -> next
+
+let before = rowsOf base
+let afterRight = rowsOf (step base Stdlib.Cli.Stdin.Key.Key.RightArrow)
+let afterDown = rowsOf (step base Stdlib.Cli.Stdin.Key.Key.DownArrow)
+
+let total = Stdlib.List.length before
+
+Stdlib.printLine ("rows in a frame:            " ++ (Stdlib.Int.toString total))
+Stdlib.printLine
+  ("rows changed by RightArrow: " ++ (Stdlib.Int.toString (differing before afterRight)))
+Stdlib.printLine
+  ("rows changed by DownArrow:  " ++ (Stdlib.Int.toString (differing before afterDown)))

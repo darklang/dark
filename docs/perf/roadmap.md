@@ -1474,10 +1474,26 @@ of its time. The value-representation item is not where a keypress goes.
 are `SetName` or `Deprecate`. Bounding it needs the op kind readable without deserializing, which is a
 schema question. Untouched by rounds 5 and 6 -- it lives on its own branch.
 
-**Redraw on every keypress at all.** An arrow key moves a cursor; it does not change most of the
-frame. Whether the diff already exploits that, and what it costs when it does, is still unmeasured.
-This is the largest genuinely-open item on the CLI side: the view build is 24 ms on the shipped
-binary, and not doing most of it would beat anything left in the interpreter.
+**Redraw on every keypress at all -- now measured, and it is the largest item left anywhere by an
+order of magnitude.** `scripts/perf/workloads/redrawprobe.dark` builds a frame, applies one keypress,
+builds again, and counts rows that differ:
+
+    rows in a frame              40
+    rows changed by RightArrow    2
+    rows changed by DownArrow     2
+
+**95% of every frame is identical to the one before it.** The CLI spends 24 ms (published) rebuilding
+forty rows to produce two new ones. Presenting is already cheap -- `preparePresentAtSize` is 2 ms --
+so the diff at the *output* end is not the problem; the whole build runs before anything can be
+diffed.
+
+For scale: everything left in the interpreter is worth about 0.7 ms, and this is worth up to ~23.
+
+The hard part is not the measurement, it is that knowing which rows changed normally means computing
+them. So it wants the view built from regions with their own invalidation -- a sidebar that is not
+recomputed when the cursor moves inside a pane -- rather than a diff bolted onto the end. That is an
+architecture question for the CLI, which is round 5's territory rather than round 6's, and it is where
+the next round should start.
 
 ### Tooling gaps found while doing this
 
