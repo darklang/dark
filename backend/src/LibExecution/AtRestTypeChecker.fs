@@ -25,6 +25,17 @@ open LibExecution.AtRest.Patterns
 open LibExecution.AtRest.Inference
 
 
+/// Bump when a change to the checker could change an item's verdict.
+///
+/// A `Checked` proof is only usable while it was produced by the same checker that is
+/// asking. `docs/at-rest-type-checker.md` commits to storing verdicts keyed by item
+/// hash and checker version, and to runtime check elision requiring a `Checked` proof
+/// for the whole dependency closure under one version; neither can be built without
+/// something to key on. Nothing persists verdicts yet, so today this is only a promise
+/// kept where it can be seen.
+let checkerVersion : int = 1
+
+
 // --------------------
 // Public checking API
 // --------------------
@@ -49,14 +60,14 @@ let private resolvePendingFieldAccesses (state : State) : unit =
               declaration.typeParams
               typeArgs
               field.typ
-          unify state (Some nodeId) "Record field access" fieldType resultType
+          unify state (Some nodeId) RecordFieldAccess fieldType resultType
         | None ->
           state.Error(
             UnknownRecordField,
             Some nodeId,
             None,
             Some recordType,
-            $"Record has no field named '{fieldName}'"
+            Identifier fieldName
           )
       | TypeDeclaration.Enum _
       | TypeDeclaration.Alias _ ->
@@ -65,21 +76,21 @@ let private resolvePendingFieldAccesses (state : State) : unit =
           Some nodeId,
           None,
           Some recordType,
-          "Field access requires a record"
+          RecordRequiredForFieldAccess
         )
     | None ->
       if not (containsTaintedInferenceVariable state recordType) then
-        state.Block(AmbiguousType, Some nodeId, ambiguousRecordContext)
+        state.Block(AmbiguousType, Some nodeId, Ambiguous RecordType)
 
 let private displayType (scheme : TypeScheme) : StaticType =
   let names =
     scheme.quantified
     |> Set.toList
-    |> List.mapi (fun index var -> var, TRigidVar $"t{index + 1}")
+    |> List.mapi (fun index var -> var, TRigidVariable $"t{index + 1}")
     |> Map.ofList
   let rec replace typ =
     match typ with
-    | TInferenceVar var -> Map.tryFind var names |> Option.defaultValue typ
+    | TInferenceVariable var -> Map.tryFind var names |> Option.defaultValue typ
     | TStream inner -> TStream(replace inner)
     | TList inner -> TList(replace inner)
     | TTuple(first, second, rest) ->
@@ -129,11 +140,7 @@ let private finish
         origins)
     Map.empty
   |> Map.iter (fun origin _variables ->
-    state.Block(
-      AmbiguousType,
-      origin,
-      "Could not infer a complete type here; add a type annotation"
-    ))
+    state.Block(AmbiguousType, origin, Ambiguous ItemType))
   let report =
     { inferredType = Some inferredType
       diagnostics = List.ofSeq state.Diagnostics
@@ -183,10 +190,12 @@ let checkPackageFunction
         None,
         None,
         None,
-        $"Function type parameter '{name}' is declared more than once"
+        Duplicate(name, InFunctionSignature)
       )
     let rigidVars =
-      fn.typeParams |> List.map (fun name -> name, TRigidVar name) |> Map.ofList
+      fn.typeParams
+      |> List.map (fun name -> name, TRigidVariable name)
+      |> Map.ofList
     let parameters =
       fn.parameters
       |> NEList.map (fun parameter ->
@@ -204,7 +213,7 @@ let checkPackageFunction
         arguments = NEList.toList parameters
         self = Some selfType
         typeVariables = rigidVars }
-    checkExprWithContext state env returnType fn.body "Function return value"
+    checkExprWithContext state env returnType fn.body FunctionReturnValue
     finish state (Some(Expr.toID fn.body)) (monomorphic selfType))
 
 let checkPackageValue
@@ -216,7 +225,7 @@ let checkPackageValue
     let state = State environment
     let expectedType = convertType state None Map.empty expectedType
     validateTypeClosure state None expectedType
-    checkExprWithContext state emptyEnv expectedType value.body "Value body"
+    checkExprWithContext state emptyEnv expectedType value.body ValueBody
     finish state (Some(Expr.toID value.body)) (monomorphic expectedType))
 
 
@@ -234,12 +243,12 @@ let private validateTypeDeclaration
         None,
         None,
         None,
-        $"Type parameter '{name}' is declared more than once"
+        Duplicate(name, InTypeDeclaration)
       )
 
     let rigidVars =
       declaration.typeParams
-      |> List.map (fun name -> name, TRigidVar name)
+      |> List.map (fun name -> name, TRigidVariable name)
       |> Map.ofList
     let validateReference (typ : TypeReference) : unit =
       let typ = convertType state None rigidVars typ
@@ -262,7 +271,7 @@ let private validateTypeDeclaration
           None,
           None,
           None,
-          $"Record field '{name}' is declared more than once"
+          Duplicate(name, InTypeDeclaration)
         )
       fields |> NEList.iter (fun field -> validateReference field.typ)
     | TypeDeclaration.Enum cases ->
@@ -272,7 +281,7 @@ let private validateTypeDeclaration
           None,
           None,
           None,
-          $"Enum case '{name}' is declared more than once"
+          Duplicate(name, InTypeDeclaration)
         )
       cases
       |> NEList.iter (fun case ->

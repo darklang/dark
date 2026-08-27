@@ -45,8 +45,8 @@ type StaticType =
   | TCustom of FQTypeName.Package * List<StaticType>
   | TFn of NEList<StaticType> * StaticType
   | TDB of StaticType
-  | TRigidVar of string
-  | TInferenceVar of int
+  | TRigidVariable of string
+  | TInferenceVariable of int
 
 type Dependency =
   | TypeDependency of FQTypeName.Package
@@ -95,14 +95,127 @@ type BlockerCode =
   | NonExhaustiveMatch
   | UnsupportedConstruct
 
+/// Where in the item the checker was working when it found something.
+///
+/// Reported next to the expected and actual types, which carry the substance. This is
+/// the "in a function argument" half of "expected Int, got String, in a function
+/// argument".
+type Site =
+  | LambdaReturnValue
+  | FunctionReturnValue
+  | ValueBody
+  | Expression
+  | StatementBeforeFinalExpression
+  | FunctionApplication
+  | FunctionArgument of position : int
+  | IfWithoutElse
+  | RecordFieldAccess
+  | UnitLetPattern
+  | TupleLetPattern
+  | MatchPattern
+  | ListPattern
+  | ListConsPattern
+  | TupleMatchPattern
+  | OrPatternBinding
+  | PipelineInput
+  | PipelineFunction
+  | PipelineVariable
+  | PipelineEnumInput
+  | PipelineBooleanOperator
+  | PipelineStringConcatenation
+  | PipelineComparison
+  | PipelineNumericOperator
+
+/// Which of several same-coded places a name was declared twice.
+type DuplicateSite =
+  | InTypeDeclaration
+  | InFunctionSignature
+  | InRecordConstruction
+  | InRecordUpdate
+  | InPattern
+
+/// What the checker could not pin down when it reports an ambiguous type.
+type AmbiguousSubject =
+  | NumericOperand
+  | PipelineNumericOperand
+  | UnaryMinusOperand
+  | RecordType
+  | EnumPatternType
+  | ItemType
+
+/// Why a builtin's declared signature is not something the checker can check against.
+type UntrustedBuiltin =
+  /// The declared result contains type variables no parameter constrains, so the real
+  /// result type is only known at runtime.
+  | ResultTypeUnconstrained
+  /// `unwrap` applied to something not statically known to be an Option or a Result.
+  | UnwrapArgumentUnknown
+  /// An operator builtin used as a value or partially applied. Applied to all its
+  /// arguments it is checked by the operator rule instead.
+  | OperatorNotFullyApplied
+  /// The result cannot be inferred from the value parameters, so the call must say.
+  | ExplicitTypeArgumentsRequired
+
+/// What an issue is about, beyond its code.
+///
+/// The checker states facts and Darklang turns them into a sentence
+/// (`LanguageTools.AtRestTypeChecker.contextToString`). That split is what lets each
+/// surface phrase things its own way, and it is also better output: the checker has no
+/// name resolver, so rendering a name here could only ever produce `Type #a1b2c3d4`,
+/// while the Dark side can look the hash up and say `Stdlib.Option.Option`.
+type Context =
+  /// The code says everything; there is nothing to add.
+  | NoDetail
+  /// Where the checker was working. Pairs with expected/actual.
+  | At of Site
+  /// A name the resolver never resolved. The parts are what the author wrote.
+  | Unresolved of attempted : List<string>
+  | TypeUnavailable of FQTypeName.Package
+  | FunctionUnavailable of FQFnName.FQFnName
+  | ValueUnavailable of FQValueName.FQValueName
+  /// One identifier the issue is about: a variable, field, case, or type parameter.
+  | Identifier of name : string
+  /// Several of them, e.g. the record fields a construction left out.
+  | Identifiers of names : List<string>
+  | Duplicate of name : string * site : DuplicateSite
+  | Ambiguous of subject : AmbiguousSubject
+  | Untrusted of fn : FQFnName.FQFnName * reason : UntrustedBuiltin
+  | Arity of expected : int * actual : int
+  | NamedArity of name : string * expected : int * actual : int
+  | TypeArity of typ : FQTypeName.Package * expected : int * actual : int
+  | ArgumentIndex of index : int
+  /// A match that is not exhaustive, with a witness when one could be produced.
+  /// CLEANUP: the witness is still rendered here, by `Patterns.missingPatternToString`.
+  /// It is the one piece of prose left in F#, and it wants a `MissingPattern` mirror.
+  | UncoveredPattern of witness : Option<string>
+  /// An infix operator applied to an operand type it does not accept. The operation is
+  /// the `InfixFnName` case name, which is what the message used before this was
+  /// structured; it wants a proper mirror too.
+  | InfixOperandUnsupported of operation : string
+  // Situations the code alone does not distinguish.
+  | RecordRequiredForConstruction
+  | RecordRequiredForFieldAccess
+  | RecordRequiredForUpdate
+  | EnumRequiredForConstruction
+  | EnumRequiredForPattern
+  | SelfOutsideFunction
+  | OrPatternBindingsDiffer
+  | ExplicitTypeArgumentsOnNonNamedFunction
+  | AliasCycleReferenced
+  | DeclarationTooDeep
+  | UnaryMinusOperandNotSignedNumeric
+  /// The checker could not run at all. The detail is an exception or import-failure
+  /// message, which genuinely has no structure worth keeping.
+  | CheckerUnavailable of detail : string
+
 type Diagnostic =
   { code : DiagnosticCode
     nodeId : Option<id>
     expected : Option<StaticType>
     actual : Option<StaticType>
-    context : string }
+    context : Context }
 
-type Blocker = { code : BlockerCode; nodeId : Option<id>; context : string }
+type Blocker = { code : BlockerCode; nodeId : Option<id>; context : Context }
 
 type FunctionSignature =
   { typeParams : List<string>
@@ -195,7 +308,7 @@ type TypeEnvironment =
   internal
     { types : Map<FQTypeName.Package, TypeDeclaration.T>
       functions : Map<FQFnName.FQFnName, FunctionSignature>
-      unsupportedFunctions : Map<FQFnName.FQFnName, string>
+      unsupportedFunctions : Map<FQFnName.FQFnName, UntrustedBuiltin>
       requiresExplicitTypeArguments : Set<FQFnName.FQFnName>
       values : Map<FQValueName.FQValueName, TypeReference>
       checkedValues : Map<FQValueName.FQValueName, TypeScheme> }
@@ -225,7 +338,7 @@ module TypeEnvironment =
 
   let private addUnsupportedFunction
     (name : FQFnName.FQFnName)
-    (reason : string)
+    (reason : UntrustedBuiltin)
     (environment : TypeEnvironment)
     : TypeEnvironment =
     { environment with
@@ -307,10 +420,7 @@ module TypeEnvironment =
             if not (Set.isSubset resultOnlyVariables declaredVariables) then
               // An undeclared result-only variable is known only at runtime;
               // quantifying it would incorrectly accept every caller.
-              addUnsupportedFunction
-                name
-                "The declared result contains type variables unconstrained by the parameters"
-                environment,
+              addUnsupportedFunction name ResultTypeUnconstrained environment,
               errors
             else
               // Many older builtin declarations predate explicit typeParams.

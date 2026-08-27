@@ -40,7 +40,7 @@ let internal addBindings
       nodeId,
       None,
       None,
-      $"Pattern binds '{name}' more than once"
+      Duplicate(name, InPattern)
     )
   let locals =
     bindings
@@ -59,12 +59,12 @@ let rec internal checkLetPattern
   | LPVariable(_, name) -> [ name, typ ]
   | LPWildcard _ -> []
   | LPUnit nodeId ->
-    unify state (Some nodeId) "Unit let pattern" TUnit typ
+    unify state (Some nodeId) UnitLetPattern TUnit typ
     []
   | LPTuple(nodeId, first, second, rest) ->
     let parts = List.init (2 + List.length rest) (fun _ -> state.Fresh(Some nodeId))
     let tuple = TTuple(parts[0], parts[1], List.skip 2 parts)
-    unify state (Some nodeId) "Tuple let pattern" tuple typ
+    unify state (Some nodeId) TupleLetPattern tuple typ
     List.zip (first :: second :: rest) parts
     |> List.collect (fun (pattern, typ) -> checkLetPattern state typ pattern)
 
@@ -83,11 +83,7 @@ let internal declarationForCustom
       // mismatched arguments: callers substitute them into declaration fields.
       None
     | None ->
-      state.Block(
-        MissingTypeDeclaration,
-        nodeId,
-        $"{displayTypeName name} is not available to the checker"
-      )
+      state.Block(MissingTypeDeclaration, nodeId, TypeUnavailable name)
       None
   | _ -> None
 
@@ -105,15 +101,7 @@ let internal declarationFieldType
     // Keep malformed serialized input at this boundary from throwing.
     let expected = List.length typeParams
     let actual = List.length typeArgs
-    let expectedText = countNoun expected "type argument" "type arguments"
-    state.Error(
-      TypeMismatch,
-      nodeId,
-      None,
-      None,
-      $"Type declaration expects {expectedText}, "
-      + $"but {actual} {wasOrWere actual} provided"
-    )
+    state.Error(TypeMismatch, nodeId, None, None, Arity(expected, actual))
     state.FreshTainted nodeId
 
 let rec internal patternBindingNames (pattern : MatchPattern) : List<string> =
@@ -160,7 +148,7 @@ let rec internal checkMatchPattern
   : List<string * StaticType> =
   ensureStack ()
   let literal nodeId typ =
-    unify state (Some nodeId) "Match pattern" expected typ
+    unify state (Some nodeId) MatchPattern expected typ
     []
   match pattern with
   | MPUnit nodeId -> literal nodeId TUnit
@@ -183,11 +171,11 @@ let rec internal checkMatchPattern
   | MPVariable(_, name) -> [ name, expected ]
   | MPList(nodeId, patterns) ->
     let element = state.Fresh(Some nodeId)
-    unify state (Some nodeId) "List pattern" (TList element) expected
+    unify state (Some nodeId) ListPattern (TList element) expected
     patterns |> List.collect (checkMatchPattern state element)
   | MPListCons(nodeId, head, tail) ->
     let element = state.Fresh(Some nodeId)
-    unify state (Some nodeId) "List-cons pattern" (TList element) expected
+    unify state (Some nodeId) ListConsPattern (TList element) expected
     checkMatchPattern state element head
     @ checkMatchPattern state (TList element) tail
   | MPTuple(nodeId, first, second, rest) ->
@@ -195,7 +183,7 @@ let rec internal checkMatchPattern
     unify
       state
       (Some nodeId)
-      "Tuple match pattern"
+      TupleMatchPattern
       (TTuple(parts[0], parts[1], List.skip 2 parts))
       expected
     List.zip (first :: second :: rest) parts
@@ -214,20 +202,18 @@ let rec internal checkMatchPattern
             Some nodeId,
             Some expected,
             None,
-            $"Enum has no case named '{caseName}'"
+            Identifier caseName
           )
           recoverPatternBindings state nodeId fieldPatterns
         | Some case when List.length case.fields <> List.length fieldPatterns ->
           let expected = List.length case.fields
           let actual = List.length fieldPatterns
-          let expectedText = countNoun expected "field" "fields"
           state.Error(
             EnumFieldCountMismatch,
             Some nodeId,
             None,
             None,
-            $"Case '{caseName}' expects {expectedText}, "
-            + $"but the pattern provides {actual}"
+            NamedArity(caseName, expected, actual)
           )
           recoverPatternBindings state nodeId fieldPatterns
         | Some case ->
@@ -249,13 +235,13 @@ let rec internal checkMatchPattern
           Some nodeId,
           Some expected,
           None,
-          "Enum pattern used with a non-enum type"
+          EnumRequiredForPattern
         )
         recoverPatternBindings state nodeId fieldPatterns
     | None ->
       let tainted = containsTaintedInferenceVariable state expected
       if not tainted then
-        state.Block(AmbiguousType, Some nodeId, ambiguousEnumPatternContext)
+        state.Block(AmbiguousType, Some nodeId, Ambiguous EnumPatternType)
       let bindings = recoverPatternBindings state nodeId fieldPatterns
       if tainted then bindings |> List.iter (snd >> state.MarkTainted)
       bindings
@@ -280,7 +266,7 @@ let rec internal checkMatchPattern
             Some nodeId,
             None,
             None,
-            $"Pattern binds '{name}' more than once"
+            Duplicate(name, InPattern)
           )
         Map.ofList bindings)
     match alternatives with
@@ -295,12 +281,12 @@ let rec internal checkMatchPattern
             Some nodeId,
             None,
             None,
-            "Every branch of an or-pattern must bind the same names"
+            OrPatternBindingsDiffer
           )
         for KeyValue(name, typ) in alternative do
           match Map.tryFind name first with
           | Some firstType ->
-            unify state (Some nodeId) "Or-pattern binding" firstType typ
+            unify state (Some nodeId) OrPatternBinding firstType typ
           | None -> ()
       Map.toList first
 

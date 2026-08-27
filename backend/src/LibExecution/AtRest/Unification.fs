@@ -49,7 +49,7 @@ type internal State(environment : TypeEnvironment) =
   member _.MarkTainted(typ : StaticType) : unit =
     let rec collect typ =
       match typ with
-      | TInferenceVar variable -> Set.singleton variable
+      | TInferenceVariable variable -> Set.singleton variable
       | TStream inner
       | TList inner
       | TDict inner
@@ -68,7 +68,7 @@ type internal State(environment : TypeEnvironment) =
     taintedInferenceVariables <- Set.union taintedInferenceVariables (collect typ)
 
   member _.Fresh(nodeId : Option<id>) : StaticType =
-    let result = TInferenceVar nextVar
+    let result = TInferenceVariable nextVar
     inferenceVariableOrigins <- Map.add nextVar nodeId inferenceVariableOrigins
     nextVar <- nextVar + 1
     result
@@ -87,7 +87,7 @@ type internal State(environment : TypeEnvironment) =
       nodeId : Option<id>,
       expected : Option<StaticType>,
       actual : Option<StaticType>,
-      context : string
+      context : Context
     ) : unit =
     diagnostics.Add
       { code = code
@@ -96,7 +96,7 @@ type internal State(environment : TypeEnvironment) =
         actual = actual
         context = context }
 
-  member _.Block(code : BlockerCode, nodeId : Option<id>, context : string) : unit =
+  member _.Block(code : BlockerCode, nodeId : Option<id>, context : Context) : unit =
     blockers.Add { code = code; nodeId = nodeId; context = context }
 
 
@@ -113,10 +113,7 @@ let internal ensureStack () : unit =
   System.Runtime.CompilerServices.RuntimeHelpers.EnsureSufficientExecutionStack()
 
 let internal tooDeepBlocker (nodeId : Option<id>) : Blocker =
-  { code = UnsupportedConstruct
-    nodeId = nodeId
-    context =
-      "Declaration is nested too deeply for the checker to walk; it was not checked" }
+  { code = UnsupportedConstruct; nodeId = nodeId; context = DeclarationTooDeep }
 
 let internal guardingStack
   (nodeId : Option<id>)
@@ -136,51 +133,6 @@ let internal resolvedName (name : NameResolution<'a>) : Option<'a> =
   match name.resolved with
   | Ok resolved -> Some resolved.name
   | Error _ -> None
-
-let internal unresolvedName (kind : string) (name : NameResolution<'a>) : string =
-  match name.originalName with
-  | [] -> $"{kind} name is unresolved"
-  | parts ->
-    let displayName = String.concat "." parts
-    $"{kind} name '{displayName}' is unresolved"
-
-let internal countNoun (count : int) (singular : string) (plural : string) : string =
-  if count = 1 then $"1 {singular}" else $"{count} {plural}"
-
-let internal wasOrWere (count : int) : string = if count = 1 then "was" else "were"
-
-let internal ambiguousEnumPatternContext : string =
-  "Cannot determine which enum type contains this case; "
-  + "add a type annotation to the matched value"
-
-let internal ambiguousRecordContext : string =
-  "Cannot determine the record type; "
-  + "add a type annotation to the record value"
-
-let internal shortHash (hash : Hash) : string =
-  let hash = Hash.toHexString hash
-  if hash.Length <= 12 then hash else hash.Substring(0, 12)
-
-let internal displayTypeName (name : FQTypeName.Package) : string =
-  $"Type #{shortHash name}"
-
-let internal displayFunctionName (name : FQFnName.FQFnName) : string =
-  match name with
-  | FQFnName.Builtin builtin ->
-    if builtin.version = 0 then
-      $"Builtin.{builtin.name}"
-    else
-      $"Builtin.{builtin.name}_v{builtin.version}"
-  | FQFnName.Package hash -> $"package function #{shortHash hash}"
-
-let internal displayValueName (name : FQValueName.FQValueName) : string =
-  match name with
-  | FQValueName.Builtin builtin ->
-    if builtin.version = 0 then
-      $"Builtin.{builtin.name}"
-    else
-      $"Builtin.{builtin.name}_v{builtin.version}"
-  | FQValueName.Package hash -> $"package value #{shortHash hash}"
 
 let rec internal convertType
   (state : State)
@@ -221,11 +173,7 @@ let rec internal convertType
     match Map.tryFind name typeVariables with
     | Some typ -> typ
     | None ->
-      state.Block(
-        UnknownDeclaredTypeVariable,
-        nodeId,
-        $"Type variable '{name}' is not declared in this scope"
-      )
+      state.Block(UnknownDeclaredTypeVariable, nodeId, Identifier name)
       state.FreshTainted nodeId
   | TypeReference.TCustomType(name, args) ->
     match resolvedName name with
@@ -233,14 +181,14 @@ let rec internal convertType
       state.AddDependency(TypeDependency packageName)
       TCustom(packageName, List.map recurse args)
     | None ->
-      state.Block(UnresolvedTypeName, nodeId, unresolvedName "Type" name)
+      state.Block(UnresolvedTypeName, nodeId, Unresolved name.originalName)
       state.FreshTainted nodeId
 
 let rec internal applySubstitutions (state : State) (typ : StaticType) : StaticType =
   ensureStack ()
   let recurse = applySubstitutions state
   match typ with
-  | TInferenceVar var ->
+  | TInferenceVariable var ->
     match Map.tryFind var state.Substitutions with
     | None -> typ
     | Some replacement ->
@@ -264,7 +212,7 @@ let rec internal containsTaintedInferenceVariable
   ensureStack ()
   let recurse = containsTaintedInferenceVariable state
   match typ with
-  | TInferenceVar variable ->
+  | TInferenceVariable variable ->
     state.IsTainted variable
     || (Map.tryFind variable state.Substitutions |> Option.exists recurse)
   | TStream inner
@@ -287,7 +235,7 @@ let rec internal containsInferenceVar
   let typ = applySubstitutions state typ
   let recurse = containsInferenceVar state needle
   match typ with
-  | TInferenceVar var -> var = needle
+  | TInferenceVariable var -> var = needle
   | TStream inner
   | TList inner
   | TDict inner
@@ -308,35 +256,25 @@ let internal expandAliasOnce
   | TCustom(name, args) ->
     match Map.tryFind name state.Environment.types with
     | None ->
-      state.Block(
-        MissingTypeDeclaration,
-        nodeId,
-        $"{displayTypeName name} is not available to the checker"
-      )
+      state.Block(MissingTypeDeclaration, nodeId, TypeUnavailable name)
       None
     | Some declaration ->
       if List.length declaration.typeParams <> List.length args then
         let expected = List.length declaration.typeParams
         let actual = List.length args
-        let expectedText = countNoun expected "type argument" "type arguments"
         state.Error(
           TypeMismatch,
           nodeId,
           None,
           Some typ,
-          $"{displayTypeName name} expects {expectedText}, "
-          + $"but {actual} {wasOrWere actual} provided"
+          TypeArity(name, expected, actual)
         )
         None
       else
         match declaration.definition with
         | TypeDeclaration.Alias target ->
           if Set.contains name seen then
-            state.Block(
-              AliasCycle,
-              nodeId,
-              "A referenced type alias contains a cycle"
-            )
+            state.Block(AliasCycle, nodeId, AliasCycleReferenced)
             None
           else
             let mapping = List.zip declaration.typeParams args |> Map.ofList
@@ -383,38 +321,27 @@ let rec internal validateTypeClosureFrom
   | TCustom(name, args) ->
     args |> List.iter recurse
     match Map.tryFind name state.Environment.types with
-    | None ->
-      state.Block(
-        MissingTypeDeclaration,
-        nodeId,
-        $"{displayTypeName name} is not available to the checker"
-      )
+    | None -> state.Block(MissingTypeDeclaration, nodeId, TypeUnavailable name)
     | Some declaration ->
       if List.length declaration.typeParams <> List.length args then
         let expected = List.length declaration.typeParams
         let actual = List.length args
-        let expectedText = countNoun expected "type argument" "type arguments"
         state.Error(
           TypeMismatch,
           nodeId,
           None,
           Some typ,
-          $"{displayTypeName name} expects {expectedText}, "
-          + $"but {actual} {wasOrWere actual} provided"
+          TypeArity(name, expected, actual)
         )
       else
         match declaration.definition with
         | TypeDeclaration.Alias target ->
           if Set.contains name seenAliases then
-            state.Block(
-              AliasCycle,
-              nodeId,
-              "A referenced type alias contains a cycle"
-            )
+            state.Block(AliasCycle, nodeId, AliasCycleReferenced)
           else
             let rigidParams =
               declaration.typeParams
-              |> List.map (fun name -> name, TRigidVar name)
+              |> List.map (fun name -> name, TRigidVariable name)
               |> Map.ofList
             let target = convertType state nodeId rigidParams target
             validateTypeClosureFrom
@@ -427,7 +354,7 @@ let rec internal validateTypeClosureFrom
           if not (Set.contains name seenDeclarations) then
             let rigidParams =
               declaration.typeParams
-              |> List.map (fun name -> name, TRigidVar name)
+              |> List.map (fun name -> name, TRigidVariable name)
               |> Map.ofList
             let validateField (field : TypeDeclaration.RecordField) : unit =
               let fieldType = convertType state nodeId rigidParams field.typ
@@ -442,7 +369,7 @@ let rec internal validateTypeClosureFrom
           if not (Set.contains name seenDeclarations) then
             let rigidParams =
               declaration.typeParams
-              |> List.map (fun name -> name, TRigidVar name)
+              |> List.map (fun name -> name, TRigidVariable name)
               |> Map.ofList
             let validateField (field : TypeDeclaration.EnumField) : unit =
               let fieldType = convertType state nodeId rigidParams field.typ
@@ -475,8 +402,8 @@ let rec internal validateTypeClosureFrom
   | TUuid
   | TDateTime
   | TBlob
-  | TRigidVar _
-  | TInferenceVar _ -> ()
+  | TRigidVariable _
+  | TInferenceVariable _ -> ()
 
 let internal validateTypeClosure
   (state : State)
@@ -511,7 +438,7 @@ let internal samePrimitive (left : StaticType) (right : StaticType) : bool =
 let rec internal unify
   (state : State)
   (nodeId : Option<id>)
-  (context : string)
+  (site : Site)
   (expected : StaticType)
   (actual : StaticType)
   : unit =
@@ -522,40 +449,40 @@ let rec internal unify
   let expected = normalizeAliases state nodeId Set.empty expected
   let actual = normalizeAliases state nodeId Set.empty actual
   match expected, actual with
-  | TInferenceVar left, TInferenceVar right when left = right -> ()
-  | TInferenceVar var, replacement
-  | replacement, TInferenceVar var ->
+  | TInferenceVariable left, TInferenceVariable right when left = right -> ()
+  | TInferenceVariable var, replacement
+  | replacement, TInferenceVariable var ->
     if containsInferenceVar state var replacement then
       if not involvesTaintedType then
-        state.Error(OccursCheckFailed, nodeId, Some expected, Some actual, context)
+        state.Error(OccursCheckFailed, nodeId, Some expected, Some actual, At site)
     else
       if involvesTaintedType then state.MarkTainted replacement
       state.Substitutions <- Map.add var replacement state.Substitutions
-  | TRigidVar left, TRigidVar right when left = right -> ()
+  | TRigidVariable left, TRigidVariable right when left = right -> ()
   | left, right when samePrimitive left right -> ()
   | TStream left, TStream right
   | TList left, TList right
   | TDict left, TDict right
-  | TDB left, TDB right -> unify state nodeId context left right
+  | TDB left, TDB right -> unify state nodeId site left right
   | TTuple(l1, l2, lr), TTuple(r1, r2, rr) when List.length lr = List.length rr ->
-    unify state nodeId context l1 r1
-    unify state nodeId context l2 r2
-    List.iter2 (unify state nodeId context) lr rr
+    unify state nodeId site l1 r1
+    unify state nodeId site l2 r2
+    List.iter2 (unify state nodeId site) lr rr
   | TCustom(leftName, leftArgs), TCustom(rightName, rightArgs) when
     leftName = rightName && List.length leftArgs = List.length rightArgs
     ->
-    List.iter2 (unify state nodeId context) leftArgs rightArgs
+    List.iter2 (unify state nodeId site) leftArgs rightArgs
   | TFn(leftArgs, leftRet), TFn(rightArgs, rightRet) when
     NEList.length leftArgs = NEList.length rightArgs
     ->
     List.iter2
-      (unify state nodeId context)
+      (unify state nodeId site)
       (NEList.toList leftArgs)
       (NEList.toList rightArgs)
-    unify state nodeId context leftRet rightRet
+    unify state nodeId site leftRet rightRet
   | _ ->
     if not involvesTaintedType then
-      state.Error(TypeMismatch, nodeId, Some expected, Some actual, context)
+      state.Error(TypeMismatch, nodeId, Some expected, Some actual, At site)
 
 let internal typeVariables
   (state : State)
@@ -572,8 +499,7 @@ let internal typeVariables
       nodeId,
       None,
       None,
-      $"Expected {List.length names} explicit type arguments but got "
-      + $"{List.length explicitArgs}"
+      Arity(List.length names, List.length explicitArgs)
     )
 
   let args =
@@ -600,7 +526,7 @@ let rec internal inferenceVariables (typ : StaticType) : Set<int> =
   ensureStack ()
   let recurse = inferenceVariables
   match typ with
-  | TInferenceVar var -> Set.singleton var
+  | TInferenceVariable var -> Set.singleton var
   | TStream inner
   | TList inner
   | TDict inner
@@ -651,7 +577,8 @@ let internal instantiateScheme
     scheme.quantified |> Seq.map (fun var -> var, state.Fresh nodeId) |> Map.ofSeq
   let rec replace typ =
     match typ with
-    | TInferenceVar var -> Map.tryFind var replacements |> Option.defaultValue typ
+    | TInferenceVariable var ->
+      Map.tryFind var replacements |> Option.defaultValue typ
     | TStream inner -> TStream(replace inner)
     | TList inner -> TList(replace inner)
     | TTuple(first, second, rest) ->

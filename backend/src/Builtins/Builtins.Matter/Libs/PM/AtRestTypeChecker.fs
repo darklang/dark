@@ -169,12 +169,14 @@ type CheckReport =
     diagnostics : List<Checker.Diagnostic>
     blockers : List<Checker.Blocker> }
 
-let unavailableReport (context : string) : CheckReport =
+let unavailableReport (detail : string) : CheckReport =
   { verdict = Incomplete
     items = []
     diagnostics = []
     blockers =
-      [ { code = Checker.UnsupportedConstruct; nodeId = None; context = context } ] }
+      [ { code = Checker.UnsupportedConstruct
+          nodeId = None
+          context = Checker.CheckerUnavailable detail } ] }
 
 let private itemReport (result : Checker.ItemVerdict) : ItemCheckReport =
   match result.verdict with
@@ -275,6 +277,12 @@ module private DarkTypes =
   let staticTypeName () = FQTypeName.fqPackage (Refs.staticType ())
   let verdictName () = FQTypeName.fqPackage (Refs.verdict ())
   let issueCodeName () = FQTypeName.fqPackage (Refs.issueCode ())
+  let nameRefName () = FQTypeName.fqPackage (Refs.nameRef ())
+  let siteName () = FQTypeName.fqPackage (Refs.site ())
+  let duplicateSiteName () = FQTypeName.fqPackage (Refs.duplicateSite ())
+  let ambiguousSubjectName () = FQTypeName.fqPackage (Refs.ambiguousSubject ())
+  let untrustedBuiltinName () = FQTypeName.fqPackage (Refs.untrustedBuiltin ())
+  let contextName () = FQTypeName.fqPackage (Refs.context ())
   let issueName () = FQTypeName.fqPackage (Refs.issue ())
   let itemReportName () = FQTypeName.fqPackage (Refs.itemReport ())
   let reportName () = FQTypeName.fqPackage (Refs.report ())
@@ -317,8 +325,8 @@ module private DarkTypes =
     | Checker.TFn(parameters, returnType) ->
       make "TFn" [ parameters |> NEList.toList |> list; staticTypeToDT returnType ]
     | Checker.TDB inner -> make "TDB" [ staticTypeToDT inner ]
-    | Checker.TRigidVar name -> make "TRigidVariable" [ DString name ]
-    | Checker.TInferenceVar variable ->
+    | Checker.TRigidVariable name -> make "TRigidVariable" [ DString name ]
+    | Checker.TInferenceVariable variable ->
       make "TInferenceVariable" [ Dval.int (bigint variable) ]
 
   let verdictToDT (verdict : CheckVerdict) : Dval =
@@ -374,12 +382,159 @@ module private DarkTypes =
     let knownType = KTCustomType(staticTypeName (), [])
     typ |> Option.map staticTypeToDT |> Dval.option knownType
 
+  let private fnNameToDT (name : PT.FQFnName.FQFnName) : Dval =
+    let typeName = nameRefName ()
+    match name with
+    | PT.FQFnName.Builtin builtin ->
+      DEnum(
+        typeName,
+        typeName,
+        [],
+        "Builtin",
+        [ DString builtin.name; DInt64(int64 builtin.version) ]
+      )
+    | PT.FQFnName.Package hash ->
+      DEnum(typeName, typeName, [], "Package", [ PT2DT.Hash.toDT hash ])
+
+  let private valueNameToDT (name : PT.FQValueName.FQValueName) : Dval =
+    let typeName = nameRefName ()
+    match name with
+    | PT.FQValueName.Builtin builtin ->
+      DEnum(
+        typeName,
+        typeName,
+        [],
+        "Builtin",
+        [ DString builtin.name; DInt64(int64 builtin.version) ]
+      )
+    | PT.FQValueName.Package hash ->
+      DEnum(typeName, typeName, [], "Package", [ PT2DT.Hash.toDT hash ])
+
+  let private siteToDT (site : Checker.Site) : Dval =
+    let typeName = siteName ()
+    let make caseName fields = DEnum(typeName, typeName, [], caseName, fields)
+    match site with
+    | Checker.LambdaReturnValue -> make "LambdaReturnValue" []
+    | Checker.FunctionReturnValue -> make "FunctionReturnValue" []
+    | Checker.ValueBody -> make "ValueBody" []
+    | Checker.Expression -> make "Expression" []
+    | Checker.StatementBeforeFinalExpression ->
+      make "StatementBeforeFinalExpression" []
+    | Checker.FunctionApplication -> make "FunctionApplication" []
+    | Checker.FunctionArgument position ->
+      make "FunctionArgument" [ DInt64(int64 position) ]
+    | Checker.IfWithoutElse -> make "IfWithoutElse" []
+    | Checker.RecordFieldAccess -> make "RecordFieldAccess" []
+    | Checker.UnitLetPattern -> make "UnitLetPattern" []
+    | Checker.TupleLetPattern -> make "TupleLetPattern" []
+    | Checker.MatchPattern -> make "MatchPattern" []
+    | Checker.ListPattern -> make "ListPattern" []
+    | Checker.ListConsPattern -> make "ListConsPattern" []
+    | Checker.TupleMatchPattern -> make "TupleMatchPattern" []
+    | Checker.OrPatternBinding -> make "OrPatternBinding" []
+    | Checker.PipelineInput -> make "PipelineInput" []
+    | Checker.PipelineFunction -> make "PipelineFunction" []
+    | Checker.PipelineVariable -> make "PipelineVariable" []
+    | Checker.PipelineEnumInput -> make "PipelineEnumInput" []
+    | Checker.PipelineBooleanOperator -> make "PipelineBooleanOperator" []
+    | Checker.PipelineStringConcatenation -> make "PipelineStringConcatenation" []
+    | Checker.PipelineComparison -> make "PipelineComparison" []
+    | Checker.PipelineNumericOperator -> make "PipelineNumericOperator" []
+
+  let private duplicateSiteToDT (site : Checker.DuplicateSite) : Dval =
+    let typeName = duplicateSiteName ()
+    let make caseName = DEnum(typeName, typeName, [], caseName, [])
+    match site with
+    | Checker.InTypeDeclaration -> make "InTypeDeclaration"
+    | Checker.InFunctionSignature -> make "InFunctionSignature"
+    | Checker.InRecordConstruction -> make "InRecordConstruction"
+    | Checker.InRecordUpdate -> make "InRecordUpdate"
+    | Checker.InPattern -> make "InPattern"
+
+  let private ambiguousSubjectToDT (subject : Checker.AmbiguousSubject) : Dval =
+    let typeName = ambiguousSubjectName ()
+    let make caseName = DEnum(typeName, typeName, [], caseName, [])
+    match subject with
+    | Checker.NumericOperand -> make "NumericOperand"
+    | Checker.PipelineNumericOperand -> make "PipelineNumericOperand"
+    | Checker.UnaryMinusOperand -> make "UnaryMinusOperand"
+    | Checker.RecordType -> make "RecordType"
+    | Checker.EnumPatternType -> make "EnumPatternType"
+    | Checker.ItemType -> make "ItemType"
+
+  let private untrustedBuiltinToDT (reason : Checker.UntrustedBuiltin) : Dval =
+    let typeName = untrustedBuiltinName ()
+    let make caseName = DEnum(typeName, typeName, [], caseName, [])
+    match reason with
+    | Checker.ResultTypeUnconstrained -> make "ResultTypeUnconstrained"
+    | Checker.UnwrapArgumentUnknown -> make "UnwrapArgumentUnknown"
+    | Checker.OperatorNotFullyApplied -> make "OperatorNotFullyApplied"
+    | Checker.ExplicitTypeArgumentsRequired -> make "ExplicitTypeArgumentsRequired"
+
+  /// Every case here has a counterpart in `LanguageTools.AtRestTypeChecker.Context`,
+  /// and `AtRestTypeChecker.Tests` asserts that they still line up. Adding a case to
+  /// the checker breaks this match; adding it here without adding it there breaks
+  /// that test rather than a caller at runtime.
+  let contextToDT (context : Checker.Context) : Dval =
+    let typeName = contextName ()
+    let make caseName fields = DEnum(typeName, typeName, [], caseName, fields)
+    let strings (values : List<string>) =
+      values |> List.map DString |> Dval.list KTString
+    match context with
+    | Checker.NoDetail -> make "NoDetail" []
+    | Checker.At site -> make "At" [ siteToDT site ]
+    | Checker.Unresolved attempted -> make "Unresolved" [ strings attempted ]
+    | Checker.TypeUnavailable name -> make "TypeUnavailable" [ PT2DT.Hash.toDT name ]
+    | Checker.FunctionUnavailable name ->
+      make "FunctionUnavailable" [ fnNameToDT name ]
+    | Checker.ValueUnavailable name -> make "ValueUnavailable" [ valueNameToDT name ]
+    | Checker.Identifier name -> make "Identifier" [ DString name ]
+    | Checker.Identifiers names -> make "Identifiers" [ strings names ]
+    | Checker.Duplicate(name, site) ->
+      make "Duplicate" [ DString name; duplicateSiteToDT site ]
+    | Checker.Ambiguous subject -> make "Ambiguous" [ ambiguousSubjectToDT subject ]
+    | Checker.Untrusted(fn, reason) ->
+      make "Untrusted" [ fnNameToDT fn; untrustedBuiltinToDT reason ]
+    | Checker.Arity(expected, actual) ->
+      make "Arity" [ DInt64(int64 expected); DInt64(int64 actual) ]
+    | Checker.NamedArity(name, expected, actual) ->
+      make
+        "NamedArity"
+        [ DString name; DInt64(int64 expected); DInt64(int64 actual) ]
+    | Checker.TypeArity(typ, expected, actual) ->
+      make
+        "TypeArity"
+        [ PT2DT.Hash.toDT typ; DInt64(int64 expected); DInt64(int64 actual) ]
+    | Checker.ArgumentIndex index -> make "ArgumentIndex" [ DInt64(int64 index) ]
+    | Checker.UncoveredPattern witness ->
+      make
+        "UncoveredPattern"
+        [ witness |> Option.map DString |> Dval.option KTString ]
+    | Checker.InfixOperandUnsupported operation ->
+      make "InfixOperandUnsupported" [ DString operation ]
+    | Checker.RecordRequiredForConstruction ->
+      make "RecordRequiredForConstruction" []
+    | Checker.RecordRequiredForFieldAccess -> make "RecordRequiredForFieldAccess" []
+    | Checker.RecordRequiredForUpdate -> make "RecordRequiredForUpdate" []
+    | Checker.EnumRequiredForConstruction -> make "EnumRequiredForConstruction" []
+    | Checker.EnumRequiredForPattern -> make "EnumRequiredForPattern" []
+    | Checker.SelfOutsideFunction -> make "SelfOutsideFunction" []
+    | Checker.OrPatternBindingsDiffer -> make "OrPatternBindingsDiffer" []
+    | Checker.ExplicitTypeArgumentsOnNonNamedFunction ->
+      make "ExplicitTypeArgumentsOnNonNamedFunction" []
+    | Checker.AliasCycleReferenced -> make "AliasCycleReferenced" []
+    | Checker.DeclarationTooDeep -> make "DeclarationTooDeep" []
+    | Checker.UnaryMinusOperandNotSignedNumeric ->
+      make "UnaryMinusOperandNotSignedNumeric" []
+    | Checker.CheckerUnavailable detail ->
+      make "CheckerUnavailable" [ DString detail ]
+
   let private issue
     (code : Dval)
     (nodeId : Option<id>)
     (expected : Option<Checker.StaticType>)
     (actual : Option<Checker.StaticType>)
-    (context : string)
+    (context : Checker.Context)
     : Dval =
     let typeName = issueName ()
     DRecord(
@@ -391,7 +546,7 @@ module private DarkTypes =
           "nodeId", optionNodeId nodeId
           "expected", optionStaticType expected
           "actual", optionStaticType actual
-          "context", DString context ]
+          "context", contextToDT context ]
     )
 
   let diagnosticToDT (diagnostic : Checker.Diagnostic) : Dval =

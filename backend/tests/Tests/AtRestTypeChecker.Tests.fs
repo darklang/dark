@@ -12,6 +12,7 @@ module Checker = LibExecution.AtRest.Types
 module CheckerApi = LibExecution.AtRestTypeChecker
 module AuthoringChecker = Builtins.Matter.Libs.PM.AtRestTypeChecker
 module HashStabilization = LibDB.HashStabilization
+module CheckerRefs = LibExecution.PackageRefs.Type.LanguageTools.AtRestTypeChecker
 
 open Tests.MultiInstanceHarness
 
@@ -372,7 +373,7 @@ let private unitTests =
               failtest "missing exhaustiveness blocker")
           Expect.equal
             blocker.context
-            "Match is not exhaustive; an uncovered pattern is A(false)"
+            (Checker.UncoveredPattern(Some "A(false)"))
             "the checker identifies a concrete uncovered pattern"
         | verdict -> failtestf "Expected Incomplete, got %A" verdict
       }
@@ -2201,4 +2202,73 @@ let private authoringTests =
       moduleUpdatesReportDependentsOnce ]
 
 
-let tests = testList "AtRestTypeChecker" [ unitTests; authoringTests ]
+/// The checker's vocabulary is mirrored in `LanguageTools.AtRestTypeChecker` so Dark
+/// can render it. The F# side of that mirror is compiler-checked (adding a case breaks
+/// the conversion match); the Dark side is not, and a case missing there fails at
+/// runtime, in the editor, on the day someone first hits it. These compare the case
+/// names directly, so the mirror can only drift with a failing test.
+let private mirrorTests =
+  let fsharpCases (typ : System.Type) : Set<string> =
+    Microsoft.FSharp.Reflection.FSharpType.GetUnionCases(typ)
+    |> Array.map (fun case -> case.Name)
+    |> Set.ofArray
+
+  let darkCases (hash : PT.FQTypeName.Package) : Ply<Set<string>> =
+    uply {
+      let! (declaration : Option<PT.PackageType.PackageType>) =
+        TestUtils.TestUtils.pmPT.getType hash
+      match declaration with
+      | None -> return Set.empty
+      | Some declaration ->
+        match declaration.declaration.definition with
+        | PT.TypeDeclaration.Enum cases ->
+          return cases |> NEList.toList |> List.map _.name |> Set.ofList
+        | PT.TypeDeclaration.Alias _
+        | PT.TypeDeclaration.Record _ -> return Set.empty
+    }
+
+  let mirrors (name : string) (fsharp : Set<string>) (hash : unit -> string) =
+    testTask name {
+      let! dark = darkCases (PT.Hash(hash ())) |> Ply.toTask
+      Expect.isNonEmpty
+        (Set.toList dark)
+        $"the Dark {name} type was found in the package manager"
+      Expect.equal
+        (Set.difference fsharp dark |> Set.toList)
+        []
+        $"every F# {name} case exists in the Dark mirror"
+      Expect.equal
+        (Set.difference dark fsharp |> Set.toList)
+        []
+        $"every Dark {name} case exists in the F# original"
+    }
+
+  testList
+    "dark mirror"
+    [ mirrors
+        "IssueCode"
+        (Set.union
+          (fsharpCases typeof<Checker.DiagnosticCode>)
+          (fsharpCases typeof<Checker.BlockerCode>))
+        CheckerRefs.issueCode
+      mirrors "Context" (fsharpCases typeof<Checker.Context>) CheckerRefs.context
+      mirrors "Site" (fsharpCases typeof<Checker.Site>) CheckerRefs.site
+      mirrors
+        "DuplicateSite"
+        (fsharpCases typeof<Checker.DuplicateSite>)
+        CheckerRefs.duplicateSite
+      mirrors
+        "AmbiguousSubject"
+        (fsharpCases typeof<Checker.AmbiguousSubject>)
+        CheckerRefs.ambiguousSubject
+      mirrors
+        "UntrustedBuiltin"
+        (fsharpCases typeof<Checker.UntrustedBuiltin>)
+        CheckerRefs.untrustedBuiltin
+      mirrors
+        "StaticType"
+        (fsharpCases typeof<Checker.StaticType>)
+        CheckerRefs.staticType ]
+
+
+let tests = testList "AtRestTypeChecker" [ unitTests; mirrorTests; authoringTests ]

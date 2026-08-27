@@ -65,12 +65,105 @@ type IssueCode =
   | NonExhaustiveMatch
   | UnsupportedConstruct
 
+/// A function or value the checker names in an issue.
+type NameRef =
+  | Builtin of String * Int64
+  | Package of LanguageTools.ProgramTypes.Hash
+
+/// Where in the item the checker was working when it found something.
+type Site =
+  | LambdaReturnValue
+  | FunctionReturnValue
+  | ValueBody
+  | Expression
+  | StatementBeforeFinalExpression
+  | FunctionApplication
+  | FunctionArgument of Int64
+  | IfWithoutElse
+  | RecordFieldAccess
+  | UnitLetPattern
+  | TupleLetPattern
+  | MatchPattern
+  | ListPattern
+  | ListConsPattern
+  | TupleMatchPattern
+  | OrPatternBinding
+  | PipelineInput
+  | PipelineFunction
+  | PipelineVariable
+  | PipelineEnumInput
+  | PipelineBooleanOperator
+  | PipelineStringConcatenation
+  | PipelineComparison
+  | PipelineNumericOperator
+
+/// Which of several same-coded places a name was declared twice.
+type DuplicateSite =
+  | InTypeDeclaration
+  | InFunctionSignature
+  | InRecordConstruction
+  | InRecordUpdate
+  | InPattern
+
+/// What the checker could not pin down when it reports an ambiguous type.
+type AmbiguousSubject =
+  | NumericOperand
+  | PipelineNumericOperand
+  | UnaryMinusOperand
+  | RecordType
+  | EnumPatternType
+  | ItemType
+
+/// Why a builtin's declared signature is not something the checker can check against.
+type UntrustedBuiltin =
+  | ResultTypeUnconstrained
+  | UnwrapArgumentUnknown
+  | OperatorNotFullyApplied
+  | ExplicitTypeArgumentsRequired
+
+/// What an issue is about, beyond its code.
+///
+/// The checker states the facts and this module turns them into a sentence, which is
+/// why a name here is a hash rather than a rendered string: the checker has no name
+/// resolver and could only ever say `Type #a1b2c3d4`, while `contextToStringWith` can
+/// look the hash up and say what the author called it.
+type Context =
+  | NoDetail
+  | At of Site
+  | Unresolved of List<String>
+  | TypeUnavailable of LanguageTools.ProgramTypes.Hash
+  | FunctionUnavailable of NameRef
+  | ValueUnavailable of NameRef
+  | Identifier of String
+  | Identifiers of List<String>
+  | Duplicate of String * DuplicateSite
+  | Ambiguous of AmbiguousSubject
+  | Untrusted of NameRef * UntrustedBuiltin
+  | Arity of Int64 * Int64
+  | NamedArity of String * Int64 * Int64
+  | TypeArity of LanguageTools.ProgramTypes.Hash * Int64 * Int64
+  | ArgumentIndex of Int64
+  | UncoveredPattern of Stdlib.Option.Option<String>
+  | InfixOperandUnsupported of String
+  | RecordRequiredForConstruction
+  | RecordRequiredForFieldAccess
+  | RecordRequiredForUpdate
+  | EnumRequiredForConstruction
+  | EnumRequiredForPattern
+  | SelfOutsideFunction
+  | OrPatternBindingsDiffer
+  | ExplicitTypeArgumentsOnNonNamedFunction
+  | AliasCycleReferenced
+  | DeclarationTooDeep
+  | UnaryMinusOperandNotSignedNumeric
+  | CheckerUnavailable of String
+
 type Issue =
   { code: IssueCode
     nodeId: Stdlib.Option.Option<UInt64>
     expected: Stdlib.Option.Option<StaticType>
     actual: Stdlib.Option.Option<StaticType>
-    context: String }
+    context: Context }
 
 type ItemReport =
   { item: LanguageTools.ProgramTypes.Reference
@@ -186,6 +279,171 @@ let issueCodeToString (code: IssueCode) : String =
   | NonExhaustiveMatch -> "NonExhaustiveMatch"
   | UnsupportedConstruct -> "UnsupportedConstruct"
 
+let nameRefToStringWith
+  (resolve: LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>)
+  (name: NameRef)
+  : String =
+  match name with
+  | Builtin(name, version) ->
+    if version == 0L then
+      $"Builtin.{name}"
+    else
+      $"Builtin.{name}_v{Stdlib.Int64.toString version}"
+  | Package hash ->
+    match resolve hash with
+    | Some name -> name
+    | None ->
+      let hex = LanguageTools.ProgramTypes.hashToString hash
+      let short = Stdlib.String.slice hex 0 12
+      $"#{short}"
+
+
+let siteToString (site: Site) : String =
+  match site with
+  | LambdaReturnValue -> "the lambda's return value"
+  | FunctionReturnValue -> "the function's return value"
+  | ValueBody -> "the value's body"
+  | Expression -> "this expression"
+  | StatementBeforeFinalExpression -> "the statement before the final expression"
+  | FunctionApplication -> "this function application"
+  | FunctionArgument position ->
+    $"argument {Stdlib.Int64.toString (position + 1L)}"
+  | IfWithoutElse -> "an if without an else"
+  | RecordFieldAccess -> "this field access"
+  | UnitLetPattern -> "a unit let-pattern"
+  | TupleLetPattern -> "a tuple let-pattern"
+  | MatchPattern -> "a match pattern"
+  | ListPattern -> "a list pattern"
+  | ListConsPattern -> "a list-cons pattern"
+  | TupleMatchPattern -> "a tuple match pattern"
+  | OrPatternBinding -> "an or-pattern binding"
+  | PipelineInput -> "the pipeline input"
+  | PipelineFunction -> "the pipeline function"
+  | PipelineVariable -> "the pipeline variable"
+  | PipelineEnumInput -> "the pipeline enum input"
+  | PipelineBooleanOperator -> "a pipeline boolean operator"
+  | PipelineStringConcatenation -> "a pipeline string concatenation"
+  | PipelineComparison -> "a pipeline comparison"
+  | PipelineNumericOperator -> "a pipeline numeric operator"
+
+
+let duplicateSiteToString (site: DuplicateSite) : String =
+  match site with
+  | InTypeDeclaration -> "declared"
+  | InFunctionSignature -> "declared"
+  | InRecordConstruction -> "specified"
+  | InRecordUpdate -> "updated"
+  | InPattern -> "bound"
+
+
+let ambiguousSubjectToString (subject: AmbiguousSubject) : String =
+  match subject with
+  | NumericOperand -> "the numeric operand type"
+  | PipelineNumericOperand -> "the numeric pipeline operand type"
+  | UnaryMinusOperand -> "the operand type of unary minus"
+  | RecordType -> "the record type"
+  | EnumPatternType -> "which enum type contains this case"
+  | ItemType -> "a complete type here"
+
+
+let untrustedBuiltinToString (reason: UntrustedBuiltin) : String =
+  match reason with
+  | ResultTypeUnconstrained ->
+    "its declared result contains type variables no parameter constrains, "
+    ++ "so its real result type is only known at runtime"
+  | UnwrapArgumentUnknown ->
+    "the argument's type is not statically known to be an Option or a Result"
+  | OperatorNotFullyApplied ->
+    "it is an operator: apply it to all its arguments, use the operator syntax, "
+    ++ "or wrap it in a lambda"
+  | ExplicitTypeArgumentsRequired ->
+    "its result type cannot be inferred from its value parameters, "
+    ++ "so the call has to give explicit type arguments"
+
+
+/// Turn an issue's structured context into a sentence.
+///
+/// <param customTypeName> resolves a content hash to whatever the reader calls it;
+/// pass one that knows the current branch and the messages name types and functions
+/// the way the author wrote them.
+let contextToStringWith
+  (customTypeName:
+    LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>)
+  (context: Context)
+  : String =
+  let typeName = (fun hash ->
+    match customTypeName hash with
+    | Some name -> name
+    | None ->
+      let hex = LanguageTools.ProgramTypes.hashToString hash
+      let short = Stdlib.String.slice hex 0 12
+      $"the type #{short}")
+
+  let name = nameRefToStringWith customTypeName
+
+  match context with
+  | NoDetail -> ""
+  | At site -> $"In {siteToString site}"
+  | Unresolved parts ->
+    match parts with
+    | [] -> "The name is unresolved"
+    | parts -> $"'{Stdlib.String.join parts "."}' is unresolved"
+  | TypeUnavailable hash -> $"{typeName hash} is not available to the checker"
+  | FunctionUnavailable fn ->
+    $"The signature for {name fn} is not available to the checker"
+  | ValueUnavailable value ->
+    $"The type of {name value} is not available to the checker"
+  | Identifier ident -> $"'{ident}'"
+  | Identifiers idents ->
+    let quoted = idents |> Stdlib.List.map (fun ident -> $"'{ident}'")
+    $"{Stdlib.String.join quoted ", "}"
+  | Duplicate(ident, site) ->
+    $"'{ident}' is {duplicateSiteToString site} more than once"
+  | Ambiguous subject ->
+    $"Cannot determine {ambiguousSubjectToString subject}; add a type annotation"
+  | Untrusted(fn, reason) ->
+    $"{name fn} cannot be checked statically: {untrustedBuiltinToString reason}"
+  | Arity(expected, actual) ->
+    $"Expected {Stdlib.Int64.toString expected}, but {Stdlib.Int64.toString actual} "
+    ++ "were provided"
+  | NamedArity(ident, expected, actual) ->
+    $"'{ident}' expects {Stdlib.Int64.toString expected}, "
+    ++ $"but {Stdlib.Int64.toString actual} were provided"
+  | TypeArity(hash, expected, actual) ->
+    $"{typeName hash} expects {Stdlib.Int64.toString expected} type arguments, "
+    ++ $"but {Stdlib.Int64.toString actual} were provided"
+  | ArgumentIndex index ->
+    $"There is no argument at index {Stdlib.Int64.toString index}"
+  | UncoveredPattern witness ->
+    match witness with
+    | Some witness -> $"Match is not exhaustive; an uncovered pattern is {witness}"
+    | None ->
+      "Match is not exhaustive; values outside the listed patterns are not covered"
+  | InfixOperandUnsupported operation ->
+    $"Operator {operation} does not accept this operand type"
+  | RecordRequiredForConstruction -> "Record construction requires a record type"
+  | RecordRequiredForFieldAccess -> "Field access requires a record"
+  | RecordRequiredForUpdate -> "Record update requires a record"
+  | EnumRequiredForConstruction -> "Enum construction requires an enum type"
+  | EnumRequiredForPattern -> "An enum pattern requires an enum type"
+  | SelfOutsideFunction -> "Self is only available while checking a function"
+  | OrPatternBindingsDiffer ->
+    "Every branch of an or-pattern must bind the same names"
+  | ExplicitTypeArgumentsOnNonNamedFunction ->
+    "Explicit type arguments on a non-named function are not supported"
+  | AliasCycleReferenced -> "A referenced type alias contains a cycle"
+  | DeclarationTooDeep ->
+    "This declaration is nested too deeply for the checker to walk; "
+    ++ "it was not checked"
+  | UnaryMinusOperandNotSignedNumeric ->
+    "Unary minus requires a signed integer or Float operand"
+  | CheckerUnavailable detail -> $"The at-rest checker could not run: {detail}"
+
+
+let contextToString (context: Context) : String =
+  contextToStringWith (fun _ -> Stdlib.Option.Option.None) context
+
+
 let issueToStringWith
   (customTypeName:
     LanguageTools.ProgramTypes.Hash -> Stdlib.Option.Option<String>)
@@ -202,7 +460,7 @@ let issueToStringWith
         ++ staticTypeToStringWith customTypeName actual
       | None -> ""
     | None -> ""
-  issue.context ++ detail
+  (contextToStringWith customTypeName issue.context) ++ detail
 
 let issueToString (issue: Issue) : String =
   issueToStringWith (fun _ -> Stdlib.Option.Option.None) issue

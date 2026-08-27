@@ -41,15 +41,6 @@ let internal supportsNumericOperation
   | ArithmeticPower, (TInt128 | TUInt128) -> false
   | _ -> isNumeric typ
 
-let internal numericOperationError
-  (operation : InfixFnName)
-  (typ : StaticType)
-  : string =
-  match operation, typ with
-  | ArithmeticPower, (TInt128 | TUInt128) ->
-    "Exponentiation does not support Int128 or UInt128 operands"
-  | _ -> $"Operator {operation} requires numeric operands"
-
 let rec internal isNonExpansive (expr : Expr) : bool =
   ensureStack ()
   match expr with
@@ -120,8 +111,7 @@ let internal inferUnwrapResult
     state.Block(
       UnsupportedConstruct,
       Some nodeId,
-      $"{displayFunctionName fqName} cannot be checked statically: "
-      + "the argument's type is not statically known to be an Option or Result"
+      Untrusted(fqName, UnwrapArgumentUnknown)
     )
     state.FreshTainted(Some nodeId)
 
@@ -174,20 +164,16 @@ let internal inferNegateResult
   let concrete = normalizeAliases state (Some nodeId) Set.empty argType
   if not (isSignedNumeric concrete) then
     match concrete with
-    | TInferenceVar _ ->
+    | TInferenceVariable _ ->
       if not (containsTaintedInferenceVariable state argType) then
-        state.Block(
-          AmbiguousType,
-          Some nodeId,
-          "Cannot determine the operand type of unary minus; add a type annotation"
-        )
+        state.Block(AmbiguousType, Some nodeId, Ambiguous UnaryMinusOperand)
     | _ ->
       state.Error(
         InvalidInfixOperand,
         Some nodeId,
         None,
         Some concrete,
-        "Unary minus requires a signed integer or Float operand"
+        UnaryMinusOperandNotSignedNumeric
       )
   argType
 
@@ -200,7 +186,7 @@ let internal instantiateFunction
   : StaticType =
   match resolvedName name with
   | None ->
-    state.Block(UnresolvedFunctionName, nodeId, unresolvedName "Function" name)
+    state.Block(UnresolvedFunctionName, nodeId, Unresolved name.originalName)
     state.FreshTainted nodeId
   | Some fqName when isOperatorLikeBuiltin name ->
     // Applied to its full argument list it is checked as the operator (see
@@ -210,19 +196,14 @@ let internal instantiateFunction
     state.Block(
       UnsupportedConstruct,
       nodeId,
-      $"{displayFunctionName fqName} is an operator; apply it to all its "
-      + "arguments, use the operator syntax, or wrap it in a lambda"
+      Untrusted(fqName, OperatorNotFullyApplied)
     )
     state.FreshTainted nodeId
   | Some name ->
     state.AddDependency(FunctionDependency name)
     match Map.tryFind name state.Environment.unsupportedFunctions with
     | Some reason ->
-      state.Block(
-        UnsupportedConstruct,
-        nodeId,
-        $"{displayFunctionName name} cannot be checked statically: {reason}"
-      )
+      state.Block(UnsupportedConstruct, nodeId, Untrusted(name, reason))
       state.FreshTainted nodeId
     | None when
       Set.contains name state.Environment.requiresExplicitTypeArguments
@@ -231,18 +212,13 @@ let internal instantiateFunction
       state.Block(
         UnsupportedConstruct,
         nodeId,
-        $"{displayFunctionName name} requires explicit type arguments because "
-        + "its result type cannot be inferred from its value parameters"
+        Untrusted(name, ExplicitTypeArgumentsRequired)
       )
       state.FreshTainted nodeId
     | None ->
       match Map.tryFind name state.Environment.functions with
       | None ->
-        state.Block(
-          MissingFunctionSignature,
-          nodeId,
-          $"Signature for {displayFunctionName name} is not available to the checker"
-        )
+        state.Block(MissingFunctionSignature, nodeId, FunctionUnavailable name)
         state.FreshTainted nodeId
       | Some signature ->
         let vars =
@@ -268,17 +244,13 @@ let internal instantiateCustomType
   : Option<FQTypeName.Package * List<StaticType> * TypeDeclaration.T> =
   match resolvedName name with
   | None ->
-    state.Block(UnresolvedTypeName, nodeId, unresolvedName "Type" name)
+    state.Block(UnresolvedTypeName, nodeId, Unresolved name.originalName)
     None
   | Some(FQTypeName.Package packageName) ->
     state.AddDependency(TypeDependency packageName)
     match Map.tryFind packageName state.Environment.types with
     | None ->
-      state.Block(
-        MissingTypeDeclaration,
-        nodeId,
-        $"{displayTypeName packageName} is not available to the checker"
-      )
+      state.Block(MissingTypeDeclaration, nodeId, TypeUnavailable packageName)
       None
     | Some declaration ->
       let vars =
@@ -297,7 +269,7 @@ let rec internal checkExprWithContext
   (env : Env)
   (expected : StaticType)
   (expr : Expr)
-  (context : string)
+  (site : Site)
   : unit =
   ensureStack ()
   match expr, normalizeAliases state (Some(Expr.toID expr)) Set.empty expected with
@@ -308,10 +280,10 @@ let rec internal checkExprWithContext
       List.zip (NEList.toList patterns) (NEList.toList parameters)
       |> List.collect (fun (pattern, typ) -> checkLetPattern state typ pattern)
     let lambdaEnv = addBindings state (Some nodeId) env bindings
-    checkExprWithContext state lambdaEnv returnType body "Lambda return value"
+    checkExprWithContext state lambdaEnv returnType body LambdaReturnValue
   | _ ->
     let actual = inferExpr state env expr
-    unify state (Some(Expr.toID expr)) context expected actual
+    unify state (Some(Expr.toID expr)) site expected actual
 
 and internal checkExpr
   (state : State)
@@ -320,7 +292,7 @@ and internal checkExpr
   (expr : Expr)
   : unit =
   ensureStack ()
-  checkExprWithContext state env expected expr "Expression"
+  checkExprWithContext state env expected expr Expression
 
 and internal applyArguments
   (state : State)
@@ -346,35 +318,24 @@ and internal applyArguments
           env
           parameterList.Head
           argument
-          $"Function argument {position}"
+          (FunctionArgument position)
         match parameterList.Tail with
         | [] -> apply (position + 1) returnType remaining
         | next :: rest ->
           apply (position + 1) (TFn(NEList.ofList next rest, returnType)) remaining
-      | TInferenceVar _ ->
+      | TInferenceVariable _ ->
         let parameter = state.Fresh(Some nodeId)
         let result = state.Fresh(Some nodeId)
         unify
           state
           (Some nodeId)
-          "Function application"
+          FunctionApplication
           (TFn(NEList.singleton parameter, result))
           callee
-        checkExprWithContext
-          state
-          env
-          parameter
-          argument
-          $"Function argument {position}"
+        checkExprWithContext state env parameter argument (FunctionArgument position)
         apply (position + 1) result remaining
       | notCallable ->
-        state.Error(
-          NotCallable,
-          Some nodeId,
-          None,
-          Some notCallable,
-          "Attempted to apply a value that is not a function"
-        )
+        state.Error(NotCallable, Some nodeId, None, Some notCallable, NoDetail)
         state.Fresh(Some nodeId)
   apply 1 callee arguments
 
@@ -410,18 +371,12 @@ and internal inferRecordConstruction
             Some nodeId,
             None,
             None,
-            $"Record field '{name}' is specified more than once"
+            Duplicate(name, InRecordConstruction)
           )
         for name, value in fields do
           match declaredFields |> List.tryFind (fun field -> field.name = name) with
           | None ->
-            state.Error(
-              UnknownRecordField,
-              Some nodeId,
-              None,
-              None,
-              $"Record has no field named '{name}'"
-            )
+            state.Error(UnknownRecordField, Some nodeId, None, None, Identifier name)
             let _ = inferExpr state env value
             ()
           | Some field ->
@@ -439,15 +394,12 @@ and internal inferRecordConstruction
           |> List.map _.name
           |> List.filter (fun name -> not (Set.contains name supplied))
         if not (List.isEmpty missingFields) then
-          let fieldNoun = if List.length missingFields = 1 then "field" else "fields"
-          let fields =
-            missingFields |> List.map (fun name -> $"'{name}'") |> String.concat ", "
           state.Error(
             MissingRecordField,
             Some nodeId,
             None,
             None,
-            $"Record is missing {fieldNoun}: {fields}"
+            Identifiers missingFields
           )
       | TypeDeclaration.Enum _
       | TypeDeclaration.Alias _ ->
@@ -456,7 +408,7 @@ and internal inferRecordConstruction
           Some nodeId,
           None,
           Some result,
-          "Record construction requires a record type"
+          RecordRequiredForConstruction
         )
       result
 
@@ -490,19 +442,17 @@ and internal inferEnumConstruction
             Some nodeId,
             Some result,
             None,
-            $"Enum has no case named '{caseName}'"
+            Identifier caseName
           )
         | Some case when List.length case.fields <> List.length fields ->
           let expected = List.length case.fields
           let actual = List.length fields
-          let expectedText = countNoun expected "field" "fields"
           state.Error(
             EnumFieldCountMismatch,
             Some nodeId,
             None,
             None,
-            $"Case '{caseName}' expects {expectedText}, "
-            + $"but the construction provides {actual}"
+            NamedArity(caseName, expected, actual)
           )
           fields |> List.iter (fun field -> let _ = inferExpr state env field in ())
         | Some case ->
@@ -523,7 +473,7 @@ and internal inferEnumConstruction
           Some nodeId,
           None,
           Some result,
-          "Enum construction requires an enum type"
+          EnumRequiredForConstruction
         )
     result
 
@@ -557,20 +507,16 @@ and internal inferInfix
     let concrete = normalizeAliases state (Some nodeId) Set.empty lhsType
     if not (supportsNumericOperation operation concrete) then
       match concrete with
-      | TInferenceVar _ ->
+      | TInferenceVariable _ ->
         if not (containsTaintedInferenceVariable state lhsType) then
-          state.Block(
-            AmbiguousType,
-            Some nodeId,
-            "Cannot determine the numeric operand type; add a type annotation"
-          )
+          state.Block(AmbiguousType, Some nodeId, Ambiguous NumericOperand)
       | _ ->
         state.Error(
           InvalidInfixOperand,
           Some nodeId,
           None,
           Some concrete,
-          numericOperationError operation concrete
+          InfixOperandUnsupported(string operation)
         )
     match operation with
     | ComparisonGreaterThan
@@ -597,7 +543,7 @@ and internal inferPipePart
   match part with
   | EPipeLambda(nodeId, patterns, body) ->
     let parameters = patterns |> NEList.map (fun _ -> state.Fresh(Some nodeId))
-    unify state (Some nodeId) "Pipeline input" parameters.head input
+    unify state (Some nodeId) PipelineInput parameters.head input
     let bindings =
       List.zip (NEList.toList patterns) (NEList.toList parameters)
       |> List.collect (fun (pattern, typ) -> checkLetPattern state typ pattern)
@@ -612,37 +558,32 @@ and internal inferPipePart
     match infix with
     | BinOp BinOpAnd
     | BinOp BinOpOr ->
-      unify state (Some nodeId) "Pipeline boolean operator" TBool input
-      unify state (Some nodeId) "Pipeline boolean operator" TBool rhsType
+      unify state (Some nodeId) PipelineBooleanOperator TBool input
+      unify state (Some nodeId) PipelineBooleanOperator TBool rhsType
       TBool
     | InfixFnCall StringConcat ->
-      unify state (Some nodeId) "Pipeline string concatenation" TString input
-      unify state (Some nodeId) "Pipeline string concatenation" TString rhsType
+      unify state (Some nodeId) PipelineStringConcatenation TString input
+      unify state (Some nodeId) PipelineStringConcatenation TString rhsType
       TString
     | InfixFnCall ComparisonEquals
     | InfixFnCall ComparisonNotEquals ->
-      unify state (Some nodeId) "Pipeline comparison" input rhsType
+      unify state (Some nodeId) PipelineComparison input rhsType
       TBool
     | InfixFnCall operation ->
-      unify state (Some nodeId) "Pipeline numeric operator" input rhsType
+      unify state (Some nodeId) PipelineNumericOperator input rhsType
       let concrete = normalizeAliases state (Some nodeId) Set.empty input
       if not (supportsNumericOperation operation concrete) then
         match concrete with
-        | TInferenceVar _ ->
+        | TInferenceVariable _ ->
           if not (containsTaintedInferenceVariable state input) then
-            state.Block(
-              AmbiguousType,
-              Some nodeId,
-              "Cannot determine the numeric pipeline operand type; "
-              + "add a type annotation"
-            )
+            state.Block(AmbiguousType, Some nodeId, Ambiguous PipelineNumericOperand)
         | _ ->
           state.Error(
             InvalidInfixOperand,
             Some nodeId,
             None,
             Some concrete,
-            numericOperationError operation concrete
+            InfixOperandUnsupported(string operation)
           )
       match operation with
       | ComparisonGreaterThan
@@ -668,7 +609,7 @@ and internal inferPipePart
     | _ ->
       let fnType =
         instantiateFunction state (Some nodeId) env.typeVariables name typeArgs
-      let afterInput = applyKnownInput state nodeId "Pipeline function" fnType input
+      let afterInput = applyKnownInput state nodeId PipelineFunction fnType input
       applyArguments state env nodeId afterInput args
   | EPipeEnum(nodeId, name, caseName, fields) ->
     match instantiateCustomType state (Some nodeId) env.typeVariables name [] with
@@ -695,20 +636,18 @@ and internal inferPipePart
                   typeArgs
                   field.typ
               if index = 0 then
-                unify state (Some nodeId) "Pipeline enum input" fieldType input
+                unify state (Some nodeId) PipelineEnumInput fieldType input
               else
                 checkExpr state env fieldType expr)
           | Some case ->
             let expected = List.length case.fields
             let actual = 1 + List.length fields
-            let expectedText = countNoun expected "field" "fields"
             state.Error(
               EnumFieldCountMismatch,
               Some nodeId,
               None,
               None,
-              $"Case '{caseName}' expects {expectedText}, "
-              + $"but the pipeline provides {actual}"
+              NamedArity(caseName, expected, actual)
             )
           | None ->
             state.Error(
@@ -716,55 +655,50 @@ and internal inferPipePart
               Some nodeId,
               Some result,
               None,
-              $"Enum has no case named '{caseName}'"
+              Identifier caseName
             )
         | _ ->
-          state.Error(TypeMismatch, Some nodeId, None, Some result, "Not an enum")
+          state.Error(
+            TypeMismatch,
+            Some nodeId,
+            None,
+            Some result,
+            EnumRequiredForConstruction
+          )
       result
   | EPipeVariable(nodeId, name, args) ->
     match Map.tryFind name env.locals with
     | None ->
-      state.Error(
-        UnknownVariable,
-        Some nodeId,
-        None,
-        None,
-        $"Local variable '{name}' is not in scope"
-      )
+      state.Error(UnknownVariable, Some nodeId, None, None, Identifier name)
       state.FreshTainted(Some nodeId)
     | Some scheme ->
       // Apply the known input without making an AST literal of the wrong type.
       let fnType = instantiateScheme state (Some nodeId) scheme
-      let afterInput = applyKnownInput state nodeId "Pipeline variable" fnType input
+      let afterInput = applyKnownInput state nodeId PipelineVariable fnType input
       applyArguments state env nodeId afterInput args
 
 and internal applyKnownInput
   (state : State)
   (nodeId : id)
-  (context : string)
+  (site : Site)
   (callee : StaticType)
   (input : StaticType)
   : StaticType =
   ensureStack ()
   match normalizeAliases state (Some nodeId) Set.empty callee with
   | TFn(parameters, returnType) ->
-    unify state (Some nodeId) context parameters.head input
+    unify state (Some nodeId) site parameters.head input
     match parameters.tail with
     | [] -> returnType
     | next :: rest -> TFn(NEList.ofList next rest, returnType)
-  | TInferenceVar _ ->
+  | TInferenceVariable _ ->
     let parameter = state.Fresh(Some nodeId)
     let result = state.Fresh(Some nodeId)
-    unify
-      state
-      (Some nodeId)
-      context
-      (TFn(NEList.singleton parameter, result))
-      callee
-    unify state (Some nodeId) context parameter input
+    unify state (Some nodeId) site (TFn(NEList.singleton parameter, result)) callee
+    unify state (Some nodeId) site parameter input
     result
   | actual ->
-    state.Error(NotCallable, Some nodeId, None, Some actual, context)
+    state.Error(NotCallable, Some nodeId, None, Some actual, At site)
     state.Fresh(Some nodeId)
 
 and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
@@ -799,7 +733,7 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
       checkExpr state env thenType elseExpr
       thenType
     | None ->
-      unify state (Some nodeId) "If expression without else" TUnit thenType
+      unify state (Some nodeId) IfWithoutElse TUnit thenType
       TUnit
   | EPipe(_, lhs, parts) ->
     parts |> List.fold (inferPipePart state env) (inferExpr state env lhs)
@@ -818,19 +752,10 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
     if patternsAreValid && not (containsTaintedInferenceVariable state argType) then
       match uncoveredMatchPattern state nodeId argType cases with
       | Some MissingWildcard ->
-        state.Block(
-          NonExhaustiveMatch,
-          Some nodeId,
-          "Match is not exhaustive; "
-          + "values outside the listed patterns are not covered"
-        )
+        state.Block(NonExhaustiveMatch, Some nodeId, UncoveredPattern None)
       | Some missing ->
         let missing = missingPatternToString missing
-        state.Block(
-          NonExhaustiveMatch,
-          Some nodeId,
-          $"Match is not exhaustive; an uncovered pattern is {missing}"
-        )
+        state.Block(NonExhaustiveMatch, Some nodeId, UncoveredPattern(Some missing))
       | None -> ()
     resultType
   | ELet(nodeId, pattern, value, body) ->
@@ -863,25 +788,13 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
     match Map.tryFind name env.locals with
     | Some scheme -> instantiateScheme state (Some nodeId) scheme
     | None ->
-      state.Error(
-        UnknownVariable,
-        Some nodeId,
-        None,
-        None,
-        $"Local variable '{name}' is not in scope"
-      )
+      state.Error(UnknownVariable, Some nodeId, None, None, Identifier name)
       state.FreshTainted(Some nodeId)
   | EArg(nodeId, index) ->
     match List.tryItem index env.arguments with
     | Some typ -> typ
     | None ->
-      state.Error(
-        InvalidArgumentIndex,
-        Some nodeId,
-        None,
-        None,
-        $"Function has no argument at index {index}"
-      )
+      state.Error(InvalidArgumentIndex, Some nodeId, None, None, ArgumentIndex index)
       state.Fresh(Some nodeId)
   | EList(nodeId, elements) ->
     let elementType = state.Fresh(Some nodeId)
@@ -928,7 +841,7 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
             state.Block(
               UnsupportedConstruct,
               Some nodeId,
-              "Explicit type arguments on a non-named function are not supported"
+              ExplicitTypeArgumentsOnNonNamedFunction
             )
           inferExpr state env callee
       applyArguments state env nodeId calleeType (NEList.toList args)
@@ -947,9 +860,9 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
   | ERecordFieldAccess(nodeId, record, fieldName) ->
     let recordType = inferExpr state env record
     match normalizeAliases state (Some nodeId) Set.empty recordType with
-    | TInferenceVar _ when containsTaintedInferenceVariable state recordType ->
+    | TInferenceVariable _ when containsTaintedInferenceVariable state recordType ->
       state.FreshTainted(Some nodeId)
-    | TInferenceVar _ ->
+    | TInferenceVariable _ ->
       let fieldType = state.Fresh(Some nodeId)
       state.PendingFieldAccesses <-
         (nodeId, recordType, fieldName, fieldType) :: state.PendingFieldAccesses
@@ -977,7 +890,7 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
               Some nodeId,
               None,
               Some recordType,
-              $"Record has no field named '{fieldName}'"
+              Identifier fieldName
             )
             state.Fresh(Some nodeId)
         | _ ->
@@ -986,14 +899,14 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
             Some nodeId,
             None,
             Some recordType,
-            "Field access requires a record"
+            RecordRequiredForFieldAccess
           )
           state.Fresh(Some nodeId)
       | None ->
         if containsTaintedInferenceVariable state recordType then
           state.FreshTainted(Some nodeId)
         else
-          state.Block(AmbiguousType, Some nodeId, ambiguousRecordContext)
+          state.Block(AmbiguousType, Some nodeId, Ambiguous RecordType)
           state.Fresh(Some nodeId)
   | ERecordUpdate(nodeId, record, updates) ->
     let recordType = inferExpr state env record
@@ -1004,7 +917,7 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
         Some nodeId,
         None,
         Some recordType,
-        $"Record field '{name}' is updated more than once"
+        Duplicate(name, InRecordUpdate)
       )
     match declarationForCustom state (Some nodeId) recordType with
     | Some(_, typeArgs, declaration) ->
@@ -1028,7 +941,7 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
               Some nodeId,
               None,
               Some recordType,
-              $"Record has no field named '{name}'"
+              Identifier name
             )
             let _ = inferExpr state env value
             ()
@@ -1038,18 +951,18 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
           Some nodeId,
           None,
           Some recordType,
-          "Record update requires a record"
+          RecordRequiredForUpdate
         )
     | None ->
       if not (containsTaintedInferenceVariable state recordType) then
-        state.Block(AmbiguousType, Some nodeId, ambiguousRecordContext)
+        state.Block(AmbiguousType, Some nodeId, Ambiguous RecordType)
     recordType
   | EEnum(nodeId, name, typeArgs, caseName, fields) ->
     inferEnumConstruction state env nodeId name typeArgs caseName fields
   | EValue(nodeId, name) ->
     match resolvedName name with
     | None ->
-      state.Block(UnresolvedValueName, Some nodeId, unresolvedName "Value" name)
+      state.Block(UnresolvedValueName, Some nodeId, Unresolved name.originalName)
       state.FreshTainted(Some nodeId)
     | Some name ->
       state.AddDependency(ValueDependency name)
@@ -1065,29 +978,14 @@ and internal inferExpr (state : State) (env : Env) (expr : Expr) : StaticType =
           validateTypeClosure state (Some nodeId) typ
           typ
         | None ->
-          state.Block(
-            MissingValueSignature,
-            Some nodeId,
-            $"Signature for {displayValueName name} is not available to the checker"
-          )
+          state.Block(MissingValueSignature, Some nodeId, ValueUnavailable name)
           state.FreshTainted(Some nodeId)
   | EStatement(_, first, next) ->
-    checkExprWithContext
-      state
-      env
-      TUnit
-      first
-      "Statement before the final expression"
+    checkExprWithContext state env TUnit first StatementBeforeFinalExpression
     inferExpr state env next
   | ESelf nodeId ->
     match env.self with
     | Some typ -> typ
     | None ->
-      state.Error(
-        UnknownVariable,
-        Some nodeId,
-        None,
-        None,
-        "Self is only available while checking a function"
-      )
+      state.Error(UnknownVariable, Some nodeId, None, None, SelfOutsideFunction)
       state.Fresh(Some nodeId)
