@@ -1194,10 +1194,16 @@ type private PackageOutcome =
   | Completed of result : Dval
 
 
-/// Answers by hash, which content-addressing makes permanent. The builtin table is fixed for the
-/// process, so the resolved fn can be cached rather than its name.
+/// Answers by hash, which content-addressing makes permanent.
+///
+/// The *name* is cached, not the resolved `BuiltInFn`. Caching the resolved one assumed the builtin
+/// table is fixed for the process, and it is not: `Builtins.Http.Client.builtins` takes a
+/// `Configuration`, so two execution states can hold two different `BuiltInFn` values under one name
+/// -- one of which blocks localhost, private ranges and non-http schemes, and one of which does not.
+/// A process-wide cache of the resolved fn hands whichever was seen first to everyone afterwards.
+/// Resolving per call is one dictionary lookup against the table the caller is actually using.
 let private thinWrapperCache =
-  System.Collections.Concurrent.ConcurrentDictionary<Hash, BuiltInFn voption>()
+  System.Collections.Concurrent.ConcurrentDictionary<Hash, FQFnName.Builtin voption>()
 
 /// Structural type equality that ignores the name a type was written as.
 ///
@@ -1228,7 +1234,7 @@ and private sameTypes (a : List<TypeReference>) (b : List<TypeReference>) : bool
 let private detectThinWrapper
   (exeState : ExecutionState)
   (fn : PackageFn.PackageFn)
-  : BuiltInFn voption =
+  : FQFnName.Builtin voption =
   // The builtin's own type params are left to inference, which is what running the wrapper's body
   // would have done: that body applies the builtin with no explicit type args, which the match below
   // insists on.
@@ -1239,8 +1245,7 @@ let private detectThinWrapper
   // context. Pure builtins are the whole of the win here anyway -- `Dict.get`, `Option`, `Tuple2` --
   // so this costs nothing worth having.
   let sameSignature (bi : BuiltInFn) =
-    System.Object.ReferenceEquals(bi.capabilities, Capabilities.noCaps)
-    && sameType fn.returnType bi.returnType
+    sameType fn.returnType bi.returnType
     && List.length bi.parameters = NEList.length fn.parameters
     && List.forall2
       (fun (p : PackageFn.Parameter) (bp : BuiltInParam) -> sameType p.typ bp.typ)
@@ -1260,7 +1265,7 @@ let private detectThinWrapper
     match named.name with
     | FQFnName.Builtin b ->
       match exeState.fns.builtIn.TryGetValue b with
-      | true, bi when sameSignature bi -> ValueSome bi
+      | true, bi when sameSignature bi -> ValueSome b
       | _ -> ValueNone
     | _ -> ValueNone
   | _ -> ValueNone
@@ -1284,12 +1289,20 @@ let private thinWrapperOf
   // Explicit byref, not `match ... with | true, v`, which allocates the tuple: this runs on every
   // package call.
   let mutable cached = ValueNone
-  if thinWrapperCache.TryGetValue(fn.hash, &cached) then
-    cached
-  else
-    let found = detectThinWrapper exeState fn
-    thinWrapperCache[fn.hash] <- found
-    found
+  let name =
+    if thinWrapperCache.TryGetValue(fn.hash, &cached) then
+      cached
+    else
+      let found = detectThinWrapper exeState fn
+      thinWrapperCache[fn.hash] <- found
+      found
+
+  match name with
+  | ValueNone -> ValueNone
+  | ValueSome b ->
+    // Against this execution state's table, never a remembered `BuiltInFn`.
+    let mutable bi = Unchecked.defaultof<BuiltInFn>
+    if exeState.fns.builtIn.TryGetValue(b, &bi) then ValueSome bi else ValueNone
 
 
 /// Too many arguments for a package fn, not enough (so it stays a partial application), or exactly right

@@ -617,16 +617,29 @@ args and ignores the name.
     frame pushes per view                  5,422 -> 4,397
     viewAtSize                                46 -> 43 ms
 
-**OPEN, and it wants a real answer: eliding an effectful forwarder changes behaviour.** Without the
-`noCaps` guard now on `sameSignature`, this elides `Stdlib.HttpClient.request` -- a bare forwarder like
-any other -- and 36 testfiles fail. Reproducer:
-`Stdlib.HttpClient.request "put" "file:///etc/passwd" [] Stdlib.Blob.empty`, which should be
-`errUnsupportedProtocol` and instead reports an exception thrown inside the HTTP client
-("The 'file' scheme is not supported"), the harness counting one reported exception where it expects
-none. `requireHttp` does not read the VM, and the builtin's own capability gate runs either way, so
-neither is it. I did not find the mechanism. The guard is correct regardless -- the win is entirely
-pure forwarders -- but something on the effectful path depends on the wrapper's frame, and that is
-worth knowing before anyone relies on elision elsewhere.
+**ANSWERED, and it was not what it looked like.** The open question here was why eliding
+`Stdlib.HttpClient.request` broke 36 testfiles, including the SSRF-guard assertions
+(`get "http://localhost"` must be `errInvalidHost`). It had nothing to do with effectful builtins.
+
+The wrapper cache stored the resolved `BuiltInFn` against the package hash, reasoning that the builtin
+table is fixed for the process. It is not: `Builtins.Http.Client.builtins` takes a `Configuration`, so
+two execution states hold two different `BuiltInFn` values under one name -- one blocking localhost,
+private ranges, cloud-metadata and non-http schemes, one blocking none of it. Whichever was built
+first won for every caller after it. The cache now holds the *name*, and the builtin is resolved
+against the caller's own table; the whole suite passes with no restriction on which builtins may be
+elided, and the `noCaps` guard added for this is gone.
+
+Latent since the elision landed, and unreachable until the detector learned to see through
+`TCustomType`'s original name -- at which point `HttpClient.request`, a bare forwarder like any other,
+became elidable.
+
+**The diagnostic lesson is worth more than the fix.** It reproduced only in the *full* suite; the same
+tests pass under a filter, because a single execution state never disagrees with itself. I read that
+as "eliding effectful calls is unsafe", guarded on capabilities, and wrote it down -- which was wrong
+and would have stood as received wisdom. A bug in shared process state hides from any filter narrow
+enough to build only one of the things that disagree. When a failure needs the full suite to appear,
+suspect state shared between tests before suspecting the feature under test.
+
 
 (The paragraph that stood here proposed the frame stack as round 7's target. The probe above
 retracts it.)
